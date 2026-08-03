@@ -102,7 +102,7 @@ class SecurityHardeningTest {
         member.setStatus(1);
         when(memberDao.selectByAccount(member.getPhone())).thenReturn(member);
 
-        ShopAuthServiceImpl service = new ShopAuthServiceImpl(memberDao, memberSessionDao, redisTemplate,
+        ShopAuthServiceImpl service = new ShopAuthServiceImpl(memberDao, memberSessionDao,
                 agentService, captchaService, smsVerificationService);
         ShopLoginDTO dto = new ShopLoginDTO();
         dto.setAccount(member.getPhone());

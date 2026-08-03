@@ -672,7 +672,7 @@ CREATE TABLE `dms_performance_view_permission` (
 DROP TABLE IF EXISTS `dms_member_asset_account`;
 CREATE TABLE `dms_member_asset_account` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT 'ID',
-  `agent_id` bigint NOT NULL COMMENT '代理ID',
+  `agent_id` bigint DEFAULT NULL COMMENT '代理ID（未进入奖金体系时为空）',
   `user_id` bigint NOT NULL COMMENT '用户ID',
   `asset_code` varchar(64) NOT NULL COMMENT '资产编码',
   `asset_name` varchar(128) NOT NULL COMMENT '资产名称',
@@ -684,6 +684,7 @@ CREATE TABLE `dms_member_asset_account` (
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_agent_asset` (`agent_id`, `asset_code`),
+  UNIQUE KEY `uk_user_asset` (`user_id`, `asset_code`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_asset_code` (`asset_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='会员资产余额表';
@@ -696,7 +697,7 @@ DROP TABLE IF EXISTS `dms_member_asset_flow`;
 CREATE TABLE `dms_member_asset_flow` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `flow_no` varchar(64) NOT NULL COMMENT '流水号',
-  `agent_id` bigint NOT NULL COMMENT '代理ID',
+  `agent_id` bigint DEFAULT NULL COMMENT '代理ID（未进入奖金体系时为空）',
   `user_id` bigint NOT NULL COMMENT '用户ID',
   `related_agent_id` bigint DEFAULT NULL COMMENT '关联代理ID',
   `related_user_id` bigint DEFAULT NULL COMMENT '关联用户ID',

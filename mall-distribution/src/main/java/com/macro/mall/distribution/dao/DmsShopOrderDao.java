@@ -46,6 +46,9 @@ public interface DmsShopOrderDao {
 
     int closeAfterSale(@Param("id") Long id);
 
+    /** 查询会员名下仍有效的支付订单数（已支付/已发货/已收货，不含已全额退款关闭的订单）。 */
+    int countValidPaidOrdersByUserId(@Param("userId") Long userId);
+
     List<Long> selectExpiredPendingIds(@Param("cutoffTime") LocalDateTime cutoffTime,
                                        @Param("limit") Integer limit);
 

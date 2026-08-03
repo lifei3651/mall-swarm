@@ -65,6 +65,9 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         DmsAgent agent = agentDao.selectByUserId(current.getUserId());
         DmsMemberAssetAccount account = agent == null ? null
                 : assetAccountDao.selectByAgentIdAndAssetCode(agent.getId(), BalanceAsset.CODE);
+        if (account == null) {
+            account = assetAccountDao.selectByUserIdAndAssetCode(current.getUserId(), BalanceAsset.CODE);
+        }
         ShopWalletSummaryVO summary = new ShopWalletSummaryVO();
         summary.setBalance(account == null || account.getBalance() == null ? BigDecimal.ZERO : account.getBalance());
         summary.setHasPaymentPassword(hasText(current.getPayPasswordHash()));
@@ -214,7 +217,9 @@ public class ShopWalletServiceImpl implements ShopWalletService {
     public List<DmsMemberAssetFlow> listBalanceFlows(DmsShopMember member) {
         DmsShopMember current = requireCurrentMember(member);
         DmsAgent agent = agentDao.selectByUserId(current.getUserId());
-        return agent == null ? List.of() : memberAssetService.listFlows(agent.getId(), null);
+        return agent == null
+                ? memberAssetService.listFlows(null, current.getUserId())
+                : memberAssetService.listFlows(agent.getId(), null);
     }
 
     private DmsShopMember requireCurrentMember(DmsShopMember member) {

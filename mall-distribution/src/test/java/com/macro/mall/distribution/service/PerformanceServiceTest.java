@@ -1072,8 +1072,11 @@ public class PerformanceServiceTest {
 
         assertEquals(4, shopOrderDao.selectById(created.getOrder().getId()).getStatus());
         assertEquals(0, performanceDetailDao.sumEffectiveTeamUnits(activated.getId()));
-        assertEquals(0, accountDao.selectByAgentId(activated.getId()).getTotalOrders());
-        assertEquals(1, agentDao.selectById(activated.getId()).getAgentLevel());
+        // 全额退款且名下无其他有效支付订单：按新规则自动取消会员资格（调整为非会员），
+        // 推广身份记录移除；余额钱包和历史流水保留。
+        assertNull(agentDao.selectByUserId(member.getUserId()));
+        assertNull(agentDao.selectById(activated.getId()));
+        assertNull(accountDao.selectByAgentId(activated.getId()));
         assertEquals(unrelatedLevelBeforeRefund, agentDao.selectById(4L).getAgentLevel(),
                 "退款只能重算订单本人及其支付快照上级，不能降级无关会员");
     }

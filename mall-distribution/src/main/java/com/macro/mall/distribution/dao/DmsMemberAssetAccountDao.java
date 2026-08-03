@@ -13,6 +13,9 @@ public interface DmsMemberAssetAccountDao {
     DmsMemberAssetAccount selectByAgentIdAndAssetCode(@Param("agentId") Long agentId,
                                                       @Param("assetCode") String assetCode);
 
+    DmsMemberAssetAccount selectByUserIdAndAssetCode(@Param("userId") Long userId,
+                                                     @Param("assetCode") String assetCode);
+
     List<DmsMemberAssetAccount> selectByAgentId(@Param("agentId") Long agentId);
 
     int insert(DmsMemberAssetAccount account);
@@ -21,8 +24,17 @@ public interface DmsMemberAssetAccountDao {
                    @Param("assetCode") String assetCode,
                    @Param("amount") BigDecimal amount);
 
+    int addBalanceByUserId(@Param("userId") Long userId,
+                           @Param("assetCode") String assetCode,
+                           @Param("amount") BigDecimal amount);
+
     int subtractBalance(@Param("agentId") Long agentId,
                         @Param("assetCode") String assetCode,
                         @Param("amount") BigDecimal amount,
                         @Param("allowNegative") Integer allowNegative);
+
+    int subtractBalanceByUserId(@Param("userId") Long userId,
+                                @Param("assetCode") String assetCode,
+                                @Param("amount") BigDecimal amount,
+                                @Param("allowNegative") Integer allowNegative);
 }

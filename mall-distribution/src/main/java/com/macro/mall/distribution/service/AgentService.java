@@ -110,6 +110,16 @@ public interface AgentService {
     AgentInfoVO adjustLevel(Long id, Integer level, String reason);
 
     /**
+     * 取消会员资格（调整为非会员）：移除推广身份记录，下级团队移交原直属上级；
+     * 历史订单、奖金、余额流水与余额钱包全部保留。
+     *
+     * @param agentId 代理ID
+     * @param reason  取消原因（必填）
+     * @return 是否成功
+     */
+    boolean deactivate(Long agentId, String reason);
+
+    /**
      * 生成邀请码
      * @return 邀请码
      */

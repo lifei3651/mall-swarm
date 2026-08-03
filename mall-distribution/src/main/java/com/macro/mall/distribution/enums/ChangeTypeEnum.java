@@ -26,7 +26,10 @@ public enum ChangeTypeEnum {
     UNFREEZE(5, "解冻"),
 
     /** 信息变更 */
-    INFO_CHANGE(6, "信息变更");
+    INFO_CHANGE(6, "信息变更"),
+
+    /** 取消会员资格（调整为非会员） */
+    DEACTIVATE(7, "取消会员资格");
 
     /** 类型值 */
     private final Integer value;

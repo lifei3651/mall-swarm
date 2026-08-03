@@ -27,6 +27,12 @@
         WHERE agent_id = #{agentId} AND asset_code = #{assetCode}
     </select>
 
+    <select id="selectByUserIdAndAssetCode" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_member_asset_account
+        WHERE user_id = #{userId} AND asset_code = #{assetCode}
+    </select>
+
     <select id="selectByAgentId" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_member_asset_account
@@ -49,12 +55,30 @@
         WHERE agent_id = #{agentId} AND asset_code = #{assetCode}
     </update>
 
+    <update id="addBalanceByUserId">
+        UPDATE dms_member_asset_account
+        SET balance = balance + #{amount},
+            total_in = total_in + #{amount},
+            update_time = NOW()
+        WHERE user_id = #{userId} AND asset_code = #{assetCode}
+    </update>
+
     <update id="subtractBalance">
         UPDATE dms_member_asset_account
         SET balance = balance - #{amount},
             total_out = total_out + #{amount},
             update_time = NOW()
         WHERE agent_id = #{agentId}
+          AND asset_code = #{assetCode}
+          AND (#{allowNegative} = 1 OR balance &gt;= #{amount})
+    </update>
+
+    <update id="subtractBalanceByUserId">
+        UPDATE dms_member_asset_account
+        SET balance = balance - #{amount},
+            total_out = total_out + #{amount},
+            update_time = NOW()
+        WHERE user_id = #{userId}
           AND asset_code = #{assetCode}
           AND (#{allowNegative} = 1 OR balance &gt;= #{amount})
     </update>

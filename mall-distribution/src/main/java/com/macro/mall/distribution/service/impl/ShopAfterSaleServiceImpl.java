@@ -1,8 +1,10 @@
 package com.macro.mall.distribution.service.impl;
 
 import cn.hutool.core.util.IdUtil;
+import com.macro.mall.common.exception.ApiException;
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.common.tenant.TenantContext;
+import com.macro.mall.distribution.dao.DmsAgentDao;
 import com.macro.mall.distribution.dao.DmsShopAfterSaleDao;
 import com.macro.mall.distribution.dao.DmsShopAfterSaleItemDao;
 import com.macro.mall.distribution.dao.DmsShopOrderDao;
@@ -14,16 +16,20 @@ import com.macro.mall.distribution.dto.FinanceRefundDTO;
 import com.macro.mall.distribution.dto.AssetChangeDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleApplyDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleAuditDTO;
+import com.macro.mall.distribution.entity.DmsAgent;
 import com.macro.mall.distribution.entity.DmsShopAfterSale;
 import com.macro.mall.distribution.entity.DmsShopAfterSaleItem;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.entity.DmsShopOrderItem;
+import com.macro.mall.distribution.enums.AgentSourceTypeEnum;
+import com.macro.mall.distribution.service.AgentService;
 import com.macro.mall.distribution.service.DistributionAuditService;
 import com.macro.mall.distribution.service.MemberAssetService;
 import com.macro.mall.distribution.service.ShopAfterSaleService;
 import com.macro.mall.distribution.service.OrderBalanceAllocationService;
 import com.macro.mall.distribution.util.MemberAccountUtils;
+import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,9 +44,12 @@ import java.util.Map;
 import java.util.Objects;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
 
+    private final DmsAgentDao agentDao;
+    private final AgentService agentService;
     private final DmsShopAfterSaleDao afterSaleDao;
     private final DmsShopAfterSaleItemDao afterSaleItemDao;
     private final DmsShopOrderDao orderDao;
@@ -238,8 +247,28 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             if (afterSaleItemDao.sumApprovedQuantityByOrderId(order.getId()) >= originalQuantity) {
                 orderDao.closeAfterSale(afterSale.getOrderId());
             }
+            // 退款后退回非会员：名下已无有效支付订单时自动取消推广资格（含其下级团队自动移交）。
+            autoDemoteMemberAfterFullRefund(order);
         }
         return hydrate(afterSaleDao.selectById(id));
+    }
+
+    /**
+     * 退款后自动取消会员资格：仅处理“首单支付激活”的会员；名下还有其他有效支付订单
+     * 或存在未结算奖金/欠款时保持不变，由后台人工处理，不阻塞本次退款。
+     */
+    private void autoDemoteMemberAfterFullRefund(DmsShopOrder order) {
+        if (order == null || order.getUserId() == null) return;
+        DmsAgent agent = agentDao.selectByUserId(order.getUserId());
+        if (agent == null || !AgentSourceTypeEnum.SELF_REGISTER.getValue().equals(agent.getSourceType())) return;
+        if (orderDao.countValidPaidOrdersByUserId(order.getUserId()) > 0) return;
+        try {
+            agentService.deactivate(agent.getId(),
+                    "退款后退回非会员：名下已无有效支付订单，订单：" + order.getOrderNo());
+            log.info("退款后自动取消会员资格: userId={}, orderNo={}", order.getUserId(), order.getOrderNo());
+        } catch (ApiException e) {
+            log.warn("退款后自动取消会员资格未执行: userId={}, reason={}", order.getUserId(), e.getMessage());
+        }
     }
 
     private String generateAfterSaleNo() {

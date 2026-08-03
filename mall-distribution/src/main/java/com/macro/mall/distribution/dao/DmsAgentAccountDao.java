@@ -96,4 +96,6 @@ public interface DmsAgentAccountDao {
      * 删除账户
      */
     int deleteById(@Param("id") Long id);
+
+    int deleteByAgentId(@Param("agentId") Long agentId);
 }

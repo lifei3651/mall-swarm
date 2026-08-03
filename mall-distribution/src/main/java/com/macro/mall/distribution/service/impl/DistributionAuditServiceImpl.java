@@ -200,10 +200,7 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         DmsAgent agent = agentId != null
                 ? agentDao.selectById(agentId)
                 : agentDao.selectByUserId(member != null ? member.getUserId() : userId);
-        if (agent == null) {
-            if (member != null) {
-                Asserts.fail("该商城账号尚未完成首单或后台设级，暂未进入会员关系和奖金体系");
-            }
+        if (agent == null && member == null) {
             Asserts.fail("未找到对应会员，请使用登录账号或手机号查询");
         }
         if (member == null) member = shopMemberDao.selectByUserId(agent.getUserId());
@@ -211,14 +208,27 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         PersonProfileVO vo = new PersonProfileVO();
         vo.setMember(member);
         vo.setAgent(agent);
-        vo.setAccount(accountDao.selectByAgentId(agent.getId()));
-        vo.setPendingDebtAmount(nullToZero(clawbackDao.sumDebtByAgentId(agent.getId())));
-        vo.setOrders(getOrdersByAgentId(agent.getId()));
-        vo.setCommissions(getBonusSourcesByAgentId(agent.getId()));
-        vo.setClawbacks(clawbackDao.selectByAgentId(agent.getId()));
-        vo.setAssetAccounts(memberAssetAccountDao.selectByAgentId(agent.getId()));
-        vo.setAssetFlows(memberAssetFlowDao.selectByAgentId(agent.getId(), null));
-        vo.setWithdraws(withdrawRecordDao.selectByAgentId(agent.getId()));
+        if (agent == null) {
+            vo.setAccount(null);
+            vo.setPendingDebtAmount(BigDecimal.ZERO);
+            vo.setOrders(Collections.emptyList());
+            vo.setCommissions(Collections.emptyList());
+            vo.setClawbacks(Collections.emptyList());
+            DmsMemberAssetAccount balance = memberAssetAccountDao
+                    .selectByUserIdAndAssetCode(member.getUserId(), BalanceAsset.CODE);
+            vo.setAssetAccounts(balance == null ? Collections.emptyList() : List.of(balance));
+            vo.setAssetFlows(memberAssetFlowDao.selectByUserId(member.getUserId(), null));
+            vo.setWithdraws(Collections.emptyList());
+        } else {
+            vo.setAccount(accountDao.selectByAgentId(agent.getId()));
+            vo.setPendingDebtAmount(nullToZero(clawbackDao.sumDebtByAgentId(agent.getId())));
+            vo.setOrders(getOrdersByAgentId(agent.getId()));
+            vo.setCommissions(getBonusSourcesByAgentId(agent.getId()));
+            vo.setClawbacks(clawbackDao.selectByAgentId(agent.getId()));
+            vo.setAssetAccounts(memberAssetAccountDao.selectByAgentId(agent.getId()));
+            vo.setAssetFlows(memberAssetFlowDao.selectByAgentId(agent.getId(), null));
+            vo.setWithdraws(withdrawRecordDao.selectByAgentId(agent.getId()));
+        }
         return vo;
     }
 

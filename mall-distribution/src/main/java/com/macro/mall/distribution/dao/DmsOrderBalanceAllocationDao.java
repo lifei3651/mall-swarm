@@ -40,4 +40,6 @@ public interface DmsOrderBalanceAllocationDao {
                             @Param("currentAmount") BigDecimal currentAmount,
                             @Param("reversedAmount") BigDecimal reversedAmount,
                             @Param("status") Integer status);
+
+    int countPendingByTargetAgentId(@Param("targetAgentId") Long targetAgentId);
 }

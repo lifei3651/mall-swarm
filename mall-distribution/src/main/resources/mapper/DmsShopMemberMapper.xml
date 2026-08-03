@@ -133,7 +133,7 @@
         LEFT JOIN dms_agent parent ON parent.id = agent.parent_id
         LEFT JOIN dms_agent_account agent_account ON agent_account.agent_id = agent.id
         LEFT JOIN dms_member_asset_account cash_balance
-               ON cash_balance.agent_id = agent.id AND cash_balance.asset_code = 'CASH_BONUS'
+               ON cash_balance.user_id = m.user_id AND cash_balance.asset_code = 'CASH_BONUS'
         LEFT JOIN (
             SELECT target_agent_id, COALESCE(SUM(performance_amount), 0) AS team_performance
             FROM dms_order_performance_detail

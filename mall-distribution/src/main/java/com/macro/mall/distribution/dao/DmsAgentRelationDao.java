@@ -70,4 +70,6 @@ public interface DmsAgentRelationDao {
      * 删除关系
      */
     int deleteById(@Param("id") Long id);
+
+    int deleteByAgentId(@Param("agentId") Long agentId);
 }

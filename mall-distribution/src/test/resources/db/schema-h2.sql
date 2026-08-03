@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS dms_tenant_display_config (
 -- 会员资产余额表
 CREATE TABLE IF NOT EXISTS dms_member_asset_account (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  agent_id BIGINT NOT NULL,
+  agent_id BIGINT,
   user_id BIGINT NOT NULL,
   asset_code VARCHAR(64) NOT NULL,
   asset_name VARCHAR(128) NOT NULL,
@@ -124,14 +124,15 @@ CREATE TABLE IF NOT EXISTS dms_member_asset_account (
   total_out DECIMAL(14,2) NOT NULL DEFAULT 0,
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE (agent_id, asset_code)
+  UNIQUE (agent_id, asset_code),
+  UNIQUE (user_id, asset_code)
 );
 
 -- 会员资产流水表
 CREATE TABLE IF NOT EXISTS dms_member_asset_flow (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   flow_no VARCHAR(64) NOT NULL UNIQUE,
-  agent_id BIGINT NOT NULL,
+  agent_id BIGINT,
   user_id BIGINT NOT NULL,
   related_agent_id BIGINT,
   related_user_id BIGINT,

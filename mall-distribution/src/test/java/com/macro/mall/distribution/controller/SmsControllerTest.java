@@ -16,12 +16,15 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.startsWith;
 
 class SmsControllerTest {
 
@@ -29,6 +32,7 @@ class SmsControllerTest {
     private ValueOperations<String, String> valueOperations;
     private SmsVerificationService verificationService;
     private ShopAuthService shopAuthService;
+    private AliyunSmsSender aliyunSmsSender;
     private SmsController controller;
 
     @SuppressWarnings("unchecked")
@@ -38,10 +42,11 @@ class SmsControllerTest {
         valueOperations = mock(ValueOperations.class);
         verificationService = mock(SmsVerificationService.class);
         shopAuthService = mock(ShopAuthService.class);
+        aliyunSmsSender = mock(AliyunSmsSender.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(redisTemplate.hasKey(org.mockito.ArgumentMatchers.anyString())).thenReturn(false);
 
-        controller = new SmsController(redisTemplate, mock(AliyunSmsSender.class), verificationService, shopAuthService);
+        controller = new SmsController(redisTemplate, aliyunSmsSender, verificationService, shopAuthService);
         ReflectionTestUtils.setField(controller, "providerEnabled", false);
         ReflectionTestUtils.setField(controller, "exposeCode", true);
         ReflectionTestUtils.setField(controller, "testCode", "123456");
@@ -85,6 +90,18 @@ class SmsControllerTest {
         assertNotEquals(200, result.getCode());
         verify(shopAuthService, never()).requireMember(org.mockito.ArgumentMatchers.any());
         verifyNoInteractions(valueOperations);
+    }
+
+    @Test
+    void dailyLimitBlocksExcessiveSends() {
+        ReflectionTestUtils.setField(controller, "providerEnabled", true);
+        ReflectionTestUtils.setField(controller, "dailyLimitPerPhone", 10);
+        when(valueOperations.increment(startsWith("sms:daily:"))).thenReturn(11L);
+
+        CommonResult<String> result = controller.sendCode(request("13888888888", null, 1), null);
+
+        assertNotEquals(200, result.getCode());
+        verify(aliyunSmsSender, never()).sendVerificationCode(anyString(), anyInt(), anyString());
     }
 
     private SmsCodeRequestDTO request(String phone, String code, int bizType) {

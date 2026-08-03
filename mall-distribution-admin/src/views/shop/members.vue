@@ -127,7 +127,7 @@
               {{ currentMember.promotionActivated ? '调整卡级' : '设定级别' }}
             </el-button>
             <el-button v-if="currentMember.promotionActivated && canManageDistribution" type="success" @click="openTeam(currentMember)">查看团队</el-button>
-            <el-dropdown v-if="currentMember.promotionActivated && canManageAssets" trigger="click" @command="(command) => openAssetAdjust(currentMember, command)">
+            <el-dropdown v-if="canManageAssets" trigger="click" @command="(command) => openAssetAdjust(currentMember, command)">
               <el-button type="primary">调整余额</el-button>
               <template #dropdown>
                 <el-dropdown-menu>
@@ -267,7 +267,7 @@
     <el-dialog v-model="levelVisible" :title="levelForm.promotionActivated ? '会员手工调级' : '开通会员并设定卡级'" width="540px" destroy-on-close>
       <el-alert
         :title="levelForm.promotionActivated
-          ? '提交后立即升/降级并写入变更日志。历史订单、历史业绩和历史奖金不重算，新级别影响之后产生的订单。'
+          ? '提交后立即升/降级并写入变更日志。历史订单、历史业绩和历史奖金不重算，新级别影响之后产生的订单；也可直接调整为非会员。'
           : '提交后立即创建推广身份、奖金账户和上下级关系，并按所选卡级生效；不补发开通前的历史奖金。'"
         type="warning"
         :closable="false"
@@ -281,10 +281,18 @@
           <el-input :model-value="levelForm.promotionActivated ? levelName(levelForm.oldLevel) : '未进入奖金体系'" disabled />
         </el-form-item>
         <el-form-item label="调整为" required>
-          <el-select v-model="levelForm.level" placeholder="请选择1–8级" style="width:100%">
+          <el-select v-model="levelForm.level" placeholder="请选择目标卡级（含非会员）" style="width:100%">
+            <el-option v-if="levelForm.promotionActivated" key="0" label="非会员（取消推广资格）" :value="0" />
             <el-option v-for="item in levels" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </el-form-item>
+        <el-alert
+          v-if="levelForm.level === 0"
+          title="取消后该会员不再进入奖金体系；其下级团队自动移交原上级（无上级则成为根节点），余额和历史奖金保留；有未结算奖金时不允许取消。"
+          type="error"
+          :closable="false"
+          show-icon
+        />
         <el-form-item label="调整原因" required>
           <el-input v-model="levelForm.reason" type="textarea" :rows="3" maxlength="300" show-word-limit placeholder="将写入会员变更日志和后台操作日志" />
         </el-form-item>
@@ -721,6 +729,7 @@ const openAssetAdjust = (row, command) => {
   assetForm.value = {
     operationType: command,
     agentId: row.agentId,
+    userId: row.userId,
     memberId: row.id,
     memberAccount: row.memberAccount,
     memberName: row.nickname || row.username || row.phone,
@@ -752,6 +761,7 @@ const submitAssetAdjust = async () => {
     const request = assetForm.value.operationType === 'ISSUE' ? issueAsset : deductAsset
     await request({
       agentId: assetForm.value.agentId,
+      userId: assetForm.value.userId,
       amount: assetForm.value.amount,
       bizType: 'MANUAL_MEMBER_ADJUST',
       bizId: String(assetForm.value.memberId),
@@ -768,7 +778,9 @@ const submitAssetAdjust = async () => {
 }
 
 const submitLevelAdjust = async () => {
-  if (!levelForm.value.level) return ElMessage.warning('请选择目标卡级')
+  if (levelForm.value.level === null || levelForm.value.level === undefined || levelForm.value.level === '') {
+    return ElMessage.warning('请选择目标卡级')
+  }
   if (levelForm.value.promotionActivated && Number(levelForm.value.level) === Number(levelForm.value.oldLevel)) {
     return ElMessage.warning('请选择不同的目标卡级')
   }
@@ -779,7 +791,9 @@ const submitLevelAdjust = async () => {
       level: levelForm.value.level,
       reason: levelForm.value.reason.trim(),
     })
-    ElMessage.success(levelForm.value.promotionActivated ? '卡级已调整并记录日志' : '已开通推广身份并设定卡级')
+    ElMessage.success(Number(levelForm.value.level) === 0
+      ? '已取消会员资格，调整为非会员'
+      : (levelForm.value.promotionActivated ? '卡级已调整并记录日志' : '已开通推广身份并设定卡级'))
     levelVisible.value = false
     await refreshCurrentProfile()
   } finally {

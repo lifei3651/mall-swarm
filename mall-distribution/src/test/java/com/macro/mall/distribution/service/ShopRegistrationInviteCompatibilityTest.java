@@ -76,8 +76,6 @@ class ShopRegistrationInviteCompatibilityTest {
     @Test
     void registrationAcceptsLegacyAgentInviteCodeAndBindsDirectInviter() {
         String phone = "15500000123";
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("sms:1:" + phone)).thenReturn("123456");
         when(memberDao.countForFoundingMember()).thenReturn(5L);
         when(memberDao.selectByInviteCode("OLDLINK1")).thenReturn(null);
 

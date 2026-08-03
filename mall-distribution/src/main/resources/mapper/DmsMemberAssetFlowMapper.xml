@@ -38,6 +38,17 @@
         ORDER BY create_time DESC, id DESC
     </select>
 
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT id, flow_no, agent_id, user_id, related_agent_id, related_user_id, asset_code, asset_name,
+               change_type, amount, balance_after, biz_type, biz_id, remark, create_time
+        FROM dms_member_asset_flow
+        WHERE user_id = #{userId}
+        <if test="assetCode != null and assetCode != ''">
+            AND asset_code = #{assetCode}
+        </if>
+        ORDER BY create_time DESC, id DESC
+    </select>
+
     <select id="selectBalanceFlowList" resultType="com.macro.mall.distribution.vo.BalanceFlowVO">
         SELECT f.id,
                f.flow_no AS flowNo,

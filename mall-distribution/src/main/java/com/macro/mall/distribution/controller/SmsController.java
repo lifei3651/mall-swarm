@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.SecureRandom;
+import java.time.LocalDate;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -46,6 +47,10 @@ public class SmsController {
     @Value("${sms.test-code:}")
     private String testCode;
 
+    /** 同一手机号每日可发送短信验证码的次数上限，防止短信资费被恶意刷取。 */
+    @Value("${sms.daily-limit-per-phone:10}")
+    private int dailyLimitPerPhone = 10;
+
     @Operation(summary = "发送验证码")
     @PostMapping("/send")
     public CommonResult<String> sendCode(@RequestBody SmsCodeRequestDTO dto,
@@ -71,6 +76,14 @@ public class SmsController {
 
         String codeKey = SMS_CODE_KEY_PREFIX + bizType + ":" + phone;
         if (providerEnabled) {
+            String dailyKey = SMS_CODE_KEY_PREFIX + "daily:" + phone + ":" + LocalDate.now();
+            Long sentToday = redisTemplate.opsForValue().increment(dailyKey);
+            if (sentToday != null && sentToday == 1L) {
+                redisTemplate.expire(dailyKey, 1, TimeUnit.DAYS);
+            }
+            if (sentToday != null && sentToday > dailyLimitPerPhone) {
+                return CommonResult.failed("该手机号今日短信发送次数已达上限，请明天再试");
+            }
             aliyunSmsSender.sendVerificationCode(phone, bizType, code);
         }
         // 短信平台接受请求后再保存验证码，发送失败不会留下可用验证码。
@@ -78,6 +91,8 @@ public class SmsController {
 
         // 设置发送频率限制（60秒）
         redisTemplate.opsForValue().set(rateLimitKey, "1", 60, TimeUnit.SECONDS);
+        // 新验证码生成后重置该号码此业务类型的错误次数
+        smsVerificationService.resetAttempts(phone, bizType);
 
         if (providerEnabled) {
             return CommonResult.success(null, "发送成功");

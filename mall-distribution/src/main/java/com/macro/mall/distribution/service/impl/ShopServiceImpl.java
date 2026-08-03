@@ -918,7 +918,9 @@ public class ShopServiceImpl implements ShopService {
         if (agent == null) {
             ShopProfileVO vo = new ShopProfileVO();
             vo.setCanViewTeamPerformance(false);
-            vo.setAssetAccounts(Collections.emptyList());
+            vo.setAssetAccounts(userId == null
+                    ? Collections.emptyList()
+                    : memberAssetService.listAccounts(null, userId));
             vo.setOrders(userId == null ? Collections.emptyList() : listOrders(userId, null));
             vo.setDisplayConfig(getDisplayConfig(resolveTenantId(null)));
             return vo;
@@ -966,7 +968,7 @@ public class ShopServiceImpl implements ShopService {
         vo.setDisplayConfig(getDisplayConfig(resolveTenantId(null)));
         if (agent == null) {
             vo.setCanViewTeamPerformance(false);
-            vo.setAssetAccounts(Collections.emptyList());
+            vo.setAssetAccounts(memberAssetService.listAccounts(null, member.getUserId()));
             return vo;
         }
         vo.setAccount(accountDao.selectByAgentId(agent.getId()));

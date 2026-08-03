@@ -208,4 +208,8 @@
         WHERE id = #{id}
     </update>
 
+    <delete id="hardDeleteById">
+        DELETE FROM dms_agent WHERE id = #{id}
+    </delete>
+
 </mapper>

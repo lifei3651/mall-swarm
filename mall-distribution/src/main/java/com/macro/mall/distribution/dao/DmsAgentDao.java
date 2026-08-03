@@ -85,4 +85,7 @@ public interface DmsAgentDao {
      * 删除代理（逻辑删除）
      */
     int deleteById(@Param("id") Long id);
+
+    /** 物理删除代理记录，用于后台“取消会员资格（调整为非会员）”。 */
+    int hardDeleteById(@Param("id") Long id);
 }

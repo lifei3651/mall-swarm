@@ -1,0 +1,89 @@
+package com.macro.mall.distribution.service;
+
+import com.macro.mall.common.exception.ApiException;
+import com.macro.mall.distribution.service.impl.SmsVerificationServiceImpl;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+
+import java.util.concurrent.TimeUnit;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * 短信验证码错误次数限制测试：单个验证码连续错误 5 次即作废，防止暴力枚举。
+ */
+@ExtendWith(MockitoExtension.class)
+class SmsVerificationAttemptLimitTest {
+
+    private static final String PHONE = "13900000000";
+
+    @Mock private StringRedisTemplate redisTemplate;
+    @Mock private ValueOperations<String, String> valueOperations;
+
+    private SmsVerificationServiceImpl service;
+
+    @BeforeEach
+    void setUp() {
+        service = new SmsVerificationServiceImpl(redisTemplate);
+    }
+
+    @Test
+    void wrongCodeFiveTimesInvalidatesTheCode() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("sms:3:" + PHONE)).thenReturn("123456");
+        when(valueOperations.increment("sms:attempt:3:" + PHONE))
+                .thenReturn(1L, 2L, 3L, 4L, 5L);
+
+        for (int i = 1; i <= 4; i++) {
+            ApiException error = assertThrows(ApiException.class,
+                    () -> service.verifyAndConsume(PHONE, "000000", 3));
+            assertEquals("验证码错误", error.getMessage());
+        }
+
+        ApiException locked = assertThrows(ApiException.class,
+                () -> service.verifyAndConsume(PHONE, "000000", 3));
+        assertEquals("验证码错误次数过多，请重新获取", locked.getMessage());
+
+        verify(redisTemplate).delete("sms:3:" + PHONE);
+        verify(redisTemplate).expire(eq("sms:attempt:3:" + PHONE), eq(5L), eq(TimeUnit.MINUTES));
+    }
+
+    @Test
+    void correctCodeConsumesAndClearsAttempts() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("sms:3:" + PHONE)).thenReturn("123456");
+
+        service.verifyAndConsume(PHONE, "123456", 3);
+
+        verify(redisTemplate).delete("sms:3:" + PHONE);
+        verify(redisTemplate).delete("sms:attempt:3:" + PHONE);
+        verify(valueOperations, never()).increment(anyString());
+    }
+
+    @Test
+    void expiredOrMissingCodeIsRejected() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("sms:3:" + PHONE)).thenReturn(null);
+
+        ApiException error = assertThrows(ApiException.class,
+                () -> service.verifyAndConsume(PHONE, "123456", 3));
+        assertEquals("验证码不存在或已过期", error.getMessage());
+    }
+
+    @Test
+    void resetAttemptsClearsCounter() {
+        service.resetAttempts(PHONE, 3);
+        verify(redisTemplate).delete("sms:attempt:3:" + PHONE);
+    }
+}

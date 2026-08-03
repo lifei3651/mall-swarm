@@ -16,6 +16,9 @@ public interface DmsMemberAssetFlowDao {
     List<DmsMemberAssetFlow> selectByAgentId(@Param("agentId") Long agentId,
                                              @Param("assetCode") String assetCode);
 
+    List<DmsMemberAssetFlow> selectByUserId(@Param("userId") Long userId,
+                                            @Param("assetCode") String assetCode);
+
     List<BalanceFlowVO> selectBalanceFlowList(@Param("keyword") String keyword,
                                                @Param("direction") String direction,
                                               @Param("sourceType") String sourceType,

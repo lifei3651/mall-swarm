@@ -215,6 +215,12 @@
         WHERE id = #{id}
     </update>
 
+    <select id="countValidPaidOrdersByUserId" resultType="int">
+        SELECT COUNT(*)
+        FROM dms_shop_order
+        WHERE user_id = #{userId} AND status IN (1, 2, 3)
+    </select>
+
     <select id="selectExpiredPendingIds" resultType="long">
         SELECT id
         FROM dms_shop_order

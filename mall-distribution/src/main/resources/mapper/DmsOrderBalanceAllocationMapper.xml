@@ -120,4 +120,10 @@
             update_time = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
+
+    <select id="countPendingByTargetAgentId" resultType="int">
+        SELECT COUNT(*)
+        FROM dms_order_balance_allocation
+        WHERE target_agent_id = #{targetAgentId} AND status = 0
+    </select>
 </mapper>

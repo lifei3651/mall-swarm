@@ -11,6 +11,9 @@ import com.macro.mall.distribution.dao.DmsAgentAccountDao;
 import com.macro.mall.distribution.dao.DmsAgentChangeLogDao;
 import com.macro.mall.distribution.dao.DmsAgentDao;
 import com.macro.mall.distribution.dao.DmsAgentRelationDao;
+import com.macro.mall.distribution.dao.DmsCommissionClawbackDao;
+import com.macro.mall.distribution.dao.DmsCommissionRecordDao;
+import com.macro.mall.distribution.dao.DmsOrderBalanceAllocationDao;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsLineChangeApplicationDao;
 import com.macro.mall.distribution.dto.AgentRegisterDTO;
@@ -68,6 +71,9 @@ public class AgentServiceImpl implements AgentService {
     private final DmsAgentChangeLogDao changeLogDao;
     private final DmsShopMemberDao shopMemberDao;
     private final DmsLineChangeApplicationDao lineChangeApplicationDao;
+    private final DmsCommissionRecordDao commissionDao;
+    private final DmsOrderBalanceAllocationDao orderBalanceAllocationDao;
+    private final DmsCommissionClawbackDao clawbackDao;
     private final AgentRelationService relationService;
     private final CommissionService commissionService;
     private final PerformanceService performanceService;
@@ -404,6 +410,106 @@ public class AgentServiceImpl implements AgentService {
         changeLog.setOperatorType(admin == null ? 1 : 2);
         changeLogDao.insert(changeLog);
         return convertToVO(agentDao.selectById(id));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean deactivate(Long agentId, String reason) {
+        if (reason == null || reason.isBlank()) Asserts.fail("请输入取消会员资格的原因");
+        DmsAgent agent = agentDao.selectById(agentId);
+        if (agent == null) Asserts.fail("会员不存在");
+        // 未结算完不允许取消：待结算奖金、待结算订单资金归集、退款追回欠款均视为未结清。
+        if (!commissionDao.selectByAgentIdAndStatus(agentId, CommissionStatusEnum.PENDING.getValue()).isEmpty()) {
+            Asserts.fail("该会员还有待结算奖金，请先结算完成后再取消会员资格");
+        }
+        if (orderBalanceAllocationDao.countPendingByTargetAgentId(agentId) > 0) {
+            Asserts.fail("该会员还有待结算的订单资金归集，请先结算完成后再取消会员资格");
+        }
+        BigDecimal debt = clawbackDao.sumDebtByAgentId(agentId);
+        if (debt != null && debt.compareTo(BigDecimal.ZERO) > 0) {
+            Asserts.fail("该会员还有退款追回欠款，请先处理后再取消会员资格");
+        }
+        Long oldParentAgentId = agent.getParentId();
+        DmsAgent oldParent = oldParentAgentId == null ? null : agentDao.selectById(oldParentAgentId);
+        List<DmsAgent> children = agentDao.selectByParentId(agentId);
+
+        // 1. 该会员的完整下级团队整体移交其原直属上级（无上级则提升为根节点），团队关系与历史数据保持不变。
+        String moveReason = reason.trim() + "（取消会员资格：" + agent.getAgentName() + "，其下级团队移交原上级）";
+        for (DmsAgent child : children) {
+            if (oldParent != null) {
+                AgentSwitchLineDTO dto = new AgentSwitchLineDTO();
+                dto.setAgentId(child.getId());
+                dto.setNewParentAgentId(oldParent.getId());
+                dto.setReason(moveReason);
+                switchLine(dto);
+            } else {
+                reRootSubtree(child, moveReason);
+            }
+        }
+
+        // 2. 清理该会员自己的推广身份记录；历史订单、奖金、余额流水与余额钱包保留。
+        relationDao.deleteByAgentId(agentId);
+        accountDao.deleteByAgentId(agentId);
+        agentDao.hardDeleteById(agentId);
+
+        // 3. 变更留痕。
+        DmsAgentChangeLog changeLog = new DmsAgentChangeLog();
+        changeLog.setAgentId(agentId);
+        changeLog.setUserId(agent.getUserId());
+        changeLog.setChangeType(ChangeTypeEnum.DEACTIVATE.getValue());
+        changeLog.setOldLevel(agent.getAgentLevel());
+        changeLog.setNewLevel(null);
+        changeLog.setChangeReason(reason.trim());
+        changeLog.setChangeDetail("{\"action\":\"deactivate_distribution\",\"effect\":\"removed_from_bonus_system\",\"historyPreserved\":true}");
+        DmsAdminUser admin = AdminContext.get();
+        changeLog.setOperatorId(admin == null ? 0L : admin.getId());
+        changeLog.setOperatorName(admin == null ? "system" : admin.getUsername());
+        changeLog.setOperatorType(admin == null ? 1 : 2);
+        changeLogDao.insert(changeLog);
+
+        // 4. 刷新原上级团队人数。
+        if (oldParentAgentId != null) {
+            updateTeamMemberCount(oldParentAgentId);
+        }
+        log.info("取消会员资格成功: agentId={}, userId={}, reason={}", agentId, agent.getUserId(), reason);
+        return true;
+    }
+
+    /** 无上级可移交时，把被取消会员的直接下级子树整体提升为根节点。 */
+    private void reRootSubtree(DmsAgent child, String reason) {
+        Map<Long, DmsAgent> subtree = new LinkedHashMap<>();
+        subtree.put(child.getId(), child);
+        for (DmsAgentRelation relation : relationDao.selectAllDescendants(child.getId())) {
+            DmsAgent descendant = agentDao.selectById(relation.getAgentId());
+            if (descendant != null) subtree.putIfAbsent(descendant.getId(), descendant);
+        }
+        relationDao.invalidRelationsByAgentIds(new ArrayList<>(subtree.keySet()), reason);
+
+        child.setParentId(null);
+        child.setAncestorIds(null);
+        child.setLevelDepth(1);
+        agentDao.update(child);
+        DmsShopMember childMember = shopMemberDao.selectByUserId(child.getUserId());
+        if (childMember != null) {
+            shopMemberDao.updateInviterId(childMember.getId(), null);
+        }
+
+        List<DmsAgent> descendants = subtree.values().stream()
+                .filter(item -> !item.getId().equals(child.getId()))
+                .sorted(Comparator.comparing(DmsAgent::getLevelDepth, Comparator.nullsLast(Integer::compareTo)))
+                .toList();
+        for (DmsAgent descendant : descendants) {
+            DmsAgent parent = agentDao.selectById(descendant.getParentId());
+            if (parent == null) Asserts.fail("下级会员的直属上级不存在，无法重建关系");
+            descendant.setAncestorIds(parent.getAncestorIds() == null || parent.getAncestorIds().isBlank()
+                    ? String.valueOf(parent.getId()) : parent.getAncestorIds() + "," + parent.getId());
+            descendant.setLevelDepth(parent.getLevelDepth() + 1);
+            agentDao.update(descendant);
+            if (!relationService.bindRelation(descendant.getUserId(), descendant.getId(), parent.getUserId(),
+                    parent.getId(), BindTypeEnum.ADMIN_BIND.getValue())) {
+                Asserts.fail("下级会员关系重建失败");
+            }
+        }
     }
 
     @Override

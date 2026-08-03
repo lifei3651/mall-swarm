@@ -25,7 +25,6 @@ import com.macro.mall.distribution.vo.ShopAuthVO;
 import com.macro.mall.distribution.enums.AgentLevelEnum;
 import com.macro.mall.distribution.util.PhoneNumberUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,17 +45,9 @@ public class ShopAuthServiceImpl implements ShopAuthService {
 
     private final DmsShopMemberDao memberDao;
     private final DmsShopMemberSessionDao sessionDao;
-    private final StringRedisTemplate redisTemplate;
     private final AgentService agentService;
     private final LoginCaptchaService loginCaptchaService;
     private final SmsVerificationService smsVerificationService;
-
-    /**
-     * 获取短信验证码 Redis Key
-     */
-    private String getSmsCodeKey(int bizType, String phone) {
-        return "sms:" + bizType + ":" + phone;
-    }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -75,16 +66,8 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             Asserts.fail("该用户名已被使用，请更换用户名");
         }
 
-        // 强制验证短信验证码
-        if (dto.getSmsCode() == null || dto.getSmsCode().isBlank()) {
-            Asserts.fail("请输入短信验证码");
-        }
-        String cacheCode = redisTemplate.opsForValue().get(getSmsCodeKey(SMS_BIZ_TYPE_REGISTER, dto.getPhone()));
-        if (cacheCode == null || !cacheCode.equals(dto.getSmsCode())) {
-            Asserts.fail("验证码错误或已过期");
-        }
-        // 验证通过，删除已使用的验证码
-        redisTemplate.delete(getSmsCodeKey(SMS_BIZ_TYPE_REGISTER, dto.getPhone()));
+        // 强制验证短信验证码（含错误次数限制，连续错误会作废验证码）
+        smsVerificationService.verifyAndConsume(dto.getPhone(), dto.getSmsCode(), SMS_BIZ_TYPE_REGISTER);
 
         // 新部署且还没有会员时，允许创建唯一的创始会员；之后始终要求有效邀请码。
         // countForFoundingMember 使用行锁，避免并发注册时出现两个根节点。
@@ -204,11 +187,17 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public AgentInfoVO adjustMemberLevel(Long memberId, Integer level, String reason) {
-        if (AgentLevelEnum.getByValue(level) == null) Asserts.fail("会员级别不正确");
         if (reason == null || reason.isBlank()) Asserts.fail("请输入调级原因");
         DmsShopMember member = memberDao.selectById(memberId);
         if (member == null) Asserts.fail("商城账号不存在");
         AgentInfoVO agent = agentService.getAgentByUserId(member.getUserId());
+        if (level != null && level == 0) {
+            // 调整为非会员：取消推广资格（下级团队自动移交原上级，余额与历史数据保留）。
+            if (agent == null) Asserts.fail("该账号尚未进入奖金体系，无需取消会员资格");
+            agentService.deactivate(agent.getId(), reason.trim());
+            return null;
+        }
+        if (AgentLevelEnum.getByValue(level) == null) Asserts.fail("会员级别不正确");
         if (agent == null) {
             return activateMember(member.getUserId(), level, reason.trim());
         }
@@ -291,15 +280,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
 
         if ("sms".equals(loginType)) {
             // 短信验证码登录
-            if (dto.getSmsCode() == null || dto.getSmsCode().isBlank()) {
-                Asserts.fail("验证码不能为空");
-            }
-            String cacheCode = redisTemplate.opsForValue().get(getSmsCodeKey(SMS_BIZ_TYPE_LOGIN, account));
-            if (cacheCode == null || !cacheCode.equals(dto.getSmsCode())) {
-                Asserts.fail("验证码错误或已过期");
-            }
-            // 验证通过，删除已使用的验证码
-            redisTemplate.delete(getSmsCodeKey(SMS_BIZ_TYPE_LOGIN, account));
+            smsVerificationService.verifyAndConsume(account, dto.getSmsCode(), SMS_BIZ_TYPE_LOGIN);
         } else {
             // 密码登录
             if (dto.getPassword() == null || dto.getPassword().isBlank()) {
@@ -405,11 +386,8 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             Asserts.fail("密码至少需要6位");
         }
 
-        // 验证短信验证码
-        String cacheCode = redisTemplate.opsForValue().get(getSmsCodeKey(SMS_BIZ_TYPE_RESET_PASSWORD, phone));
-        if (cacheCode == null || !cacheCode.equals(smsCode)) {
-            Asserts.fail("验证码错误或已过期");
-        }
+        // 验证短信验证码（含错误次数限制）
+        smsVerificationService.verifyAndConsume(phone, smsCode, SMS_BIZ_TYPE_RESET_PASSWORD);
 
         // 查找会员
         DmsShopMember member = memberDao.selectByPhone(phone);
@@ -422,8 +400,6 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         memberDao.clearLoginLock(member.getId());
         sessionDao.disableByMemberId(member.getId());
 
-        // 删除已使用的验证码
-        redisTemplate.delete(getSmsCodeKey(SMS_BIZ_TYPE_RESET_PASSWORD, phone));
     }
 
     @Override

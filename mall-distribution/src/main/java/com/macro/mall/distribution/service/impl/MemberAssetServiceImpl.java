@@ -36,15 +36,19 @@ public class MemberAssetServiceImpl implements MemberAssetService {
 
     @Override
     public List<DmsMemberAssetAccount> listAccounts(Long agentId, Long userId) {
-        DmsAgent agent = resolveAgent(agentId, userId);
-        DmsMemberAssetAccount account = accountDao.selectByAgentIdAndAssetCode(agent.getId(), BalanceAsset.CODE);
+        WalletOwner owner = resolveWalletOwner(agentId, userId);
+        DmsMemberAssetAccount account = owner.agent != null
+                ? accountDao.selectByAgentIdAndAssetCode(owner.agent.getId(), BalanceAsset.CODE)
+                : accountDao.selectByUserIdAndAssetCode(owner.member.getUserId(), BalanceAsset.CODE);
         return account == null ? List.of() : List.of(account);
     }
 
     @Override
     public List<DmsMemberAssetFlow> listFlows(Long agentId, Long userId) {
-        DmsAgent agent = resolveAgent(agentId, userId);
-        return flowDao.selectByAgentId(agent.getId(), BalanceAsset.CODE);
+        WalletOwner owner = resolveWalletOwner(agentId, userId);
+        return owner.agent != null
+                ? flowDao.selectByAgentId(owner.agent.getId(), BalanceAsset.CODE)
+                : flowDao.selectByUserId(owner.member.getUserId(), BalanceAsset.CODE);
     }
 
     @Override
@@ -111,12 +115,13 @@ public class MemberAssetServiceImpl implements MemberAssetService {
             Asserts.fail("资产数量必须大于0");
         }
         DmsAgent agent = resolveAgent(dto.getAgentId(), dto.getUserId());
-        ensureAccount(agent);
+        WalletOwner owner = ownerOf(agent);
+        ensureAccount(owner);
         if (accountDao.subtractBalance(agent.getId(), BalanceAsset.CODE, dto.getAmount(), 1) <= 0) {
             Asserts.fail("系统余额冲回失败");
         }
         DmsMemberAssetAccount account = accountDao.selectByAgentIdAndAssetCode(agent.getId(), BalanceAsset.CODE);
-        return insertFlow(agent, 5, dto.getAmount(), account.getBalance(), dto.getBizType(), dto.getBizId(),
+        return insertFlow(owner, 5, dto.getAmount(), account.getBalance(), dto.getBizType(), dto.getBizId(),
                 dto.getRequestId(), dto.getRemark(), null);
     }
 
@@ -128,20 +133,20 @@ public class MemberAssetServiceImpl implements MemberAssetService {
         }
         DmsAgent fromAgent = resolveAgent(dto.getFromAgentId(), dto.getFromUserId());
         DmsAgent toAgent = resolveAgent(dto.getToAgentId(), dto.getToUserId());
-        ensureAccount(fromAgent);
+        ensureAccount(ownerOf(fromAgent));
 
         int updated = accountDao.subtractBalance(fromAgent.getId(), BalanceAsset.CODE, dto.getAmount(), 0);
         if (updated <= 0) {
             Asserts.fail("资产余额不足");
         }
         DmsMemberAssetAccount fromAccount = accountDao.selectByAgentIdAndAssetCode(fromAgent.getId(), BalanceAsset.CODE);
-        insertFlow(fromAgent, 3, dto.getAmount(), fromAccount.getBalance(),
+        insertFlow(ownerOf(fromAgent), 3, dto.getAmount(), fromAccount.getBalance(),
                 dto.getBizType(), dto.getBizId(), null, dto.getRemark(), toAgent);
 
-        ensureAccount(toAgent);
+        ensureAccount(ownerOf(toAgent));
         accountDao.addBalance(toAgent.getId(), BalanceAsset.CODE, dto.getAmount());
         DmsMemberAssetAccount toAccount = accountDao.selectByAgentIdAndAssetCode(toAgent.getId(), BalanceAsset.CODE);
-        insertFlow(toAgent, 4, dto.getAmount(), toAccount.getBalance(),
+        insertFlow(ownerOf(toAgent), 4, dto.getAmount(), toAccount.getBalance(),
                 dto.getBizType(), dto.getBizId(), null, dto.getRemark(), fromAgent);
         operationLogService.log("ASSET", "TRANSFER", "MEMBER_ASSET", fromAgent.getId() + "->" + toAgent.getId(),
                 null, dto.toString(), memberLabel(fromAgent.getUserId()) + "向" + memberLabel(toAgent.getUserId())
@@ -154,11 +159,15 @@ public class MemberAssetServiceImpl implements MemberAssetService {
         if (dto.getAmount() == null || dto.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             Asserts.fail("资产数量必须大于0");
         }
-        DmsAgent agent = resolveAgent(dto.getAgentId(), dto.getUserId());
-        ensureAccount(agent);
-        accountDao.addBalance(agent.getId(), BalanceAsset.CODE, dto.getAmount());
-        DmsMemberAssetAccount account = accountDao.selectByAgentIdAndAssetCode(agent.getId(), BalanceAsset.CODE);
-        return insertFlow(agent, changeType, dto.getAmount(), account.getBalance(),
+        WalletOwner owner = resolveWalletOwner(dto.getAgentId(), dto.getUserId());
+        ensureAccount(owner);
+        if (owner.agent != null) {
+            accountDao.addBalance(owner.agent.getId(), BalanceAsset.CODE, dto.getAmount());
+        } else {
+            accountDao.addBalanceByUserId(owner.member.getUserId(), BalanceAsset.CODE, dto.getAmount());
+        }
+        DmsMemberAssetAccount account = currentAccount(owner);
+        return insertFlow(owner, changeType, dto.getAmount(), account.getBalance(),
                 dto.getBizType(), dto.getBizId(), dto.getRequestId(), dto.getRemark(), null);
     }
 
@@ -166,26 +175,28 @@ public class MemberAssetServiceImpl implements MemberAssetService {
         if (dto.getAmount() == null || dto.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             Asserts.fail("资产数量必须大于0");
         }
-        DmsAgent agent = resolveAgent(dto.getAgentId(), dto.getUserId());
-        ensureAccount(agent);
-        int updated = accountDao.subtractBalance(agent.getId(), BalanceAsset.CODE, dto.getAmount(), 0);
+        WalletOwner owner = resolveWalletOwner(dto.getAgentId(), dto.getUserId());
+        ensureAccount(owner);
+        int updated = owner.agent != null
+                ? accountDao.subtractBalance(owner.agent.getId(), BalanceAsset.CODE, dto.getAmount(), 0)
+                : accountDao.subtractBalanceByUserId(owner.member.getUserId(), BalanceAsset.CODE, dto.getAmount(), 0);
         if (updated <= 0) {
             Asserts.fail("资产余额不足");
         }
-        DmsMemberAssetAccount account = accountDao.selectByAgentIdAndAssetCode(agent.getId(), BalanceAsset.CODE);
-        return insertFlow(agent, changeType, dto.getAmount(), account.getBalance(),
+        DmsMemberAssetAccount account = currentAccount(owner);
+        return insertFlow(owner, changeType, dto.getAmount(), account.getBalance(),
                 dto.getBizType(), dto.getBizId(), dto.getRequestId(), dto.getRemark(), null);
     }
 
-    private DmsMemberAssetFlow insertFlow(DmsAgent agent, Integer changeType,
+    private DmsMemberAssetFlow insertFlow(WalletOwner owner, Integer changeType,
                                           BigDecimal amount, BigDecimal balanceAfter, String bizType,
                                           String bizId, String requestId, String remark, DmsAgent relatedAgent) {
         DmsMemberAssetFlow flow = new DmsMemberAssetFlow();
         flow.setFlowNo(requestId == null || requestId.isBlank()
                 ? "ASF" + IdUtil.getSnowflakeNextIdStr()
                 : requestFlowNo(requestId));
-        flow.setAgentId(agent.getId());
-        flow.setUserId(agent.getUserId());
+        flow.setAgentId(owner.agent == null ? null : owner.agent.getId());
+        flow.setUserId(owner.agent != null ? owner.agent.getUserId() : owner.member.getUserId());
         flow.setRelatedAgentId(relatedAgent == null ? null : relatedAgent.getId());
         flow.setRelatedUserId(relatedAgent == null ? null : relatedAgent.getUserId());
         flow.setAssetCode(BalanceAsset.CODE);
@@ -213,14 +224,14 @@ public class MemberAssetServiceImpl implements MemberAssetService {
         return "ADM" + normalized;
     }
 
-    private void ensureAccount(DmsAgent agent) {
-        DmsMemberAssetAccount account = accountDao.selectByAgentIdAndAssetCode(agent.getId(), BalanceAsset.CODE);
+    private void ensureAccount(WalletOwner owner) {
+        DmsMemberAssetAccount account = currentAccount(owner);
         if (account != null) {
             return;
         }
         account = new DmsMemberAssetAccount();
-        account.setAgentId(agent.getId());
-        account.setUserId(agent.getUserId());
+        account.setAgentId(owner.agent == null ? null : owner.agent.getId());
+        account.setUserId(owner.agent != null ? owner.agent.getUserId() : owner.member.getUserId());
         account.setAssetCode(BalanceAsset.CODE);
         account.setAssetName(BalanceAsset.NAME);
         account.setBalance(BigDecimal.ZERO);
@@ -228,6 +239,12 @@ public class MemberAssetServiceImpl implements MemberAssetService {
         account.setTotalIn(BigDecimal.ZERO);
         account.setTotalOut(BigDecimal.ZERO);
         accountDao.insert(account);
+    }
+
+    private DmsMemberAssetAccount currentAccount(WalletOwner owner) {
+        return owner.agent != null
+                ? accountDao.selectByAgentIdAndAssetCode(owner.agent.getId(), BalanceAsset.CODE)
+                : accountDao.selectByUserIdAndAssetCode(owner.member.getUserId(), BalanceAsset.CODE);
     }
 
     private DmsAgent resolveAgent(Long agentId, Long userId) {
@@ -239,6 +256,46 @@ public class MemberAssetServiceImpl implements MemberAssetService {
             Asserts.fail("代理不存在");
         }
         return agent;
+    }
+
+    /**
+     * 余额钱包归属人：优先奖金体系代理；尚未进入奖金体系的商城账号也能持有余额。
+     * 转账、提现等需要真实推广身份的能力仍通过 resolveAgent 强制要求代理记录。
+     */
+    private WalletOwner resolveWalletOwner(Long agentId, Long userId) {
+        if (agentId == null && userId == null) {
+            Asserts.fail("代理ID或用户ID至少填写一个");
+        }
+        if (agentId != null) {
+            DmsAgent agent = agentDao.selectById(agentId);
+            if (agent == null) {
+                Asserts.fail("代理不存在");
+            }
+            return new WalletOwner(agent, null);
+        }
+        DmsAgent agent = agentDao.selectByUserId(userId);
+        if (agent != null) {
+            return new WalletOwner(agent, null);
+        }
+        DmsShopMember member = shopMemberDao.selectByUserId(userId);
+        if (member == null) {
+            Asserts.fail("商城会员不存在");
+        }
+        return new WalletOwner(null, member);
+    }
+
+    private static final class WalletOwner {
+        private final DmsAgent agent;
+        private final DmsShopMember member;
+
+        private WalletOwner(DmsAgent agent, DmsShopMember member) {
+            this.agent = agent;
+            this.member = member;
+        }
+    }
+
+    private static WalletOwner ownerOf(DmsAgent agent) {
+        return new WalletOwner(agent, null);
     }
 
     private String assetDescription(String action, DmsMemberAssetFlow flow, String reason) {

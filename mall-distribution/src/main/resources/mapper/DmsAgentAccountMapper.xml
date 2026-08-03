@@ -133,4 +133,8 @@
         DELETE FROM dms_agent_account WHERE id = #{id}
     </update>
 
+    <delete id="deleteByAgentId">
+        DELETE FROM dms_agent_account WHERE agent_id = #{agentId}
+    </delete>
+
 </mapper>
