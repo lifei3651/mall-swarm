@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsShopSkuDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsShopSku">
+        <id column="id" property="id"/>
+        <result column="product_id" property="productId"/>
+        <result column="sku_no" property="skuNo"/>
+        <result column="sku_name" property="skuName"/>
+        <result column="attrs_json" property="attrsJson"/>
+        <result column="image_url" property="imageUrl"/>
+        <result column="sale_price" property="salePrice"/>
+        <result column="market_price" property="marketPrice"/>
+        <result column="cost_amount" property="costAmount"/>
+        <result column="pv_value" property="pvValue"/>
+        <result column="bv_value" property="bvValue"/>
+        <result column="stock" property="stock"/>
+        <result column="sales_count" property="salesCount"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT id, product_id, sku_no, sku_name, attrs_json, image_url, sale_price, market_price, cost_amount,
+               pv_value, bv_value, stock, sales_count, status, create_time, update_time
+        FROM dms_shop_sku
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByProductId" resultMap="BaseResultMap">
+        SELECT id, product_id, sku_no, sku_name, attrs_json, image_url, sale_price, market_price, cost_amount,
+               pv_value, bv_value, stock, sales_count, status, create_time, update_time
+        FROM dms_shop_sku
+        WHERE product_id = #{productId}
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY id ASC
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopSku" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_shop_sku
+        (product_id, sku_no, sku_name, attrs_json, image_url, sale_price, market_price, cost_amount,
+         pv_value, bv_value, stock, sales_count, status)
+        VALUES
+        (#{productId}, #{skuNo}, #{skuName}, #{attrsJson}, #{imageUrl}, #{salePrice}, #{marketPrice}, #{costAmount},
+         #{pvValue}, #{bvValue}, #{stock}, #{salesCount}, #{status})
+    </insert>
+
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsShopSku">
+        UPDATE dms_shop_sku
+        SET sku_no = #{skuNo},
+            sku_name = #{skuName},
+            attrs_json = #{attrsJson},
+            image_url = #{imageUrl},
+            sale_price = #{salePrice},
+            market_price = #{marketPrice},
+            cost_amount = #{costAmount},
+            pv_value = #{pvValue},
+            bv_value = #{bvValue},
+            stock = #{stock},
+            status = #{status},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE dms_shop_sku
+        SET status = #{status}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="decreaseStock">
+        UPDATE dms_shop_sku
+        SET stock = stock - #{quantity},
+            sales_count = sales_count + #{quantity},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND status = 1
+          AND stock &gt;= #{quantity}
+    </update>
+
+    <update id="increaseStock">
+        UPDATE dms_shop_sku
+        SET stock = stock + #{quantity},
+            sales_count = CASE WHEN sales_count &gt;= #{quantity} THEN sales_count - #{quantity} ELSE 0 END,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+</mapper>

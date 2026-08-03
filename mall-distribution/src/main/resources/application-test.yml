@@ -1,0 +1,48 @@
+spring:
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+      config:
+        enabled: false
+        import-check:
+          enabled: false
+  boot:
+    admin:
+      client:
+        enabled: false
+  autoconfigure:
+    exclude:
+      - com.alibaba.cloud.nacos.NacosDiscoveryAutoConfiguration
+      - com.alibaba.cloud.nacos.NacosConfigAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - cn.dev33.satoken.dao.SaTokenDaoForRedisTemplate
+      - de.codecentric.boot.admin.client.autoconfigure.SpringBootAdminClientAutoConfiguration
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  sql:
+    init:
+      mode: always
+      schema-locations: file:src/test/resources/db/schema-h2.sql
+      data-locations: file:src/test/resources/db/data-h2.sql
+  h2:
+    console:
+      enabled: true
+
+sa-token:
+  disable: true
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.macro.mall.distribution.entity
+  configuration:
+    map-underscore-to-camel-case: true
+
+logging:
+  level:
+    com.macro.mall.distribution: debug
+    org.springframework: warn

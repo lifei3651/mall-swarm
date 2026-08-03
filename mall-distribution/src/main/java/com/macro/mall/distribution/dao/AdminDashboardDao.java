@@ -1,0 +1,45 @@
+package com.macro.mall.distribution.dao;
+
+import com.macro.mall.distribution.vo.DashboardCommissionVO;
+import com.macro.mall.distribution.vo.DashboardFinanceSummaryVO;
+import com.macro.mall.distribution.vo.DashboardLevelCountVO;
+import com.macro.mall.distribution.vo.DashboardProductRankingVO;
+import com.macro.mall.distribution.vo.DashboardRegionVO;
+import com.macro.mall.distribution.vo.DashboardTrendVO;
+import com.macro.mall.distribution.vo.DashboardWithdrawVO;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Mapper
+public interface AdminDashboardDao {
+    long countMembers();
+    long countPromotionMembers();
+    long countNewMembers(@Param("startTime") LocalDateTime startTime,
+                         @Param("endTime") LocalDateTime endTime);
+    BigDecimal sumSales(@Param("tenantId") Long tenantId,
+                        @Param("startTime") LocalDateTime startTime,
+                        @Param("endTime") LocalDateTime endTime);
+    BigDecimal sumPerformance(@Param("tenantId") Long tenantId,
+                              @Param("startTime") LocalDateTime startTime,
+                              @Param("endTime") LocalDateTime endTime);
+    BigDecimal sumUnsettledCommission();
+    long countUnsettledCommission();
+    BigDecimal sumPendingWithdraw();
+    long countPendingWithdraw();
+    BigDecimal sumSuccessfulWithdraw(@Param("startTime") LocalDateTime startTime,
+                                     @Param("endTime") LocalDateTime endTime);
+    DashboardFinanceSummaryVO selectFinanceSummary(@Param("tenantId") Long tenantId);
+    List<DashboardProductRankingVO> selectProductRanking(@Param("tenantId") Long tenantId,
+                                                         @Param("limit") int limit);
+    List<DashboardRegionVO> selectMemberRegionDistribution();
+    List<DashboardTrendVO> selectPerformanceTrend(@Param("tenantId") Long tenantId,
+                                                  @Param("startTime") LocalDateTime startTime,
+                                                  @Param("endTime") LocalDateTime endTime);
+    List<DashboardLevelCountVO> selectLevelDistribution();
+    List<DashboardWithdrawVO> selectPendingWithdraws(@Param("limit") int limit);
+    List<DashboardCommissionVO> selectLatestCommissions(@Param("limit") int limit);
+}

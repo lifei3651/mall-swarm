@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.mapper.OmsFinanceFlowMapper">
+    <resultMap id="BaseResultMap" type="com.macro.mall.model.OmsFinanceFlow">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="flow_no" property="flowNo" jdbcType="VARCHAR"/>
+        <result column="order_id" property="orderId" jdbcType="BIGINT"/>
+        <result column="order_sn" property="orderSn" jdbcType="VARCHAR"/>
+        <result column="flow_type" property="flowType" jdbcType="INTEGER"/>
+        <result column="amount" property="amount" jdbcType="DECIMAL"/>
+        <result column="balance_after" property="balanceAfter" jdbcType="DECIMAL"/>
+        <result column="member_id" property="memberId" jdbcType="BIGINT"/>
+        <result column="member_name" property="memberName" jdbcType="VARCHAR"/>
+        <result column="description" property="description" jdbcType="VARCHAR"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, flow_no, order_id, order_sn, flow_type, amount, balance_after, member_id, member_name, description, create_time
+    </sql>
+
+    <insert id="insert" parameterType="com.macro.mall.model.OmsFinanceFlow" useGeneratedKeys="true" keyProperty="id">
+        insert into oms_finance_flow (flow_no, order_id, order_sn, flow_type, amount, balance_after,
+                                       member_id, member_name, description, create_time)
+        values (#{flowNo,jdbcType=VARCHAR}, #{orderId,jdbcType=BIGINT}, #{orderSn,jdbcType=VARCHAR},
+                #{flowType,jdbcType=INTEGER}, #{amount,jdbcType=DECIMAL}, #{balanceAfter,jdbcType=DECIMAL},
+                #{memberId,jdbcType=BIGINT}, #{memberName,jdbcType=VARCHAR}, #{description,jdbcType=VARCHAR},
+                #{createTime,jdbcType=TIMESTAMP})
+    </insert>
+
+    <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from oms_finance_flow
+        where id = #{id,jdbcType=BIGINT}
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from oms_finance_flow
+    </select>
+
+    <update id="updateByPrimaryKey" parameterType="com.macro.mall.model.OmsFinanceFlow">
+        update oms_finance_flow
+        set flow_no = #{flowNo,jdbcType=VARCHAR},
+            order_id = #{orderId,jdbcType=BIGINT},
+            order_sn = #{orderSn,jdbcType=VARCHAR},
+            flow_type = #{flowType,jdbcType=INTEGER},
+            amount = #{amount,jdbcType=DECIMAL},
+            balance_after = #{balanceAfter,jdbcType=DECIMAL},
+            member_id = #{memberId,jdbcType=BIGINT},
+            member_name = #{memberName,jdbcType=VARCHAR},
+            description = #{description,jdbcType=VARCHAR},
+            create_time = #{createTime,jdbcType=TIMESTAMP}
+        where id = #{id,jdbcType=BIGINT}
+    </update>
+
+    <delete id="deleteByPrimaryKey" parameterType="java.lang.Long">
+        delete from oms_finance_flow
+        where id = #{id,jdbcType=BIGINT}
+    </delete>
+</mapper>

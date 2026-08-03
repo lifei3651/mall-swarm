@@ -1,0 +1,248 @@
+import request from '@/utils/request'
+
+export function listShopProducts(params) {
+  return request({
+    url: '/shop/products',
+    method: 'get',
+    params,
+  })
+}
+
+export function createShopProduct(data) {
+  return request({
+    url: '/shop/admin/products',
+    method: 'post',
+    data,
+  })
+}
+
+export function updateShopProduct(id, data) {
+  return request({
+    url: `/shop/admin/products/${id}`,
+    method: 'put',
+    data,
+  })
+}
+
+export function publishShopProduct(id, data) {
+  return request({
+    url: id ? `/shop/admin/products/${id}/publish` : '/shop/admin/products/publish',
+    method: id ? 'put' : 'post',
+    data,
+  })
+}
+
+export function updateShopProductStatus(id, status) {
+  return request({
+    url: `/shop/admin/products/${id}/status`,
+    method: 'put',
+    params: { status },
+  })
+}
+
+export function listShopCategories(params) {
+  return request({ url: '/shop/admin/categories', method: 'get', params })
+}
+
+export function createShopCategory(data) {
+  return request({ url: '/shop/admin/categories', method: 'post', data })
+}
+
+export function updateShopCategory(id, data) {
+  return request({ url: `/shop/admin/categories/${id}`, method: 'put', data })
+}
+
+export function updateShopCategoryStatus(id, status) {
+  return request({ url: `/shop/admin/categories/${id}/status`, method: 'put', params: { status } })
+}
+
+export function uploadShopImage(file) {
+  const data = new FormData()
+  data.append('file', file)
+  return request({ url: '/shop/admin/media/images', method: 'post', data, headers: { 'Content-Type': 'multipart/form-data' } })
+}
+
+export function getProductSettings() {
+  return request({ url: '/shop/admin/product-settings', method: 'get' })
+}
+
+export function updateProductPvSetting(enabled) {
+  return request({ url: '/shop/admin/product-settings/pv', method: 'put', params: { enabled } })
+}
+
+export function listProductReviews(params) {
+  return request({ url: '/shop/admin/reviews', method: 'get', params })
+}
+
+export function updateProductReviewStatus(id, data) {
+  return request({ url: `/shop/admin/reviews/${id}/status`, method: 'put', data })
+}
+
+export function listShopSkus(productId, params) {
+  return request({
+    url: `/shop/products/${productId}/skus`,
+    method: 'get',
+    params,
+  })
+}
+
+export function createShopSku(data) {
+  return request({
+    url: '/shop/admin/skus',
+    method: 'post',
+    data,
+  })
+}
+
+export function updateShopSku(id, data) {
+  return request({
+    url: `/shop/admin/skus/${id}`,
+    method: 'put',
+    data,
+  })
+}
+
+export function updateShopSkuStatus(id, status) {
+  return request({
+    url: `/shop/admin/skus/${id}/status`,
+    method: 'put',
+    params: { status },
+  })
+}
+
+export function listFreightTemplates(params) {
+  return request({ url: '/shop/admin/freight-templates', method: 'get', params })
+}
+
+export function createFreightTemplate(data) {
+  return request({ url: '/shop/admin/freight-templates', method: 'post', data })
+}
+
+export function updateFreightTemplate(id, data) {
+  return request({ url: `/shop/admin/freight-templates/${id}`, method: 'put', data })
+}
+
+export function listShopOrders(params) {
+  return request({
+    url: '/shop/admin/orders',
+    method: 'get',
+    params,
+  })
+}
+
+export function exportShopOrders(params) {
+  return request({
+    url: '/shop/admin/orders/export',
+    method: 'get',
+    params,
+    responseType: 'blob',
+    timeout: 60000,
+  })
+}
+
+export function downloadOrderShipmentTemplate(params) {
+  return request({
+    url: '/shop/admin/orders/shipment-template',
+    method: 'get',
+    params,
+    responseType: 'blob',
+    timeout: 60000,
+  })
+}
+
+export function importOrderShipments(file) {
+  const data = new FormData()
+  data.append('file', file)
+  return request({
+    url: '/shop/admin/orders/shipments/import',
+    method: 'post',
+    data,
+    timeout: 60000,
+  })
+}
+
+export function listShopMembers(params) {
+  return request({
+    url: '/shop/admin/members',
+    method: 'get',
+    params,
+  })
+}
+
+export function createShopMember(data) {
+  return request({
+    url: '/shop/admin/members',
+    method: 'post',
+    data,
+  })
+}
+
+export function getShopMemberProfile(id) {
+  return request({
+    url: `/shop/admin/members/${id}/profile`,
+    method: 'get',
+  })
+}
+
+export function updateShopMemberStatus(id, status) {
+  return request({
+    url: `/shop/admin/members/${id}/status`,
+    method: 'put',
+    params: { status },
+  })
+}
+
+export function unlockShopMember(id) {
+  return request({
+    url: `/shop/admin/members/${id}/unlock`,
+    method: 'put',
+  })
+}
+
+export function updateShopMemberPhone(id, data) {
+  return request({
+    url: `/shop/admin/members/${id}/phone`,
+    method: 'put',
+    data,
+  })
+}
+
+export function resetShopMemberLoginPassword(id, data) {
+  return request({
+    url: `/shop/admin/members/${id}/login-password`,
+    method: 'put',
+    data,
+  })
+}
+
+export function updateShopMemberLevel(id, data) {
+  return request({
+    url: `/shop/admin/members/${id}/level`,
+    method: 'put',
+    data,
+  })
+}
+
+export function shipShopOrder(id, data) {
+  return request({
+    url: `/shop/admin/orders/${id}/ship`,
+    method: 'put',
+    data,
+  })
+}
+
+export function listShopAfterSales(params) {
+  return request({
+    url: '/shop/admin/after-sales',
+    method: 'get',
+    params,
+  })
+}
+
+export function auditShopAfterSale(id, data) {
+  return request({
+    url: `/shop/admin/after-sales/${id}/audit`,
+    method: 'put',
+    data,
+  })
+}

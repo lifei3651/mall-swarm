@@ -1,0 +1,10 @@
+[Unit]
+Description=LingqiMall full backup
+After=mysql.service lingqimall-distribution.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/lingqimall-backup
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

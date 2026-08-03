@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsAgentDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsAgent">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="agent_code" property="agentCode"/>
+        <result column="agent_name" property="agentName"/>
+        <result column="agent_level" property="agentLevel"/>
+        <result column="parent_id" property="parentId"/>
+        <result column="ancestor_ids" property="ancestorIds"/>
+        <result column="level_depth" property="levelDepth"/>
+        <result column="invite_code" property="inviteCode"/>
+        <result column="qr_code_url" property="qrCodeUrl"/>
+        <result column="phone" property="phone"/>
+        <result column="real_name" property="realName"/>
+        <result column="id_card" property="idCard"/>
+        <result column="bank_name" property="bankName"/>
+        <result column="bank_account" property="bankAccount"/>
+        <result column="status" property="status"/>
+        <result column="source_type" property="sourceType"/>
+        <result column="import_batch_id" property="importBatchId"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, user_id, agent_code, agent_name, agent_level, parent_id, ancestor_ids, level_depth,
+        invite_code, qr_code_url, phone, real_name, id_card, bank_name, bank_account,
+        status, source_type, import_batch_id, remark, create_time, update_time
+    </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent
+        WHERE user_id = #{userId}
+    </select>
+
+    <select id="selectByAgentCode" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent
+        WHERE agent_code = #{agentCode}
+    </select>
+
+    <select id="selectByInviteCode" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent agent
+        WHERE agent.invite_code = #{inviteCode}
+          AND NOT EXISTS (
+              SELECT 1 FROM dms_shop_member member
+              WHERE member.user_id = agent.user_id AND member.system_account = 1
+          )
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT agent.*
+        FROM dms_agent agent
+        WHERE NOT EXISTS (
+            SELECT 1 FROM dms_shop_member member
+            WHERE member.user_id = agent.user_id AND member.system_account = 1
+        )
+        ORDER BY agent.create_time DESC
+    </select>
+
+    <select id="selectRoots" resultMap="BaseResultMap">
+        SELECT agent.*
+        FROM dms_agent agent
+        WHERE agent.parent_id IS NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM dms_shop_member member
+              WHERE member.user_id = agent.user_id AND member.system_account = 1
+          )
+        ORDER BY agent.create_time ASC
+    </select>
+
+    <select id="selectByParentId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent
+        WHERE parent_id = #{parentId}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByStatus" resultMap="BaseResultMap">
+        SELECT agent.*
+        FROM dms_agent agent
+        WHERE agent.status = #{status}
+          AND NOT EXISTS (
+              SELECT 1 FROM dms_shop_member member
+              WHERE member.user_id = agent.user_id AND member.system_account = 1
+          )
+        ORDER BY agent.create_time DESC
+    </select>
+
+    <select id="selectTreeMetrics" resultType="com.macro.mall.distribution.vo.AgentInfoVO">
+        SELECT a.id,
+               COALESCE(performance.current_month_performance, 0) AS currentMonthPerformance,
+               COALESCE(account.total_commission, 0) AS totalCommission,
+               (SELECT COUNT(*)
+                  FROM dms_agent_relation relation_row
+                 WHERE relation_row.parent_agent_id = a.id
+                   AND relation_row.is_valid = 1) AS teamMemberCount
+        FROM dms_agent a
+        LEFT JOIN dms_agent_account account ON account.agent_id = a.id
+        LEFT JOIN (
+            SELECT target_agent_id, SUM(performance_amount) AS current_month_performance
+            FROM dms_order_performance_detail
+            WHERE status = 1
+              AND order_time &gt;= #{monthStart}
+            GROUP BY target_agent_id
+        ) performance ON performance.target_agent_id = a.id
+        WHERE a.id IN
+        <foreach collection="agentIds" item="agentId" open="(" separator="," close=")">
+            #{agentId}
+        </foreach>
+    </select>
+
+    <select id="search" resultMap="BaseResultMap">
+        SELECT a.*
+        FROM dms_agent a
+        LEFT JOIN dms_shop_member m ON m.user_id = a.user_id
+        <where>
+            AND COALESCE(m.system_account, 0) = 0
+            <if test="status != null">
+                AND a.status = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    a.agent_name LIKE CONCAT('%', #{keyword}, '%')
+                    OR a.agent_code LIKE CONCAT('%', #{keyword}, '%')
+                    OR a.phone LIKE CONCAT('%', #{keyword}, '%')
+                    OR a.real_name LIKE CONCAT('%', #{keyword}, '%')
+                    OR m.username LIKE CONCAT('%', #{keyword}, '%')
+                )
+            </if>
+        </where>
+        ORDER BY a.create_time DESC
+    </select>
+
+    <select id="searchWithLevel" resultMap="BaseResultMap">
+        SELECT a.*
+        FROM dms_agent a
+        LEFT JOIN dms_shop_member m ON m.user_id = a.user_id
+        <where>
+            AND COALESCE(m.system_account, 0) = 0
+            <if test="status != null">
+                AND a.status = #{status}
+            </if>
+            <if test="agentLevel != null">
+                AND a.agent_level = #{agentLevel}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    a.agent_name LIKE CONCAT('%', #{keyword}, '%')
+                    OR a.agent_code LIKE CONCAT('%', #{keyword}, '%')
+                    OR a.phone LIKE CONCAT('%', #{keyword}, '%')
+                    OR a.real_name LIKE CONCAT('%', #{keyword}, '%')
+                    OR m.username LIKE CONCAT('%', #{keyword}, '%')
+                )
+            </if>
+        </where>
+        ORDER BY a.create_time DESC
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsAgent" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_agent (user_id, agent_code, agent_name, agent_level, parent_id, ancestor_ids,
+            level_depth, invite_code, qr_code_url, phone, real_name, id_card, bank_name, bank_account,
+            status, source_type, import_batch_id, remark)
+        VALUES (#{userId}, #{agentCode}, #{agentName}, #{agentLevel}, #{parentId}, #{ancestorIds},
+            #{levelDepth}, #{inviteCode}, #{qrCodeUrl}, #{phone}, #{realName}, #{idCard}, #{bankName}, #{bankAccount},
+            #{status}, #{sourceType}, #{importBatchId}, #{remark})
+    </insert>
+
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsAgent">
+        UPDATE dms_agent
+        SET agent_name = #{agentName},
+            agent_level = #{agentLevel},
+            parent_id = #{parentId},
+            ancestor_ids = #{ancestorIds},
+            level_depth = #{levelDepth},
+            qr_code_url = #{qrCodeUrl},
+            phone = #{phone},
+            real_name = #{realName},
+            id_card = #{idCard},
+            bank_name = #{bankName},
+            bank_account = #{bankAccount},
+            status = #{status},
+            remark = #{remark}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE dms_agent
+        SET status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <update id="deleteById">
+        UPDATE dms_agent
+        SET status = 0
+        WHERE id = #{id}
+    </update>
+
+</mapper>

@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsSubordinateContributionDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsSubordinateContribution">
+        <id column="id" property="id"/>
+        <result column="agent_id" property="agentId"/>
+        <result column="subordinate_agent_id" property="subordinateAgentId"/>
+        <result column="subordinate_user_id" property="subordinateUserId"/>
+        <result column="subordinate_name" property="subordinateName"/>
+        <result column="relation_level" property="relationLevel"/>
+        <result column="stat_date" property="statDate"/>
+        <result column="stat_type" property="statType"/>
+        <result column="contribution_amount" property="contributionAmount"/>
+        <result column="order_count" property="orderCount"/>
+        <result column="self_performance" property="selfPerformance"/>
+        <result column="team_performance" property="teamPerformance"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, agent_id, subordinate_agent_id, subordinate_user_id, subordinate_name, relation_level,
+        stat_date, stat_type, contribution_amount, order_count, self_performance, team_performance,
+        create_time, update_time
+    </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_subordinate_contribution
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByAgentAndDate" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_subordinate_contribution
+        WHERE agent_id = #{agentId} AND stat_date = #{statDate} AND stat_type = #{statType}
+        ORDER BY contribution_amount DESC
+    </select>
+
+    <select id="selectByAgentAndDateRange" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_subordinate_contribution
+        WHERE agent_id = #{agentId} AND stat_type = #{statType}
+        AND stat_date &gt;= #{startDate} AND stat_date &lt;= #{endDate}
+        ORDER BY stat_date DESC, contribution_amount DESC
+    </select>
+
+    <select id="selectByAgentAndSubordinate" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_subordinate_contribution
+        WHERE agent_id = #{agentId} AND subordinate_agent_id = #{subordinateAgentId}
+        AND stat_date = #{statDate} AND stat_type = #{statType}
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsSubordinateContribution" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_subordinate_contribution (agent_id, subordinate_agent_id, subordinate_user_id,
+            subordinate_name, relation_level, stat_date, stat_type, contribution_amount, order_count,
+            self_performance, team_performance)
+        VALUES (#{agentId}, #{subordinateAgentId}, #{subordinateUserId},
+            #{subordinateName}, #{relationLevel}, #{statDate}, #{statType}, #{contributionAmount}, #{orderCount},
+            #{selfPerformance}, #{teamPerformance})
+    </insert>
+
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsSubordinateContribution">
+        UPDATE dms_subordinate_contribution
+        SET contribution_amount = #{contributionAmount},
+            order_count = #{orderCount},
+            self_performance = #{selfPerformance},
+            team_performance = #{teamPerformance}
+        WHERE id = #{id}
+    </update>
+
+    <update id="deleteById">
+        DELETE FROM dms_subordinate_contribution WHERE id = #{id}
+    </update>
+
+    <update id="deleteByAgentAndDate">
+        DELETE FROM dms_subordinate_contribution
+        WHERE agent_id = #{agentId} AND stat_date = #{statDate} AND stat_type = #{statType}
+    </update>
+
+    <!-- 删除代理的所有历史贡献记录（切线时使用） -->
+    <update id="deleteAllByAgentId">
+        DELETE FROM dms_subordinate_contribution
+        WHERE agent_id = #{agentId}
+    </update>
+
+</mapper>

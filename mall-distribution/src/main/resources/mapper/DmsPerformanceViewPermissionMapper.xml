@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsPerformanceViewPermissionDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsPerformanceViewPermission">
+        <id column="id" property="id"/>
+        <result column="agent_id" property="agentId"/>
+        <result column="user_id" property="userId"/>
+        <result column="agent_name" property="agentName"/>
+        <result column="enabled" property="enabled"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT id, agent_id, user_id, agent_name, enabled, remark, create_time, update_time
+        FROM dms_performance_view_permission
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByAgentId" resultMap="BaseResultMap">
+        SELECT id, agent_id, user_id, agent_name, enabled, remark, create_time, update_time
+        FROM dms_performance_view_permission
+        WHERE agent_id = #{agentId}
+    </select>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT id, agent_id, user_id, agent_name, enabled, remark, create_time, update_time
+        FROM dms_performance_view_permission
+        WHERE user_id = #{userId}
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT id, agent_id, user_id, agent_name, enabled, remark, create_time, update_time
+        FROM dms_performance_view_permission
+        ORDER BY create_time DESC
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsPerformanceViewPermission" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_performance_view_permission (agent_id, user_id, agent_name, enabled, remark)
+        VALUES (#{agentId}, #{userId}, #{agentName}, #{enabled}, #{remark})
+    </insert>
+
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsPerformanceViewPermission">
+        UPDATE dms_performance_view_permission
+        SET agent_id = #{agentId}, user_id = #{userId}, agent_name = #{agentName},
+            enabled = #{enabled}, remark = #{remark}, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM dms_performance_view_permission WHERE id = #{id}
+    </delete>
+</mapper>

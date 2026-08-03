@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsOrderBalanceAllocationDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsOrderBalanceAllocation">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="order_id" property="orderId"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="allocation_type" property="allocationType"/>
+        <result column="target_member_id" property="targetMemberId"/>
+        <result column="target_user_id" property="targetUserId"/>
+        <result column="target_agent_id" property="targetAgentId"/>
+        <result column="original_amount" property="originalAmount"/>
+        <result column="current_amount" property="currentAmount"/>
+        <result column="settled_amount" property="settledAmount"/>
+        <result column="reversed_amount" property="reversedAmount"/>
+        <result column="status" property="status"/>
+        <result column="settle_time" property="settleTime"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, tenant_id, order_id, order_no, allocation_type, target_member_id, target_user_id,
+        target_agent_id, original_amount, current_amount, settled_amount, reversed_amount,
+        status, settle_time, create_time, update_time
+    </sql>
+
+    <select id="selectByOrderId" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM dms_order_balance_allocation
+        WHERE order_id = #{orderId}
+        ORDER BY CASE allocation_type WHEN 'PRODUCT_COST' THEN 1 ELSE 2 END, id
+    </select>
+
+    <select id="selectByOrderIdAndTypeForUpdate" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM dms_order_balance_allocation
+        WHERE order_id = #{orderId} AND allocation_type = #{allocationType}
+        FOR UPDATE
+    </select>
+
+    <select id="selectByIdForUpdate" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM dms_order_balance_allocation
+        WHERE id = #{id}
+        FOR UPDATE
+    </select>
+
+    <select id="selectMissingOrderIds" resultType="long">
+        SELECT o.id
+        FROM dms_shop_order o
+        WHERE o.tenant_id = #{tenantId}
+          AND o.pay_time IS NOT NULL
+          AND o.status IN (1, 2, 3)
+          AND (
+              NOT EXISTS (
+                  SELECT 1 FROM dms_order_balance_allocation a
+                  WHERE a.order_id = o.id AND a.allocation_type = 'PRODUCT_COST'
+              )
+              OR NOT EXISTS (
+                  SELECT 1 FROM dms_order_balance_allocation a
+                  WHERE a.order_id = o.id AND a.allocation_type = 'REMAINDER'
+              )
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM dms_bonus_calculation_task task
+              WHERE task.order_id = o.id AND task.status IN (0, 1, 3)
+          )
+        ORDER BY o.pay_time, o.id
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectEligibleIds" resultType="long">
+        SELECT a.id
+        FROM dms_order_balance_allocation a
+        INNER JOIN dms_shop_order o ON o.id = a.order_id
+        WHERE o.tenant_id = #{tenantId}
+          AND a.status = 0
+          AND a.current_amount &gt; 0
+          AND o.status = 3
+          AND o.receive_time IS NOT NULL
+          AND o.receive_time &lt;= #{receivedCutoff}
+          AND NOT EXISTS (
+              SELECT 1 FROM dms_shop_after_sale sale
+              WHERE sale.order_id = a.order_id AND sale.status = 0
+          )
+        ORDER BY o.receive_time, a.order_id,
+                 CASE a.allocation_type WHEN 'PRODUCT_COST' THEN 1 ELSE 2 END
+        LIMIT #{limit}
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsOrderBalanceAllocation"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_order_balance_allocation
+        (tenant_id, order_id, order_no, allocation_type, target_member_id, target_user_id,
+         target_agent_id, original_amount, current_amount, settled_amount, reversed_amount, status)
+        VALUES
+        (#{tenantId}, #{orderId}, #{orderNo}, #{allocationType}, #{targetMemberId}, #{targetUserId},
+         #{targetAgentId}, #{originalAmount}, #{currentAmount}, #{settledAmount}, #{reversedAmount}, #{status})
+    </insert>
+
+    <update id="updatePendingAmount">
+        UPDATE dms_order_balance_allocation
+        SET current_amount = #{currentAmount}, status = #{status}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND settled_amount = 0
+    </update>
+
+    <update id="markSettled">
+        UPDATE dms_order_balance_allocation
+        SET settled_amount = #{settledAmount}, settle_time = #{settleTime}, status = #{status},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND status = 0 AND settled_amount = 0
+    </update>
+
+    <update id="updateAfterReversal">
+        UPDATE dms_order_balance_allocation
+        SET current_amount = #{currentAmount}, reversed_amount = #{reversedAmount}, status = #{status},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+</mapper>

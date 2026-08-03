@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsAgentPerformanceSummaryDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsAgentPerformanceSummary">
+        <id column="id" property="id"/>
+        <result column="agent_id" property="agentId"/>
+        <result column="user_id" property="userId"/>
+        <result column="agent_name" property="agentName"/>
+        <result column="stat_date" property="statDate"/>
+        <result column="stat_type" property="statType"/>
+        <result column="personal_order_count" property="personalOrderCount"/>
+        <result column="personal_performance" property="personalPerformance"/>
+        <result column="team_order_count" property="teamOrderCount"/>
+        <result column="team_performance" property="teamPerformance"/>
+        <result column="level1_performance" property="level1Performance"/>
+        <result column="level2_performance" property="level2Performance"/>
+        <result column="level3_performance" property="level3Performance"/>
+        <result column="team_member_count" property="teamMemberCount"/>
+        <result column="level1_member_count" property="level1MemberCount"/>
+        <result column="level2_member_count" property="level2MemberCount"/>
+        <result column="level3_member_count" property="level3MemberCount"/>
+        <result column="active_member_count" property="activeMemberCount"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, agent_id, user_id, agent_name, stat_date, stat_type, personal_order_count,
+        personal_performance, team_order_count, team_performance, level1_performance,
+        level2_performance, level3_performance, team_member_count, level1_member_count,
+        level2_member_count, level3_member_count, active_member_count, create_time, update_time
+    </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent_performance_summary
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByAgentAndDate" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent_performance_summary
+        WHERE agent_id = #{agentId} AND stat_date = #{statDate} AND stat_type = #{statType}
+    </select>
+
+    <select id="selectByAgentId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent_performance_summary
+        WHERE agent_id = #{agentId}
+        ORDER BY stat_date DESC, stat_type ASC
+    </select>
+
+    <select id="selectByAgentIdAndDateRange" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent_performance_summary
+        WHERE agent_id = #{agentId} AND stat_type = #{statType}
+        AND stat_date &gt;= #{startDate} AND stat_date &lt;= #{endDate}
+        ORDER BY stat_date ASC
+    </select>
+
+    <select id="selectByStatDate" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent_performance_summary
+        WHERE stat_date = #{statDate} AND stat_type = #{statType}
+        ORDER BY team_performance DESC
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsAgentPerformanceSummary" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_agent_performance_summary (agent_id, user_id, agent_name, stat_date, stat_type,
+            personal_order_count, personal_performance, team_order_count, team_performance,
+            level1_performance, level2_performance, level3_performance, team_member_count,
+            level1_member_count, level2_member_count, level3_member_count, active_member_count)
+        VALUES (#{agentId}, #{userId}, #{agentName}, #{statDate}, #{statType},
+            #{personalOrderCount}, #{personalPerformance}, #{teamOrderCount}, #{teamPerformance},
+            #{level1Performance}, #{level2Performance}, #{level3Performance}, #{teamMemberCount},
+            #{level1MemberCount}, #{level2MemberCount}, #{level3MemberCount}, #{activeMemberCount})
+    </insert>
+
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsAgentPerformanceSummary">
+        UPDATE dms_agent_performance_summary
+        SET personal_order_count = #{personalOrderCount},
+            personal_performance = #{personalPerformance},
+            team_order_count = #{teamOrderCount},
+            team_performance = #{teamPerformance},
+            level1_performance = #{level1Performance},
+            level2_performance = #{level2Performance},
+            level3_performance = #{level3Performance},
+            team_member_count = #{teamMemberCount},
+            level1_member_count = #{level1MemberCount},
+            level2_member_count = #{level2MemberCount},
+            level3_member_count = #{level3MemberCount},
+            active_member_count = #{activeMemberCount}
+        WHERE id = #{id}
+    </update>
+
+    <update id="deleteById">
+        DELETE FROM dms_agent_performance_summary WHERE id = #{id}
+    </update>
+
+    <update id="deleteByAgentAndDate">
+        DELETE FROM dms_agent_performance_summary
+        WHERE agent_id = #{agentId} AND stat_date = #{statDate} AND stat_type = #{statType}
+    </update>
+
+    <!-- 删除代理的所有历史汇总（切线时使用） -->
+    <update id="deleteAllByAgentId">
+        DELETE FROM dms_agent_performance_summary
+        WHERE agent_id = #{agentId}
+    </update>
+
+</mapper>

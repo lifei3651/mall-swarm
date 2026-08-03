@@ -1,0 +1,281 @@
+<template>
+  <div class="page profile-page">
+    <div v-if="loading" class="empty">正在加载个人中心...</div>
+
+    <template v-else>
+      <div class="profile-content">
+        <section class="identity-card" :class="rankInfo.className">
+        <div class="identity-top">
+          <div class="identity-avatar"><component :is="rankInfo.icon" :size="34" /></div>
+          <div class="identity-main">
+            <div class="identity-name-row">
+              <h2>{{ memberName }}</h2>
+              <span class="rank-badge"><component :is="rankInfo.icon" :size="15" />{{ rankInfo.name }}</span>
+            </div>
+            <p>账号：{{ accountName }}</p>
+            <p v-if="profile.agent?.agentCode">推广识别码：{{ profile.agent.agentCode }}</p>
+          </div>
+          <RouterLink class="invite-mini" to="/invite"><Gift :size="17" />邀请</RouterLink>
+        </div>
+        <div class="identity-stats">
+          <RouterLink to="/profile/wallet"><span>余额</span><strong>¥{{ money(walletSummary.balance) }}</strong></RouterLink>
+          <RouterLink to="/profile/team"><span>本月团队业绩</span><strong>{{ teamPerformanceText }}</strong></RouterLink>
+          <div><span>团队身份</span><strong>{{ profile.agent ? rankInfo.name : '首单后开通' }}</strong></div>
+        </div>
+        </section>
+
+      <section class="panel order-hub">
+        <div class="order-hub-head">
+          <h3>我的订单</h3>
+          <RouterLink to="/orders">全部 <ChevronRight :size="16" /></RouterLink>
+        </div>
+        <div class="order-entry-grid">
+          <RouterLink v-for="entry in orderEntries" :key="entry.key" :to="`/orders?tab=${entry.key}`" class="order-entry">
+            <span class="order-entry-icon">
+              <component :is="entry.icon" :size="25" />
+              <em v-if="entry.count">{{ entry.count > 99 ? '99+' : entry.count }}</em>
+            </span>
+            <span>{{ entry.label }}</span>
+          </RouterLink>
+        </div>
+      </section>
+
+      <section class="profile-menu">
+        <RouterLink to="/profile/wallet" class="menu-tile">
+          <span class="tile-icon wallet-icon"><WalletCards :size="26" /></span>
+          <span class="tile-label">余额</span>
+        </RouterLink>
+        <RouterLink to="/profile/team" class="menu-tile">
+          <span class="tile-icon team-icon"><ChartNoAxesCombined :size="26" /></span>
+          <span class="tile-label">团队业绩</span>
+        </RouterLink>
+        <RouterLink to="/profile/security" class="menu-tile">
+          <span class="tile-icon security-icon"><ShieldCheck :size="26" /></span>
+          <span class="tile-label">支付安全</span>
+          <i v-if="!walletSummary.hasPaymentPassword" class="tile-badge">待设置</i>
+        </RouterLink>
+        <RouterLink to="/profile/addresses" class="menu-tile">
+          <span class="tile-icon address-icon"><MapPinned :size="26" /></span>
+          <span class="tile-label">收货地址</span>
+        </RouterLink>
+      </section>
+
+      <section v-if="profile.member && !profile.member.username" class="panel account-panel">
+        <h3>设置登录账号</h3>
+        <p class="line-sub">手机号可以直接登录，也可以设置一个更容易记住的商城账号。</p>
+        <div class="form-grid">
+          <div class="form-item"><label>商城账号</label><input v-model="accountForm.username" class="field" autocomplete="username" placeholder="至少2个字符" /></div>
+          <div class="form-item"><label>登录密码</label><input v-model="accountForm.password" class="field" type="password" autocomplete="new-password" placeholder="6至32位" /></div>
+        </div>
+        <button class="btn primary" :disabled="accountSaving" @click="submitAccount">{{ accountSaving ? '保存中' : '保存登录账号' }}</button>
+      </section>
+
+        <p v-if="error" class="profile-error">{{ error }}</p>
+      </div>
+      <div class="profile-actions">
+        <button class="logout-button" type="button" @click="logoutConfirmVisible = true">退出当前账号</button>
+      </div>
+    </template>
+
+    <Teleport to="body">
+      <div v-if="logoutConfirmVisible" class="logout-dialog-mask" @click.self="closeLogoutConfirm">
+        <section class="logout-dialog" role="dialog" aria-modal="true" aria-labelledby="logout-dialog-title">
+          <span class="logout-dialog-icon"><LogOut :size="25" /></span>
+          <h3 id="logout-dialog-title">确认退出登录？</h3>
+          <p>退出后将返回登录页面，购物车中的本地数据也会同步清除。</p>
+          <div class="logout-dialog-actions">
+            <button type="button" :disabled="loggingOut" @click="closeLogoutConfirm">取消</button>
+            <button type="button" class="confirm" :disabled="loggingOut" @click="confirmLogout">
+              {{ loggingOut ? '正在退出...' : '确认退出' }}
+            </button>
+          </div>
+        </section>
+      </div>
+    </Teleport>
+  </div>
+</template>
+
+<script setup>
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import {
+  BadgeCheck,
+  ChartNoAxesCombined,
+  ChevronRight,
+  Crown,
+  Gem,
+  Gift,
+  LogOut,
+  MapPinned,
+  Medal,
+  MessageSquareText,
+  PackageCheck,
+  RotateCcw,
+  ShieldCheck,
+  Sparkles,
+  Store,
+  Truck,
+  UserRound,
+  WalletCards,
+} from 'lucide-vue-next'
+import { getProfile, getWalletSummary, logout, setupAccount } from '@/api/shop'
+import { money } from '@/utils/format'
+import { clearShopSession } from '@/utils/shopSession'
+
+const router = useRouter()
+const loading = ref(true)
+const error = ref('')
+const profile = ref({})
+const walletSummary = ref({ balance: 0, hasPaymentPassword: false })
+const accountSaving = ref(false)
+const logoutConfirmVisible = ref(false)
+const loggingOut = ref(false)
+const accountForm = ref({ username: '', password: '' })
+
+const rankMap = {
+  0: { name: '注册用户', icon: UserRound, className: 'rank-0' },
+  1: { name: '会员', icon: BadgeCheck, className: 'rank-1' },
+  2: { name: 'VIP会员', icon: Gem, className: 'rank-2' },
+  3: { name: '店铺', icon: Store, className: 'rank-3' },
+  4: { name: '代理', icon: Medal, className: 'rank-4' },
+  5: { name: '一星董事', icon: Crown, className: 'rank-5' },
+  6: { name: '二星董事', icon: Crown, className: 'rank-6' },
+  7: { name: '三星董事', icon: Sparkles, className: 'rank-7' },
+  8: { name: '合伙人', icon: Crown, className: 'rank-8' },
+}
+const rankInfo = computed(() => rankMap[Number(profile.value.agent?.agentLevel || 0)] || rankMap[0])
+const memberName = computed(() => profile.value.member?.nickname || profile.value.agent?.agentName || '商城用户')
+const accountName = computed(() => profile.value.member?.username || profile.value.member?.phone || '-')
+const addresses = computed(() => profile.value.addresses || [])
+const addressSummary = computed(() => {
+  const defaultAddress = addresses.value.find((item) => Number(item.isDefault) === 1)
+  if (defaultAddress) return `默认：${defaultAddress.province || ''}${defaultAddress.city || ''}${defaultAddress.district || ''}`
+  return addresses.value.length ? `已保存 ${addresses.value.length} 个地址` : '新增并设置默认地址'
+})
+const showTeamPerformance = computed(() => profile.value.canViewTeamPerformance === true)
+const teamPerformanceText = computed(() => showTeamPerformance.value ? `¥${money(profile.value.performance?.teamPerformance)}` : '查看详情')
+const orders = computed(() => profile.value.orders || [])
+const countOrders = (predicate) => orders.value.filter(predicate).length
+const orderEntries = computed(() => [
+  { key: 'pending-payment', label: '待支付', icon: WalletCards, count: countOrders((item) => item.order?.status === 0) },
+  { key: 'pending-shipment', label: '待发货', icon: PackageCheck, count: countOrders((item) => item.order?.status === 1) },
+  { key: 'pending-receipt', label: '待收货', icon: Truck, count: countOrders((item) => item.order?.status === 2) },
+  { key: 'pending-review', label: '待评价', icon: MessageSquareText, count: countOrders((item) => Number(item.pendingReviewCount || 0) > 0) },
+  { key: 'after-sale', label: '退款/售后', icon: RotateCcw, count: countOrders((item) => item.order?.status === 5 || (item.afterSales || []).length > 0) },
+])
+
+const fetchProfile = async () => {
+  loading.value = true
+  error.value = ''
+  try {
+    const [profileRes, walletRes] = await Promise.all([getProfile(), getWalletSummary()])
+    profile.value = profileRes.data || {}
+    walletSummary.value = walletRes.data || walletSummary.value
+  } catch (e) { error.value = e.message || '个人中心加载失败' }
+  finally { loading.value = false }
+}
+
+const submitAccount = async () => {
+  if (accountForm.value.username.trim().length < 2) return (error.value = '商城账号至少2个字符')
+  if (accountForm.value.password.length < 6 || accountForm.value.password.length > 32) return (error.value = '登录密码需要6至32位')
+  accountSaving.value = true
+  error.value = ''
+  try {
+    await setupAccount(accountForm.value)
+    accountForm.value = { username: '', password: '' }
+    await fetchProfile()
+  } catch (e) { error.value = e.message || '登录账号保存失败' }
+  finally { accountSaving.value = false }
+}
+
+const closeLogoutConfirm = () => {
+  if (!loggingOut.value) logoutConfirmVisible.value = false
+}
+
+const confirmLogout = async () => {
+  if (loggingOut.value) return
+  loggingOut.value = true
+  try { await logout() } finally {
+    clearShopSession({ clearCart: true })
+    logoutConfirmVisible.value = false
+    loggingOut.value = false
+    router.replace('/login')
+  }
+}
+
+onMounted(fetchProfile)
+</script>
+
+<style scoped>
+.profile-page { width:min(760px,calc(100% - 28px)); }
+.profile-content,.profile-actions { width:100%; }
+.profile-actions { padding-top:14px; }
+.identity-card { position:relative; overflow:hidden; padding:22px; color:#fff; border-radius:20px; box-shadow:0 14px 34px rgba(27,31,38,.18); }
+.identity-card::after { content:""; position:absolute; width:210px; height:210px; right:-80px; top:-100px; border:34px solid rgba(255,255,255,.09); border-radius:50%; }
+.rank-0 { background:linear-gradient(135deg,#64748b,#334155); }
+.rank-1 { background:linear-gradient(135deg,#b7793c,#71451f); }
+.rank-2 { background:linear-gradient(135deg,#16a5b5,#145b78); }
+.rank-3 { background:linear-gradient(135deg,#16a36a,#096448); }
+.rank-4 { background:linear-gradient(135deg,#5367df,#28368f); }
+.rank-5 { background:linear-gradient(135deg,#d49b22,#8e5c08); }
+.rank-6 { background:linear-gradient(135deg,#8b5cf6,#5130a9); }
+.rank-7 { background:linear-gradient(135deg,#e65378,#9b2046); }
+.rank-8 { background:linear-gradient(135deg,#202734,#090c12); }
+.identity-top { position:relative; z-index:1; display:grid; grid-template-columns:54px minmax(0,1fr) auto; align-items:center; gap:13px; }
+.identity-avatar { width:54px; height:54px; display:grid; place-items:center; border:1px solid rgba(255,255,255,.38); border-radius:50%; background:rgba(255,255,255,.16); backdrop-filter:blur(8px); }
+.identity-main { min-width:0; }
+.identity-name-row { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.identity-name-row h2 { margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:20px; }
+.rank-badge { display:inline-flex; align-items:center; gap:4px; padding:4px 8px; color:#fff; background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.24); border-radius:999px; font-size:11px; font-weight:800; }
+.identity-main p { margin:6px 0 0; color:rgba(255,255,255,.76); font-size:12px; }
+.invite-mini { position:relative; z-index:2; display:inline-flex; align-items:center; gap:4px; padding:8px 10px; color:#fff; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.24); border-radius:999px; font-size:12px; }
+.identity-stats { position:relative; z-index:1; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1px; margin-top:22px; padding-top:17px; border-top:1px solid rgba(255,255,255,.22); }
+.identity-stats > * { min-width:0; padding:0 10px; border-right:1px solid rgba(255,255,255,.18); text-align:center; }
+.identity-stats > *:last-child { border-right:0; }
+.identity-stats span,.identity-stats strong { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.identity-stats span { color:rgba(255,255,255,.72); font-size:11px; }
+.identity-stats strong { margin-top:6px; color:#fff; font-size:14px; }
+.order-hub { margin-top:14px; padding:16px 14px; border:0; border-radius:16px; }
+.order-hub-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.order-hub-head h3 { margin:0; font-size:17px; }
+.order-hub-head a { display:inline-flex; align-items:center; color:var(--muted); font-size:13px; }
+.order-entry-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); margin-top:17px; }
+.order-entry { display:flex; flex-direction:column; align-items:center; gap:7px; min-width:0; color:var(--ink); font-size:12px; text-align:center; }
+.order-entry-icon { position:relative; display:inline-grid; place-items:center; color:#252b37; }
+.order-entry-icon em { position:absolute; top:-9px; right:-13px; display:grid; place-items:center; min-width:18px; height:18px; padding:0 4px; color:#fff; background:var(--brand-primary); border:2px solid #fff; border-radius:999px; font-size:9px; font-style:normal; font-weight:800; }
+.profile-menu { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:14px; }
+.menu-tile { position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; aspect-ratio:1; padding:14px 8px; background:#fff; border-radius:16px; box-shadow:0 4px 14px rgba(31,41,55,.05); text-align:center; }
+.tile-icon { width:48px; height:48px; display:grid; place-items:center; border-radius:14px; }
+.tile-label { font-size:13px; font-weight:600; color:var(--ink); }
+.tile-badge { position:absolute; top:8px; right:8px; padding:2px 6px; color:#c2410c; background:#fff2e8; border-radius:999px; font-size:9px; font-style:normal; }
+.wallet-icon { color:#be3552; background:#fff0f3; }
+.team-icon { color:#3867d6; background:#eef3ff; }
+.security-icon { color:#0f8a62; background:#eaf8f3; }
+.address-icon { color:#b26b13; background:#fff6e8; }
+.account-panel { margin-top:14px; border:0; border-radius:16px; }
+.account-panel .form-grid { margin-top:14px; }
+.account-panel .btn { margin-top:14px; }
+.profile-error { margin:14px 0 0; padding:12px 14px; color:#b42318; background:#fff1f0; border-radius:10px; }
+.logout-button { width:100%; min-height:46px; color:#b42318; background:#fff; border:0; border-radius:14px; }
+.logout-dialog-mask { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; padding:22px; background:rgba(20,27,38,.48); backdrop-filter:blur(3px); }
+.logout-dialog { width:min(360px,100%); padding:26px 22px 20px; background:#fff; border-radius:20px; box-shadow:0 22px 60px rgba(24,32,45,.24); text-align:center; }
+.logout-dialog-icon { width:52px; height:52px; display:grid; place-items:center; margin:0 auto 14px; color:#c0362c; background:#fff0ee; border-radius:50%; }
+.logout-dialog h3 { margin:0; color:#1d2430; font-size:19px; }
+.logout-dialog p { margin:10px 4px 20px; color:#7d8795; font-size:13px; line-height:1.65; }
+.logout-dialog-actions { display:grid; grid-template-columns:1fr 1fr; gap:11px; }
+.logout-dialog-actions button { min-height:44px; border:1px solid #e3e7ec; border-radius:12px; color:#4f5967; background:#fff; font-size:14px; font-weight:600; }
+.logout-dialog-actions button.confirm { color:#fff; border-color:#c53b32; background:#c53b32; }
+.logout-dialog-actions button:disabled { opacity:.65; }
+@media (max-width:560px) {
+  .profile-page { min-height:100vh; min-height:100dvh; display:flex; flex-direction:column; padding-top:12px; }
+  .profile-actions { margin-top:auto; }
+  .identity-card { padding:18px 15px; border-radius:17px; }
+  .identity-top { grid-template-columns:48px minmax(0,1fr) auto; gap:10px; }
+  .identity-avatar { width:48px; height:48px; }
+  .identity-name-row h2 { max-width:145px; font-size:18px; }
+  .identity-main p span { display:none; }
+  .identity-stats > * { padding:0 5px; }
+  .identity-stats strong { font-size:12px; }
+  .profile-menu { grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+}
+</style>

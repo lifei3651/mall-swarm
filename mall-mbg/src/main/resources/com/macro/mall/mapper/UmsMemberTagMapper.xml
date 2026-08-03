@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.mapper.UmsMemberTagMapper">
+    <resultMap id="BaseResultMap" type="com.macro.mall.model.UmsMemberTag">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="name" property="name" jdbcType="VARCHAR"/>
+        <result column="color" property="color" jdbcType="VARCHAR"/>
+        <result column="sort" property="sort" jdbcType="INTEGER"/>
+        <result column="status" property="status" jdbcType="INTEGER"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, name, color, sort, status, create_time
+    </sql>
+
+    <insert id="insert" parameterType="com.macro.mall.model.UmsMemberTag" useGeneratedKeys="true" keyProperty="id">
+        insert into ums_member_tag (name, color, sort, status, create_time)
+        values (#{name,jdbcType=VARCHAR}, #{color,jdbcType=VARCHAR}, #{sort,jdbcType=INTEGER},
+                #{status,jdbcType=INTEGER}, #{createTime,jdbcType=TIMESTAMP})
+    </insert>
+
+    <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from ums_member_tag
+        where id = #{id,jdbcType=BIGINT}
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from ums_member_tag
+    </select>
+
+    <update id="updateByPrimaryKey" parameterType="com.macro.mall.model.UmsMemberTag">
+        update ums_member_tag
+        set name = #{name,jdbcType=VARCHAR},
+            color = #{color,jdbcType=VARCHAR},
+            sort = #{sort,jdbcType=INTEGER},
+            status = #{status,jdbcType=INTEGER},
+            create_time = #{createTime,jdbcType=TIMESTAMP}
+        where id = #{id,jdbcType=BIGINT}
+    </update>
+
+    <delete id="deleteByPrimaryKey" parameterType="java.lang.Long">
+        delete from ums_member_tag
+        where id = #{id,jdbcType=BIGINT}
+    </delete>
+</mapper>

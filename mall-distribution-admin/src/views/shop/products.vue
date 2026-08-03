@@ -1,0 +1,669 @@
+<template>
+  <div class="page-container product-page">
+    <div class="search-container">
+      <el-form :inline="true" :model="query">
+        <el-form-item label="关键词"><el-input v-model="query.keyword" placeholder="商品名称/商品编号" clearable @keyup.enter="handleSearch" /></el-form-item>
+        <el-form-item label="分类">
+          <el-select v-model="query.categoryName" clearable filterable placeholder="全部分类" style="width: 160px" @change="handleSearch">
+            <el-option v-for="item in categories" :key="item.id" :label="item.categoryName" :value="item.categoryName" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="query.status" clearable placeholder="全部" style="width: 120px" @change="handleSearch">
+            <el-option label="上架" :value="1" /><el-option label="下架" :value="0" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :icon="Search" :loading="loading" @click="handleSearch">查询</el-button>
+          <el-button :icon="Refresh" @click="resetQuery">重置</el-button>
+          <el-button type="success" :icon="Plus" @click="openDialog()">发布商品</el-button>
+        </el-form-item>
+      </el-form>
+      <div class="pv-global-setting">
+        <div>
+          <strong>商品 PV 填写</strong>
+          <span>开启后，在每个商品发布页单独填写；不填写或填 0 表示该商品无 PV。</span>
+        </div>
+        <el-switch v-model="performanceUnitsEnabled" inline-prompt active-text="开" inactive-text="关" @change="changePvSetting" />
+      </div>
+    </div>
+
+    <el-alert v-if="searchFeedback" :title="searchFeedback" type="warning" :closable="false" show-icon class="search-feedback" />
+
+    <el-table :data="tableData" v-loading="loading" :empty-text="tableEmptyText" style="width: 100%">
+      <el-table-column label="商品信息" min-width="310">
+        <template #default="{ row }">
+          <div class="product-cell">
+            <el-image class="cover" :src="row.coverUrl" fit="cover"><template #error><div class="cover-fallback">图</div></template></el-image>
+            <div class="product-meta">
+              <div class="name">{{ row.productName }}</div>
+              <div class="sub product-number">商品编号：{{ row.productNo || '未设置' }}</div>
+              <div class="sub">{{ row.subtitle }}</div>
+            </div>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column prop="categoryName" label="商品分类" width="120" />
+      <el-table-column prop="salePrice" label="展示售价" width="110"><template #default="{ row }">¥{{ row.salePrice }}</template></el-table-column>
+      <el-table-column prop="costAmount" label="参考成本" width="110"><template #default="{ row }">¥{{ row.costAmount }}</template></el-table-column>
+      <el-table-column v-if="performanceUnitsEnabled" prop="pvValue" label="单件PV" width="120">
+        <template #default="{ row }">
+          <span :class="{ 'pv-invalid': Number(row.pvValue || 0) > Number(row.salePrice || 0) }">{{ Number(row.pvValue || 0) }}</span>
+          <el-tooltip v-if="Number(row.pvValue || 0) > Number(row.salePrice || 0)" content="PV超过销售价，请编辑商品并修正" placement="top"><el-icon class="pv-warning"><WarningFilled /></el-icon></el-tooltip>
+        </template>
+      </el-table-column>
+      <el-table-column prop="stock" label="可售库存" width="95" /><el-table-column prop="salesCount" label="累计销量" width="95" />
+      <el-table-column prop="sort" label="上架排序" width="95" />
+      <el-table-column prop="status" label="上架状态" width="95"><template #default="{ row }"><el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '上架' : '下架' }}</el-tag></template></el-table-column>
+      <el-table-column label="操作" fixed="right" width="180">
+        <template #default="{ row }">
+          <el-button type="primary" link @click="openDialog(row)">编辑商品</el-button>
+          <el-button :type="row.status === 1 ? 'warning' : 'success'" link @click="toggleStatus(row)">{{ row.status === 1 ? '下架' : '上架' }}</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+    <el-pagination class="pagination-container" background layout="total, prev, pager, next, sizes" :total="pagination.total" v-model:current-page="pagination.page" v-model:page-size="pagination.size" @current-change="fetchData" @size-change="fetchData" />
+
+    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑商品' : '发布新商品'" fullscreen destroy-on-close class="publish-dialog">
+      <div class="publish-shell" v-loading="dialogLoading">
+        <el-alert title="按商品实际情况填写。带规格的商品请在“规格、价格与库存”中维护每个 SKU；第一张主图将作为商品封面。" type="info" :closable="false" />
+        <el-form :model="form" label-width="108px" class="publish-form">
+          <section class="form-section">
+            <h3>1. 基本信息</h3>
+            <el-row :gutter="20">
+              <el-col :span="12"><el-form-item label="商品名称" required><el-input v-model="form.productName" maxlength="100" show-word-limit /></el-form-item></el-col>
+              <el-col :span="12"><el-form-item label="商品编号"><el-input v-model="form.productNo" placeholder="留空自动生成" /></el-form-item></el-col>
+            </el-row>
+            <el-form-item label="商品卖点"><el-input v-model="form.subtitle" maxlength="150" show-word-limit placeholder="一句话描述商品特点" /></el-form-item>
+            <el-row :gutter="20">
+              <el-col :span="8">
+                <el-form-item label="商品分类" required>
+                  <div class="category-picker">
+                    <el-select v-model="form.categoryName" filterable placeholder="请选择分类"><el-option v-for="item in categories" :key="item.id" :label="item.categoryName" :value="item.categoryName" /></el-select>
+                    <el-button type="primary" plain :icon="Plus" @click="openQuickCategory">新增分类</el-button>
+                  </div>
+                </el-form-item>
+              </el-col>
+              <el-col :span="8"><el-form-item label="排序"><el-input-number v-model="form.sort" :step="1" style="width:100%" /><div class="field-help">上架商品自动排在下架商品前；同状态下数值越大越靠前。</div></el-form-item></el-col>
+              <el-col :span="8"><el-form-item label="上架状态"><el-radio-group v-model="form.status"><el-radio-button :label="1">立即上架</el-radio-button><el-radio-button :label="0">暂存下架</el-radio-button></el-radio-group></el-form-item></el-col>
+            </el-row>
+          </section>
+
+          <section class="form-section">
+            <h3>2. 商品主图</h3>
+            <el-form-item label="主图（最多5张）" required>
+              <div class="image-manager">
+                <div v-for="(url, index) in form.mainImages" :key="url + index" class="image-tile">
+                  <el-image :src="url" fit="cover" />
+                  <span v-if="index === 0" class="cover-badge">封面</span>
+                  <div class="image-actions"><button v-if="index > 0" type="button" @click="setCover(index)">设为封面</button><button type="button" @click="removeImage('mainImages', index)">删除</button></div>
+                </div>
+                <el-upload v-if="form.mainImages.length < 5" action="#" multiple :show-file-list="false" accept="image/*" :http-request="({ file }) => uploadImageTo('mainImages', file, 5)"><div class="image-uploader"><el-icon><Plus /></el-icon><span>上传主图</span></div></el-upload>
+              </div>
+              <div class="field-help">建议 800×800 像素以上，支持 JPG/PNG/WEBP/GIF，单张不超过 5MB；可上传 1～5 张。</div>
+            </el-form-item>
+          </section>
+
+          <section class="form-section">
+            <div class="section-title product-type-title">
+              <h3>3. 价格、库存与规格</h3>
+              <el-radio-group :model-value="hasSku ? 'MULTI' : 'SINGLE'" @change="changeProductType">
+                <el-radio-button label="SINGLE">单规格商品</el-radio-button>
+                <el-radio-button label="MULTI">多规格商品</el-radio-button>
+              </el-radio-group>
+            </div>
+
+            <template v-if="!hasSku">
+              <el-alert title="单规格商品只需在这里填写一组价格和库存，商城下单直接使用这组数据。" type="success" :closable="false" show-icon style="margin-bottom:18px" />
+              <el-row :gutter="20">
+                <el-col :span="6"><el-form-item label="销售价" required><el-input-number v-model="form.salePrice" :min="0" :precision="2" :step="1" controls-position="right" class="money-input" /></el-form-item></el-col>
+                <el-col :span="6"><el-form-item label="划线价"><el-input-number v-model="form.marketPrice" :min="0" :precision="2" :step="1" controls-position="right" class="money-input" /></el-form-item></el-col>
+                <el-col :span="6"><el-form-item label="成本价"><el-input-number v-model="form.costAmount" :min="0" :precision="2" :step="1" controls-position="right" class="money-input" /></el-form-item></el-col>
+                <el-col :span="6"><el-form-item label="可售库存"><el-input-number v-model="form.stock" :min="0" :step="1" controls-position="right" class="money-input" /></el-form-item></el-col>
+              </el-row>
+              <el-row v-if="performanceUnitsEnabled" :gutter="20" class="pv-row">
+                <el-col :span="10"><el-form-item label="单件PV"><el-input-number v-model="form.pvValue" :min="0" :max="productPvLimit" :precision="2" controls-position="right" class="money-input" /><div class="field-help">购买数量会自动相乘；填0表示没有PV。单件PV不能超过销售价，奖金仍按实付商品金额计算。</div></el-form-item></el-col>
+              </el-row>
+            </template>
+
+            <template v-else>
+              <el-alert title="多规格商品只维护下面的SKU。顾客下单时，价格、成本、PV和库存均以选中的SKU为准；商品列表所需的展示价和总库存由系统自动汇总。" type="success" :closable="false" show-icon style="margin-bottom:14px" />
+              <div class="sku-toolbar">
+                <span>每一行代表一种可购买规格，例如“体验装”“家庭装”；可在规格属性中填写“包装规格：家庭装”。</span>
+                <el-button type="primary" plain :icon="Plus" @click="addSku">添加规格</el-button>
+              </div>
+              <el-row v-if="performanceUnitsEnabled" :gutter="20" class="pv-row multi-pv-row">
+                <el-col :span="10"><el-form-item label="统一默认PV"><el-input-number v-model="form.pvValue" :min="0" :max="productPvLimit" :precision="2" controls-position="right" class="money-input" /><div class="field-help">可选。某个SKU的PV填0时继承这里的数值；如各规格PV不同，请直接在对应SKU行填写。</div></el-form-item></el-col>
+              </el-row>
+              <div class="sku-table-wrap">
+              <el-table :data="skuRows" border>
+                <el-table-column label="规格图" width="92" align="center">
+                  <template #default="{ row }"><el-upload action="#" :show-file-list="false" accept="image/*" :http-request="({ file }) => uploadSkuImage(row, file)"><el-image v-if="row.imageUrl" :src="row.imageUrl" class="sku-image" fit="cover" /><div v-else class="sku-image-placeholder"><el-icon><Plus /></el-icon></div></el-upload></template>
+                </el-table-column>
+                <el-table-column label="规格名称" min-width="160"><template #default="{ row }"><el-input v-model="row.skuName" placeholder="例如：家庭装" /></template></el-table-column>
+                <el-table-column label="规格属性" min-width="220">
+                  <template #default="{ row, $index }">
+                    <div class="sku-attributes">
+                      <el-tag v-for="item in row.attributes" :key="`${item.name}:${item.value}`" size="small">{{ item.name }}：{{ item.value }}</el-tag>
+                      <span v-if="!row.attributes?.length" class="empty-attribute">未设置</span>
+                      <el-button type="primary" link @click="openSkuAttributes(row, $index)">编辑属性</el-button>
+                    </div>
+                  </template>
+                </el-table-column>
+                <el-table-column label="SKU编码" min-width="150"><template #default="{ row }"><el-input v-model="row.skuNo" placeholder="留空自动生成" /></template></el-table-column>
+                <el-table-column label="销售价" width="150"><template #default="{ row }"><el-input-number v-model="row.salePrice" :min="0" :precision="2" controls-position="right" /></template></el-table-column>
+                <el-table-column label="划线价" width="150"><template #default="{ row }"><el-input-number v-model="row.marketPrice" :min="0" :precision="2" controls-position="right" /></template></el-table-column>
+                <el-table-column label="成本价" width="150"><template #default="{ row }"><el-input-number v-model="row.costAmount" :min="0" :precision="2" controls-position="right" /></template></el-table-column>
+                <el-table-column v-if="performanceUnitsEnabled" label="单件PV" width="165">
+                  <template #header><span>单件PV</span><el-tooltip content="填0继承上方默认单件PV；可为不同规格单独设置，但不能超过该SKU销售价" placement="top"><el-icon class="column-help"><QuestionFilled /></el-icon></el-tooltip></template>
+                  <template #default="{ row }"><el-input-number v-model="row.pvValue" :min="0" :max="Math.max(0, Number(row.salePrice || 0))" :precision="2" controls-position="right" /></template>
+                </el-table-column>
+                <el-table-column label="库存" width="140"><template #default="{ row }"><el-input-number v-model="row.stock" :min="0" controls-position="right" /></template></el-table-column>
+                <el-table-column label="启用" width="76" align="center"><template #default="{ row }"><el-switch v-model="row.status" :active-value="1" :inactive-value="0" /></template></el-table-column>
+                <el-table-column label="操作" width="76" fixed="right"><template #default="{ $index }"><el-button type="danger" link @click="removeSku($index)">删除</el-button></template></el-table-column>
+              </el-table>
+            </div>
+            </template>
+            <el-alert class="cost-help" title="成本价只用于经营利润统计；有规格商品按所选SKU的成本计算。" type="warning" :closable="false" show-icon />
+          </section>
+
+          <section class="form-section">
+            <h3>4. 物流配送</h3>
+            <el-row :gutter="20">
+              <el-col :span="8"><el-form-item label="发货地" required><el-cascader v-model="deliveryRegion" :options="pcaTextArr" placeholder="请选择省 / 市 / 区县" style="width:100%" filterable /></el-form-item></el-col>
+              <el-col :span="8"><el-form-item label="发货时效"><el-select v-model="form.deliveryTime" placeholder="请选择" style="width:100%"><el-option label="24小时内发货" value="24小时内发货" /><el-option label="48小时内发货" value="48小时内发货" /><el-option label="72小时内发货" value="72小时内发货" /><el-option label="预售，按约定时间发货" value="预售" /></el-select></el-form-item></el-col>
+              <el-col :span="8"><el-form-item label="配送方式"><el-select v-model="form.freightType" style="width:100%"><el-option label="全国包邮" :value="0" /><el-option label="统一运费" :value="1" /><el-option label="满额包邮" :value="2" /><el-option label="按地区配送" :value="3" /></el-select></el-form-item></el-col>
+            </el-row>
+            <el-row :gutter="20">
+              <el-col v-if="form.freightType === 1" :span="8"><el-form-item label="统一运费"><el-input-number v-model="form.freightAmount" :min="0" :precision="2" class="money-input" /></el-form-item></el-col>
+              <el-col v-if="form.freightType === 2" :span="8"><el-form-item label="未满额运费"><el-input-number v-model="form.freightAmount" :min="0" :precision="2" class="money-input" /></el-form-item></el-col>
+              <el-col v-if="form.freightType === 2" :span="8"><el-form-item label="满多少包邮"><el-input-number v-model="form.freeShippingAmount" :min="0" :precision="2" class="money-input" /></el-form-item></el-col>
+              <el-col v-if="form.freightType === 3" :span="16">
+                <el-form-item label="配送规则" required>
+                  <div class="template-picker">
+                    <el-select v-model="form.freightTemplateId" placeholder="请选择模板" style="min-width:280px"><el-option v-for="item in activeFreightTemplates" :key="item.id" :label="item.templateName" :value="item.id" /></el-select>
+                    <el-button type="primary" plain @click="openFreightTemplate()">新建模板</el-button>
+                    <el-button :disabled="!form.freightTemplateId" @click="editSelectedFreightTemplate">编辑当前模板</el-button>
+                  </div>
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-alert title="运费会加入订单实付和财务金额，但不计入业绩、累计单量金额或任何奖金计算。" type="success" :closable="false" show-icon />
+          </section>
+
+          <section class="form-section">
+            <h3>5. 售后及服务</h3>
+            <el-form-item label="服务保障">
+              <div class="guarantee-editor">
+                <div class="guarantee-toolbar">
+                  <span>勾选“前台展示”后，该条保障才会出现在商品详情页。</span>
+                  <el-button type="primary" plain :icon="Plus" @click="addServiceGuarantee">添加保障</el-button>
+                </div>
+                <el-empty v-if="!form.serviceGuarantees?.length" description="暂无服务保障，可点击右上角添加" :image-size="64" />
+                <div v-for="(item, index) in form.serviceGuarantees" :key="index" class="guarantee-row">
+                  <el-checkbox v-model="item.enabled" class="guarantee-enabled">前台展示</el-checkbox>
+                  <el-select v-model="item.icon" placeholder="小图标">
+                    <el-option v-for="option in guaranteeIconOptions" :key="option.value" :label="option.label" :value="option.value" />
+                  </el-select>
+                  <el-input v-model="item.title" maxlength="20" show-word-limit placeholder="简短标题，如：七天无理由" />
+                  <el-input v-model="item.description" type="textarea" :rows="2" maxlength="300" show-word-limit placeholder="详细介绍：适用条件、时限和处理方式" />
+                  <el-button type="danger" link @click="form.serviceGuarantees.splice(index, 1)">删除</el-button>
+                </div>
+              </div>
+            </el-form-item>
+            <el-form-item label="售后说明"><el-input v-model="form.afterSalePolicy" type="textarea" :rows="4" maxlength="1000" show-word-limit placeholder="退换货条件、时限、运费承担等说明" /></el-form-item>
+          </section>
+
+          <section class="form-section">
+            <h3>6. 商品详情</h3>
+            <el-form-item label="文字详情"><el-input v-model="form.detail" type="textarea" :rows="6" placeholder="商品参数、使用说明、注意事项等" /></el-form-item>
+            <el-form-item label="详情图（最多30张）">
+              <div class="image-manager detail-manager">
+                <div v-for="(url, index) in form.detailImageUrls" :key="url + index" class="image-tile detail-tile"><el-image :src="url" fit="cover" /><span class="image-order">{{ index + 1 }}</span><div class="image-actions"><button type="button" @click="removeImage('detailImageUrls', index)">删除</button></div></div>
+                <el-upload v-if="form.detailImageUrls.length < 30" action="#" multiple :show-file-list="false" accept="image/*" :http-request="({ file }) => uploadImageTo('detailImageUrls', file, 30)"><div class="image-uploader"><el-icon><Plus /></el-icon><span>上传详情图</span></div></el-upload>
+              </div>
+              <div class="field-help">按显示顺序上传，可连续添加多张，最多 30 张；每张不超过 5MB。</div>
+            </el-form-item>
+          </section>
+        </el-form>
+      </div>
+      <template #footer><div class="dialog-footer"><el-button size="large" @click="dialogVisible = false">取消</el-button><el-button type="primary" size="large" :loading="submitting" @click="submitForm">保存商品</el-button></div></template>
+    </el-dialog>
+
+    <el-dialog v-model="freightTemplateDialogVisible" :title="freightTemplateForm.id ? '编辑运费模板' : '新建运费模板'" width="980px" append-to-body destroy-on-close>
+      <el-form :model="freightTemplateForm" label-width="118px">
+        <el-form-item label="模板名称" required><el-input v-model="freightTemplateForm.templateName" maxlength="128" /></el-form-item>
+        <el-row :gutter="20">
+          <el-col :span="10"><el-form-item label="其余地区"><el-select v-model="freightTemplateForm.defaultMode" style="width:100%"><el-option label="包邮配送" value="FREE" /><el-option label="收取统一运费" value="FIXED" /><el-option label="不配送" value="UNAVAILABLE" /></el-select></el-form-item></el-col>
+          <el-col v-if="freightTemplateForm.defaultMode === 'FIXED'" :span="8"><el-form-item label="统一运费"><el-input-number v-model="freightTemplateForm.defaultFreightAmount" :min="0" :precision="2" /></el-form-item></el-col>
+          <el-col :span="6"><el-form-item label="模板状态"><el-switch v-model="freightTemplateForm.status" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="停用" /></el-form-item></el-col>
+        </el-row>
+        <div class="section-title"><h3>指定地区配送规则</h3><el-button type="primary" plain :icon="Plus" @click="addFreightRule">添加地区规则</el-button></div>
+        <el-alert title="勾选省份会自动勾选该省全部市、区县；也可以展开后只选择部分地区。下方会完整显示全部已选地区。" type="info" :closable="false" style="margin-bottom:14px" />
+        <el-table :data="freightTemplateForm.rules" border>
+          <el-table-column label="地区" min-width="460"><template #default="{ row }"><el-cascader v-model="row.regionPaths" class="freight-region-cascader" :options="pcaTextArr" :props="freightRegionProps" clearable filterable :collapse-tags="false" :show-all-levels="true" style="width:100%" placeholder="选择省/市/区县" /></template></el-table-column>
+          <el-table-column label="配送规则" width="160"><template #default="{ row }"><el-select v-model="row.mode"><el-option label="包邮配送" value="FREE" /><el-option label="加收运费" value="FIXED" /><el-option label="不配送" value="UNAVAILABLE" /></el-select></template></el-table-column>
+          <el-table-column label="运费" width="150"><template #default="{ row }"><el-input-number v-if="row.mode === 'FIXED'" v-model="row.freightAmount" :min="0" :precision="2" style="width:120px" /><span v-else>-</span></template></el-table-column>
+          <el-table-column label="操作" width="80"><template #default="{ $index }"><el-button type="danger" link @click="freightTemplateForm.rules.splice($index, 1)">删除</el-button></template></el-table-column>
+        </el-table>
+      </el-form>
+      <template #footer><el-button @click="freightTemplateDialogVisible = false">取消</el-button><el-button type="primary" :loading="freightTemplateSaving" @click="saveFreightTemplateForm">保存模板</el-button></template>
+    </el-dialog>
+
+    <el-dialog v-model="quickCategoryVisible" title="新增商品分类" width="520px" append-to-body destroy-on-close>
+      <el-form :model="quickCategoryForm" label-width="86px">
+        <el-form-item label="分类名称" required><el-input v-model="quickCategoryForm.categoryName" maxlength="64" show-word-limit placeholder="例如：护理套装" /></el-form-item>
+        <el-form-item label="排序"><el-input-number v-model="quickCategoryForm.sort" :min="0" :max="999999" /><span class="quick-help">数值越大越靠前</span></el-form-item>
+        <el-form-item label="备注"><el-input v-model="quickCategoryForm.remark" type="textarea" :rows="3" maxlength="256" show-word-limit /></el-form-item>
+      </el-form>
+      <el-alert title="保存后会自动选中这个新分类；分类图标可在“商城管理 → 分类管理（可新增）”中补充。" type="info" :closable="false" show-icon />
+      <template #footer><el-button @click="quickCategoryVisible = false">取消</el-button><el-button type="primary" :loading="quickCategorySaving" @click="saveQuickCategory">保存并选中</el-button></template>
+    </el-dialog>
+
+    <el-dialog v-model="skuAttributeVisible" title="编辑规格属性" width="560px" append-to-body>
+      <el-alert title="例如：属性名填写“颜色”，属性值填写“红色”。可以添加颜色、尺寸、容量等多个属性。" type="info" :closable="false" style="margin-bottom:14px" />
+      <div v-for="(item, index) in skuAttributeForm" :key="index" class="attribute-row">
+        <el-input v-model="item.name" maxlength="30" placeholder="属性名，如颜色" />
+        <el-input v-model="item.value" maxlength="60" placeholder="属性值，如红色" />
+        <el-button type="danger" link @click="skuAttributeForm.splice(index, 1)">删除</el-button>
+      </div>
+      <el-button type="primary" plain :icon="Plus" @click="skuAttributeForm.push({ name: '', value: '' })">添加属性</el-button>
+      <template #footer><el-button @click="skuAttributeVisible = false">取消</el-button><el-button type="primary" @click="saveSkuAttributes">确定</el-button></template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { computed, onMounted, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus, QuestionFilled, Refresh, Search, WarningFilled } from '@element-plus/icons-vue'
+import { pcaTextArr } from 'element-china-area-data'
+import { createFreightTemplate, createShopCategory, getProductSettings, listFreightTemplates, listShopCategories, listShopProducts, listShopSkus, publishShopProduct, updateFreightTemplate, updateProductPvSetting, updateShopProductStatus, uploadShopImage } from '@/api/shop'
+import { validateSearchKeyword } from '@/utils/searchFeedback'
+import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
+
+const loading = ref(false)
+const dialogLoading = ref(false)
+const submitting = ref(false)
+const tableData = ref([])
+const dialogVisible = ref(false)
+const query = ref({ keyword: '', categoryName: '', status: 1 })
+const pagination = ref({ page: 1, size: 10, total: 0 })
+const searchFeedback = ref('')
+const tableEmptyText = ref('暂无商品')
+const { markSearchApplied: markKeywordSearchApplied } = useSearchAutoRestore(
+  () => query.value.keyword,
+  () => {
+    pagination.value.page = 1
+    fetchData()
+  },
+)
+const form = ref({})
+const skuRows = ref([])
+const removedSkuIds = ref([])
+const categories = ref([])
+const freightTemplates = ref([])
+const deliveryRegion = ref([])
+const freightTemplateDialogVisible = ref(false)
+const freightTemplateSaving = ref(false)
+const skuAttributeVisible = ref(false)
+const skuAttributeForm = ref([])
+const editingSkuIndex = ref(-1)
+const quickCategoryVisible = ref(false)
+const quickCategorySaving = ref(false)
+const quickCategoryForm = ref({ categoryName: '', sort: 0, status: 1, remark: '' })
+const freightRegionProps = { multiple: true, checkStrictly: false, emitPath: true }
+const defaultFreightTemplateForm = () => ({ id: null, tenantId: 1, templateName: '', defaultMode: 'FREE', defaultFreightAmount: 0, status: 1, rules: [] })
+const freightTemplateForm = ref(defaultFreightTemplateForm())
+const activeFreightTemplates = computed(() => freightTemplates.value.filter((item) => item.status === 1))
+const hasSku = computed(() => skuRows.value.length > 0)
+const productPvLimit = computed(() => {
+  if (!hasSku.value) return Math.max(0, Number(form.value.salePrice || 0))
+  const enabledPrices = skuRows.value
+    .filter((item) => Number(item.status) === 1)
+    .map((item) => Number(item.salePrice || 0))
+    .filter(Number.isFinite)
+  return enabledPrices.length ? Math.max(0, Math.min(...enabledPrices)) : 0
+})
+const performanceUnitsEnabled = ref(true)
+const guaranteeIconOptions = [
+  { value: 'shield', label: '盾牌保障' },
+  { value: 'return', label: '退换货' },
+  { value: 'package', label: '包裹售后' },
+  { value: 'refund', label: '极速退款' },
+  { value: 'ban', label: '限制说明' },
+  { value: 'truck', label: '物流配送' },
+  { value: 'heart', label: '贴心服务' },
+  { value: 'badge', label: '品质认证' },
+]
+const guaranteeDefaults = {
+  '七天无理由': { icon: 'return', description: '符合平台规则且商品完好的，可在签收后7天内申请无理由退货。' },
+  '正品保障': { icon: 'shield', description: '严控商品来源与质量，为消费者提供品质保障。' },
+  '极速退款': { icon: 'refund', description: '售后审核通过后，平台将尽快完成退款处理。' },
+  '破损包赔': { icon: 'package', description: '商品运输途中发生破损，可凭有效凭证申请售后处理。' },
+  '运费险': { icon: 'truck', description: '符合条件的退货订单可按保险规则获得退货运费补偿。' },
+}
+const parseArray = (value) => {
+  if (Array.isArray(value)) return value
+  try { const parsed = JSON.parse(value || '[]'); return Array.isArray(parsed) ? parsed : [] } catch { return [] }
+}
+
+const normalizeServiceGuarantees = (value) => parseArray(value).map((item) => {
+  if (typeof item === 'string') {
+    const preset = guaranteeDefaults[item] || {}
+    return { enabled: true, icon: preset.icon || 'shield', title: item, description: preset.description || '以商城售后规则及商品实际情况为准。' }
+  }
+  return { enabled: item?.enabled !== false, icon: item?.icon || 'shield', title: item?.title || '', description: item?.description || '' }
+})
+const parseSkuAttributes = (value) => {
+  try {
+    const parsed = JSON.parse(value || '{}')
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') return []
+    return Object.entries(parsed).map(([name, attributeValue]) => ({ name, value: String(attributeValue ?? '') }))
+  } catch {
+    return []
+  }
+}
+const serializeSkuAttributes = (attributes = []) => JSON.stringify(Object.fromEntries(
+  attributes
+    .map((item) => [item.name?.trim(), item.value?.trim()])
+    .filter(([name, value]) => name && value),
+))
+const defaultServiceGuarantees = () => Object.entries(guaranteeDefaults).map(([title, preset]) => ({
+  enabled: false, icon: preset.icon, title, description: preset.description,
+}))
+
+const defaultForm = () => ({ tenantId: 1, productNo: '', productName: '', subtitle: '', categoryName: '', mainImages: [], salePrice: 0, marketPrice: 0, costAmount: 0, pvValue: 0, bvValue: 0, stock: 0, salesCount: 0, sort: 0, status: 1, freightType: 0, freightAmount: 0, freeShippingAmount: 0, freightTemplateId: null, freightTemplateName: '', deliveryAddress: '', deliveryProvince: '', deliveryCity: '', deliveryDistrict: '', deliveryTime: '48小时内发货', afterSalePolicy: '', serviceGuarantees: defaultServiceGuarantees(), detail: '', detailImageUrls: [] })
+
+const fetchData = async () => {
+  const validation = validateSearchKeyword(query.value.keyword, { label: '商品关键词' })
+  if (!validation.valid) {
+    tableData.value = []
+    pagination.value.total = 0
+    searchFeedback.value = validation.message
+    tableEmptyText.value = '请修改搜索内容后重新查询'
+    return
+  }
+  query.value.keyword = validation.keyword
+  markKeywordSearchApplied(validation.keyword)
+  searchFeedback.value = ''
+  tableEmptyText.value = validation.keyword
+    ? `未找到与“${validation.keyword}”匹配的商品`
+    : '暂无商品'
+  loading.value = true
+  try {
+    const res = await listShopProducts({ ...query.value, pageNum: pagination.value.page, pageSize: pagination.value.size })
+    tableData.value = res.data?.list || []
+    pagination.value.total = res.data?.total || 0
+  } finally { loading.value = false }
+}
+
+const handleSearch = () => {
+  pagination.value.page = 1
+  fetchData()
+}
+
+const fetchCategories = async () => {
+  const res = await listShopCategories({ status: 1 })
+  categories.value = res.data || []
+}
+
+const openQuickCategory = () => {
+  quickCategoryForm.value = { tenantId: 1, categoryName: '', sort: 0, status: 1, remark: '' }
+  quickCategoryVisible.value = true
+}
+
+const saveQuickCategory = async () => {
+  const categoryName = quickCategoryForm.value.categoryName?.trim()
+  if (!categoryName) return ElMessage.warning('请输入分类名称')
+  if (categories.value.some((item) => item.categoryName?.toLowerCase() === categoryName.toLowerCase())) return ElMessage.warning('该分类已经存在，请直接选择')
+  quickCategorySaving.value = true
+  try {
+    const res = await createShopCategory({ ...quickCategoryForm.value, categoryName })
+    await fetchCategories()
+    form.value.categoryName = res.data?.categoryName || categoryName
+    quickCategoryVisible.value = false
+    ElMessage.success('分类已添加并自动选中')
+  } finally { quickCategorySaving.value = false }
+}
+
+const fetchFreightTemplates = async () => {
+  const res = await listFreightTemplates()
+  freightTemplates.value = res.data || []
+}
+
+const fetchProductSettings = async () => {
+  try { const res = await getProductSettings(); performanceUnitsEnabled.value = Number(res.data?.showPv ?? 1) === 1 } catch { performanceUnitsEnabled.value = true }
+}
+
+const changePvSetting = async (enabled) => {
+  try { await updateProductPvSetting(enabled); ElMessage.success(enabled ? '已开启商品 PV 填写' : '已关闭商品 PV 填写') } catch { performanceUnitsEnabled.value = !enabled }
+}
+
+const resetQuery = () => { query.value = { keyword: '', categoryName: '', status: 1 }; pagination.value.page = 1; fetchData() }
+const openDialog = async (row) => {
+  const mainImages = row ? [row.coverUrl, ...parseArray(row.galleryUrls)].filter(Boolean).slice(0, 5) : []
+  form.value = row ? { ...defaultForm(), ...row, mainImages, detailImageUrls: parseArray(row.detailImages), serviceGuarantees: normalizeServiceGuarantees(row.serviceTags), freightType: row.freightType ?? 0, pvValue: Number(row.pvValue || 0) } : defaultForm()
+  deliveryRegion.value = row?.deliveryProvince && row?.deliveryCity && row?.deliveryDistrict
+    ? [row.deliveryProvince, row.deliveryCity, row.deliveryDistrict]
+    : []
+  skuRows.value = []
+  removedSkuIds.value = []
+  dialogVisible.value = true
+  if (row?.id) {
+    dialogLoading.value = true
+    try {
+      const res = await listShopSkus(row.id)
+      skuRows.value = (res.data || []).map((item) => ({ ...item, attributes: parseSkuAttributes(item.attrsJson) }))
+    } finally { dialogLoading.value = false }
+  }
+}
+
+const uploadFile = async (file) => {
+  if (file.size > 5 * 1024 * 1024) {
+    ElMessage.error(`图片大小为 ${(file.size / 1024 / 1024).toFixed(2)}MB，单张不能超过5MB`)
+    throw new Error('单张图片不能超过5MB')
+  }
+  return (await uploadShopImage(file)).data
+}
+const uploadImageTo = async (field, file, max) => {
+  if ((form.value[field] || []).length >= max) return ElMessage.warning(`最多上传 ${max} 张图片`)
+  const url = await uploadFile(file)
+  if (form.value[field].length >= max) return ElMessage.warning(`最多上传 ${max} 张图片，多余图片未加入商品`)
+  form.value[field].push(url)
+  ElMessage.success('图片上传成功')
+}
+const uploadSkuImage = async (row, file) => { row.imageUrl = await uploadFile(file); ElMessage.success('规格图上传成功') }
+const removeImage = (field, index) => { form.value[field].splice(index, 1) }
+const setCover = (index) => { const [image] = form.value.mainImages.splice(index, 1); form.value.mainImages.unshift(image) }
+
+const addSku = () => skuRows.value.push({ skuNo: '', skuName: '', attributes: [], imageUrl: '', salePrice: Number(form.value.salePrice || 0), marketPrice: Number(form.value.marketPrice || 0), costAmount: Number(form.value.costAmount || 0), pvValue: 0, bvValue: 0, stock: 0, status: 1 })
+const removeSku = (index) => { const row = skuRows.value[index]; if (row.id) removedSkuIds.value.push(row.id); skuRows.value.splice(index, 1) }
+const changeProductType = async (type) => {
+  if (type === 'MULTI') {
+    if (!skuRows.value.length) addSku()
+    return
+  }
+  if (!skuRows.value.length) return
+  try {
+    await ElMessageBox.confirm(
+      '切换为单规格商品后，现有SKU将被删除，商品改用一组价格和库存。是否继续？',
+      '确认切换商品类型',
+      { type: 'warning', confirmButtonText: '切换为单规格', cancelButtonText: '取消' },
+    )
+    syncProductSummaryFromSkus()
+    skuRows.value.forEach((row) => { if (row.id) removedSkuIds.value.push(row.id) })
+    skuRows.value = []
+  } catch {
+    // 取消后继续保留多规格及其全部数据。
+  }
+}
+const openSkuAttributes = (row, index) => {
+  editingSkuIndex.value = index
+  skuAttributeForm.value = (row.attributes || []).map((item) => ({ ...item }))
+  if (!skuAttributeForm.value.length) skuAttributeForm.value.push({ name: '', value: '' })
+  skuAttributeVisible.value = true
+}
+const saveSkuAttributes = () => {
+  const normalized = skuAttributeForm.value
+    .map((item) => ({ name: item.name?.trim(), value: item.value?.trim() }))
+    .filter((item) => item.name || item.value)
+  if (normalized.some((item) => !item.name || !item.value)) return ElMessage.warning('属性名和属性值必须成对填写')
+  if (new Set(normalized.map((item) => item.name)).size !== normalized.length) return ElMessage.warning('同一个SKU不能重复添加相同属性名')
+  skuRows.value[editingSkuIndex.value].attributes = normalized
+  skuAttributeVisible.value = false
+}
+const syncProductSummaryFromSkus = () => {
+  if (!hasSku.value) return
+  const enabled = skuRows.value.filter((item) => Number(item.status) === 1)
+  const values = (field, positiveOnly = false) => enabled
+    .map((item) => Number(item[field] || 0))
+    .filter((value) => Number.isFinite(value) && (!positiveOnly || value > 0))
+  const salePrices = values('salePrice')
+  const marketPrices = values('marketPrice', true)
+  const costs = values('costAmount')
+  form.value.salePrice = salePrices.length ? Math.min(...salePrices) : 0
+  form.value.marketPrice = marketPrices.length ? Math.min(...marketPrices) : 0
+  form.value.costAmount = costs.length ? Math.min(...costs) : 0
+  form.value.stock = enabled.reduce((sum, item) => sum + Math.max(0, Number(item.stock || 0)), 0)
+}
+const addServiceGuarantee = () => form.value.serviceGuarantees.push({ enabled: true, icon: 'shield', title: '', description: '' })
+
+const parseFreightRules = (value) => {
+  try { const parsed = JSON.parse(value || '[]'); return Array.isArray(parsed) ? parsed : [] } catch { return [] }
+}
+const expandFreightPath = (path = []) => {
+  if (!Array.isArray(path) || !path.length) return []
+  let options = pcaTextArr
+  const matched = []
+  for (const value of path) {
+    const node = options.find((item) => item.value === value)
+    if (!node) return [path]
+    matched.push(node.value)
+    options = node.children || []
+  }
+  const collectLeaves = (nodes, prefix) => nodes.flatMap((node) => {
+    const next = [...prefix, node.value]
+    return node.children?.length ? collectLeaves(node.children, next) : [next]
+  })
+  return options.length ? collectLeaves(options, matched) : [matched]
+}
+const normalizeFreightRulesForEditor = (rules = []) => rules.map((rule) => {
+  const paths = (rule.regionPaths || []).flatMap(expandFreightPath)
+  const uniquePaths = [...new Map(paths.map((path) => [path.join('\u0001'), path])).values()]
+  return { ...rule, regionPaths: uniquePaths, freightAmount: Number(rule.freightAmount || 0) }
+})
+const openFreightTemplate = (template = null) => {
+  freightTemplateForm.value = template
+    ? { id: template.id, tenantId: template.tenantId || 1, templateName: template.templateName, defaultMode: template.defaultMode || 'FREE', defaultFreightAmount: Number(template.defaultFreightAmount || 0), status: template.status, rules: normalizeFreightRulesForEditor(parseFreightRules(template.rulesJson)) }
+    : defaultFreightTemplateForm()
+  freightTemplateDialogVisible.value = true
+}
+const editSelectedFreightTemplate = () => openFreightTemplate(freightTemplates.value.find((item) => item.id === form.value.freightTemplateId))
+const addFreightRule = () => freightTemplateForm.value.rules.push({ regionPaths: [], mode: 'FREE', freightAmount: 0 })
+const saveFreightTemplateForm = async () => {
+  if (!freightTemplateForm.value.templateName?.trim()) return ElMessage.warning('请填写模板名称')
+  if (freightTemplateForm.value.rules.some((rule) => !rule.regionPaths?.length)) return ElMessage.warning('请为每条特例选择地区')
+  freightTemplateSaving.value = true
+  try {
+    const data = { ...freightTemplateForm.value }
+    const res = data.id ? await updateFreightTemplate(data.id, data) : await createFreightTemplate(data)
+    await fetchFreightTemplates()
+    form.value.freightTemplateId = res.data?.id
+    freightTemplateDialogVisible.value = false
+    ElMessage.success('运费模板已保存')
+  } finally { freightTemplateSaving.value = false }
+}
+
+const submitForm = async () => {
+  if (!form.value.productName?.trim()) return ElMessage.warning('请输入商品名称')
+  if (!form.value.categoryName?.trim()) return ElMessage.warning('请选择商品分类')
+  if (!form.value.mainImages.length) return ElMessage.warning('请至少上传一张商品主图')
+  if (deliveryRegion.value.length !== 3) return ElMessage.warning('请选择完整的发货省、市、区/县')
+  if (form.value.freightType === 1 && Number(form.value.freightAmount || 0) <= 0) return ElMessage.warning('固定运费必须大于0')
+  if (form.value.freightType === 2 && Number(form.value.freeShippingAmount || 0) <= 0) return ElMessage.warning('请填写满额包邮门槛')
+  if (form.value.freightType === 3 && !form.value.freightTemplateId) return ElMessage.warning('请选择运费模板')
+  if (skuRows.value.some((item) => !item.skuName?.trim())) return ElMessage.warning('请填写所有 SKU 的规格名称')
+  if (skuRows.value.some((item) => !item.attributes?.length)) return ElMessage.warning('请为每个SKU设置规格属性')
+  if (hasSku.value && !skuRows.value.some((item) => Number(item.status) === 1)) return ElMessage.warning('多规格商品至少需要启用一个SKU')
+  if (form.value.serviceGuarantees.some((item) => item.enabled && !item.title?.trim())) return ElMessage.warning('请填写已勾选服务保障的标题')
+  if (form.value.serviceGuarantees.some((item) => item.enabled && !item.description?.trim())) return ElMessage.warning('请填写已勾选服务保障的详细介绍')
+  syncProductSummaryFromSkus()
+  if (Number(form.value.pvValue || 0) > productPvLimit.value) return ElMessage.warning(`${hasSku.value ? '默认单件PV' : '单件PV'}不能超过销售价 ${productPvLimit.value.toFixed(2)}`)
+  const invalidSku = skuRows.value.find((item) => Number(item.pvValue || 0) > Math.max(0, Number(item.salePrice || 0)))
+  if (invalidSku) return ElMessage.warning(`SKU“${invalidSku.skuName || '未命名'}”的单件PV不能超过其销售价`)
+  submitting.value = true
+  try {
+    const [deliveryProvince, deliveryCity, deliveryDistrict] = deliveryRegion.value
+    const serviceTags = form.value.serviceGuarantees
+      .filter((item) => item.title?.trim())
+      .map((item) => ({ enabled: Boolean(item.enabled), icon: item.icon || 'shield', title: item.title.trim(), description: item.description?.trim() || '' }))
+    const payload = { ...form.value, deliveryProvince, deliveryCity, deliveryDistrict, deliveryAddress: deliveryRegion.value.join(' '), coverUrl: form.value.mainImages[0], galleryUrls: JSON.stringify(form.value.mainImages.slice(1)), detailImages: JSON.stringify(form.value.detailImageUrls), serviceTags: JSON.stringify(serviceTags), bvValue: 0 }
+    delete payload.mainImages; delete payload.detailImageUrls; delete payload.serviceGuarantees
+    await publishShopProduct(form.value.id, {
+      product: payload,
+      skus: skuRows.value.map((sku) => {
+        const { attributes, ...data } = sku
+        return { ...data, attrsJson: serializeSkuAttributes(attributes), pvValue: Number(data.pvValue || 0), bvValue: 0 }
+      }),
+      removedSkuIds: removedSkuIds.value,
+    })
+    ElMessage.success('商品、图片、规格和配送信息已保存')
+    dialogVisible.value = false
+    await fetchData()
+  } finally { submitting.value = false }
+}
+
+const toggleStatus = async (row) => { await updateShopProductStatus(row.id, row.status === 1 ? 0 : 1); ElMessage.success('商品状态已更新'); fetchData() }
+
+onMounted(async () => { await Promise.all([fetchData(), fetchCategories(), fetchProductSettings(), fetchFreightTemplates()]) })
+</script>
+
+<style lang="scss" scoped>
+.product-cell { display:flex; align-items:center; gap:12px; min-width:0; }
+.search-feedback { margin-bottom:16px; }
+.cover,.cover-fallback { width:60px; height:60px; border-radius:8px; background:#f5f7fa; flex:0 0 auto; }
+.cover-fallback { display:flex; align-items:center; justify-content:center; color:#909399; }
+.product-meta { min-width:0; .name{font-weight:600;color:#303133;margin-bottom:4px}.sub{color:#909399;font-size:12px;line-height:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} }
+.pv-invalid { color:#f56c6c; font-weight:700; }
+.pv-warning { margin-left:5px; color:#e6a23c; vertical-align:-2px; cursor:help; }
+.column-help { margin-left:5px; color:#909399; vertical-align:-2px; cursor:help; }
+.pv-global-setting { display:flex; align-items:center; justify-content:space-between; gap:20px; border-top:1px solid #ebeef5; padding:14px 4px 0; color:#303133; span{margin-left:12px;color:#909399;font-size:13px} }
+.publish-shell { max-width:1440px; margin:0 auto; padding:0 18px 90px; }
+.publish-form { margin-top:18px; }
+.form-section { background:#fff; border:1px solid #e4e7ed; border-radius:10px; padding:20px 24px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,.025); h3{font-size:17px;margin:0 0 20px;color:#303133;border-left:4px solid #409eff;padding-left:10px} }
+.section-title { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; h3{margin-bottom:0} }
+.image-manager { display:flex; flex-wrap:wrap; gap:12px; width:100%; }
+.image-tile,.image-uploader { position:relative; width:138px; height:138px; border:1px dashed #c0ccda; border-radius:8px; overflow:hidden; background:#fafafa; }
+.image-tile :deep(.el-image) { width:100%; height:100%; }
+.image-uploader { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:#909399; cursor:pointer; font-size:13px; &:hover{border-color:#409eff;color:#409eff} .el-icon{font-size:26px} }
+.cover-badge,.image-order { position:absolute; left:0; top:0; padding:3px 8px; color:#fff; background:#409eff; border-radius:0 0 6px 0; font-size:12px; }
+.image-order { background:rgba(0,0,0,.55); }
+.image-actions { position:absolute; inset:auto 0 0; display:flex; justify-content:center; gap:12px; padding:8px; background:rgba(0,0,0,.6); button{border:0;background:none;color:#fff;cursor:pointer;padding:0} }
+.detail-tile { width:116px; height:154px; }
+.field-help { width:100%; color:#909399; font-size:12px; line-height:20px; margin-top:7px; }
+.money-input { width:100%; }
+.pv-row { margin-top:20px; }
+.product-type-title { align-items:flex-start; }
+.sku-toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:4px 0 14px; color:#606266; font-size:13px; }
+.multi-pv-row { margin-top:0; }
+.cost-help { margin-top:16px; }
+.sku-table-wrap { overflow-x:auto; }
+.sku-attributes { display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
+.empty-attribute { color:#909399; font-size:12px; }
+.attribute-row { display:grid; grid-template-columns:1fr 1fr auto; gap:10px; margin-bottom:10px; }
+.template-picker { display:flex; align-items:center; gap:10px; flex-wrap:wrap; width:100%; }
+.freight-region-cascader :deep(.el-input__wrapper) { min-height:42px; height:auto; align-items:flex-start; padding-top:5px; padding-bottom:5px; }
+.freight-region-cascader :deep(.el-cascader__tags) { position:static; transform:none; max-height:148px; padding:0; overflow:auto; flex-wrap:wrap; }
+.freight-region-cascader :deep(.el-tag) { max-width:100%; height:auto; min-height:24px; white-space:normal; line-height:18px; }
+.category-picker { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; width:100%; }
+.quick-help { margin-left:10px; color:#909399; font-size:12px; }
+.guarantee-editor { width:100%; }
+.guarantee-toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:12px; color:#909399; font-size:13px; }
+.guarantee-row { display:grid; grid-template-columns:90px 130px minmax(180px,.8fr) minmax(280px,1.6fr) 52px; align-items:start; gap:10px; padding:12px; margin-bottom:10px; background:#f8fafc; border:1px solid #ebeef5; border-radius:8px; }
+.guarantee-enabled { padding-top:7px; }
+.sku-image,.sku-image-placeholder { width:54px; height:54px; border-radius:5px; }
+.sku-image-placeholder { display:flex;align-items:center;justify-content:center;border:1px dashed #c0ccda;color:#909399;cursor:pointer; }
+.dialog-footer { position:fixed; z-index:20; left:0; right:0; bottom:0; display:flex; justify-content:flex-end; gap:10px; padding:14px 30px; background:#fff; border-top:1px solid #e4e7ed; box-shadow:0 -2px 8px rgba(0,0,0,.05); }
+@media (max-width: 900px) { .pv-global-setting{align-items:flex-start}.pv-global-setting span{display:block;margin:5px 0 0}.form-section{padding:16px 12px}.product-type-title,.sku-toolbar{align-items:flex-start;flex-direction:column}.guarantee-toolbar{align-items:flex-start;flex-direction:column}.guarantee-row{grid-template-columns:1fr}.guarantee-enabled{padding-top:0} }
+</style>

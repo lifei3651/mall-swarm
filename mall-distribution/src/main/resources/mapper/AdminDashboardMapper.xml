@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.AdminDashboardDao">
+
+    <select id="countMembers" resultType="long">
+        SELECT COUNT(*) FROM dms_shop_member WHERE system_account = 0
+    </select>
+
+    <select id="countPromotionMembers" resultType="long">
+        SELECT COUNT(*)
+        FROM dms_agent agent
+        WHERE agent.status &lt;&gt; 0
+          AND NOT EXISTS (
+              SELECT 1 FROM dms_shop_member member
+              WHERE member.user_id = agent.user_id AND member.system_account = 1
+          )
+    </select>
+
+    <select id="countNewMembers" resultType="long">
+        SELECT COUNT(*)
+        FROM dms_shop_member
+        WHERE system_account = 0
+          AND create_time &gt;= #{startTime}
+          AND create_time &lt; #{endTime}
+    </select>
+
+    <!--
+      销售额口径：已支付订单的商品成交额，扣除商品退款，不含运费。
+      使用 pay_time 判断真实支付，避免订单创建时已生成的账务快照被误算为销售。
+    -->
+    <select id="sumSales" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(GREATEST(shop_order.total_amount - COALESCE(refund.product_refund_amount, 0), 0)), 0)
+        FROM dms_shop_order shop_order
+        LEFT JOIN (
+            SELECT order_id, COALESCE(SUM(product_refund_amount), 0) AS product_refund_amount
+            FROM dms_finance_refund
+            GROUP BY order_id
+        ) refund ON refund.order_id = shop_order.id
+        WHERE shop_order.tenant_id = #{tenantId}
+          AND shop_order.pay_time IS NOT NULL
+        <if test="startTime != null">
+            AND shop_order.pay_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND shop_order.pay_time &lt; #{endTime}
+        </if>
+    </select>
+
+    <select id="sumPerformance" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(GREATEST(shop_order.total_amount - COALESCE(refund.product_refund_amount, 0), 0)), 0)
+        FROM dms_shop_order shop_order
+        LEFT JOIN (
+            SELECT order_id, COALESCE(SUM(product_refund_amount), 0) AS product_refund_amount
+            FROM dms_finance_refund
+            GROUP BY order_id
+        ) refund ON refund.order_id = shop_order.id
+        WHERE shop_order.tenant_id = #{tenantId}
+          AND shop_order.pay_time IS NOT NULL
+          AND shop_order.pay_time &gt;= #{startTime}
+          AND shop_order.pay_time &lt; #{endTime}
+    </select>
+
+    <select id="sumUnsettledCommission" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(commission_amount), 0)
+        FROM dms_commission_record
+        WHERE status = 0
+    </select>
+
+    <select id="countUnsettledCommission" resultType="long">
+        SELECT COUNT(*) FROM dms_commission_record WHERE status = 0
+    </select>
+
+    <select id="sumPendingWithdraw" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(withdraw_amount), 0)
+        FROM dms_withdraw_record
+        WHERE status = 0
+    </select>
+
+    <select id="countPendingWithdraw" resultType="long">
+        SELECT COUNT(*) FROM dms_withdraw_record WHERE status = 0
+    </select>
+
+    <select id="sumSuccessfulWithdraw" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(withdraw_amount), 0)
+        FROM dms_withdraw_record
+        WHERE status = 3
+        <if test="startTime != null">
+            AND pay_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND pay_time &lt; #{endTime}
+        </if>
+    </select>
+
+    <!-- 财务只统计确实产生过支付的订单；净收款已经扣除全部退款。 -->
+    <select id="selectFinanceSummary" resultType="com.macro.mall.distribution.vo.DashboardFinanceSummaryVO">
+        SELECT COALESCE(SUM(finance.net_pay_amount), 0) AS totalReceiptAmount,
+               COALESCE(SUM(finance.product_cost + finance.bonus_amount + finance.company_share_amount), 0)
+                   AS totalPayoutAmount,
+               COALESCE(SUM(finance.product_cost), 0) AS totalProductCostAmount,
+               COALESCE(SUM(finance.bonus_amount), 0) AS totalBonusPayoutAmount,
+               COALESCE(SUM(finance.company_share_amount), 0) AS totalCompanyShareAmount,
+               COALESCE(SUM(finance.company_profit), 0) AS totalProfitAmount
+        FROM dms_order_finance finance
+        INNER JOIN dms_shop_order shop_order ON shop_order.id = finance.order_id
+        WHERE shop_order.tenant_id = #{tenantId}
+          AND shop_order.pay_time IS NOT NULL
+    </select>
+
+    <!-- 排行榜按有效订单商品成交金额排序，整单关闭/整单退款不计入。 -->
+    <select id="selectProductRanking" resultType="com.macro.mall.distribution.vo.DashboardProductRankingVO">
+        SELECT item.product_id AS productId,
+               item.product_name AS productName,
+               MAX(item.product_cover) AS productCover,
+               COUNT(DISTINCT item.order_id) AS orderCount,
+               COALESCE(SUM(item.quantity), 0) AS salesQuantity,
+               COALESCE(SUM(item.total_amount), 0) AS salesAmount
+        FROM dms_shop_order_item item
+        INNER JOIN dms_shop_order shop_order ON shop_order.id = item.order_id
+        WHERE shop_order.tenant_id = #{tenantId}
+          AND shop_order.pay_time IS NOT NULL
+          AND shop_order.status IN (1, 2, 3)
+        GROUP BY item.product_id, item.product_name
+        ORDER BY salesAmount DESC, salesQuantity DESC, item.product_id ASC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 每名会员只取一条地址：优先默认地址，否则取最近更新的有效地址。 -->
+    <select id="selectMemberRegionDistribution" resultType="com.macro.mall.distribution.vo.DashboardRegionVO">
+        SELECT address.province AS regionName,
+               COUNT(*) AS memberCount
+        FROM dms_shop_address address
+        INNER JOIN dms_shop_member member ON member.id = address.member_id
+        WHERE member.system_account = 0
+          AND address.status = 1
+          AND NULLIF(TRIM(address.province), '') IS NOT NULL
+          AND address.id = (
+              SELECT candidate.id
+              FROM dms_shop_address candidate
+              WHERE candidate.member_id = address.member_id
+                AND candidate.status = 1
+                AND NULLIF(TRIM(candidate.province), '') IS NOT NULL
+              ORDER BY CASE WHEN candidate.is_default = 1 THEN 0 ELSE 1 END,
+                       candidate.update_time DESC,
+                       candidate.id DESC
+              LIMIT 1
+          )
+        GROUP BY address.province
+        ORDER BY memberCount DESC, address.province ASC
+    </select>
+
+    <select id="selectPerformanceTrend" resultType="com.macro.mall.distribution.vo.DashboardTrendVO">
+        SELECT DATE(shop_order.pay_time) AS statDate,
+               COALESCE(SUM(GREATEST(shop_order.total_amount - COALESCE(refund.product_refund_amount, 0), 0)), 0)
+                   AS performanceAmount
+        FROM dms_shop_order shop_order
+        LEFT JOIN (
+            SELECT order_id, COALESCE(SUM(product_refund_amount), 0) AS product_refund_amount
+            FROM dms_finance_refund
+            GROUP BY order_id
+        ) refund ON refund.order_id = shop_order.id
+        WHERE shop_order.tenant_id = #{tenantId}
+          AND shop_order.pay_time IS NOT NULL
+          AND shop_order.pay_time &gt;= #{startTime}
+          AND shop_order.pay_time &lt; #{endTime}
+        GROUP BY DATE(shop_order.pay_time)
+        ORDER BY DATE(shop_order.pay_time)
+    </select>
+
+    <select id="selectLevelDistribution" resultType="com.macro.mall.distribution.vo.DashboardLevelCountVO">
+        SELECT agent.agent_level AS agentLevel, COUNT(*) AS memberCount
+        FROM dms_agent agent
+        WHERE agent.status &lt;&gt; 0
+          AND NOT EXISTS (
+              SELECT 1 FROM dms_shop_member member
+              WHERE member.user_id = agent.user_id AND member.system_account = 1
+          )
+        GROUP BY agent.agent_level
+        ORDER BY agent.agent_level
+    </select>
+
+    <select id="selectPendingWithdraws" resultType="com.macro.mall.distribution.vo.DashboardWithdrawVO">
+        SELECT withdraw.id,
+               withdraw.withdraw_no AS withdrawNo,
+               COALESCE(agent.agent_name, withdraw.account_name) AS agentName,
+               withdraw.account_name AS accountName,
+               withdraw.withdraw_amount AS withdrawAmount,
+               withdraw.create_time AS createTime
+        FROM dms_withdraw_record withdraw
+        LEFT JOIN dms_agent agent ON agent.id = withdraw.agent_id
+        WHERE withdraw.status = 0
+        ORDER BY withdraw.create_time DESC, withdraw.id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectLatestCommissions" resultType="com.macro.mall.distribution.vo.DashboardCommissionVO">
+        SELECT id,
+               agent_name AS agentName,
+               order_no AS orderNo,
+               bonus_type AS bonusType,
+               commission_amount AS commissionAmount,
+               status,
+               create_time AS createTime
+        FROM dms_commission_record
+        ORDER BY create_time DESC, id DESC
+        LIMIT #{limit}
+    </select>
+</mapper>

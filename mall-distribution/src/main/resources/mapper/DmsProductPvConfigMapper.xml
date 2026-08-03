@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsProductPvConfigDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsProductPvConfig">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="product_id" property="productId"/>
+        <result column="sku_id" property="skuId"/>
+        <result column="product_name" property="productName"/>
+        <result column="sku_name" property="skuName"/>
+        <result column="pv_value" property="pvValue"/>
+        <result column="bv_value" property="bvValue"/>
+        <result column="cost_amount" property="costAmount"/>
+        <result column="status" property="status"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, tenant_id, product_id, sku_id, product_name, sku_name, pv_value, bv_value,
+        cost_amount, status, remark, create_time, update_time
+    </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM dms_product_pv_config
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectList" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM dms_product_pv_config
+        WHERE tenant_id = #{tenantId}
+        <if test="keyword != null and keyword != ''">
+            AND (product_name LIKE CONCAT('%', #{keyword}, '%') OR sku_name LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY update_time DESC, id DESC
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsProductPvConfig" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_product_pv_config
+        (tenant_id, product_id, sku_id, product_name, sku_name, pv_value, bv_value, cost_amount, status, remark)
+        VALUES
+        (#{tenantId}, #{productId}, #{skuId}, #{productName}, #{skuName}, #{pvValue}, #{bvValue}, #{costAmount}, #{status}, #{remark})
+    </insert>
+
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsProductPvConfig">
+        UPDATE dms_product_pv_config
+        SET tenant_id = #{tenantId}, product_id = #{productId}, sku_id = #{skuId},
+            product_name = #{productName}, sku_name = #{skuName}, pv_value = #{pvValue},
+            bv_value = #{bvValue}, cost_amount = #{costAmount}, status = #{status},
+            remark = #{remark}, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE dms_product_pv_config SET status = #{status}, update_time = NOW() WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM dms_product_pv_config WHERE id = #{id}
+    </delete>
+</mapper>

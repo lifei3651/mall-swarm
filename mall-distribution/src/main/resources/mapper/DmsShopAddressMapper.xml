@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsShopAddressDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsShopAddress">
+        <id column="id" property="id"/>
+        <result column="member_id" property="memberId"/>
+        <result column="user_id" property="userId"/>
+        <result column="receiver_name" property="receiverName"/>
+        <result column="receiver_phone" property="receiverPhone"/>
+        <result column="province" property="province"/>
+        <result column="city" property="city"/>
+        <result column="district" property="district"/>
+        <result column="detail_address" property="detailAddress"/>
+        <result column="is_default" property="isDefault"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT id, member_id, user_id, receiver_name, receiver_phone, province, city, district,
+               detail_address, is_default, status, create_time, update_time
+        FROM dms_shop_address
+        WHERE id = #{id} AND status = 1
+    </select>
+
+    <select id="selectDefaultByMemberId" resultMap="BaseResultMap">
+        SELECT id, member_id, user_id, receiver_name, receiver_phone, province, city, district,
+               detail_address, is_default, status, create_time, update_time
+        FROM dms_shop_address
+        WHERE member_id = #{memberId} AND status = 1 AND is_default = 1
+        ORDER BY id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectByMemberId" resultMap="BaseResultMap">
+        SELECT id, member_id, user_id, receiver_name, receiver_phone, province, city, district,
+               detail_address, is_default, status, create_time, update_time
+        FROM dms_shop_address
+        WHERE member_id = #{memberId} AND status = 1
+        ORDER BY is_default DESC, id DESC
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopAddress" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_shop_address
+        (member_id, user_id, receiver_name, receiver_phone, province, city, district,
+         detail_address, is_default, status)
+        VALUES
+        (#{memberId}, #{userId}, #{receiverName}, #{receiverPhone}, #{province}, #{city}, #{district},
+         #{detailAddress}, #{isDefault}, #{status})
+    </insert>
+
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsShopAddress">
+        UPDATE dms_shop_address
+        SET receiver_name = #{receiverName},
+            receiver_phone = #{receiverPhone},
+            province = #{province},
+            city = #{city},
+            district = #{district},
+            detail_address = #{detailAddress},
+            is_default = #{isDefault},
+            status = #{status},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND member_id = #{memberId}
+    </update>
+
+    <update id="clearDefault">
+        UPDATE dms_shop_address
+        SET is_default = 0, update_time = CURRENT_TIMESTAMP
+        WHERE member_id = #{memberId}
+    </update>
+
+    <update id="deleteById">
+        UPDATE dms_shop_address
+        SET status = 0, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND member_id = #{memberId}
+    </update>
+</mapper>

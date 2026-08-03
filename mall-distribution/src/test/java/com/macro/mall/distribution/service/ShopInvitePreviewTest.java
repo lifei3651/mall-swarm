@@ -1,0 +1,74 @@
+package com.macro.mall.distribution.service;
+
+import com.macro.mall.distribution.dao.DmsAgentDao;
+import com.macro.mall.distribution.dao.DmsShopMemberDao;
+import com.macro.mall.distribution.entity.DmsAgent;
+import com.macro.mall.distribution.entity.DmsShopMember;
+import com.macro.mall.distribution.service.impl.ShopServiceImpl;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class ShopInvitePreviewTest {
+
+    @Mock private DmsShopMemberDao memberDao;
+    @Mock private DmsAgentDao agentDao;
+    @InjectMocks private ShopServiceImpl shopService;
+
+    @Test
+    void previewNormalizesCodeAndReturnsOnlyMaskedPublicFields() {
+        DmsShopMember inviter = new DmsShopMember();
+        inviter.setNickname("邀请会员甲");
+        inviter.setPhone("13900001234");
+        inviter.setUserId(99887766L);
+        inviter.setStatus(1);
+        when(memberDao.selectByInviteCode("ABCD1234")).thenReturn(inviter);
+
+        Map<String, Object> preview = shopService.getInviterPreview(" abcd1234 ");
+
+        assertEquals(true, preview.get("valid"));
+        assertEquals("ABCD1234", preview.get("inviteCode"));
+        assertEquals("邀***甲", preview.get("nickname"));
+        assertEquals(3, preview.size(), "注册页不得返回手机号、用户ID等额外信息");
+    }
+
+    @Test
+    void legacyAgentInviteCodeStillResolvesToShopMember() {
+        DmsAgent legacyAgent = new DmsAgent();
+        legacyAgent.setUserId(99887766L);
+        legacyAgent.setStatus(1);
+        DmsShopMember inviter = new DmsShopMember();
+        inviter.setUserId(99887766L);
+        inviter.setNickname("历史会员乙");
+        inviter.setStatus(1);
+        when(memberDao.selectByInviteCode("OLDLINK1")).thenReturn(null);
+        when(agentDao.selectByInviteCode("OLDLINK1")).thenReturn(legacyAgent);
+        when(memberDao.selectByUserId(99887766L)).thenReturn(inviter);
+
+        Map<String, Object> preview = shopService.getInviterPreview("oldlink1");
+
+        assertEquals(true, preview.get("valid"));
+        assertEquals("历***乙", preview.get("nickname"));
+        assertEquals("OLDLINK1", preview.get("inviteCode"));
+    }
+
+    @Test
+    void unknownCodeReturnsNormalValidationResult() {
+        when(memberDao.selectByInviteCode("INVALID1")).thenReturn(null);
+        when(agentDao.selectByInviteCode("INVALID1")).thenReturn(null);
+
+        Map<String, Object> preview = shopService.getInviterPreview("invalid1");
+
+        assertEquals(false, preview.get("valid"));
+        assertEquals("INVALID1", preview.get("inviteCode"));
+        assertEquals("未找到该邀请码，请向邀请人核对", preview.get("message"));
+    }
+}

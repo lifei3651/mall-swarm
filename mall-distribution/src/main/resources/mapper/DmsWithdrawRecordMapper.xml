@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsWithdrawRecordDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsWithdrawRecord">
+        <id column="id" property="id"/>
+        <result column="withdraw_no" property="withdrawNo"/>
+        <result column="agent_id" property="agentId"/>
+        <result column="user_id" property="userId"/>
+        <result column="withdraw_amount" property="withdrawAmount"/>
+        <result column="withdraw_type" property="withdrawType"/>
+        <result column="bank_name" property="bankName"/>
+        <result column="bank_account" property="bankAccount"/>
+        <result column="account_name" property="accountName"/>
+        <result column="status" property="status"/>
+        <result column="audit_user_id" property="auditUserId"/>
+        <result column="audit_time" property="auditTime"/>
+        <result column="audit_remark" property="auditRemark"/>
+        <result column="pay_time" property="payTime"/>
+        <result column="pay_no" property="payNo"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, withdraw_no, agent_id, user_id, withdraw_amount, withdraw_type, bank_name, bank_account,
+        account_name, status, audit_user_id, audit_time, audit_remark, pay_time, pay_no,
+        create_time, update_time
+    </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_withdraw_record
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByIdForUpdate" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_withdraw_record
+        WHERE id = #{id}
+        FOR UPDATE
+    </select>
+
+    <select id="selectByWithdrawNo" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_withdraw_record
+        WHERE withdraw_no = #{withdrawNo}
+    </select>
+
+    <select id="selectByAgentId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_withdraw_record
+        WHERE agent_id = #{agentId}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByStatus" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_withdraw_record
+        WHERE status = #{status}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_withdraw_record
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="search" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_withdraw_record
+        <where>
+            <if test="agentId != null">
+                AND agent_id = #{agentId}
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+            <if test="startTime != null">
+                AND create_time &gt;= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND create_time &lt;= #{endTime}
+            </if>
+        </where>
+        ORDER BY create_time DESC
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsWithdrawRecord" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_withdraw_record (withdraw_no, agent_id, user_id, withdraw_amount, withdraw_type,
+            bank_name, bank_account, account_name, status)
+        VALUES (#{withdrawNo}, #{agentId}, #{userId}, #{withdrawAmount}, #{withdrawType},
+            #{bankName}, #{bankAccount}, #{accountName}, #{status})
+    </insert>
+
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsWithdrawRecord">
+        UPDATE dms_withdraw_record
+        SET status = #{status},
+            audit_user_id = #{auditUserId},
+            audit_time = #{auditTime},
+            audit_remark = #{auditRemark},
+            pay_time = #{payTime},
+            pay_no = #{payNo}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE dms_withdraw_record
+        SET status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <update id="deleteById">
+        DELETE FROM dms_withdraw_record WHERE id = #{id}
+    </update>
+
+</mapper>

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsCommissionClawbackDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsCommissionClawback">
+        <id column="id" property="id"/>
+        <result column="refund_id" property="refundId"/>
+        <result column="commission_record_id" property="commissionRecordId"/>
+        <result column="order_id" property="orderId"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="agent_id" property="agentId"/>
+        <result column="agent_user_id" property="agentUserId"/>
+        <result column="agent_name" property="agentName"/>
+        <result column="original_commission_amount" property="originalCommissionAmount"/>
+        <result column="clawback_amount" property="clawbackAmount"/>
+        <result column="deducted_amount" property="deductedAmount"/>
+        <result column="debt_amount" property="debtAmount"/>
+        <result column="clawback_type" property="clawbackType"/>
+        <result column="status" property="status"/>
+        <result column="reason" property="reason"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <select id="selectByOrderId" resultMap="BaseResultMap">
+        SELECT id, refund_id, commission_record_id, order_id, order_no, agent_id, agent_user_id, agent_name,
+               original_commission_amount, clawback_amount, deducted_amount, debt_amount, clawback_type,
+               status, reason, create_time
+        FROM dms_commission_clawback
+        WHERE order_id = #{orderId}
+        ORDER BY create_time DESC, id DESC
+    </select>
+
+    <select id="selectByAgentId" resultMap="BaseResultMap">
+        SELECT id, refund_id, commission_record_id, order_id, order_no, agent_id, agent_user_id, agent_name,
+               original_commission_amount, clawback_amount, deducted_amount, debt_amount, clawback_type,
+               status, reason, create_time
+        FROM dms_commission_clawback
+        WHERE agent_id = #{agentId}
+        ORDER BY create_time DESC, id DESC
+    </select>
+
+    <select id="selectPendingDebtByAgentId" resultMap="BaseResultMap">
+        SELECT id, refund_id, commission_record_id, order_id, order_no, agent_id, agent_user_id, agent_name,
+               original_commission_amount, clawback_amount, deducted_amount, debt_amount, clawback_type,
+               status, reason, create_time
+        FROM dms_commission_clawback
+        WHERE agent_id = #{agentId}
+          AND status = 2
+          AND debt_amount &gt; 0
+        ORDER BY create_time ASC, id ASC
+    </select>
+
+    <select id="sumByCommissionRecordId" resultType="java.math.BigDecimal">
+        SELECT IFNULL(SUM(clawback_amount), 0)
+        FROM dms_commission_clawback
+        WHERE commission_record_id = #{commissionRecordId}
+    </select>
+
+    <select id="sumDebtByAgentId" resultType="java.math.BigDecimal">
+        SELECT IFNULL(SUM(debt_amount), 0)
+        FROM dms_commission_clawback
+        WHERE agent_id = #{agentId}
+          AND status = 2
+          AND debt_amount &gt; 0
+    </select>
+
+    <update id="updateDebtAfterOffset">
+        UPDATE dms_commission_clawback
+        SET deducted_amount = #{deductedAmount},
+            debt_amount = #{debtAmount},
+            status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsCommissionClawback" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_commission_clawback
+        (refund_id, commission_record_id, order_id, order_no, agent_id, agent_user_id, agent_name,
+         original_commission_amount, clawback_amount, deducted_amount, debt_amount, clawback_type, status, reason)
+        VALUES
+        (#{refundId}, #{commissionRecordId}, #{orderId}, #{orderNo}, #{agentId}, #{agentUserId}, #{agentName},
+         #{originalCommissionAmount}, #{clawbackAmount}, #{deductedAmount}, #{debtAmount}, #{clawbackType}, #{status}, #{reason})
+    </insert>
+</mapper>

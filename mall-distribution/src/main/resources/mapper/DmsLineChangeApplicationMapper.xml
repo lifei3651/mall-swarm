@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsLineChangeApplicationDao">
+  <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsLineChangeApplication">
+    <id column="id" property="id"/><result column="apply_no" property="applyNo"/>
+    <result column="agent_id" property="agentId"/><result column="old_parent_agent_id" property="oldParentAgentId"/>
+    <result column="new_parent_agent_id" property="newParentAgentId"/><result column="reason" property="reason"/>
+    <result column="status" property="status"/><result column="applicant_id" property="applicantId"/>
+    <result column="applicant_name" property="applicantName"/><result column="auditor_id" property="auditorId"/>
+    <result column="auditor_name" property="auditorName"/><result column="audit_remark" property="auditRemark"/>
+    <result column="effective_time" property="effectiveTime"/><result column="before_snapshot" property="beforeSnapshot"/>
+    <result column="after_snapshot" property="afterSnapshot"/><result column="audit_time" property="auditTime"/>
+    <result column="execute_time" property="executeTime"/><result column="create_time" property="createTime"/>
+    <result column="update_time" property="updateTime"/>
+  </resultMap>
+  <sql id="cols">id,apply_no,agent_id,old_parent_agent_id,new_parent_agent_id,reason,status,
+    applicant_id,applicant_name,auditor_id,auditor_name,audit_remark,effective_time,before_snapshot,
+    after_snapshot,audit_time,execute_time,create_time,update_time</sql>
+  <select id="selectById" resultMap="BaseResultMap">SELECT <include refid="cols"/> FROM dms_line_change_application WHERE id=#{id}</select>
+  <select id="selectPendingByAgentId" resultMap="BaseResultMap">SELECT <include refid="cols"/> FROM dms_line_change_application WHERE agent_id=#{agentId} AND status IN (0,1) ORDER BY id DESC LIMIT 1</select>
+  <select id="selectPendingAgentIds" resultType="long">
+    SELECT DISTINCT agent_id FROM dms_line_change_application
+    WHERE status IN (0,1) AND agent_id IN
+    <foreach collection="agentIds" item="agentId" open="(" separator="," close=")">#{agentId}</foreach>
+  </select>
+  <select id="selectList" resultMap="BaseResultMap">SELECT <include refid="cols"/> FROM dms_line_change_application <where><if test="status!=null">status=#{status}</if></where> ORDER BY id DESC</select>
+  <select id="selectDueApproved" resultMap="BaseResultMap">SELECT <include refid="cols"/> FROM dms_line_change_application WHERE status=1 AND effective_time&lt;=#{now} ORDER BY id</select>
+  <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO dms_line_change_application(apply_no,agent_id,old_parent_agent_id,new_parent_agent_id,reason,status,
+      applicant_id,applicant_name,effective_time,before_snapshot)
+    VALUES(#{applyNo},#{agentId},#{oldParentAgentId},#{newParentAgentId},#{reason},#{status},
+      #{applicantId},#{applicantName},#{effectiveTime},#{beforeSnapshot})
+  </insert>
+  <update id="audit">UPDATE dms_line_change_application SET status=#{status},auditor_id=#{auditorId},auditor_name=#{auditorName},audit_remark=#{auditRemark},audit_time=#{auditTime},update_time=NOW() WHERE id=#{id} AND status=0</update>
+  <update id="markExecuted">UPDATE dms_line_change_application SET status=3,after_snapshot=#{afterSnapshot},execute_time=#{executeTime},update_time=NOW() WHERE id=#{id} AND status=1</update>
+  <update id="markDirectExecuted">UPDATE dms_line_change_application
+    SET status=3,auditor_id=#{operatorId},auditor_name=#{operatorName},audit_remark=#{operationRemark},
+      audit_time=#{executeTime},after_snapshot=#{afterSnapshot},execute_time=#{executeTime},update_time=NOW()
+    WHERE id=#{id} AND status=0</update>
+</mapper>

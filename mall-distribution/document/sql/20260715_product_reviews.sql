@@ -1,0 +1,27 @@
+-- 商品真实购买评价：评价必须对应一条已确认收货且尚未评价的订单明细。
+CREATE TABLE IF NOT EXISTS `dms_shop_product_review` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '评价ID',
+  `tenant_id` bigint NOT NULL DEFAULT 1 COMMENT '租户ID',
+  `product_id` bigint NOT NULL COMMENT '商品ID',
+  `product_name` varchar(256) NOT NULL COMMENT '商品名称快照',
+  `order_id` bigint NOT NULL COMMENT '订单ID',
+  `order_no` varchar(64) NOT NULL COMMENT '订单号',
+  `order_item_id` bigint NOT NULL COMMENT '订单明细ID，一条明细只允许评价一次',
+  `user_id` bigint NOT NULL COMMENT '评价会员userId',
+  `reviewer_name` varchar(64) NOT NULL COMMENT '前台脱敏评价人名称快照',
+  `reviewer_avatar` varchar(512) DEFAULT NULL COMMENT '评价人头像快照',
+  `rating` tinyint NOT NULL COMMENT '1-5星',
+  `content` varchar(1000) NOT NULL COMMENT '评价内容',
+  `status` tinyint NOT NULL DEFAULT 1 COMMENT '0隐藏 1展示',
+  `hidden_reason` varchar(255) DEFAULT NULL COMMENT '后台隐藏原因',
+  `hidden_by` bigint DEFAULT NULL COMMENT '隐藏操作管理员ID',
+  `hidden_by_name` varchar(64) DEFAULT NULL COMMENT '隐藏操作管理员名称',
+  `hidden_time` datetime DEFAULT NULL COMMENT '隐藏时间',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_review_order_item` (`order_item_id`),
+  KEY `idx_review_product_status_time` (`product_id`,`status`,`create_time`),
+  KEY `idx_review_user` (`user_id`),
+  KEY `idx_review_order` (`order_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品真实购买评价';

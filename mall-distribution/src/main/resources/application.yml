@@ -1,0 +1,92 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: mall-distribution
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+  datasource:
+    url: jdbc:mysql://localhost:3306/mall_distribution?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: root
+    password: root
+    druid:
+      initial-size: 5
+      min-idle: 5
+      max-active: 20
+  redis:
+    host: localhost
+    port: 6379
+    password:
+    database: 0
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+      config:
+        server-addr: localhost:8848
+        file-extension: yaml
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.macro.mall.distribution.entity
+  configuration:
+    map-underscore-to-camel-case: true
+
+pagehelper:
+  helper-dialect: mysql
+  reasonable: true
+  support-methods-arguments: true
+
+logging:
+  level:
+    com.macro.mall.distribution: info
+
+admin:
+  security:
+    # 管理后台登录成功后的绝对有效期；到期后前后端都会强制重新登录。
+    session-days: 7
+
+# Sa-Token 配置
+sa-token:
+  token-name: Authorization
+  token-prefix: Bearer
+  timeout: 86400
+  active-timeout: 1800
+  is-concurrent: true
+  is-share: true
+  token-style: uuid
+  is-log: true
+
+# 仅供本地联调；生产配置会强制关闭。
+shop:
+  media:
+    storage-dir: ${SHOP_MEDIA_STORAGE_DIR:/opt/lingqimall/uploads/products}
+    max-dimension: ${SHOP_MEDIA_MAX_DIMENSION:1920}
+    max-pixels: ${SHOP_MEDIA_MAX_PIXELS:25000000}
+    jpeg-quality: ${SHOP_MEDIA_JPEG_QUALITY:0.82}
+  payment:
+    simulation-enabled: true
+  order:
+    pending-timeout-minutes: 30
+    pending-scan-interval-ms: 60000
+payment:
+  verification:
+    enabled: false
+    threshold: 500
+sms:
+  provider-enabled: false
+  expose-code: true
+  test-code: 123456
+
+bonus:
+  settlement:
+    cooling-off-days: 7
+    scan-interval-ms: 600000
+
+order:
+  balance-allocation:
+    remainder-account: SYSTEM_REMAINDER
+    product-cost-account: SYSTEM_PRODUCT_COST

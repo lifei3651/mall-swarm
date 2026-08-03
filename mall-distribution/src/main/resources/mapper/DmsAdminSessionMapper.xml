@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsAdminSessionDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsAdminSession">
+        <id column="id" property="id"/>
+        <result column="admin_id" property="adminId"/>
+        <result column="username" property="username"/>
+        <result column="token" property="token"/>
+        <result column="status" property="status"/>
+        <result column="expire_time" property="expireTime"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectByToken" resultMap="BaseResultMap">
+        SELECT id, admin_id, username, token, status, expire_time, create_time, update_time
+        FROM dms_admin_session
+        WHERE token = #{token}
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsAdminSession" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_admin_session (admin_id, username, token, status, expire_time)
+        VALUES (#{adminId}, #{username}, #{token}, #{status}, #{expireTime})
+    </insert>
+
+    <update id="disableByToken">
+        UPDATE dms_admin_session
+        SET status = 0, update_time = NOW()
+        WHERE token = #{token}
+    </update>
+
+    <update id="disableByAdminId">
+        UPDATE dms_admin_session
+        SET status = 0, update_time = NOW()
+        WHERE admin_id = #{adminId} AND status = 1
+    </update>
+</mapper>

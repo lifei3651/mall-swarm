@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsMemberAssetFlowDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsMemberAssetFlow">
+        <id column="id" property="id"/>
+        <result column="flow_no" property="flowNo"/>
+        <result column="agent_id" property="agentId"/>
+        <result column="user_id" property="userId"/>
+        <result column="related_agent_id" property="relatedAgentId"/>
+        <result column="related_user_id" property="relatedUserId"/>
+        <result column="asset_code" property="assetCode"/>
+        <result column="asset_name" property="assetName"/>
+        <result column="change_type" property="changeType"/>
+        <result column="amount" property="amount"/>
+        <result column="balance_after" property="balanceAfter"/>
+        <result column="biz_type" property="bizType"/>
+        <result column="biz_id" property="bizId"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <select id="selectByFlowNo" resultMap="BaseResultMap">
+        SELECT id, flow_no, agent_id, user_id, related_agent_id, related_user_id, asset_code, asset_name,
+               change_type, amount, balance_after, biz_type, biz_id, remark, create_time
+        FROM dms_member_asset_flow
+        WHERE flow_no = #{flowNo}
+    </select>
+
+    <select id="selectByAgentId" resultMap="BaseResultMap">
+        SELECT id, flow_no, agent_id, user_id, related_agent_id, related_user_id, asset_code, asset_name,
+               change_type, amount, balance_after, biz_type, biz_id, remark, create_time
+        FROM dms_member_asset_flow
+        WHERE agent_id = #{agentId}
+        <if test="assetCode != null and assetCode != ''">
+            AND asset_code = #{assetCode}
+        </if>
+        ORDER BY create_time DESC, id DESC
+    </select>
+
+    <select id="selectBalanceFlowList" resultType="com.macro.mall.distribution.vo.BalanceFlowVO">
+        SELECT f.id,
+               f.flow_no AS flowNo,
+               f.agent_id AS agentId,
+               f.user_id AS userId,
+               m.id AS memberId,
+               COALESCE(NULLIF(m.nickname, ''), NULLIF(m.username, ''), m.phone) AS memberName,
+               m.username AS memberUsername,
+               m.phone AS memberPhone,
+               f.related_agent_id AS relatedAgentId,
+               f.related_user_id AS relatedUserId,
+               f.change_type AS changeType,
+               f.amount,
+               f.balance_after AS balanceAfter,
+               f.biz_type AS bizType,
+               f.biz_id AS bizId,
+               f.remark,
+               f.create_time AS createTime
+        FROM dms_member_asset_flow f
+        LEFT JOIN dms_shop_member m ON m.user_id = f.user_id
+        WHERE f.asset_code = 'CASH_BONUS'
+        <if test="keyword != null and keyword != ''">
+            AND (f.flow_no LIKE CONCAT('%', #{keyword}, '%')
+                OR m.phone LIKE CONCAT('%', #{keyword}, '%')
+                OR m.nickname LIKE CONCAT('%', #{keyword}, '%')
+                OR m.username LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="direction == 'IN'">
+            AND f.change_type IN (1, 4)
+        </if>
+        <if test="direction == 'OUT'">
+            AND f.change_type IN (2, 3, 5)
+        </if>
+        <if test="sourceType == 'RECHARGE'">
+            AND f.biz_type LIKE '%MANUAL_MEMBER_ADJUST'
+        </if>
+        <if test="sourceType == 'BONUS'">
+            AND f.biz_type = 'COMMISSION_SETTLE'
+        </if>
+        <if test="sourceType == 'TRANSFER'">
+            AND f.biz_type = 'MEMBER_BALANCE_TRANSFER'
+        </if>
+        <if test="sourceType == 'PAYMENT'">
+            AND f.biz_type = 'ORDER_BALANCE_PAYMENT'
+        </if>
+        <if test="sourceType == 'REFUND'">
+            AND f.biz_type IN ('BALANCE_PAYMENT_REFUND', 'WITHDRAW_REJECT_REFUND')
+        </if>
+        <if test="sourceType == 'WITHDRAW'">
+            AND f.biz_type = 'WITHDRAW_APPLY'
+        </if>
+        <if test="sourceType == 'CLAWBACK'">
+            AND f.biz_type = 'COMMISSION_CLAWBACK'
+        </if>
+        <if test="sourceType == 'ORDER_ALLOCATION'">
+            AND f.biz_type IN ('ORDER_BALANCE_ALLOCATION', 'ORDER_BALANCE_ALLOCATION_REFUND')
+        </if>
+        <if test="startTime != null">
+            AND f.create_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND f.create_time &lt;= #{endTime}
+        </if>
+        ORDER BY f.create_time DESC, f.id DESC
+    </select>
+
+    <select id="selectCommissionSettlementFlows" resultMap="BaseResultMap">
+        SELECT id, flow_no, agent_id, user_id, related_agent_id, related_user_id, asset_code, asset_name,
+               change_type, amount, balance_after, biz_type, biz_id, remark, create_time
+        FROM dms_member_asset_flow
+        WHERE agent_id = #{agentId}
+          AND biz_type = 'COMMISSION_SETTLE'
+          AND biz_id = CAST(#{commissionRecordId} AS CHAR)
+          AND change_type = 1
+        ORDER BY id ASC
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsMemberAssetFlow" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_member_asset_flow
+        (flow_no, agent_id, user_id, related_agent_id, related_user_id, asset_code, asset_name,
+         change_type, amount, balance_after, biz_type, biz_id, remark)
+        VALUES
+        (#{flowNo}, #{agentId}, #{userId}, #{relatedAgentId}, #{relatedUserId}, #{assetCode}, #{assetName},
+         #{changeType}, #{amount}, #{balanceAfter}, #{bizType}, #{bizId}, #{remark})
+    </insert>
+</mapper>

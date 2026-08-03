@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsImportBatchDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsImportBatch">
+        <id column="id" property="id"/>
+        <result column="batch_no" property="batchNo"/>
+        <result column="batch_name" property="batchName"/>
+        <result column="import_type" property="importType"/>
+        <result column="file_name" property="fileName"/>
+        <result column="file_url" property="fileUrl"/>
+        <result column="total_count" property="totalCount"/>
+        <result column="success_count" property="successCount"/>
+        <result column="fail_count" property="failCount"/>
+        <result column="status" property="status"/>
+        <result column="error_file_url" property="errorFileUrl"/>
+        <result column="operator_id" property="operatorId"/>
+        <result column="operator_name" property="operatorName"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, batch_no, batch_name, import_type, file_name, file_url, total_count, success_count,
+        fail_count, status, error_file_url, operator_id, operator_name, remark, create_time, update_time
+    </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_import_batch
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByBatchNo" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_import_batch
+        WHERE batch_no = #{batchNo}
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_import_batch
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByImportType" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_import_batch
+        WHERE import_type = #{importType}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByStatus" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_import_batch
+        WHERE status = #{status}
+        ORDER BY create_time DESC
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsImportBatch" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_import_batch (batch_no, batch_name, import_type, file_name, file_url,
+            total_count, success_count, fail_count, status, operator_id, operator_name, remark)
+        VALUES (#{batchNo}, #{batchName}, #{importType}, #{fileName}, #{fileUrl},
+            #{totalCount}, #{successCount}, #{failCount}, #{status}, #{operatorId}, #{operatorName}, #{remark})
+    </insert>
+
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsImportBatch">
+        UPDATE dms_import_batch
+        SET batch_name = #{batchName},
+            total_count = #{totalCount},
+            success_count = #{successCount},
+            fail_count = #{failCount},
+            status = #{status},
+            error_file_url = #{errorFileUrl},
+            remark = #{remark}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE dms_import_batch
+        SET status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateCounts">
+        UPDATE dms_import_batch
+        SET success_count = #{successCount},
+            fail_count = #{failCount}
+        WHERE id = #{id}
+    </update>
+
+    <update id="deleteById">
+        DELETE FROM dms_import_batch WHERE id = #{id}
+    </update>
+
+</mapper>

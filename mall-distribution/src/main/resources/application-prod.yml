@@ -1,0 +1,123 @@
+server:
+  # 生产后端只允许本机 Nginx 访问；如在容器网络运行，必须显式设置 SERVER_ADDRESS=0.0.0.0。
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  port: 8086
+  forward-headers-strategy: framework
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+
+spring:
+  application:
+    name: mall-distribution
+  datasource:
+    # 生产数据库连接默认要求加密；远程数据库建议进一步设为 VERIFY_IDENTITY 并配置可信 CA。
+    url: jdbc:mysql://${DB_HOST}:${DB_PORT:3306}/${DB_NAME:mall}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&sslMode=${DB_SSL_MODE:REQUIRED}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    druid:
+      initial-size: 5
+      min-idle: 5
+      max-active: 20
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      database: ${REDIS_DATABASE:0}
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:nacos-registry:8848}
+      config:
+        server-addr: ${NACOS_SERVER:nacos-registry:8848}
+        file-extension: yaml
+  config:
+    import:
+      - optional:nacos:mall-distribution-prod.yaml?refreshEnabled=true
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.macro.mall.distribution.entity
+  configuration:
+    map-underscore-to-camel-case: true
+
+pagehelper:
+  helper-dialect: mysql
+  reasonable: true
+  support-methods-arguments: true
+
+logging:
+  level:
+    root: WARN
+    com.macro.mall.distribution: INFO
+
+admin:
+  security:
+    # 默认7天；如确需调整，只通过服务器环境变量覆盖，不写入前端。
+    session-days: ${ADMIN_SESSION_DAYS:7}
+
+sa-token:
+  token-name: Authorization
+  token-prefix: Bearer
+  timeout: ${SA_TOKEN_TIMEOUT:86400}
+  active-timeout: ${SA_TOKEN_ACTIVE_TIMEOUT:1800}
+  is-concurrent: true
+  is-share: true
+  token-style: uuid
+  is-log: false
+  is-read-cookie: false
+  cookie:
+    secure: true
+    http-only: true
+    same-site: Strict
+
+# 生产环境禁止暴露接口文档和调试入口。
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+shop:
+  media:
+    storage-dir: ${SHOP_MEDIA_STORAGE_DIR:/opt/lingqimall/uploads/products}
+    max-dimension: ${SHOP_MEDIA_MAX_DIMENSION:1920}
+    max-pixels: ${SHOP_MEDIA_MAX_PIXELS:25000000}
+    jpeg-quality: ${SHOP_MEDIA_JPEG_QUALITY:0.82}
+  payment:
+    simulation-enabled: false
+  order:
+    pending-timeout-minutes: ${ORDER_PENDING_TIMEOUT_MINUTES:30}
+    pending-scan-interval-ms: ${ORDER_PENDING_SCAN_INTERVAL_MS:60000}
+payment:
+  verification:
+    enabled: ${PAYMENT_LARGE_AMOUNT_VERIFY_ENABLED:false}
+    threshold: ${PAYMENT_LARGE_AMOUNT_VERIFY_THRESHOLD:500}
+sms:
+  provider-enabled: ${SMS_PROVIDER_ENABLED:false}
+  expose-code: false
+  test-code: ""
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+bonus:
+  # 正式口径：从订单确认收货开始计算7天保护期；每10分钟扫描一次到期奖金。
+  settlement:
+    cooling-off-days: ${BONUS_SETTLEMENT_COOLING_OFF_DAYS:7}
+    scan-interval-ms: ${BONUS_SETTLEMENT_SCAN_INTERVAL_MS:600000}
+
+order:
+  # 可通过环境变量调整，但生产启用前必须确认两个目标会员均已进入会员关系体系。
+  balance-allocation:
+    remainder-account: ${ORDER_REMAINDER_ACCOUNT:SYSTEM_REMAINDER}
+    product-cost-account: ${ORDER_PRODUCT_COST_ACCOUNT:SYSTEM_PRODUCT_COST}

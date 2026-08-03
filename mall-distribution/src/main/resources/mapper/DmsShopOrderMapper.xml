@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsShopOrderDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsShopOrder">
+        <id column="id" property="id"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="user_id" property="userId"/>
+        <result column="agent_id" property="agentId"/>
+        <result column="invite_code" property="inviteCode"/>
+        <result column="receiver_name" property="receiverName"/>
+        <result column="receiver_phone" property="receiverPhone"/>
+        <result column="receiver_address" property="receiverAddress"/>
+        <result column="receiver_province" property="receiverProvince"/>
+        <result column="receiver_city" property="receiverCity"/>
+        <result column="receiver_district" property="receiverDistrict"/>
+        <result column="receiver_detail_address" property="receiverDetailAddress"/>
+        <result column="total_amount" property="totalAmount"/>
+        <result column="freight_amount" property="freightAmount"/>
+        <result column="discount_amount" property="discountAmount"/>
+        <result column="pay_amount" property="payAmount"/>
+        <result column="total_pv" property="totalPv"/>
+        <result column="total_cost" property="totalCost"/>
+        <result column="status" property="status"/>
+        <result column="pay_type" property="payType"/>
+        <result column="remark" property="remark"/>
+        <result column="pay_time" property="payTime"/>
+        <result column="delivery_company" property="deliveryCompany"/>
+        <result column="delivery_no" property="deliveryNo"/>
+        <result column="delivery_time" property="deliveryTime"/>
+        <result column="receive_time" property="receiveTime"/>
+        <result column="cancel_time" property="cancelTime"/>
+        <result column="close_time" property="closeTime"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, order_no, tenant_id, user_id, agent_id, invite_code, receiver_name, receiver_phone,
+        receiver_address, receiver_province, receiver_city, receiver_district, receiver_detail_address,
+        total_amount, freight_amount, discount_amount, pay_amount, total_pv,
+        total_cost, status, pay_type, remark, pay_time, delivery_company, delivery_no,
+        delivery_time, receive_time, cancel_time, close_time, create_time, update_time
+    </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_order
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByIdForUpdate" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_order
+        WHERE id = #{id}
+        FOR UPDATE
+    </select>
+
+    <select id="selectByOrderNo" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_order
+        WHERE order_no = #{orderNo}
+    </select>
+
+    <select id="selectByOrderNoForUpdate" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_order
+        WHERE order_no = #{orderNo}
+        FOR UPDATE
+    </select>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_order
+        WHERE user_id = #{userId}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByAgentId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_order
+        WHERE agent_id = #{agentId}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByMemberUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_order
+        WHERE user_id = #{userId}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectList" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_order
+        <where>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+            <if test="status == null and orderState != null and orderState != ''">
+                <choose>
+                    <when test="orderState == 'PENDING_PAYMENT'">
+                        AND status = 0
+                    </when>
+                    <when test="orderState == 'PENDING_SHIPMENT'">
+                        AND status = 1
+                        AND NOT EXISTS (
+                            SELECT 1 FROM dms_shop_after_sale sale
+                            WHERE sale.order_id = dms_shop_order.id AND sale.status IN (0, 1)
+                        )
+                    </when>
+                    <when test="orderState == 'AFTER_SALE'">
+                        AND EXISTS (
+                            SELECT 1 FROM dms_shop_after_sale sale
+                            WHERE sale.order_id = dms_shop_order.id AND sale.status = 0
+                        )
+                    </when>
+                    <when test="orderState == 'COMPLETED'">
+                        AND status = 3
+                        AND NOT EXISTS (
+                            SELECT 1 FROM dms_shop_after_sale sale
+                            WHERE sale.order_id = dms_shop_order.id AND sale.status IN (0, 1)
+                        )
+                    </when>
+                    <when test="orderState == 'REFUNDED'">
+                        AND EXISTS (
+                            SELECT 1 FROM dms_shop_after_sale sale
+                            WHERE sale.order_id = dms_shop_order.id AND sale.status = 1
+                        )
+                        AND NOT EXISTS (
+                            SELECT 1 FROM dms_shop_after_sale sale
+                            WHERE sale.order_id = dms_shop_order.id AND sale.status = 0
+                        )
+                    </when>
+                </choose>
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    order_no LIKE CONCAT('%', #{keyword}, '%')
+                    OR receiver_name LIKE CONCAT('%', #{keyword}, '%')
+                    OR receiver_phone LIKE CONCAT('%', #{keyword}, '%')
+                )
+            </if>
+        </where>
+        ORDER BY create_time DESC
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopOrder">
+        INSERT INTO dms_shop_order
+        (id, order_no, tenant_id, user_id, agent_id, invite_code, receiver_name, receiver_phone,
+         receiver_address, receiver_province, receiver_city, receiver_district, receiver_detail_address,
+         total_amount, freight_amount, discount_amount, pay_amount, total_pv,
+         total_cost, status, pay_type, remark, pay_time, delivery_company, delivery_no,
+         delivery_time, receive_time, cancel_time, close_time)
+        VALUES
+        (#{id}, #{orderNo}, #{tenantId}, #{userId}, #{agentId}, #{inviteCode}, #{receiverName}, #{receiverPhone},
+         #{receiverAddress}, #{receiverProvince}, #{receiverCity}, #{receiverDistrict}, #{receiverDetailAddress},
+         #{totalAmount}, #{freightAmount}, #{discountAmount}, #{payAmount}, #{totalPv},
+         #{totalCost}, #{status}, #{payType}, #{remark}, #{payTime}, #{deliveryCompany}, #{deliveryNo},
+         #{deliveryTime}, #{receiveTime}, #{cancelTime}, #{closeTime})
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE dms_shop_order
+        SET status = #{status}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="markPaid">
+        UPDATE dms_shop_order
+        SET status = 1,
+            <if test="payType != null and payType != ''">
+                pay_type = #{payType},
+            </if>
+            pay_time = CURRENT_TIMESTAMP,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND status = 0
+    </update>
+    <update id="updateAgentId">
+        UPDATE dms_shop_order SET agent_id=#{agentId}, update_time=CURRENT_TIMESTAMP WHERE id=#{id}
+    </update>
+
+    <update id="ship">
+        UPDATE dms_shop_order
+        SET status = 2,
+            delivery_company = #{deliveryCompany},
+            delivery_no = #{deliveryNo},
+            delivery_time = CURRENT_TIMESTAMP,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND status = 1
+    </update>
+
+    <update id="confirmReceive">
+        UPDATE dms_shop_order
+        SET status = 3,
+            receive_time = CURRENT_TIMESTAMP,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND status = 2
+    </update>
+
+    <update id="cancel">
+        UPDATE dms_shop_order
+        SET status = 4,
+            cancel_time = CURRENT_TIMESTAMP,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND status = 0
+    </update>
+
+    <update id="closeAfterSale">
+        UPDATE dms_shop_order
+        SET status = 4,
+            close_time = CURRENT_TIMESTAMP,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectExpiredPendingIds" resultType="long">
+        SELECT id
+        FROM dms_shop_order
+        WHERE status = 0 AND create_time &lt;= #{cutoffTime}
+        ORDER BY create_time ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <update id="closePending">
+        UPDATE dms_shop_order
+        SET status = 4,
+            close_time = CURRENT_TIMESTAMP,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND status = 0
+    </update>
+</mapper>

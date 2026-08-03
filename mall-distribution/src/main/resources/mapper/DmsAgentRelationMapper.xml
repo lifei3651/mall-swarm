@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsAgentRelationDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsAgentRelation">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="agent_id" property="agentId"/>
+        <result column="parent_user_id" property="parentUserId"/>
+        <result column="parent_agent_id" property="parentAgentId"/>
+        <result column="relation_level" property="relationLevel"/>
+        <result column="relation_path" property="relationPath"/>
+        <result column="is_valid" property="isValid"/>
+        <result column="bind_type" property="bindType"/>
+        <result column="bind_time" property="bindTime"/>
+        <result column="unbind_time" property="unbindTime"/>
+        <result column="unbind_reason" property="unbindReason"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, user_id, agent_id, parent_user_id, parent_agent_id, relation_level, relation_path,
+        is_valid, bind_type, bind_time, unbind_time, unbind_reason, create_time
+    </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent_relation
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectValidRelation" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent_relation
+        WHERE user_id = #{userId} AND parent_user_id = #{parentUserId} AND is_valid = 1
+    </select>
+
+    <select id="selectValidRelationsByUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent_relation
+        WHERE user_id = #{userId} AND is_valid = 1
+        ORDER BY relation_level ASC
+    </select>
+
+    <select id="selectValidRelationsByParentAgentId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent_relation
+        WHERE parent_agent_id = #{parentAgentId} AND is_valid = 1
+        ORDER BY relation_level ASC
+    </select>
+
+    <select id="selectDirectChildren" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent_relation
+        WHERE parent_agent_id = #{parentAgentId} AND relation_level = 1 AND is_valid = 1
+        ORDER BY create_time ASC
+    </select>
+
+    <select id="selectAllDescendants" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent_relation
+        WHERE parent_agent_id = #{parentAgentId} AND is_valid = 1
+        ORDER BY relation_level ASC, create_time ASC
+    </select>
+
+    <select id="selectByRelationPath" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent_relation
+        WHERE relation_path LIKE CONCAT(#{relationPath}, '%') AND is_valid = 1
+        ORDER BY relation_level ASC
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsAgentRelation" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_agent_relation (user_id, agent_id, parent_user_id, parent_agent_id,
+            relation_level, relation_path, is_valid, bind_type, bind_time)
+        VALUES (#{userId}, #{agentId}, #{parentUserId}, #{parentAgentId},
+            #{relationLevel}, #{relationPath}, #{isValid}, #{bindType}, #{bindTime})
+    </insert>
+
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsAgentRelation">
+        UPDATE dms_agent_relation
+        SET relation_level = #{relationLevel},
+            relation_path = #{relationPath},
+            is_valid = #{isValid},
+            unbind_time = #{unbindTime},
+            unbind_reason = #{unbindReason}
+        WHERE id = #{id}
+    </update>
+
+    <update id="invalidRelation">
+        UPDATE dms_agent_relation
+        SET is_valid = 0,
+            unbind_time = NOW(),
+            unbind_reason = #{unbindReason}
+        WHERE user_id = #{userId} AND parent_user_id = #{parentUserId} AND is_valid = 1
+    </update>
+
+    <update id="invalidRelationsByAgentIds">
+        UPDATE dms_agent_relation
+        SET is_valid = 0,
+            unbind_time = NOW(),
+            unbind_reason = #{unbindReason}
+        WHERE is_valid = 1
+          AND agent_id IN
+          <foreach collection="agentIds" item="agentId" open="(" separator="," close=")">
+              #{agentId}
+          </foreach>
+    </update>
+
+    <update id="deleteById">
+        DELETE FROM dms_agent_relation WHERE id = #{id}
+    </update>
+
+</mapper>

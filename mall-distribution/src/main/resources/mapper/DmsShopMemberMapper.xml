@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsShopMemberDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsShopMember">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="phone" property="phone"/>
+        <result column="username" property="username"/>
+        <result column="password_hash" property="passwordHash"/>
+        <result column="salt" property="salt"/>
+        <result column="pay_password_hash" property="payPasswordHash"/>
+        <result column="pay_password_failed_count" property="payPasswordFailedCount"/>
+        <result column="pay_password_lock_time" property="payPasswordLockTime"/>
+        <result column="nickname" property="nickname"/>
+        <result column="avatar_url" property="avatarUrl"/>
+        <result column="invite_code" property="inviteCode"/>
+        <result column="inviter_id" property="inviterId"/>
+        <result column="status" property="status"/>
+        <result column="system_account" property="systemAccount"/>
+        <result column="failed_login_count" property="failedLoginCount"/><result column="lock_time" property="lockTime"/>
+        <result column="last_login_time" property="lastLoginTime"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, user_id, phone, username, password_hash, salt, pay_password_hash,
+        pay_password_failed_count, pay_password_lock_time, nickname, avatar_url,
+        invite_code, inviter_id, status, system_account, last_login_time, failed_login_count, lock_time, create_time, update_time
+    </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_member
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_member
+        WHERE user_id = #{userId}
+    </select>
+
+    <select id="selectByPhone" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_member
+        WHERE phone = #{phone}
+    </select>
+
+    <select id="selectByUsername" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_member
+        WHERE username = #{username}
+    </select>
+
+    <select id="selectByAccount" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_member
+        WHERE system_account = 0
+          AND (phone = #{account} OR username = #{account})
+        LIMIT 1
+    </select>
+
+    <select id="selectByInviteCode" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_member
+        WHERE system_account = 0
+          AND invite_code = #{inviteCode}
+        LIMIT 1
+    </select>
+
+    <select id="countForFoundingMember" resultType="long">
+        SELECT COUNT(*) FROM dms_shop_member WHERE system_account = 0 FOR UPDATE
+    </select>
+
+    <select id="selectList" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_member
+        <where>
+            AND system_account = 0
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    phone LIKE CONCAT('%', #{keyword}, '%')
+                    OR username LIKE CONCAT('%', #{keyword}, '%')
+                    OR nickname LIKE CONCAT('%', #{keyword}, '%')
+                )
+            </if>
+        </where>
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectAdminList" resultType="com.macro.mall.distribution.vo.AdminMemberVO">
+        SELECT m.id,
+               m.user_id AS userId,
+               COALESCE(NULLIF(m.username, ''), m.phone) AS memberAccount,
+               m.phone,
+               m.username,
+               m.nickname,
+               m.invite_code AS inviteCode,
+               m.status,
+               CASE WHEN m.lock_time IS NULL THEN 0 ELSE 1 END AS loginLocked,
+               m.lock_time AS lockTime,
+               m.last_login_time AS lastLoginTime,
+               m.create_time AS createTime,
+               m.inviter_id AS inviterUserId,
+               CASE WHEN inviter.id IS NULL THEN NULL ELSE COALESCE(NULLIF(inviter.username, ''), inviter.phone) END AS inviterMemberAccount,
+               COALESCE(inviter.nickname, inviter.username, inviter.phone) AS inviterName,
+               inviter.phone AS inviterPhone,
+               CASE WHEN agent.id IS NULL THEN 0 ELSE 1 END AS promotionActivated,
+               agent.id AS agentId,
+               agent.agent_code AS agentCode,
+               agent.agent_level AS agentLevel,
+               agent.status AS agentStatus,
+               parent.agent_name AS parentName,
+               CASE WHEN EXISTS (
+                   SELECT 1
+                   FROM dms_line_change_application line_change
+                   WHERE line_change.agent_id = agent.id
+                     AND line_change.status IN (0, 1)
+               ) THEN 1 ELSE 0 END AS hasPendingLineChange,
+               COALESCE(cash_balance.balance, 0) AS availableBalance,
+               COALESCE(agent_account.unsettled_commission, 0) AS unsettledCommission,
+               COALESCE(performance.team_performance, 0)
+                   + COALESCE(baseline.historical_team_performance, 0) AS teamPerformance,
+               COALESCE(agent_account.total_orders, 0) AS totalOrders
+        FROM dms_shop_member m
+        LEFT JOIN dms_shop_member inviter ON inviter.user_id = m.inviter_id
+        LEFT JOIN dms_agent agent ON agent.user_id = m.user_id
+        LEFT JOIN dms_agent parent ON parent.id = agent.parent_id
+        LEFT JOIN dms_agent_account agent_account ON agent_account.agent_id = agent.id
+        LEFT JOIN dms_member_asset_account cash_balance
+               ON cash_balance.agent_id = agent.id AND cash_balance.asset_code = 'CASH_BONUS'
+        LEFT JOIN (
+            SELECT target_agent_id, COALESCE(SUM(performance_amount), 0) AS team_performance
+            FROM dms_order_performance_detail
+            WHERE status = 1
+            GROUP BY target_agent_id
+        ) performance ON performance.target_agent_id = agent.id
+        LEFT JOIN dms_migration_baseline baseline ON baseline.agent_id = agent.id
+        <where>
+            AND m.system_account = 0
+            <if test="status != null">AND m.status = #{status}</if>
+            <if test="promotionActivated != null and promotionActivated == 1">AND agent.id IS NOT NULL</if>
+            <if test="promotionActivated != null and promotionActivated == 0">AND agent.id IS NULL</if>
+            <if test="agentLevel != null">AND agent.agent_level = #{agentLevel}</if>
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    m.phone LIKE CONCAT('%', #{keyword}, '%')
+                    OR m.username LIKE CONCAT('%', #{keyword}, '%')
+                    OR m.nickname LIKE CONCAT('%', #{keyword}, '%')
+                )
+            </if>
+        </where>
+        ORDER BY m.create_time DESC
+    </select>
+
+    <select id="selectByInviterId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_member
+        WHERE inviter_id = #{inviterId}
+        ORDER BY create_time ASC
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopMember" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_shop_member
+        (user_id, phone, username, password_hash, nickname, avatar_url, invite_code, inviter_id, status)
+        VALUES
+        (#{userId}, #{phone}, #{username}, #{passwordHash}, #{nickname}, #{avatarUrl}, #{inviteCode}, #{inviterId}, #{status})
+    </insert>
+
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsShopMember">
+        UPDATE dms_shop_member
+        SET phone = #{phone},
+            username = #{username},
+            nickname = #{nickname},
+            avatar_url = #{avatarUrl},
+            status = #{status},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateLastLoginTime">
+        UPDATE dms_shop_member
+        SET last_login_time = CURRENT_TIMESTAMP, failed_login_count = 0, lock_time = NULL,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE dms_shop_member
+        SET status = #{status},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="updatePassword">
+        UPDATE dms_shop_member
+        SET password_hash = #{passwordHash}, failed_login_count = 0, lock_time = NULL,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+    <update id="updatePhoneAndDefaults">
+        UPDATE dms_shop_member
+        SET phone = #{newPhone},
+            username = CASE WHEN username = #{oldPhone} THEN #{newPhone} ELSE username END,
+            nickname = CASE WHEN nickname = #{oldPhone} THEN #{newPhone} ELSE nickname END,
+            failed_login_count = 0,
+            lock_time = NULL,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+    <update id="updateAccount">
+        UPDATE dms_shop_member SET username=#{username}, password_hash=#{passwordHash},
+            failed_login_count=0, lock_time=NULL, update_time=CURRENT_TIMESTAMP WHERE id=#{id}
+    </update>
+    <update id="updateInviterId">
+        UPDATE dms_shop_member SET inviter_id=#{inviterId}, update_time=CURRENT_TIMESTAMP WHERE id=#{id}
+    </update>
+    <update id="increaseFailedLogin">UPDATE dms_shop_member SET failed_login_count=failed_login_count+1, lock_time=CASE WHEN failed_login_count+1 &gt;= #{lockThreshold} THEN CURRENT_TIMESTAMP ELSE lock_time END, update_time=CURRENT_TIMESTAMP WHERE id=#{id}</update>
+    <update id="clearLoginLock">UPDATE dms_shop_member SET failed_login_count=0, lock_time=NULL, update_time=CURRENT_TIMESTAMP WHERE id=#{id}</update>
+    <update id="updatePayPassword">
+        UPDATE dms_shop_member
+        SET pay_password_hash=#{payPasswordHash}, pay_password_failed_count=0,
+            pay_password_lock_time=NULL, update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id}
+    </update>
+    <update id="increaseFailedPayPassword">
+        UPDATE dms_shop_member
+        SET pay_password_failed_count=pay_password_failed_count+1,
+            pay_password_lock_time=CASE WHEN pay_password_failed_count+1 &gt;= #{lockThreshold} THEN CURRENT_TIMESTAMP ELSE pay_password_lock_time END,
+            update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id}
+    </update>
+    <update id="clearPayPasswordLock">
+        UPDATE dms_shop_member
+        SET pay_password_failed_count=0, pay_password_lock_time=NULL, update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id}
+    </update>
+</mapper>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsDistributionSettingDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsDistributionSetting">
+        <id column="id" property="id"/>
+        <result column="setting_key" property="settingKey"/>
+        <result column="setting_value" property="settingValue"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectByKey" resultMap="BaseResultMap">
+        SELECT id, setting_key, setting_value, remark, create_time, update_time
+        FROM dms_distribution_setting
+        WHERE setting_key = #{settingKey}
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT id, setting_key, setting_value, remark, create_time, update_time
+        FROM dms_distribution_setting
+        ORDER BY id ASC
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsDistributionSetting" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_distribution_setting (setting_key, setting_value, remark)
+        VALUES (#{settingKey}, #{settingValue}, #{remark})
+    </insert>
+
+    <update id="updateByKey" parameterType="com.macro.mall.distribution.entity.DmsDistributionSetting">
+        UPDATE dms_distribution_setting
+        SET setting_value = #{settingValue}, remark = #{remark}, update_time = NOW()
+        WHERE setting_key = #{settingKey}
+    </update>
+</mapper>

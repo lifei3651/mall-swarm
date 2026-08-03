@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS `dms_order_relation_snapshot` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `tenant_id` bigint NOT NULL,
+  `rule_version_id` bigint DEFAULT NULL,
+  `order_id` bigint NOT NULL,
+  `order_no` varchar(64) NOT NULL,
+  `order_user_id` bigint NOT NULL,
+  `owner_agent_id` bigint NOT NULL,
+  `target_agent_id` bigint NOT NULL,
+  `target_user_id` bigint NOT NULL,
+  `target_agent_name` varchar(64) DEFAULT NULL,
+  `relation_level` int NOT NULL,
+  `relation_path` varchar(1000) DEFAULT NULL,
+  `snapshot_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_order_target_level` (`order_id`,`target_agent_id`,`relation_level`),
+  KEY `idx_order_id` (`order_id`),
+  KEY `idx_target_agent` (`target_agent_id`),
+  KEY `idx_rule_version` (`rule_version_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单支付时组织归属快照（不可修改）';

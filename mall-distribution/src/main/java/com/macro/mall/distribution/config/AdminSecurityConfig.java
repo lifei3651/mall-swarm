@@ -1,0 +1,226 @@
+package com.macro.mall.distribution.config;
+
+import com.macro.mall.common.exception.ApiException;
+import com.macro.mall.distribution.entity.DmsAdminUser;
+import com.macro.mall.distribution.security.AdminContext;
+import com.macro.mall.distribution.service.AdminAuthService;
+import com.macro.mall.distribution.service.OperationLogService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+
+@Configuration
+@RequiredArgsConstructor
+public class AdminSecurityConfig implements WebMvcConfigurer {
+
+    private final AdminAuthService adminAuthService;
+    private final OperationLogService operationLogService;
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(new AdminSecurityInterceptor(adminAuthService, operationLogService))
+                .addPathPatterns("/distribution/**", "/shop/admin/**")
+                // ERP 无法携带后台会话；发货回传仅通过各集成独立 callbackToken 鉴权。
+                .excludePathPatterns("/distribution/admin-auth/login", "/distribution/erp/callbacks/**",
+                        "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html");
+    }
+
+    private static class AdminSecurityInterceptor implements HandlerInterceptor {
+
+        private final AdminAuthService adminAuthService;
+        private final OperationLogService operationLogService;
+
+        AdminSecurityInterceptor(AdminAuthService adminAuthService, OperationLogService operationLogService) {
+            this.adminAuthService = adminAuthService;
+            this.operationLogService = operationLogService;
+        }
+
+        @Override
+        public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws IOException {
+            if (HttpMethod.OPTIONS.matches(request.getMethod())) {
+                return true;
+            }
+            try {
+                DmsAdminUser admin = adminAuthService.requireAdmin(request.getHeader("Authorization"));
+                String permission = requiredPermission(request);
+                adminAuthService.requirePermission(admin, permission);
+                AdminContext.set(admin);
+                return true;
+            } catch (ApiException e) {
+                int status = e.getMessage() != null && e.getMessage().startsWith("没有操作权限") ? 403 : 401;
+                writeError(response, status, e.getMessage());
+                return false;
+            }
+        }
+
+        @Override
+        public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
+            try {
+                if (shouldLog(request)) {
+                    boolean success = ex == null && response.getStatus() < 400;
+                    String remark = describeRequest(request) + "，结果：" + (success ? "成功" : "失败")
+                            + "（HTTP " + response.getStatus() + "）";
+                    operationLogService.log("ADMIN_API", request.getMethod(), "HTTP", request.getRequestURI(),
+                            null, null, remark);
+                }
+            } finally {
+                AdminContext.clear();
+            }
+        }
+
+        private boolean shouldLog(HttpServletRequest request) {
+            String method = request.getMethod();
+            return HttpMethod.POST.matches(method) || HttpMethod.PUT.matches(method) || HttpMethod.DELETE.matches(method);
+        }
+
+        private String describeRequest(HttpServletRequest request) {
+            String path = request.getRequestURI();
+            String method = request.getMethod();
+            if (path.matches("/shop/admin/members/[^/]+/level")) return "调整会员级别";
+            if (path.matches("/shop/admin/members/[^/]+/status")) return "修改会员账号状态";
+            if (path.matches("/shop/admin/members/[^/]+/unlock")) return "解除会员登录锁定";
+            if (path.matches("/shop/admin/members/[^/]+/phone")) return "修改会员登录手机号";
+            if (path.matches("/shop/admin/members/[^/]+/login-password")) return "重置会员登录密码";
+            if (path.equals("/shop/admin/members") && HttpMethod.POST.matches(method)) return "后台新增商城会员";
+            if (path.equals("/distribution/assets/issue")) return "直接增加会员余额";
+            if (path.equals("/distribution/assets/deduct")) return "直接扣减会员余额";
+            if (path.equals("/distribution/agent/switch-line")) return "执行会员移线";
+            if (path.matches("/distribution/agent/line-change-applications/[^/]+/audit")) return "处理旧版移线申请";
+            if (path.matches("/shop/admin/products/[^/]+/publish") || path.equals("/shop/admin/products/publish")) return "发布商品";
+            if (path.matches("/shop/admin/products/[^/]+/status")) return "修改商品上架状态";
+            if (path.startsWith("/shop/admin/products")) return "保存商品资料";
+            if (path.startsWith("/shop/admin/categories")) return "维护商品分类";
+            if (path.matches("/shop/admin/orders/[^/]+/ship")) return "商城订单发货";
+            if (path.equals("/shop/admin/orders/shipments/import")) return "Excel批量导入订单物流并发货";
+            if (path.matches("/shop/admin/after-sales/[^/]+/audit")) return "审核商城售后";
+            if (path.matches("/shop/admin/reviews/[^/]+/status")) return "显示或隐藏商品评价";
+            if (path.startsWith("/distribution/withdraw")) return "处理会员提现";
+            if (path.startsWith("/distribution/tenant")) return "修改商城品牌或界面设置";
+            if (path.startsWith("/distribution/admin-users")) return "维护后台管理员及权限";
+            if (path.startsWith("/distribution/erp")) return "维护或执行ERP对接";
+            String action = HttpMethod.POST.matches(method) ? "新增/提交" : HttpMethod.PUT.matches(method) ? "修改" : "删除";
+            return action + "后台业务数据（" + path + "）";
+        }
+
+        private String requiredPermission(HttpServletRequest request) {
+            String path = request.getRequestURI();
+            String method = request.getMethod();
+            if (path.matches("/shop/admin/members/[^/]+/level")) {
+                return "distribution:manage";
+            }
+            if (HttpMethod.POST.matches(method) && path.matches("/distribution/agent/line-change-applications/[^/]+/audit")) {
+                return "line-change:apply";
+            }
+            if (HttpMethod.POST.matches(method) && path.equals("/distribution/agent/switch-line")) {
+                return "line-change:apply";
+            }
+            if (HttpMethod.GET.matches(method) && path.equals("/distribution/agent/line-change-applications")) {
+                return "line-change:apply";
+            }
+            if (path.startsWith("/distribution/admin-auth/")) {
+                return "admin:read";
+            }
+            if (path.startsWith("/distribution/admin-users")) {
+                return "system:manage";
+            }
+            if (path.startsWith("/distribution/erp")) {
+                return "config:manage";
+            }
+            if (HttpMethod.GET.matches(method)) {
+                if (path.startsWith("/distribution/operation-logs")) {
+                    return "system:manage";
+                }
+                if (path.startsWith("/distribution/tenant") || path.startsWith("/distribution/bonus-config")
+                        || path.startsWith("/distribution/audit/settings")) {
+                    return "config:manage";
+                }
+                if (path.startsWith("/distribution/audit/finance") || path.startsWith("/distribution/withdraw")
+                        || path.startsWith("/distribution/assets") || path.startsWith("/distribution/order-asset-payments")
+                        || path.startsWith("/distribution/audit/orders") || path.startsWith("/distribution/audit/bonus-sources")
+                        || path.startsWith("/distribution/audit/person-profile")) {
+                    return "finance:read";
+                }
+                if (path.startsWith("/shop/admin/products") || path.startsWith("/shop/admin/skus") || path.startsWith("/shop/admin/media")
+                        || path.startsWith("/shop/admin/freight-templates")
+                        || path.startsWith("/shop/admin/product-settings") || path.startsWith("/shop/admin/reviews")) {
+                    return "shop:product";
+                }
+                if (path.startsWith("/shop/admin/orders")) {
+                    return "shop:order";
+                }
+                if (path.startsWith("/shop/admin/after-sales")) {
+                    return "shop:aftersale";
+                }
+                if (path.startsWith("/shop/admin/members")) {
+                    return "shop:member";
+                }
+                if (path.startsWith("/distribution/import")) {
+                    return "import:manage";
+                }
+                if (path.startsWith("/distribution/commission")) {
+                    return "commission:manage";
+                }
+                if (path.startsWith("/distribution/agent") || path.startsWith("/distribution/performance")
+                        || path.startsWith("/distribution/account")) {
+                    return "distribution:manage";
+                }
+                return "admin:read";
+            }
+            if (path.startsWith("/distribution/tenant") || path.startsWith("/distribution/bonus-config")
+                    || path.startsWith("/distribution/audit/settings")) {
+                return "config:manage";
+            }
+            if (path.startsWith("/distribution/audit/finance") || path.startsWith("/distribution/withdraw")
+                    || path.startsWith("/distribution/assets") || path.startsWith("/distribution/order-asset-payments")) {
+                return "finance:manage";
+            }
+            if (path.startsWith("/shop/admin/products") || path.startsWith("/shop/admin/skus") || path.startsWith("/shop/admin/media")
+                    || path.startsWith("/shop/admin/freight-templates")
+                    || path.startsWith("/shop/admin/product-settings") || path.startsWith("/shop/admin/reviews")) {
+                return "shop:product";
+            }
+            if (path.startsWith("/shop/admin/orders")) {
+                return "shop:order";
+            }
+            if (path.startsWith("/shop/admin/after-sales")) {
+                return "shop:aftersale";
+            }
+            if (path.startsWith("/shop/admin/members")) {
+                return "shop:member";
+            }
+            if (path.startsWith("/distribution/import")) {
+                return "import:manage";
+            }
+            if (path.startsWith("/distribution/commission")) {
+                return "commission:manage";
+            }
+            if (path.startsWith("/distribution/agent") || path.startsWith("/distribution/performance")
+                    || path.startsWith("/distribution/account")) {
+                return "distribution:manage";
+            }
+            return "admin:write";
+        }
+
+        private void writeError(HttpServletResponse response, int status, String message) throws IOException {
+            response.setStatus(status);
+            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"code\":" + status + ",\"message\":\"" + escapeJson(message) + "\",\"data\":null}");
+        }
+
+        private String escapeJson(String value) {
+            if (value == null) {
+                return "";
+            }
+            return value.replace("\\", "\\\\").replace("\"", "\\\"");
+        }
+    }
+}

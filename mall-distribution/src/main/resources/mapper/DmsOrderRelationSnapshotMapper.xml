@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsOrderRelationSnapshotDao">
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsOrderRelationSnapshot">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/><result column="rule_version_id" property="ruleVersionId"/>
+        <result column="order_id" property="orderId"/><result column="order_no" property="orderNo"/>
+        <result column="order_user_id" property="orderUserId"/><result column="owner_agent_id" property="ownerAgentId"/>
+        <result column="target_agent_id" property="targetAgentId"/><result column="target_user_id" property="targetUserId"/>
+        <result column="target_agent_name" property="targetAgentName"/><result column="relation_level" property="relationLevel"/>
+        <result column="relation_path" property="relationPath"/><result column="snapshot_time" property="snapshotTime"/>
+    </resultMap>
+    <select id="selectByOrderId" resultMap="BaseResultMap">
+        SELECT * FROM dms_order_relation_snapshot WHERE order_id = #{orderId} ORDER BY relation_level
+    </select>
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsOrderRelationSnapshot" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_order_relation_snapshot
+        (tenant_id, rule_version_id, order_id, order_no, order_user_id, owner_agent_id,
+         target_agent_id, target_user_id, target_agent_name, relation_level, relation_path, snapshot_time)
+        VALUES (#{tenantId}, #{ruleVersionId}, #{orderId}, #{orderNo}, #{orderUserId}, #{ownerAgentId},
+                #{targetAgentId}, #{targetUserId}, #{targetAgentName}, #{relationLevel}, #{relationPath}, #{snapshotTime})
+    </insert>
+</mapper>

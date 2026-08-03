@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsShopProductReviewDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsShopProductReview">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="product_id" property="productId"/>
+        <result column="product_name" property="productName"/>
+        <result column="order_id" property="orderId"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="order_item_id" property="orderItemId"/>
+        <result column="user_id" property="userId"/>
+        <result column="reviewer_name" property="reviewerName"/>
+        <result column="reviewer_avatar" property="reviewerAvatar"/>
+        <result column="rating" property="rating"/>
+        <result column="content" property="content"/>
+        <result column="status" property="status"/>
+        <result column="hidden_reason" property="hiddenReason"/>
+        <result column="hidden_by" property="hiddenBy"/>
+        <result column="hidden_by_name" property="hiddenByName"/>
+        <result column="hidden_time" property="hiddenTime"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, tenant_id, product_id, product_name, order_id, order_no, order_item_id, user_id,
+        reviewer_name, reviewer_avatar, rating, content, status, hidden_reason, hidden_by,
+        hidden_by_name, hidden_time, create_time, update_time
+    </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM dms_shop_product_review
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectVisibleByProductId" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM dms_shop_product_review
+        WHERE product_id = #{productId} AND status = 1
+        ORDER BY create_time DESC, id DESC
+    </select>
+
+    <select id="selectAdminList" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM dms_shop_product_review
+        <where>
+            <if test="productId != null">AND product_id = #{productId}</if>
+            <if test="rating != null">AND rating = #{rating}</if>
+            <if test="status != null">AND status = #{status}</if>
+            <if test="keyword != null and keyword != ''">
+                AND (product_name LIKE CONCAT('%', #{keyword}, '%')
+                  OR order_no LIKE CONCAT('%', #{keyword}, '%')
+                  OR reviewer_name LIKE CONCAT('%', #{keyword}, '%')
+                  OR content LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY create_time DESC, id DESC
+    </select>
+
+    <select id="selectSummary" resultType="com.macro.mall.distribution.vo.ProductReviewSummaryVO">
+        SELECT COUNT(*) AS review_count, COALESCE(AVG(rating), 0) AS average_rating
+        FROM dms_shop_product_review
+        WHERE product_id = #{productId} AND status = 1
+    </select>
+
+    <select id="selectEligibleOrderItem" resultType="com.macro.mall.distribution.entity.DmsShopOrderItem">
+        SELECT oi.id, oi.order_id, oi.order_no, oi.product_id, oi.sku_id, oi.product_name,
+               oi.sku_name, oi.sku_attrs, oi.product_cover, oi.price, oi.quantity, oi.total_amount,
+               oi.pv_value, oi.total_pv, oi.cost_amount, oi.total_cost, oi.create_time
+        FROM dms_shop_order_item oi
+        INNER JOIN dms_shop_order o ON o.id = oi.order_id
+        LEFT JOIN dms_shop_product_review r ON r.order_item_id = oi.id
+        WHERE o.user_id = #{userId}
+          AND o.status = 3
+          AND o.tenant_id = #{tenantId}
+          AND oi.product_id = #{productId}
+          AND r.id IS NULL
+        ORDER BY o.receive_time DESC, oi.id DESC
+        LIMIT 1
+    </select>
+
+    <select id="countUnreviewedByOrderId" resultType="int">
+        SELECT COUNT(*)
+        FROM dms_shop_order_item oi
+        INNER JOIN dms_shop_order o ON o.id = oi.order_id
+        LEFT JOIN dms_shop_product_review r ON r.order_item_id = oi.id
+        WHERE o.user_id = #{userId}
+          AND o.id = #{orderId}
+          AND o.status = 3
+          AND o.tenant_id = #{tenantId}
+          AND r.id IS NULL
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopProductReview" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_shop_product_review
+        (tenant_id, product_id, product_name, order_id, order_no, order_item_id, user_id,
+         reviewer_name, reviewer_avatar, rating, content, status)
+        VALUES
+        (#{tenantId}, #{productId}, #{productName}, #{orderId}, #{orderNo}, #{orderItemId}, #{userId},
+         #{reviewerName}, #{reviewerAvatar}, #{rating}, #{content}, #{status})
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE dms_shop_product_review
+        SET status = #{status},
+            <if test="status == 0">
+                hidden_reason = #{hiddenReason},
+                hidden_by = #{hiddenBy},
+                hidden_by_name = #{hiddenByName},
+                hidden_time = #{hiddenTime},
+            </if>
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+</mapper>

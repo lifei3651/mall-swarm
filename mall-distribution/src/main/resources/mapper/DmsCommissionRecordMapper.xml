@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsCommissionRecordDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsCommissionRecord">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="rule_version_id" property="ruleVersionId"/>
+        <result column="record_no" property="recordNo"/>
+        <result column="order_id" property="orderId"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="order_amount" property="orderAmount"/>
+        <result column="order_user_id" property="orderUserId"/>
+        <result column="order_user_name" property="orderUserName"/>
+        <result column="agent_id" property="agentId"/>
+        <result column="agent_user_id" property="agentUserId"/>
+        <result column="agent_name" property="agentName"/>
+        <result column="agent_level" property="agentLevel"/>
+        <result column="commission_level" property="commissionLevel"/>
+        <result column="bonus_type" property="bonusType"/>
+        <result column="commission_rate" property="commissionRate"/>
+        <result column="commission_amount" property="commissionAmount"/>
+        <result column="status" property="status"/>
+        <result column="settle_time" property="settleTime"/>
+        <result column="cancel_reason" property="cancelReason"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, tenant_id, rule_version_id, record_no, order_id, order_no, order_amount, order_user_id, order_user_name,
+        agent_id, agent_user_id, agent_name, agent_level, commission_level, commission_rate,
+        commission_amount, bonus_type, status, settle_time, cancel_reason, remark, create_time, update_time
+    </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_commission_record
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByIdForUpdate" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_commission_record
+        WHERE id = #{id}
+        FOR UPDATE
+    </select>
+
+    <select id="selectByQuery" parameterType="com.macro.mall.distribution.dto.CommissionQueryDTO" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_commission_record
+        <where>
+            <if test="agentId != null">AND agent_id = #{agentId}</if>
+            <if test="orderNo != null and orderNo != ''">AND order_no LIKE CONCAT('%', #{orderNo}, '%')</if>
+            <if test="status != null">AND status = #{status}</if>
+            <if test="commissionLevel != null">AND commission_level = #{commissionLevel}</if>
+            <if test="bonusType != null and bonusType != ''">AND bonus_type = #{bonusType}</if>
+            <if test="startTime != null">AND create_time &gt;= #{startTime}</if>
+            <if test="endTime != null">AND create_time &lt;= #{endTime}</if>
+        </where>
+        ORDER BY create_time DESC, id DESC
+    </select>
+
+    <select id="selectByRecordNo" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_commission_record
+        WHERE record_no = #{recordNo}
+    </select>
+
+    <select id="selectByOrderId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_commission_record
+        WHERE order_id = #{orderId}
+        ORDER BY commission_level ASC
+    </select>
+
+    <select id="selectByOrderNo" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_commission_record
+        WHERE order_no = #{orderNo}
+        ORDER BY commission_level ASC
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_commission_record
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByStatus" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_commission_record
+        WHERE status = #{status}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByAgentId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_commission_record
+        WHERE agent_id = #{agentId}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByAgentIdAndStatus" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_commission_record
+        WHERE agent_id = #{agentId} AND status = #{status}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectPendingByCreateTime" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_commission_record r
+        WHERE r.status = 0
+          AND create_time &lt;= #{cutoffTime}
+          AND create_time &gt;= #{periodStart}
+          AND create_time &lt;= #{periodEnd}
+          AND NOT EXISTS (
+              SELECT 1 FROM dms_commission_settlement_item item
+              INNER JOIN dms_commission_settlement_batch batch ON batch.id = item.batch_id
+              WHERE item.commission_record_id = r.id AND batch.status = 0
+          )
+        ORDER BY r.id
+    </select>
+
+    <select id="selectEligibleForCoolingOffSettlement" resultMap="BaseResultMap">
+        SELECT r.*
+        FROM dms_commission_record r
+        INNER JOIN (
+            SELECT id, status, receive_time FROM dms_shop_order
+        ) o ON o.id = r.order_id
+        WHERE r.status = 0
+          AND r.commission_amount &gt; 0
+          AND o.status = 3
+          AND o.receive_time IS NOT NULL
+          AND o.receive_time &lt;= #{receivedCutoff}
+          AND NOT EXISTS (
+              SELECT 1 FROM dms_shop_after_sale a
+              WHERE a.order_id = r.order_id AND a.status = 0
+          )
+        ORDER BY o.receive_time, r.id
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectUnsettledAmountByAgentId" resultType="java.math.BigDecimal">
+        SELECT IFNULL(SUM(commission_amount), 0)
+        FROM dms_commission_record
+        WHERE agent_id = #{agentId} AND status = 0
+    </select>
+
+    <select id="selectSettledAmountByAgentId" resultType="java.math.BigDecimal">
+        SELECT IFNULL(SUM(commission_amount), 0)
+        FROM dms_commission_record
+        WHERE agent_id = #{agentId} AND status = 1
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsCommissionRecord" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_commission_record (tenant_id, rule_version_id, record_no, order_id, order_no, order_amount, order_user_id, order_user_name,
+            agent_id, agent_user_id, agent_name, agent_level, commission_level, commission_rate,
+            commission_amount, bonus_type, status, remark)
+        VALUES (#{tenantId}, #{ruleVersionId}, #{recordNo}, #{orderId}, #{orderNo}, #{orderAmount}, #{orderUserId}, #{orderUserName},
+            #{agentId}, #{agentUserId}, #{agentName}, #{agentLevel}, #{commissionLevel}, #{commissionRate},
+            #{commissionAmount}, #{bonusType}, #{status}, #{remark})
+    </insert>
+
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsCommissionRecord">
+        UPDATE dms_commission_record
+        SET status = #{status},
+            settle_time = #{settleTime},
+            cancel_reason = #{cancelReason},
+            remark = #{remark}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE dms_commission_record
+        SET status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateAmountAndStatus">
+        UPDATE dms_commission_record
+        SET commission_amount = #{commissionAmount},
+            status = #{status},
+            remark = #{remark},
+            update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatusBatch">
+        UPDATE dms_commission_record
+        SET status = #{status}
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <update id="deleteById">
+        DELETE FROM dms_commission_record WHERE id = #{id}
+    </update>
+
+</mapper>

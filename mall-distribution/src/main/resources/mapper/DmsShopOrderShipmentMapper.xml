@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsShopOrderShipmentDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsShopOrderShipment">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="order_id" property="orderId"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="delivery_company" property="deliveryCompany"/>
+        <result column="delivery_no" property="deliveryNo"/>
+        <result column="shipment_quantity" property="shipmentQuantity"/>
+        <result column="source" property="source"/>
+        <result column="delivery_time" property="deliveryTime"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, tenant_id, order_id, order_no, delivery_company, delivery_no, shipment_quantity, source,
+        delivery_time, create_time, update_time
+    </sql>
+
+    <select id="selectByOrderId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_order_shipment
+        WHERE order_id = #{orderId}
+        ORDER BY delivery_time ASC, id ASC
+    </select>
+
+    <select id="selectByOrderAndTracking" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_order_shipment
+        WHERE order_id = #{orderId}
+          AND LOWER(delivery_company) = LOWER(#{deliveryCompany})
+          AND LOWER(delivery_no) = LOWER(#{deliveryNo})
+        LIMIT 1
+    </select>
+
+    <select id="sumQuantityByOrderId" resultType="int">
+        SELECT COALESCE(SUM(shipment_quantity), 0)
+        FROM dms_shop_order_shipment
+        WHERE order_id = #{orderId}
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopOrderShipment"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_shop_order_shipment
+        (tenant_id, order_id, order_no, delivery_company, delivery_no, shipment_quantity, source, delivery_time)
+        VALUES
+        (#{tenantId}, #{orderId}, #{orderNo}, #{deliveryCompany}, #{deliveryNo}, #{shipmentQuantity}, #{source},
+         COALESCE(#{deliveryTime}, CURRENT_TIMESTAMP))
+    </insert>
+</mapper>

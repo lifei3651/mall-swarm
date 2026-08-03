@@ -1,0 +1,7 @@
+[Unit]
+Description=LingqiMall health and backup freshness check
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/lingqimall-health-check

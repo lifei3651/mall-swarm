@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.mapper.UmsLoginLogMapper">
+    <resultMap id="BaseResultMap" type="com.macro.mall.model.UmsLoginLog">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="username" property="username" jdbcType="VARCHAR"/>
+        <result column="login_type" property="loginType" jdbcType="INTEGER"/>
+        <result column="login_ip" property="loginIp" jdbcType="VARCHAR"/>
+        <result column="login_location" property="loginLocation" jdbcType="VARCHAR"/>
+        <result column="browser" property="browser" jdbcType="VARCHAR"/>
+        <result column="os" property="os" jdbcType="VARCHAR"/>
+        <result column="status" property="status" jdbcType="INTEGER"/>
+        <result column="message" property="message" jdbcType="VARCHAR"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, username, login_type, login_ip, login_location, browser, os, status, message, create_time
+    </sql>
+
+    <insert id="insert" parameterType="com.macro.mall.model.UmsLoginLog" useGeneratedKeys="true" keyProperty="id">
+        insert into ums_login_log (username, login_type, login_ip, login_location, browser, os, status, message, create_time)
+        values (#{username,jdbcType=VARCHAR}, #{loginType,jdbcType=INTEGER}, #{loginIp,jdbcType=VARCHAR},
+                #{loginLocation,jdbcType=VARCHAR}, #{browser,jdbcType=VARCHAR}, #{os,jdbcType=VARCHAR},
+                #{status,jdbcType=INTEGER}, #{message,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP})
+    </insert>
+
+    <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from ums_login_log
+        where id = #{id,jdbcType=BIGINT}
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from ums_login_log
+    </select>
+
+    <update id="updateByPrimaryKey" parameterType="com.macro.mall.model.UmsLoginLog">
+        update ums_login_log
+        set username = #{username,jdbcType=VARCHAR},
+            login_type = #{loginType,jdbcType=INTEGER},
+            login_ip = #{loginIp,jdbcType=VARCHAR},
+            login_location = #{loginLocation,jdbcType=VARCHAR},
+            browser = #{browser,jdbcType=VARCHAR},
+            os = #{os,jdbcType=VARCHAR},
+            status = #{status,jdbcType=INTEGER},
+            message = #{message,jdbcType=VARCHAR},
+            create_time = #{createTime,jdbcType=TIMESTAMP}
+        where id = #{id,jdbcType=BIGINT}
+    </update>
+
+    <delete id="deleteByPrimaryKey" parameterType="java.lang.Long">
+        delete from ums_login_log
+        where id = #{id,jdbcType=BIGINT}
+    </delete>
+</mapper>

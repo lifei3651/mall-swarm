@@ -1,0 +1,53 @@
+package com.macro.mall.distribution.security;
+
+import com.macro.mall.distribution.dto.AdminLoginDTO;
+import com.macro.mall.distribution.service.AdminAuthService;
+import com.macro.mall.distribution.service.PayloadEncryptionService;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+class AdminLoginEncryptedPayloadPipelineTest {
+
+    @Autowired private MockMvc mockMvc;
+
+    @MockitoBean private PayloadEncryptionService payloadEncryptionService;
+    @MockitoBean private AdminAuthService adminAuthService;
+
+    @Test
+    void encryptedAdminLoginChallengeIsConsumedOnlyOnceAcrossAdviceAndAspect() throws Exception {
+        when(payloadEncryptionService.hasSensitiveValue(any(AdminLoginDTO.class))).thenReturn(true);
+        when(adminAuthService.login(any(AdminLoginDTO.class))).thenReturn(null);
+
+        mockMvc.perform(post("/distribution/admin-auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header(EncryptedPayloadRequestBodyAdvice.CHALLENGE_HEADER, "one-time-challenge")
+                        .header(EncryptedPayloadRequestBodyAdvice.ENCRYPTED_KEY_HEADER, "encrypted-key")
+                        .content("""
+                                {"username":"security-probe","password":"enc:v1:iv:ciphertext",
+                                 "captchaId":"captcha-id","captchaCode":"enc:v1:iv:ciphertext"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+
+        verify(payloadEncryptionService, times(1)).decryptSensitiveValues(
+                eq("one-time-challenge"), eq("encrypted-key"), any(AdminLoginDTO.class));
+    }
+}

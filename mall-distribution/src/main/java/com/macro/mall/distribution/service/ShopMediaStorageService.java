@@ -1,0 +1,248 @@
+package com.macro.mall.distribution.service;
+
+import com.macro.mall.common.exception.Asserts;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageInputStream;
+import javax.imageio.stream.ImageOutputStream;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
+import java.util.Iterator;
+import java.util.Locale;
+
+/**
+ * 商品图片的本地存储实现。
+ *
+ * <p>上传时根据真实文件头识别格式，限制解码尺寸，并对 JPEG/PNG 去除元数据、
+ * 缩小超大尺寸。文件名使用内容摘要，便于长期缓存和重复图片去重。后续接入
+ * OSS/CDN时，控制器无需再承担图片处理逻辑。</p>
+ */
+@Service
+public class ShopMediaStorageService {
+    static final long MAX_IMAGE_SIZE = 5L * 1024 * 1024;
+    private static final String FILE_NAME_PATTERN = "[a-fA-F0-9]{32}\\.(jpg|jpeg|png|webp|gif)";
+
+    private final Path storageDirectory;
+    private final int maxDimension;
+    private final long maxPixels;
+    private final float jpegQuality;
+
+    public ShopMediaStorageService(
+            @Value("${shop.media.storage-dir:/opt/lingqimall/uploads/products}") String storageDir,
+            @Value("${shop.media.max-dimension:1920}") int maxDimension,
+            @Value("${shop.media.max-pixels:25000000}") long maxPixels,
+            @Value("${shop.media.jpeg-quality:0.82}") float jpegQuality) {
+        this.storageDirectory = Path.of(storageDir).toAbsolutePath().normalize();
+        this.maxDimension = Math.max(640, maxDimension);
+        this.maxPixels = Math.max(1_000_000L, maxPixels);
+        this.jpegQuality = Math.max(0.65f, Math.min(0.95f, jpegQuality));
+    }
+
+    public StoredImage store(MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) Asserts.fail("请选择图片文件");
+        if (file.getSize() > MAX_IMAGE_SIZE) Asserts.fail("单张图片不能超过5MB");
+
+        byte[] original = file.getBytes();
+        ImageFormat detected = detectFormat(original);
+        if (detected == null) Asserts.fail("图片内容无效，仅支持JPG、PNG、WEBP、GIF");
+
+        ProcessedImage processed = switch (detected) {
+            case JPEG, PNG -> processRaster(original);
+            case GIF -> {
+                validateDimensions(original);
+                yield new ProcessedImage(original, "gif", "image/gif");
+            }
+            case WEBP -> new ProcessedImage(original, "webp", "image/webp");
+        };
+        if (processed.bytes().length > MAX_IMAGE_SIZE) {
+            Asserts.fail("图片处理后仍超过5MB，请缩小尺寸后重试");
+        }
+
+        Files.createDirectories(storageDirectory);
+        String filename = contentHash(processed.bytes()).substring(0, 32) + "." + processed.extension();
+        Path target = storageDirectory.resolve(filename).normalize();
+        if (!target.startsWith(storageDirectory)) Asserts.fail("图片存储路径无效");
+        writeOnce(target, processed.bytes());
+        return new StoredImage(filename, target, processed.contentType(), processed.bytes().length);
+    }
+
+    public StoredImage load(String filename) throws IOException {
+        if (filename == null || !filename.matches(FILE_NAME_PATTERN)) return null;
+        Path target = storageDirectory.resolve(filename.toLowerCase(Locale.ROOT)).normalize();
+        if (!target.startsWith(storageDirectory) || !Files.isRegularFile(target)) return null;
+        return new StoredImage(filename, target, contentType(filename), Files.size(target));
+    }
+
+    private ProcessedImage processRaster(byte[] source) throws IOException {
+        BufferedImage input = readImage(source);
+        int sourceWidth = input.getWidth();
+        int sourceHeight = input.getHeight();
+        double scale = Math.min(1.0d, (double) maxDimension / Math.max(sourceWidth, sourceHeight));
+        int targetWidth = Math.max(1, (int) Math.round(sourceWidth * scale));
+        int targetHeight = Math.max(1, (int) Math.round(sourceHeight * scale));
+        boolean preserveAlpha = input.getColorModel().hasAlpha();
+
+        BufferedImage output = new BufferedImage(targetWidth, targetHeight,
+                preserveAlpha ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = output.createGraphics();
+        try {
+            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            graphics.drawImage(input, 0, 0, targetWidth, targetHeight, null);
+        } finally {
+            graphics.dispose();
+        }
+
+        if (preserveAlpha) {
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            if (!ImageIO.write(output, "png", bytes)) Asserts.fail("PNG图片处理失败");
+            return new ProcessedImage(bytes.toByteArray(), "png", "image/png");
+        }
+        return new ProcessedImage(writeJpeg(output), "jpg", "image/jpeg");
+    }
+
+    private BufferedImage readImage(byte[] source) throws IOException {
+        try (ImageInputStream stream = ImageIO.createImageInputStream(new ByteArrayInputStream(source))) {
+            if (stream == null) {
+                Asserts.fail("图片内容无法读取");
+                return null;
+            }
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(stream);
+            if (!readers.hasNext()) {
+                Asserts.fail("图片内容无法解码");
+                return null;
+            }
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(stream, true, true);
+                validateDimensions(reader.getWidth(0), reader.getHeight(0));
+                BufferedImage image = reader.read(0);
+                if (image == null) Asserts.fail("图片内容无法解码");
+                return image;
+            } finally {
+                reader.dispose();
+            }
+        }
+    }
+
+    private void validateDimensions(byte[] source) throws IOException {
+        try (ImageInputStream stream = ImageIO.createImageInputStream(new ByteArrayInputStream(source))) {
+            Iterator<ImageReader> readers = stream == null ? null : ImageIO.getImageReaders(stream);
+            if (readers == null || !readers.hasNext()) {
+                Asserts.fail("图片内容无法解码");
+                return;
+            }
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(stream, true, true);
+                validateDimensions(reader.getWidth(0), reader.getHeight(0));
+            } finally {
+                reader.dispose();
+            }
+        }
+    }
+
+    private void validateDimensions(int width, int height) {
+        if (width <= 0 || height <= 0 || (long) width * height > maxPixels) {
+            Asserts.fail("图片像素过大，请缩小后重试");
+        }
+    }
+
+    private byte[] writeJpeg(BufferedImage image) throws IOException {
+        Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("jpeg");
+        if (!writers.hasNext()) {
+            Asserts.fail("JPEG图片处理失败");
+            return new byte[0];
+        }
+        ImageWriter writer = writers.next();
+        try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+             ImageOutputStream output = ImageIO.createImageOutputStream(bytes)) {
+            writer.setOutput(output);
+            ImageWriteParam param = writer.getDefaultWriteParam();
+            if (param.canWriteCompressed()) {
+                param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+                param.setCompressionQuality(jpegQuality);
+            }
+            writer.write(null, new IIOImage(image, null, null), param);
+            return bytes.toByteArray();
+        } finally {
+            writer.dispose();
+        }
+    }
+
+    private void writeOnce(Path target, byte[] bytes) throws IOException {
+        if (Files.isRegularFile(target)) return;
+        Path temp = Files.createTempFile(storageDirectory, ".upload-", ".tmp");
+        try {
+            Files.write(temp, bytes, StandardOpenOption.TRUNCATE_EXISTING);
+            try {
+                Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(temp, target);
+            } catch (FileAlreadyExistsException ignored) {
+                // 同一内容并发上传时复用已经落盘的文件。
+            }
+        } finally {
+            Files.deleteIfExists(temp);
+        }
+    }
+
+    private static ImageFormat detectFormat(byte[] bytes) {
+        if (bytes.length >= 3 && (bytes[0] & 0xff) == 0xff && (bytes[1] & 0xff) == 0xd8
+                && (bytes[2] & 0xff) == 0xff) return ImageFormat.JPEG;
+        if (bytes.length >= 8 && (bytes[0] & 0xff) == 0x89 && bytes[1] == 0x50
+                && bytes[2] == 0x4e && bytes[3] == 0x47 && bytes[4] == 0x0d
+                && bytes[5] == 0x0a && bytes[6] == 0x1a && bytes[7] == 0x0a) return ImageFormat.PNG;
+        if (bytes.length >= 6) {
+            String signature = new String(bytes, 0, 6, java.nio.charset.StandardCharsets.US_ASCII);
+            if ("GIF87a".equals(signature) || "GIF89a".equals(signature)) return ImageFormat.GIF;
+        }
+        if (bytes.length >= 12 && bytes[0] == 'R' && bytes[1] == 'I' && bytes[2] == 'F' && bytes[3] == 'F'
+                && bytes[8] == 'W' && bytes[9] == 'E' && bytes[10] == 'B' && bytes[11] == 'P') return ImageFormat.WEBP;
+        return null;
+    }
+
+    private static String contentHash(byte[] bytes) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256不可用", e);
+        }
+    }
+
+    private static String contentType(String filename) {
+        String lower = filename.toLowerCase(Locale.ROOT);
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".webp")) return "image/webp";
+        if (lower.endsWith(".gif")) return "image/gif";
+        return "application/octet-stream";
+    }
+
+    private enum ImageFormat { JPEG, PNG, WEBP, GIF }
+
+    private record ProcessedImage(byte[] bytes, String extension, String contentType) {}
+
+    public record StoredImage(String filename, Path path, String contentType, long size) {}
+}

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsBonusCalculationTaskDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsBonusCalculationTask">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="rule_version_id" property="ruleVersionId"/>
+        <result column="order_id" property="orderId"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="order_amount" property="orderAmount"/>
+        <result column="order_user_id" property="orderUserId"/>
+        <result column="order_user_name" property="orderUserName"/>
+        <result column="status" property="status"/>
+        <result column="retry_count" property="retryCount"/>
+        <result column="max_retry_count" property="maxRetryCount"/>
+        <result column="fail_reason" property="failReason"/>
+        <result column="next_retry_time" property="nextRetryTime"/>
+        <result column="start_time" property="startTime"/>
+        <result column="finish_time" property="finishTime"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, tenant_id, rule_version_id, order_id, order_no, order_amount, order_user_id,
+        order_user_name, status, retry_count, max_retry_count, fail_reason, next_retry_time,
+        start_time, finish_time, create_time, update_time
+    </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM dms_bonus_calculation_task
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectLatestByOrderId" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM dms_bonus_calculation_task
+        WHERE order_id = #{orderId}
+        ORDER BY create_time DESC, id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectList" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM dms_bonus_calculation_task
+        WHERE 1 = 1
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        <if test="orderId != null">
+            AND order_id = #{orderId}
+        </if>
+        ORDER BY create_time DESC, id DESC
+    </select>
+
+    <select id="selectExecutable" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM dms_bonus_calculation_task
+        WHERE status IN (0, 3)
+          AND retry_count &lt; max_retry_count
+          AND (next_retry_time IS NULL OR next_retry_time &lt;= NOW())
+        ORDER BY create_time ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsBonusCalculationTask" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_bonus_calculation_task
+        (tenant_id, rule_version_id, order_id, order_no, order_amount, order_user_id, order_user_name,
+         status, retry_count, max_retry_count, next_retry_time)
+        VALUES
+        (#{tenantId}, #{ruleVersionId}, #{orderId}, #{orderNo}, #{orderAmount}, #{orderUserId}, #{orderUserName},
+         #{status}, #{retryCount}, #{maxRetryCount}, #{nextRetryTime})
+    </insert>
+
+    <update id="markProcessing">
+        UPDATE dms_bonus_calculation_task
+        SET status = 1, start_time = NOW(), update_time = NOW()
+        WHERE id = #{id} AND status IN (0, 3)
+    </update>
+
+    <update id="markSuccess">
+        UPDATE dms_bonus_calculation_task
+        SET status = 2, finish_time = NOW(), fail_reason = NULL, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="markFailed">
+        UPDATE dms_bonus_calculation_task
+        SET status = 3,
+            retry_count = retry_count + 1,
+            fail_reason = #{failReason},
+            next_retry_time = #{nextRetryTime},
+            finish_time = NOW(),
+            update_time = NOW()
+        WHERE id = #{id}
+    </update>
+</mapper>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsFinanceRiskRuleDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsFinanceRiskRule">
+        <id column="id" property="id"/>
+        <result column="rule_code" property="ruleCode"/>
+        <result column="rule_name" property="ruleName"/>
+        <result column="threshold_value" property="thresholdValue"/>
+        <result column="enabled" property="enabled"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectByCode" resultMap="BaseResultMap">
+        SELECT id, rule_code, rule_name, threshold_value, enabled, remark, create_time, update_time
+        FROM dms_finance_risk_rule
+        WHERE rule_code = #{ruleCode}
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT id, rule_code, rule_name, threshold_value, enabled, remark, create_time, update_time
+        FROM dms_finance_risk_rule
+        ORDER BY id ASC
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsFinanceRiskRule" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_finance_risk_rule (rule_code, rule_name, threshold_value, enabled, remark)
+        VALUES (#{ruleCode}, #{ruleName}, #{thresholdValue}, #{enabled}, #{remark})
+    </insert>
+
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsFinanceRiskRule">
+        UPDATE dms_finance_risk_rule
+        SET rule_name = #{ruleName}, threshold_value = #{thresholdValue}, enabled = #{enabled},
+            remark = #{remark}, update_time = NOW()
+        WHERE rule_code = #{ruleCode}
+    </update>
+</mapper>

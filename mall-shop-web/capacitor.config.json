@@ -1,0 +1,20 @@
+{
+  "appId": "com.lingqimall.app",
+  "appName": "灵启商城",
+  "webDir": "dist",
+  "loggingBehavior": "none",
+  "android": {
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  },
+  "server": {
+    "hostname": "localhost",
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}

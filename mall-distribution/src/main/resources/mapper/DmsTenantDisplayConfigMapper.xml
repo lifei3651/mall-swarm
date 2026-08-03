@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsTenantDisplayConfigDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsTenantDisplayConfig">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="show_pv" property="showPv"/>
+        <result column="show_team_performance" property="showTeamPerformance"/>
+        <result column="show_bonus_source" property="showBonusSource"/>
+        <result column="show_bonus_flow" property="showBonusFlow"/>
+        <result column="show_profit" property="showProfit"/>
+        <result column="show_rank" property="showRank"/>
+        <result column="show_binary_area" property="showBinaryArea"/>
+        <result column="show_retail_module" property="showRetailModule"/>
+        <result column="show_store_module" property="showStoreModule"/>
+        <result column="show_company_share" property="showCompanyShare"/>
+        <result column="extra_config_json" property="extraConfigJson"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectByTenantId" resultMap="BaseResultMap">
+        SELECT id, tenant_id, show_pv, show_team_performance, show_bonus_source, show_bonus_flow,
+               show_profit, show_rank, show_binary_area, show_retail_module, show_store_module,
+               show_company_share, extra_config_json, create_time, update_time
+        FROM dms_tenant_display_config
+        WHERE tenant_id = #{tenantId}
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsTenantDisplayConfig" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_tenant_display_config
+        (tenant_id, show_pv, show_team_performance, show_bonus_source, show_bonus_flow, show_profit,
+         show_rank, show_binary_area, show_retail_module, show_store_module, show_company_share, extra_config_json)
+        VALUES
+        (#{tenantId}, #{showPv}, #{showTeamPerformance}, #{showBonusSource}, #{showBonusFlow}, #{showProfit},
+         #{showRank}, #{showBinaryArea}, #{showRetailModule}, #{showStoreModule}, #{showCompanyShare}, #{extraConfigJson})
+    </insert>
+
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsTenantDisplayConfig">
+        UPDATE dms_tenant_display_config
+        SET show_pv = #{showPv}, show_team_performance = #{showTeamPerformance},
+            show_bonus_source = #{showBonusSource}, show_bonus_flow = #{showBonusFlow},
+            show_profit = #{showProfit}, show_rank = #{showRank}, show_binary_area = #{showBinaryArea},
+            show_retail_module = #{showRetailModule}, show_store_module = #{showStoreModule},
+            show_company_share = #{showCompanyShare}, extra_config_json = #{extraConfigJson},
+            update_time = NOW()
+        WHERE tenant_id = #{tenantId}
+    </update>
+</mapper>

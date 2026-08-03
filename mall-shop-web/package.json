@@ -1,0 +1,31 @@
+{
+  "name": "mall-shop-web",
+  "version": "1.0.0",
+  "description": "用户商城前台",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:android:web": "vite build --mode android",
+    "sync:android": "npm run build:android:web && cap sync android",
+    "build:android": "npm run sync:android && bash scripts/build-android.sh",
+    "open:android": "cap open android",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/core": "^8.4.2",
+    "axios": "^1.6.5",
+    "element-china-area-data": "^6.1.0",
+    "lucide-vue-next": "^0.468.0",
+    "qrcode": "^1.5.4",
+    "vue": "^3.4.0",
+    "vue-router": "^4.2.5"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.4.2",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "vite": "^8.1.5"
+  }
+}

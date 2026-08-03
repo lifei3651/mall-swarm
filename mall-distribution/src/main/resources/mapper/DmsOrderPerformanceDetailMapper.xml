@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsOrderPerformanceDetailDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsOrderPerformanceDetail">
+        <id column="id" property="id"/>
+        <result column="order_id" property="orderId"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="order_amount" property="orderAmount"/>
+        <result column="order_time" property="orderTime"/>
+        <result column="owner_user_id" property="ownerUserId"/>
+        <result column="owner_agent_id" property="ownerAgentId"/>
+        <result column="owner_agent_name" property="ownerAgentName"/>
+        <result column="target_agent_id" property="targetAgentId"/>
+        <result column="target_agent_name" property="targetAgentName"/>
+        <result column="relation_level" property="relationLevel"/>
+        <result column="product_id" property="productId"/>
+        <result column="product_name" property="productName"/>
+        <result column="product_category_id" property="productCategoryId"/>
+        <result column="quantity" property="quantity"/>
+        <result column="product_amount" property="productAmount"/>
+        <result column="performance_type" property="performanceType"/>
+        <result column="performance_amount" property="performanceAmount"/>
+        <result column="status" property="status"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, order_id, order_no, order_amount, order_time, owner_user_id, owner_agent_id,
+        owner_agent_name, target_agent_id, target_agent_name, relation_level, product_id,
+        product_name, product_category_id, quantity, product_amount, performance_type,
+        performance_amount, status, remark, create_time, update_time
+    </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_order_performance_detail
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByOrderId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_order_performance_detail
+        WHERE order_id = #{orderId}
+        ORDER BY relation_level ASC
+    </select>
+
+    <select id="selectByOwnerUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_order_performance_detail
+        WHERE owner_user_id = #{ownerUserId} AND relation_level = 0
+        ORDER BY order_time DESC
+    </select>
+
+    <select id="selectByTargetAgentId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_order_performance_detail
+        WHERE target_agent_id = #{targetAgentId}
+        ORDER BY order_time DESC
+    </select>
+
+    <select id="selectTeamPerformanceDetails" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_order_performance_detail
+        WHERE target_agent_id = #{targetAgentId} AND relation_level > 0
+        <if test="startTime != null">
+            AND order_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND order_time &lt; #{endTime}
+        </if>
+        ORDER BY order_time DESC
+    </select>
+
+    <select id="selectPersonalPerformanceDetails" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_order_performance_detail
+        WHERE owner_agent_id = #{ownerAgentId} AND relation_level = 0
+        <if test="startTime != null">
+            AND order_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND order_time &lt; #{endTime}
+        </if>
+        ORDER BY order_time DESC
+    </select>
+
+    <select id="selectSubordinateOrderDetails" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_order_performance_detail
+        WHERE target_agent_id = #{targetAgentId} AND owner_agent_id = #{ownerAgentId}
+        <if test="startTime != null">
+            AND order_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND order_time &lt; #{endTime}
+        </if>
+        ORDER BY order_time DESC
+    </select>
+
+    <select id="sumEffectiveTeamUnits" resultType="int">
+        SELECT COALESCE(SUM(quantity), 0)
+        FROM dms_order_performance_detail
+        WHERE target_agent_id = #{agentId} AND status = 1
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsOrderPerformanceDetail" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_order_performance_detail (order_id, order_no, order_amount, order_time,
+            owner_user_id, owner_agent_id, owner_agent_name, target_agent_id, target_agent_name,
+            relation_level, product_id, product_name, product_category_id, quantity, product_amount,
+            performance_type, performance_amount, status, remark)
+        VALUES (#{orderId}, #{orderNo}, #{orderAmount}, #{orderTime},
+            #{ownerUserId}, #{ownerAgentId}, #{ownerAgentName}, #{targetAgentId}, #{targetAgentName},
+            #{relationLevel}, #{productId}, #{productName}, #{productCategoryId}, #{quantity}, #{productAmount},
+            #{performanceType}, #{performanceAmount}, #{status}, #{remark})
+    </insert>
+
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO dms_order_performance_detail (order_id, order_no, order_amount, order_time,
+            owner_user_id, owner_agent_id, owner_agent_name, target_agent_id, target_agent_name,
+            relation_level, product_id, product_name, product_category_id, quantity, product_amount,
+            performance_type, performance_amount, status, remark)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.orderId}, #{item.orderNo}, #{item.orderAmount}, #{item.orderTime},
+            #{item.ownerUserId}, #{item.ownerAgentId}, #{item.ownerAgentName}, #{item.targetAgentId}, #{item.targetAgentName},
+            #{item.relationLevel}, #{item.productId}, #{item.productName}, #{item.productCategoryId}, #{item.quantity}, #{item.productAmount},
+            #{item.performanceType}, #{item.performanceAmount}, #{item.status}, #{item.remark})
+        </foreach>
+    </insert>
+
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsOrderPerformanceDetail">
+        UPDATE dms_order_performance_detail
+        SET status = #{status},
+            remark = #{remark}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE dms_order_performance_detail
+        SET status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <update id="deleteById">
+        DELETE FROM dms_order_performance_detail WHERE id = #{id}
+    </update>
+
+    <!-- 更新业绩归属（切线时使用） -->
+    <update id="updateTargetAgentId">
+        UPDATE dms_order_performance_detail
+        SET target_agent_id = #{newTargetAgentId},
+            target_agent_name = #{newTargetAgentName},
+            update_time = NOW()
+        WHERE owner_user_id = #{ownerUserId}
+          AND target_agent_id = #{oldTargetAgentId}
+          AND relation_level > 0
+    </update>
+
+    <!-- 查询代理及其所有下级的用户ID列表 -->
+    <select id="selectDescendantUserIds" resultType="java.lang.Long">
+        SELECT DISTINCT user_id
+        FROM dms_agent_relation
+        WHERE parent_agent_id = #{agentId}
+          AND is_valid = 1
+    </select>
+
+</mapper>

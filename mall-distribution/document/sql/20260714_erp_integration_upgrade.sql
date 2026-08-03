@@ -1,0 +1,36 @@
+CREATE TABLE IF NOT EXISTS dms_erp_integration (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  provider_code VARCHAR(32) NOT NULL,
+  integration_name VARCHAR(64) NOT NULL,
+  enabled TINYINT NOT NULL DEFAULT 0,
+  environment VARCHAR(16) NOT NULL DEFAULT 'TEST',
+  endpoint VARCHAR(512) DEFAULT NULL,
+  app_key VARCHAR(256) DEFAULT NULL,
+  app_secret VARCHAR(512) DEFAULT NULL,
+  callback_token VARCHAR(256) DEFAULT NULL,
+  remark VARCHAR(512) DEFAULT NULL,
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id), UNIQUE KEY uk_erp_tenant_provider (tenant_id, provider_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='ERP集成配置';
+
+CREATE TABLE IF NOT EXISTS dms_erp_sync_task (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  task_no VARCHAR(64) NOT NULL,
+  integration_id BIGINT NOT NULL,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  provider_code VARCHAR(32) NOT NULL,
+  biz_type VARCHAR(32) NOT NULL,
+  biz_id VARCHAR(64) NOT NULL,
+  status TINYINT NOT NULL DEFAULT 0,
+  retry_count INT NOT NULL DEFAULT 0,
+  next_retry_time DATETIME DEFAULT NULL,
+  request_summary TEXT DEFAULT NULL,
+  response_summary TEXT DEFAULT NULL,
+  last_error VARCHAR(1024) DEFAULT NULL,
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id), UNIQUE KEY uk_erp_sync_once (integration_id, biz_type, biz_id),
+  KEY idx_erp_sync_retry (status, next_retry_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='ERP同步任务';

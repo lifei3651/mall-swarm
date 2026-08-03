@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.mapper.SysDictGroupMapper">
+  <resultMap id="BaseResultMap" type="com.macro.mall.model.SysDictGroup">
+    <id column="id" jdbcType="BIGINT" property="id" />
+    <result column="group_code" jdbcType="VARCHAR" property="groupCode" />
+    <result column="group_name" jdbcType="VARCHAR" property="groupName" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+    <result column="status" jdbcType="INTEGER" property="status" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+  </resultMap>
+  <select id="selectAll" resultMap="BaseResultMap">select * from sys_dict_group order by create_time desc</select>
+  <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultMap="BaseResultMap">select * from sys_dict_group where id=#{id}</select>
+  <select id="selectByGroupCode" parameterType="java.lang.String" resultMap="BaseResultMap">select * from sys_dict_group where group_code=#{groupCode}</select>
+  <insert id="insert" parameterType="com.macro.mall.model.SysDictGroup" useGeneratedKeys="true" keyProperty="id">insert into sys_dict_group(group_code,group_name,description,status) values(#{groupCode},#{groupName},#{description},#{status})</insert>
+  <update id="updateByPrimaryKey" parameterType="com.macro.mall.model.SysDictGroup">update sys_dict_group set group_code=#{groupCode},group_name=#{groupName},description=#{description},status=#{status} where id=#{id}</update>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Long">delete from sys_dict_group where id=#{id}</delete>
+</mapper>

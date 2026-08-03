@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsAgentChangeLogDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsAgentChangeLog">
+        <id column="id" property="id"/>
+        <result column="agent_id" property="agentId"/>
+        <result column="user_id" property="userId"/>
+        <result column="change_type" property="changeType"/>
+        <result column="old_parent_agent_id" property="oldParentAgentId"/>
+        <result column="old_parent_name" property="oldParentName"/>
+        <result column="new_parent_agent_id" property="newParentAgentId"/>
+        <result column="new_parent_name" property="newParentName"/>
+        <result column="old_level" property="oldLevel"/>
+        <result column="new_level" property="newLevel"/>
+        <result column="change_reason" property="changeReason"/>
+        <result column="change_detail" property="changeDetail"/>
+        <result column="operator_id" property="operatorId"/>
+        <result column="operator_name" property="operatorName"/>
+        <result column="operator_type" property="operatorType"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, agent_id, user_id, change_type, old_parent_agent_id, old_parent_name,
+        new_parent_agent_id, new_parent_name, old_level, new_level, change_reason,
+        change_detail, operator_id, operator_name, operator_type, create_time
+    </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent_change_log
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByAgentId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent_change_log
+        WHERE agent_id = #{agentId}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByAgentIdAndChangeType" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent_change_log
+        WHERE agent_id = #{agentId} AND change_type = #{changeType}
+        ORDER BY create_time DESC
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsAgentChangeLog" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_agent_change_log (agent_id, user_id, change_type, old_parent_agent_id, old_parent_name,
+            new_parent_agent_id, new_parent_name, old_level, new_level, change_reason,
+            change_detail, operator_id, operator_name, operator_type)
+        VALUES (#{agentId}, #{userId}, #{changeType}, #{oldParentAgentId}, #{oldParentName},
+            #{newParentAgentId}, #{newParentName}, #{oldLevel}, #{newLevel}, #{changeReason},
+            #{changeDetail}, #{operatorId}, #{operatorName}, #{operatorType})
+    </insert>
+
+    <update id="deleteById">
+        DELETE FROM dms_agent_change_log WHERE id = #{id}
+    </update>
+
+</mapper>

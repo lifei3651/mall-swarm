@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsAgentAccountDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsAgentAccount">
+        <id column="id" property="id"/>
+        <result column="agent_id" property="agentId"/>
+        <result column="user_id" property="userId"/>
+        <result column="total_commission" property="totalCommission"/>
+        <result column="settled_commission" property="settledCommission"/>
+        <result column="unsettled_commission" property="unsettledCommission"/>
+        <result column="frozen_commission" property="frozenCommission"/>
+        <result column="withdrawn_amount" property="withdrawnAmount"/>
+        <result column="available_balance" property="availableBalance"/>
+        <result column="total_orders" property="totalOrders"/>
+        <result column="total_team_members" property="totalTeamMembers"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, agent_id, user_id, total_commission, settled_commission, unsettled_commission,
+        frozen_commission, withdrawn_amount, available_balance, total_orders, total_team_members,
+        create_time, update_time
+    </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent_account
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByAgentId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent_account
+        WHERE agent_id = #{agentId}
+    </select>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent_account
+        WHERE user_id = #{userId}
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsAgentAccount" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_agent_account (agent_id, user_id, total_commission, settled_commission, unsettled_commission,
+            frozen_commission, withdrawn_amount, available_balance, total_orders, total_team_members)
+        VALUES (#{agentId}, #{userId}, #{totalCommission}, #{settledCommission}, #{unsettledCommission},
+            #{frozenCommission}, #{withdrawnAmount}, #{availableBalance}, #{totalOrders}, #{totalTeamMembers})
+    </insert>
+
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsAgentAccount">
+        UPDATE dms_agent_account
+        SET total_commission = #{totalCommission},
+            settled_commission = #{settledCommission},
+            unsettled_commission = #{unsettledCommission},
+            frozen_commission = #{frozenCommission},
+            withdrawn_amount = #{withdrawnAmount},
+            available_balance = #{availableBalance},
+            total_orders = #{totalOrders},
+            total_team_members = #{totalTeamMembers}
+        WHERE id = #{id}
+    </update>
+
+    <update id="addTotalCommission">
+        UPDATE dms_agent_account
+        SET total_commission = total_commission + #{amount}
+        WHERE agent_id = #{agentId}
+    </update>
+
+    <update id="subtractTotalCommission">
+        UPDATE dms_agent_account
+        SET total_commission = total_commission - #{amount}
+        WHERE agent_id = #{agentId}
+    </update>
+
+    <update id="addUnsettledCommission">
+        UPDATE dms_agent_account
+        SET unsettled_commission = unsettled_commission + #{amount}
+        WHERE agent_id = #{agentId}
+    </update>
+
+    <update id="subtractUnsettledCommission">
+        UPDATE dms_agent_account
+        SET unsettled_commission = unsettled_commission - #{amount}
+        WHERE agent_id = #{agentId}
+    </update>
+
+    <update id="addSettledCommission">
+        UPDATE dms_agent_account
+        SET settled_commission = settled_commission + #{amount}
+        WHERE agent_id = #{agentId}
+    </update>
+
+    <update id="subtractSettledCommission">
+        UPDATE dms_agent_account
+        SET settled_commission = settled_commission - #{amount}
+        WHERE agent_id = #{agentId}
+    </update>
+
+    <update id="addAvailableBalance">
+        UPDATE dms_agent_account
+        SET available_balance = available_balance + #{amount}
+        WHERE agent_id = #{agentId}
+    </update>
+
+    <update id="subtractAvailableBalance">
+        UPDATE dms_agent_account
+        SET available_balance = available_balance - #{amount}
+        WHERE agent_id = #{agentId}
+          AND available_balance &gt;= #{amount}
+    </update>
+
+    <update id="addWithdrawnAmount">
+        UPDATE dms_agent_account
+        SET withdrawn_amount = withdrawn_amount + #{amount}
+        WHERE agent_id = #{agentId}
+    </update>
+
+    <update id="addTotalOrders">
+        UPDATE dms_agent_account
+        SET total_orders = GREATEST(total_orders + #{count}, 0)
+        WHERE agent_id = #{agentId}
+    </update>
+
+    <update id="updateTotalTeamMembers">
+        UPDATE dms_agent_account
+        SET total_team_members = #{count}
+        WHERE agent_id = #{agentId}
+    </update>
+
+    <update id="deleteById">
+        DELETE FROM dms_agent_account WHERE id = #{id}
+    </update>
+
+</mapper>

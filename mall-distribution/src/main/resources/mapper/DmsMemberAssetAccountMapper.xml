@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsMemberAssetAccountDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsMemberAssetAccount">
+        <id column="id" property="id"/>
+        <result column="agent_id" property="agentId"/>
+        <result column="user_id" property="userId"/>
+        <result column="asset_code" property="assetCode"/>
+        <result column="asset_name" property="assetName"/>
+        <result column="balance" property="balance"/>
+        <result column="frozen_balance" property="frozenBalance"/>
+        <result column="total_in" property="totalIn"/>
+        <result column="total_out" property="totalOut"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, agent_id, user_id, asset_code, asset_name, balance, frozen_balance,
+        total_in, total_out, create_time, update_time
+    </sql>
+
+    <select id="selectByAgentIdAndAssetCode" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_member_asset_account
+        WHERE agent_id = #{agentId} AND asset_code = #{assetCode}
+    </select>
+
+    <select id="selectByAgentId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_member_asset_account
+        WHERE agent_id = #{agentId}
+        ORDER BY id ASC
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsMemberAssetAccount" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_member_asset_account
+        (agent_id, user_id, asset_code, asset_name, balance, frozen_balance, total_in, total_out)
+        VALUES
+        (#{agentId}, #{userId}, #{assetCode}, #{assetName}, #{balance}, #{frozenBalance}, #{totalIn}, #{totalOut})
+    </insert>
+
+    <update id="addBalance">
+        UPDATE dms_member_asset_account
+        SET balance = balance + #{amount},
+            total_in = total_in + #{amount},
+            update_time = NOW()
+        WHERE agent_id = #{agentId} AND asset_code = #{assetCode}
+    </update>
+
+    <update id="subtractBalance">
+        UPDATE dms_member_asset_account
+        SET balance = balance - #{amount},
+            total_out = total_out + #{amount},
+            update_time = NOW()
+        WHERE agent_id = #{agentId}
+          AND asset_code = #{assetCode}
+          AND (#{allowNegative} = 1 OR balance &gt;= #{amount})
+    </update>
+</mapper>

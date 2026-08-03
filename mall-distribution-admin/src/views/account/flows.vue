@@ -1,0 +1,171 @@
+<template>
+  <div class="page-container">
+    <el-alert
+      title="这里记录所有余额收入和支出。可按会员、发生时间和资金来源查询；后台增加余额归类为人工充值。"
+      type="info"
+      :closable="false"
+      show-icon
+      class="flow-tip"
+    />
+
+    <div class="search-container">
+      <el-form :inline="true" :model="query">
+        <el-form-item label="会员/流水号">
+          <el-input v-model="query.keyword" placeholder="登录账号/手机号/名称/流水号" clearable @keyup.enter="search" />
+        </el-form-item>
+        <el-form-item label="收支方向">
+          <el-select v-model="query.direction" clearable placeholder="全部" style="width:120px" @change="search">
+            <el-option label="收入" value="IN" />
+            <el-option label="支出" value="OUT" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="资金来源">
+          <el-select v-model="query.sourceType" clearable placeholder="全部" style="width:145px" @change="search">
+            <el-option label="人工充值/扣减" value="RECHARGE" />
+            <el-option label="奖金入账" value="BONUS" />
+            <el-option label="订单成本/剩余款" value="ORDER_ALLOCATION" />
+            <el-option label="会员转账" value="TRANSFER" />
+            <el-option label="余额支付" value="PAYMENT" />
+            <el-option label="退款退回" value="REFUND" />
+            <el-option label="提现" value="WITHDRAW" />
+            <el-option label="退款追回奖金" value="CLAWBACK" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="发生时间">
+          <el-date-picker
+            v-model="query.dateRange"
+            type="datetimerange"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            range-separator="至"
+            start-placeholder="开始时间"
+            end-placeholder="结束时间"
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :loading="loading" @click="search">查询</el-button>
+          <el-button @click="reset">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+
+    <el-alert v-if="searchFeedback" :title="searchFeedback" type="warning" :closable="false" show-icon class="search-feedback" />
+
+    <el-table :data="rows" v-loading="loading" :empty-text="tableEmptyText" style="width:100%">
+      <el-table-column prop="createTime" label="发生时间" width="175" />
+      <el-table-column label="会员信息" min-width="190">
+        <template #default="{ row }">
+          <div class="member-name">{{ row.memberName || row.memberPhone || `用户${row.userId}` }}</div>
+          <div class="sub">账号：{{ row.memberUsername || '-' }} · {{ row.memberPhone || '-' }}</div>
+        </template>
+      </el-table-column>
+      <el-table-column label="资金来源" width="150">
+        <template #default="{ row }"><el-tag :type="sourceTag(row)">{{ sourceName(row) }}</el-tag></template>
+      </el-table-column>
+      <el-table-column label="变动金额" width="130" align="right">
+        <template #default="{ row }"><strong :class="isIncome(row.changeType) ? 'income' : 'expense'">{{ isIncome(row.changeType) ? '+' : '-' }}¥{{ money(row.amount) }}</strong></template>
+      </el-table-column>
+      <el-table-column label="变动后余额" width="130" align="right">
+        <template #default="{ row }">¥{{ money(row.balanceAfter) }}</template>
+      </el-table-column>
+      <el-table-column prop="flowNo" label="流水号" min-width="190" show-overflow-tooltip />
+      <el-table-column prop="remark" label="说明" min-width="250" show-overflow-tooltip />
+    </el-table>
+
+    <el-pagination
+      class="pagination"
+      background
+      layout="total, prev, pager, next, sizes"
+      :total="pagination.total"
+      v-model:current-page="pagination.page"
+      v-model:page-size="pagination.size"
+      :page-sizes="[20, 50, 100]"
+      @current-change="fetchRows"
+      @size-change="fetchRows"
+    />
+  </div>
+</template>
+
+<script setup>
+import { onMounted, ref } from 'vue'
+import { listBalanceFlowRecords } from '@/api/assets'
+import { validateSearchKeyword } from '@/utils/searchFeedback'
+import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
+
+const loading = ref(false)
+const rows = ref([])
+const query = ref({ keyword: '', direction: null, sourceType: null, dateRange: [] })
+const pagination = ref({ page: 1, size: 20, total: 0 })
+const searchFeedback = ref('')
+const tableEmptyText = ref('暂无余额流水')
+const { markSearchApplied: markKeywordSearchApplied } = useSearchAutoRestore(
+  () => query.value.keyword,
+  () => search(),
+)
+
+const money = (value) => Number(value || 0).toFixed(2)
+const isIncome = (type) => [1, 4].includes(Number(type))
+const sourceName = (row) => {
+  if (String(row.bizType || '').endsWith('MANUAL_MEMBER_ADJUST')) {
+    return isIncome(row.changeType) ? '人工充值' : '后台扣减'
+  }
+  return ({
+    COMMISSION_SETTLE: '奖金入账',
+    MEMBER_BALANCE_TRANSFER: Number(row.changeType) === 4 ? '会员转入' : '转给会员',
+    ORDER_BALANCE_PAYMENT: '余额支付',
+    BALANCE_PAYMENT_REFUND: '订单退款退回',
+    WITHDRAW_APPLY: '申请提现',
+    WITHDRAW_REJECT_REFUND: '提现驳回退回',
+    COMMISSION_CLAWBACK: '退款追回奖金',
+    ORDER_BALANCE_ALLOCATION: '订单成本/剩余款入账',
+    ORDER_BALANCE_ALLOCATION_REFUND: '订单成本/剩余款退款冲回',
+  }[row.bizType] || (isIncome(row.changeType) ? '其他收入' : '其他支出'))
+}
+const sourceTag = (row) => row.bizType === 'COMMISSION_SETTLE' ? 'success' : (isIncome(row.changeType) ? 'primary' : 'warning')
+
+const fetchRows = async () => {
+  const validation = validateSearchKeyword(query.value.keyword, { label: '会员或流水号关键词' })
+  if (!validation.valid) {
+    rows.value = []
+    pagination.value.total = 0
+    searchFeedback.value = validation.message
+    tableEmptyText.value = '请修改搜索内容后重新查询'
+    return
+  }
+  query.value.keyword = validation.keyword
+  markKeywordSearchApplied(validation.keyword)
+  searchFeedback.value = ''
+  tableEmptyText.value = validation.keyword
+    ? `未找到与“${validation.keyword}”匹配的余额流水`
+    : '暂无余额流水'
+  loading.value = true
+  try {
+    const res = await listBalanceFlowRecords({
+      keyword: query.value.keyword?.trim() || undefined,
+      direction: query.value.direction || undefined,
+      sourceType: query.value.sourceType || undefined,
+      startTime: query.value.dateRange?.[0],
+      endTime: query.value.dateRange?.[1],
+      pageNum: pagination.value.page,
+      pageSize: pagination.value.size,
+    })
+    rows.value = res.data?.list || []
+    pagination.value.total = res.data?.total || 0
+  } finally {
+    loading.value = false
+  }
+}
+
+const search = () => { pagination.value.page = 1; fetchRows() }
+const reset = () => { query.value = { keyword: '', direction: null, sourceType: null, dateRange: [] }; search() }
+onMounted(fetchRows)
+</script>
+
+<style scoped>
+.flow-tip { margin-bottom: 16px; }
+.search-feedback { margin-bottom: 16px; }
+.member-name { font-weight: 600; }
+.sub { margin-top: 4px; color: #909399; font-size: 12px; }
+.income { color: #16a34a; }
+.expense { color: #dc2626; }
+.pagination { margin-top: 16px; justify-content: flex-end; }
+</style>

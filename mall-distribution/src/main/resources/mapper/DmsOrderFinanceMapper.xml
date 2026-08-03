@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsOrderFinanceDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsOrderFinance">
+        <id column="id" property="id"/>
+        <result column="order_id" property="orderId"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="pay_amount" property="payAmount"/>
+        <result column="refund_amount" property="refundAmount"/>
+        <result column="net_pay_amount" property="netPayAmount"/>
+        <result column="product_cost" property="productCost"/>
+        <result column="bonus_amount" property="bonusAmount"/>
+        <result column="company_share_amount" property="companyShareAmount"/>
+        <result column="company_profit" property="companyProfit"/>
+        <result column="risk_status" property="riskStatus"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="SummaryResultMap" type="com.macro.mall.distribution.vo.FinanceSummaryVO">
+        <result column="order_count" property="orderCount"/>
+        <result column="risk_order_count" property="riskOrderCount"/>
+        <result column="pay_amount" property="payAmount"/>
+        <result column="refund_amount" property="refundAmount"/>
+        <result column="net_pay_amount" property="netPayAmount"/>
+        <result column="product_cost" property="productCost"/>
+        <result column="bonus_amount" property="bonusAmount"/>
+        <result column="company_share_amount" property="companyShareAmount"/>
+        <result column="company_profit" property="companyProfit"/>
+    </resultMap>
+
+    <resultMap id="DailySummaryResultMap" type="com.macro.mall.distribution.vo.FinanceDailySummaryVO">
+        <result column="stat_date" property="statDate"/>
+        <result column="order_count" property="orderCount"/>
+        <result column="risk_order_count" property="riskOrderCount"/>
+        <result column="pay_amount" property="payAmount"/>
+        <result column="refund_amount" property="refundAmount"/>
+        <result column="net_pay_amount" property="netPayAmount"/>
+        <result column="product_cost" property="productCost"/>
+        <result column="bonus_amount" property="bonusAmount"/>
+        <result column="company_share_amount" property="companyShareAmount"/>
+        <result column="company_profit" property="companyProfit"/>
+    </resultMap>
+
+    <select id="selectByOrderId" resultMap="BaseResultMap">
+        SELECT id, order_id, order_no, pay_amount, refund_amount, net_pay_amount, product_cost, bonus_amount, company_share_amount,
+               company_profit, risk_status, remark, create_time, update_time
+        FROM dms_order_finance
+        WHERE order_id = #{orderId}
+    </select>
+
+    <select id="selectByOrderNo" resultMap="BaseResultMap">
+        SELECT id, order_id, order_no, pay_amount, refund_amount, net_pay_amount, product_cost, bonus_amount, company_share_amount,
+               company_profit, risk_status, remark, create_time, update_time
+        FROM dms_order_finance
+        WHERE order_no = #{orderNo}
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsOrderFinance" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_order_finance (order_id, order_no, pay_amount, refund_amount, net_pay_amount, product_cost, bonus_amount,
+            company_share_amount, company_profit, risk_status, remark)
+        VALUES (#{orderId}, #{orderNo}, #{payAmount}, #{refundAmount}, #{netPayAmount}, #{productCost}, #{bonusAmount},
+            #{companyShareAmount}, #{companyProfit}, #{riskStatus}, #{remark})
+    </insert>
+
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsOrderFinance">
+        UPDATE dms_order_finance
+        SET order_no = #{orderNo}, pay_amount = #{payAmount}, refund_amount = #{refundAmount},
+            net_pay_amount = #{netPayAmount}, product_cost = #{productCost},
+            bonus_amount = #{bonusAmount}, company_share_amount = #{companyShareAmount},
+            company_profit = #{companyProfit}, risk_status = #{riskStatus}, remark = #{remark},
+            update_time = NOW()
+        WHERE order_id = #{orderId}
+    </update>
+
+    <select id="selectSummary" resultMap="SummaryResultMap">
+        SELECT
+            COUNT(1) AS order_count,
+            SUM(CASE WHEN risk_status = 1 THEN 1 ELSE 0 END) AS risk_order_count,
+            IFNULL(SUM(pay_amount), 0) AS pay_amount,
+            IFNULL(SUM(refund_amount), 0) AS refund_amount,
+            IFNULL(SUM(net_pay_amount), 0) AS net_pay_amount,
+            IFNULL(SUM(product_cost), 0) AS product_cost,
+            IFNULL(SUM(bonus_amount), 0) AS bonus_amount,
+            IFNULL(SUM(company_share_amount), 0) AS company_share_amount,
+            IFNULL(SUM(company_profit), 0) AS company_profit
+        FROM dms_order_finance
+        WHERE 1 = 1
+        <if test="startTime != null">
+            AND create_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND create_time &lt; #{endTime}
+        </if>
+    </select>
+
+    <select id="selectDailySummary" resultMap="DailySummaryResultMap">
+        SELECT
+            DATE(create_time) AS stat_date,
+            COUNT(1) AS order_count,
+            SUM(CASE WHEN risk_status = 1 THEN 1 ELSE 0 END) AS risk_order_count,
+            IFNULL(SUM(pay_amount), 0) AS pay_amount,
+            IFNULL(SUM(refund_amount), 0) AS refund_amount,
+            IFNULL(SUM(net_pay_amount), 0) AS net_pay_amount,
+            IFNULL(SUM(product_cost), 0) AS product_cost,
+            IFNULL(SUM(bonus_amount), 0) AS bonus_amount,
+            IFNULL(SUM(company_share_amount), 0) AS company_share_amount,
+            IFNULL(SUM(company_profit), 0) AS company_profit
+        FROM dms_order_finance
+        WHERE 1 = 1
+        <if test="startTime != null">
+            AND create_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND create_time &lt; #{endTime}
+        </if>
+        GROUP BY DATE(create_time)
+        ORDER BY stat_date ASC
+    </select>
+</mapper>

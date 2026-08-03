@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsShopProductDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsShopProduct">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="product_no" property="productNo"/>
+        <result column="product_name" property="productName"/>
+        <result column="subtitle" property="subtitle"/>
+        <result column="category_name" property="categoryName"/>
+        <result column="cover_url" property="coverUrl"/>
+        <result column="gallery_urls" property="galleryUrls"/>
+        <result column="sale_price" property="salePrice"/>
+        <result column="market_price" property="marketPrice"/>
+        <result column="cost_amount" property="costAmount"/>
+        <result column="pv_value" property="pvValue"/>
+        <result column="bv_value" property="bvValue"/>
+        <result column="stock" property="stock"/>
+        <result column="sales_count" property="salesCount"/>
+        <result column="sort_order" property="sort"/>
+        <result column="status" property="status"/>
+        <result column="detail" property="detail"/>
+        <result column="detail_images" property="detailImages"/>
+        <result column="delivery_address" property="deliveryAddress"/>
+        <result column="delivery_province" property="deliveryProvince"/>
+        <result column="delivery_city" property="deliveryCity"/>
+        <result column="delivery_district" property="deliveryDistrict"/>
+        <result column="freight_type" property="freightType"/>
+        <result column="freight_amount" property="freightAmount"/>
+        <result column="free_shipping_amount" property="freeShippingAmount"/>
+        <result column="freight_template_name" property="freightTemplateName"/>
+        <result column="freight_template_id" property="freightTemplateId"/>
+        <result column="delivery_time" property="deliveryTime"/>
+        <result column="after_sale_policy" property="afterSalePolicy"/>
+        <result column="service_tags" property="serviceTags"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, tenant_id, product_no, product_name, subtitle, category_name, cover_url, gallery_urls,
+        sale_price, market_price, cost_amount, pv_value, bv_value, stock, sales_count,
+        sort_order, status, detail, detail_images, delivery_address, delivery_province, delivery_city, delivery_district,
+        freight_type, freight_amount, free_shipping_amount, freight_template_name, freight_template_id,
+        delivery_time, after_sale_policy, service_tags, create_time, update_time
+    </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_product
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectList" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_product
+        <where>
+            <if test="tenantId != null">
+                AND tenant_id = #{tenantId}
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+            <if test="categoryName != null and categoryName != ''">
+                AND category_name = #{categoryName}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    product_name LIKE CONCAT('%', #{keyword}, '%')
+                    OR subtitle LIKE CONCAT('%', #{keyword}, '%')
+                    OR product_no LIKE CONCAT('%', #{keyword}, '%')
+                )
+            </if>
+        </where>
+        ORDER BY status DESC, sort_order DESC, id DESC
+    </select>
+
+    <select id="selectCategories" resultType="java.lang.String">
+        SELECT DISTINCT category_name
+        FROM dms_shop_product
+        WHERE status = 1
+        <if test="tenantId != null">
+            AND tenant_id = #{tenantId}
+        </if>
+        AND category_name IS NOT NULL
+        AND category_name != ''
+        ORDER BY category_name ASC
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopProduct" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_shop_product
+        (tenant_id, product_no, product_name, subtitle, category_name, cover_url, gallery_urls, sale_price,
+         market_price, cost_amount, pv_value, bv_value, stock, sales_count, sort_order, status, detail, detail_images,
+         delivery_address, delivery_province, delivery_city, delivery_district,
+         freight_type, freight_amount, free_shipping_amount, freight_template_name, freight_template_id,
+         delivery_time, after_sale_policy, service_tags)
+        VALUES
+        (#{tenantId}, #{productNo}, #{productName}, #{subtitle}, #{categoryName}, #{coverUrl}, #{galleryUrls}, #{salePrice},
+         #{marketPrice}, #{costAmount}, #{pvValue}, #{bvValue}, #{stock}, #{salesCount}, #{sort}, #{status}, #{detail}, #{detailImages},
+         #{deliveryAddress}, #{deliveryProvince}, #{deliveryCity}, #{deliveryDistrict},
+         #{freightType}, #{freightAmount}, #{freeShippingAmount}, #{freightTemplateName}, #{freightTemplateId},
+         #{deliveryTime}, #{afterSalePolicy}, #{serviceTags})
+    </insert>
+
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsShopProduct">
+        UPDATE dms_shop_product
+        SET tenant_id = #{tenantId},
+            product_no = #{productNo},
+            product_name = #{productName},
+            subtitle = #{subtitle},
+            category_name = #{categoryName},
+            cover_url = #{coverUrl},
+            gallery_urls = #{galleryUrls},
+            sale_price = #{salePrice},
+            market_price = #{marketPrice},
+            cost_amount = #{costAmount},
+            pv_value = #{pvValue},
+            bv_value = #{bvValue},
+            stock = #{stock},
+            sales_count = #{salesCount},
+            sort_order = #{sort},
+            status = #{status},
+            detail = #{detail},
+            detail_images = #{detailImages},
+            delivery_address = #{deliveryAddress},
+            delivery_province = #{deliveryProvince},
+            delivery_city = #{deliveryCity},
+            delivery_district = #{deliveryDistrict},
+            freight_type = #{freightType},
+            freight_amount = #{freightAmount},
+            free_shipping_amount = #{freeShippingAmount},
+            freight_template_name = #{freightTemplateName},
+            freight_template_id = #{freightTemplateId},
+            delivery_time = #{deliveryTime},
+            after_sale_policy = #{afterSalePolicy},
+            service_tags = #{serviceTags},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE dms_shop_product
+        SET status = #{status}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateCategoryName">
+        UPDATE dms_shop_product
+        SET category_name = #{newName}, update_time = CURRENT_TIMESTAMP
+        WHERE tenant_id = #{tenantId} AND category_name = #{oldName}
+    </update>
+
+    <update id="decreaseStock">
+        UPDATE dms_shop_product
+        SET stock = stock - #{quantity},
+            sales_count = sales_count + #{quantity},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND status = 1
+          AND stock &gt;= #{quantity}
+    </update>
+
+    <update id="increaseStock">
+        UPDATE dms_shop_product
+        SET stock = stock + #{quantity},
+            sales_count = CASE WHEN sales_count &gt;= #{quantity} THEN sales_count - #{quantity} ELSE 0 END,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+</mapper>
