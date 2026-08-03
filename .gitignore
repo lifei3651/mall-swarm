@@ -1,0 +1,18 @@
+# 构建产物（避免 git add . 把编译结果和大型包带入提交）
+target/
+dist/
+*.jar
+*.class
+
+# 依赖目录
+node_modules/
+
+# macOS
+.DS_Store
+
+# 日志与临时文件
+*.log
+*.tmp
+
+# 本地 IDE 配置
+.idea/
