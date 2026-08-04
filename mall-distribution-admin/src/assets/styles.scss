@@ -10,6 +10,23 @@ html, body, #app {
   width: 100%;
 }
 
+:root {
+  --admin-primary: #5669e8;
+  --admin-primary-soft: #eef1ff;
+  --admin-text: #1f2937;
+  --admin-muted: #718096;
+  --admin-border: #e7ecf4;
+  --admin-surface: #ffffff;
+  --admin-bg: #f4f7fb;
+}
+
+body {
+  color: var(--admin-text);
+  background: var(--admin-bg);
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
 // 布局样式
 .layout-container {
   height: 100vh;
@@ -49,6 +66,44 @@ html, body, #app {
   padding: 20px;
   background-color: #f0f2f5;
   overflow-y: auto;
+}
+
+// 统一管理后台控件层级与圆角，让不同页面保持同一套视觉语言。
+.el-card {
+  border-color: var(--admin-border) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 26px rgba(31, 51, 86, .045) !important;
+}
+
+.el-card__header {
+  border-bottom-color: #edf1f6 !important;
+}
+
+.el-button {
+  border-radius: 9px;
+  font-weight: 600;
+}
+
+.el-button--primary {
+  --el-button-bg-color: var(--admin-primary);
+  --el-button-border-color: var(--admin-primary);
+  --el-button-hover-bg-color: #6879ee;
+  --el-button-hover-border-color: #6879ee;
+}
+
+.el-input__wrapper, .el-select__wrapper, .el-textarea__inner {
+  border-radius: 9px !important;
+  box-shadow: 0 0 0 1px #dfe6f0 inset !important;
+}
+
+.el-input__wrapper.is-focus, .el-select__wrapper.is-focused {
+  box-shadow: 0 0 0 1px var(--admin-primary) inset, 0 0 0 3px rgba(86, 105, 232, .10) !important;
+}
+
+.el-table {
+  --el-table-header-bg-color: #f8faff;
+  --el-table-row-hover-bg-color: #f7f9ff;
+  --el-table-border-color: #edf1f6;
 }
 
 // 页面容器

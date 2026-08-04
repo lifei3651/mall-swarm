@@ -9,9 +9,9 @@
       <el-menu
         :default-active="activeMenu"
         :collapse="isCollapsed"
-        background-color="#304156"
-        text-color="#bfcbd9"
-        active-text-color="#409eff"
+        background-color="#111c36"
+        text-color="#aeb9cf"
+        active-text-color="#ffffff"
         router
       >
         <template v-for="menu in visibleBusinessMenus" :key="menu.key || menu.path">
@@ -60,6 +60,7 @@
           </el-breadcrumb>
         </div>
         <div class="header-right">
+          <div class="system-status"><i></i><span>系统运行正常</span></div>
           <el-dropdown @command="handleCommand">
             <span class="user-info">
               <el-avatar :size="30"><el-icon><UserFilled /></el-icon></el-avatar>
@@ -106,7 +107,7 @@ import {
 import { getMe, logout as logoutApi } from '@/api/auth'
 import { getShopBrand } from '@/api/shopBrand'
 import { useAppStore } from '@/store'
-import defaultLogo from '@/assets/logo-small.svg'
+import defaultLogo from '@/assets/lingqi-logo-mark.png'
 import {
   ADMIN_SESSION_EXPIRED_EVENT,
   expireAdminSession,
@@ -117,7 +118,7 @@ const route = useRoute()
 const router = useRouter()
 const store = useAppStore()
 const isCollapsed = ref(false)
-const brand = reactive({ brandName: localStorage.getItem('admin_brand_name') || '商城', logoUrl: '' })
+const brand = reactive({ brandName: localStorage.getItem('admin_brand_name') || '灵启商城', logoUrl: '' })
 const menuIcons = {
   CreditCard,
   DataAnalysis,
@@ -202,9 +203,10 @@ const businessMenus = [
 const loadBrand = async () => {
   try {
     const res = await getShopBrand()
-    brand.brandName = res.data?.brandName?.trim() || '商城'
+    brand.brandName = res.data?.brandName?.trim() || '灵启商城'
     brand.logoUrl = res.data?.logoUrl || ''
     localStorage.setItem('admin_brand_name', brand.brandName)
+    document.title = `${brand.brandName}管理后台`
   } catch {
     // 品牌读取失败时保留中性默认值，不影响后台使用。
   }
@@ -325,12 +327,15 @@ const handleCommand = async (command) => {
 .layout-container {
   height: 100vh;
   display: flex;
+  color: #1f2937;
+  background: #f4f7fb;
 }
 
 .layout-sidebar {
-  width: 220px;
-  background-color: #304156;
-  transition: width 0.3s;
+  width: 244px;
+  background: linear-gradient(180deg, #111c36 0%, #162342 58%, #1d2b50 100%);
+  box-shadow: 8px 0 28px rgba(20, 37, 73, .08);
+  transition: width 0.24s ease;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -340,27 +345,32 @@ const handleCommand = async (command) => {
   }
 
   .logo {
-    flex: 0 0 60px;
-    height: 60px;
+    flex: 0 0 76px;
+    height: 76px;
     display: flex;
     align-items: center;
-    justify-content: center;
-    background-color: #2b2f3a;
+    padding: 0 22px;
+    background: rgba(9, 17, 37, .26);
+    border-bottom: 1px solid rgba(255, 255, 255, .08);
 
     img {
-      width: 34px;
-      height: 34px;
+      width: 38px;
+      height: 38px;
       object-fit: contain;
       flex: 0 0 auto;
+      border-radius: 11px;
+      box-shadow: 0 6px 16px rgba(34, 53, 104, .35);
     }
 
     span {
-      margin-left: 9px;
+      margin-left: 11px;
       max-width: 145px;
       overflow: hidden;
       color: #fff;
-      font-size: 16px;
-      font-weight: 600;
+      color: #f5f7ff;
+      font-size: 17px;
+      font-weight: 750;
+      letter-spacing: .3px;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
@@ -373,11 +383,41 @@ const handleCommand = async (command) => {
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: thin;
-    scrollbar-color: #6b7c93 #304156;
+    scrollbar-color: #405379 #111c36;
 
     &::-webkit-scrollbar { width: 7px; }
-    &::-webkit-scrollbar-thumb { background: #6b7c93; border-radius: 4px; }
-    &::-webkit-scrollbar-track { background: #304156; }
+    &::-webkit-scrollbar-thumb { background: #405379; border-radius: 4px; }
+    &::-webkit-scrollbar-track { background: #111c36; }
+
+    :deep(.el-menu-item), :deep(.el-sub-menu__title) {
+      height: 46px;
+      margin: 4px 12px;
+      padding: 0 15px !important;
+      border-radius: 10px;
+      font-size: 14px;
+      transition: background .2s ease, color .2s ease;
+    }
+
+    :deep(.el-sub-menu .el-menu-item) {
+      min-width: 0;
+      margin: 2px 12px 2px 42px;
+      padding-left: 14px !important;
+      color: #9eabc2;
+      font-size: 13px;
+    }
+
+    :deep(.el-menu-item:hover), :deep(.el-sub-menu__title:hover) {
+      color: #fff !important;
+      background: rgba(255, 255, 255, .09) !important;
+    }
+
+    :deep(.el-menu-item.is-active) {
+      color: #fff !important;
+      background: linear-gradient(100deg, #4f72ff, #6b55e8) !important;
+      box-shadow: 0 8px 18px rgba(77, 99, 223, .28);
+    }
+
+    :deep(.el-sub-menu.is-opened > .el-sub-menu__title) { color: #fff; }
   }
 }
 
@@ -389,26 +429,56 @@ const handleCommand = async (command) => {
 }
 
 .layout-header {
-  height: 60px;
-  background-color: #fff;
-  border-bottom: 1px solid #e6e6e6;
+  height: 72px;
+  background: rgba(255, 255, 255, .92);
+  border-bottom: 1px solid #e8edf5;
+  box-shadow: 0 4px 18px rgba(32, 55, 93, .04);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 0 28px;
 
   .header-left {
     display: flex;
     align-items: center;
 
     .collapse-btn {
-      font-size: 20px;
+      width: 34px;
+      height: 34px;
+      color: #64748b;
+      font-size: 19px;
+      line-height: 34px;
+      text-align: center;
+      border-radius: 9px;
       cursor: pointer;
-      margin-right: 20px;
+      margin-right: 16px;
+      transition: color .2s ease, background .2s ease;
+
+      &:hover { color: #4f66df; background: #eef2ff; }
     }
   }
 
   .header-right {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+
+    .system-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: #718096;
+      font-size: 12px;
+
+      i {
+        width: 7px;
+        height: 7px;
+        background: #29c38a;
+        border-radius: 50%;
+        box-shadow: 0 0 0 4px rgba(41, 195, 138, .12);
+      }
+    }
+
     .user-info {
       display: flex;
       align-items: center;
@@ -416,7 +486,9 @@ const handleCommand = async (command) => {
 
       .username {
         margin-left: 10px;
+        color: #334155;
         font-size: 14px;
+        font-weight: 600;
       }
     }
   }
@@ -424,8 +496,8 @@ const handleCommand = async (command) => {
 
 .layout-content {
   flex: 1;
-  padding: 20px;
-  background-color: #f0f2f5;
+  padding: 26px 30px 34px;
+  background: linear-gradient(145deg, #f7f9fc 0%, #f1f5fb 100%);
   overflow-y: auto;
 }
 </style>
