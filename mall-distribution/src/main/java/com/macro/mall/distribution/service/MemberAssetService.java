@@ -15,10 +15,10 @@ public interface MemberAssetService {
 
     List<DmsMemberAssetFlow> listFlows(Long agentId, Long userId);
 
-    List<BalanceFlowVO> searchBalanceFlows(String keyword, String direction, String sourceType,
+    List<BalanceFlowVO> searchBalanceFlows(String keyword, String relatedNo, String direction, String sourceType,
                                            LocalDateTime startTime, LocalDateTime endTime);
 
-    BalanceFlowSummaryVO summarizeBalanceFlows(String keyword, String direction, String sourceType,
+    BalanceFlowSummaryVO summarizeBalanceFlows(String keyword, String relatedNo, String direction, String sourceType,
                                                LocalDateTime startTime, LocalDateTime endTime);
 
     DmsMemberAssetFlow issue(AssetChangeDTO dto);

@@ -49,6 +49,7 @@ public class MemberAssetController {
     @GetMapping("/flow-records")
     public CommonResult<CommonPage<BalanceFlowVO>> searchFlows(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String relatedNo,
             @RequestParam(required = false) String direction,
             @RequestParam(required = false) String sourceType,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
@@ -57,18 +58,19 @@ public class MemberAssetController {
             @RequestParam(defaultValue = "20") Integer pageSize) {
         PageHelper.startPage(pageNum, pageSize);
         return CommonResult.success(CommonPage.restPage(
-                assetService.searchBalanceFlows(keyword, direction, sourceType, startTime, endTime)));
+                assetService.searchBalanceFlows(keyword, relatedNo, direction, sourceType, startTime, endTime)));
     }
 
     @Operation(summary = "汇总筛选范围内余额流水")
     @GetMapping("/flow-records/summary")
     public CommonResult<BalanceFlowSummaryVO> summarizeFlows(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String relatedNo,
             @RequestParam(required = false) String direction,
             @RequestParam(required = false) String sourceType,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime) {
-        return CommonResult.success(assetService.summarizeBalanceFlows(keyword, direction, sourceType, startTime, endTime));
+        return CommonResult.success(assetService.summarizeBalanceFlows(keyword, relatedNo, direction, sourceType, startTime, endTime));
     }
 
     @Operation(summary = "后台人工增加会员余额（立即生效）")

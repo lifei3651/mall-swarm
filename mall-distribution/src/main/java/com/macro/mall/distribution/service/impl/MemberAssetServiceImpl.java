@@ -55,18 +55,20 @@ public class MemberAssetServiceImpl implements MemberAssetService {
     }
 
     @Override
-    public List<BalanceFlowVO> searchBalanceFlows(String keyword, String direction, String sourceType,
+    public List<BalanceFlowVO> searchBalanceFlows(String keyword, String relatedNo, String direction, String sourceType,
                                                   LocalDateTime startTime, LocalDateTime endTime) {
         String normalizedKeyword = keyword == null ? null : keyword.trim();
-        return flowDao.selectBalanceFlowList(normalizedKeyword, direction, sourceType, startTime, endTime);
+        String normalizedRelatedNo = relatedNo == null ? null : relatedNo.trim();
+        return flowDao.selectBalanceFlowList(normalizedKeyword, normalizedRelatedNo, direction, sourceType, startTime, endTime);
     }
 
     @Override
-    public BalanceFlowSummaryVO summarizeBalanceFlows(String keyword, String direction, String sourceType,
+    public BalanceFlowSummaryVO summarizeBalanceFlows(String keyword, String relatedNo, String direction, String sourceType,
                                                       LocalDateTime startTime, LocalDateTime endTime) {
         String normalizedKeyword = keyword == null ? null : keyword.trim();
+        String normalizedRelatedNo = relatedNo == null ? null : relatedNo.trim();
         BalanceFlowSummaryVO summary = flowDao.selectBalanceFlowSummary(
-                normalizedKeyword, direction, sourceType, startTime, endTime);
+                normalizedKeyword, normalizedRelatedNo, direction, sourceType, startTime, endTime);
         if (summary == null) summary = new BalanceFlowSummaryVO();
         if (summary.getTotalRechargeAmount() == null) summary.setTotalRechargeAmount(BigDecimal.ZERO);
         if (summary.getTotalIncomeAmount() == null) summary.setTotalIncomeAmount(BigDecimal.ZERO);

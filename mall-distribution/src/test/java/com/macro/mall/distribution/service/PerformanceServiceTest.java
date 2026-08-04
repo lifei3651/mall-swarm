@@ -272,7 +272,8 @@ public class PerformanceServiceTest {
         command.setAgentId(2L);
         command.setAmount(new BigDecimal("25.00"));
         command.setBizType("MANUAL_MEMBER_ADJUST");
-        command.setRemark("人工补发余额");
+        command.setBizId("ORDER-TEST-1001");
+        command.setRemark("人工补发余额，订单：ORDER-TEST-1001");
         try {
             AdminContext.set(operator);
             DmsMemberAssetFlow flow = memberAssetService.issue(command);
@@ -284,15 +285,19 @@ public class PerformanceServiceTest {
             assertEquals(new BigDecimal("25.00"), memberAssetService.listAccounts(2L, null).stream()
                     .filter(item -> "CASH_BONUS".equals(item.getAssetCode())).findFirst().orElseThrow().getBalance());
             assertTrue(memberAssetService.listFlows(2L, null).stream()
-                    .anyMatch(item -> item.getId().equals(flow.getId()) && "人工补发余额".equals(item.getRemark())));
+                    .anyMatch(item -> item.getId().equals(flow.getId()) && "人工补发余额，订单：ORDER-TEST-1001".equals(item.getRemark())));
             var flowRecords = memberAssetService.searchBalanceFlows(
-                    flow.getFlowNo(), "IN", "RECHARGE", LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(1));
+                    flow.getFlowNo(), null, "IN", "RECHARGE", LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(1));
             assertEquals(1, flowRecords.size());
             assertEquals(flow.getId(), flowRecords.get(0).getId());
             assertAmountEquals("0.00", flowRecords.get(0).getBalanceBefore());
             assertEquals("operator", flowRecords.get(0).getOperatorName());
+            var relatedRecords = memberAssetService.searchBalanceFlows(
+                    null, "ORDER-TEST-1001", "IN", "RECHARGE", LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(1));
+            assertEquals(1, relatedRecords.size());
+            assertEquals(flow.getId(), relatedRecords.get(0).getId());
             var summary = memberAssetService.summarizeBalanceFlows(
-                    flow.getFlowNo(), "IN", "RECHARGE", LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(1));
+                    flow.getFlowNo(), null, "IN", "RECHARGE", LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(1));
             assertAmountEquals("25.00", summary.getTotalRechargeAmount());
             assertAmountEquals("25.00", summary.getTotalIncomeAmount());
             assertAmountEquals("0.00", summary.getTotalExpenseAmount());

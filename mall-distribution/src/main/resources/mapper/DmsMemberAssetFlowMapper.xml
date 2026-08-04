@@ -82,6 +82,10 @@
                 OR m.nickname LIKE CONCAT('%', #{keyword}, '%')
                 OR m.username LIKE CONCAT('%', #{keyword}, '%'))
         </if>
+        <if test="relatedNo != null and relatedNo != ''">
+            AND (f.biz_id LIKE CONCAT('%', #{relatedNo}, '%')
+                OR f.remark LIKE CONCAT('%', #{relatedNo}, '%'))
+        </if>
         <if test="direction == 'IN'">
             AND f.change_type IN (1, 4)
         </if>
@@ -134,6 +138,10 @@
                 OR m.phone LIKE CONCAT('%', #{keyword}, '%')
                 OR m.nickname LIKE CONCAT('%', #{keyword}, '%')
                 OR m.username LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="relatedNo != null and relatedNo != ''">
+            AND (f.biz_id LIKE CONCAT('%', #{relatedNo}, '%')
+                OR f.remark LIKE CONCAT('%', #{relatedNo}, '%'))
         </if>
         <if test="direction == 'IN'">
             AND f.change_type IN (1, 4)

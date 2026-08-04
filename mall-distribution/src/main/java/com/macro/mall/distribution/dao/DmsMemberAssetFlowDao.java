@@ -21,12 +21,14 @@ public interface DmsMemberAssetFlowDao {
                                             @Param("assetCode") String assetCode);
 
     List<BalanceFlowVO> selectBalanceFlowList(@Param("keyword") String keyword,
+                                               @Param("relatedNo") String relatedNo,
                                                @Param("direction") String direction,
                                               @Param("sourceType") String sourceType,
                                               @Param("startTime") LocalDateTime startTime,
                                               @Param("endTime") LocalDateTime endTime);
 
     BalanceFlowSummaryVO selectBalanceFlowSummary(@Param("keyword") String keyword,
+                                                  @Param("relatedNo") String relatedNo,
                                                   @Param("direction") String direction,
                                                   @Param("sourceType") String sourceType,
                                                   @Param("startTime") LocalDateTime startTime,

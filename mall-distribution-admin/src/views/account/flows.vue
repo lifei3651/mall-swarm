@@ -1,7 +1,7 @@
 <template>
   <div class="page-container">
     <el-alert
-      title="这里记录所有余额收入和支出。可按会员、发生时间和资金来源查询；后台增加余额归类为人工充值。"
+      title="这里记录所有余额资金流水。可按会员、动账时间、资金来源或订单/关联单号查询，支持完整对账。"
       type="info"
       :closable="false"
       show-icon
@@ -11,7 +11,10 @@
     <div class="search-container">
       <el-form :inline="true" :model="query">
         <el-form-item label="会员/流水号">
-          <el-input v-model="query.keyword" placeholder="登录账号/手机号/名称/流水号" clearable @keyup.enter="search" />
+          <el-input v-model="query.keyword" placeholder="登录账号/手机号/名称/流水单号" clearable @keyup.enter="search" />
+        </el-form-item>
+        <el-form-item label="订单/关联单号">
+          <el-input v-model="query.relatedNo" placeholder="订单号或关联业务号" clearable @keyup.enter="search" />
         </el-form-item>
         <el-form-item label="收支方向">
           <el-select v-model="query.direction" clearable placeholder="全部" style="width:120px" @change="search">
@@ -31,7 +34,7 @@
             <el-option label="退款追回奖金" value="CLAWBACK" />
           </el-select>
         </el-form-item>
-        <el-form-item label="发生时间">
+        <el-form-item label="动账时间">
           <el-date-picker
             v-model="query.dateRange"
             type="datetimerange"
@@ -66,29 +69,35 @@
     </div>
 
     <el-table :data="rows" v-loading="loading" :empty-text="tableEmptyText" style="width:100%">
-      <el-table-column label="发生时间" width="175"><template #default="{ row }">{{ formatDateTime(row.createTime) }}</template></el-table-column>
+      <el-table-column label="流水单号" min-width="190" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.flowNo || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="动账时间" width="175"><template #default="{ row }">{{ formatDateTime(row.createTime) }}</template></el-table-column>
+      <el-table-column label="账号ID" width="115"><template #default="{ row }">{{ row.memberId || row.userId || row.agentId || '-' }}</template></el-table-column>
       <el-table-column label="会员信息" min-width="190">
         <template #default="{ row }">
           <div class="member-name">{{ row.memberName || row.memberPhone || `用户${row.userId}` }}</div>
           <div class="sub">账号：{{ row.memberUsername || '-' }} · {{ row.memberPhone || '-' }}</div>
         </template>
       </el-table-column>
-      <el-table-column label="资金来源" width="150">
-        <template #default="{ row }"><el-tag :type="sourceTag(row)">{{ sourceName(row) }}</el-tag></template>
+      <el-table-column label="动账类型/收支类型" min-width="170">
+        <template #default="{ row }"><el-tag :type="sourceTag(row)">{{ changeTypeName(row.changeType) }} / {{ isIncome(row.changeType) ? '收入' : '支出' }}</el-tag><div class="sub">{{ sourceName(row) }}</div></template>
       </el-table-column>
-      <el-table-column label="本次变动" width="130" align="right">
+      <el-table-column label="收支金额" width="130" align="right">
         <template #default="{ row }"><strong :class="isIncome(row.changeType) ? 'income' : 'expense'">{{ isIncome(row.changeType) ? '+' : '-' }}¥{{ money(row.amount) }}</strong></template>
       </el-table-column>
       <el-table-column label="变动前余额" width="130" align="right">
         <template #default="{ row }">¥{{ money(row.balanceBefore) }}</template>
       </el-table-column>
-      <el-table-column label="变动后余额" width="130" align="right">
+      <el-table-column label="动账余额" width="130" align="right">
         <template #default="{ row }">¥{{ money(row.balanceAfter) }}</template>
       </el-table-column>
       <el-table-column label="操作管理员" width="145">
         <template #default="{ row }">{{ row.operatorName || '历史记录未留存' }}</template>
       </el-table-column>
-      <el-table-column prop="flowNo" label="流水号" min-width="190" show-overflow-tooltip />
+      <el-table-column label="关联单号" min-width="180" show-overflow-tooltip>
+        <template #default="{ row }">{{ relatedNumber(row) }}</template>
+      </el-table-column>
       <el-table-column prop="remark" label="说明" min-width="250" show-overflow-tooltip />
     </el-table>
 
@@ -115,7 +124,7 @@ import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
 const loading = ref(false)
 const rows = ref([])
 const summary = ref({ totalRechargeAmount: 0, totalIncomeAmount: 0, totalExpenseAmount: 0 })
-const query = ref({ keyword: '', direction: null, sourceType: null, dateRange: [] })
+const query = ref({ keyword: '', relatedNo: '', direction: null, sourceType: null, dateRange: [] })
 const pagination = ref({ page: 1, size: 20, total: 0 })
 const searchFeedback = ref('')
 const tableEmptyText = ref('暂无余额流水')
@@ -127,6 +136,12 @@ const { markSearchApplied: markKeywordSearchApplied } = useSearchAutoRestore(
 const money = (value) => Number(value || 0).toFixed(2)
 const formatDateTime = (value) => value ? String(value).replace('T', ' ') : '-'
 const isIncome = (type) => [1, 4].includes(Number(type))
+const changeTypeName = (type) => ({ 1: '发放', 2: '消费', 3: '转出', 4: '转入', 5: '扣减' }[Number(type)] || '其他')
+const relatedNumber = (row) => {
+  const remark = String(row.remark || '')
+  const matched = remark.match(/(?:订单|售后单|售后退款|申请提现|提现审核拒绝退回|退款追回已结算佣金)[：:]([^，,；;\s]+)/)
+  return matched?.[1] || row.bizId || '-'
+}
 const sourceName = (row) => {
   if (String(row.bizType || '').endsWith('MANUAL_MEMBER_ADJUST')) {
     return isIncome(row.changeType) ? '人工充值' : '后台扣减'
@@ -164,6 +179,7 @@ const fetchRows = async () => {
   try {
     const params = {
       keyword: query.value.keyword?.trim() || undefined,
+      relatedNo: query.value.relatedNo?.trim() || undefined,
       direction: query.value.direction || undefined,
       sourceType: query.value.sourceType || undefined,
       startTime: query.value.dateRange?.[0],
@@ -184,7 +200,7 @@ const fetchRows = async () => {
 }
 
 const search = () => { pagination.value.page = 1; fetchRows() }
-const reset = () => { query.value = { keyword: '', direction: null, sourceType: null, dateRange: [] }; search() }
+const reset = () => { query.value = { keyword: '', relatedNo: '', direction: null, sourceType: null, dateRange: [] }; search() }
 onMounted(fetchRows)
 </script>
 
