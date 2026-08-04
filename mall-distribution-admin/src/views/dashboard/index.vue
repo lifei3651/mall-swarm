@@ -99,6 +99,17 @@
       </el-col>
     </el-row>
 
+    <el-row :gutter="20" class="chart-row">
+      <el-col :span="24">
+        <el-card class="panel-card" shadow="never">
+          <template #header>
+            <div class="panel-header"><div><b>近12个月销售趋势</b><span>按订单支付时间汇总每月有效成交额，观察年度经营节奏与增长趋势</span></div></div>
+          </template>
+          <div ref="monthlyTrendChart" class="chart trend-chart"></div>
+        </el-card>
+      </el-col>
+    </el-row>
+
     <el-card class="panel-card ranking-card" shadow="never">
       <template #header>
         <div class="panel-header">
@@ -159,8 +170,10 @@ const loading = ref(false)
 const dashboard = ref({})
 const lastUpdated = ref('')
 const salesTrendChart = ref(null)
+const monthlyTrendChart = ref(null)
 const regionChart = ref(null)
 let salesTrendChartInstance
+let monthlyTrendChartInstance
 let regionChartInstance
 
 const money = (value) => Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -222,6 +235,24 @@ const renderCharts = () => {
     })
   }
 
+  if (monthlyTrendChart.value) {
+    monthlyTrendChartInstance?.dispose()
+    monthlyTrendChartInstance = echarts.init(monthlyTrendChart.value)
+    const trend = dashboard.value.monthlyPerformanceTrend || []
+    monthlyTrendChartInstance.setOption({
+      color: ['#8b5cf6'],
+      tooltip: { trigger: 'axis', valueFormatter: (value) => `¥${money(value)}` },
+      grid: { left: 70, right: 24, top: 28, bottom: 42 },
+      xAxis: { type: 'category', boundaryGap: false, data: trend.map((item) => String(item.statDate || '').slice(0, 7)), axisLine: { lineStyle: { color: '#d9e0e8' } }, axisLabel: { color: '#7a8594' } },
+      yAxis: { type: 'value', axisLabel: { color: '#7a8594', formatter: (value) => `¥${value}` }, splitLine: { lineStyle: { color: '#edf1f6' } } },
+      series: [{
+        name: '月度销售额', type: 'line', smooth: true, symbol: 'circle', symbolSize: 7,
+        data: trend.map((item) => Number(item.performanceAmount || 0)),
+        areaStyle: { color: 'rgba(139,92,246,.12)' }, lineStyle: { width: 3 },
+      }],
+    })
+  }
+
   if (regionChart.value && hasRegionData.value) {
     regionChartInstance?.dispose()
     regionChartInstance = echarts.init(regionChart.value)
@@ -253,6 +284,7 @@ const loadDashboard = async () => {
 
 const resizeCharts = () => {
   salesTrendChartInstance?.resize()
+  monthlyTrendChartInstance?.resize()
   regionChartInstance?.resize()
 }
 
@@ -263,6 +295,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('resize', resizeCharts)
   salesTrendChartInstance?.dispose()
+  monthlyTrendChartInstance?.dispose()
   regionChartInstance?.dispose()
 })
 </script>

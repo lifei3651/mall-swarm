@@ -48,6 +48,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.boot.test.mock.mockito.MockBean;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -413,6 +415,22 @@ class ShopFreightServiceTest {
         assertEquals(8, dashboard.getLevelDistribution().size());
         assertNotNull(dashboard.getPendingWithdraws());
         assertNotNull(dashboard.getLatestCommissions());
+    }
+
+    @Test
+    void adminDashboardIncludesTwelveMonthSalesTrendByPaidMonth() {
+        DmsShopMember member = createMember("13999110107", "月度趋势会员", null);
+        ShopOrderVO paid = submitAndPay(member, 1);
+        jdbcTemplate.update("UPDATE dms_shop_order SET pay_time=? WHERE id=?",
+                LocalDateTime.now().minusMonths(1), paid.getOrder().getId());
+
+        AdminDashboardVO dashboard = adminDashboardService.getDashboard();
+
+        assertEquals(12, dashboard.getMonthlyPerformanceTrend().size());
+        LocalDate previousMonth = LocalDate.now().minusMonths(1).withDayOfMonth(1);
+        assertTrue(dashboard.getMonthlyPerformanceTrend().stream()
+                .anyMatch(row -> previousMonth.equals(row.getStatDate())
+                        && row.getPerformanceAmount().compareTo(BigDecimal.ZERO) > 0));
     }
 
     private DmsShopProduct useShippingProduct(int freightType, BigDecimal freightAmount,

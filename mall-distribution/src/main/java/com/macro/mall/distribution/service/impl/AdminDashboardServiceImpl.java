@@ -6,6 +6,7 @@ import com.macro.mall.distribution.service.AdminDashboardService;
 import com.macro.mall.distribution.vo.AdminDashboardVO;
 import com.macro.mall.distribution.vo.DashboardFinanceSummaryVO;
 import com.macro.mall.distribution.vo.DashboardLevelCountVO;
+import com.macro.mall.distribution.vo.DashboardMonthlyTrendVO;
 import com.macro.mall.distribution.vo.DashboardProductRankingVO;
 import com.macro.mall.distribution.vo.DashboardRegionVO;
 import com.macro.mall.distribution.vo.DashboardTrendVO;
@@ -36,6 +37,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         LocalDateTime monthStart = today.withDayOfMonth(1).atStartOfDay();
         LocalDateTime last7DaysStart = today.minusDays(6).atStartOfDay();
         LocalDate trendStart = today.minusDays(29);
+        LocalDate monthlyTrendStart = today.withDayOfMonth(1).minusMonths(11);
 
         AdminDashboardVO vo = new AdminDashboardVO();
         long registeredMembers = dashboardDao.countMembers();
@@ -103,6 +105,8 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
         vo.setPerformanceTrend(fillTrend(trendStart, today,
                 dashboardDao.selectPerformanceTrend(tenantId, trendStart.atStartOfDay(), tomorrowStart)));
+        vo.setMonthlyPerformanceTrend(fillMonthlyTrend(monthlyTrendStart, today.withDayOfMonth(1),
+                dashboardDao.selectMonthlyPerformanceTrend(tenantId, monthlyTrendStart.atStartOfDay(), tomorrowStart)));
         vo.setLevelDistribution(fillLevels(dashboardDao.selectLevelDistribution()));
         vo.setPendingWithdraws(dashboardDao.selectPendingWithdraws(5));
         vo.setLatestCommissions(dashboardDao.selectLatestCommissions(5));
@@ -113,6 +117,19 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         Map<LocalDate, BigDecimal> values = new LinkedHashMap<>();
         for (DashboardTrendVO row : rows) values.put(row.getStatDate(), zero(row.getPerformanceAmount()));
         return start.datesUntil(end.plusDays(1))
+                .map(date -> new DashboardTrendVO(date, values.getOrDefault(date, BigDecimal.ZERO)))
+                .toList();
+    }
+
+    private List<DashboardTrendVO> fillMonthlyTrend(LocalDate start, LocalDate end,
+                                                    List<DashboardMonthlyTrendVO> rows) {
+        Map<LocalDate, BigDecimal> values = new LinkedHashMap<>();
+        for (DashboardMonthlyTrendVO row : rows) {
+            if (row.getStatYear() != null && row.getStatMonth() != null) {
+                values.put(LocalDate.of(row.getStatYear(), row.getStatMonth(), 1), zero(row.getPerformanceAmount()));
+            }
+        }
+        return start.datesUntil(end.plusMonths(1), java.time.Period.ofMonths(1))
                 .map(date -> new DashboardTrendVO(date, values.getOrDefault(date, BigDecimal.ZERO)))
                 .toList();
     }

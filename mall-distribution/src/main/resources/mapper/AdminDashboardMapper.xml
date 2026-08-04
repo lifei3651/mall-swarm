@@ -170,6 +170,26 @@
         ORDER BY DATE(shop_order.pay_time)
     </select>
 
+    <select id="selectMonthlyPerformanceTrend" resultType="com.macro.mall.distribution.vo.DashboardMonthlyTrendVO">
+        SELECT YEAR(shop_order.pay_time) AS statYear,
+               MONTH(shop_order.pay_time) AS statMonth,
+               COALESCE(SUM(GREATEST(shop_order.total_amount - COALESCE(refund.product_refund_amount, 0), 0)), 0)
+                   AS performanceAmount
+        FROM dms_shop_order shop_order
+        LEFT JOIN (
+            SELECT order_id, COALESCE(SUM(product_refund_amount), 0) AS product_refund_amount
+            FROM dms_finance_refund
+            GROUP BY order_id
+        ) refund ON refund.order_id = shop_order.id
+        WHERE shop_order.tenant_id = #{tenantId}
+          AND shop_order.pay_time IS NOT NULL
+          AND shop_order.status IN (1, 2, 3)
+          AND shop_order.pay_time &gt;= #{startTime}
+          AND shop_order.pay_time &lt; #{endTime}
+        GROUP BY YEAR(shop_order.pay_time), MONTH(shop_order.pay_time)
+        ORDER BY statYear, statMonth
+    </select>
+
     <select id="selectLevelDistribution" resultType="com.macro.mall.distribution.vo.DashboardLevelCountVO">
         SELECT agent.agent_level AS agentLevel, COUNT(*) AS memberCount
         FROM dms_agent agent

@@ -47,6 +47,7 @@ public class AdminDashboardVO implements Serializable {
     private List<DashboardRegionVO> memberRegionDistribution;
 
     private List<DashboardTrendVO> performanceTrend;
+    private List<DashboardTrendVO> monthlyPerformanceTrend;
     private List<DashboardLevelCountVO> levelDistribution;
     private List<DashboardWithdrawVO> pendingWithdraws;
     private List<DashboardCommissionVO> latestCommissions;
