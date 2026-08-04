@@ -85,6 +85,13 @@ test('product detail renders rating distribution bars computed from star counts'
   assert.match(source, /rating-distribution/)
 })
 
+test('product detail always renders the standard after-sale policy section', async () => {
+  const source = await readView('ProductDetailView.vue')
+  assert.match(source, /after-sale-section/)
+  assert.match(source, /defaultAfterSalePolicy/)
+  assert.match(source, /售后说明/)
+})
+
 test('product detail back button falls back home when there is no browser history', async () => {
   const source = await readView('ProductDetailView.vue')
   assert.match(source, /@click="goBack"/)

@@ -215,7 +215,19 @@
                 </div>
               </div>
             </el-form-item>
-            <el-form-item label="售后说明"><el-input v-model="form.afterSalePolicy" type="textarea" :rows="4" maxlength="1000" show-word-limit placeholder="退换货条件、时限、运费承担等说明" /></el-form-item>
+            <el-form-item label="售后说明">
+              <div class="after-sale-editor">
+                <div class="after-sale-toolbar">
+                  <span>选择通用模板后会自动填充底部售后说明；可按商品实际规则继续修改。</span>
+                  <el-select v-model="form.afterSalePresetKey" placeholder="选择售后模板" @change="applyAfterSalePreset">
+                    <el-option v-for="option in afterSalePresetOptions" :key="option.value" :label="option.label" :value="option.value" />
+                    <el-option label="自定义售后说明" value="custom" />
+                  </el-select>
+                </div>
+                <el-input v-model="form.afterSalePolicy" type="textarea" :rows="7" maxlength="1000" show-word-limit placeholder="选择模板后自动填充，也可以切换为自定义说明" />
+                <div class="field-help">请确认文案与实际售后能力一致；页面底部会按换行展示这些内容。</div>
+              </div>
+            </el-form-item>
           </section>
 
           <section class="form-section">
@@ -352,6 +364,22 @@ const guaranteeDefaults = {
   '物流跟踪': { icon: 'package', description: '发货后提供物流单号，配送进度可在线查询。' },
 }
 const guaranteePresetOptions = Object.entries(guaranteeDefaults).map(([value]) => ({ value, label: value }))
+const afterSalePolicyPresets = {
+  basic: {
+    label: '商城通用售后说明',
+    content: '1. 签收商品时请先检查外包装和商品状态，如有破损、错发或漏发，请及时联系客服。\n2. 商品售后申请须符合商城交易与售后规则，并提供必要的订单信息和凭证。\n3. 退款金额以订单实际支付金额和审核结果为准，处理进度可在订单详情中查看。\n4. 退货运费承担方式以售后审核结果和商品页面说明为准。\n5. 不同商品可能存在特殊保存、使用或售后要求，请以商品详情和客服说明为准。',
+  },
+  sevenDay: {
+    label: '含七天无理由说明',
+    content: '1. 符合商城规则且商品完好的，可在签收后7天内申请无理由退货。\n2. 影响二次销售、定制、拆封或另有页面说明的商品，可能不适用七天无理由退货。\n3. 质量问题、错发漏发等情况请保留商品、包装和凭证，联系客服处理。\n4. 退款金额及退货运费承担方式以售后审核结果为准。',
+  },
+  quality: {
+    label: '质量问题售后说明',
+    content: '1. 收到商品后请及时检查，发现质量问题请拍照或录制视频并联系客服。\n2. 经核实属于商品质量、错发或漏发的，商城将按售后规则协助处理。\n3. 非质量问题的退换货，请先确认商品是否符合页面标注的退换条件。\n4. 退款金额和运费承担方式以订单实际情况及审核结果为准。',
+  },
+}
+const afterSalePresetOptions = Object.entries(afterSalePolicyPresets).map(([value, preset]) => ({ value, label: preset.label }))
+const defaultAfterSalePresetKey = 'basic'
 const parseArray = (value) => {
   if (Array.isArray(value)) return value
   try { const parsed = JSON.parse(value || '[]'); return Array.isArray(parsed) ? parsed : [] } catch { return [] }
@@ -384,7 +412,8 @@ const defaultServiceGuarantees = () => Object.entries(guaranteeDefaults).map(([t
   enabled: false, presetKey: title, icon: preset.icon, title, description: preset.description,
 })).slice(0, 5)
 
-const defaultForm = () => ({ tenantId: 1, productNo: '', productName: '', subtitle: '', categoryName: '', mainImages: [], salePrice: 0, marketPrice: 0, costAmount: 0, pvValue: 0, bvValue: 0, stock: 0, salesCount: 0, sort: 0, status: 1, freightType: 0, freightAmount: 0, freeShippingAmount: 0, freightTemplateId: null, freightTemplateName: '', deliveryAddress: '', deliveryProvince: '', deliveryCity: '', deliveryDistrict: '', deliveryTime: '48小时内发货', afterSalePolicy: '', serviceGuarantees: defaultServiceGuarantees(), detail: '', detailImageUrls: [] })
+const inferAfterSalePreset = (policy) => Object.entries(afterSalePolicyPresets).find(([, preset]) => preset.content === policy)?.[0] || 'custom'
+const defaultForm = () => ({ tenantId: 1, productNo: '', productName: '', subtitle: '', categoryName: '', mainImages: [], salePrice: 0, marketPrice: 0, costAmount: 0, pvValue: 0, bvValue: 0, stock: 0, salesCount: 0, sort: 0, status: 1, freightType: 0, freightAmount: 0, freeShippingAmount: 0, freightTemplateId: null, freightTemplateName: '', deliveryAddress: '', deliveryProvince: '', deliveryCity: '', deliveryDistrict: '', deliveryTime: '48小时内发货', afterSalePresetKey: defaultAfterSalePresetKey, afterSalePolicy: afterSalePolicyPresets[defaultAfterSalePresetKey].content, serviceGuarantees: defaultServiceGuarantees(), detail: '', detailImageUrls: [] })
 
 const fetchData = async () => {
   const validation = validateSearchKeyword(query.value.keyword, { label: '商品关键词' })
@@ -454,7 +483,7 @@ const changePvSetting = async (enabled) => {
 const resetQuery = () => { query.value = { keyword: '', categoryName: '', status: 1 }; pagination.value.page = 1; fetchData() }
 const openDialog = async (row) => {
   const mainImages = row ? [row.coverUrl, ...parseArray(row.galleryUrls)].filter(Boolean).slice(0, 5) : []
-  form.value = row ? { ...defaultForm(), ...row, mainImages, detailImageUrls: parseArray(row.detailImages), serviceGuarantees: normalizeServiceGuarantees(row.serviceTags), freightType: row.freightType ?? 0, pvValue: Number(row.pvValue || 0) } : defaultForm()
+  form.value = row ? { ...defaultForm(), ...row, mainImages, detailImageUrls: parseArray(row.detailImages), serviceGuarantees: normalizeServiceGuarantees(row.serviceTags), freightType: row.freightType ?? 0, pvValue: Number(row.pvValue || 0), afterSalePolicy: row.afterSalePolicy?.trim() || afterSalePolicyPresets[defaultAfterSalePresetKey].content, afterSalePresetKey: inferAfterSalePreset(row.afterSalePolicy?.trim() || afterSalePolicyPresets[defaultAfterSalePresetKey].content) } : defaultForm()
   deliveryRegion.value = row?.deliveryProvince && row?.deliveryCity && row?.deliveryDistrict
     ? [row.deliveryProvince, row.deliveryCity, row.deliveryDistrict]
     : []
@@ -554,6 +583,10 @@ const applyGuaranteePreset = (item) => {
   item.description = preset.description
 }
 const addServiceGuarantee = () => form.value.serviceGuarantees.push({ enabled: true, presetKey: '', icon: 'shield', title: '', description: '' })
+const applyAfterSalePreset = (presetKey) => {
+  const preset = afterSalePolicyPresets[presetKey]
+  if (preset) form.value.afterSalePolicy = preset.content
+}
 
 const parseFreightRules = (value) => {
   try { const parsed = JSON.parse(value || '[]'); return Array.isArray(parsed) ? parsed : [] } catch { return [] }
@@ -615,6 +648,7 @@ const submitForm = async () => {
   if (form.value.serviceGuarantees.some((item) => item.enabled && !item.presetKey)) return ElMessage.warning('请选择服务保障预设，或切换为自定义保障')
   if (form.value.serviceGuarantees.some((item) => item.enabled && !item.title?.trim())) return ElMessage.warning('请填写已勾选服务保障的标题')
   if (form.value.serviceGuarantees.some((item) => item.enabled && !item.description?.trim())) return ElMessage.warning('请填写已勾选服务保障的详细介绍')
+  if (!form.value.afterSalePolicy?.trim()) return ElMessage.warning('请选择售后模板或填写售后说明')
   syncProductSummaryFromSkus()
   if (Number(form.value.pvValue || 0) > productPvLimit.value) return ElMessage.warning(`${hasSku.value ? '默认单件PV' : '单件PV'}不能超过销售价 ${productPvLimit.value.toFixed(2)}`)
   const invalidSku = skuRows.value.find((item) => Number(item.pvValue || 0) > Math.max(0, Number(item.salePrice || 0)))
@@ -626,7 +660,7 @@ const submitForm = async () => {
       .filter((item) => item.title?.trim())
       .map((item) => ({ enabled: Boolean(item.enabled), icon: item.icon || 'shield', title: item.title.trim(), description: item.description?.trim() || '' }))
     const payload = { ...form.value, deliveryProvince, deliveryCity, deliveryDistrict, deliveryAddress: deliveryRegion.value.join(' '), coverUrl: form.value.mainImages[0], galleryUrls: JSON.stringify(form.value.mainImages.slice(1)), detailImages: JSON.stringify(form.value.detailImageUrls), serviceTags: JSON.stringify(serviceTags), bvValue: 0 }
-    delete payload.mainImages; delete payload.detailImageUrls; delete payload.serviceGuarantees
+    delete payload.mainImages; delete payload.detailImageUrls; delete payload.serviceGuarantees; delete payload.afterSalePresetKey
     await publishShopProduct(form.value.id, {
       product: payload,
       skus: skuRows.value.map((sku) => {
@@ -689,8 +723,11 @@ onMounted(async () => { await Promise.all([fetchData(), fetchCategories(), fetch
 .guarantee-toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:12px; color:#909399; font-size:13px; }
 .guarantee-row { display:grid; grid-template-columns:90px minmax(180px,.9fr) 130px minmax(180px,.8fr) minmax(280px,1.6fr) 52px; align-items:start; gap:10px; padding:12px; margin-bottom:10px; background:#f8fafc; border:1px solid #ebeef5; border-radius:8px; }
 .guarantee-enabled { padding-top:7px; }
+.after-sale-editor { width:100%; }
+.after-sale-toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:10px; color:#909399; font-size:13px; }
+.after-sale-toolbar .el-select { width:240px; flex:0 0 auto; }
 .sku-image,.sku-image-placeholder { width:54px; height:54px; border-radius:5px; }
 .sku-image-placeholder { display:flex;align-items:center;justify-content:center;border:1px dashed #c0ccda;color:#909399;cursor:pointer; }
 .dialog-footer { position:fixed; z-index:20; left:0; right:0; bottom:0; display:flex; justify-content:flex-end; gap:10px; padding:14px 30px; background:#fff; border-top:1px solid #e4e7ed; box-shadow:0 -2px 8px rgba(0,0,0,.05); }
-@media (max-width: 900px) { .pv-global-setting{align-items:flex-start}.pv-global-setting span{display:block;margin:5px 0 0}.form-section{padding:16px 12px}.product-type-title,.sku-toolbar{align-items:flex-start;flex-direction:column}.guarantee-toolbar{align-items:flex-start;flex-direction:column}.guarantee-row{grid-template-columns:1fr}.guarantee-enabled{padding-top:0} }
+@media (max-width: 900px) { .pv-global-setting{align-items:flex-start}.pv-global-setting span{display:block;margin:5px 0 0}.form-section{padding:16px 12px}.product-type-title,.sku-toolbar{align-items:flex-start;flex-direction:column}.guarantee-toolbar,.after-sale-toolbar{align-items:flex-start;flex-direction:column}.after-sale-toolbar .el-select{width:100%}.guarantee-row{grid-template-columns:1fr}.guarantee-enabled{padding-top:0} }
 </style>

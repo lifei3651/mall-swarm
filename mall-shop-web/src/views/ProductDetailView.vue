@@ -93,7 +93,6 @@
             <div><h3>{{ item.title }}</h3><p>{{ item.description }}</p></div>
           </div>
         </div>
-        <div v-if="product.afterSalePolicy" class="after-sale-note"><strong>售后补充说明</strong><p>{{ product.afterSalePolicy }}</p></div>
       </section>
 
       <section class="content-section review-section">
@@ -157,6 +156,15 @@
           <img v-for="(image, index) in detailImages" :key="image + index" :src="image" :alt="`${product.productName} 详情图${index + 1}`" loading="lazy" />
         </div>
         <div v-if="!product.detail && !detailImages.length" class="empty-copy">商家暂未上传图文介绍</div>
+      </section>
+
+      <section class="content-section after-sale-section">
+        <div class="section-title"><span></span><h2>售后说明</h2><span></span></div>
+        <div class="after-sale-card">
+          <p class="after-sale-lead">请在下单前阅读，具体服务以商品页面、订单状态和商城交易规则为准。</p>
+          <p v-for="(line, index) in afterSalePolicyLines" :key="index" class="after-sale-line">{{ line }}</p>
+          <p class="after-sale-footnote">如需帮助，请通过订单售后入口联系客服。</p>
+        </div>
       </section>
 
       <div class="mobile-buy-bar">
@@ -253,6 +261,7 @@ const legacyGuarantees = {
 
 const guaranteeIcons = { shield: ShieldCheck, return: RotateCcw, package: PackageCheck, refund: Zap, ban: Ban, truck: Truck, heart: HeartHandshake, badge: BadgeCheck }
 const guaranteeIcon = (name) => guaranteeIcons[name] || ShieldCheck
+const defaultAfterSalePolicy = '1. 签收商品时请先检查外包装和商品状态，如有破损、错发或漏发，请及时联系客服。\n2. 商品售后申请须符合商城交易与售后规则，并提供必要的订单信息和凭证。\n3. 退款金额以订单实际支付金额和审核结果为准，处理进度可在订单详情中查看。\n4. 退货运费承担方式以售后审核结果和商品页面说明为准。\n5. 不同商品可能存在特殊保存、使用或售后要求，请以商品详情和客服说明为准。'
 const boundedPv = (pv, salePrice) => Math.min(
   Math.max(0, Number(pv || 0)),
   Math.max(0, Number(salePrice || 0)),
@@ -264,6 +273,10 @@ const mainImages = computed(() => {
   return [...new Set(images.length ? images : [''])]
 })
 const detailImages = computed(() => parseArray(product.value?.detailImages))
+const afterSalePolicyLines = computed(() => (String(product.value?.afterSalePolicy || '').trim() || defaultAfterSalePolicy)
+  .split(/\r?\n/)
+  .map((line) => line.trim())
+  .filter(Boolean))
 const serviceGuarantees = computed(() => parseArray(product.value?.serviceTags).map((item) => {
   if (typeof item === 'string') {
     const preset = legacyGuarantees[item] || {}
@@ -467,8 +480,11 @@ watch(() => route.params.id, fetchProduct, { immediate: true })
 .guarantee-icon { width:38px; height:38px; display:grid; place-items:center; color:var(--brand-primary); background:var(--brand-primary-soft); border-radius:50%; }
 .guarantee-item h3 { margin:0 0 7px; font-size:16px; }
 .guarantee-item p { margin:0; color:#8a9099; font-size:13px; line-height:1.7; }
-.after-sale-note { margin-top:16px; padding:14px; background:#f8f8f8; border-radius:8px; }
-.after-sale-note p { margin:8px 0 0; color:#6b7280; font-size:13px; line-height:1.7; white-space:pre-wrap; }
+.after-sale-section { padding:0 18px 24px; }
+.after-sale-card { padding:16px; background:#fafafa; border-radius:10px; }
+.after-sale-lead { margin:0 0 12px; color:#525866; font-size:13px; line-height:1.7; }
+.after-sale-line { margin:8px 0 0; color:#6b7280; font-size:13px; line-height:1.75; white-space:pre-wrap; }
+.after-sale-footnote { margin:14px 0 0; padding-top:12px; color:#9ca3af; border-top:1px solid #eceff1; font-size:12px; line-height:1.7; }
 
 .review-section { padding:0 18px 24px; }
 .review-heading { min-height:88px; display:flex; align-items:center; justify-content:space-between; gap:14px; border-bottom:1px solid #f0f1f2; }
@@ -523,7 +539,7 @@ watch(() => route.params.id, fetchProduct, { immediate: true })
   .floating-back { left:12px; top:12px; width:38px; height:38px; }
   .price-section { padding-left:14px; padding-right:14px; }
   .price-main strong { font-size:34px; }
-  .product-title-section,.purchase-section,.guarantee-section,.review-section { padding-left:14px; padding-right:14px; }
+  .product-title-section,.purchase-section,.guarantee-section,.review-section,.after-sale-section { padding-left:14px; padding-right:14px; }
   .product-title-section h1 { font-size:20px; }
   .mobile-buy-bar { grid-template-columns:52px 52px minmax(88px,1fr) minmax(88px,1fr); gap:5px; padding-left:7px; padding-right:7px; }
 }
