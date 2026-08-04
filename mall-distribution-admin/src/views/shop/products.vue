@@ -202,38 +202,42 @@
           <section class="form-section">
             <h3>5. 售后及服务</h3>
             <el-form-item label="服务保障">
-              <div class="guarantee-editor">
-                <div class="guarantee-toolbar">
-                  <span>选择行业通用预设后会自动带出保障名称和说明；仅“自定义保障”需要手动填写。</span>
-                  <el-button type="primary" plain :icon="Plus" @click="addServiceGuarantee">添加保障预设</el-button>
+              <div class="guarantee-tags">
+                <div class="guarantee-tags-list">
+                  <el-tooltip v-for="(item, index) in form.serviceGuarantees" :key="index" :content="item.description || '暂无说明'" placement="top" :show-after="300">
+                    <el-check-tag :checked="item.enabled" @change="item.enabled = !item.enabled" class="guarantee-tag">
+                      <el-icon><component :is="getGuaranteeIcon(item.icon)" /></el-icon>
+                      <span>{{ item.title }}</span>
+                    </el-check-tag>
+                  </el-tooltip>
+                  <el-button type="primary" link :icon="Plus" @click="addCustomGuarantee" class="add-custom-btn">自定义保障</el-button>
                 </div>
-                <el-empty v-if="!form.serviceGuarantees?.length" description="暂无服务保障，可点击右上角添加预设" :image-size="64" />
-                <div v-for="(item, index) in form.serviceGuarantees" :key="index" class="guarantee-row">
-                  <el-checkbox v-model="item.enabled" class="guarantee-enabled">前台展示</el-checkbox>
-                  <el-select v-model="item.presetKey" placeholder="选择保障预设" @change="applyGuaranteePreset(item)">
-                    <el-option v-for="option in guaranteePresetOptions" :key="option.value" :label="option.label" :value="option.value" />
-                    <el-option label="自定义保障" value="custom" />
-                  </el-select>
-                  <el-select v-model="item.icon" placeholder="小图标">
-                    <el-option v-for="option in guaranteeIconOptions" :key="option.value" :label="option.label" :value="option.value" />
-                  </el-select>
-                  <el-input v-model="item.title" maxlength="20" show-word-limit :disabled="item.presetKey !== 'custom'" :placeholder="item.presetKey ? '已自动填充' : '请先选择保障预设'" />
-                  <el-input v-model="item.description" type="textarea" :rows="2" maxlength="300" show-word-limit :disabled="item.presetKey !== 'custom'" :placeholder="item.presetKey ? '已自动填充' : '请先选择保障预设'" />
-                  <el-button type="danger" link @click="form.serviceGuarantees.splice(index, 1)">删除</el-button>
-                </div>
+                <div class="guarantee-tags-help">点击标签启用/禁用，悬停查看详情</div>
               </div>
             </el-form-item>
             <el-form-item label="售后说明">
-              <div class="after-sale-editor">
-                <div class="after-sale-toolbar">
-                  <span>选择通用模板后会自动填充底部售后说明；可按商品实际规则继续修改。</span>
-                  <el-select v-model="form.afterSalePresetKey" placeholder="选择售后模板" @change="applyAfterSalePreset">
-                    <el-option v-for="option in afterSalePresetOptions" :key="option.value" :label="option.label" :value="option.value" />
-                    <el-option label="自定义售后说明" value="custom" />
-                  </el-select>
+              <div class="after-sale-compact">
+                <div class="after-sale-summary" @click="afterSaleExpanded = !afterSaleExpanded">
+                  <div class="after-sale-summary-left">
+                    <el-icon><Document /></el-icon>
+                    <span class="after-sale-summary-label">{{ afterSaleSummaryLabel }}</span>
+                    <span class="after-sale-summary-preview">{{ afterSalePreviewText }}</span>
+                  </div>
+                  <el-icon class="after-sale-expand-icon" :class="{ expanded: afterSaleExpanded }"><ArrowDown /></el-icon>
                 </div>
-                <el-input v-model="form.afterSalePolicy" type="textarea" :rows="7" maxlength="1000" show-word-limit placeholder="选择模板后自动填充，也可以切换为自定义说明" />
-                <div class="field-help">请确认文案与实际售后能力一致；页面底部会按换行展示这些内容。</div>
+                <el-collapse-transition>
+                  <div v-show="afterSaleExpanded" class="after-sale-detail">
+                    <div class="after-sale-detail-toolbar">
+                      <el-select v-model="form.afterSalePresetKey" placeholder="选择售后模板" @change="applyAfterSalePreset" style="width: 240px;">
+                        <el-option v-for="option in afterSalePresetOptions" :key="option.value" :label="option.label" :value="option.value" />
+                        <el-option label="自定义售后说明" value="custom" />
+                      </el-select>
+                      <span class="after-sale-detail-hint">选择模板自动填充，也可手动修改</span>
+                    </div>
+                    <el-input v-model="form.afterSalePolicy" type="textarea" :rows="5" maxlength="1000" show-word-limit placeholder="售后说明内容" />
+                    <div class="field-help">请确认文案与实际售后能力一致；页面底部会按换行展示这些内容。</div>
+                  </div>
+                </el-collapse-transition>
               </div>
             </el-form-item>
           </section>
@@ -252,6 +256,26 @@
         </el-form>
       </div>
       <template #footer><div class="dialog-footer"><el-button size="large" @click="dialogVisible = false">取消</el-button><el-button type="primary" size="large" :loading="submitting" @click="submitForm">保存商品</el-button></div></template>
+    </el-dialog>
+
+    <el-dialog v-model="customGuaranteeVisible" title="编辑服务保障" width="520px" append-to-body destroy-on-close>
+      <el-form :model="customGuaranteeForm" label-width="80px">
+        <el-form-item label="保障图标">
+          <el-select v-model="customGuaranteeForm.icon" placeholder="选择图标" style="width: 100%;">
+            <el-option v-for="option in guaranteeIconOptions" :key="option.value" :label="option.label" :value="option.value">
+              <span style="display: flex; align-items: center; gap: 8px;"><el-icon><component :is="getGuaranteeIcon(option.value)" /></el-icon><span>{{ option.label }}</span></span>
+            </el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="保障名称" required><el-input v-model="customGuaranteeForm.title" maxlength="20" show-word-limit placeholder="如：正品保障、七天无理由" /></el-form-item>
+        <el-form-item label="保障说明" required><el-input v-model="customGuaranteeForm.description" type="textarea" :rows="3" maxlength="300" show-word-limit placeholder="简要说明该保障的具体内容" /></el-form-item>
+        <el-form-item label="前台展示"><el-switch v-model="customGuaranteeForm.enabled" active-text="显示" inactive-text="隐藏" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="customGuaranteeVisible = false">取消</el-button>
+        <el-button v-if="customGuaranteeEditIndex >= 0" type="danger" plain @click="removeCustomGuarantee">删除</el-button>
+        <el-button type="primary" @click="saveCustomGuarantee">确定</el-button>
+      </template>
     </el-dialog>
 
     <el-dialog v-model="freightTemplateDialogVisible" :title="freightTemplateForm.id ? '编辑运费模板' : '新建运费模板'" width="980px" append-to-body destroy-on-close>
@@ -300,7 +324,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, QuestionFilled, Refresh, Search, WarningFilled } from '@element-plus/icons-vue'
+import { ArrowDown, Box, CircleClose, Document, Medal, Money, Plus, QuestionFilled, Refresh, RefreshLeft, Search, Star, Van, WarningFilled } from '@element-plus/icons-vue'
 import { pcaTextArr } from 'element-china-area-data'
 import { createFreightTemplate, createShopCategory, getProductSettings, listFreightTemplates, listShopCategories, listShopProducts, listShopSkus, publishShopProduct, updateFreightTemplate, updateProductPvSetting, updateShopProductStatus, uploadShopImage } from '@/api/shop'
 import { validateSearchKeyword } from '@/utils/searchFeedback'
@@ -339,6 +363,10 @@ const quickCategoryForm = ref({ categoryName: '', sort: 0, status: 1, remark: ''
 const freightRegionProps = { multiple: true, checkStrictly: false, emitPath: true }
 const defaultFreightTemplateForm = () => ({ id: null, tenantId: 1, templateName: '', defaultMode: 'FREE', defaultFreightAmount: 0, status: 1, rules: [] })
 const freightTemplateForm = ref(defaultFreightTemplateForm())
+const customGuaranteeVisible = ref(false)
+const customGuaranteeForm = ref({ enabled: true, presetKey: 'custom', icon: 'shield', title: '', description: '' })
+const customGuaranteeEditIndex = ref(-1)
+const afterSaleExpanded = ref(false)
 const activeFreightTemplates = computed(() => freightTemplates.value.filter((item) => item.status === 1))
 const hasSku = computed(() => skuRows.value.length > 0)
 const productPvLimit = computed(() => {
@@ -388,6 +416,48 @@ const afterSalePolicyPresets = {
 }
 const afterSalePresetOptions = Object.entries(afterSalePolicyPresets).map(([value, preset]) => ({ value, label: preset.label }))
 const defaultAfterSalePresetKey = 'basic'
+const afterSaleSummaryLabel = computed(() => {
+  const key = form.value.afterSalePresetKey
+  if (key === 'custom') return '自定义售后说明'
+  return afterSalePolicyPresets[key]?.label || '商城通用售后说明'
+})
+const afterSalePreviewText = computed(() => {
+  const policy = form.value.afterSalePolicy || ''
+  const firstLine = policy.split('\n')[0]?.trim() || ''
+  return firstLine.length > 60 ? firstLine.slice(0, 60) + '...' : firstLine || '暂无内容'
+})
+const getGuaranteeIcon = (iconName) => {
+  const iconMap = { shield: 'CircleCheck', return: 'RefreshLeft', package: 'Box', refund: 'Money', ban: 'CircleClose', truck: 'Van', heart: 'Star', badge: 'Medal' }
+  return iconMap[iconName] || 'CircleCheck'
+}
+const addCustomGuarantee = () => {
+  customGuaranteeForm.value = { enabled: true, presetKey: 'custom', icon: 'shield', title: '', description: '' }
+  customGuaranteeEditIndex.value = -1
+  customGuaranteeVisible.value = true
+}
+const editCustomGuarantee = (index) => {
+  const item = form.value.serviceGuarantees[index]
+  customGuaranteeForm.value = { ...item }
+  customGuaranteeEditIndex.value = index
+  customGuaranteeVisible.value = true
+}
+const saveCustomGuarantee = () => {
+  const { title, description } = customGuaranteeForm.value
+  if (!title?.trim()) return ElMessage.warning('请输入保障名称')
+  if (!description?.trim()) return ElMessage.warning('请输入保障说明')
+  if (customGuaranteeEditIndex.value >= 0) {
+    form.value.serviceGuarantees[customGuaranteeEditIndex.value] = { ...customGuaranteeForm.value }
+  } else {
+    form.value.serviceGuarantees.push({ ...customGuaranteeForm.value })
+  }
+  customGuaranteeVisible.value = false
+  ElMessage.success('保障已保存')
+}
+const removeCustomGuarantee = () => {
+  form.value.serviceGuarantees.splice(customGuaranteeEditIndex.value, 1)
+  customGuaranteeVisible.value = false
+  ElMessage.success('保障已删除')
+}
 const parseArray = (value) => {
   if (Array.isArray(value)) return value
   try { const parsed = JSON.parse(value || '[]'); return Array.isArray(parsed) ? parsed : [] } catch { return [] }
@@ -418,7 +488,7 @@ const serializeSkuAttributes = (attributes = []) => JSON.stringify(Object.fromEn
 ))
 const defaultServiceGuarantees = () => Object.entries(guaranteeDefaults).map(([title, preset]) => ({
   enabled: false, presetKey: title, icon: preset.icon, title, description: preset.description,
-})).slice(0, 5)
+}))
 
 const inferAfterSalePreset = (policy) => Object.entries(afterSalePolicyPresets).find(([, preset]) => preset.content === policy)?.[0] || 'custom'
 const defaultForm = () => ({ tenantId: 1, productNo: '', productName: '', subtitle: '', categoryName: '', mainImages: [], salePrice: 0, marketPrice: 0, costAmount: 0, pvValue: 0, bvValue: 0, stock: 0, salesCount: 0, sort: 0, status: 1, freightType: 0, freightAmount: 0, freeShippingAmount: 0, freightTemplateId: null, freightTemplateName: '', deliveryAddress: '', deliveryProvince: '', deliveryCity: '', deliveryDistrict: '', deliveryTime: '48小时内发货', afterSalePresetKey: defaultAfterSalePresetKey, afterSalePolicy: afterSalePolicyPresets[defaultAfterSalePresetKey].content, serviceGuarantees: defaultServiceGuarantees(), detail: '', detailImageUrls: [] })
@@ -575,22 +645,6 @@ const syncProductSummaryFromSkus = () => {
   form.value.costAmount = costs.length ? Math.min(...costs) : 0
   form.value.stock = enabled.reduce((sum, item) => sum + Math.max(0, Number(item.stock || 0)), 0)
 }
-const applyGuaranteePreset = (item) => {
-  if (!item || item.presetKey === 'custom') {
-    if (item) {
-      item.icon = item.icon || 'shield'
-      item.title = ''
-      item.description = ''
-    }
-    return
-  }
-  const preset = guaranteeDefaults[item.presetKey]
-  if (!preset) return
-  item.icon = preset.icon
-  item.title = item.presetKey
-  item.description = preset.description
-}
-const addServiceGuarantee = () => form.value.serviceGuarantees.push({ enabled: true, presetKey: '', icon: 'shield', title: '', description: '' })
 const applyAfterSalePreset = (presetKey) => {
   const preset = afterSalePolicyPresets[presetKey]
   if (preset) form.value.afterSalePolicy = preset.content
@@ -728,15 +782,27 @@ onMounted(async () => { await Promise.all([fetchData(), fetchCategories(), fetch
 .freight-region-cascader :deep(.el-tag) { max-width:100%; height:auto; min-height:24px; white-space:normal; line-height:18px; }
 .category-picker { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; width:100%; }
 .quick-help { margin-left:10px; color:#909399; font-size:12px; }
-.guarantee-editor { width:100%; }
-.guarantee-toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:12px; color:#909399; font-size:13px; }
-.guarantee-row { display:grid; grid-template-columns:90px minmax(180px,.9fr) 130px minmax(180px,.8fr) minmax(280px,1.6fr) 52px; align-items:start; gap:10px; padding:12px; margin-bottom:10px; background:#f8fafc; border:1px solid #ebeef5; border-radius:8px; }
-.guarantee-enabled { padding-top:7px; }
-.after-sale-editor { width:100%; }
-.after-sale-toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:10px; color:#909399; font-size:13px; }
-.after-sale-toolbar .el-select { width:240px; flex:0 0 auto; }
+.guarantee-tags { width:100%; }
+.guarantee-tags-list { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+.guarantee-tag { cursor:pointer; transition:all .2s; display:inline-flex; align-items:center; gap:6px; }
+.guarantee-tag .el-icon { font-size:14px; }
+.guarantee-tag:hover { transform:translateY(-1px); }
+.add-custom-btn { margin-left:4px; }
+.guarantee-tags-help { color:#909399; font-size:12px; margin-top:8px; }
+.after-sale-compact { width:100%; }
+.after-sale-summary { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#f8fafc; border:1px solid #e4e7ed; border-radius:8px; cursor:pointer; transition:all .2s; }
+.after-sale-summary:hover { border-color:#409eff; background:#f0f7ff; }
+.after-sale-summary-left { display:flex; align-items:center; gap:10px; min-width:0; flex:1; }
+.after-sale-summary-left .el-icon { color:#409eff; font-size:18px; flex-shrink:0; }
+.after-sale-summary-label { font-weight:600; color:#303133; flex-shrink:0; }
+.after-sale-summary-preview { color:#909399; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.after-sale-expand-icon { color:#909399; transition:transform .3s; flex-shrink:0; }
+.after-sale-expand-icon.expanded { transform:rotate(180deg); }
+.after-sale-detail { margin-top:12px; padding:16px; background:#fafafa; border-radius:8px; border:1px solid #ebeef5; }
+.after-sale-detail-toolbar { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+.after-sale-detail-hint { color:#909399; font-size:12px; }
 .sku-image,.sku-image-placeholder { width:54px; height:54px; border-radius:5px; }
 .sku-image-placeholder { display:flex;align-items:center;justify-content:center;border:1px dashed #c0ccda;color:#909399;cursor:pointer; }
 .dialog-footer { position:fixed; z-index:20; left:0; right:0; bottom:0; display:flex; justify-content:flex-end; gap:10px; padding:14px 30px; background:#fff; border-top:1px solid #e4e7ed; box-shadow:0 -2px 8px rgba(0,0,0,.05); }
-@media (max-width: 900px) { .page-heading{align-items:flex-start;flex-direction:column;gap:10px}.pv-global-setting{align-items:flex-start}.pv-global-setting span{display:block;margin:5px 0 0}.form-section{padding:16px 12px}.product-type-title,.sku-toolbar{align-items:flex-start;flex-direction:column}.guarantee-toolbar,.after-sale-toolbar{align-items:flex-start;flex-direction:column}.after-sale-toolbar .el-select{width:100%}.guarantee-row{grid-template-columns:1fr}.guarantee-enabled{padding-top:0} }
+@media (max-width: 900px) { .page-heading{align-items:flex-start;flex-direction:column;gap:10px}.pv-global-setting{align-items:flex-start}.pv-global-setting span{display:block;margin:5px 0 0}.form-section{padding:16px 12px}.product-type-title,.sku-toolbar{align-items:flex-start;flex-direction:column}.guarantee-tags-list{gap:8px}.after-sale-summary-left{flex-direction:column;align-items:flex-start;gap:4px}.after-sale-summary-preview{white-space:normal} }
 </style>

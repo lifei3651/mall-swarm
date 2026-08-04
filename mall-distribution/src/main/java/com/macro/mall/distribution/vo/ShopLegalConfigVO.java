@@ -18,9 +18,14 @@ public class ShopLegalConfigVO implements Serializable {
     private String policeRecordNumber;
     private String policeRecordUrl;
     private String businessLicenseUrl;
+    /** 是否在前台展示营业执照：true-展示，false-隐藏 */
+    private Boolean showBusinessLicense;
     private String userAgreement;
     private String privacyPolicy;
     private String afterSalePolicy;
+
+    /** 常见问题FAQ，JSON格式 */
+    private String faqs;
 
     public static ShopLegalConfigVO from(DmsTenant tenant) {
         ShopLegalConfigVO vo = new ShopLegalConfigVO();
@@ -34,9 +39,11 @@ public class ShopLegalConfigVO implements Serializable {
         vo.setPoliceRecordNumber(tenant.getPoliceRecordNumber());
         vo.setPoliceRecordUrl(tenant.getPoliceRecordUrl());
         vo.setBusinessLicenseUrl(tenant.getBusinessLicenseUrl());
+        vo.setShowBusinessLicense(tenant.getShowBusinessLicense() == null || tenant.getShowBusinessLicense() == 1);
         vo.setUserAgreement(tenant.getUserAgreement());
         vo.setPrivacyPolicy(tenant.getPrivacyPolicy());
         vo.setAfterSalePolicy(tenant.getAfterSalePolicy());
+        vo.setFaqs(tenant.getFaqs());
         return vo;
     }
 }

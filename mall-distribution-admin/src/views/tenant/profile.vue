@@ -52,7 +52,10 @@
                   <div v-else class="upload-placeholder">点击上传<br />营业执照</div>
                 </div>
               </el-upload>
-              <span class="upload-help">前台“经营资质”页面展示，单张不超过 5MB。请遮挡无需公开的个人信息。</span>
+              <div class="upload-actions">
+                <span class="upload-help">单张不超过 5MB。请遮挡无需公开的个人信息。</span>
+                <el-switch v-model="tenantForm.showBusinessLicense" :active-value="1" :inactive-value="0" active-text="前台展示" inactive-text="前台隐藏" class="license-switch" />
+              </div>
             </div>
           </el-form-item>
           <el-row :gutter="20">
@@ -119,6 +122,7 @@ const submit = async () => {
       servicePhone: tenantForm.value.servicePhone?.trim() || null,
       serviceEmail: tenantForm.value.serviceEmail?.trim() || null,
       policeRecordUrl: tenantForm.value.policeRecordUrl?.trim() || null,
+      showBusinessLicense: tenantForm.value.showBusinessLicense ?? 1,
     })
     ElMessage.success('商城资料已保存，前台刷新后生效')
     await fetchData()
@@ -140,11 +144,13 @@ onMounted(fetchData)
 .form-section + .form-section { margin-top:14px; padding-top:20px; border-top:1px solid #ebeef5; }
 .form-section h3 { margin:0 0 18px; padding-left:10px; color:#303133; font-size:16px; line-height:1.4; border-left:4px solid var(--el-color-primary); }
 .field-help { width:100%; margin-top:6px; color:#909399; font-size:12px; line-height:20px; }
-.upload-row { display:flex; align-items:center; gap:16px; }
+.upload-row { display:flex; align-items:flex-start; gap:16px; }
 .license-uploader { display:grid; width:220px; height:138px; place-items:center; overflow:hidden; background:#fafafa; border:1px dashed #c0ccda; border-radius:8px; cursor:pointer; }
 .license-uploader :deep(.el-image) { width:100%; height:100%; }
 .upload-placeholder { color:#909399; font-size:13px; line-height:22px; text-align:center; }
+.upload-actions { display:flex; flex-direction:column; gap:8px; }
 .upload-help { color:#909399; font-size:12px; line-height:20px; }
+.license-switch { margin-top:4px; }
 .card-footer { display:flex; justify-content:flex-end; }
-@media (max-width:700px) { .toolbar{align-items:flex-start;flex-direction:column;gap:10px}.upload-row{align-items:flex-start;flex-direction:column}.license-uploader{width:100%}.profile-form{padding-right:0} }
+@media (max-width:700px) { .toolbar{align-items:flex-start;flex-direction:column;gap:10px}.upload-row{flex-direction:column}.license-uploader{width:100%}.profile-form{padding-right:0} }
 </style>

@@ -14,7 +14,7 @@
         <div><dt>ICP备案号</dt><dd>{{ config.icpNumber || '备案信息同步后展示' }}</dd></div>
         <div><dt>公安备案号</dt><dd><a v-if="safePoliceUrl" :href="safePoliceUrl" target="_blank" rel="noopener noreferrer">{{ config.policeRecordNumber || '查看备案' }}</a><span v-else>{{ config.policeRecordNumber || '完成备案后展示' }}</span></dd></div>
       </dl>
-      <img v-if="config.businessLicenseUrl" class="license-image" :src="config.businessLicenseUrl" alt="营业执照" />
+      <img v-if="config.businessLicenseUrl && config.showBusinessLicense !== false" class="license-image" :src="config.businessLicenseUrl" alt="营业执照" />
     </section>
 
     <section v-else-if="type === 'contact'" class="info-card">
