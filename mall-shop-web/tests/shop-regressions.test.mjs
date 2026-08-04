@@ -69,3 +69,25 @@ test('cart delete and checkout actions require a second confirmation', async () 
   assert.match(source, /确认进入结算/)
   assert.match(source, /confirmPendingAction/)
 })
+
+test('category view includes search bar for keyword filtering', async () => {
+  const source = await readView('CategoryView.vue')
+  assert.match(source, /cat-search-bar/)
+  assert.match(source, /v-model="query\.keyword"/)
+  assert.match(source, /@submit\.prevent="submitSearch"/)
+  assert.match(source, /placeholder="搜索商品"/)
+})
+
+test('product detail renders rating distribution bars computed from star counts', async () => {
+  const source = await readView('ProductDetailView.vue')
+  assert.match(source, /barPercent/)
+  assert.match(source, /countForStar/)
+  assert.match(source, /rating-distribution/)
+})
+
+test('order detail renders logistics timeline with shipping steps', async () => {
+  const source = await readView('OrderDetailView.vue')
+  assert.match(source, /timeline-steps/)
+  assert.match(source, /courierInitial/)
+  assert.match(source, /estimatedDelivery/)
+})

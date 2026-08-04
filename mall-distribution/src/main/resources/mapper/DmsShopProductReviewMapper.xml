@@ -61,7 +61,12 @@
     </select>
 
     <select id="selectSummary" resultType="com.macro.mall.distribution.vo.ProductReviewSummaryVO">
-        SELECT COUNT(*) AS review_count, COALESCE(AVG(rating), 0) AS average_rating
+        SELECT COUNT(*) AS review_count, COALESCE(AVG(rating), 0) AS average_rating,
+               COALESCE(SUM(CASE WHEN rating = 5 THEN 1 ELSE 0 END), 0) AS star5_count,
+               COALESCE(SUM(CASE WHEN rating = 4 THEN 1 ELSE 0 END), 0) AS star4_count,
+               COALESCE(SUM(CASE WHEN rating = 3 THEN 1 ELSE 0 END), 0) AS star3_count,
+               COALESCE(SUM(CASE WHEN rating = 2 THEN 1 ELSE 0 END), 0) AS star2_count,
+               COALESCE(SUM(CASE WHEN rating = 1 THEN 1 ELSE 0 END), 0) AS star1_count
         FROM dms_shop_product_review
         WHERE product_id = #{productId} AND status = 1
     </select>

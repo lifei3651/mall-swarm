@@ -118,11 +118,48 @@
         </div>
         <div v-if="shipments.length" class="logistics-section">
           <h3>物流信息</h3>
-          <div v-for="(shipment, index) in shipments" :key="`${shipment.deliveryCompany}-${shipment.deliveryNo}-${index}`" class="shipment-card">
-            <div class="logistics-row"><span>包裹{{ index + 1 }}</span><strong>{{ shipment.deliveryCompany || '-' }}</strong></div>
-            <div class="logistics-row"><span>快递单号</span><strong>{{ shipment.deliveryNo }} <button class="copy-btn" @click="copyText(shipment.deliveryNo)">复制</button></strong></div>
-            <div class="logistics-row"><span>发货数量</span><strong>{{ shipment.shipmentQuantity || 0 }} 件</strong></div>
-            <div v-if="shipment.deliveryTime" class="logistics-row"><span>发货时间</span><strong>{{ dateTime(shipment.deliveryTime) }}</strong></div>
+          <div v-for="(shipment, index) in shipments" :key="`${shipment.deliveryCompany}-${shipment.deliveryNo}-${index}`" class="shipment-timeline">
+            <div class="timeline-header">
+              <div class="courier-info">
+                <span class="courier-icon">{{ courierInitial(shipment.deliveryCompany) }}</span>
+                <div>
+                  <strong>{{ shipment.deliveryCompany || '快递公司' }}</strong>
+                  <p>运单号 {{ shipment.deliveryNo }}
+                    <button class="copy-btn" @click="copyText(shipment.deliveryNo)">复制</button>
+                  </p>
+                </div>
+              </div>
+              <a v-if="trackingUrl(shipment)" :href="trackingUrl(shipment)" target="_blank" rel="noopener" class="tracking-link">查看物流</a>
+            </div>
+
+            <div class="timeline-steps">
+              <div class="timeline-step completed">
+                <div class="step-dot"></div>
+                <div class="step-line"></div>
+                <div class="step-content">
+                  <strong>已发货</strong>
+                  <p>{{ shipment.deliveryTime ? dateTime(shipment.deliveryTime) : (order.payTime ? dateTime(order.payTime) : '-') }}</p>
+                  <small>包裹 {{ index + 1 }} · {{ shipment.shipmentQuantity || 0 }} 件</small>
+                </div>
+              </div>
+              <div class="timeline-step" :class="{ completed: order.status >= 2 }">
+                <div class="step-dot"></div>
+                <div class="step-line"></div>
+                <div class="step-content">
+                  <strong>运输中</strong>
+                  <p>{{ shipment.deliveryCompany || '快递公司' }}承运</p>
+                  <small v-if="estimatedDelivery(shipment)">预计 {{ estimatedDelivery(shipment) }} 送达</small>
+                </div>
+              </div>
+              <div class="timeline-step" :class="{ completed: order.status >= 3 }">
+                <div class="step-dot"></div>
+                <div class="step-content">
+                  <strong>已签收</strong>
+                  <p v-if="order.receiveTime">{{ dateTime(order.receiveTime) }}</p>
+                  <p v-else>等待收货</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <p class="line-sub" style="line-height: 1.7">{{ order.receiverAddress }}</p>
@@ -234,6 +271,30 @@ const freightPolicyText = computed(() => notShipped.value
 const afterSaleStatus = (status) => ({ 0: '待审核', 1: '已通过', 2: '已拒绝' }[status] || '处理中')
 const payTypeName = (value) => ({ WECHAT: '微信支付', ALIPAY: '支付宝', BALANCE: '余额' }[value] || value || '未选择')
 const copyText = async (text) => { try { await navigator.clipboard.writeText(text) } catch {} }
+
+const courierInitial = (company) => {
+  if (!company) return '递'
+  const map = { '顺丰': '丰', '中通': '中', '圆通': '圆', '韵达': '韵', '申通': '申', '京东': '京', '邮政': '政', '极兔': '极', '德邦': '德', '百世': '百', 'EMS': 'E' }
+  for (const [key, val] of Object.entries(map)) {
+    if (company.includes(key)) return val
+  }
+  return company.slice(0, 2)
+}
+
+const trackingUrl = (shipment) => {
+  const no = shipment.deliveryNo
+  if (!no) return null
+  return `https://m.kuaidi100.com/result.jsp?nu=${encodeURIComponent(no)}`
+}
+
+const estimatedDelivery = (shipment) => {
+  if (!shipment.deliveryTime) return null
+  const shipped = new Date(shipment.deliveryTime)
+  if (isNaN(shipped.getTime())) return null
+  const est = new Date(shipped)
+  est.setDate(est.getDate() + 3)
+  return `${est.getMonth() + 1}月${est.getDate()}日`
+}
 
 const fetchOrder = async () => {
   if (!hasToken.value) return
@@ -361,13 +422,31 @@ onMounted(fetchOrder)
   border: 1px solid rgba(15, 118, 110, 0.14);
 }
 
-.logistics-section { margin-top: 14px; padding: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; }
-.logistics-section h3 { margin: 0 0 10px; font-size: 14px; color: #15803d; }
-.shipment-card + .shipment-card { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #86efac; }
-.logistics-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
-.logistics-row span { color: var(--muted); }
-.logistics-row strong { display: inline-flex; align-items: center; gap: 6px; }
-.copy-btn { padding: 2px 8px; color: var(--accent, #0f766e); background: none; border: 1px solid var(--accent, #0f766e); border-radius: 4px; font-size: 11px; cursor: pointer; }
+.logistics-section { margin-top: 14px; padding: 16px; background: #f8faf8; border: 1px solid #dcfce7; border-radius: 14px; }
+.logistics-section h3 { margin: 0 0 14px; font-size: 14px; color: #15803d; }
+
+.shipment-timeline + .shipment-timeline { margin-top: 18px; padding-top: 18px; border-top: 1px dashed #bbf7d0; }
+.timeline-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.courier-info { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.courier-icon { width: 42px; height: 42px; display: grid; place-items: center; flex-shrink: 0; color: #fff; background: var(--brand-primary, #0f766e); border-radius: 50%; font-size: 16px; font-weight: 800; }
+.courier-info strong { font-size: 14px; display: block; }
+.courier-info p { margin: 3px 0 0; color: #6b7280; font-size: 12px; }
+.tracking-link { flex-shrink: 0; padding: 6px 12px; color: var(--brand-primary, #0f766e); border: 1px solid var(--brand-primary, #0f766e); border-radius: 14px; font-size: 12px; font-weight: 700; text-decoration: none; }
+
+.timeline-steps { position: relative; }
+.timeline-step { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 12px; padding-bottom: 16px; position: relative; }
+.timeline-step:last-child { padding-bottom: 0; }
+.step-dot { width: 16px; height: 16px; justify-self: center; border-radius: 50%; background: #d1d5db; border: 3px solid #e5e7eb; flex-shrink: 0; }
+.timeline-step.completed .step-dot { background: var(--brand-primary, #0f766e); border-color: var(--brand-primary-soft, #ccfbf1); }
+.step-line { position: absolute; left: 15px; top: 28px; width: 2px; height: calc(100% - 16px); background: #e5e7eb; }
+.timeline-step.completed .step-line { background: var(--brand-primary, #0f766e); }
+.timeline-step:last-child .step-line { display: none; }
+.step-content { padding-top: 1px; }
+.step-content strong { font-size: 14px; }
+.step-content p { margin: 4px 0 0; color: #6b7280; font-size: 12px; }
+.step-content small { display: block; margin-top: 3px; color: #9ca3af; font-size: 11px; }
+
+.copy-btn { padding: 2px 8px; color: var(--brand-primary, #0f766e); background: none; border: 1px solid var(--brand-primary, #0f766e); border-radius: 4px; font-size: 11px; cursor: pointer; }
 
 .balance-pay-box label { display: block; margin-bottom: 8px; font-weight: 700; }
 .balance-pay-box .line-sub, .channel-tip { line-height: 1.6; }

@@ -106,6 +106,25 @@
           <button class="write-review-button" type="button" @click="openReviewForm">写评价</button>
         </div>
 
+        <div v-if="reviewData.reviewCount" class="rating-distribution">
+          <div class="dist-score-block">
+            <strong>{{ reviewData.averageRating }}</strong>
+            <span>/ 5</span>
+            <div class="dist-stars">
+              <Star v-for="star in 5" :key="star" :size="12" :fill="star <= Math.round(reviewData.averageRating) ? '#ef4444' : '#e5e7eb'" :color="star <= Math.round(reviewData.averageRating) ? '#ef4444' : '#e5e7eb'" />
+            </div>
+          </div>
+          <div class="dist-bars">
+            <div v-for="star in 5" :key="star" class="dist-row">
+              <span>{{ 6 - star }} 星</span>
+              <div class="dist-bar-track">
+                <div class="dist-bar-fill" :style="{ width: barPercent(6 - star) + '%' }"></div>
+              </div>
+              <small>{{ countForStar(6 - star) }}</small>
+            </div>
+          </div>
+        </div>
+
         <div v-if="reviewFormVisible" class="review-form">
           <div class="rating-picker">
             <span>商品评分</span>
@@ -349,6 +368,19 @@ const submitReviewForm = async () => {
 const loadMoreReviews = async () => { reviewPage.value += 1; await fetchReviews(false) }
 const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 10) : ''
 
+const starCounts = computed(() => ({
+  5: Number(reviewData.value.star5Count || 0),
+  4: Number(reviewData.value.star4Count || 0),
+  3: Number(reviewData.value.star3Count || 0),
+  2: Number(reviewData.value.star2Count || 0),
+  1: Number(reviewData.value.star1Count || 0),
+}))
+const countForStar = (star) => starCounts.value[star] || 0
+const barPercent = (star) => {
+  const max = Math.max(1, ...Object.values(starCounts.value))
+  return Math.round((countForStar(star) / max) * 100)
+}
+
 watch(() => route.params.id, fetchProduct, { immediate: true })
 </script>
 
@@ -434,6 +466,18 @@ watch(() => route.params.id, fetchProduct, { immediate: true })
 .review-heading p { margin:7px 0 0; color:#8a9099; font-size:12px; }
 .review-heading p strong { color:var(--brand-primary); }
 .write-review-button { min-width:82px; height:36px; color:var(--brand-primary); background:#fff; border:1px solid var(--brand-primary); border-radius:18px; }
+
+.rating-distribution { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 20px; padding: 18px 0 10px; border-bottom: 1px solid #f0f1f2; }
+.dist-score-block { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.dist-score-block strong { font-size: 38px; color: #262b31; line-height: 1; }
+.dist-score-block > span { color: #8a9099; font-size: 13px; margin: 4px 0 6px; }
+.dist-stars { display: flex; gap: 1px; }
+.dist-bars { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
+.dist-row { display: grid; grid-template-columns: 28px minmax(60px, 1fr) 28px; align-items: center; gap: 8px; font-size: 12px; color: #525866; }
+.dist-row small { text-align: right; color: #8a9099; }
+.dist-bar-track { height: 8px; background: #f0f1f2; border-radius: 4px; overflow: hidden; }
+.dist-bar-fill { height: 100%; background: linear-gradient(90deg, var(--brand-primary), var(--brand-primary-dark, #c73a2b)); border-radius: 4px; transition: width .3s ease; }
+
 .review-form { padding:16px; margin:16px 0 4px; background:#fafafa; border-radius:10px; }
 .rating-picker { display:flex; align-items:center; gap:5px; margin-bottom:12px; }
 .rating-picker > span { margin-right:8px; font-size:14px; font-weight:700; }

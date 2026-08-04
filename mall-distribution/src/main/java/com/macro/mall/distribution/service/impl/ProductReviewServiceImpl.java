@@ -54,6 +54,11 @@ public class ProductReviewServiceImpl implements ProductReviewService {
         ProductReviewPageVO result = new ProductReviewPageVO();
         result.setPage(reviewPage);
         result.setReviewCount(summary == null || summary.getReviewCount() == null ? 0L : summary.getReviewCount());
+        result.setStar5Count(summary == null || summary.getStar5Count() == null ? 0L : summary.getStar5Count());
+        result.setStar4Count(summary == null || summary.getStar4Count() == null ? 0L : summary.getStar4Count());
+        result.setStar3Count(summary == null || summary.getStar3Count() == null ? 0L : summary.getStar3Count());
+        result.setStar2Count(summary == null || summary.getStar2Count() == null ? 0L : summary.getStar2Count());
+        result.setStar1Count(summary == null || summary.getStar1Count() == null ? 0L : summary.getStar1Count());
         BigDecimal average = summary == null || summary.getAverageRating() == null
                 ? BigDecimal.ZERO : summary.getAverageRating();
         result.setAverageRating(average.setScale(1, RoundingMode.HALF_UP));

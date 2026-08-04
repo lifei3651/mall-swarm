@@ -1,5 +1,13 @@
 <template>
   <div class="category-page">
+    <header class="cat-search-bar">
+      <form class="cat-search" role="search" @submit.prevent="submitSearch">
+        <Search :size="19" />
+        <input v-model="query.keyword" type="search" placeholder="搜索商品" aria-label="搜索商品" />
+        <button type="submit" aria-label="搜索"><span>搜索</span><Search :size="18" /></button>
+      </form>
+    </header>
+
     <div class="category-shell">
       <aside class="category-sidebar" aria-label="商品分类">
         <button
@@ -103,7 +111,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { ChevronDown, ChevronUp, PackageOpen, ShoppingCart } from 'lucide-vue-next'
+import { ChevronDown, ChevronUp, PackageOpen, Search, ShoppingCart } from 'lucide-vue-next'
 import { getProduct, listCategories, listCategoryProducts } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { money } from '@/utils/format'
@@ -117,6 +125,7 @@ const selectedCategory = ref(null)
 const products = ref([])
 const sortMode = ref('default')
 const toast = ref('')
+const query = ref({ keyword: '' })
 let productRequestId = 0
 
 const displayedProducts = computed(() => {
@@ -152,11 +161,11 @@ const fetchCategories = async () => {
   }
 }
 
-const fetchProducts = async (categoryName = '') => {
+const fetchProducts = async (categoryName = '', keyword = '') => {
   const requestId = ++productRequestId
   loading.value = true
   try {
-    const res = await listCategoryProducts({ categoryName, status: 1, pageNum: 1, pageSize: 60 })
+    const res = await listCategoryProducts({ categoryName, keyword, status: 1, pageNum: 1, pageSize: 60 })
     if (requestId !== productRequestId) return
     products.value = (res.data?.list || []).map((product) => ({
       ...product,
@@ -177,9 +186,14 @@ const fetchProducts = async (categoryName = '') => {
   }
 }
 
+const submitSearch = () => {
+  fetchProducts(selectedCategory.value?.name || '', query.value.keyword.trim())
+}
+
 const selectCategory = (category) => {
   selectedCategory.value = category
   sortMode.value = 'default'
+  query.value.keyword = ''
   fetchProducts(category?.name || '')
 }
 
@@ -215,6 +229,61 @@ onMounted(async () => {
   min-height: calc(100vh - 140px);
   margin: 0 auto;
   padding: 18px 0 58px;
+}
+
+.cat-search-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 0 0 14px;
+  background: var(--shop-page-bg, #f3f4f6);
+}
+
+.cat-search {
+  height: 48px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 90px;
+  align-items: center;
+  overflow: hidden;
+  color: #969ca4;
+  background: #fff;
+  border: 2px solid var(--brand-primary);
+  border-radius: 999px;
+}
+
+.cat-search > svg {
+  justify-self: center;
+}
+
+.cat-search input {
+  min-width: 0;
+  height: 100%;
+  padding: 0 4px;
+  color: #272c32;
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+.cat-search input::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+
+.cat-search button {
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: #fff;
+  background: var(--brand-primary);
+  border: 0;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.cat-search button > svg {
+  display: none;
 }
 
 .category-shell {
@@ -335,6 +404,11 @@ onMounted(async () => {
 
 @media (max-width: 760px) {
   .category-page { width: 100%; min-height: 100vh; padding: 0 0 calc(52px + env(safe-area-inset-bottom)); }
+  .cat-search-bar { top: 0; padding: 8px 8px 10px; }
+  .cat-search { height: 42px; grid-template-columns: 34px minmax(0, 1fr) 42px; border-width: 1.5px; }
+  .cat-search input { font-size: 16px; touch-action: manipulation; }
+  .cat-search button > span { display: none; }
+  .cat-search button > svg { display: block; }
   .category-shell { grid-template-columns: 90px minmax(0,1fr); gap: 0; }
   .category-sidebar { top: 0; max-height: calc(100dvh - 52px - env(safe-area-inset-bottom)); border-width: 0 1px 0 0; border-radius: 0; }
   .category-item { min-height: 54px; padding: 8px 9px; font-size: 13px; text-align: center; }

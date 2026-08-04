@@ -103,6 +103,22 @@ class ProductReviewServiceTest {
         assertEquals(1L, productReviewService.listProductReviews(1L, member, 1, 10).getReviewCount());
     }
 
+    @Test
+    void reviewSummaryIncludesRatingDistribution() {
+        DmsShopMember member = member(991010L, "分布会员", "13900001010");
+        insertOrderItem(99110L, "DIST-99110", member.getUserId(), 3, 1L);
+        productReviewService.submitReview(1L, member, review(5, "五星好评"));
+        insertOrderItem(99111L, "DIST-99111", member.getUserId(), 3, 1L);
+        productReviewService.submitReview(1L, member, review(3, "三星中评"));
+
+        ProductReviewPageVO result = productReviewService.listProductReviews(1L, member, 1, 10);
+        assertEquals(1L, result.getStar5Count());
+        assertEquals(0L, result.getStar4Count());
+        assertEquals(1L, result.getStar3Count());
+        assertEquals(0L, result.getStar2Count());
+        assertEquals(0L, result.getStar1Count());
+    }
+
     private DmsShopMember member(Long userId, String nickname, String phone) {
         DmsShopMember member = new DmsShopMember();
         member.setUserId(userId);

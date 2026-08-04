@@ -14,6 +14,11 @@ public class ProductReviewPageVO implements Serializable {
     private CommonPage<ProductReviewVO> page;
     private Long reviewCount;
     private BigDecimal averageRating;
+    private Long star5Count;
+    private Long star4Count;
+    private Long star3Count;
+    private Long star2Count;
+    private Long star1Count;
     private Boolean canReview;
     private String reviewHint;
 }
