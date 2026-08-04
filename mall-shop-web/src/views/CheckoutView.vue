@@ -49,7 +49,7 @@
 
         <div v-if="addresses.length" class="saved-addresses">
           <div v-if="defaultAddress" class="default-address-card" :class="{ selected: form.addressId === defaultAddress.id }" @click="selectAddress(defaultAddress)">
-            <div class="addr-line1"><strong>{{ defaultAddress.receiverName }}</strong><span>{{ defaultAddress.receiverPhone }}</span><em v-if="addresses.length > 1" @click.stop="router.push('/profile/addresses')">切换</em></div>
+            <div class="addr-line1"><strong>{{ defaultAddress.receiverName }}</strong><span>{{ defaultAddress.receiverPhone }}</span><button v-if="addresses.length > 1" type="button" class="address-switch" @click.stop="showAllAddresses = !showAllAddresses">{{ showAllAddresses ? '收起' : '切换' }}</button></div>
             <div class="addr-line2">{{ joinAddress(defaultAddress) }}</div>
           </div>
           <div v-if="addresses.length > 1 && !showAllAddresses" class="other-addresses-hint" @click="showAllAddresses = true">还有 {{ addresses.length - 1 }} 个其他地址，点击切换</div>
@@ -822,7 +822,8 @@ onBeforeUnmount(() => {
 .addr-line1 { display: flex; align-items: center; gap: 10px; font-size: 14px; }
 .addr-line1 strong { font-size: 15px; }
 .addr-line1 span { color: var(--muted); font-size: 13px; }
-.addr-line1 em { margin-left: auto; color: var(--accent, #e7193f); font-size: 12px; font-style: normal; cursor: pointer; }
+.address-switch { margin-left: auto; padding: 5px 8px; color: var(--accent, #e7193f); background: transparent; border: 0; border-radius: 8px; font-size: 12px; cursor: pointer; }
+.address-switch:active { background: color-mix(in srgb, var(--accent, #e7193f) 8%, transparent); }
 .addr-line2 { margin-top: 4px; color: #4b5563; font-size: 13px; line-height: 1.5; }
 .other-addresses-hint { margin-top: 8px; color: var(--muted); font-size: 12px; cursor: pointer; text-align: center; }
 .other-addresses-list { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }

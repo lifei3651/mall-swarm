@@ -97,15 +97,14 @@
 
 <script setup>
 import { computed, nextTick, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { PackageOpen, Search, Share2, ShoppingCart } from 'lucide-vue-next'
 import { getHome, getProduct, listProducts } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { money } from '@/utils/format'
 import { applyBrandConfig } from '@/utils/brand'
+import { resolveQuickCartItem } from '@/utils/quickCart'
 
 const { add } = useCart()
-const router = useRouter()
 const home = ref({})
 const products = ref([])
 const loading = ref(false)
@@ -202,17 +201,13 @@ const clearFilter = () => {
 const addProduct = async (product) => {
   if (product.status !== 1 || product.stock <= 0) return
   try {
-    // 商品列表只包含商品主体。点击加购时先确认是否有SKU，带规格商品必须先选择规格，
-    // 不能再用商品展示价绕过SKU的实际价格、PV和库存。
     const res = await getProduct(product.id)
-    const detailProduct = res.data?.product || product
-    const skus = res.data?.skus || []
-    if (skus.length) {
-      await router.push(`/product/${product.id}`)
-      showToast('请先选择商品规格')
+    const cartItem = resolveQuickCartItem(product, res.data || {})
+    if (!cartItem) {
+      showToast('该商品暂时缺货')
       return
     }
-    add(detailProduct, 1)
+    add(cartItem, 1)
     showToast('已加入购物车，数量 +1')
   } catch (error) {
     showToast(error?.message || '商品信息更新失败，请稍后重试')

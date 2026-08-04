@@ -4,30 +4,28 @@
 
     <template v-else>
       <div class="profile-content">
-        <section class="identity-card" :class="rankInfo.className">
+        <section class="identity-card" :class="identityInfo.className">
         <div class="identity-top">
-          <div class="identity-avatar"><component :is="rankInfo.icon" :size="34" /></div>
+          <div class="identity-avatar"><component :is="identityInfo.icon" :size="34" /></div>
           <div class="identity-main">
             <div class="identity-name-row">
               <h2>{{ memberName }}</h2>
-              <span class="rank-badge"><component :is="rankInfo.icon" :size="15" />{{ rankInfo.name }}</span>
+              <span v-if="activeAgent" class="rank-badge"><component :is="identityInfo.icon" :size="15" />{{ identityInfo.name }}</span>
             </div>
             <p>账号：{{ accountName }}</p>
-            <p v-if="profile.agent?.agentCode">推广识别码：{{ profile.agent.agentCode }}</p>
           </div>
-          <RouterLink class="invite-mini" to="/invite"><Gift :size="17" />邀请</RouterLink>
+          <button type="button" class="invite-mini" @click="openInvite"><Gift :size="17" />邀请</button>
         </div>
         <div class="identity-stats">
           <RouterLink to="/profile/wallet"><span>余额</span><strong>¥{{ money(walletSummary.balance) }}</strong></RouterLink>
           <RouterLink to="/profile/team"><span>本月团队业绩</span><strong>{{ teamPerformanceText }}</strong></RouterLink>
-          <div><span>团队身份</span><strong>{{ profile.agent ? rankInfo.name : '首单后开通' }}</strong></div>
+          <div><span>团队身份</span><strong>{{ activeAgent ? identityInfo.name : '首单后开通' }}</strong></div>
         </div>
         </section>
 
       <section class="panel order-hub">
         <div class="order-hub-head">
           <h3>我的订单</h3>
-          <RouterLink to="/orders">全部 <ChevronRight :size="16" /></RouterLink>
         </div>
         <div class="order-entry-grid">
           <RouterLink v-for="entry in orderEntries" :key="entry.key" :to="`/orders?tab=${entry.key}`" class="order-entry">
@@ -101,7 +99,6 @@ import { useRouter } from 'vue-router'
 import {
   BadgeCheck,
   ChartNoAxesCombined,
-  ChevronRight,
   Crown,
   Gem,
   Gift,
@@ -121,6 +118,7 @@ import {
 import { getProfile, getWalletSummary, logout, setupAccount } from '@/api/shop'
 import { money } from '@/utils/format'
 import { clearShopSession } from '@/utils/shopSession'
+import { isNativeApp } from '@/utils/appEnvironment'
 
 const router = useRouter()
 const loading = ref(true)
@@ -133,7 +131,7 @@ const loggingOut = ref(false)
 const accountForm = ref({ username: '', password: '' })
 
 const rankMap = {
-  0: { name: '注册用户', icon: UserRound, className: 'rank-0' },
+  0: { name: '', icon: UserRound, className: 'rank-0' },
   1: { name: '会员', icon: BadgeCheck, className: 'rank-1' },
   2: { name: 'VIP会员', icon: Gem, className: 'rank-2' },
   3: { name: '店铺', icon: Store, className: 'rank-3' },
@@ -143,7 +141,8 @@ const rankMap = {
   7: { name: '三星董事', icon: Sparkles, className: 'rank-7' },
   8: { name: '合伙人', icon: Crown, className: 'rank-8' },
 }
-const rankInfo = computed(() => rankMap[Number(profile.value.agent?.agentLevel || 0)] || rankMap[0])
+const activeAgent = computed(() => Number(profile.value.agent?.status || 0) === 1 ? profile.value.agent : null)
+const identityInfo = computed(() => rankMap[Number(activeAgent.value?.agentLevel || 0)] || rankMap[0])
 const memberName = computed(() => profile.value.member?.nickname || profile.value.agent?.agentName || '商城用户')
 const accountName = computed(() => profile.value.member?.username || profile.value.member?.phone || '-')
 const addresses = computed(() => profile.value.addresses || [])
@@ -163,6 +162,14 @@ const orderEntries = computed(() => [
   { key: 'pending-review', label: '待评价', icon: MessageSquareText, count: countOrders((item) => Number(item.pendingReviewCount || 0) > 0) },
   { key: 'after-sale', label: '退款/售后', icon: RotateCcw, count: countOrders((item) => item.order?.status === 5 || (item.afterSales || []).length > 0) },
 ])
+
+const openInvite = () => {
+  if (isNativeApp) {
+    router.push('/invite')
+    return
+  }
+  window.location.assign('/invite')
+}
 
 const fetchProfile = async () => {
   loading.value = true

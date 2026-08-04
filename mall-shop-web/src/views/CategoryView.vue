@@ -104,9 +104,10 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { ChevronDown, ChevronUp, PackageOpen, ShoppingCart } from 'lucide-vue-next'
-import { listCategories, listCategoryProducts } from '@/api/shop'
+import { getProduct, listCategories, listCategoryProducts } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { money } from '@/utils/format'
+import { resolveQuickCartItem } from '@/utils/quickCart'
 
 const { add } = useCart()
 const loading = ref(false)
@@ -186,10 +187,20 @@ const togglePriceSort = () => {
   sortMode.value = sortMode.value === 'priceAsc' ? 'priceDesc' : 'priceAsc'
 }
 
-const addProduct = (product) => {
+const addProduct = async (product) => {
   if (product.status !== 1 || product.stock <= 0) return
-  add(product, 1)
-  showToast('已加入购物车，数量 +1')
+  try {
+    const res = await getProduct(product.id)
+    const cartItem = resolveQuickCartItem(product, res.data || {})
+    if (!cartItem) {
+      showToast('该商品暂时缺货')
+      return
+    }
+    add(cartItem, 1)
+    showToast('已加入购物车，数量 +1')
+  } catch (error) {
+    showToast(error?.message || '商品信息更新失败，请稍后重试')
+  }
 }
 
 onMounted(async () => {
