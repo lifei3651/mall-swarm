@@ -2,6 +2,7 @@ package com.macro.mall.distribution.dao;
 
 import com.macro.mall.distribution.entity.DmsMemberAssetFlow;
 import com.macro.mall.distribution.vo.BalanceFlowVO;
+import com.macro.mall.distribution.vo.BalanceFlowSummaryVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -24,6 +25,12 @@ public interface DmsMemberAssetFlowDao {
                                               @Param("sourceType") String sourceType,
                                               @Param("startTime") LocalDateTime startTime,
                                               @Param("endTime") LocalDateTime endTime);
+
+    BalanceFlowSummaryVO selectBalanceFlowSummary(@Param("keyword") String keyword,
+                                                  @Param("direction") String direction,
+                                                  @Param("sourceType") String sourceType,
+                                                  @Param("startTime") LocalDateTime startTime,
+                                                  @Param("endTime") LocalDateTime endTime);
 
     /** Assets actually issued when a commission record was settled. */
     List<DmsMemberAssetFlow> selectCommissionSettlementFlows(@Param("agentId") Long agentId,

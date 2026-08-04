@@ -50,8 +50,23 @@
 
     <el-alert v-if="searchFeedback" :title="searchFeedback" type="warning" :closable="false" show-icon class="search-feedback" />
 
+    <div class="summary-grid">
+      <div class="summary-card primary">
+        <div class="summary-label">筛选范围人工充值合计</div>
+        <div class="summary-value">¥{{ money(summary.totalRechargeAmount) }}</div>
+      </div>
+      <div class="summary-card income">
+        <div class="summary-label">筛选范围收入合计</div>
+        <div class="summary-value">¥{{ money(summary.totalIncomeAmount) }}</div>
+      </div>
+      <div class="summary-card expense">
+        <div class="summary-label">筛选范围支出合计</div>
+        <div class="summary-value">¥{{ money(summary.totalExpenseAmount) }}</div>
+      </div>
+    </div>
+
     <el-table :data="rows" v-loading="loading" :empty-text="tableEmptyText" style="width:100%">
-      <el-table-column prop="createTime" label="发生时间" width="175" />
+      <el-table-column label="发生时间" width="175"><template #default="{ row }">{{ formatDateTime(row.createTime) }}</template></el-table-column>
       <el-table-column label="会员信息" min-width="190">
         <template #default="{ row }">
           <div class="member-name">{{ row.memberName || row.memberPhone || `用户${row.userId}` }}</div>
@@ -61,11 +76,17 @@
       <el-table-column label="资金来源" width="150">
         <template #default="{ row }"><el-tag :type="sourceTag(row)">{{ sourceName(row) }}</el-tag></template>
       </el-table-column>
-      <el-table-column label="变动金额" width="130" align="right">
+      <el-table-column label="本次变动" width="130" align="right">
         <template #default="{ row }"><strong :class="isIncome(row.changeType) ? 'income' : 'expense'">{{ isIncome(row.changeType) ? '+' : '-' }}¥{{ money(row.amount) }}</strong></template>
+      </el-table-column>
+      <el-table-column label="变动前余额" width="130" align="right">
+        <template #default="{ row }">¥{{ money(row.balanceBefore) }}</template>
       </el-table-column>
       <el-table-column label="变动后余额" width="130" align="right">
         <template #default="{ row }">¥{{ money(row.balanceAfter) }}</template>
+      </el-table-column>
+      <el-table-column label="操作管理员" width="145">
+        <template #default="{ row }">{{ row.operatorName || '历史记录未留存' }}</template>
       </el-table-column>
       <el-table-column prop="flowNo" label="流水号" min-width="190" show-overflow-tooltip />
       <el-table-column prop="remark" label="说明" min-width="250" show-overflow-tooltip />
@@ -87,12 +108,13 @@
 
 <script setup>
 import { onMounted, ref } from 'vue'
-import { listBalanceFlowRecords } from '@/api/assets'
+import { getBalanceFlowSummary, listBalanceFlowRecords } from '@/api/assets'
 import { validateSearchKeyword } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
 
 const loading = ref(false)
 const rows = ref([])
+const summary = ref({ totalRechargeAmount: 0, totalIncomeAmount: 0, totalExpenseAmount: 0 })
 const query = ref({ keyword: '', direction: null, sourceType: null, dateRange: [] })
 const pagination = ref({ page: 1, size: 20, total: 0 })
 const searchFeedback = ref('')
@@ -103,6 +125,7 @@ const { markSearchApplied: markKeywordSearchApplied } = useSearchAutoRestore(
 )
 
 const money = (value) => Number(value || 0).toFixed(2)
+const formatDateTime = (value) => value ? String(value).replace('T', ' ') : '-'
 const isIncome = (type) => [1, 4].includes(Number(type))
 const sourceName = (row) => {
   if (String(row.bizType || '').endsWith('MANUAL_MEMBER_ADJUST')) {
@@ -139,7 +162,7 @@ const fetchRows = async () => {
     : '暂无余额流水'
   loading.value = true
   try {
-    const res = await listBalanceFlowRecords({
+    const params = {
       keyword: query.value.keyword?.trim() || undefined,
       direction: query.value.direction || undefined,
       sourceType: query.value.sourceType || undefined,
@@ -147,9 +170,14 @@ const fetchRows = async () => {
       endTime: query.value.dateRange?.[1],
       pageNum: pagination.value.page,
       pageSize: pagination.value.size,
-    })
+    }
+    const [res, summaryRes] = await Promise.all([
+      listBalanceFlowRecords(params),
+      getBalanceFlowSummary(params),
+    ])
     rows.value = res.data?.list || []
     pagination.value.total = res.data?.total || 0
+    summary.value = summaryRes.data || { totalRechargeAmount: 0, totalIncomeAmount: 0, totalExpenseAmount: 0 }
   } finally {
     loading.value = false
   }
@@ -163,9 +191,17 @@ onMounted(fetchRows)
 <style scoped>
 .flow-tip { margin-bottom: 16px; }
 .search-feedback { margin-bottom: 16px; }
+.summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.summary-card { border: 1px solid #ebeef5; border-radius: 8px; padding: 14px 16px; background: #fff; }
+.summary-card.primary { border-color: #c6e2ff; background: #f4f9ff; }
+.summary-card.income { border-color: #c2e7b0; background: #f3fbef; }
+.summary-card.expense { border-color: #fbc4c4; background: #fff6f6; }
+.summary-label { color: #606266; font-size: 13px; }
+.summary-value { margin-top: 6px; font-size: 22px; font-weight: 700; color: #303133; }
 .member-name { font-weight: 600; }
 .sub { margin-top: 4px; color: #909399; font-size: 12px; }
 .income { color: #16a34a; }
 .expense { color: #dc2626; }
 .pagination { margin-top: 16px; justify-content: flex-end; }
+@media (max-width: 900px) { .summary-grid { grid-template-columns: 1fr; } }
 </style>

@@ -23,7 +23,10 @@ public class BalanceFlowVO implements Serializable {
     private Long relatedUserId;
     private Integer changeType;
     private BigDecimal amount;
+    private BigDecimal balanceBefore;
     private BigDecimal balanceAfter;
+    private Long operatorId;
+    private String operatorName;
     private String bizType;
     private String bizId;
     private String remark;

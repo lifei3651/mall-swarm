@@ -13,9 +13,12 @@ import com.macro.mall.distribution.entity.DmsAgent;
 import com.macro.mall.distribution.entity.DmsMemberAssetAccount;
 import com.macro.mall.distribution.entity.DmsMemberAssetFlow;
 import com.macro.mall.distribution.entity.DmsShopMember;
+import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.service.MemberAssetService;
 import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.vo.BalanceFlowVO;
+import com.macro.mall.distribution.vo.BalanceFlowSummaryVO;
+import com.macro.mall.distribution.security.AdminContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,6 +59,19 @@ public class MemberAssetServiceImpl implements MemberAssetService {
                                                   LocalDateTime startTime, LocalDateTime endTime) {
         String normalizedKeyword = keyword == null ? null : keyword.trim();
         return flowDao.selectBalanceFlowList(normalizedKeyword, direction, sourceType, startTime, endTime);
+    }
+
+    @Override
+    public BalanceFlowSummaryVO summarizeBalanceFlows(String keyword, String direction, String sourceType,
+                                                      LocalDateTime startTime, LocalDateTime endTime) {
+        String normalizedKeyword = keyword == null ? null : keyword.trim();
+        BalanceFlowSummaryVO summary = flowDao.selectBalanceFlowSummary(
+                normalizedKeyword, direction, sourceType, startTime, endTime);
+        if (summary == null) summary = new BalanceFlowSummaryVO();
+        if (summary.getTotalRechargeAmount() == null) summary.setTotalRechargeAmount(BigDecimal.ZERO);
+        if (summary.getTotalIncomeAmount() == null) summary.setTotalIncomeAmount(BigDecimal.ZERO);
+        if (summary.getTotalExpenseAmount() == null) summary.setTotalExpenseAmount(BigDecimal.ZERO);
+        return summary;
     }
 
     @Override
@@ -121,7 +137,7 @@ public class MemberAssetServiceImpl implements MemberAssetService {
             Asserts.fail("系统余额冲回失败");
         }
         DmsMemberAssetAccount account = accountDao.selectByAgentIdAndAssetCode(agent.getId(), BalanceAsset.CODE);
-        return insertFlow(owner, 5, dto.getAmount(), account.getBalance(), dto.getBizType(), dto.getBizId(),
+        return insertFlow(owner, 5, dto.getAmount(), account.getBalance().add(dto.getAmount()), account.getBalance(), dto.getBizType(), dto.getBizId(),
                 dto.getRequestId(), dto.getRemark(), null);
     }
 
@@ -140,13 +156,13 @@ public class MemberAssetServiceImpl implements MemberAssetService {
             Asserts.fail("资产余额不足");
         }
         DmsMemberAssetAccount fromAccount = accountDao.selectByAgentIdAndAssetCode(fromAgent.getId(), BalanceAsset.CODE);
-        insertFlow(ownerOf(fromAgent), 3, dto.getAmount(), fromAccount.getBalance(),
+        insertFlow(ownerOf(fromAgent), 3, dto.getAmount(), fromAccount.getBalance().add(dto.getAmount()), fromAccount.getBalance(),
                 dto.getBizType(), dto.getBizId(), null, dto.getRemark(), toAgent);
 
         ensureAccount(ownerOf(toAgent));
         accountDao.addBalance(toAgent.getId(), BalanceAsset.CODE, dto.getAmount());
         DmsMemberAssetAccount toAccount = accountDao.selectByAgentIdAndAssetCode(toAgent.getId(), BalanceAsset.CODE);
-        insertFlow(ownerOf(toAgent), 4, dto.getAmount(), toAccount.getBalance(),
+        insertFlow(ownerOf(toAgent), 4, dto.getAmount(), toAccount.getBalance().subtract(dto.getAmount()), toAccount.getBalance(),
                 dto.getBizType(), dto.getBizId(), null, dto.getRemark(), fromAgent);
         operationLogService.log("ASSET", "TRANSFER", "MEMBER_ASSET", fromAgent.getId() + "->" + toAgent.getId(),
                 null, dto.toString(), memberLabel(fromAgent.getUserId()) + "向" + memberLabel(toAgent.getUserId())
@@ -167,7 +183,7 @@ public class MemberAssetServiceImpl implements MemberAssetService {
             accountDao.addBalanceByUserId(owner.member.getUserId(), BalanceAsset.CODE, dto.getAmount());
         }
         DmsMemberAssetAccount account = currentAccount(owner);
-        return insertFlow(owner, changeType, dto.getAmount(), account.getBalance(),
+        return insertFlow(owner, changeType, dto.getAmount(), account.getBalance().subtract(dto.getAmount()), account.getBalance(),
                 dto.getBizType(), dto.getBizId(), dto.getRequestId(), dto.getRemark(), null);
     }
 
@@ -184,12 +200,12 @@ public class MemberAssetServiceImpl implements MemberAssetService {
             Asserts.fail("资产余额不足");
         }
         DmsMemberAssetAccount account = currentAccount(owner);
-        return insertFlow(owner, changeType, dto.getAmount(), account.getBalance(),
+        return insertFlow(owner, changeType, dto.getAmount(), account.getBalance().add(dto.getAmount()), account.getBalance(),
                 dto.getBizType(), dto.getBizId(), dto.getRequestId(), dto.getRemark(), null);
     }
 
     private DmsMemberAssetFlow insertFlow(WalletOwner owner, Integer changeType,
-                                          BigDecimal amount, BigDecimal balanceAfter, String bizType,
+                                          BigDecimal amount, BigDecimal balanceBefore, BigDecimal balanceAfter, String bizType,
                                           String bizId, String requestId, String remark, DmsAgent relatedAgent) {
         DmsMemberAssetFlow flow = new DmsMemberAssetFlow();
         flow.setFlowNo(requestId == null || requestId.isBlank()
@@ -203,7 +219,11 @@ public class MemberAssetServiceImpl implements MemberAssetService {
         flow.setAssetName(BalanceAsset.NAME);
         flow.setChangeType(changeType);
         flow.setAmount(amount);
+        flow.setBalanceBefore(balanceBefore);
         flow.setBalanceAfter(balanceAfter);
+        DmsAdminUser admin = AdminContext.get();
+        flow.setOperatorId(admin == null ? 0L : admin.getId());
+        flow.setOperatorName(admin == null ? "system" : admin.getUsername());
         flow.setBizType(bizType);
         flow.setBizId(bizId);
         flow.setRemark(remark);

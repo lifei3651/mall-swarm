@@ -277,7 +277,10 @@ public class PerformanceServiceTest {
             AdminContext.set(operator);
             DmsMemberAssetFlow flow = memberAssetService.issue(command);
             assertNotNull(flow.getId());
-            assertEquals(new BigDecimal("25.00"), flow.getBalanceAfter());
+            assertAmountEquals("0.00", flow.getBalanceBefore());
+            assertAmountEquals("25.00", flow.getBalanceAfter());
+            assertEquals(1L, flow.getOperatorId());
+            assertEquals("operator", flow.getOperatorName());
             assertEquals(new BigDecimal("25.00"), memberAssetService.listAccounts(2L, null).stream()
                     .filter(item -> "CASH_BONUS".equals(item.getAssetCode())).findFirst().orElseThrow().getBalance());
             assertTrue(memberAssetService.listFlows(2L, null).stream()
@@ -286,6 +289,13 @@ public class PerformanceServiceTest {
                     flow.getFlowNo(), "IN", "RECHARGE", LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(1));
             assertEquals(1, flowRecords.size());
             assertEquals(flow.getId(), flowRecords.get(0).getId());
+            assertAmountEquals("0.00", flowRecords.get(0).getBalanceBefore());
+            assertEquals("operator", flowRecords.get(0).getOperatorName());
+            var summary = memberAssetService.summarizeBalanceFlows(
+                    flow.getFlowNo(), "IN", "RECHARGE", LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(1));
+            assertAmountEquals("25.00", summary.getTotalRechargeAmount());
+            assertAmountEquals("25.00", summary.getTotalIncomeAmount());
+            assertAmountEquals("0.00", summary.getTotalExpenseAmount());
         } finally {
             AdminContext.clear();
         }

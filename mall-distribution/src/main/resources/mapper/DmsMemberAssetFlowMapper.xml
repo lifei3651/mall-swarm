@@ -13,7 +13,10 @@
         <result column="asset_name" property="assetName"/>
         <result column="change_type" property="changeType"/>
         <result column="amount" property="amount"/>
+        <result column="balance_before" property="balanceBefore"/>
         <result column="balance_after" property="balanceAfter"/>
+        <result column="operator_id" property="operatorId"/>
+        <result column="operator_name" property="operatorName"/>
         <result column="biz_type" property="bizType"/>
         <result column="biz_id" property="bizId"/>
         <result column="remark" property="remark"/>
@@ -22,14 +25,14 @@
 
     <select id="selectByFlowNo" resultMap="BaseResultMap">
         SELECT id, flow_no, agent_id, user_id, related_agent_id, related_user_id, asset_code, asset_name,
-               change_type, amount, balance_after, biz_type, biz_id, remark, create_time
+               change_type, amount, balance_before, balance_after, operator_id, operator_name, biz_type, biz_id, remark, create_time
         FROM dms_member_asset_flow
         WHERE flow_no = #{flowNo}
     </select>
 
     <select id="selectByAgentId" resultMap="BaseResultMap">
         SELECT id, flow_no, agent_id, user_id, related_agent_id, related_user_id, asset_code, asset_name,
-               change_type, amount, balance_after, biz_type, biz_id, remark, create_time
+               change_type, amount, balance_before, balance_after, operator_id, operator_name, biz_type, biz_id, remark, create_time
         FROM dms_member_asset_flow
         WHERE agent_id = #{agentId}
         <if test="assetCode != null and assetCode != ''">
@@ -40,7 +43,7 @@
 
     <select id="selectByUserId" resultMap="BaseResultMap">
         SELECT id, flow_no, agent_id, user_id, related_agent_id, related_user_id, asset_code, asset_name,
-               change_type, amount, balance_after, biz_type, biz_id, remark, create_time
+               change_type, amount, balance_before, balance_after, operator_id, operator_name, biz_type, biz_id, remark, create_time
         FROM dms_member_asset_flow
         WHERE user_id = #{userId}
         <if test="assetCode != null and assetCode != ''">
@@ -62,7 +65,10 @@
                f.related_user_id AS relatedUserId,
                f.change_type AS changeType,
                f.amount,
+               f.balance_before AS balanceBefore,
                f.balance_after AS balanceAfter,
+               f.operator_id AS operatorId,
+               f.operator_name AS operatorName,
                f.biz_type AS bizType,
                f.biz_id AS bizId,
                f.remark,
@@ -115,9 +121,61 @@
         ORDER BY f.create_time DESC, f.id DESC
     </select>
 
+    <select id="selectBalanceFlowSummary" resultType="com.macro.mall.distribution.vo.BalanceFlowSummaryVO">
+        SELECT
+            COALESCE(SUM(CASE WHEN f.change_type = 1 AND f.biz_type LIKE '%MANUAL_MEMBER_ADJUST' THEN f.amount ELSE 0 END), 0) AS totalRechargeAmount,
+            COALESCE(SUM(CASE WHEN f.change_type IN (1, 4) THEN f.amount ELSE 0 END), 0) AS totalIncomeAmount,
+            COALESCE(SUM(CASE WHEN f.change_type IN (2, 3, 5) THEN f.amount ELSE 0 END), 0) AS totalExpenseAmount
+        FROM dms_member_asset_flow f
+        LEFT JOIN dms_shop_member m ON m.user_id = f.user_id
+        WHERE f.asset_code = 'CASH_BONUS'
+        <if test="keyword != null and keyword != ''">
+            AND (f.flow_no LIKE CONCAT('%', #{keyword}, '%')
+                OR m.phone LIKE CONCAT('%', #{keyword}, '%')
+                OR m.nickname LIKE CONCAT('%', #{keyword}, '%')
+                OR m.username LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="direction == 'IN'">
+            AND f.change_type IN (1, 4)
+        </if>
+        <if test="direction == 'OUT'">
+            AND f.change_type IN (2, 3, 5)
+        </if>
+        <if test="sourceType == 'RECHARGE'">
+            AND f.biz_type LIKE '%MANUAL_MEMBER_ADJUST'
+        </if>
+        <if test="sourceType == 'BONUS'">
+            AND f.biz_type = 'COMMISSION_SETTLE'
+        </if>
+        <if test="sourceType == 'TRANSFER'">
+            AND f.biz_type = 'MEMBER_BALANCE_TRANSFER'
+        </if>
+        <if test="sourceType == 'PAYMENT'">
+            AND f.biz_type = 'ORDER_BALANCE_PAYMENT'
+        </if>
+        <if test="sourceType == 'REFUND'">
+            AND f.biz_type IN ('BALANCE_PAYMENT_REFUND', 'WITHDRAW_REJECT_REFUND')
+        </if>
+        <if test="sourceType == 'WITHDRAW'">
+            AND f.biz_type = 'WITHDRAW_APPLY'
+        </if>
+        <if test="sourceType == 'CLAWBACK'">
+            AND f.biz_type = 'COMMISSION_CLAWBACK'
+        </if>
+        <if test="sourceType == 'ORDER_ALLOCATION'">
+            AND f.biz_type IN ('ORDER_BALANCE_ALLOCATION', 'ORDER_BALANCE_ALLOCATION_REFUND')
+        </if>
+        <if test="startTime != null">
+            AND f.create_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND f.create_time &lt;= #{endTime}
+        </if>
+    </select>
+
     <select id="selectCommissionSettlementFlows" resultMap="BaseResultMap">
         SELECT id, flow_no, agent_id, user_id, related_agent_id, related_user_id, asset_code, asset_name,
-               change_type, amount, balance_after, biz_type, biz_id, remark, create_time
+               change_type, amount, balance_before, balance_after, operator_id, operator_name, biz_type, biz_id, remark, create_time
         FROM dms_member_asset_flow
         WHERE agent_id = #{agentId}
           AND biz_type = 'COMMISSION_SETTLE'
@@ -129,9 +187,9 @@
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsMemberAssetFlow" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_member_asset_flow
         (flow_no, agent_id, user_id, related_agent_id, related_user_id, asset_code, asset_name,
-         change_type, amount, balance_after, biz_type, biz_id, remark)
+         change_type, amount, balance_before, balance_after, operator_id, operator_name, biz_type, biz_id, remark)
         VALUES
         (#{flowNo}, #{agentId}, #{userId}, #{relatedAgentId}, #{relatedUserId}, #{assetCode}, #{assetName},
-         #{changeType}, #{amount}, #{balanceAfter}, #{bizType}, #{bizId}, #{remark})
+         #{changeType}, #{amount}, #{balanceBefore}, #{balanceAfter}, #{operatorId}, #{operatorName}, #{bizType}, #{bizId}, #{remark})
     </insert>
 </mapper>

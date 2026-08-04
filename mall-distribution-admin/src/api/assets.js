@@ -24,6 +24,14 @@ export function listBalanceFlowRecords(params) {
   })
 }
 
+export function getBalanceFlowSummary(params) {
+  return request({
+    url: '/distribution/assets/flow-records/summary',
+    method: 'get',
+    params,
+  })
+}
+
 export function issueAsset(data) {
   return request({
     url: '/distribution/assets/issue',

@@ -231,9 +231,11 @@
                 <el-table-column prop="flowNo" label="流水号" min-width="185" />
                 <el-table-column label="余额变动" width="110"><template #default="{ row }"><span :class="isIncome(row.changeType) ? 'success-text' : 'danger-text'">{{ isIncome(row.changeType) ? '+' : '-' }}¥{{ money(row.amount) }}</span></template></el-table-column>
                 <el-table-column label="资金来源" min-width="170"><template #default="{ row }">{{ assetFlowSourceText(row) }}</template></el-table-column>
+                <el-table-column label="变动前余额" width="125"><template #default="{ row }">¥{{ money(row.balanceBefore) }}</template></el-table-column>
                 <el-table-column label="变动后余额" width="125"><template #default="{ row }">¥{{ money(row.balanceAfter) }}</template></el-table-column>
+                <el-table-column label="操作管理员" width="140"><template #default="{ row }">{{ row.operatorName || '历史记录未留存' }}</template></el-table-column>
                 <el-table-column prop="remark" label="备注" min-width="220" show-overflow-tooltip />
-                <el-table-column prop="createTime" label="变动时间" width="170" />
+                <el-table-column label="变动时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createTime) }}</template></el-table-column>
               </el-table>
             </el-card>
 
@@ -489,6 +491,7 @@ const profileDialogTitle = computed(() => {
 })
 
 const money = (value) => Number(value || 0).toFixed(2)
+const formatDateTime = (value) => value ? String(value).replace('T', ' ') : '-'
 const normalizedText = (value) => String(value || '').trim()
 const memberDisplayName = (row) => {
   const nickname = normalizedText(row?.nickname)

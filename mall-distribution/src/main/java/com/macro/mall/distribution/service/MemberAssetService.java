@@ -5,6 +5,7 @@ import com.macro.mall.distribution.dto.AssetTransferDTO;
 import com.macro.mall.distribution.entity.DmsMemberAssetAccount;
 import com.macro.mall.distribution.entity.DmsMemberAssetFlow;
 import com.macro.mall.distribution.vo.BalanceFlowVO;
+import com.macro.mall.distribution.vo.BalanceFlowSummaryVO;
 
 import java.util.List;
 import java.time.LocalDateTime;
@@ -16,6 +17,9 @@ public interface MemberAssetService {
 
     List<BalanceFlowVO> searchBalanceFlows(String keyword, String direction, String sourceType,
                                            LocalDateTime startTime, LocalDateTime endTime);
+
+    BalanceFlowSummaryVO summarizeBalanceFlows(String keyword, String direction, String sourceType,
+                                               LocalDateTime startTime, LocalDateTime endTime);
 
     DmsMemberAssetFlow issue(AssetChangeDTO dto);
 

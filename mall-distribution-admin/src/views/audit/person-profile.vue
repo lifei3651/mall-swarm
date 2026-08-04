@@ -157,12 +157,16 @@
           <el-table-column prop="amount" label="变动金额" width="110">
             <template #default="{ row }"><span :class="isIncome(row.changeType) ? 'success' : 'danger'">{{ isIncome(row.changeType) ? '+' : '-' }}¥{{ money(row.amount) }}</span></template>
           </el-table-column>
+          <el-table-column prop="balanceBefore" label="变动前余额" width="130">
+            <template #default="{ row }">{{ money(row.balanceBefore) }}</template>
+          </el-table-column>
           <el-table-column prop="balanceAfter" label="变动后余额" width="130">
             <template #default="{ row }">{{ money(row.balanceAfter) }}</template>
           </el-table-column>
+          <el-table-column label="操作管理员" width="145"><template #default="{ row }">{{ row.operatorName || '历史记录未留存' }}</template></el-table-column>
           <el-table-column prop="relatedAgentId" label="关联会员ID" width="120" />
           <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
-          <el-table-column prop="createTime" label="变动时间" width="170" />
+          <el-table-column label="变动时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createTime) }}</template></el-table-column>
         </el-table>
       </el-card>
 
@@ -241,6 +245,7 @@ const handleSearch = async () => {
 }
 
 const money = (value) => Number(value || 0).toFixed(2)
+const formatDateTime = (value) => value ? String(value).replace('T', ' ') : '-'
 const percent = (value) => `${(Number(value || 0) * 100).toFixed(2)}%`
 const levelName = (level) => ({ 1:'会员', 2:'VIP会员', 3:'店铺', 4:'代理', 5:'一星董事', 6:'二星董事', 7:'三星董事', 8:'合伙人' }[Number(level)] || '-')
 

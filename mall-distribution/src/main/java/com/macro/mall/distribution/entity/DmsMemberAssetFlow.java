@@ -37,7 +37,15 @@ public class DmsMemberAssetFlow implements Serializable {
 
     private BigDecimal amount;
 
+    /** 变动前余额 */
+    private BigDecimal balanceBefore;
+
     private BigDecimal balanceAfter;
+
+    /** 执行本次变动的管理员；系统自动流水为空或为 system。 */
+    private Long operatorId;
+
+    private String operatorName;
 
     private String bizType;
 

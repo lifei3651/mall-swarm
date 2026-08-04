@@ -12,6 +12,7 @@ import com.macro.mall.distribution.service.MemberAssetService;
 import com.macro.mall.distribution.service.AdminAuthService;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.vo.BalanceFlowVO;
+import com.macro.mall.distribution.vo.BalanceFlowSummaryVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +58,17 @@ public class MemberAssetController {
         PageHelper.startPage(pageNum, pageSize);
         return CommonResult.success(CommonPage.restPage(
                 assetService.searchBalanceFlows(keyword, direction, sourceType, startTime, endTime)));
+    }
+
+    @Operation(summary = "汇总筛选范围内余额流水")
+    @GetMapping("/flow-records/summary")
+    public CommonResult<BalanceFlowSummaryVO> summarizeFlows(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String direction,
+            @RequestParam(required = false) String sourceType,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime) {
+        return CommonResult.success(assetService.summarizeBalanceFlows(keyword, direction, sourceType, startTime, endTime));
     }
 
     @Operation(summary = "后台人工增加会员余额（立即生效）")
