@@ -472,6 +472,66 @@ public class PerformanceServiceTest {
         assertTrue(finance.getRemark().contains("奖金拨出率"));
     }
 
+    @Test
+    void testFinanceRiskAlertsCoverProfitRateLowerBound() {
+        DmsFinanceRiskRule profitRule = new DmsFinanceRiskRule();
+        profitRule.setRuleCode("PROFIT_RATE_MIN");
+        profitRule.setRuleName("利润率下限");
+        profitRule.setThresholdValue(new BigDecimal("1.00"));
+        profitRule.setEnabled(1);
+        auditService.saveRiskRule(profitRule);
+
+        DmsShopMember member = createShopMember("13999000037", "利润率风控测试", null);
+        ShopOrderVO paid = submitAndPay(member, 1);
+        var alerts = auditService.getRiskAlerts("today", null, null);
+
+        var alert = alerts.stream()
+                .filter(item -> "PROFIT_RATE_MIN".equals(item.getRuleCode()))
+                .findFirst().orElseThrow();
+        assertEquals(0, new BigDecimal("1.00").compareTo(alert.getThresholdValue()));
+        assertTrue(alert.getCurrentValue().compareTo(alert.getThresholdValue()) < 0);
+        assertTrue(paid.getOrder().getPayTime() != null);
+    }
+
+    @Test
+    void testFinanceRiskAlertsCoverLossOrderCountUpperBound() {
+        DmsFinanceRiskRule lossRule = new DmsFinanceRiskRule();
+        lossRule.setRuleCode("LOSS_ORDER_COUNT_MAX");
+        lossRule.setRuleName("亏损订单数上限");
+        lossRule.setThresholdValue(BigDecimal.ZERO);
+        lossRule.setEnabled(1);
+        auditService.saveRiskRule(lossRule);
+
+        DmsShopMember member = createShopMember("13999000038", "亏损订单风控测试", null);
+        ShopOrderVO paid = submitAndPay(member, 1);
+        jdbcTemplate.update("UPDATE dms_order_finance SET product_cost=?, company_profit=?, risk_status=1 WHERE order_id=?",
+                paid.getOrder().getPayAmount().add(new BigDecimal("1.00")), new BigDecimal("-1.00"),
+                paid.getOrder().getId());
+
+        var alerts = auditService.getRiskAlerts("today", null, null);
+        var alert = alerts.stream()
+                .filter(item -> "LOSS_ORDER_COUNT_MAX".equals(item.getRuleCode()))
+                .findFirst().orElseThrow();
+        assertEquals(BigDecimal.ONE, alert.getCurrentValue());
+        assertEquals(0, BigDecimal.ZERO.compareTo(alert.getThresholdValue()));
+    }
+
+    @Test
+    void testFinanceSummaryUsesOrderPayTimeInsteadOfFinanceCreateTime() {
+        DmsShopMember member = createShopMember("13999000039", "支付时间账期测试", null);
+        ShopOrderVO paid = submitAndPay(member, 1);
+        jdbcTemplate.update("UPDATE dms_order_finance SET create_time=? WHERE order_id=?",
+                LocalDateTime.now().minusDays(30), paid.getOrder().getId());
+
+        var summary = auditService.getFinanceSummary("today", null, null);
+        assertEquals(1L, summary.getOrderCount());
+        assertTrue(summary.getPayAmount().compareTo(BigDecimal.ZERO) > 0);
+
+        var daily = auditService.getFinanceDailySummary("today", null, null);
+        assertEquals(1, daily.size());
+        assertEquals(LocalDate.now(), daily.get(0).getStatDate());
+    }
+
     private DmsAdminUser admin(Long id, String username) {
         DmsAdminUser admin = new DmsAdminUser();
         admin.setId(id);

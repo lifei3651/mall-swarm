@@ -78,45 +78,47 @@
     <select id="selectSummary" resultMap="SummaryResultMap">
         SELECT
             COUNT(1) AS order_count,
-            SUM(CASE WHEN risk_status = 1 THEN 1 ELSE 0 END) AS risk_order_count,
-            IFNULL(SUM(pay_amount), 0) AS pay_amount,
-            IFNULL(SUM(refund_amount), 0) AS refund_amount,
-            IFNULL(SUM(net_pay_amount), 0) AS net_pay_amount,
-            IFNULL(SUM(product_cost), 0) AS product_cost,
-            IFNULL(SUM(bonus_amount), 0) AS bonus_amount,
-            IFNULL(SUM(company_share_amount), 0) AS company_share_amount,
-            IFNULL(SUM(company_profit), 0) AS company_profit
-        FROM dms_order_finance
-        WHERE 1 = 1
+            SUM(CASE WHEN finance.risk_status = 1 THEN 1 ELSE 0 END) AS risk_order_count,
+            IFNULL(SUM(finance.pay_amount), 0) AS pay_amount,
+            IFNULL(SUM(finance.refund_amount), 0) AS refund_amount,
+            IFNULL(SUM(finance.net_pay_amount), 0) AS net_pay_amount,
+            IFNULL(SUM(finance.product_cost), 0) AS product_cost,
+            IFNULL(SUM(finance.bonus_amount), 0) AS bonus_amount,
+            IFNULL(SUM(finance.company_share_amount), 0) AS company_share_amount,
+            IFNULL(SUM(finance.company_profit), 0) AS company_profit
+        FROM dms_order_finance finance
+        INNER JOIN dms_shop_order shop_order ON shop_order.id = finance.order_id
+        WHERE shop_order.pay_time IS NOT NULL
         <if test="startTime != null">
-            AND create_time &gt;= #{startTime}
+            AND shop_order.pay_time &gt;= #{startTime}
         </if>
         <if test="endTime != null">
-            AND create_time &lt; #{endTime}
+            AND shop_order.pay_time &lt; #{endTime}
         </if>
     </select>
 
     <select id="selectDailySummary" resultMap="DailySummaryResultMap">
         SELECT
-            DATE(create_time) AS stat_date,
+            DATE(shop_order.pay_time) AS stat_date,
             COUNT(1) AS order_count,
-            SUM(CASE WHEN risk_status = 1 THEN 1 ELSE 0 END) AS risk_order_count,
-            IFNULL(SUM(pay_amount), 0) AS pay_amount,
-            IFNULL(SUM(refund_amount), 0) AS refund_amount,
-            IFNULL(SUM(net_pay_amount), 0) AS net_pay_amount,
-            IFNULL(SUM(product_cost), 0) AS product_cost,
-            IFNULL(SUM(bonus_amount), 0) AS bonus_amount,
-            IFNULL(SUM(company_share_amount), 0) AS company_share_amount,
-            IFNULL(SUM(company_profit), 0) AS company_profit
-        FROM dms_order_finance
-        WHERE 1 = 1
+            SUM(CASE WHEN finance.risk_status = 1 THEN 1 ELSE 0 END) AS risk_order_count,
+            IFNULL(SUM(finance.pay_amount), 0) AS pay_amount,
+            IFNULL(SUM(finance.refund_amount), 0) AS refund_amount,
+            IFNULL(SUM(finance.net_pay_amount), 0) AS net_pay_amount,
+            IFNULL(SUM(finance.product_cost), 0) AS product_cost,
+            IFNULL(SUM(finance.bonus_amount), 0) AS bonus_amount,
+            IFNULL(SUM(finance.company_share_amount), 0) AS company_share_amount,
+            IFNULL(SUM(finance.company_profit), 0) AS company_profit
+        FROM dms_order_finance finance
+        INNER JOIN dms_shop_order shop_order ON shop_order.id = finance.order_id
+        WHERE shop_order.pay_time IS NOT NULL
         <if test="startTime != null">
-            AND create_time &gt;= #{startTime}
+            AND shop_order.pay_time &gt;= #{startTime}
         </if>
         <if test="endTime != null">
-            AND create_time &lt; #{endTime}
+            AND shop_order.pay_time &lt; #{endTime}
         </if>
-        GROUP BY DATE(create_time)
+        GROUP BY DATE(shop_order.pay_time)
         ORDER BY stat_date ASC
     </select>
 </mapper>
