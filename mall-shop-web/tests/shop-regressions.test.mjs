@@ -47,6 +47,19 @@ test('checkout switches addresses inline so the remark field stays mounted', asy
   assert.match(source, /v-model="form\.remark"/)
 })
 
+test('wallet password setup prompt is shown first and uses payment password wording', async () => {
+  const wallet = await readView('WalletView.vue')
+  const security = await readView('SecurityView.vue')
+  const change = await readView('ChangePaymentPasswordView.vue')
+  const orderDetail = await readView('OrderDetailView.vue')
+  assert.ok(wallet.indexOf('security-callout') < wallet.indexOf('balance-card'))
+  assert.match(wallet, /首次交易前请设置支付密码/)
+  assert.match(security, /请先设置支付密码/)
+  assert.match(security, /设置支付密码/)
+  assert.match(change, /支付密码为6位数字/)
+  assert.doesNotMatch(`${security}\n${change}\n${orderDetail}`, /交易密码|二级密码/)
+})
+
 test('home quick add no longer redirects SKU products to product detail', async () => {
   const source = await readView('HomeView.vue')
   assert.match(source, /resolveQuickCartItem/)

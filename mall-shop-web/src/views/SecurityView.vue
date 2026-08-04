@@ -21,7 +21,7 @@
       </RouterLink>
       <RouterLink :to="wallet.hasPaymentPassword ? '/profile/security/change-payment-password' : '/profile/security/change-payment-password'" class="security-action-btn">
         <span class="action-icon pay-icon"><KeyRound :size="24" /></span>
-        <span class="action-label">{{ wallet.hasPaymentPassword ? '修改交易密码' : '设置交易密码' }}</span>
+        <span class="action-label">{{ wallet.hasPaymentPassword ? '修改支付密码' : '设置支付密码' }}</span>
         <i v-if="!wallet.hasPaymentPassword" class="action-badge">待设置</i>
         <ChevronRight :size="18" />
       </RouterLink>

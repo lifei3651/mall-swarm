@@ -5,17 +5,17 @@
       <h2>余额</h2><span></span>
     </header>
 
-    <section class="balance-card">
-      <span>可用余额（元）</span>
-      <strong>{{ money(wallet.balance) }}</strong>
-      <p>奖金及其他明确入账进入余额后，可用于商城支付、会员转账和提现。</p>
-    </section>
-
     <RouterLink v-if="!wallet.hasPaymentPassword" class="security-callout" to="/profile/security">
       <ShieldAlert :size="22" />
       <span><strong>首次交易前请设置支付密码</strong><small>用于余额支付、转账和提现验证</small></span>
       <ChevronRight :size="18" />
     </RouterLink>
+
+    <section class="balance-card">
+      <span>可用余额（元）</span>
+      <strong>{{ money(wallet.balance) }}</strong>
+      <p>奖金及其他明确入账进入余额后，可用于商城支付、会员转账和提现。</p>
+    </section>
 
     <nav class="wallet-actions">
       <button :class="{ active: activeTool === 'transfer' }" type="button" @click="activeTool = 'transfer'"><Send :size="21" /><span>余额转账</span></button>
@@ -36,7 +36,7 @@
       </div>
       <div v-if="recipient" class="recipient-card"><span>收款会员</span><strong>{{ recipient.memberName }}</strong><small>{{ recipient.phone }}</small></div>
       <div class="form-item"><label>转账金额</label><input v-model="transferForm.amount" class="field" type="number" min="0.01" step="0.01" placeholder="0.00" /></div>
-      <div class="form-item"><label>支付密码（二级密码）</label><input v-model="transferForm.paymentPassword" class="field" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="6位数字" /></div>
+      <div class="form-item"><label>支付密码</label><input v-model="transferForm.paymentPassword" class="field" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="6位数字" /></div>
       <div class="form-item"><label>转账备注（选填）</label><input v-model="transferForm.remark" class="field" maxlength="100" placeholder="给收款方留言" /></div>
       <button class="btn primary submit-button" :disabled="transferSaving || !canUseBalance" @click="submitTransfer">{{ transferSaving ? '转账中' : '确认转账' }}</button>
       <p v-if="!wallet.distributionActivated" class="form-warning">完成首笔有效订单成为会员后，才可以转账和接收余额。</p>
@@ -49,7 +49,7 @@
       <div class="form-item"><label>{{ withdrawAccountLabel }}</label><input v-model="withdrawForm.bankAccount" class="field" :placeholder="withdrawAccountPlaceholder" /></div>
       <div class="form-item"><label>收款人姓名</label><input v-model="withdrawForm.accountName" class="field" placeholder="必须与收款账户实名一致" /></div>
       <div class="form-item"><label>提现金额</label><input v-model="withdrawForm.withdrawAmount" class="field" type="number" min="0.01" step="0.01" placeholder="0.00" /></div>
-      <div class="form-item"><label>支付密码（二级密码）</label><input v-model="withdrawForm.paymentPassword" class="field" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="6位数字" /></div>
+      <div class="form-item"><label>支付密码</label><input v-model="withdrawForm.paymentPassword" class="field" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="6位数字" /></div>
       <div class="form-item">
         <label>手机验证码</label>
         <div class="inline-input"><input v-model="withdrawForm.smsCode" class="field" inputmode="numeric" maxlength="6" placeholder="6位验证码" /><button type="button" :disabled="withdrawSmsCooldown > 0" @click="sendWithdrawCode">{{ withdrawSmsCooldown > 0 ? `${withdrawSmsCooldown}s` : '获取验证码' }}</button></div>

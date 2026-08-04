@@ -164,7 +164,7 @@
         </div>
         <p class="line-sub" style="line-height: 1.7">{{ order.receiverAddress }}</p>
         <div v-if="order.status === 0 && order.payType === 'BALANCE'" class="balance-pay-box">
-          <label>支付密码（二级密码）</label>
+          <label>支付密码</label>
           <input
             v-model="paymentPassword"
             class="field"
