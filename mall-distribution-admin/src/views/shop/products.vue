@@ -1,5 +1,12 @@
 <template>
   <div class="page-container product-page">
+    <div class="page-heading">
+      <div>
+        <h2>商品中心</h2>
+        <p>集中维护商品内容、价格库存、配送与售后服务</p>
+      </div>
+      <el-tag type="info" effect="plain">上架前信息一站式校验</el-tag>
+    </div>
     <div class="search-container">
       <el-form :inline="true" :model="query">
         <el-form-item label="关键词"><el-input v-model="query.keyword" placeholder="商品名称/商品编号" clearable @keyup.enter="handleSearch" /></el-form-item>
@@ -30,7 +37,7 @@
 
     <el-alert v-if="searchFeedback" :title="searchFeedback" type="warning" :closable="false" show-icon class="search-feedback" />
 
-    <el-table :data="tableData" v-loading="loading" :empty-text="tableEmptyText" style="width: 100%">
+    <el-table :data="tableData" v-loading="loading" :empty-text="tableEmptyText" stripe style="width: 100%">
       <el-table-column label="商品信息" min-width="310">
         <template #default="{ row }">
           <div class="product-cell">
@@ -38,12 +45,12 @@
             <div class="product-meta">
               <div class="name">{{ row.productName }}</div>
               <div class="sub product-number">商品编号：{{ row.productNo || '未设置' }}</div>
-              <div class="sub">{{ row.subtitle }}</div>
+              <div class="sub">{{ row.subtitle || '未填写商品卖点' }}</div>
             </div>
           </div>
         </template>
       </el-table-column>
-      <el-table-column prop="categoryName" label="商品分类" width="120" />
+      <el-table-column label="商品分类" width="120"><template #default="{ row }"><span :class="{ 'muted-value': !row.categoryName }">{{ row.categoryName || '未分类' }}</span></template></el-table-column>
       <el-table-column prop="salePrice" label="展示售价" width="110"><template #default="{ row }">¥{{ row.salePrice }}</template></el-table-column>
       <el-table-column prop="costAmount" label="参考成本" width="110"><template #default="{ row }">¥{{ row.costAmount }}</template></el-table-column>
       <el-table-column v-if="performanceUnitsEnabled" prop="pvValue" label="单件PV" width="120">
@@ -66,22 +73,23 @@
 
     <el-dialog v-model="dialogVisible" :title="form.id ? '编辑商品' : '发布新商品'" fullscreen destroy-on-close class="publish-dialog">
       <div class="publish-shell" v-loading="dialogLoading">
-        <el-alert title="按商品实际情况填写。带规格的商品请在“规格、价格与库存”中维护每个 SKU；第一张主图将作为商品封面。" type="info" :closable="false" />
+        <el-alert title="按实际情况填写即可：商品名称和卖点尽量简洁，分类可不设置；带规格的商品请在“规格、价格与库存”中维护每个 SKU，第一张主图将作为商品封面。" type="info" :closable="false" />
         <el-form :model="form" label-width="108px" class="publish-form">
           <section class="form-section">
             <h3>1. 基本信息</h3>
             <el-row :gutter="20">
-              <el-col :span="12"><el-form-item label="商品名称" required><el-input v-model="form.productName" maxlength="100" show-word-limit /></el-form-item></el-col>
+              <el-col :span="12"><el-form-item label="商品名称" required><el-input v-model="form.productName" maxlength="60" show-word-limit placeholder="建议使用简短、易识别的商品名称" /><div class="field-help">最多 60 个字，方便顾客快速识别。</div></el-form-item></el-col>
               <el-col :span="12"><el-form-item label="商品编号"><el-input v-model="form.productNo" placeholder="留空自动生成" /></el-form-item></el-col>
             </el-row>
-            <el-form-item label="商品卖点"><el-input v-model="form.subtitle" maxlength="150" show-word-limit placeholder="一句话描述商品特点" /></el-form-item>
+            <el-form-item label="商品卖点"><el-input v-model="form.subtitle" maxlength="80" show-word-limit placeholder="用一句话说明最值得购买的理由" /><div class="field-help">最多 80 个字，突出 1～2 个核心卖点即可。</div></el-form-item>
             <el-row :gutter="20">
               <el-col :span="8">
-                <el-form-item label="商品分类" required>
+                <el-form-item label="商品分类">
                   <div class="category-picker">
-                    <el-select v-model="form.categoryName" filterable placeholder="请选择分类"><el-option v-for="item in categories" :key="item.id" :label="item.categoryName" :value="item.categoryName" /></el-select>
+                    <el-select v-model="form.categoryName" clearable filterable placeholder="不设置分类也可以"><el-option v-for="item in categories" :key="item.id" :label="item.categoryName" :value="item.categoryName" /></el-select>
                     <el-button type="primary" plain :icon="Plus" @click="openQuickCategory">新增分类</el-button>
                   </div>
+                  <div class="field-help">商品较少时可以不分类；需要筛选和分组时再选择即可。</div>
                 </el-form-item>
               </el-col>
               <el-col :span="8"><el-form-item label="排序"><el-input-number v-model="form.sort" :step="1" style="width:100%" /><div class="field-help">上架商品自动排在下架商品前；同状态下数值越大越靠前。</div></el-form-item></el-col>
@@ -636,7 +644,6 @@ const saveFreightTemplateForm = async () => {
 
 const submitForm = async () => {
   if (!form.value.productName?.trim()) return ElMessage.warning('请输入商品名称')
-  if (!form.value.categoryName?.trim()) return ElMessage.warning('请选择商品分类')
   if (!form.value.mainImages.length) return ElMessage.warning('请至少上传一张商品主图')
   if (deliveryRegion.value.length !== 3) return ElMessage.warning('请选择完整的发货省、市、区/县')
   if (form.value.freightType === 1 && Number(form.value.freightAmount || 0) <= 0) return ElMessage.warning('固定运费必须大于0')
@@ -659,7 +666,7 @@ const submitForm = async () => {
     const serviceTags = form.value.serviceGuarantees
       .filter((item) => item.title?.trim())
       .map((item) => ({ enabled: Boolean(item.enabled), icon: item.icon || 'shield', title: item.title.trim(), description: item.description?.trim() || '' }))
-    const payload = { ...form.value, deliveryProvince, deliveryCity, deliveryDistrict, deliveryAddress: deliveryRegion.value.join(' '), coverUrl: form.value.mainImages[0], galleryUrls: JSON.stringify(form.value.mainImages.slice(1)), detailImages: JSON.stringify(form.value.detailImageUrls), serviceTags: JSON.stringify(serviceTags), bvValue: 0 }
+    const payload = { ...form.value, productName: form.value.productName.trim(), subtitle: form.value.subtitle?.trim() || null, categoryName: form.value.categoryName?.trim() || null, deliveryProvince, deliveryCity, deliveryDistrict, deliveryAddress: deliveryRegion.value.join(' '), coverUrl: form.value.mainImages[0], galleryUrls: JSON.stringify(form.value.mainImages.slice(1)), detailImages: JSON.stringify(form.value.detailImageUrls), serviceTags: JSON.stringify(serviceTags), bvValue: 0 }
     delete payload.mainImages; delete payload.detailImageUrls; delete payload.serviceGuarantees; delete payload.afterSalePresetKey
     await publishShopProduct(form.value.id, {
       product: payload,
@@ -681,11 +688,13 @@ onMounted(async () => { await Promise.all([fetchData(), fetchCategories(), fetch
 </script>
 
 <style lang="scss" scoped>
+.page-heading { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-bottom:16px; padding:4px 2px 0; h2{margin:0;color:#303133;font-size:22px;line-height:1.35} p{margin:6px 0 0;color:#909399;font-size:13px} }
 .product-cell { display:flex; align-items:center; gap:12px; min-width:0; }
 .search-feedback { margin-bottom:16px; }
 .cover,.cover-fallback { width:60px; height:60px; border-radius:8px; background:#f5f7fa; flex:0 0 auto; }
 .cover-fallback { display:flex; align-items:center; justify-content:center; color:#909399; }
-.product-meta { min-width:0; .name{font-weight:600;color:#303133;margin-bottom:4px}.sub{color:#909399;font-size:12px;line-height:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} }
+.product-meta { min-width:0; .name{font-weight:600;color:#303133;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sub{color:#909399;font-size:12px;line-height:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} }
+.muted-value { color:#c0c4cc; }
 .pv-invalid { color:#f56c6c; font-weight:700; }
 .pv-warning { margin-left:5px; color:#e6a23c; vertical-align:-2px; cursor:help; }
 .column-help { margin-left:5px; color:#909399; vertical-align:-2px; cursor:help; }
@@ -729,5 +738,5 @@ onMounted(async () => { await Promise.all([fetchData(), fetchCategories(), fetch
 .sku-image,.sku-image-placeholder { width:54px; height:54px; border-radius:5px; }
 .sku-image-placeholder { display:flex;align-items:center;justify-content:center;border:1px dashed #c0ccda;color:#909399;cursor:pointer; }
 .dialog-footer { position:fixed; z-index:20; left:0; right:0; bottom:0; display:flex; justify-content:flex-end; gap:10px; padding:14px 30px; background:#fff; border-top:1px solid #e4e7ed; box-shadow:0 -2px 8px rgba(0,0,0,.05); }
-@media (max-width: 900px) { .pv-global-setting{align-items:flex-start}.pv-global-setting span{display:block;margin:5px 0 0}.form-section{padding:16px 12px}.product-type-title,.sku-toolbar{align-items:flex-start;flex-direction:column}.guarantee-toolbar,.after-sale-toolbar{align-items:flex-start;flex-direction:column}.after-sale-toolbar .el-select{width:100%}.guarantee-row{grid-template-columns:1fr}.guarantee-enabled{padding-top:0} }
+@media (max-width: 900px) { .page-heading{align-items:flex-start;flex-direction:column;gap:10px}.pv-global-setting{align-items:flex-start}.pv-global-setting span{display:block;margin:5px 0 0}.form-section{padding:16px 12px}.product-type-title,.sku-toolbar{align-items:flex-start;flex-direction:column}.guarantee-toolbar,.after-sale-toolbar{align-items:flex-start;flex-direction:column}.after-sale-toolbar .el-select{width:100%}.guarantee-row{grid-template-columns:1fr}.guarantee-enabled{padding-top:0} }
 </style>
