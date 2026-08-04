@@ -147,6 +147,7 @@ const businessMenus = [
     key: 'orders', title: '订单与售后', icon: 'DataAnalysis', items: [
       { title: '订单处理与售后', path: '/shop/orders', permission: 'shop:order' },
       { title: '订单奖金与利润追溯', path: '/audit/orders', permission: 'finance:read' },
+      { title: 'ERP订单对接', path: '/tenant/erp', permission: 'config:manage' },
     ],
   },
   {
@@ -177,7 +178,6 @@ const businessMenus = [
       { title: '协议与规则', path: '/tenant/legal', permission: 'config:manage' },
       { title: '奖金与钱包规则', path: '/tenant/bonus-config', permission: 'config:manage' },
       { title: '会员端业绩查看权限', path: '/audit/settings', permission: 'config:manage' },
-      { title: 'ERP对接', path: '/tenant/erp', permission: 'config:manage' },
     ],
   },
   {

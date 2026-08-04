@@ -242,7 +242,7 @@ const routes = [
             path: 'erp',
             name: 'TenantErp',
             component: () => import('@/views/tenant/erp.vue'),
-            meta: { title: 'ERP对接', permission: 'config:manage' },
+            meta: { title: 'ERP订单对接', permission: 'config:manage' },
           },
         ],
       },
