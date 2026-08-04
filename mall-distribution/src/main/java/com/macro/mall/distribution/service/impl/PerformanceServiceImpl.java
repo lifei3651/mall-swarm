@@ -200,15 +200,22 @@ public class PerformanceServiceImpl implements PerformanceService {
         vo.setAgentId(agentId);
         vo.setAgentName(agent.getAgentName());
 
-        // 查询业绩汇总
-        DmsAgentPerformanceSummary summary = summaryDao.selectByAgentAndDate(
-                agentId, endDate, StatTypeEnum.MONTHLY.getValue());
-        if (summary != null) {
-            BeanUtils.copyProperties(summary, vo);
-        } else {
-            // 实时计算
-            calculatePerformanceOverview(vo, agentId, startDate, endDate);
-        }
+        // 查询区间必须按请求的日期实时计算，不能直接复用整月汇总，否则自定义日期会显示错误口径。
+        LocalDate effectiveEndDate = endDate == null ? LocalDate.now() : endDate;
+        calculatePerformanceOverview(vo, agentId, startDate, effectiveEndDate);
+
+        PerformanceOverviewVO total = new PerformanceOverviewVO();
+        calculatePerformanceOverview(total, agentId, null, effectiveEndDate);
+        PerformanceOverviewVO currentMonth = new PerformanceOverviewVO();
+        calculatePerformanceOverview(currentMonth, agentId,
+                effectiveEndDate.withDayOfMonth(1), effectiveEndDate);
+        vo.setTotalPersonalPerformance(total.getPersonalPerformance());
+        vo.setCurrentMonthPersonalPerformance(currentMonth.getPersonalPerformance());
+        vo.setTotalTeamPerformance(total.getTeamPerformance());
+        vo.setCurrentMonthTeamPerformance(currentMonth.getTeamPerformance());
+        vo.setTotalNewAgentCount((int) countNewSubordinateAgents(agentId, null, effectiveEndDate));
+        vo.setCurrentMonthNewAgentCount((int) countNewSubordinateAgents(
+                agentId, effectiveEndDate.withDayOfMonth(1), effectiveEndDate));
 
         return vo;
     }
@@ -280,7 +287,8 @@ public class PerformanceServiceImpl implements PerformanceService {
 
     @Override
     public List<PerformanceRankingVO> getPerformanceRanking(Integer rankType, Integer rankPeriod, LocalDate statDate) {
-        LocalDate[] range = resolveRankRange(rankPeriod, statDate);
+        LocalDate effectiveStatDate = statDate == null ? LocalDate.now() : statDate;
+        LocalDate[] range = resolveRankRange(rankPeriod, effectiveStatDate);
         List<PerformanceRankingVO> rankingList = new ArrayList<>();
 
         for (DmsAgent agent : agentDao.selectAll()) {
@@ -292,8 +300,28 @@ public class PerformanceServiceImpl implements PerformanceService {
             vo.setAgentLevelName(level != null ? level.getName() : "未知");
             vo.setRankType(rankType);
             vo.setRankPeriod(rankPeriod);
-            vo.setStatDate(statDate);
+            vo.setStatDate(effectiveStatDate);
             vo.setPerformanceValue(resolveRankingValue(agent.getId(), rankType, range[0], range[1]));
+
+            LocalDate monthStart = effectiveStatDate.withDayOfMonth(1);
+            if (Objects.equals(rankType, 3)) {
+                vo.setTotalPerformance(BigDecimal.valueOf(
+                        countNewSubordinateAgents(agent.getId(), null, effectiveStatDate)));
+                vo.setCurrentMonthPerformance(BigDecimal.valueOf(
+                        countNewSubordinateAgents(agent.getId(), monthStart, effectiveStatDate)));
+            } else {
+                PerformanceOverviewVO total = new PerformanceOverviewVO();
+                calculatePerformanceOverview(total, agent.getId(), null, effectiveStatDate);
+                PerformanceOverviewVO currentMonth = new PerformanceOverviewVO();
+                calculatePerformanceOverview(currentMonth, agent.getId(), monthStart, effectiveStatDate);
+                vo.setTotalPerformance(Objects.equals(rankType, 1)
+                        ? total.getPersonalPerformance() : total.getTeamPerformance());
+                vo.setCurrentMonthPerformance(Objects.equals(rankType, 1)
+                        ? currentMonth.getPersonalPerformance() : currentMonth.getTeamPerformance());
+            }
+            vo.setTotalNewAgentCount((int) countNewSubordinateAgents(agent.getId(), null, effectiveStatDate));
+            vo.setCurrentMonthNewAgentCount((int) countNewSubordinateAgents(
+                    agent.getId(), monthStart, effectiveStatDate));
             rankingList.add(vo);
         }
 
@@ -522,8 +550,8 @@ public class PerformanceServiceImpl implements PerformanceService {
      */
     private void calculatePerformanceOverview(PerformanceOverviewVO vo, Long agentId,
                                                LocalDate startDate, LocalDate endDate) {
-        LocalDateTime startTime = startDate.atStartOfDay();
-        LocalDateTime endTime = endDate.atTime(LocalTime.MAX);
+        LocalDateTime startTime = startDate == null ? null : startDate.atStartOfDay();
+        LocalDateTime endTime = endDate == null ? null : endDate.plusDays(1).atStartOfDay();
 
         // 查询个人业绩
         List<DmsOrderPerformanceDetail> personalDetails = performanceDetailDao.selectPersonalPerformanceDetails(
@@ -593,13 +621,14 @@ public class PerformanceServiceImpl implements PerformanceService {
     }
 
     private long countNewSubordinateAgents(Long agentId, LocalDate startDate, LocalDate endDate) {
-        LocalDateTime startTime = startDate.atStartOfDay();
-        LocalDateTime endTime = endDate.atTime(LocalTime.MAX);
+        LocalDateTime startTime = startDate == null ? null : startDate.atStartOfDay();
+        LocalDateTime endTime = endDate == null ? null : endDate.plusDays(1).atStartOfDay();
         return relationDao.selectAllDescendants(agentId).stream()
                 .map(relation -> agentDao.selectById(relation.getAgentId()))
                 .filter(Objects::nonNull)
                 .filter(agent -> agent.getCreateTime() != null)
-                .filter(agent -> !agent.getCreateTime().isBefore(startTime) && !agent.getCreateTime().isAfter(endTime))
+                .filter(agent -> (startTime == null || !agent.getCreateTime().isBefore(startTime))
+                        && (endTime == null || agent.getCreateTime().isBefore(endTime)))
                 .count();
     }
 

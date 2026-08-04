@@ -47,4 +47,22 @@ public class PerformanceOverviewVO implements Serializable {
 
     /** 业绩增长率 */
     private BigDecimal performanceGrowthRate;
+
+    /** 全部已记录的个人业绩（截至查询结束日） */
+    private BigDecimal totalPersonalPerformance;
+
+    /** 查询结束日所在月份的个人业绩 */
+    private BigDecimal currentMonthPersonalPerformance;
+
+    /** 全部已记录的团队业绩（截至查询结束日） */
+    private BigDecimal totalTeamPerformance;
+
+    /** 查询结束日所在月份的团队业绩 */
+    private BigDecimal currentMonthTeamPerformance;
+
+    /** 截至查询结束日累计新增代理数 */
+    private Integer totalNewAgentCount;
+
+    /** 查询结束日所在月份新增代理数 */
+    private Integer currentMonthNewAgentCount;
 }

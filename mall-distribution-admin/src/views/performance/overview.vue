@@ -57,12 +57,12 @@
     <!-- 业绩概览卡片 -->
     <div v-if="hasPerformance" class="stat-cards">
       <el-card class="stat-card">
-        <div class="stat-title">个人业绩</div>
+        <div class="stat-title">查询区间个人业绩</div>
         <div class="stat-value">¥{{ overview.personalPerformance || '0.00' }}</div>
         <div class="stat-desc">{{ overview.personalOrderCount || 0 }}笔订单</div>
       </el-card>
       <el-card class="stat-card">
-        <div class="stat-title">团队业绩</div>
+        <div class="stat-title">查询区间团队业绩</div>
         <div class="stat-value primary">¥{{ overview.teamPerformance || '0.00' }}</div>
         <div class="stat-desc">{{ overview.teamOrderCount || 0 }}笔订单</div>
       </el-card>
@@ -79,6 +79,38 @@
         <div class="stat-desc">较上期</div>
       </el-card>
     </div>
+
+    <el-card v-if="hasPerformance" class="comparison-card">
+      <template #header>
+        <span>累计与当月业绩</span>
+      </template>
+      <div class="comparison-grid">
+        <div class="comparison-item">
+          <span>累计个人业绩</span>
+          <strong>¥{{ overview.totalPersonalPerformance || '0.00' }}</strong>
+        </div>
+        <div class="comparison-item">
+          <span>当月个人业绩</span>
+          <strong>¥{{ overview.currentMonthPersonalPerformance || '0.00' }}</strong>
+        </div>
+        <div class="comparison-item primary">
+          <span>累计团队业绩</span>
+          <strong>¥{{ overview.totalTeamPerformance || '0.00' }}</strong>
+        </div>
+        <div class="comparison-item primary">
+          <span>当月团队业绩</span>
+          <strong>¥{{ overview.currentMonthTeamPerformance || '0.00' }}</strong>
+        </div>
+        <div class="comparison-item success">
+          <span>累计新增代理</span>
+          <strong>{{ overview.totalNewAgentCount || 0 }} 人</strong>
+        </div>
+        <div class="comparison-item success">
+          <span>当月新增代理</span>
+          <strong>{{ overview.currentMonthNewAgentCount || 0 }} 人</strong>
+        </div>
+      </div>
+    </el-card>
 
     <!-- 分层业绩 -->
     <el-card v-if="hasPerformance" style="margin-bottom: 20px">
@@ -165,6 +197,8 @@ const { markSearchApplied: markKeywordSearchApplied } = useSearchAutoRestore(
 const hasPerformance = computed(() => (
   Number(overview.value.personalPerformance || 0) > 0
   || Number(overview.value.teamPerformance || 0) > 0
+  || Number(overview.value.totalTeamPerformance || 0) > 0
+  || Number(overview.value.totalNewAgentCount || 0) > 0
 ))
 
 const emptyResultTitle = computed(() => {
@@ -324,6 +358,39 @@ onMounted(() => {
   }
 }
 
+.comparison-card {
+  margin-bottom: 20px;
+}
+
+.comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.comparison-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  background: #fafafa;
+
+  span {
+    color: #909399;
+    font-size: 13px;
+  }
+
+  strong {
+    color: #303133;
+    font-size: 22px;
+  }
+
+  &.primary strong { color: #409eff; }
+  &.success strong { color: #67c23a; }
+}
+
 .level-card {
   text-align: center;
   padding: 30px;
@@ -378,5 +445,14 @@ onMounted(() => {
   flex: none;
   color: #909399;
   font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .stat-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .comparison-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+  .stat-cards, .comparison-grid { grid-template-columns: 1fr; }
 }
 </style>

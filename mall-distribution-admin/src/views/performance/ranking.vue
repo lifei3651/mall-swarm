@@ -4,14 +4,14 @@
     <div class="search-container">
       <el-form :inline="true" :model="searchForm">
         <el-form-item label="排名类型">
-          <el-select v-model="searchForm.rankType" placeholder="请选择" @change="handleSearch">
+          <el-select v-model="searchForm.rankType" placeholder="请选择" style="width:150px" @change="handleSearch">
             <el-option label="个人业绩" :value="1" />
             <el-option label="团队业绩" :value="2" />
-            <el-option label="新增代理" :value="3" />
+            <el-option label="新增代理（人数）" :value="3" />
           </el-select>
         </el-form-item>
         <el-form-item label="排名周期">
-          <el-select v-model="searchForm.rankPeriod" placeholder="请选择" @change="handleSearch">
+          <el-select v-model="searchForm.rankPeriod" placeholder="请选择" style="width:130px" @change="handleSearch">
             <el-option label="日" :value="1" />
             <el-option label="周" :value="2" />
             <el-option label="月" :value="3" />
@@ -31,6 +31,13 @@
       </el-form>
     </div>
 
+    <div class="ranking-context">
+      <el-tag type="primary">排名类型：{{ rankTypeName }}</el-tag>
+      <el-tag type="success">排名周期：{{ rankPeriodName }}</el-tag>
+      <el-tag>统计日期：{{ formatDate(searchForm.statDate || new Date()) }}</el-tag>
+      <span class="context-tip">业绩按有效订单业绩统计；新增代理按新增代理人数统计。</span>
+    </div>
+
     <!-- 排名表格 -->
     <el-card>
       <template #header>
@@ -48,17 +55,37 @@
           </template>
         </el-table-column>
         <el-table-column prop="agentName" label="代理名称" width="120" />
+        <el-table-column label="排名类型" width="135">
+          <template #default="{ row }">{{ rankTypeText(row.rankType) }}</template>
+        </el-table-column>
+        <el-table-column label="排名周期" width="100">
+          <template #default="{ row }">{{ rankPeriodText(row.rankPeriod) }}</template>
+        </el-table-column>
+        <el-table-column prop="statDate" label="统计日期" width="120" />
         <el-table-column prop="agentLevelName" label="会员卡级" width="100">
           <template #default="{ row }">
             <el-tag :type="getLevelType(row.agentLevel)">{{ row.agentLevelName }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="performanceValue" label="业绩值" width="150">
+        <el-table-column prop="performanceValue" label="本期排名值" width="150">
           <template #default="{ row }">
             <span style="color: #f56c6c; font-weight: bold">
-              {{ searchForm.rankType === 3 ? row.performanceValue : `¥${row.performanceValue}` }}
+              {{ row.rankType === 3 ? `${row.performanceValue || 0} 人` : `¥${money(row.performanceValue)}` }}
             </span>
           </template>
+        </el-table-column>
+        <el-table-column :label="searchForm.rankType === 3 ? '累计新增代理' : '总业绩'" width="145">
+          <template #default="{ row }">
+            {{ row.rankType === 3 ? `${row.totalPerformance || 0} 人` : `¥${money(row.totalPerformance)}` }}
+          </template>
+        </el-table-column>
+        <el-table-column :label="searchForm.rankType === 3 ? '当月新增代理' : '当月业绩'" width="145">
+          <template #default="{ row }">
+            {{ row.rankType === 3 ? `${row.currentMonthPerformance || 0} 人` : `¥${money(row.currentMonthPerformance)}` }}
+          </template>
+        </el-table-column>
+        <el-table-column label="当月新增代理" width="125">
+          <template #default="{ row }">{{ row.currentMonthNewAgentCount || 0 }} 人</template>
         </el-table-column>
         <el-table-column label="操作" fixed="right">
           <template #default="{ row }">
@@ -97,9 +124,13 @@ const searchForm = ref({
 
 // 排名类型名称
 const rankTypeName = computed(() => {
-  const map = { 1: '个人业绩', 2: '团队业绩', 3: '新增代理' }
+  const map = { 1: '个人业绩', 2: '团队业绩', 3: '新增代理（人数）' }
   return map[searchForm.value.rankType] || ''
 })
+
+const rankTypeText = (value) => ({ 1: '个人业绩', 2: '团队业绩', 3: '新增代理（人数）' }[Number(value)] || '未知')
+const rankPeriodText = (value) => ({ 1: '日榜', 2: '周榜', 3: '月榜', 4: '年榜' }[Number(value)] || '未知')
+const money = (value) => Number(value || 0).toFixed(2)
 
 // 排名周期名称
 const rankPeriodName = computed(() => {
@@ -184,5 +215,22 @@ const formatDate = (date) => {
 .pagination {
   margin-top: 16px;
   justify-content: flex-end;
+}
+
+.ranking-context {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.context-tip {
+  color: #909399;
+  font-size: 13px;
 }
 </style>

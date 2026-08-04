@@ -30,5 +30,17 @@ public class PerformanceRankingVO implements Serializable {
 
     private BigDecimal performanceValue;
 
+    /** 截至统计日的累计业绩；新增代理排名时表示累计新增代理数 */
+    private BigDecimal totalPerformance;
+
+    /** 统计日所在月份的业绩；新增代理排名时表示当月新增代理数 */
+    private BigDecimal currentMonthPerformance;
+
+    /** 截至统计日累计新增代理数 */
+    private Integer totalNewAgentCount;
+
+    /** 统计日所在月份新增代理数 */
+    private Integer currentMonthNewAgentCount;
+
     private Integer ranking;
 }

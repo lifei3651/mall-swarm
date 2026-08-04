@@ -40,6 +40,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -263,6 +264,24 @@ public class PerformanceServiceTest {
         assertEquals(new BigDecimal("10000.00"), dTeamPerformance, "D的团队业绩应该是10000");
 
         log.info("✅ 测试通过！");
+    }
+
+    @Test
+    void testPerformanceOverviewAndRankingExposeTotalMonthAndNewAgents() {
+        LocalDate today = java.time.LocalDate.now();
+        var overview = performanceService.getPerformanceOverview(1L, today.minusDays(1), today);
+        assertEquals(new BigDecimal("25000.00"), overview.getTeamPerformance());
+        assertEquals(new BigDecimal("25000.00"), overview.getTotalTeamPerformance());
+        assertEquals(new BigDecimal("25000.00"), overview.getCurrentMonthTeamPerformance());
+        assertEquals(2, overview.getTotalNewAgentCount());
+        assertEquals(2, overview.getCurrentMonthNewAgentCount());
+
+        var ranking = performanceService.getPerformanceRanking(2, 3, today);
+        var agentA = ranking.stream().filter(row -> row.getAgentId().equals(1L)).findFirst().orElseThrow();
+        assertEquals(new BigDecimal("25000.00"), agentA.getPerformanceValue());
+        assertEquals(new BigDecimal("25000.00"), agentA.getTotalPerformance());
+        assertEquals(new BigDecimal("25000.00"), agentA.getCurrentMonthPerformance());
+        assertEquals(2, agentA.getCurrentMonthNewAgentCount());
     }
 
     @Test
