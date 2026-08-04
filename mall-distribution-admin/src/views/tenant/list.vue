@@ -2,17 +2,17 @@
   <div class="page-container">
     <div class="toolbar">
       <div>
-        <h2>商城品牌与界面</h2>
-        <p>前端 UI 的统一设置入口：运营主体、商城名称、LOGO、主题色、页面样式和首页布局。</p>
+        <h2>商城视觉与页面</h2>
+        <p>在这里预览并调整商城的品牌、主题色、首页样式和底部导航，保存后刷新前台即可查看。</p>
       </div>
       <div v-if="tableData[0]" class="toolbar-actions">
-        <el-button @click="openTenantDialog(tableData[0])">编辑品牌资料</el-button>
-        <el-button type="primary" @click="openDisplayDialog(tableData[0])">配置商城界面</el-button>
+        <el-button @click="openTenantDialog(tableData[0])">编辑视觉设置</el-button>
+        <el-button type="primary" @click="openDisplayDialog(tableData[0])">配置页面布局</el-button>
       </div>
     </div>
 
     <el-alert
-      title="当前为单商城交付模式。后台不显示新增公司、租户编码等平台方功能，避免客户误建数据空间。"
+      title="选择主题色后可在下方实时查看商城界面示意；经营主体、客服和协议内容已拆分到独立页面。"
       type="info"
       :closable="false"
       show-icon
@@ -20,7 +20,6 @@
     />
 
     <el-table :data="tableData" v-loading="loading" style="width: 100%">
-      <el-table-column prop="tenantName" label="运营主体" width="180" />
       <el-table-column prop="brandName" label="商城品牌名" width="180" />
       <el-table-column label="品牌LOGO" width="110" align="center">
         <template #default="{ row }">
@@ -46,7 +45,6 @@
           <el-tag type="success">{{ getLayoutTemplateName(currentDisplayConfig.layoutTemplate) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="remark" label="备注" />
       <el-table-column label="操作" fixed="right" width="200">
         <template #default="{ row }">
           <el-button type="primary" link @click="openTenantDialog(row)">编辑</el-button>
@@ -55,11 +53,8 @@
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="tenantDialogVisible" title="商城资料与前台样式" width="860px" top="5vh">
+    <el-dialog v-model="tenantDialogVisible" title="商城视觉与页面" width="900px" top="5vh">
       <el-form :model="tenantForm" label-width="110px">
-        <el-form-item label="运营主体" required>
-          <el-input v-model="tenantForm.tenantName" placeholder="请输入营业执照或实际运营主体名称" />
-        </el-form-item>
         <el-form-item label="品牌名">
           <div class="field-with-help">
             <el-input v-model="tenantForm.brandName" placeholder="前端商城展示名称" />
@@ -102,41 +97,15 @@
             <span>可在所选样式基础上自由改色。</span>
           </div>
         </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="tenantForm.remark" type="textarea" placeholder="仅后台可见的设置说明" />
-        </el-form-item>
-        <el-divider content-position="left">经营主体与客服</el-divider>
-        <el-form-item label="经营地址">
-          <el-input v-model="tenantForm.companyAddress" maxlength="255" placeholder="营业执照登记地址或实际经营地址" />
-        </el-form-item>
-        <el-row :gutter="16">
-          <el-col :span="12"><el-form-item label="客服电话"><el-input v-model="tenantForm.servicePhone" maxlength="32" placeholder="前台对外客服电话" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="客服邮箱"><el-input v-model="tenantForm.serviceEmail" maxlength="128" placeholder="前台对外客服邮箱" /></el-form-item></el-col>
-        </el-row>
-        <el-form-item label="营业执照">
-          <div class="logo-upload-row">
-            <el-upload action="#" :show-file-list="false" accept="image/*" :http-request="uploadBusinessLicense">
-              <div class="license-uploader">
-                <el-image v-if="tenantForm.businessLicenseUrl" :src="tenantForm.businessLicenseUrl" fit="contain" />
-                <div v-else class="logo-placeholder">点击上传<br />营业执照</div>
-              </div>
-            </el-upload>
-            <div class="logo-help">前台“经营资质”页面展示，单张不超过 5MB。请注意遮挡无需公开的个人信息。</div>
+        <el-form-item label="前台预览">
+          <div class="ui-preview" :style="{ '--preview-color': tenantForm.themeColor || '#e7193f' }">
+            <div class="ui-preview-head"><span class="ui-preview-logo">{{ (tenantForm.brandName || '商城').slice(0, 1) }}</span><strong>{{ tenantForm.brandName || '商城品牌' }}</strong><span class="ui-preview-search">搜索商品</span><span class="ui-preview-avatar">我的</span></div>
+            <div class="ui-preview-categories"><span>精选</span><span>热卖</span><span>新品</span><span>全部商品</span></div>
+            <div class="ui-preview-products"><div v-for="item in ['品质好物','人气套装','限量新品']" :key="item" class="ui-preview-product"><i></i><strong>{{ item }}</strong><small>精选商品，安心选购</small><b>¥99.00</b></div></div>
+            <div class="ui-preview-nav"><span class="active">首页</span><span>分类</span><span>购物车</span><span>我的</span></div>
           </div>
+          <div class="field-help">这是商城前台的缩略示意，帮助你判断热卖红、清新绿等主题在真实页面中的整体感觉。</div>
         </el-form-item>
-        <el-divider content-position="left">网站备案</el-divider>
-        <el-row :gutter="16">
-          <el-col :span="12"><el-form-item label="ICP备案号"><el-input v-model="tenantForm.icpNumber" maxlength="128" placeholder="例如：粤ICP备XXXXXXXX号" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="公安备案号"><el-input v-model="tenantForm.policeRecordNumber" maxlength="128" placeholder="完成公安备案后填写" /></el-form-item></el-col>
-        </el-row>
-        <el-form-item label="公安备案链接">
-          <el-input v-model="tenantForm.policeRecordUrl" maxlength="512" placeholder="仅允许 https:// 安全链接" />
-        </el-form-item>
-        <el-divider content-position="left">前台协议</el-divider>
-        <el-alert title="以下内容会以纯文本公开展示。正式上线前请按实际经营范围、退换货规则和收集的个人信息交由专业人员审核。" type="warning" :closable="false" class="display-alert" />
-        <el-form-item label="用户服务协议"><el-input v-model="tenantForm.userAgreement" type="textarea" :rows="7" maxlength="30000" show-word-limit placeholder="请输入经运营主体确认的完整用户服务协议" /></el-form-item>
-        <el-form-item label="隐私政策"><el-input v-model="tenantForm.privacyPolicy" type="textarea" :rows="7" maxlength="30000" show-word-limit placeholder="请输入完整隐私政策" /></el-form-item>
-        <el-form-item label="交易与售后规则"><el-input v-model="tenantForm.afterSalePolicy" type="textarea" :rows="7" maxlength="30000" show-word-limit placeholder="请输入完整交易、售后、退款、运费及不适用七天无理由的规则" /></el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="tenantDialogVisible = false">取消</el-button>
@@ -303,12 +272,6 @@ const uploadLogo = async ({ file }) => {
   ElMessage.success('品牌LOGO上传成功')
 }
 
-const uploadBusinessLicense = async ({ file }) => {
-  const res = await uploadShopImage(file)
-  tenantForm.value.businessLicenseUrl = res.data
-  ElMessage.success('营业执照图片上传成功')
-}
-
 const openDisplayDialog = async (row) => {
   currentTenant.value = row
   const res = await getDisplayConfig(row.id)
@@ -389,6 +352,49 @@ onMounted(fetchData)
   border-radius: 3px;
   border: 1px solid #dcdfe6;
 }
+.ui-preview {
+  width: 100%;
+  max-width: 720px;
+  overflow: hidden;
+  color: #253044;
+  background: #f6f7f9;
+  border: 1px solid #e4e7ed;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(31, 45, 61, .08);
+}
+.ui-preview-head {
+  display: grid;
+  grid-template-columns: 28px auto minmax(120px, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 14px 16px;
+  color: #fff;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--preview-color) 88%, #111 12%), var(--preview-color));
+}
+.ui-preview-logo {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  color: var(--preview-color);
+  font-weight: 700;
+  background: #fff;
+  border-radius: 9px;
+}
+.ui-preview-head strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-preview-search { padding: 6px 10px; color: rgba(255,255,255,.75); font-size: 12px; background: rgba(255,255,255,.16); border-radius: 999px; }
+.ui-preview-avatar { font-size: 12px; opacity: .86; }
+.ui-preview-categories { display: flex; gap: 8px; padding: 12px 16px 4px; overflow: hidden; white-space: nowrap; }
+.ui-preview-categories span { padding: 5px 10px; color: var(--preview-color); font-size: 12px; background: color-mix(in srgb, var(--preview-color) 12%, #fff 88%); border-radius: 999px; }
+.ui-preview-products { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 10px 16px 16px; }
+.ui-preview-product { display: grid; gap: 6px; min-width: 0; padding: 10px; background: #fff; border-radius: 10px; }
+.ui-preview-product i { display: block; height: 62px; background: linear-gradient(135deg, color-mix(in srgb, var(--preview-color) 18%, #fff 82%), #eef1f4); border-radius: 8px; }
+.ui-preview-product strong,.ui-preview-product small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-preview-product strong { font-size: 13px; }
+.ui-preview-product small { color: #8a94a4; font-size: 11px; }
+.ui-preview-product b { color: var(--preview-color); font-size: 14px; }
+.ui-preview-nav { display: grid; grid-template-columns: repeat(4, 1fr); padding: 10px 16px; color: #8a94a4; font-size: 11px; text-align: center; background: #fff; border-top: 1px solid #eef0f3; }
+.ui-preview-nav .active { color: var(--preview-color); font-weight: 700; }
 .version-form {
   margin-top: 16px;
   padding-top: 16px;
@@ -458,6 +464,13 @@ onMounted(fetchData)
 .layout-preview--category-focus .preview-categories {
   height: 28px;
   background: repeating-linear-gradient(90deg, #b9d8f5 0 17%, transparent 17% 20%);
+}
+@media (max-width: 700px) {
+  .ui-preview-head { grid-template-columns: 28px minmax(0, 1fr) auto; }
+  .ui-preview-search { display: none; }
+  .ui-preview-products { grid-template-columns: 1fr; }
+  .ui-preview-product { grid-template-columns: 72px 1fr; align-items: center; column-gap: 10px; }
+  .ui-preview-product i { grid-row: span 3; height: 72px; }
 }
 .switch-with-help {
   display: flex;

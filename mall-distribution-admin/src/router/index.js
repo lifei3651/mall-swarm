@@ -212,13 +212,25 @@ const routes = [
         path: 'tenant',
         name: 'Tenant',
         redirect: '/tenant/list',
-        meta: { title: '经营与规则设置', icon: 'OfficeBuilding' },
+        meta: { title: '商城设置', icon: 'OfficeBuilding' },
         children: [
           {
             path: 'list',
             name: 'TenantList',
             component: () => import('@/views/tenant/list.vue'),
-            meta: { title: '商城品牌与界面', permission: 'config:manage' },
+            meta: { title: '商城视觉与页面', permission: 'config:manage' },
+          },
+          {
+            path: 'profile',
+            name: 'TenantProfile',
+            component: () => import('@/views/tenant/profile.vue'),
+            meta: { title: '商城资料与客服', permission: 'config:manage' },
+          },
+          {
+            path: 'legal',
+            name: 'TenantLegal',
+            component: () => import('@/views/tenant/legal.vue'),
+            meta: { title: '协议与规则', permission: 'config:manage' },
           },
           {
             path: 'bonus-config',
