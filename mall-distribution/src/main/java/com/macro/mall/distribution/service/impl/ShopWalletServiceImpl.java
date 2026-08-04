@@ -128,6 +128,9 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         if (dto == null) Asserts.fail("转账信息不能为空");
         BalanceRecipientVO ignored = findRecipient(current, dto.getRecipientPhone());
         verifyPaymentPassword(current, dto.getPaymentPassword());
+        if (dto.getAmount() == null || dto.getAmount().stripTrailingZeros().scale() > 0) {
+            Asserts.fail("转账金额只能为整数");
+        }
         BigDecimal amount = normalizeAmount(dto.getAmount(), "转账金额");
 
         DmsShopMember recipient = memberDao.selectByPhone(dto.getRecipientPhone());

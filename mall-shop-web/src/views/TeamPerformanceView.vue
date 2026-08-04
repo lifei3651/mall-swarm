@@ -6,7 +6,11 @@
     </header>
 
     <div v-if="loading" class="empty">正在加载业绩数据...</div>
-    <section v-else-if="!canView" class="empty locked-state"><LockKeyhole :size="38" /><h3>团队业绩暂未开放</h3><p>该功能由商城后台按会员权限开放。</p></section>
+    <section v-else-if="!canView" class="empty locked-state">
+      <LockKeyhole :size="38" />
+      <h3>{{ profile.agent ? '团队业绩暂未开放' : '完成首单后开通团队业绩' }}</h3>
+      <p>{{ profile.agent ? '该功能由商城后台按代理权限开放。' : '当前账号尚未开通代理身份，完成首笔有效订单后即可查看。' }}</p>
+    </section>
     <template v-else>
       <section class="performance-hero">
         <span>本月团队业绩</span>

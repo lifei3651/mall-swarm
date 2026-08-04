@@ -60,6 +60,19 @@ test('wallet password setup prompt is shown first and uses payment password word
   assert.doesNotMatch(`${security}\n${change}\n${orderDetail}`, /交易密码|二级密码/)
 })
 
+test('wallet actions keep transfer on its own page and explain non-agent team access', async () => {
+  const wallet = await readView('WalletView.vue')
+  const transfer = await readView('BalanceTransferView.vue')
+  const team = await readView('TeamPerformanceView.vue')
+  assert.match(wallet, /<RouterLink class="wallet-action-link" to="\/profile\/wallet\/transfer">/)
+  assert.match(wallet, /grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/)
+  assert.doesNotMatch(wallet, /activeTool === 'transfer'/)
+  assert.match(transfer, /转账金额只能为整数/)
+  assert.match(transfer, /type="number" min="1" step="1"/)
+  assert.match(team, /完成首单后开通团队业绩/)
+  assert.match(team, /当前账号尚未开通代理身份/)
+})
+
 test('home quick add no longer redirects SKU products to product detail', async () => {
   const source = await readView('HomeView.vue')
   assert.match(source, /resolveQuickCartItem/)

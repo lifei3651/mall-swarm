@@ -18,31 +18,13 @@
     </section>
 
     <nav class="wallet-actions">
-      <button :class="{ active: activeTool === 'transfer' }" type="button" @click="activeTool = 'transfer'"><Send :size="21" /><span>余额转账</span></button>
+      <RouterLink class="wallet-action-link" to="/profile/wallet/transfer"><Send :size="21" /><span>余额转账</span></RouterLink>
       <button :class="{ active: activeTool === 'withdraw' }" type="button" @click="activeTool = 'withdraw'"><Landmark :size="21" /><span>余额提现</span></button>
       <button :class="{ active: activeTool === 'records' }" type="button" @click="activeTool = 'records'"><ReceiptText :size="21" /><span>提现记录</span></button>
       <button :class="{ active: activeTool === 'flows' }" type="button" @click="activeTool = 'flows'; loadFlows()"><History :size="21" /><span>余额记录</span></button>
     </nav>
 
-    <section v-if="activeTool === 'transfer'" class="panel wallet-form-panel">
-      <h3>转账给会员</h3>
-      <p class="line-sub">输入完整手机号后核对收款会员名称，转账确认后即时到账。</p>
-      <div class="form-item">
-        <label>收款会员手机号</label>
-        <div class="inline-input">
-          <input v-model="transferForm.recipientPhone" class="field" inputmode="tel" maxlength="11" placeholder="请输入11位手机号" @input="handleRecipientPhoneInput" @blur="lookupRecipient" />
-          <button type="button" @click="lookupRecipient">核对</button>
-        </div>
-      </div>
-      <div v-if="recipient" class="recipient-card"><span>收款会员</span><strong>{{ recipient.memberName }}</strong><small>{{ recipient.phone }}</small></div>
-      <div class="form-item"><label>转账金额</label><input v-model="transferForm.amount" class="field" type="number" min="0.01" step="0.01" placeholder="0.00" /></div>
-      <div class="form-item"><label>支付密码</label><input v-model="transferForm.paymentPassword" class="field" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="6位数字" /></div>
-      <div class="form-item"><label>转账备注（选填）</label><input v-model="transferForm.remark" class="field" maxlength="100" placeholder="给收款方留言" /></div>
-      <button class="btn primary submit-button" :disabled="transferSaving || !canUseBalance" @click="submitTransfer">{{ transferSaving ? '转账中' : '确认转账' }}</button>
-      <p v-if="!wallet.distributionActivated" class="form-warning">完成首笔有效订单成为会员后，才可以转账和接收余额。</p>
-    </section>
-
-    <section v-else-if="activeTool === 'withdraw'" class="panel wallet-form-panel">
+    <section v-if="activeTool === 'withdraw'" class="panel wallet-form-panel">
       <h3>申请提现</h3>
       <div class="form-item"><label>提现方式</label><select v-model.number="withdrawForm.withdrawType" class="field"><option :value="1">银行卡</option><option :value="2">微信</option><option :value="3">支付宝</option></select></div>
       <div v-if="withdrawForm.withdrawType === 1" class="form-item"><label>开户银行</label><input v-model="withdrawForm.bankName" class="field" placeholder="例如：中国工商银行" /></div>
@@ -79,21 +61,6 @@
 
     <p v-if="error" class="page-error">{{ error }}</p>
 
-    <!-- 转账确认弹窗 -->
-    <div v-if="showTransferConfirm" class="dialog-overlay" @click.self="showTransferConfirm = false">
-      <div class="dialog-box">
-        <h3>确认转账</h3>
-        <div class="confirm-info">
-          <div class="confirm-row"><span>收款会员</span><strong>{{ recipient?.memberName || '-' }}</strong></div>
-          <div class="confirm-row"><span>手机号</span><strong>{{ transferForm.recipientPhone }}</strong></div>
-          <div class="confirm-row"><span>转账金额</span><strong class="amount-highlight">¥{{ money(transferForm.amount) }}</strong></div>
-        </div>
-        <div class="dialog-actions">
-          <button class="btn secondary" @click="showTransferConfirm = false">取消</button>
-          <button class="btn primary" :disabled="transferSaving" @click="doTransfer">{{ transferSaving ? '转账中...' : '确认转账' }}</button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -101,36 +68,26 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, ChevronRight, History, Landmark, ReceiptText, Send, ShieldAlert } from 'lucide-vue-next'
-import { applyWithdrawal, findBalanceRecipient, getProfile, getWalletSummary, listMyBalanceFlows, listMyWithdrawals, sendSmsCode, transferBalance } from '@/api/shop'
+import { applyWithdrawal, getProfile, getWalletSummary, listMyBalanceFlows, listMyWithdrawals, sendSmsCode } from '@/api/shop'
 import { money } from '@/utils/format'
 import { createIdempotencyKey } from '@/utils/idempotency'
-import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
+import { isValidMainlandPhone } from '@/utils/phone'
 
 const router = useRouter()
 const route = useRoute()
-const activeTool = ref(['transfer', 'withdraw', 'records'].includes(route.query.action) ? route.query.action : 'transfer')
+const activeTool = ref(['withdraw', 'records', 'flows'].includes(route.query.action) ? route.query.action : 'withdraw')
 const wallet = ref({ balance: 0, hasPaymentPassword: false, distributionActivated: false })
 const profile = ref({})
 const withdrawals = ref([])
 const error = ref('')
-const recipient = ref(null)
-const transferSaving = ref(false)
-const transferRequestKey = ref('')
-const transferForm = ref({ recipientPhone: '', amount: '', paymentPassword: '', remark: '' })
 const withdrawSaving = ref(false)
 const withdrawalRequestKey = ref('')
 const withdrawSmsCooldown = ref(0)
 const withdrawForm = ref({ withdrawType: 1, withdrawAmount: '', bankName: '', bankAccount: '', accountName: '', paymentPassword: '', smsCode: '' })
 const balanceFlows = ref([])
-const showTransferConfirm = ref(false)
 const canUseBalance = computed(() => wallet.value.hasPaymentPassword && wallet.value.distributionActivated)
 const withdrawAccountLabel = computed(() => ({ 1: '银行卡号', 2: '微信收款账号', 3: '支付宝账号' }[withdrawForm.value.withdrawType]))
 const withdrawAccountPlaceholder = computed(() => ({ 1: '请输入银行卡号', 2: '请输入微信绑定手机号或账号', 3: '请输入支付宝账号' }[withdrawForm.value.withdrawType]))
-const handleRecipientPhoneInput = () => {
-  transferForm.value.recipientPhone = normalizeMainlandPhone(transferForm.value.recipientPhone)
-  recipient.value = null
-  if (error.value.includes('手机号')) error.value = ''
-}
 
 const fetchData = async () => {
   error.value = ''
@@ -142,48 +99,10 @@ const fetchData = async () => {
   } catch (e) { error.value = e.message || '余额信息加载失败' }
 }
 
-const lookupRecipient = async () => {
-  if (!isValidMainlandPhone(transferForm.value.recipientPhone)) {
-    recipient.value = null
-    if (transferForm.value.recipientPhone) error.value = '请输入正确的11位收款会员手机号'
-    return
-  }
-  error.value = ''
-  try { recipient.value = (await findBalanceRecipient(transferForm.value.recipientPhone)).data || null }
-  catch (e) { recipient.value = null; error.value = e.message || '未找到收款会员' }
-}
-
 const requirePaymentPassword = () => {
   if (wallet.value.hasPaymentPassword) return true
   router.push({ name: 'ProfileSecurity', query: { redirect: '/profile/wallet' } })
   return false
-}
-
-const submitTransfer = async () => {
-  error.value = ''
-  if (!requirePaymentPassword()) return
-  if (!wallet.value.distributionActivated) return (error.value = '完成首笔有效订单成为会员后才可转账')
-  if (!isValidMainlandPhone(transferForm.value.recipientPhone)) return (error.value = '请输入正确的11位收款会员手机号')
-  if (!recipient.value) return (error.value = '请先核对收款会员')
-  if (Number(transferForm.value.amount || 0) <= 0) return (error.value = '请输入正确的转账金额')
-  if (Number(transferForm.value.amount) > Number(wallet.value.balance || 0)) return (error.value = '余额不足')
-  if (!/^\d{6}$/.test(transferForm.value.paymentPassword)) return (error.value = '请输入6位支付密码')
-  showTransferConfirm.value = true
-}
-
-const doTransfer = async () => {
-  if (transferSaving.value) return
-  transferSaving.value = true
-  try {
-    if (!transferRequestKey.value) transferRequestKey.value = createIdempotencyKey('balance-transfer')
-    await transferBalance(transferForm.value, transferRequestKey.value)
-    transferRequestKey.value = ''
-    transferForm.value = { recipientPhone: '', amount: '', paymentPassword: '', remark: '' }
-    recipient.value = null
-    showTransferConfirm.value = false
-    await fetchData()
-  } catch (e) { error.value = e.message || '转账失败'; showTransferConfirm.value = false }
-  finally { transferSaving.value = false }
 }
 
 const loadFlows = async () => {
@@ -248,9 +167,10 @@ onMounted(fetchData)
 .security-callout { display:grid; grid-template-columns:32px minmax(0,1fr) auto; align-items:center; gap:9px; margin-top:12px; padding:13px 14px; color:#92400e; background:#fff8e8; border:1px solid #fde3aa; border-radius:13px; }
 .security-callout strong,.security-callout small { display:block; }
 .security-callout small { margin-top:3px; color:#b16b26; font-size:11px; }
-.wallet-actions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; margin:13px 0; }
-.wallet-actions button { min-height:72px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:#59616d; background:#fff; border:1px solid transparent; border-radius:14px; font-size:12px; }
-.wallet-actions button.active { color:var(--brand-primary); border-color:var(--brand-primary); background:var(--brand-primary-soft); }
+.wallet-actions { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; margin:13px 0; }
+.wallet-actions button,.wallet-action-link { min-height:72px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:#59616d; background:#fff; border:1px solid transparent; border-radius:14px; font-size:12px; }
+.wallet-action-link { text-decoration:none; }
+.wallet-actions button.active,.wallet-action-link:focus-visible { color:var(--brand-primary); border-color:var(--brand-primary); background:var(--brand-primary-soft); }
 .wallet-form-panel,.records-panel { border:0; border-radius:16px; }
 .wallet-form-panel > .form-item { margin-top:13px; }
 .inline-input { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; }
@@ -269,19 +189,6 @@ onMounted(fetchData)
 .page-error { padding:12px 14px; color:#b42318; background:#fff1f0; border-radius:10px; }
 .record-item .amount-in { color: #15803d; }
 .record-item .amount-out { color: #b42318; }
-
-/* 转账确认弹窗 */
-.dialog-overlay { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; background: rgba(0,0,0,.45); backdrop-filter: blur(2px); }
-.dialog-box { width: min(380px, calc(100% - 32px)); padding: 24px; background: #fff; border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
-.dialog-box h3 { margin: 0 0 16px; font-size: 18px; text-align: center; }
-.confirm-info { background: #f8faf9; border-radius: 12px; padding: 14px; }
-.confirm-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
-.confirm-row:not(:last-child) { border-bottom: 1px solid var(--line); }
-.confirm-row span { color: var(--muted); font-size: 13px; }
-.confirm-row strong { font-size: 14px; }
-.amount-highlight { color: var(--accent, #e7193f); font-size: 20px !important; }
-.dialog-actions { display: flex; gap: 10px; margin-top: 16px; }
-.dialog-actions button { flex: 1; }
 
 @media (max-width:560px) { .wallet-page{padding-top:10px}.balance-card{padding:21px 18px}.wallet-form-panel{padding:16px 14px} }
 </style>

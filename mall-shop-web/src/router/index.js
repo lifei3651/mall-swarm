@@ -20,6 +20,7 @@ const routes = [
   { path: '/legal/:type', name: 'Legal', component: () => import('@/views/LegalView.vue') },
   { path: '/profile', name: 'Profile', component: () => import('@/views/ProfileView.vue'), meta: { requiresAuth: true } },
   { path: '/profile/wallet', name: 'ProfileWallet', component: () => import('@/views/WalletView.vue'), meta: { requiresAuth: true } },
+  { path: '/profile/wallet/transfer', name: 'ProfileWalletTransfer', component: () => import('@/views/BalanceTransferView.vue'), meta: { requiresAuth: true } },
   { path: '/profile/team', name: 'ProfileTeam', component: () => import('@/views/TeamPerformanceView.vue'), meta: { requiresAuth: true } },
   { path: '/profile/security', name: 'ProfileSecurity', component: () => import('@/views/SecurityView.vue'), meta: { requiresAuth: true } },
   { path: '/profile/security/change-login-password', name: 'ChangeLoginPassword', component: () => import('@/views/ChangeLoginPasswordView.vue'), meta: { requiresAuth: true } },

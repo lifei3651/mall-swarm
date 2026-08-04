@@ -105,6 +105,14 @@ class ShopWalletServiceTest {
         assertMoney("460.00", balance(1L));
         assertMoney("40.00", balance(2L));
 
+        BalanceTransferDTO fractionalTransfer = new BalanceTransferDTO();
+        fractionalTransfer.setRecipientPhone(recipient.getPhone());
+        fractionalTransfer.setAmount(new BigDecimal("1.50"));
+        fractionalTransfer.setPaymentPassword("246810");
+        assertThrows(ApiException.class, () -> walletService.transfer(payer, fractionalTransfer));
+        assertMoney("460.00", balance(1L));
+        assertMoney("40.00", balance(2L));
+
         ShopOrderVO pending = shopService.submitOrder(orderRequest(), payer);
         BalancePayDTO wrong = new BalancePayDTO();
         wrong.setPaymentPassword("000000");
