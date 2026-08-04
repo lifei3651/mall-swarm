@@ -1,5 +1,6 @@
 const DEFAULT_BRAND_NAME = '商城'
 const DEFAULT_THEME_COLOR = '#e7193f'
+const BRAND_LOGO_STORAGE_KEY = 'shop_logo_url'
 
 export const themePresets = {
   'retail-red': {
@@ -69,6 +70,7 @@ const mixHex = (hex, target, weight) => {
 }
 
 export const currentBrandName = () => localStorage.getItem('shop_brand_name') || DEFAULT_BRAND_NAME
+export const currentBrandLogo = () => localStorage.getItem(BRAND_LOGO_STORAGE_KEY) || ''
 
 export const updatePageTitle = (routeName, brandName = currentBrandName()) => {
   const safeBrandName = brandName?.trim() || DEFAULT_BRAND_NAME
@@ -77,15 +79,13 @@ export const updatePageTitle = (routeName, brandName = currentBrandName()) => {
 }
 
 const updateBrowserLogo = (logoUrl) => {
-  if (!logoUrl) return
-
   let favicon = document.head.querySelector('link[rel="icon"]')
   if (!favicon) {
     favicon = document.createElement('link')
     favicon.rel = 'icon'
     document.head.appendChild(favicon)
   }
-  favicon.href = logoUrl
+  favicon.href = logoUrl || '/lingqi-logo-mark.png'
 
   let appleTouchIcon = document.head.querySelector('link[rel="apple-touch-icon"]')
   if (!appleTouchIcon) {
@@ -93,7 +93,7 @@ const updateBrowserLogo = (logoUrl) => {
     appleTouchIcon.rel = 'apple-touch-icon'
     document.head.appendChild(appleTouchIcon)
   }
-  appleTouchIcon.href = logoUrl
+  appleTouchIcon.href = logoUrl || '/lingqi-logo-mark.png'
 }
 
 export const applyBrandConfig = (config = {}) => {
@@ -105,6 +105,7 @@ export const applyBrandConfig = (config = {}) => {
   const root = document.documentElement
 
   localStorage.setItem('shop_brand_name', brandName)
+  localStorage.setItem(BRAND_LOGO_STORAGE_KEY, logoUrl)
   root.dataset.shopTheme = productTemplate
   root.style.setProperty('--brand-primary', themeColor)
   root.style.setProperty('--brand-primary-dark', mixHex(themeColor, [0, 0, 0], 0.18))
@@ -117,5 +118,7 @@ export const applyBrandConfig = (config = {}) => {
   root.style.setProperty('--shop-card-shadow', preset.shadow)
   updateBrowserLogo(logoUrl)
 
-  return { brandName, logoUrl, themeColor, productTemplate }
+  const brand = { brandName, logoUrl, themeColor, productTemplate }
+  window.dispatchEvent(new CustomEvent('shop-brand-updated', { detail: brand }))
+  return brand
 }

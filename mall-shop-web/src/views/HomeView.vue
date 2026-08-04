@@ -2,6 +2,11 @@
   <div class="home-page" :class="`layout-${layoutTemplate}`">
     <header class="home-topbar">
       <div class="home-topbar-inner">
+        <RouterLink class="home-brand" to="/" aria-label="返回商城首页">
+          <img v-if="home.logoUrl" :src="home.logoUrl" :alt="`${home.brandName || '商城'} Logo`" @error="home.logoUrl = ''" />
+          <span v-else class="home-brand-mark">灵启</span>
+          <strong>{{ home.brandName || '灵启商城' }}</strong>
+        </RouterLink>
         <form class="home-search" role="search" @submit.prevent="submitSearch">
           <Search :size="19" />
           <input ref="searchInput" v-model="query.keyword" type="search" placeholder="搜索商品" aria-label="搜索商品" />
@@ -223,7 +228,11 @@ onMounted(async () => {
 <style scoped>
 .home-page { min-height: 100vh; padding-bottom: 58px; background: var(--shop-page-bg); }
 .home-topbar { position: sticky; top: 0; z-index: 24; background: var(--shop-header-bg); border-bottom: 1px solid #eceff1; backdrop-filter: blur(12px); }
-.home-topbar-inner { width: min(1180px, calc(100% - 40px)); min-height: 72px; display: grid; grid-template-columns: minmax(280px,1fr) 64px; align-items: center; gap: 18px; margin: 0 auto; }
+.home-topbar-inner { width: min(1180px, calc(100% - 40px)); min-height: 72px; display: grid; grid-template-columns: auto minmax(280px,1fr) 64px; align-items: center; gap: 18px; margin: 0 auto; }
+.home-brand { min-width: 0; display: inline-flex; align-items: center; gap: 9px; color: #182230; text-decoration: none; white-space: nowrap; }
+.home-brand img,.home-brand-mark { width: 38px; height: 38px; flex: 0 0 38px; object-fit: contain; border-radius: 11px; }
+.home-brand-mark { display: inline-flex; align-items: center; justify-content: center; color: #fff; background: linear-gradient(135deg,#0d3b8f,#12a9e8); font-size: 12px; font-weight: 900; letter-spacing: -1px; box-shadow: 0 6px 14px rgba(13,59,143,.2); }
+.home-brand strong { overflow: hidden; text-overflow: ellipsis; font-size: 16px; }
 .home-search { height: 48px; display: grid; grid-template-columns: 42px minmax(0,1fr) 90px; align-items: center; overflow: hidden; color: #969ca4; background: #fff; border: 2px solid var(--brand-primary); border-radius: 999px; }
 .home-search > svg { justify-self: center; }
 .home-search input { min-width: 0; height: 100%; padding: 0 4px; color: #272c32; background: transparent; border: 0; outline: 0; }
@@ -232,6 +241,15 @@ onMounted(async () => {
 .home-search button > svg { display: none; }
 .home-share { height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #3f454c; border-radius: 10px; font-size: 12px; font-weight: 700; }
 .home-share:hover { color: var(--brand-primary); background: var(--brand-primary-soft); }
+@media (max-width: 760px) {
+  .home-topbar-inner { width: min(100% - 24px, 620px); grid-template-columns: 38px minmax(0,1fr) 48px; gap: 10px; }
+  .home-brand strong { display: none; }
+  .home-brand img,.home-brand-mark { width: 34px; height: 34px; flex-basis: 34px; border-radius: 10px; }
+  .home-search { height: 44px; grid-template-columns: 34px minmax(0,1fr) 64px; }
+  .home-search button { font-size: 14px; }
+  .home-search button span { display: none; }
+  .home-search button > svg { display: block; }
+}
 
 .home-category-section { width: min(1180px, calc(100% - 40px)); margin: 18px auto 16px; padding: 22px 20px; background: #fff; border: 1px solid #eceff1; border-radius: var(--shop-card-radius); }
 .category-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(86px,1fr)); gap: 18px 12px; }
@@ -280,7 +298,7 @@ onMounted(async () => {
 .home-product-skeleton i:last-child { width: 62%; }
 @media (max-width: 760px) {
   .home-page { padding-bottom: 82px; }
-  .home-topbar-inner { width: 100%; min-height: 62px; grid-template-columns: minmax(0,1fr) 46px; gap: 5px; padding: 7px 7px 7px 5px; }
+  .home-topbar-inner { width: 100%; min-height: 62px; grid-template-columns: 34px minmax(0,1fr) 46px; gap: 5px; padding: 7px 7px 7px 5px; }
   .home-search { height: 42px; grid-template-columns: 34px minmax(0,1fr) 42px; border-width: 1.5px; }
   .home-search input { font-size: 16px; touch-action: manipulation; }
   .home-search button > span { display: none; }
@@ -313,7 +331,7 @@ onMounted(async () => {
 }
 
 @media (max-width: 370px) {
-  .home-topbar-inner { grid-template-columns: minmax(0,1fr) 42px; padding-left: 4px; padding-right: 6px; }
+  .home-topbar-inner { grid-template-columns: 32px minmax(0,1fr) 42px; padding-left: 4px; padding-right: 6px; }
   .category-circle { width: 52px; height: 52px; }
   .home-product-info { padding: 8px; }
   .home-price strong { font-size: 20px; }

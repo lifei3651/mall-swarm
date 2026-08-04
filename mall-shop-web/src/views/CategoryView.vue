@@ -1,6 +1,11 @@
 <template>
   <div class="category-page">
     <header class="cat-search-bar">
+      <RouterLink class="category-brand" to="/" aria-label="返回商城首页">
+        <img v-if="brand.logoUrl" :src="brand.logoUrl" :alt="`${brand.brandName} Logo`" @error="brand.logoUrl = ''" />
+        <span v-else class="category-brand-mark">灵启</span>
+        <strong>{{ brand.brandName }}</strong>
+      </RouterLink>
       <form class="cat-search" role="search" @submit.prevent="submitSearch">
         <Search :size="19" />
         <input v-model="query.keyword" type="search" placeholder="搜索商品" aria-label="搜索商品" />
@@ -110,12 +115,13 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ChevronDown, ChevronUp, PackageOpen, Search, ShoppingCart } from 'lucide-vue-next'
 import { getProduct, listCategories, listCategoryProducts } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { money } from '@/utils/format'
 import { resolveQuickCartItem } from '@/utils/quickCart'
+import { currentBrandLogo, currentBrandName } from '@/utils/brand'
 
 const { add } = useCart()
 const loading = ref(false)
@@ -126,7 +132,12 @@ const products = ref([])
 const sortMode = ref('default')
 const toast = ref('')
 const query = ref({ keyword: '' })
+const brand = ref({ brandName: currentBrandName(), logoUrl: currentBrandLogo() })
 let productRequestId = 0
+
+const syncBrand = (event) => {
+  brand.value = { ...brand.value, ...(event.detail || {}) }
+}
 
 const displayedProducts = computed(() => {
   const list = [...products.value]
@@ -218,9 +229,11 @@ const addProduct = async (product) => {
 }
 
 onMounted(async () => {
+  window.addEventListener('shop-brand-updated', syncBrand)
   await fetchCategories()
   await fetchProducts()
 })
+onBeforeUnmount(() => window.removeEventListener('shop-brand-updated', syncBrand))
 </script>
 
 <style scoped>
@@ -229,6 +242,16 @@ onMounted(async () => {
   min-height: calc(100vh - 140px);
   margin: 0 auto;
   padding: 18px 0 58px;
+}
+.cat-search-bar { display: grid; grid-template-columns: auto minmax(280px,1fr); align-items: center; gap: 18px; }
+.category-brand { min-width: 0; display: inline-flex; align-items: center; gap: 9px; color: #182230; text-decoration: none; white-space: nowrap; }
+.category-brand img,.category-brand-mark { width: 36px; height: 36px; flex: 0 0 36px; object-fit: contain; border-radius: 10px; }
+.category-brand-mark { display: inline-flex; align-items: center; justify-content: center; color: #fff; background: linear-gradient(135deg,#0d3b8f,#12a9e8); font-size: 11px; font-weight: 900; letter-spacing: -1px; }
+.category-brand strong { overflow: hidden; text-overflow: ellipsis; font-size: 15px; }
+@media (max-width: 760px) {
+  .cat-search-bar { grid-template-columns: 34px minmax(0,1fr); gap: 10px; }
+  .category-brand strong { display: none; }
+  .category-brand img,.category-brand-mark { width: 34px; height: 34px; flex-basis: 34px; }
 }
 
 .cat-search-bar {
