@@ -196,17 +196,21 @@
             <el-form-item label="服务保障">
               <div class="guarantee-editor">
                 <div class="guarantee-toolbar">
-                  <span>勾选“前台展示”后，该条保障才会出现在商品详情页。</span>
-                  <el-button type="primary" plain :icon="Plus" @click="addServiceGuarantee">添加保障</el-button>
+                  <span>选择行业通用预设后会自动带出保障名称和说明；仅“自定义保障”需要手动填写。</span>
+                  <el-button type="primary" plain :icon="Plus" @click="addServiceGuarantee">添加保障预设</el-button>
                 </div>
-                <el-empty v-if="!form.serviceGuarantees?.length" description="暂无服务保障，可点击右上角添加" :image-size="64" />
+                <el-empty v-if="!form.serviceGuarantees?.length" description="暂无服务保障，可点击右上角添加预设" :image-size="64" />
                 <div v-for="(item, index) in form.serviceGuarantees" :key="index" class="guarantee-row">
                   <el-checkbox v-model="item.enabled" class="guarantee-enabled">前台展示</el-checkbox>
+                  <el-select v-model="item.presetKey" placeholder="选择保障预设" @change="applyGuaranteePreset(item)">
+                    <el-option v-for="option in guaranteePresetOptions" :key="option.value" :label="option.label" :value="option.value" />
+                    <el-option label="自定义保障" value="custom" />
+                  </el-select>
                   <el-select v-model="item.icon" placeholder="小图标">
                     <el-option v-for="option in guaranteeIconOptions" :key="option.value" :label="option.label" :value="option.value" />
                   </el-select>
-                  <el-input v-model="item.title" maxlength="20" show-word-limit placeholder="简短标题，如：七天无理由" />
-                  <el-input v-model="item.description" type="textarea" :rows="2" maxlength="300" show-word-limit placeholder="详细介绍：适用条件、时限和处理方式" />
+                  <el-input v-model="item.title" maxlength="20" show-word-limit :disabled="item.presetKey !== 'custom'" :placeholder="item.presetKey ? '已自动填充' : '请先选择保障预设'" />
+                  <el-input v-model="item.description" type="textarea" :rows="2" maxlength="300" show-word-limit :disabled="item.presetKey !== 'custom'" :placeholder="item.presetKey ? '已自动填充' : '请先选择保障预设'" />
                   <el-button type="danger" link @click="form.serviceGuarantees.splice(index, 1)">删除</el-button>
                 </div>
               </div>
@@ -337,12 +341,17 @@ const guaranteeIconOptions = [
   { value: 'badge', label: '品质认证' },
 ]
 const guaranteeDefaults = {
-  '七天无理由': { icon: 'return', description: '符合平台规则且商品完好的，可在签收后7天内申请无理由退货。' },
-  '正品保障': { icon: 'shield', description: '严控商品来源与质量，为消费者提供品质保障。' },
+  '七天无理由': { icon: 'return', description: '符合商城规则且商品完好的，可在签收后7天内申请无理由退货。' },
+  '正品保障': { icon: 'shield', description: '商品来源与质量信息可追溯，具体以商品说明和售后规则为准。' },
   '极速退款': { icon: 'refund', description: '售后审核通过后，平台将尽快完成退款处理。' },
   '破损包赔': { icon: 'package', description: '商品运输途中发生破损，可凭有效凭证申请售后处理。' },
   '运费险': { icon: 'truck', description: '符合条件的退货订单可按保险规则获得退货运费补偿。' },
+  '发货时效': { icon: 'truck', description: '发货时间以商品页面承诺为准，订单状态可全程查询。' },
+  '退货运费': { icon: 'return', description: '符合商城售后规则的退货订单，运费按规则审核处理。' },
+  '隐私发货': { icon: 'shield', description: '订单信息仅用于履约，包装展示以实际发货安排为准。' },
+  '物流跟踪': { icon: 'package', description: '发货后提供物流单号，配送进度可在线查询。' },
 }
+const guaranteePresetOptions = Object.entries(guaranteeDefaults).map(([value]) => ({ value, label: value }))
 const parseArray = (value) => {
   if (Array.isArray(value)) return value
   try { const parsed = JSON.parse(value || '[]'); return Array.isArray(parsed) ? parsed : [] } catch { return [] }
@@ -351,9 +360,11 @@ const parseArray = (value) => {
 const normalizeServiceGuarantees = (value) => parseArray(value).map((item) => {
   if (typeof item === 'string') {
     const preset = guaranteeDefaults[item] || {}
-    return { enabled: true, icon: preset.icon || 'shield', title: item, description: preset.description || '以商城售后规则及商品实际情况为准。' }
+    return { enabled: true, presetKey: guaranteeDefaults[item] ? item : 'custom', icon: preset.icon || 'shield', title: item, description: preset.description || '以商城售后规则及商品实际情况为准。' }
   }
-  return { enabled: item?.enabled !== false, icon: item?.icon || 'shield', title: item?.title || '', description: item?.description || '' }
+  const title = item?.title || ''
+  const presetKey = item?.presetKey || (guaranteeDefaults[title] ? title : 'custom')
+  return { enabled: item?.enabled !== false, presetKey, icon: item?.icon || 'shield', title, description: item?.description || '' }
 })
 const parseSkuAttributes = (value) => {
   try {
@@ -370,8 +381,8 @@ const serializeSkuAttributes = (attributes = []) => JSON.stringify(Object.fromEn
     .filter(([name, value]) => name && value),
 ))
 const defaultServiceGuarantees = () => Object.entries(guaranteeDefaults).map(([title, preset]) => ({
-  enabled: false, icon: preset.icon, title, description: preset.description,
-}))
+  enabled: false, presetKey: title, icon: preset.icon, title, description: preset.description,
+})).slice(0, 5)
 
 const defaultForm = () => ({ tenantId: 1, productNo: '', productName: '', subtitle: '', categoryName: '', mainImages: [], salePrice: 0, marketPrice: 0, costAmount: 0, pvValue: 0, bvValue: 0, stock: 0, salesCount: 0, sort: 0, status: 1, freightType: 0, freightAmount: 0, freeShippingAmount: 0, freightTemplateId: null, freightTemplateName: '', deliveryAddress: '', deliveryProvince: '', deliveryCity: '', deliveryDistrict: '', deliveryTime: '48小时内发货', afterSalePolicy: '', serviceGuarantees: defaultServiceGuarantees(), detail: '', detailImageUrls: [] })
 
@@ -527,7 +538,22 @@ const syncProductSummaryFromSkus = () => {
   form.value.costAmount = costs.length ? Math.min(...costs) : 0
   form.value.stock = enabled.reduce((sum, item) => sum + Math.max(0, Number(item.stock || 0)), 0)
 }
-const addServiceGuarantee = () => form.value.serviceGuarantees.push({ enabled: true, icon: 'shield', title: '', description: '' })
+const applyGuaranteePreset = (item) => {
+  if (!item || item.presetKey === 'custom') {
+    if (item) {
+      item.icon = item.icon || 'shield'
+      item.title = ''
+      item.description = ''
+    }
+    return
+  }
+  const preset = guaranteeDefaults[item.presetKey]
+  if (!preset) return
+  item.icon = preset.icon
+  item.title = item.presetKey
+  item.description = preset.description
+}
+const addServiceGuarantee = () => form.value.serviceGuarantees.push({ enabled: true, presetKey: '', icon: 'shield', title: '', description: '' })
 
 const parseFreightRules = (value) => {
   try { const parsed = JSON.parse(value || '[]'); return Array.isArray(parsed) ? parsed : [] } catch { return [] }
@@ -586,6 +612,7 @@ const submitForm = async () => {
   if (skuRows.value.some((item) => !item.skuName?.trim())) return ElMessage.warning('请填写所有 SKU 的规格名称')
   if (skuRows.value.some((item) => !item.attributes?.length)) return ElMessage.warning('请为每个SKU设置规格属性')
   if (hasSku.value && !skuRows.value.some((item) => Number(item.status) === 1)) return ElMessage.warning('多规格商品至少需要启用一个SKU')
+  if (form.value.serviceGuarantees.some((item) => item.enabled && !item.presetKey)) return ElMessage.warning('请选择服务保障预设，或切换为自定义保障')
   if (form.value.serviceGuarantees.some((item) => item.enabled && !item.title?.trim())) return ElMessage.warning('请填写已勾选服务保障的标题')
   if (form.value.serviceGuarantees.some((item) => item.enabled && !item.description?.trim())) return ElMessage.warning('请填写已勾选服务保障的详细介绍')
   syncProductSummaryFromSkus()
@@ -660,7 +687,7 @@ onMounted(async () => { await Promise.all([fetchData(), fetchCategories(), fetch
 .quick-help { margin-left:10px; color:#909399; font-size:12px; }
 .guarantee-editor { width:100%; }
 .guarantee-toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:12px; color:#909399; font-size:13px; }
-.guarantee-row { display:grid; grid-template-columns:90px 130px minmax(180px,.8fr) minmax(280px,1.6fr) 52px; align-items:start; gap:10px; padding:12px; margin-bottom:10px; background:#f8fafc; border:1px solid #ebeef5; border-radius:8px; }
+.guarantee-row { display:grid; grid-template-columns:90px minmax(180px,.9fr) 130px minmax(180px,.8fr) minmax(280px,1.6fr) 52px; align-items:start; gap:10px; padding:12px; margin-bottom:10px; background:#f8fafc; border:1px solid #ebeef5; border-radius:8px; }
 .guarantee-enabled { padding-top:7px; }
 .sku-image,.sku-image-placeholder { width:54px; height:54px; border-radius:5px; }
 .sku-image-placeholder { display:flex;align-items:center;justify-content:center;border:1px dashed #c0ccda;color:#909399;cursor:pointer; }
