@@ -145,27 +145,13 @@ const selectedQuantity = computed(() => items.reduce((sum, item) => {
 }, 0))
 
 const actionDialog = computed(() => {
-  if (pendingAction.value === 'remove-selected') {
-    return {
-      title: '确认删除选中商品？',
-      message: `将删除选中的 ${selectedKeys.size} 种商品，共 ${selectedQuantity.value} 件。删除后无法撤销。`,
-      confirmText: '确认删除',
-      cancelText: '保留商品',
-      icon: '🗑️',
-      isDanger: true,
-    }
-  }
-  const selectedOnly = pendingAction.value === 'checkout-selected'
-  const kindCount = selectedOnly ? selectedKeys.size : items.length
-  const quantity = selectedOnly ? selectedQuantity.value : count.value
-  const amount = selectedOnly ? selectedTotal.value : total.value
   return {
-    title: '确认进入结算？',
-    message: `将结算 ${kindCount} 种商品，共 ${quantity} 件，商品金额 ¥${money(amount)}。运费将在下一步根据收货地址计算。`,
-    confirmText: '继续结算',
-    cancelText: '再检查一下',
-    icon: '🧾',
-    isDanger: false,
+    title: '确认删除选中商品？',
+    message: `将删除选中的 ${selectedKeys.size} 种商品，共 ${selectedQuantity.value} 件。删除后无法撤销。`,
+    confirmText: '确认删除',
+    cancelText: '保留商品',
+    icon: '🗑️',
+    isDanger: true,
   }
 })
 
@@ -180,11 +166,11 @@ const requestRemoveSelected = () => {
 }
 
 const requestCheckoutSelected = () => {
-  if (selectedKeys.size) pendingAction.value = 'checkout-selected'
+  if (selectedKeys.size) checkoutSelected()
 }
 
 const requestCheckoutAll = () => {
-  if (items.length) pendingAction.value = 'checkout-all'
+  if (items.length) checkoutAll()
 }
 
 const confirmClearCart = () => {
@@ -210,11 +196,6 @@ const confirmPendingAction = () => {
     removeSelected()
     return
   }
-  if (action === 'checkout-selected') {
-    checkoutSelected()
-    return
-  }
-  if (action === 'checkout-all') checkoutAll()
 }
 
 onMounted(async () => {
