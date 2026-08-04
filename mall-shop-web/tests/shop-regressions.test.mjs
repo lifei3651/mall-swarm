@@ -85,6 +85,13 @@ test('product detail renders rating distribution bars computed from star counts'
   assert.match(source, /rating-distribution/)
 })
 
+test('product detail back button falls back home when there is no browser history', async () => {
+  const source = await readView('ProductDetailView.vue')
+  assert.match(source, /@click="goBack"/)
+  assert.match(source, /window\.history\.state\?\.back/)
+  assert.match(source, /router\.replace\(\{ name: 'Home' \}\)/)
+})
+
 test('order detail renders logistics timeline with shipping steps', async () => {
   const source = await readView('OrderDetailView.vue')
   assert.match(source, /timeline-steps/)

@@ -10,14 +10,14 @@
       <h2>商品详情加载失败</h2>
       <p>{{ errorMessage || '商品不存在或已经下架' }}</p>
       <div class="state-actions">
-        <button class="plain-button" @click="router.back()">返回上一页</button>
+        <button class="plain-button" @click="goBack">返回上一页</button>
         <button class="primary-button" @click="fetchProduct">重新加载</button>
       </div>
     </div>
 
     <template v-else>
       <section class="gallery-section">
-        <button class="floating-back" type="button" aria-label="返回" @click="router.back()"><ArrowLeft :size="24" /></button>
+        <button class="floating-back" type="button" aria-label="返回" @click="goBack"><ArrowLeft :size="24" /></button>
         <button class="floating-share" type="button" aria-label="分享" @click="shareProduct"><Share2 :size="22" /></button>
         <div ref="galleryScroller" class="gallery-scroller" @scroll.passive="onGalleryScroll">
           <div v-for="(image, index) in mainImages" :key="image + index" class="gallery-slide">
@@ -204,6 +204,17 @@ import { toPublicWebUrl } from '@/utils/appEnvironment'
 const route = useRoute()
 const router = useRouter()
 const { add, count, beginCheckout } = useCart()
+
+// 详情页可能通过分享链接或刷新直接打开，此时浏览器没有可返回的历史记录。
+// 有上一页时返回原页面；没有上一页时回到商城首页，避免点击后无任何反馈。
+const goBack = () => {
+  if (window.history.state?.back) {
+    router.back()
+    return
+  }
+  router.replace({ name: 'Home' })
+}
+
 const galleryScroller = ref(null)
 const product = ref(null)
 const displayConfig = ref({})
