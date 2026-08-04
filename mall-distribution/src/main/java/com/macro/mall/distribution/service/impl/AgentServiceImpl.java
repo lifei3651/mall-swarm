@@ -30,6 +30,7 @@ import com.macro.mall.distribution.service.AgentRelationService;
 import com.macro.mall.distribution.service.AgentService;
 import com.macro.mall.distribution.service.CommissionService;
 import com.macro.mall.distribution.service.PerformanceService;
+import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.vo.AgentInfoVO;
@@ -77,6 +78,7 @@ public class AgentServiceImpl implements AgentService {
     private final AgentRelationService relationService;
     private final CommissionService commissionService;
     private final PerformanceService performanceService;
+    private final OperationLogService operationLogService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -409,6 +411,24 @@ public class AgentServiceImpl implements AgentService {
         changeLog.setOperatorName(admin == null ? "system" : admin.getUsername());
         changeLog.setOperatorType(admin == null ? 1 : 2);
         changeLogDao.insert(changeLog);
+
+        // 会员变更日志记录的是“发生了什么”，操作日志还必须能回答“调整了谁”。
+        // 把业务账号、姓名/昵称和手机号一并写入前后台都能查看的审计日志，避免只留下接口路径。
+        DmsShopMember member = shopMemberDao.selectByUserId(agent.getUserId());
+        String account = MemberAccountUtils.display(member);
+        String memberName = firstNonBlank(agent.getAgentName(), agent.getRealName(),
+                member == null ? null : member.getNickname(), account);
+        String phone = firstNonBlank(agent.getPhone(), member == null ? null : member.getPhone());
+        String identity = "账号：" + displayValue(account) + "，姓名/昵称：" + displayValue(memberName)
+                + "，手机号：" + displayValue(phone);
+        String oldLevelName = levelName(oldLevel);
+        String newLevelName = levelName(level);
+        operationLogService.log(
+                "AGENT", "LEVEL_ADJUST", "商城会员", String.valueOf(agent.getId()),
+                "会员：" + identity + "；会员级别：" + oldLevelName,
+                "会员：" + identity + "；会员级别：" + newLevelName,
+                "调整会员级别：" + displayValue(memberName) + "（" + displayValue(account) + "）从"
+                        + oldLevelName + "调整为" + newLevelName + "；原因：" + reason.trim());
         return convertToVO(agentDao.selectById(id));
     }
 
@@ -641,6 +661,23 @@ public class AgentServiceImpl implements AgentService {
         }
 
         return vo;
+    }
+
+    private String levelName(Integer level) {
+        AgentLevelEnum levelEnum = AgentLevelEnum.getByValue(level);
+        return levelEnum == null ? "未知级别" : levelEnum.getName();
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) return null;
+        for (String value : values) {
+            if (value != null && !value.isBlank()) return value.trim();
+        }
+        return null;
+    }
+
+    private String displayValue(String value) {
+        return value == null || value.isBlank() ? "未填写" : value;
     }
 
     /**

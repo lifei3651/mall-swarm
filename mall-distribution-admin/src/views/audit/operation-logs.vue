@@ -100,6 +100,7 @@ const operationName = (value) => ({
   ISSUE:'增加', DEDUCT:'扣减', CONSUME:'消费', WITHDRAW:'提现', TRANSFER:'转账',
   LINE_CHANGE_APPLY:'提交移线', LINE_CHANGE_APPROVE:'批准移线', LINE_CHANGE_REJECT:'拒绝移线', LINE_CHANGE_EXECUTE:'执行移线',
   ASSET_PAY:'资产支付', CONFIG_SAVE:'保存配置', ORDER_PUSH_SUCCESS:'订单推送成功', ORDER_PUSH_FAIL:'订单推送失败', SHIPMENT_CALLBACK:'发货回传',
+  LEVEL_ADJUST:'调整会员级别',
   POST:'提交', PUT:'修改', DELETE:'删除', CREATE:'新增', UPDATE:'修改',
 }[value] || value || '操作')
 
@@ -141,7 +142,13 @@ const actionDescription = (row = {}) => {
   return `${operationName(row.operationType)}${targetDescription(row)}`
 }
 
-const targetDescription = (row = {}) => row.targetId ? `${row.targetType || '对象'}：${row.targetId}` : (row.targetType || '-')
+const targetDescription = (row = {}) => {
+  if (row.moduleName === 'AGENT' && row.operationType === 'LEVEL_ADJUST') {
+    const identity = (row.afterData || row.beforeData || '').split('；会员级别：')[0]
+    if (identity) return identity
+  }
+  return row.targetId ? `${row.targetType || '对象'}：${row.targetId}` : (row.targetType || '-')
+}
 const isFailed = (row = {}) => /失败|异常|状态：4|状态：5|HTTP [45]/.test(row.remark || '')
 
 onMounted(fetchLogs)

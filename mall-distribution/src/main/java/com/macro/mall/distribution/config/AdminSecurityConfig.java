@@ -64,8 +64,10 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
         @Override
         public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
             try {
-                if (shouldLog(request)) {
-                    boolean success = ex == null && response.getStatus() < 400;
+                boolean success = ex == null && response.getStatus() < 400;
+                // 会员调级由业务服务写入带会员身份、前后级别和原因的详细审计记录。
+                // 成功请求不再额外写一条只有 URI 的通用 ADMIN_API 记录；失败请求仍保留通用失败日志。
+                if (shouldLog(request) && !(isMemberLevelRequest(request) && success)) {
                     String remark = describeRequest(request) + "，结果：" + (success ? "成功" : "失败")
                             + "（HTTP " + response.getStatus() + "）";
                     operationLogService.log("ADMIN_API", request.getMethod(), "HTTP", request.getRequestURI(),
@@ -74,6 +76,11 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             } finally {
                 AdminContext.clear();
             }
+        }
+
+        private boolean isMemberLevelRequest(HttpServletRequest request) {
+            return request.getRequestURI().matches("(/shop/admin/members|/distribution/agent)/[^/]+/level")
+                    && HttpMethod.PUT.matches(request.getMethod());
         }
 
         private boolean shouldLog(HttpServletRequest request) {
