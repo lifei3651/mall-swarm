@@ -125,28 +125,31 @@
         LIMIT #{limit}
     </select>
 
-    <!-- 每名会员只取一条地址：优先默认地址，否则取最近更新的有效地址。 -->
+    <!-- 每名会员只取最近一次有效订单的收货省份，避免会员维护地址与实际下单地址不一致。 -->
     <select id="selectMemberRegionDistribution" resultType="com.macro.mall.distribution.vo.DashboardRegionVO">
-        SELECT address.province AS regionName,
+        SELECT shop_order.receiver_province AS regionName,
                COUNT(*) AS memberCount
-        FROM dms_shop_address address
-        INNER JOIN dms_shop_member member ON member.id = address.member_id
+        FROM dms_shop_order shop_order
+        INNER JOIN dms_shop_member member ON member.user_id = shop_order.user_id
         WHERE member.system_account = 0
-          AND address.status = 1
-          AND NULLIF(TRIM(address.province), '') IS NOT NULL
-          AND address.id = (
+          AND shop_order.tenant_id = #{tenantId}
+          AND shop_order.pay_time IS NOT NULL
+          AND shop_order.status IN (1, 2, 3)
+          AND NULLIF(TRIM(shop_order.receiver_province), '') IS NOT NULL
+          AND shop_order.id = (
               SELECT candidate.id
-              FROM dms_shop_address candidate
-              WHERE candidate.member_id = address.member_id
-                AND candidate.status = 1
-                AND NULLIF(TRIM(candidate.province), '') IS NOT NULL
-              ORDER BY CASE WHEN candidate.is_default = 1 THEN 0 ELSE 1 END,
-                       candidate.update_time DESC,
+              FROM dms_shop_order candidate
+              WHERE candidate.tenant_id = #{tenantId}
+                AND candidate.user_id = shop_order.user_id
+                AND candidate.pay_time IS NOT NULL
+                AND candidate.status IN (1, 2, 3)
+                AND NULLIF(TRIM(candidate.receiver_province), '') IS NOT NULL
+              ORDER BY candidate.pay_time DESC,
                        candidate.id DESC
               LIMIT 1
           )
-        GROUP BY address.province
-        ORDER BY memberCount DESC, address.province ASC
+        GROUP BY shop_order.receiver_province
+        ORDER BY memberCount DESC, shop_order.receiver_province ASC
     </select>
 
     <select id="selectPerformanceTrend" resultType="com.macro.mall.distribution.vo.DashboardTrendVO">

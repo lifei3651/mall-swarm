@@ -360,7 +360,11 @@ class ShopFreightServiceTest {
     @Test
     void adminDashboardReturnsRealAggregatesAndCompleteSeries() {
         DmsShopMember member = createMember("13999110103", "控制台会员", null);
-        shopAddressService.save(member, address("工作台地区统计地址", 1));
+        ShopAddressDTO savedAddress = address("工作台地区统计地址", 1);
+        savedAddress.setProvince("广东省");
+        savedAddress.setCity("深圳市");
+        savedAddress.setDistrict("南山区");
+        shopAddressService.save(member, savedAddress);
         submitAndPay(member, 1);
         jdbcTemplate.update("""
                 INSERT INTO dms_withdraw_record
@@ -387,6 +391,10 @@ class ShopFreightServiceTest {
         assertTrue(dashboard.getLast7DaysSalesAmount().compareTo(BigDecimal.ZERO) > 0);
         assertTrue(dashboard.getTodaySalesAmount().compareTo(BigDecimal.ZERO) > 0);
         assertTrue(dashboard.getTodayPerformance().compareTo(BigDecimal.ZERO) > 0);
+        assertTrue(dashboard.getMemberRegionDistribution().stream()
+                .anyMatch(row -> "湖南省".equals(row.getRegionName()) && row.getMemberCount() >= 1));
+        assertTrue(dashboard.getMemberRegionDistribution().stream()
+                .noneMatch(row -> "广东省".equals(row.getRegionName())));
         assertMoney("12.00", dashboard.getPendingWithdrawAmount());
         assertMoney("88.00", dashboard.getTotalWithdrawAmount());
         assertMoney("88.00", dashboard.getMonthWithdrawAmount());

@@ -84,7 +84,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         }
         vo.setProductRanking(productRanking);
 
-        List<DashboardRegionVO> regions = dashboardDao.selectMemberRegionDistribution();
+        List<DashboardRegionVO> regions = dashboardDao.selectMemberRegionDistribution(tenantId);
         long addressedMembers = regions.stream()
                 .map(DashboardRegionVO::getMemberCount)
                 .filter(java.util.Objects::nonNull)

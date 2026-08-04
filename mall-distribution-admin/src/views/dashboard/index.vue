@@ -85,15 +85,15 @@
         <el-card class="panel-card region-card" shadow="never">
           <template #header>
             <div class="panel-header">
-              <div><b>会员区域画像</b><span>基于有效收货地址构建区域分布洞察，辅助市场布局与精细化运营</span></div>
+              <div><b>会员区域画像</b><span>基于已支付订单的实际收货地址，洞察会员消费区域，辅助市场布局与精细化运营</span></div>
               <small>已识别 {{ count(dashboard.addressedMemberCount) }} 人</small>
             </div>
           </template>
           <div v-if="hasRegionData" ref="regionChart" class="chart region-chart"></div>
-          <el-empty v-else description="暂无会员收货地址数据" :image-size="90" />
+          <el-empty v-else description="暂无订单收货区域数据" :image-size="90" />
           <div class="region-summary">
-            <span>已设置有效地址：{{ count(dashboard.addressedMemberCount) }} 人</span>
-            <span>未设置有效地址：{{ count(dashboard.unaddressedMemberCount) }} 人</span>
+            <span>已识别订单地址会员：{{ count(dashboard.addressedMemberCount) }} 人</span>
+            <span>尚无订单地址会员：{{ count(dashboard.unaddressedMemberCount) }} 人</span>
           </div>
         </el-card>
       </el-col>
