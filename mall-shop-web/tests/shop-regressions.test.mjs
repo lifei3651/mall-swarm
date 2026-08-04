@@ -59,3 +59,13 @@ test('build freshness guard can identify the current production entry', () => {
     '/assets/index-new.js',
   )
 })
+
+test('cart delete and checkout actions require a second confirmation', async () => {
+  const source = await readView('CartView.vue')
+  assert.match(source, /@click="requestRemoveSelected"/)
+  assert.match(source, /@click="requestCheckoutSelected"/)
+  assert.match(source, /@click="requestCheckoutAll"/)
+  assert.match(source, /确认删除选中商品/)
+  assert.match(source, /确认进入结算/)
+  assert.match(source, /confirmPendingAction/)
+})

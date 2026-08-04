@@ -67,12 +67,12 @@
         </div>
         <template v-if="manageMode">
           <div class="manage-actions">
-            <button class="btn secondary" :disabled="selectedKeys.size === 0" @click="removeSelected">删除({{ selectedKeys.size }})</button>
-            <button class="btn primary" :disabled="selectedKeys.size === 0" @click="checkoutSelected">结算({{ selectedKeys.size }})</button>
+            <button class="btn secondary" :disabled="selectedKeys.size === 0" @click="requestRemoveSelected">删除({{ selectedKeys.size }})</button>
+            <button class="btn primary" :disabled="selectedKeys.size === 0" @click="requestCheckoutSelected">结算({{ selectedKeys.size }})</button>
           </div>
         </template>
         <template v-else>
-          <button class="btn primary checkout-btn" type="button" @click="checkoutAll">去结算</button>
+          <button class="btn primary checkout-btn" type="button" @click="requestCheckoutAll">去结算</button>
         </template>
       </aside>
     </div>
@@ -87,6 +87,18 @@
       is-danger
       @confirm="confirmClearCart"
       @cancel="clearConfirmVisible = false"
+    />
+
+    <ConfirmDialog
+      :visible="Boolean(pendingAction)"
+      :title="actionDialog.title"
+      :message="actionDialog.message"
+      :confirm-text="actionDialog.confirmText"
+      :cancel-text="actionDialog.cancelText"
+      :icon="actionDialog.icon"
+      :is-danger="actionDialog.isDanger"
+      @confirm="confirmPendingAction"
+      @cancel="pendingAction = ''"
     />
   </div>
 </template>
@@ -107,6 +119,7 @@ const displayConfig = ref({})
 const showPv = computed(() => Number(displayConfig.value.showPv || 0) === 1)
 const manageMode = ref(false)
 const clearConfirmVisible = ref(false)
+const pendingAction = ref('')
 const selectedKeys = reactive(new Set())
 
 const toggleManageMode = () => {
@@ -126,10 +139,52 @@ const selectedTotal = computed(() => {
   }, 0)
 })
 
+const selectedQuantity = computed(() => items.reduce((sum, item) => {
+  const key = item.cartKey || item.id
+  return selectedKeys.has(key) ? sum + Number(item.quantity || 0) : sum
+}, 0))
+
+const actionDialog = computed(() => {
+  if (pendingAction.value === 'remove-selected') {
+    return {
+      title: '确认删除选中商品？',
+      message: `将删除选中的 ${selectedKeys.size} 种商品，共 ${selectedQuantity.value} 件。删除后无法撤销。`,
+      confirmText: '确认删除',
+      cancelText: '保留商品',
+      icon: '🗑️',
+      isDanger: true,
+    }
+  }
+  const selectedOnly = pendingAction.value === 'checkout-selected'
+  const kindCount = selectedOnly ? selectedKeys.size : items.length
+  const quantity = selectedOnly ? selectedQuantity.value : count.value
+  const amount = selectedOnly ? selectedTotal.value : total.value
+  return {
+    title: '确认进入结算？',
+    message: `将结算 ${kindCount} 种商品，共 ${quantity} 件，商品金额 ¥${money(amount)}。运费将在下一步根据收货地址计算。`,
+    confirmText: '继续结算',
+    cancelText: '再检查一下',
+    icon: '🧾',
+    isDanger: false,
+  }
+})
+
 const removeSelected = () => {
   const keysToRemove = [...selectedKeys]
   keysToRemove.forEach((key) => remove(key))
   selectedKeys.clear()
+}
+
+const requestRemoveSelected = () => {
+  if (selectedKeys.size) pendingAction.value = 'remove-selected'
+}
+
+const requestCheckoutSelected = () => {
+  if (selectedKeys.size) pendingAction.value = 'checkout-selected'
+}
+
+const requestCheckoutAll = () => {
+  if (items.length) pendingAction.value = 'checkout-all'
 }
 
 const confirmClearCart = () => {
@@ -146,6 +201,20 @@ const checkoutSelected = () => {
 const checkoutAll = () => {
   beginCheckout(items.map((item) => item.cartKey || item.id))
   router.push('/checkout')
+}
+
+const confirmPendingAction = () => {
+  const action = pendingAction.value
+  pendingAction.value = ''
+  if (action === 'remove-selected') {
+    removeSelected()
+    return
+  }
+  if (action === 'checkout-selected') {
+    checkoutSelected()
+    return
+  }
+  if (action === 'checkout-all') checkoutAll()
 }
 
 onMounted(async () => {
