@@ -116,7 +116,6 @@ const submitAddress = async () => {
     await saveAddress(form.value)
     editorVisible.value = false
     await fetchAddresses()
-    notify('收货地址已保存', 'success')
   } catch (e) { notify(e.message || '地址保存失败') }
   finally { saving.value = false }
 }
