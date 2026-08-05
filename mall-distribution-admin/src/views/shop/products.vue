@@ -551,11 +551,27 @@ const fetchFreightTemplates = async () => {
 }
 
 const fetchProductSettings = async () => {
-  try { const res = await getProductSettings(); performanceUnitsEnabled.value = Number(res.data?.showPv ?? 1) === 1 } catch { performanceUnitsEnabled.value = true }
+  try {
+    const res = await getProductSettings()
+    performanceUnitsEnabled.value = Number(res.data?.showPv ?? 1) === 1
+    clearDisabledPvValues()
+  } catch { performanceUnitsEnabled.value = true }
+}
+
+const clearDisabledPvValues = () => {
+  if (performanceUnitsEnabled.value) return
+  tableData.value = tableData.value.map((item) => ({ ...item, pvValue: 0 }))
+  if (form.value && Object.keys(form.value).length) form.value.pvValue = 0
+  skuRows.value.forEach((item) => { item.pvValue = 0 })
 }
 
 const changePvSetting = async (enabled) => {
-  try { await updateProductPvSetting(enabled); ElMessage.success(enabled ? '已开启商品 PV 填写' : '已关闭商品 PV 填写') } catch { performanceUnitsEnabled.value = !enabled }
+  try {
+    await updateProductPvSetting(enabled)
+    performanceUnitsEnabled.value = Boolean(enabled)
+    clearDisabledPvValues()
+    ElMessage.success(enabled ? '已开启商品 PV 填写' : '已关闭商品 PV 填写，商品按 PV=0 处理')
+  } catch { performanceUnitsEnabled.value = !enabled }
 }
 
 const resetQuery = () => { query.value = { keyword: '', categoryName: '', status: 1 }; pagination.value.page = 1; fetchData() }
@@ -575,6 +591,7 @@ const openDialog = async (row) => {
       skuRows.value = (res.data || []).map((item) => ({ ...item, attributes: parseSkuAttributes(item.attrsJson) }))
     } finally { dialogLoading.value = false }
   }
+  clearDisabledPvValues()
 }
 
 const uploadFile = async (file) => {

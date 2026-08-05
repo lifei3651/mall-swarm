@@ -27,7 +27,7 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft } from 'lucide-vue-next'
-import { getMe, getWalletSummary, sendSmsCode, setPaymentPassword } from '@/api/shop'
+import { getMe, getWalletSummary, sendPaymentPasswordSmsCode, setPaymentPassword } from '@/api/shop'
 import { isValidMainlandPhone } from '@/utils/phone'
 
 const route = useRoute()
@@ -64,7 +64,7 @@ const sendCode = async () => {
   if (!isValidMainlandPhone(phone.value)) return showMessage('账号绑定手机号不正确，请重新登录')
   sendingCode.value = true
   try {
-    await sendSmsCode(phone.value, 7)
+    await sendPaymentPasswordSmsCode()
     showMessage('验证码已发送，5分钟内有效', 'success')
     countdown.value = 60
     window.clearInterval(countdownTimer)

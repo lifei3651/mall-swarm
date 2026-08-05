@@ -244,7 +244,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, ClipboardPaste, ShieldCheck, X } from 'lucide-vue-next'
-import { getHome, getMe, getWalletSummary, listAddresses, submitOrder, quoteFreight, checkPaymentVerify, sendSmsCode, setPaymentPassword, payOrderWithBalance, createAlipayOrder, getPayConfig } from '@/api/shop'
+import { getHome, getMe, getWalletSummary, listAddresses, submitOrder, quoteFreight, checkPaymentVerify, sendSmsCode, sendPaymentPasswordSmsCode, setPaymentPassword, payOrderWithBalance, createAlipayOrder, getPayConfig } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { money, joinAddress } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
@@ -502,7 +502,7 @@ const sendSetupPasswordCode = async () => {
   }
   setupCodeSending.value = true
   try {
-    await sendSmsCode(memberPhone.value, 7)
+    await sendPaymentPasswordSmsCode()
     setupSmsCountdown.value = 60
     window.clearInterval(setupSmsTimer)
     setupSmsTimer = window.setInterval(() => {

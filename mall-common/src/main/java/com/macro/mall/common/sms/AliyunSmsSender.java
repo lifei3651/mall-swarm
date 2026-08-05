@@ -17,14 +17,14 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class AliyunSmsSender {
     private static final Map<Integer, String> TEMPLATE_KEYS = Map.of(
-            1, "register",
-            2, "login",
-            3, "reset-password",
-            4, "transfer",
-            5, "withdraw",
-            6, "payment",
-            7, "payment-password",
-            8, "reset-password");
+            SmsBusinessType.REGISTER, "register",
+            SmsBusinessType.LOGIN, "login",
+            SmsBusinessType.RESET_PASSWORD, "reset-password",
+            SmsBusinessType.TRANSFER, "transfer",
+            SmsBusinessType.WITHDRAW, "withdraw",
+            SmsBusinessType.PAYMENT, "payment",
+            SmsBusinessType.SET_PAYMENT_PASSWORD, "payment-password",
+            SmsBusinessType.RESET_LOGIN_PASSWORD, "reset-password");
     private final AliyunSmsProperties properties;
     private final Map<String, Client> clients = new ConcurrentHashMap<>();
 
@@ -52,6 +52,10 @@ public class AliyunSmsSender {
         }
     }
 
+    public static boolean supportsBusinessType(Integer bizType) {
+        return bizType != null && TEMPLATE_KEYS.containsKey(bizType);
+    }
+
     private Client client() throws Exception {
         String key = properties.getAccessKeyId() + "@" + properties.getEndpoint();
         Client existing = clients.get(key);
@@ -65,7 +69,7 @@ public class AliyunSmsSender {
 
     private void validate(String phone, Integer bizType) {
         if (phone == null || !phone.matches("^1[3-9]\\d{9}$")) Asserts.fail("手机号格式不正确");
-        if (!TEMPLATE_KEYS.containsKey(bizType)) Asserts.fail("短信业务类型不支持");
+        if (!supportsBusinessType(bizType)) Asserts.fail("短信业务类型不支持");
         if (isBlank(properties.getAccessKeyId()) || isBlank(properties.getAccessKeySecret()) || isBlank(properties.getSignName())) {
             Asserts.fail("短信服务未配置");
         }

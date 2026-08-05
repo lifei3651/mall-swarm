@@ -2,6 +2,7 @@ package com.macro.mall.distribution.controller;
 
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.common.sms.AliyunSmsSender;
+import com.macro.mall.common.sms.SmsBusinessType;
 import com.macro.mall.distribution.dto.SmsCodeRequestDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.service.ShopAuthService;
@@ -28,9 +29,13 @@ public class SmsController {
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String SMS_CODE_KEY_PREFIX = "sms:";
     private static final int SMS_CODE_EXPIRE_MINUTES = 5;
-    private static final Set<Integer> SUPPORTED_BIZ_TYPES = Set.of(1, 2, 3, 4, 5, 6, 7, 8);
+    private static final Set<Integer> SUPPORTED_BIZ_TYPES = SmsBusinessType.SUPPORTED;
     /** 提现、支付及密码类验证码只能发送到当前登录会员绑定的手机号。 */
-    private static final Set<Integer> ACCOUNT_BOUND_BIZ_TYPES = Set.of(5, 6, 7, 8);
+    private static final Set<Integer> ACCOUNT_BOUND_BIZ_TYPES = Set.of(
+            SmsBusinessType.WITHDRAW,
+            SmsBusinessType.PAYMENT,
+            SmsBusinessType.SET_PAYMENT_PASSWORD,
+            SmsBusinessType.RESET_LOGIN_PASSWORD);
 
     private final StringRedisTemplate redisTemplate;
     private final AliyunSmsSender aliyunSmsSender;
@@ -103,6 +108,20 @@ public class SmsController {
         redisTemplate.delete(codeKey);
         redisTemplate.delete(rateLimitKey);
         return CommonResult.failed("短信服务未配置");
+    }
+
+    /**
+     * 支付密码验证码专用入口。业务类型由服务端固定，避免旧页面或不同版本前端传错数字类型。
+     */
+    @Operation(summary = "发送支付密码验证码")
+    @PostMapping("/send/payment-password")
+    public CommonResult<String> sendPaymentPasswordCode(
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        DmsShopMember member = shopAuthService.requireMember(authorization);
+        SmsCodeRequestDTO dto = new SmsCodeRequestDTO();
+        dto.setPhone(member.getPhone());
+        dto.setBizType(SmsBusinessType.SET_PAYMENT_PASSWORD);
+        return sendCode(dto, authorization);
     }
 
     @Operation(summary = "验证验证码")

@@ -278,6 +278,14 @@ export function sendSmsCode(phone, bizType = 1) {
   })
 }
 
+// 支付密码验证码由服务端固定业务类型，避免不同版本页面传错短信类型。
+export function sendPaymentPasswordSmsCode() {
+  return request({
+    url: '/sms/send/payment-password',
+    method: 'post',
+  })
+}
+
 export function verifySmsCode(phone, code, bizType = 1) {
   return request({
     url: '/sms/verify',

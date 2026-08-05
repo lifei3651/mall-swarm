@@ -111,9 +111,14 @@ public class ShopServiceImpl implements ShopService {
                 : categories.stream().map(DmsShopCategory::getCategoryName).toList());
         vo.setBanners(bannerDao.selectActive(resolvedTenantId));
         vo.setNotices(noticeDao.selectActive(resolvedTenantId));
-        vo.setFeaturedProducts(productDao.selectList(resolvedTenantId, null, null, 1));
+        List<DmsShopProduct> featuredProducts = productDao.selectList(resolvedTenantId, null, null, 1);
+        DmsTenantDisplayConfig displayConfig = getDisplayConfig(resolvedTenantId);
+        if (!isEnabled(displayConfig.getShowPv())) {
+            featuredProducts.forEach(product -> product.setPvValue(ZERO));
+        }
+        vo.setFeaturedProducts(featuredProducts);
         vo.setDistributionSettings(auditService.getSettings());
-        vo.setDisplayConfig(getDisplayConfig(resolvedTenantId));
+        vo.setDisplayConfig(displayConfig);
         vo.setLegalConfig(ShopLegalConfigVO.from(tenant));
         return vo;
     }
@@ -310,18 +315,25 @@ public class ShopServiceImpl implements ShopService {
     @Override
     public ShopProductDetailVO getProductDetail(Long id) {
         DmsShopProduct product = getProduct(id);
-        // 兼容历史上已经保存的异常数据：公开接口永远不返回高于售价的 PV。
+        // 兼容历史数据：PV 开关关闭时公开接口直接返回 0；开启时不返回高于售价的 PV。
         // SKU 的 PV 为 0 时继承商品默认 PV，避免旧后台把 SKU PV 强制保存为 0 后，
         // 前台显示有 PV、下单快照却记为 0。
-        product.setPvValue(limitPvToSalePrice(product.getPvValue(), product.getSalePrice()));
+        DmsTenantDisplayConfig displayConfig = getDisplayConfig(product.getTenantId());
+        if (isEnabled(displayConfig.getShowPv())) {
+            product.setPvValue(limitPvToSalePrice(product.getPvValue(), product.getSalePrice()));
+        } else {
+            product.setPvValue(ZERO);
+        }
         List<DmsShopSku> skus = skuDao.selectByProductId(id, 1);
         for (DmsShopSku sku : skus) {
-            sku.setPvValue(resolveUnitPv(product, sku, sku.getSalePrice()));
+            sku.setPvValue(isEnabled(displayConfig.getShowPv())
+                    ? resolveUnitPv(product, sku, sku.getSalePrice())
+                    : ZERO);
         }
         ShopProductDetailVO vo = new ShopProductDetailVO();
         vo.setProduct(product);
         vo.setSkus(skus);
-        vo.setDisplayConfig(getDisplayConfig(product.getTenantId()));
+        vo.setDisplayConfig(displayConfig);
         return vo;
     }
 

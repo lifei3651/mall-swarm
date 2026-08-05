@@ -69,6 +69,16 @@ test('wallet password setup prompt is shown first and uses payment password word
   assert.doesNotMatch(`${security}\n${change}\n${orderDetail}`, /交易密码|二级密码/)
 })
 
+test('payment password setup uses the dedicated server-side SMS endpoint', async () => {
+  const api = await readFile(new URL('../src/api/shop.js', import.meta.url), 'utf8')
+  const change = await readView('ChangePaymentPasswordView.vue')
+  const checkout = await readView('CheckoutView.vue')
+  assert.match(api, /url: '\/sms\/send\/payment-password'/)
+  assert.match(change, /sendPaymentPasswordSmsCode\(\)/)
+  assert.match(checkout, /sendPaymentPasswordSmsCode\(\)/)
+  assert.doesNotMatch(`${change}\n${checkout}`, /sendSmsCode\([^\n]*,\s*7\)/)
+})
+
 test('wallet actions keep transfer on its own page and explain non-agent team access', async () => {
   const wallet = await readView('WalletView.vue')
   const transfer = await readView('BalanceTransferView.vue')

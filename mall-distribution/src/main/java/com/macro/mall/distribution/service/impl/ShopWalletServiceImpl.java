@@ -3,6 +3,7 @@ package com.macro.mall.distribution.service.impl;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.crypto.digest.BCrypt;
 import com.macro.mall.common.exception.Asserts;
+import com.macro.mall.common.sms.SmsBusinessType;
 import com.macro.mall.distribution.constants.BalanceAsset;
 import com.macro.mall.distribution.dao.DmsAgentDao;
 import com.macro.mall.distribution.dao.DmsMemberAssetAccountDao;
@@ -43,8 +44,6 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class ShopWalletServiceImpl implements ShopWalletService {
-
-    private static final int SMS_BIZ_TYPE_SET_PAYMENT_PASSWORD = 7;
 
     private static final int MAX_FAILED_PAY_PASSWORD_COUNT = 5;
     private static final int PAY_PASSWORD_LOCK_MINUTES = 30;
@@ -117,7 +116,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
             }
         }
         smsVerificationService.verifyAndConsume(current.getPhone(), dto.getSmsCode(),
-                SMS_BIZ_TYPE_SET_PAYMENT_PASSWORD);
+                SmsBusinessType.SET_PAYMENT_PASSWORD);
         return memberDao.updatePayPassword(current.getId(), BCrypt.hashpw(dto.getNewPassword())) > 0;
     }
 

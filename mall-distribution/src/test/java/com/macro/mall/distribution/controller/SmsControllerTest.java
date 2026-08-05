@@ -14,6 +14,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -81,6 +82,16 @@ class SmsControllerTest {
         controller.verifyCode(request("13888888888", "654321", 7), "Bearer token");
 
         verify(verificationService).verifyAndConsume("13900000000", "654321", 7);
+    }
+
+    @Test
+    void paymentPasswordEndpointUsesServerSideBusinessType() {
+        when(shopAuthService.requireMember("Bearer token")).thenReturn(member("13900000000"));
+
+        CommonResult<String> result = controller.sendPaymentPasswordCode("Bearer token");
+
+        assertEquals(200, result.getCode());
+        verify(valueOperations).set(eq("sms:7:13900000000"), eq("123456"), eq(5L), eq(TimeUnit.MINUTES));
     }
 
     @Test

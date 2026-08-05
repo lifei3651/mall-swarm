@@ -276,6 +276,18 @@ class ShopFreightServiceTest {
     }
 
     @Test
+    void disabledProductPvIsZeroInPublicProductSnapshots() {
+        jdbcTemplate.update("UPDATE dms_tenant_display_config SET show_pv=0 WHERE tenant_id=1");
+
+        ShopProductDetailVO detail = shopService.getProductDetail(1L);
+        assertMoney("0.00", detail.getProduct().getPvValue());
+        detail.getSkus().forEach(sku -> assertMoney("0.00", sku.getPvValue()));
+
+        shopService.getHome(null).getFeaturedProducts()
+                .forEach(product -> assertMoney("0.00", product.getPvValue()));
+    }
+
+    @Test
     void legacyOversizedPvIsCappedAndQuantityIsMultipliedInOrderSnapshot() {
         jdbcTemplate.update("UPDATE dms_shop_product SET sale_price=99.00, pv_value=220.00 WHERE id=1");
         jdbcTemplate.update("UPDATE dms_shop_sku SET sale_price=99.00, pv_value=0.00 WHERE id=1");
