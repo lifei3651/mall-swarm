@@ -56,6 +56,14 @@ test('checkout only exposes configured payment channels', async () => {
   assert.match(source, /getPayConfig\(\)/)
 })
 
+test('alipay checkout posts the generated payment form and CSP allows only the official gateway', async () => {
+  const source = await readView('CheckoutView.vue')
+  const nginx = await readFile(new URL('../../scripts/nginx/lingqimall.conf', import.meta.url), 'utf8')
+  assert.match(source, /div\.innerHTML = payUrl/)
+  assert.match(source, /div\.querySelector\('form'\)\?\.submit\(\)/)
+  assert.match(nginx, /form-action 'self' https:\/\/openapi\.alipay\.com/)
+})
+
 test('wallet password setup prompt is shown first and uses payment password wording', async () => {
   const wallet = await readView('WalletView.vue')
   const security = await readView('SecurityView.vue')

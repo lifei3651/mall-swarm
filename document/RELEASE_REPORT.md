@@ -1,6 +1,6 @@
 # 灵启商城发版报告（按版本迭代）
 
-更新时间：2026-08-05 20:30（Asia/Shanghai）
+更新时间：2026-08-05 23:00（Asia/Shanghai）
 当前线上版本：`1.0.11`
 线上环境：https://lingqimall.com （管理后台 /admin/）
 
@@ -221,6 +221,7 @@
 - 商品 PV 开关修复：关闭商品 PV 后，商品默认 PV 与 SKU PV 自动按 0 保存，订单 PV 快照为 0，不再参与 PV 汇总；销售价、成本价、库存和支付金额不受影响。
 - PV 对外展示收口：PV 关闭时首页精选商品、商品详情和 SKU 接口统一返回 0，后台编辑页同步清理隐藏历史 PV，避免旧数据或旧页面继续显示 PV。
 - 设置支付密码短信改为服务端固定业务类型的专用入口，避免旧前端传错类型导致“短信业务类型不支持”。
+- 支付宝手机网站支付跳转修复：商城 CSP 原先仅允许本站表单提交，浏览器会拦截提交到支付宝官方网关，表现为点击提交后按钮结束但页面不跳转；现仅放行 `https://openapi.alipay.com`，不放开其它外站表单。
 
 ### 构建与测试
 
@@ -242,6 +243,7 @@
 - 16:55 配置支付宝生产密钥：服务器 `/etc/lingqimall/alipay.env` 权限为 `600`，后端支付配置接口返回 `alipayEnabled=true`，服务健康检查为 UP；修改前配置已备份为 `/opt/lingqimall/config/application.yml.before-alipay-20260805-1655`。
 - 17:18～17:29 补发 PV 修复后的前后台与后端资源：发布前全量备份 `/opt/lingqimall/backups/full/20260805_171752`；后端 JAR 上传后校验哈希与本地构建一致，服务恢复 active/UP；商城与管理后台入口返回 200，未删除业务数据。
 - 20:26 补发 PV 展示收口与支付密码短信修复：发布前全量备份 `/opt/lingqimall/backups/full/20260805_202639`；后端 JAR 哈希 `491bb6bba4852d8e029e8c00ff21ba7b161694ee1372eec6bd3dfde23a540abd` 与本地一致，服务 active/UP，商城与管理后台入口返回 200；线上首页 `showPv=0`、精选商品 PV 全部为 0，商品详情 SKU PV 全部为 0，未删除业务数据。
+- 23:00 修复支付宝跳转：发布前备份 `/opt/lingqimall/backups/nginx/lingqimall.conf.before-alipay-csp-20260805`，仅替换 Nginx CSP 并 reload；带缓存刷新验证首页响应头的 `form-action` 已包含支付宝官方网关，商城回归测试 20/20 通过，未改动业务数据。
 
 ### 本版未修复 / 待验证
 
