@@ -11,7 +11,7 @@
 - 商城前台增加常见问题、交易与售后、用户协议、隐私政策、联系客服入口；FAQ 从后台配置的 JSON 解析后以可展开问答展示。
 - 首页增加账户资金安全、订单可查、规则透明、客服支持等信任信息；搜索增加最近搜索和热门搜索快捷入口。
 - 验证：商城回归测试 18/18、后台 Vitest 27/27、后端 ShopWalletServiceTest/PerformanceServiceTest/ShopFreightServiceTest 合计 54/54、商城生产构建通过；本次尚未发布线上。
-- 支付宝支付接入改为仅通过环境变量读取配置，补齐 `/api/pay/alipay/notify` 与 `/api/pay/alipay/return` 兼容入口；异步回调先验签、校验应用与金额，仅 `TRADE_SUCCESS` 触发支付，订单状态条件保证重复通知幂等。未写入任何私钥，未连接生产、未发布。
+- 支付宝支付接入改为仅通过环境变量读取配置，补齐 `/api/pay/alipay/notify` 与 `/api/pay/alipay/return` 兼容入口；异步回调先验签、校验应用与金额，仅 `TRADE_SUCCESS` 触发支付，订单状态条件保证重复通知幂等。未写入任何私钥，生产默认关闭，随 1.0.11 发布后仍需完成正式商户密钥配置和真实资金验证。
 
 ## 2026-08-04（当前 Mac / Codex，白天）
 
