@@ -227,6 +227,12 @@ const routes = [
             meta: { title: '商城资料与客服', permission: 'config:manage' },
           },
           {
+            path: 'display',
+            name: 'TenantDisplay',
+            component: () => import('@/views/tenant/display.vue'),
+            meta: { title: '商城装修', permission: 'config:manage' },
+          },
+          {
             path: 'legal',
             name: 'TenantLegal',
             component: () => import('@/views/tenant/legal.vue'),

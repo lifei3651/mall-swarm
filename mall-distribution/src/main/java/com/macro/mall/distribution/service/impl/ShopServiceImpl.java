@@ -29,6 +29,7 @@ import com.macro.mall.distribution.service.OrderRelationSnapshotService;
 import com.macro.mall.distribution.service.OrderBalanceAllocationService;
 import com.macro.mall.distribution.vo.OrderFinanceVO;
 import com.macro.mall.distribution.vo.ShopHomeVO;
+import com.macro.mall.distribution.vo.ShopLegalConfigVO;
 import com.macro.mall.distribution.vo.ShopOrderVO;
 import com.macro.mall.distribution.vo.ShopProductDetailVO;
 import com.macro.mall.distribution.vo.ShopProfileVO;
@@ -103,7 +104,7 @@ public class ShopServiceImpl implements ShopService {
         vo.setLogoUrl(tenant == null ? null : tenant.getLogoUrl());
         vo.setThemeColor(tenant == null || tenant.getThemeColor() == null ? "#0f766e" : tenant.getThemeColor());
         vo.setProductTemplate(tenant == null || tenant.getProductTemplate() == null ? "standard" : tenant.getProductTemplate());
-        List<DmsShopCategory> categories = categoryDao.selectList(resolvedTenantId, 1);
+        List<DmsShopCategory> categories = categoryDao.selectHomeCategories(resolvedTenantId);
         vo.setCategoryList(categories);
         vo.setCategories(categories.isEmpty()
                 ? productDao.selectCategories(resolvedTenantId)
@@ -113,6 +114,7 @@ public class ShopServiceImpl implements ShopService {
         vo.setFeaturedProducts(productDao.selectList(resolvedTenantId, null, null, 1));
         vo.setDistributionSettings(auditService.getSettings());
         vo.setDisplayConfig(getDisplayConfig(resolvedTenantId));
+        vo.setLegalConfig(ShopLegalConfigVO.from(tenant));
         return vo;
     }
 
@@ -178,6 +180,18 @@ public class ShopServiceImpl implements ShopService {
         }
         assertTenantAccess(category.getTenantId());
         return categoryDao.updateStatus(id, status == null ? 1 : status) > 0;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean updateCategoryShowOnHome(Long id, Integer showOnHome) {
+        DmsShopCategory category = categoryDao.selectById(id);
+        if (category == null) {
+            Asserts.fail("分类不存在");
+        }
+        assertTenantAccess(category.getTenantId());
+        category.setShowOnHome(showOnHome == null ? 1 : showOnHome);
+        return categoryDao.update(category) > 0;
     }
 
     @Override

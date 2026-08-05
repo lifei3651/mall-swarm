@@ -173,6 +173,12 @@ public class ShopController {
         return CommonResult.success(shopService.updateCategoryStatus(id, status));
     }
 
+    @Operation(summary = "分类首页展示开关")
+    @PutMapping("/admin/categories/{id}/show-on-home")
+    public CommonResult<Boolean> updateCategoryShowOnHome(@PathVariable Long id, @RequestParam Integer showOnHome) {
+        return CommonResult.success(shopService.updateCategoryShowOnHome(id, showOnHome));
+    }
+
     @Operation(summary = "后台轮播图列表")
     @GetMapping("/admin/banners")
     public CommonResult<List<DmsShopBanner>> adminBanners(@RequestParam(required = false) Long tenantId,

@@ -56,6 +56,10 @@ export function updateShopCategoryStatus(id, status) {
   return request({ url: `/shop/admin/categories/${id}/status`, method: 'put', params: { status } })
 }
 
+export function updateCategoryShowOnHome(id, showOnHome) {
+  return request({ url: `/shop/admin/categories/${id}/show-on-home`, method: 'put', params: { showOnHome } })
+}
+
 export function uploadShopImage(file) {
   const data = new FormData()
   data.append('file', file)

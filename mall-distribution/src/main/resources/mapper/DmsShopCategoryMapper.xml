@@ -9,13 +9,14 @@
         <result column="icon_url" property="iconUrl"/>
         <result column="sort_order" property="sort"/>
         <result column="status" property="status"/>
+        <result column="show_on_home" property="showOnHome"/>
         <result column="remark" property="remark"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
     <sql id="BaseColumnList">
-        id, tenant_id, category_name, icon_url, sort_order, status, remark, create_time, update_time
+        id, tenant_id, category_name, icon_url, sort_order, status, show_on_home, remark, create_time, update_time
     </sql>
 
     <select id="selectById" resultMap="BaseResultMap">
@@ -38,9 +39,18 @@
         ORDER BY sort_order DESC, id DESC
     </select>
 
+    <select id="selectHomeCategories" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumnList"/>
+        FROM dms_shop_category
+        WHERE tenant_id = #{tenantId}
+          AND status = 1
+          AND (show_on_home IS NULL OR show_on_home = 1)
+        ORDER BY sort_order DESC, id DESC
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO dms_shop_category (tenant_id, category_name, icon_url, sort_order, status, remark)
-        VALUES (#{tenantId}, #{categoryName}, #{iconUrl}, #{sort}, #{status}, #{remark})
+        INSERT INTO dms_shop_category (tenant_id, category_name, icon_url, sort_order, status, show_on_home, remark)
+        VALUES (#{tenantId}, #{categoryName}, #{iconUrl}, #{sort}, #{status}, COALESCE(#{showOnHome}, 1), #{remark})
     </insert>
 
     <update id="update">
@@ -50,6 +60,7 @@
             icon_url = #{iconUrl},
             sort_order = #{sort},
             status = #{status},
+            show_on_home = COALESCE(#{showOnHome}, 1),
             remark = #{remark},
             update_time = CURRENT_TIMESTAMP
         WHERE id = #{id}

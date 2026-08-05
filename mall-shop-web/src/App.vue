@@ -6,6 +6,13 @@
 
     <footer class="site-footer">
       <p>{{ legal.companyName || brand.brandName }}</p>
+      <nav class="footer-links" aria-label="商城服务信息">
+        <RouterLink to="/legal/faq">常见问题</RouterLink>
+        <RouterLink to="/legal/after-sale">交易与售后</RouterLink>
+        <RouterLink to="/legal/contact">联系客服</RouterLink>
+        <RouterLink to="/legal/agreement">用户协议</RouterLink>
+        <RouterLink to="/legal/privacy">隐私政策</RouterLink>
+      </nav>
       <p class="records">
         <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">{{ legal.icpNumber || '湘ICP备2026028410号-1' }}</a>
         <a v-if="safePoliceUrl" :href="safePoliceUrl" target="_blank" rel="noopener noreferrer">{{ legal.policeRecordNumber || '公安备案' }}</a>

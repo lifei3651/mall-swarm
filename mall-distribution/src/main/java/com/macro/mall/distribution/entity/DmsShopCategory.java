@@ -22,6 +22,9 @@ public class DmsShopCategory implements Serializable {
 
     private Integer status;
 
+    /** 是否在首页展示：1-展示，0-隐藏 */
+    private Integer showOnHome;
+
     private String remark;
 
     private LocalDateTime createTime;

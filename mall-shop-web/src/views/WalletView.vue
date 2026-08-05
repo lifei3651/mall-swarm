@@ -52,10 +52,14 @@
     <!-- 余额记录 -->
     <section v-else-if="activeTool === 'flows'" class="panel records-panel">
       <h3>余额记录</h3>
-      <div v-if="!balanceFlows.length" class="records-empty">暂无余额记录</div>
+      <div v-if="flowsError" class="records-error">
+        <span>{{ flowsError }}</span>
+        <button type="button" @click="loadFlows">重新加载</button>
+      </div>
+      <div v-if="!balanceFlows.length && !flowsError" class="records-empty">暂无余额记录</div>
       <article v-for="item in balanceFlows" :key="item.id" class="record-item">
-        <div><strong>{{ item.remark || flowTypeName(item.changeType) }}<small>{{ item.createTime || '-' }}</small></strong></div>
-        <div><strong :class="flowAmountClass(item.changeType)">{{ flowAmountPrefix(item.changeType) }}{{ money(item.amount) }}</strong><small>余额 {{ money(item.balanceAfter) }}</small></div>
+        <div><strong>{{ item.remark || flowTypeName(item.changeType) }}<small>{{ formatDateTime(item.createTime) }}</small></strong></div>
+        <div><strong :class="flowAmountClass(item.changeType)">{{ flowAmountPrefix(item.changeType) }}{{ money(item.amount) }}</strong><small>变动前 ¥{{ money(item.balanceBefore) }} · 变动后 ¥{{ money(item.balanceAfter) }}</small></div>
       </article>
     </section>
 
@@ -85,6 +89,7 @@ const withdrawalRequestKey = ref('')
 const withdrawSmsCooldown = ref(0)
 const withdrawForm = ref({ withdrawType: 1, withdrawAmount: '', bankName: '', bankAccount: '', accountName: '', paymentPassword: '', smsCode: '' })
 const balanceFlows = ref([])
+const flowsError = ref('')
 const canUseBalance = computed(() => wallet.value.hasPaymentPassword && wallet.value.distributionActivated)
 const withdrawAccountLabel = computed(() => ({ 1: '银行卡号', 2: '微信收款账号', 3: '支付宝账号' }[withdrawForm.value.withdrawType]))
 const withdrawAccountPlaceholder = computed(() => ({ 1: '请输入银行卡号', 2: '请输入微信绑定手机号或账号', 3: '请输入支付宝账号' }[withdrawForm.value.withdrawType]))
@@ -106,9 +111,11 @@ const requirePaymentPassword = () => {
 }
 
 const loadFlows = async () => {
+  flowsError.value = ''
   try { balanceFlows.value = (await listMyBalanceFlows()).data || [] }
-  catch { balanceFlows.value = [] }
+  catch (e) { balanceFlows.value = []; flowsError.value = e.message || '余额记录加载失败，请稍后重试' }
 }
+const formatDateTime = (value) => value ? String(value).replace('T', ' ') : '-'
 const flowTypeName = (type) => ({ 1: '入账', 2: '支付', 3: '转出', 4: '转入', 5: '扣减' }[type] || '余额变动')
 const flowAmountPrefix = (type) => [1, 4].includes(type) ? '+' : '-'
 const flowAmountClass = (type) => [1, 4].includes(type) ? 'amount-in' : 'amount-out'
@@ -180,6 +187,8 @@ onMounted(fetchData)
 .submit-button { width:100%; margin-top:16px; }
 .form-warning { color:#b45309; font-size:12px; }
 .records-empty { padding:34px 0; color:var(--muted); text-align:center; }
+.records-error { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 10px; padding:10px 12px; color:#b42318; background:#fff1f0; border-radius:10px; font-size:12px; }
+.records-error button { flex:0 0 auto; padding:4px 9px; color:#b42318; background:#fff; border:1px solid #f3b4ae; border-radius:7px; font-size:12px; }
 .record-item { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 0; border-bottom:1px solid var(--line); }
 .record-item:last-child { border-bottom:0; }
 .record-item > div:last-child { text-align:right; }

@@ -37,4 +37,7 @@ public class ShopHomeVO implements Serializable {
     private DistributionSettingsVO distributionSettings;
 
     private DmsTenantDisplayConfig displayConfig;
+
+    /** 法律与客服信息，用于首页信任条展示。 */
+    private ShopLegalConfigVO legalConfig;
 }

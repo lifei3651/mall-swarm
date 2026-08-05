@@ -39,6 +39,8 @@ public interface ShopService {
 
     boolean updateCategoryStatus(Long id, Integer status);
 
+    boolean updateCategoryShowOnHome(Long id, Integer showOnHome);
+
     List<DmsShopBanner> listAdminBanners(Long tenantId, Integer status);
 
     DmsShopBanner saveBanner(DmsShopBanner banner);

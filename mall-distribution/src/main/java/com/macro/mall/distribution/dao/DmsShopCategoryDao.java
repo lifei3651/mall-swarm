@@ -11,6 +11,9 @@ public interface DmsShopCategoryDao {
 
     List<DmsShopCategory> selectList(@Param("tenantId") Long tenantId, @Param("status") Integer status);
 
+    /** 查询首页展示的分类（status=1且show_on_home=1） */
+    List<DmsShopCategory> selectHomeCategories(@Param("tenantId") Long tenantId);
+
     int insert(DmsShopCategory category);
 
     int update(DmsShopCategory category);

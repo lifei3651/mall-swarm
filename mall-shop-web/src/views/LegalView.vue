@@ -26,6 +26,16 @@
       </dl>
     </section>
 
+    <section v-else-if="type === 'faq'" class="faq-card">
+      <div v-if="faqs.length" class="faq-list">
+        <details v-for="(faq, index) in faqs" :key="`${index}-${faq.question}`" class="faq-item">
+          <summary><span class="faq-index">Q{{ index + 1 }}</span>{{ faq.question }}</summary>
+          <p>{{ faq.answer }}</p>
+        </details>
+      </div>
+      <p v-else class="empty-copy">常见问题正在整理中，如需帮助请联系客服。</p>
+    </section>
+
     <article v-else class="legal-content">{{ content || '该内容暂未配置，请联系客服。' }}</article>
   </div>
 </template>
@@ -40,8 +50,19 @@ const route = useRoute()
 const router = useRouter()
 const config = ref({})
 const type = computed(() => route.params.type)
-const titles = { agreement: '用户服务协议', privacy: '隐私政策', 'after-sale': '交易与售后规则', license: '经营资质', contact: '联系客服' }
+const titles = { agreement: '用户服务协议', privacy: '隐私政策', 'after-sale': '交易与售后规则', faq: '常见问题', license: '经营资质', contact: '联系客服' }
 const title = computed(() => titles[type.value] || '商城说明')
+const faqs = computed(() => {
+  try {
+    const parsed = JSON.parse(config.value.faqs || '[]')
+    return Array.isArray(parsed)
+      ? parsed.filter((item) => item && String(item.question || '').trim() && String(item.answer || '').trim())
+        .map((item) => ({ question: String(item.question).trim(), answer: String(item.answer).trim() }))
+      : []
+  } catch (_) {
+    return []
+  }
+})
 const content = computed(() => ({
   agreement: config.value.userAgreement,
   privacy: config.value.privacyPolicy,
@@ -76,4 +97,14 @@ onMounted(load)
 .info-card dd { margin: 0; overflow-wrap: anywhere; }
 .info-card a { color: var(--theme-color, #e7193f); text-decoration: none; }
 .license-image { display: block; width: 100%; max-width: 560px; margin: 20px auto 0; border-radius: 8px; }
+.faq-card { margin-top: 18px; padding: 8px 18px; border-radius: 14px; background: #fff; box-shadow: 0 4px 18px rgba(0,0,0,.06); }
+.faq-item { border-bottom: 1px solid #f0f0f0; }
+.faq-item:last-child { border-bottom: 0; }
+.faq-item summary { display:flex; align-items:flex-start; gap:10px; padding:16px 0; color:#222; font-size:15px; font-weight:600; line-height:1.55; cursor:pointer; list-style:none; }
+.faq-item summary::-webkit-details-marker { display:none; }
+.faq-item summary::after { margin-left:auto; color:#98a2b3; content:'＋'; font-size:18px; line-height:1; }
+.faq-item[open] summary::after { content:'−'; }
+.faq-item p { margin: -3px 0 16px 34px; color:#667085; font-size:14px; line-height:1.8; white-space:pre-line; }
+.faq-index { flex:0 0 auto; color:var(--theme-color, #e7193f); font-size:12px; }
+.empty-copy { padding:30px 0; color:#98a2b3; text-align:center; }
 </style>

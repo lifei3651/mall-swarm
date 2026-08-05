@@ -79,6 +79,29 @@ test('home quick add no longer redirects SKU products to product detail', async 
   assert.doesNotMatch(source, /router\.push\(`\/product\/\$\{product\.id\}`\)/)
 })
 
+test('home exposes trust information and preserves recent search shortcuts', async () => {
+  const source = await readView('HomeView.vue')
+  assert.match(source, /home-trust-strip/)
+  assert.match(source, /shop_recent_searches/)
+  assert.match(source, /热门搜索/)
+})
+
+test('wallet balance records show load failures instead of a misleading empty state', async () => {
+  const source = await readView('WalletView.vue')
+  assert.match(source, /余额记录加载失败，请稍后重试/)
+  assert.match(source, /变动前 ¥\{\{ money\(item\.balanceBefore\) \}\}/)
+  assert.match(source, /formatDateTime\(item\.createTime\)/)
+})
+
+test('frontend exposes the configured FAQ and service rules', async () => {
+  const legal = await readView('LegalView.vue')
+  const app = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+  assert.match(legal, /type === 'faq'/)
+  assert.match(legal, /JSON\.parse\(config\.value\.faqs/)
+  assert.match(app, /to="\/legal\/faq"/)
+  assert.match(app, /to="\/legal\/after-sale"/)
+})
+
 test('build freshness guard can identify the current production entry', () => {
   assert.equal(
     extractModuleEntry('<script type="module" crossorigin src="/assets/index-new.js"></script>'),
