@@ -245,6 +245,37 @@ class ShopFreightServiceTest {
     }
 
     @Test
+    void disablingProductPvIgnoresHiddenHistoricalPvValues() {
+        jdbcTemplate.update("UPDATE dms_tenant_display_config SET show_pv=0 WHERE tenant_id=1");
+
+        DmsShopProduct product = productDao.selectById(1L);
+        product.setSalePrice(new BigDecimal("0.01"));
+        product.setCostAmount(new BigDecimal("0.01"));
+        product.setPvValue(new BigDecimal("100.00"));
+        product.setDeliveryProvince("湖南省");
+        product.setDeliveryCity("长沙市");
+        product.setDeliveryDistrict("岳麓区");
+
+        DmsShopProduct saved = shopService.updateProduct(product.getId(), product);
+        assertMoney("0.00", saved.getPvValue());
+
+        DmsShopSku sku = skuDao.selectById(1L);
+        ShopSkuDTO skuDTO = new ShopSkuDTO();
+        skuDTO.setProductId(sku.getProductId());
+        skuDTO.setSkuName(sku.getSkuName());
+        skuDTO.setSkuNo(sku.getSkuNo());
+        skuDTO.setAttrsJson(sku.getAttrsJson());
+        skuDTO.setSalePrice(new BigDecimal("0.01"));
+        skuDTO.setCostAmount(new BigDecimal("0.01"));
+        skuDTO.setPvValue(new BigDecimal("100.00"));
+        skuDTO.setStock(sku.getStock());
+        skuDTO.setStatus(1);
+
+        DmsShopSku savedSku = shopService.updateSku(sku.getId(), skuDTO);
+        assertMoney("0.00", savedSku.getPvValue());
+    }
+
+    @Test
     void legacyOversizedPvIsCappedAndQuantityIsMultipliedInOrderSnapshot() {
         jdbcTemplate.update("UPDATE dms_shop_product SET sale_price=99.00, pv_value=220.00 WHERE id=1");
         jdbcTemplate.update("UPDATE dms_shop_sku SET sale_price=99.00, pv_value=0.00 WHERE id=1");

@@ -401,7 +401,11 @@ public class ShopServiceImpl implements ShopService {
                     .min(BigDecimal::compareTo).orElse(ZERO));
             product.setStock(activeSkus.stream().map(DmsShopSku::getStock).filter(Objects::nonNull)
                     .mapToInt(value -> Math.max(0, value)).sum());
-            validatePv(product.getPvValue(), product.getSalePrice(), "商品默认PV");
+            if (isPvEnabled(product.getTenantId())) {
+                validatePv(product.getPvValue(), product.getSalePrice(), "商品默认PV");
+            } else {
+                product.setPvValue(ZERO);
+            }
             productDao.update(product);
         }
         return productDao.selectById(id);
@@ -1103,7 +1107,11 @@ public class ShopServiceImpl implements ShopService {
         product.setMarketPrice(money(product.getMarketPrice()));
         product.setCostAmount(money(product.getCostAmount()));
         product.setPvValue(money(product.getPvValue()));
-        validatePv(product.getPvValue(), product.getSalePrice(), "商品PV");
+        if (isPvEnabled(product.getTenantId())) {
+            validatePv(product.getPvValue(), product.getSalePrice(), "商品PV");
+        } else {
+            product.setPvValue(ZERO);
+        }
         product.setBvValue(money(product.getBvValue()));
         product.setStock(product.getStock() == null ? 0 : product.getStock());
         product.setSalesCount(product.getSalesCount() == null ? 0 : product.getSalesCount());
@@ -1265,7 +1273,12 @@ public class ShopServiceImpl implements ShopService {
         sku.setMarketPrice(money(dto.getMarketPrice()));
         sku.setCostAmount(money(dto.getCostAmount()));
         sku.setPvValue(money(dto.getPvValue()));
-        validatePv(sku.getPvValue(), sku.getSalePrice(), "SKU PV");
+        DmsShopProduct product = productDao.selectById(dto.getProductId());
+        if (product != null && isPvEnabled(product.getTenantId())) {
+            validatePv(sku.getPvValue(), sku.getSalePrice(), "SKU PV");
+        } else {
+            sku.setPvValue(ZERO);
+        }
         sku.setBvValue(money(dto.getBvValue()));
         sku.setStock(dto.getStock() == null ? 0 : dto.getStock());
         sku.setSalesCount(0);
@@ -1432,12 +1445,20 @@ public class ShopServiceImpl implements ShopService {
         return Integer.valueOf(1).equals(value);
     }
 
+    private boolean isPvEnabled(Long tenantId) {
+        DmsTenantDisplayConfig config = displayConfigDao.selectByTenantId(resolveTenantId(tenantId));
+        return config == null || !Integer.valueOf(0).equals(config.getShowPv());
+    }
+
     private BigDecimal money(BigDecimal amount) {
         return amount == null ? ZERO : amount;
     }
 
     /** SKU 配置大于 0 时覆盖商品默认 PV；否则继承默认值，并始终受当前售价上限保护。 */
     private BigDecimal resolveUnitPv(DmsShopProduct product, DmsShopSku sku, BigDecimal salePrice) {
+        if (product != null && !isPvEnabled(product.getTenantId())) {
+            return ZERO;
+        }
         BigDecimal productPv = money(product == null ? null : product.getPvValue());
         BigDecimal skuPv = money(sku == null ? null : sku.getPvValue());
         BigDecimal configuredPv = sku != null && skuPv.compareTo(ZERO) > 0 ? skuPv : productPv;

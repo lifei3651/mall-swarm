@@ -29,7 +29,7 @@
       <div class="pv-global-setting">
         <div>
           <strong>商品 PV 填写</strong>
-          <span>开启后，在每个商品发布页单独填写；不填写或填 0 表示该商品无 PV。</span>
+          <span>开启后，在每个商品发布页单独填写；关闭后所有商品按 PV=0 处理，不再参与 PV 计算。</span>
         </div>
         <el-switch v-model="performanceUnitsEnabled" inline-prompt active-text="开" inactive-text="关" @change="changePvSetting" />
       </div>
@@ -711,9 +711,15 @@ const submitForm = async () => {
   if (form.value.serviceGuarantees.some((item) => item.enabled && !item.description?.trim())) return ElMessage.warning('请填写已勾选服务保障的详细介绍')
   if (!form.value.afterSalePolicy?.trim()) return ElMessage.warning('请选择售后模板或填写售后说明')
   syncProductSummaryFromSkus()
-  if (Number(form.value.pvValue || 0) > productPvLimit.value) return ElMessage.warning(`${hasSku.value ? '默认单件PV' : '单件PV'}不能超过销售价 ${productPvLimit.value.toFixed(2)}`)
-  const invalidSku = skuRows.value.find((item) => Number(item.pvValue || 0) > Math.max(0, Number(item.salePrice || 0)))
-  if (invalidSku) return ElMessage.warning(`SKU“${invalidSku.skuName || '未命名'}”的单件PV不能超过其销售价`)
+  if (performanceUnitsEnabled.value) {
+    if (Number(form.value.pvValue || 0) > productPvLimit.value) return ElMessage.warning(`${hasSku.value ? '默认单件PV' : '单件PV'}不能超过销售价 ${productPvLimit.value.toFixed(2)}`)
+    const invalidSku = skuRows.value.find((item) => Number(item.pvValue || 0) > Math.max(0, Number(item.salePrice || 0)))
+    if (invalidSku) return ElMessage.warning(`SKU“${invalidSku.skuName || '未命名'}”的单件PV不能超过其销售价`)
+  } else {
+    // 关闭商品 PV 后，隐藏字段中的历史值不应阻止低价商品保存，也不应继续进入订单快照。
+    form.value.pvValue = 0
+    skuRows.value.forEach((item) => { item.pvValue = 0 })
+  }
   submitting.value = true
   try {
     const [deliveryProvince, deliveryCity, deliveryDistrict] = deliveryRegion.value
