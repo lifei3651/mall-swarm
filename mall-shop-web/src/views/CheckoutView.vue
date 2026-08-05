@@ -98,6 +98,7 @@
               <span class="payment-check">✓</span>
             </button>
           </div>
+          <p class="payment-availability-hint">当前已开通余额支付；微信支付、支付宝通道完成商户配置后会自动显示。</p>
           <p v-if="form.payType === 'BALANCE'" class="line-sub balance-hint">
             当前余额 ¥{{ money(walletSummary.balance) }}；支付时需要输入独立支付密码。
           </p>
@@ -243,7 +244,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, ClipboardPaste, ShieldCheck, X } from 'lucide-vue-next'
-import { getHome, getMe, getWalletSummary, listAddresses, submitOrder, quoteFreight, checkPaymentVerify, sendSmsCode, setPaymentPassword, payOrderWithBalance } from '@/api/shop'
+import { getHome, getMe, getWalletSummary, listAddresses, submitOrder, quoteFreight, checkPaymentVerify, sendSmsCode, setPaymentPassword, payOrderWithBalance, createAlipayOrder, getPayConfig } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { money, joinAddress } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
@@ -273,11 +274,18 @@ const addressPasteText = ref('')
 const addressParseHint = ref('')
 const payAmount = computed(() => Number(total.value || 0) + Number(freightAmount.value || 0))
 const walletSummary = ref({ balance: 0, hasPaymentPassword: false })
-const paymentOptions = [
-  { value: 'WECHAT', label: '微信支付', icon: '微', description: '微信商户通道' },
-  { value: 'ALIPAY', label: '支付宝', icon: '支', description: '支付宝商户通道' },
-  { value: 'BALANCE', label: '余额', icon: '余', description: '奖金结算余额' },
-]
+// 正式微信/支付宝通道尚未配置商户参数时不能让客户选择，避免生成无法完成支付的订单。
+// 接入真实支付回调后，再根据后台支付配置动态追加对应选项。
+const payConfig = ref({ alipayEnabled: false })
+const paymentOptions = computed(() => {
+  const options = [
+    { value: 'BALANCE', label: '余额', icon: '余', description: '奖金结算余额' },
+  ]
+  if (payConfig.value.alipayEnabled) {
+    options.push({ value: 'ALIPAY', label: '支付宝', icon: '支', description: '支付宝安全支付' })
+  }
+  return options
+})
 
 const goBack = () => {
   if (window.history.state?.back) {
@@ -321,7 +329,7 @@ const form = ref({
   receiverCity: '',
   receiverDistrict: '',
   receiverDetailAddress: '',
-  payType: 'ALIPAY',
+  payType: 'BALANCE',
   remark: '',
 })
 
@@ -426,7 +434,7 @@ const validate = () => {
   if (!isValidMainlandPhone(form.value.receiverPhone)) return '请填写正确的11位手机号'
   if (receiverRegion.value.length !== 3) return '请完整选择省、市、区/县'
   if (!form.value.receiverDetailAddress) return '请填写详细收货地址'
-  if (form.value.payType === 'BALANCE' && walletSummary.value.hasPaymentPassword && Number(walletSummary.value.balance || 0) < payAmount.value) return '余额不足，请选择微信或支付宝'
+  if (form.value.payType === 'BALANCE' && walletSummary.value.hasPaymentPassword && Number(walletSummary.value.balance || 0) < payAmount.value) return '余额不足，请先充值或接收奖金后再支付'
   return ''
 }
 
@@ -654,10 +662,24 @@ const doSubmitOrder = async (paymentPassword) => {
       if (paymentPassword) pendingBalanceOrderId.value = orderId
     }
     if (paymentPassword) {
+      // 余额支付
       if (!balancePaymentRequestKey.value) balancePaymentRequestKey.value = createIdempotencyKey('balance-pay')
       await payOrderWithBalance(orderId, paymentPassword, balancePaymentRequestKey.value)
       balancePaymentRequestKey.value = ''
       pendingBalanceOrderId.value = null
+    } else if (form.value.payType === 'ALIPAY') {
+      // 支付宝支付：创建支付宝订单并跳转
+      const alipayRes = await createAlipayOrder(orderId)
+      const payUrl = alipayRes.data?.payUrl
+      if (payUrl) {
+        // 创建一个临时div来提交支付宝表单
+        const div = document.createElement('div')
+        div.innerHTML = payUrl
+        document.body.appendChild(div)
+        div.querySelector('form')?.submit()
+        return // 不跳转订单详情，等待支付宝回调
+      }
+      throw new Error('创建支付宝订单失败')
     }
     removeCheckedOutItems()
     router.push(`/orders/${orderId}`)
@@ -679,7 +701,15 @@ onMounted(() => {
   fetchAddresses()
   fetchMemberPhone()
   checkVerify()
+  fetchPayConfig()
 })
+
+const fetchPayConfig = async () => {
+  try {
+    const res = await getPayConfig()
+    payConfig.value = res.data || {}
+  } catch {}
+}
 onBeforeUnmount(() => {
   window.clearInterval(setupSmsTimer)
   window.clearInterval(paymentSmsTimer)
@@ -734,6 +764,7 @@ onBeforeUnmount(() => {
 .checkout-form-grid { gap: 10px 12px; }
 .checkout-form-grid :deep(.china-region-select) { gap: 8px; }
 .payment-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.payment-availability-hint { margin: 9px 0 0; color: #667085; font-size: 12px; line-height: 1.6; }
 .payment-title { display: flex; align-items: baseline; gap: 8px; margin-bottom: 9px; }
 .payment-title span { color: var(--muted); font-size: 12px; }
 

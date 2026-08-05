@@ -47,6 +47,15 @@ test('checkout switches addresses inline so the remark field stays mounted', asy
   assert.match(source, /v-model="form\.remark"/)
 })
 
+test('checkout only exposes configured payment channels', async () => {
+  const source = await readView('CheckoutView.vue')
+  assert.match(source, /当前已开通余额支付；微信支付、支付宝通道完成商户配置后会自动显示。/)
+  assert.match(source, /payType: 'BALANCE'/)
+  assert.doesNotMatch(source, /value: 'WECHAT'/)
+  assert.match(source, /payConfig\.value\.alipayEnabled/)
+  assert.match(source, /getPayConfig\(\)/)
+})
+
 test('wallet password setup prompt is shown first and uses payment password wording', async () => {
   const wallet = await readView('WalletView.vue')
   const security = await readView('SecurityView.vue')

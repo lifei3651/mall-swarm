@@ -196,6 +196,18 @@ export function payOrderWithBalance(id, paymentPassword, idempotencyKey) {
   })
 }
 
+export function createAlipayOrder(orderId) {
+  return request({ url: `/shop/pay/alipay/create`, method: 'post', params: { orderId } })
+}
+
+export function queryAlipayOrderStatus(orderId) {
+  return request({ url: `/shop/pay/alipay/query`, method: 'get', params: { orderId } })
+}
+
+export function getPayConfig() {
+  return request({ url: '/shop/pay/config', method: 'get' })
+}
+
 export function applyWithdrawal(data, idempotencyKey) {
   return request({ url: '/shop/wallet/withdrawals', method: 'post', data, headers: idempotencyHeaders(idempotencyKey) })
 }

@@ -108,6 +108,12 @@
             <version>3.5.3</version>
         </dependency>
 
+        <!-- 支付宝SDK -->
+        <dependency>
+            <groupId>com.alipay.sdk</groupId>
+            <artifactId>alipay-sdk-java</artifactId>
+        </dependency>
+
         <!-- H2 数据库（测试用） -->
         <dependency>
             <groupId>com.h2database</groupId>

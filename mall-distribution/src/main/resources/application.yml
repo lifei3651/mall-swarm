@@ -90,3 +90,15 @@ order:
   balance-allocation:
     remainder-account: SYSTEM_REMAINDER
     product-cost-account: SYSTEM_PRODUCT_COST
+
+# 支付宝支付配置
+# 正式使用时请替换为真实的支付宝应用配置
+alipay:
+  enabled: ${ALIPAY_ENABLED:false}
+  appId: ${ALIPAY_APP_ID:}
+  privateKey: ${ALIPAY_PRIVATE_KEY:}
+  alipayPublicKey: ${ALIPAY_PUBLIC_KEY:}
+  notifyUrl: ${ALIPAY_NOTIFY_URL:https://lingqimall.com/api/pay/alipay/notify}
+  returnUrl: ${ALIPAY_RETURN_URL:https://lingqimall.com/api/pay/alipay/return}
+  gatewayUrl: https://openapi.alipay.com/gateway.do
+  signType: RSA2
