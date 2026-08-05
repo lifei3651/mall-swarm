@@ -87,6 +87,13 @@ test('payment password setup uses the dedicated server-side SMS endpoint', async
   assert.doesNotMatch(`${change}\n${checkout}`, /sendSmsCode\([^\n]*,\s*7\)/)
 })
 
+test('checkout confirms payment password was saved before continuing payment', async () => {
+  const source = await readView('CheckoutView.vue')
+  assert.match(source, /支付密码已保存/)
+  assert.match(source, /continueAfterPasswordSaved/)
+  assert.match(source, /paymentPasswordSaved\.value = true/)
+})
+
 test('wallet actions keep transfer on its own page and explain non-agent team access', async () => {
   const wallet = await readView('WalletView.vue')
   const transfer = await readView('BalanceTransferView.vue')

@@ -728,6 +728,14 @@ const submitForm = async () => {
   if (form.value.serviceGuarantees.some((item) => item.enabled && !item.description?.trim())) return ElMessage.warning('请填写已勾选服务保障的详细介绍')
   if (!form.value.afterSalePolicy?.trim()) return ElMessage.warning('请选择售后模板或填写售后说明')
   syncProductSummaryFromSkus()
+  // 保存前重新读取开关，避免旧后台页面缓存了“开启 PV”的状态而拦截低价商品。
+  try {
+    const latestSettings = await getProductSettings()
+    performanceUnitsEnabled.value = Number(latestSettings.data?.showPv ?? 1) === 1
+    if (!performanceUnitsEnabled.value) clearDisabledPvValues()
+  } catch {
+    // 读取失败时保留当前开关状态；后端仍会按服务端配置做最终校验。
+  }
   if (performanceUnitsEnabled.value) {
     if (Number(form.value.pvValue || 0) > productPvLimit.value) return ElMessage.warning(`${hasSku.value ? '默认单件PV' : '单件PV'}不能超过销售价 ${productPvLimit.value.toFixed(2)}`)
     const invalidSku = skuRows.value.find((item) => Number(item.pvValue || 0) > Math.max(0, Number(item.salePrice || 0)))

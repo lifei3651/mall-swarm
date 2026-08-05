@@ -154,7 +154,15 @@
     <!-- 支付密码弹窗 -->
     <div v-if="showPayDialog" class="dialog-overlay" @click.self="closePayDialog">
       <div :class="walletSummary.hasPaymentPassword ? 'payment-sheet' : 'dialog-box'" role="dialog" aria-modal="true" :aria-labelledby="walletSummary.hasPaymentPassword ? 'pay-dialog-title' : 'setup-pay-dialog-title'">
-        <template v-if="!walletSummary.hasPaymentPassword">
+        <template v-if="paymentPasswordSaved">
+          <div class="password-saved-dialog" role="status" aria-live="polite">
+            <div class="password-saved-icon">✓</div>
+            <h3>支付密码已保存</h3>
+            <p>支付密码已设置成功，请继续完成本次订单支付。</p>
+            <button type="button" class="btn primary password-saved-action" :disabled="payPasswordSubmitting" @click="continueAfterPasswordSaved">继续支付</button>
+          </div>
+        </template>
+        <template v-else-if="!walletSummary.hasPaymentPassword">
           <h3 id="setup-pay-dialog-title">首次设置支付密码</h3>
           <p>设置成功后将继续支付本订单。支付密码用于余额支付、转账和提现，请勿与登录密码相同。</p>
           <div class="dialog-form">
@@ -304,6 +312,7 @@ const smsCooldown = ref(0)
 
 // 支付密码弹窗
 const showPayDialog = ref(false)
+const paymentPasswordSaved = ref(false)
 const payPasswordInput = ref('')
 const payPasswordError = ref('')
 const payPasswordSubmitting = ref(false)
@@ -519,6 +528,7 @@ const sendSetupPasswordCode = async () => {
 const closePayDialog = () => {
   if (payPasswordSubmitting.value || setupPasswordSubmitting.value) return
   showPayDialog.value = false
+  paymentPasswordSaved.value = false
   payPasswordError.value = ''
   setupPasswordError.value = ''
 }
@@ -569,7 +579,7 @@ const setupPasswordAndPay = async () => {
     setupPasswordConfirm.value = ''
     window.clearInterval(setupSmsTimer)
     setupSmsCountdown.value = 0
-    await confirmPayWithPassword()
+    paymentPasswordSaved.value = true
   } catch (e) {
     if (walletSummary.value.hasPaymentPassword) {
       payPasswordError.value = e.message || '支付失败，请重新输入支付密码'
@@ -579,6 +589,12 @@ const setupPasswordAndPay = async () => {
   } finally {
     setupPasswordSubmitting.value = false
   }
+}
+
+const continueAfterPasswordSaved = async () => {
+  if (payPasswordSubmitting.value || setupPasswordSubmitting.value) return
+  paymentPasswordSaved.value = false
+  await confirmPayWithPassword()
 }
 
 const submit = async () => {
@@ -606,6 +622,7 @@ const submit = async () => {
   // 余额支付需要输入支付密码，弹出对话框
   if (form.value.payType === 'BALANCE') {
     payPasswordInput.value = ''
+    paymentPasswordSaved.value = false
     payPasswordError.value = ''
     setupPasswordError.value = ''
     if (!walletSummary.value.hasPaymentPassword && !await fetchMemberPhone()) {
@@ -865,6 +882,11 @@ onBeforeUnmount(() => {
 .dialog-box { width: min(380px, calc(100% - 32px)); max-height: calc(100dvh - 24px); padding: 24px; overflow-y: auto; background: #fff; border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
 .dialog-box h3 { margin: 0 0 8px; font-size: 18px; text-align: center; }
 .dialog-box p { margin: 0 0 16px; color: var(--muted); font-size: 13px; text-align: center; line-height: 1.6; }
+.password-saved-dialog { padding: 30px 24px 24px; text-align: center; }
+.password-saved-icon { width: 48px; height: 48px; display: grid; place-items: center; margin: 0 auto 12px; color: #fff; background: #16a36a; border-radius: 50%; font-size: 28px; font-weight: 800; }
+.password-saved-dialog h3 { margin: 0 0 8px; color: var(--ink); font-size: 20px; }
+.password-saved-dialog p { margin: 0 0 20px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.password-saved-action { width: 100%; min-height: 44px; }
 .dialog-pay-info { font-size: 15px !important; color: var(--ink) !important; }
 .dialog-pay-info strong { color: var(--accent, #e7193f); font-size: 20px; }
 .dialog-pwd-input { width: 100%; text-align: center; font-size: 20px; letter-spacing: 8px; padding: 12px; }

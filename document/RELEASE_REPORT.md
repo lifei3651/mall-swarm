@@ -244,6 +244,8 @@
 - 17:18～17:29 补发 PV 修复后的前后台与后端资源：发布前全量备份 `/opt/lingqimall/backups/full/20260805_171752`；后端 JAR 上传后校验哈希与本地构建一致，服务恢复 active/UP；商城与管理后台入口返回 200，未删除业务数据。
 - 20:26 补发 PV 展示收口与支付密码短信修复：发布前全量备份 `/opt/lingqimall/backups/full/20260805_202639`；后端 JAR 哈希 `491bb6bba4852d8e029e8c00ff21ba7b161694ee1372eec6bd3dfde23a540abd` 与本地一致，服务 active/UP，商城与管理后台入口返回 200；线上首页 `showPv=0`、精选商品 PV 全部为 0，商品详情 SKU PV 全部为 0，未删除业务数据。
 - 23:00 修复支付宝跳转：发布前备份 `/opt/lingqimall/backups/nginx/lingqimall.conf.before-alipay-csp-20260805`，仅替换 Nginx CSP 并 reload；带缓存刷新验证首页响应头的 `form-action` 已包含支付宝官方网关，商城回归测试 20/20 通过，未改动业务数据。
+- 23:10 补发支付密码与 PV 前端修复：支付密码首次设置成功后增加“支付密码已保存”确认弹窗；后台商品保存前重新读取服务端 PV 开关并规避旧 GET 缓存，关闭 PV 时不再被历史 PV 拦截。商城 21/21、后台 27/27、商品发布后端 17/17 通过，商城/后台构建通过；发布前备份 `/opt/lingqimall/backups/frontend/20260805-payment-pv`，前后台入口返回 200，未改动业务数据。
+- 23:15 补发支付密码成功弹窗样式，最终前台资源备份 `/opt/lingqimall/backups/frontend/20260805-payment-pv-final`；商城入口返回 200，后端未重启，业务数据未改动。
 
 ### 本版未修复 / 待验证
 

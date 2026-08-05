@@ -83,7 +83,7 @@ export function uploadShopImage(file) {
 }
 
 export function getProductSettings() {
-  return request({ url: '/shop/admin/product-settings', method: 'get' })
+  return request({ url: '/shop/admin/product-settings', method: 'get', params: { _t: Date.now() }, headers: { 'Cache-Control': 'no-cache' } })
 }
 
 export function updateProductPvSetting(enabled) {

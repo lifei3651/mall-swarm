@@ -276,6 +276,44 @@ class ShopFreightServiceTest {
     }
 
     @Test
+    void disablingProductPvAlsoAllowsAggregatePublishWithHiddenHistoricalPvValues() {
+        jdbcTemplate.update("UPDATE dms_tenant_display_config SET show_pv=0 WHERE tenant_id=1");
+
+        DmsShopProduct product = productDao.selectById(1L);
+        product.setSalePrice(new BigDecimal("10.00"));
+        product.setCostAmount(new BigDecimal("1.00"));
+        product.setPvValue(new BigDecimal("100.00"));
+        product.setDeliveryProvince("湖南省");
+        product.setDeliveryCity("长沙市");
+        product.setDeliveryDistrict("岳麓区");
+
+        DmsShopSku existingSku = skuDao.selectById(1L);
+        ShopSkuDTO sku = new ShopSkuDTO();
+        sku.setId(existingSku.getId());
+        sku.setProductId(existingSku.getProductId());
+        sku.setSkuName(existingSku.getSkuName());
+        sku.setSkuNo(existingSku.getSkuNo());
+        sku.setAttrsJson(existingSku.getAttrsJson());
+        sku.setSalePrice(new BigDecimal("10.00"));
+        sku.setMarketPrice(existingSku.getMarketPrice());
+        sku.setCostAmount(new BigDecimal("1.00"));
+        sku.setPvValue(new BigDecimal("100.00"));
+        sku.setStock(existingSku.getStock());
+        sku.setStatus(1);
+
+        ProductPublishDTO publish = new ProductPublishDTO();
+        publish.setProduct(product);
+        publish.setSkus(List.of(sku));
+        publish.setRemovedSkuIds(List.of());
+
+        DmsShopProduct saved = shopService.publishProduct(product.getId(), publish);
+
+        assertMoney("10.00", saved.getSalePrice());
+        assertMoney("0.00", saved.getPvValue());
+        assertMoney("0.00", skuDao.selectById(existingSku.getId()).getPvValue());
+    }
+
+    @Test
     void disabledProductPvIsZeroInPublicProductSnapshots() {
         jdbcTemplate.update("UPDATE dms_tenant_display_config SET show_pv=0 WHERE tenant_id=1");
 
