@@ -60,6 +60,22 @@ export function updateCategoryShowOnHome(id, showOnHome) {
   return request({ url: `/shop/admin/categories/${id}/show-on-home`, method: 'put', params: { showOnHome } })
 }
 
+export function listShopBanners(params) {
+  return request({ url: '/shop/admin/banners', method: 'get', params })
+}
+
+export function createShopBanner(data) {
+  return request({ url: '/shop/admin/banners', method: 'post', data })
+}
+
+export function updateShopBanner(id, data) {
+  return request({ url: `/shop/admin/banners/${id}`, method: 'put', data })
+}
+
+export function updateShopBannerStatus(id, status) {
+  return request({ url: `/shop/admin/banners/${id}/status`, method: 'put', params: { status } })
+}
+
 export function uploadShopImage(file) {
   const data = new FormData()
   data.append('file', file)

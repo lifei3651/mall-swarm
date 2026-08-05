@@ -20,25 +20,14 @@
     </footer>
 
     <nav v-if="showGlobalChrome" class="bottom-nav" :style="{ '--bottom-nav-columns': bottomNavColumns }">
-      <RouterLink to="/" @touchend.prevent="navigateTo('/')">
-        <Home :size="20" />
-        <span>首页</span>
-      </RouterLink>
-      <RouterLink v-if="showBottomCategoryNav" to="/category" @touchend.prevent="navigateTo('/category')">
-        <Grid3x3 :size="20" />
-        <span>分类</span>
-      </RouterLink>
-      <RouterLink to="/cart" @touchend.prevent="navigateTo('/cart')">
-        <span class="bottom-cart-icon">
+      <RouterLink v-for="item in bottomNavItems" :key="item.type" :to="item.path" @touchend.prevent="navigateTo(item.path)">
+        <span v-if="item.type === 'cart'" class="bottom-cart-icon">
           <ShoppingBag :size="20" />
           <span v-if="count" class="bottom-cart-badge">{{ count > 99 ? '99+' : count }}</span>
           <span v-if="cartFeedback" class="cart-add-feedback">{{ cartFeedback }}</span>
         </span>
-        <span>购物车</span>
-      </RouterLink>
-      <RouterLink to="/profile" @touchend.prevent="navigateTo('/profile')">
-        <UserRound :size="20" />
-        <span>我的</span>
+        <component v-else :is="navIcon(item.type)" :size="20" />
+        <span>{{ item.label }}</span>
       </RouterLink>
     </nav>
 
@@ -63,7 +52,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Home, ShoppingBag, UserRound, Grid3x3 } from 'lucide-vue-next'
+import { Home, ShoppingBag, UserRound, Grid3x3, ClipboardList } from 'lucide-vue-next'
 import { getHome, getLegalConfig } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { applyBrandConfig, currentBrandName, updatePageTitle } from '@/utils/brand'
@@ -87,8 +76,25 @@ const isHome = computed(() => route.name === 'Home')
 const isProductDetail = computed(() => route.name === 'ProductDetail')
 const isCheckout = computed(() => route.name === 'Checkout')
 const showGlobalChrome = computed(() => !isProductDetail.value && !isCheckout.value)
-const showBottomCategoryNav = computed(() => Number(displayConfig.value.showBottomCategoryNav ?? 1) === 1)
-const bottomNavColumns = computed(() => showBottomCategoryNav.value ? 4 : 3)
+const defaultBottomNav = [
+  { type: 'home', label: '首页', enabled: true, path: '/' },
+  { type: 'category', label: '分类', enabled: true, path: '/category' },
+  { type: 'cart', label: '购物车', enabled: true, path: '/cart' },
+  { type: 'orders', label: '订单', enabled: false, path: '/orders' },
+  { type: 'profile', label: '我的', enabled: true, path: '/profile' },
+]
+const navIconMap = { home: Home, category: Grid3x3, cart: ShoppingBag, orders: ClipboardList, profile: UserRound }
+const navIcon = (type) => navIconMap[type] || Home
+const bottomNavItems = computed(() => {
+  let items = defaultBottomNav
+  try {
+    const extra = JSON.parse(displayConfig.value.extraConfigJson || '{}')
+    if (Array.isArray(extra.bottomNav) && extra.bottomNav.length) items = extra.bottomNav.map((item) => ({ ...item, path: defaultBottomNav.find((base) => base.type === item.type)?.path || '/' }))
+  } catch (_) {}
+  const categoryEnabled = Number(displayConfig.value.showBottomCategoryNav ?? 1) === 1
+  return items.filter((item) => item.enabled !== false && (item.type !== 'category' || categoryEnabled))
+})
+const bottomNavColumns = computed(() => Math.max(bottomNavItems.value.length, 1))
 const layoutTemplate = computed(() => ['standard', 'product-focus', 'category-focus'].includes(displayConfig.value.layoutTemplate)
   ? displayConfig.value.layoutTemplate
   : 'standard')

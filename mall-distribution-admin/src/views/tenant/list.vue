@@ -113,7 +113,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="displayDialogVisible" title="商城首页布局" width="820px" top="5vh">
+    <el-dialog v-model="displayDialogVisible" title="商城装修与前台配置" width="980px" top="3vh">
       <el-alert
         title="这里只调整商城模板、首页分类和底部导航；奖金、业绩和账务规则在各自业务页面管理。"
         type="info"
@@ -142,7 +142,20 @@
           </button>
         </div>
 
-        <el-divider content-position="left">首页与底部导航</el-divider>
+        <el-divider content-position="left">首页模块顺序与显隐</el-divider>
+        <div class="module-list">
+          <div v-for="(module, index) in displayForm.homeModules" :key="module.type" class="module-item">
+            <div class="module-actions">
+              <el-button size="small" :disabled="index === 0" @click="moveModule(index, -1)">上移</el-button>
+              <el-button size="small" :disabled="index === displayForm.homeModules.length - 1" @click="moveModule(index, 1)">下移</el-button>
+            </div>
+            <strong>{{ moduleNames[module.type] || module.type }}</strong>
+            <el-switch v-model="module.enabled" active-text="展示" inactive-text="隐藏" />
+          </div>
+        </div>
+        <div class="section-note">Banner 图片内容请进入 <el-button type="primary" link @click="$router.push('/shop/banners')">首页Banner</el-button> 管理；总开关由上面的 Banner 模块控制。</div>
+
+        <el-divider content-position="left">首页与分类展示</el-divider>
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="首页商品分类">
@@ -162,6 +175,30 @@
           </el-col>
         </el-row>
 
+        <div class="category-list">
+          <div v-for="category in categories" :key="category.id" class="category-row">
+            <span>{{ category.categoryName }}</span>
+            <el-switch :model-value="category.showOnHome ?? 1" :active-value="1" :inactive-value="0" active-text="首页展示" inactive-text="隐藏" @change="(value) => toggleCategory(category, value)" />
+          </div>
+          <el-empty v-if="!categories.length" :image-size="44" description="暂无商品分类，可直接展示精选商品" />
+        </div>
+
+        <el-divider content-position="left">更多颜色配置</el-divider>
+        <el-row :gutter="16">
+          <el-col v-for="color in colorFields" :key="color.key" :span="8">
+            <el-form-item :label="color.label"><div class="color-editor"><el-color-picker v-model="displayForm.colors[color.key]" show-alpha /><span>{{ displayForm.colors[color.key] || '跟随主题' }}</span></div></el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-divider content-position="left">底部导航自定义</el-divider>
+        <div class="nav-config-list">
+          <div v-for="nav in displayForm.bottomNav" :key="nav.type" class="nav-config-row">
+            <span>{{ navNames[nav.type] || nav.type }}</span>
+            <el-input v-model="nav.label" maxlength="6" style="width:120px" />
+            <el-switch v-model="nav.enabled" active-text="展示" inactive-text="隐藏" />
+          </div>
+        </div>
+
       </el-form>
       <template #footer>
         <el-button @click="displayDialogVisible = false">取消</el-button>
@@ -174,7 +211,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { uploadShopImage } from '@/api/shop'
+import { listShopCategories, updateCategoryShowOnHome, uploadShopImage } from '@/api/shop'
 import {
   getDisplayConfig,
   listTenants,
@@ -188,9 +225,37 @@ const tenantDialogVisible = ref(false)
 const displayDialogVisible = ref(false)
 const currentTenant = ref(null)
 const currentDisplayConfig = ref({ layoutTemplate: 'standard' })
+const categories = ref([])
 
 const tenantForm = ref({})
 const displayForm = ref({})
+const moduleNames = { banner: 'Banner轮播', notice: '商城公告', category: '商品分类', trust: '服务保障', products: '精选商品' }
+const navNames = { home: '首页', category: '分类', cart: '购物车', orders: '订单', profile: '我的' }
+const defaultModules = () => [
+  { type: 'banner', enabled: true, sort: 1 },
+  { type: 'notice', enabled: true, sort: 2 },
+  { type: 'category', enabled: true, sort: 3 },
+  { type: 'trust', enabled: true, sort: 4 },
+  { type: 'products', enabled: true, sort: 5 },
+]
+const defaultBottomNav = () => [
+  { type: 'home', label: '首页', enabled: true },
+  { type: 'category', label: '分类', enabled: true },
+  { type: 'cart', label: '购物车', enabled: true },
+  { type: 'orders', label: '订单', enabled: false },
+  { type: 'profile', label: '我的', enabled: true },
+]
+const colorFields = [
+  { key: 'priceColor', label: '价格色' },
+  { key: 'pageBg', label: '页面背景' },
+  { key: 'headerBg', label: '顶部背景' },
+  { key: 'cardBg', label: '卡片背景' },
+  { key: 'textColor', label: '主文字色' },
+  { key: 'mutedColor', label: '辅助文字色' },
+  { key: 'accentColor', label: '强调色' },
+  { key: 'lineColor', label: '分割线色' },
+  { key: 'buttonBg', label: '按钮背景' },
+]
 const themeOptions = [
   { value: 'retail-red', label: '热卖红', color: '#e7193f', radius: '12px', description: '醒目促销、适合大众零售' },
   { value: 'fresh-green', label: '清新绿', color: '#0f766e', radius: '18px', description: '自然清爽、适合健康生活' },
@@ -274,13 +339,20 @@ const uploadLogo = async ({ file }) => {
 
 const openDisplayDialog = async (row) => {
   currentTenant.value = row
-  const res = await getDisplayConfig(row.id)
+  const [res, categoryRes] = await Promise.all([getDisplayConfig(row.id), listShopCategories({ tenantId: row.id, status: 1 })])
+  categories.value = categoryRes.data || []
+  const raw = res.data?.extraConfigJson || '{}'
+  let extra = {}
+  try { extra = JSON.parse(raw) || {} } catch { extra = {} }
   displayForm.value = {
     tenantId: row.id,
     layoutTemplate: 'standard',
     showHomeCategories: 1,
     showBottomCategoryNav: 1,
     ...(res.data || {}),
+    homeModules: Array.isArray(extra.homeModules) && extra.homeModules.length ? extra.homeModules : defaultModules(),
+    colors: { priceColor: '', pageBg: '', headerBg: '', cardBg: '', textColor: '', mutedColor: '', accentColor: '', lineColor: '', buttonBg: '', ...(extra.colors || {}) },
+    bottomNav: Array.isArray(extra.bottomNav) && extra.bottomNav.length ? extra.bottomNav : defaultBottomNav(),
   }
   displayDialogVisible.value = true
 }
@@ -291,8 +363,27 @@ const applyLayoutTemplate = (template) => {
   displayForm.value.showBottomCategoryNav = template.showBottomCategoryNav
 }
 
+const moveModule = (index, direction) => {
+  const next = index + direction
+  if (next < 0 || next >= displayForm.value.homeModules.length) return
+  const modules = displayForm.value.homeModules
+  ;[modules[index], modules[next]] = [modules[next], modules[index]]
+  modules.forEach((module, itemIndex) => { module.sort = itemIndex + 1 })
+}
+
+const toggleCategory = async (category, value) => {
+  await updateCategoryShowOnHome(category.id, value)
+  category.showOnHome = value
+  ElMessage.success(value ? `${category.categoryName} 已展示` : `${category.categoryName} 已隐藏`)
+}
+
 const submitDisplayConfig = async () => {
-  await saveDisplayConfig(displayForm.value)
+  const payload = { ...displayForm.value }
+  payload.extraConfigJson = JSON.stringify({ homeModules: payload.homeModules, colors: payload.colors, bottomNav: payload.bottomNav })
+  delete payload.homeModules
+  delete payload.colors
+  delete payload.bottomNav
+  await saveDisplayConfig(payload)
   currentDisplayConfig.value = { ...displayForm.value }
   ElMessage.success('商城界面已保存，网页和 APP 刷新后生效')
   displayDialogVisible.value = false
@@ -403,6 +494,16 @@ onMounted(fetchData)
 .display-alert {
   margin-bottom: 16px;
 }
+.module-list,.category-list,.nav-config-list { display: grid; gap: 8px; }
+.module-item,.category-row,.nav-config-row { display:flex; align-items:center; gap:12px; padding:10px 12px; border:1px solid #ebeef5; border-radius:8px; background:#fafbfc; }
+.module-item strong,.category-row span { flex:1; color:#303133; }
+.module-actions { display:flex; gap:5px; }
+.section-note { margin-top:8px; color:#909399; font-size:12px; }
+.category-row { justify-content:space-between; background:#fff; }
+.nav-config-row > span { width:90px; color:#303133; }
+.nav-config-row .el-switch { margin-left:auto; }
+.color-editor { display:flex; align-items:center; gap:8px; }
+.color-editor span { color:#909399; font-size:12px; font-family:monospace; }
 .layout-template-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

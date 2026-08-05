@@ -54,6 +54,12 @@ const routes = [
             component: () => import('@/views/shop/reviews.vue'),
             meta: { title: '商品评价', permission: 'shop:product' },
           },
+          {
+            path: 'banners',
+            name: 'ShopBanners',
+            component: () => import('@/views/shop/banners.vue'),
+            meta: { title: '首页Banner', permission: 'config:manage' },
+          },
         ],
       },
       // 会员统一管理：同一列表同时管理未进入和已进入奖金体系的账号
@@ -229,7 +235,7 @@ const routes = [
           {
             path: 'display',
             name: 'TenantDisplay',
-            component: () => import('@/views/tenant/display.vue'),
+            redirect: '/tenant/list',
             meta: { title: '商城装修', permission: 'config:manage' },
           },
           {

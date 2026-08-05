@@ -142,6 +142,7 @@ const businessMenus = [
       { title: '商品管理', path: '/shop/products', permission: 'shop:product' },
       { title: '分类与规格', path: '/shop/categories', permission: 'shop:product' },
       { title: '商品评价', path: '/shop/reviews', permission: 'shop:product' },
+      { title: '首页Banner', path: '/shop/banners', permission: 'config:manage' },
     ],
   },
   {

@@ -181,9 +181,10 @@ const startBannerAutoplay = () => {
 const stopBannerAutoplay = () => { if (bannerTimer) { window.clearInterval(bannerTimer); bannerTimer = null } }
 const handleBannerClick = (banner) => {
   if (!banner.linkValue) return
-  if (banner.linkType === 'product') router.push(`/product/${banner.linkValue}`)
-  else if (banner.linkType === 'category') { query.value.categoryName = banner.linkValue; fetchProducts(true) }
-  else if (banner.linkType === 'url') window.open(banner.linkValue, '_blank')
+  const linkType = String(banner.linkType || '').toLowerCase()
+  if (linkType === 'product') router.push(`/product/${banner.linkValue}`)
+  else if (linkType === 'category') { query.value.categoryName = banner.linkValue; fetchProducts(true) }
+  else if (linkType === 'url') window.open(banner.linkValue, '_blank')
 }
 watch(banners, () => { bannerIndex.value = 0; startBannerAutoplay() })
 
@@ -228,8 +229,22 @@ const applyExtraColors = (config) => {
   if (colors.headerBg) root.style.setProperty('--shop-header-bg', colors.headerBg)
   if (colors.pageBg) root.style.setProperty('--shop-page-bg', colors.pageBg)
   if (colors.cardBg) root.style.setProperty('--card-bg', colors.cardBg)
-  if (colors.textColor) root.style.setProperty('--text-color', colors.textColor)
-  if (colors.mutedColor) root.style.setProperty('--muted-color', colors.mutedColor)
+  if (colors.cardBg) root.style.setProperty('--card', colors.cardBg)
+  if (colors.textColor) {
+    root.style.setProperty('--text-color', colors.textColor)
+    root.style.setProperty('--text', colors.textColor)
+    root.style.setProperty('--ink', colors.textColor)
+  }
+  if (colors.mutedColor) {
+    root.style.setProperty('--muted-color', colors.mutedColor)
+    root.style.setProperty('--muted', colors.mutedColor)
+  }
+  if (colors.accentColor) {
+    root.style.setProperty('--accent', colors.accentColor)
+    root.style.setProperty('--brand-primary', colors.accentColor)
+  }
+  if (colors.lineColor) root.style.setProperty('--line', colors.lineColor)
+  if (colors.buttonBg) root.style.setProperty('--shop-button-bg', colors.buttonBg)
 }
 const trustItems = computed(() => {
   const config = home.value.legalConfig || {}
@@ -467,11 +482,11 @@ onUnmounted(() => { stopBannerAutoplay(); stopNoticeRotation() })
 .home-product-copy p { min-height: 36px; margin: 7px 0 0; color: #8a9098; font-size: 12px; line-height: 1.5; display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .home-sales { margin-top: 7px; color: #b66e34; font-size: 12px; }
 .home-purchase-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 7px; margin-top: 11px; }
-.home-price { display: flex; align-items: baseline; min-width: 0; color: var(--brand-primary); white-space: nowrap; }
+.home-price { display: flex; align-items: baseline; min-width: 0; color: var(--price-color, var(--brand-primary)); white-space: nowrap; }
 .home-price span { margin-right: 2px; font-size: 14px; font-weight: 800; }
 .home-price strong { font-size: 27px; line-height: 1; letter-spacing: -1px; }
 .home-price small { font-size: 14px; font-weight: 800; }
-.home-cart-button { min-width: 96px; height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 12px; color: #fff; background: linear-gradient(135deg,var(--brand-primary),var(--brand-primary-dark)); border: 0; border-radius: 999px; font-size: 13px; font-weight: 800; white-space: nowrap; }
+.home-cart-button { min-width: 96px; height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 12px; color: #fff; background: var(--shop-button-bg, linear-gradient(135deg,var(--brand-primary),var(--brand-primary-dark))); border: 0; border-radius: 999px; font-size: 13px; font-weight: 800; white-space: nowrap; }
 .home-cart-button:disabled { background: #b7bbc0; cursor: not-allowed; }
 .home-empty { min-height: 340px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; color: #989ea6; background: #fff; border-radius: 14px; }
 .home-empty strong { color: #59616a; }
