@@ -60,7 +60,8 @@ test('alipay checkout posts the generated payment form and CSP allows only the o
   const source = await readView('CheckoutView.vue')
   const nginx = await readFile(new URL('../../scripts/nginx/lingqimall.conf', import.meta.url), 'utf8')
   assert.match(source, /div\.innerHTML = payUrl/)
-  assert.match(source, /div\.querySelector\('form'\)\?\.submit\(\)/)
+  assert.match(source, /const form = div\.querySelector\('form'\)/)
+  assert.match(source, /form\.submit\(\)/)
   assert.match(nginx, /form-action 'self' https:\/\/openapi\.alipay\.com/)
 })
 
@@ -89,7 +90,7 @@ test('payment password setup uses the dedicated server-side SMS endpoint', async
 
 test('checkout confirms payment password was saved before continuing payment', async () => {
   const source = await readView('CheckoutView.vue')
-  assert.match(source, /支付密码已保存/)
+  assert.match(source, /支付密码已设置/)
   assert.match(source, /continueAfterPasswordSaved/)
   assert.match(source, /paymentPasswordSaved\.value = true/)
 })

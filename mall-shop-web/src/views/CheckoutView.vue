@@ -157,7 +157,7 @@
         <template v-if="paymentPasswordSaved">
           <div class="password-saved-dialog" role="status" aria-live="polite">
             <div class="password-saved-icon">✓</div>
-            <h3>支付密码已保存</h3>
+            <h3>支付密码已设置</h3>
             <p>支付密码已设置成功，请继续完成本次订单支付。</p>
             <button type="button" class="btn primary password-saved-action" :disabled="payPasswordSubmitting" @click="continueAfterPasswordSaved">继续支付</button>
           </div>
@@ -693,7 +693,12 @@ const doSubmitOrder = async (paymentPassword) => {
         const div = document.createElement('div')
         div.innerHTML = payUrl
         document.body.appendChild(div)
-        div.querySelector('form')?.submit()
+        const form = div.querySelector('form')
+        if (!form) {
+          div.remove()
+          throw new Error('支付宝支付页生成失败，请稍后重试')
+        }
+        form.submit()
         return // 不跳转订单详情，等待支付宝回调
       }
       throw new Error('创建支付宝订单失败')

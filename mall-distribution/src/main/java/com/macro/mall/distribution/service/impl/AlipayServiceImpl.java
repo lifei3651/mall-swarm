@@ -35,6 +35,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AlipayServiceImpl implements AlipayService {
 
+    private static final String WAP_PRODUCT_CODE = "QUICK_WAP_WAY";
+    private static final String ISV_PERMISSION_ERROR = "insufficient-isv-permissions";
+
     private final AlipayConfig alipayConfig;
     private final DmsShopOrderDao orderDao;
     private final ShopService shopService;
@@ -75,16 +78,22 @@ public class AlipayServiceImpl implements AlipayService {
             bizContent.put("out_trade_no", orderNo);
             bizContent.put("total_amount", amount);
             bizContent.put("subject", subject);
-            bizContent.put("product_code", "QUICK_WAP_WAY");
+            // 手机网站支付必须使用已在支付宝开放平台签约的 WAP 支付能力。
+            bizContent.put("product_code", WAP_PRODUCT_CODE);
             bizContent.put("timeout_express", "30m");
             request.setBizContent(objectMapper.writeValueAsString(bizContent));
 
             AlipayTradeWapPayResponse response = client.pageExecute(request);
+            String responseBody = response.getBody();
+            if (responseBody != null && responseBody.contains(ISV_PERMISSION_ERROR)) {
+                log.error("支付宝手机网站支付权限不足: orderNo={}, productCode={}", orderNo, WAP_PRODUCT_CODE);
+                Asserts.fail("支付宝尚未开通手机网站支付，请在支付宝开放平台为当前应用签约该能力后重试");
+            }
             if (response.isSuccess()) {
                 Map<String, Object> result = new HashMap<>();
-                result.put("payUrl", response.getBody()); // 返回的是HTML表单，前端可以直接渲染或跳转
+                result.put("payUrl", responseBody); // 返回的是HTML表单，前端可以直接渲染或跳转
                 result.put("orderNo", orderNo);
-                log.info("支付宝预支付订单创建成功: orderNo={}", orderNo);
+                log.info("支付宝手机网站支付表单生成: orderNo={}, productCode={}", orderNo, WAP_PRODUCT_CODE);
                 return result;
             }
 
