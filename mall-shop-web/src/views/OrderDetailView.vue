@@ -35,58 +35,97 @@
         </div>
 
         <div v-if="afterSales.length" class="after-sale-list">
-          <h3>售后记录</h3>
-          <div v-for="sale in afterSales" :key="sale.id" class="after-sale-record">
-            <div class="summary-row">
-              <span>{{ sale.afterSaleNo }} · {{ afterSaleStatus(sale.status) }}</span>
-              <strong>¥{{ money(sale.refundAmount) }}</strong>
+          <div class="after-sale-section-head">
+            <div>
+              <span class="section-eyebrow">售后进度</span>
+              <h3>退款 / 售后记录</h3>
             </div>
-            <p class="line-sub">商品 {{ sale.refundQuantity || 0 }} 件 / 商品款 ¥{{ money(sale.productRefundAmount) }} / 运费 ¥{{ money(sale.freightRefundAmount) }}</p>
-            <p v-for="line in sale.items || []" :key="line.id" class="line-sub">{{ line.productName }} {{ formatProductSpec(line) }} × {{ line.refundQuantity }}</p>
+            <span class="section-helper">进度实时更新</span>
+          </div>
+          <div v-for="sale in afterSales" :key="sale.id" class="after-sale-record">
+            <div class="after-sale-record-head">
+              <span class="after-sale-status-dot" :class="`status-${sale.status}`"></span>
+              <div class="after-sale-record-title">
+                <strong>{{ afterSaleStatus(sale.status) }}</strong>
+                <span>申请单号 {{ sale.afterSaleNo }}</span>
+              </div>
+              <strong class="refund-total">¥{{ money(sale.refundAmount) }}</strong>
+            </div>
+            <div class="after-sale-progress" :class="`progress-${sale.status}`" aria-label="售后处理进度">
+              <span class="progress-step complete">提交申请</span>
+              <span class="progress-track"></span>
+              <span class="progress-step" :class="{ complete: sale.status !== 0 && sale.status !== 3 }">平台审核</span>
+              <span class="progress-track"></span>
+              <span class="progress-step" :class="{ complete: sale.status === 1 }">处理完成</span>
+            </div>
+            <p class="line-sub after-sale-amounts">商品 {{ sale.refundQuantity || 0 }} 件 · 商品款 ¥{{ money(sale.productRefundAmount) }} · 运费 ¥{{ money(sale.freightRefundAmount) }}</p>
+            <div v-for="line in sale.items || []" :key="line.id" class="after-sale-item-line">
+              <span>{{ line.productName }} {{ formatProductSpec(line) }}</span>
+              <strong>× {{ line.refundQuantity }}</strong>
+            </div>
           </div>
         </div>
 
         <div v-if="canApplyAfterSale" class="after-sale-box">
-          <h3>申请售后</h3>
-          <div class="form-grid">
-            <div class="form-item">
-              <label>售后类型</label>
-              <select v-model.number="afterSaleForm.applyType" class="field">
-                <option :value="1">仅退款</option>
-                <option :value="2">退货退款</option>
-              </select>
+          <div class="after-sale-section-head apply-head">
+            <div>
+              <span class="section-eyebrow">售后服务</span>
+              <h3>申请退款 / 售后</h3>
+              <p>选择商品和原因，平台会尽快为你处理</p>
             </div>
-            <div class="form-item full refund-lines">
-              <label>选择实际退款商品和数量</label>
+          </div>
+          <div class="after-sale-tip"><ShieldCheck :size="18" /><span>退款金额以实际支付金额和审核结果为准，处理进度可在订单详情查看。</span></div>
+
+          <div class="after-sale-block">
+            <div class="block-label">售后类型</div>
+            <div class="after-sale-type-grid">
+              <button type="button" class="after-sale-type" :class="{ selected: afterSaleForm.applyType === 1 }" @click="afterSaleForm.applyType = 1">
+                <RotateCcw :size="21" />
+                <span><strong>仅退款</strong><small>未收到货或与商家协商退款</small></span>
+                <CircleCheck v-if="afterSaleForm.applyType === 1" :size="18" class="type-check" />
+              </button>
+              <button type="button" class="after-sale-type" :class="{ selected: afterSaleForm.applyType === 2 }" @click="afterSaleForm.applyType = 2">
+                <PackageCheck :size="21" />
+                <span><strong>退货退款</strong><small>需要寄回已收到的商品</small></span>
+                <CircleCheck v-if="afterSaleForm.applyType === 2" :size="18" class="type-check" />
+              </button>
+            </div>
+          </div>
+
+          <div class="after-sale-block">
+            <div class="block-label">选择商品和数量</div>
+            <div class="refund-lines">
               <div v-for="item in detail.items" :key="item.id" class="refund-line">
-                <div>
+                <img :src="item.productCover" :alt="item.productName" />
+                <div class="refund-line-info">
                   <strong>{{ item.productName }}</strong>
-                  <p class="line-sub">{{ formatProductSpec(item) }} · 剩余可退 {{ remainingQuantity(item) }} 件</p>
+                  <p class="line-sub">{{ formatProductSpec(item) }} · 可退 {{ remainingQuantity(item) }} 件</p>
                 </div>
-                <input
-                  v-model.number="refundQuantities[item.id]"
-                  class="field quantity-field"
-                  type="number"
-                  min="0"
-                  :max="remainingQuantity(item)"
-                  step="1"
-                  :disabled="remainingQuantity(item) <= 0"
-                />
+                <div class="quantity-stepper" :aria-label="`${item.productName}退款数量`">
+                  <button type="button" :disabled="refundQuantities[item.id] <= 0" @click="setRefundQuantity(item, -1)">−</button>
+                  <output>{{ refundQuantities[item.id] || 0 }}</output>
+                  <button type="button" :disabled="remainingQuantity(item) <= (refundQuantities[item.id] || 0)" @click="setRefundQuantity(item, 1)">＋</button>
+                </div>
               </div>
             </div>
-            <div class="form-item full">
-              <label>原因</label>
-              <textarea v-model="afterSaleForm.reason" class="textarea"></textarea>
-            </div>
           </div>
+
+          <div class="after-sale-block">
+            <div class="block-label">申请原因</div>
+            <button type="button" class="reason-select" :class="{ selected: selectedReason }" @click="reasonSheetVisible = true">
+              <span>{{ selectedReason || '请选择申请原因' }}</span>
+              <ChevronRight :size="18" />
+            </button>
+            <textarea v-model="afterSaleForm.reasonDetail" class="textarea reason-detail" maxlength="170" placeholder="补充说明（选填），帮助平台更快处理"></textarea>
+            <div class="reason-counter">{{ afterSaleForm.reasonDetail.length }}/170</div>
+          </div>
+
           <div class="refund-estimate">
-            <div class="summary-row"><span>实际退款件数</span><strong>{{ selectedRefundQuantity }} 件</strong></div>
-            <div class="summary-row"><span>预计商品退款</span><strong>¥{{ money(estimatedProductRefund) }}</strong></div>
-            <div class="summary-row"><span>预计运费退款</span><strong>¥{{ money(estimatedFreightRefund) }}</strong></div>
-            <p class="line-sub">{{ freightPolicyText }}</p>
+            <div class="estimate-head"><span>预计退款</span><strong>¥{{ money(estimatedProductRefund + estimatedFreightRefund) }}</strong></div>
+            <div class="estimate-meta">{{ selectedRefundQuantity }} 件商品 · {{ freightPolicyText }}</div>
           </div>
-          <button class="btn secondary" style="margin-top: 14px" :disabled="submittingAfterSale" @click="submitAfterSale">
-            {{ submittingAfterSale ? '提交中' : '提交售后' }}
+          <button class="btn primary after-sale-submit" :disabled="submittingAfterSale" @click="submitAfterSale">
+            {{ submittingAfterSale ? '提交中…' : '提交申请' }}
           </button>
         </div>
       </section>
@@ -187,13 +226,25 @@
         <p v-if="error" style="color: var(--coral); line-height: 1.6">{{ error }}</p>
       </aside>
     </div>
+    <div v-if="reasonSheetVisible" class="reason-sheet-backdrop" @click.self="reasonSheetVisible = false">
+      <section class="reason-sheet" role="dialog" aria-modal="true" aria-labelledby="reason-sheet-title">
+        <div class="reason-sheet-head">
+          <h3 id="reason-sheet-title">请选择申请原因</h3>
+          <button type="button" aria-label="关闭" @click="reasonSheetVisible = false">×</button>
+        </div>
+        <button v-for="reason in afterSaleReasons" :key="reason" type="button" class="reason-option" :class="{ selected: selectedReason === reason }" @click="selectAfterSaleReason(reason)">
+          <span>{{ reason }}</span>
+          <CircleCheck v-if="selectedReason === reason" :size="19" />
+        </button>
+      </section>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { UserRound } from 'lucide-vue-next'
+import { ChevronRight, CircleCheck, PackageCheck, RotateCcw, ShieldCheck, UserRound } from 'lucide-vue-next'
 import { applyAfterSale, cancelOrder, confirmReceive, getOrder, payOrderWithBalance } from '@/api/shop'
 import { dateTime, money, statusName } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
@@ -203,6 +254,9 @@ const detail = ref({})
 const loading = ref(false)
 const acting = ref(false)
 const submittingAfterSale = ref(false)
+const reasonSheetVisible = ref(false)
+const selectedReason = ref('')
+const afterSaleReasons = ['不想要了', '与商品描述不符', '质量问题', '收到商品少件 / 漏发', '商品破损或污渍', '商家发错货', '其他原因']
 const error = ref('')
 const hasToken = ref(Boolean(localStorage.getItem('shop_token')))
 const paymentPassword = ref('')
@@ -230,6 +284,7 @@ const canApplyAfterSale = computed(() => {
 const afterSaleForm = ref({
   applyType: 1,
   reason: '',
+  reasonDetail: '',
 })
 const refundQuantities = ref({})
 
@@ -268,6 +323,17 @@ const freightPolicyText = computed(() => notShipped.value
   ? (refundAllRemaining.value ? '未发货整单退完：原运费一并退还。' : '未发货部分退款：运费暂不退；退完剩余全部商品时才退原运费。')
   : '订单已经发货：原发货运费不退。')
 
+const setRefundQuantity = (item, delta) => {
+  const current = Number(refundQuantities.value[item.id] || 0)
+  refundQuantities.value[item.id] = Math.max(0, Math.min(remainingQuantity(item), current + delta))
+}
+
+const selectAfterSaleReason = (reason) => {
+  selectedReason.value = reason
+  afterSaleForm.value.reason = reason
+  reasonSheetVisible.value = false
+}
+
 const afterSaleStatus = (status) => ({ 0: '待审核', 1: '已通过', 2: '已拒绝', 3: '已取消' }[status] || '处理中')
 const payTypeName = (value) => ({ WECHAT: '微信支付', ALIPAY: '支付宝', BALANCE: '余额' }[value] || value || '未选择')
 const copyText = async (text) => { try { await navigator.clipboard.writeText(text) } catch {} }
@@ -304,6 +370,9 @@ const fetchOrder = async () => {
     const res = await getOrder(route.params.id)
     detail.value = res.data || {}
     refundQuantities.value = Object.fromEntries((detail.value.items || []).map((item) => [item.id, 0]))
+    selectedReason.value = ''
+    afterSaleForm.value.reason = ''
+    afterSaleForm.value.reasonDetail = ''
   } catch (e) {
     error.value = e.message || '加载失败'
   } finally {
@@ -363,7 +432,7 @@ const submitAfterSale = async () => {
     error.value = '请选择实际退款商品和数量'
     return
   }
-  if (!afterSaleForm.value.reason) {
+  if (!selectedReason.value) {
     error.value = '请填写售后原因'
     return
   }
@@ -371,10 +440,13 @@ const submitAfterSale = async () => {
   try {
     await applyAfterSale({
       ...afterSaleForm.value,
+      reason: [selectedReason.value, afterSaleForm.value.reasonDetail.trim()].filter(Boolean).join('：'),
       orderId: order.value.id,
       items: selectedRefundItems.value,
     })
     afterSaleForm.value.reason = ''
+    afterSaleForm.value.reasonDetail = ''
+    selectedReason.value = ''
     await fetchOrder()
   } catch (e) {
     error.value = e.message || '提交售后失败'
@@ -387,30 +459,81 @@ onMounted(fetchOrder)
 </script>
 
 <style scoped>
-.after-sale-record,
-.refund-estimate {
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(15, 118, 110, 0.12);
-}
+.after-sale-list { padding-top: 22px; }
+.after-sale-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.after-sale-section-head h3 { margin: 3px 0 0; font-size: 18px; }
+.section-eyebrow { color: var(--brand-primary, #e7193f); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
+.section-helper { color: #9aa3ad; font-size: 12px; }
+.after-sale-record { padding: 16px; background: linear-gradient(145deg, #fff, #fff8f8); border: 1px solid #f3dce1; border-radius: 16px; box-shadow: 0 8px 20px rgba(231, 25, 63, .06); }
+.after-sale-record + .after-sale-record { margin-top: 10px; }
+.after-sale-record-head { display: flex; align-items: center; gap: 10px; }
+.after-sale-status-dot { width: 10px; height: 10px; flex: 0 0 10px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 0 4px #fff3d6; }
+.after-sale-status-dot.status-1 { background: #16a34a; box-shadow: 0 0 0 4px #dcfce7; }
+.after-sale-status-dot.status-2, .after-sale-status-dot.status-3 { background: #9ca3af; box-shadow: 0 0 0 4px #f1f5f9; }
+.after-sale-record-title { display: grid; gap: 3px; min-width: 0; }
+.after-sale-record-title strong { color: var(--ink); font-size: 15px; }
+.after-sale-record-title span { overflow: hidden; color: #8a939e; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.refund-total { margin-left: auto; color: var(--brand-primary, #e7193f); font-size: 18px; }
+.after-sale-progress { display: flex; align-items: center; margin: 18px 0 12px; color: #9aa3ad; font-size: 11px; }
+.progress-step { white-space: nowrap; }
+.progress-step.complete { color: var(--brand-primary, #e7193f); font-weight: 800; }
+.progress-track { height: 1px; flex: 1; margin: 0 7px; background: #e4e8ec; }
+.progress-1 .progress-track:first-of-type { background: var(--brand-primary, #e7193f); }
+.after-sale-amounts { margin: 0 0 9px; }
+.after-sale-item-line { display: flex; justify-content: space-between; gap: 12px; padding-top: 7px; color: #69737e; font-size: 12px; }
+.after-sale-item-line strong { color: #3d4650; font-size: 12px; }
+.apply-head { align-items: flex-start; margin-bottom: 12px; }
+.apply-head p { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
+.after-sale-tip { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 18px; padding: 11px 12px; color: #8b5e12; background: #fff8e8; border: 1px solid #f8dfae; border-radius: 10px; font-size: 12px; line-height: 1.6; }
+.after-sale-tip svg { flex: 0 0 auto; color: #e69b20; }
+.after-sale-block { padding: 17px 0; border-top: 1px solid #edf0f2; }
+.block-label { margin-bottom: 10px; color: var(--ink); font-size: 14px; font-weight: 800; }
+.after-sale-type-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.after-sale-type { position: relative; display: flex; align-items: flex-start; gap: 10px; min-height: 76px; padding: 13px 12px; color: #8b96a1; text-align: left; background: #fff; border: 1px solid #e1e6ea; border-radius: 12px; }
+.after-sale-type svg { flex: 0 0 auto; color: #e97947; }
+.after-sale-type span { display: grid; gap: 4px; min-width: 0; }
+.after-sale-type strong { color: var(--ink); font-size: 13px; }
+.after-sale-type small { color: #8b96a1; font-size: 11px; line-height: 1.45; }
+.after-sale-type.selected { background: var(--brand-primary-soft, #fff1f3); border-color: var(--brand-primary, #e7193f); box-shadow: 0 0 0 2px rgba(231, 25, 63, .08); }
+.after-sale-type.selected > svg { color: var(--brand-primary, #e7193f); }
+.type-check { position: absolute; top: 9px; right: 9px; color: var(--brand-primary, #e7193f) !important; }
+.refund-lines { display: grid; gap: 9px; }
+.refund-line { display: flex; align-items: center; gap: 10px; padding: 10px; background: #fbfcfd; border: 1px solid #e7ebee; border-radius: 12px; }
+.refund-line img { width: 54px; height: 54px; flex: 0 0 54px; object-fit: cover; background: #f2f4f5; border-radius: 9px; }
+.refund-line-info { min-width: 0; flex: 1; }
+.refund-line-info strong { display: block; overflow: hidden; color: var(--ink); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.refund-line-info .line-sub { margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quantity-stepper { display: inline-flex; align-items: center; flex: 0 0 auto; overflow: hidden; border: 1px solid #dfe5e8; border-radius: 8px; background: #fff; }
+.quantity-stepper button, .quantity-stepper output { width: 28px; height: 28px; display: grid; place-items: center; border: 0; background: #fff; color: var(--ink); font-size: 16px; }
+.quantity-stepper button { color: var(--brand-primary, #e7193f); }
+.quantity-stepper button:disabled { color: #c8d0d6; cursor: not-allowed; }
+.quantity-stepper output { border-left: 1px solid #edf0f2; border-right: 1px solid #edf0f2; font-size: 13px; }
+.reason-select { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 48px; padding: 0 13px; color: #a0a9b2; text-align: left; background: #fff; border: 1px solid #dfe5e8; border-radius: 10px; }
+.reason-select.selected { color: var(--ink); border-color: var(--brand-primary, #e7193f); }
+.reason-select svg { flex: 0 0 auto; color: #a4adb5; }
+.reason-detail { width: 100%; min-height: 92px; margin-top: 10px; border-color: #e3e8eb; font-size: 13px; }
+.reason-counter { margin-top: 5px; color: #a2abb3; text-align: right; font-size: 11px; }
+.refund-estimate { margin-top: 4px; padding: 15px; background: #fff7f8; border: 1px solid #f4dbe0; border-radius: 12px; }
+.estimate-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.estimate-head span { color: #7b858f; font-size: 13px; }
+.estimate-head strong { color: var(--brand-primary, #e7193f); font-size: 22px; }
+.estimate-meta { margin-top: 6px; color: #8c969f; font-size: 11px; line-height: 1.6; }
+.after-sale-submit { width: 100%; margin-top: 14px; min-height: 46px; border-radius: 11px; font-weight: 800; }
+.reason-sheet-backdrop { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-end; background: rgba(15, 23, 42, .48); }
+.reason-sheet { width: min(100%, 540px); max-height: 78vh; margin: 0 auto; overflow: auto; background: #fff; border-radius: 18px 18px 0 0; box-shadow: 0 -14px 40px rgba(15, 23, 42, .18); }
+.reason-sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 18px 14px; border-bottom: 1px solid #edf0f2; }
+.reason-sheet-head h3 { margin: 0; font-size: 17px; }
+.reason-sheet-head button { width: 30px; height: 30px; padding: 0; color: #9aa3ad; background: #f4f6f7; border: 0; border-radius: 50%; font-size: 23px; line-height: 1; }
+.reason-option { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 52px; padding: 0 18px; color: var(--ink); text-align: left; background: #fff; border: 0; border-bottom: 1px solid #f1f3f4; font-size: 14px; }
+.reason-option.selected { color: var(--brand-primary, #e7193f); font-weight: 800; }
+.reason-option svg { color: var(--brand-primary, #e7193f); }
 
-.refund-lines {
-  display: grid;
-  gap: 10px;
-}
-
-.refund-line {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px;
-  border: 1px solid rgba(15, 118, 110, 0.14);
-  border-radius: 12px;
-}
-
-.quantity-field {
-  width: 88px;
-  flex: 0 0 88px;
+@media (max-width: 600px) {
+  .after-sale-type-grid { grid-template-columns: 1fr; }
+  .after-sale-type { min-height: 68px; }
+  .after-sale-progress { font-size: 10px; }
+  .refund-line { align-items: flex-start; }
+  .quantity-stepper { margin-top: 5px; }
 }
 
 .balance-pay-box,

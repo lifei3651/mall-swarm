@@ -195,6 +195,15 @@ test('order detail renders logistics timeline with shipping steps', async () => 
   assert.match(source, /estimatedDelivery/)
 })
 
+test('refund flow uses clear type cards, reason sheet, quantity stepper and estimate summary', async () => {
+  const source = await readView('OrderDetailView.vue')
+  assert.match(source, /after-sale-type-grid/)
+  assert.match(source, /reason-sheet/)
+  assert.match(source, /setRefundQuantity/)
+  assert.match(source, /预计退款/)
+  assert.match(source, /reason: \[selectedReason\.value, afterSaleForm\.value\.reasonDetail\.trim\(\)\]/)
+})
+
 test('order queries retry one transient mobile network failure', async () => {
   const request = await readFile(new URL('../src/api/request.js', import.meta.url), 'utf8')
   assert.match(request, /RETRYABLE_METHODS = new Set\(\['get', 'head', 'options'\]\)/)
