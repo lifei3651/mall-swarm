@@ -65,6 +65,7 @@
                   <div v-if="sale.status === 0" class="inline-after-sale-actions">
                     <el-button type="success" link @click.stop="openAudit(sale, 1)">通过退款</el-button>
                     <el-button type="danger" link @click.stop="openAudit(sale, 2)">拒绝</el-button>
+                    <el-button type="warning" link @click.stop="openAudit(sale, 3)">取消退款</el-button>
                   </div>
                 </div>
               </div>
@@ -215,7 +216,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="auditDialogVisible" :title="auditForm.status === 1 ? '通过售后' : '拒绝售后'" width="460px">
+    <el-dialog v-model="auditDialogVisible" :title="auditDialogTitle" width="460px">
       <el-form :model="auditForm" label-width="92px">
         <el-form-item label="售后号">
           <el-input :model-value="currentAfterSale?.afterSaleNo" disabled />
@@ -226,8 +227,8 @@
       </el-form>
       <template #footer>
         <el-button @click="auditDialogVisible = false">取消</el-button>
-        <el-button :type="auditForm.status === 1 ? 'success' : 'danger'" @click="submitAudit">
-          确认{{ auditForm.status === 1 ? '通过' : '拒绝' }}
+        <el-button :type="auditForm.status === 1 ? 'success' : auditForm.status === 2 ? 'danger' : 'warning'" @click="submitAudit">
+          确认{{ auditActionLabel }}
         </el-button>
       </template>
     </el-dialog>
@@ -281,7 +282,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Download, Refresh, Search, Upload } from '@element-plus/icons-vue'
 import {
@@ -340,8 +341,8 @@ const payoutExceeded = (orderAmount, bonusAmount) => Number(bonusAmount || 0) > 
 const bonusTypeName = (row) => row.bonusType === 'DIRECT_REWARD'
   ? '直推奖'
   : row.bonusType === 'DIRECTOR_SHARE' ? '董事团队分红' : '历史奖金'
-const afterSaleStatus = (status) => ({ 0: '待审核', 1: '已通过', 2: '已拒绝' }[status] || '处理中')
-const afterSaleTag = (status) => ({ 0: 'warning', 1: 'success', 2: 'info' }[status] || 'info')
+const afterSaleStatus = (status) => ({ 0: '待审核', 1: '已通过', 2: '已拒绝', 3: '已取消' }[status] || '处理中')
+const afterSaleTag = (status) => ({ 0: 'warning', 1: 'success', 2: 'info', 3: 'warning' }[status] || 'info')
 const hasPendingAfterSale = (row) => (row?.afterSales || []).some((item) => item.status === 0)
 const hasApprovedRefund = (row) => (row?.afterSales || []).some((item) => item.status === 1)
 const orderDisplayStatus = (row) => {
@@ -527,9 +528,13 @@ const openAudit = (row, status) => {
   auditDialogVisible.value = true
 }
 
+const auditDialogTitle = computed(() => ({ 1: '通过售后', 2: '拒绝售后', 3: '取消退款申请' }[auditForm.value.status] || '处理售后'))
+const auditActionLabel = computed(() => ({ 1: '通过', 2: '拒绝', 3: '取消退款' }[auditForm.value.status] || '提交'))
+
 const submitAudit = async () => {
+  const actionStatus = auditForm.value.status
   await auditShopAfterSale(currentAfterSale.value.id, auditForm.value)
-  ElMessage.success('审核完成')
+  ElMessage.success(actionStatus === 3 ? '退款申请已取消' : '审核完成')
   auditDialogVisible.value = false
   await fetchOrders()
 }

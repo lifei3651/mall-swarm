@@ -268,7 +268,7 @@ const freightPolicyText = computed(() => notShipped.value
   ? (refundAllRemaining.value ? '未发货整单退完：原运费一并退还。' : '未发货部分退款：运费暂不退；退完剩余全部商品时才退原运费。')
   : '订单已经发货：原发货运费不退。')
 
-const afterSaleStatus = (status) => ({ 0: '待审核', 1: '已通过', 2: '已拒绝' }[status] || '处理中')
+const afterSaleStatus = (status) => ({ 0: '待审核', 1: '已通过', 2: '已拒绝', 3: '已取消' }[status] || '处理中')
 const payTypeName = (value) => ({ WECHAT: '微信支付', ALIPAY: '支付宝', BALANCE: '余额' }[value] || value || '未选择')
 const copyText = async (text) => { try { await navigator.clipboard.writeText(text) } catch {} }
 

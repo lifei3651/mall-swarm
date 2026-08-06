@@ -199,7 +199,8 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             Asserts.fail("售后单已审核");
         }
         Integer status = dto == null || dto.getStatus() == null ? 1 : dto.getStatus();
-        if (!Integer.valueOf(1).equals(status) && !Integer.valueOf(2).equals(status)) {
+        if (!Integer.valueOf(1).equals(status) && !Integer.valueOf(2).equals(status)
+                && !Integer.valueOf(3).equals(status)) {
             Asserts.fail("审核状态不正确");
         }
         afterSale.setStatus(status);

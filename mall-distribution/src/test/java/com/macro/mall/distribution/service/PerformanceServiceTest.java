@@ -370,6 +370,30 @@ public class PerformanceServiceTest {
     }
 
     @Test
+    void testAdminCanCancelPendingRefundWithoutCreatingRefundLedger() {
+        DmsShopMember buyer = createShopMember("13999000033", "取消售后测试", null);
+        ShopOrderVO paid = submitAndPay(buyer, 1);
+        ShopAfterSaleItemDTO item = new ShopAfterSaleItemDTO();
+        item.setOrderItemId(paid.getItems().get(0).getId());
+        item.setQuantity(1);
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
+        apply.setOrderId(paid.getOrder().getId());
+        apply.setItems(List.of(item));
+        apply.setReason("验证后台取消退款");
+
+        DmsShopAfterSale afterSale = shopAfterSaleService.apply(buyer, apply);
+        ShopAfterSaleAuditDTO cancel = new ShopAfterSaleAuditDTO();
+        cancel.setStatus(3);
+        cancel.setAuditUserId(1L);
+        cancel.setAuditUserName("test-admin");
+        DmsShopAfterSale cancelled = shopAfterSaleService.audit(afterSale.getId(), cancel);
+
+        assertEquals(3, cancelled.getStatus());
+        assertTrue(auditService.getRefundsByOrderId(paid.getOrder().getId()).isEmpty(),
+                "取消退款申请不能生成退款冲账记录");
+    }
+
+    @Test
     void testOrderCostAndRemainderEnterRealBalanceAfterSevenDaysAndRefundCanCreateDebt() {
         // 系统内部账号分别接收剩余商品款和产品成本；两者不会作为客户会员展示。
         jdbcTemplate.update("INSERT INTO dms_shop_member "

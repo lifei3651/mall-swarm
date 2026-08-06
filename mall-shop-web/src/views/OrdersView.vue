@@ -120,7 +120,7 @@ const refreshOrders = async () => {
 }
 
 const totalQuantity = (item) => (item.items || []).reduce((sum, line) => sum + Number(line.quantity || 0), 0)
-const afterSaleStatus = (status) => ({ 0: '待审核', 1: '已通过', 2: '已拒绝' }[status] || '处理中')
+const afterSaleStatus = (status) => ({ 0: '待审核', 1: '已通过', 2: '已拒绝', 3: '已取消' }[status] || '处理中')
 const orderDisplayStatus = (item) => {
   if (isAfterSale(item)) return `退款/售后 · ${afterSaleStatus(item.afterSales?.[0]?.status)}`
   if (Number(item.pendingReviewCount || 0) > 0) return '待评价'
