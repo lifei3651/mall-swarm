@@ -47,8 +47,8 @@
 
     <el-alert v-if="orderSearchFeedback" :title="orderSearchFeedback" type="warning" :closable="false" show-icon class="search-feedback" />
 
-    <el-table :data="orders" v-loading="orderLoading" :empty-text="orderEmptyText" style="width: 100%">
-          <el-table-column label="商品名称" min-width="220">
+    <el-table class="order-table" :data="orders" v-loading="orderLoading" :empty-text="orderEmptyText" style="width: 100%">
+          <el-table-column label="商品名称" min-width="190">
             <template #default="{ row }">
               <div class="order-item-cell-list">
                 <div v-for="item in row.items || []" :key="item.id" class="order-item-cell product-name-item">
@@ -70,7 +70,7 @@
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="商品规格" min-width="160">
+          <el-table-column label="商品规格" min-width="125">
             <template #default="{ row }">
               <div class="order-item-cell-list">
                 <div v-for="item in row.items || []" :key="item.id" class="order-item-cell product-spec-item">
@@ -79,7 +79,7 @@
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="商品数量" width="100" align="center">
+          <el-table-column label="商品数量" width="82" align="center">
             <template #default="{ row }">
               <div class="order-item-cell-list">
                 <div v-for="item in row.items || []" :key="item.id" class="order-item-cell product-quantity-item">
@@ -88,31 +88,30 @@
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="订单编号" min-width="190">
+          <el-table-column label="订单编号" min-width="175">
             <template #default="{ row }">
               <div class="order-no">{{ row.order?.orderNo }}</div>
               <div class="sub">登录账号 {{ row.memberAccount || '-' }}</div>
             </template>
           </el-table-column>
-          <el-table-column label="收货信息" min-width="180">
+          <el-table-column label="订单状态" width="100">
             <template #default="{ row }">
-              <div>{{ row.order?.receiverName }} {{ row.order?.receiverPhone }}</div>
-              <div class="sub">{{ row.order?.receiverAddress }}</div>
+              <el-tag :type="orderDisplayTag(row)">{{ orderDisplayStatus(row) }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="订单总金额" width="125">
+          <el-table-column label="订单总金额" width="110">
             <template #default="{ row }">
               <span>¥{{ money(row.order?.payAmount) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="奖金总拨出" width="125">
+          <el-table-column label="奖金总拨出" width="110">
             <template #default="{ row }">
               <span :class="{ danger: payoutExceeded(row.order?.payAmount, row.finance?.bonusAmount) }">
                 ¥{{ money(row.finance?.bonusAmount) }}
               </span>
             </template>
           </el-table-column>
-          <el-table-column label="物流信息" width="190">
+          <el-table-column label="物流信息" width="155">
             <template #default="{ row }">
               <div v-if="shipmentRows(row).length" class="shipment-list">
                 <div v-for="(shipment, index) in shipmentRows(row)" :key="`${shipment.deliveryCompany}-${shipment.deliveryNo}-${index}`">
@@ -124,15 +123,16 @@
               <span v-else>-</span>
             </template>
           </el-table-column>
-          <el-table-column label="下单时间" width="170">
+          <el-table-column label="下单时间" width="150">
             <template #default="{ row }">{{ formatDateTime(row.order?.createTime) }}</template>
           </el-table-column>
-          <el-table-column label="订单状态" width="110">
+          <el-table-column label="收货信息" min-width="190">
             <template #default="{ row }">
-              <el-tag :type="orderDisplayTag(row)">{{ orderDisplayStatus(row) }}</el-tag>
+              <div>{{ row.order?.receiverName }} {{ row.order?.receiverPhone }}</div>
+              <div class="sub">{{ row.order?.receiverAddress }}</div>
             </template>
           </el-table-column>
-          <el-table-column label="操作" fixed="right" width="180">
+          <el-table-column label="操作" fixed="right" width="160">
             <template #default="{ row }">
               <el-button type="success" link @click="openBonusFlows(row.order?.id, row.order?.orderNo, row.memberAccount)">
                 奖金去向
@@ -595,6 +595,14 @@ onMounted(fetchOrders)
 
 .order-item-cell-list {
   display: grid;
+}
+
+.order-table :deep(.el-table__cell) {
+  padding: 10px 6px;
+}
+
+.order-table :deep(.cell) {
+  padding: 0 4px;
 }
 
 .order-item-cell {

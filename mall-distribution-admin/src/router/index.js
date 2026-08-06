@@ -40,7 +40,7 @@ const routes = [
             path: 'orders',
             name: 'ShopOrders',
             component: () => import('@/views/shop/orders.vue'),
-            meta: { title: '订单与售后', permission: 'shop:order' },
+            meta: { title: '订单管理', permission: 'shop:order' },
           },
           {
             path: 'categories',

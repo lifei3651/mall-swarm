@@ -146,7 +146,7 @@ const businessMenus = [
   },
   {
     key: 'orders', title: '订单与售后', icon: 'DataAnalysis', items: [
-      { title: '订单处理与售后', path: '/shop/orders', permission: 'shop:order' },
+      { title: '订单管理', path: '/shop/orders', permission: 'shop:order' },
       { title: '订单奖金与利润追溯', path: '/audit/orders', permission: 'finance:read' },
       { title: 'ERP订单对接', path: '/tenant/erp', permission: 'config:manage' },
     ],
