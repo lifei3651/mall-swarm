@@ -84,12 +84,14 @@ public class ShopPayController {
         return result;
     }
 
-    /**
-     * 支付宝同步跳转只用于回到商城页面，最终支付结果必须以异步通知为准。
-     */
     @Operation(summary = "支付宝同步跳转")
     @GetMapping("/alipay/return")
-    public ResponseEntity<Void> alipayReturn() {
+    public ResponseEntity<Void> alipayReturn(
+            @RequestParam(value = "out_trade_no", required = false) String outTradeNo) {
+        // 同步跳转参数不能直接信任；用商户订单号向支付宝查询，仅 TRADE_SUCCESS 才补记已支付。
+        if (outTradeNo != null && !outTradeNo.isBlank()) {
+            alipayService.reconcileOrderFromQuery(outTradeNo);
+        }
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.LOCATION, "/orders");
         return new ResponseEntity<>(headers, HttpStatus.FOUND);

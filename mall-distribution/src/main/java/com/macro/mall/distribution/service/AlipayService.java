@@ -34,6 +34,12 @@ public interface AlipayService {
     boolean queryOrderStatus(String orderNo);
 
     /**
+     * 在支付宝同步跳转后，通过支付宝订单查询接口确认并幂等更新商城订单。
+     * 同步跳转本身不可信，只有查询接口返回 TRADE_SUCCESS 时才允许入账。
+     */
+    boolean reconcileOrderFromQuery(String orderNo);
+
+    /**
      * 发起退款
      * @param orderNo 商城订单号
      * @param refundNo 退款单号

@@ -217,6 +217,46 @@ public class AlipayServiceImpl implements AlipayService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean reconcileOrderFromQuery(String orderNo) {
+        if (orderNo == null || orderNo.isBlank()) {
+            return false;
+        }
+        try {
+            AlipayClient client = createClient();
+            AlipayTradeQueryRequest request = new AlipayTradeQueryRequest();
+
+            Map<String, Object> bizContent = new HashMap<>();
+            bizContent.put("out_trade_no", orderNo);
+            request.setBizContent(objectMapper.writeValueAsString(bizContent));
+
+            AlipayTradeQueryResponse response = client.execute(request);
+            // 只允许 TRADE_SUCCESS 触发商城入账，避免把 FINISHED/其他状态误判成支付成功。
+            if (!response.isSuccess() || !"TRADE_SUCCESS".equals(response.getTradeStatus())) {
+                log.info("支付宝同步回跳查询未确认支付: orderNo={}, success={}, tradeStatus={}",
+                        orderNo, response.isSuccess(), response.getTradeStatus());
+                return false;
+            }
+
+            DmsShopOrder order = orderDao.selectByOrderNoForUpdate(orderNo);
+            if (order == null) {
+                log.warn("支付宝同步回跳查询订单不存在: orderNo={}", orderNo);
+                return false;
+            }
+            if (Integer.valueOf(0).equals(order.getStatus())) {
+                shopService.markOrderPaid(order.getId(), "ALIPAY");
+                log.info("支付宝同步回跳查询确认成功，订单已标记为已支付: orderNo={}", orderNo);
+            } else {
+                log.info("支付宝同步回跳查询订单已处理过: orderNo={}, status={}", orderNo, order.getStatus());
+            }
+            return true;
+        } catch (Exception e) {
+            log.error("支付宝同步回跳查询异常: orderNo={}", orderNo, e);
+            return false;
+        }
+    }
+
+    @Override
     public boolean refund(String orderNo, String refundNo, String refundAmount, String reason) {
         try {
             AlipayClient client = createClient();
