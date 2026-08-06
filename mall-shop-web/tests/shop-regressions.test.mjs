@@ -117,6 +117,8 @@ test('home quick add no longer redirects SKU products to product detail', async 
 test('home exposes trust information and preserves recent search shortcuts', async () => {
   const source = await readView('HomeView.vue')
   assert.match(source, /home-trust-strip/)
+  assert.match(source, /showTrustStrip/)
+  assert.match(source, /border-radius: 0 999px 999px 0/)
   assert.match(source, /shop_recent_searches/)
   assert.match(source, /热门搜索/)
 })
@@ -135,6 +137,7 @@ test('frontend exposes the configured FAQ and service rules', async () => {
   assert.match(legal, /JSON\.parse\(config\.value\.faqs/)
   assert.match(app, /to="\/legal\/faq"/)
   assert.match(app, /to="\/legal\/after-sale"/)
+  assert.match(legal, /replaceTenantPlaceholders/)
 })
 
 test('build freshness guard can identify the current production entry', () => {

@@ -3,13 +3,13 @@
     <div class="toolbar">
       <div>
         <h2>首页 Banner</h2>
-        <p>管理首页顶部轮播图；只有启用且在有效时间内的内容会展示给客户。</p>
+        <p>商城设置 · 首页 Banner：维护首页顶部轮播图，只有启用且在有效时间内的内容会展示给客户。</p>
       </div>
       <el-button type="primary" @click="openCreate">新增 Banner</el-button>
     </div>
 
     <el-alert
-      title="是否展示轮播由“商城视觉与页面”的首页模块开关统一控制；这里负责图片、链接和展示顺序。"
+      title="这里负责图片、链接和展示顺序；是否展示轮播由“商城视觉与页面”的首页模块开关统一控制。"
       type="info"
       :closable="false"
       show-icon

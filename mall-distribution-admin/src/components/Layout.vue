@@ -142,7 +142,6 @@ const businessMenus = [
       { title: '商品管理', path: '/shop/products', permission: 'shop:product' },
       { title: '分类与规格', path: '/shop/categories', permission: 'shop:product' },
       { title: '商品评价', path: '/shop/reviews', permission: 'shop:product' },
-      { title: '首页Banner', path: '/shop/banners', permission: 'config:manage' },
     ],
   },
   {
@@ -176,6 +175,7 @@ const businessMenus = [
   {
     key: 'operations', title: '商城设置', icon: 'OfficeBuilding', items: [
       { title: '商城视觉与页面', path: '/tenant/list', permission: 'config:manage' },
+      { title: '首页Banner', path: '/tenant/banners', permission: 'config:manage' },
       { title: '商城资料与客服', path: '/tenant/profile', permission: 'config:manage' },
       { title: '协议与规则', path: '/tenant/legal', permission: 'config:manage' },
       { title: '奖金与钱包规则', path: '/tenant/bonus-config', permission: 'config:manage' },

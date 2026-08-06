@@ -75,7 +75,7 @@
       </section>
 
       <!-- 信任条 -->
-      <section v-else-if="mod.type === 'trust' && mod.enabled" class="home-trust-strip" aria-label="商城服务保障">
+      <section v-else-if="mod.type === 'trust' && mod.enabled && showTrustStrip" class="home-trust-strip" aria-label="商城服务保障">
         <div v-for="item in trustItems" :key="item.title" class="trust-item">
           <strong>{{ item.title }}</strong>
           <span>{{ item.description }}</span>
@@ -265,6 +265,15 @@ let productRequestId = 0
 const allHomeProducts = computed(() => home.value.featuredProducts || [])
 const displayConfig = computed(() => home.value.displayConfig || {})
 const showHomeCategories = computed(() => Number(displayConfig.value.showHomeCategories ?? 1) === 1)
+// 服务保障是说明性内容，不是首页操作入口。默认关闭，只有商家在商城视觉与页面中主动开启时展示。
+const showTrustStrip = computed(() => {
+  try {
+    const extra = JSON.parse(displayConfig.value.extraConfigJson || '{}')
+    return Number(extra.showTrustStrip ?? 0) === 1
+  } catch (_) {
+    return false
+  }
+})
 const layoutTemplate = computed(() => ['standard', 'product-focus', 'category-focus'].includes(displayConfig.value.layoutTemplate)
   ? displayConfig.value.layoutTemplate
   : 'standard')
@@ -424,7 +433,7 @@ onUnmounted(() => { stopBannerAutoplay(); stopNoticeRotation() })
 .home-search > svg { justify-self: center; }
 .home-search input { min-width: 0; height: 100%; padding: 0 4px; color: #272c32; background: transparent; border: 0; outline: 0; }
 .home-search input::-webkit-search-cancel-button { cursor: pointer; }
-.home-search button { height: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 5px; color: #fff; background: var(--brand-primary); border: 0; font-size: 16px; font-weight: 800; }
+.home-search button { height: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 5px; color: #fff; background: var(--brand-primary); border: 0; border-radius: 0 999px 999px 0; font-size: 16px; font-weight: 800; }
 .home-search button > svg { display: none; }
 .search-suggestions { position:absolute; z-index:40; top:calc(100% + 8px); left:0; right:0; padding:12px 14px; background:#fff; border:1px solid #e7ebf0; border-radius:14px; box-shadow:0 12px 30px rgba(25,42,70,.14); }
 .suggestion-group { display:flex; align-items:center; flex-wrap:wrap; gap:7px; }

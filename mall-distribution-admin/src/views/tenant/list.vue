@@ -97,14 +97,19 @@
             <span>可在所选样式基础上自由改色。</span>
           </div>
         </el-form-item>
-        <el-form-item label="前台预览">
-          <div class="ui-preview" :style="{ '--preview-color': tenantForm.themeColor || '#e7193f' }">
-            <div class="ui-preview-head"><span class="ui-preview-logo">{{ (tenantForm.brandName || '商城').slice(0, 1) }}</span><strong>{{ tenantForm.brandName || '商城品牌' }}</strong><span class="ui-preview-search">搜索商品</span><span class="ui-preview-avatar">我的</span></div>
-            <div class="ui-preview-categories"><span>精选</span><span>热卖</span><span>新品</span><span>全部商品</span></div>
-            <div class="ui-preview-products"><div v-for="item in ['品质好物','人气套装','限量新品']" :key="item" class="ui-preview-product"><i></i><strong>{{ item }}</strong><small>精选商品，安心选购</small><b>¥99.00</b></div></div>
-            <div class="ui-preview-nav"><span class="active">首页</span><span>分类</span><span>购物车</span><span>我的</span></div>
+        <el-form-item label="手机版预览">
+          <div class="mobile-preview-shell" :style="{ '--preview-color': tenantForm.themeColor || '#e7193f' }">
+            <div class="mobile-preview-status"><span>9:41</span><span>● ● ●</span></div>
+            <div class="mobile-preview-brand"><span class="mobile-preview-logo">{{ (tenantForm.brandName || '商城').slice(0, 1) }}</span><strong>{{ tenantForm.brandName || '灵启商城' }}</strong><span class="mobile-preview-share">分享</span></div>
+            <div class="mobile-preview-search"><span>⌕</span><span>搜索商品</span><b>⌕</b></div>
+            <div v-if="displayForm.homeModules?.find((module) => module.type === 'banner')?.enabled !== false" class="mobile-preview-banner"><span>商城活动 Banner</span><small>图片与跳转入口在「商城设置 · 首页 Banner」维护</small><i>● ○ ○</i></div>
+            <div v-if="displayForm.homeModules?.find((module) => module.type === 'category')?.enabled !== false && displayForm.showHomeCategories !== 0" class="mobile-preview-categories"><span v-for="item in ['精选','热卖','新品','全部']" :key="item">{{ item }}</span></div>
+            <div class="mobile-preview-heading"><strong>精选商品</strong><span>商城好物，为你精选</span></div>
+            <div class="mobile-preview-products"><div v-for="item in ['品质好物','人气套装']" :key="item" class="mobile-preview-product"><i></i><strong>{{ item }}</strong><small>精选商品，安心选购</small><b>¥99.00</b></div></div>
+            <div v-if="displayForm.showTrustStrip === 1" class="mobile-preview-trust"><span>安全支付</span><span>订单可查</span><span>售后无忧</span></div>
+            <div class="mobile-preview-nav"><span v-for="nav in (displayForm.bottomNav || []).filter((item) => item.enabled !== false && (item.type !== 'category' || displayForm.showBottomCategoryNav !== 0))" :key="nav.type">{{ nav.label }}</span></div>
           </div>
-          <div class="field-help">这是商城前台的缩略示意，帮助你判断热卖红、清新绿等主题在真实页面中的整体感觉。</div>
+          <div class="field-help">这里按前台手机版首页的真实层级展示：主题色、Banner、分类、商品卡片、可选服务说明和底部导航会随配置同步变化。</div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -153,7 +158,14 @@
             <el-switch v-model="module.enabled" active-text="展示" inactive-text="隐藏" />
           </div>
         </div>
-        <div class="section-note">Banner 图片内容请进入 <el-button type="primary" link @click="$router.push('/shop/banners')">首页Banner</el-button> 管理；总开关由上面的 Banner 模块控制。</div>
+        <div class="section-note">Banner 图片内容请进入 <el-button type="primary" link @click="$router.push('/tenant/banners')">商城设置 · 首页Banner</el-button> 管理；总开关由上面的 Banner 模块控制。</div>
+
+        <el-form-item label="首页服务说明">
+          <div class="switch-with-help">
+            <el-switch v-model="displayForm.showTrustStrip" :active-value="1" :inactive-value="0" />
+            <span>默认隐藏。开启后显示“安全支付、订单可查、售后无忧”等说明性信息，不是可操作按钮。</span>
+          </div>
+        </el-form-item>
 
         <el-divider content-position="left">首页与分类展示</el-divider>
         <el-row :gutter="16">
@@ -235,7 +247,7 @@ const defaultModules = () => [
   { type: 'banner', enabled: true, sort: 1 },
   { type: 'notice', enabled: true, sort: 2 },
   { type: 'category', enabled: true, sort: 3 },
-  { type: 'trust', enabled: true, sort: 4 },
+  { type: 'trust', enabled: false, sort: 4 },
   { type: 'products', enabled: true, sort: 5 },
 ]
 const defaultBottomNav = () => [
@@ -269,6 +281,7 @@ const layoutTemplateOptions = [
     description: '首页分类与底部四导航并存，适合综合商城',
     showHomeCategories: 1,
     showBottomCategoryNav: 1,
+    showTrustStrip: 0,
   },
   {
     value: 'product-focus',
@@ -353,6 +366,7 @@ const openDisplayDialog = async (row) => {
     homeModules: Array.isArray(extra.homeModules) && extra.homeModules.length ? extra.homeModules : defaultModules(),
     colors: { priceColor: '', pageBg: '', headerBg: '', cardBg: '', textColor: '', mutedColor: '', accentColor: '', lineColor: '', buttonBg: '', ...(extra.colors || {}) },
     bottomNav: Array.isArray(extra.bottomNav) && extra.bottomNav.length ? extra.bottomNav : defaultBottomNav(),
+    showTrustStrip: Number(extra.showTrustStrip ?? 0) === 1 ? 1 : 0,
   }
   displayDialogVisible.value = true
 }
@@ -379,7 +393,7 @@ const toggleCategory = async (category, value) => {
 
 const submitDisplayConfig = async () => {
   const payload = { ...displayForm.value }
-  payload.extraConfigJson = JSON.stringify({ homeModules: payload.homeModules, colors: payload.colors, bottomNav: payload.bottomNav })
+  payload.extraConfigJson = JSON.stringify({ homeModules: payload.homeModules, colors: payload.colors, bottomNav: payload.bottomNav, showTrustStrip: payload.showTrustStrip })
   delete payload.homeModules
   delete payload.colors
   delete payload.bottomNav
@@ -486,6 +500,43 @@ onMounted(fetchData)
 .ui-preview-product b { color: var(--preview-color); font-size: 14px; }
 .ui-preview-nav { display: grid; grid-template-columns: repeat(4, 1fr); padding: 10px 16px; color: #8a94a4; font-size: 11px; text-align: center; background: #fff; border-top: 1px solid #eef0f3; }
 .ui-preview-nav .active { color: var(--preview-color); font-weight: 700; }
+.mobile-preview-shell {
+  width: 390px;
+  max-width: 100%;
+  min-height: 650px;
+  margin: 0 auto;
+  overflow: hidden;
+  color: #202735;
+  background: #f5f6f8;
+  border: 10px solid #1f2937;
+  border-radius: 30px;
+  box-shadow: 0 18px 40px rgba(31, 41, 55, .18);
+}
+.mobile-preview-status { display:flex; justify-content:space-between; padding:9px 18px 4px; color:#1f2937; font-size:11px; font-weight:700; background:#fff; }
+.mobile-preview-brand { display:grid; grid-template-columns:28px 1fr auto; align-items:center; gap:8px; padding:9px 14px 10px; background:#fff; }
+.mobile-preview-logo { display:grid; width:28px; height:28px; place-items:center; color:var(--preview-color); font-weight:800; background:#fff; border:2px solid var(--preview-color); border-radius:9px; }
+.mobile-preview-brand strong { overflow:hidden; font-size:16px; text-overflow:ellipsis; white-space:nowrap; }
+.mobile-preview-share { color:var(--preview-color); font-size:12px; }
+.mobile-preview-search { display:grid; grid-template-columns:24px 1fr 26px; align-items:center; gap:6px; margin:0 12px 10px; padding:8px 10px; color:#98a2b3; background:#fff; border:1.5px solid var(--preview-color); border-radius:999px; }
+.mobile-preview-search b { display:grid; width:26px; height:26px; place-items:center; color:#fff; background:var(--preview-color); border-radius:50%; }
+.mobile-preview-banner { display:grid; gap:4px; margin:0 12px 10px; padding:26px 16px 14px; color:#fff; background:linear-gradient(135deg, color-mix(in srgb, var(--preview-color) 84%, #111 16%), var(--preview-color)); border-radius:16px; }
+.mobile-preview-banner span { font-size:20px; font-weight:800; }
+.mobile-preview-banner small { opacity:.86; }
+.mobile-preview-banner i { margin-top:8px; font-style:normal; font-size:11px; letter-spacing:3px; opacity:.85; }
+.mobile-preview-categories { display:flex; gap:7px; margin:0 12px 10px; padding:10px; overflow:hidden; background:#fff; border-radius:14px; }
+.mobile-preview-categories span { flex:1; padding:7px 4px; color:var(--preview-color); font-size:12px; text-align:center; background:color-mix(in srgb, var(--preview-color) 10%, #fff 90%); border-radius:999px; }
+.mobile-preview-heading { display:grid; gap:3px; padding:7px 14px; }
+.mobile-preview-heading strong { font-size:20px; }
+.mobile-preview-heading span { color:#98a2b3; font-size:12px; }
+.mobile-preview-products { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; padding:7px 12px 12px; }
+.mobile-preview-product { display:grid; gap:5px; padding:8px; background:#fff; border-radius:14px; }
+.mobile-preview-product i { display:block; height:95px; background:linear-gradient(135deg, color-mix(in srgb, var(--preview-color) 15%, #fff 85%), #e9edf2); border-radius:10px; }
+.mobile-preview-product strong { overflow:hidden; font-size:13px; text-overflow:ellipsis; white-space:nowrap; }
+.mobile-preview-product small { overflow:hidden; color:#98a2b3; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+.mobile-preview-product b { color:var(--preview-color); font-size:15px; }
+.mobile-preview-trust { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; margin:0 12px 12px; padding:9px 4px; color:#667085; font-size:11px; text-align:center; background:#fff; border-radius:12px; }
+.mobile-preview-nav { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); padding:10px 8px 12px; color:#8a94a4; font-size:11px; text-align:center; background:#fff; border-top:1px solid #eef0f3; }
+.mobile-preview-nav span:first-child { color:var(--preview-color); font-weight:800; }
 .version-form {
   margin-top: 16px;
   padding-top: 16px;

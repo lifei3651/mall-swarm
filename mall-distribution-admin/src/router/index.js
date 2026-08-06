@@ -56,9 +56,9 @@ const routes = [
           },
           {
             path: 'banners',
-            name: 'ShopBanners',
-            component: () => import('@/views/shop/banners.vue'),
-            meta: { title: '首页Banner', permission: 'config:manage' },
+            name: 'ShopBannersLegacy',
+            redirect: '/tenant/banners',
+            meta: { title: '首页Banner', hidden: true, permission: 'config:manage' },
           },
         ],
       },
@@ -225,6 +225,12 @@ const routes = [
             name: 'TenantList',
             component: () => import('@/views/tenant/list.vue'),
             meta: { title: '商城视觉与页面', permission: 'config:manage' },
+          },
+          {
+            path: 'banners',
+            name: 'TenantBanners',
+            component: () => import('@/views/shop/banners.vue'),
+            meta: { title: '首页Banner', permission: 'config:manage' },
           },
           {
             path: 'profile',

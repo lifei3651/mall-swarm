@@ -32,7 +32,7 @@
         <section class="form-section">
           <h3>Banner轮播</h3>
           <p class="section-desc">管理首页顶部的轮播广告图。</p>
-          <el-button type="primary" @click="$router.push('/shop/banners')">管理Banner</el-button>
+          <el-button type="primary" @click="$router.push('/tenant/banners')">管理Banner</el-button>
         </section>
 
         <!-- 分类展示 -->

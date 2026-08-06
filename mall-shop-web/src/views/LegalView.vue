@@ -36,7 +36,7 @@
       <p v-else class="empty-copy">常见问题正在整理中，如需帮助请联系客服。</p>
     </section>
 
-    <article v-else class="legal-content">{{ content || '该内容暂未配置，请联系客服。' }}</article>
+    <article v-else class="legal-content">{{ resolvedContent || '该内容暂未配置，请联系客服。' }}</article>
   </div>
 </template>
 
@@ -57,7 +57,7 @@ const faqs = computed(() => {
     const parsed = JSON.parse(config.value.faqs || '[]')
     return Array.isArray(parsed)
       ? parsed.filter((item) => item && String(item.question || '').trim() && String(item.answer || '').trim())
-        .map((item) => ({ question: String(item.question).trim(), answer: String(item.answer).trim() }))
+        .map((item) => ({ question: String(item.question).trim(), answer: replaceTenantPlaceholders(String(item.answer).trim()) }))
       : []
   } catch (_) {
     return []
@@ -68,6 +68,11 @@ const content = computed(() => ({
   privacy: config.value.privacyPolicy,
   'after-sale': config.value.afterSalePolicy,
 }[type.value] || ''))
+const replaceTenantPlaceholders = (value) => String(value || '')
+  .replace(/\{\{\s*companyName\s*\}\}|\{company\}/g, config.value.companyName || '本商城经营主体')
+  .replace(/\{\{\s*servicePhone\s*\}\}|\{phone\}/g, config.value.servicePhone || '商城客服')
+  .replace(/\{\{\s*serviceEmail\s*\}\}|\{email\}/g, config.value.serviceEmail || '客服邮箱')
+const resolvedContent = computed(() => replaceTenantPlaceholders(content.value))
 const safePoliceUrl = computed(() => /^https?:\/\//i.test(config.value.policeRecordUrl || '') ? config.value.policeRecordUrl : '')
 
 const goBack = () => {

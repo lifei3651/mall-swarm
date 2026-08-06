@@ -24,7 +24,7 @@
           <el-form-item label="用户服务协议">
             <div class="textarea-toolbar">
               <el-button type="primary" link @click="fillDefaultAgreement">填充默认模板</el-button>
-              <span class="toolbar-hint">模板中的主体名称会自动替换为实际经营主体</span>
+              <span class="toolbar-hint">保存后会按“商城资料与客服”中的经营主体自动展示，主体变更无需重写协议</span>
             </div>
             <el-input v-model="tenantForm.userAgreement" type="textarea" :rows="10" maxlength="30000" show-word-limit placeholder="请输入经运营主体确认的完整用户服务协议" />
             <div class="field-help">注册时用户需要勾选同意，建议包含账号、下单、支付、售后、客服和争议处理说明。</div>
@@ -32,7 +32,7 @@
           <el-form-item label="隐私政策">
             <div class="textarea-toolbar">
               <el-button type="primary" link @click="fillDefaultPrivacy">填充默认模板</el-button>
-              <span class="toolbar-hint">模板中的主体名称会自动替换为实际经营主体</span>
+              <span class="toolbar-hint">保存后会按“商城资料与客服”中的经营主体自动展示，主体变更无需重写协议</span>
             </div>
             <el-input v-model="tenantForm.privacyPolicy" type="textarea" :rows="10" maxlength="30000" show-word-limit placeholder="请输入完整隐私政策" />
             <div class="field-help">注册时用户可以打开查看，建议说明收集的信息、使用目的、保存期限、第三方服务和联系方式。</div>
@@ -44,7 +44,7 @@
           <el-form-item label="交易与售后规则">
             <div class="textarea-toolbar">
               <el-button type="primary" link @click="fillDefaultAfterSale">填充默认模板</el-button>
-              <span class="toolbar-hint">模板中的客服信息会自动替换</span>
+              <span class="toolbar-hint">客服电话和邮箱会从“商城资料与客服”自动带入</span>
             </div>
             <el-input v-model="tenantForm.afterSalePolicy" type="textarea" :rows="12" maxlength="30000" show-word-limit placeholder="请输入完整交易、售后、退款、运费及不适用七天无理由的规则" />
             <div class="field-help">注册页只做查看提示；商城会在商品详情和确认订单页继续提供入口，避免用户下单后找不到规则。</div>
@@ -82,10 +82,6 @@ const loading = ref(false)
 const saving = ref(false)
 const tenantForm = ref({})
 const faqList = ref([])
-
-const getCompanyName = () => tenantForm.value.tenantName || '[主体名称]'
-const getPhone = () => tenantForm.value.servicePhone || '[客服电话]'
-const getEmail = () => tenantForm.value.serviceEmail || '[客服邮箱]'
 
 const defaultAgreement = `一、总则
 1.1 本协议是您与{company}（以下简称"本商城"）之间关于使用本商城服务所订立的协议。
@@ -212,25 +208,33 @@ const defaultAfterSale = `一、交易规则
 5.3 超过退换货期限的。
 5.4 商品页面明确标注不支持退换货的。
 
-六、售后服务
-6.1 如您对商品或服务有任何疑问，请联系客服：
+六、会员权益与奖励
+6.1 会员奖励、团队业绩、账户余额等属于平台按规则核算的账户权益，不等同于商品售价或保证收益。
+6.2 订单发生取消、退款、拒收或售后退款时，与该订单对应的未结算奖励将取消；已经入账的奖励由平台按原规则冲正，必要时从账户余额中扣回。
+6.3 邀请关系以系统首次确认的有效邀请记录为准，禁止自买自卖、虚假交易、拆单套奖、刷单或利用漏洞获取不当利益。
+6.4 平台可因风控、合规审查或异常交易暂缓结算，并在核验完成后按规则处理；具体比例、冷却期和结算条件以当期公示规则为准。
+
+七、售后服务
+7.1 如您对商品或服务有任何疑问，请联系客服：
   - 客服电话：{phone}
   - 客服邮箱：{email}
-6.2 客服工作时间：周一至周日 9:00-21:00。
+7.2 客服工作时间：周一至周日 9:00-21:00。
 
-七、争议处理
-7.1 如您与商家发生争议，本商城将协助双方协商解决。
-7.2 协商不成的，可向本商城所在地消费者协会投诉或向人民法院提起诉讼。
+八、争议处理
+8.1 如您与商家发生争议，本商城将协助双方协商解决。
+8.2 协商不成的，可向本商城所在地消费者协会投诉或向人民法院提起诉讼。
 
-八、特别说明
-8.1 本规则中的"签收"以物流系统显示的签收时间为准。
-8.2 本商城保留对本规则的最终解释权。`
+九、特别说明
+9.1 本规则中的"签收"以物流系统显示的签收时间为准。
+9.2 本商城将依法保护消费者合法权益；规则与法律法规不一致的，以法律法规为准。
+9.3 本规则的更新将在商城公示，更新后的规则仅适用于更新后产生的交易。`
 
 const fillTemplate = (template) => {
   return template
-    .replace(/\{company\}/g, getCompanyName())
-    .replace(/\{phone\}/g, getPhone())
-    .replace(/\{email\}/g, getEmail())
+    // 保留占位符，由前台展示时实时替换，避免经营主体或客服资料变更后协议仍显示旧信息。
+    .replace(/\{company\}/g, '{{companyName}}')
+    .replace(/\{phone\}/g, '{{servicePhone}}')
+    .replace(/\{email\}/g, '{{serviceEmail}}')
 }
 
 const fillDefaultAgreement = async () => {
@@ -268,6 +272,7 @@ const defaultFaqData = [
   { question: '如何提现？', answer: '在"我的-余额"页面点击"余额提现"，填写收款信息和提现金额，验证支付密码和短信验证码后提交申请。提现需完成首笔有效订单成为会员。' },
   { question: '提现多久到账？', answer: '提现申请提交后，后台将在1-3个工作日内审核并打款。审核拒绝的金额将自动退回余额。' },
   { question: '奖金规则是什么？', answer: '直推奖：邀请人获得被邀请人订单金额的一定比例（按邀请人等级：25%/30%/37%/45%/52%/57%/61%/65%）。团队分红：一星董事5%、二星董事4%、三星董事3%、合伙人2%，对无限层团队新增有效订单独立取得。奖金在确认收货满7天后进入可结算状态。' },
+  { question: '订单退款后奖金怎么处理？', answer: '订单取消、退款、拒收或售后退款时，尚未结算的订单奖励会取消；已经入账的奖励按原订单冲正，必要时从账户余额扣回。A推荐B、B推荐C时，各层奖励均以对应有效订单为依据，不因层级关系绕过退款和风控规则。' },
   { question: '如何联系客服？', answer: '您可以通过以下方式联系我们：\n客服电话：{phone}\n客服邮箱：{email}\n工作时间：周一至周日 9:00-21:00' },
 ]
 
