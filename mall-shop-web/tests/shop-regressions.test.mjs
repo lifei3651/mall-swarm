@@ -194,3 +194,11 @@ test('order detail renders logistics timeline with shipping steps', async () => 
   assert.match(source, /courierInitial/)
   assert.match(source, /estimatedDelivery/)
 })
+
+test('order queries retry one transient mobile network failure', async () => {
+  const request = await readFile(new URL('../src/api/request.js', import.meta.url), 'utf8')
+  assert.match(request, /RETRYABLE_METHODS = new Set\(\['get', 'head', 'options'\]\)/)
+  assert.match(request, /retryCount < 1 && isTransientTransportError\(error\)/)
+  assert.match(request, /return service\.request\(config\)/)
+  assert.match(request, /网络暂时不可用，请检查网络后重试/)
+})
