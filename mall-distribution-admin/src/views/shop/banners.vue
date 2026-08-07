@@ -2,14 +2,14 @@
   <div class="page-container banner-page">
     <div class="toolbar">
       <div>
-        <h2>首页 Banner</h2>
-        <p>商城设置 · 首页 Banner：维护首页顶部轮播图，只有启用且在有效时间内的内容会展示给客户。</p>
+        <h2>首页轮播图</h2>
+        <p>商城设置 · 首页轮播图：维护首页顶部展示内容，只有启用且在有效时间内的图片会展示给客户。</p>
       </div>
-      <el-button type="primary" @click="openCreate">新增 Banner</el-button>
+      <el-button type="primary" @click="openCreate">新增轮播图</el-button>
     </div>
 
     <el-alert
-      title="这里负责图片、链接和展示顺序；是否展示轮播由“商城视觉与页面”的首页模块开关统一控制。"
+      title="这里负责图片、点击后的去向和展示顺序；是否显示首页轮播图由“商城视觉与页面”的首页模块开关统一控制。"
       type="info"
       :closable="false"
       show-icon
@@ -24,7 +24,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip />
-        <el-table-column label="跳转" min-width="150">
+        <el-table-column label="点击后动作" min-width="150">
           <template #default="{ row }">{{ linkTypeName(row.linkType) }}{{ row.linkValue ? `：${row.linkValue}` : '' }}</template>
         </el-table-column>
         <el-table-column prop="sort" label="顺序" width="80" sortable />
@@ -43,12 +43,12 @@
           </template>
         </el-table-column>
       </el-table>
-      <el-empty v-if="!loading && !rows.length" description="还没有 Banner，新增一张活动图吧" />
+      <el-empty v-if="!loading && !rows.length" description="还没有首页轮播图，新增一张活动图吧" />
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑 Banner' : '新增 Banner'" width="720px">
+    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑轮播图' : '新增轮播图'" width="720px">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="Banner图片" prop="imageUrl">
+        <el-form-item label="轮播图片" prop="imageUrl">
           <div class="image-editor">
             <el-upload action="#" :show-file-list="false" accept="image/*" :http-request="uploadImage">
               <el-image v-if="form.imageUrl" :src="form.imageUrl" fit="cover" class="banner-preview" />
@@ -58,7 +58,7 @@
           </div>
         </el-form-item>
         <el-form-item label="标题" prop="title"><el-input v-model="form.title" maxlength="64" show-word-limit /></el-form-item>
-        <el-form-item label="点击跳转">
+        <el-form-item label="点击后打开">
           <el-select v-model="form.linkType" style="width:150px">
             <el-option label="不跳转" value="none" />
             <el-option label="商品详情" value="product" />
@@ -95,7 +95,7 @@ const rows = ref([])
 const dialogVisible = ref(false)
 const formRef = ref()
 const form = ref({})
-const rules = { imageUrl: [{ required: true, message: '请上传 Banner 图片', trigger: 'change' }], title: [{ required: true, message: '请输入标题', trigger: 'blur' }] }
+const rules = { imageUrl: [{ required: true, message: '请上传轮播图片', trigger: 'change' }], title: [{ required: true, message: '请输入标题', trigger: 'blur' }] }
 const linkPlaceholder = computed(() => ({ product: '填写商品 ID', category: '填写分类名称', url: '填写 https:// 开头的链接' }[form.value.linkType] || ''))
 
 const emptyForm = () => ({ tenantId: 1, title: '', imageUrl: '', linkType: 'none', linkValue: '', sort: 100, status: 1, timeRange: [], remark: '' })
@@ -121,7 +121,7 @@ const uploadImage = async ({ file }) => {
 const toggleStatus = async (row, enabled) => {
   await updateShopBannerStatus(row.id, enabled ? 1 : 0)
   row.status = enabled ? 1 : 0
-  ElMessage.success(enabled ? 'Banner 已展示' : 'Banner 已隐藏')
+  ElMessage.success(enabled ? '轮播图已展示' : '轮播图已隐藏')
 }
 const submit = async () => {
   const valid = await formRef.value?.validate().catch(() => false)
@@ -133,7 +133,7 @@ const submit = async () => {
     if (payload.linkType === 'none') payload.linkValue = ''
     if (payload.id) await updateShopBanner(payload.id, payload)
     else await createShopBanner(payload)
-    ElMessage.success('Banner 已保存')
+    ElMessage.success('轮播图已保存')
     dialogVisible.value = false
     await fetchRows()
   } finally { saving.value = false }

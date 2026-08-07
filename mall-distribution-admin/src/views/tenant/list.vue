@@ -60,7 +60,7 @@
       </el-table-column>
       <el-table-column label="操作" fixed="right" width="140">
         <template #default="{ row }">
-          <el-button type="primary" link :disabled="!tableData.length" @click="openDisplayDialog(tableData[0], row.key)">编辑{{ row.label }}</el-button>
+          <el-button type="primary" link :disabled="!tableData.length" @click="openDisplayDialog(tableData[0], row.key)">{{ row.key === 'banner' ? '进入管理' : `编辑${row.label}` }}</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -96,9 +96,8 @@
             </div>
           </section>
           <section v-if="activeEditSection === 'banner'" class="control-section banner-config-section">
-            <div class="control-section-heading"><div><strong>首页 Banner</strong><small>图片、跳转和展示时间在这里统一维护</small></div><el-tag size="small" type="info">{{ previewBanners.length }} 条已启用</el-tag></div>
-            <p class="section-note banner-note">Banner 已并入商城视觉与页面，手机预览会即时读取已启用的图片。</p>
-            <el-button type="primary" plain @click="openBannerDialog">编辑首页 Banner</el-button>
+            <div class="control-section-heading"><div><strong>首页轮播图</strong><small>图片、点击后动作和展示时间在这里统一维护</small></div><el-tag size="small" type="info">{{ previewBanners.length }} 条已启用</el-tag></div>
+            <p class="section-note banner-note">首页轮播图已单独提供管理页面；点击上方“首页轮播图”模块的“进入管理”即可直接维护。</p>
           </section>
           <section v-if="activeEditSection === 'home'" class="control-section">
             <div class="control-section-heading"><div><strong>首页模块</strong><small>拖动调整前台显示顺序</small></div><el-tag size="small" type="info">实时预览</el-tag></div>
@@ -178,7 +177,7 @@
               <template v-for="module in orderedPreviewModules" :key="module.type">
                 <div v-if="module.type === 'banner' && module.enabled" class="mobile-preview-banner live-preview-banner">
                   <img v-if="previewBanners.length" :src="previewBanners[0].imageUrl" :alt="previewBanners[0].title || '商城活动'" />
-                  <div v-else class="preview-empty-module"><strong>Banner轮播</strong><span>前往 Banner 管理上传图片</span></div>
+                  <div v-else class="preview-empty-module"><strong>首页轮播图</strong><span>前往首页轮播图管理上传图片</span></div>
                   <i v-if="previewBanners.length > 1">● ○ ○</i>
                 </div>
                 <div v-else-if="module.type === 'notice' && module.enabled" class="mobile-preview-notice"><span>⌁</span><strong>商城公告</strong><small>欢迎来到{{ displayForm.brandName || '灵启商城' }}</small></div>
@@ -200,7 +199,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="bannerDialogVisible" title="编辑首页 Banner" width="1000px" top="3vh" append-to-body>
+    <el-dialog v-model="bannerDialogVisible" title="首页轮播图管理" width="1000px" top="3vh" append-to-body>
       <ShopBanners />
     </el-dialog>
   </div>
@@ -236,7 +235,7 @@ const initializingDisplay = ref(false)
 const displayDraftDirty = ref(false)
 
 const displayForm = ref({})
-const moduleNames = { banner: 'Banner轮播', notice: '商城公告', category: '商品分类', trust: '服务保障', products: '精选商品' }
+const moduleNames = { banner: '首页轮播图', notice: '商城公告', category: '商品分类', trust: '服务保障', products: '精选商品' }
 const navNames = { home: '首页', category: '分类', cart: '购物车', orders: '订单', profile: '我的' }
 const previewPages = [
   { value: 'home', label: '首页' },
@@ -339,7 +338,7 @@ const displaySectionRows = computed(() => {
   const trustEnabled = Number(extra.showTrustStrip ?? 0) === 1
   return [
     { key: 'brand', icon: '✦', label: '品牌视觉', summary: `${row.brandName || row.tenantName || '灵启商城'} · ${getTemplateName(row.productTemplate)} · ${row.logoUrl ? '已配置 Logo' : '待上传 Logo'}`, status: row.brandName || row.logoUrl ? '已配置' : '待完善', active: Boolean(row.brandName || row.logoUrl) },
-    { key: 'banner', icon: '▣', label: '首页 Banner', summary: '管理首页轮播图片、跳转地址和展示状态', status: '可编辑', active: true },
+    { key: 'banner', icon: '▣', label: '首页轮播图', summary: '管理首页展示图片、点击后的去向和展示状态', status: '可编辑', active: true },
     { key: 'home', icon: '⌂', label: '首页模块', summary: `${visibleModules}/${modules.length} 个模块展示，支持拖动排序`, status: '已配置', active: visibleModules > 0 },
     { key: 'category', icon: '▦', label: '分类模块', summary: '控制首页分类入口及单个分类显示', status: '可编辑', active: true },
     { key: 'service', icon: '◇', label: '服务说明', summary: trustEnabled ? '安全支付、订单可查、售后无忧已展示' : '安全支付、订单可查、售后无忧当前隐藏', status: trustEnabled ? '展示中' : '已隐藏', active: trustEnabled },
@@ -348,10 +347,6 @@ const displaySectionRows = computed(() => {
   ]
 })
 
-const openBannerDialog = () => {
-  bannerDialogVisible.value = true
-}
-
 const uploadDisplayLogo = async ({ file }) => {
   const res = await uploadShopImage(file)
   displayForm.value.logoUrl = res.data
@@ -359,6 +354,12 @@ const uploadDisplayLogo = async ({ file }) => {
 }
 
 const openDisplayDialog = async (row, section = 'brand') => {
+  if (section === 'banner') {
+    currentTenant.value = row
+    displayDialogVisible.value = false
+    bannerDialogVisible.value = true
+    return
+  }
   initializingDisplay.value = true
   displayDraftDirty.value = false
   activeEditSection.value = section

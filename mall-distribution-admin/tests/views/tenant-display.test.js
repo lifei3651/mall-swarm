@@ -21,10 +21,12 @@ describe('商城视觉与页面工作台', () => {
 
   it('覆盖六项装修能力并让颜色微调真正作用于预览', async () => {
     const source = await readFile(sourcePath, 'utf8')
-    for (const label of ['首页 Banner', '首页模块', '分类模块', '底部导航', '颜色微调']) {
+    for (const label of ['首页轮播图', '首页模块', '分类模块', '底部导航', '颜色微调']) {
       expect(source).toContain(label)
     }
-    expect(source).toContain('openBannerDialog')
+    expect(source).toContain("if (section === 'banner')")
+    expect(source).toContain('bannerDialogVisible.value = true')
+    expect(source).not.toContain('openBannerDialog')
     expect(source).toContain('draggable="true"')
     expect(source).toContain('setCategoryDraft')
     expect(source).toContain('resetColors')
@@ -35,7 +37,7 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('extraConfigJson')
     expect(source).toContain('确认放弃未保存修改？')
     expect(source).toContain('moveNav')
-    for (const section of ['品牌视觉', '首页 Banner', '首页模块', '分类模块', '服务说明', '底部导航', '颜色微调']) {
+    for (const section of ['品牌视觉', '首页轮播图', '首页模块', '分类模块', '服务说明', '底部导航', '颜色微调']) {
       expect(source).toContain(section)
     }
     expect(source).toContain('displaySectionRows')
