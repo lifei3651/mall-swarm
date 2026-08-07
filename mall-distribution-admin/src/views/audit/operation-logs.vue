@@ -19,7 +19,7 @@
     </div>
 
     <el-table :data="logs" v-loading="loading" style="width: 100%">
-      <el-table-column prop="createTime" label="操作时间" width="170" />
+      <el-table-column label="操作时间" width="170"><template #default="{ row }">{{ formatOperationTime(row.createTime) }}</template></el-table-column>
       <el-table-column prop="operatorName" label="操作人" width="120" />
       <el-table-column label="做了什么" min-width="360">
         <template #default="{ row }"><span class="action-text">{{ actionDescription(row) }}</span></template>
@@ -46,7 +46,7 @@
 
     <el-dialog v-model="detailVisible" title="操作详情" width="760px">
       <el-descriptions :column="2" border>
-        <el-descriptions-item label="操作时间">{{ current.createTime }}</el-descriptions-item>
+        <el-descriptions-item label="操作时间">{{ formatOperationTime(current.createTime) }}</el-descriptions-item>
         <el-descriptions-item label="操作人">{{ current.operatorName }}</el-descriptions-item>
         <el-descriptions-item label="业务模块">{{ moduleName(current.moduleName) }}</el-descriptions-item>
         <el-descriptions-item label="操作结果">{{ isFailed(current) ? '失败' : '成功' }}</el-descriptions-item>
@@ -91,6 +91,8 @@ const openDetail = (row) => {
   current.value = row
   detailVisible.value = true
 }
+
+const formatOperationTime = (value) => value ? String(value).replace('T', ' ').slice(0, 19) : '-'
 
 const moduleName = (value) => ({
   ASSET: '会员资产', AGENT: '会员关系', ORDER: '订单', BONUS_CONFIG: '奖金设置', ERP: 'ERP', ADMIN_API: '后台操作',
