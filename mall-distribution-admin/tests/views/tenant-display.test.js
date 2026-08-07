@@ -48,7 +48,8 @@ describe('商城视觉与页面工作台', () => {
     expect(source).not.toContain('preview-page-tabs')
     expect(source).not.toContain('v-for="section in displaySections"')
     expect(source).toContain('主题色可选')
-    expect(source).toContain('未选择时使用当前默认主题')
+    expect(source).toContain('未选择时沿用系统默认主题')
+    expect(source).toContain('保存发布即可生效')
   })
 
   it('让服务保障开关同步控制右侧预览，并给搜索框保留品牌区间距', async () => {
