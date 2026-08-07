@@ -88,7 +88,16 @@
                   <el-button text size="small" :disabled="index === 0" @click="moveModule(index, -1)">上移</el-button>
                   <el-button text size="small" :disabled="index === displayForm.homeModules.length - 1" @click="moveModule(index, 1)">下移</el-button>
                 </div>
-                <el-switch v-model="module.enabled" active-text="展示" inactive-text="隐藏" />
+                <el-switch
+                  v-if="module.type === 'trust'"
+                  :model-value="Number(displayForm.showTrustStrip) === 1"
+                  :active-value="true"
+                  :inactive-value="false"
+                  active-text="展示"
+                  inactive-text="隐藏"
+                  @change="setTrustEnabled"
+                />
+                <el-switch v-else v-model="module.enabled" active-text="展示" inactive-text="隐藏" />
               </div>
             </div>
           </section>
@@ -107,7 +116,7 @@
 
           <section class="control-section">
             <div class="control-section-heading"><div><strong>服务说明</strong><small>首页底部的说明性内容</small></div></div>
-            <div class="control-switch-row"><span>安全支付、订单可查、售后无忧</span><el-switch v-model="displayForm.showTrustStrip" :active-value="1" :inactive-value="0" /></div>
+            <div class="control-switch-row"><span>安全支付、订单可查、售后无忧（与首页模块同步）</span><el-switch :model-value="Number(displayForm.showTrustStrip) === 1" :active-value="true" :inactive-value="false" @change="setTrustEnabled" /></div>
           </section>
 
           <section class="control-section">
@@ -351,6 +360,9 @@ const openDisplayDialog = async (row) => {
   const bottomNav = configuredBottomNav.map((nav) => nav.type === 'category'
     ? { ...nav, enabled: nav.enabled !== false && legacyBottomCategoryEnabled }
     : nav)
+  const configuredModules = Array.isArray(extra.homeModules) && extra.homeModules.length ? extra.homeModules : defaultModules()
+  const trustEnabled = Number(extra.showTrustStrip ?? (configuredModules.find((module) => module.type === 'trust')?.enabled ? 1 : 0)) === 1
+  const homeModules = configuredModules.map((module) => module.type === 'trust' ? { ...module, enabled: trustEnabled } : module)
   displayForm.value = {
     tenantId: row.id,
     brandName: row.brandName || row.tenantName || '灵启商城',
@@ -361,10 +373,10 @@ const openDisplayDialog = async (row) => {
     showHomeCategories: 1,
     showBottomCategoryNav: 1,
     ...(res.data || {}),
-    homeModules: Array.isArray(extra.homeModules) && extra.homeModules.length ? extra.homeModules : defaultModules(),
+    homeModules,
     colors: { ...defaultColors(), ...(extra.colors || {}) },
     bottomNav,
-    showTrustStrip: Number(extra.showTrustStrip ?? 0) === 1 ? 1 : 0,
+    showTrustStrip: trustEnabled ? 1 : 0,
   }
   displayDialogVisible.value = true
   await nextTick()
@@ -375,6 +387,13 @@ const openDisplayDialog = async (row) => {
 const applyDisplayTheme = (theme) => {
   displayForm.value.productTemplate = theme.value
   displayForm.value.themeColor = theme.color
+}
+
+const setTrustEnabled = (value) => {
+  const enabled = value === true || Number(value) === 1
+  displayForm.value.showTrustStrip = enabled ? 1 : 0
+  const trustModule = (displayForm.value.homeModules || []).find((module) => module.type === 'trust')
+  if (trustModule) trustModule.enabled = enabled
 }
 
 const resetColors = () => {
@@ -636,7 +655,7 @@ onMounted(fetchData)
 .mobile-preview-logo img { width:100%; height:100%; object-fit:contain; }
 .mobile-preview-brand strong { overflow:hidden; font-size:16px; text-overflow:ellipsis; white-space:nowrap; }
 .mobile-preview-share { color:var(--preview-accent, var(--preview-color)); font-size:12px; }
-.mobile-preview-search { display:grid; grid-template-columns:24px 1fr 26px; align-items:center; gap:6px; margin:0 12px 10px; padding:8px 10px; color:#98a2b3; background:#fff; border:1.5px solid var(--preview-accent, var(--preview-color)); border-radius:999px; }
+.mobile-preview-search { display:grid; grid-template-columns:24px 1fr 26px; align-items:center; gap:6px; margin:14px 12px 10px; padding:8px 10px; color:#98a2b3; background:#fff; border:1.5px solid var(--preview-accent, var(--preview-color)); border-radius:999px; }
 .mobile-preview-search b { display:grid; width:26px; height:26px; place-items:center; color:#fff; background:var(--preview-button, var(--preview-color)); border-radius:50%; }
 .mobile-preview-banner { position:relative; display:grid; gap:4px; min-height:122px; margin:0 12px 10px; overflow:hidden; color:#fff; background:linear-gradient(135deg, color-mix(in srgb, var(--preview-color) 84%, #111 16%), var(--preview-color)); border-radius:16px; }
 .live-preview-banner img { width:100%; height:122px; object-fit:cover; }

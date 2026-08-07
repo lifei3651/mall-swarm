@@ -36,4 +36,11 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('确认放弃未保存修改？')
     expect(source).toContain('moveNav')
   })
+
+  it('让服务保障开关同步控制右侧预览，并给搜索框保留品牌区间距', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+    expect(source).toContain('setTrustEnabled')
+    expect(source).toContain('Number(displayForm.showTrustStrip) === 1')
+    expect(source).toContain('margin:14px 12px 10px')
+  })
 })
