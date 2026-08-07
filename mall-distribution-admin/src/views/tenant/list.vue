@@ -109,7 +109,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="displayDialogVisible" title="手机版首页装修工作台" width="1180px" top="2vh" class="display-workbench-dialog">
+    <el-dialog v-model="displayDialogVisible" title="手机版首页装修工作台" width="1040px" top="1vh" class="display-workbench-dialog">
       <el-alert title="左侧调整模块，右侧手机实时预览。当前修改只保存在草稿中，点击“保存发布”后才会影响客户前台。" type="info" :closable="false" class="display-alert" />
       <div class="preview-page-tabs" role="tablist" aria-label="前台页面预览">
         <button v-for="page in previewPages" :key="page.value" type="button" :class="{ active: previewPage === page.value }" @click="previewPage = page.value">{{ page.label }}<small v-if="page.value !== 'home'">下一阶段</small></button>
@@ -544,7 +544,7 @@ onMounted(fetchData)
 .mobile-preview-shell {
   width: 390px;
   max-width: 100%;
-  height: 640px;
+  height: 560px;
   margin: 0 auto;
   overflow-y: auto;
   color: var(--preview-text, #202735);
@@ -630,10 +630,10 @@ onMounted(fetchData)
   display: grid;
   grid-template-columns: minmax(430px, 1fr) 410px;
   gap: 18px;
-  min-height: 650px;
+  min-height: 0;
 }
 .display-controls {
-  max-height: 690px;
+  max-height: 590px;
   padding-right: 6px;
   overflow-y: auto;
 }
