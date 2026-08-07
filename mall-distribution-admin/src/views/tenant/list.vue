@@ -48,7 +48,7 @@
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="displayDialogVisible" title="商城视觉装修工作台" width="1040px" top="1vh" class="display-workbench-dialog">
+    <el-dialog v-model="displayDialogVisible" title="商城视觉装修工作台" width="1040px" top="1vh" class="display-workbench-dialog" :before-close="confirmCloseDisplayDialog">
       <el-alert title="左侧调整模块，右侧手机实时预览。当前修改只保存在草稿中，点击“保存发布”后才会影响客户前台。" type="info" :closable="false" class="display-alert" />
       <div class="preview-page-tabs" role="tablist" aria-label="前台页面预览">
         <button v-for="page in previewPages" :key="page.value" type="button" :class="{ active: previewPage === page.value }" @click="previewPage = page.value">{{ page.label }}</button>
@@ -81,9 +81,13 @@
           <section class="control-section">
             <div class="control-section-heading"><div><strong>首页模块</strong><small>拖动调整前台显示顺序</small></div><el-tag size="small" type="info">实时预览</el-tag></div>
             <div class="module-list module-list-sortable">
-              <div v-for="(module, index) in displayForm.homeModules" :key="module.type" class="module-item" draggable="true" @dragstart="startModuleDrag(index)" @dragover.prevent @drop="dropModule(index)">
+              <div v-for="(module, index) in displayForm.homeModules" :key="module.type" class="module-item" draggable="true" @dragstart="startModuleDrag(index)" @dragover.prevent @drop="dropModule(index)" @dragend="draggingModuleIndex = null">
                 <span class="drag-handle" aria-hidden="true">⋮⋮</span>
                 <strong>{{ moduleNames[module.type] || module.type }}</strong>
+                <div class="sort-actions" aria-label="调整模块顺序">
+                  <el-button text size="small" :disabled="index === 0" @click="moveModule(index, -1)">上移</el-button>
+                  <el-button text size="small" :disabled="index === displayForm.homeModules.length - 1" @click="moveModule(index, 1)">下移</el-button>
+                </div>
                 <el-switch v-model="module.enabled" active-text="展示" inactive-text="隐藏" />
               </div>
             </div>
@@ -109,10 +113,14 @@
           <section class="control-section">
             <div class="control-section-heading"><div><strong>底部导航</strong><small>拖动排序、改名或隐藏</small></div></div>
             <div class="nav-config-list nav-list-sortable">
-              <div v-for="(nav, index) in displayForm.bottomNav" :key="nav.type" class="nav-config-row" draggable="true" @dragstart="startNavDrag(index)" @dragover.prevent @drop="dropNav(index)">
+              <div v-for="(nav, index) in displayForm.bottomNav" :key="nav.type" class="nav-config-row" draggable="true" @dragstart="startNavDrag(index)" @dragover.prevent @drop="dropNav(index)" @dragend="draggingNavIndex = null">
                 <span class="drag-handle" aria-hidden="true">⋮⋮</span>
                 <span class="nav-type-name">{{ navNames[nav.type] || nav.type }}</span>
                 <el-input v-model="nav.label" maxlength="6" style="width:100px" />
+                <div class="sort-actions" aria-label="调整底部导航顺序">
+                  <el-button text size="small" :disabled="index === 0" @click="moveNav(index, -1)">上移</el-button>
+                  <el-button text size="small" :disabled="index === displayForm.bottomNav.length - 1" @click="moveNav(index, 1)">下移</el-button>
+                </div>
                 <el-switch v-model="nav.enabled" active-text="展示" inactive-text="隐藏" />
               </div>
             </div>
@@ -173,7 +181,7 @@
         </section>
       </div>
       <template #footer>
-        <el-button @click="displayDialogVisible = false">取消</el-button>
+        <el-button @click="closeDisplayDialog">取消</el-button>
         <el-button type="primary" @click="submitDisplayConfig">保存发布</el-button>
       </template>
     </el-dialog>
@@ -185,8 +193,8 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { listShopBanners, listShopCategories, listShopProducts, updateCategoryShowOnHome, uploadShopImage } from '@/api/shop'
 import ShopBanners from '@/views/shop/banners.vue'
 import {
@@ -209,6 +217,8 @@ const categoryDraft = ref({})
 const previewPage = ref('home')
 const draggingModuleIndex = ref(null)
 const draggingNavIndex = ref(null)
+const initializingDisplay = ref(false)
+const displayDraftDirty = ref(false)
 
 const displayForm = ref({})
 const moduleNames = { banner: 'Banner轮播', notice: '商城公告', category: '商品分类', trust: '服务保障', products: '精选商品' }
@@ -315,6 +325,8 @@ const uploadDisplayLogo = async ({ file }) => {
 }
 
 const openDisplayDialog = async (row) => {
+  initializingDisplay.value = true
+  displayDraftDirty.value = false
   currentTenant.value = row
   const [resResult, categoryResult, productResult, bannerResult] = await Promise.allSettled([
     getDisplayConfig(row.id),
@@ -355,6 +367,9 @@ const openDisplayDialog = async (row) => {
     showTrustStrip: Number(extra.showTrustStrip ?? 0) === 1 ? 1 : 0,
   }
   displayDialogVisible.value = true
+  await nextTick()
+  initializingDisplay.value = false
+  displayDraftDirty.value = false
 }
 
 const applyDisplayTheme = (theme) => {
@@ -400,6 +415,13 @@ const moveModule = (index, direction) => {
   modules.forEach((module, itemIndex) => { module.sort = itemIndex + 1 })
 }
 
+const moveNav = (index, direction) => {
+  const next = index + direction
+  const navs = displayForm.value.bottomNav || []
+  if (next < 0 || next >= navs.length) return
+  ;[navs[index], navs[next]] = [navs[next], navs[index]]
+}
+
 const reorderItems = (items, from, to) => {
   if (from === null || from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return
   const [item] = items.splice(from, 1)
@@ -421,6 +443,43 @@ const dropNav = (index) => {
 }
 const setCategoryDraft = (category, value) => {
   categoryDraft.value = { ...categoryDraft.value, [category.id]: Number(value) }
+}
+
+watch(displayForm, () => {
+  if (!initializingDisplay.value && displayDialogVisible.value) displayDraftDirty.value = true
+}, { deep: true })
+watch(categoryDraft, () => {
+  if (!initializingDisplay.value && displayDialogVisible.value) displayDraftDirty.value = true
+}, { deep: true })
+
+const closeDisplayDialog = () => {
+  if (!displayDraftDirty.value) {
+    displayDialogVisible.value = false
+    return
+  }
+  ElMessageBox.confirm('当前装修草稿尚未发布，关闭后这些修改会丢失。', '确认放弃未保存修改？', {
+    confirmButtonText: '放弃修改',
+    cancelButtonText: '继续编辑',
+    type: 'warning',
+  }).then(() => {
+    displayDialogVisible.value = false
+    displayDraftDirty.value = false
+  }).catch(() => {})
+}
+
+const confirmCloseDisplayDialog = (done) => {
+  if (!displayDraftDirty.value) {
+    done()
+    return
+  }
+  ElMessageBox.confirm('当前装修草稿尚未发布，关闭后这些修改会丢失。', '确认放弃未保存修改？', {
+    confirmButtonText: '放弃修改',
+    cancelButtonText: '继续编辑',
+    type: 'warning',
+  }).then(() => {
+    displayDraftDirty.value = false
+    done()
+  }).catch(() => {})
 }
 
 const submitDisplayConfig = async () => {
@@ -458,6 +517,7 @@ const submitDisplayConfig = async () => {
   } else {
     ElMessage.success('商城首页装修已发布，网页和 APP 刷新后生效')
   }
+  displayDraftDirty.value = false
   displayDialogVisible.value = false
 }
 
@@ -758,6 +818,8 @@ onMounted(fetchData)
 .nav-list-sortable .nav-config-row:active { cursor: grabbing; }
 .module-list-sortable .module-item { gap: 8px; min-height: 34px; padding: 7px 9px; }
 .module-list-sortable .module-item strong { flex: 1; }
+.sort-actions { display: inline-flex; gap: 0; white-space: nowrap; }
+.sort-actions .el-button { padding: 2px 4px; font-size: 11px; }
 .category-config-section .control-section-heading { margin-bottom: 8px; }
 .category-list.category-list-draft {
   display: grid;
