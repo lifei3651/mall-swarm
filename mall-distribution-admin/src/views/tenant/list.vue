@@ -73,9 +73,9 @@
       <div class="display-workbench">
         <aside class="display-controls">
           <div class="display-section-switcher" aria-label="装修模块">
-            <button v-for="section in displaySections" :key="section.key" type="button" :class="{ active: activeEditSection === section.key }" @click="activeEditSection = section.key">
-              <strong>{{ section.label }}</strong><small>{{ section.description }}</small>
-            </button>
+            <div class="display-section-brand-only">
+              <strong>品牌视觉</strong><small>名称、Logo、主题模板</small>
+            </div>
           </div>
           <section v-if="activeEditSection === 'brand'" class="control-section visual-design-panel">
             <div class="control-section-heading">
@@ -240,15 +240,6 @@ const moduleNames = { banner: 'Banner轮播', notice: '商城公告', category: 
 const navNames = { home: '首页', category: '分类', cart: '购物车', orders: '订单', profile: '我的' }
 const previewPages = [
   { value: 'home', label: '首页' },
-]
-const displaySections = [
-  { key: 'brand', label: '品牌视觉', description: '名称、Logo、主题模板' },
-  { key: 'banner', label: '首页 Banner', description: '轮播图片和跳转设置' },
-  { key: 'home', label: '首页模块', description: '排序和模块显隐' },
-  { key: 'category', label: '分类模块', description: '首页分类整体及单项显隐' },
-  { key: 'service', label: '服务说明', description: '首页信任信息展示' },
-  { key: 'nav', label: '底部导航', description: '名称、排序和单项显隐' },
-  { key: 'colors', label: '颜色微调', description: '颜色调整和恢复默认' },
 ]
 const defaultModules = () => [
   { type: 'banner', enabled: true, sort: 1 },
@@ -848,34 +839,24 @@ onMounted(fetchData)
   overflow-y: auto;
 }
 .display-section-switcher {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
   margin-bottom: 10px;
   padding: 7px;
   background: #f5f7fa;
   border: 1px solid #ebeef5;
   border-radius: 10px;
 }
-.display-section-switcher button {
+.display-section-brand-only {
   display: grid;
   gap: 2px;
-  min-width: 0;
   padding: 8px 9px;
   color: #606266;
-  text-align: left;
   background: #fff;
-  border: 1px solid transparent;
+  border: 1px solid #b3d8ff;
   border-radius: 8px;
-  cursor: pointer;
-}
-.display-section-switcher button.active {
-  color: var(--el-color-primary);
-  border-color: #b3d8ff;
   box-shadow: 0 1px 4px rgba(64, 158, 255, .12);
 }
-.display-section-switcher strong { font-size: 12px; }
-.display-section-switcher small { overflow: hidden; color: #98a2b3; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.display-section-brand-only strong { color: var(--el-color-primary); font-size: 12px; }
+.display-section-brand-only small { color: #98a2b3; font-size: 10px; }
 .control-section {
   margin-bottom: 14px;
   padding: 14px;

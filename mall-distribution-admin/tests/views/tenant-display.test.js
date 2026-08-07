@@ -40,6 +40,8 @@ describe('商城视觉与页面工作台', () => {
     }
     expect(source).toContain('displaySectionRows')
     expect(source).toContain('activeEditSection')
+    expect(source).toContain('display-section-brand-only')
+    expect(source).not.toContain('v-for="section in displaySections"')
     expect(source).toContain('主题色可选')
     expect(source).toContain('未选择时使用当前默认主题')
   })
