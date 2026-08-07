@@ -47,31 +47,36 @@
           </div>
         </div>
 
-        <div v-if="addresses.length && defaultAddress" class="checkout-address-summary">
+        <div v-if="addressesLoading" class="checkout-address-state" role="status">正在读取已保存地址…</div>
+        <div v-else-if="addressesLoadError" class="checkout-address-state checkout-address-error" role="alert">
+          <span>{{ addressesLoadError }}</span>
+          <button type="button" @click="fetchAddresses">重新加载地址</button>
+        </div>
+        <div v-else-if="addresses.length && defaultAddress" class="checkout-address-summary">
           <div class="checkout-address-copy">
             <div class="addr-line1"><strong>{{ selectedAddress?.receiverName || defaultAddress.receiverName }}</strong><span>{{ selectedAddress?.receiverPhone || defaultAddress.receiverPhone }}</span></div>
             <div class="addr-line2">{{ selectedAddress ? joinAddress(selectedAddress) : joinAddress(defaultAddress) }}</div>
           </div>
           <button type="button" class="address-switch" @click="addressPickerVisible = true">更换地址</button>
         </div>
-        <div v-else class="checkout-address-empty">
+        <div v-else-if="addressesLoaded" class="checkout-address-empty">
           <div><strong>请选择收货地址</strong><span>下单前请先添加收货信息</span></div>
           <button type="button" class="address-switch" @click="addressPickerVisible = true">新增地址</button>
         </div>
         <div class="form-grid checkout-form-grid">
-          <div v-if="!addresses.length" class="form-item half-item">
+          <div v-if="addressesLoaded && !addresses.length && !addressesLoadError" class="form-item half-item">
             <label>收货人</label>
             <input v-model="form.receiverName" class="field" placeholder="姓名" @input="form.addressId = null" />
           </div>
-          <div v-if="!addresses.length" class="form-item half-item">
+          <div v-if="addressesLoaded && !addresses.length && !addressesLoadError" class="form-item half-item">
             <label>手机号</label>
             <input v-model="form.receiverPhone" class="field" inputmode="tel" maxlength="11" placeholder="11位手机号" @input="handleReceiverPhoneInput" />
           </div>
-          <div v-if="!addresses.length" class="form-item full">
+          <div v-if="addressesLoaded && !addresses.length && !addressesLoadError" class="form-item full">
             <label>所在地区</label>
             <ChinaRegionSelect v-model="receiverRegion" @change="syncReceiverRegion" />
           </div>
-          <div v-if="!addresses.length" class="form-item full">
+          <div v-if="addressesLoaded && !addresses.length && !addressesLoadError" class="form-item full">
             <label>详细地址</label>
             <textarea v-model="form.receiverDetailAddress" class="textarea" placeholder="街道、小区、楼栋、门牌号" @input="form.addressId = null" style="min-height:58px"></textarea>
           </div>
@@ -291,6 +296,9 @@ const orderRequestKey = ref('')
 const balancePaymentRequestKey = ref('')
 const error = ref('')
 const addresses = ref([])
+const addressesLoading = ref(true)
+const addressesLoaded = ref(false)
+const addressesLoadError = ref('')
 const addressPickerVisible = ref(false)
 const defaultAddress = computed(() => addresses.value.find((item) => Number(item.isDefault) === 1) || addresses.value[0])
 const selectedAddress = computed(() => addresses.value.find((item) => String(item.id) === String(form.value.addressId)) || defaultAddress.value)
@@ -432,9 +440,12 @@ const syncReceiverRegion = ([province = '', city = '', district = ''] = []) => {
 
 const fetchAddresses = async () => {
   if (!hasToken.value) return
+  addressesLoading.value = true
+  addressesLoadError.value = ''
   try {
     const res = await listAddresses()
-    addresses.value = res.data || []
+    addresses.value = Array.isArray(res.data) ? res.data : (res.data?.list || [])
+    addressesLoaded.value = true
     try {
       const draft = JSON.parse(sessionStorage.getItem('checkout_draft') || 'null')
       if (draft?.form) Object.assign(form.value, draft.form)
@@ -448,7 +459,9 @@ const fetchAddresses = async () => {
       || addresses.value[0]
     if (preferredAddress) selectAddress(preferredAddress)
   } catch (e) {
-    error.value = e.message || '地址加载失败'
+    addressesLoadError.value = e.message || '地址加载失败，请重新加载'
+  } finally {
+    addressesLoading.value = false
   }
 }
 
@@ -830,6 +843,9 @@ onBeforeUnmount(() => {
 .saved-addresses { margin-bottom: 12px; padding-bottom: 3px; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: thin; }
 .saved-addresses .chip { flex: 0 0 auto; }
 .checkout-address-summary,.checkout-address-empty { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:12px; padding:14px; background:#fff9fa; border:1px solid #ffd8df; border-radius:14px; }
+.checkout-address-state { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; padding:14px; color:var(--muted); background:#fafbfc; border:1px solid #e5e7eb; border-radius:14px; font-size:13px; line-height:1.5; }
+.checkout-address-state button { flex:0 0 auto; padding:6px 10px; color:var(--accent, #e7193f); background:#fff; border:1px solid #ffc6d0; border-radius:999px; font-size:12px; font-weight:700; cursor:pointer; }
+.checkout-address-error { color:#b42318; background:#fff7f7; border-color:#f3c3c8; }
 .checkout-address-copy { min-width:0; }
 .checkout-address-copy .addr-line2 { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .checkout-address-empty { background:#fafbfc; border-color:#e5e7eb; }

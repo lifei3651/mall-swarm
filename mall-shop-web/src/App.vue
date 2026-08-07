@@ -122,6 +122,11 @@ const loadBrand = async () => {
     brand.value = applyBrandConfig(res.data || {})
     displayConfig.value = res.data?.displayConfig || {}
     legal.value = (await getLegalConfig()).data || {}
+  } catch (_) {
+    // 首页会显示可重试的错误态；外壳保留默认品牌，避免请求失败时出现未处理异常。
+    brand.value = { brandName: currentBrandName(), logoUrl: '' }
+    displayConfig.value = {}
+    legal.value = {}
   } finally {
     updatePageTitle(route.name, brand.value.brandName)
   }

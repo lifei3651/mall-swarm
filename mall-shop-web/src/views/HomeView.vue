@@ -30,8 +30,16 @@
       </div>
     </header>
 
+    <section v-if="homeLoadError" class="home-init-error" role="alert" aria-live="polite">
+      <strong>商城首页暂时加载失败</strong>
+      <p>{{ homeLoadError }}</p>
+      <button type="button" :disabled="homeLoading" @click="reloadHome">
+        {{ homeLoading ? '重新加载中…' : '重新加载' }}
+      </button>
+    </section>
+
     <!-- 按配置顺序渲染首页模块 -->
-    <template v-for="mod in homeModules" :key="mod.type">
+    <template v-if="!homeLoadError" v-for="mod in homeModules" :key="mod.type">
       <!-- Banner轮播 -->
       <section v-if="mod.type === 'banner' && mod.enabled && banners.length" class="home-banner-section" aria-label="商城活动">
         <div class="banner-carousel">
@@ -160,6 +168,8 @@ const { add } = useCart()
 const home = ref({})
 const products = ref([])
 const loading = ref(false)
+const homeLoading = ref(false)
+const homeLoadError = ref('')
 const toast = ref('')
 const productSection = ref(null)
 const searchInput = ref(null)
@@ -336,6 +346,20 @@ const fetchProducts = async (scrollToResults = false) => {
   }
 }
 
+const reloadHome = async () => {
+  homeLoading.value = true
+  homeLoadError.value = ''
+  try {
+    await fetchHome()
+    await fetchProducts()
+  } catch (e) {
+    products.value = []
+    homeLoadError.value = e?.message || '网络暂时不可用，请点击重新加载'
+  } finally {
+    homeLoading.value = false
+  }
+}
+
 const submitSearch = async () => {
   searchInput.value?.blur()
   recordSearch(query.value.keyword)
@@ -393,14 +417,18 @@ onMounted(async () => {
     const saved = JSON.parse(localStorage.getItem('shop_recent_searches') || '[]')
     recentSearches.value = Array.isArray(saved) ? saved.filter((item) => typeof item === 'string').slice(0, 5) : []
   } catch (_) { recentSearches.value = [] }
-  await fetchHome()
-  await fetchProducts()
+  await reloadHome()
 })
 onUnmounted(() => { stopBannerAutoplay(); stopNoticeRotation() })
 </script>
 
 <style scoped>
 .home-page { min-height: 100vh; padding-bottom: 58px; background: var(--shop-page-bg); }
+.home-init-error { width: min(560px, calc(100% - 28px)); margin: 28px auto; padding: 30px 20px; color: var(--ink); background: var(--card-bg, #fff); border: 1px solid #f1d6dc; border-radius: 18px; box-shadow: 0 10px 26px rgba(31, 41, 55, .06); text-align: center; }
+.home-init-error strong { display: block; font-size: 18px; }
+.home-init-error p { margin: 9px 0 18px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.home-init-error button { min-width: 116px; min-height: 40px; padding: 0 18px; color: #fff; background: var(--accent, #e7193f); border: 0; border-radius: 999px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.home-init-error button:disabled { opacity: .6; cursor: wait; }
 .home-topbar { position: sticky; top: 0; z-index: 24; background: var(--shop-header-bg); border-bottom: 1px solid #eceff1; backdrop-filter: blur(12px); }
 
 /* Banner轮播 */

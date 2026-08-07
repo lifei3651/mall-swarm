@@ -49,8 +49,21 @@ test('checkout keeps the address block compact and preserves the remark while sw
   assert.match(source, /openAddressPage\('manage'\)/)
   assert.match(source, /checkout_draft/)
   assert.match(source, /v-model="form\.remark"/)
+  assert.match(source, /addressesLoading/)
+  assert.match(source, /addressesLoadError/)
+  assert.match(source, /重新加载地址/)
+  assert.match(source, /addressesLoaded && !addresses\.length && !addressesLoadError/)
   assert.match(address, /选择收货地址/)
   assert.match(address, /使用此地址/)
+})
+
+test('home shows a dedicated retry state when initial data loading fails', async () => {
+  const source = await readView('HomeView.vue')
+  assert.match(source, /homeLoadError/)
+  assert.match(source, /商城首页暂时加载失败/)
+  assert.match(source, /重新加载/)
+  assert.match(source, /const reloadHome = async/)
+  assert.match(source, /await reloadHome\(\)/)
 })
 
 test('checkout only exposes configured payment channels', async () => {
