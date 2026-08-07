@@ -1,5 +1,5 @@
 <template>
-  <div class="layout-container">
+  <div class="layout-container" :class="{ 'dashboard-mode': isDashboard }">
     <!-- 侧边栏 -->
     <div class="layout-sidebar" :class="{ collapsed: isCollapsed }">
       <div class="logo">
@@ -8,6 +8,7 @@
       </div>
       <el-menu
         :default-active="activeMenu"
+        :default-openeds="isDashboard ? ['products'] : []"
         :collapse="isCollapsed"
         background-color="#111c36"
         text-color="#aeb9cf"
@@ -38,12 +39,21 @@
           </el-sub-menu>
         </template>
       </el-menu>
+      <button
+        type="button"
+        class="sidebar-collapse"
+        :aria-label="isCollapsed ? '展开侧边菜单' : '收起侧边菜单'"
+        @click="isCollapsed = !isCollapsed"
+      >
+        <el-icon><DArrowRight v-if="isCollapsed" /><DArrowLeft v-else /></el-icon>
+        <span v-if="!isCollapsed">收起菜单</span>
+      </button>
     </div>
 
     <!-- 主内容区 -->
     <div class="layout-main">
       <!-- 头部 -->
-      <div class="layout-header">
+      <div v-if="!isDashboard" class="layout-header">
         <div class="header-left">
           <el-icon
             class="collapse-btn"
@@ -91,6 +101,8 @@ import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import {
   CreditCard,
   DataAnalysis,
+  DArrowLeft,
+  DArrowRight,
   Expand,
   Fold,
   Goods,
@@ -118,6 +130,7 @@ const route = useRoute()
 const router = useRouter()
 const store = useAppStore()
 const isCollapsed = ref(false)
+const isDashboard = computed(() => route.path === '/dashboard')
 const brand = reactive({ brandName: localStorage.getItem('admin_brand_name') || '灵启商城', logoUrl: '' })
 const menuIcons = {
   CreditCard,
@@ -331,10 +344,15 @@ const handleCommand = async (command) => {
   background: #f4f7fb;
 }
 
+.layout-container.dashboard-mode {
+  color: #edf4ff;
+  background: #020b18;
+}
+
 .layout-sidebar {
-  width: 244px;
-  background: linear-gradient(180deg, #111c36 0%, #162342 58%, #1d2b50 100%);
-  box-shadow: 8px 0 28px rgba(20, 37, 73, .08);
+  width: 220px;
+  background: #071326;
+  box-shadow: 8px 0 28px rgba(0, 7, 19, .18);
   transition: width 0.24s ease;
   overflow: hidden;
   display: flex;
@@ -413,15 +431,44 @@ const handleCommand = async (command) => {
 
     :deep(.el-menu-item.is-active) {
       color: #fff !important;
-      background: linear-gradient(100deg, #4f72ff, #6b55e8) !important;
-      box-shadow: 0 8px 18px rgba(77, 99, 223, .28);
+      background: #153d7d !important;
+      border: 1px solid rgba(82, 145, 255, .78);
+      box-shadow: 0 8px 18px rgba(25, 79, 173, .28);
     }
 
     :deep(.el-sub-menu.is-opened > .el-sub-menu__title) { color: #fff; }
   }
+
+  .sidebar-collapse {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    margin: 8px 12px 12px;
+    color: #8ea0bc;
+    font-size: 12px;
+    border: 1px solid rgba(91, 119, 160, .24);
+    border-radius: 9px;
+    background: rgba(7, 21, 45, .76);
+    cursor: pointer;
+    transition: color .18s ease, background .18s ease, border-color .18s ease;
+
+    &:hover {
+      color: #fff;
+      border-color: rgba(87, 145, 247, .48);
+      background: rgba(20, 52, 103, .62);
+    }
+
+    &:focus-visible {
+      outline: 2px solid #69a1ff;
+      outline-offset: 2px;
+    }
+  }
 }
 
 .layout-main {
+  min-width: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -497,7 +544,22 @@ const handleCommand = async (command) => {
 .layout-content {
   flex: 1;
   padding: 26px 30px 34px;
-  background: linear-gradient(145deg, #f7f9fc 0%, #f1f5fb 100%);
+  background: #f4f7fb;
   overflow-y: auto;
+}
+
+.dashboard-mode .layout-content {
+  padding: 16px 18px 24px;
+  background-color: #020b18;
+  background-image: url('@/assets/dashboard-command-bg.png');
+  background-repeat: repeat-y;
+  background-position: center top;
+  background-size: 100% auto;
+}
+
+@media (max-width: 960px) {
+  .layout-sidebar { width: 208px; }
+  .layout-sidebar.collapsed { width: 64px; }
+  .dashboard-mode .layout-content { padding: 14px; }
 }
 </style>

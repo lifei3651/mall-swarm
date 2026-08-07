@@ -1,165 +1,180 @@
 <template>
   <div class="dashboard-container" v-loading="loading">
-    <section class="dashboard-hero">
-      <div>
-        <span class="hero-eyebrow">全域经营数据中枢</span>
-        <h1>灵启商城智慧经营驾驶舱</h1>
-        <p>融合订单、资金、会员与区域画像等多维经营数据，通过实时汇聚与智能分析，为管理者提供全局洞察、趋势研判与高效决策支持。</p>
-      </div>
-      <div class="hero-actions">
-        <span>数据更新于 {{ lastUpdated || '加载中' }}</span>
-        <el-button type="primary" :loading="loading" @click="loadDashboard">刷新数据</el-button>
-      </div>
-    </section>
-
-    <el-alert
-      title="核心经营指标由商城业务数据实时汇聚并动态计算，管理视图与实际经营状态始终同步。"
-      type="success"
-      :closable="false"
-      show-icon
-      class="real-data-alert"
-    />
-
-    <section class="metric-section">
-      <div class="section-heading">
-        <div><h2>全域销售洞察</h2><p>聚合有效成交与退款数据，多周期呈现商城真实销售动能</p></div>
-        <el-button v-if="store.hasPermission('shop:order')" type="primary" link @click="router.push('/shop/orders')">查看订单 →</el-button>
-      </div>
-      <div class="metric-grid sales-grid">
-        <article v-for="item in salesCards" :key="item.title" class="metric-card" :class="item.tone">
-          <div class="metric-title">{{ item.title }}</div>
-          <div class="metric-value">¥{{ money(item.value) }}</div>
-          <div class="metric-caption">{{ item.caption }}</div>
-        </article>
-      </div>
-    </section>
-
-    <section class="metric-section">
-      <div class="section-heading">
-        <div><h2>智能财务洞察</h2><p>贯通净收款、成本、奖金与公司分账，构建清晰可追溯的经营利润视图</p></div>
-        <el-button v-if="store.hasPermission('finance:read')" type="primary" link @click="router.push('/audit/finance')">查看财务总览 →</el-button>
-      </div>
-      <div class="metric-grid finance-grid">
-        <article v-for="item in financeCards" :key="item.title" class="metric-card" :class="item.tone">
-          <div class="metric-title-row">
-            <span class="metric-title">{{ item.title }}</span>
-            <el-tooltip v-if="item.tip" :content="item.tip" placement="top">
-              <span class="metric-help">?</span>
-            </el-tooltip>
-          </div>
-          <div class="metric-value" :class="{ negative: item.isNegative }">{{ item.isRate ? percent(item.value) : `¥${money(item.value)}` }}</div>
-          <div class="metric-caption">{{ item.caption }}</div>
-        </article>
-      </div>
-      <div class="finance-formula">
-        <span>累计总拨出 = 产品成本 + 奖金拨出 + 公司分账</span>
-        <span>利润 = 累计净收款 − 累计总拨出</span>
-        <span>利润率 = 利润 ÷ 累计净收款</span>
-      </div>
-    </section>
-
-    <section class="metric-section">
-      <div class="section-heading">
-        <div><h2>会员资产洞察</h2><p>多维呈现会员规模、转化状态与增长趋势，持续沉淀高价值用户资产</p></div>
-        <el-button v-if="store.hasPermission('shop:member')" type="primary" link @click="router.push('/members/list')">查看会员 →</el-button>
-      </div>
-      <div class="metric-grid member-grid">
-        <article v-for="item in memberCards" :key="item.title" class="metric-card" :class="item.tone">
-          <div class="metric-title">{{ item.title }}</div>
-          <div class="metric-value">{{ count(item.value) }}<small> 人</small></div>
-          <div class="metric-caption">{{ item.caption }}</div>
-        </article>
-      </div>
-    </section>
-
-    <el-row :gutter="20" class="chart-row">
-      <el-col :xs="24" :xl="15">
-        <el-card class="panel-card" shadow="never">
-          <template #header>
-            <div class="panel-header"><div><b>近30天销售趋势</b><span>基于每日有效成交数据，直观洞察经营走势与增长节奏</span></div></div>
-          </template>
-          <div ref="salesTrendChart" class="chart trend-chart"></div>
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :xl="9">
-        <el-card class="panel-card region-card" shadow="never">
-          <template #header>
-            <div class="panel-header">
-              <div><b>会员区域画像</b><span>基于已支付订单的实际收货地址，洞察会员消费区域，辅助市场布局与精细化运营</span></div>
-              <small>已识别 {{ count(dashboard.addressedMemberCount) }} 人</small>
-            </div>
-          </template>
-          <div v-if="hasRegionData" ref="regionChart" class="chart region-chart"></div>
-          <el-empty v-else description="暂无订单收货区域数据" :image-size="90" />
-          <div class="region-summary">
-            <span>已识别订单地址会员：{{ count(dashboard.addressedMemberCount) }} 人</span>
-            <span>尚无订单地址会员：{{ count(dashboard.unaddressedMemberCount) }} 人</span>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <el-row :gutter="20" class="chart-row">
-      <el-col :span="24">
-        <el-card class="panel-card" shadow="never">
-          <template #header>
-            <div class="panel-header"><div><b>近12个月销售趋势</b><span>按订单支付时间汇总每月有效成交额，观察年度经营节奏与增长趋势</span></div></div>
-          </template>
-          <div ref="monthlyTrendChart" class="chart trend-chart"></div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <el-card class="panel-card ranking-card" shadow="never">
-      <template #header>
-        <div class="panel-header">
-          <div><b>商品价值排行榜 TOP 10</b><span>以真实有效成交数据识别核心商品表现，快速聚焦高价值经营机会</span></div>
-          <el-button v-if="store.hasPermission('shop:product')" type="primary" link @click="router.push('/shop/products')">查看商品 →</el-button>
+    <header class="command-header">
+      <div class="command-title">
+        <span class="command-mark"><el-icon><TrendCharts /></el-icon></span>
+        <div>
+          <h1>智慧经营驾驶舱</h1>
+          <p>全域经营数据中枢</p>
         </div>
-      </template>
-      <el-table :data="dashboard.productRanking || []" empty-text="暂无已支付商品销售数据" style="width: 100%">
-        <el-table-column label="排名" width="82" align="center">
-          <template #default="{ row }"><span class="rank-badge" :class="`rank-${row.ranking}`">{{ row.ranking }}</span></template>
-        </el-table-column>
-        <el-table-column label="商品" min-width="260">
-          <template #default="{ row }">
-            <div class="product-cell">
-              <el-image v-if="row.productCover" :src="row.productCover" fit="cover" class="product-cover">
-                <template #error><div class="product-cover fallback">商品</div></template>
-              </el-image>
-              <div v-else class="product-cover fallback">商品</div>
-              <div><b>{{ row.productName || '未命名商品' }}</b><small>商品ID：{{ row.productId || '-' }}</small></div>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="orderCount" label="成交订单" min-width="115" align="right">
-          <template #default="{ row }">{{ count(row.orderCount) }} 单</template>
-        </el-table-column>
-        <el-table-column prop="salesQuantity" label="销售数量" min-width="115" align="right">
-          <template #default="{ row }">{{ count(row.salesQuantity) }} 件</template>
-        </el-table-column>
-        <el-table-column label="销售额" min-width="145" align="right">
-          <template #default="{ row }"><b class="sales-money">¥{{ money(row.salesAmount) }}</b></template>
-        </el-table-column>
-      </el-table>
-    </el-card>
-
-    <section v-if="visibleQuickActions.length" class="quick-section">
-      <div class="section-heading">
-        <div><h2>核心业务协同入口</h2><p>一站式连接订单、会员、财务与业绩模块，让关键经营任务高效流转</p></div>
       </div>
-      <div class="quick-grid">
-        <button v-for="item in visibleQuickActions" :key="item.path" type="button" class="quick-card" @click="router.push(item.path)">
-          <span>{{ item.title }}</span><small>{{ item.description }}</small><b>进入办理 →</b>
+      <div class="command-meta">
+        <span class="system-health"><el-icon><CircleCheckFilled /></el-icon>系统运行正常</span>
+        <span class="update-time">数据更新于 {{ lastUpdated || '加载中' }}</span>
+        <button type="button" class="refresh-button" :disabled="loading" @click="loadDashboard">
+          <el-icon :class="{ rotating: loading }"><Refresh /></el-icon>
+          <span>刷新数据</span>
         </button>
       </div>
+    </header>
+
+    <section class="metric-strip" aria-label="核心经营指标">
+      <article v-for="(item, index) in coreMetrics" :key="item.title" class="core-metric" :class="`tone-${item.tone}`">
+        <div class="metric-copy">
+          <span class="metric-icon"><el-icon><component :is="item.icon" /></el-icon></span>
+          <div>
+            <span class="metric-label">{{ item.title }}</span>
+            <strong>{{ item.value }}</strong>
+            <small :class="item.state">{{ item.caption }}</small>
+          </div>
+        </div>
+        <div :ref="(element) => setMetricChartRef(element, index)" class="metric-spark" aria-hidden="true"></div>
+      </article>
     </section>
+
+    <div class="dashboard-main-grid">
+      <section class="command-panel trend-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="heading-title"><el-icon><Histogram /></el-icon><h2>经营脉搏</h2></div>
+            <p>近30天有效销售趋势与7日均线（单位：元）</p>
+          </div>
+          <span class="range-chip"><el-icon><Clock /></el-icon>近30天</span>
+        </div>
+        <div ref="salesTrendChart" class="trend-chart" aria-label="近30天有效销售趋势图"></div>
+      </section>
+
+      <aside class="decision-rail">
+        <section class="command-panel task-panel">
+          <div class="panel-heading compact">
+            <div class="heading-title"><el-icon><Tickets /></el-icon><h2>待处理事项</h2></div>
+            <span>{{ totalTaskCount }} 项</span>
+          </div>
+          <div class="task-list">
+            <button v-for="item in visibleTasks" :key="item.title" type="button" class="task-row" @click="router.push(item.path)">
+              <span class="task-icon" :class="item.tone"><el-icon><component :is="item.icon" /></el-icon></span>
+              <span class="task-copy"><b>{{ item.title }}</b><small>{{ item.description }}</small></span>
+              <span class="task-count">{{ count(item.count) }}<small>{{ item.unit }}</small></span>
+              <el-icon class="task-arrow"><ArrowRight /></el-icon>
+            </button>
+          </div>
+        </section>
+
+        <section class="command-panel risk-panel">
+          <div class="panel-heading compact">
+            <div class="heading-title"><el-icon><WarningFilled /></el-icon><h2>风险预警</h2></div>
+            <span>实时</span>
+          </div>
+          <div class="risk-list">
+            <div v-for="item in riskAlerts" :key="item.title" class="risk-row">
+              <span class="risk-icon" :class="item.state"><el-icon><component :is="item.icon" /></el-icon></span>
+              <span><b>{{ item.title }}</b><small>{{ item.description }}</small></span>
+              <em :class="item.state">{{ item.status }}</em>
+            </div>
+          </div>
+          <button v-if="store.hasPermission('finance:read')" type="button" class="panel-link" @click="router.push('/audit/finance')">
+            <span>查看财务风控</span><el-icon><ArrowRight /></el-icon>
+          </button>
+        </section>
+      </aside>
+    </div>
+
+    <div class="insight-grid">
+      <section class="command-panel finance-panel">
+        <div class="panel-heading compact">
+          <div>
+            <div class="heading-title"><el-icon><Wallet /></el-icon><h2>财务构成</h2></div>
+            <p>累计经营资金流向</p>
+          </div>
+          <button v-if="store.hasPermission('finance:read')" type="button" class="text-link" @click="router.push('/audit/finance')">
+            详情<el-icon><ArrowRight /></el-icon>
+          </button>
+        </div>
+        <div class="finance-body">
+          <div v-if="hasFinanceComposition" ref="financeChart" class="finance-chart" aria-label="累计资金构成图"></div>
+          <div v-else class="empty-ring"><span>¥{{ money(dashboard.totalReceiptAmount) }}</span><small>累计净收款</small></div>
+          <div class="finance-legend">
+            <div v-for="item in financeComposition" :key="item.name">
+              <span class="legend-dot" :style="{ backgroundColor: item.color }"></span>
+              <span>{{ item.name }}</span>
+              <b>¥{{ money(item.value) }}</b>
+            </div>
+          </div>
+        </div>
+        <div class="finance-summary">
+          <span>净收款 <b>¥{{ money(dashboard.totalReceiptAmount) }}</b></span>
+          <span>利润率 <b :class="{ negative: Number(dashboard.profitRate || 0) < 0 }">{{ percent(dashboard.profitRate) }}</b></span>
+        </div>
+      </section>
+
+      <section class="command-panel member-panel">
+        <div class="panel-heading compact">
+          <div>
+            <div class="heading-title"><el-icon><User /></el-icon><h2>会员与区域洞察</h2></div>
+            <p>会员资产与真实订单地址画像</p>
+          </div>
+          <button v-if="store.hasPermission('shop:member')" type="button" class="text-link" @click="router.push('/members/list')">
+            详情<el-icon><ArrowRight /></el-icon>
+          </button>
+        </div>
+        <div class="member-kpis">
+          <div><span>注册会员</span><b>{{ count(dashboard.registeredMemberCount) }}</b><small>人</small></div>
+          <div><span>有效会员</span><b>{{ count(dashboard.validMemberCount) }}</b><small>人</small></div>
+          <div><span>本月新增</span><b>{{ count(dashboard.monthNewMemberCount) }}</b><small>人</small></div>
+        </div>
+        <div class="region-list">
+          <div v-for="item in topRegions" :key="item.regionName" class="region-row">
+            <span>{{ item.regionName || '未知地区' }}</span>
+            <el-progress :percentage="regionPercentage(item)" :show-text="false" :stroke-width="5" />
+            <b>{{ count(item.memberCount) }} 人</b>
+          </div>
+          <div v-if="!topRegions.length" class="region-empty"><el-icon><MapLocation /></el-icon><span>暂无订单收货区域数据</span></div>
+        </div>
+      </section>
+
+      <section class="command-panel ranking-panel">
+        <div class="panel-heading compact">
+          <div>
+            <div class="heading-title"><el-icon><Goods /></el-icon><h2>商品价值榜</h2></div>
+            <p>按真实有效成交额排序</p>
+          </div>
+          <button v-if="store.hasPermission('shop:product')" type="button" class="text-link" @click="router.push('/shop/products')">
+            全部<el-icon><ArrowRight /></el-icon>
+          </button>
+        </div>
+        <div v-if="topProducts.length" class="product-ranking">
+          <div v-for="item in topProducts" :key="item.productId || item.ranking" class="product-row">
+            <span class="rank-index" :class="`rank-${item.ranking}`">{{ item.ranking }}</span>
+            <span class="product-name">{{ item.productName || '未命名商品' }}</span>
+            <span class="product-orders">{{ count(item.orderCount) }} 单</span>
+            <b>¥{{ money(item.salesAmount) }}</b>
+          </div>
+        </div>
+        <div v-else class="ranking-empty"><el-icon><Goods /></el-icon><span>暂无已支付商品销售数据</span></div>
+      </section>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import {
+  ArrowRight,
+  CircleCheckFilled,
+  Clock,
+  Coin,
+  Goods,
+  Histogram,
+  MapLocation,
+  Money,
+  Refresh,
+  Tickets,
+  TrendCharts,
+  User,
+  Wallet,
+  WarningFilled,
+} from '@element-plus/icons-vue'
 import echarts from '@/utils/echarts'
 import { getDashboard } from '@/api/dashboard'
 import { useAppStore } from '@/store'
@@ -170,103 +185,153 @@ const loading = ref(false)
 const dashboard = ref({})
 const lastUpdated = ref('')
 const salesTrendChart = ref(null)
-const monthlyTrendChart = ref(null)
-const regionChart = ref(null)
+const financeChart = ref(null)
+const metricChartRefs = []
 let salesTrendChartInstance
-let monthlyTrendChartInstance
-let regionChartInstance
+let financeChartInstance
+let metricChartInstances = []
 
 const money = (value) => Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const count = (value) => Number(value || 0).toLocaleString('zh-CN')
 const percent = (value) => `${(Number(value || 0) * 100).toFixed(2)}%`
-const hasRegionData = computed(() => (dashboard.value.memberRegionDistribution || []).some((item) => Number(item.memberCount) > 0))
+const setMetricChartRef = (element, index) => { metricChartRefs[index] = element }
 
-const salesCards = computed(() => [
-  { title: '累计总销售额', value: dashboard.value.totalSalesAmount, caption: '商城历史累计有效商品成交额', tone: 'tone-blue' },
-  { title: '本月销售额', value: dashboard.value.monthSalesAmount, caption: '本自然月截至当前', tone: 'tone-indigo' },
-  { title: '近7天销售额', value: dashboard.value.last7DaysSalesAmount, caption: '包含今天在内的最近7个自然日', tone: 'tone-cyan' },
-  { title: '今日销售额', value: dashboard.value.todaySalesAmount, caption: '今日00:00起至当前', tone: 'tone-green' },
+const todayComparison = computed(() => {
+  const today = Number(dashboard.value.todayPerformance || 0)
+  const yesterday = Number(dashboard.value.yesterdayPerformance || 0)
+  if (yesterday <= 0) return { text: '今日实时', state: 'neutral' }
+  const change = ((today - yesterday) / yesterday) * 100
+  return { text: `较昨日 ${change >= 0 ? '+' : ''}${change.toFixed(2)}%`, state: change >= 0 ? 'positive' : 'negative' }
+})
+
+const coreMetrics = computed(() => [
+  { title: '累计销售额', value: `¥${money(dashboard.value.totalSalesAmount)}`, caption: '历史有效成交', state: 'neutral', tone: 'blue', icon: Coin },
+  { title: '本月销售额', value: `¥${money(dashboard.value.monthSalesAmount)}`, caption: '本自然月累计', state: 'positive', tone: 'violet', icon: Wallet },
+  { title: '今日销售额', value: `¥${money(dashboard.value.todaySalesAmount)}`, caption: todayComparison.value.text, state: todayComparison.value.state, tone: 'cyan', icon: Histogram },
+  { title: '累计利润', value: `¥${money(dashboard.value.totalProfitAmount)}`, caption: `利润率 ${percent(dashboard.value.profitRate)}`, state: Number(dashboard.value.totalProfitAmount || 0) < 0 ? 'negative' : 'neutral', tone: 'amber', icon: Money },
 ])
 
-const financeCards = computed(() => [
-  { title: '待结算奖金', value: dashboard.value.unsettledCommission, caption: `${count(dashboard.value.unsettledCommissionCount)} 笔等待结算`, tone: 'tone-orange', tip: '已经生成、尚未进入会员余额的奖金。' },
-  { title: '待审核提现', value: dashboard.value.pendingWithdrawAmount, caption: `${count(dashboard.value.pendingWithdrawCount)} 笔等待审核`, tone: 'tone-red', tip: '会员已提交、后台尚未审核的提现申请金额。' },
-  { title: '累计成功提现', value: dashboard.value.totalWithdrawAmount, caption: '仅统计提现成功的记录', tone: 'tone-purple' },
-  { title: '本月成功提现', value: dashboard.value.monthWithdrawAmount, caption: '按实际打款成功时间统计', tone: 'tone-pink' },
-  { title: '累计净收款', value: dashboard.value.totalReceiptAmount, caption: '实际支付金额扣除全部退款', tone: 'tone-blue', tip: '包含商品实付与运费实付，并扣除商品退款和运费退款。' },
-  { title: '累计总拨出', value: dashboard.value.totalPayoutAmount, caption: '成本、奖金与公司分账合计', tone: 'tone-indigo', tip: `产品成本 ¥${money(dashboard.value.totalProductCostAmount)}；奖金 ¥${money(dashboard.value.totalBonusPayoutAmount)}；公司分账 ¥${money(dashboard.value.totalCompanyShareAmount)}。` },
-  { title: '累计利润', value: dashboard.value.totalProfitAmount, caption: '累计净收款减累计总拨出', tone: 'tone-green', isNegative: Number(dashboard.value.totalProfitAmount || 0) < 0 },
-  { title: '利润率', value: dashboard.value.profitRate, caption: '累计利润占累计净收款比例', tone: 'tone-teal', isRate: true, isNegative: Number(dashboard.value.profitRate || 0) < 0 },
+const taskItems = computed(() => [
+  { title: '待审核提现', description: `待审核金额 ¥${money(dashboard.value.pendingWithdrawAmount)}`, count: dashboard.value.pendingWithdrawCount, unit: '笔', path: '/withdraw/audit', permission: 'finance:manage', tone: 'violet', icon: Money },
+  { title: '待结算奖金', description: `待结算金额 ¥${money(dashboard.value.unsettledCommission)}`, count: dashboard.value.unsettledCommissionCount, unit: '笔', path: '/commission/settle', permission: 'commission:manage', tone: 'amber', icon: Coin },
+  { title: '待转化会员', description: '已注册但尚未成为正式会员', count: dashboard.value.pendingMemberCount, unit: '人', path: '/members/list', permission: 'shop:member', tone: 'cyan', icon: User },
 ])
+const visibleTasks = computed(() => taskItems.value.filter((item) => store.hasPermission(item.permission)))
+const totalTaskCount = computed(() => visibleTasks.value.reduce((total, item) => total + Number(item.count || 0), 0))
 
-const memberCards = computed(() => [
-  { title: '已注册商城账号', value: dashboard.value.registeredMemberCount, caption: '完成商城账号注册的用户', tone: 'tone-blue' },
-  { title: '有效正式会员', value: dashboard.value.validMemberCount, caption: '完成有效首单或由后台正式开通', tone: 'tone-green' },
-  { title: '未进入会员体系', value: dashboard.value.pendingMemberCount, caption: '已注册但尚未成为正式会员', tone: 'tone-orange' },
-  { title: '本月新增账号', value: dashboard.value.monthNewMemberCount, caption: '本自然月新注册商城账号', tone: 'tone-purple' },
+const riskAlerts = computed(() => {
+  const profitRisk = Number(dashboard.value.totalProfitAmount || 0) < 0
+  const missingRegions = Number(dashboard.value.unaddressedMemberCount || 0)
+  const hasProducts = (dashboard.value.productRanking || []).length > 0
+  return [
+    { title: '经营利润', description: profitRisk ? '累计利润为负，请核对成本与拨出' : '资金收入与拨出状态正常', status: profitRisk ? '需关注' : '正常', state: profitRisk ? 'warning' : 'healthy', icon: Wallet },
+    { title: '会员画像', description: missingRegions ? `${count(missingRegions)} 位会员尚无订单地址` : '会员订单地址识别完整', status: missingRegions ? '待完善' : '正常', state: missingRegions ? 'notice' : 'healthy', icon: MapLocation },
+    { title: '商品数据', description: hasProducts ? '商品成交价值数据已同步' : '暂无已支付商品成交数据', status: hasProducts ? '正常' : '待沉淀', state: hasProducts ? 'healthy' : 'notice', icon: Goods },
+  ]
+})
+
+const financeComposition = computed(() => [
+  { name: '产品成本', value: Number(dashboard.value.totalProductCostAmount || 0), color: '#3f7cff' },
+  { name: '奖金拨出', value: Number(dashboard.value.totalBonusPayoutAmount || 0), color: '#805cff' },
+  { name: '公司分账', value: Number(dashboard.value.totalCompanyShareAmount || 0), color: '#0bb8d4' },
+  { name: '累计利润', value: Math.max(Number(dashboard.value.totalProfitAmount || 0), 0), color: '#f59e0b' },
 ])
+const hasFinanceComposition = computed(() => financeComposition.value.some((item) => item.value > 0))
+const topRegions = computed(() => (dashboard.value.memberRegionDistribution || []).slice(0, 4))
+const topProducts = computed(() => (dashboard.value.productRanking || []).slice(0, 5))
+const regionPercentage = (item) => Math.min(100, Math.max(0, Number(item.percentage || 0)))
 
-const quickActions = [
-  { title: '处理订单与售后', description: '发货、退款、查看订单状态', path: '/shop/orders', permission: 'shop:order' },
-  { title: '查看会员全景', description: '资料、等级、团队、余额与订单', path: '/members/list', permission: 'shop:member' },
-  { title: '核对订单账务', description: '订单金额、奖金、成本与退款', path: '/audit/orders', permission: 'finance:read' },
-  { title: '执行奖金结算', description: '处理已到结算期的待结算奖金', path: '/commission/settle', permission: 'commission:manage' },
-  { title: '审核会员提现', description: '核对并处理待审核提现申请', path: '/withdraw/audit', permission: 'finance:manage' },
-  { title: '追溯业绩来源', description: '查询指定会员的业绩贡献明细', path: '/performance/contributions', permission: 'distribution:manage' },
-]
-const visibleQuickActions = computed(() => quickActions.filter((item) => store.hasPermission(item.permission)))
+const rollingAverage = (values, windowSize = 7) => values.map((_, index) => {
+  const start = Math.max(0, index - windowSize + 1)
+  const sample = values.slice(start, index + 1)
+  return Number((sample.reduce((sum, value) => sum + value, 0) / sample.length).toFixed(2))
+})
+
+const renderMetricCharts = () => {
+  metricChartInstances.forEach((chart) => chart?.dispose())
+  metricChartInstances = []
+  const dailyValues = (dashboard.value.performanceTrend || []).map((item) => Number(item.performanceAmount || 0))
+  const monthlyValues = (dashboard.value.monthlyPerformanceTrend || []).map((item) => Number(item.performanceAmount || 0))
+  const palettes = [
+    { line: '#4f8cff', fill: 'rgba(79,140,255,.16)', data: dailyValues },
+    { line: '#8a63ff', fill: 'rgba(138,99,255,.16)', data: monthlyValues },
+    { line: '#16c6e8', fill: 'rgba(22,198,232,.15)', data: dailyValues.slice(-7) },
+    { line: '#f59e0b', fill: 'rgba(245,158,11,.14)', data: monthlyValues },
+  ]
+  metricChartRefs.forEach((element, index) => {
+    if (!element) return
+    const chart = echarts.init(element)
+    const palette = palettes[index]
+    chart.setOption({
+      animationDuration: 500,
+      grid: { left: 0, right: 0, top: 5, bottom: 0 },
+      xAxis: { type: 'category', show: false, boundaryGap: false, data: palette.data.map((_, dataIndex) => dataIndex) },
+      yAxis: { type: 'value', show: false, min: 'dataMin', max: 'dataMax' },
+      series: [{
+        type: 'line', data: palette.data.length ? palette.data : [0, 0], smooth: true, showSymbol: false,
+        lineStyle: { width: 1.6, color: palette.line }, areaStyle: { color: palette.fill },
+      }],
+    })
+    metricChartInstances.push(chart)
+  })
+}
 
 const renderCharts = () => {
   if (salesTrendChart.value) {
     salesTrendChartInstance?.dispose()
     salesTrendChartInstance = echarts.init(salesTrendChart.value)
     const trend = dashboard.value.performanceTrend || []
+    const values = trend.map((item) => Number(item.performanceAmount || 0))
     salesTrendChartInstance.setOption({
-      color: ['#3b82f6'],
-      tooltip: { trigger: 'axis', valueFormatter: (value) => `¥${money(value)}` },
-      grid: { left: 70, right: 24, top: 28, bottom: 42 },
-      xAxis: { type: 'category', boundaryGap: false, data: trend.map((item) => String(item.statDate || '').slice(5)), axisLine: { lineStyle: { color: '#d9e0e8' } }, axisLabel: { color: '#7a8594' } },
-      yAxis: { type: 'value', axisLabel: { color: '#7a8594', formatter: (value) => `¥${value}` }, splitLine: { lineStyle: { color: '#edf1f6' } } },
-      series: [{
-        name: '商品销售额', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6,
-        data: trend.map((item) => Number(item.performanceAmount || 0)),
-        areaStyle: { color: 'rgba(59,130,246,.12)' }, lineStyle: { width: 3 },
-      }],
+      animationDuration: 650,
+      color: ['#4b86ff', '#92a4c5'],
+      tooltip: {
+        trigger: 'axis', backgroundColor: 'rgba(5,17,36,.96)', borderColor: '#233c63', textStyle: { color: '#eaf2ff' },
+        valueFormatter: (value) => `¥${money(value)}`,
+      },
+      legend: { top: 4, right: 16, itemWidth: 18, itemHeight: 2, textStyle: { color: '#91a1ba', fontSize: 11 } },
+      grid: { left: 60, right: 24, top: 50, bottom: 40 },
+      xAxis: {
+        type: 'category', boundaryGap: false, data: trend.map((item) => String(item.statDate || '').slice(5)),
+        axisLine: { lineStyle: { color: '#243653' } }, axisTick: { show: false }, axisLabel: { color: '#71829c', fontSize: 11 },
+      },
+      yAxis: {
+        type: 'value', minInterval: 1, axisLabel: { color: '#71829c', fontSize: 11 },
+        splitLine: { lineStyle: { color: 'rgba(63,89,128,.24)', type: 'dashed' } },
+      },
+      series: [
+        {
+          name: '有效销售额', type: 'line', smooth: true, showSymbol: false, data: values,
+          lineStyle: { width: 2.6, color: '#4b86ff' }, areaStyle: { color: 'rgba(45,111,247,.18)' },
+          markPoint: values.length ? { symbol: 'circle', symbolSize: 12, data: [{ coord: [values.length - 1, values.at(-1)], name: '今天' }], itemStyle: { color: '#4b86ff', borderColor: '#dce9ff', borderWidth: 2 }, label: { show: false } } : undefined,
+        },
+        {
+          name: '7日均线', type: 'line', smooth: true, showSymbol: false, data: rollingAverage(values),
+          lineStyle: { width: 1.4, type: 'dashed', color: '#9aa8be' },
+        },
+      ],
     })
   }
 
-  if (monthlyTrendChart.value) {
-    monthlyTrendChartInstance?.dispose()
-    monthlyTrendChartInstance = echarts.init(monthlyTrendChart.value)
-    const trend = dashboard.value.monthlyPerformanceTrend || []
-    monthlyTrendChartInstance.setOption({
-      color: ['#8b5cf6'],
-      tooltip: { trigger: 'axis', valueFormatter: (value) => `¥${money(value)}` },
-      grid: { left: 70, right: 24, top: 28, bottom: 42 },
-      xAxis: { type: 'category', boundaryGap: false, data: trend.map((item) => String(item.statDate || '').slice(0, 7)), axisLine: { lineStyle: { color: '#d9e0e8' } }, axisLabel: { color: '#7a8594' } },
-      yAxis: { type: 'value', axisLabel: { color: '#7a8594', formatter: (value) => `¥${value}` }, splitLine: { lineStyle: { color: '#edf1f6' } } },
+  if (financeChart.value && hasFinanceComposition.value) {
+    financeChartInstance?.dispose()
+    financeChartInstance = echarts.init(financeChart.value)
+    financeChartInstance.setOption({
+      animationDuration: 650,
+      tooltip: { trigger: 'item', backgroundColor: 'rgba(5,17,36,.96)', borderColor: '#233c63', textStyle: { color: '#eaf2ff' }, valueFormatter: (value) => `¥${money(value)}` },
       series: [{
-        name: '月度销售额', type: 'line', smooth: true, symbol: 'circle', symbolSize: 7,
-        data: trend.map((item) => Number(item.performanceAmount || 0)),
-        areaStyle: { color: 'rgba(139,92,246,.12)' }, lineStyle: { width: 3 },
+        type: 'pie', radius: ['64%', '82%'], center: ['50%', '50%'], avoidLabelOverlap: true,
+        label: { show: false }, emphasis: { scaleSize: 4 },
+        data: financeComposition.value.map((item) => ({ name: item.name, value: item.value, itemStyle: { color: item.color } })),
+      }],
+      graphic: [{
+        type: 'text', left: 'center', top: '43%', style: { text: `¥${money(dashboard.value.totalReceiptAmount)}`, fill: '#f4f8ff', fontSize: 16, fontWeight: 700, textAlign: 'center' },
+      }, {
+        type: 'text', left: 'center', top: '57%', style: { text: '累计净收款', fill: '#71829c', fontSize: 10, textAlign: 'center' },
       }],
     })
   }
-
-  if (regionChart.value && hasRegionData.value) {
-    regionChartInstance?.dispose()
-    regionChartInstance = echarts.init(regionChart.value)
-    const regions = dashboard.value.memberRegionDistribution || []
-    regionChartInstance.setOption({
-      tooltip: { trigger: 'item', formatter: ({ name, value, percent: ratio }) => `${name}<br/>${count(value)} 人（${ratio}%）` },
-      legend: { type: 'scroll', orient: 'vertical', left: 0, top: 'middle', bottom: 8, textStyle: { color: '#667085' } },
-      series: [{
-        name: '会员地区', type: 'pie', radius: ['40%', '68%'], center: ['68%', '50%'], avoidLabelOverlap: true,
-        data: regions.map((item) => ({ value: Number(item.memberCount || 0), name: item.regionName || '未知地区' })),
-        label: { formatter: '{b}\n{d}%', color: '#475467' },
-      }],
-    })
-  }
+  renderMetricCharts()
 }
 
 const loadDashboard = async () => {
@@ -284,8 +349,8 @@ const loadDashboard = async () => {
 
 const resizeCharts = () => {
   salesTrendChartInstance?.resize()
-  monthlyTrendChartInstance?.resize()
-  regionChartInstance?.resize()
+  financeChartInstance?.resize()
+  metricChartInstances.forEach((chart) => chart?.resize())
 }
 
 onMounted(() => {
@@ -295,87 +360,268 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('resize', resizeCharts)
   salesTrendChartInstance?.dispose()
-  monthlyTrendChartInstance?.dispose()
-  regionChartInstance?.dispose()
+  financeChartInstance?.dispose()
+  metricChartInstances.forEach((chart) => chart?.dispose())
 })
 </script>
 
 <style lang="scss" scoped>
 .dashboard-container {
-  --panel-border: #e7ecf2;
-  --muted: #7a8594;
-  color: #1f2937;
-
-  .dashboard-hero { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 16px; padding: 25px 28px; color: #fff; background: linear-gradient(120deg, #173e76 0%, #2563a7 58%, #2783b9 100%); border-radius: 14px; box-shadow: 0 12px 30px rgba(35, 86, 145, .18); }
-  .hero-eyebrow { display: inline-block; margin-bottom: 7px; color: #bfe2ff; font-size: 12px; letter-spacing: 2px; }
-  .dashboard-hero h1 { margin: 0; font-size: 25px; line-height: 1.35; }
-  .dashboard-hero p { margin: 9px 0 0; color: rgba(255, 255, 255, .78); font-size: 13px; }
-  .hero-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; white-space: nowrap; }
-  .hero-actions span { color: rgba(255, 255, 255, .68); font-size: 12px; }
-  .hero-actions :deep(.el-button) { color: #17558e; background: #fff; border-color: #fff; }
-  .real-data-alert { margin-bottom: 18px; border-radius: 9px; }
-
-  .metric-section, .quick-section { margin-bottom: 20px; padding: 21px; background: #fff; border: 1px solid var(--panel-border); border-radius: 12px; }
-  .section-heading, .panel-header { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
-  .section-heading { margin-bottom: 16px; }
-  .section-heading h2 { margin: 0; color: #263244; font-size: 18px; }
-  .section-heading p, .panel-header span { display: block; margin: 5px 0 0; color: var(--muted); font-size: 12px; }
-  .panel-header b { display: block; color: #263244; font-size: 16px; }
-  .panel-header small { color: var(--muted); font-size: 12px; }
-
-  .metric-grid { display: grid; gap: 14px; }
-  .sales-grid, .member-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .finance-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .metric-card { position: relative; min-width: 0; padding: 17px 18px 16px; overflow: hidden; background: #f8fafc; border: 1px solid #edf0f4; border-radius: 10px; }
-  .metric-card::before { position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--accent); content: ''; }
-  .metric-title-row { display: flex; align-items: center; gap: 7px; }
-  .metric-title { color: #5f6b7a; font-size: 13px; }
-  .metric-help { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; color: #8792a2; font-size: 11px; border: 1px solid #b8c0cc; border-radius: 50%; cursor: help; }
-  .metric-value { margin: 11px 0 8px; overflow: hidden; color: #202939; font-size: clamp(22px, 2vw, 28px); font-weight: 800; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
-  .metric-value small { color: #687386; font-size: 13px; font-weight: 500; }
-  .metric-value.negative { color: #dc3545; }
-  .metric-caption { min-height: 18px; color: #8a94a3; font-size: 12px; line-height: 1.5; }
-  .tone-blue { --accent: #3b82f6; } .tone-indigo { --accent: #6366f1; } .tone-cyan { --accent: #0891b2; }
-  .tone-green { --accent: #16a34a; } .tone-orange { --accent: #ea8a16; } .tone-red { --accent: #e24a4a; }
-  .tone-purple { --accent: #8b5cf6; } .tone-pink { --accent: #db5a8d; } .tone-teal { --accent: #0f9f8f; }
-  .finance-formula { display: flex; flex-wrap: wrap; gap: 10px 24px; margin-top: 14px; padding: 11px 14px; color: #697586; font-size: 12px; background: #f8fafc; border-radius: 8px; }
-
-  .chart-row { margin-bottom: 20px; }
-  .panel-card { border-color: var(--panel-border); border-radius: 12px; }
-  .chart { height: 330px; }
-  .region-summary { display: flex; justify-content: space-between; gap: 10px; margin-top: -4px; padding-top: 11px; color: #7a8594; font-size: 12px; border-top: 1px solid #edf1f5; }
-  .ranking-card { margin-bottom: 20px; }
-  .product-cell { display: flex; align-items: center; gap: 12px; min-width: 0; }
-  .product-cell > div:last-child { min-width: 0; }
-  .product-cell b { display: block; overflow: hidden; color: #303b4d; text-overflow: ellipsis; white-space: nowrap; }
-  .product-cell small { display: block; margin-top: 5px; color: #98a1ae; }
-  .product-cover { display: flex; flex: 0 0 48px; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 8px; }
-  .product-cover.fallback { color: #8d98a7; font-size: 11px; background: #eef2f6; }
-  .rank-badge { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; color: #64748b; font-weight: 700; background: #edf1f5; border-radius: 8px; }
-  .rank-1 { color: #8c5b00; background: #fff0bd; } .rank-2 { color: #596477; background: #e9edf3; } .rank-3 { color: #99572e; background: #f8ddd0; }
-  .sales-money { color: #dc3545; }
-
-  .quick-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-  .quick-card { padding: 15px; text-align: left; background: #f8fafc; border: 1px solid #e5ebf3; border-radius: 9px; cursor: pointer; transition: .18s ease; }
-  .quick-card:hover { border-color: #409eff; box-shadow: 0 6px 18px rgba(64, 158, 255, .1); transform: translateY(-1px); }
-  .quick-card span, .quick-card small, .quick-card b { display: block; }
-  .quick-card span { color: #303b4d; font-size: 14px; font-weight: 700; }
-  .quick-card small { margin-top: 6px; color: #7b8492; line-height: 1.5; }
-  .quick-card b { margin-top: 10px; color: #409eff; font-size: 12px; }
+  --panel: rgba(6, 20, 43, .86);
+  --panel-strong: rgba(7, 24, 51, .95);
+  --line: rgba(77, 112, 164, .28);
+  --muted: #7f90ab;
+  --text: #f4f7fc;
+  min-width: 0;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
+
+.command-header {
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 16px;
+  padding: 0 2px;
+}
+
+.command-title,
+.command-meta,
+.metric-copy,
+.heading-title,
+.range-chip,
+.system-health,
+.refresh-button,
+.text-link,
+.panel-link {
+  display: flex;
+  align-items: center;
+}
+
+.command-title { gap: 12px; }
+.command-mark {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  color: #69a1ff;
+  font-size: 21px;
+  border: 1px solid rgba(74, 133, 241, .34);
+  border-radius: 12px;
+  background: rgba(18, 56, 112, .42);
+}
+.command-title h1 { margin: 0; font-size: 25px; line-height: 1.2; letter-spacing: .5px; }
+.command-title p { margin: 5px 0 0; color: #71829c; font-size: 11px; letter-spacing: 2px; }
+.command-meta { justify-content: flex-end; gap: 18px; color: var(--muted); font-size: 12px; }
+.system-health { gap: 6px; padding: 7px 10px; color: #46dca0; border: 1px solid rgba(48, 205, 145, .18); border-radius: 8px; background: rgba(19, 99, 72, .2); }
+.system-health .el-icon { font-size: 14px; }
+.refresh-button {
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 14px;
+  color: #dce9ff;
+  font: inherit;
+  border: 1px solid rgba(73, 134, 247, .75);
+  border-radius: 8px;
+  background: rgba(31, 82, 172, .32);
+  cursor: pointer;
+  transition: background .18s ease, border-color .18s ease;
+}
+.refresh-button:hover:not(:disabled) { border-color: #70a4ff; background: rgba(43, 101, 204, .46); }
+.refresh-button:focus-visible,
+.task-row:focus-visible,
+.text-link:focus-visible,
+.panel-link:focus-visible { outline: 2px solid #69a1ff; outline-offset: 2px; }
+.refresh-button:disabled { cursor: wait; opacity: .65; }
+.rotating { animation: rotating .9s linear infinite; }
+@keyframes rotating { to { transform: rotate(360deg); } }
+
+.metric-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 14px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(5, 18, 39, .88);
+  box-shadow: 0 16px 38px rgba(0, 7, 19, .22);
+}
+.core-metric { position: relative; min-width: 0; padding: 22px 18px 18px; overflow: hidden; }
+.core-metric + .core-metric { border-left: 1px solid var(--line); }
+.metric-copy { position: relative; z-index: 1; gap: 12px; }
+.metric-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  flex: 0 0 38px;
+  place-items: center;
+  color: var(--accent);
+  font-size: 19px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+}
+.metric-label { display: block; color: #9aaaC0; font-size: 12px; }
+.core-metric strong { display: block; margin-top: 5px; font-size: clamp(22px, 2vw, 29px); line-height: 1.15; white-space: nowrap; }
+.core-metric small { display: block; margin-top: 6px; color: #73849f; font-size: 11px; }
+.core-metric small.positive { color: #42d99b; }
+.core-metric small.negative { color: #ff6b7d; }
+.metric-spark { height: 72px; margin: 7px -4px -5px; }
+.tone-blue { --accent: #4f8cff; }
+.tone-violet { --accent: #8a63ff; }
+.tone-cyan { --accent: #16c6e8; }
+.tone-amber { --accent: #f59e0b; }
+
+.dashboard-main-grid { position: relative; margin-bottom: 14px; padding-right: 300px; }
+.command-panel { min-width: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); box-shadow: 0 16px 36px rgba(0, 7, 18, .18); }
+.trend-panel { padding: 18px 18px 10px; }
+.panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.panel-heading.compact { align-items: center; }
+.heading-title { gap: 8px; }
+.heading-title > .el-icon { color: #5f9aff; font-size: 18px; }
+.panel-heading h2 { margin: 0; color: #eaf1fc; font-size: 16px; line-height: 1.35; }
+.panel-heading p { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
+.panel-heading > span { color: #6f829f; font-size: 11px; }
+.range-chip { gap: 7px; padding: 7px 10px; color: #9dadc5; font-size: 11px; border: 1px solid rgba(81, 111, 154, .34); border-radius: 7px; background: rgba(11, 31, 62, .68); }
+.trend-chart { height: 338px; }
+
+.decision-rail { position: absolute; top: 0; right: 0; width: 286px; display: grid; grid-template-rows: auto 1fr; gap: 14px; }
+.task-panel,
+.risk-panel,
+.finance-panel,
+.member-panel,
+.ranking-panel { padding: 16px; }
+.task-list,
+.risk-list { margin-top: 12px; }
+.task-list { display: grid; gap: 8px; }
+.task-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto 14px;
+  align-items: center;
+  gap: 9px;
+  padding: 10px;
+  color: inherit;
+  text-align: left;
+  border: 1px solid rgba(76, 105, 148, .25);
+  border-radius: 9px;
+  background: rgba(12, 31, 63, .62);
+  cursor: pointer;
+  transition: background .18s ease, border-color .18s ease, transform .18s ease;
+}
+.task-row:hover { border-color: rgba(79, 140, 255, .48); background: rgba(18, 45, 88, .76); transform: translateX(2px); }
+.task-icon,
+.risk-icon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: rgba(75, 134, 255, .16);
+  color: #5791ff;
+  font-size: 15px;
+}
+.task-icon.violet { color: #9c7cff; background: rgba(128, 92, 255, .16); }
+.task-icon.amber { color: #f8a823; background: rgba(245, 158, 11, .15); }
+.task-icon.cyan { color: #29c3dc; background: rgba(22, 198, 232, .14); }
+.task-copy b,
+.task-copy small,
+.risk-row b,
+.risk-row small { display: block; }
+.task-copy b,
+.risk-row b { color: #ced9e9; font-size: 12px; font-weight: 600; }
+.task-copy small,
+.risk-row small { margin-top: 3px; color: #71829c; font-size: 11px; line-height: 1.35; }
+.task-count { color: #f2f6fc; font-size: 18px; font-weight: 700; }
+.task-count small { margin-left: 2px; color: #71829c; font-size: 10px; font-weight: 400; }
+.task-arrow { color: #566b89; font-size: 12px; }
+.risk-list { display: grid; gap: 2px; }
+.risk-row { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 9px 0; }
+.risk-row + .risk-row { border-top: 1px solid rgba(63, 91, 132, .18); }
+.risk-icon.healthy { color: #42d99b; background: rgba(48, 205, 145, .13); }
+.risk-icon.notice { color: #29b4db; background: rgba(22, 174, 218, .12); }
+.risk-icon.warning { color: #ff6b7d; background: rgba(255, 84, 105, .13); }
+.risk-row em { font-size: 11px; font-style: normal; }
+.risk-row em.healthy { color: #42d99b; }
+.risk-row em.notice { color: #29b4db; }
+.risk-row em.warning { color: #ff6b7d; }
+.panel-link { width: 100%; justify-content: center; gap: 6px; margin-top: 8px; padding: 8px 0 0; color: #4f8cff; font-size: 11px; border: 0; border-top: 1px solid rgba(63, 91, 132, .18); background: transparent; cursor: pointer; }
+
+.insight-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-right: 300px; }
+.ranking-panel { grid-column: 1 / -1; }
+.text-link { gap: 4px; padding: 4px; color: #4f8cff; font-size: 11px; border: 0; background: transparent; cursor: pointer; }
+.finance-body { display: grid; grid-template-columns: 136px minmax(0, 1fr); align-items: center; gap: 12px; margin-top: 12px; }
+.finance-chart { height: 136px; }
+.empty-ring { width: 122px; height: 122px; display: grid; align-content: center; justify-items: center; margin: 7px; border: 10px solid rgba(73, 110, 166, .22); border-radius: 50%; }
+.empty-ring span { color: #e6eef9; font-size: 15px; font-weight: 700; }
+.empty-ring small { margin-top: 4px; color: #71829c; font-size: 9px; }
+.finance-legend { display: grid; gap: 10px; }
+.finance-legend > div { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 8px; color: #899ab3; font-size: 11px; }
+.legend-dot { width: 7px; height: 7px; border-radius: 50%; }
+.finance-legend b { color: #c9d5e6; font-weight: 600; }
+.finance-summary { display: flex; justify-content: space-between; gap: 14px; margin-top: 10px; padding-top: 10px; color: #71829c; font-size: 11px; border-top: 1px solid rgba(63, 91, 132, .22); }
+.finance-summary b { margin-left: 4px; color: #e8f0fb; }
+.finance-summary b.negative { color: #ff6b7d; }
+
+.member-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; }
+.member-kpis > div { padding-right: 8px; }
+.member-kpis > div + div { padding-left: 12px; border-left: 1px solid rgba(65, 94, 137, .26); }
+.member-kpis span { display: block; color: #71829c; font-size: 10px; }
+.member-kpis b { display: inline-block; margin-top: 6px; color: #eaf1fc; font-size: 23px; }
+.member-kpis small { margin-left: 3px; color: #71829c; font-size: 9px; }
+.region-list { display: grid; gap: 9px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(63, 91, 132, .22); }
+.region-row { display: grid; grid-template-columns: 64px minmax(60px, 1fr) 52px; align-items: center; gap: 9px; color: #8293ad; font-size: 10px; }
+.region-row b { color: #bdc9dc; font-weight: 500; text-align: right; }
+.region-row :deep(.el-progress-bar__outer) { background: rgba(53, 79, 117, .34); }
+.region-row :deep(.el-progress-bar__inner) { background: #4f8cff; }
+.region-empty,
+.ranking-empty { min-height: 128px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: #60738f; font-size: 11px; }
+.region-empty .el-icon,
+.ranking-empty .el-icon { font-size: 24px; }
+
+.product-ranking { display: grid; margin-top: 12px; }
+.product-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) 50px 72px; align-items: center; gap: 8px; min-height: 32px; color: #7f90aa; font-size: 10px; }
+.product-row + .product-row { border-top: 1px solid rgba(63, 91, 132, .16); }
+.rank-index { width: 20px; height: 20px; display: grid; place-items: center; color: #8da0bc; border-radius: 6px; background: rgba(73, 98, 135, .25); }
+.rank-index.rank-1 { color: #ffc65b; background: rgba(245, 158, 11, .16); }
+.rank-index.rank-2 { color: #b7c8e2; background: rgba(124, 149, 185, .17); }
+.rank-index.rank-3 { color: #e59b77; background: rgba(206, 112, 72, .15); }
+.product-name { overflow: hidden; color: #bdc9dc; text-overflow: ellipsis; white-space: nowrap; }
+.product-orders { text-align: right; }
+.product-row > b { color: #e4ecf8; font-weight: 600; text-align: right; }
+
+.dashboard-container :deep(.el-loading-mask) { background: rgba(3, 12, 27, .76); }
 
 @media (max-width: 1280px) {
-  .dashboard-container .finance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .dashboard-container .chart-row :deep(.el-col + .el-col) { margin-top: 20px; }
+  .command-meta .update-time { display: none; }
 }
-@media (max-width: 960px) {
-  .dashboard-container .sales-grid, .dashboard-container .member-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .dashboard-container .quick-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+@media (max-width: 1024px) {
+  .metric-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .core-metric:nth-child(3) { border-left: 0; border-top: 1px solid var(--line); }
+  .core-metric:nth-child(4) { border-top: 1px solid var(--line); }
+  .dashboard-main-grid { padding-right: 0; }
+  .decision-rail { position: static; width: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto; margin-top: 14px; }
+  .insight-grid { margin-right: 0; }
 }
-@media (max-width: 640px) {
-  .dashboard-container .dashboard-hero { align-items: flex-start; flex-direction: column; }
-  .dashboard-container .hero-actions { align-items: flex-start; }
-  .dashboard-container .sales-grid, .dashboard-container .finance-grid, .dashboard-container .member-grid, .dashboard-container .quick-grid { grid-template-columns: 1fr; }
-  .dashboard-container .region-summary { flex-direction: column; }
+
+@media (max-width: 720px) {
+  .command-header { align-items: flex-start; flex-direction: column; }
+  .command-meta { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
+  .command-meta .update-time { display: inline; }
+  .metric-strip,
+  .decision-rail,
+  .insight-grid { grid-template-columns: 1fr; }
+  .core-metric + .core-metric { border-top: 1px solid var(--line); border-left: 0; }
+  .ranking-panel { grid-column: auto; }
+  .trend-chart { height: 290px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rotating { animation: none; }
+  .task-row,
+  .refresh-button { transition: none; }
 }
 </style>
