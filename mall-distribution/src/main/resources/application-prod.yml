@@ -100,6 +100,19 @@ sms:
   provider-enabled: ${SMS_PROVIDER_ENABLED:false}
   expose-code: false
   test-code: ""
+  aliyun:
+    access-key-id: ${SMS_ALIYUN_ACCESS_KEY_ID:}
+    access-key-secret: ${SMS_ALIYUN_ACCESS_KEY_SECRET:}
+    endpoint: ${SMS_ALIYUN_ENDPOINT:dysmsapi.aliyuncs.com}
+    sign-name: ${SMS_ALIYUN_SIGN_NAME:}
+    templates:
+      register: ${SMS_TEMPLATE_REGISTER:}
+      login: ${SMS_TEMPLATE_LOGIN:}
+      reset-password: ${SMS_TEMPLATE_RESET_PASSWORD:}
+      transfer: ${SMS_TEMPLATE_TRANSFER:}
+      withdraw: ${SMS_TEMPLATE_WITHDRAW:}
+      payment: ${SMS_TEMPLATE_PAYMENT:}
+      payment-password: ${SMS_TEMPLATE_PAYMENT_PASSWORD:}
 
 management:
   endpoints:
