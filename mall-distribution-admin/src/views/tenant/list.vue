@@ -140,7 +140,7 @@
         </div>
       </section>
       <div class="preview-page-tabs" role="tablist" aria-label="前台页面预览">
-        <button v-for="page in previewPages" :key="page.value" type="button" :class="{ active: previewPage === page.value }" @click="previewPage = page.value">{{ page.label }}<small v-if="page.value !== 'home'">下一阶段</small></button>
+        <button v-for="page in previewPages" :key="page.value" type="button" :class="{ active: previewPage === page.value }" @click="previewPage = page.value">{{ page.label }}</button>
       </div>
       <div class="display-workbench">
         <aside class="display-controls">
@@ -197,27 +197,45 @@
         </aside>
 
         <section class="preview-stage">
-          <div class="preview-stage-heading"><div><strong>客户手机版预览</strong><span>{{ previewPage === 'home' ? '首页模块与前台保持同一套配置' : '此页面将在首页工作台稳定后接入真实页面' }}</span></div><el-tag type="success">草稿预览</el-tag></div>
-          <div v-if="previewPage !== 'home'" class="preview-coming-soon"><strong>{{ previewPages.find((page) => page.value === previewPage)?.label }}预览</strong><span>首页装修完成后，这里会接入对应的真实前台页面。</span></div>
-          <div v-else class="mobile-preview-shell live-mobile-preview" :style="previewStyle">
+          <div class="preview-stage-heading"><div><strong>客户手机版预览</strong><span>{{ previewPage === 'home' ? '首页模块与前台保持同一套配置' : `${previewPages.find((page) => page.value === previewPage)?.label}使用同一套品牌、颜色和底部导航` }}</span></div><el-tag type="success">草稿预览</el-tag></div>
+          <div class="mobile-preview-shell live-mobile-preview" :style="previewStyle">
             <div class="mobile-preview-status"><span>9:41</span><span>● ● ●</span></div>
             <div class="mobile-preview-brand"><span class="mobile-preview-logo"><img v-if="currentTenant?.logoUrl" :src="currentTenant.logoUrl" alt="" /><span v-else>{{ (displayForm.brandName || '灵启').slice(0, 1) }}</span></span><strong>{{ displayForm.brandName || '灵启商城' }}</strong><span class="mobile-preview-share">分享</span></div>
-            <div class="mobile-preview-search"><span>⌕</span><span>搜索商品</span><b>⌕</b></div>
-            <template v-for="module in orderedPreviewModules" :key="module.type">
-              <div v-if="module.type === 'banner' && module.enabled" class="mobile-preview-banner live-preview-banner">
-                <img v-if="previewBanners.length" :src="previewBanners[0].imageUrl" :alt="previewBanners[0].title || '商城活动'" />
-                <div v-else class="preview-empty-module"><strong>Banner轮播</strong><span>前往 Banner 管理上传图片</span></div>
-                <i v-if="previewBanners.length > 1">● ○ ○</i>
-              </div>
-              <div v-else-if="module.type === 'notice' && module.enabled" class="mobile-preview-notice"><span>⌁</span><strong>商城公告</strong><small>欢迎来到{{ displayForm.brandName || '灵启商城' }}</small></div>
-              <div v-else-if="module.type === 'category' && module.enabled && displayForm.showHomeCategories === 1" class="mobile-preview-categories live-preview-categories">
-                <div v-for="category in visiblePreviewCategories" :key="category.id" class="mobile-preview-category"><span><img v-if="category.iconUrl" :src="category.iconUrl" alt="" /><b v-else>{{ category.categoryName?.slice(0, 1) }}</b></span><strong>{{ category.categoryName }}</strong></div>
-                <div v-if="!visiblePreviewCategories.length" class="preview-empty-inline">暂无首页分类</div>
-              </div>
-              <div v-else-if="module.type === 'trust' && module.enabled && displayForm.showTrustStrip === 1" class="mobile-preview-trust"><span>安全支付</span><span>订单可查</span><span>售后无忧</span></div>
-              <div v-else-if="module.type === 'products' && module.enabled" class="mobile-preview-product-section"><div class="mobile-preview-heading"><strong>精选商品</strong><span>商城好物，为你精选</span></div><div class="mobile-preview-products"><div v-for="product in previewProducts" :key="product.id" class="mobile-preview-product"><img v-if="product.coverUrl" :src="product.coverUrl" :alt="product.productName" /><i v-else></i><strong>{{ product.productName }}</strong><small>{{ product.subtitle || '精选商品，品质保障' }}</small><b>¥{{ Number(product.salePrice || 0).toFixed(2) }}</b></div><div v-if="!previewProducts.length" class="preview-empty-module">暂无上架商品</div></div></div>
+            <template v-if="previewPage === 'home'">
+              <div class="mobile-preview-search"><span>⌕</span><span>搜索商品</span><b>⌕</b></div>
+              <template v-for="module in orderedPreviewModules" :key="module.type">
+                <div v-if="module.type === 'banner' && module.enabled" class="mobile-preview-banner live-preview-banner">
+                  <img v-if="previewBanners.length" :src="previewBanners[0].imageUrl" :alt="previewBanners[0].title || '商城活动'" />
+                  <div v-else class="preview-empty-module"><strong>Banner轮播</strong><span>前往 Banner 管理上传图片</span></div>
+                  <i v-if="previewBanners.length > 1">● ○ ○</i>
+                </div>
+                <div v-else-if="module.type === 'notice' && module.enabled" class="mobile-preview-notice"><span>⌁</span><strong>商城公告</strong><small>欢迎来到{{ displayForm.brandName || '灵启商城' }}</small></div>
+                <div v-else-if="module.type === 'category' && module.enabled && displayForm.showHomeCategories === 1" class="mobile-preview-categories live-preview-categories">
+                  <div v-for="category in visiblePreviewCategories" :key="category.id" class="mobile-preview-category"><span><img v-if="category.iconUrl" :src="category.iconUrl" alt="" /><b v-else>{{ category.categoryName?.slice(0, 1) }}</b></span><strong>{{ category.categoryName }}</strong></div>
+                  <div v-if="!visiblePreviewCategories.length" class="preview-empty-inline">暂无首页分类</div>
+                </div>
+                <div v-else-if="module.type === 'trust' && module.enabled && displayForm.showTrustStrip === 1" class="mobile-preview-trust"><span>安全支付</span><span>订单可查</span><span>售后无忧</span></div>
+                <div v-else-if="module.type === 'products' && module.enabled" class="mobile-preview-product-section"><div class="mobile-preview-heading"><strong>精选商品</strong><span>商城好物，为你精选</span></div><div class="mobile-preview-products"><div v-for="product in previewProducts" :key="product.id" class="mobile-preview-product"><img v-if="product.coverUrl" :src="product.coverUrl" :alt="product.productName" /><i v-else></i><strong>{{ product.productName }}</strong><small>{{ product.subtitle || '精选商品，品质保障' }}</small><b>¥{{ Number(product.salePrice || 0).toFixed(2) }}</b></div><div v-if="!previewProducts.length" class="preview-empty-module">暂无上架商品</div></div></div>
+              </template>
             </template>
-            <div class="mobile-preview-nav" :style="{ gridTemplateColumns: `repeat(${Math.max(visiblePreviewNav.length, 1)}, minmax(0, 1fr))` }"><span v-for="nav in visiblePreviewNav" :key="nav.type" :class="{ active: nav.type === 'home' }">{{ nav.label }}</span></div>
+            <template v-else-if="previewPage === 'category'">
+              <div class="mobile-preview-page-title"><strong>商品分类</strong><span>按分类快速找到商品</span></div>
+              <div class="mobile-preview-category-grid"><div v-for="category in visiblePreviewCategories" :key="category.id" class="mobile-preview-category-tile"><span><img v-if="category.iconUrl" :src="category.iconUrl" alt="" /><b v-else>{{ category.categoryName?.slice(0, 1) }}</b></span><strong>{{ category.categoryName }}</strong></div><div v-if="!visiblePreviewCategories.length" class="preview-empty-module">暂无商品分类</div></div>
+              <div class="mobile-preview-heading"><strong>分类推荐</strong><span>正在为你精选</span></div>
+              <div class="mobile-preview-products"><div v-for="product in previewProducts" :key="product.id" class="mobile-preview-product"><img v-if="product.coverUrl" :src="product.coverUrl" :alt="product.productName" /><i v-else></i><strong>{{ product.productName }}</strong><small>{{ product.subtitle || '精选商品，品质保障' }}</small><b>¥{{ Number(product.salePrice || 0).toFixed(2) }}</b></div><div v-if="!previewProducts.length" class="preview-empty-module">暂无上架商品</div></div>
+            </template>
+            <template v-else-if="previewPage === 'cart'">
+              <div class="mobile-preview-page-title"><strong>购物车 <small>{{ previewCartProducts.length }}件</small></strong><span>确认商品后再去结算</span></div>
+              <div class="mobile-preview-cart-list"><div v-for="product in previewCartProducts" :key="product.id" class="mobile-preview-cart-item"><span class="cart-check">✓</span><img v-if="product.coverUrl" :src="product.coverUrl" :alt="product.productName" /><i v-else></i><div><strong>{{ product.productName }}</strong><small>规格：默认规格</small><b>¥{{ Number(product.salePrice || 0).toFixed(2) }}</b></div><em>1</em></div><div v-if="!previewCartProducts.length" class="preview-empty-module">购物车还是空的</div></div>
+              <div class="mobile-preview-cart-summary"><span>合计</span><strong>¥{{ previewCartTotal.toFixed(2) }}</strong><button type="button">结算</button></div>
+            </template>
+            <template v-else>
+              <div class="mobile-preview-profile-card"><div class="profile-avatar">{{ (displayForm.brandName || '灵启').slice(0, 1) }}</div><div><strong>商城会员</strong><small>欢迎回来，管理你的订单与权益</small></div><span>›</span></div>
+              <div class="mobile-preview-order-card"><div class="mobile-preview-heading"><strong>我的订单</strong><span>全部 ›</span></div><div class="mobile-preview-order-grid"><span>待付款</span><span>待发货</span><span>待收货</span><span>退款/售后</span></div></div>
+              <div class="mobile-preview-service-grid"><div>余额</div><div>团队业绩</div><div>支付安全</div><div>收货地址</div></div>
+              <div class="mobile-preview-profile-note">账户安全 · 订单全程可查 · 客服支持</div>
+            </template>
+            <div class="mobile-preview-nav" :style="{ gridTemplateColumns: `repeat(${Math.max(visiblePreviewNav.length, 1)}, minmax(0, 1fr))` }"><span v-for="nav in visiblePreviewNav" :key="nav.type" :class="{ active: nav.type === previewPage }">{{ nav.label }}</span></div>
           </div>
         </section>
       </div>
@@ -447,6 +465,8 @@ const resetColors = () => {
 const orderedPreviewModules = computed(() => [...(displayForm.value.homeModules || [])].sort((a, b) => (a.sort || 99) - (b.sort || 99)))
 const visiblePreviewCategories = computed(() => categories.value.filter((category) => Number(categoryDraft.value[category.id] ?? 1) === 1))
 const visiblePreviewNav = computed(() => (displayForm.value.bottomNav || []).filter((nav) => nav.enabled !== false))
+const previewCartProducts = computed(() => previewProducts.value.slice(0, 2))
+const previewCartTotal = computed(() => previewCartProducts.value.reduce((total, product) => total + Number(product.salePrice || 0), 0))
 const previewStyle = computed(() => ({
   '--preview-color': displayForm.value.themeColor || currentTenant.value?.themeColor || '#e7193f',
   '--preview-page-bg': displayForm.value.colors?.pageBg || '#f5f6f8',
@@ -669,6 +689,42 @@ onMounted(fetchData)
 .mobile-preview-heading { display:grid; gap:3px; padding:7px 14px; }
 .mobile-preview-heading strong { font-size:20px; }
 .mobile-preview-heading span { color:#98a2b3; font-size:12px; }
+.mobile-preview-page-title { display:grid; gap:4px; margin:0 12px 10px; padding:14px; background:var(--preview-card-bg, #fff); border-radius:14px; }
+.mobile-preview-page-title strong { font-size:20px; }
+.mobile-preview-page-title strong small { color:var(--preview-muted, #98a2b3); font-size:12px; font-weight:500; }
+.mobile-preview-page-title span { color:var(--preview-muted, #98a2b3); font-size:11px; }
+.mobile-preview-category-grid { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; margin:0 12px 10px; padding:10px; background:var(--preview-card-bg, #fff); border-radius:14px; }
+.mobile-preview-category-tile { display:grid; justify-items:center; gap:4px; min-width:0; color:var(--preview-text, #202735); font-size:10px; text-align:center; }
+.mobile-preview-category-tile span { display:grid; width:38px; height:38px; place-items:center; overflow:hidden; color:var(--preview-color); background:color-mix(in srgb, var(--preview-color) 10%, #fff 90%); border-radius:12px; }
+.mobile-preview-category-tile img { width:100%; height:100%; object-fit:cover; }
+.mobile-preview-category-tile b { font-size:15px; }
+.mobile-preview-category-tile strong { overflow:hidden; width:100%; text-overflow:ellipsis; white-space:nowrap; }
+.mobile-preview-cart-list { display:grid; gap:1px; margin:0 12px 10px; overflow:hidden; background:var(--preview-card-bg, #fff); border-radius:14px; }
+.mobile-preview-cart-item { display:grid; grid-template-columns:16px 48px minmax(0, 1fr) auto; align-items:center; gap:8px; padding:10px; border-bottom:1px solid color-mix(in srgb, var(--preview-line, #e5e7eb) 75%, transparent); }
+.mobile-preview-cart-item > img,.mobile-preview-cart-item > i { display:block; width:48px; height:48px; object-fit:cover; background:linear-gradient(135deg, color-mix(in srgb, var(--preview-color) 15%, #fff 85%), #e9edf2); border-radius:9px; }
+.mobile-preview-cart-item > div { display:grid; gap:3px; min-width:0; }
+.mobile-preview-cart-item strong,.mobile-preview-cart-item small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mobile-preview-cart-item strong { font-size:12px; }
+.mobile-preview-cart-item small { color:var(--preview-muted, #98a2b3); font-size:10px; }
+.mobile-preview-cart-item b { color:var(--preview-color); font-size:12px; }
+.mobile-preview-cart-item em { color:var(--preview-muted, #98a2b3); font-size:11px; font-style:normal; }
+.cart-check { display:grid; width:16px; height:16px; place-items:center; color:#fff; font-size:10px; background:var(--preview-color); border-radius:50%; }
+.mobile-preview-cart-summary { display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:10px; margin:0 12px 14px; padding:11px 12px; background:var(--preview-card-bg, #fff); border-radius:14px; }
+.mobile-preview-cart-summary span { color:var(--preview-muted, #98a2b3); font-size:11px; }
+.mobile-preview-cart-summary strong { color:var(--preview-color); font-size:15px; }
+.mobile-preview-cart-summary button { padding:7px 14px; color:#fff; background:var(--preview-color); border:0; border-radius:999px; font-size:11px; }
+.mobile-preview-profile-card { display:grid; grid-template-columns:42px minmax(0, 1fr) auto; align-items:center; gap:10px; margin:0 12px 10px; padding:14px; color:#fff; background:linear-gradient(135deg, color-mix(in srgb, var(--preview-color) 82%, #111 18%), var(--preview-color)); border-radius:16px; }
+.profile-avatar { display:grid; width:42px; height:42px; place-items:center; color:var(--preview-color); font-size:20px; font-weight:800; background:#fff; border-radius:50%; }
+.mobile-preview-profile-card div:not(.profile-avatar) { display:grid; gap:4px; min-width:0; }
+.mobile-preview-profile-card strong { font-size:15px; }
+.mobile-preview-profile-card small { overflow:hidden; font-size:10px; opacity:.82; text-overflow:ellipsis; white-space:nowrap; }
+.mobile-preview-profile-card > span { font-size:22px; opacity:.85; }
+.mobile-preview-order-card { margin:0 12px 10px; padding:4px 0 10px; background:var(--preview-card-bg, #fff); border-radius:14px; }
+.mobile-preview-order-card .mobile-preview-heading { display:flex; align-items:center; justify-content:space-between; }
+.mobile-preview-order-card .mobile-preview-heading span { color:var(--preview-muted, #98a2b3); }
+.mobile-preview-order-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:4px; padding:10px 8px 0; color:var(--preview-muted, #98a2b3); font-size:10px; text-align:center; }
+.mobile-preview-service-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:1px; margin:0 12px 10px; padding:14px 6px; color:var(--preview-text, #202735); font-size:10px; text-align:center; background:var(--preview-card-bg, #fff); border-radius:14px; }
+.mobile-preview-profile-note { margin:0 12px 14px; padding:11px; color:var(--preview-muted, #98a2b3); font-size:10px; text-align:center; background:var(--preview-card-bg, #fff); border-radius:12px; }
 .mobile-preview-products { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; padding:7px 12px 12px; }
 .mobile-preview-product { display:grid; gap:5px; min-width:0; padding:8px; background:var(--preview-card-bg, #fff); border-radius:14px; }
 .mobile-preview-product img { display:block; width:100%; height:95px; object-fit:cover; border-radius:10px; }
@@ -678,7 +734,7 @@ onMounted(fetchData)
 .mobile-preview-product b { color:var(--preview-color); font-size:15px; }
 .mobile-preview-trust { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; margin:0 12px 12px; padding:9px 4px; color:#667085; font-size:11px; text-align:center; background:var(--preview-card-bg, #fff); border-radius:12px; }
 .mobile-preview-nav { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); padding:10px 8px 12px; color:#8a94a4; font-size:11px; text-align:center; background:#fff; border-top:1px solid #eef0f3; }
-.mobile-preview-nav span:first-child { color:var(--preview-color); font-weight:800; }
+.mobile-preview-nav span.active { color:var(--preview-color); font-weight:800; }
 .version-form {
   margin-top: 16px;
   padding-top: 16px;
