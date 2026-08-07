@@ -17,6 +17,7 @@
         <result column="pv_value" property="pvValue"/>
         <result column="bv_value" property="bvValue"/>
         <result column="stock" property="stock"/>
+        <result column="purchase_limit" property="purchaseLimit"/>
         <result column="sales_count" property="salesCount"/>
         <result column="sort_order" property="sort"/>
         <result column="status" property="status"/>
@@ -40,7 +41,7 @@
 
     <sql id="Base_Column_List">
         id, tenant_id, product_no, product_name, subtitle, category_name, cover_url, gallery_urls,
-        sale_price, market_price, cost_amount, pv_value, bv_value, stock, sales_count,
+        sale_price, market_price, cost_amount, pv_value, bv_value, stock, purchase_limit, sales_count,
         sort_order, status, detail, detail_images, delivery_address, delivery_province, delivery_city, delivery_district,
         freight_type, freight_amount, free_shipping_amount, freight_template_name, freight_template_id,
         delivery_time, after_sale_policy, service_tags, create_time, update_time
@@ -91,13 +92,13 @@
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopProduct" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_shop_product
         (tenant_id, product_no, product_name, subtitle, category_name, cover_url, gallery_urls, sale_price,
-         market_price, cost_amount, pv_value, bv_value, stock, sales_count, sort_order, status, detail, detail_images,
+         market_price, cost_amount, pv_value, bv_value, stock, purchase_limit, sales_count, sort_order, status, detail, detail_images,
          delivery_address, delivery_province, delivery_city, delivery_district,
          freight_type, freight_amount, free_shipping_amount, freight_template_name, freight_template_id,
          delivery_time, after_sale_policy, service_tags)
         VALUES
         (#{tenantId}, #{productNo}, #{productName}, #{subtitle}, #{categoryName}, #{coverUrl}, #{galleryUrls}, #{salePrice},
-         #{marketPrice}, #{costAmount}, #{pvValue}, #{bvValue}, #{stock}, #{salesCount}, #{sort}, #{status}, #{detail}, #{detailImages},
+         #{marketPrice}, #{costAmount}, #{pvValue}, #{bvValue}, #{stock}, #{purchaseLimit}, #{salesCount}, #{sort}, #{status}, #{detail}, #{detailImages},
          #{deliveryAddress}, #{deliveryProvince}, #{deliveryCity}, #{deliveryDistrict},
          #{freightType}, #{freightAmount}, #{freeShippingAmount}, #{freightTemplateName}, #{freightTemplateId},
          #{deliveryTime}, #{afterSalePolicy}, #{serviceTags})
@@ -118,6 +119,7 @@
             pv_value = #{pvValue},
             bv_value = #{bvValue},
             stock = #{stock},
+            purchase_limit = #{purchaseLimit},
             sales_count = #{salesCount},
             sort_order = #{sort},
             status = #{status},

@@ -39,6 +39,9 @@ public class DmsShopProduct implements Serializable {
 
     private Integer stock;
 
+    /** 每位会员累计限购数量，0 表示不限购。 */
+    private Integer purchaseLimit;
+
     private Integer salesCount;
 
     private Integer sort;

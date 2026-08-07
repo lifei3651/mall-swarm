@@ -377,6 +377,20 @@ class ShopFreightServiceTest {
     }
 
     @Test
+    void purchaseLimitCountsPendingOrdersAndRejectsAdditionalQuantity() {
+        DmsShopProduct product = useShippingProduct(0, BigDecimal.ZERO, null, null);
+        product.setPurchaseLimit(2);
+        shopService.updateProduct(product.getId(), product);
+        DmsShopMember member = createMember("13999110108", "限购测试会员", null);
+
+        shopService.submitOrder(pendingOrder(2, 1L), member);
+
+        ApiException error = assertThrows(ApiException.class,
+                () -> shopService.submitOrder(pendingOrder(1, 1L), member));
+        assertTrue(error.getMessage().contains("每位会员限购 2 件"));
+    }
+
+    @Test
     void categoryCanBeCreatedAndRenameCascadesToExistingProducts() {
         DmsShopCategory category = new DmsShopCategory();
         category.setCategoryName("分类新增回归");

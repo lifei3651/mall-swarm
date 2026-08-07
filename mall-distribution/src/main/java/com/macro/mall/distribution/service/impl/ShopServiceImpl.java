@@ -47,6 +47,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -522,6 +523,8 @@ public class ShopServiceImpl implements ShopService {
         if (member != null) dto.setUserId(member.getUserId());
         fillAddress(dto, member);
         Map<Long, ProductShippingContext> shippingProducts = new LinkedHashMap<>();
+        Map<Long, Integer> requestedPurchaseQuantities = new HashMap<>();
+        Map<Long, Integer> existingPurchaseQuantities = new HashMap<>();
         BigDecimal productAmount = ZERO;
         for (ShopOrderItemDTO item : dto.getItems()) {
             if (item.getProductId() == null) Asserts.fail("商品ID不能为空");
@@ -529,6 +532,8 @@ public class ShopServiceImpl implements ShopService {
             DmsShopProduct product = productDao.selectById(item.getProductId());
             if (product == null || !Integer.valueOf(1).equals(product.getStatus())) Asserts.fail("商品不存在或已下架");
             assertTenantAccess(product.getTenantId());
+            int requestedQuantity = requestedPurchaseQuantities.merge(product.getId(), quantity, Integer::sum);
+            validatePurchaseLimit(product, dto.getUserId(), requestedQuantity, existingPurchaseQuantities);
             requireSkuSelection(product, item.getSkuId());
             BigDecimal price = money(product.getSalePrice());
             if (item.getSkuId() != null) {
@@ -572,6 +577,8 @@ public class ShopServiceImpl implements ShopService {
         BigDecimal totalPv = ZERO;
         BigDecimal totalCost = ZERO;
         Long tenantId = resolveTenantId(null);
+        Map<Long, Integer> requestedPurchaseQuantities = new HashMap<>();
+        Map<Long, Integer> existingPurchaseQuantities = new HashMap<>();
 
         for (ShopOrderItemDTO itemDTO : dto.getItems()) {
             Integer quantity = itemDTO.getQuantity() == null || itemDTO.getQuantity() <= 0 ? 1 : itemDTO.getQuantity();
@@ -580,6 +587,8 @@ public class ShopServiceImpl implements ShopService {
                 Asserts.fail("商品不存在或已下架");
             }
             assertTenantAccess(product.getTenantId());
+            int requestedQuantity = requestedPurchaseQuantities.merge(product.getId(), quantity, Integer::sum);
+            validatePurchaseLimit(product, dto.getUserId(), requestedQuantity, existingPurchaseQuantities);
             requireSkuSelection(product, itemDTO.getSkuId());
             DmsShopSku sku = null;
             if (itemDTO.getSkuId() != null) {
@@ -1107,6 +1116,27 @@ public class ShopServiceImpl implements ShopService {
         }
     }
 
+    /**
+     * 校验会员在同一商品上的累计限购数量。待付款订单也会占用额度，避免会员通过
+     * 连续创建多个待付款订单绕过限购；订单关闭（包括整单退款）后额度会释放。
+     */
+    private void validatePurchaseLimit(DmsShopProduct product,
+                                       Long userId,
+                                       int requestedQuantity,
+                                       Map<Long, Integer> existingPurchaseQuantities) {
+        int limit = product.getPurchaseLimit() == null ? 0 : product.getPurchaseLimit();
+        if (limit <= 0 || userId == null) {
+            return;
+        }
+        int existingQuantity = existingPurchaseQuantities.computeIfAbsent(product.getId(), id ->
+                orderItemDao.sumQuantityByUserAndProduct(userId, id,
+                        product.getTenantId() == null ? DEFAULT_TENANT_ID : product.getTenantId()));
+        if ((long) existingQuantity + requestedQuantity > limit) {
+            int remaining = Math.max(0, limit - existingQuantity);
+            Asserts.fail("每位会员限购 " + limit + " 件，您还可购买 " + remaining + " 件：" + product.getProductName());
+        }
+    }
+
     private void fillProductDefaults(DmsShopProduct product) {
         product.setTenantId(resolveTenantId(product.getTenantId()));
         if (product.getProductName() == null || product.getProductName().isBlank()) {
@@ -1126,6 +1156,7 @@ public class ShopServiceImpl implements ShopService {
         }
         product.setBvValue(money(product.getBvValue()));
         product.setStock(product.getStock() == null ? 0 : product.getStock());
+        product.setPurchaseLimit(product.getPurchaseLimit() == null ? 0 : Math.max(0, product.getPurchaseLimit()));
         product.setSalesCount(product.getSalesCount() == null ? 0 : product.getSalesCount());
         product.setSort(product.getSort() == null ? 0 : product.getSort());
         product.setStatus(product.getStatus() == null ? 1 : product.getStatus());

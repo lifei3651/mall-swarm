@@ -724,6 +724,7 @@ CREATE TABLE IF NOT EXISTS dms_shop_product (
   pv_value DECIMAL(12,2) NOT NULL DEFAULT 0,
   bv_value DECIMAL(12,2) NOT NULL DEFAULT 0,
   stock INT NOT NULL DEFAULT 0,
+  purchase_limit INT NOT NULL DEFAULT 0,
   sales_count INT NOT NULL DEFAULT 0,
   sort_order INT NOT NULL DEFAULT 0,
   status INT NOT NULL DEFAULT 1,

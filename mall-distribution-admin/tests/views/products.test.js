@@ -11,4 +11,12 @@ describe('商品中心筛选', () => {
     expect(source).toContain("query.value = { keyword: '', categoryName: '', status: null }")
     expect(source).toContain('placeholder="全部"')
   })
+
+  it('商品编辑支持配置会员累计限购数量', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('v-model="form.purchaseLimit"')
+    expect(source).toContain('每位会员限购')
+    expect(source).toContain('0 表示不限购')
+  })
 })

@@ -79,6 +79,7 @@
             <button type="button" :disabled="quantity >= currentStock" @click="increaseQuantity"><Plus :size="17" /></button>
           </div>
           <small>库存 {{ currentStock }} 件</small>
+          <small v-if="Number(displayProduct.purchaseLimit || 0) > 0" class="purchase-limit-hint">每位会员限购 {{ displayProduct.purchaseLimit }} 件</small>
         </div>
       </section>
 
@@ -457,6 +458,7 @@ watch(() => route.params.id, fetchProduct, { immediate: true })
 .quantity-row { display:flex; align-items:center; gap:12px; padding-top:20px; }
 .quantity-row strong { font-size:15px; }
 .quantity-row small { color:#9ca3af; }
+.quantity-row .purchase-limit-hint { color:var(--brand-primary); }
 .quantity-control { height:36px; display:grid; grid-template-columns:36px 44px 36px; margin-left:auto; overflow:hidden; border:1px solid #e5e7eb; border-radius:6px; }
 .quantity-control button,.quantity-control span { display:grid; place-items:center; padding:0; background:#fff; border:0; }
 .quantity-control span { border-left:1px solid #e5e7eb; border-right:1px solid #e5e7eb; }

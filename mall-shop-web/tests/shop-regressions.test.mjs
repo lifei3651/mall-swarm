@@ -207,6 +207,12 @@ test('product detail back button falls back home when there is no browser histor
   assert.match(source, /router\.replace\(\{ name: 'Home' \}\)/)
 })
 
+test('product detail shows the configured member purchase limit', async () => {
+  const source = await readView('ProductDetailView.vue')
+  assert.match(source, /displayProduct\.purchaseLimit/)
+  assert.match(source, /每位会员限购/)
+})
+
 test('order detail renders logistics timeline with shipping steps', async () => {
   const source = await readView('OrderDetailView.vue')
   assert.match(source, /timeline-steps/)

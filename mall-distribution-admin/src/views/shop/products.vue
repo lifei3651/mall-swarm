@@ -59,7 +59,7 @@
           <el-tooltip v-if="Number(row.pvValue || 0) > Number(row.salePrice || 0)" content="PV超过销售价，请编辑商品并修正" placement="top"><el-icon class="pv-warning"><WarningFilled /></el-icon></el-tooltip>
         </template>
       </el-table-column>
-      <el-table-column prop="stock" label="可售库存" width="95" /><el-table-column prop="salesCount" label="累计销量" width="95" />
+      <el-table-column prop="stock" label="可售库存" width="95" /><el-table-column label="会员限购" width="105"><template #default="{ row }">{{ Number(row.purchaseLimit || 0) > 0 ? `每人 ${row.purchaseLimit} 件` : '不限购' }}</template></el-table-column><el-table-column prop="salesCount" label="累计销量" width="95" />
       <el-table-column prop="sort" label="上架排序" width="95" />
       <el-table-column prop="status" label="上架状态" width="95"><template #default="{ row }"><el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '上架' : '下架' }}</el-tag></template></el-table-column>
       <el-table-column label="操作" fixed="right" width="180">
@@ -172,6 +172,9 @@
               </el-table>
             </div>
             </template>
+            <el-row :gutter="20">
+              <el-col :span="10"><el-form-item label="每位会员限购"><el-input-number v-model="form.purchaseLimit" :min="0" :step="1" controls-position="right" class="money-input" /><div class="field-help">按会员累计购买数量计算；0 表示不限购，已关闭/整单退款订单会释放额度。</div></el-form-item></el-col>
+            </el-row>
             <el-alert class="cost-help" title="成本价只用于经营利润统计；有规格商品按所选SKU的成本计算。" type="warning" :closable="false" show-icon />
           </section>
 
@@ -491,7 +494,7 @@ const defaultServiceGuarantees = () => Object.entries(guaranteeDefaults).map(([t
 }))
 
 const inferAfterSalePreset = (policy) => Object.entries(afterSalePolicyPresets).find(([, preset]) => preset.content === policy)?.[0] || 'custom'
-const defaultForm = () => ({ tenantId: 1, productNo: '', productName: '', subtitle: '', categoryName: '', mainImages: [], salePrice: 0, marketPrice: 0, costAmount: 0, pvValue: 0, bvValue: 0, stock: 0, salesCount: 0, sort: 0, status: 1, freightType: 0, freightAmount: 0, freeShippingAmount: 0, freightTemplateId: null, freightTemplateName: '', deliveryAddress: '', deliveryProvince: '', deliveryCity: '', deliveryDistrict: '', deliveryTime: '48小时内发货', afterSalePresetKey: defaultAfterSalePresetKey, afterSalePolicy: afterSalePolicyPresets[defaultAfterSalePresetKey].content, serviceGuarantees: defaultServiceGuarantees(), detail: '', detailImageUrls: [] })
+const defaultForm = () => ({ tenantId: 1, productNo: '', productName: '', subtitle: '', categoryName: '', mainImages: [], salePrice: 0, marketPrice: 0, costAmount: 0, pvValue: 0, bvValue: 0, stock: 0, purchaseLimit: 0, salesCount: 0, sort: 0, status: 1, freightType: 0, freightAmount: 0, freeShippingAmount: 0, freightTemplateId: null, freightTemplateName: '', deliveryAddress: '', deliveryProvince: '', deliveryCity: '', deliveryDistrict: '', deliveryTime: '48小时内发货', afterSalePresetKey: defaultAfterSalePresetKey, afterSalePolicy: afterSalePolicyPresets[defaultAfterSalePresetKey].content, serviceGuarantees: defaultServiceGuarantees(), detail: '', detailImageUrls: [] })
 
 const fetchData = async () => {
   const validation = validateSearchKeyword(query.value.keyword, { label: '商品关键词' })
@@ -719,6 +722,7 @@ const submitForm = async () => {
   if (deliveryRegion.value.length !== 3) return ElMessage.warning('请选择完整的发货省、市、区/县')
   if (form.value.freightType === 1 && Number(form.value.freightAmount || 0) <= 0) return ElMessage.warning('固定运费必须大于0')
   if (form.value.freightType === 2 && Number(form.value.freeShippingAmount || 0) <= 0) return ElMessage.warning('请填写满额包邮门槛')
+  if (Number(form.value.purchaseLimit || 0) < 0 || !Number.isInteger(Number(form.value.purchaseLimit || 0))) return ElMessage.warning('会员限购数量必须是大于等于0的整数')
   if (form.value.freightType === 3 && !form.value.freightTemplateId) return ElMessage.warning('请选择运费模板')
   if (skuRows.value.some((item) => !item.skuName?.trim())) return ElMessage.warning('请填写所有 SKU 的规格名称')
   if (skuRows.value.some((item) => !item.attributes?.length)) return ElMessage.warning('请为每个SKU设置规格属性')
