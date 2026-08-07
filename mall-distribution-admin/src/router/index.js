@@ -230,7 +230,8 @@ const routes = [
             path: 'banners',
             name: 'TenantBanners',
             component: () => import('@/views/shop/banners.vue'),
-            meta: { title: '首页Banner', permission: 'config:manage' },
+            // Banner 已并入“商城视觉与页面”，保留 URL 兼容旧书签但不再单独显示菜单。
+            meta: { title: '首页Banner', hidden: true, permission: 'config:manage' },
           },
           {
             path: 'profile',

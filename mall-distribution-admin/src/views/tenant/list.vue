@@ -6,8 +6,9 @@
         <p>在这里预览并调整商城的品牌、主题色、首页样式和底部导航，保存后刷新前台即可查看。</p>
       </div>
       <div v-if="tableData[0]" class="toolbar-actions">
-        <el-button @click="openTenantDialog(tableData[0])">编辑视觉设置</el-button>
-        <el-button type="primary" @click="openDisplayDialog(tableData[0])">配置页面布局</el-button>
+        <el-button @click="openTenantDialog(tableData[0])">品牌资料</el-button>
+        <el-button @click="openBannerDialog">首页 Banner</el-button>
+        <el-button type="primary" @click="openDisplayDialog(tableData[0])">视觉装修</el-button>
       </div>
     </div>
 
@@ -45,10 +46,11 @@
           <el-tag type="success">{{ getLayoutTemplateName(currentDisplayConfig.layoutTemplate) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" fixed="right" width="200">
+      <el-table-column label="操作" fixed="right" width="280">
         <template #default="{ row }">
-          <el-button type="primary" link @click="openTenantDialog(row)">编辑</el-button>
-          <el-button type="info" link @click="openDisplayDialog(row)">首页布局</el-button>
+          <el-button type="primary" link @click="openTenantDialog(row)">品牌资料</el-button>
+          <el-button type="info" link @click="openBannerDialog">首页 Banner</el-button>
+          <el-button type="success" link @click="openDisplayDialog(row)">视觉装修</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -109,8 +111,34 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="displayDialogVisible" title="手机版首页装修工作台" width="1040px" top="1vh" class="display-workbench-dialog">
+    <el-dialog v-model="displayDialogVisible" title="商城视觉装修工作台" width="1040px" top="1vh" class="display-workbench-dialog">
       <el-alert title="左侧调整模块，右侧手机实时预览。当前修改只保存在草稿中，点击“保存发布”后才会影响客户前台。" type="info" :closable="false" class="display-alert" />
+      <section class="visual-design-panel">
+        <div class="control-section-heading">
+          <div><strong>品牌视觉</strong><small>模板和主题色实时作用于右侧手机预览，点击保存发布后客户前台生效</small></div>
+          <el-tag size="small" type="success">实时预览</el-tag>
+        </div>
+        <div class="visual-design-grid">
+          <div class="theme-preset-grid compact-theme-grid">
+            <button
+              v-for="theme in themeOptions"
+              :key="theme.value"
+              type="button"
+              class="theme-preset"
+              :class="{ active: displayForm.productTemplate === theme.value }"
+              @click="applyDisplayTheme(theme)"
+            >
+              <span class="theme-preview" :style="{ '--preview-color': theme.color, '--preview-radius': theme.radius }"><i></i><b></b><em></em></span>
+              <strong>{{ theme.label }}</strong>
+              <small>{{ theme.description }}</small>
+            </button>
+          </div>
+          <div class="visual-design-fields">
+            <label><span>商城名称</span><el-input v-model="displayForm.brandName" maxlength="64" placeholder="客户前台展示名称" /></label>
+            <label><span>主题色</span><div class="color-editor"><el-color-picker v-model="displayForm.themeColor" /><el-input v-model="displayForm.themeColor" maxlength="7" placeholder="#e7193f" /></div></label>
+          </div>
+        </div>
+      </section>
       <div class="preview-page-tabs" role="tablist" aria-label="前台页面预览">
         <button v-for="page in previewPages" :key="page.value" type="button" :class="{ active: previewPage === page.value }" @click="previewPage = page.value">{{ page.label }}<small v-if="page.value !== 'home'">下一阶段</small></button>
       </div>
@@ -125,7 +153,7 @@
                 <el-switch v-model="module.enabled" active-text="展示" inactive-text="隐藏" />
               </div>
             </div>
-            <div class="section-note">Banner 图片内容请进入 <el-button type="primary" link @click="$router.push('/tenant/banners')">商城设置 · 首页Banner</el-button> 管理。</div>
+            <div class="section-note">Banner 图片、跳转和顺序统一在本页管理：<el-button type="primary" link @click="openBannerDialog">打开 Banner 管理</el-button>。</div>
           </section>
 
           <section class="control-section category-config-section">
@@ -174,7 +202,7 @@
           <div v-if="previewPage !== 'home'" class="preview-coming-soon"><strong>{{ previewPages.find((page) => page.value === previewPage)?.label }}预览</strong><span>首页装修完成后，这里会接入对应的真实前台页面。</span></div>
           <div v-else class="mobile-preview-shell live-mobile-preview" :style="previewStyle">
             <div class="mobile-preview-status"><span>9:41</span><span>● ● ●</span></div>
-            <div class="mobile-preview-brand"><span class="mobile-preview-logo"><img v-if="currentTenant?.logoUrl" :src="currentTenant.logoUrl" alt="" /><span v-else>{{ (currentTenant?.brandName || '灵启').slice(0, 1) }}</span></span><strong>{{ currentTenant?.brandName || '灵启商城' }}</strong><span class="mobile-preview-share">分享</span></div>
+            <div class="mobile-preview-brand"><span class="mobile-preview-logo"><img v-if="currentTenant?.logoUrl" :src="currentTenant.logoUrl" alt="" /><span v-else>{{ (displayForm.brandName || '灵启').slice(0, 1) }}</span></span><strong>{{ displayForm.brandName || '灵启商城' }}</strong><span class="mobile-preview-share">分享</span></div>
             <div class="mobile-preview-search"><span>⌕</span><span>搜索商品</span><b>⌕</b></div>
             <template v-for="module in orderedPreviewModules" :key="module.type">
               <div v-if="module.type === 'banner' && module.enabled" class="mobile-preview-banner live-preview-banner">
@@ -182,7 +210,7 @@
                 <div v-else class="preview-empty-module"><strong>Banner轮播</strong><span>前往 Banner 管理上传图片</span></div>
                 <i v-if="previewBanners.length > 1">● ○ ○</i>
               </div>
-              <div v-else-if="module.type === 'notice' && module.enabled" class="mobile-preview-notice"><span>⌁</span><strong>商城公告</strong><small>欢迎来到{{ currentTenant?.brandName || '灵启商城' }}</small></div>
+              <div v-else-if="module.type === 'notice' && module.enabled" class="mobile-preview-notice"><span>⌁</span><strong>商城公告</strong><small>欢迎来到{{ displayForm.brandName || '灵启商城' }}</small></div>
               <div v-else-if="module.type === 'category' && module.enabled && displayForm.showHomeCategories === 1" class="mobile-preview-categories live-preview-categories">
                 <div v-for="category in visiblePreviewCategories" :key="category.id" class="mobile-preview-category"><span><img v-if="category.iconUrl" :src="category.iconUrl" alt="" /><b v-else>{{ category.categoryName?.slice(0, 1) }}</b></span><strong>{{ category.categoryName }}</strong></div>
                 <div v-if="!visiblePreviewCategories.length" class="preview-empty-inline">暂无首页分类</div>
@@ -199,6 +227,10 @@
         <el-button type="primary" @click="submitDisplayConfig">保存发布</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="bannerDialogVisible" title="首页 Banner 管理" width="1000px" top="3vh" append-to-body>
+      <ShopBanners />
+    </el-dialog>
   </div>
 </template>
 
@@ -206,6 +238,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { listShopBanners, listShopCategories, listShopProducts, updateCategoryShowOnHome, uploadShopImage } from '@/api/shop'
+import ShopBanners from '@/views/shop/banners.vue'
 import {
   getDisplayConfig,
   listTenants,
@@ -217,6 +250,7 @@ const loading = ref(false)
 const tableData = ref([])
 const tenantDialogVisible = ref(false)
 const displayDialogVisible = ref(false)
+const bannerDialogVisible = ref(false)
 const currentTenant = ref(null)
 const currentDisplayConfig = ref({ layoutTemplate: 'standard' })
 const categories = ref([])
@@ -328,6 +362,10 @@ const openTenantDialog = (row) => {
   tenantDialogVisible.value = true
 }
 
+const openBannerDialog = () => {
+  bannerDialogVisible.value = true
+}
+
 const applyTheme = (theme) => {
   tenantForm.value.productTemplate = theme.value
   tenantForm.value.themeColor = theme.color
@@ -377,6 +415,9 @@ const openDisplayDialog = async (row) => {
   try { extra = JSON.parse(raw) || {} } catch { extra = {} }
   displayForm.value = {
     tenantId: row.id,
+    brandName: row.brandName || row.tenantName || '灵启商城',
+    themeColor: row.themeColor || '#e7193f',
+    productTemplate: normalizeTheme(row.productTemplate),
     layoutTemplate: 'standard',
     showHomeCategories: 1,
     showBottomCategoryNav: 1,
@@ -389,6 +430,11 @@ const openDisplayDialog = async (row) => {
   displayDialogVisible.value = true
 }
 
+const applyDisplayTheme = (theme) => {
+  displayForm.value.productTemplate = theme.value
+  displayForm.value.themeColor = theme.color
+}
+
 const resetColors = () => {
   displayForm.value.colors = defaultColors()
   ElMessage.success('颜色已恢复默认，点击“保存发布”后客户前台生效')
@@ -398,7 +444,7 @@ const orderedPreviewModules = computed(() => [...(displayForm.value.homeModules 
 const visiblePreviewCategories = computed(() => categories.value.filter((category) => Number(categoryDraft.value[category.id] ?? 1) === 1))
 const visiblePreviewNav = computed(() => (displayForm.value.bottomNav || []).filter((nav) => nav.enabled !== false && (nav.type !== 'category' || Number(displayForm.value.showBottomCategoryNav ?? 1) === 1)))
 const previewStyle = computed(() => ({
-  '--preview-color': currentTenant.value?.themeColor || '#e7193f',
+  '--preview-color': displayForm.value.themeColor || currentTenant.value?.themeColor || '#e7193f',
   '--preview-page-bg': displayForm.value.colors?.pageBg || '#f5f6f8',
   '--preview-card-bg': displayForm.value.colors?.cardBg || '#fff',
   '--preview-text': displayForm.value.colors?.textColor || '#202735',
@@ -448,7 +494,21 @@ const submitDisplayConfig = async () => {
   delete payload.homeModules
   delete payload.colors
   delete payload.bottomNav
-  await saveDisplayConfig(payload)
+  delete payload.brandName
+  delete payload.themeColor
+  delete payload.productTemplate
+  const tenantPayload = {
+    ...currentTenant.value,
+    id: currentTenant.value.id,
+    brandName: displayForm.value.brandName,
+    themeColor: displayForm.value.themeColor,
+    productTemplate: normalizeTheme(displayForm.value.productTemplate),
+  }
+  const [tenantResult] = await Promise.all([saveTenant(tenantPayload), saveDisplayConfig(payload)])
+  if (tenantResult.data) {
+    currentTenant.value = { ...currentTenant.value, ...tenantResult.data }
+    tableData.value = tableData.value.map((row) => Number(row.id) === Number(currentTenant.value.id) ? { ...row, ...tenantResult.data } : row)
+  }
   const categoryUpdates = categories.value
     .filter((category) => Number(categoryDraft.value[category.id] ?? 1) !== Number(category.showOnHome ?? 1))
     .map((category) => updateCategoryShowOnHome(category.id, categoryDraft.value[category.id]))
@@ -620,6 +680,29 @@ onMounted(fetchData)
 .display-alert {
   margin-bottom: 16px;
 }
+.visual-design-panel {
+  margin-bottom: 14px;
+  padding: 14px;
+  background: linear-gradient(135deg, #fbfdff, #f5f8fc);
+  border: 1px solid #e4ebf3;
+  border-radius: 12px;
+}
+.visual-design-panel .control-section-heading { margin-bottom: 10px; }
+.visual-design-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 14px;
+  align-items: start;
+}
+.compact-theme-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; margin: 0; }
+.compact-theme-grid .theme-preset { grid-template-columns: 42px minmax(0, 1fr); gap: 0 7px; padding: 7px; border-radius: 8px; }
+.compact-theme-grid .theme-preview { width: 42px; height: 34px; padding: 5px; }
+.compact-theme-grid .theme-preset strong { font-size: 12px; }
+.compact-theme-grid .theme-preset small { min-height: 0; overflow: hidden; font-size: 10px; line-height: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.visual-design-fields { display: grid; gap: 10px; padding: 4px 0; }
+.visual-design-fields label { display: grid; gap: 5px; color: #667085; font-size: 12px; }
+.visual-design-fields .color-editor { grid-template-columns: 32px minmax(0, 1fr); width: 100%; gap: 7px; }
+.visual-design-fields .color-editor .el-color-picker { width: 32px; }
 .preview-page-tabs {
   display: flex;
   gap: 8px;
@@ -963,6 +1046,8 @@ onMounted(fetchData)
   .display-workbench { grid-template-columns: 1fr; }
   .display-controls { max-height: none; overflow: visible; }
   .preview-stage { order: -1; }
+  .visual-design-grid { grid-template-columns: 1fr; }
+  .compact-theme-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 680px) {
   .category-list.category-list-draft { grid-template-columns: 1fr; max-height: 180px; }
