@@ -574,7 +574,7 @@ const changePvSetting = async (enabled) => {
   } catch { performanceUnitsEnabled.value = !enabled }
 }
 
-const resetQuery = () => { query.value = { keyword: '', categoryName: '', status: 1 }; pagination.value.page = 1; fetchData() }
+const resetQuery = () => { query.value = { keyword: '', categoryName: '', status: null }; pagination.value.page = 1; fetchData() }
 const openDialog = async (row) => {
   const mainImages = row ? [row.coverUrl, ...parseArray(row.galleryUrls)].filter(Boolean).slice(0, 5) : []
   form.value = row ? { ...defaultForm(), ...row, mainImages, detailImageUrls: parseArray(row.detailImages), serviceGuarantees: normalizeServiceGuarantees(row.serviceTags), freightType: row.freightType ?? 0, pvValue: Number(row.pvValue || 0), afterSalePolicy: row.afterSalePolicy?.trim() || afterSalePolicyPresets[defaultAfterSalePresetKey].content, afterSalePresetKey: inferAfterSalePreset(row.afterSalePolicy?.trim() || afterSalePolicyPresets[defaultAfterSalePresetKey].content) } : defaultForm()
