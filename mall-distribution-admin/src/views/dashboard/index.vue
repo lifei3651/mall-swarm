@@ -84,11 +84,23 @@
         <div class="panel-heading compact">
           <div>
             <div class="heading-title"><el-icon><Wallet /></el-icon><h2>财务构成</h2></div>
-            <p>累计经营资金流向</p>
+            <p>净收款、总拨出与经营结果完整核对</p>
           </div>
           <button v-if="store.hasPermission('finance:read')" type="button" class="text-link" @click="router.push('/audit/finance')">
             详情<el-icon><ArrowRight /></el-icon>
           </button>
+        </div>
+        <div class="finance-totals">
+          <div class="finance-total-card receipt">
+            <span>累计净收款</span>
+            <strong>¥{{ money(dashboard.totalReceiptAmount) }}</strong>
+            <small>实际支付金额扣除全部退款</small>
+          </div>
+          <div class="finance-total-card payout">
+            <span>累计总拨出</span>
+            <strong>¥{{ money(dashboard.totalPayoutAmount) }}</strong>
+            <small>产品成本＋奖金＋公司分账</small>
+          </div>
         </div>
         <div class="finance-body">
           <div v-if="hasFinanceComposition" ref="financeChart" class="finance-chart" aria-label="累计资金构成图"></div>
@@ -102,7 +114,8 @@
           </div>
         </div>
         <div class="finance-summary">
-          <span>净收款 <b>¥{{ money(dashboard.totalReceiptAmount) }}</b></span>
+          <span>利润 = 净收款 − 总拨出</span>
+          <span>累计利润 <b :class="{ negative: Number(dashboard.totalProfitAmount || 0) < 0 }">¥{{ money(dashboard.totalProfitAmount) }}</b></span>
           <span>利润率 <b :class="{ negative: Number(dashboard.profitRate || 0) < 0 }">{{ percent(dashboard.profitRate) }}</b></span>
         </div>
       </section>
@@ -552,6 +565,16 @@ onBeforeUnmount(() => {
 .insight-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-right: 300px; }
 .ranking-panel { grid-column: 1 / -1; }
 .text-link { gap: 4px; padding: 4px; color: #4f8cff; font-size: 11px; border: 0; background: transparent; cursor: pointer; }
+.finance-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 14px; }
+.finance-total-card { position: relative; min-width: 0; padding: 12px 13px; overflow: hidden; border: 1px solid rgba(76, 105, 148, .28); border-radius: 9px; background: rgba(10, 29, 60, .7); }
+.finance-total-card::before { position: absolute; top: 0; left: 0; width: 3px; height: 100%; content: ''; }
+.finance-total-card.receipt::before { background: #4f8cff; }
+.finance-total-card.payout::before { background: #8a63ff; }
+.finance-total-card span,
+.finance-total-card small { display: block; }
+.finance-total-card span { color: #8ea0ba; font-size: 11px; }
+.finance-total-card strong { display: block; margin-top: 6px; color: #f0f5fc; font-size: 21px; font-weight: 700; letter-spacing: -.4px; }
+.finance-total-card small { min-height: 28px; margin-top: 5px; color: #60738f; font-size: 10px; line-height: 1.4; }
 .finance-body { display: grid; grid-template-columns: 136px minmax(0, 1fr); align-items: center; gap: 12px; margin-top: 12px; }
 .finance-chart { height: 136px; }
 .empty-ring { width: 122px; height: 122px; display: grid; align-content: center; justify-items: center; margin: 7px; border: 10px solid rgba(73, 110, 166, .22); border-radius: 50%; }
@@ -561,7 +584,7 @@ onBeforeUnmount(() => {
 .finance-legend > div { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 8px; color: #899ab3; font-size: 11px; }
 .legend-dot { width: 7px; height: 7px; border-radius: 50%; }
 .finance-legend b { color: #c9d5e6; font-weight: 600; }
-.finance-summary { display: flex; justify-content: space-between; gap: 14px; margin-top: 10px; padding-top: 10px; color: #71829c; font-size: 11px; border-top: 1px solid rgba(63, 91, 132, .22); }
+.finance-summary { display: grid; grid-template-columns: minmax(0, 1.5fr) auto auto; align-items: center; gap: 14px; margin-top: 10px; padding-top: 10px; color: #71829c; font-size: 11px; border-top: 1px solid rgba(63, 91, 132, .22); }
 .finance-summary b { margin-left: 4px; color: #e8f0fb; }
 .finance-summary b.negative { color: #ff6b7d; }
 
@@ -607,6 +630,11 @@ onBeforeUnmount(() => {
   .insight-grid { margin-right: 0; }
 }
 
+@media (max-width: 900px) {
+  .insight-grid { grid-template-columns: 1fr; }
+  .ranking-panel { grid-column: auto; }
+}
+
 @media (max-width: 720px) {
   .command-header { align-items: flex-start; flex-direction: column; }
   .command-meta { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
@@ -617,6 +645,14 @@ onBeforeUnmount(() => {
   .core-metric + .core-metric { border-top: 1px solid var(--line); border-left: 0; }
   .ranking-panel { grid-column: auto; }
   .trend-chart { height: 290px; }
+  .finance-summary { grid-template-columns: 1fr; gap: 7px; }
+}
+
+@media (max-width: 520px) {
+  .finance-totals,
+  .finance-body { grid-template-columns: 1fr; }
+  .finance-chart,
+  .empty-ring { justify-self: center; width: 150px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
