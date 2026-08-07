@@ -276,9 +276,14 @@ const shipments = computed(() => {
 const afterSales = computed(() => detail.value.afterSales || [])
 const displayConfig = computed(() => detail.value.displayConfig || {})
 const showPv = computed(() => Number(displayConfig.value.showPv || 0) === 1)
+const afterSaleDeadline = computed(() => {
+  const created = Date.parse(String(order.value?.createTime || '').replace(' ', 'T'))
+  return Number.isFinite(created) ? created + 7 * 24 * 60 * 60 * 1000 : Number.POSITIVE_INFINITY
+})
 const canApplyAfterSale = computed(() => {
   if (!order.value) return false
   if ([0, 4].includes(order.value.status)) return false
+  if (Date.now() >= afterSaleDeadline.value) return false
   return !afterSales.value.some((item) => item.status === 0)
 })
 const afterSaleForm = ref({

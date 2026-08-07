@@ -121,12 +121,17 @@ const refreshOrders = async () => {
 
 const totalQuantity = (item) => (item.items || []).reduce((sum, line) => sum + Number(line.quantity || 0), 0)
 const afterSaleStatus = (status) => ({ 0: '待审核', 1: '已通过', 2: '已拒绝', 3: '已取消' }[status] || '处理中')
+const afterSaleDeadline = (order) => {
+  const created = Date.parse(String(order?.createTime || '').replace(' ', 'T'))
+  return Number.isFinite(created) ? created + 7 * 24 * 60 * 60 * 1000 : Number.POSITIVE_INFINITY
+}
 const orderDisplayStatus = (item) => {
   if (isAfterSale(item)) return `退款/售后 · ${afterSaleStatus(item.afterSales?.[0]?.status)}`
   if (Number(item.pendingReviewCount || 0) > 0) return '待评价'
   return statusName(item.order?.status)
 }
 const canApplyAfterSale = (item) => ![0, 4].includes(item.order?.status)
+  && Date.now() < afterSaleDeadline(item.order)
   && !(item.afterSales || []).some((sale) => sale.status === 0)
 
 const cancel = async (id) => {

@@ -253,7 +253,7 @@ const parseObject = (value) => {
 }
 
 const legacyGuarantees = {
-  '七天无理由': { icon: 'return', description: '符合平台规则且商品完好的，可在签收后7天内申请无理由退货。' },
+  '七天无理由': { icon: 'return', description: '符合平台规则且商品完好的，可在下单后7天内申请无理由退货。' },
   '正品保障': { icon: 'shield', description: '严控商品来源与质量，为消费者提供品质保障。' },
   '极速退款': { icon: 'refund', description: '售后审核通过后，平台将尽快完成退款处理。' },
   '破损包赔': { icon: 'package', description: '商品运输途中发生破损，可凭有效凭证申请售后处理。' },

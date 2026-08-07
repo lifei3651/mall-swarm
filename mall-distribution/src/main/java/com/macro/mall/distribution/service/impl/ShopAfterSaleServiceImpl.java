@@ -16,6 +16,7 @@ import com.macro.mall.distribution.dto.FinanceRefundDTO;
 import com.macro.mall.distribution.dto.AssetChangeDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleApplyDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleAuditDTO;
+import com.macro.mall.distribution.dto.ShopManualRefundDTO;
 import com.macro.mall.distribution.entity.DmsAgent;
 import com.macro.mall.distribution.entity.DmsShopAfterSale;
 import com.macro.mall.distribution.entity.DmsShopAfterSaleItem;
@@ -24,6 +25,7 @@ import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.entity.DmsShopOrderItem;
 import com.macro.mall.distribution.enums.AgentSourceTypeEnum;
 import com.macro.mall.distribution.service.AgentService;
+import com.macro.mall.distribution.service.AlipayService;
 import com.macro.mall.distribution.service.DistributionAuditService;
 import com.macro.mall.distribution.service.MemberAssetService;
 import com.macro.mall.distribution.service.ShopAfterSaleService;
@@ -33,6 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -60,6 +63,13 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     private final DistributionAuditService auditService;
     private final MemberAssetService memberAssetService;
     private final OrderBalanceAllocationService orderBalanceAllocationService;
+    private final AlipayService alipayService;
+
+    @Value("${shop.order.after-sale-window-days:7}")
+    private long afterSaleWindowDays;
+
+    @Value("${shop.payment.simulation-enabled:false}")
+    private boolean simulationPaymentEnabled;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -81,6 +91,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         if (Integer.valueOf(0).equals(order.getStatus()) || Integer.valueOf(4).equals(order.getStatus())) {
             Asserts.fail("当前订单状态不能申请售后");
         }
+        assertWithinAfterSaleWindow(order);
         if (afterSaleDao.selectOpenByOrderId(order.getId()) != null) {
             Asserts.fail("该订单已有处理中售后");
         }
@@ -168,6 +179,148 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public DmsShopAfterSale manualRefund(Long orderId, ShopManualRefundDTO dto) {
+        if (orderId == null) Asserts.fail("订单ID不能为空");
+        DmsShopOrder order = orderDao.selectById(orderId);
+        if (order == null) Asserts.fail("订单不存在");
+        assertTenantAccess(order.getTenantId());
+        if (Integer.valueOf(0).equals(order.getStatus()) || Integer.valueOf(4).equals(order.getStatus())) {
+            Asserts.fail("当前订单状态不能退款");
+        }
+        if (afterSaleDao.selectOpenByOrderId(orderId) != null) {
+            Asserts.fail("该订单已有处理中售后，请先处理后再后台退款");
+        }
+        if (dto == null || dto.getItems() == null || dto.getItems().isEmpty()) {
+            Asserts.fail("请选择本次退款涉及的商品和盒数");
+        }
+
+        List<DmsShopOrderItem> orderItems = orderItemDao.selectByOrderId(orderId);
+        Map<Long, DmsShopOrderItem> byId = new LinkedHashMap<>();
+        for (DmsShopOrderItem item : orderItems) byId.put(item.getId(), item);
+        Map<Long, Integer> selected = new LinkedHashMap<>();
+        dto.getItems().forEach(item -> {
+            if (item == null || item.getOrderItemId() == null || item.getQuantity() == null || item.getQuantity() <= 0) {
+                Asserts.fail("退款商品和盒数不正确");
+            }
+            selected.merge(item.getOrderItemId(), item.getQuantity(), Integer::sum);
+        });
+
+        BigDecimal grossOrderAmount = orderItems.stream().map(DmsShopOrderItem::getTotalAmount)
+                .filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal productBase = nullToZero(order.getTotalAmount()).subtract(nullToZero(order.getDiscountAmount())).max(BigDecimal.ZERO);
+        if (grossOrderAmount.compareTo(BigDecimal.ZERO) <= 0 || productBase.compareTo(BigDecimal.ZERO) <= 0) {
+            Asserts.fail("订单商品金额异常，不能退款");
+        }
+
+        int totalRemainingQuantity = 0;
+        for (DmsShopOrderItem item : orderItems) {
+            int reserved = afterSaleItemDao.sumReservedQuantityByOrderItemId(item.getId());
+            totalRemainingQuantity += Math.max(0, nullToZero(item.getQuantity()) - reserved);
+        }
+        List<DmsShopAfterSaleItem> refundItems = new ArrayList<>();
+        int refundQuantity = 0;
+        BigDecimal selectedGross = BigDecimal.ZERO;
+        for (Map.Entry<Long, Integer> entry : selected.entrySet()) {
+            DmsShopOrderItem source = byId.get(entry.getKey());
+            if (source == null) Asserts.fail("退款商品不属于当前订单");
+            int reserved = afterSaleItemDao.sumReservedQuantityByOrderItemId(source.getId());
+            int remaining = Math.max(0, nullToZero(source.getQuantity()) - reserved);
+            if (entry.getValue() > remaining) Asserts.fail(source.getProductName() + "最多可退" + remaining + "盒");
+            DmsShopAfterSaleItem item = new DmsShopAfterSaleItem();
+            item.setOrderId(orderId);
+            item.setOrderItemId(source.getId());
+            item.setProductId(source.getProductId());
+            item.setSkuId(source.getSkuId());
+            item.setProductName(source.getProductName());
+            item.setSkuName(source.getSkuName());
+            item.setRefundQuantity(entry.getValue());
+            BigDecimal grossRefund = nullToZero(source.getTotalAmount())
+                    .multiply(BigDecimal.valueOf(entry.getValue()))
+                    .divide(BigDecimal.valueOf(Math.max(1, nullToZero(source.getQuantity()))), 8, java.math.RoundingMode.HALF_UP);
+            item.setRefundAmount(grossRefund);
+            refundItems.add(item);
+            selectedGross = selectedGross.add(grossRefund);
+            refundQuantity += entry.getValue();
+        }
+        if (refundQuantity <= 0) Asserts.fail("请选择本次退款涉及的商品盒数");
+        if (selectedGross.compareTo(BigDecimal.ZERO) <= 0) Asserts.fail("所选商品金额异常，不能退款");
+
+        BigDecimal approvedProductRefund = nullToZero(afterSaleItemDao.sumApprovedProductRefundByOrderId(orderId));
+        BigDecimal remainingProductRefund = productBase.subtract(approvedProductRefund).max(BigDecimal.ZERO);
+        String mode = dto.getRefundMode() == null ? "QUANTITY" : dto.getRefundMode().trim().toUpperCase(java.util.Locale.ROOT);
+        BigDecimal productRefund;
+        if ("AMOUNT".equals(mode)) {
+            productRefund = nullToZero(dto.getProductRefundAmount()).setScale(2, java.math.RoundingMode.HALF_UP);
+            if (productRefund.compareTo(BigDecimal.ZERO) <= 0) Asserts.fail("请输入大于0的商品退款金额");
+            if (productRefund.compareTo(remainingProductRefund) > 0) {
+                Asserts.fail("商品退款超过订单剩余可退金额，可退金额：" + remainingProductRefund.setScale(2, java.math.RoundingMode.HALF_UP));
+            }
+        } else if ("QUANTITY".equals(mode)) {
+            productRefund = refundItems.stream()
+                    .map(item -> nullToZero(item.getRefundAmount()).multiply(productBase)
+                            .divide(grossOrderAmount, 2, java.math.RoundingMode.HALF_UP))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add).min(remainingProductRefund);
+            if (refundQuantity == totalRemainingQuantity) productRefund = remainingProductRefund;
+            productRefund = productRefund.setScale(2, java.math.RoundingMode.HALF_UP);
+        } else {
+            Asserts.fail("退款方式不正确");
+            return null;
+        }
+
+        BigDecimal allocated = BigDecimal.ZERO;
+        for (int i = 0; i < refundItems.size(); i++) {
+            DmsShopAfterSaleItem item = refundItems.get(i);
+            BigDecimal allocation;
+            if (i == refundItems.size() - 1) {
+                allocation = productRefund.subtract(allocated).setScale(2, java.math.RoundingMode.HALF_UP);
+            } else if ("AMOUNT".equals(mode)) {
+                allocation = productRefund.multiply(nullToZero(item.getRefundAmount()))
+                        .divide(selectedGross, 2, java.math.RoundingMode.HALF_UP);
+            } else {
+                allocation = nullToZero(item.getRefundAmount()).multiply(productBase)
+                        .divide(grossOrderAmount, 2, java.math.RoundingMode.HALF_UP);
+                allocation = allocation.min(productRefund.subtract(allocated).max(BigDecimal.ZERO));
+            }
+            item.setRefundAmount(allocation);
+            allocated = allocated.add(allocation);
+        }
+
+        DmsShopMember member = memberDao.selectByUserId(order.getUserId());
+        DmsShopAfterSale afterSale = new DmsShopAfterSale();
+        afterSale.setAfterSaleNo(generateAfterSaleNo());
+        afterSale.setOrderId(orderId);
+        afterSale.setOrderNo(order.getOrderNo());
+        afterSale.setMemberId(member == null ? null : member.getId());
+        afterSale.setUserId(order.getUserId());
+        afterSale.setApplyType(dto.getApplyType() == null ? 1 : dto.getApplyType());
+        afterSale.setProductRefundAmount(productRefund);
+        afterSale.setFreightRefundAmount(BigDecimal.ZERO);
+        afterSale.setRefundAmount(productRefund);
+        afterSale.setRefundQuantity(refundQuantity);
+        afterSale.setReason(dto.getReason() == null || dto.getReason().isBlank() ? "后台超期退款" : dto.getReason().trim());
+        afterSale.setStatus(0);
+        afterSaleDao.insert(afterSale);
+        for (DmsShopAfterSaleItem item : refundItems) item.setAfterSaleId(afterSale.getId());
+        afterSaleItemDao.insertBatch(refundItems);
+
+        ShopAfterSaleAuditDTO audit = new ShopAfterSaleAuditDTO();
+        audit.setStatus(1);
+        audit.setAuditRemark("后台超期退款：" + ("AMOUNT".equals(mode) ? "按金额" : "按盒数比例"));
+        audit.setAuditUserId(dto.getOperatorId());
+        audit.setAuditUserName(dto.getOperatorName());
+        return audit(afterSale.getId(), audit);
+    }
+
+    private void assertWithinAfterSaleWindow(DmsShopOrder order) {
+        if (order.getCreateTime() == null) return;
+        long days = Math.max(1, afterSaleWindowDays);
+        if (!LocalDateTime.now().isBefore(order.getCreateTime().plusDays(days))) {
+            Asserts.fail("订单已超过下单后" + days + "天售后期限，请联系商城客服由后台处理");
+        }
+    }
+
+    @Override
     public List<DmsShopAfterSale> listByMember(DmsShopMember member) {
         return afterSaleDao.selectByMemberId(member.getId()).stream()
                 .filter(this::canAccessAfterSale)
@@ -224,7 +377,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             auditService.saveRefund(refundDTO);
             // 奖金冲减和账务重算完成后，再按新的净商品款/净成本冲回公司资金归集。
             orderBalanceAllocationService.recalculateAfterRefund(afterSale.getOrderId(), afterSale.getId());
-            // 余额支付的退款原路退回商城余额；微信/支付宝退款由各自支付回调处理。
+            // 余额支付的退款原路退回商城余额；支付宝在本事务内完成原路退款，微信按接入配置处理。
             if ("BALANCE".equalsIgnoreCase(order.getPayType())
                     && afterSale.getRefundAmount() != null
                     && afterSale.getRefundAmount().compareTo(BigDecimal.ZERO) > 0) {
@@ -250,8 +403,27 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             }
             // 退款后退回非会员：名下已无有效支付订单时自动取消推广资格（含其下级团队自动移交）。
             autoDemoteMemberAfterFullRefund(order);
+            // 所有内部售后、财务、奖金和库存变更完成后再调用外部退款，外部失败时可整体回滚，避免先退款后落账。
+            refundExternalPayment(order, afterSale);
         }
         return hydrate(afterSaleDao.selectById(id));
+    }
+
+    private void refundExternalPayment(DmsShopOrder order, DmsShopAfterSale afterSale) {
+        if (simulationPaymentEnabled || order == null || afterSale == null
+                || afterSale.getRefundAmount() == null
+                || afterSale.getRefundAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+        if ("ALIPAY".equalsIgnoreCase(order.getPayType())) {
+            if (!alipayService.isConfigured()) {
+                Asserts.fail("支付宝退款未配置，请先完成支付宝密钥配置");
+            }
+            boolean success = alipayService.refund(order.getOrderNo(), afterSale.getAfterSaleNo(),
+                    afterSale.getRefundAmount().setScale(2, java.math.RoundingMode.HALF_UP).toPlainString(),
+                    "商城售后退款：" + (afterSale.getReason() == null ? "后台处理" : afterSale.getReason()));
+            if (!success) Asserts.fail("支付宝退款失败，请核对支付宝订单状态后重试");
+        }
     }
 
     /**
@@ -288,6 +460,10 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
 
     private BigDecimal nullToZero(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private int nullToZero(Integer value) {
+        return value == null ? 0 : value;
     }
 
     private boolean canAccessAfterSale(DmsShopAfterSale afterSale) {

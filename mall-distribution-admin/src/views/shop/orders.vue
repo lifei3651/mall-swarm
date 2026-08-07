@@ -141,6 +141,9 @@
               <el-button type="primary" link :disabled="!canShipOrder(row)" @click="openShip(row)">
                 {{ shipmentRows(row).length ? '继续发货' : '发货' }}
               </el-button>
+              <el-button v-if="canManualRefund(row)" type="warning" link @click="openManualRefund(row)">
+                后台退款
+              </el-button>
             </template>
           </el-table-column>
     </el-table>
@@ -233,6 +236,69 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="manualRefundDialogVisible" title="后台退款" width="720px" destroy-on-close>
+      <el-alert
+        title="前台售后期限已结束，后台退款会写入售后、财务和奖金冲销记录。"
+        type="warning"
+        :closable="false"
+        show-icon
+      />
+      <el-descriptions :column="2" border class="manual-refund-summary">
+        <el-descriptions-item label="订单号">{{ currentOrder?.order?.orderNo || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="下单时间">{{ formatDateTime(currentOrder?.order?.createTime) }}</el-descriptions-item>
+      </el-descriptions>
+      <el-form :model="manualRefundForm" label-width="110px" class="manual-refund-form">
+        <el-form-item label="退款方式">
+          <el-radio-group v-model="manualRefundForm.refundMode">
+            <el-radio value="QUANTITY">按盒数比例退款</el-radio>
+            <el-radio value="AMOUNT">按后台填写金额退款</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="退款商品">
+          <el-table :data="currentOrder?.items || []" border size="small" class="manual-refund-items">
+            <el-table-column label="商品 / 规格" min-width="230">
+              <template #default="{ row }">
+                <div>{{ row.productName || '商品' }}</div>
+                <div class="sub">{{ formatProductSpec(row) }}</div>
+              </template>
+            </el-table-column>
+            <el-table-column label="已购盒数" width="90" align="center">
+              <template #default="{ row }">{{ Number(row.quantity || 0) }}</template>
+            </el-table-column>
+            <el-table-column label="本次退款盒数" width="150" align="center">
+              <template #default="{ row }">
+                <el-input-number
+                  v-model="manualRefundForm.items[row.id]"
+                  :min="0"
+                  :max="remainingRefundQuantity(currentOrder, row)"
+                  :step="1"
+                  step-strictly
+                  controls-position="right"
+                  size="small"
+                />
+                <div class="remaining-tip">可退 {{ remainingRefundQuantity(currentOrder, row) }} 盒</div>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-form-item>
+        <el-form-item v-if="manualRefundForm.refundMode === 'QUANTITY'" label="按盒数预计退款">
+          <span class="manual-refund-amount">¥{{ money(manualRefundEstimate) }}</span>
+          <div class="field-help">按本次选择的盒数占商品实付金额的比例计算，整单退完时补齐尾差。</div>
+        </el-form-item>
+        <el-form-item v-else label="商品退款金额" required>
+          <el-input-number v-model="manualRefundForm.productRefundAmount" :min="0.01" :precision="2" :step="0.01" controls-position="right" />
+          <div class="field-help">金额仅限商品款，不能超过订单剩余可退商品金额；仍需选择本次涉及的盒数。</div>
+        </el-form-item>
+        <el-form-item label="退款原因">
+          <el-input v-model="manualRefundForm.reason" type="textarea" :rows="3" maxlength="200" show-word-limit placeholder="请填写后台退款原因" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="manualRefundDialogVisible = false">取消</el-button>
+        <el-button type="warning" :loading="manualRefundLoading" @click="submitManualRefund">确认退款</el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="bonusDialogVisible" title="订单奖金去向" width="960px" destroy-on-close>
       <div v-loading="bonusLoading">
         <el-descriptions :column="4" border class="bonus-summary">
@@ -291,6 +357,7 @@ import {
   exportShopOrders,
   importOrderShipments,
   listShopOrders,
+  manualRefundShopOrder,
   shipShopOrder,
 } from '@/api/shop'
 import { getOrderFinance } from '@/api/audit'
@@ -317,6 +384,8 @@ const shipDialogVisible = ref(false)
 const shipmentResultVisible = ref(false)
 const shipmentResult = ref({ success: false, totalRows: 0, shippedCount: 0, skippedCount: 0, failedCount: 0, errors: [] })
 const auditDialogVisible = ref(false)
+const manualRefundDialogVisible = ref(false)
+const manualRefundLoading = ref(false)
 const bonusDialogVisible = ref(false)
 const bonusLoading = ref(false)
 const bonusFinance = ref({})
@@ -325,6 +394,7 @@ const currentOrder = ref(null)
 const currentAfterSale = ref(null)
 const shipForm = ref({ deliveryCompany: '', deliveryNo: '', shipmentQuantity: 1 })
 const auditForm = ref({ status: 1, auditRemark: '', auditUserId: 1, auditUserName: 'admin' })
+const manualRefundForm = ref({ refundMode: 'QUANTITY', productRefundAmount: 0, items: {}, reason: '' })
 const orderSearchFeedback = ref('')
 const orderEmptyText = ref('暂无订单记录')
 const { markSearchApplied: markOrderSearchApplied } = useSearchAutoRestore(
@@ -373,6 +443,39 @@ const remainingShipmentQuantity = (row) => Math.max(0, orderedQuantity(row) - sh
 const canShipOrder = (row) => !hasPendingAfterSale(row)
   && [1, 2].includes(row?.order?.status)
   && remainingShipmentQuantity(row) > 0
+const afterSaleDeadline = (row) => {
+  const created = Date.parse(String(row?.order?.createTime || '').replace(' ', 'T'))
+  return Number.isFinite(created) ? created + 7 * 24 * 60 * 60 * 1000 : Number.POSITIVE_INFINITY
+}
+const canManualRefund = (row) => !hasPendingAfterSale(row)
+  && [1, 2, 3].includes(row?.order?.status)
+  && Date.now() >= afterSaleDeadline(row)
+const refundedQuantity = (row, itemId) => (row?.afterSales || [])
+  .filter((sale) => [0, 1].includes(sale.status))
+  .flatMap((sale) => sale.items || [])
+  .filter((item) => item.orderItemId === itemId)
+  .reduce((sum, item) => sum + Number(item.refundQuantity || 0), 0)
+const remainingRefundQuantity = (row, item) => Math.max(0, Number(item?.quantity || 0) - refundedQuantity(row, item?.id))
+const selectedRefundQuantity = computed(() => Object.values(manualRefundForm.value.items || {})
+  .reduce((sum, quantity) => sum + Math.max(0, Number(quantity || 0)), 0))
+const manualRefundEstimate = computed(() => {
+  if (!currentOrder.value || manualRefundForm.value.refundMode !== 'QUANTITY') return 0
+  const productBase = Math.max(0, Number(currentOrder.value.order?.totalAmount || 0) - Number(currentOrder.value.order?.discountAmount || 0))
+  const grossTotal = (currentOrder.value.items || []).reduce((sum, item) => sum + Number(item.totalAmount || 0), 0)
+  if (!productBase || !grossTotal || !selectedRefundQuantity.value) return 0
+  const selectedGross = (currentOrder.value.items || []).reduce((sum, item) => {
+    const quantity = Math.min(remainingRefundQuantity(currentOrder.value, item), Number(manualRefundForm.value.items?.[item.id] || 0))
+    return sum + Number(item.totalAmount || 0) * quantity / Math.max(1, Number(item.quantity || 0))
+  }, 0)
+  const totalRemaining = (currentOrder.value.items || []).reduce((sum, item) => sum + remainingRefundQuantity(currentOrder.value, item), 0)
+  const approved = (currentOrder.value.afterSales || [])
+    .filter((sale) => sale.status === 1)
+    .reduce((sum, sale) => sum + Number(sale.productRefundAmount || 0), 0)
+  const remainingAmount = Math.max(0, productBase - approved)
+  return selectedRefundQuantity.value === totalRemaining
+    ? remainingAmount
+    : Math.min(remainingAmount, selectedGross * productBase / grossTotal)
+})
 
 const fetchOrders = async () => {
   const validation = validateSearchKeyword(query.value.keyword, { label: '订单关键词' })
@@ -515,6 +618,51 @@ const submitShip = async () => {
   ElMessage.success(currentOrder.value.order.status === 2 ? '物流包裹已添加' : '发货成功')
   shipDialogVisible.value = false
   await fetchOrders()
+}
+
+const openManualRefund = (row) => {
+  currentOrder.value = row
+  manualRefundForm.value = {
+    refundMode: 'QUANTITY',
+    productRefundAmount: 0,
+    items: Object.fromEntries((row.items || []).map((item) => [item.id, 0])),
+    reason: '订单超过前台7天售后期限，后台按客户协商处理',
+  }
+  manualRefundDialogVisible.value = true
+}
+
+const submitManualRefund = async () => {
+  if (!currentOrder.value?.order?.id) return
+  const items = Object.entries(manualRefundForm.value.items || {})
+    .map(([orderItemId, quantity]) => ({ orderItemId: Number(orderItemId), quantity: Math.trunc(Number(quantity || 0)) }))
+    .filter((item) => item.quantity > 0)
+  if (!items.length) {
+    ElMessage.warning('请选择本次退款涉及的商品盒数')
+    return
+  }
+  if (manualRefundForm.value.refundMode === 'AMOUNT' && Number(manualRefundForm.value.productRefundAmount || 0) <= 0) {
+    ElMessage.warning('请输入大于0的商品退款金额')
+    return
+  }
+  manualRefundLoading.value = true
+  try {
+    await manualRefundShopOrder(currentOrder.value.order.id, {
+      refundMode: manualRefundForm.value.refundMode,
+      productRefundAmount: manualRefundForm.value.refundMode === 'AMOUNT'
+        ? Number(manualRefundForm.value.productRefundAmount)
+        : null,
+      items,
+      reason: manualRefundForm.value.reason?.trim() || '后台超期退款',
+      applyType: 1,
+      operatorId: 1,
+      operatorName: 'admin',
+    })
+    ElMessage.success('后台退款已登记并完成账务冲销')
+    manualRefundDialogVisible.value = false
+    await fetchOrders()
+  } finally {
+    manualRefundLoading.value = false
+  }
 }
 
 const openAudit = (row, status) => {
@@ -736,5 +884,25 @@ onMounted(fetchOrders)
   margin-left: 10px;
   color: #909399;
   font-size: 13px;
+}
+
+.manual-refund-summary {
+  margin: 16px 0;
+}
+
+.manual-refund-form {
+  margin-top: 8px;
+}
+
+.manual-refund-items .remaining-tip {
+  margin: 3px 0 0;
+  color: #909399;
+  font-size: 12px;
+}
+
+.manual-refund-amount {
+  color: #e6a23c;
+  font-size: 20px;
+  font-weight: 700;
 }
 </style>

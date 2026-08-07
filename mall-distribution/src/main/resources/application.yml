@@ -72,6 +72,7 @@ shop:
   order:
     pending-timeout-minutes: 30
     pending-scan-interval-ms: 60000
+    after-sale-window-days: 7
 payment:
   verification:
     enabled: false

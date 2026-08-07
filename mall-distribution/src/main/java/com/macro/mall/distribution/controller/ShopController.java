@@ -560,6 +560,13 @@ public class ShopController {
         return CommonResult.success(shopService.shipOrder(orderId, dto));
     }
 
+    @Operation(summary = "后台处理超期退款")
+    @PostMapping("/admin/orders/{orderId}/refund")
+    public CommonResult<DmsShopAfterSale> manualRefund(@PathVariable Long orderId,
+                                                       @RequestBody ShopManualRefundDTO dto) {
+        return CommonResult.success(afterSaleService.manualRefund(orderId, dto));
+    }
+
     private void prepareExcelDownload(HttpServletResponse response, String filename) {
         String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");

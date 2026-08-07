@@ -251,6 +251,14 @@ export function shipShopOrder(id, data) {
   })
 }
 
+export function manualRefundShopOrder(id, data) {
+  return request({
+    url: `/shop/admin/orders/${id}/refund`,
+    method: 'post',
+    data,
+  })
+}
+
 export function listShopAfterSales(params) {
   return request({
     url: '/shop/admin/after-sales',

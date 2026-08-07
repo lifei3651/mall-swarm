@@ -9,6 +9,7 @@ import com.macro.mall.distribution.dto.AdminMemberCreateDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleApplyDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleAuditDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleItemDTO;
+import com.macro.mall.distribution.dto.ShopManualRefundDTO;
 import com.macro.mall.distribution.dto.ShopOrderItemDTO;
 import com.macro.mall.distribution.dto.ShopOrderSubmitDTO;
 import com.macro.mall.distribution.entity.*;
@@ -391,6 +392,35 @@ public class PerformanceServiceTest {
         assertEquals(3, cancelled.getStatus());
         assertTrue(auditService.getRefundsByOrderId(paid.getOrder().getId()).isEmpty(),
                 "取消退款申请不能生成退款冲账记录");
+    }
+
+    @Test
+    void frontAfterSaleClosesSevenDaysAfterOrderCreationButAdminCanRefundByQuantity() {
+        DmsShopMember buyer = createShopMember("13999000035", "超期售后测试", null);
+        ShopOrderVO paid = submitAndPay(buyer, 2);
+        // 同一事务内 MyBatis 可能复用一级缓存；同步更新已加载对象，模拟已过期订单。
+        paid.getOrder().setCreateTime(LocalDateTime.now().minusDays(8));
+        jdbcTemplate.update("UPDATE dms_shop_order SET create_time=DATEADD('DAY', -8, CURRENT_TIMESTAMP) WHERE id=?",
+                paid.getOrder().getId());
+
+        ShopAfterSaleItemDTO frontItem = new ShopAfterSaleItemDTO();
+        frontItem.setOrderItemId(paid.getItems().get(0).getId());
+        frontItem.setQuantity(1);
+        ShopAfterSaleApplyDTO frontApply = new ShopAfterSaleApplyDTO();
+        frontApply.setOrderId(paid.getOrder().getId());
+        frontApply.setItems(List.of(frontItem));
+        assertThrows(RuntimeException.class, () -> shopAfterSaleService.apply(buyer, frontApply));
+
+        ShopManualRefundDTO manual = new ShopManualRefundDTO();
+        manual.setRefundMode("QUANTITY");
+        manual.setItems(List.of(frontItem));
+        manual.setReason("超期后台按盒数退款");
+        manual.setOperatorId(1L);
+        manual.setOperatorName("test-admin");
+        DmsShopAfterSale refunded = shopAfterSaleService.manualRefund(paid.getOrder().getId(), manual);
+        assertEquals(1, refunded.getStatus());
+        assertEquals(1, refunded.getRefundQuantity());
+        assertEquals(1, auditService.getRefundsByOrderId(paid.getOrder().getId()).size());
     }
 
     @Test
