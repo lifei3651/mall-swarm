@@ -159,7 +159,10 @@
           </section>
 
           <section class="control-section">
-            <div class="control-section-heading"><div><strong>颜色微调</strong><small>不改变模块结构，只影响当前草稿预览</small></div></div>
+            <div class="control-section-heading">
+              <div><strong>颜色微调</strong><small>不改变模块结构；保存发布后客户前台生效，未保存仅影响右侧预览</small></div>
+              <el-button type="primary" link @click="resetColors">恢复默认</el-button>
+            </div>
             <div class="color-grid">
               <label v-for="color in colorFields" :key="color.key"><span>{{ color.label }}</span><el-color-picker v-model="displayForm.colors[color.key]" show-alpha /></label>
             </div>
@@ -248,6 +251,17 @@ const defaultBottomNav = () => [
   { type: 'orders', label: '订单', enabled: false },
   { type: 'profile', label: '我的', enabled: true },
 ]
+const defaultColors = () => ({
+  priceColor: '',
+  pageBg: '',
+  headerBg: '',
+  cardBg: '',
+  textColor: '',
+  mutedColor: '',
+  accentColor: '',
+  lineColor: '',
+  buttonBg: '',
+})
 const colorFields = [
   { key: 'priceColor', label: '价格色' },
   { key: 'pageBg', label: '页面背景' },
@@ -368,11 +382,16 @@ const openDisplayDialog = async (row) => {
     showBottomCategoryNav: 1,
     ...(res.data || {}),
     homeModules: Array.isArray(extra.homeModules) && extra.homeModules.length ? extra.homeModules : defaultModules(),
-    colors: { priceColor: '', pageBg: '', headerBg: '', cardBg: '', textColor: '', mutedColor: '', accentColor: '', lineColor: '', buttonBg: '', ...(extra.colors || {}) },
+    colors: { ...defaultColors(), ...(extra.colors || {}) },
     bottomNav: Array.isArray(extra.bottomNav) && extra.bottomNav.length ? extra.bottomNav : defaultBottomNav(),
     showTrustStrip: Number(extra.showTrustStrip ?? 0) === 1 ? 1 : 0,
   }
   displayDialogVisible.value = true
+}
+
+const resetColors = () => {
+  displayForm.value.colors = defaultColors()
+  ElMessage.success('颜色已恢复默认，点击“保存发布”后客户前台生效')
 }
 
 const orderedPreviewModules = computed(() => [...(displayForm.value.homeModules || [])].sort((a, b) => (a.sort || 99) - (b.sort || 99)))
