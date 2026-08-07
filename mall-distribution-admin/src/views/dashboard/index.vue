@@ -133,7 +133,7 @@
         <div class="member-kpis">
           <div><span>注册会员</span><b>{{ count(dashboard.registeredMemberCount) }}</b><small>人</small></div>
           <div><span>有效会员</span><b>{{ count(dashboard.validMemberCount) }}</b><small>人</small></div>
-          <div><span>本月新增</span><b>{{ count(dashboard.monthNewMemberCount) }}</b><small>人</small></div>
+          <div><span>本月新增会员</span><b>{{ count(dashboard.monthNewMemberCount) }}</b><small>人</small></div>
         </div>
         <div class="region-list">
           <div v-for="item in topRegions" :key="item.regionName" class="region-row">
@@ -142,6 +142,10 @@
             <b>{{ count(item.memberCount) }} 人</b>
           </div>
           <div v-if="!topRegions.length" class="region-empty"><el-icon><MapLocation /></el-icon><span>暂无订单收货区域数据</span></div>
+        </div>
+        <div class="region-summary">
+          <div><span>已识别订单地址</span><b>{{ count(dashboard.addressedMemberCount) }}</b><small>人</small></div>
+          <div><span>尚无订单地址</span><b>{{ count(dashboard.unaddressedMemberCount) }}</b><small>人</small></div>
         </div>
       </section>
 
@@ -156,10 +160,14 @@
           </button>
         </div>
         <div v-if="topProducts.length" class="product-ranking">
+          <div class="product-header-row" aria-hidden="true">
+            <span></span><span>商品</span><span>成交订单</span><span>销售数量</span><span>销售额</span>
+          </div>
           <div v-for="item in topProducts" :key="item.productId || item.ranking" class="product-row">
             <span class="rank-index" :class="`rank-${item.ranking}`">{{ item.ranking }}</span>
             <span class="product-name">{{ item.productName || '未命名商品' }}</span>
             <span class="product-orders">{{ count(item.orderCount) }} 单</span>
+            <span class="product-quantity">{{ count(item.salesQuantity) }} 件</span>
             <b>¥{{ money(item.salesAmount) }}</b>
           </div>
         </div>
@@ -603,16 +611,26 @@ onBeforeUnmount(() => {
 .ranking-empty { min-height: 128px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: #60738f; font-size: 11px; }
 .region-empty .el-icon,
 .ranking-empty .el-icon { font-size: 24px; }
+.region-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; padding-top: 11px; border-top: 1px solid rgba(63, 91, 132, .22); }
+.region-summary > div { min-width: 0; padding: 9px 10px; border: 1px solid rgba(76, 105, 148, .2); border-radius: 8px; background: rgba(10, 29, 60, .5); }
+.region-summary span { display: block; color: #71829c; font-size: 10px; }
+.region-summary b { display: inline-block; margin-top: 5px; color: #eaf1fc; font-size: 18px; }
+.region-summary small { margin-left: 3px; color: #71829c; font-size: 9px; }
 
 .product-ranking { display: grid; margin-top: 12px; }
-.product-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) 50px 72px; align-items: center; gap: 8px; min-height: 32px; color: #7f90aa; font-size: 10px; }
+.product-header-row,
+.product-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) 58px 58px 78px; align-items: center; gap: 8px; }
+.product-header-row { color: #60738f; font-size: 9px; }
+.product-header-row > span:nth-child(n+3) { text-align: right; }
+.product-row { min-height: 32px; color: #7f90aa; font-size: 10px; }
 .product-row + .product-row { border-top: 1px solid rgba(63, 91, 132, .16); }
 .rank-index { width: 20px; height: 20px; display: grid; place-items: center; color: #8da0bc; border-radius: 6px; background: rgba(73, 98, 135, .25); }
 .rank-index.rank-1 { color: #ffc65b; background: rgba(245, 158, 11, .16); }
 .rank-index.rank-2 { color: #b7c8e2; background: rgba(124, 149, 185, .17); }
 .rank-index.rank-3 { color: #e59b77; background: rgba(206, 112, 72, .15); }
 .product-name { overflow: hidden; color: #bdc9dc; text-overflow: ellipsis; white-space: nowrap; }
-.product-orders { text-align: right; }
+.product-orders,
+.product-quantity { text-align: right; }
 .product-row > b { color: #e4ecf8; font-weight: 600; text-align: right; }
 
 .dashboard-container :deep(.el-loading-mask) { background: rgba(3, 12, 27, .76); }

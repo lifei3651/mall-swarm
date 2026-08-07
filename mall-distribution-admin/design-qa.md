@@ -12,6 +12,7 @@
 - Restored finance panel screenshot: `/Users/minmatemp/Documents/mall-swarm/.codex/product-design-audit/dashboard-finance-restored-v1-lower.jpg`
 - Restored finance responsive evidence: `/Users/minmatemp/Documents/mall-swarm/.codex/product-design-audit/dashboard-finance-restored-1024-final.jpg` and `/Users/minmatemp/Documents/mall-swarm/.codex/product-design-audit/dashboard-finance-restored-768-final.jpg`
 - Updated source/implementation comparison: `/Users/minmatemp/Documents/mall-swarm/.codex/product-design-audit/dashboard-finance-restored-comparison.jpg`
+- Member/product evidence: `/Users/minmatemp/Documents/mall-swarm/.codex/product-design-audit/dashboard-members-products-restored-1440.jpg`, `/Users/minmatemp/Documents/mall-swarm/.codex/product-design-audit/dashboard-members-products-restored-comparison.jpg`, `/Users/minmatemp/Documents/mall-swarm/.codex/product-design-audit/dashboard-members-products-restored-768-final.jpg`, and `/Users/minmatemp/Documents/mall-swarm/.codex/product-design-audit/dashboard-products-restored-768-focus.jpg`
 - Browser viewport / CSS size: 1440 × 1024, device scale factor 1.
 - Captured pixels: 1412 × 1024 JPEG from the in-app browser; normalized to 1440 × 1024 only for the comparison board.
 - Responsive evidence: `/Users/minmatemp/Documents/mall-swarm/.codex/product-design-audit/dashboard-responsive-1024.png`
@@ -24,6 +25,7 @@
 
 - No actionable P0, P1, or P2 visual differences remain.
 - The restored finance panel now directly exposes cumulative net receipts and cumulative total payouts, while retaining the product-cost, bonus-payout, company-share, cumulative-profit, and profit-rate details. The values remain bound to the existing dashboard response fields and calculation semantics.
+- The member insight now explicitly labels monthly new members, adds addressed/unaddressed member totals below the regional bars, and the product ranking now labels and renders order count, sales quantity, and sales amount from the existing ranking response.
 - The implementation preserves the selected target's major composition: dark left navigation, compact command header, four primary metrics with sparklines, one dominant 30-day trend, a narrow action/risk rail, and two supporting insight panels aligned beneath the chart.
 - The implementation intentionally shows three actionable tasks rather than the target's four because the existing dashboard API exposes withdrawal, commission, and member-conversion counts but not a reliable after-sales or shipment count. This avoids presenting invented operational data.
 - The member-region panel uses a real empty state when there are no addressed members. This differs from the target's decorative placeholder chart but preserves the product's existing real-data rule.
@@ -60,6 +62,10 @@
    - Cumulative net receipts, cumulative total payouts, all four composition details, cumulative profit, and profit rate are readable with no horizontal page overflow at 1440px, 1024px, or 768px.
    - The temporary authenticated design-preview fixture was removed before the final production test and build.
 
+6. Member and product data pass (`dashboard-members-products-restored-1440.jpg` and `dashboard-products-restored-768-focus.jpg`)
+   - The monthly-new-member KPI, regional address summary, and product order/quantity/amount columns are visible at desktop and narrow desktop widths.
+   - Fix: added the existing address totals beneath the region list, clarified the monthly KPI label, and added a compact product table header plus `salesQuantity` rendering.
+
 ## Follow-up Polish
 
 - [P3] The source mock uses a prior-period comparison series while the implementation uses a derived 7-day moving average, because the current endpoint does not provide a comparable prior-period dataset.
@@ -73,5 +79,6 @@
 - [x] Fresh browser console has no warnings or errors.
 - [x] Production build succeeds.
 - [x] Restored finance values and component breakdown remain readable at 1440px, 1024px, and 768px.
+- [x] Monthly member growth, regional address totals, and product order/quantity/amount data remain readable at 1440px, 1024px, and 768px.
 
 final result: passed
