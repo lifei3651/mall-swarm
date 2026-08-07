@@ -2,19 +2,27 @@
   <div class="page sub-page address-page">
     <header class="sub-page-head">
       <button type="button" aria-label="返回" @click="router.back()"><ArrowLeft :size="22" /></button>
-      <h2>收货地址</h2>
+      <h2>{{ selecting ? '选择收货地址' : '收货地址' }}</h2>
       <button type="button" aria-label="新增地址" @click="startCreate"><Plus :size="22" /></button>
     </header>
+
+    <div v-if="selecting" class="address-mode-actions">
+      <button type="button" class="address-mode-primary" @click="startCreate"><Plus :size="16" />新增地址</button>
+      <button type="button" @click="enterManage">管理地址</button>
+    </div>
 
     <section v-if="addresses.length" class="address-list">
       <article v-for="address in addresses" :key="address.id" class="address-card">
         <div class="address-person"><strong>{{ address.receiverName }}</strong><span>{{ address.receiverPhone }}</span><em v-if="Number(address.isDefault) === 1">默认</em></div>
         <p>{{ joinAddress(address) }}</p>
         <div class="address-actions">
-          <button v-if="Number(address.isDefault) !== 1" type="button" @click="makeDefault(address)">设为默认</button>
-          <span v-else>结算时优先使用</span>
-          <button type="button" @click="startEdit(address)">编辑</button>
-          <button type="button" class="delete" @click="removeAddress(address)">删除</button>
+          <button v-if="selecting" type="button" class="use-address" @click="useAddress(address)">使用此地址</button>
+          <template v-if="!selecting || managing">
+            <button v-if="Number(address.isDefault) !== 1" type="button" @click="makeDefault(address)">设为默认</button>
+            <span v-else>结算时优先使用</span>
+            <button type="button" @click="startEdit(address)">编辑</button>
+            <button type="button" class="delete" @click="removeAddress(address)">删除</button>
+          </template>
         </div>
       </article>
     </section>
@@ -39,8 +47,8 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Check, ClipboardPaste, MapPin, Plus, X } from 'lucide-vue-next'
 import { deleteAddress, listAddresses, saveAddress } from '@/api/shop'
 import { joinAddress } from '@/utils/format'
@@ -49,6 +57,9 @@ import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
 import ChinaRegionSelect from '@/components/ChinaRegionSelect.vue'
 
 const router = useRouter()
+const route = useRoute()
+const selecting = computed(() => route.query.select === '1')
+const managing = ref(false)
 const loading = ref(true)
 const saving = ref(false)
 const addresses = ref([])
@@ -79,6 +90,11 @@ const startCreate = () => {
   showPaste.value = false
   editorVisible.value = true
 }
+const useAddress = (address) => {
+  if (!selecting.value) return
+  router.replace({ path: '/checkout', query: { addressId: address.id } })
+}
+const enterManage = () => { managing.value = true }
 const startEdit = (address) => {
   form.value = { ...emptyForm(), ...address, isDefault: Number(address.isDefault || 0) }
   region.value = [address.province, address.city, address.district].filter(Boolean)
@@ -138,11 +154,14 @@ onMounted(fetchAddresses)
 .sub-page-head h2 { margin:0; text-align:center; font-size:19px; }
 .sub-page-head button { width:40px; height:40px; display:grid; place-items:center; padding:0; background:#fff; border:0; border-radius:50%; }
 .address-list { display:grid; gap:10px; }
+.address-mode-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.address-mode-actions button { min-height:40px; display:inline-flex; align-items:center; justify-content:center; gap:6px; color:#475467; background:#fff; border:1px solid #e4e7ec; border-radius:10px; font-size:13px; font-weight:700; }
+.address-mode-actions .address-mode-primary { color:var(--brand-primary); background:var(--brand-primary-soft); border-color:var(--brand-primary); }
 .address-card { padding:16px; background:#fff; border-radius:15px; box-shadow:0 4px 15px rgba(31,41,55,.05); }
 .address-person { display:flex; align-items:center; gap:10px; }.address-person strong{font-size:16px}.address-person span{color:var(--muted);font-size:13px}.address-person em{padding:2px 6px;color:var(--brand-primary);background:var(--brand-primary-soft);border-radius:4px;font-size:10px;font-style:normal;font-weight:700}
 .address-card p { margin:11px 0 13px; color:#4b5563; font-size:13px; line-height:1.65; }
 .address-actions { display:flex; align-items:center; gap:14px; padding-top:11px; border-top:1px solid #f0f1f2; }
-.address-actions span { margin-right:auto; color:#9a6b19; font-size:11px; }.address-actions button{padding:0;color:#5e6671;background:none;border:0;font-size:12px}.address-actions button:first-child{margin-right:auto;color:var(--brand-primary)}.address-actions button.delete{color:#b42318;margin-right:0}
+.address-actions span { margin-right:auto; color:#9a6b19; font-size:11px; }.address-actions button{padding:0;color:#5e6671;background:none;border:0;font-size:12px}.address-actions button:first-child{margin-right:auto;color:var(--brand-primary)}.address-actions button.delete{color:#b42318;margin-right:0}.address-actions button.use-address{margin-left:auto;color:var(--brand-primary);font-weight:700}
 .address-empty { min-height:230px; border:0; border-radius:15px; }.address-empty p{margin:8px 0}
 .address-editor { margin-top:13px; border:0; border-radius:16px; }
 .editor-head { display:flex; align-items:center; justify-content:space-between; }.editor-head h3{margin:0}.editor-head button{display:grid;place-items:center;padding:5px;background:none;border:0;color:#8a9099}

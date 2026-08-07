@@ -40,11 +40,17 @@ test('profile hides unused labels and uses a reliable invite navigation', async 
   assert.match(source, /window\.location\.assign\('\/invite'\)/)
 })
 
-test('checkout switches addresses inline so the remark field stays mounted', async () => {
+test('checkout keeps the address block compact and preserves the remark while switching', async () => {
   const source = await readView('CheckoutView.vue')
-  assert.doesNotMatch(source, /router\.push\('\/profile\/addresses'\)/)
-  assert.match(source, /showAllAddresses = !showAllAddresses/)
+  const address = await readView('AddressView.vue')
+  assert.match(source, /更换地址/)
+  assert.match(source, /address-picker-overlay/)
+  assert.match(source, /openAddressPage\('create'\)/)
+  assert.match(source, /openAddressPage\('manage'\)/)
+  assert.match(source, /checkout_draft/)
   assert.match(source, /v-model="form\.remark"/)
+  assert.match(address, /选择收货地址/)
+  assert.match(address, /使用此地址/)
 })
 
 test('checkout only exposes configured payment channels', async () => {

@@ -47,37 +47,36 @@
           </div>
         </div>
 
-        <div v-if="addresses.length" class="saved-addresses">
-          <div v-if="defaultAddress" class="default-address-card" :class="{ selected: form.addressId === defaultAddress.id }" @click="selectAddress(defaultAddress)">
-            <div class="addr-line1"><strong>{{ defaultAddress.receiverName }}</strong><span>{{ defaultAddress.receiverPhone }}</span><button v-if="addresses.length > 1" type="button" class="address-switch" @click.stop="showAllAddresses = !showAllAddresses">{{ showAllAddresses ? '收起' : '切换' }}</button></div>
-            <div class="addr-line2">{{ joinAddress(defaultAddress) }}</div>
+        <div v-if="addresses.length && defaultAddress" class="checkout-address-summary">
+          <div class="checkout-address-copy">
+            <div class="addr-line1"><strong>{{ selectedAddress?.receiverName || defaultAddress.receiverName }}</strong><span>{{ selectedAddress?.receiverPhone || defaultAddress.receiverPhone }}</span></div>
+            <div class="addr-line2">{{ selectedAddress ? joinAddress(selectedAddress) : joinAddress(defaultAddress) }}</div>
           </div>
-          <div v-if="addresses.length > 1 && !showAllAddresses" class="other-addresses-hint" @click="showAllAddresses = true">还有 {{ addresses.length - 1 }} 个其他地址，点击切换</div>
-          <div v-if="showAllAddresses" class="other-addresses-list">
-            <button v-for="address in addresses.filter(a => a.id !== defaultAddress?.id)" :key="address.id" class="chip" :class="{ active: form.addressId === address.id }" @click="selectAddress(address)">
-              {{ address.receiverName }} {{ address.receiverPhone }}
-            </button>
-          </div>
+          <button type="button" class="address-switch" @click="addressPickerVisible = true">更换地址</button>
+        </div>
+        <div v-else class="checkout-address-empty">
+          <div><strong>请选择收货地址</strong><span>下单前请先添加收货信息</span></div>
+          <button type="button" class="address-switch" @click="addressPickerVisible = true">新增地址</button>
         </div>
         <div class="form-grid checkout-form-grid">
-          <div class="form-item half-item">
+          <div v-if="!addresses.length" class="form-item half-item">
             <label>收货人</label>
             <input v-model="form.receiverName" class="field" placeholder="姓名" @input="form.addressId = null" />
           </div>
-          <div class="form-item half-item">
+          <div v-if="!addresses.length" class="form-item half-item">
             <label>手机号</label>
             <input v-model="form.receiverPhone" class="field" inputmode="tel" maxlength="11" placeholder="11位手机号" @input="handleReceiverPhoneInput" />
           </div>
-          <div class="form-item full">
+          <div v-if="!addresses.length" class="form-item full">
             <label>所在地区</label>
             <ChinaRegionSelect v-model="receiverRegion" @change="syncReceiverRegion" />
           </div>
-          <div class="form-item full">
+          <div v-if="!addresses.length" class="form-item full">
             <label>详细地址</label>
             <textarea v-model="form.receiverDetailAddress" class="textarea" placeholder="街道、小区、楼栋、门牌号" @input="form.addressId = null" style="min-height:58px"></textarea>
           </div>
-          <div class="form-item optional-item">
-            <label>备注</label>
+          <div class="form-item full checkout-remark-item">
+            <label>订单备注</label>
             <input v-model="form.remark" class="field" placeholder="选填，给商家留言" />
           </div>
         </div>
@@ -149,6 +148,28 @@
         </button>
         <p v-if="error" style="color: var(--coral); line-height: 1.6">{{ error }}</p>
       </aside>
+    </div>
+
+    <!-- 地址切换面板：结算页只保留紧凑摘要，新增/管理进入地址页 -->
+    <div v-if="addressPickerVisible" class="address-picker-overlay" @click.self="addressPickerVisible = false">
+      <section class="address-picker-sheet" role="dialog" aria-modal="true" aria-labelledby="address-picker-title">
+        <header class="address-picker-head">
+          <button type="button" aria-label="关闭地址选择" @click="addressPickerVisible = false"><X :size="20" /></button>
+          <h3 id="address-picker-title">选择收货地址</h3>
+          <span aria-hidden="true"></span>
+        </header>
+        <div class="address-picker-actions">
+          <button type="button" @click="openAddressPage('create')"><Plus :size="16" />新增地址</button>
+          <button type="button" @click="openAddressPage('manage')"><Settings2 :size="16" />管理地址</button>
+        </div>
+        <div class="address-picker-list">
+          <button v-for="address in addresses" :key="address.id" type="button" class="address-picker-item" :class="{ active: form.addressId === address.id }" @click="selectAddressFromPicker(address)">
+            <span class="address-picker-check">{{ form.addressId === address.id ? '✓' : '' }}</span>
+            <span class="address-picker-copy"><strong>{{ address.receiverName }} <em>{{ address.receiverPhone }}</em></strong><small>{{ joinAddress(address) }}</small></span>
+            <span v-if="Number(address.isDefault) === 1" class="address-default-tag">默认</span>
+          </button>
+        </div>
+      </section>
     </div>
 
     <!-- 支付密码弹窗 -->
@@ -251,7 +272,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, ClipboardPaste, ShieldCheck, X } from 'lucide-vue-next'
+import { ArrowLeft, ClipboardPaste, Plus, Settings2, ShieldCheck, X } from 'lucide-vue-next'
 import { getHome, getMe, getWalletSummary, listAddresses, submitOrder, quoteFreight, checkPaymentVerify, sendSmsCode, sendPaymentPasswordSmsCode, setPaymentPassword, payOrderWithBalance, createAlipayOrder, getPayConfig } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { money, joinAddress } from '@/utils/format'
@@ -270,8 +291,9 @@ const orderRequestKey = ref('')
 const balancePaymentRequestKey = ref('')
 const error = ref('')
 const addresses = ref([])
-const showAllAddresses = ref(false)
+const addressPickerVisible = ref(false)
 const defaultAddress = computed(() => addresses.value.find((item) => Number(item.isDefault) === 1) || addresses.value[0])
+const selectedAddress = computed(() => addresses.value.find((item) => String(item.id) === String(form.value.addressId)) || defaultAddress.value)
 const displayConfig = ref({})
 const hasToken = ref(Boolean(localStorage.getItem('shop_token')))
 const receiverRegion = ref([])
@@ -342,6 +364,20 @@ const form = ref({
   remark: '',
 })
 
+const openAddressPage = (mode) => {
+  sessionStorage.setItem('checkout_draft', JSON.stringify({
+    form: form.value,
+    receiverRegion: receiverRegion.value,
+  }))
+  addressPickerVisible.value = false
+  router.push({ path: '/profile/addresses', query: { select: '1', mode } })
+}
+
+const selectAddressFromPicker = (address) => {
+  selectAddress(address)
+  addressPickerVisible.value = false
+}
+
 const handleReceiverPhoneInput = () => {
   form.value.addressId = null
   form.value.receiverPhone = normalizeMainlandPhone(form.value.receiverPhone)
@@ -399,8 +435,18 @@ const fetchAddresses = async () => {
   try {
     const res = await listAddresses()
     addresses.value = res.data || []
-    const defaultAddress = addresses.value.find((item) => item.isDefault === 1) || addresses.value[0]
-    if (defaultAddress) selectAddress(defaultAddress)
+    try {
+      const draft = JSON.parse(sessionStorage.getItem('checkout_draft') || 'null')
+      if (draft?.form) Object.assign(form.value, draft.form)
+      if (Array.isArray(draft?.receiverRegion)) receiverRegion.value = draft.receiverRegion
+      sessionStorage.removeItem('checkout_draft')
+    } catch (_) {}
+    const requestedId = route.query.addressId
+    const preferredAddress = addresses.value.find((item) => requestedId && String(item.id) === String(requestedId))
+      || addresses.value.find((item) => String(item.id) === String(form.value.addressId))
+      || addresses.value.find((item) => Number(item.isDefault) === 1)
+      || addresses.value[0]
+    if (preferredAddress) selectAddress(preferredAddress)
   } catch (e) {
     error.value = e.message || '地址加载失败'
   }
@@ -783,6 +829,13 @@ onBeforeUnmount(() => {
 .compact-btn { min-height: 32px; padding: 6px 12px; white-space: nowrap; font-size: 12px; }
 .saved-addresses { margin-bottom: 12px; padding-bottom: 3px; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: thin; }
 .saved-addresses .chip { flex: 0 0 auto; }
+.checkout-address-summary,.checkout-address-empty { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:12px; padding:14px; background:#fff9fa; border:1px solid #ffd8df; border-radius:14px; }
+.checkout-address-copy { min-width:0; }
+.checkout-address-copy .addr-line2 { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.checkout-address-empty { background:#fafbfc; border-color:#e5e7eb; }
+.checkout-address-empty > div { display:grid; gap:4px; }
+.checkout-address-empty span { color:var(--muted); font-size:12px; }
+.checkout-remark-item { margin-top:2px; }
 .checkout-form-grid { gap: 10px 12px; }
 .checkout-form-grid :deep(.china-region-select) { gap: 8px; }
 .payment-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
@@ -880,6 +933,24 @@ onBeforeUnmount(() => {
 .addr-line2 { margin-top: 4px; color: #4b5563; font-size: 13px; line-height: 1.5; }
 .other-addresses-hint { margin-top: 8px; color: var(--muted); font-size: 12px; cursor: pointer; text-align: center; }
 .other-addresses-list { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.address-picker-overlay { position:fixed; inset:0; z-index:900; display:grid; align-items:end; background:rgba(15,23,42,.42); backdrop-filter:blur(2px); }
+.address-picker-sheet { width:min(520px,100%); max-height:min(76dvh,620px); overflow:auto; margin:0 auto; padding-bottom:max(12px,env(safe-area-inset-bottom)); background:#fff; border-radius:22px 22px 0 0; box-shadow:0 -16px 45px rgba(15,23,42,.18); }
+.address-picker-head { min-height:52px; display:grid; grid-template-columns:42px 1fr 42px; align-items:center; border-bottom:1px solid #eef0f2; }
+.address-picker-head h3 { margin:0; text-align:center; font-size:16px; }
+.address-picker-head button { width:38px; height:38px; display:grid; place-items:center; justify-self:center; color:#667085; background:transparent; border:0; border-radius:50%; }
+.address-picker-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:14px 16px 8px; }
+.address-picker-actions button { min-height:42px; display:inline-flex; align-items:center; justify-content:center; gap:6px; color:var(--accent,#e7193f); background:#fff5f6; border:1px solid #ffd3da; border-radius:11px; font-size:13px; font-weight:700; }
+.address-picker-actions button:last-child { color:#475467; background:#f8fafc; border-color:#e4e7ec; }
+.address-picker-list { display:grid; gap:8px; padding:8px 16px 4px; }
+.address-picker-item { display:flex; align-items:center; gap:10px; width:100%; padding:12px; color:inherit; text-align:left; background:#fff; border:1px solid #e5e7eb; border-radius:12px; }
+.address-picker-item.active { background:#fff8f9; border-color:var(--accent,#e7193f); }
+.address-picker-check { width:21px; height:21px; flex:0 0 21px; display:grid; place-items:center; color:#fff; background:#d0d5dd; border-radius:50%; font-size:13px; font-weight:800; }
+.address-picker-item.active .address-picker-check { background:var(--accent,#e7193f); }
+.address-picker-copy { min-width:0; display:grid; gap:4px; }
+.address-picker-copy strong { font-size:14px; }
+.address-picker-copy em { margin-left:8px; color:var(--muted); font-size:12px; font-style:normal; font-weight:400; }
+.address-picker-copy small { overflow:hidden; color:#667085; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
+.address-default-tag { margin-left:auto; padding:3px 6px; color:var(--accent,#e7193f); background:#fff0f2; border-radius:5px; font-size:10px; font-weight:700; }
 .submit-order-btn { width: 100%; margin-top: 14px; min-height: 42px; font-size: 14px; }
 
 /* 支付密码弹窗 */
