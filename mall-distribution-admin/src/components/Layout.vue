@@ -175,7 +175,6 @@ const businessMenus = [
   {
     key: 'operations', title: '商城设置', icon: 'OfficeBuilding', items: [
       { title: '商城视觉与页面', path: '/tenant/list', permission: 'config:manage' },
-      { title: '首页Banner', path: '/tenant/banners', permission: 'config:manage' },
       { title: '商城资料与客服', path: '/tenant/profile', permission: 'config:manage' },
       { title: '协议与规则', path: '/tenant/legal', permission: 'config:manage' },
       { title: '奖金与钱包规则', path: '/tenant/bonus-config', permission: 'config:manage' },

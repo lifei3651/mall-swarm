@@ -5,11 +5,6 @@
         <h2>商城视觉与页面</h2>
         <p>在这里预览并调整商城的品牌、主题色、首页样式和底部导航，保存后刷新前台即可查看。</p>
       </div>
-      <div v-if="tableData[0]" class="toolbar-actions">
-        <el-button @click="openTenantDialog(tableData[0])">品牌资料</el-button>
-        <el-button @click="openBannerDialog">首页 Banner</el-button>
-        <el-button type="primary" @click="openDisplayDialog(tableData[0])">视觉装修</el-button>
-      </div>
     </div>
 
     <el-alert
@@ -48,102 +43,41 @@
       </el-table-column>
       <el-table-column label="操作" fixed="right" width="280">
         <template #default="{ row }">
-          <el-button type="primary" link @click="openTenantDialog(row)">品牌资料</el-button>
-          <el-button type="info" link @click="openBannerDialog">首页 Banner</el-button>
-          <el-button type="success" link @click="openDisplayDialog(row)">视觉装修</el-button>
+          <el-button type="primary" link @click="openDisplayDialog(row)">编辑商城视觉</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="tenantDialogVisible" title="商城视觉与页面" width="900px" top="5vh">
-      <el-form :model="tenantForm" label-width="110px">
-        <el-form-item label="品牌名">
-          <div class="field-with-help">
-            <el-input v-model="tenantForm.brandName" placeholder="前端商城展示名称" />
-            <span>同时用于商城头部、浏览器标签页、手机网页标题和管理后台登录页标题。</span>
-          </div>
-        </el-form-item>
-        <el-form-item label="品牌LOGO">
-          <div class="logo-upload-row">
-            <el-upload action="#" :show-file-list="false" accept="image/*" :http-request="uploadLogo">
-              <div class="logo-uploader">
-                <el-image v-if="tenantForm.logoUrl" :src="tenantForm.logoUrl" fit="contain" />
-                <div v-else class="logo-placeholder">点击上传<br />LOGO图片</div>
-              </div>
-            </el-upload>
-            <div class="logo-help">支持 JPG、PNG、WEBP、GIF，单张不超过 5MB。<br />建议使用透明背景 PNG。</div>
-          </div>
-        </el-form-item>
-        <el-form-item label="前台样式">
-          <div class="theme-preset-grid">
-            <button
-              v-for="theme in themeOptions"
-              :key="theme.value"
-              type="button"
-              class="theme-preset"
-              :class="{ active: tenantForm.productTemplate === theme.value }"
-              @click="applyTheme(theme)"
-            >
-              <span class="theme-preview" :style="{ '--preview-color': theme.color, '--preview-radius': theme.radius }">
-                <i></i><b></b><em></em>
-              </span>
-              <strong>{{ theme.label }}</strong>
-              <small>{{ theme.description }}</small>
-            </button>
-          </div>
-        </el-form-item>
-        <el-form-item label="主题色">
-          <div class="color-editor">
-            <el-color-picker v-model="tenantForm.themeColor" />
-            <el-input v-model="tenantForm.themeColor" maxlength="7" placeholder="#e7193f" />
-            <span>可在所选样式基础上自由改色。</span>
-          </div>
-        </el-form-item>
-        <el-form-item label="首页装修预览">
-          <div class="field-help">
-            模块开关、顺序和底部导航请进入“首页布局”装修工作台调整。那里会用真实的 Banner、分类和商品数据实时预览，保存后才会发布到前台。
-          </div>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="tenantDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitTenant">保存</el-button>
-      </template>
-    </el-dialog>
-
     <el-dialog v-model="displayDialogVisible" title="商城视觉装修工作台" width="1040px" top="1vh" class="display-workbench-dialog">
       <el-alert title="左侧调整模块，右侧手机实时预览。当前修改只保存在草稿中，点击“保存发布”后才会影响客户前台。" type="info" :closable="false" class="display-alert" />
-      <section class="visual-design-panel">
-        <div class="control-section-heading">
-          <div><strong>品牌视觉</strong><small>模板和主题色实时作用于右侧手机预览，点击保存发布后客户前台生效</small></div>
-          <el-tag size="small" type="success">实时预览</el-tag>
-        </div>
-        <div class="visual-design-grid">
-          <div class="theme-preset-grid compact-theme-grid">
-            <button
-              v-for="theme in themeOptions"
-              :key="theme.value"
-              type="button"
-              class="theme-preset"
-              :class="{ active: displayForm.productTemplate === theme.value }"
-              @click="applyDisplayTheme(theme)"
-            >
-              <span class="theme-preview" :style="{ '--preview-color': theme.color, '--preview-radius': theme.radius }"><i></i><b></b><em></em></span>
-              <strong>{{ theme.label }}</strong>
-              <small>{{ theme.description }}</small>
-            </button>
-          </div>
-          <div class="visual-design-fields">
-            <label><span>商城名称</span><el-input v-model="displayForm.brandName" maxlength="64" placeholder="客户前台展示名称" /></label>
-            <label><span>主题色</span><div class="color-editor"><el-color-picker v-model="displayForm.themeColor" /><el-input v-model="displayForm.themeColor" maxlength="7" placeholder="#e7193f" /></div></label>
-          </div>
-        </div>
-      </section>
       <div class="preview-page-tabs" role="tablist" aria-label="前台页面预览">
         <button v-for="page in previewPages" :key="page.value" type="button" :class="{ active: previewPage === page.value }" @click="previewPage = page.value">{{ page.label }}</button>
       </div>
       <div class="display-workbench">
         <aside class="display-controls">
+          <section class="control-section visual-design-panel">
+            <div class="control-section-heading">
+              <div><strong>品牌视觉</strong><small>修改左侧内容，右侧手机会实时更新；保存发布后客户前台生效</small></div>
+              <el-tag size="small" type="success">实时预览</el-tag>
+            </div>
+            <div class="theme-preset-grid compact-theme-grid">
+              <button v-for="theme in themeOptions" :key="theme.value" type="button" class="theme-preset" :class="{ active: displayForm.productTemplate === theme.value }" @click="applyDisplayTheme(theme)">
+                <span class="theme-preview" :style="{ '--preview-color': theme.color, '--preview-radius': theme.radius }"><i></i><b></b><em></em></span>
+                <strong>{{ theme.label }}</strong>
+                <small>{{ theme.description }}</small>
+              </button>
+            </div>
+            <div class="visual-design-fields">
+              <label><span>商城名称</span><el-input v-model="displayForm.brandName" maxlength="64" placeholder="客户前台展示名称" /></label>
+              <label><span>品牌 LOGO</span><div class="display-logo-editor"><el-upload action="#" :show-file-list="false" accept="image/*" :http-request="uploadDisplayLogo"><div class="display-logo-uploader"><el-image v-if="displayForm.logoUrl" :src="displayForm.logoUrl" fit="contain" /><span v-else>上传</span></div></el-upload><small>建议透明 PNG，客户前台和浏览器标签页共用</small></div></label>
+              <label><span>主题色</span><div class="color-editor"><el-color-picker v-model="displayForm.themeColor" /><el-input v-model="displayForm.themeColor" maxlength="7" placeholder="#e7193f" /></div></label>
+            </div>
+          </section>
+          <section class="control-section banner-config-section">
+            <div class="control-section-heading"><div><strong>首页 Banner</strong><small>图片、跳转和展示时间在这里统一维护</small></div><el-tag size="small" type="info">{{ previewBanners.length }} 条已启用</el-tag></div>
+            <p class="section-note banner-note">Banner 已并入商城视觉与页面，手机预览会即时读取已启用的图片。</p>
+            <el-button type="primary" plain @click="openBannerDialog">编辑首页 Banner</el-button>
+          </section>
           <section class="control-section">
             <div class="control-section-heading"><div><strong>首页模块</strong><small>拖动调整前台显示顺序</small></div><el-tag size="small" type="info">实时预览</el-tag></div>
             <div class="module-list module-list-sortable">
@@ -153,7 +87,6 @@
                 <el-switch v-model="module.enabled" active-text="展示" inactive-text="隐藏" />
               </div>
             </div>
-            <div class="section-note">Banner 图片、跳转和顺序统一在本页管理：<el-button type="primary" link @click="openBannerDialog">打开 Banner 管理</el-button>。</div>
           </section>
 
           <section class="control-section category-config-section">
@@ -200,7 +133,7 @@
           <div class="preview-stage-heading"><div><strong>客户手机版预览</strong><span>{{ previewPage === 'home' ? '首页模块与前台保持同一套配置' : `${previewPages.find((page) => page.value === previewPage)?.label}使用同一套品牌、颜色和底部导航` }}</span></div><el-tag type="success">草稿预览</el-tag></div>
           <div class="mobile-preview-shell live-mobile-preview" :style="previewStyle">
             <div class="mobile-preview-status"><span>9:41</span><span>● ● ●</span></div>
-            <div class="mobile-preview-brand"><span class="mobile-preview-logo"><img v-if="currentTenant?.logoUrl" :src="currentTenant.logoUrl" alt="" /><span v-else>{{ (displayForm.brandName || '灵启').slice(0, 1) }}</span></span><strong>{{ displayForm.brandName || '灵启商城' }}</strong><span class="mobile-preview-share">分享</span></div>
+            <div class="mobile-preview-brand"><span class="mobile-preview-logo"><img v-if="displayForm.logoUrl" :src="displayForm.logoUrl" alt="" /><span v-else>{{ (displayForm.brandName || '灵启').slice(0, 1) }}</span></span><strong>{{ displayForm.brandName || '灵启商城' }}</strong><span class="mobile-preview-share">分享</span></div>
             <template v-if="previewPage === 'home'">
               <div class="mobile-preview-search"><span>⌕</span><span>搜索商品</span><b>⌕</b></div>
               <template v-for="module in orderedPreviewModules" :key="module.type">
@@ -245,7 +178,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="bannerDialogVisible" title="首页 Banner 管理" width="1000px" top="3vh" append-to-body>
+    <el-dialog v-model="bannerDialogVisible" title="编辑首页 Banner" width="1000px" top="3vh" append-to-body>
       <ShopBanners />
     </el-dialog>
   </div>
@@ -265,7 +198,6 @@ import {
 
 const loading = ref(false)
 const tableData = ref([])
-const tenantDialogVisible = ref(false)
 const displayDialogVisible = ref(false)
 const bannerDialogVisible = ref(false)
 const currentTenant = ref(null)
@@ -278,7 +210,6 @@ const previewPage = ref('home')
 const draggingModuleIndex = ref(null)
 const draggingNavIndex = ref(null)
 
-const tenantForm = ref({})
 const displayForm = ref({})
 const moduleNames = { banner: 'Banner轮播', notice: '商城公告', category: '商品分类', trust: '服务保障', products: '精选商品' }
 const navNames = { home: '首页', category: '分类', cart: '购物车', orders: '订单', profile: '我的' }
@@ -373,40 +304,13 @@ const fetchData = async () => {
   }
 }
 
-const openTenantDialog = (row) => {
-  if (!row) return
-  tenantForm.value = { ...row, productTemplate: normalizeTheme(row.productTemplate) }
-  tenantDialogVisible.value = true
-}
-
 const openBannerDialog = () => {
   bannerDialogVisible.value = true
 }
 
-const applyTheme = (theme) => {
-  tenantForm.value.productTemplate = theme.value
-  tenantForm.value.themeColor = theme.color
-}
-
-const submitTenant = async () => {
-  if (!tenantForm.value.tenantName) {
-    ElMessage.warning('请输入运营主体')
-    return
-  }
-  if (!/^#[0-9a-fA-F]{6}$/.test(tenantForm.value.themeColor || '')) {
-    ElMessage.warning('主题色必须是完整的6位色值，例如 #e7193f')
-    return
-  }
-  const res = await saveTenant(tenantForm.value)
-  if (res.data) tenantForm.value = { ...res.data, productTemplate: normalizeTheme(res.data.productTemplate) }
-  ElMessage.success('品牌和前台样式已保存，刷新商城即可看到效果')
-  tenantDialogVisible.value = false
-  await fetchData()
-}
-
-const uploadLogo = async ({ file }) => {
+const uploadDisplayLogo = async ({ file }) => {
   const res = await uploadShopImage(file)
-  tenantForm.value.logoUrl = res.data
+  displayForm.value.logoUrl = res.data
   ElMessage.success('品牌LOGO上传成功')
 }
 
@@ -438,6 +342,7 @@ const openDisplayDialog = async (row) => {
   displayForm.value = {
     tenantId: row.id,
     brandName: row.brandName || row.tenantName || '灵启商城',
+    logoUrl: row.logoUrl || '',
     themeColor: row.themeColor || '#e7193f',
     productTemplate: normalizeTheme(row.productTemplate),
     layoutTemplate: 'standard',
@@ -528,6 +433,7 @@ const submitDisplayConfig = async () => {
     ...currentTenant.value,
     id: currentTenant.value.id,
     brandName: displayForm.value.brandName,
+    logoUrl: displayForm.value.logoUrl,
     themeColor: displayForm.value.themeColor,
     productTemplate: normalizeTheme(displayForm.value.productTemplate),
   }
@@ -766,6 +672,11 @@ onMounted(fetchData)
 .visual-design-fields label { display: grid; gap: 5px; color: #667085; font-size: 12px; }
 .visual-design-fields .color-editor { grid-template-columns: 32px minmax(0, 1fr); width: 100%; gap: 7px; }
 .visual-design-fields .color-editor .el-color-picker { width: 32px; }
+.display-logo-editor { display: flex; align-items: center; gap: 8px; }
+.display-logo-editor small { color: #98a2b3; font-size: 10px; line-height: 14px; }
+.display-logo-uploader { display: grid; width: 42px; height: 42px; place-items: center; overflow: hidden; color: var(--el-color-primary); background: #f5f7fa; border: 1px dashed #cfd6e0; border-radius: 9px; cursor: pointer; }
+.display-logo-uploader .el-image { width: 100%; height: 100%; }
+.display-logo-uploader span { font-size: 11px; }
 .preview-page-tabs {
   display: flex;
   gap: 8px;
