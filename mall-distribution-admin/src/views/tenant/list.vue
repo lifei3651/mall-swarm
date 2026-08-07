@@ -542,14 +542,14 @@ onMounted(fetchData)
 .ui-preview-nav { display: grid; grid-template-columns: repeat(4, 1fr); padding: 10px 16px; color: #8a94a4; font-size: 11px; text-align: center; background: #fff; border-top: 1px solid #eef0f3; }
 .ui-preview-nav .active { color: var(--preview-color); font-weight: 700; }
 .mobile-preview-shell {
-  width: 390px;
+  width: 340px;
   max-width: 100%;
   height: 560px;
   margin: 0 auto;
   overflow-y: auto;
   color: var(--preview-text, #202735);
   background: var(--preview-page-bg, #f5f6f8);
-  border: 10px solid #1f2937;
+  border: 8px solid #1f2937;
   border-radius: 30px;
   box-shadow: 0 18px 40px rgba(31, 41, 55, .18);
 }
