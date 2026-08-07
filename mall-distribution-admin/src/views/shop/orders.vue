@@ -364,7 +364,9 @@ import { getOrderFinance } from '@/api/audit'
 import { formatProductSpec } from '@/utils/productSpec'
 import { validateSearchKeyword } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
+import { useAppStore } from '@/store'
 
+const appStore = useAppStore()
 const orderLoading = ref(false)
 const exportLoading = ref(false)
 const templateLoading = ref(false)
@@ -395,6 +397,10 @@ const currentAfterSale = ref(null)
 const shipForm = ref({ deliveryCompany: '', deliveryNo: '', shipmentQuantity: 1 })
 const auditForm = ref({ status: 1, auditRemark: '', auditUserId: 1, auditUserName: 'admin' })
 const manualRefundForm = ref({ refundMode: 'QUANTITY', productRefundAmount: 0, items: {}, reason: '' })
+const currentOperator = computed(() => ({
+  id: appStore.userInfo?.id || 1,
+  name: appStore.userInfo?.nickname || appStore.userInfo?.username || '管理员',
+}))
 const orderSearchFeedback = ref('')
 const orderEmptyText = ref('暂无订单记录')
 const { markSearchApplied: markOrderSearchApplied } = useSearchAutoRestore(
@@ -654,8 +660,8 @@ const submitManualRefund = async () => {
       items,
       reason: manualRefundForm.value.reason?.trim() || '后台超期退款',
       applyType: 1,
-      operatorId: 1,
-      operatorName: 'admin',
+      operatorId: currentOperator.value.id,
+      operatorName: currentOperator.value.name,
     })
     ElMessage.success('后台退款已登记并完成账务冲销')
     manualRefundDialogVisible.value = false
@@ -670,8 +676,8 @@ const openAudit = (row, status) => {
   auditForm.value = {
     status,
     auditRemark: '',
-    auditUserId: 1,
-    auditUserName: 'admin',
+    auditUserId: currentOperator.value.id,
+    auditUserName: currentOperator.value.name,
   }
   auditDialogVisible.value = true
 }
