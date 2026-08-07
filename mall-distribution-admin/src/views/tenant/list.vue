@@ -190,18 +190,6 @@
                 <div v-else-if="module.type === 'products' && module.enabled" class="mobile-preview-product-section"><div class="mobile-preview-heading"><strong>精选商品</strong><span>商城好物，为你精选</span></div><div class="mobile-preview-products"><div v-for="product in previewProducts" :key="product.id" class="mobile-preview-product"><img v-if="product.coverUrl" :src="product.coverUrl" :alt="product.productName" /><i v-else></i><strong>{{ product.productName }}</strong><small>{{ product.subtitle || '精选商品，品质保障' }}</small><b>¥{{ Number(product.salePrice || 0).toFixed(2) }}</b></div><div v-if="!previewProducts.length" class="preview-empty-module">暂无上架商品</div></div></div>
               </template>
             </template>
-            <template v-else-if="previewPage === 'category'">
-              <div class="mobile-preview-page-title"><strong>商品分类</strong><span>按分类快速找到商品</span></div>
-              <div class="mobile-preview-category-grid"><div v-for="category in visiblePreviewCategories" :key="category.id" class="mobile-preview-category-tile"><span><img v-if="category.iconUrl" :src="category.iconUrl" alt="" /><b v-else>{{ category.categoryName?.slice(0, 1) }}</b></span><strong>{{ category.categoryName }}</strong></div><div v-if="!visiblePreviewCategories.length" class="preview-empty-module">暂无商品分类</div></div>
-              <div class="mobile-preview-heading"><strong>分类推荐</strong><span>正在为你精选</span></div>
-              <div class="mobile-preview-products"><div v-for="product in previewProducts" :key="product.id" class="mobile-preview-product"><img v-if="product.coverUrl" :src="product.coverUrl" :alt="product.productName" /><i v-else></i><strong>{{ product.productName }}</strong><small>{{ product.subtitle || '精选商品，品质保障' }}</small><b>¥{{ Number(product.salePrice || 0).toFixed(2) }}</b></div><div v-if="!previewProducts.length" class="preview-empty-module">暂无上架商品</div></div>
-            </template>
-            <template v-else>
-              <div class="mobile-preview-profile-card"><div class="profile-avatar">{{ (displayForm.brandName || '灵启').slice(0, 1) }}</div><div><strong>商城会员</strong><small>欢迎回来，管理你的订单与权益</small></div><span>›</span></div>
-              <div class="mobile-preview-order-card"><div class="mobile-preview-heading"><strong>我的订单</strong><span>全部 ›</span></div><div class="mobile-preview-order-grid"><span>待付款</span><span>待发货</span><span>待收货</span><span>退款/售后</span></div></div>
-              <div class="mobile-preview-service-grid"><div>余额</div><div>团队业绩</div><div>支付安全</div><div>收货地址</div></div>
-              <div class="mobile-preview-profile-note">账户安全 · 订单全程可查 · 客服支持</div>
-            </template>
             <div class="mobile-preview-nav" :style="{ gridTemplateColumns: `repeat(${Math.max(visiblePreviewNav.length, 1)}, minmax(0, 1fr))` }"><span v-for="nav in visiblePreviewNav" :key="nav.type" :class="{ active: nav.type === previewPage }">{{ nav.label }}</span></div>
           </div>
         </section>
@@ -252,8 +240,6 @@ const moduleNames = { banner: 'Banner轮播', notice: '商城公告', category: 
 const navNames = { home: '首页', category: '分类', cart: '购物车', orders: '订单', profile: '我的' }
 const previewPages = [
   { value: 'home', label: '首页' },
-  { value: 'category', label: '分类' },
-  { value: 'profile', label: '我的' },
 ]
 const displaySections = [
   { key: 'brand', label: '品牌视觉', description: '名称、Logo、主题模板' },

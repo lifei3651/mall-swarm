@@ -6,14 +6,13 @@ const sourcePath = resolve(process.cwd(), 'src/views/tenant/list.vue')
 const layoutPath = resolve(process.cwd(), 'src/components/Layout.vue')
 
 describe('商城视觉与页面工作台', () => {
-  it('提供首页、分类页和我的页面预览入口，购物车不作为装修模板', async () => {
+  it('仅提供首页预览入口，分类、我的和购物车不作为装修模板', async () => {
     const source = await readFile(sourcePath, 'utf8')
-    for (const page of ['home', 'category', 'profile']) {
-      expect(source).toContain(`{ value: '${page}'`)
-    }
+    expect(source).toContain("{ value: 'home'")
+    expect(source).not.toContain("{ value: 'category'")
+    expect(source).not.toContain("{ value: 'profile'")
     expect(source).not.toContain("{ value: 'cart'")
     expect(source).not.toContain("previewPage === 'cart'")
-    expect(source).toContain('mobile-preview-profile-card')
     expect(source).not.toContain('下一阶段')
     expect(source).not.toContain('这里会接入对应的真实前台页面')
     const layout = await readFile(layoutPath, 'utf8')
