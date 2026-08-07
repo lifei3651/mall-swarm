@@ -196,11 +196,6 @@
               <div class="mobile-preview-heading"><strong>分类推荐</strong><span>正在为你精选</span></div>
               <div class="mobile-preview-products"><div v-for="product in previewProducts" :key="product.id" class="mobile-preview-product"><img v-if="product.coverUrl" :src="product.coverUrl" :alt="product.productName" /><i v-else></i><strong>{{ product.productName }}</strong><small>{{ product.subtitle || '精选商品，品质保障' }}</small><b>¥{{ Number(product.salePrice || 0).toFixed(2) }}</b></div><div v-if="!previewProducts.length" class="preview-empty-module">暂无上架商品</div></div>
             </template>
-            <template v-else-if="previewPage === 'cart'">
-              <div class="mobile-preview-page-title"><strong>购物车 <small>{{ previewCartProducts.length }}件</small></strong><span>确认商品后再去结算</span></div>
-              <div class="mobile-preview-cart-list"><div v-for="product in previewCartProducts" :key="product.id" class="mobile-preview-cart-item"><span class="cart-check">✓</span><img v-if="product.coverUrl" :src="product.coverUrl" :alt="product.productName" /><i v-else></i><div><strong>{{ product.productName }}</strong><small>规格：默认规格</small><b>¥{{ Number(product.salePrice || 0).toFixed(2) }}</b></div><em>1</em></div><div v-if="!previewCartProducts.length" class="preview-empty-module">购物车还是空的</div></div>
-              <div class="mobile-preview-cart-summary"><span>合计</span><strong>¥{{ previewCartTotal.toFixed(2) }}</strong><button type="button">结算</button></div>
-            </template>
             <template v-else>
               <div class="mobile-preview-profile-card"><div class="profile-avatar">{{ (displayForm.brandName || '灵启').slice(0, 1) }}</div><div><strong>商城会员</strong><small>欢迎回来，管理你的订单与权益</small></div><span>›</span></div>
               <div class="mobile-preview-order-card"><div class="mobile-preview-heading"><strong>我的订单</strong><span>全部 ›</span></div><div class="mobile-preview-order-grid"><span>待付款</span><span>待发货</span><span>待收货</span><span>退款/售后</span></div></div>
@@ -258,7 +253,6 @@ const navNames = { home: '首页', category: '分类', cart: '购物车', orders
 const previewPages = [
   { value: 'home', label: '首页' },
   { value: 'category', label: '分类' },
-  { value: 'cart', label: '购物车' },
   { value: 'profile', label: '我的' },
 ]
 const displaySections = [
@@ -459,8 +453,6 @@ const resetColors = () => {
 const orderedPreviewModules = computed(() => [...(displayForm.value.homeModules || [])].sort((a, b) => (a.sort || 99) - (b.sort || 99)))
 const visiblePreviewCategories = computed(() => categories.value.filter((category) => Number(categoryDraft.value[category.id] ?? 1) === 1))
 const visiblePreviewNav = computed(() => (displayForm.value.bottomNav || []).filter((nav) => nav.enabled !== false))
-const previewCartProducts = computed(() => previewProducts.value.slice(0, 2))
-const previewCartTotal = computed(() => previewCartProducts.value.reduce((total, product) => total + Number(product.salePrice || 0), 0))
 const previewStyle = computed(() => ({
   '--preview-color': displayForm.value.themeColor || currentTenant.value?.themeColor || '#e7193f',
   '--preview-page-bg': displayForm.value.colors?.pageBg || '#f5f6f8',
