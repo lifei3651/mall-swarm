@@ -97,19 +97,10 @@
             <span>可在所选样式基础上自由改色。</span>
           </div>
         </el-form-item>
-        <el-form-item label="手机版预览">
-          <div class="mobile-preview-shell" :style="{ '--preview-color': tenantForm.themeColor || '#e7193f' }">
-            <div class="mobile-preview-status"><span>9:41</span><span>● ● ●</span></div>
-            <div class="mobile-preview-brand"><span class="mobile-preview-logo">{{ (tenantForm.brandName || '商城').slice(0, 1) }}</span><strong>{{ tenantForm.brandName || '灵启商城' }}</strong><span class="mobile-preview-share">分享</span></div>
-            <div class="mobile-preview-search"><span>⌕</span><span>搜索商品</span><b>⌕</b></div>
-            <div v-if="displayForm.homeModules?.find((module) => module.type === 'banner')?.enabled !== false" class="mobile-preview-banner"><span>商城活动 Banner</span><small>图片与跳转入口在「商城设置 · 首页 Banner」维护</small><i>● ○ ○</i></div>
-            <div v-if="displayForm.homeModules?.find((module) => module.type === 'category')?.enabled !== false && displayForm.showHomeCategories !== 0" class="mobile-preview-categories"><span v-for="item in ['精选','热卖','新品','全部']" :key="item">{{ item }}</span></div>
-            <div class="mobile-preview-heading"><strong>精选商品</strong><span>商城好物，为你精选</span></div>
-            <div class="mobile-preview-products"><div v-for="item in ['品质好物','人气套装']" :key="item" class="mobile-preview-product"><i></i><strong>{{ item }}</strong><small>精选商品，安心选购</small><b>¥99.00</b></div></div>
-            <div v-if="displayForm.showTrustStrip === 1" class="mobile-preview-trust"><span>安全支付</span><span>订单可查</span><span>售后无忧</span></div>
-            <div class="mobile-preview-nav"><span v-for="nav in (displayForm.bottomNav || []).filter((item) => item.enabled !== false && (item.type !== 'category' || displayForm.showBottomCategoryNav !== 0))" :key="nav.type">{{ nav.label }}</span></div>
+        <el-form-item label="首页装修预览">
+          <div class="field-help">
+            模块开关、顺序和底部导航请进入“首页布局”装修工作台调整。那里会用真实的 Banner、分类和商品数据实时预览，保存后才会发布到前台。
           </div>
-          <div class="field-help">这里按前台手机版首页的真实层级展示：主题色、Banner、分类、商品卡片、可选服务说明和底部导航会随配置同步变化。</div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -118,112 +109,100 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="displayDialogVisible" title="商城装修与前台配置" width="980px" top="3vh">
-      <el-alert
-        title="这里只调整商城模板、首页分类和底部导航；奖金、业绩和账务规则在各自业务页面管理。"
-        type="info"
-        :closable="false"
-        class="display-alert"
-      />
-      <el-form :model="displayForm" label-width="150px">
-        <el-divider content-position="left">商城布局模板</el-divider>
-        <div class="layout-template-grid">
-          <button
-            v-for="template in layoutTemplateOptions"
-            :key="template.value"
-            type="button"
-            class="layout-template-card"
-            :class="{ active: displayForm.layoutTemplate === template.value }"
-            @click="applyLayoutTemplate(template)"
-          >
-            <span class="layout-preview" :class="`layout-preview--${template.value}`">
-              <i class="preview-search"></i>
-              <i class="preview-categories"></i>
-              <i class="preview-products"></i>
-              <i class="preview-nav"></i>
-            </span>
-            <strong>{{ template.label }}</strong>
-            <small>{{ template.description }}</small>
-          </button>
-        </div>
-
-        <el-divider content-position="left">首页模块顺序与显隐</el-divider>
-        <div class="module-list">
-          <div v-for="(module, index) in displayForm.homeModules" :key="module.type" class="module-item">
-            <div class="module-actions">
-              <el-button size="small" :disabled="index === 0" @click="moveModule(index, -1)">上移</el-button>
-              <el-button size="small" :disabled="index === displayForm.homeModules.length - 1" @click="moveModule(index, 1)">下移</el-button>
+    <el-dialog v-model="displayDialogVisible" title="手机版首页装修工作台" width="1180px" top="2vh" class="display-workbench-dialog">
+      <el-alert title="左侧调整模块，右侧手机实时预览。当前修改只保存在草稿中，点击“保存发布”后才会影响客户前台。" type="info" :closable="false" class="display-alert" />
+      <div class="preview-page-tabs" role="tablist" aria-label="前台页面预览">
+        <button v-for="page in previewPages" :key="page.value" type="button" :class="{ active: previewPage === page.value }" @click="previewPage = page.value">{{ page.label }}<small v-if="page.value !== 'home'">下一阶段</small></button>
+      </div>
+      <div class="display-workbench">
+        <aside class="display-controls">
+          <section class="control-section">
+            <div class="control-section-heading"><div><strong>首页模块</strong><small>拖动调整前台显示顺序</small></div><el-tag size="small" type="info">实时预览</el-tag></div>
+            <div class="module-list module-list-sortable">
+              <div v-for="(module, index) in displayForm.homeModules" :key="module.type" class="module-item" draggable="true" @dragstart="startModuleDrag(index)" @dragover.prevent @drop="dropModule(index)">
+                <span class="drag-handle" aria-hidden="true">⋮⋮</span>
+                <strong>{{ moduleNames[module.type] || module.type }}</strong>
+                <el-switch v-model="module.enabled" active-text="展示" inactive-text="隐藏" />
+              </div>
             </div>
-            <strong>{{ moduleNames[module.type] || module.type }}</strong>
-            <el-switch v-model="module.enabled" active-text="展示" inactive-text="隐藏" />
-          </div>
-        </div>
-        <div class="section-note">Banner 图片内容请进入 <el-button type="primary" link @click="$router.push('/tenant/banners')">商城设置 · 首页Banner</el-button> 管理；总开关由上面的 Banner 模块控制。</div>
+            <div class="section-note">Banner 图片内容请进入 <el-button type="primary" link @click="$router.push('/tenant/banners')">商城设置 · 首页Banner</el-button> 管理。</div>
+          </section>
 
-        <el-form-item label="首页服务说明">
-          <div class="switch-with-help">
-            <el-switch v-model="displayForm.showTrustStrip" :active-value="1" :inactive-value="0" />
-            <span>默认隐藏。开启后显示“安全支付、订单可查、售后无忧”等说明性信息，不是可操作按钮。</span>
-          </div>
-        </el-form-item>
-
-        <el-divider content-position="left">首页与分类展示</el-divider>
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="首页商品分类">
-              <div class="switch-with-help">
-                <el-switch v-model="displayForm.showHomeCategories" :active-value="1" :inactive-value="0" />
-                <span>关闭后首页直接展示精选商品。</span>
+          <section class="control-section">
+            <div class="control-section-heading"><div><strong>分类模块</strong><small>先控制整体，再控制单个分类</small></div></div>
+            <div class="control-switch-row"><span>首页显示分类</span><el-switch v-model="displayForm.showHomeCategories" :active-value="1" :inactive-value="0" /></div>
+            <div class="category-list category-list-draft">
+              <div v-for="category in categories" :key="category.id" class="category-row">
+                <span>{{ category.categoryName }}</span>
+                <el-switch :model-value="categoryDraft[category.id] ?? 1" :active-value="1" :inactive-value="0" active-text="展示" inactive-text="隐藏" @change="(value) => setCategoryDraft(category, value)" />
               </div>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="底部分类入口">
-              <div class="switch-with-help">
-                <el-switch v-model="displayForm.showBottomCategoryNav" :active-value="1" :inactive-value="0" />
-                <span>关闭后由四导航自动变为三导航。</span>
+              <el-empty v-if="!categories.length" :image-size="44" description="暂无商品分类，可直接展示精选商品" />
+            </div>
+          </section>
+
+          <section class="control-section">
+            <div class="control-section-heading"><div><strong>服务说明</strong><small>首页底部的说明性内容</small></div></div>
+            <div class="control-switch-row"><span>安全支付、订单可查、售后无忧</span><el-switch v-model="displayForm.showTrustStrip" :active-value="1" :inactive-value="0" /></div>
+          </section>
+
+          <section class="control-section">
+            <div class="control-section-heading"><div><strong>底部导航</strong><small>拖动排序、改名或隐藏</small></div></div>
+            <div class="nav-config-list nav-list-sortable">
+              <div v-for="(nav, index) in displayForm.bottomNav" :key="nav.type" class="nav-config-row" draggable="true" @dragstart="startNavDrag(index)" @dragover.prevent @drop="dropNav(index)">
+                <span class="drag-handle" aria-hidden="true">⋮⋮</span>
+                <span class="nav-type-name">{{ navNames[nav.type] || nav.type }}</span>
+                <el-input v-model="nav.label" maxlength="6" style="width:100px" />
+                <el-switch v-model="nav.enabled" active-text="展示" inactive-text="隐藏" />
               </div>
-            </el-form-item>
-          </el-col>
-        </el-row>
+            </div>
+            <div class="control-switch-row"><span>底部分类入口</span><el-switch v-model="displayForm.showBottomCategoryNav" :active-value="1" :inactive-value="0" /></div>
+          </section>
 
-        <div class="category-list">
-          <div v-for="category in categories" :key="category.id" class="category-row">
-            <span>{{ category.categoryName }}</span>
-            <el-switch :model-value="category.showOnHome ?? 1" :active-value="1" :inactive-value="0" active-text="首页展示" inactive-text="隐藏" @change="(value) => toggleCategory(category, value)" />
+          <section class="control-section">
+            <div class="control-section-heading"><div><strong>颜色微调</strong><small>不改变模块结构，只影响当前草稿预览</small></div></div>
+            <div class="color-grid">
+              <label v-for="color in colorFields" :key="color.key"><span>{{ color.label }}</span><el-color-picker v-model="displayForm.colors[color.key]" show-alpha /></label>
+            </div>
+          </section>
+        </aside>
+
+        <section class="preview-stage">
+          <div class="preview-stage-heading"><div><strong>客户手机版预览</strong><span>{{ previewPage === 'home' ? '首页模块与前台保持同一套配置' : '此页面将在首页工作台稳定后接入真实页面' }}</span></div><el-tag type="success">草稿预览</el-tag></div>
+          <div v-if="previewPage !== 'home'" class="preview-coming-soon"><strong>{{ previewPages.find((page) => page.value === previewPage)?.label }}预览</strong><span>首页装修完成后，这里会接入对应的真实前台页面。</span></div>
+          <div v-else class="mobile-preview-shell live-mobile-preview" :style="previewStyle">
+            <div class="mobile-preview-status"><span>9:41</span><span>● ● ●</span></div>
+            <div class="mobile-preview-brand"><span class="mobile-preview-logo"><img v-if="currentTenant?.logoUrl" :src="currentTenant.logoUrl" alt="" /><span v-else>{{ (currentTenant?.brandName || '灵启').slice(0, 1) }}</span></span><strong>{{ currentTenant?.brandName || '灵启商城' }}</strong><span class="mobile-preview-share">分享</span></div>
+            <div class="mobile-preview-search"><span>⌕</span><span>搜索商品</span><b>⌕</b></div>
+            <template v-for="module in orderedPreviewModules" :key="module.type">
+              <div v-if="module.type === 'banner' && module.enabled" class="mobile-preview-banner live-preview-banner">
+                <img v-if="previewBanners.length" :src="previewBanners[0].imageUrl" :alt="previewBanners[0].title || '商城活动'" />
+                <div v-else class="preview-empty-module"><strong>Banner轮播</strong><span>前往 Banner 管理上传图片</span></div>
+                <i v-if="previewBanners.length > 1">● ○ ○</i>
+              </div>
+              <div v-else-if="module.type === 'notice' && module.enabled" class="mobile-preview-notice"><span>⌁</span><strong>商城公告</strong><small>欢迎来到{{ currentTenant?.brandName || '灵启商城' }}</small></div>
+              <div v-else-if="module.type === 'category' && module.enabled && displayForm.showHomeCategories === 1" class="mobile-preview-categories live-preview-categories">
+                <div v-for="category in visiblePreviewCategories" :key="category.id" class="mobile-preview-category"><span><img v-if="category.iconUrl" :src="category.iconUrl" alt="" /><b v-else>{{ category.categoryName?.slice(0, 1) }}</b></span><strong>{{ category.categoryName }}</strong></div>
+                <div v-if="!visiblePreviewCategories.length" class="preview-empty-inline">暂无首页分类</div>
+              </div>
+              <div v-else-if="module.type === 'trust' && module.enabled && displayForm.showTrustStrip === 1" class="mobile-preview-trust"><span>安全支付</span><span>订单可查</span><span>售后无忧</span></div>
+              <div v-else-if="module.type === 'products' && module.enabled" class="mobile-preview-product-section"><div class="mobile-preview-heading"><strong>精选商品</strong><span>商城好物，为你精选</span></div><div class="mobile-preview-products"><div v-for="product in previewProducts" :key="product.id" class="mobile-preview-product"><img v-if="product.coverUrl" :src="product.coverUrl" :alt="product.productName" /><i v-else></i><strong>{{ product.productName }}</strong><small>{{ product.subtitle || '精选商品，品质保障' }}</small><b>¥{{ Number(product.salePrice || 0).toFixed(2) }}</b></div><div v-if="!previewProducts.length" class="preview-empty-module">暂无上架商品</div></div></div>
+            </template>
+            <div class="mobile-preview-nav" :style="{ gridTemplateColumns: `repeat(${Math.max(visiblePreviewNav.length, 1)}, minmax(0, 1fr))` }"><span v-for="nav in visiblePreviewNav" :key="nav.type" :class="{ active: nav.type === 'home' }">{{ nav.label }}</span></div>
           </div>
-          <el-empty v-if="!categories.length" :image-size="44" description="暂无商品分类，可直接展示精选商品" />
-        </div>
-
-        <el-divider content-position="left">更多颜色配置</el-divider>
-        <el-row :gutter="16">
-          <el-col v-for="color in colorFields" :key="color.key" :span="8">
-            <el-form-item :label="color.label"><div class="color-editor"><el-color-picker v-model="displayForm.colors[color.key]" show-alpha /><span>{{ displayForm.colors[color.key] || '跟随主题' }}</span></div></el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-divider content-position="left">底部导航自定义</el-divider>
-        <div class="nav-config-list">
-          <div v-for="nav in displayForm.bottomNav" :key="nav.type" class="nav-config-row">
-            <span>{{ navNames[nav.type] || nav.type }}</span>
-            <el-input v-model="nav.label" maxlength="6" style="width:120px" />
-            <el-switch v-model="nav.enabled" active-text="展示" inactive-text="隐藏" />
-          </div>
-        </div>
-
-      </el-form>
+        </section>
+      </div>
       <template #footer>
         <el-button @click="displayDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitDisplayConfig">保存商城界面</el-button>
+        <el-button type="primary" @click="submitDisplayConfig">保存发布</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { listShopCategories, updateCategoryShowOnHome, uploadShopImage } from '@/api/shop'
+import { listShopBanners, listShopCategories, listShopProducts, updateCategoryShowOnHome, uploadShopImage } from '@/api/shop'
 import {
   getDisplayConfig,
   listTenants,
@@ -238,11 +217,23 @@ const displayDialogVisible = ref(false)
 const currentTenant = ref(null)
 const currentDisplayConfig = ref({ layoutTemplate: 'standard' })
 const categories = ref([])
+const previewProducts = ref([])
+const previewBanners = ref([])
+const categoryDraft = ref({})
+const previewPage = ref('home')
+const draggingModuleIndex = ref(null)
+const draggingNavIndex = ref(null)
 
 const tenantForm = ref({})
 const displayForm = ref({})
 const moduleNames = { banner: 'Banner轮播', notice: '商城公告', category: '商品分类', trust: '服务保障', products: '精选商品' }
 const navNames = { home: '首页', category: '分类', cart: '购物车', orders: '订单', profile: '我的' }
+const previewPages = [
+  { value: 'home', label: '首页' },
+  { value: 'category', label: '分类' },
+  { value: 'cart', label: '购物车' },
+  { value: 'profile', label: '我的' },
+]
 const defaultModules = () => [
   { type: 'banner', enabled: true, sort: 1 },
   { type: 'notice', enabled: true, sort: 2 },
@@ -352,8 +343,21 @@ const uploadLogo = async ({ file }) => {
 
 const openDisplayDialog = async (row) => {
   currentTenant.value = row
-  const [res, categoryRes] = await Promise.all([getDisplayConfig(row.id), listShopCategories({ tenantId: row.id, status: 1 })])
-  categories.value = categoryRes.data || []
+  const [resResult, categoryResult, productResult, bannerResult] = await Promise.allSettled([
+    getDisplayConfig(row.id),
+    listShopCategories({ tenantId: row.id, status: 1 }),
+    listShopProducts({ tenantId: row.id, status: 1, pageNum: 1, pageSize: 6 }),
+    listShopBanners({ tenantId: row.id }),
+  ])
+  if (resResult.status === 'rejected') throw resResult.reason
+  const res = resResult.value
+  const categoryRes = categoryResult.status === 'fulfilled' ? categoryResult.value : { data: [] }
+  const productRes = productResult.status === 'fulfilled' ? productResult.value : { data: [] }
+  const bannerRes = bannerResult.status === 'fulfilled' ? bannerResult.value : { data: [] }
+  categories.value = Array.isArray(categoryRes.data) ? categoryRes.data : (categoryRes.data?.list || [])
+  previewProducts.value = Array.isArray(productRes.data) ? productRes.data : (productRes.data?.list || [])
+  previewBanners.value = (Array.isArray(bannerRes.data) ? bannerRes.data : (bannerRes.data?.list || [])).filter((banner) => Number(banner.status ?? 1) === 1)
+  categoryDraft.value = Object.fromEntries(categories.value.map((category) => [category.id, Number(category.showOnHome ?? 1)]))
   const raw = res.data?.extraConfigJson || '{}'
   let extra = {}
   try { extra = JSON.parse(raw) || {} } catch { extra = {} }
@@ -371,6 +375,17 @@ const openDisplayDialog = async (row) => {
   displayDialogVisible.value = true
 }
 
+const orderedPreviewModules = computed(() => [...(displayForm.value.homeModules || [])].sort((a, b) => (a.sort || 99) - (b.sort || 99)))
+const visiblePreviewCategories = computed(() => categories.value.filter((category) => Number(categoryDraft.value[category.id] ?? 1) === 1))
+const visiblePreviewNav = computed(() => (displayForm.value.bottomNav || []).filter((nav) => nav.enabled !== false && (nav.type !== 'category' || Number(displayForm.value.showBottomCategoryNav ?? 1) === 1)))
+const previewStyle = computed(() => ({
+  '--preview-color': currentTenant.value?.themeColor || '#e7193f',
+  '--preview-page-bg': displayForm.value.colors?.pageBg || '#f5f6f8',
+  '--preview-card-bg': displayForm.value.colors?.cardBg || '#fff',
+  '--preview-text': displayForm.value.colors?.textColor || '#202735',
+  '--preview-muted': displayForm.value.colors?.mutedColor || '#98a2b3',
+}))
+
 const applyLayoutTemplate = (template) => {
   displayForm.value.layoutTemplate = template.value
   displayForm.value.showHomeCategories = template.showHomeCategories
@@ -385,10 +400,27 @@ const moveModule = (index, direction) => {
   modules.forEach((module, itemIndex) => { module.sort = itemIndex + 1 })
 }
 
-const toggleCategory = async (category, value) => {
-  await updateCategoryShowOnHome(category.id, value)
-  category.showOnHome = value
-  ElMessage.success(value ? `${category.categoryName} 已展示` : `${category.categoryName} 已隐藏`)
+const reorderItems = (items, from, to) => {
+  if (from === null || from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return
+  const [item] = items.splice(from, 1)
+  items.splice(to, 0, item)
+}
+
+const startModuleDrag = (index) => { draggingModuleIndex.value = index }
+const dropModule = (index) => {
+  const modules = displayForm.value.homeModules || []
+  reorderItems(modules, draggingModuleIndex.value, index)
+  modules.forEach((module, itemIndex) => { module.sort = itemIndex + 1 })
+  draggingModuleIndex.value = null
+}
+const startNavDrag = (index) => { draggingNavIndex.value = index }
+const dropNav = (index) => {
+  const navs = displayForm.value.bottomNav || []
+  reorderItems(navs, draggingNavIndex.value, index)
+  draggingNavIndex.value = null
+}
+const setCategoryDraft = (category, value) => {
+  categoryDraft.value = { ...categoryDraft.value, [category.id]: Number(value) }
 }
 
 const submitDisplayConfig = async () => {
@@ -398,8 +430,17 @@ const submitDisplayConfig = async () => {
   delete payload.colors
   delete payload.bottomNav
   await saveDisplayConfig(payload)
+  const categoryUpdates = categories.value
+    .filter((category) => Number(categoryDraft.value[category.id] ?? 1) !== Number(category.showOnHome ?? 1))
+    .map((category) => updateCategoryShowOnHome(category.id, categoryDraft.value[category.id]))
+  const categoryResults = await Promise.allSettled(categoryUpdates)
+  categories.value.forEach((category) => { category.showOnHome = categoryDraft.value[category.id] ?? category.showOnHome })
   currentDisplayConfig.value = { ...displayForm.value }
-  ElMessage.success('商城界面已保存，网页和 APP 刷新后生效')
+  if (categoryResults.some((result) => result.status === 'rejected')) {
+    ElMessage.warning('页面配置已保存，但部分分类显示状态保存失败，请重试')
+  } else {
+    ElMessage.success('商城首页装修已发布，网页和 APP 刷新后生效')
+  }
   displayDialogVisible.value = false
 }
 
@@ -503,38 +544,53 @@ onMounted(fetchData)
 .mobile-preview-shell {
   width: 390px;
   max-width: 100%;
-  min-height: 650px;
+  height: 640px;
   margin: 0 auto;
-  overflow: hidden;
-  color: #202735;
-  background: #f5f6f8;
+  overflow-y: auto;
+  color: var(--preview-text, #202735);
+  background: var(--preview-page-bg, #f5f6f8);
   border: 10px solid #1f2937;
   border-radius: 30px;
   box-shadow: 0 18px 40px rgba(31, 41, 55, .18);
 }
 .mobile-preview-status { display:flex; justify-content:space-between; padding:9px 18px 4px; color:#1f2937; font-size:11px; font-weight:700; background:#fff; }
 .mobile-preview-brand { display:grid; grid-template-columns:28px 1fr auto; align-items:center; gap:8px; padding:9px 14px 10px; background:#fff; }
-.mobile-preview-logo { display:grid; width:28px; height:28px; place-items:center; color:var(--preview-color); font-weight:800; background:#fff; border:2px solid var(--preview-color); border-radius:9px; }
+.mobile-preview-logo { display:grid; width:28px; height:28px; place-items:center; overflow:hidden; color:var(--preview-color); font-weight:800; background:#fff; border:2px solid var(--preview-color); border-radius:9px; }
+.mobile-preview-logo img { width:100%; height:100%; object-fit:contain; }
 .mobile-preview-brand strong { overflow:hidden; font-size:16px; text-overflow:ellipsis; white-space:nowrap; }
 .mobile-preview-share { color:var(--preview-color); font-size:12px; }
 .mobile-preview-search { display:grid; grid-template-columns:24px 1fr 26px; align-items:center; gap:6px; margin:0 12px 10px; padding:8px 10px; color:#98a2b3; background:#fff; border:1.5px solid var(--preview-color); border-radius:999px; }
 .mobile-preview-search b { display:grid; width:26px; height:26px; place-items:center; color:#fff; background:var(--preview-color); border-radius:50%; }
-.mobile-preview-banner { display:grid; gap:4px; margin:0 12px 10px; padding:26px 16px 14px; color:#fff; background:linear-gradient(135deg, color-mix(in srgb, var(--preview-color) 84%, #111 16%), var(--preview-color)); border-radius:16px; }
+.mobile-preview-banner { position:relative; display:grid; gap:4px; min-height:122px; margin:0 12px 10px; overflow:hidden; color:#fff; background:linear-gradient(135deg, color-mix(in srgb, var(--preview-color) 84%, #111 16%), var(--preview-color)); border-radius:16px; }
+.live-preview-banner img { width:100%; height:122px; object-fit:cover; }
+.live-preview-banner i { position:absolute; right:12px; bottom:8px; margin:0; }
+.preview-empty-module { display:grid; place-items:center; align-content:center; gap:4px; min-height:100px; padding:14px; color:#667085; font-size:11px; text-align:center; }
+.preview-empty-module strong { color:var(--preview-color); font-size:15px; }
+.mobile-preview-banner .preview-empty-module { color:#fff; }
+.mobile-preview-banner .preview-empty-module strong { color:#fff; }
 .mobile-preview-banner span { font-size:20px; font-weight:800; }
 .mobile-preview-banner small { opacity:.86; }
 .mobile-preview-banner i { margin-top:8px; font-style:normal; font-size:11px; letter-spacing:3px; opacity:.85; }
-.mobile-preview-categories { display:flex; gap:7px; margin:0 12px 10px; padding:10px; overflow:hidden; background:#fff; border-radius:14px; }
-.mobile-preview-categories span { flex:1; padding:7px 4px; color:var(--preview-color); font-size:12px; text-align:center; background:color-mix(in srgb, var(--preview-color) 10%, #fff 90%); border-radius:999px; }
+.mobile-preview-notice { display:flex; align-items:center; gap:7px; margin:0 12px 10px; padding:9px 10px; overflow:hidden; color:var(--preview-color); background:#fff; border-radius:12px; }
+.mobile-preview-notice small { overflow:hidden; color:var(--preview-muted, #98a2b3); text-overflow:ellipsis; white-space:nowrap; }
+.mobile-preview-categories { display:flex; gap:7px; margin:0 12px 10px; padding:10px; overflow:hidden; background:var(--preview-card-bg, #fff); border-radius:14px; }
+.mobile-preview-category { flex:0 0 58px; display:grid; justify-items:center; gap:4px; min-width:0; color:var(--preview-color); font-size:10px; text-align:center; }
+.mobile-preview-category > span { display:grid; width:36px; height:36px; place-items:center; overflow:hidden; background:color-mix(in srgb, var(--preview-color) 10%, #fff 90%); border-radius:50%; }
+.mobile-preview-category img { width:100%; height:100%; object-fit:cover; }
+.mobile-preview-category b { font-size:14px; }
+.mobile-preview-category strong { overflow:hidden; width:100%; text-overflow:ellipsis; white-space:nowrap; }
+.preview-empty-inline { padding:12px; color:var(--preview-muted, #98a2b3); font-size:11px; }
 .mobile-preview-heading { display:grid; gap:3px; padding:7px 14px; }
 .mobile-preview-heading strong { font-size:20px; }
 .mobile-preview-heading span { color:#98a2b3; font-size:12px; }
 .mobile-preview-products { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; padding:7px 12px 12px; }
-.mobile-preview-product { display:grid; gap:5px; padding:8px; background:#fff; border-radius:14px; }
+.mobile-preview-product { display:grid; gap:5px; min-width:0; padding:8px; background:var(--preview-card-bg, #fff); border-radius:14px; }
+.mobile-preview-product img { display:block; width:100%; height:95px; object-fit:cover; border-radius:10px; }
 .mobile-preview-product i { display:block; height:95px; background:linear-gradient(135deg, color-mix(in srgb, var(--preview-color) 15%, #fff 85%), #e9edf2); border-radius:10px; }
 .mobile-preview-product strong { overflow:hidden; font-size:13px; text-overflow:ellipsis; white-space:nowrap; }
 .mobile-preview-product small { overflow:hidden; color:#98a2b3; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
 .mobile-preview-product b { color:var(--preview-color); font-size:15px; }
-.mobile-preview-trust { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; margin:0 12px 12px; padding:9px 4px; color:#667085; font-size:11px; text-align:center; background:#fff; border-radius:12px; }
+.mobile-preview-trust { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; margin:0 12px 12px; padding:9px 4px; color:#667085; font-size:11px; text-align:center; background:var(--preview-card-bg, #fff); border-radius:12px; }
 .mobile-preview-nav { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); padding:10px 8px 12px; color:#8a94a4; font-size:11px; text-align:center; background:#fff; border-top:1px solid #eef0f3; }
 .mobile-preview-nav span:first-child { color:var(--preview-color); font-weight:800; }
 .version-form {
@@ -545,6 +601,105 @@ onMounted(fetchData)
 .display-alert {
   margin-bottom: 16px;
 }
+.preview-page-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 4px;
+  background: #f5f7fa;
+  border-radius: 10px;
+}
+.preview-page-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 14px;
+  color: #606266;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.preview-page-tabs button.active {
+  color: var(--el-color-primary);
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(31, 45, 61, .08);
+}
+.preview-page-tabs small { color: #a8abb2; font-size: 10px; }
+.display-workbench {
+  display: grid;
+  grid-template-columns: minmax(430px, 1fr) 410px;
+  gap: 18px;
+  min-height: 650px;
+}
+.display-controls {
+  max-height: 690px;
+  padding-right: 6px;
+  overflow-y: auto;
+}
+.control-section {
+  margin-bottom: 14px;
+  padding: 14px;
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 10px;
+}
+.control-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 11px;
+}
+.control-section-heading div { display: grid; gap: 3px; }
+.control-section-heading strong { color: #303133; font-size: 14px; }
+.control-section-heading small { color: #909399; font-size: 12px; }
+.control-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  color: #606266;
+  border-top: 1px solid #f2f3f5;
+}
+.drag-handle {
+  flex: 0 0 18px;
+  color: #a8abb2;
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: -4px;
+  cursor: grab;
+}
+.module-list-sortable .module-item,
+.nav-list-sortable .nav-config-row { cursor: grab; }
+.module-list-sortable .module-item:active,
+.nav-list-sortable .nav-config-row:active { cursor: grabbing; }
+.module-list-sortable .module-item { gap: 8px; }
+.module-list-sortable .module-item strong { flex: 1; }
+.category-list-draft { max-height: 170px; overflow-y: auto; }
+.nav-config-row { gap: 8px; }
+.nav-config-row .nav-type-name { width: 54px; color: #303133; font-size: 12px; }
+.nav-config-row .el-switch { margin-left: auto; }
+.color-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.color-grid label { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #606266; font-size: 12px; }
+.preview-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  padding: 14px;
+  background: #f5f7fa;
+  border: 1px solid #ebeef5;
+  border-radius: 12px;
+}
+.preview-stage-heading { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px; margin-bottom: 12px; }
+.preview-stage-heading div { display: grid; gap: 3px; }
+.preview-stage-heading strong { color: #303133; font-size: 14px; }
+.preview-stage-heading span { color: #909399; font-size: 11px; }
+.preview-coming-soon { display: grid; place-items: center; align-content: center; gap: 8px; flex: 1; width: 100%; min-height: 520px; color: #909399; text-align: center; background: #fff; border: 1px dashed #dcdfe6; border-radius: 14px; }
+.preview-coming-soon strong { color: #606266; font-size: 18px; }
+.preview-coming-soon span { font-size: 12px; }
 .module-list,.category-list,.nav-config-list { display: grid; gap: 8px; }
 .module-item,.category-row,.nav-config-row { display:flex; align-items:center; gap:12px; padding:10px 12px; border:1px solid #ebeef5; border-radius:8px; background:#fafbfc; }
 .module-item strong,.category-row span { flex:1; color:#303133; }
@@ -763,5 +918,8 @@ onMounted(fetchData)
   .theme-preset-grid { grid-template-columns: 1fr; }
   .color-editor { grid-template-columns: 42px minmax(0, 1fr); }
   .color-editor > span { grid-column: 1 / 3; }
+  .display-workbench { grid-template-columns: 1fr; }
+  .display-controls { max-height: none; overflow: visible; }
+  .preview-stage { order: -1; }
 }
 </style>
