@@ -87,12 +87,19 @@ const navIconMap = { home: Home, category: Grid3x3, cart: ShoppingBag, orders: C
 const navIcon = (type) => navIconMap[type] || Home
 const bottomNavItems = computed(() => {
   let items = defaultBottomNav
+  let hasConfiguredBottomNav = false
   try {
     const extra = JSON.parse(displayConfig.value.extraConfigJson || '{}')
-    if (Array.isArray(extra.bottomNav) && extra.bottomNav.length) items = extra.bottomNav.map((item) => ({ ...item, path: defaultBottomNav.find((base) => base.type === item.type)?.path || '/' }))
+    if (Array.isArray(extra.bottomNav) && extra.bottomNav.length) {
+      hasConfiguredBottomNav = true
+      items = extra.bottomNav.map((item) => ({ ...item, path: defaultBottomNav.find((base) => base.type === item.type)?.path || '/' }))
+    }
   } catch (_) {}
-  const categoryEnabled = Number(displayConfig.value.showBottomCategoryNav ?? 1) === 1
-  return items.filter((item) => item.enabled !== false && (item.type !== 'category' || categoryEnabled))
+  if (!hasConfiguredBottomNav) {
+    const legacyCategoryEnabled = Number(displayConfig.value.showBottomCategoryNav ?? 1) === 1
+    return items.filter((item) => item.enabled !== false && (item.type !== 'category' || legacyCategoryEnabled))
+  }
+  return items.filter((item) => item.enabled !== false)
 })
 const bottomNavColumns = computed(() => Math.max(bottomNavItems.value.length, 1))
 const layoutTemplate = computed(() => ['standard', 'product-focus', 'category-focus'].includes(displayConfig.value.layoutTemplate)

@@ -41,9 +41,6 @@
           <el-form-item label="首页分类模块">
             <el-switch v-model="displayForm.showHomeCategories" :active-value="1" :inactive-value="0" active-text="展示" inactive-text="隐藏" />
           </el-form-item>
-          <el-form-item label="底部导航分类入口">
-            <el-switch v-model="displayForm.showBottomCategoryNav" :active-value="1" :inactive-value="0" active-text="展示" inactive-text="隐藏" />
-          </el-form-item>
           <el-divider />
           <p class="section-desc">单独控制每个分类是否在首页展示：</p>
           <div v-for="cat in categories" :key="cat.id" class="category-toggle">
@@ -221,7 +218,7 @@ const submit = async () => {
     await saveTenant({
       id: displayForm.value.id,
       showHomeCategories: displayForm.value.showHomeCategories,
-      showBottomCategoryNav: displayForm.value.showBottomCategoryNav,
+      showBottomCategoryNav: bottomNav.value.find((nav) => nav.type === 'category')?.enabled === false ? 0 : 1,
       extraConfigJson: JSON.stringify(extraConfig),
     })
     ElMessage.success('商城装修配置已保存，前台刷新后生效')

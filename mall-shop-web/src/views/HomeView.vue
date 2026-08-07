@@ -217,10 +217,6 @@ const homeModules = computed(() => {
   return defaultModules
 })
 
-// 底部导航
-const bottomNavConfig = computed(() => displayConfig.value.bottomNav)
-const showBottomCategoryNav = computed(() => Number(displayConfig.value.showBottomCategoryNav ?? 1) === 1)
-
 // 颜色配置注入
 const applyExtraColors = (config) => {
   const colors = config.colors || {}

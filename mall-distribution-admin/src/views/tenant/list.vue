@@ -183,7 +183,6 @@
                 <el-switch v-model="nav.enabled" active-text="展示" inactive-text="隐藏" />
               </div>
             </div>
-            <div class="control-switch-row"><span>底部分类入口</span><el-switch v-model="displayForm.showBottomCategoryNav" :active-value="1" :inactive-value="0" /></div>
           </section>
 
           <section class="control-section">
@@ -413,6 +412,11 @@ const openDisplayDialog = async (row) => {
   const raw = res.data?.extraConfigJson || '{}'
   let extra = {}
   try { extra = JSON.parse(raw) || {} } catch { extra = {} }
+  const legacyBottomCategoryEnabled = Number(res.data?.showBottomCategoryNav ?? 1) === 1
+  const configuredBottomNav = Array.isArray(extra.bottomNav) && extra.bottomNav.length ? extra.bottomNav : defaultBottomNav()
+  const bottomNav = configuredBottomNav.map((nav) => nav.type === 'category'
+    ? { ...nav, enabled: nav.enabled !== false && legacyBottomCategoryEnabled }
+    : nav)
   displayForm.value = {
     tenantId: row.id,
     brandName: row.brandName || row.tenantName || '灵启商城',
@@ -424,7 +428,7 @@ const openDisplayDialog = async (row) => {
     ...(res.data || {}),
     homeModules: Array.isArray(extra.homeModules) && extra.homeModules.length ? extra.homeModules : defaultModules(),
     colors: { ...defaultColors(), ...(extra.colors || {}) },
-    bottomNav: Array.isArray(extra.bottomNav) && extra.bottomNav.length ? extra.bottomNav : defaultBottomNav(),
+    bottomNav,
     showTrustStrip: Number(extra.showTrustStrip ?? 0) === 1 ? 1 : 0,
   }
   displayDialogVisible.value = true
@@ -442,7 +446,7 @@ const resetColors = () => {
 
 const orderedPreviewModules = computed(() => [...(displayForm.value.homeModules || [])].sort((a, b) => (a.sort || 99) - (b.sort || 99)))
 const visiblePreviewCategories = computed(() => categories.value.filter((category) => Number(categoryDraft.value[category.id] ?? 1) === 1))
-const visiblePreviewNav = computed(() => (displayForm.value.bottomNav || []).filter((nav) => nav.enabled !== false && (nav.type !== 'category' || Number(displayForm.value.showBottomCategoryNav ?? 1) === 1)))
+const visiblePreviewNav = computed(() => (displayForm.value.bottomNav || []).filter((nav) => nav.enabled !== false))
 const previewStyle = computed(() => ({
   '--preview-color': displayForm.value.themeColor || currentTenant.value?.themeColor || '#e7193f',
   '--preview-page-bg': displayForm.value.colors?.pageBg || '#f5f6f8',
@@ -454,7 +458,8 @@ const previewStyle = computed(() => ({
 const applyLayoutTemplate = (template) => {
   displayForm.value.layoutTemplate = template.value
   displayForm.value.showHomeCategories = template.showHomeCategories
-  displayForm.value.showBottomCategoryNav = template.showBottomCategoryNav
+  const categoryNav = (displayForm.value.bottomNav || []).find((nav) => nav.type === 'category')
+  if (categoryNav) categoryNav.enabled = template.showBottomCategoryNav === 1
 }
 
 const moveModule = (index, direction) => {
@@ -490,6 +495,8 @@ const setCategoryDraft = (category, value) => {
 
 const submitDisplayConfig = async () => {
   const payload = { ...displayForm.value }
+  const categoryNav = (payload.bottomNav || []).find((nav) => nav.type === 'category')
+  payload.showBottomCategoryNav = categoryNav?.enabled === false ? 0 : 1
   payload.extraConfigJson = JSON.stringify({ homeModules: payload.homeModules, colors: payload.colors, bottomNav: payload.bottomNav, showTrustStrip: payload.showTrustStrip })
   delete payload.homeModules
   delete payload.colors
