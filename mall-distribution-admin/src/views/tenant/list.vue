@@ -128,7 +128,7 @@
             <div class="section-note">Banner 图片内容请进入 <el-button type="primary" link @click="$router.push('/tenant/banners')">商城设置 · 首页Banner</el-button> 管理。</div>
           </section>
 
-          <section class="control-section">
+          <section class="control-section category-config-section">
             <div class="control-section-heading"><div><strong>分类模块</strong><small>先控制整体，再控制单个分类</small></div></div>
             <div class="control-switch-row"><span>首页显示分类</span><el-switch v-model="displayForm.showHomeCategories" :active-value="1" :inactive-value="0" /></div>
             <div class="category-list category-list-draft">
@@ -694,9 +694,32 @@ onMounted(fetchData)
 .nav-list-sortable .nav-config-row { cursor: grab; }
 .module-list-sortable .module-item:active,
 .nav-list-sortable .nav-config-row:active { cursor: grabbing; }
-.module-list-sortable .module-item { gap: 8px; }
+.module-list-sortable .module-item { gap: 8px; min-height: 34px; padding: 7px 9px; }
 .module-list-sortable .module-item strong { flex: 1; }
-.category-list-draft { max-height: 170px; overflow-y: auto; }
+.category-config-section .control-section-heading { margin-bottom: 8px; }
+.category-list.category-list-draft {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  max-height: 132px;
+  padding: 6px;
+  overflow-y: auto;
+  background: #f7f9fc;
+  border: 1px solid #eef1f5;
+  border-radius: 9px;
+}
+.category-list-draft .category-row {
+  min-width: 0;
+  gap: 6px;
+  padding: 6px 8px;
+  color: #475467;
+  font-size: 12px;
+  background: #fff;
+  border-color: #e8edf3;
+  border-radius: 7px;
+}
+.category-list-draft .category-row > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.category-list-draft .el-switch { transform: scale(.9); transform-origin: right center; }
 .nav-config-row { gap: 8px; }
 .nav-config-row .nav-type-name { width: 54px; color: #303133; font-size: 12px; }
 .nav-config-row .el-switch { margin-left: auto; }
@@ -940,5 +963,8 @@ onMounted(fetchData)
   .display-workbench { grid-template-columns: 1fr; }
   .display-controls { max-height: none; overflow: visible; }
   .preview-stage { order: -1; }
+}
+@media (max-width: 680px) {
+  .category-list.category-list-draft { grid-template-columns: 1fr; max-height: 180px; }
 }
 </style>
