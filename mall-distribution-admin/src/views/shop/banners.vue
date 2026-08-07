@@ -3,7 +3,7 @@
     <div class="toolbar">
       <div>
         <h2>首页轮播图</h2>
-        <p>商城设置 · 首页轮播图：维护首页顶部展示内容，只有启用且在有效时间内的图片会展示给客户。</p>
+        <p>商城设置 · 首页轮播图：维护首页顶部展示内容，启用后即可展示给客户。</p>
       </div>
       <el-button type="primary" @click="openCreate">新增轮播图</el-button>
     </div>
@@ -25,16 +25,13 @@
         </el-table-column>
         <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip />
         <el-table-column label="点击后动作" min-width="150">
-          <template #default="{ row }">{{ linkTypeName(row.linkType) }}{{ row.linkValue ? `：${row.linkValue}` : '' }}</template>
+          <template #default="{ row }">{{ linkTypeName(row.linkType) }}{{ normalizeLinkType(row.linkType) !== 'none' && row.linkValue ? `：${row.linkValue}` : '' }}</template>
         </el-table-column>
         <el-table-column prop="sort" label="顺序" width="80" sortable />
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
             <el-switch :model-value="row.status === 1" @change="(value) => toggleStatus(row, value)" />
           </template>
-        </el-table-column>
-        <el-table-column label="有效期" width="210">
-          <template #default="{ row }">{{ formatDate(row.startTime) }} 至 {{ formatDate(row.endTime) }}</template>
         </el-table-column>
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
@@ -59,7 +56,7 @@
         </el-form-item>
         <el-form-item label="标题" prop="title"><el-input v-model="form.title" maxlength="64" show-word-limit /></el-form-item>
         <el-form-item label="点击后打开">
-          <el-select v-model="form.linkType" style="width:150px">
+          <el-select v-model="form.linkType" style="width:150px" @change="handleLinkTypeChange">
             <el-option label="不跳转" value="none" />
             <el-option label="商品详情" value="product" />
             <el-option label="商品分类" value="category" />
@@ -71,9 +68,6 @@
           <el-col :span="12"><el-form-item label="展示顺序"><el-input-number v-model="form.sort" :min="0" :max="9999" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="启用状态"><el-switch v-model="form.status" :active-value="1" :inactive-value="0" active-text="展示" inactive-text="隐藏" /></el-form-item></el-col>
         </el-row>
-        <el-form-item label="展示时间">
-          <el-date-picker v-model="form.timeRange" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ss" range-separator="至" start-placeholder="开始时间" end-placeholder="结束时间" clearable />
-        </el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark" type="textarea" :rows="2" maxlength="200" show-word-limit /></el-form-item>
       </el-form>
       <template #footer>
@@ -99,9 +93,9 @@ const rules = { imageUrl: [{ required: true, message: '请上传轮播图片', t
 const linkPlaceholder = computed(() => ({ product: '填写商品 ID', category: '填写分类名称', url: '填写 https:// 开头的链接' }[form.value.linkType] || ''))
 
 const emptyForm = () => ({ tenantId: 1, title: '', imageUrl: '', linkType: 'none', linkValue: '', sort: 100, status: 1, timeRange: [], remark: '' })
-const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 16) : '不限时间'
-const linkTypeName = (value) => ({ none: '不跳转', product: '商品详情', category: '商品分类', url: '外部链接' }[value] || '不跳转')
-const normalizeRow = (row) => ({ ...row, timeRange: [row.startTime, row.endTime].filter(Boolean) })
+const normalizeLinkType = (value) => String(value || 'none').trim().toLowerCase()
+const linkTypeName = (value) => ({ none: '不跳转', product: '商品详情', category: '商品分类', url: '外部链接' }[normalizeLinkType(value)] || '不跳转')
+const normalizeRow = (row) => ({ ...row, linkType: normalizeLinkType(row.linkType), timeRange: [row.startTime, row.endTime].filter(Boolean) })
 
 const fetchRows = async () => {
   loading.value = true
@@ -112,7 +106,8 @@ const fetchRows = async () => {
 }
 
 const openCreate = () => { form.value = emptyForm(); dialogVisible.value = true }
-const openEdit = (row) => { form.value = { ...emptyForm(), ...row, timeRange: row.timeRange || [row.startTime, row.endTime].filter(Boolean) }; dialogVisible.value = true }
+const openEdit = (row) => { form.value = { ...emptyForm(), ...row, linkType: normalizeLinkType(row.linkType), timeRange: row.timeRange || [row.startTime, row.endTime].filter(Boolean) }; dialogVisible.value = true }
+const handleLinkTypeChange = (value) => { if (normalizeLinkType(value) === 'none') form.value.linkValue = '' }
 const uploadImage = async ({ file }) => {
   const res = await uploadShopImage(file)
   form.value.imageUrl = res.data
@@ -128,7 +123,8 @@ const submit = async () => {
   if (valid === false) return
   saving.value = true
   try {
-    const payload = { ...form.value, startTime: form.value.timeRange?.[0] || null, endTime: form.value.timeRange?.[1] || null }
+    // 时间字段已从界面移除：编辑历史轮播图时保留原值，新建轮播图默认不设置时间。
+    const payload = { ...form.value, linkType: normalizeLinkType(form.value.linkType) }
     delete payload.timeRange
     if (payload.linkType === 'none') payload.linkValue = ''
     if (payload.id) await updateShopBanner(payload.id, payload)
