@@ -47,17 +47,18 @@ MUTATED=1
 
 nginx -t
 systemctl reload nginx
-admin_html=$(curl -fsS --max-time 12 https://lingqimall.com/admin/)
+sleep 2
+admin_html=$(curl -fsS --max-time 12 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' 'https://lingqimall.com/admin/?release=1.0.21')
 grep -q '<div id="app">' <<< "$admin_html"
 admin_entry=$(grep -o '/admin/assets/index-[^" ]*\.js' <<< "$admin_html" | head -1)
-curl -fsS --max-time 12 "https://lingqimall.com$admin_entry" >/dev/null
+curl -fsS --max-time 12 -H 'Cache-Control: no-cache' "https://lingqimall.com$admin_entry?release=1.0.21" >/dev/null
 grep -R -Fq '颜色微调' "$APP_ROOT/nginx/admin/assets"
 grep -R -Fq '首页 Banner' "$APP_ROOT/nginx/admin/assets"
 [[ "$(tr -d '[:space:]' < "$APP_ROOT/VERSION")" == "1.0.21" ]]
 systemctl is-active --quiet nginx
 systemctl is-active --quiet mysql
 systemctl is-active --quiet redis-server
-curl -fsS --max-time 12 https://lingqimall.com/ >/dev/null
+curl -fsS --max-time 12 -H 'Cache-Control: no-cache' 'https://lingqimall.com/?release=1.0.21' >/dev/null
 
 MUTATED=0
 trap - EXIT
