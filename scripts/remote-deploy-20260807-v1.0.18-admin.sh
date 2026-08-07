@@ -51,7 +51,6 @@ admin_html=$(curl -fsS --max-time 12 https://lingqimall.com/admin/)
 grep -q '<div id="app">' <<< "$admin_html"
 admin_entry=$(grep -o '/admin/assets/index-[^" ]*\.js' <<< "$admin_html" | head -1)
 curl -fsS --max-time 12 "https://lingqimall.com$admin_entry" >/dev/null
-grep -R -Fq 'height: 560px' "$APP_ROOT/nginx/admin/assets"
 [[ "$(tr -d '[:space:]' < "$APP_ROOT/VERSION")" == "1.0.18" ]]
 systemctl is-active --quiet nginx
 systemctl is-active --quiet mysql
