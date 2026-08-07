@@ -135,11 +135,6 @@
             </div>
           </section>
 
-          <section v-if="activeEditSection === 'service'" class="control-section">
-            <div class="control-section-heading"><div><strong>服务说明</strong><small>首页底部的说明性内容</small></div></div>
-            <div class="control-switch-row"><span>安全支付、订单可查、售后无忧（与首页模块同步）</span><el-switch :model-value="Number(displayForm.showTrustStrip) === 1" :active-value="true" :inactive-value="false" @change="setTrustEnabled" /></div>
-          </section>
-
           <section v-if="activeEditSection === 'nav'" class="control-section">
             <div class="control-section-heading"><div><strong>底部导航</strong><small>拖动排序、改名或隐藏</small></div></div>
             <div class="nav-config-list nav-list-sortable">
@@ -335,13 +330,11 @@ const displaySectionRows = computed(() => {
   const customColorCount = Object.values(extra.colors || {}).filter(Boolean).length
   const visibleModules = modules.filter((item) => item.enabled !== false).length
   const visibleNav = nav.filter((item) => item.enabled !== false).length
-  const trustEnabled = Number(extra.showTrustStrip ?? 0) === 1
   return [
     { key: 'brand', icon: '✦', label: '品牌视觉', summary: `${row.brandName || row.tenantName || '灵启商城'} · ${getTemplateName(row.productTemplate)} · ${row.logoUrl ? '已配置 Logo' : '待上传 Logo'}`, status: row.brandName || row.logoUrl ? '已配置' : '待完善', active: Boolean(row.brandName || row.logoUrl) },
     { key: 'banner', icon: '▣', label: '首页轮播图', summary: '管理首页展示图片、点击后的去向和展示状态', status: '可编辑', active: true },
     { key: 'home', icon: '⌂', label: '首页模块', summary: `${visibleModules}/${modules.length} 个模块展示，支持拖动排序`, status: '已配置', active: visibleModules > 0 },
     { key: 'category', icon: '▦', label: '分类模块', summary: '控制首页分类入口及单个分类显示', status: '可编辑', active: true },
-    { key: 'service', icon: '◇', label: '服务说明', summary: trustEnabled ? '安全支付、订单可查、售后无忧已展示' : '安全支付、订单可查、售后无忧当前隐藏', status: trustEnabled ? '展示中' : '已隐藏', active: trustEnabled },
     { key: 'nav', icon: '≡', label: '底部导航', summary: `${visibleNav} 项导航展示，支持改名、排序和隐藏`, status: '已配置', active: visibleNav > 0 },
     { key: 'colors', icon: '◉', label: '颜色微调', summary: customColorCount ? `已调整 ${customColorCount} 项颜色` : '使用主题默认颜色，可恢复默认', status: customColorCount ? '已调整' : '默认', active: customColorCount > 0 },
   ]

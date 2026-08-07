@@ -37,9 +37,10 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('extraConfigJson')
     expect(source).toContain('确认放弃未保存修改？')
     expect(source).toContain('moveNav')
-    for (const section of ['品牌视觉', '首页轮播图', '首页模块', '分类模块', '服务说明', '底部导航', '颜色微调']) {
+    for (const section of ['品牌视觉', '首页轮播图', '首页模块', '分类模块', '底部导航', '颜色微调']) {
       expect(source).toContain(section)
     }
+    expect(source).not.toContain("activeEditSection === 'service'")
     expect(source).toContain('displaySectionRows')
     expect(source).toContain('activeEditSection')
     expect(source).toContain('display-section-brand-only')
