@@ -65,16 +65,17 @@
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="displayDialogVisible" title="商城视觉装修工作台" width="1040px" top="1vh" class="display-workbench-dialog" :before-close="confirmCloseDisplayDialog">
+    <el-dialog v-model="displayDialogVisible" title="商城视觉装修工作台" width="1120px" top="2vh" class="display-workbench-dialog" :before-close="confirmCloseDisplayDialog">
       <el-alert title="左侧调整模块，右侧手机实时预览。当前修改只保存在草稿中，点击“保存发布”后才会影响客户前台。" type="info" :closable="false" class="display-alert" />
-      <div class="preview-page-tabs" role="tablist" aria-label="前台页面预览">
-        <button v-for="page in previewPages" :key="page.value" type="button" :class="{ active: previewPage === page.value }" @click="previewPage = page.value">{{ page.label }}</button>
+      <div class="workbench-heading">
+        <div><span>当前编辑</span><strong>{{ editSectionLabel }}</strong></div>
+        <div class="workbench-heading-meta"><span class="draft-dot"></span>右侧预览实时更新</div>
       </div>
       <div class="display-workbench">
         <aside class="display-controls">
           <div class="display-section-switcher" aria-label="装修模块">
             <div class="display-section-brand-only">
-              <strong>品牌视觉</strong><small>名称、Logo、主题模板</small>
+              <span>编辑模块</span><strong>{{ editSectionLabel }}</strong><small>左侧调整内容，右侧同步预览</small>
             </div>
           </div>
           <section v-if="activeEditSection === 'brand'" class="control-section visual-design-panel">
@@ -163,7 +164,7 @@
         </aside>
 
         <section class="preview-stage">
-          <div class="preview-stage-heading"><div><strong>客户手机版预览</strong><span>{{ previewPage === 'home' ? '首页模块与前台保持同一套配置' : `${previewPages.find((page) => page.value === previewPage)?.label}使用同一套品牌、颜色和底部导航` }}</span></div><el-tag type="success">草稿预览</el-tag></div>
+          <div class="preview-stage-heading"><div><strong>客户手机版预览</strong><span>首页模块与前台保持同一套配置</span></div><el-tag type="success">草稿预览</el-tag></div>
           <div class="mobile-preview-shell live-mobile-preview" :style="previewStyle">
             <div class="mobile-preview-status"><span>9:41</span><span>● ● ●</span></div>
             <div class="mobile-preview-brand"><span class="mobile-preview-logo"><img v-if="displayForm.logoUrl" :src="displayForm.logoUrl" alt="" /><span v-else>{{ (displayForm.brandName || '灵启').slice(0, 1) }}</span></span><strong>{{ displayForm.brandName || '灵启商城' }}</strong><span class="mobile-preview-share">分享</span></div>
@@ -232,9 +233,9 @@ const displayDraftDirty = ref(false)
 const displayForm = ref({})
 const moduleNames = { banner: '首页轮播图', notice: '商城公告', category: '商品分类', trust: '服务保障', products: '精选商品' }
 const navNames = { home: '首页', category: '分类', cart: '购物车', orders: '订单', profile: '我的' }
-const previewPages = [
-  { value: 'home', label: '首页' },
-]
+const editSectionLabels = { brand: '品牌视觉', banner: '首页轮播图', home: '首页模块', category: '分类模块', nav: '底部导航', colors: '颜色微调' }
+const editSectionLabel = computed(() => editSectionLabels[activeEditSection.value] || '品牌视觉')
+const previewPages = [{ value: 'home', label: '首页' }]
 const defaultModules = () => [
   { type: 'banner', enabled: true, sort: 1 },
   { type: 'notice', enabled: true, sort: 2 },
@@ -766,8 +767,18 @@ onMounted(fetchData)
   border-top: 1px solid #ebeef5;
 }
 .display-alert {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
+.display-workbench-dialog :deep(.el-dialog) { overflow: hidden; border-radius: 18px; }
+.display-workbench-dialog :deep(.el-dialog__header) { margin-right: 0; padding: 17px 22px 13px; border-bottom: 1px solid #edf0f5; }
+.display-workbench-dialog :deep(.el-dialog__body) { padding: 12px 20px 16px; background: #f8fafc; }
+.display-workbench-dialog :deep(.el-dialog__footer) { padding: 12px 20px; background: #fff; border-top: 1px solid #edf0f5; }
+.workbench-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; padding:0 2px; }
+.workbench-heading > div:first-child { display:flex; align-items:baseline; gap:8px; }
+.workbench-heading span { color:#98a2b3; font-size:12px; }
+.workbench-heading strong { color:#1f2937; font-size:15px; }
+.workbench-heading-meta { display:flex; align-items:center; gap:6px; color:#667085; font-size:12px; }
+.draft-dot { display:inline-block; width:7px; height:7px; background:#67c23a; border-radius:50%; }
 .visual-design-panel {
   margin-bottom: 14px;
   padding: 14px;
@@ -787,7 +798,8 @@ onMounted(fetchData)
 .compact-theme-grid .theme-preview { width: 42px; height: 34px; padding: 5px; }
 .compact-theme-grid .theme-preset strong { font-size: 12px; }
 .compact-theme-grid .theme-preset small { min-height: 0; overflow: hidden; font-size: 10px; line-height: 14px; text-overflow: ellipsis; white-space: nowrap; }
-.visual-design-fields { display: grid; gap: 10px; padding: 4px 0; }
+.visual-design-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px 16px; padding: 4px 0; }
+.visual-design-fields label:first-child { grid-column: 1 / -1; }
 .visual-design-fields label { display: grid; gap: 5px; color: #667085; font-size: 12px; }
 .visual-design-fields .color-editor { grid-template-columns: 32px minmax(0, 1fr); width: 100%; gap: 7px; }
 .visual-design-fields .color-editor .el-color-picker { width: 32px; }
@@ -796,61 +808,30 @@ onMounted(fetchData)
 .display-logo-uploader { display: grid; width: 42px; height: 42px; place-items: center; overflow: hidden; color: var(--el-color-primary); background: #f5f7fa; border: 1px dashed #cfd6e0; border-radius: 9px; cursor: pointer; }
 .display-logo-uploader .el-image { width: 100%; height: 100%; }
 .display-logo-uploader span { font-size: 11px; }
-.preview-page-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 14px;
-  padding: 4px;
-  background: #f5f7fa;
-  border-radius: 10px;
-}
-.preview-page-tabs button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 8px 14px;
-  color: #606266;
-  background: transparent;
-  border: 0;
-  border-radius: 7px;
-  cursor: pointer;
-}
-.preview-page-tabs button.active {
-  color: var(--el-color-primary);
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(31, 45, 61, .08);
-}
-.preview-page-tabs small { color: #a8abb2; font-size: 10px; }
 .display-workbench {
   display: grid;
-  grid-template-columns: minmax(430px, 1fr) 410px;
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) 370px;
+  gap: 16px;
   min-height: 0;
 }
 .display-controls {
   max-height: 590px;
-  padding-right: 6px;
+  padding: 0 4px 0 0;
   overflow-y: auto;
 }
 .display-section-switcher {
-  margin-bottom: 10px;
-  padding: 7px;
-  background: #f5f7fa;
-  border: 1px solid #ebeef5;
-  border-radius: 10px;
+  margin: 0 0 10px;
 }
 .display-section-brand-only {
-  display: grid;
-  gap: 2px;
-  padding: 8px 9px;
-  color: #606266;
-  background: #fff;
-  border: 1px solid #b3d8ff;
-  border-radius: 8px;
-  box-shadow: 0 1px 4px rgba(64, 158, 255, .12);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0 2px 8px;
+  border-bottom: 1px solid #e7ebf2;
 }
-.display-section-brand-only strong { color: var(--el-color-primary); font-size: 12px; }
-.display-section-brand-only small { color: #98a2b3; font-size: 10px; }
+.display-section-brand-only span { color: #98a2b3; font-size: 11px; }
+.display-section-brand-only strong { color: var(--el-color-primary); font-size: 14px; }
+.display-section-brand-only small { margin-left: auto; color: #98a2b3; font-size: 11px; }
 .control-section {
   margin-bottom: 14px;
   padding: 14px;
@@ -927,10 +908,11 @@ onMounted(fetchData)
   flex-direction: column;
   align-items: center;
   min-width: 0;
-  padding: 14px;
-  background: #f5f7fa;
-  border: 1px solid #ebeef5;
-  border-radius: 12px;
+  padding: 14px 12px 12px;
+  background: #f1f4f8;
+  border: 1px solid #e4e9f0;
+  border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.85);
 }
 .preview-stage-heading { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px; margin-bottom: 12px; }
 .preview-stage-heading div { display: grid; gap: 3px; }
@@ -1161,6 +1143,8 @@ onMounted(fetchData)
   .display-controls { max-height: none; overflow: visible; }
   .preview-stage { order: -1; }
   .visual-design-grid { grid-template-columns: 1fr; }
+  .visual-design-fields { grid-template-columns: 1fr; }
+  .visual-design-fields label:first-child { grid-column: auto; }
   .compact-theme-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 680px) {
