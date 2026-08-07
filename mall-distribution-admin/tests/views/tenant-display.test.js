@@ -41,6 +41,8 @@ describe('商城视觉与页面工作台', () => {
     }
     expect(source).toContain('displaySectionRows')
     expect(source).toContain('activeEditSection')
+    expect(source).toContain('主题色可选')
+    expect(source).toContain('未选择时使用当前默认主题')
   })
 
   it('让服务保障开关同步控制右侧预览，并给搜索框保留品牌区间距', async () => {
