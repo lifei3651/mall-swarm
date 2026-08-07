@@ -35,6 +35,11 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('extraConfigJson')
     expect(source).toContain('确认放弃未保存修改？')
     expect(source).toContain('moveNav')
+    for (const section of ['品牌视觉', '首页 Banner', '首页模块', '分类模块', '服务说明', '底部导航', '颜色微调']) {
+      expect(source).toContain(section)
+    }
+    expect(source).toContain('displaySectionRows')
+    expect(source).toContain('activeEditSection')
   })
 
   it('让服务保障开关同步控制右侧预览，并给搜索框保留品牌区间距', async () => {

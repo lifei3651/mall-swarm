@@ -48,6 +48,23 @@
       </el-table-column>
     </el-table>
 
+    <el-table :data="displaySectionRows" class="display-section-table" row-key="key">
+      <el-table-column prop="label" label="装修模块" min-width="150">
+        <template #default="{ row }">
+          <div class="display-section-title"><span class="display-section-icon">{{ row.icon }}</span><strong>{{ row.label }}</strong></div>
+        </template>
+      </el-table-column>
+      <el-table-column prop="summary" label="当前配置" min-width="320" />
+      <el-table-column prop="status" label="状态" width="120">
+        <template #default="{ row }"><el-tag :type="row.active ? 'success' : 'info'">{{ row.status }}</el-tag></template>
+      </el-table-column>
+      <el-table-column label="操作" fixed="right" width="140">
+        <template #default="{ row }">
+          <el-button type="primary" link :disabled="!tableData.length" @click="openDisplayDialog(tableData[0], row.key)">编辑{{ row.label }}</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
     <el-dialog v-model="displayDialogVisible" title="商城视觉装修工作台" width="1040px" top="1vh" class="display-workbench-dialog" :before-close="confirmCloseDisplayDialog">
       <el-alert title="左侧调整模块，右侧手机实时预览。当前修改只保存在草稿中，点击“保存发布”后才会影响客户前台。" type="info" :closable="false" class="display-alert" />
       <div class="preview-page-tabs" role="tablist" aria-label="前台页面预览">
@@ -55,7 +72,12 @@
       </div>
       <div class="display-workbench">
         <aside class="display-controls">
-          <section class="control-section visual-design-panel">
+          <div class="display-section-switcher" aria-label="装修模块">
+            <button v-for="section in displaySections" :key="section.key" type="button" :class="{ active: activeEditSection === section.key }" @click="activeEditSection = section.key">
+              <strong>{{ section.label }}</strong><small>{{ section.description }}</small>
+            </button>
+          </div>
+          <section v-if="activeEditSection === 'brand'" class="control-section visual-design-panel">
             <div class="control-section-heading">
               <div><strong>品牌视觉</strong><small>修改左侧内容，右侧手机会实时更新；保存发布后客户前台生效</small></div>
               <el-tag size="small" type="success">实时预览</el-tag>
@@ -73,12 +95,12 @@
               <label><span>主题色</span><div class="color-editor"><el-color-picker v-model="displayForm.themeColor" /><el-input v-model="displayForm.themeColor" maxlength="7" placeholder="#e7193f" /></div></label>
             </div>
           </section>
-          <section class="control-section banner-config-section">
+          <section v-if="activeEditSection === 'banner'" class="control-section banner-config-section">
             <div class="control-section-heading"><div><strong>首页 Banner</strong><small>图片、跳转和展示时间在这里统一维护</small></div><el-tag size="small" type="info">{{ previewBanners.length }} 条已启用</el-tag></div>
             <p class="section-note banner-note">Banner 已并入商城视觉与页面，手机预览会即时读取已启用的图片。</p>
             <el-button type="primary" plain @click="openBannerDialog">编辑首页 Banner</el-button>
           </section>
-          <section class="control-section">
+          <section v-if="activeEditSection === 'home'" class="control-section">
             <div class="control-section-heading"><div><strong>首页模块</strong><small>拖动调整前台显示顺序</small></div><el-tag size="small" type="info">实时预览</el-tag></div>
             <div class="module-list module-list-sortable">
               <div v-for="(module, index) in displayForm.homeModules" :key="module.type" class="module-item" draggable="true" @dragstart="startModuleDrag(index)" @dragover.prevent @drop="dropModule(index)" @dragend="draggingModuleIndex = null">
@@ -102,7 +124,7 @@
             </div>
           </section>
 
-          <section class="control-section category-config-section">
+          <section v-if="activeEditSection === 'category'" class="control-section category-config-section">
             <div class="control-section-heading"><div><strong>分类模块</strong><small>先控制整体，再控制单个分类</small></div></div>
             <div class="control-switch-row"><span>首页显示分类</span><el-switch v-model="displayForm.showHomeCategories" :active-value="1" :inactive-value="0" /></div>
             <div class="category-list category-list-draft">
@@ -114,12 +136,12 @@
             </div>
           </section>
 
-          <section class="control-section">
+          <section v-if="activeEditSection === 'service'" class="control-section">
             <div class="control-section-heading"><div><strong>服务说明</strong><small>首页底部的说明性内容</small></div></div>
             <div class="control-switch-row"><span>安全支付、订单可查、售后无忧（与首页模块同步）</span><el-switch :model-value="Number(displayForm.showTrustStrip) === 1" :active-value="true" :inactive-value="false" @change="setTrustEnabled" /></div>
           </section>
 
-          <section class="control-section">
+          <section v-if="activeEditSection === 'nav'" class="control-section">
             <div class="control-section-heading"><div><strong>底部导航</strong><small>拖动排序、改名或隐藏</small></div></div>
             <div class="nav-config-list nav-list-sortable">
               <div v-for="(nav, index) in displayForm.bottomNav" :key="nav.type" class="nav-config-row" draggable="true" @dragstart="startNavDrag(index)" @dragover.prevent @drop="dropNav(index)" @dragend="draggingNavIndex = null">
@@ -135,7 +157,7 @@
             </div>
           </section>
 
-          <section class="control-section">
+          <section v-if="activeEditSection === 'colors'" class="control-section">
             <div class="control-section-heading">
               <div><strong>颜色微调</strong><small>不改变模块结构；保存发布后客户前台生效，未保存仅影响右侧预览</small></div>
               <el-button type="primary" link @click="resetColors">恢复默认</el-button>
@@ -224,6 +246,7 @@ const previewProducts = ref([])
 const previewBanners = ref([])
 const categoryDraft = ref({})
 const previewPage = ref('home')
+const activeEditSection = ref('brand')
 const draggingModuleIndex = ref(null)
 const draggingNavIndex = ref(null)
 const initializingDisplay = ref(false)
@@ -237,6 +260,15 @@ const previewPages = [
   { value: 'category', label: '分类' },
   { value: 'cart', label: '购物车' },
   { value: 'profile', label: '我的' },
+]
+const displaySections = [
+  { key: 'brand', label: '品牌视觉', description: '名称、Logo、主题模板' },
+  { key: 'banner', label: '首页 Banner', description: '轮播图片和跳转设置' },
+  { key: 'home', label: '首页模块', description: '排序和模块显隐' },
+  { key: 'category', label: '分类模块', description: '首页分类整体及单项显隐' },
+  { key: 'service', label: '服务说明', description: '首页信任信息展示' },
+  { key: 'nav', label: '底部导航', description: '名称、排序和单项显隐' },
+  { key: 'colors', label: '颜色微调', description: '颜色调整和恢复默认' },
 ]
 const defaultModules = () => [
   { type: 'banner', enabled: true, sort: 1 },
@@ -323,6 +355,28 @@ const fetchData = async () => {
   }
 }
 
+const displaySectionRows = computed(() => {
+  const row = tableData.value[0] || {}
+  const extra = (() => {
+    try { return JSON.parse(currentDisplayConfig.value?.extraConfigJson || '{}') || {} } catch { return {} }
+  })()
+  const modules = Array.isArray(extra.homeModules) && extra.homeModules.length ? extra.homeModules : defaultModules()
+  const nav = Array.isArray(extra.bottomNav) && extra.bottomNav.length ? extra.bottomNav : defaultBottomNav()
+  const customColorCount = Object.values(extra.colors || {}).filter(Boolean).length
+  const visibleModules = modules.filter((item) => item.enabled !== false).length
+  const visibleNav = nav.filter((item) => item.enabled !== false).length
+  const trustEnabled = Number(extra.showTrustStrip ?? 0) === 1
+  return [
+    { key: 'brand', icon: '✦', label: '品牌视觉', summary: `${row.brandName || row.tenantName || '灵启商城'} · ${getTemplateName(row.productTemplate)} · ${row.logoUrl ? '已配置 Logo' : '待上传 Logo'}`, status: row.brandName || row.logoUrl ? '已配置' : '待完善', active: Boolean(row.brandName || row.logoUrl) },
+    { key: 'banner', icon: '▣', label: '首页 Banner', summary: '管理首页轮播图片、跳转地址和展示状态', status: '可编辑', active: true },
+    { key: 'home', icon: '⌂', label: '首页模块', summary: `${visibleModules}/${modules.length} 个模块展示，支持拖动排序`, status: '已配置', active: visibleModules > 0 },
+    { key: 'category', icon: '▦', label: '分类模块', summary: '控制首页分类入口及单个分类显示', status: '可编辑', active: true },
+    { key: 'service', icon: '◇', label: '服务说明', summary: trustEnabled ? '安全支付、订单可查、售后无忧已展示' : '安全支付、订单可查、售后无忧当前隐藏', status: trustEnabled ? '展示中' : '已隐藏', active: trustEnabled },
+    { key: 'nav', icon: '≡', label: '底部导航', summary: `${visibleNav} 项导航展示，支持改名、排序和隐藏`, status: '已配置', active: visibleNav > 0 },
+    { key: 'colors', icon: '◉', label: '颜色微调', summary: customColorCount ? `已调整 ${customColorCount} 项颜色` : '使用主题默认颜色，可恢复默认', status: customColorCount ? '已调整' : '默认', active: customColorCount > 0 },
+  ]
+})
+
 const openBannerDialog = () => {
   bannerDialogVisible.value = true
 }
@@ -333,9 +387,10 @@ const uploadDisplayLogo = async ({ file }) => {
   ElMessage.success('品牌LOGO上传成功')
 }
 
-const openDisplayDialog = async (row) => {
+const openDisplayDialog = async (row, section = 'brand') => {
   initializingDisplay.value = true
   displayDraftDirty.value = false
+  activeEditSection.value = section
   currentTenant.value = row
   const [resResult, categoryResult, productResult, bannerResult] = await Promise.allSettled([
     getDisplayConfig(row.id),
@@ -583,6 +638,23 @@ onMounted(fetchData)
 .single-tenant-alert {
   margin-bottom: 16px;
 }
+.display-section-table {
+  margin-top: 14px;
+}
+.display-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.display-section-icon {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  color: var(--el-color-primary);
+  background: #ecf5ff;
+  border-radius: 8px;
+}
 .color-cell {
   display: flex;
   align-items: center;
@@ -797,6 +869,35 @@ onMounted(fetchData)
   padding-right: 6px;
   overflow-y: auto;
 }
+.display-section-switcher {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-bottom: 10px;
+  padding: 7px;
+  background: #f5f7fa;
+  border: 1px solid #ebeef5;
+  border-radius: 10px;
+}
+.display-section-switcher button {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 9px;
+  color: #606266;
+  text-align: left;
+  background: #fff;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.display-section-switcher button.active {
+  color: var(--el-color-primary);
+  border-color: #b3d8ff;
+  box-shadow: 0 1px 4px rgba(64, 158, 255, .12);
+}
+.display-section-switcher strong { font-size: 12px; }
+.display-section-switcher small { overflow: hidden; color: #98a2b3; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .control-section {
   margin-bottom: 14px;
   padding: 14px;
