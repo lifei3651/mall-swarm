@@ -395,6 +395,31 @@ public class PerformanceServiceTest {
     }
 
     @Test
+    void customerCanCancelOwnPendingAfterSaleAndApplyAgain() {
+        DmsShopMember buyer = createShopMember("13999000036", "客户撤回售后测试", null);
+        ShopOrderVO paid = submitAndPay(buyer, 2);
+
+        ShopAfterSaleItemDTO item = new ShopAfterSaleItemDTO();
+        item.setOrderItemId(paid.getItems().get(0).getId());
+        item.setQuantity(1);
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
+        apply.setOrderId(paid.getOrder().getId());
+        apply.setItems(List.of(item));
+        apply.setReason("验证客户主动取消售后");
+
+        DmsShopAfterSale first = shopAfterSaleService.apply(buyer, apply);
+        DmsShopAfterSale cancelled = shopAfterSaleService.cancel(buyer, first.getId());
+
+        assertEquals(3, cancelled.getStatus());
+        assertEquals("客户主动取消售后申请", cancelled.getAuditRemark());
+        assertTrue(auditService.getRefundsByOrderId(paid.getOrder().getId()).isEmpty(),
+                "客户撤回待审核申请不能生成退款冲账记录");
+
+        DmsShopAfterSale second = shopAfterSaleService.apply(buyer, apply);
+        assertEquals(0, second.getStatus());
+    }
+
+    @Test
     void frontAfterSaleClosesSevenDaysAfterOrderCreationButAdminCanRefundByQuantity() {
         DmsShopMember buyer = createShopMember("13999000035", "超期售后测试", null);
         ShopOrderVO paid = submitAndPay(buyer, 2);

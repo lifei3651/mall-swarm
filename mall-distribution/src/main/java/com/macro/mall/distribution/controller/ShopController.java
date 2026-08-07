@@ -606,6 +606,14 @@ public class ShopController {
         return CommonResult.success(afterSaleService.apply(authService.requireMember(authorization), dto));
     }
 
+    @Operation(summary = "会员取消待审核售后")
+    @PutMapping("/after-sales/{id}/cancel")
+    public CommonResult<DmsShopAfterSale> cancelAfterSale(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long id) {
+        return CommonResult.success(afterSaleService.cancel(authService.requireMember(authorization), id));
+    }
+
     @Operation(summary = "我的售后")
     @GetMapping("/after-sales")
     public CommonResult<List<DmsShopAfterSale>> myAfterSales(

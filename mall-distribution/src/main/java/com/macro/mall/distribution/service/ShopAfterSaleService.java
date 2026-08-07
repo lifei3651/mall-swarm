@@ -12,6 +12,9 @@ public interface ShopAfterSaleService {
 
     DmsShopAfterSale apply(DmsShopMember member, ShopAfterSaleApplyDTO dto);
 
+    /** 会员撤回尚未审核的售后申请，不产生退款或账务变动。 */
+    DmsShopAfterSale cancel(DmsShopMember member, Long id);
+
     List<DmsShopAfterSale> listByMember(DmsShopMember member);
 
     List<DmsShopAfterSale> listAdmin(String keyword, Integer status);

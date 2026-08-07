@@ -75,6 +75,15 @@ test('checkout only exposes configured payment channels', async () => {
   assert.match(source, /getPayConfig\(\)/)
 })
 
+test('customers can cancel only pending after-sale applications', async () => {
+  const api = await readFile(new URL('../src/api/shop.js', import.meta.url), 'utf8')
+  const source = await readView('OrderDetailView.vue')
+  assert.match(api, /url: `\/shop\/after-sales\/\$\{id\}\/cancel`/)
+  assert.match(source, /取消申请/)
+  assert.match(source, /sale\.status === 0/)
+  assert.match(source, /不会产生退款，仍可在售后期限内重新申请/)
+})
+
 test('alipay checkout posts the generated payment form and CSP allows only the official gateway', async () => {
   const source = await readView('CheckoutView.vue')
   const nginx = await readFile(new URL('../../scripts/nginx/lingqimall.conf', import.meta.url), 'utf8')

@@ -228,6 +228,13 @@ export function applyAfterSale(data) {
   })
 }
 
+export function cancelAfterSale(id) {
+  return request({
+    url: `/shop/after-sales/${id}/cancel`,
+    method: 'put',
+  })
+}
+
 export function getProfile(params) {
   return request({
     url: '/shop/profile',

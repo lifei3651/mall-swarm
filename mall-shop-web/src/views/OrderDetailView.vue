@@ -63,6 +63,11 @@
               <span>{{ line.productName }} {{ formatProductSpec(line) }}</span>
               <strong>× {{ line.refundQuantity }}</strong>
             </div>
+            <div v-if="sale.status === 0" class="after-sale-record-actions">
+              <button type="button" class="btn secondary after-sale-cancel" :disabled="cancellingAfterSaleId === sale.id" @click="cancelAfterSale(sale.id)">
+                {{ cancellingAfterSaleId === sale.id ? '取消中…' : '取消申请' }}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -245,7 +250,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ChevronRight, CircleCheck, PackageCheck, RotateCcw, ShieldCheck, UserRound } from 'lucide-vue-next'
-import { applyAfterSale, cancelOrder, confirmReceive, getOrder, payOrderWithBalance } from '@/api/shop'
+import { applyAfterSale, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmReceive, getOrder, payOrderWithBalance } from '@/api/shop'
 import { dateTime, money, statusName } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
 
@@ -253,6 +258,7 @@ const route = useRoute()
 const detail = ref({})
 const loading = ref(false)
 const acting = ref(false)
+const cancellingAfterSaleId = ref(null)
 const submittingAfterSale = ref(false)
 const reasonSheetVisible = ref(false)
 const selectedReason = ref('')
@@ -342,6 +348,21 @@ const selectAfterSaleReason = (reason) => {
 const afterSaleStatus = (status) => ({ 0: '待审核', 1: '已通过', 2: '已拒绝', 3: '已取消' }[status] || '处理中')
 const payTypeName = (value) => ({ WECHAT: '微信支付', ALIPAY: '支付宝', BALANCE: '余额' }[value] || value || '未选择')
 const copyText = async (text) => { try { await navigator.clipboard.writeText(text) } catch {} }
+
+const cancelAfterSale = async (id) => {
+  if (cancellingAfterSaleId.value) return
+  if (!window.confirm('确定取消这笔售后申请吗？取消后不会产生退款，仍可在售后期限内重新申请。')) return
+  cancellingAfterSaleId.value = id
+  error.value = ''
+  try {
+    await cancelAfterSaleRequest(id)
+    await fetchOrder()
+  } catch (e) {
+    error.value = e.message || '取消售后申请失败'
+  } finally {
+    cancellingAfterSaleId.value = null
+  }
+}
 
 const courierInitial = (company) => {
   if (!company) return '递'
@@ -487,6 +508,8 @@ onMounted(fetchOrder)
 .after-sale-amounts { margin: 0 0 9px; }
 .after-sale-item-line { display: flex; justify-content: space-between; gap: 12px; padding-top: 7px; color: #69737e; font-size: 12px; }
 .after-sale-item-line strong { color: #3d4650; font-size: 12px; }
+.after-sale-record-actions { display: flex; justify-content: flex-end; margin-top: 12px; padding-top: 11px; border-top: 1px solid #f1e3e6; }
+.after-sale-cancel { min-height: 32px; padding: 0 13px; border-radius: 8px; font-size: 12px; }
 .apply-head { align-items: flex-start; margin-bottom: 12px; }
 .apply-head p { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
 .after-sale-tip { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 18px; padding: 11px 12px; color: #8b5e12; background: #fff8e8; border: 1px solid #f8dfae; border-radius: 10px; font-size: 12px; line-height: 1.6; }

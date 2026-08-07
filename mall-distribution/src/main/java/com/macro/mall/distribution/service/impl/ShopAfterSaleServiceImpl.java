@@ -180,6 +180,38 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public DmsShopAfterSale cancel(DmsShopMember member, Long id) {
+        if (member == null) {
+            Asserts.fail("请先登录");
+        }
+        if (id == null) {
+            Asserts.fail("售后申请ID不能为空");
+        }
+        DmsShopAfterSale afterSale = afterSaleDao.selectByIdForUpdate(id);
+        if (afterSale == null) {
+            Asserts.fail("售后申请不存在");
+        }
+        if (!member.getUserId().equals(afterSale.getUserId())) {
+            Asserts.fail("不能取消他人的售后申请");
+        }
+        DmsShopOrder order = orderDao.selectById(afterSale.getOrderId());
+        if (order == null) {
+            Asserts.fail("订单不存在");
+        }
+        assertTenantAccess(order.getTenantId());
+        if (!Integer.valueOf(0).equals(afterSale.getStatus())) {
+            Asserts.fail("售后申请已处理，不能取消");
+        }
+        afterSale.setStatus(3);
+        afterSale.setAuditRemark("客户主动取消售后申请");
+        afterSale.setAuditUserId(null);
+        afterSale.setAuditUserName("客户本人");
+        afterSaleDao.updateAudit(afterSale);
+        return hydrate(afterSaleDao.selectById(id));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public DmsShopAfterSale manualRefund(Long orderId, ShopManualRefundDTO dto) {
         if (orderId == null) Asserts.fail("订单ID不能为空");
         DmsShopOrder order = orderDao.selectById(orderId);
