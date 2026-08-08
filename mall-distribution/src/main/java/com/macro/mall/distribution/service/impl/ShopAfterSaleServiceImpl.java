@@ -420,7 +420,10 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             Asserts.fail("审核状态不正确");
         }
         // 退货退款先进入“待寄回”，客户提交物流后再由商家确认收货并退款。
-        if (Integer.valueOf(1).equals(status) && Integer.valueOf(2).equals(afterSale.getApplyType())) {
+        boolean returnAddressConfigured = afterSale.getReturnAddress() != null
+                && !afterSale.getReturnAddress().isBlank();
+        if (Integer.valueOf(1).equals(status) && Integer.valueOf(2).equals(afterSale.getApplyType())
+                && returnAddressConfigured) {
             afterSale.setStatus(4);
         } else {
             afterSale.setStatus(status);
@@ -430,7 +433,8 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         afterSale.setAuditUserName(dto == null ? null : dto.getAuditUserName());
         afterSaleDao.updateAudit(afterSale);
 
-        if (Integer.valueOf(1).equals(status) && Integer.valueOf(2).equals(afterSale.getApplyType())) {
+        if (Integer.valueOf(1).equals(status) && Integer.valueOf(2).equals(afterSale.getApplyType())
+                && returnAddressConfigured) {
             return hydrate(afterSaleDao.selectById(id));
         }
         if (Integer.valueOf(1).equals(status)) {
