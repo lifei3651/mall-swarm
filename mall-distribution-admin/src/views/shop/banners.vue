@@ -16,7 +16,15 @@
       class="banner-alert"
     />
     <el-alert
-      v-if="!loading && rows.length && !activeBannerCount"
+      v-if="!loading && !bannerModuleEnabled"
+      title="首页轮播图总开关当前为“隐藏”；即使下方图片处于启用状态，客户前台也不会展示。需要展示时，请到“商城视觉与页面”的“首页模块”中打开。"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="banner-alert"
+    />
+    <el-alert
+      v-else-if="!loading && rows.length && !activeBannerCount"
       title="首页轮播图模块已打开，但当前没有启用的图片；请在下方点击“启用”，保存后客户前台才会展示。"
       type="warning"
       :closable="false"
@@ -90,10 +98,12 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { createShopBanner, listShopBanners, updateShopBanner, updateShopBannerStatus, uploadShopImage } from '@/api/shop'
+import { getDisplayConfig } from '@/api/tenant'
 
 const loading = ref(false)
 const saving = ref(false)
 const rows = ref([])
+const bannerModuleEnabled = ref(true)
 const dialogVisible = ref(false)
 const formRef = ref()
 const form = ref({})
@@ -105,12 +115,30 @@ const emptyForm = () => ({ tenantId: 1, title: '', imageUrl: '', linkType: 'none
 const normalizeLinkType = (value) => String(value || 'none').trim().toLowerCase()
 const linkTypeName = (value) => ({ none: '不跳转', product: '商品详情', category: '商品分类', url: '外部链接' }[normalizeLinkType(value)] || '不跳转')
 const normalizeRow = (row) => ({ ...row, status: Number(row.status ?? 0), linkType: normalizeLinkType(row.linkType), timeRange: [row.startTime, row.endTime].filter(Boolean) })
+const normalizeModuleEnabled = (value) => ![false, 0, '0', 'false'].includes(value)
+
+const resolveBannerModuleEnabled = (config) => {
+  try {
+    const extra = JSON.parse(config?.extraConfigJson || '{}')
+    const module = Array.isArray(extra.homeModules) ? extra.homeModules.find((item) => item.type === 'banner') : null
+    return normalizeModuleEnabled(module?.enabled)
+  } catch (_) {
+    return true
+  }
+}
 
 const fetchRows = async () => {
   loading.value = true
   try {
-    const res = await listShopBanners({ tenantId: 1 })
-    rows.value = (res.data || []).map(normalizeRow)
+    const [bannerResult, configResult] = await Promise.allSettled([
+      listShopBanners({ tenantId: 1 }),
+      getDisplayConfig(1),
+    ])
+    if (bannerResult.status === 'rejected') throw bannerResult.reason
+    rows.value = (bannerResult.value.data || []).map(normalizeRow)
+    bannerModuleEnabled.value = configResult.status === 'fulfilled'
+      ? resolveBannerModuleEnabled(configResult.value.data)
+      : true
   } finally { loading.value = false }
 }
 

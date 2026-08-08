@@ -61,4 +61,11 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('Number(displayForm.showTrustStrip) === 1')
     expect(source).toContain('margin:14px 12px 10px')
   })
+
+  it('让首页轮播图总开关状态同步到装修模块列表', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+    expect(source).toContain('bannerModuleVisible')
+    expect(source).toContain("status: bannerModuleVisible ? '展示中' : '已隐藏'")
+    expect(source).toContain('首页模块总开关已隐藏，图片不会在前台展示')
+  })
 })

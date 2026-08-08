@@ -91,7 +91,7 @@
       </section>
 
       <!-- 商品列表 -->
-      <section v-else-if="mod.type === 'products'" ref="productSection" class="home-product-section">
+      <section v-else-if="mod.type === 'products' && mod.enabled" ref="productSection" class="home-product-section">
       <div class="home-product-heading">
         <div>
           <h1>{{ query.categoryName || (query.keyword ? '搜索结果' : '精选商品') }}</h1>
@@ -161,6 +161,7 @@ import { getHome, getProduct, listProducts } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { money } from '@/utils/format'
 import { applyBrandConfig } from '@/utils/brand'
+import { readDisplayExtraConfig, resolveDisplayColors, resolveHomeModules } from '@/utils/displayConfig'
 import { resolveQuickCartItem } from '@/utils/quickCart'
 
 const router = useRouter()
@@ -179,7 +180,7 @@ const recentSearches = ref([])
 const hotSearches = ['护理套装', '健康生活', '复购专区']
 
 // Banner轮播
-const banners = computed(() => (home.value.banners || []).filter((b) => b.status === 1))
+const banners = computed(() => (home.value.banners || []).filter((b) => Number(b.status) === 1))
 const bannerIndex = ref(0)
 let bannerTimer = null
 const startBannerAutoplay = () => {
@@ -199,7 +200,7 @@ const handleBannerClick = (banner) => {
 watch(banners, () => { bannerIndex.value = 0; startBannerAutoplay() })
 
 // 公告
-const notices = computed(() => (home.value.notices || []).filter((n) => n.status === 1))
+const notices = computed(() => (home.value.notices || []).filter((n) => Number(n.status) === 1))
 const noticeIndex = ref(0)
 let noticeTimer = null
 const startNoticeRotation = () => {
@@ -220,16 +221,12 @@ const defaultModules = [
   { type: 'products', enabled: true, sort: 5 },
 ]
 const homeModules = computed(() => {
-  const configModules = displayConfig.value.homeModules
-  if (Array.isArray(configModules) && configModules.length) {
-    return [...configModules].sort((a, b) => (a.sort || 99) - (b.sort || 99))
-  }
-  return defaultModules
+  return resolveHomeModules(displayConfig.value, defaultModules)
 })
 
 // 颜色配置注入
 const applyExtraColors = (config) => {
-  const colors = config.colors || {}
+  const colors = resolveDisplayColors(config)
   const root = document.documentElement
   if (colors.priceColor) root.style.setProperty('--price-color', colors.priceColor)
   if (colors.headerBg) root.style.setProperty('--shop-header-bg', colors.headerBg)
@@ -270,16 +267,10 @@ let productRequestId = 0
 
 const allHomeProducts = computed(() => home.value.featuredProducts || [])
 const displayConfig = computed(() => home.value.displayConfig || {})
+const displayExtraConfig = computed(() => readDisplayExtraConfig(displayConfig.value))
 const showHomeCategories = computed(() => Number(displayConfig.value.showHomeCategories ?? 1) === 1)
 // 服务保障是说明性内容，不是首页操作入口。默认关闭，只有商家在商城视觉与页面中主动开启时展示。
-const showTrustStrip = computed(() => {
-  try {
-    const extra = JSON.parse(displayConfig.value.extraConfigJson || '{}')
-    return Number(extra.showTrustStrip ?? 0) === 1
-  } catch (_) {
-    return false
-  }
-})
+const showTrustStrip = computed(() => Number(displayExtraConfig.value.showTrustStrip ?? 0) === 1)
 const layoutTemplate = computed(() => ['standard', 'product-focus', 'category-focus'].includes(displayConfig.value.layoutTemplate)
   ? displayConfig.value.layoutTemplate
   : 'standard')

@@ -304,6 +304,11 @@ const layoutTemplateOptions = [
 ]
 const legacyThemeMap = { standard: 'retail-red', beauty: 'soft-purple', food: 'fresh-green', health: 'fresh-green', course: 'premium-gold' }
 const normalizeTheme = (value) => themeOptions.some((item) => item.value === value) ? value : (legacyThemeMap[value] || 'retail-red')
+const normalizeModuleEnabled = (value, fallback = true) => {
+  if ([false, 0, '0', 'false'].includes(value)) return false
+  if ([true, 1, '1', 'true'].includes(value)) return true
+  return fallback
+}
 
 const fetchData = async () => {
   loading.value = true
@@ -329,11 +334,12 @@ const displaySectionRows = computed(() => {
   const modules = Array.isArray(extra.homeModules) && extra.homeModules.length ? extra.homeModules : defaultModules()
   const nav = Array.isArray(extra.bottomNav) && extra.bottomNav.length ? extra.bottomNav : defaultBottomNav()
   const customColorCount = Object.values(extra.colors || {}).filter(Boolean).length
-  const visibleModules = modules.filter((item) => item.enabled !== false).length
+  const visibleModules = modules.filter((item) => normalizeModuleEnabled(item.enabled)).length
   const visibleNav = nav.filter((item) => item.enabled !== false).length
+  const bannerModuleVisible = normalizeModuleEnabled(modules.find((item) => item.type === 'banner')?.enabled)
   return [
     { key: 'brand', icon: '✦', label: '品牌视觉', summary: `${row.brandName || row.tenantName || '灵启商城'} · ${getTemplateName(row.productTemplate)} · ${row.logoUrl ? '已配置 Logo' : '待上传 Logo'}`, status: row.brandName || row.logoUrl ? '已配置' : '待完善', active: Boolean(row.brandName || row.logoUrl) },
-    { key: 'banner', icon: '▣', label: '首页轮播图', summary: '管理首页展示图片、点击后的去向和展示状态', status: '可编辑', active: true },
+    { key: 'banner', icon: '▣', label: '首页轮播图', summary: bannerModuleVisible ? '总开关已展示，可管理图片与点击去向' : '首页模块总开关已隐藏，图片不会在前台展示', status: bannerModuleVisible ? '展示中' : '已隐藏', active: bannerModuleVisible },
     { key: 'home', icon: '⌂', label: '首页模块', summary: `${visibleModules}/${modules.length} 个模块展示，支持拖动排序`, status: '已配置', active: visibleModules > 0 },
     { key: 'category', icon: '▦', label: '分类模块', summary: '控制首页分类入口及单个分类显示', status: '可编辑', active: true },
     { key: 'nav', icon: '≡', label: '底部导航', summary: `${visibleNav} 项导航展示，支持改名、排序和隐藏`, status: '已配置', active: visibleNav > 0 },
@@ -382,8 +388,14 @@ const openDisplayDialog = async (row, section = 'brand') => {
     ? { ...nav, enabled: nav.enabled !== false && legacyBottomCategoryEnabled }
     : nav)
   const configuredModules = Array.isArray(extra.homeModules) && extra.homeModules.length ? extra.homeModules : defaultModules()
-  const trustEnabled = Number(extra.showTrustStrip ?? (configuredModules.find((module) => module.type === 'trust')?.enabled ? 1 : 0)) === 1
-  const homeModules = configuredModules.map((module) => module.type === 'trust' ? { ...module, enabled: trustEnabled } : module)
+  const trustEnabled = normalizeModuleEnabled(
+    extra.showTrustStrip ?? configuredModules.find((module) => module.type === 'trust')?.enabled,
+    false,
+  )
+  const homeModules = configuredModules.map((module) => ({
+    ...module,
+    enabled: module.type === 'trust' ? trustEnabled : normalizeModuleEnabled(module.enabled),
+  }))
   displayForm.value = {
     tenantId: row.id,
     brandName: row.brandName || row.tenantName || '灵启商城',

@@ -5,6 +5,7 @@ import { resolveQuickCartItem } from '../src/utils/quickCart.js'
 import { extractModuleEntry } from '../src/utils/buildFreshness.js'
 import { normalizeLoginAccountInput, resolveRegistrationErrorField, validateLoginAccount } from '../src/utils/loginAccount.js'
 import { normalizeNicknameInput, validateNickname } from '../src/utils/nickname.js'
+import { readDisplayExtraConfig, resolveDisplayColors, resolveHomeModules } from '../src/utils/displayConfig.js'
 
 const readView = (name) => readFile(new URL(`../src/views/${name}`, import.meta.url), 'utf8')
 const readStyles = () => readFile(new URL('../src/assets/styles.css', import.meta.url), 'utf8')
@@ -187,6 +188,29 @@ test('home shows a dedicated retry state when initial data loading fails', async
   assert.match(source, /重新加载/)
   assert.match(source, /const reloadHome = async/)
   assert.match(source, /await reloadHome\(\)/)
+})
+
+test('home modules and colors honor the saved visual-workbench extra configuration', async () => {
+  const config = {
+    extraConfigJson: JSON.stringify({
+      homeModules: [
+        { type: 'products', enabled: true, sort: 2 },
+        { type: 'banner', enabled: 'false', sort: 1 },
+      ],
+      colors: { priceColor: '#cc0000' },
+      showTrustStrip: 0,
+    }),
+  }
+  const modules = resolveHomeModules(config, [])
+  assert.equal(modules[0].type, 'banner')
+  assert.equal(modules[0].enabled, false)
+  assert.equal(modules[1].enabled, true)
+  assert.equal(resolveDisplayColors(config).priceColor, '#cc0000')
+  assert.equal(readDisplayExtraConfig(config).showTrustStrip, 0)
+
+  const source = await readView('HomeView.vue')
+  assert.match(source, /resolveHomeModules\(displayConfig\.value, defaultModules\)/)
+  assert.match(source, /mod\.type === 'products' && mod\.enabled/)
 })
 
 test('checkout only exposes configured payment channels', async () => {

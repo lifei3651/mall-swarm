@@ -33,4 +33,13 @@ describe('首页轮播图管理', () => {
     expect(source).toContain('status: Number(row.status ?? 0)')
     expect(source).toContain('Number(row.status) === 1')
   })
+
+  it('识别商城视觉里的轮播图总开关并解释两级开关关系', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('bannerModuleEnabled')
+    expect(source).toContain('resolveBannerModuleEnabled')
+    expect(source).toContain('首页轮播图总开关当前为“隐藏”')
+    expect(source).toContain('getDisplayConfig(1)')
+  })
 })
