@@ -52,7 +52,7 @@
         <template #default="{ row }">
           <template v-if="row.inviterUserId">
             <div class="member-name">{{ inviterDisplayName(row) }}</div>
-            <div class="sub">{{ inviterIdentityText(row) }}</div>
+            <div class="sub">手机号：{{ row.inviterPhone || '未设置' }}</div>
           </template>
           <span v-else class="sub">创始会员 / 无邀请人</span>
         </template>
@@ -155,8 +155,7 @@
               <el-descriptions-item label="登录账号">{{ currentMember.username || '-' }}</el-descriptions-item>
               <el-descriptions-item label="手机号">{{ profile.member?.phone || '-' }}</el-descriptions-item>
               <el-descriptions-item label="昵称">{{ profile.member?.nickname || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="直属邀请人">{{ currentMember.inviterName || (currentMember.inviterUserId ? '未知会员' : '无') }}</el-descriptions-item>
-              <el-descriptions-item label="邀请人登录账号">{{ currentMember.inviterMemberAccount || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="邀请人会员名称">{{ currentMember.inviterUserId ? inviterDisplayName(currentMember) : '无' }}</el-descriptions-item>
               <el-descriptions-item label="邀请人手机号">{{ currentMember.inviterPhone || '-' }}</el-descriptions-item>
               <el-descriptions-item label="账号状态">{{ accountStatusName(currentMember) }}</el-descriptions-item>
               <el-descriptions-item label="推广资格">{{ currentMember.promotionActivated ? '已进入奖金体系' : '尚未进入奖金体系' }}</el-descriptions-item>
@@ -504,16 +503,7 @@ const inviterDisplayName = (row) => {
   const account = normalizedText(row?.inviterMemberAccount)
   const phone = normalizedText(row?.inviterPhone)
   if (name && name !== account && name !== phone) return name
-  return account || phone || '未知会员'
-}
-const inviterIdentityText = (row) => {
-  const displayName = inviterDisplayName(row)
-  const account = normalizedText(row?.inviterMemberAccount)
-  const phone = normalizedText(row?.inviterPhone)
-  const identities = []
-  if (account && account !== displayName && account !== phone) identities.push(`账号：${account}`)
-  if (phone && phone !== displayName) identities.push(`手机：${phone}`)
-  return identities.join(' · ') || '直属邀请会员'
+  return '未设置会员名称'
 }
 const balanceOf = (accounts = []) => (accounts || []).find((item) => item.assetCode === 'CASH_BONUS')?.balance || 0
 const levelName = (value) => levels.find((item) => item.value === Number(value))?.label || '-'
