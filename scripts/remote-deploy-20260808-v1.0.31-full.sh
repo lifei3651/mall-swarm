@@ -28,6 +28,9 @@ trap rollback EXIT
 [[ -s "$RELEASE_DIR/admin.tar.gz" ]]
 [[ -s "$RELEASE_DIR/shop.tar.gz" ]]
 [[ -s "$RELEASE_DIR/VERSION" ]]
+[[ -s "$RELEASE_DIR/20260808_add_product_safety_stock.sql" ]]
+[[ -s "$RELEASE_DIR/20260808_add_shop_service_addresses.sql" ]]
+[[ -s "$RELEASE_DIR/20260808_add_after_sale_return_workflow.sql" ]]
 [[ "$(tr -d '[:space:]' < "$RELEASE_DIR/VERSION")" == "1.0.31" ]]
 [[ "$(tr -d '[:space:]' < "$APP_ROOT/VERSION")" == "1.0.30" ]]
 (cd "$RELEASE_DIR" && sha256sum -c SHA256SUMS)
@@ -47,6 +50,7 @@ DB_PASSWORD=$(awk '/^[[:space:]]+password:/ {print $2; exit}' "$APP_ROOT/config/
 [[ -n "$DB_PASSWORD" ]]
 MYSQL=(mysql -h127.0.0.1 -u"$DB_USER" "$DB_NAME")
 MYSQL_PWD="$DB_PASSWORD" "${MYSQL[@]}" < "$RELEASE_DIR/20260808_add_product_safety_stock.sql"
+MYSQL_PWD="$DB_PASSWORD" "${MYSQL[@]}" < "$RELEASE_DIR/20260808_add_shop_service_addresses.sql"
 MYSQL_PWD="$DB_PASSWORD" "${MYSQL[@]}" < "$RELEASE_DIR/20260808_add_after_sale_return_workflow.sql"
 
 column_count=$(MYSQL_PWD="$DB_PASSWORD" "${MYSQL[@]}" -N -e "
@@ -54,8 +58,10 @@ SELECT COUNT(*) FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA='$DB_NAME'
   AND ((TABLE_NAME='dms_shop_product' AND COLUMN_NAME='safety_stock')
     OR (TABLE_NAME='dms_shop_sku' AND COLUMN_NAME='safety_stock')
+    OR (TABLE_NAME='dms_shop_product' AND COLUMN_NAME IN ('shipping_address_id','return_address_id'))
+    OR (TABLE_NAME='dms_shop_after_sale' AND COLUMN_NAME IN ('return_address_id','return_address'))
     OR (TABLE_NAME='dms_shop_after_sale' AND COLUMN_NAME IN ('return_delivery_company','return_delivery_no','return_shipped_at','return_received_at')));")
-[[ "$column_count" == "6" ]]
+[[ "$column_count" == "10" ]]
 
 rm -rf -- "$ROLLBACK_DIR"
 install -d -m 0700 "$ROLLBACK_DIR"
