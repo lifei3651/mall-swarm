@@ -40,6 +40,18 @@ export function updateShopProductStatus(id, status) {
   })
 }
 
+export function listShopServiceAddresses(params) {
+  return request({ url: '/shop/admin/service-addresses', method: 'get', params })
+}
+
+export function saveShopServiceAddress(data) {
+  return request({ url: '/shop/admin/service-addresses', method: 'post', data })
+}
+
+export function updateShopServiceAddressStatus(id, status, tenantId = 1) {
+  return request({ url: `/shop/admin/service-addresses/${id}/status`, method: 'put', params: { status, tenantId } })
+}
+
 export function listShopCategories(params) {
   return request({ url: '/shop/admin/categories', method: 'get', params })
 }

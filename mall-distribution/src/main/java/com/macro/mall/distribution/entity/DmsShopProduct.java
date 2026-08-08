@@ -60,6 +60,12 @@ public class DmsShopProduct implements Serializable {
 
     private String deliveryDistrict;
 
+    /** 商品实际使用的商城发货地址。 */
+    private Long shippingAddressId;
+
+    /** 售后审核通过后使用的商城退货地址。 */
+    private Long returnAddressId;
+
     private Integer freightType;
 
     private BigDecimal freightAmount;

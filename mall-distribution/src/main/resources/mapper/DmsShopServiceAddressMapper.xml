@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsShopServiceAddressDao">
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsShopServiceAddress">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="address_type" property="addressType"/>
+        <result column="address_label" property="addressLabel"/>
+        <result column="contact_name" property="contactName"/>
+        <result column="contact_phone" property="contactPhone"/>
+        <result column="province" property="province"/>
+        <result column="city" property="city"/>
+        <result column="district" property="district"/>
+        <result column="detail_address" property="detailAddress"/>
+        <result column="is_default" property="isDefault"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, tenant_id, address_type, address_label, contact_name, contact_phone,
+        province, city, district, detail_address, is_default, status, create_time, update_time
+    </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/> FROM dms_shop_service_address WHERE id = #{id}
+    </select>
+
+    <select id="selectList" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_service_address
+        <where>
+            tenant_id = #{tenantId}
+            <if test="addressType != null">AND address_type = #{addressType}</if>
+            <if test="status != null">AND status = #{status}</if>
+        </where>
+        ORDER BY address_type ASC, is_default DESC, id DESC
+    </select>
+
+    <select id="selectDefault" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_service_address
+        WHERE tenant_id = #{tenantId} AND address_type = #{addressType} AND status = 1 AND is_default = 1
+        ORDER BY id DESC LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopServiceAddress" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_shop_service_address
+        (tenant_id, address_type, address_label, contact_name, contact_phone, province, city, district,
+         detail_address, is_default, status)
+        VALUES
+        (#{tenantId}, #{addressType}, #{addressLabel}, #{contactName}, #{contactPhone}, #{province}, #{city}, #{district},
+         #{detailAddress}, #{isDefault}, #{status})
+    </insert>
+
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsShopServiceAddress">
+        UPDATE dms_shop_service_address
+        SET address_type = #{addressType}, address_label = #{addressLabel}, contact_name = #{contactName},
+            contact_phone = #{contactPhone}, province = #{province}, city = #{city}, district = #{district},
+            detail_address = #{detailAddress}, is_default = #{isDefault}, status = #{status}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND tenant_id = #{tenantId}
+    </update>
+
+    <update id="clearDefault">
+        UPDATE dms_shop_service_address
+        SET is_default = 0, update_time = CURRENT_TIMESTAMP
+        WHERE tenant_id = #{tenantId} AND address_type = #{addressType}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE dms_shop_service_address SET status = #{status}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND tenant_id = #{tenantId}
+    </update>
+</mapper>

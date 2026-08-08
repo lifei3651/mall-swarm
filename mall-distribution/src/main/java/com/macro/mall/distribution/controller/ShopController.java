@@ -13,10 +13,12 @@ import com.macro.mall.distribution.entity.DmsShopCategory;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsShopNotice;
 import com.macro.mall.distribution.entity.DmsShopProduct;
+import com.macro.mall.distribution.entity.DmsShopServiceAddress;
 import com.macro.mall.distribution.entity.DmsShopSku;
 import com.macro.mall.distribution.entity.DmsFreightTemplate;
 import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
 import com.macro.mall.distribution.service.ShopAddressService;
+import com.macro.mall.distribution.service.ShopServiceAddressService;
 import com.macro.mall.distribution.service.ShopAfterSaleService;
 import com.macro.mall.distribution.service.ShopAuthService;
 import com.macro.mall.distribution.service.ShopService;
@@ -63,6 +65,7 @@ public class ShopController {
     private final ShopService shopService;
     private final ShopAuthService authService;
     private final ShopAddressService addressService;
+    private final ShopServiceAddressService serviceAddressService;
     private final ShopAfterSaleService afterSaleService;
     private final TenantService tenantService;
     private final AdminAuthService adminAuthService;
@@ -289,6 +292,29 @@ public class ShopController {
     @PutMapping("/admin/products/{id}/status")
     public CommonResult<Boolean> updateProductStatus(@PathVariable Long id, @RequestParam Integer status) {
         return CommonResult.success(shopService.updateProductStatus(id, status));
+    }
+
+    @Operation(summary = "商城发货/退货地址列表")
+    @GetMapping("/admin/service-addresses")
+    public CommonResult<List<DmsShopServiceAddress>> serviceAddresses(
+            @RequestParam(required = false) Long tenantId,
+            @RequestParam(required = false) Integer addressType,
+            @RequestParam(required = false, defaultValue = "1") Integer status) {
+        return CommonResult.success(serviceAddressService.list(tenantId, addressType, status));
+    }
+
+    @Operation(summary = "保存商城发货/退货地址")
+    @PostMapping("/admin/service-addresses")
+    public CommonResult<DmsShopServiceAddress> saveServiceAddress(@RequestBody DmsShopServiceAddress address) {
+        return CommonResult.success(serviceAddressService.save(address));
+    }
+
+    @Operation(summary = "停用或设为默认商城地址")
+    @PutMapping("/admin/service-addresses/{id}/status")
+    public CommonResult<Boolean> updateServiceAddressStatus(@PathVariable Long id,
+                                                             @RequestParam Integer status,
+                                                             @RequestParam(required = false) Long tenantId) {
+        return CommonResult.success(serviceAddressService.updateStatus(id, tenantId, status));
     }
 
     @Operation(summary = "商品发布设置")

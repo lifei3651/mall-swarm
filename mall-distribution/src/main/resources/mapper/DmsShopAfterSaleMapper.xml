@@ -16,6 +16,8 @@
         <result column="refund_quantity" property="refundQuantity"/>
         <result column="reason" property="reason"/>
         <result column="proof_images" property="proofImages"/>
+        <result column="return_address_id" property="returnAddressId"/>
+        <result column="return_address" property="returnAddress"/>
         <result column="status" property="status"/>
         <result column="audit_remark" property="auditRemark"/>
         <result column="audit_user_id" property="auditUserId"/>
@@ -28,7 +30,7 @@
     <sql id="Base_Column_List">
         id, after_sale_no, order_id, order_no, member_id, user_id, apply_type, refund_amount,
         product_refund_amount, freight_refund_amount, refund_quantity,
-        reason, proof_images, status, audit_remark, audit_user_id, audit_user_name,
+        reason, proof_images, return_address_id, return_address, status, audit_remark, audit_user_id, audit_user_name,
         audit_time, create_time, update_time
     </sql>
 
@@ -89,11 +91,11 @@
         INSERT INTO dms_shop_after_sale
         (after_sale_no, order_id, order_no, member_id, user_id, apply_type, refund_amount,
          product_refund_amount, freight_refund_amount, refund_quantity,
-         reason, proof_images, status)
+         reason, proof_images, return_address_id, return_address, status)
         VALUES
         (#{afterSaleNo}, #{orderId}, #{orderNo}, #{memberId}, #{userId}, #{applyType}, #{refundAmount},
          #{productRefundAmount}, #{freightRefundAmount}, #{refundQuantity},
-         #{reason}, #{proofImages}, #{status})
+         #{reason}, #{proofImages}, #{returnAddressId}, #{returnAddress}, #{status})
     </insert>
 
     <update id="updateAudit" parameterType="com.macro.mall.distribution.entity.DmsShopAfterSale">

@@ -59,6 +59,10 @@
               <span class="progress-step" :class="{ complete: sale.status === 1 }">处理完成</span>
             </div>
             <p class="line-sub after-sale-amounts">商品 {{ sale.refundQuantity || 0 }} 件 · 商品款 ¥{{ money(sale.productRefundAmount) }} · 运费 ¥{{ money(sale.freightRefundAmount) }}</p>
+            <div v-if="sale.applyType === 2 && sale.status === 1" class="after-sale-return-address">
+              <strong>请寄回商品</strong>
+              <span>{{ sale.returnAddress || '退货地址将在审核结果中显示，请留意订单更新' }}</span>
+            </div>
             <div v-for="line in sale.items || []" :key="line.id" class="after-sale-item-line">
               <span>{{ line.productName }} {{ formatProductSpec(line) }}</span>
               <strong>× {{ line.refundQuantity }}</strong>
@@ -506,6 +510,8 @@ onMounted(fetchOrder)
 .progress-track { height: 1px; flex: 1; margin: 0 7px; background: #e4e8ec; }
 .progress-1 .progress-track:first-of-type { background: var(--brand-primary, #e7193f); }
 .after-sale-amounts { margin: 0 0 9px; }
+.after-sale-return-address { display: grid; gap: 4px; margin: 10px 0 4px; padding: 10px 12px; color: #8a4b12; background: #fff8ed; border: 1px solid #f5d7ad; border-radius: 9px; font-size: 12px; line-height: 1.5; }
+.after-sale-return-address strong { color: #7a3f0a; font-size: 13px; }
 .after-sale-item-line { display: flex; justify-content: space-between; gap: 12px; padding-top: 7px; color: #69737e; font-size: 12px; }
 .after-sale-item-line strong { color: #3d4650; font-size: 12px; }
 .after-sale-record-actions { display: flex; justify-content: flex-end; margin-top: 12px; padding-top: 11px; border-top: 1px solid #f1e3e6; }

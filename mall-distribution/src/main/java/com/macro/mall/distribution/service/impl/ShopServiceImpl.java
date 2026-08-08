@@ -71,6 +71,7 @@ public class ShopServiceImpl implements ShopService {
     private final DmsShopOrderItemDao orderItemDao;
     private final DmsShopOrderShipmentDao orderShipmentDao;
     private final DmsShopAddressDao addressDao;
+    private final DmsShopServiceAddressDao serviceAddressDao;
     private final DmsShopAfterSaleDao afterSaleDao;
     private final DmsShopAfterSaleItemDao afterSaleItemDao;
     private final DmsShopProductReviewDao productReviewDao;
@@ -341,6 +342,7 @@ public class ShopServiceImpl implements ShopService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsShopProduct saveProduct(DmsShopProduct product) {
+        applyShippingAddress(product, true);
         fillProductDefaults(product);
         assertTenantAccess(product.getTenantId());
         productDao.insert(product);
@@ -356,8 +358,11 @@ public class ShopServiceImpl implements ShopService {
         }
         assertTenantAccess(exists.getTenantId());
         product.setId(id);
-        fillProductDefaults(product);
         product.setTenantId(exists.getTenantId());
+        if (product.getShippingAddressId() == null) product.setShippingAddressId(exists.getShippingAddressId());
+        if (product.getReturnAddressId() == null) product.setReturnAddressId(exists.getReturnAddressId());
+        applyShippingAddress(product, false);
+        fillProductDefaults(product);
         productDao.update(product);
         return productDao.selectById(id);
     }
@@ -370,6 +375,7 @@ public class ShopServiceImpl implements ShopService {
         }
         DmsShopProduct product = dto.getProduct();
         if (id == null) {
+            applyShippingAddress(product, true);
             fillProductDefaults(product);
             assertTenantAccess(product.getTenantId());
             productDao.insert(product);
@@ -380,6 +386,9 @@ public class ShopServiceImpl implements ShopService {
             assertTenantAccess(existing.getTenantId());
             product.setId(id);
             product.setTenantId(existing.getTenantId());
+            if (product.getShippingAddressId() == null) product.setShippingAddressId(existing.getShippingAddressId());
+            if (product.getReturnAddressId() == null) product.setReturnAddressId(existing.getReturnAddressId());
+            applyShippingAddress(product, false);
             fillProductDefaults(product);
             productDao.update(product);
         }
@@ -422,6 +431,30 @@ public class ShopServiceImpl implements ShopService {
             productDao.update(product);
         }
         return productDao.selectById(id);
+    }
+
+    /** 将地址簿中的发货地址同步为商品快照；地址簿后续变更不会改写历史商品快照。 */
+    private void applyShippingAddress(DmsShopProduct product, boolean useDefaultWhenMissing) {
+        Long tenantId = product.getTenantId() == null ? DEFAULT_TENANT_ID : product.getTenantId();
+        DmsShopServiceAddress address = product.getShippingAddressId() == null && useDefaultWhenMissing
+                ? serviceAddressDao.selectDefault(tenantId, 1)
+                : product.getShippingAddressId() == null ? null : serviceAddressDao.selectById(product.getShippingAddressId());
+        if (address == null) return;
+        if (!tenantId.equals(address.getTenantId()) || !Integer.valueOf(1).equals(address.getAddressType())
+                || !Integer.valueOf(1).equals(address.getStatus())) {
+            Asserts.fail("发货地址不存在或已停用");
+        }
+        product.setShippingAddressId(address.getId());
+        product.setDeliveryProvince(address.getProvince());
+        product.setDeliveryCity(address.getCity());
+        product.setDeliveryDistrict(address.getDistrict());
+        product.setDeliveryAddress(joinServiceAddress(address));
+    }
+
+    private String joinServiceAddress(DmsShopServiceAddress address) {
+        return java.util.stream.Stream.of(address.getProvince(), address.getCity(), address.getDistrict(), address.getDetailAddress())
+                .filter(value -> value != null && !value.isBlank())
+                .collect(java.util.stream.Collectors.joining(" "));
     }
 
     @Override
@@ -1166,8 +1199,10 @@ public class ShopServiceImpl implements ShopService {
         if (blank(product.getDeliveryProvince()) || blank(product.getDeliveryCity()) || blank(product.getDeliveryDistrict())) {
             Asserts.fail("请完整选择发货地的省、市、区/县");
         }
-        product.setDeliveryAddress(String.join(" ", product.getDeliveryProvince().trim(),
-                product.getDeliveryCity().trim(), product.getDeliveryDistrict().trim()));
+        if (blank(product.getDeliveryAddress())) {
+            product.setDeliveryAddress(String.join(" ", product.getDeliveryProvince().trim(),
+                    product.getDeliveryCity().trim(), product.getDeliveryDistrict().trim()));
+        }
         switch (product.getFreightType()) {
             case 0 -> {
                 product.setFreightAmount(ZERO);

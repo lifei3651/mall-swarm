@@ -181,9 +181,13 @@
           <section class="form-section">
             <h3>4. 物流配送</h3>
             <el-row :gutter="20">
-              <el-col :span="8"><el-form-item label="发货地" required><el-cascader v-model="deliveryRegion" :options="pcaTextArr" placeholder="请选择省 / 市 / 区县" style="width:100%" filterable /></el-form-item></el-col>
+              <el-col v-if="!form.shippingAddressId" :span="8"><el-form-item label="发货地区" required><el-cascader v-model="deliveryRegion" :options="pcaTextArr" placeholder="请选择省 / 市 / 区县" style="width:100%" filterable /><div class="field-help">未选择地址簿时，可直接填写商品发货地区</div></el-form-item></el-col>
               <el-col :span="8"><el-form-item label="发货时效"><el-select v-model="form.deliveryTime" placeholder="请选择" style="width:100%"><el-option label="24小时内发货" value="24小时内发货" /><el-option label="48小时内发货" value="48小时内发货" /><el-option label="72小时内发货" value="72小时内发货" /><el-option label="预售，按约定时间发货" value="预售" /></el-select></el-form-item></el-col>
               <el-col :span="8"><el-form-item label="配送方式"><el-select v-model="form.freightType" style="width:100%"><el-option label="全国包邮" :value="0" /><el-option label="统一运费" :value="1" /><el-option label="满额包邮" :value="2" /><el-option label="按地区配送" :value="3" /></el-select></el-form-item></el-col>
+            </el-row>
+            <el-row :gutter="20" class="service-address-row">
+              <el-col :span="8"><el-form-item label="商城发货地址"><el-select v-model="form.shippingAddressId" clearable filterable placeholder="选择仓库发货地址" style="width:100%" @change="applyShippingAddress"><el-option v-for="item in shippingAddresses" :key="item.id" :label="addressOptionLabel(item)" :value="item.id" /></el-select><div class="field-help"><router-link to="/shop/service-addresses">管理地址簿</router-link></div></el-form-item></el-col>
+              <el-col :span="8"><el-form-item label="售后退货地址"><el-select v-model="form.returnAddressId" clearable filterable placeholder="默认退货地址" style="width:100%"><el-option v-for="item in returnAddresses" :key="item.id" :label="addressOptionLabel(item)" :value="item.id" /></el-select><div class="field-help">审核通过后展示给客户</div></el-form-item></el-col>
             </el-row>
             <el-row :gutter="20">
               <el-col v-if="form.freightType === 1" :span="8"><el-form-item label="统一运费"><el-input-number v-model="form.freightAmount" :min="0" :precision="2" class="money-input" /></el-form-item></el-col>
@@ -329,7 +333,7 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown, Box, CircleClose, Document, Medal, Money, Plus, QuestionFilled, Refresh, RefreshLeft, Search, Star, Van, WarningFilled } from '@element-plus/icons-vue'
 import { pcaTextArr } from 'element-china-area-data'
-import { createFreightTemplate, createShopCategory, getProductSettings, listFreightTemplates, listShopCategories, listShopProducts, listShopSkus, publishShopProduct, updateFreightTemplate, updateProductPvSetting, updateShopProductStatus, uploadShopImage } from '@/api/shop'
+import { createFreightTemplate, createShopCategory, getProductSettings, listFreightTemplates, listShopCategories, listShopProducts, listShopServiceAddresses, listShopSkus, publishShopProduct, updateFreightTemplate, updateProductPvSetting, updateShopProductStatus, uploadShopImage } from '@/api/shop'
 import { validateSearchKeyword } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
 
@@ -353,6 +357,8 @@ const form = ref({})
 const skuRows = ref([])
 const removedSkuIds = ref([])
 const categories = ref([])
+const shippingAddresses = ref([])
+const returnAddresses = ref([])
 const freightTemplates = ref([])
 const deliveryRegion = ref([])
 const freightTemplateDialogVisible = ref(false)
@@ -494,7 +500,7 @@ const defaultServiceGuarantees = () => Object.entries(guaranteeDefaults).map(([t
 }))
 
 const inferAfterSalePreset = (policy) => Object.entries(afterSalePolicyPresets).find(([, preset]) => preset.content === policy)?.[0] || 'custom'
-const defaultForm = () => ({ tenantId: 1, productNo: '', productName: '', subtitle: '', categoryName: '', mainImages: [], salePrice: 0, marketPrice: 0, costAmount: 0, pvValue: 0, bvValue: 0, stock: 0, purchaseLimit: 0, salesCount: 0, sort: 0, status: 1, freightType: 0, freightAmount: 0, freeShippingAmount: 0, freightTemplateId: null, freightTemplateName: '', deliveryAddress: '', deliveryProvince: '', deliveryCity: '', deliveryDistrict: '', deliveryTime: '48小时内发货', afterSalePresetKey: defaultAfterSalePresetKey, afterSalePolicy: afterSalePolicyPresets[defaultAfterSalePresetKey].content, serviceGuarantees: defaultServiceGuarantees(), detail: '', detailImageUrls: [] })
+const defaultForm = () => ({ tenantId: 1, productNo: '', productName: '', subtitle: '', categoryName: '', mainImages: [], salePrice: 0, marketPrice: 0, costAmount: 0, pvValue: 0, bvValue: 0, stock: 0, purchaseLimit: 0, salesCount: 0, sort: 0, status: 1, freightType: 0, freightAmount: 0, freeShippingAmount: 0, freightTemplateId: null, freightTemplateName: '', deliveryAddress: '', deliveryProvince: '', deliveryCity: '', deliveryDistrict: '', shippingAddressId: null, returnAddressId: null, deliveryTime: '48小时内发货', afterSalePresetKey: defaultAfterSalePresetKey, afterSalePolicy: afterSalePolicyPresets[defaultAfterSalePresetKey].content, serviceGuarantees: defaultServiceGuarantees(), detail: '', detailImageUrls: [] })
 
 const fetchData = async () => {
   const validation = validateSearchKeyword(query.value.keyword, { label: '商品关键词' })
@@ -553,6 +559,23 @@ const fetchFreightTemplates = async () => {
   freightTemplates.value = res.data || []
 }
 
+const addressOptionLabel = (item) => `${item.addressLabel || '未命名地址'}（${[item.province, item.city, item.district].filter(Boolean).join(' ')}）`
+const fetchServiceAddresses = async () => {
+  const res = await listShopServiceAddresses({ tenantId: 1 })
+  const list = res.data || []
+  shippingAddresses.value = list.filter((item) => Number(item.addressType) === 1)
+  returnAddresses.value = list.filter((item) => Number(item.addressType) === 2)
+}
+const applyShippingAddress = (id) => {
+  const address = shippingAddresses.value.find((item) => String(item.id) === String(id))
+  if (!address) return
+  deliveryRegion.value = [address.province, address.city, address.district].filter(Boolean)
+  form.value.deliveryProvince = address.province
+  form.value.deliveryCity = address.city
+  form.value.deliveryDistrict = address.district
+  form.value.deliveryAddress = [address.province, address.city, address.district, address.detailAddress].filter(Boolean).join(' ')
+}
+
 const fetchProductSettings = async () => {
   try {
     const res = await getProductSettings()
@@ -580,10 +603,11 @@ const changePvSetting = async (enabled) => {
 const resetQuery = () => { query.value = { keyword: '', categoryName: '', status: null }; pagination.value.page = 1; fetchData() }
 const openDialog = async (row) => {
   const mainImages = row ? [row.coverUrl, ...parseArray(row.galleryUrls)].filter(Boolean).slice(0, 5) : []
-  form.value = row ? { ...defaultForm(), ...row, mainImages, detailImageUrls: parseArray(row.detailImages), serviceGuarantees: normalizeServiceGuarantees(row.serviceTags), freightType: row.freightType ?? 0, pvValue: Number(row.pvValue || 0), afterSalePolicy: row.afterSalePolicy?.trim() || afterSalePolicyPresets[defaultAfterSalePresetKey].content, afterSalePresetKey: inferAfterSalePreset(row.afterSalePolicy?.trim() || afterSalePolicyPresets[defaultAfterSalePresetKey].content) } : defaultForm()
+  form.value = row ? { ...defaultForm(), ...row, mainImages, detailImageUrls: parseArray(row.detailImages), serviceGuarantees: normalizeServiceGuarantees(row.serviceTags), freightType: row.freightType ?? 0, pvValue: Number(row.pvValue || 0), afterSalePolicy: row.afterSalePolicy?.trim() || afterSalePolicyPresets[defaultAfterSalePresetKey].content, afterSalePresetKey: inferAfterSalePreset(row.afterSalePolicy?.trim() || afterSalePolicyPresets[defaultAfterSalePresetKey].content) } : { ...defaultForm(), shippingAddressId: shippingAddresses.value.find((item) => Number(item.isDefault) === 1)?.id || shippingAddresses.value[0]?.id || null, returnAddressId: returnAddresses.value.find((item) => Number(item.isDefault) === 1)?.id || returnAddresses.value[0]?.id || null }
   deliveryRegion.value = row?.deliveryProvince && row?.deliveryCity && row?.deliveryDistrict
     ? [row.deliveryProvince, row.deliveryCity, row.deliveryDistrict]
     : []
+  if (form.value.shippingAddressId && !deliveryRegion.value.length) applyShippingAddress(form.value.shippingAddressId)
   skuRows.value = []
   removedSkuIds.value = []
   dialogVisible.value = true
@@ -752,10 +776,10 @@ const submitForm = async () => {
   submitting.value = true
   try {
     const [deliveryProvince, deliveryCity, deliveryDistrict] = deliveryRegion.value
-    const serviceTags = form.value.serviceGuarantees
+  const serviceTags = form.value.serviceGuarantees
       .filter((item) => item.title?.trim())
       .map((item) => ({ enabled: Boolean(item.enabled), icon: item.icon || 'shield', title: item.title.trim(), description: item.description?.trim() || '' }))
-    const payload = { ...form.value, productName: form.value.productName.trim(), subtitle: form.value.subtitle?.trim() || null, categoryName: form.value.categoryName?.trim() || null, deliveryProvince, deliveryCity, deliveryDistrict, deliveryAddress: deliveryRegion.value.join(' '), coverUrl: form.value.mainImages[0], galleryUrls: JSON.stringify(form.value.mainImages.slice(1)), detailImages: JSON.stringify(form.value.detailImageUrls), serviceTags: JSON.stringify(serviceTags), bvValue: 0 }
+    const payload = { ...form.value, productName: form.value.productName.trim(), subtitle: form.value.subtitle?.trim() || null, categoryName: form.value.categoryName?.trim() || null, deliveryProvince, deliveryCity, deliveryDistrict, deliveryAddress: form.value.shippingAddressId ? form.value.deliveryAddress : deliveryRegion.value.join(' '), coverUrl: form.value.mainImages[0], galleryUrls: JSON.stringify(form.value.mainImages.slice(1)), detailImages: JSON.stringify(form.value.detailImageUrls), serviceTags: JSON.stringify(serviceTags), bvValue: 0 }
     delete payload.mainImages; delete payload.detailImageUrls; delete payload.serviceGuarantees; delete payload.afterSalePresetKey
     await publishShopProduct(form.value.id, {
       product: payload,
@@ -773,7 +797,7 @@ const submitForm = async () => {
 
 const toggleStatus = async (row) => { await updateShopProductStatus(row.id, row.status === 1 ? 0 : 1); ElMessage.success('商品状态已更新'); fetchData() }
 
-onMounted(async () => { await Promise.all([fetchData(), fetchCategories(), fetchProductSettings(), fetchFreightTemplates()]) })
+onMounted(async () => { await Promise.all([fetchData(), fetchCategories(), fetchProductSettings(), fetchFreightTemplates(), fetchServiceAddresses()]) })
 </script>
 
 <style lang="scss" scoped>

@@ -10,6 +10,7 @@ import com.macro.mall.distribution.dao.DmsShopAfterSaleItemDao;
 import com.macro.mall.distribution.dao.DmsShopOrderDao;
 import com.macro.mall.distribution.dao.DmsShopOrderItemDao;
 import com.macro.mall.distribution.dao.DmsShopProductDao;
+import com.macro.mall.distribution.dao.DmsShopServiceAddressDao;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsShopSkuDao;
 import com.macro.mall.distribution.dto.FinanceRefundDTO;
@@ -23,6 +24,8 @@ import com.macro.mall.distribution.entity.DmsShopAfterSaleItem;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.entity.DmsShopOrderItem;
+import com.macro.mall.distribution.entity.DmsShopProduct;
+import com.macro.mall.distribution.entity.DmsShopServiceAddress;
 import com.macro.mall.distribution.enums.AgentSourceTypeEnum;
 import com.macro.mall.distribution.service.AgentService;
 import com.macro.mall.distribution.service.AlipayService;
@@ -58,6 +61,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     private final DmsShopOrderDao orderDao;
     private final DmsShopOrderItemDao orderItemDao;
     private final DmsShopProductDao productDao;
+    private final DmsShopServiceAddressDao serviceAddressDao;
     private final DmsShopSkuDao skuDao;
     private final DmsShopMemberDao memberDao;
     private final DistributionAuditService auditService;
@@ -172,6 +176,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         afterSale.setReason(dto.getReason());
         afterSale.setProofImages(dto.getProofImages());
         afterSale.setStatus(0);
+        populateReturnAddress(afterSale, order, refundItems);
         afterSaleDao.insert(afterSale);
         for (DmsShopAfterSaleItem item : refundItems) item.setAfterSaleId(afterSale.getId());
         afterSaleItemDao.insertBatch(refundItems);
@@ -332,6 +337,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         afterSale.setRefundQuantity(refundQuantity);
         afterSale.setReason(dto.getReason() == null || dto.getReason().isBlank() ? "后台超期退款" : dto.getReason().trim());
         afterSale.setStatus(0);
+        populateReturnAddress(afterSale, order, refundItems);
         afterSaleDao.insert(afterSale);
         for (DmsShopAfterSaleItem item : refundItems) item.setAfterSaleId(afterSale.getId());
         afterSaleItemDao.insertBatch(refundItems);
@@ -479,6 +485,33 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     private String generateAfterSaleNo() {
         return "AS" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
                 + IdUtil.getSnowflakeNextIdStr().substring(12);
+    }
+
+    private void populateReturnAddress(DmsShopAfterSale afterSale, DmsShopOrder order,
+                                       List<DmsShopAfterSaleItem> refundItems) {
+        if (afterSale == null || order == null || !Integer.valueOf(2).equals(afterSale.getApplyType())) return;
+        Long productId = refundItems == null || refundItems.isEmpty() ? null : refundItems.get(0).getProductId();
+        DmsShopServiceAddress address = null;
+        if (productId != null) {
+            DmsShopProduct product = productDao.selectById(productId);
+            if (product != null && product.getReturnAddressId() != null) {
+                address = serviceAddressDao.selectById(product.getReturnAddressId());
+                if (address != null && (!Integer.valueOf(2).equals(address.getAddressType())
+                        || !Integer.valueOf(1).equals(address.getStatus()))) address = null;
+            }
+        }
+        if (address == null) address = serviceAddressDao.selectDefault(order.getTenantId(), 2);
+        if (address == null) return;
+        afterSale.setReturnAddressId(address.getId());
+        afterSale.setReturnAddress(joinServiceAddress(address));
+    }
+
+    private String joinServiceAddress(DmsShopServiceAddress address) {
+        return java.util.stream.Stream.of(
+                        address.getContactName() + " " + address.getContactPhone(),
+                        address.getProvince(), address.getCity(), address.getDistrict(), address.getDetailAddress())
+                .filter(value -> value != null && !value.isBlank())
+                .collect(java.util.stream.Collectors.joining(" "));
     }
 
     private DmsShopAfterSale hydrate(DmsShopAfterSale afterSale) {

@@ -37,6 +37,12 @@ const routes = [
             meta: { title: '商品管理', permission: 'shop:product' },
           },
           {
+            path: 'service-addresses',
+            name: 'ShopServiceAddresses',
+            component: () => import('@/views/shop/service-addresses.vue'),
+            meta: { title: '发货与退货地址', permission: 'shop:product' },
+          },
+          {
             path: 'orders',
             name: 'ShopOrders',
             component: () => import('@/views/shop/orders.vue'),

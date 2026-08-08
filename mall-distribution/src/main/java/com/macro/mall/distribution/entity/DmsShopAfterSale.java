@@ -43,6 +43,10 @@ public class DmsShopAfterSale implements Serializable {
 
     private String proofImages;
 
+    /** 审核通过后给客户展示的退货地址快照，避免地址簿修改影响历史售后。 */
+    private Long returnAddressId;
+    private String returnAddress;
+
     private Integer status;
 
     private String auditRemark;
