@@ -353,11 +353,13 @@ test('product detail shows the configured member purchase limit', async () => {
   assert.match(source, /每位会员限购/)
 })
 
-test('order detail renders logistics timeline with shipping steps', async () => {
+test('order detail prioritizes a compact logistics summary and signed status', async () => {
   const source = await readView('OrderDetailView.vue')
-  assert.match(source, /timeline-steps/)
+  assert.match(source, /logistics-overview-panel/)
   assert.match(source, /courierInitial/)
-  assert.match(source, /estimatedDelivery/)
+  assert.match(source, /logisticsStatus/)
+  assert.match(source, /已签收/)
+  assert.ok(source.indexOf('logistics-overview-panel') < source.indexOf('product-detail-head'))
 })
 
 test('refund flow defaults to all items and keeps the application form concise', async () => {
@@ -371,13 +373,32 @@ test('refund flow defaults to all items and keeps the application form concise',
   assert.doesNotMatch(source, /退款金额以实际支付金额和审核结果为准/)
   assert.doesNotMatch(source, /class="estimate-meta"/)
   assert.match(source, /预计退款/)
-  assert.match(source, /class="order-number-footer"/)
+  assert.doesNotMatch(source, /class="order-number-footer"/)
+  assert.doesNotMatch(source, /<h3>申请退款 \/ 售后<\/h3>/)
+  assert.match(source, /RouterLink v-if="!applyingAfterSale"/)
   assert.match(source, /reason: \[selectedReason\.value, afterSaleForm\.value\.reasonDetail\.trim\(\)\]/)
   assert.match(source, /选择商品和数量/)
   assert.match(source, /class="required-star"/)
   assert.match(source, /退款商品数量不能为 0，请至少选择 1 件商品/)
   assert.match(source, /scrollIntoView\(\{ behavior: 'smooth', block: 'center' \}\)/)
   assert.match(source, /after-sale-field-error/)
+})
+
+test('order detail keeps four payment facts visible and collapses five order information fields', async () => {
+  const source = await readView('OrderDetailView.vue')
+  assert.doesNotMatch(source, /<h3>金额<\/h3>/)
+  assert.match(source, /订单状态/)
+  assert.match(source, /商品金额/)
+  assert.match(source, /实付金额/)
+  assert.match(source, /支付方式/)
+  assert.match(source, /class="order-info-toggle"/)
+  assert.match(source, /orderInfoExpanded/)
+  assert.match(source, /订单信息 <small>共5项<\/small>/)
+  assert.match(source, /订单号/)
+  assert.match(source, /创建时间/)
+  assert.match(source, /付款时间/)
+  assert.match(source, /发货时间/)
+  assert.match(source, /<span>运费<\/span>/)
 })
 
 test('footer keeps customer rules and filing access without optional FAQ clutter', async () => {

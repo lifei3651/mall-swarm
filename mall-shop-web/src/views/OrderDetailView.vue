@@ -2,7 +2,7 @@
   <div class="page">
     <div class="section-head">
       <h2>订单详情</h2>
-      <RouterLink class="btn secondary" to="/orders">
+      <RouterLink v-if="!applyingAfterSale" class="btn secondary" to="/orders">
         <UserRound :size="18" />
         我的订单
       </RouterLink>
@@ -17,6 +17,34 @@
     </div>
     <div v-else-if="!order" class="empty">订单不存在</div>
     <div v-else class="checkout-layout" :class="{ 'after-sale-mode': applyingAfterSale }">
+      <section v-if="!applyingAfterSale && shipments.length" class="panel logistics-overview-panel">
+        <div class="logistics-overview-head">
+          <span class="logistics-overview-icon"><Truck :size="22" /></span>
+          <div class="logistics-overview-status">
+            <strong>{{ logisticsStatus }}</strong>
+            <span>{{ logisticsStatusDescription }}</span>
+          </div>
+          <a v-if="trackingUrl(shipments[0])" :href="trackingUrl(shipments[0])" target="_blank" rel="noopener" class="logistics-overview-link">
+            查看物流
+            <ChevronRight :size="17" />
+          </a>
+        </div>
+        <div v-for="(shipment, index) in shipments" :key="`${shipment.deliveryCompany}-${shipment.deliveryNo}-${index}`" class="logistics-package-row">
+          <span class="courier-icon">{{ courierInitial(shipment.deliveryCompany) }}</span>
+          <div>
+            <strong>{{ shipment.deliveryCompany || '快递公司' }}</strong>
+            <p>包裹 {{ index + 1 }} · 运单号 {{ shipment.deliveryNo || '-' }}</p>
+          </div>
+          <button v-if="shipment.deliveryNo" type="button" class="copy-btn" @click="copyText(shipment.deliveryNo)">复制</button>
+        </div>
+        <div class="delivery-address-row">
+          <MapPin :size="20" />
+          <div>
+            <strong>{{ order.receiverName }} {{ order.receiverPhone }}</strong>
+            <span>{{ order.receiverAddress }}</span>
+          </div>
+        </div>
+      </section>
       <section class="panel">
         <div ref="refundItemsSection" class="product-detail-head" :class="{ 'has-validation-error': applyingAfterSale && afterSaleErrors.items }">
           <h3>{{ applyingAfterSale ? '选择商品和数量' : '商品明细' }}<span v-if="applyingAfterSale" class="required-star">*</span></h3>
@@ -96,13 +124,6 @@
         </div>
 
         <div v-if="canApplyAfterSale && applyingAfterSale" class="after-sale-box">
-          <div class="after-sale-section-head apply-head">
-            <div>
-              <h3>申请退款 / 售后</h3>
-            </div>
-            <button type="button" class="close-apply" @click="applyingAfterSale = false">暂不申请</button>
-          </div>
-
           <div class="after-sale-block">
             <div class="block-label">售后类型</div>
             <div class="after-sale-type-grid">
@@ -140,7 +161,6 @@
         </div>
       </section>
       <aside v-if="!applyingAfterSale" class="panel">
-        <h3>金额</h3>
         <div class="summary-row">
           <span>订单状态</span>
           <strong>{{ statusName(order.status) }}</strong>
@@ -150,10 +170,6 @@
           <strong>¥{{ money(order.totalAmount) }}</strong>
         </div>
         <div class="summary-row">
-          <span>运费</span>
-          <strong>¥{{ money(order.freightAmount) }}</strong>
-        </div>
-        <div class="summary-row">
           <span>实付金额</span>
           <strong>¥{{ money(order.payAmount) }}</strong>
         </div>
@@ -161,57 +177,24 @@
           <span>支付方式</span>
           <strong>{{ payTypeName(order.payType) }}</strong>
         </div>
-        <div class="summary-row">
-          <span>收货人</span>
-          <strong>{{ order.receiverName }}</strong>
-        </div>
-        <div v-if="shipments.length" class="logistics-section">
-          <h3>物流信息</h3>
-          <div v-for="(shipment, index) in shipments" :key="`${shipment.deliveryCompany}-${shipment.deliveryNo}-${index}`" class="shipment-timeline">
-            <div class="timeline-header">
-              <div class="courier-info">
-                <span class="courier-icon">{{ courierInitial(shipment.deliveryCompany) }}</span>
-                <div>
-                  <strong>{{ shipment.deliveryCompany || '快递公司' }}</strong>
-                  <p>运单号 {{ shipment.deliveryNo }}
-                    <button class="copy-btn" @click="copyText(shipment.deliveryNo)">复制</button>
-                  </p>
-                </div>
-              </div>
-              <a v-if="trackingUrl(shipment)" :href="trackingUrl(shipment)" target="_blank" rel="noopener" class="tracking-link">查看物流</a>
+        <div class="order-info-card">
+          <button type="button" class="order-info-toggle" :aria-expanded="orderInfoExpanded" @click="orderInfoExpanded = !orderInfoExpanded">
+            <span>订单信息 <small>共5项</small></span>
+            <span class="order-info-preview">{{ orderInfoExpanded ? '收起' : order.orderNo }}</span>
+            <ChevronDown :size="19" :class="{ expanded: orderInfoExpanded }" />
+          </button>
+          <div v-if="orderInfoExpanded" class="order-info-details">
+            <div class="order-info-row">
+              <span>订单号</span>
+              <strong>{{ order.orderNo }}</strong>
+              <button type="button" @click="copyText(order.orderNo)">复制</button>
             </div>
-
-            <div class="timeline-steps">
-              <div class="timeline-step completed">
-                <div class="step-dot"></div>
-                <div class="step-line"></div>
-                <div class="step-content">
-                  <strong>已发货</strong>
-                  <p>{{ shipment.deliveryTime ? dateTime(shipment.deliveryTime) : (order.payTime ? dateTime(order.payTime) : '-') }}</p>
-                  <small>包裹 {{ index + 1 }} · {{ shipment.shipmentQuantity || 0 }} 件</small>
-                </div>
-              </div>
-              <div class="timeline-step" :class="{ completed: order.status >= 2 }">
-                <div class="step-dot"></div>
-                <div class="step-line"></div>
-                <div class="step-content">
-                  <strong>运输中</strong>
-                  <p>{{ shipment.deliveryCompany || '快递公司' }}承运</p>
-                  <small v-if="estimatedDelivery(shipment)">预计 {{ estimatedDelivery(shipment) }} 送达</small>
-                </div>
-              </div>
-              <div class="timeline-step" :class="{ completed: order.status >= 3 }">
-                <div class="step-dot"></div>
-                <div class="step-content">
-                  <strong>已签收</strong>
-                  <p v-if="order.receiveTime">{{ dateTime(order.receiveTime) }}</p>
-                  <p v-else>等待收货</p>
-                </div>
-              </div>
-            </div>
+            <div class="order-info-row"><span>创建时间</span><strong>{{ dateTime(order.createTime) }}</strong></div>
+            <div class="order-info-row"><span>付款时间</span><strong>{{ dateTime(order.payTime) }}</strong></div>
+            <div class="order-info-row"><span>发货时间</span><strong>{{ dateTime(order.deliveryTime) }}</strong></div>
+            <div class="order-info-row"><span>运费</span><strong>¥{{ money(order.freightAmount) }}</strong></div>
           </div>
         </div>
-        <p class="line-sub" style="line-height: 1.7">{{ order.receiverAddress }}</p>
         <div v-if="order.status === 0 && order.payType === 'BALANCE'" class="balance-pay-box">
           <label>支付密码</label>
           <input
@@ -236,11 +219,6 @@
         </div>
         <p v-if="error" style="color: var(--coral); line-height: 1.6">{{ error }}</p>
       </aside>
-      <div class="order-number-footer">
-        <span>订单编号</span>
-        <strong>{{ order.orderNo }}</strong>
-        <button type="button" @click="copyText(order.orderNo)">复制</button>
-      </div>
     </div>
     <div v-if="reasonSheetVisible" class="reason-sheet-backdrop" @click.self="reasonSheetVisible = false">
       <section class="reason-sheet" role="dialog" aria-modal="true" aria-labelledby="reason-sheet-title">
@@ -260,7 +238,7 @@
 <script setup>
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { ChevronRight, CircleCheck, PackageCheck, RotateCcw, UserRound } from 'lucide-vue-next'
+import { ChevronDown, ChevronRight, CircleCheck, MapPin, PackageCheck, RotateCcw, Truck, UserRound } from 'lucide-vue-next'
 import { applyAfterSale, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmReceive, getOrder, payOrderWithBalance, submitAfterSaleReturnShipment } from '@/api/shop'
 import { dateTime, money, statusName } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
@@ -275,6 +253,7 @@ const returnShipmentForm = ref({ deliveryCompany: '', deliveryNo: '' })
 const submittingAfterSale = ref(false)
 const reasonSheetVisible = ref(false)
 const selectedReason = ref('')
+const orderInfoExpanded = ref(false)
 const refundItemsSection = ref(null)
 const reasonSection = ref(null)
 const afterSaleErrors = ref({ items: '', reason: '', server: '' })
@@ -295,6 +274,16 @@ const shipments = computed(() => {
     }]
   }
   return []
+})
+const logisticsStatus = computed(() => {
+  if (order.value?.receiveTime || Number(order.value?.status) === 3) return '已签收'
+  if (Number(order.value?.status) === 2) return '运输中'
+  return '已发货'
+})
+const logisticsStatusDescription = computed(() => {
+  if (logisticsStatus.value === '已签收') return order.value?.receiveTime ? `签收时间 ${dateTime(order.value.receiveTime)}` : '包裹已签收'
+  if (logisticsStatus.value === '运输中') return '包裹正在运输，请留意物流更新'
+  return order.value?.deliveryTime ? `发货时间 ${dateTime(order.value.deliveryTime)}` : '商家已发出商品'
 })
 const afterSales = computed(() => detail.value.afterSales || [])
 const displayConfig = computed(() => detail.value.displayConfig || {})
@@ -434,15 +423,6 @@ const trackingUrl = (shipment) => {
   return `https://m.kuaidi100.com/result.jsp?nu=${encodeURIComponent(no)}`
 }
 
-const estimatedDelivery = (shipment) => {
-  if (!shipment.deliveryTime) return null
-  const shipped = new Date(shipment.deliveryTime)
-  if (isNaN(shipped.getTime())) return null
-  const est = new Date(shipped)
-  est.setDate(est.getDate() + 3)
-  return `${est.getMonth() + 1}月${est.getDate()}日`
-}
-
 const fetchOrder = async () => {
   if (!hasToken.value) return
   loading.value = true
@@ -556,9 +536,6 @@ onMounted(fetchOrder)
 .order-line-trailing { display: grid; justify-items: end; gap: 10px; }
 .order-line-amount { color: var(--brand-primary, #e7193f); font-size: 18px; font-weight: 900; white-space: nowrap; }
 .refunded-label { color: #9aa3ad; font-size: 11px; white-space: nowrap; }
-.order-number-footer { grid-column: 1 / -1; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 13px 16px; color: #8a939e; background: #fff; border: 1px solid var(--line); border-radius: 8px; font-size: 12px; }
-.order-number-footer strong { overflow: hidden; color: #59636e; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.order-number-footer button { padding: 4px 8px; color: var(--brand-primary, #e7193f); background: transparent; border: 0; font-size: 12px; }
 .checkout-layout.after-sale-mode { grid-template-columns: minmax(0, 760px); justify-content: center; }
 .after-sale-list { padding-top: 22px; }
 .after-sale-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
@@ -592,8 +569,6 @@ onMounted(fetchOrder)
 .after-sale-item-line strong { color: #3d4650; font-size: 12px; }
 .after-sale-record-actions { display: flex; justify-content: flex-end; margin-top: 12px; padding-top: 11px; border-top: 1px solid #f1e3e6; }
 .after-sale-cancel { min-height: 32px; padding: 0 13px; border-radius: 8px; font-size: 12px; }
-.apply-head { align-items: flex-start; margin-bottom: 12px; }
-.close-apply { padding: 6px 9px; color: #8a939e; background: #f5f6f7; border: 0; border-radius: 8px; font-size: 11px; }
 .after-sale-block { padding: 17px 0; border-top: 1px solid #edf0f2; }
 .block-label { margin-bottom: 10px; color: var(--ink); font-size: 14px; font-weight: 800; }
 .after-sale-type-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -642,7 +617,6 @@ onMounted(fetchOrder)
   .order-line-amount { font-size: 16px; }
   .order-line-trailing { gap: 8px; }
   .quantity-stepper button, .quantity-stepper output { width: 25px; height: 26px; }
-  .order-number-footer { margin: 0 12px; }
 }
 
 .balance-pay-box,
@@ -654,31 +628,36 @@ onMounted(fetchOrder)
   border: 1px solid rgba(15, 118, 110, 0.14);
 }
 
-.logistics-section { margin-top: 14px; padding: 16px; background: #f8faf8; border: 1px solid #dcfce7; border-radius: 14px; }
-.logistics-section h3 { margin: 0 0 14px; font-size: 14px; color: #15803d; }
+.logistics-overview-panel { grid-column: 1 / -1; padding: 0; overflow: hidden; }
+.logistics-overview-head { display: flex; align-items: center; gap: 12px; padding: 16px 18px; background: linear-gradient(135deg, var(--brand-primary-soft, #fff1f3), #fff); border-bottom: 1px solid #f0e3e6; }
+.logistics-overview-icon { width: 42px; height: 42px; display: grid; place-items: center; flex: 0 0 42px; color: #fff; background: var(--brand-primary, #e7193f); border-radius: 50%; }
+.logistics-overview-status { display: grid; gap: 3px; min-width: 0; }
+.logistics-overview-status strong { color: var(--brand-primary, #e7193f); font-size: 17px; }
+.logistics-overview-status span { overflow: hidden; color: #7a838d; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.logistics-overview-link { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; color: var(--brand-primary, #e7193f); font-size: 12px; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.logistics-package-row { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 10px; margin: 0 18px; padding: 13px 0; border-bottom: 1px solid #edf0f2; }
+.logistics-package-row + .logistics-package-row { padding-top: 0; }
+.logistics-package-row .courier-icon { width: 36px; height: 36px; display: grid; place-items: center; color: #fff; background: #2f3540; border-radius: 10px; font-size: 13px; font-weight: 800; }
+.logistics-package-row strong { display: block; color: var(--ink); font-size: 13px; }
+.logistics-package-row p { overflow: hidden; margin: 4px 0 0; color: #8b949e; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.delivery-address-row { display: flex; align-items: flex-start; gap: 10px; padding: 14px 18px 16px; }
+.delivery-address-row > svg { flex: 0 0 auto; margin-top: 2px; color: #5e6873; }
+.delivery-address-row div { display: grid; gap: 5px; min-width: 0; }
+.delivery-address-row strong { color: var(--ink); font-size: 13px; }
+.delivery-address-row span { color: #7a838d; font-size: 12px; line-height: 1.55; }
+.copy-btn { padding: 4px 9px; color: var(--brand-primary, #e7193f); background: #fff; border: 1px solid var(--brand-primary-soft, #f8ccd5); border-radius: 999px; font-size: 11px; cursor: pointer; }
 
-.shipment-timeline + .shipment-timeline { margin-top: 18px; padding-top: 18px; border-top: 1px dashed #bbf7d0; }
-.timeline-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-.courier-info { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.courier-icon { width: 42px; height: 42px; display: grid; place-items: center; flex-shrink: 0; color: #fff; background: var(--brand-primary, #0f766e); border-radius: 50%; font-size: 16px; font-weight: 800; }
-.courier-info strong { font-size: 14px; display: block; }
-.courier-info p { margin: 3px 0 0; color: #6b7280; font-size: 12px; }
-.tracking-link { flex-shrink: 0; padding: 6px 12px; color: var(--brand-primary, #0f766e); border: 1px solid var(--brand-primary, #0f766e); border-radius: 14px; font-size: 12px; font-weight: 700; text-decoration: none; }
-
-.timeline-steps { position: relative; }
-.timeline-step { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 12px; padding-bottom: 16px; position: relative; }
-.timeline-step:last-child { padding-bottom: 0; }
-.step-dot { width: 16px; height: 16px; justify-self: center; border-radius: 50%; background: #d1d5db; border: 3px solid #e5e7eb; flex-shrink: 0; }
-.timeline-step.completed .step-dot { background: var(--brand-primary, #0f766e); border-color: var(--brand-primary-soft, #ccfbf1); }
-.step-line { position: absolute; left: 15px; top: 28px; width: 2px; height: calc(100% - 16px); background: #e5e7eb; }
-.timeline-step.completed .step-line { background: var(--brand-primary, #0f766e); }
-.timeline-step:last-child .step-line { display: none; }
-.step-content { padding-top: 1px; }
-.step-content strong { font-size: 14px; }
-.step-content p { margin: 4px 0 0; color: #6b7280; font-size: 12px; }
-.step-content small { display: block; margin-top: 3px; color: #9ca3af; font-size: 11px; }
-
-.copy-btn { padding: 2px 8px; color: var(--brand-primary, #0f766e); background: none; border: 1px solid var(--brand-primary, #0f766e); border-radius: 4px; font-size: 11px; cursor: pointer; }
+.order-info-card { margin-top: 14px; border-top: 1px solid #edf0f2; border-bottom: 1px solid #edf0f2; }
+.order-info-toggle { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 9px; width: 100%; min-height: 52px; padding: 0; color: var(--ink); background: transparent; border: 0; text-align: left; }
+.order-info-toggle > span:first-child { font-size: 15px; font-weight: 900; white-space: nowrap; }
+.order-info-toggle small { color: #9aa3ad; font-size: 12px; font-weight: 500; }
+.order-info-preview { overflow: hidden; color: #8a939e; font-size: 11px; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.order-info-toggle svg { color: #8a939e; transition: transform .2s ease; }
+.order-info-toggle svg.expanded { transform: rotate(180deg); }
+.order-info-details { padding: 4px 0 12px; border-top: 1px solid #f1f3f4; }
+.order-info-row { display: grid; grid-template-columns: 70px minmax(0, 1fr) auto; align-items: start; gap: 8px; padding: 7px 0; color: #8a939e; font-size: 12px; }
+.order-info-row strong { overflow-wrap: anywhere; color: #59636e; font-weight: 600; text-align: right; }
+.order-info-row button { padding: 0; color: var(--brand-primary, #e7193f); background: transparent; border: 0; font-size: 12px; }
 
 .balance-pay-box label { display: block; margin-bottom: 8px; font-weight: 700; }
 .balance-pay-box .line-sub, .channel-tip { line-height: 1.6; }
