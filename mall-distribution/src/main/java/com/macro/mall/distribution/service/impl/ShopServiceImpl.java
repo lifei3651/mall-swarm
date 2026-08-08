@@ -31,6 +31,7 @@ import com.macro.mall.distribution.vo.OrderFinanceVO;
 import com.macro.mall.distribution.vo.ShopHomeVO;
 import com.macro.mall.distribution.vo.ShopLegalConfigVO;
 import com.macro.mall.distribution.vo.ShopOrderVO;
+import com.macro.mall.distribution.vo.ShopOrderStatusSummaryVO;
 import com.macro.mall.distribution.vo.ShopProductDetailVO;
 import com.macro.mall.distribution.vo.ShopProfileVO;
 import com.macro.mall.distribution.vo.FreightQuoteVO;
@@ -774,11 +775,16 @@ public class ShopServiceImpl implements ShopService {
 
     @Override
     public List<ShopOrderVO> listOrders(Long userId, Long agentId) {
+        return listOrders(userId, agentId, null);
+    }
+
+    @Override
+    public List<ShopOrderVO> listOrders(Long userId, Long agentId, String orderState) {
         List<DmsShopOrder> orders;
         if (agentId != null) {
             orders = orderDao.selectByAgentId(agentId);
         } else if (userId != null) {
-            orders = orderDao.selectByUserId(userId);
+            orders = orderDao.selectByUserIdAndState(userId, normalizeFrontOrderState(orderState));
         } else {
             orders = orderDao.selectList(null, null, null);
         }
@@ -794,6 +800,16 @@ public class ShopServiceImpl implements ShopService {
             vo.setDisplayConfig(getDisplayConfig(order.getTenantId()));
             return vo;
         }).toList();
+    }
+
+    private String normalizeFrontOrderState(String orderState) {
+        if (orderState == null || orderState.isBlank() || "ALL".equalsIgnoreCase(orderState)) return null;
+        String normalized = orderState.trim().toUpperCase(java.util.Locale.ROOT);
+        if (!java.util.Set.of("PENDING_PAYMENT", "PENDING_SHIPMENT", "PENDING_RECEIPT", "PENDING_REVIEW", "AFTER_SALE")
+                .contains(normalized)) {
+            Asserts.fail("订单状态筛选条件不正确");
+        }
+        return normalized;
     }
 
     @Override
@@ -993,7 +1009,6 @@ public class ShopServiceImpl implements ShopService {
             vo.setAssetAccounts(userId == null
                     ? Collections.emptyList()
                     : memberAssetService.listAccounts(null, userId));
-            vo.setOrders(userId == null ? Collections.emptyList() : listOrders(userId, null));
             vo.setDisplayConfig(getDisplayConfig(resolveTenantId(null)));
             return vo;
         }
@@ -1007,7 +1022,6 @@ public class ShopServiceImpl implements ShopService {
         vo.setCanViewTeamPerformance(showTeam);
         vo.setPerformance(showTeam ? performanceService.getPerformanceOverview(agent.getId(), now.withDayOfMonth(1), now) : null);
         vo.setAssetAccounts(memberAssetService.listAccounts(agent.getId(), agent.getUserId()));
-        vo.setOrders(listOrders(null, agent.getId()));
         vo.setDisplayConfig(displayConfig);
         vo.setMigrationBaseline(migrationBaselineDao.selectByAgentId(agent.getId()));
         return vo;
@@ -1018,11 +1032,43 @@ public class ShopServiceImpl implements ShopService {
         if (member == null) {
             return getProfile((Long) null, agentId);
         }
-        ShopProfileVO vo = getProfile(member.getUserId(), agentId);
+        DmsAgent agent = agentId != null ? agentDao.selectById(agentId) : agentDao.selectByUserId(member.getUserId());
+        ShopProfileVO vo = new ShopProfileVO();
         vo.setMember(member);
-        vo.setAddresses(addressDao.selectByMemberId(member.getId()));
-        vo.setOrders(listOrders(member.getUserId(), null));
+        vo.setAgent(agent);
+        vo.setOrderSummary(getOrderStatusSummary(member));
         return vo;
+    }
+
+    @Override
+    public ShopProfileVO getProfilePerformance(DmsShopMember member) {
+        ShopProfileVO vo = new ShopProfileVO();
+        if (member == null) {
+            vo.setCanViewTeamPerformance(false);
+            return vo;
+        }
+        DmsAgent agent = agentDao.selectByUserId(member.getUserId());
+        vo.setMember(member);
+        vo.setAgent(agent);
+        if (agent == null) {
+            vo.setCanViewTeamPerformance(false);
+            return vo;
+        }
+        boolean canView = auditService.canViewTeamPerformance(agent.getId(), agent.getUserId());
+        vo.setCanViewTeamPerformance(canView);
+        if (canView) {
+            vo.setPerformance(performanceService.getProfilePerformanceSummary(agent.getId(), LocalDate.now()));
+        }
+        return vo;
+    }
+
+    @Override
+    public ShopOrderStatusSummaryVO getOrderStatusSummary(DmsShopMember member) {
+        if (member == null || member.getUserId() == null) {
+            return new ShopOrderStatusSummaryVO();
+        }
+        ShopOrderStatusSummaryVO summary = orderDao.selectStatusSummary(member.getUserId());
+        return summary == null ? new ShopOrderStatusSummaryVO() : summary;
     }
 
     @Override

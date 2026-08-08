@@ -36,6 +36,15 @@
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
+    <resultMap id="StatusSummaryResultMap" type="com.macro.mall.distribution.vo.ShopOrderStatusSummaryVO">
+        <result column="total" property="total"/>
+        <result column="pending_payment" property="pendingPayment"/>
+        <result column="pending_shipment" property="pendingShipment"/>
+        <result column="pending_receipt" property="pendingReceipt"/>
+        <result column="pending_review" property="pendingReview"/>
+        <result column="after_sale" property="afterSale"/>
+    </resultMap>
+
     <sql id="Base_Column_List">
         id, order_no, tenant_id, user_id, agent_id, invite_code, receiver_name, receiver_phone,
         receiver_address, receiver_province, receiver_city, receiver_district, receiver_detail_address,
@@ -75,6 +84,62 @@
         FROM dms_shop_order
         WHERE user_id = #{userId}
         ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByUserIdAndState" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_order
+        WHERE user_id = #{userId}
+        <if test="orderState != null and orderState != ''">
+            <choose>
+                <when test="orderState == 'PENDING_PAYMENT'">
+                    AND status = 0
+                </when>
+                <when test="orderState == 'PENDING_SHIPMENT'">
+                    AND status = 1
+                </when>
+                <when test="orderState == 'PENDING_RECEIPT'">
+                    AND status = 2
+                </when>
+                <when test="orderState == 'PENDING_REVIEW'">
+                    AND status = 3
+                    AND EXISTS (
+                        SELECT 1
+                        FROM dms_shop_order_item oi
+                        LEFT JOIN dms_shop_product_review review ON review.order_item_id = oi.id
+                        WHERE oi.order_id = dms_shop_order.id AND review.id IS NULL
+                    )
+                </when>
+                <when test="orderState == 'AFTER_SALE'">
+                    AND (
+                        status = 5
+                        OR EXISTS (
+                            SELECT 1 FROM dms_shop_after_sale sale
+                            WHERE sale.order_id = dms_shop_order.id
+                        )
+                    )
+                </when>
+            </choose>
+        </if>
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectStatusSummary" resultMap="StatusSummaryResultMap">
+        SELECT COUNT(*) AS total,
+               COALESCE(SUM(CASE WHEN o.status = 0 THEN 1 ELSE 0 END), 0) AS pending_payment,
+               COALESCE(SUM(CASE WHEN o.status = 1 THEN 1 ELSE 0 END), 0) AS pending_shipment,
+               COALESCE(SUM(CASE WHEN o.status = 2 THEN 1 ELSE 0 END), 0) AS pending_receipt,
+               COALESCE(SUM(CASE WHEN o.status = 3 AND EXISTS (
+                   SELECT 1
+                   FROM dms_shop_order_item oi
+                   LEFT JOIN dms_shop_product_review review ON review.order_item_id = oi.id
+                   WHERE oi.order_id = o.id AND review.id IS NULL
+               ) THEN 1 ELSE 0 END), 0) AS pending_review,
+               COALESCE(SUM(CASE WHEN o.status = 5 OR EXISTS (
+                   SELECT 1 FROM dms_shop_after_sale sale WHERE sale.order_id = o.id
+               ) THEN 1 ELSE 0 END), 0) AS after_sale
+        FROM dms_shop_order o
+        WHERE o.user_id = #{userId}
     </select>
 
     <select id="selectByAgentId" resultMap="BaseResultMap">

@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.dao;
 
 import com.macro.mall.distribution.entity.DmsShopOrder;
+import com.macro.mall.distribution.vo.ShopOrderStatusSummaryVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -19,6 +20,11 @@ public interface DmsShopOrderDao {
     DmsShopOrder selectByOrderNoForUpdate(@Param("orderNo") String orderNo);
 
     List<DmsShopOrder> selectByUserId(@Param("userId") Long userId);
+
+    List<DmsShopOrder> selectByUserIdAndState(@Param("userId") Long userId,
+                                               @Param("orderState") String orderState);
+
+    ShopOrderStatusSummaryVO selectStatusSummary(@Param("userId") Long userId);
 
     List<DmsShopOrder> selectByAgentId(@Param("agentId") Long agentId);
 

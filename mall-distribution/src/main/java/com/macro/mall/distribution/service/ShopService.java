@@ -14,6 +14,7 @@ import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsFreightTemplate;
 import com.macro.mall.distribution.vo.ShopHomeVO;
 import com.macro.mall.distribution.vo.ShopOrderVO;
+import com.macro.mall.distribution.vo.ShopOrderStatusSummaryVO;
 import com.macro.mall.distribution.vo.ShopProductDetailVO;
 import com.macro.mall.distribution.vo.ShopProfileVO;
 import com.macro.mall.distribution.vo.FreightQuoteVO;
@@ -97,6 +98,8 @@ public interface ShopService {
 
     List<ShopOrderVO> listOrders(Long userId, Long agentId);
 
+    List<ShopOrderVO> listOrders(Long userId, Long agentId, String orderState);
+
     List<ShopOrderVO> listAdminOrders(String keyword, Integer status, String orderState);
 
     ShopOrderVO markOrderPaid(Long orderId, String payType);
@@ -112,6 +115,10 @@ public interface ShopService {
     ShopProfileVO getProfile(Long userId, Long agentId);
 
     ShopProfileVO getProfile(DmsShopMember member, Long agentId);
+
+    ShopProfileVO getProfilePerformance(DmsShopMember member);
+
+    ShopOrderStatusSummaryVO getOrderStatusSummary(DmsShopMember member);
 
     ShopProfileVO getAdminProfile(DmsShopMember member);
 

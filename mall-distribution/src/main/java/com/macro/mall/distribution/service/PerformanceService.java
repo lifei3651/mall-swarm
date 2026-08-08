@@ -46,6 +46,9 @@ public interface PerformanceService {
      */
     PerformanceOverviewVO getPerformanceOverview(Long agentId, LocalDate startDate, LocalDate endDate);
 
+    /** 个人中心使用的轻量业绩汇总，只返回累计有效业绩和本月有效业绩。 */
+    PerformanceOverviewVO getProfilePerformanceSummary(Long agentId, LocalDate statDate);
+
     /**
      * 查询代理的团队成员贡献列表
      * @param agentId 代理ID

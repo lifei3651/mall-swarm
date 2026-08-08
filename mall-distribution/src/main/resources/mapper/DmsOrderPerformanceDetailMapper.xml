@@ -64,7 +64,7 @@
     <select id="selectTeamPerformanceDetails" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_order_performance_detail
-        WHERE target_agent_id = #{targetAgentId} AND relation_level > 0
+        WHERE target_agent_id = #{targetAgentId} AND relation_level > 0 AND status = 1
         <if test="startTime != null">
             AND order_time &gt;= #{startTime}
         </if>
@@ -77,7 +77,7 @@
     <select id="selectPersonalPerformanceDetails" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_order_performance_detail
-        WHERE owner_agent_id = #{ownerAgentId} AND relation_level = 0
+        WHERE owner_agent_id = #{ownerAgentId} AND relation_level = 0 AND status = 1
         <if test="startTime != null">
             AND order_time &gt;= #{startTime}
         </if>
@@ -90,7 +90,7 @@
     <select id="selectSubordinateOrderDetails" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_order_performance_detail
-        WHERE target_agent_id = #{targetAgentId} AND owner_agent_id = #{ownerAgentId}
+        WHERE target_agent_id = #{targetAgentId} AND owner_agent_id = #{ownerAgentId} AND status = 1
         <if test="startTime != null">
             AND order_time &gt;= #{startTime}
         </if>
@@ -104,6 +104,17 @@
         SELECT COALESCE(SUM(quantity), 0)
         FROM dms_order_performance_detail
         WHERE target_agent_id = #{agentId} AND status = 1
+    </select>
+
+    <select id="selectProfilePerformanceSummary" resultType="com.macro.mall.distribution.vo.PerformanceOverviewVO">
+        SELECT COALESCE(SUM(CASE
+                   WHEN status = 1 AND order_time &lt; #{endTime} THEN performance_amount
+                   ELSE 0 END), 0) AS totalTeamPerformance,
+               COALESCE(SUM(CASE
+                   WHEN status = 1 AND order_time &gt;= #{monthStart} AND order_time &lt; #{endTime}
+                   THEN performance_amount ELSE 0 END), 0) AS currentMonthTeamPerformance
+        FROM dms_order_performance_detail
+        WHERE target_agent_id = #{agentId}
     </select>
 
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsOrderPerformanceDetail" useGeneratedKeys="true" keyProperty="id">

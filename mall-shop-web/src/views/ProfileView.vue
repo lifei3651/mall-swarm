@@ -1,25 +1,22 @@
 <template>
-  <div class="page profile-page">
-    <div v-if="loading" class="empty">正在加载个人中心...</div>
-
-    <template v-else>
+  <div class="page profile-page" :aria-busy="profileLoading">
       <div class="profile-content">
         <section class="identity-card" :class="identityInfo.className">
         <div class="identity-top">
           <div class="identity-avatar"><component :is="identityInfo.icon" :size="34" /></div>
           <div class="identity-main">
             <div class="identity-name-row">
-              <h2>{{ memberName }}</h2>
+              <h2>{{ profileLoading ? '正在加载...' : memberName }}</h2>
               <span v-if="activeAgent" class="rank-badge"><component :is="identityInfo.icon" :size="15" />{{ identityInfo.name }}</span>
             </div>
-            <p>账号：{{ accountName }}</p>
+            <p>账号：{{ profileLoading ? '-' : accountName }}</p>
           </div>
           <button type="button" class="invite-mini" @click="openInvite"><Gift :size="17" />邀请</button>
         </div>
         <div class="identity-stats">
-          <RouterLink to="/profile/wallet"><span>余额</span><strong>¥{{ money(walletSummary.balance) }}</strong></RouterLink>
+          <RouterLink to="/profile/wallet"><span>余额</span><strong>{{ walletLoading ? '加载中' : `¥${money(walletSummary.balance)}` }}</strong></RouterLink>
           <RouterLink to="/profile/team"><span>本月团队业绩</span><strong>{{ teamPerformanceText }}</strong></RouterLink>
-          <div><span>团队身份</span><strong>{{ activeAgent ? identityInfo.name : '首单后开通' }}</strong></div>
+          <div><span>团队身份</span><strong>{{ profileLoading ? '加载中' : (activeAgent ? identityInfo.name : '首单后开通') }}</strong></div>
         </div>
         </section>
 
@@ -45,12 +42,12 @@
         </RouterLink>
         <RouterLink to="/profile/team" class="menu-tile">
           <span class="tile-icon team-icon"><ChartNoAxesCombined :size="26" /></span>
-          <span class="tile-label">团队业绩</span>
+          <span class="tile-label">业绩</span>
         </RouterLink>
         <RouterLink to="/profile/security" class="menu-tile">
           <span class="tile-icon security-icon"><ShieldCheck :size="26" /></span>
           <span class="tile-label">支付安全</span>
-          <i v-if="!walletSummary.hasPaymentPassword" class="tile-badge">待设置</i>
+          <i v-if="!walletLoading && !walletSummary.hasPaymentPassword" class="tile-badge">待设置</i>
         </RouterLink>
         <RouterLink to="/profile/addresses" class="menu-tile">
           <span class="tile-icon address-icon"><MapPinned :size="26" /></span>
@@ -58,7 +55,7 @@
         </RouterLink>
       </section>
 
-      <section v-if="profile.member && !profile.member.username" class="panel account-panel">
+      <section v-if="!profileLoading && profile.member && !profile.member.username" class="panel account-panel">
         <h3>设置登录账号</h3>
         <p class="line-sub">手机号可以直接登录，也可以设置一个更容易记住的商城账号。</p>
         <div class="form-grid">
@@ -73,7 +70,6 @@
       <div class="profile-actions">
         <button class="logout-button" type="button" @click="logoutConfirmVisible = true">退出当前账号</button>
       </div>
-    </template>
 
     <Teleport to="body">
       <div v-if="logoutConfirmVisible" class="logout-dialog-mask" @click.self="closeLogoutConfirm">
@@ -115,15 +111,18 @@ import {
   UserRound,
   WalletCards,
 } from 'lucide-vue-next'
-import { getProfile, getWalletSummary, logout, setupAccount } from '@/api/shop'
+import { getProfile, getProfilePerformance, getWalletSummary, logout, setupAccount } from '@/api/shop'
 import { money } from '@/utils/format'
 import { clearShopSession } from '@/utils/shopSession'
 import { isNativeApp } from '@/utils/appEnvironment'
 
 const router = useRouter()
-const loading = ref(true)
+const profileLoading = ref(true)
+const walletLoading = ref(true)
+const performanceLoading = ref(true)
 const error = ref('')
 const profile = ref({})
+const performanceProfile = ref({})
 const walletSummary = ref({ balance: 0, hasPaymentPassword: false })
 const accountSaving = ref(false)
 const logoutConfirmVisible = ref(false)
@@ -145,22 +144,18 @@ const activeAgent = computed(() => Number(profile.value.agent?.status || 0) === 
 const identityInfo = computed(() => rankMap[Number(activeAgent.value?.agentLevel || 0)] || rankMap[0])
 const memberName = computed(() => profile.value.member?.nickname || profile.value.agent?.agentName || '商城用户')
 const accountName = computed(() => profile.value.member?.username || profile.value.member?.phone || '-')
-const addresses = computed(() => profile.value.addresses || [])
-const addressSummary = computed(() => {
-  const defaultAddress = addresses.value.find((item) => Number(item.isDefault) === 1)
-  if (defaultAddress) return `默认：${defaultAddress.province || ''}${defaultAddress.city || ''}${defaultAddress.district || ''}`
-  return addresses.value.length ? `已保存 ${addresses.value.length} 个地址` : '新增并设置默认地址'
+const orderSummary = computed(() => profile.value.orderSummary || {})
+const showTeamPerformance = computed(() => performanceProfile.value.canViewTeamPerformance === true)
+const teamPerformanceText = computed(() => {
+  if (performanceLoading.value) return '加载中'
+  return showTeamPerformance.value ? `¥${money(performanceProfile.value.performance?.currentMonthTeamPerformance)}` : '查看详情'
 })
-const showTeamPerformance = computed(() => profile.value.canViewTeamPerformance === true)
-const teamPerformanceText = computed(() => showTeamPerformance.value ? `¥${money(profile.value.performance?.teamPerformance)}` : '查看详情')
-const orders = computed(() => profile.value.orders || [])
-const countOrders = (predicate) => orders.value.filter(predicate).length
 const orderEntries = computed(() => [
-  { key: 'pending-payment', label: '待支付', icon: WalletCards, count: countOrders((item) => item.order?.status === 0) },
-  { key: 'pending-shipment', label: '待发货', icon: PackageCheck, count: countOrders((item) => item.order?.status === 1) },
-  { key: 'pending-receipt', label: '待收货', icon: Truck, count: countOrders((item) => item.order?.status === 2) },
-  { key: 'pending-review', label: '待评价', icon: MessageSquareText, count: countOrders((item) => Number(item.pendingReviewCount || 0) > 0) },
-  { key: 'after-sale', label: '退款/售后', icon: RotateCcw, count: countOrders((item) => item.order?.status === 5 || (item.afterSales || []).length > 0) },
+  { key: 'pending-payment', label: '待支付', icon: WalletCards, count: Number(orderSummary.value.pendingPayment || 0) },
+  { key: 'pending-shipment', label: '待发货', icon: PackageCheck, count: Number(orderSummary.value.pendingShipment || 0) },
+  { key: 'pending-receipt', label: '待收货', icon: Truck, count: Number(orderSummary.value.pendingReceipt || 0) },
+  { key: 'pending-review', label: '待评价', icon: MessageSquareText, count: Number(orderSummary.value.pendingReview || 0) },
+  { key: 'after-sale', label: '退款/售后', icon: RotateCcw, count: Number(orderSummary.value.afterSale || 0) },
 ])
 
 const openInvite = () => {
@@ -172,14 +167,25 @@ const openInvite = () => {
 }
 
 const fetchProfile = async () => {
-  loading.value = true
-  error.value = ''
+  profileLoading.value = true
   try {
-    const [profileRes, walletRes] = await Promise.all([getProfile(), getWalletSummary()])
-    profile.value = profileRes.data || {}
-    walletSummary.value = walletRes.data || walletSummary.value
+    profile.value = (await getProfile()).data || {}
   } catch (e) { error.value = e.message || '个人中心加载失败' }
-  finally { loading.value = false }
+  finally { profileLoading.value = false }
+}
+
+const fetchWallet = async () => {
+  walletLoading.value = true
+  try { walletSummary.value = (await getWalletSummary()).data || walletSummary.value }
+  catch (e) { error.value ||= e.message || '余额信息加载失败' }
+  finally { walletLoading.value = false }
+}
+
+const fetchPerformance = async () => {
+  performanceLoading.value = true
+  try { performanceProfile.value = (await getProfilePerformance()).data || {} }
+  catch (e) { error.value ||= e.message || '团队业绩加载失败' }
+  finally { performanceLoading.value = false }
 }
 
 const submitAccount = async () => {
@@ -210,7 +216,12 @@ const confirmLogout = async () => {
   }
 }
 
-onMounted(fetchProfile)
+onMounted(() => {
+  error.value = ''
+  fetchProfile()
+  fetchWallet()
+  fetchPerformance()
+})
 </script>
 
 <style scoped>

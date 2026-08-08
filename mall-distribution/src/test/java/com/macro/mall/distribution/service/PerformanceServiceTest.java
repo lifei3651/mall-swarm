@@ -283,6 +283,19 @@ public class PerformanceServiceTest {
         assertEquals(new BigDecimal("25000.00"), agentA.getTotalPerformance());
         assertEquals(new BigDecimal("25000.00"), agentA.getCurrentMonthPerformance());
         assertEquals(2, agentA.getCurrentMonthNewAgentCount());
+
+        insertPerformanceDetail(19001L, "PROFILE-OLD-EFFECTIVE", 1L,
+                new BigDecimal("500.00"), 1, today.minusMonths(1).atStartOfDay());
+        insertPerformanceDetail(19002L, "PROFILE-INVALID", 1L,
+                new BigDecimal("999.00"), 0, LocalDateTime.now());
+        insertPerformanceDetail(19003L, "PROFILE-REFUND-ORIGINAL", 1L,
+                new BigDecimal("100.00"), 1, LocalDateTime.now());
+        insertPerformanceDetail(19003L, "PROFILE-REFUND-REVERSAL", 1L,
+                new BigDecimal("-100.00"), 1, LocalDateTime.now());
+
+        var profileSummary = performanceService.getProfilePerformanceSummary(1L, today);
+        assertEquals(new BigDecimal("25500.00"), profileSummary.getTotalTeamPerformance());
+        assertEquals(new BigDecimal("25000.00"), profileSummary.getCurrentMonthTeamPerformance());
     }
 
     @Test
@@ -1445,6 +1458,17 @@ public class PerformanceServiceTest {
 
     private void assertAmountEquals(String expected, BigDecimal actual) {
         assertEquals(0, new BigDecimal(expected).compareTo(actual));
+    }
+
+    private void insertPerformanceDetail(Long orderId, String orderNo, Long targetAgentId,
+                                         BigDecimal amount, int status, LocalDateTime orderTime) {
+        jdbcTemplate.update("""
+                INSERT INTO dms_order_performance_detail
+                    (order_id, order_no, order_amount, order_time, owner_user_id, owner_agent_id,
+                     owner_agent_name, target_agent_id, target_agent_name, relation_level, quantity,
+                     product_amount, performance_type, performance_amount, status)
+                VALUES (?, ?, ?, ?, 1001, 1, '业绩测试会员', ?, '业绩测试会员', 0, 1, ?, 1, ?, ?)
+                """, orderId, orderNo, amount.abs(), orderTime, targetAgentId, amount, amount, status);
     }
 
     private DmsShopMember createShopMember(String phone, String nickname, Long inviterUserId) {

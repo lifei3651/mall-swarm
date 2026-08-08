@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.dao;
 
 import com.macro.mall.distribution.entity.DmsOrderPerformanceDetail;
+import com.macro.mall.distribution.vo.PerformanceOverviewVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -49,6 +50,11 @@ public interface DmsOrderPerformanceDetailDao {
     List<DmsOrderPerformanceDetail> selectSubordinateOrderDetails(@Param("targetAgentId") Long targetAgentId, @Param("ownerAgentId") Long ownerAgentId, @Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
 
     int sumEffectiveTeamUnits(@Param("agentId") Long agentId);
+
+    /** 个人中心轻量业绩汇总：只累计有效流水，退款冲销流水会自然扣减。 */
+    PerformanceOverviewVO selectProfilePerformanceSummary(@Param("agentId") Long agentId,
+                                                           @Param("monthStart") LocalDateTime monthStart,
+                                                           @Param("endTime") LocalDateTime endTime);
 
     /**
      * 插入明细

@@ -221,6 +221,20 @@ public class PerformanceServiceImpl implements PerformanceService {
     }
 
     @Override
+    public PerformanceOverviewVO getProfilePerformanceSummary(Long agentId, LocalDate statDate) {
+        LocalDate effectiveDate = statDate == null ? LocalDate.now() : statDate;
+        PerformanceOverviewVO summary = performanceDetailDao.selectProfilePerformanceSummary(
+                agentId, effectiveDate.withDayOfMonth(1).atStartOfDay(), effectiveDate.plusDays(1).atStartOfDay());
+        if (summary == null) {
+            summary = new PerformanceOverviewVO();
+            summary.setTotalTeamPerformance(BigDecimal.ZERO);
+            summary.setCurrentMonthTeamPerformance(BigDecimal.ZERO);
+        }
+        summary.setAgentId(agentId);
+        return summary;
+    }
+
+    @Override
     public List<SubordinateContributionVO> getSubordinateContributions(Long agentId, LocalDate startDate, LocalDate endDate) {
         // 查询下属贡献记录
         List<DmsSubordinateContribution> contributions = contributionDao.selectByAgentAndDateRange(

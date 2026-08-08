@@ -40,6 +40,26 @@ test('profile hides unused labels and uses a reliable invite navigation', async 
   assert.match(source, /window\.location\.assign\('\/invite'\)/)
 })
 
+test('profile renders immediately and loads order counts, wallet and performance separately', async () => {
+  const profile = await readView('ProfileView.vue')
+  const orders = await readView('OrdersView.vue')
+
+  assert.match(profile, /profile\.value\.orderSummary/)
+  assert.doesNotMatch(profile, /profile\.value\.orders/)
+  assert.match(profile, /const fetchWallet = async/)
+  assert.match(profile, /const fetchPerformance = async/)
+  assert.match(profile, /fetchProfile\(\)/)
+  assert.match(profile, /fetchWallet\(\)/)
+  assert.match(profile, /fetchPerformance\(\)/)
+  assert.doesNotMatch(profile, /Promise\.all\(\[getProfile/)
+
+  assert.match(orders, /const pageSize = 10/)
+  assert.match(orders, /orderState: orderStateMap\[activeTab\.value\]/)
+  assert.match(orders, /getProfileOrderSummary\(\)/)
+  assert.match(orders, /load-more-orders/)
+  assert.doesNotMatch(orders, /pageSize: 500/)
+})
+
 test('checkout keeps the address block compact and preserves the remark while switching', async () => {
   const source = await readView('CheckoutView.vue')
   const address = await readView('AddressView.vue')
@@ -134,8 +154,11 @@ test('wallet actions keep transfer on its own page and explain non-agent team ac
   assert.doesNotMatch(wallet, /activeTool === 'transfer'/)
   assert.match(transfer, /转账金额只能为整数/)
   assert.match(transfer, /type="number" min="1" step="1"/)
-  assert.match(team, /完成首单后开通团队业绩/)
+  assert.match(team, /完成首单后开通业绩查询/)
   assert.match(team, /当前账号尚未开通代理身份/)
+  assert.match(team, /总业绩/)
+  assert.match(team, /currentMonthTeamPerformance/)
+  assert.doesNotMatch(team, /团队分层业绩|level1Performance|level2Performance|level3Performance/)
 })
 
 test('home quick add no longer redirects SKU products to product detail', async () => {

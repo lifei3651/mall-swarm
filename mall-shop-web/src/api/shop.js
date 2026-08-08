@@ -251,6 +251,20 @@ export function getProfile(params) {
   })
 }
 
+export function getProfileOrderSummary() {
+  return request({
+    url: '/shop/profile/order-summary',
+    method: 'get',
+  })
+}
+
+export function getProfilePerformance() {
+  return request({
+    url: '/shop/profile/performance',
+    method: 'get',
+  })
+}
+
 // 公告相关
 export function listNotices(params) {
   return request({

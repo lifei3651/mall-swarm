@@ -33,6 +33,9 @@ public class ShopProfileVO implements Serializable {
 
     private List<ShopOrderVO> orders;
 
+    /** 个人中心使用的轻量订单状态数量，不包含订单详情。 */
+    private ShopOrderStatusSummaryVO orderSummary;
+
     private DmsTenantDisplayConfig displayConfig;
 
     private DmsMigrationBaseline migrationBaseline;

@@ -58,64 +58,98 @@
           <RouterLink v-if="canApplyAfterSale(item)" class="order-action" :to="`/orders/${item.order.id}`">申请售后</RouterLink>
         </div>
       </article>
+      <button v-if="hasMore" class="load-more-orders" :disabled="loadingMore" @click="loadMore">
+        {{ loadingMore ? '正在加载...' : '加载更多订单' }}
+      </button>
     </section>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ChevronLeft, ChevronRight, PackageOpen, RefreshCw } from 'lucide-vue-next'
-import { cancelOrder, confirmReceive, listMyOrders } from '@/api/shop'
+import { cancelOrder, confirmReceive, getProfileOrderSummary, listMyOrders } from '@/api/shop'
 import { money, statusName } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
 
 const route = useRoute()
 const loading = ref(false)
+const loadingMore = ref(false)
 const refreshing = ref(false)
 const error = ref('')
 const orders = ref([])
+const orderSummary = ref({})
+const pageNum = ref(1)
+const pageSize = 10
+const total = ref(0)
 const actingId = ref(null)
+let requestSequence = 0
 const validTabs = new Set(['all', 'pending-payment', 'pending-shipment', 'pending-receipt', 'pending-review', 'after-sale'])
 const activeTab = computed(() => validTabs.has(route.query.tab) ? route.query.tab : 'all')
 
 const isAfterSale = (item) => item.order?.status === 5 || (item.afterSales || []).length > 0
-const matchTab = (item, tab) => ({
-  all: true,
-  'pending-payment': item.order?.status === 0,
-  'pending-shipment': item.order?.status === 1,
-  'pending-receipt': item.order?.status === 2,
-  'pending-review': Number(item.pendingReviewCount || 0) > 0,
-  'after-sale': isAfterSale(item),
-}[tab] === true)
-
-const countTab = (tab) => orders.value.filter((item) => matchTab(item, tab)).length
 const tabs = computed(() => [
   { key: 'all', label: '全部', count: 0 },
-  { key: 'pending-payment', label: '待支付', count: countTab('pending-payment') },
-  { key: 'pending-shipment', label: '待发货', count: countTab('pending-shipment') },
-  { key: 'pending-receipt', label: '待收货', count: countTab('pending-receipt') },
-  { key: 'pending-review', label: '待评价', count: countTab('pending-review') },
-  { key: 'after-sale', label: '退款/售后', count: countTab('after-sale') },
+  { key: 'pending-payment', label: '待支付', count: Number(orderSummary.value.pendingPayment || 0) },
+  { key: 'pending-shipment', label: '待发货', count: Number(orderSummary.value.pendingShipment || 0) },
+  { key: 'pending-receipt', label: '待收货', count: Number(orderSummary.value.pendingReceipt || 0) },
+  { key: 'pending-review', label: '待评价', count: Number(orderSummary.value.pendingReview || 0) },
+  { key: 'after-sale', label: '退款/售后', count: Number(orderSummary.value.afterSale || 0) },
 ])
-const filteredOrders = computed(() => orders.value.filter((item) => matchTab(item, activeTab.value)))
+const filteredOrders = computed(() => orders.value)
+const hasMore = computed(() => orders.value.length < total.value)
+const orderStateMap = {
+  'pending-payment': 'PENDING_PAYMENT',
+  'pending-shipment': 'PENDING_SHIPMENT',
+  'pending-receipt': 'PENDING_RECEIPT',
+  'pending-review': 'PENDING_REVIEW',
+  'after-sale': 'AFTER_SALE',
+}
 
-const fetchOrders = async () => {
-  loading.value = true
+const fetchOrderSummary = async () => {
+  try { orderSummary.value = (await getProfileOrderSummary()).data || {} }
+  catch { orderSummary.value = {} }
+}
+
+const fetchOrders = async ({ append = false } = {}) => {
+  const sequence = ++requestSequence
+  if (append) loadingMore.value = true
+  else {
+    loading.value = true
+    loadingMore.value = false
+  }
   error.value = ''
+  const targetPage = append ? pageNum.value + 1 : 1
   try {
-    const res = await listMyOrders({ pageNum: 1, pageSize: 500 })
-    orders.value = res.data?.list || []
+    const res = await listMyOrders({
+      pageNum: targetPage,
+      pageSize,
+      orderState: orderStateMap[activeTab.value],
+    })
+    if (sequence !== requestSequence) return
+    const nextRows = res.data?.list || []
+    orders.value = append ? [...orders.value, ...nextRows] : nextRows
+    pageNum.value = targetPage
+    total.value = Number(res.data?.total || 0)
   } catch (e) {
+    if (sequence !== requestSequence) return
     error.value = e.message || '订单加载失败'
   } finally {
-    loading.value = false
+    if (sequence === requestSequence) {
+      if (append) loadingMore.value = false
+      else loading.value = false
+    }
   }
+}
+
+const loadMore = () => {
+  if (!loadingMore.value && hasMore.value) fetchOrders({ append: true })
 }
 
 const refreshOrders = async () => {
   refreshing.value = true
-  await fetchOrders()
+  await Promise.all([fetchOrders(), fetchOrderSummary()])
   refreshing.value = false
 }
 
@@ -139,7 +173,7 @@ const cancel = async (id) => {
   error.value = ''
   try {
     await cancelOrder(id)
-    await fetchOrders()
+    await Promise.all([fetchOrders(), fetchOrderSummary()])
   } catch (e) { error.value = e.message || '取消订单失败' }
   finally { actingId.value = null }
 }
@@ -149,12 +183,16 @@ const receive = async (id) => {
   error.value = ''
   try {
     await confirmReceive(id)
-    await fetchOrders()
+    await Promise.all([fetchOrders(), fetchOrderSummary()])
   } catch (e) { error.value = e.message || '确认收货失败' }
   finally { actingId.value = null }
 }
 
-onMounted(fetchOrders)
+watch(activeTab, () => fetchOrders())
+onMounted(() => {
+  fetchOrderSummary()
+  fetchOrders()
+})
 </script>
 
 <style scoped>
@@ -188,6 +226,8 @@ onMounted(fetchOrders)
 .order-action { min-width: 76px; padding: 7px 11px; color: var(--ink); background: #fff; border: 1px solid #d7ddda; border-radius: 999px; text-align: center; font-size: 12px; }
 .order-action.primary-action { color: var(--accent, #e7193f); border-color: var(--accent, #e7193f); font-weight: 700; }
 .order-action:disabled { opacity: .55; }
+.load-more-orders { width:100%; padding:12px; color:var(--accent,#e7193f); background:#fff; border:1px solid var(--line); border-radius:10px; font-weight:700; cursor:pointer; }
+.load-more-orders:disabled { opacity:.55; cursor:not-allowed; }
 .compact-empty { min-height: 280px; margin-top: 11px; }
 .compact-empty svg { color: #aab2ae; }
 

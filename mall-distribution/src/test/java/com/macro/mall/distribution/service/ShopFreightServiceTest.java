@@ -33,6 +33,7 @@ import com.macro.mall.distribution.vo.AdminDashboardVO;
 import com.macro.mall.distribution.vo.AdminMemberVO;
 import com.macro.mall.distribution.vo.AgentInfoVO;
 import com.macro.mall.distribution.vo.ShopOrderVO;
+import com.macro.mall.distribution.vo.ShopProfileVO;
 import com.macro.mall.distribution.vo.ShopProductDetailVO;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -388,6 +389,21 @@ class ShopFreightServiceTest {
         ApiException error = assertThrows(ApiException.class,
                 () -> shopService.submitOrder(pendingOrder(1, 1L), member));
         assertTrue(error.getMessage().contains("每位会员限购 2 件"));
+    }
+
+    @Test
+    void profileUsesAggregateOrderCountsAndOrderListSupportsStatusFiltering() {
+        DmsShopMember member = createMember("13999110109", "个人中心性能会员", null);
+        shopService.submitOrder(pendingOrder(1, 1L), member);
+
+        ShopProfileVO profile = shopService.getProfile(member, null);
+
+        assertNotNull(profile.getOrderSummary());
+        assertEquals(1L, profile.getOrderSummary().getTotal());
+        assertEquals(1L, profile.getOrderSummary().getPendingPayment());
+        assertTrue(profile.getOrders() == null || profile.getOrders().isEmpty());
+        assertEquals(1, shopService.listOrders(member.getUserId(), null, "PENDING_PAYMENT").size());
+        assertTrue(shopService.listOrders(member.getUserId(), null, "PENDING_SHIPMENT").isEmpty());
     }
 
     @Test

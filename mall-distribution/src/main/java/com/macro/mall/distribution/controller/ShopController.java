@@ -31,6 +31,7 @@ import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.vo.ShopAuthVO;
 import com.macro.mall.distribution.vo.ShopHomeVO;
 import com.macro.mall.distribution.vo.ShopOrderVO;
+import com.macro.mall.distribution.vo.ShopOrderStatusSummaryVO;
 import com.macro.mall.distribution.vo.ShopProductDetailVO;
 import com.macro.mall.distribution.vo.ShopProfileVO;
 import com.macro.mall.distribution.vo.ShopLegalConfigVO;
@@ -532,11 +533,14 @@ public class ShopController {
     public CommonResult<CommonPage<ShopOrderVO>> orders(@RequestParam(required = false) Long userId,
                                                         @RequestParam(required = false) Long agentId,
                                                         @RequestHeader(value = "Authorization", required = false) String authorization,
+                                                        @RequestParam(required = false) String orderState,
                                                         @RequestParam(defaultValue = "1") Integer pageNum,
                                                         @RequestParam(defaultValue = "10") Integer pageSize) {
         DmsShopMember member = authService.requireMember(authorization);
-        PageHelper.startPage(pageNum, pageSize);
-        List<ShopOrderVO> orders = shopService.listOrders(member.getUserId(), null);
+        int safePageNum = pageNum == null ? 1 : Math.max(1, pageNum);
+        int safePageSize = pageSize == null ? 10 : Math.max(1, Math.min(pageSize, 50));
+        PageHelper.startPage(safePageNum, safePageSize);
+        List<ShopOrderVO> orders = shopService.listOrders(member.getUserId(), null, orderState);
         orders.forEach(this::applyFrontOrderVisibility);
         return CommonResult.success(CommonPage.restPage(orders));
     }
@@ -628,6 +632,20 @@ public class ShopController {
         DmsShopMember member = authService.requireMember(authorization);
         // 只查询当前会员自己的资料，不接受外部 agentId 参数
         return CommonResult.success(shopService.getProfile(member, null));
+    }
+
+    @Operation(summary = "个人中心订单状态数量")
+    @GetMapping("/profile/order-summary")
+    public CommonResult<ShopOrderStatusSummaryVO> profileOrderSummary(
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return CommonResult.success(shopService.getOrderStatusSummary(authService.requireMember(authorization)));
+    }
+
+    @Operation(summary = "个人中心团队业绩")
+    @GetMapping("/profile/performance")
+    public CommonResult<ShopProfileVO> profilePerformance(
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return CommonResult.success(shopService.getProfilePerformance(authService.requireMember(authorization)));
     }
 
     @Operation(summary = "获取邀请信息")
