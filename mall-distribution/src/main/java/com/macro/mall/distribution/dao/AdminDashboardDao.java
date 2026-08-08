@@ -3,6 +3,7 @@ package com.macro.mall.distribution.dao;
 import com.macro.mall.distribution.vo.DashboardCommissionVO;
 import com.macro.mall.distribution.vo.DashboardFinanceSummaryVO;
 import com.macro.mall.distribution.vo.DashboardLevelCountVO;
+import com.macro.mall.distribution.vo.DashboardLowStockVO;
 import com.macro.mall.distribution.vo.DashboardMonthlyTrendVO;
 import com.macro.mall.distribution.vo.DashboardProductRankingVO;
 import com.macro.mall.distribution.vo.DashboardRegionVO;
@@ -36,6 +37,9 @@ public interface AdminDashboardDao {
     DashboardFinanceSummaryVO selectFinanceSummary(@Param("tenantId") Long tenantId);
     List<DashboardProductRankingVO> selectProductRanking(@Param("tenantId") Long tenantId,
                                                          @Param("limit") int limit);
+    long countLowStockProducts(@Param("tenantId") Long tenantId);
+    List<DashboardLowStockVO> selectLowStockProducts(@Param("tenantId") Long tenantId,
+                                                     @Param("limit") int limit);
     List<DashboardRegionVO> selectMemberRegionDistribution(@Param("tenantId") Long tenantId);
     List<DashboardTrendVO> selectPerformanceTrend(@Param("tenantId") Long tenantId,
                                                   @Param("startTime") LocalDateTime startTime,

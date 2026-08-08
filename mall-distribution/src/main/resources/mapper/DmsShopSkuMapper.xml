@@ -15,6 +15,7 @@
         <result column="pv_value" property="pvValue"/>
         <result column="bv_value" property="bvValue"/>
         <result column="stock" property="stock"/>
+        <result column="safety_stock" property="safetyStock"/>
         <result column="sales_count" property="salesCount"/>
         <result column="status" property="status"/>
         <result column="create_time" property="createTime"/>
@@ -23,14 +24,14 @@
 
     <select id="selectById" resultMap="BaseResultMap">
         SELECT id, product_id, sku_no, sku_name, attrs_json, image_url, sale_price, market_price, cost_amount,
-               pv_value, bv_value, stock, sales_count, status, create_time, update_time
+               pv_value, bv_value, stock, safety_stock, sales_count, status, create_time, update_time
         FROM dms_shop_sku
         WHERE id = #{id}
     </select>
 
     <select id="selectByProductId" resultMap="BaseResultMap">
         SELECT id, product_id, sku_no, sku_name, attrs_json, image_url, sale_price, market_price, cost_amount,
-               pv_value, bv_value, stock, sales_count, status, create_time, update_time
+               pv_value, bv_value, stock, safety_stock, sales_count, status, create_time, update_time
         FROM dms_shop_sku
         WHERE product_id = #{productId}
         <if test="status != null">
@@ -42,10 +43,10 @@
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopSku" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_shop_sku
         (product_id, sku_no, sku_name, attrs_json, image_url, sale_price, market_price, cost_amount,
-         pv_value, bv_value, stock, sales_count, status)
+         pv_value, bv_value, stock, safety_stock, sales_count, status)
         VALUES
         (#{productId}, #{skuNo}, #{skuName}, #{attrsJson}, #{imageUrl}, #{salePrice}, #{marketPrice}, #{costAmount},
-         #{pvValue}, #{bvValue}, #{stock}, #{salesCount}, #{status})
+         #{pvValue}, #{bvValue}, #{stock}, #{safetyStock}, #{salesCount}, #{status})
     </insert>
 
     <update id="update" parameterType="com.macro.mall.distribution.entity.DmsShopSku">
@@ -60,6 +61,7 @@
             pv_value = #{pvValue},
             bv_value = #{bvValue},
             stock = #{stock},
+            safety_stock = #{safetyStock},
             status = #{status},
             update_time = CURRENT_TIMESTAMP
         WHERE id = #{id}

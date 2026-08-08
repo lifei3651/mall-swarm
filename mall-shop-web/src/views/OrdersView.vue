@@ -120,7 +120,7 @@ const refreshOrders = async () => {
 }
 
 const totalQuantity = (item) => (item.items || []).reduce((sum, line) => sum + Number(line.quantity || 0), 0)
-const afterSaleStatus = (status) => ({ 0: '待审核', 1: '已通过', 2: '已拒绝', 3: '已取消' }[status] || '处理中')
+const afterSaleStatus = (status) => ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待客户寄回', 5: '待商家收货', 6: '退款处理中' }[status] || '处理中')
 const afterSaleDeadline = (order) => {
   const created = Date.parse(String(order?.createTime || '').replace(' ', 'T'))
   return Number.isFinite(created) ? created + 7 * 24 * 60 * 60 * 1000 : Number.POSITIVE_INFINITY

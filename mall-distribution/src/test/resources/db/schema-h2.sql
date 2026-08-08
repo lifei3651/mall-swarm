@@ -724,6 +724,7 @@ CREATE TABLE IF NOT EXISTS dms_shop_product (
   pv_value DECIMAL(12,2) NOT NULL DEFAULT 0,
   bv_value DECIMAL(12,2) NOT NULL DEFAULT 0,
   stock INT NOT NULL DEFAULT 0,
+  safety_stock INT NOT NULL DEFAULT 0,
   purchase_limit INT NOT NULL DEFAULT 0,
   sales_count INT NOT NULL DEFAULT 0,
   sort_order INT NOT NULL DEFAULT 0,
@@ -734,6 +735,8 @@ CREATE TABLE IF NOT EXISTS dms_shop_product (
   delivery_province VARCHAR(64),
   delivery_city VARCHAR(64),
   delivery_district VARCHAR(64),
+  shipping_address_id BIGINT,
+  return_address_id BIGINT,
   freight_type INT NOT NULL DEFAULT 0,
   freight_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
   free_shipping_amount DECIMAL(12,2),
@@ -745,6 +748,10 @@ CREATE TABLE IF NOT EXISTS dms_shop_product (
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Keep the in-memory schema compatible when multiple test contexts reuse a named H2 database.
+ALTER TABLE dms_shop_product ADD COLUMN IF NOT EXISTS shipping_address_id BIGINT;
+ALTER TABLE dms_shop_product ADD COLUMN IF NOT EXISTS return_address_id BIGINT;
 
 CREATE TABLE IF NOT EXISTS dms_freight_template (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -786,6 +793,7 @@ CREATE TABLE IF NOT EXISTS dms_shop_sku (
   pv_value DECIMAL(12,2) NOT NULL DEFAULT 0,
   bv_value DECIMAL(12,2) NOT NULL DEFAULT 0,
   stock INT NOT NULL DEFAULT 0,
+  safety_stock INT NOT NULL DEFAULT 0,
   sales_count INT NOT NULL DEFAULT 0,
   status INT NOT NULL DEFAULT 1,
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -861,6 +869,23 @@ CREATE TABLE IF NOT EXISTS dms_shop_order_item (
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS dms_shop_service_address (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  address_type INT NOT NULL,
+  address_label VARCHAR(64),
+  contact_name VARCHAR(64) NOT NULL,
+  contact_phone VARCHAR(32) NOT NULL,
+  province VARCHAR(64) NOT NULL,
+  city VARCHAR(64) NOT NULL,
+  district VARCHAR(64) NOT NULL,
+  detail_address VARCHAR(255) NOT NULL,
+  is_default INT NOT NULL DEFAULT 0,
+  status INT NOT NULL DEFAULT 1,
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS dms_shop_product_review (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   tenant_id BIGINT NOT NULL DEFAULT 1,
@@ -914,6 +939,12 @@ CREATE TABLE IF NOT EXISTS dms_shop_after_sale (
   refund_quantity INT NOT NULL DEFAULT 0,
   reason VARCHAR(512),
   proof_images CLOB,
+  return_address_id BIGINT,
+  return_address VARCHAR(512),
+  return_delivery_company VARCHAR(64),
+  return_delivery_no VARCHAR(128),
+  return_shipped_at TIMESTAMP,
+  return_received_at TIMESTAMP,
   status INT NOT NULL DEFAULT 0,
   audit_remark VARCHAR(512),
   audit_user_id BIGINT,
@@ -922,6 +953,11 @@ CREATE TABLE IF NOT EXISTS dms_shop_after_sale (
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE dms_shop_after_sale ADD COLUMN IF NOT EXISTS return_delivery_company VARCHAR(64);
+ALTER TABLE dms_shop_after_sale ADD COLUMN IF NOT EXISTS return_delivery_no VARCHAR(128);
+ALTER TABLE dms_shop_after_sale ADD COLUMN IF NOT EXISTS return_shipped_at TIMESTAMP;
+ALTER TABLE dms_shop_after_sale ADD COLUMN IF NOT EXISTS return_received_at TIMESTAMP;
 
 CREATE TABLE IF NOT EXISTS dms_shop_after_sale_item (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,

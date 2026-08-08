@@ -17,6 +17,7 @@ import com.macro.mall.distribution.dto.FinanceRefundDTO;
 import com.macro.mall.distribution.dto.AssetChangeDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleApplyDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleAuditDTO;
+import com.macro.mall.distribution.dto.ShopAfterSaleReturnShipmentDTO;
 import com.macro.mall.distribution.dto.ShopManualRefundDTO;
 import com.macro.mall.distribution.entity.DmsAgent;
 import com.macro.mall.distribution.entity.DmsShopAfterSale;
@@ -217,6 +218,30 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public DmsShopAfterSale submitReturnShipment(DmsShopMember member, Long id, ShopAfterSaleReturnShipmentDTO dto) {
+        if (member == null) Asserts.fail("请先登录");
+        if (id == null || dto == null || dto.getDeliveryCompany() == null || dto.getDeliveryCompany().isBlank()
+                || dto.getDeliveryNo() == null || dto.getDeliveryNo().isBlank()) {
+            Asserts.fail("请填写退货物流公司和运单号");
+        }
+        DmsShopAfterSale afterSale = afterSaleDao.selectByIdForUpdate(id);
+        if (afterSale == null || !member.getUserId().equals(afterSale.getUserId())) Asserts.fail("售后申请不存在");
+        DmsShopOrder order = orderDao.selectById(afterSale.getOrderId());
+        if (order == null) Asserts.fail("订单不存在");
+        assertTenantAccess(order.getTenantId());
+        if (!Integer.valueOf(2).equals(afterSale.getApplyType()) || !Integer.valueOf(4).equals(afterSale.getStatus())) {
+            Asserts.fail("当前售后状态不能填写退货物流");
+        }
+        afterSale.setReturnDeliveryCompany(dto.getDeliveryCompany().trim());
+        afterSale.setReturnDeliveryNo(dto.getDeliveryNo().trim());
+        afterSale.setReturnShippedAt(LocalDateTime.now());
+        afterSale.setStatus(5);
+        afterSaleDao.updateReturnShipment(afterSale);
+        return hydrate(afterSaleDao.selectById(id));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public DmsShopAfterSale manualRefund(Long orderId, ShopManualRefundDTO dto) {
         if (orderId == null) Asserts.fail("订单ID不能为空");
         DmsShopOrder order = orderDao.selectById(orderId);
@@ -394,13 +419,50 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
                 && !Integer.valueOf(3).equals(status)) {
             Asserts.fail("审核状态不正确");
         }
-        afterSale.setStatus(status);
+        // 退货退款先进入“待寄回”，客户提交物流后再由商家确认收货并退款。
+        if (Integer.valueOf(1).equals(status) && Integer.valueOf(2).equals(afterSale.getApplyType())) {
+            afterSale.setStatus(4);
+        } else {
+            afterSale.setStatus(status);
+        }
         afterSale.setAuditRemark(dto == null ? null : dto.getAuditRemark());
         afterSale.setAuditUserId(dto == null ? null : dto.getAuditUserId());
         afterSale.setAuditUserName(dto == null ? null : dto.getAuditUserName());
         afterSaleDao.updateAudit(afterSale);
 
+        if (Integer.valueOf(1).equals(status) && Integer.valueOf(2).equals(afterSale.getApplyType())) {
+            return hydrate(afterSaleDao.selectById(id));
+        }
         if (Integer.valueOf(1).equals(status)) {
+            completeRefund(afterSale, order);
+        }
+        return hydrate(afterSaleDao.selectById(id));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public DmsShopAfterSale confirmReturnReceived(Long id, ShopAfterSaleAuditDTO dto) {
+        DmsShopAfterSale afterSale = afterSaleDao.selectByIdForUpdate(id);
+        if (afterSale == null) Asserts.fail("售后单不存在");
+        DmsShopOrder order = orderDao.selectById(afterSale.getOrderId());
+        if (order == null) Asserts.fail("订单不存在");
+        assertTenantAccess(order.getTenantId());
+        if (!Integer.valueOf(2).equals(afterSale.getApplyType()) || !Integer.valueOf(5).equals(afterSale.getStatus())) {
+            Asserts.fail("客户尚未提交退货物流，不能确认收货");
+        }
+        afterSale.setStatus(6);
+        afterSale.setReturnReceivedAt(LocalDateTime.now());
+        afterSale.setAuditRemark(dto == null ? "商家确认收到退货" : dto.getAuditRemark());
+        afterSale.setAuditUserId(dto == null ? null : dto.getAuditUserId());
+        afterSale.setAuditUserName(dto == null ? null : dto.getAuditUserName());
+        afterSaleDao.updateReturnReceived(afterSale);
+        completeRefund(afterSale, order);
+        afterSale.setStatus(1);
+        afterSaleDao.updateAudit(afterSale);
+        return hydrate(afterSaleDao.selectById(id));
+    }
+
+    private void completeRefund(DmsShopAfterSale afterSale, DmsShopOrder order) {
             FinanceRefundDTO refundDTO = new FinanceRefundDTO();
             refundDTO.setOrderId(afterSale.getOrderId());
             refundDTO.setOrderNo(afterSale.getOrderNo());
@@ -443,8 +505,6 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             autoDemoteMemberAfterFullRefund(order);
             // 所有内部售后、财务、奖金和库存变更完成后再调用外部退款，外部失败时可整体回滚，避免先退款后落账。
             refundExternalPayment(order, afterSale);
-        }
-        return hydrate(afterSaleDao.selectById(id));
     }
 
     private void refundExternalPayment(DmsShopOrder order, DmsShopAfterSale afterSale) {

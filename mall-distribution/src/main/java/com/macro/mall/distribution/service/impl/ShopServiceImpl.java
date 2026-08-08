@@ -113,7 +113,7 @@ public class ShopServiceImpl implements ShopService {
                 : categories.stream().map(DmsShopCategory::getCategoryName).toList());
         vo.setBanners(bannerDao.selectActive(resolvedTenantId));
         vo.setNotices(noticeDao.selectActive(resolvedTenantId));
-        List<DmsShopProduct> featuredProducts = productDao.selectList(resolvedTenantId, null, null, 1);
+        List<DmsShopProduct> featuredProducts = productDao.selectList(resolvedTenantId, null, null, 1, null);
         DmsTenantDisplayConfig displayConfig = getDisplayConfig(resolvedTenantId);
         if (!isEnabled(displayConfig.getShowPv())) {
             featuredProducts.forEach(product -> product.setPvValue(ZERO));
@@ -126,8 +126,8 @@ public class ShopServiceImpl implements ShopService {
     }
 
     @Override
-    public List<DmsShopProduct> listProducts(Long tenantId, String keyword, String categoryName, Integer status) {
-        return productDao.selectList(resolveTenantId(tenantId), keyword, categoryName, status);
+    public List<DmsShopProduct> listProducts(Long tenantId, String keyword, String categoryName, Integer status, String stockStatus) {
+        return productDao.selectList(resolveTenantId(tenantId), keyword, categoryName, status, stockStatus);
     }
 
     @Override
@@ -1189,6 +1189,7 @@ public class ShopServiceImpl implements ShopService {
         }
         product.setBvValue(money(product.getBvValue()));
         product.setStock(product.getStock() == null ? 0 : product.getStock());
+        product.setSafetyStock(product.getSafetyStock() == null ? 0 : Math.max(0, product.getSafetyStock()));
         product.setPurchaseLimit(product.getPurchaseLimit() == null ? 0 : Math.max(0, product.getPurchaseLimit()));
         product.setSalesCount(product.getSalesCount() == null ? 0 : product.getSalesCount());
         product.setSort(product.getSort() == null ? 0 : product.getSort());
@@ -1359,6 +1360,7 @@ public class ShopServiceImpl implements ShopService {
         }
         sku.setBvValue(money(dto.getBvValue()));
         sku.setStock(dto.getStock() == null ? 0 : dto.getStock());
+        sku.setSafetyStock(dto.getSafetyStock() == null ? 0 : Math.max(0, dto.getSafetyStock()));
         sku.setSalesCount(0);
         sku.setStatus(dto.getStatus() == null ? 1 : dto.getStatus());
         return sku;

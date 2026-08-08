@@ -125,6 +125,61 @@
         LIMIT #{limit}
     </select>
 
+    <select id="countLowStockProducts" resultType="long">
+        SELECT COUNT(*)
+        FROM (
+            SELECT product.id
+            FROM dms_shop_product product
+            WHERE product.tenant_id = #{tenantId}
+              AND product.status = 1
+              AND product.stock &lt;= product.safety_stock
+              AND NOT EXISTS (
+                  SELECT 1 FROM dms_shop_sku sku
+                  WHERE sku.product_id = product.id AND sku.status = 1
+              )
+            UNION ALL
+            SELECT sku.id
+            FROM dms_shop_sku sku
+            INNER JOIN dms_shop_product product ON product.id = sku.product_id
+            WHERE product.tenant_id = #{tenantId}
+              AND product.status = 1
+              AND sku.status = 1
+              AND sku.stock &lt;= COALESCE(NULLIF(sku.safety_stock, 0), product.safety_stock)
+        ) low_stock
+    </select>
+
+    <select id="selectLowStockProducts" resultType="com.macro.mall.distribution.vo.DashboardLowStockVO">
+        SELECT product.id AS productId,
+               product.product_name AS productName,
+               NULL AS skuId,
+               NULL AS skuName,
+               product.stock AS stock,
+               product.safety_stock AS safetyStock
+        FROM dms_shop_product product
+        WHERE product.tenant_id = #{tenantId}
+          AND product.status = 1
+          AND product.stock &lt;= product.safety_stock
+          AND NOT EXISTS (
+              SELECT 1 FROM dms_shop_sku sku
+              WHERE sku.product_id = product.id AND sku.status = 1
+          )
+        UNION ALL
+        SELECT product.id AS productId,
+               product.product_name AS productName,
+               sku.id AS skuId,
+               sku.sku_name AS skuName,
+               sku.stock AS stock,
+               COALESCE(NULLIF(sku.safety_stock, 0), product.safety_stock) AS safetyStock
+        FROM dms_shop_sku sku
+        INNER JOIN dms_shop_product product ON product.id = sku.product_id
+        WHERE product.tenant_id = #{tenantId}
+          AND product.status = 1
+          AND sku.status = 1
+          AND sku.stock &lt;= COALESCE(NULLIF(sku.safety_stock, 0), product.safety_stock)
+        ORDER BY stock ASC, safetyStock DESC, productId ASC
+        LIMIT #{limit}
+    </select>
+
     <!-- 会员画像保留每名会员最近一次有效订单的省份，同时返回该省份的全部有效订单量供工作台排行。 -->
     <select id="selectMemberRegionDistribution" resultType="com.macro.mall.distribution.vo.DashboardRegionVO">
         SELECT order_region.regionName,

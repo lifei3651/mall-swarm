@@ -20,6 +20,11 @@
             <el-option label="上架" :value="1" /><el-option label="下架" :value="0" />
           </el-select>
         </el-form-item>
+        <el-form-item label="库存">
+          <el-select v-model="query.stockStatus" clearable placeholder="全部库存" style="width: 130px" @change="handleSearch">
+            <el-option label="库存正常" value="NORMAL" /><el-option label="低库存" value="LOW" /><el-option label="已缺货" value="OUT" />
+          </el-select>
+        </el-form-item>
         <el-form-item>
           <el-button type="primary" :icon="Search" :loading="loading" @click="handleSearch">查询</el-button>
           <el-button :icon="Refresh" @click="resetQuery">重置</el-button>
@@ -35,9 +40,17 @@
       </div>
     </div>
 
+    <div v-if="selectedRows.length" class="batch-toolbar">
+      <span>已选择 {{ selectedRows.length }} 个商品</span>
+      <el-button size="small" type="success" :loading="batchLoading" @click="batchSetStatus(1)">批量上架</el-button>
+      <el-button size="small" type="warning" :loading="batchLoading" @click="batchSetStatus(0)">批量下架</el-button>
+      <el-button size="small" text @click="selectedRows = []">清空选择</el-button>
+    </div>
+
     <el-alert v-if="searchFeedback" :title="searchFeedback" type="warning" :closable="false" show-icon class="search-feedback" />
 
-    <el-table :data="tableData" v-loading="loading" :empty-text="tableEmptyText" stripe style="width: 100%">
+    <el-table :data="tableData" v-loading="loading" :empty-text="tableEmptyText" stripe row-key="id" style="width: 100%" @selection-change="selectedRows = $event">
+      <el-table-column type="selection" width="48" />
       <el-table-column label="商品信息" min-width="310">
         <template #default="{ row }">
           <div class="product-cell">
@@ -59,7 +72,13 @@
           <el-tooltip v-if="Number(row.pvValue || 0) > Number(row.salePrice || 0)" content="PV超过销售价，请编辑商品并修正" placement="top"><el-icon class="pv-warning"><WarningFilled /></el-icon></el-tooltip>
         </template>
       </el-table-column>
-      <el-table-column prop="stock" label="可售库存" width="95" /><el-table-column label="会员限购" width="105"><template #default="{ row }">{{ Number(row.purchaseLimit || 0) > 0 ? `每人 ${row.purchaseLimit} 件` : '不限购' }}</template></el-table-column><el-table-column prop="salesCount" label="累计销量" width="95" />
+      <el-table-column label="库存状态" width="128">
+        <template #default="{ row }">
+          <div class="stock-cell"><strong>{{ row.stock ?? 0 }}</strong><el-tag size="small" :type="stockState(row).type">{{ stockState(row).label }}</el-tag></div>
+          <div class="stock-help">安全库存 {{ row.safetyStock ?? 0 }}</div>
+        </template>
+      </el-table-column>
+      <el-table-column label="会员限购" width="105"><template #default="{ row }">{{ Number(row.purchaseLimit || 0) > 0 ? `每人 ${row.purchaseLimit} 件` : '不限购' }}</template></el-table-column><el-table-column prop="salesCount" label="累计销量" width="95" />
       <el-table-column prop="sort" label="上架排序" width="95" />
       <el-table-column prop="status" label="上架状态" width="95"><template #default="{ row }"><el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '上架' : '下架' }}</el-tag></template></el-table-column>
       <el-table-column label="操作" fixed="right" width="180">
@@ -74,8 +93,12 @@
     <el-dialog v-model="dialogVisible" :title="form.id ? '编辑商品' : '发布新商品'" fullscreen destroy-on-close class="publish-dialog">
       <div class="publish-shell" v-loading="dialogLoading">
         <el-alert title="按实际情况填写即可：商品名称和卖点尽量简洁，分类可不设置；带规格的商品请在“规格、价格与库存”中维护每个 SKU，第一张主图将作为商品封面。" type="info" :closable="false" />
-        <el-form :model="form" label-width="108px" class="publish-form">
-          <section class="form-section">
+        <div class="publish-layout">
+          <nav class="publish-nav" aria-label="商品编辑步骤">
+            <button v-for="item in sectionAnchors" :key="item.id" type="button" @click="scrollToSection(item.id)">{{ item.label }}</button>
+          </nav>
+          <el-form :model="form" label-width="108px" class="publish-form">
+          <section id="product-basic" class="form-section">
             <h3>1. 基本信息</h3>
             <el-row :gutter="20">
               <el-col :span="12"><el-form-item label="商品名称" required><el-input v-model="form.productName" maxlength="60" show-word-limit placeholder="建议使用简短、易识别的商品名称" /><div class="field-help">最多 60 个字，方便顾客快速识别。</div></el-form-item></el-col>
@@ -97,7 +120,7 @@
             </el-row>
           </section>
 
-          <section class="form-section">
+          <section id="product-images" class="form-section">
             <h3>2. 商品主图</h3>
             <el-form-item label="主图（最多5张）" required>
               <div class="image-manager">
@@ -112,7 +135,7 @@
             </el-form-item>
           </section>
 
-          <section class="form-section">
+          <section id="product-stock" class="form-section">
             <div class="section-title product-type-title">
               <h3>3. 价格、库存与规格</h3>
               <el-radio-group :model-value="hasSku ? 'MULTI' : 'SINGLE'" @change="changeProductType">
@@ -167,18 +190,20 @@
                   <template #default="{ row }"><el-input-number v-model="row.pvValue" :min="0" :max="Math.max(0, Number(row.salePrice || 0))" :precision="2" controls-position="right" /></template>
                 </el-table-column>
                 <el-table-column label="库存" width="140"><template #default="{ row }"><el-input-number v-model="row.stock" :min="0" controls-position="right" /></template></el-table-column>
+                <el-table-column label="安全库存" width="140"><template #default="{ row }"><el-input-number v-model="row.safetyStock" :min="0" controls-position="right" /></template></el-table-column>
                 <el-table-column label="启用" width="76" align="center"><template #default="{ row }"><el-switch v-model="row.status" :active-value="1" :inactive-value="0" /></template></el-table-column>
                 <el-table-column label="操作" width="76" fixed="right"><template #default="{ $index }"><el-button type="danger" link @click="removeSku($index)">删除</el-button></template></el-table-column>
               </el-table>
             </div>
             </template>
             <el-row :gutter="20">
-              <el-col :span="10"><el-form-item label="每位会员限购"><el-input-number v-model="form.purchaseLimit" :min="0" :step="1" controls-position="right" class="money-input" /><div class="field-help">按会员累计购买数量计算；0 表示不限购，已关闭/整单退款订单会释放额度。</div></el-form-item></el-col>
+              <el-col :span="8"><el-form-item label="每位会员限购"><el-input-number v-model="form.purchaseLimit" :min="0" :step="1" controls-position="right" class="money-input" /><div class="field-help">按会员累计购买数量计算；0 表示不限购。</div></el-form-item></el-col>
+              <el-col :span="8"><el-form-item label="商品安全库存"><el-input-number v-model="form.safetyStock" :min="0" :step="1" controls-position="right" class="money-input" /><div class="field-help">单规格直接预警；多规格作为商品汇总阈值。</div></el-form-item></el-col>
             </el-row>
             <el-alert class="cost-help" title="成本价只用于经营利润统计；有规格商品按所选SKU的成本计算。" type="warning" :closable="false" show-icon />
           </section>
 
-          <section class="form-section">
+          <section id="product-delivery" class="form-section">
             <h3>4. 物流配送</h3>
             <el-row :gutter="20">
               <el-col v-if="!form.shippingAddressId" :span="8"><el-form-item label="发货地区" required><el-cascader v-model="deliveryRegion" :options="pcaTextArr" placeholder="请选择省 / 市 / 区县" style="width:100%" filterable /><div class="field-help">未选择地址簿时，可直接填写商品发货地区</div></el-form-item></el-col>
@@ -206,7 +231,7 @@
             <el-alert title="运费会加入订单实付和财务金额，但不计入业绩、累计单量金额或任何奖金计算。" type="success" :closable="false" show-icon />
           </section>
 
-          <section class="form-section">
+          <section id="product-after-sale" class="form-section">
             <h3>5. 售后及服务</h3>
             <el-form-item label="服务保障">
               <div class="guarantee-tags">
@@ -249,7 +274,7 @@
             </el-form-item>
           </section>
 
-          <section class="form-section">
+          <section id="product-detail" class="form-section">
             <h3>6. 商品详情</h3>
             <el-form-item label="文字详情"><el-input v-model="form.detail" type="textarea" :rows="6" placeholder="商品参数、使用说明、注意事项等" /></el-form-item>
             <el-form-item label="详情图（最多30张）">
@@ -260,7 +285,8 @@
               <div class="field-help">按显示顺序上传，可连续添加多张，最多 30 张；每张不超过 5MB。</div>
             </el-form-item>
           </section>
-        </el-form>
+          </el-form>
+        </div>
       </div>
       <template #footer><div class="dialog-footer"><el-button size="large" @click="dialogVisible = false">取消</el-button><el-button type="primary" size="large" :loading="submitting" @click="submitForm">保存商品</el-button></div></template>
     </el-dialog>
@@ -340,9 +366,12 @@ import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
 const loading = ref(false)
 const dialogLoading = ref(false)
 const submitting = ref(false)
+const batchLoading = ref(false)
 const tableData = ref([])
+const selectedRows = ref([])
 const dialogVisible = ref(false)
-const query = ref({ keyword: '', categoryName: '', status: 1 })
+const stockStatusFromUrl = new URLSearchParams(window.location.search).get('stockStatus')
+const query = ref({ keyword: '', categoryName: '', status: 1, stockStatus: ['NORMAL', 'LOW', 'OUT'].includes(stockStatusFromUrl) ? stockStatusFromUrl : null })
 const pagination = ref({ page: 1, size: 10, total: 0 })
 const searchFeedback = ref('')
 const tableEmptyText = ref('暂无商品')
@@ -376,6 +405,14 @@ const customGuaranteeVisible = ref(false)
 const customGuaranteeForm = ref({ enabled: true, presetKey: 'custom', icon: 'shield', title: '', description: '' })
 const customGuaranteeEditIndex = ref(-1)
 const afterSaleExpanded = ref(false)
+const sectionAnchors = [
+  { id: 'product-basic', label: '基本信息' },
+  { id: 'product-images', label: '商品主图' },
+  { id: 'product-stock', label: '价格与库存' },
+  { id: 'product-delivery', label: '物流配送' },
+  { id: 'product-after-sale', label: '售后服务' },
+  { id: 'product-detail', label: '商品详情' },
+]
 const activeFreightTemplates = computed(() => freightTemplates.value.filter((item) => item.status === 1))
 const hasSku = computed(() => skuRows.value.length > 0)
 const productPvLimit = computed(() => {
@@ -500,7 +537,7 @@ const defaultServiceGuarantees = () => Object.entries(guaranteeDefaults).map(([t
 }))
 
 const inferAfterSalePreset = (policy) => Object.entries(afterSalePolicyPresets).find(([, preset]) => preset.content === policy)?.[0] || 'custom'
-const defaultForm = () => ({ tenantId: 1, productNo: '', productName: '', subtitle: '', categoryName: '', mainImages: [], salePrice: 0, marketPrice: 0, costAmount: 0, pvValue: 0, bvValue: 0, stock: 0, purchaseLimit: 0, salesCount: 0, sort: 0, status: 1, freightType: 0, freightAmount: 0, freeShippingAmount: 0, freightTemplateId: null, freightTemplateName: '', deliveryAddress: '', deliveryProvince: '', deliveryCity: '', deliveryDistrict: '', shippingAddressId: null, returnAddressId: null, deliveryTime: '48小时内发货', afterSalePresetKey: defaultAfterSalePresetKey, afterSalePolicy: afterSalePolicyPresets[defaultAfterSalePresetKey].content, serviceGuarantees: defaultServiceGuarantees(), detail: '', detailImageUrls: [] })
+const defaultForm = () => ({ tenantId: 1, productNo: '', productName: '', subtitle: '', categoryName: '', mainImages: [], salePrice: 0, marketPrice: 0, costAmount: 0, pvValue: 0, bvValue: 0, stock: 0, safetyStock: 0, purchaseLimit: 0, salesCount: 0, sort: 0, status: 1, freightType: 0, freightAmount: 0, freeShippingAmount: 0, freightTemplateId: null, freightTemplateName: '', deliveryAddress: '', deliveryProvince: '', deliveryCity: '', deliveryDistrict: '', shippingAddressId: null, returnAddressId: null, deliveryTime: '48小时内发货', afterSalePresetKey: defaultAfterSalePresetKey, afterSalePolicy: afterSalePolicyPresets[defaultAfterSalePresetKey].content, serviceGuarantees: defaultServiceGuarantees(), detail: '', detailImageUrls: [] })
 
 const fetchData = async () => {
   const validation = validateSearchKeyword(query.value.keyword, { label: '商品关键词' })
@@ -600,7 +637,33 @@ const changePvSetting = async (enabled) => {
   } catch { performanceUnitsEnabled.value = !enabled }
 }
 
-const resetQuery = () => { query.value = { keyword: '', categoryName: '', status: null }; pagination.value.page = 1; fetchData() }
+const resetQuery = () => { query.value = { keyword: '', categoryName: '', status: null }; query.value.stockStatus = null; pagination.value.page = 1; fetchData() }
+const stockState = (row) => {
+  const stock = Number(row.stock || 0)
+  const safetyStock = Number(row.safetyStock || 0)
+  if (stock <= 0) return { label: '已缺货', type: 'danger' }
+  if (stock <= safetyStock && safetyStock > 0) return { label: '低库存', type: 'warning' }
+  return { label: '正常', type: 'success' }
+}
+const scrollToSection = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+const batchSetStatus = async (status) => {
+  if (!selectedRows.value.length) return
+  const action = status === 1 ? '上架' : '下架'
+  try {
+    await ElMessageBox.confirm(`确定将已选择的 ${selectedRows.value.length} 个商品批量${action}吗？`, `批量${action}`, { type: 'warning' })
+  } catch {
+    return
+  }
+  batchLoading.value = true
+  try {
+    await Promise.all(selectedRows.value.map((row) => updateShopProductStatus(row.id, status)))
+    ElMessage.success(`已批量${action} ${selectedRows.value.length} 个商品`)
+    selectedRows.value = []
+    await fetchData()
+  } finally {
+    batchLoading.value = false
+  }
+}
 const openDialog = async (row) => {
   const mainImages = row ? [row.coverUrl, ...parseArray(row.galleryUrls)].filter(Boolean).slice(0, 5) : []
   form.value = row ? { ...defaultForm(), ...row, mainImages, detailImageUrls: parseArray(row.detailImages), serviceGuarantees: normalizeServiceGuarantees(row.serviceTags), freightType: row.freightType ?? 0, pvValue: Number(row.pvValue || 0), afterSalePolicy: row.afterSalePolicy?.trim() || afterSalePolicyPresets[defaultAfterSalePresetKey].content, afterSalePresetKey: inferAfterSalePreset(row.afterSalePolicy?.trim() || afterSalePolicyPresets[defaultAfterSalePresetKey].content) } : { ...defaultForm(), shippingAddressId: shippingAddresses.value.find((item) => Number(item.isDefault) === 1)?.id || shippingAddresses.value[0]?.id || null, returnAddressId: returnAddresses.value.find((item) => Number(item.isDefault) === 1)?.id || returnAddresses.value[0]?.id || null }
@@ -615,7 +678,7 @@ const openDialog = async (row) => {
     dialogLoading.value = true
     try {
       const res = await listShopSkus(row.id)
-      skuRows.value = (res.data || []).map((item) => ({ ...item, attributes: parseSkuAttributes(item.attrsJson) }))
+      skuRows.value = (res.data || []).map((item) => ({ ...item, safetyStock: Number(item.safetyStock || 0), attributes: parseSkuAttributes(item.attrsJson) }))
     } finally { dialogLoading.value = false }
   }
   clearDisabledPvValues()
@@ -639,7 +702,7 @@ const uploadSkuImage = async (row, file) => { row.imageUrl = await uploadFile(fi
 const removeImage = (field, index) => { form.value[field].splice(index, 1) }
 const setCover = (index) => { const [image] = form.value.mainImages.splice(index, 1); form.value.mainImages.unshift(image) }
 
-const addSku = () => skuRows.value.push({ skuNo: '', skuName: '', attributes: [], imageUrl: '', salePrice: Number(form.value.salePrice || 0), marketPrice: Number(form.value.marketPrice || 0), costAmount: Number(form.value.costAmount || 0), pvValue: 0, bvValue: 0, stock: 0, status: 1 })
+const addSku = () => skuRows.value.push({ skuNo: '', skuName: '', attributes: [], imageUrl: '', salePrice: Number(form.value.salePrice || 0), marketPrice: Number(form.value.marketPrice || 0), costAmount: Number(form.value.costAmount || 0), pvValue: 0, bvValue: 0, stock: 0, safetyStock: 0, status: 1 })
 const removeSku = (index) => { const row = skuRows.value[index]; if (row.id) removedSkuIds.value.push(row.id); skuRows.value.splice(index, 1) }
 const changeProductType = async (type) => {
   if (type === 'MULTI') {
@@ -747,6 +810,8 @@ const submitForm = async () => {
   if (form.value.freightType === 1 && Number(form.value.freightAmount || 0) <= 0) return ElMessage.warning('固定运费必须大于0')
   if (form.value.freightType === 2 && Number(form.value.freeShippingAmount || 0) <= 0) return ElMessage.warning('请填写满额包邮门槛')
   if (Number(form.value.purchaseLimit || 0) < 0 || !Number.isInteger(Number(form.value.purchaseLimit || 0))) return ElMessage.warning('会员限购数量必须是大于等于0的整数')
+  if (Number(form.value.safetyStock || 0) < 0 || !Number.isInteger(Number(form.value.safetyStock || 0))) return ElMessage.warning('商品安全库存必须是大于等于0的整数')
+  if (skuRows.value.some((item) => Number(item.safetyStock || 0) < 0 || !Number.isInteger(Number(item.safetyStock || 0)))) return ElMessage.warning('SKU安全库存必须是大于等于0的整数')
   if (form.value.freightType === 3 && !form.value.freightTemplateId) return ElMessage.warning('请选择运费模板')
   if (skuRows.value.some((item) => !item.skuName?.trim())) return ElMessage.warning('请填写所有 SKU 的规格名称')
   if (skuRows.value.some((item) => !item.attributes?.length)) return ElMessage.warning('请为每个SKU设置规格属性')
@@ -804,6 +869,11 @@ onMounted(async () => { await Promise.all([fetchData(), fetchCategories(), fetch
 .page-heading { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-bottom:16px; padding:4px 2px 0; h2{margin:0;color:#303133;font-size:22px;line-height:1.35} p{margin:6px 0 0;color:#909399;font-size:13px} }
 .product-cell { display:flex; align-items:center; gap:12px; min-width:0; }
 .search-feedback { margin-bottom:16px; }
+.batch-toolbar { display:flex; align-items:center; gap:10px; margin:0 0 14px; padding:10px 14px; border:1px solid #d9ecff; border-radius:8px; background:#f2f8ff; color:#409eff; font-size:13px; }
+.batch-toolbar span { margin-right:auto; font-weight:600; }
+.stock-cell { display:flex; align-items:center; gap:7px; }
+.stock-cell strong { color:#303133; font-size:14px; }
+.stock-help { margin-top:4px; color:#a8abb2; font-size:12px; }
 .cover,.cover-fallback { width:60px; height:60px; border-radius:8px; background:#f5f7fa; flex:0 0 auto; }
 .cover-fallback { display:flex; align-items:center; justify-content:center; color:#909399; }
 .product-meta { min-width:0; .name{font-weight:600;color:#303133;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sub{color:#909399;font-size:12px;line-height:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} }
@@ -813,6 +883,10 @@ onMounted(async () => { await Promise.all([fetchData(), fetchCategories(), fetch
 .column-help { margin-left:5px; color:#909399; vertical-align:-2px; cursor:help; }
 .pv-global-setting { display:flex; align-items:center; justify-content:space-between; gap:20px; border-top:1px solid #ebeef5; padding:14px 4px 0; color:#303133; span{margin-left:12px;color:#909399;font-size:13px} }
 .publish-shell { max-width:1440px; margin:0 auto; padding:0 18px 90px; }
+.publish-layout { display:grid; grid-template-columns:150px minmax(0,1fr); gap:18px; align-items:start; }
+.publish-nav { position:sticky; top:18px; display:flex; flex-direction:column; gap:6px; padding:10px 0; }
+.publish-nav button { border:0; border-left:3px solid transparent; padding:10px 12px; background:transparent; color:#606266; text-align:left; border-radius:0 7px 7px 0; cursor:pointer; font-size:13px; transition:all .2s; }
+.publish-nav button:hover { color:#409eff; background:#f2f8ff; border-left-color:#409eff; }
 .publish-form { margin-top:18px; }
 .form-section { background:#fff; border:1px solid #e4e7ed; border-radius:10px; padding:20px 24px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,.025); h3{font-size:17px;margin:0 0 20px;color:#303133;border-left:4px solid #409eff;padding-left:10px} }
 .section-title { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; h3{margin-bottom:0} }
@@ -863,5 +937,5 @@ onMounted(async () => { await Promise.all([fetchData(), fetchCategories(), fetch
 .sku-image,.sku-image-placeholder { width:54px; height:54px; border-radius:5px; }
 .sku-image-placeholder { display:flex;align-items:center;justify-content:center;border:1px dashed #c0ccda;color:#909399;cursor:pointer; }
 .dialog-footer { position:fixed; z-index:20; left:0; right:0; bottom:0; display:flex; justify-content:flex-end; gap:10px; padding:14px 30px; background:#fff; border-top:1px solid #e4e7ed; box-shadow:0 -2px 8px rgba(0,0,0,.05); }
-@media (max-width: 900px) { .page-heading{align-items:flex-start;flex-direction:column;gap:10px}.pv-global-setting{align-items:flex-start}.pv-global-setting span{display:block;margin:5px 0 0}.form-section{padding:16px 12px}.product-type-title,.sku-toolbar{align-items:flex-start;flex-direction:column}.guarantee-tags-list{gap:8px}.after-sale-summary-left{flex-direction:column;align-items:flex-start;gap:4px}.after-sale-summary-preview{white-space:normal} }
+@media (max-width: 900px) { .page-heading{align-items:flex-start;flex-direction:column;gap:10px}.pv-global-setting{align-items:flex-start}.pv-global-setting span{display:block;margin:5px 0 0}.batch-toolbar{align-items:flex-start;flex-wrap:wrap}.batch-toolbar span{width:100%;margin-right:0}.publish-layout{display:block}.publish-nav{position:sticky;top:0;z-index:5;flex-direction:row;overflow:auto;padding:8px 0;background:#fff;border-bottom:1px solid #ebeef5}.publish-nav button{border-left:0;border-bottom:3px solid transparent;white-space:nowrap;border-radius:7px 7px 0 0}.publish-nav button:hover{border-left-color:transparent;border-bottom-color:#409eff}.form-section{padding:16px 12px}.product-type-title,.sku-toolbar{align-items:flex-start;flex-direction:column}.guarantee-tags-list{gap:8px}.after-sale-summary-left{flex-direction:column;align-items:flex-start;gap:4px}.after-sale-summary-preview{white-space:normal} }
 </style>

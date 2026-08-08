@@ -14,7 +14,8 @@ public interface DmsShopProductDao {
     List<DmsShopProduct> selectList(@Param("tenantId") Long tenantId,
                                     @Param("keyword") String keyword,
                                     @Param("categoryName") String categoryName,
-                                    @Param("status") Integer status);
+                                    @Param("status") Integer status,
+                                    @Param("stockStatus") String stockStatus);
 
     List<String> selectCategories(@Param("tenantId") Long tenantId);
 

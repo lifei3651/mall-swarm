@@ -250,11 +250,12 @@ public class ShopController {
     public CommonResult<CommonPage<DmsShopProduct>> products(@RequestParam(required = false) String keyword,
                                                              @RequestParam(required = false) String categoryName,
                                                              @RequestParam(required = false) Integer status,
+                                                             @RequestParam(required = false) String stockStatus,
                                                              @RequestParam(defaultValue = "1") Integer pageNum,
                                                              @RequestParam(defaultValue = "12") Integer pageSize) {
         PageHelper.startPage(pageNum, pageSize);
         // 前台不接受 tenantId 参数，使用默认租户
-        return CommonResult.success(CommonPage.restPage(shopService.listProducts(null, keyword, categoryName, status)));
+        return CommonResult.success(CommonPage.restPage(shopService.listProducts(null, keyword, categoryName, status, stockStatus)));
     }
 
     @Operation(summary = "商品详情")
@@ -640,6 +641,15 @@ public class ShopController {
         return CommonResult.success(afterSaleService.cancel(authService.requireMember(authorization), id));
     }
 
+    @Operation(summary = "会员提交退货物流")
+    @PutMapping("/after-sales/{id}/return-shipment")
+    public CommonResult<DmsShopAfterSale> submitReturnShipment(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long id,
+            @RequestBody ShopAfterSaleReturnShipmentDTO dto) {
+        return CommonResult.success(afterSaleService.submitReturnShipment(authService.requireMember(authorization), id, dto));
+    }
+
     @Operation(summary = "我的售后")
     @GetMapping("/after-sales")
     public CommonResult<List<DmsShopAfterSale>> myAfterSales(
@@ -662,6 +672,13 @@ public class ShopController {
     public CommonResult<DmsShopAfterSale> auditAfterSale(@PathVariable Long id,
                                                         @RequestBody ShopAfterSaleAuditDTO dto) {
         return CommonResult.success(afterSaleService.audit(id, dto));
+    }
+
+    @Operation(summary = "后台确认收到退货并退款")
+    @PutMapping("/admin/after-sales/{id}/return-received")
+    public CommonResult<DmsShopAfterSale> confirmReturnReceived(@PathVariable Long id,
+                                                                @RequestBody(required = false) ShopAfterSaleAuditDTO dto) {
+        return CommonResult.success(afterSaleService.confirmReturnReceived(id, dto));
     }
 
     private void applyFrontOrderVisibility(ShopOrderVO vo) {

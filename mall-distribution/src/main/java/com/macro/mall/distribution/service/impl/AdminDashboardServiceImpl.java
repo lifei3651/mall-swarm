@@ -85,6 +85,8 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             row.setSalesAmount(zero(row.getSalesAmount()));
         }
         vo.setProductRanking(productRanking);
+        vo.setLowStockCount(dashboardDao.countLowStockProducts(tenantId));
+        vo.setLowStockProducts(dashboardDao.selectLowStockProducts(tenantId, 6));
 
         List<DashboardRegionVO> regions = dashboardDao.selectMemberRegionDistribution(tenantId);
         long addressedMembers = regions.stream()

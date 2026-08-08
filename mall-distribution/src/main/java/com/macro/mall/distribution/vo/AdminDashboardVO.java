@@ -45,6 +45,8 @@ public class AdminDashboardVO implements Serializable {
     private Long unaddressedMemberCount;
     private List<DashboardProductRankingVO> productRanking;
     private List<DashboardRegionVO> memberRegionDistribution;
+    private Long lowStockCount;
+    private List<DashboardLowStockVO> lowStockProducts;
 
     private List<DashboardTrendVO> performanceTrend;
     private List<DashboardTrendVO> monthlyPerformanceTrend;

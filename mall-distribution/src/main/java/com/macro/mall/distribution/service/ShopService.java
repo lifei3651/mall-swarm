@@ -25,7 +25,7 @@ public interface ShopService {
 
     ShopHomeVO getHome(Long tenantId);
 
-    List<DmsShopProduct> listProducts(Long tenantId, String keyword, String categoryName, Integer status);
+    List<DmsShopProduct> listProducts(Long tenantId, String keyword, String categoryName, Integer status, String stockStatus);
 
     List<String> listCategories(Long tenantId);
 

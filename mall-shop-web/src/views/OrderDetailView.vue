@@ -59,9 +59,17 @@
               <span class="progress-step" :class="{ complete: sale.status === 1 }">处理完成</span>
             </div>
             <p class="line-sub after-sale-amounts">商品 {{ sale.refundQuantity || 0 }} 件 · 商品款 ¥{{ money(sale.productRefundAmount) }} · 运费 ¥{{ money(sale.freightRefundAmount) }}</p>
-            <div v-if="sale.applyType === 2 && sale.status === 1" class="after-sale-return-address">
-              <strong>请寄回商品</strong>
+            <div v-if="sale.applyType === 2 && [4, 5].includes(sale.status)" class="after-sale-return-address">
+              <strong>{{ sale.status === 4 ? '请寄回商品' : '退货物流已提交' }}</strong>
               <span>{{ sale.returnAddress || '退货地址将在审核结果中显示，请留意订单更新' }}</span>
+              <div v-if="sale.status === 4" class="return-shipment-form">
+                <input v-model="returnShipmentForm.deliveryCompany" class="field" placeholder="物流公司" maxlength="64" />
+                <input v-model="returnShipmentForm.deliveryNo" class="field" placeholder="退货运单号" maxlength="128" />
+                <button type="button" class="btn primary" :disabled="returnShipmentSaleId === sale.id" @click="submitReturnShipment(sale)">
+                  {{ returnShipmentSaleId === sale.id ? '提交中…' : '提交退货物流' }}
+                </button>
+              </div>
+              <small v-else>物流：{{ sale.returnDeliveryCompany }} {{ sale.returnDeliveryNo }}，等待商家确认收货</small>
             </div>
             <div v-for="line in sale.items || []" :key="line.id" class="after-sale-item-line">
               <span>{{ line.productName }} {{ formatProductSpec(line) }}</span>
@@ -254,7 +262,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ChevronRight, CircleCheck, PackageCheck, RotateCcw, ShieldCheck, UserRound } from 'lucide-vue-next'
-import { applyAfterSale, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmReceive, getOrder, payOrderWithBalance } from '@/api/shop'
+import { applyAfterSale, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmReceive, getOrder, payOrderWithBalance, submitAfterSaleReturnShipment } from '@/api/shop'
 import { dateTime, money, statusName } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
 
@@ -263,6 +271,8 @@ const detail = ref({})
 const loading = ref(false)
 const acting = ref(false)
 const cancellingAfterSaleId = ref(null)
+const returnShipmentSaleId = ref(null)
+const returnShipmentForm = ref({ deliveryCompany: '', deliveryNo: '' })
 const submittingAfterSale = ref(false)
 const reasonSheetVisible = ref(false)
 const selectedReason = ref('')
@@ -349,7 +359,7 @@ const selectAfterSaleReason = (reason) => {
   reasonSheetVisible.value = false
 }
 
-const afterSaleStatus = (status) => ({ 0: '待审核', 1: '已通过', 2: '已拒绝', 3: '已取消' }[status] || '处理中')
+const afterSaleStatus = (status) => ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '审核通过，待寄回', 5: '已寄回，待收货', 6: '已收货，退款中' }[status] || '处理中')
 const payTypeName = (value) => ({ WECHAT: '微信支付', ALIPAY: '支付宝', BALANCE: '余额' }[value] || value || '未选择')
 const copyText = async (text) => { try { await navigator.clipboard.writeText(text) } catch {} }
 
@@ -365,6 +375,26 @@ const cancelAfterSale = async (id) => {
     error.value = e.message || '取消售后申请失败'
   } finally {
     cancellingAfterSaleId.value = null
+  }
+}
+
+const submitReturnShipment = async (sale) => {
+  const deliveryCompany = returnShipmentForm.value.deliveryCompany.trim()
+  const deliveryNo = returnShipmentForm.value.deliveryNo.trim()
+  if (!deliveryCompany || !deliveryNo) {
+    error.value = '请填写物流公司和退货运单号'
+    return
+  }
+  returnShipmentSaleId.value = sale.id
+  error.value = ''
+  try {
+    await submitAfterSaleReturnShipment(sale.id, { deliveryCompany, deliveryNo })
+    returnShipmentForm.value = { deliveryCompany: '', deliveryNo: '' }
+    await fetchOrder()
+  } catch (e) {
+    error.value = e.message || '提交退货物流失败'
+  } finally {
+    returnShipmentSaleId.value = null
   }
 }
 
@@ -512,6 +542,9 @@ onMounted(fetchOrder)
 .after-sale-amounts { margin: 0 0 9px; }
 .after-sale-return-address { display: grid; gap: 4px; margin: 10px 0 4px; padding: 10px 12px; color: #8a4b12; background: #fff8ed; border: 1px solid #f5d7ad; border-radius: 9px; font-size: 12px; line-height: 1.5; }
 .after-sale-return-address strong { color: #7a3f0a; font-size: 13px; }
+.return-shipment-form { display: grid; grid-template-columns: 1fr 1.2fr auto; gap: 8px; margin-top: 8px; }
+.return-shipment-form .field { min-height: 34px; padding: 0 9px; border: 1px solid #e8c996; border-radius: 7px; background: #fff; }
+.return-shipment-form .btn { min-height: 34px; padding: 0 11px; border-radius: 7px; font-size: 12px; white-space: nowrap; }
 .after-sale-item-line { display: flex; justify-content: space-between; gap: 12px; padding-top: 7px; color: #69737e; font-size: 12px; }
 .after-sale-item-line strong { color: #3d4650; font-size: 12px; }
 .after-sale-record-actions { display: flex; justify-content: flex-end; margin-top: 12px; padding-top: 11px; border-top: 1px solid #f1e3e6; }
@@ -564,6 +597,7 @@ onMounted(fetchOrder)
 
 @media (max-width: 600px) {
   .after-sale-type-grid { grid-template-columns: 1fr; }
+  .return-shipment-form { grid-template-columns: 1fr; }
   .after-sale-type { min-height: 68px; }
   .after-sale-progress { font-size: 10px; }
   .refund-line { align-items: flex-start; }

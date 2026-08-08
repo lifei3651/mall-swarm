@@ -75,6 +75,9 @@
           <button v-if="store.hasPermission('finance:read')" type="button" class="panel-link" @click="router.push('/audit/finance')">
             <span>查看财务风控</span><el-icon><ArrowRight /></el-icon>
           </button>
+          <button v-if="Number(dashboard.lowStockCount || 0) > 0 && store.hasPermission('shop:product')" type="button" class="panel-link" @click="router.push('/shop/products?stockStatus=LOW')">
+            <span>查看库存预警</span><el-icon><ArrowRight /></el-icon>
+          </button>
         </section>
       </aside>
     </div>
@@ -240,9 +243,11 @@ const riskAlerts = computed(() => {
   const profitRisk = Number(dashboard.value.totalProfitAmount || 0) < 0
   const hasRegionOrders = (dashboard.value.memberRegionDistribution || []).some((item) => Number(item.orderCount || 0) > 0)
   const hasProducts = (dashboard.value.productRanking || []).length > 0
+  const lowStockCount = Number(dashboard.value.lowStockCount || 0)
   return [
     { title: '经营利润', description: profitRisk ? '累计利润为负，请核对成本与拨出' : '资金收入与拨出状态正常', status: profitRisk ? '需关注' : '正常', state: profitRisk ? 'warning' : 'healthy', icon: Wallet },
     { title: '区域排行', description: hasRegionOrders ? '区域有效订单量已同步' : '暂无有效区域订单数据', status: hasRegionOrders ? '正常' : '待沉淀', state: hasRegionOrders ? 'healthy' : 'notice', icon: MapLocation },
+    { title: '库存预警', description: lowStockCount > 0 ? `${count(lowStockCount)} 个商品或SKU低于安全库存` : '商品库存状态正常', status: lowStockCount > 0 ? '需处理' : '正常', state: lowStockCount > 0 ? 'warning' : 'healthy', icon: WarningFilled },
     { title: '商品数据', description: hasProducts ? '商品成交价值数据已同步' : '暂无已支付商品成交数据', status: hasProducts ? '正常' : '待沉淀', state: hasProducts ? 'healthy' : 'notice', icon: Goods },
   ]
 })

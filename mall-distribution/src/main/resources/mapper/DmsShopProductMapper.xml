@@ -17,6 +17,7 @@
         <result column="pv_value" property="pvValue"/>
         <result column="bv_value" property="bvValue"/>
         <result column="stock" property="stock"/>
+        <result column="safety_stock" property="safetyStock"/>
         <result column="purchase_limit" property="purchaseLimit"/>
         <result column="sales_count" property="salesCount"/>
         <result column="sort_order" property="sort"/>
@@ -43,7 +44,7 @@
 
     <sql id="Base_Column_List">
         id, tenant_id, product_no, product_name, subtitle, category_name, cover_url, gallery_urls,
-        sale_price, market_price, cost_amount, pv_value, bv_value, stock, purchase_limit, sales_count,
+        sale_price, market_price, cost_amount, pv_value, bv_value, stock, safety_stock, purchase_limit, sales_count,
         sort_order, status, detail, detail_images, delivery_address, delivery_province, delivery_city, delivery_district, shipping_address_id, return_address_id,
         freight_type, freight_amount, free_shipping_amount, freight_template_name, freight_template_id,
         delivery_time, after_sale_policy, service_tags, create_time, update_time
@@ -75,6 +76,30 @@
                     OR product_no LIKE CONCAT('%', #{keyword}, '%')
                 )
             </if>
+            <if test="stockStatus == 'OUT'">
+                AND (stock &lt;= 0 OR EXISTS (
+                    SELECT 1 FROM dms_shop_sku sku
+                    WHERE sku.product_id = dms_shop_product.id AND sku.status = 1 AND sku.stock &lt;= 0
+                ))
+            </if>
+            <if test="stockStatus == 'LOW'">
+                AND ((stock &gt; 0 AND stock &lt;= safety_stock) OR EXISTS (
+                    SELECT 1 FROM dms_shop_sku sku
+                    WHERE sku.product_id = dms_shop_product.id
+                      AND sku.status = 1
+                      AND sku.stock &gt; 0
+                      AND sku.stock &lt;= COALESCE(NULLIF(sku.safety_stock, 0), dms_shop_product.safety_stock)
+                ))
+            </if>
+            <if test="stockStatus == 'NORMAL'">
+                AND stock &gt; safety_stock
+                AND NOT EXISTS (
+                    SELECT 1 FROM dms_shop_sku sku
+                    WHERE sku.product_id = dms_shop_product.id
+                      AND sku.status = 1
+                      AND sku.stock &lt;= COALESCE(NULLIF(sku.safety_stock, 0), dms_shop_product.safety_stock)
+                )
+            </if>
         </where>
         ORDER BY status DESC, sort_order DESC, id DESC
     </select>
@@ -94,13 +119,13 @@
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopProduct" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_shop_product
         (tenant_id, product_no, product_name, subtitle, category_name, cover_url, gallery_urls, sale_price,
-         market_price, cost_amount, pv_value, bv_value, stock, purchase_limit, sales_count, sort_order, status, detail, detail_images,
+         market_price, cost_amount, pv_value, bv_value, stock, safety_stock, purchase_limit, sales_count, sort_order, status, detail, detail_images,
          delivery_address, delivery_province, delivery_city, delivery_district, shipping_address_id, return_address_id,
          freight_type, freight_amount, free_shipping_amount, freight_template_name, freight_template_id,
          delivery_time, after_sale_policy, service_tags)
         VALUES
         (#{tenantId}, #{productNo}, #{productName}, #{subtitle}, #{categoryName}, #{coverUrl}, #{galleryUrls}, #{salePrice},
-         #{marketPrice}, #{costAmount}, #{pvValue}, #{bvValue}, #{stock}, #{purchaseLimit}, #{salesCount}, #{sort}, #{status}, #{detail}, #{detailImages},
+         #{marketPrice}, #{costAmount}, #{pvValue}, #{bvValue}, #{stock}, #{safetyStock}, #{purchaseLimit}, #{salesCount}, #{sort}, #{status}, #{detail}, #{detailImages},
          #{deliveryAddress}, #{deliveryProvince}, #{deliveryCity}, #{deliveryDistrict}, #{shippingAddressId}, #{returnAddressId},
          #{freightType}, #{freightAmount}, #{freeShippingAmount}, #{freightTemplateName}, #{freightTemplateId},
          #{deliveryTime}, #{afterSalePolicy}, #{serviceTags})
@@ -121,6 +146,7 @@
             pv_value = #{pvValue},
             bv_value = #{bvValue},
             stock = #{stock},
+            safety_stock = #{safetyStock},
             purchase_limit = #{purchaseLimit},
             sales_count = #{salesCount},
             sort_order = #{sort},

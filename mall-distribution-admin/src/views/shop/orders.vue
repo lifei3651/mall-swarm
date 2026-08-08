@@ -61,11 +61,15 @@
                     <el-tag size="small" :type="afterSaleTag(sale.status)">{{ afterSaleStatus(sale.status) }}</el-tag>
                     <span>{{ sale.afterSaleNo }} · {{ sale.reason || '未填写原因' }}</span>
                     <small>{{ sale.refundQuantity || 0 }}件 / ¥{{ money(sale.refundAmount) }}</small>
+                    <small v-if="sale.returnDeliveryNo" class="return-logistics">退货物流：{{ sale.returnDeliveryCompany }} {{ sale.returnDeliveryNo }}</small>
                   </div>
                   <div v-if="sale.status === 0" class="inline-after-sale-actions">
                     <el-button type="success" link @click.stop="openAudit(sale, 1)">通过退款</el-button>
                     <el-button type="danger" link @click.stop="openAudit(sale, 2)">拒绝</el-button>
                     <el-button type="warning" link @click.stop="openAudit(sale, 3)">取消退款</el-button>
+                  </div>
+                  <div v-else-if="sale.status === 5" class="inline-after-sale-actions">
+                    <el-button type="success" link @click.stop="confirmReturnReceived(sale)">确认收货并退款</el-button>
                   </div>
                 </div>
               </div>
@@ -353,6 +357,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Download, Refresh, Search, Upload } from '@element-plus/icons-vue'
 import {
   auditShopAfterSale,
+  confirmShopAfterSaleReturnReceived,
   downloadOrderShipmentTemplate,
   exportShopOrders,
   importOrderShipments,
@@ -417,9 +422,9 @@ const payoutExceeded = (orderAmount, bonusAmount) => Number(bonusAmount || 0) > 
 const bonusTypeName = (row) => row.bonusType === 'DIRECT_REWARD'
   ? '直推奖'
   : row.bonusType === 'DIRECTOR_SHARE' ? '董事团队分红' : '历史奖金'
-const afterSaleStatus = (status) => ({ 0: '待审核', 1: '已通过', 2: '已拒绝', 3: '已取消' }[status] || '处理中')
-const afterSaleTag = (status) => ({ 0: 'warning', 1: 'success', 2: 'info', 3: 'warning' }[status] || 'info')
-const hasPendingAfterSale = (row) => (row?.afterSales || []).some((item) => item.status === 0)
+const afterSaleStatus = (status) => ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待客户寄回', 5: '待商家收货', 6: '退款处理中' }[status] || '处理中')
+const afterSaleTag = (status) => ({ 0: 'warning', 1: 'success', 2: 'info', 3: 'warning', 4: 'warning', 5: 'primary', 6: 'warning' }[status] || 'info')
+const hasPendingAfterSale = (row) => (row?.afterSales || []).some((item) => [0, 4, 5, 6].includes(Number(item.status)))
 const hasApprovedRefund = (row) => (row?.afterSales || []).some((item) => item.status === 1)
 const orderDisplayStatus = (row) => {
   if (hasPendingAfterSale(row)) return '售后中'
@@ -690,6 +695,17 @@ const submitAudit = async () => {
   await auditShopAfterSale(currentAfterSale.value.id, auditForm.value)
   ElMessage.success(actionStatus === 3 ? '退款申请已取消' : '审核完成')
   auditDialogVisible.value = false
+  await fetchOrders()
+}
+
+const confirmReturnReceived = async (sale) => {
+  await ElMessageBox.confirm('确认已收到客户寄回的商品，并执行退款、库存和财务处理吗？', '确认收货并退款', { type: 'warning' })
+  await confirmShopAfterSaleReturnReceived(sale.id, {
+    auditRemark: '商家确认收到退货',
+    auditUserId: currentOperator.value.id,
+    auditUserName: currentOperator.value.name,
+  })
+  ElMessage.success('已确认收货并完成退款处理')
   await fetchOrders()
 }
 

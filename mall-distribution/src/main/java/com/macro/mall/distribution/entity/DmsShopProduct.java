@@ -39,6 +39,9 @@ public class DmsShopProduct implements Serializable {
 
     private Integer stock;
 
+    /** 商品级安全库存；单规格直接生效，多规格用于商品汇总预警。 */
+    private Integer safetyStock;
+
     /** 每位会员累计限购数量，0 表示不限购。 */
     private Integer purchaseLimit;
 

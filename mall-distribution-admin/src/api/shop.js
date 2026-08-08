@@ -286,3 +286,11 @@ export function auditShopAfterSale(id, data) {
     data,
   })
 }
+
+export function confirmShopAfterSaleReturnReceived(id, data) {
+  return request({
+    url: `/shop/admin/after-sales/${id}/return-received`,
+    method: 'put',
+    data,
+  })
+}

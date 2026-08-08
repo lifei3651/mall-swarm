@@ -35,6 +35,9 @@ public class DmsShopSku implements Serializable {
 
     private Integer stock;
 
+    /** SKU 级安全库存。 */
+    private Integer safetyStock;
+
     private Integer salesCount;
 
     private Integer status;

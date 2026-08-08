@@ -235,6 +235,14 @@ export function cancelAfterSale(id) {
   })
 }
 
+export function submitAfterSaleReturnShipment(id, data) {
+  return request({
+    url: `/shop/after-sales/${id}/return-shipment`,
+    method: 'put',
+    data,
+  })
+}
+
 export function getProfile(params) {
   return request({
     url: '/shop/profile',

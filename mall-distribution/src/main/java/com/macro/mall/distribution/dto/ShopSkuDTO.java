@@ -34,5 +34,7 @@ public class ShopSkuDTO implements Serializable {
 
     private Integer stock;
 
+    private Integer safetyStock;
+
     private Integer status;
 }

@@ -25,4 +25,8 @@ public interface DmsShopAfterSaleDao {
     int insert(DmsShopAfterSale afterSale);
 
     int updateAudit(DmsShopAfterSale afterSale);
+
+    int updateReturnShipment(DmsShopAfterSale afterSale);
+
+    int updateReturnReceived(DmsShopAfterSale afterSale);
 }

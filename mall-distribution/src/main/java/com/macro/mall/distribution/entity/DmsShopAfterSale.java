@@ -47,6 +47,12 @@ public class DmsShopAfterSale implements Serializable {
     private Long returnAddressId;
     private String returnAddress;
 
+    /** 退货退款流程的客户寄回物流信息。 */
+    private String returnDeliveryCompany;
+    private String returnDeliveryNo;
+    private LocalDateTime returnShippedAt;
+    private LocalDateTime returnReceivedAt;
+
     private Integer status;
 
     private String auditRemark;
