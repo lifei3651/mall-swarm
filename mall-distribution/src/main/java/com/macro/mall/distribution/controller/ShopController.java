@@ -587,10 +587,23 @@ public class ShopController {
         return CommonResult.success(shopService.shipOrder(orderId, dto));
     }
 
-    @Operation(summary = "后台取消待付款订单")
+    @Operation(summary = "后台取消待付款或待发货订单")
     @PutMapping("/admin/orders/{orderId}/cancel")
     public CommonResult<Boolean> cancelAdminOrder(@PathVariable Long orderId) {
-        return CommonResult.success(shopService.cancelOrder(orderId, null));
+        ShopOrderVO order = shopService.getOrder(orderId);
+        if (order == null || order.getOrder() == null) {
+            Asserts.fail("订单不存在");
+        }
+        if (Integer.valueOf(0).equals(order.getOrder().getStatus())) {
+            return CommonResult.success(shopService.cancelOrder(orderId, null));
+        }
+        if (Integer.valueOf(1).equals(order.getOrder().getStatus())) {
+            Long operatorId = AdminContext.get() == null ? null : AdminContext.get().getId();
+            String operatorName = AdminContext.get() == null ? "管理员" : AdminContext.get().getNickname();
+            return CommonResult.success(afterSaleService.cancelPendingShipment(orderId, operatorId, operatorName));
+        }
+        Asserts.fail("只有待付款或待发货订单可以取消");
+        return CommonResult.success(false);
     }
 
     @Operation(summary = "后台处理超期退款")

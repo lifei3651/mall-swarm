@@ -18,6 +18,7 @@ import com.macro.mall.distribution.dto.AssetChangeDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleApplyDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleAuditDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleReturnShipmentDTO;
+import com.macro.mall.distribution.dto.ShopAfterSaleItemDTO;
 import com.macro.mall.distribution.dto.ShopManualRefundDTO;
 import com.macro.mall.distribution.entity.DmsAgent;
 import com.macro.mall.distribution.entity.DmsShopAfterSale;
@@ -373,6 +374,39 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         audit.setAuditUserId(dto.getOperatorId());
         audit.setAuditUserName(dto.getOperatorName());
         return audit(afterSale.getId(), audit);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean cancelPendingShipment(Long orderId, Long operatorId, String operatorName) {
+        if (orderId == null) Asserts.fail("订单ID不能为空");
+        DmsShopOrder order = orderDao.selectById(orderId);
+        if (order == null) Asserts.fail("订单不存在");
+        assertTenantAccess(order.getTenantId());
+        if (!Integer.valueOf(1).equals(order.getStatus())) {
+            Asserts.fail("只有待发货订单可以取消");
+        }
+        List<ShopAfterSaleItemDTO> items = orderItemDao.selectByOrderId(orderId).stream().map(item -> {
+            ShopAfterSaleItemDTO dto = new ShopAfterSaleItemDTO();
+            dto.setOrderItemId(item.getId());
+            dto.setQuantity(item.getQuantity());
+            return dto;
+        }).toList();
+        if (items.isEmpty()) Asserts.fail("订单商品为空，不能取消");
+        ShopManualRefundDTO refund = new ShopManualRefundDTO();
+        refund.setRefundMode("QUANTITY");
+        refund.setApplyType(1);
+        refund.setItems(items);
+        refund.setReason("后台取消待发货订单");
+        refund.setOperatorId(operatorId);
+        refund.setOperatorName(operatorName);
+        manualRefund(orderId, refund);
+        // 待发货订单尚未出库，整单退款后释放下单时预占的 SKU 与商品库存。
+        for (DmsShopOrderItem item : orderItemDao.selectByOrderId(orderId)) {
+            if (item.getSkuId() != null) skuDao.increaseStock(item.getSkuId(), item.getQuantity());
+            productDao.increaseStock(item.getProductId(), item.getQuantity());
+        }
+        return true;
     }
 
     private void assertWithinAfterSaleWindow(DmsShopOrder order) {

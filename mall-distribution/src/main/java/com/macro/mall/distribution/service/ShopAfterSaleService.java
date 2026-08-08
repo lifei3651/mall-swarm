@@ -30,4 +30,7 @@ public interface ShopAfterSaleService {
 
     /** 后台在前台售后期限结束后登记并执行退款。 */
     DmsShopAfterSale manualRefund(Long orderId, ShopManualRefundDTO dto);
+
+    /** 后台取消待发货订单：全额退款、冲销账务并恢复预占库存。 */
+    boolean cancelPendingShipment(Long orderId, Long operatorId, String operatorName);
 }
