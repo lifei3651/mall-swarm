@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.dao;
 
 import com.macro.mall.distribution.entity.DmsShopOrder;
+import com.macro.mall.distribution.vo.ShopOrderStatusSummaryVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +50,13 @@ class ShopOrderStateFilterTest {
         assertOrderNos("AFTER_SALE", "FILTER-AFTER");
         assertOrderNos("COMPLETED", "FILTER-DONE");
         assertOrderNos("REFUNDED", "FILTER-REFUND");
+    }
+
+    @Test
+    void summaryBadgeCountsOnlyAfterSalesThatStillNeedAction() {
+        ShopOrderStatusSummaryVO summary = orderDao.selectStatusSummary(1L);
+
+        assertEquals(1L, summary.getAfterSale());
     }
 
     private void insertOrder(long id, String orderNo, int status) {

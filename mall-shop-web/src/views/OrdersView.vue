@@ -55,7 +55,7 @@
           <RouterLink v-if="item.order.status === 0" class="order-action primary-action" :to="`/orders/${item.order.id}`">立即支付</RouterLink>
           <button v-if="item.order.status === 2" class="order-action primary-action" :disabled="actingId === item.order.id" @click="receive(item.order.id)">确认收货</button>
           <RouterLink v-if="Number(item.pendingReviewCount || 0) > 0" class="order-action primary-action" :to="`/product/${item.items?.[0]?.productId}`">去评价</RouterLink>
-          <RouterLink v-if="canApplyAfterSale(item)" class="order-action" :to="`/orders/${item.order.id}`">申请售后</RouterLink>
+          <RouterLink v-if="canApplyAfterSale(item)" class="order-action" :to="`/orders/${item.order.id}?applyAfterSale=1`">申请售后</RouterLink>
         </div>
       </article>
       <button v-if="hasMore" class="load-more-orders" :disabled="loadingMore" @click="loadMore">
@@ -159,6 +159,11 @@ const afterSaleDeadline = (order) => {
   const created = Date.parse(String(order?.createTime || '').replace(' ', 'T'))
   return Number.isFinite(created) ? created + 7 * 24 * 60 * 60 * 1000 : Number.POSITIVE_INFINITY
 }
+const unavailableAfterSaleQuantity = (item) => (item.afterSales || [])
+  .filter((sale) => [0, 1, 4, 5, 6].includes(Number(sale.status)))
+  .flatMap((sale) => sale.items || [])
+  .reduce((sum, line) => sum + Number(line.refundQuantity || 0), 0)
+const orderQuantity = (item) => (item.items || []).reduce((sum, line) => sum + Number(line.quantity || 0), 0)
 const orderDisplayStatus = (item) => {
   if (isAfterSale(item)) return `退款/售后 · ${afterSaleStatus(item.afterSales?.[0]?.status)}`
   if (Number(item.pendingReviewCount || 0) > 0) return '待评价'
@@ -167,6 +172,7 @@ const orderDisplayStatus = (item) => {
 const canApplyAfterSale = (item) => ![0, 4].includes(item.order?.status)
   && Date.now() < afterSaleDeadline(item.order)
   && !(item.afterSales || []).some((sale) => [0, 4, 5, 6].includes(sale.status))
+  && unavailableAfterSaleQuantity(item) < orderQuantity(item)
 
 const cancel = async (id) => {
   actingId.value = id

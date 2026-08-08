@@ -254,12 +254,18 @@ test('order detail renders logistics timeline with shipping steps', async () => 
   assert.match(source, /estimatedDelivery/)
 })
 
-test('refund flow uses clear type cards, reason sheet, quantity stepper and estimate summary', async () => {
+test('refund flow defaults to all items and keeps the application form concise', async () => {
   const source = await readView('OrderDetailView.vue')
   assert.match(source, /after-sale-type-grid/)
   assert.match(source, /reason-sheet/)
   assert.match(source, /setRefundQuantity/)
+  assert.match(source, /selectAllRefundableItems/)
+  assert.match(source, /已默认全选/)
+  assert.match(source, /aside v-if="!applyingAfterSale"/)
+  assert.doesNotMatch(source, /退款金额以实际支付金额和审核结果为准/)
+  assert.doesNotMatch(source, /class="estimate-meta"/)
   assert.match(source, /预计退款/)
+  assert.match(source, /class="order-number-footer"/)
   assert.match(source, /reason: \[selectedReason\.value, afterSaleForm\.value\.reasonDetail\.trim\(\)\]/)
 })
 
