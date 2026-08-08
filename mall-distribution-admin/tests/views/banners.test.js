@@ -24,4 +24,13 @@ describe('首页轮播图管理', () => {
     expect(source).toContain('delete payload.timeRange')
     expect(source).not.toContain('startTime: form.value.timeRange?.[0] || null')
   })
+
+  it('明确提示模块已开但没有启用图片，并统一状态类型', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('activeBannerCount')
+    expect(source).toContain('当前没有启用的图片')
+    expect(source).toContain('status: Number(row.status ?? 0)')
+    expect(source).toContain('Number(row.status) === 1')
+  })
 })

@@ -15,6 +15,14 @@
       show-icon
       class="banner-alert"
     />
+    <el-alert
+      v-if="!loading && rows.length && !activeBannerCount"
+      title="首页轮播图模块已打开，但当前没有启用的图片；请在下方点击“启用”，保存后客户前台才会展示。"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="banner-alert"
+    />
 
     <el-card shadow="never">
       <el-table v-loading="loading" :data="rows" row-key="id">
@@ -30,13 +38,13 @@
         <el-table-column prop="sort" label="顺序" width="80" sortable />
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-switch :model-value="row.status === 1" @change="(value) => toggleStatus(row, value)" />
+            <el-switch :model-value="Number(row.status) === 1" @change="(value) => toggleStatus(row, value)" />
           </template>
         </el-table-column>
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link @click="openEdit(row)">编辑</el-button>
-            <el-button type="danger" link @click="toggleStatus(row, row.status !== 1)">{{ row.status === 1 ? '隐藏' : '启用' }}</el-button>
+            <el-button type="danger" link @click="toggleStatus(row, Number(row.status) !== 1)">{{ Number(row.status) === 1 ? '隐藏' : '启用' }}</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -91,11 +99,12 @@ const formRef = ref()
 const form = ref({})
 const rules = { imageUrl: [{ required: true, message: '请上传轮播图片', trigger: 'change' }], title: [{ required: true, message: '请输入标题', trigger: 'blur' }] }
 const linkPlaceholder = computed(() => ({ product: '填写商品 ID', category: '填写分类名称', url: '填写 https:// 开头的链接' }[form.value.linkType] || ''))
+const activeBannerCount = computed(() => rows.value.filter((row) => Number(row.status) === 1).length)
 
 const emptyForm = () => ({ tenantId: 1, title: '', imageUrl: '', linkType: 'none', linkValue: '', sort: 100, status: 1, timeRange: [], remark: '' })
 const normalizeLinkType = (value) => String(value || 'none').trim().toLowerCase()
 const linkTypeName = (value) => ({ none: '不跳转', product: '商品详情', category: '商品分类', url: '外部链接' }[normalizeLinkType(value)] || '不跳转')
-const normalizeRow = (row) => ({ ...row, linkType: normalizeLinkType(row.linkType), timeRange: [row.startTime, row.endTime].filter(Boolean) })
+const normalizeRow = (row) => ({ ...row, status: Number(row.status ?? 0), linkType: normalizeLinkType(row.linkType), timeRange: [row.startTime, row.endTime].filter(Boolean) })
 
 const fetchRows = async () => {
   loading.value = true
