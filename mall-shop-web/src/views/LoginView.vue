@@ -779,9 +779,9 @@ const submit = async () => {
   .register-page .field-success { font-size: 10px; line-height: 1.25; }
   .register-page .auth-submit { min-height: 40px; margin-top: 9px; }
   .register-page .account-links { margin-top: 8px; }
-  .register-page { padding-top:8px; }
-  .register-page .auth-brand-header { min-height:34px; margin:0 auto 5px; }
-  .register-page .auth-brand-logo { max-width:min(112px,36vw); max-height:34px; }
+  .register-page { padding-top:clamp(14px,3vh,24px); }
+  .register-page .auth-brand-header { min-height:44px; margin:0 auto 12px; }
+  .register-page .auth-brand-logo { max-width:min(132px,40vw); max-height:44px; }
 }
 @media (max-width: 920px) and (max-height: 700px) {
   .auth-page { padding-top:10px; }
@@ -793,9 +793,9 @@ const submit = async () => {
   .form-grid { gap:10px; }
   .auth-submit { margin-top:10px; }
   .account-links { margin-top:10px; }
-  .register-page { padding-top:4px; }
-  .register-page .auth-brand-header { min-height:28px; margin-bottom:2px; }
-  .register-page .auth-brand-logo { max-height:28px; }
+  .register-page { padding-top:6px; }
+  .register-page .auth-brand-header { min-height:34px; margin-bottom:6px; }
+  .register-page .auth-brand-logo { max-height:34px; }
 }
 @media (max-width: 380px), (max-height: 600px) {
   .auth-page { width:calc(100% - 18px); padding-top:6px; }
@@ -810,5 +810,8 @@ const submit = async () => {
   .captcha-image { height:38px; }
   .auth-submit { min-height:40px; margin-top:8px; }
   .account-links { margin-top:8px; }
+  .register-page { padding-top:3px; }
+  .register-page .auth-brand-header { min-height:28px; margin-bottom:3px; }
+  .register-page .auth-brand-logo { max-height:28px; }
 }
 </style>

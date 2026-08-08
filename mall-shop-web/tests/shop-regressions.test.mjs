@@ -113,6 +113,7 @@ test('login page uses the configured shop logo and adapts to mainstream mobile h
   assert.match(login, /class="auth-brand-logo"/)
   assert.match(login, /currentBrandLogo/)
   assert.match(login, /min-height:100dvh/)
+  assert.match(login, /\.register-page \.auth-brand-header \{ min-height:44px; margin:0 auto 12px; \}/)
   assert.match(login, /@media \(max-width: 920px\) and \(max-height: 700px\)/)
   assert.match(login, /@media \(max-width: 380px\), \(max-height: 600px\)/)
 })
