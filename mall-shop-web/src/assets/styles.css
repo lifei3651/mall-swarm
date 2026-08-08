@@ -41,6 +41,23 @@ a {
   text-decoration: none;
 }
 
+/* 移动端只保留商城自身的选中样式，避免 Safari/微信浏览器叠加灰蓝色点击遮罩。 */
+a,
+button,
+label,
+[role="button"],
+input[type="checkbox"],
+input[type="radio"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a,
+button,
+label,
+[role="button"] {
+  user-select: none;
+}
+
 button,
 input,
 textarea {

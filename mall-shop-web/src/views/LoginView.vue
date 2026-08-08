@@ -640,7 +640,7 @@ const submit = async () => {
 .inviter-hint { min-height: 38px; display: flex; align-items: center; padding: 0 12px; color: var(--muted); font-size: 12px; }
 
 .agreement-row { margin-top: 14px; }
-.agreement-check { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.agreement-check { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; font-size: 12px; color: var(--muted); line-height: 1.5; }
 .agreement-check > span:first-child { width: 18px; height: 18px; flex-shrink: 0; display: grid; place-items: center; border: 1.5px solid #c9ced4; border-radius: 4px; margin-top: 1px; }
 .agreement-check.checked > span:first-child { color: #fff; background: var(--accent, #0f766e); border-color: var(--accent, #0f766e); }
 .agreement-check.has-error > span:first-child { border-color: var(--coral); box-shadow: 0 0 0 2px color-mix(in srgb, var(--coral) 12%, transparent); }

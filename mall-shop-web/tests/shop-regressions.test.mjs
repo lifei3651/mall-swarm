@@ -5,6 +5,7 @@ import { resolveQuickCartItem } from '../src/utils/quickCart.js'
 import { extractModuleEntry } from '../src/utils/buildFreshness.js'
 
 const readView = (name) => readFile(new URL(`../src/views/${name}`, import.meta.url), 'utf8')
+const readStyles = () => readFile(new URL('../src/assets/styles.css', import.meta.url), 'utf8')
 
 test('quick add uses the first in-stock SKU without opening product detail', () => {
   const item = resolveQuickCartItem(
@@ -38,6 +39,16 @@ test('profile hides unused labels and uses a reliable invite navigation', async 
   assert.doesNotMatch(source, /注册用户/)
   assert.doesNotMatch(source, /to="\/orders">全部/)
   assert.match(source, /window\.location\.assign\('\/invite'\)/)
+})
+
+test('mobile interactive areas suppress the browser tap highlight without disabling form input', async () => {
+  const styles = await readStyles()
+  const login = await readView('LoginView.vue')
+
+  assert.match(styles, /input\[type="checkbox"\][\s\S]*-webkit-tap-highlight-color: transparent/)
+  assert.match(styles, /\[role="button"\][\s\S]*user-select: none/)
+  assert.doesNotMatch(styles, /input,\s*textarea[\s\S]{0,120}user-select: none/)
+  assert.match(login, /\.agreement-check \{[^}]*-webkit-tap-highlight-color: transparent;[^}]*user-select: none;/)
 })
 
 test('profile renders immediately and loads order counts, wallet and performance separately', async () => {
