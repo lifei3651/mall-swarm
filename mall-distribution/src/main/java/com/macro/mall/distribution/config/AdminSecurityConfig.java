@@ -106,6 +106,7 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             if (path.startsWith("/shop/admin/products")) return "保存商品资料";
             if (path.startsWith("/shop/admin/categories")) return "维护商品分类";
             if (path.matches("/shop/admin/orders/[^/]+/ship")) return "商城订单发货";
+            if (path.matches("/shop/admin/orders/[^/]+/cancel")) return "后台取消商城订单";
             if (path.equals("/shop/admin/orders/shipments/import")) return "Excel批量导入订单物流并发货";
             if (path.matches("/shop/admin/after-sales/[^/]+/audit")) return "审核商城售后";
             if (path.matches("/shop/admin/reviews/[^/]+/status")) return "显示或隐藏商品评价";

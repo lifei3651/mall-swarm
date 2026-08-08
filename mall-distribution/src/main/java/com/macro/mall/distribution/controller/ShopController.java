@@ -587,6 +587,12 @@ public class ShopController {
         return CommonResult.success(shopService.shipOrder(orderId, dto));
     }
 
+    @Operation(summary = "后台取消待付款订单")
+    @PutMapping("/admin/orders/{orderId}/cancel")
+    public CommonResult<Boolean> cancelAdminOrder(@PathVariable Long orderId) {
+        return CommonResult.success(shopService.cancelOrder(orderId, null));
+    }
+
     @Operation(summary = "后台处理超期退款")
     @PostMapping("/admin/orders/{orderId}/refund")
     public CommonResult<DmsShopAfterSale> manualRefund(@PathVariable Long orderId,

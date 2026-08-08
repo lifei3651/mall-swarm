@@ -69,7 +69,10 @@
                   {{ returnShipmentSaleId === sale.id ? '提交中…' : '提交退货物流' }}
                 </button>
               </div>
-              <small v-else>物流：{{ sale.returnDeliveryCompany }} {{ sale.returnDeliveryNo }}，等待商家确认收货</small>
+              <small v-else class="return-logistics-line">
+                物流公司：{{ sale.returnDeliveryCompany || '未填写' }} · 运单号：{{ sale.returnDeliveryNo || '-' }}，等待商家确认收货
+                <a v-if="sale.returnDeliveryNo" :href="trackingUrl({ deliveryCompany: sale.returnDeliveryCompany, deliveryNo: sale.returnDeliveryNo })" target="_blank" rel="noopener" class="tracking-link">查看物流轨迹</a>
+              </small>
             </div>
             <div v-for="line in sale.items || []" :key="line.id" class="after-sale-item-line">
               <span>{{ line.productName }} {{ formatProductSpec(line) }}</span>
@@ -410,6 +413,9 @@ const courierInitial = (company) => {
 const trackingUrl = (shipment) => {
   const no = shipment.deliveryNo
   if (!no) return null
+  // Kuaidi100 auto-detects the carrier from the waybill number. The carrier
+  // name is shown in our UI, while the external query stays compatible with
+  // both Chinese carrier names and carrier codes.
   return `https://m.kuaidi100.com/result.jsp?nu=${encodeURIComponent(no)}`
 }
 
@@ -545,6 +551,8 @@ onMounted(fetchOrder)
 .return-shipment-form { display: grid; grid-template-columns: 1fr 1.2fr auto; gap: 8px; margin-top: 8px; }
 .return-shipment-form .field { min-height: 34px; padding: 0 9px; border: 1px solid #e8c996; border-radius: 7px; background: #fff; }
 .return-shipment-form .btn { min-height: 34px; padding: 0 11px; border-radius: 7px; font-size: 12px; white-space: nowrap; }
+.return-logistics-line { display: block; }
+.return-logistics-line .tracking-link { margin-left: 8px; color: var(--teal); text-decoration: none; }
 .after-sale-item-line { display: flex; justify-content: space-between; gap: 12px; padding-top: 7px; color: #69737e; font-size: 12px; }
 .after-sale-item-line strong { color: #3d4650; font-size: 12px; }
 .after-sale-record-actions { display: flex; justify-content: flex-end; margin-top: 12px; padding-top: 11px; border-top: 1px solid #f1e3e6; }

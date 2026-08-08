@@ -84,16 +84,16 @@
               <el-tag size="small" type="success">实时预览</el-tag>
             </div>
             <div class="theme-preset-grid compact-theme-grid">
-              <button v-for="theme in themeOptions" :key="theme.value" type="button" class="theme-preset" :class="{ active: displayForm.productTemplate === theme.value }" @click="applyDisplayTheme(theme)">
+              <button v-for="theme in themeOptions" :key="theme.value" type="button" class="theme-preset" :class="{ active: displayForm.productTemplate === theme.value }" @click.stop.prevent="applyDisplayTheme(theme)">
                 <span class="theme-preview" :style="{ '--preview-color': theme.color, '--preview-radius': theme.radius }"><i></i><b></b><em></em></span>
                 <strong>{{ theme.label }}</strong>
                 <small>{{ theme.description }}</small>
               </button>
             </div>
             <div class="visual-design-fields">
-              <label><span>商城名称</span><el-input v-model="displayForm.brandName" maxlength="64" placeholder="客户前台展示名称" /></label>
-              <label><span>品牌 LOGO</span><div class="display-logo-editor"><el-upload action="#" :show-file-list="false" accept="image/*" :http-request="uploadDisplayLogo"><div class="display-logo-uploader"><el-image v-if="displayForm.logoUrl" :src="displayForm.logoUrl" fit="contain" /><span v-else>上传</span></div></el-upload><small>建议透明 PNG，客户前台和浏览器标签页共用</small></div></label>
-              <label><span>主题色</span><div class="color-editor"><el-color-picker v-model="displayForm.themeColor" /><el-input v-model="displayForm.themeColor" maxlength="7" placeholder="#e7193f" /></div></label>
+              <div class="visual-design-field"><span>商城名称</span><el-input v-model="displayForm.brandName" maxlength="64" placeholder="客户前台展示名称" /></div>
+              <div class="visual-design-field"><span>品牌 LOGO</span><div class="display-logo-editor"><el-upload action="#" :show-file-list="false" accept="image/*" :http-request="uploadDisplayLogo"><div class="display-logo-uploader"><el-image v-if="displayForm.logoUrl" :src="displayForm.logoUrl" fit="contain" /><span v-else>上传</span></div></el-upload><small>建议透明 PNG，客户前台和浏览器标签页共用</small></div></div>
+              <div class="visual-design-field"><span>主题色</span><div class="color-editor"><el-color-picker v-model="displayForm.themeColor" /><el-input v-model="displayForm.themeColor" maxlength="7" placeholder="#e7193f" /></div></div>
             </div>
           </section>
           <section v-if="activeEditSection === 'banner'" class="control-section banner-config-section">
@@ -799,8 +799,8 @@ onMounted(fetchData)
 .compact-theme-grid .theme-preset strong { font-size: 12px; }
 .compact-theme-grid .theme-preset small { min-height: 0; overflow: hidden; font-size: 10px; line-height: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .visual-design-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px 16px; padding: 4px 0; }
-.visual-design-fields label:first-child { grid-column: 1 / -1; }
-.visual-design-fields label { display: grid; gap: 5px; color: #667085; font-size: 12px; }
+.visual-design-fields .visual-design-field:first-child { grid-column: 1 / -1; }
+.visual-design-field { display: grid; gap: 5px; color: #667085; font-size: 12px; }
 .visual-design-fields .color-editor { grid-template-columns: 32px minmax(0, 1fr); width: 100%; gap: 7px; }
 .visual-design-fields .color-editor .el-color-picker { width: 32px; }
 .display-logo-editor { display: flex; align-items: center; gap: 8px; }
@@ -1144,7 +1144,7 @@ onMounted(fetchData)
   .preview-stage { order: -1; }
   .visual-design-grid { grid-template-columns: 1fr; }
   .visual-design-fields { grid-template-columns: 1fr; }
-  .visual-design-fields label:first-child { grid-column: auto; }
+  .visual-design-fields .visual-design-field:first-child { grid-column: auto; }
   .compact-theme-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 680px) {

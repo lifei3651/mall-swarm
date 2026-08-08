@@ -34,6 +34,9 @@ describe('商城视觉与页面工作台', () => {
       expect(source).toContain(variable)
     }
     expect(source).toContain('保存发布')
+    expect(source).toContain('@click.stop.prevent="applyDisplayTheme(theme)"')
+    expect(source).toContain('class="visual-design-field"')
+    expect(source).not.toContain('<label><span>品牌 LOGO</span>')
     expect(source).toContain('extraConfigJson')
     expect(source).toContain('确认放弃未保存修改？')
     expect(source).toContain('moveNav')

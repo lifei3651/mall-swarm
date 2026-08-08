@@ -263,6 +263,13 @@ export function shipShopOrder(id, data) {
   })
 }
 
+export function cancelShopOrder(id) {
+  return request({
+    url: `/shop/admin/orders/${id}/cancel`,
+    method: 'put',
+  })
+}
+
 export function manualRefundShopOrder(id, data) {
   return request({
     url: `/shop/admin/orders/${id}/refund`,

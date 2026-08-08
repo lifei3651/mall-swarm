@@ -80,6 +80,8 @@ test('customers can cancel only pending after-sale applications', async () => {
   const source = await readView('OrderDetailView.vue')
   assert.match(api, /url: `\/shop\/after-sales\/\$\{id\}\/cancel`/)
   assert.match(source, /取消申请/)
+  assert.match(source, /物流公司：\{\{ sale\.returnDeliveryCompany/)
+  assert.match(source, /查看物流轨迹/)
   assert.match(source, /sale\.status === 0/)
   assert.match(source, /不会产生退款，仍可在售后期限内重新申请/)
 })

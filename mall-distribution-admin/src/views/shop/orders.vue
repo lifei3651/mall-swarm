@@ -137,10 +137,13 @@
               <div class="sub">{{ row.order?.receiverAddress }}</div>
             </template>
           </el-table-column>
-          <el-table-column label="操作" fixed="right" width="160">
+          <el-table-column label="操作" fixed="right" width="230">
             <template #default="{ row }">
               <el-button type="success" link @click="openBonusFlows(row.order?.id, row.order?.orderNo, row.memberAccount)">
                 奖金去向
+              </el-button>
+              <el-button v-if="row.order?.status === 0" type="danger" link @click="cancelAdminOrder(row)">
+                取消订单
               </el-button>
               <el-button type="primary" link :disabled="!canShipOrder(row)" @click="openShip(row)">
                 {{ shipmentRows(row).length ? '继续发货' : '发货' }}
@@ -357,6 +360,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Download, Refresh, Search, Upload } from '@element-plus/icons-vue'
 import {
   auditShopAfterSale,
+  cancelShopOrder,
   confirmShopAfterSaleReturnReceived,
   downloadOrderShipmentTemplate,
   exportShopOrders,
@@ -604,6 +608,22 @@ const openShip = (row) => {
     shipmentQuantity: remainingShipmentQuantity(row),
   }
   shipDialogVisible.value = true
+}
+
+const cancelAdminOrder = async (row) => {
+  const orderNo = row?.order?.orderNo || '-'
+  try {
+    await ElMessageBox.confirm(
+      `确认取消订单“${orderNo}”吗？取消后订单将关闭，预占库存会回库，不能恢复。`,
+      '取消订单',
+      { type: 'warning', confirmButtonText: '确认取消', cancelButtonText: '暂不取消' },
+    )
+  } catch {
+    return
+  }
+  await cancelShopOrder(row.order.id)
+  ElMessage.success('订单已取消，库存已回库')
+  await fetchOrders()
 }
 
 const openBonusFlows = async (orderId, orderNo, memberAccount) => {
