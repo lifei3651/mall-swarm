@@ -125,31 +125,48 @@
         LIMIT #{limit}
     </select>
 
-    <!-- 每名会员只取最近一次有效订单的收货省份，避免会员维护地址与实际下单地址不一致。 -->
+    <!-- 会员画像保留每名会员最近一次有效订单的省份，同时返回该省份的全部有效订单量供工作台排行。 -->
     <select id="selectMemberRegionDistribution" resultType="com.macro.mall.distribution.vo.DashboardRegionVO">
-        SELECT shop_order.receiver_province AS regionName,
-               COUNT(*) AS memberCount
-        FROM dms_shop_order shop_order
-        INNER JOIN dms_shop_member member ON member.user_id = shop_order.user_id
-        WHERE member.system_account = 0
-          AND shop_order.tenant_id = #{tenantId}
-          AND shop_order.pay_time IS NOT NULL
-          AND shop_order.status IN (1, 2, 3)
-          AND NULLIF(TRIM(shop_order.receiver_province), '') IS NOT NULL
-          AND shop_order.id = (
-              SELECT candidate.id
-              FROM dms_shop_order candidate
-              WHERE candidate.tenant_id = #{tenantId}
-                AND candidate.user_id = shop_order.user_id
-                AND candidate.pay_time IS NOT NULL
-                AND candidate.status IN (1, 2, 3)
-                AND NULLIF(TRIM(candidate.receiver_province), '') IS NOT NULL
-              ORDER BY candidate.pay_time DESC,
-                       candidate.id DESC
-              LIMIT 1
-          )
-        GROUP BY shop_order.receiver_province
-        ORDER BY memberCount DESC, shop_order.receiver_province ASC
+        SELECT order_region.regionName,
+               COALESCE(member_region.memberCount, 0) AS memberCount,
+               order_region.orderCount
+        FROM (
+            SELECT shop_order.receiver_province AS regionName,
+                   COUNT(*) AS orderCount
+            FROM dms_shop_order shop_order
+            INNER JOIN dms_shop_member member ON member.user_id = shop_order.user_id
+            WHERE member.system_account = 0
+              AND shop_order.tenant_id = #{tenantId}
+              AND shop_order.pay_time IS NOT NULL
+              AND shop_order.status IN (1, 2, 3)
+              AND NULLIF(TRIM(shop_order.receiver_province), '') IS NOT NULL
+            GROUP BY shop_order.receiver_province
+        ) order_region
+        LEFT JOIN (
+            SELECT shop_order.receiver_province AS regionName,
+                   COUNT(*) AS memberCount
+            FROM dms_shop_order shop_order
+            INNER JOIN dms_shop_member member ON member.user_id = shop_order.user_id
+            WHERE member.system_account = 0
+              AND shop_order.tenant_id = #{tenantId}
+              AND shop_order.pay_time IS NOT NULL
+              AND shop_order.status IN (1, 2, 3)
+              AND NULLIF(TRIM(shop_order.receiver_province), '') IS NOT NULL
+              AND shop_order.id = (
+                  SELECT candidate.id
+                  FROM dms_shop_order candidate
+                  WHERE candidate.tenant_id = #{tenantId}
+                    AND candidate.user_id = shop_order.user_id
+                    AND candidate.pay_time IS NOT NULL
+                    AND candidate.status IN (1, 2, 3)
+                    AND NULLIF(TRIM(candidate.receiver_province), '') IS NOT NULL
+                  ORDER BY candidate.pay_time DESC,
+                           candidate.id DESC
+                  LIMIT 1
+              )
+            GROUP BY shop_order.receiver_province
+        ) member_region ON member_region.regionName = order_region.regionName
+        ORDER BY order_region.orderCount DESC, memberCount DESC, order_region.regionName ASC
     </select>
 
     <select id="selectPerformanceTrend" resultType="com.macro.mall.distribution.vo.DashboardTrendVO">

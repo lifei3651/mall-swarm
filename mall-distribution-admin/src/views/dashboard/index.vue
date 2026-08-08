@@ -123,8 +123,8 @@
       <section class="command-panel member-panel">
         <div class="panel-heading compact">
           <div>
-            <div class="heading-title"><el-icon><User /></el-icon><h2>会员与区域洞察</h2></div>
-            <p>会员资产与真实订单地址画像</p>
+            <div class="heading-title"><el-icon><User /></el-icon><h2>会员与区域订单量排行</h2></div>
+            <p>会员资产与区域有效订单量排行</p>
           </div>
           <button v-if="store.hasPermission('shop:member')" type="button" class="text-link" @click="router.push('/members/list')">
             详情<el-icon><ArrowRight /></el-icon>
@@ -139,13 +139,9 @@
           <div v-for="item in topRegions" :key="item.regionName" class="region-row">
             <span>{{ item.regionName || '未知地区' }}</span>
             <el-progress :percentage="regionPercentage(item)" :show-text="false" :stroke-width="5" />
-            <b>{{ count(item.memberCount) }} 人</b>
+            <b>{{ count(item.orderCount) }} 单</b>
           </div>
           <div v-if="!topRegions.length" class="region-empty"><el-icon><MapLocation /></el-icon><span>暂无订单收货区域数据</span></div>
-        </div>
-        <div class="region-summary">
-          <div><span>已识别订单地址</span><b>{{ count(dashboard.addressedMemberCount) }}</b><small>人</small></div>
-          <div><span>尚无订单地址</span><b>{{ count(dashboard.unaddressedMemberCount) }}</b><small>人</small></div>
         </div>
       </section>
 
@@ -242,11 +238,11 @@ const totalTaskCount = computed(() => visibleTasks.value.reduce((total, item) =>
 
 const riskAlerts = computed(() => {
   const profitRisk = Number(dashboard.value.totalProfitAmount || 0) < 0
-  const missingRegions = Number(dashboard.value.unaddressedMemberCount || 0)
+  const hasRegionOrders = (dashboard.value.memberRegionDistribution || []).some((item) => Number(item.orderCount || 0) > 0)
   const hasProducts = (dashboard.value.productRanking || []).length > 0
   return [
     { title: '经营利润', description: profitRisk ? '累计利润为负，请核对成本与拨出' : '资金收入与拨出状态正常', status: profitRisk ? '需关注' : '正常', state: profitRisk ? 'warning' : 'healthy', icon: Wallet },
-    { title: '会员画像', description: missingRegions ? `${count(missingRegions)} 位会员尚无订单地址` : '会员订单地址识别完整', status: missingRegions ? '待完善' : '正常', state: missingRegions ? 'notice' : 'healthy', icon: MapLocation },
+    { title: '区域排行', description: hasRegionOrders ? '区域有效订单量已同步' : '暂无有效区域订单数据', status: hasRegionOrders ? '正常' : '待沉淀', state: hasRegionOrders ? 'healthy' : 'notice', icon: MapLocation },
     { title: '商品数据', description: hasProducts ? '商品成交价值数据已同步' : '暂无已支付商品成交数据', status: hasProducts ? '正常' : '待沉淀', state: hasProducts ? 'healthy' : 'notice', icon: Goods },
   ]
 })
@@ -260,7 +256,11 @@ const financeComposition = computed(() => [
 const hasFinanceComposition = computed(() => financeComposition.value.some((item) => item.value > 0))
 const topRegions = computed(() => (dashboard.value.memberRegionDistribution || []).slice(0, 4))
 const topProducts = computed(() => (dashboard.value.productRanking || []).slice(0, 5))
-const regionPercentage = (item) => Math.min(100, Math.max(0, Number(item.percentage || 0)))
+const maxRegionOrderCount = computed(() => topRegions.value.reduce((max, item) => Math.max(max, Number(item.orderCount || 0)), 0))
+const regionPercentage = (item) => {
+  const max = maxRegionOrderCount.value
+  return max > 0 ? Math.min(100, Math.max(0, (Number(item.orderCount || 0) / max) * 100)) : 0
+}
 
 const rollingAverage = (values, windowSize = 7) => values.map((_, index) => {
   const start = Math.max(0, index - windowSize + 1)
@@ -611,12 +611,6 @@ onBeforeUnmount(() => {
 .ranking-empty { min-height: 128px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: #60738f; font-size: 11px; }
 .region-empty .el-icon,
 .ranking-empty .el-icon { font-size: 24px; }
-.region-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; padding-top: 11px; border-top: 1px solid rgba(63, 91, 132, .22); }
-.region-summary > div { min-width: 0; padding: 9px 10px; border: 1px solid rgba(76, 105, 148, .2); border-radius: 8px; background: rgba(10, 29, 60, .5); }
-.region-summary span { display: block; color: #71829c; font-size: 10px; }
-.region-summary b { display: inline-block; margin-top: 5px; color: #eaf1fc; font-size: 18px; }
-.region-summary small { margin-left: 3px; color: #71829c; font-size: 9px; }
-
 .product-ranking { display: grid; margin-top: 12px; }
 .product-header-row,
 .product-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) 58px 58px 78px; align-items: center; gap: 8px; }

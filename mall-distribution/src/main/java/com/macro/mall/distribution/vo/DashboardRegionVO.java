@@ -12,6 +12,8 @@ public class DashboardRegionVO implements Serializable {
 
     private String regionName;
     private Long memberCount;
+    /** 区域内产生的有效订单数。 */
+    private Long orderCount;
     /** 在产生有效订单的会员中的占比，0-100。 */
     private BigDecimal percentage;
 }
