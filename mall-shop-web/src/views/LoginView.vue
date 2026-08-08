@@ -3,7 +3,7 @@
     <div class="section-head">
       <div>
         <h2>{{ mode === 'login' ? '商城账号登录' : '注册商城账号' }}</h2>
-        <p>{{ mode === 'register' ? '注册后是商城用户，完成首笔有效支付订单后正式成为会员。' : '登录后可管理地址、订单和售后。' }}</p>
+        <p v-if="mode === 'login'">登录后可管理地址、订单和售后。</p>
       </div>
     </div>
 

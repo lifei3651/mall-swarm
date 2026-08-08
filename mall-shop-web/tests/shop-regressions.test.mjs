@@ -51,6 +51,14 @@ test('mobile interactive areas suppress the browser tap highlight without disabl
   assert.match(login, /\.agreement-check \{[^}]*-webkit-tap-highlight-color: transparent;[^}]*user-select: none;/)
 })
 
+test('registration page does not expose internal membership activation copy', async () => {
+  const login = await readView('LoginView.vue')
+
+  assert.doesNotMatch(login, /注册后是商城用户/)
+  assert.doesNotMatch(login, /完成首笔有效支付订单后正式成为会员/)
+  assert.match(login, /<p v-if="mode === 'login'">登录后可管理地址、订单和售后。<\/p>/)
+})
+
 test('profile renders immediately and loads order counts, wallet and performance separately', async () => {
   const profile = await readView('ProfileView.vue')
   const orders = await readView('OrdersView.vue')
