@@ -18,8 +18,8 @@
     <div v-else-if="!order" class="empty">订单不存在</div>
     <div v-else class="checkout-layout" :class="{ 'after-sale-mode': applyingAfterSale }">
       <section class="panel">
-        <div class="product-detail-head">
-          <h3>商品明细</h3>
+        <div ref="refundItemsSection" class="product-detail-head" :class="{ 'has-validation-error': applyingAfterSale && afterSaleErrors.items }">
+          <h3>{{ applyingAfterSale ? '选择商品和数量' : '商品明细' }}<span v-if="applyingAfterSale" class="required-star">*</span></h3>
           <span v-if="applyingAfterSale">已默认全选</span>
         </div>
         <div v-for="item in detail.items" :key="item.id" class="order-line">
@@ -41,6 +41,7 @@
             <small v-else-if="applyingAfterSale" class="refunded-label">已无可售后数量</small>
           </div>
         </div>
+        <p v-if="applyingAfterSale && afterSaleErrors.items" class="after-sale-field-error" role="alert">{{ afterSaleErrors.items }}</p>
 
         <div v-if="afterSales.length" class="after-sale-list">
           <div class="after-sale-section-head">
@@ -118,12 +119,13 @@
             </div>
           </div>
 
-          <div class="after-sale-block">
-            <div class="block-label">申请原因</div>
-            <button type="button" class="reason-select" :class="{ selected: selectedReason }" @click="reasonSheetVisible = true">
+          <div ref="reasonSection" class="after-sale-block" :class="{ 'has-validation-error': afterSaleErrors.reason }">
+            <div class="block-label">申请原因<span class="required-star">*</span></div>
+            <button type="button" class="reason-select" :class="{ selected: selectedReason, invalid: afterSaleErrors.reason }" @click="reasonSheetVisible = true">
               <span>{{ selectedReason || '请选择申请原因' }}</span>
               <ChevronRight :size="18" />
             </button>
+            <p v-if="afterSaleErrors.reason" class="after-sale-field-error" role="alert">{{ afterSaleErrors.reason }}</p>
             <textarea v-model="afterSaleForm.reasonDetail" class="textarea reason-detail" maxlength="170" placeholder="补充说明（选填），帮助平台更快处理"></textarea>
             <div class="reason-counter">{{ afterSaleForm.reasonDetail.length }}/170</div>
           </div>
@@ -131,6 +133,7 @@
           <div class="refund-estimate">
             <div class="estimate-head"><span>预计退款</span><strong>¥{{ money(estimatedProductRefund + estimatedFreightRefund) }}</strong></div>
           </div>
+          <p v-if="afterSaleErrors.server" class="after-sale-submit-error" role="alert">{{ afterSaleErrors.server }}</p>
           <button class="btn primary after-sale-submit" :disabled="submittingAfterSale" @click="submitAfterSale">
             {{ submittingAfterSale ? '提交中…' : '提交申请' }}
           </button>
@@ -255,7 +258,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ChevronRight, CircleCheck, PackageCheck, RotateCcw, UserRound } from 'lucide-vue-next'
 import { applyAfterSale, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmReceive, getOrder, payOrderWithBalance, submitAfterSaleReturnShipment } from '@/api/shop'
@@ -272,6 +275,9 @@ const returnShipmentForm = ref({ deliveryCompany: '', deliveryNo: '' })
 const submittingAfterSale = ref(false)
 const reasonSheetVisible = ref(false)
 const selectedReason = ref('')
+const refundItemsSection = ref(null)
+const reasonSection = ref(null)
+const afterSaleErrors = ref({ items: '', reason: '', server: '' })
 const afterSaleReasons = ['不想要了', '与商品描述不符', '质量问题', '收到商品少件 / 漏发', '商品破损或污渍', '商家发错货', '其他原因']
 const error = ref('')
 const hasToken = ref(Boolean(localStorage.getItem('shop_token')))
@@ -345,6 +351,7 @@ const estimatedFreightRefund = computed(() => notShipped.value && refundAllRemai
 const setRefundQuantity = (item, delta) => {
   const current = Number(refundQuantities.value[item.id] || 0)
   refundQuantities.value[item.id] = Math.max(0, Math.min(remainingQuantity(item), current + delta))
+  if (selectedRefundItems.value.length) afterSaleErrors.value.items = ''
 }
 
 const selectAllRefundableItems = () => {
@@ -354,13 +361,20 @@ const selectAllRefundableItems = () => {
 
 const startAfterSale = () => {
   selectAllRefundableItems()
+  afterSaleErrors.value = { items: '', reason: '', server: '' }
   applyingAfterSale.value = true
 }
 
 const selectAfterSaleReason = (reason) => {
   selectedReason.value = reason
   afterSaleForm.value.reason = reason
+  afterSaleErrors.value.reason = ''
   reasonSheetVisible.value = false
+}
+
+const scrollToAfterSaleError = async (target) => {
+  await nextTick()
+  target?.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
 
 const afterSaleStatus = (status) => ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '审核通过，待寄回', 5: '已寄回，待收货', 6: '已收货，退款中' }[status] || '处理中')
@@ -496,12 +510,15 @@ const receive = async () => {
 }
 
 const submitAfterSale = async () => {
+  afterSaleErrors.value = { items: '', reason: '', server: '' }
   if (!selectedRefundItems.value.length) {
-    error.value = '请选择实际退款商品和数量'
+    afterSaleErrors.value.items = '退款商品数量不能为 0，请至少选择 1 件商品'
+    scrollToAfterSaleError(refundItemsSection)
     return
   }
   if (!selectedReason.value) {
-    error.value = '请填写售后原因'
+    afterSaleErrors.value.reason = '请选择申请原因'
+    scrollToAfterSaleError(reasonSection)
     return
   }
   submittingAfterSale.value = true
@@ -518,7 +535,7 @@ const submitAfterSale = async () => {
     applyingAfterSale.value = false
     await fetchOrder()
   } catch (e) {
-    error.value = e.message || '提交售后失败'
+    afterSaleErrors.value.server = e.message || '提交售后失败，请稍后重试'
   } finally {
     submittingAfterSale.value = false
   }
@@ -531,6 +548,9 @@ onMounted(fetchOrder)
 .product-detail-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .product-detail-head h3 { margin-bottom: 14px; }
 .product-detail-head span { margin-bottom: 14px; color: var(--brand-primary, #e7193f); font-size: 11px; }
+.product-detail-head h3 .required-star { margin: 0 0 0 4px; color: #e53232; font-size: 14px; }
+.required-star { margin-left: 4px; color: #e53232; font-size: 14px; }
+.product-detail-head.has-validation-error { margin: -7px -8px 4px; padding: 7px 8px 0; background: #fff5f5; border: 1px solid #ef4444; border-radius: 10px; }
 .order-line { align-items: start; }
 .order-line-info { min-width: 0; }
 .order-line-trailing { display: grid; justify-items: end; gap: 10px; }
@@ -592,9 +612,12 @@ onMounted(fetchOrder)
 .quantity-stepper output { border-left: 1px solid #edf0f2; border-right: 1px solid #edf0f2; font-size: 13px; }
 .reason-select { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 48px; padding: 0 13px; color: #a0a9b2; text-align: left; background: #fff; border: 1px solid #dfe5e8; border-radius: 10px; }
 .reason-select.selected { color: var(--ink); border-color: var(--brand-primary, #e7193f); }
+.reason-select.invalid { color: #b42318; border-color: #ef4444; background: #fff8f8; box-shadow: 0 0 0 2px rgba(239, 68, 68, .08); }
 .reason-select svg { flex: 0 0 auto; color: #a4adb5; }
 .reason-detail { width: 100%; min-height: 92px; margin-top: 10px; border-color: #e3e8eb; font-size: 13px; }
 .reason-counter { margin-top: 5px; color: #a2abb3; text-align: right; font-size: 11px; }
+.after-sale-field-error { margin: 8px 0 0; color: #d92d20; font-size: 12px; font-weight: 700; line-height: 1.5; }
+.after-sale-submit-error { margin: 12px 0 0; padding: 10px 12px; color: #b42318; background: #fff1f0; border: 1px solid #fecdca; border-radius: 9px; font-size: 12px; font-weight: 700; line-height: 1.5; }
 .refund-estimate { margin-top: 4px; padding: 15px; background: #fff7f8; border: 1px solid #f4dbe0; border-radius: 12px; }
 .estimate-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .estimate-head span { color: #7b858f; font-size: 13px; }

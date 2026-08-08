@@ -7,7 +7,6 @@
     <footer v-if="!isAuthPage" class="site-footer">
       <p>{{ legal.companyName || brand.brandName }}</p>
       <nav class="footer-links" aria-label="商城服务信息">
-        <RouterLink to="/legal/faq">常见问题</RouterLink>
         <RouterLink to="/legal/after-sale">交易与售后</RouterLink>
         <RouterLink to="/legal/contact">联系客服</RouterLink>
         <RouterLink to="/legal/agreement">用户协议</RouterLink>
@@ -189,8 +188,8 @@ onBeforeUnmount(() => {
 .home-main { min-height: 100vh; }
 main { min-height: calc(100vh - 120px); }
 .brand-logo { display:block; width:auto; max-width:136px; height:38px; object-fit:contain; }
-.site-footer { padding: 24px 16px calc(62px + env(safe-area-inset-bottom)); text-align: center; color: #999; font-size: 12px; background: #f7f7f7; }
-.footer-links { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px 16px; margin-bottom: 12px; }
+.site-footer { padding: 18px 16px calc(62px + env(safe-area-inset-bottom)); text-align: center; color: #999; font-size: 12px; background: #f7f7f7; }
+.footer-links { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 9px; }
 .footer-links a, .records a { color: #777; text-decoration: none; }
 .site-footer p { margin: 6px 0; }
 .records { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; }

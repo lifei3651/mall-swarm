@@ -35,11 +35,29 @@ test('quick add rejects products whose SKUs are all out of stock', () => {
   assert.equal(item, null)
 })
 
-test('profile hides unused labels and uses a reliable invite navigation', async () => {
+test('profile opens one compact invite dialog instead of navigating away', async () => {
   const source = await readView('ProfileView.vue')
   assert.doesNotMatch(source, /注册用户/)
   assert.doesNotMatch(source, /to="\/orders">全部/)
-  assert.match(source, /window\.location\.assign\('\/invite'\)/)
+  assert.match(source, /inviteDialogVisible\.value = true/)
+  assert.match(source, /<InviteDialog :visible="inviteDialogVisible"/)
+  assert.doesNotMatch(source, /window\.location\.assign\('\/invite'\)/)
+})
+
+test('invite content keeps QR code, invitation code and member data in one card', async () => {
+  const view = await readView('InviteView.vue')
+  const card = await readFile(new URL('../src/components/InviteCard.vue', import.meta.url), 'utf8')
+  const dialog = await readFile(new URL('../src/components/InviteDialog.vue', import.meta.url), 'utf8')
+
+  assert.equal((view.match(/<section class="panel invite-panel">/g) || []).length, 1)
+  assert.match(view, /<InviteCard \/>/)
+  assert.match(card, /alt="邀请注册二维码"/)
+  assert.match(card, /<span>邀请码<\/span>/)
+  assert.match(card, /directAccountCount/)
+  assert.match(card, /directMemberCount/)
+  assert.match(card, /<span>注册账号<\/span>/)
+  assert.match(card, /<span>正式会员<\/span>/)
+  assert.match(dialog, /role="dialog" aria-modal="true"/)
 })
 
 test('mobile interactive areas suppress the browser tap highlight without disabling form input', async () => {
@@ -252,12 +270,12 @@ test('wallet balance records show load failures instead of a misleading empty st
   assert.match(source, /formatDateTime\(item\.createTime\)/)
 })
 
-test('frontend exposes the configured FAQ and service rules', async () => {
+test('frontend retains configured service rules without forcing FAQ into the footer', async () => {
   const legal = await readView('LegalView.vue')
   const app = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
   assert.match(legal, /type === 'faq'/)
   assert.match(legal, /JSON\.parse\(config\.value\.faqs/)
-  assert.match(app, /to="\/legal\/faq"/)
+  assert.doesNotMatch(app, /to="\/legal\/faq"/)
   assert.match(app, /to="\/legal\/after-sale"/)
   assert.match(legal, /replaceTenantPlaceholders/)
 })
@@ -336,6 +354,22 @@ test('refund flow defaults to all items and keeps the application form concise',
   assert.match(source, /预计退款/)
   assert.match(source, /class="order-number-footer"/)
   assert.match(source, /reason: \[selectedReason\.value, afterSaleForm\.value\.reasonDetail\.trim\(\)\]/)
+  assert.match(source, /选择商品和数量/)
+  assert.match(source, /class="required-star"/)
+  assert.match(source, /退款商品数量不能为 0，请至少选择 1 件商品/)
+  assert.match(source, /scrollIntoView\(\{ behavior: 'smooth', block: 'center' \}\)/)
+  assert.match(source, /after-sale-field-error/)
+})
+
+test('footer keeps customer rules and filing access without optional FAQ clutter', async () => {
+  const app = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+
+  assert.doesNotMatch(app, /to="\/legal\/faq">常见问题/)
+  assert.match(app, /to="\/legal\/after-sale">交易与售后/)
+  assert.match(app, /to="\/legal\/contact">联系客服/)
+  assert.match(app, /to="\/legal\/agreement">用户协议/)
+  assert.match(app, /to="\/legal\/privacy">隐私政策/)
+  assert.match(app, /beian\.miit\.gov\.cn/)
 })
 
 test('order queries retry one transient mobile network failure', async () => {

@@ -86,6 +86,7 @@
         </section>
       </div>
     </Teleport>
+    <InviteDialog :visible="inviteDialogVisible" @close="inviteDialogVisible = false" />
   </div>
 </template>
 
@@ -112,9 +113,9 @@ import {
   WalletCards,
 } from 'lucide-vue-next'
 import { getProfile, getProfilePerformance, getWalletSummary, logout, setupAccount } from '@/api/shop'
+import InviteDialog from '@/components/InviteDialog.vue'
 import { money } from '@/utils/format'
 import { clearShopSession } from '@/utils/shopSession'
-import { isNativeApp } from '@/utils/appEnvironment'
 import { normalizeLoginAccountInput, validateLoginAccount } from '@/utils/loginAccount'
 
 const router = useRouter()
@@ -127,6 +128,7 @@ const performanceProfile = ref({})
 const walletSummary = ref({ balance: 0, hasPaymentPassword: false })
 const accountSaving = ref(false)
 const logoutConfirmVisible = ref(false)
+const inviteDialogVisible = ref(false)
 const loggingOut = ref(false)
 const accountForm = ref({ username: '', password: '' })
 
@@ -160,11 +162,7 @@ const orderEntries = computed(() => [
 ])
 
 const openInvite = () => {
-  if (isNativeApp) {
-    router.push('/invite')
-    return
-  }
-  window.location.assign('/invite')
+  inviteDialogVisible.value = true
 }
 
 const fetchProfile = async () => {
