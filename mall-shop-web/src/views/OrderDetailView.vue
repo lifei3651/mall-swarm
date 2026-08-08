@@ -304,7 +304,7 @@ const canApplyAfterSale = computed(() => {
   if (!order.value) return false
   if ([0, 4].includes(order.value.status)) return false
   if (Date.now() >= afterSaleDeadline.value) return false
-  return !afterSales.value.some((item) => item.status === 0)
+  return !afterSales.value.some((item) => [0, 4, 5, 6].includes(item.status))
 })
 const afterSaleForm = ref({
   applyType: 1,
@@ -314,7 +314,7 @@ const afterSaleForm = ref({
 const refundQuantities = ref({})
 
 const usedQuantity = (orderItemId) => afterSales.value
-  .filter((sale) => [0, 1].includes(sale.status))
+  .filter((sale) => [0, 4, 5, 6].includes(sale.status))
   .flatMap((sale) => sale.items || [])
   .filter((item) => item.orderItemId === orderItemId)
   .reduce((sum, item) => sum + Number(item.refundQuantity || 0), 0)

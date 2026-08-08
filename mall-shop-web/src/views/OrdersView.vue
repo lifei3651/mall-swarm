@@ -132,7 +132,7 @@ const orderDisplayStatus = (item) => {
 }
 const canApplyAfterSale = (item) => ![0, 4].includes(item.order?.status)
   && Date.now() < afterSaleDeadline(item.order)
-  && !(item.afterSales || []).some((sale) => sale.status === 0)
+  && !(item.afterSales || []).some((sale) => [0, 4, 5, 6].includes(sale.status))
 
 const cancel = async (id) => {
   actingId.value = id
