@@ -108,7 +108,7 @@
           <el-tag :type="getStatusType(row.status)">{{ row.statusName }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="createTime" label="奖金产生时间" width="170" />
+      <el-table-column prop="createTime" label="奖金产生时间" width="170" :formatter="formatDateTimeCell" />
       <el-table-column label="操作" fixed="right" width="210">
         <template #default="{ row }">
           <el-button
@@ -153,7 +153,7 @@
     <el-dialog v-model="detailVisible" title="奖金记录详情" width="760px">
       <el-descriptions :column="2" border>
         <el-descriptions-item label="记录编号">{{ detail.recordNo }}</el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ detail.createTime || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{ formatDateTime(detail.createTime) }}</el-descriptions-item>
         <el-descriptions-item label="订单编号">{{ detail.orderNo || '-' }}</el-descriptions-item>
         <el-descriptions-item label="订单金额">¥{{ detail.orderAmount || 0 }}</el-descriptions-item>
         <el-descriptions-item label="获奖会员账号">{{ detail.agentMemberAccount || '-' }}</el-descriptions-item>
@@ -163,7 +163,7 @@
         <el-descriptions-item label="奖金比例">{{ percent(detail.commissionRate) }}</el-descriptions-item>
         <el-descriptions-item label="奖金金额">¥{{ detail.commissionAmount || 0 }}</el-descriptions-item>
         <el-descriptions-item label="状态">{{ detail.statusName || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="结算时间">{{ detail.settleTime || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="结算时间">{{ formatDateTime(detail.settleTime) }}</el-descriptions-item>
         <el-descriptions-item label="下单会员账号">{{ detail.orderMemberAccount || '-' }}</el-descriptions-item>
         <el-descriptions-item label="下单会员">{{ detail.orderUserName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="规则版本ID">{{ detail.ruleVersionId || '-' }}</el-descriptions-item>
@@ -180,6 +180,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { memberSearchFailureMessage, memberSearchEmptyText, validateMemberSearch, validateSearchKeyword } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
+import { formatDateTime, formatDateTimeCell } from '@/utils/dateTime'
 import {
   cancelCommission,
   getCommissionRecords,

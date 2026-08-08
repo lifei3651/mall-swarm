@@ -72,7 +72,7 @@
           <el-tag :type="getStatusType(row.status)">{{ row.statusName }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="createTime" label="申请时间" width="160" />
+      <el-table-column prop="createTime" label="申请时间" width="160" :formatter="formatDateTimeCell" />
       <el-table-column prop="auditRemark" label="审核备注" />
       <el-table-column label="操作" fixed="right" width="150">
         <template #default="{ row }">
@@ -124,7 +124,7 @@
     <el-dialog v-model="detailVisible" title="提现详情" width="700px">
       <el-descriptions :column="2" border>
         <el-descriptions-item label="提现单号">{{ detail.withdrawNo }}</el-descriptions-item>
-        <el-descriptions-item label="申请时间">{{ detail.createTime || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="申请时间">{{ formatDateTime(detail.createTime) }}</el-descriptions-item>
         <el-descriptions-item label="会员">{{ detail.memberAccount || '-' }} · {{ detail.agentName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="手机号">{{ detail.memberPhone || '-' }}</el-descriptions-item>
         <el-descriptions-item label="提现金额">¥{{ detail.withdrawAmount }}</el-descriptions-item>
@@ -133,9 +133,9 @@
         <el-descriptions-item label="收款账号">{{ detail.bankAccount || '-' }}</el-descriptions-item>
         <el-descriptions-item label="账户姓名">{{ detail.accountName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="当前状态"><el-tag :type="getStatusType(detail.status)">{{ detail.statusName }}</el-tag></el-descriptions-item>
-        <el-descriptions-item label="审核时间">{{ detail.auditTime || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="审核时间">{{ formatDateTime(detail.auditTime) }}</el-descriptions-item>
         <el-descriptions-item label="审核说明">{{ detail.auditRemark || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="打款时间">{{ detail.payTime || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="打款时间">{{ formatDateTime(detail.payTime) }}</el-descriptions-item>
         <el-descriptions-item label="打款流水号">{{ detail.payNo || '-' }}</el-descriptions-item>
       </el-descriptions>
     </el-dialog>
@@ -149,6 +149,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { confirmPay, getWithdrawStats, listWithdraws } from '@/api/withdraw'
 import { memberSearchFailureMessage, memberSearchEmptyText, validateMemberSearch } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
+import { formatDateTime, formatDateTimeCell } from '@/utils/dateTime'
 
 const loading = ref(false)
 const route = useRoute()

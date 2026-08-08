@@ -80,7 +80,7 @@
           <el-tag :type="accountStatusTag(row)">{{ accountStatusName(row) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="lastLoginTime" label="最近登录时间" width="180"><template #default="{ row }">{{ row.lastLoginTime || '—' }}</template></el-table-column>
+      <el-table-column prop="lastLoginTime" label="最近登录时间" width="180"><template #default="{ row }">{{ formatDateTime(row.lastLoginTime) }}</template></el-table-column>
       <el-table-column label="操作" fixed="right" width="210">
         <template #default="{ row }">
           <div class="operation-actions">
@@ -173,7 +173,7 @@
               <el-descriptions :column="3" border>
                 <el-descriptions-item label="原平台会员编号">{{ profile.migrationBaseline.externalMemberCode }}</el-descriptions-item>
                 <el-descriptions-item label="平移批次">{{ profile.migrationBaseline.batchNo }}</el-descriptions-item>
-                <el-descriptions-item label="切换时间">{{ profile.migrationBaseline.cutoverTime }}</el-descriptions-item>
+                <el-descriptions-item label="切换时间">{{ formatDateTime(profile.migrationBaseline.cutoverTime) }}</el-descriptions-item>
                 <el-descriptions-item label="迁入卡级">{{ levelName(profile.migrationBaseline.initialLevel) }}</el-descriptions-item>
                 <el-descriptions-item label="历史有效商品件数">{{ profile.migrationBaseline.historicalOrderCount }}</el-descriptions-item>
                 <el-descriptions-item label="历史个人业绩">{{ money(profile.migrationBaseline.historicalPersonalPerformance) }}</el-descriptions-item>
@@ -221,7 +221,7 @@
                 <el-table-column label="奖金比例" width="90"><template #default="{ row }">{{ percent(row.commissionRate) }}</template></el-table-column>
                 <el-table-column label="奖金金额" width="110"><template #default="{ row }">¥{{ money(row.commissionAmount) }}</template></el-table-column>
                 <el-table-column prop="statusName" label="奖金状态" width="100" />
-                <el-table-column prop="createTime" label="奖金产生时间" width="170" />
+                <el-table-column prop="createTime" label="奖金产生时间" width="170" :formatter="formatDateTimeCell" />
               </el-table>
             </el-card>
 
@@ -257,7 +257,7 @@
                 <el-table-column label="提现金额" width="110"><template #default="{ row }">¥{{ money(row.withdrawAmount) }}</template></el-table-column>
                 <el-table-column prop="accountName" label="账户姓名" width="120" />
                 <el-table-column prop="status" label="提现状态" width="100" />
-                <el-table-column prop="createTime" label="申请时间" width="170" />
+                <el-table-column prop="createTime" label="申请时间" width="170" :formatter="formatDateTimeCell" />
                 <el-table-column prop="auditRemark" label="审核备注" min-width="180" />
               </el-table>
             </el-card>
@@ -428,6 +428,7 @@ import { deductAsset, issueAsset } from '@/api/assets'
 import { memberSearchEmptyText, validateMemberSearch } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
 import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
+import { formatDateTime, formatDateTimeCell } from '@/utils/dateTime'
 
 const loading = ref(false)
 const route = useRoute()
@@ -491,7 +492,6 @@ const profileDialogTitle = computed(() => {
 })
 
 const money = (value) => Number(value || 0).toFixed(2)
-const formatDateTime = (value) => value ? String(value).replace('T', ' ') : '-'
 const normalizedText = (value) => String(value || '').trim()
 const memberDisplayName = (row) => {
   const nickname = normalizedText(row?.nickname)

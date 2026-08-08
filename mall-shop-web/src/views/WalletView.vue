@@ -44,7 +44,7 @@
       <h3>提现记录</h3>
       <div v-if="!withdrawals.length" class="records-empty">暂无提现记录</div>
       <article v-for="item in withdrawals" :key="item.id" class="record-item">
-        <div><strong>{{ item.withdrawTypeName || '余额提现' }}</strong><small>{{ item.createTime || '-' }}</small></div>
+        <div><strong>{{ item.withdrawTypeName || '余额提现' }}</strong><small>{{ formatDateTime(item.createTime) }}</small></div>
         <div><strong>¥{{ money(item.withdrawAmount) }}</strong><small :class="`status-${item.status}`">{{ item.statusName || withdrawStatusName(item.status) }}</small></div>
       </article>
     </section>
@@ -73,7 +73,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, ChevronRight, History, Landmark, ReceiptText, Send, ShieldAlert } from 'lucide-vue-next'
 import { applyWithdrawal, getProfile, getWalletSummary, listMyBalanceFlows, listMyWithdrawals, sendSmsCode } from '@/api/shop'
-import { money } from '@/utils/format'
+import { dateTime, money } from '@/utils/format'
 import { createIdempotencyKey } from '@/utils/idempotency'
 import { isValidMainlandPhone } from '@/utils/phone'
 
@@ -115,10 +115,10 @@ const loadFlows = async () => {
   try { balanceFlows.value = (await listMyBalanceFlows()).data || [] }
   catch (e) { balanceFlows.value = []; flowsError.value = e.message || '余额记录加载失败，请稍后重试' }
 }
-const formatDateTime = (value) => value ? String(value).replace('T', ' ') : '-'
 const flowTypeName = (type) => ({ 1: '入账', 2: '支付', 3: '转出', 4: '转入', 5: '扣减' }[type] || '余额变动')
 const flowAmountPrefix = (type) => [1, 4].includes(type) ? '+' : '-'
 const flowAmountClass = (type) => [1, 4].includes(type) ? 'amount-in' : 'amount-out'
+const formatDateTime = (value) => dateTime(value)
 
 const sendWithdrawCode = async () => {
   error.value = ''

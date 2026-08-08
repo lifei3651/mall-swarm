@@ -64,6 +64,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { listOperationLogs } from '@/api/operationLog'
+import { formatDateTime as formatOperationTime } from '@/utils/dateTime'
 
 const query = ref({})
 const logs = ref([])
@@ -92,7 +93,6 @@ const openDetail = (row) => {
   detailVisible.value = true
 }
 
-const formatOperationTime = (value) => value ? String(value).replace('T', ' ').slice(0, 19) : '-'
 
 const moduleName = (value) => ({
   ASSET: '会员资产', AGENT: '会员关系', ORDER: '订单', BONUS_CONFIG: '奖金设置', ERP: 'ERP', ADMIN_API: '后台操作',

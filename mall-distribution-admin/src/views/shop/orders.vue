@@ -374,6 +374,7 @@ import { formatProductSpec } from '@/utils/productSpec'
 import { validateSearchKeyword } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
 import { useAppStore } from '@/store'
+import { formatDateTime } from '@/utils/dateTime'
 
 const appStore = useAppStore()
 const orderLoading = ref(false)
@@ -420,7 +421,6 @@ const { markSearchApplied: markOrderSearchApplied } = useSearchAutoRestore(
   },
 )
 const money = (value) => Number(value || 0).toFixed(2)
-const formatDateTime = (value) => value ? String(value).replace('T', ' ').slice(0, 19) : '-'
 const percent = (value) => `${(Number(value || 0) * 100).toFixed(2)}%`
 const payoutExceeded = (orderAmount, bonusAmount) => Number(bonusAmount || 0) > Number(orderAmount || 0)
 const bonusTypeName = (row) => row.bonusType === 'DIRECT_REWARD'

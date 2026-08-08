@@ -18,7 +18,7 @@
         <el-table-column prop="bankName" label="银行名称" width="120" />
         <el-table-column prop="bankAccount" label="银行账号" width="180" />
         <el-table-column prop="accountName" label="账户姓名" width="100" />
-        <el-table-column prop="createTime" label="申请时间" width="160" />
+        <el-table-column prop="createTime" label="申请时间" width="160" :formatter="formatDateTimeCell" />
         <el-table-column label="操作" fixed="right" width="200">
           <template #default="{ row }">
             <el-button type="success" link @click="handleAudit(row, 1)">通过</el-button>
@@ -58,7 +58,7 @@
     <el-dialog v-model="detailVisible" title="提现申请详情" width="650px">
       <el-descriptions :column="2" border>
         <el-descriptions-item label="提现单号">{{ detail.withdrawNo }}</el-descriptions-item>
-        <el-descriptions-item label="申请时间">{{ detail.createTime || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="申请时间">{{ formatDateTime(detail.createTime) }}</el-descriptions-item>
         <el-descriptions-item label="会员">{{ detail.memberAccount || '-' }} · {{ detail.agentName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="手机号">{{ detail.memberPhone || '-' }}</el-descriptions-item>
         <el-descriptions-item label="提现金额">¥{{ detail.withdrawAmount }}</el-descriptions-item>
@@ -76,6 +76,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { auditWithdraw, getPendingAuditWithdraws } from '@/api/withdraw'
+import { formatDateTime, formatDateTimeCell } from '@/utils/dateTime'
 
 const loading = ref(false)
 const submitLoading = ref(false)

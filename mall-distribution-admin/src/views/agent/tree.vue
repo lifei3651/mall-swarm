@@ -103,7 +103,7 @@
         <el-descriptions-item label="本月团队业绩">¥{{ formatMoney(currentAgent.currentMonthPerformance) }}</el-descriptions-item>
         <el-descriptions-item label="累计奖金">¥{{ formatMoney(currentAgent.totalCommission) }}</el-descriptions-item>
         <el-descriptions-item label="团队人数">{{ Number(currentAgent.teamMemberCount || 0) }} 人</el-descriptions-item>
-        <el-descriptions-item label="注册时间">{{ currentAgent.createTime }}</el-descriptions-item>
+        <el-descriptions-item label="注册时间">{{ formatDateTime(currentAgent.createTime) }}</el-descriptions-item>
       </el-descriptions>
     </el-drawer>
   </div>
@@ -116,6 +116,7 @@ import { ElMessage } from 'element-plus'
 import { resolveAgent, getAllDescendants, getRootAgents } from '@/api/agent'
 import { memberSearchFailureMessage, validateMemberSearch } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
+import { formatDateTime } from '@/utils/dateTime'
 
 const router = useRouter()
 const route = useRoute()

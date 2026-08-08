@@ -48,7 +48,7 @@
         </template>
       </el-table-column>
       <el-table-column label="登录锁定" width="100"><template #default="{ row }"><el-tag :type="row.lockTime ? 'danger' : 'success'">{{ row.lockTime ? '已锁定' : '正常' }}</el-tag></template></el-table-column>
-      <el-table-column prop="lastLoginTime" label="最近登录时间" width="170" />
+      <el-table-column prop="lastLoginTime" label="最近登录时间" width="170" :formatter="formatDateTimeCell" />
       <el-table-column label="操作" width="260" fixed="right">
         <template #default="{ row }">
           <el-button type="primary" link @click="openEditor(row)">编辑</el-button>
@@ -147,6 +147,7 @@ import {
 import { useAppStore } from '@/store'
 import { validateSearchKeyword } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
+import { formatDateTimeCell } from '@/utils/dateTime'
 
 const store = useAppStore()
 const query = reactive({ keyword: '', status: undefined })

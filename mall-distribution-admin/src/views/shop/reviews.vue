@@ -98,6 +98,7 @@ import { Refresh, Search } from '@element-plus/icons-vue'
 import { listProductReviews, listShopProducts, updateProductReviewStatus } from '@/api/shop'
 import { validateSearchKeyword } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
+import { formatDateTime as formatTime } from '@/utils/dateTime'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -166,7 +167,6 @@ const restoreReview = async (row) => {
   await fetchData()
 }
 
-const formatTime = (value) => value ? String(value).replace('T', ' ').slice(0, 19) : '-'
 
 onMounted(async () => { await Promise.all([fetchProducts(), fetchData()]) })
 </script>

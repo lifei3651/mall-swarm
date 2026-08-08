@@ -35,7 +35,7 @@
         <template #default="{ row }"><el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '已启用' : '已停用' }}</el-tag></template>
       </el-table-column>
       <el-table-column prop="remark" label="备注" min-width="240"><template #default="{ row }">{{ row.remark || '-' }}</template></el-table-column>
-      <el-table-column prop="updateTime" label="更新时间" width="180" />
+      <el-table-column prop="updateTime" label="更新时间" width="180" :formatter="formatDateTimeCell" />
       <el-table-column label="操作" fixed="right" width="250">
         <template #default="{ row }">
           <el-button link type="primary" @click="openDialog(row)">编辑</el-button>
@@ -73,6 +73,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Picture, Plus, Search } from '@element-plus/icons-vue'
 import { createShopCategory, deleteShopCategory, listShopCategories, updateShopCategory, updateShopCategoryStatus, uploadShopImage } from '@/api/shop'
 import { validateSearchKeyword } from '@/utils/searchFeedback'
+import { formatDateTimeCell } from '@/utils/dateTime'
 
 const loading = ref(false)
 const saving = ref(false)

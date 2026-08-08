@@ -61,7 +61,7 @@
         <el-table :data="profile.orders || []" v-loading="loading" style="width: 100%">
           <el-table-column prop="orderId" label="订单ID" width="120" />
           <el-table-column prop="orderNo" label="订单编号" min-width="170" />
-          <el-table-column prop="orderTime" label="下单时间" min-width="160" />
+          <el-table-column prop="orderTime" label="下单时间" min-width="160" :formatter="formatDateTimeCell" />
           <el-table-column prop="orderAmount" label="支付金额" width="120">
             <template #default="{ row }">¥{{ money(row.orderAmount) }}</template>
           </el-table-column>
@@ -93,7 +93,7 @@
             <template #default="{ row }">¥{{ money(row.commissionAmount) }}</template>
           </el-table-column>
           <el-table-column prop="statusName" label="奖金状态" width="100" />
-          <el-table-column prop="createTime" label="产生时间" width="170" />
+          <el-table-column prop="createTime" label="产生时间" width="170" :formatter="formatDateTimeCell" />
           <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
         </el-table>
       </el-card>
@@ -179,7 +179,7 @@
           </el-table-column>
           <el-table-column prop="accountName" label="账户姓名" width="120" />
           <el-table-column prop="status" label="提现状态" width="100" />
-          <el-table-column prop="createTime" label="申请时间" min-width="160" />
+          <el-table-column prop="createTime" label="申请时间" min-width="160" :formatter="formatDateTimeCell" />
           <el-table-column prop="auditRemark" label="审核备注" min-width="180" show-overflow-tooltip />
         </el-table>
       </el-card>
@@ -193,6 +193,7 @@ import { useRoute } from 'vue-router'
 import { getPersonProfile } from '@/api/audit'
 import { memberSearchFailureMessage, validateMemberSearch } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
+import { formatDateTime, formatDateTimeCell } from '@/utils/dateTime'
 
 const loading = ref(false)
 const route = useRoute()
@@ -245,7 +246,6 @@ const handleSearch = async () => {
 }
 
 const money = (value) => Number(value || 0).toFixed(2)
-const formatDateTime = (value) => value ? String(value).replace('T', ' ') : '-'
 const percent = (value) => `${(Number(value || 0) * 100).toFixed(2)}%`
 const levelName = (level) => ({ 1:'会员', 2:'VIP会员', 3:'店铺', 4:'代理', 5:'一星董事', 6:'二星董事', 7:'三星董事', 8:'合伙人' }[Number(level)] || '-')
 

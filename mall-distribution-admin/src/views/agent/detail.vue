@@ -31,7 +31,7 @@
             <el-descriptions-item label="推广线上级">{{ agentInfo.parentName || '-' }}</el-descriptions-item>
             <el-descriptions-item label="层级深度">{{ agentInfo.levelDepth }}</el-descriptions-item>
             <el-descriptions-item label="来源">{{ agentInfo.sourceTypeName }}</el-descriptions-item>
-            <el-descriptions-item label="注册时间">{{ agentInfo.createTime }}</el-descriptions-item>
+            <el-descriptions-item label="注册时间">{{ formatDateTime(agentInfo.createTime) }}</el-descriptions-item>
           </el-descriptions>
         </el-card>
       </el-col>
@@ -143,6 +143,7 @@ import { ElMessage } from 'element-plus'
 import { getAccountByAgentId } from '@/api/account'
 import { generateQrCode, getAgentById } from '@/api/agent'
 import { getPerformanceOverview } from '@/api/performance'
+import { formatDateTime } from '@/utils/dateTime'
 
 const router = useRouter()
 const route = useRoute()

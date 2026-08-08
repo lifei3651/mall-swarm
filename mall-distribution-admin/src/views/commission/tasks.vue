@@ -32,8 +32,8 @@
         <template #default="{ row }">{{ row.retryCount || 0 }}/{{ row.maxRetryCount || 0 }}</template>
       </el-table-column>
       <el-table-column prop="failReason" label="失败原因" min-width="220" show-overflow-tooltip />
-      <el-table-column prop="nextRetryTime" label="下次重试时间" width="175" />
-      <el-table-column prop="createTime" label="创建时间" width="170" />
+      <el-table-column prop="nextRetryTime" label="下次重试时间" width="175" :formatter="formatDateTimeCell" />
+      <el-table-column prop="createTime" label="创建时间" width="170" :formatter="formatDateTimeCell" />
       <el-table-column label="操作" fixed="right" width="110">
         <template #default="{ row }">
           <el-button type="primary" link :disabled="row.status === 1 || row.status === 2" @click="handleProcessOne(row)">
@@ -61,6 +61,7 @@ import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { listCalculationTasks, processCalculationTask, processCalculationTasks } from '@/api/commission'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
+import { formatDateTimeCell } from '@/utils/dateTime'
 
 const loading = ref(false)
 const query = ref({})

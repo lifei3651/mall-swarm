@@ -90,7 +90,7 @@
             <el-tag :type="getStatusType(row.status)">{{ row.statusName }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="奖金产生时间" />
+        <el-table-column prop="createTime" label="奖金产生时间" :formatter="formatDateTimeCell" />
       </el-table>
     </el-card>
 
@@ -115,7 +115,7 @@
             <el-tag :type="getWithdrawStatusType(row.status)">{{ row.statusName }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="申请时间" />
+        <el-table-column prop="createTime" label="申请时间" :formatter="formatDateTimeCell" />
       </el-table>
     </el-card>
   </div>
@@ -128,6 +128,7 @@ import { getAccountByAgentId } from '@/api/account'
 import { getAgentById } from '@/api/agent'
 import { getCommissionRecords } from '@/api/commission'
 import { getWithdrawsByAgentId } from '@/api/withdraw'
+import { formatDateTimeCell } from '@/utils/dateTime'
 
 const router = useRouter()
 const route = useRoute()

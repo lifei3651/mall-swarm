@@ -65,7 +65,7 @@
           <span style="color: #67c23a; font-weight: bold">¥{{ row.commissionAmount }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="createTime" label="创建时间" width="160" />
+      <el-table-column prop="createTime" label="创建时间" width="160" :formatter="formatDateTimeCell" />
     </el-table>
 
     <!-- 分页 -->
@@ -86,6 +86,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { getCommissionRecords, listSettlementBatches } from '@/api/commission'
+import { formatDateTimeCell } from '@/utils/dateTime'
 
 const loading = ref(false)
 const settlementBatches = ref([])

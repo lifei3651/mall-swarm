@@ -10,7 +10,7 @@ describe('后台操作日志', () => {
 
     expect(source).toContain('formatOperationTime(row.createTime)')
     expect(source).toContain('formatOperationTime(current.createTime)')
-    expect(source).toContain("String(value).replace('T', ' ').slice(0, 19)")
+    expect(source).toContain("formatDateTime as formatOperationTime")
     expect(source).not.toContain('<el-table-column prop="createTime" label="操作时间"')
   })
 })

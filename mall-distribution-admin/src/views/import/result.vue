@@ -23,7 +23,7 @@
           <span style="color: #f56c6c">{{ result.failCount }}</span>
         </el-descriptions-item>
         <el-descriptions-item label="操作人">{{ result.operatorName }}</el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ result.createTime }}</el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{ formatDateTime(result.createTime) }}</el-descriptions-item>
       </el-descriptions>
 
       <!-- 进度条 -->
@@ -63,6 +63,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getImportResult } from '@/api/import'
+import { formatDateTime } from '@/utils/dateTime'
 
 const router = useRouter()
 const route = useRoute()

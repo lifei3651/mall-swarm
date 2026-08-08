@@ -22,7 +22,7 @@
       <el-table-column prop="reason" label="移线原因" min-width="180"/>
       <el-table-column prop="applicantName" label="操作人" width="110"/>
       <el-table-column prop="auditorName" label="处理人" width="110"/>
-      <el-table-column prop="effectiveTime" label="生效时间" width="170"/>
+      <el-table-column prop="effectiveTime" label="生效时间" width="170" :formatter="formatDateTimeCell" />
       <el-table-column label="移线状态" width="120"><template #default="{row}"><el-tag>{{ statusText(row.status) }}</el-tag></template></el-table-column>
       <el-table-column label="操作" width="240" fixed="right">
         <template #default="{row}">
@@ -47,6 +47,7 @@ import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { auditLineChangeApplication, listLineChangeApplications } from '@/api/agent'
 import { useAppStore } from '@/store'
+import { formatDateTimeCell } from '@/utils/dateTime'
 const store=useAppStore()
 const rows=ref([]), loading=ref(false), status=ref(null)
 const snapshotVisible=ref(false), selectedBefore=ref(''), selectedAfter=ref('')

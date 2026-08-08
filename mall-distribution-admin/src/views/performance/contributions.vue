@@ -100,7 +100,7 @@
             <span style="color: #67c23a">¥{{ row.performanceAmount }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="orderTime" label="下单时间" width="160" />
+        <el-table-column prop="orderTime" label="下单时间" width="160" :formatter="formatDateTimeCell" />
         <el-table-column prop="performanceType" label="来源类型" width="100">
           <template #default="{ row }">{{ row.performanceType === 1 ? '个人订单' : '团队订单' }}</template>
         </el-table-column>
@@ -119,6 +119,7 @@ import { getSubordinateContributions, getSubordinateOrderDetails, getPerformance
 import { createRecentDateRange, performanceDateShortcuts } from '@/utils/performanceDateRange'
 import { memberSearchFailureMessage, validateMemberSearch } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
+import { formatDateTimeCell } from '@/utils/dateTime'
 
 const router = useRouter()
 const loading = ref(false)

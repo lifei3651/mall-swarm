@@ -120,6 +120,7 @@ import { onMounted, ref } from 'vue'
 import { getBalanceFlowSummary, listBalanceFlowRecords } from '@/api/assets'
 import { validateSearchKeyword } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
+import { formatDateTime } from '@/utils/dateTime'
 
 const loading = ref(false)
 const rows = ref([])
@@ -134,7 +135,6 @@ const { markSearchApplied: markKeywordSearchApplied } = useSearchAutoRestore(
 )
 
 const money = (value) => Number(value || 0).toFixed(2)
-const formatDateTime = (value) => value ? String(value).replace('T', ' ') : '-'
 const isIncome = (type) => [1, 4].includes(Number(type))
 const changeTypeName = (type) => ({ 1: '发放', 2: '消费', 3: '转出', 4: '转入', 5: '扣减' }[Number(type)] || '其他')
 const relatedNumber = (row) => {

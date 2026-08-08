@@ -65,7 +65,7 @@
         </template>
       </el-table-column>
       <el-table-column prop="sourceTypeName" label="来源" width="100" />
-      <el-table-column prop="createTime" label="注册时间" width="160" />
+      <el-table-column prop="createTime" label="注册时间" width="160" :formatter="formatDateTimeCell" />
       <el-table-column label="操作" fixed="right" width="300">
         <template #default="{ row }">
           <el-button type="primary" link @click="handleDetail(row)">详情</el-button>
@@ -180,6 +180,7 @@ import { Plus, Download } from '@element-plus/icons-vue'
 import { adjustAgentLevel, exportAgents, listAgents, switchLine, updateAgentStatus } from '@/api/agent'
 import { memberSearchEmptyText, validateMemberSearch } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
+import { formatDateTimeCell } from '@/utils/dateTime'
 
 const router = useRouter()
 const store = useAppStore()
