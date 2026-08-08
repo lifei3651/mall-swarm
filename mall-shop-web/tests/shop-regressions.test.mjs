@@ -60,6 +60,16 @@ test('profile renders immediately and loads order counts, wallet and performance
   assert.doesNotMatch(orders, /pageSize: 500/)
 })
 
+test('profile shows every team performance entry only when backend grants access', async () => {
+  const profile = await readView('ProfileView.vue')
+
+  assert.match(profile, /v-if="showTeamPerformance" to="\/profile\/team"><span>本月团队业绩<\/span>/)
+  assert.match(profile, /v-if="showTeamPerformance" to="\/profile\/team" class="menu-tile"/)
+  assert.match(profile, /identity-stats" :class="\{ 'without-team-performance': !showTeamPerformance \}"/)
+  assert.match(profile, /profile-menu" :class="\{ 'without-team-performance': !showTeamPerformance \}"/)
+  assert.match(profile, /performanceProfile\.value\.canViewTeamPerformance === true/)
+})
+
 test('checkout keeps the address block compact and preserves the remark while switching', async () => {
   const source = await readView('CheckoutView.vue')
   const address = await readView('AddressView.vue')

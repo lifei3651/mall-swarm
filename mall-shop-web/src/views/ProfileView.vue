@@ -13,9 +13,9 @@
           </div>
           <button type="button" class="invite-mini" @click="openInvite"><Gift :size="17" />邀请</button>
         </div>
-        <div class="identity-stats">
+        <div class="identity-stats" :class="{ 'without-team-performance': !showTeamPerformance }">
           <RouterLink to="/profile/wallet"><span>余额</span><strong>{{ walletLoading ? '加载中' : `¥${money(walletSummary.balance)}` }}</strong></RouterLink>
-          <RouterLink to="/profile/team"><span>本月团队业绩</span><strong>{{ teamPerformanceText }}</strong></RouterLink>
+          <RouterLink v-if="showTeamPerformance" to="/profile/team"><span>本月团队业绩</span><strong>{{ teamPerformanceText }}</strong></RouterLink>
           <div><span>团队身份</span><strong>{{ profileLoading ? '加载中' : (activeAgent ? identityInfo.name : '首单后开通') }}</strong></div>
         </div>
         </section>
@@ -35,12 +35,12 @@
         </div>
       </section>
 
-      <section class="profile-menu">
+      <section class="profile-menu" :class="{ 'without-team-performance': !showTeamPerformance }">
         <RouterLink to="/profile/wallet" class="menu-tile">
           <span class="tile-icon wallet-icon"><WalletCards :size="26" /></span>
           <span class="tile-label">余额</span>
         </RouterLink>
-        <RouterLink to="/profile/team" class="menu-tile">
+        <RouterLink v-if="showTeamPerformance" to="/profile/team" class="menu-tile">
           <span class="tile-icon team-icon"><ChartNoAxesCombined :size="26" /></span>
           <span class="tile-label">业绩</span>
         </RouterLink>
@@ -148,7 +148,7 @@ const orderSummary = computed(() => profile.value.orderSummary || {})
 const showTeamPerformance = computed(() => performanceProfile.value.canViewTeamPerformance === true)
 const teamPerformanceText = computed(() => {
   if (performanceLoading.value) return '加载中'
-  return showTeamPerformance.value ? `¥${money(performanceProfile.value.performance?.currentMonthTeamPerformance)}` : '查看详情'
+  return `¥${money(performanceProfile.value.performance?.currentMonthTeamPerformance)}`
 })
 const orderEntries = computed(() => [
   { key: 'pending-payment', label: '待支付', icon: WalletCards, count: Number(orderSummary.value.pendingPayment || 0) },
@@ -248,6 +248,7 @@ onMounted(() => {
 .identity-main p { margin:6px 0 0; color:rgba(255,255,255,.76); font-size:12px; }
 .invite-mini { position:relative; z-index:2; display:inline-flex; align-items:center; gap:4px; padding:8px 10px; color:#fff; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.24); border-radius:999px; font-size:12px; }
 .identity-stats { position:relative; z-index:1; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1px; margin-top:22px; padding-top:17px; border-top:1px solid rgba(255,255,255,.22); }
+.identity-stats.without-team-performance { grid-template-columns:repeat(2,minmax(0,1fr)); }
 .identity-stats > * { min-width:0; padding:0 10px; border-right:1px solid rgba(255,255,255,.18); text-align:center; }
 .identity-stats > *:last-child { border-right:0; }
 .identity-stats span,.identity-stats strong { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -262,6 +263,7 @@ onMounted(() => {
 .order-entry-icon { position:relative; display:inline-grid; place-items:center; color:#252b37; }
 .order-entry-icon em { position:absolute; top:-9px; right:-13px; display:grid; place-items:center; min-width:18px; height:18px; padding:0 4px; color:#fff; background:var(--brand-primary); border:2px solid #fff; border-radius:999px; font-size:9px; font-style:normal; font-weight:800; }
 .profile-menu { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:14px; }
+.profile-menu.without-team-performance { grid-template-columns:repeat(3,minmax(0,1fr)); }
 .menu-tile { position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; aspect-ratio:1; padding:14px 8px; background:#fff; border-radius:16px; box-shadow:0 4px 14px rgba(31,41,55,.05); text-align:center; }
 .tile-icon { width:48px; height:48px; display:grid; place-items:center; border-radius:14px; }
 .tile-label { font-size:13px; font-weight:600; color:var(--ink); }
