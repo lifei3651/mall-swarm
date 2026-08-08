@@ -133,6 +133,18 @@ test('registration login account filters illegal characters and validates its st
   assert.equal(resolveRegistrationErrorField('网络错误'), '')
 })
 
+test('registration submit uses accurate popup feedback instead of a red bottom login hint', async () => {
+  const login = await readView('LoginView.vue')
+
+  assert.doesNotMatch(login, /已有账号，返回登录/)
+  assert.match(login, /class="register-back-login"/)
+  assert.match(login, /class="register-popup-mask"/)
+  assert.match(login, /短信验证码应为6位/)
+  assert.match(login, /短信验证码错误，请重新输入/)
+  assert.match(login, /短信验证码已过期，请重新获取/)
+  assert.match(login, /showRegisterPopup\('账号注册成功', 'success'/)
+})
+
 test('nickname is edited in account settings with the same front and back compatible rules', async () => {
   const profile = await readView('ProfileView.vue')
   const settings = await readView('ProfileSettingsView.vue')

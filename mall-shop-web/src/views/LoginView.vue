@@ -9,6 +9,7 @@
         <h2>{{ mode === 'login' ? '商城账号登录' : '注册商城账号' }}</h2>
         <p v-if="mode === 'login'">登录后可管理地址、订单和售后。</p>
       </div>
+      <button v-if="mode === 'register'" type="button" class="register-back-login" @click="switchMode('login')">返回登录</button>
     </div>
 
     <section class="panel auth-panel" :class="{ 'register-panel': mode === 'register' }">
@@ -190,11 +191,20 @@
         <span></span>
         <RouterLink to="/forgot-password">忘记密码</RouterLink>
       </div>
-      <div v-else class="account-links single-link">
-        <button type="button" @click="switchMode('login')">已有账号，返回登录</button>
-      </div>
 
     </section>
+
+    <Teleport to="body">
+      <Transition name="register-popup">
+        <div v-if="registerPopup.message" class="register-popup-mask" role="status" aria-live="assertive">
+          <section class="register-popup" :class="registerPopup.type">
+            <CircleCheckBig v-if="registerPopup.type === 'success'" :size="30" />
+            <CircleAlert v-else :size="30" />
+            <strong>{{ registerPopup.message }}</strong>
+          </section>
+        </div>
+      </Transition>
+    </Teleport>
 
     <Transition name="auth-feedback">
       <div v-if="error || success" class="auth-feedback-toast" :class="{ success: !!success }" role="status" aria-live="polite">
@@ -207,7 +217,7 @@
 <script setup>
 import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Check } from 'lucide-vue-next'
+import { Check, CircleAlert, CircleCheckBig } from 'lucide-vue-next'
 import { getInviterPreview, getLoginCaptcha, login, register, sendSmsCode } from '@/api/shop'
 import { isNativeApp } from '@/utils/appEnvironment'
 import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
@@ -229,6 +239,7 @@ const loginType = ref('password') // password | sms
 const loading = ref(false)
 const error = ref('')
 const success = ref('')
+const registerPopup = ref({ type: '', message: '' })
 const smsCooldown = ref(0)
 
 const loginForm = ref({ account: '', password: '', captchaId: '', captchaCode: '' })
@@ -246,6 +257,7 @@ let activeInviteRequest = null
 let activeInviteRequestCode = ''
 let feedbackTimer
 let fieldErrorTimer
+let registerPopupTimer
 let cooldownTimer
 const inviteCodeLocked = computed(() => !!(route.query.inviteCode || route.query.code))
 const legalRoute = (type) => ({ name: 'Legal', params: { type }, query: { from: 'register' } })
@@ -259,7 +271,27 @@ const clearFeedback = ({ clearFields = true } = {}) => {
     loginFieldErrors.value = {}
     fieldErrors.value = {}
   }
+  window.clearTimeout(registerPopupTimer)
+  registerPopup.value = { type: '', message: '' }
 }
+
+const showRegisterPopup = (message, type = 'error', duration = 1800) => {
+  window.clearTimeout(registerPopupTimer)
+  registerPopup.value = { type, message: String(message || '提交失败') }
+  registerPopupTimer = window.setTimeout(() => { registerPopup.value = { type: '', message: '' } }, duration)
+}
+
+const normalizeRegisterFeedback = (message, field = '') => {
+  const text = String(message || '提交失败')
+  if (field === 'smsCode' || /短信验证码/.test(text)) {
+    if (/过期|失效|超时/.test(text)) return '短信验证码已过期，请重新获取'
+    if (/6位|长度|格式/.test(text)) return '短信验证码应为6位'
+    return '短信验证码错误，请重新输入'
+  }
+  return text
+}
+
+const waitForPopup = (duration) => new Promise((resolve) => window.setTimeout(resolve, duration))
 
 const switchMode = (value) => {
   mode.value = value
@@ -306,6 +338,7 @@ watch(configuredBrandLogo, () => { logoLoadFailed.value = false })
 onBeforeUnmount(() => {
   clearFeedback()
   window.clearInterval(cooldownTimer)
+  window.clearTimeout(registerPopupTimer)
 })
 
 const normalizeInviteCode = (value) => value?.trim().toUpperCase() || ''
@@ -367,7 +400,7 @@ const validateRegisterField = (field) => {
     const message = validateLoginAccount(form.username)
     if (message) fieldErrors.value.username = message
   } else if (field === 'smsCode' && !/^\d{6}$/.test(form.smsCode?.trim() || '')) {
-    fieldErrors.value.smsCode = '请输入6位短信验证码'
+    fieldErrors.value.smsCode = '短信验证码应为6位'
   } else if (field === 'password') {
     const length = form.password?.length || 0
     if (length < 6 || length > 32) fieldErrors.value.password = '登录密码需为6至32位'
@@ -536,7 +569,9 @@ const showRegisterServerError = async (message) => {
   const text = String(message || '提交失败')
   const field = resolveRegistrationErrorField(text)
   if (!field) return false
-  fieldErrors.value = { [field]: text }
+  const feedback = normalizeRegisterFeedback(text, field)
+  fieldErrors.value = { [field]: feedback }
+  showRegisterPopup(feedback)
   scheduleRegisterErrorsClear()
   await focusFirstRegisterError()
   return true
@@ -557,10 +592,13 @@ const submit = async () => {
     }
   } else {
     if (!validateRegisterForm()) {
+      const firstMessage = Object.values(fieldErrors.value)[0] || '请检查注册信息'
+      showRegisterPopup(normalizeRegisterFeedback(firstMessage, Object.keys(fieldErrors.value)[0]))
       await focusFirstRegisterError()
       return
     }
     if (!await loadInviter()) {
+      showRegisterPopup(fieldErrors.value.inviteCode || inviteError.value || '邀请码验证失败')
       await focusFirstRegisterError()
       return
     }
@@ -589,6 +627,8 @@ const submit = async () => {
     applyShopSession(res.data.token, res.data.member)
     if (registering) {
       clearRegisterDraft()
+      showRegisterPopup('账号注册成功', 'success', 1200)
+      await waitForPopup(850)
       if (isNativeApp) {
         await router.replace('/profile')
       } else {
@@ -600,6 +640,10 @@ const submit = async () => {
     await router.push(redirect)
   } catch (e) {
     if (mode.value === 'register' && await showRegisterServerError(e.message)) return
+    if (mode.value === 'register') {
+      showRegisterPopup(e.message || '注册失败，请稍后重试')
+      return
+    }
     error.value = isStaleChunkError(e)
       ? '页面资源已更新，正在为您重新加载，请稍候…'
       : (e.message || '提交失败')
@@ -615,6 +659,7 @@ const submit = async () => {
 .auth-brand-header { min-height:56px; display:flex; align-items:center; justify-content:center; margin:16px auto 18px; }
 .auth-brand-logo { display:block; width:auto; max-width:min(160px,48vw); height:auto; max-height:56px; object-fit:contain; }
 .auth-page .section-head { margin: 10px 0 12px; }
+.register-back-login { min-height:34px; padding:0 12px; color:#667085; background:#fff; border:1px solid #dfe3e8; border-radius:999px; font-size:12px; font-weight:700; }
 .auth-page .auth-panel { border-radius: 14px; box-shadow: 0 10px 28px rgba(24, 32, 42, .06); }
 .auth-submit { width: 100%; min-height: 42px; margin-top: 12px; }
 
@@ -699,8 +744,6 @@ const submit = async () => {
   text-decoration: underline;
 }
 
-.single-link { justify-content: center; }
-
 .required-mark { color: var(--coral); font-weight: 700; }
 .optional-mark { margin-left: 4px; color: #9aa1aa; font-size: 11px; font-weight: 400; }
 .field.has-error { border-color: var(--coral); box-shadow: 0 0 0 2px color-mix(in srgb, var(--coral) 12%, transparent); }
@@ -749,12 +792,21 @@ const submit = async () => {
 .auth-feedback-leave-active { transition: opacity .18s ease, transform .18s ease; }
 .auth-feedback-enter-from,
 .auth-feedback-leave-to { opacity: 0; transform: translate(-50%, -7px); }
+.register-popup-mask { position:fixed; inset:0; z-index:12040; display:grid; place-items:center; padding:24px; background:rgba(15,23,42,.16); pointer-events:none; }
+.register-popup { width:min(300px,calc(100vw - 48px)); min-height:128px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:13px; padding:22px; color:#b42318; background:#fff; border-radius:20px; box-shadow:0 22px 60px rgba(15,23,42,.22); text-align:center; }
+.register-popup.success { color:#08724f; }
+.register-popup strong { font-size:16px; line-height:1.45; }
+.register-popup-enter-active,.register-popup-leave-active { transition:opacity .18s ease; }
+.register-popup-enter-active .register-popup,.register-popup-leave-active .register-popup { transition:transform .18s ease,opacity .18s ease; }
+.register-popup-enter-from,.register-popup-leave-to { opacity:0; }
+.register-popup-enter-from .register-popup,.register-popup-leave-to .register-popup { opacity:0; transform:translateY(8px) scale(.96); }
 
 @media (max-width: 920px) {
   .auth-page { width: calc(100% - 24px); min-height:100vh; min-height:100dvh; padding:clamp(18px,4.5vh,42px) 0 20px; }
   .auth-brand-header { min-height:50px; margin:0 auto clamp(18px,2.8vh,26px); }
   .auth-brand-logo { max-width:min(148px,44vw); max-height:50px; }
   .auth-page .section-head { margin: 4px 0 9px; }
+  .auth-page .section-head { align-items:center; flex-direction:row; }
   .auth-page .section-head h2 { font-size: 22px; }
   .auth-page .section-head p { margin-top: 3px; font-size: 13px; }
   .auth-page .auth-panel { padding: 14px; }
@@ -778,7 +830,6 @@ const submit = async () => {
   .register-page .field-error,
   .register-page .field-success { font-size: 10px; line-height: 1.25; }
   .register-page .auth-submit { min-height: 40px; margin-top: 9px; }
-  .register-page .account-links { margin-top: 8px; }
   .register-page { padding-top:clamp(14px,3vh,24px); }
   .register-page .auth-brand-header { min-height:44px; margin:0 auto 12px; }
   .register-page .auth-brand-logo { max-width:min(132px,40vw); max-height:44px; }
