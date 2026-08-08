@@ -987,7 +987,7 @@ CREATE TABLE `dms_shop_member` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '会员ID',
   `user_id` bigint NOT NULL COMMENT '业务用户ID',
   `phone` varchar(20) NOT NULL COMMENT '手机号',
-  `username` varchar(64) DEFAULT NULL COMMENT '用户名',
+  `login_account` varchar(64) DEFAULT NULL COMMENT '登录账号',
   `password_hash` varchar(128) NOT NULL COMMENT '密码哈希（BCrypt）',
   `salt` varchar(64) DEFAULT NULL COMMENT '密码盐（旧版SHA-256使用，现已弃用）',
   `pay_password_hash` varchar(128) DEFAULT NULL COMMENT '独立支付密码哈希（BCrypt）',
@@ -1007,7 +1007,7 @@ CREATE TABLE `dms_shop_member` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_user_id` (`user_id`),
   UNIQUE KEY `uk_phone` (`phone`),
-  UNIQUE KEY `uk_username` (`username`),
+  UNIQUE KEY `uk_login_account` (`login_account`),
   UNIQUE KEY `uk_invite_code` (`invite_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商城会员表';
 

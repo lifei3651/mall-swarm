@@ -92,7 +92,7 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             String path = request.getRequestURI();
             String method = request.getMethod();
             if (path.matches("/shop/admin/members/[^/]+/level")) return "调整会员级别";
-            if (path.matches("/shop/admin/members/[^/]+/status")) return "修改会员账号状态";
+            if (path.matches("/shop/admin/members/[^/]+/status")) return "修改登录账号状态";
             if (path.matches("/shop/admin/members/[^/]+/unlock")) return "解除会员登录锁定";
             if (path.matches("/shop/admin/members/[^/]+/phone")) return "修改会员登录手机号";
             if (path.matches("/shop/admin/members/[^/]+/login-password")) return "重置会员登录密码";

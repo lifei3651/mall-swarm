@@ -465,10 +465,10 @@ public class PerformanceServiceTest {
     void testOrderCostAndRemainderEnterRealBalanceAfterSevenDaysAndRefundCanCreateDebt() {
         // 系统内部账号分别接收剩余商品款和产品成本；两者不会作为客户会员展示。
         jdbcTemplate.update("INSERT INTO dms_shop_member "
-                        + "(id,user_id,phone,username,password_hash,salt,nickname,invite_code,status) "
+                        + "(id,user_id,phone,login_account,password_hash,salt,nickname,invite_code,status) "
                         + "VALUES (1,1001,'13988000001','SYSTEM_REMAINDER','x','s','剩余商品款账户','CMP00001',1)");
         jdbcTemplate.update("INSERT INTO dms_shop_member "
-                        + "(id,user_id,phone,username,password_hash,salt,nickname,invite_code,status) "
+                        + "(id,user_id,phone,login_account,password_hash,salt,nickname,invite_code,status) "
                         + "VALUES (5,1005,'13988000005','SYSTEM_PRODUCT_COST','x','s','产品成本账户','CMP00005',1)");
 
         DmsShopMember buyer = createShopMember("13999000050", "资金归集购买人", null);

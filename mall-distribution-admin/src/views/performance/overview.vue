@@ -3,7 +3,7 @@
     <!-- 搜索区域 -->
     <div class="search-container">
       <el-form :inline="true" :model="searchForm">
-        <el-form-item label="会员账号">
+        <el-form-item label="登录账号">
           <el-input v-model="searchForm.memberKey" placeholder="登录账号/手机号" clearable @keyup.enter="handleSearch" />
         </el-form-item>
         <el-form-item label="时间范围">

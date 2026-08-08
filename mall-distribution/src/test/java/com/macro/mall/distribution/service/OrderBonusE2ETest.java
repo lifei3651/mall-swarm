@@ -187,7 +187,7 @@ class OrderBonusE2ETest {
     private DmsShopMember createMemberWithInviter(Long userId, String nickname, String phone, String inviteCode, Long inviterId) {
         // Persist member to H2 database so activateMember can find it
         jdbcTemplate.update("""
-                INSERT INTO dms_shop_member (user_id, phone, username, password_hash, nickname, status, invite_code, inviter_id, create_time)
+                INSERT INTO dms_shop_member (user_id, phone, login_account, password_hash, nickname, status, invite_code, inviter_id, create_time)
                 VALUES (?, ?, ?, 'dummy_hash_for_test', ?, 1, ?, ?, CURRENT_TIMESTAMP)
                 """, userId, phone, "u" + userId, nickname, inviteCode, inviterId);
 

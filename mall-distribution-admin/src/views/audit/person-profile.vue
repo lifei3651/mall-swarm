@@ -81,7 +81,7 @@
         <el-table :data="profile.commissions || []" style="width: 100%">
           <el-table-column prop="orderId" label="来源订单ID" width="130" />
           <el-table-column prop="orderNo" label="订单编号" min-width="170" />
-          <el-table-column prop="orderMemberAccount" label="下单会员账号" width="145" />
+          <el-table-column prop="orderMemberAccount" label="下单登录账号" width="145" />
           <el-table-column label="奖金类型" width="180">
             <template #default="{ row }"><el-tag>{{ bonusTypeText(row) }}</el-tag></template>
           </el-table-column>

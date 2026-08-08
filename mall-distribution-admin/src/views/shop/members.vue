@@ -216,7 +216,7 @@
               <template #header>奖金记录</template>
               <el-table :data="financeProfile.commissions || []" size="small" style="width:100%" empty-text="该会员暂无奖金记录">
                 <el-table-column prop="orderNo" label="来源订单编号" min-width="180" />
-                <el-table-column prop="orderMemberAccount" label="下单会员账号" width="145" />
+                <el-table-column prop="orderMemberAccount" label="下单登录账号" width="145" />
                 <el-table-column label="奖金类型" width="170"><template #default="{ row }">{{ bonusTypeText(row) }}</template></el-table-column>
                 <el-table-column label="奖金比例" width="90"><template #default="{ row }">{{ percent(row.commissionRate) }}</template></el-table-column>
                 <el-table-column label="奖金金额" width="110"><template #default="{ row }">¥{{ money(row.commissionAmount) }}</template></el-table-column>

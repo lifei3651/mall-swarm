@@ -15,6 +15,7 @@ public class AdminMemberVO implements Serializable {
     private Long userId;
     private String memberAccount;
     private String phone;
+    /** 登录账号；字段名保留 username 以兼容现有管理端接口。 */
     private String username;
     private String nickname;
     private String inviteCode;

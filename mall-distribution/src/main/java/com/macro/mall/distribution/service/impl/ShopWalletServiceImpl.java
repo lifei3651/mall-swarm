@@ -229,7 +229,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
     private DmsShopMember requireCurrentMember(DmsShopMember member) {
         if (member == null || member.getId() == null) Asserts.fail("请先登录");
         DmsShopMember current = memberDao.selectById(member.getId());
-        if (current == null || !Integer.valueOf(1).equals(current.getStatus())) Asserts.fail("会员账号不可用");
+        if (current == null || !Integer.valueOf(1).equals(current.getStatus())) Asserts.fail("登录账号不可用");
         return current;
     }
 

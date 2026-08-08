@@ -17,6 +17,7 @@ public class DmsShopMember implements Serializable {
 
     private String phone;
 
+    /** 登录账号；JSON 字段继续兼容历史 username，数据库列为 login_account。 */
     private String username;
 
     @JsonIgnore

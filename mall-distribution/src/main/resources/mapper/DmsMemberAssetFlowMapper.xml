@@ -58,8 +58,8 @@
                f.agent_id AS agentId,
                f.user_id AS userId,
                m.id AS memberId,
-               COALESCE(NULLIF(m.nickname, ''), NULLIF(m.username, ''), m.phone) AS memberName,
-               m.username AS memberUsername,
+               COALESCE(NULLIF(m.nickname, ''), NULLIF(m.login_account, ''), m.phone) AS memberName,
+               m.login_account AS memberUsername,
                m.phone AS memberPhone,
                f.related_agent_id AS relatedAgentId,
                f.related_user_id AS relatedUserId,
@@ -80,7 +80,7 @@
             AND (f.flow_no LIKE CONCAT('%', #{keyword}, '%')
                 OR m.phone LIKE CONCAT('%', #{keyword}, '%')
                 OR m.nickname LIKE CONCAT('%', #{keyword}, '%')
-                OR m.username LIKE CONCAT('%', #{keyword}, '%'))
+                OR m.login_account LIKE CONCAT('%', #{keyword}, '%'))
         </if>
         <if test="relatedNo != null and relatedNo != ''">
             AND (f.biz_id LIKE CONCAT('%', #{relatedNo}, '%')
@@ -137,7 +137,7 @@
             AND (f.flow_no LIKE CONCAT('%', #{keyword}, '%')
                 OR m.phone LIKE CONCAT('%', #{keyword}, '%')
                 OR m.nickname LIKE CONCAT('%', #{keyword}, '%')
-                OR m.username LIKE CONCAT('%', #{keyword}, '%'))
+                OR m.login_account LIKE CONCAT('%', #{keyword}, '%'))
         </if>
         <if test="relatedNo != null and relatedNo != ''">
             AND (f.biz_id LIKE CONCAT('%', #{relatedNo}, '%')

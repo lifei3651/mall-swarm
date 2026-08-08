@@ -7,7 +7,7 @@
 
       <el-table :data="pendingList" v-loading="loading" style="width: 100%">
         <el-table-column prop="withdrawNo" label="提现单号" width="180" />
-        <el-table-column prop="memberAccount" label="会员账号" width="145" />
+        <el-table-column prop="memberAccount" label="登录账号" width="145" />
         <el-table-column prop="agentName" label="会员名称" width="120" />
         <el-table-column prop="withdrawAmount" label="提现金额" width="120">
           <template #default="{ row }">

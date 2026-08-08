@@ -310,7 +310,7 @@
       <div v-loading="bonusLoading">
         <el-descriptions :column="4" border class="bonus-summary">
           <el-descriptions-item label="订单编号">{{ bonusOrder.orderNo || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="下单会员账号">{{ bonusOrder.memberAccount || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="下单登录账号">{{ bonusOrder.memberAccount || '-' }}</el-descriptions-item>
           <el-descriptions-item label="订单总金额">
             ¥{{ money(bonusFinance.finance?.payAmount) }}
           </el-descriptions-item>
@@ -332,7 +332,7 @@
 
         <el-table :data="bonusFinance.bonusFlows || []" style="width: 100%" empty-text="该订单暂未产生奖金记录">
           <el-table-column prop="recordNo" label="奖金记录号" min-width="180" />
-          <el-table-column prop="agentMemberAccount" label="获奖会员账号" width="145" />
+          <el-table-column prop="agentMemberAccount" label="获奖登录账号" width="145" />
           <el-table-column prop="agentName" label="获奖会员" width="130" />
           <el-table-column label="奖金类型" width="180">
             <template #default="{ row }">{{ bonusTypeName(row) }}</template>

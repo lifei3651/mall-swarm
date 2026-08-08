@@ -6,7 +6,7 @@
         <id column="id" property="id"/>
         <result column="user_id" property="userId"/>
         <result column="phone" property="phone"/>
-        <result column="username" property="username"/>
+        <result column="login_account" property="username"/>
         <result column="password_hash" property="passwordHash"/>
         <result column="salt" property="salt"/>
         <result column="pay_password_hash" property="payPasswordHash"/>
@@ -25,7 +25,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id, user_id, phone, username, password_hash, salt, pay_password_hash,
+        id, user_id, phone, login_account, password_hash, salt, pay_password_hash,
         pay_password_failed_count, pay_password_lock_time, nickname, avatar_url,
         invite_code, inviter_id, status, system_account, last_login_time, failed_login_count, lock_time, create_time, update_time
     </sql>
@@ -51,14 +51,14 @@
     <select id="selectByUsername" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_member
-        WHERE username = #{username}
+        WHERE login_account = #{username}
     </select>
 
     <select id="selectByAccount" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_member
         WHERE system_account = 0
-          AND (phone = #{account} OR username = #{account})
+          AND (phone = #{account} OR login_account = #{account})
         LIMIT 1
     </select>
 
@@ -85,7 +85,7 @@
             <if test="keyword != null and keyword != ''">
                 AND (
                     phone LIKE CONCAT('%', #{keyword}, '%')
-                    OR username LIKE CONCAT('%', #{keyword}, '%')
+                    OR login_account LIKE CONCAT('%', #{keyword}, '%')
                     OR nickname LIKE CONCAT('%', #{keyword}, '%')
                 )
             </if>
@@ -96,9 +96,9 @@
     <select id="selectAdminList" resultType="com.macro.mall.distribution.vo.AdminMemberVO">
         SELECT m.id,
                m.user_id AS userId,
-               COALESCE(NULLIF(m.username, ''), m.phone) AS memberAccount,
+               COALESCE(NULLIF(m.login_account, ''), m.phone) AS memberAccount,
                m.phone,
-               m.username,
+               m.login_account AS username,
                m.nickname,
                m.invite_code AS inviteCode,
                m.status,
@@ -107,8 +107,8 @@
                m.last_login_time AS lastLoginTime,
                m.create_time AS createTime,
                m.inviter_id AS inviterUserId,
-               CASE WHEN inviter.id IS NULL THEN NULL ELSE COALESCE(NULLIF(inviter.username, ''), inviter.phone) END AS inviterMemberAccount,
-               COALESCE(inviter.nickname, inviter.username, inviter.phone) AS inviterName,
+               CASE WHEN inviter.id IS NULL THEN NULL ELSE COALESCE(NULLIF(inviter.login_account, ''), inviter.phone) END AS inviterMemberAccount,
+               COALESCE(inviter.nickname, inviter.login_account, inviter.phone) AS inviterName,
                inviter.phone AS inviterPhone,
                CASE WHEN agent.id IS NULL THEN 0 ELSE 1 END AS promotionActivated,
                agent.id AS agentId,
@@ -150,7 +150,7 @@
             <if test="keyword != null and keyword != ''">
                 AND (
                     m.phone LIKE CONCAT('%', #{keyword}, '%')
-                    OR m.username LIKE CONCAT('%', #{keyword}, '%')
+                    OR m.login_account LIKE CONCAT('%', #{keyword}, '%')
                     OR m.nickname LIKE CONCAT('%', #{keyword}, '%')
                 )
             </if>
@@ -167,7 +167,7 @@
 
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopMember" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_shop_member
-        (user_id, phone, username, password_hash, nickname, avatar_url, invite_code, inviter_id, status)
+        (user_id, phone, login_account, password_hash, nickname, avatar_url, invite_code, inviter_id, status)
         VALUES
         (#{userId}, #{phone}, #{username}, #{passwordHash}, #{nickname}, #{avatarUrl}, #{inviteCode}, #{inviterId}, #{status})
     </insert>
@@ -175,7 +175,7 @@
     <update id="update" parameterType="com.macro.mall.distribution.entity.DmsShopMember">
         UPDATE dms_shop_member
         SET phone = #{phone},
-            username = #{username},
+            login_account = #{username},
             nickname = #{nickname},
             avatar_url = #{avatarUrl},
             status = #{status},
@@ -206,7 +206,7 @@
     <update id="updatePhoneAndDefaults">
         UPDATE dms_shop_member
         SET phone = #{newPhone},
-            username = CASE WHEN username = #{oldPhone} THEN #{newPhone} ELSE username END,
+            login_account = CASE WHEN login_account = #{oldPhone} THEN #{newPhone} ELSE login_account END,
             nickname = CASE WHEN nickname = #{oldPhone} THEN #{newPhone} ELSE nickname END,
             failed_login_count = 0,
             lock_time = NULL,
@@ -219,7 +219,7 @@
         WHERE id = #{id}
     </update>
     <update id="updateAccount">
-        UPDATE dms_shop_member SET username=#{username}, password_hash=#{passwordHash},
+        UPDATE dms_shop_member SET login_account=#{username}, password_hash=#{passwordHash},
             failed_login_count=0, lock_time=NULL, update_time=CURRENT_TIMESTAMP WHERE id=#{id}
     </update>
     <update id="updateInviterId">

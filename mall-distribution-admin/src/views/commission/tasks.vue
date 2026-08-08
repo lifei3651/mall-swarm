@@ -21,7 +21,7 @@
       <el-table-column prop="orderAmount" label="订单金额" width="110">
         <template #default="{ row }">¥{{ row.orderAmount }}</template>
       </el-table-column>
-      <el-table-column prop="orderMemberAccount" label="下单会员账号" width="145" />
+      <el-table-column prop="orderMemberAccount" label="下单登录账号" width="145" />
       <el-table-column prop="orderUserName" label="下单会员" width="120" />
       <el-table-column prop="status" label="计算状态" width="100">
         <template #default="{ row }">

@@ -59,7 +59,7 @@ class MemberAssetNonMemberIssueTest {
     @BeforeEach
     void setUp() {
         jdbcTemplate.update(
-                "INSERT INTO dms_shop_member (user_id, phone, username, password_hash, nickname, invite_code, status, system_account) "
+                "INSERT INTO dms_shop_member (user_id, phone, login_account, password_hash, nickname, invite_code, status, system_account) "
                         + "VALUES (900000000000000101, ?, 'nonmember01', 'x', '非会员测试', 'NMBR0001', 1, 0)",
                 PHONE);
         userId = 900000000000000101L;

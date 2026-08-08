@@ -2,7 +2,7 @@
   <div class="page-container">
     <div class="search-container">
       <el-form :inline="true" :model="searchForm">
-        <el-form-item label="会员账号">
+        <el-form-item label="登录账号">
           <el-input v-model="searchForm.memberKey" placeholder="登录账号/手机号" clearable @keyup.enter="handleSearch" />
         </el-form-item>
         <el-form-item label="订单编号">
@@ -24,7 +24,7 @@
           <span class="business-number">{{ row.orderNo || '-' }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="ownerMemberAccount" label="下单会员账号" min-width="165">
+      <el-table-column prop="ownerMemberAccount" label="下单登录账号" min-width="165">
         <template #default="{ row }">
           <div class="member-identity">
             <span class="business-number">{{ row.ownerMemberAccount || '-' }}</span>
@@ -82,8 +82,8 @@
             <span class="business-number">{{ row.orderNo || '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="orderMemberAccount" label="下单会员账号" width="145" />
-        <el-table-column prop="agentMemberAccount" label="获奖会员账号" min-width="165">
+        <el-table-column prop="orderMemberAccount" label="下单登录账号" width="145" />
+        <el-table-column prop="agentMemberAccount" label="获奖登录账号" min-width="165">
           <template #default="{ row }">
             <div class="member-identity">
               <span class="business-number">{{ row.agentMemberAccount || '-' }}</span>
@@ -118,7 +118,7 @@
       </el-descriptions>
 
       <el-table :data="financeDetail.bonusFlows || []" style="width: 100%; margin-top: 12px">
-        <el-table-column prop="agentMemberAccount" label="获奖会员账号" min-width="165">
+        <el-table-column prop="agentMemberAccount" label="获奖登录账号" min-width="165">
           <template #default="{ row }">
             <div class="member-identity">
               <span class="business-number">{{ row.agentMemberAccount || '-' }}</span>

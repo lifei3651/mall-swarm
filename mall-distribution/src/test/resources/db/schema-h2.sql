@@ -620,7 +620,7 @@ CREATE TABLE IF NOT EXISTS dms_shop_member (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   user_id BIGINT NOT NULL UNIQUE,
   phone VARCHAR(20) NOT NULL UNIQUE,
-  username VARCHAR(64) UNIQUE,
+  login_account VARCHAR(64) UNIQUE,
   password_hash VARCHAR(128) NOT NULL,
   salt VARCHAR(64),
   pay_password_hash VARCHAR(128),

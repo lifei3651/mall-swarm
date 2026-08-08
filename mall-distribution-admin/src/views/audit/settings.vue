@@ -24,7 +24,7 @@
         <span>单账号业绩查看白名单</span>
       </template>
       <el-form :inline="true" :model="permissionForm">
-        <el-form-item label="会员账号">
+        <el-form-item label="登录账号">
           <el-input v-model="permissionForm.memberKey" placeholder="登录账号/手机号" clearable />
         </el-form-item>
         <el-form-item label="备注">
@@ -38,7 +38,7 @@
       <el-alert v-if="permissionFeedback" :title="permissionFeedback" type="warning" :closable="false" show-icon class="permission-feedback" />
 
       <el-table :data="settings.permissions || []" v-loading="loading" style="width: 100%">
-        <el-table-column prop="memberAccount" label="会员账号" width="145" />
+        <el-table-column prop="memberAccount" label="登录账号" width="145" />
         <el-table-column prop="agentName" label="会员名称" width="160" />
         <el-table-column prop="enabled" label="查看权限状态" width="130">
           <template #default="{ row }">

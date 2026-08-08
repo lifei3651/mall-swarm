@@ -109,7 +109,7 @@ const operationName = (value) => ({
 const oldApiDescription = (path = '', method = '') => {
   const viewing = method === 'GET'
   if (/\/shop\/admin\/members\/[^/]+\/level/.test(path)) return '调整会员级别'
-  if (/\/shop\/admin\/members\/[^/]+\/status/.test(path)) return '修改会员账号状态'
+  if (/\/shop\/admin\/members\/[^/]+\/status/.test(path)) return '修改登录账号状态'
   if (/\/shop\/admin\/members\/[^/]+\/unlock/.test(path)) return '解除会员登录锁定'
   if (path === '/shop/admin/members') return viewing ? '查看商城会员列表' : '后台新增商城会员'
   if (/\/shop\/admin\/members\/[^/]+\/profile/.test(path)) return '查看会员详情'

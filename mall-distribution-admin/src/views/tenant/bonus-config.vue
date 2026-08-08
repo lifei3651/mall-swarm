@@ -43,13 +43,13 @@
       <el-tab-pane label="奖金验证器" name="simulate">
         <el-alert title="验证器只预览计算结果，不创建订单、不入账；真实全流程测试仍需通过商城正常下单付款。" type="info" :closable="false" class="page-alert" />
         <el-form :inline="true" :model="simulateForm">
-          <el-form-item label="下单会员账号"><el-input v-model="simulateForm.orderMemberKey" placeholder="登录账号/手机号" /></el-form-item>
+          <el-form-item label="下单登录账号"><el-input v-model="simulateForm.orderMemberKey" placeholder="登录账号/手机号" /></el-form-item>
           <el-form-item label="订单实付金额"><el-input-number v-model="simulateForm.orderAmount" :min="0" :precision="2" /></el-form-item>
           <el-form-item><el-button type="primary" @click="submitSimulation">验证计算</el-button></el-form-item>
         </el-form>
         <el-alert v-if="simulationFeedback" :title="simulationFeedback" type="warning" :closable="false" show-icon class="simulation-feedback" />
         <el-table :data="simulationResult.receivers || []" empty-text="该会员在当前规则下没有可展示的奖金接收结果" style="width:100%">
-          <el-table-column prop="memberAccount" label="会员账号" width="145" /><el-table-column prop="agentName" label="获奖会员" width="140" /><el-table-column prop="bonusName" label="奖金类型" width="170" /><el-table-column prop="relationLevel" label="关系深度" width="95" />
+          <el-table-column prop="memberAccount" label="登录账号" width="145" /><el-table-column prop="agentName" label="获奖会员" width="140" /><el-table-column prop="bonusName" label="奖金类型" width="170" /><el-table-column prop="relationLevel" label="关系深度" width="95" />
           <el-table-column prop="rate" label="奖金比例" width="100"><template #default="{ row }">{{ percent(row.rate) }}</template></el-table-column><el-table-column prop="bonusAmount" label="奖金金额" width="120" />
           <el-table-column label="奖金入账" min-width="180"><template #default="{ row }"><el-tag>余额 {{ money(row.bonusAmount) }}</el-tag></template></el-table-column>
         </el-table>

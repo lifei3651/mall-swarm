@@ -137,7 +137,7 @@
                     OR a.agent_code LIKE CONCAT('%', #{keyword}, '%')
                     OR a.phone LIKE CONCAT('%', #{keyword}, '%')
                     OR a.real_name LIKE CONCAT('%', #{keyword}, '%')
-                    OR m.username LIKE CONCAT('%', #{keyword}, '%')
+                    OR m.login_account LIKE CONCAT('%', #{keyword}, '%')
                 )
             </if>
         </where>
@@ -162,7 +162,7 @@
                     OR a.agent_code LIKE CONCAT('%', #{keyword}, '%')
                     OR a.phone LIKE CONCAT('%', #{keyword}, '%')
                     OR a.real_name LIKE CONCAT('%', #{keyword}, '%')
-                    OR m.username LIKE CONCAT('%', #{keyword}, '%')
+                    OR m.login_account LIKE CONCAT('%', #{keyword}, '%')
                 )
             </if>
         </where>

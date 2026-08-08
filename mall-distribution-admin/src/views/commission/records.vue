@@ -3,7 +3,7 @@
     <!-- 搜索区域 -->
     <div class="search-container">
       <el-form :inline="true" :model="searchForm">
-        <el-form-item label="会员账号">
+        <el-form-item label="登录账号">
           <el-input v-model="searchForm.memberKey" placeholder="登录账号/手机号" clearable @keyup.enter="handleSearch" />
         </el-form-item>
         <el-form-item label="订单编号">
@@ -85,7 +85,7 @@
           ¥{{ row.orderAmount }}
         </template>
       </el-table-column>
-      <el-table-column prop="agentMemberAccount" label="获奖会员账号" width="145" />
+      <el-table-column prop="agentMemberAccount" label="获奖登录账号" width="145" />
       <el-table-column prop="agentName" label="获奖会员" width="120" />
       <el-table-column prop="bonusType" label="奖金类型" width="180">
         <template #default="{ row }">
@@ -156,7 +156,7 @@
         <el-descriptions-item label="创建时间">{{ formatDateTime(detail.createTime) }}</el-descriptions-item>
         <el-descriptions-item label="订单编号">{{ detail.orderNo || '-' }}</el-descriptions-item>
         <el-descriptions-item label="订单金额">¥{{ detail.orderAmount || 0 }}</el-descriptions-item>
-        <el-descriptions-item label="获奖会员账号">{{ detail.agentMemberAccount || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="获奖登录账号">{{ detail.agentMemberAccount || '-' }}</el-descriptions-item>
         <el-descriptions-item label="获奖会员">{{ detail.agentName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="奖金类型">{{ getBonusName(detail) }}</el-descriptions-item>
         <el-descriptions-item label="关系深度">{{ detail.commissionLevel || '-' }}</el-descriptions-item>
@@ -164,7 +164,7 @@
         <el-descriptions-item label="奖金金额">¥{{ detail.commissionAmount || 0 }}</el-descriptions-item>
         <el-descriptions-item label="状态">{{ detail.statusName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="结算时间">{{ formatDateTime(detail.settleTime) }}</el-descriptions-item>
-        <el-descriptions-item label="下单会员账号">{{ detail.orderMemberAccount || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="下单登录账号">{{ detail.orderMemberAccount || '-' }}</el-descriptions-item>
         <el-descriptions-item label="下单会员">{{ detail.orderUserName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="规则版本ID">{{ detail.ruleVersionId || '-' }}</el-descriptions-item>
         <el-descriptions-item label="取消原因" :span="2">{{ detail.cancelReason || '-' }}</el-descriptions-item>

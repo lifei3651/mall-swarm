@@ -3,7 +3,7 @@
     <!-- 搜索区域 -->
     <div class="search-container">
       <el-form :inline="true" :model="searchForm">
-        <el-form-item label="会员账号">
+        <el-form-item label="登录账号">
           <el-input v-model="searchForm.memberKey" placeholder="登录账号/手机号" clearable @keyup.enter="handleSearch" />
         </el-form-item>
         <el-form-item label="时间范围">
@@ -43,7 +43,7 @@
       </template>
       <el-table :data="contributions" v-loading="loading" :empty-text="contributionEmptyText" style="width: 100%">
         <el-table-column type="index" label="排名" width="80" />
-        <el-table-column prop="subordinateMemberAccount" label="会员账号" width="145" />
+        <el-table-column prop="subordinateMemberAccount" label="登录账号" width="145" />
         <el-table-column prop="subordinateName" label="下属会员" width="120" />
         <el-table-column prop="relationLevelName" label="关系层级" width="100">
           <template #default="{ row }">

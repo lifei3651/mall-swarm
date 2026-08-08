@@ -31,7 +31,7 @@ class AdminMemberPendingLineChangeTest {
         long memberId = 9001L;
         long userId = 9901L;
         long agentId = 9001L;
-        jdbcTemplate.update("INSERT INTO dms_shop_member(id,user_id,phone,username,password_hash,nickname,invite_code,status) VALUES(?,?,?,?,?,?,?,1)",
+        jdbcTemplate.update("INSERT INTO dms_shop_member(id,user_id,phone,login_account,password_hash,nickname,invite_code,status) VALUES(?,?,?,?,?,?,?,1)",
                 memberId, userId, "13900009001", "pending-member", "test-hash", "待移线会员", "P9001");
         jdbcTemplate.update("INSERT INTO dms_agent(id,user_id,agent_code,agent_name,agent_level,level_depth,invite_code,status,source_type) VALUES(?,?,?,?,1,1,?,1,3)",
                 agentId, userId, "AG-PENDING-9001", "待移线会员", "AP9001");

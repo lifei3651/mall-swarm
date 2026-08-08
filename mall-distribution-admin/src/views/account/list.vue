@@ -22,7 +22,7 @@
       :empty-text="tableEmptyText"
       style="width: 100%"
     >
-      <el-table-column prop="memberAccount" label="会员账号" width="145" />
+      <el-table-column prop="memberAccount" label="登录账号" width="145" />
       <el-table-column prop="agentName" label="会员名称" width="120" />
       <el-table-column prop="totalCommission" label="累计佣金" width="120">
         <template #default="{ row }">

@@ -55,7 +55,7 @@ class MemberDeactivationTest {
     @BeforeEach
     void setUp() {
         jdbcTemplate.update(
-                "INSERT INTO dms_shop_member (user_id, phone, username, password_hash, nickname, invite_code, status, system_account) "
+                "INSERT INTO dms_shop_member (user_id, phone, login_account, password_hash, nickname, invite_code, status, system_account) "
                         + "VALUES (?, '19900001001', 'deact_a', 'x', '待取消会员A', 'DCT00001', 1, 0)",
                 USER_A);
         memberAId = jdbcTemplate.queryForObject("SELECT id FROM dms_shop_member WHERE user_id = ?", Long.class, USER_A);
@@ -80,7 +80,7 @@ class MemberDeactivationTest {
     @Test
     void deactivateReparentsChildrenToRootWhenNoParent() {
         jdbcTemplate.update(
-                "INSERT INTO dms_shop_member (user_id, phone, username, password_hash, nickname, invite_code, inviter_id, status, system_account) "
+                "INSERT INTO dms_shop_member (user_id, phone, login_account, password_hash, nickname, invite_code, inviter_id, status, system_account) "
                         + "VALUES (?, '19900001002', 'deact_b', 'x', '下级会员B', 'DCT00002', ?, 1, 0)",
                 USER_B, USER_A);
         shopAuthService.activateMember(USER_B, 1, "测试激活B");
