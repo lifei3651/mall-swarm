@@ -4,7 +4,7 @@
       <RouterView />
     </main>
 
-    <footer v-if="!isAuthPage" class="site-footer">
+    <footer v-if="isHome" class="site-footer">
       <p>{{ legal.companyName || brand.brandName }}</p>
       <nav class="footer-links" aria-label="商城服务信息">
         <RouterLink to="/legal/after-sale">交易与售后</RouterLink>

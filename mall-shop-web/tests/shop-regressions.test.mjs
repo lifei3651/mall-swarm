@@ -99,7 +99,7 @@ test('login errors stay beside their field, expire quickly, and auth pages use a
   assert.match(login, /class="form-item">\s*<label>登录密码/)
 
   assert.match(app, /const isAuthPage = computed/)
-  assert.match(app, /<footer v-if="!isAuthPage"/)
+  assert.match(app, /<footer v-if="isHome"/)
   assert.match(app, /!isCheckout\.value && !isAuthPage\.value/)
   assert.match(app, /watch\(\(\) => route\.fullPath[\s\S]*authPrompt\.value = ''/)
 })
@@ -425,15 +425,26 @@ test('order detail keeps four payment facts visible and collapses five order inf
   assert.match(source, /<span>运费<\/span>/)
 })
 
-test('footer keeps customer rules and filing access without optional FAQ clutter', async () => {
+test('home alone keeps customer rules and filing access without adding a footer to profile', async () => {
   const app = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
 
+  assert.match(app, /<footer v-if="isHome"/)
+  assert.doesNotMatch(app, /<footer v-if="!isAuthPage"/)
   assert.doesNotMatch(app, /to="\/legal\/faq">常见问题/)
   assert.match(app, /to="\/legal\/after-sale">交易与售后/)
   assert.match(app, /to="\/legal\/contact">联系客服/)
   assert.match(app, /to="\/legal\/agreement">用户协议/)
   assert.match(app, /to="\/legal\/privacy">隐私政策/)
   assert.match(app, /beian\.miit\.gov\.cn/)
+})
+
+test('profile fits its actions into short mobile viewports', async () => {
+  const profile = await readView('ProfileView.vue')
+
+  assert.match(profile, /class="profile-actions"/)
+  assert.match(profile, />退出当前账号</)
+  assert.match(profile, /@media \(max-width:560px\) and \(max-height:700px\)/)
+  assert.match(profile, /\.profile-actions \{ margin-top:auto; \}/)
 })
 
 test('order queries retry one transient mobile network failure', async () => {

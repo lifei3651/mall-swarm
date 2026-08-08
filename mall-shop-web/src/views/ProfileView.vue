@@ -273,4 +273,18 @@ onMounted(() => {
   .identity-stats strong { font-size:12px; }
   .profile-menu { grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
 }
+@media (max-width:560px) and (max-height:700px) {
+  .profile-page { padding-top:8px; }
+  .identity-card { padding:14px 13px; }
+  .identity-top { grid-template-columns:44px minmax(0,1fr) auto; gap:8px; }
+  .identity-avatar { width:44px; height:44px; }
+  .identity-stats { margin-top:14px; padding-top:12px; }
+  .order-hub { margin-top:10px; padding:13px 11px; }
+  .order-entry-grid { margin-top:12px; }
+  .profile-menu { margin-top:10px; }
+  .menu-tile { gap:5px; padding:8px 5px; border-radius:14px; }
+  .tile-icon { width:42px; height:42px; }
+  .profile-actions { padding-top:10px; }
+  .logout-button { min-height:42px; }
+}
 </style>
