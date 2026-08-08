@@ -59,6 +59,27 @@ test('registration page does not expose internal membership activation copy', as
   assert.match(login, /<p v-if="mode === 'login'">登录后可管理地址、订单和售后。<\/p>/)
 })
 
+test('login errors stay beside their field, expire quickly, and auth pages use a compact layout', async () => {
+  const login = await readView('LoginView.vue')
+  const app = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+
+  assert.match(login, /loginFieldErrors\.account/)
+  assert.match(login, /showLoginFieldError\('account', '请输入手机号或用户名'\)/)
+  assert.match(login, /fieldErrorTimer = window\.setTimeout\(\(\) => \{ loginFieldErrors\.value = \{\} \}, 2000\)/)
+  assert.match(login, /feedbackTimer = window\.setTimeout[\s\S]*1800/)
+  assert.match(login, /watch\(\(\) => route\.fullPath, \(\) => clearFeedback\(\)\)/)
+  assert.match(login, /class="auth-feedback-toast"/)
+  assert.doesNotMatch(login, /<p v-if="error"/)
+  assert.match(login, /\.register-page \.form-grid \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/)
+  assert.match(login, /class="form-item">\s*<label>昵称/)
+  assert.match(login, /class="form-item">\s*<label>登录密码/)
+
+  assert.match(app, /const isAuthPage = computed/)
+  assert.match(app, /<footer v-if="!isAuthPage"/)
+  assert.match(app, /!isCheckout\.value && !isAuthPage\.value/)
+  assert.match(app, /watch\(\(\) => route\.fullPath[\s\S]*authPrompt\.value = ''/)
+})
+
 test('profile renders immediately and loads order counts, wallet and performance separately', async () => {
   const profile = await readView('ProfileView.vue')
   const orders = await readView('OrdersView.vue')

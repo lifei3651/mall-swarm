@@ -1,5 +1,5 @@
 <template>
-  <div class="page">
+  <div class="page auth-page" :class="{ 'register-page': mode === 'register' }">
     <div class="section-head">
       <div>
         <h2>{{ mode === 'login' ? '商城账号登录' : '注册商城账号' }}</h2>
@@ -7,11 +7,11 @@
       </div>
     </div>
 
-    <section class="panel auth-panel">
+    <section class="panel auth-panel" :class="{ 'register-panel': mode === 'register' }">
       <!-- 登录方式切换 -->
       <div v-if="mode === 'login'" class="login-type-row">
-        <button class="login-type-btn" :class="{ active: loginType === 'password' }" @click="loginType = 'password'">密码登录</button>
-        <button class="login-type-btn" :class="{ active: loginType === 'sms' }" @click="loginType = 'sms'">验证码登录</button>
+        <button class="login-type-btn" :class="{ active: loginType === 'password' }" @click="switchLoginType('password')">密码登录</button>
+        <button class="login-type-btn" :class="{ active: loginType === 'sms' }" @click="switchLoginType('sms')">验证码登录</button>
       </div>
 
       <div class="form-grid">
@@ -19,18 +19,21 @@
         <template v-if="mode === 'login' && loginType === 'password'">
           <div class="form-item full">
             <label>手机号/用户名</label>
-            <input v-model="loginForm.account" class="field" placeholder="请输入手机号或用户名" />
+            <input v-model="loginForm.account" class="field" :class="{ 'has-error': loginFieldErrors.account }" placeholder="请输入手机号或用户名" :aria-invalid="!!loginFieldErrors.account" @input="clearLoginFieldError('account')" />
+            <p v-if="loginFieldErrors.account" class="field-error">{{ loginFieldErrors.account }}</p>
           </div>
           <div class="form-item full">
             <label>密码</label>
-            <input v-model="loginForm.password" class="field" type="password" placeholder="请输入密码" />
+            <input v-model="loginForm.password" class="field" :class="{ 'has-error': loginFieldErrors.password }" type="password" placeholder="请输入密码" :aria-invalid="!!loginFieldErrors.password" @input="clearLoginFieldError('password')" />
+            <p v-if="loginFieldErrors.password" class="field-error">{{ loginFieldErrors.password }}</p>
           </div>
           <div class="form-item full">
             <label>图形验证码</label>
             <div class="captcha-row">
-              <input v-model="loginForm.captchaCode" class="field" placeholder="请输入图形验证码" maxlength="4" />
+              <input v-model="loginForm.captchaCode" class="field" :class="{ 'has-error': loginFieldErrors.captchaCode }" placeholder="请输入图形验证码" maxlength="4" :aria-invalid="!!loginFieldErrors.captchaCode" @input="clearLoginFieldError('captchaCode')" />
               <img :src="captchaImage" class="captcha-image" alt="图形验证码" title="点击刷新" @click="refreshCaptcha" />
             </div>
+            <p v-if="loginFieldErrors.captchaCode" class="field-error">{{ loginFieldErrors.captchaCode }}</p>
           </div>
         </template>
 
@@ -38,16 +41,18 @@
         <template v-if="mode === 'login' && loginType === 'sms'">
           <div class="form-item full">
             <label>手机号</label>
-            <input v-model="smsForm.phone" class="field" placeholder="请输入11位手机号" maxlength="11" inputmode="tel" autocomplete="tel" @input="handleSmsLoginPhoneInput" />
+            <input v-model="smsForm.phone" class="field" :class="{ 'has-error': loginFieldErrors.phone }" placeholder="请输入11位手机号" maxlength="11" inputmode="tel" autocomplete="tel" :aria-invalid="!!loginFieldErrors.phone" @input="handleSmsLoginPhoneInput" />
+            <p v-if="loginFieldErrors.phone" class="field-error">{{ loginFieldErrors.phone }}</p>
           </div>
           <div class="form-item full">
             <label>验证码</label>
             <div class="sms-row">
-              <input v-model="smsForm.code" class="field sms-input" placeholder="请输入验证码" maxlength="6" />
+              <input v-model="smsForm.code" class="field sms-input" :class="{ 'has-error': loginFieldErrors.code }" placeholder="请输入验证码" maxlength="6" :aria-invalid="!!loginFieldErrors.code" @input="clearLoginFieldError('code')" />
               <button class="btn sms-btn" :disabled="smsCooldown > 0" @click="sendCode">
                 {{ smsCooldown > 0 ? `${smsCooldown}s` : '获取验证码' }}
               </button>
             </div>
+            <p v-if="loginFieldErrors.code" class="field-error">{{ loginFieldErrors.code }}</p>
           </div>
         </template>
 
@@ -116,7 +121,7 @@
             />
             <p v-if="fieldErrors.username" class="field-error">{{ fieldErrors.username }}</p>
           </div>
-          <div class="form-item full">
+          <div class="form-item">
             <label>昵称 <span class="optional-mark">选填</span></label>
             <input
               v-model="registerForm.nickname"
@@ -131,7 +136,25 @@
             />
             <p v-if="fieldErrors.nickname" class="field-error">{{ fieldErrors.nickname }}</p>
           </div>
-          <div class="form-item full">
+          <div class="form-item">
+            <label>登录密码 <span class="required-mark" aria-hidden="true">*</span></label>
+            <input
+              v-model="registerForm.password"
+              class="field"
+              :class="{ 'has-error': fieldErrors.password }"
+              type="password"
+              placeholder="请输入6至32位密码"
+              minlength="6"
+              maxlength="32"
+              autocomplete="new-password"
+              aria-required="true"
+              :aria-invalid="!!fieldErrors.password"
+              @input="clearFieldError('password')"
+              @blur="validateRegisterField('password')"
+            />
+            <p v-if="fieldErrors.password" class="field-error">{{ fieldErrors.password }}</p>
+          </div>
+          <div class="form-item full register-sms-item">
             <label>短信验证码 <span class="required-mark" aria-hidden="true">*</span></label>
             <div class="sms-row">
               <input
@@ -153,24 +176,6 @@
             </div>
             <p v-if="fieldErrors.smsCode" class="field-error">{{ fieldErrors.smsCode }}</p>
           </div>
-          <div class="form-item full">
-            <label>登录密码 <span class="required-mark" aria-hidden="true">*</span></label>
-            <input
-              v-model="registerForm.password"
-              class="field"
-              :class="{ 'has-error': fieldErrors.password }"
-              type="password"
-              placeholder="请输入6至32位密码"
-              minlength="6"
-              maxlength="32"
-              autocomplete="new-password"
-              aria-required="true"
-              :aria-invalid="!!fieldErrors.password"
-              @input="clearFieldError('password')"
-              @blur="validateRegisterField('password')"
-            />
-            <p v-if="fieldErrors.password" class="field-error">{{ fieldErrors.password }}</p>
-          </div>
         </template>
       </div>
 
@@ -185,7 +190,7 @@
         </p>
       </div>
 
-      <button class="btn primary" style="width: 100%; margin-top: 14px" :disabled="loading" @click="submit">
+      <button class="btn primary auth-submit" :disabled="loading" @click="submit">
         {{ loading ? '提交中' : mode === 'login' ? '登录' : '注册并登录' }}
       </button>
 
@@ -198,14 +203,18 @@
         <button type="button" @click="switchMode('login')">已有账号，返回登录</button>
       </div>
 
-      <p v-if="error" style="color: var(--coral); line-height: 1.6">{{ error }}</p>
-      <p v-if="success" style="color: var(--teal, #0f766e); line-height: 1.6">{{ success }}</p>
     </section>
+
+    <Transition name="auth-feedback">
+      <div v-if="error || success" class="auth-feedback-toast" :class="{ success: !!success }" role="status" aria-live="polite">
+        {{ error || success }}
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup>
-import { computed, nextTick, ref, onMounted } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Check } from 'lucide-vue-next'
 import { getInviterPreview, getLoginCaptcha, login, register, sendSmsCode } from '@/api/shop'
@@ -225,6 +234,7 @@ const success = ref('')
 const smsCooldown = ref(0)
 
 const loginForm = ref({ account: '', password: '', captchaId: '', captchaCode: '' })
+const loginFieldErrors = ref({})
 const captchaImage = ref('')
 const smsForm = ref({ phone: '', code: '' })
 const { registerForm, agreeTerms, clearRegisterDraft } = useRegisterDraft()
@@ -236,17 +246,36 @@ const lastCheckedInviteCode = ref('')
 let inviteRequestSequence = 0
 let activeInviteRequest = null
 let activeInviteRequestCode = ''
+let feedbackTimer
+let fieldErrorTimer
+let cooldownTimer
 const inviteCodeLocked = computed(() => !!(route.query.inviteCode || route.query.code))
 const legalRoute = (type) => ({ name: 'Legal', params: { type }, query: { from: 'register' } })
 
-const switchMode = (value) => {
-  mode.value = value
+const clearFeedback = ({ clearFields = true } = {}) => {
+  window.clearTimeout(feedbackTimer)
+  window.clearTimeout(fieldErrorTimer)
   error.value = ''
   success.value = ''
+  if (clearFields) {
+    loginFieldErrors.value = {}
+    fieldErrors.value = {}
+  }
+}
+
+const switchMode = (value) => {
+  mode.value = value
+  clearFeedback()
   if (value === 'login') {
     clearRegisterDraft()
     if (loginType.value === 'password') refreshCaptcha()
   }
+}
+
+const switchLoginType = (value) => {
+  loginType.value = value
+  clearFeedback()
+  if (value === 'password' && !captchaImage.value) refreshCaptcha()
 }
 
 // 从URL获取邀请码
@@ -261,6 +290,22 @@ onMounted(() => {
     if (registerForm.value.inviteCode) loadInviter()
   }
   if (mode.value === 'login') refreshCaptcha()
+})
+
+watch([error, success], ([errorMessage, successMessage]) => {
+  window.clearTimeout(feedbackTimer)
+  if (!errorMessage && !successMessage) return
+  feedbackTimer = window.setTimeout(() => {
+    error.value = ''
+    success.value = ''
+  }, 1800)
+})
+
+watch(() => route.fullPath, () => clearFeedback())
+
+onBeforeUnmount(() => {
+  clearFeedback()
+  window.clearInterval(cooldownTimer)
 })
 
 const normalizeInviteCode = (value) => value?.trim().toUpperCase() || ''
@@ -282,6 +327,21 @@ const clearFieldError = (field) => {
   if (fieldErrors.value[field]) delete fieldErrors.value[field]
 }
 
+const clearLoginFieldError = (field) => {
+  if (loginFieldErrors.value[field]) delete loginFieldErrors.value[field]
+}
+
+const scheduleRegisterErrorsClear = () => {
+  window.clearTimeout(fieldErrorTimer)
+  fieldErrorTimer = window.setTimeout(() => { fieldErrors.value = {} }, 2000)
+}
+
+const showLoginFieldError = (field, message) => {
+  loginFieldErrors.value = { [field]: message }
+  window.clearTimeout(fieldErrorTimer)
+  fieldErrorTimer = window.setTimeout(() => { loginFieldErrors.value = {} }, 2000)
+}
+
 const handleRegisterPhoneInput = () => {
   registerForm.value.phone = normalizeMainlandPhone(registerForm.value.phone)
   clearFieldError('phone')
@@ -290,6 +350,7 @@ const handleRegisterPhoneInput = () => {
 
 const handleSmsLoginPhoneInput = () => {
   smsForm.value.phone = normalizeMainlandPhone(smsForm.value.phone)
+  clearLoginFieldError('phone')
 }
 
 const validateRegisterField = (field) => {
@@ -309,6 +370,7 @@ const validateRegisterField = (field) => {
     const length = form.password?.length || 0
     if (length < 6 || length > 32) fieldErrors.value.password = '登录密码需为6至32位'
   }
+  if (fieldErrors.value[field]) scheduleRegisterErrorsClear()
   return !fieldErrors.value[field]
 }
 
@@ -335,6 +397,7 @@ const validateRegisterForm = () => {
   validateRegisterField('smsCode')
   validateRegisterField('password')
   if (!agreeTerms.value) fieldErrors.value.agreement = '请先阅读并同意用户服务协议和隐私政策'
+  if (Object.keys(fieldErrors.value).length) scheduleRegisterErrorsClear()
   return Object.keys(fieldErrors.value).length === 0
 }
 
@@ -344,6 +407,7 @@ const loadInviter = async () => {
     inviterInfo.value = null
     inviteError.value = ''
     fieldErrors.value.inviteCode = '请输入邀请码（注册必须有邀请人）'
+    scheduleRegisterErrorsClear()
     return false
   }
   registerForm.value.inviteCode = inviteCode
@@ -351,6 +415,7 @@ const loadInviter = async () => {
     inviterInfo.value = null
     inviteError.value = '请输入完整的8位邀请码'
     fieldErrors.value.inviteCode = inviteError.value
+    scheduleRegisterErrorsClear()
     lastCheckedInviteCode.value = inviteCode
     return false
   }
@@ -374,6 +439,7 @@ const loadInviter = async () => {
       if (!res.data?.valid) {
         inviteError.value = res.data?.message || '邀请码无效，请向邀请人核对'
         fieldErrors.value.inviteCode = inviteError.value
+        scheduleRegisterErrorsClear()
         return false
       }
       inviterInfo.value = res.data
@@ -384,6 +450,7 @@ const loadInviter = async () => {
       lastCheckedInviteCode.value = inviteCode
       inviteError.value = e.message || '邀请码暂时无法确认，请稍后重试'
       fieldErrors.value.inviteCode = inviteError.value
+      scheduleRegisterErrorsClear()
       return false
     } finally {
       if (requestSequence === inviteRequestSequence) inviterLoading.value = false
@@ -413,9 +480,9 @@ const refreshCaptcha = async () => {
 
 // 发送验证码（登录）
 const sendCode = async () => {
-  error.value = ''
+  clearFeedback()
   if (!isValidMainlandPhone(smsForm.value.phone)) {
-    error.value = '请输入正确的11位手机号'
+    showLoginFieldError('phone', '请输入正确的11位手机号')
     return
   }
   try {
@@ -429,22 +496,19 @@ const sendCode = async () => {
 
 // 发送验证码（注册）
 const sendCodeForRegister = async () => {
-  error.value = ''
-  success.value = ''
+  clearFeedback({ clearFields: false })
   if (!validateRegisterField('phone')) {
-    error.value = fieldErrors.value.phone
     await focusFirstRegisterError()
     return
   }
   const inviteCode = normalizeInviteCode(registerForm.value.inviteCode)
   if (!inviteCode || !/^[A-Z0-9]{8}$/.test(inviteCode)) {
     fieldErrors.value.inviteCode = inviteCode ? '请输入完整的8位邀请码' : '请输入邀请码（注册必须有邀请人）'
-    error.value = '请先填写并确认有效邀请码'
+    scheduleRegisterErrorsClear()
     await focusFirstRegisterError()
     return
   }
   if (!await loadInviter()) {
-    error.value = fieldErrors.value.inviteCode || '请先填写并确认有效邀请码'
     await focusFirstRegisterError()
     return
   }
@@ -459,35 +523,33 @@ const sendCodeForRegister = async () => {
 
 // 倒计时
 const startCooldown = () => {
+  window.clearInterval(cooldownTimer)
   smsCooldown.value = 60
-  const timer = setInterval(() => {
+  cooldownTimer = window.setInterval(() => {
     smsCooldown.value--
-    if (smsCooldown.value <= 0) clearInterval(timer)
+    if (smsCooldown.value <= 0) window.clearInterval(cooldownTimer)
   }, 1000)
 }
 
 const submit = async () => {
-  error.value = ''
-  success.value = ''
+  clearFeedback()
 
   // 前端校验
   if (mode.value === 'login') {
     if (loginType.value === 'password') {
-      if (!loginForm.value.account?.trim()) { error.value = '请输入手机号或用户名'; return }
-      if (!loginForm.value.password || loginForm.value.password.length < 6) { error.value = '密码至少6位'; return }
-      if (!loginForm.value.captchaCode?.trim()) { error.value = '请输入图形验证码'; return }
+      if (!loginForm.value.account?.trim()) { showLoginFieldError('account', '请输入手机号或用户名'); return }
+      if (!loginForm.value.password || loginForm.value.password.length < 6) { showLoginFieldError('password', '密码至少6位'); return }
+      if (!loginForm.value.captchaCode?.trim()) { showLoginFieldError('captchaCode', '请输入图形验证码'); return }
     } else {
-      if (!isValidMainlandPhone(smsForm.value.phone)) { error.value = '请输入正确的11位手机号'; return }
-      if (!smsForm.value.code || smsForm.value.code.length !== 6) { error.value = '请输入6位验证码'; return }
+      if (!isValidMainlandPhone(smsForm.value.phone)) { showLoginFieldError('phone', '请输入正确的11位手机号'); return }
+      if (!smsForm.value.code || smsForm.value.code.length !== 6) { showLoginFieldError('code', '请输入6位验证码'); return }
     }
   } else {
     if (!validateRegisterForm()) {
-      error.value = '请完善标红的必填信息'
       await focusFirstRegisterError()
       return
     }
     if (!await loadInviter()) {
-      error.value = fieldErrors.value.inviteCode || '请先填写并确认有效邀请码'
       await focusFirstRegisterError()
       return
     }
@@ -538,6 +600,11 @@ const submit = async () => {
 </script>
 
 <style scoped>
+.auth-page { position: relative; }
+.auth-page .section-head { margin: 10px 0 12px; }
+.auth-page .auth-panel { border-radius: 14px; box-shadow: 0 10px 28px rgba(24, 32, 42, .06); }
+.auth-submit { width: 100%; min-height: 42px; margin-top: 12px; }
+
 .login-type-row {
   display: flex;
   gap: 8px;
@@ -647,4 +714,55 @@ const submit = async () => {
 .agreement-check a { color: var(--accent, #0f766e); text-decoration: none; }
 .agreement-tip { margin: 7px 0 0 26px; color: #9299a3; font-size: 11px; line-height: 1.55; }
 .agreement-tip a { color: var(--accent, #0f766e); text-decoration: none; }
+
+.auth-feedback-toast {
+  position: fixed;
+  z-index: 12020;
+  top: max(88px, calc(env(safe-area-inset-top) + 18px));
+  left: 50%;
+  max-width: calc(100% - 40px);
+  padding: 10px 16px;
+  color: #fff;
+  background: rgba(31, 41, 55, .94);
+  border-radius: 999px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, .22);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  transform: translateX(-50%);
+}
+.auth-feedback-toast.success { background: rgba(15, 118, 110, .96); }
+.auth-feedback-enter-active,
+.auth-feedback-leave-active { transition: opacity .18s ease, transform .18s ease; }
+.auth-feedback-enter-from,
+.auth-feedback-leave-to { opacity: 0; transform: translate(-50%, -7px); }
+
+@media (max-width: 920px) {
+  .auth-page { width: calc(100% - 20px); padding: 6px 0 20px; }
+  .auth-page .section-head { margin: 4px 0 9px; }
+  .auth-page .section-head h2 { font-size: 22px; }
+  .auth-page .section-head p { margin-top: 3px; font-size: 13px; }
+  .auth-page .auth-panel { padding: 14px; }
+  .register-page .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; }
+  .register-page .form-item { gap: 4px; min-width: 0; }
+  .register-page .form-item.full,
+  .register-page .inviter-status-slot { grid-column: 1 / -1; }
+  .register-page .form-item label { font-size: 12px; }
+  .register-page .field { height: 38px; padding: 0 10px; font-size: 12px; }
+  .register-page .sms-row,
+  .register-page .captcha-row { gap: 6px; }
+  .register-page .sms-btn { min-height: 38px; padding: 0 11px; font-size: 12px; }
+  .register-page .inviter-status-slot,
+  .register-page .inviter-info-card,
+  .register-page .inviter-hint { min-height: 32px; }
+  .register-page .inviter-info-card { padding: 6px 10px; }
+  .register-page .agreement-row { margin-top: 9px; }
+  .register-page .agreement-check { gap: 6px; font-size: 11px; line-height: 1.4; }
+  .register-page .agreement-check > span:first-child { width: 17px; height: 17px; }
+  .register-page .agreement-tip { margin: 4px 0 0 23px; font-size: 10px; line-height: 1.35; }
+  .register-page .field-error,
+  .register-page .field-success { font-size: 10px; line-height: 1.25; }
+  .register-page .auth-submit { min-height: 40px; margin-top: 9px; }
+  .register-page .account-links { margin-top: 8px; }
+}
 </style>

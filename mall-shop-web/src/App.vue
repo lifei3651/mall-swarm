@@ -4,7 +4,7 @@
       <RouterView />
     </main>
 
-    <footer class="site-footer">
+    <footer v-if="!isAuthPage" class="site-footer">
       <p>{{ legal.companyName || brand.brandName }}</p>
       <nav class="footer-links" aria-label="商城服务信息">
         <RouterLink to="/legal/faq">常见问题</RouterLink>
@@ -75,7 +75,8 @@ let authPromptTimer
 const isHome = computed(() => route.name === 'Home')
 const isProductDetail = computed(() => route.name === 'ProductDetail')
 const isCheckout = computed(() => route.name === 'Checkout')
-const showGlobalChrome = computed(() => !isProductDetail.value && !isCheckout.value)
+const isAuthPage = computed(() => ['Login', 'Register'].includes(route.name))
+const showGlobalChrome = computed(() => !isProductDetail.value && !isCheckout.value && !isAuthPage.value)
 const defaultBottomNav = [
   { type: 'home', label: '首页', enabled: true, path: '/' },
   { type: 'category', label: '分类', enabled: true, path: '/category' },
@@ -162,6 +163,10 @@ const downloadUpdate = async () => {
 }
 
 watch(() => route.name, (name) => updatePageTitle(name, brand.value.brandName))
+watch(() => route.fullPath, () => {
+  authPrompt.value = ''
+  window.clearTimeout(authPromptTimer)
+})
 watch(addSequence, (sequence) => {
   if (!sequence) return
   cartFeedback.value = `+${lastAddedQuantity.value || 1}`
