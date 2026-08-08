@@ -432,6 +432,29 @@ class ShopFreightServiceTest {
     }
 
     @Test
+    void categoryDeletionOnlyAllowsUnusedCategories() {
+        DmsShopCategory unused = new DmsShopCategory();
+        unused.setCategoryName("待删除空分类");
+        DmsShopCategory savedUnused = shopService.saveCategory(unused);
+
+        assertTrue(shopService.deleteCategory(savedUnused.getId()));
+        assertTrue(shopService.listAdminCategories(1L, null).stream()
+                .noneMatch(category -> savedUnused.getId().equals(category.getId())));
+
+        DmsShopCategory inUse = new DmsShopCategory();
+        inUse.setCategoryName("仍有商品分类");
+        DmsShopCategory savedInUse = shopService.saveCategory(inUse);
+        DmsShopProduct product = productDao.selectById(1L);
+        product.setCategoryName(savedInUse.getCategoryName());
+        productDao.update(product);
+
+        ApiException error = assertThrows(ApiException.class, () -> shopService.deleteCategory(savedInUse.getId()));
+        assertTrue(error.getMessage().contains("还有1个商品"));
+        assertTrue(shopService.listAdminCategories(1L, null).stream()
+                .anyMatch(category -> savedInUse.getId().equals(category.getId())));
+    }
+
+    @Test
     void adminMemberListExposesLoginAccountInviterStatusLevelAndAssets() {
         DmsShopMember inviter = createMember("13999110101", "列表邀请人", null);
         DmsShopMember member = createMember("13999110102", "列表会员", inviter.getUserId());

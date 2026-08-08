@@ -181,6 +181,21 @@ public class ShopServiceImpl implements ShopService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean deleteCategory(Long id) {
+        DmsShopCategory category = categoryDao.selectById(id);
+        if (category == null) {
+            Asserts.fail("分类不存在或已被删除");
+        }
+        assertTenantAccess(category.getTenantId());
+        int productCount = productDao.countByCategoryName(category.getTenantId(), category.getCategoryName());
+        if (productCount > 0) {
+            Asserts.fail("该分类下还有" + productCount + "个商品，请先修改这些商品的分类后再删除");
+        }
+        return categoryDao.deleteById(id) > 0;
+    }
+
+    @Override
     public boolean updateCategoryStatus(Long id, Integer status) {
         DmsShopCategory category = categoryDao.selectById(id);
         if (category == null) {

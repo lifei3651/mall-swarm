@@ -18,5 +18,7 @@ public interface DmsShopCategoryDao {
 
     int update(DmsShopCategory category);
 
+    int deleteById(@Param("id") Long id);
+
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
 }

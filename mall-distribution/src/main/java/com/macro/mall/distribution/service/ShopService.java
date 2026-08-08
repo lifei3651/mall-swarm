@@ -38,6 +38,8 @@ public interface ShopService {
 
     DmsShopCategory updateCategory(Long id, DmsShopCategory category);
 
+    boolean deleteCategory(Long id);
+
     boolean updateCategoryStatus(Long id, Integer status);
 
     boolean updateCategoryShowOnHome(Long id, Integer showOnHome);

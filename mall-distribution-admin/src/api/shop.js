@@ -64,6 +64,10 @@ export function updateShopCategory(id, data) {
   return request({ url: `/shop/admin/categories/${id}`, method: 'put', data })
 }
 
+export function deleteShopCategory(id) {
+  return request({ url: `/shop/admin/categories/${id}`, method: 'delete' })
+}
+
 export function updateShopCategoryStatus(id, status) {
   return request({ url: `/shop/admin/categories/${id}/status`, method: 'put', params: { status } })
 }

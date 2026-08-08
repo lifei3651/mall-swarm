@@ -3,7 +3,7 @@
     <div class="page-head">
       <div>
         <h2>商品分类管理</h2>
-        <p>商品发布时只能选择这里维护的分类；停用后前台不再展示该分类入口。</p>
+        <p>商品发布时只能选择这里维护的分类；停用后前台不再展示，未被商品使用的分类可以删除。</p>
       </div>
       <el-button type="primary" :icon="Plus" size="large" @click="openDialog()">新增分类</el-button>
     </div>
@@ -36,10 +36,11 @@
       </el-table-column>
       <el-table-column prop="remark" label="备注" min-width="240"><template #default="{ row }">{{ row.remark || '-' }}</template></el-table-column>
       <el-table-column prop="updateTime" label="更新时间" width="180" />
-      <el-table-column label="操作" fixed="right" width="190">
+      <el-table-column label="操作" fixed="right" width="250">
         <template #default="{ row }">
           <el-button link type="primary" @click="openDialog(row)">编辑</el-button>
           <el-button link :type="row.status === 1 ? 'warning' : 'success'" @click="toggleStatus(row)">{{ row.status === 1 ? '停用' : '启用' }}</el-button>
+          <el-button link type="danger" @click="removeCategory(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -70,7 +71,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Picture, Plus, Search } from '@element-plus/icons-vue'
-import { createShopCategory, listShopCategories, updateShopCategory, updateShopCategoryStatus, uploadShopImage } from '@/api/shop'
+import { createShopCategory, deleteShopCategory, listShopCategories, updateShopCategory, updateShopCategoryStatus, uploadShopImage } from '@/api/shop'
 import { validateSearchKeyword } from '@/utils/searchFeedback'
 
 const loading = ref(false)
@@ -137,6 +138,21 @@ const toggleStatus = async (row) => {
   }
   await updateShopCategoryStatus(row.id, nextStatus)
   ElMessage.success(nextStatus === 1 ? '分类已启用' : '分类已停用')
+  await loadCategories()
+}
+
+const removeCategory = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      `删除“${row.categoryName}”后无法恢复。若仍有商品使用该分类，系统会阻止删除。`,
+      '确认删除分类？',
+      { type: 'warning', confirmButtonText: '确认删除', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  await deleteShopCategory(row.id)
+  ElMessage.success('分类已删除')
   await loadCategories()
 }
 

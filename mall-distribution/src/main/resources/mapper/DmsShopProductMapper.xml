@@ -183,6 +183,13 @@
         WHERE tenant_id = #{tenantId} AND category_name = #{oldName}
     </update>
 
+    <select id="countByCategoryName" resultType="int">
+        SELECT COUNT(*)
+        FROM dms_shop_product
+        WHERE tenant_id = #{tenantId}
+          AND category_name = #{categoryName}
+    </select>
+
     <update id="decreaseStock">
         UPDATE dms_shop_product
         SET stock = stock - #{quantity},

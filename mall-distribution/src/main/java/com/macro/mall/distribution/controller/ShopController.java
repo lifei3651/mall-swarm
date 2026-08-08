@@ -187,6 +187,12 @@ public class ShopController {
         return CommonResult.success(shopService.updateCategory(id, category));
     }
 
+    @Operation(summary = "删除未使用的分类")
+    @DeleteMapping("/admin/categories/{id}")
+    public CommonResult<Boolean> deleteCategory(@PathVariable Long id) {
+        return CommonResult.success(shopService.deleteCategory(id));
+    }
+
     @Operation(summary = "启用/禁用分类")
     @PutMapping("/admin/categories/{id}/status")
     public CommonResult<Boolean> updateCategoryStatus(@PathVariable Long id, @RequestParam Integer status) {

@@ -29,6 +29,9 @@ public interface DmsShopProductDao {
                            @Param("oldName") String oldName,
                            @Param("newName") String newName);
 
+    int countByCategoryName(@Param("tenantId") Long tenantId,
+                            @Param("categoryName") String categoryName);
+
     int decreaseStock(@Param("id") Long id, @Param("quantity") Integer quantity);
 
     int increaseStock(@Param("id") Long id, @Param("quantity") Integer quantity);
