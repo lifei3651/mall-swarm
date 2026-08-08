@@ -49,7 +49,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Home, ShoppingBag, UserRound, Grid3x3, ClipboardList } from 'lucide-vue-next'
 import { getHome, getLegalConfig } from '@/api/shop'
@@ -65,6 +65,7 @@ const { count, addSequence, lastAddedQuantity } = useCart()
 const cartFeedback = ref('')
 let cartFeedbackTimer
 const brand = ref({ brandName: currentBrandName(), logoUrl: '' })
+provide('shopBrand', brand)
 const legal = ref({})
 const displayConfig = ref({})
 const availableRelease = ref(null)

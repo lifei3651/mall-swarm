@@ -1,5 +1,9 @@
 <template>
   <div class="page auth-page" :class="{ 'register-page': mode === 'register' }">
+    <header class="auth-brand-header">
+      <img class="auth-brand-logo" :src="displayBrandLogo" :alt="`${brandName} Logo`" @error="logoLoadFailed = true" />
+    </header>
+
     <div class="section-head">
       <div>
         <h2>{{ mode === 'login' ? '商城账号登录' : '注册商城账号' }}</h2>
@@ -201,7 +205,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Check } from 'lucide-vue-next'
 import { getInviterPreview, getLoginCaptcha, login, register, sendSmsCode } from '@/api/shop'
@@ -211,9 +215,15 @@ import { normalizeLoginAccountInput, resolveRegistrationErrorField, validateLogi
 import { isStaleChunkError } from '@/utils/chunkRecovery'
 import { applyShopSession } from '@/utils/shopSession'
 import { useRegisterDraft } from '@/store/registerDraft'
+import { currentBrandLogo, currentBrandName } from '@/utils/brand'
 
 const router = useRouter()
 const route = useRoute()
+const shopBrand = inject('shopBrand', null)
+const logoLoadFailed = ref(false)
+const brandName = computed(() => shopBrand?.value?.brandName || currentBrandName())
+const configuredBrandLogo = computed(() => shopBrand?.value?.logoUrl || currentBrandLogo())
+const displayBrandLogo = computed(() => logoLoadFailed.value || !configuredBrandLogo.value ? '/lingqi-logo-mark.png' : configuredBrandLogo.value)
 const mode = ref('login')
 const loginType = ref('password') // password | sms
 const loading = ref(false)
@@ -291,6 +301,7 @@ watch([error, success], ([errorMessage, successMessage]) => {
 })
 
 watch(() => route.fullPath, () => clearFeedback())
+watch(configuredBrandLogo, () => { logoLoadFailed.value = false })
 
 onBeforeUnmount(() => {
   clearFeedback()
@@ -601,6 +612,8 @@ const submit = async () => {
 
 <style scoped>
 .auth-page { position: relative; }
+.auth-brand-header { min-height:56px; display:flex; align-items:center; justify-content:center; margin:16px auto 18px; }
+.auth-brand-logo { display:block; width:auto; max-width:min(160px,48vw); height:auto; max-height:56px; object-fit:contain; }
 .auth-page .section-head { margin: 10px 0 12px; }
 .auth-page .auth-panel { border-radius: 14px; box-shadow: 0 10px 28px rgba(24, 32, 42, .06); }
 .auth-submit { width: 100%; min-height: 42px; margin-top: 12px; }
@@ -738,7 +751,9 @@ const submit = async () => {
 .auth-feedback-leave-to { opacity: 0; transform: translate(-50%, -7px); }
 
 @media (max-width: 920px) {
-  .auth-page { width: calc(100% - 20px); padding: 6px 0 20px; }
+  .auth-page { width: calc(100% - 24px); min-height:100vh; min-height:100dvh; padding:clamp(18px,4.5vh,42px) 0 20px; }
+  .auth-brand-header { min-height:50px; margin:0 auto clamp(18px,2.8vh,26px); }
+  .auth-brand-logo { max-width:min(148px,44vw); max-height:50px; }
   .auth-page .section-head { margin: 4px 0 9px; }
   .auth-page .section-head h2 { font-size: 22px; }
   .auth-page .section-head p { margin-top: 3px; font-size: 13px; }
@@ -764,5 +779,36 @@ const submit = async () => {
   .register-page .field-success { font-size: 10px; line-height: 1.25; }
   .register-page .auth-submit { min-height: 40px; margin-top: 9px; }
   .register-page .account-links { margin-top: 8px; }
+  .register-page { padding-top:8px; }
+  .register-page .auth-brand-header { min-height:34px; margin:0 auto 5px; }
+  .register-page .auth-brand-logo { max-width:min(112px,36vw); max-height:34px; }
+}
+@media (max-width: 920px) and (max-height: 700px) {
+  .auth-page { padding-top:10px; }
+  .auth-brand-header { min-height:40px; margin-bottom:10px; }
+  .auth-brand-logo { max-height:40px; }
+  .auth-page .section-head h2 { font-size:20px; }
+  .auth-page .auth-panel { padding:12px; }
+  .login-type-row { margin-top:8px; }
+  .form-grid { gap:10px; }
+  .auth-submit { margin-top:10px; }
+  .account-links { margin-top:10px; }
+  .register-page { padding-top:4px; }
+  .register-page .auth-brand-header { min-height:28px; margin-bottom:2px; }
+  .register-page .auth-brand-logo { max-height:28px; }
+}
+@media (max-width: 380px), (max-height: 600px) {
+  .auth-page { width:calc(100% - 18px); padding-top:6px; }
+  .auth-brand-header { min-height:34px; margin-bottom:7px; }
+  .auth-brand-logo { max-height:34px; }
+  .auth-page .section-head { margin-bottom:7px; }
+  .auth-page .section-head p { font-size:12px; }
+  .auth-page .auth-panel { padding:10px; }
+  .login-type-btn { padding:7px; }
+  .form-grid { gap:8px; }
+  .field { height:38px; }
+  .captcha-image { height:38px; }
+  .auth-submit { min-height:40px; margin-top:8px; }
+  .account-links { margin-top:8px; }
 }
 </style>

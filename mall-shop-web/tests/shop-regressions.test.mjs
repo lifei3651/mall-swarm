@@ -104,6 +104,19 @@ test('login errors stay beside their field, expire quickly, and auth pages use a
   assert.match(app, /watch\(\(\) => route\.fullPath[\s\S]*authPrompt\.value = ''/)
 })
 
+test('login page uses the configured shop logo and adapts to mainstream mobile heights', async () => {
+  const login = await readView('LoginView.vue')
+  const app = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+
+  assert.match(app, /provide\('shopBrand', brand\)/)
+  assert.match(login, /class="auth-brand-header"/)
+  assert.match(login, /class="auth-brand-logo"/)
+  assert.match(login, /currentBrandLogo/)
+  assert.match(login, /min-height:100dvh/)
+  assert.match(login, /@media \(max-width: 920px\) and \(max-height: 700px\)/)
+  assert.match(login, /@media \(max-width: 380px\), \(max-height: 600px\)/)
+})
+
 test('registration login account filters illegal characters and validates its structure', () => {
   assert.equal(normalizeLoginAccountInput(' 蜗牛 A-b@c_12345678901234567890 '), 'Abc_1234567890123456')
   assert.equal(validateLoginAccount(''), '请输入登录账号')
