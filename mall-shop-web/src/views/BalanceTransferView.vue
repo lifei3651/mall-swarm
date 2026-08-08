@@ -12,7 +12,7 @@
 
     <section class="panel transfer-panel">
       <h3>转账给会员</h3>
-      <p class="line-sub">输入完整手机号后核对收款会员名称，转账确认后即时到账。</p>
+      <p class="line-sub">输入完整手机号后，请核对昵称、会员编号和脱敏账号。转账确认后即时到账。</p>
       <div class="form-item">
         <label>收款会员手机号</label>
         <div class="inline-input">
@@ -20,7 +20,10 @@
           <button type="button" @click="lookupRecipient">核对</button>
         </div>
       </div>
-      <div v-if="recipient" class="recipient-card"><span>收款会员</span><strong>{{ recipient.memberName }}</strong><small>{{ recipient.phone }}</small></div>
+      <div v-if="recipient" class="recipient-card">
+        <div><span>收款会员</span><strong>{{ recipient.memberName }}</strong></div>
+        <dl><div><dt>会员编号</dt><dd>{{ recipient.memberNo }}</dd></div><div><dt>登录账号</dt><dd>{{ recipient.maskedLoginAccount }}</dd></div><div><dt>手机号</dt><dd>{{ recipient.maskedPhone }}</dd></div></dl>
+      </div>
       <div class="form-item">
         <label for="transfer-amount">转账金额</label>
         <input id="transfer-amount" v-model="transferForm.amount" class="field" :class="{ invalid: amountError }" type="number" min="1" step="1" inputmode="numeric" placeholder="请输入整数金额" @input="handleAmountInput" />
@@ -39,9 +42,12 @@
         <h3 id="transfer-confirm-title">确认转账</h3>
         <div class="confirm-info">
           <div class="confirm-row"><span>收款会员</span><strong>{{ recipient?.memberName || '-' }}</strong></div>
-          <div class="confirm-row"><span>手机号</span><strong>{{ transferForm.recipientPhone }}</strong></div>
+          <div class="confirm-row"><span>会员编号</span><strong>{{ recipient?.memberNo || '-' }}</strong></div>
+          <div class="confirm-row"><span>登录账号</span><strong>{{ recipient?.maskedLoginAccount || '-' }}</strong></div>
+          <div class="confirm-row"><span>手机号</span><strong>{{ recipient?.maskedPhone || '-' }}</strong></div>
           <div class="confirm-row"><span>转账金额</span><strong class="amount-highlight">¥{{ money(transferForm.amount) }}</strong></div>
         </div>
+        <p class="confirm-warning">请确认收款人信息无误。余额转账成功后即时到账，请勿向陌生账号转账。</p>
         <div class="dialog-actions">
           <button class="btn secondary" @click="showConfirm = false">取消</button>
           <button class="btn primary" :disabled="transferSaving" @click="doTransfer">{{ transferSaving ? '转账中...' : '确认转账' }}</button>
@@ -146,8 +152,14 @@ onMounted(fetchData)
 .transfer-panel > .form-item { margin-top:13px; }
 .inline-input { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; }
 .inline-input button { min-width:88px; color:var(--brand-primary); background:var(--brand-primary-soft); border:0; border-radius:8px; font-weight:700; }
-.recipient-card { display:grid; grid-template-columns:1fr auto; gap:3px 12px; margin-top:10px; padding:11px 12px; color:#245446; background:#eaf7f1; border-radius:10px; }
-.recipient-card small { grid-column:1/-1; color:#668077; }
+.recipient-card { margin-top:10px; padding:13px; color:#245446; background:#eaf7f1; border:1px solid #ccebdd; border-radius:12px; }
+.recipient-card > div { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.recipient-card span { color:#668077; font-size:12px; }
+.recipient-card strong { font-size:16px; }
+.recipient-card dl { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; margin:11px 0 0; padding-top:10px; border-top:1px solid rgba(36,84,70,.12); }
+.recipient-card dl div { min-width:0; }
+.recipient-card dt { color:#789087; font-size:10px; }
+.recipient-card dd { margin:4px 0 0; overflow:hidden; color:#245446; text-overflow:ellipsis; white-space:nowrap; font-size:12px; font-weight:700; }
 .field.invalid { border-color:#dc2626; }
 .field-error { margin:6px 0 0; color:#b42318; font-size:12px; }
 .submit-button { width:100%; margin-top:16px; }
@@ -162,6 +174,7 @@ onMounted(fetchData)
 .confirm-row span { color:var(--muted); font-size:13px; }
 .confirm-row strong { font-size:14px; }
 .amount-highlight { color:var(--accent,#e7193f); font-size:20px !important; }
+.confirm-warning { margin:12px 2px 0; color:#a45b14; font-size:11px; line-height:1.55; }
 .dialog-actions { display:flex; gap:10px; margin-top:16px; }
 .dialog-actions button { flex:1; }
 @media (max-width:560px) { .transfer-page{padding-top:10px}.transfer-panel{padding:16px 14px} }

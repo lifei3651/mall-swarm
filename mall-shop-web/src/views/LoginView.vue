@@ -268,6 +268,7 @@ const switchLoginType = (value) => {
 
 // 从URL获取邀请码
 onMounted(() => {
+  if (route.query.notice) success.value = String(route.query.notice).slice(0, 80)
   const urlInviteCode = route.query.inviteCode || route.query.code
   if (urlInviteCode) {
     registerForm.value.inviteCode = urlInviteCode

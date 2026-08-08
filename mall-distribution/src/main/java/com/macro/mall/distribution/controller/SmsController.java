@@ -35,7 +35,8 @@ public class SmsController {
             SmsBusinessType.WITHDRAW,
             SmsBusinessType.PAYMENT,
             SmsBusinessType.SET_PAYMENT_PASSWORD,
-            SmsBusinessType.RESET_LOGIN_PASSWORD);
+            SmsBusinessType.RESET_LOGIN_PASSWORD,
+            SmsBusinessType.CHANGE_PHONE_CURRENT);
 
     private final StringRedisTemplate redisTemplate;
     private final AliyunSmsSender aliyunSmsSender;

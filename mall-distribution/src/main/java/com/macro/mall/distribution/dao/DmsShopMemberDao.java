@@ -49,6 +49,7 @@ public interface DmsShopMemberDao {
     int updatePassword(@Param("id") Long id, @Param("passwordHash") String passwordHash);
     int updatePhoneAndDefaults(@Param("id") Long id, @Param("oldPhone") String oldPhone,
                                @Param("newPhone") String newPhone);
+    int updateNickname(@Param("id") Long id, @Param("nickname") String nickname);
     int updateAccount(@Param("id") Long id, @Param("username") String username,
                       @Param("passwordHash") String passwordHash);
     int updateInviterId(@Param("id") Long id, @Param("inviterId") Long inviterId);

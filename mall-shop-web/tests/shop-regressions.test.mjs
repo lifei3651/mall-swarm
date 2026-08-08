@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { resolveQuickCartItem } from '../src/utils/quickCart.js'
 import { extractModuleEntry } from '../src/utils/buildFreshness.js'
 import { normalizeLoginAccountInput, resolveRegistrationErrorField, validateLoginAccount } from '../src/utils/loginAccount.js'
+import { normalizeNicknameInput, validateNickname } from '../src/utils/nickname.js'
 
 const readView = (name) => readFile(new URL(`../src/views/${name}`, import.meta.url), 'utf8')
 const readStyles = () => readFile(new URL('../src/assets/styles.css', import.meta.url), 'utf8')
@@ -115,6 +116,21 @@ test('registration login account filters illegal characters and validates its st
   assert.equal(resolveRegistrationErrorField('短信验证码错误'), 'smsCode')
   assert.equal(resolveRegistrationErrorField('登录密码需为6至32位'), 'password')
   assert.equal(resolveRegistrationErrorField('网络错误'), '')
+})
+
+test('nickname is edited in account settings with the same front and back compatible rules', async () => {
+  const profile = await readView('ProfileView.vue')
+  const settings = await readView('ProfileSettingsView.vue')
+  assert.match(profile, /to="\/profile\/settings"/)
+  assert.doesNotMatch(profile, /class="panel account-panel"/)
+  assert.match(settings, /修改昵称/)
+  assert.match(settings, /更换绑定手机号/)
+  assert.match(settings, /currentPhoneSmsCode/)
+  assert.match(settings, /newPhoneSmsCode/)
+  assert.equal(normalizeNicknameInput(' 小李🙂  A@_ '), ' 小李 A_ ')
+  assert.equal(validateNickname('小李'), '')
+  assert.equal(validateNickname('A'), '昵称需为2至20个字符')
+  assert.match(validateNickname('小李🙂'), /昵称仅支持/)
 })
 
 test('profile renders immediately and loads order counts, wallet and performance separately', async () => {
@@ -241,6 +257,9 @@ test('wallet actions keep transfer on its own page and explain non-agent team ac
   assert.doesNotMatch(wallet, /activeTool === 'transfer'/)
   assert.match(transfer, /转账金额只能为整数/)
   assert.match(transfer, /type="number" min="1" step="1"/)
+  assert.match(transfer, /maskedLoginAccount/)
+  assert.match(transfer, /memberNo/)
+  assert.doesNotMatch(transfer, /\{\{ transferForm\.recipientPhone \}\}/)
   assert.match(team, /完成首单后开通业绩查询/)
   assert.match(team, /当前账号尚未开通代理身份/)
   assert.match(team, /总业绩/)

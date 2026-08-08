@@ -11,7 +11,10 @@
             </div>
             <p>账号：{{ profileLoading ? '-' : accountName }}</p>
           </div>
-          <button type="button" class="invite-mini" @click="openInvite"><Gift :size="17" />邀请</button>
+          <div class="identity-actions">
+            <RouterLink to="/profile/settings" class="identity-action"><Settings :size="16" />设置</RouterLink>
+            <button type="button" class="identity-action" @click="openInvite"><Gift :size="16" />邀请</button>
+          </div>
         </div>
         <div class="identity-stats" :class="{ 'without-team-performance': !showTeamPerformance }">
           <RouterLink to="/profile/wallet"><span>余额</span><strong>{{ walletLoading ? '加载中' : `¥${money(walletSummary.balance)}` }}</strong></RouterLink>
@@ -55,16 +58,6 @@
         </RouterLink>
       </section>
 
-      <section v-if="!profileLoading && profile.member && !profile.member.username" class="panel account-panel">
-        <h3>设置登录账号</h3>
-        <p class="line-sub">手机号可以直接登录，也可以设置一个更容易记住的商城账号。</p>
-        <div class="form-grid">
-          <div class="form-item"><label>登录账号</label><input v-model="accountForm.username" class="field" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="4至20位，以字母开头" @input="handleAccountInput" /></div>
-          <div class="form-item"><label>登录密码</label><input v-model="accountForm.password" class="field" type="password" autocomplete="new-password" placeholder="6至32位" /></div>
-        </div>
-        <button class="btn primary" :disabled="accountSaving" @click="submitAccount">{{ accountSaving ? '保存中' : '保存登录账号' }}</button>
-      </section>
-
         <p v-if="error" class="profile-error">{{ error }}</p>
       </div>
       <div class="profile-actions">
@@ -105,6 +98,7 @@ import {
   MessageSquareText,
   PackageCheck,
   RotateCcw,
+  Settings,
   ShieldCheck,
   Sparkles,
   Store,
@@ -112,11 +106,10 @@ import {
   UserRound,
   WalletCards,
 } from 'lucide-vue-next'
-import { getProfile, getProfilePerformance, getWalletSummary, logout, setupAccount } from '@/api/shop'
+import { getProfile, getProfilePerformance, getWalletSummary, logout } from '@/api/shop'
 import InviteDialog from '@/components/InviteDialog.vue'
 import { money } from '@/utils/format'
 import { clearShopSession } from '@/utils/shopSession'
-import { normalizeLoginAccountInput, validateLoginAccount } from '@/utils/loginAccount'
 
 const router = useRouter()
 const profileLoading = ref(true)
@@ -126,11 +119,9 @@ const error = ref('')
 const profile = ref({})
 const performanceProfile = ref({})
 const walletSummary = ref({ balance: 0, hasPaymentPassword: false })
-const accountSaving = ref(false)
 const logoutConfirmVisible = ref(false)
 const inviteDialogVisible = ref(false)
 const loggingOut = ref(false)
-const accountForm = ref({ username: '', password: '' })
 
 const rankMap = {
   0: { name: '', icon: UserRound, className: 'rank-0' },
@@ -187,24 +178,6 @@ const fetchPerformance = async () => {
   finally { performanceLoading.value = false }
 }
 
-const submitAccount = async () => {
-  const accountError = validateLoginAccount(accountForm.value.username)
-  if (accountError) return (error.value = accountError)
-  if (accountForm.value.password.length < 6 || accountForm.value.password.length > 32) return (error.value = '登录密码需要6至32位')
-  accountSaving.value = true
-  error.value = ''
-  try {
-    await setupAccount(accountForm.value)
-    accountForm.value = { username: '', password: '' }
-    await fetchProfile()
-  } catch (e) { error.value = e.message || '登录账号保存失败' }
-  finally { accountSaving.value = false }
-}
-
-const handleAccountInput = () => {
-  accountForm.value.username = normalizeLoginAccountInput(accountForm.value.username)
-}
-
 const closeLogoutConfirm = () => {
   if (!loggingOut.value) logoutConfirmVisible.value = false
 }
@@ -250,7 +223,8 @@ onMounted(() => {
 .identity-name-row h2 { margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:20px; }
 .rank-badge { display:inline-flex; align-items:center; gap:4px; padding:4px 8px; color:#fff; background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.24); border-radius:999px; font-size:11px; font-weight:800; }
 .identity-main p { margin:6px 0 0; color:rgba(255,255,255,.76); font-size:12px; }
-.invite-mini { position:relative; z-index:2; display:inline-flex; align-items:center; gap:4px; padding:8px 10px; color:#fff; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.24); border-radius:999px; font-size:12px; }
+.identity-actions { position:relative; z-index:2; display:flex; flex-direction:column; align-items:stretch; gap:6px; }
+.identity-action { display:inline-flex; align-items:center; justify-content:center; gap:4px; padding:7px 9px; color:#fff; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.24); border-radius:999px; font-size:11px; }
 .identity-stats { position:relative; z-index:1; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1px; margin-top:22px; padding-top:17px; border-top:1px solid rgba(255,255,255,.22); }
 .identity-stats.without-team-performance { grid-template-columns:repeat(2,minmax(0,1fr)); }
 .identity-stats > * { min-width:0; padding:0 10px; border-right:1px solid rgba(255,255,255,.18); text-align:center; }
@@ -276,9 +250,6 @@ onMounted(() => {
 .team-icon { color:#3867d6; background:#eef3ff; }
 .security-icon { color:#0f8a62; background:#eaf8f3; }
 .address-icon { color:#b26b13; background:#fff6e8; }
-.account-panel { margin-top:14px; border:0; border-radius:16px; }
-.account-panel .form-grid { margin-top:14px; }
-.account-panel .btn { margin-top:14px; }
 .profile-error { margin:14px 0 0; padding:12px 14px; color:#b42318; background:#fff1f0; border-radius:10px; }
 .logout-button { width:100%; min-height:46px; color:#b42318; background:#fff; border:0; border-radius:14px; }
 .logout-dialog-mask { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; padding:22px; background:rgba(20,27,38,.48); backdrop-filter:blur(3px); }

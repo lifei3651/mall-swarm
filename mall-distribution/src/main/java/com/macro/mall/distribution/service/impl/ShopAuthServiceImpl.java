@@ -3,6 +3,7 @@ package com.macro.mall.distribution.service.impl;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.crypto.SecureUtil;
 import cn.hutool.crypto.digest.BCrypt;
+import com.macro.mall.common.sms.SmsBusinessType;
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsShopMemberSessionDao;
@@ -12,6 +13,9 @@ import com.macro.mall.distribution.dto.AdminMemberCreateDTO;
 import com.macro.mall.distribution.dto.ShopAccountSetupDTO;
 import com.macro.mall.distribution.dto.ShopLoginDTO;
 import com.macro.mall.distribution.dto.ShopPasswordChangeDTO;
+import com.macro.mall.distribution.dto.ShopNicknameUpdateDTO;
+import com.macro.mall.distribution.dto.ShopPhoneUpdateDTO;
+import com.macro.mall.distribution.dto.AgentUpdateDTO;
 import com.macro.mall.distribution.dto.ShopRegisterDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsShopMemberSession;
@@ -24,6 +28,7 @@ import com.macro.mall.distribution.vo.AdminMemberVO;
 import com.macro.mall.distribution.vo.ShopAuthVO;
 import com.macro.mall.distribution.enums.AgentLevelEnum;
 import com.macro.mall.distribution.util.PhoneNumberUtils;
+import com.macro.mall.distribution.util.MemberNicknameUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -124,8 +129,8 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         }
         if (memberDao.selectByAccount(dto.getPhone()) != null) Asserts.fail("该手机号已被注册或用作登录账号");
         if (memberDao.selectByAccount(username) != null) Asserts.fail("登录账号已存在");
-        String nickname = dto.getNickname() == null ? "" : dto.getNickname().trim();
-        if (nickname.length() > 64) Asserts.fail("昵称最多64个字符");
+        String nickname = dto.getNickname() == null || dto.getNickname().isBlank()
+                ? username : MemberNicknameUtils.normalize(dto.getNickname());
         DmsShopMember inviter = null;
         if (dto.getInviterUserId() != null) {
             inviter = memberDao.selectByUserId(dto.getInviterUserId());
@@ -136,7 +141,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         member.setPhone(dto.getPhone());
         member.setUsername(username);
         member.setPasswordHash(hash(initialPassword.isBlank() ? IdUtil.fastSimpleUUID() : initialPassword));
-        member.setNickname(nickname.isBlank() ? username : nickname);
+        member.setNickname(nickname);
         member.setInviteCode(IdUtil.fastSimpleUUID().substring(0, 8).toUpperCase());
         member.setInviterId(inviter == null ? null : inviter.getUserId());
         member.setStatus(1);
@@ -251,6 +256,65 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         smsVerificationService.verifyAndConsume(current.getPhone(), dto.getSmsCode(), 8);
         memberDao.updatePassword(current.getId(), hash(dto.getNewPassword()));
         memberDao.clearLoginLock(current.getId());
+        sessionDao.disableByMemberId(current.getId());
+        return true;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public DmsShopMember updateNickname(DmsShopMember member, ShopNicknameUpdateDTO dto) {
+        if (member == null) Asserts.fail("请先登录");
+        if (dto == null) Asserts.fail("请输入昵称");
+        DmsShopMember current = memberDao.selectById(member.getId());
+        if (current == null) Asserts.fail("会员不存在");
+        String nickname = MemberNicknameUtils.normalize(dto.getNickname());
+        if (Objects.equals(nickname, current.getNickname())) {
+            return sanitize(current);
+        }
+        if (memberDao.updateNickname(current.getId(), nickname) <= 0) {
+            Asserts.fail("昵称保存失败，请刷新后重试");
+        }
+        AgentInfoVO agent = agentService.getAgentByUserId(current.getUserId());
+        if (agent != null && (Objects.equals(agent.getAgentName(), current.getNickname())
+                || Objects.equals(agent.getAgentName(), current.getUsername())
+                || Objects.equals(agent.getAgentName(), current.getPhone()))) {
+            AgentUpdateDTO update = new AgentUpdateDTO();
+            update.setAgentName(nickname);
+            agentService.updateAgentInfo(agent.getId(), update);
+        }
+        return sanitize(memberDao.selectById(current.getId()));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean updatePhone(DmsShopMember member, ShopPhoneUpdateDTO dto) {
+        if (member == null) Asserts.fail("请先登录");
+        if (dto == null) Asserts.fail("请输入新手机号");
+        DmsShopMember current = memberDao.selectById(member.getId());
+        if (current == null) Asserts.fail("会员不存在");
+        String newPhone = PhoneNumberUtils.normalize(dto.getNewPhone());
+        if (!PhoneNumberUtils.isValidMainlandMobile(newPhone)) Asserts.fail("请输入正确的11位新手机号");
+        if (Objects.equals(current.getPhone(), newPhone)) Asserts.fail("新手机号不能与当前手机号相同");
+        DmsShopMember conflict = memberDao.selectByAccount(newPhone);
+        if (conflict != null && !Objects.equals(conflict.getId(), current.getId())) {
+            Asserts.fail("该手机号已被其他账号使用");
+        }
+
+        // 先确认新号码可用，再确认当前号码归属；两项都通过后才允许换绑。
+        smsVerificationService.verifyAndConsume(newPhone, dto.getNewPhoneSmsCode(), SmsBusinessType.CHANGE_PHONE_NEW);
+        smsVerificationService.verifyAndConsume(current.getPhone(), dto.getCurrentPhoneSmsCode(), SmsBusinessType.CHANGE_PHONE_CURRENT);
+
+        String oldPhone = current.getPhone();
+        if (memberDao.updatePhoneAndDefaults(current.getId(), oldPhone, newPhone) <= 0) {
+            Asserts.fail("手机号修改失败，请刷新后重试");
+        }
+        AgentInfoVO agent = agentService.getAgentByUserId(current.getUserId());
+        if (agent != null) {
+            AgentUpdateDTO update = new AgentUpdateDTO();
+            update.setPhone(newPhone);
+            if (Objects.equals(agent.getAgentName(), oldPhone)) update.setAgentName(newPhone);
+            agentService.updateAgentInfo(agent.getId(), update);
+        }
         sessionDao.disableByMemberId(current.getId());
         return true;
     }

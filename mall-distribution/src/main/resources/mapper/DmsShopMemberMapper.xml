@@ -213,6 +213,11 @@
             update_time = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
+    <update id="updateNickname">
+        UPDATE dms_shop_member
+        SET nickname = #{nickname}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
     <update id="updateAccount">
         UPDATE dms_shop_member SET username=#{username}, password_hash=#{passwordHash},
             failed_login_count=0, lock_time=NULL, update_time=CURRENT_TIMESTAMP WHERE id=#{id}

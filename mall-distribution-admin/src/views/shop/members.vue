@@ -348,7 +348,7 @@
     </el-dialog>
 
     <el-dialog v-model="phoneVisible" title="修改会员登录手机号" width="540px" destroy-on-close>
-      <el-alert title="修改后新手机号立即成为登录手机号；会员当前所有登录会话会失效，需要使用新手机号重新登录。" type="warning" :closable="false" show-icon />
+      <el-alert title="管理员核实客户身份后可直接代改，无需会员短信验证码；修改后旧会话立即失效，会员需使用新手机号重新登录。" type="warning" :closable="false" show-icon />
       <el-form :model="phoneForm" label-width="115px" class="level-form">
         <el-form-item label="会员"><el-input :model-value="`${phoneForm.memberName}（${phoneForm.memberAccount}）`" disabled /></el-form-item>
         <el-form-item label="当前手机号"><el-input v-model="phoneForm.oldPhone" disabled /></el-form-item>
@@ -396,7 +396,7 @@
           <div class="form-tip">填写后可使用登录账号或手机号加密码登录；留空则先使用手机号验证码登录。</div>
         </el-form-item>
         <el-form-item label="昵称">
-          <el-input v-model="createForm.nickname" maxlength="64" placeholder="选填，可填写中文或英文；留空则使用登录账号" />
+          <el-input v-model="createForm.nickname" maxlength="20" placeholder="选填，2至20个字符；留空则使用登录账号" />
           <div class="form-tip">昵称是展示名称，不用于登录，也不要求与登录账号相同。</div>
         </el-form-item>
         <el-form-item label="邀请会员">

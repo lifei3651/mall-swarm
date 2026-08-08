@@ -14,10 +14,13 @@ public final class SmsBusinessType {
     public static final int PAYMENT = 6;
     public static final int SET_PAYMENT_PASSWORD = 7;
     public static final int RESET_LOGIN_PASSWORD = 8;
+    public static final int CHANGE_PHONE_CURRENT = 9;
+    public static final int CHANGE_PHONE_NEW = 10;
 
     public static final Set<Integer> SUPPORTED = Set.of(
             REGISTER, LOGIN, RESET_PASSWORD, TRANSFER,
-            WITHDRAW, PAYMENT, SET_PAYMENT_PASSWORD, RESET_LOGIN_PASSWORD);
+            WITHDRAW, PAYMENT, SET_PAYMENT_PASSWORD, RESET_LOGIN_PASSWORD,
+            CHANGE_PHONE_CURRENT, CHANGE_PHONE_NEW);
 
     private SmsBusinessType() {
     }

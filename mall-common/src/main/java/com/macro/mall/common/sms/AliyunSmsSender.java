@@ -24,7 +24,9 @@ public class AliyunSmsSender {
             SmsBusinessType.WITHDRAW, "withdraw",
             SmsBusinessType.PAYMENT, "payment",
             SmsBusinessType.SET_PAYMENT_PASSWORD, "payment-password",
-            SmsBusinessType.RESET_LOGIN_PASSWORD, "reset-password");
+            SmsBusinessType.RESET_LOGIN_PASSWORD, "reset-password",
+            SmsBusinessType.CHANGE_PHONE_CURRENT, "verification",
+            SmsBusinessType.CHANGE_PHONE_NEW, "verification");
     private final AliyunSmsProperties properties;
     private final Map<String, Client> clients = new ConcurrentHashMap<>();
 

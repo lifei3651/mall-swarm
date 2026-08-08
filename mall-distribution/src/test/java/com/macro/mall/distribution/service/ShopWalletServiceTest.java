@@ -96,6 +96,9 @@ class ShopWalletServiceTest {
 
         BalanceRecipientVO found = walletService.findRecipient(payer, recipient.getPhone());
         assertEquals("收款会员", found.getMemberName());
+        assertEquals("139****0002", found.getMaskedPhone());
+        assertEquals("me***02", found.getMaskedLoginAccount());
+        assertNotNull(found.getMemberNo());
 
         BalanceTransferDTO transfer = new BalanceTransferDTO();
         transfer.setRecipientPhone(recipient.getPhone());

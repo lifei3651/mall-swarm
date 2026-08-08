@@ -94,8 +94,10 @@ public class ShopWalletServiceImpl implements ShopWalletService {
             Asserts.fail("该账号尚未成为会员，暂不能接收余额");
         }
         BalanceRecipientVO vo = new BalanceRecipientVO();
-        vo.setPhone(recipient.getPhone());
         vo.setMemberName(firstText(recipient.getNickname(), recipientAgent.getAgentName(), recipient.getUsername(), recipient.getPhone()));
+        vo.setMaskedPhone(maskPhone(recipient.getPhone()));
+        vo.setMaskedLoginAccount(maskLoginAccount(recipient.getUsername()));
+        vo.setMemberNo(String.format("M%07d", recipient.getId()));
         return vo;
     }
 
@@ -273,5 +275,18 @@ public class ShopWalletServiceImpl implements ShopWalletService {
     private String requiredText(String value, String message) {
         if (!hasText(value)) Asserts.fail(message);
         return value.trim();
+    }
+
+    private String maskPhone(String phone) {
+        if (phone == null || !phone.matches("^\\d{11}$")) return "-";
+        return phone.substring(0, 3) + "****" + phone.substring(7);
+    }
+
+    private String maskLoginAccount(String account) {
+        if (!hasText(account)) return "未设置";
+        String value = account.trim();
+        if (value.length() <= 2) return value.substring(0, 1) + "*";
+        if (value.length() <= 4) return value.substring(0, 1) + "**" + value.substring(value.length() - 1);
+        return value.substring(0, 2) + "***" + value.substring(value.length() - 2);
     }
 }

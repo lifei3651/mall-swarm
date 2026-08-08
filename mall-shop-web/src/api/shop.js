@@ -45,6 +45,22 @@ export function changeLoginPassword(data) {
   })
 }
 
+export function updateNickname(nickname) {
+  return request({
+    url: '/shop/auth/nickname',
+    method: 'put',
+    data: { nickname },
+  })
+}
+
+export function updatePhone(data) {
+  return request({
+    url: '/shop/auth/phone',
+    method: 'put',
+    data,
+  })
+}
+
 export function logout() {
   return request({
     url: '/shop/auth/logout',

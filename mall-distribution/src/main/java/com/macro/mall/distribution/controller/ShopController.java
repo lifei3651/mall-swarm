@@ -112,6 +112,22 @@ public class ShopController {
         return CommonResult.success(authService.changePassword(authService.requireMember(authorization), dto));
     }
 
+    @Operation(summary = "会员修改昵称")
+    @PutMapping("/auth/nickname")
+    public CommonResult<DmsShopMember> updateNickname(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody ShopNicknameUpdateDTO dto) {
+        return CommonResult.success(authService.updateNickname(authService.requireMember(authorization), dto));
+    }
+
+    @Operation(summary = "会员更换绑定手机号")
+    @PutMapping("/auth/phone")
+    public CommonResult<Boolean> updatePhone(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody ShopPhoneUpdateDTO dto) {
+        return CommonResult.success(authService.updatePhone(authService.requireMember(authorization), dto));
+    }
+
     @Operation(summary = "重置密码（忘记密码）")
     @PostMapping("/auth/resetPassword")
     public CommonResult<Boolean> resetPassword(@RequestBody ShopPasswordResetDTO dto) {

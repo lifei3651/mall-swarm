@@ -5,6 +5,8 @@ import com.macro.mall.distribution.dto.ShopRegisterDTO;
 import com.macro.mall.distribution.dto.AdminMemberCreateDTO;
 import com.macro.mall.distribution.dto.ShopAccountSetupDTO;
 import com.macro.mall.distribution.dto.ShopPasswordChangeDTO;
+import com.macro.mall.distribution.dto.ShopNicknameUpdateDTO;
+import com.macro.mall.distribution.dto.ShopPhoneUpdateDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.vo.ShopAuthVO;
 import com.macro.mall.distribution.vo.AgentInfoVO;
@@ -43,6 +45,10 @@ public interface ShopAuthService {
     DmsShopMember setupAccount(DmsShopMember member, ShopAccountSetupDTO dto);
 
     boolean changePassword(DmsShopMember member, ShopPasswordChangeDTO dto);
+
+    DmsShopMember updateNickname(DmsShopMember member, ShopNicknameUpdateDTO dto);
+
+    boolean updatePhone(DmsShopMember member, ShopPhoneUpdateDTO dto);
 
     /**
      * 重置会员密码（忘记密码）

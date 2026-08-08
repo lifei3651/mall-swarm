@@ -19,6 +19,7 @@ const routes = [
   { path: '/invite', name: 'Invite', component: () => import('@/views/InviteView.vue'), meta: { requiresAuth: true } },
   { path: '/legal/:type', name: 'Legal', component: () => import('@/views/LegalView.vue') },
   { path: '/profile', name: 'Profile', component: () => import('@/views/ProfileView.vue'), meta: { requiresAuth: true } },
+  { path: '/profile/settings', name: 'ProfileSettings', component: () => import('@/views/ProfileSettingsView.vue'), meta: { requiresAuth: true } },
   { path: '/profile/wallet', name: 'ProfileWallet', component: () => import('@/views/WalletView.vue'), meta: { requiresAuth: true } },
   { path: '/profile/wallet/transfer', name: 'ProfileWalletTransfer', component: () => import('@/views/BalanceTransferView.vue'), meta: { requiresAuth: true } },
   { path: '/profile/team', name: 'ProfileTeam', component: () => import('@/views/TeamPerformanceView.vue'), meta: { requiresAuth: true } },
