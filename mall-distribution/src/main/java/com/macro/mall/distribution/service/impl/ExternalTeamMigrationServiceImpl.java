@@ -156,8 +156,13 @@ public class ExternalTeamMigrationServiceImpl implements ExternalTeamMigrationSe
     }
     private String get(List<String> v,int i){return i<v.size()?v.get(i).trim():"";}
     private String importUsername(String externalMemberCode) {
-        String value = "IMPORT_" + externalMemberCode.trim();
-        return value.length() > 64 ? value.substring(0, 64) : value;
+        String source = externalMemberCode == null ? "member" : externalMemberCode.trim();
+        String normalized = source.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_]", "_");
+        String suffix = Integer.toUnsignedString(source.hashCode(), 36);
+        int maxBaseLength = Math.max(7, 20 - suffix.length() - 1);
+        String base = "import_" + normalized;
+        if (base.length() > maxBaseLength) base = base.substring(0, maxBaseLength);
+        return base + "_" + suffix;
     }
     private Integer integer(String v,int d){try{return v==null||v.isBlank()?d:Integer.valueOf(v);}catch(Exception e){return d;}}
     private BigDecimal decimal(String v){try{return v==null||v.isBlank()?BigDecimal.ZERO:new BigDecimal(v);}catch(Exception e){return BigDecimal.ZERO;}}

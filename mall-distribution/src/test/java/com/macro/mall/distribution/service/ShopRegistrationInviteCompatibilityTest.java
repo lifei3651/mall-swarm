@@ -42,7 +42,7 @@ class ShopRegistrationInviteCompatibilityTest {
 
         ApiException error = assertThrows(ApiException.class, () -> authService.register(dto));
 
-        assertEquals("请输入用户名", error.getMessage());
+        assertEquals("请输入登录账号", error.getMessage());
     }
 
     @Test
@@ -69,7 +69,27 @@ class ShopRegistrationInviteCompatibilityTest {
         ShopRegisterDTO dto = validRegistration(phone, "new_user_123");
         ApiException error = assertThrows(ApiException.class, () -> authService.register(dto));
 
-        assertEquals("该用户名已被使用，请更换用户名", error.getMessage());
+        assertEquals("该登录账号已被使用，请更换登录账号", error.getMessage());
+        verify(memberDao, never()).insert(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void registrationRejectsChineseLoginAccountBeforeWritingMember() {
+        ShopRegisterDTO dto = validRegistration("15500000123", "蜗牛账号");
+
+        ApiException error = assertThrows(ApiException.class, () -> authService.register(dto));
+
+        assertEquals("登录账号必须以英文字母开头", error.getMessage());
+        verify(memberDao, never()).insert(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void registrationRejectsSpecialCharactersInLoginAccountBeforeWritingMember() {
+        ShopRegisterDTO dto = validRegistration("15500000123", "user@123");
+
+        ApiException error = assertThrows(ApiException.class, () -> authService.register(dto));
+
+        assertEquals("登录账号仅支持英文字母、数字和下划线", error.getMessage());
         verify(memberDao, never()).insert(org.mockito.ArgumentMatchers.any());
     }
 
@@ -92,7 +112,7 @@ class ShopRegistrationInviteCompatibilityTest {
         ShopRegisterDTO dto = new ShopRegisterDTO();
         dto.setPhone(phone);
         dto.setUsername("new_user_123");
-        dto.setNickname("新用户");
+        dto.setNickname("该字段不再用于注册昵称");
         dto.setPassword("secure888");
         dto.setSmsCode("123456");
         dto.setInviteCode(" oldlink1 ");
@@ -102,6 +122,7 @@ class ShopRegistrationInviteCompatibilityTest {
         ArgumentCaptor<DmsShopMember> memberCaptor = ArgumentCaptor.forClass(DmsShopMember.class);
         verify(memberDao).insert(memberCaptor.capture());
         assertEquals(880088L, memberCaptor.getValue().getInviterId());
+        assertEquals("new_user_123", memberCaptor.getValue().getNickname());
     }
 
     private ShopRegisterDTO validRegistration(String phone, String username) {

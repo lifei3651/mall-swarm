@@ -387,8 +387,8 @@
       <el-alert title="登录账号和手机号必填。填写初始密码后可使用登录账号或手机号登录；不填写则先通过手机号验证码登录。不开通会员身份时，完成首笔有效支付后才成为正式会员。" type="info" :closable="false" show-icon />
       <el-form :model="createForm" label-width="120px" class="create-form">
         <el-form-item label="登录账号" required>
-          <el-input v-model="createForm.username" maxlength="64" placeholder="2至64个字符，不能与手机号相同" />
-          <div class="form-tip">用于会员登录和后台识别，创建前会校验是否重复。</div>
+          <el-input v-model="createForm.username" maxlength="20" placeholder="4至20位，以英文字母开头" @input="value => createForm.username = normalizeLoginAccountInput(value)" />
+          <div class="form-tip">仅支持英文字母、数字和下划线，用于会员登录和后台识别。</div>
         </el-form-item>
         <el-form-item label="手机号" required><el-input v-model="createForm.phone" maxlength="11" inputmode="numeric" placeholder="请输入11位手机号" @input="value => createForm.phone = normalizeMainlandPhone(value)" /></el-form-item>
         <el-form-item label="初始登录密码">
@@ -855,6 +855,7 @@ const submitSwitchLine = async () => {
 }
 
 const openCreate = () => { createForm.value = emptyCreateForm(); inviterOptions.value = []; createVisible.value = true }
+const normalizeLoginAccountInput = (value) => String(value || '').replace(/[^A-Za-z0-9_]/g, '').slice(0, 20)
 const searchInviters = async (keyword) => {
   if (!keyword) return (inviterOptions.value = [])
   const res = await listShopMembers({ keyword, status: 1, pageNum: 1, pageSize: 30 })
@@ -862,7 +863,7 @@ const searchInviters = async (keyword) => {
 }
 const submitCreate = async () => {
   const username = createForm.value.username.trim()
-  if (username.length < 2 || username.length > 64) return ElMessage.warning('请输入2至64个字符的登录账号')
+  if (!/^[A-Za-z][A-Za-z0-9_]{3,19}$/.test(username)) return ElMessage.warning('登录账号需为4至20位，以英文字母开头，仅支持字母、数字和下划线')
   if (!isValidMainlandPhone(createForm.value.phone)) return ElMessage.warning('请输入正确的11位手机号')
   if (username === createForm.value.phone) return ElMessage.warning('登录账号不能与手机号相同')
   createForm.value.username = username

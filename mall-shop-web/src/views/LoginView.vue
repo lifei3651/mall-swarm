@@ -18,8 +18,8 @@
         <!-- 密码登录 -->
         <template v-if="mode === 'login' && loginType === 'password'">
           <div class="form-item full">
-            <label>手机号/用户名</label>
-            <input v-model="loginForm.account" class="field" :class="{ 'has-error': loginFieldErrors.account }" placeholder="请输入手机号或用户名" :aria-invalid="!!loginFieldErrors.account" @input="clearLoginFieldError('account')" />
+            <label>手机号/登录账号</label>
+            <input v-model="loginForm.account" class="field" :class="{ 'has-error': loginFieldErrors.account }" placeholder="请输入手机号或登录账号" :aria-invalid="!!loginFieldErrors.account" @input="clearLoginFieldError('account')" />
             <p v-if="loginFieldErrors.account" class="field-error">{{ loginFieldErrors.account }}</p>
           </div>
           <div class="form-item full">
@@ -106,35 +106,22 @@
             <p v-else-if="isValidMainlandPhone(registerForm.phone)" class="field-success">格式正确，请通过短信验证码确认号码可用</p>
           </div>
           <div class="form-item">
-            <label>用户名 <span class="required-mark" aria-hidden="true">*</span></label>
+            <label>登录账号 <span class="required-mark" aria-hidden="true">*</span></label>
             <input
               v-model="registerForm.username"
               class="field"
               :class="{ 'has-error': fieldErrors.username }"
-              placeholder="请输入2至64个字符"
-              maxlength="64"
+              placeholder="4至20位，以字母开头"
+              maxlength="20"
               autocomplete="username"
+              autocapitalize="none"
+              spellcheck="false"
               aria-required="true"
               :aria-invalid="!!fieldErrors.username"
-              @input="clearFieldError('username')"
+              @input="handleRegisterUsernameInput"
               @blur="validateRegisterField('username')"
             />
             <p v-if="fieldErrors.username" class="field-error">{{ fieldErrors.username }}</p>
-          </div>
-          <div class="form-item">
-            <label>昵称 <span class="optional-mark">选填</span></label>
-            <input
-              v-model="registerForm.nickname"
-              class="field"
-              :class="{ 'has-error': fieldErrors.nickname }"
-              placeholder="不填写时默认使用用户名"
-              maxlength="64"
-              autocomplete="nickname"
-              :aria-invalid="!!fieldErrors.nickname"
-              @input="clearFieldError('nickname')"
-              @blur="validateRegisterField('nickname')"
-            />
-            <p v-if="fieldErrors.nickname" class="field-error">{{ fieldErrors.nickname }}</p>
           </div>
           <div class="form-item">
             <label>登录密码 <span class="required-mark" aria-hidden="true">*</span></label>
@@ -220,6 +207,7 @@ import { Check } from 'lucide-vue-next'
 import { getInviterPreview, getLoginCaptcha, login, register, sendSmsCode } from '@/api/shop'
 import { isNativeApp } from '@/utils/appEnvironment'
 import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
+import { normalizeLoginAccountInput, resolveRegistrationErrorField, validateLoginAccount } from '@/utils/loginAccount'
 import { isStaleChunkError } from '@/utils/chunkRecovery'
 import { applyShopSession } from '@/utils/shopSession'
 import { useRegisterDraft } from '@/store/registerDraft'
@@ -348,6 +336,11 @@ const handleRegisterPhoneInput = () => {
   if (registerForm.value.phone.length === 11) validateRegisterField('phone')
 }
 
+const handleRegisterUsernameInput = () => {
+  registerForm.value.username = normalizeLoginAccountInput(registerForm.value.username)
+  clearFieldError('username')
+}
+
 const handleSmsLoginPhoneInput = () => {
   smsForm.value.phone = normalizeMainlandPhone(smsForm.value.phone)
   clearLoginFieldError('phone')
@@ -359,11 +352,8 @@ const validateRegisterField = (field) => {
   if (field === 'phone' && !isValidMainlandPhone(form.phone)) {
     fieldErrors.value.phone = '请输入正确的11位手机号'
   } else if (field === 'username') {
-    const username = form.username?.trim() || ''
-    if (!username) fieldErrors.value.username = '请输入用户名'
-    else if (username.length < 2 || username.length > 64) fieldErrors.value.username = '用户名需为2至64个字符'
-  } else if (field === 'nickname' && (form.nickname?.trim().length || 0) > 64) {
-    fieldErrors.value.nickname = '昵称最多64个字符'
+    const message = validateLoginAccount(form.username)
+    if (message) fieldErrors.value.username = message
   } else if (field === 'smsCode' && !/^\d{6}$/.test(form.smsCode?.trim() || '')) {
     fieldErrors.value.smsCode = '请输入6位短信验证码'
   } else if (field === 'password') {
@@ -393,7 +383,6 @@ const validateRegisterForm = () => {
   else if (!/^[A-Z0-9]{8}$/.test(inviteCode)) fieldErrors.value.inviteCode = '请输入完整的8位邀请码'
   validateRegisterField('phone')
   validateRegisterField('username')
-  validateRegisterField('nickname')
   validateRegisterField('smsCode')
   validateRegisterField('password')
   if (!agreeTerms.value) fieldErrors.value.agreement = '请先阅读并同意用户服务协议和隐私政策'
@@ -517,7 +506,7 @@ const sendCodeForRegister = async () => {
     success.value = '验证码已发送'
     startCooldown()
   } catch (e) {
-    error.value = e.message || '发送失败'
+    if (!await showRegisterServerError(e.message)) error.value = e.message || '发送失败'
   }
 }
 
@@ -531,13 +520,23 @@ const startCooldown = () => {
   }, 1000)
 }
 
+const showRegisterServerError = async (message) => {
+  const text = String(message || '提交失败')
+  const field = resolveRegistrationErrorField(text)
+  if (!field) return false
+  fieldErrors.value = { [field]: text }
+  scheduleRegisterErrorsClear()
+  await focusFirstRegisterError()
+  return true
+}
+
 const submit = async () => {
   clearFeedback()
 
   // 前端校验
   if (mode.value === 'login') {
     if (loginType.value === 'password') {
-      if (!loginForm.value.account?.trim()) { showLoginFieldError('account', '请输入手机号或用户名'); return }
+      if (!loginForm.value.account?.trim()) { showLoginFieldError('account', '请输入手机号或登录账号'); return }
       if (!loginForm.value.password || loginForm.value.password.length < 6) { showLoginFieldError('password', '密码至少6位'); return }
       if (!loginForm.value.captchaCode?.trim()) { showLoginFieldError('captchaCode', '请输入图形验证码'); return }
     } else {
@@ -571,7 +570,6 @@ const submit = async () => {
         ...registerForm.value,
         phone: registerForm.value.phone.trim(),
         username: registerForm.value.username.trim(),
-        nickname: registerForm.value.nickname.trim(),
         smsCode: registerForm.value.smsCode.trim(),
         inviteCode: normalizeInviteCode(registerForm.value.inviteCode)
       })
@@ -589,10 +587,11 @@ const submit = async () => {
     const redirect = router.currentRoute.value.query.redirect || '/profile'
     await router.push(redirect)
   } catch (e) {
+    if (mode.value === 'register' && await showRegisterServerError(e.message)) return
     error.value = isStaleChunkError(e)
       ? '页面资源已更新，正在为您重新加载，请稍候…'
       : (e.message || '提交失败')
-    if (loginType.value === 'password') await refreshCaptcha()
+    if (mode.value === 'login' && loginType.value === 'password') await refreshCaptcha()
   } finally {
     loading.value = false
   }

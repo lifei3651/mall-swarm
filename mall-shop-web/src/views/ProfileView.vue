@@ -59,7 +59,7 @@
         <h3>设置登录账号</h3>
         <p class="line-sub">手机号可以直接登录，也可以设置一个更容易记住的商城账号。</p>
         <div class="form-grid">
-          <div class="form-item"><label>商城账号</label><input v-model="accountForm.username" class="field" autocomplete="username" placeholder="至少2个字符" /></div>
+          <div class="form-item"><label>登录账号</label><input v-model="accountForm.username" class="field" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="4至20位，以字母开头" @input="handleAccountInput" /></div>
           <div class="form-item"><label>登录密码</label><input v-model="accountForm.password" class="field" type="password" autocomplete="new-password" placeholder="6至32位" /></div>
         </div>
         <button class="btn primary" :disabled="accountSaving" @click="submitAccount">{{ accountSaving ? '保存中' : '保存登录账号' }}</button>
@@ -115,6 +115,7 @@ import { getProfile, getProfilePerformance, getWalletSummary, logout, setupAccou
 import { money } from '@/utils/format'
 import { clearShopSession } from '@/utils/shopSession'
 import { isNativeApp } from '@/utils/appEnvironment'
+import { normalizeLoginAccountInput, validateLoginAccount } from '@/utils/loginAccount'
 
 const router = useRouter()
 const profileLoading = ref(true)
@@ -189,7 +190,8 @@ const fetchPerformance = async () => {
 }
 
 const submitAccount = async () => {
-  if (accountForm.value.username.trim().length < 2) return (error.value = '商城账号至少2个字符')
+  const accountError = validateLoginAccount(accountForm.value.username)
+  if (accountError) return (error.value = accountError)
   if (accountForm.value.password.length < 6 || accountForm.value.password.length > 32) return (error.value = '登录密码需要6至32位')
   accountSaving.value = true
   error.value = ''
@@ -199,6 +201,10 @@ const submitAccount = async () => {
     await fetchProfile()
   } catch (e) { error.value = e.message || '登录账号保存失败' }
   finally { accountSaving.value = false }
+}
+
+const handleAccountInput = () => {
+  accountForm.value.username = normalizeLoginAccountInput(accountForm.value.username)
 }
 
 const closeLogoutConfirm = () => {

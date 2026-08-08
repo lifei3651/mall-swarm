@@ -54,7 +54,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     public ShopAuthVO register(ShopRegisterDTO dto) {
         validateRegister(dto);
         dto.setPhone(dto.getPhone().trim());
-        dto.setUsername(dto.getUsername() == null ? null : dto.getUsername().trim());
+        dto.setUsername(normalizeLoginAccount(dto.getUsername()));
         if (memberDao.selectByPhone(dto.getPhone()) != null) {
             Asserts.fail("该手机号已注册，请直接登录或使用其他手机号");
         }
@@ -63,7 +63,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         }
         if (dto.getUsername() != null && !dto.getUsername().isBlank()
                 && memberDao.selectByAccount(dto.getUsername()) != null) {
-            Asserts.fail("该用户名已被使用，请更换用户名");
+            Asserts.fail("该登录账号已被使用，请更换登录账号");
         }
 
         // 强制验证短信验证码（含错误次数限制，连续错误会作废验证码）
@@ -97,8 +97,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         member.setPhone(dto.getPhone());
         member.setUsername(dto.getUsername());
         member.setPasswordHash(hash(dto.getPassword()));
-        member.setNickname(dto.getNickname() == null || dto.getNickname().isBlank()
-                ? dto.getUsername() : dto.getNickname().trim());
+        member.setNickname(dto.getUsername());
         member.setInviteCode(IdUtil.fastSimpleUUID().substring(0, 8).toUpperCase());
         member.setInviterId(inviterId);
         member.setStatus(1);
@@ -115,10 +114,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             Asserts.fail("请输入正确的11位手机号");
         }
         dto.setPhone(PhoneNumberUtils.normalize(dto.getPhone()));
-        String username = dto.getUsername() == null ? "" : dto.getUsername().trim();
-        if (username.length() < 2 || username.length() > 64) {
-            Asserts.fail("登录账号需为2至64个字符");
-        }
+        String username = normalizeLoginAccount(dto.getUsername());
         if (username.equals(dto.getPhone())) {
             Asserts.fail("登录账号不能与手机号相同");
         }
@@ -226,11 +222,12 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     @Transactional(rollbackFor = Exception.class)
     public DmsShopMember setupAccount(DmsShopMember member, ShopAccountSetupDTO dto) {
         if (member == null) Asserts.fail("请先登录");
-        if (dto == null || dto.getUsername() == null || dto.getUsername().trim().length() < 2) Asserts.fail("会员账号至少2个字符");
+        if (dto == null) Asserts.fail("请输入登录账号");
+        String username = normalizeLoginAccount(dto.getUsername());
         if (dto.getPassword() == null || dto.getPassword().length() < 6) Asserts.fail("密码至少需要6位");
-        DmsShopMember same = memberDao.selectByUsername(dto.getUsername().trim());
-        if (same != null && !same.getId().equals(member.getId())) Asserts.fail("会员账号已存在");
-        memberDao.updateAccount(member.getId(), dto.getUsername().trim(), hash(dto.getPassword()));
+        DmsShopMember same = memberDao.selectByUsername(username);
+        if (same != null && !same.getId().equals(member.getId())) Asserts.fail("登录账号已存在");
+        memberDao.updateAccount(member.getId(), username, hash(dto.getPassword()));
         return sanitize(memberDao.selectById(member.getId()));
     }
 
@@ -430,18 +427,25 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             Asserts.fail("请输入正确的11位手机号");
         }
         String username = dto.getUsername() == null ? "" : dto.getUsername().trim();
-        if (username.isEmpty()) {
-            Asserts.fail("请输入用户名");
-        }
-        if (username.length() < 2 || username.length() > 64) {
-            Asserts.fail("用户名需为2至64个字符");
-        }
-        if (dto.getNickname() != null && dto.getNickname().trim().length() > 64) {
-            Asserts.fail("昵称最多64个字符");
-        }
+        normalizeLoginAccount(username);
         if (dto.getPassword() == null || dto.getPassword().length() < 6 || dto.getPassword().length() > 32) {
             Asserts.fail("登录密码需为6至32位");
         }
+    }
+
+    private String normalizeLoginAccount(String value) {
+        String account = value == null ? "" : value.trim();
+        if (account.isEmpty()) Asserts.fail("请输入登录账号");
+        if (account.length() < 4 || account.length() > 20) {
+            Asserts.fail("登录账号需为4至20位");
+        }
+        if (!Character.isLetter(account.charAt(0)) || account.charAt(0) > 127) {
+            Asserts.fail("登录账号必须以英文字母开头");
+        }
+        if (!account.matches("^[A-Za-z][A-Za-z0-9_]{3,19}$")) {
+            Asserts.fail("登录账号仅支持英文字母、数字和下划线");
+        }
+        return account;
     }
 
     private String hash(String password) {

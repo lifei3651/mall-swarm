@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { resolveQuickCartItem } from '../src/utils/quickCart.js'
 import { extractModuleEntry } from '../src/utils/buildFreshness.js'
+import { normalizeLoginAccountInput, resolveRegistrationErrorField, validateLoginAccount } from '../src/utils/loginAccount.js'
 
 const readView = (name) => readFile(new URL(`../src/views/${name}`, import.meta.url), 'utf8')
 const readStyles = () => readFile(new URL('../src/assets/styles.css', import.meta.url), 'utf8')
@@ -64,20 +65,38 @@ test('login errors stay beside their field, expire quickly, and auth pages use a
   const app = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
 
   assert.match(login, /loginFieldErrors\.account/)
-  assert.match(login, /showLoginFieldError\('account', '请输入手机号或用户名'\)/)
+  assert.match(login, /showLoginFieldError\('account', '请输入手机号或登录账号'\)/)
   assert.match(login, /fieldErrorTimer = window\.setTimeout\(\(\) => \{ loginFieldErrors\.value = \{\} \}, 2000\)/)
   assert.match(login, /feedbackTimer = window\.setTimeout[\s\S]*1800/)
   assert.match(login, /watch\(\(\) => route\.fullPath, \(\) => clearFeedback\(\)\)/)
   assert.match(login, /class="auth-feedback-toast"/)
   assert.doesNotMatch(login, /<p v-if="error"/)
   assert.match(login, /\.register-page \.form-grid \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/)
-  assert.match(login, /class="form-item">\s*<label>昵称/)
+  assert.doesNotMatch(login, /class="form-item">\s*<label>昵称/)
+  assert.match(login, /<label>登录账号/)
+  assert.match(login, /showRegisterServerError/)
+  assert.match(login, /resolveRegistrationErrorField\(text\)/)
   assert.match(login, /class="form-item">\s*<label>登录密码/)
 
   assert.match(app, /const isAuthPage = computed/)
   assert.match(app, /<footer v-if="!isAuthPage"/)
   assert.match(app, /!isCheckout\.value && !isAuthPage\.value/)
   assert.match(app, /watch\(\(\) => route\.fullPath[\s\S]*authPrompt\.value = ''/)
+})
+
+test('registration login account filters illegal characters and validates its structure', () => {
+  assert.equal(normalizeLoginAccountInput(' 蜗牛 A-b@c_12345678901234567890 '), 'Abc_1234567890123456')
+  assert.equal(validateLoginAccount(''), '请输入登录账号')
+  assert.equal(validateLoginAccount('1234'), '登录账号必须以英文字母开头')
+  assert.equal(validateLoginAccount('abc'), '登录账号至少4位')
+  assert.equal(validateLoginAccount('user@123'), '仅支持英文字母、数字和下划线')
+  assert.equal(validateLoginAccount('user_123'), '')
+  assert.equal(resolveRegistrationErrorField('该手机号已注册，请直接登录'), 'phone')
+  assert.equal(resolveRegistrationErrorField('该登录账号已被使用'), 'username')
+  assert.equal(resolveRegistrationErrorField('邀请码无效'), 'inviteCode')
+  assert.equal(resolveRegistrationErrorField('短信验证码错误'), 'smsCode')
+  assert.equal(resolveRegistrationErrorField('登录密码需为6至32位'), 'password')
+  assert.equal(resolveRegistrationErrorField('网络错误'), '')
 })
 
 test('profile renders immediately and loads order counts, wallet and performance separately', async () => {

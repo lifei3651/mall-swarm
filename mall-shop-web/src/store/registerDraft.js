@@ -3,7 +3,6 @@ import { ref } from 'vue'
 const createEmptyForm = () => ({
   phone: '',
   username: '',
-  nickname: '',
   password: '',
   smsCode: '',
   inviteCode: '',
