@@ -52,7 +52,7 @@
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Home, ShoppingBag, UserRound, Grid3x3, ClipboardList } from 'lucide-vue-next'
-import { getHome, getLegalConfig } from '@/api/shop'
+import { getHome, getLegalConfig, getMe } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { applyBrandConfig, currentBrandName, updatePageTitle } from '@/utils/brand'
 import { currentAndroidVersionCode, currentAndroidVersionName, fetchAndroidRelease, hasAndroidUpdate, openAndroidDownload } from '@/utils/appRelease'
@@ -133,6 +133,17 @@ const loadBrand = async () => {
   }
 }
 
+// 首页是公开页面，不能只依赖受保护页面的接口来发现旧会话失效。
+// 每次商城启动且本地仍有登录凭证时主动校验一次，保证新设备登录后旧设备刷新立即退出。
+const validateExistingSession = async () => {
+  if (!localStorage.getItem('shop_token')) return
+  try {
+    await getMe()
+  } catch (_) {
+    // 401 由请求拦截器统一清理凭证并跳转登录；网络错误不阻塞商城启动。
+  }
+}
+
 const checkAndroidUpdate = async () => {
   if (!isNativeApp) return
   try {
@@ -176,6 +187,7 @@ watch(addSequence, (sequence) => {
 onMounted(() => {
   window.addEventListener(AUTH_REQUIRED_EVENT, showAuthPrompt)
   loadBrand()
+  validateExistingSession()
   checkAndroidUpdate()
 })
 onBeforeUnmount(() => {
