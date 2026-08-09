@@ -5,6 +5,7 @@ import { resolveQuickCartItem } from '../src/utils/quickCart.js'
 import { extractModuleEntry } from '../src/utils/buildFreshness.js'
 import { normalizeLoginAccountInput, resolveRegistrationErrorField, validateLoginAccount } from '../src/utils/loginAccount.js'
 import { normalizeNicknameInput, validateNickname } from '../src/utils/nickname.js'
+import { localPurchaseLimitViolation, purchaseLimitMessage } from '../src/utils/purchaseLimitRules.js'
 import { readDisplayExtraConfig, resolveDisplayColors, resolveHomeModules } from '../src/utils/displayConfig.js'
 
 const readView = (name) => readFile(new URL(`../src/views/${name}`, import.meta.url), 'utf8')
@@ -46,6 +47,11 @@ test('purchase limits are checked before add-to-cart and still kept as a server-
 
   assert.match(helper, /checkPurchaseLimit\(product\.id, quantity\)/)
   assert.match(helper, /existingCartQuantity/)
+  assert.match(helper, /localPurchaseLimitViolation/)
+  assert.ok(
+    helper.indexOf('const localViolation = localPurchaseLimitViolation') < helper.indexOf("localStorage.getItem('shop_token')"),
+    '游客也应先按购物车数量执行本地限购拦截',
+  )
   assert.match(home, /await checkCartPurchaseLimit\(cartItem, 1, getProductQuantity\(cartItem\.id\)\)/)
   assert.match(category, /await checkCartPurchaseLimit\(cartItem, 1, getProductQuantity\(cartItem\.id\)\)/)
   assert.match(detail, /await checkCartPurchaseLimit\(displayProduct\.value, quantity\.value, getProductQuantity\(displayProduct\.value\.id\)\)/)
@@ -58,6 +64,43 @@ test('purchase limits are checked before add-to-cart and still kept as a server-
   assert.match(cart, /await validateCheckoutItems\(rows\)/)
   assert.match(cart, /await validateCheckoutItems\(items\)/)
   assert.doesNotMatch(cart, /@click="update\(item\.cartKey \|\| item\.id, item\.quantity \+ 1\)"/)
+  assert.match(home, /isAddingProduct\(product\.id\)/)
+  assert.match(category, /isAddingProduct\(product\.id\)/)
+  assert.match(detail, /purchaseActionPending/)
+})
+
+test('purchase-limit messaging is immediate and accurately explains exhausted quota', () => {
+  const product = { id: 7, productName: '轻奢焕活礼盒', purchaseLimit: 1 }
+
+  assert.equal(
+    localPurchaseLimitViolation(product, 1, 1),
+    '轻奢焕活礼盒每位会员限购 1 件，您已达到限购数量，无法继续加购',
+  )
+  assert.equal(localPurchaseLimitViolation(product, 1, 0), '')
+  assert.equal(purchaseLimitMessage('测试商品', 3, 1), '测试商品每位会员限购 3 件，您还可购买 1 件')
+})
+
+test('buy now creates an isolated checkout and never merges an existing cart row', async () => {
+  const detail = await readView('ProductDetailView.vue')
+  const cartStore = await readFile(new URL('../src/store/cart.js', import.meta.url), 'utf8')
+
+  assert.match(detail, /beginDirectCheckout\(displayProduct\.value, quantity\.value\)/)
+  assert.match(detail, /checkCartPurchaseLimit\(displayProduct\.value, quantity\.value, 0\)/)
+  assert.doesNotMatch(detail, /const cartKey = add\(displayProduct\.value, quantity\.value\)[\s\S]{0,100}beginCheckout/)
+  assert.match(cartStore, /directCheckoutItems: null/)
+  assert.match(cartStore, /if \(Array\.isArray\(state\.directCheckoutItems\)\) return state\.directCheckoutItems/)
+  assert.match(cartStore, /if \(Array\.isArray\(state\.directCheckoutItems\)\) \{[\s\S]*state\.directCheckoutItems = null[\s\S]*return/)
+})
+
+test('cart feedback uses a centered transient toast instead of a confirmation dialog', async () => {
+  const styles = await readStyles()
+  const home = await readView('HomeView.vue')
+  const category = await readView('CategoryView.vue')
+
+  assert.match(styles, /\.toast \{[\s\S]*top: 50%;[\s\S]*transform: translate\(-50%, -50%\)/)
+  assert.match(styles, /pointer-events: none/)
+  assert.match(home, /window\.setTimeout\(\(\) => \{ toast\.value = '' \}, 2200\)/)
+  assert.match(category, /window\.setTimeout\(\(\) => \{ toast\.value = '' \}, 2200\)/)
 })
 
 test('profile opens one compact invite dialog instead of navigating away', async () => {

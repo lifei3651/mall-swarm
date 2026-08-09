@@ -174,8 +174,8 @@
           <span class="detail-cart-icon"><ShoppingCart :size="21" /><i v-if="count">{{ count > 99 ? '99+' : count }}</i></span>
           <span>购物车</span>
         </RouterLink>
-        <button class="main-action cart-action" :disabled="soldOut" @click="addToCart">加入购物车</button>
-        <button class="main-action buy-action" :disabled="soldOut" @click="buyNow">{{ soldOut ? '暂时缺货' : '立即购买' }}</button>
+        <button class="main-action cart-action" :disabled="soldOut || purchaseActionPending" @click="addToCart">加入购物车</button>
+        <button class="main-action buy-action" :disabled="soldOut || purchaseActionPending" @click="buyNow">{{ soldOut ? '暂时缺货' : '立即购买' }}</button>
       </div>
     </template>
 
@@ -184,7 +184,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft,
@@ -213,7 +213,7 @@ import { toPublicWebUrl } from '@/utils/appEnvironment'
 
 const route = useRoute()
 const router = useRouter()
-const { add, count, beginCheckout, getProductQuantity } = useCart()
+const { add, count, beginDirectCheckout, getProductQuantity } = useCart()
 
 // 详情页可能通过分享链接或刷新直接打开，此时浏览器没有可返回的历史记录。
 // 有上一页时返回原页面；没有上一页时回到商城首页，避免点击后无任何反馈。
@@ -234,6 +234,7 @@ const quantity = ref(1)
 const loading = ref(false)
 const errorMessage = ref('')
 const toast = ref('')
+const purchaseActionPending = ref(false)
 const activeImageIndex = ref(0)
 const reviewData = ref({ reviewCount: 0, averageRating: 0, canReview: false, reviewHint: '', page: { list: [], total: 0 } })
 const reviews = ref([])
@@ -310,7 +311,12 @@ const freightLabel = computed(() => {
   return '全国包邮'
 })
 
-const showToast = (message) => { toast.value = message; window.setTimeout(() => { toast.value = '' }, 2000) }
+let toastTimer = null
+const showToast = (message) => {
+  toast.value = message
+  window.clearTimeout(toastTimer)
+  toastTimer = window.setTimeout(() => { toast.value = '' }, 2200)
+}
 const shareProduct = async () => {
   const url = toPublicWebUrl(`/product/${route.params.id}`)
   const title = product.value?.productName || '商品推荐'
@@ -361,23 +367,30 @@ const decreaseQuantity = () => { quantity.value = Math.max(1, quantity.value - 1
 const increaseQuantity = () => { quantity.value = Math.min(currentStock.value, quantity.value + 1) }
 const addToCart = async () => {
   if (soldOut.value) return showToast('该商品暂时缺货')
+  if (purchaseActionPending.value) return
+  purchaseActionPending.value = true
   try {
     await checkCartPurchaseLimit(displayProduct.value, quantity.value, getProductQuantity(displayProduct.value.id))
     add(displayProduct.value, quantity.value)
     showToast(`已加入购物车，数量 +${quantity.value}`)
   } catch (error) {
     showToast(error?.message || '当前商品暂时无法加入购物车')
+  } finally {
+    purchaseActionPending.value = false
   }
 }
 const buyNow = async () => {
   if (soldOut.value) return showToast('该商品暂时缺货')
+  if (purchaseActionPending.value) return
+  purchaseActionPending.value = true
   try {
-    await checkCartPurchaseLimit(displayProduct.value, quantity.value, getProductQuantity(displayProduct.value.id))
-    const cartKey = add(displayProduct.value, quantity.value)
-    beginCheckout([cartKey])
+    await checkCartPurchaseLimit(displayProduct.value, quantity.value, 0)
+    beginDirectCheckout(displayProduct.value, quantity.value)
     router.push('/checkout')
   } catch (error) {
     showToast(error?.message || '当前商品暂时无法购买')
+  } finally {
+    purchaseActionPending.value = false
   }
 }
 
@@ -418,6 +431,7 @@ const barPercent = (star) => {
 }
 
 watch(() => route.params.id, fetchProduct, { immediate: true })
+onBeforeUnmount(() => window.clearTimeout(toastTimer))
 </script>
 
 <style scoped>
@@ -545,8 +559,6 @@ watch(() => route.params.id, fetchProduct, { immediate: true })
 .detail-cart-icon i { position:absolute; top:-8px; right:-12px; min-width:17px; height:17px; display:grid; place-items:center; padding:0 4px; color:#fff; background:#ef334e; border:2px solid #fff; border-radius:999px; font-size:10px; font-style:normal; font-weight:800; line-height:1; }
 .buy-action { color:#fff; background:var(--brand-primary); }
 .main-action:disabled { opacity:.5; cursor:not-allowed; }
-.toast { bottom:84px; }
-
 @media (max-width:920px) { .mobile-buy-bar { bottom:0; } }
 @media (max-width:520px) {
   .floating-back { left:12px; top:12px; width:38px; height:38px; }

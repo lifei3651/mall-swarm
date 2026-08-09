@@ -89,7 +89,7 @@
                 <button
                   type="button"
                   class="quick-cart-button"
-                  :disabled="product.status !== 1 || product.stock <= 0"
+                  :disabled="product.status !== 1 || product.stock <= 0 || isAddingProduct(product.id)"
                   :aria-label="`立即加购${product.productName}`"
                   @click="addProduct(product)"
                 >
@@ -132,6 +132,7 @@ const selectedCategory = ref(null)
 const products = ref([])
 const sortMode = ref('default')
 const toast = ref('')
+const addingProductIds = ref(new Set())
 const query = ref({ keyword: '' })
 const brand = ref({ brandName: currentBrandName(), logoUrl: currentBrandLogo() })
 let productRequestId = 0
@@ -155,7 +156,17 @@ const priceParts = (value) => {
 
 const showToast = (message) => {
   toast.value = message
-  window.setTimeout(() => { toast.value = '' }, 1800)
+  window.clearTimeout(toastTimer)
+  toastTimer = window.setTimeout(() => { toast.value = '' }, 2200)
+}
+
+let toastTimer = null
+const isAddingProduct = (productId) => addingProductIds.value.has(Number(productId))
+const setAddingProduct = (productId, adding) => {
+  const next = new Set(addingProductIds.value)
+  if (adding) next.add(Number(productId))
+  else next.delete(Number(productId))
+  addingProductIds.value = next
 }
 
 const fetchCategories = async () => {
@@ -215,6 +226,8 @@ const togglePriceSort = () => {
 
 const addProduct = async (product) => {
   if (product.status !== 1 || product.stock <= 0) return
+  if (isAddingProduct(product.id)) return
+  setAddingProduct(product.id, true)
   try {
     const res = await getProduct(product.id)
     const cartItem = resolveQuickCartItem(product, res.data || {})
@@ -227,6 +240,8 @@ const addProduct = async (product) => {
     showToast('已加入购物车，数量 +1')
   } catch (error) {
     showToast(error?.message || '商品信息更新失败，请稍后重试')
+  } finally {
+    setAddingProduct(product.id, false)
   }
 }
 
@@ -235,7 +250,10 @@ onMounted(async () => {
   await fetchCategories()
   await fetchProducts()
 })
-onBeforeUnmount(() => window.removeEventListener('shop-brand-updated', syncBrand))
+onBeforeUnmount(() => {
+  window.removeEventListener('shop-brand-updated', syncBrand)
+  window.clearTimeout(toastTimer)
+})
 </script>
 
 <style scoped>

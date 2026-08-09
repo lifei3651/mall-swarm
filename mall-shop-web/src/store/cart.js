@@ -49,6 +49,7 @@ const readCart = (storageKey = activeStorageKey) => {
 const state = reactive({
   items: readCart(),
   checkoutKeys: null,
+  directCheckoutItems: null,
   addSequence: 0,
   lastAddedQuantity: 0,
 })
@@ -64,6 +65,7 @@ watch(
 const replaceCartItems = (items) => {
   state.items.splice(0, state.items.length, ...items)
   state.checkoutKeys = null
+  state.directCheckoutItems = null
   state.lastAddedQuantity = 0
 }
 
@@ -145,10 +147,22 @@ export function useCart() {
   }
 
   const beginCheckout = (keys) => {
+    state.directCheckoutItems = null
     state.checkoutKeys = Array.isArray(keys) ? [...new Set(keys.map(String))] : null
   }
 
+  const beginDirectCheckout = (product, quantity = 1) => {
+    const normalized = normalizeCartItem({
+      ...product,
+      cartKey: product.skuId ? `${product.id}-${product.skuId}` : `${product.id}`,
+      quantity: Math.max(1, Number(quantity || 1)),
+    })
+    state.checkoutKeys = null
+    state.directCheckoutItems = [normalized]
+  }
+
   const checkoutItems = computed(() => {
+    if (Array.isArray(state.directCheckoutItems)) return state.directCheckoutItems
     if (state.checkoutKeys === null) return state.items
     const selected = new Set(state.checkoutKeys)
     return state.items.filter((item) => selected.has(String(item.cartKey || item.id)))
@@ -159,6 +173,11 @@ export function useCart() {
   ))
 
   const removeCheckedOutItems = () => {
+    if (Array.isArray(state.directCheckoutItems)) {
+      state.directCheckoutItems = null
+      state.checkoutKeys = null
+      return
+    }
     const purchased = new Set(checkoutItems.value.map((item) => String(item.cartKey || item.id)))
     for (let index = state.items.length - 1; index >= 0; index--) {
       if (purchased.has(String(state.items[index].cartKey || state.items[index].id))) state.items.splice(index, 1)
@@ -179,6 +198,7 @@ export function useCart() {
     remove,
     clear,
     beginCheckout,
+    beginDirectCheckout,
     checkoutItems,
     checkoutTotal,
     removeCheckedOutItems,

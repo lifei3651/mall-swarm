@@ -35,6 +35,7 @@ import com.macro.mall.distribution.vo.AgentInfoVO;
 import com.macro.mall.distribution.vo.ShopOrderVO;
 import com.macro.mall.distribution.vo.ShopProfileVO;
 import com.macro.mall.distribution.vo.ShopProductDetailVO;
+import com.macro.mall.distribution.vo.PurchaseLimitCheckVO;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -385,6 +386,11 @@ class ShopFreightServiceTest {
         DmsShopMember member = createMember("13999110108", "限购测试会员", null);
 
         shopService.submitOrder(pendingOrder(2, 1L), member);
+
+        PurchaseLimitCheckVO precheck = shopService.checkPurchaseLimit(product.getId(), 1, member);
+        assertFalse(precheck.isAllowed());
+        assertEquals(0, precheck.getRemainingQuantity());
+        assertTrue(precheck.getMessage().contains("已达到限购数量"));
 
         ApiException error = assertThrows(ApiException.class,
                 () -> shopService.submitOrder(pendingOrder(1, 1L), member));

@@ -636,8 +636,7 @@ public class ShopServiceImpl implements ShopService {
 
         int remainingQuantity = Math.max(0, limit - purchasedQuantity);
         boolean allowed = requestedQuantity <= remainingQuantity;
-        String message = allowed ? null : "每位会员限购 " + limit + " 件，您还可购买 " + remainingQuantity
-                + " 件：" + product.getProductName();
+        String message = allowed ? null : purchaseLimitMessage(product.getProductName(), limit, remainingQuantity);
         return new PurchaseLimitCheckVO(allowed, limit, purchasedQuantity, remainingQuantity,
                 product.getProductName(), message);
     }
@@ -1275,8 +1274,16 @@ public class ShopServiceImpl implements ShopService {
                         product.getTenantId() == null ? DEFAULT_TENANT_ID : product.getTenantId()));
         if ((long) existingQuantity + requestedQuantity > limit) {
             int remaining = Math.max(0, limit - existingQuantity);
-            Asserts.fail("每位会员限购 " + limit + " 件，您还可购买 " + remaining + " 件：" + product.getProductName());
+            Asserts.fail(purchaseLimitMessage(product.getProductName(), limit, remaining));
         }
+    }
+
+    private String purchaseLimitMessage(String productName, int limit, int remainingQuantity) {
+        String name = productName == null || productName.isBlank() ? "当前商品" : productName.trim();
+        if (remainingQuantity <= 0) {
+            return name + "每位会员限购 " + limit + " 件，您已达到限购数量，无法继续加购";
+        }
+        return name + "每位会员限购 " + limit + " 件，您还可购买 " + remainingQuantity + " 件";
     }
 
     private void fillProductDefaults(DmsShopProduct product) {

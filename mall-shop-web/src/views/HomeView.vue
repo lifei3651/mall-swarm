@@ -129,7 +129,7 @@
               <button
                 type="button"
                 class="home-cart-button"
-                :disabled="product.status !== 1 || product.stock <= 0"
+                :disabled="product.status !== 1 || product.stock <= 0 || isAddingProduct(product.id)"
                 :aria-label="`立即加购${product.productName}`"
                 @click="addProduct(product)"
               >
@@ -173,6 +173,7 @@ const loading = ref(false)
 const homeLoading = ref(false)
 const homeLoadError = ref('')
 const toast = ref('')
+const addingProductIds = ref(new Set())
 const productSection = ref(null)
 const searchInput = ref(null)
 const query = ref({ keyword: '', categoryName: '' })
@@ -294,7 +295,17 @@ const priceParts = (value) => {
 
 const showToast = (message) => {
   toast.value = message
-  window.setTimeout(() => { toast.value = '' }, 1800)
+  window.clearTimeout(toastTimer)
+  toastTimer = window.setTimeout(() => { toast.value = '' }, 2200)
+}
+
+let toastTimer = null
+const isAddingProduct = (productId) => addingProductIds.value.has(Number(productId))
+const setAddingProduct = (productId, adding) => {
+  const next = new Set(addingProductIds.value)
+  if (adding) next.add(Number(productId))
+  else next.delete(Number(productId))
+  addingProductIds.value = next
 }
 
 const normalizeProduct = (product) => ({
@@ -390,6 +401,8 @@ const clearFilter = () => {
 
 const addProduct = async (product) => {
   if (product.status !== 1 || product.stock <= 0) return
+  if (isAddingProduct(product.id)) return
+  setAddingProduct(product.id, true)
   try {
     const res = await getProduct(product.id)
     const cartItem = resolveQuickCartItem(product, res.data || {})
@@ -402,6 +415,8 @@ const addProduct = async (product) => {
     showToast('已加入购物车，数量 +1')
   } catch (error) {
     showToast(error?.message || '商品信息更新失败，请稍后重试')
+  } finally {
+    setAddingProduct(product.id, false)
   }
 }
 
@@ -412,7 +427,7 @@ onMounted(async () => {
   } catch (_) { recentSearches.value = [] }
   await reloadHome()
 })
-onUnmounted(() => { stopBannerAutoplay(); stopNoticeRotation() })
+onUnmounted(() => { stopBannerAutoplay(); stopNoticeRotation(); window.clearTimeout(toastTimer) })
 </script>
 
 <style scoped>

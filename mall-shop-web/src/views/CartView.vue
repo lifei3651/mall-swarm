@@ -46,7 +46,7 @@
             <div class="quantity">
               <button aria-label="减少数量" @click="changeQuantity(item, -1)">-</button>
               <span>{{ item.quantity }}</span>
-              <button aria-label="增加数量" @click="changeQuantity(item, 1)">+</button>
+              <button :disabled="isQuantityChecking(item)" aria-label="增加数量" @click="changeQuantity(item, 1)">+</button>
             </div>
           </div>
         </div>
@@ -105,7 +105,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Check } from 'lucide-vue-next'
 import { getHome } from '@/api/shop'
@@ -124,6 +124,7 @@ const clearConfirmVisible = ref(false)
 const pendingAction = ref('')
 const selectedKeys = reactive(new Set())
 const toast = ref('')
+const quantityCheckingKeys = ref(new Set())
 let toastTimer = null
 
 const showToast = (message) => {
@@ -138,12 +139,25 @@ const changeQuantity = async (item, delta) => {
     update(key, item.quantity - 1)
     return
   }
+  if (isQuantityChecking(item)) return
+  setQuantityChecking(item, true)
   try {
     await checkCartPurchaseLimit(item, 1, getProductQuantity(item.id))
     update(key, item.quantity + 1)
   } catch (error) {
     showToast(error?.message || '当前商品已达到可购买数量上限')
+  } finally {
+    setQuantityChecking(item, false)
   }
+}
+
+const isQuantityChecking = (item) => quantityCheckingKeys.value.has(String(item.cartKey || item.id))
+const setQuantityChecking = (item, checking) => {
+  const key = String(item.cartKey || item.id)
+  const next = new Set(quantityCheckingKeys.value)
+  if (checking) next.add(key)
+  else next.delete(key)
+  quantityCheckingKeys.value = next
 }
 
 const toggleManageMode = () => {
@@ -249,6 +263,7 @@ const confirmPendingAction = () => {
 onMounted(async () => {
   try { displayConfig.value = (await getHome()).data?.displayConfig || {} } catch { displayConfig.value = {} }
 })
+onBeforeUnmount(() => window.clearTimeout(toastTimer))
 </script>
 
 <style scoped>
@@ -279,6 +294,7 @@ onMounted(async () => {
 .item-actions { display: grid; justify-items: end; gap: 10px; }
 .quantity { display: flex; align-items: center; gap: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .quantity button { width: 32px; height: 32px; display: grid; place-items: center; background: #f8faf9; border: 0; font-size: 16px; cursor: pointer; }
+.quantity button:disabled { opacity:.45; cursor:wait; }
 .quantity span { width: 36px; text-align: center; font-size: 14px; font-weight: 600; }
 
 .cart-summary-panel { border: 0; border-radius: 16px; }
