@@ -22,4 +22,21 @@ describe('商品分类删除', () => {
     expect(source).toContain('export function deleteShopCategory(id)')
     expect(source).toContain("method: 'delete'")
   })
+
+  it('分类图标上传使用浏览器边界并处理成功与失败回调', async () => {
+    const source = await readFile(viewPath, 'utf8')
+    const apiSource = await readFile(apiPath, 'utf8')
+    const uploadApi = apiSource.slice(
+      apiSource.indexOf('export function uploadShopImage'),
+      apiSource.indexOf('export function getProductSettings'),
+    )
+
+    expect(uploadApi).toContain('data })')
+    expect(uploadApi).not.toContain('headers: {')
+    expect(uploadApi).toContain('不手动设置 Content-Type')
+    expect(source).toContain('onSuccess?.({ url }, file)')
+    expect(source).toContain('onError?.(error)')
+    expect(source).toContain('normalizeMediaUrl')
+    expect(source).toContain('分类图标仅支持 JPG、PNG、WEBP 或 GIF 格式')
+  })
 })

@@ -50,11 +50,13 @@
         <el-form-item label="分类名称" required><el-input v-model="form.categoryName" maxlength="64" show-word-limit placeholder="例如：护理套装" /></el-form-item>
         <el-form-item label="分类图标">
           <div class="icon-uploader-wrap">
-            <el-upload action="#" :show-file-list="false" accept="image/*" :http-request="uploadIcon">
-              <el-image v-if="form.iconUrl" class="icon-preview" :src="form.iconUrl" fit="cover" />
+            <el-upload action="#" :show-file-list="false" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" :http-request="uploadIcon">
+              <el-image v-if="form.iconUrl" class="icon-preview" :src="form.iconUrl" fit="cover">
+                <template #error><div class="icon-load-error"><Picture :size="18" /><span>图片加载失败</span><small>点击重新上传</small></div></template>
+              </el-image>
               <div v-else class="icon-uploader"><el-icon><Plus /></el-icon><span>上传图标</span></div>
             </el-upload>
-            <div class="field-help">建议正方形图片，单张不超过5MB；会显示在商城分类页。</div>
+            <div class="field-help">支持 JPG、PNG、WEBP、GIF，单张不超过5MB；会显示在商城分类页。</div>
           </div>
         </el-form-item>
         <el-form-item label="排序"><el-input-number v-model="form.sort" :min="0" :max="999999" /><span class="inline-help">数值越大越靠前</span></el-form-item>
@@ -110,10 +112,34 @@ const openDialog = (row = null) => {
   dialogVisible.value = true
 }
 
-const uploadIcon = async ({ file }) => {
-  if (file.size > 5 * 1024 * 1024) return ElMessage.error(`图片大小为 ${(file.size / 1024 / 1024).toFixed(2)}MB，不能超过5MB`)
-  form.value.iconUrl = (await uploadShopImage(file)).data
-  ElMessage.success('分类图标上传成功')
+const normalizeMediaUrl = (value) => {
+  const url = String(value || '').trim()
+  if (!url) return ''
+  if (/^(?:https?:|data:|blob:)/i.test(url)) return url
+  return url.startsWith('/') ? url : `/${url}`
+}
+
+const uploadIcon = async ({ file, onSuccess, onError }) => {
+  const supportedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+  if (!supportedTypes.has(String(file?.type || '').toLowerCase())) {
+    const error = new Error('分类图标仅支持 JPG、PNG、WEBP 或 GIF 格式')
+    onError?.(error)
+    return ElMessage.error(error.message)
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    const error = new Error(`图片大小为 ${(file.size / 1024 / 1024).toFixed(2)}MB，不能超过5MB`)
+    onError?.(error)
+    return ElMessage.error(error.message)
+  }
+  try {
+    const url = normalizeMediaUrl((await uploadShopImage(file)).data)
+    if (!url) throw new Error('图片上传成功，但服务器没有返回图片地址')
+    form.value.iconUrl = url
+    onSuccess?.({ url }, file)
+    ElMessage.success('分类图标上传成功')
+  } catch (error) {
+    onError?.(error)
+  }
 }
 
 const saveCategory = async () => {
@@ -175,6 +201,8 @@ onMounted(loadCategories)
 .category-icon.fallback { display:flex; align-items:center; justify-content:center; color:#a8abb2; background:#f2f3f5; }
 .icon-uploader-wrap { display:flex; align-items:center; gap:14px; }
 .icon-preview,.icon-uploader { width:92px; height:92px; border-radius:8px; }
+.icon-load-error { display:flex; width:100%; height:100%; flex-direction:column; align-items:center; justify-content:center; gap:4px; color:#f56c6c; background:#fef0f0; font-size:12px; text-align:center; }
+.icon-load-error small { color:#909399; font-size:11px; }
 .icon-uploader { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:#909399; border:1px dashed #c0ccda; cursor:pointer; font-size:12px; }
 .field-help { max-width:260px; color:#909399; font-size:12px; line-height:1.7; }
 .inline-help { margin-left:10px; color:#909399; font-size:12px; }

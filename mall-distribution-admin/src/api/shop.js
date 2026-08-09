@@ -95,7 +95,9 @@ export function updateShopBannerStatus(id, status) {
 export function uploadShopImage(file) {
   const data = new FormData()
   data.append('file', file)
-  return request({ url: '/shop/admin/media/images', method: 'post', data, headers: { 'Content-Type': 'multipart/form-data' } })
+  // 不手动设置 Content-Type，让浏览器自动补齐 multipart boundary。
+  // 部分浏览器在手动指定 multipart/form-data 时会丢失 boundary，导致后端无法读取文件。
+  return request({ url: '/shop/admin/media/images', method: 'post', data })
 }
 
 export function getProductSettings() {
