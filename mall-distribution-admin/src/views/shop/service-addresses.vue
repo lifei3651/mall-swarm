@@ -33,8 +33,8 @@
       <el-form ref="formRef" :model="form" :rules="rules" label-width="94px">
         <el-form-item label="地址用途" prop="addressType"><el-radio-group v-model="form.addressType"><el-radio :value="1">发货地址</el-radio><el-radio :value="2">退货地址</el-radio></el-radio-group></el-form-item>
         <el-form-item label="地址名称"><el-input v-model="form.addressLabel" maxlength="64" placeholder="如：长沙仓、售后专用地址" /></el-form-item>
-        <el-row :gutter="16"><el-col :span="12"><el-form-item label="联系人" prop="contactName"><el-input v-model="form.contactName" maxlength="64" /></el-form-item></el-col><el-col :span="12"><el-form-item label="联系电话" prop="contactPhone"><el-input v-model="form.contactPhone" maxlength="32" /></el-form-item></el-col></el-row>
-        <el-form-item label="所在地区" prop="region"><el-cascader v-model="region" :options="pcaTextArr" filterable clearable style="width:100%" placeholder="请选择省 / 市 / 区县" /></el-form-item>
+        <el-row :gutter="16"><el-col :span="12"><el-form-item label="联系人" prop="contactName"><el-input v-model="form.contactName" maxlength="64" /></el-form-item></el-col><el-col :span="12"><el-form-item label="联系电话" prop="contactPhone"><el-input v-model="form.contactPhone" maxlength="20" inputmode="tel" placeholder="手机号或座机号码" @input="normalizePhone" /></el-form-item></el-col></el-row>
+        <el-form-item label="所在地区" prop="region"><el-cascader v-model="form.region" :options="pcaTextArr" filterable clearable style="width:100%" placeholder="请选择省 / 市 / 区县" /></el-form-item>
         <el-form-item label="详细地址" prop="detailAddress"><el-input v-model="form.detailAddress" maxlength="255" placeholder="街道、小区、楼栋、门牌号" /></el-form-item>
         <el-form-item label="设为默认"><el-switch v-model="form.isDefault" :active-value="1" :inactive-value="0" active-text="是" inactive-text="否" /></el-form-item>
       </el-form>
@@ -44,7 +44,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { pcaTextArr } from 'element-china-area-data'
@@ -54,7 +54,6 @@ const rows = ref([])
 const dialogVisible = ref(false)
 const saving = ref(false)
 const formRef = ref()
-const region = ref([])
 const form = reactive(emptyForm())
 const groups = computed(() => [
   { type: 1, title: '发货地址', items: rows.value.filter((item) => Number(item.addressType) === 1) },
@@ -63,23 +62,32 @@ const groups = computed(() => [
 const rules = {
   addressType: [{ required: true, message: '请选择地址用途', trigger: 'change' }],
   contactName: [{ required: true, message: '请填写联系人', trigger: 'blur' }],
-  contactPhone: [{ required: true, message: '请填写联系电话', trigger: 'blur' }],
+  contactPhone: [
+    { required: true, message: '请填写联系电话', trigger: 'blur' },
+    { validator: (_rule, value, callback) => isValidPhone(value) ? callback() : callback(new Error('请填写正确的手机号或座机号码')), trigger: 'blur' },
+  ],
   region: [{ validator: (_rule, value, callback) => value?.length === 3 ? callback() : callback(new Error('请选择完整省、市、区/县')), trigger: 'change' }],
   detailAddress: [{ required: true, message: '请填写详细地址', trigger: 'blur' }],
 }
-function emptyForm() { return { id: null, tenantId: 1, addressType: 1, addressLabel: '', contactName: '', contactPhone: '', province: '', city: '', district: '', detailAddress: '', isDefault: 0 } }
+function emptyForm() { return { id: null, tenantId: 1, addressType: 1, addressLabel: '', contactName: '', contactPhone: '', province: '', city: '', district: '', region: [], detailAddress: '', isDefault: 0 } }
+function isValidPhone(value) { return /^(?:1[3-9]\d{9}|0\d{2,3}-?\d{7,8}|(?:400|800)-?\d{3}-?\d{4})$/.test(String(value || '')) }
+function normalizePhone(value) {
+  form.contactPhone = String(value || '').replace(/[^0-9-]/g, '').replace(/-{2,}/g, '-').slice(0, 20)
+}
 function fullAddress(item) { return [item.province, item.city, item.district, item.detailAddress].filter(Boolean).join(' ') }
 async function fetchData() { rows.value = (await listShopServiceAddresses({ tenantId: 1 })).data || [] }
 function openForm(item = null) {
   Object.assign(form, emptyForm(), item || {})
-  region.value = item ? [item.province, item.city, item.district].filter(Boolean) : []
+  form.region = item ? [item.province, item.city, item.district].filter(Boolean) : []
   dialogVisible.value = true
+  nextTick(() => formRef.value?.clearValidate())
 }
 async function save() {
   await formRef.value.validate()
   saving.value = true
   try {
-    const payload = { ...form, province: region.value[0], city: region.value[1], district: region.value[2] }
+    const payload = { ...form, province: form.region[0], city: form.region[1], district: form.region[2] }
+    delete payload.region
     await saveShopServiceAddress(payload)
     ElMessage.success('地址已保存')
     dialogVisible.value = false

@@ -67,6 +67,11 @@ public class ShopServiceAddressServiceImpl implements ShopServiceAddressService 
         if (address.getAddressType() == null || (address.getAddressType() != 1 && address.getAddressType() != 2)) Asserts.fail("地址类型不正确");
         if (isBlank(address.getContactName())) Asserts.fail("请填写联系人");
         if (isBlank(address.getContactPhone())) Asserts.fail("请填写联系电话");
+        String contactPhone = address.getContactPhone().trim();
+        if (!contactPhone.matches("^(?:1[3-9]\\d{9}|0\\d{2,3}-?\\d{7,8}|(?:400|800)-?\\d{3}-?\\d{4})$")) {
+            Asserts.fail("请填写正确的手机号或座机号码");
+        }
+        address.setContactPhone(contactPhone);
         if (isBlank(address.getProvince()) || isBlank(address.getCity()) || isBlank(address.getDistrict())) Asserts.fail("请完整选择省、市、区/县");
         if (isBlank(address.getDetailAddress())) Asserts.fail("请填写详细地址");
     }
