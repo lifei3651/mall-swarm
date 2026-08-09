@@ -87,6 +87,42 @@ public class OrderSpreadsheetService {
         }
     }
 
+    /**
+     * 生成不包含任何真实订单的物流导入空白模板。
+     * 第一张工作表严格保持为导入程序读取的数据表，示例和规则放在第二张工作表，
+     * 避免客户未删除示例行便直接导入，造成错误发货。
+     */
+    public void writeShipmentImportTemplate(OutputStream outputStream) throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            Sheet dataSheet = workbook.createSheet("物流发货导入");
+            writePlainHeader(dataSheet, new String[]{"订单号", "物流公司", "物流单号", "发货数量"});
+            dataSheet.setColumnWidth(0, 30 * 256);
+            dataSheet.setColumnWidth(1, 20 * 256);
+            dataSheet.setColumnWidth(2, 26 * 256);
+            dataSheet.setColumnWidth(3, 14 * 256);
+
+            Sheet instructionSheet = workbook.createSheet("填写说明");
+            writePlainHeader(instructionSheet, new String[]{"填写项目", "填写要求", "示例"});
+            writeInstructionRow(instructionSheet, 1, "订单号", "必填；填写商城后台显示的完整订单号", "L202608091234567890");
+            writeInstructionRow(instructionSheet, 2, "物流公司", "必填；最多50个字符", "顺丰速运");
+            writeInstructionRow(instructionSheet, 3, "物流单号", "必填；4至64位，只能包含字母、数字、下划线和短横线", "SF1234567890");
+            writeInstructionRow(instructionSheet, 4, "发货数量", "必填；填写大于0的整数，不能超过订单剩余可发件数", "1");
+            writeInstructionRow(instructionSheet, 5, "拆分包裹", "同一订单分多个包裹时，复制订单号并分行填写不同物流信息", "每个包裹一行");
+            writeInstructionRow(instructionSheet, 6, "合并包裹", "多个订单共用一个包裹时，每个订单各填一行，可填写相同物流信息", "每个订单一行");
+            instructionSheet.setColumnWidth(0, 18 * 256);
+            instructionSheet.setColumnWidth(1, 66 * 256);
+            instructionSheet.setColumnWidth(2, 28 * 256);
+            workbook.write(outputStream);
+        }
+    }
+
+    private void writeInstructionRow(Sheet sheet, int rowIndex, String item, String requirement, String example) {
+        Row row = sheet.createRow(rowIndex);
+        setText(row, 0, item);
+        setText(row, 1, requirement);
+        setText(row, 2, example);
+    }
+
     private void writePlainHeader(Sheet sheet, String[] headers) {
         Row row = sheet.createRow(0);
         for (int i = 0; i < headers.length; i++) {

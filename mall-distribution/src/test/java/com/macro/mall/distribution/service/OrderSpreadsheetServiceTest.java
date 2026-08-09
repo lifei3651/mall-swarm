@@ -65,6 +65,29 @@ class OrderSpreadsheetServiceTest {
     }
 
     @Test
+    void shipmentImportTemplateKeepsDataSheetBlankAndPlacesExamplesInInstructions() throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        service.writeShipmentImportTemplate(output);
+
+        try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(output.toByteArray()))) {
+            assertEquals(2, workbook.getNumberOfSheets());
+            var dataSheet = workbook.getSheetAt(0);
+            assertEquals("物流发货导入", dataSheet.getSheetName());
+            assertEquals("订单号", dataSheet.getRow(0).getCell(0).getStringCellValue());
+            assertEquals("物流公司", dataSheet.getRow(0).getCell(1).getStringCellValue());
+            assertEquals("物流单号", dataSheet.getRow(0).getCell(2).getStringCellValue());
+            assertEquals("发货数量", dataSheet.getRow(0).getCell(3).getStringCellValue());
+            assertEquals(0, dataSheet.getLastRowNum());
+
+            var instructionSheet = workbook.getSheet("填写说明");
+            assertNotNull(instructionSheet);
+            assertEquals("填写项目", instructionSheet.getRow(0).getCell(0).getStringCellValue());
+            assertEquals("订单号", instructionSheet.getRow(1).getCell(0).getStringCellValue());
+            assertEquals("SF1234567890", instructionSheet.getRow(3).getCell(2).getStringCellValue());
+        }
+    }
+
+    @Test
     void orderExportUsesPlainWorksheetWithoutDecorationsOrControls() throws Exception {
         DmsShopOrder order = new DmsShopOrder();
         order.setId(1L);

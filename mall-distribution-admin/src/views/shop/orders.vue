@@ -26,6 +26,9 @@
           <el-tooltip content="表格只处理订单号、物流公司、物流单号和发货数量" placement="top">
             <el-button type="success" plain :icon="Download" :loading="templateLoading" @click="handleDownloadShipmentTemplate">下载发货表</el-button>
           </el-tooltip>
+          <el-tooltip content="下载空白模板和填写说明，不包含真实订单数据" placement="top">
+            <el-button plain :icon="Download" :loading="importTemplateLoading" @click="handleDownloadShipmentImportTemplate">下载导入模板</el-button>
+          </el-tooltip>
           <el-upload
             accept=".xlsx,.xls"
             :show-file-list="false"
@@ -362,6 +365,7 @@ import {
   auditShopAfterSale,
   cancelShopOrder,
   confirmShopAfterSaleReturnReceived,
+  downloadOrderShipmentImportTemplate,
   downloadOrderShipmentTemplate,
   exportShopOrders,
   importOrderShipments,
@@ -380,6 +384,7 @@ const appStore = useAppStore()
 const orderLoading = ref(false)
 const exportLoading = ref(false)
 const templateLoading = ref(false)
+const importTemplateLoading = ref(false)
 const importLoading = ref(false)
 const orders = ref([])
 const orderStateOptions = [
@@ -576,6 +581,17 @@ const handleDownloadShipmentTemplate = async () => {
     ElMessage.success('发货表已下载；拆单可复制订单行，合箱可共用物流单号')
   } finally {
     templateLoading.value = false
+  }
+}
+
+const handleDownloadShipmentImportTemplate = async () => {
+  importTemplateLoading.value = true
+  try {
+    const response = await downloadOrderShipmentImportTemplate()
+    downloadBlobResponse(response, '物流发货导入模板.xlsx')
+    ElMessage.success('物流发货导入模板已下载，请按“填写说明”填写后导入')
+  } finally {
+    importTemplateLoading.value = false
   }
 }
 

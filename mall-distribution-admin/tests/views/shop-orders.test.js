@@ -12,4 +12,13 @@ describe('商城订单取消入口', () => {
     expect(source).toContain("'取消并退款'")
     expect(source).toContain('系统会原路全额退款、关闭订单并恢复库存')
   })
+
+  it('物流批量发货同时提供预填发货表和独立空白导入模板', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('下载发货表')
+    expect(source).toContain('下载导入模板')
+    expect(source).toContain('downloadOrderShipmentImportTemplate')
+    expect(source).toContain('物流发货导入模板.xlsx')
+  })
 })

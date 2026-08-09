@@ -601,6 +601,13 @@ public class ShopController {
         orderSpreadsheetService.writeShipmentTemplate(orders, response.getOutputStream());
     }
 
+    @Operation(summary = "下载物流发货导入空白模板")
+    @GetMapping("/admin/orders/shipments/import-template")
+    public void downloadShipmentImportTemplate(HttpServletResponse response) throws IOException {
+        prepareExcelDownload(response, "物流发货导入模板.xlsx");
+        orderSpreadsheetService.writeShipmentImportTemplate(response.getOutputStream());
+    }
+
     @Operation(summary = "Excel批量导入订单物流信息并发货")
     @PostMapping("/admin/orders/shipments/import")
     public CommonResult<OrderShipmentImportResultVO> importOrderShipments(@RequestParam("file") MultipartFile file) {

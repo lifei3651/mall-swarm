@@ -186,6 +186,15 @@ export function downloadOrderShipmentTemplate(params) {
   })
 }
 
+export function downloadOrderShipmentImportTemplate() {
+  return request({
+    url: '/shop/admin/orders/shipments/import-template',
+    method: 'get',
+    responseType: 'blob',
+    timeout: 60000,
+  })
+}
+
 export function importOrderShipments(file) {
   const data = new FormData()
   data.append('file', file)
