@@ -23,6 +23,10 @@
             <button type="button" @click="startEdit(address)">编辑</button>
             <button type="button" class="delete" @click="removeAddress(address)">删除</button>
           </template>
+          <template v-else>
+            <button type="button" @click="startEdit(address)">编辑</button>
+            <button type="button" class="delete" @click="removeAddress(address)">删除</button>
+          </template>
         </div>
       </article>
     </section>

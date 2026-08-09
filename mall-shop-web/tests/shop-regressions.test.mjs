@@ -205,6 +205,8 @@ test('checkout keeps the address block compact and preserves the remark while sw
   assert.match(source, /addressesLoaded && !addresses\.length && !addressesLoadError/)
   assert.match(address, /选择收货地址/)
   assert.match(address, /使用此地址/)
+  assert.match(address, /@click="startEdit\(address\)"/)
+  assert.match(address, /@click="removeAddress\(address\)"/)
   assert.doesNotMatch(address, /已自动填入，请核对后保存/)
   assert.match(address, /删除收货地址？/)
   assert.match(address, /confirm-overlay/)
