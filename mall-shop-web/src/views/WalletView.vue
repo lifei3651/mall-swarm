@@ -63,13 +63,13 @@
       </article>
     </section>
 
-    <p v-if="error" class="page-error">{{ error }}</p>
+    <div v-if="error" class="wallet-toast" role="alert" aria-live="assertive">{{ error }}</div>
 
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, ChevronRight, History, Landmark, ReceiptText, Send, ShieldAlert } from 'lucide-vue-next'
 import { applyWithdrawal, getProfile, getWalletSummary, listMyBalanceFlows, listMyWithdrawals, sendSmsCode } from '@/api/shop'
@@ -84,6 +84,13 @@ const wallet = ref({ balance: 0, hasPaymentPassword: false, distributionActivate
 const profile = ref({})
 const withdrawals = ref([])
 const error = ref('')
+let errorTimer
+const clearWalletError = () => { window.clearTimeout(errorTimer); error.value = '' }
+const showWalletError = (text) => {
+  window.clearTimeout(errorTimer)
+  error.value = text
+  errorTimer = window.setTimeout(() => { error.value = '' }, 1800)
+}
 const withdrawSaving = ref(false)
 const withdrawalRequestKey = ref('')
 const withdrawSmsCooldown = ref(0)
@@ -95,13 +102,13 @@ const withdrawAccountLabel = computed(() => ({ 1: '银行卡号', 2: '微信收�
 const withdrawAccountPlaceholder = computed(() => ({ 1: '请输入银行卡号', 2: '请输入微信绑定手机号或账号', 3: '请输入支付宝账号' }[withdrawForm.value.withdrawType]))
 
 const fetchData = async () => {
-  error.value = ''
+  clearWalletError()
   try {
     const [walletRes, profileRes, withdrawRes] = await Promise.all([getWalletSummary(), getProfile(), listMyWithdrawals()])
     wallet.value = walletRes.data || wallet.value
     profile.value = profileRes.data || {}
     withdrawals.value = withdrawRes.data || []
-  } catch (e) { error.value = e.message || '余额信息加载失败' }
+  } catch (e) { showWalletError(e.message || '余额信息加载失败') }
 }
 
 const requirePaymentPassword = () => {
@@ -121,9 +128,9 @@ const flowAmountClass = (type) => [1, 4].includes(type) ? 'amount-in' : 'amount-
 const formatDateTime = (value) => dateTime(value)
 
 const sendWithdrawCode = async () => {
-  error.value = ''
+  clearWalletError()
   const phone = profile.value.member?.phone
-  if (!isValidMainlandPhone(phone)) return (error.value = '会员手机号格式不正确，请联系管理员')
+  if (!isValidMainlandPhone(phone)) return showWalletError('会员手机号格式不正确，请联系管理员')
   try {
     await sendSmsCode(phone, 5)
     withdrawSmsCooldown.value = 60
@@ -131,21 +138,21 @@ const sendWithdrawCode = async () => {
       withdrawSmsCooldown.value -= 1
       if (withdrawSmsCooldown.value <= 0) window.clearInterval(timer)
     }, 1000)
-  } catch (e) { error.value = e.message || '验证码发送失败' }
+  } catch (e) { showWalletError(e.message || '验证码发送失败') }
 }
 
 const submitWithdrawal = async () => {
   if (withdrawSaving.value) return
-  error.value = ''
+  clearWalletError()
   if (!requirePaymentPassword()) return
-  if (!wallet.value.distributionActivated) return (error.value = '完成首笔有效订单成为会员后才可提现')
-  if (withdrawForm.value.withdrawType === 1 && !withdrawForm.value.bankName.trim()) return (error.value = '请填写开户银行')
-  if (!withdrawForm.value.bankAccount.trim()) return (error.value = `请填写${withdrawAccountLabel.value}`)
-  if (!withdrawForm.value.accountName.trim()) return (error.value = '请填写收款人姓名')
-  if (Number(withdrawForm.value.withdrawAmount || 0) <= 0) return (error.value = '请输入正确的提现金额')
-  if (Number(withdrawForm.value.withdrawAmount) > Number(wallet.value.balance || 0)) return (error.value = '余额不足')
-  if (!/^\d{6}$/.test(withdrawForm.value.paymentPassword)) return (error.value = '请输入6位支付密码')
-  if (!/^\d{6}$/.test(withdrawForm.value.smsCode)) return (error.value = '请输入6位短信验证码')
+  if (!wallet.value.distributionActivated) return showWalletError('完成首笔有效订单成为会员后才可提现')
+  if (withdrawForm.value.withdrawType === 1 && !withdrawForm.value.bankName.trim()) return showWalletError('请输入开户银行')
+  if (!withdrawForm.value.bankAccount.trim()) return showWalletError(`请输入${withdrawAccountLabel.value}`)
+  if (!withdrawForm.value.accountName.trim()) return showWalletError('请输入收款人姓名')
+  if (Number(withdrawForm.value.withdrawAmount || 0) <= 0) return showWalletError('请输入正确的提现金额')
+  if (Number(withdrawForm.value.withdrawAmount) > Number(wallet.value.balance || 0)) return showWalletError('提现金额不能超过可用余额')
+  if (!/^\d{6}$/.test(withdrawForm.value.paymentPassword)) return showWalletError('请输入6位支付密码')
+  if (!/^\d{6}$/.test(withdrawForm.value.smsCode)) return showWalletError('请输入6位短信验证码')
   withdrawSaving.value = true
   try {
     if (!withdrawalRequestKey.value) withdrawalRequestKey.value = createIdempotencyKey('withdrawal')
@@ -154,12 +161,13 @@ const submitWithdrawal = async () => {
     withdrawForm.value = { withdrawType: 1, withdrawAmount: '', bankName: '', bankAccount: '', accountName: '', paymentPassword: '', smsCode: '' }
     activeTool.value = 'records'
     await fetchData()
-  } catch (e) { error.value = e.message || '提现申请失败' }
+  } catch (e) { showWalletError(e.message || '提现申请失败') }
   finally { withdrawSaving.value = false }
 }
 const withdrawStatusName = (status) => ({ 0: '待审核', 1: '审核通过', 2: '打款中', 3: '已打款', 4: '已拒绝' }[status] || '处理中')
 
 onMounted(fetchData)
+onBeforeUnmount(() => window.clearTimeout(errorTimer))
 </script>
 
 <style scoped>
@@ -195,7 +203,7 @@ onMounted(fetchData)
 .record-item strong,.record-item small { display:block; }
 .record-item small { margin-top:5px; color:var(--muted); font-size:11px; }
 .record-item .status-3 { color:#15803d; }.record-item .status-4 { color:#b42318; }
-.page-error { padding:12px 14px; color:#b42318; background:#fff1f0; border-radius:10px; }
+.wallet-toast { position:fixed; top:calc(18px + env(safe-area-inset-top)); left:50%; z-index:1200; max-width:min(88vw,420px); padding:11px 16px; color:#fff; background:rgba(180,35,24,.96); border-radius:10px; box-shadow:0 8px 24px rgba(15,23,42,.18); transform:translateX(-50%); font-size:13px; line-height:1.5; text-align:center; pointer-events:none; }
 .record-item .amount-in { color: #15803d; }
 .record-item .amount-out { color: #b42318; }
 

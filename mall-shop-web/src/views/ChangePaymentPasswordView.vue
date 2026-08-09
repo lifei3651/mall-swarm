@@ -19,7 +19,7 @@
       <button class="btn primary save-btn" :disabled="saving" @click="save">{{ saving ? '保存中' : (hasPassword ? '修改支付密码' : '设置支付密码') }}</button>
     </section>
 
-    <p v-if="message" class="page-message" :class="{ error: messageType === 'error' }">{{ message }}</p>
+    <div v-if="message" class="form-toast" :class="{ error: messageType === 'error' }" role="status" aria-live="polite">{{ message }}</div>
   </div>
 </template>
 
@@ -41,11 +41,17 @@ const maskedPhone = ref('')
 const sendingCode = ref(false)
 const countdown = ref(0)
 let countdownTimer
+let messageTimer
 const saving = ref(false)
 const message = ref('')
 const messageType = ref('success')
 
-const showMessage = (text, type = 'error') => { message.value = text; messageType.value = type }
+const showMessage = (text, type = 'error') => {
+  window.clearTimeout(messageTimer)
+  message.value = text
+  messageType.value = type
+  messageTimer = window.setTimeout(() => { message.value = '' }, 1800)
+}
 
 onMounted(async () => {
   try {
@@ -58,7 +64,10 @@ onMounted(async () => {
   } catch {}
 })
 
-onBeforeUnmount(() => window.clearInterval(countdownTimer))
+onBeforeUnmount(() => {
+  window.clearInterval(countdownTimer)
+  window.clearTimeout(messageTimer)
+})
 
 const sendCode = async () => {
   if (!isValidMainlandPhone(phone.value)) return showMessage('账号绑定手机号不正确，请重新登录')
@@ -109,6 +118,6 @@ const save = async () => {
 .sms-btn:disabled { color: var(--muted); background: #f5f7f9; }
 .phone-hint { margin: 7px 0 0; color: var(--muted); font-size: 12px; }
 .save-btn { width: 100%; margin-top: 16px; }
-.page-message { padding: 12px 14px; color: #08724f; background: #eaf8f3; border-radius: 10px; margin-top: 12px; }
-.page-message.error { color: #b42318; background: #fff1f0; }
+.form-toast { position:fixed; top:calc(18px + env(safe-area-inset-top)); left:50%; z-index:1200; max-width:min(88vw,420px); padding:11px 16px; color:#fff; background:rgba(8,114,79,.96); border-radius:10px; box-shadow:0 8px 24px rgba(15,23,42,.18); transform:translateX(-50%); font-size:13px; text-align:center; pointer-events:none; }
+.form-toast.error { background:rgba(180,35,24,.96); }
 </style>

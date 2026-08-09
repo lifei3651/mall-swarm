@@ -32,7 +32,7 @@
       <button type="button" class="btn primary" :disabled="savingAccount" @click="saveAccount">{{ savingAccount ? '保存中' : '保存登录账号' }}</button>
     </section>
 
-    <p v-if="message" class="page-message" :class="{ error: messageType === 'error' }" role="status">{{ message }}</p>
+    <div v-if="message" class="form-toast" :class="{ error: messageType === 'error' }" role="status" aria-live="polite">{{ message }}</div>
 
     <Teleport to="body">
       <div v-if="dialog === 'nickname'" class="dialog-mask" @click.self="closeDialog">
@@ -225,8 +225,8 @@ onBeforeUnmount(() => {
 .legacy-account p { color:var(--muted); font-size:12px; }
 .legacy-account .field { margin-top:10px; }
 .legacy-account .btn { width:100%; margin-top:12px; }
-.page-message { margin-top:12px; padding:11px 14px; color:#08724f; background:#eaf8f3; border-radius:10px; font-size:13px; }
-.page-message.error { color:#b42318; background:#fff1f0; }
+.form-toast { position:fixed; top:calc(18px + env(safe-area-inset-top)); left:50%; z-index:1200; max-width:min(88vw,420px); padding:11px 16px; color:#fff; background:rgba(8,114,79,.96); border-radius:10px; box-shadow:0 8px 24px rgba(15,23,42,.18); transform:translateX(-50%); font-size:13px; text-align:center; pointer-events:none; }
+.form-toast.error { background:rgba(180,35,24,.96); }
 .dialog-mask { position:fixed; inset:0; z-index:1000; display:grid; place-items:end center; background:rgba(15,23,42,.46); }
 .dialog-card { width:min(620px,100%); padding:20px 18px calc(18px + env(safe-area-inset-bottom)); background:#fff; border-radius:20px 20px 0 0; box-shadow:0 -16px 44px rgba(15,23,42,.16); }
 .dialog-card header { display:flex; align-items:center; justify-content:space-between; }

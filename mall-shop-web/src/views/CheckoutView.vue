@@ -151,7 +151,7 @@
         <button class="btn primary submit-order-btn" :disabled="submitting" @click="submit">
           {{ submitting ? '提交中...' : `提交订单 ¥${money(payAmount)}` }}
         </button>
-        <p v-if="error" style="color: var(--coral); line-height: 1.6">{{ error }}</p>
+        <div v-if="error" class="checkout-toast" role="alert" aria-live="assertive">{{ error }}</div>
       </aside>
     </div>
 
@@ -295,6 +295,16 @@ const submitting = ref(false)
 const orderRequestKey = ref('')
 const balancePaymentRequestKey = ref('')
 const error = ref('')
+let errorTimer
+const clearCheckoutError = () => {
+  window.clearTimeout(errorTimer)
+  error.value = ''
+}
+const showCheckoutError = (text) => {
+  window.clearTimeout(errorTimer)
+  error.value = text
+  errorTimer = window.setTimeout(() => { error.value = '' }, 1800)
+}
 const addresses = ref([])
 const addressesLoading = ref(true)
 const addressesLoaded = ref(false)
@@ -518,14 +528,14 @@ const freightRequestData = () => ({
 const refreshFreight = async () => {
   if (!hasToken.value || !items.length || receiverRegion.value.length !== 3) return
   freightLoading.value = true
-  error.value = ''
+  clearCheckoutError()
   try {
     const res = await quoteFreight(freightRequestData())
     freightAmount.value = Number(res.data?.freightAmount || 0)
     await checkVerify()
   } catch (e) {
     freightAmount.value = 0
-    error.value = e.message || '运费计算失败'
+    showCheckoutError(e.message || '运费计算失败')
   } finally { freightLoading.value = false }
 }
 
@@ -544,9 +554,9 @@ const checkVerify = async () => {
 
 // 发送验证码
 const sendVerifyCode = async () => {
-  error.value = ''
+  clearCheckoutError()
   if (!await fetchMemberPhone()) {
-    error.value = '账号绑定手机号不正确，请重新登录'
+    showCheckoutError('账号绑定手机号不正确，请重新登录')
     return
   }
   try {
@@ -558,7 +568,7 @@ const sendVerifyCode = async () => {
       if (smsCooldown.value <= 0) window.clearInterval(paymentSmsTimer)
     }, 1000)
   } catch (e) {
-    error.value = e.message || '发送失败'
+    showCheckoutError(e.message || '发送失败')
   }
 }
 
@@ -658,10 +668,10 @@ const continueAfterPasswordSaved = async () => {
 
 const submit = async () => {
   if (submitting.value || payPasswordSubmitting.value) return
-  error.value = ''
+  clearCheckoutError()
   const validationError = validate()
   if (validationError) {
-    error.value = validationError
+    showCheckoutError(validationError)
     return
   }
 
@@ -674,7 +684,7 @@ const submit = async () => {
 
   // 如果需要短信验证，检查验证码
   if (needSmsVerify.value && (!smsCode.value || smsCode.value.length !== 6)) {
-    error.value = '请输入短信验证码'
+    showCheckoutError('请输入6位短信验证码')
     return
   }
 
@@ -717,7 +727,7 @@ const confirmPayWithPassword = async () => {
 const doSubmitOrder = async (paymentPassword) => {
   if (submitting.value) return
   submitting.value = true
-  error.value = ''
+  clearCheckoutError()
   try {
     const orderData = {
       ...form.value,
@@ -765,7 +775,7 @@ const doSubmitOrder = async (paymentPassword) => {
     removeCheckedOutItems()
     router.push(`/orders/${orderId}`)
   } catch (e) {
-    error.value = e.message || '提交失败'
+    showCheckoutError(e.message || '提交失败')
     throw e
   } finally {
     submitting.value = false
@@ -794,11 +804,13 @@ const fetchPayConfig = async () => {
 onBeforeUnmount(() => {
   window.clearInterval(setupSmsTimer)
   window.clearInterval(paymentSmsTimer)
+  window.clearTimeout(errorTimer)
 })
 </script>
 
 <style scoped>
 .checkout-page { padding-top: 10px; }
+.checkout-toast { position:fixed; top:calc(18px + env(safe-area-inset-top)); left:50%; z-index:1200; max-width:min(88vw,420px); padding:11px 16px; color:#fff; background:rgba(180,35,24,.96); border-radius:10px; box-shadow:0 8px 24px rgba(15,23,42,.18); transform:translateX(-50%); font-size:13px; line-height:1.5; text-align:center; pointer-events:none; }
 .checkout-page-head {
   position: sticky;
   top: 0;

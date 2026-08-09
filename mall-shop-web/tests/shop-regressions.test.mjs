@@ -208,7 +208,13 @@ test('checkout keeps the address block compact and preserves the remark while sw
   assert.doesNotMatch(address, /已自动填入，请核对后保存/)
   assert.match(address, /删除收货地址？/)
   assert.match(address, /confirm-overlay/)
+  assert.match(address, /fieldErrors\.receiverName/)
+  assert.match(address, /请选择完整的省、市、区\/县/)
+  assert.match(address, /form-toast/)
+  assert.doesNotMatch(address, /class="page-message"/)
   assert.doesNotMatch(address, /window\.confirm\(/)
+  assert.match(source, /checkout-toast/)
+  assert.doesNotMatch(source, /class="page-message"/)
 })
 
 test('home shows a dedicated retry state when initial data loading fails', async () => {

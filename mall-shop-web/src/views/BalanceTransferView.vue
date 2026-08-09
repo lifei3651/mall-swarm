@@ -35,7 +35,7 @@
       <p v-if="!wallet.distributionActivated" class="form-warning">完成首笔有效订单成为会员后，才可以转账和接收余额。</p>
     </section>
 
-    <p v-if="error" class="page-error">{{ error }}</p>
+    <div v-if="error" class="transfer-toast" role="alert" aria-live="assertive">{{ error }}</div>
 
     <div v-if="showConfirm" class="dialog-overlay" @click.self="showConfirm = false">
       <div class="dialog-box" role="dialog" aria-modal="true" aria-labelledby="transfer-confirm-title">
@@ -58,7 +58,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft } from 'lucide-vue-next'
 import { findBalanceRecipient, getWalletSummary, transferBalance } from '@/api/shop'
@@ -75,35 +75,42 @@ const amountError = ref('')
 const transferSaving = ref(false)
 const transferRequestKey = ref('')
 const showConfirm = ref(false)
+let errorTimer
+const clearTransferError = () => { window.clearTimeout(errorTimer); error.value = '' }
+const showTransferError = (text) => {
+  window.clearTimeout(errorTimer)
+  error.value = text
+  errorTimer = window.setTimeout(() => { error.value = '' }, 1800)
+}
 const canUseBalance = computed(() => wallet.value.hasPaymentPassword && wallet.value.distributionActivated)
 
 const fetchData = async () => {
   try { wallet.value = (await getWalletSummary()).data || wallet.value }
-  catch (e) { error.value = e.message || '余额信息加载失败' }
+  catch (e) { showTransferError(e.message || '余额信息加载失败') }
 }
 
 const handleRecipientPhoneInput = () => {
   transferForm.value.recipientPhone = normalizeMainlandPhone(transferForm.value.recipientPhone)
   recipient.value = null
-  if (error.value.includes('手机号')) error.value = ''
+  if (error.value.includes('手机号')) clearTransferError()
 }
 
 const lookupRecipient = async () => {
   if (!isValidMainlandPhone(transferForm.value.recipientPhone)) {
     recipient.value = null
-    if (transferForm.value.recipientPhone) error.value = '请输入正确的11位收款会员手机号'
+    if (transferForm.value.recipientPhone) showTransferError('请输入正确的11位收款会员手机号')
     return
   }
-  error.value = ''
+  clearTransferError()
   try { recipient.value = (await findBalanceRecipient(transferForm.value.recipientPhone)).data || null }
-  catch (e) { recipient.value = null; error.value = e.message || '未找到收款会员' }
+  catch (e) { recipient.value = null; showTransferError(e.message || '未找到收款会员') }
 }
 
 const handleAmountInput = () => {
   const value = String(transferForm.value.amount ?? '').trim()
   amountError.value = value && !/^\d+$/.test(value) ? '转账金额只能为整数' : ''
   if (value && /^\d+$/.test(value) && Number(value) <= 0) amountError.value = '转账金额必须大于0'
-  if (amountError.value && error.value.includes('转账金额')) error.value = ''
+  if (amountError.value && error.value.includes('转账金额')) clearTransferError()
 }
 
 const requirePaymentPassword = () => {
@@ -113,16 +120,16 @@ const requirePaymentPassword = () => {
 }
 
 const submitTransfer = async () => {
-  error.value = ''
+  clearTransferError()
   handleAmountInput()
   if (!requirePaymentPassword()) return
-  if (!wallet.value.distributionActivated) return (error.value = '完成首笔有效订单成为会员后才可转账')
-  if (!isValidMainlandPhone(transferForm.value.recipientPhone)) return (error.value = '请输入正确的11位收款会员手机号')
-  if (!recipient.value) return (error.value = '请先核对收款会员')
-  if (amountError.value) return (error.value = amountError.value)
-  if (!/^\d+$/.test(String(transferForm.value.amount || ''))) return (error.value = '转账金额只能为整数')
-  if (Number(transferForm.value.amount) > Number(wallet.value.balance || 0)) return (error.value = '余额不足')
-  if (!/^\d{6}$/.test(transferForm.value.paymentPassword)) return (error.value = '请输入6位支付密码')
+  if (!wallet.value.distributionActivated) return showTransferError('完成首笔有效订单成为会员后才可转账')
+  if (!isValidMainlandPhone(transferForm.value.recipientPhone)) return showTransferError('请输入正确的11位收款会员手机号')
+  if (!recipient.value) return showTransferError('请先核对收款会员')
+  if (amountError.value) return showTransferError(amountError.value)
+  if (!/^\d+$/.test(String(transferForm.value.amount || ''))) return showTransferError('转账金额只能为整数')
+  if (Number(transferForm.value.amount) > Number(wallet.value.balance || 0)) return showTransferError('余额不足')
+  if (!/^\d{6}$/.test(transferForm.value.paymentPassword)) return showTransferError('请输入6位支付密码')
   showConfirm.value = true
 }
 
@@ -133,11 +140,12 @@ const doTransfer = async () => {
     if (!transferRequestKey.value) transferRequestKey.value = createIdempotencyKey('balance-transfer')
     await transferBalance(transferForm.value, transferRequestKey.value)
     router.replace('/profile/wallet')
-  } catch (e) { error.value = e.message || '转账失败'; showConfirm.value = false }
+  } catch (e) { showTransferError(e.message || '转账失败'); showConfirm.value = false }
   finally { transferSaving.value = false }
 }
 
 onMounted(fetchData)
+onBeforeUnmount(() => window.clearTimeout(errorTimer))
 </script>
 
 <style scoped>
@@ -164,7 +172,7 @@ onMounted(fetchData)
 .field-error { margin:6px 0 0; color:#b42318; font-size:12px; }
 .submit-button { width:100%; margin-top:16px; }
 .form-warning { color:#b45309; font-size:12px; }
-.page-error { padding:12px 14px; color:#b42318; background:#fff1f0; border-radius:10px; }
+.transfer-toast { position:fixed; top:calc(18px + env(safe-area-inset-top)); left:50%; z-index:1200; max-width:min(88vw,420px); padding:11px 16px; color:#fff; background:rgba(180,35,24,.96); border-radius:10px; box-shadow:0 8px 24px rgba(15,23,42,.18); transform:translateX(-50%); font-size:13px; line-height:1.5; text-align:center; pointer-events:none; }
 .dialog-overlay { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; background:rgba(0,0,0,.45); backdrop-filter:blur(2px); }
 .dialog-box { width:min(380px,calc(100% - 32px)); padding:24px; background:#fff; border-radius:18px; box-shadow:0 20px 60px rgba(0,0,0,.2); }
 .dialog-box h3 { margin:0 0 16px; font-size:18px; text-align:center; }

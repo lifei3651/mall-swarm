@@ -33,10 +33,26 @@
       <button class="paste-button" type="button" @click="showPaste = !showPaste"><ClipboardPaste :size="16" />{{ showPaste ? '收起智能识别' : '粘贴收货信息，自动识别' }}</button>
       <div v-if="showPaste" class="paste-box"><textarea v-model="pasteText" rows="3" placeholder="粘贴姓名、手机号、省市区和详细地址"></textarea><button type="button" @click="parseAddress">识别并填入</button></div>
       <div class="form-grid">
-        <div class="form-item"><label>收货人</label><input v-model="form.receiverName" class="field" placeholder="姓名" /></div>
-        <div class="form-item"><label>手机号</label><input v-model="form.receiverPhone" class="field" inputmode="tel" maxlength="11" placeholder="11位手机号" @input="handlePhoneInput" @blur="validatePhoneField" /></div>
-        <div class="form-item full"><label>所在地区</label><ChinaRegionSelect v-model="region" @change="syncRegion" /></div>
-        <div class="form-item full"><label>详细地址</label><textarea v-model="form.detailAddress" class="textarea" placeholder="街道、小区、楼栋、门牌号"></textarea></div>
+        <div class="form-item" :class="{ invalid: !!fieldErrors.receiverName }">
+          <label for="address-receiver-name">收货人 <span class="required">*</span></label>
+          <input id="address-receiver-name" ref="receiverNameInput" v-model="form.receiverName" class="field" :class="{ invalid: !!fieldErrors.receiverName }" aria-describedby="address-receiver-name-error" :aria-invalid="!!fieldErrors.receiverName" placeholder="姓名" @input="clearFieldError('receiverName')" />
+          <p v-if="fieldErrors.receiverName" id="address-receiver-name-error" class="field-error">{{ fieldErrors.receiverName }}</p>
+        </div>
+        <div class="form-item" :class="{ invalid: !!fieldErrors.receiverPhone }">
+          <label for="address-receiver-phone">手机号 <span class="required">*</span></label>
+          <input id="address-receiver-phone" ref="receiverPhoneInput" v-model="form.receiverPhone" class="field" :class="{ invalid: !!fieldErrors.receiverPhone }" inputmode="tel" maxlength="11" aria-describedby="address-receiver-phone-error" :aria-invalid="!!fieldErrors.receiverPhone" placeholder="11位手机号" @input="handlePhoneInput" @blur="validatePhoneField" />
+          <p v-if="fieldErrors.receiverPhone" id="address-receiver-phone-error" class="field-error">{{ fieldErrors.receiverPhone }}</p>
+        </div>
+        <div class="form-item full" :class="{ invalid: !!fieldErrors.region }">
+          <label>所在地区 <span class="required">*</span></label>
+          <ChinaRegionSelect v-model="region" :class="{ invalid: !!fieldErrors.region }" @change="syncRegion" />
+          <p v-if="fieldErrors.region" class="field-error">{{ fieldErrors.region }}</p>
+        </div>
+        <div class="form-item full" :class="{ invalid: !!fieldErrors.detailAddress }">
+          <label for="address-detail">详细地址 <span class="required">*</span></label>
+          <textarea id="address-detail" ref="detailAddressInput" v-model="form.detailAddress" class="textarea" :class="{ invalid: !!fieldErrors.detailAddress }" aria-describedby="address-detail-error" :aria-invalid="!!fieldErrors.detailAddress" placeholder="街道、小区、楼栋、门牌号" @input="clearFieldError('detailAddress')"></textarea>
+          <p v-if="fieldErrors.detailAddress" id="address-detail-error" class="field-error">{{ fieldErrors.detailAddress }}</p>
+        </div>
       </div>
       <button class="default-toggle" :class="{ active: form.isDefault === 1 }" type="button" @click="form.isDefault = 1"><span><Check v-if="form.isDefault === 1" :size="15" /></span>设为默认收货地址</button>
       <button class="btn primary save-button" :disabled="saving" @click="submitAddress">{{ saving ? '保存中' : '保存地址' }}</button>
@@ -54,12 +70,12 @@
       </section>
     </div>
 
-    <p v-if="message" class="page-message" :class="{ error: messageType === 'error' }">{{ message }}</p>
+    <div v-if="message" class="form-toast" :class="{ error: messageType === 'error' }" role="status" aria-live="polite">{{ message }}</div>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Check, ClipboardPaste, MapPin, Plus, Trash2, X } from 'lucide-vue-next'
 import { deleteAddress, listAddresses, saveAddress } from '@/api/shop'
@@ -81,14 +97,28 @@ const pasteText = ref('')
 const region = ref([])
 const message = ref('')
 const messageType = ref('success')
+const messageTimer = ref(null)
+const fieldErrors = ref({ receiverName: '', receiverPhone: '', region: '', detailAddress: '' })
+const receiverNameInput = ref(null)
+const receiverPhoneInput = ref(null)
+const detailAddressInput = ref(null)
 const deleteTarget = ref(null)
 const deletingAddress = ref(false)
 const emptyForm = () => ({ id: null, receiverName: '', receiverPhone: '', province: '', city: '', district: '', detailAddress: '', isDefault: 0 })
 const form = ref(emptyForm())
-const notify = (text, type = 'error') => { message.value = text; messageType.value = type }
-const handlePhoneInput = () => { form.value.receiverPhone = normalizeMainlandPhone(form.value.receiverPhone) }
+const notify = (text, type = 'error') => {
+  window.clearTimeout(messageTimer.value)
+  message.value = text
+  messageType.value = type
+  messageTimer.value = window.setTimeout(() => { message.value = '' }, 1800)
+}
+const clearFieldError = (field) => { fieldErrors.value[field] = '' }
+const handlePhoneInput = () => {
+  form.value.receiverPhone = normalizeMainlandPhone(form.value.receiverPhone)
+  clearFieldError('receiverPhone')
+}
 const validatePhoneField = () => {
-  if (form.value.receiverPhone && !isValidMainlandPhone(form.value.receiverPhone)) notify('请填写正确的11位手机号')
+  if (form.value.receiverPhone && !isValidMainlandPhone(form.value.receiverPhone)) fieldErrors.value.receiverPhone = '请输入正确的11位手机号'
 }
 
 const fetchAddresses = async () => {
@@ -102,6 +132,7 @@ const startCreate = () => {
   region.value = []
   pasteText.value = ''
   showPaste.value = false
+  fieldErrors.value = { receiverName: '', receiverPhone: '', region: '', detailAddress: '' }
   editorVisible.value = true
 }
 const useAddress = (address) => {
@@ -114,9 +145,13 @@ const startEdit = (address) => {
   region.value = [address.province, address.city, address.district].filter(Boolean)
   pasteText.value = ''
   showPaste.value = false
+  fieldErrors.value = { receiverName: '', receiverPhone: '', region: '', detailAddress: '' }
   editorVisible.value = true
 }
-const syncRegion = ([province = '', city = '', district = ''] = []) => Object.assign(form.value, { province, city, district })
+const syncRegion = ([province = '', city = '', district = ''] = []) => {
+  Object.assign(form.value, { province, city, district })
+  clearFieldError('region')
+}
 const parseAddress = () => {
   const parsed = parseChineseAddress(pasteText.value)
   if (![parsed.receiverName, parsed.receiverPhone, parsed.province, parsed.city, parsed.district, parsed.detailAddress].some(Boolean)) return notify('没有识别到有效收货信息')
@@ -130,21 +165,37 @@ const parseAddress = () => {
   })
   region.value = [form.value.province, form.value.city, form.value.district].filter(Boolean)
 }
+const focusInvalidField = (field) => {
+  const target = { receiverName: receiverNameInput, receiverPhone: receiverPhoneInput, detailAddress: detailAddressInput }[field]?.value
+  const regionTarget = document.querySelector('.address-editor .china-region-select')
+  const element = target || regionTarget
+  if (!element) return
+  element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  if (typeof element.focus === 'function') element.focus({ preventScroll: true })
+}
 const validate = () => {
-  if (!form.value.receiverName.trim()) return '请填写收货人'
-  if (!isValidMainlandPhone(form.value.receiverPhone)) return '请填写正确的11位手机号'
-  if (region.value.length !== 3) return '请完整选择省、市、区/县'
-  if (!form.value.detailAddress.trim()) return '请填写详细地址'
-  return ''
+  const errors = { receiverName: '', receiverPhone: '', region: '', detailAddress: '' }
+  if (!form.value.receiverName.trim()) errors.receiverName = '请输入收货人姓名'
+  if (!isValidMainlandPhone(form.value.receiverPhone)) errors.receiverPhone = '请输入正确的11位手机号'
+  if (region.value.length !== 3) errors.region = '请选择完整的省、市、区/县'
+  if (!form.value.detailAddress.trim()) errors.detailAddress = '请输入详细收货地址'
+  fieldErrors.value = errors
+  const firstInvalid = Object.keys(errors).find((field) => errors[field])
+  if (firstInvalid) {
+    notify('请先完善标红的收货信息')
+    nextTick(() => focusInvalidField(firstInvalid))
+    return false
+  }
+  return true
 }
 const submitAddress = async () => {
-  const error = validate()
-  if (error) return notify(error)
+  if (!validate()) return
   saving.value = true
   try {
     await saveAddress(form.value)
     editorVisible.value = false
     await fetchAddresses()
+    notify('地址保存成功', 'success')
   } catch (e) { notify(e.message || '地址保存失败') }
   finally { saving.value = false }
 }
@@ -170,6 +221,7 @@ const confirmDelete = async () => {
 }
 
 onMounted(fetchAddresses)
+onBeforeUnmount(() => window.clearTimeout(messageTimer.value))
 </script>
 
 <style scoped>
@@ -193,7 +245,13 @@ onMounted(fetchAddresses)
 .paste-box { display:grid; gap:8px; padding:10px; margin-bottom:13px; background:#fff9f5; border:1px dashed #f0ad91; border-radius:10px; }.paste-box textarea{width:100%;padding:9px;resize:vertical;border:1px solid var(--line);border-radius:8px}.paste-box button{justify-self:end;padding:7px 11px;color:#fff;background:var(--brand-primary);border:0;border-radius:8px;font-size:12px}
 .default-toggle { display:flex; align-items:center; gap:8px; margin-top:14px; padding:0; color:#5f6772; background:none; border:0; font-size:13px; }.default-toggle span{width:20px;height:20px;display:grid;place-items:center;border:1px solid #c9ced4;border-radius:50%}.default-toggle.active span{color:#fff;background:var(--brand-primary);border-color:var(--brand-primary)}
 .save-button { width:100%; margin-top:16px; }
-.page-message { padding:12px 14px; color:#08724f; background:#eaf8f3; border-radius:10px; }.page-message.error{color:#b42318;background:#fff1f0}
+.form-toast { position:fixed; top:calc(18px + env(safe-area-inset-top)); left:50%; z-index:1200; max-width:min(88vw,420px); padding:11px 16px; color:#fff; background:rgba(8,114,79,.96); border-radius:10px; box-shadow:0 8px 24px rgba(15,23,42,.18); transform:translateX(-50%); font-size:13px; text-align:center; pointer-events:none; }
+.form-toast.error { background:rgba(180,35,24,.96); }
+.required { color:#d92d20; }
+.field-error { margin:6px 0 0; color:#b42318; font-size:12px; line-height:1.45; }
+.form-item.invalid label { color:#b42318; }
+.field.invalid { border-color:#d92d20; box-shadow:0 0 0 2px rgba(217,45,32,.08); }
+.address-editor :deep(.china-region-select.invalid .field) { border-color:#d92d20; box-shadow:0 0 0 2px rgba(217,45,32,.08); }
 .confirm-overlay { position:fixed; inset:0; z-index:30; display:grid; place-items:center; padding:24px; background:rgba(15,23,42,.48); }
 .confirm-dialog { width:min(360px,100%); padding:24px 20px 18px; background:#fff; border-radius:18px; box-shadow:0 18px 50px rgba(15,23,42,.2); text-align:center; }
 .confirm-icon { display:grid; width:44px; height:44px; margin:0 auto 12px; place-items:center; color:#b42318; background:#fff1f0; border-radius:50%; }
