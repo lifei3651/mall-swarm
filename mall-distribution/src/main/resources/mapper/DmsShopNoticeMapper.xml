@@ -76,4 +76,9 @@
         SET status = #{status}, update_time = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
+
+    <delete id="deleteById">
+        DELETE FROM dms_shop_notice
+        WHERE id = #{id}
+    </delete>
 </mapper>

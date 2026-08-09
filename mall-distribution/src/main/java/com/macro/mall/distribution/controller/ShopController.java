@@ -269,6 +269,12 @@ public class ShopController {
         return CommonResult.success(shopService.updateNoticeStatus(id, status));
     }
 
+    @Operation(summary = "删除公告")
+    @DeleteMapping("/admin/notices/{id}")
+    public CommonResult<Boolean> deleteNotice(@PathVariable Long id) {
+        return CommonResult.success(shopService.deleteNotice(id));
+    }
+
     @Operation(summary = "商品列表")
     @GetMapping("/products")
     public CommonResult<CommonPage<DmsShopProduct>> products(@RequestParam(required = false) String keyword,

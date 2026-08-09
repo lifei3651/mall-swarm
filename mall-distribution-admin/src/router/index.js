@@ -246,6 +246,12 @@ const routes = [
             meta: { title: '商城资料与客服', permission: 'config:manage' },
           },
           {
+            path: 'notices',
+            name: 'TenantNotices',
+            component: () => import('@/views/tenant/notices.vue'),
+            meta: { title: '商城公告', permission: 'config:manage' },
+          },
+          {
             path: 'display',
             name: 'TenantDisplay',
             redirect: '/tenant/list',

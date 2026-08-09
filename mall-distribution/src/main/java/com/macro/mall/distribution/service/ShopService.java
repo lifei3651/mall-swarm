@@ -65,6 +65,8 @@ public interface ShopService {
 
     boolean updateNoticeStatus(Long id, Integer status);
 
+    boolean deleteNotice(Long id);
+
     DmsShopProduct getProduct(Long id);
 
     ShopProductDetailVO getProductDetail(Long id);

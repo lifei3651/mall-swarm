@@ -92,6 +92,26 @@ export function updateShopBannerStatus(id, status) {
   return request({ url: `/shop/admin/banners/${id}/status`, method: 'put', params: { status } })
 }
 
+export function listShopNotices(params) {
+  return request({ url: '/shop/admin/notices', method: 'get', params })
+}
+
+export function createShopNotice(data) {
+  return request({ url: '/shop/admin/notices', method: 'post', data })
+}
+
+export function updateShopNotice(id, data) {
+  return request({ url: `/shop/admin/notices/${id}`, method: 'put', data })
+}
+
+export function updateShopNoticeStatus(id, status) {
+  return request({ url: `/shop/admin/notices/${id}/status`, method: 'put', params: { status } })
+}
+
+export function deleteShopNotice(id) {
+  return request({ url: `/shop/admin/notices/${id}`, method: 'delete' })
+}
+
 export function uploadShopImage(file) {
   const data = new FormData()
   data.append('file', file)

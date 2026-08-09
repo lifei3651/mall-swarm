@@ -322,6 +322,17 @@ public class ShopServiceImpl implements ShopService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean deleteNotice(Long id) {
+        DmsShopNotice notice = noticeDao.selectById(id);
+        if (notice == null) {
+            Asserts.fail("公告不存在或已删除");
+        }
+        assertTenantAccess(notice.getTenantId());
+        return noticeDao.deleteById(id) > 0;
+    }
+
+    @Override
     public DmsShopProduct getProduct(Long id) {
         DmsShopProduct product = productDao.selectById(id);
         if (product == null) {
@@ -1418,9 +1429,19 @@ public class ShopServiceImpl implements ShopService {
         if (notice == null || notice.getTitle() == null || notice.getTitle().isBlank()) {
             Asserts.fail("公告标题不能为空");
         }
+        if (notice.getTitle().trim().length() > 128) {
+            Asserts.fail("公告标题不能超过128个字");
+        }
+        if (notice.getContent() == null || notice.getContent().isBlank()) {
+            Asserts.fail("公告内容不能为空");
+        }
+        if (notice.getContent().trim().length() > 1000) {
+            Asserts.fail("公告内容不能超过1000个字");
+        }
         notice.setTenantId(resolveTenantId(notice.getTenantId()));
         notice.setTitle(notice.getTitle().trim());
-        notice.setContent(notice.getContent() == null ? "" : notice.getContent());
+        notice.setContent(notice.getContent().trim());
+        notice.setNoticeType(notice.getNoticeType() == null ? 1 : notice.getNoticeType());
         notice.setSort(notice.getSort() == null ? 0 : notice.getSort());
         notice.setStatus(notice.getStatus() == null ? 1 : notice.getStatus());
     }

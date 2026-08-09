@@ -18,4 +18,6 @@ public interface DmsShopNoticeDao {
     int update(DmsShopNotice notice);
 
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
+
+    int deleteById(@Param("id") Long id);
 }
