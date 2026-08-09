@@ -29,8 +29,11 @@ public class DmsTenant implements Serializable {
 
     /** 实际经营地址及前台客服/合规信息。 */
     private String companyAddress;
+    private String unifiedSocialCreditCode;
     private String servicePhone;
     private String serviceEmail;
+    private String serviceHours;
+    private String thirdPartyServices;
     private String icpNumber;
     private String policeRecordNumber;
     private String policeRecordUrl;

@@ -3,6 +3,7 @@ package com.macro.mall.distribution.service;
 import com.macro.mall.distribution.entity.DmsCommissionRuleVersion;
 import com.macro.mall.distribution.entity.DmsTenant;
 import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
+import com.macro.mall.distribution.vo.TenantLegalTemplatesVO;
 
 import java.util.List;
 
@@ -13,6 +14,8 @@ public interface TenantService {
     DmsTenant getTenant(Long id);
 
     DmsTenant saveTenant(DmsTenant tenant);
+
+    TenantLegalTemplatesVO getLegalTemplates();
 
     boolean updateTenantStatus(Long id, Integer status);
 

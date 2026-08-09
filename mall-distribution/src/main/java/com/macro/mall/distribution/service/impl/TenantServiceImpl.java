@@ -9,6 +9,8 @@ import com.macro.mall.distribution.entity.DmsCommissionRuleVersion;
 import com.macro.mall.distribution.entity.DmsTenant;
 import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
 import com.macro.mall.distribution.service.TenantService;
+import com.macro.mall.distribution.service.TenantLegalTemplateSupport;
+import com.macro.mall.distribution.vo.TenantLegalTemplatesVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,20 +28,28 @@ public class TenantServiceImpl implements TenantService {
     private final DmsCommissionRuleVersionDao versionDao;
     private final DmsTenantDisplayConfigDao displayConfigDao;
     private final TenantDisplayConfigSupport displayConfigSupport;
+    private final TenantLegalTemplateSupport legalTemplateSupport;
 
     @Override
     public List<DmsTenant> listTenants() {
-        return tenantDao.selectAll();
+        List<DmsTenant> tenants = tenantDao.selectAll();
+        tenants.forEach(legalTemplateSupport::applyDefaults);
+        return tenants;
     }
 
     @Override
     public DmsTenant getTenant(Long id) {
-        return tenantDao.selectById(id == null ? 1L : id);
+        DmsTenant tenant = tenantDao.selectById(id == null ? 1L : id);
+        legalTemplateSupport.applyDefaults(tenant);
+        return tenant;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsTenant saveTenant(DmsTenant tenant) {
+        if (tenant == null) {
+            Asserts.fail("商城资料不能为空");
+        }
         if (tenant.getTenantName() == null || tenant.getTenantName().isBlank()) {
             Asserts.fail("公司名称不能为空");
         }
@@ -72,6 +82,14 @@ public class TenantServiceImpl implements TenantService {
             }
             tenant.setPoliceRecordUrl(policeRecordUrl);
         }
+        if (tenant.getUnifiedSocialCreditCode() != null && !tenant.getUnifiedSocialCreditCode().isBlank()) {
+            String creditCode = tenant.getUnifiedSocialCreditCode().trim().toUpperCase();
+            if (!creditCode.matches("^[0-9A-HJ-NPQRTUWXY]{18}$")) {
+                Asserts.fail("统一社会信用代码格式不正确，请填写18位代码");
+            }
+            tenant.setUnifiedSocialCreditCode(creditCode);
+        }
+        legalTemplateSupport.applyDefaults(tenant);
 
         if (tenant.getId() == null) {
             tenantDao.insert(tenant);
@@ -80,7 +98,12 @@ public class TenantServiceImpl implements TenantService {
         } else {
             tenantDao.update(tenant);
         }
-        return tenantDao.selectById(tenant.getId());
+        return getTenant(tenant.getId());
+    }
+
+    @Override
+    public TenantLegalTemplatesVO getLegalTemplates() {
+        return legalTemplateSupport.templates();
     }
 
     @Override

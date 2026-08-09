@@ -11,15 +11,20 @@
         <result column="theme_color" property="themeColor"/>
         <result column="product_template" property="productTemplate"/>
         <result column="company_address" property="companyAddress"/>
+        <result column="unified_social_credit_code" property="unifiedSocialCreditCode"/>
         <result column="service_phone" property="servicePhone"/>
         <result column="service_email" property="serviceEmail"/>
+        <result column="service_hours" property="serviceHours"/>
+        <result column="third_party_services" property="thirdPartyServices"/>
         <result column="icp_number" property="icpNumber"/>
         <result column="police_record_number" property="policeRecordNumber"/>
         <result column="police_record_url" property="policeRecordUrl"/>
         <result column="business_license_url" property="businessLicenseUrl"/>
+        <result column="show_business_license" property="showBusinessLicense"/>
         <result column="user_agreement" property="userAgreement"/>
         <result column="privacy_policy" property="privacyPolicy"/>
         <result column="after_sale_policy" property="afterSalePolicy"/>
+        <result column="faqs" property="faqs"/>
         <result column="status" property="status"/>
         <result column="remark" property="remark"/>
         <result column="create_time" property="createTime"/>
@@ -28,8 +33,10 @@
 
     <select id="selectById" resultMap="BaseResultMap">
         SELECT id, tenant_code, tenant_name, brand_name, logo_url, theme_color, product_template,
-               company_address, service_phone, service_email, icp_number, police_record_number,
-               police_record_url, business_license_url, user_agreement, privacy_policy, after_sale_policy,
+               company_address, unified_social_credit_code, service_phone, service_email, service_hours,
+               third_party_services, icp_number, police_record_number,
+               police_record_url, business_license_url, show_business_license,
+               user_agreement, privacy_policy, after_sale_policy, faqs,
                status, remark, create_time, update_time
         FROM dms_tenant
         WHERE id = #{id}
@@ -37,8 +44,10 @@
 
     <select id="selectByCode" resultMap="BaseResultMap">
         SELECT id, tenant_code, tenant_name, brand_name, logo_url, theme_color, product_template,
-               company_address, service_phone, service_email, icp_number, police_record_number,
-               police_record_url, business_license_url, user_agreement, privacy_policy, after_sale_policy,
+               company_address, unified_social_credit_code, service_phone, service_email, service_hours,
+               third_party_services, icp_number, police_record_number,
+               police_record_url, business_license_url, show_business_license,
+               user_agreement, privacy_policy, after_sale_policy, faqs,
                status, remark, create_time, update_time
         FROM dms_tenant
         WHERE tenant_code = #{tenantCode}
@@ -46,8 +55,10 @@
 
     <select id="selectAll" resultMap="BaseResultMap">
         SELECT id, tenant_code, tenant_name, brand_name, logo_url, theme_color, product_template,
-               company_address, service_phone, service_email, icp_number, police_record_number,
-               police_record_url, business_license_url, user_agreement, privacy_policy, after_sale_policy,
+               company_address, unified_social_credit_code, service_phone, service_email, service_hours,
+               third_party_services, icp_number, police_record_number,
+               police_record_url, business_license_url, show_business_license,
+               user_agreement, privacy_policy, after_sale_policy, faqs,
                status, remark, create_time, update_time
         FROM dms_tenant
         ORDER BY create_time DESC
@@ -55,21 +66,28 @@
 
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsTenant" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_tenant (tenant_code, tenant_name, brand_name, logo_url, theme_color, product_template,
-            company_address, service_phone, service_email, icp_number, police_record_number, police_record_url,
-            business_license_url, user_agreement, privacy_policy, after_sale_policy, status, remark)
+            company_address, unified_social_credit_code, service_phone, service_email, service_hours,
+            third_party_services, icp_number, police_record_number, police_record_url,
+            business_license_url, show_business_license, user_agreement, privacy_policy, after_sale_policy,
+            faqs, status, remark)
         VALUES (#{tenantCode}, #{tenantName}, #{brandName}, #{logoUrl}, #{themeColor}, #{productTemplate},
-            #{companyAddress}, #{servicePhone}, #{serviceEmail}, #{icpNumber}, #{policeRecordNumber}, #{policeRecordUrl},
-            #{businessLicenseUrl}, #{userAgreement}, #{privacyPolicy}, #{afterSalePolicy}, #{status}, #{remark})
+            #{companyAddress}, #{unifiedSocialCreditCode}, #{servicePhone}, #{serviceEmail}, #{serviceHours},
+            #{thirdPartyServices}, #{icpNumber}, #{policeRecordNumber}, #{policeRecordUrl},
+            #{businessLicenseUrl}, #{showBusinessLicense}, #{userAgreement}, #{privacyPolicy}, #{afterSalePolicy},
+            #{faqs}, #{status}, #{remark})
     </insert>
 
     <update id="update" parameterType="com.macro.mall.distribution.entity.DmsTenant">
         UPDATE dms_tenant
         SET tenant_code = #{tenantCode}, tenant_name = #{tenantName}, brand_name = #{brandName},
             logo_url = #{logoUrl}, theme_color = #{themeColor}, product_template = #{productTemplate},
-            company_address = #{companyAddress}, service_phone = #{servicePhone}, service_email = #{serviceEmail},
+            company_address = #{companyAddress}, unified_social_credit_code = #{unifiedSocialCreditCode},
+            service_phone = #{servicePhone}, service_email = #{serviceEmail}, service_hours = #{serviceHours},
+            third_party_services = #{thirdPartyServices},
             icp_number = #{icpNumber}, police_record_number = #{policeRecordNumber}, police_record_url = #{policeRecordUrl},
-            business_license_url = #{businessLicenseUrl}, user_agreement = #{userAgreement},
-            privacy_policy = #{privacyPolicy}, after_sale_policy = #{afterSalePolicy},
+            business_license_url = #{businessLicenseUrl}, show_business_license = #{showBusinessLicense},
+            user_agreement = #{userAgreement}, privacy_policy = #{privacyPolicy},
+            after_sale_policy = #{afterSalePolicy}, faqs = #{faqs},
             status = #{status}, remark = #{remark}, update_time = NOW()
         WHERE id = #{id}
     </update>

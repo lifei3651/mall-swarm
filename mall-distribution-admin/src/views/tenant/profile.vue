@@ -25,6 +25,15 @@
             <el-input v-model="tenantForm.tenantName" maxlength="128" placeholder="营业执照或实际运营主体名称" />
             <div class="field-help">用于前台经营资质、用户协议和客服页面展示。</div>
           </el-form-item>
+          <el-form-item label="统一社会信用代码">
+            <el-input
+              v-model="tenantForm.unifiedSocialCreditCode"
+              maxlength="18"
+              placeholder="营业执照上的18位统一社会信用代码"
+              @input="normalizeCreditCode"
+            />
+            <div class="field-help">用于经营资质、用户服务协议和隐私政策中的主体识别。</div>
+          </el-form-item>
           <el-form-item label="经营地址">
             <el-input v-model="tenantForm.companyAddress" maxlength="255" placeholder="营业执照登记地址或实际经营地址" />
           </el-form-item>
@@ -40,6 +49,24 @@
               <el-form-item label="客服邮箱"><el-input v-model="tenantForm.serviceEmail" maxlength="128" placeholder="用于售后咨询和隐私问题联系" /></el-form-item>
             </el-col>
           </el-row>
+          <el-form-item label="客服工作时间">
+            <el-input v-model="tenantForm.serviceHours" maxlength="128" placeholder="例如：周一至周日 9:00-21:00" />
+          </el-form-item>
+        </section>
+
+        <section class="form-section">
+          <h3>协议与隐私资料</h3>
+          <el-form-item label="第三方服务清单">
+            <el-input
+              v-model="tenantForm.thirdPartyServices"
+              type="textarea"
+              :rows="4"
+              maxlength="2000"
+              show-word-limit
+              placeholder="例如：支付宝（支付服务）；阿里云（短信及云服务）；订单实际承运的物流公司（商品配送）"
+            />
+            <div class="field-help">用于隐私政策说明支付、短信、云服务和物流等必要合作方；客户实际使用的服务发生变化时请同步更新。</div>
+          </el-form-item>
         </section>
 
         <section class="form-section">
@@ -87,6 +114,13 @@ const loading = ref(false)
 const saving = ref(false)
 const tenantForm = ref({})
 
+const normalizeCreditCode = (value) => {
+  tenantForm.value.unifiedSocialCreditCode = String(value || '')
+    .toUpperCase()
+    .replace(/[^0-9A-HJ-NPQRTUWXY]/g, '')
+    .slice(0, 18)
+}
+
 const fetchData = async () => {
   loading.value = true
   try {
@@ -113,14 +147,22 @@ const submit = async () => {
     ElMessage.warning('请输入经营主体名称')
     return
   }
+  const creditCode = tenantForm.value.unifiedSocialCreditCode?.trim()
+  if (creditCode && !/^[0-9A-HJ-NPQRTUWXY]{18}$/.test(creditCode)) {
+    ElMessage.warning('统一社会信用代码应为18位，请核对后保存')
+    return
+  }
   saving.value = true
   try {
     await saveTenant({
       ...tenantForm.value,
       tenantName: tenantForm.value.tenantName.trim(),
       companyAddress: tenantForm.value.companyAddress?.trim() || null,
+      unifiedSocialCreditCode: creditCode || null,
       servicePhone: tenantForm.value.servicePhone?.trim() || null,
       serviceEmail: tenantForm.value.serviceEmail?.trim() || null,
+      serviceHours: tenantForm.value.serviceHours?.trim() || null,
+      thirdPartyServices: tenantForm.value.thirdPartyServices?.trim() || null,
       policeRecordUrl: tenantForm.value.policeRecordUrl?.trim() || null,
       showBusinessLicense: tenantForm.value.showBusinessLicense ?? 1,
     })

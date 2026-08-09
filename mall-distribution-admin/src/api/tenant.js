@@ -16,6 +16,13 @@ export function saveTenant(data) {
   })
 }
 
+export function getLegalTemplates() {
+  return request({
+    url: '/distribution/tenant/legal-templates',
+    method: 'get',
+  })
+}
+
 export function updateTenantStatus(id, status) {
   return request({
     url: `/distribution/tenant/${id}/status`,

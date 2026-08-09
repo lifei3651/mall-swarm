@@ -9,6 +9,7 @@
     <section v-if="type === 'license'" class="info-card">
       <dl>
         <div><dt>运营主体</dt><dd>{{ config.companyName || '暂未配置' }}</dd></div>
+        <div><dt>信用代码</dt><dd>{{ config.unifiedSocialCreditCode || '以营业执照公示信息为准' }}</dd></div>
         <div><dt>商城品牌</dt><dd>{{ config.brandName || '暂未配置' }}</dd></div>
         <div><dt>经营地址</dt><dd>{{ config.companyAddress || '暂未配置' }}</dd></div>
         <div><dt>ICP备案号</dt><dd>{{ config.icpNumber || '备案信息同步后展示' }}</dd></div>
@@ -22,6 +23,7 @@
         <div><dt>运营主体</dt><dd>{{ config.companyName || '暂未配置' }}</dd></div>
         <div><dt>客服电话</dt><dd><a v-if="config.servicePhone" :href="`tel:${config.servicePhone}`">{{ config.servicePhone }}</a><span v-else>暂未配置</span></dd></div>
         <div><dt>客服邮箱</dt><dd><a v-if="config.serviceEmail" :href="`mailto:${config.serviceEmail}`">{{ config.serviceEmail }}</a><span v-else>暂未配置</span></dd></div>
+        <div><dt>客服时间</dt><dd>{{ config.serviceHours || '以客服实际在线时间为准' }}</dd></div>
         <div><dt>联系地址</dt><dd>{{ config.companyAddress || '暂未配置' }}</dd></div>
       </dl>
     </section>
@@ -70,8 +72,13 @@ const content = computed(() => ({
 }[type.value] || ''))
 const replaceTenantPlaceholders = (value) => String(value || '')
   .replace(/\{\{\s*companyName\s*\}\}|\{company\}/g, config.value.companyName || '本商城经营主体')
+  .replace(/\{\{\s*brandName\s*\}\}/g, config.value.brandName || '本商城')
+  .replace(/\{\{\s*unifiedSocialCreditCode\s*\}\}/g, config.value.unifiedSocialCreditCode || '以营业执照公示信息为准')
+  .replace(/\{\{\s*companyAddress\s*\}\}/g, config.value.companyAddress || '以经营资质页面公示信息为准')
   .replace(/\{\{\s*servicePhone\s*\}\}|\{phone\}/g, config.value.servicePhone || '商城客服')
   .replace(/\{\{\s*serviceEmail\s*\}\}|\{email\}/g, config.value.serviceEmail || '客服邮箱')
+  .replace(/\{\{\s*serviceHours\s*\}\}/g, config.value.serviceHours || '以客服实际在线时间为准')
+  .replace(/\{\{\s*thirdPartyServices\s*\}\}/g, config.value.thirdPartyServices || '支付、短信、云服务及订单实际承运的物流服务商')
 const resolvedContent = computed(() => replaceTenantPlaceholders(content.value))
 const safePoliceUrl = computed(() => /^https?:\/\//i.test(config.value.policeRecordUrl || '') ? config.value.policeRecordUrl : '')
 

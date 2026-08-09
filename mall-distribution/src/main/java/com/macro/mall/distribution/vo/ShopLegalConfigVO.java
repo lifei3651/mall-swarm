@@ -12,8 +12,11 @@ public class ShopLegalConfigVO implements Serializable {
     private String companyName;
     private String brandName;
     private String companyAddress;
+    private String unifiedSocialCreditCode;
     private String servicePhone;
     private String serviceEmail;
+    private String serviceHours;
+    private String thirdPartyServices;
     private String icpNumber;
     private String policeRecordNumber;
     private String policeRecordUrl;
@@ -33,8 +36,11 @@ public class ShopLegalConfigVO implements Serializable {
         vo.setCompanyName(tenant.getTenantName());
         vo.setBrandName(tenant.getBrandName());
         vo.setCompanyAddress(tenant.getCompanyAddress());
+        vo.setUnifiedSocialCreditCode(tenant.getUnifiedSocialCreditCode());
         vo.setServicePhone(tenant.getServicePhone());
         vo.setServiceEmail(tenant.getServiceEmail());
+        vo.setServiceHours(tenant.getServiceHours());
+        vo.setThirdPartyServices(tenant.getThirdPartyServices());
         vo.setIcpNumber(tenant.getIcpNumber());
         vo.setPoliceRecordNumber(tenant.getPoliceRecordNumber());
         vo.setPoliceRecordUrl(tenant.getPoliceRecordUrl());

@@ -6,6 +6,7 @@ import com.macro.mall.distribution.entity.DmsCommissionRuleVersion;
 import com.macro.mall.distribution.entity.DmsTenant;
 import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
 import com.macro.mall.distribution.service.TenantService;
+import com.macro.mall.distribution.vo.TenantLegalTemplatesVO;
 import com.github.pagehelper.PageHelper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,6 +35,12 @@ public class TenantController {
     @PostMapping
     public CommonResult<DmsTenant> saveTenant(@RequestBody DmsTenant tenant) {
         return CommonResult.success(tenantService.saveTenant(tenant));
+    }
+
+    @Operation(summary = "获取商城协议默认模板")
+    @GetMapping("/legal-templates")
+    public CommonResult<TenantLegalTemplatesVO> legalTemplates() {
+        return CommonResult.success(tenantService.getLegalTemplates());
     }
 
     @Operation(summary = "更新客户公司状态")

@@ -349,6 +349,24 @@ test('frontend retains configured service rules without forcing FAQ into the foo
   assert.match(legal, /replaceTenantPlaceholders/)
 })
 
+test('legal pages replace every customer-specific placeholder from shop profile data', async () => {
+  const source = await readView('LegalView.vue')
+  for (const field of [
+    'companyName',
+    'brandName',
+    'unifiedSocialCreditCode',
+    'companyAddress',
+    'servicePhone',
+    'serviceEmail',
+    'serviceHours',
+    'thirdPartyServices',
+  ]) {
+    assert.match(source, new RegExp(field))
+  }
+  assert.match(source, /信用代码/)
+  assert.match(source, /客服时间/)
+})
+
 test('build freshness guard can identify the current production entry', () => {
   assert.equal(
     extractModuleEntry('<script type="module" crossorigin src="/assets/index-new.js"></script>'),
