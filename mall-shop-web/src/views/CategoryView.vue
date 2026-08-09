@@ -121,9 +121,10 @@ import { getProduct, listCategories, listCategoryProducts } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { money } from '@/utils/format'
 import { resolveQuickCartItem } from '@/utils/quickCart'
+import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
 import { currentBrandLogo, currentBrandName } from '@/utils/brand'
 
-const { add } = useCart()
+const { add, getProductQuantity } = useCart()
 const loading = ref(false)
 const categoryLoading = ref(false)
 const categories = ref([])
@@ -221,6 +222,7 @@ const addProduct = async (product) => {
       showToast('该商品暂时缺货')
       return
     }
+    await checkCartPurchaseLimit(cartItem, 1, getProductQuantity(cartItem.id))
     add(cartItem, 1)
     showToast('已加入购物车，数量 +1')
   } catch (error) {

@@ -36,6 +36,7 @@ import com.macro.mall.distribution.vo.ShopProductDetailVO;
 import com.macro.mall.distribution.vo.ShopProfileVO;
 import com.macro.mall.distribution.vo.ShopLegalConfigVO;
 import com.macro.mall.distribution.vo.FreightQuoteVO;
+import com.macro.mall.distribution.vo.PurchaseLimitCheckVO;
 import com.macro.mall.distribution.vo.AdminMemberVO;
 import com.macro.mall.distribution.vo.AgentInfoVO;
 import com.macro.mall.distribution.vo.OrderShipmentImportResultVO;
@@ -285,6 +286,15 @@ public class ShopController {
     @GetMapping("/products/{id}")
     public CommonResult<ShopProductDetailVO> productDetail(@PathVariable Long id) {
         return CommonResult.success(shopService.getProductDetail(id));
+    }
+
+    @Operation(summary = "加入购物车前检查商品限购")
+    @PostMapping("/products/{id}/purchase-limit/check")
+    public CommonResult<PurchaseLimitCheckVO> checkPurchaseLimit(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "1") Integer quantity) {
+        return CommonResult.success(shopService.checkPurchaseLimit(id, quantity, authService.requireMember(authorization)));
     }
 
     @Operation(summary = "创建商品")

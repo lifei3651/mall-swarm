@@ -35,6 +35,7 @@ import com.macro.mall.distribution.vo.ShopOrderStatusSummaryVO;
 import com.macro.mall.distribution.vo.ShopProductDetailVO;
 import com.macro.mall.distribution.vo.ShopProfileVO;
 import com.macro.mall.distribution.vo.FreightQuoteVO;
+import com.macro.mall.distribution.vo.PurchaseLimitCheckVO;
 import com.macro.mall.distribution.util.MemberAccountUtils;
 import com.macro.mall.distribution.util.PhoneNumberUtils;
 import lombok.RequiredArgsConstructor;
@@ -598,6 +599,36 @@ public class ShopServiceImpl implements ShopService {
         }
         BigDecimal freight = calculateFreight(shippingProducts, dto);
         return new FreightQuoteVO(productAmount, freight, productAmount.add(freight));
+    }
+
+    @Override
+    public PurchaseLimitCheckVO checkPurchaseLimit(Long productId, Integer quantity, DmsShopMember member) {
+        if (productId == null) {
+            Asserts.fail("商品ID不能为空");
+        }
+        if (member == null || member.getUserId() == null) {
+            Asserts.fail("请先登录后再加入购物车");
+        }
+        DmsShopProduct product = productDao.selectById(productId);
+        if (product == null || !Integer.valueOf(1).equals(product.getStatus())) {
+            Asserts.fail("商品不存在或已下架");
+        }
+        assertTenantAccess(product.getTenantId());
+
+        int requestedQuantity = quantity == null || quantity <= 0 ? 1 : quantity;
+        int limit = product.getPurchaseLimit() == null ? 0 : product.getPurchaseLimit();
+        int purchasedQuantity = orderItemDao.sumQuantityByUserAndProduct(member.getUserId(), product.getId(),
+                product.getTenantId() == null ? DEFAULT_TENANT_ID : product.getTenantId());
+        if (limit <= 0) {
+            return new PurchaseLimitCheckVO(true, 0, purchasedQuantity, null, product.getProductName(), null);
+        }
+
+        int remainingQuantity = Math.max(0, limit - purchasedQuantity);
+        boolean allowed = requestedQuantity <= remainingQuantity;
+        String message = allowed ? null : "每位会员限购 " + limit + " 件，您还可购买 " + remainingQuantity
+                + " 件：" + product.getProductName();
+        return new PurchaseLimitCheckVO(allowed, limit, purchasedQuantity, remainingQuantity,
+                product.getProductName(), message);
     }
 
     @Override

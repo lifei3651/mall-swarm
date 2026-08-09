@@ -37,6 +37,21 @@ test('quick add rejects products whose SKUs are all out of stock', () => {
   assert.equal(item, null)
 })
 
+test('purchase limits are checked before add-to-cart and still kept as a server-side fallback', async () => {
+  const helper = await readFile(new URL('../src/utils/purchaseLimit.js', import.meta.url), 'utf8')
+  const home = await readView('HomeView.vue')
+  const category = await readView('CategoryView.vue')
+  const detail = await readView('ProductDetailView.vue')
+
+  assert.match(helper, /checkPurchaseLimit\(product\.id, quantity\)/)
+  assert.match(helper, /existingCartQuantity/)
+  assert.match(home, /await checkCartPurchaseLimit\(cartItem, 1, getProductQuantity\(cartItem\.id\)\)/)
+  assert.match(category, /await checkCartPurchaseLimit\(cartItem, 1, getProductQuantity\(cartItem\.id\)\)/)
+  assert.match(detail, /await checkCartPurchaseLimit\(displayProduct\.value, quantity\.value, getProductQuantity\(displayProduct\.value\.id\)\)/)
+  assert.match(detail, /const addToCart = async/)
+  assert.match(detail, /const buyNow = async/)
+})
+
 test('profile opens one compact invite dialog instead of navigating away', async () => {
   const source = await readView('ProfileView.vue')
   assert.doesNotMatch(source, /注册用户/)

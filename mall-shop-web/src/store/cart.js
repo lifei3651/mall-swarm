@@ -116,6 +116,16 @@ export function useCart() {
     return cartKey
   }
 
+  const getQuantity = (cartKey) => {
+    const item = state.items.find((row) => (row.cartKey || `${row.id}`) === `${cartKey}`)
+    return Number(item?.quantity || 0)
+  }
+
+  const getProductQuantity = (productId) => state.items.reduce(
+    (sum, item) => Number(item.id) === Number(productId) ? sum + Number(item.quantity || 0) : sum,
+    0,
+  )
+
   const update = (cartKey, quantity) => {
     const item = state.items.find((row) => (row.cartKey || `${row.id}`) === `${cartKey}`)
     if (!item) return
@@ -161,6 +171,8 @@ export function useCart() {
     lastAddedQuantity: computed(() => state.lastAddedQuantity),
     total,
     add,
+    getQuantity,
+    getProductQuantity,
     update,
     remove,
     clear,

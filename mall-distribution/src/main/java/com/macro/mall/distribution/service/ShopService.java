@@ -18,6 +18,7 @@ import com.macro.mall.distribution.vo.ShopOrderStatusSummaryVO;
 import com.macro.mall.distribution.vo.ShopProductDetailVO;
 import com.macro.mall.distribution.vo.ShopProfileVO;
 import com.macro.mall.distribution.vo.FreightQuoteVO;
+import com.macro.mall.distribution.vo.PurchaseLimitCheckVO;
 
 import java.util.List;
 import java.util.Map;
@@ -91,6 +92,8 @@ public interface ShopService {
     DmsFreightTemplate updateFreightTemplate(Long id, FreightTemplateSaveDTO dto);
 
     FreightQuoteVO quoteFreight(ShopOrderSubmitDTO dto, DmsShopMember member);
+
+    PurchaseLimitCheckVO checkPurchaseLimit(Long productId, Integer quantity, DmsShopMember member);
 
     ShopOrderVO submitOrder(ShopOrderSubmitDTO dto);
 

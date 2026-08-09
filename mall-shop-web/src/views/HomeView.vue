@@ -163,9 +163,10 @@ import { money } from '@/utils/format'
 import { applyBrandConfig } from '@/utils/brand'
 import { readDisplayExtraConfig, resolveDisplayColors, resolveHomeModules } from '@/utils/displayConfig'
 import { resolveQuickCartItem } from '@/utils/quickCart'
+import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
 
 const router = useRouter()
-const { add } = useCart()
+const { add, getProductQuantity } = useCart()
 const home = ref({})
 const products = ref([])
 const loading = ref(false)
@@ -396,6 +397,7 @@ const addProduct = async (product) => {
       showToast('该商品暂时缺货')
       return
     }
+    await checkCartPurchaseLimit(cartItem, 1, getProductQuantity(cartItem.id))
     add(cartItem, 1)
     showToast('已加入购物车，数量 +1')
   } catch (error) {

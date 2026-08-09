@@ -150,6 +150,14 @@ export function quoteFreight(data) {
   })
 }
 
+export function checkPurchaseLimit(productId, quantity = 1) {
+  return request({
+    url: `/shop/products/${productId}/purchase-limit/check`,
+    method: 'post',
+    params: { quantity },
+  })
+}
+
 export function getOrder(id) {
   return request({
     url: `/shop/orders/${id}`,

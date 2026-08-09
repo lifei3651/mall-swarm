@@ -207,12 +207,13 @@ import {
 } from 'lucide-vue-next'
 import { getProduct, getProductReviews, submitProductReview } from '@/api/shop'
 import { useCart } from '@/store/cart'
+import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
 import { money } from '@/utils/format'
 import { toPublicWebUrl } from '@/utils/appEnvironment'
 
 const route = useRoute()
 const router = useRouter()
-const { add, count, beginCheckout } = useCart()
+const { add, count, beginCheckout, getProductQuantity } = useCart()
 
 // 详情页可能通过分享链接或刷新直接打开，此时浏览器没有可返回的历史记录。
 // 有上一页时返回原页面；没有上一页时回到商城首页，避免点击后无任何反馈。
@@ -358,16 +359,26 @@ const fetchProduct = async () => {
 const selectSku = (sku) => { selectedSkuId.value = sku.id; quantity.value = 1 }
 const decreaseQuantity = () => { quantity.value = Math.max(1, quantity.value - 1) }
 const increaseQuantity = () => { quantity.value = Math.min(currentStock.value, quantity.value + 1) }
-const addToCart = () => {
+const addToCart = async () => {
   if (soldOut.value) return showToast('该商品暂时缺货')
-  add(displayProduct.value, quantity.value)
-  showToast(`已加入购物车，数量 +${quantity.value}`)
+  try {
+    await checkCartPurchaseLimit(displayProduct.value, quantity.value, getProductQuantity(displayProduct.value.id))
+    add(displayProduct.value, quantity.value)
+    showToast(`已加入购物车，数量 +${quantity.value}`)
+  } catch (error) {
+    showToast(error?.message || '当前商品暂时无法加入购物车')
+  }
 }
-const buyNow = () => {
+const buyNow = async () => {
   if (soldOut.value) return showToast('该商品暂时缺货')
-  const cartKey = add(displayProduct.value, quantity.value)
-  beginCheckout([cartKey])
-  router.push('/checkout')
+  try {
+    await checkCartPurchaseLimit(displayProduct.value, quantity.value, getProductQuantity(displayProduct.value.id))
+    const cartKey = add(displayProduct.value, quantity.value)
+    beginCheckout([cartKey])
+    router.push('/checkout')
+  } catch (error) {
+    showToast(error?.message || '当前商品暂时无法购买')
+  }
 }
 
 const openReviewForm = () => {
