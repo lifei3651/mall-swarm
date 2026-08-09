@@ -115,7 +115,6 @@ const parseAddress = () => {
     detailAddress: parsed.detailAddress || form.value.detailAddress,
   })
   region.value = [form.value.province, form.value.city, form.value.district].filter(Boolean)
-  notify('已自动填入，请核对后保存', 'success')
 }
 const validate = () => {
   if (!form.value.receiverName.trim()) return '请填写收货人'
