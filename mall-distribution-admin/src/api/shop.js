@@ -188,6 +188,14 @@ export function listShopOrders(params) {
   })
 }
 
+export function getAdminOrderWorkSummary() {
+  return request({
+    url: '/shop/admin/orders/work-summary',
+    method: 'get',
+    silentError: true,
+  })
+}
+
 export function exportShopOrders(params) {
   return request({
     url: '/shop/admin/orders/export',

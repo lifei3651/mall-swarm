@@ -21,4 +21,19 @@ describe('商城订单取消入口', () => {
     expect(source).toContain('downloadOrderShipmentImportTemplate')
     expect(source).toContain('物流发货导入模板.xlsx')
   })
+
+  it('待发货与售后使用独立数字提醒，售后队列不再展示发货入口', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('getAdminOrderWorkSummary')
+    expect(source).toContain('order-state-count')
+    expect(source).toContain("PENDING_SHIPMENT: Number(orderWorkSummary.value.pendingShipment")
+    expect(source).toContain("AFTER_SALE: Number(orderWorkSummary.value.afterSale")
+    expect(source).toContain('v-if="canShipOrder(row)"')
+    expect(source).not.toContain(':disabled="!canShipOrder(row)"')
+    expect(source).toContain('审核通过')
+    expect(source).toContain('等待客户寄回')
+    expect(source).toContain('确认退货并退款')
+    expect(source).toContain("query.orderState === 'PENDING_SHIPMENT'")
+  })
 })

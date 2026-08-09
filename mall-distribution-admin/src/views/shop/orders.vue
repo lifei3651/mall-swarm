@@ -8,7 +8,10 @@
         :class="{ active: query.orderState === item.value }"
         @click="changeOrderState(item.value)"
       >
-        {{ item.label }}
+        <span>{{ item.label }}</span>
+        <span v-if="orderStateCount(item.value) > 0" class="order-state-count">
+          {{ orderStateCount(item.value) }}
+        </span>
       </button>
     </nav>
 
@@ -23,6 +26,7 @@
         </el-form-item>
         <el-form-item class="order-batch-actions">
           <el-button :icon="Download" :loading="exportLoading" @click="handleExportOrders">导出订单</el-button>
+          <template v-if="query.orderState === 'PENDING_SHIPMENT'">
           <el-tooltip content="表格只处理订单号、物流公司、物流单号和发货数量" placement="top">
             <el-button type="success" plain :icon="Download" :loading="templateLoading" @click="handleDownloadShipmentTemplate">下载发货表</el-button>
           </el-tooltip>
@@ -37,9 +41,11 @@
           >
             <el-button type="warning" plain :icon="Upload" :loading="importLoading">导入物流并发货</el-button>
           </el-upload>
+          </template>
         </el-form-item>
       </el-form>
       <el-alert
+        v-if="query.orderState === 'PENDING_SHIPMENT'"
         title="系统只读取订单号、物流公司、物流单号和发货数量。错误行会单独跳过，不影响其他正确行发货；拆成多个包裹时复制订单行，多个订单合箱时可填写相同物流信息。"
         type="info"
         :closable="false"
@@ -65,14 +71,6 @@
                     <span>{{ sale.afterSaleNo }} · {{ sale.reason || '未填写原因' }}</span>
                     <small>{{ sale.refundQuantity || 0 }}件 / ¥{{ money(sale.refundAmount) }}</small>
                     <small v-if="sale.returnDeliveryNo" class="return-logistics">退货物流：{{ sale.returnDeliveryCompany }} {{ sale.returnDeliveryNo }}</small>
-                  </div>
-                  <div v-if="sale.status === 0" class="inline-after-sale-actions">
-                    <el-button type="success" link @click.stop="openAudit(sale, 1)">通过退款</el-button>
-                    <el-button type="danger" link @click.stop="openAudit(sale, 2)">拒绝</el-button>
-                    <el-button type="warning" link @click.stop="openAudit(sale, 3)">取消退款</el-button>
-                  </div>
-                  <div v-else-if="sale.status === 5" class="inline-after-sale-actions">
-                    <el-button type="success" link @click.stop="confirmReturnReceived(sale)">确认收货并退款</el-button>
                   </div>
                 </div>
               </div>
@@ -145,10 +143,22 @@
               <el-button type="success" link @click="openBonusFlows(row.order?.id, row.order?.orderNo, row.memberAccount)">
                 奖金去向
               </el-button>
-              <el-button v-if="[0, 1].includes(Number(row.order?.status))" type="danger" link @click="cancelAdminOrder(row)">
+              <template v-if="activeAfterSale(row)">
+                <template v-if="Number(activeAfterSale(row).status) === 0">
+                  <el-button type="success" link @click.stop="openAudit(activeAfterSale(row), 1)">审核通过</el-button>
+                  <el-button type="danger" link @click.stop="openAudit(activeAfterSale(row), 2)">拒绝申请</el-button>
+                  <el-button type="warning" link @click.stop="openAudit(activeAfterSale(row), 3)">关闭申请</el-button>
+                </template>
+                <el-tag v-else-if="Number(activeAfterSale(row).status) === 4" type="warning">等待客户寄回</el-tag>
+                <el-button v-else-if="Number(activeAfterSale(row).status) === 5" type="success" link @click.stop="confirmReturnReceived(activeAfterSale(row))">
+                  确认退货并退款
+                </el-button>
+                <el-tag v-else type="warning">退款处理中</el-tag>
+              </template>
+              <el-button v-if="!hasPendingAfterSale(row) && [0, 1].includes(Number(row.order?.status))" type="danger" link @click="cancelAdminOrder(row)">
                 {{ Number(row.order?.status) === 1 ? '取消并退款' : '取消订单' }}
               </el-button>
-              <el-button type="primary" link :disabled="!canShipOrder(row)" @click="openShip(row)">
+              <el-button v-if="canShipOrder(row)" type="primary" link @click="openShip(row)">
                 {{ shipmentRows(row).length ? '继续发货' : '发货' }}
               </el-button>
               <el-button v-if="canManualRefund(row)" type="warning" link @click="openManualRefund(row)">
@@ -358,7 +368,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Download, Refresh, Search, Upload } from '@element-plus/icons-vue'
 import {
@@ -368,6 +378,7 @@ import {
   downloadOrderShipmentImportTemplate,
   downloadOrderShipmentTemplate,
   exportShopOrders,
+  getAdminOrderWorkSummary,
   importOrderShipments,
   listShopOrders,
   manualRefundShopOrder,
@@ -387,6 +398,7 @@ const templateLoading = ref(false)
 const importTemplateLoading = ref(false)
 const importLoading = ref(false)
 const orders = ref([])
+const orderWorkSummary = ref({ pendingShipment: 0, afterSale: 0 })
 const orderStateOptions = [
   { label: '全部', value: '' },
   { label: '待付款', value: 'PENDING_PAYMENT' },
@@ -434,7 +446,12 @@ const bonusTypeName = (row) => row.bonusType === 'DIRECT_REWARD'
 const afterSaleStatus = (status) => ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待客户寄回', 5: '待商家收货', 6: '退款处理中' }[status] || '处理中')
 const afterSaleTag = (status) => ({ 0: 'warning', 1: 'success', 2: 'info', 3: 'warning', 4: 'warning', 5: 'primary', 6: 'warning' }[status] || 'info')
 const hasPendingAfterSale = (row) => (row?.afterSales || []).some((item) => [0, 4, 5, 6].includes(Number(item.status)))
+const activeAfterSale = (row) => (row?.afterSales || []).find((item) => [0, 4, 5, 6].includes(Number(item.status)))
 const hasApprovedRefund = (row) => (row?.afterSales || []).some((item) => item.status === 1)
+const orderStateCount = (state) => ({
+  PENDING_SHIPMENT: Number(orderWorkSummary.value.pendingShipment || 0),
+  AFTER_SALE: Number(orderWorkSummary.value.afterSale || 0),
+}[state] || 0)
 const orderDisplayStatus = (row) => {
   if (hasPendingAfterSale(row)) return '售后中'
   if (hasApprovedRefund(row)) return '已退款'
@@ -526,6 +543,29 @@ const fetchOrders = async () => {
   }
 }
 
+const applyWorkSummary = (summary, refreshQueue = false) => {
+  const previous = orderStateCount(query.value.orderState)
+  orderWorkSummary.value = {
+    pendingShipment: Number(summary?.pendingShipment || 0),
+    afterSale: Number(summary?.afterSale || 0),
+  }
+  if (refreshQueue && ['PENDING_SHIPMENT', 'AFTER_SALE'].includes(query.value.orderState)
+    && previous !== orderStateCount(query.value.orderState)) {
+    fetchOrders()
+  }
+}
+
+const fetchWorkSummary = async () => {
+  try {
+    const res = await getAdminOrderWorkSummary()
+    applyWorkSummary(res.data)
+  } catch {
+    // 数字提醒读取失败不阻断订单处理，下一轮自动刷新会再次尝试。
+  }
+}
+
+const handleWorkSummaryUpdate = (event) => applyWorkSummary(event.detail, true)
+
 const handleOrderSearch = () => {
   pagination.value.page = 1
   fetchOrders()
@@ -610,7 +650,9 @@ const handleShipmentImport = async ({ file }) => {
     const response = await importOrderShipments(file)
     shipmentResult.value = response.data || {}
     shipmentResultVisible.value = true
-    if (Number(shipmentResult.value.shippedCount || 0) > 0) await fetchOrders()
+    if (Number(shipmentResult.value.shippedCount || 0) > 0) {
+      await Promise.all([fetchOrders(), fetchWorkSummary()])
+    }
   } finally {
     importLoading.value = false
   }
@@ -642,7 +684,7 @@ const cancelAdminOrder = async (row) => {
   }
   await cancelShopOrder(row.order.id)
   ElMessage.success(paid ? '订单已取消并完成退款，库存已回库' : '订单已取消，库存已回库')
-  await fetchOrders()
+  await Promise.all([fetchOrders(), fetchWorkSummary()])
 }
 
 const openBonusFlows = async (orderId, orderNo, memberAccount) => {
@@ -667,7 +709,7 @@ const submitShip = async () => {
   await shipShopOrder(currentOrder.value.order.id, shipForm.value)
   ElMessage.success(currentOrder.value.order.status === 2 ? '物流包裹已添加' : '发货成功')
   shipDialogVisible.value = false
-  await fetchOrders()
+  await Promise.all([fetchOrders(), fetchWorkSummary()])
 }
 
 const openManualRefund = (row) => {
@@ -709,7 +751,7 @@ const submitManualRefund = async () => {
     })
     ElMessage.success('后台退款已登记并完成账务冲销')
     manualRefundDialogVisible.value = false
-    await fetchOrders()
+    await Promise.all([fetchOrders(), fetchWorkSummary()])
   } finally {
     manualRefundLoading.value = false
   }
@@ -734,7 +776,7 @@ const submitAudit = async () => {
   await auditShopAfterSale(currentAfterSale.value.id, auditForm.value)
   ElMessage.success(actionStatus === 3 ? '退款申请已取消' : '审核完成')
   auditDialogVisible.value = false
-  await fetchOrders()
+  await Promise.all([fetchOrders(), fetchWorkSummary()])
 }
 
 const confirmReturnReceived = async (sale) => {
@@ -745,10 +787,18 @@ const confirmReturnReceived = async (sale) => {
     auditUserName: currentOperator.value.name,
   })
   ElMessage.success('已确认收货并完成退款处理')
-  await fetchOrders()
+  await Promise.all([fetchOrders(), fetchWorkSummary()])
 }
 
-onMounted(fetchOrders)
+onMounted(() => {
+  fetchOrders()
+  fetchWorkSummary()
+  window.addEventListener('admin-order-work-summary', handleWorkSummaryUpdate)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('admin-order-work-summary', handleWorkSummaryUpdate)
+})
 </script>
 
 <style scoped>
@@ -776,6 +826,22 @@ onMounted(fetchOrders)
   border: 0;
   cursor: pointer;
   font-size: 15px;
+}
+
+.order-state-count {
+  display: inline-flex;
+  min-width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  margin-left: 5px;
+  padding: 0 6px;
+  color: #fff;
+  background: #f56c6c;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
 }
 
 .order-state-nav button::after {

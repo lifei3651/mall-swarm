@@ -109,6 +109,8 @@ public interface ShopService {
 
     List<ShopOrderVO> listAdminOrders(String keyword, Integer status, String orderState);
 
+    ShopOrderStatusSummaryVO getAdminOrderWorkSummary();
+
     ShopOrderVO markOrderPaid(Long orderId, String payType);
 
     boolean cancelOrder(Long orderId, DmsShopMember member);

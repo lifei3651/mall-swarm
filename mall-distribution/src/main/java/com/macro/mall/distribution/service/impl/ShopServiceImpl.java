@@ -885,6 +885,12 @@ public class ShopServiceImpl implements ShopService {
         }).toList();
     }
 
+    @Override
+    public ShopOrderStatusSummaryVO getAdminOrderWorkSummary() {
+        ShopOrderStatusSummaryVO summary = orderDao.selectAdminWorkSummary(resolveTenantId(null));
+        return summary == null ? new ShopOrderStatusSummaryVO() : summary;
+    }
+
     private String normalizeAdminOrderState(String orderState) {
         if (orderState == null || orderState.isBlank()) return null;
         String normalized = orderState.trim().toUpperCase(java.util.Locale.ROOT);

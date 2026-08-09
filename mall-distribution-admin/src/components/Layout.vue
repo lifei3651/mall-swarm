@@ -28,6 +28,7 @@
             <template #title>
               <el-icon><component :is="menuIcon(menu.icon)" /></el-icon>
               <span>{{ menu.title }}</span>
+              <span v-if="menu.key === 'orders' && orderWorkTotal > 0" class="menu-work-badge">{{ orderWorkTotal }}</span>
             </template>
             <el-menu-item
               v-for="item in menu.items"
@@ -117,6 +118,7 @@ import {
   Wallet,
 } from '@element-plus/icons-vue'
 import { getMe, logout as logoutApi } from '@/api/auth'
+import { getAdminOrderWorkSummary } from '@/api/shop'
 import { getShopBrand } from '@/api/shopBrand'
 import { useAppStore } from '@/store'
 import defaultLogo from '@/assets/lingqi-logo-mark.png'
@@ -132,6 +134,8 @@ const store = useAppStore()
 const isCollapsed = ref(false)
 const isDashboard = computed(() => route.path === '/dashboard')
 const brand = reactive({ brandName: localStorage.getItem('admin_brand_name') || '灵启商城', logoUrl: '' })
+const orderWorkSummary = reactive({ pendingShipment: 0, afterSale: 0 })
+const orderWorkTotal = computed(() => orderWorkSummary.pendingShipment + orderWorkSummary.afterSale)
 const menuIcons = {
   CreditCard,
   DataAnalysis,
@@ -227,6 +231,7 @@ const loadBrand = async () => {
 }
 
 let sessionCheckTimer
+let orderWorkTimer
 let lastActivityCheck = 0
 let lastServerSessionCheck = 0
 let serverSessionCheckPromise = null
@@ -262,7 +267,22 @@ const checkSessionOnActivity = () => {
 }
 
 const checkSessionOnVisibility = () => {
-  if (document.visibilityState === 'visible') checkServerSession(true)
+  if (document.visibilityState === 'visible') {
+    checkServerSession(true)
+    loadOrderWorkSummary()
+  }
+}
+
+const loadOrderWorkSummary = async () => {
+  if (!store.token || !store.hasPermission('shop:order')) return
+  try {
+    const res = await getAdminOrderWorkSummary()
+    orderWorkSummary.pendingShipment = Number(res.data?.pendingShipment || 0)
+    orderWorkSummary.afterSale = Number(res.data?.afterSale || 0)
+    window.dispatchEvent(new CustomEvent('admin-order-work-summary', { detail: { ...orderWorkSummary } }))
+  } catch {
+    // 待办数字读取失败不影响后台使用，下一轮定时刷新会自动重试。
+  }
 }
 
 const handleSessionExpired = () => {
@@ -275,7 +295,9 @@ const handleSessionExpired = () => {
 onMounted(() => {
   loadBrand()
   checkServerSession(true)
+  loadOrderWorkSummary()
   sessionCheckTimer = window.setInterval(() => checkServerSession(true), 60000)
+  orderWorkTimer = window.setInterval(loadOrderWorkSummary, 30000)
   window.addEventListener('focus', checkSessionOnVisibility)
   window.addEventListener('pointerdown', checkSessionOnActivity, true)
   window.addEventListener(ADMIN_SESSION_EXPIRED_EVENT, handleSessionExpired)
@@ -284,6 +306,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.clearInterval(sessionCheckTimer)
+  window.clearInterval(orderWorkTimer)
   window.removeEventListener('focus', checkSessionOnVisibility)
   window.removeEventListener('pointerdown', checkSessionOnActivity, true)
   window.removeEventListener(ADMIN_SESSION_EXPIRED_EVENT, handleSessionExpired)
@@ -361,6 +384,10 @@ const handleCommand = async (command) => {
 
   &.collapsed {
     width: 64px;
+
+    .menu-work-badge {
+      display: none;
+    }
   }
 
   .logo {
@@ -438,6 +465,23 @@ const handleCommand = async (command) => {
     }
 
     :deep(.el-sub-menu.is-opened > .el-sub-menu__title) { color: #fff; }
+
+    .menu-work-badge {
+      display: inline-flex;
+      min-width: 19px;
+      height: 19px;
+      align-items: center;
+      justify-content: center;
+      margin-left: auto;
+      padding: 0 5px;
+      color: #fff;
+      background: #f04444;
+      border-radius: 10px;
+      font-size: 11px;
+      font-style: normal;
+      font-weight: 700;
+      line-height: 19px;
+    }
   }
 
   .sidebar-collapse {

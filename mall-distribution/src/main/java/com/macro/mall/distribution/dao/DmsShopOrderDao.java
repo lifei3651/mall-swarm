@@ -26,6 +26,8 @@ public interface DmsShopOrderDao {
 
     ShopOrderStatusSummaryVO selectStatusSummary(@Param("userId") Long userId);
 
+    ShopOrderStatusSummaryVO selectAdminWorkSummary(@Param("tenantId") Long tenantId);
+
     List<DmsShopOrder> selectByAgentId(@Param("agentId") Long agentId);
 
     List<DmsShopOrder> selectByMemberUserId(@Param("userId") Long userId);

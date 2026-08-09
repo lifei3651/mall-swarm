@@ -75,12 +75,26 @@ class ShopOrderStateFilterTest {
         assertEquals(3L, summary.getPendingShipment());
     }
 
+    @Test
+    void adminWorkSummarySeparatesShipmentAndAfterSaleQueuesByTenant() {
+        insertOrder(930008L, "FILTER-OTHER-TENANT", 1, 2L);
+
+        ShopOrderStatusSummaryVO summary = orderDao.selectAdminWorkSummary(1L);
+
+        assertEquals(3L, summary.getPendingShipment());
+        assertEquals(2L, summary.getAfterSale());
+    }
+
     private void insertOrder(long id, String orderNo, int status) {
+        insertOrder(id, orderNo, status, 1L);
+    }
+
+    private void insertOrder(long id, String orderNo, int status, long tenantId) {
         jdbcTemplate.update("""
                 INSERT INTO dms_shop_order
                 (id, order_no, tenant_id, user_id, receiver_name, receiver_phone, receiver_address, status)
-                VALUES (?, ?, 1, 1, '测试收货人', '13800000000', '测试地址', ?)
-                """, id, orderNo, status);
+                VALUES (?, ?, ?, 1, '测试收货人', '13800000000', '测试地址', ?)
+                """, id, orderNo, tenantId, status);
     }
 
     private void assertOrderNos(String state, String... expectedOrderNos) {

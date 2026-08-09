@@ -594,6 +594,12 @@ public class ShopController {
         return CommonResult.success(CommonPage.restPage(shopService.listAdminOrders(keyword, status, orderState)));
     }
 
+    @Operation(summary = "后台待办订单数量")
+    @GetMapping("/admin/orders/work-summary")
+    public CommonResult<ShopOrderStatusSummaryVO> adminOrderWorkSummary() {
+        return CommonResult.success(shopService.getAdminOrderWorkSummary());
+    }
+
     @Operation(summary = "导出筛选后的商城订单")
     @GetMapping("/admin/orders/export")
     public void exportAdminOrders(@RequestParam(required = false) String keyword,

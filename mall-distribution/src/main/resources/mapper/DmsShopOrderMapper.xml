@@ -150,6 +150,23 @@
         WHERE o.user_id = #{userId}
     </select>
 
+    <select id="selectAdminWorkSummary" resultMap="StatusSummaryResultMap">
+        SELECT COUNT(*) AS total,
+               0 AS pending_payment,
+               COALESCE(SUM(CASE WHEN o.status = 1 AND NOT EXISTS (
+                   SELECT 1 FROM dms_shop_after_sale sale
+                   WHERE sale.order_id = o.id AND sale.status IN (0, 4, 5, 6)
+               ) THEN 1 ELSE 0 END), 0) AS pending_shipment,
+               0 AS pending_receipt,
+               0 AS pending_review,
+               COALESCE(SUM(CASE WHEN EXISTS (
+                   SELECT 1 FROM dms_shop_after_sale sale
+                   WHERE sale.order_id = o.id AND sale.status IN (0, 4, 5, 6)
+               ) THEN 1 ELSE 0 END), 0) AS after_sale
+        FROM dms_shop_order o
+        WHERE COALESCE(o.tenant_id, 1) = #{tenantId}
+    </select>
+
     <select id="selectByAgentId" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_order
