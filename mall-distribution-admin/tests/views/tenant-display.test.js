@@ -34,6 +34,11 @@ describe('商城视觉与页面工作台', () => {
       expect(source).toContain(variable)
     }
     expect(source).toContain('保存发布')
+    expect(source).toContain('savingDisplay')
+    expect(source).toContain('showTrustStrip: form.showTrustStrip')
+    expect(source).toContain('只提交后端实体字段')
+    expect(source).toContain('saveDisplayConfig(payload, { silentError: true })')
+    expect(source).toContain('商城视觉装修发布失败')
     expect(source).toContain('@click.stop.prevent="applyDisplayTheme(theme)"')
     expect(source).toContain('class="visual-design-field"')
     expect(source).not.toContain('<label><span>品牌 LOGO</span>')

@@ -8,11 +8,12 @@ export function listTenants(params) {
   })
 }
 
-export function saveTenant(data) {
+export function saveTenant(data, options = {}) {
   return request({
     url: '/distribution/tenant',
     method: 'post',
     data,
+    ...options,
   })
 }
 
@@ -45,10 +46,11 @@ export function getDisplayConfig(tenantId) {
   })
 }
 
-export function saveDisplayConfig(data) {
+export function saveDisplayConfig(data, options = {}) {
   return request({
     url: '/distribution/tenant/display-config',
     method: 'post',
     data,
+    ...options,
   })
 }

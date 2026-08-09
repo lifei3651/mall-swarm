@@ -191,7 +191,7 @@
       </div>
       <template #footer>
         <el-button @click="closeDisplayDialog">取消</el-button>
-        <el-button type="primary" @click="submitDisplayConfig">保存发布</el-button>
+        <el-button type="primary" :loading="savingDisplay" :disabled="savingDisplay" @click="submitDisplayConfig">保存发布</el-button>
       </template>
     </el-dialog>
 
@@ -229,6 +229,7 @@ const draggingModuleIndex = ref(null)
 const draggingNavIndex = ref(null)
 const initializingDisplay = ref(false)
 const displayDraftDirty = ref(false)
+const savingDisplay = ref(false)
 
 const displayForm = ref({})
 const moduleNames = { banner: '首页轮播图', notice: '商城公告', category: '商品分类', trust: '服务保障', products: '精选商品' }
@@ -533,42 +534,78 @@ const confirmCloseDisplayDialog = (done) => {
 }
 
 const submitDisplayConfig = async () => {
-  const payload = { ...displayForm.value }
-  const categoryNav = (payload.bottomNav || []).find((nav) => nav.type === 'category')
-  payload.showBottomCategoryNav = categoryNav?.enabled === false ? 0 : 1
-  payload.extraConfigJson = JSON.stringify({ homeModules: payload.homeModules, colors: payload.colors, bottomNav: payload.bottomNav, showTrustStrip: payload.showTrustStrip })
-  delete payload.homeModules
-  delete payload.colors
-  delete payload.bottomNav
-  delete payload.brandName
-  delete payload.themeColor
-  delete payload.productTemplate
-  const tenantPayload = {
-    ...currentTenant.value,
-    id: currentTenant.value.id,
-    brandName: displayForm.value.brandName,
-    logoUrl: displayForm.value.logoUrl,
-    themeColor: displayForm.value.themeColor,
-    productTemplate: normalizeTheme(displayForm.value.productTemplate),
+  if (savingDisplay.value) return
+  const tenantId = currentTenant.value?.id || displayForm.value?.tenantId
+  if (!tenantId) {
+    ElMessage.error('未找到商城配置，请关闭后重新打开装修工作台')
+    return
   }
-  const [tenantResult] = await Promise.all([saveTenant(tenantPayload), saveDisplayConfig(payload)])
-  if (tenantResult.data) {
-    currentTenant.value = { ...currentTenant.value, ...tenantResult.data }
-    tableData.value = tableData.value.map((row) => Number(row.id) === Number(currentTenant.value.id) ? { ...row, ...tenantResult.data } : row)
+
+  savingDisplay.value = true
+  try {
+    const form = displayForm.value || {}
+    const bottomNav = Array.isArray(form.bottomNav) ? form.bottomNav : []
+    const categoryNav = bottomNav.find((nav) => nav.type === 'category')
+    const showBottomCategoryNav = categoryNav?.enabled === false ? 0 : 1
+    // 只提交后端实体字段；homeModules/colors/bottomNav/showTrustStrip 等编辑态字段统一放进扩展 JSON，避免 Jackson 因未知字段拒绝请求。
+    const payload = {
+      id: form.id,
+      tenantId,
+      showPv: form.showPv,
+      showTeamPerformance: form.showTeamPerformance,
+      showBonusSource: form.showBonusSource,
+      showBonusFlow: form.showBonusFlow,
+      showProfit: form.showProfit,
+      showRank: form.showRank,
+      showBinaryArea: form.showBinaryArea,
+      showRetailModule: form.showRetailModule,
+      showStoreModule: form.showStoreModule,
+      showCompanyShare: form.showCompanyShare,
+      layoutTemplate: form.layoutTemplate,
+      showHomeCategories: form.showHomeCategories,
+      showBottomCategoryNav,
+      extraConfigJson: JSON.stringify({
+        homeModules: form.homeModules,
+        colors: form.colors,
+        bottomNav,
+        showTrustStrip: form.showTrustStrip,
+      }),
+    }
+    const tenantPayload = {
+      ...currentTenant.value,
+      id: tenantId,
+      brandName: form.brandName,
+      logoUrl: form.logoUrl,
+      themeColor: form.themeColor,
+      productTemplate: normalizeTheme(form.productTemplate),
+    }
+    const [tenantResult, displayResult] = await Promise.all([
+      saveTenant(tenantPayload, { silentError: true }),
+      saveDisplayConfig(payload, { silentError: true }),
+    ])
+    if (tenantResult.data) {
+      currentTenant.value = { ...currentTenant.value, ...tenantResult.data }
+      tableData.value = tableData.value.map((row) => Number(row.id) === Number(tenantId) ? { ...row, ...tenantResult.data } : row)
+    }
+    const categoryUpdates = categories.value
+      .filter((category) => Number(categoryDraft.value[category.id] ?? 1) !== Number(category.showOnHome ?? 1))
+      .map((category) => updateCategoryShowOnHome(category.id, categoryDraft.value[category.id]))
+    const categoryResults = await Promise.allSettled(categoryUpdates)
+    categories.value.forEach((category) => { category.showOnHome = categoryDraft.value[category.id] ?? category.showOnHome })
+    if (displayResult.data) currentDisplayConfig.value = displayResult.data
+    if (categoryResults.some((result) => result.status === 'rejected')) {
+      ElMessage.warning('页面配置已保存，但部分分类显示状态保存失败，请重试')
+    } else {
+      ElMessage.success('商城首页装修已发布，网页和 APP 刷新后生效')
+    }
+    displayDraftDirty.value = false
+    displayDialogVisible.value = false
+  } catch (error) {
+    console.error('商城视觉装修发布失败:', error)
+    ElMessage.error(error?.message || '商城视觉装修发布失败，请检查网络后重试')
+  } finally {
+    savingDisplay.value = false
   }
-  const categoryUpdates = categories.value
-    .filter((category) => Number(categoryDraft.value[category.id] ?? 1) !== Number(category.showOnHome ?? 1))
-    .map((category) => updateCategoryShowOnHome(category.id, categoryDraft.value[category.id]))
-  const categoryResults = await Promise.allSettled(categoryUpdates)
-  categories.value.forEach((category) => { category.showOnHome = categoryDraft.value[category.id] ?? category.showOnHome })
-  currentDisplayConfig.value = { ...displayForm.value }
-  if (categoryResults.some((result) => result.status === 'rejected')) {
-    ElMessage.warning('页面配置已保存，但部分分类显示状态保存失败，请重试')
-  } else {
-    ElMessage.success('商城首页装修已发布，网页和 APP 刷新后生效')
-  }
-  displayDraftDirty.value = false
-  displayDialogVisible.value = false
 }
 
 const getLayoutTemplateName = (value) => {
