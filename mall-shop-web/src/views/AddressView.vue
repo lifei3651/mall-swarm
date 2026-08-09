@@ -42,6 +42,18 @@
       <button class="btn primary save-button" :disabled="saving" @click="submitAddress">{{ saving ? '保存中' : '保存地址' }}</button>
     </section>
 
+    <div v-if="deleteTarget" class="confirm-overlay" role="presentation" @click.self="cancelDelete">
+      <section class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-address-title">
+        <div class="confirm-icon"><Trash2 :size="20" /></div>
+        <h3 id="delete-address-title">删除收货地址？</h3>
+        <p>确定删除“{{ deleteTarget.receiverName }} {{ deleteTarget.receiverPhone }}”吗？删除后无法恢复。</p>
+        <div class="confirm-actions">
+          <button type="button" class="confirm-cancel" :disabled="deletingAddress" @click="cancelDelete">取消</button>
+          <button type="button" class="confirm-delete" :disabled="deletingAddress" @click="confirmDelete">{{ deletingAddress ? '删除中' : '删除' }}</button>
+        </div>
+      </section>
+    </div>
+
     <p v-if="message" class="page-message" :class="{ error: messageType === 'error' }">{{ message }}</p>
   </div>
 </template>
@@ -49,7 +61,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Check, ClipboardPaste, MapPin, Plus, X } from 'lucide-vue-next'
+import { ArrowLeft, Check, ClipboardPaste, MapPin, Plus, Trash2, X } from 'lucide-vue-next'
 import { deleteAddress, listAddresses, saveAddress } from '@/api/shop'
 import { joinAddress } from '@/utils/format'
 import { parseChineseAddress } from '@/utils/addressParser'
@@ -69,6 +81,8 @@ const pasteText = ref('')
 const region = ref([])
 const message = ref('')
 const messageType = ref('success')
+const deleteTarget = ref(null)
+const deletingAddress = ref(false)
 const emptyForm = () => ({ id: null, receiverName: '', receiverPhone: '', province: '', city: '', district: '', detailAddress: '', isDefault: 0 })
 const form = ref(emptyForm())
 const notify = (text, type = 'error') => { message.value = text; messageType.value = type }
@@ -138,10 +152,21 @@ const makeDefault = async (address) => {
   try { await saveAddress({ ...address, isDefault: 1 }); await fetchAddresses(); notify('默认地址已更新', 'success') }
   catch (e) { notify(e.message || '默认地址设置失败') }
 }
-const removeAddress = async (address) => {
-  if (!window.confirm(`确认删除“${address.receiverName} ${address.receiverPhone}”的收货地址吗？`)) return
-  try { await deleteAddress(address.id); await fetchAddresses(); notify('地址已删除', 'success') }
-  catch (e) { notify(e.message || '地址删除失败') }
+const removeAddress = (address) => { deleteTarget.value = address }
+const cancelDelete = () => {
+  if (!deletingAddress.value) deleteTarget.value = null
+}
+const confirmDelete = async () => {
+  const address = deleteTarget.value
+  if (!address || deletingAddress.value) return
+  deletingAddress.value = true
+  try {
+    await deleteAddress(address.id)
+    deleteTarget.value = null
+    await fetchAddresses()
+    notify('地址已删除', 'success')
+  } catch (e) { notify(e.message || '地址删除失败') }
+  finally { deletingAddress.value = false }
 }
 
 onMounted(fetchAddresses)
@@ -169,5 +194,14 @@ onMounted(fetchAddresses)
 .default-toggle { display:flex; align-items:center; gap:8px; margin-top:14px; padding:0; color:#5f6772; background:none; border:0; font-size:13px; }.default-toggle span{width:20px;height:20px;display:grid;place-items:center;border:1px solid #c9ced4;border-radius:50%}.default-toggle.active span{color:#fff;background:var(--brand-primary);border-color:var(--brand-primary)}
 .save-button { width:100%; margin-top:16px; }
 .page-message { padding:12px 14px; color:#08724f; background:#eaf8f3; border-radius:10px; }.page-message.error{color:#b42318;background:#fff1f0}
+.confirm-overlay { position:fixed; inset:0; z-index:30; display:grid; place-items:center; padding:24px; background:rgba(15,23,42,.48); }
+.confirm-dialog { width:min(360px,100%); padding:24px 20px 18px; background:#fff; border-radius:18px; box-shadow:0 18px 50px rgba(15,23,42,.2); text-align:center; }
+.confirm-icon { display:grid; width:44px; height:44px; margin:0 auto 12px; place-items:center; color:#b42318; background:#fff1f0; border-radius:50%; }
+.confirm-dialog h3 { margin:0; color:#17202e; font-size:18px; }
+.confirm-dialog p { margin:10px 0 20px; color:#667085; font-size:13px; line-height:1.7; word-break:break-all; }
+.confirm-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.confirm-actions button { min-height:42px; border-radius:10px; font-size:14px; font-weight:700; }
+.confirm-cancel { color:#475467; background:#fff; border:1px solid #d0d5dd; }.confirm-delete { color:#fff; background:#d92d20; border:1px solid #d92d20; }
+.confirm-actions button:disabled { cursor:not-allowed; opacity:.55; }
 @media (max-width:560px){.address-page{padding-top:10px}.address-editor{padding:16px 14px}.address-editor .form-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.address-editor .form-grid .full{grid-column:1/-1}.address-editor :deep(.china-region-select){grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.address-editor :deep(.china-region-select .field){padding:0 5px;font-size:12px}}
 </style>
