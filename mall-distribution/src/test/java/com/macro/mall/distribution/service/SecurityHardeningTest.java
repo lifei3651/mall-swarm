@@ -62,6 +62,7 @@ class SecurityHardeningTest {
         var result = service.login(dto);
 
         verify(captchaService).verify("admin", "captcha-id", "8A2K");
+        verify(adminSessionDao).disableByAdminId(9L);
 
         ArgumentCaptor<String> passwordHash = ArgumentCaptor.forClass(String.class);
         verify(adminUserDao).updatePassword(eq(9L), passwordHash.capture(), eq("BCRYPT"));
@@ -110,6 +111,7 @@ class SecurityHardeningTest {
         dto.setLoginType("password");
         var result = service.login(dto);
 
+        verify(memberSessionDao).disableByMemberId(12L);
         ArgumentCaptor<DmsShopMemberSession> session = ArgumentCaptor.forClass(DmsShopMemberSession.class);
         verify(memberSessionDao).insert(session.capture());
         assertNotEquals(result.getToken(), session.getValue().getToken());

@@ -63,6 +63,8 @@ public class AdminAuthServiceImpl implements AdminAuthService {
             Asserts.fail("后台账号已禁用");
         }
         adminUserDao.updateLastLoginTime(admin.getId());
+        // 单账号单会话：新登录成功后使该管理员此前的全部会话失效。
+        adminSessionDao.disableByAdminId(admin.getId());
         return createSession(admin);
     }
 

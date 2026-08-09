@@ -362,6 +362,8 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             Asserts.fail("账号已禁用");
         }
         memberDao.updateLastLoginTime(member.getId());
+        // 单账号单会话：新登录成功后使该会员此前的全部会话失效。
+        sessionDao.disableByMemberId(member.getId());
         return createSession(member);
     }
 
