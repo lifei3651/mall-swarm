@@ -91,6 +91,7 @@ export function useCart() {
       existing.salePrice = Math.max(0, Number(product.salePrice || 0))
       existing.pvValue = boundedPv(product.pvValue, product.salePrice)
       existing.stock = Number(product.stock || 0)
+      existing.purchaseLimit = Number(product.purchaseLimit || 0)
       existing.skuName = product.skuName || ''
       existing.skuAttrs = product.skuAttrs || product.attrsJson || ''
       existing.quantity += quantity
@@ -108,6 +109,7 @@ export function useCart() {
         marketPrice: Number(product.marketPrice || 0),
         pvValue: boundedPv(product.pvValue, product.salePrice),
         stock: Number(product.stock || 0),
+        purchaseLimit: Number(product.purchaseLimit || 0),
         quantity,
       })
     }

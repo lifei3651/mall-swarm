@@ -112,4 +112,37 @@ class MemberAssetNonMemberIssueTest {
         assertNotNull(assetAccountDao.selectByUserIdAndAssetCode(userId, "CASH_BONUS"));
         assertEquals(2, assetFlowDao.selectByUserId(userId, "CASH_BONUS").size());
     }
+
+    @Test
+    void keepsTheSameWalletWhenMemberLaterBecomesAgent() {
+        AssetChangeDTO firstIssue = new AssetChangeDTO();
+        firstIssue.setUserId(userId);
+        firstIssue.setAmount(new BigDecimal("100.00"));
+        firstIssue.setBizType("MANUAL_MEMBER_ADJUST");
+        firstIssue.setRequestId("TEST-BEFORE-ACTIVATION");
+        memberAssetService.issue(firstIssue);
+
+        long agentId = 900000000000000201L;
+        jdbcTemplate.update(
+                "INSERT INTO dms_agent (id, user_id, agent_code, agent_name, agent_level, level_depth, invite_code, status, source_type) "
+                        + "VALUES (?, ?, 'PROMOTED01', '转正会员', 1, 1, 'PROMOTE1', 1, 3)",
+                agentId, userId);
+
+        AssetChangeDTO secondIssue = new AssetChangeDTO();
+        secondIssue.setUserId(userId);
+        secondIssue.setAmount(new BigDecimal("25.00"));
+        secondIssue.setBizType("MANUAL_MEMBER_ADJUST");
+        secondIssue.setRequestId("TEST-AFTER-ACTIVATION");
+        memberAssetService.issue(secondIssue);
+
+        Integer accountCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM dms_member_asset_account WHERE user_id = ? AND asset_code = 'CASH_BONUS'",
+                Integer.class, userId);
+        assertEquals(1, accountCount);
+
+        DmsMemberAssetAccount account = assetAccountDao.selectByUserIdAndAssetCode(userId, "CASH_BONUS");
+        assertEquals(agentId, account.getAgentId());
+        assertEquals(0, new BigDecimal("125.00").compareTo(account.getBalance()));
+        assertEquals(2, memberAssetService.listFlows(null, userId).size());
+    }
 }

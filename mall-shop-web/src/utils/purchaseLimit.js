@@ -6,13 +6,15 @@ import { checkPurchaseLimit } from '@/api/shop'
  */
 export const checkCartPurchaseLimit = async (product, addedQuantity = 1, existingCartQuantity = 0) => {
   const limit = Number(product?.purchaseLimit || 0)
-  if (!localStorage.getItem('shop_token') || limit <= 0) return { allowed: true }
+  if (!localStorage.getItem('shop_token') || !product?.id) return { allowed: true }
 
   const quantity = Math.max(1, Number(existingCartQuantity || 0) + Number(addedQuantity || 0))
   const response = await checkPurchaseLimit(product.id, quantity)
   const result = response.data || {}
   if (result.allowed === false) {
-    throw new Error(result.message || `每位会员限购 ${limit} 件，当前加购数量已超出限购额度`)
+    throw new Error(result.message || (limit > 0
+      ? `每位会员限购 ${limit} 件，当前加购数量已超出限购额度`
+      : '当前商品暂时无法继续购买'))
   }
   return result
 }

@@ -20,6 +20,9 @@ public interface DmsMemberAssetAccountDao {
 
     int insert(DmsMemberAssetAccount account);
 
+    int bindAgentIfMissing(@Param("id") Long id,
+                           @Param("agentId") Long agentId);
+
     int addBalance(@Param("agentId") Long agentId,
                    @Param("assetCode") String assetCode,
                    @Param("amount") BigDecimal amount);

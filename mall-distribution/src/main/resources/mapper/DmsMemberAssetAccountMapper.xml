@@ -47,6 +47,14 @@
         (#{agentId}, #{userId}, #{assetCode}, #{assetName}, #{balance}, #{frozenBalance}, #{totalIn}, #{totalOut})
     </insert>
 
+    <update id="bindAgentIfMissing">
+        UPDATE dms_member_asset_account
+        SET agent_id = #{agentId},
+            update_time = NOW()
+        WHERE id = #{id}
+          AND agent_id IS NULL
+    </update>
+
     <update id="addBalance">
         UPDATE dms_member_asset_account
         SET balance = balance + #{amount},

@@ -116,7 +116,7 @@
                 </el-form-item>
               </el-col>
               <el-col :span="8"><el-form-item label="排序"><el-input-number v-model="form.sort" :step="1" style="width:100%" /><div class="field-help">上架商品自动排在下架商品前；同状态下数值越大越靠前。</div></el-form-item></el-col>
-              <el-col :span="8"><el-form-item label="上架状态"><el-radio-group v-model="form.status"><el-radio-button :label="1">立即上架</el-radio-button><el-radio-button :label="0">暂存下架</el-radio-button></el-radio-group></el-form-item></el-col>
+              <el-col :span="8"><el-form-item label="上架状态"><el-radio-group v-model="form.status"><el-radio-button :value="1">立即上架</el-radio-button><el-radio-button :value="0">暂存下架</el-radio-button></el-radio-group></el-form-item></el-col>
             </el-row>
           </section>
 
@@ -139,8 +139,8 @@
             <div class="section-title product-type-title">
               <h3>3. 价格、库存与规格</h3>
               <el-radio-group :model-value="hasSku ? 'MULTI' : 'SINGLE'" @change="changeProductType">
-                <el-radio-button label="SINGLE">单规格商品</el-radio-button>
-                <el-radio-button label="MULTI">多规格商品</el-radio-button>
+                <el-radio-button value="SINGLE">单规格商品</el-radio-button>
+                <el-radio-button value="MULTI">多规格商品</el-radio-button>
               </el-radio-group>
             </div>
 

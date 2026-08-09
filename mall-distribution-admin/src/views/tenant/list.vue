@@ -385,9 +385,11 @@ const openDisplayDialog = async (row, section = 'brand') => {
   try { extra = JSON.parse(raw) || {} } catch { extra = {} }
   const legacyBottomCategoryEnabled = Number(res.data?.showBottomCategoryNav ?? 1) === 1
   const configuredBottomNav = Array.isArray(extra.bottomNav) && extra.bottomNav.length ? extra.bottomNav : defaultBottomNav()
-  const bottomNav = configuredBottomNav.map((nav) => nav.type === 'category'
-    ? { ...nav, enabled: nav.enabled !== false && legacyBottomCategoryEnabled }
-    : nav)
+  const bottomNav = configuredBottomNav.map((nav) => ({
+    ...nav,
+    enabled: normalizeModuleEnabled(nav.enabled)
+      && (nav.type !== 'category' || legacyBottomCategoryEnabled),
+  }))
   const configuredModules = Array.isArray(extra.homeModules) && extra.homeModules.length ? extra.homeModules : defaultModules()
   const trustEnabled = normalizeModuleEnabled(
     extra.showTrustStrip ?? configuredModules.find((module) => module.type === 'trust')?.enabled,
@@ -407,6 +409,7 @@ const openDisplayDialog = async (row, section = 'brand') => {
     showHomeCategories: 1,
     showBottomCategoryNav: 1,
     ...(res.data || {}),
+    showHomeCategories: Number(res.data?.showHomeCategories ?? 1) === 0 ? 0 : 1,
     homeModules,
     colors: { ...defaultColors(), ...(extra.colors || {}) },
     bottomNav,

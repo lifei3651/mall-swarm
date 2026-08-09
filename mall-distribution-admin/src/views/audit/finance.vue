@@ -2,11 +2,11 @@
   <div class="page-container finance-page">
     <div class="toolbar">
       <el-radio-group v-model="range" @change="handleRangeChange">
-        <el-radio-button label="today">当日</el-radio-button>
-        <el-radio-button label="7days">7天</el-radio-button>
-        <el-radio-button label="month">当月</el-radio-button>
-        <el-radio-button label="total">总计</el-radio-button>
-        <el-radio-button label="custom">自定义</el-radio-button>
+        <el-radio-button value="today">当日</el-radio-button>
+        <el-radio-button value="7days">7天</el-radio-button>
+        <el-radio-button value="month">当月</el-radio-button>
+        <el-radio-button value="total">总计</el-radio-button>
+        <el-radio-button value="custom">自定义</el-radio-button>
       </el-radio-group>
       <el-date-picker
         v-if="range === 'custom'"

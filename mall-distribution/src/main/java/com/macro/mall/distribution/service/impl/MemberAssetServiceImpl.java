@@ -40,18 +40,16 @@ public class MemberAssetServiceImpl implements MemberAssetService {
     @Override
     public List<DmsMemberAssetAccount> listAccounts(Long agentId, Long userId) {
         WalletOwner owner = resolveWalletOwner(agentId, userId);
-        DmsMemberAssetAccount account = owner.agent != null
-                ? accountDao.selectByAgentIdAndAssetCode(owner.agent.getId(), BalanceAsset.CODE)
-                : accountDao.selectByUserIdAndAssetCode(owner.member.getUserId(), BalanceAsset.CODE);
+        DmsMemberAssetAccount account = currentAccount(owner);
         return account == null ? List.of() : List.of(account);
     }
 
     @Override
     public List<DmsMemberAssetFlow> listFlows(Long agentId, Long userId) {
         WalletOwner owner = resolveWalletOwner(agentId, userId);
-        return owner.agent != null
-                ? flowDao.selectByAgentId(owner.agent.getId(), BalanceAsset.CODE)
-                : flowDao.selectByUserId(owner.member.getUserId(), BalanceAsset.CODE);
+        // 流水始终按商城用户查询，保证账号成为正式会员前后的余额记录连续可见。
+        Long ownerUserId = owner.agent != null ? owner.agent.getUserId() : owner.member.getUserId();
+        return flowDao.selectByUserId(ownerUserId, BalanceAsset.CODE);
     }
 
     @Override
@@ -247,9 +245,20 @@ public class MemberAssetServiceImpl implements MemberAssetService {
     }
 
     private void ensureAccount(WalletOwner owner) {
-        DmsMemberAssetAccount account = currentAccount(owner);
+        DmsMemberAssetAccount account = owner.agent == null
+                ? accountDao.selectByUserIdAndAssetCode(owner.member.getUserId(), BalanceAsset.CODE)
+                : accountDao.selectByAgentIdAndAssetCode(owner.agent.getId(), BalanceAsset.CODE);
         if (account != null) {
             return;
+        }
+        if (owner.agent != null) {
+            // 商城账号可能先持有余额、后完成首单成为正式会员。此时应沿用原账户，
+            // 仅补齐代理关联，不能再插入一条相同 user_id 的钱包账户。
+            account = accountDao.selectByUserIdAndAssetCode(owner.agent.getUserId(), BalanceAsset.CODE);
+            if (account != null) {
+                accountDao.bindAgentIfMissing(account.getId(), owner.agent.getId());
+                return;
+            }
         }
         account = new DmsMemberAssetAccount();
         account.setAgentId(owner.agent == null ? null : owner.agent.getId());
@@ -264,9 +273,12 @@ public class MemberAssetServiceImpl implements MemberAssetService {
     }
 
     private DmsMemberAssetAccount currentAccount(WalletOwner owner) {
-        return owner.agent != null
-                ? accountDao.selectByAgentIdAndAssetCode(owner.agent.getId(), BalanceAsset.CODE)
-                : accountDao.selectByUserIdAndAssetCode(owner.member.getUserId(), BalanceAsset.CODE);
+        if (owner.agent == null) {
+            return accountDao.selectByUserIdAndAssetCode(owner.member.getUserId(), BalanceAsset.CODE);
+        }
+        DmsMemberAssetAccount account = accountDao.selectByAgentIdAndAssetCode(owner.agent.getId(), BalanceAsset.CODE);
+        return account != null ? account
+                : accountDao.selectByUserIdAndAssetCode(owner.agent.getUserId(), BalanceAsset.CODE);
     }
 
     private DmsAgent resolveAgent(Long agentId, Long userId) {

@@ -11,9 +11,9 @@
     <div class="filter-card">
       <el-input v-model="keyword" :prefix-icon="Search" clearable placeholder="搜索分类名称或备注" style="width:300px" />
       <el-radio-group v-model="statusFilter">
-        <el-radio-button label="all">全部</el-radio-button>
-        <el-radio-button :label="1">已启用</el-radio-button>
-        <el-radio-button :label="0">已停用</el-radio-button>
+        <el-radio-button value="all">全部</el-radio-button>
+        <el-radio-button :value="1">已启用</el-radio-button>
+        <el-radio-button :value="0">已停用</el-radio-button>
       </el-radio-group>
       <span class="category-count">共 {{ filteredRows.length }} 个分类</span>
     </div>

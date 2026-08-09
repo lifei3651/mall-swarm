@@ -11,6 +11,9 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.nio.file.Path;
+import java.nio.file.Files;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -57,6 +60,19 @@ class ShopMediaStorageServiceTest {
 
         assertEquals(first.filename(), second.filename());
         assertEquals(first.size(), second.size());
+    }
+
+    @Test
+    void storedImageIsReadableByTheWebServerUser() throws Exception {
+        byte[] jpeg = imageBytes("jpg", 320, 240, false);
+        ShopMediaStorageService service = new ShopMediaStorageService(tempDir.toString(), 1920, 25_000_000, 0.82f);
+
+        ShopMediaStorageService.StoredImage stored = service.store(
+                new MockMultipartFile("file", "product.jpg", "image/jpeg", jpeg));
+
+        Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(stored.path());
+        assertTrue(permissions.contains(PosixFilePermission.GROUP_READ));
+        assertTrue(permissions.contains(PosixFilePermission.OTHERS_READ));
     }
 
     private byte[] imageBytes(String format, int width, int height, boolean alpha) throws Exception {

@@ -42,6 +42,7 @@ test('purchase limits are checked before add-to-cart and still kept as a server-
   const home = await readView('HomeView.vue')
   const category = await readView('CategoryView.vue')
   const detail = await readView('ProductDetailView.vue')
+  const cart = await readView('CartView.vue')
 
   assert.match(helper, /checkPurchaseLimit\(product\.id, quantity\)/)
   assert.match(helper, /existingCartQuantity/)
@@ -50,6 +51,13 @@ test('purchase limits are checked before add-to-cart and still kept as a server-
   assert.match(detail, /await checkCartPurchaseLimit\(displayProduct\.value, quantity\.value, getProductQuantity\(displayProduct\.value\.id\)\)/)
   assert.match(detail, /const addToCart = async/)
   assert.match(detail, /const buyNow = async/)
+  assert.doesNotMatch(helper, /limit <= 0/)
+  assert.match(cart, /const changeQuantity = async/)
+  assert.match(cart, /await checkCartPurchaseLimit\(item, 1, getProductQuantity\(item\.id\)\)/)
+  assert.match(cart, /const validateCheckoutItems = async/)
+  assert.match(cart, /await validateCheckoutItems\(rows\)/)
+  assert.match(cart, /await validateCheckoutItems\(items\)/)
+  assert.doesNotMatch(cart, /@click="update\(item\.cartKey \|\| item\.id, item\.quantity \+ 1\)"/)
 })
 
 test('profile opens one compact invite dialog instead of navigating away', async () => {
@@ -401,14 +409,14 @@ test('build freshness guard can identify the current production entry', () => {
   )
 })
 
-test('cart deletion requires confirmation but checkout navigates directly', async () => {
+test('cart deletion requires confirmation and checkout navigates after limit validation', async () => {
   const source = await readView('CartView.vue')
   assert.match(source, /@click="requestRemoveSelected"/)
   assert.match(source, /@click="requestCheckoutSelected"/)
   assert.match(source, /@click="requestCheckoutAll"/)
   assert.match(source, /确认删除选中商品/)
-  assert.match(source, /if \(selectedKeys\.size\) checkoutSelected\(\)/)
-  assert.match(source, /if \(items\.length\) checkoutAll\(\)/)
+  assert.match(source, /await validateCheckoutItems\(rows\)[\s\S]*checkoutSelected\(\)/)
+  assert.match(source, /await validateCheckoutItems\(items\)[\s\S]*checkoutAll\(\)/)
   assert.doesNotMatch(source, /确认进入结算/)
   assert.match(source, /confirmPendingAction/)
 })

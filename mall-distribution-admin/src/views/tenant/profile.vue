@@ -126,7 +126,11 @@ const fetchData = async () => {
   try {
     const res = await listTenants({ pageNum: 1, pageSize: 100 })
     const rows = res.data?.list || []
-    tenantForm.value = { ...(rows.find((row) => Number(row.id) === 1) || rows[0] || {}) }
+    const current = rows.find((row) => Number(row.id) === 1) || rows[0] || {}
+    tenantForm.value = {
+      ...current,
+      showBusinessLicense: Number(current.showBusinessLicense ?? 1) === 0 ? 0 : 1,
+    }
   } finally {
     loading.value = false
   }

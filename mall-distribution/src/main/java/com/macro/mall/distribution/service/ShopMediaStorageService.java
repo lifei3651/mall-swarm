@@ -24,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
@@ -192,7 +193,10 @@ public class ShopMediaStorageService {
     }
 
     private void writeOnce(Path target, byte[] bytes) throws IOException {
-        if (Files.isRegularFile(target)) return;
+        if (Files.isRegularFile(target)) {
+            ensureWebReadable(target);
+            return;
+        }
         Path temp = Files.createTempFile(storageDirectory, ".upload-", ".tmp");
         try {
             Files.write(temp, bytes, StandardOpenOption.TRUNCATE_EXISTING);
@@ -203,8 +207,17 @@ public class ShopMediaStorageService {
             } catch (FileAlreadyExistsException ignored) {
                 // 同一内容并发上传时复用已经落盘的文件。
             }
+            ensureWebReadable(target);
         } finally {
             Files.deleteIfExists(temp);
+        }
+    }
+
+    private void ensureWebReadable(Path target) throws IOException {
+        try {
+            Files.setPosixFilePermissions(target, PosixFilePermissions.fromString("rw-r--r--"));
+        } catch (UnsupportedOperationException ignored) {
+            // Windows等不支持POSIX权限的平台沿用默认文件权限。
         }
     }
 

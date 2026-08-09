@@ -44,9 +44,9 @@
           </div>
           <div class="item-actions">
             <div class="quantity">
-              <button aria-label="减少数量" @click="update(item.cartKey || item.id, item.quantity - 1)">-</button>
+              <button aria-label="减少数量" @click="changeQuantity(item, -1)">-</button>
               <span>{{ item.quantity }}</span>
-              <button aria-label="增加数量" @click="update(item.cartKey || item.id, item.quantity + 1)">+</button>
+              <button aria-label="增加数量" @click="changeQuantity(item, 1)">+</button>
             </div>
           </div>
         </div>
@@ -100,6 +100,7 @@
       @confirm="confirmPendingAction"
       @cancel="pendingAction = ''"
     />
+    <div v-if="toast" class="toast" role="status">{{ toast }}</div>
   </div>
 </template>
 
@@ -111,16 +112,39 @@ import { getHome } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { money } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
+import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const router = useRouter()
-const { items, count, total, update, remove, clear: clearCart, beginCheckout } = useCart()
+const { items, count, total, getProductQuantity, update, remove, clear: clearCart, beginCheckout } = useCart()
 const displayConfig = ref({})
 const showPv = computed(() => Number(displayConfig.value.showPv || 0) === 1)
 const manageMode = ref(false)
 const clearConfirmVisible = ref(false)
 const pendingAction = ref('')
 const selectedKeys = reactive(new Set())
+const toast = ref('')
+let toastTimer = null
+
+const showToast = (message) => {
+  toast.value = message
+  window.clearTimeout(toastTimer)
+  toastTimer = window.setTimeout(() => { toast.value = '' }, 2200)
+}
+
+const changeQuantity = async (item, delta) => {
+  const key = item.cartKey || item.id
+  if (delta < 0) {
+    update(key, item.quantity - 1)
+    return
+  }
+  try {
+    await checkCartPurchaseLimit(item, 1, getProductQuantity(item.id))
+    update(key, item.quantity + 1)
+  } catch (error) {
+    showToast(error?.message || '当前商品已达到可购买数量上限')
+  }
+}
 
 const toggleManageMode = () => {
   manageMode.value = !manageMode.value
@@ -165,12 +189,36 @@ const requestRemoveSelected = () => {
   if (selectedKeys.size) pendingAction.value = 'remove-selected'
 }
 
-const requestCheckoutSelected = () => {
-  if (selectedKeys.size) checkoutSelected()
+const validateCheckoutItems = async (rows) => {
+  const quantities = new Map()
+  rows.forEach((item) => quantities.set(item.id, (quantities.get(item.id) || 0) + Number(item.quantity || 0)))
+  for (const item of rows) {
+    if (quantities.has(item.id)) {
+      await checkCartPurchaseLimit(item, 0, quantities.get(item.id))
+      quantities.delete(item.id)
+    }
+  }
 }
 
-const requestCheckoutAll = () => {
-  if (items.length) checkoutAll()
+const requestCheckoutSelected = async () => {
+  if (!selectedKeys.size) return
+  const rows = items.filter((item) => selectedKeys.has(item.cartKey || item.id))
+  try {
+    await validateCheckoutItems(rows)
+    checkoutSelected()
+  } catch (error) {
+    showToast(error?.message || '选中商品暂时无法结算')
+  }
+}
+
+const requestCheckoutAll = async () => {
+  if (!items.length) return
+  try {
+    await validateCheckoutItems(items)
+    checkoutAll()
+  } catch (error) {
+    showToast(error?.message || '购物车中有商品暂时无法结算')
+  }
 }
 
 const confirmClearCart = () => {
