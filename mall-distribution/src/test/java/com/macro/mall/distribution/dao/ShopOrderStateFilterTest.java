@@ -29,6 +29,8 @@ class ShopOrderStateFilterTest {
         insertOrder(930003L, "FILTER-DONE", 3);
         insertOrder(930004L, "FILTER-AFTER", 3);
         insertOrder(930005L, "FILTER-REFUND", 1);
+        insertOrder(930006L, "FILTER-SHIP-AFTER", 1);
+        insertOrder(930007L, "FILTER-SHIP-CANCELED", 1);
         jdbcTemplate.update("""
                 INSERT INTO dms_shop_after_sale
                 (after_sale_no, order_id, order_no, member_id, user_id, refund_amount,
@@ -41,13 +43,26 @@ class ShopOrderStateFilterTest {
                  product_refund_amount, freight_refund_amount, refund_quantity, status)
                 VALUES (?, ?, ?, 1, 1, 10, 10, 0, 1, ?)
                 """, "AS-FILTER-REFUND", 930005L, "FILTER-REFUND", 1);
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_after_sale
+                (after_sale_no, order_id, order_no, member_id, user_id, refund_amount,
+                 product_refund_amount, freight_refund_amount, refund_quantity, status)
+                VALUES (?, ?, ?, 1, 1, 10, 10, 0, 1, ?)
+                """, "AS-FILTER-SHIP-AFTER", 930006L, "FILTER-SHIP-AFTER", 0);
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_after_sale
+                (after_sale_no, order_id, order_no, member_id, user_id, refund_amount,
+                 product_refund_amount, freight_refund_amount, refund_quantity, status)
+                VALUES (?, ?, ?, 1, 1, 10, 10, 0, 1, ?)
+                """, "AS-FILTER-SHIP-CANCELED", 930007L, "FILTER-SHIP-CANCELED", 3);
     }
 
     @Test
     void filtersBusinessOrderStatesWithoutMixingRefundsAndPendingAfterSales() {
         assertOrderNos("PENDING_PAYMENT", "FILTER-PAY");
-        assertOrderNos("PENDING_SHIPMENT", "FILTER-SHIP");
-        assertOrderNos("AFTER_SALE", "FILTER-AFTER");
+        assertOrderNos("PENDING_SHIPMENT", "FILTER-REFUND", "FILTER-SHIP", "FILTER-SHIP-CANCELED");
+        assertUserOrderNos("PENDING_SHIPMENT", "FILTER-REFUND", "FILTER-SHIP", "FILTER-SHIP-CANCELED");
+        assertOrderNos("AFTER_SALE", "FILTER-AFTER", "FILTER-SHIP-AFTER");
         assertOrderNos("COMPLETED", "FILTER-DONE");
         assertOrderNos("REFUNDED", "FILTER-REFUND");
     }
@@ -56,7 +71,8 @@ class ShopOrderStateFilterTest {
     void summaryBadgeCountsOnlyAfterSalesThatStillNeedAction() {
         ShopOrderStatusSummaryVO summary = orderDao.selectStatusSummary(1L);
 
-        assertEquals(1L, summary.getAfterSale());
+        assertEquals(2L, summary.getAfterSale());
+        assertEquals(3L, summary.getPendingShipment());
     }
 
     private void insertOrder(long id, String orderNo, int status) {
@@ -67,10 +83,20 @@ class ShopOrderStateFilterTest {
                 """, id, orderNo, status);
     }
 
-    private void assertOrderNos(String state, String expectedOrderNo) {
+    private void assertOrderNos(String state, String... expectedOrderNos) {
         List<String> orderNos = orderDao.selectList("FILTER-", null, state).stream()
                 .map(DmsShopOrder::getOrderNo)
+                .sorted()
                 .toList();
-        assertEquals(List.of(expectedOrderNo), orderNos);
+        assertEquals(List.of(expectedOrderNos).stream().sorted().toList(), orderNos);
+    }
+
+    private void assertUserOrderNos(String state, String... expectedOrderNos) {
+        List<String> orderNos = orderDao.selectByUserIdAndState(1L, state).stream()
+                .map(DmsShopOrder::getOrderNo)
+                .filter(orderNo -> orderNo.startsWith("FILTER-"))
+                .sorted()
+                .toList();
+        assertEquals(List.of(expectedOrderNos).stream().sorted().toList(), orderNos);
     }
 }

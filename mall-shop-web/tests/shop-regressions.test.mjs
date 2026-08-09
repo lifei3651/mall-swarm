@@ -203,6 +203,14 @@ test('profile renders immediately and loads order counts, wallet and performance
   assert.doesNotMatch(orders, /pageSize: 500/)
 })
 
+test('pending shipment and active after-sale use mutually exclusive current states', async () => {
+  const orders = await readView('OrdersView.vue')
+
+  assert.match(orders, /\[0, 4, 5, 6\]\.includes\(Number\(sale\.status\)\)/)
+  assert.match(orders, /activeAfterSales\(item\)\.length > 0/)
+  assert.match(orders, /afterSaleStatus\(activeAfterSales\(item\)\[0\]\?\.status\)/)
+})
+
 test('profile shows every team performance entry only when backend grants access', async () => {
   const profile = await readView('ProfileView.vue')
 

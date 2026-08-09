@@ -88,7 +88,9 @@ let requestSequence = 0
 const validTabs = new Set(['all', 'pending-payment', 'pending-shipment', 'pending-receipt', 'pending-review', 'after-sale'])
 const activeTab = computed(() => validTabs.has(route.query.tab) ? route.query.tab : 'all')
 
-const isAfterSale = (item) => item.order?.status === 5 || (item.afterSales || []).length > 0
+const activeAfterSales = (item) => (item.afterSales || [])
+  .filter((sale) => [0, 4, 5, 6].includes(Number(sale.status)))
+const isAfterSale = (item) => item.order?.status === 5 || activeAfterSales(item).length > 0
 const tabs = computed(() => [
   { key: 'all', label: '全部', count: 0 },
   { key: 'pending-payment', label: '待支付', count: Number(orderSummary.value.pendingPayment || 0) },
@@ -165,7 +167,7 @@ const unavailableAfterSaleQuantity = (item) => (item.afterSales || [])
   .reduce((sum, line) => sum + Number(line.refundQuantity || 0), 0)
 const orderQuantity = (item) => (item.items || []).reduce((sum, line) => sum + Number(line.quantity || 0), 0)
 const orderDisplayStatus = (item) => {
-  if (isAfterSale(item)) return `退款/售后 · ${afterSaleStatus(item.afterSales?.[0]?.status)}`
+  if (isAfterSale(item)) return `退款/售后 · ${afterSaleStatus(activeAfterSales(item)[0]?.status)}`
   if (Number(item.pendingReviewCount || 0) > 0) return '待评价'
   return statusName(item.order?.status)
 }

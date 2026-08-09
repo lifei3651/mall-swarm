@@ -97,6 +97,10 @@
                 </when>
                 <when test="orderState == 'PENDING_SHIPMENT'">
                     AND status = 1
+                    AND NOT EXISTS (
+                        SELECT 1 FROM dms_shop_after_sale sale
+                        WHERE sale.order_id = dms_shop_order.id AND sale.status IN (0, 4, 5, 6)
+                    )
                 </when>
                 <when test="orderState == 'PENDING_RECEIPT'">
                     AND status = 2
@@ -127,7 +131,10 @@
     <select id="selectStatusSummary" resultMap="StatusSummaryResultMap">
         SELECT COUNT(*) AS total,
                COALESCE(SUM(CASE WHEN o.status = 0 THEN 1 ELSE 0 END), 0) AS pending_payment,
-               COALESCE(SUM(CASE WHEN o.status = 1 THEN 1 ELSE 0 END), 0) AS pending_shipment,
+               COALESCE(SUM(CASE WHEN o.status = 1 AND NOT EXISTS (
+                   SELECT 1 FROM dms_shop_after_sale sale
+                   WHERE sale.order_id = o.id AND sale.status IN (0, 4, 5, 6)
+               ) THEN 1 ELSE 0 END), 0) AS pending_shipment,
                COALESCE(SUM(CASE WHEN o.status = 2 THEN 1 ELSE 0 END), 0) AS pending_receipt,
                COALESCE(SUM(CASE WHEN o.status = 3 AND EXISTS (
                    SELECT 1
@@ -173,7 +180,7 @@
                         AND status = 1
                         AND NOT EXISTS (
                             SELECT 1 FROM dms_shop_after_sale sale
-                            WHERE sale.order_id = dms_shop_order.id AND sale.status IN (0, 1, 4, 5, 6)
+                            WHERE sale.order_id = dms_shop_order.id AND sale.status IN (0, 4, 5, 6)
                         )
                     </when>
                     <when test="orderState == 'AFTER_SALE'">
@@ -186,7 +193,7 @@
                         AND status = 3
                         AND NOT EXISTS (
                             SELECT 1 FROM dms_shop_after_sale sale
-                            WHERE sale.order_id = dms_shop_order.id AND sale.status IN (0, 1, 4, 5, 6)
+                            WHERE sale.order_id = dms_shop_order.id AND sale.status IN (0, 4, 5, 6)
                         )
                     </when>
                     <when test="orderState == 'REFUNDED'">

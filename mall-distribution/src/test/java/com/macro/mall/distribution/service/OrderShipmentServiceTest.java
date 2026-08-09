@@ -1,11 +1,14 @@
 package com.macro.mall.distribution.service;
 
 import com.macro.mall.common.tenant.TenantContext;
+import com.macro.mall.distribution.dao.DmsShopAfterSaleDao;
+import com.macro.mall.distribution.dao.DmsShopAfterSaleItemDao;
 import com.macro.mall.distribution.dao.DmsShopOrderDao;
 import com.macro.mall.distribution.dao.DmsShopOrderItemDao;
 import com.macro.mall.distribution.dao.DmsShopOrderShipmentDao;
 import com.macro.mall.distribution.entity.DmsShopOrderShipment;
 import com.macro.mall.distribution.entity.DmsShopOrder;
+import com.macro.mall.distribution.entity.DmsShopAfterSale;
 import com.macro.mall.distribution.service.impl.OrderShipmentServiceImpl;
 import com.macro.mall.distribution.vo.OrderShipmentImportResultVO;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -21,6 +24,7 @@ import java.io.ByteArrayOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -34,6 +38,8 @@ class OrderShipmentServiceTest {
 
     @Mock private DmsShopOrderDao orderDao;
     @Mock private DmsShopOrderItemDao orderItemDao;
+    @Mock private DmsShopAfterSaleDao afterSaleDao;
+    @Mock private DmsShopAfterSaleItemDao afterSaleItemDao;
     @Mock private DmsShopOrderShipmentDao shipmentDao;
     @Mock private OperationLogService operationLogService;
 
@@ -42,7 +48,8 @@ class OrderShipmentServiceTest {
     @BeforeEach
     void setUp() {
         TenantContext.setTenantId(1L);
-        service = new OrderShipmentServiceImpl(orderDao, orderItemDao, shipmentDao, operationLogService);
+        service = new OrderShipmentServiceImpl(orderDao, orderItemDao, afterSaleDao, afterSaleItemDao,
+                shipmentDao, operationLogService);
     }
 
     @AfterEach
@@ -149,6 +156,41 @@ class OrderShipmentServiceTest {
         DmsShopOrder order = pendingOrder(11L, "SO10001");
         when(orderDao.selectByOrderNoForUpdate("SO10001")).thenReturn(order);
         when(orderItemDao.sumQuantityByOrderId(11L)).thenReturn(2);
+
+        OrderShipmentImportResultVO result = service.importShipments(workbook(
+                new String[]{"SO10001", "顺丰速运", "SF1234567890", "3"}));
+
+        assertFalse(result.isSuccess());
+        assertEquals(1, result.getFailedCount());
+        assertTrue(result.getErrors().get(0).getMessage().contains("剩余 2 件"));
+        verify(shipmentDao, never()).insert(any(DmsShopOrderShipment.class));
+    }
+
+    @Test
+    void openAfterSaleBlocksManualShipmentBeforeAnyPackageIsCreated() {
+        DmsShopOrder order = pendingOrder(11L, "SO10001");
+        when(orderDao.selectByIdForUpdate(11L)).thenReturn(order);
+        when(afterSaleDao.selectOpenByOrderId(11L)).thenReturn(new DmsShopAfterSale());
+
+        var dto = new com.macro.mall.distribution.dto.ShopOrderShipDTO();
+        dto.setDeliveryCompany("顺丰速运");
+        dto.setDeliveryNo("SF1234567890");
+        dto.setShipmentQuantity(1);
+
+        var error = assertThrows(com.macro.mall.common.exception.ApiException.class,
+                () -> service.shipOrder(11L, dto));
+
+        assertTrue(error.getMessage().contains("售后处理中"));
+        verify(shipmentDao, never()).insert(any(DmsShopOrderShipment.class));
+        verify(orderDao, never()).ship(anyLong(), anyString(), anyString());
+    }
+
+    @Test
+    void completedPartialRefundReducesRemainingShippableQuantity() throws Exception {
+        DmsShopOrder order = pendingOrder(11L, "SO10001");
+        when(orderDao.selectByOrderNoForUpdate("SO10001")).thenReturn(order);
+        when(orderItemDao.sumQuantityByOrderId(11L)).thenReturn(3);
+        when(afterSaleItemDao.sumApprovedQuantityByOrderId(11L)).thenReturn(1);
 
         OrderShipmentImportResultVO result = service.importShipments(workbook(
                 new String[]{"SO10001", "顺丰速运", "SF1234567890", "3"}));

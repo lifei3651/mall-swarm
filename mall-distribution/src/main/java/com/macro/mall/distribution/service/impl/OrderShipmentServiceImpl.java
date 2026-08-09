@@ -3,6 +3,8 @@ package com.macro.mall.distribution.service.impl;
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.common.exception.ApiException;
 import com.macro.mall.common.tenant.TenantContext;
+import com.macro.mall.distribution.dao.DmsShopAfterSaleDao;
+import com.macro.mall.distribution.dao.DmsShopAfterSaleItemDao;
 import com.macro.mall.distribution.dao.DmsShopOrderDao;
 import com.macro.mall.distribution.dao.DmsShopOrderItemDao;
 import com.macro.mall.distribution.dao.DmsShopOrderShipmentDao;
@@ -44,6 +46,8 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
 
     private final DmsShopOrderDao orderDao;
     private final DmsShopOrderItemDao orderItemDao;
+    private final DmsShopAfterSaleDao afterSaleDao;
+    private final DmsShopAfterSaleItemDao afterSaleItemDao;
     private final DmsShopOrderShipmentDao shipmentDao;
     private final OperationLogService operationLogService;
 
@@ -136,13 +140,17 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
                 result.setSkippedCount(result.getSkippedCount() + 1);
                 continue;
             }
+            if (hasOpenAfterSale(order)) {
+                addError(result, row, openAfterSaleShipmentMessage());
+                continue;
+            }
             if (!canAddShipment(order)) {
                 addError(result, row, Integer.valueOf(3).equals(order.getStatus())
                         ? "订单已经完成，不能再添加物流包裹" : "当前订单状态不能发货");
                 continue;
             }
             if (!orderedQuantities.containsKey(orderNo)) {
-                orderedQuantities.put(orderNo, orderItemDao.sumQuantityByOrderId(order.getId()));
+                orderedQuantities.put(orderNo, shippableQuantity(order));
                 shippedQuantities.put(orderNo, shipmentDao.sumQuantityByOrderId(order.getId()));
             }
             int orderedQuantity = orderedQuantities.get(orderNo);
@@ -184,6 +192,10 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
 
     private boolean applyShipment(DmsShopOrder order, ShipmentValues shipment, String source, boolean failOnConflict) {
         if (shipmentExists(order, shipment)) return true;
+        if (hasOpenAfterSale(order)) {
+            if (failOnConflict) Asserts.fail(openAfterSaleShipmentMessage());
+            return false;
+        }
         if (!canAddShipment(order)) {
             if (failOnConflict) {
                 Asserts.fail(Integer.valueOf(3).equals(order.getStatus())
@@ -192,7 +204,7 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
             return false;
         }
 
-        int orderedQuantity = orderItemDao.sumQuantityByOrderId(order.getId());
+        int orderedQuantity = shippableQuantity(order);
         int shippedQuantity = shipmentDao.sumQuantityByOrderId(order.getId());
         if (orderedQuantity <= 0) Asserts.fail("订单没有可发货的商品明细");
         if (shippedQuantity + shipment.quantity() > orderedQuantity) {
@@ -321,7 +333,7 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
     }
 
     private int remainingQuantity(DmsShopOrder order) {
-        int ordered = orderItemDao.sumQuantityByOrderId(order.getId());
+        int ordered = shippableQuantity(order);
         int shipped = shipmentDao.sumQuantityByOrderId(order.getId());
         int remaining = ordered - shipped;
         if (remaining <= 0) Asserts.fail("该订单已经没有待发货商品");
@@ -330,6 +342,20 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
 
     private boolean canAddShipment(DmsShopOrder order) {
         return Integer.valueOf(1).equals(order.getStatus()) || Integer.valueOf(2).equals(order.getStatus());
+    }
+
+    private boolean hasOpenAfterSale(DmsShopOrder order) {
+        return order != null && afterSaleDao.selectOpenByOrderId(order.getId()) != null;
+    }
+
+    private int shippableQuantity(DmsShopOrder order) {
+        int ordered = orderItemDao.sumQuantityByOrderId(order.getId());
+        int refunded = afterSaleItemDao.sumApprovedQuantityByOrderId(order.getId());
+        return Math.max(0, ordered - refunded);
+    }
+
+    private String openAfterSaleShipmentMessage() {
+        return "订单正在售后处理中，暂不能发货；售后取消或驳回后可继续发货";
     }
 
     private boolean shipmentExists(DmsShopOrder order, ShipmentValues shipment) {
