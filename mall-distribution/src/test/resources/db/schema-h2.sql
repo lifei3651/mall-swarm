@@ -321,7 +321,8 @@ CREATE TABLE IF NOT EXISTS dms_bonus_calculation_task (
   start_time TIMESTAMP,
   finish_time TIMESTAMP,
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(order_id)
 );
 
 -- 佣金记录表
@@ -348,7 +349,9 @@ CREATE TABLE IF NOT EXISTS dms_commission_record (
   cancel_reason VARCHAR(256),
   remark VARCHAR(256),
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(record_no),
+  UNIQUE(order_id, agent_id, bonus_type)
 );
 
 -- 代理账户表

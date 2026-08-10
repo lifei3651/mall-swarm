@@ -60,5 +60,6 @@ public interface DmsShopMemberDao {
 
     int increaseFailedPayPassword(@Param("id") Long id, @Param("lockThreshold") Integer lockThreshold);
 
-    int clearPayPasswordLock(@Param("id") Long id);
+    int clearPayPasswordLockIfCount(@Param("id") Long id,
+                                    @Param("expectedFailedCount") Integer expectedFailedCount);
 }

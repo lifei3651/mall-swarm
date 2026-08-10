@@ -240,9 +240,9 @@
             update_time=CURRENT_TIMESTAMP
         WHERE id=#{id}
     </update>
-    <update id="clearPayPasswordLock">
+    <update id="clearPayPasswordLockIfCount">
         UPDATE dms_shop_member
         SET pay_password_failed_count=0, pay_password_lock_time=NULL, update_time=CURRENT_TIMESTAMP
-        WHERE id=#{id}
+        WHERE id=#{id} AND pay_password_failed_count=#{expectedFailedCount}
     </update>
 </mapper>

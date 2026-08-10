@@ -367,7 +367,8 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         if (payAmount.compareTo(BigDecimal.ZERO) <= 0) {
             Asserts.fail("订单实付金额异常，不能登记退款");
         }
-        DmsShopOrder shopOrder = shopOrderDao.selectById(dto.getOrderId());
+        // 所有退款登记统一锁定订单，避免并发冲销重复扣减业绩、件数和奖金。
+        DmsShopOrder shopOrder = shopOrderDao.selectByIdForUpdate(dto.getOrderId());
         if (shopOrder == null) Asserts.fail("商城订单不存在，不能登记无商品明细退款");
         BigDecimal productAmount = shopOrder.getTotalAmount() == null
                 ? payAmount.subtract(nullToZero(shopOrder.getFreightAmount()))

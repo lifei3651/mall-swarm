@@ -26,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.dao.DuplicateKeyException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -78,7 +79,7 @@ public class BonusCalculationTaskServiceImpl implements BonusCalculationTaskServ
         }
 
         DmsBonusCalculationTask latestTask = taskDao.selectLatestByOrderId(orderId);
-        if (latestTask != null && (Integer.valueOf(0).equals(latestTask.getStatus()) || Integer.valueOf(1).equals(latestTask.getStatus()))) {
+        if (latestTask != null) {
             return latestTask;
         }
 
@@ -94,7 +95,14 @@ public class BonusCalculationTaskServiceImpl implements BonusCalculationTaskServ
         task.setRetryCount(0);
         task.setMaxRetryCount(DEFAULT_MAX_RETRY_COUNT);
         task.setNextRetryTime(LocalDateTime.now());
-        taskDao.insert(task);
+        try {
+            taskDao.insert(task);
+        } catch (DuplicateKeyException duplicate) {
+            // 数据库唯一键是最终并发防线：两个支付线程同时入队时返回同一订单任务。
+            DmsBonusCalculationTask existing = taskDao.selectLatestByOrderId(orderId);
+            if (existing != null) return existing;
+            throw duplicate;
+        }
         return taskDao.selectById(task.getId());
     }
 
@@ -155,6 +163,9 @@ public class BonusCalculationTaskServiceImpl implements BonusCalculationTaskServ
             orderBalanceAllocationService.prepareForOrder(task.getOrderId());
             saveSnapshot(task);
             taskDao.markSuccess(taskId);
+            int commissionCount = commissionRecordDao.selectByOrderId(task.getOrderId()).size();
+            log.info("奖金异步计算成功: taskId={}, orderId={}, orderNo={}, commissionCount={}",
+                    taskId, task.getOrderId(), task.getOrderNo(), commissionCount);
             return true;
         } catch (Exception e) {
             log.error("奖金异步计算失败: taskId={}, orderId={}", taskId, task.getOrderId(), e);

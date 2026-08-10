@@ -19,6 +19,7 @@ import com.macro.mall.distribution.service.WithdrawService;
 import com.macro.mall.distribution.vo.WithdrawRecordVO;
 import com.macro.mall.distribution.vo.WithdrawStatsVO;
 import com.macro.mall.distribution.util.MemberAccountUtils;
+import com.macro.mall.distribution.util.MoneyValidationUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -40,6 +41,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class WithdrawServiceImpl implements WithdrawService {
 
+    private static final BigDecimal MAX_WITHDRAW_AMOUNT = new BigDecimal("99999999.99");
 
     private final DmsWithdrawRecordDao withdrawDao;
     private final AgentAccountService accountService;
@@ -53,12 +55,8 @@ public class WithdrawServiceImpl implements WithdrawService {
         if (applyDTO.getAgentId() == null) {
             Asserts.fail("代理ID不能为空");
         }
-        if (applyDTO.getWithdrawAmount() == null) {
-            Asserts.fail("提现金额不能为空");
-        }
-        if (applyDTO.getWithdrawAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            Asserts.fail("提现金额必须大于0");
-        }
+        BigDecimal withdrawAmount = MoneyValidationUtils.requirePositiveAmount(
+                applyDTO.getWithdrawAmount(), "提现金额", MAX_WITHDRAW_AMOUNT);
         if (applyDTO.getWithdrawType() == null) {
             Asserts.fail("提现方式不能为空");
         }
@@ -75,7 +73,7 @@ public class WithdrawServiceImpl implements WithdrawService {
         record.setWithdrawNo(generateWithdrawNo());
         record.setAgentId(applyDTO.getAgentId());
         record.setUserId(agent.getUserId());
-        record.setWithdrawAmount(applyDTO.getWithdrawAmount());
+        record.setWithdrawAmount(withdrawAmount);
         record.setWithdrawType(applyDTO.getWithdrawType());
         record.setBankName(applyDTO.getBankName());
         record.setBankAccount(applyDTO.getBankAccount());
@@ -85,7 +83,7 @@ public class WithdrawServiceImpl implements WithdrawService {
         // 支付、转账、提现共用 CASH_BONUS 余额，申请时立即扣减并写入资产流水。
         AssetChangeDTO withdraw = new AssetChangeDTO();
         withdraw.setAgentId(applyDTO.getAgentId());
-        withdraw.setAmount(applyDTO.getWithdrawAmount());
+        withdraw.setAmount(withdrawAmount);
         withdraw.setBizType("WITHDRAW_APPLY");
         withdraw.setBizId(record.getWithdrawNo());
         withdraw.setRemark("申请提现：" + record.getWithdrawNo());
@@ -94,7 +92,7 @@ public class WithdrawServiceImpl implements WithdrawService {
         withdrawDao.insert(record);
 
         log.info("申请提现成功: agentId={}, amount={}, withdrawNo={}",
-                applyDTO.getAgentId(), applyDTO.getWithdrawAmount(), record.getWithdrawNo());
+                applyDTO.getAgentId(), withdrawAmount, record.getWithdrawNo());
 
         return convertToVO(record);
     }
@@ -134,7 +132,9 @@ public class WithdrawServiceImpl implements WithdrawService {
 
         withdrawDao.update(record);
 
-        log.info("审核提现成功: id={}, status={}", auditDTO.getId(), auditDTO.getStatus());
+        log.info("提现审核完成: id={}, withdrawNo={}, agentId={}, amount={}, status={}, auditUserId={}",
+                record.getId(), record.getWithdrawNo(), record.getAgentId(), record.getWithdrawAmount(),
+                record.getStatus(), record.getAuditUserId());
         return true;
     }
 
@@ -157,7 +157,8 @@ public class WithdrawServiceImpl implements WithdrawService {
         accountService.addWithdrawnAmount(record.getAgentId(), record.getWithdrawAmount());
         withdrawDao.update(record);
 
-        log.info("确认打款成功: id={}, payNo={}", id, payNo);
+        log.info("确认打款成功: id={}, withdrawNo={}, agentId={}, amount={}, payNo={}",
+                id, record.getWithdrawNo(), record.getAgentId(), record.getWithdrawAmount(), payNo);
         return true;
     }
 

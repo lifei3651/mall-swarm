@@ -318,7 +318,7 @@
         SET status = 4,
             close_time = CURRENT_TIMESTAMP,
             update_time = CURRENT_TIMESTAMP
-        WHERE id = #{id}
+        WHERE id = #{id} AND status IN (1, 2, 3)
     </update>
 
     <select id="countValidPaidOrdersByUserId" resultType="int">

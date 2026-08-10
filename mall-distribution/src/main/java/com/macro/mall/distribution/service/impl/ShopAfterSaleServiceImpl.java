@@ -86,7 +86,8 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         if (dto == null || dto.getOrderId() == null) {
             Asserts.fail("订单ID不能为空");
         }
-        DmsShopOrder order = orderDao.selectById(dto.getOrderId());
+        // 同一订单的售后申请串行处理，避免并发申请重复占用可退数量和金额。
+        DmsShopOrder order = orderDao.selectByIdForUpdate(dto.getOrderId());
         if (order == null) {
             Asserts.fail("订单不存在");
         }
@@ -245,7 +246,8 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     @Transactional(rollbackFor = Exception.class)
     public DmsShopAfterSale manualRefund(Long orderId, ShopManualRefundDTO dto) {
         if (orderId == null) Asserts.fail("订单ID不能为空");
-        DmsShopOrder order = orderDao.selectById(orderId);
+        // 后台退款与客户售后共用订单锁，确保剩余可退数量和金额只计算一次。
+        DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
         if (order == null) Asserts.fail("订单不存在");
         assertTenantAccess(order.getTenantId());
         if (Integer.valueOf(0).equals(order.getStatus()) || Integer.valueOf(4).equals(order.getStatus())) {

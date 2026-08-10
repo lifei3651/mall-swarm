@@ -121,12 +121,7 @@ public class AlipayServiceImpl implements AlipayService {
                 return "failure";
             }
             // 1. 验签
-            boolean signVerified = AlipaySignature.rsaCheckV1(
-                    params,
-                    alipayConfig.getAlipayPublicKey(),
-                    "utf-8",
-                    alipayConfig.getSignType()
-            );
+            boolean signVerified = verifyNotifySignature(params);
 
             if (!signVerified) {
                 log.error("支付宝回调验签失败");
@@ -190,6 +185,19 @@ public class AlipayServiceImpl implements AlipayService {
             log.error("支付宝回调参数处理异常", e);
             return "failure";
         }
+    }
+
+    /**
+     * 独立封装回调验签，生产环境仍调用支付宝 SDK；测试环境可以只替换验签结果，
+     * 从而覆盖验签失败、回调处理失败和支付宝重试语义，而无需使用真实密钥。
+     */
+    protected boolean verifyNotifySignature(Map<String, String> params) throws AlipayApiException {
+        return AlipaySignature.rsaCheckV1(
+                params,
+                alipayConfig.getAlipayPublicKey(),
+                "utf-8",
+                alipayConfig.getSignType()
+        );
     }
 
     @Override

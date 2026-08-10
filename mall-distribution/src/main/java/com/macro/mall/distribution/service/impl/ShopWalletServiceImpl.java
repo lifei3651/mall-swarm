@@ -32,12 +32,13 @@ import com.macro.mall.distribution.vo.ShopOrderVO;
 import com.macro.mall.distribution.vo.ShopWalletSummaryVO;
 import com.macro.mall.distribution.vo.WithdrawRecordVO;
 import com.macro.mall.distribution.util.PhoneNumberUtils;
+import com.macro.mall.distribution.util.MoneyValidationUtils;
+import com.macro.mall.distribution.enums.ShopOrderStatusEnum;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -47,6 +48,9 @@ public class ShopWalletServiceImpl implements ShopWalletService {
 
     private static final int MAX_FAILED_PAY_PASSWORD_COUNT = 5;
     private static final int PAY_PASSWORD_LOCK_MINUTES = 30;
+    private static final BigDecimal MAX_TRANSFER_AMOUNT = new BigDecimal("999999999999.99");
+    private static final BigDecimal MAX_ORDER_PAYMENT_AMOUNT = new BigDecimal("9999999999.99");
+    private static final BigDecimal MAX_WITHDRAW_AMOUNT = new BigDecimal("99999999.99");
 
     private final DmsShopMemberDao memberDao;
     private final DmsAgentDao agentDao;
@@ -132,7 +136,8 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         if (dto.getAmount() == null || dto.getAmount().stripTrailingZeros().scale() > 0) {
             Asserts.fail("转账金额只能为整数");
         }
-        BigDecimal amount = normalizeAmount(dto.getAmount(), "转账金额");
+        BigDecimal amount = MoneyValidationUtils.requirePositiveAmount(
+                dto.getAmount(), "转账金额", MAX_TRANSFER_AMOUNT);
 
         DmsShopMember recipient = memberDao.selectByPhone(dto.getRecipientPhone());
         AssetTransferDTO transfer = new AssetTransferDTO();
@@ -157,9 +162,8 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
         if (order == null) Asserts.fail("订单不存在");
         if (!current.getUserId().equals(order.getUserId())) Asserts.fail("不能支付他人的订单");
-        if (!Integer.valueOf(0).equals(order.getStatus())) {
-            if (Integer.valueOf(1).equals(order.getStatus()) || Integer.valueOf(2).equals(order.getStatus())
-                    || Integer.valueOf(3).equals(order.getStatus())) return shopService.getOrder(orderId);
+        if (!ShopOrderStatusEnum.PENDING_PAYMENT.matches(order.getStatus())) {
+            if (ShopOrderStatusEnum.isPaidLifecycle(order.getStatus())) return shopService.getOrder(orderId);
             Asserts.fail("当前订单状态不能支付");
         }
         if (!"BALANCE".equalsIgnoreCase(order.getPayType())) {
@@ -167,7 +171,8 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         }
 
         verifyPaymentPassword(current, dto.getPaymentPassword());
-        BigDecimal amount = normalizeAmount(order.getPayAmount(), "订单实付金额");
+        BigDecimal amount = MoneyValidationUtils.requirePositiveAmount(
+                order.getPayAmount(), "订单实付金额", MAX_ORDER_PAYMENT_AMOUNT);
         AssetChangeDTO consume = new AssetChangeDTO();
         consume.setUserId(current.getUserId());
         consume.setAmount(amount);
@@ -186,7 +191,8 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         DmsAgent agent = agentDao.selectByUserId(current.getUserId());
         if (agent == null || !Integer.valueOf(1).equals(agent.getStatus())) Asserts.fail("完成首笔有效订单后才可以提现");
 
-        BigDecimal amount = normalizeAmount(dto.getWithdrawAmount(), "提现金额");
+        BigDecimal amount = MoneyValidationUtils.requirePositiveAmount(
+                dto.getWithdrawAmount(), "提现金额", MAX_WITHDRAW_AMOUNT);
         DmsMemberAssetAccount balanceAccount = assetAccountDao.selectByAgentIdAndAssetCode(agent.getId(), BalanceAsset.CODE);
         BigDecimal balance = balanceAccount == null || balanceAccount.getBalance() == null ? BigDecimal.ZERO : balanceAccount.getBalance();
         if (balance.compareTo(amount) < 0) Asserts.fail("余额不足");
@@ -240,27 +246,27 @@ public class ShopWalletServiceImpl implements ShopWalletService {
             Asserts.fail("支付密码连续错误5次，已锁定30分钟");
         }
         if (current.getPayPasswordLockTime() != null) {
-            passwordAttemptService.clear(current.getId());
+            int expiredLockCount = current.getPayPasswordFailedCount() == null ? 0 : current.getPayPasswordFailedCount();
+            passwordAttemptService.clearIfUnchanged(current.getId(), expiredLockCount);
+            current = memberDao.selectById(current.getId());
+            // 清理过期锁期间可能出现新的失败尝试；重新读取后必须再次执行锁定判断。
+            if (isPaymentPasswordLocked(current)) {
+                Asserts.fail("支付密码连续错误5次，已锁定30分钟");
+            }
         }
+        int observedFailedCount = current.getPayPasswordFailedCount() == null ? 0 : current.getPayPasswordFailedCount();
         if (paymentPassword == null || !BCrypt.checkpw(paymentPassword, current.getPayPasswordHash())) {
             passwordAttemptService.recordFailure(current.getId(), MAX_FAILED_PAY_PASSWORD_COUNT);
             DmsShopMember refreshed = memberDao.selectById(current.getId());
             if (isPaymentPasswordLocked(refreshed)) Asserts.fail("支付密码连续错误5次，已锁定30分钟");
             Asserts.fail("支付密码错误");
         }
-        passwordAttemptService.clear(current.getId());
+        passwordAttemptService.clearIfUnchanged(current.getId(), observedFailedCount);
     }
 
     private boolean isPaymentPasswordLocked(DmsShopMember member) {
         return member.getPayPasswordLockTime() != null
                 && member.getPayPasswordLockTime().plusMinutes(PAY_PASSWORD_LOCK_MINUTES).isAfter(LocalDateTime.now());
-    }
-
-    private BigDecimal normalizeAmount(BigDecimal amount, String name) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) Asserts.fail(name + "必须大于0");
-        BigDecimal normalized = amount.setScale(2, RoundingMode.HALF_UP);
-        if (normalized.compareTo(BigDecimal.ZERO) <= 0) Asserts.fail(name + "至少为0.01元");
-        return normalized;
     }
 
     private boolean hasText(String value) {

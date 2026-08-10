@@ -6,6 +6,7 @@ import com.macro.mall.distribution.config.RedisConfig;
 import com.macro.mall.distribution.config.ScheduleTask;
 import com.macro.mall.distribution.dao.DmsMemberAssetAccountDao;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
+import com.macro.mall.distribution.dao.DmsShopOrderItemDao;
 import com.macro.mall.distribution.dto.AssetChangeDTO;
 import com.macro.mall.distribution.dto.BalancePayDTO;
 import com.macro.mall.distribution.dto.BalanceTransferDTO;
@@ -14,6 +15,8 @@ import com.macro.mall.distribution.dto.ShopOrderItemDTO;
 import com.macro.mall.distribution.dto.ShopOrderSubmitDTO;
 import com.macro.mall.distribution.dto.ShopWithdrawalApplyDTO;
 import com.macro.mall.distribution.dto.WithdrawAuditDTO;
+import com.macro.mall.distribution.dto.ShopAfterSaleApplyDTO;
+import com.macro.mall.distribution.dto.ShopAfterSaleItemDTO;
 import com.macro.mall.distribution.entity.DmsMemberAssetAccount;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.vo.BalanceRecipientVO;
@@ -67,6 +70,9 @@ class ShopWalletServiceTest {
     @Autowired private DmsMemberAssetAccountDao assetAccountDao;
     @Autowired private DistributionAuditService auditService;
     @Autowired private WithdrawService withdrawService;
+    @Autowired private ShopAfterSaleService afterSaleService;
+    @Autowired private PaymentPasswordAttemptService paymentPasswordAttemptService;
+    @Autowired private DmsShopOrderItemDao orderItemDao;
     @MockBean private SmsVerificationService smsVerificationService;
 
     @Test
@@ -261,6 +267,150 @@ class ShopWalletServiceTest {
         }
 
         assertEquals(0, expected.compareTo(balance(1L)));
+    }
+
+    @Test
+    @Order(6)
+    void withdrawalRejectsMoreThanTwoDecimalsAndDatabaseOverflow() {
+        DmsShopMember member = memberDao.selectByUserId(1004L);
+        ShopWithdrawalApplyDTO invalidScale = withdrawal("135790", "1.999");
+        assertThrows(ApiException.class, () -> walletService.applyWithdrawal(member, invalidScale));
+
+        ShopWithdrawalApplyDTO overflow = withdrawal("135790", "100000000.00");
+        assertThrows(ApiException.class, () -> walletService.applyWithdrawal(member, overflow));
+    }
+
+    @Test
+    @Order(7)
+    void simultaneousWithdrawalsCannotOverdrawTheWallet() throws Exception {
+        DmsShopMember member = createMember(1003L, "13988220003", "并发提现会员");
+        PaymentPasswordDTO password = new PaymentPasswordDTO();
+        password.setNewPassword("975310");
+        password.setLoginPassword("login123");
+        password.setSmsCode("123456");
+        walletService.setPaymentPassword(member, password);
+
+        AssetChangeDTO issue = new AssetChangeDTO();
+        issue.setAgentId(3L);
+        issue.setAmount(new BigDecimal("150.00"));
+        issue.setBizType("CONCURRENT_WITHDRAW_TEST");
+        issue.setBizId("CONCURRENT_WITHDRAW_TEST_1");
+        memberAssetService.issue(issue);
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            Future<Boolean> first = executor.submit(() -> tryWithdraw(member, ready, start));
+            Future<Boolean> second = executor.submit(() -> tryWithdraw(member, ready, start));
+            assertTrue(ready.await(5, TimeUnit.SECONDS));
+            start.countDown();
+            int successes = (first.get(10, TimeUnit.SECONDS) ? 1 : 0)
+                    + (second.get(10, TimeUnit.SECONDS) ? 1 : 0);
+            assertEquals(1, successes);
+        } finally {
+            executor.shutdownNow();
+        }
+        assertMoney("50.00", balance(3L));
+        assertEquals(1, withdrawService.getWithdrawsByAgentId(3L).size());
+    }
+
+    @Test
+    @Order(8)
+    void simultaneousAfterSaleApplicationsReserveQuantityOnlyOnce() throws Exception {
+        DmsShopMember member = memberDao.selectByUserId(1001L);
+        ShopOrderVO order = shopService.submitOrder(orderRequest(), member);
+        shopService.markOrderPaid(order.getOrder().getId(), "BALANCE");
+        Long orderItemId = orderItemDao.selectByOrderId(order.getOrder().getId()).get(0).getId();
+
+        ShopAfterSaleItemDTO item = new ShopAfterSaleItemDTO();
+        item.setOrderItemId(orderItemId);
+        item.setQuantity(1);
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
+        apply.setOrderId(order.getOrder().getId());
+        apply.setApplyType(1);
+        apply.setReason("并发售后测试");
+        apply.setItems(List.of(item));
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            Future<Boolean> first = executor.submit(() -> tryAfterSale(member, apply, ready, start));
+            Future<Boolean> second = executor.submit(() -> tryAfterSale(member, apply, ready, start));
+            assertTrue(ready.await(5, TimeUnit.SECONDS));
+            start.countDown();
+            int successes = (first.get(10, TimeUnit.SECONDS) ? 1 : 0)
+                    + (second.get(10, TimeUnit.SECONDS) ? 1 : 0);
+            assertEquals(1, successes);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    @Order(9)
+    void paymentPasswordLocksAfterFiveFailures() {
+        DmsShopMember payer = memberDao.selectByUserId(1001L);
+        DmsShopMember recipient = memberDao.selectByUserId(1002L);
+        BalanceTransferDTO transfer = new BalanceTransferDTO();
+        transfer.setRecipientPhone(recipient.getPhone());
+        transfer.setAmount(BigDecimal.ONE);
+        transfer.setPaymentPassword("000000");
+        for (int i = 0; i < 5; i++) {
+            assertThrows(ApiException.class, () -> walletService.transfer(payer, transfer));
+        }
+        assertTrue(walletService.getSummary(payer).getPaymentPasswordLocked());
+
+        transfer.setPaymentPassword("246810");
+        assertThrows(ApiException.class, () -> walletService.transfer(payer, transfer));
+    }
+
+    @Test
+    @Order(10)
+    void successfulPasswordCheckCannotClearANewerConcurrentFailure() {
+        DmsShopMember member = createMember(1006L, "13988220006", "支付并发会员");
+        memberDao.increaseFailedPayPassword(member.getId(), 5);
+        int observedFailedCount = memberDao.selectById(member.getId()).getPayPasswordFailedCount();
+
+        // 模拟正确密码线程校验完成后，另一个线程刚写入一次失败。
+        memberDao.increaseFailedPayPassword(member.getId(), 5);
+        assertFalse(paymentPasswordAttemptService.clearIfUnchanged(member.getId(), observedFailedCount));
+        assertEquals(2, memberDao.selectById(member.getId()).getPayPasswordFailedCount());
+    }
+
+    private ShopWithdrawalApplyDTO withdrawal(String paymentPassword, String amount) {
+        ShopWithdrawalApplyDTO apply = new ShopWithdrawalApplyDTO();
+        apply.setWithdrawAmount(new BigDecimal(amount));
+        apply.setWithdrawType(3);
+        apply.setBankAccount("alipay@example.com");
+        apply.setAccountName("提现会员");
+        apply.setPaymentPassword(paymentPassword);
+        apply.setSmsCode("123456");
+        return apply;
+    }
+
+    private boolean tryWithdraw(DmsShopMember member, CountDownLatch ready, CountDownLatch start) throws Exception {
+        ready.countDown();
+        start.await();
+        try {
+            walletService.applyWithdrawal(member, withdrawal("975310", "100.00"));
+            return true;
+        } catch (RuntimeException expected) {
+            return false;
+        }
+    }
+
+    private boolean tryAfterSale(DmsShopMember member, ShopAfterSaleApplyDTO apply,
+                                 CountDownLatch ready, CountDownLatch start) throws Exception {
+        ready.countDown();
+        start.await();
+        try {
+            afterSaleService.apply(member, apply);
+            return true;
+        } catch (RuntimeException expected) {
+            return false;
+        }
     }
 
     private DmsShopMember createMember(Long userId, String phone, String nickname) {

@@ -21,7 +21,7 @@ public class PaymentPasswordAttemptServiceImpl implements PaymentPasswordAttempt
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void clear(Long memberId) {
-        memberDao.clearPayPasswordLock(memberId);
+    public boolean clearIfUnchanged(Long memberId, int expectedFailedCount) {
+        return memberDao.clearPayPasswordLockIfCount(memberId, expectedFailedCount) > 0;
     }
 }

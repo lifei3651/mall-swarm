@@ -85,6 +85,13 @@ class ShopOrderStateFilterTest {
         assertEquals(2L, summary.getAfterSale());
     }
 
+    @Test
+    void keywordSearchTreatsSqlMetacharactersAsData() {
+        List<DmsShopOrder> orders = orderDao.selectList("' OR 1=1 --", null, null);
+
+        assertEquals(List.of(), orders);
+    }
+
     private void insertOrder(long id, String orderNo, int status) {
         insertOrder(id, orderNo, status, 1L);
     }

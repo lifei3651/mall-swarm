@@ -26,6 +26,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.startsWith;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class SmsControllerTest {
 
@@ -113,6 +114,21 @@ class SmsControllerTest {
 
         assertNotEquals(200, result.getCode());
         verify(aliyunSmsSender, never()).sendVerificationCode(anyString(), anyInt(), anyString());
+    }
+
+    @Test
+    void providerFailureDoesNotPersistVerificationCodeOrRateLimit() {
+        ReflectionTestUtils.setField(controller, "providerEnabled", true);
+        when(valueOperations.increment(startsWith("sms:daily:"))).thenReturn(1L);
+        org.mockito.Mockito.doThrow(new IllegalStateException("provider unavailable"))
+                .when(aliyunSmsSender).sendVerificationCode(anyString(), anyInt(), anyString());
+
+        assertThrows(IllegalStateException.class,
+                () -> controller.sendCode(request("13888888888", null, 1), null));
+
+        verify(valueOperations, never()).set(eq("sms:1:13888888888"), anyString(), anyLong(), eq(TimeUnit.MINUTES));
+        verify(valueOperations, never()).set(eq("sms:rate:13888888888"), anyString(), anyLong(), eq(TimeUnit.SECONDS));
+        verify(verificationService, never()).resetAttempts(anyString(), anyInt());
     }
 
     private SmsCodeRequestDTO request(String phone, String code, int bizType) {
