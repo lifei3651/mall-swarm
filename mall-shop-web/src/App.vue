@@ -89,6 +89,7 @@ import { applyBrandConfig, currentBrandName, updatePageTitle } from '@/utils/bra
 import { currentAndroidVersionCode, currentAndroidVersionName, fetchAndroidRelease, hasAndroidUpdate, openAndroidDownload } from '@/utils/appRelease'
 import { isNativeApp } from '@/utils/appEnvironment'
 import { AUTH_REQUIRED_EVENT } from '@/utils/authNavigation'
+import { applyShopSession, hasShopSession } from '@/utils/shopSession'
 
 const route = useRoute()
 const router = useRouter()
@@ -162,7 +163,7 @@ const readCachedMember = () => {
 }
 
 const syncAuthState = () => {
-  isLoggedIn.value = Boolean(localStorage.getItem('shop_token'))
+  isLoggedIn.value = hasShopSession()
   authMember.value = isLoggedIn.value ? readCachedMember() : {}
 }
 
@@ -196,7 +197,7 @@ const validateExistingSession = async () => {
   try {
     const res = await getMe()
     authMember.value = { ...authMember.value, ...(res.data || {}) }
-    localStorage.setItem('shop_member', JSON.stringify(authMember.value))
+    applyShopSession(authMember.value)
   } catch (_) {
     // 401 由请求拦截器统一清理凭证并跳转登录；网络错误不阻塞商城启动。
   } finally {

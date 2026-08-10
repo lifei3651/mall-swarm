@@ -13,7 +13,6 @@ const memberStorageKey = (member) => {
 }
 
 const storedMember = () => {
-  if (!localStorage.getItem('shop_token')) return null
   try {
     return JSON.parse(localStorage.getItem('shop_member') || 'null')
   } catch {

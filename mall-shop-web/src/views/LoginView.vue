@@ -624,7 +624,7 @@ const submit = async () => {
         inviteCode: normalizeInviteCode(registerForm.value.inviteCode)
       })
     }
-    applyShopSession(res.data.token, res.data.member)
+    applyShopSession(res.data.member)
     if (registering) {
       clearRegisterDraft()
       showRegisterPopup('账号注册成功', 'success', 1200)

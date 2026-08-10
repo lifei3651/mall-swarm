@@ -286,6 +286,7 @@ import { parseChineseAddress } from '@/utils/addressParser'
 import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
 import { createIdempotencyKey } from '@/utils/idempotency'
 import ChinaRegionSelect from '@/components/ChinaRegionSelect.vue'
+import { hasShopSession } from '@/utils/shopSession'
 
 const route = useRoute()
 const router = useRouter()
@@ -313,7 +314,7 @@ const addressPickerVisible = ref(false)
 const defaultAddress = computed(() => addresses.value.find((item) => Number(item.isDefault) === 1) || addresses.value[0])
 const selectedAddress = computed(() => addresses.value.find((item) => String(item.id) === String(form.value.addressId)) || defaultAddress.value)
 const displayConfig = ref({})
-const hasToken = ref(Boolean(localStorage.getItem('shop_token')))
+const hasToken = ref(hasShopSession())
 const receiverRegion = ref([])
 const freightAmount = ref(0)
 const freightLoading = ref(false)

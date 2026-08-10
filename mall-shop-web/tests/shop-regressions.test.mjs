@@ -73,7 +73,7 @@ test('purchase limits are checked before add-to-cart and still kept as a server-
   assert.match(helper, /existingCartQuantity/)
   assert.match(helper, /localPurchaseLimitViolation/)
   assert.ok(
-    helper.indexOf('const localViolation = localPurchaseLimitViolation') < helper.indexOf("localStorage.getItem('shop_token')"),
+    helper.indexOf('const localViolation = localPurchaseLimitViolation') < helper.indexOf('hasShopSession()'),
     '游客也应先按购物车数量执行本地限购拦截',
   )
   assert.match(home, /await checkCartPurchaseLimit\(cartItem, 1, getProductQuantity\(cartItem\.id\)\)/)
@@ -643,4 +643,15 @@ test('order queries retry one transient mobile network failure', async () => {
   assert.match(request, /retryCount < 1 && isTransientTransportError\(error\)/)
   assert.match(request, /return service\.request\(config\)/)
   assert.match(request, /网络暂时不可用，请检查网络后重试/)
+})
+
+test('storefront session uses an HttpOnly cookie instead of persisting a new bearer token', async () => {
+  const request = await readFile(new URL('../src/api/request.js', import.meta.url), 'utf8')
+  const session = await readFile(new URL('../src/utils/shopSession.js', import.meta.url), 'utf8')
+
+  assert.match(request, /withCredentials: true/)
+  assert.match(request, /X-Shop-Client.*storefront/)
+  assert.match(request, /authPath === '\/shop\/auth\/me'/)
+  assert.doesNotMatch(session, /localStorage\.setItem\(LEGACY_TOKEN_KEY/)
+  assert.match(session, /localStorage\.removeItem\(LEGACY_TOKEN_KEY\)/)
 })

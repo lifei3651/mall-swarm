@@ -1,5 +1,6 @@
 import { checkPurchaseLimit } from '@/api/shop'
 import { localPurchaseLimitViolation, purchaseLimitMessage } from '@/utils/purchaseLimitRules'
+import { hasShopSession } from '@/utils/shopSession'
 
 /**
  * 在加入购物车前检查当前会员的累计限购额度。
@@ -9,7 +10,7 @@ export const checkCartPurchaseLimit = async (product, addedQuantity = 1, existin
   const limit = Number(product?.purchaseLimit || 0)
   const localViolation = localPurchaseLimitViolation(product, addedQuantity, existingCartQuantity)
   if (localViolation) throw new Error(localViolation)
-  if (!localStorage.getItem('shop_token') || !product?.id) return { allowed: true }
+  if (!hasShopSession() || !product?.id) return { allowed: true }
 
   const quantity = Math.max(1, Number(existingCartQuantity || 0) + Number(addedQuantity || 0))
   const response = await checkPurchaseLimit(product.id, quantity)

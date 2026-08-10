@@ -3,11 +3,12 @@ import router from '@/router'
 import { apiBaseUrl, resolvePublicMediaUrls } from '@/utils/appEnvironment'
 import { encryptSensitiveRequest } from '@/utils/payloadEncryption'
 import { loginRedirectLocation, notifyAuthRequired } from '@/utils/authNavigation'
-import { clearShopSession } from '@/utils/shopSession'
+import { clearShopSession, finishLegacyTokenMigration, getLegacyShopToken } from '@/utils/shopSession'
 
 const service = axios.create({
   baseURL: apiBaseUrl,
   timeout: 30000,
+  withCredentials: true,
 })
 
 // 移动网络在页面切换、从支付宝/微信返回时，偶尔会把一次幂等的查询请求
@@ -22,9 +23,15 @@ const isTransientTransportError = (error) => {
 const waitBeforeRetry = (delay = 250) => new Promise((resolve) => setTimeout(resolve, delay))
 
 service.interceptors.request.use(async (config) => {
-  const token = localStorage.getItem('shop_token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+  config.headers['X-Shop-Client'] = 'storefront'
+  const legacyToken = getLegacyShopToken()
+  const authPath = String(config.url || '')
+  const createsSession = ['/shop/auth/login', '/shop/auth/register', '/shop/auth/resetPassword'].includes(authPath)
+  if (legacyToken && !createsSession) {
+    config.headers.Authorization = `Bearer ${legacyToken}`
+    // 只有 /auth/me 会在服务端校验旧 Token 并换发 HttpOnly Cookie。
+    // 其他并发请求成功时不能提前删除旧 Token，否则页面初始化可能把用户误退出。
+    config.__legacyShopTokenMigration = authPath === '/shop/auth/me'
   }
   return encryptSensitiveRequest(config)
 })
@@ -35,6 +42,7 @@ service.interceptors.response.use(
     if (res && res.code !== 200) {
       return Promise.reject(new Error(res.message || '请求失败'))
     }
+    if (response.config?.__legacyShopTokenMigration) finishLegacyTokenMigration()
     return resolvePublicMediaUrls(res)
   },
   async (error) => {

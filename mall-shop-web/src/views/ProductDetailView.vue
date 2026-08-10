@@ -208,6 +208,7 @@ import {
 import { getProduct, getProductReviews, submitProductReview } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
+import { hasShopSession } from '@/utils/shopSession'
 import { cartItemKey, resolveCurrentStock, stockAdditionViolation, stockQuantityViolation } from '@/utils/stockRules'
 import { money } from '@/utils/format'
 import { toPublicWebUrl } from '@/utils/appEnvironment'
@@ -404,7 +405,7 @@ const buyNow = async () => {
 }
 
 const openReviewForm = () => {
-  if (!localStorage.getItem('shop_token')) {
+  if (!hasShopSession()) {
     router.push({ name: 'Login', query: { redirect: route.fullPath } })
     return
   }

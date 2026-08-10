@@ -37,6 +37,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { fetchAndroidRelease, openAndroidDownload } from '@/utils/appRelease'
+import { hasShopSession } from '@/utils/shopSession'
 
 const route = useRoute()
 const registered = computed(() => route.query.registered === '1')
@@ -44,7 +45,7 @@ const isAndroidDevice = /Android/i.test(navigator.userAgent)
 const loading = ref(true)
 const error = ref('')
 const release = ref({ versionCode: 0, versionName: '', downloadUrl: '', sha256: '' })
-const continuePath = computed(() => localStorage.getItem('shop_token') ? '/profile' : '/')
+const continuePath = computed(() => hasShopSession() ? '/profile' : '/')
 const shortHash = computed(() => release.value.sha256
   ? `${release.value.sha256.slice(0, 12)}…${release.value.sha256.slice(-12)}`
   : '')

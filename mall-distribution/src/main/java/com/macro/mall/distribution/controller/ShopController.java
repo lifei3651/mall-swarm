@@ -28,6 +28,7 @@ import com.macro.mall.distribution.service.AdminMemberSecurityService;
 import com.macro.mall.distribution.service.OrderShipmentService;
 import com.macro.mall.distribution.service.OrderSpreadsheetService;
 import com.macro.mall.distribution.security.AdminContext;
+import com.macro.mall.distribution.security.ShopSessionCookieService;
 import com.macro.mall.distribution.vo.ShopAuthVO;
 import com.macro.mall.distribution.vo.ShopHomeVO;
 import com.macro.mall.distribution.vo.ShopOrderVO;
@@ -48,6 +49,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -74,17 +76,26 @@ public class ShopController {
     private final AdminMemberSecurityService adminMemberSecurityService;
     private final OrderShipmentService orderShipmentService;
     private final OrderSpreadsheetService orderSpreadsheetService;
+    private final ShopSessionCookieService shopSessionCookieService;
 
     @Operation(summary = "商城账号注册（首笔有效支付后成为会员）")
     @PostMapping("/auth/register")
-    public CommonResult<ShopAuthVO> register(@RequestBody ShopRegisterDTO dto) {
-        return CommonResult.success(authService.register(dto));
+    public CommonResult<ShopAuthVO> register(@RequestBody ShopRegisterDTO dto,
+                                              HttpServletRequest request,
+                                              HttpServletResponse response) {
+        ShopAuthVO auth = authService.register(dto);
+        shopSessionCookieService.write(request, response, auth.getToken(), auth.getExpireTime());
+        return CommonResult.success(auth);
     }
 
     @Operation(summary = "会员登录")
     @PostMapping("/auth/login")
-    public CommonResult<ShopAuthVO> login(@RequestBody ShopLoginDTO dto) {
-        return CommonResult.success(authService.login(dto));
+    public CommonResult<ShopAuthVO> login(@RequestBody ShopLoginDTO dto,
+                                           HttpServletRequest request,
+                                           HttpServletResponse response) {
+        ShopAuthVO auth = authService.login(dto);
+        shopSessionCookieService.write(request, response, auth.getToken(), auth.getExpireTime());
+        return CommonResult.success(auth);
     }
 
     @Operation(summary = "当前会员")
@@ -95,8 +106,12 @@ public class ShopController {
 
     @Operation(summary = "退出登录")
     @PostMapping("/auth/logout")
-    public CommonResult<Boolean> logout(@RequestHeader(value = "Authorization", required = false) String authorization) {
-        return CommonResult.success(authService.logout(authorization));
+    public CommonResult<Boolean> logout(@RequestHeader(value = "Authorization", required = false) String authorization,
+                                        HttpServletRequest request,
+                                        HttpServletResponse response) {
+        boolean loggedOut = authService.logout(authorization);
+        shopSessionCookieService.clear(request, response);
+        return CommonResult.success(loggedOut);
     }
 
     @Operation(summary = "会员自行设置登录账号和密码")

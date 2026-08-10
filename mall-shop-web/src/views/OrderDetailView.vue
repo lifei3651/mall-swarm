@@ -256,6 +256,7 @@ import { applyAfterSale, cancelAfterSale as cancelAfterSaleRequest, cancelOrder,
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { dateTime, money, statusName } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
+import { hasShopSession } from '@/utils/shopSession'
 
 const route = useRoute()
 const detail = ref({})
@@ -275,7 +276,7 @@ const reasonSection = ref(null)
 const afterSaleErrors = ref({ items: '', reason: '', server: '' })
 const afterSaleReasons = ['不想要了', '与商品描述不符', '质量问题', '收到商品少件 / 漏发', '商品破损或污渍', '商家发错货', '其他原因']
 const error = ref('')
-const hasToken = ref(Boolean(localStorage.getItem('shop_token')))
+const hasToken = ref(hasShopSession())
 const paymentPassword = ref('')
 const applyingAfterSale = ref(route.query.applyAfterSale === '1')
 const confirmationBusy = computed(() => acting.value || Boolean(cancellingAfterSaleId.value))
