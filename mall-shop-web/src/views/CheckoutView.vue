@@ -106,6 +106,9 @@
           <p v-if="form.payType === 'BALANCE'" class="line-sub balance-hint">
             当前余额 ¥{{ money(walletSummary.balance) }}；支付时需要输入独立支付密码。
           </p>
+          <p v-if="form.payType === 'BALANCE' && paymentPasswordLocked" class="payment-lock-warning" role="alert" aria-live="polite">
+            {{ paymentPasswordLockHint }}
+          </p>
         </div>
       </section>
 
@@ -148,8 +151,8 @@
           </div>
         </div>
 
-        <button class="btn primary submit-order-btn" :disabled="submitting" @click="submit">
-          {{ submitting ? '提交中...' : `提交订单 ¥${money(payAmount)}` }}
+        <button class="btn primary submit-order-btn" :disabled="submitting || (form.payType === 'BALANCE' && paymentPasswordLocked)" @click="submit">
+          {{ submitting ? '提交中...' : (form.payType === 'BALANCE' && paymentPasswordLocked ? '支付密码已锁定' : `提交订单 ¥${money(payAmount)}`) }}
         </button>
         <div v-if="error" class="checkout-toast" role="alert" aria-live="assertive">{{ error }}</div>
       </aside>
@@ -322,7 +325,22 @@ const showAddressPaste = ref(false)
 const addressPasteText = ref('')
 const addressParseHint = ref('')
 const payAmount = computed(() => Number(total.value || 0) + Number(freightAmount.value || 0))
-const walletSummary = ref({ balance: 0, hasPaymentPassword: false })
+const walletSummary = ref({
+  balance: 0,
+  hasPaymentPassword: false,
+  paymentPasswordLocked: false,
+  paymentPasswordLockRemainingSeconds: 0,
+})
+const paymentLockRemainingSeconds = ref(0)
+let paymentLockTimer
+const paymentPasswordLocked = computed(() => Boolean(walletSummary.value.paymentPasswordLocked) && paymentLockRemainingSeconds.value > 0)
+const paymentPasswordLockHint = computed(() => {
+  const seconds = Math.max(0, paymentLockRemainingSeconds.value)
+  const minutes = Math.floor(seconds / 60)
+  const restSeconds = seconds % 60
+  const remaining = minutes > 0 ? `${minutes}分${String(restSeconds).padStart(2, '0')}秒` : `${restSeconds}秒`
+  return `支付密码已锁定，请${remaining}后再试；如需立即处理，请联系客服。`
+})
 // 正式微信/支付宝通道尚未配置商户参数时不能让客户选择，避免生成无法完成支付的订单。
 // 接入真实支付回调后，再根据后台支付配置动态追加对应选项。
 const payConfig = ref({ alipayEnabled: false })
@@ -489,10 +507,41 @@ const fetchWallet = async () => {
   if (!hasToken.value) return
   try {
     const res = await getWalletSummary()
-    walletSummary.value = res.data || { balance: 0, hasPaymentPassword: false }
+    walletSummary.value = {
+      balance: 0,
+      hasPaymentPassword: false,
+      paymentPasswordLocked: false,
+      paymentPasswordLockRemainingSeconds: 0,
+      ...(res.data || {}),
+    }
+    syncPaymentLockCountdown()
   } catch (e) {
-    walletSummary.value = { balance: 0, hasPaymentPassword: false }
+    walletSummary.value = {
+      balance: 0,
+      hasPaymentPassword: false,
+      paymentPasswordLocked: false,
+      paymentPasswordLockRemainingSeconds: 0,
+    }
+    syncPaymentLockCountdown()
   }
+}
+
+const syncPaymentLockCountdown = () => {
+  window.clearInterval(paymentLockTimer)
+  paymentLockRemainingSeconds.value = walletSummary.value.paymentPasswordLocked
+    ? Math.max(0, Number(walletSummary.value.paymentPasswordLockRemainingSeconds || 0))
+    : 0
+  if (paymentLockRemainingSeconds.value <= 0) {
+    walletSummary.value = { ...walletSummary.value, paymentPasswordLocked: false, paymentPasswordLockRemainingSeconds: 0 }
+    return
+  }
+  paymentLockTimer = window.setInterval(() => {
+    paymentLockRemainingSeconds.value = Math.max(0, paymentLockRemainingSeconds.value - 1)
+    if (paymentLockRemainingSeconds.value === 0) {
+      window.clearInterval(paymentLockTimer)
+      walletSummary.value = { ...walletSummary.value, paymentPasswordLocked: false, paymentPasswordLockRemainingSeconds: 0 }
+    }
+  }, 1000)
 }
 
 const fetchMemberPhone = async () => {
@@ -670,6 +719,10 @@ const continueAfterPasswordSaved = async () => {
 const submit = async () => {
   if (submitting.value || payPasswordSubmitting.value) return
   clearCheckoutError()
+  if (form.value.payType === 'BALANCE' && paymentPasswordLocked.value) {
+    showCheckoutError(paymentPasswordLockHint.value)
+    return
+  }
   const validationError = validate()
   if (validationError) {
     showCheckoutError(validationError)
@@ -720,6 +773,7 @@ const confirmPayWithPassword = async () => {
   } catch (e) {
     payPasswordError.value = e.message || '支付失败'
     payPasswordInput.value = ''
+    if (String(e.message || '').includes('锁定30分钟')) await fetchWallet()
   } finally {
     payPasswordSubmitting.value = false
   }
@@ -805,6 +859,7 @@ const fetchPayConfig = async () => {
 onBeforeUnmount(() => {
   window.clearInterval(setupSmsTimer)
   window.clearInterval(paymentSmsTimer)
+  window.clearInterval(paymentLockTimer)
   window.clearTimeout(errorTimer)
 })
 </script>
@@ -951,6 +1006,16 @@ onBeforeUnmount(() => {
 .payment-check { position: absolute; right: 8px; top: 8px; display: none; width: 17px; height: 17px; place-items: center; color: #fff; background: var(--accent, #e7193f); border-radius: 50%; font-size: 11px; font-weight: 900; }
 .payment-option.active .payment-check { display: grid; }
 .balance-hint { margin: 8px 0 0; }
+.payment-lock-warning {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  color: #b42318;
+  background: #fff4f2;
+  border: 1px solid #fecdca;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.55;
+}
 
 .default-address-card { padding: 12px 14px; background: #f8faf9; border: 1.5px solid #d4dcd8; border-radius: 12px; cursor: pointer; transition: border-color .15s; }
 .default-address-card.selected { border-color: var(--accent, #e7193f); background: color-mix(in srgb, var(--accent, #e7193f) 4%, white); }

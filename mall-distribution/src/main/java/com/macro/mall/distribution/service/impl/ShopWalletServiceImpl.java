@@ -40,6 +40,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -76,7 +77,10 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         ShopWalletSummaryVO summary = new ShopWalletSummaryVO();
         summary.setBalance(account == null || account.getBalance() == null ? BigDecimal.ZERO : account.getBalance());
         summary.setHasPaymentPassword(hasText(current.getPayPasswordHash()));
-        summary.setPaymentPasswordLocked(isPaymentPasswordLocked(current));
+        boolean paymentPasswordLocked = isPaymentPasswordLocked(current);
+        summary.setPaymentPasswordLocked(paymentPasswordLocked);
+        summary.setPaymentPasswordLockRemainingSeconds(paymentPasswordLocked
+                ? remainingLockSeconds(current.getPayPasswordLockTime()) : 0);
         summary.setDistributionActivated(agent != null && Integer.valueOf(1).equals(agent.getStatus()));
         return summary;
     }
@@ -288,6 +292,12 @@ public class ShopWalletServiceImpl implements ShopWalletService {
     private boolean isPaymentPasswordLocked(DmsShopMember member) {
         return member != null && member.getPayPasswordLockTime() != null
                 && member.getPayPasswordLockTime().plusMinutes(PAY_PASSWORD_LOCK_MINUTES).isAfter(LocalDateTime.now());
+    }
+
+    private int remainingLockSeconds(LocalDateTime lockTime) {
+        if (lockTime == null) return 0;
+        long millis = Duration.between(LocalDateTime.now(), lockTime.plusMinutes(PAY_PASSWORD_LOCK_MINUTES)).toMillis();
+        return millis <= 0 ? 0 : (int) Math.max(1L, Math.min(Integer.MAX_VALUE, (millis + 999L) / 1000L));
     }
 
     private boolean hasText(String value) {

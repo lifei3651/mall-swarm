@@ -16,5 +16,8 @@ public class ShopWalletSummaryVO implements Serializable {
 
     private Boolean paymentPasswordLocked;
 
+    /** 支付密码锁定剩余秒数；未锁定时为 0。 */
+    private Integer paymentPasswordLockRemainingSeconds;
+
     private Boolean distributionActivated;
 }

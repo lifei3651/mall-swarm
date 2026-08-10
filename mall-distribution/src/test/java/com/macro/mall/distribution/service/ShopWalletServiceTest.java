@@ -361,6 +361,8 @@ class ShopWalletServiceTest {
             assertThrows(ApiException.class, () -> walletService.transfer(payer, transfer));
         }
         assertTrue(walletService.getSummary(payer).getPaymentPasswordLocked());
+        assertTrue(walletService.getSummary(payer).getPaymentPasswordLockRemainingSeconds() > 0);
+        assertTrue(walletService.getSummary(payer).getPaymentPasswordLockRemainingSeconds() <= 30 * 60);
 
         transfer.setPaymentPassword("246810");
         assertThrows(ApiException.class, () -> walletService.transfer(payer, transfer));

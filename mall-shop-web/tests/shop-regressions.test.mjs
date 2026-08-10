@@ -248,6 +248,16 @@ test('registration submit uses accurate popup feedback instead of a red bottom l
   assert.match(login, /showRegisterPopup\('账号注册成功', 'success'/)
 })
 
+test('checkout shows payment-password lock state before opening the balance payment sheet', async () => {
+  const checkout = await readView('CheckoutView.vue')
+
+  assert.match(checkout, /paymentPasswordLockRemainingSeconds/)
+  assert.match(checkout, /支付密码已锁定，请\$\{remaining\}后再试；如需立即处理，请联系客服/)
+  assert.match(checkout, /form\.payType === 'BALANCE' && paymentPasswordLocked/)
+  assert.match(checkout, /:disabled="submitting \|\| \(form\.payType === 'BALANCE' && paymentPasswordLocked\)"/)
+  assert.match(checkout, /if \(String\(e\.message \|\| ''\)\.includes\('锁定30分钟'\)\) await fetchWallet\(\)/)
+})
+
 test('nickname is edited in account settings with the same front and back compatible rules', async () => {
   const profile = await readView('ProfileView.vue')
   const settings = await readView('ProfileSettingsView.vue')
