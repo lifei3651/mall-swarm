@@ -151,6 +151,12 @@ mall
 - Windows环境搭建请参考：[mall-swarm项目后端开发环境搭建](https://cloud.macrozheng.com/start/mall_swarm_deploy_windows.html);
 - `mall-admin-web`项目的安装及部署请参考：[mall-swarm前端开发环境搭建](https://cloud.macrozheng.com/start/mall_swarm_deploy_windows_web.html);
 
+### 灵启商城运维与接口文档
+
+- [服务健康检查与告警说明](./document/operations/HEALTH_CHECK.md)
+- [接口限流配置与调整说明](./document/operations/RATE_LIMITING.md)
+- [灵启商城 API 接入与维护说明](./document/api/API_GUIDE.md)
+
 ## 运行效果展示
 
 - 查看注册中心注册服务信息，访问地址：http://192.168.3.101:8848/nacos/
