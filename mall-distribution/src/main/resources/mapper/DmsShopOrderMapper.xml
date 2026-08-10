@@ -181,6 +181,22 @@
         ORDER BY create_time DESC
     </select>
 
+    <select id="selectPaidProfileOrdersByUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_order profile_order
+        WHERE profile_order.user_id = #{userId}
+          AND profile_order.pay_time IS NOT NULL
+          AND (
+              profile_order.status IN (1, 2, 3)
+              OR EXISTS (
+                  SELECT 1
+                  FROM dms_shop_after_sale profile_sale
+                  WHERE profile_sale.order_id = profile_order.id
+              )
+          )
+        ORDER BY profile_order.create_time DESC
+    </select>
+
     <select id="selectList" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_order

@@ -14,4 +14,12 @@ describe('会员全景直属邀请人信息', () => {
     expect(source).not.toContain('label="邀请人登录账号"')
     expect(source).not.toContain('账号：${account}')
   })
+
+  it('订单区只表达有效订单并准确区分已售后与已关闭', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('<template #header>有效订单</template>')
+    expect(source).toContain("hasAfterSale(row) ? '已售后' : '已关闭'")
+    expect(source).not.toContain("4: '售后关闭'")
+  })
 })

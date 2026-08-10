@@ -1144,7 +1144,18 @@ public class ShopServiceImpl implements ShopService {
         vo.setMember(member);
         vo.setAgent(agent);
         vo.setAddresses(addressDao.selectByMemberId(member.getId()));
-        vo.setOrders(listOrders(member.getUserId(), null));
+        vo.setOrders(orderDao.selectPaidProfileOrdersByUserId(member.getUserId()).stream().map(order -> {
+            ShopOrderVO orderVO = new ShopOrderVO();
+            orderVO.setOrder(order);
+            fillMemberAccount(orderVO, order);
+            orderVO.setItems(orderItemDao.selectByOrderId(order.getId()));
+            fillShipments(orderVO, order);
+            orderVO.setFinance(auditService.getOrderFinanceDetail(order.getId()).getFinance());
+            orderVO.setAfterSales(hydrateAfterSales(afterSaleDao.selectByOrderId(order.getId())));
+            orderVO.setPendingReviewCount(pendingReviewCount(order));
+            orderVO.setDisplayConfig(getDisplayConfig(order.getTenantId()));
+            return orderVO;
+        }).toList());
         vo.setDisplayConfig(getDisplayConfig(resolveTenantId(null)));
         if (agent == null) {
             vo.setCanViewTeamPerformance(false);

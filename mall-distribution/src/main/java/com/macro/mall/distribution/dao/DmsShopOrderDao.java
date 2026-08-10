@@ -32,6 +32,9 @@ public interface DmsShopOrderDao {
 
     List<DmsShopOrder> selectByMemberUserId(@Param("userId") Long userId);
 
+    /** 会员全景仅展示已支付且仍属于有效交易或已进入售后的订单。 */
+    List<DmsShopOrder> selectPaidProfileOrdersByUserId(@Param("userId") Long userId);
+
     List<DmsShopOrder> selectList(@Param("keyword") String keyword,
                                   @Param("status") Integer status,
                                   @Param("orderState") String orderState);

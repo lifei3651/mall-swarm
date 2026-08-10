@@ -192,11 +192,11 @@
             </el-card>
 
             <el-card class="block" shadow="never">
-              <template #header>订单</template>
-              <el-table :data="profile.orders || []" size="small" style="width: 100%" empty-text="该会员暂无订单">
+              <template #header>有效订单</template>
+              <el-table :data="profile.orders || []" size="small" style="width: 100%" empty-text="该会员暂无已支付或售后订单">
                 <el-table-column label="订单编号" min-width="180"><template #default="{ row }">{{ row.order?.orderNo || '—' }}</template></el-table-column>
                 <el-table-column label="订单实付金额" width="125"><template #default="{ row }">¥{{ money(row.order?.payAmount) }}</template></el-table-column>
-                <el-table-column label="订单状态" width="100"><template #default="{ row }"><el-tag :type="orderTag(row.order?.status)">{{ orderStatus(row.order?.status) }}</el-tag></template></el-table-column>
+                <el-table-column label="订单状态" width="100"><template #default="{ row }"><el-tag :type="orderTag(row)">{{ orderStatus(row) }}</el-tag></template></el-table-column>
                 <el-table-column label="商品明细" min-width="220"><template #default="{ row }">{{ (row.items || []).map((item) => `${item.productName} x${item.quantity}`).join('，') || '—' }}</template></el-table-column>
                 <el-table-column label="售后申请数" width="110"><template #default="{ row }">{{ row.afterSales?.length || 0 }}</template></el-table-column>
               </el-table>
@@ -509,8 +509,17 @@ const balanceOf = (accounts = []) => (accounts || []).find((item) => item.assetC
 const levelName = (value) => levels.find((item) => item.value === Number(value))?.label || '-'
 const accountStatusName = (row) => Number(row?.status) === 0 ? '账号禁用' : (row?.loginLocked ? '登录锁定' : '账号正常')
 const accountStatusTag = (row) => Number(row?.status) === 0 ? 'info' : (row?.loginLocked ? 'danger' : 'success')
-const orderStatus = (status) => ({ 0: '已取消', 1: '待发货', 2: '已发货', 3: '已完成', 4: '售后关闭' }[status] || '处理中')
-const orderTag = (status) => ({ 0: 'info', 1: 'warning', 2: 'primary', 3: 'success', 4: 'danger' }[status] || 'info')
+const hasAfterSale = (row) => Array.isArray(row?.afterSales) && row.afterSales.length > 0
+const orderStatus = (row) => {
+  const status = Number(row?.order?.status)
+  if (status === 4) return hasAfterSale(row) ? '已售后' : '已关闭'
+  return ({ 0: '未支付', 1: '待发货', 2: '已发货', 3: '已完成' }[status] || '处理中')
+}
+const orderTag = (row) => {
+  const status = Number(row?.order?.status)
+  if (status === 4) return hasAfterSale(row) ? 'danger' : 'info'
+  return ({ 0: 'info', 1: 'warning', 2: 'primary', 3: 'success' }[status] || 'info')
+}
 const joinAddress = (address) => [address.province, address.city, address.district, address.detailAddress].filter(Boolean).join('')
 const percent = (value) => `${(Number(value || 0) * 100).toFixed(2)}%`
 const bonusTypeText = (row) => row.bonusType === 'DIRECT_REWARD'

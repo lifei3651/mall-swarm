@@ -413,6 +413,23 @@ class ShopFreightServiceTest {
     }
 
     @Test
+    void adminMemberProfileExcludesUnpaidAndUnpaidClosedOrders() {
+        DmsShopMember member = createMember("13999110110", "会员全景订单口径", null);
+        ShopOrderVO pending = shopService.submitOrder(pendingOrder(1, 1L), member);
+
+        assertTrue(shopService.getAdminProfile(member).getOrders().isEmpty());
+
+        assertTrue(shopService.cancelOrder(pending.getOrder().getId(), member));
+        assertTrue(shopService.getAdminProfile(member).getOrders().isEmpty());
+
+        ShopOrderVO paid = submitAndPay(member, 1);
+        ShopProfileVO profile = shopService.getAdminProfile(member);
+        assertEquals(1, profile.getOrders().size());
+        assertEquals(paid.getOrder().getId(), profile.getOrders().get(0).getOrder().getId());
+        assertNotNull(profile.getOrders().get(0).getOrder().getPayTime());
+    }
+
+    @Test
     void categoryCanBeCreatedAndRenameCascadesToExistingProducts() {
         DmsShopCategory category = new DmsShopCategory();
         category.setCategoryName("分类新增回归");
