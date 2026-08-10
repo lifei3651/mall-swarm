@@ -15,6 +15,9 @@ describe('发货与退货地址', () => {
 
   it('省市区选择值属于表单模型并能通过地区校验', async () => {
     const source = await readFile(sourcePath, 'utf8')
+    expect(source).toContain('label="所在地区" prop="region" required')
+    expect(source).toContain("region: [{ required: true, validator:")
+    expect(source).toContain('请选择完整省、市、区/县')
     expect(source).toContain('v-model="form.region"')
     expect(source).toContain('region: []')
     expect(source).toContain('province: form.region[0]')

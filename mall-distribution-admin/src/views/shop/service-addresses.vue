@@ -34,7 +34,7 @@
         <el-form-item label="地址用途" prop="addressType"><el-radio-group v-model="form.addressType"><el-radio :value="1">发货地址</el-radio><el-radio :value="2">退货地址</el-radio></el-radio-group></el-form-item>
         <el-form-item label="地址名称"><el-input v-model="form.addressLabel" maxlength="64" placeholder="如：长沙仓、售后专用地址" /></el-form-item>
         <el-row :gutter="16"><el-col :span="12"><el-form-item label="联系人" prop="contactName"><el-input v-model="form.contactName" maxlength="64" /></el-form-item></el-col><el-col :span="12"><el-form-item label="联系电话" prop="contactPhone"><el-input v-model="form.contactPhone" maxlength="20" inputmode="tel" placeholder="手机号或座机号码" @input="normalizePhone" /></el-form-item></el-col></el-row>
-        <el-form-item label="所在地区" prop="region"><el-cascader v-model="form.region" :options="pcaTextArr" filterable clearable style="width:100%" placeholder="请选择省 / 市 / 区县" /></el-form-item>
+        <el-form-item label="所在地区" prop="region" required><el-cascader v-model="form.region" :options="pcaTextArr" filterable clearable style="width:100%" placeholder="请选择省 / 市 / 区县" /></el-form-item>
         <el-form-item label="详细地址" prop="detailAddress"><el-input v-model="form.detailAddress" maxlength="255" placeholder="街道、小区、楼栋、门牌号" /></el-form-item>
         <el-form-item label="设为默认"><el-switch v-model="form.isDefault" :active-value="1" :inactive-value="0" active-text="是" inactive-text="否" /></el-form-item>
       </el-form>
@@ -66,7 +66,7 @@ const rules = {
     { required: true, message: '请填写联系电话', trigger: 'blur' },
     { validator: (_rule, value, callback) => isValidPhone(value) ? callback() : callback(new Error('请填写正确的手机号或座机号码')), trigger: 'blur' },
   ],
-  region: [{ validator: (_rule, value, callback) => value?.length === 3 ? callback() : callback(new Error('请选择完整省、市、区/县')), trigger: 'change' }],
+  region: [{ required: true, validator: (_rule, value, callback) => value?.length === 3 ? callback() : callback(new Error('请选择完整省、市、区/县')), trigger: 'change' }],
   detailAddress: [{ required: true, message: '请填写详细地址', trigger: 'blur' }],
 }
 function emptyForm() { return { id: null, tenantId: 1, addressType: 1, addressLabel: '', contactName: '', contactPhone: '', province: '', city: '', district: '', region: [], detailAddress: '', isDefault: 0 } }

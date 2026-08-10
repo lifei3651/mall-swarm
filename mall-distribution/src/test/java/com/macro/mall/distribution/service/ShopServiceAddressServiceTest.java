@@ -50,6 +50,24 @@ class ShopServiceAddressServiceTest {
         verify(dao).insert(address);
     }
 
+    @Test
+    void rejectsAddressWhenAnyRegionLevelIsMissing() {
+        DmsShopServiceAddressDao dao = mock(DmsShopServiceAddressDao.class);
+        ShopServiceAddressServiceImpl service = new ShopServiceAddressServiceImpl(dao);
+        DmsShopServiceAddress[] incompleteAddresses = {
+                validAddress(), validAddress(), validAddress()
+        };
+        incompleteAddresses[0].setProvince(" ");
+        incompleteAddresses[1].setCity(null);
+        incompleteAddresses[2].setDistrict("");
+
+        for (DmsShopServiceAddress address : incompleteAddresses) {
+            ApiException error = assertThrows(ApiException.class, () -> service.save(address));
+            assertEquals("请完整选择省、市、区/县", error.getMessage());
+        }
+        verifyNoInteractions(dao);
+    }
+
     private DmsShopServiceAddress validAddress() {
         DmsShopServiceAddress address = new DmsShopServiceAddress();
         address.setTenantId(1L);
