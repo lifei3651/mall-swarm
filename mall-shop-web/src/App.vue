@@ -1,5 +1,36 @@
 <template>
   <div class="app-shell" :class="[{ 'home-shell': isHome }, `layout-${layoutTemplate}`]">
+    <header v-if="showGlobalChrome" class="site-header desktop-site-header">
+      <RouterLink class="brand desktop-brand" to="/" aria-label="返回商城首页">
+        <img v-if="brand.logoUrl" class="brand-logo" :src="brand.logoUrl" :alt="`${brand.brandName} Logo`" />
+        <span v-else class="brand-mark">{{ brandShortName }}</span>
+        <span>{{ brand.brandName }}</span>
+      </RouterLink>
+
+      <nav class="top-nav desktop-main-nav" aria-label="电脑端商城导航">
+        <RouterLink
+          v-for="item in bottomNavItems"
+          :key="item.type"
+          :to="item.path"
+          :class="{ 'desktop-cart-link': item.type === 'cart' }"
+        >
+          <span>{{ item.label }}</span>
+          <span v-if="item.type === 'cart' && count" class="desktop-cart-badge">{{ count > 99 ? '99+' : count }}</span>
+        </RouterLink>
+      </nav>
+
+      <div class="desktop-auth-actions">
+        <RouterLink v-if="isLoggedIn" class="desktop-account-link" to="/profile">
+          <UserRound :size="17" />
+          <span>{{ desktopAccountLabel }}</span>
+        </RouterLink>
+        <template v-else>
+          <RouterLink class="desktop-login-link" :to="loginLocation">登录</RouterLink>
+          <RouterLink class="desktop-register-link" to="/register">注册</RouterLink>
+        </template>
+      </div>
+    </header>
+
     <main :class="{ 'home-main': isHome }">
       <RouterView />
     </main>
@@ -71,6 +102,8 @@ const displayConfig = ref({})
 const availableRelease = ref(null)
 const updateError = ref('')
 const authPrompt = ref('')
+const isLoggedIn = ref(false)
+const authMember = ref({})
 let authPromptTimer
 const isHome = computed(() => route.name === 'Home')
 const isProductDetail = computed(() => route.name === 'ProductDetail')
@@ -103,12 +136,34 @@ const bottomNavItems = computed(() => {
   return items.filter((item) => item.enabled !== false)
 })
 const bottomNavColumns = computed(() => Math.max(bottomNavItems.value.length, 1))
+const brandShortName = computed(() => String(brand.value.brandName || '商城').slice(0, 2))
+const desktopAccountLabel = computed(() => authMember.value.nickname
+  || authMember.value.username
+  || authMember.value.phone
+  || '我的账号')
+const loginLocation = computed(() => ({
+  name: 'Login',
+  query: route.fullPath && route.fullPath !== '/login' ? { redirect: route.fullPath } : {},
+}))
 const layoutTemplate = computed(() => ['standard', 'product-focus', 'category-focus'].includes(displayConfig.value.layoutTemplate)
   ? displayConfig.value.layoutTemplate
   : 'standard')
 const safePoliceUrl = computed(() => /^https?:\/\//i.test(legal.value.policeRecordUrl || '') ? legal.value.policeRecordUrl : '')
 const navigateTo = (path) => {
   if (route.path !== path) router.push(path)
+}
+
+const readCachedMember = () => {
+  try {
+    return JSON.parse(localStorage.getItem('shop_member') || '{}') || {}
+  } catch (_) {
+    return {}
+  }
+}
+
+const syncAuthState = () => {
+  isLoggedIn.value = Boolean(localStorage.getItem('shop_token'))
+  authMember.value = isLoggedIn.value ? readCachedMember() : {}
 }
 
 const showAuthPrompt = (event) => {
@@ -136,11 +191,16 @@ const loadBrand = async () => {
 // 首页是公开页面，不能只依赖受保护页面的接口来发现旧会话失效。
 // 每次商城启动且本地仍有登录凭证时主动校验一次，保证新设备登录后旧设备刷新立即退出。
 const validateExistingSession = async () => {
-  if (!localStorage.getItem('shop_token')) return
+  syncAuthState()
+  if (!isLoggedIn.value) return
   try {
-    await getMe()
+    const res = await getMe()
+    authMember.value = { ...authMember.value, ...(res.data || {}) }
+    localStorage.setItem('shop_member', JSON.stringify(authMember.value))
   } catch (_) {
     // 401 由请求拦截器统一清理凭证并跳转登录；网络错误不阻塞商城启动。
+  } finally {
+    syncAuthState()
   }
 }
 
@@ -177,6 +237,7 @@ watch(() => route.name, (name) => updatePageTitle(name, brand.value.brandName))
 watch(() => route.fullPath, () => {
   authPrompt.value = ''
   window.clearTimeout(authPromptTimer)
+  syncAuthState()
 })
 watch(addSequence, (sequence) => {
   if (!sequence) return
@@ -186,12 +247,15 @@ watch(addSequence, (sequence) => {
 })
 onMounted(() => {
   window.addEventListener(AUTH_REQUIRED_EVENT, showAuthPrompt)
+  window.addEventListener('storage', syncAuthState)
+  syncAuthState()
   loadBrand()
   validateExistingSession()
   checkAndroidUpdate()
 })
 onBeforeUnmount(() => {
   window.removeEventListener(AUTH_REQUIRED_EVENT, showAuthPrompt)
+  window.removeEventListener('storage', syncAuthState)
   window.clearTimeout(cartFeedbackTimer)
   window.clearTimeout(authPromptTimer)
 })
@@ -201,6 +265,18 @@ onBeforeUnmount(() => {
 .home-main { min-height: 100vh; }
 main { min-height: calc(100vh - 120px); }
 .brand-logo { display:block; width:auto; max-width:136px; height:38px; object-fit:contain; }
+.desktop-site-header { display:flex; }
+.desktop-brand { flex:0 0 auto; min-width:0; }
+.desktop-main-nav { align-items:center; }
+.desktop-main-nav a { position:relative; display:inline-flex; align-items:center; min-height:40px; white-space:nowrap; }
+.desktop-cart-link { padding-right:8px; }
+.desktop-cart-badge { position:absolute; top:1px; right:-8px; display:grid; place-items:center; min-width:17px; height:17px; padding:0 4px; color:#fff; background:var(--brand-primary); border:2px solid #fff; border-radius:999px; font-size:9px; font-weight:800; line-height:1; }
+.desktop-auth-actions { display:flex; align-items:center; gap:9px; margin-left:auto; }
+.desktop-login-link,.desktop-register-link,.desktop-account-link { min-height:38px; display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:0 14px; border-radius:10px; font-size:13px; font-weight:800; white-space:nowrap; }
+.desktop-login-link,.desktop-account-link { color:var(--ink); background:#fff; border:1px solid var(--line); }
+.desktop-register-link { color:#fff; background:var(--brand-primary); border:1px solid var(--brand-primary); }
+.desktop-login-link:hover,.desktop-account-link:hover { color:var(--brand-primary); border-color:var(--brand-primary); }
+.desktop-register-link:hover { background:var(--brand-primary-dark); border-color:var(--brand-primary-dark); }
 .site-footer { padding: 18px 16px calc(62px + env(safe-area-inset-bottom)); text-align: center; color: #999; font-size: 12px; background: #f7f7f7; }
 .footer-links { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 9px; }
 .footer-links a, .records a { color: #777; text-decoration: none; }
@@ -213,6 +289,7 @@ main { min-height: calc(100vh - 120px); }
 @keyframes auth-toast-in { from{opacity:0;transform:translate(-50%,8px)} to{opacity:1;transform:translate(-50%,0)} }
 @keyframes cart-feedback { 0%{opacity:0;transform:translateY(8px) scale(.75)} 20%{opacity:1;transform:translateY(0) scale(1.08)} 75%{opacity:1;transform:translateY(-4px) scale(1)} 100%{opacity:0;transform:translateY(-12px) scale(.9)} }
 @media (min-width: 921px) { .site-footer { padding-bottom: 28px; } }
+@media (max-width: 920px) { .desktop-site-header { display:none; } }
 .update-overlay { position:fixed; inset:0; z-index:10000; display:grid; place-items:center; padding:20px; background:rgba(15,23,42,.55); backdrop-filter:blur(3px); }
 .update-dialog { width:min(390px,100%); padding:24px; background:#fff; border-radius:20px; box-shadow:0 24px 70px rgba(0,0,0,.24); }
 .update-badge { display:inline-flex; padding:4px 10px; color:#08724f; background:#e8f8f1; border-radius:999px; font-size:12px; font-weight:800; }

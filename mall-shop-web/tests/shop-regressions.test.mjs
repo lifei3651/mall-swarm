@@ -208,6 +208,19 @@ test('login page uses the configured shop logo and adapts to mainstream mobile h
   assert.match(login, /@media \(max-width: 380px\), \(max-height: 600px\)/)
 })
 
+test('desktop shell exposes the same configured navigation and account entry as mobile', async () => {
+  const app = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+
+  assert.match(app, /class="site-header desktop-site-header"/)
+  assert.match(app, /v-for="item in bottomNavItems"/)
+  assert.match(app, /aria-label="电脑端商城导航"/)
+  assert.match(app, /v-if="isLoggedIn" class="desktop-account-link" to="\/profile"/)
+  assert.match(app, /class="desktop-login-link" :to="loginLocation">登录/)
+  assert.match(app, /class="desktop-register-link" to="\/register">注册/)
+  assert.match(app, /window\.addEventListener\('storage', syncAuthState\)/)
+  assert.match(app, /@media \(max-width: 920px\) \{ \.desktop-site-header \{ display:none; \} \}/)
+})
+
 test('registration login account filters illegal characters and validates its structure', () => {
   assert.equal(normalizeLoginAccountInput(' 蜗牛 A-b@c_12345678901234567890 '), 'Abc_1234567890123456')
   assert.equal(validateLoginAccount(''), '请输入登录账号')
