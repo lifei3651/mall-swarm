@@ -7,6 +7,7 @@ import { normalizeLoginAccountInput, resolveRegistrationErrorField, validateLogi
 import { normalizeNicknameInput, validateNickname } from '../src/utils/nickname.js'
 import { localPurchaseLimitViolation, purchaseLimitMessage } from '../src/utils/purchaseLimitRules.js'
 import { readDisplayExtraConfig, resolveDisplayColors, resolveHomeModules } from '../src/utils/displayConfig.js'
+import { resolveCurrentStock, stockAdditionViolation, stockQuantityViolation } from '../src/utils/stockRules.js'
 
 const readView = (name) => readFile(new URL(`../src/views/${name}`, import.meta.url), 'utf8')
 const readStyles = () => readFile(new URL('../src/assets/styles.css', import.meta.url), 'utf8')
@@ -38,6 +39,29 @@ test('quick add rejects products whose SKUs are all out of stock', () => {
   assert.equal(item, null)
 })
 
+test('stock checks block every cart entry point and report the current remaining quantity', async () => {
+  assert.equal(stockAdditionViolation(5, 3, 3), '库存不足，最多可购买2件')
+  assert.equal(stockAdditionViolation(5, 2, 3), '')
+  assert.equal(stockAdditionViolation(3, 1, 3), '库存不足，最多可购买0件')
+  assert.equal(stockQuantityViolation(2, 3), '库存不足，最多可购买2件')
+  assert.equal(resolveCurrentStock({ id: 7, skuId: 71 }, {
+    product: { id: 7, stock: 9 },
+    skus: [{ id: 71, stock: 2 }, { id: 72, stock: 8 }],
+  }), 2)
+
+  const store = await readFile(new URL('../src/store/cart.js', import.meta.url), 'utf8')
+  const home = await readView('HomeView.vue')
+  const category = await readView('CategoryView.vue')
+  const detail = await readView('ProductDetailView.vue')
+  const cart = await readView('CartView.vue')
+  assert.match(store, /stockAdditionViolation\(product\.stock, requestedQuantity, existing\?\.quantity \|\| 0\)/)
+  assert.match(home, /stockAdditionViolation\(cartItem\.stock, 1, getQuantity\(cartItemKey\(cartItem\)\)\)/)
+  assert.match(category, /stockAdditionViolation\(cartItem\.stock, 1, getQuantity\(cartItemKey\(cartItem\)\)\)/)
+  assert.match(detail, /resolveCurrentStock\(displayProduct\.value, detail\)/)
+  assert.match(cart, /const latestStock = resolveCurrentStock\(item, detail\)/)
+  assert.match(cart, /stockQuantityViolation\(latestStock, item\.quantity\)/)
+})
+
 test('purchase limits are checked before add-to-cart and still kept as a server-side fallback', async () => {
   const helper = await readFile(new URL('../src/utils/purchaseLimit.js', import.meta.url), 'utf8')
   const home = await readView('HomeView.vue')
@@ -54,7 +78,7 @@ test('purchase limits are checked before add-to-cart and still kept as a server-
   )
   assert.match(home, /await checkCartPurchaseLimit\(cartItem, 1, getProductQuantity\(cartItem\.id\)\)/)
   assert.match(category, /await checkCartPurchaseLimit\(cartItem, 1, getProductQuantity\(cartItem\.id\)\)/)
-  assert.match(detail, /await checkCartPurchaseLimit\(displayProduct\.value, quantity\.value, getProductQuantity\(displayProduct\.value\.id\)\)/)
+  assert.match(detail, /await checkCartPurchaseLimit\(latestProduct, quantity\.value, getProductQuantity\(latestProduct\.id\)\)/)
   assert.match(detail, /const addToCart = async/)
   assert.match(detail, /const buyNow = async/)
   assert.doesNotMatch(helper, /limit <= 0/)
@@ -84,8 +108,8 @@ test('buy now creates an isolated checkout and never merges an existing cart row
   const detail = await readView('ProductDetailView.vue')
   const cartStore = await readFile(new URL('../src/store/cart.js', import.meta.url), 'utf8')
 
-  assert.match(detail, /beginDirectCheckout\(displayProduct\.value, quantity\.value\)/)
-  assert.match(detail, /checkCartPurchaseLimit\(displayProduct\.value, quantity\.value, 0\)/)
+  assert.match(detail, /beginDirectCheckout\(latestProduct, quantity\.value\)/)
+  assert.match(detail, /checkCartPurchaseLimit\(latestProduct, quantity\.value, 0\)/)
   assert.doesNotMatch(detail, /const cartKey = add\(displayProduct\.value, quantity\.value\)[\s\S]{0,100}beginCheckout/)
   assert.match(cartStore, /directCheckoutItems: null/)
   assert.match(cartStore, /if \(Array\.isArray\(state\.directCheckoutItems\)\) return state\.directCheckoutItems/)

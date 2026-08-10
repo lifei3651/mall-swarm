@@ -208,12 +208,13 @@ import {
 import { getProduct, getProductReviews, submitProductReview } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
+import { cartItemKey, resolveCurrentStock, stockAdditionViolation, stockQuantityViolation } from '@/utils/stockRules'
 import { money } from '@/utils/format'
 import { toPublicWebUrl } from '@/utils/appEnvironment'
 
 const route = useRoute()
 const router = useRouter()
-const { add, count, beginDirectCheckout, getProductQuantity } = useCart()
+const { add, count, beginDirectCheckout, getQuantity, getProductQuantity } = useCart()
 
 // 详情页可能通过分享链接或刷新直接打开，此时浏览器没有可返回的历史记录。
 // 有上一页时返回原页面；没有上一页时回到商城首页，避免点击后无任何反馈。
@@ -370,8 +371,12 @@ const addToCart = async () => {
   if (purchaseActionPending.value) return
   purchaseActionPending.value = true
   try {
-    await checkCartPurchaseLimit(displayProduct.value, quantity.value, getProductQuantity(displayProduct.value.id))
-    add(displayProduct.value, quantity.value)
+    const detail = (await getProduct(displayProduct.value.id)).data || {}
+    const latestProduct = { ...displayProduct.value, stock: resolveCurrentStock(displayProduct.value, detail) }
+    const stockError = stockAdditionViolation(latestProduct.stock, quantity.value, getQuantity(cartItemKey(latestProduct)))
+    if (stockError) throw new Error(stockError)
+    await checkCartPurchaseLimit(latestProduct, quantity.value, getProductQuantity(latestProduct.id))
+    add(latestProduct, quantity.value)
     showToast(`已加入购物车，数量 +${quantity.value}`)
   } catch (error) {
     showToast(error?.message || '当前商品暂时无法加入购物车')
@@ -384,8 +389,12 @@ const buyNow = async () => {
   if (purchaseActionPending.value) return
   purchaseActionPending.value = true
   try {
-    await checkCartPurchaseLimit(displayProduct.value, quantity.value, 0)
-    beginDirectCheckout(displayProduct.value, quantity.value)
+    const detail = (await getProduct(displayProduct.value.id)).data || {}
+    const latestProduct = { ...displayProduct.value, stock: resolveCurrentStock(displayProduct.value, detail) }
+    const stockError = stockQuantityViolation(latestProduct.stock, quantity.value)
+    if (stockError) throw new Error(stockError)
+    await checkCartPurchaseLimit(latestProduct, quantity.value, 0)
+    beginDirectCheckout(latestProduct, quantity.value)
     router.push('/checkout')
   } catch (error) {
     showToast(error?.message || '当前商品暂时无法购买')

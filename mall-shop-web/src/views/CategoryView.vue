@@ -122,9 +122,10 @@ import { useCart } from '@/store/cart'
 import { money } from '@/utils/format'
 import { resolveQuickCartItem } from '@/utils/quickCart'
 import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
+import { cartItemKey, stockAdditionViolation } from '@/utils/stockRules'
 import { currentBrandLogo, currentBrandName } from '@/utils/brand'
 
-const { add, getProductQuantity } = useCart()
+const { add, getQuantity, getProductQuantity } = useCart()
 const loading = ref(false)
 const categoryLoading = ref(false)
 const categories = ref([])
@@ -235,6 +236,8 @@ const addProduct = async (product) => {
       showToast('该商品暂时缺货')
       return
     }
+    const stockError = stockAdditionViolation(cartItem.stock, 1, getQuantity(cartItemKey(cartItem)))
+    if (stockError) throw new Error(stockError)
     await checkCartPurchaseLimit(cartItem, 1, getProductQuantity(cartItem.id))
     add(cartItem, 1)
     showToast('已加入购物车，数量 +1')

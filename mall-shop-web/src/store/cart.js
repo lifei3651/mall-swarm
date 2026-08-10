@@ -1,4 +1,5 @@
 import { computed, reactive, watch } from 'vue'
+import { cartItemKey, stockAdditionViolation } from '@/utils/stockRules'
 
 const LEGACY_STORAGE_KEY = 'lingqi_mall_cart'
 const STORAGE_PREFIX = 'lingqi_mall_cart_v2'
@@ -86,8 +87,11 @@ export function useCart() {
   const total = computed(() => state.items.reduce((sum, item) => sum + item.salePrice * item.quantity, 0))
 
   const add = (product, quantity = 1) => {
-    const cartKey = product.skuId ? `${product.id}-${product.skuId}` : `${product.id}`
+    const cartKey = cartItemKey(product)
     const existing = state.items.find((item) => (item.cartKey || `${item.id}`) === cartKey)
+    const requestedQuantity = Math.max(1, Math.floor(Number(quantity || 1)))
+    const stockError = stockAdditionViolation(product.stock, requestedQuantity, existing?.quantity || 0)
+    if (stockError) throw new Error(stockError)
     if (existing) {
       // 再次加购时同步服务端最新的价格、PV和库存，避免长期购物车保留旧配置。
       existing.salePrice = Math.max(0, Number(product.salePrice || 0))
@@ -96,7 +100,7 @@ export function useCart() {
       existing.purchaseLimit = Number(product.purchaseLimit || 0)
       existing.skuName = product.skuName || ''
       existing.skuAttrs = product.skuAttrs || product.attrsJson || ''
-      existing.quantity += quantity
+      existing.quantity += requestedQuantity
     } else {
       state.items.push({
         id: product.id,
@@ -112,10 +116,10 @@ export function useCart() {
         pvValue: boundedPv(product.pvValue, product.salePrice),
         stock: Number(product.stock || 0),
         purchaseLimit: Number(product.purchaseLimit || 0),
-        quantity,
+        quantity: requestedQuantity,
       })
     }
-    state.lastAddedQuantity = quantity
+    state.lastAddedQuantity = requestedQuantity
     state.addSequence += 1
     return cartKey
   }

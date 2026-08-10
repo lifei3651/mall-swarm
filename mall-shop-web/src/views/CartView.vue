@@ -108,11 +108,12 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Check } from 'lucide-vue-next'
-import { getHome } from '@/api/shop'
+import { getHome, getProduct } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { money } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
 import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
+import { resolveCurrentStock, stockAdditionViolation, stockQuantityViolation } from '@/utils/stockRules'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const router = useRouter()
@@ -142,6 +143,11 @@ const changeQuantity = async (item, delta) => {
   if (isQuantityChecking(item)) return
   setQuantityChecking(item, true)
   try {
+    const detail = (await getProduct(item.id)).data || {}
+    const latestStock = resolveCurrentStock(item, detail)
+    item.stock = latestStock
+    const stockError = stockAdditionViolation(latestStock, 1, item.quantity)
+    if (stockError) throw new Error(stockError)
     await checkCartPurchaseLimit(item, 1, getProductQuantity(item.id))
     update(key, item.quantity + 1)
   } catch (error) {
@@ -204,6 +210,14 @@ const requestRemoveSelected = () => {
 }
 
 const validateCheckoutItems = async (rows) => {
+  const productDetails = new Map()
+  for (const item of rows) {
+    if (!productDetails.has(item.id)) productDetails.set(item.id, (await getProduct(item.id)).data || {})
+    const latestStock = resolveCurrentStock(item, productDetails.get(item.id))
+    item.stock = latestStock
+    const stockError = stockQuantityViolation(latestStock, item.quantity)
+    if (stockError) throw new Error(stockError)
+  }
   const quantities = new Map()
   rows.forEach((item) => quantities.set(item.id, (quantities.get(item.id) || 0) + Number(item.quantity || 0)))
   for (const item of rows) {
