@@ -189,20 +189,24 @@ import {
   MapLocation,
   Money,
   Refresh,
+  RefreshLeft,
   Tickets,
   TrendCharts,
   User,
+  Van,
   Wallet,
   WarningFilled,
 } from '@element-plus/icons-vue'
 import echarts from '@/utils/echarts'
 import { getDashboard } from '@/api/dashboard'
+import { getAdminOrderWorkSummary } from '@/api/shop'
 import { useAppStore } from '@/store'
 
 const router = useRouter()
 const store = useAppStore()
 const loading = ref(false)
 const dashboard = ref({})
+const orderWorkSummary = ref({ pendingShipment: 0, afterSale: 0 })
 const lastUpdated = ref('')
 const salesTrendChart = ref(null)
 const financeChart = ref(null)
@@ -232,6 +236,8 @@ const coreMetrics = computed(() => [
 ])
 
 const taskItems = computed(() => [
+  { title: '待发货', description: '已支付订单等待仓库发货', count: orderWorkSummary.value.pendingShipment, unit: '单', path: '/shop/orders?orderState=PENDING_SHIPMENT', permission: 'shop:order', tone: 'cyan', icon: Van },
+  { title: '待售后', description: '客户售后申请等待处理', count: orderWorkSummary.value.afterSale, unit: '单', path: '/shop/orders?orderState=AFTER_SALE', permission: 'shop:order', tone: 'amber', icon: RefreshLeft },
   { title: '待审核提现', description: `待审核金额 ¥${money(dashboard.value.pendingWithdrawAmount)}`, count: dashboard.value.pendingWithdrawCount, unit: '笔', path: '/withdraw/audit', permission: 'finance:manage', tone: 'violet', icon: Money },
   { title: '待结算奖金', description: `待结算金额 ¥${money(dashboard.value.unsettledCommission)}`, count: dashboard.value.unsettledCommissionCount, unit: '笔', path: '/commission/settle', permission: 'commission:manage', tone: 'amber', icon: Coin },
   { title: '待转化会员', description: '已注册但尚未成为正式会员', count: dashboard.value.pendingMemberCount, unit: '人', path: '/members/list', permission: 'shop:member', tone: 'cyan', icon: User },
@@ -363,7 +369,7 @@ const renderCharts = () => {
 const loadDashboard = async () => {
   loading.value = true
   try {
-    const res = await getDashboard()
+    const [res] = await Promise.all([getDashboard(), loadOrderWorkSummary()])
     dashboard.value = res.data || {}
     lastUpdated.value = new Date().toLocaleString('zh-CN', { hour12: false })
     await nextTick()
@@ -373,6 +379,25 @@ const loadDashboard = async () => {
   }
 }
 
+const applyOrderWorkSummary = (summary) => {
+  orderWorkSummary.value = {
+    pendingShipment: Number(summary?.pendingShipment || 0),
+    afterSale: Number(summary?.afterSale || 0),
+  }
+}
+
+const loadOrderWorkSummary = async () => {
+  if (!store.hasPermission('shop:order')) return
+  try {
+    const res = await getAdminOrderWorkSummary()
+    applyOrderWorkSummary(res.data)
+  } catch {
+    // 订单待办读取失败不阻断工作台其他经营数据，侧栏下一轮刷新后会再次同步。
+  }
+}
+
+const handleOrderWorkSummary = (event) => applyOrderWorkSummary(event.detail)
+
 const resizeCharts = () => {
   salesTrendChartInstance?.resize()
   financeChartInstance?.resize()
@@ -380,10 +405,12 @@ const resizeCharts = () => {
 }
 
 onMounted(() => {
+  window.addEventListener('admin-order-work-summary', handleOrderWorkSummary)
   loadDashboard()
   window.addEventListener('resize', resizeCharts)
 })
 onBeforeUnmount(() => {
+  window.removeEventListener('admin-order-work-summary', handleOrderWorkSummary)
   window.removeEventListener('resize', resizeCharts)
   salesTrendChartInstance?.dispose()
   financeChartInstance?.dispose()

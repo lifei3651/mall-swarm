@@ -369,6 +369,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Download, Refresh, Search, Upload } from '@element-plus/icons-vue'
 import {
@@ -392,6 +393,7 @@ import { useAppStore } from '@/store'
 import { formatDateTime } from '@/utils/dateTime'
 
 const appStore = useAppStore()
+const route = useRoute()
 const orderLoading = ref(false)
 const exportLoading = ref(false)
 const templateLoading = ref(false)
@@ -403,11 +405,14 @@ const orderStateOptions = [
   { label: '全部', value: '' },
   { label: '待付款', value: 'PENDING_PAYMENT' },
   { label: '待发货', value: 'PENDING_SHIPMENT' },
-  { label: '售后中', value: 'AFTER_SALE' },
+  { label: '待售后', value: 'AFTER_SALE' },
   { label: '已完成', value: 'COMPLETED' },
   { label: '已退款', value: 'REFUNDED' },
 ]
-const query = ref({ keyword: '', orderState: '' })
+const initialOrderState = orderStateOptions.some((item) => item.value === route.query.orderState)
+  ? String(route.query.orderState)
+  : ''
+const query = ref({ keyword: '', orderState: initialOrderState })
 const pagination = ref({ page: 1, size: 10, total: 0 })
 const shipDialogVisible = ref(false)
 const shipmentResultVisible = ref(false)

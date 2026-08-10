@@ -29,6 +29,8 @@ describe('商城订单取消入口', () => {
     expect(source).toContain('order-state-count')
     expect(source).toContain("PENDING_SHIPMENT: Number(orderWorkSummary.value.pendingShipment")
     expect(source).toContain("AFTER_SALE: Number(orderWorkSummary.value.afterSale")
+    expect(source).toContain("{ label: '待售后', value: 'AFTER_SALE' }")
+    expect(source).toContain('route.query.orderState')
     expect(source).toContain('v-if="canShipOrder(row)"')
     expect(source).not.toContain(':disabled="!canShipOrder(row)"')
     expect(source).toContain('审核通过')

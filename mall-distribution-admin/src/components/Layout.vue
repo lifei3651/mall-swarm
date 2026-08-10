@@ -28,7 +28,6 @@
             <template #title>
               <el-icon><component :is="menuIcon(menu.icon)" /></el-icon>
               <span>{{ menu.title }}</span>
-              <span v-if="menu.key === 'orders' && orderWorkTotal > 0" class="menu-work-badge">{{ orderWorkTotal }}</span>
             </template>
             <el-menu-item
               v-for="item in menu.items"
@@ -134,8 +133,6 @@ const store = useAppStore()
 const isCollapsed = ref(false)
 const isDashboard = computed(() => route.path === '/dashboard')
 const brand = reactive({ brandName: localStorage.getItem('admin_brand_name') || '灵启商城', logoUrl: '' })
-const orderWorkSummary = reactive({ pendingShipment: 0, afterSale: 0 })
-const orderWorkTotal = computed(() => orderWorkSummary.pendingShipment + orderWorkSummary.afterSale)
 const menuIcons = {
   CreditCard,
   DataAnalysis,
@@ -277,9 +274,11 @@ const loadOrderWorkSummary = async () => {
   if (!store.token || !store.hasPermission('shop:order')) return
   try {
     const res = await getAdminOrderWorkSummary()
-    orderWorkSummary.pendingShipment = Number(res.data?.pendingShipment || 0)
-    orderWorkSummary.afterSale = Number(res.data?.afterSale || 0)
-    window.dispatchEvent(new CustomEvent('admin-order-work-summary', { detail: { ...orderWorkSummary } }))
+    const summary = {
+      pendingShipment: Number(res.data?.pendingShipment || 0),
+      afterSale: Number(res.data?.afterSale || 0),
+    }
+    window.dispatchEvent(new CustomEvent('admin-order-work-summary', { detail: summary }))
   } catch {
     // 待办数字读取失败不影响后台使用，下一轮定时刷新会自动重试。
   }
@@ -384,10 +383,6 @@ const handleCommand = async (command) => {
 
   &.collapsed {
     width: 64px;
-
-    .menu-work-badge {
-      display: none;
-    }
   }
 
   .logo {
@@ -466,22 +461,6 @@ const handleCommand = async (command) => {
 
     :deep(.el-sub-menu.is-opened > .el-sub-menu__title) { color: #fff; }
 
-    .menu-work-badge {
-      display: inline-flex;
-      min-width: 19px;
-      height: 19px;
-      align-items: center;
-      justify-content: center;
-      margin-left: auto;
-      padding: 0 5px;
-      color: #fff;
-      background: #f04444;
-      border-radius: 10px;
-      font-size: 11px;
-      font-style: normal;
-      font-weight: 700;
-      line-height: 19px;
-    }
   }
 
   .sidebar-collapse {
