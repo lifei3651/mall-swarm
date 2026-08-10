@@ -35,6 +35,7 @@ import com.macro.mall.distribution.util.PhoneNumberUtils;
 import com.macro.mall.distribution.util.MoneyValidationUtils;
 import com.macro.mall.distribution.enums.ShopOrderStatusEnum;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,6 +45,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ShopWalletServiceImpl implements ShopWalletService {
 
     private static final int MAX_FAILED_PAY_PASSWORD_COUNT = 5;
@@ -123,7 +125,13 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         }
         smsVerificationService.verifyAndConsume(current.getPhone(), dto.getSmsCode(),
                 SmsBusinessType.SET_PAYMENT_PASSWORD);
-        return memberDao.updatePayPassword(current.getId(), BCrypt.hashpw(dto.getNewPassword())) > 0;
+        boolean hadPaymentPassword = hasText(current.getPayPasswordHash());
+        boolean updated = memberDao.updatePayPassword(current.getId(), BCrypt.hashpw(dto.getNewPassword())) > 0;
+        if (updated) {
+            log.info("会员支付密码已{}: memberId={}, userId={}",
+                    hadPaymentPassword ? "修改" : "设置", current.getId(), current.getUserId());
+        }
+        return updated;
     }
 
     @Override
@@ -148,7 +156,12 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         transfer.setBizId("BT" + IdUtil.getSnowflakeNextIdStr());
         String remark = dto.getRemark() == null || dto.getRemark().isBlank() ? "会员余额转账" : dto.getRemark().trim();
         transfer.setRemark(remark + "（收款人：" + ignored.getMemberName() + "）");
-        return memberAssetService.transfer(transfer);
+        boolean transferred = memberAssetService.transfer(transfer);
+        if (transferred) {
+            log.info("会员余额转账成功: bizId={}, memberId={}, userId={}, recipientMemberId={}, recipientUserId={}, amount={}",
+                    transfer.getBizId(), current.getId(), current.getUserId(), recipient.getId(), recipient.getUserId(), amount);
+        }
+        return transferred;
     }
 
     @Override
@@ -180,7 +193,10 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         consume.setBizId(String.valueOf(order.getId()));
         consume.setRemark("余额支付订单：" + order.getOrderNo());
         memberAssetService.consume(consume);
-        return shopService.markOrderPaid(orderId, "BALANCE");
+        ShopOrderVO paidOrder = shopService.markOrderPaid(orderId, "BALANCE");
+        log.info("会员余额支付成功: memberId={}, userId={}, orderId={}, orderNo={}, amount={}",
+                current.getId(), current.getUserId(), orderId, order.getOrderNo(), amount);
+        return paidOrder;
     }
 
     @Override
@@ -243,6 +259,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         DmsShopMember current = memberDao.selectById(member.getId());
         if (!hasText(current.getPayPasswordHash())) Asserts.fail("请先设置支付密码");
         if (isPaymentPasswordLocked(current)) {
+            log.warn("会员支付密码验证被锁定拦截: memberId={}, userId={}", current.getId(), current.getUserId());
             Asserts.fail("支付密码连续错误5次，已锁定30分钟");
         }
         if (current.getPayPasswordLockTime() != null) {
@@ -258,6 +275,10 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         if (paymentPassword == null || !BCrypt.checkpw(paymentPassword, current.getPayPasswordHash())) {
             passwordAttemptService.recordFailure(current.getId(), MAX_FAILED_PAY_PASSWORD_COUNT);
             DmsShopMember refreshed = memberDao.selectById(current.getId());
+            int failedCount = refreshed == null || refreshed.getPayPasswordFailedCount() == null
+                    ? observedFailedCount + 1 : refreshed.getPayPasswordFailedCount();
+            log.warn("会员支付密码验证失败: memberId={}, userId={}, failedCount={}, locked={}",
+                    current.getId(), current.getUserId(), failedCount, isPaymentPasswordLocked(refreshed));
             if (isPaymentPasswordLocked(refreshed)) Asserts.fail("支付密码连续错误5次，已锁定30分钟");
             Asserts.fail("支付密码错误");
         }
@@ -265,7 +286,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
     }
 
     private boolean isPaymentPasswordLocked(DmsShopMember member) {
-        return member.getPayPasswordLockTime() != null
+        return member != null && member.getPayPasswordLockTime() != null
                 && member.getPayPasswordLockTime().plusMinutes(PAY_PASSWORD_LOCK_MINUTES).isAfter(LocalDateTime.now());
     }
 

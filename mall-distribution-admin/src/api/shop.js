@@ -274,6 +274,13 @@ export function unlockShopMember(id) {
   })
 }
 
+export function unlockShopMemberPaymentPassword(id) {
+  return request({
+    url: `/shop/admin/members/${id}/payment-password/unlock`,
+    method: 'put',
+  })
+}
+
 export function updateShopMemberPhone(id, data) {
   return request({
     url: `/shop/admin/members/${id}/phone`,

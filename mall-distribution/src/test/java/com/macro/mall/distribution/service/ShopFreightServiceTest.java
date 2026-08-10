@@ -481,6 +481,9 @@ class ShopFreightServiceTest {
     void adminMemberListExposesLoginAccountInviterStatusLevelAndAssets() {
         DmsShopMember inviter = createMember("13999110101", "列表邀请人", null);
         DmsShopMember member = createMember("13999110102", "列表会员", inviter.getUserId());
+        for (int i = 0; i < 5; i++) {
+            memberDao.increaseFailedPayPassword(member.getId(), 5);
+        }
 
         List<AdminMemberVO> rows = shopAuthService.listAdminMembers(member.getPhone(), 1, null, null);
 
@@ -491,6 +494,7 @@ class ShopFreightServiceTest {
         assertEquals(inviter.getUsername(), row.getInviterMemberAccount());
         assertEquals("列表邀请人", row.getInviterName());
         assertFalse(row.getLoginLocked());
+        assertTrue(row.getPaymentPasswordLocked());
         assertFalse(row.getPromotionActivated());
         assertMoney("0.00", row.getAvailableBalance());
         assertMoney("0.00", row.getUnsettledCommission());

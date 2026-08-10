@@ -94,6 +94,7 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             if (path.matches("/shop/admin/members/[^/]+/level")) return "调整会员级别";
             if (path.matches("/shop/admin/members/[^/]+/status")) return "修改登录账号状态";
             if (path.matches("/shop/admin/members/[^/]+/unlock")) return "解除会员登录锁定";
+            if (path.matches("/shop/admin/members/[^/]+/payment-password/unlock")) return "解除会员支付密码锁定";
             if (path.matches("/shop/admin/members/[^/]+/phone")) return "修改会员登录手机号";
             if (path.matches("/shop/admin/members/[^/]+/login-password")) return "重置会员登录密码";
             if (path.equals("/shop/admin/members") && HttpMethod.POST.matches(method)) return "后台新增商城会员";
@@ -112,6 +113,7 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             if (path.matches("/shop/admin/reviews/[^/]+/status")) return "显示或隐藏商品评价";
             if (path.startsWith("/distribution/withdraw")) return "处理会员提现";
             if (path.startsWith("/distribution/tenant")) return "修改商城品牌或界面设置";
+            if (path.matches("/distribution/admin-users/[^/]+/unlock")) return "解除后台管理员登录锁定";
             if (path.startsWith("/distribution/admin-users")) return "维护后台管理员及权限";
             if (path.startsWith("/distribution/erp")) return "维护或执行ERP对接";
             String action = HttpMethod.POST.matches(method) ? "新增/提交" : HttpMethod.PUT.matches(method) ? "修改" : "删除";

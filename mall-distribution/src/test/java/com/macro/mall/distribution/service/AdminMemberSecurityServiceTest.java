@@ -95,6 +95,25 @@ class AdminMemberSecurityServiceTest {
                 eq("登录密码已重置，全部旧会话已失效"), eq(dto.getReason()));
     }
 
+    @Test
+    void unlockingPaymentPasswordClearsOnlyAttemptStateAndWritesAuditLog() {
+        DmsShopMember member = member(12L, 1200L, "13900000000", BCrypt.hashpw("old-password"));
+        member.setPayPasswordFailedCount(5);
+        member.setPayPasswordLockTime(java.time.LocalDateTime.now());
+        when(memberDao.selectById(12L)).thenReturn(member);
+        when(memberDao.clearPayPasswordLock(12L)).thenReturn(1);
+
+        assertTrue(service().unlockPaymentPassword(12L));
+
+        verify(memberDao).clearPayPasswordLock(12L);
+        verify(memberDao, never()).updatePayPassword(any(), any());
+        verify(operationLogService).log(eq("MEMBER_SECURITY"), eq("PAYMENT_PASSWORD_UNLOCK"),
+                eq("SHOP_MEMBER"), eq("12"),
+                eq("支付密码错误次数：5，锁定状态：已锁定"),
+                eq("支付密码错误次数：0，锁定状态：正常"),
+                eq("后台人工解除支付密码锁定"));
+    }
+
     private AdminMemberSecurityServiceImpl service() {
         return new AdminMemberSecurityServiceImpl(memberDao, sessionDao, agentService, operationLogService);
     }

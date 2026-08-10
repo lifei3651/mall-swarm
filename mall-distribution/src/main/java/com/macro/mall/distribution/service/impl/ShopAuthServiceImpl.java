@@ -415,6 +415,8 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         members.forEach(member -> {
             AgentLevelEnum level = AgentLevelEnum.getByValue(member.getAgentLevel());
             member.setAgentLevelName(level == null ? null : level.getName());
+            member.setPaymentPasswordLocked(member.getPaymentPasswordLockTime() != null
+                    && member.getPaymentPasswordLockTime().plusMinutes(30).isAfter(LocalDateTime.now()));
         });
         return members;
     }

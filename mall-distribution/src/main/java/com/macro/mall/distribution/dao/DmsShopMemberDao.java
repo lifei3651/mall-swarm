@@ -62,4 +62,7 @@ public interface DmsShopMemberDao {
 
     int clearPayPasswordLockIfCount(@Param("id") Long id,
                                     @Param("expectedFailedCount") Integer expectedFailedCount);
+
+    /** 后台人工解除支付密码错误锁定，不修改支付密码本身。 */
+    int clearPayPasswordLock(@Param("id") Long id);
 }

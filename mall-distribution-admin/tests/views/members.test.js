@@ -34,3 +34,15 @@ describe('会员余额调整表单', () => {
     expect(source).toContain("请输入大于0的调整数量")
   })
 })
+
+describe('会员账号锁定解除', () => {
+  it('登录密码和支付密码锁定分别提供后台解除入口', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('v-if="currentMember.loginLocked"')
+    expect(source).toContain('解除登录锁定')
+    expect(source).toContain('v-if="currentMember.paymentPasswordLocked"')
+    expect(source).toContain('解除支付密码锁定')
+    expect(source).toContain('unlockShopMemberPaymentPassword(row.id)')
+  })
+})

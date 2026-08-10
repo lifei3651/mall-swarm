@@ -92,6 +92,21 @@ public class AdminMemberSecurityServiceImpl implements AdminMemberSecurityServic
         return true;
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean unlockPaymentPassword(Long memberId) {
+        DmsShopMember member = requireMember(memberId);
+        if (memberDao.clearPayPasswordLock(memberId) <= 0) {
+            Asserts.fail("支付密码锁定解除失败，请刷新后重试");
+        }
+        int failedCount = member.getPayPasswordFailedCount() == null ? 0 : member.getPayPasswordFailedCount();
+        operationLogService.log("MEMBER_SECURITY", "PAYMENT_PASSWORD_UNLOCK", "SHOP_MEMBER", String.valueOf(memberId),
+                "支付密码错误次数：" + failedCount + "，锁定状态："
+                        + (member.getPayPasswordLockTime() == null ? "正常" : "已锁定"),
+                "支付密码错误次数：0，锁定状态：正常", "后台人工解除支付密码锁定");
+        return true;
+    }
+
     private DmsShopMember requireMember(Long memberId) {
         if (memberId == null) Asserts.fail("会员不存在");
         DmsShopMember member = memberDao.selectById(memberId);

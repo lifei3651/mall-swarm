@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.vo;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -21,6 +22,11 @@ public class AdminMemberVO implements Serializable {
     private String inviteCode;
     private Integer status;
     private Boolean loginLocked;
+    /** 支付密码连续错误造成的锁定；不暴露支付密码或哈希。 */
+    private Boolean paymentPasswordLocked;
+    /** 仅供服务端判断30分钟锁定是否仍生效，不返回管理端。 */
+    @JsonIgnore
+    private LocalDateTime paymentPasswordLockTime;
     private LocalDateTime lockTime;
     private LocalDateTime lastLoginTime;
     private LocalDateTime createTime;

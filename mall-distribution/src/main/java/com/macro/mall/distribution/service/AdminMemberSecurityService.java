@@ -8,4 +8,6 @@ public interface AdminMemberSecurityService {
     boolean updatePhone(Long memberId, AdminMemberPhoneUpdateDTO dto);
 
     boolean resetLoginPassword(Long memberId, AdminMemberPasswordResetDTO dto);
+
+    boolean unlockPaymentPassword(Long memberId);
 }

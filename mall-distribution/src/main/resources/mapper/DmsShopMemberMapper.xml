@@ -103,6 +103,7 @@
                m.invite_code AS inviteCode,
                m.status,
                CASE WHEN m.lock_time IS NULL THEN 0 ELSE 1 END AS loginLocked,
+               m.pay_password_lock_time AS paymentPasswordLockTime,
                m.lock_time AS lockTime,
                m.last_login_time AS lastLoginTime,
                m.create_time AS createTime,
@@ -244,5 +245,10 @@
         UPDATE dms_shop_member
         SET pay_password_failed_count=0, pay_password_lock_time=NULL, update_time=CURRENT_TIMESTAMP
         WHERE id=#{id} AND pay_password_failed_count=#{expectedFailedCount}
+    </update>
+    <update id="clearPayPasswordLock">
+        UPDATE dms_shop_member
+        SET pay_password_failed_count=0, pay_password_lock_time=NULL, update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id}
     </update>
 </mapper>

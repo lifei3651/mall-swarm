@@ -413,6 +413,12 @@ public class ShopController {
         return CommonResult.success(adminMemberSecurityService.resetLoginPassword(id, dto));
     }
 
+    @Operation(summary = "后台解除会员支付密码错误锁定")
+    @PutMapping("/admin/members/{id}/payment-password/unlock")
+    public CommonResult<Boolean> unlockMemberPaymentPassword(@PathVariable Long id) {
+        return CommonResult.success(adminMemberSecurityService.unlockPaymentPassword(id));
+    }
+
     @Operation(summary = "统一会员列表开通推广身份或直接调级")
     @PutMapping("/admin/members/{id}/level")
     public CommonResult<AgentInfoVO> adjustMemberLevel(@PathVariable Long id,

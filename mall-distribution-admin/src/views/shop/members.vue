@@ -123,6 +123,7 @@
               </template>
             </el-dropdown>
             <el-button v-if="currentMember.loginLocked" type="success" @click="unlockMember(currentMember)">解除登录锁定</el-button>
+            <el-button v-if="currentMember.paymentPasswordLocked" type="success" @click="unlockPaymentPassword(currentMember)">解除支付密码锁定</el-button>
             <el-button v-if="canManageDistribution" type="primary" @click="openLevelAdjust(currentMember)">
               {{ currentMember.promotionActivated ? '调整卡级' : '设定级别' }}
             </el-button>
@@ -419,7 +420,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, Search } from '@element-plus/icons-vue'
-import { createShopMember, getShopMemberProfile, listShopMembers, resetShopMemberLoginPassword, unlockShopMember, updateShopMemberLevel, updateShopMemberPhone, updateShopMemberStatus } from '@/api/shop'
+import { createShopMember, getShopMemberProfile, listShopMembers, resetShopMemberLoginPassword, unlockShopMember, unlockShopMemberPaymentPassword, updateShopMemberLevel, updateShopMemberPhone, updateShopMemberStatus } from '@/api/shop'
 import { getPersonProfile } from '@/api/audit'
 import { useAppStore } from '@/store'
 import { listAgents, switchLine } from '@/api/agent'
@@ -622,6 +623,17 @@ const toggleStatus = async (row) => {
 const unlockMember = async (row) => {
   await unlockShopMember(row.id)
   ElMessage.success('登录锁定已解除，密码错误次数已清零')
+  await refreshCurrentProfile()
+}
+
+const unlockPaymentPassword = async (row) => {
+  await ElMessageBox.confirm(
+    `确认解除会员“${memberDisplayName(row)}”的支付密码锁定？解除后会员仍需使用原支付密码。`,
+    '解除支付密码锁定',
+    { type: 'warning', confirmButtonText: '确认解除', cancelButtonText: '取消' },
+  )
+  await unlockShopMemberPaymentPassword(row.id)
+  ElMessage.success('支付密码锁定已解除，错误次数已清零')
   await refreshCurrentProfile()
 }
 
