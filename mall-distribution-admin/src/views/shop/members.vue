@@ -309,7 +309,7 @@
       <el-form :model="assetForm" label-width="105px" class="level-form">
         <el-form-item label="会员"><el-input :model-value="`${assetForm.memberName}（${assetForm.memberAccount}）`" disabled /></el-form-item>
         <el-form-item label="当前数额"><el-input :model-value="money(assetForm.currentAmount)" disabled /></el-form-item>
-        <el-form-item label="调整数量" required><el-input-number v-model="assetForm.amount" :min="0.01" :precision="2" style="width:100%" /></el-form-item>
+        <el-form-item label="调整数量" required><el-input-number v-model="assetForm.amount" :min="0" :precision="2" style="width:100%" /></el-form-item>
         <el-form-item label="调整原因" required><el-input v-model="assetForm.reason" type="textarea" :rows="3" maxlength="300" show-word-limit placeholder="会写入余额流水和后台操作日志" /></el-form-item>
         <el-form-item label="管理员密码" required>
           <el-input v-model="assetForm.adminPassword" type="password" show-password maxlength="64" autocomplete="current-password" placeholder="二次验证当前管理员登录密码" />

@@ -23,3 +23,14 @@ describe('会员全景直属邀请人信息', () => {
     expect(source).not.toContain("4: '售后关闭'")
   })
 })
+
+describe('会员余额调整表单', () => {
+  it('打开表单时默认显示0元，实际提交仍要求金额大于0', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('v-model="assetForm.amount" :min="0" :precision="2"')
+    expect(source).toContain('amount: 0,')
+    expect(source).toContain("Number(assetForm.value.amount) <= 0")
+    expect(source).toContain("请输入大于0的调整数量")
+  })
+})
