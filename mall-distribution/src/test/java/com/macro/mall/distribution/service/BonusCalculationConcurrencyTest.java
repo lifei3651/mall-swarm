@@ -2,6 +2,7 @@ package com.macro.mall.distribution.service;
 
 import com.macro.mall.distribution.config.RedisConfig;
 import com.macro.mall.distribution.config.ScheduleTask;
+import com.macro.mall.distribution.dao.DmsBonusCalculationTaskDao;
 import com.macro.mall.distribution.entity.DmsBonusCalculationTask;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +41,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class BonusCalculationConcurrencyTest {
 
     @Autowired private BonusCalculationTaskService taskService;
+    @Autowired private DmsBonusCalculationTaskDao taskDao;
 
     @Test
     void concurrentEnqueueCreatesOnlyOneTaskPerOrder() throws Exception {
@@ -59,6 +61,31 @@ class BonusCalculationConcurrencyTest {
         } finally {
             executor.shutdownNow();
         }
+    }
+
+    @Test
+    void terminalTransitionsRequireProcessingState() {
+        DmsBonusCalculationTask successTask = taskService.enqueue(
+                1L, 1L, 990002L, "BONUS-STATE-SUCCESS-990002",
+                new BigDecimal("100.00"), 1002L, "成功状态测试会员");
+
+        assertEquals(0, taskDao.markSuccess(successTask.getId()));
+        assertEquals(0, taskDao.selectById(successTask.getId()).getStatus());
+        assertEquals(1, taskDao.markProcessing(successTask.getId()));
+        assertEquals(1, taskDao.markSuccess(successTask.getId()));
+        assertEquals(2, taskDao.selectById(successTask.getId()).getStatus());
+        assertEquals(0, taskDao.markSuccess(successTask.getId()));
+
+        DmsBonusCalculationTask failedTask = taskService.enqueue(
+                1L, 1L, 990003L, "BONUS-STATE-FAILED-990003",
+                new BigDecimal("100.00"), 1003L, "失败状态测试会员");
+
+        assertEquals(0, taskDao.markFailed(failedTask.getId(), "不应写入", null));
+        assertEquals(0, taskDao.selectById(failedTask.getId()).getStatus());
+        assertEquals(1, taskDao.markProcessing(failedTask.getId()));
+        assertEquals(1, taskDao.markFailed(failedTask.getId(), "计算失败", null));
+        assertEquals(3, taskDao.selectById(failedTask.getId()).getStatus());
+        assertEquals(0, taskDao.markSuccess(failedTask.getId()));
     }
 
     private DmsBonusCalculationTask enqueue(CountDownLatch ready, CountDownLatch start) throws Exception {

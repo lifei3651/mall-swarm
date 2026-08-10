@@ -83,7 +83,7 @@
     <update id="markSuccess">
         UPDATE dms_bonus_calculation_task
         SET status = 2, finish_time = NOW(), fail_reason = NULL, update_time = NOW()
-        WHERE id = #{id}
+        WHERE id = #{id} AND status = 1
     </update>
 
     <update id="markFailed">
@@ -94,6 +94,6 @@
             next_retry_time = #{nextRetryTime},
             finish_time = NOW(),
             update_time = NOW()
-        WHERE id = #{id}
+        WHERE id = #{id} AND status = 1
     </update>
 </mapper>

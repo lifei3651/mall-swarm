@@ -162,7 +162,11 @@ public class BonusCalculationTaskServiceImpl implements BonusCalculationTaskServ
             }
             orderBalanceAllocationService.prepareForOrder(task.getOrderId());
             saveSnapshot(task);
-            taskDao.markSuccess(taskId);
+            if (taskDao.markSuccess(taskId) != 1) {
+                log.warn("奖金异步计算完成但任务状态已变化，不覆盖当前状态: taskId={}, orderId={}",
+                        taskId, task.getOrderId());
+                return false;
+            }
             int commissionCount = commissionRecordDao.selectByOrderId(task.getOrderId()).size();
             log.info("奖金异步计算成功: taskId={}, orderId={}, orderNo={}, commissionCount={}",
                     taskId, task.getOrderId(), task.getOrderNo(), commissionCount);
@@ -173,7 +177,11 @@ public class BonusCalculationTaskServiceImpl implements BonusCalculationTaskServ
             if (failReason != null && failReason.length() > 500) {
                 failReason = failReason.substring(0, 500);
             }
-            taskDao.markFailed(taskId, failReason, LocalDateTime.now().plusSeconds(DEFAULT_RETRY_SECONDS));
+            if (taskDao.markFailed(taskId, failReason,
+                    LocalDateTime.now().plusSeconds(DEFAULT_RETRY_SECONDS)) != 1) {
+                log.warn("奖金异步计算失败但任务状态已变化，不覆盖当前状态: taskId={}, orderId={}",
+                        taskId, task.getOrderId());
+            }
             return false;
         }
     }
