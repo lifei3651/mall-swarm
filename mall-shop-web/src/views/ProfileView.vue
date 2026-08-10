@@ -64,21 +64,19 @@
         <button class="logout-button" type="button" @click="logoutConfirmVisible = true">退出当前账号</button>
       </div>
 
-    <Teleport to="body">
-      <div v-if="logoutConfirmVisible" class="logout-dialog-mask" @click.self="closeLogoutConfirm">
-        <section class="logout-dialog" role="dialog" aria-modal="true" aria-labelledby="logout-dialog-title">
-          <span class="logout-dialog-icon"><LogOut :size="25" /></span>
-          <h3 id="logout-dialog-title">确认退出登录？</h3>
-          <p>退出后将返回登录页面，购物车中的本地数据也会同步清除。</p>
-          <div class="logout-dialog-actions">
-            <button type="button" :disabled="loggingOut" @click="closeLogoutConfirm">取消</button>
-            <button type="button" class="confirm" :disabled="loggingOut" @click="confirmLogout">
-              {{ loggingOut ? '正在退出...' : '确认退出' }}
-            </button>
-          </div>
-        </section>
-      </div>
-    </Teleport>
+    <ConfirmDialog
+      :visible="logoutConfirmVisible"
+      title="退出当前账号？"
+      message="退出后需要重新登录，当前设备中的购物车数据也会清除。"
+      confirm-text="确认退出"
+      cancel-text="继续使用"
+      loading-text="正在退出…"
+      icon-type="logout"
+      is-danger
+      :busy="loggingOut"
+      @confirm="confirmLogout"
+      @cancel="closeLogoutConfirm"
+    />
     <InviteDialog :visible="inviteDialogVisible" @close="inviteDialogVisible = false" />
   </div>
 </template>
@@ -92,7 +90,6 @@ import {
   Crown,
   Gem,
   Gift,
-  LogOut,
   MapPinned,
   Medal,
   MessageSquareText,
@@ -108,6 +105,7 @@ import {
 } from 'lucide-vue-next'
 import { getProfile, getProfilePerformance, getWalletSummary, logout } from '@/api/shop'
 import InviteDialog from '@/components/InviteDialog.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { money } from '@/utils/format'
 import { clearShopSession } from '@/utils/shopSession'
 
@@ -252,15 +250,6 @@ onMounted(() => {
 .address-icon { color:#b26b13; background:#fff6e8; }
 .profile-error { margin:14px 0 0; padding:12px 14px; color:#b42318; background:#fff1f0; border-radius:10px; }
 .logout-button { width:100%; min-height:46px; color:#b42318; background:#fff; border:0; border-radius:14px; }
-.logout-dialog-mask { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; padding:22px; background:rgba(20,27,38,.48); backdrop-filter:blur(3px); }
-.logout-dialog { width:min(360px,100%); padding:26px 22px 20px; background:#fff; border-radius:20px; box-shadow:0 22px 60px rgba(24,32,45,.24); text-align:center; }
-.logout-dialog-icon { width:52px; height:52px; display:grid; place-items:center; margin:0 auto 14px; color:#c0362c; background:#fff0ee; border-radius:50%; }
-.logout-dialog h3 { margin:0; color:#1d2430; font-size:19px; }
-.logout-dialog p { margin:10px 4px 20px; color:#7d8795; font-size:13px; line-height:1.65; }
-.logout-dialog-actions { display:grid; grid-template-columns:1fr 1fr; gap:11px; }
-.logout-dialog-actions button { min-height:44px; border:1px solid #e3e7ec; border-radius:12px; color:#4f5967; background:#fff; font-size:14px; font-weight:600; }
-.logout-dialog-actions button.confirm { color:#fff; border-color:#c53b32; background:#c53b32; }
-.logout-dialog-actions button:disabled { opacity:.65; }
 @media (max-width:560px) {
   .profile-page { min-height:100vh; min-height:100dvh; display:flex; flex-direction:column; padding-top:12px; }
   .profile-actions { margin-top:auto; }

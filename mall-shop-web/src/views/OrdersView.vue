@@ -51,9 +51,9 @@
         </div>
         <div class="order-actions">
           <RouterLink class="order-action" :to="`/orders/${item.order.id}`">查看详情</RouterLink>
-          <button v-if="item.order.status === 0" class="order-action" :disabled="actingId === item.order.id" @click="cancel(item.order.id)">取消订单</button>
+          <button v-if="item.order.status === 0" class="order-action" :disabled="actingId === item.order.id" @click="requestOrderAction('cancel', item.order.id)">取消订单</button>
           <RouterLink v-if="item.order.status === 0" class="order-action primary-action" :to="`/orders/${item.order.id}`">立即支付</RouterLink>
-          <button v-if="item.order.status === 2" class="order-action primary-action" :disabled="actingId === item.order.id" @click="receive(item.order.id)">确认收货</button>
+          <button v-if="item.order.status === 2" class="order-action primary-action" :disabled="actingId === item.order.id" @click="requestOrderAction('receive', item.order.id)">确认收货</button>
           <RouterLink v-if="Number(item.pendingReviewCount || 0) > 0" class="order-action primary-action" :to="`/product/${item.items?.[0]?.productId}`">去评价</RouterLink>
           <RouterLink v-if="canApplyAfterSale(item)" class="order-action" :to="`/orders/${item.order.id}?applyAfterSale=1`">申请售后</RouterLink>
         </div>
@@ -62,6 +62,19 @@
         {{ loadingMore ? '正在加载...' : '加载更多订单' }}
       </button>
     </section>
+    <ConfirmDialog
+      :visible="Boolean(pendingOrderAction.type)"
+      :title="orderActionDialog.title"
+      :message="orderActionDialog.message"
+      :confirm-text="orderActionDialog.confirmText"
+      :cancel-text="orderActionDialog.cancelText"
+      :loading-text="orderActionDialog.loadingText"
+      :icon-type="orderActionDialog.iconType"
+      :is-danger="orderActionDialog.isDanger"
+      :busy="Boolean(actingId)"
+      @confirm="confirmPendingOrderAction"
+      @cancel="closeOrderAction"
+    />
   </div>
 </template>
 
@@ -70,6 +83,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ChevronLeft, ChevronRight, PackageOpen, RefreshCw } from 'lucide-vue-next'
 import { cancelOrder, confirmReceive, getProfileOrderSummary, listMyOrders } from '@/api/shop'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { money, statusName } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
 
@@ -84,6 +98,7 @@ const pageNum = ref(1)
 const pageSize = 10
 const total = ref(0)
 const actingId = ref(null)
+const pendingOrderAction = ref({ type: '', id: null })
 let requestSequence = 0
 const validTabs = new Set(['all', 'pending-payment', 'pending-shipment', 'pending-receipt', 'pending-review', 'after-sale'])
 const activeTab = computed(() => validTabs.has(route.query.tab) ? route.query.tab : 'all')
@@ -101,6 +116,24 @@ const tabs = computed(() => [
 ])
 const filteredOrders = computed(() => orders.value)
 const hasMore = computed(() => orders.value.length < total.value)
+const pendingOrder = computed(() => orders.value.find((item) => item.order?.id === pendingOrderAction.value.id)?.order)
+const orderActionDialog = computed(() => pendingOrderAction.value.type === 'receive' ? {
+  title: '确认已收到商品？',
+  message: `请确认订单“${pendingOrder.value?.orderNo || ''}”已经签收且商品数量无误。`,
+  confirmText: '确认收货',
+  cancelText: '暂未收到',
+  loadingText: '确认中…',
+  iconType: 'receive',
+  isDanger: false,
+} : {
+  title: '取消这笔订单？',
+  message: `取消订单“${pendingOrder.value?.orderNo || ''}”后，已占用库存会自动释放，此操作无法恢复。`,
+  confirmText: '确认取消',
+  cancelText: '保留订单',
+  loadingText: '取消中…',
+  iconType: 'cancel',
+  isDanger: true,
+})
 const orderStateMap = {
   'pending-payment': 'PENDING_PAYMENT',
   'pending-shipment': 'PENDING_SHIPMENT',
@@ -176,6 +209,21 @@ const canApplyAfterSale = (item) => ![0, 4].includes(item.order?.status)
   && !(item.afterSales || []).some((sale) => [0, 4, 5, 6].includes(sale.status))
   && unavailableAfterSaleQuantity(item) < orderQuantity(item)
 
+const requestOrderAction = (type, id) => {
+  if (actingId.value) return
+  pendingOrderAction.value = { type, id }
+}
+
+const closeOrderAction = () => {
+  if (!actingId.value) pendingOrderAction.value = { type: '', id: null }
+}
+
+const confirmPendingOrderAction = () => {
+  const { type, id } = pendingOrderAction.value
+  if (!id) return closeOrderAction()
+  return type === 'receive' ? receive(id) : cancel(id)
+}
+
 const cancel = async (id) => {
   actingId.value = id
   error.value = ''
@@ -183,7 +231,7 @@ const cancel = async (id) => {
     await cancelOrder(id)
     await Promise.all([fetchOrders(), fetchOrderSummary()])
   } catch (e) { error.value = e.message || '取消订单失败' }
-  finally { actingId.value = null }
+  finally { actingId.value = null; pendingOrderAction.value = { type: '', id: null } }
 }
 
 const receive = async (id) => {
@@ -193,7 +241,7 @@ const receive = async (id) => {
     await confirmReceive(id)
     await Promise.all([fetchOrders(), fetchOrderSummary()])
   } catch (e) { error.value = e.message || '确认收货失败' }
-  finally { actingId.value = null }
+  finally { actingId.value = null; pendingOrderAction.value = { type: '', id: null } }
 }
 
 watch(activeTab, () => fetchOrders())

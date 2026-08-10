@@ -283,7 +283,7 @@ test('checkout keeps the address block compact and preserves the remark while sw
   assert.match(address, /@click="removeAddress\(address\)"/)
   assert.doesNotMatch(address, /已自动填入，请核对后保存/)
   assert.match(address, /删除收货地址？/)
-  assert.match(address, /confirm-overlay/)
+  assert.match(address, /<ConfirmDialog/)
   assert.match(address, /fieldErrors\.receiverName/)
   assert.match(address, /请选择完整的省、市、区\/县/)
   assert.match(address, /form-toast/)
@@ -342,7 +342,30 @@ test('customers can cancel only pending after-sale applications', async () => {
   assert.match(source, /物流公司：\{\{ sale\.returnDeliveryCompany/)
   assert.match(source, /查看物流轨迹/)
   assert.match(source, /sale\.status === 0/)
-  assert.match(source, /不会产生退款，仍可在售后期限内重新申请/)
+  assert.match(source, /取消后不会产生退款；如仍在售后期限内/)
+  assert.doesNotMatch(source, /window\.confirm\(/)
+})
+
+test('simple confirmations use one branded accessible dialog across customer pages', async () => {
+  const component = await readFile(new URL('../src/components/ConfirmDialog.vue', import.meta.url), 'utf8')
+  const cart = await readView('CartView.vue')
+  const address = await readView('AddressView.vue')
+  const profile = await readView('ProfileView.vue')
+  const detail = await readView('OrderDetailView.vue')
+  const orders = await readView('OrdersView.vue')
+
+  assert.match(component, /role="alertdialog"/)
+  assert.match(component, /aria-modal="true"/)
+  assert.match(component, /cancelButtonRef\.value\?\.focus\(\)/)
+  assert.match(component, /loadingText/)
+  assert.match(component, /iconMap/)
+  assert.doesNotMatch(component, /⚠️|🗑️|🛒/)
+  for (const source of [cart, address, profile, detail, orders]) {
+    assert.match(source, /<ConfirmDialog/)
+    assert.doesNotMatch(source, /window\.confirm\(/)
+  }
+  assert.match(detail, /确认已收到商品？/)
+  assert.match(orders, /取消这笔订单？/)
 })
 
 test('alipay checkout posts the generated payment form and CSP allows only the official gateway', async () => {

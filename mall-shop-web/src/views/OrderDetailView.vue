@@ -116,7 +116,7 @@
               <strong>× {{ line.refundQuantity }}</strong>
             </div>
             <div v-if="sale.status === 0" class="after-sale-record-actions">
-              <button type="button" class="btn secondary after-sale-cancel" :disabled="cancellingAfterSaleId === sale.id" @click="cancelAfterSale(sale.id)">
+              <button type="button" class="btn secondary after-sale-cancel" :disabled="cancellingAfterSaleId === sale.id" @click="requestCancelAfterSale(sale.id)">
                 {{ cancellingAfterSaleId === sale.id ? '取消中…' : '取消申请' }}
               </button>
             </div>
@@ -213,9 +213,9 @@
         </p>
         <div class="inline-actions">
           <button v-if="canApplyAfterSale && !applyingAfterSale" class="btn secondary" @click="startAfterSale">申请售后</button>
-          <button v-if="order.status === 0" class="btn secondary" :disabled="acting" @click="cancel">取消订单</button>
+          <button v-if="order.status === 0" class="btn secondary" :disabled="acting" @click="requestOrderConfirmation('cancel-order')">取消订单</button>
           <button v-if="order.status === 0" class="btn primary" :disabled="acting" @click="pay">立即支付</button>
-          <button v-if="order.status === 2" class="btn primary" :disabled="acting" @click="receive">确认收货</button>
+          <button v-if="order.status === 2" class="btn primary" :disabled="acting" @click="requestOrderConfirmation('receive-order')">确认收货</button>
         </div>
         <p v-if="error" style="color: var(--coral); line-height: 1.6">{{ error }}</p>
       </aside>
@@ -232,6 +232,19 @@
         </button>
       </section>
     </div>
+    <ConfirmDialog
+      :visible="Boolean(confirmAction)"
+      :title="confirmationDialog.title"
+      :message="confirmationDialog.message"
+      :confirm-text="confirmationDialog.confirmText"
+      :cancel-text="confirmationDialog.cancelText"
+      :loading-text="confirmationDialog.loadingText"
+      :icon-type="confirmationDialog.iconType"
+      :is-danger="confirmationDialog.isDanger"
+      :busy="confirmationBusy"
+      @confirm="confirmOrderAction"
+      @cancel="closeOrderConfirmation"
+    />
   </div>
 </template>
 
@@ -240,6 +253,7 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ChevronDown, ChevronRight, CircleCheck, MapPin, PackageCheck, RotateCcw, Truck, UserRound } from 'lucide-vue-next'
 import { applyAfterSale, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmReceive, getOrder, payOrderWithBalance, submitAfterSaleReturnShipment } from '@/api/shop'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { dateTime, money, statusName } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
 
@@ -248,6 +262,8 @@ const detail = ref({})
 const loading = ref(false)
 const acting = ref(false)
 const cancellingAfterSaleId = ref(null)
+const pendingAfterSaleId = ref(null)
+const confirmAction = ref('')
 const returnShipmentSaleId = ref(null)
 const returnShipmentForm = ref({ deliveryCompany: '', deliveryNo: '' })
 const submittingAfterSale = ref(false)
@@ -262,6 +278,36 @@ const error = ref('')
 const hasToken = ref(Boolean(localStorage.getItem('shop_token')))
 const paymentPassword = ref('')
 const applyingAfterSale = ref(route.query.applyAfterSale === '1')
+const confirmationBusy = computed(() => acting.value || Boolean(cancellingAfterSaleId.value))
+const confirmationDialog = computed(() => ({
+  'cancel-order': {
+    title: '取消这笔订单？',
+    message: '取消后订单将关闭，已占用的商品库存会自动释放。此操作无法恢复。',
+    confirmText: '确认取消',
+    cancelText: '保留订单',
+    loadingText: '取消中…',
+    iconType: 'cancel',
+    isDanger: true,
+  },
+  'receive-order': {
+    title: '确认已收到商品？',
+    message: '请确认商品已经签收且数量无误。确认后订单将完成，并可进行评价。',
+    confirmText: '确认收货',
+    cancelText: '暂未收到',
+    loadingText: '确认中…',
+    iconType: 'receive',
+    isDanger: false,
+  },
+  'cancel-after-sale': {
+    title: '取消售后申请？',
+    message: '取消后不会产生退款；如仍在售后期限内，您可以重新提交申请。',
+    confirmText: '取消申请',
+    cancelText: '继续保留',
+    loadingText: '取消中…',
+    iconType: 'afterSale',
+    isDanger: true,
+  },
+}[confirmAction.value] || {}))
 const order = computed(() => detail.value.order)
 const shipments = computed(() => {
   if (detail.value.shipments?.length) return detail.value.shipments
@@ -370,9 +416,26 @@ const afterSaleStatus = (status) => ({ 0: '待审核', 1: '退款完成', 2: '�
 const payTypeName = (value) => ({ WECHAT: '微信支付', ALIPAY: '支付宝', BALANCE: '余额' }[value] || value || '未选择')
 const copyText = async (text) => { try { await navigator.clipboard.writeText(text) } catch {} }
 
-const cancelAfterSale = async (id) => {
+const requestOrderConfirmation = (action) => {
+  if (acting.value || cancellingAfterSaleId.value) return
+  confirmAction.value = action
+}
+
+const requestCancelAfterSale = (id) => {
+  pendingAfterSaleId.value = id
+  requestOrderConfirmation('cancel-after-sale')
+}
+
+const closeOrderConfirmation = () => {
+  if (confirmationBusy.value) return
+  confirmAction.value = ''
+  pendingAfterSaleId.value = null
+}
+
+const confirmCancelAfterSale = async () => {
+  const id = pendingAfterSaleId.value
+  if (!id) return closeOrderConfirmation()
   if (cancellingAfterSaleId.value) return
-  if (!window.confirm('确定取消这笔售后申请吗？取消后不会产生退款，仍可在售后期限内重新申请。')) return
   cancellingAfterSaleId.value = id
   error.value = ''
   try {
@@ -382,7 +445,15 @@ const cancelAfterSale = async (id) => {
     error.value = e.message || '取消售后申请失败'
   } finally {
     cancellingAfterSaleId.value = null
+    confirmAction.value = ''
+    pendingAfterSaleId.value = null
   }
+}
+
+const confirmOrderAction = () => {
+  if (confirmAction.value === 'cancel-order') return cancel()
+  if (confirmAction.value === 'receive-order') return receive()
+  if (confirmAction.value === 'cancel-after-sale') return confirmCancelAfterSale()
 }
 
 const submitReturnShipment = async (sale) => {
@@ -451,6 +522,7 @@ const cancel = async () => {
     error.value = e.message || '取消失败'
   } finally {
     acting.value = false
+    confirmAction.value = ''
   }
 }
 
@@ -486,6 +558,7 @@ const receive = async () => {
     error.value = e.message || '确认失败'
   } finally {
     acting.value = false
+    confirmAction.value = ''
   }
 }
 

@@ -62,17 +62,19 @@
       <button class="btn primary save-button" :disabled="saving" @click="submitAddress">{{ saving ? '保存中' : '保存地址' }}</button>
     </section>
 
-    <div v-if="deleteTarget" class="confirm-overlay" role="presentation" @click.self="cancelDelete">
-      <section class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-address-title">
-        <div class="confirm-icon"><Trash2 :size="20" /></div>
-        <h3 id="delete-address-title">删除收货地址？</h3>
-        <p>确定删除“{{ deleteTarget.receiverName }} {{ deleteTarget.receiverPhone }}”吗？删除后无法恢复。</p>
-        <div class="confirm-actions">
-          <button type="button" class="confirm-cancel" :disabled="deletingAddress" @click="cancelDelete">取消</button>
-          <button type="button" class="confirm-delete" :disabled="deletingAddress" @click="confirmDelete">{{ deletingAddress ? '删除中' : '删除' }}</button>
-        </div>
-      </section>
-    </div>
+    <ConfirmDialog
+      :visible="Boolean(deleteTarget)"
+      title="删除收货地址？"
+      :message="deleteAddressMessage"
+      confirm-text="确认删除"
+      cancel-text="保留地址"
+      loading-text="删除中…"
+      icon-type="delete"
+      is-danger
+      :busy="deletingAddress"
+      @confirm="confirmDelete"
+      @cancel="cancelDelete"
+    />
 
     <div v-if="message" class="form-toast" :class="{ error: messageType === 'error' }" role="status" aria-live="polite">{{ message }}</div>
   </div>
@@ -81,12 +83,13 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Check, ClipboardPaste, MapPin, Plus, Trash2, X } from 'lucide-vue-next'
+import { ArrowLeft, Check, ClipboardPaste, MapPin, Plus, X } from 'lucide-vue-next'
 import { deleteAddress, listAddresses, saveAddress } from '@/api/shop'
 import { joinAddress } from '@/utils/format'
 import { parseChineseAddress } from '@/utils/addressParser'
 import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
 import ChinaRegionSelect from '@/components/ChinaRegionSelect.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -108,6 +111,9 @@ const receiverPhoneInput = ref(null)
 const detailAddressInput = ref(null)
 const deleteTarget = ref(null)
 const deletingAddress = ref(false)
+const deleteAddressMessage = computed(() => deleteTarget.value
+  ? `将删除“${deleteTarget.value.receiverName} ${deleteTarget.value.receiverPhone}”的收货地址。删除后无法恢复。`
+  : '')
 const emptyForm = () => ({ id: null, receiverName: '', receiverPhone: '', province: '', city: '', district: '', detailAddress: '', isDefault: 0 })
 const form = ref(emptyForm())
 const notify = (text, type = 'error') => {
@@ -256,14 +262,5 @@ onBeforeUnmount(() => window.clearTimeout(messageTimer.value))
 .form-item.invalid label { color:#b42318; }
 .field.invalid { border-color:#d92d20; box-shadow:0 0 0 2px rgba(217,45,32,.08); }
 .address-editor :deep(.china-region-select.invalid .field) { border-color:#d92d20; box-shadow:0 0 0 2px rgba(217,45,32,.08); }
-.confirm-overlay { position:fixed; inset:0; z-index:30; display:grid; place-items:center; padding:24px; background:rgba(15,23,42,.48); }
-.confirm-dialog { width:min(360px,100%); padding:24px 20px 18px; background:#fff; border-radius:18px; box-shadow:0 18px 50px rgba(15,23,42,.2); text-align:center; }
-.confirm-icon { display:grid; width:44px; height:44px; margin:0 auto 12px; place-items:center; color:#b42318; background:#fff1f0; border-radius:50%; }
-.confirm-dialog h3 { margin:0; color:#17202e; font-size:18px; }
-.confirm-dialog p { margin:10px 0 20px; color:#667085; font-size:13px; line-height:1.7; word-break:break-all; }
-.confirm-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.confirm-actions button { min-height:42px; border-radius:10px; font-size:14px; font-weight:700; }
-.confirm-cancel { color:#475467; background:#fff; border:1px solid #d0d5dd; }.confirm-delete { color:#fff; background:#d92d20; border:1px solid #d92d20; }
-.confirm-actions button:disabled { cursor:not-allowed; opacity:.55; }
 @media (max-width:560px){.address-page{padding-top:10px}.address-editor{padding:16px 14px}.address-editor .form-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.address-editor .form-grid .full{grid-column:1/-1}.address-editor :deep(.china-region-select){grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.address-editor :deep(.china-region-select .field){padding:0 5px;font-size:12px}}
 </style>

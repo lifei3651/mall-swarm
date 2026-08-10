@@ -83,7 +83,7 @@
       :message="`将删除购物车中的全部 ${count} 件商品，清空后无法撤销。`"
       confirm-text="确认清空"
       cancel-text="暂不清空"
-      icon="🛒"
+      icon-type="cart"
       is-danger
       @confirm="confirmClearCart"
       @cancel="clearConfirmVisible = false"
@@ -95,7 +95,7 @@
       :message="actionDialog.message"
       :confirm-text="actionDialog.confirmText"
       :cancel-text="actionDialog.cancelText"
-      :icon="actionDialog.icon"
+      :icon-type="actionDialog.iconType"
       :is-danger="actionDialog.isDanger"
       @confirm="confirmPendingAction"
       @cancel="pendingAction = ''"
@@ -188,7 +188,7 @@ const actionDialog = computed(() => {
     message: `将删除选中的 ${selectedKeys.size} 种商品，共 ${selectedQuantity.value} 件。删除后无法撤销。`,
     confirmText: '确认删除',
     cancelText: '保留商品',
-    icon: '🗑️',
+    iconType: 'delete',
     isDanger: true,
   }
 })
