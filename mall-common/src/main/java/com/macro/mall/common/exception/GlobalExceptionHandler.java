@@ -11,8 +11,6 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import java.util.stream.Collectors;
-
 /**
  * 全局异常处理
  * Created by macro on 2020/2/27.
@@ -41,9 +39,8 @@ public class GlobalExceptionHandler {
         BindingResult bindingResult = e.getBindingResult();
         String message = null;
         if (bindingResult.hasErrors()) {
-            message = bindingResult.getFieldErrors().stream()
-                    .map(error -> error.getField() + ": " + error.getDefaultMessage())
-                    .collect(Collectors.joining("; "));
+            FieldError fieldError = bindingResult.getFieldError();
+            message = fieldError == null ? "请求参数不正确" : fieldError.getDefaultMessage();
         }
         return CommonResult.validateFailed(message);
     }
@@ -54,9 +51,8 @@ public class GlobalExceptionHandler {
         BindingResult bindingResult = e.getBindingResult();
         String message = null;
         if (bindingResult.hasErrors()) {
-            message = bindingResult.getFieldErrors().stream()
-                    .map(error -> error.getField() + ": " + error.getDefaultMessage())
-                    .collect(Collectors.joining("; "));
+            FieldError fieldError = bindingResult.getFieldError();
+            message = fieldError == null ? "请求参数不正确" : fieldError.getDefaultMessage();
         }
         return CommonResult.validateFailed(message);
     }

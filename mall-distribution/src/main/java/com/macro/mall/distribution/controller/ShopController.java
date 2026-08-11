@@ -50,6 +50,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -80,7 +81,7 @@ public class ShopController {
 
     @Operation(summary = "商城账号注册（首笔有效支付后成为会员）")
     @PostMapping("/auth/register")
-    public CommonResult<ShopAuthVO> register(@RequestBody ShopRegisterDTO dto,
+    public CommonResult<ShopAuthVO> register(@Valid @RequestBody ShopRegisterDTO dto,
                                               HttpServletRequest request,
                                               HttpServletResponse response) {
         ShopAuthVO auth = authService.register(dto);
@@ -90,7 +91,7 @@ public class ShopController {
 
     @Operation(summary = "会员登录")
     @PostMapping("/auth/login")
-    public CommonResult<ShopAuthVO> login(@RequestBody ShopLoginDTO dto,
+    public CommonResult<ShopAuthVO> login(@Valid @RequestBody ShopLoginDTO dto,
                                            HttpServletRequest request,
                                            HttpServletResponse response) {
         ShopAuthVO auth = authService.login(dto);
@@ -498,7 +499,7 @@ public class ShopController {
     @PostMapping("/addresses")
     public CommonResult<DmsShopAddress> saveAddress(
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @RequestBody ShopAddressDTO dto) {
+            @Valid @RequestBody ShopAddressDTO dto) {
         return CommonResult.success(addressService.save(authService.requireMember(authorization), dto));
     }
 
@@ -515,7 +516,7 @@ public class ShopController {
     @Idempotent(timeout = 30, message = "订单正在提交，请勿重复操作")
     public CommonResult<ShopOrderVO> submitOrder(
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @RequestBody ShopOrderSubmitDTO dto) {
+            @Valid @RequestBody ShopOrderSubmitDTO dto) {
         DmsShopMember member = authService.requireMember(authorization);
         if (member.getPayPasswordHash() == null || member.getPayPasswordHash().isBlank()) {
             Asserts.fail("首次交易前请先设置6位支付密码");
@@ -531,7 +532,7 @@ public class ShopController {
     @PostMapping("/orders/freight-quote")
     public CommonResult<FreightQuoteVO> freightQuote(
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @RequestBody ShopOrderSubmitDTO dto) {
+            @Valid @RequestBody ShopOrderSubmitDTO dto) {
         DmsShopMember member = authService.requireMember(authorization);
         dto.setUserId(member.getUserId());
         return CommonResult.success(shopService.quoteFreight(dto, member));
@@ -738,7 +739,7 @@ public class ShopController {
     @PostMapping("/after-sales")
     public CommonResult<DmsShopAfterSale> applyAfterSale(
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @RequestBody ShopAfterSaleApplyDTO dto) {
+            @Valid @RequestBody ShopAfterSaleApplyDTO dto) {
         return CommonResult.success(afterSaleService.apply(authService.requireMember(authorization), dto));
     }
 
@@ -755,7 +756,7 @@ public class ShopController {
     public CommonResult<DmsShopAfterSale> submitReturnShipment(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable Long id,
-            @RequestBody ShopAfterSaleReturnShipmentDTO dto) {
+            @Valid @RequestBody ShopAfterSaleReturnShipmentDTO dto) {
         return CommonResult.success(afterSaleService.submitReturnShipment(authService.requireMember(authorization), id, dto));
     }
 

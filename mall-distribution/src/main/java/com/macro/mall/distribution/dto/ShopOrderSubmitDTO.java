@@ -1,5 +1,7 @@
 package com.macro.mall.distribution.dto;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -40,5 +42,7 @@ public class ShopOrderSubmitDTO implements Serializable {
     @lombok.ToString.Exclude
     private String smsCode;
 
+    @NotEmpty(message = "订单商品不能为空")
+    @Valid
     private List<ShopOrderItemDTO> items;
 }

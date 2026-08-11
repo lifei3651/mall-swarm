@@ -17,6 +17,7 @@ import com.macro.mall.distribution.vo.ShopWalletSummaryVO;
 import com.macro.mall.distribution.vo.WithdrawRecordVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -42,7 +43,7 @@ public class ShopWalletController {
     @PostMapping("/recipient")
     public CommonResult<BalanceRecipientVO> recipient(
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @RequestBody BalanceRecipientQueryDTO dto) {
+            @Valid @RequestBody BalanceRecipientQueryDTO dto) {
         return CommonResult.success(walletService.findRecipient(authService.requireMember(authorization),
                 dto == null ? null : dto.getPhone()));
     }
@@ -51,7 +52,7 @@ public class ShopWalletController {
     @PutMapping("/payment-password")
     public CommonResult<Boolean> setPaymentPassword(
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @RequestBody PaymentPasswordDTO dto) {
+            @Valid @RequestBody PaymentPasswordDTO dto) {
         return CommonResult.success(walletService.setPaymentPassword(authService.requireMember(authorization), dto));
     }
 
@@ -60,7 +61,7 @@ public class ShopWalletController {
     @Idempotent(timeout = 30, message = "转账正在处理，请勿重复操作")
     public CommonResult<Boolean> transfer(
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @RequestBody BalanceTransferDTO dto) {
+            @Valid @RequestBody BalanceTransferDTO dto) {
         return CommonResult.success(walletService.transfer(authService.requireMember(authorization), dto));
     }
 
@@ -70,7 +71,7 @@ public class ShopWalletController {
     public CommonResult<ShopOrderVO> payOrder(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable Long orderId,
-            @RequestBody BalancePayDTO dto) {
+            @Valid @RequestBody BalancePayDTO dto) {
         return CommonResult.success(walletService.payOrder(authService.requireMember(authorization), orderId, dto));
     }
 
@@ -79,7 +80,7 @@ public class ShopWalletController {
     @Idempotent(timeout = 30, message = "提现申请正在处理，请勿重复操作")
     public CommonResult<WithdrawRecordVO> applyWithdrawal(
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @RequestBody ShopWithdrawalApplyDTO dto) {
+            @Valid @RequestBody ShopWithdrawalApplyDTO dto) {
         return CommonResult.success(walletService.applyWithdrawal(authService.requireMember(authorization), dto));
     }
 

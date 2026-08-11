@@ -1,5 +1,11 @@
 package com.macro.mall.distribution.dto;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 import lombok.ToString;
 
@@ -11,13 +17,24 @@ public class ShopWithdrawalApplyDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    @NotNull(message = "请输入提现金额")
+    @DecimalMin(value = "0.01", message = "提现金额必须大于0")
     private BigDecimal withdrawAmount;
+    @NotNull(message = "请选择提现方式")
+    @Min(value = 1, message = "提现方式不正确")
+    @Max(value = 3, message = "提现方式不正确")
     private Integer withdrawType;
     private String bankName;
+    @NotBlank(message = "请填写收款账号")
     private String bankAccount;
+    @NotBlank(message = "请填写收款人姓名")
     private String accountName;
+    @NotBlank(message = "请输入支付密码")
+    @Pattern(regexp = "^\\d{6}$", message = "支付密码必须是6位数字")
     @ToString.Exclude
     private String paymentPassword;
+    @NotBlank(message = "请输入短信验证码")
+    @Pattern(regexp = "^\\d{6}$", message = "短信验证码必须是6位数字")
     @ToString.Exclude
     private String smsCode;
 }
