@@ -15,7 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -83,7 +82,9 @@ public class WebLogAspect {
         webLog.setIp(ip);
         webLog.setMethod(request.getMethod());
         webLog.setParameter(getParameter(method, joinPoint.getArgs()));
-        webLog.setResult(result);
+        // Responses often contain tokens, member profiles, addresses or payment data.
+        // Record only request metadata and latency; never serialize full response bodies.
+        webLog.setResult(null);
         webLog.setSpendTime((int) (endTime - startTime));
         webLog.setStartTime(startTime);
         webLog.setUri(request.getRequestURI());
@@ -102,13 +103,6 @@ public class WebLogAspect {
     /**
      * 敏感字段列表（日志中脱敏）
      */
-    private static final String[] SENSITIVE_FIELDS = {
-        "password", "oldPassword", "newPassword", "confirmPassword",
-        "token", "accessToken", "refreshToken", "authorization",
-        "secret", "secretKey", "accessKeySecret", "appSecret",
-        "creditCode", "idCard", "bankCard"
-    };
-
     /**
      * 根据方法和传入的参数获取请求参数
      */
@@ -119,21 +113,21 @@ public class WebLogAspect {
             //将RequestBody注解修饰的参数作为请求参数
             RequestBody requestBody = parameters[i].getAnnotation(RequestBody.class);
             if (requestBody != null) {
-                argList.add(maskSensitiveFields(args[i]));
+                argList.add(SensitiveLogSanitizer.sanitize(args[i]));
             }
             //将RequestParam注解修饰的参数作为请求参数
             RequestParam requestParam = parameters[i].getAnnotation(RequestParam.class);
             if (requestParam != null) {
                 Map<String, Object> map = new HashMap<>();
                 String key = parameters[i].getName();
-                if (!StringUtils.isEmpty(requestParam.value())) {
+                if (requestParam.value() != null && !requestParam.value().isEmpty()) {
                     key = requestParam.value();
                 }
                 // 对敏感字段脱敏
-                if (isSensitiveField(key)) {
+                if (SensitiveLogSanitizer.isSensitiveName(key)) {
                     map.put(key, "***");
                 } else {
-                    map.put(key, args[i]);
+                    map.put(key, SensitiveLogSanitizer.sanitize(args[i]));
                 }
                 argList.add(map);
             }
@@ -147,50 +141,4 @@ public class WebLogAspect {
         }
     }
 
-    /**
-     * 判断是否为敏感字段
-     */
-    private boolean isSensitiveField(String fieldName) {
-        if (fieldName == null) {
-            return false;
-        }
-        String lowerFieldName = fieldName.toLowerCase();
-        for (String sensitiveField : SENSITIVE_FIELDS) {
-            if (lowerFieldName.contains(sensitiveField.toLowerCase())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * 对对象中的敏感字段进行脱敏
-     */
-    private Object maskSensitiveFields(Object obj) {
-        if (obj == null) {
-            return null;
-        }
-        // 如果是基本类型或字符串，直接返回
-        if (obj.getClass().isPrimitive() || obj instanceof String || obj instanceof Number || obj instanceof Boolean) {
-            return obj;
-        }
-        // 对对象的字段进行脱敏处理
-        try {
-            Map<String, Object> result = new HashMap<>();
-            for (java.lang.reflect.Field field : obj.getClass().getDeclaredFields()) {
-                field.setAccessible(true);
-                String fieldName = field.getName();
-                Object value = field.get(obj);
-                if (isSensitiveField(fieldName)) {
-                    result.put(fieldName, "***");
-                } else {
-                    result.put(fieldName, value);
-                }
-            }
-            return result;
-        } catch (Exception e) {
-            // 如果反射失败，返回对象的toString
-            return obj.toString();
-        }
-    }
 }

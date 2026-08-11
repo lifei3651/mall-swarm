@@ -101,11 +101,7 @@
         <button v-if="query.categoryName || query.keyword" type="button" class="clear-filter" @click="clearFilter">查看全部</button>
       </div>
 
-      <div v-if="loading" class="home-product-grid home-skeleton-grid" aria-label="商品加载中">
-        <div v-for="index in 4" :key="index" class="home-product-skeleton">
-          <span></span><i></i><i></i>
-        </div>
-      </div>
+      <ProductListSkeleton v-if="loading" :count="4" variant="grid" />
 
       <div v-else-if="products.length" class="home-product-grid">
         <article v-for="product in products" :key="product.id" class="home-product-card">
@@ -165,6 +161,7 @@ import { readDisplayExtraConfig, resolveDisplayColors, resolveHomeModules } from
 import { resolveQuickCartItem } from '@/utils/quickCart'
 import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
 import { cartItemKey, stockAdditionViolation } from '@/utils/stockRules'
+import ProductListSkeleton from '@/components/ProductListSkeleton.vue'
 
 const router = useRouter()
 const { add, getQuantity, getProductQuantity } = useCart()
@@ -535,12 +532,6 @@ onUnmounted(() => { stopBannerAutoplay(); stopNoticeRotation(); window.clearTime
 .home-empty { min-height: 340px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; color: #989ea6; background: #fff; border-radius: 14px; }
 .home-empty strong { color: #59616a; }
 .home-empty button { padding: 8px 15px; color: var(--brand-primary); background: #fff; border: 1px solid var(--brand-primary-soft); border-radius: 999px; }
-.home-skeleton-grid { pointer-events: none; }
-.home-product-skeleton { overflow: hidden; padding-bottom: 16px; background: #fff; border-radius: 13px; }
-.home-product-skeleton span,.home-product-skeleton i { display: block; background: #eceeef; }
-.home-product-skeleton span { aspect-ratio: 1; }
-.home-product-skeleton i { width: calc(100% - 24px); height: 13px; margin: 12px 12px 0; border-radius: 7px; }
-.home-product-skeleton i:last-child { width: 62%; }
 @media (max-width: 760px) {
   .home-page { padding-bottom: 82px; }
   .home-topbar-inner { width: 100%; min-height: 62px; grid-template-columns: 34px minmax(0,1fr) 46px; gap: 5px; padding: 7px 7px 7px 5px; }

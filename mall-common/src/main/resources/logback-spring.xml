@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE configuration>
 <configuration>
+    <conversionRule conversionWord="safeMsg" class="com.macro.mall.common.log.SensitiveMessageConverter"/>
+    <conversionRule conversionWord="safeEx" class="com.macro.mall.common.log.SensitiveThrowableProxyConverter"/>
+    <property name="SAFE_LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{50} - %safeMsg%n%safeEx"/>
     <!--配置不打印logback内部的状态信息，排查logback配置问题时可注释掉-->
     <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
     <!--引用默认日志配置-->
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <property name="CONSOLE_LOG_PATTERN" value="${SAFE_LOG_PATTERN}"/>
     <!--使用默认的控制台日志输出实现-->
     <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
     <!--应用名称-->
@@ -25,7 +29,7 @@
         </filter>
         <encoder>
             <!--设置为默认的文件日志格式-->
-            <pattern>${FILE_LOG_PATTERN}</pattern>
+            <pattern>${SAFE_LOG_PATTERN}</pattern>
             <charset>UTF-8</charset>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
@@ -49,7 +53,7 @@
         </filter>
         <encoder>
             <!--设置为默认的文件日志格式-->
-            <pattern>${FILE_LOG_PATTERN}</pattern>
+            <pattern>${SAFE_LOG_PATTERN}</pattern>
             <charset>UTF-8</charset>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
@@ -92,8 +96,8 @@
                                 "pid": "${PID:-}",
                                 "thread": "%thread",
                                 "class": "%logger",
-                                "message": "%message",
-                                "stack_trace": "%exception{20}"
+                                "message": "%safeMsg",
+                                "stack_trace": "%safeEx{20}"
                                 }
                             </pattern>
                         </pattern>
@@ -125,8 +129,8 @@
                                 "pid": "${PID:-}",
                                 "thread": "%thread",
                                 "class": "%logger",
-                                "message": "%message",
-                                "stack_trace": "%exception{20}"
+                                "message": "%safeMsg",
+                                "stack_trace": "%safeEx{20}"
                                 }
                             </pattern>
                         </pattern>
@@ -153,8 +157,8 @@
                                 "pid": "${PID:-}",
                                 "thread": "%thread",
                                 "class": "%logger",
-                                "message": "%message",
-                                "stack_trace": "%exception{20}"
+                                "message": "%safeMsg",
+                                "stack_trace": "%safeEx{20}"
                                 }
                             </pattern>
                         </pattern>
@@ -179,7 +183,7 @@
                                 "level": "%level",
                                 "service": "${APP_NAME:-}",
                                 "class": "%logger",
-                                "message": "%message"
+                                "message": "%safeMsg"
                                 }
                             </pattern>
                         </pattern>

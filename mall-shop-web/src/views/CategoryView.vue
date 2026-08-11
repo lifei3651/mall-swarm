@@ -56,12 +56,7 @@
           </div>
         </div>
 
-        <div v-if="loading" class="product-list skeleton-list" aria-label="商品加载中">
-          <div v-for="index in 3" :key="index" class="product-skeleton">
-            <span class="skeleton-image"></span>
-            <span class="skeleton-lines"></span>
-          </div>
-        </div>
+        <ProductListSkeleton v-if="loading" :count="3" variant="list" />
 
         <div v-else-if="displayedProducts.length" class="product-list">
           <article v-for="product in displayedProducts" :key="product.id" class="category-product-card">
@@ -124,6 +119,7 @@ import { resolveQuickCartItem } from '@/utils/quickCart'
 import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
 import { cartItemKey, stockAdditionViolation } from '@/utils/stockRules'
 import { currentBrandLogo, currentBrandName } from '@/utils/brand'
+import ProductListSkeleton from '@/components/ProductListSkeleton.vue'
 
 const { add, getQuantity, getProductQuantity } = useCart()
 const loading = ref(false)
@@ -441,12 +437,6 @@ onBeforeUnmount(() => {
 .empty-state { min-height: 420px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #9ba1a8; }
 .empty-state strong { margin-top: 7px; color: #626972; font-size: 16px; }
 .empty-state span { font-size: 13px; }
-.skeleton-list { padding: 0; }
-.product-skeleton { min-height: 228px; display: grid; grid-template-columns: 214px 1fr; gap: 22px; padding: 18px 22px; border-bottom: 1px solid #eff1f2; }
-.skeleton-image,.skeleton-lines { display: block; border-radius: 12px; background: linear-gradient(100deg,#f0f1f2 25%,#fafafa 45%,#f0f1f2 65%); background-size: 220% 100%; animation: shimmer 1.2s infinite linear; }
-.skeleton-image { aspect-ratio: 1; }
-.skeleton-lines { height: 130px; align-self: center; }
-@keyframes shimmer { to { background-position-x: -220%; } }
 
 @media (max-width: 760px) {
   .category-page { width: 100%; min-height: 100vh; padding: 0 0 calc(52px + env(safe-area-inset-bottom)); }
@@ -474,8 +464,6 @@ onBeforeUnmount(() => {
   .category-price strong { font-size: 25px; }
   .category-price small { font-size: 14px; }
   .quick-cart-button { min-width: 88px; height: 36px; gap: 4px; padding: 0 11px; font-size: 13px; box-shadow: none; }
-  .product-skeleton { min-height: 144px; grid-template-columns: 116px 1fr; gap: 10px; padding: 12px 10px; }
-  .skeleton-lines { height: 92px; }
   .empty-state { min-height: 330px; }
 }
 

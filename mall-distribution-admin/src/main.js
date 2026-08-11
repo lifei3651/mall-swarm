@@ -7,8 +7,10 @@ import router from './router'
 import 'element-plus/es/components/message/style/css'
 import 'element-plus/es/components/message-box/style/css'
 import './assets/styles.scss'
+import { installGlobalErrorHandling } from './utils/runtimeErrors'
 
 const app = createApp(App)
+installGlobalErrorHandling(app, router)
 
 app.use(createPinia())
 app.use(router)
