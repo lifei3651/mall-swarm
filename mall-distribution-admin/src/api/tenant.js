@@ -54,3 +54,17 @@ export function saveDisplayConfig(data, options = {}) {
     ...options,
   })
 }
+
+export function listTenantConfigVersions(tenantId) {
+  return request({
+    url: `/distribution/tenant/${tenantId}/config-versions`,
+    method: 'get',
+  })
+}
+
+export function restoreTenantConfigVersion(tenantId, versionId) {
+  return request({
+    url: `/distribution/tenant/${tenantId}/config-versions/${versionId}/restore`,
+    method: 'post',
+  })
+}

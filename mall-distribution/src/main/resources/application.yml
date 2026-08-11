@@ -97,6 +97,12 @@ erp:
     # ERP推单连续失败达到该次数后停止自动重试，后台仍可人工重试。
     max-retries: ${ERP_SYNC_MAX_RETRIES:8}
 
+operation-log:
+  # 后台审计日志默认保留一年，服务层会强制保证不少于90天。
+  retention-days: ${OPERATION_LOG_RETENTION_DAYS:365}
+  # 每天低峰期分批清理过期记录；多实例部署由分布式任务锁避免重复执行。
+  cleanup-cron: "${OPERATION_LOG_CLEANUP_CRON:0 30 3 * * ?}"
+
 # 支付宝支付配置
 # 正式使用时请替换为真实的支付宝应用配置
 alipay:

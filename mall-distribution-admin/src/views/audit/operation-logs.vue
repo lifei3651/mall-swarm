@@ -1,5 +1,12 @@
 <template>
   <div class="page-container">
+    <el-alert
+      :title="`操作日志自动保留 ${retentionDays} 天，超过期限后由系统在低峰时段分批清理。`"
+      type="info"
+      :closable="false"
+      show-icon
+      class="retention-alert"
+    />
     <div class="search-container">
       <el-form :inline="true" :model="query">
         <el-form-item label="模块">
@@ -63,7 +70,7 @@
 
 <script setup>
 import { onMounted, ref } from 'vue'
-import { listOperationLogs } from '@/api/operationLog'
+import { getOperationLogRetention, listOperationLogs } from '@/api/operationLog'
 import { formatDateTime as formatOperationTime } from '@/utils/dateTime'
 
 const query = ref({})
@@ -72,6 +79,7 @@ const loading = ref(false)
 const pagination = ref({ page: 1, size: 10, total: 0 })
 const detailVisible = ref(false)
 const current = ref({})
+const retentionDays = ref(365)
 
 const fetchLogs = async () => {
   loading.value = true
@@ -154,7 +162,10 @@ const targetDescription = (row = {}) => {
 }
 const isFailed = (row = {}) => /失败|异常|状态：4|状态：5|HTTP [45]/.test(row.remark || '')
 
-onMounted(fetchLogs)
+onMounted(async () => {
+  const [retentionResult] = await Promise.allSettled([getOperationLogRetention(), fetchLogs()])
+  if (retentionResult.status === 'fulfilled') retentionDays.value = Number(retentionResult.value.data?.retentionDays || 365)
+})
 </script>
 
 <style scoped>
@@ -162,5 +173,6 @@ onMounted(fetchLogs)
   margin-top: 16px;
   justify-content: flex-end;
 }
+.retention-alert { margin-bottom: 16px; }
 .action-text { color:#303133; line-height:1.55; }
 </style>

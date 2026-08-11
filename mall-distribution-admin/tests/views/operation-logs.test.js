@@ -13,4 +13,12 @@ describe('后台操作日志', () => {
     expect(source).toContain("formatDateTime as formatOperationTime")
     expect(source).not.toContain('<el-table-column prop="createTime" label="操作时间"')
   })
+
+  it('明确展示操作日志保留期限并读取后端配置', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('getOperationLogRetention')
+    expect(source).toContain('操作日志自动保留')
+    expect(source).toContain('低峰时段分批清理')
+  })
 })

@@ -73,4 +73,14 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain("status: bannerModuleVisible ? '展示中' : '已隐藏'")
     expect(source).toContain('首页模块总开关已隐藏，图片不会在前台展示')
   })
+
+  it('支持查看和恢复商城客户配置历史版本', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('版本记录')
+    expect(source).toContain('listTenantConfigVersions')
+    expect(source).toContain('restoreTenantConfigVersion')
+    expect(source).toContain('恢复前的当前配置会自动保存为历史版本')
+    expect(source.indexOf('await saveTenant(tenantPayload')).toBeLessThan(source.indexOf('await saveDisplayConfig(payload'))
+  })
 })

@@ -7,6 +7,7 @@ import com.macro.mall.distribution.entity.DmsTenant;
 import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
 import com.macro.mall.distribution.service.TenantService;
 import com.macro.mall.distribution.vo.TenantLegalTemplatesVO;
+import com.macro.mall.distribution.vo.TenantConfigVersionVO;
 import com.github.pagehelper.PageHelper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -65,5 +66,18 @@ public class TenantController {
     @PostMapping("/display-config")
     public CommonResult<DmsTenantDisplayConfig> saveDisplayConfig(@RequestBody DmsTenantDisplayConfig config) {
         return CommonResult.success(tenantService.saveDisplayConfig(config));
+    }
+
+    @Operation(summary = "查询商城配置历史版本")
+    @GetMapping("/{tenantId}/config-versions")
+    public CommonResult<List<TenantConfigVersionVO>> listConfigVersions(@PathVariable Long tenantId) {
+        return CommonResult.success(tenantService.listConfigVersions(tenantId));
+    }
+
+    @Operation(summary = "恢复商城配置历史版本")
+    @PostMapping("/{tenantId}/config-versions/{versionId}/restore")
+    public CommonResult<DmsTenant> restoreConfigVersion(@PathVariable Long tenantId,
+                                                        @PathVariable Long versionId) {
+        return CommonResult.success(tenantService.restoreConfigVersion(tenantId, versionId));
     }
 }

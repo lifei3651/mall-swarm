@@ -4,6 +4,7 @@ import com.macro.mall.distribution.entity.DmsCommissionRuleVersion;
 import com.macro.mall.distribution.entity.DmsTenant;
 import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
 import com.macro.mall.distribution.vo.TenantLegalTemplatesVO;
+import com.macro.mall.distribution.vo.TenantConfigVersionVO;
 
 import java.util.List;
 
@@ -24,4 +25,8 @@ public interface TenantService {
     DmsTenantDisplayConfig getDisplayConfig(Long tenantId);
 
     DmsTenantDisplayConfig saveDisplayConfig(DmsTenantDisplayConfig config);
+
+    List<TenantConfigVersionVO> listConfigVersions(Long tenantId);
+
+    DmsTenant restoreConfigVersion(Long tenantId, Long versionId);
 }

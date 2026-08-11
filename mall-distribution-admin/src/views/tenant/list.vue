@@ -44,6 +44,7 @@
       <el-table-column label="操作" fixed="right" width="280">
         <template #default="{ row }">
           <el-button type="primary" link @click="openDisplayDialog(row)">编辑商城视觉</el-button>
+          <el-button type="primary" link @click="openVersionDialog(row)">版本记录</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -198,17 +199,45 @@
     <el-dialog v-model="bannerDialogVisible" title="首页轮播图管理" width="1000px" top="3vh" append-to-body>
       <ShopBanners />
     </el-dialog>
+
+    <el-dialog v-model="versionDialogVisible" title="商城配置版本记录" width="920px" append-to-body>
+      <el-alert
+        title="每次保存商城资料、视觉设置或启停状态都会自动生成版本；恢复后仍会保留当前配置，可继续回到恢复前。"
+        type="info"
+        :closable="false"
+        show-icon
+        class="version-alert"
+      />
+      <el-table :data="configVersions" v-loading="versionLoading" max-height="520">
+        <el-table-column prop="versionNo" label="版本号" min-width="205" />
+        <el-table-column label="变更内容" width="130">
+          <template #default="{ row }">{{ configVersionTypeName(row.changeType) }}</template>
+        </el-table-column>
+        <el-table-column prop="operatorName" label="操作账号" width="130" />
+        <el-table-column label="保存时间" width="175">
+          <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" fixed="right" width="100">
+          <template #default="{ row }">
+            <el-button type="primary" link :loading="restoringVersionId === row.id" @click="restoreVersion(row)">恢复</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { formatDateTime } from '@/utils/dateTime'
 import { listShopBanners, listShopCategories, listShopProducts, updateCategoryShowOnHome, uploadShopImage } from '@/api/shop'
 import ShopBanners from '@/views/shop/banners.vue'
 import {
   getDisplayConfig,
+  listTenantConfigVersions,
   listTenants,
+  restoreTenantConfigVersion,
   saveDisplayConfig,
   saveTenant,
 } from '@/api/tenant'
@@ -217,6 +246,11 @@ const loading = ref(false)
 const tableData = ref([])
 const displayDialogVisible = ref(false)
 const bannerDialogVisible = ref(false)
+const versionDialogVisible = ref(false)
+const versionLoading = ref(false)
+const configVersions = ref([])
+const versionTenant = ref(null)
+const restoringVersionId = ref(null)
 const currentTenant = ref(null)
 const currentDisplayConfig = ref({ layoutTemplate: 'standard' })
 const categories = ref([])
@@ -421,6 +455,49 @@ const openDisplayDialog = async (row, section = 'brand') => {
   displayDraftDirty.value = false
 }
 
+const configVersionTypeName = (value) => ({
+  INITIAL: '初始配置',
+  BASELINE: '历史基线',
+  PROFILE_UPDATE: '商城资料',
+  DISPLAY_UPDATE: '视觉与页面',
+  STATUS_UPDATE: '启停状态',
+  PRE_RESTORE: '恢复前备份',
+  RESTORE: '恢复版本',
+}[value] || '配置更新')
+
+const loadConfigVersions = async () => {
+  if (!versionTenant.value?.id) return
+  versionLoading.value = true
+  try {
+    const res = await listTenantConfigVersions(versionTenant.value.id)
+    configVersions.value = Array.isArray(res.data) ? res.data : []
+  } finally {
+    versionLoading.value = false
+  }
+}
+
+const openVersionDialog = async (row) => {
+  versionTenant.value = row
+  versionDialogVisible.value = true
+  await loadConfigVersions()
+}
+
+const restoreVersion = async (row) => {
+  await ElMessageBox.confirm(
+    `确定恢复到 ${row.versionNo} 吗？恢复前的当前配置会自动保存为历史版本。`,
+    '确认恢复商城配置',
+    { confirmButtonText: '确认恢复', cancelButtonText: '取消', type: 'warning' },
+  )
+  restoringVersionId.value = row.id
+  try {
+    await restoreTenantConfigVersion(versionTenant.value.id, row.id)
+    ElMessage.success('商城配置已恢复，请刷新客户前台查看')
+    await Promise.all([fetchData(), loadConfigVersions()])
+  } finally {
+    restoringVersionId.value = null
+  }
+}
+
 const applyDisplayTheme = (theme) => {
   displayForm.value.productTemplate = theme.value
   displayForm.value.themeColor = theme.color
@@ -582,10 +659,9 @@ const submitDisplayConfig = async () => {
       themeColor: form.themeColor,
       productTemplate: normalizeTheme(form.productTemplate),
     }
-    const [tenantResult, displayResult] = await Promise.all([
-      saveTenant(tenantPayload, { silentError: true }),
-      saveDisplayConfig(payload, { silentError: true }),
-    ])
+    // 资料与视觉配置按顺序保存，确保每个历史版本都是完整一致的商城快照。
+    const tenantResult = await saveTenant(tenantPayload, { silentError: true })
+    const displayResult = await saveDisplayConfig(payload, { silentError: true })
     if (tenantResult.data) {
       currentTenant.value = { ...currentTenant.value, ...tenantResult.data }
       tableData.value = tableData.value.map((row) => Number(row.id) === Number(tenantId) ? { ...row, ...tenantResult.data } : row)
@@ -652,6 +728,9 @@ onMounted(fetchData)
   gap: 8px;
 }
 .single-tenant-alert {
+  margin-bottom: 16px;
+}
+.version-alert {
   margin-bottom: 16px;
 }
 .display-section-table {

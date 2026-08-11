@@ -116,6 +116,21 @@ CREATE TABLE IF NOT EXISTS dms_tenant_display_config (
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 商城客户配置历史版本表
+CREATE TABLE IF NOT EXISTS dms_tenant_config_version (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL,
+  version_no VARCHAR(64) NOT NULL,
+  change_type VARCHAR(32) NOT NULL,
+  tenant_snapshot CLOB NOT NULL,
+  display_snapshot CLOB NOT NULL,
+  operator_id BIGINT NOT NULL DEFAULT 0,
+  operator_name VARCHAR(64) NOT NULL DEFAULT 'system',
+  source_version_id BIGINT,
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (tenant_id, version_no)
+);
+
 -- 会员资产余额表
 CREATE TABLE IF NOT EXISTS dms_member_asset_account (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -225,6 +240,9 @@ CREATE TABLE IF NOT EXISTS dms_operation_log (
   remark VARCHAR(1000),
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_operation_log_create_time
+  ON dms_operation_log(create_time, id);
 
 CREATE TABLE IF NOT EXISTS dms_admin_user (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,

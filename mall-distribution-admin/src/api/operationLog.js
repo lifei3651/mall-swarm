@@ -7,3 +7,10 @@ export function listOperationLogs(params) {
     params,
   })
 }
+
+export function getOperationLogRetention() {
+  return request({
+    url: '/distribution/operation-logs/retention',
+    method: 'get',
+  })
+}

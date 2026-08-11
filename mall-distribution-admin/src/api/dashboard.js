@@ -6,3 +6,11 @@ export function getDashboard() {
     method: 'get',
   })
 }
+
+export function exportDashboard() {
+  return request({
+    url: '/distribution/dashboard/export',
+    method: 'get',
+    responseType: 'blob',
+  })
+}

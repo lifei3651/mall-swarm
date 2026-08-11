@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @Tag(name = "OperationLogController", description = "后台操作日志")
 @RestController
 @RequestMapping("/distribution/operation-logs")
@@ -30,5 +32,11 @@ public class OperationLogController {
                                                               @RequestParam(defaultValue = "10") Integer pageSize) {
         PageHelper.startPage(pageNum, pageSize);
         return CommonResult.success(CommonPage.restPage(operationLogService.listLogs(moduleName, targetType, targetId)));
+    }
+
+    @Operation(summary = "查询操作日志保留策略")
+    @GetMapping("/retention")
+    public CommonResult<Map<String, Integer>> retention() {
+        return CommonResult.success(Map.of("retentionDays", operationLogService.retentionDays()));
     }
 }

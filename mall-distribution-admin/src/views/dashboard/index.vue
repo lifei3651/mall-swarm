@@ -11,6 +11,10 @@
       <div class="command-meta">
         <span class="system-health"><el-icon><CircleCheckFilled /></el-icon>系统运行正常</span>
         <span class="update-time">数据更新于 {{ lastUpdated || '加载中' }}</span>
+        <button type="button" class="refresh-button" :disabled="exporting" @click="handleExport">
+          <el-icon><Download /></el-icon>
+          <span>{{ exporting ? '正在导出' : '导出报表' }}</span>
+        </button>
         <button type="button" class="refresh-button" :disabled="loading" @click="loadDashboard">
           <el-icon :class="{ rotating: loading }"><Refresh /></el-icon>
           <span>刷新数据</span>
@@ -184,6 +188,7 @@ import {
   CircleCheckFilled,
   Clock,
   Coin,
+  Download,
   Goods,
   Histogram,
   MapLocation,
@@ -198,13 +203,14 @@ import {
   WarningFilled,
 } from '@element-plus/icons-vue'
 import echarts from '@/utils/echarts'
-import { getDashboard } from '@/api/dashboard'
+import { exportDashboard, getDashboard } from '@/api/dashboard'
 import { getAdminOrderWorkSummary } from '@/api/shop'
 import { useAppStore } from '@/store'
 
 const router = useRouter()
 const store = useAppStore()
 const loading = ref(false)
+const exporting = ref(false)
 const dashboard = ref({})
 const orderWorkSummary = ref({ pendingShipment: 0, afterSale: 0 })
 const lastUpdated = ref('')
@@ -376,6 +382,24 @@ const loadDashboard = async () => {
     renderCharts()
   } finally {
     loading.value = false
+  }
+}
+
+const handleExport = async () => {
+  exporting.value = true
+  try {
+    const response = await exportDashboard()
+    const blob = new Blob([response.data], { type: response.headers?.['content-type'] || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `商城经营报表-${new Date().toISOString().slice(0, 10)}.xlsx`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  } finally {
+    exporting.value = false
   }
 }
 

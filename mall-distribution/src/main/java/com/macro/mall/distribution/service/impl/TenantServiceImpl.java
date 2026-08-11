@@ -1,21 +1,29 @@
 package com.macro.mall.distribution.service.impl;
 
 import cn.hutool.core.util.IdUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.distribution.dao.DmsCommissionRuleVersionDao;
+import com.macro.mall.distribution.dao.DmsTenantConfigVersionDao;
 import com.macro.mall.distribution.dao.DmsTenantDao;
 import com.macro.mall.distribution.dao.DmsTenantDisplayConfigDao;
+import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.entity.DmsCommissionRuleVersion;
 import com.macro.mall.distribution.entity.DmsTenant;
+import com.macro.mall.distribution.entity.DmsTenantConfigVersion;
 import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
+import com.macro.mall.distribution.security.AdminContext;
+import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.TenantService;
 import com.macro.mall.distribution.service.TenantLegalTemplateSupport;
+import com.macro.mall.distribution.vo.TenantConfigVersionVO;
 import com.macro.mall.distribution.vo.TenantLegalTemplatesVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import static com.macro.mall.distribution.service.impl.NewRetailBonusPolicy.VERSION_NO;
@@ -24,11 +32,16 @@ import static com.macro.mall.distribution.service.impl.NewRetailBonusPolicy.VERS
 @RequiredArgsConstructor
 public class TenantServiceImpl implements TenantService {
 
+    private static final DateTimeFormatter VERSION_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS");
+
     private final DmsTenantDao tenantDao;
     private final DmsCommissionRuleVersionDao versionDao;
     private final DmsTenantDisplayConfigDao displayConfigDao;
+    private final DmsTenantConfigVersionDao configVersionDao;
     private final TenantDisplayConfigSupport displayConfigSupport;
     private final TenantLegalTemplateSupport legalTemplateSupport;
+    private final OperationLogService operationLogService;
+    private final ObjectMapper objectMapper;
 
     @Override
     public List<DmsTenant> listTenants() {
@@ -94,9 +107,12 @@ public class TenantServiceImpl implements TenantService {
         if (tenant.getId() == null) {
             tenantDao.insert(tenant);
             createDefaultVersion(tenant);
-            saveDisplayConfig(defaultDisplayConfig(tenant.getId()));
+            displayConfigDao.insert(defaultDisplayConfig(tenant.getId()));
+            recordConfigVersion(tenant.getId(), "INITIAL", null);
         } else {
+            ensureBaselineVersion(tenant.getId());
             tenantDao.update(tenant);
+            recordConfigVersion(tenant.getId(), "PROFILE_UPDATE", null);
         }
         return getTenant(tenant.getId());
     }
@@ -107,8 +123,20 @@ public class TenantServiceImpl implements TenantService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean updateTenantStatus(Long id, Integer status) {
-        return tenantDao.updateStatus(id, status) > 0;
+        if (id == null || tenantDao.selectById(id) == null) {
+            Asserts.fail("商城客户不存在");
+        }
+        if (status == null || (status != 0 && status != 1)) {
+            Asserts.fail("商城状态不正确");
+        }
+        ensureBaselineVersion(id);
+        boolean updated = tenantDao.updateStatus(id, status) > 0;
+        if (updated) {
+            recordConfigVersion(id, "STATUS_UPDATE", null);
+        }
+        return updated;
     }
 
     @Override
@@ -133,12 +161,64 @@ public class TenantServiceImpl implements TenantService {
         }
         displayConfigSupport.prepareForSave(config);
         DmsTenantDisplayConfig exists = displayConfigDao.selectByTenantId(config.getTenantId());
+        ensureBaselineVersion(config.getTenantId());
         if (exists == null) {
             displayConfigDao.insert(config);
         } else {
             displayConfigDao.update(config);
         }
+        recordConfigVersion(config.getTenantId(), "DISPLAY_UPDATE", null);
         return displayConfigSupport.prepareForRead(displayConfigDao.selectByTenantId(config.getTenantId()), config.getTenantId());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public List<TenantConfigVersionVO> listConfigVersions(Long tenantId) {
+        Long resolvedTenantId = tenantId == null ? 1L : tenantId;
+        if (tenantDao.selectById(resolvedTenantId) == null) {
+            Asserts.fail("商城客户不存在");
+        }
+        ensureBaselineVersion(resolvedTenantId);
+        return configVersionDao.selectMetadataByTenantId(resolvedTenantId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public DmsTenant restoreConfigVersion(Long tenantId, Long versionId) {
+        if (tenantId == null || versionId == null) {
+            Asserts.fail("请选择需要恢复的配置版本");
+        }
+        if (tenantDao.selectById(tenantId) == null) {
+            Asserts.fail("商城客户不存在");
+        }
+        DmsTenantConfigVersion target = configVersionDao.selectByIdAndTenantId(versionId, tenantId);
+        if (target == null) {
+            Asserts.fail("配置版本不存在或不属于当前客户");
+        }
+        ensureBaselineVersion(tenantId);
+        recordConfigVersion(tenantId, "PRE_RESTORE", null);
+
+        DmsTenant restoredTenant = readSnapshot(target.getTenantSnapshot(), DmsTenant.class, "商城资料");
+        DmsTenantDisplayConfig restoredDisplay = readSnapshot(
+                target.getDisplaySnapshot(), DmsTenantDisplayConfig.class, "商城视觉配置");
+        restoredTenant.setId(tenantId);
+        legalTemplateSupport.applyDefaults(restoredTenant);
+        if (tenantDao.update(restoredTenant) == 0) {
+            Asserts.fail("恢复商城资料失败");
+        }
+
+        restoredDisplay.setTenantId(tenantId);
+        displayConfigSupport.prepareForSave(restoredDisplay);
+        if (displayConfigDao.selectByTenantId(tenantId) == null) {
+            displayConfigDao.insert(restoredDisplay);
+        } else {
+            displayConfigDao.update(restoredDisplay);
+        }
+        DmsTenantConfigVersion restoredVersion = recordConfigVersion(tenantId, "RESTORE", versionId);
+        operationLogService.log("TENANT_CONFIG", "RESTORE", "商城配置", String.valueOf(tenantId),
+                "恢复前版本", target.getVersionNo(),
+                "已恢复配置版本 " + target.getVersionNo() + "，并生成新版本 " + restoredVersion.getVersionNo());
+        return getTenant(tenantId);
     }
 
     private void createDefaultVersion(DmsTenant tenant) {
@@ -157,5 +237,51 @@ public class TenantServiceImpl implements TenantService {
         config.setTenantId(tenantId);
         displayConfigSupport.prepareForSave(config);
         return config;
+    }
+
+    private void ensureBaselineVersion(Long tenantId) {
+        if (configVersionDao.countByTenantId(tenantId) == 0) {
+            recordConfigVersion(tenantId, "BASELINE", null);
+        }
+    }
+
+    private DmsTenantConfigVersion recordConfigVersion(Long tenantId, String changeType, Long sourceVersionId) {
+        DmsTenant tenant = tenantDao.selectById(tenantId);
+        if (tenant == null) {
+            Asserts.fail("商城客户不存在，无法生成配置版本");
+        }
+        legalTemplateSupport.applyDefaults(tenant);
+        DmsTenantDisplayConfig display = displayConfigSupport.prepareForRead(
+                displayConfigDao.selectByTenantId(tenantId), tenantId);
+        DmsAdminUser admin = AdminContext.get();
+
+        DmsTenantConfigVersion version = new DmsTenantConfigVersion();
+        version.setTenantId(tenantId);
+        version.setVersionNo("V" + LocalDateTime.now().format(VERSION_TIME_FORMAT)
+                + "-" + IdUtil.fastSimpleUUID().substring(0, 6));
+        version.setChangeType(changeType);
+        version.setTenantSnapshot(writeSnapshot(tenant));
+        version.setDisplaySnapshot(writeSnapshot(display));
+        version.setOperatorId(admin == null ? 0L : admin.getId());
+        version.setOperatorName(admin == null ? "system" : admin.getUsername());
+        version.setSourceVersionId(sourceVersionId);
+        configVersionDao.insert(version);
+        return version;
+    }
+
+    private String writeSnapshot(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception e) {
+            throw new IllegalStateException("生成商城配置快照失败", e);
+        }
+    }
+
+    private <T> T readSnapshot(String value, Class<T> type, String label) {
+        try {
+            return objectMapper.readValue(value, type);
+        } catch (Exception e) {
+            throw new IllegalStateException(label + "历史快照无法读取", e);
+        }
     }
 }

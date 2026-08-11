@@ -40,4 +40,18 @@
         VALUES
         (#{moduleName}, #{operationType}, #{targetType}, #{targetId}, #{operatorId}, #{operatorName}, #{beforeData}, #{afterData}, #{remark})
     </insert>
+
+    <select id="selectIdsBefore" resultType="java.lang.Long">
+        SELECT id
+        FROM dms_operation_log
+        WHERE create_time &lt; #{cutoff}
+        ORDER BY id
+        LIMIT #{limit}
+    </select>
+
+    <delete id="deleteByIds">
+        DELETE FROM dms_operation_log
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
 </mapper>

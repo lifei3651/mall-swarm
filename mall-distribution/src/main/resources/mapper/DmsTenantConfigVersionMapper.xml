@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsTenantConfigVersionDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsTenantConfigVersion">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="version_no" property="versionNo"/>
+        <result column="change_type" property="changeType"/>
+        <result column="tenant_snapshot" property="tenantSnapshot"/>
+        <result column="display_snapshot" property="displaySnapshot"/>
+        <result column="operator_id" property="operatorId"/>
+        <result column="operator_name" property="operatorName"/>
+        <result column="source_version_id" property="sourceVersionId"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsTenantConfigVersion" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_tenant_config_version
+        (tenant_id, version_no, change_type, tenant_snapshot, display_snapshot,
+         operator_id, operator_name, source_version_id)
+        VALUES
+        (#{tenantId}, #{versionNo}, #{changeType}, #{tenantSnapshot}, #{displaySnapshot},
+         #{operatorId}, #{operatorName}, #{sourceVersionId})
+    </insert>
+
+    <select id="countByTenantId" resultType="int">
+        SELECT COUNT(1) FROM dms_tenant_config_version WHERE tenant_id = #{tenantId}
+    </select>
+
+    <select id="selectByIdAndTenantId" resultMap="BaseResultMap">
+        SELECT id, tenant_id, version_no, change_type, tenant_snapshot, display_snapshot,
+               operator_id, operator_name, source_version_id, create_time
+        FROM dms_tenant_config_version
+        WHERE id = #{id} AND tenant_id = #{tenantId}
+    </select>
+
+    <select id="selectMetadataByTenantId" resultType="com.macro.mall.distribution.vo.TenantConfigVersionVO">
+        SELECT id, tenant_id AS tenantId, version_no AS versionNo, change_type AS changeType,
+               operator_id AS operatorId, operator_name AS operatorName,
+               source_version_id AS sourceVersionId, create_time AS createTime
+        FROM dms_tenant_config_version
+        WHERE tenant_id = #{tenantId}
+        ORDER BY id DESC
+    </select>
+</mapper>

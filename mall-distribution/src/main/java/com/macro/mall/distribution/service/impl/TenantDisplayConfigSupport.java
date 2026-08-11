@@ -66,7 +66,8 @@ public class TenantDisplayConfigSupport {
 
     private void normalizeLayoutFields(DmsTenantDisplayConfig config) {
         String template = config.getLayoutTemplate();
-        config.setLayoutTemplate(LAYOUT_TEMPLATES.contains(template) ? template : DEFAULT_LAYOUT_TEMPLATE);
+        config.setLayoutTemplate(template != null && LAYOUT_TEMPLATES.contains(template)
+                ? template : DEFAULT_LAYOUT_TEMPLATE);
         config.setShowHomeCategories(normalizeToggle(config.getShowHomeCategories(), 1));
         config.setShowBottomCategoryNav(normalizeToggle(config.getShowBottomCategoryNav(), 1));
     }

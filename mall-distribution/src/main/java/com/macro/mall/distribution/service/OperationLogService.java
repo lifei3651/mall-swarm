@@ -10,4 +10,8 @@ public interface OperationLogService {
 
     void log(String moduleName, String operationType, String targetType, String targetId,
              String beforeData, String afterData, String remark);
+
+    int cleanupExpiredLogs(int batchSize, int maxBatches);
+
+    int retentionDays();
 }

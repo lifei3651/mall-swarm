@@ -6,6 +6,7 @@ import com.macro.mall.distribution.service.ErpIntegrationService;
 import com.macro.mall.distribution.service.CommissionSettlementService;
 import com.macro.mall.distribution.service.ShopService;
 import com.macro.mall.distribution.service.OrderBalanceAllocationService;
+import com.macro.mall.distribution.service.OperationLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -28,6 +29,7 @@ public class ScheduleTask {
     private final CommissionSettlementService commissionSettlementService;
     private final ShopService shopService;
     private final OrderBalanceAllocationService orderBalanceAllocationService;
+    private final OperationLogService operationLogService;
     private final DistributedScheduledTaskRunner scheduledTaskRunner;
 
     /** 每分钟关闭超时待支付订单并原子返还商品及SKU库存。 */
@@ -113,6 +115,18 @@ public class ScheduleTask {
                 log.info("刷新完成");
             } catch (Exception e) {
                 log.error("刷新失败", e);
+            }
+        });
+    }
+
+    /** 每天凌晨3:30分批清理超过保留期限的后台操作日志，默认保留365天且最低90天。 */
+    @Scheduled(cron = "${operation-log.cleanup-cron:0 30 3 * * ?}")
+    public void cleanupExpiredOperationLogs() {
+        scheduledTaskRunner.run("operation-log-cleanup", Duration.ofHours(2), () -> {
+            try {
+                operationLogService.cleanupExpiredLogs(5000, 20);
+            } catch (Exception e) {
+                log.error("清理过期后台操作日志失败", e);
             }
         });
     }

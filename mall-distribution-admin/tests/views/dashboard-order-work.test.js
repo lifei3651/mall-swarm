@@ -15,4 +15,13 @@ describe('工作台订单待办', () => {
     expect(source).toContain('/shop/orders?orderState=AFTER_SALE')
     expect(source).toContain("window.addEventListener('admin-order-work-summary'")
   })
+
+  it('支持将经营看板导出为可下载报表', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('exportDashboard')
+    expect(source).toContain('导出报表')
+    expect(source).toContain('商城经营报表-')
+    expect(source).toContain('URL.createObjectURL')
+  })
 })
