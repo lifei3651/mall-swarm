@@ -71,6 +71,19 @@ class AlipayNotifyFailureTest {
         verify(shopService).markOrderPaid(101L, "ALIPAY");
     }
 
+    @Test
+    void duplicateSuccessfulNotificationReturnsSuccessWithoutProcessingAgain() {
+        AlipayServiceImpl service = service(true);
+        DmsShopOrder paidOrder = pendingOrder();
+        paidOrder.setStatus(1);
+        when(orderDao.selectByOrderNoForUpdate("ORDER-1")).thenReturn(pendingOrder(), paidOrder);
+
+        assertEquals("success", service.handleNotify(validParams()));
+        assertEquals("success", service.handleNotify(validParams()));
+
+        verify(shopService, times(1)).markOrderPaid(101L, "ALIPAY");
+    }
+
     private AlipayServiceImpl service(boolean signatureValid) {
         return new AlipayServiceImpl(config, orderDao, shopService, new ObjectMapper()) {
             @Override

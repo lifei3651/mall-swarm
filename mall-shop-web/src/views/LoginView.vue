@@ -36,7 +36,10 @@
             <label>图形验证码</label>
             <div class="captcha-row">
               <input v-model="loginForm.captchaCode" class="field" :class="{ 'has-error': loginFieldErrors.captchaCode }" placeholder="请输入图形验证码" maxlength="4" :aria-invalid="!!loginFieldErrors.captchaCode" @input="clearLoginFieldError('captchaCode')" />
-              <img :src="captchaImage" class="captcha-image" alt="图形验证码" title="点击刷新" @click="refreshCaptcha" />
+              <button type="button" class="captcha-refresh" title="看不清？换一张" aria-label="刷新图形验证码" @click="refreshCaptcha">
+                <img :src="captchaImage" class="captcha-image" alt="图形验证码" />
+                <span>换一张</span>
+              </button>
             </div>
             <p v-if="loginFieldErrors.captchaCode" class="field-error">{{ loginFieldErrors.captchaCode }}</p>
           </div>
@@ -692,7 +695,9 @@ const submit = async () => {
 }
 
 .captcha-row { display: flex; gap: 10px; }
-.captcha-image { width: 120px; height: 44px; flex: 0 0 120px; cursor: pointer; border: 1px solid var(--line, #dfe7e2); border-radius: 8px; }
+.captcha-refresh { width: 120px; flex: 0 0 120px; padding: 0; border: 0; background: transparent; color: var(--muted, #64748b); cursor: pointer; }
+.captcha-image { display: block; width: 120px; height: 44px; border: 1px solid var(--line, #dfe7e2); border-radius: 8px; }
+.captcha-refresh span { display: block; margin-top: 2px; font-size: 11px; line-height: 1.2; }
 
 .sms-input {
   flex: 1;

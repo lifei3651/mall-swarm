@@ -170,6 +170,14 @@ test('registration page does not expose internal membership activation copy', as
   assert.match(login, /<p v-if="mode === 'login'">登录后可管理地址、订单和售后。<\/p>/)
 })
 
+test('captcha can be visibly refreshed when it is hard to read', async () => {
+  const login = await readView('LoginView.vue')
+
+  assert.match(login, /aria-label="刷新图形验证码"/)
+  assert.match(login, /<span>换一张<\/span>/)
+  assert.match(login, /@click="refreshCaptcha"/)
+})
+
 test('login errors stay beside their field, expire quickly, and auth pages use a compact layout', async () => {
   const login = await readView('LoginView.vue')
   const app = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')

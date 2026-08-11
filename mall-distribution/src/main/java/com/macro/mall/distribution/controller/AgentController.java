@@ -40,6 +40,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AgentController {
 
+    private static final int EXPORT_PAGE_SIZE = 500;
+    private static final int MAX_EXPORT_ROWS = 1_000_000;
+
     private final AgentService agentService;
     private final ShopAuthService shopAuthService;
     private final LineChangeApplicationService lineChangeApplicationService;
@@ -76,12 +79,12 @@ public class AgentController {
                              @RequestParam(required = false) Integer status,
                              @RequestParam(required = false) Integer agentLevel,
                              HttpServletResponse response) throws IOException {
-        List<AgentInfoVO> agents = agentService.listAgents(keyword, status, agentLevel);
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setCharacterEncoding("UTF-8");
         response.setHeader("Content-Disposition", "attachment; filename=member-relations.xlsx");
 
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(100)) {
+            workbook.setCompressTempFiles(true);
             Sheet sheet = workbook.createSheet("会员关系");
             String[] headers = {"登录账号", "会员名称", "真实姓名", "手机号", "推广编号",
                     "级别", "直属上级", "组织深度", "邀请码", "状态", "来源", "注册时间"};
@@ -97,24 +100,39 @@ public class AgentController {
             }
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
             int rowIndex = 1;
-            for (AgentInfoVO agent : agents) {
-                Row row = sheet.createRow(rowIndex++);
-                setCell(row, 0, agent.getMemberAccount());
-                setCell(row, 1, agent.getAgentName());
-                setCell(row, 2, agent.getRealName());
-                setCell(row, 3, agent.getPhone());
-                setCell(row, 4, agent.getAgentCode());
-                setCell(row, 5, agent.getAgentLevelName());
-                setCell(row, 6, agent.getParentName() == null ? "无直属上级" : agent.getParentName());
-                setCell(row, 7, agent.getLevelDepth());
-                setCell(row, 8, agent.getInviteCode());
-                setCell(row, 9, agent.getStatusName());
-                setCell(row, 10, agent.getSourceTypeName());
-                setCell(row, 11, agent.getCreateTime() == null ? "" : formatter.format(agent.getCreateTime()));
+            int pageNum = 1;
+            while (true) {
+                List<AgentInfoVO> agents;
+                PageHelper.startPage(pageNum++, EXPORT_PAGE_SIZE, false);
+                try {
+                    agents = agentService.listAgents(keyword, status, agentLevel);
+                } finally {
+                    PageHelper.clearPage();
+                }
+                if (agents == null || agents.isEmpty()) break;
+                for (AgentInfoVO agent : agents) {
+                    if (rowIndex > MAX_EXPORT_ROWS) {
+                        throw new IOException("导出会员超过100万条，请缩小筛选范围后分批导出");
+                    }
+                    Row row = sheet.createRow(rowIndex++);
+                    setCell(row, 0, agent.getMemberAccount());
+                    setCell(row, 1, agent.getAgentName());
+                    setCell(row, 2, agent.getRealName());
+                    setCell(row, 3, agent.getPhone());
+                    setCell(row, 4, agent.getAgentCode());
+                    setCell(row, 5, agent.getAgentLevelName());
+                    setCell(row, 6, agent.getParentName() == null ? "无直属上级" : agent.getParentName());
+                    setCell(row, 7, agent.getLevelDepth());
+                    setCell(row, 8, agent.getInviteCode());
+                    setCell(row, 9, agent.getStatusName());
+                    setCell(row, 10, agent.getSourceTypeName());
+                    setCell(row, 11, agent.getCreateTime() == null ? "" : formatter.format(agent.getCreateTime()));
+                }
             }
             int[] widths = {16, 18, 16, 16, 20, 14, 18, 12, 16, 12, 14, 22};
             for (int i = 0; i < widths.length; i++) sheet.setColumnWidth(i, widths[i] * 256);
             workbook.write(response.getOutputStream());
+            workbook.dispose();
         }
     }
 

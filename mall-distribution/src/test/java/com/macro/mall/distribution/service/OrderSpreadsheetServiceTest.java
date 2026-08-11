@@ -14,6 +14,7 @@ import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -128,5 +129,40 @@ class OrderSpreadsheetServiceTest {
             assertEquals("L202608021230001234", sheet.getRow(1).getCell(0).getStringCellValue());
             assertEquals("2026-08-02 12:30:00", sheet.getRow(1).getCell(2).getStringCellValue());
         }
+    }
+
+    @Test
+    void orderExportLoadsAndWritesDataPageByPage() throws Exception {
+        ShopOrderVO first = orderView("L202608110001");
+        ShopOrderVO second = orderView("L202608110002");
+        AtomicInteger calls = new AtomicInteger();
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        service.writeOrderExport((pageNum, pageSize) -> {
+            calls.incrementAndGet();
+            assertEquals(OrderSpreadsheetService.ORDER_EXPORT_PAGE_SIZE, pageSize);
+            return switch (pageNum) {
+                case 1 -> List.of(first);
+                case 2 -> List.of(second);
+                default -> List.of();
+            };
+        }, output);
+
+        assertEquals(3, calls.get());
+        try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(output.toByteArray()))) {
+            var sheet = workbook.getSheet("订单明细");
+            assertEquals("L202608110001", sheet.getRow(1).getCell(0).getStringCellValue());
+            assertEquals("L202608110002", sheet.getRow(2).getCell(0).getStringCellValue());
+        }
+    }
+
+    private ShopOrderVO orderView(String orderNo) {
+        DmsShopOrder order = new DmsShopOrder();
+        order.setOrderNo(orderNo);
+        order.setStatus(1);
+        ShopOrderVO view = new ShopOrderVO();
+        view.setOrder(order);
+        view.setItems(List.of());
+        return view;
     }
 }

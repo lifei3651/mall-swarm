@@ -107,13 +107,25 @@ class SmsControllerTest {
     @Test
     void dailyLimitBlocksExcessiveSends() {
         ReflectionTestUtils.setField(controller, "providerEnabled", true);
-        ReflectionTestUtils.setField(controller, "dailyLimitPerPhone", 10);
-        when(valueOperations.increment(startsWith("sms:daily:"))).thenReturn(11L);
+        ReflectionTestUtils.setField(controller, "dailyLimitPerPhone", 20);
+        when(valueOperations.increment(startsWith("sms:daily:"))).thenReturn(21L);
 
         CommonResult<String> result = controller.sendCode(request("13888888888", null, 1), null);
 
         assertNotEquals(200, result.getCode());
         verify(aliyunSmsSender, never()).sendVerificationCode(anyString(), anyInt(), anyString());
+    }
+
+    @Test
+    void samePhoneCannotRequestAnotherCodeWithinSixtySeconds() {
+        when(redisTemplate.hasKey("sms:rate:13888888888")).thenReturn(true);
+
+        CommonResult<String> result = controller.sendCode(request("13888888888", null, 1), null);
+
+        assertNotEquals(200, result.getCode());
+        assertEquals("发送过于频繁，请稍后再试", result.getMessage());
+        verify(aliyunSmsSender, never()).sendVerificationCode(anyString(), anyInt(), anyString());
+        verify(valueOperations, never()).set(eq("sms:1:13888888888"), anyString(), anyLong(), eq(TimeUnit.MINUTES));
     }
 
     @Test

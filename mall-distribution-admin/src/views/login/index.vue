@@ -61,7 +61,10 @@
             <el-form-item prop="captchaCode">
               <div class="captcha-row">
                 <el-input v-model="form.captchaCode" placeholder="图形验证码" maxlength="4" clearable />
-                <img class="captcha-image" :src="captchaImage" alt="图形验证码" title="点击刷新" @click="refreshCaptcha" />
+                <button type="button" class="captcha-refresh" title="看不清？换一张" aria-label="刷新图形验证码" @click="refreshCaptcha">
+                  <img class="captcha-image" :src="captchaImage" alt="图形验证码" />
+                  <span>换一张</span>
+                </button>
               </div>
             </el-form-item>
             <el-button type="primary" :loading="loading" class="login-button" @click="handleLogin">
@@ -384,11 +387,28 @@ onMounted(() => Promise.allSettled([refreshCaptcha(), loadBrand()]))
 }
 
 .captcha-image {
+  display: block;
   width: 120px;
   height: 40px;
-  cursor: pointer;
   border: 1px solid #dcdfe6;
   border-radius: 6px;
+}
+
+.captcha-refresh {
+  width: 120px;
+  flex: 0 0 120px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #909399;
+  cursor: pointer;
+}
+
+.captcha-refresh span {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.2;
 }
 
 .mobile-provider {

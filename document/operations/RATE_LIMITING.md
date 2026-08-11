@@ -23,6 +23,8 @@
 
 客户端地址只在请求来自本机反向代理时读取 `X-Real-IP` 或 `X-Forwarded-For`，外部请求不能直接伪造该值绕过限流。
 
+短信发送还叠加手机号维度的业务限制：同一手机号两次发送至少间隔 60 秒，每个自然日默认最多发送 20 次；可通过 `sms.daily-limit-per-phone`（环境变量写法为 `SMS_DAILY_LIMIT_PER_PHONE`）调整每日上限。IP 限流与手机号限制同时生效，不能用多个手机号绕过同一来源 IP 的保护。
+
 ## 3. Nginx 限流规则
 
 | 区域 | 速率 | 突发请求 | 覆盖范围 |
@@ -55,6 +57,7 @@ Content-Type: application/json;charset=UTF-8
 ## 5. 配置位置
 
 - Java 接口分类和阈值：`mall-distribution/src/main/java/com/macro/mall/distribution/security/SecurityRateLimitFilter.java`
+- 手机号短信每日上限：`sms.daily-limit-per-phone`，默认 20；生产环境变量为 `SMS_DAILY_LIMIT_PER_PHONE`
 - Redis 与本地兜底实现：`mall-distribution/src/main/java/com/macro/mall/distribution/security/SecurityRateLimitService.java`
 - Nginx 限流区域：`scripts/nginx/lingqimall-security.conf`
 - Nginx 路由应用规则：`scripts/nginx/lingqimall.conf`

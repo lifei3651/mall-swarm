@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
+import { readFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
 
 vi.mock('@/api/auth', () => ({
   login: vi.fn(() => Promise.resolve({ data: { token: 'mock-token', expireTime: '2099-01-01T00:00:00', userInfo: { id: 1, username: 'admin' }, permissions: ['admin:read'] } })),
@@ -41,6 +43,13 @@ describe('LoginView', () => {
   it('empty form submit triggers validation', () => {
     const hasEmptyValidation = true // verified in view source
     expect(hasEmptyValidation).toBe(true)
+  })
+
+  it('offers an explicit captcha refresh action', async () => {
+    const source = await readFile(resolve(process.cwd(), 'src/views/login/index.vue'), 'utf8')
+    expect(source).toMatch(/aria-label="刷新图形验证码"/)
+    expect(source).toMatch(/<span>换一张<\/span>/)
+    expect(source).toMatch(/@click="refreshCaptcha"/)
   })
 
   it('successful login sets auth in store', async () => {

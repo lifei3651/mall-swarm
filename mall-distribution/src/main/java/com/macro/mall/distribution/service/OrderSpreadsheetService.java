@@ -25,9 +25,16 @@ import java.util.stream.Collectors;
 public class OrderSpreadsheetService {
 
     public static final int MAX_SHIPMENT_TEMPLATE_ROWS = 2000;
+    public static final int ORDER_EXPORT_PAGE_SIZE = 500;
+    public static final int MAX_ORDER_EXPORT_ROWS = 1_000_000;
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     public void writeOrderExport(List<ShopOrderVO> orders, OutputStream outputStream) throws IOException {
+        writeOrderExport((pageNum, pageSize) -> pageNum == 1 ? orders : List.of(), outputStream);
+    }
+
+    /** 分页读取并流式写入，避免大数据量导出时一次性把全部订单和明细加载到内存。 */
+    public void writeOrderExport(OrderPageLoader pageLoader, OutputStream outputStream) throws IOException {
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(100)) {
             workbook.setCompressTempFiles(true);
             Sheet sheet = workbook.createSheet("订单明细");
@@ -36,33 +43,46 @@ public class OrderSpreadsheetService {
             writePlainHeader(sheet, headers);
 
             int rowIndex = 1;
-            for (ShopOrderVO item : orders) {
-                DmsShopOrder order = item == null ? null : item.getOrder();
-                if (order == null) continue;
-                Row row = sheet.createRow(rowIndex++);
-                setText(row, 0, order.getOrderNo());
-                setText(row, 1, statusName(order.getStatus()));
-                setText(row, 2, dateTime(order.getCreateTime()));
-                setText(row, 3, dateTime(order.getPayTime()));
-                setText(row, 4, item.getMemberAccount());
-                setText(row, 5, order.getReceiverName());
-                setText(row, 6, order.getReceiverPhone());
-                setText(row, 7, order.getReceiverAddress());
-                setText(row, 8, productSummary(item.getItems()));
-                setNumber(row, 9, itemCount(item.getItems()), null);
-                setNumber(row, 10, order.getTotalAmount(), null);
-                setNumber(row, 11, order.getFreightAmount(), null);
-                setNumber(row, 12, order.getPayAmount(), null);
-                setText(row, 13, payTypeName(order.getPayType()));
-                setText(row, 14, shipmentSummary(item, ShipmentField.COMPANY));
-                setText(row, 15, shipmentSummary(item, ShipmentField.TRACKING_NO));
-                setText(row, 16, shipmentSummary(item, ShipmentField.QUANTITY));
-                setText(row, 17, shipmentSummary(item, ShipmentField.DELIVERY_TIME));
-                setText(row, 18, order.getRemark());
+            int pageNum = 1;
+            while (true) {
+                List<ShopOrderVO> orders = pageLoader.load(pageNum++, ORDER_EXPORT_PAGE_SIZE);
+                if (orders == null || orders.isEmpty()) break;
+                for (ShopOrderVO item : orders) {
+                    DmsShopOrder order = item == null ? null : item.getOrder();
+                    if (order == null) continue;
+                    if (rowIndex > MAX_ORDER_EXPORT_ROWS) {
+                        throw new IOException("导出订单超过100万条，请缩小筛选范围后分批导出");
+                    }
+                    Row row = sheet.createRow(rowIndex++);
+                    setText(row, 0, order.getOrderNo());
+                    setText(row, 1, statusName(order.getStatus()));
+                    setText(row, 2, dateTime(order.getCreateTime()));
+                    setText(row, 3, dateTime(order.getPayTime()));
+                    setText(row, 4, item.getMemberAccount());
+                    setText(row, 5, order.getReceiverName());
+                    setText(row, 6, order.getReceiverPhone());
+                    setText(row, 7, order.getReceiverAddress());
+                    setText(row, 8, productSummary(item.getItems()));
+                    setNumber(row, 9, itemCount(item.getItems()), null);
+                    setNumber(row, 10, order.getTotalAmount(), null);
+                    setNumber(row, 11, order.getFreightAmount(), null);
+                    setNumber(row, 12, order.getPayAmount(), null);
+                    setText(row, 13, payTypeName(order.getPayType()));
+                    setText(row, 14, shipmentSummary(item, ShipmentField.COMPANY));
+                    setText(row, 15, shipmentSummary(item, ShipmentField.TRACKING_NO));
+                    setText(row, 16, shipmentSummary(item, ShipmentField.QUANTITY));
+                    setText(row, 17, shipmentSummary(item, ShipmentField.DELIVERY_TIME));
+                    setText(row, 18, order.getRemark());
+                }
             }
             workbook.write(outputStream);
             workbook.dispose();
         }
+    }
+
+    @FunctionalInterface
+    public interface OrderPageLoader {
+        List<ShopOrderVO> load(int pageNum, int pageSize);
     }
 
     public void writeShipmentTemplate(List<ShopOrderVO> orders, OutputStream outputStream) throws IOException {

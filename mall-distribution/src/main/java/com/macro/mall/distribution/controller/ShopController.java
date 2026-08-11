@@ -628,16 +628,28 @@ public class ShopController {
                                   @RequestParam(required = false) Integer status,
                                   @RequestParam(required = false) String orderState,
                                   HttpServletResponse response) throws IOException {
-        List<ShopOrderVO> orders = shopService.listAdminOrders(keyword, status, orderState);
         prepareExcelDownload(response, "商城订单-" + LocalDate.now() + ".xlsx");
-        orderSpreadsheetService.writeOrderExport(orders, response.getOutputStream());
+        orderSpreadsheetService.writeOrderExport((pageNum, pageSize) -> {
+            PageHelper.startPage(pageNum, pageSize, false);
+            try {
+                return shopService.listAdminOrders(keyword, status, orderState);
+            } finally {
+                PageHelper.clearPage();
+            }
+        }, response.getOutputStream());
     }
 
     @Operation(summary = "下载待发货订单物流回填模板")
     @GetMapping("/admin/orders/shipment-template")
     public void downloadShipmentTemplate(@RequestParam(required = false) String keyword,
                                          HttpServletResponse response) throws IOException {
-        List<ShopOrderVO> orders = shopService.listAdminOrders(keyword, 1, null);
+        List<ShopOrderVO> orders;
+        PageHelper.startPage(1, OrderSpreadsheetService.MAX_SHIPMENT_TEMPLATE_ROWS + 1, false);
+        try {
+            orders = shopService.listAdminOrders(keyword, 1, null);
+        } finally {
+            PageHelper.clearPage();
+        }
         if (orders.size() > OrderSpreadsheetService.MAX_SHIPMENT_TEMPLATE_ROWS) {
             Asserts.fail("待发货订单超过2000条，请先使用订单号、收货人或手机号筛选后分批下载");
         }

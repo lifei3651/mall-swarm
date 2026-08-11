@@ -54,8 +54,8 @@ public class SmsController {
     private String testCode;
 
     /** 同一手机号每日可发送短信验证码的次数上限，防止短信资费被恶意刷取。 */
-    @Value("${sms.daily-limit-per-phone:10}")
-    private int dailyLimitPerPhone = 10;
+    @Value("${sms.daily-limit-per-phone:20}")
+    private int dailyLimitPerPhone = 20;
 
     @Operation(summary = "发送验证码")
     @PostMapping("/send")
