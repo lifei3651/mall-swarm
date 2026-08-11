@@ -26,6 +26,7 @@ public class DatabaseCapacityMonitor {
             """;
     private final JdbcTemplate jdbcTemplate;
     private final DataSource dataSource;
+    private final RuntimeMonitoringMetrics metrics;
     @Value("${database.monitor.row-warning-threshold:1000000}") private long rowWarningThreshold;
     @Value("${database.monitor.size-warning-mb:2048}") private long sizeWarningMegabytes;
     @Value("${database.monitor.pool-warning-percent:80}") private int poolWarningPercent;
@@ -33,6 +34,12 @@ public class DatabaseCapacityMonitor {
     @Scheduled(cron = "${database.monitor.capacity-cron:0 15 3 * * ?}")
     public void inspect() {
         inspectTableCapacity();
+        inspectConnectionPool();
+    }
+
+    @Scheduled(fixedDelayString = "${database.monitor.pool-sample-ms:15000}",
+            initialDelayString = "${database.monitor.pool-initial-delay-ms:60000}")
+    public void sampleConnectionPool() {
         inspectConnectionPool();
     }
 
@@ -58,8 +65,12 @@ public class DatabaseCapacityMonitor {
             DruidDataSource druid = dataSource.isWrapperFor(DruidDataSource.class)
                     ? dataSource.unwrap(DruidDataSource.class)
                     : (dataSource instanceof DruidDataSource source ? source : null);
-            if (druid == null || druid.getMaxActive() <= 0) return;
+            if (druid == null || druid.getMaxActive() <= 0) {
+                metrics.updateDatabasePool(0L, 0L, 0L, 0L);
+                return;
+            }
             int active = druid.getActiveCount();
+            metrics.updateDatabasePool(active, druid.getPoolingCount(), druid.getMaxActive(), druid.getWaitThreadCount());
             int percent = active * 100 / druid.getMaxActive();
             if (percent >= poolWarningPercent) {
                 log.warn("DB_POOL_CAPACITY_WARNING active={} maxActive={} usagePercent={} thresholdPercent={}",

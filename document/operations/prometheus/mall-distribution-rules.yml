@@ -1,0 +1,73 @@
+groups:
+  - name: mall-distribution-database-cache
+    rules:
+      - alert: MallDatabaseSlowQueries
+        expr: increase(mall_database_query_slow_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "商城数据库出现慢查询"
+          description: "最近 5 分钟存在超过系统阈值的 Mapper 调用，请检查 statement 标签和执行计划。"
+
+      - alert: MallDatabaseQueryP95High
+        expr: histogram_quantile(0.95, sum by (le) (rate(mall_database_query_duration_seconds_bucket[5m]))) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "商城数据库查询 P95 超过 1 秒"
+          description: "数据库查询整体变慢，请检查慢查询、数据库负载和组合索引使用情况。"
+
+      - alert: MallDatabasePoolUsageHigh
+        expr: mall_database_pool_max > 0 and mall_database_pool_active / mall_database_pool_max >= 0.8
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "商城数据库连接池使用率超过 80%"
+          description: "连接池持续高水位，需检查慢查询、长事务和数据库连接上限。"
+
+      - alert: MallDatabasePoolWaiters
+        expr: mall_database_pool_waiting > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "商城请求正在等待数据库连接"
+          description: "连接池已经出现等待线程，交易接口可能发生延迟或超时。"
+
+      - alert: MallRedisUnavailable
+        expr: mall_cache_redis_available == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "商城 Redis 缓存不可用"
+          description: "商城公共数据会自动回源数据库，但数据库压力会升高，请立即检查 Redis。"
+
+      - alert: MallRedisLatencyHigh
+        expr: mall_cache_redis_ping >= 100
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "商城 Redis 延迟超过 100 毫秒"
+          description: "请检查 Redis 负载、网络和慢命令。"
+
+      - alert: MallCatalogCacheHitRateLow
+        expr: |
+          (
+            sum(rate(mall_cache_requests_total{cache="shop_catalog",result="hit"}[10m]))
+            /
+            clamp_min(sum(rate(mall_cache_requests_total{cache="shop_catalog",result=~"hit|miss"}[10m])), 0.001)
+            < 0.6
+          )
+          and
+          sum(increase(mall_cache_requests_total{cache="shop_catalog",result=~"hit|miss"}[10m])) >= 20
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "商城商品缓存命中率低于 60%"
+          description: "请检查缓存 TTL、频繁失效、Redis 容量及商品读取模式。"

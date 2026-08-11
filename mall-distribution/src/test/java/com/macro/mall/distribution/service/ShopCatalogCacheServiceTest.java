@@ -7,6 +7,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.test.util.ReflectionTestUtils;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -26,6 +27,7 @@ class ShopCatalogCacheServiceTest {
     private ValueOperations<String, Object> valueOperations;
     private ValueOperations<String, String> stringValueOperations;
     private ShopCatalogCacheService cacheService;
+    private SimpleMeterRegistry meterRegistry;
 
     @BeforeEach
     @SuppressWarnings("unchecked")
@@ -41,7 +43,9 @@ class ShopCatalogCacheServiceTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(stringRedisTemplate.opsForValue()).thenReturn(stringValueOperations);
         when(stringValueOperations.get("mall:shop:catalog:v1:1:version")).thenReturn("4");
-        cacheService = new ShopCatalogCacheService(redisProvider, stringProvider);
+        meterRegistry = new SimpleMeterRegistry();
+        cacheService = new ShopCatalogCacheService(redisProvider, stringProvider,
+                new RuntimeMonitoringMetrics(meterRegistry));
         ReflectionTestUtils.setField(cacheService, "enabled", true);
     }
 
@@ -58,6 +62,7 @@ class ShopCatalogCacheServiceTest {
 
         assertEquals("cached-home", result);
         assertEquals(0, databaseCalls.get());
+        assertEquals(1D, meterRegistry.counter("mall.cache.requests", "cache", "shop_catalog", "result", "hit").count());
         verify(valueOperations, never()).set(any(), any(), any(Duration.class));
     }
 
@@ -68,6 +73,7 @@ class ShopCatalogCacheServiceTest {
         String result = cacheService.get(1L, "product:9", String.class, 15, () -> "product-detail");
 
         assertEquals("product-detail", result);
+        assertEquals(1D, meterRegistry.counter("mall.cache.requests", "cache", "shop_catalog", "result", "miss").count());
         verify(valueOperations).set(eq("mall:shop:catalog:v1:1:4:product:9"),
                 eq("product-detail"), eq(Duration.ofSeconds(15)));
     }

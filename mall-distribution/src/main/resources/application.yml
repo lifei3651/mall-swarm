@@ -129,7 +129,14 @@ database:
     row-warning-threshold: ${DB_ROW_WARNING_THRESHOLD:1000000}
     size-warning-mb: ${DB_SIZE_WARNING_MB:2048}
     pool-warning-percent: ${DB_POOL_WARNING_PERCENT:80}
+    pool-sample-ms: ${DB_POOL_SAMPLE_MS:15000}
+    pool-initial-delay-ms: ${DB_POOL_INITIAL_DELAY_MS:60000}
     capacity-cron: "${DB_CAPACITY_MONITOR_CRON:0 15 3 * * ?}"
+
+cache:
+  monitor:
+    sample-ms: ${CACHE_MONITOR_SAMPLE_MS:15000}
+    initial-delay-ms: ${CACHE_MONITOR_INITIAL_DELAY_MS:60000}
 
 # 支付宝支付配置
 # 正式使用时请替换为真实的支付宝应用配置

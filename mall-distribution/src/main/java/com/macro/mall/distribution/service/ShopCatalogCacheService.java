@@ -29,6 +29,7 @@ public class ShopCatalogCacheService {
 
     private final ObjectProvider<RedisTemplate<String, Object>> redisTemplateProvider;
     private final ObjectProvider<StringRedisTemplate> stringRedisTemplateProvider;
+    private final RuntimeMonitoringMetrics metrics;
 
     @Value("${shop.catalog-cache.enabled:true}")
     private boolean enabled;
@@ -39,25 +40,32 @@ public class ShopCatalogCacheService {
                      long ttlSeconds,
                      Supplier<T> loader) {
         if (!enabled) {
+            metrics.recordCacheRequest("bypass_disabled");
             return loader.get();
         }
         RedisTemplate<String, Object> redisTemplate = redisTemplateProvider.getIfAvailable();
         if (redisTemplate == null || stringRedisTemplateProvider.getIfAvailable() == null) {
+            metrics.recordCacheRequest("bypass_unavailable");
             return loader.get();
         }
         String redisKey = dataKey(tenantId, cacheKey);
         if (redisKey == null) {
+            metrics.recordCacheRequest("error");
             return loader.get();
         }
         try {
             Object cached = redisTemplate.opsForValue().get(redisKey);
             if (expectedType.isInstance(cached)) {
+                metrics.recordCacheRequest("hit");
                 return expectedType.cast(cached);
             }
+            metrics.recordCacheRequest("miss");
             if (cached != null) {
                 redisTemplate.delete(redisKey);
+                metrics.recordCacheOperation("delete_invalid", "success");
             }
         } catch (RuntimeException ex) {
+            metrics.recordCacheRequest("error");
             log.warn("读取商城公共缓存失败，已回源数据库：key={}", cacheKey, ex);
         }
 
@@ -66,7 +74,9 @@ public class ShopCatalogCacheService {
             try {
                 redisTemplate.opsForValue().set(redisKey, loaded,
                         Duration.ofSeconds(Math.max(1L, ttlSeconds)));
+                metrics.recordCacheOperation("write", "success");
             } catch (RuntimeException ex) {
+                metrics.recordCacheOperation("write", "error");
                 log.warn("写入商城公共缓存失败，不影响本次请求：key={}", cacheKey, ex);
             }
         }
@@ -100,7 +110,9 @@ public class ShopCatalogCacheService {
             if (stringRedisTemplate.opsForValue().increment(key) == null) {
                 stringRedisTemplate.opsForValue().set(key, "2");
             }
+            metrics.recordCacheOperation("invalidate", "success");
         } catch (RuntimeException ex) {
+            metrics.recordCacheOperation("invalidate", "error");
             log.warn("商城公共缓存失效失败；缓存仍会在短 TTL 后自动过期：tenantId={}", tenantId, ex);
         }
     }
