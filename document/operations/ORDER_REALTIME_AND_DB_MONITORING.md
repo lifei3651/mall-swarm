@@ -11,7 +11,27 @@
 - 页面收到通知后重新调用原查询接口读取最终状态，避免把通知内容当成权威数据。
 - 数据库事务提交成功后才发送通知；事务回滚不会向页面发送错误状态。
 
-浏览器断线后从 1 秒开始自动重连，最长等待 30 秒。实时连接不可用时，页面自动切换为每 30 秒查询一次；连接恢复后停止轮询，避免重复请求。Nginx 必须为上述两个地址关闭代理缓冲和缓存，仓库内两套正式配置已同步处理。
+浏览器断线后从 1 秒开始自动重连，最长等待 30 秒。实时连接不可用时，页面自动切换为每 30 秒查询一次；连接恢复后停止轮询，避免重复请求。Nginx 必须为上述两个地址使用独立代理规则，关闭请求/响应缓冲、缓存和压缩，保留授权头，并将读写超时延长到 35 分钟。仓库内两套正式配置已同步处理：
+
+- 当前服务器部署模板：`scripts/nginx/lingqimall.conf`
+- 客户独立部署模板：`document/private-deploy/nginx/conf.d/mall.conf`
+
+修改或发布 Nginx 配置前先验证仓库模板：
+
+```bash
+python3 scripts/nginx/verify-sse-config.py \
+  scripts/nginx/lingqimall.conf \
+  document/private-deploy/nginx/conf.d/mall.conf
+```
+
+服务器加载配置后，还需要检查实际生效配置，避免只修改模板但未加载：
+
+```bash
+sudo nginx -T 2>/dev/null | python3 scripts/nginx/verify-sse-config.py -
+sudo nginx -t
+```
+
+两项均通过后才允许重新加载 Nginx。该检查只读取配置，不连接数据库，也不修改订单、售后或会员数据。
 
 当前正式部署为单个分销服务实例，事件连接保存在当前进程内。如果以后扩展为多个分销服务实例，应先用 Redis Stream 或消息队列增加跨实例事件广播，再启用多实例流量分配。
 
