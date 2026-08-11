@@ -2,6 +2,10 @@ server:
   # 生产后端只允许本机 Nginx 访问；如在容器网络运行，必须显式设置 SERVER_ADDRESS=0.0.0.0。
   address: ${SERVER_ADDRESS:127.0.0.1}
   port: 8086
+  compression:
+    enabled: ${SERVER_COMPRESSION_ENABLED:true}
+    min-response-size: ${SERVER_COMPRESSION_MIN_SIZE:1KB}
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain,text/css,application/javascript,image/svg+xml
   forward-headers-strategy: framework
   error:
     include-message: never
@@ -18,9 +22,16 @@ spring:
     username: ${DB_USER}
     password: ${DB_PASSWORD}
     druid:
-      initial-size: 5
-      min-idle: 5
-      max-active: 20
+      initial-size: ${DB_POOL_INITIAL_SIZE:5}
+      min-idle: ${DB_POOL_MIN_IDLE:5}
+      max-active: ${DB_POOL_MAX_ACTIVE:20}
+      max-wait: ${DB_POOL_MAX_WAIT_MS:3000}
+      validation-query: SELECT 1
+      test-while-idle: true
+      test-on-borrow: false
+      test-on-return: false
+      time-between-eviction-runs-millis: 60000
+      min-evictable-idle-time-millis: 300000
   data:
     redis:
       host: ${REDIS_HOST}
@@ -82,6 +93,11 @@ springdoc:
     enabled: false
 
 shop:
+  catalog-cache:
+    enabled: ${SHOP_CATALOG_CACHE_ENABLED:true}
+    home-ttl-seconds: ${SHOP_CATALOG_HOME_TTL_SECONDS:30}
+    product-ttl-seconds: ${SHOP_CATALOG_PRODUCT_TTL_SECONDS:15}
+    category-ttl-seconds: ${SHOP_CATALOG_CATEGORY_TTL_SECONDS:60}
   media:
     storage-dir: ${SHOP_MEDIA_STORAGE_DIR:/opt/lingqimall/uploads/products}
     max-dimension: ${SHOP_MEDIA_MAX_DIMENSION:1920}

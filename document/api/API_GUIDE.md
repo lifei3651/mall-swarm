@@ -15,14 +15,15 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 
 ## 2. 请求地址
 
-浏览器端统一使用 `/api` 前缀，Nginx 转发给后端时移除该前缀。例如：
+新接入的浏览器端统一使用 `/api/v1` 前缀，Nginx 转发给后端时移除版本前缀。
+现有 `/api` 地址作为 v1 的兼容入口继续保留，当前前台和后台不需要同时强制迁移。例如：
 
 | 场景 | 浏览器请求 | 后端控制器路由 |
 | --- | --- | --- |
-| 商城首页 | `GET /api/shop/home` | `GET /shop/home` |
-| 商城登录 | `POST /api/shop/auth/login` | `POST /shop/auth/login` |
-| 后台登录 | `POST /api/distribution/admin-auth/login` | `POST /distribution/admin-auth/login` |
-| 支付宝异步通知 | `POST /api/pay/alipay/notify` | `POST /pay/alipay/notify` |
+| 商城首页 | `GET /api/v1/shop/home` | `GET /shop/home` |
+| 商城登录 | `POST /api/v1/shop/auth/login` | `POST /shop/auth/login` |
+| 后台登录 | `POST /api/v1/distribution/admin-auth/login` | `POST /distribution/admin-auth/login` |
+| 支付宝异步通知 | `POST /api/v1/pay/alipay/notify` | `POST /pay/alipay/notify` |
 
 前端开发时不要在业务代码中写死生产域名，应沿用项目已有的统一请求客户端。
 
@@ -82,12 +83,10 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 
 ## 6. 导出与归档
 
-本地服务启动后可导出当前版本的机器可读文档：
+本地服务启动后可用仓库脚本导出当前版本的机器可读文档：
 
 ```bash
-mkdir -p document/api/generated
-curl --fail --silent http://127.0.0.1:8086/v3/api-docs \
-  -o document/api/generated/openapi.json
+./scripts/export-openapi.sh
 ```
 
 导出文件只用于指定版本的联调、审阅或交付。接口代码继续是唯一来源；后续接口变更后必须重新生成，不允许手工修改导出的 JSON。
@@ -103,6 +102,14 @@ curl --fail --silent http://127.0.0.1:8086/v3/api-docs \
 5. 增加成功、参数错误、未认证、无权限及关键业务冲突测试。
 6. 本地查看 Swagger UI，确认请求参数、响应模型和说明正确。
 7. 发布或交付前重新导出 OpenAPI，并在发版报告中记录接口兼容性变化。
+
+### 版本兼容规则
+
+- 当前稳定接口版本为 `v1`。
+- 新客户端使用 `/api/v1/...`；旧客户端可继续使用 `/api/...`。
+- v1 内只允许向后兼容地新增可选字段，不删除字段、不改变已有字段含义。
+- 确需不兼容升级时新增 `/api/v2/...`，并给旧版本留出迁移期，禁止直接覆盖 v1。
+- 支付宝、短信等第三方回调地址在迁移期内必须同时验证，不能因版本升级漏接通知。
 
 ## 8. 代码与配置依据
 

@@ -52,3 +52,7 @@ logging:
   level:
     com.macro.mall.distribution: debug
     org.springframework: warn
+
+shop:
+  catalog-cache:
+    enabled: false

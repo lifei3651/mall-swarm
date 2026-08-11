@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.macro.mall.common.exception.Asserts;
+import com.macro.mall.common.api.CommonPage;
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.dao.*;
 import com.macro.mall.distribution.dto.OrderFinanceDTO;
@@ -23,6 +24,7 @@ import com.macro.mall.distribution.service.MemberAssetService;
 import com.macro.mall.distribution.service.PerformanceService;
 import com.macro.mall.distribution.service.PaymentVerificationService;
 import com.macro.mall.distribution.service.ShopService;
+import com.macro.mall.distribution.service.ShopCatalogCacheService;
 import com.macro.mall.distribution.util.ShopOrderNoGenerator;
 import com.macro.mall.distribution.service.ShopAuthService;
 import com.macro.mall.distribution.service.OrderRelationSnapshotService;
@@ -42,6 +44,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Value;
+import com.github.pagehelper.PageHelper;
+import cn.hutool.crypto.digest.DigestUtil;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -95,13 +99,28 @@ public class ShopServiceImpl implements ShopService {
     private final com.macro.mall.distribution.service.ErpIntegrationService erpIntegrationService;
     private final com.macro.mall.distribution.service.OrderShipmentService orderShipmentService;
     private final ObjectMapper objectMapper;
+    private final ShopCatalogCacheService catalogCache;
 
     @Value("${shop.order.pending-timeout-minutes:30}")
     private long pendingOrderTimeoutMinutes;
 
+    @Value("${shop.catalog-cache.home-ttl-seconds:30}")
+    private long homeCacheTtlSeconds;
+
+    @Value("${shop.catalog-cache.product-ttl-seconds:15}")
+    private long productCacheTtlSeconds;
+
+    @Value("${shop.catalog-cache.category-ttl-seconds:60}")
+    private long categoryCacheTtlSeconds;
+
     @Override
     public ShopHomeVO getHome(Long tenantId) {
         Long resolvedTenantId = resolveTenantId(tenantId);
+        return catalogCache.get(resolvedTenantId, "home", ShopHomeVO.class, homeCacheTtlSeconds,
+                () -> loadHome(resolvedTenantId));
+    }
+
+    private ShopHomeVO loadHome(Long resolvedTenantId) {
         DmsTenant tenant = tenantDao.selectById(resolvedTenantId);
         ShopHomeVO vo = new ShopHomeVO();
         vo.setBrandName(tenant == null || tenant.getBrandName() == null ? "商城" : tenant.getBrandName());
@@ -133,17 +152,39 @@ public class ShopServiceImpl implements ShopService {
     }
 
     @Override
+    public CommonPage<DmsShopProduct> listProductPage(Long tenantId, String keyword, String categoryName,
+                                                      Integer status, String stockStatus,
+                                                      Integer pageNum, Integer pageSize) {
+        Long resolvedTenantId = resolveTenantId(tenantId);
+        int resolvedPageNum = pageNum == null || pageNum < 1 ? 1 : pageNum;
+        int resolvedPageSize = pageSize == null || pageSize < 1 ? 12 : Math.min(pageSize, 100);
+        String parameters = String.join("|",
+                String.valueOf(keyword), String.valueOf(categoryName), String.valueOf(status),
+                String.valueOf(stockStatus), String.valueOf(resolvedPageNum), String.valueOf(resolvedPageSize));
+        String cacheKey = "products:" + DigestUtil.sha256Hex(parameters);
+        return catalogCache.get(resolvedTenantId, cacheKey, CommonPage.class, productCacheTtlSeconds, () -> {
+            PageHelper.startPage(resolvedPageNum, resolvedPageSize);
+            return CommonPage.restPage(productDao.selectList(
+                    resolvedTenantId, keyword, categoryName, status, stockStatus));
+        });
+    }
+
+    @Override
     public List<String> listCategories(Long tenantId) {
         Long resolvedTenantId = resolveTenantId(tenantId);
-        List<DmsShopCategory> categories = categoryDao.selectList(resolvedTenantId, 1);
-        return categories.isEmpty()
-                ? productDao.selectCategories(resolvedTenantId)
-                : categories.stream().map(DmsShopCategory::getCategoryName).toList();
+        return catalogCache.get(resolvedTenantId, "category-names", List.class, categoryCacheTtlSeconds, () -> {
+            List<DmsShopCategory> categories = categoryDao.selectList(resolvedTenantId, 1);
+            return categories.isEmpty()
+                    ? productDao.selectCategories(resolvedTenantId)
+                    : categories.stream().map(DmsShopCategory::getCategoryName).toList();
+        });
     }
 
     @Override
     public List<DmsShopCategory> listFrontCategories(Long tenantId) {
-        return categoryDao.selectList(resolveTenantId(tenantId), 1);
+        Long resolvedTenantId = resolveTenantId(tenantId);
+        return catalogCache.get(resolvedTenantId, "front-categories", List.class, categoryCacheTtlSeconds,
+                () -> categoryDao.selectList(resolvedTenantId, 1));
     }
 
     @Override
@@ -158,6 +199,7 @@ public class ShopServiceImpl implements ShopService {
         assertTenantAccess(category.getTenantId());
         assertCategoryNameAvailable(category.getTenantId(), category.getCategoryName(), null);
         categoryDao.insert(category);
+        catalogCache.invalidateAfterCommit(category.getTenantId());
         return categoryDao.selectById(category.getId());
     }
 
@@ -178,6 +220,7 @@ public class ShopServiceImpl implements ShopService {
             // 商品表使用分类名称做前台筛选；分类改名必须在同一事务内同步商品，避免改名后分类变空。
             productDao.updateCategoryName(exists.getTenantId(), exists.getCategoryName(), category.getCategoryName());
         }
+        catalogCache.invalidateAfterCommit(category.getTenantId());
         return categoryDao.selectById(id);
     }
 
@@ -193,7 +236,9 @@ public class ShopServiceImpl implements ShopService {
         if (productCount > 0) {
             Asserts.fail("该分类下还有" + productCount + "个商品，请先修改这些商品的分类后再删除");
         }
-        return categoryDao.deleteById(id) > 0;
+        boolean deleted = categoryDao.deleteById(id) > 0;
+        if (deleted) catalogCache.invalidateAfterCommit(category.getTenantId());
+        return deleted;
     }
 
     @Override
@@ -203,7 +248,9 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("分类不存在");
         }
         assertTenantAccess(category.getTenantId());
-        return categoryDao.updateStatus(id, status == null ? 1 : status) > 0;
+        boolean updated = categoryDao.updateStatus(id, status == null ? 1 : status) > 0;
+        if (updated) catalogCache.invalidateAfterCommit(category.getTenantId());
+        return updated;
     }
 
     @Override
@@ -215,7 +262,9 @@ public class ShopServiceImpl implements ShopService {
         }
         assertTenantAccess(category.getTenantId());
         category.setShowOnHome(showOnHome == null ? 1 : showOnHome);
-        return categoryDao.update(category) > 0;
+        boolean updated = categoryDao.update(category) > 0;
+        if (updated) catalogCache.invalidateAfterCommit(category.getTenantId());
+        return updated;
     }
 
     @Override
@@ -229,6 +278,7 @@ public class ShopServiceImpl implements ShopService {
         fillBannerDefaults(banner);
         assertTenantAccess(banner.getTenantId());
         bannerDao.insert(banner);
+        catalogCache.invalidateAfterCommit(banner.getTenantId());
         return bannerDao.selectById(banner.getId());
     }
 
@@ -244,6 +294,7 @@ public class ShopServiceImpl implements ShopService {
         fillBannerDefaults(banner);
         banner.setTenantId(exists.getTenantId());
         bannerDao.update(banner);
+        catalogCache.invalidateAfterCommit(banner.getTenantId());
         return bannerDao.selectById(id);
     }
 
@@ -254,7 +305,9 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("轮播图不存在");
         }
         assertTenantAccess(banner.getTenantId());
-        return bannerDao.updateStatus(id, status == null ? 1 : status) > 0;
+        boolean updated = bannerDao.updateStatus(id, status == null ? 1 : status) > 0;
+        if (updated) catalogCache.invalidateAfterCommit(banner.getTenantId());
+        return updated;
     }
 
     @Override
@@ -293,6 +346,7 @@ public class ShopServiceImpl implements ShopService {
         fillNoticeDefaults(notice);
         assertTenantAccess(notice.getTenantId());
         noticeDao.insert(notice);
+        catalogCache.invalidateAfterCommit(notice.getTenantId());
         return noticeDao.selectById(notice.getId());
     }
 
@@ -308,6 +362,7 @@ public class ShopServiceImpl implements ShopService {
         fillNoticeDefaults(notice);
         notice.setTenantId(exists.getTenantId());
         noticeDao.update(notice);
+        catalogCache.invalidateAfterCommit(notice.getTenantId());
         return noticeDao.selectById(id);
     }
 
@@ -318,7 +373,9 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("公告不存在");
         }
         assertTenantAccess(notice.getTenantId());
-        return noticeDao.updateStatus(id, status == null ? 1 : status) > 0;
+        boolean updated = noticeDao.updateStatus(id, status == null ? 1 : status) > 0;
+        if (updated) catalogCache.invalidateAfterCommit(notice.getTenantId());
+        return updated;
     }
 
     @Override
@@ -329,7 +386,9 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("公告不存在或已删除");
         }
         assertTenantAccess(notice.getTenantId());
-        return noticeDao.deleteById(id) > 0;
+        boolean deleted = noticeDao.deleteById(id) > 0;
+        if (deleted) catalogCache.invalidateAfterCommit(notice.getTenantId());
+        return deleted;
     }
 
     @Override
@@ -344,6 +403,12 @@ public class ShopServiceImpl implements ShopService {
 
     @Override
     public ShopProductDetailVO getProductDetail(Long id) {
+        Long tenantId = resolveTenantId(null);
+        return catalogCache.get(tenantId, "product:" + id, ShopProductDetailVO.class,
+                productCacheTtlSeconds, () -> loadProductDetail(id));
+    }
+
+    private ShopProductDetailVO loadProductDetail(Long id) {
         DmsShopProduct product = getProduct(id);
         // 兼容历史数据：PV 开关关闭时公开接口直接返回 0；开启时不返回高于售价的 PV。
         // SKU 的 PV 为 0 时继承商品默认 PV，避免旧后台把 SKU PV 强制保存为 0 后，
@@ -374,6 +439,7 @@ public class ShopServiceImpl implements ShopService {
         fillProductDefaults(product);
         assertTenantAccess(product.getTenantId());
         productDao.insert(product);
+        catalogCache.invalidateAfterCommit(product.getTenantId());
         return product;
     }
 
@@ -392,6 +458,7 @@ public class ShopServiceImpl implements ShopService {
         applyShippingAddress(product, false);
         fillProductDefaults(product);
         productDao.update(product);
+        catalogCache.invalidateAfterCommit(product.getTenantId());
         return productDao.selectById(id);
     }
 
@@ -458,6 +525,7 @@ public class ShopServiceImpl implements ShopService {
             }
             productDao.update(product);
         }
+        catalogCache.invalidateAfterCommit(product.getTenantId());
         return productDao.selectById(id);
     }
 
@@ -492,7 +560,9 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("商品不存在");
         }
         assertTenantAccess(product.getTenantId());
-        return productDao.updateStatus(id, status == null ? 1 : status) > 0;
+        boolean updated = productDao.updateStatus(id, status == null ? 1 : status) > 0;
+        if (updated) catalogCache.invalidateAfterCommit(product.getTenantId());
+        return updated;
     }
 
     @Override
@@ -515,6 +585,7 @@ public class ShopServiceImpl implements ShopService {
         }
         assertTenantAccess(product.getTenantId());
         skuDao.insert(sku);
+        catalogCache.invalidateAfterCommit(product.getTenantId());
         return skuDao.selectById(sku.getId());
     }
 
@@ -534,6 +605,7 @@ public class ShopServiceImpl implements ShopService {
         sku.setId(id);
         sku.setProductId(exists.getProductId());
         skuDao.update(sku);
+        catalogCache.invalidateAfterCommit(product.getTenantId());
         return skuDao.selectById(id);
     }
 
@@ -548,7 +620,9 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("商品不存在");
         }
         assertTenantAccess(product.getTenantId());
-        return skuDao.updateStatus(id, status == null ? 1 : status) > 0;
+        boolean updated = skuDao.updateStatus(id, status == null ? 1 : status) > 0;
+        if (updated) catalogCache.invalidateAfterCommit(product.getTenantId());
+        return updated;
     }
 
     @Override
@@ -807,6 +881,7 @@ public class ShopServiceImpl implements ShopService {
         vo.setAfterSales(Collections.emptyList());
         vo.setPendingReviewCount(0);
         vo.setDisplayConfig(getDisplayConfig(tenantId));
+        catalogCache.invalidateAfterCommit(tenantId);
         return vo;
     }
 
@@ -1633,6 +1708,8 @@ public class ShopServiceImpl implements ShopService {
             }
             productDao.increaseStock(item.getProductId(), item.getQuantity());
         }
+        DmsShopOrder order = orderDao.selectById(orderId);
+        catalogCache.invalidateAfterCommit(order == null ? DEFAULT_TENANT_ID : order.getTenantId());
     }
 
     private Long resolveTenantId(Long tenantId) {

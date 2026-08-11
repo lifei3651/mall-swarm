@@ -16,7 +16,7 @@ public class SpringDocConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("分销分佣系统API")
-                        .version("1.0")
-                        .description("mall-distribution 分销分佣系统接口文档"));
+                        .version("v1")
+                        .description("灵启商城后端接口文档；浏览器端优先使用 /api/v1 前缀，旧 /api 前缀兼容保留"));
     }
 }

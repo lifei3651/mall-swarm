@@ -19,6 +19,7 @@ import static org.mockito.Mockito.when;
 class ShopNoticeServiceTest {
 
     @Mock private DmsShopNoticeDao noticeDao;
+    @Mock private ShopCatalogCacheService catalogCache;
     @InjectMocks private ShopServiceImpl shopService;
 
     @AfterEach
@@ -38,5 +39,6 @@ class ShopNoticeServiceTest {
         assertTrue(shopService.deleteNotice(9L));
 
         verify(noticeDao).deleteById(9L);
+        verify(catalogCache).invalidateAfterCommit(1L);
     }
 }

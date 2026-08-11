@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.service;
 
+import com.macro.mall.common.api.CommonPage;
 import com.macro.mall.distribution.dto.ShopOrderSubmitDTO;
 import com.macro.mall.distribution.dto.ShopOrderShipDTO;
 import com.macro.mall.distribution.dto.ShopSkuDTO;
@@ -28,6 +29,10 @@ public interface ShopService {
     ShopHomeVO getHome(Long tenantId);
 
     List<DmsShopProduct> listProducts(Long tenantId, String keyword, String categoryName, Integer status, String stockStatus);
+
+    CommonPage<DmsShopProduct> listProductPage(Long tenantId, String keyword, String categoryName,
+                                               Integer status, String stockStatus,
+                                               Integer pageNum, Integer pageSize);
 
     List<String> listCategories(Long tenantId);
 

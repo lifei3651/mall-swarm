@@ -14,6 +14,7 @@ import com.macro.mall.distribution.entity.DmsTenantConfigVersion;
 import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.OperationLogService;
+import com.macro.mall.distribution.service.ShopCatalogCacheService;
 import com.macro.mall.distribution.service.TenantService;
 import com.macro.mall.distribution.service.TenantLegalTemplateSupport;
 import com.macro.mall.distribution.vo.TenantConfigVersionVO;
@@ -42,6 +43,7 @@ public class TenantServiceImpl implements TenantService {
     private final TenantLegalTemplateSupport legalTemplateSupport;
     private final OperationLogService operationLogService;
     private final ObjectMapper objectMapper;
+    private final ShopCatalogCacheService catalogCache;
 
     @Override
     public List<DmsTenant> listTenants() {
@@ -114,6 +116,7 @@ public class TenantServiceImpl implements TenantService {
             tenantDao.update(tenant);
             recordConfigVersion(tenant.getId(), "PROFILE_UPDATE", null);
         }
+        catalogCache.invalidateAfterCommit(tenant.getId());
         return getTenant(tenant.getId());
     }
 
@@ -135,6 +138,7 @@ public class TenantServiceImpl implements TenantService {
         boolean updated = tenantDao.updateStatus(id, status) > 0;
         if (updated) {
             recordConfigVersion(id, "STATUS_UPDATE", null);
+            catalogCache.invalidateAfterCommit(id);
         }
         return updated;
     }
@@ -168,6 +172,7 @@ public class TenantServiceImpl implements TenantService {
             displayConfigDao.update(config);
         }
         recordConfigVersion(config.getTenantId(), "DISPLAY_UPDATE", null);
+        catalogCache.invalidateAfterCommit(config.getTenantId());
         return displayConfigSupport.prepareForRead(displayConfigDao.selectByTenantId(config.getTenantId()), config.getTenantId());
     }
 
@@ -218,6 +223,7 @@ public class TenantServiceImpl implements TenantService {
         operationLogService.log("TENANT_CONFIG", "RESTORE", "商城配置", String.valueOf(tenantId),
                 "恢复前版本", target.getVersionNo(),
                 "已恢复配置版本 " + target.getVersionNo() + "，并生成新版本 " + restoredVersion.getVersionNo());
+        catalogCache.invalidateAfterCommit(tenantId);
         return getTenant(tenantId);
     }
 
