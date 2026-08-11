@@ -58,6 +58,15 @@
         </el-button>
       </div>
 
+      <div v-if="loading || importResult" class="progress-panel">
+        <div class="progress-header">
+          <span>{{ loading ? '正在逐条导入' : '导入进度' }}</span>
+          <span>{{ processedCount }} / {{ importResult?.totalCount || 0 }} 条</span>
+        </div>
+        <el-progress :percentage="progressPercentage" :status="progressStatus" :stroke-width="18" text-inside />
+        <div v-if="loading" class="progress-tip">页面会自动刷新成功、失败和总进度，请勿重复提交。</div>
+      </div>
+
       <!-- 导入结果 -->
       <div v-if="importResult" class="result-section">
         <el-divider />
@@ -92,17 +101,44 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Download, UploadFilled, Upload } from '@element-plus/icons-vue'
-import { importOrdersByFile } from '@/api/import'
+import { getImportResult, importOrdersByFile } from '@/api/import'
 
 const router = useRouter()
 const uploadRef = ref(null)
 const loading = ref(false)
 const file = ref(null)
 const importResult = ref(null)
+let progressTimer = null
+
+const processedCount = computed(() => importResult.value?.processedCount
+  ?? ((importResult.value?.successCount || 0) + (importResult.value?.failCount || 0)))
+const progressPercentage = computed(() => importResult.value?.progressPercent
+  ?? (importResult.value?.totalCount ? Math.round(processedCount.value * 100 / importResult.value.totalCount) : 0))
+const progressStatus = computed(() => !loading.value && (importResult.value?.failCount || 0) > 0 ? 'warning' : undefined)
+
+const stopPolling = () => {
+  if (progressTimer) window.clearInterval(progressTimer)
+  progressTimer = null
+}
+
+const pollProgress = async (batchNo) => {
+  try {
+    const res = await getImportResult(batchNo, true)
+    if (res.data) importResult.value = res.data
+  } catch {
+    // 文件仍在解析、批次尚未创建时保持安静，下一轮继续查询。
+  }
+}
+
+const startPolling = (batchNo) => {
+  stopPolling()
+  pollProgress(batchNo)
+  progressTimer = window.setInterval(() => pollProgress(batchNo), 800)
+}
 
 // 下载模板
 const downloadTemplate = () => {
@@ -127,14 +163,21 @@ const handleImport = async () => {
   }
 
   loading.value = true
+  importResult.value = null
+  const batchNo = `BATCHWEB${Date.now()}${Math.random().toString(36).slice(2, 8)}`.toUpperCase()
+  startPolling(batchNo)
   try {
-    const res = await importOrdersByFile(file.value, 1, 'admin')
+    const res = await importOrdersByFile(file.value, 1, 'admin', batchNo)
     importResult.value = res.data
     ElMessage.success('导入完成')
   } finally {
+    stopPolling()
+    await pollProgress(batchNo)
     loading.value = false
   }
 }
+
+onBeforeUnmount(stopPolling)
 
 // 查看详情
 const viewResult = () => {
@@ -164,6 +207,28 @@ const downloadCsv = (filename, content) => {
 
 .action-section {
   margin-bottom: 20px;
+}
+
+.progress-panel {
+  margin: 18px 0;
+  padding: 16px 18px;
+  border: 1px solid #d9ecff;
+  border-radius: 10px;
+  background: #f5faff;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  color: #303133;
+  font-weight: 600;
+}
+
+.progress-tip {
+  margin-top: 9px;
+  color: #909399;
+  font-size: 13px;
 }
 
 .result-section {

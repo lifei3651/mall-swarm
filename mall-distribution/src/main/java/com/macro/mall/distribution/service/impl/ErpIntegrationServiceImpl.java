@@ -14,6 +14,7 @@ import com.macro.mall.distribution.service.ErpIntegrationService;
 import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.OrderShipmentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.net.URI;
@@ -34,6 +35,9 @@ public class ErpIntegrationServiceImpl implements ErpIntegrationService {
     private final List<ErpAdapter> adapters;
     private final OperationLogService operationLogService;
     private final OrderShipmentService orderShipmentService;
+
+    @Value("${erp.sync.max-retries:8}")
+    private int maxAutoRetries;
 
     @Override public List<DmsErpIntegration> listIntegrations(Long tenantId) { return integrationDao.selectList(tenantId == null ? 1L : tenantId); }
 
@@ -74,6 +78,10 @@ public class ErpIntegrationServiceImpl implements ErpIntegrationService {
     @Override @Transactional(rollbackFor = Exception.class)
     public boolean retryTask(Long taskId) {
         DmsErpSyncTask task = taskDao.selectById(taskId); if (task == null) Asserts.fail("ERP任务不存在");
+        return executeTask(task);
+    }
+
+    private boolean executeTask(DmsErpSyncTask task) {
         DmsErpIntegration integration = integrationDao.selectById(task.getIntegrationId());
         DmsShopOrder order = orderDao.selectById(Long.valueOf(task.getBizId()));
         if (integration == null || order == null) { fail(task, "ERP配置或商城订单不存在"); return false; }
@@ -85,7 +93,18 @@ public class ErpIntegrationServiceImpl implements ErpIntegrationService {
         fail(task, result.message()); return false;
     }
 
-    @Override public int retryPendingTasks(int limit) { int count = 0; for (DmsErpSyncTask task : taskDao.selectRetryable(LocalDateTime.now(), limit)) { retryTask(task.getId()); count++; } return count; }
+    @Override
+    public int retryPendingTasks(int limit) {
+        int count = 0;
+        int retryLimit = retryLimit();
+        int safeLimit = Math.max(1, Math.min(limit, 100));
+        taskDao.stopExceededRetries(retryLimit);
+        for (DmsErpSyncTask task : taskDao.selectRetryable(LocalDateTime.now(), safeLimit, retryLimit)) {
+            executeTask(task);
+            count++;
+        }
+        return count;
+    }
 
     @Override @Transactional(rollbackFor = Exception.class)
     public boolean receiveShipment(ErpShipmentCallbackDTO callback) {
@@ -114,5 +133,23 @@ public class ErpIntegrationServiceImpl implements ErpIntegrationService {
         return MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8), actual.getBytes(StandardCharsets.UTF_8));
     }
 
-    private void fail(DmsErpSyncTask task, String error) { int retry = (task.getRetryCount() == null ? 0 : task.getRetryCount()) + 1; taskDao.markFailure(task.getId(), retry, LocalDateTime.now().plusMinutes(Math.min(60, retry * 5L)), error); operationLogService.log("ERP", "ORDER_PUSH_FAIL", "ERP_SYNC_TASK", String.valueOf(task.getId()), null, error, "ERP订单推送失败，等待重试"); }
+    private void fail(DmsErpSyncTask task, String error) {
+        int retry = (task.getRetryCount() == null ? 0 : task.getRetryCount()) + 1;
+        int retryLimit = retryLimit();
+        boolean stopped = retry >= retryLimit;
+        String safeError = error == null || error.isBlank() ? "ERP服务返回失败" : error;
+        String storedError = stopped
+                ? "已达到自动重试上限（" + retryLimit + "次）：" + safeError
+                : safeError;
+        taskDao.markFailure(task.getId(), stopped ? 3 : 2, retry,
+                stopped ? null : LocalDateTime.now().plusMinutes(Math.min(60, retry * 5L)), storedError);
+        operationLogService.log("ERP", stopped ? "ORDER_PUSH_STOPPED" : "ORDER_PUSH_FAIL",
+                "ERP_SYNC_TASK", String.valueOf(task.getId()), null, storedError,
+                stopped ? "ERP订单推送达到上限，已停止自动重试，可由管理员人工重试"
+                        : "ERP订单推送失败，等待重试");
+    }
+
+    private int retryLimit() {
+        return Math.max(1, maxAutoRetries);
+    }
 }

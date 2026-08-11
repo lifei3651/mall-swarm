@@ -14,9 +14,7 @@ import com.macro.mall.distribution.entity.DmsImportDetail;
 import com.macro.mall.distribution.enums.AgentSourceTypeEnum;
 import com.macro.mall.distribution.enums.ImportTypeEnum;
 import com.macro.mall.distribution.service.AgentService;
-import com.macro.mall.distribution.service.CommissionService;
 import com.macro.mall.distribution.service.ImportService;
-import com.macro.mall.distribution.service.PerformanceService;
 import com.macro.mall.distribution.vo.AgentInfoVO;
 import com.macro.mall.distribution.vo.ImportResultVO;
 import com.macro.mall.distribution.util.PhoneNumberUtils;
@@ -29,7 +27,6 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
@@ -54,22 +51,30 @@ public class ImportServiceImpl implements ImportService {
     private final DmsImportDetailDao detailDao;
     private final DmsAgentDao agentDao;
     private final AgentService agentService;
-    private final PerformanceService performanceService;
-    private final CommissionService commissionService;
     private final ObjectMapper objectMapper;
     private final ImportTransactionHelper importTransactionHelper;
 
     @Override
     public ImportResultVO importAgents(MultipartFile file, Long operatorId, String operatorName) {
+        return importAgents(file, operatorId, operatorName, null);
+    }
+
+    @Override
+    public ImportResultVO importAgents(MultipartFile file, Long operatorId, String operatorName, String batchNo) {
         List<ImportAgentDTO> agentList = parseAgentFile(file);
-        return importAgents(agentList, operatorId, operatorName);
+        return importAgentsInternal(agentList, operatorId, operatorName, batchNo);
     }
 
     @Override
     public ImportResultVO importAgents(List<ImportAgentDTO> agentList, Long operatorId, String operatorName) {
+        return importAgentsInternal(agentList, operatorId, operatorName, null);
+    }
+
+    private ImportResultVO importAgentsInternal(List<ImportAgentDTO> agentList, Long operatorId,
+                                                String operatorName, String requestedBatchNo) {
         // 创建导入批次
         DmsImportBatch batch = new DmsImportBatch();
-        batch.setBatchNo(generateBatchNo());
+        batch.setBatchNo(resolveBatchNo(requestedBatchNo));
         batch.setBatchName("代理导入-" + System.currentTimeMillis());
         batch.setImportType(ImportTypeEnum.AGENT.getValue());
         batch.setTotalCount(agentList.size());
@@ -116,6 +121,7 @@ public class ImportServiceImpl implements ImportService {
             }
 
             detailDao.insert(detail);
+            batchDao.updateCounts(batch.getId(), successCount, failCount);
         }
 
         // 更新批次统计
@@ -125,13 +131,7 @@ public class ImportServiceImpl implements ImportService {
         batchDao.update(batch);
 
         // 构建返回结果
-        ImportResultVO result = new ImportResultVO();
-        result.setBatchNo(batch.getBatchNo());
-        result.setTotalCount(batch.getTotalCount());
-        result.setSuccessCount(successCount);
-        result.setFailCount(failCount);
-        result.setStatus(batch.getStatus());
-        result.setStatusName("处理完成");
+        ImportResultVO result = buildResult(batch);
         result.setErrorMessages(errorMessages);
 
         log.info("批量导入代理完成: batchNo={}, total={}, success={}, fail={}",
@@ -141,17 +141,26 @@ public class ImportServiceImpl implements ImportService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public ImportResultVO importOrders(MultipartFile file, Long operatorId, String operatorName) {
+        return importOrders(file, operatorId, operatorName, null);
+    }
+
+    @Override
+    public ImportResultVO importOrders(MultipartFile file, Long operatorId, String operatorName, String batchNo) {
         List<ImportOrderDTO> orderList = parseOrderFile(file);
-        return importOrders(orderList, operatorId, operatorName);
+        return importOrdersInternal(orderList, operatorId, operatorName, batchNo);
     }
 
     @Override
     public ImportResultVO importOrders(List<ImportOrderDTO> orderList, Long operatorId, String operatorName) {
+        return importOrdersInternal(orderList, operatorId, operatorName, null);
+    }
+
+    private ImportResultVO importOrdersInternal(List<ImportOrderDTO> orderList, Long operatorId,
+                                                String operatorName, String requestedBatchNo) {
         // 创建导入批次
         DmsImportBatch batch = new DmsImportBatch();
-        batch.setBatchNo(generateBatchNo());
+        batch.setBatchNo(resolveBatchNo(requestedBatchNo));
         batch.setBatchName("订单导入-" + System.currentTimeMillis());
         batch.setImportType(ImportTypeEnum.ORDER.getValue());
         batch.setTotalCount(orderList.size());
@@ -182,7 +191,9 @@ public class ImportServiceImpl implements ImportService {
 
             try {
                 // 使用独立事务处理每条记录，避免单条失败导致整个批次回滚
-                processOrderImport(orderDTO, detail);
+                Long orderId = importTransactionHelper.processOrderImport(orderDTO);
+                detail.setStatus(1);
+                detail.setTargetId(orderId);
 
                 successCount++;
                 log.info("导入订单成功: row={}, orderNo={}", i + 1, orderDTO.getOrderNo());
@@ -196,6 +207,7 @@ public class ImportServiceImpl implements ImportService {
             }
 
             detailDao.insert(detail);
+            batchDao.updateCounts(batch.getId(), successCount, failCount);
         }
 
         // 更新批次统计
@@ -205,36 +217,13 @@ public class ImportServiceImpl implements ImportService {
         batchDao.update(batch);
 
         // 构建返回结果
-        ImportResultVO result = new ImportResultVO();
-        result.setBatchNo(batch.getBatchNo());
-        result.setTotalCount(batch.getTotalCount());
-        result.setSuccessCount(successCount);
-        result.setFailCount(failCount);
-        result.setStatus(batch.getStatus());
-        result.setStatusName("处理完成");
+        ImportResultVO result = buildResult(batch);
         result.setErrorMessages(errorMessages);
 
         log.info("批量导入订单完成: batchNo={}, total={}, success={}, fail={}",
                 batch.getBatchNo(), batch.getTotalCount(), successCount, failCount);
 
         return result;
-    }
-
-    /**
-     * 处理单条订单导入（独立事务）
-     */
-    @Transactional(rollbackFor = Exception.class, propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
-    public void processOrderImport(ImportOrderDTO orderDTO, DmsImportDetail detail) {
-        DmsAgent ownerAgent = agentDao.selectById(performanceService.resolveAgentId(orderDTO.getOwnerAgentCode()));
-        Long orderId = IdUtil.getSnowflakeNextId();
-        LocalDateTime orderTime = orderDTO.getOrderTime() != null ? orderDTO.getOrderTime() : LocalDateTime.now();
-        performanceService.recordOrderPerformance(orderId, orderDTO.getOrderNo(), orderDTO.getOrderAmount(),
-                orderDTO.getQuantity(), ownerAgent.getUserId(), orderTime);
-        commissionService.calculateAndRecordCommission(orderId, orderDTO.getOrderNo(), orderDTO.getOrderAmount(),
-                ownerAgent.getUserId(), ownerAgent.getAgentName());
-
-        detail.setStatus(1); // 成功
-        detail.setTargetId(orderId);
     }
 
     @Override
@@ -244,14 +233,7 @@ public class ImportServiceImpl implements ImportService {
             return null;
         }
 
-        ImportResultVO result = new ImportResultVO();
-        result.setBatchNo(batch.getBatchNo());
-        result.setTotalCount(batch.getTotalCount());
-        result.setSuccessCount(batch.getSuccessCount());
-        result.setFailCount(batch.getFailCount());
-        result.setStatus(batch.getStatus());
-        result.setStatusName(getStatusName(batch.getStatus()));
-        result.setErrorFileUrl(batch.getErrorFileUrl());
+        ImportResultVO result = buildResult(batch);
 
         // 查询失败详情
         List<DmsImportDetail> failDetails = detailDao.selectByBatchIdAndStatus(batch.getId(), 2);
@@ -440,6 +422,44 @@ public class ImportServiceImpl implements ImportService {
             }
         }
         return LocalDateTime.parse(value);
+    }
+
+    private String resolveBatchNo(String requestedBatchNo) {
+        if (requestedBatchNo == null || requestedBatchNo.isBlank()) {
+            return generateBatchNo();
+        }
+        String normalized = requestedBatchNo.trim().toUpperCase();
+        if (!normalized.matches("[A-Z0-9]{12,40}")) {
+            Asserts.fail("导入批次编号格式不正确");
+        }
+        if (batchDao.selectByBatchNo(normalized) != null) {
+            Asserts.fail("导入批次编号已存在，请重新发起导入");
+        }
+        return normalized;
+    }
+
+    private ImportResultVO buildResult(DmsImportBatch batch) {
+        ImportResultVO result = new ImportResultVO();
+        result.setBatchNo(batch.getBatchNo());
+        result.setBatchName(batch.getBatchName());
+        result.setImportType(batch.getImportType());
+        ImportTypeEnum importType = ImportTypeEnum.getByValue(batch.getImportType());
+        result.setImportTypeName(importType == null ? "未知" : importType.getName());
+        int successCount = batch.getSuccessCount() == null ? 0 : batch.getSuccessCount();
+        int failCount = batch.getFailCount() == null ? 0 : batch.getFailCount();
+        int totalCount = batch.getTotalCount() == null ? 0 : batch.getTotalCount();
+        int processedCount = successCount + failCount;
+        result.setTotalCount(totalCount);
+        result.setSuccessCount(successCount);
+        result.setFailCount(failCount);
+        result.setProcessedCount(processedCount);
+        result.setProgressPercent(totalCount == 0 ? 100 : Math.min(100, processedCount * 100 / totalCount));
+        result.setStatus(batch.getStatus());
+        result.setStatusName(getStatusName(batch.getStatus()));
+        result.setErrorFileUrl(batch.getErrorFileUrl());
+        result.setOperatorName(batch.getOperatorName());
+        result.setCreateTime(batch.getCreateTime());
+        return result;
     }
 
     /**

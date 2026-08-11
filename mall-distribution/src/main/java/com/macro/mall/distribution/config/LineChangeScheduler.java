@@ -5,10 +5,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
+
 @Component
 @RequiredArgsConstructor
 public class LineChangeScheduler {
     private final LineChangeApplicationService service;
+    private final DistributedScheduledTaskRunner scheduledTaskRunner;
     @Scheduled(fixedDelayString = "${distribution.line-change.scan-interval-ms:60000}")
-    public void executeDueApplications() { service.executeDue(); }
+    public void executeDueApplications() {
+        scheduledTaskRunner.run("line-change-applications", Duration.ofMinutes(10), service::executeDue);
+    }
 }

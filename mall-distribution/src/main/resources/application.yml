@@ -92,6 +92,11 @@ order:
     remainder-account: SYSTEM_REMAINDER
     product-cost-account: SYSTEM_PRODUCT_COST
 
+erp:
+  sync:
+    # ERP推单连续失败达到该次数后停止自动重试，后台仍可人工重试。
+    max-retries: ${ERP_SYNC_MAX_RETRIES:8}
+
 # 支付宝支付配置
 # 正式使用时请替换为真实的支付宝应用配置
 alipay:

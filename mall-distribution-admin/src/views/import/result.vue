@@ -59,7 +59,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getImportResult } from '@/api/import'
@@ -74,17 +74,20 @@ const result = ref({})
 
 // 错误详情
 const errorDetails = ref([])
+let pollTimer = null
 
 // 进度百分比
 const progressPercentage = computed(() => {
+  if (result.value.progressPercent !== undefined) return result.value.progressPercent
   if (!result.value.totalCount) return 0
-  return Math.round(((result.value.successCount + result.value.failCount) / result.value.totalCount) * 100)
+  return Math.round((((result.value.successCount || 0) + (result.value.failCount || 0)) / result.value.totalCount) * 100)
 })
 
 // 进度状态
 const progressStatus = computed(() => {
+  if (result.value.status === 1) return undefined
   if (result.value.failCount > 0) return 'warning'
-  return 'success'
+  return result.value.status === 2 ? 'success' : undefined
 })
 
 // 获取状态类型
@@ -105,7 +108,7 @@ const downloadErrorFile = () => {
   }
 }
 
-onMounted(async () => {
+const loadResult = async () => {
   const res = await getImportResult(batchNo)
   result.value = res.data || {}
   errorDetails.value = (result.value.errorMessages || []).map((msg) => {
@@ -116,6 +119,21 @@ onMounted(async () => {
       rawData: '',
     }
   })
+  if (![0, 1].includes(result.value.status) && pollTimer) {
+    window.clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+onMounted(async () => {
+  await loadResult()
+  if ([0, 1].includes(result.value.status)) {
+    pollTimer = window.setInterval(loadResult, 1000)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (pollTimer) window.clearInterval(pollTimer)
 })
 </script>
 

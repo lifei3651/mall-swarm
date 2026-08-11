@@ -39,8 +39,9 @@ public class ImportController {
     public CommonResult<ImportResultVO> importAgentsByFile(
             @RequestParam("file") MultipartFile file,
             @RequestParam Long operatorId,
-            @RequestParam String operatorName) {
-        ImportResultVO result = importService.importAgents(file, operatorId, operatorName);
+            @RequestParam String operatorName,
+            @RequestParam(required = false) String batchNo) {
+        ImportResultVO result = importService.importAgents(file, operatorId, operatorName, batchNo);
         return CommonResult.success(result);
     }
 
@@ -59,8 +60,9 @@ public class ImportController {
     public CommonResult<ImportResultVO> importOrdersByFile(
             @RequestParam("file") MultipartFile file,
             @RequestParam Long operatorId,
-            @RequestParam String operatorName) {
-        ImportResultVO result = importService.importOrders(file, operatorId, operatorName);
+            @RequestParam String operatorName,
+            @RequestParam(required = false) String batchNo) {
+        ImportResultVO result = importService.importOrders(file, operatorId, operatorName, batchNo);
         return CommonResult.success(result);
     }
 

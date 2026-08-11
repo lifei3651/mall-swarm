@@ -12,7 +12,7 @@ public class DmsErpSyncTask {
     private String providerCode;
     private String bizType;
     private String bizId;
-    /** 0待处理、1成功、2失败待重试、3人工终止 */
+    /** 0待处理、1成功、2失败待重试、3已停止（达到上限或人工终止） */
     private Integer status;
     private Integer retryCount;
     private LocalDateTime nextRetryTime;

@@ -86,7 +86,8 @@
     <update id="updateCounts">
         UPDATE dms_import_batch
         SET success_count = #{successCount},
-            fail_count = #{failCount}
+            fail_count = #{failCount},
+            update_time = NOW()
         WHERE id = #{id}
     </update>
 

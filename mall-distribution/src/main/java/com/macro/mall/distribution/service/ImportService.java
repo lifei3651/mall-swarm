@@ -21,6 +21,9 @@ public interface ImportService {
      */
     ImportResultVO importAgents(MultipartFile file, Long operatorId, String operatorName);
 
+    /** 使用前端预生成的批次号导入，便于导入过程中查询实时进度。 */
+    ImportResultVO importAgents(MultipartFile file, Long operatorId, String operatorName, String batchNo);
+
     /**
      * 批量导入代理（数据列表）
      * @param agentList 代理数据列表
@@ -38,6 +41,9 @@ public interface ImportService {
      * @return 导入结果
      */
     ImportResultVO importOrders(MultipartFile file, Long operatorId, String operatorName);
+
+    /** 使用前端预生成的批次号导入，便于导入过程中查询实时进度。 */
+    ImportResultVO importOrders(MultipartFile file, Long operatorId, String operatorName, String batchNo);
 
     /**
      * 批量导入订单（数据列表）

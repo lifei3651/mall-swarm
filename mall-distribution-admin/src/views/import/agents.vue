@@ -30,6 +30,21 @@
 
       <el-button type="success" :loading="loading" :disabled="!file" @click="handleImport"><el-icon><Upload /></el-icon>开始整体平移</el-button>
 
+      <div v-if="loading" class="migration-progress">
+        <div class="progress-title">
+          <span>{{ uploadPercent < 100 ? '正在上传文件' : '正在校验并写入整批数据' }}</span>
+          <span>已用时 {{ elapsedSeconds }} 秒</span>
+        </div>
+        <el-progress
+          v-if="uploadPercent < 100"
+          :percentage="uploadPercent"
+          :stroke-width="18"
+          text-inside
+        />
+        <el-progress v-else :percentage="100" :indeterminate="true" :duration="2" :stroke-width="18" />
+        <div class="progress-help">整体平移采用整批事务，完成前不会写入一半；页面持续计时表示任务仍在等待结果。</div>
+      </div>
+
       <div v-if="importResult" class="result-section">
         <el-divider /><h3>平移结果</h3>
         <el-descriptions :column="2" border>
@@ -44,7 +59,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Download, Upload, UploadFilled } from '@element-plus/icons-vue'
 import { migrateExternalTeam } from '@/api/import'
@@ -56,6 +71,14 @@ const file = ref(null)
 const anchorAgentId = ref(null)
 const agentOptions = ref([])
 const importResult = ref(null)
+const uploadPercent = ref(0)
+const elapsedSeconds = ref(0)
+let elapsedTimer = null
+
+const stopElapsedTimer = () => {
+  if (elapsedTimer) window.clearInterval(elapsedTimer)
+  elapsedTimer = null
+}
 
 const searchAgents = async (keyword) => {
   if (!keyword) return (agentOptions.value = [])
@@ -81,14 +104,25 @@ const handleImport = async () => {
   if (!file.value) return ElMessage.warning('请先选择平移文件')
   await ElMessageBox.confirm('确认整批创建会员、代理关系并写入期初历史业绩？历史数据不会产生奖金。', '确认外部团队平移', { type: 'warning', confirmButtonText: '确认平移' })
   loading.value = true
+  uploadPercent.value = 0
+  elapsedSeconds.value = 0
+  stopElapsedTimer()
+  elapsedTimer = window.setInterval(() => { elapsedSeconds.value += 1 }, 1000)
   try {
-    const res = await migrateExternalTeam(file.value, anchorAgentId.value)
+    const res = await migrateExternalTeam(file.value, anchorAgentId.value, (event) => {
+      if (event.total) uploadPercent.value = Math.min(100, Math.round(event.loaded * 100 / event.total))
+    })
     importResult.value = res.data
     ElMessage.success(`平移完成，共 ${res.data?.successCount || 0} 人`)
     uploadRef.value?.clearFiles()
     file.value = null
-  } finally { loading.value = false }
+  } finally {
+    stopElapsedTimer()
+    loading.value = false
+  }
 }
+
+onBeforeUnmount(stopElapsedTimer)
 </script>
 
 <style scoped>
@@ -96,6 +130,9 @@ const handleImport = async () => {
 .help { margin-left: 12px; color: #909399; font-size: 12px; }
 .upload-section { margin: 22px 0; }
 .result-section { margin-top: 20px; }
+.migration-progress { margin: 18px 0; padding: 16px 18px; border: 1px solid #d9ecff; border-radius: 10px; background: #f5faff; }
+.progress-title { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: 600; }
+.progress-help { margin-top: 8px; color: #909399; font-size: 13px; }
 .success { color: #67c23a; font-weight: 600; }
 p { margin: 4px 0; line-height: 1.7; }
 </style>
