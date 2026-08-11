@@ -79,13 +79,14 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ChevronLeft, ChevronRight, PackageOpen, RefreshCw } from 'lucide-vue-next'
 import { cancelOrder, confirmReceive, getProfileOrderSummary, listMyOrders } from '@/api/shop'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { money, statusName } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
+import { connectOrderRealtime } from '@/utils/orderRealtime'
 
 const route = useRoute()
 const loading = ref(false)
@@ -100,6 +101,10 @@ const total = ref(0)
 const actingId = ref(null)
 const pendingOrderAction = ref({ type: '', id: null })
 let requestSequence = 0
+let stopOrderRealtime = null
+let fallbackPollTimer = null
+let realtimeRefreshTimer = null
+let disposed = false
 const validTabs = new Set(['all', 'pending-payment', 'pending-shipment', 'pending-receipt', 'pending-review', 'after-sale'])
 const activeTab = computed(() => validTabs.has(route.query.tab) ? route.query.tab : 'all')
 
@@ -188,6 +193,21 @@ const refreshOrders = async () => {
   refreshing.value = false
 }
 
+const scheduleRealtimeRefresh = () => {
+  window.clearTimeout(realtimeRefreshTimer)
+  realtimeRefreshTimer = window.setTimeout(() => refreshOrders(), 250)
+}
+
+const setRealtimeConnected = (connected) => {
+  window.clearInterval(fallbackPollTimer)
+  fallbackPollTimer = null
+  if (!connected && !disposed) {
+    fallbackPollTimer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refreshOrders()
+    }, 30000)
+  }
+}
+
 const totalQuantity = (item) => (item.items || []).reduce((sum, line) => sum + Number(line.quantity || 0), 0)
 const afterSaleStatus = (status) => ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待客户寄回', 5: '待商家收货', 6: '退款处理中' }[status] || '处理中')
 const afterSaleDeadline = (order) => {
@@ -248,6 +268,16 @@ watch(activeTab, () => fetchOrders())
 onMounted(() => {
   fetchOrderSummary()
   fetchOrders()
+  stopOrderRealtime = connectOrderRealtime({
+    onEvent: scheduleRealtimeRefresh,
+    onStatus: setRealtimeConnected,
+  })
+})
+onBeforeUnmount(() => {
+  disposed = true
+  stopOrderRealtime?.()
+  window.clearInterval(fallbackPollTimer)
+  window.clearTimeout(realtimeRefreshTimer)
 })
 </script>
 

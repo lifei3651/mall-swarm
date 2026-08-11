@@ -74,6 +74,8 @@ sa-token:
 
 # 仅供本地联调；生产配置会强制关闭。
 shop:
+  realtime:
+    heartbeat-ms: ${SHOP_REALTIME_HEARTBEAT_MS:25000}
   catalog-cache:
     enabled: true
     # 库存仍由下单事务实时校验；短 TTL 只用于公共展示，并在后台修改后立即失效。
@@ -120,6 +122,14 @@ operation-log:
   retention-days: ${OPERATION_LOG_RETENTION_DAYS:365}
   # 每天低峰期分批清理过期记录；多实例部署由分布式任务锁避免重复执行。
   cleanup-cron: "${OPERATION_LOG_CLEANUP_CRON:0 30 3 * * ?}"
+
+database:
+  monitor:
+    slow-query-ms: ${DB_SLOW_QUERY_MS:1000}
+    row-warning-threshold: ${DB_ROW_WARNING_THRESHOLD:1000000}
+    size-warning-mb: ${DB_SIZE_WARNING_MB:2048}
+    pool-warning-percent: ${DB_POOL_WARNING_PERCENT:80}
+    capacity-cron: "${DB_CAPACITY_MONITOR_CRON:0 15 3 * * ?}"
 
 # 支付宝支付配置
 # 正式使用时请替换为真实的支付宝应用配置

@@ -93,6 +93,8 @@ springdoc:
     enabled: false
 
 shop:
+  realtime:
+    heartbeat-ms: ${SHOP_REALTIME_HEARTBEAT_MS:25000}
   catalog-cache:
     enabled: ${SHOP_CATALOG_CACHE_ENABLED:true}
     home-ttl-seconds: ${SHOP_CATALOG_HOME_TTL_SECONDS:30}
@@ -139,6 +141,14 @@ management:
   endpoint:
     health:
       show-details: never
+
+database:
+  monitor:
+    slow-query-ms: ${DB_SLOW_QUERY_MS:1000}
+    row-warning-threshold: ${DB_ROW_WARNING_THRESHOLD:1000000}
+    size-warning-mb: ${DB_SIZE_WARNING_MB:2048}
+    pool-warning-percent: ${DB_POOL_WARNING_PERCENT:80}
+    capacity-cron: "${DB_CAPACITY_MONITOR_CRON:0 15 3 * * ?}"
 
 bonus:
   # 正式口径：从订单确认收货开始计算7天保护期；每10分钟扫描一次到期奖金。

@@ -27,6 +27,7 @@ import com.macro.mall.distribution.service.AdminAuthService;
 import com.macro.mall.distribution.service.AdminMemberSecurityService;
 import com.macro.mall.distribution.service.OrderShipmentService;
 import com.macro.mall.distribution.service.OrderSpreadsheetService;
+import com.macro.mall.distribution.service.OrderRealtimeService;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.security.ShopSessionCookieService;
 import com.macro.mall.distribution.vo.ShopAuthVO;
@@ -47,6 +48,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -78,6 +81,22 @@ public class ShopController {
     private final OrderShipmentService orderShipmentService;
     private final OrderSpreadsheetService orderSpreadsheetService;
     private final ShopSessionCookieService shopSessionCookieService;
+    private final OrderRealtimeService orderRealtimeService;
+
+    @Operation(summary = "会员订单与售后状态实时通知")
+    @GetMapping(value = "/events/orders", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter orderEvents(@RequestHeader(value = "Authorization", required = false) String authorization) {
+        return orderRealtimeService.subscribeMember(authService.requireMember(authorization).getUserId());
+    }
+
+    @Operation(summary = "后台订单与售后待办实时通知")
+    @GetMapping(value = "/admin/events/orders", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter adminOrderEvents() {
+        if (AdminContext.get() == null) {
+            Asserts.fail("请先登录管理后台");
+        }
+        return orderRealtimeService.subscribeAdmin(1L);
+    }
 
     @Operation(summary = "商城账号注册（首笔有效支付后成为会员）")
     @PostMapping("/auth/register")

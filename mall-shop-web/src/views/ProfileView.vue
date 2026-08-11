@@ -82,7 +82,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   BadgeCheck,
@@ -108,6 +108,7 @@ import InviteDialog from '@/components/InviteDialog.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { money } from '@/utils/format'
 import { clearShopSession } from '@/utils/shopSession'
+import { connectOrderRealtime } from '@/utils/orderRealtime'
 
 const router = useRouter()
 const profileLoading = ref(true)
@@ -120,6 +121,10 @@ const walletSummary = ref({ balance: 0, hasPaymentPassword: false })
 const logoutConfirmVisible = ref(false)
 const inviteDialogVisible = ref(false)
 const loggingOut = ref(false)
+let stopOrderRealtime = null
+let fallbackPollTimer = null
+let realtimeRefreshTimer = null
+let disposed = false
 
 const rankMap = {
   0: { name: '', icon: UserRound, className: 'rank-0' },
@@ -196,6 +201,23 @@ onMounted(() => {
   fetchProfile()
   fetchWallet()
   fetchPerformance()
+  stopOrderRealtime = connectOrderRealtime({
+    onEvent: () => {
+      window.clearTimeout(realtimeRefreshTimer)
+      realtimeRefreshTimer = window.setTimeout(fetchProfile, 250)
+    },
+    onStatus: (connected) => {
+      window.clearInterval(fallbackPollTimer)
+      fallbackPollTimer = null
+      if (!connected && !disposed) fallbackPollTimer = window.setInterval(fetchProfile, 30000)
+    },
+  })
+})
+onBeforeUnmount(() => {
+  disposed = true
+  stopOrderRealtime?.()
+  window.clearInterval(fallbackPollTimer)
+  window.clearTimeout(realtimeRefreshTimer)
 })
 </script>
 

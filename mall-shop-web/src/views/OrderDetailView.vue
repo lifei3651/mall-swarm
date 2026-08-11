@@ -249,13 +249,14 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ChevronDown, ChevronRight, CircleCheck, MapPin, PackageCheck, RotateCcw, Truck, UserRound } from 'lucide-vue-next'
 import { applyAfterSale, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmReceive, getOrder, payOrderWithBalance, submitAfterSaleReturnShipment } from '@/api/shop'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { dateTime, money, statusName } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
+import { connectOrderRealtime } from '@/utils/orderRealtime'
 import { hasShopSession } from '@/utils/shopSession'
 
 const route = useRoute()
@@ -279,6 +280,10 @@ const error = ref('')
 const hasToken = ref(hasShopSession())
 const paymentPassword = ref('')
 const applyingAfterSale = ref(route.query.applyAfterSale === '1')
+let stopOrderRealtime = null
+let fallbackPollTimer = null
+let realtimeRefreshTimer = null
+let disposed = false
 const confirmationBusy = computed(() => acting.value || Boolean(cancellingAfterSaleId.value))
 const confirmationDialog = computed(() => ({
   'cancel-order': {
@@ -595,7 +600,30 @@ const submitAfterSale = async () => {
   }
 }
 
-onMounted(fetchOrder)
+onMounted(() => {
+  fetchOrder()
+  stopOrderRealtime = connectOrderRealtime({
+    onEvent: (event) => {
+      if (event?.orderId && String(event.orderId) !== String(route.params.id)) return
+      if (applyingAfterSale.value) return
+      window.clearTimeout(realtimeRefreshTimer)
+      realtimeRefreshTimer = window.setTimeout(fetchOrder, 250)
+    },
+    onStatus: (connected) => {
+      window.clearInterval(fallbackPollTimer)
+      fallbackPollTimer = null
+      if (!connected && !disposed) fallbackPollTimer = window.setInterval(() => {
+        if (!applyingAfterSale.value) fetchOrder()
+      }, 30000)
+    },
+  })
+})
+onBeforeUnmount(() => {
+  disposed = true
+  stopOrderRealtime?.()
+  window.clearInterval(fallbackPollTimer)
+  window.clearTimeout(realtimeRefreshTimer)
+})
 </script>
 
 <style scoped>

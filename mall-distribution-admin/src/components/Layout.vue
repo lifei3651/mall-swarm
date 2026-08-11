@@ -118,6 +118,7 @@ import {
 } from '@element-plus/icons-vue'
 import { getMe, logout as logoutApi } from '@/api/auth'
 import { getAdminOrderWorkSummary } from '@/api/shop'
+import { connectAdminOrderRealtime } from '@/utils/orderRealtime'
 import { getShopBrand } from '@/api/shopBrand'
 import { useAppStore } from '@/store'
 import defaultLogo from '@/assets/lingqi-logo-mark.png'
@@ -229,6 +230,8 @@ const loadBrand = async () => {
 
 let sessionCheckTimer
 let orderWorkTimer
+let stopOrderRealtime
+let realtimeRefreshTimer
 let lastActivityCheck = 0
 let lastServerSessionCheck = 0
 let serverSessionCheckPromise = null
@@ -284,6 +287,20 @@ const loadOrderWorkSummary = async () => {
   }
 }
 
+const handleRealtimeOrderChange = () => {
+  window.clearTimeout(realtimeRefreshTimer)
+  realtimeRefreshTimer = window.setTimeout(() => {
+    loadOrderWorkSummary()
+    window.dispatchEvent(new CustomEvent('admin-order-changed'))
+  }, 250)
+}
+
+const handleRealtimeStatus = (connected) => {
+  window.clearInterval(orderWorkTimer)
+  orderWorkTimer = null
+  if (!connected) orderWorkTimer = window.setInterval(loadOrderWorkSummary, 30000)
+}
+
 const handleSessionExpired = () => {
   store.logout()
   ElMessage.closeAll()
@@ -296,7 +313,10 @@ onMounted(() => {
   checkServerSession(true)
   loadOrderWorkSummary()
   sessionCheckTimer = window.setInterval(() => checkServerSession(true), 60000)
-  orderWorkTimer = window.setInterval(loadOrderWorkSummary, 30000)
+  stopOrderRealtime = connectAdminOrderRealtime({
+    onEvent: handleRealtimeOrderChange,
+    onStatus: handleRealtimeStatus,
+  })
   window.addEventListener('focus', checkSessionOnVisibility)
   window.addEventListener('pointerdown', checkSessionOnActivity, true)
   window.addEventListener(ADMIN_SESSION_EXPIRED_EVENT, handleSessionExpired)
@@ -306,6 +326,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.clearInterval(sessionCheckTimer)
   window.clearInterval(orderWorkTimer)
+  window.clearTimeout(realtimeRefreshTimer)
+  stopOrderRealtime?.()
   window.removeEventListener('focus', checkSessionOnVisibility)
   window.removeEventListener('pointerdown', checkSessionOnActivity, true)
   window.removeEventListener(ADMIN_SESSION_EXPIRED_EVENT, handleSessionExpired)

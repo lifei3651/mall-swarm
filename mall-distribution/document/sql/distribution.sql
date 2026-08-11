@@ -1268,6 +1268,8 @@ CREATE TABLE `dms_shop_order` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_order_no` (`order_no`),
   KEY `idx_user_id` (`user_id`),
+  KEY `idx_order_user_status_time` (`user_id`,`status`,`create_time`,`id`),
+  KEY `idx_order_tenant_status_time` (`tenant_id`,`status`,`create_time`,`id`),
   KEY `idx_agent_id` (`agent_id`),
   KEY `idx_create_time` (`create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商城前台订单表';
@@ -1381,7 +1383,9 @@ CREATE TABLE `dms_shop_after_sale` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_after_sale_no` (`after_sale_no`),
   KEY `idx_order_id` (`order_id`),
+  KEY `idx_after_sale_order_status` (`order_id`,`status`,`id`),
   KEY `idx_member_id` (`member_id`),
+  KEY `idx_after_sale_member_status_time` (`member_id`,`status`,`create_time`,`id`),
   KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商城售后表';
 

@@ -34,6 +34,7 @@ import com.macro.mall.distribution.service.AlipayService;
 import com.macro.mall.distribution.service.DistributionAuditService;
 import com.macro.mall.distribution.service.MemberAssetService;
 import com.macro.mall.distribution.service.ShopAfterSaleService;
+import com.macro.mall.distribution.service.OrderRealtimeService;
 import com.macro.mall.distribution.service.OrderBalanceAllocationService;
 import com.macro.mall.distribution.util.MemberAccountUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +42,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -70,6 +72,8 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     private final MemberAssetService memberAssetService;
     private final OrderBalanceAllocationService orderBalanceAllocationService;
     private final AlipayService alipayService;
+    @Autowired(required = false)
+    private OrderRealtimeService orderRealtimeService;
 
     @Value("${shop.order.after-sale-window-days:7}")
     private long afterSaleWindowDays;
@@ -183,6 +187,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         afterSaleDao.insert(afterSale);
         for (DmsShopAfterSaleItem item : refundItems) item.setAfterSaleId(afterSale.getId());
         afterSaleItemDao.insertBatch(refundItems);
+        notifyOrderChanged(order, "AFTER_SALE_APPLIED");
         return hydrate(afterSaleDao.selectById(afterSale.getId()));
     }
 
@@ -215,6 +220,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         afterSale.setAuditUserId(null);
         afterSale.setAuditUserName("客户本人");
         afterSaleDao.updateAudit(afterSale);
+        notifyOrderChanged(order, "AFTER_SALE_CANCELLED");
         return hydrate(afterSaleDao.selectById(id));
     }
 
@@ -239,6 +245,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         afterSale.setReturnShippedAt(LocalDateTime.now());
         afterSale.setStatus(5);
         afterSaleDao.updateReturnShipment(afterSale);
+        notifyOrderChanged(order, "AFTER_SALE_RETURN_SHIPPED");
         return hydrate(afterSaleDao.selectById(id));
     }
 
@@ -471,11 +478,13 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
 
         if (Integer.valueOf(1).equals(status) && Integer.valueOf(2).equals(afterSale.getApplyType())
                 && returnAddressConfigured) {
+            notifyOrderChanged(order, "AFTER_SALE_AUDITED");
             return hydrate(afterSaleDao.selectById(id));
         }
         if (Integer.valueOf(1).equals(status)) {
             completeRefund(afterSale, order);
         }
+        notifyOrderChanged(order, "AFTER_SALE_AUDITED");
         return hydrate(afterSaleDao.selectById(id));
     }
 
@@ -499,6 +508,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         completeRefund(afterSale, order);
         afterSale.setStatus(1);
         afterSaleDao.updateAudit(afterSale);
+        notifyOrderChanged(order, "AFTER_SALE_COMPLETED");
         return hydrate(afterSaleDao.selectById(id));
     }
 
@@ -644,5 +654,9 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         if (!TenantContext.getTenantId().equals(dataTenantId)) {
             Asserts.fail("无权访问当前租户数据");
         }
+    }
+
+    private void notifyOrderChanged(DmsShopOrder order, String changeType) {
+        if (orderRealtimeService != null) orderRealtimeService.orderChanged(order, changeType);
     }
 }

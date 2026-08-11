@@ -29,6 +29,7 @@ import com.macro.mall.distribution.util.ShopOrderNoGenerator;
 import com.macro.mall.distribution.service.ShopAuthService;
 import com.macro.mall.distribution.service.OrderRelationSnapshotService;
 import com.macro.mall.distribution.service.OrderBalanceAllocationService;
+import com.macro.mall.distribution.service.OrderRealtimeService;
 import com.macro.mall.distribution.vo.OrderFinanceVO;
 import com.macro.mall.distribution.vo.ShopHomeVO;
 import com.macro.mall.distribution.vo.ShopLegalConfigVO;
@@ -44,6 +45,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.github.pagehelper.PageHelper;
 import cn.hutool.crypto.digest.DigestUtil;
 
@@ -93,6 +95,8 @@ public class ShopServiceImpl implements ShopService {
     private final CommissionService commissionService;
     private final MemberAssetService memberAssetService;
     private final OrderRelationSnapshotService relationSnapshotService;
+    @Autowired(required = false)
+    private OrderRealtimeService orderRealtimeService;
     private final OrderBalanceAllocationService orderBalanceAllocationService;
     private final ShopAuthService authService;
     private final PaymentVerificationService paymentVerificationService;
@@ -1076,6 +1080,7 @@ public class ShopServiceImpl implements ShopService {
         }
         if (updated > 0) {
             erpIntegrationService.queueOrderPush(orderDao.selectById(orderId));
+            notifyOrderChanged(order, "ORDER_PAID");
         }
         return getOrder(orderId);
     }
@@ -1097,6 +1102,7 @@ public class ShopServiceImpl implements ShopService {
         int updated = orderDao.cancel(orderId);
         if (updated > 0) {
             restockOrder(orderId);
+            notifyOrderChanged(order, "ORDER_CANCELLED");
         }
         return updated > 0;
     }
@@ -1113,6 +1119,7 @@ public class ShopServiceImpl implements ShopService {
                     && order.getCreateTime() != null && !order.getCreateTime().isAfter(cutoff)
                     && orderDao.closePending(orderId) > 0) {
                 restockOrder(orderId);
+                notifyOrderChanged(order, "ORDER_TIMEOUT_CLOSED");
                 closed++;
             }
         }
@@ -1134,7 +1141,9 @@ public class ShopServiceImpl implements ShopService {
         if (member != null && !member.getUserId().equals(order.getUserId())) {
             Asserts.fail("不能确认他人的订单");
         }
-        return orderDao.confirmReceive(orderId) > 0;
+        boolean confirmed = orderDao.confirmReceive(orderId) > 0;
+        if (confirmed) notifyOrderChanged(order, "ORDER_RECEIVED");
+        return confirmed;
     }
 
     @Override
@@ -1854,5 +1863,9 @@ public class ShopServiceImpl implements ShopService {
         if (value.length() <= 1) return "*";
         if (value.length() == 2) return value.substring(0, 1) + "*";
         return value.substring(0, 1) + "***" + value.substring(value.length() - 1);
+    }
+
+    private void notifyOrderChanged(DmsShopOrder order, String changeType) {
+        if (orderRealtimeService != null) orderRealtimeService.orderChanged(order, changeType);
     }
 }

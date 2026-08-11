@@ -13,6 +13,7 @@ import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.entity.DmsShopOrderShipment;
 import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.OrderShipmentService;
+import com.macro.mall.distribution.service.OrderRealtimeService;
 import com.macro.mall.distribution.vo.OrderShipmentImportResultVO;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Cell;
@@ -22,6 +23,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -50,6 +52,8 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
     private final DmsShopAfterSaleItemDao afterSaleItemDao;
     private final DmsShopOrderShipmentDao shipmentDao;
     private final OperationLogService operationLogService;
+    @Autowired(required = false)
+    private OrderRealtimeService orderRealtimeService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -237,6 +241,7 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
             order.setDeliveryTime(record.getDeliveryTime());
         }
         logShipment(order, shipment, source);
+        if (orderRealtimeService != null) orderRealtimeService.orderChanged(order, "ORDER_SHIPPED");
         return true;
     }
 

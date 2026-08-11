@@ -570,6 +570,7 @@ const fetchWorkSummary = async () => {
 }
 
 const handleWorkSummaryUpdate = (event) => applyWorkSummary(event.detail, true)
+const handleRealtimeOrderChange = () => fetchOrders()
 
 const handleOrderSearch = () => {
   pagination.value.page = 1
@@ -799,10 +800,12 @@ onMounted(() => {
   fetchOrders()
   fetchWorkSummary()
   window.addEventListener('admin-order-work-summary', handleWorkSummaryUpdate)
+  window.addEventListener('admin-order-changed', handleRealtimeOrderChange)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('admin-order-work-summary', handleWorkSummaryUpdate)
+  window.removeEventListener('admin-order-changed', handleRealtimeOrderChange)
 })
 </script>
 
