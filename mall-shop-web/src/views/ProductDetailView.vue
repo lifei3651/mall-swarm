@@ -209,6 +209,7 @@ import { getProduct, getProductReviews, submitProductReview } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
 import { hasShopSession } from '@/utils/shopSession'
+import { requireShopSession } from '@/utils/authNavigation'
 import { cartItemKey, resolveCurrentStock, stockAdditionViolation, stockQuantityViolation } from '@/utils/stockRules'
 import { money } from '@/utils/format'
 import { toPublicWebUrl } from '@/utils/appEnvironment'
@@ -368,6 +369,7 @@ const selectSku = (sku) => { selectedSkuId.value = sku.id; quantity.value = 1 }
 const decreaseQuantity = () => { quantity.value = Math.max(1, quantity.value - 1) }
 const increaseQuantity = () => { quantity.value = Math.min(currentStock.value, quantity.value + 1) }
 const addToCart = async () => {
+  if (!requireShopSession(router, route.fullPath, '请先登录后再加入购物车')) return
   if (soldOut.value) return showToast('该商品暂时缺货')
   if (purchaseActionPending.value) return
   purchaseActionPending.value = true
@@ -386,6 +388,7 @@ const addToCart = async () => {
   }
 }
 const buyNow = async () => {
+  if (!requireShopSession(router, route.fullPath, '请先登录后再购买商品')) return
   if (soldOut.value) return showToast('该商品暂时缺货')
   if (purchaseActionPending.value) return
   purchaseActionPending.value = true

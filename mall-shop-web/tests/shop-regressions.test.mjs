@@ -202,6 +202,32 @@ test('login errors stay beside their field, expire quickly, and auth pages use a
   assert.match(app, /watch\(\(\) => route\.fullPath[\s\S]*authPrompt\.value = ''/)
 })
 
+test('guest purchase actions are blocked before cart mutation or checkout', async () => {
+  const [authNavigation, app, cart, home, category, detail, router] = await Promise.all([
+    readFile(new URL('../src/utils/authNavigation.js', import.meta.url), 'utf8'),
+    readFile(new URL('../src/App.vue', import.meta.url), 'utf8'),
+    readFile(new URL('../src/store/cart.js', import.meta.url), 'utf8'),
+    readView('HomeView.vue'),
+    readView('CategoryView.vue'),
+    readView('ProductDetailView.vue'),
+    readFile(new URL('../src/router/index.js', import.meta.url), 'utf8'),
+  ])
+
+  assert.match(authNavigation, /export const requireShopSession/)
+  assert.match(authNavigation, /authRequired: '1'/)
+  assert.match(app, /preserveAuthPrompt = route\.name === 'Login' && route\.query\.authRequired === '1'/)
+  assert.match(cart, /const assertAuthenticatedCartAction/)
+  assert.match(cart, /const add = \(product, quantity = 1\) => \{\s*assertAuthenticatedCartAction\(\)/)
+  assert.match(cart, /const beginCheckout = \(keys\) => \{\s*assertAuthenticatedCartAction\(\)/)
+  assert.match(cart, /const beginDirectCheckout = \(product, quantity = 1\) => \{\s*assertAuthenticatedCartAction\(\)/)
+  assert.match(home, /const addProduct = async \(product\) => \{\s*if \(!requireShopSession\(router, route\.fullPath, '请先登录后再加入购物车'\)\) return/)
+  assert.match(category, /const addProduct = async \(product\) => \{\s*if \(!requireShopSession\(router, route\.fullPath, '请先登录后再加入购物车'\)\) return/)
+  assert.match(detail, /const addToCart = async \(\) => \{\s*if \(!requireShopSession\(router, route\.fullPath, '请先登录后再加入购物车'\)\) return/)
+  assert.match(detail, /const buyNow = async \(\) => \{\s*if \(!requireShopSession\(router, route\.fullPath, '请先登录后再购买商品'\)\) return/)
+  assert.match(router, /path: '\/cart'[\s\S]*requiresAuth: true/)
+  assert.match(router, /path: '\/checkout'[\s\S]*requiresAuth: true/)
+})
+
 test('login page uses the configured shop logo and adapts to mainstream mobile heights', async () => {
   const login = await readView('LoginView.vue')
   const app = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')

@@ -236,8 +236,11 @@ const downloadUpdate = async () => {
 
 watch(() => route.name, (name) => updatePageTitle(name, brand.value.brandName))
 watch(() => route.fullPath, () => {
-  authPrompt.value = ''
-  window.clearTimeout(authPromptTimer)
+  const preserveAuthPrompt = route.name === 'Login' && route.query.authRequired === '1'
+  if (!preserveAuthPrompt) {
+    authPrompt.value = ''
+    window.clearTimeout(authPromptTimer)
+  }
   syncAuthState()
 })
 watch(addSequence, (sequence) => {

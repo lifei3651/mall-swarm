@@ -151,7 +151,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Megaphone, PackageOpen, Search, Share2, ShoppingCart } from 'lucide-vue-next'
 import { getHome, getProduct, listProducts } from '@/api/shop'
 import { useCart } from '@/store/cart'
@@ -161,9 +161,11 @@ import { readDisplayExtraConfig, resolveDisplayColors, resolveHomeModules } from
 import { resolveQuickCartItem } from '@/utils/quickCart'
 import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
 import { cartItemKey, stockAdditionViolation } from '@/utils/stockRules'
+import { requireShopSession } from '@/utils/authNavigation'
 import ProductListSkeleton from '@/components/ProductListSkeleton.vue'
 
 const router = useRouter()
+const route = useRoute()
 const { add, getQuantity, getProductQuantity } = useCart()
 const home = ref({})
 const products = ref([])
@@ -398,6 +400,7 @@ const clearFilter = () => {
 }
 
 const addProduct = async (product) => {
+  if (!requireShopSession(router, route.fullPath, '请先登录后再加入购物车')) return
   if (product.status !== 1 || product.stock <= 0) return
   if (isAddingProduct(product.id)) return
   setAddingProduct(product.id, true)

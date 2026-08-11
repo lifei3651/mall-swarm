@@ -111,6 +111,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ChevronDown, ChevronUp, PackageOpen, Search, ShoppingCart } from 'lucide-vue-next'
 import { getProduct, listCategories, listCategoryProducts } from '@/api/shop'
 import { useCart } from '@/store/cart'
@@ -120,7 +121,10 @@ import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
 import { cartItemKey, stockAdditionViolation } from '@/utils/stockRules'
 import { currentBrandLogo, currentBrandName } from '@/utils/brand'
 import ProductListSkeleton from '@/components/ProductListSkeleton.vue'
+import { requireShopSession } from '@/utils/authNavigation'
 
+const route = useRoute()
+const router = useRouter()
 const { add, getQuantity, getProductQuantity } = useCart()
 const loading = ref(false)
 const categoryLoading = ref(false)
@@ -222,6 +226,7 @@ const togglePriceSort = () => {
 }
 
 const addProduct = async (product) => {
+  if (!requireShopSession(router, route.fullPath, '请先登录后再加入购物车')) return
   if (product.status !== 1 || product.stock <= 0) return
   if (isAddingProduct(product.id)) return
   setAddingProduct(product.id, true)

@@ -4,6 +4,8 @@ import { cartItemKey, stockAdditionViolation } from '@/utils/stockRules'
 const LEGACY_STORAGE_KEY = 'lingqi_mall_cart'
 const STORAGE_PREFIX = 'lingqi_mall_cart_v2'
 const GUEST_STORAGE_KEY = `${STORAGE_PREFIX}:guest`
+const MEMBER_KEY = 'shop_member'
+const LEGACY_TOKEN_KEY = 'shop_token'
 
 const memberStorageKey = (member) => {
   const memberId = Number(member?.id)
@@ -20,7 +22,9 @@ const storedMember = () => {
   }
 }
 
-let activeStorageKey = memberStorageKey(storedMember())
+const initialMember = storedMember()
+if (!initialMember) localStorage.removeItem(GUEST_STORAGE_KEY)
+let activeStorageKey = memberStorageKey(initialMember)
 
 // 旧版购物车由所有登录账号共用，无法安全判断商品属于哪个会员。
 // 升级后废弃这份公共数据，避免新账号继续读到旧账号的购物车。
@@ -72,8 +76,9 @@ const replaceCartItems = (items) => {
 export const switchCartOwner = (member) => {
   const nextStorageKey = memberStorageKey(member)
   if (nextStorageKey === activeStorageKey) return
+  if (!member?.id) localStorage.removeItem(GUEST_STORAGE_KEY)
   activeStorageKey = nextStorageKey
-  replaceCartItems(readCart(nextStorageKey))
+  replaceCartItems(member?.id ? readCart(nextStorageKey) : [])
 }
 
 export const clearCurrentCart = () => {
@@ -86,6 +91,7 @@ export function useCart() {
   const total = computed(() => state.items.reduce((sum, item) => sum + item.salePrice * item.quantity, 0))
 
   const add = (product, quantity = 1) => {
+    assertAuthenticatedCartAction()
     const cartKey = cartItemKey(product)
     const existing = state.items.find((item) => (item.cartKey || `${item.id}`) === cartKey)
     const requestedQuantity = Math.max(1, Math.floor(Number(quantity || 1)))
@@ -150,11 +156,13 @@ export function useCart() {
   }
 
   const beginCheckout = (keys) => {
+    assertAuthenticatedCartAction()
     state.directCheckoutItems = null
     state.checkoutKeys = Array.isArray(keys) ? [...new Set(keys.map(String))] : null
   }
 
   const beginDirectCheckout = (product, quantity = 1) => {
+    assertAuthenticatedCartAction()
     const normalized = normalizeCartItem({
       ...product,
       cartKey: product.skuId ? `${product.id}-${product.skuId}` : `${product.id}`,
@@ -206,4 +214,9 @@ export function useCart() {
     checkoutTotal,
     removeCheckedOutItems,
   }
+}
+
+const assertAuthenticatedCartAction = () => {
+  if (localStorage.getItem(MEMBER_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY)) return
+  throw new Error('请先登录后再操作')
 }
