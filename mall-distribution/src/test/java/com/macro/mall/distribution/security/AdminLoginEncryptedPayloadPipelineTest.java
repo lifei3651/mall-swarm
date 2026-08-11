@@ -17,6 +17,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doAnswer;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -34,6 +35,13 @@ class AdminLoginEncryptedPayloadPipelineTest {
     @Test
     void encryptedAdminLoginChallengeIsConsumedOnlyOnceAcrossAdviceAndAspect() throws Exception {
         when(payloadEncryptionService.hasSensitiveValue(any(AdminLoginDTO.class))).thenReturn(true);
+        doAnswer(invocation -> {
+            AdminLoginDTO decrypted = invocation.getArgument(2);
+            decrypted.setPassword("decrypted-password");
+            decrypted.setCaptchaCode("A1B2");
+            return null;
+        }).when(payloadEncryptionService).decryptSensitiveValues(
+                eq("one-time-challenge"), eq("encrypted-key"), any(AdminLoginDTO.class));
         when(adminAuthService.login(any(AdminLoginDTO.class))).thenReturn(null);
 
         mockMvc.perform(post("/distribution/admin-auth/login")

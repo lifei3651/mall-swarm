@@ -13,6 +13,7 @@ import com.github.pagehelper.PageHelper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,7 +34,7 @@ public class WithdrawController {
 
     @Operation(summary = "审核提现")
     @PostMapping("/audit")
-    public CommonResult<Boolean> auditWithdraw(@RequestBody WithdrawAuditDTO auditDTO) {
+    public CommonResult<Boolean> auditWithdraw(@Valid @RequestBody WithdrawAuditDTO auditDTO) {
         if (AdminContext.get() != null) {
             auditDTO.setAuditUserId(AdminContext.get().getId());
             auditDTO.setAuditUserName(AdminContext.get().getNickname());

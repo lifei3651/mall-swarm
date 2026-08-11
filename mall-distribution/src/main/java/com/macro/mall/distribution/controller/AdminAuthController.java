@@ -7,6 +7,7 @@ import com.macro.mall.distribution.vo.AdminAuthVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "AdminAuthController", description = "后台管理员认证")
@@ -19,7 +20,7 @@ public class AdminAuthController {
 
     @Operation(summary = "后台登录")
     @PostMapping("/login")
-    public CommonResult<AdminAuthVO> login(@RequestBody AdminLoginDTO dto) {
+    public CommonResult<AdminAuthVO> login(@Valid @RequestBody AdminLoginDTO dto) {
         return CommonResult.success(adminAuthService.login(dto));
     }
 

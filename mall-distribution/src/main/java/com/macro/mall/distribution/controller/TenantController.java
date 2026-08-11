@@ -12,6 +12,7 @@ import com.github.pagehelper.PageHelper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -34,7 +35,7 @@ public class TenantController {
 
     @Operation(summary = "保存客户公司配置")
     @PostMapping
-    public CommonResult<DmsTenant> saveTenant(@RequestBody DmsTenant tenant) {
+    public CommonResult<DmsTenant> saveTenant(@Valid @RequestBody DmsTenant tenant) {
         return CommonResult.success(tenantService.saveTenant(tenant));
     }
 
@@ -64,7 +65,7 @@ public class TenantController {
 
     @Operation(summary = "保存前端展示开关")
     @PostMapping("/display-config")
-    public CommonResult<DmsTenantDisplayConfig> saveDisplayConfig(@RequestBody DmsTenantDisplayConfig config) {
+    public CommonResult<DmsTenantDisplayConfig> saveDisplayConfig(@Valid @RequestBody DmsTenantDisplayConfig config) {
         return CommonResult.success(tenantService.saveDisplayConfig(config));
     }
 

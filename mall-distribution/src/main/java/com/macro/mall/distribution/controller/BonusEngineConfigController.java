@@ -13,6 +13,7 @@ import com.macro.mall.distribution.vo.BonusSimulationVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -34,7 +35,7 @@ public class BonusEngineConfigController {
     @Operation(summary = "保存前端展示开关")
     @PutMapping("/display/{tenantId}")
     public CommonResult<DmsTenantDisplayConfig> saveDisplayConfig(@PathVariable Long tenantId,
-                                                                  @RequestBody DmsTenantDisplayConfig config) {
+                                                                  @Valid @RequestBody DmsTenantDisplayConfig config) {
         config.setTenantId(tenantId);
         return CommonResult.success(bonusEngineConfigService.saveDisplayConfig(config));
     }

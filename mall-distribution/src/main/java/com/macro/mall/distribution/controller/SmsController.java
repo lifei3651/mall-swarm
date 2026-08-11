@@ -11,6 +11,7 @@ import com.macro.mall.distribution.util.PhoneNumberUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
@@ -59,7 +60,7 @@ public class SmsController {
 
     @Operation(summary = "发送验证码")
     @PostMapping("/send")
-    public CommonResult<String> sendCode(@RequestBody SmsCodeRequestDTO dto,
+    public CommonResult<String> sendCode(@Valid @RequestBody SmsCodeRequestDTO dto,
                                          @RequestHeader(value = "Authorization", required = false) String authorization) {
         Integer bizType = dto == null || dto.getBizType() == null ? 1 : dto.getBizType();
         if (!SUPPORTED_BIZ_TYPES.contains(bizType)) {
@@ -127,7 +128,7 @@ public class SmsController {
 
     @Operation(summary = "验证验证码")
     @PostMapping("/verify")
-    public CommonResult<Boolean> verifyCode(@RequestBody SmsCodeRequestDTO dto,
+    public CommonResult<Boolean> verifyCode(@Valid @RequestBody SmsCodeRequestDTO dto,
                                             @RequestHeader(value = "Authorization", required = false) String authorization) {
         Integer bizType = dto == null || dto.getBizType() == null ? 1 : dto.getBizType();
         if (!SUPPORTED_BIZ_TYPES.contains(bizType)) {

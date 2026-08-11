@@ -8,6 +8,7 @@ import com.macro.mall.distribution.service.ErpIntegrationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -24,7 +25,7 @@ public class ErpIntegrationController {
 
     @Operation(summary = "保存ERP配置")
     @PostMapping("/integrations")
-    public CommonResult<DmsErpIntegration> save(@RequestBody DmsErpIntegration integration) { return CommonResult.success(erpIntegrationService.saveIntegration(integration)); }
+    public CommonResult<DmsErpIntegration> save(@Valid @RequestBody DmsErpIntegration integration) { return CommonResult.success(erpIntegrationService.saveIntegration(integration)); }
 
     @Operation(summary = "ERP推单任务")
     @GetMapping("/tasks")
@@ -36,5 +37,5 @@ public class ErpIntegrationController {
 
     @Operation(summary = "ERP发货回传")
     @PostMapping("/callbacks/shipment")
-    public CommonResult<Boolean> shipment(@RequestBody ErpShipmentCallbackDTO callback) { return CommonResult.success(erpIntegrationService.receiveShipment(callback)); }
+    public CommonResult<Boolean> shipment(@Valid @RequestBody ErpShipmentCallbackDTO callback) { return CommonResult.success(erpIntegrationService.receiveShipment(callback)); }
 }

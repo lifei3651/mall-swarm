@@ -137,14 +137,14 @@ public class ShopController {
     @Operation(summary = "会员自行设置登录账号和密码")
     @PutMapping("/auth/account")
     public CommonResult<DmsShopMember> setupAccount(@RequestHeader(value = "Authorization", required = false) String authorization,
-                                                     @RequestBody ShopAccountSetupDTO dto) {
+                                                     @Valid @RequestBody ShopAccountSetupDTO dto) {
         return CommonResult.success(authService.setupAccount(authService.requireMember(authorization), dto));
     }
 
     @Operation(summary = "会员修改登录密码")
     @PutMapping("/auth/password")
     public CommonResult<Boolean> changePassword(@RequestHeader(value = "Authorization", required = false) String authorization,
-                                                 @RequestBody ShopPasswordChangeDTO dto) {
+                                                 @Valid @RequestBody ShopPasswordChangeDTO dto) {
         return CommonResult.success(authService.changePassword(authService.requireMember(authorization), dto));
     }
 
@@ -152,7 +152,7 @@ public class ShopController {
     @PutMapping("/auth/nickname")
     public CommonResult<DmsShopMember> updateNickname(
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @RequestBody ShopNicknameUpdateDTO dto) {
+            @Valid @RequestBody ShopNicknameUpdateDTO dto) {
         return CommonResult.success(authService.updateNickname(authService.requireMember(authorization), dto));
     }
 
@@ -160,13 +160,13 @@ public class ShopController {
     @PutMapping("/auth/phone")
     public CommonResult<Boolean> updatePhone(
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @RequestBody ShopPhoneUpdateDTO dto) {
+            @Valid @RequestBody ShopPhoneUpdateDTO dto) {
         return CommonResult.success(authService.updatePhone(authService.requireMember(authorization), dto));
     }
 
     @Operation(summary = "重置密码（忘记密码）")
     @PostMapping("/auth/resetPassword")
-    public CommonResult<Boolean> resetPassword(@RequestBody ShopPasswordResetDTO dto) {
+    public CommonResult<Boolean> resetPassword(@Valid @RequestBody ShopPasswordResetDTO dto) {
         authService.resetPassword(dto == null ? null : dto.getPhone(),
                 dto == null ? null : dto.getSmsCode(), dto == null ? null : dto.getNewPassword());
         return CommonResult.success(true);
@@ -180,7 +180,7 @@ public class ShopController {
 
     @Operation(summary = "后台新增商城会员")
     @PostMapping("/admin/members")
-    public CommonResult<DmsShopMember> createAdminMember(@RequestBody AdminMemberCreateDTO dto) {
+    public CommonResult<DmsShopMember> createAdminMember(@Valid @RequestBody AdminMemberCreateDTO dto) {
         return CommonResult.success(authService.createAdminMember(dto));
     }
 
@@ -213,13 +213,13 @@ public class ShopController {
 
     @Operation(summary = "新增分类")
     @PostMapping("/admin/categories")
-    public CommonResult<DmsShopCategory> createCategory(@RequestBody DmsShopCategory category) {
+    public CommonResult<DmsShopCategory> createCategory(@Valid @RequestBody DmsShopCategory category) {
         return CommonResult.success(shopService.saveCategory(category));
     }
 
     @Operation(summary = "更新分类")
     @PutMapping("/admin/categories/{id}")
-    public CommonResult<DmsShopCategory> updateCategory(@PathVariable Long id, @RequestBody DmsShopCategory category) {
+    public CommonResult<DmsShopCategory> updateCategory(@PathVariable Long id, @Valid @RequestBody DmsShopCategory category) {
         return CommonResult.success(shopService.updateCategory(id, category));
     }
 
@@ -250,13 +250,13 @@ public class ShopController {
 
     @Operation(summary = "新增轮播图")
     @PostMapping("/admin/banners")
-    public CommonResult<DmsShopBanner> createBanner(@RequestBody DmsShopBanner banner) {
+    public CommonResult<DmsShopBanner> createBanner(@Valid @RequestBody DmsShopBanner banner) {
         return CommonResult.success(shopService.saveBanner(banner));
     }
 
     @Operation(summary = "更新轮播图")
     @PutMapping("/admin/banners/{id}")
-    public CommonResult<DmsShopBanner> updateBanner(@PathVariable Long id, @RequestBody DmsShopBanner banner) {
+    public CommonResult<DmsShopBanner> updateBanner(@PathVariable Long id, @Valid @RequestBody DmsShopBanner banner) {
         return CommonResult.success(shopService.updateBanner(id, banner));
     }
 
@@ -288,13 +288,13 @@ public class ShopController {
 
     @Operation(summary = "新增公告")
     @PostMapping("/admin/notices")
-    public CommonResult<DmsShopNotice> createNotice(@RequestBody DmsShopNotice notice) {
+    public CommonResult<DmsShopNotice> createNotice(@Valid @RequestBody DmsShopNotice notice) {
         return CommonResult.success(shopService.saveNotice(notice));
     }
 
     @Operation(summary = "更新公告")
     @PutMapping("/admin/notices/{id}")
-    public CommonResult<DmsShopNotice> updateNotice(@PathVariable Long id, @RequestBody DmsShopNotice notice) {
+    public CommonResult<DmsShopNotice> updateNotice(@PathVariable Long id, @Valid @RequestBody DmsShopNotice notice) {
         return CommonResult.success(shopService.updateNotice(id, notice));
     }
 
@@ -340,26 +340,26 @@ public class ShopController {
 
     @Operation(summary = "创建商品")
     @PostMapping("/admin/products")
-    public CommonResult<DmsShopProduct> createProduct(@RequestBody DmsShopProduct product) {
+    public CommonResult<DmsShopProduct> createProduct(@Valid @RequestBody DmsShopProduct product) {
         return CommonResult.success(shopService.saveProduct(product));
     }
 
     @Operation(summary = "商品与SKU一次事务发布")
     @PostMapping("/admin/products/publish")
-    public CommonResult<DmsShopProduct> publishProduct(@RequestBody ProductPublishDTO dto) {
+    public CommonResult<DmsShopProduct> publishProduct(@Valid @RequestBody ProductPublishDTO dto) {
         return CommonResult.success(shopService.publishProduct(null, dto));
     }
 
     @Operation(summary = "商品与SKU一次事务更新")
     @PutMapping("/admin/products/{id}/publish")
     public CommonResult<DmsShopProduct> publishProduct(@PathVariable Long id,
-                                                        @RequestBody ProductPublishDTO dto) {
+                                                        @Valid @RequestBody ProductPublishDTO dto) {
         return CommonResult.success(shopService.publishProduct(id, dto));
     }
 
     @Operation(summary = "更新商品")
     @PutMapping("/admin/products/{id}")
-    public CommonResult<DmsShopProduct> updateProduct(@PathVariable Long id, @RequestBody DmsShopProduct product) {
+    public CommonResult<DmsShopProduct> updateProduct(@PathVariable Long id, @Valid @RequestBody DmsShopProduct product) {
         return CommonResult.success(shopService.updateProduct(id, product));
     }
 
@@ -380,7 +380,7 @@ public class ShopController {
 
     @Operation(summary = "保存商城发货/退货地址")
     @PostMapping("/admin/service-addresses")
-    public CommonResult<DmsShopServiceAddress> saveServiceAddress(@RequestBody DmsShopServiceAddress address) {
+    public CommonResult<DmsShopServiceAddress> saveServiceAddress(@Valid @RequestBody DmsShopServiceAddress address) {
         return CommonResult.success(serviceAddressService.save(address));
     }
 
@@ -470,13 +470,13 @@ public class ShopController {
 
     @Operation(summary = "新增SKU")
     @PostMapping("/admin/skus")
-    public CommonResult<DmsShopSku> createSku(@RequestBody ShopSkuDTO dto) {
+    public CommonResult<DmsShopSku> createSku(@Valid @RequestBody ShopSkuDTO dto) {
         return CommonResult.success(shopService.saveSku(dto));
     }
 
     @Operation(summary = "更新SKU")
     @PutMapping("/admin/skus/{id}")
-    public CommonResult<DmsShopSku> updateSku(@PathVariable Long id, @RequestBody ShopSkuDTO dto) {
+    public CommonResult<DmsShopSku> updateSku(@PathVariable Long id, @Valid @RequestBody ShopSkuDTO dto) {
         return CommonResult.success(shopService.updateSku(id, dto));
     }
 
@@ -496,14 +496,14 @@ public class ShopController {
 
     @Operation(summary = "新增运费模板")
     @PostMapping("/admin/freight-templates")
-    public CommonResult<DmsFreightTemplate> createFreightTemplate(@RequestBody FreightTemplateSaveDTO dto) {
+    public CommonResult<DmsFreightTemplate> createFreightTemplate(@Valid @RequestBody FreightTemplateSaveDTO dto) {
         return CommonResult.success(shopService.saveFreightTemplate(dto));
     }
 
     @Operation(summary = "更新运费模板")
     @PutMapping("/admin/freight-templates/{id}")
     public CommonResult<DmsFreightTemplate> updateFreightTemplate(
-            @PathVariable Long id, @RequestBody FreightTemplateSaveDTO dto) {
+            @PathVariable Long id, @Valid @RequestBody FreightTemplateSaveDTO dto) {
         return CommonResult.success(shopService.updateFreightTemplate(id, dto));
     }
 
@@ -691,7 +691,7 @@ public class ShopController {
 
     @Operation(summary = "后台订单发货")
     @PutMapping("/admin/orders/{orderId}/ship")
-    public CommonResult<Boolean> shipOrder(@PathVariable Long orderId, @RequestBody ShopOrderShipDTO dto) {
+    public CommonResult<Boolean> shipOrder(@PathVariable Long orderId, @Valid @RequestBody ShopOrderShipDTO dto) {
         return CommonResult.success(shopService.shipOrder(orderId, dto));
     }
 
@@ -717,7 +717,7 @@ public class ShopController {
     @Operation(summary = "后台处理超期退款")
     @PostMapping("/admin/orders/{orderId}/refund")
     public CommonResult<DmsShopAfterSale> manualRefund(@PathVariable Long orderId,
-                                                       @RequestBody ShopManualRefundDTO dto) {
+                                                       @Valid @RequestBody ShopManualRefundDTO dto) {
         return CommonResult.success(afterSaleService.manualRefund(orderId, dto));
     }
 
@@ -811,14 +811,14 @@ public class ShopController {
     @Operation(summary = "后台审核售后")
     @PutMapping("/admin/after-sales/{id}/audit")
     public CommonResult<DmsShopAfterSale> auditAfterSale(@PathVariable Long id,
-                                                        @RequestBody ShopAfterSaleAuditDTO dto) {
+                                                        @Valid @RequestBody ShopAfterSaleAuditDTO dto) {
         return CommonResult.success(afterSaleService.audit(id, dto));
     }
 
     @Operation(summary = "后台确认收到退货并退款")
     @PutMapping("/admin/after-sales/{id}/return-received")
     public CommonResult<DmsShopAfterSale> confirmReturnReceived(@PathVariable Long id,
-                                                                @RequestBody(required = false) ShopAfterSaleAuditDTO dto) {
+                                                                @Valid @RequestBody(required = false) ShopAfterSaleAuditDTO dto) {
         return CommonResult.success(afterSaleService.confirmReturnReceived(id, dto));
     }
 

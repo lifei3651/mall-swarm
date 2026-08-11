@@ -12,6 +12,7 @@ import com.macro.mall.distribution.vo.ProductReviewPageVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "ProductReviewController", description = "商品真实购买评价")
@@ -39,7 +40,7 @@ public class ProductReviewController {
     public CommonResult<DmsShopProductReview> submitReview(
             @PathVariable Long productId,
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @RequestBody ProductReviewSubmitDTO dto) {
+            @Valid @RequestBody ProductReviewSubmitDTO dto) {
         return CommonResult.success(productReviewService.submitReview(productId,
                 authService.requireMember(authorization), dto));
     }
@@ -59,7 +60,7 @@ public class ProductReviewController {
     @Operation(summary = "后台隐藏或恢复商品评价")
     @PutMapping("/admin/reviews/{id}/status")
     public CommonResult<Boolean> updateReviewStatus(@PathVariable Long id,
-                                                     @RequestBody ProductReviewStatusDTO dto) {
+                                                    @Valid @RequestBody ProductReviewStatusDTO dto) {
         return CommonResult.success(productReviewService.updateReviewStatus(id, dto));
     }
 }

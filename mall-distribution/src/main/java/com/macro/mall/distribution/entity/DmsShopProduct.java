@@ -1,6 +1,8 @@
 package com.macro.mall.distribution.entity;
 
 import lombok.Data;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -15,16 +17,23 @@ public class DmsShopProduct implements Serializable {
 
     private Long tenantId;
 
+    @Size(max = 64, message = "商品编码不能超过64个字符")
     private String productNo;
 
+    @NotBlank(message = "商品名称不能为空")
+    @Size(max = 60, message = "商品名称不能超过60个字")
     private String productName;
 
+    @Size(max = 80, message = "商品卖点不能超过80个字")
     private String subtitle;
 
+    @Size(max = 64, message = "商品分类名称不能超过64个字")
     private String categoryName;
 
+    @Size(max = 2048, message = "商品主图地址不能超过2048个字符")
     private String coverUrl;
 
+    @Size(max = 10000, message = "商品轮播图内容过长")
     private String galleryUrls;
 
     private BigDecimal salePrice;
@@ -51,16 +60,25 @@ public class DmsShopProduct implements Serializable {
 
     private Integer status;
 
+    @Size(max = 30000, message = "商品详情不能超过30000个字")
     private String detail;
 
+    @Size(max = 30000, message = "商品详情图片内容过长")
     private String detailImages;
 
+    @Size(max = 512, message = "发货地址不能超过512个字")
     private String deliveryAddress;
 
+    @NotBlank(message = "请选择发货省份")
+    @Size(max = 64, message = "发货省份不能超过64个字")
     private String deliveryProvince;
 
+    @NotBlank(message = "请选择发货城市")
+    @Size(max = 64, message = "发货城市不能超过64个字")
     private String deliveryCity;
 
+    @NotBlank(message = "请选择发货区/县")
+    @Size(max = 64, message = "发货区/县不能超过64个字")
     private String deliveryDistrict;
 
     /** 商品实际使用的商城发货地址。 */
@@ -75,14 +93,18 @@ public class DmsShopProduct implements Serializable {
 
     private BigDecimal freeShippingAmount;
 
+    @Size(max = 128, message = "运费模板名称不能超过128个字")
     private String freightTemplateName;
 
     private Long freightTemplateId;
 
+    @Size(max = 128, message = "发货时效说明不能超过128个字")
     private String deliveryTime;
 
+    @Size(max = 1000, message = "售后说明不能超过1000个字")
     private String afterSalePolicy;
 
+    @Size(max = 10000, message = "服务保障内容过长")
     private String serviceTags;
 
     private LocalDateTime createTime;

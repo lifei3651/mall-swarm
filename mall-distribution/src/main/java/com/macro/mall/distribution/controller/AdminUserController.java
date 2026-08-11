@@ -10,6 +10,7 @@ import com.macro.mall.distribution.service.AdminUserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -35,20 +36,20 @@ public class AdminUserController {
 
     @Operation(summary = "保存后台账号")
     @PostMapping
-    public CommonResult<DmsAdminUser> saveUser(@RequestBody AdminUserSaveDTO dto) {
+    public CommonResult<DmsAdminUser> saveUser(@Valid @RequestBody AdminUserSaveDTO dto) {
         return CommonResult.success(adminUserService.saveUser(dto));
     }
 
     @Operation(summary = "更新后台账号")
     @PutMapping("/{id}")
-    public CommonResult<DmsAdminUser> updateUser(@PathVariable Long id, @RequestBody AdminUserSaveDTO dto) {
+    public CommonResult<DmsAdminUser> updateUser(@PathVariable Long id, @Valid @RequestBody AdminUserSaveDTO dto) {
         dto.setId(id);
         return CommonResult.success(adminUserService.saveUser(dto));
     }
 
     @Operation(summary = "重置后台账号密码")
     @PutMapping("/{id}/password")
-    public CommonResult<Boolean> updatePassword(@PathVariable Long id, @RequestBody AdminPasswordDTO dto) {
+    public CommonResult<Boolean> updatePassword(@PathVariable Long id, @Valid @RequestBody AdminPasswordDTO dto) {
         return CommonResult.success(adminUserService.updatePassword(id, dto));
     }
 

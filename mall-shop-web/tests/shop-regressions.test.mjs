@@ -423,11 +423,13 @@ test('simple confirmations use one branded accessible dialog across customer pag
   assert.match(orders, /取消这笔订单？/)
 })
 
-test('alipay checkout posts the generated payment form and CSP allows only the official gateway', async () => {
+test('alipay checkout reconstructs a safe official payment form and CSP allows only the official gateway', async () => {
   const source = await readView('CheckoutView.vue')
   const nginx = await readFile(new URL('../../scripts/nginx/lingqimall.conf', import.meta.url), 'utf8')
-  assert.match(source, /div\.innerHTML = payUrl/)
-  assert.match(source, /const form = div\.querySelector\('form'\)/)
+  assert.match(source, /new DOMParser\(\)/)
+  assert.match(source, /allowedHosts = new Set\(\['openapi\.alipay\.com', 'openapi\.alipaydev\.com'\]\)/)
+  assert.match(source, /sourceForm\.querySelectorAll\('input\[name\]'\)/)
+  assert.doesNotMatch(source, /innerHTML\s*=/)
   assert.match(source, /form\.submit\(\)/)
   assert.match(nginx, /form-action 'self' https:\/\/openapi\.alipay\.com/)
 })

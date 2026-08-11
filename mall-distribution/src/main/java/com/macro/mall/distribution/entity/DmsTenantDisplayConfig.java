@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.entity;
 
 import lombok.Data;
+import jakarta.validation.constraints.Size;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -40,6 +41,7 @@ public class DmsTenantDisplayConfig implements Serializable {
     /**
      * 商城布局模板。该字段通过 extraConfigJson 持久化，避免为界面配置频繁修改表结构。
      */
+    @Size(max = 64, message = "布局模板名称不能超过64个字符")
     private String layoutTemplate;
 
     /** 首页是否展示商品分类模块。 */
@@ -48,6 +50,7 @@ public class DmsTenantDisplayConfig implements Serializable {
     /** 手机端底部导航是否展示“分类”入口。 */
     private Integer showBottomCategoryNav;
 
+    @Size(max = 30000, message = "商城页面配置内容过长")
     private String extraConfigJson;
 
     private LocalDateTime createTime;
