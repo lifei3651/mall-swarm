@@ -348,11 +348,12 @@ const afterSaleDeadline = computed(() => {
   if (detail.value.afterSaleWindowMode === 'RECEIVED') return Number.POSITIVE_INFINITY
   const created = Date.parse(String(order.value?.createTime || '').replace(' ', 'T'))
   return Number.isFinite(created)
-    ? created + Number(detail.value.afterSaleWindowDays || 7) * 24 * 60 * 60 * 1000
+    ? created + Number(detail.value.afterSaleWindowDays ?? 7) * 24 * 60 * 60 * 1000
     : Number.POSITIVE_INFINITY
 })
 const canApplyAfterSale = computed(() => {
   if (!order.value) return false
+  if (detail.value.afterSaleSelfServiceEnabled === false) return false
   if ([0, 4].includes(order.value.status)) return false
   if (Date.now() >= afterSaleDeadline.value) return false
   if (afterSales.value.some((item) => [0, 4, 5, 6].includes(item.status))) return false

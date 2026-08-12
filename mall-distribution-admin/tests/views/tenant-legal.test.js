@@ -26,5 +26,7 @@ describe('商城协议与主体资料', () => {
     expect(source).toContain('签收后起算（推荐）')
     expect(source).toContain('下单后起算（兼容模式）')
     expect(source).toContain('afterSaleWindowDays')
+    expect(source).toContain(':min="0"')
+    expect(source).toContain('0 天表示关闭客户自助申请入口，后台人工售后不受影响')
   })
 })

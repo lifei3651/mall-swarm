@@ -25,4 +25,4 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 UPDATE dms_tenant
 SET after_sale_window_mode = 'RECEIVED', after_sale_window_days = 7
 WHERE after_sale_window_mode IS NULL OR after_sale_window_mode NOT IN ('RECEIVED', 'ORDER_CREATED')
-   OR after_sale_window_days IS NULL OR after_sale_window_days < 7 OR after_sale_window_days > 365;
+   OR after_sale_window_days IS NULL OR after_sale_window_days < 0 OR after_sale_window_days > 365;

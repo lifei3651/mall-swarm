@@ -52,10 +52,16 @@ class ShopAfterSaleWindowPolicyTest {
     }
 
     @Test
-    void invalidShortWindowFallsBackToAtLeastSevenDays() {
-        when(tenantDao.selectById(1L)).thenReturn(tenant(ShopAfterSaleWindowPolicy.MODE_ORDER_CREATED, 1));
+    void zeroDaysDisablesCustomerSelfServiceBeforeAndAfterReceipt() {
+        when(tenantDao.selectById(1L)).thenReturn(tenant(ShopAfterSaleWindowPolicy.MODE_RECEIVED, 0));
+        DmsShopOrder order = order();
 
-        assertEquals(LocalDateTime.of(2026, 8, 8, 9, 0), policy.deadline(order()));
+        assertEquals(order.getCreateTime(), policy.deadline(order));
+        assertTrue(policy.isExpired(order, LocalDateTime.of(2026, 8, 1, 9, 0)));
+        assertEquals("客户自助售后入口已关闭", policy.label(order));
+
+        order.setReceiveTime(LocalDateTime.of(2026, 8, 12, 10, 0));
+        assertTrue(policy.isExpired(order, LocalDateTime.of(2026, 8, 12, 10, 0)));
     }
 
     private DmsTenant tenant(String mode, int days) {

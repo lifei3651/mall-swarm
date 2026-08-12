@@ -101,8 +101,8 @@ public class TenantServiceImpl implements TenantService {
         }
         if (tenant.getAfterSaleWindowDays() == null) {
             tenant.setAfterSaleWindowDays(7);
-        } else if (tenant.getAfterSaleWindowDays() < 7 || tenant.getAfterSaleWindowDays() > 365) {
-            Asserts.fail("售后申请期限应设置为7至365天");
+        } else if (tenant.getAfterSaleWindowDays() < 0 || tenant.getAfterSaleWindowDays() > 365) {
+            Asserts.fail("售后申请期限应设置为0至365天");
         }
         if (tenant.getPoliceRecordUrl() != null && !tenant.getPoliceRecordUrl().isBlank()) {
             String policeRecordUrl = tenant.getPoliceRecordUrl().trim();

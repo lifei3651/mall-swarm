@@ -80,7 +80,7 @@ public class DmsTenant implements Serializable {
     @Pattern(regexp = "RECEIVED|ORDER_CREATED", message = "售后期限起算方式不正确")
     private String afterSaleWindowMode;
 
-    @Min(value = 7, message = "售后申请期限不能少于7天")
+    @Min(value = 0, message = "售后申请期限不能小于0天")
     @Max(value = 365, message = "售后申请期限不能超过365天")
     private Integer afterSaleWindowDays;
 

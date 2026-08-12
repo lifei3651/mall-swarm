@@ -215,7 +215,7 @@ const afterSaleDeadline = (item) => {
   if (Number.isFinite(configured)) return configured
   if (item?.afterSaleWindowMode === 'RECEIVED') return Number.POSITIVE_INFINITY
   const created = Date.parse(String(item?.order?.createTime || '').replace(' ', 'T'))
-  return Number.isFinite(created) ? created + Number(item?.afterSaleWindowDays || 7) * 24 * 60 * 60 * 1000 : Number.POSITIVE_INFINITY
+  return Number.isFinite(created) ? created + Number(item?.afterSaleWindowDays ?? 7) * 24 * 60 * 60 * 1000 : Number.POSITIVE_INFINITY
 }
 const unavailableAfterSaleQuantity = (item) => (item.afterSales || [])
   .filter((sale) => [0, 1, 4, 5, 6].includes(Number(sale.status)))
@@ -228,6 +228,7 @@ const orderDisplayStatus = (item) => {
   return statusName(item.order?.status)
 }
 const canApplyAfterSale = (item) => ![0, 4].includes(item.order?.status)
+  && item.afterSaleSelfServiceEnabled !== false
   && Date.now() < afterSaleDeadline(item)
   && !(item.afterSales || []).some((sale) => [0, 4, 5, 6].includes(sale.status))
   && unavailableAfterSaleQuantity(item) < orderQuantity(item)

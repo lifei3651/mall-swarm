@@ -418,6 +418,9 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
 
     private void assertWithinAfterSaleWindow(DmsShopOrder order) {
         ShopAfterSaleWindowPolicy.Window window = afterSaleWindowPolicy.resolve(order.getTenantId());
+        if (window.days() == 0) {
+            Asserts.fail("商城已关闭客户自助售后入口，请联系商城客服由后台处理");
+        }
         if (afterSaleWindowPolicy.isExpired(order, LocalDateTime.now(), window)) {
             Asserts.fail("订单已超过" + afterSaleWindowPolicy.label(window) + "售后期限，请联系商城客服由后台处理");
         }

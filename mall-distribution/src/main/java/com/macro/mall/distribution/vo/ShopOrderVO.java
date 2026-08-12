@@ -38,6 +38,7 @@ public class ShopOrderVO implements Serializable {
     private Integer afterSaleWindowDays;
     private String afterSaleWindowLabel;
     private LocalDateTime afterSaleDeadline;
+    private Boolean afterSaleSelfServiceEnabled;
 
     private DmsTenantDisplayConfig displayConfig;
 }

@@ -25,7 +25,7 @@ public class ShopAfterSaleWindowPolicy {
         DmsTenant tenant = tenantDao.selectById(tenantId == null ? 1L : tenantId);
         String mode = tenant == null ? null : tenant.getAfterSaleWindowMode();
         int days = tenant == null || tenant.getAfterSaleWindowDays() == null
-                ? 7 : Math.max(7, Math.min(365, tenant.getAfterSaleWindowDays()));
+                ? 7 : Math.max(0, Math.min(365, tenant.getAfterSaleWindowDays()));
         if (!MODE_ORDER_CREATED.equals(mode)) {
             mode = MODE_RECEIVED;
         }
@@ -39,6 +39,7 @@ public class ShopAfterSaleWindowPolicy {
 
     public LocalDateTime deadline(DmsShopOrder order, Window window) {
         if (order == null || window == null) return null;
+        if (window.days() == 0) return order.getCreateTime();
         LocalDateTime start = MODE_ORDER_CREATED.equals(window.mode())
                 ? order.getCreateTime() : order.getReceiveTime();
         return start == null ? null : start.plusDays(window.days());
@@ -49,6 +50,7 @@ public class ShopAfterSaleWindowPolicy {
     }
 
     public String label(Window window) {
+        if (window.days() == 0) return "客户自助售后入口已关闭";
         return (MODE_ORDER_CREATED.equals(window.mode()) ? "下单后" : "签收后") + window.days() + "天";
     }
 
@@ -58,6 +60,7 @@ public class ShopAfterSaleWindowPolicy {
     }
 
     public boolean isExpired(DmsShopOrder order, LocalDateTime now, Window window) {
+        if (window != null && window.days() == 0) return true;
         LocalDateTime deadline = deadline(order, window);
         return deadline != null && !now.isBefore(deadline);
     }

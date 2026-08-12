@@ -1006,6 +1006,7 @@ public class ShopServiceImpl implements ShopService {
         vo.setAfterSaleWindowDays(window.days());
         vo.setAfterSaleWindowLabel(afterSaleWindowPolicy.label(window));
         vo.setAfterSaleDeadline(afterSaleWindowPolicy.deadline(order, window));
+        vo.setAfterSaleSelfServiceEnabled(window.days() > 0);
     }
 
     /**

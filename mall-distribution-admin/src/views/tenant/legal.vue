@@ -54,9 +54,9 @@
             </el-radio-group>
           </el-form-item>
           <el-form-item label="售后入口有效期">
-            <el-input-number v-model="tenantForm.afterSaleWindowDays" :min="7" :max="365" :step="1" />
+            <el-input-number v-model="tenantForm.afterSaleWindowDays" :min="0" :max="365" :step="1" />
             <span class="days-suffix">天</span>
-            <div class="field-help">当前规则：{{ afterSaleWindowSummary }}。该设置控制客户自助申请入口，不排除法定或商家承诺的其他售后权利。</div>
+            <div class="field-help">当前规则：{{ afterSaleWindowSummary }}。0 天表示关闭客户自助申请入口，后台人工售后不受影响；该设置不排除法定或商家承诺的其他售后权利。</div>
           </el-form-item>
           <el-form-item label="交易与售后规则">
             <div class="textarea-toolbar">
@@ -101,8 +101,10 @@ const tenantForm = ref({})
 const faqList = ref([])
 const defaultTemplates = ref({})
 const afterSaleWindowSummary = computed(() => {
+  const days = Number(tenantForm.value.afterSaleWindowDays ?? 7)
+  if (days === 0) return '客户自助售后入口已关闭（后台仍可人工处理）'
   const prefix = tenantForm.value.afterSaleWindowMode === 'ORDER_CREATED' ? '下单后' : '签收后'
-  return `${prefix}${Number(tenantForm.value.afterSaleWindowDays || 7)}天`
+  return `${prefix}${days}天`
 })
 
 const restoreTemplate = async (field, label) => {
@@ -157,7 +159,7 @@ const fetchData = async () => {
     const rows = tenantRes.data?.list || []
     tenantForm.value = { ...(rows.find((row) => Number(row.id) === 1) || rows[0] || {}) }
     tenantForm.value.afterSaleWindowMode = tenantForm.value.afterSaleWindowMode || 'RECEIVED'
-    tenantForm.value.afterSaleWindowDays = Number(tenantForm.value.afterSaleWindowDays || 7)
+    tenantForm.value.afterSaleWindowDays = Number(tenantForm.value.afterSaleWindowDays ?? 7)
     try {
       faqList.value = tenantForm.value.faqs ? JSON.parse(tenantForm.value.faqs) : []
     } catch {
@@ -178,7 +180,7 @@ const submit = async () => {
       privacyPolicy: tenantForm.value.privacyPolicy?.trim() || null,
       afterSalePolicy: tenantForm.value.afterSalePolicy?.trim() || null,
       afterSaleWindowMode: tenantForm.value.afterSaleWindowMode || 'RECEIVED',
-      afterSaleWindowDays: Number(tenantForm.value.afterSaleWindowDays || 7),
+      afterSaleWindowDays: Number(tenantForm.value.afterSaleWindowDays ?? 7),
       faqs: validFaqs.length > 0 ? JSON.stringify(validFaqs) : null,
     })
     ElMessage.success('协议与规则已保存，前台刷新后生效')
