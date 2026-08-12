@@ -33,6 +33,7 @@ import com.macro.mall.distribution.service.ShopAuthService;
 import com.macro.mall.distribution.service.OrderRelationSnapshotService;
 import com.macro.mall.distribution.service.OrderBalanceAllocationService;
 import com.macro.mall.distribution.service.OrderRealtimeService;
+import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.vo.OrderFinanceVO;
 import com.macro.mall.distribution.vo.ShopHomeVO;
 import com.macro.mall.distribution.vo.ShopLegalConfigVO;
@@ -112,6 +113,7 @@ public class ShopServiceImpl implements ShopService {
     private final DmsFlashSaleActivityDao flashSaleActivityDao;
     private final DmsFlashSaleReservationDao flashSaleReservationDao;
     private final FlashSaleStockGate flashSaleStockGate;
+    private final OperationLogService operationLogService;
 
     @Value("${shop.order.pending-timeout-minutes:30}")
     private long pendingOrderTimeoutMinutes;
@@ -1046,6 +1048,7 @@ public class ShopServiceImpl implements ShopService {
         return orderDao.selectList(keyword, status, normalizeAdminOrderState(orderState)).stream().filter(this::canAccessOrder).map(order -> {
             ShopOrderVO vo = new ShopOrderVO();
             vo.setOrder(order);
+            vo.setServiceRemark(order.getServiceRemark());
             fillMemberAccount(vo, order);
             vo.setItems(orderItemDao.selectByOrderId(order.getId()));
             fillShipments(vo, order);
@@ -1244,6 +1247,21 @@ public class ShopServiceImpl implements ShopService {
     @Override
     public boolean shipOrder(Long orderId, ShopOrderShipDTO dto) {
         return orderShipmentService.shipOrder(orderId, dto);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean updateOrderServiceRemark(Long orderId, String serviceRemark) {
+        DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
+        if (order == null) Asserts.fail("订单不存在");
+        assertTenantAccess(order.getTenantId());
+        String normalized = serviceRemark == null || serviceRemark.isBlank() ? null : serviceRemark.trim();
+        if (normalized != null && normalized.length() > 500) Asserts.fail("客服备注不能超过500个字");
+        if (Objects.equals(order.getServiceRemark(), normalized)) return true;
+        if (orderDao.updateServiceRemark(orderId, normalized) <= 0) Asserts.fail("客服备注保存失败，请稍后重试");
+        operationLogService.log("SHOP_ORDER", "SERVICE_REMARK_UPDATE", "SHOP_ORDER", String.valueOf(orderId),
+                order.getServiceRemark(), normalized, "更新订单客服内部备注：" + order.getOrderNo());
+        return true;
     }
 
     @Override

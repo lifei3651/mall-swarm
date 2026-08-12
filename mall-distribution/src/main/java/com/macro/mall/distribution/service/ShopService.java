@@ -138,6 +138,8 @@ public interface ShopService {
 
     boolean shipOrder(Long orderId, ShopOrderShipDTO dto);
 
+    boolean updateOrderServiceRemark(Long orderId, String serviceRemark);
+
     boolean confirmReceive(Long orderId, DmsShopMember member);
 
     ShopProfileVO getProfile(Long userId, Long agentId);

@@ -67,7 +67,7 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
                 boolean success = ex == null && response.getStatus() < 400;
                 // 会员调级由业务服务写入带会员身份、前后级别和原因的详细审计记录。
                 // 成功请求不再额外写一条只有 URI 的通用 ADMIN_API 记录；失败请求仍保留通用失败日志。
-                if (shouldLog(request) && !(isMemberLevelRequest(request) && success)) {
+                if (shouldLog(request) && !(hasDetailedBusinessLog(request) && success)) {
                     String remark = describeRequest(request) + "，结果：" + (success ? "成功" : "失败")
                             + "（HTTP " + response.getStatus() + "）";
                     operationLogService.log("ADMIN_API", request.getMethod(), "HTTP", request.getRequestURI(),
@@ -81,6 +81,12 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
         private boolean isMemberLevelRequest(HttpServletRequest request) {
             return request.getRequestURI().matches("(/shop/admin/members|/distribution/agent)/[^/]+/level")
                     && HttpMethod.PUT.matches(request.getMethod());
+        }
+
+        private boolean hasDetailedBusinessLog(HttpServletRequest request) {
+            return isMemberLevelRequest(request)
+                    || (HttpMethod.PUT.matches(request.getMethod())
+                    && request.getRequestURI().matches("/shop/admin/orders/[^/]+/service-remark"));
         }
 
         private boolean shouldLog(HttpServletRequest request) {
@@ -107,6 +113,7 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             if (path.startsWith("/shop/admin/products")) return "保存商品资料";
             if (path.startsWith("/shop/admin/categories")) return "维护商品分类";
             if (path.matches("/shop/admin/orders/[^/]+/ship")) return "商城订单发货";
+            if (path.matches("/shop/admin/orders/[^/]+/service-remark")) return "修改订单客服备注";
             if (path.matches("/shop/admin/orders/[^/]+/cancel")) return "后台取消或退款商城订单";
             if (path.equals("/shop/admin/orders/shipments/import")) return "Excel批量导入订单物流并发货";
             if (path.matches("/shop/admin/after-sales/[^/]+/audit")) return "审核商城售后";

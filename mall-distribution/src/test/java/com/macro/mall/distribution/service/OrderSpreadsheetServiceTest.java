@@ -110,6 +110,7 @@ class OrderSpreadsheetServiceTest {
         ShopOrderVO view = new ShopOrderVO();
         view.setOrder(order);
         view.setMemberAccount("test_account");
+        view.setServiceRemark("客服已确认周末配送");
         view.setItems(List.of(orderItem));
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -128,6 +129,8 @@ class OrderSpreadsheetServiceTest {
             assertEquals("订单号", sheet.getRow(0).getCell(0).getStringCellValue());
             assertEquals("L202608021230001234", sheet.getRow(1).getCell(0).getStringCellValue());
             assertEquals("2026-08-02 12:30:00", sheet.getRow(1).getCell(2).getStringCellValue());
+            assertEquals("客服备注", sheet.getRow(0).getCell(19).getStringCellValue());
+            assertEquals("客服已确认周末配送", sheet.getRow(1).getCell(19).getStringCellValue());
         }
     }
 

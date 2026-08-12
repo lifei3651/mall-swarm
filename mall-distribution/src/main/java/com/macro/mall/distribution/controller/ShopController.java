@@ -778,6 +778,13 @@ public class ShopController {
         return CommonResult.success(shopService.shipOrder(orderId, dto));
     }
 
+    @Operation(summary = "保存订单客服内部备注")
+    @PutMapping("/admin/orders/{orderId}/service-remark")
+    public CommonResult<Boolean> updateOrderServiceRemark(@PathVariable Long orderId,
+                                                           @Valid @RequestBody ShopOrderServiceRemarkDTO dto) {
+        return CommonResult.success(shopService.updateOrderServiceRemark(orderId, dto.getServiceRemark()));
+    }
+
     @Operation(summary = "后台取消待付款或待发货订单")
     @PutMapping("/admin/orders/{orderId}/cancel")
     public CommonResult<Boolean> cancelAdminOrder(@PathVariable Long orderId) {

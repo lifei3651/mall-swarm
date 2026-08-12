@@ -865,6 +865,7 @@ CREATE TABLE IF NOT EXISTS dms_shop_order (
   status INT NOT NULL DEFAULT 1,
   pay_type VARCHAR(32),
   remark VARCHAR(512),
+  service_remark VARCHAR(500),
   pay_time TIMESTAMP,
   delivery_company VARCHAR(64),
   delivery_no VARCHAR(64),

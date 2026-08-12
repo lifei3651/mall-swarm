@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -61,6 +62,10 @@ public class DmsShopOrder implements Serializable {
     private String payType;
 
     private String remark;
+
+    /** 客服内部备注，不得直接序列化到会员端。 */
+    @JsonIgnore
+    private String serviceRemark;
 
     private LocalDateTime payTime;
 

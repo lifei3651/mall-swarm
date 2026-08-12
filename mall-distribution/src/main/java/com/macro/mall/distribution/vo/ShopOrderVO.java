@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.vo;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.entity.DmsShopOrderItem;
 import com.macro.mall.distribution.entity.DmsShopAfterSale;
@@ -20,6 +21,10 @@ public class ShopOrderVO implements Serializable {
 
     /** 下单人的登录账号。 */
     private String memberAccount;
+
+    /** 仅后台订单列表填充；会员端响应不包含该字段。 */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String serviceRemark;
 
     private List<DmsShopOrderItem> items;
 

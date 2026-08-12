@@ -62,4 +62,17 @@ describe('商城订单取消入口', () => {
     expect(source).toContain('确认退货并退款')
     expect(source).toContain("query.orderState === 'PENDING_SHIPMENT'")
   })
+
+  it('订单末尾提供仅后台可见的客服备注并保留客户原留言', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('label="客服备注"')
+    expect(source).toContain('fixed="right"')
+    expect(source).toContain('openServiceRemark(row)')
+    expect(source).toContain('updateShopOrderServiceRemark')
+    expect(source).toContain('此备注仅供后台客服和运营人员查看，不会展示给下单客户')
+    expect(source).toContain("currentOrder?.order?.remark || '客户未填写留言'")
+    expect(source).toContain('maxlength="500"')
+    expect(source).toContain('手机号或客服备注')
+  })
 })

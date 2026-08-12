@@ -27,6 +27,7 @@
         <result column="status" property="status"/>
         <result column="pay_type" property="payType"/>
         <result column="remark" property="remark"/>
+        <result column="service_remark" property="serviceRemark"/>
         <result column="pay_time" property="payTime"/>
         <result column="delivery_company" property="deliveryCompany"/>
         <result column="delivery_no" property="deliveryNo"/>
@@ -51,7 +52,7 @@
         id, order_no, tenant_id, user_id, agent_id, invite_code, receiver_name, receiver_phone,
         receiver_address, receiver_province, receiver_city, receiver_district, receiver_detail_address,
         total_amount, freight_amount, discount_amount, pay_amount, total_pv,
-        total_cost, business_type, business_source_id, status, pay_type, remark, pay_time, delivery_company, delivery_no,
+        total_cost, business_type, business_source_id, status, pay_type, remark, service_remark, pay_time, delivery_company, delivery_no,
         delivery_time, receive_time, cancel_time, close_time, create_time, update_time
     </sql>
 
@@ -248,6 +249,7 @@
                     order_no LIKE CONCAT('%', #{keyword}, '%')
                     OR receiver_name LIKE CONCAT('%', #{keyword}, '%')
                     OR receiver_phone LIKE CONCAT('%', #{keyword}, '%')
+                    OR service_remark LIKE CONCAT('%', #{keyword}, '%')
                 )
             </if>
         </where>
@@ -287,6 +289,12 @@
     </update>
     <update id="updateAgentId">
         UPDATE dms_shop_order SET agent_id=#{agentId}, update_time=CURRENT_TIMESTAMP WHERE id=#{id}
+    </update>
+
+    <update id="updateServiceRemark">
+        UPDATE dms_shop_order
+        SET service_remark=#{serviceRemark}, update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id}
     </update>
 
     <update id="ship">

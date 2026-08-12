@@ -39,7 +39,7 @@ public class OrderSpreadsheetService {
             workbook.setCompressTempFiles(true);
             Sheet sheet = workbook.createSheet("订单明细");
             String[] headers = {"订单号", "订单状态", "下单时间", "支付时间", "下单会员登录账号", "收货人", "手机号", "收货地址",
-                    "商品明细", "商品总数", "商品金额", "运费", "实付金额", "支付方式", "物流公司", "物流单号", "发货数量", "发货时间", "订单备注"};
+                    "商品明细", "商品总数", "商品金额", "运费", "实付金额", "支付方式", "物流公司", "物流单号", "发货数量", "发货时间", "订单备注", "客服备注"};
             writePlainHeader(sheet, headers);
 
             int rowIndex = 1;
@@ -73,6 +73,7 @@ public class OrderSpreadsheetService {
                     setText(row, 16, shipmentSummary(item, ShipmentField.QUANTITY));
                     setText(row, 17, shipmentSummary(item, ShipmentField.DELIVERY_TIME));
                     setText(row, 18, order.getRemark());
+                    setText(row, 19, item.getServiceRemark());
                 }
             }
             workbook.write(outputStream);

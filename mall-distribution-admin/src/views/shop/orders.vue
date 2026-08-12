@@ -18,7 +18,7 @@
     <div class="search-container order-search-panel">
       <el-form :inline="true" :model="query">
         <el-form-item label="订单搜索">
-          <el-input v-model="query.keyword" placeholder="请输入订单号、收货人或手机号" clearable @keyup.enter="handleOrderSearch" />
+          <el-input v-model="query.keyword" placeholder="请输入订单号、收货人、手机号或客服备注" clearable @keyup.enter="handleOrderSearch" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :icon="Search" :loading="orderLoading" @click="handleOrderSearch">查询</el-button>
@@ -146,6 +146,19 @@
               <div class="sub">{{ row.order?.receiverAddress }}</div>
             </template>
           </el-table-column>
+          <el-table-column label="客服备注" fixed="right" width="180">
+            <template #default="{ row }">
+              <div class="service-remark-cell">
+                <el-tooltip v-if="row.serviceRemark" :content="row.serviceRemark" placement="top" :show-after="300">
+                  <span class="service-remark-preview">{{ row.serviceRemark }}</span>
+                </el-tooltip>
+                <span v-else class="sub">暂无备注</span>
+                <el-button type="primary" link @click.stop="openServiceRemark(row)">
+                  {{ row.serviceRemark ? '修改' : '添加' }}
+                </el-button>
+              </div>
+            </template>
+          </el-table-column>
           <el-table-column label="操作" fixed="right" width="165">
             <template #default="{ row }">
               <div class="order-actions">
@@ -200,6 +213,32 @@
       @current-change="fetchOrders"
       @size-change="fetchOrders"
     />
+
+    <el-dialog v-model="serviceRemarkDialogVisible" title="订单客服备注" width="520px" destroy-on-close>
+      <el-alert title="此备注仅供后台客服和运营人员查看，不会展示给下单客户。" type="info" :closable="false" show-icon />
+      <el-form label-width="88px" class="service-remark-form">
+        <el-form-item label="订单号">
+          <el-input :model-value="currentOrder?.order?.orderNo" disabled />
+        </el-form-item>
+        <el-form-item label="客户留言">
+          <div class="customer-order-remark">{{ currentOrder?.order?.remark || '客户未填写留言' }}</div>
+        </el-form-item>
+        <el-form-item label="客服备注">
+          <el-input
+            v-model="serviceRemarkForm"
+            type="textarea"
+            :rows="5"
+            maxlength="500"
+            show-word-limit
+            placeholder="例如：已电话确认改为周末配送；缺货时先联系客户，不要直接取消订单"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="serviceRemarkDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="serviceRemarkLoading" @click="submitServiceRemark">保存备注</el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog v-model="shipDialogVisible" :title="currentOrder?.order?.status === 2 ? '添加物流包裹' : '订单发货'" width="520px">
       <el-form :model="shipForm" label-width="92px">
@@ -406,6 +445,7 @@ import {
   listShopOrders,
   manualRefundShopOrder,
   shipShopOrder,
+  updateShopOrderServiceRemark,
 } from '@/api/shop'
 import { getOrderFinance } from '@/api/audit'
 import { formatProductSpec } from '@/utils/productSpec'
@@ -442,6 +482,9 @@ const shipmentResult = ref({ success: false, totalRows: 0, shippedCount: 0, skip
 const auditDialogVisible = ref(false)
 const manualRefundDialogVisible = ref(false)
 const manualRefundLoading = ref(false)
+const serviceRemarkDialogVisible = ref(false)
+const serviceRemarkLoading = ref(false)
+const serviceRemarkForm = ref('')
 const bonusDialogVisible = ref(false)
 const bonusLoading = ref(false)
 const bonusFinance = ref({})
@@ -705,6 +748,30 @@ const openShip = (row) => {
   shipDialogVisible.value = true
 }
 
+const openServiceRemark = (row) => {
+  currentOrder.value = row
+  serviceRemarkForm.value = row?.serviceRemark || ''
+  serviceRemarkDialogVisible.value = true
+}
+
+const submitServiceRemark = async () => {
+  if (!currentOrder.value?.order?.id) return
+  const serviceRemark = serviceRemarkForm.value.trim()
+  if (serviceRemark.length > 500) {
+    ElMessage.warning('客服备注不能超过500个字')
+    return
+  }
+  serviceRemarkLoading.value = true
+  try {
+    await updateShopOrderServiceRemark(currentOrder.value.order.id, serviceRemark)
+    currentOrder.value.serviceRemark = serviceRemark
+    ElMessage.success(serviceRemark ? '客服备注已保存' : '客服备注已清除')
+    serviceRemarkDialogVisible.value = false
+  } finally {
+    serviceRemarkLoading.value = false
+  }
+}
+
 const cancelAdminOrder = async (row) => {
   const orderNo = row?.order?.orderNo || '-'
   const paid = Number(row?.order?.status) === 1
@@ -929,6 +996,37 @@ onBeforeUnmount(() => {
 
 .order-item-cell-list {
   display: grid;
+}
+
+.service-remark-cell {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.service-remark-preview {
+  display: block;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.service-remark-form {
+  margin-top: 18px;
+}
+
+.customer-order-remark {
+  width: 100%;
+  min-height: 32px;
+  padding: 5px 10px;
+  color: #606266;
+  background: #f5f7fa;
+  border-radius: 6px;
+  line-height: 22px;
+  overflow-wrap: anywhere;
 }
 
 .order-table :deep(.el-table__cell) {

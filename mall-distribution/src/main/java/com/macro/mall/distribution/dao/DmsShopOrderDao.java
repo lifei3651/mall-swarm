@@ -47,6 +47,8 @@ public interface DmsShopOrderDao {
 
     int updateAgentId(@Param("id") Long id, @Param("agentId") Long agentId);
 
+    int updateServiceRemark(@Param("id") Long id, @Param("serviceRemark") String serviceRemark);
+
     int ship(@Param("id") Long id,
              @Param("deliveryCompany") String deliveryCompany,
              @Param("deliveryNo") String deliveryNo);

@@ -200,6 +200,14 @@ export function listShopOrders(params) {
   })
 }
 
+export function updateShopOrderServiceRemark(id, serviceRemark) {
+  return request({
+    url: `/shop/admin/orders/${id}/service-remark`,
+    method: 'put',
+    data: { serviceRemark },
+  })
+}
+
 export function getAdminOrderWorkSummary() {
   return request({
     url: '/shop/admin/orders/work-summary',
