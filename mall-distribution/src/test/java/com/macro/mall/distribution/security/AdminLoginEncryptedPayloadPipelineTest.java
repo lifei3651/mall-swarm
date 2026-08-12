@@ -3,6 +3,7 @@ package com.macro.mall.distribution.security;
 import com.macro.mall.distribution.dto.AdminLoginDTO;
 import com.macro.mall.distribution.service.AdminAuthService;
 import com.macro.mall.distribution.service.PayloadEncryptionService;
+import com.macro.mall.distribution.vo.AdminAuthVO;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -11,6 +12,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.LocalDateTime;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -42,7 +45,10 @@ class AdminLoginEncryptedPayloadPipelineTest {
             return null;
         }).when(payloadEncryptionService).decryptSensitiveValues(
                 eq("one-time-challenge"), eq("encrypted-key"), any(AdminLoginDTO.class));
-        when(adminAuthService.login(any(AdminLoginDTO.class))).thenReturn(null);
+        AdminAuthVO auth = new AdminAuthVO();
+        auth.setToken("test-admin-session-token");
+        auth.setExpireTime(LocalDateTime.now().plusHours(12));
+        when(adminAuthService.login(any(AdminLoginDTO.class))).thenReturn(auth);
 
         mockMvc.perform(post("/distribution/admin-auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

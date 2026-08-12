@@ -3,11 +3,14 @@ package com.macro.mall.distribution.controller;
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.distribution.dto.AdminLoginDTO;
 import com.macro.mall.distribution.service.AdminAuthService;
+import com.macro.mall.distribution.security.AdminSessionCookieService;
 import com.macro.mall.distribution.vo.AdminAuthVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "AdminAuthController", description = "后台管理员认证")
@@ -17,11 +20,18 @@ import org.springframework.web.bind.annotation.*;
 public class AdminAuthController {
 
     private final AdminAuthService adminAuthService;
+    private final AdminSessionCookieService cookieService;
 
     @Operation(summary = "后台登录")
     @PostMapping("/login")
-    public CommonResult<AdminAuthVO> login(@Valid @RequestBody AdminLoginDTO dto) {
-        return CommonResult.success(adminAuthService.login(dto));
+    public CommonResult<AdminAuthVO> login(@Valid @RequestBody AdminLoginDTO dto,
+                                           HttpServletRequest request, HttpServletResponse response) {
+        AdminAuthVO auth = adminAuthService.login(dto);
+        cookieService.write(request, response, auth.getToken(), auth.getExpireTime());
+        if (AdminSessionCookieService.CLIENT_HEADER_VALUE.equals(request.getHeader(AdminSessionCookieService.CLIENT_HEADER))) {
+            auth.setToken(null);
+        }
+        return CommonResult.success(auth);
     }
 
     @Operation(summary = "当前后台账号")
@@ -32,7 +42,10 @@ public class AdminAuthController {
 
     @Operation(summary = "后台退出")
     @PostMapping("/logout")
-    public CommonResult<Boolean> logout(@RequestHeader(value = "Authorization", required = false) String authorization) {
-        return CommonResult.success(adminAuthService.logout(authorization));
+    public CommonResult<Boolean> logout(@RequestHeader(value = "Authorization", required = false) String authorization,
+                                        HttpServletRequest request, HttpServletResponse response) {
+        boolean loggedOut = adminAuthService.logout(authorization);
+        cookieService.clear(request, response);
+        return CommonResult.success(loggedOut);
     }
 }

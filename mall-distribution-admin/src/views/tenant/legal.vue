@@ -41,6 +41,23 @@
 
         <section class="form-section">
           <h3>交易与售后</h3>
+          <el-form-item label="售后期限起算">
+            <el-radio-group v-model="tenantForm.afterSaleWindowMode" class="window-mode-group">
+              <el-radio value="RECEIVED">
+                <span class="window-mode-title">签收后起算（推荐）</span>
+                <span class="window-mode-help">未确认收货前不会因时间经过而关闭入口；确认收货后开始计算。</span>
+              </el-radio>
+              <el-radio value="ORDER_CREATED">
+                <span class="window-mode-title">下单后起算（兼容模式）</span>
+                <span class="window-mode-help">从订单创建时间开始计算，仅用于客户明确采用原业务口径的场景。</span>
+              </el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item label="售后入口有效期">
+            <el-input-number v-model="tenantForm.afterSaleWindowDays" :min="0" :max="365" :step="1" />
+            <span class="days-suffix">天</span>
+            <div class="field-help">当前规则：{{ afterSaleWindowSummary }}。0 天表示关闭客户自助申请入口，后台人工售后不受影响；该设置不排除法定或商家承诺的其他售后权利。</div>
+          </el-form-item>
           <el-form-item label="交易与售后规则">
             <div class="textarea-toolbar">
               <el-button type="primary" link @click="restoreTemplate('afterSalePolicy', '交易与售后规则')">恢复平台默认内容</el-button>
@@ -74,7 +91,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getLegalTemplates, listTenants, saveTenant } from '@/api/tenant'
 
@@ -83,6 +100,12 @@ const saving = ref(false)
 const tenantForm = ref({})
 const faqList = ref([])
 const defaultTemplates = ref({})
+const afterSaleWindowSummary = computed(() => {
+  const days = Number(tenantForm.value.afterSaleWindowDays ?? 7)
+  if (days === 0) return '客户自助售后入口已关闭（后台仍可人工处理）'
+  const prefix = tenantForm.value.afterSaleWindowMode === 'ORDER_CREATED' ? '下单后' : '签收后'
+  return `${prefix}${days}天`
+})
 
 const restoreTemplate = async (field, label) => {
   const template = defaultTemplates.value[field]
@@ -135,6 +158,8 @@ const fetchData = async () => {
     defaultTemplates.value = templateRes.data || {}
     const rows = tenantRes.data?.list || []
     tenantForm.value = { ...(rows.find((row) => Number(row.id) === 1) || rows[0] || {}) }
+    tenantForm.value.afterSaleWindowMode = tenantForm.value.afterSaleWindowMode || 'RECEIVED'
+    tenantForm.value.afterSaleWindowDays = Number(tenantForm.value.afterSaleWindowDays ?? 7)
     try {
       faqList.value = tenantForm.value.faqs ? JSON.parse(tenantForm.value.faqs) : []
     } catch {
@@ -154,6 +179,8 @@ const submit = async () => {
       userAgreement: tenantForm.value.userAgreement?.trim() || null,
       privacyPolicy: tenantForm.value.privacyPolicy?.trim() || null,
       afterSalePolicy: tenantForm.value.afterSalePolicy?.trim() || null,
+      afterSaleWindowMode: tenantForm.value.afterSaleWindowMode || 'RECEIVED',
+      afterSaleWindowDays: Number(tenantForm.value.afterSaleWindowDays ?? 7),
       faqs: validFaqs.length > 0 ? JSON.stringify(validFaqs) : null,
     })
     ElMessage.success('协议与规则已保存，前台刷新后生效')
@@ -176,6 +203,12 @@ onMounted(fetchData)
 .form-section + .form-section { margin-top:14px; padding-top:20px; border-top:1px solid #ebeef5; }
 .form-section h3 { margin:0 0 18px; padding-left:10px; color:#303133; font-size:16px; line-height:1.4; border-left:4px solid var(--el-color-primary); }
 .field-help { width:100%; margin-top:6px; color:#909399; font-size:12px; line-height:20px; }
+.window-mode-group { display:flex; align-items:stretch; flex-direction:column; gap:10px; }
+.window-mode-group :deep(.el-radio) { height:auto; margin-right:0; padding:10px 12px; border:1px solid #dcdfe6; border-radius:8px; }
+.window-mode-group :deep(.el-radio.is-checked) { background:#ecf5ff; border-color:var(--el-color-primary); }
+.window-mode-title { display:block; color:#303133; font-weight:600; }
+.window-mode-help { display:block; margin-top:3px; color:#909399; font-size:12px; line-height:18px; white-space:normal; }
+.days-suffix { margin-left:8px; color:#606266; }
 .textarea-toolbar { display:flex; align-items:center; gap:12px; margin-bottom:8px; }
 .toolbar-hint { color:#909399; font-size:12px; }
 .faq-alert { margin-bottom:16px; }

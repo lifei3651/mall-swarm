@@ -65,12 +65,12 @@ export function cancelCommission(recordId, cancelReason) {
 }
 
 // 查询佣金记录
-export function getCommissionRecords(data) {
+export function getCommissionRecords(params) {
   return request({
     url: '/distribution/commission/records',
-    method: 'post',
-    data,
-    silentError: Boolean(data?.memberKey),
+    method: 'get',
+    params,
+    silentError: Boolean(params?.memberKey),
   })
 }
 

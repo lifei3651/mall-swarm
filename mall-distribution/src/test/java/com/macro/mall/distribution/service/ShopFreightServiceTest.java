@@ -47,7 +47,7 @@ import org.springframework.context.annotation.FilterType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -89,7 +89,7 @@ class ShopFreightServiceTest {
     @Autowired private DmsCommissionRecordDao commissionRecordDao;
     @Autowired private DmsAgentChangeLogDao agentChangeLogDao;
     @Autowired private DmsOrderPerformanceDetailDao performanceDetailDao;
-    @MockBean private SmsVerificationService smsVerificationService;
+    @MockitoBean private SmsVerificationService smsVerificationService;
 
     @Test
     void fixedFreightIsAddedToPaymentButExcludedFromBonusAndPerformance() {

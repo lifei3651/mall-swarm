@@ -104,6 +104,7 @@ public class ShopServiceImpl implements ShopService {
     private final com.macro.mall.distribution.service.OrderShipmentService orderShipmentService;
     private final ObjectMapper objectMapper;
     private final ShopCatalogCacheService catalogCache;
+    private final ShopAfterSaleWindowPolicy afterSaleWindowPolicy;
 
     @Value("${shop.order.pending-timeout-minutes:30}")
     private long pendingOrderTimeoutMinutes;
@@ -166,7 +167,7 @@ public class ShopServiceImpl implements ShopService {
                 String.valueOf(keyword), String.valueOf(categoryName), String.valueOf(status),
                 String.valueOf(stockStatus), String.valueOf(resolvedPageNum), String.valueOf(resolvedPageSize));
         String cacheKey = "products:" + DigestUtil.sha256Hex(parameters);
-        return catalogCache.get(resolvedTenantId, cacheKey, CommonPage.class, productCacheTtlSeconds, () -> {
+        return catalogCache.getPage(resolvedTenantId, cacheKey, DmsShopProduct.class, productCacheTtlSeconds, () -> {
             PageHelper.startPage(resolvedPageNum, resolvedPageSize);
             return CommonPage.restPage(productDao.selectList(
                     resolvedTenantId, keyword, categoryName, status, stockStatus));
@@ -176,7 +177,7 @@ public class ShopServiceImpl implements ShopService {
     @Override
     public List<String> listCategories(Long tenantId) {
         Long resolvedTenantId = resolveTenantId(tenantId);
-        return catalogCache.get(resolvedTenantId, "category-names", List.class, categoryCacheTtlSeconds, () -> {
+        return catalogCache.getList(resolvedTenantId, "category-names", String.class, categoryCacheTtlSeconds, () -> {
             List<DmsShopCategory> categories = categoryDao.selectList(resolvedTenantId, 1);
             return categories.isEmpty()
                     ? productDao.selectCategories(resolvedTenantId)
@@ -187,7 +188,7 @@ public class ShopServiceImpl implements ShopService {
     @Override
     public List<DmsShopCategory> listFrontCategories(Long tenantId) {
         Long resolvedTenantId = resolveTenantId(tenantId);
-        return catalogCache.get(resolvedTenantId, "front-categories", List.class, categoryCacheTtlSeconds,
+        return catalogCache.getList(resolvedTenantId, "front-categories", DmsShopCategory.class, categoryCacheTtlSeconds,
                 () -> categoryDao.selectList(resolvedTenantId, 1));
     }
 
@@ -884,6 +885,7 @@ public class ShopServiceImpl implements ShopService {
         vo.setFinance(finance);
         vo.setAfterSales(Collections.emptyList());
         vo.setPendingReviewCount(0);
+        fillAfterSaleWindow(vo, vo.getOrder());
         vo.setDisplayConfig(getDisplayConfig(tenantId));
         catalogCache.invalidateAfterCommit(tenantId);
         return vo;
@@ -904,6 +906,7 @@ public class ShopServiceImpl implements ShopService {
         vo.setFinance(auditService.getOrderFinanceDetail(orderId).getFinance());
         vo.setAfterSales(hydrateAfterSales(afterSaleDao.selectByOrderId(orderId)));
         vo.setPendingReviewCount(pendingReviewCount(order));
+        fillAfterSaleWindow(vo, order);
         vo.setDisplayConfig(getDisplayConfig(order.getTenantId()));
         return vo;
     }
@@ -932,6 +935,7 @@ public class ShopServiceImpl implements ShopService {
             vo.setFinance(auditService.getOrderFinanceDetail(order.getId()).getFinance());
             vo.setAfterSales(hydrateAfterSales(afterSaleDao.selectByOrderId(order.getId())));
             vo.setPendingReviewCount(pendingReviewCount(order));
+            fillAfterSaleWindow(vo, order);
             vo.setDisplayConfig(getDisplayConfig(order.getTenantId()));
             return vo;
         }).toList();
@@ -958,6 +962,7 @@ public class ShopServiceImpl implements ShopService {
             vo.setFinance(auditService.getOrderFinanceDetail(order.getId()).getFinance());
             vo.setAfterSales(hydrateAfterSales(afterSaleDao.selectByOrderId(order.getId())));
             vo.setPendingReviewCount(pendingReviewCount(order));
+            fillAfterSaleWindow(vo, order);
             vo.setDisplayConfig(getDisplayConfig(order.getTenantId()));
             return vo;
         }).toList();
@@ -992,6 +997,16 @@ public class ShopServiceImpl implements ShopService {
         if (vo == null || order == null) return;
         DmsShopMember member = memberDao.selectByUserId(order.getUserId());
         vo.setMemberAccount(MemberAccountUtils.display(member));
+    }
+
+    private void fillAfterSaleWindow(ShopOrderVO vo, DmsShopOrder order) {
+        if (vo == null || order == null) return;
+        ShopAfterSaleWindowPolicy.Window window = afterSaleWindowPolicy.resolve(order.getTenantId());
+        vo.setAfterSaleWindowMode(window.mode());
+        vo.setAfterSaleWindowDays(window.days());
+        vo.setAfterSaleWindowLabel(afterSaleWindowPolicy.label(window));
+        vo.setAfterSaleDeadline(afterSaleWindowPolicy.deadline(order, window));
+        vo.setAfterSaleSelfServiceEnabled(window.days() > 0);
     }
 
     /**
@@ -1237,6 +1252,7 @@ public class ShopServiceImpl implements ShopService {
             orderVO.setFinance(auditService.getOrderFinanceDetail(order.getId()).getFinance());
             orderVO.setAfterSales(hydrateAfterSales(afterSaleDao.selectByOrderId(order.getId())));
             orderVO.setPendingReviewCount(pendingReviewCount(order));
+            fillAfterSaleWindow(orderVO, order);
             orderVO.setDisplayConfig(getDisplayConfig(order.getTenantId()));
             return orderVO;
         }).toList());

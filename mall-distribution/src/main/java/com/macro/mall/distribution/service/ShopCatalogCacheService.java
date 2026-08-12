@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.service;
 
+import com.macro.mall.common.api.CommonPage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -11,6 +12,8 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Duration;
+import java.util.List;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -39,6 +42,34 @@ public class ShopCatalogCacheService {
                      Class<T> expectedType,
                      long ttlSeconds,
                      Supplier<T> loader) {
+        Object value = getRaw(tenantId, cacheKey, expectedType::isInstance, ttlSeconds, loader);
+        return expectedType.cast(value);
+    }
+
+    public <E> List<E> getList(Long tenantId, String cacheKey, Class<E> elementType,
+                               long ttlSeconds, Supplier<List<E>> loader) {
+        Object value = getRaw(tenantId, cacheKey, cached -> cached instanceof List<?> list
+                && list.stream().allMatch(item -> item == null || elementType.isInstance(item)), ttlSeconds, loader);
+        return ((List<?>) value).stream().map(item -> item == null ? null : elementType.cast(item)).toList();
+    }
+
+    public <E> CommonPage<E> getPage(Long tenantId, String cacheKey, Class<E> elementType,
+                                     long ttlSeconds, Supplier<CommonPage<E>> loader) {
+        Object value = getRaw(tenantId, cacheKey, cached -> cached instanceof CommonPage<?> page
+                && page.getList() != null
+                && page.getList().stream().allMatch(item -> item == null || elementType.isInstance(item)), ttlSeconds, loader);
+        CommonPage<?> source = (CommonPage<?>) value;
+        CommonPage<E> page = new CommonPage<>();
+        page.setPageNum(source.getPageNum());
+        page.setPageSize(source.getPageSize());
+        page.setTotalPage(source.getTotalPage());
+        page.setTotal(source.getTotal());
+        page.setList(source.getList().stream().map(item -> item == null ? null : elementType.cast(item)).toList());
+        return page;
+    }
+
+    private Object getRaw(Long tenantId, String cacheKey, Predicate<Object> validCachedValue,
+                          long ttlSeconds, Supplier<?> loader) {
         if (!enabled) {
             metrics.recordCacheRequest("bypass_disabled");
             return loader.get();
@@ -55,9 +86,9 @@ public class ShopCatalogCacheService {
         }
         try {
             Object cached = redisTemplate.opsForValue().get(redisKey);
-            if (expectedType.isInstance(cached)) {
+            if (validCachedValue.test(cached)) {
                 metrics.recordCacheRequest("hit");
-                return expectedType.cast(cached);
+                return cached;
             }
             metrics.recordCacheRequest("miss");
             if (cached != null) {
@@ -69,7 +100,7 @@ public class ShopCatalogCacheService {
             log.warn("读取商城公共缓存失败，已回源数据库：key={}", cacheKey, ex);
         }
 
-        T loaded = loader.get();
+        Object loaded = loader.get();
         if (loaded != null) {
             try {
                 redisTemplate.opsForValue().set(redisKey, loaded,

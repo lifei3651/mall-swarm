@@ -90,6 +90,20 @@ public class TenantServiceImpl implements TenantService {
         if (tenant.getStatus() == null) {
             tenant.setStatus(1);
         }
+        if (tenant.getAfterSaleWindowMode() == null || tenant.getAfterSaleWindowMode().isBlank()) {
+            tenant.setAfterSaleWindowMode(ShopAfterSaleWindowPolicy.MODE_RECEIVED);
+        } else {
+            tenant.setAfterSaleWindowMode(tenant.getAfterSaleWindowMode().trim().toUpperCase());
+            if (!List.of(ShopAfterSaleWindowPolicy.MODE_RECEIVED, ShopAfterSaleWindowPolicy.MODE_ORDER_CREATED)
+                    .contains(tenant.getAfterSaleWindowMode())) {
+                Asserts.fail("售后期限起算方式不正确");
+            }
+        }
+        if (tenant.getAfterSaleWindowDays() == null) {
+            tenant.setAfterSaleWindowDays(7);
+        } else if (tenant.getAfterSaleWindowDays() < 0 || tenant.getAfterSaleWindowDays() > 365) {
+            Asserts.fail("售后申请期限应设置为0至365天");
+        }
         if (tenant.getPoliceRecordUrl() != null && !tenant.getPoliceRecordUrl().isBlank()) {
             String policeRecordUrl = tenant.getPoliceRecordUrl().trim();
             if (!policeRecordUrl.matches("^https://.+")) {
@@ -207,6 +221,12 @@ public class TenantServiceImpl implements TenantService {
         DmsTenantDisplayConfig restoredDisplay = readSnapshot(
                 target.getDisplaySnapshot(), DmsTenantDisplayConfig.class, "商城视觉配置");
         restoredTenant.setId(tenantId);
+        if (restoredTenant.getAfterSaleWindowMode() == null || restoredTenant.getAfterSaleWindowMode().isBlank()) {
+            restoredTenant.setAfterSaleWindowMode(ShopAfterSaleWindowPolicy.MODE_RECEIVED);
+        }
+        if (restoredTenant.getAfterSaleWindowDays() == null) {
+            restoredTenant.setAfterSaleWindowDays(7);
+        }
         legalTemplateSupport.applyDefaults(restoredTenant);
         if (tenantDao.update(restoredTenant) == 0) {
             Asserts.fail("恢复商城资料失败");

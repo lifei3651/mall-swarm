@@ -10,6 +10,8 @@ const normalizeRelease = (release = {}) => ({
   sha256: String(release.sha256 || ''),
   required: release.required === true,
   notes: Array.isArray(release.notes) ? release.notes.filter(Boolean) : [],
+  published: release.published === true,
+  channel: String(release.channel || ''),
 })
 
 export const fetchAndroidRelease = async () => {
@@ -23,6 +25,7 @@ export const fetchAndroidRelease = async () => {
 
 export const hasAndroidUpdate = (release) => (
   isNativeApp
+  && release?.published === true
   && currentAndroidVersionCode > 0
   && Number(release?.versionCode || 0) > currentAndroidVersionCode
 )

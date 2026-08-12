@@ -59,7 +59,7 @@ logging:
 admin:
   security:
     # 管理后台登录成功后的绝对有效期；到期后前后端都会强制重新登录。
-    session-days: 7
+    session-hours: 12
 
 # Sa-Token 配置
 sa-token:
@@ -92,7 +92,6 @@ shop:
   order:
     pending-timeout-minutes: 30
     pending-scan-interval-ms: 60000
-    after-sale-window-days: 7
 payment:
   verification:
     enabled: false

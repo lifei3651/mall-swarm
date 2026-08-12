@@ -7,6 +7,7 @@ import { encryptSensitiveRequest } from '@/utils/payloadEncryption'
 const service = axios.create({
   baseURL: '/api',
   timeout: 30000,
+  withCredentials: true,
 })
 
 const isAuthenticationFailure = (code, message) => [401, 419, 440].includes(Number(code)) || [
@@ -42,17 +43,19 @@ const createRequestError = (message, details = {}) => {
 // 请求拦截器
 service.interceptors.request.use(
   async (config) => {
-    // 从localStorage获取token
-    const token = localStorage.getItem('token')
-    if (token && isAdminSessionExpired()) {
+    // 新会话只使用 HttpOnly Cookie；仅在旧会话一次性迁移时读取历史 Bearer Token。
+    const legacyToken = localStorage.getItem('token')
+    const hasSession = Boolean(legacyToken || localStorage.getItem('admin_session_present') === '1')
+    if (hasSession && isAdminSessionExpired()) {
       const message = '后台登录已超时，请重新登录'
       expireAdminSession(message)
       const error = new Error(message)
       error.isAdminSessionExpired = true
       return Promise.reject(error)
     }
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`
+    config.headers['X-Admin-Client'] = 'admin-web'
+    if (legacyToken) {
+      config.headers['Authorization'] = `Bearer ${legacyToken}`
     }
     return encryptSensitiveRequest(config)
   },
@@ -65,6 +68,10 @@ service.interceptors.request.use(
 // 响应拦截器
 service.interceptors.response.use(
   (response) => {
+    if (response.config?.url === '/distribution/admin-auth/me' && localStorage.getItem('token')) {
+      localStorage.removeItem('token')
+      localStorage.setItem('admin_session_present', '1')
+    }
     if (response.config.responseType === 'blob') {
       return response
     }

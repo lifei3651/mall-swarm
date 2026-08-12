@@ -2,6 +2,9 @@ package com.macro.mall.distribution.entity;
 
 import lombok.Data;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.io.Serializable;
@@ -68,6 +71,18 @@ public class DmsTenant implements Serializable {
     private String privacyPolicy;
     @Size(max = 30000, message = "交易与售后规则不能超过30000个字")
     private String afterSalePolicy;
+
+    /**
+     * 客户售后入口期限起算方式：
+     * RECEIVED-签收后起算（推荐，未签收前不关闭入口）；
+     * ORDER_CREATED-下单后起算（兼容历史业务规则）。
+     */
+    @Pattern(regexp = "RECEIVED|ORDER_CREATED", message = "售后期限起算方式不正确")
+    private String afterSaleWindowMode;
+
+    @Min(value = 0, message = "售后申请期限不能小于0天")
+    @Max(value = 365, message = "售后申请期限不能超过365天")
+    private Integer afterSaleWindowDays;
 
     /** 常见问题FAQ，JSON格式存储 */
     @Size(max = 30000, message = "常见问题内容过长")

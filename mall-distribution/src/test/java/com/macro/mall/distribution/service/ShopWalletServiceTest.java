@@ -36,7 +36,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -73,7 +73,7 @@ class ShopWalletServiceTest {
     @Autowired private ShopAfterSaleService afterSaleService;
     @Autowired private PaymentPasswordAttemptService paymentPasswordAttemptService;
     @Autowired private DmsShopOrderItemDao orderItemDao;
-    @MockBean private SmsVerificationService smsVerificationService;
+    @MockitoBean private SmsVerificationService smsVerificationService;
 
     @Test
     @Order(1)

@@ -132,7 +132,6 @@ public class AgentController {
             int[] widths = {16, 18, 16, 16, 20, 14, 18, 12, 16, 12, 14, 22};
             for (int i = 0; i < widths.length; i++) sheet.setColumnWidth(i, widths[i] * 256);
             workbook.write(response.getOutputStream());
-            workbook.dispose();
         }
     }
 

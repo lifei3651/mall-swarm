@@ -5,6 +5,7 @@
         <h2>找回密码</h2>
         <p>通过手机号验证码重置密码</p>
       </div>
+      <RouterLink class="back-login-link" to="/login">返回登录</RouterLink>
     </div>
 
     <section class="panel auth-panel">
@@ -12,35 +13,35 @@
       <div v-if="step === 1">
         <div class="form-grid">
           <div class="form-item full">
-            <label>手机号</label>
-            <input v-model="phone" class="field" placeholder="请输入注册手机号" maxlength="11" inputmode="tel" autocomplete="tel" @input="handlePhoneInput" />
+            <label for="forgot-phone">手机号</label>
+            <input id="forgot-phone" v-model="phone" name="phone" class="field" placeholder="请输入注册手机号" maxlength="11" inputmode="tel" autocomplete="tel" @input="handlePhoneInput" />
           </div>
           <div class="form-item full">
-            <label>验证码</label>
+            <label for="forgot-code">验证码</label>
             <div class="sms-row">
-              <input v-model="code" class="field sms-input" placeholder="请输入验证码" maxlength="6" />
-              <button class="btn sms-btn" :disabled="cooldown > 0" @click="sendCode">
+              <input id="forgot-code" v-model="code" name="smsCode" class="field sms-input" placeholder="请输入验证码" maxlength="6" inputmode="numeric" autocomplete="one-time-code" />
+              <button type="button" class="btn sms-btn" :disabled="cooldown > 0" @click="sendCode">
                 {{ cooldown > 0 ? `${cooldown}s` : '获取验证码' }}
               </button>
             </div>
           </div>
         </div>
-        <button class="btn primary" style="width: 100%; margin-top: 18px" @click="goToResetStep">下一步</button>
+        <button type="button" class="btn primary" style="width: 100%; margin-top: 18px" @click="goToResetStep">下一步</button>
       </div>
 
       <!-- 步骤2：设置新密码 -->
       <div v-if="step === 2">
         <div class="form-grid">
           <div class="form-item full">
-            <label>新密码</label>
-            <input v-model="newPassword" class="field" type="password" placeholder="至少6位" />
+            <label for="forgot-new-password">新密码</label>
+            <input id="forgot-new-password" v-model="newPassword" name="newPassword" class="field" type="password" minlength="6" maxlength="32" autocomplete="new-password" placeholder="至少6位" />
           </div>
           <div class="form-item full">
-            <label>确认密码</label>
-            <input v-model="confirmPassword" class="field" type="password" placeholder="再次输入密码" />
+            <label for="forgot-confirm-password">确认密码</label>
+            <input id="forgot-confirm-password" v-model="confirmPassword" name="confirmPassword" class="field" type="password" minlength="6" maxlength="32" autocomplete="new-password" placeholder="再次输入密码" />
           </div>
         </div>
-        <button class="btn primary" style="width: 100%; margin-top: 18px" :disabled="loading" @click="doResetPassword">
+        <button type="button" class="btn primary" style="width: 100%; margin-top: 18px" :disabled="loading" @click="doResetPassword">
           {{ loading ? '提交中' : '重置密码' }}
         </button>
       </div>
@@ -50,7 +51,7 @@
         <div class="success-icon">✅</div>
         <h3>密码重置成功</h3>
         <p>请使用新密码登录</p>
-        <button class="btn primary" style="width: 100%; margin-top: 18px" @click="$router.push('/login')">去登录</button>
+        <button type="button" class="btn primary" style="width: 100%; margin-top: 18px" @click="$router.push('/login')">去登录</button>
       </div>
 
       <div v-if="error" class="form-toast" role="alert" aria-live="assertive">{{ error }}</div>
@@ -132,6 +133,7 @@ onBeforeUnmount(() => window.clearTimeout(errorTimer))
 .sms-input { flex: 1; }
 .sms-btn { white-space: nowrap; padding: 0 16px; background: var(--accent, #0f766e); color: #fff; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; }
 .sms-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.back-login-link { color:var(--accent,#0f766e); font-size:13px; font-weight:700; text-decoration:none; }
 .success-state { text-align: center; padding: 30px 0; }
 .success-icon { font-size: 48px; margin-bottom: 16px; }
 .form-toast { position:fixed; top:calc(18px + env(safe-area-inset-top)); left:50%; z-index:1200; max-width:min(88vw,420px); padding:11px 16px; color:#fff; background:rgba(180,35,24,.96); border-radius:10px; box-shadow:0 8px 24px rgba(15,23,42,.18); transform:translateX(-50%); font-size:13px; line-height:1.5; text-align:center; pointer-events:none; }

@@ -23,19 +23,19 @@
         <!-- 密码登录 -->
         <template v-if="mode === 'login' && loginType === 'password'">
           <div class="form-item full">
-            <label>手机号/登录账号</label>
-            <input v-model="loginForm.account" class="field" :class="{ 'has-error': loginFieldErrors.account }" placeholder="请输入手机号或登录账号" :aria-invalid="!!loginFieldErrors.account" @input="clearLoginFieldError('account')" />
+            <label for="login-account">手机号/登录账号</label>
+            <input id="login-account" v-model="loginForm.account" name="username" autocomplete="username" class="field" :class="{ 'has-error': loginFieldErrors.account }" placeholder="请输入手机号或登录账号" :aria-invalid="!!loginFieldErrors.account" @input="clearLoginFieldError('account')" />
             <p v-if="loginFieldErrors.account" class="field-error">{{ loginFieldErrors.account }}</p>
           </div>
           <div class="form-item full">
-            <label>密码</label>
-            <input v-model="loginForm.password" class="field" :class="{ 'has-error': loginFieldErrors.password }" type="password" placeholder="请输入密码" :aria-invalid="!!loginFieldErrors.password" @input="clearLoginFieldError('password')" />
+            <label for="login-password">密码</label>
+            <input id="login-password" v-model="loginForm.password" name="password" autocomplete="current-password" class="field" :class="{ 'has-error': loginFieldErrors.password }" type="password" placeholder="请输入密码" :aria-invalid="!!loginFieldErrors.password" @input="clearLoginFieldError('password')" />
             <p v-if="loginFieldErrors.password" class="field-error">{{ loginFieldErrors.password }}</p>
           </div>
           <div class="form-item full">
-            <label>图形验证码</label>
+            <label for="login-captcha">图形验证码</label>
             <div class="captcha-row">
-              <input v-model="loginForm.captchaCode" class="field" :class="{ 'has-error': loginFieldErrors.captchaCode }" placeholder="请输入图形验证码" maxlength="4" :aria-invalid="!!loginFieldErrors.captchaCode" @input="clearLoginFieldError('captchaCode')" />
+              <input id="login-captcha" v-model="loginForm.captchaCode" name="captchaCode" autocomplete="off" class="field" :class="{ 'has-error': loginFieldErrors.captchaCode }" placeholder="请输入图形验证码" maxlength="4" :aria-invalid="!!loginFieldErrors.captchaCode" @input="clearLoginFieldError('captchaCode')" />
               <button type="button" class="captcha-refresh" title="看不清？换一张" aria-label="刷新图形验证码" @click="refreshCaptcha">
                 <img :src="captchaImage" class="captcha-image" alt="图形验证码" />
                 <span>换一张</span>
@@ -48,14 +48,14 @@
         <!-- 验证码登录 -->
         <template v-if="mode === 'login' && loginType === 'sms'">
           <div class="form-item full">
-            <label>手机号</label>
-            <input v-model="smsForm.phone" class="field" :class="{ 'has-error': loginFieldErrors.phone }" placeholder="请输入11位手机号" maxlength="11" inputmode="tel" autocomplete="tel" :aria-invalid="!!loginFieldErrors.phone" @input="handleSmsLoginPhoneInput" />
+            <label for="sms-login-phone">手机号</label>
+            <input id="sms-login-phone" v-model="smsForm.phone" name="phone" class="field" :class="{ 'has-error': loginFieldErrors.phone }" placeholder="请输入11位手机号" maxlength="11" inputmode="tel" autocomplete="tel" :aria-invalid="!!loginFieldErrors.phone" @input="handleSmsLoginPhoneInput" />
             <p v-if="loginFieldErrors.phone" class="field-error">{{ loginFieldErrors.phone }}</p>
           </div>
           <div class="form-item full">
-            <label>验证码</label>
+            <label for="sms-login-code">验证码</label>
             <div class="sms-row">
-              <input v-model="smsForm.code" class="field sms-input" :class="{ 'has-error': loginFieldErrors.code }" placeholder="请输入验证码" maxlength="6" :aria-invalid="!!loginFieldErrors.code" @input="clearLoginFieldError('code')" />
+              <input id="sms-login-code" v-model="smsForm.code" name="smsCode" class="field sms-input" :class="{ 'has-error': loginFieldErrors.code }" placeholder="请输入验证码" maxlength="6" inputmode="numeric" autocomplete="one-time-code" :aria-invalid="!!loginFieldErrors.code" @input="clearLoginFieldError('code')" />
               <button class="btn sms-btn" :disabled="smsCooldown > 0" @click="sendCode">
                 {{ smsCooldown > 0 ? `${smsCooldown}s` : '获取验证码' }}
               </button>
@@ -67,9 +67,11 @@
         <!-- 注册 -->
         <template v-if="mode === 'register'">
           <div class="form-item full">
-            <label>邀请码 <span class="required-mark" aria-hidden="true">*</span></label>
+            <label for="register-invite-code">邀请码 <span class="required-mark" aria-hidden="true">*</span></label>
             <input
+              id="register-invite-code"
               v-model="registerForm.inviteCode"
+              name="inviteCode"
               class="field"
               :class="{ 'has-error': fieldErrors.inviteCode }"
               placeholder="请输入邀请码（必填）"
@@ -96,9 +98,11 @@
             <div v-else class="inviter-hint">输入完整邀请码后，会自动确认邀请人</div>
           </div>
           <div class="form-item">
-            <label>手机号 <span class="required-mark" aria-hidden="true">*</span></label>
+            <label for="register-phone">手机号 <span class="required-mark" aria-hidden="true">*</span></label>
             <input
+              id="register-phone"
               v-model="registerForm.phone"
+              name="phone"
               class="field"
               :class="{ 'has-error': fieldErrors.phone }"
               placeholder="请输入11位手机号"
@@ -114,9 +118,11 @@
             <p v-else-if="isValidMainlandPhone(registerForm.phone)" class="field-success">格式正确，请通过短信验证码确认号码可用</p>
           </div>
           <div class="form-item">
-            <label>登录账号 <span class="required-mark" aria-hidden="true">*</span></label>
+            <label for="register-username">登录账号 <span class="required-mark" aria-hidden="true">*</span></label>
             <input
+              id="register-username"
               v-model="registerForm.username"
+              name="username"
               class="field"
               :class="{ 'has-error': fieldErrors.username }"
               placeholder="4至20位，以字母开头"
@@ -132,9 +138,11 @@
             <p v-if="fieldErrors.username" class="field-error">{{ fieldErrors.username }}</p>
           </div>
           <div class="form-item">
-            <label>登录密码 <span class="required-mark" aria-hidden="true">*</span></label>
+            <label for="register-password">登录密码 <span class="required-mark" aria-hidden="true">*</span></label>
             <input
+              id="register-password"
               v-model="registerForm.password"
+              name="newPassword"
               class="field"
               :class="{ 'has-error': fieldErrors.password }"
               type="password"
@@ -150,10 +158,12 @@
             <p v-if="fieldErrors.password" class="field-error">{{ fieldErrors.password }}</p>
           </div>
           <div class="form-item full register-sms-item">
-            <label>短信验证码 <span class="required-mark" aria-hidden="true">*</span></label>
+            <label for="register-sms-code">短信验证码 <span class="required-mark" aria-hidden="true">*</span></label>
             <div class="sms-row">
               <input
+                id="register-sms-code"
                 v-model="registerForm.smsCode"
+                name="smsCode"
                 class="field sms-input"
                 :class="{ 'has-error': fieldErrors.smsCode }"
                 placeholder="请输入6位验证码"
@@ -175,10 +185,14 @@
       </div>
 
       <div v-if="mode === 'register'" class="agreement-row">
-        <label class="agreement-check" :class="{ checked: agreeTerms, 'has-error': fieldErrors.agreement }" @click="toggleAgreement">
-          <span><Check v-if="agreeTerms" :size="12" /></span>
-          <span><span class="required-mark" aria-hidden="true">*</span> 我已阅读并同意 <RouterLink :to="legalRoute('agreement')" @click.stop>《用户服务协议》</RouterLink>和<RouterLink :to="legalRoute('privacy')" @click.stop>《隐私政策》</RouterLink></span>
-        </label>
+        <div class="agreement-check" :class="{ checked: agreeTerms, 'has-error': fieldErrors.agreement }">
+          <input id="register-agreement" v-model="agreeTerms" name="agreement" class="agreement-native" type="checkbox" :aria-invalid="!!fieldErrors.agreement" @change="agreeTerms && clearFieldError('agreement')" />
+          <label for="register-agreement" class="agreement-consent">
+            <span class="agreement-box" aria-hidden="true"><Check v-if="agreeTerms" :size="12" /></span>
+            <span><span class="required-mark" aria-hidden="true">*</span> 我已阅读并同意</span>
+          </label>
+          <span class="agreement-links"><RouterLink :to="legalRoute('agreement')">《用户服务协议》</RouterLink>和<RouterLink :to="legalRoute('privacy')">《隐私政策》</RouterLink></span>
+        </div>
         <p v-if="fieldErrors.agreement" class="field-error agreement-error">{{ fieldErrors.agreement }}</p>
         <p class="agreement-tip">
           注册仅创建商城账号；下单前可查看<RouterLink :to="legalRoute('after-sale')">《交易与售后规则》</RouterLink>，加入会员推广计划时将另行确认对应规则。
@@ -412,14 +426,9 @@ const validateRegisterField = (field) => {
   return !fieldErrors.value[field]
 }
 
-const toggleAgreement = () => {
-  agreeTerms.value = !agreeTerms.value
-  if (agreeTerms.value) clearFieldError('agreement')
-}
-
 const focusFirstRegisterError = async () => {
   await nextTick()
-  const firstInvalid = document.querySelector('.auth-panel .field.has-error, .auth-panel .agreement-check.has-error')
+  const firstInvalid = document.querySelector('.auth-panel .field.has-error, .auth-panel .agreement-check.has-error .agreement-native')
   firstInvalid?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   if (typeof firstInvalid?.focus === 'function') firstInvalid.focus({ preventScroll: true })
 }
@@ -768,10 +777,14 @@ const submit = async () => {
 .inviter-hint { min-height: 38px; display: flex; align-items: center; padding: 0 12px; color: var(--muted); font-size: 12px; }
 
 .agreement-row { margin-top: 14px; }
-.agreement-check { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; font-size: 12px; color: var(--muted); line-height: 1.5; }
-.agreement-check > span:first-child { width: 18px; height: 18px; flex-shrink: 0; display: grid; place-items: center; border: 1.5px solid #c9ced4; border-radius: 4px; margin-top: 1px; }
-.agreement-check.checked > span:first-child { color: #fff; background: var(--accent, #0f766e); border-color: var(--accent, #0f766e); }
-.agreement-check.has-error > span:first-child { border-color: var(--coral); box-shadow: 0 0 0 2px color-mix(in srgb, var(--coral) 12%, transparent); }
+.agreement-check { display: flex; align-items: flex-start; gap: 4px; touch-action: manipulation; -webkit-tap-highlight-color: transparent; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.agreement-consent { display:flex; align-items:flex-start; gap:8px; cursor:pointer; user-select:none; }
+.agreement-links { margin-left:0; }
+.agreement-native { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.agreement-box { width: 18px; height: 18px; flex-shrink: 0; display: grid; place-items: center; border: 1.5px solid #c9ced4; border-radius: 4px; margin-top: 1px; }
+.agreement-check.checked .agreement-box { color: #fff; background: var(--accent, #0f766e); border-color: var(--accent, #0f766e); }
+.agreement-check.has-error .agreement-box { border-color: var(--coral); box-shadow: 0 0 0 2px color-mix(in srgb, var(--coral) 12%, transparent); }
+.agreement-native:focus-visible + .agreement-consent .agreement-box { outline:3px solid color-mix(in srgb, var(--accent, #0f766e) 35%, transparent); outline-offset:2px; }
 .agreement-check a { color: var(--accent, #0f766e); text-decoration: none; }
 .agreement-tip { margin: 7px 0 0 26px; color: #9299a3; font-size: 11px; line-height: 1.55; }
 .agreement-tip a { color: var(--accent, #0f766e); text-decoration: none; }
@@ -830,7 +843,7 @@ const submit = async () => {
   .register-page .inviter-info-card { padding: 6px 10px; }
   .register-page .agreement-row { margin-top: 9px; }
   .register-page .agreement-check { gap: 6px; font-size: 11px; line-height: 1.4; }
-  .register-page .agreement-check > span:first-child { width: 17px; height: 17px; }
+  .register-page .agreement-box { width: 17px; height: 17px; }
   .register-page .agreement-tip { margin: 4px 0 0 23px; font-size: 10px; line-height: 1.35; }
   .register-page .field-error,
   .register-page .field-success { font-size: 10px; line-height: 1.25; }

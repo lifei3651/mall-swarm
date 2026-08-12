@@ -14,6 +14,7 @@ const safeSessionStorageSet = (key, value) => {
 
 export const clearAdminSessionStorage = () => {
   localStorage.removeItem('token')
+  localStorage.removeItem('admin_session_present')
   localStorage.removeItem('userInfo')
   localStorage.removeItem('permissions')
   localStorage.removeItem(SESSION_EXPIRE_KEY)

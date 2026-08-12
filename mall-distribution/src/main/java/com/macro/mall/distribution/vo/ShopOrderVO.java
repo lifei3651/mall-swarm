@@ -8,6 +8,7 @@ import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -31,6 +32,13 @@ public class ShopOrderVO implements Serializable {
 
     /** 已完成订单中尚未评价的商品明细数量。 */
     private Integer pendingReviewCount;
+
+    /** 当前订单适用的客户售后入口规则，由服务端统一计算，前端不得自行猜测。 */
+    private String afterSaleWindowMode;
+    private Integer afterSaleWindowDays;
+    private String afterSaleWindowLabel;
+    private LocalDateTime afterSaleDeadline;
+    private Boolean afterSaleSelfServiceEnabled;
 
     private DmsTenantDisplayConfig displayConfig;
 }

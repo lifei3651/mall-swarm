@@ -129,8 +129,8 @@ public class CommissionController {
     }
 
     @Operation(summary = "查询代理的佣金记录")
-    @PostMapping("/records")
-    public CommonResult<CommonPage<CommissionRecordVO>> getCommissionRecords(@RequestBody CommissionQueryDTO queryDTO) {
+    @GetMapping("/records")
+    public CommonResult<CommonPage<CommissionRecordVO>> getCommissionRecords(@ModelAttribute CommissionQueryDTO queryDTO) {
         List<CommissionRecordVO> records = commissionService.getCommissionRecords(queryDTO);
         return CommonResult.success(CommonPage.restPage(records));
     }

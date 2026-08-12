@@ -152,6 +152,29 @@ test('invite content keeps QR code, invitation code and member data in one card'
   assert.match(dialog, /role="dialog" aria-modal="true"/)
 })
 
+test('account forms and product quantity controls expose semantic labels', async () => {
+  const login = await readView('LoginView.vue')
+  const forgot = await readView('ForgotPasswordView.vue')
+  const product = await readView('ProductDetailView.vue')
+  assert.match(login, /for="login-account"/)
+  assert.match(login, /id="login-password"[\s\S]*autocomplete="current-password"/)
+  assert.match(login, /id="register-agreement"[\s\S]*type="checkbox"/)
+  assert.match(forgot, /for="forgot-phone"/)
+  assert.match(forgot, /autocomplete="one-time-code"/)
+  assert.match(product, /aria-label="减少购买数量"/)
+  assert.match(product, /aria-label="增加购买数量"/)
+})
+
+test('homepage exposes the legal qualification link while internal APK builds stay unpublished', async () => {
+  const app = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+  const download = await readView('AppDownloadView.vue')
+  const release = JSON.parse(await readFile(new URL('../public/downloads/android-release.json', import.meta.url), 'utf8'))
+  assert.match(app, /to="\/legal\/license">经营资质/)
+  assert.match(download, /releaseAvailable/)
+  assert.equal(release.published, false)
+  assert.equal(release.channel, 'internal-test')
+})
+
 test('mobile interactive areas suppress the browser tap highlight without disabling form input', async () => {
   const styles = await readStyles()
   const login = await readView('LoginView.vue')
@@ -159,7 +182,8 @@ test('mobile interactive areas suppress the browser tap highlight without disabl
   assert.match(styles, /input\[type="checkbox"\][\s\S]*-webkit-tap-highlight-color: transparent/)
   assert.match(styles, /\[role="button"\][\s\S]*user-select: none/)
   assert.doesNotMatch(styles, /input,\s*textarea[\s\S]{0,120}user-select: none/)
-  assert.match(login, /\.agreement-check \{[^}]*-webkit-tap-highlight-color: transparent;[^}]*user-select: none;/)
+  assert.match(login, /\.agreement-check \{[^}]*-webkit-tap-highlight-color: transparent;/)
+  assert.match(login, /\.agreement-consent \{[^}]*user-select:none;/)
 })
 
 test('registration page does not expose internal membership activation copy', async () => {
@@ -191,10 +215,10 @@ test('login errors stay beside their field, expire quickly, and auth pages use a
   assert.doesNotMatch(login, /<p v-if="error"/)
   assert.match(login, /\.register-page \.form-grid \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/)
   assert.doesNotMatch(login, /class="form-item">\s*<label>昵称/)
-  assert.match(login, /<label>登录账号/)
+  assert.match(login, /<label[^>]*>登录账号/)
   assert.match(login, /showRegisterServerError/)
   assert.match(login, /resolveRegistrationErrorField\(text\)/)
-  assert.match(login, /class="form-item">\s*<label>登录密码/)
+  assert.match(login, /class="form-item">\s*<label[^>]*>登录密码/)
 
   assert.match(app, /const isAuthPage = computed/)
   assert.match(app, /<footer v-if="isHome"/)

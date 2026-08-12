@@ -155,7 +155,6 @@
 <script setup>
 import { ref, computed, nextTick, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import echarts from '@/utils/echarts'
 import { createRecentDateRange, performanceDateShortcuts } from '@/utils/performanceDateRange'
 import { memberSearchFailureMessage, validateMemberSearch } from '@/utils/searchFeedback'
 import { getPerformanceOverview } from '@/api/performance'
@@ -169,6 +168,11 @@ const lastSearchKeyword = ref('')
 const lastSearchRange = ref([])
 const searchFeedback = ref('')
 let chart
+let echarts
+const ensureEcharts = async () => {
+  echarts ||= (await import('@/utils/echarts')).default
+  return echarts
+}
 
 // 搜索表单
 const searchForm = ref({
@@ -266,7 +270,8 @@ const handleSearch = async () => {
 }
 
 // 初始化图表
-const renderChart = () => {
+const renderChart = async () => {
+  await ensureEcharts()
   if (chartRef.value) {
     chart ||= echarts.init(chartRef.value)
     chart.setOption({

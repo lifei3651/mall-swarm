@@ -81,7 +81,8 @@
               </el-upload>
               <div class="upload-actions">
                 <span class="upload-help">单张不超过 5MB。请遮挡无需公开的个人信息。</span>
-                <el-switch v-model="tenantForm.showBusinessLicense" :active-value="1" :inactive-value="0" active-text="前台展示" inactive-text="前台隐藏" class="license-switch" />
+                <el-switch v-model="tenantForm.showBusinessLicense" :active-value="1" :inactive-value="0" active-text="展示执照图片" inactive-text="隐藏执照图片" class="license-switch" />
+                <span class="upload-help">首页“经营资质”入口及主体文字信息固定公开；此开关只控制是否展示营业执照图片。</span>
               </div>
             </div>
           </el-form-item>

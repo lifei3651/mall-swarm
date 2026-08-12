@@ -210,9 +210,12 @@ const setRealtimeConnected = (connected) => {
 
 const totalQuantity = (item) => (item.items || []).reduce((sum, line) => sum + Number(line.quantity || 0), 0)
 const afterSaleStatus = (status) => ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待客户寄回', 5: '待商家收货', 6: '退款处理中' }[status] || '处理中')
-const afterSaleDeadline = (order) => {
-  const created = Date.parse(String(order?.createTime || '').replace(' ', 'T'))
-  return Number.isFinite(created) ? created + 7 * 24 * 60 * 60 * 1000 : Number.POSITIVE_INFINITY
+const afterSaleDeadline = (item) => {
+  const configured = Date.parse(String(item?.afterSaleDeadline || '').replace(' ', 'T'))
+  if (Number.isFinite(configured)) return configured
+  if (item?.afterSaleWindowMode === 'RECEIVED') return Number.POSITIVE_INFINITY
+  const created = Date.parse(String(item?.order?.createTime || '').replace(' ', 'T'))
+  return Number.isFinite(created) ? created + Number(item?.afterSaleWindowDays ?? 7) * 24 * 60 * 60 * 1000 : Number.POSITIVE_INFINITY
 }
 const unavailableAfterSaleQuantity = (item) => (item.afterSales || [])
   .filter((sale) => [0, 1, 4, 5, 6].includes(Number(sale.status)))
@@ -225,7 +228,8 @@ const orderDisplayStatus = (item) => {
   return statusName(item.order?.status)
 }
 const canApplyAfterSale = (item) => ![0, 4].includes(item.order?.status)
-  && Date.now() < afterSaleDeadline(item.order)
+  && item.afterSaleSelfServiceEnabled !== false
+  && Date.now() < afterSaleDeadline(item)
   && !(item.afterSales || []).some((sale) => [0, 4, 5, 6].includes(sale.status))
   && unavailableAfterSaleQuantity(item) < orderQuantity(item)
 

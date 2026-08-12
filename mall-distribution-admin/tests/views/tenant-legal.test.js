@@ -20,4 +20,13 @@ describe('商城协议与主体资料', () => {
     expect(source).toContain('第三方服务清单')
     expect(source).toContain('normalizeCreditCode')
   })
+
+  it('售后期限支持签收后与下单后两种明确配置', async () => {
+    const source = await readSource('src/views/tenant/legal.vue')
+    expect(source).toContain('签收后起算（推荐）')
+    expect(source).toContain('下单后起算（兼容模式）')
+    expect(source).toContain('afterSaleWindowDays')
+    expect(source).toContain(':min="0"')
+    expect(source).toContain('0 天表示关闭客户自助申请入口，后台人工售后不受影响')
+  })
 })

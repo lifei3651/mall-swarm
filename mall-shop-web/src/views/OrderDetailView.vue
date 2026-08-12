@@ -217,6 +217,7 @@
           <button v-if="order.status === 0" class="btn primary" :disabled="acting" @click="pay">立即支付</button>
           <button v-if="order.status === 2" class="btn primary" :disabled="acting" @click="requestOrderConfirmation('receive-order')">确认收货</button>
         </div>
+        <p v-if="afterSaleWindowLabel" class="line-sub">售后入口期限：{{ afterSaleWindowLabel }}；具体截止时间以订单状态和商城规则为准。</p>
         <p v-if="error" style="color: var(--coral); line-height: 1.6">{{ error }}</p>
       </aside>
     </div>
@@ -340,12 +341,19 @@ const logisticsStatusDescription = computed(() => {
 const afterSales = computed(() => detail.value.afterSales || [])
 const displayConfig = computed(() => detail.value.displayConfig || {})
 const showPv = computed(() => Number(displayConfig.value.showPv || 0) === 1)
+const afterSaleWindowLabel = computed(() => detail.value.afterSaleWindowLabel || '')
 const afterSaleDeadline = computed(() => {
+  const configured = Date.parse(String(detail.value.afterSaleDeadline || '').replace(' ', 'T'))
+  if (Number.isFinite(configured)) return configured
+  if (detail.value.afterSaleWindowMode === 'RECEIVED') return Number.POSITIVE_INFINITY
   const created = Date.parse(String(order.value?.createTime || '').replace(' ', 'T'))
-  return Number.isFinite(created) ? created + 7 * 24 * 60 * 60 * 1000 : Number.POSITIVE_INFINITY
+  return Number.isFinite(created)
+    ? created + Number(detail.value.afterSaleWindowDays ?? 7) * 24 * 60 * 60 * 1000
+    : Number.POSITIVE_INFINITY
 })
 const canApplyAfterSale = computed(() => {
   if (!order.value) return false
+  if (detail.value.afterSaleSelfServiceEnabled === false) return false
   if ([0, 4].includes(order.value.status)) return false
   if (Date.now() >= afterSaleDeadline.value) return false
   if (afterSales.value.some((item) => [0, 4, 5, 6].includes(item.status))) return false
