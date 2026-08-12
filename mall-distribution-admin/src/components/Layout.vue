@@ -127,6 +127,7 @@ import {
   expireAdminSession,
   isAdminSessionExpired,
 } from '@/utils/adminSession'
+import { updateAdminBrowserLogo } from '@/utils/adminBrand'
 
 const route = useRoute()
 const router = useRouter()
@@ -225,6 +226,7 @@ const loadBrand = async () => {
     brand.logoUrl = res.data?.logoUrl || ''
     localStorage.setItem('admin_brand_name', brand.brandName)
     document.title = `${brand.brandName}管理后台`
+    updateAdminBrowserLogo(brand.logoUrl)
   } catch {
     // 品牌读取失败时保留中性默认值，不影响后台使用。
   }

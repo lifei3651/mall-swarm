@@ -92,6 +92,7 @@ import { useAppStore } from '@/store'
 import defaultLogo from '@/assets/logo.svg'
 import lingqiLogo from '@/assets/lingqi-logo-mark.png'
 import { consumeAdminSessionNotice } from '@/utils/adminSession'
+import { updateAdminBrowserLogo } from '@/utils/adminBrand'
 
 const router = useRouter()
 const route = useRoute()
@@ -129,6 +130,7 @@ const loadBrand = async () => {
     brand.logoUrl = res.data?.logoUrl || ''
     localStorage.setItem('admin_brand_name', brand.brandName)
     document.title = `${brand.brandName}管理后台`
+    updateAdminBrowserLogo(brand.logoUrl)
   } catch {
     // 品牌读取失败不阻断管理员登录。
   }
