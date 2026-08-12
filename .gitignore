@@ -4,6 +4,10 @@ dist/
 *.jar
 *.class
 
+# 项目构建启动器必须随仓库保留
+!.mvn/wrapper/maven-wrapper.jar
+!mall-shop-web/android/gradle/wrapper/gradle-wrapper.jar
+
 # 依赖目录
 node_modules/
 
@@ -22,4 +26,5 @@ node_modules/
 .env.*
 !.env.example
 !*.env.example
+!mall-shop-web/.env.android
 .codex/
