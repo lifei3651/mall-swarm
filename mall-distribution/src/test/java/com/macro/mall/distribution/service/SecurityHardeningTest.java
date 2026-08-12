@@ -58,7 +58,7 @@ class SecurityHardeningTest {
         dto.setPassword(password);
         dto.setCaptchaId("captcha-id");
         dto.setCaptchaCode("8A2K");
-        LocalDateTime expectedExpireAfter = LocalDateTime.now().plusDays(7);
+        LocalDateTime expectedExpireAfter = LocalDateTime.now().plusHours(12);
         var result = service.login(dto);
 
         verify(captchaService).verify("admin", "captcha-id", "8A2K");
@@ -73,7 +73,7 @@ class SecurityHardeningTest {
         assertNotEquals(result.getToken(), session.getValue().getToken());
         assertEquals(SecureUtil.sha256(result.getToken()), session.getValue().getToken());
         assertFalse(session.getValue().getExpireTime().isBefore(expectedExpireAfter));
-        assertFalse(session.getValue().getExpireTime().isAfter(LocalDateTime.now().plusDays(7)));
+        assertFalse(session.getValue().getExpireTime().isAfter(LocalDateTime.now().plusHours(12)));
         assertEquals(session.getValue().getExpireTime(), result.getExpireTime());
     }
 

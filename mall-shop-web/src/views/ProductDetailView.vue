@@ -74,9 +74,9 @@
         <div class="quantity-row">
           <strong>购买数量</strong>
           <div class="quantity-control">
-            <button type="button" :disabled="quantity <= 1" @click="decreaseQuantity"><Minus :size="17" /></button>
-            <span>{{ quantity }}</span>
-            <button type="button" :disabled="quantity >= currentStock" @click="increaseQuantity"><Plus :size="17" /></button>
+            <button type="button" aria-label="减少购买数量" :disabled="quantity <= 1" @click="decreaseQuantity"><Minus :size="17" aria-hidden="true" /></button>
+            <span aria-live="polite" :aria-label="`当前购买数量${quantity}件`">{{ quantity }}</span>
+            <button type="button" aria-label="增加购买数量" :disabled="quantity >= currentStock" @click="increaseQuantity"><Plus :size="17" aria-hidden="true" /></button>
           </div>
           <small>库存 {{ currentStock }} 件</small>
           <small v-if="Number(displayProduct.purchaseLimit || 0) > 0" class="purchase-limit-hint">每位会员限购 {{ displayProduct.purchaseLimit }} 件</small>
@@ -258,7 +258,7 @@ const parseObject = (value) => {
 }
 
 const legacyGuarantees = {
-  '七天无理由': { icon: 'return', description: '符合平台规则且商品完好的，可在下单后7天内申请无理由退货。' },
+  '七天无理由': { icon: 'return', description: '符合平台规则且商品完好的，可在商城当前配置的售后期限内申请无理由退货。' },
   '正品保障': { icon: 'shield', description: '严控商品来源与质量，为消费者提供品质保障。' },
   '极速退款': { icon: 'refund', description: '售后审核通过后，平台将尽快完成退款处理。' },
   '破损包赔': { icon: 'package', description: '商品运输途中发生破损，可凭有效凭证申请售后处理。' },

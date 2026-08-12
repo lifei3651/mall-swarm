@@ -123,7 +123,7 @@ class OrderSpreadsheetServiceTest {
             assertEquals(0, sheet.getDataValidations().size());
             assertEquals(0, sheet.getNumMergedRegions());
             assertEquals(FillPatternType.NO_FILL, sheet.getRow(0).getCell(0).getCellStyle().getFillPattern());
-            assertFalse(workbook.getFontAt(sheet.getRow(0).getCell(0).getCellStyle().getFontIndexAsInt()).getBold());
+            assertFalse(workbook.getFontAt(sheet.getRow(0).getCell(0).getCellStyle().getFontIndex()).getBold());
             assertEquals(2048, sheet.getColumnWidth(0));
             assertEquals("订单号", sheet.getRow(0).getCell(0).getStringCellValue());
             assertEquals("L202608021230001234", sheet.getRow(1).getCell(0).getStringCellValue());

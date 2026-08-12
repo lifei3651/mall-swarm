@@ -3,18 +3,19 @@
     <section class="download-card">
       <div class="app-logo">LQ</div>
       <p v-if="registered" class="success-badge">注册成功</p>
-      <h1>{{ registered ? '欢迎加入灵奇商城' : '灵奇商城APP' }}</h1>
-      <p class="lead">安卓测试版已提供下载。登录刚才注册的账号，就能继续购物和查看订单。</p>
+      <h1>{{ registered ? `欢迎加入${brandName}` : `${brandName} APP` }}</h1>
+      <p class="lead">{{ releaseAvailable ? '安卓版已开放下载，安装后可继续购物和查看订单。' : '安卓版仍在内部测试，正式发布前暂不提供公开下载；网页版功能不受影响。' }}</p>
 
-      <button v-if="isAndroidDevice" class="download-btn" type="button" :disabled="loading || !release.downloadUrl" @click="download">
-        {{ loading ? '正在获取版本...' : `下载安卓测试版 ${release.versionName || ''}` }}
+      <button v-if="isAndroidDevice && releaseAvailable" class="download-btn" type="button" :disabled="loading" @click="download">
+        {{ loading ? '正在获取版本...' : `下载安卓版 ${release.versionName || ''}` }}
       </button>
-      <div v-else class="device-tip">
+      <div v-else-if="releaseAvailable" class="device-tip">
         当前不是安卓设备，可复制本页面链接后在安卓手机浏览器中打开。
       </div>
+      <div v-else class="device-tip">当前没有对外发布的安卓版本，请继续使用网页版。</div>
 
       <p v-if="error" class="error-text">{{ error }}</p>
-      <dl v-if="release.versionName" class="release-info">
+      <dl v-if="releaseAvailable && release.versionName" class="release-info">
         <div><dt>版本</dt><dd>{{ release.versionName }}</dd></div>
         <div v-if="release.sha256"><dt>文件校验</dt><dd>{{ shortHash }}</dd></div>
       </dl>
@@ -34,17 +35,21 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, inject, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { fetchAndroidRelease, openAndroidDownload } from '@/utils/appRelease'
 import { hasShopSession } from '@/utils/shopSession'
+import { currentBrandName } from '@/utils/brand'
 
 const route = useRoute()
+const shopBrand = inject('shopBrand', null)
+const brandName = computed(() => shopBrand?.value?.brandName || currentBrandName())
 const registered = computed(() => route.query.registered === '1')
 const isAndroidDevice = /Android/i.test(navigator.userAgent)
 const loading = ref(true)
 const error = ref('')
-const release = ref({ versionCode: 0, versionName: '', downloadUrl: '', sha256: '' })
+const release = ref({ versionCode: 0, versionName: '', downloadUrl: '', sha256: '', published: false })
+const releaseAvailable = computed(() => release.value.published === true && Boolean(release.value.downloadUrl))
 const continuePath = computed(() => hasShopSession() ? '/profile' : '/')
 const shortHash = computed(() => release.value.sha256
   ? `${release.value.sha256.slice(0, 12)}…${release.value.sha256.slice(-12)}`

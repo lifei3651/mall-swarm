@@ -256,7 +256,7 @@ const trustItems = computed(() => {
   const items = [
     { title: '账户资金安全', description: '独立支付密码保护' },
     { title: '订单全程可查', description: '状态与物流及时同步' },
-    { title: '售后保障', description: '下单后7天内可申请售后' },
+    { title: '售后保障', description: '售后期限以商城规则和订单提示为准' },
     { title: '专属客服', description: config.servicePhone || '遇到问题随时咨询' },
   ]
   if (config.companyName) {

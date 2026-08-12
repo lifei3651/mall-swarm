@@ -5,6 +5,7 @@ import com.macro.mall.distribution.controller.AdminAuthController;
 import com.macro.mall.distribution.dto.AdminLoginDTO;
 import com.macro.mall.distribution.service.PayloadEncryptionService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.junit.jupiter.api.Test;
@@ -68,12 +69,13 @@ class EncryptedPayloadEnforcementAspectTest {
     }
 
     private JoinPoint adminLoginJoinPoint(AdminLoginDTO dto) throws Exception {
-        Method method = AdminAuthController.class.getMethod("login", AdminLoginDTO.class);
+        Method method = AdminAuthController.class.getMethod(
+                "login", AdminLoginDTO.class, HttpServletRequest.class, HttpServletResponse.class);
         MethodSignature signature = mock(MethodSignature.class);
         when(signature.getMethod()).thenReturn(method);
         JoinPoint joinPoint = mock(JoinPoint.class);
         when(joinPoint.getSignature()).thenReturn(signature);
-        when(joinPoint.getArgs()).thenReturn(new Object[]{dto});
+        when(joinPoint.getArgs()).thenReturn(new Object[]{dto, null, null});
         return joinPoint;
     }
 }

@@ -4,6 +4,8 @@
   "downloadUrl": "https://lingqimall.com/downloads/lingqimall-android-1.3-test.apk",
   "sha256": "0ab9b8a888f256bd40e6c26d078e6298ccbe80fc6ac67ae581ddca17e60cb7e0",
   "required": false,
+  "published": false,
+  "channel": "internal-test",
   "notes": [
     "同步商城、结算页和会员中心的最新优化",
     "支付、提现及密码验证码固定发送到账号绑定手机号",

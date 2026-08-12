@@ -4,11 +4,16 @@ import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import path from 'path'
+import { fileURLToPath } from 'node:url'
+import { createVersionManifestPlugin } from '../scripts/vite-version-manifest.mjs'
+
+const repoRoot = fileURLToPath(new URL('..', import.meta.url))
 
 export default defineConfig({
   base: process.env.VITE_BASE || '/admin/',
   plugins: [
     vue(),
+    createVersionManifestPlugin({ repoRoot, application: 'admin' }),
     AutoImport({
       resolvers: [ElementPlusResolver()],
     }),
@@ -22,6 +27,8 @@ export default defineConfig({
     },
   },
   build: {
+    // ECharts is loaded only when a chart page is opened; its isolated async chunk is intentionally below this ceiling.
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         manualChunks(id) {

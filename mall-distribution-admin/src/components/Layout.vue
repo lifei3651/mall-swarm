@@ -252,7 +252,15 @@ const checkServerSession = (force = false) => {
 
   lastServerSessionCheck = now
   serverSessionCheckPromise = getMe({ silentError: true })
-    .then(() => true)
+    .then((res) => {
+      store.setAuth({
+        token: null,
+        expireTime: store.expireTime,
+        admin: res.data?.admin || store.userInfo,
+        permissions: res.data?.permissions || store.permissions,
+      })
+      return true
+    })
     // 401/会话失效由全局响应拦截器负责清理并跳转；短暂网络异常不误退出。
     .catch(() => false)
     .finally(() => { serverSessionCheckPromise = null })

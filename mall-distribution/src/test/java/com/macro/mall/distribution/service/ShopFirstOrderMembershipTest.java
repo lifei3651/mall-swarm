@@ -3,6 +3,7 @@ package com.macro.mall.distribution.service;
 import com.macro.mall.distribution.dao.*;
 import com.macro.mall.distribution.entity.*;
 import com.macro.mall.distribution.service.impl.ShopServiceImpl;
+import com.macro.mall.distribution.service.impl.ShopAfterSaleWindowPolicy;
 import com.macro.mall.distribution.vo.AgentInfoVO;
 import com.macro.mall.distribution.vo.OrderFinanceDetailVO;
 import org.junit.jupiter.api.Test;
@@ -45,6 +46,7 @@ class ShopFirstOrderMembershipTest {
     @Mock private OrderRelationSnapshotService relationSnapshotService;
     @Mock private ShopAuthService authService;
     @Mock private ErpIntegrationService erpIntegrationService;
+    @Mock private ShopAfterSaleWindowPolicy afterSaleWindowPolicy;
     @InjectMocks private ShopServiceImpl shopService;
 
     @Test
@@ -73,6 +75,8 @@ class ShopFirstOrderMembershipTest {
         when(agentDao.selectByUserId(80001L)).thenReturn(agent);
         when(auditService.getOrderFinanceDetail(90001L)).thenReturn(new OrderFinanceDetailVO());
         when(afterSaleDao.selectByOrderId(90001L)).thenReturn(List.of());
+        when(afterSaleWindowPolicy.resolve(1L))
+                .thenReturn(new ShopAfterSaleWindowPolicy.Window(ShopAfterSaleWindowPolicy.MODE_RECEIVED, 7));
 
         shopService.markOrderPaid(90001L, "ALIPAY");
 

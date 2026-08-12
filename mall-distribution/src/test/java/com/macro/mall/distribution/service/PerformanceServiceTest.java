@@ -362,10 +362,7 @@ public class PerformanceServiceTest {
                 LocalDateTime.now().minusDays(6), paid.getOrder().getId());
         assertEquals(0, commissionSettlementService.settleEligibleAfterCoolingOff(100));
 
-        // 确认收货满7天后，待处理售后仍会阻止结算。
-        jdbcTemplate.update("UPDATE dms_shop_order SET receive_time=? WHERE id=?",
-                LocalDateTime.now().minusDays(8), paid.getOrder().getId());
-
+        // 在签收后7天入口关闭前提交售后，之后即使已满7天，待处理售后仍会阻止结算。
         ShopAfterSaleItemDTO pendingItem = new ShopAfterSaleItemDTO();
         pendingItem.setOrderItemId(paid.getItems().get(0).getId());
         pendingItem.setQuantity(1);
@@ -374,6 +371,8 @@ public class PerformanceServiceTest {
         pendingApply.setItems(List.of(pendingItem));
         pendingApply.setReason("验证待处理售后阻止T+7结算");
         shopAfterSaleService.apply(buyer, pendingApply);
+        jdbcTemplate.update("UPDATE dms_shop_order SET receive_time=? WHERE id=?",
+                LocalDateTime.now().minusDays(8), paid.getOrder().getId());
         assertEquals(0, commissionSettlementService.settleEligibleAfterCoolingOff(100));
 
         jdbcTemplate.update("UPDATE dms_shop_after_sale SET status=2 WHERE order_id=?",
@@ -433,7 +432,8 @@ public class PerformanceServiceTest {
     }
 
     @Test
-    void frontAfterSaleClosesSevenDaysAfterOrderCreationButAdminCanRefundByQuantity() {
+    void legacyOrderCreatedWindowClosesAfterSevenDaysButAdminCanRefundByQuantity() {
+        jdbcTemplate.update("UPDATE dms_tenant SET after_sale_window_mode='ORDER_CREATED', after_sale_window_days=7 WHERE id=1");
         DmsShopMember buyer = createShopMember("13999000035", "超期售后测试", null);
         ShopOrderVO paid = submitAndPay(buyer, 2);
         // 同一事务内 MyBatis 可能复用一级缓存；同步更新已加载对象，模拟已过期订单。
@@ -522,16 +522,13 @@ public class PerformanceServiceTest {
         ShopAfterSaleItemDTO refundItem = new ShopAfterSaleItemDTO();
         refundItem.setOrderItemId(paid.getItems().get(0).getId());
         refundItem.setQuantity(1);
-        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
-        apply.setOrderId(paid.getOrder().getId());
-        apply.setItems(List.of(refundItem));
-        apply.setReason("资金归集部分退款");
-        DmsShopAfterSale afterSale = shopAfterSaleService.apply(buyer, apply);
-        ShopAfterSaleAuditDTO audit = new ShopAfterSaleAuditDTO();
-        audit.setStatus(1);
-        audit.setAuditUserId(1L);
-        audit.setAuditUserName("test-admin");
-        shopAfterSaleService.audit(afterSale.getId(), audit);
+        ShopManualRefundDTO manualRefund = new ShopManualRefundDTO();
+        manualRefund.setRefundMode("QUANTITY");
+        manualRefund.setItems(List.of(refundItem));
+        manualRefund.setReason("签收窗口关闭后的后台资金归集部分退款");
+        manualRefund.setOperatorId(1L);
+        manualRefund.setOperatorName("test-admin");
+        shopAfterSaleService.manualRefund(paid.getOrder().getId(), manualRefund);
 
         assertAmountEquals("-181.00", memberAssetService.listAccounts(1L, null).get(0).getBalance());
         assertAmountEquals("-118.00", memberAssetService.listAccounts(5L, null).get(0).getBalance());

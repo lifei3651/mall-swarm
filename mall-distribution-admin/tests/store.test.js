@@ -21,7 +21,7 @@ describe('useAppStore', () => {
     setActivePinia(createPinia())
   })
 
-  it('setAuth writes all pieces atomically to state and localStorage', () => {
+  it('setAuth keeps only a non-secret cookie-session marker in localStorage', () => {
     const store = useAppStore()
     store.setAuth({
       token: 'test-bearer-token',
@@ -30,12 +30,13 @@ describe('useAppStore', () => {
       permissions: ['admin:read', 'shop:product'],
     })
 
-    expect(store.token).toBe('test-bearer-token')
+    expect(store.token).toBe('cookie-session')
     expect(store.expireTime).toBe('2099-01-01T00:00:00')
     expect(store.userInfo.username).toBe('admin')
     expect(store.userInfo.nickname).toBe('管理员')
     expect(store.permissions).toEqual(['admin:read', 'shop:product'])
-    expect(localStorage.getItem('token')).toBe('test-bearer-token')
+    expect(localStorage.getItem('token')).toBeNull()
+    expect(localStorage.getItem('admin_session_present')).toBe('1')
   })
 
   it('hasPermission returns true for wildcard *', () => {
@@ -94,7 +95,7 @@ describe('useAppStore', () => {
     expect(store.userInfo.username).toBe('')
   })
 
-  it('token persisted via setAuth survives store re-creation', () => {
+  it('cookie-session marker persists without exposing the bearer token', () => {
     const store = useAppStore()
     store.setAuth({
       token: 'surviving-token',
@@ -103,7 +104,8 @@ describe('useAppStore', () => {
       permissions: ['admin:read'],
     })
     // After setAuth, localStorage should have the values
-    expect(localStorage.getItem('token')).toBe('surviving-token')
+    expect(localStorage.getItem('token')).toBeNull()
+    expect(localStorage.getItem('admin_session_present')).toBe('1')
     expect(localStorage.getItem('permissions')).toBe('["admin:read"]')
   })
 })

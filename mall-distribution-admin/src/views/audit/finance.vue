@@ -142,7 +142,6 @@
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import echarts from '@/utils/echarts'
 import {
   exportFinanceDailySummary,
   getCompanyShareSummary,
@@ -165,6 +164,11 @@ const riskAlerts = ref([])
 const riskRules = ref([])
 const chartRef = ref(null)
 let chartInstance = null
+let echarts
+const ensureEcharts = async () => {
+  echarts ||= (await import('@/utils/echarts')).default
+  return echarts
+}
 
 const fetchSummary = async () => {
   if (range.value === 'custom' && (!customDates.value || customDates.value.length !== 2)) {
@@ -238,7 +242,8 @@ const submitRiskRule = async (row) => {
 const money = (value) => Number(value || 0).toFixed(2)
 const percent = (value) => `${(Number(value || 0) * 100).toFixed(2)}%`
 
-const renderChart = () => {
+const renderChart = async () => {
+  await ensureEcharts()
   if (!chartRef.value) {
     return
   }

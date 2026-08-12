@@ -16,7 +16,8 @@ export const useAppStore = defineStore('app', () => {
   })
 
   // Token
-  const token = ref(localStorage.getItem('token') || '')
+  const legacyToken = localStorage.getItem('token') || ''
+  const token = ref(legacyToken || (localStorage.getItem('admin_session_present') === '1' ? 'cookie-session' : ''))
   const expireTime = ref(localStorage.getItem('admin_session_expire_time') || '')
   const permissions = ref(JSON.parse(localStorage.getItem('permissions') || '[]'))
   const cachedUser = localStorage.getItem('userInfo')
@@ -30,9 +31,10 @@ export const useAppStore = defineStore('app', () => {
   }
 
   // 设置Token
-  const setToken = (newToken) => {
-    token.value = newToken
-    localStorage.setItem('token', newToken)
+  const setToken = () => {
+    token.value = 'cookie-session'
+    localStorage.setItem('admin_session_present', '1')
+    localStorage.removeItem('token')
   }
 
   const setExpireTime = (value) => {

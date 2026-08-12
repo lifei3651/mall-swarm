@@ -33,9 +33,9 @@ public class AdminAuthServiceImpl implements AdminAuthService {
     private final DmsAdminSessionDao adminSessionDao;
     private final LoginCaptchaService loginCaptchaService;
 
-    /** 管理后台会话绝对有效期，默认7天；生产环境可通过 ADMIN_SESSION_DAYS 调整。 */
-    @Value("${admin.security.session-days:7}")
-    private long sessionDays = 7;
+    /** 管理后台绝对会话默认12小时，避免资金后台长期保持登录。 */
+    @Value("${admin.security.session-hours:12}")
+    private long sessionHours = 12;
 
     @Override
     // 不包裹外层事务：密码错误时失败次数必须在抛出异常前独立提交，不能随异常回滚。
@@ -172,7 +172,7 @@ public class AdminAuthServiceImpl implements AdminAuthService {
         String rawToken = IdUtil.fastSimpleUUID() + IdUtil.fastSimpleUUID();
         session.setToken(hashToken(rawToken));
         session.setStatus(1);
-        session.setExpireTime(LocalDateTime.now().plusDays(sessionDays));
+        session.setExpireTime(LocalDateTime.now().plusHours(Math.max(1, sessionHours)));
         adminSessionDao.insert(session);
 
         AdminAuthVO vo = new AdminAuthVO();

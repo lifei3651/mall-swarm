@@ -8,11 +8,15 @@ export const connectAdminOrderRealtime = ({ onEvent, onStatus } = {}) => {
     while (!stopped) {
       controller = new AbortController()
       try {
-        const token = localStorage.getItem('token')
-        if (!token) throw new Error('NO_SESSION')
+        const legacyToken = localStorage.getItem('token')
+        const hasSession = Boolean(legacyToken || localStorage.getItem('admin_session_present') === '1')
+        if (!hasSession) throw new Error('NO_SESSION')
+        const headers = { Accept: 'text/event-stream', 'X-Admin-Client': 'admin-web' }
+        if (legacyToken) headers.Authorization = `Bearer ${legacyToken}`
         const response = await fetch('/api/shop/admin/events/orders', {
           signal: controller.signal,
-          headers: { Accept: 'text/event-stream', Authorization: `Bearer ${token}` },
+          credentials: 'same-origin',
+          headers,
         })
         if (!response.ok || !response.body) throw new Error(`SSE ${response.status}`)
         onStatus?.(true)

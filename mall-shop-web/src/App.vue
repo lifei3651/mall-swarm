@@ -40,6 +40,7 @@
       <nav class="footer-links" aria-label="商城服务信息">
         <RouterLink to="/legal/after-sale">交易与售后</RouterLink>
         <RouterLink to="/legal/contact">联系客服</RouterLink>
+        <RouterLink to="/legal/license">经营资质</RouterLink>
         <RouterLink to="/legal/agreement">用户协议</RouterLink>
         <RouterLink to="/legal/privacy">隐私政策</RouterLink>
       </nav>
@@ -66,7 +67,7 @@
     <div v-if="availableRelease" class="update-overlay" @click.self="dismissUpdate">
       <section class="update-dialog" role="dialog" aria-modal="true" aria-labelledby="update-title">
         <span class="update-badge">发现新版本</span>
-        <h2 id="update-title">灵奇商城 {{ availableRelease.versionName }}</h2>
+        <h2 id="update-title">{{ brand.brandName }} {{ availableRelease.versionName }}</h2>
         <p>当前版本 {{ currentAndroidVersionName || currentAndroidVersionCode }}，建议下载新安装包后覆盖安装。</p>
         <ul v-if="availableRelease.notes.length">
           <li v-for="note in availableRelease.notes" :key="note">{{ note }}</li>

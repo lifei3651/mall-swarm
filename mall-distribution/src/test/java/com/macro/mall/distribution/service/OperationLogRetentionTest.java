@@ -24,7 +24,8 @@ class OperationLogRetentionTest {
         OperationLogServiceImpl service = new OperationLogServiceImpl(dao);
         ReflectionTestUtils.setField(service, "configuredRetentionDays", 30);
         when(dao.selectIdsBefore(any(LocalDateTime.class), eq(100)))
-                .thenReturn(List.of(1L, 2L), List.of());
+                .thenReturn(List.of(1L, 2L))
+                .thenReturn(List.of());
         when(dao.deleteByIds(List.of(1L, 2L))).thenReturn(2);
 
         int deleted = service.cleanupExpiredLogs(20, 10);

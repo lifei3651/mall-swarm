@@ -65,6 +65,8 @@ CREATE TABLE IF NOT EXISTS dms_tenant (
   user_agreement CLOB,
   privacy_policy CLOB,
   after_sale_policy CLOB,
+  after_sale_window_mode VARCHAR(32) NOT NULL DEFAULT 'RECEIVED',
+  after_sale_window_days INT NOT NULL DEFAULT 7,
   faqs CLOB,
   status INT NOT NULL DEFAULT 1,
   remark VARCHAR(256),

@@ -67,8 +67,8 @@ logging:
 
 admin:
   security:
-    # 默认7天；如确需调整，只通过服务器环境变量覆盖，不写入前端。
-    session-days: ${ADMIN_SESSION_DAYS:7}
+    # 默认12小时；如确需调整，只通过服务器环境变量覆盖，不写入前端。
+    session-hours: ${ADMIN_SESSION_HOURS:12}
 
 sa-token:
   token-name: Authorization
@@ -110,7 +110,6 @@ shop:
   order:
     pending-timeout-minutes: ${ORDER_PENDING_TIMEOUT_MINUTES:30}
     pending-scan-interval-ms: ${ORDER_PENDING_SCAN_INTERVAL_MS:60000}
-    after-sale-window-days: ${ORDER_AFTER_SALE_WINDOW_DAYS:7}
 payment:
   verification:
     enabled: ${PAYMENT_LARGE_AMOUNT_VERIFY_ENABLED:false}

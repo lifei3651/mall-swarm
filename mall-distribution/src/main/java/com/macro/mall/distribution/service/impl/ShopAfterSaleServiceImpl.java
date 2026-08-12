@@ -72,11 +72,9 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     private final MemberAssetService memberAssetService;
     private final OrderBalanceAllocationService orderBalanceAllocationService;
     private final AlipayService alipayService;
+    private final ShopAfterSaleWindowPolicy afterSaleWindowPolicy;
     @Autowired(required = false)
     private OrderRealtimeService orderRealtimeService;
-
-    @Value("${shop.order.after-sale-window-days:7}")
-    private long afterSaleWindowDays;
 
     @Value("${shop.payment.simulation-enabled:false}")
     private boolean simulationPaymentEnabled;
@@ -419,10 +417,9 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     }
 
     private void assertWithinAfterSaleWindow(DmsShopOrder order) {
-        if (order.getCreateTime() == null) return;
-        long days = Math.max(1, afterSaleWindowDays);
-        if (!LocalDateTime.now().isBefore(order.getCreateTime().plusDays(days))) {
-            Asserts.fail("订单已超过下单后" + days + "天售后期限，请联系商城客服由后台处理");
+        ShopAfterSaleWindowPolicy.Window window = afterSaleWindowPolicy.resolve(order.getTenantId());
+        if (afterSaleWindowPolicy.isExpired(order, LocalDateTime.now(), window)) {
+            Asserts.fail("订单已超过" + afterSaleWindowPolicy.label(window) + "售后期限，请联系商城客服由后台处理");
         }
     }
 

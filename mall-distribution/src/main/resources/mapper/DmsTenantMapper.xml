@@ -24,6 +24,8 @@
         <result column="user_agreement" property="userAgreement"/>
         <result column="privacy_policy" property="privacyPolicy"/>
         <result column="after_sale_policy" property="afterSalePolicy"/>
+        <result column="after_sale_window_mode" property="afterSaleWindowMode"/>
+        <result column="after_sale_window_days" property="afterSaleWindowDays"/>
         <result column="faqs" property="faqs"/>
         <result column="status" property="status"/>
         <result column="remark" property="remark"/>
@@ -36,7 +38,7 @@
                company_address, unified_social_credit_code, service_phone, service_email, service_hours,
                third_party_services, icp_number, police_record_number,
                police_record_url, business_license_url, show_business_license,
-               user_agreement, privacy_policy, after_sale_policy, faqs,
+               user_agreement, privacy_policy, after_sale_policy, after_sale_window_mode, after_sale_window_days, faqs,
                status, remark, create_time, update_time
         FROM dms_tenant
         WHERE id = #{id}
@@ -47,7 +49,7 @@
                company_address, unified_social_credit_code, service_phone, service_email, service_hours,
                third_party_services, icp_number, police_record_number,
                police_record_url, business_license_url, show_business_license,
-               user_agreement, privacy_policy, after_sale_policy, faqs,
+               user_agreement, privacy_policy, after_sale_policy, after_sale_window_mode, after_sale_window_days, faqs,
                status, remark, create_time, update_time
         FROM dms_tenant
         WHERE tenant_code = #{tenantCode}
@@ -58,7 +60,7 @@
                company_address, unified_social_credit_code, service_phone, service_email, service_hours,
                third_party_services, icp_number, police_record_number,
                police_record_url, business_license_url, show_business_license,
-               user_agreement, privacy_policy, after_sale_policy, faqs,
+               user_agreement, privacy_policy, after_sale_policy, after_sale_window_mode, after_sale_window_days, faqs,
                status, remark, create_time, update_time
         FROM dms_tenant
         ORDER BY create_time DESC
@@ -69,12 +71,12 @@
             company_address, unified_social_credit_code, service_phone, service_email, service_hours,
             third_party_services, icp_number, police_record_number, police_record_url,
             business_license_url, show_business_license, user_agreement, privacy_policy, after_sale_policy,
-            faqs, status, remark)
+            after_sale_window_mode, after_sale_window_days, faqs, status, remark)
         VALUES (#{tenantCode}, #{tenantName}, #{brandName}, #{logoUrl}, #{themeColor}, #{productTemplate},
             #{companyAddress}, #{unifiedSocialCreditCode}, #{servicePhone}, #{serviceEmail}, #{serviceHours},
             #{thirdPartyServices}, #{icpNumber}, #{policeRecordNumber}, #{policeRecordUrl},
             #{businessLicenseUrl}, #{showBusinessLicense}, #{userAgreement}, #{privacyPolicy}, #{afterSalePolicy},
-            #{faqs}, #{status}, #{remark})
+            #{afterSaleWindowMode}, #{afterSaleWindowDays}, #{faqs}, #{status}, #{remark})
     </insert>
 
     <update id="update" parameterType="com.macro.mall.distribution.entity.DmsTenant">
@@ -87,7 +89,8 @@
             icp_number = #{icpNumber}, police_record_number = #{policeRecordNumber}, police_record_url = #{policeRecordUrl},
             business_license_url = #{businessLicenseUrl}, show_business_license = #{showBusinessLicense},
             user_agreement = #{userAgreement}, privacy_policy = #{privacyPolicy},
-            after_sale_policy = #{afterSalePolicy}, faqs = #{faqs},
+            after_sale_policy = #{afterSalePolicy}, after_sale_window_mode = #{afterSaleWindowMode},
+            after_sale_window_days = #{afterSaleWindowDays}, faqs = #{faqs},
             status = #{status}, remark = #{remark}, update_time = NOW()
         WHERE id = #{id}
     </update>

@@ -202,7 +202,6 @@ import {
   Wallet,
   WarningFilled,
 } from '@element-plus/icons-vue'
-import echarts from '@/utils/echarts'
 import { exportDashboard, getDashboard } from '@/api/dashboard'
 import { getAdminOrderWorkSummary } from '@/api/shop'
 import { useAppStore } from '@/store'
@@ -220,6 +219,11 @@ const metricChartRefs = []
 let salesTrendChartInstance
 let financeChartInstance
 let metricChartInstances = []
+let echarts
+const ensureEcharts = async () => {
+  echarts ||= (await import('@/utils/echarts')).default
+  return echarts
+}
 
 const money = (value) => Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const count = (value) => Number(value || 0).toLocaleString('zh-CN')
@@ -314,7 +318,8 @@ const renderMetricCharts = () => {
   })
 }
 
-const renderCharts = () => {
+const renderCharts = async () => {
+  await ensureEcharts()
   if (salesTrendChart.value) {
     salesTrendChartInstance?.dispose()
     salesTrendChartInstance = echarts.init(salesTrendChart.value)

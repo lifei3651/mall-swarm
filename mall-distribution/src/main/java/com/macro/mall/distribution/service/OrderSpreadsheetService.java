@@ -76,7 +76,6 @@ public class OrderSpreadsheetService {
                 }
             }
             workbook.write(outputStream);
-            workbook.dispose();
         }
     }
 
