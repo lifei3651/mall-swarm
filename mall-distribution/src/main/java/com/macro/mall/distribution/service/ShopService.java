@@ -20,6 +20,7 @@ import com.macro.mall.distribution.vo.ShopProductDetailVO;
 import com.macro.mall.distribution.vo.ShopProfileVO;
 import com.macro.mall.distribution.vo.FreightQuoteVO;
 import com.macro.mall.distribution.vo.PurchaseLimitCheckVO;
+import com.macro.mall.distribution.vo.ShopBusinessConfigVO;
 
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,16 @@ public interface ShopService {
     CommonPage<DmsShopProduct> listProductPage(Long tenantId, String keyword, String categoryName,
                                                Integer status, String stockStatus,
                                                Integer pageNum, Integer pageSize);
+
+    CommonPage<DmsShopProduct> listAdminProductPage(Long tenantId, String keyword, String categoryName,
+                                                    Integer status, String stockStatus,
+                                                    Integer pageNum, Integer pageSize);
+
+    ShopBusinessConfigVO getBusinessConfig(DmsShopMember member);
+
+    List<DmsShopProduct> listRepurchaseProducts(String keyword, DmsShopMember member);
+
+    ShopProductDetailVO getRepurchaseProductDetail(Long id, DmsShopMember member);
 
     List<String> listCategories(Long tenantId);
 
@@ -105,6 +116,9 @@ public interface ShopService {
     ShopOrderVO submitOrder(ShopOrderSubmitDTO dto);
 
     ShopOrderVO submitOrder(ShopOrderSubmitDTO dto, DmsShopMember member);
+
+    /** 仅供秒杀资格与活动库存已原子占用后的内部下单链路调用。 */
+    ShopOrderVO submitReservedFlashSaleOrder(ShopOrderSubmitDTO dto, DmsShopMember member);
 
     ShopOrderVO getOrder(Long orderId);
 

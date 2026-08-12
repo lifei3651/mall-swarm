@@ -19,6 +19,11 @@
         <result column="stock" property="stock"/>
         <result column="safety_stock" property="safetyStock"/>
         <result column="purchase_limit" property="purchaseLimit"/>
+        <result column="normal_sale_enabled" property="normalSaleEnabled"/>
+        <result column="repurchase_sale_enabled" property="repurchaseSaleEnabled"/>
+        <result column="repurchase_price" property="repurchasePrice"/>
+        <result column="repurchase_pv" property="repurchasePv"/>
+        <result column="repurchase_purchase_limit" property="repurchasePurchaseLimit"/>
         <result column="sales_count" property="salesCount"/>
         <result column="sort_order" property="sort"/>
         <result column="status" property="status"/>
@@ -44,7 +49,8 @@
 
     <sql id="Base_Column_List">
         id, tenant_id, product_no, product_name, subtitle, category_name, cover_url, gallery_urls,
-        sale_price, market_price, cost_amount, pv_value, bv_value, stock, safety_stock, purchase_limit, sales_count,
+        sale_price, market_price, cost_amount, pv_value, bv_value, stock, safety_stock, purchase_limit,
+        normal_sale_enabled, repurchase_sale_enabled, repurchase_price, repurchase_pv, repurchase_purchase_limit, sales_count,
         sort_order, status, detail, detail_images, delivery_address, delivery_province, delivery_city, delivery_district, shipping_address_id, return_address_id,
         freight_type, freight_amount, free_shipping_amount, freight_template_name, freight_template_id,
         delivery_time, after_sale_policy, service_tags, create_time, update_time
@@ -54,6 +60,43 @@
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_product
         WHERE id = #{id}
+    </select>
+
+    <select id="selectFrontList" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_product
+        <where>
+            normal_sale_enabled = 1
+            <if test="tenantId != null">AND tenant_id = #{tenantId}</if>
+            <if test="status != null">AND status = #{status}</if>
+            <if test="categoryName != null and categoryName != ''">AND category_name = #{categoryName}</if>
+            <if test="keyword != null and keyword != ''">
+                AND (product_name LIKE CONCAT('%', #{keyword}, '%') OR subtitle LIKE CONCAT('%', #{keyword}, '%') OR product_no LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="stockStatus == 'OUT'">
+                AND (stock &lt;= 0 OR EXISTS (SELECT 1 FROM dms_shop_sku sku WHERE sku.product_id=dms_shop_product.id AND sku.status=1 AND sku.stock &lt;= 0))
+            </if>
+            <if test="stockStatus == 'LOW'">
+                AND ((stock &gt; 0 AND stock &lt;= safety_stock) OR EXISTS (SELECT 1 FROM dms_shop_sku sku WHERE sku.product_id=dms_shop_product.id AND sku.status=1 AND sku.stock &gt; 0 AND sku.stock &lt;= COALESCE(NULLIF(sku.safety_stock,0),dms_shop_product.safety_stock)))
+            </if>
+            <if test="stockStatus == 'NORMAL'">
+                AND stock &gt; safety_stock AND NOT EXISTS (SELECT 1 FROM dms_shop_sku sku WHERE sku.product_id=dms_shop_product.id AND sku.status=1 AND sku.stock &lt;= COALESCE(NULLIF(sku.safety_stock,0),dms_shop_product.safety_stock))
+            </if>
+        </where>
+        ORDER BY status DESC, sort_order DESC, id DESC
+    </select>
+
+    <select id="selectRepurchaseList" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_product
+        WHERE tenant_id = #{tenantId}
+          AND status = 1
+          AND repurchase_sale_enabled = 1
+          AND repurchase_price &gt; 0
+        <if test="keyword != null and keyword != ''">
+          AND (product_name LIKE CONCAT('%', #{keyword}, '%') OR subtitle LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY sort_order DESC, id DESC
     </select>
 
     <select id="selectList" resultMap="BaseResultMap">
@@ -107,7 +150,7 @@
     <select id="selectCategories" resultType="java.lang.String">
         SELECT DISTINCT category_name
         FROM dms_shop_product
-        WHERE status = 1
+        WHERE status = 1 AND normal_sale_enabled = 1
         <if test="tenantId != null">
             AND tenant_id = #{tenantId}
         </if>
@@ -119,13 +162,17 @@
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopProduct" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_shop_product
         (tenant_id, product_no, product_name, subtitle, category_name, cover_url, gallery_urls, sale_price,
-         market_price, cost_amount, pv_value, bv_value, stock, safety_stock, purchase_limit, sales_count, sort_order, status, detail, detail_images,
+         market_price, cost_amount, pv_value, bv_value, stock, safety_stock, purchase_limit,
+         normal_sale_enabled, repurchase_sale_enabled, repurchase_price, repurchase_pv, repurchase_purchase_limit,
+         sales_count, sort_order, status, detail, detail_images,
          delivery_address, delivery_province, delivery_city, delivery_district, shipping_address_id, return_address_id,
          freight_type, freight_amount, free_shipping_amount, freight_template_name, freight_template_id,
          delivery_time, after_sale_policy, service_tags)
         VALUES
         (#{tenantId}, #{productNo}, #{productName}, #{subtitle}, #{categoryName}, #{coverUrl}, #{galleryUrls}, #{salePrice},
-         #{marketPrice}, #{costAmount}, #{pvValue}, #{bvValue}, #{stock}, #{safetyStock}, #{purchaseLimit}, #{salesCount}, #{sort}, #{status}, #{detail}, #{detailImages},
+         #{marketPrice}, #{costAmount}, #{pvValue}, #{bvValue}, #{stock}, #{safetyStock}, #{purchaseLimit},
+         #{normalSaleEnabled}, #{repurchaseSaleEnabled}, #{repurchasePrice}, #{repurchasePv}, #{repurchasePurchaseLimit},
+         #{salesCount}, #{sort}, #{status}, #{detail}, #{detailImages},
          #{deliveryAddress}, #{deliveryProvince}, #{deliveryCity}, #{deliveryDistrict}, #{shippingAddressId}, #{returnAddressId},
          #{freightType}, #{freightAmount}, #{freeShippingAmount}, #{freightTemplateName}, #{freightTemplateId},
          #{deliveryTime}, #{afterSalePolicy}, #{serviceTags})
@@ -148,6 +195,11 @@
             stock = #{stock},
             safety_stock = #{safetyStock},
             purchase_limit = #{purchaseLimit},
+            normal_sale_enabled = #{normalSaleEnabled},
+            repurchase_sale_enabled = #{repurchaseSaleEnabled},
+            repurchase_price = #{repurchasePrice},
+            repurchase_pv = #{repurchasePv},
+            repurchase_purchase_limit = #{repurchasePurchaseLimit},
             sales_count = #{salesCount},
             sort_order = #{sort},
             status = #{status},

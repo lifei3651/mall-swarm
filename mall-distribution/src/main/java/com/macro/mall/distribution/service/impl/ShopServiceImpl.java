@@ -9,6 +9,7 @@ import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.common.api.CommonPage;
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.dao.*;
+import com.macro.mall.distribution.constants.ShopBusinessType;
 import com.macro.mall.distribution.dto.OrderFinanceDTO;
 import com.macro.mall.distribution.dto.ShopOrderItemDTO;
 import com.macro.mall.distribution.dto.ShopOrderShipDTO;
@@ -25,6 +26,8 @@ import com.macro.mall.distribution.service.PerformanceService;
 import com.macro.mall.distribution.service.PaymentVerificationService;
 import com.macro.mall.distribution.service.ShopService;
 import com.macro.mall.distribution.service.ShopCatalogCacheService;
+import com.macro.mall.distribution.service.ShopBusinessModeService;
+import com.macro.mall.distribution.service.FlashSaleStockGate;
 import com.macro.mall.distribution.util.ShopOrderNoGenerator;
 import com.macro.mall.distribution.service.ShopAuthService;
 import com.macro.mall.distribution.service.OrderRelationSnapshotService;
@@ -105,6 +108,10 @@ public class ShopServiceImpl implements ShopService {
     private final ObjectMapper objectMapper;
     private final ShopCatalogCacheService catalogCache;
     private final ShopAfterSaleWindowPolicy afterSaleWindowPolicy;
+    private final ShopBusinessModeService businessModeService;
+    private final DmsFlashSaleActivityDao flashSaleActivityDao;
+    private final DmsFlashSaleReservationDao flashSaleReservationDao;
+    private final FlashSaleStockGate flashSaleStockGate;
 
     @Value("${shop.order.pending-timeout-minutes:30}")
     private long pendingOrderTimeoutMinutes;
@@ -139,7 +146,7 @@ public class ShopServiceImpl implements ShopService {
                 : categories.stream().map(DmsShopCategory::getCategoryName).toList());
         vo.setBanners(bannerDao.selectActive(resolvedTenantId));
         vo.setNotices(noticeDao.selectActive(resolvedTenantId));
-        List<DmsShopProduct> featuredProducts = productDao.selectList(resolvedTenantId, null, null, 1, null);
+        List<DmsShopProduct> featuredProducts = productDao.selectFrontList(resolvedTenantId, null, null, 1, null);
         DmsTenantDisplayConfig displayConfig = getDisplayConfig(resolvedTenantId);
         if (!isEnabled(displayConfig.getShowPv())) {
             featuredProducts.forEach(product -> product.setPvValue(ZERO));
@@ -148,12 +155,46 @@ public class ShopServiceImpl implements ShopService {
         vo.setDistributionSettings(auditService.getSettings());
         vo.setDisplayConfig(displayConfig);
         vo.setLegalConfig(ShopLegalConfigVO.from(tenant));
+        vo.setBusinessConfig(businessModeService.config(resolvedTenantId, null));
         return vo;
     }
 
     @Override
     public List<DmsShopProduct> listProducts(Long tenantId, String keyword, String categoryName, Integer status, String stockStatus) {
-        return productDao.selectList(resolveTenantId(tenantId), keyword, categoryName, status, stockStatus);
+        return productDao.selectFrontList(resolveTenantId(tenantId), keyword, categoryName, status, stockStatus);
+    }
+
+    @Override
+    public com.macro.mall.distribution.vo.ShopBusinessConfigVO getBusinessConfig(DmsShopMember member) {
+        return businessModeService.config(resolveTenantId(null), member);
+    }
+
+    @Override
+    public List<DmsShopProduct> listRepurchaseProducts(String keyword, DmsShopMember member) {
+        Long tenantId = resolveTenantId(null);
+        businessModeService.requireEnabled(tenantId, ShopBusinessType.REPURCHASE, member);
+        List<DmsShopProduct> products = productDao.selectRepurchaseList(tenantId, keyword);
+        if (!isPvEnabled(tenantId)) products.forEach(product -> product.setRepurchasePv(ZERO));
+        return products;
+    }
+
+    @Override
+    public ShopProductDetailVO getRepurchaseProductDetail(Long id, DmsShopMember member) {
+        Long tenantId = resolveTenantId(null);
+        businessModeService.requireEnabled(tenantId, ShopBusinessType.REPURCHASE, member);
+        DmsShopProduct product = productDao.selectById(id);
+        if (product == null || !tenantId.equals(product.getTenantId()) || !Integer.valueOf(1).equals(product.getStatus())
+                || !Integer.valueOf(1).equals(product.getRepurchaseSaleEnabled())) Asserts.fail("复购商品不存在或已下架");
+        List<DmsShopSku> skus = skuDao.selectByProductId(id, 1);
+        if (!isPvEnabled(tenantId)) {
+            product.setRepurchasePv(ZERO);
+            skus.forEach(sku -> sku.setRepurchasePv(ZERO));
+        }
+        ShopProductDetailVO vo = new ShopProductDetailVO();
+        vo.setProduct(product);
+        vo.setSkus(skus);
+        vo.setDisplayConfig(getDisplayConfig(tenantId));
+        return vo;
     }
 
     @Override
@@ -169,9 +210,19 @@ public class ShopServiceImpl implements ShopService {
         String cacheKey = "products:" + DigestUtil.sha256Hex(parameters);
         return catalogCache.getPage(resolvedTenantId, cacheKey, DmsShopProduct.class, productCacheTtlSeconds, () -> {
             PageHelper.startPage(resolvedPageNum, resolvedPageSize);
-            return CommonPage.restPage(productDao.selectList(
+            return CommonPage.restPage(productDao.selectFrontList(
                     resolvedTenantId, keyword, categoryName, status, stockStatus));
         });
+    }
+
+    @Override
+    public CommonPage<DmsShopProduct> listAdminProductPage(Long tenantId, String keyword, String categoryName,
+                                                           Integer status, String stockStatus,
+                                                           Integer pageNum, Integer pageSize) {
+        int safePage = pageNum == null ? 1 : Math.max(1, pageNum);
+        int safeSize = pageSize == null ? 20 : Math.max(1, Math.min(100, pageSize));
+        PageHelper.startPage(safePage, safeSize);
+        return CommonPage.restPage(productDao.selectList(resolveTenantId(tenantId), keyword, categoryName, status, stockStatus));
     }
 
     @Override
@@ -415,6 +466,7 @@ public class ShopServiceImpl implements ShopService {
 
     private ShopProductDetailVO loadProductDetail(Long id) {
         DmsShopProduct product = getProduct(id);
+        if (Integer.valueOf(0).equals(product.getNormalSaleEnabled())) Asserts.fail("该商品仅在专属商城销售");
         // 兼容历史数据：PV 开关关闭时公开接口直接返回 0；开启时不返回高于售价的 PV。
         // SKU 的 PV 为 0 时继承商品默认 PV，避免旧后台把 SKU PV 强制保存为 0 后，
         // 前台显示有 PV、下单快照却记为 0。
@@ -661,6 +713,14 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("订单商品不能为空");
         }
         if (member != null) dto.setUserId(member.getUserId());
+        String businessType = businessModeService.normalizeType(dto.getBusinessType());
+        Long tenantId = resolveTenantId(null);
+        businessModeService.requireEnabled(tenantId, businessType, member);
+        DmsFlashSaleActivity flashActivity = null;
+        if (ShopBusinessType.FLASH_SALE.equals(businessType)) {
+            flashActivity = dto.getBusinessSourceId() == null ? null : flashSaleActivityDao.selectById(dto.getBusinessSourceId());
+            if (flashActivity == null || !tenantId.equals(flashActivity.getTenantId())) Asserts.fail("秒杀活动不存在");
+        }
         fillAddress(dto, member);
         Map<Long, ProductShippingContext> shippingProducts = new LinkedHashMap<>();
         Map<Long, Integer> requestedPurchaseQuantities = new HashMap<>();
@@ -673,16 +733,17 @@ public class ShopServiceImpl implements ShopService {
             if (product == null || !Integer.valueOf(1).equals(product.getStatus())) Asserts.fail("商品不存在或已下架");
             assertTenantAccess(product.getTenantId());
             int requestedQuantity = requestedPurchaseQuantities.merge(product.getId(), quantity, Integer::sum);
-            validatePurchaseLimit(product, dto.getUserId(), requestedQuantity, existingPurchaseQuantities);
+            validateBusinessProduct(businessType, product, dto.getUserId(), requestedQuantity,
+                    existingPurchaseQuantities, flashActivity, item);
             requireSkuSelection(product, item.getSkuId());
-            BigDecimal price = money(product.getSalePrice());
+            DmsShopSku sku = null;
             if (item.getSkuId() != null) {
-                DmsShopSku sku = skuDao.selectById(item.getSkuId());
+                sku = skuDao.selectById(item.getSkuId());
                 if (sku == null || !product.getId().equals(sku.getProductId()) || !Integer.valueOf(1).equals(sku.getStatus())) {
                     Asserts.fail("SKU不存在或已下架：" + product.getProductName());
                 }
-                price = money(sku.getSalePrice());
             }
+            BigDecimal price = resolveBusinessPrice(businessType, product, sku, flashActivity);
             BigDecimal lineAmount = price.multiply(BigDecimal.valueOf(quantity));
             productAmount = productAmount.add(lineAmount);
             mergeShippingProduct(shippingProducts, product, lineAmount);
@@ -729,6 +790,22 @@ public class ShopServiceImpl implements ShopService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ShopOrderVO submitOrder(ShopOrderSubmitDTO dto, DmsShopMember member) {
+        String businessType = businessModeService.normalizeType(dto == null ? null : dto.getBusinessType());
+        if (ShopBusinessType.FLASH_SALE.equals(businessType)) {
+            Asserts.fail("秒杀订单必须从秒杀活动入口提交");
+        }
+        return createOrder(dto, member, businessType);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ShopOrderVO submitReservedFlashSaleOrder(ShopOrderSubmitDTO dto, DmsShopMember member) {
+        String businessType = businessModeService.normalizeType(dto == null ? null : dto.getBusinessType());
+        if (!ShopBusinessType.FLASH_SALE.equals(businessType)) Asserts.fail("秒杀订单业务类型不正确");
+        return createOrder(dto, member, businessType);
+    }
+
+    private ShopOrderVO createOrder(ShopOrderSubmitDTO dto, DmsShopMember member, String businessType) {
         if (member != null) {
             dto.setUserId(member.getUserId());
         }
@@ -746,6 +823,12 @@ public class ShopServiceImpl implements ShopService {
         BigDecimal totalPv = ZERO;
         BigDecimal totalCost = ZERO;
         Long tenantId = resolveTenantId(null);
+        businessModeService.requireEnabled(tenantId, businessType, member);
+        DmsFlashSaleActivity flashActivity = null;
+        if (ShopBusinessType.FLASH_SALE.equals(businessType)) {
+            flashActivity = dto.getBusinessSourceId() == null ? null : flashSaleActivityDao.selectById(dto.getBusinessSourceId());
+            if (flashActivity == null || !tenantId.equals(flashActivity.getTenantId())) Asserts.fail("秒杀活动不存在");
+        }
         Map<Long, Integer> requestedPurchaseQuantities = new HashMap<>();
         Map<Long, Integer> existingPurchaseQuantities = new HashMap<>();
 
@@ -757,7 +840,8 @@ public class ShopServiceImpl implements ShopService {
             }
             assertTenantAccess(product.getTenantId());
             int requestedQuantity = requestedPurchaseQuantities.merge(product.getId(), quantity, Integer::sum);
-            validatePurchaseLimit(product, dto.getUserId(), requestedQuantity, existingPurchaseQuantities);
+            validateBusinessProduct(businessType, product, dto.getUserId(), requestedQuantity,
+                    existingPurchaseQuantities, flashActivity, itemDTO);
             requireSkuSelection(product, itemDTO.getSkuId());
             DmsShopSku sku = null;
             if (itemDTO.getSkuId() != null) {
@@ -782,10 +866,10 @@ public class ShopServiceImpl implements ShopService {
             }
             tenantId = product.getTenantId() == null ? DEFAULT_TENANT_ID : product.getTenantId();
 
-            BigDecimal price = sku == null ? money(product.getSalePrice()) : money(sku.getSalePrice());
+            BigDecimal price = resolveBusinessPrice(businessType, product, sku, flashActivity);
             // 金额、PV、库存全部以服务端实时商品数据为准，客户端传值不参与计算。
             // 旧数据即使存在 PV 大于售价，也会在这里被强制限制，不能进入订单快照。
-            BigDecimal pv = resolveUnitPv(product, sku, price);
+            BigDecimal pv = resolveBusinessPv(businessType, product, sku, flashActivity, price);
             BigDecimal cost = sku == null ? money(product.getCostAmount()) : money(sku.getCostAmount());
             BigDecimal itemAmount = price.multiply(BigDecimal.valueOf(quantity));
             BigDecimal itemPv = pv.multiply(BigDecimal.valueOf(quantity));
@@ -838,6 +922,8 @@ public class ShopServiceImpl implements ShopService {
         order.setPayAmount(payAmount);
         order.setTotalPv(totalPv);
         order.setTotalCost(totalCost);
+        order.setBusinessType(businessType);
+        order.setBusinessSourceId(dto.getBusinessSourceId());
         order.setStatus(0); // 待支付，支付回调后改为1
         String payType = dto.getPayType() == null || dto.getPayType().isBlank()
                 ? "ALIPAY" : dto.getPayType().trim().toUpperCase(java.util.Locale.ROOT);
@@ -874,7 +960,11 @@ public class ShopServiceImpl implements ShopService {
         financeDTO.setOrderNo(orderNo);
         financeDTO.setPayAmount(payAmount);
         financeDTO.setProductCost(totalCost);
-        financeDTO.setRemark("商城前台订单");
+        financeDTO.setRemark(switch (businessType) {
+            case ShopBusinessType.FLASH_SALE -> "秒杀订单";
+            case ShopBusinessType.REPURCHASE -> "复购商城订单";
+            default -> "商城前台订单";
+        });
         OrderFinanceVO finance = auditService.upsertOrderFinance(financeDTO);
 
         ShopOrderVO vo = new ShopOrderVO();
@@ -1061,6 +1151,11 @@ public class ShopServiceImpl implements ShopService {
         }
 
         int updated = orderDao.markPaid(orderId, payType);
+        DmsTenant tenant = tenantDao.selectById(order.getTenantId());
+        // 兼容少量只构造旧依赖集合的单元测试；生产环境由Spring完整注入。
+        boolean standardBonus = businessModeService == null
+                ? order.getBusinessType() == null || ShopBusinessType.NORMAL.equals(order.getBusinessType())
+                : businessModeService.usesStandardBonus(tenant, order.getBusinessType());
         if (updated > 0) {
             // 所有商品一视同仁：注册账号完成首笔有效支付后成为一级会员。
             // 后续卡级只由本人及无限层团队累计有效商品件数和直推/部门条件自动判断，商品不能指定卡级。
@@ -1070,10 +1165,12 @@ public class ShopServiceImpl implements ShopService {
                 order.setAgentId(activated.getId());
                 orderDao.updateAgentId(orderId, activated.getId());
             }
-            // 必须先冻结支付瞬间的完整关系链，后续移线不能改变该订单归属。
-            relationSnapshotService.capture(order);
+            if (standardBonus) {
+                // 只有采用标准奖金规则的订单才冻结关系并进入业绩奖金链路。
+                relationSnapshotService.capture(order);
+            }
         }
-        if (updated > 0) {
+        if (updated > 0 && standardBonus) {
             DmsAgent agent = agentDao.selectByUserId(order.getUserId());
             if (agent != null) {
                 LocalDateTime paidTime = LocalDateTime.now();
@@ -1094,6 +1191,9 @@ public class ShopServiceImpl implements ShopService {
             }
         }
         if (updated > 0) {
+            if (ShopBusinessType.FLASH_SALE.equals(order.getBusinessType())) {
+                flashSaleReservationDao.updateStatusByOrder(orderId, "PAID");
+            }
             erpIntegrationService.queueOrderPush(orderDao.selectById(orderId));
             notifyOrderChanged(order, "ORDER_PAID");
         }
@@ -1389,6 +1489,68 @@ public class ShopServiceImpl implements ShopService {
         }
     }
 
+    private void validateBusinessProduct(String businessType,
+                                         DmsShopProduct product,
+                                         Long userId,
+                                         int requestedQuantity,
+                                         Map<Long, Integer> existingPurchaseQuantities,
+                                         DmsFlashSaleActivity flashActivity,
+                                         ShopOrderItemDTO item) {
+        if (ShopBusinessType.NORMAL.equals(businessType)) {
+            if (Integer.valueOf(0).equals(product.getNormalSaleEnabled())) Asserts.fail("该商品不在普通商城销售");
+            validatePurchaseLimit(product, userId, requestedQuantity, existingPurchaseQuantities);
+            return;
+        }
+        if (ShopBusinessType.REPURCHASE.equals(businessType)) {
+            if (!Integer.valueOf(1).equals(product.getRepurchaseSaleEnabled())
+                    || money(product.getRepurchasePrice()).compareTo(ZERO) <= 0) {
+                Asserts.fail("该商品不在复购商城销售");
+            }
+            int limit = product.getRepurchasePurchaseLimit() == null ? 0 : product.getRepurchasePurchaseLimit();
+            if (limit > 0 && userId != null) {
+                int existing = existingPurchaseQuantities.computeIfAbsent(product.getId(), id ->
+                        orderItemDao.sumQuantityByUserProductAndBusinessType(userId, id,
+                                product.getTenantId(), ShopBusinessType.REPURCHASE));
+                if ((long) existing + requestedQuantity > limit) {
+                    Asserts.fail(purchaseLimitMessage(product.getProductName(), limit, Math.max(0, limit - existing)));
+                }
+            }
+            return;
+        }
+        if (flashActivity == null || !flashActivity.getProductId().equals(product.getId())
+                || !Objects.equals(flashActivity.getSkuId(), item.getSkuId())) {
+            Asserts.fail("秒杀商品与活动不一致");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (!Integer.valueOf(1).equals(flashActivity.getStatus()) || now.isBefore(flashActivity.getStartTime())
+                || !now.isBefore(flashActivity.getEndTime())) Asserts.fail("秒杀活动当前不可下单");
+        if (requestedQuantity > flashActivity.getPerUserLimit()) {
+            Asserts.fail("本活动每人限购 " + flashActivity.getPerUserLimit() + " 件");
+        }
+    }
+
+    private BigDecimal resolveBusinessPrice(String businessType, DmsShopProduct product,
+                                            DmsShopSku sku, DmsFlashSaleActivity flashActivity) {
+        if (ShopBusinessType.FLASH_SALE.equals(businessType)) return money(flashActivity.getFlashPrice());
+        if (ShopBusinessType.REPURCHASE.equals(businessType)) {
+            BigDecimal skuPrice = sku == null ? null : sku.getRepurchasePrice();
+            return skuPrice != null && skuPrice.compareTo(ZERO) > 0 ? skuPrice : money(product.getRepurchasePrice());
+        }
+        return sku == null ? money(product.getSalePrice()) : money(sku.getSalePrice());
+    }
+
+    private BigDecimal resolveBusinessPv(String businessType, DmsShopProduct product,
+                                         DmsShopSku sku, DmsFlashSaleActivity flashActivity, BigDecimal price) {
+        if (!isPvEnabled(product.getTenantId())) return ZERO;
+        if (ShopBusinessType.FLASH_SALE.equals(businessType)) return limitPvToSalePrice(flashActivity.getFlashPv(), price);
+        if (ShopBusinessType.REPURCHASE.equals(businessType)) {
+            BigDecimal skuPv = sku == null ? null : sku.getRepurchasePv();
+            BigDecimal configured = skuPv != null && skuPv.compareTo(ZERO) > 0 ? skuPv : product.getRepurchasePv();
+            return limitPvToSalePrice(configured, price);
+        }
+        return resolveUnitPv(product, sku, price);
+    }
+
     private String purchaseLimitMessage(String productName, int limit, int remainingQuantity) {
         String name = productName == null || productName.isBlank() ? "当前商品" : productName.trim();
         if (remainingQuantity <= 0) {
@@ -1418,6 +1580,16 @@ public class ShopServiceImpl implements ShopService {
         product.setStock(product.getStock() == null ? 0 : product.getStock());
         product.setSafetyStock(product.getSafetyStock() == null ? 0 : Math.max(0, product.getSafetyStock()));
         product.setPurchaseLimit(product.getPurchaseLimit() == null ? 0 : Math.max(0, product.getPurchaseLimit()));
+        product.setNormalSaleEnabled(Integer.valueOf(0).equals(product.getNormalSaleEnabled()) ? 0 : 1);
+        product.setRepurchaseSaleEnabled(Integer.valueOf(1).equals(product.getRepurchaseSaleEnabled()) ? 1 : 0);
+        product.setRepurchasePrice(money(product.getRepurchasePrice()));
+        product.setRepurchasePv(money(product.getRepurchasePv()));
+        product.setRepurchasePurchaseLimit(product.getRepurchasePurchaseLimit() == null
+                ? 0 : Math.max(0, product.getRepurchasePurchaseLimit()));
+        if (Integer.valueOf(1).equals(product.getRepurchaseSaleEnabled())) {
+            if (product.getRepurchasePrice().compareTo(ZERO) <= 0) Asserts.fail("启用复购销售时复购价必须大于0");
+            validatePv(product.getRepurchasePv(), product.getRepurchasePrice(), "复购PV");
+        }
         product.setSalesCount(product.getSalesCount() == null ? 0 : product.getSalesCount());
         product.setSort(product.getSort() == null ? 0 : product.getSort());
         product.setStatus(product.getStatus() == null ? 1 : product.getStatus());
@@ -1589,11 +1761,16 @@ public class ShopServiceImpl implements ShopService {
         sku.setMarketPrice(money(dto.getMarketPrice()));
         sku.setCostAmount(money(dto.getCostAmount()));
         sku.setPvValue(money(dto.getPvValue()));
+        sku.setRepurchasePrice(dto.getRepurchasePrice() == null ? null : money(dto.getRepurchasePrice()));
+        sku.setRepurchasePv(dto.getRepurchasePv() == null ? null : money(dto.getRepurchasePv()));
         DmsShopProduct product = productDao.selectById(dto.getProductId());
         if (product != null && isPvEnabled(product.getTenantId())) {
             validatePv(sku.getPvValue(), sku.getSalePrice(), "SKU PV");
         } else {
             sku.setPvValue(ZERO);
+        }
+        if (sku.getRepurchasePrice() != null && sku.getRepurchasePrice().compareTo(ZERO) > 0) {
+            validatePv(sku.getRepurchasePv(), sku.getRepurchasePrice(), "SKU复购PV");
         }
         sku.setBvValue(money(dto.getBvValue()));
         sku.setStock(dto.getStock() == null ? 0 : dto.getStock());
@@ -1734,6 +1911,14 @@ public class ShopServiceImpl implements ShopService {
             productDao.increaseStock(item.getProductId(), item.getQuantity());
         }
         DmsShopOrder order = orderDao.selectById(orderId);
+        if (order != null && ShopBusinessType.FLASH_SALE.equals(order.getBusinessType())) {
+            DmsFlashSaleReservation reservation = flashSaleReservationDao.selectByOrderId(orderId);
+            if (reservation != null && flashSaleReservationDao.releaseByOrder(orderId) > 0) {
+                flashSaleActivityDao.increaseStock(reservation.getActivityId(), reservation.getQuantity());
+                DmsFlashSaleActivity activity = flashSaleActivityDao.selectById(reservation.getActivityId());
+                flashSaleStockGate.release(activity, reservation.getUserId(), reservation.getQuantity());
+            }
+        }
         catalogCache.invalidateAfterCommit(order == null ? DEFAULT_TENANT_ID : order.getTenantId());
     }
 

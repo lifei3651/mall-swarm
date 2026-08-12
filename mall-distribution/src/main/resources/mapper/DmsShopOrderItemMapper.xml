@@ -46,6 +46,17 @@
           AND order_header.status IN (0, 1, 2, 3)
     </select>
 
+    <select id="sumQuantityByUserProductAndBusinessType" resultType="int">
+        SELECT COALESCE(SUM(item.quantity), 0)
+        FROM dms_shop_order_item item
+        INNER JOIN dms_shop_order order_header ON order_header.id = item.order_id
+        WHERE order_header.user_id = #{userId}
+          AND order_header.tenant_id = #{tenantId}
+          AND order_header.business_type = #{businessType}
+          AND item.product_id = #{productId}
+          AND order_header.status IN (0, 1, 2, 3)
+    </select>
+
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopOrderItem" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_shop_order_item
         (order_id, order_no, product_id, sku_id, product_name, sku_name, sku_attrs, product_cover, price, quantity,

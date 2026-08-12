@@ -31,6 +31,11 @@ public class DmsShopSku implements Serializable {
 
     private BigDecimal pvValue;
 
+    /** 多规格商品的独立复购价和复购PV；为空时继承商品级配置。 */
+    private BigDecimal repurchasePrice;
+
+    private BigDecimal repurchasePv;
+
     private BigDecimal bvValue;
 
     private Integer stock;

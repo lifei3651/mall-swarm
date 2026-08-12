@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsFlashSaleActivityDao">
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsFlashSaleActivity">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="activity_name" property="activityName"/>
+        <result column="product_id" property="productId"/>
+        <result column="sku_id" property="skuId"/>
+        <result column="flash_price" property="flashPrice"/>
+        <result column="flash_pv" property="flashPv"/>
+        <result column="total_stock" property="totalStock"/>
+        <result column="available_stock" property="availableStock"/>
+        <result column="per_user_limit" property="perUserLimit"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="status" property="status"/>
+        <result column="version" property="version"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+    <sql id="Columns">id, tenant_id, activity_name, product_id, sku_id, flash_price, flash_pv, total_stock,
+        available_stock, per_user_limit, start_time, end_time, status, version, create_time, update_time</sql>
+    <select id="selectById" resultMap="BaseResultMap">SELECT <include refid="Columns"/> FROM dms_flash_sale_activity WHERE id=#{id}</select>
+    <select id="selectList" resultMap="BaseResultMap">
+        SELECT <include refid="Columns"/> FROM dms_flash_sale_activity WHERE tenant_id=#{tenantId}
+        <if test="status != null">AND status=#{status}</if>
+        ORDER BY start_time DESC, id DESC
+    </select>
+    <select id="selectFrontList" resultMap="BaseResultMap">
+        SELECT <include refid="Columns"/> FROM dms_flash_sale_activity
+        WHERE tenant_id=#{tenantId} AND status=1 AND end_time &gt; CURRENT_TIMESTAMP
+        ORDER BY start_time ASC, id ASC
+    </select>
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsFlashSaleActivity" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_flash_sale_activity(tenant_id, activity_name, product_id, sku_id, flash_price, flash_pv,
+          total_stock, available_stock, per_user_limit, start_time, end_time, status, version)
+        VALUES(#{tenantId},#{activityName},#{productId},#{skuId},#{flashPrice},#{flashPv},#{totalStock},#{availableStock},
+          #{perUserLimit},#{startTime},#{endTime},#{status},0)
+    </insert>
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsFlashSaleActivity">
+        UPDATE dms_flash_sale_activity SET activity_name=#{activityName}, product_id=#{productId}, sku_id=#{skuId},
+          flash_price=#{flashPrice}, flash_pv=#{flashPv}, total_stock=#{totalStock}, available_stock=#{availableStock},
+          per_user_limit=#{perUserLimit}, start_time=#{startTime}, end_time=#{endTime}, status=#{status},
+          version=version+1, update_time=CURRENT_TIMESTAMP WHERE id=#{id} AND tenant_id=#{tenantId}
+    </update>
+    <update id="updateStatus">UPDATE dms_flash_sale_activity SET status=#{status}, version=version+1, update_time=CURRENT_TIMESTAMP WHERE id=#{id}</update>
+    <update id="decreaseStock">
+        UPDATE dms_flash_sale_activity SET available_stock=available_stock-#{quantity}, version=version+1, update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id} AND status=1 AND start_time &lt;= CURRENT_TIMESTAMP AND end_time &gt; CURRENT_TIMESTAMP AND available_stock &gt;= #{quantity}
+    </update>
+    <update id="increaseStock">
+        UPDATE dms_flash_sale_activity SET available_stock=LEAST(total_stock, available_stock+#{quantity}), version=version+1, update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id}
+    </update>
+</mapper>

@@ -87,6 +87,7 @@
           <el-table-column label="订单编号" min-width="175">
             <template #default="{ row }">
               <div class="order-no">{{ row.order?.orderNo }}</div>
+              <el-tag v-if="row.order?.businessType && row.order.businessType !== 'NORMAL'" size="small" effect="plain" :type="row.order.businessType === 'FLASH_SALE' ? 'danger' : 'warning'">{{ row.order.businessType === 'FLASH_SALE' ? '秒杀订单' : '复购订单' }}</el-tag>
               <div class="sub">登录账号 {{ row.memberAccount || '-' }}</div>
             </template>
           </el-table-column>

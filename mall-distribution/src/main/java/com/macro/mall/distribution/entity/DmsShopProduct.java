@@ -2,6 +2,7 @@ package com.macro.mall.distribution.entity;
 
 import lombok.Data;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 import java.io.Serializable;
@@ -53,6 +54,20 @@ public class DmsShopProduct implements Serializable {
 
     /** 每位会员累计限购数量，0 表示不限购。 */
     private Integer purchaseLimit;
+
+    /** 普通商城和复购商城使用独立商品池；同一商品可同时进入两个商品池。 */
+    private Integer normalSaleEnabled;
+
+    private Integer repurchaseSaleEnabled;
+
+    @PositiveOrZero(message = "复购价不能小于0")
+    private BigDecimal repurchasePrice;
+
+    @PositiveOrZero(message = "复购PV不能小于0")
+    private BigDecimal repurchasePv;
+
+    @PositiveOrZero(message = "复购限购数量不能小于0")
+    private Integer repurchasePurchaseLimit;
 
     private Integer salesCount;
 

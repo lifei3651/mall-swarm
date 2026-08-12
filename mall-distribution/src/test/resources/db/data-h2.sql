@@ -20,6 +20,8 @@ DELETE FROM dms_finance_refund;
 DELETE FROM dms_order_company_share;
 DELETE FROM dms_order_finance;
 DELETE FROM dms_shop_after_sale;
+DELETE FROM dms_flash_sale_reservation;
+DELETE FROM dms_flash_sale_activity;
 DELETE FROM dms_shop_product_review;
 DELETE FROM dms_shop_order_shipment;
 DELETE FROM dms_shop_order_item;

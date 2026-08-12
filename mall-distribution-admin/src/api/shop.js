@@ -2,7 +2,7 @@ import request from '@/utils/request'
 
 export function listShopProducts(params) {
   return request({
-    url: '/shop/products',
+    url: '/shop/admin/products',
     method: 'get',
     params,
   })
@@ -38,6 +38,18 @@ export function updateShopProductStatus(id, status) {
     method: 'put',
     params: { status },
   })
+}
+
+export function listFlashSales(params) {
+  return request({ url: '/shop/admin/flash-sales', method: 'get', params })
+}
+
+export function saveFlashSale(id, data) {
+  return request({ url: id ? `/shop/admin/flash-sales/${id}` : '/shop/admin/flash-sales', method: id ? 'put' : 'post', data })
+}
+
+export function updateFlashSaleStatus(id, status) {
+  return request({ url: `/shop/admin/flash-sales/${id}/status`, method: 'put', params: { status } })
 }
 
 export function listShopServiceAddresses(params) {

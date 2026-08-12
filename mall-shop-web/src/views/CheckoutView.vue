@@ -281,7 +281,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, ClipboardPaste, Plus, Settings2, ShieldCheck, X } from 'lucide-vue-next'
-import { getHome, getMe, getWalletSummary, listAddresses, submitOrder, quoteFreight, checkPaymentVerify, sendSmsCode, sendPaymentPasswordSmsCode, setPaymentPassword, payOrderWithBalance, createAlipayOrder, getPayConfig } from '@/api/shop'
+import { getHome, getMe, getWalletSummary, listAddresses, submitOrder, submitFlashSaleOrder, quoteFreight, checkPaymentVerify, sendSmsCode, sendPaymentPasswordSmsCode, setPaymentPassword, payOrderWithBalance, createAlipayOrder, getPayConfig } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { money, joinAddress } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
@@ -295,6 +295,9 @@ const route = useRoute()
 const router = useRouter()
 const { checkoutItems, checkoutTotal: total, removeCheckedOutItems } = useCart()
 const items = checkoutItems.value
+const businessTypes = [...new Set(items.map((item) => item.businessType || 'NORMAL'))]
+const businessType = businessTypes.length === 1 ? businessTypes[0] : 'MIXED'
+const businessSourceId = items[0]?.businessSourceId || null
 const submitting = ref(false)
 const orderRequestKey = ref('')
 const balancePaymentRequestKey = ref('')
@@ -567,6 +570,8 @@ const validate = () => {
 }
 
 const freightRequestData = () => ({
+  businessType,
+  businessSourceId,
   addressId: form.value.addressId,
   receiverProvince: form.value.receiverProvince,
   receiverCity: form.value.receiverCity,
@@ -817,6 +822,8 @@ const doSubmitOrder = async (paymentPassword) => {
   try {
     const orderData = {
       ...form.value,
+      businessType,
+      businessSourceId,
       items: items.map((item) => ({
         productId: item.id,
         skuId: item.skuId,
@@ -828,7 +835,10 @@ const doSubmitOrder = async (paymentPassword) => {
     let orderId = pendingBalanceOrderId.value
     if (!orderId) {
       if (!orderRequestKey.value) orderRequestKey.value = createIdempotencyKey('order')
-      const res = await submitOrder(orderData, orderRequestKey.value)
+      if (businessType === 'MIXED') throw new Error('普通商品、秒杀商品和复购商品不能混合下单')
+      const res = businessType === 'FLASH_SALE'
+        ? await submitFlashSaleOrder(businessSourceId, orderData, orderRequestKey.value)
+        : await submitOrder(orderData, orderRequestKey.value)
       orderId = res.data.order.id
       orderRequestKey.value = ''
       if (paymentPassword) pendingBalanceOrderId.value = orderId

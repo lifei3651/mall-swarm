@@ -40,4 +40,7 @@ public class ShopHomeVO implements Serializable {
 
     /** 法律与客服信息，用于首页信任条展示。 */
     private ShopLegalConfigVO legalConfig;
+
+    /** 秒杀、复购等可选业务入口；关闭时前台不展示。 */
+    private ShopBusinessConfigVO businessConfig;
 }

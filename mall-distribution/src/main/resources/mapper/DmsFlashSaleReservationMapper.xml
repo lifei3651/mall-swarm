@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsFlashSaleReservationDao">
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsFlashSaleReservation">
+        <id column="id" property="id"/><result column="tenant_id" property="tenantId"/>
+        <result column="activity_id" property="activityId"/><result column="user_id" property="userId"/>
+        <result column="order_id" property="orderId"/><result column="order_no" property="orderNo"/>
+        <result column="quantity" property="quantity"/><result column="released_quantity" property="releasedQuantity"/><result column="status" property="status"/>
+        <result column="create_time" property="createTime"/><result column="update_time" property="updateTime"/>
+    </resultMap>
+    <sql id="Columns">id,tenant_id,activity_id,user_id,order_id,order_no,quantity,released_quantity,status,create_time,update_time</sql>
+    <select id="selectByActivityAndUser" resultMap="BaseResultMap">SELECT <include refid="Columns"/> FROM dms_flash_sale_reservation WHERE activity_id=#{activityId} AND user_id=#{userId}</select>
+    <select id="selectByOrderId" resultMap="BaseResultMap">SELECT <include refid="Columns"/> FROM dms_flash_sale_reservation WHERE order_id=#{orderId}</select>
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsFlashSaleReservation" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_flash_sale_reservation(tenant_id,activity_id,user_id,quantity,released_quantity,status)
+        VALUES(#{tenantId},#{activityId},#{userId},#{quantity},0,#{status})
+    </insert>
+    <update id="reactivate" parameterType="com.macro.mall.distribution.entity.DmsFlashSaleReservation">
+        UPDATE dms_flash_sale_reservation SET quantity=#{quantity}, released_quantity=0, order_id=NULL, order_no=NULL,
+          status='RESERVED', update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id} AND status='RELEASED'
+    </update>
+    <update id="bindOrder" parameterType="com.macro.mall.distribution.entity.DmsFlashSaleReservation">
+        UPDATE dms_flash_sale_reservation SET order_id=#{orderId}, order_no=#{orderNo}, update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id} AND status='RESERVED'
+    </update>
+    <update id="updateStatusByOrder">UPDATE dms_flash_sale_reservation SET status=#{status}, update_time=CURRENT_TIMESTAMP WHERE order_id=#{orderId}</update>
+    <update id="releaseByOrder">UPDATE dms_flash_sale_reservation SET released_quantity=quantity, status='RELEASED', update_time=CURRENT_TIMESTAMP WHERE order_id=#{orderId} AND status!='RELEASED'</update>
+    <update id="releaseRefundedQuantity">
+        UPDATE dms_flash_sale_reservation
+        SET released_quantity=released_quantity+#{quantity},
+            status=CASE WHEN released_quantity+#{quantity} &gt;= quantity THEN 'REFUNDED' ELSE 'PARTIAL_REFUND' END,
+            update_time=CURRENT_TIMESTAMP
+        WHERE order_id=#{orderId} AND status IN ('PAID','PARTIAL_REFUND')
+          AND released_quantity+#{quantity} &lt;= quantity
+    </update>
+</mapper>

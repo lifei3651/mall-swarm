@@ -246,6 +246,18 @@ const routes = [
             meta: { title: '商城资料与客服', permission: 'config:manage' },
           },
           {
+            path: 'business-modes',
+            name: 'TenantBusinessModes',
+            component: () => import('@/views/tenant/business-modes.vue'),
+            meta: { title: '秒杀与复购模式', permission: 'config:manage' },
+          },
+          {
+            path: 'flash-sales',
+            name: 'TenantFlashSales',
+            component: () => import('@/views/shop/flash-sales.vue'),
+            meta: { title: '秒杀活动', permission: 'shop:product' },
+          },
+          {
             path: 'notices',
             name: 'TenantNotices',
             component: () => import('@/views/tenant/notices.vue'),

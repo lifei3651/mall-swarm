@@ -104,6 +104,7 @@ public class TenantServiceImpl implements TenantService {
         } else if (tenant.getAfterSaleWindowDays() < 0 || tenant.getAfterSaleWindowDays() > 365) {
             Asserts.fail("售后申请期限应设置为0至365天");
         }
+        normalizeBusinessModes(tenant);
         if (tenant.getPoliceRecordUrl() != null && !tenant.getPoliceRecordUrl().isBlank()) {
             String policeRecordUrl = tenant.getPoliceRecordUrl().trim();
             if (!policeRecordUrl.matches("^https://.+")) {
@@ -132,6 +133,23 @@ public class TenantServiceImpl implements TenantService {
         }
         catalogCache.invalidateAfterCommit(tenant.getId());
         return getTenant(tenant.getId());
+    }
+
+    private void normalizeBusinessModes(DmsTenant tenant) {
+        tenant.setFlashSaleEnabled(Integer.valueOf(1).equals(tenant.getFlashSaleEnabled()) ? 1 : 0);
+        tenant.setRepurchaseMallEnabled(Integer.valueOf(1).equals(tenant.getRepurchaseMallEnabled()) ? 1 : 0);
+        tenant.setFlashSaleBonusMode(normalizeMode(tenant.getFlashSaleBonusMode(),
+                List.of("NONE", "STANDARD", "CUSTOM"), "NONE", "秒杀奖金模式"));
+        tenant.setRepurchaseBonusMode(normalizeMode(tenant.getRepurchaseBonusMode(),
+                List.of("NONE", "STANDARD", "CUSTOM"), "NONE", "复购奖金模式"));
+        tenant.setRepurchaseEligibilityMode(normalizeMode(tenant.getRepurchaseEligibilityMode(),
+                List.of("PAID_MEMBER", "AGENT", "ALL_MEMBER"), "PAID_MEMBER", "复购准入模式"));
+    }
+
+    private String normalizeMode(String value, List<String> allowed, String defaultValue, String label) {
+        String normalized = value == null || value.isBlank() ? defaultValue : value.trim().toUpperCase();
+        if (!allowed.contains(normalized)) Asserts.fail(label + "不正确");
+        return normalized;
     }
 
     @Override
@@ -227,6 +245,7 @@ public class TenantServiceImpl implements TenantService {
         if (restoredTenant.getAfterSaleWindowDays() == null) {
             restoredTenant.setAfterSaleWindowDays(7);
         }
+        normalizeBusinessModes(restoredTenant);
         legalTemplateSupport.applyDefaults(restoredTenant);
         if (tenantDao.update(restoredTenant) == 0) {
             Asserts.fail("恢复商城资料失败");

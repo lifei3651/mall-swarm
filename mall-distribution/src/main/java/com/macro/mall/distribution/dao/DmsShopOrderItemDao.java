@@ -18,5 +18,10 @@ public interface DmsShopOrderItemDao {
                                     @Param("productId") Long productId,
                                     @Param("tenantId") Long tenantId);
 
+    int sumQuantityByUserProductAndBusinessType(@Param("userId") Long userId,
+                                                @Param("productId") Long productId,
+                                                @Param("tenantId") Long tenantId,
+                                                @Param("businessType") String businessType);
+
     int insert(DmsShopOrderItem item);
 }

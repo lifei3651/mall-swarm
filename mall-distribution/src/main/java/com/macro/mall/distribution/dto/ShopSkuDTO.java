@@ -38,6 +38,12 @@ public class ShopSkuDTO implements Serializable {
 
     private BigDecimal pvValue;
 
+    @PositiveOrZero(message = "SKU复购价不能小于0")
+    private BigDecimal repurchasePrice;
+
+    @PositiveOrZero(message = "SKU复购PV不能小于0")
+    private BigDecimal repurchasePv;
+
     private BigDecimal bvValue;
 
     @PositiveOrZero(message = "SKU库存不能小于0")

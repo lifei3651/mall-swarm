@@ -2,6 +2,7 @@ package com.macro.mall.distribution.dto;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -37,6 +38,11 @@ public class ShopOrderSubmitDTO implements Serializable {
     private String payType;
 
     private String remark;
+
+    @Pattern(regexp = "NORMAL|REPURCHASE|FLASH_SALE", message = "订单业务类型不正确")
+    private String businessType;
+
+    private Long businessSourceId;
 
     /** 服务端大额支付验证验证码，业务类型固定为6。 */
     @lombok.ToString.Exclude

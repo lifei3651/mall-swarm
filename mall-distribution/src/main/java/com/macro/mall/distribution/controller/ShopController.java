@@ -28,6 +28,7 @@ import com.macro.mall.distribution.service.AdminMemberSecurityService;
 import com.macro.mall.distribution.service.OrderShipmentService;
 import com.macro.mall.distribution.service.OrderSpreadsheetService;
 import com.macro.mall.distribution.service.OrderRealtimeService;
+import com.macro.mall.distribution.service.FlashSaleService;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.security.ShopSessionCookieService;
 import com.macro.mall.distribution.vo.ShopAuthVO;
@@ -42,6 +43,8 @@ import com.macro.mall.distribution.vo.PurchaseLimitCheckVO;
 import com.macro.mall.distribution.vo.AdminMemberVO;
 import com.macro.mall.distribution.vo.AgentInfoVO;
 import com.macro.mall.distribution.vo.OrderShipmentImportResultVO;
+import com.macro.mall.distribution.vo.FlashSaleActivityVO;
+import com.macro.mall.distribution.vo.ShopBusinessConfigVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -82,6 +85,75 @@ public class ShopController {
     private final OrderSpreadsheetService orderSpreadsheetService;
     private final ShopSessionCookieService shopSessionCookieService;
     private final OrderRealtimeService orderRealtimeService;
+    private final FlashSaleService flashSaleService;
+
+    @Operation(summary = "查询可选业务入口与当前会员复购资格")
+    @GetMapping("/business-config")
+    public CommonResult<ShopBusinessConfigVO> businessConfig(
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return CommonResult.success(shopService.getBusinessConfig(authService.resolveMember(authorization)));
+    }
+
+    @Operation(summary = "秒杀活动列表")
+    @GetMapping("/flash-sales")
+    public CommonResult<List<FlashSaleActivityVO>> flashSales() {
+        return CommonResult.success(flashSaleService.listFront());
+    }
+
+    @Operation(summary = "提交秒杀订单")
+    @PostMapping("/flash-sales/{activityId}/orders")
+    @Idempotent(timeout = 30, message = "秒杀订单正在提交，请勿重复操作")
+    public CommonResult<ShopOrderVO> submitFlashSale(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long activityId, @Valid @RequestBody ShopOrderSubmitDTO dto) {
+        DmsShopMember member = authService.requireMember(authorization);
+        if (member.getPayPasswordHash() == null || member.getPayPasswordHash().isBlank()) {
+            Asserts.fail("首次交易前请先设置6位支付密码");
+        }
+        return CommonResult.success(flashSaleService.submit(activityId, dto, member));
+    }
+
+    @Operation(summary = "复购商城商品列表")
+    @GetMapping("/repurchase/products")
+    public CommonResult<List<DmsShopProduct>> repurchaseProducts(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(required = false) String keyword) {
+        return CommonResult.success(shopService.listRepurchaseProducts(keyword, authService.requireMember(authorization)));
+    }
+
+    @Operation(summary = "复购商品详情")
+    @GetMapping("/repurchase/products/{id}")
+    public CommonResult<ShopProductDetailVO> repurchaseProductDetail(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long id) {
+        return CommonResult.success(shopService.getRepurchaseProductDetail(id, authService.requireMember(authorization)));
+    }
+
+    @Operation(summary = "后台秒杀活动列表")
+    @GetMapping("/admin/flash-sales")
+    public CommonResult<List<FlashSaleActivityVO>> adminFlashSales(@RequestParam(required = false) Integer status) {
+        return CommonResult.success(flashSaleService.listAdmin(status));
+    }
+
+    @Operation(summary = "创建秒杀活动")
+    @PostMapping("/admin/flash-sales")
+    public CommonResult<com.macro.mall.distribution.entity.DmsFlashSaleActivity> createFlashSale(
+            @Valid @RequestBody FlashSaleActivitySaveDTO dto) {
+        return CommonResult.success(flashSaleService.save(null, dto));
+    }
+
+    @Operation(summary = "更新秒杀活动")
+    @PutMapping("/admin/flash-sales/{id}")
+    public CommonResult<com.macro.mall.distribution.entity.DmsFlashSaleActivity> updateFlashSale(
+            @PathVariable Long id, @Valid @RequestBody FlashSaleActivitySaveDTO dto) {
+        return CommonResult.success(flashSaleService.save(id, dto));
+    }
+
+    @Operation(summary = "更新秒杀活动状态")
+    @PutMapping("/admin/flash-sales/{id}/status")
+    public CommonResult<Boolean> updateFlashSaleStatus(@PathVariable Long id, @RequestParam Integer status) {
+        return CommonResult.success(flashSaleService.updateStatus(id, status));
+    }
 
     @Operation(summary = "会员订单与售后状态实时通知")
     @GetMapping(value = "/events/orders", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -321,6 +393,17 @@ public class ShopController {
         // 前台不接受 tenantId 参数，使用默认租户
         return CommonResult.success(shopService.listProductPage(
                 null, keyword, categoryName, status, stockStatus, pageNum, pageSize));
+    }
+
+    @Operation(summary = "后台完整商品列表（包含复购专属商品）")
+    @GetMapping("/admin/products")
+    public CommonResult<CommonPage<DmsShopProduct>> adminProducts(@RequestParam(required = false) String keyword,
+                                                                  @RequestParam(required = false) String categoryName,
+                                                                  @RequestParam(required = false) Integer status,
+                                                                  @RequestParam(required = false) String stockStatus,
+                                                                  @RequestParam(defaultValue = "1") Integer pageNum,
+                                                                  @RequestParam(defaultValue = "20") Integer pageSize) {
+        return CommonResult.success(shopService.listAdminProductPage(null, keyword, categoryName, status, stockStatus, pageNum, pageSize));
     }
 
     @Operation(summary = "商品详情")

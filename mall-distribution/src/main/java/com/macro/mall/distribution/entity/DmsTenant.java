@@ -84,6 +84,20 @@ public class DmsTenant implements Serializable {
     @Max(value = 365, message = "售后申请期限不能超过365天")
     private Integer afterSaleWindowDays;
 
+    /** 秒杀模块和复购商城均为客户级可选能力，默认关闭。 */
+    private Integer flashSaleEnabled;
+
+    @Pattern(regexp = "NONE|STANDARD|CUSTOM", message = "秒杀奖金模式不正确")
+    private String flashSaleBonusMode;
+
+    private Integer repurchaseMallEnabled;
+
+    @Pattern(regexp = "PAID_MEMBER|AGENT|ALL_MEMBER", message = "复购商城准入模式不正确")
+    private String repurchaseEligibilityMode;
+
+    @Pattern(regexp = "NONE|STANDARD|CUSTOM", message = "复购奖金模式不正确")
+    private String repurchaseBonusMode;
+
     /** 常见问题FAQ，JSON格式存储 */
     @Size(max = 30000, message = "常见问题内容过长")
     private String faqs;

@@ -80,6 +80,29 @@ export function getLegalConfig() {
   return request({ url: '/shop/legal-config', method: 'get' })
 }
 
+export function getBusinessConfig() {
+  return request({ url: '/shop/business-config', method: 'get' })
+}
+
+export function listFlashSales() {
+  return request({ url: '/shop/flash-sales', method: 'get' })
+}
+
+export function submitFlashSaleOrder(activityId, data, idempotencyKey) {
+  return request({
+    url: `/shop/flash-sales/${activityId}/orders`,
+    method: 'post', data, headers: idempotencyHeaders(idempotencyKey),
+  })
+}
+
+export function listRepurchaseProducts(params) {
+  return request({ url: '/shop/repurchase/products', method: 'get', params })
+}
+
+export function getRepurchaseProduct(id) {
+  return request({ url: `/shop/repurchase/products/${id}`, method: 'get' })
+}
+
 export function listProducts(params) {
   return request({
     url: '/shop/products',

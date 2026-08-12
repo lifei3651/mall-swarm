@@ -22,6 +22,8 @@
         <result column="pay_amount" property="payAmount"/>
         <result column="total_pv" property="totalPv"/>
         <result column="total_cost" property="totalCost"/>
+        <result column="business_type" property="businessType"/>
+        <result column="business_source_id" property="businessSourceId"/>
         <result column="status" property="status"/>
         <result column="pay_type" property="payType"/>
         <result column="remark" property="remark"/>
@@ -49,7 +51,7 @@
         id, order_no, tenant_id, user_id, agent_id, invite_code, receiver_name, receiver_phone,
         receiver_address, receiver_province, receiver_city, receiver_district, receiver_detail_address,
         total_amount, freight_amount, discount_amount, pay_amount, total_pv,
-        total_cost, status, pay_type, remark, pay_time, delivery_company, delivery_no,
+        total_cost, business_type, business_source_id, status, pay_type, remark, pay_time, delivery_company, delivery_no,
         delivery_time, receive_time, cancel_time, close_time, create_time, update_time
     </sql>
 
@@ -257,13 +259,13 @@
         (id, order_no, tenant_id, user_id, agent_id, invite_code, receiver_name, receiver_phone,
          receiver_address, receiver_province, receiver_city, receiver_district, receiver_detail_address,
          total_amount, freight_amount, discount_amount, pay_amount, total_pv,
-         total_cost, status, pay_type, remark, pay_time, delivery_company, delivery_no,
+         total_cost, business_type, business_source_id, status, pay_type, remark, pay_time, delivery_company, delivery_no,
          delivery_time, receive_time, cancel_time, close_time)
         VALUES
         (#{id}, #{orderNo}, #{tenantId}, #{userId}, #{agentId}, #{inviteCode}, #{receiverName}, #{receiverPhone},
          #{receiverAddress}, #{receiverProvince}, #{receiverCity}, #{receiverDistrict}, #{receiverDetailAddress},
          #{totalAmount}, #{freightAmount}, #{discountAmount}, #{payAmount}, #{totalPv},
-         #{totalCost}, #{status}, #{payType}, #{remark}, #{payTime}, #{deliveryCompany}, #{deliveryNo},
+         #{totalCost}, #{businessType}, #{businessSourceId}, #{status}, #{payType}, #{remark}, #{payTime}, #{deliveryCompany}, #{deliveryNo},
          #{deliveryTime}, #{receiveTime}, #{cancelTime}, #{closeTime})
     </insert>
 

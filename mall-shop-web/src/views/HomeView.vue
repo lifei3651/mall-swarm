@@ -38,6 +38,12 @@
       </button>
     </section>
 
+    <nav v-if="businessEntries.length" class="business-entry-nav" aria-label="特色商城入口">
+      <RouterLink v-for="entry in businessEntries" :key="entry.path" :to="entry.path" :class="entry.kind">
+        <strong>{{ entry.title }}</strong><span>{{ entry.description }}</span><b>进入 ›</b>
+      </RouterLink>
+    </nav>
+
     <!-- 按配置顺序渲染首页模块 -->
     <template v-if="!homeLoadError" v-for="mod in homeModules" :key="mod.type">
       <!-- Banner轮播 -->
@@ -180,6 +186,13 @@ const query = ref({ keyword: '', categoryName: '' })
 const searchFocused = ref(false)
 const recentSearches = ref([])
 const hotSearches = ['护理套装', '健康生活', '复购专区']
+const businessEntries = computed(() => {
+  const config = home.value.businessConfig || {}
+  const entries = []
+  if (Number(config.flashSaleEnabled) === 1) entries.push({ path: '/flash-sale', kind: 'flash', title: '限时秒杀', description: '到点开抢，抢完即止' })
+  if (Number(config.repurchaseMallEnabled) === 1) entries.push({ path: '/repurchase', kind: 'repurchase', title: '会员复购', description: '专属商品，独立结算' })
+  return entries
+})
 
 // Banner轮播
 const banners = computed(() => (home.value.banners || []).filter((b) => Number(b.status) === 1))
@@ -435,6 +448,7 @@ onUnmounted(() => { stopBannerAutoplay(); stopNoticeRotation(); window.clearTime
 
 <style scoped>
 .home-page { min-height: 100vh; padding-bottom: 58px; background: var(--shop-page-bg); }
+.business-entry-nav{width:min(1180px,calc(100% - 40px));display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:16px auto}.business-entry-nav a{position:relative;display:flex;flex-direction:column;min-height:94px;padding:19px 110px 16px 20px;overflow:hidden;color:#fff;border-radius:16px;text-decoration:none;box-shadow:0 8px 22px rgba(25,35,55,.12)}.business-entry-nav a.flash{background:linear-gradient(135deg,#d70f36,#ff6948)}.business-entry-nav a.repurchase{background:linear-gradient(135deg,#70401f,#c78b49)}.business-entry-nav strong{font-size:19px}.business-entry-nav span{margin-top:6px;font-size:12px;opacity:.86}.business-entry-nav b{position:absolute;right:20px;top:35px;font-size:14px}@media(max-width:760px){.business-entry-nav{width:calc(100% - 16px);margin:10px auto}.business-entry-nav a{min-height:82px;padding:15px 96px 13px 16px}}
 .home-init-error { width: min(560px, calc(100% - 28px)); margin: 28px auto; padding: 30px 20px; color: var(--ink); background: var(--card-bg, #fff); border: 1px solid #f1d6dc; border-radius: 18px; box-shadow: 0 10px 26px rgba(31, 41, 55, .06); text-align: center; }
 .home-init-error strong { display: block; font-size: 18px; }
 .home-init-error p { margin: 9px 0 18px; color: var(--muted); font-size: 13px; line-height: 1.6; }

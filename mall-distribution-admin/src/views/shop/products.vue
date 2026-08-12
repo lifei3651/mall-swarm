@@ -203,8 +203,27 @@
             <el-alert class="cost-help" title="成本价只用于经营利润统计；有规格商品按所选SKU的成本计算。" type="warning" :closable="false" show-icon />
           </section>
 
+          <section id="product-business" class="form-section">
+            <h3>4. 销售渠道</h3>
+            <el-alert title="普通商城与复购商城是两套独立下单模式。商品可同时进入两边，也可只在其中一边销售；复购订单不会混入普通购物车。" type="info" :closable="false" show-icon style="margin-bottom:18px" />
+            <el-row :gutter="20">
+              <el-col :span="8"><el-form-item label="普通商城"><el-switch v-model="form.normalSaleEnabled" :active-value="1" :inactive-value="0" active-text="销售" inactive-text="不销售" /></el-form-item></el-col>
+              <el-col :span="8"><el-form-item label="复购商城"><el-switch v-model="form.repurchaseSaleEnabled" :active-value="1" :inactive-value="0" active-text="销售" inactive-text="不销售" /></el-form-item></el-col>
+            </el-row>
+            <el-row v-if="form.repurchaseSaleEnabled === 1" :gutter="20">
+              <el-col :span="8"><el-form-item label="商品复购价" required><el-input-number v-model="form.repurchasePrice" :min="0.01" :precision="2" controls-position="right" style="width:100%" /><div class="field-help">多规格可在SKU单独覆盖，未填写时继承此价格。</div></el-form-item></el-col>
+              <el-col :span="8"><el-form-item label="商品复购PV"><el-input-number v-model="form.repurchasePv" :min="0" :max="Number(form.repurchasePrice || 0)" :precision="2" controls-position="right" style="width:100%" /></el-form-item></el-col>
+              <el-col :span="8"><el-form-item label="复购累计限购"><el-input-number v-model="form.repurchasePurchaseLimit" :min="0" :step="1" controls-position="right" style="width:100%" /><div class="field-help">0表示不限购，仅统计复购订单。</div></el-form-item></el-col>
+            </el-row>
+            <el-table v-if="form.repurchaseSaleEnabled === 1 && hasSku" :data="skuRows" border size="small">
+              <el-table-column prop="skuName" label="规格" min-width="150" />
+              <el-table-column label="SKU复购价（可选）" min-width="190"><template #default="{ row }"><el-input-number v-model="row.repurchasePrice" :min="0" :precision="2" controls-position="right" /></template></el-table-column>
+              <el-table-column label="SKU复购PV（可选）" min-width="190"><template #default="{ row }"><el-input-number v-model="row.repurchasePv" :min="0" :max="Number(row.repurchasePrice || form.repurchasePrice || 0)" :precision="2" controls-position="right" /></template></el-table-column>
+            </el-table>
+          </section>
+
           <section id="product-delivery" class="form-section">
-            <h3>4. 物流配送</h3>
+            <h3>5. 物流配送</h3>
             <el-row :gutter="20">
               <el-col v-if="!form.shippingAddressId" :span="8"><el-form-item label="发货地区" required><el-cascader v-model="deliveryRegion" :options="pcaTextArr" placeholder="请选择省 / 市 / 区县" style="width:100%" filterable /><div class="field-help">未选择地址簿时，可直接填写商品发货地区</div></el-form-item></el-col>
               <el-col :span="8"><el-form-item label="发货时效"><el-select v-model="form.deliveryTime" placeholder="请选择" style="width:100%"><el-option label="24小时内发货" value="24小时内发货" /><el-option label="48小时内发货" value="48小时内发货" /><el-option label="72小时内发货" value="72小时内发货" /><el-option label="预售，按约定时间发货" value="预售" /></el-select></el-form-item></el-col>
@@ -232,7 +251,7 @@
           </section>
 
           <section id="product-after-sale" class="form-section">
-            <h3>5. 售后及服务</h3>
+            <h3>6. 售后及服务</h3>
             <el-form-item label="服务保障">
               <div class="guarantee-tags">
                 <div class="guarantee-tags-list">
@@ -409,6 +428,7 @@ const sectionAnchors = [
   { id: 'product-basic', label: '基本信息' },
   { id: 'product-images', label: '商品主图' },
   { id: 'product-stock', label: '价格与库存' },
+  { id: 'product-business', label: '销售渠道' },
   { id: 'product-delivery', label: '物流配送' },
   { id: 'product-after-sale', label: '售后服务' },
   { id: 'product-detail', label: '商品详情' },
@@ -537,7 +557,7 @@ const defaultServiceGuarantees = () => Object.entries(guaranteeDefaults).map(([t
 }))
 
 const inferAfterSalePreset = (policy) => Object.entries(afterSalePolicyPresets).find(([, preset]) => preset.content === policy)?.[0] || 'custom'
-const defaultForm = () => ({ tenantId: 1, productNo: '', productName: '', subtitle: '', categoryName: '', mainImages: [], salePrice: 0, marketPrice: 0, costAmount: 0, pvValue: 0, bvValue: 0, stock: 0, safetyStock: 0, purchaseLimit: 0, salesCount: 0, sort: 0, status: 1, freightType: 0, freightAmount: 0, freeShippingAmount: 0, freightTemplateId: null, freightTemplateName: '', deliveryAddress: '', deliveryProvince: '', deliveryCity: '', deliveryDistrict: '', shippingAddressId: null, returnAddressId: null, deliveryTime: '48小时内发货', afterSalePresetKey: defaultAfterSalePresetKey, afterSalePolicy: afterSalePolicyPresets[defaultAfterSalePresetKey].content, serviceGuarantees: defaultServiceGuarantees(), detail: '', detailImageUrls: [] })
+const defaultForm = () => ({ tenantId: 1, productNo: '', productName: '', subtitle: '', categoryName: '', mainImages: [], salePrice: 0, marketPrice: 0, costAmount: 0, pvValue: 0, bvValue: 0, stock: 0, safetyStock: 0, purchaseLimit: 0, normalSaleEnabled: 1, repurchaseSaleEnabled: 0, repurchasePrice: 0, repurchasePv: 0, repurchasePurchaseLimit: 0, salesCount: 0, sort: 0, status: 1, freightType: 0, freightAmount: 0, freeShippingAmount: 0, freightTemplateId: null, freightTemplateName: '', deliveryAddress: '', deliveryProvince: '', deliveryCity: '', deliveryDistrict: '', shippingAddressId: null, returnAddressId: null, deliveryTime: '48小时内发货', afterSalePresetKey: defaultAfterSalePresetKey, afterSalePolicy: afterSalePolicyPresets[defaultAfterSalePresetKey].content, serviceGuarantees: defaultServiceGuarantees(), detail: '', detailImageUrls: [] })
 
 const fetchData = async () => {
   const validation = validateSearchKeyword(query.value.keyword, { label: '商品关键词' })
@@ -702,7 +722,7 @@ const uploadSkuImage = async (row, file) => { row.imageUrl = await uploadFile(fi
 const removeImage = (field, index) => { form.value[field].splice(index, 1) }
 const setCover = (index) => { const [image] = form.value.mainImages.splice(index, 1); form.value.mainImages.unshift(image) }
 
-const addSku = () => skuRows.value.push({ skuNo: '', skuName: '', attributes: [], imageUrl: '', salePrice: Number(form.value.salePrice || 0), marketPrice: Number(form.value.marketPrice || 0), costAmount: Number(form.value.costAmount || 0), pvValue: 0, bvValue: 0, stock: 0, safetyStock: 0, status: 1 })
+const addSku = () => skuRows.value.push({ skuNo: '', skuName: '', attributes: [], imageUrl: '', salePrice: Number(form.value.salePrice || 0), marketPrice: Number(form.value.marketPrice || 0), costAmount: Number(form.value.costAmount || 0), pvValue: 0, repurchasePrice: null, repurchasePv: null, bvValue: 0, stock: 0, safetyStock: 0, status: 1 })
 const removeSku = (index) => { const row = skuRows.value[index]; if (row.id) removedSkuIds.value.push(row.id); skuRows.value.splice(index, 1) }
 const changeProductType = async (type) => {
   if (type === 'MULTI') {
@@ -810,6 +830,10 @@ const submitForm = async () => {
   if (form.value.freightType === 1 && Number(form.value.freightAmount || 0) <= 0) return ElMessage.warning('固定运费必须大于0')
   if (form.value.freightType === 2 && Number(form.value.freeShippingAmount || 0) <= 0) return ElMessage.warning('请填写满额包邮门槛')
   if (Number(form.value.purchaseLimit || 0) < 0 || !Number.isInteger(Number(form.value.purchaseLimit || 0))) return ElMessage.warning('会员限购数量必须是大于等于0的整数')
+  if (Number(form.value.normalSaleEnabled) !== 1 && Number(form.value.repurchaseSaleEnabled) !== 1) return ElMessage.warning('商品至少选择一个销售渠道')
+  if (Number(form.value.repurchaseSaleEnabled) === 1 && Number(form.value.repurchasePrice || 0) <= 0) return ElMessage.warning('启用复购商城后请填写复购价')
+  if (Number(form.value.repurchasePv || 0) > Number(form.value.repurchasePrice || 0)) return ElMessage.warning('复购PV不能超过复购价')
+  if (skuRows.value.some((item) => Number(item.repurchasePv || 0) > Number(item.repurchasePrice || form.value.repurchasePrice || 0))) return ElMessage.warning('SKU复购PV不能超过对应复购价')
   if (Number(form.value.safetyStock || 0) < 0 || !Number.isInteger(Number(form.value.safetyStock || 0))) return ElMessage.warning('商品安全库存必须是大于等于0的整数')
   if (skuRows.value.some((item) => Number(item.safetyStock || 0) < 0 || !Number.isInteger(Number(item.safetyStock || 0)))) return ElMessage.warning('SKU安全库存必须是大于等于0的整数')
   if (form.value.freightType === 3 && !form.value.freightTemplateId) return ElMessage.warning('请选择运费模板')

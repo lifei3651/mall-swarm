@@ -67,6 +67,11 @@ CREATE TABLE IF NOT EXISTS dms_tenant (
   after_sale_policy CLOB,
   after_sale_window_mode VARCHAR(32) NOT NULL DEFAULT 'RECEIVED',
   after_sale_window_days INT NOT NULL DEFAULT 7,
+  flash_sale_enabled INT NOT NULL DEFAULT 0,
+  flash_sale_bonus_mode VARCHAR(16) NOT NULL DEFAULT 'NONE',
+  repurchase_mall_enabled INT NOT NULL DEFAULT 0,
+  repurchase_eligibility_mode VARCHAR(24) NOT NULL DEFAULT 'PAID_MEMBER',
+  repurchase_bonus_mode VARCHAR(16) NOT NULL DEFAULT 'NONE',
   faqs CLOB,
   status INT NOT NULL DEFAULT 1,
   remark VARCHAR(256),
@@ -754,6 +759,11 @@ CREATE TABLE IF NOT EXISTS dms_shop_product (
   stock INT NOT NULL DEFAULT 0,
   safety_stock INT NOT NULL DEFAULT 0,
   purchase_limit INT NOT NULL DEFAULT 0,
+  normal_sale_enabled INT NOT NULL DEFAULT 1,
+  repurchase_sale_enabled INT NOT NULL DEFAULT 0,
+  repurchase_price DECIMAL(12,2) NOT NULL DEFAULT 0,
+  repurchase_pv DECIMAL(12,2) NOT NULL DEFAULT 0,
+  repurchase_purchase_limit INT NOT NULL DEFAULT 0,
   sales_count INT NOT NULL DEFAULT 0,
   sort_order INT NOT NULL DEFAULT 0,
   status INT NOT NULL DEFAULT 1,
@@ -819,6 +829,8 @@ CREATE TABLE IF NOT EXISTS dms_shop_sku (
   market_price DECIMAL(12,2) NOT NULL DEFAULT 0,
   cost_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
   pv_value DECIMAL(12,2) NOT NULL DEFAULT 0,
+  repurchase_price DECIMAL(12,2),
+  repurchase_pv DECIMAL(12,2),
   bv_value DECIMAL(12,2) NOT NULL DEFAULT 0,
   stock INT NOT NULL DEFAULT 0,
   safety_stock INT NOT NULL DEFAULT 0,
@@ -848,6 +860,8 @@ CREATE TABLE IF NOT EXISTS dms_shop_order (
   pay_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
   total_pv DECIMAL(12,2) NOT NULL DEFAULT 0,
   total_cost DECIMAL(12,2) NOT NULL DEFAULT 0,
+  business_type VARCHAR(24) NOT NULL DEFAULT 'NORMAL',
+  business_source_id BIGINT,
   status INT NOT NULL DEFAULT 1,
   pay_type VARCHAR(32),
   remark VARCHAR(512),
@@ -895,6 +909,41 @@ CREATE TABLE IF NOT EXISTS dms_shop_order_item (
   cost_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
   total_cost DECIMAL(12,2) NOT NULL DEFAULT 0,
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS dms_flash_sale_activity (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  activity_name VARCHAR(80) NOT NULL,
+  product_id BIGINT NOT NULL,
+  sku_id BIGINT,
+  flash_price DECIMAL(12,2) NOT NULL,
+  flash_pv DECIMAL(12,2) NOT NULL DEFAULT 0,
+  total_stock INT NOT NULL,
+  available_stock INT NOT NULL,
+  per_user_limit INT NOT NULL DEFAULT 1,
+  start_time TIMESTAMP NOT NULL,
+  end_time TIMESTAMP NOT NULL,
+  status INT NOT NULL DEFAULT 0,
+  version INT NOT NULL DEFAULT 0,
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS dms_flash_sale_reservation (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  activity_id BIGINT NOT NULL,
+  user_id BIGINT NOT NULL,
+  order_id BIGINT,
+  order_no VARCHAR(64),
+  quantity INT NOT NULL,
+  released_quantity INT NOT NULL DEFAULT 0,
+  status VARCHAR(16) NOT NULL DEFAULT 'RESERVED',
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(activity_id, user_id),
+  UNIQUE(order_id)
 );
 
 CREATE TABLE IF NOT EXISTS dms_shop_service_address (

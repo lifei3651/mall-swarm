@@ -49,6 +49,12 @@ public class DmsShopOrder implements Serializable {
 
     private BigDecimal totalCost;
 
+    /** NORMAL普通订单、FLASH_SALE秒杀订单、REPURCHASE复购订单。 */
+    private String businessType;
+
+    /** 秒杀活动等业务来源ID；普通和复购订单为空。 */
+    private Long businessSourceId;
+
     /** 0待付款，1待发货，2已发货，3已完成，4已关闭（取消、超时关闭或整单退款）。 */
     private Integer status;
 

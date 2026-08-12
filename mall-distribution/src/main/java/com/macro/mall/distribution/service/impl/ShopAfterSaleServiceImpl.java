@@ -13,6 +13,8 @@ import com.macro.mall.distribution.dao.DmsShopProductDao;
 import com.macro.mall.distribution.dao.DmsShopServiceAddressDao;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsShopSkuDao;
+import com.macro.mall.distribution.dao.DmsFlashSaleActivityDao;
+import com.macro.mall.distribution.dao.DmsFlashSaleReservationDao;
 import com.macro.mall.distribution.dto.FinanceRefundDTO;
 import com.macro.mall.distribution.dto.AssetChangeDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleApplyDTO;
@@ -28,6 +30,9 @@ import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.entity.DmsShopOrderItem;
 import com.macro.mall.distribution.entity.DmsShopProduct;
 import com.macro.mall.distribution.entity.DmsShopServiceAddress;
+import com.macro.mall.distribution.entity.DmsFlashSaleActivity;
+import com.macro.mall.distribution.entity.DmsFlashSaleReservation;
+import com.macro.mall.distribution.constants.ShopBusinessType;
 import com.macro.mall.distribution.enums.AgentSourceTypeEnum;
 import com.macro.mall.distribution.service.AgentService;
 import com.macro.mall.distribution.service.AlipayService;
@@ -36,6 +41,7 @@ import com.macro.mall.distribution.service.MemberAssetService;
 import com.macro.mall.distribution.service.ShopAfterSaleService;
 import com.macro.mall.distribution.service.OrderRealtimeService;
 import com.macro.mall.distribution.service.OrderBalanceAllocationService;
+import com.macro.mall.distribution.service.FlashSaleStockGate;
 import com.macro.mall.distribution.util.MemberAccountUtils;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
@@ -73,6 +79,9 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     private final OrderBalanceAllocationService orderBalanceAllocationService;
     private final AlipayService alipayService;
     private final ShopAfterSaleWindowPolicy afterSaleWindowPolicy;
+    private final DmsFlashSaleActivityDao flashSaleActivityDao;
+    private final DmsFlashSaleReservationDao flashSaleReservationDao;
+    private final FlashSaleStockGate flashSaleStockGate;
     @Autowired(required = false)
     private OrderRealtimeService orderRealtimeService;
 
@@ -413,6 +422,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             if (item.getSkuId() != null) skuDao.increaseStock(item.getSkuId(), item.getQuantity());
             productDao.increaseStock(item.getProductId(), item.getQuantity());
         }
+        releaseFlashSaleAfterPendingCancellation(order);
         return true;
     }
 
@@ -541,10 +551,13 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             }
             List<DmsShopAfterSaleItem> items = afterSaleItemDao.selectByAfterSaleId(afterSale.getId());
             if (Integer.valueOf(2).equals(afterSale.getApplyType())) {
+                int returnedQuantity = 0;
                 for (DmsShopAfterSaleItem item : items) {
                     if (item.getSkuId() != null) skuDao.increaseStock(item.getSkuId(), item.getRefundQuantity());
                     productDao.increaseStock(item.getProductId(), item.getRefundQuantity());
+                    returnedQuantity += item.getRefundQuantity() == null ? 0 : item.getRefundQuantity();
                 }
+                releaseFlashSaleAfterReturn(order, returnedQuantity);
             }
             int originalQuantity = orderItemDao.selectByOrderId(order.getId()).stream()
                     .map(DmsShopOrderItem::getQuantity).filter(Objects::nonNull).mapToInt(Integer::intValue).sum();
@@ -555,6 +568,25 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             autoDemoteMemberAfterFullRefund(order);
             // 所有内部售后、财务、奖金和库存变更完成后再调用外部退款，外部失败时可整体回滚，避免先退款后落账。
             refundExternalPayment(order, afterSale);
+    }
+
+    private void releaseFlashSaleAfterPendingCancellation(DmsShopOrder order) {
+        if (order == null || !ShopBusinessType.FLASH_SALE.equals(order.getBusinessType())) return;
+        DmsFlashSaleReservation reservation = flashSaleReservationDao.selectByOrderId(order.getId());
+        if (reservation == null || flashSaleReservationDao.releaseRefundedQuantity(
+                order.getId(), reservation.getQuantity()) <= 0) return;
+        flashSaleActivityDao.increaseStock(reservation.getActivityId(), reservation.getQuantity());
+        flashSaleStockGate.restoreStockOnly(flashSaleActivityDao.selectById(reservation.getActivityId()),
+                reservation.getQuantity());
+    }
+
+    private void releaseFlashSaleAfterReturn(DmsShopOrder order, int returnedQuantity) {
+        if (order == null || returnedQuantity <= 0 || !ShopBusinessType.FLASH_SALE.equals(order.getBusinessType())) return;
+        DmsFlashSaleReservation reservation = flashSaleReservationDao.selectByOrderId(order.getId());
+        if (reservation == null || flashSaleReservationDao.releaseRefundedQuantity(order.getId(), returnedQuantity) <= 0) return;
+        flashSaleActivityDao.increaseStock(reservation.getActivityId(), returnedQuantity);
+        DmsFlashSaleActivity activity = flashSaleActivityDao.selectById(reservation.getActivityId());
+        flashSaleStockGate.restoreStockOnly(activity, returnedQuantity);
     }
 
     private void refundExternalPayment(DmsShopOrder order, DmsShopAfterSale afterSale) {
