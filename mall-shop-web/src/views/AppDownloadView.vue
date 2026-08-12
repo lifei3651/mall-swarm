@@ -1,7 +1,7 @@
 <template>
   <div class="download-page">
     <section class="download-card">
-      <div class="app-logo">LQ</div>
+      <img class="app-logo" :src="appLogoUrl" :alt="`${brandName} APP 图标`" @error="useFallbackLogo" />
       <p v-if="registered" class="success-badge">注册成功</p>
       <h1>{{ registered ? `欢迎加入${brandName}` : `${brandName} APP` }}</h1>
       <p class="lead">{{ releaseAvailable ? '安卓版已开放下载，安装后可继续购物和查看订单。' : '安卓版仍在内部测试，正式发布前暂不提供公开下载；网页版功能不受影响。' }}</p>
@@ -39,11 +39,15 @@ import { computed, inject, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { fetchAndroidRelease, openAndroidDownload } from '@/utils/appRelease'
 import { hasShopSession } from '@/utils/shopSession'
-import { currentBrandName } from '@/utils/brand'
+import { currentBrandLogo, currentBrandName } from '@/utils/brand'
 
 const route = useRoute()
 const shopBrand = inject('shopBrand', null)
 const brandName = computed(() => shopBrand?.value?.brandName || currentBrandName())
+const fallbackLogoUrl = '/lingqi-logo-mark.png'
+const failedLogoUrl = ref('')
+const configuredLogoUrl = computed(() => shopBrand?.value?.logoUrl || currentBrandLogo() || fallbackLogoUrl)
+const appLogoUrl = computed(() => failedLogoUrl.value === configuredLogoUrl.value ? fallbackLogoUrl : configuredLogoUrl.value)
 const registered = computed(() => route.query.registered === '1')
 const isAndroidDevice = /Android/i.test(navigator.userAgent)
 const loading = ref(true)
@@ -54,6 +58,10 @@ const continuePath = computed(() => hasShopSession() ? '/profile' : '/')
 const shortHash = computed(() => release.value.sha256
   ? `${release.value.sha256.slice(0, 12)}…${release.value.sha256.slice(-12)}`
   : '')
+
+const useFallbackLogo = () => {
+  if (appLogoUrl.value !== fallbackLogoUrl) failedLogoUrl.value = configuredLogoUrl.value
+}
 
 const loadRelease = async () => {
   loading.value = true
@@ -82,7 +90,7 @@ onMounted(loadRelease)
 <style scoped>
 .download-page { min-height: calc(100vh - 74px); display: grid; place-items: start center; padding: 24px 14px 100px; background: linear-gradient(160deg, #eaf8f4 0%, #fff 48%, #fff4ec 100%); }
 .download-card { width: min(460px, 100%); padding: 30px 22px; text-align: center; background: rgba(255,255,255,.94); border: 1px solid rgba(15,118,110,.12); border-radius: 24px; box-shadow: 0 18px 50px rgba(15,118,110,.12); }
-.app-logo { width: 76px; height: 76px; display: grid; place-items: center; margin: 0 auto 16px; color: #fff; background: linear-gradient(135deg, #0f766e, #15a58f); border-radius: 22px; box-shadow: 0 12px 24px rgba(15,118,110,.25); font-size: 27px; font-weight: 900; letter-spacing: 1px; }
+.app-logo { width: 76px; height: 76px; display: block; margin: 0 auto 16px; padding: 7px; object-fit: contain; background: #fff; border: 1px solid rgba(15,118,110,.12); border-radius: 22px; box-shadow: 0 12px 24px rgba(15,118,110,.18); }
 .success-badge { display: inline-flex; margin: 0 0 8px; padding: 5px 12px; color: #08724f; background: #e8f8f1; border-radius: 999px; font-size: 13px; font-weight: 700; }
 h1 { margin: 0; color: var(--ink, #1f2937); font-size: 25px; }
 .lead { margin: 12px auto 20px; color: var(--muted, #667085); font-size: 14px; line-height: 1.75; }

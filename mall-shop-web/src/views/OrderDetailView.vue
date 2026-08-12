@@ -25,7 +25,7 @@
             <span>{{ logisticsStatusDescription }}</span>
           </div>
           <a v-if="trackingUrl(shipments[0])" :href="trackingUrl(shipments[0])" target="_blank" rel="noopener" class="logistics-overview-link">
-            查看物流
+            查询承运商
             <ChevronRight :size="17" />
           </a>
         </div>
@@ -108,7 +108,7 @@
               </div>
               <small v-else class="return-logistics-line">
                 物流公司：{{ sale.returnDeliveryCompany || '未填写' }} · 运单号：{{ sale.returnDeliveryNo || '-' }}，等待商家确认收货
-                <a v-if="sale.returnDeliveryNo" :href="trackingUrl({ deliveryCompany: sale.returnDeliveryCompany, deliveryNo: sale.returnDeliveryNo })" target="_blank" rel="noopener" class="tracking-link">查看物流轨迹</a>
+                <a v-if="sale.returnDeliveryNo" :href="trackingUrl({ deliveryCompany: sale.returnDeliveryCompany, deliveryNo: sale.returnDeliveryNo })" target="_blank" rel="noopener" class="tracking-link">查询退货物流</a>
               </small>
             </div>
             <div v-for="line in sale.items || []" :key="line.id" class="after-sale-item-line">
@@ -330,14 +330,16 @@ const shipments = computed(() => {
   return []
 })
 const logisticsStatus = computed(() => {
-  if (order.value?.receiveTime || Number(order.value?.status) === 3) return '已签收'
-  if (Number(order.value?.status) === 2) return '运输中'
+  if (order.value?.receiveTime) return '已确认收货'
+  if (Number(order.value?.status) === 3) return '已完成'
   return '已发货'
 })
 const logisticsStatusDescription = computed(() => {
-  if (logisticsStatus.value === '已签收') return order.value?.receiveTime ? `签收时间 ${dateTime(order.value.receiveTime)}` : '包裹已签收'
-  if (logisticsStatus.value === '运输中') return '包裹正在运输，请留意物流更新'
-  return order.value?.deliveryTime ? `发货时间 ${dateTime(order.value.deliveryTime)}` : '商家已发出商品'
+  if (order.value?.receiveTime) return `确认收货时间 ${dateTime(order.value.receiveTime)}`
+  if (Number(order.value?.status) === 3) return '订单已完成，实际物流结果以承运商查询为准'
+  return order.value?.deliveryTime
+    ? `发货时间 ${dateTime(order.value.deliveryTime)}，实际轨迹以承运商查询为准`
+    : '商家已发货，实际轨迹以承运商查询为准'
 })
 const afterSales = computed(() => detail.value.afterSales || [])
 const displayConfig = computed(() => detail.value.displayConfig || {})

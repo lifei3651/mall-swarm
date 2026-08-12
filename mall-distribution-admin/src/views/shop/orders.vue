@@ -560,12 +560,14 @@ const canShipOrder = (row) => !hasPendingAfterSale(row)
 const canCancelAdminOrder = (row) => !hasPendingAfterSale(row)
   && [0, 1].includes(Number(row?.order?.status))
 const afterSaleDeadline = (row) => {
-  const created = Date.parse(String(row?.order?.createTime || '').replace(' ', 'T'))
-  return Number.isFinite(created) ? created + 7 * 24 * 60 * 60 * 1000 : Number.POSITIVE_INFINITY
+  const configured = Date.parse(String(row?.afterSaleDeadline || '').replace(' ', 'T'))
+  return Number.isFinite(configured) ? configured : Number.NaN
 }
+const isCustomerAfterSaleClosed = (row) => row?.afterSaleSelfServiceEnabled === false
+  || (Number.isFinite(afterSaleDeadline(row)) && Date.now() >= afterSaleDeadline(row))
 const canManualRefund = (row) => !hasPendingAfterSale(row)
-  && [1, 2, 3].includes(row?.order?.status)
-  && Date.now() >= afterSaleDeadline(row)
+  && [1, 2, 3].includes(Number(row?.order?.status))
+  && isCustomerAfterSaleClosed(row)
 const refundedQuantity = (row, itemId) => (row?.afterSales || [])
   .filter((sale) => [0, 1, 4, 5, 6].includes(Number(sale.status)))
   .flatMap((sale) => sale.items || [])
@@ -837,7 +839,7 @@ const openManualRefund = (row) => {
     refundMode: 'QUANTITY',
     productRefundAmount: 0,
     items: Object.fromEntries((row.items || []).map((item) => [item.id, 0])),
-    reason: '订单超过前台7天售后期限，后台按客户协商处理',
+    reason: '客户自助售后入口已关闭，后台根据客服协商处理',
   }
   manualRefundDialogVisible.value = true
 }

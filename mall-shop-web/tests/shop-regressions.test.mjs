@@ -171,6 +171,10 @@ test('homepage exposes the legal qualification link while internal APK builds st
   const release = JSON.parse(await readFile(new URL('../public/downloads/android-release.json', import.meta.url), 'utf8'))
   assert.match(app, /to="\/legal\/license">经营资质/)
   assert.match(download, /releaseAvailable/)
+  assert.match(download, /shopBrand\?\.value\?\.logoUrl/)
+  assert.match(download, /currentBrandLogo\(\)/)
+  assert.match(download, /alt="`\$\{brandName\} APP 图标`"/)
+  assert.doesNotMatch(download, />LQ<\/div>/)
   assert.equal(release.published, false)
   assert.equal(release.channel, 'internal-test')
 })
@@ -445,7 +449,7 @@ test('customers can cancel only pending after-sale applications', async () => {
   assert.match(api, /url: `\/shop\/after-sales\/\$\{id\}\/cancel`/)
   assert.match(source, /取消申请/)
   assert.match(source, /物流公司：\{\{ sale\.returnDeliveryCompany/)
-  assert.match(source, /查看物流轨迹/)
+  assert.match(source, /查询退货物流/)
   assert.match(source, /sale\.status === 0/)
   assert.match(source, /取消后不会产生退款；如仍在售后期限内/)
   assert.doesNotMatch(source, /window\.confirm\(/)
@@ -637,12 +641,16 @@ test('product detail shows the configured member purchase limit', async () => {
   assert.match(source, /每位会员限购/)
 })
 
-test('order detail prioritizes a compact logistics summary and signed status', async () => {
+test('order detail describes only locally known delivery facts without inventing carrier progress', async () => {
   const source = await readView('OrderDetailView.vue')
   assert.match(source, /logistics-overview-panel/)
   assert.match(source, /courierInitial/)
   assert.match(source, /logisticsStatus/)
-  assert.match(source, /已签收/)
+  assert.match(source, /已确认收货/)
+  assert.match(source, /实际轨迹以承运商查询为准/)
+  assert.match(source, /查询承运商/)
+  assert.doesNotMatch(source, /运输中/)
+  assert.doesNotMatch(source, /包裹正在运输/)
   assert.ok(source.indexOf('logistics-overview-panel') < source.indexOf('product-detail-head'))
 })
 

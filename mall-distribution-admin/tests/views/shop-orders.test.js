@@ -75,4 +75,15 @@ describe('商城订单取消入口', () => {
     expect(source).toContain('maxlength="500"')
     expect(source).toContain('手机号或客服备注')
   })
+
+  it('后台退款遵循服务端售后配置，不再自行写死下单后7天', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('row?.afterSaleDeadline')
+    expect(source).toContain('row?.afterSaleSelfServiceEnabled === false')
+    expect(source).toContain('isCustomerAfterSaleClosed(row)')
+    expect(source).toContain('客户自助售后入口已关闭，后台根据客服协商处理')
+    expect(source).not.toContain('created + 7 * 24 * 60 * 60 * 1000')
+    expect(source).not.toContain('订单超过前台7天售后期限')
+  })
 })
