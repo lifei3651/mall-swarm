@@ -8,9 +8,33 @@ describe('商城订单取消入口', () => {
   it('待付款和待发货订单都显示取消操作，待发货明确提示退款', async () => {
     const source = await readFile(sourcePath, 'utf8')
 
-    expect(source).toContain('[0, 1].includes(Number(row.order?.status))')
+    expect(source).toContain('[0, 1].includes(Number(row?.order?.status))')
     expect(source).toContain("'取消并退款'")
     expect(source).toContain('系统会原路全额退款、关闭订单并恢复库存')
+  })
+
+  it('全部订单不展示已取消或已拒绝的售后卡片，履约状态与有效退款结果分栏', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).not.toContain('v-for="sale in row.afterSales"')
+    expect(source).not.toContain("sale.reason || '未填写原因'")
+    expect(source).toContain('label="履约状态"')
+    expect(source).toContain('label="售后 / 退款"')
+    expect(source).toContain('[0, 4, 5, 6].includes(Number(item.status))')
+    expect(source).toContain('Number(item.status) === 1')
+    expect(source).toContain("'全额退款' : '部分退款'")
+    expect(source).toContain('实退 ¥')
+  })
+
+  it('主操作优先处理售后和发货，奖金、取消及后台退款收进更多操作', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('处理售后')
+    expect(source).toContain('更多操作')
+    expect(source).toContain('handleAfterSaleCommand')
+    expect(source).toContain('handleOrderMoreCommand')
+    expect(source).toContain('canCancelAdminOrder')
+    expect(source).toContain('command="BONUS"')
   })
 
   it('物流批量发货同时提供预填发货表和独立空白导入模板', async () => {

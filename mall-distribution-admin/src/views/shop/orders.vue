@@ -64,16 +64,6 @@
                   <strong>{{ item.productName || '商品' }}</strong>
                 </div>
               </div>
-              <div v-if="row.afterSales?.length" class="inline-after-sales">
-                <div v-for="sale in row.afterSales" :key="sale.id" class="inline-after-sale-item">
-                  <div>
-                    <el-tag size="small" :type="afterSaleTag(sale.status)">{{ afterSaleStatus(sale.status) }}</el-tag>
-                    <span>{{ sale.afterSaleNo }} · {{ sale.reason || '未填写原因' }}</span>
-                    <small>{{ sale.refundQuantity || 0 }}件 / ¥{{ money(sale.refundAmount) }}</small>
-                    <small v-if="sale.returnDeliveryNo" class="return-logistics">退货物流：{{ sale.returnDeliveryCompany }} {{ sale.returnDeliveryNo }}</small>
-                  </div>
-                </div>
-              </div>
             </template>
           </el-table-column>
           <el-table-column label="商品规格" min-width="125">
@@ -100,9 +90,26 @@
               <div class="sub">登录账号 {{ row.memberAccount || '-' }}</div>
             </template>
           </el-table-column>
-          <el-table-column label="订单状态" width="100">
+          <el-table-column label="履约状态" width="100">
             <template #default="{ row }">
               <el-tag :type="orderDisplayTag(row)">{{ orderDisplayStatus(row) }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="售后 / 退款" width="155">
+            <template #default="{ row }">
+              <div v-if="activeAfterSale(row)" class="after-sale-summary">
+                <el-tag size="small" :type="afterSaleTag(activeAfterSale(row).status)">
+                  {{ afterSaleStatus(activeAfterSale(row).status) }}
+                </el-tag>
+                <div class="sub">申请 {{ Number(activeAfterSale(row).refundQuantity || 0) }} 件 · ¥{{ money(activeAfterSale(row).refundAmount) }}</div>
+              </div>
+              <div v-if="hasApprovedRefund(row)" class="refund-summary">
+                <el-tag size="small" :type="isFullRefund(row) ? 'danger' : 'warning'">
+                  {{ refundResultLabel(row) }}
+                </el-tag>
+                <div class="sub">实退 ¥{{ money(approvedRefundAmount(row)) }} · {{ approvedRefundQuantity(row) }} 件</div>
+              </div>
+              <span v-if="!activeAfterSale(row) && !hasApprovedRefund(row)">-</span>
             </template>
           </el-table-column>
           <el-table-column label="订单总金额" width="110">
@@ -138,32 +145,46 @@
               <div class="sub">{{ row.order?.receiverAddress }}</div>
             </template>
           </el-table-column>
-          <el-table-column label="操作" fixed="right" width="230">
+          <el-table-column label="操作" fixed="right" width="165">
             <template #default="{ row }">
-              <el-button type="success" link @click="openBonusFlows(row.order?.id, row.order?.orderNo, row.memberAccount)">
-                奖金去向
-              </el-button>
-              <template v-if="activeAfterSale(row)">
-                <template v-if="Number(activeAfterSale(row).status) === 0">
-                  <el-button type="success" link @click.stop="openAudit(activeAfterSale(row), 1)">审核通过</el-button>
-                  <el-button type="danger" link @click.stop="openAudit(activeAfterSale(row), 2)">拒绝申请</el-button>
-                  <el-button type="warning" link @click.stop="openAudit(activeAfterSale(row), 3)">关闭申请</el-button>
+              <div class="order-actions">
+                <el-dropdown
+                  v-if="Number(activeAfterSale(row)?.status) === 0"
+                  trigger="click"
+                  @command="handleAfterSaleCommand($event, activeAfterSale(row))"
+                >
+                  <el-button type="warning" link>处理售后</el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item :command="1">审核通过</el-dropdown-item>
+                      <el-dropdown-item :command="2">拒绝申请</el-dropdown-item>
+                      <el-dropdown-item :command="3">关闭申请</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+                <template v-else-if="activeAfterSale(row)">
+                  <el-tag v-if="Number(activeAfterSale(row).status) === 4" type="warning">等待客户寄回</el-tag>
+                  <el-button v-else-if="Number(activeAfterSale(row).status) === 5" type="success" link @click.stop="confirmReturnReceived(activeAfterSale(row))">
+                    确认退货并退款
+                  </el-button>
+                  <el-tag v-else type="warning">退款处理中</el-tag>
                 </template>
-                <el-tag v-else-if="Number(activeAfterSale(row).status) === 4" type="warning">等待客户寄回</el-tag>
-                <el-button v-else-if="Number(activeAfterSale(row).status) === 5" type="success" link @click.stop="confirmReturnReceived(activeAfterSale(row))">
-                  确认退货并退款
+                <el-button v-if="canShipOrder(row)" type="primary" link @click="openShip(row)">
+                  {{ shipmentRows(row).length ? '继续发货' : '发货' }}
                 </el-button>
-                <el-tag v-else type="warning">退款处理中</el-tag>
-              </template>
-              <el-button v-if="!hasPendingAfterSale(row) && [0, 1].includes(Number(row.order?.status))" type="danger" link @click="cancelAdminOrder(row)">
-                {{ Number(row.order?.status) === 1 ? '取消并退款' : '取消订单' }}
-              </el-button>
-              <el-button v-if="canShipOrder(row)" type="primary" link @click="openShip(row)">
-                {{ shipmentRows(row).length ? '继续发货' : '发货' }}
-              </el-button>
-              <el-button v-if="canManualRefund(row)" type="warning" link @click="openManualRefund(row)">
-                后台退款
-              </el-button>
+                <el-dropdown trigger="click" @command="handleOrderMoreCommand($event, row)">
+                  <el-button link>更多操作</el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="BONUS">奖金去向</el-dropdown-item>
+                      <el-dropdown-item v-if="canCancelAdminOrder(row)" command="CANCEL" divided>
+                        {{ Number(row.order?.status) === 1 ? '取消并退款' : '取消订单' }}
+                      </el-dropdown-item>
+                      <el-dropdown-item v-if="canManualRefund(row)" command="REFUND" divided>后台退款</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </div>
             </template>
           </el-table-column>
     </el-table>
@@ -452,19 +473,20 @@ const afterSaleStatus = (status) => ({ 0: '待审核', 1: '退款完成', 2: '�
 const afterSaleTag = (status) => ({ 0: 'warning', 1: 'success', 2: 'info', 3: 'warning', 4: 'warning', 5: 'primary', 6: 'warning' }[status] || 'info')
 const hasPendingAfterSale = (row) => (row?.afterSales || []).some((item) => [0, 4, 5, 6].includes(Number(item.status)))
 const activeAfterSale = (row) => (row?.afterSales || []).find((item) => [0, 4, 5, 6].includes(Number(item.status)))
-const hasApprovedRefund = (row) => (row?.afterSales || []).some((item) => item.status === 1)
+const approvedAfterSales = (row) => (row?.afterSales || []).filter((item) => Number(item.status) === 1)
+const hasApprovedRefund = (row) => approvedAfterSales(row).length > 0
+const approvedRefundAmount = (row) => approvedAfterSales(row)
+  .reduce((sum, item) => sum + Number(item.refundAmount || 0), 0)
+const approvedRefundQuantity = (row) => approvedAfterSales(row)
+  .reduce((sum, item) => sum + Number(item.refundQuantity || 0), 0)
 const orderStateCount = (state) => ({
   PENDING_SHIPMENT: Number(orderWorkSummary.value.pendingShipment || 0),
   AFTER_SALE: Number(orderWorkSummary.value.afterSale || 0),
 }[state] || 0)
 const orderDisplayStatus = (row) => {
-  if (hasPendingAfterSale(row)) return '售后中'
-  if (hasApprovedRefund(row)) return '已退款'
   return ({ 0: '待付款', 1: '待发货', 2: '已发货', 3: '已完成', 4: '已关闭' }[row?.order?.status] || '处理中')
 }
 const orderDisplayTag = (row) => {
-  if (hasPendingAfterSale(row)) return 'warning'
-  if (hasApprovedRefund(row)) return 'danger'
   return ({ 0: 'info', 1: 'warning', 2: 'primary', 3: 'success', 4: 'info' }[row?.order?.status] || 'info')
 }
 const shipmentRows = (row) => {
@@ -480,11 +502,19 @@ const shipmentRows = (row) => {
   return []
 }
 const orderedQuantity = (row) => (row?.items || []).reduce((sum, item) => sum + Number(item?.quantity || 0), 0)
+const isFullRefund = (row) => hasApprovedRefund(row) && (
+  (orderedQuantity(row) > 0 && approvedRefundQuantity(row) >= orderedQuantity(row))
+  || (Number(row?.order?.payAmount || 0) > 0
+    && approvedRefundAmount(row) >= Number(row.order.payAmount) - 0.01)
+)
+const refundResultLabel = (row) => isFullRefund(row) ? '全额退款' : '部分退款'
 const shippedQuantity = (row) => shipmentRows(row).reduce((sum, item) => sum + Number(item?.shipmentQuantity || 0), 0)
 const remainingShipmentQuantity = (row) => Math.max(0, orderedQuantity(row) - shippedQuantity(row))
 const canShipOrder = (row) => !hasPendingAfterSale(row)
-  && [1, 2].includes(row?.order?.status)
+  && [1, 2].includes(Number(row?.order?.status))
   && remainingShipmentQuantity(row) > 0
+const canCancelAdminOrder = (row) => !hasPendingAfterSale(row)
+  && [0, 1].includes(Number(row?.order?.status))
 const afterSaleDeadline = (row) => {
   const created = Date.parse(String(row?.order?.createTime || '').replace(' ', 'T'))
   return Number.isFinite(created) ? created + 7 * 24 * 60 * 60 * 1000 : Number.POSITIVE_INFINITY
@@ -493,7 +523,7 @@ const canManualRefund = (row) => !hasPendingAfterSale(row)
   && [1, 2, 3].includes(row?.order?.status)
   && Date.now() >= afterSaleDeadline(row)
 const refundedQuantity = (row, itemId) => (row?.afterSales || [])
-  .filter((sale) => [0, 1, 4, 5, 6].includes(sale.status))
+  .filter((sale) => [0, 1, 4, 5, 6].includes(Number(sale.status)))
   .flatMap((sale) => sale.items || [])
   .filter((item) => item.orderItemId === itemId)
   .reduce((sum, item) => sum + Number(item.refundQuantity || 0), 0)
@@ -511,7 +541,7 @@ const manualRefundEstimate = computed(() => {
   }, 0)
   const totalRemaining = (currentOrder.value.items || []).reduce((sum, item) => sum + remainingRefundQuantity(currentOrder.value, item), 0)
   const approved = (currentOrder.value.afterSales || [])
-    .filter((sale) => sale.status === 1)
+    .filter((sale) => Number(sale.status) === 1)
     .reduce((sum, sale) => sum + Number(sale.productRefundAmount || 0), 0)
   const remainingAmount = Math.max(0, productBase - approved)
   return selectedRefundQuantity.value === totalRemaining
@@ -704,6 +734,21 @@ const openBonusFlows = async (orderId, orderNo, memberAccount) => {
     bonusFinance.value = res.data || {}
   } finally {
     bonusLoading.value = false
+  }
+}
+
+const handleAfterSaleCommand = (status, sale) => {
+  if (!sale || ![1, 2, 3].includes(Number(status))) return
+  openAudit(sale, Number(status))
+}
+
+const handleOrderMoreCommand = (command, row) => {
+  if (command === 'BONUS') {
+    openBonusFlows(row.order?.id, row.order?.orderNo, row.memberAccount)
+  } else if (command === 'CANCEL') {
+    cancelAdminOrder(row)
+  } else if (command === 'REFUND') {
+    openManualRefund(row)
   }
 }
 
@@ -921,33 +966,21 @@ onBeforeUnmount(() => {
   border-top: 1px dashed #ebeef5;
 }
 
-.inline-after-sales {
-  display: grid;
-  gap: 8px;
-  margin-top: 10px;
+.after-sale-summary + .refund-summary {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #dcdfe6;
 }
 
-.inline-after-sale-item {
-  padding: 8px;
-  color: #606266;
-  background: #fff7ed;
-  border-radius: 6px;
-  font-size: 12px;
-  line-height: 1.7;
-}
-
-.inline-after-sale-item span {
-  margin-left: 6px;
-}
-
-.inline-after-sale-item small {
-  display: block;
-  color: #a65a16;
-}
-
-.inline-after-sale-actions {
+.order-actions {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+}
+
+.order-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .order-no {
