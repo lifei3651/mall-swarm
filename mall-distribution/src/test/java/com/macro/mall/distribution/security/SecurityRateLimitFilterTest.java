@@ -55,4 +55,16 @@ class SecurityRateLimitFilterTest {
         assertEquals(12, rule.maximumRequests());
         assertEquals(60, rule.windowSeconds());
     }
+
+    @Test
+    void appliesDedicatedRuleToAnonymousAlipayReturn() {
+        SecurityRateLimitFilter filter = new SecurityRateLimitFilter(mock(SecurityRateLimitService.class));
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/pay/alipay/return");
+
+        SecurityRateLimitFilter.Rule rule = filter.resolveRule(request);
+
+        assertEquals("alipay-return", rule.name());
+        assertEquals(30, rule.maximumRequests());
+        assertEquals(60, rule.windowSeconds());
+    }
 }

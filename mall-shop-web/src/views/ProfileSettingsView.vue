@@ -8,7 +8,7 @@
     <section class="settings-card" aria-label="账号资料">
       <div class="settings-row static-row">
         <div><strong>登录账号</strong><small>用于登录，设置后不可自行修改</small></div>
-        <span>{{ member.username || '未设置' }}</span>
+        <span>{{ canSetupAccount ? '未设置' : member.username }}</span>
       </div>
       <button type="button" class="settings-row" @click="openNickname">
         <div><strong>昵称</strong><small>用于个人中心和转账身份核对</small></div>
@@ -24,7 +24,7 @@
       </RouterLink>
     </section>
 
-    <section v-if="!loading && !member.username" class="settings-card legacy-account">
+    <section v-if="!loading && canSetupAccount" class="settings-card legacy-account">
       <h3>设置登录账号</h3>
       <p>该账号用于密码登录，保存后不能自行修改。</p>
       <input v-model="accountForm.username" class="field" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="4至20位，以英文字母开头" @input="handleAccountInput" />
@@ -104,6 +104,7 @@ const timers = []
 let messageTimer = null
 
 const maskedPhone = computed(() => String(member.value.phone || '').replace(/^(\d{3})\d{4}(\d{4})$/, '$1****$2') || '-')
+const canSetupAccount = computed(() => !member.value.username || member.value.username === member.value.phone)
 const digits = (value, max) => String(value ?? '').replace(/\D/g, '').slice(0, max)
 const showMessage = (text, type = 'error') => {
   window.clearTimeout(messageTimer)
@@ -194,7 +195,11 @@ const saveAccount = async () => {
   if (accountError) return showMessage(accountError)
   if (accountForm.value.password.length < 6 || accountForm.value.password.length > 32) return showMessage('登录密码需要6至32位')
   savingAccount.value = true
-  try { await setupAccount(accountForm.value); accountForm.value = { username: '', password: '' }; await loadMember(); showMessage('登录账号已保存', 'success') }
+  try {
+    await setupAccount(accountForm.value)
+    clearShopSession()
+    await router.replace({ path: '/login', query: { notice: '登录账号已设置，请使用新账号重新登录' } })
+  }
   catch (e) { showMessage(e.message || '登录账号保存失败') }
   finally { savingAccount.value = false }
 }

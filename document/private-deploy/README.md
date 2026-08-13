@@ -12,6 +12,10 @@
 5. 复制 `customer.env.example` 为 `.env`，为客户生成独立强密码和域名配置。
 6. 只把客户自己的支付、短信和域名参数填入 `.env`；不要把真实密钥写进 Git、镜像、前端或工单截图。
 
+`.env` 只供 Compose 解析。模板通过每个服务的 `environment` 白名单分发变量：支付宝私钥和短信
+AccessKey 只进入 `mall-distribution`，搜索、监控、网关等容器无法读取。禁止给应用服务重新增加
+`env_file: .env`，否则会把整套客户密钥再次注入所有容器。
+
 ## 启动
 
 ```bash
@@ -33,13 +37,10 @@ docker compose --env-file .env -f docker-compose.private.yml up -d --build
 ## 访问
 
 - Nginx: `http://服务器IP/`
-- 网关直连: `http://服务器IP:8201/`
-- 分销服务直连: `http://服务器IP:8086/`
-- 监控: `http://服务器IP:8101/`
-- RabbitMQ 管理端: `http://服务器IP:15672/`
-- Nacos: `http://服务器IP:8848/nacos`
 
-生产环境建议只开放 80/443，其他端口通过安全组或防火墙限制到运维 IP。
+模板只向公网发布 Nginx 的 80/443；MySQL 仅绑定宿主机 `127.0.0.1:3306` 供备份使用。
+Redis、Nacos、RabbitMQ、MongoDB、Elasticsearch、网关、监控及业务后端只允许 Compose
+内部网络访问。运维请使用 `docker compose exec <服务名> ...`，不要临时向公网映射内部端口。
 
 ## 首次交付必做
 

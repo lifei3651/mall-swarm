@@ -1,3 +1,22 @@
+x-runtime-common: &runtime-common
+  SPRING_PROFILES_ACTIVE: prod
+  TZ: ${TZ}
+  NACOS_SERVER: ${NACOS_SERVER}
+
+x-redis-client: &redis-client
+  REDIS_HOST: ${REDIS_HOST}
+  REDIS_PORT: ${REDIS_PORT}
+  REDIS_PASSWORD: ${REDIS_PASSWORD}
+  REDIS_DATABASE: ${REDIS_DATABASE}
+
+x-database-client: &database-client
+  DB_HOST: ${DB_HOST}
+  DB_PORT: ${DB_PORT}
+  DB_NAME: ${DB_NAME}
+  DB_USER: ${DB_USER}
+  DB_PASSWORD: ${DB_PASSWORD}
+  DB_SSL_MODE: ${DB_SSL_MODE}
+
 services:
   mysql:
     image: mysql:8.0
@@ -10,8 +29,9 @@ services:
       MYSQL_DATABASE: ${DB_NAME}
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASSWORD}
+    # 仅供宿主机备份脚本使用，不接受外网连接。
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     volumes:
       - ./data/mysql:/var/lib/mysql
       - ../sql:/init-sql/base:ro
@@ -23,8 +43,6 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME}_redis
     restart: unless-stopped
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
-    ports:
-      - "6379:6379"
     volumes:
       - ./data/redis:/data
 
@@ -35,9 +53,6 @@ services:
     environment:
       MODE: standalone
       TZ: ${TZ}
-    ports:
-      - "8848:8848"
-      - "9848:9848"
 
   rabbitmq:
     image: rabbitmq:3.10-management
@@ -48,9 +63,6 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
       RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST}
-    ports:
-      - "5672:5672"
-      - "15672:15672"
     volumes:
       - ./data/rabbitmq:/var/lib/rabbitmq
 
@@ -60,8 +72,6 @@ services:
     restart: unless-stopped
     environment:
       TZ: ${TZ}
-    ports:
-      - "27017:27017"
     volumes:
       - ./data/mongodb:/data/db
 
@@ -73,9 +83,6 @@ services:
       TZ: ${TZ}
       discovery.type: single-node
       ES_JAVA_OPTS: -Xms512m -Xmx512m
-    ports:
-      - "9200:9200"
-      - "9300:9300"
     volumes:
       - ./data/elasticsearch:/usr/share/elasticsearch/data
 
@@ -85,10 +92,11 @@ services:
       dockerfile: mall-auth/Dockerfile
     container_name: ${COMPOSE_PROJECT_NAME}_mall_auth
     restart: unless-stopped
-    env_file: .env
     environment:
-      SPRING_PROFILES_ACTIVE: prod
-      TZ: ${TZ}
+      <<: [*runtime-common, *redis-client]
+      SA_TOKEN_JWT_KEY: ${SA_TOKEN_JWT_KEY}
+      SA_TOKEN_TIMEOUT: ${SA_TOKEN_TIMEOUT}
+      SA_TOKEN_ACTIVE_TIMEOUT: ${SA_TOKEN_ACTIVE_TIMEOUT}
     depends_on:
       - nacos-registry
       - redis
@@ -99,12 +107,11 @@ services:
       dockerfile: mall-gateway/Dockerfile
     container_name: ${COMPOSE_PROJECT_NAME}_mall_gateway
     restart: unless-stopped
-    env_file: .env
     environment:
-      SPRING_PROFILES_ACTIVE: prod
-      TZ: ${TZ}
-    ports:
-      - "8201:8201"
+      <<: [*runtime-common, *redis-client]
+      SA_TOKEN_JWT_KEY: ${SA_TOKEN_JWT_KEY}
+      SA_TOKEN_TIMEOUT: ${SA_TOKEN_TIMEOUT}
+      SA_TOKEN_ACTIVE_TIMEOUT: ${SA_TOKEN_ACTIVE_TIMEOUT}
     depends_on:
       - nacos-registry
       - redis
@@ -116,10 +123,9 @@ services:
       dockerfile: mall-admin/Dockerfile
     container_name: ${COMPOSE_PROJECT_NAME}_mall_admin
     restart: unless-stopped
-    env_file: .env
     environment:
-      SPRING_PROFILES_ACTIVE: prod
-      TZ: ${TZ}
+      <<: [*runtime-common, *redis-client, *database-client]
+      SA_TOKEN_JWT_KEY: ${SA_TOKEN_JWT_KEY}
     depends_on:
       - mysql
       - redis
@@ -131,10 +137,17 @@ services:
       dockerfile: mall-portal/Dockerfile
     container_name: ${COMPOSE_PROJECT_NAME}_mall_portal
     restart: unless-stopped
-    env_file: .env
     environment:
-      SPRING_PROFILES_ACTIVE: prod
-      TZ: ${TZ}
+      <<: [*runtime-common, *redis-client, *database-client]
+      MONGO_HOST: ${MONGO_HOST}
+      MONGO_PORT: ${MONGO_PORT}
+      MONGO_DB: ${MONGO_DB}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASS: ${RABBITMQ_PASS}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST}
+      SA_TOKEN_JWT_KEY: ${SA_TOKEN_JWT_KEY}
     depends_on:
       - mysql
       - redis
@@ -148,10 +161,10 @@ services:
       dockerfile: mall-search/Dockerfile
     container_name: ${COMPOSE_PROJECT_NAME}_mall_search
     restart: unless-stopped
-    env_file: .env
     environment:
-      SPRING_PROFILES_ACTIVE: prod
-      TZ: ${TZ}
+      <<: *runtime-common
+      ES_HOST: ${ES_HOST}
+      ES_PORT: ${ES_PORT}
     depends_on:
       - elasticsearch
       - nacos-registry
@@ -162,12 +175,10 @@ services:
       dockerfile: mall-monitor/Dockerfile
     container_name: ${COMPOSE_PROJECT_NAME}_mall_monitor
     restart: unless-stopped
-    env_file: .env
     environment:
-      SPRING_PROFILES_ACTIVE: prod
-      TZ: ${TZ}
-    ports:
-      - "8101:8101"
+      <<: *runtime-common
+      MONITOR_ADMIN_USER: ${MONITOR_ADMIN_USER}
+      MONITOR_ADMIN_PASSWORD: ${MONITOR_ADMIN_PASSWORD}
     depends_on:
       - nacos-registry
 
@@ -177,15 +188,43 @@ services:
       dockerfile: mall-distribution/Dockerfile
     container_name: ${COMPOSE_PROJECT_NAME}_mall_distribution
     restart: unless-stopped
-    env_file: .env
     environment:
-      SPRING_PROFILES_ACTIVE: prod
-      TZ: ${TZ}
+      <<: [*runtime-common, *redis-client, *database-client]
       SERVER_ADDRESS: ${SERVER_ADDRESS:0.0.0.0}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      SA_TOKEN_JWT_KEY: ${SA_TOKEN_JWT_KEY}
+      SA_TOKEN_TIMEOUT: ${SA_TOKEN_TIMEOUT}
+      SA_TOKEN_ACTIVE_TIMEOUT: ${SA_TOKEN_ACTIVE_TIMEOUT}
+      SHOP_MEDIA_STORAGE_DIR: ${SHOP_MEDIA_STORAGE_DIR}
+      SHOP_MEDIA_PRIVATE_STORAGE_DIR: ${SHOP_MEDIA_PRIVATE_STORAGE_DIR}
+      SHOP_MEDIA_MAX_DIMENSION: ${SHOP_MEDIA_MAX_DIMENSION}
+      SHOP_MEDIA_MAX_PIXELS: ${SHOP_MEDIA_MAX_PIXELS}
+      SHOP_MEDIA_JPEG_QUALITY: ${SHOP_MEDIA_JPEG_QUALITY}
+      SHOP_LOGISTICS_TRACKING_PROVIDER: ${SHOP_LOGISTICS_TRACKING_PROVIDER}
+      ORDER_PENDING_TIMEOUT_MINUTES: ${ORDER_PENDING_TIMEOUT_MINUTES}
+      ORDER_PENDING_SCAN_INTERVAL_MS: ${ORDER_PENDING_SCAN_INTERVAL_MS}
+      PAYMENT_LARGE_AMOUNT_VERIFY_ENABLED: ${PAYMENT_LARGE_AMOUNT_VERIFY_ENABLED}
+      PAYMENT_LARGE_AMOUNT_VERIFY_THRESHOLD: ${PAYMENT_LARGE_AMOUNT_VERIFY_THRESHOLD}
+      ALIPAY_ENABLED: ${ALIPAY_ENABLED}
+      ALIPAY_APP_ID: ${ALIPAY_APP_ID}
+      ALIPAY_PRIVATE_KEY: ${ALIPAY_PRIVATE_KEY}
+      ALIPAY_PUBLIC_KEY: ${ALIPAY_PUBLIC_KEY}
+      ALIPAY_NOTIFY_URL: ${ALIPAY_NOTIFY_URL}
+      ALIPAY_RETURN_URL: ${ALIPAY_RETURN_URL}
+      SMS_PROVIDER_ENABLED: ${SMS_PROVIDER_ENABLED}
+      SMS_ALIYUN_ACCESS_KEY_ID: ${SMS_ALIYUN_ACCESS_KEY_ID}
+      SMS_ALIYUN_ACCESS_KEY_SECRET: ${SMS_ALIYUN_ACCESS_KEY_SECRET}
+      SMS_ALIYUN_ENDPOINT: ${SMS_ALIYUN_ENDPOINT}
+      SMS_ALIYUN_SIGN_NAME: ${SMS_ALIYUN_SIGN_NAME}
+      SMS_TEMPLATE_REGISTER: ${SMS_TEMPLATE_REGISTER}
+      SMS_TEMPLATE_LOGIN: ${SMS_TEMPLATE_LOGIN}
+      SMS_TEMPLATE_RESET_PASSWORD: ${SMS_TEMPLATE_RESET_PASSWORD}
+      SMS_TEMPLATE_TRANSFER: ${SMS_TEMPLATE_TRANSFER}
+      SMS_TEMPLATE_WITHDRAW: ${SMS_TEMPLATE_WITHDRAW}
+      SMS_TEMPLATE_PAYMENT: ${SMS_TEMPLATE_PAYMENT}
+      SMS_TEMPLATE_PAYMENT_PASSWORD: ${SMS_TEMPLATE_PAYMENT_PASSWORD}
     volumes:
       - ./data/uploads:/opt/lingqimall/uploads
-    ports:
-      - "8086:8086"
     depends_on:
       - mysql
       - redis

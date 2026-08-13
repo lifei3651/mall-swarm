@@ -33,6 +33,7 @@ DELETE FROM dms_shop_banner;
 DELETE FROM dms_shop_category;
 DELETE FROM dms_shop_address;
 DELETE FROM dms_shop_member_session;
+DELETE FROM dms_idempotency_record;
 DELETE FROM dms_shop_member;
 DELETE FROM dms_performance_view_permission;
 DELETE FROM dms_distribution_setting;

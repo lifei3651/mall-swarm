@@ -50,7 +50,10 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             }
             try {
                 DmsAdminUser admin = adminAuthService.requireAdmin(request.getHeader("Authorization"));
-                String permission = requiredPermission(request);
+                String permission = AdminPermissionPolicy.requiredPermission(request.getMethod(), request.getRequestURI());
+                if (permission == null) {
+                    throw new ApiException("后台接口未配置权限或请求路径不合法");
+                }
                 adminAuthService.requirePermission(admin, permission);
                 AdminContext.set(admin);
                 return true;
@@ -125,105 +128,6 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             if (path.startsWith("/distribution/erp")) return "维护或执行ERP对接";
             String action = HttpMethod.POST.matches(method) ? "新增/提交" : HttpMethod.PUT.matches(method) ? "修改" : "删除";
             return action + "后台业务数据（" + path + "）";
-        }
-
-        private String requiredPermission(HttpServletRequest request) {
-            String path = request.getRequestURI();
-            String method = request.getMethod();
-            if (path.matches("/shop/admin/members/[^/]+/level")) {
-                return "distribution:manage";
-            }
-            if (HttpMethod.POST.matches(method) && path.matches("/distribution/agent/line-change-applications/[^/]+/audit")) {
-                return "line-change:apply";
-            }
-            if (HttpMethod.POST.matches(method) && path.equals("/distribution/agent/switch-line")) {
-                return "line-change:apply";
-            }
-            if (HttpMethod.GET.matches(method) && path.equals("/distribution/agent/line-change-applications")) {
-                return "line-change:apply";
-            }
-            if (path.startsWith("/distribution/admin-auth/")) {
-                return "admin:read";
-            }
-            if (path.startsWith("/distribution/admin-users")) {
-                return "system:manage";
-            }
-            if (path.startsWith("/distribution/erp")) {
-                return "config:manage";
-            }
-            if (HttpMethod.GET.matches(method)) {
-                if (path.startsWith("/distribution/operation-logs")) {
-                    return "system:manage";
-                }
-                if (path.startsWith("/distribution/tenant") || path.startsWith("/distribution/bonus-config")
-                        || path.startsWith("/distribution/audit/settings")) {
-                    return "config:manage";
-                }
-                if (path.startsWith("/distribution/audit/finance") || path.startsWith("/distribution/withdraw")
-                        || path.startsWith("/distribution/assets") || path.startsWith("/distribution/order-asset-payments")
-                        || path.startsWith("/distribution/audit/orders") || path.startsWith("/distribution/audit/bonus-sources")
-                        || path.startsWith("/distribution/audit/person-profile")) {
-                    return "finance:read";
-                }
-                if (path.startsWith("/shop/admin/products") || path.startsWith("/shop/admin/skus") || path.startsWith("/shop/admin/media")
-                        || path.startsWith("/shop/admin/freight-templates")
-                        || path.startsWith("/shop/admin/product-settings") || path.startsWith("/shop/admin/reviews")) {
-                    return "shop:product";
-                }
-                if (path.startsWith("/shop/admin/orders")) {
-                    return "shop:order";
-                }
-                if (path.startsWith("/shop/admin/after-sales")) {
-                    return "shop:aftersale";
-                }
-                if (path.startsWith("/shop/admin/members")) {
-                    return "shop:member";
-                }
-                if (path.startsWith("/distribution/import")) {
-                    return "import:manage";
-                }
-                if (path.startsWith("/distribution/commission")) {
-                    return "commission:manage";
-                }
-                if (path.startsWith("/distribution/agent") || path.startsWith("/distribution/performance")
-                        || path.startsWith("/distribution/account")) {
-                    return "distribution:manage";
-                }
-                return "admin:read";
-            }
-            if (path.startsWith("/distribution/tenant") || path.startsWith("/distribution/bonus-config")
-                    || path.startsWith("/distribution/audit/settings")) {
-                return "config:manage";
-            }
-            if (path.startsWith("/distribution/audit/finance") || path.startsWith("/distribution/withdraw")
-                    || path.startsWith("/distribution/assets") || path.startsWith("/distribution/order-asset-payments")) {
-                return "finance:manage";
-            }
-            if (path.startsWith("/shop/admin/products") || path.startsWith("/shop/admin/skus") || path.startsWith("/shop/admin/media")
-                    || path.startsWith("/shop/admin/freight-templates")
-                    || path.startsWith("/shop/admin/product-settings") || path.startsWith("/shop/admin/reviews")) {
-                return "shop:product";
-            }
-            if (path.startsWith("/shop/admin/orders")) {
-                return "shop:order";
-            }
-            if (path.startsWith("/shop/admin/after-sales")) {
-                return "shop:aftersale";
-            }
-            if (path.startsWith("/shop/admin/members")) {
-                return "shop:member";
-            }
-            if (path.startsWith("/distribution/import")) {
-                return "import:manage";
-            }
-            if (path.startsWith("/distribution/commission")) {
-                return "commission:manage";
-            }
-            if (path.startsWith("/distribution/agent") || path.startsWith("/distribution/performance")
-                    || path.startsWith("/distribution/account")) {
-                return "distribution:manage";
-            }
-            return "admin:write";
         }
 
         private void writeError(HttpServletResponse response, int status, String message) throws IOException {

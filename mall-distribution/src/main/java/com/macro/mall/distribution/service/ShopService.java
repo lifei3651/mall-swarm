@@ -97,6 +97,8 @@ public interface ShopService {
 
     List<DmsShopSku> listSkus(Long productId, Integer status);
 
+    List<DmsShopSku> listAdminSkus(Long productId, Integer status);
+
     DmsShopSku saveSku(ShopSkuDTO dto);
 
     DmsShopSku updateSku(Long id, ShopSkuDTO dto);

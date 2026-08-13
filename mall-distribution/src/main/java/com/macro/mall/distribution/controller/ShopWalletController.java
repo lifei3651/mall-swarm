@@ -13,6 +13,7 @@ import com.macro.mall.distribution.service.ShopAuthService;
 import com.macro.mall.distribution.service.ShopWalletService;
 import com.macro.mall.distribution.vo.BalanceRecipientVO;
 import com.macro.mall.distribution.vo.ShopOrderVO;
+import com.macro.mall.distribution.util.ShopPublicViewSanitizer;
 import com.macro.mall.distribution.vo.ShopWalletSummaryVO;
 import com.macro.mall.distribution.vo.WithdrawRecordVO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -72,7 +73,8 @@ public class ShopWalletController {
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable Long orderId,
             @Valid @RequestBody BalancePayDTO dto) {
-        return CommonResult.success(walletService.payOrder(authService.requireMember(authorization), orderId, dto));
+        return CommonResult.success(ShopPublicViewSanitizer.order(
+                walletService.payOrder(authService.requireMember(authorization), orderId, dto)));
     }
 
     @Operation(summary = "会员申请余额提现")

@@ -11,6 +11,7 @@ import com.macro.mall.distribution.dto.ShopOrderSubmitDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.entity.DmsShopProduct;
+import com.macro.mall.distribution.entity.DmsCommissionRecord;
 import com.macro.mall.distribution.vo.ShopOrderVO;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -57,6 +59,7 @@ class OrderBonusE2ETest {
     @Autowired private DmsCommissionRecordDao commissionRecordDao;
     @Autowired private DmsOrderBalanceAllocationDao allocationDao;
     @Autowired private JdbcTemplate jdbcTemplate;
+    @Autowired private SqlSessionTemplate sqlSessionTemplate;
 
     @Test
     void fullOrderLifecycleActivatesMemberAndGeneratesBonus() {
@@ -158,6 +161,28 @@ class OrderBonusE2ETest {
 
         assertTrue(allocated >= 0);
         assertTrue(settled >= 0);
+    }
+
+    @Test
+    void commissionCannotSettleBeforeTenantAfterSaleDeadline() {
+        DmsShopMember member = createMemberWithInviter(80006L, "售后窗口测试", "13900000006", "INV001", 1001L);
+        ShopOrderVO orderVO = shopService.submitOrder(buildOrderDTO(member.getUserId(), 1L, 1L, 1), member);
+        Long orderId = orderVO.getOrder().getId();
+        shopService.markOrderPaid(orderId, "BALANCE");
+        jdbcTemplate.update("UPDATE dms_shop_order SET status = 3, receive_time = ? WHERE id = ?",
+                LocalDateTime.now().minusDays(10), orderId);
+        jdbcTemplate.update("UPDATE dms_tenant SET after_sale_window_mode = 'RECEIVED', after_sale_window_days = 30 WHERE id = 1");
+
+        ReflectionTestUtils.setField(settlementService, "coolingOffDays", 7L);
+        settlementService.settleEligibleAfterCoolingOff(100);
+        DmsCommissionRecord pending = commissionRecordDao.selectByOrderId(orderId).get(0);
+        assertEquals(0, pending.getStatus(), "T+7不能早于客户配置的30天售后期限结算");
+
+        jdbcTemplate.update("UPDATE dms_shop_order SET receive_time = ? WHERE id = ?",
+                LocalDateTime.now().minusDays(31), orderId);
+        sqlSessionTemplate.clearCache();
+        settlementService.settleEligibleAfterCoolingOff(100);
+        assertEquals(1, commissionRecordDao.selectByOrderId(orderId).get(0).getStatus());
     }
 
     @Test

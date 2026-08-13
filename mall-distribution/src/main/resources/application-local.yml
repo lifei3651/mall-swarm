@@ -16,3 +16,12 @@ spring:
     admin:
       client:
         enabled: false
+
+# 本机测试能力必须通过显式 local profile 才能开启，基础配置始终保持安全。
+shop:
+  payment:
+    simulation-enabled: true
+
+sms:
+  expose-code: true
+  test-code: 123456

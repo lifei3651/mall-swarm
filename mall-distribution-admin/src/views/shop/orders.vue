@@ -181,6 +181,9 @@
                   <el-button v-else-if="Number(activeAfterSale(row).status) === 5" type="success" link @click.stop="confirmReturnReceived(activeAfterSale(row))">
                     确认退货并退款
                   </el-button>
+                  <el-button v-else-if="Number(activeAfterSale(row).status) === 6" type="warning" link @click.stop="confirmReturnReceived(activeAfterSale(row))">
+                    重试渠道退款
+                  </el-button>
                   <el-tag v-else type="warning">退款处理中</el-tag>
                 </template>
                 <el-button v-if="canShipOrder(row)" type="primary" link @click="openShip(row)">
@@ -942,13 +945,18 @@ const submitAudit = async () => {
 }
 
 const confirmReturnReceived = async (sale) => {
-  await ElMessageBox.confirm('确认已收到客户寄回的商品，并执行退款、库存和财务处理吗？', '确认收货并退款', { type: 'warning' })
+  const retrying = Number(sale?.status) === 6
+  await ElMessageBox.confirm(
+    retrying ? '将使用同一售后单号重新查询并执行渠道退款，不会重复处理本地库存和奖金。是否继续？' : '确认已收到客户寄回的商品，并执行退款、库存和财务处理吗？',
+    retrying ? '重试渠道退款' : '确认收货并退款',
+    { type: 'warning' },
+  )
   await confirmShopAfterSaleReturnReceived(sale.id, {
     auditRemark: '商家确认收到退货',
     auditUserId: currentOperator.value.id,
     auditUserName: currentOperator.value.name,
   })
-  ElMessage.success('已确认收货并完成退款处理')
+  ElMessage.success(retrying ? '渠道退款已恢复完成' : '已确认收货并完成退款处理')
   await Promise.all([fetchOrders(), fetchWorkSummary()])
 }
 

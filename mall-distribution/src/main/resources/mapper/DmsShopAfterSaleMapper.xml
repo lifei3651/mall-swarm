@@ -131,4 +131,10 @@
             audit_time = CURRENT_TIMESTAMP, update_time = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
+
+    <update id="markRefundCompleted">
+        UPDATE dms_shop_after_sale
+        SET status = 1, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND status = 6
+    </update>
 </mapper>

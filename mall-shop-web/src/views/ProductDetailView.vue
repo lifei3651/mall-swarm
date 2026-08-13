@@ -300,7 +300,6 @@ const displayProduct = computed(() => selectedSku.value ? {
   coverUrl: selectedSku.value.imageUrl || product.value.coverUrl,
   salePrice: selectedSku.value.salePrice,
   marketPrice: selectedSku.value.marketPrice,
-  costAmount: selectedSku.value.costAmount,
   pvValue: boundedPv(Number(selectedSku.value.pvValue || 0) > 0 ? selectedSku.value.pvValue : product.value.pvValue, selectedSku.value.salePrice),
   stock: selectedSku.value.stock,
 } : (product.value ? { ...product.value, pvValue: boundedPv(product.value.pvValue, product.value.salePrice) } : {}))

@@ -48,12 +48,18 @@ public class CommissionServiceImpl implements CommissionService {
     private final DmsOrderRelationSnapshotDao relationSnapshotDao;
     private final DmsAgentAccountDao accountDao;
     private final DmsCommissionClawbackDao clawbackDao;
+    private final DmsShopOrderDao shopOrderDao;
+    private final DmsShopAfterSaleDao shopAfterSaleDao;
     private final DmsShopMemberDao shopMemberDao;
     private final AgentAccountService accountService;
     private final DistributionAuditService auditService;
     private final MemberAssetService memberAssetService;
     private final NewRetailRankService newRetailRankService;
     private final PerformanceService performanceService;
+    private final ShopAfterSaleWindowPolicy afterSaleWindowPolicy;
+
+    @org.springframework.beans.factory.annotation.Value("${bonus.settlement.cooling-off-days:7}")
+    private long coolingOffDays;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -173,6 +179,21 @@ public class CommissionServiceImpl implements CommissionService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public boolean settleCommissionIfEligible(Long recordId) {
+        DmsCommissionRecord record = recordDao.selectByIdForUpdate(recordId);
+        if (record == null || !CommissionStatusEnum.PENDING.getValue().equals(record.getStatus())) return false;
+        DmsShopOrder order = shopOrderDao.selectByIdForUpdate(record.getOrderId());
+        LocalDateTime now = LocalDateTime.now();
+        if (order == null || !Integer.valueOf(3).equals(order.getStatus()) || order.getReceiveTime() == null
+                || now.isBefore(order.getReceiveTime().plusDays(Math.max(0, coolingOffDays)))) return false;
+        LocalDateTime afterSaleDeadline = afterSaleWindowPolicy.deadline(order);
+        if (afterSaleDeadline != null && now.isBefore(afterSaleDeadline)) return false;
+        if (shopAfterSaleDao.selectOpenByOrderId(order.getId()) != null) return false;
+        return settleLockedRecord(record) > 0;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public int settleCommissionBatch(List<Long> recordIds) {
         int count = 0;
         for (Long recordId : recordIds) {
@@ -196,6 +217,10 @@ public class CommissionServiceImpl implements CommissionService {
             return 0;
         }
 
+        return settleLockedRecord(record);
+    }
+
+    private int settleLockedRecord(DmsCommissionRecord record) {
         // 更新佣金记录状态
         record.setStatus(CommissionStatusEnum.SETTLED.getValue());
         record.setSettleTime(LocalDateTime.now());
@@ -206,7 +231,7 @@ public class CommissionServiceImpl implements CommissionService {
         // 通过钱包系统入账（issueCommissionToWallets已处理可提现余额，避免双重计数）
         issueCommissionToWallets(record);
 
-        log.info("结算佣金成功: recordId={}, agentId={}, amount={}", recordId, record.getAgentId(), record.getCommissionAmount());
+        log.info("结算佣金成功: recordId={}, agentId={}, amount={}", record.getId(), record.getAgentId(), record.getCommissionAmount());
         return 1;
     }
 

@@ -48,6 +48,7 @@
           AND status = 2
           AND debt_amount &gt; 0
         ORDER BY create_time ASC, id ASC
+        FOR UPDATE
     </select>
 
     <select id="sumByCommissionRecordId" resultType="java.math.BigDecimal">

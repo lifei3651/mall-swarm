@@ -37,7 +37,6 @@ import com.macro.mall.distribution.entity.DmsFlashSaleReservation;
 import com.macro.mall.distribution.constants.ShopBusinessType;
 import com.macro.mall.distribution.enums.AgentSourceTypeEnum;
 import com.macro.mall.distribution.service.AgentService;
-import com.macro.mall.distribution.service.AlipayService;
 import com.macro.mall.distribution.service.DistributionAuditService;
 import com.macro.mall.distribution.service.MemberAssetService;
 import com.macro.mall.distribution.service.ShopAfterSaleService;
@@ -50,6 +49,8 @@ import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -81,7 +82,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     private final DistributionAuditService auditService;
     private final MemberAssetService memberAssetService;
     private final OrderBalanceAllocationService orderBalanceAllocationService;
-    private final AlipayService alipayService;
+    private final ExternalRefundCoordinator externalRefundCoordinator;
     private final ShopAfterSaleWindowPolicy afterSaleWindowPolicy;
     private final DmsFlashSaleActivityDao flashSaleActivityDao;
     private final DmsFlashSaleReservationDao flashSaleReservationDao;
@@ -503,9 +504,12 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         // 退货退款先进入“待寄回”，客户提交物流后再由商家确认收货并退款。
         boolean returnAddressConfigured = afterSale.getReturnAddress() != null
                 && !afterSale.getReturnAddress().isBlank();
+        boolean requiresExternalRefund = Integer.valueOf(1).equals(status) && requiresExternalRefund(order, afterSale);
         if (Integer.valueOf(1).equals(status) && Integer.valueOf(2).equals(afterSale.getApplyType())
                 && returnAddressConfigured) {
             afterSale.setStatus(4);
+        } else if (requiresExternalRefund) {
+            afterSale.setStatus(6);
         } else {
             afterSale.setStatus(status);
         }
@@ -521,6 +525,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         }
         if (Integer.valueOf(1).equals(status)) {
             completeRefund(afterSale, order);
+            if (requiresExternalRefund) scheduleExternalRefund(afterSale.getId());
         }
         notifyOrderChanged(order, "AFTER_SALE_AUDITED");
         return hydrate(afterSaleDao.selectById(id));
@@ -534,6 +539,11 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         DmsShopOrder order = orderDao.selectById(afterSale.getOrderId());
         if (order == null) Asserts.fail("订单不存在");
         assertTenantAccess(order.getTenantId());
+        if (Integer.valueOf(6).equals(afterSale.getStatus())) {
+            if (!requiresExternalRefund(order, afterSale)) Asserts.fail("当前退款状态不需要调用外部支付渠道");
+            scheduleExternalRefund(afterSale.getId());
+            return hydrate(afterSale);
+        }
         if (!Integer.valueOf(2).equals(afterSale.getApplyType()) || !Integer.valueOf(5).equals(afterSale.getStatus())) {
             Asserts.fail("客户尚未提交退货物流，不能确认收货");
         }
@@ -544,8 +554,12 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         afterSale.setAuditUserName(dto == null ? null : dto.getAuditUserName());
         afterSaleDao.updateReturnReceived(afterSale);
         completeRefund(afterSale, order);
-        afterSale.setStatus(1);
-        afterSaleDao.updateAudit(afterSale);
+        if (requiresExternalRefund(order, afterSale)) {
+            scheduleExternalRefund(afterSale.getId());
+        } else {
+            afterSale.setStatus(1);
+            afterSaleDao.updateAudit(afterSale);
+        }
         notifyOrderChanged(order, "AFTER_SALE_COMPLETED");
         return hydrate(afterSaleDao.selectById(id));
     }
@@ -594,8 +608,6 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             }
             // 退款后退回非会员：名下已无有效支付订单时自动取消推广资格（含其下级团队自动移交）。
             autoDemoteMemberAfterFullRefund(order);
-            // 所有内部售后、财务、奖金和库存变更完成后再调用外部退款，外部失败时可整体回滚，避免先退款后落账。
-            refundExternalPayment(order, afterSale);
     }
 
     private void releaseFlashSaleAfterPendingCancellation(DmsShopOrder order) {
@@ -617,20 +629,23 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         flashSaleStockGate.restoreStockOnly(activity, returnedQuantity);
     }
 
-    private void refundExternalPayment(DmsShopOrder order, DmsShopAfterSale afterSale) {
-        if (simulationPaymentEnabled || order == null || afterSale == null
-                || afterSale.getRefundAmount() == null
-                || afterSale.getRefundAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            return;
-        }
-        if ("ALIPAY".equalsIgnoreCase(order.getPayType())) {
-            if (!alipayService.isConfigured()) {
-                Asserts.fail("支付宝退款未配置，请先完成支付宝密钥配置");
-            }
-            boolean success = alipayService.refund(order.getOrderNo(), afterSale.getAfterSaleNo(),
-                    afterSale.getRefundAmount().setScale(2, java.math.RoundingMode.HALF_UP).toPlainString(),
-                    "商城售后退款：" + (afterSale.getReason() == null ? "后台处理" : afterSale.getReason()));
-            if (!success) Asserts.fail("支付宝退款失败，请核对支付宝订单状态后重试");
+    private boolean requiresExternalRefund(DmsShopOrder order, DmsShopAfterSale afterSale) {
+        return !simulationPaymentEnabled && order != null && afterSale != null
+                && "ALIPAY".equalsIgnoreCase(order.getPayType())
+                && afterSale.getRefundAmount() != null
+                && afterSale.getRefundAmount().compareTo(BigDecimal.ZERO) > 0;
+    }
+
+    private void scheduleExternalRefund(Long afterSaleId) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    externalRefundCoordinator.process(afterSaleId);
+                }
+            });
+        } else {
+            externalRefundCoordinator.process(afterSaleId);
         }
     }
 

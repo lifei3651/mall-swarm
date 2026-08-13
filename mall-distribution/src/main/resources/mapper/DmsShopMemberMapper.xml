@@ -36,6 +36,13 @@
         WHERE id = #{id}
     </select>
 
+    <select id="selectByIdForUpdate" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_member
+        WHERE id = #{id}
+        FOR UPDATE
+    </select>
+
     <select id="selectByUserId" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_member
@@ -221,7 +228,9 @@
     </update>
     <update id="updateAccount">
         UPDATE dms_shop_member SET login_account=#{username}, password_hash=#{passwordHash},
-            failed_login_count=0, lock_time=NULL, update_time=CURRENT_TIMESTAMP WHERE id=#{id}
+            failed_login_count=0, lock_time=NULL, update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id}
+          AND (login_account IS NULL OR login_account = '' OR login_account = phone)
     </update>
     <update id="updateInviterId">
         UPDATE dms_shop_member SET inviter_id=#{inviterId}, update_time=CURRENT_TIMESTAMP WHERE id=#{id}

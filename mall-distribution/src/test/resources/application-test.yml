@@ -56,3 +56,9 @@ logging:
 shop:
   catalog-cache:
     enabled: false
+  payment:
+    simulation-enabled: true
+
+sms:
+  expose-code: true
+  test-code: 123456

@@ -92,7 +92,8 @@ shop:
     max-pixels: ${SHOP_MEDIA_MAX_PIXELS:25000000}
     jpeg-quality: ${SHOP_MEDIA_JPEG_QUALITY:0.82}
   payment:
-    simulation-enabled: true
+    # 安全默认值：任何未显式选择 local/test 的部署都不能进入模拟支付。
+    simulation-enabled: false
   order:
     pending-timeout-minutes: 30
     pending-scan-interval-ms: 60000
@@ -102,8 +103,9 @@ payment:
     threshold: 500
 sms:
   provider-enabled: false
-  expose-code: true
-  test-code: 123456
+  # 安全默认值：固定验证码只允许由 local/test profile 显式开启。
+  expose-code: false
+  test-code: ""
 
 bonus:
   settlement:

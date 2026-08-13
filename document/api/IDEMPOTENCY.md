@@ -4,16 +4,16 @@
 
 下表标记为“请求键”的接口支持请求头 `X-Idempotency-Key`。值必须是 8～128 位，仅允许字母、数字、点、下划线、冒号和短横线。一次业务操作生成一个键；网络超时重试必须复用原键，用户重新发起的新操作必须换新键。
 
-服务端按“HTTP 方法 + 路径 + 当前登录身份摘要 + 请求键”在 Redis 中占位 30 秒。业务失败会释放占位，成功后在窗口期内的重复请求会返回“正在处理，请勿重复操作”。没有传请求键时仍有短时兜底保护，但客户端不得依赖兜底键。
+服务端按“HTTP 方法 + 路径 + 当前登录身份摘要 + 请求键”生成请求摘要，并在数据库持久化处理状态。关键写接口必须传请求键；同一键在成功后长期返回已完成结果语义，在处理中重复提交会被拒绝，业务明确失败时才允许释放后重试。这样即使服务重启、Redis 过期或响应丢失，也不会把同一笔转账、支付或提现再次执行。
 
 ## 2. 接口保护矩阵
 
 | 业务 | 浏览器接口 | 第一层保护 | 持久层/状态保护 | 重试规则 |
 | --- | --- | --- | --- | --- |
-| 提交订单 | `POST /api/v1/shop/orders` | 请求键，30 秒 | 事务内库存和订单状态校验 | 超时复用原键；明确失败后可重新生成键 |
-| 余额转账 | `POST /api/v1/shop/wallet/transfers` | 请求键，30 秒 | 账户行锁、资产流水业务编号 | 未确认结果前不得换键重复转账 |
-| 余额支付 | `POST /api/v1/shop/wallet/orders/{orderId}/pay` | 请求键，30 秒 | 订单状态、账户行锁、资金流水 | 查询订单状态后决定是否重试 |
-| 余额提现 | `POST /api/v1/shop/wallet/withdrawals` | 请求键，30 秒 | 提现记录及资金流水约束 | 查询提现记录后决定是否重试 |
+| 提交订单 | `POST /api/v1/shop/orders` | 数据库持久化请求键 | 事务内库存和订单状态校验 | 超时复用原键；确认业务失败后再发起新业务 |
+| 余额转账 | `POST /api/v1/shop/wallet/transfers` | 数据库持久化请求键 | 账户行锁、资产流水业务编号 | 未确认结果前不得换键重复转账 |
+| 余额支付 | `POST /api/v1/shop/wallet/orders/{orderId}/pay` | 数据库持久化请求键 | 订单状态、账户行锁、资金流水 | 查询订单状态后决定是否重试 |
+| 余额提现 | `POST /api/v1/shop/wallet/withdrawals` | 数据库持久化请求键 | 提现记录及资金流水约束 | 查询提现记录后决定是否重试 |
 | 支付宝异步通知 | `POST /api/v1/pay/alipay/notify` | 支付宝签名、应用/商户/金额核验 | 仅 `TRADE_SUCCESS` 入账；订单状态机防重复 | 已处理通知仍返回 `success` |
 | 售后申请和退款 | `/api/v1/shop/after-sales/**` | 售后状态校验 | 同时锁定售后单和订单，累计可退数量/金额校验 | 先查询售后状态，禁止盲目重复提交 |
 | 后台发货/导入物流 | `/api/v1/shop/admin/orders/**/ship`、导入接口 | 订单状态校验 | 订单行锁、物流单号与发货数量校验 | 导入结果逐行返回，失败行可修正后重试 |
@@ -25,4 +25,4 @@
 2. 幂等不能只靠前端按钮禁用；服务端必须独立成立。
 3. 不得用相同请求键承载不同请求内容，也不得在未确认上次结果时换键重试。
 4. 回调接口必须先验签，再核对业务身份、金额和状态；同步跳转页面不能作为入账依据。
-5. 相关实现：`IdempotentAspect`、`ShopController`、`ShopWalletController`、`AlipayServiceImpl`、`ShopAfterSaleServiceImpl`。
+5. 上线前必须执行 `document/sql/20260813_add_durable_idempotency.sql`；相关实现：`IdempotentAspect`、`DatabaseIdempotencyStore`、`ShopController`、`ShopWalletController`、`AlipayServiceImpl`、`ShopAfterSaleServiceImpl`。

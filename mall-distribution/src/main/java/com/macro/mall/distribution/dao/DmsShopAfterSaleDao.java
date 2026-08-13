@@ -29,4 +29,6 @@ public interface DmsShopAfterSaleDao {
     int updateReturnShipment(DmsShopAfterSale afterSale);
 
     int updateReturnReceived(DmsShopAfterSale afterSale);
+
+    int markRefundCompleted(@Param("id") Long id);
 }

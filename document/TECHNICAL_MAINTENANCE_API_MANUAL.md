@@ -117,6 +117,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 - 下单、余额支付、余额转账、提现等写操作使用 `X-Idempotency-Key`。
 - 键长度 8～128，只允许字母、数字、点、下划线、冒号和短横线。
 - 同一业务请求超时重试必须复用原键；用户重新发起的新业务使用新键。
+- 请求键及处理结果摘要持久化在 `dms_idempotency_record`；业务明确失败才释放，成功或提交结果不明时保留，防止服务重启、缓存过期或响应丢失后重复扣款。
 - 敏感请求由前端请求层按服务端公钥加密，密钥入口为 `GET /api/v1/security/payload-encryption/key`。
 - 商城端仅对 GET、HEAD、OPTIONS 的瞬时网络错误自动重试一次；写请求禁止盲目重试。
 - 秒杀、资金、退款和发货必须同时依靠服务端状态机、数据库锁或唯一约束，不得只靠前端禁用按钮。
@@ -271,7 +272,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `POST /api/v1/shop/admin/products/publish` | `ProductPublishDTO` | 新建并发布结果 |
 | `PUT /api/v1/shop/admin/products/{id}/publish` | `ProductPublishDTO` | 更新并发布结果 |
 | `PUT /api/v1/shop/admin/products/{id}/status` | 查询参数 `status` | `boolean` |
-| `GET /api/v1/shop/products/{id}/skus` | 商品 ID | SKU 列表 |
+| `GET /api/v1/shop/admin/products/{id}/skus` | 商品 ID | 含成本等内部字段的后台 SKU 列表 |
 | `POST /api/v1/shop/admin/skus` | 商品 ID、规格、价格、库存、状态 | SKU |
 | `PUT /api/v1/shop/admin/skus/{id}` | SKU 字段 | SKU |
 | `PUT /api/v1/shop/admin/skus/{id}/status` | `status` | `boolean` |
@@ -317,7 +318,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `GET/POST /api/v1/shop/admin/service-addresses` | 地址类型、联系人、省市区、详细地址、默认状态 | 地址或列表 |
 | `PUT /api/v1/shop/admin/service-addresses/{id}/status` | `status`、`tenantId` | `boolean` |
 
-发货前必须锁定订单并再次检查订单履约状态、在途售后和剩余可发数量。客服备注不返回会员端；内容变更写入后台操作日志。退款同时锁定订单和售后单，累计退款数量和金额不能超过实际可退值。
+发货前必须锁定订单并再次检查订单履约状态、在途售后和剩余可发数量。客服备注不返回会员端；内容变更写入后台操作日志。退款同时锁定订单和售后单，累计退款数量和金额不能超过实际可退值。状态 `6` 表示本地账务已完成、第三方退款渠道仍在处理中；后台可安全重试同一售后单，渠道成功后才转为退款完成，不能重新冲减本地账务。
 
 ### 17. 后台会员、团队、账户与导入
 
@@ -530,7 +531,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | 分类 | 变量示例 | 维护要求 |
 | --- | --- | --- |
 | 数据库 | `DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`、`DB_PASSWORD`、`DB_SSL_MODE` | 密码只保存在服务器私有配置；远程连接启用 TLS |
-| Redis | `REDIS_HOST`、`REDIS_PORT`、`REDIS_PASSWORD`、`REDIS_DATABASE` | 秒杀、幂等和分布式任务依赖；监控连接和延迟 |
+| Redis | `REDIS_HOST`、`REDIS_PORT`、`REDIS_PASSWORD`、`REDIS_DATABASE` | 秒杀、限流和分布式任务依赖；关键资金幂等另由数据库持久化；监控连接和延迟 |
 | 会话 | `ADMIN_SESSION_HOURS` | 默认 12 小时；修改需安全评估 |
 | 商品媒体 | `SHOP_MEDIA_STORAGE_DIR`、`SHOP_MEDIA_PRIVATE_STORAGE_DIR`、图片尺寸和质量配置 | 公开商品图片与私密售后凭证分目录保存，两个目录都纳入备份 |
 | 物流轨迹 | `SHOP_LOGISTICS_TRACKING_PROVIDER` 及客户供应商私有密钥 | `NONE` 时不查询、不虚构；供应商密钥只放服务器私有配置 |
@@ -632,7 +633,7 @@ npm run build
 | --- | --- |
 | 前端白屏或菜单点击无反应 | `version.json`、入口资源是否匹配、旧分块缓存、浏览器控制台 |
 | 登录后立即退出 | Cookie Domain/Path/SameSite/Secure、服务器时间、单会话是否被新设备顶替 |
-| 订单重复或一直处理中 | 请求键、订单状态、数据库事务、Redis 幂等占位、支付回调 |
+| 订单重复或一直处理中 | 请求键、订单状态、数据库事务、`dms_idempotency_record`、支付回调 |
 | 库存不一致 | 活动库存、SKU 库存、取消/超时/退款回补记录和事务日志 |
 | 售后入口不正确 | 租户起算模式、有效天数、订单时间、确认收货时间和服务端截止时间 |
 | 已发货但没有物流轨迹 | 是否只录入公司和单号、物流服务是否接入、承运商映射和订阅任务 |

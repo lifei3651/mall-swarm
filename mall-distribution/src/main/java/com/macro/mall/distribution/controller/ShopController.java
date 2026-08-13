@@ -35,6 +35,7 @@ import com.macro.mall.distribution.security.ShopSessionCookieService;
 import com.macro.mall.distribution.vo.ShopAuthVO;
 import com.macro.mall.distribution.vo.ShopHomeVO;
 import com.macro.mall.distribution.vo.ShopOrderVO;
+import com.macro.mall.distribution.util.ShopPublicViewSanitizer;
 import com.macro.mall.distribution.vo.ShopOrderStatusSummaryVO;
 import com.macro.mall.distribution.vo.ShopProductDetailVO;
 import com.macro.mall.distribution.vo.ShopProfileVO;
@@ -113,7 +114,7 @@ public class ShopController {
         if (member.getPayPasswordHash() == null || member.getPayPasswordHash().isBlank()) {
             Asserts.fail("首次交易前请先设置6位支付密码");
         }
-        return CommonResult.success(flashSaleService.submit(activityId, dto, member));
+        return CommonResult.success(ShopPublicViewSanitizer.order(flashSaleService.submit(activityId, dto, member)));
     }
 
     @Operation(summary = "复购商城商品列表")
@@ -554,6 +555,13 @@ public class ShopController {
         return CommonResult.success(shopService.listSkus(productId, status));
     }
 
+    @Operation(summary = "后台查询商品完整SKU")
+    @GetMapping("/admin/products/{productId}/skus")
+    public CommonResult<List<DmsShopSku>> listAdminSkus(@PathVariable Long productId,
+                                                        @RequestParam(required = false) Integer status) {
+        return CommonResult.success(shopService.listAdminSkus(productId, status));
+    }
+
     @Operation(summary = "新增SKU")
     @PostMapping("/admin/skus")
     public CommonResult<DmsShopSku> createSku(@Valid @RequestBody ShopSkuDTO dto) {
@@ -630,7 +638,7 @@ public class ShopController {
         dto.setUserId(member.getUserId());
         // 通过服务层查询当前用户的代理人信息
         dto.setAgentId(shopService.resolveAgentId(member.getUserId()));
-        return CommonResult.success(shopService.submitOrder(dto, member));
+        return CommonResult.success(ShopPublicViewSanitizer.order(shopService.submitOrder(dto, member)));
     }
 
     @Operation(summary = "试算运费（运费不计入奖金与业绩）")
@@ -695,7 +703,7 @@ public class ShopController {
         if (!member.getUserId().equals(vo.getOrder().getUserId())) {
             Asserts.fail("不能支付他人的订单");
         }
-        return CommonResult.success(shopService.markOrderPaid(orderId, payType));
+        return CommonResult.success(ShopPublicViewSanitizer.order(shopService.markOrderPaid(orderId, payType)));
     }
 
     @Operation(summary = "确认收货")
@@ -941,6 +949,6 @@ public class ShopController {
             });
         }
         // 商品成本、公司利润和整单奖金拨出属于后台账务数据，不向下单会员返回。
-        vo.setFinance(null);
+        ShopPublicViewSanitizer.order(vo);
     }
 }

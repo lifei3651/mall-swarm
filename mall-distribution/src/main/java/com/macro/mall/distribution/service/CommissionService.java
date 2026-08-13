@@ -32,6 +32,9 @@ public interface CommissionService {
      */
     boolean settleCommission(Long recordId);
 
+    /** 自动任务专用：在同一事务内复核订单、售后期限和在途售后后才结算。 */
+    boolean settleCommissionIfEligible(Long recordId);
+
     /**
      * 批量结算佣金
      * @param recordIds 佣金记录ID列表

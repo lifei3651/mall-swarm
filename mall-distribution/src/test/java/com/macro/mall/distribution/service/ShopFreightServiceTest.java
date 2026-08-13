@@ -57,6 +57,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doThrow;
@@ -325,6 +326,25 @@ class ShopFreightServiceTest {
 
         shopService.getHome(null).getFeaturedProducts()
                 .forEach(product -> assertMoney("0.00", product.getPvValue()));
+    }
+
+    @Test
+    void publicProductViewsNeverExposeInternalCostOrAddressKeys() {
+        ShopProductDetailVO detail = shopService.getProductDetail(1L);
+        assertNull(detail.getProduct().getCostAmount());
+        assertNull(detail.getProduct().getSafetyStock());
+        assertNull(detail.getProduct().getShippingAddressId());
+        assertNull(detail.getProduct().getReturnAddressId());
+        assertNull(detail.getProduct().getFreightTemplateId());
+        assertNull(detail.getProduct().getRepurchasePrice());
+        detail.getSkus().forEach(item -> {
+            assertNull(item.getCostAmount());
+            assertNull(item.getSafetyStock());
+            assertNull(item.getRepurchasePrice());
+        });
+
+        assertTrue(shopService.listProductPage(null, null, null, 0, null, 1, 20).getList()
+                .stream().allMatch(item -> Integer.valueOf(1).equals(item.getStatus())));
     }
 
     @Test

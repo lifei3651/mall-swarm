@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsIdempotencyRecordDao">
+    <insert id="insertProcessing">
+        INSERT INTO dms_idempotency_record(request_key, status)
+        VALUES(#{requestKey}, 0)
+    </insert>
+
+    <update id="markSucceeded">
+        UPDATE dms_idempotency_record
+        SET status = 1, update_time = CURRENT_TIMESTAMP
+        WHERE request_key = #{requestKey} AND status = 0
+    </update>
+
+    <delete id="deleteProcessing">
+        DELETE FROM dms_idempotency_record
+        WHERE request_key = #{requestKey} AND status = 0
+    </delete>
+</mapper>

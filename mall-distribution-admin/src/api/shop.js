@@ -150,7 +150,7 @@ export function updateProductReviewStatus(id, data) {
 
 export function listShopSkus(productId, params) {
   return request({
-    url: `/shop/products/${productId}/skus`,
+    url: `/shop/admin/products/${productId}/skus`,
     method: 'get',
     params,
   })

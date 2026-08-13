@@ -51,7 +51,7 @@ public class CommissionSettlementServiceImpl implements CommissionSettlementServ
         int settled = 0;
         for (DmsCommissionRecord record : recordDao.selectEligibleForCoolingOffSettlement(receivedCutoff, safeLimit)) {
             try {
-                if (commissionService.settleCommission(record.getId())) settled++;
+                if (commissionService.settleCommissionIfEligible(record.getId())) settled++;
             } catch (Exception ex) {
                 log.error("T+7奖金自动结算失败: recordId={}, orderId={}", record.getId(), record.getOrderId(), ex);
             }

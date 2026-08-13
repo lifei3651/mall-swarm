@@ -43,6 +43,7 @@ import com.macro.mall.distribution.vo.ShopProductDetailVO;
 import com.macro.mall.distribution.vo.ShopProfileVO;
 import com.macro.mall.distribution.vo.FreightQuoteVO;
 import com.macro.mall.distribution.vo.PurchaseLimitCheckVO;
+import com.macro.mall.distribution.vo.DistributionSettingsVO;
 import com.macro.mall.distribution.util.MemberAccountUtils;
 import com.macro.mall.distribution.util.PhoneNumberUtils;
 import lombok.RequiredArgsConstructor;
@@ -65,6 +66,9 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+
+import static com.macro.mall.distribution.util.ShopPublicViewSanitizer.product;
+import static com.macro.mall.distribution.util.ShopPublicViewSanitizer.sku;
 
 @Service
 @RequiredArgsConstructor
@@ -153,8 +157,11 @@ public class ShopServiceImpl implements ShopService {
         if (!isEnabled(displayConfig.getShowPv())) {
             featuredProducts.forEach(product -> product.setPvValue(ZERO));
         }
+        featuredProducts.forEach(item -> product(item, false));
         vo.setFeaturedProducts(featuredProducts);
-        vo.setDistributionSettings(auditService.getSettings());
+        DistributionSettingsVO publicSettings = auditService.getSettings();
+        if (publicSettings != null) publicSettings.setPermissions(null);
+        vo.setDistributionSettings(publicSettings);
         vo.setDisplayConfig(displayConfig);
         vo.setLegalConfig(ShopLegalConfigVO.from(tenant));
         vo.setBusinessConfig(businessModeService.config(resolvedTenantId, null));
@@ -163,7 +170,9 @@ public class ShopServiceImpl implements ShopService {
 
     @Override
     public List<DmsShopProduct> listProducts(Long tenantId, String keyword, String categoryName, Integer status, String stockStatus) {
-        return productDao.selectFrontList(resolveTenantId(tenantId), keyword, categoryName, status, stockStatus);
+        List<DmsShopProduct> products = productDao.selectFrontList(resolveTenantId(tenantId), keyword, categoryName, 1, stockStatus);
+        products.forEach(item -> product(item, false));
+        return products;
     }
 
     @Override
@@ -177,6 +186,7 @@ public class ShopServiceImpl implements ShopService {
         businessModeService.requireEnabled(tenantId, ShopBusinessType.REPURCHASE, member);
         List<DmsShopProduct> products = productDao.selectRepurchaseList(tenantId, keyword);
         if (!isPvEnabled(tenantId)) products.forEach(product -> product.setRepurchasePv(ZERO));
+        products.forEach(item -> product(item, true));
         return products;
     }
 
@@ -192,6 +202,8 @@ public class ShopServiceImpl implements ShopService {
             product.setRepurchasePv(ZERO);
             skus.forEach(sku -> sku.setRepurchasePv(ZERO));
         }
+        product(product, true);
+        skus.forEach(item -> sku(item, true));
         ShopProductDetailVO vo = new ShopProductDetailVO();
         vo.setProduct(product);
         vo.setSkus(skus);
@@ -207,13 +219,15 @@ public class ShopServiceImpl implements ShopService {
         int resolvedPageNum = pageNum == null || pageNum < 1 ? 1 : pageNum;
         int resolvedPageSize = pageSize == null || pageSize < 1 ? 12 : Math.min(pageSize, 100);
         String parameters = String.join("|",
-                String.valueOf(keyword), String.valueOf(categoryName), String.valueOf(status),
+                String.valueOf(keyword), String.valueOf(categoryName), "1",
                 String.valueOf(stockStatus), String.valueOf(resolvedPageNum), String.valueOf(resolvedPageSize));
         String cacheKey = "products:" + DigestUtil.sha256Hex(parameters);
         return catalogCache.getPage(resolvedTenantId, cacheKey, DmsShopProduct.class, productCacheTtlSeconds, () -> {
             PageHelper.startPage(resolvedPageNum, resolvedPageSize);
-            return CommonPage.restPage(productDao.selectFrontList(
-                    resolvedTenantId, keyword, categoryName, status, stockStatus));
+            List<DmsShopProduct> products = productDao.selectFrontList(
+                    resolvedTenantId, keyword, categoryName, 1, stockStatus);
+            products.forEach(item -> product(item, false));
+            return CommonPage.restPage(products);
         });
     }
 
@@ -468,7 +482,9 @@ public class ShopServiceImpl implements ShopService {
 
     private ShopProductDetailVO loadProductDetail(Long id) {
         DmsShopProduct product = getProduct(id);
-        if (Integer.valueOf(0).equals(product.getNormalSaleEnabled())) Asserts.fail("该商品仅在专属商城销售");
+        if (!Integer.valueOf(1).equals(product.getStatus()) || Integer.valueOf(0).equals(product.getNormalSaleEnabled())) {
+            Asserts.fail("商品不存在或已下架");
+        }
         // 兼容历史数据：PV 开关关闭时公开接口直接返回 0；开启时不返回高于售价的 PV。
         // SKU 的 PV 为 0 时继承商品默认 PV，避免旧后台把 SKU PV 强制保存为 0 后，
         // 前台显示有 PV、下单快照却记为 0。
@@ -484,6 +500,8 @@ public class ShopServiceImpl implements ShopService {
                     ? resolveUnitPv(product, sku, sku.getSalePrice())
                     : ZERO);
         }
+        product(product, false);
+        skus.forEach(item -> sku(item, false));
         ShopProductDetailVO vo = new ShopProductDetailVO();
         vo.setProduct(product);
         vo.setSkus(skus);
@@ -630,6 +648,19 @@ public class ShopServiceImpl implements ShopService {
         if (product == null) {
             Asserts.fail("商品不存在");
         }
+        assertTenantAccess(product.getTenantId());
+        if (!Integer.valueOf(1).equals(product.getStatus()) || !Integer.valueOf(1).equals(product.getNormalSaleEnabled())) {
+            Asserts.fail("商品不存在或已下架");
+        }
+        List<DmsShopSku> skus = skuDao.selectByProductId(productId, 1);
+        skus.forEach(item -> sku(item, false));
+        return skus;
+    }
+
+    @Override
+    public List<DmsShopSku> listAdminSkus(Long productId, Integer status) {
+        DmsShopProduct product = productDao.selectById(productId);
+        if (product == null) Asserts.fail("商品不存在");
         assertTenantAccess(product.getTenantId());
         return skuDao.selectByProductId(productId, status);
     }

@@ -88,9 +88,13 @@ public class ShopPayController {
     @GetMapping("/alipay/return")
     public ResponseEntity<Void> alipayReturn(
             @RequestParam(value = "out_trade_no", required = false) String outTradeNo) {
-        // 同步跳转参数不能直接信任；用商户订单号向支付宝查询，仅 TRADE_SUCCESS 才补记已支付。
+        // 未知订单、非支付宝订单和已处理订单不得消耗第三方查询配额。
         if (outTradeNo != null && !outTradeNo.isBlank()) {
-            alipayService.reconcileOrderFromQuery(outTradeNo);
+            DmsShopOrder order = orderDao.selectByOrderNo(outTradeNo.trim());
+            if (order != null && Integer.valueOf(0).equals(order.getStatus())
+                    && "ALIPAY".equalsIgnoreCase(order.getPayType())) {
+                alipayService.reconcileOrderFromQuery(order.getOrderNo());
+            }
         }
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.LOCATION, "/orders");

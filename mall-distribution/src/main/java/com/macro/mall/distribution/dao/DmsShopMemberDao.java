@@ -12,6 +12,8 @@ public interface DmsShopMemberDao {
 
     DmsShopMember selectById(@Param("id") Long id);
 
+    DmsShopMember selectByIdForUpdate(@Param("id") Long id);
+
     DmsShopMember selectByUserId(@Param("userId") Long userId);
 
     DmsShopMember selectByPhone(@Param("phone") String phone);

@@ -30,6 +30,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static com.macro.mall.distribution.util.ShopPublicViewSanitizer.product;
+import static com.macro.mall.distribution.util.ShopPublicViewSanitizer.sku;
+
 @Service
 @RequiredArgsConstructor
 public class FlashSaleServiceImpl implements FlashSaleService {
@@ -47,12 +50,12 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     public List<FlashSaleActivityVO> listFront() {
         Long tenantId = TenantContext.getTenantId();
         if (businessModeService.config(tenantId, null).getFlashSaleEnabled() != 1) return List.of();
-        return activityDao.selectFrontList(tenantId).stream().map(this::toVo).toList();
+        return activityDao.selectFrontList(tenantId).stream().map(item -> toVo(item, true)).toList();
     }
 
     @Override
     public List<FlashSaleActivityVO> listAdmin(Integer status) {
-        return activityDao.selectList(TenantContext.getTenantId(), status).stream().map(this::toVo).toList();
+        return activityDao.selectList(TenantContext.getTenantId(), status).stream().map(item -> toVo(item, false)).toList();
     }
 
     @Override
@@ -171,11 +174,15 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         }
     }
 
-    private FlashSaleActivityVO toVo(DmsFlashSaleActivity activity) {
+    private FlashSaleActivityVO toVo(DmsFlashSaleActivity activity, boolean publicView) {
         FlashSaleActivityVO vo = new FlashSaleActivityVO();
         vo.setActivity(activity);
         vo.setProduct(productDao.selectById(activity.getProductId()));
         vo.setSku(activity.getSkuId() == null ? null : skuDao.selectById(activity.getSkuId()));
+        if (publicView) {
+            product(vo.getProduct(), false);
+            sku(vo.getSku(), false);
+        }
         LocalDateTime now = LocalDateTime.now();
         if (!Integer.valueOf(1).equals(activity.getStatus())) vo.setActivityState("DISABLED");
         else if (!now.isBefore(activity.getEndTime())) vo.setActivityState("ENDED");

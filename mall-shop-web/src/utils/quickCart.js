@@ -30,7 +30,6 @@ export const resolveQuickCartItem = (listProduct, detail = {}) => {
     coverUrl: sku.imageUrl || product.coverUrl || listProduct.coverUrl || '',
     salePrice,
     marketPrice: Number(sku.marketPrice || 0),
-    costAmount: Number(sku.costAmount || 0),
     pvValue: boundedPv(Number(sku.pvValue || 0) > 0 ? sku.pvValue : product.pvValue, salePrice),
     stock: Math.max(0, Number(sku.stock || 0)),
   }

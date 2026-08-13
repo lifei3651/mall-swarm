@@ -46,3 +46,11 @@ logging:
   level:
     com.macro.mall.distribution: debug
     org.springframework: warn
+
+shop:
+  payment:
+    simulation-enabled: true
+
+sms:
+  expose-code: true
+  test-code: 123456

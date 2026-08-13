@@ -8,6 +8,7 @@ import com.macro.mall.distribution.dao.DmsFinanceRefundDao;
 import com.macro.mall.distribution.dao.DmsOrderBalanceAllocationDao;
 import com.macro.mall.distribution.dao.DmsOrderFinanceDao;
 import com.macro.mall.distribution.dao.DmsShopAfterSaleItemDao;
+import com.macro.mall.distribution.dao.DmsShopAfterSaleDao;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsShopOrderDao;
 import com.macro.mall.distribution.dto.AssetChangeDTO;
@@ -49,12 +50,14 @@ public class OrderBalanceAllocationServiceImpl implements OrderBalanceAllocation
     private final DmsOrderFinanceDao financeDao;
     private final DmsFinanceRefundDao refundDao;
     private final DmsShopAfterSaleItemDao afterSaleItemDao;
+    private final DmsShopAfterSaleDao afterSaleDao;
     private final DmsCommissionRecordDao commissionRecordDao;
     private final DmsCommissionClawbackDao clawbackDao;
     private final DmsShopMemberDao memberDao;
     private final DmsAgentDao agentDao;
     private final MemberAssetService memberAssetService;
     private final PlatformTransactionManager transactionManager;
+    private final ShopAfterSaleWindowPolicy afterSaleWindowPolicy;
 
     @Value("${order.balance-allocation.remainder-account:SYSTEM_REMAINDER}")
     private String remainderAccount;
@@ -128,6 +131,13 @@ public class OrderBalanceAllocationServiceImpl implements OrderBalanceAllocation
                 || nullToZero(allocation.getCurrentAmount()).compareTo(BigDecimal.ZERO) <= 0) {
             return false;
         }
+        DmsShopOrder order = orderDao.selectByIdForUpdate(allocation.getOrderId());
+        LocalDateTime now = LocalDateTime.now();
+        if (order == null || !Integer.valueOf(3).equals(order.getStatus()) || order.getReceiveTime() == null
+                || now.isBefore(order.getReceiveTime().plusDays(Math.max(0, coolingOffDays)))) return false;
+        LocalDateTime afterSaleDeadline = afterSaleWindowPolicy.deadline(order);
+        if (afterSaleDeadline != null && now.isBefore(afterSaleDeadline)) return false;
+        if (afterSaleDao.selectOpenByOrderId(order.getId()) != null) return false;
         AssetChangeDTO credit = new AssetChangeDTO();
         credit.setAgentId(allocation.getTargetAgentId());
         credit.setAmount(money(allocation.getCurrentAmount()));

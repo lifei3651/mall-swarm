@@ -41,6 +41,9 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class ShopAuthServiceImpl implements ShopAuthService {
     private static final int MAX_FAILED_LOGIN_COUNT = 5;
+    /** 不存在账号也执行一次同成本校验，降低基于响应时间的账号枚举。 */
+    private static final String DUMMY_PASSWORD_HASH = BCrypt.hashpw("invalid-login-placeholder");
+    private static final String GENERIC_LOGIN_ERROR = "账号或登录凭证错误";
 
     private static final int SESSION_DAYS = 7;
     // 统一短信验证码 Key 格式：sms:{bizType}:{phone}
@@ -60,6 +63,9 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         validateRegister(dto);
         dto.setPhone(dto.getPhone().trim());
         dto.setUsername(normalizeLoginAccount(dto.getUsername()));
+
+        // 先证明手机号归属，再告知已注册或登录账号冲突，避免匿名枚举会员名单。
+        smsVerificationService.verifyAndConsume(dto.getPhone(), dto.getSmsCode(), SMS_BIZ_TYPE_REGISTER);
         if (memberDao.selectByPhone(dto.getPhone()) != null) {
             Asserts.fail("该手机号已注册，请直接登录或使用其他手机号");
         }
@@ -70,9 +76,6 @@ public class ShopAuthServiceImpl implements ShopAuthService {
                 && memberDao.selectByAccount(dto.getUsername()) != null) {
             Asserts.fail("该登录账号已被使用，请更换登录账号");
         }
-
-        // 强制验证短信验证码（含错误次数限制，连续错误会作废验证码）
-        smsVerificationService.verifyAndConsume(dto.getPhone(), dto.getSmsCode(), SMS_BIZ_TYPE_REGISTER);
 
         // 新部署且还没有会员时，允许创建唯一的创始会员；之后始终要求有效邀请码。
         // countForFoundingMember 使用行锁，避免并发注册时出现两个根节点。
@@ -230,10 +233,20 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         if (dto == null) Asserts.fail("请输入登录账号");
         String username = normalizeLoginAccount(dto.getUsername());
         if (dto.getPassword() == null || dto.getPassword().length() < 6) Asserts.fail("密码至少需要6位");
+        DmsShopMember current = memberDao.selectByIdForUpdate(member.getId());
+        if (current == null) Asserts.fail("会员不存在");
+        if (current.getUsername() != null && !current.getUsername().isBlank()
+                && !Objects.equals(current.getUsername(), current.getPhone())) {
+            Asserts.fail("登录账号已经设置，如需修改密码请使用账号安全功能");
+        }
         DmsShopMember same = memberDao.selectByUsername(username);
-        if (same != null && !same.getId().equals(member.getId())) Asserts.fail("登录账号已存在");
-        memberDao.updateAccount(member.getId(), username, hash(dto.getPassword()));
-        return sanitize(memberDao.selectById(member.getId()));
+        if (same != null && !same.getId().equals(current.getId())) Asserts.fail("登录账号已存在");
+        if (memberDao.updateAccount(current.getId(), username, hash(dto.getPassword())) <= 0) {
+            Asserts.fail("登录账号已经设置，请刷新后使用账号安全功能");
+        }
+        // 凭据发生变化后使包括当前会话在内的全部旧会话失效，要求使用新账号重新登录。
+        sessionDao.disableByMemberId(current.getId());
+        return sanitize(memberDao.selectById(current.getId()));
     }
 
     @Override
@@ -332,34 +345,31 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             Asserts.fail("请输入正确的11位手机号");
         }
         DmsShopMember member = memberDao.selectByAccount(account);
-        if (member == null) {
-            Asserts.fail("账号不存在");
-        }
-        if (member.getLockTime() != null) {
-            Asserts.fail("账号因连续密码错误已锁定，请通过找回密码或联系后台管理员解除锁定");
-        }
 
         if ("sms".equals(loginType)) {
             // 短信验证码登录
             smsVerificationService.verifyAndConsume(account, dto.getSmsCode(), SMS_BIZ_TYPE_LOGIN);
+            if (member == null || member.getLockTime() != null || !Integer.valueOf(1).equals(member.getStatus())) {
+                Asserts.fail(GENERIC_LOGIN_ERROR);
+            }
         } else {
             // 密码登录
             if (dto.getPassword() == null || dto.getPassword().isBlank()) {
                 Asserts.fail("密码不能为空");
             }
             loginCaptchaService.verify("shop", dto.getCaptchaId(), dto.getCaptchaCode());
-            if (!checkPassword(dto.getPassword(), member.getPasswordHash())) {
+            String passwordHash = member == null || member.getPasswordHash() == null || member.getPasswordHash().isBlank()
+                    ? DUMMY_PASSWORD_HASH : member.getPasswordHash();
+            boolean passwordMatches = checkPassword(dto.getPassword(), passwordHash);
+            if (member == null || member.getLockTime() != null || !passwordMatches) {
+                if (member == null || member.getLockTime() != null) Asserts.fail(GENERIC_LOGIN_ERROR);
                 memberDao.increaseFailedLogin(member.getId(), MAX_FAILED_LOGIN_COUNT);
-                DmsShopMember refreshed = memberDao.selectById(member.getId());
-                if (refreshed != null && refreshed.getLockTime() != null) {
-                    Asserts.fail("密码连续错误5次，账号已锁定，请找回密码或联系后台管理员");
-                }
-                Asserts.fail("账号或密码错误");
+                Asserts.fail(GENERIC_LOGIN_ERROR);
             }
         }
 
         if (!Integer.valueOf(1).equals(member.getStatus())) {
-            Asserts.fail("账号已禁用");
+            Asserts.fail(GENERIC_LOGIN_ERROR);
         }
         memberDao.updateLastLoginTime(member.getId());
         // 单账号单会话：新登录成功后使该会员此前的全部会话失效。
