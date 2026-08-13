@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.entity;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -10,6 +11,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class DmsShopProduct implements Serializable {
 
     private static final long serialVersionUID = 1L;

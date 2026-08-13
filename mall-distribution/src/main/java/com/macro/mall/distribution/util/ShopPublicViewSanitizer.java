@@ -14,6 +14,10 @@ public final class ShopPublicViewSanitizer {
         value.setCostAmount(null);
         value.setBvValue(null);
         value.setSafetyStock(null);
+        value.setDeliveryAddress(null);
+        value.setDeliveryProvince(null);
+        value.setDeliveryCity(null);
+        value.setDeliveryDistrict(null);
         value.setShippingAddressId(null);
         value.setReturnAddressId(null);
         value.setFreightTemplateId(null);
