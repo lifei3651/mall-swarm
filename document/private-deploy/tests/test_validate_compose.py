@@ -1,0 +1,109 @@
+import copy
+import importlib.util
+import unittest
+from pathlib import Path
+
+
+SCRIPT = Path(__file__).parents[1] / "scripts" / "validate_compose.py"
+SPEC = importlib.util.spec_from_file_location("validate_compose", SCRIPT)
+MODULE = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(MODULE)
+
+
+def safe_config():
+    return {
+        "services": {
+            "mysql": {
+                "image": "mysql:8.4.10",
+                "environment": {"MYSQL_ROOT_PASSWORD": "secret", "MYSQL_PASSWORD": "secret"},
+                "networks": {"data": None},
+            },
+            "redis": {
+                "image": "redis:7.2.15-alpine",
+                "environment": {"REDIS_PASSWORD": "secret"},
+                "networks": {"data": None},
+            },
+            "mall-distribution": {
+                "environment": {
+                    "SPRING_PROFILES_ACTIVE": "prod",
+                    "SPRING_CLOUD_NACOS_DISCOVERY_ENABLED": "false",
+                    "SPRING_CLOUD_NACOS_CONFIG_ENABLED": "false",
+                    "SHOP_PAYMENT_SIMULATION_ENABLED": "false",
+                    "SMS_EXPOSE_CODE": "false",
+                    "SMS_TEST_CODE": "",
+                    "DB_PASSWORD": "secret",
+                    "REDIS_PASSWORD": "secret",
+                    "SA_TOKEN_JWT_KEY": "secret",
+                    "ALIPAY_PRIVATE_KEY": "",
+                    "SMS_ALIYUN_ACCESS_KEY_SECRET": "",
+                },
+                "networks": {"edge": None, "data": None},
+                "read_only": True,
+                "security_opt": ["no-new-privileges:true"],
+            },
+            "nginx": {
+                "image": "nginx:1.28.3-alpine",
+                "environment": {},
+                "networks": {"edge": None},
+                "security_opt": ["no-new-privileges:true"],
+                "ports": [
+                    {"target": 80, "published": "80", "host_ip": "0.0.0.0"},
+                    {"target": 443, "published": "443", "host_ip": "0.0.0.0"},
+                ],
+            },
+        },
+        "networks": {"edge": {}, "data": {"internal": True}},
+    }
+
+
+class ComposeSecurityValidationTest(unittest.TestCase):
+    def test_accepts_current_security_boundary(self):
+        self.assertEqual([], MODULE.validate(safe_config()))
+
+    def test_accepts_compose_equals_security_option(self):
+        config = safe_config()
+        config["services"]["mall-distribution"]["security_opt"] = [
+            "no-new-privileges=true"
+        ]
+        config["services"]["nginx"]["security_opt"] = [
+            "no-new-privileges=true"
+        ]
+        self.assertEqual([], MODULE.validate(config))
+
+    def test_rejects_public_redis_port(self):
+        config = safe_config()
+        config["services"]["redis"]["ports"] = [
+            {"target": 6379, "published": "6379", "host_ip": "0.0.0.0"}
+        ]
+        self.assertTrue(any("端口" in error for error in MODULE.validate(config)))
+
+    def test_rejects_floating_image_tag(self):
+        config = safe_config()
+        config["services"]["nginx"]["image"] = "nginx:latest"
+        self.assertTrue(any("镜像版本" in error for error in MODULE.validate(config)))
+
+    def test_rejects_secret_leak_to_nginx(self):
+        config = safe_config()
+        config["services"]["nginx"]["environment"]["ALIPAY_PRIVATE_KEY"] = "leaked"
+        self.assertTrue(any("ALIPAY_PRIVATE_KEY" in error for error in MODULE.validate(config)))
+
+    def test_rejects_simulation_and_test_sms(self):
+        config = safe_config()
+        app = config["services"]["mall-distribution"]["environment"]
+        app["SHOP_PAYMENT_SIMULATION_ENABLED"] = "true"
+        app["SMS_EXPOSE_CODE"] = "true"
+        errors = MODULE.validate(config)
+        self.assertTrue(any("模拟支付" in error for error in errors))
+        self.assertTrue(any("固定短信" in error for error in errors))
+
+    def test_rejects_host_network_and_docker_socket(self):
+        config = copy.deepcopy(safe_config())
+        config["services"]["nginx"]["network_mode"] = "host"
+        config["services"]["nginx"]["volumes"] = ["/var/run/docker.sock:/var/run/docker.sock"]
+        errors = MODULE.validate(config)
+        self.assertTrue(any("host 网络" in error for error in errors))
+        self.assertTrue(any("Docker socket" in error for error in errors))
+
+
+if __name__ == "__main__":
+    unittest.main()

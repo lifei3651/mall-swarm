@@ -28,11 +28,17 @@
 ## 3. 独立运行环境
 
 - [ ] 一客户一服务器、一数据库、一套环境变量
+- [ ] 全程使用 `document/private-deploy/scripts/deploy.sh`，没有直接执行 `docker compose up`
+- [ ] `.env` 由 `prepare` 自动生成且权限为 `600`，不存在 `change_me`、固定验证码或模拟支付
+- [ ] 云安全组只公开80/443，SSH仅固定IP/VPN；已用 `firewall` 登记证据编号
+- [ ] `check` 强制预检通过，Compose只有Nginx、商城后端、MySQL和Redis四个必要服务
+- [ ] MySQL、Redis和后端均没有宿主机端口；数据库维护只通过SSH登录服务器后执行容器命令
 - [ ] `SERVER_ADDRESS`、HTTPS、反向代理和健康检查已配置
 - [ ] `/opt/lingqimall/uploads` 已做持久化挂载
 - [ ] 生产配置文件权限符合最小权限要求，密钥文件不进入提交
 - [ ] 首次上线前完成全量备份，记录备份路径和版本号
 - [ ] 上线后核验商城、管理后台、后端健康、Nginx、MySQL、Redis
+- [ ] `verify` 部署后验收通过，并保存 `reports/security-postflight-*.txt`
 
 ## 4. 业务验收边界
 

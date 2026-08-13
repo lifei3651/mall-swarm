@@ -1,90 +1,120 @@
-# 私有化独立部署交付包
+# 客户私有化安全部署包
 
-本目录面向“一个客户一台服务器 / 一套数据库 / 一套配置”的交付方式，不做多客户共库 SaaS。
-每个客户都必须拥有独立的域名、数据库、运行环境、密钥和备份目录；客户之间不复制会员、订单、余额或奖金数据。
+本目录是未来客户部署的唯一入口。部署人员不需要记住端口、密钥和检查命令，但必须使用
+`scripts/deploy.sh`；禁止绕过该入口直接执行 `docker compose up`。
 
-## 交付前准备
+当前商城基座只部署四个必要服务：Nginx、商城后端、MySQL、Redis。旧模板引用的网关、搜索、
+监控、MongoDB、RabbitMQ、Elasticsearch和Nacos不是当前仓库的可运行组件，已全部移除，避免
+交付时开放无用服务或引用不存在的 Dockerfile。
 
-1. 在客户服务器安装 Docker 和 Docker Compose。
-2. 执行 `./mvnw package -DskipTests -Ddocker.skip=true` 生成后端 Jar。
-3. 执行 `cd mall-distribution-admin && npm ci && npm run build` 生成后台前端静态文件。
-4. 将 `mall-distribution-admin/dist` 内容放到 `document/private-deploy/html`。
-5. 复制 `customer.env.example` 为 `.env`，为客户生成独立强密码和域名配置。
-6. 只把客户自己的支付、短信和域名参数填入 `.env`；不要把真实密钥写进 Git、镜像、前端或工单截图。
+## 安全边界已经写死
 
-`.env` 只供 Compose 解析。模板通过每个服务的 `environment` 白名单分发变量：支付宝私钥和短信
-AccessKey 只进入 `mall-distribution`，搜索、监控、网关等容器无法读取。禁止给应用服务重新增加
-`env_file: .env`，否则会把整套客户密钥再次注入所有容器。
+- 公网只发布 Nginx `80/443`。
+- MySQL、Redis和后端均不映射宿主机端口，只能在 Docker 内部网络访问。
+- 数据网络设置为 Docker `internal`，Nginx不能直接读取数据库和Redis。
+- 后端强制 `prod`，强制关闭模拟支付、固定验证码和Nacos客户端。
+- 后端使用非 root 用户、`no-new-privileges`和只读根文件系统运行；只有上传卷和临时目录可写。
+- `.env` 必须为 `600`，支付、短信、数据库和会话密钥只进入确实需要它们的容器。
+- 生产静态资源禁止 source map，商城与后台构建版本必须等于仓库根 `VERSION`。
+- 数据库升级前自动备份；迁移按版本号、SHA-256和当前部署机的单机锁登记，重复或冲突立即停止。
+- MySQL、Redis和Nginx使用经过测试的明确版本标签；升级镜像版本必须先在隔离环境重跑全部流程，不能临时改成 `latest`。
+- 云安全组必须登记证据，SSH禁止 `0.0.0.0/0` 或 `::/0`，但最终仍需在客户云控制台真实执行。
 
-## 启动
+## 标准部署流程
 
-```bash
-cd document/private-deploy
-docker compose --env-file .env -f docker-compose.private.yml up -d --build
-```
-
-## 初始化
-
-首次启动 MySQL 会自动执行：
-
-- `document/sql/*.sql`
-- `mall-distribution/document/sql/*.sql`
-- `document/private-deploy/initdb/*.sql`
-
-`initdb/99_customer_init.sql` 只放客户默认资料。支付商户、短信、OSS、奖金规则等按客户交付单追加。
-奖金制度、奖金比例、会员模型和 PV 口径不由本模板固定；它们必须在客户规则确认后，以该客户专属交付包落地。
-
-## 访问
-
-- Nginx: `http://服务器IP/`
-
-模板只向公网发布 Nginx 的 80/443；MySQL 仅绑定宿主机 `127.0.0.1:3306` 供备份使用。
-Redis、Nacos、RabbitMQ、MongoDB、Elasticsearch、网关、监控及业务后端只允许 Compose
-内部网络访问。运维请使用 `docker compose exec <服务名> ...`，不要临时向公网映射内部端口。
-
-## 首次交付必做
-
-1. 修改 `.env` 中所有 `change_me_*`。
-2. 首次登录后修改后台默认账号密码。
-3. 配置真实域名和 HTTPS 证书，把证书放到 `certs/` 后更新 Nginx server 配置。
-4. 配置数据库备份定时任务。
-5. 在 `.env` 中配置支付、短信、媒体存储等客户专属参数；物流、售后和视觉资料通过后台与客户交付单配置。
-6. 支付宝回调地址必须使用客户自己的 HTTPS 域名，并确保公网可访问：
-   - `https://客户域名/api/pay/alipay/notify`
-   - `https://客户域名/api/pay/alipay/return`
-7. 手机网站支付必须使用已签约的 `alipay.trade.wap.pay` 能力；应用密钥、公钥只注入服务器运行环境，不进入代码仓库。
-8. 短信正式环境必须保持 `SMS_PROVIDER_ENABLED=true` 且关闭测试验证码；每个业务类型都要填写已审核的短信模板 CODE。
-
-## 备份
-
-在服务器上执行：
+### 1. 生成生产构建
 
 ```bash
 cd document/private-deploy
-DB_HOST=127.0.0.1 DB_USER=root DB_PASSWORD=你的密码 DB_NAME=mall ./scripts/backup.sh
+./scripts/deploy.sh build
 ```
 
-建议加到 crontab，每天凌晨备份一次，并同步到对象存储或异地服务器。
+该命令执行后端完整测试与打包、商城测试与构建、后台测试与构建，再把两个前端放入忽略 Git 的
+`html/`。发现测试失败、source map或版本不一致会停止。
 
-## 恢复
+### 2. 为客户生成独立密钥
 
 ```bash
-cd document/private-deploy
-DB_HOST=127.0.0.1 DB_USER=root DB_PASSWORD=你的密码 DB_NAME=mall ./scripts/restore.sh ./backups/mysql/mall_yyyyMMdd_HHmmss.sql.gz
+./scripts/deploy.sh prepare \
+  --domain mall.customer.com \
+  --admin-domain mall.customer.com \
+  --ssh-cidr 203.0.113.10/32 \
+  --project customer_code \
+  --customer-name 客户公司名称 \
+  --brand 客户商城名称
 ```
 
-## 验收清单
+程序使用 OpenSSL 生成独立的 MySQL、Redis和会话密钥，并创建权限为 `600` 的 `.env`。
+如果 `.env` 已存在会拒绝覆盖，防止客户密钥丢失。
 
-- 后端全模块打包通过。
-- 后台前端 `npm run build` 通过。
-- `docker compose ps` 所有服务为 running/healthy。
-- 网关、后台、分销服务、监控页面可访问。
-- 新建商品、下单、取消订单、售后申请、后台发货流程可跑通。
-- 支付和奖金按客户项目单独验收。
+### 3. 配置证书、支付和短信
 
-## 客户交付边界
+- 将客户域名证书保存为 `certs/cert.pem`，私钥保存为 `certs/key.pem`并设为 `600`。
+- 客户未开通支付宝或短信时保持对应 `ENABLED=false`、资料留空。
+- 启用支付宝时必须填写同一应用的APPID、应用私钥、支付宝公钥和客户HTTPS回调地址。
+- 启用短信时必须填写客户自己的AccessKey、签名及全部已审核模板编号。
+- 真实密钥不进入Git、镜像、前端、聊天截图或工单正文。
 
-- 本阶段只确认独立部署、域名、支付、短信、媒体存储、备份和审计等基础能力。
-- 奖金模型一定按客户重新设计；不要因为模板中出现“奖金”字样就直接启用既有制度。
-- 客户提交新资料时，只更新该客户的交付配置或后台资料，不覆盖其他客户，也不删除历史订单、余额、会员和流水。
-- 任何配置变更都先备份、再变更、后验收；支付回调、短信发送和余额变动必须保留可追溯日志。
+### 4. 在云控制台设置安全组并登记证据
+
+云安全组属于客户云账号，仓库无法替客户点击控制台。必须在控制台只公开：
+
+- `80/tcp`、`443/tcp`：公网。
+- `22/tcp`：仅固定运维IP或VPN网段；数据库维护通过SSH进入服务器后使用容器命令，不开放3306。
+- 禁止公网开放 `3306`、`6379`、`8086`及所有临时调试端口。
+
+完成后登记截图文件名或工单编号：
+
+```bash
+./scripts/deploy.sh firewall \
+  --ssh-cidr 203.0.113.10/32 \
+  --evidence cloud-sg-ticket-20260813
+```
+
+### 5. 强制预检
+
+```bash
+./scripts/deploy.sh check
+```
+
+该步骤会展开最终 Compose 配置并检查端口、内部网络、特权模式、Docker socket、密钥容器边界、
+生产模式、测试开关、域名、CORS、云安全组确认、TLS有效期、构建产物和文件权限。任何一项失败都
+不会继续。
+
+### 6. 部署或升级
+
+```bash
+./scripts/deploy.sh apply
+```
+
+已有数据库时先生成并校验升级前全库备份；发现历史数据卷但数据库无法启动时直接停止。随后只
+启动MySQL和Redis，执行版本化迁移，再构建并切换商城后端和Nginx。部署完成后自动执行安全验收。
+
+### 7. 独立复验
+
+```bash
+./scripts/deploy.sh verify
+```
+
+复验内容包括所有必要容器、真实监听端口、数据库与Redis未映射宿主机、内部后端健康、HTTPS证书以及公网
+Actuator、Swagger和接口文档返回404。结果保存到权限为 `600` 的 `reports/`，记录版本、Git提交、
+云安全组证据和安全边界，不记录任何密码或私钥。
+
+## 日常备份与恢复
+
+升级前备份由统一部署入口自动完成。日常备份仍可执行：
+
+```bash
+./scripts/backup.sh
+```
+
+恢复属于破坏性操作，必须先停止业务、保留当前备份并明确目标文件：
+
+```bash
+./scripts/restore.sh --confirm ./backups/mysql/指定备份.sql.gz
+```
+
+## 仍需按客户确认的业务
+
+品牌资料、经营资质、物流服务商、ERP、售后期限、支付商户、短信、秒杀、复购和奖金制度必须按
+客户确认配置或定制。部署安全流程不会替客户决定业务制度，也不会自动执行真实支付、退款或短信。

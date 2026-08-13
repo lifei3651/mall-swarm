@@ -1,6 +1,6 @@
 -- 客户初始化占位脚本。
--- 首次部署时，基础表结构来自 document/sql 和 mall-distribution/document/sql。
--- 客户名称、品牌色、支付商户、短信、OSS、奖金规则等建议按客户交付单填写后再追加到这里。
+-- 首次部署时，基础表结构来自当前 mall-distribution 基线。
+-- 此处只建立可启动的默认租户；统一部署入口会安全写入 .env 中的客户名称、品牌色和商品模板。
 
 INSERT IGNORE INTO dms_tenant
     (id, tenant_code, tenant_name, brand_name, theme_color, product_template, status, remark)

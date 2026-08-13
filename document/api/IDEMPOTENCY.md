@@ -25,4 +25,4 @@
 2. 幂等不能只靠前端按钮禁用；服务端必须独立成立。
 3. 不得用相同请求键承载不同请求内容，也不得在未确认上次结果时换键重试。
 4. 回调接口必须先验签，再核对业务身份、金额和状态；同步跳转页面不能作为入账依据。
-5. 上线前必须执行 `document/sql/20260813_add_durable_idempotency.sql`；相关实现：`IdempotentAspect`、`DatabaseIdempotencyStore`、`ShopController`、`ShopWalletController`、`AlipayServiceImpl`、`ShopAfterSaleServiceImpl`。
+5. 上线前必须通过 `scripts/db-migrate.sh apply` 执行 `document/db/migrations/V202608131430__durable_idempotency.sql`；`document/sql/20260813_add_durable_idempotency.sql` 只作为旧发布流程的兼容副本，二者不能重复执行。相关实现：`IdempotentAspect`、`DatabaseIdempotencyStore`、`ShopController`、`ShopWalletController`、`AlipayServiceImpl`、`ShopAfterSaleServiceImpl`。

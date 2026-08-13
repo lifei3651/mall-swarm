@@ -535,6 +535,8 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | 会话 | `ADMIN_SESSION_HOURS` | 默认 12 小时；修改需安全评估 |
 | 商品媒体 | `SHOP_MEDIA_STORAGE_DIR`、`SHOP_MEDIA_PRIVATE_STORAGE_DIR`、图片尺寸和质量配置 | 公开商品图片与私密售后凭证分目录保存，两个目录都纳入备份 |
 | 物流轨迹 | `SHOP_LOGISTICS_TRACKING_PROVIDER` 及客户供应商私有密钥 | `NONE` 时不查询、不虚构；供应商密钥只放服务器私有配置 |
+
+客户私有部署必须使用 `document/private-deploy/scripts/deploy.sh`。流程固定为 `build → prepare → firewall → check → apply → verify`：自动生成独立强密钥，强制 `.env` 权限、客户域名、HTTPS证书和云安全组证据；展开 Compose 后校验只公开80/443、数据网络为内部网络、无特权容器或Docker socket、支付/短信密钥只进入分销后端、模拟支付与固定验证码关闭。升级时先备份再执行带版本号和校验和的数据库迁移，完成后生成不含密钥的安全验收报告。禁止绕过入口直接执行 `docker compose up`。
 | 订单 | `ORDER_PENDING_TIMEOUT_MINUTES`、扫描间隔 | 默认 30 分钟关闭待付款订单 |
 | 大额验证 | `PAYMENT_LARGE_AMOUNT_VERIFY_ENABLED`、`PAYMENT_LARGE_AMOUNT_VERIFY_THRESHOLD` | 与客户资金风控规则一致 |
 | 短信 | 提供商开关、AccessKey、签名、模板 | 不提交仓库，不在日志输出验证码 |

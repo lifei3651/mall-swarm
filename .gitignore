@@ -10,6 +10,8 @@ dist/
 
 # 依赖目录
 node_modules/
+__pycache__/
+*.pyc
 
 # macOS
 .DS_Store
@@ -28,3 +30,11 @@ node_modules/
 !*.env.example
 !mall-shop-web/.env.android
 .codex/
+
+# 客户私有部署产生的运行数据、证书、验收报告和真实配置
+document/private-deploy/data/
+document/private-deploy/certs/
+document/private-deploy/logs/
+document/private-deploy/reports/
+document/private-deploy/backups/
+document/private-deploy/html/

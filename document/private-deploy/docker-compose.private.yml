@@ -1,7 +1,8 @@
 x-runtime-common: &runtime-common
   SPRING_PROFILES_ACTIVE: prod
   TZ: ${TZ}
-  NACOS_SERVER: ${NACOS_SERVER}
+  SPRING_CLOUD_NACOS_DISCOVERY_ENABLED: "false"
+  SPRING_CLOUD_NACOS_CONFIG_ENABLED: "false"
 
 x-redis-client: &redis-client
   REDIS_HOST: ${REDIS_HOST}
@@ -19,7 +20,7 @@ x-database-client: &database-client
 
 services:
   mysql:
-    image: mysql:8.0
+    image: mysql:8.4.10
     container_name: ${COMPOSE_PROJECT_NAME}_mysql
     restart: unless-stopped
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
@@ -29,158 +30,35 @@ services:
       MYSQL_DATABASE: ${DB_NAME}
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASSWORD}
-    # 仅供宿主机备份脚本使用，不接受外网连接。
-    ports:
-      - "127.0.0.1:3306:3306"
     volumes:
-      - ./data/mysql:/var/lib/mysql
-      - ../sql:/init-sql/base:ro
-      - ../../mall-distribution/document/sql:/init-sql/distribution:ro
+      - mysql_data:/var/lib/mysql
+      - ../../mall-distribution/document/sql/distribution.sql:/init-sql/distribution/distribution.sql:ro
       - ./initdb:/docker-entrypoint-initdb.d:ro
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysqladmin ping -h 127.0.0.1 -uroot --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.2.15-alpine
     container_name: ${COMPOSE_PROJECT_NAME}_redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
     volumes:
-      - ./data/redis:/data
-
-  nacos-registry:
-    image: nacos/nacos-server:v2.3.0
-    container_name: ${COMPOSE_PROJECT_NAME}_nacos
-    restart: unless-stopped
-    environment:
-      MODE: standalone
-      TZ: ${TZ}
-
-  rabbitmq:
-    image: rabbitmq:3.10-management
-    container_name: ${COMPOSE_PROJECT_NAME}_rabbitmq
-    restart: unless-stopped
-    environment:
-      TZ: ${TZ}
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
-      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST}
-    volumes:
-      - ./data/rabbitmq:/var/lib/rabbitmq
-
-  mongodb:
-    image: mongo:5.0
-    container_name: ${COMPOSE_PROJECT_NAME}_mongodb
-    restart: unless-stopped
-    environment:
-      TZ: ${TZ}
-    volumes:
-      - ./data/mongodb:/data/db
-
-  elasticsearch:
-    image: elasticsearch:7.17.3
-    container_name: ${COMPOSE_PROJECT_NAME}_elasticsearch
-    restart: unless-stopped
-    environment:
-      TZ: ${TZ}
-      discovery.type: single-node
-      ES_JAVA_OPTS: -Xms512m -Xmx512m
-    volumes:
-      - ./data/elasticsearch:/usr/share/elasticsearch/data
-
-  mall-auth:
-    build:
-      context: ../..
-      dockerfile: mall-auth/Dockerfile
-    container_name: ${COMPOSE_PROJECT_NAME}_mall_auth
-    restart: unless-stopped
-    environment:
-      <<: [*runtime-common, *redis-client]
-      SA_TOKEN_JWT_KEY: ${SA_TOKEN_JWT_KEY}
-      SA_TOKEN_TIMEOUT: ${SA_TOKEN_TIMEOUT}
-      SA_TOKEN_ACTIVE_TIMEOUT: ${SA_TOKEN_ACTIVE_TIMEOUT}
-    depends_on:
-      - nacos-registry
-      - redis
-
-  mall-gateway:
-    build:
-      context: ../..
-      dockerfile: mall-gateway/Dockerfile
-    container_name: ${COMPOSE_PROJECT_NAME}_mall_gateway
-    restart: unless-stopped
-    environment:
-      <<: [*runtime-common, *redis-client]
-      SA_TOKEN_JWT_KEY: ${SA_TOKEN_JWT_KEY}
-      SA_TOKEN_TIMEOUT: ${SA_TOKEN_TIMEOUT}
-      SA_TOKEN_ACTIVE_TIMEOUT: ${SA_TOKEN_ACTIVE_TIMEOUT}
-    depends_on:
-      - nacos-registry
-      - redis
-      - mall-auth
-
-  mall-admin:
-    build:
-      context: ../..
-      dockerfile: mall-admin/Dockerfile
-    container_name: ${COMPOSE_PROJECT_NAME}_mall_admin
-    restart: unless-stopped
-    environment:
-      <<: [*runtime-common, *redis-client, *database-client]
-      SA_TOKEN_JWT_KEY: ${SA_TOKEN_JWT_KEY}
-    depends_on:
-      - mysql
-      - redis
-      - nacos-registry
-
-  mall-portal:
-    build:
-      context: ../..
-      dockerfile: mall-portal/Dockerfile
-    container_name: ${COMPOSE_PROJECT_NAME}_mall_portal
-    restart: unless-stopped
-    environment:
-      <<: [*runtime-common, *redis-client, *database-client]
-      MONGO_HOST: ${MONGO_HOST}
-      MONGO_PORT: ${MONGO_PORT}
-      MONGO_DB: ${MONGO_DB}
-      RABBITMQ_HOST: ${RABBITMQ_HOST}
-      RABBITMQ_PORT: ${RABBITMQ_PORT}
-      RABBITMQ_USER: ${RABBITMQ_USER}
-      RABBITMQ_PASS: ${RABBITMQ_PASS}
-      RABBITMQ_VHOST: ${RABBITMQ_VHOST}
-      SA_TOKEN_JWT_KEY: ${SA_TOKEN_JWT_KEY}
-    depends_on:
-      - mysql
-      - redis
-      - mongodb
-      - rabbitmq
-      - nacos-registry
-
-  mall-search:
-    build:
-      context: ../..
-      dockerfile: mall-search/Dockerfile
-    container_name: ${COMPOSE_PROJECT_NAME}_mall_search
-    restart: unless-stopped
-    environment:
-      <<: *runtime-common
-      ES_HOST: ${ES_HOST}
-      ES_PORT: ${ES_PORT}
-    depends_on:
-      - elasticsearch
-      - nacos-registry
-
-  mall-monitor:
-    build:
-      context: ../..
-      dockerfile: mall-monitor/Dockerfile
-    container_name: ${COMPOSE_PROJECT_NAME}_mall_monitor
-    restart: unless-stopped
-    environment:
-      <<: *runtime-common
-      MONITOR_ADMIN_USER: ${MONITOR_ADMIN_USER}
-      MONITOR_ADMIN_PASSWORD: ${MONITOR_ADMIN_PASSWORD}
-    depends_on:
-      - nacos-registry
+      - redis_data:/data
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping 2>/dev/null | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
 
   mall-distribution:
     build:
@@ -190,11 +68,14 @@ services:
     restart: unless-stopped
     environment:
       <<: [*runtime-common, *redis-client, *database-client]
-      SERVER_ADDRESS: ${SERVER_ADDRESS:0.0.0.0}
+      SERVER_ADDRESS: 0.0.0.0
       CORS_ORIGINS: ${CORS_ORIGINS}
       SA_TOKEN_JWT_KEY: ${SA_TOKEN_JWT_KEY}
       SA_TOKEN_TIMEOUT: ${SA_TOKEN_TIMEOUT}
       SA_TOKEN_ACTIVE_TIMEOUT: ${SA_TOKEN_ACTIVE_TIMEOUT}
+      SHOP_PAYMENT_SIMULATION_ENABLED: "false"
+      SMS_EXPOSE_CODE: "false"
+      SMS_TEST_CODE: ""
       SHOP_MEDIA_STORAGE_DIR: ${SHOP_MEDIA_STORAGE_DIR}
       SHOP_MEDIA_PRIVATE_STORAGE_DIR: ${SHOP_MEDIA_PRIVATE_STORAGE_DIR}
       SHOP_MEDIA_MAX_DIMENSION: ${SHOP_MEDIA_MAX_DIMENSION}
@@ -224,14 +105,29 @@ services:
       SMS_TEMPLATE_PAYMENT: ${SMS_TEMPLATE_PAYMENT}
       SMS_TEMPLATE_PAYMENT_PASSWORD: ${SMS_TEMPLATE_PAYMENT_PASSWORD}
     volumes:
-      - ./data/uploads:/opt/lingqimall/uploads
+      - uploads_data:/opt/lingqimall/uploads
+    networks:
+      - edge
+      - data
     depends_on:
-      - mysql
-      - redis
-      - nacos-registry
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8086/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 45s
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
 
   nginx:
-    image: nginx:1.25-alpine
+    image: nginx:1.28.3-alpine
     container_name: ${COMPOSE_PROJECT_NAME}_nginx
     restart: unless-stopped
     ports:
@@ -241,8 +137,27 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./html:/usr/share/nginx/html:ro
-      - ./certs:/etc/nginx/certs:ro
+      - ./certs:/etc/nginx/ssl:ro
       - ./logs/nginx:/var/log/nginx
+    networks:
+      - edge
     depends_on:
-      - mall-gateway
-      - mall-distribution
+      mall-distribution:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  edge:
+    name: ${COMPOSE_PROJECT_NAME}_edge
+  data:
+    name: ${COMPOSE_PROJECT_NAME}_data
+    internal: true
+
+volumes:
+  mysql_data:
+    name: ${COMPOSE_PROJECT_NAME}_mysql_data
+  redis_data:
+    name: ${COMPOSE_PROJECT_NAME}_redis_data
+  uploads_data:
+    name: ${COMPOSE_PROJECT_NAME}_uploads_data
