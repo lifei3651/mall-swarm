@@ -1,10 +1,13 @@
 package com.macro.mall.distribution.config;
 
+import com.macro.mall.common.lock.RedisLock;
 import com.macro.mall.distribution.entity.DmsShopProduct;
 import com.macro.mall.distribution.vo.ShopProductDetailVO;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.serializer.RedisSerializer;
 
 import java.time.LocalDateTime;
@@ -12,9 +15,18 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 class RedisConfigTest {
+
+    @Test
+    void createsDistributedLockFromStorefrontRedisTemplate() {
+        new ApplicationContextRunner()
+                .withUserConfiguration(RedisConfig.class)
+                .withBean(StringRedisTemplate.class, () -> mock(StringRedisTemplate.class))
+                .run(context -> assertThat(context).hasSingleBean(RedisLock.class));
+    }
 
     @Test
     void catalogSerializerSupportsBusinessTypesAndJavaTime() {

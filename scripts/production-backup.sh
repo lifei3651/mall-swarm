@@ -4,8 +4,9 @@ set -euo pipefail
 APP_ROOT="${APP_ROOT:-/opt/lingqimall}"
 BACKUP_ROOT="${BACKUP_ROOT:-$APP_ROOT/backups/full}"
 DB_HOST="${DB_HOST:-127.0.0.1}"
-DB_USER="${DB_USER:-mall_user}"
+DB_USER="${DB_USER:-}"
 DB_NAME="${DB_NAME:-mall_distribution}"
+DB_AUTH_MODE="${DB_AUTH_MODE:-auto}"
 RETENTION_DAYS="${RETENTION_DAYS:-14}"
 MIN_FREE_MB="${MIN_FREE_MB:-2048}"
 OFFSITE_BACKUP_DIR="${OFFSITE_BACKUP_DIR:-}"
@@ -28,33 +29,66 @@ fi
 # 上次异常中断留下的临时目录不属于可恢复备份，超过一天后安全清理。
 find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d -name '.20??????_??????.tmp' -mtime +1 -exec rm -rf {} +
 
-DB_PASSWORD="${DB_PASSWORD:-$(awk '/^[[:space:]]+password:/ {print $2; exit}' "$CONFIG_FILE")}" 
-if [[ -z "$DB_PASSWORD" ]]; then
-  echo "database password was not found" >&2
-  exit 1
+if [[ "$DB_AUTH_MODE" == auto ]]; then
+  if [[ "$EUID" == 0 ]] && mysql --protocol=socket -uroot -NBe 'SELECT 1' >/dev/null 2>&1; then
+    DB_AUTH_MODE=socket
+    DB_USER="${DB_USER:-root}"
+  else
+    DB_AUTH_MODE=password
+  fi
+fi
+if [[ "$DB_AUTH_MODE" == password ]]; then
+  DB_USER="${DB_USER:-$(awk '/^[[:space:]]+username:/ {print $2; exit}' "$CONFIG_FILE")}"
+  DB_PASSWORD="${DB_PASSWORD:-$(awk '/^[[:space:]]+password:/ {print $2; exit}' "$CONFIG_FILE")}"
+  if [[ -z "$DB_USER" || -z "$DB_PASSWORD" ]]; then
+    echo "database credentials were not found" >&2
+    exit 1
+  fi
+elif [[ "$DB_AUTH_MODE" == socket ]]; then
+  DB_USER="${DB_USER:-root}"
+else
+  echo "DB_AUTH_MODE must be auto, password or socket" >&2
+  exit 2
 fi
 
 cleanup() { rm -rf "$WORK_DIR"; }
 trap cleanup EXIT
 install -d -m 0700 "$WORK_DIR"
 
-MYSQL_PWD="$DB_PASSWORD" mysqldump \
-  -h"$DB_HOST" -u"$DB_USER" \
-  --single-transaction --quick --routines --triggers --events --hex-blob --no-tablespaces \
-  "$DB_NAME" | gzip -9 > "$WORK_DIR/database.sql.gz"
+if [[ "$DB_AUTH_MODE" == socket ]]; then
+  mysqldump --protocol=socket -u"$DB_USER" \
+    --single-transaction --quick --routines --triggers --events --hex-blob --no-tablespaces \
+    "$DB_NAME"
+else
+  MYSQL_PWD="$DB_PASSWORD" mysqldump \
+    -h"$DB_HOST" -u"$DB_USER" --get-server-public-key \
+    --single-transaction --quick --routines --triggers --events --hex-blob --no-tablespaces \
+    "$DB_NAME"
+fi | gzip -9 > "$WORK_DIR/database.sql.gz"
 gzip -t "$WORK_DIR/database.sql.gz"
 
-tar -czf "$WORK_DIR/files-and-config.tar.gz" \
-  --ignore-failed-read \
-  -C / \
-  "${APP_ROOT#/}/uploads" \
-  "${APP_ROOT#/}/config" \
-  "${APP_ROOT#/}/app/mall-distribution.jar" \
-  "${APP_ROOT#/}/nginx/admin" \
-  "${APP_ROOT#/}/nginx/shop" \
-  etc/systemd/system/lingqimall-distribution.service \
+backup_items=(
+  "${APP_ROOT#/}/uploads"
+  "${APP_ROOT#/}/config"
+  "${APP_ROOT#/}/app/mall-distribution.jar"
+  "${APP_ROOT#/}/nginx/admin"
+  "${APP_ROOT#/}/nginx/shop"
+  etc/systemd/system/lingqimall-distribution.service
+)
+
+# 生产机既可能使用 Debian 的 sites-enabled，也可能使用 Rocky Linux 的
+# conf.d。只收集实际存在的路径，避免迁机后“备份成功”却漏掉 Nginx 配置。
+for optional_path in \
   etc/systemd/system/lingqimall-distribution.service.d \
-  etc/nginx/sites-enabled/lingqimall.conf
+  etc/nginx/nginx.conf \
+  etc/nginx/conf.d \
+  etc/nginx/sites-enabled \
+  etc/nginx/lingqi-http-mode.conf \
+  etc/letsencrypt; do
+  [[ -e "/$optional_path" ]] && backup_items+=("$optional_path")
+done
+
+tar -czf "$WORK_DIR/files-and-config.tar.gz" -C / "${backup_items[@]}"
 tar -tzf "$WORK_DIR/files-and-config.tar.gz" >/dev/null
 
 (cd "$WORK_DIR" && sha256sum database.sql.gz files-and-config.tar.gz > SHA256SUMS)

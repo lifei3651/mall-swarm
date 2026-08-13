@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-ROOT_DIR="$(git rev-parse --show-toplevel)"
+ROOT_DIR="${MIGRATION_ROOT_DIR:-$(git rev-parse --show-toplevel)}"
 MIGRATION_DIR="${ROOT_DIR}/document/db/migrations"
 COMMAND="${1:-plan}"
 
@@ -50,34 +50,50 @@ if [[ "$COMMAND" != "status" && "$COMMAND" != "apply" ]]; then
   exit 2
 fi
 
-for name in DB_HOST DB_USER DB_PASSWORD DB_NAME; do
+DB_AUTH_MODE="${DB_AUTH_MODE:-password}"
+DB_HOST="${DB_HOST:-localhost}"
+DB_USER="${DB_USER:-}"
+DB_PASSWORD="${DB_PASSWORD:-}"
+
+for name in DB_HOST DB_USER DB_NAME; do
   if [[ -z "${!name:-}" ]]; then echo "缺少环境变量：$name" >&2; exit 2; fi
 done
+if [[ "$DB_AUTH_MODE" != password && "$DB_AUTH_MODE" != socket ]]; then echo "DB_AUTH_MODE 仅支持 password 或 socket" >&2; exit 2; fi
+if [[ "$DB_AUTH_MODE" == password && -z "$DB_PASSWORD" ]]; then echo "缺少环境变量：DB_PASSWORD" >&2; exit 2; fi
 if [[ ! "$DB_NAME" =~ ^[A-Za-z0-9_]+$ ]]; then echo "DB_NAME 格式不合法" >&2; exit 2; fi
-if [[ "$DB_PASSWORD" == *$'\n'* || "$DB_PASSWORD" == *$'\r'* ]]; then echo "DB_PASSWORD 不能包含换行符" >&2; exit 2; fi
+if [[ "$DB_AUTH_MODE" == password && ( "$DB_PASSWORD" == *$'\n'* || "$DB_PASSWORD" == *$'\r'* ) ]]; then echo "DB_PASSWORD 不能包含换行符" >&2; exit 2; fi
 DB_PORT="${DB_PORT:-3306}"
 
-CLIENT_FILE="$(mktemp)"
+CLIENT_FILE=""
 LOCK_KEY="$(printf '%s_%s' "$DB_HOST" "$DB_NAME" | tr -cd 'A-Za-z0-9_.-')"
 LOCK_DIR="${TMPDIR:-/tmp}/mall-db-migrate-${LOCK_KEY}.lock"
 cleanup() {
   if [[ "${DB_LOCK_HELD:-0}" == 1 ]]; then mysql_cmd --batch --skip-column-names -e "SELECT RELEASE_LOCK('mall_schema:${DB_NAME}');" >/dev/null 2>&1 || true; fi
-  rm -f "$CLIENT_FILE"
+  [[ -n "$CLIENT_FILE" ]] && rm -f "$CLIENT_FILE"
   if [[ "${LOCK_HELD:-0}" == 1 ]]; then rmdir "$LOCK_DIR" 2>/dev/null || true; fi
 }
 trap cleanup EXIT
-chmod 600 "$CLIENT_FILE"
 escape_option_value() {
   local value="$1"
   value="${value//\\/\\\\}"
   value="${value//\"/\\\"}"
   printf '"%s"' "$value"
 }
-printf '[client]\nhost=%s\nport=%s\nuser=%s\npassword=%s\ndefault-character-set=utf8mb4\n' \
-  "$(escape_option_value "$DB_HOST")" "$DB_PORT" "$(escape_option_value "$DB_USER")" \
-  "$(escape_option_value "$DB_PASSWORD")" > "$CLIENT_FILE"
+if [[ "$DB_AUTH_MODE" == password ]]; then
+  CLIENT_FILE="$(mktemp)"
+  chmod 600 "$CLIENT_FILE"
+  printf '[client]\nhost=%s\nport=%s\nuser=%s\npassword=%s\nget-server-public-key\ndefault-character-set=utf8mb4\n' \
+    "$(escape_option_value "$DB_HOST")" "$DB_PORT" "$(escape_option_value "$DB_USER")" \
+    "$(escape_option_value "$DB_PASSWORD")" > "$CLIENT_FILE"
+fi
 
-mysql_cmd() { mysql --defaults-extra-file="$CLIENT_FILE" "$DB_NAME" "$@"; }
+mysql_cmd() {
+  if [[ "$DB_AUTH_MODE" == socket ]]; then
+    mysql --protocol=socket -u"$DB_USER" "$DB_NAME" "$@"
+  else
+    mysql --defaults-extra-file="$CLIENT_FILE" "$DB_NAME" "$@"
+  fi
+}
 
 if [[ "$COMMAND" == "status" ]]; then
   table_exists="$(mysql_cmd --batch --skip-column-names -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}' AND table_name='dms_schema_migration_history';")"
