@@ -254,7 +254,20 @@
           </div>
         </el-form-item>
         <el-form-item label="物流公司" required>
-          <el-input v-model="shipForm.deliveryCompany" placeholder="例如 顺丰速运" />
+          <el-select
+            v-model="shipForm.deliveryCompany"
+            filterable
+            clearable
+            placeholder="请选择物流公司"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="company in logisticsCompanyOptions"
+              :key="company"
+              :label="company"
+              :value="company"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="物流单号" required>
           <el-input v-model="shipForm.deliveryNo" />
@@ -453,6 +466,7 @@ import { validateSearchKeyword } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
 import { useAppStore } from '@/store'
 import { formatDateTime } from '@/utils/dateTime'
+import { logisticsCompanyOptions } from '@/utils/logisticsCompanies'
 
 const appStore = useAppStore()
 const route = useRoute()

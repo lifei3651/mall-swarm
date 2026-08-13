@@ -46,6 +46,16 @@ describe('商城订单取消入口', () => {
     expect(source).toContain('物流发货导入模板.xlsx')
   })
 
+  it('人工发货使用可搜索的标准物流公司下拉选择', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('v-model="shipForm.deliveryCompany"')
+    expect(source).toContain('placeholder="请选择物流公司"')
+    expect(source).toContain('v-for="company in logisticsCompanyOptions"')
+    expect(source).toContain("from '@/utils/logisticsCompanies'")
+    expect(source).not.toContain('<el-input v-model="shipForm.deliveryCompany"')
+  })
+
   it('待发货与售后使用独立数字提醒，售后队列不再展示发货入口', async () => {
     const source = await readFile(sourcePath, 'utf8')
 
