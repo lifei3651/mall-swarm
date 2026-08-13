@@ -654,6 +654,15 @@ test('order detail describes only locally known delivery facts without inventing
   assert.ok(source.indexOf('logistics-overview-panel') < source.indexOf('product-detail-head'))
 })
 
+test('order detail does not display a generic after-sale deadline notice', async () => {
+  const source = await readView('OrderDetailView.vue')
+  assert.doesNotMatch(source, /售后入口期限/)
+  assert.doesNotMatch(source, /具体截止时间以订单状态和商城规则为准/)
+  assert.doesNotMatch(source, /afterSaleWindowLabel/)
+  assert.match(source, /canApplyAfterSale/)
+  assert.match(source, /afterSaleDeadline/)
+})
+
 test('refund flow defaults to all items and keeps the application form concise', async () => {
   const source = await readView('OrderDetailView.vue')
   assert.match(source, /after-sale-type-grid/)

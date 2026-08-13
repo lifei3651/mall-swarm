@@ -218,7 +218,6 @@
           <button v-if="order.status === 0" class="btn primary" :disabled="acting" @click="pay">立即支付</button>
           <button v-if="order.status === 2" class="btn primary" :disabled="acting" @click="requestOrderConfirmation('receive-order')">确认收货</button>
         </div>
-        <p v-if="afterSaleWindowLabel" class="line-sub">售后入口期限：{{ afterSaleWindowLabel }}；具体截止时间以订单状态和商城规则为准。</p>
         <p v-if="error" style="color: var(--coral); line-height: 1.6">{{ error }}</p>
       </aside>
     </div>
@@ -344,7 +343,6 @@ const logisticsStatusDescription = computed(() => {
 const afterSales = computed(() => detail.value.afterSales || [])
 const displayConfig = computed(() => detail.value.displayConfig || {})
 const showPv = computed(() => Number(displayConfig.value.showPv || 0) === 1)
-const afterSaleWindowLabel = computed(() => detail.value.afterSaleWindowLabel || '')
 const afterSaleDeadline = computed(() => {
   const configured = Date.parse(String(detail.value.afterSaleDeadline || '').replace(' ', 'T'))
   if (Number.isFinite(configured)) return configured
