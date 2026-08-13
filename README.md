@@ -153,6 +153,8 @@ mall
 
 ### 灵启商城运维与接口文档
 
+- [商城用户操作手册](./document/USER_OPERATION_MANUAL.md)
+- [技术维护与接口说明手册](./document/TECHNICAL_MAINTENANCE_API_MANUAL.md)
 - [服务健康检查与告警说明](./document/operations/HEALTH_CHECK.md)
 - [接口限流配置与调整说明](./document/operations/RATE_LIMITING.md)
 - [灵启商城 API 接入与维护说明](./document/api/API_GUIDE.md)

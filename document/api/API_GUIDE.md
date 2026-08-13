@@ -67,8 +67,10 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 
 ### 管理后台
 
-- 登录响应返回管理会话 Token。
-- 后续请求使用 `Authorization: Bearer <token>`。
+- 浏览器登录成功后由服务端写入名为 `admin_session` 的 Secure、HttpOnly Cookie，默认绝对有效期为 12 小时，前端 JavaScript 不读取 Token。
+- Cookie 路径为 `/api`；浏览器请求使用 `withCredentials: true`。
+- 使用 Cookie 发起 POST、PUT、PATCH、DELETE 等写操作时，请求必须带 `X-Admin-Client: admin-web`。
+- 历史 `Authorization: Bearer <token>` 只保留一次性迁移及受信任非浏览器客户端兼容；浏览器调用 `/distribution/admin-auth/me` 校验成功后迁移到 Cookie，并清除本地旧 Token。
 - 不同后台接口还会检查管理员权限；登录成功不等于拥有全部业务权限。
 
 ## 5. 请求参数与响应模型怎么看
@@ -122,4 +124,5 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 - 通用响应：`mall-common/src/main/java/com/macro/mall/common/api/CommonResult.java`
 - 通用错误码：`mall-common/src/main/java/com/macro/mall/common/api/ResultCode.java`
 - 商城 Cookie 会话：`mall-distribution/src/main/java/com/macro/mall/distribution/security/ShopSessionCookieService.java`
+- 后台 Cookie 会话：`mall-distribution/src/main/java/com/macro/mall/distribution/security/AdminSessionCookieService.java`
 - 生产禁用规则：`mall-distribution/src/main/resources/application-prod.yml`、`scripts/nginx/lingqimall.conf`
