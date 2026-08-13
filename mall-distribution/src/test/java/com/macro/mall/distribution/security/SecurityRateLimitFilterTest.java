@@ -43,4 +43,16 @@ class SecurityRateLimitFilterTest {
         assertEquals(5, rule.maximumRequests());
         assertEquals(60, rule.windowSeconds());
     }
+
+    @Test
+    void appliesDedicatedRuleToAfterSaleProofUploads() {
+        SecurityRateLimitFilter filter = new SecurityRateLimitFilter(mock(SecurityRateLimitService.class));
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/shop/media/after-sale-proofs");
+
+        SecurityRateLimitFilter.Rule rule = filter.resolveRule(request);
+
+        assertEquals("after-sale-proof-upload", rule.name());
+        assertEquals(12, rule.maximumRequests());
+        assertEquals(60, rule.windowSeconds());
+    }
 }

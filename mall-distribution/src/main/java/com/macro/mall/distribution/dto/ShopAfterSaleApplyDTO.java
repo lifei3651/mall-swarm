@@ -37,5 +37,6 @@ public class ShopAfterSaleApplyDTO implements Serializable {
     @Size(max = 170, message = "申请原因不能超过170个字")
     private String reason;
 
+    @Size(max = 1000, message = "售后凭证数据过长")
     private String proofImages;
 }

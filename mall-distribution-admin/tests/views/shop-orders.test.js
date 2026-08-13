@@ -96,4 +96,13 @@ describe('商城订单取消入口', () => {
     expect(source).not.toContain('created + 7 * 24 * 60 * 60 * 1000')
     expect(source).not.toContain('订单超过前台7天售后期限')
   })
+
+  it('售后审核弹窗展示会员提交的私密图片凭证', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('label="图片凭证"')
+    expect(source).toContain('afterSaleProofUrls(currentAfterSale)')
+    expect(source).toContain('/api/shop/admin/after-sales/proofs/')
+    expect(source).toContain('preview-teleported')
+  })
 })

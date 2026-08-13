@@ -16,6 +16,36 @@
       class="page-alert"
     />
 
+    <el-card v-if="tenantForm.id" v-loading="readinessLoading" shadow="never" class="readiness-card">
+      <div class="readiness-head">
+        <div>
+          <h3>客户交付预检</h3>
+          <p>这里检查的是交给客户正式运营前的必备资料与通道；当前作为测试基座时允许未全部通过。</p>
+        </div>
+        <el-tag :type="readiness.ready ? 'success' : 'warning'" effect="dark">
+          {{ readiness.ready ? '可以进入交付验收' : `待完成 ${Math.max(0, readiness.totalRequired - readiness.passedRequired)} 项` }}
+        </el-tag>
+      </div>
+      <el-progress
+        :percentage="readinessPercent"
+        :status="readiness.ready ? 'success' : undefined"
+        :stroke-width="10"
+      />
+      <div class="readiness-grid">
+        <div v-for="item in readiness.items || []" :key="item.code" class="readiness-item" :class="{ passed: item.passed }">
+          <span class="readiness-state">{{ item.passed ? '✓' : '!' }}</span>
+          <div>
+            <div class="readiness-title">
+              <strong>{{ item.title }}</strong>
+              <el-tag size="small" :type="item.required ? 'danger' : 'info'" effect="plain">{{ item.required ? '交付必备' : '客户可选' }}</el-tag>
+            </div>
+            <p>{{ item.detail }}</p>
+            <RouterLink v-if="!item.passed && item.actionPath" :to="item.actionPath">去处理</RouterLink>
+          </div>
+        </div>
+      </div>
+    </el-card>
+
     <el-card v-loading="loading" shadow="never" class="profile-card">
       <el-empty v-if="!tenantForm.id && !loading" description="暂未找到商城资料" />
       <el-form v-else :model="tenantForm" label-width="130px" class="profile-form">
@@ -106,14 +136,29 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { uploadShopImage } from '@/api/shop'
-import { listTenants, saveTenant } from '@/api/tenant'
+import { getCustomerDeliveryReadiness, listTenants, saveTenant } from '@/api/tenant'
 
 const loading = ref(false)
 const saving = ref(false)
 const tenantForm = ref({})
+const readinessLoading = ref(false)
+const readiness = ref({ ready: false, passedRequired: 0, totalRequired: 0, items: [] })
+const readinessPercent = computed(() => readiness.value.totalRequired
+  ? Math.round(readiness.value.passedRequired * 100 / readiness.value.totalRequired)
+  : 0)
+
+const fetchReadiness = async (tenantId) => {
+  if (!tenantId) return
+  readinessLoading.value = true
+  try {
+    readiness.value = (await getCustomerDeliveryReadiness(tenantId)).data || readiness.value
+  } finally {
+    readinessLoading.value = false
+  }
+}
 
 const normalizeCreditCode = (value) => {
   tenantForm.value.unifiedSocialCreditCode = String(value || '')
@@ -132,6 +177,7 @@ const fetchData = async () => {
       ...current,
       showBusinessLicense: Number(current.showBusinessLicense ?? 1) === 0 ? 0 : 1,
     }
+    await fetchReadiness(current.id)
   } finally {
     loading.value = false
   }
@@ -186,6 +232,19 @@ onMounted(fetchData)
 .toolbar h2 { margin:0; color:#303133; font-size:20px; }
 .toolbar p { margin:6px 0 0; color:#909399; font-size:13px; }
 .page-alert { margin-bottom:16px; }
+.readiness-card { margin-bottom:16px; border:1px solid #ebeef5; }
+.readiness-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:14px; }
+.readiness-head h3 { margin:0; color:#303133; font-size:17px; }
+.readiness-head p { margin:6px 0 0; color:#909399; font-size:12px; line-height:1.6; }
+.readiness-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:16px; }
+.readiness-item { display:flex; align-items:flex-start; gap:10px; padding:12px; background:#fff8ed; border:1px solid #f7d9a8; border-radius:9px; }
+.readiness-item.passed { background:#f1f9f4; border-color:#c9ead5; }
+.readiness-state { width:22px; height:22px; display:grid; place-items:center; flex:0 0 22px; color:#fff; background:#e6a23c; border-radius:50%; font-weight:700; }
+.readiness-item.passed .readiness-state { background:#67c23a; }
+.readiness-title { display:flex; flex-wrap:wrap; align-items:center; gap:7px; }
+.readiness-title strong { color:#303133; font-size:13px; }
+.readiness-item p { margin:5px 0 0; color:#7a828c; font-size:12px; line-height:1.55; }
+.readiness-item a { display:inline-block; margin-top:5px; color:var(--el-color-primary); font-size:12px; text-decoration:none; }
 .profile-card { border:1px solid #ebeef5; }
 .form-section { padding:4px 0 8px; }
 .form-section + .form-section { margin-top:14px; padding-top:20px; border-top:1px solid #ebeef5; }
@@ -199,5 +258,5 @@ onMounted(fetchData)
 .upload-help { color:#909399; font-size:12px; line-height:20px; }
 .license-switch { margin-top:4px; }
 .card-footer { display:flex; justify-content:flex-end; }
-@media (max-width:700px) { .toolbar{align-items:flex-start;flex-direction:column;gap:10px}.upload-row{flex-direction:column}.license-uploader{width:100%}.profile-form{padding-right:0} }
+@media (max-width:700px) { .toolbar,.readiness-head{align-items:flex-start;flex-direction:column;gap:10px}.readiness-grid{grid-template-columns:1fr}.upload-row{flex-direction:column}.license-uploader{width:100%}.profile-form{padding-right:0} }
 </style>

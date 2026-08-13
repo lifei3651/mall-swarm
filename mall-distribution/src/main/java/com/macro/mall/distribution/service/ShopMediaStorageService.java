@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.service;
 
 import com.macro.mall.common.exception.Asserts;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,6 +31,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.Iterator;
 import java.util.Locale;
+import java.util.UUID;
 
 /**
  * 商品图片的本地存储实现。
@@ -44,22 +46,68 @@ public class ShopMediaStorageService {
     private static final String FILE_NAME_PATTERN = "[a-fA-F0-9]{32}\\.(jpg|jpeg|png|webp|gif)";
 
     private final Path storageDirectory;
+    private final Path privateStorageDirectory;
     private final int maxDimension;
     private final long maxPixels;
     private final float jpegQuality;
 
+    @Autowired
     public ShopMediaStorageService(
             @Value("${shop.media.storage-dir:/opt/lingqimall/uploads/products}") String storageDir,
+            @Value("${shop.media.private-storage-dir:/opt/lingqimall/uploads/private}") String privateStorageDir,
             @Value("${shop.media.max-dimension:1920}") int maxDimension,
             @Value("${shop.media.max-pixels:25000000}") long maxPixels,
             @Value("${shop.media.jpeg-quality:0.82}") float jpegQuality) {
         this.storageDirectory = Path.of(storageDir).toAbsolutePath().normalize();
+        this.privateStorageDirectory = Path.of(privateStorageDir).toAbsolutePath().normalize();
         this.maxDimension = Math.max(640, maxDimension);
         this.maxPixels = Math.max(1_000_000L, maxPixels);
         this.jpegQuality = Math.max(0.65f, Math.min(0.95f, jpegQuality));
     }
 
+    /** 测试与本地工具沿用的兼容构造器；私密文件放在同一临时根目录的 private 子目录。 */
+    public ShopMediaStorageService(String storageDir, int maxDimension, long maxPixels, float jpegQuality) {
+        this(storageDir, Path.of(storageDir).resolve("private").toString(), maxDimension, maxPixels, jpegQuality);
+    }
+
     public StoredImage store(MultipartFile file) throws IOException {
+        ProcessedImage processed = processUpload(file);
+
+        Files.createDirectories(storageDirectory);
+        String filename = contentHash(processed.bytes()).substring(0, 32) + "." + processed.extension();
+        Path target = storageDirectory.resolve(filename).normalize();
+        if (!target.startsWith(storageDirectory)) Asserts.fail("图片存储路径无效");
+        writeOnce(target, processed.bytes());
+        return new StoredImage(filename, target, processed.contentType(), processed.bytes().length);
+    }
+
+    /**
+     * 保存会员售后凭证。凭证使用随机文件名并按会员隔离，不进入公开商品图片目录。
+     */
+    public StoredImage storeAfterSaleProof(Long memberId, MultipartFile file) throws IOException {
+        Path memberDirectory = afterSaleProofDirectory(memberId);
+        ProcessedImage processed = processUpload(file);
+        Files.createDirectories(memberDirectory);
+        ensurePrivateDirectory(privateStorageDirectory);
+        ensurePrivateDirectory(privateStorageDirectory.resolve("after-sale-proofs"));
+        ensurePrivateDirectory(memberDirectory);
+        String filename = UUID.randomUUID().toString().replace("-", "") + "." + processed.extension();
+        Path target = memberDirectory.resolve(filename).normalize();
+        if (!target.startsWith(memberDirectory)) Asserts.fail("售后凭证存储路径无效");
+        Files.write(target, processed.bytes(), StandardOpenOption.CREATE_NEW);
+        ensurePrivate(target);
+        return new StoredImage(filename, target, processed.contentType(), processed.bytes().length);
+    }
+
+    public StoredImage loadAfterSaleProof(Long memberId, String filename) throws IOException {
+        if (filename == null || !filename.matches(FILE_NAME_PATTERN)) return null;
+        Path memberDirectory = afterSaleProofDirectory(memberId);
+        Path target = memberDirectory.resolve(filename.toLowerCase(Locale.ROOT)).normalize();
+        if (!target.startsWith(memberDirectory) || !Files.isRegularFile(target)) return null;
+        return new StoredImage(filename, target, contentType(filename), Files.size(target));
+    }
+
+    private ProcessedImage processUpload(MultipartFile file) throws IOException {
         if (file == null || file.isEmpty()) Asserts.fail("请选择图片文件");
         if (file.getSize() > MAX_IMAGE_SIZE) Asserts.fail("单张图片不能超过5MB");
 
@@ -78,13 +126,7 @@ public class ShopMediaStorageService {
         if (processed.bytes().length > MAX_IMAGE_SIZE) {
             Asserts.fail("图片处理后仍超过5MB，请缩小尺寸后重试");
         }
-
-        Files.createDirectories(storageDirectory);
-        String filename = contentHash(processed.bytes()).substring(0, 32) + "." + processed.extension();
-        Path target = storageDirectory.resolve(filename).normalize();
-        if (!target.startsWith(storageDirectory)) Asserts.fail("图片存储路径无效");
-        writeOnce(target, processed.bytes());
-        return new StoredImage(filename, target, processed.contentType(), processed.bytes().length);
+        return processed;
     }
 
     public StoredImage load(String filename) throws IOException {
@@ -219,6 +261,30 @@ public class ShopMediaStorageService {
         } catch (UnsupportedOperationException ignored) {
             // Windows等不支持POSIX权限的平台沿用默认文件权限。
         }
+    }
+
+    private void ensurePrivate(Path target) throws IOException {
+        try {
+            Files.setPosixFilePermissions(target, PosixFilePermissions.fromString("rw-------"));
+        } catch (UnsupportedOperationException ignored) {
+            // Windows等不支持POSIX权限的平台沿用默认文件权限，访问仍由受保护接口控制。
+        }
+    }
+
+    private void ensurePrivateDirectory(Path target) throws IOException {
+        try {
+            Files.setPosixFilePermissions(target, PosixFilePermissions.fromString("rwx------"));
+        } catch (UnsupportedOperationException ignored) {
+            // Windows等不支持POSIX权限的平台沿用默认目录权限，访问仍由受保护接口控制。
+        }
+    }
+
+    private Path afterSaleProofDirectory(Long memberId) {
+        if (memberId == null || memberId <= 0) Asserts.fail("会员信息无效");
+        Path directory = privateStorageDirectory.resolve("after-sale-proofs")
+                .resolve(String.valueOf(memberId)).normalize();
+        if (!directory.startsWith(privateStorageDirectory)) Asserts.fail("售后凭证存储路径无效");
+        return directory;
     }
 
     private static ImageFormat detectFormat(byte[] bytes) {

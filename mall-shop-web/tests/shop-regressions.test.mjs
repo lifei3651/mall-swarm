@@ -652,6 +652,9 @@ test('order detail describes only locally known delivery facts without inventing
   assert.doesNotMatch(source, /运输中/)
   assert.doesNotMatch(source, /包裹正在运输/)
   assert.ok(source.indexOf('logistics-overview-panel') < source.indexOf('product-detail-head'))
+  assert.match(source, /getOrderTracking/)
+  assert.match(source, /trackingFor\(shipment\)\.events/)
+  assert.match(source, /aria-label="真实物流轨迹"/)
 })
 
 test('order detail does not display a generic after-sale deadline notice', async () => {
@@ -683,6 +686,12 @@ test('refund flow defaults to all items and keeps the application form concise',
   assert.match(source, /退款商品数量不能为 0，请至少选择 1 件商品/)
   assert.match(source, /scrollIntoView\(\{ behavior: 'smooth', block: 'center' \}\)/)
   assert.match(source, /after-sale-field-error/)
+  assert.match(source, /uploadAfterSaleProof/)
+  assert.match(source, /最多6张，单张不超过5MB/)
+  assert.match(source, /const proofFilenames = \[\]/)
+  assert.match(source, /for \(const proof of proofUploads\.value\)/)
+  assert.match(source, /JSON\.stringify\(proofFilenames\)/)
+  assert.match(source, /memberProofUrl/)
 })
 
 test('order detail keeps four payment facts visible and collapses five order information fields', async () => {

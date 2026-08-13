@@ -6,6 +6,8 @@ import com.macro.mall.distribution.entity.DmsCommissionRuleVersion;
 import com.macro.mall.distribution.entity.DmsTenant;
 import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
 import com.macro.mall.distribution.service.TenantService;
+import com.macro.mall.distribution.service.CustomerDeliveryReadinessService;
+import com.macro.mall.distribution.vo.CustomerDeliveryReadinessVO;
 import com.macro.mall.distribution.vo.TenantLegalTemplatesVO;
 import com.macro.mall.distribution.vo.TenantConfigVersionVO;
 import com.github.pagehelper.PageHelper;
@@ -24,6 +26,7 @@ import java.util.List;
 public class TenantController {
 
     private final TenantService tenantService;
+    private final CustomerDeliveryReadinessService deliveryReadinessService;
 
     @Operation(summary = "查询客户公司列表")
     @GetMapping("/list")
@@ -43,6 +46,12 @@ public class TenantController {
     @GetMapping("/legal-templates")
     public CommonResult<TenantLegalTemplatesVO> legalTemplates() {
         return CommonResult.success(tenantService.getLegalTemplates());
+    }
+
+    @Operation(summary = "客户交付就绪预检")
+    @GetMapping("/{tenantId}/delivery-readiness")
+    public CommonResult<CustomerDeliveryReadinessVO> deliveryReadiness(@PathVariable Long tenantId) {
+        return CommonResult.success(deliveryReadinessService.evaluate(tenantId));
     }
 
     @Operation(summary = "更新客户公司状态")

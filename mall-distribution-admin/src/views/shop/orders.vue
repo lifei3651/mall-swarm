@@ -318,6 +318,21 @@
         <el-form-item label="售后号">
           <el-input :model-value="currentAfterSale?.afterSaleNo" disabled />
         </el-form-item>
+        <el-form-item label="申请原因">
+          <div class="after-sale-reason">{{ currentAfterSale?.reason || '-' }}</div>
+        </el-form-item>
+        <el-form-item v-if="afterSaleProofUrls(currentAfterSale).length" label="图片凭证">
+          <div class="after-sale-proof-grid">
+            <el-image
+              v-for="url in afterSaleProofUrls(currentAfterSale)"
+              :key="url"
+              :src="url"
+              :preview-src-list="afterSaleProofUrls(currentAfterSale)"
+              fit="cover"
+              preview-teleported
+            />
+          </div>
+        </el-form-item>
         <el-form-item label="审核备注">
           <el-input v-model="auditForm.auditRemark" type="textarea" :rows="4" />
         </el-form-item>
@@ -529,6 +544,18 @@ const bonusTypeName = (row) => row.bonusType === 'DIRECT_REWARD'
   : row.bonusType === 'DIRECTOR_SHARE' ? '董事团队分红' : '历史奖金'
 const afterSaleStatus = (status) => ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待客户寄回', 5: '待商家收货', 6: '退款处理中' }[status] || '处理中')
 const afterSaleTag = (status) => ({ 0: 'warning', 1: 'success', 2: 'info', 3: 'warning', 4: 'warning', 5: 'primary', 6: 'warning' }[status] || 'info')
+const afterSaleProofUrls = (sale) => {
+  if (!sale?.memberId) return []
+  try {
+    const filenames = JSON.parse(sale.proofImages || '[]')
+    return Array.isArray(filenames)
+      ? filenames.filter((filename) => typeof filename === 'string' && filename)
+        .map((filename) => `/api/shop/admin/after-sales/proofs/${sale.memberId}/${encodeURIComponent(filename)}`)
+      : []
+  } catch {
+    return []
+  }
+}
 const hasPendingAfterSale = (row) => (row?.afterSales || []).some((item) => [0, 4, 5, 6].includes(Number(item.status)))
 const activeAfterSale = (row) => (row?.afterSales || []).find((item) => [0, 4, 5, 6].includes(Number(item.status)))
 const approvedAfterSales = (row) => (row?.afterSales || []).filter((item) => Number(item.status) === 1)
@@ -1187,5 +1214,27 @@ onBeforeUnmount(() => {
   color: #e6a23c;
   font-size: 20px;
   font-weight: 700;
+}
+
+.after-sale-reason {
+  width: 100%;
+  color: #606266;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.after-sale-proof-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 72px);
+  gap: 8px;
+}
+
+.after-sale-proof-grid :deep(.el-image) {
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  background: #f5f7fa;
 }
 </style>

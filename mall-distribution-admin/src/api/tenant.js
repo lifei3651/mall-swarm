@@ -24,6 +24,13 @@ export function getLegalTemplates() {
   })
 }
 
+export function getCustomerDeliveryReadiness(tenantId) {
+  return request({
+    url: `/distribution/tenant/${tenantId}/delivery-readiness`,
+    method: 'get',
+  })
+}
+
 export function updateTenantStatus(id, status) {
   return request({
     url: `/distribution/tenant/${id}/status`,

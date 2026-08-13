@@ -188,6 +188,13 @@ export function getOrder(id) {
   })
 }
 
+export function getOrderTracking(id) {
+  return request({
+    url: `/shop/orders/${id}/tracking`,
+    method: 'get',
+  })
+}
+
 export function listMyOrders(params) {
   return request({
     url: '/shop/orders',
@@ -270,6 +277,16 @@ export function listMyBalanceFlows(params) {
 export function applyAfterSale(data) {
   return request({
     url: '/shop/after-sales',
+    method: 'post',
+    data,
+  })
+}
+
+export function uploadAfterSaleProof(file) {
+  const data = new FormData()
+  data.append('file', file)
+  return request({
+    url: '/shop/media/after-sale-proofs',
     method: 'post',
     data,
   })

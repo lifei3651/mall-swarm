@@ -29,13 +29,21 @@
             <ChevronRight :size="17" />
           </a>
         </div>
-        <div v-for="(shipment, index) in shipments" :key="`${shipment.deliveryCompany}-${shipment.deliveryNo}-${index}`" class="logistics-package-row">
-          <span class="courier-icon">{{ courierInitial(shipment.deliveryCompany) }}</span>
-          <div>
-            <strong>{{ shipment.deliveryCompany || '快递公司' }}</strong>
-            <p>包裹 {{ index + 1 }} · 运单号 {{ shipment.deliveryNo || '-' }}</p>
+        <div v-for="(shipment, index) in shipments" :key="`${shipment.deliveryCompany}-${shipment.deliveryNo}-${index}`" class="logistics-package">
+          <div class="logistics-package-row">
+            <span class="courier-icon">{{ courierInitial(shipment.deliveryCompany) }}</span>
+            <div>
+              <strong>{{ shipment.deliveryCompany || '快递公司' }}</strong>
+              <p>包裹 {{ index + 1 }} · 运单号 {{ shipment.deliveryNo || '-' }}</p>
+            </div>
+            <button v-if="shipment.deliveryNo" type="button" class="copy-btn" @click="copyText(shipment.deliveryNo)">复制</button>
           </div>
-          <button v-if="shipment.deliveryNo" type="button" class="copy-btn" @click="copyText(shipment.deliveryNo)">复制</button>
+          <ol v-if="trackingFor(shipment).events?.length" class="tracking-timeline" aria-label="真实物流轨迹">
+            <li v-for="event in trackingFor(shipment).events" :key="`${event.eventTime}-${event.description}`">
+              <span class="tracking-dot"></span>
+              <div><strong>{{ event.description }}</strong><small>{{ dateTime(event.eventTime) }}<template v-if="event.location"> · {{ event.location }}</template></small></div>
+            </li>
+          </ol>
         </div>
         <div class="delivery-address-row">
           <MapPin :size="20" />
@@ -96,6 +104,11 @@
               <span class="progress-step" :class="{ complete: sale.status === 1 }">处理完成</span>
             </div>
             <p class="line-sub after-sale-amounts">商品 {{ sale.refundQuantity || 0 }} 件 · 商品款 ¥{{ money(sale.productRefundAmount) }} · 运费 ¥{{ money(sale.freightRefundAmount) }}</p>
+            <div v-if="proofFilenames(sale).length" class="after-sale-proof-list" aria-label="售后凭证">
+              <a v-for="filename in proofFilenames(sale)" :key="filename" :href="memberProofUrl(filename)" target="_blank" rel="noopener">
+                <img :src="memberProofUrl(filename)" alt="售后凭证图片" />
+              </a>
+            </div>
             <div v-if="sale.applyType === 2 && [4, 5].includes(sale.status)" class="after-sale-return-address">
               <strong>{{ sale.status === 4 ? '请寄回商品' : '退货物流已提交' }}</strong>
               <span>{{ sale.returnAddress || '退货地址将在审核结果中显示，请留意订单更新' }}</span>
@@ -151,12 +164,27 @@
             <div class="reason-counter">{{ afterSaleForm.reasonDetail.length }}/170</div>
           </div>
 
+          <div class="after-sale-block">
+            <div class="block-label">图片凭证 <small>选填，最多6张，单张不超过5MB</small></div>
+            <input ref="proofInput" class="proof-file-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple @change="handleProofSelection" />
+            <div class="proof-upload-grid">
+              <div v-for="proof in proofUploads" :key="proof.localId" class="proof-preview">
+                <img :src="proof.previewUrl" alt="待提交的售后凭证" />
+                <button type="button" aria-label="删除这张凭证" :disabled="uploadingProofs" @click="removeProof(proof.localId)">×</button>
+              </div>
+              <button v-if="proofUploads.length < 6" type="button" class="proof-add" :disabled="uploadingProofs" @click="proofInput?.click()">
+                <ImagePlus :size="23" />
+                <span>{{ uploadingProofs ? '上传中…' : '添加图片' }}</span>
+              </button>
+            </div>
+          </div>
+
           <div class="refund-estimate">
             <div class="estimate-head"><span>预计退款</span><strong>¥{{ money(estimatedProductRefund + estimatedFreightRefund) }}</strong></div>
           </div>
           <p v-if="afterSaleErrors.server" class="after-sale-submit-error" role="alert">{{ afterSaleErrors.server }}</p>
-          <button class="btn primary after-sale-submit" :disabled="submittingAfterSale" @click="submitAfterSale">
-            {{ submittingAfterSale ? '提交中…' : '提交申请' }}
+          <button class="btn primary after-sale-submit" :disabled="submittingAfterSale || uploadingProofs" @click="submitAfterSale">
+            {{ uploadingProofs ? '图片上传中…' : submittingAfterSale ? '提交中…' : '提交申请' }}
           </button>
         </div>
       </section>
@@ -252,16 +280,18 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { ChevronDown, ChevronRight, CircleCheck, MapPin, PackageCheck, RotateCcw, Truck, UserRound } from 'lucide-vue-next'
-import { applyAfterSale, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmReceive, getOrder, payOrderWithBalance, submitAfterSaleReturnShipment } from '@/api/shop'
+import { ChevronDown, ChevronRight, CircleCheck, ImagePlus, MapPin, PackageCheck, RotateCcw, Truck, UserRound } from 'lucide-vue-next'
+import { applyAfterSale, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmReceive, getOrder, getOrderTracking, payOrderWithBalance, submitAfterSaleReturnShipment, uploadAfterSaleProof } from '@/api/shop'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { dateTime, money, statusName } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
 import { connectOrderRealtime } from '@/utils/orderRealtime'
+import { isNativeApp, toPublicWebUrl } from '@/utils/appEnvironment'
 import { hasShopSession } from '@/utils/shopSession'
 
 const route = useRoute()
 const detail = ref({})
+const logisticsTracking = ref([])
 const loading = ref(false)
 const acting = ref(false)
 const cancellingAfterSaleId = ref(null)
@@ -275,6 +305,9 @@ const selectedReason = ref('')
 const orderInfoExpanded = ref(false)
 const refundItemsSection = ref(null)
 const reasonSection = ref(null)
+const proofInput = ref(null)
+const proofUploads = ref([])
+const uploadingProofs = ref(false)
 const afterSaleErrors = ref({ items: '', reason: '', server: '' })
 const afterSaleReasons = ['不想要了', '与商品描述不符', '质量问题', '收到商品少件 / 漏发', '商品破损或污渍', '商家发错货', '其他原因']
 const error = ref('')
@@ -328,6 +361,9 @@ const shipments = computed(() => {
   }
   return []
 })
+const trackingFor = (shipment) => logisticsTracking.value.find((item) => (
+  shipment.id && String(item.shipmentId) === String(shipment.id)
+) || (item.deliveryNo && item.deliveryNo === shipment.deliveryNo)) || { events: [] }
 const logisticsStatus = computed(() => {
   if (order.value?.receiveTime) return '已确认收货'
   if (Number(order.value?.status) === 3) return '已完成'
@@ -341,6 +377,18 @@ const logisticsStatusDescription = computed(() => {
     : '商家已发货，实际轨迹以承运商查询为准'
 })
 const afterSales = computed(() => detail.value.afterSales || [])
+const proofFilenames = (sale) => {
+  try {
+    const parsed = JSON.parse(sale?.proofImages || '[]')
+    return Array.isArray(parsed) ? parsed.filter((item) => typeof item === 'string' && item) : []
+  } catch {
+    return []
+  }
+}
+const memberProofUrl = (filename) => {
+  const path = `/api/shop/media/after-sale-proofs/${encodeURIComponent(filename)}`
+  return isNativeApp ? toPublicWebUrl(path) : path
+}
 const displayConfig = computed(() => detail.value.displayConfig || {})
 const showPv = computed(() => Number(displayConfig.value.showPv || 0) === 1)
 const afterSaleDeadline = computed(() => {
@@ -420,6 +468,43 @@ const selectAfterSaleReason = (reason) => {
   afterSaleForm.value.reason = reason
   afterSaleErrors.value.reason = ''
   reasonSheetVisible.value = false
+}
+
+const clearProofUploads = () => {
+  proofUploads.value.forEach((proof) => URL.revokeObjectURL(proof.previewUrl))
+  proofUploads.value = []
+  if (proofInput.value) proofInput.value.value = ''
+}
+
+const removeProof = (localId) => {
+  const proof = proofUploads.value.find((item) => item.localId === localId)
+  if (proof) URL.revokeObjectURL(proof.previewUrl)
+  proofUploads.value = proofUploads.value.filter((item) => item.localId !== localId)
+}
+
+const handleProofSelection = (event) => {
+  const available = Math.max(0, 6 - proofUploads.value.length)
+  const files = Array.from(event.target?.files || []).slice(0, available)
+  if (!files.length) return
+  afterSaleErrors.value.server = ''
+  const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+  files.forEach((file, index) => {
+    if (!allowedTypes.has(String(file.type || '').toLowerCase())) {
+      afterSaleErrors.value.server = '凭证仅支持JPG、PNG、WEBP或GIF图片'
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      afterSaleErrors.value.server = '单张凭证不能超过5MB'
+      return
+    }
+    proofUploads.value.push({
+      localId: `${Date.now()}-${index}-${file.name}-${file.size}`,
+      file,
+      filename: '',
+      previewUrl: URL.createObjectURL(file),
+    })
+  })
+  if (event.target) event.target.value = ''
 }
 
 const scrollToAfterSaleError = async (target) => {
@@ -516,6 +601,12 @@ const fetchOrder = async () => {
   try {
     const res = await getOrder(route.params.id)
     detail.value = res.data || {}
+    logisticsTracking.value = []
+    if (shipments.value.length) {
+      getOrderTracking(route.params.id)
+        .then((trackingResponse) => { logisticsTracking.value = trackingResponse.data || [] })
+        .catch(() => { logisticsTracking.value = [] })
+    }
     selectAllRefundableItems()
     if (!canApplyAfterSale.value) applyingAfterSale.value = false
     selectedReason.value = ''
@@ -590,10 +681,20 @@ const submitAfterSale = async () => {
     return
   }
   submittingAfterSale.value = true
+  uploadingProofs.value = true
   try {
+    const proofFilenames = []
+    for (const proof of proofUploads.value) {
+      if (!proof.filename) {
+        const response = await uploadAfterSaleProof(proof.file)
+        proof.filename = String(response.data)
+      }
+      proofFilenames.push(proof.filename)
+    }
     await applyAfterSale({
       ...afterSaleForm.value,
       reason: [selectedReason.value, afterSaleForm.value.reasonDetail.trim()].filter(Boolean).join('：'),
+      proofImages: proofFilenames.length ? JSON.stringify(proofFilenames) : null,
       orderId: order.value.id,
       items: selectedRefundItems.value,
     })
@@ -601,10 +702,12 @@ const submitAfterSale = async () => {
     afterSaleForm.value.reasonDetail = ''
     selectedReason.value = ''
     applyingAfterSale.value = false
+    clearProofUploads()
     await fetchOrder()
   } catch (e) {
     afterSaleErrors.value.server = e.message || '提交售后失败，请稍后重试'
   } finally {
+    uploadingProofs.value = false
     submittingAfterSale.value = false
   }
 }
@@ -628,6 +731,7 @@ onMounted(() => {
   })
 })
 onBeforeUnmount(() => {
+  clearProofUploads()
   disposed = true
   stopOrderRealtime?.()
   window.clearInterval(fallbackPollTimer)
@@ -669,6 +773,9 @@ onBeforeUnmount(() => {
 .progress-track { height: 1px; flex: 1; margin: 0 7px; background: #e4e8ec; }
 .progress-1 .progress-track:first-of-type { background: var(--brand-primary, #e7193f); }
 .after-sale-amounts { margin: 0 0 9px; }
+.after-sale-proof-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 10px; }
+.after-sale-proof-list a { width: 66px; height: 66px; overflow: hidden; border: 1px solid #e7eaed; border-radius: 9px; background: #f7f8f9; }
+.after-sale-proof-list img { width: 100%; height: 100%; display: block; object-fit: cover; }
 .after-sale-return-address { display: grid; gap: 4px; margin: 10px 0 4px; padding: 10px 12px; color: #8a4b12; background: #fff8ed; border: 1px solid #f5d7ad; border-radius: 9px; font-size: 12px; line-height: 1.5; }
 .after-sale-return-address strong { color: #7a3f0a; font-size: 13px; }
 .return-shipment-form { display: grid; grid-template-columns: 1fr 1.2fr auto; gap: 8px; margin-top: 8px; }
@@ -682,6 +789,15 @@ onBeforeUnmount(() => {
 .after-sale-cancel { min-height: 32px; padding: 0 13px; border-radius: 8px; font-size: 12px; }
 .after-sale-block { padding: 17px 0; border-top: 1px solid #edf0f2; }
 .block-label { margin-bottom: 10px; color: var(--ink); font-size: 14px; font-weight: 800; }
+.block-label small { margin-left: 7px; color: #98a1aa; font-size: 11px; font-weight: 500; }
+.proof-file-input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
+.proof-upload-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 9px; }
+.proof-preview, .proof-add { position: relative; aspect-ratio: 1; overflow: hidden; border-radius: 10px; }
+.proof-preview { border: 1px solid #e1e6ea; background: #f4f6f7; }
+.proof-preview img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.proof-preview button { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; padding: 0; color: #fff; background: rgba(17, 24, 39, .72); border: 0; border-radius: 50%; font-size: 17px; line-height: 20px; }
+.proof-add { display: grid; place-items: center; align-content: center; gap: 5px; min-height: 78px; color: #8c96a0; background: #fafbfb; border: 1px dashed #cfd6dc; font-size: 11px; }
+.proof-add svg { color: var(--brand-primary, #e7193f); }
 .after-sale-type-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .after-sale-type { position: relative; display: flex; align-items: flex-start; gap: 10px; min-height: 76px; padding: 13px 12px; color: #8b96a1; text-align: left; background: #fff; border: 1px solid #e1e6ea; border-radius: 12px; }
 .after-sale-type svg { flex: 0 0 auto; color: #e97947; }
@@ -728,6 +844,7 @@ onBeforeUnmount(() => {
   .order-line-amount { font-size: 16px; }
   .order-line-trailing { gap: 8px; }
   .quantity-stepper button, .quantity-stepper output { width: 25px; height: 26px; }
+  .proof-upload-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 .balance-pay-box,
@@ -746,11 +863,18 @@ onBeforeUnmount(() => {
 .logistics-overview-status strong { color: var(--brand-primary, #e7193f); font-size: 17px; }
 .logistics-overview-status span { overflow: hidden; color: #7a838d; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .logistics-overview-link { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; color: var(--brand-primary, #e7193f); font-size: 12px; font-weight: 800; text-decoration: none; white-space: nowrap; }
-.logistics-package-row { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 10px; margin: 0 18px; padding: 13px 0; border-bottom: 1px solid #edf0f2; }
-.logistics-package-row + .logistics-package-row { padding-top: 0; }
+.logistics-package { margin: 0 18px; border-bottom: 1px solid #edf0f2; }
+.logistics-package-row { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 13px 0; }
 .logistics-package-row .courier-icon { width: 36px; height: 36px; display: grid; place-items: center; color: #fff; background: #2f3540; border-radius: 10px; font-size: 13px; font-weight: 800; }
 .logistics-package-row strong { display: block; color: var(--ink); font-size: 13px; }
 .logistics-package-row p { overflow: hidden; margin: 4px 0 0; color: #8b949e; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.tracking-timeline { display: grid; gap: 0; margin: 0 0 13px 17px; padding: 0 0 0 18px; list-style: none; border-left: 1px solid #dfe5e8; }
+.tracking-timeline li { position: relative; padding: 0 0 12px 4px; }
+.tracking-timeline li:last-child { padding-bottom: 0; }
+.tracking-dot { position: absolute; top: 4px; left: -23px; width: 9px; height: 9px; background: #aeb7c0; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #d7dde2; }
+.tracking-timeline li:first-child .tracking-dot { background: var(--brand-primary, #e7193f); box-shadow: 0 0 0 1px var(--brand-primary, #e7193f); }
+.tracking-timeline strong { display: block; color: #4c5661; font-size: 12px; font-weight: 600; line-height: 1.5; }
+.tracking-timeline small { display: block; margin-top: 3px; color: #98a1aa; font-size: 10px; }
 .delivery-address-row { display: flex; align-items: flex-start; gap: 10px; padding: 14px 18px 16px; }
 .delivery-address-row > svg { flex: 0 0 auto; margin-top: 2px; color: #5e6873; }
 .delivery-address-row div { display: grid; gap: 5px; min-width: 0; }

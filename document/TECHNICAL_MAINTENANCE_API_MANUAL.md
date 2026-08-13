@@ -175,6 +175,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `POST /api/v1/shop/orders` | `addressId` 或完整收货信息、`payType`、`remark`、`items[]`、`businessType=NORMAL`；请求键 | `ShopOrderVO` | 服务端读取商品/SKU、校验库存和限购、计算价格/PV/运费、扣减库存并创建待支付订单 |
 | `GET /api/v1/shop/orders` | 状态、分页等 | 当前会员订单分页 | 仅查询本人订单；售后历史不覆盖订单实际履约状态 |
 | `GET /api/v1/shop/orders/{id}` | 订单 ID | `ShopOrderDetailVO` | 返回订单、商品、付款、地址、物流、可售后状态及售后记录 |
+| `GET /api/v1/shop/orders/{id}/tracking` | 订单 ID、当前会员会话 | 包裹轨迹列表 | 校验订单归属；未配置供应商时返回 `NOT_CONFIGURED` 和空节点，不虚构物流状态 |
 | `PUT /api/v1/shop/orders/{id}/cancel` | 订单 ID | 订单结果 | 仅允许本人取消待付款订单；释放普通、复购或秒杀对应库存 |
 | `PUT /api/v1/shop/orders/{id}/receive` | 订单 ID | 订单结果 | 写入确认收货时间；触发后续评价、售后与奖金等待期逻辑 |
 | `POST /api/v1/shop/orders/{id}/pay?payType=...` | 订单 ID、支付方式 | 订单结果 | 兼容支付入口；生产禁止模拟支付 |
@@ -207,10 +208,14 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | 方法与地址 | 主要入参 | `data` 出参 | 核心逻辑 |
 | --- | --- | --- | --- |
 | `POST /api/v1/shop/after-sales` | `orderId`、`applyType` 1 仅退款/2 退货退款、`items[{orderItemId,quantity}]`、`reason`、可选 `proofImages` | 售后单 | 校验订单归属、状态、服务端售后截止时间、累计可退数量和金额；退款金额由服务端计算 |
+| `POST /api/v1/shop/media/after-sale-proofs` | `multipart/form-data file` | 私密随机文件名 | 会员提交售后时上传；真实文件头校验、单张 5MB、按会员目录隔离，独立限流为同一来源每分钟 12 次 |
+| `GET /api/v1/shop/media/after-sale-proofs/{filename}` | 当前会员会话、文件名 | 图片文件 | 只能读取当前会员目录，不走公开商品图片地址，响应禁止公共缓存 |
 | `PUT /api/v1/shop/after-sales/{id}/cancel` | 售后 ID | 售后结果 | 仅本人可取消仍在等待处理的申请 |
 | `PUT /api/v1/shop/after-sales/{id}/return-shipment` | `deliveryCompany`、`deliveryNo` | 售后结果 | 仅审核同意且等待买家寄回时允许填写 |
 
-售后期限由租户设置：`RECEIVE_TIME` 表示从订单确认收货时间起算，`ORDER_TIME` 表示从下单时间起算；有效天数为 0～365。0 天关闭会员自助入口，但不阻止后台人工售后。前端不得自行固定“下单后 7 天”或“签收后 7 天”。
+售后期限由租户设置：`RECEIVED` 表示从订单确认收货时间起算，`ORDER_CREATED` 表示从下单时间起算；有效天数为 0～365。0 天关闭会员自助入口，但不阻止后台人工售后。前端不得自行固定“下单后 7 天”或“签收后 7 天”。
+
+`proofImages` 只接受上述上传接口返回的随机文件名 JSON 数组，最多 6 张。提交售后时服务端逐张验证文件确实属于当前会员；后台通过 `GET /api/v1/shop/admin/after-sales/proofs/{memberId}/{filename}` 在 `shop:aftersale` 权限下读取，不公开真实磁盘路径。
 
 ### 12.1 个人中心聚合接口
 
@@ -232,7 +237,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 
 秒杀并发依次使用应用限流、Redis Lua 原子防重复与预扣、数据库活动库存原子扣减、商品/SKU 实物库存最终扣减和唯一约束。Redis 不可用时降级为本机限流加数据库原子校验；数据库始终是最终库存事实。
 
-普通、秒杀、复购订单均记录业务类型。秒杀和复购奖金模式可选 `NONE`、`NORMAL`、`CUSTOM`；`CUSTOM` 规则未开发并验收时必须拒绝下单。
+普通、秒杀、复购订单均记录业务类型。秒杀和复购奖金模式可选 `NONE`、`STANDARD`、`CUSTOM`；`CUSTOM` 规则未开发并验收时必须拒绝下单。
 
 ## 四、管理后台接口
 
@@ -408,6 +413,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `GET /api/v1/distribution/tenant/list` | 租户筛选 | 租户列表 |
 | `POST /api/v1/distribution/tenant` | 商城名称、品牌、客服、经营资料、规则等 | 租户配置 |
 | `GET /api/v1/distribution/tenant/legal-templates` | 无 | 协议模板 |
+| `GET /api/v1/distribution/tenant/{id}/delivery-readiness` | 租户 ID | 必备/可选交付项、通过数和处理入口；不返回任何密钥内容 |
 | `PUT /api/v1/distribution/tenant/{id}/status` | `status` | `boolean` |
 | `GET /api/v1/distribution/tenant/{id}/rule-versions` | 租户 ID | 规则版本列表 |
 | `GET /api/v1/distribution/tenant/{id}/display-config` | 租户 ID | 视觉配置 |
@@ -429,6 +435,8 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `POST /api/v1/distribution/erp/tasks/{id}/retry` | 任务 ID | 重试结果 |
 
 租户保存和视觉配置保存会生成配置版本，支持审计和恢复。密钥类 ERP 配置返回时必须脱敏或不回传原值。未确定客户 ERP 时保持关闭；不得用演示地址模拟正式对接。
+
+交付预检检查品牌、经营主体、客服、营业执照、备案、协议、发退货地址、正式商品、明显测试内容、正式支付、正式短信以及特殊业务模式是否可执行。ERP 和真实物流属于客户可选项，不阻断未采购这些能力的客户；预检通过不替代真实支付、退款、短信、备份恢复和并发写入验收。
 
 `FlashSaleActivitySaveDTO` 关键字段：`activityName`、`productId`、可选 `skuId`、`flashPrice>=0.01`、`flashPv>=0`、`totalStock>=1`、`perUserLimit>=1`、`startTime`、未来的 `endTime`、`status`。
 
@@ -471,8 +479,9 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 
 - 发货保存物流公司、物流单号、发货数量和时间。
 - 没有物流服务商时，会员端只展示系统真实持有的信息，不虚构“运输中”。
-- 接入真实物流后，应新增承运商代码映射、订阅/查询任务、轨迹表、签名校验、重试、去重和会员端节点展示。
-- 真实快递签收扫描与“会员确认收货”是两个事件。当前售后 `RECEIVE_TIME` 使用订单确认收货时间；客户要求以承运商签收为准时，必须在客户物流方案中明确改造和兜底规则。
+- `LogisticsTrackingProvider` 是供应商隔离接口，客户适配器只负责承运商支持判断和标准轨迹查询；`LogisticsTrackingService` 统一处理供应商选择、异常降级和会员端标准节点。
+- 接入真实物流后，还应按供应商能力补齐承运商代码映射、订阅/查询缓存、签名校验、重试和去重；会员端已经能展示适配器返回的真实节点。
+- 真实快递签收扫描与“会员确认收货”是两个事件。当前售后 `RECEIVED` 使用订单确认收货时间；客户要求以承运商签收为准时，必须在客户物流方案中明确改造和兜底规则。
 
 ### 24. 秒杀高并发
 
@@ -486,12 +495,14 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 
 压测至少覆盖：同一会员重复点击、多人抢最后一件、Redis 短暂不可用、数据库锁等待、订单创建超时、取消释放库存和支付回调重复。
 
+仓库提供 `scripts/flash-sale-concurrency-check.py` 和 `document/FLASH_SALE_LOAD_TEST_GUIDE.md`。工具必须显式传入 `--confirm-write-test YES`，仅可用于隔离测试环境；会话文件和订单载荷保存在 Git 之外，输出不包含会话内容。
+
 ### 25. 复购结算扩展点
 
 - 复购商品使用独立渠道、价格、PV、限购和 SKU 覆盖配置。
 - 复购只支持独立直接结算，不进入普通购物车，不允许混单。
 - 准入策略支持完成首单会员、代理及以上、全部注册会员。
-- `NONE` 不产生奖金；`NORMAL` 沿用普通奖金；`CUSTOM` 进入客户定制扩展点。
+- `NONE` 不产生奖金；`STANDARD` 沿用普通奖金；`CUSTOM` 进入客户定制扩展点。
 - 新增客户结算模式时，应实现独立策略标识、配置版本、订单快照、计算服务、冲销逻辑、审计视图和模拟/回归用例，禁止直接改写历史普通订单规则。
 
 ### 26. 奖金、业绩和资金
@@ -521,7 +532,8 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | 数据库 | `DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`、`DB_PASSWORD`、`DB_SSL_MODE` | 密码只保存在服务器私有配置；远程连接启用 TLS |
 | Redis | `REDIS_HOST`、`REDIS_PORT`、`REDIS_PASSWORD`、`REDIS_DATABASE` | 秒杀、幂等和分布式任务依赖；监控连接和延迟 |
 | 会话 | `ADMIN_SESSION_HOURS` | 默认 12 小时；修改需安全评估 |
-| 商品媒体 | `SHOP_MEDIA_STORAGE_DIR`、图片尺寸和质量配置 | 上传目录纳入备份并限制文件类型与大小 |
+| 商品媒体 | `SHOP_MEDIA_STORAGE_DIR`、`SHOP_MEDIA_PRIVATE_STORAGE_DIR`、图片尺寸和质量配置 | 公开商品图片与私密售后凭证分目录保存，两个目录都纳入备份 |
+| 物流轨迹 | `SHOP_LOGISTICS_TRACKING_PROVIDER` 及客户供应商私有密钥 | `NONE` 时不查询、不虚构；供应商密钥只放服务器私有配置 |
 | 订单 | `ORDER_PENDING_TIMEOUT_MINUTES`、扫描间隔 | 默认 30 分钟关闭待付款订单 |
 | 大额验证 | `PAYMENT_LARGE_AMOUNT_VERIFY_ENABLED`、`PAYMENT_LARGE_AMOUNT_VERIFY_THRESHOLD` | 与客户资金风控规则一致 |
 | 短信 | 提供商开关、AccessKey、签名、模板 | 不提交仓库，不在日志输出验证码 |

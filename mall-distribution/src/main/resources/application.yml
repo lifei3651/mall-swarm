@@ -76,6 +76,9 @@ sa-token:
 shop:
   realtime:
     heartbeat-ms: ${SHOP_REALTIME_HEARTBEAT_MS:25000}
+  logistics:
+    # NONE 表示只展示物流公司和运单号；客户确定供应商后注册同名适配器并修改此项。
+    tracking-provider: ${SHOP_LOGISTICS_TRACKING_PROVIDER:NONE}
   catalog-cache:
     enabled: true
     # 库存仍由下单事务实时校验；短 TTL 只用于公共展示，并在后台修改后立即失效。
@@ -84,6 +87,7 @@ shop:
     category-ttl-seconds: 60
   media:
     storage-dir: ${SHOP_MEDIA_STORAGE_DIR:/opt/lingqimall/uploads/products}
+    private-storage-dir: ${SHOP_MEDIA_PRIVATE_STORAGE_DIR:/opt/lingqimall/uploads/private}
     max-dimension: ${SHOP_MEDIA_MAX_DIMENSION:1920}
     max-pixels: ${SHOP_MEDIA_MAX_PIXELS:25000000}
     jpeg-quality: ${SHOP_MEDIA_JPEG_QUALITY:0.82}

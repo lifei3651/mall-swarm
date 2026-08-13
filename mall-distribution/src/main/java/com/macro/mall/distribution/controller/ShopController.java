@@ -29,6 +29,7 @@ import com.macro.mall.distribution.service.OrderShipmentService;
 import com.macro.mall.distribution.service.OrderSpreadsheetService;
 import com.macro.mall.distribution.service.OrderRealtimeService;
 import com.macro.mall.distribution.service.FlashSaleService;
+import com.macro.mall.distribution.service.LogisticsTrackingService;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.security.ShopSessionCookieService;
 import com.macro.mall.distribution.vo.ShopAuthVO;
@@ -45,6 +46,7 @@ import com.macro.mall.distribution.vo.AgentInfoVO;
 import com.macro.mall.distribution.vo.OrderShipmentImportResultVO;
 import com.macro.mall.distribution.vo.FlashSaleActivityVO;
 import com.macro.mall.distribution.vo.ShopBusinessConfigVO;
+import com.macro.mall.distribution.vo.ShopLogisticsTrackingVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -86,6 +88,7 @@ public class ShopController {
     private final ShopSessionCookieService shopSessionCookieService;
     private final OrderRealtimeService orderRealtimeService;
     private final FlashSaleService flashSaleService;
+    private final LogisticsTrackingService logisticsTrackingService;
 
     @Operation(summary = "查询可选业务入口与当前会员复购资格")
     @GetMapping("/business-config")
@@ -652,6 +655,19 @@ public class ShopController {
         }
         applyFrontOrderVisibility(vo);
         return CommonResult.success(vo);
+    }
+
+    @Operation(summary = "查询订单真实物流轨迹")
+    @GetMapping("/orders/{orderId}/tracking")
+    public CommonResult<List<ShopLogisticsTrackingVO>> orderTracking(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long orderId) {
+        DmsShopMember member = authService.requireMember(authorization);
+        ShopOrderVO vo = shopService.getOrder(orderId);
+        if (vo == null || vo.getOrder() == null || !member.getUserId().equals(vo.getOrder().getUserId())) {
+            Asserts.fail("不能查看他人的订单物流");
+        }
+        return CommonResult.success(logisticsTrackingService.query(vo.getShipments()));
     }
 
     @Operation(summary = "取消订单")

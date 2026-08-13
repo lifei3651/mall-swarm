@@ -16,7 +16,9 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -73,6 +75,24 @@ class ShopMediaStorageServiceTest {
         Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(stored.path());
         assertTrue(permissions.contains(PosixFilePermission.GROUP_READ));
         assertTrue(permissions.contains(PosixFilePermission.OTHERS_READ));
+    }
+
+    @Test
+    void afterSaleProofUsesMemberIsolationAndPrivatePermissions() throws Exception {
+        byte[] jpeg = imageBytes("jpg", 320, 240, false);
+        ShopMediaStorageService service = new ShopMediaStorageService(tempDir.toString(), 1920, 25_000_000, 0.82f);
+
+        ShopMediaStorageService.StoredImage stored = service.storeAfterSaleProof(101L,
+                new MockMultipartFile("file", "proof.jpg", "image/jpeg", jpeg));
+
+        assertNotNull(service.loadAfterSaleProof(101L, stored.filename()));
+        assertNull(service.loadAfterSaleProof(102L, stored.filename()));
+        Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(stored.path());
+        assertFalse(permissions.contains(PosixFilePermission.GROUP_READ));
+        assertFalse(permissions.contains(PosixFilePermission.OTHERS_READ));
+        Set<PosixFilePermission> directoryPermissions = Files.getPosixFilePermissions(stored.path().getParent());
+        assertFalse(directoryPermissions.contains(PosixFilePermission.GROUP_EXECUTE));
+        assertFalse(directoryPermissions.contains(PosixFilePermission.OTHERS_EXECUTE));
     }
 
     private byte[] imageBytes(String format, int width, int height, boolean alpha) throws Exception {

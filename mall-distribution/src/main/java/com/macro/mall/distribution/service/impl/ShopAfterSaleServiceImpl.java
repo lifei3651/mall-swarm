@@ -1,6 +1,8 @@
 package com.macro.mall.distribution.service.impl;
 
 import cn.hutool.core.util.IdUtil;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.macro.mall.common.exception.ApiException;
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.common.tenant.TenantContext;
@@ -39,6 +41,7 @@ import com.macro.mall.distribution.service.AlipayService;
 import com.macro.mall.distribution.service.DistributionAuditService;
 import com.macro.mall.distribution.service.MemberAssetService;
 import com.macro.mall.distribution.service.ShopAfterSaleService;
+import com.macro.mall.distribution.service.ShopMediaStorageService;
 import com.macro.mall.distribution.service.OrderRealtimeService;
 import com.macro.mall.distribution.service.OrderBalanceAllocationService;
 import com.macro.mall.distribution.service.FlashSaleStockGate;
@@ -56,6 +59,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
 
@@ -82,6 +86,8 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     private final DmsFlashSaleActivityDao flashSaleActivityDao;
     private final DmsFlashSaleReservationDao flashSaleReservationDao;
     private final FlashSaleStockGate flashSaleStockGate;
+    private final ShopMediaStorageService mediaStorageService;
+    private final ObjectMapper objectMapper;
     @Autowired(required = false)
     private OrderRealtimeService orderRealtimeService;
 
@@ -113,6 +119,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         if (afterSaleDao.selectOpenByOrderId(order.getId()) != null) {
             Asserts.fail("该订单已有处理中售后");
         }
+        String proofImages = normalizeProofImages(member.getId(), dto.getProofImages());
 
         if (dto.getItems() == null || dto.getItems().isEmpty()) Asserts.fail("请选择实际退回的商品和数量");
         List<DmsShopOrderItem> orderItems = orderItemDao.selectByOrderId(order.getId());
@@ -188,7 +195,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         afterSale.setFreightRefundAmount(freightRefund);
         afterSale.setRefundQuantity(refundQuantity);
         afterSale.setReason(dto.getReason());
-        afterSale.setProofImages(dto.getProofImages());
+        afterSale.setProofImages(proofImages);
         afterSale.setStatus(0);
         populateReturnAddress(afterSale, order, refundItems);
         afterSaleDao.insert(afterSale);
@@ -433,6 +440,27 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         }
         if (afterSaleWindowPolicy.isExpired(order, LocalDateTime.now(), window)) {
             Asserts.fail("订单已超过" + afterSaleWindowPolicy.label(window) + "售后期限，请联系商城客服由后台处理");
+        }
+    }
+
+    private String normalizeProofImages(Long memberId, String rawProofImages) {
+        if (rawProofImages == null || rawProofImages.isBlank()) return null;
+        try {
+            List<String> parsed = objectMapper.readValue(rawProofImages, new TypeReference<List<String>>() { });
+            LinkedHashSet<String> unique = new LinkedHashSet<>(parsed);
+            if (unique.size() > 6) Asserts.fail("售后凭证最多上传6张");
+            for (String filename : unique) {
+                if (filename == null || filename.isBlank()
+                        || mediaStorageService.loadAfterSaleProof(memberId, filename) == null) {
+                    Asserts.fail("售后凭证无效或不属于当前会员，请重新上传");
+                }
+            }
+            return unique.isEmpty() ? null : objectMapper.writeValueAsString(unique);
+        } catch (ApiException e) {
+            throw e;
+        } catch (Exception e) {
+            Asserts.fail("售后凭证格式不正确，请重新上传");
+            return null;
         }
     }
 
