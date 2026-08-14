@@ -1,7 +1,9 @@
 {
-  "name": "mall-distribution-admin",
+  "name": "lingqi-mall-admin",
   "version": "1.0.0",
-  "description": "分销分佣系统管理后台",
+  "description": "灵启商城运营管理后台",
+  "author": "长沙灵启软件开发有限公司",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",

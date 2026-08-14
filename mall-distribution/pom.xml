@@ -9,11 +9,11 @@
     <packaging>jar</packaging>
 
     <name>mall-distribution</name>
-    <description>分销分佣系统模块 for mall-swarm</description>
+    <description>灵启商城核心业务服务</description>
 
     <parent>
         <groupId>com.macro.mall</groupId>
-        <artifactId>mall-swarm</artifactId>
+        <artifactId>lingqi-mall</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
 

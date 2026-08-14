@@ -1,7 +1,9 @@
 {
-  "name": "mall-shop-web",
+  "name": "lingqi-mall-storefront",
   "version": "1.0.0",
   "description": "用户商城前台",
+  "author": "长沙灵启软件开发有限公司",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",

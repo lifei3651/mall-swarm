@@ -90,7 +90,7 @@
                         <pattern>
                             <pattern>
                                 {
-                                "project": "mall-swarm",
+                                "project": "lingqi-mall",
                                 "level": "%level",
                                 "service": "${APP_NAME:-}",
                                 "pid": "${PID:-}",
@@ -123,7 +123,7 @@
                         <pattern>
                             <pattern>
                                 {
-                                "project": "mall-swarm",
+                                "project": "lingqi-mall",
                                 "level": "%level",
                                 "service": "${APP_NAME:-}",
                                 "pid": "${PID:-}",
@@ -151,7 +151,7 @@
                         <pattern>
                             <pattern>
                                 {
-                                "project": "mall-swarm",
+                                "project": "lingqi-mall",
                                 "level": "%level",
                                 "service": "${APP_NAME:-}",
                                 "pid": "${PID:-}",
@@ -179,7 +179,7 @@
                         <pattern>
                             <pattern>
                                 {
-                                "project": "mall-swarm",
+                                "project": "lingqi-mall",
                                 "level": "%level",
                                 "service": "${APP_NAME:-}",
                                 "class": "%logger",
