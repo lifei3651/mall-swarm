@@ -24,6 +24,7 @@ import java.time.Duration;
 public class ShopMediaController {
     private final ShopMediaStorageService mediaStorageService;
     private final ShopAuthService authService;
+    private final com.macro.mall.distribution.service.ShopAfterSaleService afterSaleService;
 
     @Operation(summary = "上传商品图片")
     @PostMapping(value = "/admin/media/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -48,8 +49,10 @@ public class ShopMediaController {
     @PostMapping(value = "/media/after-sale-proofs", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public CommonResult<String> uploadAfterSaleProof(
             @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam Long orderId,
             @RequestPart("file") MultipartFile file) throws IOException {
         DmsShopMember member = authService.requireMember(authorization);
+        afterSaleService.assertCanUploadProof(member, orderId);
         ShopMediaStorageService.StoredImage stored = mediaStorageService.storeAfterSaleProof(member.getId(), file);
         return CommonResult.success(stored.filename());
     }

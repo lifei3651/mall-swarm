@@ -9,6 +9,7 @@ import com.macro.mall.distribution.dto.AdminUserSaveDTO;
 import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.AdminUserService;
+import com.macro.mall.distribution.service.AdminAuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.LinkedHashSet;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,9 +26,22 @@ import java.util.stream.Collectors;
 public class AdminUserServiceImpl implements AdminUserService {
 
     private static final String BCRYPT_MARKER = "BCRYPT";
+    private static final String SUPER_PERMISSION = "*";
+    private static final List<Map.Entry<String, String>> PERMISSION_DEFINITIONS = List.of(
+            Map.entry("*", "超级管理员"), Map.entry("admin:read", "基础查看"),
+            Map.entry("admin:write", "基础维护"), Map.entry("system:manage", "系统账号"),
+            Map.entry("config:manage", "客户与规则配置"), Map.entry("shop:product", "商品管理"),
+            Map.entry("shop:order", "订单发货"), Map.entry("shop:aftersale", "售后处理"),
+            Map.entry("shop:member", "会员管理"), Map.entry("finance:read", "财务查看"),
+            Map.entry("finance:manage", "财务处理"), Map.entry("distribution:manage", "代理业绩"),
+            Map.entry("line-change:apply", "移线管理（提交后直接生效）"),
+            Map.entry("commission:manage", "佣金处理"), Map.entry("import:manage", "批量导入"));
+    private static final Set<String> KNOWN_PERMISSIONS = PERMISSION_DEFINITIONS.stream()
+            .map(Map.Entry::getKey).collect(Collectors.toUnmodifiableSet());
 
     private final DmsAdminUserDao adminUserDao;
     private final DmsAdminSessionDao adminSessionDao;
+    private final AdminAuthService adminAuthService;
 
     @Override
     public List<DmsAdminUser> listUsers(String keyword, Integer status) {
@@ -40,6 +56,8 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (dto == null) {
             Asserts.fail("账号信息不能为空");
         }
+        DmsAdminUser actor = requireActorAndVerify(dto.getCurrentAdminPassword());
+        validateGrantedPermissions(actor, dto.getPermissions());
         DmsAdminUser user;
         if (dto.getId() == null) {
             if (dto.getUsername() == null || dto.getUsername().isBlank()) {
@@ -61,8 +79,10 @@ public class AdminUserServiceImpl implements AdminUserService {
             if (user == null) {
                 Asserts.fail("后台账号不存在");
             }
+            assertCanManage(actor, user, false);
             fillEditable(user, dto);
             adminUserDao.update(user);
+            adminSessionDao.disableByAdminId(user.getId());
         }
         return sanitize(adminUserDao.selectById(user.getId()));
     }
@@ -77,6 +97,8 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (user == null) {
             Asserts.fail("后台账号不存在");
         }
+        DmsAdminUser actor = requireActorAndVerify(dto.getCurrentAdminPassword());
+        assertCanManage(actor, user, false);
         boolean updated = adminUserDao.updatePassword(id, BCrypt.hashpw(dto.getPassword()), BCRYPT_MARKER) > 0;
         if (updated) {
             adminUserDao.clearLoginLock(id);
@@ -87,7 +109,9 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Override
     public boolean unlock(Long id) {
-        if (id == null || adminUserDao.selectById(id) == null) Asserts.fail("后台账号不存在");
+        DmsAdminUser target = id == null ? null : adminUserDao.selectById(id);
+        if (target == null) Asserts.fail("后台账号不存在");
+        assertCanManage(requireActor(), target, false);
         return adminUserDao.clearLoginLock(id) > 0;
     }
 
@@ -96,10 +120,13 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (id == null || status == null) {
             Asserts.fail("参数不能为空");
         }
-        DmsAdminUser current = AdminContext.get();
-        if (current != null && id.equals(current.getId()) && Integer.valueOf(0).equals(status)) {
+        DmsAdminUser current = requireActor();
+        DmsAdminUser target = adminUserDao.selectById(id);
+        if (target == null) Asserts.fail("后台账号不存在");
+        if (id.equals(current.getId()) && Integer.valueOf(0).equals(status)) {
             Asserts.fail("不能禁用当前登录账号");
         }
+        assertCanManage(current, target, false);
         boolean updated = adminUserDao.updateStatus(id, status) > 0;
         if (updated && Integer.valueOf(0).equals(status)) adminSessionDao.disableByAdminId(id);
         return updated;
@@ -107,23 +134,12 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Override
     public List<Map<String, String>> permissionOptions() {
-        return List.of(
-                option("*", "超级管理员"),
-                option("admin:read", "基础查看"),
-                option("admin:write", "基础维护"),
-                option("system:manage", "系统账号"),
-                option("config:manage", "客户与规则配置"),
-                option("shop:product", "商品管理"),
-                option("shop:order", "订单发货"),
-                option("shop:aftersale", "售后处理"),
-                option("shop:member", "会员管理"),
-                option("finance:read", "财务查看"),
-                option("finance:manage", "财务处理"),
-                option("distribution:manage", "代理业绩"),
-                option("line-change:apply", "移线管理（提交后直接生效）"),
-                option("commission:manage", "佣金处理"),
-                option("import:manage", "批量导入")
-        );
+        DmsAdminUser actor = requireActor();
+        Set<String> actorPermissions = permissionSet(actor);
+        boolean root = actorPermissions.contains(SUPER_PERMISSION);
+        return PERMISSION_DEFINITIONS.stream()
+                .filter(entry -> root || actorPermissions.contains(entry.getKey()))
+                .map(entry -> option(entry.getKey(), entry.getValue())).toList();
     }
 
     private DmsAdminUser buildUser(AdminUserSaveDTO dto) {
@@ -156,6 +172,45 @@ public class AdminUserServiceImpl implements AdminUserService {
                 .map(String::trim)
                 .distinct()
                 .collect(Collectors.joining(","));
+    }
+
+    private DmsAdminUser requireActorAndVerify(String currentPassword) {
+        DmsAdminUser actor = requireActor();
+        adminAuthService.verifyPassword(actor, currentPassword);
+        return actor;
+    }
+
+    private DmsAdminUser requireActor() {
+        DmsAdminUser actor = AdminContext.get();
+        if (actor == null || actor.getId() == null) Asserts.fail("后台登录已失效，请重新登录");
+        return actor;
+    }
+
+    private void validateGrantedPermissions(DmsAdminUser actor, List<String> requested) {
+        Set<String> normalized = new LinkedHashSet<>();
+        if (requested == null || requested.isEmpty()) normalized.add("admin:read");
+        else requested.stream().filter(item -> item != null && !item.isBlank())
+                .map(String::trim).forEach(normalized::add);
+        if (!KNOWN_PERMISSIONS.containsAll(normalized)) Asserts.fail("包含系统不支持的管理员权限");
+        Set<String> actorPermissions = permissionSet(actor);
+        if (!actorPermissions.contains(SUPER_PERMISSION) && !actorPermissions.containsAll(normalized)) {
+            Asserts.fail("不能授予当前管理员自身不具备的权限");
+        }
+    }
+
+    private void assertCanManage(DmsAdminUser actor, DmsAdminUser target, boolean allowSelf) {
+        Set<String> actorPermissions = permissionSet(actor);
+        if (actorPermissions.contains(SUPER_PERMISSION)) return;
+        if (!allowSelf && actor.getId().equals(target.getId())) Asserts.fail("不能通过账号管理修改当前登录账号");
+        Set<String> targetPermissions = permissionSet(target);
+        if (targetPermissions.contains(SUPER_PERMISSION) || !actorPermissions.containsAll(targetPermissions)
+                || actorPermissions.equals(targetPermissions)) {
+            Asserts.fail("不能管理同级或更高权限的管理员账号");
+        }
+    }
+
+    private Set<String> permissionSet(DmsAdminUser user) {
+        return new LinkedHashSet<>(adminAuthService.permissions(user));
     }
 
     private String blankToDefault(String value, String defaultValue) {

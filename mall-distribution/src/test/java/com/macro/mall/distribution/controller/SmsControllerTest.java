@@ -6,6 +6,7 @@ import com.macro.mall.distribution.dto.SmsCodeRequestDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.service.ShopAuthService;
 import com.macro.mall.distribution.service.SmsVerificationService;
+import com.macro.mall.distribution.service.LoginCaptchaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -36,6 +37,7 @@ class SmsControllerTest {
     private ShopAuthService shopAuthService;
     private AliyunSmsSender aliyunSmsSender;
     private SmsController controller;
+    private LoginCaptchaService loginCaptchaService;
 
     @SuppressWarnings("unchecked")
     @BeforeEach
@@ -46,9 +48,10 @@ class SmsControllerTest {
         shopAuthService = mock(ShopAuthService.class);
         aliyunSmsSender = mock(AliyunSmsSender.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(redisTemplate.hasKey(org.mockito.ArgumentMatchers.anyString())).thenReturn(false);
+        when(valueOperations.setIfAbsent(anyString(), eq("1"), eq(60L), eq(TimeUnit.SECONDS))).thenReturn(true);
+        loginCaptchaService = mock(LoginCaptchaService.class);
 
-        controller = new SmsController(redisTemplate, aliyunSmsSender, verificationService, shopAuthService);
+        controller = new SmsController(redisTemplate, aliyunSmsSender, verificationService, shopAuthService, loginCaptchaService);
         ReflectionTestUtils.setField(controller, "providerEnabled", false);
         ReflectionTestUtils.setField(controller, "exposeCode", true);
         ReflectionTestUtils.setField(controller, "testCode", "123456");
@@ -118,7 +121,7 @@ class SmsControllerTest {
 
     @Test
     void samePhoneCannotRequestAnotherCodeWithinSixtySeconds() {
-        when(redisTemplate.hasKey("sms:rate:13888888888")).thenReturn(true);
+        when(valueOperations.setIfAbsent("sms:rate:13888888888", "1", 60L, TimeUnit.SECONDS)).thenReturn(false);
 
         CommonResult<String> result = controller.sendCode(request("13888888888", null, 1), null);
 
@@ -139,7 +142,7 @@ class SmsControllerTest {
                 () -> controller.sendCode(request("13888888888", null, 1), null));
 
         verify(valueOperations, never()).set(eq("sms:1:13888888888"), anyString(), anyLong(), eq(TimeUnit.MINUTES));
-        verify(valueOperations, never()).set(eq("sms:rate:13888888888"), anyString(), anyLong(), eq(TimeUnit.SECONDS));
+        verify(redisTemplate).delete("sms:rate:13888888888");
         verify(verificationService, never()).resetAttempts(anyString(), anyInt());
     }
 

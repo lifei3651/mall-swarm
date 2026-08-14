@@ -282,13 +282,14 @@ export function applyAfterSale(data) {
   })
 }
 
-export function uploadAfterSaleProof(file) {
+export function uploadAfterSaleProof(orderId, file) {
   const data = new FormData()
   data.append('file', file)
   return request({
     url: '/shop/media/after-sale-proofs',
     method: 'post',
     data,
+    params: { orderId },
   })
 }
 
@@ -363,11 +364,11 @@ export function listCategoryProducts(params) {
 }
 
 // 短信验证码
-export function sendSmsCode(phone, bizType = 1) {
+export function sendSmsCode(phone, bizType = 1, captcha = {}) {
   return request({
     url: '/sms/send',
     method: 'post',
-    data: { phone, bizType },
+    data: { phone, bizType, captchaId: captcha.captchaId, captchaCode: captcha.captchaCode },
   })
 }
 

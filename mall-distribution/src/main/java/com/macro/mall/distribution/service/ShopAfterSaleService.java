@@ -11,6 +11,9 @@ import java.util.List;
 
 public interface ShopAfterSaleService {
 
+    /** 上传凭证前确认订单确实属于当前会员且仍可发起售后。 */
+    void assertCanUploadProof(DmsShopMember member, Long orderId);
+
     DmsShopAfterSale apply(DmsShopMember member, ShopAfterSaleApplyDTO dto);
 
     /** 会员撤回尚未审核的售后申请，不产生退款或账务变动。 */

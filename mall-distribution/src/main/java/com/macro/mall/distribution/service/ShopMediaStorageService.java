@@ -32,6 +32,10 @@ import java.util.HexFormat;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.UUID;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * 商品图片的本地存储实现。
@@ -43,6 +47,8 @@ import java.util.UUID;
 @Service
 public class ShopMediaStorageService {
     static final long MAX_IMAGE_SIZE = 5L * 1024 * 1024;
+    static final int MAX_TEMP_PROOFS_PER_MEMBER = 12;
+    static final long MAX_TEMP_PROOF_BYTES_PER_MEMBER = 30L * 1024 * 1024;
     private static final String FILE_NAME_PATTERN = "[a-fA-F0-9]{32}\\.(jpg|jpeg|png|webp|gif)";
 
     private final Path storageDirectory;
@@ -84,13 +90,24 @@ public class ShopMediaStorageService {
     /**
      * 保存会员售后凭证。凭证使用随机文件名并按会员隔离，不进入公开商品图片目录。
      */
-    public StoredImage storeAfterSaleProof(Long memberId, MultipartFile file) throws IOException {
-        Path memberDirectory = afterSaleProofDirectory(memberId);
+    public synchronized StoredImage storeAfterSaleProof(Long memberId, MultipartFile file) throws IOException {
+        Path memberDirectory = temporaryAfterSaleProofDirectory(memberId);
         ProcessedImage processed = processUpload(file);
         Files.createDirectories(memberDirectory);
         ensurePrivateDirectory(privateStorageDirectory);
         ensurePrivateDirectory(privateStorageDirectory.resolve("after-sale-proofs"));
+        ensurePrivateDirectory(privateStorageDirectory.resolve("after-sale-proofs").resolve("temp"));
         ensurePrivateDirectory(memberDirectory);
+        cleanupExpiredTemporaryProofs(memberDirectory);
+        try (Stream<Path> files = Files.list(memberDirectory)) {
+            List<Path> existing = files.filter(Files::isRegularFile).toList();
+            long existingBytes = 0L;
+            for (Path path : existing) existingBytes += Files.size(path);
+            if (existing.size() >= MAX_TEMP_PROOFS_PER_MEMBER
+                    || existingBytes + processed.bytes().length > MAX_TEMP_PROOF_BYTES_PER_MEMBER) {
+                Asserts.fail("待提交售后凭证过多，请先提交申请或24小时后重试");
+            }
+        }
         String filename = UUID.randomUUID().toString().replace("-", "") + "." + processed.extension();
         Path target = memberDirectory.resolve(filename).normalize();
         if (!target.startsWith(memberDirectory)) Asserts.fail("售后凭证存储路径无效");
@@ -101,10 +118,36 @@ public class ShopMediaStorageService {
 
     public StoredImage loadAfterSaleProof(Long memberId, String filename) throws IOException {
         if (filename == null || !filename.matches(FILE_NAME_PATTERN)) return null;
-        Path memberDirectory = afterSaleProofDirectory(memberId);
-        Path target = memberDirectory.resolve(filename.toLowerCase(Locale.ROOT)).normalize();
-        if (!target.startsWith(memberDirectory) || !Files.isRegularFile(target)) return null;
-        return new StoredImage(filename, target, contentType(filename), Files.size(target));
+        String normalizedFilename = filename.toLowerCase(Locale.ROOT);
+        for (Path memberDirectory : List.of(committedAfterSaleProofDirectory(memberId),
+                legacyAfterSaleProofDirectory(memberId), temporaryAfterSaleProofDirectory(memberId))) {
+            Path target = memberDirectory.resolve(normalizedFilename).normalize();
+            if (target.startsWith(memberDirectory) && Files.isRegularFile(target)) {
+                return new StoredImage(filename, target, contentType(filename), Files.size(target));
+            }
+        }
+        return null;
+    }
+
+    /** 售后单创建成功后，将短期上传凭证转为正式私密凭证。 */
+    public synchronized void commitAfterSaleProofs(Long memberId, List<String> filenames) throws IOException {
+        if (filenames == null || filenames.isEmpty()) return;
+        Path sourceDirectory = temporaryAfterSaleProofDirectory(memberId);
+        Path targetDirectory = committedAfterSaleProofDirectory(memberId);
+        Files.createDirectories(targetDirectory);
+        ensurePrivateDirectory(privateStorageDirectory.resolve("after-sale-proofs").resolve("committed"));
+        ensurePrivateDirectory(targetDirectory);
+        for (String filename : new java.util.LinkedHashSet<>(filenames)) {
+            if (filename == null || !filename.matches(FILE_NAME_PATTERN)) Asserts.fail("售后凭证文件名无效");
+            Path source = sourceDirectory.resolve(filename.toLowerCase(Locale.ROOT)).normalize();
+            Path target = targetDirectory.resolve(filename.toLowerCase(Locale.ROOT)).normalize();
+            if (!source.startsWith(sourceDirectory) || !Files.isRegularFile(source)) {
+                if (!Files.isRegularFile(target)) Asserts.fail("售后凭证不存在或已过期");
+                continue;
+            }
+            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+            ensurePrivate(target);
+        }
     }
 
     private ProcessedImage processUpload(MultipartFile file) throws IOException {
@@ -279,12 +322,38 @@ public class ShopMediaStorageService {
         }
     }
 
-    private Path afterSaleProofDirectory(Long memberId) {
+    private Path temporaryAfterSaleProofDirectory(Long memberId) {
+        return afterSaleProofDirectory(memberId, "temp");
+    }
+
+    private Path committedAfterSaleProofDirectory(Long memberId) {
+        return afterSaleProofDirectory(memberId, "committed");
+    }
+
+    private Path legacyAfterSaleProofDirectory(Long memberId) {
         if (memberId == null || memberId <= 0) Asserts.fail("会员信息无效");
         Path directory = privateStorageDirectory.resolve("after-sale-proofs")
                 .resolve(String.valueOf(memberId)).normalize();
         if (!directory.startsWith(privateStorageDirectory)) Asserts.fail("售后凭证存储路径无效");
         return directory;
+    }
+
+    private Path afterSaleProofDirectory(Long memberId, String state) {
+        if (memberId == null || memberId <= 0) Asserts.fail("会员信息无效");
+        Path directory = privateStorageDirectory.resolve("after-sale-proofs").resolve(state)
+                .resolve(String.valueOf(memberId)).normalize();
+        if (!directory.startsWith(privateStorageDirectory)) Asserts.fail("售后凭证存储路径无效");
+        return directory;
+    }
+
+    private void cleanupExpiredTemporaryProofs(Path directory) throws IOException {
+        if (!Files.isDirectory(directory)) return;
+        Instant cutoff = Instant.now().minus(24, ChronoUnit.HOURS);
+        try (Stream<Path> files = Files.list(directory)) {
+            for (Path path : files.filter(Files::isRegularFile).toList()) {
+                if (Files.getLastModifiedTime(path).toInstant().isBefore(cutoff)) Files.deleteIfExists(path);
+            }
+        }
     }
 
     private static ImageFormat detectFormat(byte[] bytes) {

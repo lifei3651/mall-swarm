@@ -7,6 +7,7 @@ import com.macro.mall.distribution.dto.SmsCodeRequestDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.service.ShopAuthService;
 import com.macro.mall.distribution.service.SmsVerificationService;
+import com.macro.mall.distribution.service.LoginCaptchaService;
 import com.macro.mall.distribution.util.PhoneNumberUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,15 +35,19 @@ public class SmsController {
     /** 提现、支付及密码类验证码只能发送到当前登录会员绑定的手机号。 */
     private static final Set<Integer> ACCOUNT_BOUND_BIZ_TYPES = Set.of(
             SmsBusinessType.WITHDRAW,
+            SmsBusinessType.TRANSFER,
             SmsBusinessType.PAYMENT,
             SmsBusinessType.SET_PAYMENT_PASSWORD,
             SmsBusinessType.RESET_LOGIN_PASSWORD,
             SmsBusinessType.CHANGE_PHONE_CURRENT);
+    private static final Set<Integer> PUBLIC_BIZ_TYPES = Set.of(
+            SmsBusinessType.REGISTER, SmsBusinessType.LOGIN, SmsBusinessType.RESET_PASSWORD);
 
     private final StringRedisTemplate redisTemplate;
     private final AliyunSmsSender aliyunSmsSender;
     private final SmsVerificationService smsVerificationService;
     private final ShopAuthService shopAuthService;
+    private final LoginCaptchaService loginCaptchaService;
 
     @Value("${sms.expose-code:false}")
     private boolean exposeCode;
@@ -71,9 +76,13 @@ public class SmsController {
         if (!PhoneNumberUtils.isValidMainlandMobile(phone)) {
             return CommonResult.failed("请输入正确的手机号");
         }
-        // 检查发送频率（60秒内最多1次）
+        if (PUBLIC_BIZ_TYPES.contains(bizType)) {
+            loginCaptchaService.verify("shop", dto.getCaptchaId(), dto.getCaptchaCode());
+        }
+        // 原子占用发送窗口，避免并发请求同时穿过“先检查再写入”。
         String rateLimitKey = SMS_CODE_KEY_PREFIX + "rate:" + phone;
-        if (Boolean.TRUE.equals(redisTemplate.hasKey(rateLimitKey))) {
+        Boolean reserved = redisTemplate.opsForValue().setIfAbsent(rateLimitKey, "1", 60, TimeUnit.SECONDS);
+        if (!Boolean.TRUE.equals(reserved)) {
             return CommonResult.failed("发送过于频繁，请稍后再试");
         }
 
@@ -89,15 +98,19 @@ public class SmsController {
                 redisTemplate.expire(dailyKey, 1, TimeUnit.DAYS);
             }
             if (sentToday != null && sentToday > dailyLimitPerPhone) {
+                redisTemplate.delete(rateLimitKey);
                 return CommonResult.failed("该手机号今日短信发送次数已达上限，请明天再试");
             }
-            aliyunSmsSender.sendVerificationCode(phone, bizType, code);
+            try {
+                aliyunSmsSender.sendVerificationCode(phone, bizType, code);
+            } catch (RuntimeException exception) {
+                redisTemplate.delete(rateLimitKey);
+                throw exception;
+            }
         }
         // 短信平台接受请求后再保存验证码，发送失败不会留下可用验证码。
         redisTemplate.opsForValue().set(codeKey, code, SMS_CODE_EXPIRE_MINUTES, TimeUnit.MINUTES);
 
-        // 设置发送频率限制（60秒）
-        redisTemplate.opsForValue().set(rateLimitKey, "1", 60, TimeUnit.SECONDS);
         // 新验证码生成后重置该号码此业务类型的错误次数
         smsVerificationService.resetAttempts(phone, bizType);
 
@@ -140,6 +153,10 @@ public class SmsController {
     }
 
     private String resolvePhone(String requestedPhone, Integer bizType, String authorization) {
+        if (SmsBusinessType.CHANGE_PHONE_NEW == bizType) {
+            shopAuthService.requireMember(authorization);
+            return requestedPhone;
+        }
         if (!ACCOUNT_BOUND_BIZ_TYPES.contains(bizType)) return requestedPhone;
         DmsShopMember member = shopAuthService.requireMember(authorization);
         return member.getPhone();

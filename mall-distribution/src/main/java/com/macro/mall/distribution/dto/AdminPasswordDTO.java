@@ -12,4 +12,9 @@ public class AdminPasswordDTO {
     @NotBlank(message = "密码不能为空")
     @Size(min = 8, max = 64, message = "后台密码需要8至64位")
     private String password;
+
+    @ToString.Exclude
+    @NotBlank(message = "请输入当前管理员登录密码")
+    @Size(min = 8, max = 64, message = "当前管理员登录密码长度不正确")
+    private String currentAdminPassword;
 }

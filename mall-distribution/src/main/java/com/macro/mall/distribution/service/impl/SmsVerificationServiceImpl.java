@@ -31,13 +31,16 @@ public class SmsVerificationServiceImpl implements SmsVerificationService {
         String cachedCode = redisTemplate.opsForValue().get(key);
         if (cachedCode == null) Asserts.fail("验证码不存在或已过期");
         if (!cachedCode.equals(code)) {
+            String previousAttempts = redisTemplate.opsForValue().get(attemptKey);
+            if (previousAttempts != null && Integer.parseInt(previousAttempts) >= MAX_VERIFY_ATTEMPTS) {
+                Asserts.fail("验证码错误次数过多，请稍后再试");
+            }
             Long attempts = redisTemplate.opsForValue().increment(attemptKey);
             if (attempts != null && attempts == 1L) {
                 redisTemplate.expire(attemptKey, SMS_CODE_EXPIRE_MINUTES, TimeUnit.MINUTES);
             }
             if (attempts != null && attempts >= MAX_VERIFY_ATTEMPTS) {
-                redisTemplate.delete(key);
-                Asserts.fail("验证码错误次数过多，请重新获取");
+                Asserts.fail("验证码错误次数过多，请稍后再试");
             }
             Asserts.fail("验证码错误");
         }

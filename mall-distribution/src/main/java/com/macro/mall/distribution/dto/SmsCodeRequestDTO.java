@@ -16,10 +16,17 @@ public class SmsCodeRequestDTO implements Serializable {
     private String phone;
 
     @Min(value = 1, message = "短信业务类型不正确")
-    @Max(value = 9, message = "短信业务类型不正确")
+    @Max(value = 10, message = "短信业务类型不正确")
     private Integer bizType;
 
     @ToString.Exclude
     @Pattern(regexp = "^\\d{6}$", message = "短信验证码必须是6位数字")
     private String code;
+
+    @ToString.Exclude
+    private String captchaId;
+
+    @ToString.Exclude
+    @Pattern(regexp = "^[A-Za-z0-9]{4}$", message = "图形验证码格式不正确")
+    private String captchaCode;
 }

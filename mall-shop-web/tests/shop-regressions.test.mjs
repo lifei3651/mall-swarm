@@ -686,7 +686,7 @@ test('refund flow defaults to all items and keeps the application form concise',
   assert.match(source, /退款商品数量不能为 0，请至少选择 1 件商品/)
   assert.match(source, /scrollIntoView\(\{ behavior: 'smooth', block: 'center' \}\)/)
   assert.match(source, /after-sale-field-error/)
-  assert.match(source, /uploadAfterSaleProof/)
+  assert.match(source, /uploadAfterSaleProof\(order\.value\.id, proof\.file\)/)
   assert.match(source, /最多6张，单张不超过5MB/)
   assert.match(source, /const proofFilenames = \[\]/)
   assert.match(source, /for \(const proof of proofUploads\.value\)/)
@@ -750,4 +750,17 @@ test('storefront session uses an HttpOnly cookie instead of persisting a new bea
   assert.match(request, /authPath === '\/shop\/auth\/me'/)
   assert.doesNotMatch(session, /localStorage\.setItem\(LEGACY_TOKEN_KEY/)
   assert.match(session, /localStorage\.removeItem\(LEGACY_TOKEN_KEY\)/)
+})
+
+test('public SMS requests require captcha proof and external banners isolate the opener', async () => {
+  const api = await readFile(new URL('../src/api/shop.js', import.meta.url), 'utf8')
+  const login = await readView('LoginView.vue')
+  const forgot = await readView('ForgotPasswordView.vue')
+  const home = await readView('HomeView.vue')
+
+  assert.match(api, /captchaId: captcha\.captchaId/)
+  assert.match(api, /captchaCode: captcha\.captchaCode/)
+  assert.match(login, /sendSmsCode\(smsForm\.value\.phone, 2, loginForm\.value\)/)
+  assert.match(forgot, /captchaId: captchaId\.value, captchaCode: captchaCode\.value/)
+  assert.match(home, /window\.open\(banner\.linkValue, '_blank', 'noopener,noreferrer'\)/)
 })

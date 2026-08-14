@@ -95,6 +95,20 @@ class ShopMediaStorageServiceTest {
         assertFalse(directoryPermissions.contains(PosixFilePermission.OTHERS_EXECUTE));
     }
 
+    @Test
+    void afterSaleTemporaryProofsHaveABoundedPerMemberQuota() throws Exception {
+        byte[] jpeg = imageBytes("jpg", 32, 32, false);
+        ShopMediaStorageService service = new ShopMediaStorageService(tempDir.toString(), 1920, 25_000_000, 0.82f);
+
+        for (int i = 0; i < 12; i++) {
+            service.storeAfterSaleProof(101L,
+                    new MockMultipartFile("file", "proof-" + i + ".jpg", "image/jpeg", jpeg));
+        }
+
+        assertThrows(ApiException.class, () -> service.storeAfterSaleProof(101L,
+                new MockMultipartFile("file", "overflow.jpg", "image/jpeg", jpeg)));
+    }
+
     private byte[] imageBytes(String format, int width, int height, boolean alpha) throws Exception {
         BufferedImage image = new BufferedImage(width, height,
                 alpha ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB);

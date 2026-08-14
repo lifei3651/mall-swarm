@@ -17,6 +17,15 @@
             <input id="forgot-phone" v-model="phone" name="phone" class="field" placeholder="请输入注册手机号" maxlength="11" inputmode="tel" autocomplete="tel" @input="handlePhoneInput" />
           </div>
           <div class="form-item full">
+            <label for="forgot-captcha">图形验证码</label>
+            <div class="sms-row">
+              <input id="forgot-captcha" v-model="captchaCode" class="field sms-input" placeholder="请输入图形验证码" maxlength="4" autocomplete="off" />
+              <button type="button" class="captcha-button" aria-label="刷新图形验证码" @click="refreshCaptcha">
+                <img :src="captchaImage" alt="图形验证码" />
+              </button>
+            </div>
+          </div>
+          <div class="form-item full">
             <label for="forgot-code">验证码</label>
             <div class="sms-row">
               <input id="forgot-code" v-model="code" name="smsCode" class="field sms-input" placeholder="请输入验证码" maxlength="6" inputmode="numeric" autocomplete="one-time-code" />
@@ -60,8 +69,8 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, ref } from 'vue'
-import { sendSmsCode, resetPassword } from '@/api/shop'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { getLoginCaptcha, sendSmsCode, resetPassword } from '@/api/shop'
 import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
 import { clearShopSession } from '@/utils/shopSession'
 
@@ -73,6 +82,9 @@ const confirmPassword = ref('')
 const cooldown = ref(0)
 const loading = ref(false)
 const error = ref('')
+const captchaId = ref('')
+const captchaCode = ref('')
+const captchaImage = ref('')
 let errorTimer
 const clearError = () => { window.clearTimeout(errorTimer); error.value = '' }
 const showError = (text) => {
@@ -92,12 +104,29 @@ const sendCode = async () => {
     showError('请输入正确的11位手机号')
     return
   }
+  if (!captchaId.value || !captchaCode.value) {
+    showError('请先输入图形验证码')
+    return
+  }
   try {
-    await sendSmsCode(phone.value, 3) // 3=找回密码
+    await sendSmsCode(phone.value, 3, { captchaId: captchaId.value, captchaCode: captchaCode.value }) // 3=找回密码
     cooldown.value = 60
     const timer = setInterval(() => { cooldown.value--; if (cooldown.value <= 0) clearInterval(timer) }, 1000)
+    await refreshCaptcha()
   } catch (e) {
     showError(e.message || '验证码发送失败')
+    await refreshCaptcha()
+  }
+}
+
+const refreshCaptcha = async () => {
+  try {
+    const res = await getLoginCaptcha()
+    captchaId.value = res.data.captchaId
+    captchaImage.value = res.data.image
+    captchaCode.value = ''
+  } catch (e) {
+    showError(e.message || '图形验证码加载失败')
   }
 }
 
@@ -126,6 +155,7 @@ const doResetPassword = async () => {
 }
 
 onBeforeUnmount(() => window.clearTimeout(errorTimer))
+onMounted(refreshCaptcha)
 </script>
 
 <style scoped>
@@ -133,6 +163,8 @@ onBeforeUnmount(() => window.clearTimeout(errorTimer))
 .sms-input { flex: 1; }
 .sms-btn { white-space: nowrap; padding: 0 16px; background: var(--accent, #0f766e); color: #fff; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; }
 .sms-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.captcha-button { width:142px; height:48px; padding:0; border:1px solid #d8dee9; border-radius:8px; overflow:hidden; background:#fff; cursor:pointer; }
+.captcha-button img { width:100%; height:100%; object-fit:cover; display:block; }
 .back-login-link { color:var(--accent,#0f766e); font-size:13px; font-weight:700; text-decoration:none; }
 .success-state { text-align: center; padding: 30px 0; }
 .success-icon { font-size: 48px; margin-bottom: 16px; }

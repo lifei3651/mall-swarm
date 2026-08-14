@@ -27,6 +27,7 @@ public class AdminAuthServiceImpl implements AdminAuthService {
 
     private static final String SUPER_PERMISSION = "*";
     private static final int MAX_FAILED_LOGIN_COUNT = 5;
+    private static final int LOGIN_LOCK_MINUTES = 15;
     private static final String BCRYPT_MARKER = "BCRYPT";
 
     private final DmsAdminUserDao adminUserDao;
@@ -49,11 +50,16 @@ public class AdminAuthServiceImpl implements AdminAuthService {
         if (admin == null) {
             Asserts.fail("账号或密码错误");
         }
-        if (admin.getLockTime() != null) Asserts.fail("账号因连续密码错误已锁定，请联系其他管理员重置密码后解锁");
+        if (admin.getLockTime() != null) {
+            if (admin.getLockTime().plusMinutes(LOGIN_LOCK_MINUTES).isAfter(LocalDateTime.now())) {
+                Asserts.fail("账号或密码错误");
+            }
+            adminUserDao.clearLoginLock(admin.getId());
+            admin.setLockTime(null);
+        }
         if (!matchesPassword(dto.getPassword(), admin)) {
             adminUserDao.increaseFailedLogin(admin.getId(), MAX_FAILED_LOGIN_COUNT);
             DmsAdminUser refreshed = adminUserDao.selectById(admin.getId());
-            if (refreshed != null && refreshed.getLockTime() != null) Asserts.fail("密码连续错误5次，账号已锁定，请联系其他管理员重置密码");
             Asserts.fail("账号或密码错误");
         }
         if (!BCRYPT_MARKER.equals(admin.getSalt())) {

@@ -686,7 +686,7 @@ const submitAfterSale = async () => {
     const proofFilenames = []
     for (const proof of proofUploads.value) {
       if (!proof.filename) {
-        const response = await uploadAfterSaleProof(proof.file)
+        const response = await uploadAfterSaleProof(order.value.id, proof.file)
         proof.filename = String(response.data)
       }
       proofFilenames.push(proof.filename)

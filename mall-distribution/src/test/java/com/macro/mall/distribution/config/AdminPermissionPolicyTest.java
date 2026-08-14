@@ -29,4 +29,11 @@ class AdminPermissionPolicyTest {
         assertEquals("finance:read", AdminPermissionPolicy.requiredPermission("GET", "/distribution/audit/finance/summary"));
         assertEquals("finance:manage", AdminPermissionPolicy.requiredPermission("POST", "/distribution/audit/finance/refunds"));
     }
+
+    @Test
+    void separatesOrderShipmentFromRefundAuthority() {
+        assertEquals("shop:order", AdminPermissionPolicy.requiredPermission("PUT", "/shop/admin/orders/99/ship"));
+        assertEquals("shop:aftersale", AdminPermissionPolicy.requiredPermission("POST", "/shop/admin/orders/99/refund"));
+        assertEquals("shop:aftersale", AdminPermissionPolicy.requiredPermission("PUT", "/shop/admin/orders/99/cancel"));
+    }
 }

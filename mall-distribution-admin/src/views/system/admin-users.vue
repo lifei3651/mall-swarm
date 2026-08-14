@@ -108,6 +108,9 @@
             <el-radio :value="0">禁用</el-radio>
           </el-radio-group>
         </el-form-item>
+        <el-form-item label="当前密码" prop="currentAdminPassword">
+          <el-input v-model="form.currentAdminPassword" type="password" show-password placeholder="请输入您当前登录账号的密码" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="editorVisible = false">取消</el-button>
@@ -122,6 +125,9 @@
         </el-form-item>
         <el-form-item label="新密码">
           <el-input v-model="passwordForm.password" type="password" show-password placeholder="8 至 64 位" />
+        </el-form-item>
+        <el-form-item label="当前密码">
+          <el-input v-model="passwordForm.currentAdminPassword" type="password" show-password placeholder="当前登录管理员密码" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -160,7 +166,7 @@ const passwordVisible = ref(false)
 const formRef = ref(null)
 const pagination = reactive({ page: 1, size: 10, total: 0 })
 const currentUser = ref({})
-const passwordForm = reactive({ password: '' })
+const passwordForm = reactive({ password: '', currentAdminPassword: '' })
 const searchFeedback = ref('')
 const tableEmptyText = ref('暂无后台管理员账号')
 const { markSearchApplied: markKeywordSearchApplied } = useSearchAutoRestore(
@@ -179,6 +185,7 @@ const form = reactive({
   roleCode: 'OPERATOR',
   permissions: ['admin:read'],
   status: 1,
+  currentAdminPassword: '',
 })
 
 const rules = computed(() => ({
@@ -187,6 +194,7 @@ const rules = computed(() => ({
   nickname: [{ required: true, message: '请输入昵称', trigger: 'blur' }],
   roleCode: [{ required: true, message: '请输入角色标识', trigger: 'blur' }],
   permissions: [{ type: 'array', required: true, message: '请选择权限', trigger: 'change' }],
+  currentAdminPassword: [{ required: true, min: 8, max: 64, message: '请输入当前管理员登录密码', trigger: 'blur' }],
 }))
 
 const fetchUsers = async () => {
@@ -245,6 +253,7 @@ const openEditor = (row) => {
     roleCode: row?.roleCode || 'OPERATOR',
     permissions: splitPermissions(row?.permissions || 'admin:read'),
     status: row?.status ?? 1,
+    currentAdminPassword: '',
   })
   editorVisible.value = true
 }
@@ -260,6 +269,7 @@ const submitUser = async () => {
       roleCode: form.roleCode,
       permissions: normalizePermissions(form.permissions),
       status: form.status,
+      currentAdminPassword: form.currentAdminPassword,
     }
     if (form.id) {
       await updateAdminUser(form.id, payload)
@@ -277,6 +287,7 @@ const submitUser = async () => {
 const openPassword = (row) => {
   currentUser.value = row
   passwordForm.password = ''
+  passwordForm.currentAdminPassword = ''
   passwordVisible.value = true
 }
 
@@ -285,9 +296,16 @@ const submitPassword = async () => {
     ElMessage.warning('请输入8至64位密码')
     return
   }
+  if (!passwordForm.currentAdminPassword || passwordForm.currentAdminPassword.length < 8) {
+    ElMessage.warning('请输入当前管理员登录密码')
+    return
+  }
   saving.value = true
   try {
-    await updateAdminPassword(currentUser.value.id, { password: passwordForm.password })
+    await updateAdminPassword(currentUser.value.id, {
+      password: passwordForm.password,
+      currentAdminPassword: passwordForm.currentAdminPassword,
+    })
     ElMessage.success('密码已重置')
     passwordVisible.value = false
   } finally {

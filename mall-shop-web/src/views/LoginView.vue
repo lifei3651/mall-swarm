@@ -53,6 +53,15 @@
             <p v-if="loginFieldErrors.phone" class="field-error">{{ loginFieldErrors.phone }}</p>
           </div>
           <div class="form-item full">
+            <label for="sms-login-captcha">图形验证码</label>
+            <div class="captcha-row">
+              <input id="sms-login-captcha" v-model="loginForm.captchaCode" class="field" placeholder="请输入图形验证码" maxlength="4" autocomplete="off" />
+              <button type="button" class="captcha-refresh" aria-label="刷新图形验证码" @click="refreshCaptcha">
+                <img :src="captchaImage" class="captcha-image" alt="图形验证码" /><span>换一张</span>
+              </button>
+            </div>
+          </div>
+          <div class="form-item full">
             <label for="sms-login-code">验证码</label>
             <div class="sms-row">
               <input id="sms-login-code" v-model="smsForm.code" name="smsCode" class="field sms-input" :class="{ 'has-error': loginFieldErrors.code }" placeholder="请输入验证码" maxlength="6" inputmode="numeric" autocomplete="one-time-code" :aria-invalid="!!loginFieldErrors.code" @input="clearLoginFieldError('code')" />
@@ -180,6 +189,15 @@
               </button>
             </div>
             <p v-if="fieldErrors.smsCode" class="field-error">{{ fieldErrors.smsCode }}</p>
+          </div>
+          <div class="form-item full">
+            <label for="register-captcha">发送短信前验证</label>
+            <div class="captcha-row">
+              <input id="register-captcha" v-model="loginForm.captchaCode" class="field" placeholder="请输入图形验证码" maxlength="4" autocomplete="off" />
+              <button type="button" class="captcha-refresh" aria-label="刷新图形验证码" @click="refreshCaptcha">
+                <img :src="captchaImage" class="captcha-image" alt="图形验证码" /><span>换一张</span>
+              </button>
+            </div>
           </div>
         </template>
       </div>
@@ -531,12 +549,18 @@ const sendCode = async () => {
     showLoginFieldError('phone', '请输入正确的11位手机号')
     return
   }
+  if (!loginForm.value.captchaId || !loginForm.value.captchaCode) {
+    error.value = '请先输入图形验证码'
+    return
+  }
   try {
-    await sendSmsCode(smsForm.value.phone, 2) // 2=登录
+    await sendSmsCode(smsForm.value.phone, 2, loginForm.value) // 2=登录
     success.value = '验证码已发送'
     startCooldown()
+    await refreshCaptcha()
   } catch (e) {
     error.value = e.message || '发送失败'
+    await refreshCaptcha()
   }
 }
 
@@ -558,12 +582,18 @@ const sendCodeForRegister = async () => {
     await focusFirstRegisterError()
     return
   }
+  if (!loginForm.value.captchaId || !loginForm.value.captchaCode) {
+    error.value = '请先输入图形验证码'
+    return
+  }
   try {
-    await sendSmsCode(registerForm.value.phone, 1) // 1=注册
+    await sendSmsCode(registerForm.value.phone, 1, loginForm.value) // 1=注册
     success.value = '验证码已发送'
     startCooldown()
+    await refreshCaptcha()
   } catch (e) {
     if (!await showRegisterServerError(e.message)) error.value = e.message || '发送失败'
+    await refreshCaptcha()
   }
 }
 

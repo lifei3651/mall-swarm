@@ -3,6 +3,7 @@ package com.macro.mall.distribution.dto;
 import lombok.Data;
 import lombok.ToString;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import java.util.List;
@@ -18,6 +19,12 @@ public class AdminUserSaveDTO {
     @ToString.Exclude
     @Size(min = 8, max = 64, message = "后台密码需要8至64位")
     private String password;
+
+    /** 保存管理员账号前，对当前登录管理员进行二次身份确认。 */
+    @ToString.Exclude
+    @NotBlank(message = "请输入当前管理员登录密码")
+    @Size(min = 8, max = 64, message = "当前管理员登录密码长度不正确")
+    private String currentAdminPassword;
 
     @Size(max = 64, message = "后台名称不能超过64个字")
     private String nickname;

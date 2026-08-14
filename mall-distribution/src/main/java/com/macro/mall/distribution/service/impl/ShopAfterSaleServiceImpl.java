@@ -45,6 +45,8 @@ import com.macro.mall.distribution.service.OrderRealtimeService;
 import com.macro.mall.distribution.service.OrderBalanceAllocationService;
 import com.macro.mall.distribution.service.FlashSaleStockGate;
 import com.macro.mall.distribution.util.MemberAccountUtils;
+import com.macro.mall.distribution.security.AdminContext;
+import com.macro.mall.distribution.entity.DmsAdminUser;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -94,6 +96,21 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
 
     @Value("${shop.payment.simulation-enabled:false}")
     private boolean simulationPaymentEnabled;
+
+    @Override
+    public void assertCanUploadProof(DmsShopMember member, Long orderId) {
+        if (member == null) Asserts.fail("请先登录");
+        if (orderId == null) Asserts.fail("订单ID不能为空");
+        DmsShopOrder order = orderDao.selectById(orderId);
+        if (order == null) Asserts.fail("订单不存在");
+        assertTenantAccess(order.getTenantId());
+        if (!member.getUserId().equals(order.getUserId())) Asserts.fail("不能为他人的订单上传售后凭证");
+        if (Integer.valueOf(0).equals(order.getStatus()) || Integer.valueOf(4).equals(order.getStatus())) {
+            Asserts.fail("当前订单状态不能申请售后");
+        }
+        assertWithinAfterSaleWindow(order);
+        if (afterSaleDao.selectOpenByOrderId(orderId) != null) Asserts.fail("该订单已有处理中售后");
+    }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -202,6 +219,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         afterSaleDao.insert(afterSale);
         for (DmsShopAfterSaleItem item : refundItems) item.setAfterSaleId(afterSale.getId());
         afterSaleItemDao.insertBatch(refundItems);
+        commitProofImages(member.getId(), proofImages);
         notifyOrderChanged(order, "AFTER_SALE_APPLIED");
         return hydrate(afterSaleDao.selectById(afterSale.getId()));
     }
@@ -395,8 +413,10 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         ShopAfterSaleAuditDTO audit = new ShopAfterSaleAuditDTO();
         audit.setStatus(1);
         audit.setAuditRemark("后台超期退款：" + ("AMOUNT".equals(mode) ? "按金额" : "按盒数比例"));
-        audit.setAuditUserId(dto.getOperatorId());
-        audit.setAuditUserName(dto.getOperatorName());
+        DmsAdminUser actor = AdminContext.get();
+        audit.setAuditUserId(actor == null ? dto.getOperatorId() : actor.getId());
+        audit.setAuditUserName(actor == null ? dto.getOperatorName()
+                : (actor.getNickname() == null || actor.getNickname().isBlank() ? actor.getUsername() : actor.getNickname()));
         return audit(afterSale.getId(), audit);
     }
 
@@ -465,6 +485,19 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         }
     }
 
+    private void commitProofImages(Long memberId, String proofImages) {
+        if (proofImages == null || proofImages.isBlank()) return;
+        try {
+            List<String> filenames = objectMapper.readValue(proofImages, new TypeReference<List<String>>() { });
+            mediaStorageService.commitAfterSaleProofs(memberId, filenames);
+        } catch (ApiException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("提交售后凭证失败 memberId={}", memberId, e);
+            Asserts.fail("售后凭证保存失败，请重新提交");
+        }
+    }
+
     @Override
     public List<DmsShopAfterSale> listByMember(DmsShopMember member) {
         return afterSaleDao.selectByMemberId(member.getId()).stream()
@@ -484,6 +517,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsShopAfterSale audit(Long id, ShopAfterSaleAuditDTO dto) {
+        applyAuthenticatedAdmin(dto);
         DmsShopAfterSale afterSale = afterSaleDao.selectByIdForUpdate(id);
         if (afterSale == null) {
             Asserts.fail("售后单不存在");
@@ -534,6 +568,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsShopAfterSale confirmReturnReceived(Long id, ShopAfterSaleAuditDTO dto) {
+        applyAuthenticatedAdmin(dto);
         DmsShopAfterSale afterSale = afterSaleDao.selectByIdForUpdate(id);
         if (afterSale == null) Asserts.fail("售后单不存在");
         DmsShopOrder order = orderDao.selectById(afterSale.getOrderId());
@@ -562,6 +597,16 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         }
         notifyOrderChanged(order, "AFTER_SALE_COMPLETED");
         return hydrate(afterSaleDao.selectById(id));
+    }
+
+    /** HTTP 请求中的操作人只信任服务端认证上下文，不信任客户端可编辑字段。 */
+    static void applyAuthenticatedAdmin(ShopAfterSaleAuditDTO dto) {
+        if (dto == null) return;
+        DmsAdminUser actor = AdminContext.get();
+        if (actor == null) return;
+        dto.setAuditUserId(actor.getId());
+        dto.setAuditUserName(actor.getNickname() == null || actor.getNickname().isBlank()
+                ? actor.getUsername() : actor.getNickname());
     }
 
     private void completeRefund(DmsShopAfterSale afterSale, DmsShopOrder order) {

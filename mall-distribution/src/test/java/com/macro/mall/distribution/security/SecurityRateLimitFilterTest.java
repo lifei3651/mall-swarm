@@ -45,6 +45,14 @@ class SecurityRateLimitFilterTest {
     }
 
     @Test
+    void appliesDedicatedRuleToSmsVerification() {
+        SecurityRateLimitFilter filter = new SecurityRateLimitFilter(mock(SecurityRateLimitService.class));
+        SecurityRateLimitFilter.Rule rule = filter.resolveRule(new MockHttpServletRequest("POST", "/sms/verify"));
+        assertEquals("sms-verify", rule.name());
+        assertEquals(10, rule.maximumRequests());
+    }
+
+    @Test
     void appliesDedicatedRuleToAfterSaleProofUploads() {
         SecurityRateLimitFilter filter = new SecurityRateLimitFilter(mock(SecurityRateLimitService.class));
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/shop/media/after-sale-proofs");

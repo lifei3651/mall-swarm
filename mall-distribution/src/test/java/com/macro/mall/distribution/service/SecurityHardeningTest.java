@@ -93,6 +93,42 @@ class SecurityHardeningTest {
     }
 
     @Test
+    void activeAdminLockIsTemporaryAndDoesNotRevealAccountState() {
+        DmsAdminUser admin = new DmsAdminUser();
+        admin.setId(9L);
+        admin.setUsername("operator");
+        admin.setLockTime(LocalDateTime.now().minusMinutes(1));
+        when(adminUserDao.selectByUsername("operator")).thenReturn(admin);
+        AdminAuthServiceImpl service = new AdminAuthServiceImpl(adminUserDao, adminSessionDao, captchaService);
+        AdminLoginDTO dto = new AdminLoginDTO();
+        dto.setUsername("operator"); dto.setPassword("wrong-password");
+        dto.setCaptchaId("captcha"); dto.setCaptchaCode("8A2K");
+
+        RuntimeException error = assertThrows(RuntimeException.class, () -> service.login(dto));
+        assertEquals("账号或密码错误", error.getMessage());
+    }
+
+    @Test
+    void expiredAdminLockIsClearedBeforePasswordVerification() {
+        String password = "Valid-password-123";
+        DmsAdminUser admin = new DmsAdminUser();
+        admin.setId(9L); admin.setUsername("operator"); admin.setStatus(1);
+        admin.setPermissions("admin:read"); admin.setSalt("BCRYPT");
+        admin.setPasswordHash(BCrypt.hashpw(password));
+        admin.setLockTime(LocalDateTime.now().minusMinutes(16));
+        when(adminUserDao.selectByUsername("operator")).thenReturn(admin);
+        AdminAuthServiceImpl service = new AdminAuthServiceImpl(adminUserDao, adminSessionDao, captchaService);
+        AdminLoginDTO dto = new AdminLoginDTO();
+        dto.setUsername("operator"); dto.setPassword(password);
+        dto.setCaptchaId("captcha"); dto.setCaptchaCode("8A2K");
+
+        service.login(dto);
+
+        verify(adminUserDao).clearLoginLock(9L);
+        verify(adminSessionDao).insert(any(DmsAdminSession.class));
+    }
+
+    @Test
     void memberLoginStoresOnlyTokenHash() {
         String password = "Member-password-123";
         DmsShopMember member = new DmsShopMember();
@@ -181,10 +217,12 @@ class SecurityHardeningTest {
 
         AdminPasswordDTO adminPassword = new AdminPasswordDTO();
         adminPassword.setPassword(secret);
+        adminPassword.setCurrentAdminPassword(secret);
         assertSensitiveAbsent(adminPassword, secret);
 
         AdminUserSaveDTO adminSave = new AdminUserSaveDTO();
         adminSave.setPassword(secret);
+        adminSave.setCurrentAdminPassword(secret);
         assertSensitiveAbsent(adminSave, secret);
 
         ShopLoginDTO shopLogin = new ShopLoginDTO();

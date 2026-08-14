@@ -210,7 +210,7 @@ const handleBannerClick = (banner) => {
   const linkType = String(banner.linkType || '').toLowerCase()
   if (linkType === 'product') router.push(`/product/${banner.linkValue}`)
   else if (linkType === 'category') { query.value.categoryName = banner.linkValue; fetchProducts(true) }
-  else if (linkType === 'url') window.open(banner.linkValue, '_blank')
+  else if (linkType === 'url') window.open(banner.linkValue, '_blank', 'noopener,noreferrer')
 }
 watch(banners, () => { bannerIndex.value = 0; startBannerAutoplay() })
 

@@ -21,7 +21,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 短信验证码错误次数限制测试：单个验证码连续错误 5 次即作废，防止暴力枚举。
+ * 短信验证码错误次数限制测试：锁定错误尝试，但不允许第三方使受害人的正确验证码失效。
  */
 @ExtendWith(MockitoExtension.class)
 class SmsVerificationAttemptLimitTest {
@@ -39,9 +39,10 @@ class SmsVerificationAttemptLimitTest {
     }
 
     @Test
-    void wrongCodeFiveTimesInvalidatesTheCode() {
+    void wrongCodeFiveTimesLocksFurtherWrongAttemptsWithoutInvalidatingVictimsCode() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get("sms:3:" + PHONE)).thenReturn("123456");
+        when(valueOperations.get("sms:attempt:3:" + PHONE)).thenReturn(null);
         when(valueOperations.increment("sms:attempt:3:" + PHONE))
                 .thenReturn(1L, 2L, 3L, 4L, 5L);
 
@@ -53,10 +54,14 @@ class SmsVerificationAttemptLimitTest {
 
         ApiException locked = assertThrows(ApiException.class,
                 () -> service.verifyAndConsume(PHONE, "000000", 3));
-        assertEquals("验证码错误次数过多，请重新获取", locked.getMessage());
+        assertEquals("验证码错误次数过多，请稍后再试", locked.getMessage());
 
-        verify(redisTemplate).delete("sms:3:" + PHONE);
+        verify(redisTemplate, never()).delete("sms:3:" + PHONE);
         verify(redisTemplate).expire(eq("sms:attempt:3:" + PHONE), eq(5L), eq(TimeUnit.MINUTES));
+
+        when(valueOperations.get("sms:3:" + PHONE)).thenReturn("123456");
+        service.verifyAndConsume(PHONE, "123456", 3);
+        verify(redisTemplate).delete("sms:3:" + PHONE);
     }
 
     @Test

@@ -66,6 +66,8 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.net.URI;
+import java.util.Set;
 
 import static com.macro.mall.distribution.util.ShopPublicViewSanitizer.product;
 import static com.macro.mall.distribution.util.ShopPublicViewSanitizer.sku;
@@ -1765,9 +1767,33 @@ public class ShopServiceImpl implements ShopService {
         }
         banner.setTenantId(resolveTenantId(banner.getTenantId()));
         banner.setTitle(banner.getTitle().trim());
-        banner.setLinkType(banner.getLinkType() == null || banner.getLinkType().isBlank() ? "NONE" : banner.getLinkType().trim());
+        validateBannerLink(banner);
         banner.setSort(banner.getSort() == null ? 0 : banner.getSort());
         banner.setStatus(banner.getStatus() == null ? 1 : banner.getStatus());
+    }
+
+    static void validateBannerLink(DmsShopBanner banner) {
+        String type = banner.getLinkType() == null || banner.getLinkType().isBlank()
+                ? "NONE" : banner.getLinkType().trim().toUpperCase(Locale.ROOT);
+        if (!Set.of("NONE", "PRODUCT", "CATEGORY", "URL").contains(type)) Asserts.fail("轮播图跳转类型不支持");
+        banner.setLinkType(type);
+        if ("NONE".equals(type)) {
+            banner.setLinkValue(null);
+            return;
+        }
+        if (banner.getLinkValue() == null || banner.getLinkValue().isBlank()) Asserts.fail("请填写轮播图跳转内容");
+        String value = banner.getLinkValue().trim();
+        if ("URL".equals(type)) {
+            try {
+                URI uri = URI.create(value);
+                if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null || uri.getUserInfo() != null) {
+                    Asserts.fail("轮播图外部链接仅支持完整的HTTPS地址");
+                }
+            } catch (IllegalArgumentException exception) {
+                Asserts.fail("轮播图外部链接格式不正确");
+            }
+        }
+        banner.setLinkValue(value);
     }
 
     private void fillNoticeDefaults(DmsShopNotice notice) {
