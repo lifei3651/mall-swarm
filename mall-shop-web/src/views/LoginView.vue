@@ -355,7 +355,7 @@ onMounted(() => {
     mode.value = 'register'
     if (registerForm.value.inviteCode) loadInviter()
   }
-  if (mode.value === 'login') refreshCaptcha()
+  refreshCaptcha()
 })
 
 watch([error, success], ([errorMessage, successMessage]) => {
@@ -697,7 +697,7 @@ const submit = async () => {
 </script>
 
 <style scoped>
-.auth-page { position: relative; }
+.auth-page { position: relative; width:min(560px,calc(100% - 40px)); }
 .auth-brand-header { min-height:56px; display:flex; align-items:center; justify-content:center; margin:16px auto 18px; }
 .auth-brand-logo { display:block; width:auto; max-width:min(160px,48vw); height:auto; max-height:56px; object-fit:contain; }
 .auth-page .section-head { margin: 10px 0 12px; }

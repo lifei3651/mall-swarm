@@ -257,6 +257,9 @@ public class ShopController {
     @Operation(summary = "后台新增商城会员")
     @PostMapping("/admin/members")
     public CommonResult<DmsShopMember> createAdminMember(@Valid @RequestBody AdminMemberCreateDTO dto) {
+        if (Boolean.TRUE.equals(dto.getActivateDistribution()) || dto.getInitialLevel() != null) {
+            adminAuthService.requirePermission(AdminContext.get(), "distribution:manage");
+        }
         return CommonResult.success(authService.createAdminMember(dto));
     }
 

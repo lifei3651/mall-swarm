@@ -14,6 +14,8 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -41,7 +43,7 @@ class SmsVerificationAttemptLimitTest {
     @Test
     void wrongCodeFiveTimesLocksFurtherWrongAttemptsWithoutInvalidatingVictimsCode() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("sms:3:" + PHONE)).thenReturn("123456");
+        when(redisTemplate.execute(any(), anyList(), eq("000000"))).thenReturn(-1L);
         when(valueOperations.get("sms:attempt:3:" + PHONE)).thenReturn(null);
         when(valueOperations.increment("sms:attempt:3:" + PHONE))
                 .thenReturn(1L, 2L, 3L, 4L, 5L);
@@ -59,27 +61,22 @@ class SmsVerificationAttemptLimitTest {
         verify(redisTemplate, never()).delete("sms:3:" + PHONE);
         verify(redisTemplate).expire(eq("sms:attempt:3:" + PHONE), eq(5L), eq(TimeUnit.MINUTES));
 
-        when(valueOperations.get("sms:3:" + PHONE)).thenReturn("123456");
+        when(redisTemplate.execute(any(), anyList(), eq("123456"))).thenReturn(1L);
         service.verifyAndConsume(PHONE, "123456", 3);
-        verify(redisTemplate).delete("sms:3:" + PHONE);
     }
 
     @Test
     void correctCodeConsumesAndClearsAttempts() {
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("sms:3:" + PHONE)).thenReturn("123456");
+        when(redisTemplate.execute(any(), anyList(), eq("123456"))).thenReturn(1L);
 
         service.verifyAndConsume(PHONE, "123456", 3);
 
-        verify(redisTemplate).delete("sms:3:" + PHONE);
-        verify(redisTemplate).delete("sms:attempt:3:" + PHONE);
         verify(valueOperations, never()).increment(anyString());
     }
 
     @Test
     void expiredOrMissingCodeIsRejected() {
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("sms:3:" + PHONE)).thenReturn(null);
+        when(redisTemplate.execute(any(), anyList(), eq("123456"))).thenReturn(0L);
 
         ApiException error = assertThrows(ApiException.class,
                 () -> service.verifyAndConsume(PHONE, "123456", 3));

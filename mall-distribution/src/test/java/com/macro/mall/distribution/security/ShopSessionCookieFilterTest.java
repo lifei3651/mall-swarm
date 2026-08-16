@@ -1,6 +1,9 @@
 package com.macro.mall.distribution.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.macro.mall.common.aspect.IdempotentAspect;
+import com.macro.mall.distribution.entity.DmsShopMember;
+import com.macro.mall.distribution.service.ShopAuthService;
 import com.macro.mall.distribution.vo.ShopAuthVO;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.Cookie;
@@ -15,11 +18,13 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class ShopSessionCookieFilterTest {
 
     private final ShopSessionCookieService cookieService = new ShopSessionCookieService();
-    private final ShopSessionCookieFilter filter = new ShopSessionCookieFilter(cookieService);
+    private final ShopSessionCookieFilter filter = new ShopSessionCookieFilter(cookieService, mock(ShopAuthService.class));
 
     @Test
     void cookieBecomesAuthorizationHeaderWithoutExposingItToJavascript() throws Exception {
@@ -67,5 +72,25 @@ class ShopSessionCookieFilterTest {
         String json = new ObjectMapper().writeValueAsString(auth);
         assertFalse(json.contains("raw-session-token"));
         assertFalse(json.contains("token"));
+    }
+
+    @Test
+    void idempotentWriteBindsStableMemberPrincipalBeforeBusinessCode() throws Exception {
+        ShopAuthService authService = mock(ShopAuthService.class);
+        ShopSessionCookieFilter principalFilter = new ShopSessionCookieFilter(cookieService, authService);
+        DmsShopMember member = new DmsShopMember();
+        member.setUserId(9527L);
+        when(authService.resolveMember("Bearer rotating-session-token")).thenReturn(member);
+
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/shop/orders");
+        request.addHeader("Authorization", "Bearer rotating-session-token");
+        request.addHeader("X-Idempotency-Key", "order-submit-1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicReference<Object> principal = new AtomicReference<>();
+
+        principalFilter.doFilter(request, response, (servletRequest, servletResponse) -> principal.set(
+                servletRequest.getAttribute(IdempotentAspect.PRINCIPAL_ATTRIBUTE)));
+
+        assertEquals("member:9527", principal.get());
     }
 }

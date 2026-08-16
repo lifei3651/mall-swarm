@@ -74,6 +74,9 @@ backup_items=(
   "${APP_ROOT#/}/nginx/admin"
   "${APP_ROOT#/}/nginx/shop"
   etc/systemd/system/lingqimall-distribution.service
+  etc/systemd/system/lingqimall-backup.service
+  etc/systemd/system/lingqimall-backup.timer
+  usr/local/sbin/lingqimall-backup
 )
 
 # 生产机既可能使用 Debian 的 sites-enabled，也可能使用 Rocky Linux 的

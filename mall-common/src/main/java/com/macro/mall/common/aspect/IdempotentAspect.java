@@ -23,6 +23,7 @@ import java.util.HexFormat;
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
 public class IdempotentAspect {
     private static final String IDEMPOTENCY_HEADER = "X-Idempotency-Key";
+    public static final String PRINCIPAL_ATTRIBUTE = IdempotentAspect.class.getName() + ".principal";
 
     private final IdempotencyStore idempotencyStore;
 
@@ -37,9 +38,12 @@ public class IdempotentAspect {
         HttpServletRequest request = attributes.getRequest();
         String clientKey = normalizeClientKey(request.getHeader(IDEMPOTENCY_HEADER));
         if (clientKey == null) Asserts.fail("请求唯一编号不能为空，请刷新页面后重试");
-        String authorizationDigest = sha256(String.valueOf(request.getHeader("Authorization")));
+        Object stablePrincipal = request.getAttribute(PRINCIPAL_ATTRIBUTE);
+        String principalScope = stablePrincipal == null || String.valueOf(stablePrincipal).isBlank()
+                ? "token:" + sha256(String.valueOf(request.getHeader("Authorization")))
+                : "principal:" + stablePrincipal;
         String fingerprint = request.getMethod() + "|" + request.getRequestURI() + "|"
-                + authorizationDigest + "|" + clientKey;
+                + principalScope + "|" + clientKey;
         String key = sha256(fingerprint);
         if (!idempotencyStore.tryAcquire(key)) {
             Asserts.fail(idempotent.message());

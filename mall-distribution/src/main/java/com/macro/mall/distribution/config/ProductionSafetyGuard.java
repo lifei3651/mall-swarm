@@ -35,6 +35,14 @@ public class ProductionSafetyGuard {
             if (testCode != null && !testCode.isBlank()) {
                 throw new IllegalStateException("生产环境禁止配置短信测试验证码");
             }
+            String databaseUser = environment.getProperty("spring.datasource.username", "");
+            String databasePassword = environment.getProperty("spring.datasource.password", "");
+            if (databaseUser.isBlank() || "root".equalsIgnoreCase(databaseUser.trim())) {
+                throw new IllegalStateException("生产环境数据库必须使用独立最小权限账号，禁止使用 root");
+            }
+            if (databasePassword.isBlank() || isWeakSecret(databasePassword)) {
+                throw new IllegalStateException("生产环境数据库密码缺失或仍是示例弱口令");
+            }
         }
         if (Boolean.parseBoolean(environment.getProperty("payment.verification.enabled", "false"))
                 && !Boolean.parseBoolean(environment.getProperty("sms.provider-enabled", "false"))) {
@@ -59,5 +67,10 @@ public class ProductionSafetyGuard {
     private boolean hasOnlyExplicitTestProfiles() {
         String[] active = environment.getActiveProfiles();
         return active.length > 0 && Arrays.stream(active).allMatch(SAFE_TEST_PROFILES::contains);
+    }
+
+    private boolean isWeakSecret(String value) {
+        String normalized = value.trim().toLowerCase(java.util.Locale.ROOT);
+        return Set.of("root", "password", "admin", "123456", "change_me", "changeme").contains(normalized);
     }
 }

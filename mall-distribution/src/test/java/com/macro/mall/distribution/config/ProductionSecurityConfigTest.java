@@ -42,6 +42,19 @@ class ProductionSecurityConfigTest {
     }
 
     @Test
+    void productionGuardRejectsRootDatabaseAndWeakPassword() {
+        MockEnvironment rootDatabase = safeProductionEnvironment()
+                .withProperty("spring.datasource.username", "root")
+                .withProperty("spring.datasource.password", "strong-production-secret");
+        assertThrows(IllegalStateException.class, () -> new ProductionSafetyGuard(rootDatabase).validate());
+
+        MockEnvironment weakPassword = safeProductionEnvironment()
+                .withProperty("spring.datasource.username", "mall_app")
+                .withProperty("spring.datasource.password", "password");
+        assertThrows(IllegalStateException.class, () -> new ProductionSafetyGuard(weakPassword).validate());
+    }
+
+    @Test
     void securityHeadersProtectSensitiveHttpsResponses() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/shop/wallet/summary");
         request.setSecure(true);
@@ -54,5 +67,16 @@ class ProductionSecurityConfigTest {
         assertEquals("no-store", response.getHeader("Cache-Control"));
         assertEquals("max-age=31536000; includeSubDomains",
                 response.getHeader("Strict-Transport-Security"));
+    }
+
+    private MockEnvironment safeProductionEnvironment() {
+        MockEnvironment environment = new MockEnvironment()
+                .withProperty("shop.payment.simulation-enabled", "false")
+                .withProperty("sms.expose-code", "false")
+                .withProperty("sms.test-code", "")
+                .withProperty("springdoc.api-docs.enabled", "false")
+                .withProperty("springdoc.swagger-ui.enabled", "false");
+        environment.setActiveProfiles("prod");
+        return environment;
     }
 }

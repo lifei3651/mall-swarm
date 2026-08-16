@@ -37,6 +37,7 @@ import org.springframework.context.annotation.FilterType;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -73,6 +74,7 @@ class ShopWalletServiceTest {
     @Autowired private ShopAfterSaleService afterSaleService;
     @Autowired private PaymentPasswordAttemptService paymentPasswordAttemptService;
     @Autowired private DmsShopOrderItemDao orderItemDao;
+    @Autowired private JdbcTemplate jdbcTemplate;
     @MockitoBean private SmsVerificationService smsVerificationService;
 
     @Test
@@ -381,6 +383,30 @@ class ShopWalletServiceTest {
         assertEquals(2, memberDao.selectById(member.getId()).getPayPasswordFailedCount());
     }
 
+    @Test
+    @Order(11)
+    void simultaneousOrdersCannotExceedPerMemberPurchaseLimit() throws Exception {
+        DmsShopMember member = createMember(1007L, "13988220007", "并发限购会员");
+        jdbcTemplate.update("UPDATE dms_shop_product SET purchase_limit=1, stock=100 WHERE id=1");
+        jdbcTemplate.update("UPDATE dms_shop_sku SET stock=100 WHERE id=1");
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            Future<Boolean> first = executor.submit(() -> trySubmitOrder(member, ready, start));
+            Future<Boolean> second = executor.submit(() -> trySubmitOrder(member, ready, start));
+            assertTrue(ready.await(5, TimeUnit.SECONDS));
+            start.countDown();
+            int successes = (first.get(10, TimeUnit.SECONDS) ? 1 : 0)
+                    + (second.get(10, TimeUnit.SECONDS) ? 1 : 0);
+            assertEquals(1, successes);
+        } finally {
+            executor.shutdownNow();
+        }
+        assertEquals(1, shopService.listOrders(member.getUserId(), null, null).size());
+    }
+
     private ShopWithdrawalApplyDTO withdrawal(String paymentPassword, String amount) {
         ShopWithdrawalApplyDTO apply = new ShopWithdrawalApplyDTO();
         apply.setWithdrawAmount(new BigDecimal(amount));
@@ -409,6 +435,17 @@ class ShopWalletServiceTest {
         start.await();
         try {
             afterSaleService.apply(member, apply);
+            return true;
+        } catch (RuntimeException expected) {
+            return false;
+        }
+    }
+
+    private boolean trySubmitOrder(DmsShopMember member, CountDownLatch ready, CountDownLatch start) throws Exception {
+        ready.countDown();
+        start.await();
+        try {
+            shopService.submitOrder(orderRequest(), member);
             return true;
         } catch (RuntimeException expected) {
             return false;

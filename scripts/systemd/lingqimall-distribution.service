@@ -1,0 +1,42 @@
+[Unit]
+Description=LingqiMall Distribution Backend
+After=network-online.target mysqld.service redis.service
+Wants=network-online.target mysqld.service redis.service
+
+[Service]
+Type=simple
+User=lingqimall
+Group=lingqimall
+UMask=0027
+WorkingDirectory=/opt/lingqimall/app
+Environment=TZ=Asia/Shanghai
+ExecStart=/usr/bin/java -Xms256m -Xmx768m -jar /opt/lingqimall/app/mall-distribution.jar --spring.config.location=file:/opt/lingqimall/config/application.yml
+Restart=always
+RestartSec=8
+SuccessExitStatus=143
+StandardOutput=append:/opt/lingqimall/logs/distribution/stdout.log
+StandardError=append:/opt/lingqimall/logs/distribution/stderr.log
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+LockPersonality=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RemoveIPC=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadOnlyPaths=/opt/lingqimall/app /opt/lingqimall/config
+ReadWritePaths=/opt/lingqimall/uploads /opt/lingqimall/logs /var/logs/spring.log
+
+[Install]
+WantedBy=multi-user.target

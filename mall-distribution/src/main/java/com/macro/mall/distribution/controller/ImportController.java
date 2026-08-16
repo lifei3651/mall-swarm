@@ -1,8 +1,11 @@
 package com.macro.mall.distribution.controller;
 
 import com.macro.mall.common.api.CommonResult;
+import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.distribution.dto.ImportAgentDTO;
 import com.macro.mall.distribution.dto.ImportOrderDTO;
+import com.macro.mall.distribution.entity.DmsAdminUser;
+import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.ImportService;
 import com.macro.mall.distribution.service.ExternalTeamMigrationService;
 import com.macro.mall.distribution.vo.ImportResultVO;
@@ -38,10 +41,11 @@ public class ImportController {
     @PostMapping("/agents/file")
     public CommonResult<ImportResultVO> importAgentsByFile(
             @RequestParam("file") MultipartFile file,
-            @RequestParam Long operatorId,
-            @RequestParam String operatorName,
+            @RequestParam(required = false) Long operatorId,
+            @RequestParam(required = false) String operatorName,
             @RequestParam(required = false) String batchNo) {
-        ImportResultVO result = importService.importAgents(file, operatorId, operatorName, batchNo);
+        DmsAdminUser operator = requireOperator();
+        ImportResultVO result = importService.importAgents(file, operator.getId(), operatorName(operator), batchNo);
         return CommonResult.success(result);
     }
 
@@ -49,9 +53,10 @@ public class ImportController {
     @PostMapping("/agents/list")
     public CommonResult<ImportResultVO> importAgentsByList(
             @RequestBody List<ImportAgentDTO> agentList,
-            @RequestParam Long operatorId,
-            @RequestParam String operatorName) {
-        ImportResultVO result = importService.importAgents(agentList, operatorId, operatorName);
+            @RequestParam(required = false) Long operatorId,
+            @RequestParam(required = false) String operatorName) {
+        DmsAdminUser operator = requireOperator();
+        ImportResultVO result = importService.importAgents(agentList, operator.getId(), operatorName(operator));
         return CommonResult.success(result);
     }
 
@@ -59,10 +64,11 @@ public class ImportController {
     @PostMapping("/orders/file")
     public CommonResult<ImportResultVO> importOrdersByFile(
             @RequestParam("file") MultipartFile file,
-            @RequestParam Long operatorId,
-            @RequestParam String operatorName,
+            @RequestParam(required = false) Long operatorId,
+            @RequestParam(required = false) String operatorName,
             @RequestParam(required = false) String batchNo) {
-        ImportResultVO result = importService.importOrders(file, operatorId, operatorName, batchNo);
+        DmsAdminUser operator = requireOperator();
+        ImportResultVO result = importService.importOrders(file, operator.getId(), operatorName(operator), batchNo);
         return CommonResult.success(result);
     }
 
@@ -70,9 +76,10 @@ public class ImportController {
     @PostMapping("/orders/list")
     public CommonResult<ImportResultVO> importOrdersByList(
             @RequestBody List<ImportOrderDTO> orderList,
-            @RequestParam Long operatorId,
-            @RequestParam String operatorName) {
-        ImportResultVO result = importService.importOrders(orderList, operatorId, operatorName);
+            @RequestParam(required = false) Long operatorId,
+            @RequestParam(required = false) String operatorName) {
+        DmsAdminUser operator = requireOperator();
+        ImportResultVO result = importService.importOrders(orderList, operator.getId(), operatorName(operator));
         return CommonResult.success(result);
     }
 
@@ -84,5 +91,20 @@ public class ImportController {
             return CommonResult.failed("导入批次不存在");
         }
         return CommonResult.success(result);
+    }
+
+    private DmsAdminUser requireOperator() {
+        DmsAdminUser operator = AdminContext.get();
+        if (operator == null || operator.getId() == null) {
+            Asserts.fail("未获取到后台操作人");
+        }
+        return operator;
+    }
+
+    private String operatorName(DmsAdminUser operator) {
+        if (operator.getNickname() != null && !operator.getNickname().isBlank()) {
+            return operator.getNickname();
+        }
+        return operator.getUsername();
     }
 }

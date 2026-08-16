@@ -842,7 +842,12 @@ public class ShopServiceImpl implements ShopService {
 
     private ShopOrderVO createOrder(ShopOrderSubmitDTO dto, DmsShopMember member, String businessType) {
         if (member != null) {
-            dto.setUserId(member.getUserId());
+            DmsShopMember lockedMember = memberDao.selectByIdForUpdate(member.getId());
+            if (lockedMember == null || !Integer.valueOf(1).equals(lockedMember.getStatus())) {
+                Asserts.fail("登录账号不可用");
+            }
+            member = lockedMember;
+            dto.setUserId(lockedMember.getUserId());
         }
         fillAddress(dto, member);
         normalizeManualAddress(dto);

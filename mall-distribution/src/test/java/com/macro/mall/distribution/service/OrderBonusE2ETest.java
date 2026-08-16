@@ -216,8 +216,10 @@ class OrderBonusE2ETest {
                 VALUES (?, ?, ?, 'dummy_hash_for_test', ?, 1, ?, ?, CURRENT_TIMESTAMP)
                 """, userId, phone, "u" + userId, nickname, inviteCode, inviterId);
 
+        Long memberId = jdbcTemplate.queryForObject(
+                "SELECT id FROM dms_shop_member WHERE user_id = ?", Long.class, userId);
         DmsShopMember member = new DmsShopMember();
-        member.setId(userId);
+        member.setId(memberId);
         member.setUserId(userId);
         member.setNickname(nickname);
         member.setPhone(phone);

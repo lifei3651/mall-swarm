@@ -1,5 +1,9 @@
 package com.macro.mall.distribution.security;
 
+import com.macro.mall.common.aspect.IdempotentAspect;
+import com.macro.mall.distribution.entity.DmsShopMember;
+import com.macro.mall.distribution.service.ShopAuthService;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,6 +32,7 @@ import java.util.Enumeration;
 public class ShopSessionCookieFilter extends OncePerRequestFilter {
 
     private final ShopSessionCookieService cookieService;
+    private final ShopAuthService shopAuthService;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -52,6 +57,7 @@ public class ShopSessionCookieFilter extends OncePerRequestFilter {
         HttpServletRequest effectiveRequest = cookieAuthenticated
                 ? new AuthorizationHeaderRequest(request, "Bearer " + cookieToken)
                 : request;
+        bindStableIdempotencyPrincipal(effectiveRequest);
         filterChain.doFilter(effectiveRequest, response);
 
         // One-time compatibility bridge: an existing browser session receives
@@ -59,6 +65,17 @@ public class ShopSessionCookieFilter extends OncePerRequestFilter {
         if (!cookieAuthenticated && authorization != null && authorization.startsWith("Bearer ")
                 && "/shop/auth/me".equals(request.getRequestURI()) && response.getStatus() < 400) {
             cookieService.write(request, response, authorization.substring(7), LocalDateTime.now().plusDays(7));
+        }
+    }
+
+    private void bindStableIdempotencyPrincipal(HttpServletRequest request) {
+        String requestKey = request.getHeader("X-Idempotency-Key");
+        if (requestKey == null || requestKey.isBlank()) {
+            return;
+        }
+        DmsShopMember member = shopAuthService.resolveMember(request.getHeader("Authorization"));
+        if (member != null && member.getUserId() != null) {
+            request.setAttribute(IdempotentAspect.PRINCIPAL_ATTRIBUTE, "member:" + member.getUserId());
         }
     }
 

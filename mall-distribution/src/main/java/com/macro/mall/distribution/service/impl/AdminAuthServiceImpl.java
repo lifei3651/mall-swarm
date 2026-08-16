@@ -29,6 +29,7 @@ public class AdminAuthServiceImpl implements AdminAuthService {
     private static final int MAX_FAILED_LOGIN_COUNT = 5;
     private static final int LOGIN_LOCK_MINUTES = 15;
     private static final String BCRYPT_MARKER = "BCRYPT";
+    private static final String DUMMY_PASSWORD_HASH = BCrypt.hashpw("invalid-admin-login-placeholder");
 
     private final DmsAdminUserDao adminUserDao;
     private final DmsAdminSessionDao adminSessionDao;
@@ -48,8 +49,11 @@ public class AdminAuthServiceImpl implements AdminAuthService {
         loginCaptchaService.verify("admin", dto.getCaptchaId(), dto.getCaptchaCode());
         DmsAdminUser admin = adminUserDao.selectByUsername(dto.getUsername());
         if (admin == null) {
+            BCrypt.checkpw(dto.getPassword(), DUMMY_PASSWORD_HASH);
             Asserts.fail("账号或密码错误");
         }
+        // 即使账号正处于锁定期，也先完成一次真实密码校验，避免锁定账号形成明显的快速响应侧信道。
+        boolean passwordMatches = matchesPassword(dto.getPassword(), admin);
         if (admin.getLockTime() != null) {
             if (admin.getLockTime().plusMinutes(LOGIN_LOCK_MINUTES).isAfter(LocalDateTime.now())) {
                 Asserts.fail("账号或密码错误");
@@ -57,7 +61,7 @@ public class AdminAuthServiceImpl implements AdminAuthService {
             adminUserDao.clearLoginLock(admin.getId());
             admin.setLockTime(null);
         }
-        if (!matchesPassword(dto.getPassword(), admin)) {
+        if (!passwordMatches) {
             adminUserDao.increaseFailedLogin(admin.getId(), MAX_FAILED_LOGIN_COUNT);
             DmsAdminUser refreshed = adminUserDao.selectById(admin.getId());
             Asserts.fail("账号或密码错误");

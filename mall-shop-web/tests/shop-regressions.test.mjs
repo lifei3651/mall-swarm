@@ -204,6 +204,9 @@ test('captcha can be visibly refreshed when it is hard to read', async () => {
   assert.match(login, /aria-label="刷新图形验证码"/)
   assert.match(login, /<span>换一张<\/span>/)
   assert.match(login, /@click="refreshCaptcha"/)
+  assert.match(login, /onMounted\(\(\) => \{[\s\S]*refreshCaptcha\(\)[\s\S]*\}\)/)
+  assert.doesNotMatch(login, /if \(mode\.value === 'login'\) refreshCaptcha\(\)/)
+  assert.match(login, /\.auth-page \{ position: relative; width:min\(560px,calc\(100% - 40px\)\); \}/)
 })
 
 test('login errors stay beside their field, expire quickly, and auth pages use a compact layout', async () => {

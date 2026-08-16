@@ -286,7 +286,14 @@ public class ShopWalletServiceImpl implements ShopWalletService {
             if (isPaymentPasswordLocked(refreshed)) Asserts.fail("支付密码连续错误5次，已锁定30分钟");
             Asserts.fail("支付密码错误");
         }
-        passwordAttemptService.clearIfUnchanged(current.getId(), observedFailedCount);
+        if (!passwordAttemptService.clearIfUnchanged(current.getId(), observedFailedCount)) {
+            DmsShopMember refreshed = memberDao.selectById(current.getId());
+            if (isPaymentPasswordLocked(refreshed)) {
+                log.warn("会员支付密码在并发校验期间被锁定: memberId={}, userId={}",
+                        current.getId(), current.getUserId());
+                Asserts.fail("支付密码连续错误5次，已锁定30分钟");
+            }
+        }
     }
 
     private boolean isPaymentPasswordLocked(DmsShopMember member) {
