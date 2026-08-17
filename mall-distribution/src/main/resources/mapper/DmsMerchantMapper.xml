@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsMerchantDao">
+  <resultMap id="Base" type="com.macro.mall.distribution.entity.DmsMerchant">
+    <id column="id" property="id"/><result column="tenant_id" property="tenantId"/>
+    <result column="merchant_no" property="merchantNo"/><result column="merchant_name" property="merchantName"/>
+    <result column="contact_name" property="contactName"/><result column="contact_phone" property="contactPhone"/>
+    <result column="settlement_mode" property="settlementMode"/><result column="status" property="status"/>
+    <result column="remark" property="remark"/><result column="create_time" property="createTime"/>
+    <result column="update_time" property="updateTime"/>
+  </resultMap>
+  <sql id="cols">id,tenant_id,merchant_no,merchant_name,contact_name,contact_phone,settlement_mode,status,remark,create_time,update_time</sql>
+  <select id="selectById" resultMap="Base">SELECT <include refid="cols"/> FROM dms_merchant WHERE id=#{id}</select>
+  <select id="selectByNo" resultMap="Base">SELECT <include refid="cols"/> FROM dms_merchant WHERE tenant_id=#{tenantId} AND merchant_no=#{merchantNo} LIMIT 1</select>
+  <select id="selectList" resultMap="Base">
+    SELECT <include refid="cols"/> FROM dms_merchant
+    <where><if test="tenantId != null">tenant_id=#{tenantId}</if><if test="status != null">AND status=#{status}</if>
+      <if test="keyword != null and keyword != ''">AND (merchant_name LIKE CONCAT('%',#{keyword},'%') OR merchant_no LIKE CONCAT('%',#{keyword},'%') OR contact_phone LIKE CONCAT('%',#{keyword},'%'))</if>
+    </where> ORDER BY status DESC,id DESC
+  </select>
+  <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO dms_merchant(tenant_id,merchant_no,merchant_name,contact_name,contact_phone,settlement_mode,status,remark)
+    VALUES(#{tenantId},#{merchantNo},#{merchantName},#{contactName},#{contactPhone},#{settlementMode},#{status},#{remark})
+  </insert>
+  <update id="update">UPDATE dms_merchant SET merchant_name=#{merchantName},contact_name=#{contactName},contact_phone=#{contactPhone},settlement_mode=#{settlementMode},remark=#{remark},update_time=CURRENT_TIMESTAMP WHERE id=#{id}</update>
+  <update id="updateStatus">UPDATE dms_merchant SET status=#{status},update_time=CURRENT_TIMESTAMP WHERE id=#{id}</update>
+</mapper>

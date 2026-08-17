@@ -103,16 +103,16 @@ VALUES
 INSERT INTO dms_shop_banner (id, tenant_id, title, image_url, link_type, link_value, sort_order, status, remark)
 VALUES
 (1, 1, '商城精选套装', 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=1400&q=80', 'PRODUCT', '1', 100, 1, '首页主轮播'),
-(2, 1, '家庭复购活动', 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=1400&q=80', 'CATEGORY', '健康生活', 90, 1, '分类活动轮播');
+(2, 1, '家庭生活精选', 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=1400&q=80', 'CATEGORY', '健康生活', 90, 1, '分类活动轮播');
 
 INSERT INTO dms_shop_notice (id, tenant_id, title, content, sort_order, status)
 VALUES
-(1, 1, '内部测试商城已开启', '当前为内部全流程测试环境，正式支付通道完成商户配置后启用；生产环境不开放模拟支付。', 100, 1);
+(1, 1, '欢迎来到商城', '精选商品与售后服务均可在商城内查看。', 100, 1);
 
 INSERT INTO dms_shop_product (id, tenant_id, product_no, product_name, subtitle, category_name, cover_url, sale_price, market_price, cost_amount, pv_value, bv_value, stock, sales_count, sort_order, status, detail)
 VALUES
 (1, 1, 'LQ-SPU-001', '轻奢焕活礼盒', '适合新客体验的高转化入门套装', '护理套装', 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=900&q=80', 299.00, 399.00, 118.00, 220.00, 220.00, 500, 32, 100, 1, '包含基础护理组合，适合日常复购和新客体验。'),
-(2, 1, 'LQ-SPU-002', '每日能量组合', '家庭囤货装，适合复购与团队活动', '健康生活', 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=900&q=80', 198.00, 268.00, 72.00, 150.00, 150.00, 800, 61, 90, 1, '围绕日常健康生活场景设计，适合活动套餐。');
+(2, 1, 'LQ-SPU-002', '每日能量组合', '家庭囤货装，适合日常健康管理', '健康生活', 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=900&q=80', 198.00, 268.00, 72.00, 150.00, 150.00, 800, 61, 90, 1, '围绕日常健康生活场景设计，适合家庭日常使用。');
 
 INSERT INTO dms_shop_sku (id, product_id, sku_no, sku_name, attrs_json, sale_price, market_price, cost_amount, pv_value, bv_value, stock, sales_count, status)
 VALUES

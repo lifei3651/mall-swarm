@@ -5,6 +5,8 @@
     <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsShopProduct">
         <id column="id" property="id"/>
         <result column="tenant_id" property="tenantId"/>
+        <result column="merchant_id" property="merchantId"/>
+        <result column="merchant_name" property="merchantName"/>
         <result column="product_no" property="productNo"/>
         <result column="product_name" property="productName"/>
         <result column="subtitle" property="subtitle"/>
@@ -24,6 +26,8 @@
         <result column="repurchase_price" property="repurchasePrice"/>
         <result column="repurchase_pv" property="repurchasePv"/>
         <result column="repurchase_purchase_limit" property="repurchasePurchaseLimit"/>
+        <result column="enrollment_sale_enabled" property="enrollmentSaleEnabled"/>
+        <result column="team_bonus_mode" property="teamBonusMode"/>
         <result column="sales_count" property="salesCount"/>
         <result column="sort_order" property="sort"/>
         <result column="status" property="status"/>
@@ -48,9 +52,10 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id, tenant_id, product_no, product_name, subtitle, category_name, cover_url, gallery_urls,
+        id, tenant_id, merchant_id, merchant_name, product_no, product_name, subtitle, category_name, cover_url, gallery_urls,
         sale_price, market_price, cost_amount, pv_value, bv_value, stock, safety_stock, purchase_limit,
-        normal_sale_enabled, repurchase_sale_enabled, repurchase_price, repurchase_pv, repurchase_purchase_limit, sales_count,
+        normal_sale_enabled, repurchase_sale_enabled, repurchase_price, repurchase_pv, repurchase_purchase_limit,
+        enrollment_sale_enabled, team_bonus_mode, sales_count,
         sort_order, status, detail, detail_images, delivery_address, delivery_province, delivery_city, delivery_district, shipping_address_id, return_address_id,
         freight_type, freight_amount, free_shipping_amount, freight_template_name, freight_template_id,
         delivery_time, after_sale_policy, service_tags, create_time, update_time
@@ -161,17 +166,17 @@
 
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopProduct" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_shop_product
-        (tenant_id, product_no, product_name, subtitle, category_name, cover_url, gallery_urls, sale_price,
+        (tenant_id, merchant_id, merchant_name, product_no, product_name, subtitle, category_name, cover_url, gallery_urls, sale_price,
          market_price, cost_amount, pv_value, bv_value, stock, safety_stock, purchase_limit,
-         normal_sale_enabled, repurchase_sale_enabled, repurchase_price, repurchase_pv, repurchase_purchase_limit,
+         normal_sale_enabled, repurchase_sale_enabled, repurchase_price, repurchase_pv, repurchase_purchase_limit, enrollment_sale_enabled, team_bonus_mode,
          sales_count, sort_order, status, detail, detail_images,
          delivery_address, delivery_province, delivery_city, delivery_district, shipping_address_id, return_address_id,
          freight_type, freight_amount, free_shipping_amount, freight_template_name, freight_template_id,
          delivery_time, after_sale_policy, service_tags)
         VALUES
-        (#{tenantId}, #{productNo}, #{productName}, #{subtitle}, #{categoryName}, #{coverUrl}, #{galleryUrls}, #{salePrice},
+        (#{tenantId}, #{merchantId}, #{merchantName}, #{productNo}, #{productName}, #{subtitle}, #{categoryName}, #{coverUrl}, #{galleryUrls}, #{salePrice},
          #{marketPrice}, #{costAmount}, #{pvValue}, #{bvValue}, #{stock}, #{safetyStock}, #{purchaseLimit},
-         #{normalSaleEnabled}, #{repurchaseSaleEnabled}, #{repurchasePrice}, #{repurchasePv}, #{repurchasePurchaseLimit},
+         #{normalSaleEnabled}, #{repurchaseSaleEnabled}, #{repurchasePrice}, #{repurchasePv}, #{repurchasePurchaseLimit}, #{enrollmentSaleEnabled}, #{teamBonusMode},
          #{salesCount}, #{sort}, #{status}, #{detail}, #{detailImages},
          #{deliveryAddress}, #{deliveryProvince}, #{deliveryCity}, #{deliveryDistrict}, #{shippingAddressId}, #{returnAddressId},
          #{freightType}, #{freightAmount}, #{freeShippingAmount}, #{freightTemplateName}, #{freightTemplateId},
@@ -181,6 +186,8 @@
     <update id="update" parameterType="com.macro.mall.distribution.entity.DmsShopProduct">
         UPDATE dms_shop_product
         SET tenant_id = #{tenantId},
+            merchant_id = #{merchantId},
+            merchant_name = #{merchantName},
             product_no = #{productNo},
             product_name = #{productName},
             subtitle = #{subtitle},
@@ -200,6 +207,8 @@
             repurchase_price = #{repurchasePrice},
             repurchase_pv = #{repurchasePv},
             repurchase_purchase_limit = #{repurchasePurchaseLimit},
+            enrollment_sale_enabled = #{enrollmentSaleEnabled},
+            team_bonus_mode = #{teamBonusMode},
             sales_count = #{salesCount},
             sort_order = #{sort},
             status = #{status},

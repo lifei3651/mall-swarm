@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { loginRedirectLocation, notifyAuthRequired } from '@/utils/authNavigation'
 import { clearStaleChunkRecovery, recoverFromStaleChunk } from '@/utils/chunkRecovery'
-import { hasShopSession } from '@/utils/shopSession'
+import { hasShopSession, restoreShopSession } from '@/utils/shopSession'
 import { updatePageTitle } from '@/utils/brand'
 
 const protectedRoute = { requiresAuth: true }
@@ -29,8 +29,11 @@ const router = createRouter({
 })
 
 router.onError((error, to) => recoverFromStaleChunk(error, to ? router.resolve(to).href : undefined))
-router.beforeEach((to, from, next) => {
-  if (to.meta.requiresAuth && !hasShopSession()) {
+router.beforeEach(async (to, from, next) => {
+  const authenticated = !to.meta.requiresAuth
+    || hasShopSession()
+    || await restoreShopSession('team')
+  if (!authenticated) {
     notifyAuthRequired('请先登录团队服务中心')
     next(loginRedirectLocation(to.fullPath))
     return

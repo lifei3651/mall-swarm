@@ -35,6 +35,7 @@
       </section>
 
       <section class="product-title-section">
+        <span class="seller-badge">{{ product.merchantName || '平台自营' }}</span>
         <h1>{{ product.productName }}</h1>
         <p v-if="product.subtitle">{{ product.subtitle }}</p>
       </section>
@@ -474,6 +475,7 @@ onBeforeUnmount(() => window.clearTimeout(toastTimer))
 .sales-count { margin-left:auto; color:#6b7280; font-size:13px; }
 
 .product-title-section { padding:18px; background:#fff; border-top:1px solid #f1f1f1; }
+.seller-badge { display:inline-flex; align-items:center; min-height:24px; margin-bottom:9px; padding:2px 9px; color:#8a5a20; background:#fff7e8; border:1px solid #f3dfb9; border-radius:999px; font-size:12px; font-weight:700; }
 .product-title-section h1 { margin:0; font-size:22px; line-height:1.45; }
 .product-title-section p { margin:9px 0 0; color:#7b818b; font-size:14px; line-height:1.65; }
 .purchase-section { padding:8px 18px 20px; margin-top:8px; background:#fff; }

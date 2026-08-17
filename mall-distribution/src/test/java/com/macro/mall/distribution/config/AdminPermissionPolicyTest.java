@@ -36,4 +36,11 @@ class AdminPermissionPolicyTest {
         assertEquals("shop:aftersale", AdminPermissionPolicy.requiredPermission("POST", "/shop/admin/orders/99/refund"));
         assertEquals("shop:aftersale", AdminPermissionPolicy.requiredPermission("PUT", "/shop/admin/orders/99/cancel"));
     }
+
+    @Test
+    void separatesMerchantCatalogFromMerchantFunds() {
+        assertEquals("shop:product", AdminPermissionPolicy.requiredPermission("POST", "/distribution/merchants"));
+        assertEquals("finance:read", AdminPermissionPolicy.requiredPermission("GET", "/distribution/merchant-finance/accounts"));
+        assertEquals("finance:manage", AdminPermissionPolicy.requiredPermission("POST", "/distribution/merchant-finance/withdrawals/1/pay"));
+    }
 }

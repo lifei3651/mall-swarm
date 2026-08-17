@@ -55,10 +55,10 @@
           AND o.pay_time IS NOT NULL
           AND o.status IN (1, 2, 3)
           AND (
-              NOT EXISTS (
+              (o.merchant_id IS NULL AND NOT EXISTS (
                   SELECT 1 FROM dms_order_balance_allocation a
                   WHERE a.order_id = o.id AND a.allocation_type = 'PRODUCT_COST'
-              )
+              ))
               OR NOT EXISTS (
                   SELECT 1 FROM dms_order_balance_allocation a
                   WHERE a.order_id = o.id AND a.allocation_type = 'REMAINDER'

@@ -44,6 +44,7 @@ import com.macro.mall.distribution.service.ShopMediaStorageService;
 import com.macro.mall.distribution.service.OrderRealtimeService;
 import com.macro.mall.distribution.service.OrderBalanceAllocationService;
 import com.macro.mall.distribution.service.FlashSaleStockGate;
+import com.macro.mall.distribution.service.MerchantService;
 import com.macro.mall.distribution.util.MemberAccountUtils;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.entity.DmsAdminUser;
@@ -90,6 +91,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     private final DmsFlashSaleReservationDao flashSaleReservationDao;
     private final FlashSaleStockGate flashSaleStockGate;
     private final ShopMediaStorageService mediaStorageService;
+    private final MerchantService merchantService;
     private final ObjectMapper objectMapper;
     @Autowired(required = false)
     private OrderRealtimeService orderRealtimeService;
@@ -637,6 +639,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
                 memberAssetService.issue(balanceRefund);
             }
             List<DmsShopAfterSaleItem> items = afterSaleItemDao.selectByAfterSaleId(afterSale.getId());
+            merchantService.reverseAfterSaleItems(items);
             if (Integer.valueOf(2).equals(afterSale.getApplyType())) {
                 int returnedQuantity = 0;
                 for (DmsShopAfterSaleItem item : items) {

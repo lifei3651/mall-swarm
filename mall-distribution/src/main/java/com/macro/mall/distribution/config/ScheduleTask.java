@@ -7,6 +7,7 @@ import com.macro.mall.distribution.service.CommissionSettlementService;
 import com.macro.mall.distribution.service.ShopService;
 import com.macro.mall.distribution.service.OrderBalanceAllocationService;
 import com.macro.mall.distribution.service.OperationLogService;
+import com.macro.mall.distribution.service.MerchantService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -30,6 +31,7 @@ public class ScheduleTask {
     private final ShopService shopService;
     private final OrderBalanceAllocationService orderBalanceAllocationService;
     private final OperationLogService operationLogService;
+    private final MerchantService merchantService;
     private final DistributedScheduledTaskRunner scheduledTaskRunner;
 
     /** 每分钟关闭超时待支付订单并原子返还商品及SKU库存。 */
@@ -53,9 +55,11 @@ public class ScheduleTask {
                 int count = commissionSettlementService.settleEligibleAfterCoolingOff(200);
                 if (count > 0) log.info("T+7奖金自动结算完成: count={}", count);
                 int allocationCount = orderBalanceAllocationService.settleEligibleAfterCoolingOff(200);
-                if (allocationCount > 0) log.info("T+7订单成本及剩余商品款自动进入余额: count={}", allocationCount);
+                if (allocationCount > 0) log.info("售后期结束后的平台资金自动进入余额: count={}", allocationCount);
+                int merchantCount = merchantService.releaseEligibleSettlements(200);
+                if (merchantCount > 0) log.info("售后期结束后的商户货款转为可提现: count={}", merchantCount);
             } catch (Exception e) {
-                log.error("T+7订单资金自动结算扫描失败", e);
+                log.error("售后期结束后的订单资金自动结算扫描失败", e);
             }
         });
     }

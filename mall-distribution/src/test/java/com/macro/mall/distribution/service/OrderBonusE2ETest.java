@@ -25,7 +25,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -151,9 +150,9 @@ class OrderBonusE2ETest {
         shopService.markOrderPaid(orderId, "BALANCE");
         shopService.confirmReceive(orderId, member);
 
-        // Disable cooldown for testing
-        ReflectionTestUtils.setField(allocationService, "coolingOffDays", 0L);
-        ReflectionTestUtils.setField(settlementService, "coolingOffDays", 0L);
+        // 使用真实租户规则关闭客户自助售后等待期，不再修改已废弃的固定T+7字段。
+        jdbcTemplate.update("UPDATE dms_tenant SET after_sale_window_mode = 'RECEIVED', after_sale_window_days = 0 WHERE id = 1");
+        sqlSessionTemplate.clearCache();
 
         // Settlement should now process
         int allocated = allocationService.settleEligibleAfterCoolingOff(10);
@@ -173,7 +172,6 @@ class OrderBonusE2ETest {
                 LocalDateTime.now().minusDays(10), orderId);
         jdbcTemplate.update("UPDATE dms_tenant SET after_sale_window_mode = 'RECEIVED', after_sale_window_days = 30 WHERE id = 1");
 
-        ReflectionTestUtils.setField(settlementService, "coolingOffDays", 7L);
         settlementService.settleEligibleAfterCoolingOff(100);
         DmsCommissionRecord pending = commissionRecordDao.selectByOrderId(orderId).get(0);
         assertEquals(0, pending.getStatus(), "T+7不能早于客户配置的30天售后期限结算");

@@ -26,18 +26,15 @@ public class CommissionSettlementServiceImpl implements CommissionSettlementServ
     private final DmsCommissionRecordDao recordDao;
     private final CommissionService commissionService;
 
-    @Value("${bonus.settlement.cooling-off-days:7}")
-    private long coolingOffDays;
-
     @Override
     public DmsCommissionSettlementBatch createBatch(CommissionSettlementBatchCreateDTO dto) {
-        Asserts.fail("月度人工结算已停用，奖金在订单确认收货满7天且无待处理售后后自动结算");
+        Asserts.fail("月度人工结算已停用，奖金在订单达到商城售后期限且无待处理售后后自动结算");
         return null;
     }
 
     @Override
     public DmsCommissionSettlementBatch executeBatch(Long id) {
-        Asserts.fail("月度人工结算已停用，奖金在订单确认收货满7天且无待处理售后后自动结算");
+        Asserts.fail("月度人工结算已停用，奖金在订单达到商城售后期限且无待处理售后后自动结算");
         return null;
     }
 
@@ -47,13 +44,13 @@ public class CommissionSettlementServiceImpl implements CommissionSettlementServ
     @Override
     public int settleEligibleAfterCoolingOff(int limit) {
         int safeLimit = Math.max(1, Math.min(limit, 500));
-        LocalDateTime receivedCutoff = LocalDateTime.now().minusDays(Math.max(0, coolingOffDays));
+        LocalDateTime receivedCutoff = LocalDateTime.now();
         int settled = 0;
         for (DmsCommissionRecord record : recordDao.selectEligibleForCoolingOffSettlement(receivedCutoff, safeLimit)) {
             try {
                 if (commissionService.settleCommissionIfEligible(record.getId())) settled++;
             } catch (Exception ex) {
-                log.error("T+7奖金自动结算失败: recordId={}, orderId={}", record.getId(), record.getOrderId(), ex);
+                log.error("奖金售后等待期自动结算失败: recordId={}, orderId={}", record.getId(), record.getOrderId(), ex);
             }
         }
         return settled;

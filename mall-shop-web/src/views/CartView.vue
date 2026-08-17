@@ -35,6 +35,7 @@
             <img :src="item.coverUrl" :alt="item.productName" loading="lazy" />
           </div>
           <div class="item-info">
+            <p class="merchant-line">{{ item.merchantName || '平台自营' }}</p>
             <p class="line-title" :title="item.productName">{{ item.productName }}</p>
             <p class="line-sub">{{ formatProductSpec(item) }}</p>
             <div class="price-row">
@@ -213,11 +214,16 @@ const validateCheckoutItems = async (rows) => {
   const productDetails = new Map()
   for (const item of rows) {
     if (!productDetails.has(item.id)) productDetails.set(item.id, (await getProduct(item.id)).data || {})
-    const latestStock = resolveCurrentStock(item, productDetails.get(item.id))
+    const detail = productDetails.get(item.id)
+    const latestProduct = detail.product || detail
+    item.merchantName = latestProduct.merchantName || ''
+    const latestStock = resolveCurrentStock(item, detail)
     item.stock = latestStock
     const stockError = stockQuantityViolation(latestStock, item.quantity)
     if (stockError) throw new Error(stockError)
   }
+  const sellers = new Set(rows.map((item) => item.merchantName || '平台自营'))
+  if (sellers.size > 1) throw new Error('不同商户或平台自营商品请分开结算')
   const quantities = new Map()
   rows.forEach((item) => quantities.set(item.id, (quantities.get(item.id) || 0) + Number(item.quantity || 0)))
   for (const item of rows) {
@@ -301,6 +307,7 @@ onBeforeUnmount(() => window.clearTimeout(toastTimer))
 .item-image-wrap { width:88px; height:88px; overflow:hidden; background:#f5f6f7; border:1px solid #f0f1f2; border-radius:12px; }
 .cart-item .item-image-wrap img { display:block; width:100%; height:100%; object-fit:cover; object-position:center; transform:scale(1.06); }
 .item-info { min-width: 0; }
+.merchant-line { margin:0 0 3px; color:#8a5a20; font-size:11px; font-weight:700; }
 .item-info .line-title { display:-webkit-box; min-height:40px; margin:0 0 4px; overflow:hidden; color:#222934; font-size:14px; font-weight:700; line-height:20px; overflow-wrap:anywhere; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
 .item-info .line-sub { margin:0 0 6px; overflow:hidden; color:var(--muted); font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
 .price-row { display: flex; align-items: baseline; gap: 8px; }

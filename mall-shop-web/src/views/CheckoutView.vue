@@ -117,6 +117,7 @@
         <div v-for="item in items" :key="item.cartKey || item.id" class="order-line">
           <img :src="item.coverUrl" :alt="item.productName" />
           <div>
+            <p class="line-sub seller-line">{{ item.merchantName || '平台自营' }}</p>
             <p class="line-title">{{ item.productName }}</p>
             <p class="line-sub">
               {{ formatProductSpec(item) }} · x {{ item.quantity }}
@@ -298,6 +299,7 @@ const items = checkoutItems.value
 const businessTypes = [...new Set(items.map((item) => item.businessType || 'NORMAL'))]
 const businessType = businessTypes.length === 1 ? businessTypes[0] : 'MIXED'
 const businessSourceId = items[0]?.businessSourceId || null
+const checkoutSellers = [...new Set(items.map((item) => item.merchantName || '平台自营'))]
 const submitting = ref(false)
 const orderRequestKey = ref('')
 const balancePaymentRequestKey = ref('')
@@ -753,6 +755,7 @@ const continueAfterPasswordSaved = async () => {
 }
 
 const submit = async () => {
+  if (checkoutSellers.length > 1) return showCheckoutError('不同商户或平台自营商品请分开结算')
   if (submitting.value || payPasswordSubmitting.value) return
   clearCheckoutError()
   if (form.value.payType === 'BALANCE' && paymentPasswordLocked.value) {

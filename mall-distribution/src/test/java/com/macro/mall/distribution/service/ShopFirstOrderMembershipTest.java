@@ -46,6 +46,7 @@ class ShopFirstOrderMembershipTest {
     @Mock private OrderRelationSnapshotService relationSnapshotService;
     @Mock private ShopAuthService authService;
     @Mock private ErpIntegrationService erpIntegrationService;
+    @Mock private MerchantService merchantService;
     @Mock private ShopAfterSaleWindowPolicy afterSaleWindowPolicy;
     @InjectMocks private ShopServiceImpl shopService;
 
@@ -90,6 +91,56 @@ class ShopFirstOrderMembershipTest {
         verify(relationSnapshotService).capture(order);
         verify(performanceService).recordOrderPerformance(eq(90001L), eq("FIRST-ORDER-90001"),
                 eq(new BigDecimal("299.00")), eq(1), eq(80001L), any());
+    }
+
+    @Test
+    void mixedBonusItemsAllocateOrderDiscountByEligibleAmount() {
+        DmsShopOrder order = new DmsShopOrder();
+        order.setId(90003L);
+        order.setOrderNo("MIXED-BONUS-90003");
+        order.setTenantId(1L);
+        order.setUserId(80003L);
+        order.setStatus(0);
+        order.setTotalAmount(new BigDecimal("1000.00"));
+        order.setDiscountAmount(new BigDecimal("100.00"));
+        order.setPayAmount(new BigDecimal("900.00"));
+
+        DmsShopOrderItem bonusItem = new DmsShopOrderItem();
+        bonusItem.setTeamBonusMode("STANDARD");
+        bonusItem.setTotalAmount(new BigDecimal("100.00"));
+        bonusItem.setQuantity(1);
+        DmsShopOrderItem ordinaryItem = new DmsShopOrderItem();
+        ordinaryItem.setTeamBonusMode("NONE");
+        ordinaryItem.setTotalAmount(new BigDecimal("900.00"));
+        ordinaryItem.setQuantity(9);
+
+        DmsShopMember member = new DmsShopMember();
+        member.setUserId(80003L);
+        member.setTeamOptIn(1);
+        AgentInfoVO activated = new AgentInfoVO();
+        activated.setId(70003L);
+        DmsAgent agent = new DmsAgent();
+        agent.setId(70003L);
+        agent.setUserId(80003L);
+        agent.setAgentName("混合奖金会员");
+
+        when(orderDao.selectById(90003L)).thenReturn(order);
+        when(orderDao.markPaid(90003L, "BALANCE")).thenReturn(1);
+        when(orderItemDao.selectByOrderId(90003L)).thenReturn(List.of(bonusItem, ordinaryItem));
+        when(memberDao.selectByUserId(80003L)).thenReturn(member);
+        when(authService.activateMember(eq(80003L), eq(1), anyString())).thenReturn(activated);
+        when(agentDao.selectByUserId(80003L)).thenReturn(agent);
+        when(auditService.getOrderFinanceDetail(90003L)).thenReturn(new OrderFinanceDetailVO());
+        when(afterSaleDao.selectByOrderId(90003L)).thenReturn(List.of());
+        when(afterSaleWindowPolicy.resolve(1L))
+                .thenReturn(new ShopAfterSaleWindowPolicy.Window(ShopAfterSaleWindowPolicy.MODE_RECEIVED, 7));
+
+        shopService.markOrderPaid(90003L, "BALANCE");
+
+        verify(performanceService).recordOrderPerformance(eq(90003L), eq("MIXED-BONUS-90003"),
+                eq(new BigDecimal("90.00")), eq(1), eq(80003L), any());
+        verify(commissionService).calculateAndRecordCommission(eq(1L), eq(90003L), eq("MIXED-BONUS-90003"),
+                eq(new BigDecimal("90.00")), eq(80003L), eq("混合奖金会员"));
     }
 
     @Test

@@ -750,9 +750,84 @@ CREATE TABLE IF NOT EXISTS dms_shop_notice (
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS dms_merchant (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  merchant_no VARCHAR(64) NOT NULL,
+  merchant_name VARCHAR(128) NOT NULL,
+  contact_name VARCHAR(64),
+  contact_phone VARCHAR(32),
+  settlement_mode VARCHAR(24) NOT NULL DEFAULT 'COST_PRICE',
+  status INT NOT NULL DEFAULT 1,
+  remark VARCHAR(500),
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(tenant_id, merchant_no)
+);
+
+CREATE TABLE IF NOT EXISTS dms_merchant_account (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  merchant_id BIGINT NOT NULL UNIQUE,
+  pending_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+  available_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+  frozen_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+  debt_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+  total_paid_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS dms_merchant_settlement (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  merchant_id BIGINT NOT NULL,
+  order_id BIGINT NOT NULL,
+  order_no VARCHAR(64) NOT NULL,
+  order_item_id BIGINT NOT NULL,
+  product_id BIGINT NOT NULL,
+  sku_id BIGINT,
+  quantity INT NOT NULL,
+  refunded_quantity INT NOT NULL DEFAULT 0,
+  cost_amount DECIMAL(12,2) NOT NULL,
+  settlement_amount DECIMAL(14,2) NOT NULL,
+  reversed_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+  status VARCHAR(16) NOT NULL DEFAULT 'PENDING',
+  available_time TIMESTAMP,
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(order_item_id)
+);
+
+CREATE TABLE IF NOT EXISTS dms_merchant_withdrawal (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  withdrawal_no VARCHAR(64) NOT NULL UNIQUE,
+  merchant_id BIGINT NOT NULL,
+  requested_amount DECIMAL(14,2) NOT NULL,
+  invoice_required_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+  invoice_received_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+  invoice_status VARCHAR(20) NOT NULL DEFAULT 'NOT_REQUIRED',
+  adjustment_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+  adjustment_reason VARCHAR(256),
+  actual_paid_amount DECIMAL(14,2),
+  payment_reference VARCHAR(128),
+  payment_voucher_url VARCHAR(512),
+  status VARCHAR(20) NOT NULL DEFAULT 'SUBMITTED',
+  reject_reason VARCHAR(256),
+  operator_id BIGINT,
+  operator_name VARCHAR(64),
+  apply_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  paid_time TIMESTAMP,
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS dms_shop_product (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   tenant_id BIGINT NOT NULL DEFAULT 1,
+  merchant_id BIGINT,
+  merchant_name VARCHAR(128),
   product_no VARCHAR(64) NOT NULL UNIQUE,
   product_name VARCHAR(256) NOT NULL,
   subtitle VARCHAR(512),
@@ -772,6 +847,8 @@ CREATE TABLE IF NOT EXISTS dms_shop_product (
   repurchase_price DECIMAL(12,2) NOT NULL DEFAULT 0,
   repurchase_pv DECIMAL(12,2) NOT NULL DEFAULT 0,
   repurchase_purchase_limit INT NOT NULL DEFAULT 0,
+  enrollment_sale_enabled INT NOT NULL DEFAULT 0,
+  team_bonus_mode VARCHAR(16) NOT NULL DEFAULT 'INHERIT',
   sales_count INT NOT NULL DEFAULT 0,
   sort_order INT NOT NULL DEFAULT 0,
   status INT NOT NULL DEFAULT 1,
@@ -852,6 +929,8 @@ CREATE TABLE IF NOT EXISTS dms_shop_order (
   id BIGINT PRIMARY KEY,
   order_no VARCHAR(64) NOT NULL UNIQUE,
   tenant_id BIGINT NOT NULL DEFAULT 1,
+  merchant_id BIGINT,
+  merchant_name VARCHAR(128),
   user_id BIGINT NOT NULL DEFAULT 0,
   agent_id BIGINT,
   invite_code VARCHAR(32),
@@ -904,6 +983,8 @@ CREATE TABLE IF NOT EXISTS dms_shop_order_item (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   order_id BIGINT NOT NULL,
   order_no VARCHAR(64) NOT NULL,
+  merchant_id BIGINT,
+  merchant_name VARCHAR(128),
   product_id BIGINT NOT NULL,
   sku_id BIGINT,
   product_name VARCHAR(256) NOT NULL,
@@ -917,6 +998,7 @@ CREATE TABLE IF NOT EXISTS dms_shop_order_item (
   total_pv DECIMAL(12,2) NOT NULL DEFAULT 0,
   cost_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
   total_cost DECIMAL(12,2) NOT NULL DEFAULT 0,
+  team_bonus_mode VARCHAR(16) NOT NULL DEFAULT 'INHERIT',
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

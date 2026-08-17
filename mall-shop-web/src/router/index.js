@@ -3,7 +3,7 @@ import { updatePageTitle } from '@/utils/brand'
 import { isNativeApp } from '@/utils/appEnvironment'
 import { loginRedirectLocation, notifyAuthRequired } from '@/utils/authNavigation'
 import { clearStaleChunkRecovery, recoverFromStaleChunk } from '@/utils/chunkRecovery'
-import { hasShopSession } from '@/utils/shopSession'
+import { hasShopSession, restoreShopSession } from '@/utils/shopSession'
 
 const routes = [
   { path: '/', name: 'Home', component: () => import('@/views/HomeView.vue') },
@@ -44,8 +44,11 @@ router.onError((error, to) => {
 })
 
 // 路由守卫只检查非敏感会话提示；真正身份始终由 HttpOnly Cookie 和服务端确认。
-router.beforeEach((to, from, next) => {
-  if (to.meta.requiresAuth && !hasShopSession()) {
+router.beforeEach(async (to, from, next) => {
+  const authenticated = !to.meta.requiresAuth
+    || hasShopSession()
+    || await restoreShopSession('public')
+  if (!authenticated) {
     notifyAuthRequired('请先登录')
     next(loginRedirectLocation(to.fullPath))
   } else {

@@ -18,6 +18,10 @@ public class DmsShopOrder implements Serializable {
 
     private Long tenantId;
 
+    private Long merchantId;
+
+    private String merchantName;
+
     private Long userId;
 
     private Long agentId;

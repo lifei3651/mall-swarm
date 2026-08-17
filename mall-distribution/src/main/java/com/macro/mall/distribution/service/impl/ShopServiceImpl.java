@@ -34,6 +34,7 @@ import com.macro.mall.distribution.service.OrderRelationSnapshotService;
 import com.macro.mall.distribution.service.OrderBalanceAllocationService;
 import com.macro.mall.distribution.service.OrderRealtimeService;
 import com.macro.mall.distribution.service.OperationLogService;
+import com.macro.mall.distribution.service.MerchantService;
 import com.macro.mall.distribution.vo.OrderFinanceVO;
 import com.macro.mall.distribution.vo.ShopHomeVO;
 import com.macro.mall.distribution.vo.ShopLegalConfigVO;
@@ -55,6 +56,7 @@ import com.github.pagehelper.PageHelper;
 import cn.hutool.crypto.digest.DigestUtil;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -120,6 +122,8 @@ public class ShopServiceImpl implements ShopService {
     private final DmsFlashSaleReservationDao flashSaleReservationDao;
     private final FlashSaleStockGate flashSaleStockGate;
     private final OperationLogService operationLogService;
+    private final DmsMerchantDao merchantDao;
+    private final MerchantService merchantService;
 
     @Value("${shop.order.pending-timeout-minutes:30}")
     private long pendingOrderTimeoutMinutes;
@@ -760,6 +764,9 @@ public class ShopServiceImpl implements ShopService {
         Map<Long, ProductShippingContext> shippingProducts = new LinkedHashMap<>();
         Map<Long, Integer> requestedPurchaseQuantities = new HashMap<>();
         Map<Long, Integer> existingPurchaseQuantities = new HashMap<>();
+        boolean merchantResolved = false;
+        Long orderMerchantId = null;
+        String orderMerchantName = null;
         BigDecimal productAmount = ZERO;
         for (ShopOrderItemDTO item : dto.getItems()) {
             if (item.getProductId() == null) Asserts.fail("商品ID不能为空");
@@ -770,6 +777,13 @@ public class ShopServiceImpl implements ShopService {
             int requestedQuantity = requestedPurchaseQuantities.merge(product.getId(), quantity, Integer::sum);
             validateBusinessProduct(businessType, product, dto.getUserId(), requestedQuantity,
                     existingPurchaseQuantities, flashActivity, item);
+            if (!merchantResolved) {
+                merchantResolved = true;
+                orderMerchantId = product.getMerchantId();
+                orderMerchantName = product.getMerchantName();
+            } else if (!Objects.equals(orderMerchantId, product.getMerchantId())) {
+                Asserts.fail("不同商户或平台自营商品请分开结算");
+            }
             requireSkuSelection(product, item.getSkuId());
             DmsShopSku sku = null;
             if (item.getSkuId() != null) {
@@ -871,6 +885,9 @@ public class ShopServiceImpl implements ShopService {
         }
         Map<Long, Integer> requestedPurchaseQuantities = new HashMap<>();
         Map<Long, Integer> existingPurchaseQuantities = new HashMap<>();
+        boolean merchantResolved = false;
+        Long orderMerchantId = null;
+        String orderMerchantName = null;
 
         for (ShopOrderItemDTO itemDTO : dto.getItems()) {
             Integer quantity = itemDTO.getQuantity() == null || itemDTO.getQuantity() <= 0 ? 1 : itemDTO.getQuantity();
@@ -882,6 +899,16 @@ public class ShopServiceImpl implements ShopService {
             int requestedQuantity = requestedPurchaseQuantities.merge(product.getId(), quantity, Integer::sum);
             validateBusinessProduct(businessType, product, dto.getUserId(), requestedQuantity,
                     existingPurchaseQuantities, flashActivity, itemDTO);
+            if ("CUSTOM".equals(normalizeTeamBonusMode(product))) {
+                Asserts.fail("该商品使用客户定制奖金制度，制度未配置完成前不能下单");
+            }
+            if (!merchantResolved) {
+                merchantResolved = true;
+                orderMerchantId = product.getMerchantId();
+                orderMerchantName = product.getMerchantName();
+            } else if (!Objects.equals(orderMerchantId, product.getMerchantId())) {
+                Asserts.fail("不同商户或平台自营商品请分开结算");
+            }
             requireSkuSelection(product, itemDTO.getSkuId());
             DmsShopSku sku = null;
             if (itemDTO.getSkuId() != null) {
@@ -922,6 +949,8 @@ public class ShopServiceImpl implements ShopService {
             DmsShopOrderItem orderItem = new DmsShopOrderItem();
             orderItem.setOrderId(orderId);
             orderItem.setOrderNo(orderNo);
+            orderItem.setMerchantId(product.getMerchantId());
+            orderItem.setMerchantName(product.getMerchantName());
             orderItem.setProductId(product.getId());
             orderItem.setSkuId(sku == null ? null : sku.getId());
             orderItem.setProductName(product.getProductName());
@@ -935,6 +964,7 @@ public class ShopServiceImpl implements ShopService {
             orderItem.setTotalPv(itemPv);
             orderItem.setCostAmount(cost);
             orderItem.setTotalCost(itemCost);
+            orderItem.setTeamBonusMode(normalizeTeamBonusMode(product));
             orderItems.add(orderItem);
         }
 
@@ -946,6 +976,8 @@ public class ShopServiceImpl implements ShopService {
         order.setId(orderId);
         order.setOrderNo(orderNo);
         order.setTenantId(tenantId);
+        order.setMerchantId(orderMerchantId);
+        order.setMerchantName(orderMerchantName);
         order.setUserId(resolveOrderUserId(dto, ownerAgent));
         order.setAgentId(ownerAgent == null ? null : ownerAgent.getId());
         order.setInviteCode(dto.getInviteCode());
@@ -1194,9 +1226,14 @@ public class ShopServiceImpl implements ShopService {
         int updated = orderDao.markPaid(orderId, payType);
         DmsTenant tenant = tenantDao.selectById(order.getTenantId());
         // 兼容少量只构造旧依赖集合的单元测试；生产环境由Spring完整注入。
-        boolean standardBonus = businessModeService == null
+        List<DmsShopOrderItem> paidItems = orderItemDao.selectByOrderId(order.getId());
+        boolean inheritedBonus = paidItems.isEmpty() || paidItems.stream().anyMatch(item ->
+                item.getTeamBonusMode() == null || item.getTeamBonusMode().isBlank()
+                        || "INHERIT".equals(item.getTeamBonusMode()));
+        boolean explicitStandardBonus = paidItems.stream().anyMatch(item -> "STANDARD".equals(item.getTeamBonusMode()));
+        boolean standardBonus = explicitStandardBonus || (inheritedBonus && (businessModeService == null
                 ? order.getBusinessType() == null || ShopBusinessType.NORMAL.equals(order.getBusinessType())
-                : businessModeService.usesStandardBonus(tenant, order.getBusinessType());
+                : businessModeService.usesStandardBonus(tenant, order.getBusinessType())));
         DmsShopMember payingMember = order.getUserId() == null ? null : memberDao.selectByUserId(order.getUserId());
         // 旧数据字段为空时继续兼容原一体化商城；新公开商城账号明确写0，不进入团队奖金链路。
         boolean teamParticipant = payingMember == null || !Integer.valueOf(0).equals(payingMember.getTeamOptIn());
@@ -1219,23 +1256,26 @@ public class ShopServiceImpl implements ShopService {
             if (agent != null) {
                 LocalDateTime paidTime = LocalDateTime.now();
                 // 运费只计入订单实付和财务，不计入业绩、累计单量金额或奖金基数。
-                BigDecimal bonusBaseAmount = productBonusBase(order);
+                BigDecimal bonusBaseAmount = productBonusBase(order, paidItems);
+                int bonusQuantity = paidItems.isEmpty() ? 1 : paidItems.stream()
+                        .filter(this::isBonusEligibleItem)
+                        .map(DmsShopOrderItem::getQuantity).filter(java.util.Objects::nonNull)
+                        .mapToInt(Integer::intValue).sum();
                 performanceService.recordOrderPerformance(
-                        order.getId(), order.getOrderNo(), bonusBaseAmount, Math.max(1,
-                                orderItemDao.selectByOrderId(order.getId()).stream()
-                                        .map(DmsShopOrderItem::getQuantity).filter(java.util.Objects::nonNull)
-                                        .mapToInt(Integer::intValue).sum()), agent.getUserId(), paidTime);
+                        order.getId(), order.getOrderNo(), bonusBaseAmount, Math.max(1, bonusQuantity),
+                        agent.getUserId(), paidTime);
                 commissionService.calculateAndRecordCommission(
                         order.getTenantId(), order.getId(), order.getOrderNo(), bonusBaseAmount,
                         agent.getUserId(), agent.getAgentName());
             }
         }
-        if (updated > 0 && standardBonus) {
-            // 普通购物账号没有奖金时同样生成订单财务和公司资金归集，剩余商品款自然为全额口径。
+        if (updated > 0) {
+            // 所有支付订单都生成财务口径；商户成本进入商户货款账户，平台只归集剩余商品款。
             auditService.refreshOrderFinance(order.getId(), order.getOrderNo(), order.getPayAmount());
             orderBalanceAllocationService.prepareForOrder(order.getId());
         }
         if (updated > 0) {
+            merchantService.createOrderSettlements(order.getId());
             if (ShopBusinessType.FLASH_SALE.equals(order.getBusinessType())) {
                 flashSaleReservationDao.updateStatusByOrder(orderId, "PAID");
             }
@@ -1642,6 +1682,7 @@ public class ShopServiceImpl implements ShopService {
         product.setPurchaseLimit(product.getPurchaseLimit() == null ? 0 : Math.max(0, product.getPurchaseLimit()));
         product.setNormalSaleEnabled(Integer.valueOf(0).equals(product.getNormalSaleEnabled()) ? 0 : 1);
         product.setRepurchaseSaleEnabled(Integer.valueOf(1).equals(product.getRepurchaseSaleEnabled()) ? 1 : 0);
+        product.setEnrollmentSaleEnabled(Integer.valueOf(1).equals(product.getEnrollmentSaleEnabled()) ? 1 : 0);
         product.setRepurchasePrice(money(product.getRepurchasePrice()));
         product.setRepurchasePv(money(product.getRepurchasePv()));
         product.setRepurchasePurchaseLimit(product.getRepurchasePurchaseLimit() == null
@@ -1649,6 +1690,38 @@ public class ShopServiceImpl implements ShopService {
         if (Integer.valueOf(1).equals(product.getRepurchaseSaleEnabled())) {
             if (product.getRepurchasePrice().compareTo(ZERO) <= 0) Asserts.fail("启用复购销售时复购价必须大于0");
             validatePv(product.getRepurchasePv(), product.getRepurchasePrice(), "复购PV");
+        }
+        if (product.getNormalSaleEnabled() == 0 && product.getRepurchaseSaleEnabled() == 0
+                && product.getEnrollmentSaleEnabled() == 0) {
+            Asserts.fail("普通商城、复购区、报单区至少启用一个");
+        }
+        String bonusMode = normalizeTeamBonusMode(product);
+        product.setTeamBonusMode(bonusMode);
+        if (product.getMerchantId() == null) {
+            product.setMerchantName(null);
+            if (!"INHERIT".equals(bonusMode) && !"NONE".equals(bonusMode)) {
+                Asserts.fail("平台自营商品请使用继承商城规则或不参与团队奖金");
+            }
+        } else {
+            DmsMerchant merchant = merchantDao.selectById(product.getMerchantId());
+            if (merchant == null || !product.getTenantId().equals(merchant.getTenantId())
+                    || !Integer.valueOf(1).equals(merchant.getStatus())) {
+                Asserts.fail("所选商户不存在或已停用");
+            }
+            product.setMerchantName(merchant.getMerchantName());
+            if (product.getCostAmount().compareTo(ZERO) <= 0) Asserts.fail("商户商品必须填写大于0的结算成本价");
+            if (Integer.valueOf(1).equals(product.getNormalSaleEnabled())
+                    && product.getCostAmount().compareTo(product.getSalePrice()) > 0) {
+                Asserts.fail("商户商品成本价不能高于普通售价");
+            }
+            if (Integer.valueOf(1).equals(product.getRepurchaseSaleEnabled())
+                    && product.getCostAmount().compareTo(product.getRepurchasePrice()) > 0) {
+                Asserts.fail("商户商品成本价不能高于复购价");
+            }
+            if ("INHERIT".equals(bonusMode)) Asserts.fail("商户商品必须明确选择是否参与团队奖金");
+            if ("STANDARD".equals(bonusMode) && Integer.valueOf(1).equals(product.getNormalSaleEnabled())) {
+                Asserts.fail("参与团队奖金的商户商品只能进入复购区或报单区，不能同时在普通商城销售");
+            }
         }
         product.setSalesCount(product.getSalesCount() == null ? 0 : product.getSalesCount());
         product.setSort(product.getSort() == null ? 0 : product.getSort());
@@ -1856,6 +1929,14 @@ public class ShopServiceImpl implements ShopService {
         if (sku.getRepurchasePrice() != null && sku.getRepurchasePrice().compareTo(ZERO) > 0) {
             validatePv(sku.getRepurchasePv(), sku.getRepurchasePrice(), "SKU复购PV");
         }
+        if (product != null && product.getMerchantId() != null) {
+            if (sku.getCostAmount().compareTo(ZERO) <= 0) Asserts.fail("商户商品SKU必须填写大于0的结算成本价");
+            if (sku.getCostAmount().compareTo(sku.getSalePrice()) > 0) Asserts.fail("商户商品SKU成本价不能高于普通售价");
+            if (sku.getRepurchasePrice() != null && sku.getRepurchasePrice().compareTo(ZERO) > 0
+                    && sku.getCostAmount().compareTo(sku.getRepurchasePrice()) > 0) {
+                Asserts.fail("商户商品SKU成本价不能高于复购价");
+            }
+        }
         sku.setBvValue(money(dto.getBvValue()));
         sku.setStock(dto.getStock() == null ? 0 : dto.getStock());
         sku.setSafetyStock(dto.getSafetyStock() == null ? 0 : Math.max(0, dto.getSafetyStock()));
@@ -1919,12 +2000,41 @@ public class ShopServiceImpl implements ShopService {
         return freight.setScale(2, java.math.RoundingMode.HALF_UP);
     }
 
-    /** 新订单直接使用商品合计；兼容旧订单时由实付减掉运费，避免运费进入奖金。 */
-    private BigDecimal productBonusBase(DmsShopOrder order) {
-        BigDecimal productAmount = order.getTotalAmount() == null
-                ? money(order.getPayAmount()).subtract(money(order.getFreightAmount()))
-                : money(order.getTotalAmount());
-        return productAmount.subtract(money(order.getDiscountAmount())).max(ZERO);
+    /**
+     * 只把允许发团队奖的商品计入奖金基数；整单优惠按商品金额比例分摊。
+     * 历史订单缺少商品快照时继续使用原“商品金额减优惠”口径。
+     */
+    private BigDecimal productBonusBase(DmsShopOrder order, List<DmsShopOrderItem> items) {
+        if (items == null || items.isEmpty()) {
+            BigDecimal productAmount = order.getTotalAmount() == null
+                    ? money(order.getPayAmount()).subtract(money(order.getFreightAmount()))
+                    : money(order.getTotalAmount());
+            return productAmount.subtract(money(order.getDiscountAmount())).max(ZERO);
+        }
+        BigDecimal gross = items.stream()
+                .map(DmsShopOrderItem::getTotalAmount).filter(Objects::nonNull)
+                .reduce(ZERO, BigDecimal::add);
+        BigDecimal eligible = items.stream()
+                .filter(this::isBonusEligibleItem)
+                .map(DmsShopOrderItem::getTotalAmount).filter(Objects::nonNull)
+                .reduce(ZERO, BigDecimal::add);
+        if (eligible.compareTo(ZERO) <= 0 || gross.compareTo(ZERO) <= 0) return ZERO;
+        BigDecimal eligibleDiscount = money(order.getDiscountAmount())
+                .multiply(eligible).divide(gross, 2, RoundingMode.HALF_UP);
+        return eligible.subtract(eligibleDiscount).max(ZERO).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private boolean isBonusEligibleItem(DmsShopOrderItem item) {
+        String mode = item == null ? null : item.getTeamBonusMode();
+        return mode == null || mode.isBlank() || "INHERIT".equals(mode) || "STANDARD".equals(mode);
+    }
+
+    private String normalizeTeamBonusMode(DmsShopProduct product) {
+        String mode = product.getTeamBonusMode();
+        if (mode == null || mode.isBlank()) return product.getMerchantId() == null ? "INHERIT" : "NONE";
+        mode = mode.trim().toUpperCase(Locale.ROOT);
+        if (!Set.of("INHERIT", "NONE", "STANDARD", "CUSTOM").contains(mode)) Asserts.fail("团队奖金模式不正确");
+        return mode;
     }
 
     private FreightDecision resolveFreightDecision(DmsFreightTemplate template, ShopOrderSubmitDTO dto) {

@@ -21,6 +21,9 @@ public final class ShopPublicViewSanitizer {
         value.setShippingAddressId(null);
         value.setReturnAddressId(null);
         value.setFreightTemplateId(null);
+        value.setMerchantId(null);
+        value.setEnrollmentSaleEnabled(null);
+        value.setTeamBonusMode(null);
         value.setCreateTime(null);
         value.setUpdateTime(null);
         if (!repurchaseView) {
@@ -49,10 +52,15 @@ public final class ShopPublicViewSanitizer {
     public static ShopOrderVO order(ShopOrderVO value) {
         if (value == null) return null;
         value.setFinance(null);
-        if (value.getOrder() != null) value.getOrder().setTotalCost(null);
+        if (value.getOrder() != null) {
+            value.getOrder().setTotalCost(null);
+            value.getOrder().setMerchantId(null);
+        }
         if (value.getItems() != null) value.getItems().forEach(item -> {
             item.setCostAmount(null);
             item.setTotalCost(null);
+            item.setMerchantId(null);
+            item.setTeamBonusMode(null);
         });
         return value;
     }

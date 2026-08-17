@@ -17,6 +17,10 @@ public class DmsShopOrderItem implements Serializable {
 
     private String orderNo;
 
+    private Long merchantId;
+
+    private String merchantName;
+
     private Long productId;
 
     private Long skuId;
@@ -42,6 +46,8 @@ public class DmsShopOrderItem implements Serializable {
     private BigDecimal costAmount;
 
     private BigDecimal totalCost;
+
+    private String teamBonusMode;
 
     private LocalDateTime createTime;
 }

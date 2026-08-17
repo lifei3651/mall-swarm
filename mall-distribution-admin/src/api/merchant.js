@@ -1,0 +1,12 @@
+import request from '@/utils/request'
+
+export const listMerchants = (params) => request({ url: '/distribution/merchants', method: 'get', params })
+export const saveMerchant = (id, data) => request({ url: id ? `/distribution/merchants/${id}` : '/distribution/merchants', method: id ? 'put' : 'post', data })
+export const updateMerchantStatus = (id, status) => request({ url: `/distribution/merchants/${id}/status`, method: 'put', params: { status } })
+export const listMerchantAccounts = (params) => request({ url: '/distribution/merchant-finance/accounts', method: 'get', params })
+export const listMerchantSettlements = (params) => request({ url: '/distribution/merchant-finance/settlements', method: 'get', params })
+export const listMerchantWithdrawals = (params) => request({ url: '/distribution/merchant-finance/withdrawals', method: 'get', params })
+export const applyMerchantWithdrawal = (data) => request({ url: '/distribution/merchant-finance/withdrawals', method: 'post', data })
+export const reviewMerchantWithdrawal = (id, data) => request({ url: `/distribution/merchant-finance/withdrawals/${id}/review`, method: 'put', data })
+export const payMerchantWithdrawal = (id, data) => request({ url: `/distribution/merchant-finance/withdrawals/${id}/pay`, method: 'post', data })
+export const rejectMerchantWithdrawal = (id, data) => request({ url: `/distribution/merchant-finance/withdrawals/${id}/reject`, method: 'post', data })

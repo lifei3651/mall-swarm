@@ -38,7 +38,7 @@ import java.util.List;
 
 /**
  * 商品资金归集：产品成本与剩余商品款进入独立的系统资金账户，不占用客户登录账号。
- * 运费不参与归集；两类资金均在确认收货满7天且无待处理售后后进入真实余额。
+ * 运费不参与归集；两类资金均在订单达到租户实际售后期限且无待处理售后后进入真实余额。
  */
 @Slf4j
 @Service
@@ -65,9 +65,6 @@ public class OrderBalanceAllocationServiceImpl implements OrderBalanceAllocation
     @Value("${order.balance-allocation.product-cost-account:SYSTEM_PRODUCT_COST}")
     private String productCostAccount;
 
-    @Value("${bonus.settlement.cooling-off-days:7}")
-    private long coolingOffDays;
-
     @Override
     @Transactional(rollbackFor = Exception.class)
     public List<DmsOrderBalanceAllocation> prepareForOrder(Long orderId) {
@@ -83,7 +80,10 @@ public class OrderBalanceAllocationServiceImpl implements OrderBalanceAllocation
         }
 
         AllocationAmounts amounts = calculateAmounts(order, finance);
-        createIfMissing(order, PRODUCT_COST, productCostAccount, amounts.originalCost(), amounts.currentCost());
+        // 第三方商户的成本款进入商户货款账户，不能再重复进入平台商品成本账户。
+        if (order.getMerchantId() == null) {
+            createIfMissing(order, PRODUCT_COST, productCostAccount, amounts.originalCost(), amounts.currentCost());
+        }
         createIfMissing(order, REMAINDER, remainderAccount, amounts.originalRemainder(), amounts.currentRemainder());
         return hydrate(allocationDao.selectByOrderId(orderId));
     }
@@ -112,7 +112,7 @@ public class OrderBalanceAllocationServiceImpl implements OrderBalanceAllocation
         int safeLimit = Math.max(1, Math.min(limit, 500));
         // 兼容上线前已经支付/收货的订单；缺失目标账号时不会影响用户支付，账号准备好后会自动补建。
         prepareMissingOrders(safeLimit);
-        LocalDateTime cutoff = LocalDateTime.now().minusDays(Math.max(0, coolingOffDays));
+        LocalDateTime cutoff = LocalDateTime.now();
         int settled = 0;
         for (Long allocationId : allocationDao.selectEligibleIds(TenantContext.getTenantId(), cutoff, safeLimit)) {
             try {
@@ -133,8 +133,7 @@ public class OrderBalanceAllocationServiceImpl implements OrderBalanceAllocation
         }
         DmsShopOrder order = orderDao.selectByIdForUpdate(allocation.getOrderId());
         LocalDateTime now = LocalDateTime.now();
-        if (order == null || !Integer.valueOf(3).equals(order.getStatus()) || order.getReceiveTime() == null
-                || now.isBefore(order.getReceiveTime().plusDays(Math.max(0, coolingOffDays)))) return false;
+        if (order == null || !Integer.valueOf(3).equals(order.getStatus()) || order.getReceiveTime() == null) return false;
         LocalDateTime afterSaleDeadline = afterSaleWindowPolicy.deadline(order);
         if (afterSaleDeadline != null && now.isBefore(afterSaleDeadline)) return false;
         if (afterSaleDao.selectOpenByOrderId(order.getId()) != null) return false;

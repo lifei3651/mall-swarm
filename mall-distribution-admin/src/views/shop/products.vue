@@ -64,6 +64,7 @@
         </template>
       </el-table-column>
       <el-table-column label="商品分类" width="120"><template #default="{ row }"><span :class="{ 'muted-value': !row.categoryName }">{{ row.categoryName || '未分类' }}</span></template></el-table-column>
+      <el-table-column label="销售方" width="140"><template #default="{ row }">{{ row.merchantName || '平台自营' }}</template></el-table-column>
       <el-table-column prop="salePrice" label="展示售价" width="110"><template #default="{ row }">¥{{ row.salePrice }}</template></el-table-column>
       <el-table-column prop="costAmount" label="参考成本" width="110"><template #default="{ row }">¥{{ row.costAmount }}</template></el-table-column>
       <el-table-column v-if="performanceUnitsEnabled" prop="pvValue" label="单件PV" width="120">
@@ -105,6 +106,7 @@
               <el-col :span="12"><el-form-item label="商品编号"><el-input v-model="form.productNo" placeholder="留空自动生成" /></el-form-item></el-col>
             </el-row>
             <el-form-item label="商品卖点"><el-input v-model="form.subtitle" maxlength="80" show-word-limit placeholder="用一句话说明最值得购买的理由" /><div class="field-help">最多 80 个字，突出 1～2 个核心卖点即可。</div></el-form-item>
+            <el-form-item label="销售方"><el-select v-model="form.merchantId" clearable filterable placeholder="平台自营" style="width:360px" @change="changeMerchant"><el-option v-for="item in merchants" :key="item.id" :label="item.merchantName" :value="item.id" /></el-select><div class="field-help">留空为平台自营；选择商户后，货款按订单成本价快照结算。</div></el-form-item>
             <el-row :gutter="20">
               <el-col :span="8">
                 <el-form-item label="商品分类">
@@ -205,11 +207,13 @@
 
           <section id="product-business" class="form-section">
             <h3>4. 销售渠道</h3>
-            <el-alert title="普通商城与复购商城是两套独立下单模式。商品可同时进入两边，也可只在其中一边销售；复购订单不会混入普通购物车。" type="info" :closable="false" show-icon style="margin-bottom:18px" />
+            <el-alert title="普通商城、复购区、报单区是三种业务渠道。报单区和客户定制奖金先完成配置，未完成前不会开放下单。" type="info" :closable="false" show-icon style="margin-bottom:18px" />
             <el-row :gutter="20">
               <el-col :span="8"><el-form-item label="普通商城"><el-switch v-model="form.normalSaleEnabled" :active-value="1" :inactive-value="0" active-text="销售" inactive-text="不销售" /></el-form-item></el-col>
               <el-col :span="8"><el-form-item label="复购商城"><el-switch v-model="form.repurchaseSaleEnabled" :active-value="1" :inactive-value="0" active-text="销售" inactive-text="不销售" /></el-form-item></el-col>
+              <el-col :span="8"><el-form-item label="报单区"><el-switch v-model="form.enrollmentSaleEnabled" :active-value="1" :inactive-value="0" active-text="预配置" inactive-text="不进入" /></el-form-item></el-col>
             </el-row>
+            <el-form-item label="团队奖金"><el-select v-model="form.teamBonusMode" style="width:360px"><el-option v-if="!form.merchantId" label="继承商城现有规则" value="INHERIT"/><el-option label="不产生团队奖金" value="NONE"/><el-option label="使用现有标准奖金" value="STANDARD"/><el-option label="客户定制（配置后开放）" value="CUSTOM"/></el-select><div class="field-help">商户商品必须明确选择；产生团队奖金的商品只放复购区或报单区，不进入公开普通商城。</div></el-form-item>
             <el-row v-if="form.repurchaseSaleEnabled === 1" :gutter="20">
               <el-col :span="8"><el-form-item label="商品复购价" required><el-input-number v-model="form.repurchasePrice" :min="0.01" :precision="2" controls-position="right" style="width:100%" /><div class="field-help">多规格可在SKU单独覆盖，未填写时继承此价格。</div></el-form-item></el-col>
               <el-col :span="8"><el-form-item label="商品复购PV"><el-input-number v-model="form.repurchasePv" :min="0" :max="Number(form.repurchasePrice || 0)" :precision="2" controls-position="right" style="width:100%" /></el-form-item></el-col>
@@ -379,6 +383,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown, Box, CircleClose, Document, Medal, Money, Plus, QuestionFilled, Refresh, RefreshLeft, Search, Star, Van, WarningFilled } from '@element-plus/icons-vue'
 import { pcaTextArr } from 'element-china-area-data'
 import { createFreightTemplate, createShopCategory, getProductSettings, listFreightTemplates, listShopCategories, listShopProducts, listShopServiceAddresses, listShopSkus, publishShopProduct, updateFreightTemplate, updateProductPvSetting, updateShopProductStatus, uploadShopImage } from '@/api/shop'
+import { listMerchants } from '@/api/merchant'
 import { validateSearchKeyword } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
 
@@ -405,6 +410,7 @@ const form = ref({})
 const skuRows = ref([])
 const removedSkuIds = ref([])
 const categories = ref([])
+const merchants = ref([])
 const shippingAddresses = ref([])
 const returnAddresses = ref([])
 const freightTemplates = ref([])
@@ -557,7 +563,9 @@ const defaultServiceGuarantees = () => Object.entries(guaranteeDefaults).map(([t
 }))
 
 const inferAfterSalePreset = (policy) => Object.entries(afterSalePolicyPresets).find(([, preset]) => preset.content === policy)?.[0] || 'custom'
-const defaultForm = () => ({ tenantId: 1, productNo: '', productName: '', subtitle: '', categoryName: '', mainImages: [], salePrice: 0, marketPrice: 0, costAmount: 0, pvValue: 0, bvValue: 0, stock: 0, safetyStock: 0, purchaseLimit: 0, normalSaleEnabled: 1, repurchaseSaleEnabled: 0, repurchasePrice: 0, repurchasePv: 0, repurchasePurchaseLimit: 0, salesCount: 0, sort: 0, status: 1, freightType: 0, freightAmount: 0, freeShippingAmount: 0, freightTemplateId: null, freightTemplateName: '', deliveryAddress: '', deliveryProvince: '', deliveryCity: '', deliveryDistrict: '', shippingAddressId: null, returnAddressId: null, deliveryTime: '48小时内发货', afterSalePresetKey: defaultAfterSalePresetKey, afterSalePolicy: afterSalePolicyPresets[defaultAfterSalePresetKey].content, serviceGuarantees: defaultServiceGuarantees(), detail: '', detailImageUrls: [] })
+const defaultForm = () => ({ tenantId: 1, merchantId: null, merchantName: '', productNo: '', productName: '', subtitle: '', categoryName: '', mainImages: [], salePrice: 0, marketPrice: 0, costAmount: 0, pvValue: 0, bvValue: 0, stock: 0, safetyStock: 0, purchaseLimit: 0, normalSaleEnabled: 1, repurchaseSaleEnabled: 0, enrollmentSaleEnabled: 0, teamBonusMode: 'INHERIT', repurchasePrice: 0, repurchasePv: 0, repurchasePurchaseLimit: 0, salesCount: 0, sort: 0, status: 1, freightType: 0, freightAmount: 0, freeShippingAmount: 0, freightTemplateId: null, freightTemplateName: '', deliveryAddress: '', deliveryProvince: '', deliveryCity: '', deliveryDistrict: '', shippingAddressId: null, returnAddressId: null, deliveryTime: '48小时内发货', afterSalePresetKey: defaultAfterSalePresetKey, afterSalePolicy: afterSalePolicyPresets[defaultAfterSalePresetKey].content, serviceGuarantees: defaultServiceGuarantees(), detail: '', detailImageUrls: [] })
+
+const changeMerchant = (merchantId) => { form.value.teamBonusMode = merchantId ? 'NONE' : 'INHERIT' }
 
 const fetchData = async () => {
   const validation = validateSearchKeyword(query.value.keyword, { label: '商品关键词' })
@@ -830,7 +838,10 @@ const submitForm = async () => {
   if (form.value.freightType === 1 && Number(form.value.freightAmount || 0) <= 0) return ElMessage.warning('固定运费必须大于0')
   if (form.value.freightType === 2 && Number(form.value.freeShippingAmount || 0) <= 0) return ElMessage.warning('请填写满额包邮门槛')
   if (Number(form.value.purchaseLimit || 0) < 0 || !Number.isInteger(Number(form.value.purchaseLimit || 0))) return ElMessage.warning('会员限购数量必须是大于等于0的整数')
-  if (Number(form.value.normalSaleEnabled) !== 1 && Number(form.value.repurchaseSaleEnabled) !== 1) return ElMessage.warning('商品至少选择一个销售渠道')
+  if (Number(form.value.normalSaleEnabled) !== 1 && Number(form.value.repurchaseSaleEnabled) !== 1 && Number(form.value.enrollmentSaleEnabled) !== 1) return ElMessage.warning('商品至少选择一个销售渠道')
+  if (form.value.merchantId && form.value.teamBonusMode === 'INHERIT') return ElMessage.warning('商户商品必须明确选择团队奖金模式')
+  if (form.value.merchantId && form.value.teamBonusMode === 'STANDARD' && Number(form.value.normalSaleEnabled) === 1) return ElMessage.warning('产生团队奖金的商户商品不能同时进入普通商城')
+  if (form.value.merchantId && Number(form.value.costAmount || 0) <= 0) return ElMessage.warning('商户商品必须填写大于0的结算成本价')
   if (Number(form.value.repurchaseSaleEnabled) === 1 && Number(form.value.repurchasePrice || 0) <= 0) return ElMessage.warning('启用复购商城后请填写复购价')
   if (Number(form.value.repurchasePv || 0) > Number(form.value.repurchasePrice || 0)) return ElMessage.warning('复购PV不能超过复购价')
   if (skuRows.value.some((item) => Number(item.repurchasePv || 0) > Number(item.repurchasePrice || form.value.repurchasePrice || 0))) return ElMessage.warning('SKU复购PV不能超过对应复购价')
@@ -886,7 +897,7 @@ const submitForm = async () => {
 
 const toggleStatus = async (row) => { await updateShopProductStatus(row.id, row.status === 1 ? 0 : 1); ElMessage.success('商品状态已更新'); fetchData() }
 
-onMounted(async () => { await Promise.all([fetchData(), fetchCategories(), fetchProductSettings(), fetchFreightTemplates(), fetchServiceAddresses()]) })
+onMounted(async () => { const merchantRes = await listMerchants({ status: 1 }); merchants.value = merchantRes.data || []; await Promise.all([fetchData(), fetchCategories(), fetchProductSettings(), fetchFreightTemplates(), fetchServiceAddresses()]) })
 </script>
 
 <style lang="scss" scoped>

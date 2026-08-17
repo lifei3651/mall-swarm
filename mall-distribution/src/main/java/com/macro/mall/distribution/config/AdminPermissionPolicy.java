@@ -28,6 +28,7 @@ final class AdminPermissionPolicy {
                 || path.startsWith("/shop/admin/product-settings") || path.startsWith("/shop/admin/reviews")
                 || path.startsWith("/shop/admin/categories") || path.startsWith("/shop/admin/service-addresses")
                 || path.startsWith("/shop/admin/flash-sales")) return "shop:product";
+        if (path.startsWith("/distribution/merchants")) return "shop:product";
         if (HttpMethod.POST.matches(method) && path.matches("/shop/admin/orders/[^/]+/refund")) return "shop:aftersale";
         if (HttpMethod.PUT.matches(method) && path.matches("/shop/admin/orders/[^/]+/cancel")) return "shop:aftersale";
         if (path.startsWith("/shop/admin/orders") || path.startsWith("/shop/admin/events/orders")) return "shop:order";
@@ -42,6 +43,9 @@ final class AdminPermissionPolicy {
                 || path.startsWith("/distribution/assets") || path.startsWith("/distribution/order-asset-payments")
                 || path.startsWith("/distribution/audit/orders") || path.startsWith("/distribution/audit/bonus-sources")
                 || path.startsWith("/distribution/audit/person-profile")) {
+            return HttpMethod.GET.matches(method) ? "finance:read" : "finance:manage";
+        }
+        if (path.startsWith("/distribution/merchant-finance")) {
             return HttpMethod.GET.matches(method) ? "finance:read" : "finance:manage";
         }
         return null;

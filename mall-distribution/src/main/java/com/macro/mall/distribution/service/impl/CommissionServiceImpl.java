@@ -58,9 +58,6 @@ public class CommissionServiceImpl implements CommissionService {
     private final PerformanceService performanceService;
     private final ShopAfterSaleWindowPolicy afterSaleWindowPolicy;
 
-    @org.springframework.beans.factory.annotation.Value("${bonus.settlement.cooling-off-days:7}")
-    private long coolingOffDays;
-
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void calculateAndRecordCommission(Long orderId, String orderNo, BigDecimal orderAmount,
@@ -184,8 +181,7 @@ public class CommissionServiceImpl implements CommissionService {
         if (record == null || !CommissionStatusEnum.PENDING.getValue().equals(record.getStatus())) return false;
         DmsShopOrder order = shopOrderDao.selectByIdForUpdate(record.getOrderId());
         LocalDateTime now = LocalDateTime.now();
-        if (order == null || !Integer.valueOf(3).equals(order.getStatus()) || order.getReceiveTime() == null
-                || now.isBefore(order.getReceiveTime().plusDays(Math.max(0, coolingOffDays)))) return false;
+        if (order == null || !Integer.valueOf(3).equals(order.getStatus()) || order.getReceiveTime() == null) return false;
         LocalDateTime afterSaleDeadline = afterSaleWindowPolicy.deadline(order);
         if (afterSaleDeadline != null && now.isBefore(afterSaleDeadline)) return false;
         if (shopAfterSaleDao.selectOpenByOrderId(order.getId()) != null) return false;

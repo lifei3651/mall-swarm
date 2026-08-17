@@ -6,6 +6,8 @@
         <id column="id" property="id"/>
         <result column="order_no" property="orderNo"/>
         <result column="tenant_id" property="tenantId"/>
+        <result column="merchant_id" property="merchantId"/>
+        <result column="merchant_name" property="merchantName"/>
         <result column="user_id" property="userId"/>
         <result column="agent_id" property="agentId"/>
         <result column="invite_code" property="inviteCode"/>
@@ -49,7 +51,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id, order_no, tenant_id, user_id, agent_id, invite_code, receiver_name, receiver_phone,
+        id, order_no, tenant_id, merchant_id, merchant_name, user_id, agent_id, invite_code, receiver_name, receiver_phone,
         receiver_address, receiver_province, receiver_city, receiver_district, receiver_detail_address,
         total_amount, freight_amount, discount_amount, pay_amount, total_pv,
         total_cost, business_type, business_source_id, status, pay_type, remark, service_remark, pay_time, delivery_company, delivery_no,
@@ -258,13 +260,13 @@
 
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopOrder">
         INSERT INTO dms_shop_order
-        (id, order_no, tenant_id, user_id, agent_id, invite_code, receiver_name, receiver_phone,
+        (id, order_no, tenant_id, merchant_id, merchant_name, user_id, agent_id, invite_code, receiver_name, receiver_phone,
          receiver_address, receiver_province, receiver_city, receiver_district, receiver_detail_address,
          total_amount, freight_amount, discount_amount, pay_amount, total_pv,
          total_cost, business_type, business_source_id, status, pay_type, remark, pay_time, delivery_company, delivery_no,
          delivery_time, receive_time, cancel_time, close_time)
         VALUES
-        (#{id}, #{orderNo}, #{tenantId}, #{userId}, #{agentId}, #{inviteCode}, #{receiverName}, #{receiverPhone},
+        (#{id}, #{orderNo}, #{tenantId}, #{merchantId}, #{merchantName}, #{userId}, #{agentId}, #{inviteCode}, #{receiverName}, #{receiverPhone},
          #{receiverAddress}, #{receiverProvince}, #{receiverCity}, #{receiverDistrict}, #{receiverDetailAddress},
          #{totalAmount}, #{freightAmount}, #{discountAmount}, #{payAmount}, #{totalPv},
          #{totalCost}, #{businessType}, #{businessSourceId}, #{status}, #{payType}, #{remark}, #{payTime}, #{deliveryCompany}, #{deliveryNo},

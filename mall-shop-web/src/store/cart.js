@@ -105,6 +105,7 @@ export function useCart() {
       existing.purchaseLimit = Number(product.purchaseLimit || 0)
       existing.skuName = product.skuName || ''
       existing.skuAttrs = product.skuAttrs || product.attrsJson || ''
+      existing.merchantName = product.merchantName || ''
       existing.quantity += requestedQuantity
     } else {
       state.items.push({
@@ -115,6 +116,7 @@ export function useCart() {
         skuName: product.skuName || '',
         skuAttrs: product.skuAttrs || product.attrsJson || '',
         subtitle: product.subtitle,
+        merchantName: product.merchantName || '',
         coverUrl: product.coverUrl,
         salePrice: Number(product.salePrice || 0),
         marketPrice: Number(product.marketPrice || 0),

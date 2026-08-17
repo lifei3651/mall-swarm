@@ -20,6 +20,11 @@ public class DmsShopProduct implements Serializable {
 
     private Long tenantId;
 
+    /** 空表示平台自营；有值表示租户内商户。 */
+    private Long merchantId;
+
+    private String merchantName;
+
     @Size(max = 64, message = "商品编码不能超过64个字符")
     private String productNo;
 
@@ -70,6 +75,12 @@ public class DmsShopProduct implements Serializable {
 
     @PositiveOrZero(message = "复购限购数量不能小于0")
     private Integer repurchasePurchaseLimit;
+
+    /** 预留的报单区渠道，客户制度确认前不开放前台下单。 */
+    private Integer enrollmentSaleEnabled;
+
+    /** INHERIT兼容历史、NONE不参与、STANDARD标准奖金、CUSTOM客户定制。 */
+    private String teamBonusMode;
 
     private Integer salesCount;
 

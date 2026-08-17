@@ -448,6 +448,30 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 
 `FlashSaleActivitySaveDTO` 关键字段：`activityName`、`productId`、可选 `skuId`、`flashPrice>=0.01`、`flashPv>=0`、`totalStock>=1`、`perUserLimit>=1`、`startTime`、未来的 `endTime`、`status`。
 
+### 19.1 商户、货款、发票与人工打款
+
+以下接口均位于 `/api/v1/distribution`，使用后台 `admin_session` 会话：
+
+| 接口 | 入参 | 出参 | 权限与核心逻辑 |
+| --- | --- | --- | --- |
+| `GET /merchants` | `keyword`、`status` | 商户列表 | `shop:product`；按当前租户过滤 |
+| `POST /merchants` | `merchantName`、可选 `merchantNo/contactName/contactPhone/remark` | 商户及自动创建的货款账户 | `shop:product`；结算方式固定为 `COST_PRICE` |
+| `PUT /merchants/{id}` | 可修改商户资料 | 商户 | `shop:product`；不能跨租户，商户编号不允许修改 |
+| `PUT /merchants/{id}/status?status=0|1` | 商户 ID、状态 | 布尔值 | `shop:product`；停用后不能用于新订单 |
+| `GET /merchant-finance/accounts` | 可选 `keyword` | 账户列表 | `finance:read`；返回待结算、可提现、冻结、欠款、累计打款 |
+| `GET /merchant-finance/settlements` | 可选 `merchantId/status` | 订单货款明细 | `finance:read`；按租户及商户过滤 |
+| `GET /merchant-finance/withdrawals` | 可选 `merchantId/status` | 提现列表 | `finance:read`；按租户及商户过滤 |
+| `POST /merchant-finance/withdrawals` | `merchantId`、`requestedAmount` | 提现申请 | `finance:manage`；锁定账户并把可提现金额转为冻结 |
+| `PUT /merchant-finance/withdrawals/{id}/review` | `invoiceRequiredAmount`、`invoiceReceivedAmount`、`invoiceStatus=NOT_REQUIRED|PENDING|RECEIVED`、`adjustmentAmount`、`adjustmentReason` | 审核后的申请 | `finance:manage`；调整后实付必须大于 0 且不超过申请金额，非零调整必须说明原因 |
+| `POST /merchant-finance/withdrawals/{id}/pay` | `actualPaidAmount`、可选 `paymentReference/paymentVoucherUrl` | 已打款申请 | `finance:manage`；仅 `READY_TO_PAY`，实付必须等于申请金额加调整金额 |
+| `POST /merchant-finance/withdrawals/{id}/reject` | `reason` | 已驳回申请 | `finance:manage`；解冻完整申请金额并保留原因 |
+
+商品新增 `merchantId/merchantName/enrollmentSaleEnabled/teamBonusMode`，订单及订单项保存商户和奖金模式快照。公开商品序列化会移除 `merchantId`、报单开关和奖金模式等内部字段，只保留可展示的商户名称。
+
+商户货款在订单支付成功后按订单项 `costAmount × quantity` 创建且只创建一次。结算先进入 `PENDING`；订单状态为已完成、租户售后期限已过且没有进行中售后时，定时任务释放为 `AVAILABLE`。售后按退款数量和原成本快照冲回：待结算直接减少，已可用先扣可用余额，不足部分记入 `debtAmount`，后续新货款释放时优先抵扣欠款。
+
+系统没有税率和税费扣除字段。`adjustmentAmount` 是合同、差额、手续费等通用人工调整，必须配套 `adjustmentReason`；负数调整会永久减少本次冻结应付款，不会重新回到可提现余额。申请冻结后若新增退款欠款，实际打款必须先通过负数调整覆盖欠款，未覆盖时服务端拒绝打款；驳回申请时解冻金额也先抵欠款。税务处理仍由财务根据客户合同与发票执行。
+
 ## 五、核心业务逻辑
 
 ### 20. 普通订单状态链路
@@ -512,6 +536,15 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 - 准入策略支持完成首单会员、代理及以上、全部注册会员。
 - `NONE` 不产生奖金；`STANDARD` 沿用普通奖金；`CUSTOM` 进入客户定制扩展点。
 - 新增客户结算模式时，应实现独立策略标识、配置版本、订单快照、计算服务、冲销逻辑、审计视图和模拟/回归用例，禁止直接改写历史普通订单规则。
+
+### 25.1 多商户、报单区与团队奖金边界
+
+- 一个商品最多绑定一个商户；一张订单只允许同一商户商品或平台自营商品，前后端都会拒绝跨商户混单。
+- 销售渠道由 `normal_sale_enabled`、`repurchase_sale_enabled`、`enrollment_sale_enabled` 三个开关表达，分别对应普通商城、复购区和报单区。
+- `team_bonus_mode=INHERIT` 沿用历史业务模式判断；`NONE` 明确不发团队奖；`STANDARD` 使用标准团队奖金；`CUSTOM` 只预留扩展标记，策略未配置前必须失败关闭。
+- 商户商品使用 `STANDARD` 时不能开启普通商城渠道，只能放在复购区或报单区，避免面向公众的普通购物意外进入团队奖金链路。
+- 奖金计算只汇总允许发团队奖的订单项金额；商户应结成本与团队奖金分别建账，退款时分别冲回，不能用商户货款代替奖金资金池。
+- 当前没有独立商户认证和商户门户。若增加商户自助能力，必须新增商户账号主体、`merchant_id` 会话声明、所有查询的强制数据隔离、商品/订单/提现权限矩阵和跨商户越权回归，禁止仅靠前端菜单隐藏。
 
 ### 26. 奖金、业绩和资金
 

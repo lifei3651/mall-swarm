@@ -126,6 +126,8 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             if (path.matches("/distribution/admin-users/[^/]+/unlock")) return "解除后台管理员登录锁定";
             if (path.startsWith("/distribution/admin-users")) return "维护后台管理员及权限";
             if (path.startsWith("/distribution/erp")) return "维护或执行ERP对接";
+            if (path.startsWith("/distribution/merchants")) return "维护商户资料";
+            if (path.startsWith("/distribution/merchant-finance")) return "处理商户货款、发票与打款";
             String action = HttpMethod.POST.matches(method) ? "新增/提交" : HttpMethod.PUT.matches(method) ? "修改" : "删除";
             return action + "后台业务数据（" + path + "）";
         }

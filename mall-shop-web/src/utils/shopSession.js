@@ -1,4 +1,5 @@
 import { clearCurrentCart, switchCartOwner } from '@/store/cart'
+import { apiBaseUrl } from '@/utils/appEnvironment'
 
 const LEGACY_TOKEN_KEY = 'shop_token'
 const MEMBER_KEY = 'shop_member'
@@ -19,6 +20,36 @@ export const applyShopSession = (member) => {
 export const hasShopSession = () => Boolean(
   localStorage.getItem(MEMBER_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY),
 )
+
+let sessionRestorePromise
+
+export const restoreShopSession = async (surface = 'public') => {
+  if (hasShopSession()) return true
+  if (sessionRestorePromise) return sessionRestorePromise
+
+  const profilePath = surface === 'team' ? '/shop/auth/me' : '/shop/public/profile'
+  sessionRestorePromise = fetch(`${apiBaseUrl}${profilePath}`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: {
+      Accept: 'application/json',
+      'X-Shop-Client': 'storefront',
+      'X-Shop-Surface': surface === 'team' ? 'team' : 'public',
+    },
+  }).then(async (response) => {
+    if (!response.ok) return false
+    const payload = await response.json().catch(() => null)
+    const member = payload?.code === 200
+      ? (payload?.data?.member || payload?.data)
+      : null
+    if (!member?.id) return false
+    applyShopSession(member)
+    return true
+  }).catch(() => false).finally(() => {
+    sessionRestorePromise = null
+  })
+  return sessionRestorePromise
+}
 
 export const getLegacyShopToken = () => localStorage.getItem(LEGACY_TOKEN_KEY)
 

@@ -198,6 +198,20 @@ test('registration page does not expose internal membership activation copy', as
   assert.match(login, /<p v-if="mode === 'login'">登录后可管理地址、订单和售后。<\/p>/)
 })
 
+test('protected routes restore a valid HttpOnly session when the local login hint is missing', async () => {
+  const session = await readFile(new URL('../src/utils/shopSession.js', import.meta.url), 'utf8')
+  const publicRouter = await readFile(new URL('../src/router/index.js', import.meta.url), 'utf8')
+  const teamRouter = await readFile(new URL('../src/surfaces/team/router.js', import.meta.url), 'utf8')
+
+  assert.match(session, /credentials: 'include'/)
+  assert.match(session, /'\/shop\/public\/profile'/)
+  assert.match(session, /'\/shop\/auth\/me'/)
+  assert.match(session, /payload\?\.data\?\.member \|\| payload\?\.data/)
+  assert.match(session, /applyShopSession\(member\)/)
+  assert.match(publicRouter, /await restoreShopSession\('public'\)/)
+  assert.match(teamRouter, /await restoreShopSession\('team'\)/)
+})
+
 test('captcha can be visibly refreshed when it is hard to read', async () => {
   const login = await readView('LoginView.vue')
 
@@ -607,6 +621,18 @@ test('cart deletion requires confirmation and checkout navigates after limit val
   assert.match(source, /await validateCheckoutItems\(items\)[\s\S]*checkoutAll\(\)/)
   assert.doesNotMatch(source, /确认进入结算/)
   assert.match(source, /confirmPendingAction/)
+})
+
+test('merchant products show their seller and mixed merchants are blocked before checkout', async () => {
+  const store = await readFile(new URL('../src/store/cart.js', import.meta.url), 'utf8')
+  const cart = await readView('CartView.vue')
+  const checkout = await readView('CheckoutView.vue')
+  const detail = await readView('ProductDetailView.vue')
+  assert.match(store, /merchantName: product\.merchantName \|\| ''/)
+  assert.match(cart, /different|不同商户或平台自营商品请分开结算/)
+  assert.match(cart, /item\.merchantName \|\| '平台自营'/)
+  assert.match(checkout, /checkoutSellers\.length > 1/)
+  assert.match(detail, /product\.merchantName \|\| '平台自营'/)
 })
 
 test('category view includes search bar for keyword filtering', async () => {

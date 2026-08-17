@@ -37,6 +37,12 @@ const routes = [
             meta: { title: '商品管理', permission: 'shop:product' },
           },
           {
+            path: 'merchants',
+            name: 'ShopMerchants',
+            component: () => import('@/views/shop/merchants.vue'),
+            meta: { title: '商户管理', permission: 'shop:product' },
+          },
+          {
             path: 'service-addresses',
             name: 'ShopServiceAddresses',
             component: () => import('@/views/shop/service-addresses.vue'),
@@ -204,6 +210,12 @@ const routes = [
             name: 'AuditFinance',
             component: () => import('@/views/audit/finance.vue'),
             meta: { title: '财务总览', permission: 'finance:read' },
+          },
+          {
+            path: 'merchant-finance',
+            name: 'MerchantFinance',
+            component: () => import('@/views/audit/merchant-finance.vue'),
+            meta: { title: '商户货款与发票', permission: 'finance:read' },
           },
           {
             path: 'settings',

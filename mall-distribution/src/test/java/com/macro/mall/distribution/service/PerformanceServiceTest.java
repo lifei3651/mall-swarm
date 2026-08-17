@@ -37,6 +37,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,6 +66,9 @@ import static org.junit.jupiter.api.Assertions.*;
     com.macro.mall.distribution.config.ScheduleTask.class
 }))
 public class PerformanceServiceTest {
+
+    @Autowired
+    private SqlSessionTemplate sqlSessionTemplate;
 
     @Autowired
     private DmsAgentDao agentDao;
@@ -434,12 +438,14 @@ public class PerformanceServiceTest {
     @Test
     void legacyOrderCreatedWindowClosesAfterSevenDaysButAdminCanRefundByQuantity() {
         jdbcTemplate.update("UPDATE dms_tenant SET after_sale_window_mode='ORDER_CREATED', after_sale_window_days=7 WHERE id=1");
+        sqlSessionTemplate.clearCache();
         DmsShopMember buyer = createShopMember("13999000035", "超期售后测试", null);
         ShopOrderVO paid = submitAndPay(buyer, 2);
         // 同一事务内 MyBatis 可能复用一级缓存；同步更新已加载对象，模拟已过期订单。
         paid.getOrder().setCreateTime(LocalDateTime.now().minusDays(8));
         jdbcTemplate.update("UPDATE dms_shop_order SET create_time=DATEADD('DAY', -8, CURRENT_TIMESTAMP) WHERE id=?",
                 paid.getOrder().getId());
+        sqlSessionTemplate.clearCache();
 
         ShopAfterSaleItemDTO frontItem = new ShopAfterSaleItemDTO();
         frontItem.setOrderItemId(paid.getItems().get(0).getId());
@@ -497,10 +503,12 @@ public class PerformanceServiceTest {
         assertEquals(0, orderBalanceAllocationService.settleEligibleAfterCoolingOff(100));
         jdbcTemplate.update("UPDATE dms_shop_order SET status=3, receive_time=? WHERE id=?",
                 LocalDateTime.now().minusDays(6), paid.getOrder().getId());
+        sqlSessionTemplate.clearCache();
         assertEquals(0, orderBalanceAllocationService.settleEligibleAfterCoolingOff(100));
 
         jdbcTemplate.update("UPDATE dms_shop_order SET receive_time=? WHERE id=?",
                 LocalDateTime.now().minusDays(8), paid.getOrder().getId());
+        sqlSessionTemplate.clearCache();
         assertEquals(2, orderBalanceAllocationService.settleEligibleAfterCoolingOff(100));
         assertAmountEquals("362.00", memberAssetService.listAccounts(1L, null).get(0).getBalance());
         assertAmountEquals("236.00", memberAssetService.listAccounts(5L, null).get(0).getBalance());
