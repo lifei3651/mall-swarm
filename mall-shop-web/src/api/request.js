@@ -1,9 +1,10 @@
 import axios from 'axios'
-import router from '@/router'
+import router from '@surface-router'
 import { apiBaseUrl, resolvePublicMediaUrls } from '@/utils/appEnvironment'
 import { encryptSensitiveRequest } from '@/utils/payloadEncryption'
 import { loginRedirectLocation, notifyAuthRequired } from '@/utils/authNavigation'
 import { clearShopSession, finishLegacyTokenMigration, getLegacyShopToken } from '@/utils/shopSession'
+import { appSurface } from '@/utils/appSurface'
 
 const service = axios.create({
   baseURL: apiBaseUrl,
@@ -24,9 +25,10 @@ const waitBeforeRetry = (delay = 250) => new Promise((resolve) => setTimeout(res
 
 service.interceptors.request.use(async (config) => {
   config.headers['X-Shop-Client'] = 'storefront'
+  config.headers['X-Shop-Surface'] = appSurface
   const legacyToken = getLegacyShopToken()
   const authPath = String(config.url || '')
-  const createsSession = ['/shop/auth/login', '/shop/auth/register', '/shop/auth/resetPassword'].includes(authPath)
+  const createsSession = ['/shop/auth/login', '/shop/auth/register', '/shop/public/auth/register', '/shop/auth/resetPassword'].includes(authPath)
   if (legacyToken && !createsSession) {
     config.headers.Authorization = `Bearer ${legacyToken}`
     // 只有 /auth/me 会在服务端校验旧 Token 并换发 HttpOnly Cookie。

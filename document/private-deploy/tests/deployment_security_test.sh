@@ -12,6 +12,7 @@ printf 'FROM eclipse-temurin:17.0.19_10-jre-jammy\nUSER mall\n' > "$TEST_ROOT/ma
 
 "$DEPLOY_DIR/scripts/prepare-env.sh" \
   --domain mall.customer.test \
+  --team-domain team.customer.test \
   --admin-domain admin.customer.test \
   --ssh-cidr 203.0.113.10/32 \
   --project customer_test \
@@ -25,17 +26,19 @@ for key in MYSQL_ROOT_PASSWORD DB_PASSWORD REDIS_PASSWORD SA_TOKEN_JWT_KEY; do
   case "$value" in *change_me*) exit 1 ;; esac
 done
 
-mkdir -p "$DEPLOY_DIR/certs" "$DEPLOY_DIR/html/admin"
+mkdir -p "$DEPLOY_DIR/certs" "$DEPLOY_DIR/html/public" "$DEPLOY_DIR/html/team" "$DEPLOY_DIR/html/admin"
 openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
   -subj '/CN=mall.customer.test' \
-  -addext 'subjectAltName=DNS:mall.customer.test' \
+  -addext 'subjectAltName=DNS:mall.customer.test,DNS:team.customer.test,DNS:admin.customer.test' \
   -keyout "$DEPLOY_DIR/certs/key.pem" \
   -out "$DEPLOY_DIR/certs/cert.pem" >/dev/null 2>&1
 chmod 600 "$DEPLOY_DIR/certs/key.pem"
-printf '<html>shop</html>\n' > "$DEPLOY_DIR/html/index.html"
+printf '<html>shop</html>\n' > "$DEPLOY_DIR/html/public/index.html"
+printf '<html>team</html>\n' > "$DEPLOY_DIR/html/team/index.html"
 printf '<html>admin</html>\n' > "$DEPLOY_DIR/html/admin/index.html"
 printf '9.9.9\n' > "$TEST_ROOT/VERSION"
-printf '{"version":"9.9.9"}\n' > "$DEPLOY_DIR/html/version.json"
+printf '{"version":"9.9.9"}\n' > "$DEPLOY_DIR/html/public/version.json"
+printf '{"version":"9.9.9"}\n' > "$DEPLOY_DIR/html/team/version.json"
 printf '{"version":"9.9.9"}\n' > "$DEPLOY_DIR/html/admin/version.json"
 printf 'test jar\n' > "$TEST_ROOT/mall-distribution/target/mall-distribution-test.jar"
 
@@ -49,11 +52,11 @@ fi
   --evidence cloud-sg-test-001 >/dev/null
 "$DEPLOY_DIR/scripts/security-preflight.sh" --offline >/dev/null
 
-printf 'source map\n' > "$DEPLOY_DIR/html/app.js.map"
+printf 'source map\n' > "$DEPLOY_DIR/html/public/app.js.map"
 if "$DEPLOY_DIR/scripts/security-preflight.sh" --offline >/dev/null 2>&1; then
   echo "存在 source map 时预检不应通过" >&2
   exit 1
 fi
-rm "$DEPLOY_DIR/html/app.js.map"
+rm "$DEPLOY_DIR/html/public/app.js.map"
 
 echo "private deployment security workflow tests passed"

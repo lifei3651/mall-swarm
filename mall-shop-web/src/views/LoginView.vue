@@ -261,6 +261,7 @@ import { isStaleChunkError } from '@/utils/chunkRecovery'
 import { applyShopSession } from '@/utils/shopSession'
 import { useRegisterDraft } from '@/store/registerDraft'
 import { currentBrandLogo, currentBrandName } from '@/utils/brand'
+import { isTeamSurface } from '@/utils/appSurface'
 
 const router = useRouter()
 const route = useRoute()
@@ -671,14 +672,16 @@ const submit = async () => {
       clearRegisterDraft()
       showRegisterPopup('账号注册成功', 'success', 1200)
       await waitForPopup(850)
-      if (isNativeApp) {
+      if (isTeamSurface) {
+        await router.replace('/')
+      } else if (isNativeApp) {
         await router.replace('/profile')
       } else {
         await router.replace({ name: 'AppDownload', query: { registered: '1' } })
       }
       return
     }
-    const redirect = router.currentRoute.value.query.redirect || '/profile'
+    const redirect = router.currentRoute.value.query.redirect || (isTeamSurface ? '/' : '/profile')
     await router.push(redirect)
   } catch (e) {
     if (mode.value === 'register' && await showRegisterServerError(e.message)) return

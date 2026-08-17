@@ -193,7 +193,7 @@
         </template>
         <template v-else-if="!walletSummary.hasPaymentPassword">
           <h3 id="setup-pay-dialog-title">首次设置支付密码</h3>
-          <p>设置成功后将继续支付本订单。支付密码用于余额支付、转账和提现，请勿与登录密码相同。</p>
+          <p>设置成功后将继续支付本订单。支付密码用于保护账户余额支付，请勿与登录密码相同。</p>
           <div class="dialog-form">
             <label>
               <span>当前登录密码</span>
@@ -349,7 +349,7 @@ const paymentPasswordLockHint = computed(() => {
 const payConfig = ref({ alipayEnabled: false })
 const paymentOptions = computed(() => {
   const options = [
-    { value: 'BALANCE', label: '余额', icon: '余', description: '奖金结算余额' },
+    { value: 'BALANCE', label: '余额', icon: '余', description: '账户可用余额' },
   ]
   if (payConfig.value.alipayEnabled) {
     options.push({ value: 'ALIPAY', label: '支付宝', icon: '支', description: '支付宝安全支付' })
@@ -391,7 +391,6 @@ let setupSmsTimer
 let paymentSmsTimer
 
 const form = ref({
-  agentId: route.query.agentId ? Number(route.query.agentId) : null,
   addressId: null,
   receiverName: '',
   receiverPhone: '',
@@ -565,7 +564,8 @@ const validate = () => {
   if (!isValidMainlandPhone(form.value.receiverPhone)) return '请填写正确的11位手机号'
   if (receiverRegion.value.length !== 3) return '请完整选择省、市、区/县'
   if (!form.value.receiverDetailAddress) return '请填写详细收货地址'
-  if (form.value.payType === 'BALANCE' && walletSummary.value.hasPaymentPassword && Number(walletSummary.value.balance || 0) < payAmount.value) return '余额不足，请先充值或接收奖金后再支付'
+  if (!['NORMAL', 'FLASH_SALE'].includes(businessType)) return '当前商品不属于公开商城可结算范围，请返回商城重新选择'
+  if (form.value.payType === 'BALANCE' && walletSummary.value.hasPaymentPassword && Number(walletSummary.value.balance || 0) < payAmount.value) return '余额不足，请选择其他支付方式'
   return ''
 }
 
@@ -835,7 +835,7 @@ const doSubmitOrder = async (paymentPassword) => {
     let orderId = pendingBalanceOrderId.value
     if (!orderId) {
       if (!orderRequestKey.value) orderRequestKey.value = createIdempotencyKey('order')
-      if (businessType === 'MIXED') throw new Error('普通商品、秒杀商品和复购商品不能混合下单')
+      if (businessType === 'MIXED') throw new Error('普通商品和活动商品不能混合下单')
       const res = businessType === 'FLASH_SALE'
         ? await submitFlashSaleOrder(businessSourceId, orderData, orderRequestKey.value)
         : await submitOrder(orderData, orderRequestKey.value)

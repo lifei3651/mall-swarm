@@ -30,7 +30,7 @@
       <article v-for="item in filteredOrders" :key="item.order.id" class="order-card">
         <RouterLink :to="`/orders/${item.order.id}`" class="order-card-head">
           <span>{{ item.order.orderNo }}</span>
-          <em v-if="item.order.businessType && item.order.businessType !== 'NORMAL'">{{ item.order.businessType === 'FLASH_SALE' ? '秒杀' : '复购' }}</em>
+          <em v-if="item.order.businessType && item.order.businessType !== 'NORMAL'">{{ item.order.businessType === 'FLASH_SALE' ? '秒杀' : '活动' }}</em>
           <strong>{{ orderDisplayStatus(item) }} <ChevronRight :size="15" /></strong>
         </RouterLink>
         <RouterLink :to="`/orders/${item.order.id}`" class="order-products">

@@ -184,6 +184,16 @@ public class ShopController {
         return CommonResult.success(auth);
     }
 
+    @Operation(summary = "公开 App/小程序账号注册（不建立团队关系）")
+    @PostMapping("/public/auth/register")
+    public CommonResult<ShopAuthVO> registerPublic(@Valid @RequestBody ShopRegisterDTO dto,
+                                                   HttpServletRequest request,
+                                                   HttpServletResponse response) {
+        ShopAuthVO auth = authService.registerPublic(dto);
+        shopSessionCookieService.write(request, response, auth.getToken(), auth.getExpireTime());
+        return CommonResult.success(auth);
+    }
+
     @Operation(summary = "会员登录")
     @PostMapping("/auth/login")
     public CommonResult<ShopAuthVO> login(@Valid @RequestBody ShopLoginDTO dto,
@@ -855,6 +865,17 @@ public class ShopController {
         return CommonResult.success(shopService.getProfile(member, null));
     }
 
+    @Operation(summary = "公开 App/小程序个人中心（不返回团队、等级、业绩和奖金资料）")
+    @GetMapping("/public/profile")
+    public CommonResult<ShopProfileVO> publicProfile(
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        DmsShopMember member = authService.requireMember(authorization);
+        ShopProfileVO profile = new ShopProfileVO();
+        profile.setMember(authService.me(authorization));
+        profile.setOrderSummary(shopService.getOrderStatusSummary(member));
+        return CommonResult.success(profile);
+    }
+
     @Operation(summary = "个人中心订单状态数量")
     @GetMapping("/profile/order-summary")
     public CommonResult<ShopOrderStatusSummaryVO> profileOrderSummary(
@@ -875,6 +896,14 @@ public class ShopController {
             @RequestHeader(value = "Authorization", required = false) String authorization) {
         DmsShopMember member = authService.requireMember(authorization);
         return CommonResult.success(shopService.getInviteInfo(member));
+    }
+
+    @Operation(summary = "团队H5首次绑定直属邀请关系")
+    @PostMapping("/team/invitation")
+    public CommonResult<DmsShopMember> bindTeamInvitation(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @Valid @RequestBody ShopInviteBindDTO dto) {
+        return CommonResult.success(authService.bindInviter(authService.requireMember(authorization), dto));
     }
 
     @Operation(summary = "注册页查询脱敏邀请人信息")

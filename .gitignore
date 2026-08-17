@@ -29,6 +29,8 @@ __pycache__/
 !.env.example
 !*.env.example
 !mall-shop-web/.env.android
+!mall-shop-web/.env.public
+!mall-shop-web/.env.team
 .codex/
 
 # 客户私有部署产生的运行数据、证书、验收报告和真实配置

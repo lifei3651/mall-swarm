@@ -70,6 +70,10 @@ class ShopFirstOrderMembershipTest {
 
         when(orderDao.selectById(90001L)).thenReturn(order);
         when(orderDao.markPaid(90001L, "ALIPAY")).thenReturn(1);
+        DmsShopMember member = new DmsShopMember();
+        member.setUserId(80001L);
+        member.setTeamOptIn(1);
+        when(memberDao.selectByUserId(80001L)).thenReturn(member);
         when(orderItemDao.selectByOrderId(90001L)).thenReturn(List.of());
         when(authService.activateMember(eq(80001L), eq(1), contains("完成首笔有效支付订单"))).thenReturn(activated);
         when(agentDao.selectByUserId(80001L)).thenReturn(agent);
@@ -86,5 +90,37 @@ class ShopFirstOrderMembershipTest {
         verify(relationSnapshotService).capture(order);
         verify(performanceService).recordOrderPerformance(eq(90001L), eq("FIRST-ORDER-90001"),
                 eq(new BigDecimal("299.00")), eq(1), eq(80001L), any());
+    }
+
+    @Test
+    void publicShoppingAccountNeverEntersTeamBonusOnPayment() {
+        DmsShopOrder order = new DmsShopOrder();
+        order.setId(90002L);
+        order.setOrderNo("PUBLIC-ORDER-90002");
+        order.setTenantId(1L);
+        order.setUserId(80002L);
+        order.setStatus(0);
+        order.setPayAmount(new BigDecimal("199.00"));
+        DmsShopMember member = new DmsShopMember();
+        member.setUserId(80002L);
+        member.setTeamOptIn(0);
+
+        when(orderDao.selectById(90002L)).thenReturn(order);
+        when(orderDao.markPaid(90002L, "ALIPAY")).thenReturn(1);
+        when(memberDao.selectByUserId(80002L)).thenReturn(member);
+        when(auditService.getOrderFinanceDetail(90002L)).thenReturn(new OrderFinanceDetailVO());
+        when(afterSaleDao.selectByOrderId(90002L)).thenReturn(List.of());
+        when(afterSaleWindowPolicy.resolve(1L))
+                .thenReturn(new ShopAfterSaleWindowPolicy.Window(ShopAfterSaleWindowPolicy.MODE_RECEIVED, 7));
+
+        shopService.markOrderPaid(90002L, "ALIPAY");
+
+        verify(authService, never()).activateMember(anyLong(), anyInt(), anyString());
+        verify(orderDao, never()).updateAgentId(anyLong(), anyLong());
+        verify(relationSnapshotService, never()).capture(any());
+        verify(performanceService, never()).recordOrderPerformance(anyLong(), anyString(), any(), anyInt(), anyLong(), any());
+        verify(commissionService, never()).calculateAndRecordCommission(anyLong(), anyLong(), anyString(), any(), anyLong(), anyString());
+        verify(auditService).refreshOrderFinance(90002L, "PUBLIC-ORDER-90002", new BigDecimal("199.00"));
+        verify(orderBalanceAllocationService).prepareForOrder(90002L);
     }
 }

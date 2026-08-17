@@ -6,15 +6,19 @@ import { createVersionManifestPlugin } from '../scripts/vite-version-manifest.mj
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url))
 
-export default defineConfig({
-  plugins: [vue(), createVersionManifestPlugin({ repoRoot, application: 'storefront' })],
+export default defineConfig(({ mode }) => {
+  const teamSurface = mode === 'team'
+  return {
+  plugins: [vue(), createVersionManifestPlugin({ repoRoot, application: teamSurface ? 'team-h5' : 'storefront-public' })],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
+      '@surface-app': path.resolve(__dirname, teamSurface ? 'src/surfaces/team/TeamApp.vue' : 'src/App.vue'),
+      '@surface-router': path.resolve(__dirname, teamSurface ? 'src/surfaces/team/router.js' : 'src/router/index.js'),
     },
   },
   server: {
-    port: 3001,
+    port: teamSurface ? 3002 : 3001,
     proxy: {
       '/api': {
         target: 'http://localhost:8086',
@@ -23,4 +27,8 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    outDir: teamSurface ? 'dist-team' : 'dist',
+  },
+  }
 })

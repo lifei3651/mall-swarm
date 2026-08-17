@@ -1006,6 +1006,7 @@ CREATE TABLE `dms_shop_member` (
   `inviter_id` bigint DEFAULT NULL COMMENT '邀请人userId',
   `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态：0-禁用 1-正常',
   `system_account` tinyint NOT NULL DEFAULT 0 COMMENT '系统内部资金账户：0-否 1-是',
+  `team_opt_in` tinyint NOT NULL DEFAULT 1 COMMENT '团队业务选择：0-普通购物账号 1-已加入团队业务',
   `failed_login_count` int NOT NULL DEFAULT 0 COMMENT '连续密码错误次数',
   `lock_time` datetime DEFAULT NULL COMMENT '密码错误锁定时间',
   `last_login_time` datetime DEFAULT NULL COMMENT '最后登录时间',

@@ -22,13 +22,14 @@ test('storefront installs global runtime error collection and registers PWA upda
   const runtimeErrors = await readProjectFile('src/utils/runtimeErrors.js')
   const pwa = await readProjectFile('src/utils/pwa.js')
 
-  assert.match(main, /installGlobalErrorHandling\(app, router, 'shop'\)/)
+  assert.match(main, /installGlobalErrorHandling\(app, router, appSurface === 'team' \? 'team-h5' : 'shop-public'\)/)
   assert.match(main, /registerPwa\(\)/)
   assert.match(runtimeErrors, /app\.config\.errorHandler/)
   assert.match(runtimeErrors, /unhandledrejection/)
   assert.match(runtimeErrors, /\/api\/shop\/client-errors/)
   assert.match(pwa, /navigator\.serviceWorker\.register/)
   assert.match(pwa, /import\.meta\.env\.PROD/)
+  assert.match(pwa, /isTeamSurface/)
 })
 
 test('home and category pages share the reusable product skeleton component', async () => {

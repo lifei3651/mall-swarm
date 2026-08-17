@@ -7,6 +7,7 @@ import com.macro.mall.distribution.dto.ShopAccountSetupDTO;
 import com.macro.mall.distribution.dto.ShopPasswordChangeDTO;
 import com.macro.mall.distribution.dto.ShopNicknameUpdateDTO;
 import com.macro.mall.distribution.dto.ShopPhoneUpdateDTO;
+import com.macro.mall.distribution.dto.ShopInviteBindDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.vo.ShopAuthVO;
 import com.macro.mall.distribution.vo.AgentInfoVO;
@@ -17,6 +18,9 @@ import java.util.List;
 public interface ShopAuthService {
 
     ShopAuthVO register(ShopRegisterDTO dto);
+
+    /** 公开商城注册：只创建购物账号，不在注册阶段建立团队关系。 */
+    ShopAuthVO registerPublic(ShopRegisterDTO dto);
 
     ShopAuthVO login(ShopLoginDTO dto);
 
@@ -49,6 +53,9 @@ public interface ShopAuthService {
     DmsShopMember updateNickname(DmsShopMember member, ShopNicknameUpdateDTO dto);
 
     boolean updatePhone(DmsShopMember member, ShopPhoneUpdateDTO dto);
+
+    /** 团队 H5 首次进入时绑定唯一直属邀请关系；绑定后不可自行修改。 */
+    DmsShopMember bindInviter(DmsShopMember member, ShopInviteBindDTO dto);
 
     /**
      * 重置会员密码（忘记密码）

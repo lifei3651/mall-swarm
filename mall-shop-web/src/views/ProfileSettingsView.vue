@@ -11,7 +11,7 @@
         <span>{{ canSetupAccount ? '未设置' : member.username }}</span>
       </div>
       <button type="button" class="settings-row" @click="openNickname">
-        <div><strong>昵称</strong><small>用于个人中心和转账身份核对</small></div>
+        <div><strong>昵称</strong><small>用于个人中心、订单和售后服务</small></div>
         <span>{{ member.nickname || '去设置' }}</span><ChevronRight :size="18" />
       </button>
       <button type="button" class="settings-row" @click="openPhone">

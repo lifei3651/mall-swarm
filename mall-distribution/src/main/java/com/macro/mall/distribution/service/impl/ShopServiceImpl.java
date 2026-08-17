@@ -1197,21 +1197,24 @@ public class ShopServiceImpl implements ShopService {
         boolean standardBonus = businessModeService == null
                 ? order.getBusinessType() == null || ShopBusinessType.NORMAL.equals(order.getBusinessType())
                 : businessModeService.usesStandardBonus(tenant, order.getBusinessType());
+        DmsShopMember payingMember = order.getUserId() == null ? null : memberDao.selectByUserId(order.getUserId());
+        // 旧数据字段为空时继续兼容原一体化商城；新公开商城账号明确写0，不进入团队奖金链路。
+        boolean teamParticipant = payingMember == null || !Integer.valueOf(0).equals(payingMember.getTeamOptIn());
+        boolean teamBonusEligible = standardBonus && teamParticipant;
         if (updated > 0) {
-            // 所有商品一视同仁：注册账号完成首笔有效支付后成为一级会员。
-            // 后续卡级只由本人及无限层团队累计有效商品件数和直推/部门条件自动判断，商品不能指定卡级。
-            if (order.getUserId() != null) {
+            // 只有已在团队H5主动加入团队业务的账号，首笔有效支付后才进入奖金体系。
+            if (teamBonusEligible && order.getUserId() != null) {
                 com.macro.mall.distribution.vo.AgentInfoVO activated = authService.activateMember(
                         order.getUserId(), 1, "完成首笔有效支付订单，成为会员，订单：" + order.getOrderNo());
                 order.setAgentId(activated.getId());
                 orderDao.updateAgentId(orderId, activated.getId());
             }
-            if (standardBonus) {
+            if (teamBonusEligible) {
                 // 只有采用标准奖金规则的订单才冻结关系并进入业绩奖金链路。
                 relationSnapshotService.capture(order);
             }
         }
-        if (updated > 0 && standardBonus) {
+        if (updated > 0 && teamBonusEligible) {
             DmsAgent agent = agentDao.selectByUserId(order.getUserId());
             if (agent != null) {
                 LocalDateTime paidTime = LocalDateTime.now();
@@ -1225,11 +1228,12 @@ public class ShopServiceImpl implements ShopService {
                 commissionService.calculateAndRecordCommission(
                         order.getTenantId(), order.getId(), order.getOrderNo(), bonusBaseAmount,
                         agent.getUserId(), agent.getAgentName());
-                // 奖金生成后立即回写订单财务，实时计算单笔奖金拨出率和利润风险。
-                auditService.refreshOrderFinance(order.getId(), order.getOrderNo(), order.getPayAmount());
-                // 只建立待结算凭证；真实余额仍需确认收货满7天且无待处理售后后才到账。
-                orderBalanceAllocationService.prepareForOrder(order.getId());
             }
+        }
+        if (updated > 0 && standardBonus) {
+            // 普通购物账号没有奖金时同样生成订单财务和公司资金归集，剩余商品款自然为全额口径。
+            auditService.refreshOrderFinance(order.getId(), order.getOrderNo(), order.getPayAmount());
+            orderBalanceAllocationService.prepareForOrder(order.getId());
         }
         if (updated > 0) {
             if (ShopBusinessType.FLASH_SALE.equals(order.getBusinessType())) {

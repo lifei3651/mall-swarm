@@ -15,6 +15,7 @@ import com.macro.mall.distribution.dto.ShopLoginDTO;
 import com.macro.mall.distribution.dto.ShopPasswordChangeDTO;
 import com.macro.mall.distribution.dto.ShopNicknameUpdateDTO;
 import com.macro.mall.distribution.dto.ShopPhoneUpdateDTO;
+import com.macro.mall.distribution.dto.ShopInviteBindDTO;
 import com.macro.mall.distribution.dto.AgentUpdateDTO;
 import com.macro.mall.distribution.dto.ShopRegisterDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
@@ -60,6 +61,17 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ShopAuthVO register(ShopRegisterDTO dto) {
+        return registerInternal(dto, true);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ShopAuthVO registerPublic(ShopRegisterDTO dto) {
+        // 公开 App/小程序只创建普通购物账号；即使客户端伪造 inviteCode 也不会在这里建立团队关系。
+        return registerInternal(dto, false);
+    }
+
+    private ShopAuthVO registerInternal(ShopRegisterDTO dto, boolean requireInvitation) {
         validateRegister(dto);
         dto.setPhone(dto.getPhone().trim());
         dto.setUsername(normalizeLoginAccount(dto.getUsername()));
@@ -77,11 +89,10 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             Asserts.fail("该登录账号已被使用，请更换登录账号");
         }
 
-        // 新部署且还没有会员时，允许创建唯一的创始会员；之后始终要求有效邀请码。
-        // countForFoundingMember 使用行锁，避免并发注册时出现两个根节点。
+        // 团队 H5 继续遵守原邀请注册规则；公开商城注册始终保持无团队关系。
         Long inviterId = null;
-        boolean foundingMember = memberDao.countForFoundingMember() == 0;
-        if (!foundingMember) {
+        boolean foundingMember = requireInvitation && memberDao.countForFoundingTeamMember() == 0;
+        if (requireInvitation && !foundingMember) {
             if (dto.getInviteCode() == null || dto.getInviteCode().isBlank()) {
                 Asserts.fail("请输入邀请码");
             }
@@ -109,10 +120,52 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         member.setInviteCode(IdUtil.fastSimpleUUID().substring(0, 8).toUpperCase());
         member.setInviterId(inviterId);
         member.setStatus(1);
+        member.setTeamOptIn(requireInvitation ? 1 : 0);
         memberDao.insert(member);
 
         // 注册只创建商城登录账号；完成首笔有效支付或后台授予后，才进入奖金体系成为一级“会员”。
         return createSession(member);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public DmsShopMember bindInviter(DmsShopMember member, ShopInviteBindDTO dto) {
+        if (member == null) Asserts.fail("请先登录");
+        if (dto == null || dto.getInviteCode() == null || dto.getInviteCode().isBlank()) {
+            Asserts.fail("请输入邀请码");
+        }
+        DmsShopMember current = memberDao.selectByIdForUpdate(member.getId());
+        if (current == null || !Integer.valueOf(1).equals(current.getStatus())) Asserts.fail("会员不存在或不可用");
+        if (current.getInviterId() != null) Asserts.fail("直属邀请关系已经绑定，不能自行修改");
+
+        String code = dto.getInviteCode().trim().toUpperCase(java.util.Locale.ROOT);
+        DmsShopMember inviter = memberDao.selectByInviteCode(code);
+        if (inviter == null) {
+            AgentInfoVO legacyInviter = agentService.getAgentByInviteCode(code);
+            if (legacyInviter != null && Integer.valueOf(1).equals(legacyInviter.getStatus())) {
+                inviter = memberDao.selectByUserId(legacyInviter.getUserId());
+            }
+        }
+        if (inviter == null || !Integer.valueOf(1).equals(inviter.getStatus())) Asserts.fail("邀请码无效");
+        if (Objects.equals(inviter.getUserId(), current.getUserId())) Asserts.fail("不能绑定自己的邀请码");
+
+        AgentInfoVO currentAgent = agentService.getAgentByUserId(current.getUserId());
+        if (currentAgent != null && currentAgent.getParentId() != null) {
+            Asserts.fail("当前账号已经存在团队上级，不能重复绑定");
+        }
+        if (memberDao.bindInviterIdIfAbsent(current.getId(), inviter.getUserId()) <= 0) {
+            Asserts.fail("直属邀请关系已经绑定，请刷新后查看");
+        }
+
+        AgentInfoVO inviterAgent = agentService.getAgentByUserId(inviter.getUserId());
+        if (currentAgent != null && inviterAgent != null) {
+            AgentSwitchLineDTO switchLine = new AgentSwitchLineDTO();
+            switchLine.setAgentId(currentAgent.getId());
+            switchLine.setNewParentAgentId(inviterAgent.getId());
+            switchLine.setReason("公开商城账号首次进入团队H5绑定直属邀请关系");
+            agentService.switchLine(switchLine);
+        }
+        return sanitize(memberDao.selectById(current.getId()));
     }
 
     @Override
@@ -148,6 +201,9 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         member.setInviteCode(IdUtil.fastSimpleUUID().substring(0, 8).toUpperCase());
         member.setInviterId(inviter == null ? null : inviter.getUserId());
         member.setStatus(1);
+        // 后台“会员管理”属于团队业务入口；普通购物账号只能从公开商城注册接口创建。
+        // 因此后台新增的账号即使暂未授予推广资格，也应保留原有的首单激活/奖金行为。
+        member.setTeamOptIn(1);
         memberDao.insert(member);
         if (Boolean.TRUE.equals(dto.getActivateDistribution())) {
             activateMember(member.getUserId(), dto.getInitialLevel(), dto.getReason() == null ? "后台新增会员并授予推广资格" : dto.getReason());
@@ -162,6 +218,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         // 兼容旧后台页面曾展示的“会员表ID”；最终统一换成系统用户ID处理。
         if (member == null) member = memberDao.selectById(userId);
         if (member == null) Asserts.fail("会员不存在");
+        memberDao.markTeamOptIn(member.getId());
         int target = initialLevel == null ? 1 : initialLevel;
         if (AgentLevelEnum.getByValue(target) == null) Asserts.fail("会员级别不正确");
         Long canonicalUserId = member.getUserId();

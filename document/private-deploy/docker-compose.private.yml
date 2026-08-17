@@ -130,12 +130,17 @@ services:
     image: nginx:1.28.3-alpine
     container_name: ${COMPOSE_PROJECT_NAME}_nginx
     restart: unless-stopped
+    environment:
+      CUSTOMER_DOMAIN: ${CUSTOMER_DOMAIN}
+      TEAM_DOMAIN: ${TEAM_DOMAIN}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN}
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/conf.d:/etc/nginx/templates:ro
+      - ./nginx/includes:/etc/nginx/includes:ro
       - ./html:/usr/share/nginx/html:ro
       - ./certs:/etc/nginx/ssl:ro
       - ./logs/nginx:/var/log/nginx

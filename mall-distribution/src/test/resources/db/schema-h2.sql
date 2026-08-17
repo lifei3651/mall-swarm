@@ -665,6 +665,7 @@ CREATE TABLE IF NOT EXISTS dms_shop_member (
   inviter_id BIGINT,
   status INT NOT NULL DEFAULT 1,
   system_account INT NOT NULL DEFAULT 0,
+  team_opt_in INT NOT NULL DEFAULT 1,
   failed_login_count INT NOT NULL DEFAULT 0,
   lock_time TIMESTAMP,
   last_login_time TIMESTAMP,

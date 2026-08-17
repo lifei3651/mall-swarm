@@ -217,7 +217,7 @@
               <strong>{{ order.orderNo }}</strong>
               <button type="button" @click="copyText(order.orderNo)">复制</button>
             </div>
-            <div v-if="order.businessType && order.businessType !== 'NORMAL'" class="order-info-row"><span>订单类型</span><strong>{{ order.businessType === 'FLASH_SALE' ? '限时秒杀订单' : '会员复购订单' }}</strong></div>
+            <div v-if="order.businessType && order.businessType !== 'NORMAL'" class="order-info-row"><span>订单类型</span><strong>{{ order.businessType === 'FLASH_SALE' ? '限时秒杀订单' : '活动订单' }}</strong></div>
             <div class="order-info-row"><span>创建时间</span><strong>{{ dateTime(order.createTime) }}</strong></div>
             <div class="order-info-row"><span>付款时间</span><strong>{{ dateTime(order.payTime) }}</strong></div>
             <div class="order-info-row"><span>发货时间</span><strong>{{ dateTime(order.deliveryTime) }}</strong></div>

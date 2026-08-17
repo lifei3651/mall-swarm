@@ -38,8 +38,15 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T mall-distributi
   || fail "商城后端上传目录不可写"
 
 domain=$(unquote "$(env_get CUSTOMER_DOMAIN)")
+team_domain=$(unquote "$(env_get TEAM_DOMAIN)")
 curl --fail --silent --show-error --max-time 15 --resolve "$domain:443:127.0.0.1" "https://$domain/" >/dev/null \
   || fail "客户 HTTPS 商城入口不可用或证书不匹配"
+curl --fail --silent --show-error --max-time 15 --resolve "$team_domain:443:127.0.0.1" "https://$team_domain/" >/dev/null \
+  || fail "客户 HTTPS 团队H5入口不可用或证书不匹配"
+curl --fail --silent --show-error --max-time 15 --resolve "$domain:443:127.0.0.1" "https://$domain/version.json" | grep -q 'storefront-public' \
+  || fail "公开域名没有返回公开商城构建"
+curl --fail --silent --show-error --max-time 15 --resolve "$team_domain:443:127.0.0.1" "https://$team_domain/version.json" | grep -q 'team-h5' \
+  || fail "团队域名没有返回团队H5构建"
 for path in /api/actuator/health /api/v3/api-docs /api/swagger-ui/index.html; do
   code=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 10 --resolve "$domain:443:127.0.0.1" "https://$domain$path")
   [ "$code" = "404" ] || fail "$path 必须返回 404，当前为 $code"
@@ -53,6 +60,7 @@ report="$DEPLOY_DIR/reports/security-postflight-$(date +%Y%m%d_%H%M%S).txt"
   echo "result=PASS"
   echo "checked_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "customer_domain=$domain"
+  echo "team_domain=$team_domain"
   echo "version=$(tr -d '\n' < "$DEPLOY_DIR/../../VERSION")"
   echo "git_commit=$(git -C "$DEPLOY_DIR/../.." rev-parse HEAD 2>/dev/null || echo unavailable)"
   echo "ssh_allowed_cidr=$(unquote "$(env_get SSH_ALLOWED_CIDR)")"

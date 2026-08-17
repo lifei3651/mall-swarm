@@ -15,7 +15,8 @@
 - 后端强制 `prod`，强制关闭模拟支付、固定验证码和Nacos客户端。
 - 后端使用非 root 用户、`no-new-privileges`和只读根文件系统运行；只有上传卷和临时目录可写。
 - `.env` 必须为 `600`，支付、短信、数据库和会话密钥只进入确实需要它们的容器。
-- 生产静态资源禁止 source map，商城与后台构建版本必须等于仓库根 `VERSION`。
+- 公开商城、团队H5和后台使用三个独立静态目录；公开域名无法通过猜路径读取团队H5构建。
+- 生产静态资源禁止 source map，公开商城、团队H5与后台构建版本必须等于仓库根 `VERSION`。
 - 数据库升级前自动备份；迁移按版本号、SHA-256和当前部署机的单机锁登记，重复或冲突立即停止。
 - MySQL、Redis和Nginx使用经过测试的明确版本标签；升级镜像版本必须先在隔离环境重跑全部流程，不能临时改成 `latest`。
 - 云安全组必须登记证据，SSH禁止 `0.0.0.0/0` 或 `::/0`，但最终仍需在客户云控制台真实执行。
@@ -29,14 +30,15 @@ cd document/private-deploy
 ./scripts/deploy.sh build
 ```
 
-该命令执行后端完整测试与打包、商城测试与构建、后台测试与构建，再把两个前端放入忽略 Git 的
-`html/`。发现测试失败、source map或版本不一致会停止。
+该命令执行后端完整测试与打包、两套前端测试与构建、后台测试与构建，再分别放入忽略 Git 的
+`html/public`、`html/team`、`html/admin`。发现测试失败、公开包含团队业务文字或接口、source map或版本不一致会停止。
 
 ### 2. 为客户生成独立密钥
 
 ```bash
 ./scripts/deploy.sh prepare \
   --domain mall.customer.com \
+  --team-domain team.customer.com \
   --admin-domain mall.customer.com \
   --ssh-cidr 203.0.113.10/32 \
   --project customer_code \
@@ -44,12 +46,12 @@ cd document/private-deploy
   --brand 客户商城名称
 ```
 
-程序使用 OpenSSL 生成独立的 MySQL、Redis和会话密钥，并创建权限为 `600` 的 `.env`。
+公开商城域名用于 App/小程序及普通购物，团队H5必须使用另一个域名。程序使用 OpenSSL 生成独立的 MySQL、Redis和会话密钥，并创建权限为 `600` 的 `.env`。
 如果 `.env` 已存在会拒绝覆盖，防止客户密钥丢失。
 
 ### 3. 配置证书、支付和短信
 
-- 将客户域名证书保存为 `certs/cert.pem`，私钥保存为 `certs/key.pem`并设为 `600`。
+- 将同时覆盖公开商城、团队H5和后台域名的证书保存为 `certs/cert.pem`，私钥保存为 `certs/key.pem`并设为 `600`。
 - 客户未开通支付宝或短信时保持对应 `ENABLED=false`、资料留空。
 - 启用支付宝时必须填写同一应用的APPID、应用私钥、支付宝公钥和客户HTTPS回调地址。
 - 启用短信时必须填写客户自己的AccessKey、签名及全部已审核模板编号。

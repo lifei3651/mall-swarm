@@ -18,6 +18,7 @@
         <result column="inviter_id" property="inviterId"/>
         <result column="status" property="status"/>
         <result column="system_account" property="systemAccount"/>
+        <result column="team_opt_in" property="teamOptIn"/>
         <result column="failed_login_count" property="failedLoginCount"/><result column="lock_time" property="lockTime"/>
         <result column="last_login_time" property="lastLoginTime"/>
         <result column="create_time" property="createTime"/>
@@ -27,7 +28,7 @@
     <sql id="Base_Column_List">
         id, user_id, phone, login_account, password_hash, salt, pay_password_hash,
         pay_password_failed_count, pay_password_lock_time, nickname, avatar_url,
-        invite_code, inviter_id, status, system_account, last_login_time, failed_login_count, lock_time, create_time, update_time
+        invite_code, inviter_id, status, system_account, team_opt_in, last_login_time, failed_login_count, lock_time, create_time, update_time
     </sql>
 
     <select id="selectById" resultMap="BaseResultMap">
@@ -77,8 +78,8 @@
         LIMIT 1
     </select>
 
-    <select id="countForFoundingMember" resultType="long">
-        SELECT COUNT(*) FROM dms_shop_member WHERE system_account = 0 FOR UPDATE
+    <select id="countForFoundingTeamMember" resultType="long">
+        SELECT COUNT(*) FROM dms_shop_member WHERE system_account = 0 AND team_opt_in = 1 FOR UPDATE
     </select>
 
     <select id="selectList" resultMap="BaseResultMap">
@@ -175,9 +176,9 @@
 
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopMember" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_shop_member
-        (user_id, phone, login_account, password_hash, nickname, avatar_url, invite_code, inviter_id, status)
+        (user_id, phone, login_account, password_hash, nickname, avatar_url, invite_code, inviter_id, status, team_opt_in)
         VALUES
-        (#{userId}, #{phone}, #{username}, #{passwordHash}, #{nickname}, #{avatarUrl}, #{inviteCode}, #{inviterId}, #{status})
+        (#{userId}, #{phone}, #{username}, #{passwordHash}, #{nickname}, #{avatarUrl}, #{inviteCode}, #{inviterId}, #{status}, COALESCE(#{teamOptIn}, 1))
     </insert>
 
     <update id="update" parameterType="com.macro.mall.distribution.entity.DmsShopMember">
@@ -234,6 +235,14 @@
     </update>
     <update id="updateInviterId">
         UPDATE dms_shop_member SET inviter_id=#{inviterId}, update_time=CURRENT_TIMESTAMP WHERE id=#{id}
+    </update>
+    <update id="bindInviterIdIfAbsent">
+        UPDATE dms_shop_member
+        SET inviter_id=#{inviterId}, team_opt_in=1, update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id} AND inviter_id IS NULL
+    </update>
+    <update id="markTeamOptIn">
+        UPDATE dms_shop_member SET team_opt_in=1, update_time=CURRENT_TIMESTAMP WHERE id=#{id}
     </update>
     <update id="increaseFailedLogin">UPDATE dms_shop_member SET failed_login_count=failed_login_count+1, lock_time=CASE WHEN failed_login_count+1 &gt;= #{lockThreshold} THEN CURRENT_TIMESTAMP ELSE lock_time END, update_time=CURRENT_TIMESTAMP WHERE id=#{id}</update>
     <update id="clearLoginLock">UPDATE dms_shop_member SET failed_login_count=0, lock_time=NULL, update_time=CURRENT_TIMESTAMP WHERE id=#{id}</update>

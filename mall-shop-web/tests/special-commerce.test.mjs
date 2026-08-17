@@ -14,17 +14,30 @@ test('flash sale uses a dedicated endpoint and keeps its business source through
   assert.match(checkout, /submitFlashSaleOrder\(businessSourceId/)
 })
 
-test('repurchase products use an isolated direct checkout and cannot mix with the ordinary cart', () => {
-  const page = read('../src/views/RepurchaseView.vue')
+test('public storefront excludes repurchase pages and rejects non-public checkout modes', () => {
+  const router = read('../src/router/index.js')
   const checkout = read('../src/views/CheckoutView.vue')
-  assert.match(page, /businessType:'REPURCHASE'/)
-  assert.match(page, /beginDirectCheckout/)
-  assert.match(checkout, /普通商品、秒杀商品和复购商品不能混合下单/)
+  assert.doesNotMatch(router, /RepurchaseView|\/repurchase/)
+  assert.match(checkout, /\['NORMAL', 'FLASH_SALE'\]\.includes\(businessType\)/)
+  assert.doesNotMatch(checkout, /复购/)
 })
 
 test('optional business entries only render when enabled by tenant configuration', () => {
   const home = read('../src/views/HomeView.vue')
   assert.match(home, /config\.flashSaleEnabled/)
-  assert.match(home, /config\.repurchaseMallEnabled/)
+  assert.doesNotMatch(home, /config\.repurchaseMallEnabled|\/repurchase|复购/)
   assert.match(home, /v-if="businessEntries\.length"/)
+})
+
+test('public and team surfaces use independent route trees and build outputs', () => {
+  const publicRouter = read('../src/router/index.js')
+  const teamRouter = read('../src/surfaces/team/router.js')
+  const vite = read('../vite.config.js')
+  const packageJson = JSON.parse(read('../package.json'))
+  assert.doesNotMatch(publicRouter, /InviteView|TeamPerformanceView|WalletView/)
+  assert.match(teamRouter, /InviteView/)
+  assert.match(teamRouter, /TeamPerformanceView/)
+  assert.match(teamRouter, /WalletView/)
+  assert.match(vite, /dist-team/)
+  assert.equal(packageJson.scripts['build:public'].includes('check:public-surface'), true)
 })

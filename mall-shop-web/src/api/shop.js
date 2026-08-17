@@ -10,6 +10,14 @@ export function register(data) {
   })
 }
 
+export function registerPublic(data) {
+  return request({
+    url: '/shop/public/auth/register',
+    method: 'post',
+    data,
+  })
+}
+
 export function login(data) {
   return request({
     url: '/shop/auth/login',
@@ -316,6 +324,10 @@ export function getProfile(params) {
   })
 }
 
+export function getPublicProfile() {
+  return request({ url: '/shop/public/profile', method: 'get' })
+}
+
 export function getProfileOrderSummary() {
   return request({
     url: '/shop/profile/order-summary',
@@ -419,4 +431,8 @@ export function getInviterPreview(inviteCode) {
     url: `/shop/invite/${encodeURIComponent(inviteCode)}`,
     method: 'get',
   })
+}
+
+export function bindTeamInvitation(inviteCode) {
+  return request({ url: '/shop/team/invitation', method: 'post', data: { inviteCode } })
 }
