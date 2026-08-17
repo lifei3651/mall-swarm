@@ -40,6 +40,18 @@ export function updateShopProductStatus(id, status) {
   })
 }
 
+export function submitMerchantProductReview(id) {
+  return request({ url: `/shop/admin/products/${id}/submit-review`, method: 'post' })
+}
+
+export function listMerchantProductReviews(params) {
+  return request({ url: '/shop/admin/merchant-product-reviews', method: 'get', params })
+}
+
+export function decideMerchantProductReview(id, data) {
+  return request({ url: `/shop/admin/merchant-product-reviews/${id}/decision`, method: 'put', data })
+}
+
 export function listFlashSales(params) {
   return request({ url: '/shop/admin/flash-sales', method: 'get', params })
 }

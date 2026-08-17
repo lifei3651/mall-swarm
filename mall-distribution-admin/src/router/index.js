@@ -43,6 +43,12 @@ const routes = [
             meta: { title: '商户管理', permission: 'shop:product' },
           },
           {
+            path: 'merchant-product-reviews',
+            name: 'MerchantProductReviews',
+            component: () => import('@/views/shop/merchant-product-reviews.vue'),
+            meta: { title: '商户商品审核', permission: 'shop:product-review' },
+          },
+          {
             path: 'service-addresses',
             name: 'ShopServiceAddresses',
             component: () => import('@/views/shop/service-addresses.vue'),

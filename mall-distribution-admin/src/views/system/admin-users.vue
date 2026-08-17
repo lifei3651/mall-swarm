@@ -28,6 +28,7 @@
       <el-table-column prop="username" label="登录账号" width="150" />
       <el-table-column prop="nickname" label="管理员名称" width="160" />
       <el-table-column prop="roleCode" label="管理员角色" width="140" />
+      <el-table-column prop="merchantName" label="绑定商户" min-width="160"><template #default="{ row }">{{ row.merchantName || '平台后台' }}</template></el-table-column>
       <el-table-column label="功能权限" min-width="260">
         <template #default="{ row }">
           <el-tag
@@ -91,6 +92,12 @@
         <el-form-item label="角色标识" prop="roleCode">
           <el-input v-model="form.roleCode" placeholder="例如 FINANCE / OPERATOR" />
         </el-form-item>
+        <el-form-item label="账号归属">
+          <el-select v-model="form.merchantId" clearable filterable placeholder="平台后台账号" style="width:100%" @change="handleMerchantBindingChange">
+            <el-option v-for="item in merchantOptions" :key="item.id" :label="`${item.merchantName}（${item.merchantNo}）`" :value="item.id" />
+          </el-select>
+          <div class="field-help">绑定商户后，该账号只能维护本商户商品，不能进入平台财务、审核、会员或系统设置。</div>
+        </el-form-item>
         <el-form-item label="权限" prop="permissions">
           <el-checkbox-group v-model="form.permissions" @change="handlePermissionChange">
             <el-checkbox
@@ -143,6 +150,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   listAdminUsers,
+  listAdminMerchantOptions,
   listPermissionOptions,
   saveAdminUser,
   updateAdminPassword,
@@ -159,6 +167,7 @@ const store = useAppStore()
 const query = reactive({ keyword: '', status: undefined })
 const users = ref([])
 const permissionOptions = ref([])
+const merchantOptions = ref([])
 const loading = ref(false)
 const saving = ref(false)
 const editorVisible = ref(false)
@@ -184,6 +193,7 @@ const form = reactive({
   nickname: '',
   roleCode: 'OPERATOR',
   permissions: ['admin:read'],
+  merchantId: null,
   status: 1,
   currentAdminPassword: '',
 })
@@ -252,6 +262,7 @@ const openEditor = (row) => {
     nickname: row?.nickname || '',
     roleCode: row?.roleCode || 'OPERATOR',
     permissions: splitPermissions(row?.permissions || 'admin:read'),
+    merchantId: row?.merchantId || null,
     status: row?.status ?? 1,
     currentAdminPassword: '',
   })
@@ -268,6 +279,7 @@ const submitUser = async () => {
       nickname: form.nickname,
       roleCode: form.roleCode,
       permissions: normalizePermissions(form.permissions),
+      merchantId: form.merchantId || null,
       status: form.status,
       currentAdminPassword: form.currentAdminPassword,
     }
@@ -334,6 +346,13 @@ const handlePermissionChange = () => {
   form.permissions = normalizePermissions(form.permissions)
 }
 
+const handleMerchantBindingChange = (merchantId) => {
+  if (merchantId) {
+    form.roleCode = 'MERCHANT'
+    form.permissions = ['admin:read', 'shop:product']
+  }
+}
+
 const normalizePermissions = (items) => {
   if (!items || items.length === 0) {
     return []
@@ -359,7 +378,7 @@ const permissionLabel = (permission) => {
 const isCurrentUser = (row) => String(row.id) === String(store.userInfo.id)
 
 onMounted(async () => {
-  await fetchPermissionOptions()
+  await Promise.all([fetchPermissionOptions(), listAdminMerchantOptions().then((res) => { merchantOptions.value = res.data || [] })])
   fetchUsers()
 })
 </script>
@@ -374,6 +393,7 @@ onMounted(async () => {
   margin-bottom: 4px;
 }
 .search-feedback { margin-bottom: 16px; }
+.field-help { width:100%; margin-top:6px; color:#909399; font-size:12px; line-height:18px; }
 
 :deep(.el-checkbox-group) {
   display: grid;

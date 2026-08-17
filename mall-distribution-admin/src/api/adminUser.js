@@ -50,3 +50,7 @@ export function listPermissionOptions() {
     method: 'get',
   })
 }
+
+export function listAdminMerchantOptions() {
+  return request({ url: '/distribution/admin-users/merchant-options', method: 'get' })
+}

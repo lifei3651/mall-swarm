@@ -36,6 +36,7 @@ import com.macro.mall.distribution.service.OrderRealtimeService;
 import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.MerchantService;
 import com.macro.mall.distribution.service.AdminAuthService;
+import com.macro.mall.distribution.service.MerchantProductReviewService;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.vo.OrderFinanceVO;
 import com.macro.mall.distribution.vo.ShopHomeVO;
@@ -127,6 +128,7 @@ public class ShopServiceImpl implements ShopService {
     private final DmsMerchantDao merchantDao;
     private final MerchantService merchantService;
     private final AdminAuthService adminAuthService;
+    private final MerchantProductReviewService merchantProductReviewService;
 
     @Value("${shop.order.pending-timeout-minutes:30}")
     private long pendingOrderTimeoutMinutes;
@@ -247,7 +249,8 @@ public class ShopServiceImpl implements ShopService {
         int safePage = pageNum == null ? 1 : Math.max(1, pageNum);
         int safeSize = pageSize == null ? 20 : Math.max(1, Math.min(100, pageSize));
         PageHelper.startPage(safePage, safeSize);
-        return CommonPage.restPage(productDao.selectList(resolveTenantId(tenantId), keyword, categoryName, status, stockStatus));
+        return CommonPage.restPage(productDao.selectList(resolveTenantId(tenantId), keyword, categoryName, status,
+                stockStatus, merchantProductReviewService.currentMerchantId()));
     }
 
     @Override
@@ -479,6 +482,7 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("商品不存在");
         }
         assertTenantAccess(product.getTenantId());
+        merchantProductReviewService.assertProductAccess(product);
         return product;
     }
 
@@ -521,9 +525,11 @@ public class ShopServiceImpl implements ShopService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsShopProduct saveProduct(DmsShopProduct product) {
+        merchantProductReviewService.bindMerchantForWrite(product, null);
         applyShippingAddress(product, true);
         fillProductDefaults(product);
         assertTenantAccess(product.getTenantId());
+        merchantProductReviewService.prepareCreatedProduct(product);
         boolean settlementTermsChanged = product.getMerchantId() != null;
         requireSettlementCostAuthority(settlementTermsChanged, product.getSettlementCostChangeReason());
         productDao.insert(product);
@@ -543,10 +549,12 @@ public class ShopServiceImpl implements ShopService {
         assertTenantAccess(exists.getTenantId());
         product.setId(id);
         product.setTenantId(exists.getTenantId());
+        merchantProductReviewService.bindMerchantForWrite(product, exists);
         if (product.getShippingAddressId() == null) product.setShippingAddressId(exists.getShippingAddressId());
         if (product.getReturnAddressId() == null) product.setReturnAddressId(exists.getReturnAddressId());
         applyShippingAddress(product, false);
         fillProductDefaults(product);
+        merchantProductReviewService.prepareUpdatedProduct(exists, product);
         boolean settlementTermsChanged = settlementProductTermsChanged(exists, product);
         requireSettlementCostAuthority(settlementTermsChanged, product.getSettlementCostChangeReason());
         String beforeSettlement = settlementTermsChanged
@@ -568,6 +576,7 @@ public class ShopServiceImpl implements ShopService {
         DmsShopProduct product = dto.getProduct();
         DmsShopProduct existingProduct = id == null ? null : productDao.selectById(id);
         if (id != null && existingProduct == null) Asserts.fail("商品不存在");
+        merchantProductReviewService.bindMerchantForWrite(product, existingProduct);
         List<DmsShopSku> existingSkus = id == null ? Collections.emptyList() : skuDao.selectByProductId(id, null);
         boolean settlementTermsChanged = settlementPublishTermsChanged(existingProduct, product, existingSkus, dto.getSkus());
         requireSettlementCostAuthority(settlementTermsChanged, product.getSettlementCostChangeReason());
@@ -577,6 +586,7 @@ public class ShopServiceImpl implements ShopService {
             applyShippingAddress(product, true);
             fillProductDefaults(product);
             assertTenantAccess(product.getTenantId());
+            merchantProductReviewService.prepareCreatedProduct(product);
             productDao.insert(product);
             id = product.getId();
         } else {
@@ -588,6 +598,7 @@ public class ShopServiceImpl implements ShopService {
             if (product.getReturnAddressId() == null) product.setReturnAddressId(existing.getReturnAddressId());
             applyShippingAddress(product, false);
             fillProductDefaults(product);
+            merchantProductReviewService.prepareUpdatedProduct(existing, product);
             productDao.update(product);
         }
 
@@ -666,7 +677,14 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("商品不存在");
         }
         assertTenantAccess(product.getTenantId());
-        boolean updated = productDao.updateStatus(id, status == null ? 1 : status) > 0;
+        merchantProductReviewService.assertProductAccess(product);
+        int target = status == null ? 1 : status;
+        if (target != 0 && target != 1) Asserts.fail("商品上下架状态不正确");
+        if (product.getMerchantId() != null && target == 1
+                && !"APPROVED".equals(product.getMerchantReviewStatus())) {
+            Asserts.fail("商户商品必须审核通过后才能上架");
+        }
+        boolean updated = productDao.updateStatus(id, target) > 0;
         if (updated) catalogCache.invalidateAfterCommit(product.getTenantId());
         return updated;
     }
@@ -691,6 +709,7 @@ public class ShopServiceImpl implements ShopService {
         DmsShopProduct product = productDao.selectById(productId);
         if (product == null) Asserts.fail("商品不存在");
         assertTenantAccess(product.getTenantId());
+        merchantProductReviewService.assertProductAccess(product);
         return skuDao.selectByProductId(productId, status);
     }
 
@@ -703,7 +722,7 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("商品不存在");
         }
         assertTenantAccess(product.getTenantId());
-        requireLegacyMerchantSkuCostRoute(product, null, sku.getCostAmount());
+        requireAggregateMerchantSkuRoute(product);
         skuDao.insert(sku);
         catalogCache.invalidateAfterCommit(product.getTenantId());
         return skuDao.selectById(sku.getId());
@@ -724,7 +743,7 @@ public class ShopServiceImpl implements ShopService {
         DmsShopSku sku = toSku(dto);
         sku.setId(id);
         sku.setProductId(exists.getProductId());
-        requireLegacyMerchantSkuCostRoute(product, exists.getCostAmount(), sku.getCostAmount());
+        requireAggregateMerchantSkuRoute(product);
         skuDao.update(sku);
         catalogCache.invalidateAfterCommit(product.getTenantId());
         return skuDao.selectById(id);
@@ -741,6 +760,7 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("商品不存在");
         }
         assertTenantAccess(product.getTenantId());
+        requireAggregateMerchantSkuRoute(product);
         boolean updated = skuDao.updateStatus(id, status == null ? 1 : status) > 0;
         if (updated) catalogCache.invalidateAfterCommit(product.getTenantId());
         return updated;
@@ -1734,14 +1754,14 @@ public class ShopServiceImpl implements ShopService {
                 Asserts.fail("所选商户不存在或已停用");
             }
             product.setMerchantName(merchant.getMerchantName());
-            if (product.getCostAmount().compareTo(ZERO) <= 0) Asserts.fail("商户商品必须填写大于0的结算成本价");
+            if (product.getCostAmount().compareTo(ZERO) <= 0) Asserts.fail("商户商品必须填写大于0的结算价");
             if (Integer.valueOf(1).equals(product.getNormalSaleEnabled())
                     && product.getCostAmount().compareTo(product.getSalePrice()) > 0) {
-                Asserts.fail("商户商品成本价不能高于普通售价");
+                Asserts.fail("商户商品结算价不能高于普通售价");
             }
             if (Integer.valueOf(1).equals(product.getRepurchaseSaleEnabled())
                     && product.getCostAmount().compareTo(product.getRepurchasePrice()) > 0) {
-                Asserts.fail("商户商品成本价不能高于复购价");
+                Asserts.fail("商户商品结算价不能高于复购价");
             }
             if ("INHERIT".equals(bonusMode)) Asserts.fail("商户商品必须明确选择是否参与团队奖金");
             if ("STANDARD".equals(bonusMode) && Integer.valueOf(1).equals(product.getNormalSaleEnabled())) {
@@ -1955,14 +1975,14 @@ public class ShopServiceImpl implements ShopService {
             validatePv(sku.getRepurchasePv(), sku.getRepurchasePrice(), "SKU复购PV");
         }
         if (product != null && product.getMerchantId() != null) {
-            if (sku.getCostAmount().compareTo(ZERO) <= 0) Asserts.fail("商户商品SKU必须填写大于0的结算成本价");
-            if (sku.getCostAmount().compareTo(sku.getSalePrice()) > 0) Asserts.fail("商户商品SKU成本价不能高于普通售价");
+            if (sku.getCostAmount().compareTo(ZERO) <= 0) Asserts.fail("商户商品SKU必须填写大于0的结算价");
+            if (sku.getCostAmount().compareTo(sku.getSalePrice()) > 0) Asserts.fail("商户商品SKU结算价不能高于普通售价");
             BigDecimal effectiveRepurchasePrice = sku.getRepurchasePrice() != null
                     && sku.getRepurchasePrice().compareTo(ZERO) > 0
                     ? sku.getRepurchasePrice() : money(product.getRepurchasePrice());
             if (Integer.valueOf(1).equals(product.getRepurchaseSaleEnabled())
                     && sku.getCostAmount().compareTo(effectiveRepurchasePrice) > 0) {
-                Asserts.fail("商户商品SKU成本价不能高于复购价");
+                Asserts.fail("商户商品SKU结算价不能高于复购价");
             }
         }
         sku.setBvValue(money(dto.getBvValue()));
@@ -2058,14 +2078,17 @@ public class ShopServiceImpl implements ShopService {
     }
 
     /**
-     * 商户成本价是未来应付货款的结算依据，不再视为普通商品资料。
-     * 后台请求必须同时具备商品权限（由拦截器校验）和财务管理权限，并留下修改原因。
-     * 无后台上下文的内部任务和测试仍可复用服务，但线上商户端不得复用这些后台接口。
+     * 商户结算价是未来应付货款的结算依据，不再视为普通商品资料。
+     * 平台人员直接修改时必须同时具备商品权限（由拦截器校验）和财务管理权限并留下原因；
+     * 绑定商户账号填写的结算价由商品审核流程确认，不授予平台财务权限。
      */
     private void requireSettlementCostAuthority(boolean changed, String reason) {
         if (!changed || AdminContext.get() == null) return;
-        adminAuthService.requirePermission(AdminContext.get(), "finance:manage");
-        if (blank(reason)) Asserts.fail("修改商户结算成本必须填写原因");
+        DmsAdminUser current = AdminContext.get();
+        // 商户本人填写的结算价由后续平台审核确认，不要求商户拥有平台财务权限。
+        if (current.getMerchantId() != null) return;
+        adminAuthService.requirePermission(current, "finance:manage");
+        if (blank(reason)) Asserts.fail("修改商户结算价必须填写原因");
     }
 
     private boolean settlementProductTermsChanged(DmsShopProduct before, DmsShopProduct after) {
@@ -2095,10 +2118,11 @@ public class ShopServiceImpl implements ShopService {
         return money(before).compareTo(money(after)) != 0;
     }
 
-    private void requireLegacyMerchantSkuCostRoute(DmsShopProduct product, BigDecimal before, BigDecimal after) {
-        if (product.getMerchantId() == null || !moneyChanged(before, after) || AdminContext.get() == null) return;
-        adminAuthService.requirePermission(AdminContext.get(), "finance:manage");
-        Asserts.fail("商户SKU结算成本请通过商品整体编辑，并填写成本修改原因");
+    private void requireAggregateMerchantSkuRoute(DmsShopProduct product) {
+        merchantProductReviewService.assertProductAccess(product);
+        if (product.getMerchantId() != null) {
+            Asserts.fail("商户SKU必须通过商品整体编辑并重新提交审核");
+        }
     }
 
     private String settlementSnapshot(DmsShopProduct product, List<DmsShopSku> skus) {
@@ -2126,7 +2150,7 @@ public class ShopServiceImpl implements ShopService {
         if (!changed) return;
         operationLogService.log("MERCHANT_SETTLEMENT", "COST_CHANGE", "SHOP_PRODUCT",
                 String.valueOf(productId), before, after,
-                blank(reason) ? "初始化商户结算成本" : reason.trim());
+                blank(reason) ? "初始化商户结算价" : reason.trim());
     }
 
     private String normalizeTeamBonusMode(DmsShopProduct product) {

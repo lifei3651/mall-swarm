@@ -70,4 +70,10 @@ public class AdminUserController {
     public CommonResult<List<Map<String, String>>> permissionOptions() {
         return CommonResult.success(adminUserService.permissionOptions());
     }
+
+    @Operation(summary = "查询可绑定到后台账号的商户")
+    @GetMapping("/merchant-options")
+    public CommonResult<List<Map<String, Object>>> merchantOptions() {
+        return CommonResult.success(adminUserService.merchantOptions());
+    }
 }

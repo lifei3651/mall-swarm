@@ -36,13 +36,15 @@ class ShopPublicViewSanitizerTest {
         product.setRepurchasePrice(new BigDecimal("88.00"));
         product.setRepurchasePv(new BigDecimal("18.00"));
         product.setRepurchasePurchaseLimit(3);
+        product.setMerchantReviewStatus("APPROVED");
+        product.setMerchantReviewVersion(2);
 
         JsonNode json = objectMapper.valueToTree(ShopPublicViewSanitizer.product(product, false));
 
         for (String field : new String[]{"costAmount", "bvValue", "safetyStock", "deliveryAddress",
                 "deliveryProvince", "deliveryCity", "deliveryDistrict", "shippingAddressId",
                 "returnAddressId", "freightTemplateId", "repurchaseSaleEnabled", "repurchasePrice",
-                "repurchasePv", "repurchasePurchaseLimit"}) {
+                "repurchasePv", "repurchasePurchaseLimit", "merchantReviewStatus", "merchantReviewVersion"}) {
             assertFalse(json.has(field), field + " must not be serialized in the public response");
         }
         assertEquals("公开商品", json.get("productName").asText());

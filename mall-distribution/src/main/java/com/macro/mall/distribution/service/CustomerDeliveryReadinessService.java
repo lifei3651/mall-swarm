@@ -94,7 +94,7 @@ public class CustomerDeliveryReadinessService {
                 "配置客户真实售后退货地址", "/shop/service-addresses");
 
         List<DmsShopCategory> categories = categoryDao.selectList(tenantId, 1);
-        List<DmsShopProduct> products = productDao.selectList(tenantId, null, null, 1, null);
+        List<DmsShopProduct> products = productDao.selectList(tenantId, null, null, 1, null, null);
         add(items, "CATALOG", "商品运营", "正式商品与分类", true,
                 !categories.isEmpty() && !products.isEmpty(),
                 "至少保留一个启用分类和一个已上架商品", "/shop/products");

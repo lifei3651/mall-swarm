@@ -31,6 +31,7 @@ public class AdminUserServiceImpl implements AdminUserService {
             Map.entry("*", "超级管理员"), Map.entry("admin:read", "基础查看"),
             Map.entry("admin:write", "基础维护"), Map.entry("system:manage", "系统账号"),
             Map.entry("config:manage", "客户与规则配置"), Map.entry("shop:product", "商品管理"),
+            Map.entry("shop:product-review", "商户商品审核"),
             Map.entry("shop:order", "订单发货"), Map.entry("shop:aftersale", "售后处理"),
             Map.entry("shop:member", "会员管理"), Map.entry("finance:read", "财务查看"),
             Map.entry("finance:manage", "财务处理"), Map.entry("distribution:manage", "代理业绩"),
@@ -42,6 +43,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final DmsAdminUserDao adminUserDao;
     private final DmsAdminSessionDao adminSessionDao;
     private final AdminAuthService adminAuthService;
+    private final com.macro.mall.distribution.dao.DmsMerchantDao merchantDao;
 
     @Override
     public List<DmsAdminUser> listUsers(String keyword, Integer status) {
@@ -142,6 +144,18 @@ public class AdminUserServiceImpl implements AdminUserService {
                 .map(entry -> option(entry.getKey(), entry.getValue())).toList();
     }
 
+    @Override
+    public List<Map<String, Object>> merchantOptions() {
+        requireActor();
+        return merchantDao.selectList(com.macro.mall.common.tenant.TenantContext.getTenantId(), null, 1).stream().map(item -> {
+            Map<String, Object> option = new LinkedHashMap<>();
+            option.put("id", item.getId());
+            option.put("merchantName", item.getMerchantName());
+            option.put("merchantNo", item.getMerchantNo());
+            return option;
+        }).toList();
+    }
+
     private DmsAdminUser buildUser(AdminUserSaveDTO dto) {
         DmsAdminUser user = new DmsAdminUser();
         user.setUsername(dto.getUsername().trim());
@@ -154,6 +168,14 @@ public class AdminUserServiceImpl implements AdminUserService {
         user.setRoleCode(blankToDefault(dto.getRoleCode(), "OPERATOR"));
         user.setPermissions(joinPermissions(dto.getPermissions()));
         user.setStatus(dto.getStatus() == null ? 1 : dto.getStatus());
+        user.setMerchantId(dto.getMerchantId());
+        if (dto.getMerchantId() != null) {
+            com.macro.mall.distribution.entity.DmsMerchant merchant = merchantDao.selectById(dto.getMerchantId());
+            if (merchant == null || !Integer.valueOf(1).equals(merchant.getStatus())) Asserts.fail("绑定商户不存在或已停用");
+            Set<String> allowed = Set.of("admin:read", "shop:product");
+            if (!allowed.containsAll(permissionSet(user))) Asserts.fail("商户工作台账号只能授予基础查看和商品管理权限");
+            user.setRoleCode("MERCHANT");
+        }
     }
 
     private String joinPermissions(List<String> permissions) {

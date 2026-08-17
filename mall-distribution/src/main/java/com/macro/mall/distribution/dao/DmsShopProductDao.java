@@ -11,11 +11,14 @@ public interface DmsShopProductDao {
 
     DmsShopProduct selectById(@Param("id") Long id);
 
+    DmsShopProduct selectByIdForUpdate(@Param("id") Long id);
+
     List<DmsShopProduct> selectList(@Param("tenantId") Long tenantId,
                                     @Param("keyword") String keyword,
                                     @Param("categoryName") String categoryName,
                                     @Param("status") Integer status,
-                                    @Param("stockStatus") String stockStatus);
+                                    @Param("stockStatus") String stockStatus,
+                                    @Param("merchantId") Long merchantId);
 
     List<DmsShopProduct> selectFrontList(@Param("tenantId") Long tenantId,
                                          @Param("keyword") String keyword,
@@ -33,6 +36,17 @@ public interface DmsShopProductDao {
     int update(DmsShopProduct product);
 
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
+
+    int markReviewSubmitted(@Param("id") Long id, @Param("version") Integer version,
+                            @Param("submittedAt") java.time.LocalDateTime submittedAt);
+
+    int markReviewDecision(@Param("id") Long id, @Param("version") Integer version,
+                           @Param("reviewStatus") String reviewStatus,
+                           @Param("status") Integer status,
+                           @Param("remark") String remark,
+                           @Param("reviewerId") Long reviewerId,
+                           @Param("reviewerName") String reviewerName,
+                           @Param("reviewedAt") java.time.LocalDateTime reviewedAt);
 
     int updateCategoryName(@Param("tenantId") Long tenantId,
                            @Param("oldName") String oldName,

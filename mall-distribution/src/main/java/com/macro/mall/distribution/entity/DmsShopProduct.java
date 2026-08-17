@@ -50,7 +50,7 @@ public class DmsShopProduct implements Serializable {
 
     private BigDecimal costAmount;
 
-    /** 仅用于后台提交商户结算成本变更原因，不写入商品表。 */
+    /** 仅用于后台提交商户结算价变更原因，不写入商品表。 */
     private String settlementCostChangeReason;
 
     private BigDecimal pvValue;
@@ -90,6 +90,21 @@ public class DmsShopProduct implements Serializable {
     private Integer sort;
 
     private Integer status;
+
+    /** 商户商品审核状态：DRAFT/PENDING/APPROVED/REJECTED；平台自营为空。 */
+    private String merchantReviewStatus;
+
+    private Integer merchantReviewVersion;
+
+    private String merchantReviewRemark;
+
+    private LocalDateTime merchantReviewSubmittedAt;
+
+    private LocalDateTime merchantReviewedAt;
+
+    private Long merchantReviewerId;
+
+    private String merchantReviewerName;
 
     @Size(max = 30000, message = "商品详情不能超过30000个字")
     private String detail;

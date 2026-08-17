@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsMerchantProductReviewDao">
+  <resultMap id="Base" type="com.macro.mall.distribution.entity.DmsMerchantProductReview">
+    <id column="id" property="id"/><result column="tenant_id" property="tenantId"/>
+    <result column="merchant_id" property="merchantId"/><result column="merchant_name" property="merchantName"/>
+    <result column="product_id" property="productId"/><result column="review_version" property="reviewVersion"/>
+    <result column="review_type" property="reviewType"/><result column="status" property="status"/>
+    <result column="product_no" property="productNo"/><result column="product_name" property="productName"/>
+    <result column="sale_price" property="salePrice"/><result column="settlement_price" property="settlementPrice"/>
+    <result column="sku_count" property="skuCount"/><result column="product_snapshot" property="productSnapshot"/>
+    <result column="submitter_id" property="submitterId"/><result column="submitter_name" property="submitterName"/>
+    <result column="submitted_at" property="submittedAt"/><result column="reviewer_id" property="reviewerId"/>
+    <result column="reviewer_name" property="reviewerName"/><result column="review_remark" property="reviewRemark"/>
+    <result column="reviewed_at" property="reviewedAt"/><result column="create_time" property="createTime"/>
+    <result column="update_time" property="updateTime"/>
+  </resultMap>
+  <sql id="cols">id,tenant_id,merchant_id,merchant_name,product_id,review_version,review_type,status,product_no,product_name,sale_price,settlement_price,sku_count,product_snapshot,submitter_id,submitter_name,submitted_at,reviewer_id,reviewer_name,review_remark,reviewed_at,create_time,update_time</sql>
+  <select id="selectById" resultMap="Base">SELECT <include refid="cols"/> FROM dms_merchant_product_review WHERE id=#{id}</select>
+  <select id="selectByIdForUpdate" resultMap="Base">SELECT <include refid="cols"/> FROM dms_merchant_product_review WHERE id=#{id} FOR UPDATE</select>
+  <select id="selectList" resultMap="Base">
+    SELECT <include refid="cols"/> FROM dms_merchant_product_review
+    <where>
+      tenant_id=#{tenantId}
+      <if test="merchantId != null">AND merchant_id=#{merchantId}</if>
+      <if test="status != null and status != ''">AND status=#{status}</if>
+      <if test="keyword != null and keyword != ''">AND (product_name LIKE CONCAT('%',#{keyword},'%') OR product_no LIKE CONCAT('%',#{keyword},'%') OR merchant_name LIKE CONCAT('%',#{keyword},'%'))</if>
+    </where>
+    ORDER BY CASE status WHEN 'PENDING' THEN 0 ELSE 1 END, id DESC
+  </select>
+  <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO dms_merchant_product_review(tenant_id,merchant_id,merchant_name,product_id,review_version,review_type,status,product_no,product_name,sale_price,settlement_price,sku_count,product_snapshot,submitter_id,submitter_name,submitted_at)
+    VALUES(#{tenantId},#{merchantId},#{merchantName},#{productId},#{reviewVersion},#{reviewType},#{status},#{productNo},#{productName},#{salePrice},#{settlementPrice},#{skuCount},#{productSnapshot},#{submitterId},#{submitterName},#{submittedAt})
+  </insert>
+  <update id="updateDecision">
+    UPDATE dms_merchant_product_review SET status=#{status},reviewer_id=#{reviewerId},reviewer_name=#{reviewerName},review_remark=#{reviewRemark},reviewed_at=#{reviewedAt},update_time=CURRENT_TIMESTAMP
+    WHERE id=#{id} AND status='PENDING'
+  </update>
+</mapper>

@@ -30,6 +30,7 @@ import com.macro.mall.distribution.service.OrderSpreadsheetService;
 import com.macro.mall.distribution.service.OrderRealtimeService;
 import com.macro.mall.distribution.service.FlashSaleService;
 import com.macro.mall.distribution.service.LogisticsTrackingService;
+import com.macro.mall.distribution.service.MerchantProductReviewService;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.security.ShopSessionCookieService;
 import com.macro.mall.distribution.vo.ShopAuthVO;
@@ -48,6 +49,7 @@ import com.macro.mall.distribution.vo.OrderShipmentImportResultVO;
 import com.macro.mall.distribution.vo.FlashSaleActivityVO;
 import com.macro.mall.distribution.vo.ShopBusinessConfigVO;
 import com.macro.mall.distribution.vo.ShopLogisticsTrackingVO;
+import com.macro.mall.distribution.entity.DmsMerchantProductReview;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -90,6 +92,7 @@ public class ShopController {
     private final OrderRealtimeService orderRealtimeService;
     private final FlashSaleService flashSaleService;
     private final LogisticsTrackingService logisticsTrackingService;
+    private final MerchantProductReviewService merchantProductReviewService;
 
     @Operation(summary = "查询可选业务入口与当前会员复购资格")
     @GetMapping("/business-config")
@@ -467,6 +470,29 @@ public class ShopController {
     @PutMapping("/admin/products/{id}/status")
     public CommonResult<Boolean> updateProductStatus(@PathVariable Long id, @RequestParam Integer status) {
         return CommonResult.success(shopService.updateProductStatus(id, status));
+    }
+
+    @Operation(summary = "商户提交商品上架或变更审核")
+    @PostMapping("/admin/products/{id}/submit-review")
+    public CommonResult<DmsMerchantProductReview> submitMerchantProductReview(@PathVariable Long id) {
+        return CommonResult.success(merchantProductReviewService.submit(id));
+    }
+
+    @Operation(summary = "商户商品审核队列")
+    @GetMapping("/admin/merchant-product-reviews")
+    public CommonResult<CommonPage<DmsMerchantProductReview>> merchantProductReviews(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "20") Integer pageSize) {
+        return CommonResult.success(merchantProductReviewService.list(status, keyword, pageNum, pageSize));
+    }
+
+    @Operation(summary = "审核商户商品并在通过后自动上架")
+    @PutMapping("/admin/merchant-product-reviews/{id}/decision")
+    public CommonResult<DmsMerchantProductReview> decideMerchantProductReview(
+            @PathVariable Long id, @Valid @RequestBody MerchantProductReviewDecisionDTO dto) {
+        return CommonResult.success(merchantProductReviewService.decide(id, dto));
     }
 
     @Operation(summary = "商城发货/退货地址列表")

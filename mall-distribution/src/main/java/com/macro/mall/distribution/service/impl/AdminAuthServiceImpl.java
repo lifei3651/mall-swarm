@@ -222,6 +222,8 @@ public class AdminAuthServiceImpl implements AdminAuthService {
         copy.setNickname(admin.getNickname());
         copy.setRoleCode(admin.getRoleCode());
         copy.setPermissions(admin.getPermissions());
+        copy.setMerchantId(admin.getMerchantId());
+        copy.setMerchantName(admin.getMerchantName());
         copy.setStatus(admin.getStatus());
         copy.setLastLoginTime(admin.getLastLoginTime());
         copy.setCreateTime(admin.getCreateTime());

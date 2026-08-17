@@ -1,7 +1,7 @@
 <template>
   <div class="page-container">
     <div class="page-heading">
-      <div><h2>商户管理</h2><p>商户商品按订单成本快照结算，平台不另收服务费。</p></div>
+      <div><h2>商户管理</h2><p>商户商品按订单结算价快照结算，平台不另收服务费。</p></div>
       <el-button type="primary" @click="open()">新增商户</el-button>
     </div>
     <el-alert title="现有商品默认仍是平台自营。只有商品明确绑定商户后，才会生成商户货款。" type="info" :closable="false" show-icon />
@@ -11,7 +11,7 @@
       <el-table-column prop="merchantName" label="商户名称" min-width="180" />
       <el-table-column prop="contactName" label="联系人" width="120" />
       <el-table-column prop="contactPhone" label="联系电话" min-width="150" />
-      <el-table-column label="结算方式" width="150"><template #default>成本价 × 有效数量</template></el-table-column>
+      <el-table-column label="结算方式" width="150"><template #default>结算价 × 有效数量</template></el-table-column>
       <el-table-column label="状态" width="90"><template #default="{ row }"><el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '停用' }}</el-tag></template></el-table-column>
       <el-table-column label="操作" width="180"><template #default="{ row }"><el-button link type="primary" @click="open(row)">编辑</el-button><el-button link :type="row.status === 1 ? 'warning' : 'success'" @click="toggle(row)">{{ row.status === 1 ? '停用' : '启用' }}</el-button></template></el-table-column>
     </el-table>

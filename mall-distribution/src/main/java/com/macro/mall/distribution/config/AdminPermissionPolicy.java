@@ -23,6 +23,7 @@ final class AdminPermissionPolicy {
         if (path.startsWith("/distribution/tenant") || path.startsWith("/distribution/bonus-config")
                 || path.startsWith("/distribution/audit/settings")) return "config:manage";
         if (path.startsWith("/shop/admin/banners") || path.startsWith("/shop/admin/notices")) return "config:manage";
+        if (path.startsWith("/shop/admin/merchant-product-reviews")) return "shop:product-review";
         if (path.startsWith("/shop/admin/products") || path.startsWith("/shop/admin/skus")
                 || path.startsWith("/shop/admin/media") || path.startsWith("/shop/admin/freight-templates")
                 || path.startsWith("/shop/admin/product-settings") || path.startsWith("/shop/admin/reviews")

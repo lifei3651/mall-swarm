@@ -12,6 +12,8 @@ class AdminPermissionPolicyTest {
         assertEquals("shop:product", AdminPermissionPolicy.requiredPermission("GET", "/shop/admin/categories"));
         assertEquals("shop:product", AdminPermissionPolicy.requiredPermission("POST", "/shop/admin/service-addresses"));
         assertEquals("shop:product", AdminPermissionPolicy.requiredPermission("PUT", "/shop/admin/flash-sales/1"));
+        assertEquals("shop:product-review", AdminPermissionPolicy.requiredPermission("GET", "/shop/admin/merchant-product-reviews"));
+        assertEquals("shop:product-review", AdminPermissionPolicy.requiredPermission("PUT", "/shop/admin/merchant-product-reviews/1/decision"));
         assertEquals("config:manage", AdminPermissionPolicy.requiredPermission("POST", "/shop/admin/banners"));
         assertEquals("config:manage", AdminPermissionPolicy.requiredPermission("DELETE", "/shop/admin/notices/1"));
     }

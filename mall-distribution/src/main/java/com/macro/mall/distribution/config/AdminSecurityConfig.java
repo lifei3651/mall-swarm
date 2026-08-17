@@ -55,6 +55,9 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
                     throw new ApiException("后台接口未配置权限或请求路径不合法");
                 }
                 adminAuthService.requirePermission(admin, permission);
+                if (admin.getMerchantId() != null && !merchantWorkspaceRequest(request)) {
+                    throw new ApiException("没有操作权限：商户工作台账号不能访问平台管理功能");
+                }
                 AdminContext.set(admin);
                 return true;
             } catch (ApiException e) {
@@ -62,6 +65,21 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
                 writeError(response, status, e.getMessage());
                 return false;
             }
+        }
+
+        private boolean merchantWorkspaceRequest(HttpServletRequest request) {
+            String path = request.getRequestURI();
+            if (path == null) return false;
+            if (path.equals("/distribution/admin-auth/me")
+                    || path.equals("/distribution/admin-auth/logout")
+                    || path.startsWith("/distribution/dashboard")
+                    || path.startsWith("/shop/admin/products")
+                    || path.startsWith("/shop/admin/skus")
+                    || path.startsWith("/shop/admin/media")) return true;
+            return HttpMethod.GET.matches(request.getMethod()) && (path.startsWith("/shop/admin/categories")
+                    || path.startsWith("/shop/admin/product-settings")
+                    || path.startsWith("/shop/admin/freight-templates")
+                    || path.startsWith("/shop/admin/service-addresses"));
         }
 
         @Override
@@ -89,7 +107,9 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
         private boolean hasDetailedBusinessLog(HttpServletRequest request) {
             return isMemberLevelRequest(request)
                     || (HttpMethod.PUT.matches(request.getMethod())
-                    && request.getRequestURI().matches("/shop/admin/orders/[^/]+/service-remark"));
+                    && request.getRequestURI().matches("/shop/admin/orders/[^/]+/service-remark"))
+                    || request.getRequestURI().matches("/shop/admin/products/[^/]+/submit-review")
+                    || request.getRequestURI().matches("/shop/admin/merchant-product-reviews/[^/]+/decision");
         }
 
         private boolean shouldLog(HttpServletRequest request) {
@@ -112,6 +132,8 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             if (path.equals("/distribution/agent/switch-line")) return "执行会员移线";
             if (path.matches("/distribution/agent/line-change-applications/[^/]+/audit")) return "处理旧版移线申请";
             if (path.matches("/shop/admin/products/[^/]+/publish") || path.equals("/shop/admin/products/publish")) return "发布商品";
+            if (path.matches("/shop/admin/products/[^/]+/submit-review")) return "提交商户商品审核";
+            if (path.matches("/shop/admin/merchant-product-reviews/[^/]+/decision")) return "审核商户商品";
             if (path.matches("/shop/admin/products/[^/]+/status")) return "修改商品上架状态";
             if (path.startsWith("/shop/admin/products")) return "保存商品资料";
             if (path.startsWith("/shop/admin/categories")) return "维护商品分类";

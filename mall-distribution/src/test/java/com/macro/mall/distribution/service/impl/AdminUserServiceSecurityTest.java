@@ -21,7 +21,8 @@ class AdminUserServiceSecurityTest {
     private final DmsAdminUserDao userDao = mock(DmsAdminUserDao.class);
     private final DmsAdminSessionDao sessionDao = mock(DmsAdminSessionDao.class);
     private final AdminAuthService authService = mock(AdminAuthService.class);
-    private final AdminUserServiceImpl service = new AdminUserServiceImpl(userDao, sessionDao, authService);
+    private final AdminUserServiceImpl service = new AdminUserServiceImpl(userDao, sessionDao, authService,
+            mock(com.macro.mall.distribution.dao.DmsMerchantDao.class));
 
     @AfterEach
     void clearContext() { AdminContext.clear(); }

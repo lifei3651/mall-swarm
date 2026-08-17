@@ -67,7 +67,7 @@ class CustomerDeliveryReadinessServiceTest {
         product = new DmsShopProduct();
         product.setProductName("营养礼盒");
         product.setSalePrice(new BigDecimal("99.00"));
-        when(productDao.selectList(1L, null, null, 1, null)).thenReturn(List.of(product));
+        when(productDao.selectList(1L, null, null, 1, null, null)).thenReturn(List.of(product));
         when(noticeDao.selectList(1L, 1)).thenReturn(List.of());
         when(serviceAddressDao.selectDefault(anyLong(), org.mockito.ArgumentMatchers.anyInt()))
                 .thenReturn(new DmsShopServiceAddress());

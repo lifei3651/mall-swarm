@@ -31,6 +31,13 @@
         <result column="sales_count" property="salesCount"/>
         <result column="sort_order" property="sort"/>
         <result column="status" property="status"/>
+        <result column="merchant_review_status" property="merchantReviewStatus"/>
+        <result column="merchant_review_version" property="merchantReviewVersion"/>
+        <result column="merchant_review_remark" property="merchantReviewRemark"/>
+        <result column="merchant_review_submitted_at" property="merchantReviewSubmittedAt"/>
+        <result column="merchant_reviewed_at" property="merchantReviewedAt"/>
+        <result column="merchant_reviewer_id" property="merchantReviewerId"/>
+        <result column="merchant_reviewer_name" property="merchantReviewerName"/>
         <result column="detail" property="detail"/>
         <result column="detail_images" property="detailImages"/>
         <result column="delivery_address" property="deliveryAddress"/>
@@ -56,7 +63,9 @@
         sale_price, market_price, cost_amount, pv_value, bv_value, stock, safety_stock, purchase_limit,
         normal_sale_enabled, repurchase_sale_enabled, repurchase_price, repurchase_pv, repurchase_purchase_limit,
         enrollment_sale_enabled, team_bonus_mode, sales_count,
-        sort_order, status, detail, detail_images, delivery_address, delivery_province, delivery_city, delivery_district, shipping_address_id, return_address_id,
+        sort_order, status, merchant_review_status, merchant_review_version, merchant_review_remark,
+        merchant_review_submitted_at, merchant_reviewed_at, merchant_reviewer_id, merchant_reviewer_name,
+        detail, detail_images, delivery_address, delivery_province, delivery_city, delivery_district, shipping_address_id, return_address_id,
         freight_type, freight_amount, free_shipping_amount, freight_template_name, freight_template_id,
         delivery_time, after_sale_policy, service_tags, create_time, update_time
     </sql>
@@ -65,6 +74,13 @@
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_product
         WHERE id = #{id}
+    </select>
+
+    <select id="selectByIdForUpdate" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_product
+        WHERE id = #{id}
+        FOR UPDATE
     </select>
 
     <select id="selectFrontList" resultMap="BaseResultMap">
@@ -113,6 +129,9 @@
             </if>
             <if test="status != null">
                 AND status = #{status}
+            </if>
+            <if test="merchantId != null">
+                AND merchant_id = #{merchantId}
             </if>
             <if test="categoryName != null and categoryName != ''">
                 AND category_name = #{categoryName}
@@ -169,7 +188,8 @@
         (tenant_id, merchant_id, merchant_name, product_no, product_name, subtitle, category_name, cover_url, gallery_urls, sale_price,
          market_price, cost_amount, pv_value, bv_value, stock, safety_stock, purchase_limit,
          normal_sale_enabled, repurchase_sale_enabled, repurchase_price, repurchase_pv, repurchase_purchase_limit, enrollment_sale_enabled, team_bonus_mode,
-         sales_count, sort_order, status, detail, detail_images,
+         sales_count, sort_order, status, merchant_review_status, merchant_review_version, merchant_review_remark,
+         merchant_review_submitted_at, merchant_reviewed_at, merchant_reviewer_id, merchant_reviewer_name, detail, detail_images,
          delivery_address, delivery_province, delivery_city, delivery_district, shipping_address_id, return_address_id,
          freight_type, freight_amount, free_shipping_amount, freight_template_name, freight_template_id,
          delivery_time, after_sale_policy, service_tags)
@@ -177,7 +197,8 @@
         (#{tenantId}, #{merchantId}, #{merchantName}, #{productNo}, #{productName}, #{subtitle}, #{categoryName}, #{coverUrl}, #{galleryUrls}, #{salePrice},
          #{marketPrice}, #{costAmount}, #{pvValue}, #{bvValue}, #{stock}, #{safetyStock}, #{purchaseLimit},
          #{normalSaleEnabled}, #{repurchaseSaleEnabled}, #{repurchasePrice}, #{repurchasePv}, #{repurchasePurchaseLimit}, #{enrollmentSaleEnabled}, #{teamBonusMode},
-         #{salesCount}, #{sort}, #{status}, #{detail}, #{detailImages},
+         #{salesCount}, #{sort}, #{status}, #{merchantReviewStatus}, #{merchantReviewVersion}, #{merchantReviewRemark},
+         #{merchantReviewSubmittedAt}, #{merchantReviewedAt}, #{merchantReviewerId}, #{merchantReviewerName}, #{detail}, #{detailImages},
          #{deliveryAddress}, #{deliveryProvince}, #{deliveryCity}, #{deliveryDistrict}, #{shippingAddressId}, #{returnAddressId},
          #{freightType}, #{freightAmount}, #{freeShippingAmount}, #{freightTemplateName}, #{freightTemplateId},
          #{deliveryTime}, #{afterSalePolicy}, #{serviceTags})
@@ -212,6 +233,13 @@
             sales_count = #{salesCount},
             sort_order = #{sort},
             status = #{status},
+            merchant_review_status = #{merchantReviewStatus},
+            merchant_review_version = #{merchantReviewVersion},
+            merchant_review_remark = #{merchantReviewRemark},
+            merchant_review_submitted_at = #{merchantReviewSubmittedAt},
+            merchant_reviewed_at = #{merchantReviewedAt},
+            merchant_reviewer_id = #{merchantReviewerId},
+            merchant_reviewer_name = #{merchantReviewerName},
             detail = #{detail},
             detail_images = #{detailImages},
             delivery_address = #{deliveryAddress},
@@ -236,6 +264,23 @@
         UPDATE dms_shop_product
         SET status = #{status}, update_time = CURRENT_TIMESTAMP
         WHERE id = #{id}
+    </update>
+
+    <update id="markReviewSubmitted">
+        UPDATE dms_shop_product
+        SET status=0, merchant_review_status='PENDING', merchant_review_version=#{version},
+            merchant_review_remark=NULL, merchant_review_submitted_at=#{submittedAt},
+            merchant_reviewed_at=NULL, merchant_reviewer_id=NULL, merchant_reviewer_name=NULL,
+            update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id} AND status=0 AND merchant_review_status != 'PENDING'
+    </update>
+
+    <update id="markReviewDecision">
+        UPDATE dms_shop_product
+        SET status=#{status}, merchant_review_status=#{reviewStatus}, merchant_review_remark=#{remark},
+            merchant_reviewed_at=#{reviewedAt}, merchant_reviewer_id=#{reviewerId},
+            merchant_reviewer_name=#{reviewerName}, update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id} AND merchant_review_version=#{version} AND merchant_review_status='PENDING'
     </update>
 
     <update id="updateCategoryName">

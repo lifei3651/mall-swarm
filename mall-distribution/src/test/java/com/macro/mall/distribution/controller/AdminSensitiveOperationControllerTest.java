@@ -88,7 +88,8 @@ class AdminSensitiveOperationControllerTest {
                 mock(ShopServiceAddressService.class), mock(ShopAfterSaleService.class), mock(TenantService.class),
                 adminAuthService, mock(AdminMemberSecurityService.class), mock(OrderShipmentService.class),
                 mock(OrderSpreadsheetService.class), mock(ShopSessionCookieService.class),
-                mock(OrderRealtimeService.class), mock(FlashSaleService.class), mock(LogisticsTrackingService.class));
+                mock(OrderRealtimeService.class), mock(FlashSaleService.class), mock(LogisticsTrackingService.class),
+                mock(com.macro.mall.distribution.service.MerchantProductReviewService.class));
     }
 
     private DmsAdminUser admin(Long id, String username, String nickname) {

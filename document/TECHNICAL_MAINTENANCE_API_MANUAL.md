@@ -468,7 +468,17 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 
 商品新增 `merchantId/merchantName/enrollmentSaleEnabled/teamBonusMode`，订单及订单项保存商户和奖金模式快照。公开商品序列化会移除 `merchantId`、报单开关和奖金模式等内部字段，只保留可展示的商户名称。
 
-商户商品的 `merchantId`、商品 `costAmount` 和SKU `costAmount` 属于结算条款。通过商品新增或整体发布接口修改这些字段时，后台账号除 `shop:product` 外还必须具有 `finance:manage`，并在商品对象提交 `settlementCostChangeReason`。服务端在 `MERCHANT_SETTLEMENT/COST_CHANGE` 操作日志中保存修改前后商户及成本快照、操作人和原因。旧的单SKU独立保存接口不接受后台直接修改商户SKU结算成本，必须使用商品整体编辑接口。
+商户商品的 `merchantId`、商品 `costAmount` 和SKU `costAmount` 属于结算条款。商户绑定账号可填写本商户结算价，但必须提交审核并由平台通过后才会上架；平台账号直接修改商户归属或结算价时，除 `shop:product` 外还必须具有 `finance:manage`，并提交 `settlementCostChangeReason`。服务端在 `MERCHANT_SETTLEMENT/COST_CHANGE` 日志中保存修改前后值、操作人和原因。旧的单SKU新增、编辑、启停接口不接受商户商品写入，避免绕过整单审核；商户SKU的销售价、结算价、库存或状态都必须使用商品整体编辑接口。
+
+### 19.2 商户商品上架与价格审核
+
+| 接口 | 入参 | 出参 | 核心逻辑 |
+| --- | --- | --- | --- |
+| `POST /shop/admin/products/{id}/submit-review` | 商品ID | 审核记录 | `shop:product`；商品必须下架且属于当前商户账号，保存销售价、结算价、SKU和完整商品快照，状态变为 `PENDING` |
+| `GET /shop/admin/merchant-product-reviews` | `status/keyword/pageNum/pageSize` | 分页审核记录 | `shop:product-review`；待审核优先，返回提交版本、销售价和结算价 |
+| `PUT /shop/admin/merchant-product-reviews/{id}/decision` | `approved`、`remark` | 审核记录 | `shop:product-review`；通过时原子校验版本并自动上架，驳回保持下架且原因必填，终态不可重复处理 |
+
+后台账号新增可选 `merchantId`。绑定商户的账号只允许 `admin:read,shop:product`，服务端只放行商品、SKU、图片上传及商品编辑所需的只读配置接口；商品列表自动追加 `merchant_id` 条件，详情和写操作再次校验归属。商户商品状态为 `DRAFT/PENDING/APPROVED/REJECTED`，只有 `APPROVED` 可上架。上架商品先下架才能修改；保存修改后回到 `DRAFT`。字段名 `costAmount` 为兼容历史数据库和订单快照继续保留，对商户业务统一解释和展示为“结算价”。
 
 商户货款在订单支付成功后按订单项 `costAmount × quantity` 创建且只创建一次。结算先进入 `PENDING`；订单状态为已完成、租户售后期限已过且没有进行中售后时，定时任务释放为 `AVAILABLE`。售后按退款数量和原成本快照冲回：待结算直接减少，已可用先扣可用余额，不足部分记入 `debtAmount`，后续新货款释放时优先抵扣欠款。
 
@@ -546,7 +556,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 - `team_bonus_mode=INHERIT` 沿用历史业务模式判断；`NONE` 明确不发团队奖；`STANDARD` 使用标准团队奖金；`CUSTOM` 只预留扩展标记，策略未配置前必须失败关闭。
 - 商户商品使用 `STANDARD` 时不能开启普通商城渠道，只能放在复购区或报单区，避免面向公众的普通购物意外进入团队奖金链路。
 - 奖金计算只汇总允许发团队奖的订单项金额；商户应结成本与团队奖金分别建账，退款时分别冲回，不能用商户货款代替奖金资金池。
-- 当前没有独立商户认证和商户门户。若增加商户自助能力，必须新增商户账号主体、`merchant_id` 会话声明、所有查询的强制数据隔离、商品/订单/提现权限矩阵和跨商户越权回归，禁止仅靠前端菜单隐藏。
+- 当前商户通过绑定 `merchant_id` 的受限后台账号维护本商户商品，已实现服务端归属隔离和跨商户越权回归；自助订单发货和提现仍未开放，继续由平台后台处理。
 
 ### 26. 奖金、业绩和资金
 

@@ -36,12 +36,17 @@ public class MerchantServiceImpl implements MerchantService {
 
     @Override
     public List<DmsMerchant> listMerchants(String keyword, Integer status) {
+        if (AdminContext.get() != null && AdminContext.get().getMerchantId() != null) {
+            DmsMerchant own = merchantDao.selectById(AdminContext.get().getMerchantId());
+            return own == null || (status != null && !status.equals(own.getStatus())) ? List.of() : List.of(own);
+        }
         return merchantDao.selectList(tenantId(), trim(keyword), status);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsMerchant saveMerchant(DmsMerchant merchant) {
+        requirePlatformAdmin();
         normalizeMerchant(merchant);
         if (merchantDao.selectByNo(merchant.getTenantId(), merchant.getMerchantNo()) != null) {
             Asserts.fail("商户编号已存在");
@@ -57,6 +62,7 @@ public class MerchantServiceImpl implements MerchantService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsMerchant updateMerchant(Long id, DmsMerchant merchant) {
+        requirePlatformAdmin();
         DmsMerchant existing = requireMerchant(id, false);
         merchant.setId(id);
         merchant.setTenantId(existing.getTenantId());
@@ -68,6 +74,7 @@ public class MerchantServiceImpl implements MerchantService {
 
     @Override
     public boolean updateMerchantStatus(Long id, Integer status) {
+        requirePlatformAdmin();
         requireMerchant(id, false);
         if (status == null || (status != 0 && status != 1)) Asserts.fail("商户状态不正确");
         return merchantDao.updateStatus(id, status) > 0;
@@ -296,6 +303,9 @@ public class MerchantServiceImpl implements MerchantService {
     }
 
     private Long tenantId() { return TenantContext.getTenantId(); }
+    private void requirePlatformAdmin() {
+        if (AdminContext.get() != null && AdminContext.get().getMerchantId() != null) Asserts.fail("商户工作台账号不能维护商户资料");
+    }
     private BigDecimal money(BigDecimal value) { return (value == null ? BigDecimal.ZERO : value).setScale(2, RoundingMode.HALF_UP); }
     private String trim(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private String upper(String value) { String text = trim(value); return text == null ? null : text.toUpperCase(Locale.ROOT); }

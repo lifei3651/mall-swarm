@@ -35,5 +35,8 @@ public class AdminUserSaveDTO {
     @Size(max = 64, message = "单次最多设置64项权限")
     private List<String> permissions;
 
+    /** 可选；绑定后账号只能维护该商户自己的商品。 */
+    private Long merchantId;
+
     private Integer status;
 }

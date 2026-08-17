@@ -28,10 +28,10 @@
         <el-form-item>
           <el-button type="primary" :icon="Search" :loading="loading" @click="handleSearch">查询</el-button>
           <el-button :icon="Refresh" @click="resetQuery">重置</el-button>
-          <el-button type="success" :icon="Plus" @click="openDialog()">发布商品</el-button>
+          <el-button type="success" :icon="Plus" @click="openDialog()">新增商品</el-button>
         </el-form-item>
       </el-form>
-      <div class="pv-global-setting">
+      <div v-if="!isMerchantUser" class="pv-global-setting">
         <div>
           <strong>商品 PV 填写</strong>
           <span>开启后，在每个商品发布页单独填写；关闭后所有商品按 PV=0 处理，不再参与 PV 计算。</span>
@@ -42,7 +42,7 @@
 
     <div v-if="selectedRows.length" class="batch-toolbar">
       <span>已选择 {{ selectedRows.length }} 个商品</span>
-      <el-button size="small" type="success" :loading="batchLoading" @click="batchSetStatus(1)">批量上架</el-button>
+      <el-button v-if="!selectedRows.some((row) => row.merchantId)" size="small" type="success" :loading="batchLoading" @click="batchSetStatus(1)">批量上架</el-button>
       <el-button size="small" type="warning" :loading="batchLoading" @click="batchSetStatus(0)">批量下架</el-button>
       <el-button size="small" text @click="selectedRows = []">清空选择</el-button>
     </div>
@@ -66,7 +66,7 @@
       <el-table-column label="商品分类" width="120"><template #default="{ row }"><span :class="{ 'muted-value': !row.categoryName }">{{ row.categoryName || '未分类' }}</span></template></el-table-column>
       <el-table-column label="销售方" width="140"><template #default="{ row }">{{ row.merchantName || '平台自营' }}</template></el-table-column>
       <el-table-column prop="salePrice" label="展示售价" width="110"><template #default="{ row }">¥{{ row.salePrice }}</template></el-table-column>
-      <el-table-column prop="costAmount" label="参考成本" width="110"><template #default="{ row }">¥{{ row.costAmount }}</template></el-table-column>
+      <el-table-column prop="costAmount" label="结算价" width="125"><template #default="{ row }"><strong :class="{ 'merchant-settlement': row.merchantId }">¥{{ row.costAmount }}</strong></template></el-table-column>
       <el-table-column v-if="performanceUnitsEnabled" prop="pvValue" label="单件PV" width="120">
         <template #default="{ row }">
           <span :class="{ 'pv-invalid': Number(row.pvValue || 0) > Number(row.salePrice || 0) }">{{ Number(row.pvValue || 0) }}</span>
@@ -82,10 +82,11 @@
       <el-table-column label="会员限购" width="105"><template #default="{ row }">{{ Number(row.purchaseLimit || 0) > 0 ? `每人 ${row.purchaseLimit} 件` : '不限购' }}</template></el-table-column><el-table-column prop="salesCount" label="累计销量" width="95" />
       <el-table-column prop="sort" label="上架排序" width="95" />
       <el-table-column prop="status" label="上架状态" width="95"><template #default="{ row }"><el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '上架' : '下架' }}</el-tag></template></el-table-column>
-      <el-table-column label="操作" fixed="right" width="180">
+      <el-table-column label="审核状态" width="105"><template #default="{ row }"><el-tag v-if="row.merchantId" :type="reviewState(row).type">{{ reviewState(row).label }}</el-tag><span v-else>-</span></template></el-table-column>
+      <el-table-column label="操作" fixed="right" width="210">
         <template #default="{ row }">
-          <el-button type="primary" link @click="openDialog(row)">编辑商品</el-button>
-          <el-button :type="row.status === 1 ? 'warning' : 'success'" link @click="toggleStatus(row)">{{ row.status === 1 ? '下架' : '上架' }}</el-button>
+          <el-button type="primary" link :disabled="row.merchantReviewStatus === 'PENDING'" @click="editProduct(row)">编辑商品</el-button>
+          <el-button :type="row.status === 1 ? 'warning' : 'success'" link :disabled="row.merchantReviewStatus === 'PENDING'" @click="toggleStatus(row)">{{ productActionLabel(row) }}</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -106,21 +107,21 @@
               <el-col :span="12"><el-form-item label="商品编号"><el-input v-model="form.productNo" placeholder="留空自动生成" /></el-form-item></el-col>
             </el-row>
             <el-form-item label="商品卖点"><el-input v-model="form.subtitle" maxlength="80" show-word-limit placeholder="用一句话说明最值得购买的理由" /><div class="field-help">最多 80 个字，突出 1～2 个核心卖点即可。</div></el-form-item>
-            <el-form-item label="销售方"><el-select v-model="form.merchantId" clearable filterable placeholder="平台自营" style="width:360px" :disabled="!canManageSettlementCost" @change="changeMerchant"><el-option v-for="item in merchants" :key="item.id" :label="item.merchantName" :value="item.id" /></el-select><div class="field-help">留空为平台自营；选择商户后，货款按订单成本价快照结算。绑定或更换商户需要财务管理权限。</div></el-form-item>
-            <el-alert v-if="form.merchantId && !canManageSettlementCost" title="商户结算成本已锁定。你可以维护商品内容，但修改销售方或结算成本需要财务管理权限。" type="warning" :closable="false" show-icon style="margin-bottom:18px" />
-            <el-form-item v-if="form.merchantId && canManageSettlementCost" label="成本变更原因"><el-input v-model="form.settlementCostChangeReason" maxlength="200" show-word-limit placeholder="首次设置或修改结算成本时必填，例如：依据新供货合同调整" /><div class="field-help">只有实际修改销售方、商品成本或SKU成本时才要求填写，系统会保存修改前后值和操作人。</div></el-form-item>
+            <el-form-item label="销售方"><el-select v-model="form.merchantId" clearable filterable placeholder="平台自营" style="width:360px" :disabled="!canChangeMerchant" @change="changeMerchant"><el-option v-for="item in merchants" :key="item.id" :label="item.merchantName" :value="item.id" /></el-select><div class="field-help">商户账号固定为本商户；平台账号留空表示自营。历史订单使用下单快照，新订单使用审核后的最新结算价。</div></el-form-item>
+            <el-alert v-if="form.merchantId" title="商户商品保存后保持下架，提交审核并通过后自动上架。修改销售价或结算价前必须先下架，修改后重新审核。" type="warning" :closable="false" show-icon style="margin-bottom:18px" />
+            <el-form-item v-if="form.merchantId && !isMerchantUser" label="结算价变更原因"><el-input v-model="form.settlementCostChangeReason" maxlength="200" show-word-limit placeholder="例如：依据新供货合同调整" /><div class="field-help">平台人员修改商户或结算价时必填；商户提交的价格由审核记录留痕。</div></el-form-item>
             <el-row :gutter="20">
               <el-col :span="8">
                 <el-form-item label="商品分类">
                   <div class="category-picker">
                     <el-select v-model="form.categoryName" clearable filterable placeholder="不设置分类也可以"><el-option v-for="item in categories" :key="item.id" :label="item.categoryName" :value="item.categoryName" /></el-select>
-                    <el-button type="primary" plain :icon="Plus" @click="openQuickCategory">新增分类</el-button>
+                    <el-button v-if="!isMerchantUser" type="primary" plain :icon="Plus" @click="openQuickCategory">新增分类</el-button>
                   </div>
                   <div class="field-help">商品较少时可以不分类；需要筛选和分组时再选择即可。</div>
                 </el-form-item>
               </el-col>
               <el-col :span="8"><el-form-item label="排序"><el-input-number v-model="form.sort" :step="1" style="width:100%" /><div class="field-help">上架商品自动排在下架商品前；同状态下数值越大越靠前。</div></el-form-item></el-col>
-              <el-col :span="8"><el-form-item label="上架状态"><el-radio-group v-model="form.status"><el-radio-button :value="1">立即上架</el-radio-button><el-radio-button :value="0">暂存下架</el-radio-button></el-radio-group></el-form-item></el-col>
+              <el-col :span="8"><el-form-item label="上架状态"><span v-if="form.merchantId">保存为下架草稿，审核通过后自动上架</span><el-radio-group v-else v-model="form.status"><el-radio-button :value="1">立即上架</el-radio-button><el-radio-button :value="0">暂存下架</el-radio-button></el-radio-group></el-form-item></el-col>
             </el-row>
           </section>
 
@@ -153,7 +154,7 @@
               <el-row :gutter="20">
                 <el-col :span="6"><el-form-item label="销售价" required><el-input-number v-model="form.salePrice" :min="0" :precision="2" :step="1" controls-position="right" class="money-input" /></el-form-item></el-col>
                 <el-col :span="6"><el-form-item label="划线价"><el-input-number v-model="form.marketPrice" :min="0" :precision="2" :step="1" controls-position="right" class="money-input" /></el-form-item></el-col>
-                <el-col :span="6"><el-form-item label="成本价"><el-input-number v-model="form.costAmount" :min="0" :precision="2" :step="1" controls-position="right" class="money-input" :disabled="Boolean(form.merchantId) && !canManageSettlementCost" /></el-form-item></el-col>
+                <el-col :span="6"><el-form-item :label="form.merchantId ? '结算价' : '参考成本价'"><el-input-number v-model="form.costAmount" :min="0" :precision="2" :step="1" controls-position="right" class="money-input" :disabled="Boolean(form.merchantId) && !canManageSettlementCost" /></el-form-item></el-col>
                 <el-col :span="6"><el-form-item label="可售库存"><el-input-number v-model="form.stock" :min="0" :step="1" controls-position="right" class="money-input" /></el-form-item></el-col>
               </el-row>
               <el-row v-if="performanceUnitsEnabled" :gutter="20" class="pv-row">
@@ -162,7 +163,7 @@
             </template>
 
             <template v-else>
-              <el-alert title="多规格商品只维护下面的SKU。顾客下单时，价格、成本、PV和库存均以选中的SKU为准；商品列表所需的展示价和总库存由系统自动汇总。" type="success" :closable="false" show-icon style="margin-bottom:14px" />
+              <el-alert :title="form.merchantId ? '多规格商品只维护下面的SKU。顾客下单时，销售价、结算价、PV和库存均以选中的SKU为准；商品列表所需的展示价和总库存由系统自动汇总。' : '多规格商品只维护下面的SKU。顾客下单时，销售价、参考成本、PV和库存均以选中的SKU为准；商品列表所需的展示价和总库存由系统自动汇总。'" type="success" :closable="false" show-icon style="margin-bottom:14px" />
               <div class="sku-toolbar">
                 <span>每一行代表一种可购买规格，例如“体验装”“家庭装”；可在规格属性中填写“包装规格：家庭装”。</span>
                 <el-button type="primary" plain :icon="Plus" @click="addSku">添加规格</el-button>
@@ -188,7 +189,7 @@
                 <el-table-column label="SKU编码" min-width="150"><template #default="{ row }"><el-input v-model="row.skuNo" placeholder="留空自动生成" /></template></el-table-column>
                 <el-table-column label="销售价" width="150"><template #default="{ row }"><el-input-number v-model="row.salePrice" :min="0" :precision="2" controls-position="right" /></template></el-table-column>
                 <el-table-column label="划线价" width="150"><template #default="{ row }"><el-input-number v-model="row.marketPrice" :min="0" :precision="2" controls-position="right" /></template></el-table-column>
-                <el-table-column label="成本价" width="150"><template #default="{ row }"><el-input-number v-model="row.costAmount" :min="0" :precision="2" controls-position="right" :disabled="Boolean(form.merchantId) && !canManageSettlementCost" /></template></el-table-column>
+                <el-table-column :label="form.merchantId ? '结算价' : '参考成本价'" width="150"><template #default="{ row }"><el-input-number v-model="row.costAmount" :min="0" :precision="2" controls-position="right" :disabled="Boolean(form.merchantId) && !canManageSettlementCost" /></template></el-table-column>
                 <el-table-column v-if="performanceUnitsEnabled" label="单件PV" width="165">
                   <template #header><span>单件PV</span><el-tooltip content="填0继承上方默认单件PV；可为不同规格单独设置，但不能超过该SKU销售价" placement="top"><el-icon class="column-help"><QuestionFilled /></el-icon></el-tooltip></template>
                   <template #default="{ row }"><el-input-number v-model="row.pvValue" :min="0" :max="Math.max(0, Number(row.salePrice || 0))" :precision="2" controls-position="right" /></template>
@@ -204,7 +205,7 @@
               <el-col :span="8"><el-form-item label="每位会员限购"><el-input-number v-model="form.purchaseLimit" :min="0" :step="1" controls-position="right" class="money-input" /><div class="field-help">按会员累计购买数量计算；0 表示不限购。</div></el-form-item></el-col>
               <el-col :span="8"><el-form-item label="商品安全库存"><el-input-number v-model="form.safetyStock" :min="0" :step="1" controls-position="right" class="money-input" /><div class="field-help">单规格直接预警；多规格作为商品汇总阈值。</div></el-form-item></el-col>
             </el-row>
-            <el-alert class="cost-help" :title="form.merchantId ? '商户商品成本价同时是货款结算依据；历史订单使用下单快照，不会被后续修改。修改需要财务权限、原因和审计记录。' : '平台自营成本价只用于经营利润统计；有规格商品按所选SKU的成本计算。'" type="warning" :closable="false" show-icon />
+            <el-alert class="cost-help" :title="form.merchantId ? '结算价是平台应付给商户的单件货款；历史订单使用下单时快照，不会被后续改价影响。' : '平台自营参考成本价只用于经营利润统计；有规格商品按所选SKU的成本计算。'" type="warning" :closable="false" show-icon />
           </section>
 
           <section id="product-business" class="form-section">
@@ -247,8 +248,8 @@
                 <el-form-item label="配送规则" required>
                   <div class="template-picker">
                     <el-select v-model="form.freightTemplateId" placeholder="请选择模板" style="min-width:280px"><el-option v-for="item in activeFreightTemplates" :key="item.id" :label="item.templateName" :value="item.id" /></el-select>
-                    <el-button type="primary" plain @click="openFreightTemplate()">新建模板</el-button>
-                    <el-button :disabled="!form.freightTemplateId" @click="editSelectedFreightTemplate">编辑当前模板</el-button>
+                    <el-button v-if="!isMerchantUser" type="primary" plain @click="openFreightTemplate()">新建模板</el-button>
+                    <el-button v-if="!isMerchantUser" :disabled="!form.freightTemplateId" @click="editSelectedFreightTemplate">编辑当前模板</el-button>
                   </div>
                 </el-form-item>
               </el-col>
@@ -384,7 +385,7 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown, Box, CircleClose, Document, Medal, Money, Plus, QuestionFilled, Refresh, RefreshLeft, Search, Star, Van, WarningFilled } from '@element-plus/icons-vue'
 import { pcaTextArr } from 'element-china-area-data'
-import { createFreightTemplate, createShopCategory, getProductSettings, listFreightTemplates, listShopCategories, listShopProducts, listShopServiceAddresses, listShopSkus, publishShopProduct, updateFreightTemplate, updateProductPvSetting, updateShopProductStatus, uploadShopImage } from '@/api/shop'
+import { createFreightTemplate, createShopCategory, getProductSettings, listFreightTemplates, listShopCategories, listShopProducts, listShopServiceAddresses, listShopSkus, publishShopProduct, submitMerchantProductReview, updateFreightTemplate, updateProductPvSetting, updateShopProductStatus, uploadShopImage } from '@/api/shop'
 import { listMerchants } from '@/api/merchant'
 import { validateSearchKeyword } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
@@ -399,7 +400,7 @@ const tableData = ref([])
 const selectedRows = ref([])
 const dialogVisible = ref(false)
 const stockStatusFromUrl = new URLSearchParams(window.location.search).get('stockStatus')
-const query = ref({ keyword: '', categoryName: '', status: 1, stockStatus: ['NORMAL', 'LOW', 'OUT'].includes(stockStatusFromUrl) ? stockStatusFromUrl : null })
+const query = ref({ keyword: '', categoryName: '', status: store.userInfo?.merchantId ? null : 1, stockStatus: ['NORMAL', 'LOW', 'OUT'].includes(stockStatusFromUrl) ? stockStatusFromUrl : null })
 const pagination = ref({ page: 1, size: 10, total: 0 })
 const searchFeedback = ref('')
 const tableEmptyText = ref('暂无商品')
@@ -445,7 +446,15 @@ const sectionAnchors = [
 ]
 const activeFreightTemplates = computed(() => freightTemplates.value.filter((item) => item.status === 1))
 const hasSku = computed(() => skuRows.value.length > 0)
-const canManageSettlementCost = computed(() => store.hasPermission('finance:manage'))
+const isMerchantUser = computed(() => Boolean(store.userInfo?.merchantId))
+const canManageSettlementCost = computed(() => isMerchantUser.value || store.hasPermission('finance:manage'))
+const canChangeMerchant = computed(() => !isMerchantUser.value && store.hasPermission('finance:manage'))
+const reviewState = (row) => ({ DRAFT: { label: '待提交', type: 'info' }, PENDING: { label: '审核中', type: 'warning' }, APPROVED: { label: '已通过', type: 'success' }, REJECTED: { label: '已驳回', type: 'danger' } }[row?.merchantReviewStatus] || { label: '待提交', type: 'info' })
+const productActionLabel = (row) => {
+  if (row.status === 1) return '下架'
+  if (!row.merchantId || row.merchantReviewStatus === 'APPROVED') return '上架'
+  return row.merchantReviewStatus === 'PENDING' ? '审核中' : '提交审核'
+}
 const productPvLimit = computed(() => {
   if (!hasSku.value) return Math.max(0, Number(form.value.salePrice || 0))
   const enabledPrices = skuRows.value
@@ -700,6 +709,12 @@ const batchSetStatus = async (status) => {
 const openDialog = async (row) => {
   const mainImages = row ? [row.coverUrl, ...parseArray(row.galleryUrls)].filter(Boolean).slice(0, 5) : []
   form.value = row ? { ...defaultForm(), ...row, mainImages, detailImageUrls: parseArray(row.detailImages), serviceGuarantees: normalizeServiceGuarantees(row.serviceTags), freightType: row.freightType ?? 0, pvValue: Number(row.pvValue || 0), afterSalePolicy: row.afterSalePolicy?.trim() || afterSalePolicyPresets[defaultAfterSalePresetKey].content, afterSalePresetKey: inferAfterSalePreset(row.afterSalePolicy?.trim() || afterSalePolicyPresets[defaultAfterSalePresetKey].content) } : { ...defaultForm(), shippingAddressId: shippingAddresses.value.find((item) => Number(item.isDefault) === 1)?.id || shippingAddresses.value[0]?.id || null, returnAddressId: returnAddresses.value.find((item) => Number(item.isDefault) === 1)?.id || returnAddresses.value[0]?.id || null }
+  if (isMerchantUser.value) {
+    form.value.merchantId = store.userInfo.merchantId
+    form.value.merchantName = store.userInfo.merchantName || ''
+    form.value.status = 0
+    form.value.teamBonusMode = row?.teamBonusMode || 'NONE'
+  }
   deliveryRegion.value = row?.deliveryProvince && row?.deliveryCity && row?.deliveryDistrict
     ? [row.deliveryProvince, row.deliveryCity, row.deliveryDistrict]
     : []
@@ -715,6 +730,16 @@ const openDialog = async (row) => {
     } finally { dialogLoading.value = false }
   }
   clearDisabledPvValues()
+}
+
+const editProduct = async (row) => {
+  if (row.merchantId && row.status === 1) {
+    await ElMessageBox.confirm('修改商户商品前必须先下架。确认现在下架并进入编辑？', '先下架再修改', { type: 'warning' })
+    await updateShopProductStatus(row.id, 0)
+    row = { ...row, status: 0 }
+    await fetchData()
+  }
+  await openDialog(row)
 }
 
 const uploadFile = async (file) => {
@@ -846,7 +871,7 @@ const submitForm = async () => {
   if (Number(form.value.normalSaleEnabled) !== 1 && Number(form.value.repurchaseSaleEnabled) !== 1 && Number(form.value.enrollmentSaleEnabled) !== 1) return ElMessage.warning('商品至少选择一个销售渠道')
   if (form.value.merchantId && form.value.teamBonusMode === 'INHERIT') return ElMessage.warning('商户商品必须明确选择团队奖金模式')
   if (form.value.merchantId && form.value.teamBonusMode === 'STANDARD' && Number(form.value.normalSaleEnabled) === 1) return ElMessage.warning('产生团队奖金的商户商品不能同时进入普通商城')
-  if (form.value.merchantId && Number(form.value.costAmount || 0) <= 0) return ElMessage.warning('商户商品必须填写大于0的结算成本价')
+  if (form.value.merchantId && Number(form.value.costAmount || 0) <= 0) return ElMessage.warning('商户商品必须填写大于0的结算价')
   if (Number(form.value.repurchaseSaleEnabled) === 1 && Number(form.value.repurchasePrice || 0) <= 0) return ElMessage.warning('启用复购商城后请填写复购价')
   if (Number(form.value.repurchasePv || 0) > Number(form.value.repurchasePrice || 0)) return ElMessage.warning('复购PV不能超过复购价')
   if (skuRows.value.some((item) => Number(item.repurchasePv || 0) > Number(item.repurchasePrice || form.value.repurchasePrice || 0))) return ElMessage.warning('SKU复购PV不能超过对应复购价')
@@ -894,15 +919,29 @@ const submitForm = async () => {
       }),
       removedSkuIds: removedSkuIds.value,
     })
-    ElMessage.success('商品、图片、规格和配送信息已保存')
+    ElMessage.success(form.value.merchantId ? '商品已保存为下架草稿，请在列表提交审核' : '商品、图片、规格和配送信息已保存')
     dialogVisible.value = false
     await fetchData()
   } finally { submitting.value = false }
 }
 
-const toggleStatus = async (row) => { await updateShopProductStatus(row.id, row.status === 1 ? 0 : 1); ElMessage.success('商品状态已更新'); fetchData() }
+const toggleStatus = async (row) => {
+  if (row.status === 1 || !row.merchantId || row.merchantReviewStatus === 'APPROVED') {
+    await updateShopProductStatus(row.id, row.status === 1 ? 0 : 1)
+    ElMessage.success(row.status === 1 ? '商品已下架' : '商品已重新上架')
+  } else {
+    await ElMessageBox.confirm(`提交“${row.productName}”审核？审核人员将确认销售价和结算价，通过后自动上架。`, '提交商品审核', { type: 'warning' })
+    await submitMerchantProductReview(row.id)
+    ElMessage.success('已提交审核，请等待平台处理')
+  }
+  fetchData()
+}
 
-onMounted(async () => { const merchantRes = await listMerchants({ status: 1 }); merchants.value = merchantRes.data || []; await Promise.all([fetchData(), fetchCategories(), fetchProductSettings(), fetchFreightTemplates(), fetchServiceAddresses()]) })
+onMounted(async () => {
+  if (isMerchantUser.value) merchants.value = [{ id: store.userInfo.merchantId, merchantName: store.userInfo.merchantName || '当前商户' }]
+  else { const merchantRes = await listMerchants({ status: 1 }); merchants.value = merchantRes.data || [] }
+  await Promise.all([fetchData(), fetchCategories(), fetchProductSettings(), fetchFreightTemplates(), fetchServiceAddresses()])
+})
 </script>
 
 <style lang="scss" scoped>
@@ -918,6 +957,7 @@ onMounted(async () => { const merchantRes = await listMerchants({ status: 1 }); 
 .cover-fallback { display:flex; align-items:center; justify-content:center; color:#909399; }
 .product-meta { min-width:0; .name{font-weight:600;color:#303133;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sub{color:#909399;font-size:12px;line-height:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} }
 .muted-value { color:#c0c4cc; }
+.merchant-settlement { color:#1b6f3a; }
 .pv-invalid { color:#f56c6c; font-weight:700; }
 .pv-warning { margin-left:5px; color:#e6a23c; vertical-align:-2px; cursor:help; }
 .column-help { margin-left:5px; color:#909399; vertical-align:-2px; cursor:help; }

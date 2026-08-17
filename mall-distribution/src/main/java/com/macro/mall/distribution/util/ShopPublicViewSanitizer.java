@@ -24,6 +24,13 @@ public final class ShopPublicViewSanitizer {
         value.setMerchantId(null);
         value.setEnrollmentSaleEnabled(null);
         value.setTeamBonusMode(null);
+        value.setMerchantReviewStatus(null);
+        value.setMerchantReviewVersion(null);
+        value.setMerchantReviewRemark(null);
+        value.setMerchantReviewSubmittedAt(null);
+        value.setMerchantReviewedAt(null);
+        value.setMerchantReviewerId(null);
+        value.setMerchantReviewerName(null);
         value.setCreateTime(null);
         value.setUpdateTime(null);
         if (!repurchaseView) {

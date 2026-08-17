@@ -206,7 +206,7 @@ class MerchantSettlementServiceTest {
         merchant.setMerchantNo("M-COST-GOVERNANCE");
         merchant.setMerchantName("成本权限测试商户");
         merchant = merchantService.saveMerchant(merchant);
-        jdbcTemplate.update("UPDATE dms_shop_product SET merchant_id=?,merchant_name=?,cost_amount=50,team_bonus_mode='NONE' WHERE id=1",
+        jdbcTemplate.update("UPDATE dms_shop_product SET merchant_id=?,merchant_name=?,cost_amount=50,team_bonus_mode='NONE',status=0,merchant_review_status='APPROVED' WHERE id=1",
                 merchant.getId(), merchant.getMerchantName());
 
         DmsShopProduct product = new DmsShopProduct();

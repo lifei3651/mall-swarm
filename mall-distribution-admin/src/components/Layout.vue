@@ -156,6 +156,7 @@ const businessMenus = [
   {
     key: 'products', title: '商品与库存', icon: 'Goods', items: [
       { title: '商品管理', path: '/shop/products', permission: 'shop:product' },
+      { title: '商户商品审核', path: '/shop/merchant-product-reviews', permission: 'shop:product-review' },
       { title: '发货与退货地址', path: '/shop/service-addresses', permission: 'shop:product' },
       { title: '分类与规格', path: '/shop/categories', permission: 'shop:product' },
       { title: '商品评价', path: '/shop/reviews', permission: 'shop:product' },
@@ -373,7 +374,10 @@ const breadcrumbs = computed(() => {
   }))
 })
 
-const hasMenuPermission = (item) => !item.permission || store.hasPermission(item.permission)
+const hasMenuPermission = (item) => {
+  if (store.userInfo?.merchantId) return item.path === '/dashboard' || item.path === '/shop/products'
+  return !item.permission || store.hasPermission(item.permission)
+}
 const visibleBusinessMenus = computed(() => businessMenus
   .map((menu) => menu.items
     ? { ...menu, items: menu.items.filter(hasMenuPermission) }

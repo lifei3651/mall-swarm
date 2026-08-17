@@ -20,4 +20,6 @@ public interface AdminUserService {
     boolean updateStatus(Long id, Integer status);
 
     List<Map<String, String>> permissionOptions();
+
+    List<Map<String, Object>> merchantOptions();
 }

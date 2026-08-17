@@ -259,6 +259,7 @@ CREATE TABLE IF NOT EXISTS dms_admin_user (
   nickname VARCHAR(64),
   role_code VARCHAR(64) NOT NULL,
   permissions CLOB,
+  merchant_id BIGINT,
   status INT DEFAULT 1,
   last_login_time TIMESTAMP,
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -852,6 +853,13 @@ CREATE TABLE IF NOT EXISTS dms_shop_product (
   sales_count INT NOT NULL DEFAULT 0,
   sort_order INT NOT NULL DEFAULT 0,
   status INT NOT NULL DEFAULT 1,
+  merchant_review_status VARCHAR(16),
+  merchant_review_version INT NOT NULL DEFAULT 0,
+  merchant_review_remark VARCHAR(500),
+  merchant_review_submitted_at TIMESTAMP,
+  merchant_reviewed_at TIMESTAMP,
+  merchant_reviewer_id BIGINT,
+  merchant_reviewer_name VARCHAR(64),
   detail CLOB,
   detail_images CLOB,
   delivery_address VARCHAR(255),
@@ -875,6 +883,33 @@ CREATE TABLE IF NOT EXISTS dms_shop_product (
 -- Keep the in-memory schema compatible when multiple test contexts reuse a named H2 database.
 ALTER TABLE dms_shop_product ADD COLUMN IF NOT EXISTS shipping_address_id BIGINT;
 ALTER TABLE dms_shop_product ADD COLUMN IF NOT EXISTS return_address_id BIGINT;
+
+CREATE TABLE IF NOT EXISTS dms_merchant_product_review (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  merchant_id BIGINT NOT NULL,
+  merchant_name VARCHAR(128) NOT NULL,
+  product_id BIGINT NOT NULL,
+  review_version INT NOT NULL,
+  review_type VARCHAR(20) NOT NULL,
+  status VARCHAR(16) NOT NULL DEFAULT 'PENDING',
+  product_no VARCHAR(64),
+  product_name VARCHAR(60) NOT NULL,
+  sale_price DECIMAL(12,2) NOT NULL,
+  settlement_price DECIMAL(12,2) NOT NULL,
+  sku_count INT NOT NULL DEFAULT 0,
+  product_snapshot CLOB NOT NULL,
+  submitter_id BIGINT,
+  submitter_name VARCHAR(64),
+  submitted_at TIMESTAMP NOT NULL,
+  reviewer_id BIGINT,
+  reviewer_name VARCHAR(64),
+  review_remark VARCHAR(500),
+  reviewed_at TIMESTAMP,
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(product_id, review_version)
+);
 
 CREATE TABLE IF NOT EXISTS dms_freight_template (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,

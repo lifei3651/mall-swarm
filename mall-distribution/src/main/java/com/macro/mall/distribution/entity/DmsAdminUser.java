@@ -24,6 +24,11 @@ public class DmsAdminUser implements Serializable {
 
     private String permissions;
 
+    /** 绑定后该后台账号仅能作为对应商户的商品工作台账号。 */
+    private Long merchantId;
+
+    private String merchantName;
+
     private Integer status;
     private Integer failedLoginCount;
     private LocalDateTime lockTime;
