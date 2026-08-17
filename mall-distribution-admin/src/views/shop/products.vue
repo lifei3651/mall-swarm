@@ -106,7 +106,9 @@
               <el-col :span="12"><el-form-item label="商品编号"><el-input v-model="form.productNo" placeholder="留空自动生成" /></el-form-item></el-col>
             </el-row>
             <el-form-item label="商品卖点"><el-input v-model="form.subtitle" maxlength="80" show-word-limit placeholder="用一句话说明最值得购买的理由" /><div class="field-help">最多 80 个字，突出 1～2 个核心卖点即可。</div></el-form-item>
-            <el-form-item label="销售方"><el-select v-model="form.merchantId" clearable filterable placeholder="平台自营" style="width:360px" @change="changeMerchant"><el-option v-for="item in merchants" :key="item.id" :label="item.merchantName" :value="item.id" /></el-select><div class="field-help">留空为平台自营；选择商户后，货款按订单成本价快照结算。</div></el-form-item>
+            <el-form-item label="销售方"><el-select v-model="form.merchantId" clearable filterable placeholder="平台自营" style="width:360px" :disabled="!canManageSettlementCost" @change="changeMerchant"><el-option v-for="item in merchants" :key="item.id" :label="item.merchantName" :value="item.id" /></el-select><div class="field-help">留空为平台自营；选择商户后，货款按订单成本价快照结算。绑定或更换商户需要财务管理权限。</div></el-form-item>
+            <el-alert v-if="form.merchantId && !canManageSettlementCost" title="商户结算成本已锁定。你可以维护商品内容，但修改销售方或结算成本需要财务管理权限。" type="warning" :closable="false" show-icon style="margin-bottom:18px" />
+            <el-form-item v-if="form.merchantId && canManageSettlementCost" label="成本变更原因"><el-input v-model="form.settlementCostChangeReason" maxlength="200" show-word-limit placeholder="首次设置或修改结算成本时必填，例如：依据新供货合同调整" /><div class="field-help">只有实际修改销售方、商品成本或SKU成本时才要求填写，系统会保存修改前后值和操作人。</div></el-form-item>
             <el-row :gutter="20">
               <el-col :span="8">
                 <el-form-item label="商品分类">
@@ -151,7 +153,7 @@
               <el-row :gutter="20">
                 <el-col :span="6"><el-form-item label="销售价" required><el-input-number v-model="form.salePrice" :min="0" :precision="2" :step="1" controls-position="right" class="money-input" /></el-form-item></el-col>
                 <el-col :span="6"><el-form-item label="划线价"><el-input-number v-model="form.marketPrice" :min="0" :precision="2" :step="1" controls-position="right" class="money-input" /></el-form-item></el-col>
-                <el-col :span="6"><el-form-item label="成本价"><el-input-number v-model="form.costAmount" :min="0" :precision="2" :step="1" controls-position="right" class="money-input" /></el-form-item></el-col>
+                <el-col :span="6"><el-form-item label="成本价"><el-input-number v-model="form.costAmount" :min="0" :precision="2" :step="1" controls-position="right" class="money-input" :disabled="Boolean(form.merchantId) && !canManageSettlementCost" /></el-form-item></el-col>
                 <el-col :span="6"><el-form-item label="可售库存"><el-input-number v-model="form.stock" :min="0" :step="1" controls-position="right" class="money-input" /></el-form-item></el-col>
               </el-row>
               <el-row v-if="performanceUnitsEnabled" :gutter="20" class="pv-row">
@@ -186,7 +188,7 @@
                 <el-table-column label="SKU编码" min-width="150"><template #default="{ row }"><el-input v-model="row.skuNo" placeholder="留空自动生成" /></template></el-table-column>
                 <el-table-column label="销售价" width="150"><template #default="{ row }"><el-input-number v-model="row.salePrice" :min="0" :precision="2" controls-position="right" /></template></el-table-column>
                 <el-table-column label="划线价" width="150"><template #default="{ row }"><el-input-number v-model="row.marketPrice" :min="0" :precision="2" controls-position="right" /></template></el-table-column>
-                <el-table-column label="成本价" width="150"><template #default="{ row }"><el-input-number v-model="row.costAmount" :min="0" :precision="2" controls-position="right" /></template></el-table-column>
+                <el-table-column label="成本价" width="150"><template #default="{ row }"><el-input-number v-model="row.costAmount" :min="0" :precision="2" controls-position="right" :disabled="Boolean(form.merchantId) && !canManageSettlementCost" /></template></el-table-column>
                 <el-table-column v-if="performanceUnitsEnabled" label="单件PV" width="165">
                   <template #header><span>单件PV</span><el-tooltip content="填0继承上方默认单件PV；可为不同规格单独设置，但不能超过该SKU销售价" placement="top"><el-icon class="column-help"><QuestionFilled /></el-icon></el-tooltip></template>
                   <template #default="{ row }"><el-input-number v-model="row.pvValue" :min="0" :max="Math.max(0, Number(row.salePrice || 0))" :precision="2" controls-position="right" /></template>
@@ -202,7 +204,7 @@
               <el-col :span="8"><el-form-item label="每位会员限购"><el-input-number v-model="form.purchaseLimit" :min="0" :step="1" controls-position="right" class="money-input" /><div class="field-help">按会员累计购买数量计算；0 表示不限购。</div></el-form-item></el-col>
               <el-col :span="8"><el-form-item label="商品安全库存"><el-input-number v-model="form.safetyStock" :min="0" :step="1" controls-position="right" class="money-input" /><div class="field-help">单规格直接预警；多规格作为商品汇总阈值。</div></el-form-item></el-col>
             </el-row>
-            <el-alert class="cost-help" title="成本价只用于经营利润统计；有规格商品按所选SKU的成本计算。" type="warning" :closable="false" show-icon />
+            <el-alert class="cost-help" :title="form.merchantId ? '商户商品成本价同时是货款结算依据；历史订单使用下单快照，不会被后续修改。修改需要财务权限、原因和审计记录。' : '平台自营成本价只用于经营利润统计；有规格商品按所选SKU的成本计算。'" type="warning" :closable="false" show-icon />
           </section>
 
           <section id="product-business" class="form-section">
@@ -386,7 +388,9 @@ import { createFreightTemplate, createShopCategory, getProductSettings, listFrei
 import { listMerchants } from '@/api/merchant'
 import { validateSearchKeyword } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
+import { useAppStore } from '@/store'
 
+const store = useAppStore()
 const loading = ref(false)
 const dialogLoading = ref(false)
 const submitting = ref(false)
@@ -441,6 +445,7 @@ const sectionAnchors = [
 ]
 const activeFreightTemplates = computed(() => freightTemplates.value.filter((item) => item.status === 1))
 const hasSku = computed(() => skuRows.value.length > 0)
+const canManageSettlementCost = computed(() => store.hasPermission('finance:manage'))
 const productPvLimit = computed(() => {
   if (!hasSku.value) return Math.max(0, Number(form.value.salePrice || 0))
   const enabledPrices = skuRows.value
@@ -563,7 +568,7 @@ const defaultServiceGuarantees = () => Object.entries(guaranteeDefaults).map(([t
 }))
 
 const inferAfterSalePreset = (policy) => Object.entries(afterSalePolicyPresets).find(([, preset]) => preset.content === policy)?.[0] || 'custom'
-const defaultForm = () => ({ tenantId: 1, merchantId: null, merchantName: '', productNo: '', productName: '', subtitle: '', categoryName: '', mainImages: [], salePrice: 0, marketPrice: 0, costAmount: 0, pvValue: 0, bvValue: 0, stock: 0, safetyStock: 0, purchaseLimit: 0, normalSaleEnabled: 1, repurchaseSaleEnabled: 0, enrollmentSaleEnabled: 0, teamBonusMode: 'INHERIT', repurchasePrice: 0, repurchasePv: 0, repurchasePurchaseLimit: 0, salesCount: 0, sort: 0, status: 1, freightType: 0, freightAmount: 0, freeShippingAmount: 0, freightTemplateId: null, freightTemplateName: '', deliveryAddress: '', deliveryProvince: '', deliveryCity: '', deliveryDistrict: '', shippingAddressId: null, returnAddressId: null, deliveryTime: '48小时内发货', afterSalePresetKey: defaultAfterSalePresetKey, afterSalePolicy: afterSalePolicyPresets[defaultAfterSalePresetKey].content, serviceGuarantees: defaultServiceGuarantees(), detail: '', detailImageUrls: [] })
+const defaultForm = () => ({ tenantId: 1, merchantId: null, merchantName: '', settlementCostChangeReason: '', productNo: '', productName: '', subtitle: '', categoryName: '', mainImages: [], salePrice: 0, marketPrice: 0, costAmount: 0, pvValue: 0, bvValue: 0, stock: 0, safetyStock: 0, purchaseLimit: 0, normalSaleEnabled: 1, repurchaseSaleEnabled: 0, enrollmentSaleEnabled: 0, teamBonusMode: 'INHERIT', repurchasePrice: 0, repurchasePv: 0, repurchasePurchaseLimit: 0, salesCount: 0, sort: 0, status: 1, freightType: 0, freightAmount: 0, freeShippingAmount: 0, freightTemplateId: null, freightTemplateName: '', deliveryAddress: '', deliveryProvince: '', deliveryCity: '', deliveryDistrict: '', shippingAddressId: null, returnAddressId: null, deliveryTime: '48小时内发货', afterSalePresetKey: defaultAfterSalePresetKey, afterSalePolicy: afterSalePolicyPresets[defaultAfterSalePresetKey].content, serviceGuarantees: defaultServiceGuarantees(), detail: '', detailImageUrls: [] })
 
 const changeMerchant = (merchantId) => { form.value.teamBonusMode = merchantId ? 'NONE' : 'INHERIT' }
 

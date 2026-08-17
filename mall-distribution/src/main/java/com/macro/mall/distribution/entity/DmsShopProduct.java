@@ -50,6 +50,9 @@ public class DmsShopProduct implements Serializable {
 
     private BigDecimal costAmount;
 
+    /** 仅用于后台提交商户结算成本变更原因，不写入商品表。 */
+    private String settlementCostChangeReason;
+
     private BigDecimal pvValue;
 
     private BigDecimal bvValue;

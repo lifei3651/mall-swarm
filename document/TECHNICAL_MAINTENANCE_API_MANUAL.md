@@ -464,9 +464,11 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `POST /merchant-finance/withdrawals` | `merchantId`、`requestedAmount` | 提现申请 | `finance:manage`；锁定账户并把可提现金额转为冻结 |
 | `PUT /merchant-finance/withdrawals/{id}/review` | `invoiceRequiredAmount`、`invoiceReceivedAmount`、`invoiceStatus=NOT_REQUIRED|PENDING|RECEIVED`、`adjustmentAmount`、`adjustmentReason` | 审核后的申请 | `finance:manage`；调整后实付必须大于 0 且不超过申请金额，非零调整必须说明原因 |
 | `POST /merchant-finance/withdrawals/{id}/pay` | `actualPaidAmount`、可选 `paymentReference/paymentVoucherUrl` | 已打款申请 | `finance:manage`；仅 `READY_TO_PAY`，实付必须等于申请金额加调整金额 |
-| `POST /merchant-finance/withdrawals/{id}/reject` | `reason` | 已驳回申请 | `finance:manage`；解冻完整申请金额并保留原因 |
+| `POST /merchant-finance/withdrawals/{id}/reject` | `reason` | 已驳回申请 | `finance:manage`；冻结金额先抵退款欠款，剩余部分退回可提现并保留原因；重复驳回失败 |
 
 商品新增 `merchantId/merchantName/enrollmentSaleEnabled/teamBonusMode`，订单及订单项保存商户和奖金模式快照。公开商品序列化会移除 `merchantId`、报单开关和奖金模式等内部字段，只保留可展示的商户名称。
+
+商户商品的 `merchantId`、商品 `costAmount` 和SKU `costAmount` 属于结算条款。通过商品新增或整体发布接口修改这些字段时，后台账号除 `shop:product` 外还必须具有 `finance:manage`，并在商品对象提交 `settlementCostChangeReason`。服务端在 `MERCHANT_SETTLEMENT/COST_CHANGE` 操作日志中保存修改前后商户及成本快照、操作人和原因。旧的单SKU独立保存接口不接受后台直接修改商户SKU结算成本，必须使用商品整体编辑接口。
 
 商户货款在订单支付成功后按订单项 `costAmount × quantity` 创建且只创建一次。结算先进入 `PENDING`；订单状态为已完成、租户售后期限已过且没有进行中售后时，定时任务释放为 `AVAILABLE`。售后按退款数量和原成本快照冲回：待结算直接减少，已可用先扣可用余额，不足部分记入 `debtAmount`，后续新货款释放时优先抵扣欠款。
 

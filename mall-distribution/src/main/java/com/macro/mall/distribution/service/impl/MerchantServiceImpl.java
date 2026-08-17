@@ -170,13 +170,14 @@ public class MerchantServiceImpl implements MerchantService {
     @Transactional(rollbackFor = Exception.class)
     public DmsMerchantWithdrawal rejectWithdrawal(Long id, MerchantWithdrawalRejectDTO dto) {
         DmsMerchantWithdrawal withdrawal = requireWithdrawalForUpdate(id, Set.of("SUBMITTED", "INVOICE_PENDING", "READY_TO_PAY"));
+        String rejectReason = trim(dto == null ? null : dto.getReason());
+        if (rejectReason == null) Asserts.fail("请填写驳回原因");
         accountDao.selectByMerchantIdForUpdate(withdrawal.getMerchantId());
         if (accountDao.unfreeze(withdrawal.getMerchantId(), money(withdrawal.getRequestedAmount())) != 1) {
             Asserts.fail("商户冻结余额异常，不能驳回");
         }
         withdrawal.setStatus("REJECTED");
-        withdrawal.setRejectReason(trim(dto == null ? null : dto.getReason()));
-        if (withdrawal.getRejectReason() == null) Asserts.fail("请填写驳回原因");
+        withdrawal.setRejectReason(rejectReason);
         applyOperator(withdrawal);
         withdrawalDao.update(withdrawal);
         return withdrawalDao.selectById(id);

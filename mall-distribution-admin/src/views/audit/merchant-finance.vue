@@ -29,7 +29,7 @@ const openReview=(row)=>{current.value=row;reviewForm.value={invoiceRequiredAmou
 const submitReview=async()=>{await reviewMerchantWithdrawal(current.value.id,reviewForm.value);ElMessage.success('发票与审核信息已保存');reviewVisible.value=false;await loadCurrent()}
 const openPay=(row)=>{current.value=row;payForm.value={actualPaidAmount:Number(row.requestedAmount||0)+Number(row.adjustmentAmount||0),paymentReference:'',paymentVoucherUrl:''};payVisible.value=true}
 const submitPay=async()=>{await payMerchantWithdrawal(current.value.id,payForm.value);ElMessage.success('打款已确认');payVisible.value=false;await loadCurrent()}
-const reject=async(row)=>{const {value}=await ElMessageBox.prompt('请填写驳回原因','驳回商户提现',{inputValidator:(v)=>Boolean(v?.trim())||'必须填写原因'});await rejectMerchantWithdrawal(row.id,{reason:value});ElMessage.success('已驳回并解冻余额');await loadCurrent()}
+const reject=async(row)=>{const {value}=await ElMessageBox.prompt('请填写驳回原因','驳回商户提现',{inputValidator:(v)=>Boolean(v?.trim())||'必须填写原因'});await rejectMerchantWithdrawal(row.id,{reason:value});ElMessage.success('已驳回；冻结金额已先抵退款欠款，剩余部分退回可提现余额');await loadCurrent()}
 onMounted(async()=>{merchants.value=(await listMerchants({status:1})).data||[];await loadCurrent()})
 </script>
 <style scoped>.page-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.page-heading h2{margin:0}.page-heading p{margin:6px 0 0;color:#909399}.help{color:#909399;font-size:12px;margin-top:6px}</style>
