@@ -170,6 +170,7 @@
                ) THEN 1 ELSE 0 END), 0) AS after_sale
         FROM dms_shop_order o
         WHERE COALESCE(o.tenant_id, 1) = #{tenantId}
+        <if test="merchantId != null">AND o.merchant_id=#{merchantId}</if>
     </select>
 
     <select id="selectByAgentId" resultMap="BaseResultMap">
@@ -206,6 +207,10 @@
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_order
         <where>
+            AND COALESCE(tenant_id, 1) = #{tenantId}
+            <if test="merchantId != null">
+                AND merchant_id = #{merchantId}
+            </if>
             <if test="status != null">
                 AND status = #{status}
             </if>

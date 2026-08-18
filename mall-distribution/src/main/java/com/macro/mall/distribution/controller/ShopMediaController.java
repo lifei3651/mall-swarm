@@ -70,6 +70,7 @@ public class ShopMediaController {
     @GetMapping("/admin/after-sales/proofs/{memberId}/{filename:.+}")
     public ResponseEntity<Resource> adminAfterSaleProof(@PathVariable Long memberId,
                                                          @PathVariable String filename) throws IOException {
+        afterSaleService.assertAdminCanReadProof(memberId, filename);
         return privateImage(mediaStorageService.loadAfterSaleProof(memberId, filename));
     }
 

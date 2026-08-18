@@ -2,6 +2,7 @@ package com.macro.mall.distribution.controller;
 
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.distribution.dto.MerchantDepositAdjustDTO;
+import com.macro.mall.distribution.dto.MerchantControlDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalApplyDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalPayDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalRejectDTO;
@@ -9,8 +10,10 @@ import com.macro.mall.distribution.dto.MerchantWithdrawalReviewDTO;
 import com.macro.mall.distribution.entity.DmsMerchant;
 import com.macro.mall.distribution.entity.DmsMerchantAccount;
 import com.macro.mall.distribution.entity.DmsMerchantDepositFlow;
+import com.macro.mall.distribution.entity.DmsMerchantLedger;
 import com.macro.mall.distribution.entity.DmsMerchantSettlement;
 import com.macro.mall.distribution.entity.DmsMerchantWithdrawal;
+import com.macro.mall.distribution.entity.DmsMerchantWithdrawalEvent;
 import com.macro.mall.distribution.service.MerchantService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -52,6 +55,12 @@ public class MerchantController {
         return CommonResult.success(merchantService.updateMerchantStatus(id, status));
     }
 
+    @Operation(summary = "分别调整商户账号、经营、履约、提现、结算、保证金、审核和退出状态")
+    @PutMapping("/merchants/{id}/controls")
+    public CommonResult<DmsMerchant> controls(@PathVariable Long id, @Valid @RequestBody MerchantControlDTO dto) {
+        return CommonResult.success(merchantService.updateMerchantControls(id, dto));
+    }
+
     @Operation(summary = "商户货款账户")
     @GetMapping("/merchant-finance/accounts")
     public CommonResult<List<DmsMerchantAccount>> accounts(@RequestParam(required = false) String keyword) {
@@ -72,10 +81,23 @@ public class MerchantController {
         return CommonResult.success(merchantService.listWithdrawals(merchantId, status));
     }
 
+    @Operation(summary = "商户提现审批轨迹")
+    @GetMapping("/merchant-finance/withdrawals/{id}/events")
+    public CommonResult<List<DmsMerchantWithdrawalEvent>> withdrawalEvents(@PathVariable Long id) {
+        return CommonResult.success(merchantService.listWithdrawalEvents(id));
+    }
+
     @Operation(summary = "商户保证金流水")
     @GetMapping("/merchant-finance/deposit-flows")
     public CommonResult<List<DmsMerchantDepositFlow>> depositFlows(@RequestParam(required = false) Long merchantId) {
         return CommonResult.success(merchantService.listDepositFlows(merchantId));
+    }
+
+    @Operation(summary = "商户资金总账")
+    @GetMapping("/merchant-finance/ledger")
+    public CommonResult<List<DmsMerchantLedger>> ledger(@RequestParam(required = false) Long merchantId,
+                                                         @RequestParam(required = false) String bizType) {
+        return CommonResult.success(merchantService.listLedgers(merchantId, bizType));
     }
 
     @Operation(summary = "从商户可提现余额冻结保证金")

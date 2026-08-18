@@ -14,6 +14,9 @@ public interface ShopAfterSaleService {
     /** 上传凭证前确认订单确实属于当前会员且仍可发起售后。 */
     void assertCanUploadProof(DmsShopMember member, Long orderId);
 
+    /** 后台读取凭证前，以当前租户和会话商户核对该文件确实属于可见售后单。 */
+    void assertAdminCanReadProof(Long memberId, String filename);
+
     DmsShopAfterSale apply(DmsShopMember member, ShopAfterSaleApplyDTO dto);
 
     /** 会员撤回尚未审核的售后申请，不产生退款或账务变动。 */

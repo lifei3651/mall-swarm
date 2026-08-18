@@ -17,6 +17,7 @@ import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsShopSkuDao;
 import com.macro.mall.distribution.dao.DmsFlashSaleActivityDao;
 import com.macro.mall.distribution.dao.DmsFlashSaleReservationDao;
+import com.macro.mall.distribution.dao.DmsMerchantDao;
 import com.macro.mall.distribution.dto.FinanceRefundDTO;
 import com.macro.mall.distribution.dto.AssetChangeDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleApplyDTO;
@@ -34,6 +35,7 @@ import com.macro.mall.distribution.entity.DmsShopProduct;
 import com.macro.mall.distribution.entity.DmsShopServiceAddress;
 import com.macro.mall.distribution.entity.DmsFlashSaleActivity;
 import com.macro.mall.distribution.entity.DmsFlashSaleReservation;
+import com.macro.mall.distribution.entity.DmsMerchant;
 import com.macro.mall.distribution.constants.ShopBusinessType;
 import com.macro.mall.distribution.enums.AgentSourceTypeEnum;
 import com.macro.mall.distribution.service.AgentService;
@@ -95,6 +97,8 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     private final ObjectMapper objectMapper;
     @Autowired(required = false)
     private OrderRealtimeService orderRealtimeService;
+    @Autowired(required = false)
+    private DmsMerchantDao merchantDao;
 
     @Value("${shop.payment.simulation-enabled:false}")
     private boolean simulationPaymentEnabled;
@@ -112,6 +116,21 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         }
         assertWithinAfterSaleWindow(order);
         if (afterSaleDao.selectOpenByOrderId(orderId) != null) Asserts.fail("该订单已有处理中售后");
+    }
+
+    @Override
+    public void assertAdminCanReadProof(Long memberId, String filename) {
+        if (memberId == null || filename == null || filename.isBlank()) Asserts.fail("售后凭证信息不完整");
+        Long merchantId = currentMerchantId();
+        for (String proofImages : afterSaleDao.selectProofReferences(TenantContext.getTenantId(), memberId, merchantId)) {
+            try {
+                List<String> filenames = objectMapper.readValue(proofImages, new TypeReference<List<String>>() { });
+                if (filenames.stream().anyMatch(filename::equals)) return;
+            } catch (Exception e) {
+                log.warn("售后凭证清单格式异常，已拒绝直接读取: memberId={}", memberId);
+            }
+        }
+        Asserts.fail(merchantId == null ? "售后凭证不存在或不属于当前商城" : "不能读取其他商户的售后凭证");
     }
 
     @Override
@@ -510,7 +529,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
 
     @Override
     public List<DmsShopAfterSale> listAdmin(String keyword, Integer status) {
-        return afterSaleDao.selectList(keyword, status).stream()
+        return afterSaleDao.selectList(TenantContext.getTenantId(), keyword, status, currentMerchantId()).stream()
                 .filter(this::canAccessAfterSale)
                 .map(this::hydrate)
                 .toList();
@@ -529,6 +548,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             Asserts.fail("订单不存在");
         }
         assertTenantAccess(order.getTenantId());
+        assertMerchantAfterSaleAccess(order);
         if (!Integer.valueOf(0).equals(afterSale.getStatus())) {
             Asserts.fail("售后单已审核");
         }
@@ -576,6 +596,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         DmsShopOrder order = orderDao.selectById(afterSale.getOrderId());
         if (order == null) Asserts.fail("订单不存在");
         assertTenantAccess(order.getTenantId());
+        assertMerchantAfterSaleAccess(order);
         if (Integer.valueOf(6).equals(afterSale.getStatus())) {
             if (!requiresExternalRefund(order, afterSale)) Asserts.fail("当前退款状态不需要调用外部支付渠道");
             scheduleExternalRefund(afterSale.getId());
@@ -769,7 +790,24 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             return false;
         }
         DmsShopOrder order = orderDao.selectById(afterSale.getOrderId());
-        return order != null && TenantContext.getTenantId().equals(order.getTenantId() == null ? 1L : order.getTenantId());
+        if (order == null || !TenantContext.getTenantId().equals(order.getTenantId() == null ? 1L : order.getTenantId())) return false;
+        Long merchantId = currentMerchantId();
+        return merchantId == null || merchantId.equals(order.getMerchantId());
+    }
+
+    private Long currentMerchantId() {
+        return AdminContext.get() == null ? null : AdminContext.get().getMerchantId();
+    }
+
+    private void assertMerchantAfterSaleAccess(DmsShopOrder order) {
+        Long merchantId = currentMerchantId();
+        if (merchantId == null) return;
+        if (order == null || !merchantId.equals(order.getMerchantId())) Asserts.fail("不能处理其他商户的售后");
+        if (merchantDao == null) return;
+        DmsMerchant merchant = merchantDao.selectById(merchantId);
+        if (merchant == null || !"ENABLED".equals(merchant.getFulfillmentStatus())) {
+            Asserts.fail("商户履约权限已由平台接管或冻结，不能处理售后");
+        }
     }
 
     private void assertTenantAccess(Long tenantId) {

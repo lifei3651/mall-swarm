@@ -11,6 +11,15 @@
     <el-alert v-if="!isMerchantUser" title="保证金与提现冻结分开记账。系统不自动计算税费；需要少打款时使用负数调整金额并填写原因。" type="warning" :closable="false" show-icon />
     <el-alert v-else title="订单先经过确认收货、售后窗口和商品结算等待期，之后才进入可提现余额；保证金不能直接提现。" type="info" :closable="false" show-icon />
 
+    <div v-if="isMerchantUser" class="merchant-summary">
+      <div class="summary-card"><span>待发货</span><strong>{{ orderSummary.pendingShipment }}</strong><small>笔订单</small></div>
+      <div class="summary-card"><span>售后处理中</span><strong>{{ orderSummary.afterSale }}</strong><small>笔售后</small></div>
+      <div class="summary-card"><span>待结算</span><strong>¥{{ money(ownAccount.pendingAmount) }}</strong><small>售后期及结算期内</small></div>
+      <div class="summary-card"><span>可提现</span><strong class="available">¥{{ money(ownAccount.availableAmount) }}</strong><small>可发起提现申请</small></div>
+      <div class="summary-card"><span>提现中</span><strong>¥{{ money(ownAccount.frozenAmount) }}</strong><small>财务处理中</small></div>
+      <div class="summary-card"><span>保证金</span><strong :class="{ debt: Number(ownAccount.depositShortfallAmount || 0) > 0 }">¥{{ money(ownAccount.depositFrozenAmount) }}</strong><small>{{ Number(ownAccount.depositShortfallAmount || 0) > 0 ? `尚缺 ¥${money(ownAccount.depositShortfallAmount)}` : '状态正常' }}</small></div>
+    </div>
+
     <el-tabs v-model="tab" @tab-change="loadCurrent">
       <el-tab-pane label="货款账户" name="accounts">
         <el-table :data="accounts" v-loading="loading" stripe>
@@ -26,6 +35,17 @@
           <el-table-column v-if="canManage" label="保证金操作" width="150">
             <template #default="{ row }"><el-button link type="warning" @click="openDeposit(row, 'FREEZE')">余额转入</el-button><el-button link type="primary" @click="openDeposit(row, 'RECEIVE')">登记收款</el-button><el-button link type="success" @click="openDeposit(row, 'RELEASE')">解冻</el-button></template>
           </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
+      <el-tab-pane label="资金总账" name="ledger">
+        <el-alert title="每一次待结算、可提现、提现冻结、保证金、欠款和已打款变化都会形成不可变流水，可从第一笔复算到当前余额。" type="success" :closable="false" show-icon />
+        <el-table :data="ledger" v-loading="loading" stripe class="ledger-table">
+          <el-table-column label="流水" width="160"><template #default="{ row }"><strong>{{ row.ledgerNo }}</strong><div class="ledger-sub">{{ formatTime(row.createTime) }}</div></template></el-table-column>
+          <el-table-column v-if="!isMerchantUser" prop="merchantName" label="商户" width="120" show-overflow-tooltip />
+          <el-table-column label="业务说明" min-width="180"><template #default="{ row }"><strong>{{ ledgerType(row.bizType) }}</strong><div class="ledger-sub">{{ row.summary || '-' }}</div></template></el-table-column>
+          <el-table-column label="本次资金变化" width="160"><template #default="{ row }"><div class="ledger-change-list"><span v-for="item in ledgerChanges(row)" :key="item.label" class="ledger-change"><small>{{ item.label }}</small><strong :class="deltaClass(item.value)">{{ signedMoney(item.value) }}</strong></span></div></template></el-table-column>
+          <el-table-column label="变化后余额" min-width="310"><template #default="{ row }"><div class="ledger-balance"><span>待结算 ¥{{ money(row.pendingAfter) }}</span><span>可提现 ¥{{ money(row.availableAfter) }}</span><span>提现冻结 ¥{{ money(row.frozenAfter) }}</span><span>保证金 ¥{{ money(row.depositAfter) }}</span><span>欠款 ¥{{ money(row.debtAfter) }}</span><span>累计打款 ¥{{ money(row.paidAfter) }}</span></div></template></el-table-column>
         </el-table>
       </el-tab-pane>
 
@@ -67,7 +87,7 @@
           <el-table-column label="调整"><template #default="{ row }">¥{{ money(row.adjustmentAmount) }}</template></el-table-column>
           <el-table-column label="实付"><template #default="{ row }">{{ row.actualPaidAmount == null ? '-' : `¥${money(row.actualPaidAmount)}` }}</template></el-table-column>
           <el-table-column label="状态" width="115"><template #default="{ row }"><el-tag>{{ withdrawalStatus(row.status) }}</el-tag></template></el-table-column>
-          <el-table-column v-if="canManage" label="操作" width="210"><template #default="{ row }"><el-button v-if="['SUBMITTED','INVOICE_PENDING','READY_TO_PAY'].includes(row.status)" link type="primary" @click="openReview(row)">发票/审核</el-button><el-button v-if="row.status === 'READY_TO_PAY'" link type="success" @click="openPay(row)">确认打款</el-button><el-button v-if="['SUBMITTED','INVOICE_PENDING','READY_TO_PAY'].includes(row.status)" link type="danger" @click="reject(row)">驳回</el-button></template></el-table-column>
+          <el-table-column label="操作" width="260"><template #default="{ row }"><el-button link @click="showEvents(row)">审批轨迹</el-button><template v-if="canManage"><el-button v-if="['SUBMITTED','INVOICE_PENDING','READY_TO_PAY'].includes(row.status)" link type="primary" @click="openReview(row)">发票/审核</el-button><el-button v-if="row.status === 'READY_TO_PAY'" link type="success" @click="openPay(row)">确认打款</el-button><el-button v-if="['SUBMITTED','INVOICE_PENDING','READY_TO_PAY'].includes(row.status)" link type="danger" @click="reject(row)">驳回</el-button></template></template></el-table-column>
         </el-table>
       </el-tab-pane>
     </el-tabs>
@@ -85,23 +105,31 @@
 
     <el-dialog v-model="reviewVisible" title="登记发票与打款调整" width="600px"><el-form label-width="120px"><el-form-item label="应开票金额"><el-input-number v-model="reviewForm.invoiceRequiredAmount" :min="0" :precision="2" style="width:100%" /></el-form-item><el-form-item label="已收票金额"><el-input-number v-model="reviewForm.invoiceReceivedAmount" :min="0" :precision="2" style="width:100%" /></el-form-item><el-form-item label="发票状态"><el-select v-model="reviewForm.invoiceStatus" style="width:100%"><el-option label="无需发票" value="NOT_REQUIRED"/><el-option label="待收发票" value="PENDING"/><el-option label="已收发票" value="RECEIVED"/></el-select></el-form-item><el-form-item label="调整金额"><el-input-number v-model="reviewForm.adjustmentAmount" :max="0" :precision="2" style="width:100%"/><div class="help">少打100元填写 -100；不自动认定为税费。</div></el-form-item><el-form-item label="调整原因"><el-input v-model="reviewForm.adjustmentReason" type="textarea" /></el-form-item></el-form><template #footer><el-button @click="reviewVisible=false">取消</el-button><el-button type="primary" @click="submitReview">保存审核</el-button></template></el-dialog>
     <el-dialog v-model="payVisible" title="确认实际打款" width="520px"><el-form label-width="110px"><el-form-item label="实际打款"><el-input-number v-model="payForm.actualPaidAmount" :min="0.01" :precision="2" style="width:100%"/></el-form-item><el-form-item label="银行流水号"><el-input v-model="payForm.paymentReference" /></el-form-item><el-form-item label="凭证地址"><el-input v-model="payForm.paymentVoucherUrl" /></el-form-item></el-form><template #footer><el-button @click="payVisible=false">取消</el-button><el-button type="primary" @click="submitPay">确认已打款</el-button></template></el-dialog>
+    <el-dialog v-model="eventsVisible" title="提现审批轨迹" width="620px"><el-timeline><el-timeline-item v-for="item in withdrawalEvents" :key="item.id" :timestamp="formatTime(item.createTime)" placement="top"><strong>{{ withdrawalStatus(item.toStatus) }}</strong><div class="event-remark">{{ item.remark || '-' }}</div><small>{{ item.operatorName || '商户提交' }}</small></el-timeline-item></el-timeline></el-dialog>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useRoute } from 'vue-router'
 import { useAppStore } from '@/store'
-import { applyMerchantWithdrawal, freezeMerchantDeposit, listMerchantAccounts, listMerchantDepositFlows, listMerchantSettlements, listMerchants, listMerchantWithdrawals, payMerchantWithdrawal, receiveMerchantDeposit, rejectMerchantWithdrawal, releaseMerchantDeposit, reviewMerchantWithdrawal } from '@/api/merchant'
+import { getAdminOrderWorkSummary } from '@/api/shop'
+import { applyMerchantWithdrawal, freezeMerchantDeposit, listMerchantAccounts, listMerchantDepositFlows, listMerchantLedger, listMerchantSettlements, listMerchants, listMerchantWithdrawalEvents, listMerchantWithdrawals, payMerchantWithdrawal, receiveMerchantDeposit, rejectMerchantWithdrawal, releaseMerchantDeposit, reviewMerchantWithdrawal } from '@/api/merchant'
 
 const store = useAppStore()
+const route = useRoute()
 const isMerchantUser = computed(() => Boolean(store.userInfo?.merchantId))
 const canManage = computed(() => !isMerchantUser.value && store.hasPermission('finance:manage'))
 const canApply = computed(() => isMerchantUser.value || canManage.value)
-const tab = ref('accounts'); const loading = ref(false); const saving = ref(false)
-const merchants = ref([]); const accounts = ref([]); const settlements = ref([]); const depositFlows = ref([]); const withdrawals = ref([])
+const financeTabs = ['accounts', 'ledger', 'settlements', 'deposits', 'withdrawals']
+const tab = ref(financeTabs.includes(String(route.query.tab || '')) ? String(route.query.tab) : 'accounts'); const loading = ref(false); const saving = ref(false)
+const merchants = ref([]); const accounts = ref([]); const settlements = ref([]); const depositFlows = ref([]); const ledger = ref([]); const withdrawals = ref([])
 const applyVisible = ref(false); const depositVisible = ref(false); const reviewVisible = ref(false); const payVisible = ref(false)
 const current = ref(null); const currentAccount = ref(null)
+const eventsVisible = ref(false); const withdrawalEvents = ref([])
+const orderSummary = ref({ pendingShipment: 0, afterSale: 0 })
+const ownAccount = computed(() => accounts.value[0] || {})
 const applyForm = ref({ requestNo: '', merchantId: null, requestedAmount: 0 })
 const depositForm = ref({ merchantId: null, operationType: 'FREEZE', amount: 0, reason: '' })
 const reviewForm = ref({ invoiceRequiredAmount: 0, invoiceReceivedAmount: 0, invoiceStatus: 'NOT_REQUIRED', adjustmentAmount: 0, adjustmentReason: '' })
@@ -114,6 +142,20 @@ const withdrawalStatus = (status) => ({ SUBMITTED: '待审核', INVOICE_PENDING:
 const operationNo = () => `MD-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`
 const withdrawalRequestNo = () => `MWR-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`
 const depositOperation = (type) => ({ FREEZE: { label: '余额转入', type: 'warning' }, RECEIVE: { label: '线下收款', type: 'primary' }, RELEASE: { label: '解冻', type: 'success' } }[type] || { label: type || '-', type: 'info' })
+const ledgerType = (type) => ({ ORDER_PENDING: '订单进入待结算', SETTLEMENT_RELEASE: '到期释放货款', AFTER_SALE_REVERSAL: '售后冲回', WITHDRAWAL_APPLY: '申请提现', WITHDRAWAL_REJECT: '提现驳回', WITHDRAWAL_PAID: '提现付款', DEPOSIT_FREEZE: '余额转保证金', DEPOSIT_RECEIVE: '线下保证金', DEPOSIT_RELEASE: '释放保证金' }[type] || type || '-')
+const signedMoney = (value) => { const number = Number(value || 0); return `${number > 0 ? '+' : ''}¥${number.toFixed(2)}` }
+const deltaClass = (value) => Number(value || 0) > 0 ? 'delta-plus' : Number(value || 0) < 0 ? 'delta-minus' : 'delta-zero'
+const ledgerChanges = (row) => {
+  const items = [
+    { label: '待结算', value: row.pendingDelta },
+    { label: '可提现', value: row.availableDelta },
+    { label: '提现冻结', value: row.frozenDelta },
+    { label: '保证金', value: row.depositDelta },
+    { label: '欠款', value: row.debtDelta },
+    { label: '累计打款', value: row.paidDelta },
+  ].filter((item) => Number(item.value || 0) !== 0)
+  return items.length ? items : [{ label: '余额', value: 0 }]
+}
 const maskBankAccount = (value) => { const text = String(value || ''); return text.length <= 8 ? text : `${text.slice(0, 4)} **** ${text.slice(-4)}` }
 const depositDialogTitle = computed(() => ({ FREEZE: '从商户余额转入保证金', RECEIVE: '登记线下收到的保证金', RELEASE: '解冻商户保证金' }[depositForm.value.operationType] || '调整保证金'))
 const depositDialogTip = computed(() => depositForm.value.operationType === 'FREEZE'
@@ -122,7 +164,7 @@ const depositDialogTip = computed(() => depositForm.value.operationType === 'FRE
     ? '仅在财务已经实际收到商户线下保证金后登记，本操作不会扣减商户货款余额。'
     : `解冻时优先抵扣退款欠款，剩余金额回到可提现余额。当前保证金 ¥${money(currentAccount.value?.depositFrozenAmount)}`)
 
-const loadCurrent = async () => { loading.value = true; try { if (tab.value === 'accounts') accounts.value = (await listMerchantAccounts()).data || []; if (tab.value === 'settlements') settlements.value = (await listMerchantSettlements()).data || []; if (tab.value === 'deposits') depositFlows.value = (await listMerchantDepositFlows()).data || []; if (tab.value === 'withdrawals') withdrawals.value = (await listMerchantWithdrawals()).data || [] } finally { loading.value = false } }
+const loadCurrent = async () => { loading.value = true; try { if (tab.value === 'accounts') accounts.value = (await listMerchantAccounts()).data || []; if (tab.value === 'settlements') settlements.value = (await listMerchantSettlements()).data || []; if (tab.value === 'deposits') depositFlows.value = (await listMerchantDepositFlows()).data || []; if (tab.value === 'ledger') ledger.value = (await listMerchantLedger()).data || []; if (tab.value === 'withdrawals') withdrawals.value = (await listMerchantWithdrawals()).data || [] } finally { loading.value = false } }
 const openApply = () => { applyForm.value = { requestNo: withdrawalRequestNo(), merchantId: isMerchantUser.value ? store.userInfo.merchantId : null, requestedAmount: 0 }; applyVisible.value = true }
 const submitApply = async () => { saving.value = true; try { await applyMerchantWithdrawal(applyForm.value); ElMessage.success('提现申请已提交'); applyVisible.value = false; tab.value = 'withdrawals'; await loadCurrent() } finally { saving.value = false } }
 const openDeposit = (row, operationType) => { currentAccount.value = row; depositForm.value = { merchantId: row.merchantId, operationType, amount: 0, reason: '' }; depositVisible.value = true }
@@ -132,10 +174,22 @@ const submitReview = async () => { await reviewMerchantWithdrawal(current.value.
 const openPay = (row) => { current.value = row; payForm.value = { actualPaidAmount: Number(row.requestedAmount || 0) + Number(row.adjustmentAmount || 0), paymentReference: '', paymentVoucherUrl: '' }; payVisible.value = true }
 const submitPay = async () => { await payMerchantWithdrawal(current.value.id, payForm.value); ElMessage.success('打款已确认'); payVisible.value = false; await loadCurrent() }
 const reject = async (row) => { const { value } = await ElMessageBox.prompt('请填写驳回原因', '驳回商户提现', { inputValidator: (v) => Boolean(v?.trim()) || '必须填写原因' }); await rejectMerchantWithdrawal(row.id, { reason: value }); ElMessage.success('已驳回；冻结金额先抵退款欠款，剩余退回可提现余额'); await loadCurrent() }
+const showEvents = async (row) => { withdrawalEvents.value = (await listMerchantWithdrawalEvents(row.id)).data || []; eventsVisible.value = true }
 
-onMounted(async () => { if (!isMerchantUser.value) merchants.value = (await listMerchants({ status: 1 })).data || []; await loadCurrent() })
+onMounted(async () => {
+  if (!isMerchantUser.value) merchants.value = (await listMerchants()).data || []
+  await loadCurrent()
+  if (isMerchantUser.value && store.hasPermission('shop:order')) {
+    try {
+      const res = await getAdminOrderWorkSummary()
+      orderSummary.value = { pendingShipment: Number(res.data?.pendingShipment || 0), afterSale: Number(res.data?.afterSale || 0) }
+    } catch {
+      orderSummary.value = { pendingShipment: 0, afterSale: 0 }
+    }
+  }
+})
 </script>
 
 <style scoped>
-.page-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.page-heading h2{margin:0}.page-heading p{margin:6px 0 0;color:#909399}.available{color:#1b6f3a}.deposit{color:#b26a00}.debt{color:#d93838;font-weight:700}.dialog-form{margin-top:18px}.help{color:#909399;font-size:12px;margin-top:6px}@media(max-width:760px){.page-heading{align-items:flex-start;gap:12px;flex-direction:column}}
+.page-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.page-heading h2{margin:0}.page-heading p{margin:6px 0 0;color:#909399}.merchant-summary{display:grid;grid-template-columns:repeat(6,minmax(140px,1fr));gap:12px;margin:16px 0}.summary-card{display:flex;flex-direction:column;gap:7px;padding:16px;border:1px solid #e6ebf2;border-radius:10px;background:#fff}.summary-card span{color:#606266;font-size:13px}.summary-card strong{color:#25324b;font-size:22px}.summary-card small{color:#909399}.available{color:#1b6f3a!important}.deposit{color:#b26a00}.debt,.delta-minus{color:#d93838!important;font-weight:700}.delta-plus{color:#16834b;font-weight:700}.delta-zero{color:#909399}.dialog-form{margin-top:18px}.help,.event-remark,.ledger-sub{color:#606266;font-size:12px;margin-top:6px}.ledger-table{margin-top:14px}.ledger-change-list,.ledger-balance{display:flex;flex-wrap:wrap;gap:7px 10px}.ledger-change{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:6px;background:#f5f7fa}.ledger-change small{color:#606266}.ledger-balance span{min-width:132px;color:#4b5563;font-size:12px}@media(max-width:1100px){.merchant-summary{grid-template-columns:repeat(3,minmax(150px,1fr))}}@media(max-width:760px){.page-heading{align-items:flex-start;gap:12px;flex-direction:column}.merchant-summary{grid-template-columns:repeat(2,minmax(130px,1fr))}}
 </style>

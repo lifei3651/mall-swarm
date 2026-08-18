@@ -4,6 +4,7 @@ import com.macro.mall.distribution.entity.DmsMerchant;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import java.util.List;
+import com.macro.mall.distribution.dto.MerchantControlDTO;
 
 @Mapper
 public interface DmsMerchantDao {
@@ -15,4 +16,6 @@ public interface DmsMerchantDao {
     int insert(DmsMerchant merchant);
     int update(DmsMerchant merchant);
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
+    int updateControls(@Param("id") Long id, @Param("status") Integer status,
+                       @Param("control") MerchantControlDTO control);
 }

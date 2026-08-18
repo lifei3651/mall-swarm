@@ -262,6 +262,8 @@ CREATE TABLE IF NOT EXISTS dms_admin_user (
   merchant_id BIGINT,
   status INT DEFAULT 1,
   last_login_time TIMESTAMP,
+  failed_login_count INT NOT NULL DEFAULT 0,
+  lock_time TIMESTAMP,
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -770,6 +772,14 @@ CREATE TABLE IF NOT EXISTS dms_merchant (
   profile_version INT NOT NULL DEFAULT 1,
   settlement_mode VARCHAR(24) NOT NULL DEFAULT 'COST_PRICE',
   default_settlement_days INT NOT NULL DEFAULT 0,
+  account_status VARCHAR(16) NOT NULL DEFAULT 'ENABLED',
+  business_status VARCHAR(16) NOT NULL DEFAULT 'ACTIVE',
+  fulfillment_status VARCHAR(20) NOT NULL DEFAULT 'ENABLED',
+  withdrawal_status VARCHAR(16) NOT NULL DEFAULT 'ENABLED',
+  settlement_status VARCHAR(16) NOT NULL DEFAULT 'ENABLED',
+  deposit_status VARCHAR(16) NOT NULL DEFAULT 'NORMAL',
+  audit_status VARCHAR(16) NOT NULL DEFAULT 'APPROVED',
+  exit_status VARCHAR(16) NOT NULL DEFAULT 'NORMAL',
   status INT NOT NULL DEFAULT 1,
   remark VARCHAR(500),
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -789,6 +799,32 @@ CREATE TABLE IF NOT EXISTS dms_merchant_account (
   total_paid_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS dms_merchant_ledger (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL,
+  merchant_id BIGINT NOT NULL,
+  merchant_name VARCHAR(128),
+  ledger_no VARCHAR(96) NOT NULL UNIQUE,
+  biz_type VARCHAR(32) NOT NULL,
+  biz_id VARCHAR(96) NOT NULL,
+  summary VARCHAR(256) NOT NULL,
+  pending_delta DECIMAL(14,2) NOT NULL DEFAULT 0,
+  available_delta DECIMAL(14,2) NOT NULL DEFAULT 0,
+  frozen_delta DECIMAL(14,2) NOT NULL DEFAULT 0,
+  deposit_delta DECIMAL(14,2) NOT NULL DEFAULT 0,
+  debt_delta DECIMAL(14,2) NOT NULL DEFAULT 0,
+  paid_delta DECIMAL(14,2) NOT NULL DEFAULT 0,
+  pending_after DECIMAL(14,2) NOT NULL DEFAULT 0,
+  available_after DECIMAL(14,2) NOT NULL DEFAULT 0,
+  frozen_after DECIMAL(14,2) NOT NULL DEFAULT 0,
+  deposit_after DECIMAL(14,2) NOT NULL DEFAULT 0,
+  debt_after DECIMAL(14,2) NOT NULL DEFAULT 0,
+  paid_after DECIMAL(14,2) NOT NULL DEFAULT 0,
+  operator_id BIGINT,
+  operator_name VARCHAR(64),
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS dms_merchant_settlement (
@@ -860,6 +896,20 @@ CREATE TABLE IF NOT EXISTS dms_merchant_withdrawal (
 
 CREATE UNIQUE INDEX IF NOT EXISTS uk_merchant_withdrawal_request
   ON dms_merchant_withdrawal(tenant_id, merchant_id, request_no);
+
+CREATE TABLE IF NOT EXISTS dms_merchant_withdrawal_event (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL,
+  merchant_id BIGINT NOT NULL,
+  withdrawal_id BIGINT NOT NULL,
+  withdrawal_no VARCHAR(64) NOT NULL,
+  from_status VARCHAR(24),
+  to_status VARCHAR(24) NOT NULL,
+  remark VARCHAR(500),
+  operator_id BIGINT,
+  operator_name VARCHAR(64),
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE TABLE IF NOT EXISTS dms_shop_product (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,

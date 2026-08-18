@@ -5,6 +5,7 @@ import com.macro.mall.distribution.dto.MerchantDepositAdjustDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalPayDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalRejectDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalReviewDTO;
+import com.macro.mall.distribution.dto.MerchantControlDTO;
 import com.macro.mall.distribution.dto.ShopSkuDTO;
 import com.macro.mall.distribution.entity.DmsMerchant;
 import com.macro.mall.distribution.entity.DmsMerchantAccount;
@@ -35,6 +36,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class MerchantSettlementServiceTest {
     @Autowired private MerchantService merchantService;
     @Autowired private ShopService shopService;
+    @Autowired private ShopAfterSaleService shopAfterSaleService;
     @Autowired private OperationLogService operationLogService;
     @Autowired private JdbcTemplate jdbcTemplate;
 
@@ -112,6 +114,11 @@ class MerchantSettlementServiceTest {
         DmsMerchantAccount refunded = account(merchant.getId());
         assertMoney("100.00", refunded.getDebtAmount());
         assertMoney("0.00", refunded.getAvailableAmount());
+
+        assertEquals(5, merchantService.listLedgers(merchant.getId(), null).size());
+        assertEquals(3, merchantService.listWithdrawalEvents(withdrawalId).size());
+        assertTrue(merchantService.listLedgers(merchant.getId(), "AFTER_SALE_REVERSAL").stream()
+                .anyMatch(row -> row.getDebtDelta().compareTo(new BigDecimal("100.00")) == 0));
 
         assertThrows(NoSuchFieldException.class, () -> DmsMerchantWithdrawal.class.getDeclaredField("taxAmount"));
     }
@@ -374,9 +381,53 @@ class MerchantSettlementServiceTest {
             assertMoney("100.00", released.getDepositFrozenAmount());
             assertMoney("0.00", released.getDebtAmount());
             assertEquals(2, merchantService.listDepositFlows(merchantId).size());
+            assertEquals(2, merchantService.listLedgers(merchantId, null).size());
         } finally {
             AdminContext.clear();
         }
+    }
+
+    @Test
+    void merchantControlsStopNewPaymentButKeepHistoricalOrderWorkspaceSeparated() {
+        DmsMerchant first = new DmsMerchant(); first.setMerchantNo("M-CONTROL-A"); first.setMerchantName("控制测试商户A");
+        first = merchantService.saveMerchant(first);
+        DmsMerchant second = new DmsMerchant(); second.setMerchantNo("M-CONTROL-B"); second.setMerchantName("控制测试商户B");
+        second = merchantService.saveMerchant(second);
+        long firstOrder = 9966091L; long secondOrder = 9966092L;
+        insertMerchantOrder(firstOrder, "CONTROL-A-ORDER", first.getId(), first.getMerchantName(), 0);
+        insertMerchantOrder(secondOrder, "CONTROL-B-ORDER", second.getId(), second.getMerchantName(), 1);
+
+        MerchantControlDTO control = new MerchantControlDTO();
+        control.setAccountStatus("ENABLED"); control.setBusinessStatus("SUSPENDED");
+        control.setFulfillmentStatus("ENABLED"); control.setWithdrawalStatus("FROZEN");
+        control.setSettlementStatus("FROZEN"); control.setDepositStatus("NORMAL");
+        control.setAuditStatus("APPROVED"); control.setExitStatus("NORMAL");
+        control.setReason("违规调查期间暂停新成交，保留历史订单履约");
+        DmsMerchant frozen = merchantService.updateMerchantControls(first.getId(), control);
+        assertEquals("ENABLED", frozen.getAccountStatus());
+        assertEquals("SUSPENDED", frozen.getBusinessStatus());
+        assertEquals("ENABLED", frozen.getFulfillmentStatus());
+        assertThrows(RuntimeException.class, () -> merchantService.assertOrderCanBePaid(firstOrder));
+
+        DmsAdminUser merchantAdmin = new DmsAdminUser();
+        merchantAdmin.setId(96001L); merchantAdmin.setUsername("merchant-control-a");
+        merchantAdmin.setMerchantId(first.getId()); merchantAdmin.setPermissions("shop:order,finance:read");
+        AdminContext.set(merchantAdmin);
+        try {
+            assertEquals(List.of("CONTROL-A-ORDER"), shopService.listAdminOrders("CONTROL-", null, null).stream()
+                    .map(row -> row.getOrder().getOrderNo()).toList());
+            assertThrows(RuntimeException.class, () -> shopService.getOrder(secondOrder));
+        } finally {
+            AdminContext.clear();
+        }
+
+        control.setAuditStatus("REJECTED");
+        control.setReason("准入复核驳回");
+        merchantService.updateMerchantControls(first.getId(), control);
+        assertTrue(merchantService.updateMerchantStatus(first.getId(), 1));
+        DmsMerchant stillRejected = merchantService.listMerchants("M-CONTROL-A", null).get(0);
+        assertEquals("REJECTED", stillRejected.getAuditStatus());
+        assertEquals(0, stillRejected.getStatus());
     }
 
     @Test
@@ -419,6 +470,38 @@ class MerchantSettlementServiceTest {
             review.setInvoiceStatus("NOT_REQUIRED");
             review.setAdjustmentAmount(BigDecimal.ZERO);
             assertThrows(RuntimeException.class, () -> merchantService.reviewWithdrawal(withdrawal.getId(), review));
+        } finally {
+            AdminContext.clear();
+        }
+    }
+
+    @Test
+    void merchantWorkspaceCannotReadAnotherMerchantsAfterSaleProofByGuessingItsPath() {
+        DmsMerchant first = new DmsMerchant();
+        first.setMerchantNo("M-PROOF-ONE"); first.setMerchantName("凭证隔离商户一");
+        first = merchantService.saveMerchant(first);
+        DmsMerchant second = new DmsMerchant();
+        second.setMerchantNo("M-PROOF-TWO"); second.setMerchantName("凭证隔离商户二");
+        second = merchantService.saveMerchant(second);
+
+        long firstOrder = 9966401L;
+        long secondOrder = 9966402L;
+        insertMerchantOrder(firstOrder, "PROOF-ORDER-ONE", first.getId(), first.getMerchantName(), 2);
+        insertMerchantOrder(secondOrder, "PROOF-ORDER-TWO", second.getId(), second.getMerchantName(), 2);
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_after_sale(after_sale_no,order_id,order_no,member_id,user_id,proof_images,status)
+                VALUES ('PROOF-AS-ONE',?,?,1001,1001,'[\"merchant-one-proof.png\"]',0),
+                       ('PROOF-AS-TWO',?,?,1001,1001,'[\"merchant-two-proof.png\"]',0)
+                """, firstOrder, "PROOF-ORDER-ONE", secondOrder, "PROOF-ORDER-TWO");
+
+        DmsAdminUser merchantAdmin = new DmsAdminUser();
+        merchantAdmin.setId(96501L); merchantAdmin.setUsername("merchant-proof-one");
+        merchantAdmin.setMerchantId(first.getId()); merchantAdmin.setPermissions("shop:aftersale");
+        AdminContext.set(merchantAdmin);
+        try {
+            assertDoesNotThrow(() -> shopAfterSaleService.assertAdminCanReadProof(1001L, "merchant-one-proof.png"));
+            assertThrows(RuntimeException.class,
+                    () -> shopAfterSaleService.assertAdminCanReadProof(1001L, "merchant-two-proof.png"));
         } finally {
             AdminContext.clear();
         }
@@ -561,6 +644,15 @@ class MerchantSettlementServiceTest {
     private DmsMerchantAccount account(Long merchantId) {
         return merchantService.listAccounts(null).stream()
                 .filter(item -> merchantId.equals(item.getMerchantId())).findFirst().orElseThrow();
+    }
+
+    private void insertMerchantOrder(long id, String orderNo, Long merchantId, String merchantName, int status) {
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_order
+                (id,order_no,tenant_id,merchant_id,merchant_name,user_id,receiver_name,receiver_phone,receiver_address,
+                 total_amount,freight_amount,discount_amount,pay_amount,total_pv,total_cost,business_type,status)
+                VALUES (?,?,?,?,?,1001,'测试会员','13800000000','测试地址',100,0,0,100,0,50,'NORMAL',?)
+                """, id, orderNo, 1L, merchantId, merchantName, status);
     }
 
     private void assertMoney(String expected, BigDecimal actual) {

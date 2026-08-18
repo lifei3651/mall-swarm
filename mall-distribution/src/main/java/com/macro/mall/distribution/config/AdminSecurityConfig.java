@@ -85,6 +85,16 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             }
             if (HttpMethod.GET.matches(method) && path.startsWith("/distribution/merchants")) return true;
             if (path.startsWith("/shop/admin/service-addresses")) return true;
+            if (path.startsWith("/shop/admin/orders")) {
+                if (HttpMethod.GET.matches(method)) return true;
+                return HttpMethod.PUT.matches(method) && (path.matches("/shop/admin/orders/[^/]+/ship")
+                        || path.matches("/shop/admin/orders/[^/]+/service-remark"));
+            }
+            if (path.startsWith("/shop/admin/after-sales")) {
+                return HttpMethod.GET.matches(method) || (HttpMethod.PUT.matches(method)
+                        && (path.matches("/shop/admin/after-sales/[^/]+/audit")
+                        || path.matches("/shop/admin/after-sales/[^/]+/return-received")));
+            }
             return HttpMethod.GET.matches(method) && (path.startsWith("/shop/admin/categories")
                     || path.startsWith("/shop/admin/product-settings")
                     || path.startsWith("/shop/admin/freight-templates"));

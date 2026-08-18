@@ -19,8 +19,18 @@ public interface DmsShopAfterSaleDao {
 
     List<DmsShopAfterSale> selectByMemberId(@Param("memberId") Long memberId);
 
-    List<DmsShopAfterSale> selectList(@Param("keyword") String keyword,
-                                      @Param("status") Integer status);
+    List<String> selectProofReferences(@Param("tenantId") Long tenantId,
+                                       @Param("memberId") Long memberId,
+                                       @Param("merchantId") Long merchantId);
+
+    List<DmsShopAfterSale> selectList(@Param("tenantId") Long tenantId,
+                                      @Param("keyword") String keyword,
+                                      @Param("status") Integer status,
+                                      @Param("merchantId") Long merchantId);
+
+    default List<DmsShopAfterSale> selectList(String keyword, Integer status) {
+        return selectList(1L, keyword, status, null);
+    }
 
     int insert(DmsShopAfterSale afterSale);
 

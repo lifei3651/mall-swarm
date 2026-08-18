@@ -95,7 +95,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onBeforeUnmount, onMounted, reactive } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted, reactive, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import {
@@ -156,6 +156,7 @@ const businessMenus = [
   {
     key: 'products', title: '商品与库存', icon: 'Goods', items: [
       { title: '商品管理', path: '/shop/products', permission: 'shop:product' },
+      { title: '商户管理', path: '/shop/merchants', permission: 'shop:product' },
       { title: '商户商品审核', path: '/shop/merchant-product-reviews', permission: 'shop:product-review' },
       { title: '发货与退货地址', path: '/shop/service-addresses', permission: 'shop:product' },
       { title: '分类与规格', path: '/shop/categories', permission: 'shop:product' },
@@ -189,6 +190,7 @@ const businessMenus = [
       { title: '提现审核', path: '/withdraw/audit', permission: 'finance:manage' },
       { title: '提现记录', path: '/withdraw/list', permission: 'finance:read' },
       { title: '财务总览', path: '/audit/finance', permission: 'finance:read' },
+      { title: '商户货款与总账', path: '/audit/merchant-finance', permission: 'finance:read' },
     ],
   },
   {
@@ -375,14 +377,20 @@ const breadcrumbs = computed(() => {
 })
 
 const hasMenuPermission = (item) => {
-  if (store.userInfo?.merchantId) return ['/shop/products', '/shop/service-addresses', '/audit/merchant-finance'].includes(item.path)
+  if (store.userInfo?.merchantId) return ['/shop/products', '/shop/service-addresses', '/shop/orders', '/audit/merchant-finance'].includes(item.path)
   return !item.permission || store.hasPermission(item.permission)
 }
 const visibleBusinessMenus = computed(() => businessMenus
   .map((menu) => menu.items
     ? { ...menu, items: menu.items.filter(hasMenuPermission) }
-    : menu)
+    : (store.userInfo?.merchantId && menu.path === '/dashboard'
+      ? { ...menu, title: '商户工作台', path: '/audit/merchant-finance' }
+      : menu))
   .filter((menu) => menu.path || menu.items?.length))
+
+watch(() => store.userInfo?.merchantId, (merchantId) => {
+  if (merchantId && route.path === '/dashboard') router.replace('/audit/merchant-finance')
+}, { immediate: true })
 
 const handleCommand = async (command) => {
   if (command === 'logout') {

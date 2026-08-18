@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsMerchantWithdrawalEventDao">
+  <resultMap id="Base" type="com.macro.mall.distribution.entity.DmsMerchantWithdrawalEvent">
+    <id column="id" property="id"/><result column="tenant_id" property="tenantId"/><result column="merchant_id" property="merchantId"/><result column="withdrawal_id" property="withdrawalId"/><result column="withdrawal_no" property="withdrawalNo"/><result column="from_status" property="fromStatus"/><result column="to_status" property="toStatus"/><result column="remark" property="remark"/><result column="operator_id" property="operatorId"/><result column="operator_name" property="operatorName"/><result column="create_time" property="createTime"/>
+  </resultMap>
+  <insert id="insert" useGeneratedKeys="true" keyProperty="id">INSERT INTO dms_merchant_withdrawal_event(tenant_id,merchant_id,withdrawal_id,withdrawal_no,from_status,to_status,remark,operator_id,operator_name) VALUES(#{tenantId},#{merchantId},#{withdrawalId},#{withdrawalNo},#{fromStatus},#{toStatus},#{remark},#{operatorId},#{operatorName})</insert>
+  <select id="selectByWithdrawalId" resultMap="Base">SELECT id,tenant_id,merchant_id,withdrawal_id,withdrawal_no,from_status,to_status,remark,operator_id,operator_name,create_time FROM dms_merchant_withdrawal_event WHERE withdrawal_id=#{withdrawalId} ORDER BY id</select>
+</mapper>

@@ -349,7 +349,7 @@ const handlePermissionChange = () => {
 const handleMerchantBindingChange = (merchantId) => {
   if (merchantId) {
     form.roleCode = 'MERCHANT'
-    form.permissions = ['admin:read', 'shop:product', 'finance:read', 'finance:manage']
+    form.permissions = ['admin:read', 'shop:product', 'shop:order', 'shop:aftersale', 'finance:read', 'finance:manage']
   }
 }
 

@@ -26,7 +26,12 @@ public interface DmsShopOrderDao {
 
     ShopOrderStatusSummaryVO selectStatusSummary(@Param("userId") Long userId);
 
-    ShopOrderStatusSummaryVO selectAdminWorkSummary(@Param("tenantId") Long tenantId);
+    ShopOrderStatusSummaryVO selectAdminWorkSummary(@Param("tenantId") Long tenantId,
+                                                     @Param("merchantId") Long merchantId);
+
+    default ShopOrderStatusSummaryVO selectAdminWorkSummary(Long tenantId) {
+        return selectAdminWorkSummary(tenantId, null);
+    }
 
     List<DmsShopOrder> selectByAgentId(@Param("agentId") Long agentId);
 
@@ -35,9 +40,15 @@ public interface DmsShopOrderDao {
     /** 会员全景仅展示已支付且仍属于有效交易或已进入售后的订单。 */
     List<DmsShopOrder> selectPaidProfileOrdersByUserId(@Param("userId") Long userId);
 
-    List<DmsShopOrder> selectList(@Param("keyword") String keyword,
+    List<DmsShopOrder> selectList(@Param("tenantId") Long tenantId,
+                                  @Param("keyword") String keyword,
                                   @Param("status") Integer status,
-                                  @Param("orderState") String orderState);
+                                  @Param("orderState") String orderState,
+                                  @Param("merchantId") Long merchantId);
+
+    default List<DmsShopOrder> selectList(String keyword, Integer status, String orderState) {
+        return selectList(1L, keyword, status, orderState, null);
+    }
 
     int insert(DmsShopOrder order);
 

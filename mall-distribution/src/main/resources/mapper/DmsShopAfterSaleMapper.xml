@@ -74,10 +74,27 @@
         ORDER BY id DESC
     </select>
 
+    <select id="selectProofReferences" resultType="java.lang.String">
+        SELECT sale.proof_images
+        FROM dms_shop_after_sale sale
+        INNER JOIN dms_shop_order scoped_order ON scoped_order.id = sale.order_id
+        WHERE scoped_order.tenant_id = #{tenantId}
+          AND sale.member_id = #{memberId}
+          AND sale.proof_images IS NOT NULL
+          AND sale.proof_images != ''
+        <if test="merchantId != null">
+          AND scoped_order.merchant_id = #{merchantId}
+        </if>
+    </select>
+
     <select id="selectList" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_after_sale
         <where>
+            AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order
+              WHERE scoped_order.id=dms_shop_after_sale.order_id
+                AND COALESCE(scoped_order.tenant_id, 1)=#{tenantId}
+                <if test="merchantId != null">AND scoped_order.merchant_id=#{merchantId}</if>)
             <if test="status != null">
                 AND status = #{status}
             </if>

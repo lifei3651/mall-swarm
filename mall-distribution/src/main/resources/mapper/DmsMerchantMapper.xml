@@ -10,11 +10,15 @@
     <result column="bank_account_no" property="bankAccountNo"/><result column="invoice_title" property="invoiceTitle"/>
     <result column="taxpayer_identification_no" property="taxpayerIdentificationNo"/><result column="contract_status" property="contractStatus"/>
     <result column="required_deposit_amount" property="requiredDepositAmount"/><result column="profile_version" property="profileVersion"/>
-    <result column="settlement_mode" property="settlementMode"/><result column="default_settlement_days" property="defaultSettlementDays"/><result column="status" property="status"/>
+    <result column="settlement_mode" property="settlementMode"/><result column="default_settlement_days" property="defaultSettlementDays"/>
+    <result column="account_status" property="accountStatus"/><result column="business_status" property="businessStatus"/>
+    <result column="fulfillment_status" property="fulfillmentStatus"/><result column="withdrawal_status" property="withdrawalStatus"/>
+    <result column="settlement_status" property="settlementStatus"/><result column="deposit_status" property="depositStatus"/>
+    <result column="audit_status" property="auditStatus"/><result column="exit_status" property="exitStatus"/><result column="status" property="status"/>
     <result column="remark" property="remark"/><result column="create_time" property="createTime"/>
     <result column="update_time" property="updateTime"/>
   </resultMap>
-  <sql id="cols">id,tenant_id,merchant_no,merchant_name,contact_name,contact_phone,legal_entity_name,unified_social_credit_code,bank_account_name,bank_name,bank_account_no,invoice_title,taxpayer_identification_no,contract_status,required_deposit_amount,profile_version,settlement_mode,default_settlement_days,status,remark,create_time,update_time</sql>
+  <sql id="cols">id,tenant_id,merchant_no,merchant_name,contact_name,contact_phone,legal_entity_name,unified_social_credit_code,bank_account_name,bank_name,bank_account_no,invoice_title,taxpayer_identification_no,contract_status,required_deposit_amount,profile_version,settlement_mode,default_settlement_days,account_status,business_status,fulfillment_status,withdrawal_status,settlement_status,deposit_status,audit_status,exit_status,status,remark,create_time,update_time</sql>
   <select id="selectById" resultMap="Base">SELECT <include refid="cols"/> FROM dms_merchant WHERE id=#{id}</select>
   <select id="selectByNo" resultMap="Base">SELECT <include refid="cols"/> FROM dms_merchant WHERE tenant_id=#{tenantId} AND merchant_no=#{merchantNo} LIMIT 1</select>
   <select id="selectDefaultSettlementDays" resultType="java.lang.Integer">SELECT default_settlement_days FROM dms_merchant WHERE id=#{id}</select>
@@ -25,9 +29,16 @@
     </where> ORDER BY status DESC,id DESC
   </select>
   <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-    INSERT INTO dms_merchant(tenant_id,merchant_no,merchant_name,contact_name,contact_phone,legal_entity_name,unified_social_credit_code,bank_account_name,bank_name,bank_account_no,invoice_title,taxpayer_identification_no,contract_status,required_deposit_amount,profile_version,settlement_mode,default_settlement_days,status,remark)
-    VALUES(#{tenantId},#{merchantNo},#{merchantName},#{contactName},#{contactPhone},#{legalEntityName},#{unifiedSocialCreditCode},#{bankAccountName},#{bankName},#{bankAccountNo},#{invoiceTitle},#{taxpayerIdentificationNo},#{contractStatus},#{requiredDepositAmount},#{profileVersion},#{settlementMode},#{defaultSettlementDays},#{status},#{remark})
+    INSERT INTO dms_merchant(tenant_id,merchant_no,merchant_name,contact_name,contact_phone,legal_entity_name,unified_social_credit_code,bank_account_name,bank_name,bank_account_no,invoice_title,taxpayer_identification_no,contract_status,required_deposit_amount,profile_version,settlement_mode,default_settlement_days,account_status,business_status,fulfillment_status,withdrawal_status,settlement_status,deposit_status,audit_status,exit_status,status,remark)
+    VALUES(#{tenantId},#{merchantNo},#{merchantName},#{contactName},#{contactPhone},#{legalEntityName},#{unifiedSocialCreditCode},#{bankAccountName},#{bankName},#{bankAccountNo},#{invoiceTitle},#{taxpayerIdentificationNo},#{contractStatus},#{requiredDepositAmount},#{profileVersion},#{settlementMode},#{defaultSettlementDays},#{accountStatus},#{businessStatus},#{fulfillmentStatus},#{withdrawalStatus},#{settlementStatus},#{depositStatus},#{auditStatus},#{exitStatus},#{status},#{remark})
   </insert>
   <update id="update">UPDATE dms_merchant SET merchant_name=#{merchantName},contact_name=#{contactName},contact_phone=#{contactPhone},legal_entity_name=#{legalEntityName},unified_social_credit_code=#{unifiedSocialCreditCode},bank_account_name=#{bankAccountName},bank_name=#{bankName},bank_account_no=#{bankAccountNo},invoice_title=#{invoiceTitle},taxpayer_identification_no=#{taxpayerIdentificationNo},contract_status=#{contractStatus},required_deposit_amount=#{requiredDepositAmount},profile_version=profile_version+1,settlement_mode=#{settlementMode},default_settlement_days=#{defaultSettlementDays},remark=#{remark},update_time=CURRENT_TIMESTAMP WHERE id=#{id}</update>
   <update id="updateStatus">UPDATE dms_merchant SET status=#{status},update_time=CURRENT_TIMESTAMP WHERE id=#{id}</update>
+  <update id="updateControls">
+    UPDATE dms_merchant SET account_status=#{control.accountStatus},business_status=#{control.businessStatus},
+      fulfillment_status=#{control.fulfillmentStatus},withdrawal_status=#{control.withdrawalStatus},
+      settlement_status=#{control.settlementStatus},deposit_status=#{control.depositStatus},
+      audit_status=#{control.auditStatus},exit_status=#{control.exitStatus},status=#{status},update_time=CURRENT_TIMESTAMP
+    WHERE id=#{id}
+  </update>
 </mapper>

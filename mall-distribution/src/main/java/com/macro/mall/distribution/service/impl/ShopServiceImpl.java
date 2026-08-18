@@ -1124,12 +1124,13 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("订单不存在");
         }
         assertTenantAccess(order.getTenantId());
+        assertMerchantOrderAccess(order, false);
         ShopOrderVO vo = new ShopOrderVO();
         vo.setOrder(order);
         fillMemberAccount(vo, order);
         vo.setItems(orderItemDao.selectByOrderId(orderId));
         fillShipments(vo, order);
-        vo.setFinance(auditService.getOrderFinanceDetail(orderId).getFinance());
+        if (currentAdminMerchantId() == null) vo.setFinance(auditService.getOrderFinanceDetail(orderId).getFinance());
         vo.setAfterSales(hydrateAfterSales(afterSaleDao.selectByOrderId(orderId)));
         vo.setPendingReviewCount(pendingReviewCount(order));
         fillAfterSaleWindow(vo, order);
@@ -1150,7 +1151,7 @@ public class ShopServiceImpl implements ShopService {
         } else if (userId != null) {
             orders = orderDao.selectByUserIdAndState(userId, normalizeFrontOrderState(orderState));
         } else {
-            orders = orderDao.selectList(null, null, null);
+            orders = orderDao.selectList(resolveTenantId(null), null, null, null, currentAdminMerchantId());
         }
         return orders.stream().filter(this::canAccessOrder).map(order -> {
             ShopOrderVO vo = new ShopOrderVO();
@@ -1179,14 +1180,15 @@ public class ShopServiceImpl implements ShopService {
 
     @Override
     public List<ShopOrderVO> listAdminOrders(String keyword, Integer status, String orderState) {
-        return orderDao.selectList(keyword, status, normalizeAdminOrderState(orderState)).stream().filter(this::canAccessOrder).map(order -> {
+        boolean merchantWorkspace = currentAdminMerchantId() != null;
+        return orderDao.selectList(resolveTenantId(null), keyword, status, normalizeAdminOrderState(orderState), currentAdminMerchantId()).stream().filter(this::canAccessOrder).map(order -> {
             ShopOrderVO vo = new ShopOrderVO();
             vo.setOrder(order);
             vo.setServiceRemark(order.getServiceRemark());
             fillMemberAccount(vo, order);
             vo.setItems(orderItemDao.selectByOrderId(order.getId()));
             fillShipments(vo, order);
-            vo.setFinance(auditService.getOrderFinanceDetail(order.getId()).getFinance());
+            if (!merchantWorkspace) vo.setFinance(auditService.getOrderFinanceDetail(order.getId()).getFinance());
             vo.setAfterSales(hydrateAfterSales(afterSaleDao.selectByOrderId(order.getId())));
             vo.setPendingReviewCount(pendingReviewCount(order));
             fillAfterSaleWindow(vo, order);
@@ -1197,7 +1199,7 @@ public class ShopServiceImpl implements ShopService {
 
     @Override
     public ShopOrderStatusSummaryVO getAdminOrderWorkSummary() {
-        ShopOrderStatusSummaryVO summary = orderDao.selectAdminWorkSummary(resolveTenantId(null));
+        ShopOrderStatusSummaryVO summary = orderDao.selectAdminWorkSummary(resolveTenantId(null), currentAdminMerchantId());
         return summary == null ? new ShopOrderStatusSummaryVO() : summary;
     }
 
@@ -1286,6 +1288,7 @@ public class ShopServiceImpl implements ShopService {
         if (!Integer.valueOf(0).equals(order.getStatus())) {
             Asserts.fail("当前订单状态不能支付");
         }
+        merchantService.assertOrderCanBePaid(orderId);
 
         int updated = orderDao.markPaid(orderId, payType);
         DmsTenant tenant = tenantDao.selectById(order.getTenantId());
@@ -1401,6 +1404,7 @@ public class ShopServiceImpl implements ShopService {
         DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
         if (order == null) Asserts.fail("订单不存在");
         assertTenantAccess(order.getTenantId());
+        assertMerchantOrderAccess(order, true);
         String normalized = serviceRemark == null || serviceRemark.isBlank() ? null : serviceRemark.trim();
         if (normalized != null && normalized.length() > 500) Asserts.fail("客服备注不能超过500个字");
         if (Objects.equals(order.getServiceRemark(), normalized)) return true;
@@ -2294,7 +2298,25 @@ public class ShopServiceImpl implements ShopService {
     }
 
     private boolean canAccessOrder(DmsShopOrder order) {
-        return order != null && resolveTenantId(null).equals(resolveTenantId(order.getTenantId()));
+        if (order == null || !resolveTenantId(null).equals(resolveTenantId(order.getTenantId()))) return false;
+        Long merchantId = currentAdminMerchantId();
+        return merchantId == null || merchantId.equals(order.getMerchantId());
+    }
+
+    private Long currentAdminMerchantId() {
+        return AdminContext.get() == null ? null : AdminContext.get().getMerchantId();
+    }
+
+    private void assertMerchantOrderAccess(DmsShopOrder order, boolean requireFulfillment) {
+        Long merchantId = currentAdminMerchantId();
+        if (merchantId == null) return;
+        if (order == null || !merchantId.equals(order.getMerchantId())) Asserts.fail("不能访问其他商户的订单");
+        if (requireFulfillment) {
+            DmsMerchant merchant = merchantDao.selectById(merchantId);
+            if (merchant == null || !"ENABLED".equals(merchant.getFulfillmentStatus())) {
+                Asserts.fail("商户履约权限已由平台接管或冻结，不能处理订单");
+            }
+        }
     }
 
     private void assertTenantAccess(Long tenantId) {

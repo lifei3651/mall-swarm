@@ -45,6 +45,22 @@ public class DmsMerchant implements Serializable {
     private String settlementMode;
     /** 客户售后窗口结束后，商户货款继续等待的天数。 */
     private Integer defaultSettlementDays;
+    /** 商户工作台账号是否允许登录：ENABLED / DISABLED。 */
+    private String accountStatus;
+    /** 是否允许新增成交和维护商品：ACTIVE / SUSPENDED / CLOSED。 */
+    private String businessStatus;
+    /** 历史订单履约能力：ENABLED / PLATFORM_ONLY / DISABLED。 */
+    private String fulfillmentStatus;
+    /** 是否允许提交新的提现申请：ENABLED / FROZEN。 */
+    private String withdrawalStatus;
+    /** 到期货款是否允许从待结算释放：ENABLED / FROZEN。 */
+    private String settlementStatus;
+    /** 保证金风控状态：NORMAL / FROZEN；不足状态由应缴与已缴金额动态计算。 */
+    private String depositStatus;
+    /** 平台准入审核：PENDING / APPROVED / REJECTED。 */
+    private String auditStatus;
+    /** 退出流程：NORMAL / EXITING / EXITED。 */
+    private String exitStatus;
     private Integer status;
     @Size(max = 500, message = "备注不能超过500个字符")
     private String remark;

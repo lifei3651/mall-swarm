@@ -8,9 +8,13 @@ import com.macro.mall.distribution.dao.DmsShopAfterSaleItemDao;
 import com.macro.mall.distribution.dao.DmsShopOrderDao;
 import com.macro.mall.distribution.dao.DmsShopOrderItemDao;
 import com.macro.mall.distribution.dao.DmsShopOrderShipmentDao;
+import com.macro.mall.distribution.dao.DmsMerchantDao;
 import com.macro.mall.distribution.dto.ShopOrderShipDTO;
 import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.entity.DmsShopOrderShipment;
+import com.macro.mall.distribution.entity.DmsMerchant;
+import com.macro.mall.distribution.entity.DmsAdminUser;
+import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.OrderShipmentService;
 import com.macro.mall.distribution.service.OrderRealtimeService;
@@ -53,6 +57,8 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
     private final DmsShopOrderShipmentDao shipmentDao;
     private final OperationLogService operationLogService;
     @Autowired(required = false)
+    private DmsMerchantDao merchantDao;
+    @Autowired(required = false)
     private OrderRealtimeService orderRealtimeService;
 
     @Override
@@ -62,6 +68,7 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
         DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
         if (order == null) Asserts.fail("订单不存在");
         assertTenant(order);
+        assertMerchantFulfillment(order);
         ShipmentValues probe = normalize(dto == null ? null : dto.getDeliveryCompany(),
                 dto == null ? null : dto.getDeliveryNo(), 1);
         if (shipmentExists(order, probe)) return true;
@@ -373,6 +380,17 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
 
     private void assertTenant(DmsShopOrder order) {
         if (!sameTenant(order)) Asserts.fail("无权访问当前租户数据");
+    }
+
+    private void assertMerchantFulfillment(DmsShopOrder order) {
+        DmsAdminUser admin = AdminContext.get();
+        if (admin == null || admin.getMerchantId() == null) return;
+        if (!admin.getMerchantId().equals(order.getMerchantId())) Asserts.fail("不能处理其他商户的订单");
+        if (merchantDao == null) return;
+        DmsMerchant merchant = merchantDao.selectById(admin.getMerchantId());
+        if (merchant == null || !"ENABLED".equals(merchant.getFulfillmentStatus())) {
+            Asserts.fail("商户履约权限已由平台接管或冻结，不能发货");
+        }
     }
 
     private boolean sameTenant(DmsShopOrder order) {

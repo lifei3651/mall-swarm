@@ -9,10 +9,14 @@ public interface MerchantService {
     DmsMerchant saveMerchant(DmsMerchant merchant);
     DmsMerchant updateMerchant(Long id, DmsMerchant merchant);
     boolean updateMerchantStatus(Long id, Integer status);
+    DmsMerchant updateMerchantControls(Long id, MerchantControlDTO dto);
+    void assertOrderCanBePaid(Long orderId);
     List<DmsMerchantAccount> listAccounts(String keyword);
     List<DmsMerchantSettlement> listSettlements(Long merchantId, String status);
     List<DmsMerchantWithdrawal> listWithdrawals(Long merchantId, String status);
     List<DmsMerchantDepositFlow> listDepositFlows(Long merchantId);
+    List<DmsMerchantLedger> listLedgers(Long merchantId, String bizType);
+    List<DmsMerchantWithdrawalEvent> listWithdrawalEvents(Long withdrawalId);
     DmsMerchantDepositFlow freezeDeposit(MerchantDepositAdjustDTO dto);
     DmsMerchantDepositFlow receiveDeposit(MerchantDepositAdjustDTO dto);
     DmsMerchantDepositFlow releaseDeposit(MerchantDepositAdjustDTO dto);

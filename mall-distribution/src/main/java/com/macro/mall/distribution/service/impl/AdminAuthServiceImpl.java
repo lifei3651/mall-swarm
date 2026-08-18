@@ -6,15 +6,18 @@ import cn.hutool.crypto.digest.BCrypt;
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.distribution.dao.DmsAdminSessionDao;
 import com.macro.mall.distribution.dao.DmsAdminUserDao;
+import com.macro.mall.distribution.dao.DmsMerchantDao;
 import com.macro.mall.distribution.dto.AdminLoginDTO;
 import com.macro.mall.distribution.entity.DmsAdminSession;
 import com.macro.mall.distribution.entity.DmsAdminUser;
+import com.macro.mall.distribution.entity.DmsMerchant;
 import com.macro.mall.distribution.service.AdminAuthService;
 import com.macro.mall.distribution.service.LoginCaptchaService;
 import com.macro.mall.distribution.vo.AdminAuthVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -34,6 +37,8 @@ public class AdminAuthServiceImpl implements AdminAuthService {
     private final DmsAdminUserDao adminUserDao;
     private final DmsAdminSessionDao adminSessionDao;
     private final LoginCaptchaService loginCaptchaService;
+    @Autowired(required = false)
+    private DmsMerchantDao merchantDao;
 
     /** 管理后台绝对会话默认12小时，避免资金后台长期保持登录。 */
     @Value("${admin.security.session-hours:12}")
@@ -72,6 +77,7 @@ public class AdminAuthServiceImpl implements AdminAuthService {
         if (!Integer.valueOf(1).equals(admin.getStatus())) {
             Asserts.fail("后台账号已禁用");
         }
+        requireMerchantAccountEnabled(admin, false);
         adminUserDao.updateLastLoginTime(admin.getId());
         // 单账号单会话：新登录成功后使该管理员此前的全部会话失效。
         adminSessionDao.disableByAdminId(admin.getId());
@@ -111,6 +117,7 @@ public class AdminAuthServiceImpl implements AdminAuthService {
         if (admin == null || !Integer.valueOf(1).equals(admin.getStatus())) {
             return null;
         }
+        if (!merchantAccountEnabled(admin)) return null;
         return admin;
     }
 
@@ -229,5 +236,17 @@ public class AdminAuthServiceImpl implements AdminAuthService {
         copy.setCreateTime(admin.getCreateTime());
         copy.setUpdateTime(admin.getUpdateTime());
         return copy;
+    }
+
+    private void requireMerchantAccountEnabled(DmsAdminUser admin, boolean session) {
+        if (merchantAccountEnabled(admin)) return;
+        Asserts.fail(session ? "后台登录已失效，请重新登录" : "商户工作台账号已禁用");
+    }
+
+    private boolean merchantAccountEnabled(DmsAdminUser admin) {
+        if (admin == null || admin.getMerchantId() == null) return true;
+        if (merchantDao == null) return true;
+        DmsMerchant merchant = merchantDao.selectById(admin.getMerchantId());
+        return merchant != null && "ENABLED".equals(merchant.getAccountStatus());
     }
 }

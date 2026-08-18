@@ -147,7 +147,9 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     public List<Map<String, Object>> merchantOptions() {
         requireActor();
-        return merchantDao.selectList(com.macro.mall.common.tenant.TenantContext.getTenantId(), null, 1).stream().map(item -> {
+        return merchantDao.selectList(com.macro.mall.common.tenant.TenantContext.getTenantId(), null, null).stream()
+                .filter(item -> !"EXITED".equals(item.getExitStatus()))
+                .map(item -> {
             Map<String, Object> option = new LinkedHashMap<>();
             option.put("id", item.getId());
             option.put("merchantName", item.getMerchantName());
@@ -171,9 +173,9 @@ public class AdminUserServiceImpl implements AdminUserService {
         user.setMerchantId(dto.getMerchantId());
         if (dto.getMerchantId() != null) {
             com.macro.mall.distribution.entity.DmsMerchant merchant = merchantDao.selectById(dto.getMerchantId());
-            if (merchant == null || !Integer.valueOf(1).equals(merchant.getStatus())) Asserts.fail("绑定商户不存在或已停用");
-            Set<String> allowed = Set.of("admin:read", "shop:product", "finance:read", "finance:manage");
-            if (!allowed.containsAll(permissionSet(user))) Asserts.fail("商户工作台账号只能授予基础查看、商品管理和本商户货款权限");
+            if (merchant == null || "EXITED".equals(merchant.getExitStatus())) Asserts.fail("绑定商户不存在或已退出");
+            Set<String> allowed = Set.of("admin:read", "shop:product", "shop:order", "shop:aftersale", "finance:read", "finance:manage");
+            if (!allowed.containsAll(permissionSet(user))) Asserts.fail("商户工作台账号只能授予本商户商品、订单、售后和货款权限");
             user.setRoleCode("MERCHANT");
         }
     }

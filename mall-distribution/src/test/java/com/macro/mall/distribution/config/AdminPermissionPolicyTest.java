@@ -61,4 +61,27 @@ class AdminPermissionPolicyTest {
         assertFalse(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
                 "POST", "/distribution/merchant-finance/deposits/receive"));
     }
+
+    @Test
+    void suspendedMerchantWorkspaceKeepsHistoricalFulfillmentWithoutPlatformRefundAuthority() {
+        assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "GET", "/shop/admin/orders"));
+        assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "PUT", "/shop/admin/orders/99/ship"));
+        assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "PUT", "/shop/admin/orders/99/service-remark"));
+        assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "GET", "/shop/admin/after-sales"));
+        assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "PUT", "/shop/admin/after-sales/88/audit"));
+        assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "PUT", "/shop/admin/after-sales/88/return-received"));
+
+        assertFalse(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "PUT", "/shop/admin/orders/99/cancel"));
+        assertFalse(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "POST", "/shop/admin/orders/99/refund"));
+        assertFalse(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "POST", "/shop/admin/orders/shipments/import"));
+    }
 }
