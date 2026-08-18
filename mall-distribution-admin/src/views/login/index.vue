@@ -143,7 +143,10 @@ const handleLogin = async () => {
     const res = await login(form)
     store.setAuth(res.data)
     ElMessage.success('登录成功')
-    router.replace(route.query.redirect || '/dashboard')
+    const merchantHome = res.data?.admin?.merchantId ? '/audit/merchant-finance' : '/dashboard'
+    const redirect = route.query.redirect === '/dashboard' && res.data?.admin?.merchantId
+      ? merchantHome : (route.query.redirect || merchantHome)
+    router.replace(redirect)
   } catch (error) {
     await refreshCaptcha()
     throw error

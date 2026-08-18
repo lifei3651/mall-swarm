@@ -498,6 +498,7 @@ public class ShopServiceImpl implements ShopService {
         if (!Integer.valueOf(1).equals(product.getStatus()) || Integer.valueOf(0).equals(product.getNormalSaleEnabled())) {
             Asserts.fail("商品不存在或已下架");
         }
+        requireActiveProductMerchant(product);
         // 兼容历史数据：PV 开关关闭时公开接口直接返回 0；开启时不返回高于售价的 PV。
         // SKU 的 PV 为 0 时继承商品默认 PV，避免旧后台把 SKU PV 强制保存为 0 后，
         // 前台显示有 PV、下单快照却记为 0。
@@ -526,7 +527,7 @@ public class ShopServiceImpl implements ShopService {
     @Transactional(rollbackFor = Exception.class)
     public DmsShopProduct saveProduct(DmsShopProduct product) {
         merchantProductReviewService.bindMerchantForWrite(product, null);
-        applyShippingAddress(product, true);
+        applyServiceAddresses(product, true);
         fillProductDefaults(product);
         assertTenantAccess(product.getTenantId());
         merchantProductReviewService.prepareCreatedProduct(product);
@@ -552,7 +553,7 @@ public class ShopServiceImpl implements ShopService {
         merchantProductReviewService.bindMerchantForWrite(product, exists);
         if (product.getShippingAddressId() == null) product.setShippingAddressId(exists.getShippingAddressId());
         if (product.getReturnAddressId() == null) product.setReturnAddressId(exists.getReturnAddressId());
-        applyShippingAddress(product, false);
+        applyServiceAddresses(product, false);
         fillProductDefaults(product);
         merchantProductReviewService.prepareUpdatedProduct(exists, product);
         boolean settlementTermsChanged = settlementProductTermsChanged(exists, product);
@@ -583,7 +584,7 @@ public class ShopServiceImpl implements ShopService {
         String beforeSettlement = settlementTermsChanged && existingProduct != null
                 ? settlementSnapshot(existingProduct, existingSkus) : null;
         if (id == null) {
-            applyShippingAddress(product, true);
+            applyServiceAddresses(product, true);
             fillProductDefaults(product);
             assertTenantAccess(product.getTenantId());
             merchantProductReviewService.prepareCreatedProduct(product);
@@ -596,7 +597,7 @@ public class ShopServiceImpl implements ShopService {
             product.setTenantId(existing.getTenantId());
             if (product.getShippingAddressId() == null) product.setShippingAddressId(existing.getShippingAddressId());
             if (product.getReturnAddressId() == null) product.setReturnAddressId(existing.getReturnAddressId());
-            applyShippingAddress(product, false);
+            applyServiceAddresses(product, false);
             fillProductDefaults(product);
             merchantProductReviewService.prepareUpdatedProduct(existing, product);
             productDao.update(product);
@@ -646,22 +647,38 @@ public class ShopServiceImpl implements ShopService {
         return productDao.selectById(id);
     }
 
-    /** 将地址簿中的发货地址同步为商品快照；地址簿后续变更不会改写历史商品快照。 */
-    private void applyShippingAddress(DmsShopProduct product, boolean useDefaultWhenMissing) {
+    /** 校验商品只能使用所属商户自己的地址或平台明确共享地址；发货地址同时保存展示快照。 */
+    private void applyServiceAddresses(DmsShopProduct product, boolean useDefaultWhenMissing) {
         Long tenantId = product.getTenantId() == null ? DEFAULT_TENANT_ID : product.getTenantId();
         DmsShopServiceAddress address = product.getShippingAddressId() == null && useDefaultWhenMissing
-                ? serviceAddressDao.selectDefault(tenantId, 1)
+                ? serviceAddressDao.selectDefaultForMerchant(tenantId, product.getMerchantId(), 1)
                 : product.getShippingAddressId() == null ? null : serviceAddressDao.selectById(product.getShippingAddressId());
-        if (address == null) return;
-        if (!tenantId.equals(address.getTenantId()) || !Integer.valueOf(1).equals(address.getAddressType())
-                || !Integer.valueOf(1).equals(address.getStatus())) {
-            Asserts.fail("发货地址不存在或已停用");
+        if (address != null) {
+            requireAddressAccess(address, tenantId, product.getMerchantId(), 1, "发货");
+            product.setShippingAddressId(address.getId());
+            product.setDeliveryProvince(address.getProvince());
+            product.setDeliveryCity(address.getCity());
+            product.setDeliveryDistrict(address.getDistrict());
+            product.setDeliveryAddress(joinServiceAddress(address));
         }
-        product.setShippingAddressId(address.getId());
-        product.setDeliveryProvince(address.getProvince());
-        product.setDeliveryCity(address.getCity());
-        product.setDeliveryDistrict(address.getDistrict());
-        product.setDeliveryAddress(joinServiceAddress(address));
+        DmsShopServiceAddress returnAddress = product.getReturnAddressId() == null && useDefaultWhenMissing
+                ? serviceAddressDao.selectDefaultForMerchant(tenantId, product.getMerchantId(), 2)
+                : product.getReturnAddressId() == null ? null : serviceAddressDao.selectById(product.getReturnAddressId());
+        if (returnAddress != null) {
+            requireAddressAccess(returnAddress, tenantId, product.getMerchantId(), 2, "退货");
+            product.setReturnAddressId(returnAddress.getId());
+        }
+    }
+
+    private void requireAddressAccess(DmsShopServiceAddress address, Long tenantId, Long merchantId,
+                                      int addressType, String label) {
+        boolean ownerMatches = Objects.equals(address.getMerchantId(), merchantId);
+        boolean platformShared = merchantId != null && address.getMerchantId() == null
+                && Integer.valueOf(1).equals(address.getSharedToMerchants());
+        if (!tenantId.equals(address.getTenantId()) || !Integer.valueOf(addressType).equals(address.getAddressType())
+                || !Integer.valueOf(1).equals(address.getStatus()) || (!ownerMatches && !platformShared)) {
+            Asserts.fail(label + "地址不存在、已停用或不属于当前商户");
+        }
     }
 
     private String joinServiceAddress(DmsShopServiceAddress address) {
@@ -684,6 +701,7 @@ public class ShopServiceImpl implements ShopService {
                 && !"APPROVED".equals(product.getMerchantReviewStatus())) {
             Asserts.fail("商户商品必须审核通过后才能上架");
         }
+        if (target == 1) requireActiveProductMerchant(product);
         boolean updated = productDao.updateStatus(id, target) > 0;
         if (updated) catalogCache.invalidateAfterCommit(product.getTenantId());
         return updated;
@@ -1646,6 +1664,7 @@ public class ShopServiceImpl implements ShopService {
                                          Map<Long, Integer> existingPurchaseQuantities,
                                          DmsFlashSaleActivity flashActivity,
                                          ShopOrderItemDTO item) {
+        requireActiveProductMerchant(product);
         if (ShopBusinessType.NORMAL.equals(businessType)) {
             if (Integer.valueOf(0).equals(product.getNormalSaleEnabled())) Asserts.fail("该商品不在普通商城销售");
             validatePurchaseLimit(product, userId, requestedQuantity, existingPurchaseQuantities);
@@ -2180,6 +2199,15 @@ public class ShopServiceImpl implements ShopService {
         DmsMerchant merchant = merchantDao.selectById(product.getMerchantId());
         Integer defaults = merchant == null ? null : merchant.getDefaultSettlementDays();
         return defaults == null ? 0 : Math.max(0, Math.min(365, defaults));
+    }
+
+    private void requireActiveProductMerchant(DmsShopProduct product) {
+        if (product == null || product.getMerchantId() == null) return;
+        DmsMerchant merchant = merchantDao.selectById(product.getMerchantId());
+        if (merchant == null || !Objects.equals(product.getTenantId(), merchant.getTenantId())
+                || !Integer.valueOf(1).equals(merchant.getStatus())) {
+            Asserts.fail("商品所属商户已停用，当前商品不能展示、上架或下单");
+        }
     }
 
     private FreightDecision resolveFreightDecision(DmsFreightTemplate template, ShopOrderSubmitDTO dto) {

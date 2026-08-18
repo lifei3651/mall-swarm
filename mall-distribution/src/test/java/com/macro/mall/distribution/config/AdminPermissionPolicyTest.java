@@ -3,6 +3,8 @@ package com.macro.mall.distribution.config;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 class AdminPermissionPolicyTest {
@@ -44,5 +46,19 @@ class AdminPermissionPolicyTest {
         assertEquals("shop:product", AdminPermissionPolicy.requiredPermission("POST", "/distribution/merchants"));
         assertEquals("finance:read", AdminPermissionPolicy.requiredPermission("GET", "/distribution/merchant-finance/accounts"));
         assertEquals("finance:manage", AdminPermissionPolicy.requiredPermission("POST", "/distribution/merchant-finance/withdrawals/1/pay"));
+    }
+
+    @Test
+    void merchantWorkspaceCannotReachPlatformDashboardButCanManageItsOwnAddressesAndWithdrawal() {
+        assertFalse(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "GET", "/distribution/dashboard"));
+        assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "GET", "/shop/admin/service-addresses"));
+        assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "POST", "/shop/admin/service-addresses"));
+        assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "POST", "/distribution/merchant-finance/withdrawals"));
+        assertFalse(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "POST", "/distribution/merchant-finance/deposits/receive"));
     }
 }

@@ -11,8 +11,15 @@ public class DmsMerchantWithdrawal implements Serializable {
     private Long id;
     private Long tenantId;
     private String withdrawalNo;
+    /** 客户端生成的持久化防重复申请号。 */
+    private String requestNo;
     private Long merchantId;
     private String merchantName;
+    private Integer merchantProfileVersion;
+    private String legalEntityNameSnapshot;
+    private String bankAccountNameSnapshot;
+    private String bankNameSnapshot;
+    private String bankAccountNoSnapshot;
     private BigDecimal requestedAmount;
     private BigDecimal invoiceRequiredAmount;
     private BigDecimal invoiceReceivedAmount;

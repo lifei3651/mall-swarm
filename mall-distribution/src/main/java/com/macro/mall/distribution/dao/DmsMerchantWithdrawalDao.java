@@ -9,6 +9,9 @@ import java.util.List;
 public interface DmsMerchantWithdrawalDao {
     DmsMerchantWithdrawal selectById(@Param("id") Long id);
     DmsMerchantWithdrawal selectByIdForUpdate(@Param("id") Long id);
+    DmsMerchantWithdrawal selectByRequestNo(@Param("tenantId") Long tenantId,
+                                             @Param("merchantId") Long merchantId,
+                                             @Param("requestNo") String requestNo);
     List<DmsMerchantWithdrawal> selectList(@Param("tenantId") Long tenantId,
                                            @Param("merchantId") Long merchantId,
                                            @Param("status") String status);

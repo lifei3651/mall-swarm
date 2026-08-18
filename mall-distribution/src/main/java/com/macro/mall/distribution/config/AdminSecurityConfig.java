@@ -33,7 +33,7 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
                         "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html");
     }
 
-    private static class AdminSecurityInterceptor implements HandlerInterceptor {
+    static class AdminSecurityInterceptor implements HandlerInterceptor {
 
         private final AdminAuthService adminAuthService;
         private final OperationLogService operationLogService;
@@ -68,24 +68,26 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
         }
 
         private boolean merchantWorkspaceRequest(HttpServletRequest request) {
-            String path = request.getRequestURI();
+            return isMerchantWorkspaceRequest(request.getMethod(), request.getRequestURI());
+        }
+
+        static boolean isMerchantWorkspaceRequest(String method, String path) {
             if (path == null) return false;
             if (path.equals("/distribution/admin-auth/me")
                     || path.equals("/distribution/admin-auth/logout")
-                    || path.startsWith("/distribution/dashboard")
                     || path.startsWith("/shop/admin/products")
                     || path.startsWith("/shop/admin/skus")
                     || path.startsWith("/shop/admin/media")) return true;
             if (path.startsWith("/distribution/merchant-finance")) {
-                return HttpMethod.GET.matches(request.getMethod())
-                        || (HttpMethod.POST.matches(request.getMethod())
+                return HttpMethod.GET.matches(method)
+                        || (HttpMethod.POST.matches(method)
                         && path.equals("/distribution/merchant-finance/withdrawals"));
             }
-            if (HttpMethod.GET.matches(request.getMethod()) && path.startsWith("/distribution/merchants")) return true;
-            return HttpMethod.GET.matches(request.getMethod()) && (path.startsWith("/shop/admin/categories")
+            if (HttpMethod.GET.matches(method) && path.startsWith("/distribution/merchants")) return true;
+            if (path.startsWith("/shop/admin/service-addresses")) return true;
+            return HttpMethod.GET.matches(method) && (path.startsWith("/shop/admin/categories")
                     || path.startsWith("/shop/admin/product-settings")
-                    || path.startsWith("/shop/admin/freight-templates")
-                    || path.startsWith("/shop/admin/service-addresses"));
+                    || path.startsWith("/shop/admin/freight-templates"));
         }
 
         @Override

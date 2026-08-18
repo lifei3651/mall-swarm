@@ -16,4 +16,7 @@ public interface DmsMerchantProductReviewDao {
                                                @Param("keyword") String keyword);
     int insert(DmsMerchantProductReview review);
     int updateDecision(DmsMerchantProductReview review);
+    int rejectPendingByMerchant(@Param("tenantId") Long tenantId,
+                                @Param("merchantId") Long merchantId,
+                                @Param("remark") String remark);
 }

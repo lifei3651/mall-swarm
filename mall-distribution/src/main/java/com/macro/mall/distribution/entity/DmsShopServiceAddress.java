@@ -16,6 +16,11 @@ public class DmsShopServiceAddress implements Serializable {
 
     private Long id;
     private Long tenantId;
+    /** 空表示平台地址；非空表示商户私有地址。 */
+    private Long merchantId;
+    private String merchantName;
+    /** 仅平台地址可设为1，表示明确共享给全部商户。 */
+    private Integer sharedToMerchants;
     /** 1=发货地址，2=退货地址。 */
     private Integer addressType;
     @Size(max = 64, message = "地址名称不能超过64个字")

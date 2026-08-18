@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAppStore } from '@/store/index'
+import { readFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
 
 vi.mock('@/utils/adminSession', () => ({
   isAdminSessionExpired: vi.fn(() => false),
@@ -54,5 +56,11 @@ describe('router guards', () => {
     store.permissions = ['*']
     expect(store.hasPermission('anything.any.action')).toBe(true)
     expect(store.hasPermission('system:manage')).toBe(true)
+  })
+
+  it('merchant dashboard route is redirected to merchant finance', async () => {
+    const source = await readFile(resolve(process.cwd(), 'src/router/index.js'), 'utf8')
+    expect(source).toContain("store.userInfo?.merchantId && to.path === '/dashboard'")
+    expect(source).toContain("next('/audit/merchant-finance')")
   })
 })

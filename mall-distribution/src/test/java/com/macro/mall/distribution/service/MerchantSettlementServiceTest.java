@@ -43,6 +43,7 @@ class MerchantSettlementServiceTest {
         DmsMerchant merchant = new DmsMerchant();
         merchant.setMerchantNo("M-SETTLEMENT-TEST");
         merchant.setMerchantName("成本结算测试商户");
+        preparePayoutProfile(merchant);
         merchant = merchantService.saveMerchant(merchant);
 
         long orderId = 9966001L;
@@ -76,6 +77,7 @@ class MerchantSettlementServiceTest {
         assertMoney("500.00", available.getAvailableAmount());
 
         MerchantWithdrawalApplyDTO apply = new MerchantWithdrawalApplyDTO();
+        apply.setRequestNo("WITHDRAW-CLOSED-LEDGER");
         apply.setMerchantId(merchant.getId());
         apply.setRequestedAmount(new BigDecimal("500"));
         DmsMerchantWithdrawal withdrawal = merchantService.applyWithdrawal(apply);
@@ -119,10 +121,12 @@ class MerchantSettlementServiceTest {
         DmsMerchant merchant = new DmsMerchant();
         merchant.setMerchantNo("M-ADJUSTMENT-TEST");
         merchant.setMerchantName("提现调整测试商户");
+        preparePayoutProfile(merchant);
         merchant = merchantService.saveMerchant(merchant);
         jdbcTemplate.update("UPDATE dms_merchant_account SET available_amount=500 WHERE merchant_id=?", merchant.getId());
 
         MerchantWithdrawalApplyDTO apply = new MerchantWithdrawalApplyDTO();
+        apply.setRequestNo("WITHDRAW-ADJUSTMENT");
         apply.setMerchantId(merchant.getId());
         apply.setRequestedAmount(new BigDecimal("500"));
         DmsMerchantWithdrawal withdrawal = merchantService.applyWithdrawal(apply);
@@ -157,10 +161,12 @@ class MerchantSettlementServiceTest {
         DmsMerchant merchant = new DmsMerchant();
         merchant.setMerchantNo("M-REJECTION-TEST");
         merchant.setMerchantName("提现驳回测试商户");
+        preparePayoutProfile(merchant);
         merchant = merchantService.saveMerchant(merchant);
         jdbcTemplate.update("UPDATE dms_merchant_account SET available_amount=500 WHERE merchant_id=?", merchant.getId());
 
         MerchantWithdrawalApplyDTO apply = new MerchantWithdrawalApplyDTO();
+        apply.setRequestNo("WITHDRAW-REJECTION");
         apply.setMerchantId(merchant.getId());
         apply.setRequestedAmount(new BigDecimal("500"));
         DmsMerchantWithdrawal withdrawal = merchantService.applyWithdrawal(apply);
@@ -378,6 +384,7 @@ class MerchantSettlementServiceTest {
         DmsMerchant first = new DmsMerchant();
         first.setMerchantNo("M-WORKSPACE-ONE");
         first.setMerchantName("商户工作台一号");
+        preparePayoutProfile(first);
         first = merchantService.saveMerchant(first);
         DmsMerchant second = new DmsMerchant();
         second.setMerchantNo("M-WORKSPACE-TWO");
@@ -400,6 +407,7 @@ class MerchantSettlementServiceTest {
             assertTrue(merchantService.listDepositFlows(secondId).isEmpty());
 
             MerchantWithdrawalApplyDTO apply = new MerchantWithdrawalApplyDTO();
+            apply.setRequestNo("WITHDRAW-MERCHANT-WORKSPACE");
             apply.setMerchantId(secondId);
             apply.setRequestedAmount(new BigDecimal("100"));
             DmsMerchantWithdrawal withdrawal = merchantService.applyWithdrawal(apply);
@@ -416,6 +424,120 @@ class MerchantSettlementServiceTest {
         }
     }
 
+    @Test
+    void withdrawalRequestIsDurablyIdempotentAndKeepsTheApprovedPayeeSnapshot() {
+        DmsMerchant merchant = new DmsMerchant();
+        merchant.setMerchantNo("M-WITHDRAW-IDEMPOTENT");
+        merchant.setMerchantName("提现防重复商户");
+        preparePayoutProfile(merchant);
+        merchant = merchantService.saveMerchant(merchant);
+        jdbcTemplate.update("UPDATE dms_merchant_account SET available_amount=500 WHERE merchant_id=?", merchant.getId());
+
+        MerchantWithdrawalApplyDTO apply = new MerchantWithdrawalApplyDTO();
+        apply.setRequestNo("WITHDRAW-DURABLE-REQUEST-001");
+        apply.setMerchantId(merchant.getId());
+        apply.setRequestedAmount(new BigDecimal("100"));
+        DmsMerchantWithdrawal first = merchantService.applyWithdrawal(apply);
+        DmsMerchantWithdrawal replay = merchantService.applyWithdrawal(apply);
+
+        assertEquals(first.getId(), replay.getId());
+        assertEquals("6222000000000000001", first.getBankAccountNoSnapshot());
+        assertMoney("400.00", account(merchant.getId()).getAvailableAmount());
+        assertMoney("100.00", account(merchant.getId()).getFrozenAmount());
+        assertEquals(1, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM dms_merchant_withdrawal WHERE request_no=?", Integer.class,
+                "WITHDRAW-DURABLE-REQUEST-001"));
+
+        merchant.setBankAccountNo("6222000000000000999");
+        merchant.setContractStatus("EXPIRED");
+        merchantService.updateMerchant(merchant.getId(), merchant);
+        DmsMerchantWithdrawal afterProfileChange = merchantService.applyWithdrawal(apply);
+        assertEquals(first.getId(), afterProfileChange.getId());
+        assertEquals("6222000000000000001", afterProfileChange.getBankAccountNoSnapshot());
+
+        apply.setRequestedAmount(new BigDecimal("90"));
+        assertThrows(RuntimeException.class, () -> merchantService.applyWithdrawal(apply));
+        assertMoney("100.00", account(merchant.getId()).getFrozenAmount());
+
+        apply.setRequestedAmount(new BigDecimal("100"));
+        apply.setRequestNo("WITHDRAW REQUEST WITH SPACES");
+        assertThrows(RuntimeException.class, () -> merchantService.applyWithdrawal(apply));
+        assertMoney("100.00", account(merchant.getId()).getFrozenAmount());
+    }
+
+    @Test
+    void refundConsumesAvailableThenDepositBeforeCreatingMerchantDebt() {
+        DmsMerchant merchant = new DmsMerchant();
+        merchant.setMerchantNo("M-DEPOSIT-REFUND");
+        merchant.setMerchantName("保证金退款商户");
+        merchant.setRequiredDepositAmount(new BigDecimal("100"));
+        merchant = merchantService.saveMerchant(merchant);
+
+        DmsAdminUser finance = new DmsAdminUser();
+        finance.setId(94001L);
+        finance.setUsername("deposit-receiver");
+        finance.setPermissions("finance:manage");
+        AdminContext.set(finance);
+        try {
+            merchantService.receiveDeposit(deposit(merchant.getId(), "DEPOSIT-RECEIVE-REFUND", "100", "线下保证金到账"));
+        } finally {
+            AdminContext.clear();
+        }
+        jdbcTemplate.update("UPDATE dms_merchant_account SET available_amount=30 WHERE merchant_id=?", merchant.getId());
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_order_item
+                (order_id,order_no,merchant_id,merchant_name,product_id,product_name,price,quantity,total_amount,
+                 pv_value,total_pv,cost_amount,total_cost,team_bonus_mode)
+                VALUES (9977001,'MO9977001',?,?,1,'保证金退款商品',99,3,297,0,0,50,150,'NONE')
+                """, merchant.getId(), merchant.getMerchantName());
+        Long itemId = jdbcTemplate.queryForObject("SELECT id FROM dms_shop_order_item WHERE order_id=9977001", Long.class);
+        jdbcTemplate.update("""
+                INSERT INTO dms_merchant_settlement
+                (tenant_id,merchant_id,order_id,order_no,order_item_id,product_id,quantity,refunded_quantity,
+                 cost_amount,settlement_amount,reversed_amount,settlement_delay_days,status)
+                VALUES (1,?,9977001,'MO9977001',?,1,3,0,50,150,0,0,'AVAILABLE')
+                """, merchant.getId(), itemId);
+
+        DmsShopAfterSaleItem refund = new DmsShopAfterSaleItem();
+        refund.setOrderItemId(itemId);
+        refund.setRefundQuantity(3);
+        merchantService.reverseAfterSaleItems(List.of(refund));
+
+        DmsMerchantAccount account = account(merchant.getId());
+        assertMoney("0.00", account.getAvailableAmount());
+        assertMoney("0.00", account.getDepositFrozenAmount());
+        assertMoney("20.00", account.getDebtAmount());
+    }
+
+    @Test
+    void settlementRuleChangeRequiresReviewAndMerchantDisableStopsSales() {
+        DmsMerchant merchant = new DmsMerchant();
+        merchant.setMerchantNo("M-RULE-STATUS-CLOSURE");
+        merchant.setMerchantName("结算规则与停用测试商户");
+        merchant.setDefaultSettlementDays(7);
+        merchant = merchantService.saveMerchant(merchant);
+        jdbcTemplate.update("""
+                UPDATE dms_shop_product
+                SET merchant_id=?,merchant_name=?,status=1,normal_sale_enabled=1,
+                    merchant_review_status='APPROVED',settlement_delay_days_override=NULL,team_bonus_mode='NONE'
+                WHERE id=1
+                """, merchant.getId(), merchant.getMerchantName());
+
+        merchant.setDefaultSettlementDays(30);
+        merchantService.updateMerchant(merchant.getId(), merchant);
+        DmsShopProduct redrafted = shopService.getProduct(1L);
+        assertEquals(0, redrafted.getStatus());
+        assertEquals("DRAFT", redrafted.getMerchantReviewStatus());
+        assertTrue(redrafted.getMerchantReviewRemark().contains("结算等待"));
+
+        jdbcTemplate.update("UPDATE dms_shop_product SET status=1,merchant_review_status='APPROVED' WHERE id=1");
+        assertTrue(merchantService.updateMerchantStatus(merchant.getId(), 0));
+        assertEquals(0, shopService.getProduct(1L).getStatus());
+        assertTrue(shopService.listProducts(1L, null, null, null, null).stream()
+                .noneMatch(product -> product.getId().equals(1L)));
+        assertThrows(RuntimeException.class, () -> shopService.updateProductStatus(1L, 1));
+    }
+
     private MerchantDepositAdjustDTO deposit(Long merchantId, String operationNo, String amount, String reason) {
         MerchantDepositAdjustDTO dto = new MerchantDepositAdjustDTO();
         dto.setMerchantId(merchantId);
@@ -423,6 +545,17 @@ class MerchantSettlementServiceTest {
         dto.setAmount(new BigDecimal(amount));
         dto.setReason(reason);
         return dto;
+    }
+
+    private void preparePayoutProfile(DmsMerchant merchant) {
+        merchant.setLegalEntityName(merchant.getMerchantName());
+        merchant.setUnifiedSocialCreditCode("91430100TEST000001");
+        merchant.setBankAccountName(merchant.getMerchantName());
+        merchant.setBankName("测试银行长沙支行");
+        merchant.setBankAccountNo("6222000000000000001");
+        merchant.setInvoiceTitle(merchant.getMerchantName());
+        merchant.setTaxpayerIdentificationNo("91430100TEST000001");
+        merchant.setContractStatus("SIGNED");
     }
 
     private DmsMerchantAccount account(Long merchantId) {

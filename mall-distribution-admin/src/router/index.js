@@ -462,11 +462,15 @@ router.beforeEach((to, from, next) => {
     next(false)
     return
   }
+  if (store.userInfo?.merchantId && to.path === '/dashboard') {
+    next('/audit/merchant-finance')
+    return
+  }
   const requiredPermissions = to.matched
     .map((item) => item.meta?.permission)
     .filter(Boolean)
   if (requiredPermissions.length > 0 && !requiredPermissions.every((item) => store.hasPermission(item))) {
-    next('/dashboard')
+    next(store.userInfo?.merchantId ? '/audit/merchant-finance' : '/dashboard')
     return
   }
   next()

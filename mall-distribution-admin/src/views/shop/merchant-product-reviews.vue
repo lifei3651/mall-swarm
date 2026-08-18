@@ -40,6 +40,7 @@
         <div><span>商户</span><strong>{{ current.merchantName }}</strong></div><div><span>商品</span><strong>{{ current.productName }}</strong></div>
         <div class="price-card"><span>本版销售价</span><strong>¥{{ money(current.salePrice) }}</strong></div>
         <div class="price-card settlement"><span>本版结算价</span><strong>¥{{ money(current.settlementPrice) }}</strong></div>
+        <div><span>售后窗口结束后结算等待</span><strong>{{ snapshot.effectiveSettlementDays || 0 }} 天</strong></div>
         <div><span>提交人</span><strong>{{ current.submitterName || '系统' }}</strong></div><div><span>提交时间</span><strong>{{ dateTime(current.submittedAt) }}</strong></div>
       </div>
       <el-table v-if="snapshotSkus.length" :data="snapshotSkus" border size="small" class="sku-table">
@@ -55,7 +56,7 @@
     </el-dialog>
 
     <el-dialog v-model="decisionVisible" title="审核商户商品" width="560px">
-      <el-alert :title="`请确认：销售价 ¥${money(current.salePrice)}，结算价 ¥${money(current.settlementPrice)}`" type="warning" :closable="false" show-icon />
+      <el-alert :title="`请确认：销售价 ¥${money(current.salePrice)}，结算价 ¥${money(current.settlementPrice)}，售后窗口结束后再等待 ${snapshot.effectiveSettlementDays || 0} 天`" type="warning" :closable="false" show-icon />
       <el-form label-width="90px" class="decision-form">
         <el-form-item label="审核结果"><el-radio-group v-model="decision.approved"><el-radio-button :value="true">通过并上架</el-radio-button><el-radio-button :value="false">驳回修改</el-radio-button></el-radio-group></el-form-item>
         <el-form-item label="审核说明" :required="decision.approved === false"><el-input v-model="decision.remark" type="textarea" :rows="4" maxlength="500" show-word-limit :placeholder="decision.approved ? '可选：填写审核说明' : '请明确填写驳回原因，方便商户修改'" /></el-form-item>

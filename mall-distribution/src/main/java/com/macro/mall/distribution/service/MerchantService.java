@@ -14,6 +14,7 @@ public interface MerchantService {
     List<DmsMerchantWithdrawal> listWithdrawals(Long merchantId, String status);
     List<DmsMerchantDepositFlow> listDepositFlows(Long merchantId);
     DmsMerchantDepositFlow freezeDeposit(MerchantDepositAdjustDTO dto);
+    DmsMerchantDepositFlow receiveDeposit(MerchantDepositAdjustDTO dto);
     DmsMerchantDepositFlow releaseDeposit(MerchantDepositAdjustDTO dto);
     DmsMerchantWithdrawal applyWithdrawal(MerchantWithdrawalApplyDTO dto);
     DmsMerchantWithdrawal reviewWithdrawal(Long id, MerchantWithdrawalReviewDTO dto);

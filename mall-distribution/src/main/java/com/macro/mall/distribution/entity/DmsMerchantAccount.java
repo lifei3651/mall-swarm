@@ -17,6 +17,10 @@ public class DmsMerchantAccount implements Serializable {
     private BigDecimal frozenAmount;
     /** 平台单独冻结的商户保证金，不参与提现冻结。 */
     private BigDecimal depositFrozenAmount;
+    /** 商户资料中配置的应缴保证金。 */
+    private BigDecimal requiredDepositAmount;
+    /** 应缴保证金减去当前保证金后的不足金额。 */
+    private BigDecimal depositShortfallAmount;
     private BigDecimal debtAmount;
     private BigDecimal totalPaidAmount;
     private LocalDateTime createTime;

@@ -15,8 +15,17 @@ public interface DmsShopServiceAddressDao {
                                            @Param("addressType") Integer addressType,
                                            @Param("status") Integer status);
 
+    List<DmsShopServiceAddress> selectListForMerchant(@Param("tenantId") Long tenantId,
+                                                      @Param("merchantId") Long merchantId,
+                                                      @Param("addressType") Integer addressType,
+                                                      @Param("status") Integer status);
+
     DmsShopServiceAddress selectDefault(@Param("tenantId") Long tenantId,
                                         @Param("addressType") Integer addressType);
+
+    DmsShopServiceAddress selectDefaultForMerchant(@Param("tenantId") Long tenantId,
+                                                    @Param("merchantId") Long merchantId,
+                                                    @Param("addressType") Integer addressType);
 
     int insert(DmsShopServiceAddress address);
 
@@ -24,6 +33,10 @@ public interface DmsShopServiceAddressDao {
 
     int clearDefault(@Param("tenantId") Long tenantId,
                      @Param("addressType") Integer addressType);
+
+    int clearDefaultForMerchant(@Param("tenantId") Long tenantId,
+                                @Param("merchantId") Long merchantId,
+                                @Param("addressType") Integer addressType);
 
     int updateStatus(@Param("id") Long id, @Param("tenantId") Long tenantId, @Param("status") Integer status);
 }

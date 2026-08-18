@@ -89,6 +89,7 @@
         FROM dms_shop_product
         <where>
             normal_sale_enabled = 1
+            AND (merchant_id IS NULL OR EXISTS (SELECT 1 FROM dms_merchant active_merchant WHERE active_merchant.id=dms_shop_product.merchant_id AND active_merchant.tenant_id=dms_shop_product.tenant_id AND active_merchant.status=1))
             <if test="tenantId != null">AND tenant_id = #{tenantId}</if>
             <if test="status != null">AND status = #{status}</if>
             <if test="categoryName != null and categoryName != ''">AND category_name = #{categoryName}</if>
@@ -115,6 +116,7 @@
           AND status = 1
           AND repurchase_sale_enabled = 1
           AND repurchase_price &gt; 0
+          AND (merchant_id IS NULL OR EXISTS (SELECT 1 FROM dms_merchant active_merchant WHERE active_merchant.id=dms_shop_product.merchant_id AND active_merchant.tenant_id=dms_shop_product.tenant_id AND active_merchant.status=1))
         <if test="keyword != null and keyword != ''">
           AND (product_name LIKE CONCAT('%', #{keyword}, '%') OR subtitle LIKE CONCAT('%', #{keyword}, '%'))
         </if>
@@ -176,6 +178,7 @@
         SELECT DISTINCT category_name
         FROM dms_shop_product
         WHERE status = 1 AND normal_sale_enabled = 1
+          AND (merchant_id IS NULL OR EXISTS (SELECT 1 FROM dms_merchant active_merchant WHERE active_merchant.id=dms_shop_product.merchant_id AND active_merchant.tenant_id=dms_shop_product.tenant_id AND active_merchant.status=1))
         <if test="tenantId != null">
             AND tenant_id = #{tenantId}
         </if>
@@ -268,6 +271,21 @@
         WHERE id = #{id}
     </update>
 
+    <update id="disableByMerchantId">
+        UPDATE dms_shop_product
+        SET status=0, update_time=CURRENT_TIMESTAMP
+        WHERE tenant_id=#{tenantId} AND merchant_id=#{merchantId} AND status&lt;&gt;0
+    </update>
+
+    <update id="resetDefaultSettlementProductsForReview">
+        UPDATE dms_shop_product
+        SET status=0, merchant_review_status='DRAFT', merchant_review_remark=#{remark},
+            merchant_review_submitted_at=NULL, merchant_reviewed_at=NULL,
+            merchant_reviewer_id=NULL, merchant_reviewer_name=NULL, update_time=CURRENT_TIMESTAMP
+        WHERE tenant_id=#{tenantId} AND merchant_id=#{merchantId}
+          AND settlement_delay_days_override IS NULL
+    </update>
+
     <update id="markReviewSubmitted">
         UPDATE dms_shop_product
         SET status=0, merchant_review_status='PENDING', merchant_review_version=#{version},
@@ -305,6 +323,7 @@
             update_time = CURRENT_TIMESTAMP
         WHERE id = #{id}
           AND status = 1
+          AND (merchant_id IS NULL OR EXISTS (SELECT 1 FROM dms_merchant active_merchant WHERE active_merchant.id=dms_shop_product.merchant_id AND active_merchant.tenant_id=dms_shop_product.tenant_id AND active_merchant.status=1))
           AND stock &gt;= #{quantity}
     </update>
 

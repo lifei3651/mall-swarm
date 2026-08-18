@@ -2,8 +2,8 @@
   <div class="page-container service-address-page">
     <div class="page-heading">
       <div>
-        <h2>发货与退货地址</h2>
-        <p>统一维护仓库地址；商品可选择发货地和售后退货地，审核通过后客户会看到对应退货地址。</p>
+        <h2>{{ isMerchantUser ? '我的发货与退货地址' : '发货与退货地址' }}</h2>
+        <p>{{ isMerchantUser ? '仅显示本商户地址和平台明确共享的地址。' : '平台可查看全部地址；商户私有地址不会向其他商户公开。' }}</p>
       </div>
       <el-button type="primary" :icon="Plus" @click="openForm()">新增地址</el-button>
     </div>
@@ -16,13 +16,13 @@
           <template #header><div class="card-head"><span>{{ group.title }}</span><el-tag size="small" effect="plain">{{ group.items.length }} 个</el-tag></div></template>
           <el-empty v-if="!group.items.length" description="还没有地址" :image-size="70" />
           <div v-for="item in group.items" :key="item.id" class="address-item">
-            <div class="address-item-head"><strong>{{ item.addressLabel || '未命名地址' }}</strong><el-tag v-if="item.isDefault === 1" type="success" size="small">默认</el-tag></div>
+            <div class="address-item-head"><strong>{{ item.addressLabel || '未命名地址' }}</strong><el-tag v-if="item.isDefault === 1" type="success" size="small">默认</el-tag><el-tag v-if="item.merchantId" size="small">{{ item.merchantName || '商户私有' }}</el-tag><el-tag v-else-if="item.sharedToMerchants === 1" type="warning" size="small">平台共享</el-tag><el-tag v-else size="small" type="info">平台私有</el-tag></div>
             <div class="address-contact">{{ item.contactName }} {{ item.contactPhone }}</div>
             <div class="address-text">{{ fullAddress(item) }}</div>
             <div class="address-actions">
-              <el-button link type="primary" @click="openForm(item)">编辑</el-button>
-              <el-button v-if="item.isDefault !== 1" link type="success" @click="setDefault(item)">设为默认</el-button>
-              <el-button link type="danger" @click="disableAddress(item)">停用</el-button>
+              <el-button v-if="canEdit(item)" link type="primary" @click="openForm(item)">编辑</el-button>
+              <el-button v-if="canEdit(item) && item.isDefault !== 1" link type="success" @click="setDefault(item)">设为默认</el-button>
+              <el-button v-if="canEdit(item)" link type="danger" @click="disableAddress(item)">停用</el-button>
             </div>
           </div>
         </el-card>
@@ -37,6 +37,7 @@
         <el-form-item label="所在地区" prop="region" required><el-cascader v-model="form.region" :options="pcaTextArr" filterable clearable style="width:100%" placeholder="请选择省 / 市 / 区县" /></el-form-item>
         <el-form-item label="详细地址" prop="detailAddress"><el-input v-model="form.detailAddress" maxlength="255" placeholder="街道、小区、楼栋、门牌号" /></el-form-item>
         <el-form-item label="设为默认"><el-switch v-model="form.isDefault" :active-value="1" :inactive-value="0" active-text="是" inactive-text="否" /></el-form-item>
+        <el-form-item v-if="!isMerchantUser && !form.merchantId" label="共享给商户"><el-switch v-model="form.sharedToMerchants" :active-value="1" :inactive-value="0" active-text="共享" inactive-text="平台私有" /><div class="field-help">开启后所有商户可在商品中选择；关闭时只有平台自营商品可使用。</div></el-form-item>
       </el-form>
       <template #footer><el-button @click="dialogVisible = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存地址</el-button></template>
     </el-dialog>
@@ -49,7 +50,10 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { pcaTextArr } from 'element-china-area-data'
 import { listShopServiceAddresses, saveShopServiceAddress, updateShopServiceAddressStatus } from '@/api/shop'
+import { useAppStore } from '@/store'
 
+const store = useAppStore()
+const isMerchantUser = computed(() => Boolean(store.userInfo?.merchantId))
 const rows = ref([])
 const dialogVisible = ref(false)
 const saving = ref(false)
@@ -69,12 +73,13 @@ const rules = {
   region: [{ required: true, validator: (_rule, value, callback) => value?.length === 3 ? callback() : callback(new Error('请选择完整省、市、区/县')), trigger: 'change' }],
   detailAddress: [{ required: true, message: '请填写详细地址', trigger: 'blur' }],
 }
-function emptyForm() { return { id: null, tenantId: 1, addressType: 1, addressLabel: '', contactName: '', contactPhone: '', province: '', city: '', district: '', region: [], detailAddress: '', isDefault: 0 } }
+function emptyForm() { return { id: null, tenantId: 1, merchantId: null, sharedToMerchants: 0, addressType: 1, addressLabel: '', contactName: '', contactPhone: '', province: '', city: '', district: '', region: [], detailAddress: '', isDefault: 0 } }
 function isValidPhone(value) { return /^(?:1[3-9]\d{9}|0\d{2,3}-?\d{7,8}|(?:400|800)-?\d{3}-?\d{4})$/.test(String(value || '')) }
 function normalizePhone(value) {
   form.contactPhone = String(value || '').replace(/[^0-9-]/g, '').replace(/-{2,}/g, '-').slice(0, 20)
 }
 function fullAddress(item) { return [item.province, item.city, item.district, item.detailAddress].filter(Boolean).join(' ') }
+function canEdit(item) { return !isMerchantUser.value || Number(item.merchantId) === Number(store.userInfo?.merchantId) }
 async function fetchData() { rows.value = (await listShopServiceAddresses({ tenantId: 1 })).data || [] }
 function openForm(item = null) {
   Object.assign(form, emptyForm(), item || {})
@@ -105,5 +110,5 @@ onMounted(fetchData)
 </script>
 
 <style scoped>
-.page-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:16px;padding:4px 2px 0}.page-heading h2{margin:0;color:#303133;font-size:22px}.page-heading p{margin:6px 0 0;color:#909399;font-size:13px}.address-tip{margin-bottom:16px}.address-card{min-height:350px;border-color:#e4e7ed}.card-head{display:flex;align-items:center;justify-content:space-between;font-weight:700}.address-item{padding:14px 0;border-bottom:1px solid #ebeef5}.address-item:last-child{border-bottom:0}.address-item-head{display:flex;align-items:center;gap:8px}.address-contact{margin-top:7px;color:#606266;font-size:13px}.address-text{margin-top:5px;color:#303133;line-height:1.6}.address-actions{margin-top:8px;display:flex;gap:8px}
+.page-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:16px;padding:4px 2px 0}.page-heading h2{margin:0;color:#303133;font-size:22px}.page-heading p{margin:6px 0 0;color:#909399;font-size:13px}.address-tip{margin-bottom:16px}.address-card{min-height:350px;border-color:#e4e7ed}.card-head{display:flex;align-items:center;justify-content:space-between;font-weight:700}.address-item{padding:14px 0;border-bottom:1px solid #ebeef5}.address-item:last-child{border-bottom:0}.address-item-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.address-contact{margin-top:7px;color:#606266;font-size:13px}.address-text{margin-top:5px;color:#303133;line-height:1.6}.address-actions{margin-top:8px;display:flex;gap:8px}.field-help{width:100%;color:#909399;font-size:12px;line-height:1.6;margin-top:5px}
 </style>

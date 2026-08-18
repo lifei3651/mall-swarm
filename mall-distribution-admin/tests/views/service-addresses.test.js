@@ -23,4 +23,13 @@ describe('发货与退货地址', () => {
     expect(source).toContain('province: form.region[0]')
     expect(source).not.toContain('const region = ref([])')
   })
+
+  it('区分平台私有、平台共享和商户私有地址', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+    expect(source).toContain('平台共享')
+    expect(source).toContain('平台私有')
+    expect(source).toContain('item.merchantId')
+    expect(source).toContain('sharedToMerchants')
+    expect(source).toContain('canEdit(item)')
+  })
 })

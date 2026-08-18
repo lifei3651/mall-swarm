@@ -37,6 +37,12 @@ public interface DmsShopProductDao {
 
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
 
+    int disableByMerchantId(@Param("tenantId") Long tenantId, @Param("merchantId") Long merchantId);
+
+    int resetDefaultSettlementProductsForReview(@Param("tenantId") Long tenantId,
+                                                @Param("merchantId") Long merchantId,
+                                                @Param("remark") String remark);
+
     int markReviewSubmitted(@Param("id") Long id, @Param("version") Integer version,
                             @Param("submittedAt") java.time.LocalDateTime submittedAt);
 

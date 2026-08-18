@@ -758,6 +758,16 @@ CREATE TABLE IF NOT EXISTS dms_merchant (
   merchant_name VARCHAR(128) NOT NULL,
   contact_name VARCHAR(64),
   contact_phone VARCHAR(32),
+  legal_entity_name VARCHAR(128),
+  unified_social_credit_code VARCHAR(32),
+  bank_account_name VARCHAR(128),
+  bank_name VARCHAR(128),
+  bank_account_no VARCHAR(64),
+  invoice_title VARCHAR(128),
+  taxpayer_identification_no VARCHAR(32),
+  contract_status VARCHAR(24) NOT NULL DEFAULT 'PENDING',
+  required_deposit_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+  profile_version INT NOT NULL DEFAULT 1,
   settlement_mode VARCHAR(24) NOT NULL DEFAULT 'COST_PRICE',
   default_settlement_days INT NOT NULL DEFAULT 0,
   status INT NOT NULL DEFAULT 1,
@@ -822,7 +832,13 @@ CREATE TABLE IF NOT EXISTS dms_merchant_withdrawal (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   tenant_id BIGINT NOT NULL DEFAULT 1,
   withdrawal_no VARCHAR(64) NOT NULL UNIQUE,
+  request_no VARCHAR(64),
   merchant_id BIGINT NOT NULL,
+  merchant_profile_version INT,
+  legal_entity_name_snapshot VARCHAR(128),
+  bank_account_name_snapshot VARCHAR(128),
+  bank_name_snapshot VARCHAR(128),
+  bank_account_no_snapshot VARCHAR(64),
   requested_amount DECIMAL(14,2) NOT NULL,
   invoice_required_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
   invoice_received_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
@@ -841,6 +857,9 @@ CREATE TABLE IF NOT EXISTS dms_merchant_withdrawal (
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_merchant_withdrawal_request
+  ON dms_merchant_withdrawal(tenant_id, merchant_id, request_no);
 
 CREATE TABLE IF NOT EXISTS dms_shop_product (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -1095,6 +1114,8 @@ CREATE TABLE IF NOT EXISTS dms_flash_sale_reservation (
 CREATE TABLE IF NOT EXISTS dms_shop_service_address (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   tenant_id BIGINT NOT NULL DEFAULT 1,
+  merchant_id BIGINT,
+  shared_to_merchants INT NOT NULL DEFAULT 0,
   address_type INT NOT NULL,
   address_label VARCHAR(64),
   contact_name VARCHAR(64) NOT NULL,

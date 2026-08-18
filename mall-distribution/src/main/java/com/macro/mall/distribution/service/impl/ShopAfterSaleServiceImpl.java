@@ -733,7 +733,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
                         || !Integer.valueOf(1).equals(address.getStatus()))) address = null;
             }
         }
-        if (address == null) address = serviceAddressDao.selectDefault(order.getTenantId(), 2);
+        if (address == null) address = serviceAddressDao.selectDefaultForMerchant(order.getTenantId(), order.getMerchantId(), 2);
         if (address == null) return;
         afterSale.setReturnAddressId(address.getId());
         afterSale.setReturnAddress(joinServiceAddress(address));

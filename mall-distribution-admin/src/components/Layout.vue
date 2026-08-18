@@ -375,7 +375,7 @@ const breadcrumbs = computed(() => {
 })
 
 const hasMenuPermission = (item) => {
-  if (store.userInfo?.merchantId) return ['/dashboard', '/shop/products', '/audit/merchant-finance'].includes(item.path)
+  if (store.userInfo?.merchantId) return ['/shop/products', '/shop/service-addresses', '/audit/merchant-finance'].includes(item.path)
   return !item.permission || store.hasPermission(item.permission)
 }
 const visibleBusinessMenus = computed(() => businessMenus

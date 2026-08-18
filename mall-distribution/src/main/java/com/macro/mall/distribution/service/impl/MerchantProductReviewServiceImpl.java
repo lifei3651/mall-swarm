@@ -8,6 +8,7 @@ import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.dao.DmsMerchantDao;
 import com.macro.mall.distribution.dao.DmsMerchantProductReviewDao;
+import com.macro.mall.distribution.dao.DmsMerchantAccountDao;
 import com.macro.mall.distribution.dao.DmsShopProductDao;
 import com.macro.mall.distribution.dao.DmsShopSkuDao;
 import com.macro.mall.distribution.dto.MerchantProductReviewDecisionDTO;
@@ -43,6 +44,7 @@ public class MerchantProductReviewServiceImpl implements MerchantProductReviewSe
     private final DmsShopProductDao productDao;
     private final DmsShopSkuDao skuDao;
     private final DmsMerchantDao merchantDao;
+    private final DmsMerchantAccountDao merchantAccountDao;
     private final AdminAuthService adminAuthService;
     private final OperationLogService operationLogService;
     private final ShopCatalogCacheService catalogCache;
@@ -136,6 +138,7 @@ public class MerchantProductReviewServiceImpl implements MerchantProductReviewSe
         if (product == null || product.getMerchantId() == null) Asserts.fail("只有商户商品需要提交审核");
         assertProductAccess(product);
         requireActiveMerchant(product.getMerchantId());
+        requireDepositSatisfied(product.getMerchantId());
         if (Integer.valueOf(1).equals(product.getStatus())) Asserts.fail("请先下架商品再提交审核");
         if ("PENDING".equals(product.getMerchantReviewStatus())) Asserts.fail("商品已经在审核中，请勿重复提交");
         if (money(product.getSalePrice()).compareTo(BigDecimal.ZERO) <= 0) Asserts.fail("销售价必须大于0");
@@ -196,7 +199,10 @@ public class MerchantProductReviewServiceImpl implements MerchantProductReviewSe
         DmsShopProduct product = productDao.selectByIdForUpdate(review.getProductId());
         if (product == null || !Objects.equals(product.getMerchantReviewVersion(), review.getReviewVersion())
                 || !"PENDING".equals(product.getMerchantReviewStatus())) Asserts.fail("商品资料已变化，本次审核不能继续");
-        if (approved) requireActiveMerchant(product.getMerchantId());
+        if (approved) {
+            requireActiveMerchant(product.getMerchantId());
+            requireDepositSatisfied(product.getMerchantId());
+        }
         LocalDateTime now = LocalDateTime.now();
         String result = approved ? "APPROVED" : "REJECTED";
         review.setStatus(result);
@@ -231,10 +237,23 @@ public class MerchantProductReviewServiceImpl implements MerchantProductReviewSe
         }
     }
 
+    private void requireDepositSatisfied(Long merchantId) {
+        DmsMerchant merchant = merchantDao.selectById(merchantId);
+        com.macro.mall.distribution.entity.DmsMerchantAccount account = merchantAccountDao.selectByMerchantId(merchantId);
+        BigDecimal required = money(merchant == null ? null : merchant.getRequiredDepositAmount());
+        BigDecimal actual = money(account == null ? null : account.getDepositFrozenAmount());
+        if (actual.compareTo(required) < 0) Asserts.fail("商户保证金不足，不能提交或通过商品审核");
+    }
+
     private String snapshot(DmsShopProduct product, List<DmsShopSku> skus) {
         Map<String, Object> value = new LinkedHashMap<>();
         value.put("product", product);
         value.put("skus", skus);
+        DmsMerchant merchant = merchantDao.selectById(product.getMerchantId());
+        int settlementDays = product.getSettlementDelayDaysOverride() == null
+                ? (merchant == null || merchant.getDefaultSettlementDays() == null ? 0 : merchant.getDefaultSettlementDays())
+                : product.getSettlementDelayDaysOverride();
+        value.put("effectiveSettlementDays", Math.max(0, Math.min(365, settlementDays)));
         try {
             return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException e) {

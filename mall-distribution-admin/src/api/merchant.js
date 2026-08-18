@@ -8,6 +8,7 @@ export const listMerchantSettlements = (params) => request({ url: '/distribution
 export const listMerchantWithdrawals = (params) => request({ url: '/distribution/merchant-finance/withdrawals', method: 'get', params })
 export const listMerchantDepositFlows = (params) => request({ url: '/distribution/merchant-finance/deposit-flows', method: 'get', params })
 export const freezeMerchantDeposit = (data) => request({ url: '/distribution/merchant-finance/deposits/freeze', method: 'post', data })
+export const receiveMerchantDeposit = (data) => request({ url: '/distribution/merchant-finance/deposits/receive', method: 'post', data })
 export const releaseMerchantDeposit = (data) => request({ url: '/distribution/merchant-finance/deposits/release', method: 'post', data })
 export const applyMerchantWithdrawal = (data) => request({ url: '/distribution/merchant-finance/withdrawals', method: 'post', data })
 export const reviewMerchantWithdrawal = (id, data) => request({ url: `/distribution/merchant-finance/withdrawals/${id}/review`, method: 'put', data })

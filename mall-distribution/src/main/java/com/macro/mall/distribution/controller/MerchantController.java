@@ -84,6 +84,12 @@ public class MerchantController {
         return CommonResult.success(merchantService.freezeDeposit(dto));
     }
 
+    @Operation(summary = "登记线下收到的商户保证金")
+    @PostMapping("/merchant-finance/deposits/receive")
+    public CommonResult<DmsMerchantDepositFlow> receiveDeposit(@Valid @RequestBody MerchantDepositAdjustDTO dto) {
+        return CommonResult.success(merchantService.receiveDeposit(dto));
+    }
+
     @Operation(summary = "解冻商户保证金")
     @PostMapping("/merchant-finance/deposits/release")
     public CommonResult<DmsMerchantDepositFlow> releaseDeposit(@Valid @RequestBody MerchantDepositAdjustDTO dto) {

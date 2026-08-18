@@ -9,6 +9,7 @@ import java.util.List;
 public interface DmsMerchantDao {
     DmsMerchant selectById(@Param("id") Long id);
     DmsMerchant selectByNo(@Param("tenantId") Long tenantId, @Param("merchantNo") String merchantNo);
+    Integer selectDefaultSettlementDays(@Param("id") Long id);
     List<DmsMerchant> selectList(@Param("tenantId") Long tenantId, @Param("keyword") String keyword,
                                  @Param("status") Integer status);
     int insert(DmsMerchant merchant);

@@ -1,8 +1,10 @@
 package com.macro.mall.distribution.service.impl;
 
 import com.macro.mall.common.exception.Asserts;
+import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.dao.DmsShopServiceAddressDao;
 import com.macro.mall.distribution.entity.DmsShopServiceAddress;
+import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.ShopServiceAddressService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,24 +20,48 @@ public class ShopServiceAddressServiceImpl implements ShopServiceAddressService 
 
     @Override
     public List<DmsShopServiceAddress> list(Long tenantId, Integer addressType, Integer status) {
-        return addressDao.selectList(tenantId == null ? 1L : tenantId, addressType, status);
+        Long scopedTenantId = TenantContext.getTenantId();
+        Long merchantId = currentMerchantId();
+        return merchantId == null
+                ? addressDao.selectList(scopedTenantId, addressType, status)
+                : addressDao.selectListForMerchant(scopedTenantId, merchantId, addressType, status);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsShopServiceAddress save(DmsShopServiceAddress address) {
         validate(address);
-        address.setTenantId(address.getTenantId() == null ? 1L : address.getTenantId());
+        address.setTenantId(TenantContext.getTenantId());
         address.setAddressLabel(blankToNull(address.getAddressLabel()));
         address.setIsDefault(Integer.valueOf(1).equals(address.getIsDefault()) ? 1 : 0);
+        Long merchantId = currentMerchantId();
+        DmsShopServiceAddress existing = address.getId() == null ? null : addressDao.selectById(address.getId());
+        if (existing != null && !address.getTenantId().equals(existing.getTenantId())) Asserts.fail("地址不存在");
+        if (merchantId != null) {
+            if (existing != null && !merchantId.equals(existing.getMerchantId())) Asserts.fail("不能修改其他商户或平台的地址");
+            address.setMerchantId(merchantId);
+            address.setSharedToMerchants(0);
+        } else if (existing != null) {
+            address.setMerchantId(existing.getMerchantId());
+            address.setSharedToMerchants(existing.getMerchantId() == null && Integer.valueOf(1).equals(address.getSharedToMerchants()) ? 1 : 0);
+        } else {
+            address.setMerchantId(null);
+            address.setSharedToMerchants(Integer.valueOf(1).equals(address.getSharedToMerchants()) ? 1 : 0);
+        }
         address.setStatus(1);
-        if (address.getIsDefault() == 1) addressDao.clearDefault(address.getTenantId(), address.getAddressType());
+        if (address.getIsDefault() == 1) {
+            addressDao.clearDefaultForMerchant(address.getTenantId(), address.getMerchantId(), address.getAddressType());
+        }
         if (address.getId() == null) {
-            if (addressDao.selectList(address.getTenantId(), address.getAddressType(), 1).isEmpty()) address.setIsDefault(1);
+            List<DmsShopServiceAddress> owned = address.getMerchantId() == null
+                    ? addressDao.selectList(address.getTenantId(), address.getAddressType(), 1).stream()
+                    .filter(item -> item.getMerchantId() == null).toList()
+                    : addressDao.selectListForMerchant(address.getTenantId(), address.getMerchantId(), address.getAddressType(), 1).stream()
+                    .filter(item -> address.getMerchantId().equals(item.getMerchantId())).toList();
+            if (owned.isEmpty()) address.setIsDefault(1);
             addressDao.insert(address);
         } else {
-            DmsShopServiceAddress existing = addressDao.selectById(address.getId());
-            if (existing == null || !address.getTenantId().equals(existing.getTenantId())) Asserts.fail("地址不存在");
+            if (existing == null) Asserts.fail("地址不存在");
             addressDao.update(address);
         }
         return addressDao.selectById(address.getId());
@@ -46,11 +72,13 @@ public class ShopServiceAddressServiceImpl implements ShopServiceAddressService 
     public boolean updateStatus(Long id, Long tenantId, Integer status) {
         if (id == null) Asserts.fail("地址ID不能为空");
         DmsShopServiceAddress existing = addressDao.selectById(id);
-        if (existing == null || !existing.getTenantId().equals(tenantId == null ? 1L : tenantId)) Asserts.fail("地址不存在");
+        if (existing == null || !existing.getTenantId().equals(TenantContext.getTenantId())) Asserts.fail("地址不存在");
+        Long merchantId = currentMerchantId();
+        if (merchantId != null && !merchantId.equals(existing.getMerchantId())) Asserts.fail("不能修改其他商户或平台的地址");
         if (status != null && status == 1) {
             existing.setStatus(1);
             existing.setIsDefault(1);
-            addressDao.clearDefault(existing.getTenantId(), existing.getAddressType());
+            addressDao.clearDefaultForMerchant(existing.getTenantId(), existing.getMerchantId(), existing.getAddressType());
             addressDao.update(existing);
             return true;
         }
@@ -59,7 +87,7 @@ public class ShopServiceAddressServiceImpl implements ShopServiceAddressService 
 
     @Override
     public DmsShopServiceAddress getDefault(Long tenantId, Integer addressType) {
-        return addressDao.selectDefault(tenantId == null ? 1L : tenantId, addressType);
+        return addressDao.selectDefaultForMerchant(TenantContext.getTenantId(), currentMerchantId(), addressType);
     }
 
     private void validate(DmsShopServiceAddress address) {
@@ -79,4 +107,8 @@ public class ShopServiceAddressServiceImpl implements ShopServiceAddressService 
     private boolean isBlank(String value) { return value == null || value.isBlank(); }
 
     private String blankToNull(String value) { return isBlank(value) ? null : value.trim(); }
+
+    private Long currentMerchantId() {
+        return AdminContext.get() == null ? null : AdminContext.get().getMerchantId();
+    }
 }

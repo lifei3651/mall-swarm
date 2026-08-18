@@ -24,16 +24,20 @@ import java.util.Set;
 public class MerchantServiceImpl implements MerchantService {
     private static final BigDecimal ZERO = BigDecimal.ZERO.setScale(2);
     private static final Set<String> INVOICE_STATES = Set.of("NOT_REQUIRED", "PENDING", "RECEIVED");
+    private static final Set<String> CONTRACT_STATES = Set.of("PENDING", "SIGNED", "EXPIRED");
 
     private final DmsMerchantDao merchantDao;
     private final DmsMerchantAccountDao accountDao;
     private final DmsMerchantSettlementDao settlementDao;
     private final DmsMerchantWithdrawalDao withdrawalDao;
     private final DmsMerchantDepositFlowDao depositFlowDao;
+    private final DmsMerchantProductReviewDao merchantProductReviewDao;
     private final DmsShopOrderDao orderDao;
     private final DmsShopOrderItemDao orderItemDao;
     private final DmsShopAfterSaleDao afterSaleDao;
+    private final DmsShopProductDao productDao;
     private final ShopAfterSaleWindowPolicy afterSaleWindowPolicy;
+    private final com.macro.mall.distribution.service.ShopCatalogCacheService catalogCache;
 
     @Override
     public List<DmsMerchant> listMerchants(String keyword, Integer status) {
@@ -64,21 +68,34 @@ public class MerchantServiceImpl implements MerchantService {
     @Transactional(rollbackFor = Exception.class)
     public DmsMerchant updateMerchant(Long id, DmsMerchant merchant) {
         requirePlatformAdmin();
+        Integer previousSettlementDays = merchantDao.selectDefaultSettlementDays(id);
         DmsMerchant existing = requireMerchant(id, false);
         merchant.setId(id);
         merchant.setTenantId(existing.getTenantId());
         merchant.setMerchantNo(existing.getMerchantNo());
         normalizeMerchant(merchant);
+        boolean settlementDaysChanged = !java.util.Objects.equals(previousSettlementDays, merchant.getDefaultSettlementDays());
         merchantDao.update(merchant);
+        if (settlementDaysChanged) {
+            String reason = "商户默认结算等待已调整，请核对新周期后重新提交审核";
+            merchantProductReviewDao.rejectPendingByMerchant(existing.getTenantId(), id, reason);
+            productDao.resetDefaultSettlementProductsForReview(existing.getTenantId(), id,
+                    reason);
+            catalogCache.invalidateAfterCommit(existing.getTenantId());
+        }
         return merchantDao.selectById(id);
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean updateMerchantStatus(Long id, Integer status) {
         requirePlatformAdmin();
-        requireMerchant(id, false);
+        DmsMerchant merchant = requireMerchant(id, false);
         if (status == null || (status != 0 && status != 1)) Asserts.fail("商户状态不正确");
-        return merchantDao.updateStatus(id, status) > 0;
+        boolean updated = merchantDao.updateStatus(id, status) > 0;
+        if (updated && status == 0) productDao.disableByMerchantId(merchant.getTenantId(), id);
+        if (updated) catalogCache.invalidateAfterCommit(merchant.getTenantId());
+        return updated;
     }
 
     @Override public List<DmsMerchantAccount> listAccounts(String keyword) {
@@ -114,13 +131,19 @@ public class MerchantServiceImpl implements MerchantService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsMerchantDepositFlow freezeDeposit(MerchantDepositAdjustDTO dto) {
-        return adjustDeposit(dto, true);
+        return adjustDeposit(dto, "FREEZE");
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public DmsMerchantDepositFlow receiveDeposit(MerchantDepositAdjustDTO dto) {
+        return adjustDeposit(dto, "RECEIVE");
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsMerchantDepositFlow releaseDeposit(MerchantDepositAdjustDTO dto) {
-        return adjustDeposit(dto, false);
+        return adjustDeposit(dto, "RELEASE");
     }
 
     @Override
@@ -129,15 +152,37 @@ public class MerchantServiceImpl implements MerchantService {
         if (dto == null) Asserts.fail("提现申请不能为空");
         Long merchantId = currentMerchantId();
         if (merchantId != null) dto.setMerchantId(merchantId);
-        DmsMerchant merchant = requireMerchant(dto.getMerchantId(), true);
+        DmsMerchant merchant = requireMerchant(dto.getMerchantId(), false);
         BigDecimal amount = money(dto.getRequestedAmount());
         if (amount.compareTo(ZERO) <= 0) Asserts.fail("申请金额必须大于0");
-        accountDao.selectByMerchantIdForUpdate(merchant.getId());
+        String requestNo = trim(dto.getRequestNo());
+        if (requestNo == null) Asserts.fail("缺少提现申请请求号");
+        if (requestNo.length() > 64 || !requestNo.matches("[A-Za-z0-9._:-]+")) {
+            Asserts.fail("提现申请请求号格式不正确");
+        }
+        DmsMerchantAccount account = accountDao.selectByMerchantIdForUpdate(merchant.getId());
+        DmsMerchantWithdrawal replay = withdrawalDao.selectByRequestNo(merchant.getTenantId(), merchant.getId(), requestNo);
+        if (replay != null) {
+            if (money(replay.getRequestedAmount()).compareTo(amount) != 0) Asserts.fail("提现请求号已被其他金额使用");
+            return replay;
+        }
+        if (account == null) Asserts.fail("商户货款账户不存在");
+        if (!Integer.valueOf(1).equals(merchant.getStatus())) Asserts.fail("商户已停用");
+        requirePayoutProfile(merchant);
+        if (money(account.getDepositFrozenAmount()).compareTo(money(merchant.getRequiredDepositAmount())) < 0) {
+            Asserts.fail("商户保证金未达到平台要求，暂不能提现");
+        }
         if (accountDao.freezeAvailable(merchant.getId(), amount) != 1) Asserts.fail("商户可提现余额不足");
         DmsMerchantWithdrawal withdrawal = new DmsMerchantWithdrawal();
         withdrawal.setTenantId(merchant.getTenantId());
         withdrawal.setWithdrawalNo("MW" + IdUtil.getSnowflakeNextId());
+        withdrawal.setRequestNo(requestNo);
         withdrawal.setMerchantId(merchant.getId());
+        withdrawal.setMerchantProfileVersion(merchant.getProfileVersion());
+        withdrawal.setLegalEntityNameSnapshot(merchant.getLegalEntityName());
+        withdrawal.setBankAccountNameSnapshot(merchant.getBankAccountName());
+        withdrawal.setBankNameSnapshot(merchant.getBankName());
+        withdrawal.setBankAccountNoSnapshot(merchant.getBankAccountNo());
         withdrawal.setRequestedAmount(amount);
         withdrawal.setInvoiceRequiredAmount(ZERO);
         withdrawal.setInvoiceReceivedAmount(ZERO);
@@ -334,6 +379,19 @@ public class MerchantServiceImpl implements MerchantService {
         merchant.setMerchantName(merchant.getMerchantName().trim());
         merchant.setContactName(trim(merchant.getContactName()));
         merchant.setContactPhone(trim(merchant.getContactPhone()));
+        merchant.setLegalEntityName(trim(merchant.getLegalEntityName()));
+        merchant.setUnifiedSocialCreditCode(upper(merchant.getUnifiedSocialCreditCode()));
+        merchant.setBankAccountName(trim(merchant.getBankAccountName()));
+        merchant.setBankName(trim(merchant.getBankName()));
+        merchant.setBankAccountNo(trim(merchant.getBankAccountNo()));
+        merchant.setInvoiceTitle(trim(merchant.getInvoiceTitle()));
+        merchant.setTaxpayerIdentificationNo(upper(merchant.getTaxpayerIdentificationNo()));
+        String contractStatus = upper(merchant.getContractStatus());
+        merchant.setContractStatus(contractStatus == null ? "PENDING" : contractStatus);
+        if (!CONTRACT_STATES.contains(merchant.getContractStatus())) Asserts.fail("商户合同状态不正确");
+        merchant.setRequiredDepositAmount(money(merchant.getRequiredDepositAmount()));
+        if (merchant.getRequiredDepositAmount().compareTo(ZERO) < 0) Asserts.fail("应缴保证金不能小于0");
+        merchant.setProfileVersion(merchant.getProfileVersion() == null ? 1 : Math.max(1, merchant.getProfileVersion()));
         merchant.setSettlementMode("COST_PRICE");
         merchant.setDefaultSettlementDays(normalizeSettlementDays(merchant.getDefaultSettlementDays()));
         merchant.setStatus(merchant.getStatus() == null ? 1 : merchant.getStatus());
@@ -382,7 +440,7 @@ public class MerchantServiceImpl implements MerchantService {
         return start.plusDays(normalizeSettlementDays(delayDays));
     }
 
-    private DmsMerchantDepositFlow adjustDeposit(MerchantDepositAdjustDTO dto, boolean freeze) {
+    private DmsMerchantDepositFlow adjustDeposit(MerchantDepositAdjustDTO dto, String operationType) {
         requirePlatformAdmin();
         if (dto == null) Asserts.fail("保证金调整不能为空");
         String operationNo = trim(dto.getOperationNo());
@@ -390,7 +448,7 @@ public class MerchantServiceImpl implements MerchantService {
         DmsMerchantDepositFlow replay = depositFlowDao.selectByOperationNo(operationNo);
         if (replay != null) {
             if (!tenantId().equals(replay.getTenantId()) || !dto.getMerchantId().equals(replay.getMerchantId())
-                    || !(freeze ? "FREEZE" : "RELEASE").equals(replay.getOperationType())
+                    || !operationType.equals(replay.getOperationType())
                     || money(dto.getAmount()).compareTo(money(replay.getAmount())) != 0) {
                 Asserts.fail("操作请求号已被其他保证金业务使用");
             }
@@ -403,16 +461,21 @@ public class MerchantServiceImpl implements MerchantService {
         if (reason == null) Asserts.fail("请填写保证金调整原因");
         DmsMerchantAccount account = accountDao.selectByMerchantIdForUpdate(merchant.getId());
         if (account == null) Asserts.fail("商户货款账户不存在");
-        int changed = freeze ? accountDao.freezeDeposit(merchant.getId(), amount)
-                : accountDao.releaseDeposit(merchant.getId(), amount);
-        if (changed != 1) Asserts.fail(freeze ? "商户可提现余额不足，不能冻结保证金" : "商户保证金余额不足，不能解冻");
+        int changed = switch (operationType) {
+            case "FREEZE" -> accountDao.freezeDeposit(merchant.getId(), amount);
+            case "RECEIVE" -> accountDao.receiveDeposit(merchant.getId(), amount);
+            case "RELEASE" -> accountDao.releaseDeposit(merchant.getId(), amount);
+            default -> throw new IllegalArgumentException("unsupported deposit operation");
+        };
+        if (changed != 1) Asserts.fail("FREEZE".equals(operationType)
+                ? "商户可提现余额不足，不能冻结保证金" : "商户保证金余额不足，不能调整");
         DmsMerchantAccount after = accountDao.selectByMerchantId(merchant.getId());
         DmsAdminUser admin = AdminContext.get();
         DmsMerchantDepositFlow flow = new DmsMerchantDepositFlow();
         flow.setTenantId(merchant.getTenantId());
         flow.setMerchantId(merchant.getId());
         flow.setOperationNo(operationNo);
-        flow.setOperationType(freeze ? "FREEZE" : "RELEASE");
+        flow.setOperationType(operationType);
         flow.setAmount(amount);
         flow.setBalanceAfter(money(after.getDepositFrozenAmount()));
         flow.setReason(reason);
@@ -423,6 +486,14 @@ public class MerchantServiceImpl implements MerchantService {
     }
     private void requirePlatformAdmin() {
         if (AdminContext.get() != null && AdminContext.get().getMerchantId() != null) Asserts.fail("商户工作台账号不能维护商户资料");
+    }
+    private void requirePayoutProfile(DmsMerchant merchant) {
+        if (!"SIGNED".equals(merchant.getContractStatus())) Asserts.fail("商户合同尚未生效，不能申请提现");
+        if (trim(merchant.getLegalEntityName()) == null || trim(merchant.getUnifiedSocialCreditCode()) == null
+                || trim(merchant.getBankAccountName()) == null || trim(merchant.getBankName()) == null
+                || trim(merchant.getBankAccountNo()) == null) {
+            Asserts.fail("商户经营主体或收款账户资料不完整，不能申请提现");
+        }
     }
     private BigDecimal money(BigDecimal value) { return (value == null ? BigDecimal.ZERO : value).setScale(2, RoundingMode.HALF_UP); }
     private String trim(String value) { return value == null || value.isBlank() ? null : value.trim(); }
