@@ -40,6 +40,10 @@ public class ShopOrderVO implements Serializable {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private String serviceRemark;
 
+    /** 仅商户后台订单返回；false 表示历史订单已由平台接管或履约被冻结。 */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Boolean merchantFulfillmentAllowed;
+
     private List<DmsShopOrderItem> items;
 
     /** 物流包裹；支持一个订单多包裹，以及同一包裹关联多张订单。 */

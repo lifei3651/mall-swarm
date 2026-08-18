@@ -43,6 +43,7 @@ import com.macro.mall.distribution.vo.ShopHomeVO;
 import com.macro.mall.distribution.vo.ShopLegalConfigVO;
 import com.macro.mall.distribution.vo.ShopOrderVO;
 import com.macro.mall.distribution.vo.ShopOrderStatusSummaryVO;
+import com.macro.mall.distribution.vo.ShopTradeDetailVO;
 import com.macro.mall.distribution.vo.ShopProductDetailVO;
 import com.macro.mall.distribution.vo.ShopProfileVO;
 import com.macro.mall.distribution.vo.FreightQuoteVO;
@@ -1184,7 +1185,11 @@ public class ShopServiceImpl implements ShopService {
         fillMemberAccount(vo, order);
         vo.setItems(orderItemDao.selectByOrderId(orderId));
         fillShipments(vo, order);
-        if (currentAdminMerchantId() == null) vo.setFinance(auditService.getOrderFinanceDetail(orderId).getFinance());
+        if (currentAdminMerchantId() == null) {
+            vo.setFinance(auditService.getOrderFinanceDetail(orderId).getFinance());
+        } else {
+            vo.setMerchantFulfillmentAllowed(currentMerchantFulfillmentAllowed());
+        }
         vo.setAfterSales(hydrateAfterSales(afterSaleDao.selectByOrderId(orderId)));
         vo.setPendingReviewCount(pendingReviewCount(order));
         fillAfterSaleWindow(vo, order);
@@ -1235,6 +1240,7 @@ public class ShopServiceImpl implements ShopService {
     @Override
     public List<ShopOrderVO> listAdminOrders(String keyword, Integer status, String orderState) {
         boolean merchantWorkspace = currentAdminMerchantId() != null;
+        boolean merchantFulfillmentAllowed = !merchantWorkspace || currentMerchantFulfillmentAllowed();
         return orderDao.selectList(resolveTenantId(null), keyword, status, normalizeAdminOrderState(orderState), currentAdminMerchantId()).stream().filter(this::canAccessOrder).map(order -> {
             ShopOrderVO vo = new ShopOrderVO();
             vo.setOrder(order);
@@ -1243,6 +1249,7 @@ public class ShopServiceImpl implements ShopService {
             vo.setItems(orderItemDao.selectByOrderId(order.getId()));
             fillShipments(vo, order);
             if (!merchantWorkspace) vo.setFinance(auditService.getOrderFinanceDetail(order.getId()).getFinance());
+            if (merchantWorkspace) vo.setMerchantFulfillmentAllowed(merchantFulfillmentAllowed);
             vo.setAfterSales(hydrateAfterSales(afterSaleDao.selectByOrderId(order.getId())));
             vo.setPendingReviewCount(pendingReviewCount(order));
             fillAfterSaleWindow(vo, order);
@@ -1255,6 +1262,39 @@ public class ShopServiceImpl implements ShopService {
     public ShopOrderStatusSummaryVO getAdminOrderWorkSummary() {
         ShopOrderStatusSummaryVO summary = orderDao.selectAdminWorkSummary(resolveTenantId(null), currentAdminMerchantId());
         return summary == null ? new ShopOrderStatusSummaryVO() : summary;
+    }
+
+    @Override
+    public ShopTradeDetailVO getAdminTrade(Long tradeId) {
+        if (currentAdminMerchantId() != null) {
+            Asserts.fail("商户只能查看自己的履约子订单，不能查看平台联合支付汇总");
+        }
+        if (tradeId == null) Asserts.fail("联合支付ID不能为空");
+        DmsShopTrade trade = tradeDao.selectById(tradeId);
+        if (trade == null) Asserts.fail("联合支付不存在");
+        assertTenantAccess(trade.getTenantId());
+        List<ShopOrderVO> children = orderDao.selectByTradeId(tradeId).stream()
+                .map(order -> getOrder(order.getId()))
+                .toList();
+        if (children.isEmpty()) Asserts.fail("联合支付没有履约子订单");
+
+        ShopTradeDetailVO detail = new ShopTradeDetailVO();
+        detail.setTrade(trade);
+        detail.setChildOrders(children);
+        detail.setChildCount(children.size());
+        detail.setChildPayAmount(children.stream()
+                .map(ShopOrderVO::getOrder)
+                .filter(Objects::nonNull)
+                .map(DmsShopOrder::getPayAmount)
+                .map(this::money)
+                .reduce(ZERO, BigDecimal::add));
+        detail.setRefundedAmount(children.stream()
+                .flatMap(child -> child.getAfterSales() == null ? java.util.stream.Stream.empty() : child.getAfterSales().stream())
+                .filter(sale -> Integer.valueOf(1).equals(sale.getStatus()))
+                .map(DmsShopAfterSale::getRefundAmount)
+                .map(this::money)
+                .reduce(ZERO, BigDecimal::add));
+        return detail;
     }
 
     private String normalizeAdminOrderState(String orderState) {
@@ -2485,6 +2525,13 @@ public class ShopServiceImpl implements ShopService {
 
     private Long currentAdminMerchantId() {
         return AdminContext.get() == null ? null : AdminContext.get().getMerchantId();
+    }
+
+    private boolean currentMerchantFulfillmentAllowed() {
+        Long merchantId = currentAdminMerchantId();
+        if (merchantId == null) return true;
+        DmsMerchant merchant = merchantDao.selectById(merchantId);
+        return merchant != null && "ENABLED".equals(merchant.getFulfillmentStatus());
     }
 
     private void assertMerchantOrderAccess(DmsShopOrder order, boolean requireFulfillment) {

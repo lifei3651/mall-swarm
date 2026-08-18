@@ -16,6 +16,7 @@ import com.macro.mall.distribution.entity.DmsFreightTemplate;
 import com.macro.mall.distribution.vo.ShopHomeVO;
 import com.macro.mall.distribution.vo.ShopOrderVO;
 import com.macro.mall.distribution.vo.ShopOrderStatusSummaryVO;
+import com.macro.mall.distribution.vo.ShopTradeDetailVO;
 import com.macro.mall.distribution.vo.ShopProductDetailVO;
 import com.macro.mall.distribution.vo.ShopProfileVO;
 import com.macro.mall.distribution.vo.FreightQuoteVO;
@@ -131,6 +132,9 @@ public interface ShopService {
     List<ShopOrderVO> listAdminOrders(String keyword, Integer status, String orderState);
 
     ShopOrderStatusSummaryVO getAdminOrderWorkSummary();
+
+    /** 仅平台后台查看联合支付父交易及全部商户子订单。 */
+    ShopTradeDetailVO getAdminTrade(Long tradeId);
 
     ShopOrderVO markOrderPaid(Long orderId, String payType);
 

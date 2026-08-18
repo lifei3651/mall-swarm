@@ -306,6 +306,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsShopAfterSale manualRefund(Long orderId, ShopManualRefundDTO dto) {
+        assertPlatformExceptionalOperation("人工退款");
         if (orderId == null) Asserts.fail("订单ID不能为空");
         // 后台退款与客户售后共用订单锁，确保剩余可退数量和金额只计算一次。
         DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
@@ -444,6 +445,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean cancelPendingShipment(Long orderId, Long operatorId, String operatorName) {
+        assertPlatformExceptionalOperation("取消待发货订单");
         if (orderId == null) Asserts.fail("订单ID不能为空");
         DmsShopOrder order = orderDao.selectById(orderId);
         if (order == null) Asserts.fail("订单不存在");
@@ -797,6 +799,12 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
 
     private Long currentMerchantId() {
         return AdminContext.get() == null ? null : AdminContext.get().getMerchantId();
+    }
+
+    private void assertPlatformExceptionalOperation(String operation) {
+        if (currentMerchantId() != null) {
+            Asserts.fail("商户不能执行平台" + operation + "，请处理正常客户售后或联系平台");
+        }
     }
 
     private void assertMerchantAfterSaleAccess(DmsShopOrder order) {

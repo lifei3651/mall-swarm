@@ -7,9 +7,13 @@ import com.macro.mall.distribution.dao.DmsShopTradeDao;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.entity.DmsShopTrade;
+import com.macro.mall.distribution.entity.DmsAdminUser;
+import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.ShopCatalogCacheService;
 import com.macro.mall.distribution.service.impl.ShopServiceImpl;
 import com.macro.mall.distribution.vo.ShopOrderVO;
+import com.macro.mall.distribution.vo.ShopTradeDetailVO;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -33,6 +37,11 @@ class MultiMerchantCheckoutTest {
     @Mock private ShopCatalogCacheService catalogCache;
     @Mock private MerchantService merchantService;
     @Spy @InjectMocks private ShopServiceImpl shopService;
+
+    @AfterEach
+    void clearAdminContext() {
+        AdminContext.clear();
+    }
 
     @Test
     void parentPaymentPostsEveryMerchantChildAndReturnsGroupedResult() {
@@ -121,6 +130,27 @@ class MultiMerchantCheckoutTest {
         verify(orderDao).cancel(12L);
         verify(tradeDao).closePending(10L);
         verify(catalogCache, times(2)).invalidateAfterCommit(1L);
+    }
+
+    @Test
+    void platformCanInspectWholeTradeButMerchantCannotReadTheAggregate() {
+        DmsShopTrade trade = trade(1, "150.00");
+        DmsShopOrder first = child(11L, "60.00");
+        DmsShopOrder second = child(12L, "90.00");
+        when(tradeDao.selectById(10L)).thenReturn(trade);
+        when(orderDao.selectByTradeId(10L)).thenReturn(List.of(first, second));
+        doReturn(orderView(first)).when(shopService).getOrder(11L);
+        doReturn(orderView(second)).when(shopService).getOrder(12L);
+
+        ShopTradeDetailVO detail = shopService.getAdminTrade(10L);
+
+        assertEquals(2, detail.getChildCount());
+        assertEquals(new BigDecimal("150.00"), detail.getChildPayAmount());
+
+        DmsAdminUser merchant = new DmsAdminUser();
+        merchant.setMerchantId(9001L);
+        AdminContext.set(merchant);
+        assertThrows(ApiException.class, () -> shopService.getAdminTrade(10L));
     }
 
     private DmsShopTrade trade(int status, String amount) {

@@ -228,6 +228,13 @@ export function getAdminOrderWorkSummary() {
   })
 }
 
+export function getShopTradeDetail(tradeId) {
+  return request({
+    url: `/shop/admin/trades/${tradeId}`,
+    method: 'get',
+  })
+}
+
 export function exportShopOrders(params) {
   return request({
     url: '/shop/admin/orders/export',

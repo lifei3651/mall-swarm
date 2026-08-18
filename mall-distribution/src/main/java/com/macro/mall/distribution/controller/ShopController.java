@@ -787,6 +787,12 @@ public class ShopController {
         return CommonResult.success(shopService.getAdminOrderWorkSummary());
     }
 
+    @Operation(summary = "平台查看联合支付父交易及全部商户子订单")
+    @GetMapping("/admin/trades/{tradeId}")
+    public CommonResult<com.macro.mall.distribution.vo.ShopTradeDetailVO> adminTrade(@PathVariable Long tradeId) {
+        return CommonResult.success(shopService.getAdminTrade(tradeId));
+    }
+
     @Operation(summary = "导出筛选后的商城订单")
     @GetMapping("/admin/orders/export")
     public void exportAdminOrders(@RequestParam(required = false) String keyword,
@@ -851,6 +857,9 @@ public class ShopController {
     @Operation(summary = "后台取消待付款或待发货订单")
     @PutMapping("/admin/orders/{orderId}/cancel")
     public CommonResult<Boolean> cancelAdminOrder(@PathVariable Long orderId) {
+        if (AdminContext.get() != null && AdminContext.get().getMerchantId() != null) {
+            Asserts.fail("商户不能执行平台取消或整单退款，请处理正常发货和客户售后");
+        }
         ShopOrderVO order = shopService.getOrder(orderId);
         if (order == null || order.getOrder() == null) {
             Asserts.fail("订单不存在");
@@ -871,6 +880,9 @@ public class ShopController {
     @PostMapping("/admin/orders/{orderId}/refund")
     public CommonResult<DmsShopAfterSale> manualRefund(@PathVariable Long orderId,
                                                        @Valid @RequestBody ShopManualRefundDTO dto) {
+        if (AdminContext.get() != null && AdminContext.get().getMerchantId() != null) {
+            Asserts.fail("商户不能发起平台人工退款，请通过客户售后流程处理");
+        }
         return CommonResult.success(afterSaleService.manualRefund(orderId, dto));
     }
 

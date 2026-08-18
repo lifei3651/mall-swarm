@@ -147,6 +147,12 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
                 addError(result, row, "无权操作当前租户订单");
                 continue;
             }
+            try {
+                assertMerchantFulfillment(order);
+            } catch (ApiException ex) {
+                addError(result, row, ex.getMessage());
+                continue;
+            }
             if (shipmentExists(order, shipment)) {
                 result.setSkippedCount(result.getSkippedCount() + 1);
                 continue;

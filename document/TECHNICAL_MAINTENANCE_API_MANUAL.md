@@ -311,6 +311,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | --- | --- | --- |
 | `GET /api/v1/shop/admin/orders` | 订单状态、售后状态、关键词、备注、时间、分页 | 订单分页 |
 | `GET /api/v1/shop/admin/orders/work-summary` | 无 | 待发货、待售后等工作量 |
+| `GET /api/v1/shop/admin/trades/{tradeId}` | 支付父交易 ID | 父交易、子单数量/金额、已完成退款金额及全部履约子单；仅平台账号可访问 |
 | `GET /api/v1/shop/admin/orders/export` | 当前筛选条件 | Excel 文件 |
 | `GET /api/v1/shop/admin/orders/shipment-template` | 订单筛选条件 | 待发货数据模板 |
 | `GET /api/v1/shop/admin/orders/shipments/import-template` | 无 | 空导入模板 |
@@ -325,7 +326,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `GET/POST /api/v1/shop/admin/service-addresses` | 地址类型、联系人、省市区、详细地址、默认状态；平台可设置 `sharedToMerchants` | 地址或列表；商户仅能读取本商户地址和平台明确共享地址 |
 | `PUT /api/v1/shop/admin/service-addresses/{id}/status` | `status`、`tenantId` | `boolean` |
 
-发货前必须锁定订单并再次检查订单履约状态、在途售后和剩余可发数量。客服备注不返回会员端；内容变更写入后台操作日志。退款同时锁定订单和售后单，累计退款数量和金额不能超过实际可退值。状态 `6` 表示本地账务已完成、第三方退款渠道仍在处理中；后台可安全重试同一售后单，渠道成功后才转为退款完成，不能重新冲减本地账务。
+发货前必须锁定订单并再次检查订单履约状态、在途售后和剩余可发数量。商户会话只能查询、导出、发货和处理本商户子订单，归属取认证会话而不是请求参数；批量导入逐行复用同一归属与履约状态检查。`merchantFulfillmentAllowed` 只用于同步页面入口，不能替代服务端校验。父交易详情、平台取消和人工退款拒绝商户会话。客服备注不返回会员端；内容变更写入后台操作日志。退款同时锁定订单和售后单，累计退款数量和金额不能超过实际可退值。状态 `6` 表示本地账务已完成、第三方退款渠道仍在处理中；后台可安全重试同一售后单，渠道成功后才转为退款完成，不能重新冲减本地账务，父交易详情的“已完成退款”也只统计状态 `1`。
 
 ### 17. 后台会员、团队、账户与导入
 

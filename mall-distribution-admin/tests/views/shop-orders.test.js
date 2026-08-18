@@ -93,6 +93,25 @@ describe('商城订单取消入口', () => {
     expect(source).toContain('row.order?.tradeNo')
     expect(source).toContain('联合支付 {{ row.order.tradeNo }}')
     expect(source).toContain('商户子订单')
+    expect(source).toContain('查看联合单')
+    expect(source).toContain('getShopTradeDetail')
+    expect(source).toContain('title="联合支付详情"')
+    expect(source).toContain('tradeDetail.childOrders')
+  })
+
+  it('商户工作台保留履约售后并隐藏平台资金及跨商户操作', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('v-if="isMerchantUser"')
+    expect(source).toContain('这里只显示本商户的履约子订单')
+    expect(source).toContain('v-if="!isMerchantUser" label="奖金总拨出"')
+    expect(source).toContain('v-if="!isMerchantUser" trigger="click"')
+    expect(source).toContain('!isMerchantUser.value && !hasPendingAfterSale(row)')
+    expect(source).toContain('v-if="canShipOrder(row)"')
+    expect(source).toContain('处理售后')
+    expect(source).toContain('row.merchantFulfillmentAllowed === false')
+    expect(source).toContain('canMerchantFulfill(row)')
+    expect(source).toContain('当前履约已由平台接管或冻结')
   })
 
   it('后台退款遵循服务端售后配置，不再自行写死下单后7天', async () => {

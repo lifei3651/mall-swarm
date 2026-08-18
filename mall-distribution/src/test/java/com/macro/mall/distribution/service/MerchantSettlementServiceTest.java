@@ -479,6 +479,21 @@ class MerchantSettlementServiceTest {
     }
 
     @Test
+    void merchantCannotInvokePlatformExceptionalCancellationOrManualRefund() {
+        DmsAdminUser merchantAdmin = new DmsAdminUser();
+        merchantAdmin.setId(93009L);
+        merchantAdmin.setUsername("merchant-no-platform-refund");
+        merchantAdmin.setMerchantId(88001L);
+        AdminContext.set(merchantAdmin);
+        try {
+            assertThrows(RuntimeException.class, () -> shopAfterSaleService.manualRefund(null, null));
+            assertThrows(RuntimeException.class, () -> shopAfterSaleService.cancelPendingShipment(null, null, null));
+        } finally {
+            AdminContext.clear();
+        }
+    }
+
+    @Test
     void merchantWorkspaceCannotReadAnotherMerchantsAfterSaleProofByGuessingItsPath() {
         DmsMerchant first = new DmsMerchant();
         first.setMerchantNo("M-PROOF-ONE"); first.setMerchantName("凭证隔离商户一");

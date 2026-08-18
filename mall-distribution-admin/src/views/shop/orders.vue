@@ -1,5 +1,13 @@
 <template>
   <div class="page-container">
+    <el-alert
+      v-if="isMerchantUser"
+      :title="merchantScopeTip"
+      type="info"
+      :closable="false"
+      show-icon
+      class="merchant-order-scope-tip"
+    />
     <nav class="order-state-nav" aria-label="订单状态筛选">
       <button
         v-for="item in orderStateOptions"
@@ -26,7 +34,7 @@
         </el-form-item>
         <el-form-item class="order-batch-actions">
           <el-button :icon="Download" :loading="exportLoading" @click="handleExportOrders">导出订单</el-button>
-          <template v-if="query.orderState === 'PENDING_SHIPMENT'">
+          <template v-if="query.orderState === 'PENDING_SHIPMENT' && merchantFulfillmentAllowed">
           <el-tooltip content="表格只处理订单号、物流公司、物流单号和发货数量" placement="top">
             <el-button type="success" plain :icon="Download" :loading="templateLoading" @click="handleDownloadShipmentTemplate">下载发货表</el-button>
           </el-tooltip>
@@ -89,6 +97,7 @@
               <div class="order-no">{{ row.order?.orderNo }}</div>
               <div v-if="row.order?.tradeNo" class="sub trade-no">联合支付 {{ row.order.tradeNo }}</div>
               <el-tag v-if="row.order?.tradeId" size="small" effect="plain" type="info">商户子订单</el-tag>
+              <el-button v-if="row.order?.tradeId && !isMerchantUser" type="primary" link size="small" @click.stop="openTradeDetail(row.order.tradeId)">查看联合单</el-button>
               <el-tag v-if="row.order?.businessType && row.order.businessType !== 'NORMAL'" size="small" effect="plain" :type="row.order.businessType === 'FLASH_SALE' ? 'danger' : 'warning'">{{ row.order.businessType === 'FLASH_SALE' ? '秒杀订单' : '复购订单' }}</el-tag>
               <div class="sub">登录账号 {{ row.memberAccount || '-' }}</div>
             </template>
@@ -96,6 +105,7 @@
           <el-table-column label="履约状态" width="100">
             <template #default="{ row }">
               <el-tag :type="orderDisplayTag(row)">{{ orderDisplayStatus(row) }}</el-tag>
+              <el-tag v-if="isMerchantUser && row.merchantFulfillmentAllowed === false" size="small" type="danger" effect="plain">平台接管</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="售后 / 退款" width="155">
@@ -120,7 +130,7 @@
               <span>¥{{ money(row.order?.payAmount) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="奖金总拨出" width="110">
+          <el-table-column v-if="!isMerchantUser" label="奖金总拨出" width="110">
             <template #default="{ row }">
               <span :class="{ danger: payoutExceeded(row.order?.payAmount, row.finance?.bonusAmount) }">
                 ¥{{ money(row.finance?.bonusAmount) }}
@@ -165,7 +175,7 @@
             <template #default="{ row }">
               <div class="order-actions">
                 <el-dropdown
-                  v-if="Number(activeAfterSale(row)?.status) === 0"
+                  v-if="canMerchantFulfill(row) && Number(activeAfterSale(row)?.status) === 0"
                   trigger="click"
                   @command="handleAfterSaleCommand($event, activeAfterSale(row))"
                 >
@@ -180,10 +190,10 @@
                 </el-dropdown>
                 <template v-else-if="activeAfterSale(row)">
                   <el-tag v-if="Number(activeAfterSale(row).status) === 4" type="warning">等待客户寄回</el-tag>
-                  <el-button v-else-if="Number(activeAfterSale(row).status) === 5" type="success" link @click.stop="confirmReturnReceived(activeAfterSale(row))">
+                  <el-button v-else-if="canMerchantFulfill(row) && Number(activeAfterSale(row).status) === 5" type="success" link @click.stop="confirmReturnReceived(activeAfterSale(row))">
                     确认退货并退款
                   </el-button>
-                  <el-button v-else-if="Number(activeAfterSale(row).status) === 6" type="warning" link @click.stop="confirmReturnReceived(activeAfterSale(row))">
+                  <el-button v-else-if="canMerchantFulfill(row) && Number(activeAfterSale(row).status) === 6" type="warning" link @click.stop="confirmReturnReceived(activeAfterSale(row))">
                     重试渠道退款
                   </el-button>
                   <el-tag v-else type="warning">退款处理中</el-tag>
@@ -191,7 +201,7 @@
                 <el-button v-if="canShipOrder(row)" type="primary" link @click="openShip(row)">
                   {{ shipmentRows(row).length ? '继续发货' : '发货' }}
                 </el-button>
-                <el-dropdown trigger="click" @command="handleOrderMoreCommand($event, row)">
+                <el-dropdown v-if="!isMerchantUser" trigger="click" @command="handleOrderMoreCommand($event, row)">
                   <el-button link>更多操作</el-button>
                   <template #dropdown>
                     <el-dropdown-menu>
@@ -243,6 +253,32 @@
         <el-button @click="serviceRemarkDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="serviceRemarkLoading" @click="submitServiceRemark">保存备注</el-button>
       </template>
+    </el-dialog>
+
+    <el-dialog v-model="tradeDetailVisible" title="联合支付详情" width="920px" destroy-on-close>
+      <div v-loading="tradeDetailLoading">
+        <el-descriptions :column="4" border>
+          <el-descriptions-item label="联合支付单号">{{ tradeDetail.trade?.tradeNo || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="支付状态">{{ tradeStatusLabel(tradeDetail.trade?.status) }}</el-descriptions-item>
+          <el-descriptions-item label="支付方式">{{ payTypeLabel(tradeDetail.trade?.payType) }}</el-descriptions-item>
+          <el-descriptions-item label="子订单">{{ tradeDetail.childCount || 0 }} 张</el-descriptions-item>
+          <el-descriptions-item label="商品金额">¥{{ money(tradeDetail.trade?.totalAmount) }}</el-descriptions-item>
+          <el-descriptions-item label="运费">¥{{ money(tradeDetail.trade?.freightAmount) }}</el-descriptions-item>
+          <el-descriptions-item label="一次实付">¥{{ money(tradeDetail.trade?.payAmount) }}</el-descriptions-item>
+          <el-descriptions-item label="已完成退款">¥{{ money(tradeDetail.refundedAmount) }}</el-descriptions-item>
+          <el-descriptions-item label="创建时间" :span="2">{{ formatDateTime(tradeDetail.trade?.createTime) }}</el-descriptions-item>
+          <el-descriptions-item label="支付时间" :span="2">{{ formatDateTime(tradeDetail.trade?.payTime) }}</el-descriptions-item>
+        </el-descriptions>
+        <el-table :data="tradeDetail.childOrders || []" border class="trade-child-table" empty-text="暂无履约子订单">
+          <el-table-column label="销售方" min-width="150"><template #default="{ row }">{{ row.order?.merchantName || '平台自营' }}</template></el-table-column>
+          <el-table-column label="子订单号" min-width="190"><template #default="{ row }">{{ row.order?.orderNo }}</template></el-table-column>
+          <el-table-column label="履约状态" width="105"><template #default="{ row }"><el-tag :type="orderDisplayTag(row)">{{ orderDisplayStatus(row) }}</el-tag></template></el-table-column>
+          <el-table-column label="实付金额" width="110"><template #default="{ row }">¥{{ money(row.order?.payAmount) }}</template></el-table-column>
+          <el-table-column label="退款金额" width="110"><template #default="{ row }">¥{{ money(approvedRefundAmount(row)) }}</template></el-table-column>
+          <el-table-column label="物流包裹" width="100"><template #default="{ row }">{{ shipmentRows(row).length }} 个</template></el-table-column>
+        </el-table>
+      </div>
+      <template #footer><el-button type="primary" @click="tradeDetailVisible = false">关闭</el-button></template>
     </el-dialog>
 
     <el-dialog v-model="shipDialogVisible" :title="currentOrder?.order?.status === 2 ? '添加物流包裹' : '订单发货'" width="520px">
@@ -474,6 +510,7 @@ import {
   downloadOrderShipmentTemplate,
   exportShopOrders,
   getAdminOrderWorkSummary,
+  getShopTradeDetail,
   importOrderShipments,
   listShopOrders,
   manualRefundShopOrder,
@@ -490,12 +527,19 @@ import { logisticsCompanyOptions } from '@/utils/logisticsCompanies'
 
 const appStore = useAppStore()
 const route = useRoute()
+const isMerchantUser = computed(() => Boolean(appStore.userInfo?.merchantId))
 const orderLoading = ref(false)
 const exportLoading = ref(false)
 const templateLoading = ref(false)
 const importTemplateLoading = ref(false)
 const importLoading = ref(false)
 const orders = ref([])
+const merchantFulfillmentAllowed = computed(() => !isMerchantUser.value
+  || !orders.value.length
+  || orders.value.some((row) => row.merchantFulfillmentAllowed !== false))
+const merchantScopeTip = computed(() => merchantFulfillmentAllowed.value
+  ? '这里只显示本商户的履约子订单。您可以发货、填写客服备注并处理正常客户售后；联合支付汇总、平台取消、人工退款和团队奖金由平台管理。'
+  : '这里只显示本商户的履约子订单。当前履约已由平台接管或冻结，您仍可查看历史订单和填写客服备注，但不能发货或处理售后。')
 const orderWorkSummary = ref({ pendingShipment: 0, afterSale: 0 })
 const orderStateOptions = [
   { label: '全部', value: '' },
@@ -524,6 +568,9 @@ const bonusLoading = ref(false)
 const bonusFinance = ref({})
 const bonusOrder = ref({ orderNo: '', memberAccount: '' })
 const currentOrder = ref(null)
+const tradeDetailVisible = ref(false)
+const tradeDetailLoading = ref(false)
+const tradeDetail = ref({ trade: null, childOrders: [], childCount: 0, refundedAmount: 0 })
 const currentAfterSale = ref(null)
 const shipForm = ref({ deliveryCompany: '', deliveryNo: '', shipmentQuantity: 1 })
 const auditForm = ref({ status: 1, auditRemark: '', auditUserId: 1, auditUserName: 'admin' })
@@ -549,6 +596,8 @@ const bonusTypeName = (row) => row.bonusType === 'DIRECT_REWARD'
   : row.bonusType === 'DIRECTOR_SHARE' ? '董事团队分红' : '历史奖金'
 const afterSaleStatus = (status) => ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待客户寄回', 5: '待商家收货', 6: '退款处理中' }[status] || '处理中')
 const afterSaleTag = (status) => ({ 0: 'warning', 1: 'success', 2: 'info', 3: 'warning', 4: 'warning', 5: 'primary', 6: 'warning' }[status] || 'info')
+const tradeStatusLabel = (status) => ({ 0: '待付款', 1: '已支付', 4: '已关闭' }[Number(status)] || '未知')
+const payTypeLabel = (payType) => ({ BALANCE: '余额支付', ALIPAY: '支付宝', WECHAT: '微信支付' }[payType] || payType || '-')
 const afterSaleProofUrls = (sale) => {
   if (!sale?.memberId) return []
   try {
@@ -600,10 +649,11 @@ const isFullRefund = (row) => hasApprovedRefund(row) && (
 const refundResultLabel = (row) => isFullRefund(row) ? '全额退款' : '部分退款'
 const shippedQuantity = (row) => shipmentRows(row).reduce((sum, item) => sum + Number(item?.shipmentQuantity || 0), 0)
 const remainingShipmentQuantity = (row) => Math.max(0, orderedQuantity(row) - shippedQuantity(row))
-const canShipOrder = (row) => !hasPendingAfterSale(row)
+const canMerchantFulfill = (row) => !isMerchantUser.value || row?.merchantFulfillmentAllowed !== false
+const canShipOrder = (row) => canMerchantFulfill(row) && !hasPendingAfterSale(row)
   && [1, 2].includes(Number(row?.order?.status))
   && remainingShipmentQuantity(row) > 0
-const canCancelAdminOrder = (row) => !hasPendingAfterSale(row)
+const canCancelAdminOrder = (row) => !isMerchantUser.value && !hasPendingAfterSale(row)
   && [0, 1].includes(Number(row?.order?.status))
 const afterSaleDeadline = (row) => {
   const configured = Date.parse(String(row?.afterSaleDeadline || '').replace(' ', 'T'))
@@ -611,7 +661,7 @@ const afterSaleDeadline = (row) => {
 }
 const isCustomerAfterSaleClosed = (row) => row?.afterSaleSelfServiceEnabled === false
   || (Number.isFinite(afterSaleDeadline(row)) && Date.now() >= afterSaleDeadline(row))
-const canManualRefund = (row) => !hasPendingAfterSale(row)
+const canManualRefund = (row) => !isMerchantUser.value && !hasPendingAfterSale(row)
   && [1, 2, 3].includes(Number(row?.order?.status))
   && isCustomerAfterSaleClosed(row)
 const refundedQuantity = (row, itemId) => (row?.afterSales || [])
@@ -800,6 +850,19 @@ const openServiceRemark = (row) => {
   currentOrder.value = row
   serviceRemarkForm.value = row?.serviceRemark || ''
   serviceRemarkDialogVisible.value = true
+}
+
+const openTradeDetail = async (tradeId) => {
+  if (!tradeId || isMerchantUser.value) return
+  tradeDetailVisible.value = true
+  tradeDetailLoading.value = true
+  tradeDetail.value = { trade: null, childOrders: [], childCount: 0, refundedAmount: 0 }
+  try {
+    const response = await getShopTradeDetail(tradeId)
+    tradeDetail.value = response.data || tradeDetail.value
+  } finally {
+    tradeDetailLoading.value = false
+  }
 }
 
 const submitServiceRemark = async () => {
@@ -1158,6 +1221,14 @@ onBeforeUnmount(() => {
 
 .bonus-alert {
   margin-bottom: 16px;
+}
+
+.merchant-order-scope-tip {
+  margin-bottom: 16px;
+}
+
+.trade-child-table {
+  margin-top: 16px;
 }
 
 .order-batch-actions :deep(.el-form-item__content) {

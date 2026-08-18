@@ -37,6 +37,7 @@ class AdminPermissionPolicyTest {
     @Test
     void separatesOrderShipmentFromRefundAuthority() {
         assertEquals("shop:order", AdminPermissionPolicy.requiredPermission("PUT", "/shop/admin/orders/99/ship"));
+        assertEquals("shop:order", AdminPermissionPolicy.requiredPermission("GET", "/shop/admin/trades/88"));
         assertEquals("shop:aftersale", AdminPermissionPolicy.requiredPermission("POST", "/shop/admin/orders/99/refund"));
         assertEquals("shop:aftersale", AdminPermissionPolicy.requiredPermission("PUT", "/shop/admin/orders/99/cancel"));
     }
@@ -85,6 +86,8 @@ class AdminPermissionPolicyTest {
                 "PUT", "/shop/admin/orders/99/cancel"));
         assertFalse(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
                 "POST", "/shop/admin/orders/99/refund"));
+        assertFalse(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "GET", "/shop/admin/trades/88"));
         assertFalse(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
                 "POST", "/shop/admin/orders/shipments/import"));
     }
