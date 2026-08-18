@@ -53,6 +53,9 @@ public class DmsShopProduct implements Serializable {
     /** 仅用于后台提交商户结算价变更原因，不写入商品表。 */
     private String settlementCostChangeReason;
 
+    /** 空表示跟随商户默认；0-365 表示该商品单独覆盖。 */
+    private Integer settlementDelayDaysOverride;
+
     private BigDecimal pvValue;
 
     private BigDecimal bvValue;

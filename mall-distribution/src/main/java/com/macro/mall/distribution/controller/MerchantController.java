@@ -1,12 +1,14 @@
 package com.macro.mall.distribution.controller;
 
 import com.macro.mall.common.api.CommonResult;
+import com.macro.mall.distribution.dto.MerchantDepositAdjustDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalApplyDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalPayDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalRejectDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalReviewDTO;
 import com.macro.mall.distribution.entity.DmsMerchant;
 import com.macro.mall.distribution.entity.DmsMerchantAccount;
+import com.macro.mall.distribution.entity.DmsMerchantDepositFlow;
 import com.macro.mall.distribution.entity.DmsMerchantSettlement;
 import com.macro.mall.distribution.entity.DmsMerchantWithdrawal;
 import com.macro.mall.distribution.service.MerchantService;
@@ -68,6 +70,24 @@ public class MerchantController {
     public CommonResult<List<DmsMerchantWithdrawal>> withdrawals(@RequestParam(required = false) Long merchantId,
                                                                   @RequestParam(required = false) String status) {
         return CommonResult.success(merchantService.listWithdrawals(merchantId, status));
+    }
+
+    @Operation(summary = "商户保证金流水")
+    @GetMapping("/merchant-finance/deposit-flows")
+    public CommonResult<List<DmsMerchantDepositFlow>> depositFlows(@RequestParam(required = false) Long merchantId) {
+        return CommonResult.success(merchantService.listDepositFlows(merchantId));
+    }
+
+    @Operation(summary = "从商户可提现余额冻结保证金")
+    @PostMapping("/merchant-finance/deposits/freeze")
+    public CommonResult<DmsMerchantDepositFlow> freezeDeposit(@Valid @RequestBody MerchantDepositAdjustDTO dto) {
+        return CommonResult.success(merchantService.freezeDeposit(dto));
+    }
+
+    @Operation(summary = "解冻商户保证金")
+    @PostMapping("/merchant-finance/deposits/release")
+    public CommonResult<DmsMerchantDepositFlow> releaseDeposit(@Valid @RequestBody MerchantDepositAdjustDTO dto) {
+        return CommonResult.success(merchantService.releaseDeposit(dto));
     }
 
     @Operation(summary = "代商户提交提现申请")

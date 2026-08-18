@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsMerchantDepositFlowDao">
+  <resultMap id="Base" type="com.macro.mall.distribution.entity.DmsMerchantDepositFlow">
+    <id column="id" property="id"/><result column="tenant_id" property="tenantId"/>
+    <result column="merchant_id" property="merchantId"/><result column="merchant_name" property="merchantName"/>
+    <result column="operation_no" property="operationNo"/><result column="operation_type" property="operationType"/>
+    <result column="amount" property="amount"/><result column="balance_after" property="balanceAfter"/>
+    <result column="reason" property="reason"/><result column="operator_id" property="operatorId"/>
+    <result column="operator_name" property="operatorName"/><result column="create_time" property="createTime"/>
+  </resultMap>
+  <sql id="cols">f.id,f.tenant_id,f.merchant_id,m.merchant_name,f.operation_no,f.operation_type,f.amount,f.balance_after,f.reason,f.operator_id,f.operator_name,f.create_time</sql>
+  <select id="selectByOperationNo" resultMap="Base">SELECT <include refid="cols"/> FROM dms_merchant_deposit_flow f JOIN dms_merchant m ON m.id=f.merchant_id WHERE f.operation_no=#{operationNo} LIMIT 1</select>
+  <select id="selectList" resultMap="Base">SELECT <include refid="cols"/> FROM dms_merchant_deposit_flow f JOIN dms_merchant m ON m.id=f.merchant_id WHERE f.tenant_id=#{tenantId}<if test="merchantId != null"> AND f.merchant_id=#{merchantId}</if> ORDER BY f.id DESC</select>
+  <insert id="insert" useGeneratedKeys="true" keyProperty="id">INSERT INTO dms_merchant_deposit_flow(tenant_id,merchant_id,operation_no,operation_type,amount,balance_after,reason,operator_id,operator_name) VALUES(#{tenantId},#{merchantId},#{operationNo},#{operationType},#{amount},#{balanceAfter},#{reason},#{operatorId},#{operatorName})</insert>
+</mapper>

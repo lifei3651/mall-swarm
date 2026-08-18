@@ -12,11 +12,15 @@ public interface MerchantService {
     List<DmsMerchantAccount> listAccounts(String keyword);
     List<DmsMerchantSettlement> listSettlements(Long merchantId, String status);
     List<DmsMerchantWithdrawal> listWithdrawals(Long merchantId, String status);
+    List<DmsMerchantDepositFlow> listDepositFlows(Long merchantId);
+    DmsMerchantDepositFlow freezeDeposit(MerchantDepositAdjustDTO dto);
+    DmsMerchantDepositFlow releaseDeposit(MerchantDepositAdjustDTO dto);
     DmsMerchantWithdrawal applyWithdrawal(MerchantWithdrawalApplyDTO dto);
     DmsMerchantWithdrawal reviewWithdrawal(Long id, MerchantWithdrawalReviewDTO dto);
     DmsMerchantWithdrawal confirmPayment(Long id, MerchantWithdrawalPayDTO dto);
     DmsMerchantWithdrawal rejectWithdrawal(Long id, MerchantWithdrawalRejectDTO dto);
     void createOrderSettlements(Long orderId);
+    void lockOrderSettlementEligibility(Long orderId);
     int releaseEligibleSettlements(int limit);
     void reverseAfterSaleItems(List<DmsShopAfterSaleItem> items);
 }

@@ -96,7 +96,7 @@
           <el-select v-model="form.merchantId" clearable filterable placeholder="平台后台账号" style="width:100%" @change="handleMerchantBindingChange">
             <el-option v-for="item in merchantOptions" :key="item.id" :label="`${item.merchantName}（${item.merchantNo}）`" :value="item.id" />
           </el-select>
-          <div class="field-help">绑定商户后，该账号只能维护本商户商品，不能进入平台财务、审核、会员或系统设置。</div>
+          <div class="field-help">绑定商户后，该账号只能维护本商户商品、查看本商户货款并申请提现，不能进入平台财务处理、审核、会员或系统设置。</div>
         </el-form-item>
         <el-form-item label="权限" prop="permissions">
           <el-checkbox-group v-model="form.permissions" @change="handlePermissionChange">
@@ -349,7 +349,7 @@ const handlePermissionChange = () => {
 const handleMerchantBindingChange = (merchantId) => {
   if (merchantId) {
     form.roleCode = 'MERCHANT'
-    form.permissions = ['admin:read', 'shop:product']
+    form.permissions = ['admin:read', 'shop:product', 'finance:read', 'finance:manage']
   }
 }
 

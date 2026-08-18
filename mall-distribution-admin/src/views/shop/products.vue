@@ -67,6 +67,7 @@
       <el-table-column label="销售方" width="140"><template #default="{ row }">{{ row.merchantName || '平台自营' }}</template></el-table-column>
       <el-table-column prop="salePrice" label="展示售价" width="110"><template #default="{ row }">¥{{ row.salePrice }}</template></el-table-column>
       <el-table-column prop="costAmount" label="结算价" width="125"><template #default="{ row }"><strong :class="{ 'merchant-settlement': row.merchantId }">¥{{ row.costAmount }}</strong></template></el-table-column>
+      <el-table-column label="结算等待" width="120"><template #default="{ row }"><span v-if="row.merchantId">{{ effectiveSettlementDays(row) }} 天</span><span v-else>-</span></template></el-table-column>
       <el-table-column v-if="performanceUnitsEnabled" prop="pvValue" label="单件PV" width="120">
         <template #default="{ row }">
           <span :class="{ 'pv-invalid': Number(row.pvValue || 0) > Number(row.salePrice || 0) }">{{ Number(row.pvValue || 0) }}</span>
@@ -110,6 +111,15 @@
             <el-form-item label="销售方"><el-select v-model="form.merchantId" clearable filterable placeholder="平台自营" style="width:360px" :disabled="!canChangeMerchant" @change="changeMerchant"><el-option v-for="item in merchants" :key="item.id" :label="item.merchantName" :value="item.id" /></el-select><div class="field-help">商户账号固定为本商户；平台账号留空表示自营。历史订单使用下单快照，新订单使用审核后的最新结算价。</div></el-form-item>
             <el-alert v-if="form.merchantId" title="商户商品保存后保持下架，提交审核并通过后自动上架。修改销售价或结算价前必须先下架，修改后重新审核。" type="warning" :closable="false" show-icon style="margin-bottom:18px" />
             <el-form-item v-if="form.merchantId && !isMerchantUser" label="结算价变更原因"><el-input v-model="form.settlementCostChangeReason" maxlength="200" show-word-limit placeholder="例如：依据新供货合同调整" /><div class="field-help">平台人员修改商户或结算价时必填；商户提交的价格由审核记录留痕。</div></el-form-item>
+            <el-form-item v-if="form.merchantId" label="结算等待">
+              <el-select v-model="form.settlementDelayMode" style="width:220px" :disabled="isMerchantUser" @change="changeSettlementDelayMode">
+                <el-option :label="`跟随商户默认（${selectedMerchantDefaultDays}天）`" value="DEFAULT" />
+                <el-option label="该商品单独设置" value="OVERRIDE" />
+              </el-select>
+              <el-input-number v-if="form.settlementDelayMode === 'OVERRIDE'" v-model="form.settlementDelayDaysOverride" :min="0" :max="365" :precision="0" :disabled="isMerchantUser" style="width:150px;margin-left:12px" />
+              <span v-if="form.settlementDelayMode === 'OVERRIDE'" style="margin-left:8px">天</span>
+              <div class="field-help">从客户确认收货与售后入口截止时间中的较晚时点开始计算；风险商品可单独设置30天。历史订单使用下单时快照。</div>
+            </el-form-item>
             <el-row :gutter="20">
               <el-col :span="8">
                 <el-form-item label="商品分类">
@@ -449,6 +459,10 @@ const hasSku = computed(() => skuRows.value.length > 0)
 const isMerchantUser = computed(() => Boolean(store.userInfo?.merchantId))
 const canManageSettlementCost = computed(() => isMerchantUser.value || store.hasPermission('finance:manage'))
 const canChangeMerchant = computed(() => !isMerchantUser.value && store.hasPermission('finance:manage'))
+const selectedMerchantDefaultDays = computed(() => Number(merchants.value.find((item) => Number(item.id) === Number(form.value.merchantId))?.defaultSettlementDays || 0))
+const effectiveSettlementDays = (row) => row?.settlementDelayDaysOverride == null
+  ? Number(merchants.value.find((item) => Number(item.id) === Number(row?.merchantId))?.defaultSettlementDays || 0)
+  : Number(row.settlementDelayDaysOverride)
 const reviewState = (row) => ({ DRAFT: { label: '待提交', type: 'info' }, PENDING: { label: '审核中', type: 'warning' }, APPROVED: { label: '已通过', type: 'success' }, REJECTED: { label: '已驳回', type: 'danger' } }[row?.merchantReviewStatus] || { label: '待提交', type: 'info' })
 const productActionLabel = (row) => {
   if (row.status === 1) return '下架'
@@ -577,9 +591,10 @@ const defaultServiceGuarantees = () => Object.entries(guaranteeDefaults).map(([t
 }))
 
 const inferAfterSalePreset = (policy) => Object.entries(afterSalePolicyPresets).find(([, preset]) => preset.content === policy)?.[0] || 'custom'
-const defaultForm = () => ({ tenantId: 1, merchantId: null, merchantName: '', settlementCostChangeReason: '', productNo: '', productName: '', subtitle: '', categoryName: '', mainImages: [], salePrice: 0, marketPrice: 0, costAmount: 0, pvValue: 0, bvValue: 0, stock: 0, safetyStock: 0, purchaseLimit: 0, normalSaleEnabled: 1, repurchaseSaleEnabled: 0, enrollmentSaleEnabled: 0, teamBonusMode: 'INHERIT', repurchasePrice: 0, repurchasePv: 0, repurchasePurchaseLimit: 0, salesCount: 0, sort: 0, status: 1, freightType: 0, freightAmount: 0, freeShippingAmount: 0, freightTemplateId: null, freightTemplateName: '', deliveryAddress: '', deliveryProvince: '', deliveryCity: '', deliveryDistrict: '', shippingAddressId: null, returnAddressId: null, deliveryTime: '48小时内发货', afterSalePresetKey: defaultAfterSalePresetKey, afterSalePolicy: afterSalePolicyPresets[defaultAfterSalePresetKey].content, serviceGuarantees: defaultServiceGuarantees(), detail: '', detailImageUrls: [] })
+const defaultForm = () => ({ tenantId: 1, merchantId: null, merchantName: '', settlementCostChangeReason: '', settlementDelayMode: 'DEFAULT', settlementDelayDaysOverride: null, productNo: '', productName: '', subtitle: '', categoryName: '', mainImages: [], salePrice: 0, marketPrice: 0, costAmount: 0, pvValue: 0, bvValue: 0, stock: 0, safetyStock: 0, purchaseLimit: 0, normalSaleEnabled: 1, repurchaseSaleEnabled: 0, enrollmentSaleEnabled: 0, teamBonusMode: 'INHERIT', repurchasePrice: 0, repurchasePv: 0, repurchasePurchaseLimit: 0, salesCount: 0, sort: 0, status: 1, freightType: 0, freightAmount: 0, freeShippingAmount: 0, freightTemplateId: null, freightTemplateName: '', deliveryAddress: '', deliveryProvince: '', deliveryCity: '', deliveryDistrict: '', shippingAddressId: null, returnAddressId: null, deliveryTime: '48小时内发货', afterSalePresetKey: defaultAfterSalePresetKey, afterSalePolicy: afterSalePolicyPresets[defaultAfterSalePresetKey].content, serviceGuarantees: defaultServiceGuarantees(), detail: '', detailImageUrls: [] })
 
-const changeMerchant = (merchantId) => { form.value.teamBonusMode = merchantId ? 'NONE' : 'INHERIT' }
+const changeMerchant = (merchantId) => { form.value.teamBonusMode = merchantId ? 'NONE' : 'INHERIT'; form.value.settlementDelayMode = 'DEFAULT'; form.value.settlementDelayDaysOverride = null }
+const changeSettlementDelayMode = (mode) => { if (mode === 'DEFAULT') form.value.settlementDelayDaysOverride = null; else if (form.value.settlementDelayDaysOverride == null) form.value.settlementDelayDaysOverride = selectedMerchantDefaultDays.value }
 
 const fetchData = async () => {
   const validation = validateSearchKeyword(query.value.keyword, { label: '商品关键词' })
@@ -708,7 +723,7 @@ const batchSetStatus = async (status) => {
 }
 const openDialog = async (row) => {
   const mainImages = row ? [row.coverUrl, ...parseArray(row.galleryUrls)].filter(Boolean).slice(0, 5) : []
-  form.value = row ? { ...defaultForm(), ...row, mainImages, detailImageUrls: parseArray(row.detailImages), serviceGuarantees: normalizeServiceGuarantees(row.serviceTags), freightType: row.freightType ?? 0, pvValue: Number(row.pvValue || 0), afterSalePolicy: row.afterSalePolicy?.trim() || afterSalePolicyPresets[defaultAfterSalePresetKey].content, afterSalePresetKey: inferAfterSalePreset(row.afterSalePolicy?.trim() || afterSalePolicyPresets[defaultAfterSalePresetKey].content) } : { ...defaultForm(), shippingAddressId: shippingAddresses.value.find((item) => Number(item.isDefault) === 1)?.id || shippingAddresses.value[0]?.id || null, returnAddressId: returnAddresses.value.find((item) => Number(item.isDefault) === 1)?.id || returnAddresses.value[0]?.id || null }
+  form.value = row ? { ...defaultForm(), ...row, settlementDelayMode: row.settlementDelayDaysOverride == null ? 'DEFAULT' : 'OVERRIDE', mainImages, detailImageUrls: parseArray(row.detailImages), serviceGuarantees: normalizeServiceGuarantees(row.serviceTags), freightType: row.freightType ?? 0, pvValue: Number(row.pvValue || 0), afterSalePolicy: row.afterSalePolicy?.trim() || afterSalePolicyPresets[defaultAfterSalePresetKey].content, afterSalePresetKey: inferAfterSalePreset(row.afterSalePolicy?.trim() || afterSalePolicyPresets[defaultAfterSalePresetKey].content) } : { ...defaultForm(), shippingAddressId: shippingAddresses.value.find((item) => Number(item.isDefault) === 1)?.id || shippingAddresses.value[0]?.id || null, returnAddressId: returnAddresses.value.find((item) => Number(item.isDefault) === 1)?.id || returnAddresses.value[0]?.id || null }
   if (isMerchantUser.value) {
     form.value.merchantId = store.userInfo.merchantId
     form.value.merchantName = store.userInfo.merchantName || ''
@@ -872,6 +887,7 @@ const submitForm = async () => {
   if (form.value.merchantId && form.value.teamBonusMode === 'INHERIT') return ElMessage.warning('商户商品必须明确选择团队奖金模式')
   if (form.value.merchantId && form.value.teamBonusMode === 'STANDARD' && Number(form.value.normalSaleEnabled) === 1) return ElMessage.warning('产生团队奖金的商户商品不能同时进入普通商城')
   if (form.value.merchantId && Number(form.value.costAmount || 0) <= 0) return ElMessage.warning('商户商品必须填写大于0的结算价')
+  if (form.value.settlementDelayMode === 'OVERRIDE' && (!Number.isInteger(Number(form.value.settlementDelayDaysOverride)) || Number(form.value.settlementDelayDaysOverride) < 0 || Number(form.value.settlementDelayDaysOverride) > 365)) return ElMessage.warning('商品结算等待天数必须是0到365之间的整数')
   if (Number(form.value.repurchaseSaleEnabled) === 1 && Number(form.value.repurchasePrice || 0) <= 0) return ElMessage.warning('启用复购商城后请填写复购价')
   if (Number(form.value.repurchasePv || 0) > Number(form.value.repurchasePrice || 0)) return ElMessage.warning('复购PV不能超过复购价')
   if (skuRows.value.some((item) => Number(item.repurchasePv || 0) > Number(item.repurchasePrice || form.value.repurchasePrice || 0))) return ElMessage.warning('SKU复购PV不能超过对应复购价')
@@ -910,7 +926,7 @@ const submitForm = async () => {
       .filter((item) => item.title?.trim())
       .map((item) => ({ enabled: Boolean(item.enabled), icon: item.icon || 'shield', title: item.title.trim(), description: item.description?.trim() || '' }))
     const payload = { ...form.value, productName: form.value.productName.trim(), subtitle: form.value.subtitle?.trim() || null, categoryName: form.value.categoryName?.trim() || null, deliveryProvince, deliveryCity, deliveryDistrict, deliveryAddress: form.value.shippingAddressId ? form.value.deliveryAddress : deliveryRegion.value.join(' '), coverUrl: form.value.mainImages[0], galleryUrls: JSON.stringify(form.value.mainImages.slice(1)), detailImages: JSON.stringify(form.value.detailImageUrls), serviceTags: JSON.stringify(serviceTags), bvValue: 0 }
-    delete payload.mainImages; delete payload.detailImageUrls; delete payload.serviceGuarantees; delete payload.afterSalePresetKey
+    delete payload.mainImages; delete payload.detailImageUrls; delete payload.serviceGuarantees; delete payload.afterSalePresetKey; delete payload.settlementDelayMode
     await publishShopProduct(form.value.id, {
       product: payload,
       skus: skuRows.value.map((sku) => {
@@ -938,8 +954,8 @@ const toggleStatus = async (row) => {
 }
 
 onMounted(async () => {
-  if (isMerchantUser.value) merchants.value = [{ id: store.userInfo.merchantId, merchantName: store.userInfo.merchantName || '当前商户' }]
-  else { const merchantRes = await listMerchants({ status: 1 }); merchants.value = merchantRes.data || [] }
+  const merchantRes = await listMerchants({ status: 1 })
+  merchants.value = merchantRes.data || []
   await Promise.all([fetchData(), fetchCategories(), fetchProductSettings(), fetchFreightTemplates(), fetchServiceAddresses()])
 })
 </script>

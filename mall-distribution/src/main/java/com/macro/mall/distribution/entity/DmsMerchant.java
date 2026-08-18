@@ -22,6 +22,8 @@ public class DmsMerchant implements Serializable {
     @Size(max = 32, message = "联系电话不能超过32个字符")
     private String contactPhone;
     private String settlementMode;
+    /** 客户售后窗口结束后，商户货款继续等待的天数。 */
+    private Integer defaultSettlementDays;
     private Integer status;
     @Size(max = 500, message = "备注不能超过500个字符")
     private String remark;

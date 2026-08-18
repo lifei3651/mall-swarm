@@ -1009,6 +1009,7 @@ public class ShopServiceImpl implements ShopService {
             orderItem.setTotalPv(itemPv);
             orderItem.setCostAmount(cost);
             orderItem.setTotalCost(itemCost);
+            orderItem.setSettlementDelayDays(resolveSettlementDelayDays(product));
             orderItem.setTeamBonusMode(normalizeTeamBonusMode(product));
             orderItems.add(orderItem);
         }
@@ -1392,6 +1393,7 @@ public class ShopServiceImpl implements ShopService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean confirmReceive(Long orderId, DmsShopMember member) {
         DmsShopOrder order = orderDao.selectById(orderId);
         if (order == null) {
@@ -1402,7 +1404,10 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("不能确认他人的订单");
         }
         boolean confirmed = orderDao.confirmReceive(orderId) > 0;
-        if (confirmed) notifyOrderChanged(order, "ORDER_RECEIVED");
+        if (confirmed) {
+            merchantService.lockOrderSettlementEligibility(orderId);
+            notifyOrderChanged(order, "ORDER_RECEIVED");
+        }
         return confirmed;
     }
 
@@ -1715,6 +1720,10 @@ public class ShopServiceImpl implements ShopService {
         product.setSalePrice(money(product.getSalePrice()));
         product.setMarketPrice(money(product.getMarketPrice()));
         product.setCostAmount(money(product.getCostAmount()));
+        if (product.getSettlementDelayDaysOverride() != null
+                && (product.getSettlementDelayDaysOverride() < 0 || product.getSettlementDelayDaysOverride() > 365)) {
+            Asserts.fail("商品结算等待天数必须在0到365天之间");
+        }
         product.setPvValue(money(product.getPvValue()));
         if (isPvEnabled(product.getTenantId())) {
             validatePv(product.getPvValue(), product.getSalePrice(), "商品PV");
@@ -1744,6 +1753,7 @@ public class ShopServiceImpl implements ShopService {
         product.setTeamBonusMode(bonusMode);
         if (product.getMerchantId() == null) {
             product.setMerchantName(null);
+            product.setSettlementDelayDaysOverride(null);
             if (!"INHERIT".equals(bonusMode) && !"NONE".equals(bonusMode)) {
                 Asserts.fail("平台自营商品请使用继承商城规则或不参与团队奖金");
             }
@@ -2095,7 +2105,8 @@ public class ShopServiceImpl implements ShopService {
         if (before == null) return after != null && after.getMerchantId() != null;
         boolean merchantChanged = !Objects.equals(before.getMerchantId(), after.getMerchantId());
         boolean merchantProduct = before.getMerchantId() != null || after.getMerchantId() != null;
-        return merchantChanged || (merchantProduct && moneyChanged(before.getCostAmount(), after.getCostAmount()));
+        return merchantChanged || (merchantProduct && (moneyChanged(before.getCostAmount(), after.getCostAmount())
+                || !Objects.equals(before.getSettlementDelayDaysOverride(), after.getSettlementDelayDaysOverride())));
     }
 
     private boolean settlementPublishTermsChanged(DmsShopProduct before, DmsShopProduct after,
@@ -2129,7 +2140,8 @@ public class ShopServiceImpl implements ShopService {
         if (product == null) return null;
         StringBuilder snapshot = new StringBuilder()
                 .append("merchantId=").append(product.getMerchantId())
-                .append(";productCost=").append(money(product.getCostAmount()).setScale(2, RoundingMode.HALF_UP));
+                .append(";productCost=").append(money(product.getCostAmount()).setScale(2, RoundingMode.HALF_UP))
+                .append(";settlementDelayDaysOverride=").append(product.getSettlementDelayDaysOverride());
         List<DmsShopSku> ordered = new ArrayList<>(skus == null ? Collections.emptyList() : skus);
         ordered.sort(java.util.Comparator.comparing(DmsShopSku::getId,
                 java.util.Comparator.nullsLast(Long::compareTo)));
@@ -2159,6 +2171,15 @@ public class ShopServiceImpl implements ShopService {
         mode = mode.trim().toUpperCase(Locale.ROOT);
         if (!Set.of("INHERIT", "NONE", "STANDARD", "CUSTOM").contains(mode)) Asserts.fail("团队奖金模式不正确");
         return mode;
+    }
+
+    private int resolveSettlementDelayDays(DmsShopProduct product) {
+        if (product == null || product.getMerchantId() == null) return 0;
+        Integer override = product.getSettlementDelayDaysOverride();
+        if (override != null) return Math.max(0, Math.min(365, override));
+        DmsMerchant merchant = merchantDao.selectById(product.getMerchantId());
+        Integer defaults = merchant == null ? null : merchant.getDefaultSettlementDays();
+        return defaults == null ? 0 : Math.max(0, Math.min(365, defaults));
     }
 
     private FreightDecision resolveFreightDecision(DmsFreightTemplate template, ShopOrderSubmitDTO dto) {

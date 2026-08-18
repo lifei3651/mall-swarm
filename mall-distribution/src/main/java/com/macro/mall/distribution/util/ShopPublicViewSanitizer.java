@@ -12,6 +12,7 @@ public final class ShopPublicViewSanitizer {
     public static DmsShopProduct product(DmsShopProduct value, boolean repurchaseView) {
         if (value == null) return null;
         value.setCostAmount(null);
+        value.setSettlementDelayDaysOverride(null);
         value.setBvValue(null);
         value.setSafetyStock(null);
         value.setDeliveryAddress(null);
@@ -66,6 +67,7 @@ public final class ShopPublicViewSanitizer {
         if (value.getItems() != null) value.getItems().forEach(item -> {
             item.setCostAmount(null);
             item.setTotalCost(null);
+            item.setSettlementDelayDays(null);
             item.setMerchantId(null);
             item.setTeamBonusMode(null);
         });

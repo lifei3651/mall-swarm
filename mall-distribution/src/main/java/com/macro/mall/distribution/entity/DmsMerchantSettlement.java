@@ -22,6 +22,10 @@ public class DmsMerchantSettlement implements Serializable {
     private BigDecimal costAmount;
     private BigDecimal settlementAmount;
     private BigDecimal reversedAmount;
+    /** 下单时锁定的结算等待天数，不受商品或商户后续修改影响。 */
+    private Integer settlementDelayDays;
+    /** 确认收货时按当时售后规则和订单快照固化的预计可结算时间。 */
+    private LocalDateTime eligibleTime;
     private String status;
     private LocalDateTime availableTime;
     private LocalDateTime createTime;

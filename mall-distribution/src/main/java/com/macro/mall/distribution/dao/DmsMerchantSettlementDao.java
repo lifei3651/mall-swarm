@@ -4,6 +4,7 @@ import com.macro.mall.distribution.entity.DmsMerchantSettlement;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper
@@ -15,7 +16,10 @@ public interface DmsMerchantSettlementDao {
                                            @Param("merchantId") Long merchantId,
                                            @Param("status") String status);
     List<Long> selectPendingOrderIds(@Param("limit") Integer limit);
+    List<Long> selectEligibleOrderIds(@Param("eligibleTime") LocalDateTime eligibleTime,
+                                      @Param("limit") Integer limit);
     int insert(DmsMerchantSettlement settlement);
+    int updateEligibleTime(@Param("id") Long id, @Param("eligibleTime") LocalDateTime eligibleTime);
     int markAvailable(@Param("id") Long id);
     int applyReversal(@Param("id") Long id, @Param("quantity") Integer quantity,
                       @Param("amount") BigDecimal amount, @Param("status") String status);

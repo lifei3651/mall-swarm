@@ -455,18 +455,21 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | 接口 | 入参 | 出参 | 权限与核心逻辑 |
 | --- | --- | --- | --- |
 | `GET /merchants` | `keyword`、`status` | 商户列表 | `shop:product`；按当前租户过滤 |
-| `POST /merchants` | `merchantName`、可选 `merchantNo/contactName/contactPhone/remark` | 商户及自动创建的货款账户 | `shop:product`；结算方式固定为 `COST_PRICE` |
-| `PUT /merchants/{id}` | 可修改商户资料 | 商户 | `shop:product`；不能跨租户，商户编号不允许修改 |
+| `POST /merchants` | `merchantName`、可选 `merchantNo/contactName/contactPhone/defaultSettlementDays/remark` | 商户及自动创建的货款账户 | `shop:product`；结算方式固定为 `COST_PRICE`，默认等待 0～365 天 |
+| `PUT /merchants/{id}` | 可修改商户资料及 `defaultSettlementDays` | 商户 | `shop:product`；不能跨租户，商户编号不允许修改 |
 | `PUT /merchants/{id}/status?status=0|1` | 商户 ID、状态 | 布尔值 | `shop:product`；停用后不能用于新订单 |
-| `GET /merchant-finance/accounts` | 可选 `keyword` | 账户列表 | `finance:read`；返回待结算、可提现、冻结、欠款、累计打款 |
-| `GET /merchant-finance/settlements` | 可选 `merchantId/status` | 订单货款明细 | `finance:read`；按租户及商户过滤 |
+| `GET /merchant-finance/accounts` | 可选 `keyword` | 账户列表 | `finance:read`；返回待结算、可提现、提现冻结、保证金冻结、欠款、累计打款 |
+| `GET /merchant-finance/settlements` | 可选 `merchantId/status` | 订单货款明细 | `finance:read`；返回订单快照 `settlementDelayDays` 和固化的 `eligibleTime` |
 | `GET /merchant-finance/withdrawals` | 可选 `merchantId/status` | 提现列表 | `finance:read`；按租户及商户过滤 |
+| `GET /merchant-finance/deposit-flows` | 可选 `merchantId` | 保证金冻结/解冻流水 | `finance:read`；商户账号强制限定本商户 |
+| `POST /merchant-finance/deposits/freeze` | `merchantId`、`amount`、`reason`、唯一 `operationNo` | 保证金流水 | `finance:manage`；平台账号将可提现转入保证金冻结，操作号持久化防重复 |
+| `POST /merchant-finance/deposits/release` | 同上 | 保证金流水 | `finance:manage`；平台账号解冻，先抵退款欠款，剩余返回可提现 |
 | `POST /merchant-finance/withdrawals` | `merchantId`、`requestedAmount` | 提现申请 | `finance:manage`；锁定账户并把可提现金额转为冻结 |
 | `PUT /merchant-finance/withdrawals/{id}/review` | `invoiceRequiredAmount`、`invoiceReceivedAmount`、`invoiceStatus=NOT_REQUIRED|PENDING|RECEIVED`、`adjustmentAmount`、`adjustmentReason` | 审核后的申请 | `finance:manage`；调整后实付必须大于 0 且不超过申请金额，非零调整必须说明原因 |
 | `POST /merchant-finance/withdrawals/{id}/pay` | `actualPaidAmount`、可选 `paymentReference/paymentVoucherUrl` | 已打款申请 | `finance:manage`；仅 `READY_TO_PAY`，实付必须等于申请金额加调整金额 |
 | `POST /merchant-finance/withdrawals/{id}/reject` | `reason` | 已驳回申请 | `finance:manage`；冻结金额先抵退款欠款，剩余部分退回可提现并保留原因；重复驳回失败 |
 
-商品新增 `merchantId/merchantName/enrollmentSaleEnabled/teamBonusMode`，订单及订单项保存商户和奖金模式快照。公开商品序列化会移除 `merchantId`、报单开关和奖金模式等内部字段，只保留可展示的商户名称。
+商品新增 `merchantId/merchantName/enrollmentSaleEnabled/teamBonusMode/settlementDelayDaysOverride`，订单及订单项保存商户、奖金模式与结算等待天数快照。`settlementDelayDaysOverride=null` 表示跟随商户默认，0～365 表示单品覆盖。公开商品和会员订单响应会移除该结算配置及订单快照，不向消费者泄露内部风险条款。
 
 商户商品的 `merchantId`、商品 `costAmount` 和SKU `costAmount` 属于结算条款。商户绑定账号可填写本商户结算价，但必须提交审核并由平台通过后才会上架；平台账号直接修改商户归属或结算价时，除 `shop:product` 外还必须具有 `finance:manage`，并提交 `settlementCostChangeReason`。服务端在 `MERCHANT_SETTLEMENT/COST_CHANGE` 日志中保存修改前后值、操作人和原因。旧的单SKU新增、编辑、启停接口不接受商户商品写入，避免绕过整单审核；商户SKU的销售价、结算价、库存或状态都必须使用商品整体编辑接口。
 
@@ -478,9 +481,11 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `GET /shop/admin/merchant-product-reviews` | `status/keyword/pageNum/pageSize` | 分页审核记录 | `shop:product-review`；待审核优先，返回提交版本、销售价和结算价 |
 | `PUT /shop/admin/merchant-product-reviews/{id}/decision` | `approved`、`remark` | 审核记录 | `shop:product-review`；通过时原子校验版本并自动上架，驳回保持下架且原因必填，终态不可重复处理 |
 
-后台账号新增可选 `merchantId`。绑定商户的账号只允许 `admin:read,shop:product`，服务端只放行商品、SKU、图片上传及商品编辑所需的只读配置接口；商品列表自动追加 `merchant_id` 条件，详情和写操作再次校验归属。商户商品状态为 `DRAFT/PENDING/APPROVED/REJECTED`，只有 `APPROVED` 可上架。上架商品先下架才能修改；保存修改后回到 `DRAFT`。字段名 `costAmount` 为兼容历史数据库和订单快照继续保留，对商户业务统一解释和展示为“结算价”。
+后台账号新增可选 `merchantId`。绑定商户的账号只允许 `admin:read,shop:product,finance:read,finance:manage`；最后两个权限只用于本商户货款读取和发起提现，安全拦截器仅放行对应 GET 与精确的提现申请 POST，服务层再以会话 `merchantId` 覆盖请求参数。商户账号不能审核/打款、冻结保证金或访问其他商户。商品列表自动追加 `merchant_id` 条件，详情和写操作再次校验归属。商户商品状态为 `DRAFT/PENDING/APPROVED/REJECTED`，只有 `APPROVED` 可上架。上架商品先下架才能修改；保存修改后回到 `DRAFT`。字段名 `costAmount` 为兼容历史数据库和订单快照继续保留，对商户业务统一解释和展示为“结算价”。
 
-商户货款在订单支付成功后按订单项 `costAmount × quantity` 创建且只创建一次。结算先进入 `PENDING`；订单状态为已完成、租户售后期限已过且没有进行中售后时，定时任务释放为 `AVAILABLE`。售后按退款数量和原成本快照冲回：待结算直接减少，已可用先扣可用余额，不足部分记入 `debtAmount`，后续新货款释放时优先抵扣欠款。
+商户货款在订单支付成功后按订单项 `costAmount × quantity` 创建且只创建一次。下单时把商户默认或商品覆盖的等待天数锁入订单项，支付入账时复制到结算明细；确认收货事务内将 `eligibleTime=max(receiveTime, afterSaleDeadline)+settlementDelayDays` 固化。定时任务只选择真正到期、订单已完成且无进行中售后的记录释放为 `AVAILABLE`，不会被队列前方的长期等待或在途售后记录阻塞；迁移前历史待结算记录在任务运行时自动补齐。售后按退款数量和原成本快照冲回：待结算直接减少，已可用先扣可用余额，不足部分记入 `debtAmount`，后续新货款释放时优先抵扣欠款。
+
+账户中的 `frozenAmount` 是提现申请冻结，`depositFrozenAmount` 是平台保证金，二者严格分账。保证金操作使用 `operationNo` 唯一索引持久化幂等；相同操作号和相同请求返回原结果，操作类型、商户或金额不一致时拒绝复用。解冻保证金时先抵 `debtAmount`，余额才进入 `availableAmount`。
 
 系统没有税率和税费扣除字段。`adjustmentAmount` 是合同、差额、手续费等通用人工调整，必须配套 `adjustmentReason`；负数调整会永久减少本次冻结应付款，不会重新回到可提现余额。申请冻结后若新增退款欠款，实际打款必须先通过负数调整覆盖欠款，未覆盖时服务端拒绝打款；驳回申请时解冻金额也先抵欠款。税务处理仍由财务根据客户合同与发票执行。
 

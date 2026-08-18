@@ -16,6 +16,7 @@
         <result column="sale_price" property="salePrice"/>
         <result column="market_price" property="marketPrice"/>
         <result column="cost_amount" property="costAmount"/>
+        <result column="settlement_delay_days_override" property="settlementDelayDaysOverride"/>
         <result column="pv_value" property="pvValue"/>
         <result column="bv_value" property="bvValue"/>
         <result column="stock" property="stock"/>
@@ -60,7 +61,7 @@
 
     <sql id="Base_Column_List">
         id, tenant_id, merchant_id, merchant_name, product_no, product_name, subtitle, category_name, cover_url, gallery_urls,
-        sale_price, market_price, cost_amount, pv_value, bv_value, stock, safety_stock, purchase_limit,
+        sale_price, market_price, cost_amount, settlement_delay_days_override, pv_value, bv_value, stock, safety_stock, purchase_limit,
         normal_sale_enabled, repurchase_sale_enabled, repurchase_price, repurchase_pv, repurchase_purchase_limit,
         enrollment_sale_enabled, team_bonus_mode, sales_count,
         sort_order, status, merchant_review_status, merchant_review_version, merchant_review_remark,
@@ -186,7 +187,7 @@
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopProduct" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_shop_product
         (tenant_id, merchant_id, merchant_name, product_no, product_name, subtitle, category_name, cover_url, gallery_urls, sale_price,
-         market_price, cost_amount, pv_value, bv_value, stock, safety_stock, purchase_limit,
+         market_price, cost_amount, settlement_delay_days_override, pv_value, bv_value, stock, safety_stock, purchase_limit,
          normal_sale_enabled, repurchase_sale_enabled, repurchase_price, repurchase_pv, repurchase_purchase_limit, enrollment_sale_enabled, team_bonus_mode,
          sales_count, sort_order, status, merchant_review_status, merchant_review_version, merchant_review_remark,
          merchant_review_submitted_at, merchant_reviewed_at, merchant_reviewer_id, merchant_reviewer_name, detail, detail_images,
@@ -195,7 +196,7 @@
          delivery_time, after_sale_policy, service_tags)
         VALUES
         (#{tenantId}, #{merchantId}, #{merchantName}, #{productNo}, #{productName}, #{subtitle}, #{categoryName}, #{coverUrl}, #{galleryUrls}, #{salePrice},
-         #{marketPrice}, #{costAmount}, #{pvValue}, #{bvValue}, #{stock}, #{safetyStock}, #{purchaseLimit},
+         #{marketPrice}, #{costAmount}, #{settlementDelayDaysOverride}, #{pvValue}, #{bvValue}, #{stock}, #{safetyStock}, #{purchaseLimit},
          #{normalSaleEnabled}, #{repurchaseSaleEnabled}, #{repurchasePrice}, #{repurchasePv}, #{repurchasePurchaseLimit}, #{enrollmentSaleEnabled}, #{teamBonusMode},
          #{salesCount}, #{sort}, #{status}, #{merchantReviewStatus}, #{merchantReviewVersion}, #{merchantReviewRemark},
          #{merchantReviewSubmittedAt}, #{merchantReviewedAt}, #{merchantReviewerId}, #{merchantReviewerName}, #{detail}, #{detailImages},
@@ -218,6 +219,7 @@
             sale_price = #{salePrice},
             market_price = #{marketPrice},
             cost_amount = #{costAmount},
+            settlement_delay_days_override = #{settlementDelayDaysOverride},
             pv_value = #{pvValue},
             bv_value = #{bvValue},
             stock = #{stock},

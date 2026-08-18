@@ -28,4 +28,14 @@ describe('商品中心筛选', () => {
     expect(source).toContain('历史订单使用下单快照')
     expect(source).toContain(':disabled="Boolean(form.merchantId) && !canManageSettlementCost"')
   })
+
+  it('商户商品支持跟随默认周期或单品覆盖0到365天', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('跟随商户默认')
+    expect(source).toContain('form.settlementDelayDaysOverride')
+    expect(source).toContain(':max="365"')
+    expect(source).toContain('风险商品可单独设置30天')
+    expect(source).toContain('effectiveSettlementDays(row)')
+  })
 })

@@ -76,6 +76,7 @@ public class MerchantProductReviewServiceImpl implements MerchantProductReviewSe
     public void prepareCreatedProduct(DmsShopProduct product) {
         product.setMerchantReviewVersion(0);
         if (product.getMerchantId() == null) return;
+        if (currentMerchantId() != null) product.setSettlementDelayDaysOverride(null);
         product.setStatus(0);
         product.setMerchantReviewStatus("DRAFT");
         clearDecision(product);
@@ -102,6 +103,9 @@ public class MerchantProductReviewServiceImpl implements MerchantProductReviewSe
             Asserts.fail("商户商品已上架，请先下架后再修改商品资料或价格");
         }
         if ("PENDING".equals(existing.getMerchantReviewStatus())) Asserts.fail("商品正在审核，不能修改；如需调整请先由审核人员驳回");
+        if (currentMerchantId() != null) {
+            product.setSettlementDelayDaysOverride(existing.getSettlementDelayDaysOverride());
+        }
         product.setStatus(0);
         product.setMerchantReviewStatus("DRAFT");
         product.setMerchantReviewVersion(existing.getMerchantReviewVersion() == null ? 0 : existing.getMerchantReviewVersion());

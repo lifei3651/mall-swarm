@@ -12,6 +12,7 @@
       <el-table-column prop="contactName" label="联系人" width="120" />
       <el-table-column prop="contactPhone" label="联系电话" min-width="150" />
       <el-table-column label="结算方式" width="150"><template #default>结算价 × 有效数量</template></el-table-column>
+      <el-table-column label="默认结算等待" width="145"><template #default="{ row }"><strong>{{ row.defaultSettlementDays || 0 }} 天</strong></template></el-table-column>
       <el-table-column label="状态" width="90"><template #default="{ row }"><el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '停用' }}</el-tag></template></el-table-column>
       <el-table-column label="操作" width="180"><template #default="{ row }"><el-button link type="primary" @click="open(row)">编辑</el-button><el-button link :type="row.status === 1 ? 'warning' : 'success'" @click="toggle(row)">{{ row.status === 1 ? '停用' : '启用' }}</el-button></template></el-table-column>
     </el-table>
@@ -21,6 +22,11 @@
         <el-form-item label="商户名称" required><el-input v-model="form.merchantName" maxlength="128" /></el-form-item>
         <el-form-item label="联系人"><el-input v-model="form.contactName" /></el-form-item>
         <el-form-item label="联系电话"><el-input v-model="form.contactPhone" /></el-form-item>
+        <el-form-item label="结算等待" required>
+          <el-input-number v-model="form.defaultSettlementDays" :min="0" :max="365" :precision="0" style="width:180px" />
+          <span class="unit">天</span>
+          <div class="field-help">从“客户确认收货与售后入口截止时间中的较晚时点”开始计算；0天表示售后窗口结束后即可结算。</div>
+        </el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark" type="textarea" maxlength="500" show-word-limit /></el-form-item>
       </el-form>
       <template #footer><el-button @click="visible=false">取消</el-button><el-button type="primary" :loading="saving" @click="submit">保存</el-button></template>
@@ -34,7 +40,7 @@ import { ElMessage } from 'element-plus'
 import { listMerchants, saveMerchant, updateMerchantStatus } from '@/api/merchant'
 
 const rows = ref([]); const keyword = ref(''); const loading = ref(false); const visible = ref(false); const saving = ref(false)
-const emptyForm = () => ({ id: null, merchantNo: '', merchantName: '', contactName: '', contactPhone: '', status: 1, remark: '' })
+const emptyForm = () => ({ id: null, merchantNo: '', merchantName: '', contactName: '', contactPhone: '', defaultSettlementDays: 0, status: 1, remark: '' })
 const form = ref(emptyForm())
 const load = async () => { loading.value = true; try { rows.value = (await listMerchants({ keyword: keyword.value })).data || [] } finally { loading.value = false } }
 const open = (row) => { form.value = row ? { ...row } : emptyForm(); visible.value = true }
@@ -44,5 +50,5 @@ onMounted(load)
 </script>
 
 <style scoped>
-.page-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.page-heading h2{margin:0}.page-heading p{margin:6px 0 0;color:#909399}.toolbar{display:flex;gap:10px;width:420px;margin:16px 0}
+.page-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.page-heading h2{margin:0}.page-heading p{margin:6px 0 0;color:#909399}.toolbar{display:flex;gap:10px;width:420px;margin:16px 0}.unit{margin-left:8px}.field-help{width:100%;color:#909399;font-size:12px;line-height:1.6;margin-top:6px}
 </style>

@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.entity;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -46,6 +47,10 @@ public class DmsShopOrderItem implements Serializable {
     private BigDecimal costAmount;
 
     private BigDecimal totalCost;
+
+    /** 下单时锁定的商户结算等待天数。 */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Integer settlementDelayDays;
 
     private String teamBonusMode;
 

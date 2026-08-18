@@ -21,13 +21,14 @@
         <result column="total_pv" property="totalPv"/>
         <result column="cost_amount" property="costAmount"/>
         <result column="total_cost" property="totalCost"/>
+        <result column="settlement_delay_days" property="settlementDelayDays"/>
         <result column="team_bonus_mode" property="teamBonusMode"/>
         <result column="create_time" property="createTime"/>
     </resultMap>
 
     <select id="selectByOrderId" resultMap="BaseResultMap">
         SELECT id, order_id, order_no, merchant_id, merchant_name, product_id, sku_id, product_name, sku_name, sku_attrs, product_cover, price, quantity,
-               total_amount, pv_value, total_pv, cost_amount, total_cost, team_bonus_mode, create_time
+               total_amount, pv_value, total_pv, cost_amount, total_cost, settlement_delay_days, team_bonus_mode, create_time
         FROM dms_shop_order_item
         WHERE order_id = #{orderId}
         ORDER BY id ASC
@@ -63,9 +64,9 @@
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopOrderItem" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_shop_order_item
         (order_id, order_no, merchant_id, merchant_name, product_id, sku_id, product_name, sku_name, sku_attrs, product_cover, price, quantity,
-         total_amount, pv_value, total_pv, cost_amount, total_cost, team_bonus_mode)
+         total_amount, pv_value, total_pv, cost_amount, total_cost, settlement_delay_days, team_bonus_mode)
         VALUES
         (#{orderId}, #{orderNo}, #{merchantId}, #{merchantName}, #{productId}, #{skuId}, #{productName}, #{skuName}, #{skuAttrs}, #{productCover}, #{price}, #{quantity},
-         #{totalAmount}, #{pvValue}, #{totalPv}, #{costAmount}, #{totalCost}, #{teamBonusMode})
+         #{totalAmount}, #{pvValue}, #{totalPv}, #{costAmount}, #{totalCost}, #{settlementDelayDays}, #{teamBonusMode})
     </insert>
 </mapper>

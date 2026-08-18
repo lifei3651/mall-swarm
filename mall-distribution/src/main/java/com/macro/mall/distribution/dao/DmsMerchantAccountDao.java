@@ -18,6 +18,8 @@ public interface DmsMerchantAccountDao {
     int reverseAvailableOrCreateDebt(@Param("merchantId") Long merchantId, @Param("amount") BigDecimal amount);
     int freezeAvailable(@Param("merchantId") Long merchantId, @Param("amount") BigDecimal amount);
     int unfreeze(@Param("merchantId") Long merchantId, @Param("amount") BigDecimal amount);
+    int freezeDeposit(@Param("merchantId") Long merchantId, @Param("amount") BigDecimal amount);
+    int releaseDeposit(@Param("merchantId") Long merchantId, @Param("amount") BigDecimal amount);
     int settleFrozen(@Param("merchantId") Long merchantId,
                      @Param("requestedAmount") BigDecimal requestedAmount,
                      @Param("actualPaidAmount") BigDecimal actualPaidAmount,

@@ -1,12 +1,15 @@
 package com.macro.mall.distribution.service;
 
 import com.macro.mall.distribution.dto.MerchantWithdrawalApplyDTO;
+import com.macro.mall.distribution.dto.MerchantDepositAdjustDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalPayDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalRejectDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalReviewDTO;
 import com.macro.mall.distribution.dto.ShopSkuDTO;
 import com.macro.mall.distribution.entity.DmsMerchant;
 import com.macro.mall.distribution.entity.DmsMerchantAccount;
+import com.macro.mall.distribution.entity.DmsMerchantDepositFlow;
+import com.macro.mall.distribution.entity.DmsMerchantSettlement;
 import com.macro.mall.distribution.entity.DmsMerchantWithdrawal;
 import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.entity.DmsShopProduct;
@@ -271,6 +274,155 @@ class MerchantSettlementServiceTest {
         sku.setStatus(1);
 
         assertThrows(RuntimeException.class, () -> shopService.saveSku(sku));
+    }
+
+    @Test
+    void settlementDelayIsSnapshottedPerOrderItemAndStartsAfterReceiptAndAfterSaleWindow() {
+        DmsMerchant merchant = new DmsMerchant();
+        merchant.setMerchantNo("M-DELAY-SNAPSHOT");
+        merchant.setMerchantName("结算周期测试商户");
+        merchant.setDefaultSettlementDays(7);
+        merchant = merchantService.saveMerchant(merchant);
+        assertEquals(7, merchant.getDefaultSettlementDays());
+
+        long orderId = 9966010L;
+        LocalDateTime receivedAt = LocalDateTime.now().minusDays(15);
+        jdbcTemplate.update("UPDATE dms_tenant SET after_sale_window_days=0 WHERE id=1");
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_order
+                (id,order_no,tenant_id,merchant_id,merchant_name,user_id,receiver_name,receiver_phone,receiver_address,
+                 total_amount,freight_amount,discount_amount,pay_amount,total_pv,total_cost,business_type,status,pay_type,pay_time,receive_time)
+                VALUES (?,?,?,?,?,1001,'测试会员','13800000000','测试地址',99,0,0,99,0,50,'NORMAL',3,'BALANCE',?,?)
+                """, orderId, "MO9966010", 1L, merchant.getId(), merchant.getMerchantName(),
+                LocalDateTime.now().minusDays(20), receivedAt);
+        jdbcTemplate.update("UPDATE dms_shop_order SET create_time=? WHERE id=?", LocalDateTime.now().minusDays(40), orderId);
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_order_item
+                (order_id,order_no,merchant_id,merchant_name,product_id,product_name,price,quantity,total_amount,
+                 pv_value,total_pv,cost_amount,total_cost,settlement_delay_days,team_bonus_mode)
+                VALUES (?,?,?,?,1,'高风险商户商品',99,1,99,0,0,50,50,30,'NONE')
+                """, orderId, "MO9966010", merchant.getId(), merchant.getMerchantName());
+
+        merchantService.createOrderSettlements(orderId);
+        DmsMerchantSettlement settlement = merchantService.listSettlements(merchant.getId(), "PENDING").get(0);
+        assertEquals(30, settlement.getSettlementDelayDays());
+        assertEquals(receivedAt.plusDays(30).withNano(0), settlement.getEligibleTime().withNano(0));
+        assertEquals(0, merchantService.releaseEligibleSettlements(20));
+
+        // 后续把商户默认周期改成0天，也不能改写历史订单已经锁定的30天。
+        merchant.setDefaultSettlementDays(0);
+        merchantService.updateMerchant(merchant.getId(), merchant);
+        assertEquals(0, merchantService.releaseEligibleSettlements(20));
+
+        long maturedOrderId = 9966011L;
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_order
+                (id,order_no,tenant_id,merchant_id,merchant_name,user_id,receiver_name,receiver_phone,receiver_address,
+                 total_amount,freight_amount,discount_amount,pay_amount,total_pv,total_cost,business_type,status,pay_type,pay_time,receive_time,create_time)
+                VALUES (?,?,?,?,?,1001,'测试会员','13800000000','测试地址',99,0,0,99,0,50,'NORMAL',3,'BALANCE',?,?,?)
+                """, maturedOrderId, "MO9966011", 1L, merchant.getId(), merchant.getMerchantName(),
+                LocalDateTime.now().minusDays(40), LocalDateTime.now().minusDays(31), LocalDateTime.now().minusDays(45));
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_order_item
+                (order_id,order_no,merchant_id,merchant_name,product_id,product_name,price,quantity,total_amount,
+                 pv_value,total_pv,cost_amount,total_cost,settlement_delay_days,team_bonus_mode)
+                VALUES (?,?,?,?,1,'已到期风险商品',99,1,99,0,0,50,50,30,'NONE')
+                """, maturedOrderId, "MO9966011", merchant.getId(), merchant.getMerchantName());
+        merchantService.createOrderSettlements(maturedOrderId);
+        assertEquals(1, merchantService.releaseEligibleSettlements(20));
+        assertMoney("50.00", account(merchant.getId()).getAvailableAmount());
+    }
+
+    @Test
+    void depositFreezeReleaseIsIndependentIdempotentAndOffsetsDebtFirst() {
+        DmsMerchant merchant = new DmsMerchant();
+        merchant.setMerchantNo("M-DEPOSIT-FLOW");
+        merchant.setMerchantName("保证金测试商户");
+        merchant = merchantService.saveMerchant(merchant);
+        Long merchantId = merchant.getId();
+        jdbcTemplate.update("UPDATE dms_merchant_account SET available_amount=1000 WHERE merchant_id=?", merchantId);
+
+        DmsAdminUser finance = new DmsAdminUser();
+        finance.setId(92001L);
+        finance.setUsername("finance-deposit");
+        finance.setPermissions("finance:manage");
+        AdminContext.set(finance);
+        try {
+            MerchantDepositAdjustDTO freeze = deposit(merchantId, "DEPOSIT-FREEZE-001", "300", "高风险品类履约保证金");
+            DmsMerchantDepositFlow first = merchantService.freezeDeposit(freeze);
+            DmsMerchantDepositFlow replay = merchantService.freezeDeposit(freeze);
+            assertEquals(first.getId(), replay.getId());
+            assertMoney("700.00", account(merchantId).getAvailableAmount());
+            assertMoney("300.00", account(merchantId).getDepositFrozenAmount());
+            assertMoney("0.00", account(merchantId).getFrozenAmount());
+
+            MerchantDepositAdjustDTO changedReplay = deposit(merchantId, "DEPOSIT-FREEZE-001", "301", "错误复用请求号");
+            assertThrows(RuntimeException.class, () -> merchantService.freezeDeposit(changedReplay));
+            assertThrows(RuntimeException.class, () -> merchantService.freezeDeposit(
+                    deposit(merchantId, "DEPOSIT-FREEZE-002", "701", "超过可提现余额")));
+
+            jdbcTemplate.update("UPDATE dms_merchant_account SET debt_amount=100 WHERE merchant_id=?", merchantId);
+            merchantService.releaseDeposit(deposit(merchantId, "DEPOSIT-RELEASE-001", "200", "风险期结束，释放部分保证金"));
+            DmsMerchantAccount released = account(merchantId);
+            assertMoney("800.00", released.getAvailableAmount());
+            assertMoney("100.00", released.getDepositFrozenAmount());
+            assertMoney("0.00", released.getDebtAmount());
+            assertEquals(2, merchantService.listDepositFlows(merchantId).size());
+        } finally {
+            AdminContext.clear();
+        }
+    }
+
+    @Test
+    void merchantWorkspaceCanOnlyReadAndWithdrawItsOwnFunds() {
+        DmsMerchant first = new DmsMerchant();
+        first.setMerchantNo("M-WORKSPACE-ONE");
+        first.setMerchantName("商户工作台一号");
+        first = merchantService.saveMerchant(first);
+        DmsMerchant second = new DmsMerchant();
+        second.setMerchantNo("M-WORKSPACE-TWO");
+        second.setMerchantName("商户工作台二号");
+        second = merchantService.saveMerchant(second);
+        Long firstId = first.getId();
+        Long secondId = second.getId();
+        jdbcTemplate.update("UPDATE dms_merchant_account SET available_amount=500 WHERE merchant_id IN (?,?)", firstId, secondId);
+
+        DmsAdminUser merchantAdmin = new DmsAdminUser();
+        merchantAdmin.setId(93001L);
+        merchantAdmin.setUsername("merchant-one");
+        merchantAdmin.setMerchantId(firstId);
+        merchantAdmin.setPermissions("admin:read,shop:product,finance:read,finance:manage");
+        AdminContext.set(merchantAdmin);
+        try {
+            assertEquals(1, merchantService.listAccounts(null).size());
+            assertEquals(firstId, merchantService.listAccounts(null).get(0).getMerchantId());
+            assertTrue(merchantService.listSettlements(secondId, null).isEmpty());
+            assertTrue(merchantService.listDepositFlows(secondId).isEmpty());
+
+            MerchantWithdrawalApplyDTO apply = new MerchantWithdrawalApplyDTO();
+            apply.setMerchantId(secondId);
+            apply.setRequestedAmount(new BigDecimal("100"));
+            DmsMerchantWithdrawal withdrawal = merchantService.applyWithdrawal(apply);
+            assertEquals(firstId, withdrawal.getMerchantId());
+            assertMoney("400.00", merchantService.listAccounts(null).get(0).getAvailableAmount());
+            assertThrows(RuntimeException.class, () -> merchantService.freezeDeposit(
+                    deposit(firstId, "MERCHANT-CANNOT-FREEZE", "10", "商户不得自行冻结保证金")));
+            MerchantWithdrawalReviewDTO review = new MerchantWithdrawalReviewDTO();
+            review.setInvoiceStatus("NOT_REQUIRED");
+            review.setAdjustmentAmount(BigDecimal.ZERO);
+            assertThrows(RuntimeException.class, () -> merchantService.reviewWithdrawal(withdrawal.getId(), review));
+        } finally {
+            AdminContext.clear();
+        }
+    }
+
+    private MerchantDepositAdjustDTO deposit(Long merchantId, String operationNo, String amount, String reason) {
+        MerchantDepositAdjustDTO dto = new MerchantDepositAdjustDTO();
+        dto.setMerchantId(merchantId);
+        dto.setOperationNo(operationNo);
+        dto.setAmount(new BigDecimal(amount));
+        dto.setReason(reason);
+        return dto;
     }
 
     private DmsMerchantAccount account(Long merchantId) {

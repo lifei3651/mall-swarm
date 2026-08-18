@@ -759,6 +759,7 @@ CREATE TABLE IF NOT EXISTS dms_merchant (
   contact_name VARCHAR(64),
   contact_phone VARCHAR(32),
   settlement_mode VARCHAR(24) NOT NULL DEFAULT 'COST_PRICE',
+  default_settlement_days INT NOT NULL DEFAULT 0,
   status INT NOT NULL DEFAULT 1,
   remark VARCHAR(500),
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -773,6 +774,7 @@ CREATE TABLE IF NOT EXISTS dms_merchant_account (
   pending_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
   available_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
   frozen_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+  deposit_frozen_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
   debt_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
   total_paid_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -793,11 +795,27 @@ CREATE TABLE IF NOT EXISTS dms_merchant_settlement (
   cost_amount DECIMAL(12,2) NOT NULL,
   settlement_amount DECIMAL(14,2) NOT NULL,
   reversed_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+  settlement_delay_days INT NOT NULL DEFAULT 0,
+  eligible_time TIMESTAMP,
   status VARCHAR(16) NOT NULL DEFAULT 'PENDING',
   available_time TIMESTAMP,
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(order_item_id)
+);
+
+CREATE TABLE IF NOT EXISTS dms_merchant_deposit_flow (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  merchant_id BIGINT NOT NULL,
+  operation_no VARCHAR(64) NOT NULL UNIQUE,
+  operation_type VARCHAR(16) NOT NULL,
+  amount DECIMAL(14,2) NOT NULL,
+  balance_after DECIMAL(14,2) NOT NULL,
+  reason VARCHAR(256) NOT NULL,
+  operator_id BIGINT,
+  operator_name VARCHAR(64),
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS dms_merchant_withdrawal (
@@ -838,6 +856,7 @@ CREATE TABLE IF NOT EXISTS dms_shop_product (
   sale_price DECIMAL(12,2) NOT NULL DEFAULT 0,
   market_price DECIMAL(12,2) NOT NULL DEFAULT 0,
   cost_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+  settlement_delay_days_override INT,
   pv_value DECIMAL(12,2) NOT NULL DEFAULT 0,
   bv_value DECIMAL(12,2) NOT NULL DEFAULT 0,
   stock INT NOT NULL DEFAULT 0,
@@ -1033,6 +1052,7 @@ CREATE TABLE IF NOT EXISTS dms_shop_order_item (
   total_pv DECIMAL(12,2) NOT NULL DEFAULT 0,
   cost_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
   total_cost DECIMAL(12,2) NOT NULL DEFAULT 0,
+  settlement_delay_days INT NOT NULL DEFAULT 0,
   team_bonus_mode VARCHAR(16) NOT NULL DEFAULT 'INHERIT',
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

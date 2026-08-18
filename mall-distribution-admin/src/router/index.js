@@ -221,7 +221,7 @@ const routes = [
             path: 'merchant-finance',
             name: 'MerchantFinance',
             component: () => import('@/views/audit/merchant-finance.vue'),
-            meta: { title: '商户货款与发票', permission: 'finance:read' },
+            meta: { title: '商户货款', permission: 'finance:read' },
           },
           {
             path: 'settings',

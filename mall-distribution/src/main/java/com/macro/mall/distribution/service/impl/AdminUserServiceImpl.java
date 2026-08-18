@@ -172,8 +172,8 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (dto.getMerchantId() != null) {
             com.macro.mall.distribution.entity.DmsMerchant merchant = merchantDao.selectById(dto.getMerchantId());
             if (merchant == null || !Integer.valueOf(1).equals(merchant.getStatus())) Asserts.fail("绑定商户不存在或已停用");
-            Set<String> allowed = Set.of("admin:read", "shop:product");
-            if (!allowed.containsAll(permissionSet(user))) Asserts.fail("商户工作台账号只能授予基础查看和商品管理权限");
+            Set<String> allowed = Set.of("admin:read", "shop:product", "finance:read", "finance:manage");
+            if (!allowed.containsAll(permissionSet(user))) Asserts.fail("商户工作台账号只能授予基础查看、商品管理和本商户货款权限");
             user.setRoleCode("MERCHANT");
         }
     }
