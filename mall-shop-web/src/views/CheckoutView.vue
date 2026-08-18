@@ -94,6 +94,7 @@
               :key="option.value"
               type="button"
               class="payment-option"
+              :disabled="Boolean(pendingCheckoutId)"
               :class="[`payment-${option.value.toLowerCase()}`, { active: form.payType === option.value }]"
               @click="form.payType = option.value"
             >
@@ -114,6 +115,9 @@
 
       <aside class="panel">
         <h3>订单商品</h3>
+        <p v-if="checkoutSellers.length > 1" class="multi-merchant-tip">
+          本次将一次支付，并按 {{ checkoutSellers.length }} 个销售方拆成独立订单；各销售方分别发货和售后。
+        </p>
         <div v-for="item in items" :key="item.cartKey || item.id" class="order-line">
           <img :src="item.coverUrl" :alt="item.productName" />
           <div>
@@ -291,6 +295,7 @@ import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
 import { createIdempotencyKey } from '@/utils/idempotency'
 import ChinaRegionSelect from '@/components/ChinaRegionSelect.vue'
 import { hasShopSession } from '@/utils/shopSession'
+import { submitTrustedAlipayForm } from '@/utils/alipay'
 
 const route = useRoute()
 const router = useRouter()
@@ -371,7 +376,9 @@ const goBack = () => {
 const needSmsVerify = ref(false)
 const verifyConfig = ref({ enabled: false, threshold: 500, message: '' })
 const smsCode = ref('')
-const pendingBalanceOrderId = ref(null)
+// 支付渠道失败时保留已经创建的订单，重试只能继续支付原交易，不能再次生成订单。
+const pendingCheckoutId = ref(null)
+const pendingCheckoutDetailOrderId = ref(null)
 const smsCooldown = ref(0)
 
 // 支付密码弹窗
@@ -671,37 +678,6 @@ const deletePayDigit = () => {
   payPasswordError.value = ''
 }
 
-const submitTrustedAlipayForm = (payHtml) => {
-  const parsed = new DOMParser().parseFromString(String(payHtml || ''), 'text/html')
-  const sourceForm = parsed.querySelector('form')
-  if (!sourceForm) throw new Error('支付宝支付页生成失败，请稍后重试')
-
-  let action
-  try {
-    action = new URL(sourceForm.getAttribute('action') || '')
-  } catch {
-    throw new Error('支付宝支付地址无效，请稍后重试')
-  }
-  const allowedHosts = new Set(['openapi.alipay.com', 'openapi.alipaydev.com'])
-  if (action.protocol !== 'https:' || !allowedHosts.has(action.hostname)) {
-    throw new Error('支付宝支付地址校验失败，请稍后重试')
-  }
-
-  const form = document.createElement('form')
-  form.method = 'post'
-  form.action = action.toString()
-  form.style.display = 'none'
-  sourceForm.querySelectorAll('input[name]').forEach((sourceInput) => {
-    const input = document.createElement('input')
-    input.type = 'hidden'
-    input.name = sourceInput.getAttribute('name') || ''
-    input.value = sourceInput.getAttribute('value') || ''
-    form.appendChild(input)
-  })
-  document.body.appendChild(form)
-  form.submit()
-}
-
 const setupPasswordAndPay = async () => {
   if (setupPasswordSubmitting.value || payPasswordSubmitting.value || submitting.value) return
   setupPasswordError.value = ''
@@ -755,7 +731,6 @@ const continueAfterPasswordSaved = async () => {
 }
 
 const submit = async () => {
-  if (checkoutSellers.length > 1) return showCheckoutError('不同商户或平台自营商品请分开结算')
   if (submitting.value || payPasswordSubmitting.value) return
   clearCheckoutError()
   if (form.value.payType === 'BALANCE' && paymentPasswordLocked.value) {
@@ -835,26 +810,32 @@ const doSubmitOrder = async (paymentPassword) => {
     }
     if (needSmsVerify.value) orderData.smsCode = smsCode.value
 
-    let orderId = pendingBalanceOrderId.value
-    if (!orderId) {
+    let checkoutId = pendingCheckoutId.value
+    let detailOrderId = pendingCheckoutDetailOrderId.value
+    if (!checkoutId) {
       if (!orderRequestKey.value) orderRequestKey.value = createIdempotencyKey('order')
       if (businessType === 'MIXED') throw new Error('普通商品和活动商品不能混合下单')
       const res = businessType === 'FLASH_SALE'
         ? await submitFlashSaleOrder(businessSourceId, orderData, orderRequestKey.value)
         : await submitOrder(orderData, orderRequestKey.value)
-      orderId = res.data.order.id
+      checkoutId = res.data.checkoutId || res.data.order.id
+      detailOrderId = res.data.order.id
       orderRequestKey.value = ''
-      if (paymentPassword) pendingBalanceOrderId.value = orderId
+      // 订单已创建就从购物车移除，支付失败时从待付款订单继续支付，避免返回购物车重复下单。
+      removeCheckedOutItems()
+      pendingCheckoutId.value = checkoutId
+      pendingCheckoutDetailOrderId.value = detailOrderId
     }
     if (paymentPassword) {
       // 余额支付
       if (!balancePaymentRequestKey.value) balancePaymentRequestKey.value = createIdempotencyKey('balance-pay')
-      await payOrderWithBalance(orderId, paymentPassword, balancePaymentRequestKey.value)
+      await payOrderWithBalance(checkoutId, paymentPassword, balancePaymentRequestKey.value)
       balancePaymentRequestKey.value = ''
-      pendingBalanceOrderId.value = null
+      pendingCheckoutId.value = null
+      pendingCheckoutDetailOrderId.value = null
     } else if (form.value.payType === 'ALIPAY') {
       // 支付宝支付：创建支付宝订单并跳转
-      const alipayRes = await createAlipayOrder(orderId)
+      const alipayRes = await createAlipayOrder(checkoutId)
       const payUrl = alipayRes.data?.payUrl
       if (payUrl) {
         // 仅重建支付宝官方网关表单，不执行服务端响应中的任意 HTML 或脚本。
@@ -863,8 +844,7 @@ const doSubmitOrder = async (paymentPassword) => {
       }
       throw new Error('创建支付宝订单失败')
     }
-    removeCheckedOutItems()
-    router.push(`/orders/${orderId}`)
+    router.push(`/orders/${detailOrderId || checkoutId}`)
   } catch (e) {
     showCheckoutError(e.message || '提交失败')
     throw e
@@ -1154,6 +1134,7 @@ onBeforeUnmount(() => {
 .payment-number-keyboard button:disabled { color: #adb2b8; }
 .payment-number-keyboard > span, .payment-number-keyboard .payment-key-delete { background: #eef0f3; }
 .payment-number-keyboard .payment-key-delete { font-size: 24px; font-weight: 400; }
+.multi-merchant-tip { margin: 0 0 12px; padding: 10px 12px; color: #7a4c12; background: #fff8e8; border: 1px solid #f4dfb4; border-radius: 10px; font-size: 12px; line-height: 1.55; }
 
 @media (max-width: 640px) {
   .checkout-page { width: 100%; padding-top: 0; }

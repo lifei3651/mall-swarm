@@ -1050,9 +1050,29 @@ CREATE TABLE IF NOT EXISTS dms_shop_sku (
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS dms_shop_trade (
+  id BIGINT PRIMARY KEY,
+  trade_no VARCHAR(64) NOT NULL UNIQUE,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  user_id BIGINT NOT NULL,
+  pay_type VARCHAR(32) NOT NULL,
+  total_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+  freight_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+  discount_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+  pay_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+  status INT NOT NULL DEFAULT 0,
+  pay_time TIMESTAMP,
+  close_time TIMESTAMP,
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS dms_shop_order (
   id BIGINT PRIMARY KEY,
   order_no VARCHAR(64) NOT NULL UNIQUE,
+  trade_id BIGINT,
+  trade_no VARCHAR(64),
+  payment_order_no VARCHAR(64),
   tenant_id BIGINT NOT NULL DEFAULT 1,
   merchant_id BIGINT,
   merchant_name VARCHAR(128),

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsShopTradeDao">
+  <resultMap id="Base" type="com.macro.mall.distribution.entity.DmsShopTrade">
+    <id column="id" property="id"/><result column="trade_no" property="tradeNo"/>
+    <result column="tenant_id" property="tenantId"/><result column="user_id" property="userId"/>
+    <result column="pay_type" property="payType"/><result column="total_amount" property="totalAmount"/>
+    <result column="freight_amount" property="freightAmount"/><result column="discount_amount" property="discountAmount"/>
+    <result column="pay_amount" property="payAmount"/><result column="status" property="status"/>
+    <result column="pay_time" property="payTime"/><result column="close_time" property="closeTime"/>
+    <result column="create_time" property="createTime"/><result column="update_time" property="updateTime"/>
+  </resultMap>
+  <sql id="cols">id,trade_no,tenant_id,user_id,pay_type,total_amount,freight_amount,discount_amount,pay_amount,status,pay_time,close_time,create_time,update_time</sql>
+  <select id="selectById" resultMap="Base">SELECT <include refid="cols"/> FROM dms_shop_trade WHERE id=#{id}</select>
+  <select id="selectByIdForUpdate" resultMap="Base">SELECT <include refid="cols"/> FROM dms_shop_trade WHERE id=#{id} FOR UPDATE</select>
+  <select id="selectByTradeNo" resultMap="Base">SELECT <include refid="cols"/> FROM dms_shop_trade WHERE trade_no=#{tradeNo}</select>
+  <select id="selectByTradeNoForUpdate" resultMap="Base">SELECT <include refid="cols"/> FROM dms_shop_trade WHERE trade_no=#{tradeNo} FOR UPDATE</select>
+  <insert id="insert">INSERT INTO dms_shop_trade(id,trade_no,tenant_id,user_id,pay_type,total_amount,freight_amount,discount_amount,pay_amount,status) VALUES(#{id},#{tradeNo},#{tenantId},#{userId},#{payType},#{totalAmount},#{freightAmount},#{discountAmount},#{payAmount},#{status})</insert>
+  <update id="markPaid">UPDATE dms_shop_trade SET status=1,pay_type=#{payType},pay_time=CURRENT_TIMESTAMP,update_time=CURRENT_TIMESTAMP WHERE id=#{id} AND status=0</update>
+  <update id="closePending">UPDATE dms_shop_trade SET status=4,close_time=CURRENT_TIMESTAMP,update_time=CURRENT_TIMESTAMP WHERE id=#{id} AND status=0</update>
+</mapper>

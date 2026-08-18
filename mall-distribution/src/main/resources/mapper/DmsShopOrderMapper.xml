@@ -5,6 +5,9 @@
     <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsShopOrder">
         <id column="id" property="id"/>
         <result column="order_no" property="orderNo"/>
+        <result column="trade_id" property="tradeId"/>
+        <result column="trade_no" property="tradeNo"/>
+        <result column="payment_order_no" property="paymentOrderNo"/>
         <result column="tenant_id" property="tenantId"/>
         <result column="merchant_id" property="merchantId"/>
         <result column="merchant_name" property="merchantName"/>
@@ -51,7 +54,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id, order_no, tenant_id, merchant_id, merchant_name, user_id, agent_id, invite_code, receiver_name, receiver_phone,
+        id, order_no, trade_id, trade_no, payment_order_no, tenant_id, merchant_id, merchant_name, user_id, agent_id, invite_code, receiver_name, receiver_phone,
         receiver_address, receiver_province, receiver_city, receiver_district, receiver_detail_address,
         total_amount, freight_amount, discount_amount, pay_amount, total_pv,
         total_cost, business_type, business_source_id, status, pay_type, remark, service_remark, pay_time, delivery_company, delivery_no,
@@ -62,6 +65,10 @@
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_order
         WHERE id = #{id}
+    </select>
+
+    <select id="selectTradeIdById" resultType="java.lang.Long">
+        SELECT trade_id FROM dms_shop_order WHERE id = #{id}
     </select>
 
     <select id="selectByIdForUpdate" resultMap="BaseResultMap">
@@ -82,6 +89,16 @@
         FROM dms_shop_order
         WHERE order_no = #{orderNo}
         FOR UPDATE
+    </select>
+
+    <select id="selectByTradeId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/> FROM dms_shop_order
+        WHERE trade_id=#{tradeId} ORDER BY id ASC
+    </select>
+
+    <select id="selectByTradeIdForUpdate" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/> FROM dms_shop_order
+        WHERE trade_id=#{tradeId} ORDER BY id ASC FOR UPDATE
     </select>
 
     <select id="selectByUserId" resultMap="BaseResultMap">
@@ -254,6 +271,8 @@
             <if test="keyword != null and keyword != ''">
                 AND (
                     order_no LIKE CONCAT('%', #{keyword}, '%')
+                    OR trade_no LIKE CONCAT('%', #{keyword}, '%')
+                    OR payment_order_no LIKE CONCAT('%', #{keyword}, '%')
                     OR receiver_name LIKE CONCAT('%', #{keyword}, '%')
                     OR receiver_phone LIKE CONCAT('%', #{keyword}, '%')
                     OR service_remark LIKE CONCAT('%', #{keyword}, '%')
@@ -265,13 +284,13 @@
 
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopOrder">
         INSERT INTO dms_shop_order
-        (id, order_no, tenant_id, merchant_id, merchant_name, user_id, agent_id, invite_code, receiver_name, receiver_phone,
+        (id, order_no, trade_id, trade_no, payment_order_no, tenant_id, merchant_id, merchant_name, user_id, agent_id, invite_code, receiver_name, receiver_phone,
          receiver_address, receiver_province, receiver_city, receiver_district, receiver_detail_address,
          total_amount, freight_amount, discount_amount, pay_amount, total_pv,
          total_cost, business_type, business_source_id, status, pay_type, remark, pay_time, delivery_company, delivery_no,
          delivery_time, receive_time, cancel_time, close_time)
         VALUES
-        (#{id}, #{orderNo}, #{tenantId}, #{merchantId}, #{merchantName}, #{userId}, #{agentId}, #{inviteCode}, #{receiverName}, #{receiverPhone},
+        (#{id}, #{orderNo}, #{tradeId}, #{tradeNo}, #{paymentOrderNo}, #{tenantId}, #{merchantId}, #{merchantName}, #{userId}, #{agentId}, #{inviteCode}, #{receiverName}, #{receiverPhone},
          #{receiverAddress}, #{receiverProvince}, #{receiverCity}, #{receiverDistrict}, #{receiverDetailAddress},
          #{totalAmount}, #{freightAmount}, #{discountAmount}, #{payAmount}, #{totalPv},
          #{totalCost}, #{businessType}, #{businessSourceId}, #{status}, #{payType}, #{remark}, #{payTime}, #{deliveryCompany}, #{deliveryNo},

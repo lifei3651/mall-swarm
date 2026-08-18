@@ -495,13 +495,23 @@ test('simple confirmations use one branded accessible dialog across customer pag
 })
 
 test('alipay checkout reconstructs a safe official payment form and CSP allows only the official gateway', async () => {
-  const source = await readView('CheckoutView.vue')
+  const source = await readFile(new URL('../src/utils/alipay.js', import.meta.url), 'utf8')
+  const checkout = await readView('CheckoutView.vue')
+  const detail = await readView('OrderDetailView.vue')
   const nginx = await readFile(new URL('../../scripts/nginx/lingqimall.conf', import.meta.url), 'utf8')
   assert.match(source, /new DOMParser\(\)/)
   assert.match(source, /allowedHosts = new Set\(\['openapi\.alipay\.com', 'openapi\.alipaydev\.com'\]\)/)
   assert.match(source, /sourceForm\.querySelectorAll\('input\[name\]'\)/)
   assert.doesNotMatch(source, /innerHTML\s*=/)
   assert.match(source, /form\.submit\(\)/)
+  assert.match(checkout, /removeCheckedOutItems\(\)/)
+  assert.equal((checkout.match(/removeCheckedOutItems\(\)/g) || []).length, 1)
+  assert.ok(checkout.indexOf('detailOrderId = res.data.order.id') < checkout.indexOf('removeCheckedOutItems()'))
+  assert.match(checkout, /let checkoutId = pendingCheckoutId\.value/)
+  assert.match(checkout, /pendingCheckoutId\.value = checkoutId/)
+  assert.match(checkout, /:disabled="Boolean\(pendingCheckoutId\)"/)
+  assert.match(detail, /createAlipayOrder\(order\.value\.id\)/)
+  assert.match(detail, /submitTrustedAlipayForm/)
   assert.match(nginx, /form-action 'self' https:\/\/openapi\.alipay\.com/)
 })
 
@@ -623,15 +633,16 @@ test('cart deletion requires confirmation and checkout navigates after limit val
   assert.match(source, /confirmPendingAction/)
 })
 
-test('merchant products show their seller and mixed merchants are blocked before checkout', async () => {
+test('merchant products show their seller and mixed merchants use one parent checkout', async () => {
   const store = await readFile(new URL('../src/store/cart.js', import.meta.url), 'utf8')
   const cart = await readView('CartView.vue')
   const checkout = await readView('CheckoutView.vue')
   const detail = await readView('ProductDetailView.vue')
   assert.match(store, /merchantName: product\.merchantName \|\| ''/)
-  assert.match(cart, /different|不同商户或平台自营商品请分开结算/)
+  assert.doesNotMatch(cart, /不同商户或平台自营商品请分开结算/)
   assert.match(cart, /item\.merchantName \|\| '平台自营'/)
-  assert.match(checkout, /checkoutSellers\.length > 1/)
+  assert.match(checkout, /一次支付/)
+  assert.match(checkout, /res\.data\.checkoutId \|\| res\.data\.order\.id/)
   assert.match(detail, /product\.merchantName \|\| '平台自营'/)
 })
 

@@ -18,7 +18,7 @@
     <div class="search-container order-search-panel">
       <el-form :inline="true" :model="query">
         <el-form-item label="订单搜索">
-          <el-input v-model="query.keyword" placeholder="请输入订单号、收货人、手机号或客服备注" clearable @keyup.enter="handleOrderSearch" />
+          <el-input v-model="query.keyword" placeholder="请输入订单号、联合支付单号、收货人、手机号或客服备注" clearable @keyup.enter="handleOrderSearch" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :icon="Search" :loading="orderLoading" @click="handleOrderSearch">查询</el-button>
@@ -87,6 +87,8 @@
           <el-table-column label="订单编号" min-width="175">
             <template #default="{ row }">
               <div class="order-no">{{ row.order?.orderNo }}</div>
+              <div v-if="row.order?.tradeNo" class="sub trade-no">联合支付 {{ row.order.tradeNo }}</div>
+              <el-tag v-if="row.order?.tradeId" size="small" effect="plain" type="info">商户子订单</el-tag>
               <el-tag v-if="row.order?.businessType && row.order.businessType !== 'NORMAL'" size="small" effect="plain" :type="row.order.businessType === 'FLASH_SALE' ? 'danger' : 'warning'">{{ row.order.businessType === 'FLASH_SALE' ? '秒杀订单' : '复购订单' }}</el-tag>
               <div class="sub">登录账号 {{ row.memberAccount || '-' }}</div>
             </template>

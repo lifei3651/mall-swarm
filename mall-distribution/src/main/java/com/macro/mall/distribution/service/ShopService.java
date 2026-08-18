@@ -134,6 +134,12 @@ public interface ShopService {
 
     ShopOrderVO markOrderPaid(Long orderId, String payType);
 
+    /** 一次性支付交易父单，事务内完成全部商户子单入账。 */
+    ShopOrderVO markCheckoutPaid(Long checkoutId, String payType);
+
+    /** 取消尚未支付的父交易及其全部子单。 */
+    boolean cancelCheckout(Long checkoutId, DmsShopMember member);
+
     boolean cancelOrder(Long orderId, DmsShopMember member);
 
     int closeExpiredPendingOrders(int limit);

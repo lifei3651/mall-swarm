@@ -16,6 +16,8 @@ import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.distribution.config.AlipayConfig;
 import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.dao.DmsShopOrderDao;
+import com.macro.mall.distribution.dao.DmsShopTradeDao;
+import com.macro.mall.distribution.entity.DmsShopTrade;
 import com.macro.mall.distribution.service.AlipayService;
 import com.macro.mall.distribution.service.ShopService;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +42,7 @@ public class AlipayServiceImpl implements AlipayService {
 
     private final AlipayConfig alipayConfig;
     private final DmsShopOrderDao orderDao;
+    private final DmsShopTradeDao tradeDao;
     private final ShopService shopService;
     private final ObjectMapper objectMapper;
 
@@ -144,29 +147,32 @@ public class AlipayServiceImpl implements AlipayService {
                 return "failure";
             }
 
-            // 4. 查询订单
-            DmsShopOrder order = orderDao.selectByOrderNoForUpdate(outTradeNo);
-            if (order == null) {
+            // 4. 优先查询跨商户交易父单；历史订单继续按原订单号处理。
+            DmsShopTrade trade = tradeDao.selectByTradeNoForUpdate(outTradeNo);
+            DmsShopOrder order = trade == null ? orderDao.selectByOrderNoForUpdate(outTradeNo) : null;
+            if (trade == null && order == null) {
                 log.error("支付宝回调订单不存在: outTradeNo={}", outTradeNo);
                 return "failure";
             }
 
             // 5. 验证金额
             BigDecimal notifyAmount = new BigDecimal(totalAmount);
-            if (order.getPayAmount().compareTo(notifyAmount) != 0) {
-                log.error("支付宝回调金额不匹配: orderAmount={}, notifyAmount={}", order.getPayAmount(), notifyAmount);
+            BigDecimal expectedAmount = trade == null ? order.getPayAmount() : trade.getPayAmount();
+            if (expectedAmount.compareTo(notifyAmount) != 0) {
+                log.error("支付宝回调金额不匹配: orderAmount={}, notifyAmount={}", expectedAmount, notifyAmount);
                 return "failure";
             }
 
             // 6. 只接受 TRADE_SUCCESS。TRADE_FINISHED 不作为本商城的入账触发条件。
             if ("TRADE_SUCCESS".equals(tradeStatus)) {
                 // 检查订单状态，避免重复处理
-                if (Integer.valueOf(0).equals(order.getStatus())) {
-                    // 标记订单为已支付
-                    shopService.markOrderPaid(order.getId(), "ALIPAY");
-                    log.info("支付宝支付成功，订单已标记为已支付: orderNo={}, tradeNo={}", outTradeNo, tradeNo);
+                Integer localStatus = trade == null ? order.getStatus() : trade.getStatus();
+                if (Integer.valueOf(0).equals(localStatus)) {
+                    if (trade == null) shopService.markOrderPaid(order.getId(), "ALIPAY");
+                    else shopService.markCheckoutPaid(trade.getId(), "ALIPAY");
+                    log.info("支付宝支付成功，交易已标记为已支付: paymentNo={}, alipayTradeNo={}", outTradeNo, tradeNo);
                 } else {
-                    log.info("支付宝回调订单已处理过: orderNo={}, status={}", outTradeNo, order.getStatus());
+                    log.info("支付宝回调订单已处理过: paymentNo={}, status={}", outTradeNo, localStatus);
                 }
                 return "success";
             }
@@ -246,16 +252,19 @@ public class AlipayServiceImpl implements AlipayService {
                 return false;
             }
 
-            DmsShopOrder order = orderDao.selectByOrderNoForUpdate(orderNo);
-            if (order == null) {
+            DmsShopTrade trade = tradeDao.selectByTradeNoForUpdate(orderNo);
+            DmsShopOrder order = trade == null ? orderDao.selectByOrderNoForUpdate(orderNo) : null;
+            if (trade == null && order == null) {
                 log.warn("支付宝同步回跳查询订单不存在: orderNo={}", orderNo);
                 return false;
             }
-            if (Integer.valueOf(0).equals(order.getStatus())) {
-                shopService.markOrderPaid(order.getId(), "ALIPAY");
-                log.info("支付宝同步回跳查询确认成功，订单已标记为已支付: orderNo={}", orderNo);
+            Integer localStatus = trade == null ? order.getStatus() : trade.getStatus();
+            if (Integer.valueOf(0).equals(localStatus)) {
+                if (trade == null) shopService.markOrderPaid(order.getId(), "ALIPAY");
+                else shopService.markCheckoutPaid(trade.getId(), "ALIPAY");
+                log.info("支付宝同步回跳查询确认成功，交易已标记为已支付: paymentNo={}", orderNo);
             } else {
-                log.info("支付宝同步回跳查询订单已处理过: orderNo={}, status={}", orderNo, order.getStatus());
+                log.info("支付宝同步回跳查询订单已处理过: paymentNo={}, status={}", orderNo, localStatus);
             }
             return true;
         } catch (Exception e) {

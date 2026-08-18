@@ -180,11 +180,11 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `POST /api/v1/shop/addresses` | `id` 可选、`receiverName`、`receiverPhone`、`province`、`city`、`district`、`detailAddress`、`isDefault` | 地址记录 | `id` 为空新增，有值时更新；默认地址互斥 |
 | `DELETE /api/v1/shop/addresses/{id}` | 地址 ID | `boolean` | 校验地址属于当前会员后删除 |
 | `POST /api/v1/shop/orders/freight-quote` | 收货地区、`items[]` | 运费试算结果 | 按商品和运费模板试算，最终金额在下单时重算 |
-| `POST /api/v1/shop/orders` | `addressId` 或完整收货信息、`payType`、`remark`、`items[]`、`businessType=NORMAL`；请求键 | `ShopOrderVO` | 服务端读取商品/SKU、校验库存和限购、计算价格/PV/运费、扣减库存并创建待支付订单 |
+| `POST /api/v1/shop/orders` | `addressId` 或完整收货信息、`payType`、`remark`、`items[]`、`businessType=NORMAL`；请求键 | `ShopOrderVO`；跨商户时额外返回 `checkoutId`、`checkoutNo`、`groupedCheckout=true`、`childOrders[]` | 服务端读取商品/SKU、校验库存和限购；单商户保持一张订单，跨商户创建一张支付父交易和每商户一张履约子订单，价格、库存、运费和结算均按子单独立计算 |
 | `GET /api/v1/shop/orders` | 状态、分页等 | 当前会员订单分页 | 仅查询本人订单；售后历史不覆盖订单实际履约状态 |
 | `GET /api/v1/shop/orders/{id}` | 订单 ID | `ShopOrderDetailVO` | 返回订单、商品、付款、地址、物流、可售后状态及售后记录 |
 | `GET /api/v1/shop/orders/{id}/tracking` | 订单 ID、当前会员会话 | 包裹轨迹列表 | 校验订单归属；未配置供应商时返回 `NOT_CONFIGURED` 和空节点，不虚构物流状态 |
-| `PUT /api/v1/shop/orders/{id}/cancel` | 订单 ID | 订单结果 | 仅允许本人取消待付款订单；释放普通、复购或秒杀对应库存 |
+| `PUT /api/v1/shop/orders/{id}/cancel` | 订单 ID | 订单结果 | 仅允许本人取消待付款订单；联合支付子单会关闭同一父交易下全部待付款子单并释放全部库存 |
 | `PUT /api/v1/shop/orders/{id}/receive` | 订单 ID | 订单结果 | 写入确认收货时间；触发后续评价、售后与奖金等待期逻辑 |
 | `POST /api/v1/shop/orders/{id}/pay?payType=...` | 订单 ID、支付方式 | 订单结果 | 兼容支付入口；生产禁止模拟支付 |
 | `GET /api/v1/shop/events/orders` | 会话 Cookie，SSE | 订单事件流 | 推送订单状态变化；断线后页面仍需通过订单查询确认最终状态 |
@@ -196,15 +196,15 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | 方法与地址 | 主要入参 | `data` 出参 | 核心逻辑 |
 | --- | --- | --- | --- |
 | `GET /api/v1/shop/pay/config` | 当前租户 | 可用支付方式 | 只返回已配置并启用的支付渠道 |
-| `POST /api/v1/shop/pay/alipay/create?orderId={id}` | 订单 ID | 支付宝官方表单参数 | 校验订单归属、状态、金额和支付宝配置后创建支付 |
-| `GET /api/v1/shop/pay/alipay/query?orderId={id}` | 订单 ID | 支付状态 | 主动查询并同步支付宝交易状态 |
+| `POST /api/v1/shop/pay/alipay/create?orderId={id}` | 单商户传订单 ID；跨商户传 `checkoutId` 或任一子订单 ID | 支付宝官方表单参数 | 校验本人、状态、支付方式和金额；跨商户只用父交易号和汇总金额创建一次支付 |
+| `GET /api/v1/shop/pay/alipay/query?orderId={id}` | 单商户订单 ID、`checkoutId` 或子订单 ID | 支付状态 | 只允许本人支付宝订单主动查询；跨商户按父交易号同步全部子单 |
 | `POST /api/v1/pay/alipay/notify` | 支付宝回调表单 | 文本 `success` 或 `failure` | 先验签，再核对应用、商户、订单和金额，仅成功交易入账；重复通知幂等 |
 | `GET /api/v1/payment/checkVerify` | `amount`、`tenantId` | 是否需要短信验证 | 根据租户的大额支付阈值决定是否验证 |
 | `GET /api/v1/shop/wallet/summary` | 当前会员 | `ShopWalletSummaryVO` | 返回余额、支付密码设置/锁定状态等 |
 | `POST /api/v1/shop/wallet/recipient` | `phone` | `BalanceRecipientVO` | 仅返回转账确认所需的脱敏收款人信息 |
 | `PUT /api/v1/shop/wallet/payment-password` | `oldPassword` 可选、`newPassword`、`loginPassword` 可选、`smsCode` | `boolean` | 首次设置与修改使用不同校验；支付密码加密保存 |
 | `POST /api/v1/shop/wallet/transfers` | `recipientPhone`、整数 `amount`、`paymentPassword`、可选 `remark`；请求键 | `boolean` | 校验双方账户、密码、余额；账户行锁内完成扣加款和双向流水 |
-| `POST /api/v1/shop/wallet/orders/{id}/pay` | `paymentPassword`；请求键 | `ShopOrderVO` | 锁定订单和账户，余额足够且订单待付款时扣款、入账并更新订单 |
+| `POST /api/v1/shop/wallet/orders/{id}/pay` | 单商户传订单 ID；跨商户传 `checkoutId` 或子订单 ID；`paymentPassword`；请求键 | `ShopOrderVO` | 锁定订单/父交易和账户；跨商户只汇总扣款一次，先校验全部子单金额、状态和支付单号，再在同一事务逐子单入账 |
 | `POST /api/v1/shop/wallet/withdrawals` | `withdrawAmount`、`withdrawType` 1～3、`bankName`、`bankAccount`、`accountName`、`paymentPassword`、`smsCode`；请求键 | `WithdrawRecordVO` | 校验提现规则和余额，创建待审核记录及冻结/扣款流水 |
 | `GET /api/v1/shop/wallet/withdrawals` | 当前会员 | 提现记录列表 | 只返回本人提现记录 |
 | `GET /api/v1/shop/wallet/flows` | 当前会员 | 余额流水列表 | 只返回本人流水，不把加载失败当作空数据 |
@@ -569,7 +569,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 
 ### 25.1 多商户、报单区与团队奖金边界
 
-- 一个商品最多绑定一个商户；一张订单只允许同一商户商品或平台自营商品，前后端都会拒绝跨商户混单。
+- 一个商品最多绑定一个商户；购物车允许同时结算平台自营和多个商户商品，但服务端必须按 `merchant_id` 拆成独立履约子订单，并通过同一支付父交易完成一次付款。活动订单仍按各自业务规则限制混单。
 - 销售渠道由 `normal_sale_enabled`、`repurchase_sale_enabled`、`enrollment_sale_enabled` 三个开关表达，分别对应普通商城、复购区和报单区。
 - `team_bonus_mode=INHERIT` 沿用历史业务模式判断；`NONE` 明确不发团队奖；`STANDARD` 使用标准团队奖金；`CUSTOM` 只预留扩展标记，策略未配置前必须失败关闭。
 - 商户商品使用 `STANDARD` 时不能开启普通商城渠道，只能放在复购区或报单区，避免面向公众的普通购物意外进入团队奖金链路。

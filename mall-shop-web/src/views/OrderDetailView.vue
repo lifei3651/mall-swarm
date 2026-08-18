@@ -17,6 +17,10 @@
     </div>
     <div v-else-if="!order" class="empty">订单不存在</div>
     <div v-else class="checkout-layout" :class="{ 'after-sale-mode': applyingAfterSale }">
+      <section v-if="!applyingAfterSale && order.tradeNo" class="panel trade-parent-tip">
+        <strong>联合支付交易 {{ order.tradeNo }}</strong>
+        <span>当前是 {{ order.merchantName || '平台自营' }} 的履约子订单 {{ order.orderNo }}；其他销售方将分别发货和处理售后。</span>
+      </section>
       <section v-if="!applyingAfterSale && shipments.length" class="panel logistics-overview-panel">
         <div class="logistics-overview-head">
           <span class="logistics-overview-icon"><Truck :size="22" /></span>
@@ -237,8 +241,11 @@
           />
           <p class="line-sub">将从商城余额扣除 ¥{{ money(order.payAmount) }}，运费包含在实付金额内。</p>
         </div>
-        <p v-if="order.status === 0 && order.payType !== 'BALANCE'" class="channel-tip">
-          {{ payTypeName(order.payType) }}订单已保留；配置正式商户号和密钥后会唤起对应支付页面。
+        <p v-if="order.status === 0 && order.payType === 'ALIPAY'" class="channel-tip">
+          支付宝订单已保留，点击“立即支付”可继续支付；联合支付订单会一次支付全部商户子单。
+        </p>
+        <p v-else-if="order.status === 0 && order.payType !== 'BALANCE'" class="channel-tip">
+          {{ payTypeName(order.payType) }}订单已保留；当前通道完成配置后可继续支付。
         </p>
         <div class="inline-actions">
           <button v-if="canApplyAfterSale && !applyingAfterSale" class="btn secondary" @click="startAfterSale">申请售后</button>
@@ -281,13 +288,14 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ChevronDown, ChevronRight, CircleCheck, ImagePlus, MapPin, PackageCheck, RotateCcw, Truck, UserRound } from 'lucide-vue-next'
-import { applyAfterSale, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmReceive, getOrder, getOrderTracking, payOrderWithBalance, submitAfterSaleReturnShipment, uploadAfterSaleProof } from '@/api/shop'
+import { applyAfterSale, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmReceive, createAlipayOrder, getOrder, getOrderTracking, payOrderWithBalance, submitAfterSaleReturnShipment, uploadAfterSaleProof } from '@/api/shop'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { dateTime, money, statusName } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
 import { connectOrderRealtime } from '@/utils/orderRealtime'
 import { isNativeApp, toPublicWebUrl } from '@/utils/appEnvironment'
 import { hasShopSession } from '@/utils/shopSession'
+import { submitTrustedAlipayForm } from '@/utils/alipay'
 
 const route = useRoute()
 const detail = ref({})
@@ -634,6 +642,18 @@ const cancel = async () => {
 
 const pay = async () => {
   if (acting.value) return
+  if (order.value.payType === 'ALIPAY') {
+    acting.value = true
+    error.value = ''
+    try {
+      const response = await createAlipayOrder(order.value.id)
+      submitTrustedAlipayForm(response.data?.payUrl)
+    } catch (e) {
+      error.value = e.message || '支付宝支付发起失败'
+      acting.value = false
+    }
+    return
+  }
   if (order.value.payType !== 'BALANCE') {
     error.value = `${payTypeName(order.value.payType)}尚未配置正式商户参数；当前可选择余额支付进行完整测试`
     return
@@ -752,6 +772,9 @@ onBeforeUnmount(() => {
 .order-line-amount { color: var(--brand-primary, #e7193f); font-size: 18px; font-weight: 900; white-space: nowrap; }
 .refunded-label { color: #9aa3ad; font-size: 11px; white-space: nowrap; }
 .checkout-layout.after-sale-mode { grid-template-columns: minmax(0, 760px); justify-content: center; }
+.trade-parent-tip { grid-column: 1 / -1; display: grid; gap: 5px; padding: 13px 16px; color: #70470f; background: #fff8e8; border-color: #f1ddb6; }
+.trade-parent-tip strong { font-size: 14px; }
+.trade-parent-tip span { font-size: 12px; line-height: 1.55; }
 .after-sale-list { padding-top: 22px; }
 .after-sale-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .after-sale-section-head h3 { margin: 3px 0 0; font-size: 18px; }

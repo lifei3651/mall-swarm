@@ -13,11 +13,17 @@ public interface DmsShopOrderDao {
 
     DmsShopOrder selectById(@Param("id") Long id);
 
+    Long selectTradeIdById(@Param("id") Long id);
+
     DmsShopOrder selectByIdForUpdate(@Param("id") Long id);
 
     DmsShopOrder selectByOrderNo(@Param("orderNo") String orderNo);
 
     DmsShopOrder selectByOrderNoForUpdate(@Param("orderNo") String orderNo);
+
+    List<DmsShopOrder> selectByTradeId(@Param("tradeId") Long tradeId);
+
+    List<DmsShopOrder> selectByTradeIdForUpdate(@Param("tradeId") Long tradeId);
 
     List<DmsShopOrder> selectByUserId(@Param("userId") Long userId);
 

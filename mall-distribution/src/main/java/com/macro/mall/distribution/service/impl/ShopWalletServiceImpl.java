@@ -9,6 +9,7 @@ import com.macro.mall.distribution.dao.DmsAgentDao;
 import com.macro.mall.distribution.dao.DmsMemberAssetAccountDao;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsShopOrderDao;
+import com.macro.mall.distribution.dao.DmsShopTradeDao;
 import com.macro.mall.distribution.dto.AssetChangeDTO;
 import com.macro.mall.distribution.dto.AssetTransferDTO;
 import com.macro.mall.distribution.dto.BalancePayDTO;
@@ -21,6 +22,7 @@ import com.macro.mall.distribution.entity.DmsMemberAssetAccount;
 import com.macro.mall.distribution.entity.DmsMemberAssetFlow;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsShopOrder;
+import com.macro.mall.distribution.entity.DmsShopTrade;
 import com.macro.mall.distribution.service.MemberAssetService;
 import com.macro.mall.distribution.service.PaymentPasswordAttemptService;
 import com.macro.mall.distribution.service.ShopService;
@@ -59,6 +61,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
     private final DmsAgentDao agentDao;
     private final DmsMemberAssetAccountDao assetAccountDao;
     private final DmsShopOrderDao orderDao;
+    private final DmsShopTradeDao tradeDao;
     private final MemberAssetService memberAssetService;
     private final ShopService shopService;
     private final PaymentPasswordAttemptService passwordAttemptService;
@@ -175,9 +178,14 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         if (orderId == null) Asserts.fail("订单ID不能为空");
         if (dto == null) Asserts.fail("请输入支付密码");
 
-        // 锁住订单行，避免用户重复点击或并发请求造成余额重复扣款。
+        // 只先读取父交易ID，不能在加锁前读取完整订单。否则并发第二个请求等待行锁后，
+        // MyBatis 一级缓存仍可能把刚才的“待支付”快照作为已支付结果返回给前端。
+        Long tradeId = orderDao.selectTradeIdById(orderId);
+        if (tradeId != null) return payCheckout(current, tradeId, dto);
+
+        // 旧订单和单商户订单继续锁住订单行支付。
         DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
-        if (order == null) Asserts.fail("订单不存在");
+        if (order == null) return payCheckout(current, orderId, dto);
         if (!current.getUserId().equals(order.getUserId())) Asserts.fail("不能支付他人的订单");
         if (!ShopOrderStatusEnum.PENDING_PAYMENT.matches(order.getStatus())) {
             if (ShopOrderStatusEnum.isPaidLifecycle(order.getStatus())) return shopService.getOrder(orderId);
@@ -201,6 +209,32 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         log.info("会员余额支付成功: memberId={}, userId={}, orderId={}, orderNo={}, amount={}",
                 current.getId(), current.getUserId(), orderId, order.getOrderNo(), amount);
         return paidOrder;
+    }
+
+    private ShopOrderVO payCheckout(DmsShopMember current, Long checkoutId, BalancePayDTO dto) {
+        DmsShopTrade trade = tradeDao.selectByIdForUpdate(checkoutId);
+        if (trade == null) Asserts.fail("订单或支付交易不存在");
+        if (!current.getUserId().equals(trade.getUserId())) Asserts.fail("不能支付他人的订单");
+        if (!Integer.valueOf(0).equals(trade.getStatus())) {
+            if (Integer.valueOf(1).equals(trade.getStatus())) return shopService.markCheckoutPaid(checkoutId, "BALANCE");
+            Asserts.fail("当前交易状态不能支付");
+        }
+        if (!"BALANCE".equalsIgnoreCase(trade.getPayType())) Asserts.fail("该交易选择的不是余额支付");
+
+        verifyPaymentPassword(current, dto.getPaymentPassword());
+        BigDecimal amount = MoneyValidationUtils.requirePositiveAmount(
+                trade.getPayAmount(), "交易实付金额", MAX_ORDER_PAYMENT_AMOUNT);
+        AssetChangeDTO consume = new AssetChangeDTO();
+        consume.setUserId(current.getUserId());
+        consume.setAmount(amount);
+        consume.setBizType("SHOP_TRADE_BALANCE_PAYMENT");
+        consume.setBizId(String.valueOf(trade.getId()));
+        consume.setRemark("余额支付跨商户交易：" + trade.getTradeNo());
+        memberAssetService.consume(consume);
+        ShopOrderVO paid = shopService.markCheckoutPaid(checkoutId, "BALANCE");
+        log.info("会员余额支付跨商户交易成功: memberId={}, userId={}, tradeId={}, tradeNo={}, amount={}",
+                current.getId(), current.getUserId(), checkoutId, trade.getTradeNo(), amount);
+        return paid;
     }
 
     @Override

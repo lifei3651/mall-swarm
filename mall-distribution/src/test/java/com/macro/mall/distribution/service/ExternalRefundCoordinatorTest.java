@@ -40,16 +40,19 @@ class ExternalRefundCoordinatorTest {
         when(saleDao.selectById(1L)).thenReturn(sale);
         when(saleDao.selectByIdForUpdate(1L)).thenReturn(sale);
         when(saleDao.markRefundCompleted(1L)).thenReturn(1);
-        when(orderDao.selectById(2L)).thenReturn(alipayOrder());
+        DmsShopOrder groupedChild = alipayOrder();
+        groupedChild.setPaymentOrderNo("TRADE-100");
+        when(orderDao.selectById(2L)).thenReturn(groupedChild);
         when(orderItemDao.selectByOrderId(2L)).thenReturn(List.of(orderItem(2)));
         when(saleItemDao.sumApprovedQuantityByOrderId(2L)).thenReturn(2);
         when(alipay.isConfigured()).thenReturn(true);
-        when(alipay.refund("ORDER-2", "AS-1", "99.00", "商城售后退款：测试退款")).thenReturn(true);
+        when(alipay.refund("TRADE-100", "AS-1", "99.00", "商城售后退款：测试退款")).thenReturn(true);
 
         new ExternalRefundCoordinator(saleDao, saleItemDao, orderDao, orderItemDao,
                 agentDao, agentService, alipay, manager).process(1L);
 
         verify(saleDao).markRefundCompleted(1L);
+        verify(alipay).refund("TRADE-100", "AS-1", "99.00", "商城售后退款：测试退款");
         verify(orderDao).closeAfterSale(2L);
         verify(manager).commit(any());
     }

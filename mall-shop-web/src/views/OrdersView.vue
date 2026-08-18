@@ -29,7 +29,7 @@
     <section v-else class="order-card-list">
       <article v-for="item in filteredOrders" :key="item.order.id" class="order-card">
         <RouterLink :to="`/orders/${item.order.id}`" class="order-card-head">
-          <span>{{ item.order.orderNo }}</span>
+          <span>{{ item.order.tradeNo ? `联合支付 ${item.order.tradeNo} · 子订单 ${item.order.orderNo}` : item.order.orderNo }}</span>
           <em v-if="item.order.businessType && item.order.businessType !== 'NORMAL'">{{ item.order.businessType === 'FLASH_SALE' ? '秒杀' : '活动' }}</em>
           <strong>{{ orderDisplayStatus(item) }} <ChevronRight :size="15" /></strong>
         </RouterLink>
@@ -52,8 +52,8 @@
         </div>
         <div class="order-actions">
           <RouterLink class="order-action" :to="`/orders/${item.order.id}`">查看详情</RouterLink>
-          <button v-if="item.order.status === 0" class="order-action" :disabled="actingId === item.order.id" @click="requestOrderAction('cancel', item.order.id)">取消订单</button>
-          <RouterLink v-if="item.order.status === 0" class="order-action primary-action" :to="`/orders/${item.order.id}`">立即支付</RouterLink>
+          <button v-if="item.order.status === 0 && isTradeActionOwner(item)" class="order-action" :disabled="actingId === item.order.id" @click="requestOrderAction('cancel', item.order.id)">{{ item.order.tradeId ? '取消联合订单' : '取消订单' }}</button>
+          <RouterLink v-if="item.order.status === 0 && isTradeActionOwner(item)" class="order-action primary-action" :to="`/orders/${item.order.id}`">{{ item.order.tradeId ? '支付全部子单' : '立即支付' }}</RouterLink>
           <button v-if="item.order.status === 2" class="order-action primary-action" :disabled="actingId === item.order.id" @click="requestOrderAction('receive', item.order.id)">确认收货</button>
           <RouterLink v-if="Number(item.pendingReviewCount || 0) > 0" class="order-action primary-action" :to="`/product/${item.items?.[0]?.productId}`">去评价</RouterLink>
           <RouterLink v-if="canApplyAfterSale(item)" class="order-action" :to="`/orders/${item.order.id}?applyAfterSale=1`">申请售后</RouterLink>
@@ -121,6 +121,8 @@ const tabs = computed(() => [
   { key: 'after-sale', label: '退款/售后', count: Number(orderSummary.value.afterSale || 0) },
 ])
 const filteredOrders = computed(() => orders.value)
+const isTradeActionOwner = (item) => !item.order?.tradeId
+  || filteredOrders.value.find((row) => String(row.order?.tradeId || '') === String(item.order.tradeId))?.order?.id === item.order.id
 const hasMore = computed(() => orders.value.length < total.value)
 const pendingOrder = computed(() => orders.value.find((item) => item.order?.id === pendingOrderAction.value.id)?.order)
 const orderActionDialog = computed(() => pendingOrderAction.value.type === 'receive' ? {
@@ -132,8 +134,10 @@ const orderActionDialog = computed(() => pendingOrderAction.value.type === 'rece
   iconType: 'receive',
   isDanger: false,
 } : {
-  title: '取消这笔订单？',
-  message: `取消订单“${pendingOrder.value?.orderNo || ''}”后，已占用库存会自动释放，此操作无法恢复。`,
+  title: pendingOrder.value?.tradeId ? '取消全部联合订单？' : '取消这笔订单？',
+  message: pendingOrder.value?.tradeId
+    ? `本次会取消联合支付“${pendingOrder.value?.tradeNo || ''}”下的全部商户子订单，并释放全部库存，此操作无法恢复。`
+    : `取消订单“${pendingOrder.value?.orderNo || ''}”后，已占用库存会自动释放，此操作无法恢复。`,
   confirmText: '确认取消',
   cancelText: '保留订单',
   loadingText: '取消中…',

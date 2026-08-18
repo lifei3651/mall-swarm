@@ -16,6 +16,14 @@ public class DmsShopOrder implements Serializable {
 
     private String orderNo;
 
+    /** 跨商户一次结算的交易父单；历史及单商户订单为空。 */
+    private Long tradeId;
+
+    private String tradeNo;
+
+    /** 支付渠道商户单号。跨商户子单为父交易号，历史订单回退到 orderNo。 */
+    private String paymentOrderNo;
+
     private Long tenantId;
 
     private Long merchantId;

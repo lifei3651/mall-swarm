@@ -222,8 +222,6 @@ const validateCheckoutItems = async (rows) => {
     const stockError = stockQuantityViolation(latestStock, item.quantity)
     if (stockError) throw new Error(stockError)
   }
-  const sellers = new Set(rows.map((item) => item.merchantName || '平台自营'))
-  if (sellers.size > 1) throw new Error('不同商户或平台自营商品请分开结算')
   const quantities = new Map()
   rows.forEach((item) => quantities.set(item.id, (quantities.get(item.id) || 0) + Number(item.quantity || 0)))
   for (const item of rows) {

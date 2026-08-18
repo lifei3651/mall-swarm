@@ -71,6 +71,7 @@ public final class ShopPublicViewSanitizer {
             item.setMerchantId(null);
             item.setTeamBonusMode(null);
         });
+        if (value.getChildOrders() != null) value.getChildOrders().forEach(ShopPublicViewSanitizer::order);
         return value;
     }
 }

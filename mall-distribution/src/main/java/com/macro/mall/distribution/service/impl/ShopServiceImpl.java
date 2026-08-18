@@ -91,6 +91,7 @@ public class ShopServiceImpl implements ShopService {
     private final DmsShopSkuDao skuDao;
     private final DmsFreightTemplateDao freightTemplateDao;
     private final DmsShopOrderDao orderDao;
+    private final DmsShopTradeDao tradeDao;
     private final DmsShopOrderItemDao orderItemDao;
     private final DmsShopOrderShipmentDao orderShipmentDao;
     private final DmsShopAddressDao addressDao;
@@ -824,12 +825,9 @@ public class ShopServiceImpl implements ShopService {
             if (flashActivity == null || !tenantId.equals(flashActivity.getTenantId())) Asserts.fail("秒杀活动不存在");
         }
         fillAddress(dto, member);
-        Map<Long, ProductShippingContext> shippingProducts = new LinkedHashMap<>();
+        Map<String, Map<Long, ProductShippingContext>> shippingByMerchant = new LinkedHashMap<>();
         Map<Long, Integer> requestedPurchaseQuantities = new HashMap<>();
         Map<Long, Integer> existingPurchaseQuantities = new HashMap<>();
-        boolean merchantResolved = false;
-        Long orderMerchantId = null;
-        String orderMerchantName = null;
         BigDecimal productAmount = ZERO;
         for (ShopOrderItemDTO item : dto.getItems()) {
             if (item.getProductId() == null) Asserts.fail("商品ID不能为空");
@@ -840,13 +838,6 @@ public class ShopServiceImpl implements ShopService {
             int requestedQuantity = requestedPurchaseQuantities.merge(product.getId(), quantity, Integer::sum);
             validateBusinessProduct(businessType, product, dto.getUserId(), requestedQuantity,
                     existingPurchaseQuantities, flashActivity, item);
-            if (!merchantResolved) {
-                merchantResolved = true;
-                orderMerchantId = product.getMerchantId();
-                orderMerchantName = product.getMerchantName();
-            } else if (!Objects.equals(orderMerchantId, product.getMerchantId())) {
-                Asserts.fail("不同商户或平台自营商品请分开结算");
-            }
             requireSkuSelection(product, item.getSkuId());
             DmsShopSku sku = null;
             if (item.getSkuId() != null) {
@@ -858,9 +849,14 @@ public class ShopServiceImpl implements ShopService {
             BigDecimal price = resolveBusinessPrice(businessType, product, sku, flashActivity);
             BigDecimal lineAmount = price.multiply(BigDecimal.valueOf(quantity));
             productAmount = productAmount.add(lineAmount);
-            mergeShippingProduct(shippingProducts, product, lineAmount);
+            String merchantKey = product.getMerchantId() == null ? "PLATFORM" : "MERCHANT:" + product.getMerchantId();
+            Map<Long, ProductShippingContext> merchantProducts = shippingByMerchant.computeIfAbsent(
+                    merchantKey, ignored -> new LinkedHashMap<>());
+            mergeShippingProduct(merchantProducts, product, lineAmount);
         }
-        BigDecimal freight = calculateFreight(shippingProducts, dto);
+        BigDecimal freight = shippingByMerchant.values().stream()
+                .map(group -> calculateFreight(group, dto))
+                .reduce(ZERO, BigDecimal::add);
         return new FreightQuoteVO(productAmount, freight, productAmount.add(freight));
     }
 
@@ -906,7 +902,8 @@ public class ShopServiceImpl implements ShopService {
         if (ShopBusinessType.FLASH_SALE.equals(businessType)) {
             Asserts.fail("秒杀订单必须从秒杀活动入口提交");
         }
-        return createOrder(dto, member, businessType);
+        member = prepareOrderSubmit(dto, member);
+        return createCheckout(dto, member, businessType);
     }
 
     @Override
@@ -914,10 +911,11 @@ public class ShopServiceImpl implements ShopService {
     public ShopOrderVO submitReservedFlashSaleOrder(ShopOrderSubmitDTO dto, DmsShopMember member) {
         String businessType = businessModeService.normalizeType(dto == null ? null : dto.getBusinessType());
         if (!ShopBusinessType.FLASH_SALE.equals(businessType)) Asserts.fail("秒杀订单业务类型不正确");
-        return createOrder(dto, member, businessType);
+        member = prepareOrderSubmit(dto, member);
+        return createOrder(dto, member, businessType, null, null, true);
     }
 
-    private ShopOrderVO createOrder(ShopOrderSubmitDTO dto, DmsShopMember member, String businessType) {
+    private DmsShopMember prepareOrderSubmit(ShopOrderSubmitDTO dto, DmsShopMember member) {
         if (member != null) {
             DmsShopMember lockedMember = memberDao.selectByIdForUpdate(member.getId());
             if (lockedMember == null || !Integer.valueOf(1).equals(lockedMember.getStatus())) {
@@ -929,6 +927,59 @@ public class ShopServiceImpl implements ShopService {
         fillAddress(dto, member);
         normalizeManualAddress(dto);
         validateSubmit(dto);
+        return member;
+    }
+
+    private ShopOrderVO createCheckout(ShopOrderSubmitDTO dto, DmsShopMember member, String businessType) {
+        LinkedHashMap<String, List<ShopOrderItemDTO>> merchantGroups = groupSubmitItemsByMerchant(dto.getItems());
+        if (merchantGroups.size() <= 1) {
+            return createOrder(dto, member, businessType, null, null, true);
+        }
+        if (!ShopBusinessType.NORMAL.equals(businessType) && !ShopBusinessType.REPURCHASE.equals(businessType)) {
+            Asserts.fail("当前活动订单不能跨商户合并支付");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        Long tradeId = IdUtil.getSnowflakeNextId();
+        String tradeNo = generateTradeNo(tradeId, now);
+        List<ShopOrderVO> children = new ArrayList<>();
+        BigDecimal totalAmount = ZERO;
+        BigDecimal freightAmount = ZERO;
+        BigDecimal discountAmount = ZERO;
+        BigDecimal payAmount = ZERO;
+        for (List<ShopOrderItemDTO> group : merchantGroups.values()) {
+            ShopOrderVO child = createOrder(copySubmit(dto, group), member, businessType, tradeId, tradeNo, false);
+            children.add(child);
+            totalAmount = totalAmount.add(money(child.getOrder().getTotalAmount()));
+            freightAmount = freightAmount.add(money(child.getOrder().getFreightAmount()));
+            discountAmount = discountAmount.add(money(child.getOrder().getDiscountAmount()));
+            payAmount = payAmount.add(money(child.getOrder().getPayAmount()));
+        }
+        paymentVerificationService.verifyIfRequired(member, payAmount, dto.getSmsCode());
+
+        DmsShopTrade trade = new DmsShopTrade();
+        trade.setId(tradeId);
+        trade.setTradeNo(tradeNo);
+        trade.setTenantId(children.get(0).getOrder().getTenantId());
+        trade.setUserId(children.get(0).getOrder().getUserId());
+        trade.setPayType(children.get(0).getOrder().getPayType());
+        trade.setTotalAmount(money(totalAmount));
+        trade.setFreightAmount(money(freightAmount));
+        trade.setDiscountAmount(money(discountAmount));
+        trade.setPayAmount(money(payAmount));
+        trade.setStatus(0);
+        if (tradeDao.insert(trade) != 1) Asserts.fail("交易父单创建失败");
+
+        ShopOrderVO result = children.get(0);
+        result.setCheckoutId(tradeId);
+        result.setCheckoutNo(tradeNo);
+        result.setGroupedCheckout(true);
+        result.setChildOrders(children);
+        return result;
+    }
+
+    private ShopOrderVO createOrder(ShopOrderSubmitDTO dto, DmsShopMember member, String businessType,
+                                    Long tradeId, String tradeNo, boolean verifyPayment) {
         DmsAgent ownerAgent = resolveOwnerAgent(dto);
         LocalDateTime now = LocalDateTime.now();
         Long orderId = IdUtil.getSnowflakeNextId();
@@ -1034,11 +1085,14 @@ public class ShopServiceImpl implements ShopService {
 
         BigDecimal freightAmount = calculateFreight(shippingProducts, dto);
         BigDecimal payAmount = totalAmount.add(freightAmount);
-        paymentVerificationService.verifyIfRequired(member, payAmount, dto.getSmsCode());
+        if (verifyPayment) paymentVerificationService.verifyIfRequired(member, payAmount, dto.getSmsCode());
 
         DmsShopOrder order = new DmsShopOrder();
         order.setId(orderId);
         order.setOrderNo(orderNo);
+        order.setTradeId(tradeId);
+        order.setTradeNo(tradeNo);
+        order.setPaymentOrderNo(tradeNo == null ? orderNo : tradeNo);
         order.setTenantId(tenantId);
         order.setMerchantId(orderMerchantId);
         order.setMerchantName(orderMerchantName);
@@ -1354,6 +1408,77 @@ public class ShopServiceImpl implements ShopService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public ShopOrderVO markCheckoutPaid(Long checkoutId, String payType) {
+        DmsShopTrade trade = tradeDao.selectByIdForUpdate(checkoutId);
+        if (trade == null) Asserts.fail("支付交易不存在");
+        assertTenantAccess(trade.getTenantId());
+        List<DmsShopOrder> children = orderDao.selectByTradeIdForUpdate(checkoutId);
+        if (children.isEmpty()) Asserts.fail("支付交易没有履约子订单");
+        if (Integer.valueOf(1).equals(trade.getStatus())) return checkoutResult(trade);
+        if (!Integer.valueOf(0).equals(trade.getStatus())) Asserts.fail("当前交易状态不能支付");
+        String normalizedPayType = payType == null ? "" : payType.trim().toUpperCase(Locale.ROOT);
+        if (!normalizedPayType.equalsIgnoreCase(trade.getPayType())) {
+            Asserts.fail("支付方式与交易父单不一致，已停止支付");
+        }
+
+        BigDecimal childPayTotal = children.stream().map(DmsShopOrder::getPayAmount)
+                .map(this::money).reduce(ZERO, BigDecimal::add);
+        if (money(trade.getPayAmount()).compareTo(money(childPayTotal)) != 0) {
+            Asserts.fail("交易父单与子订单金额不一致，已停止支付");
+        }
+        for (DmsShopOrder child : children) {
+            if (!Integer.valueOf(0).equals(child.getStatus())) Asserts.fail("存在非待支付子订单，已停止整单支付");
+            if (!Objects.equals(trade.getTradeNo(), child.getPaymentOrderNo())) {
+                Asserts.fail("子订单支付单号与交易父单不一致，已停止支付");
+            }
+            merchantService.assertOrderCanBePaid(child.getId());
+        }
+        // 必须先验证完全部子单，再开始任何入账、奖金、结算和履约副作用。
+        // 即使后续代码仍由同一数据库事务兜底，也不能让前一个子单先进入业务处理后才发现后一个子单异常。
+        for (DmsShopOrder child : children) {
+            markOrderPaid(child.getId(), normalizedPayType);
+        }
+        if (tradeDao.markPaid(checkoutId, normalizedPayType) != 1) Asserts.fail("交易父单支付状态更新失败");
+        return checkoutResult(tradeDao.selectById(checkoutId));
+    }
+
+    private ShopOrderVO checkoutResult(DmsShopTrade trade) {
+        if (trade == null) Asserts.fail("支付交易不存在");
+        List<ShopOrderVO> children = orderDao.selectByTradeId(trade.getId()).stream().map(order -> getOrder(order.getId())).toList();
+        if (children.isEmpty()) Asserts.fail("支付交易没有履约子订单");
+        ShopOrderVO result = children.get(0);
+        result.setCheckoutId(trade.getId());
+        result.setCheckoutNo(trade.getTradeNo());
+        result.setGroupedCheckout(true);
+        result.setChildOrders(children);
+        return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean cancelCheckout(Long checkoutId, DmsShopMember member) {
+        DmsShopTrade trade = tradeDao.selectByIdForUpdate(checkoutId);
+        if (trade == null) Asserts.fail("支付交易不存在");
+        assertTenantAccess(trade.getTenantId());
+        if (member != null && !member.getUserId().equals(trade.getUserId())) Asserts.fail("不能取消他人的订单");
+        if (Integer.valueOf(4).equals(trade.getStatus())) return true;
+        if (!Integer.valueOf(0).equals(trade.getStatus())) Asserts.fail("当前交易状态不能取消");
+        List<DmsShopOrder> children = orderDao.selectByTradeIdForUpdate(checkoutId);
+        if (children.isEmpty()) Asserts.fail("支付交易没有履约子订单");
+        for (DmsShopOrder child : children) {
+            if (!Integer.valueOf(0).equals(child.getStatus())) Asserts.fail("存在非待支付子订单，不能取消整笔交易");
+        }
+        for (DmsShopOrder child : children) {
+            if (orderDao.cancel(child.getId()) != 1) Asserts.fail("子订单取消失败");
+            restockOrder(child.getId());
+            notifyOrderChanged(child, "ORDER_CANCELLED");
+        }
+        if (tradeDao.closePending(checkoutId) != 1) Asserts.fail("交易父单关闭失败");
+        return true;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean cancelOrder(Long orderId, DmsShopMember member) {
         DmsShopOrder order = orderDao.selectById(orderId);
         if (order == null) {
@@ -1363,6 +1488,7 @@ public class ShopServiceImpl implements ShopService {
         if (member != null && !member.getUserId().equals(order.getUserId())) {
             Asserts.fail("不能取消他人的订单");
         }
+        if (order.getTradeId() != null) return cancelCheckout(order.getTradeId(), member);
         if (!Integer.valueOf(0).equals(order.getStatus())) {
             Asserts.fail("当前订单状态不能取消");
         }
@@ -1381,6 +1507,11 @@ public class ShopServiceImpl implements ShopService {
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(Math.max(1, pendingOrderTimeoutMinutes));
         int closed = 0;
         for (Long orderId : orderDao.selectExpiredPendingIds(cutoff, safeLimit)) {
+            DmsShopOrder candidate = orderDao.selectById(orderId);
+            if (candidate != null && candidate.getTradeId() != null && Integer.valueOf(0).equals(candidate.getStatus())) {
+                closed += closeExpiredCheckout(candidate.getTradeId(), cutoff);
+                continue;
+            }
             DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
             if (order != null && Integer.valueOf(0).equals(order.getStatus())
                     && order.getCreateTime() != null && !order.getCreateTime().isAfter(cutoff)
@@ -1390,6 +1521,23 @@ public class ShopServiceImpl implements ShopService {
                 closed++;
             }
         }
+        return closed;
+    }
+
+    private int closeExpiredCheckout(Long checkoutId, LocalDateTime cutoff) {
+        DmsShopTrade trade = tradeDao.selectByIdForUpdate(checkoutId);
+        if (trade == null || !Integer.valueOf(0).equals(trade.getStatus())
+                || trade.getCreateTime() == null || trade.getCreateTime().isAfter(cutoff)) return 0;
+        List<DmsShopOrder> children = orderDao.selectByTradeIdForUpdate(checkoutId);
+        if (children.isEmpty() || children.stream().anyMatch(order -> !Integer.valueOf(0).equals(order.getStatus()))) return 0;
+        int closed = 0;
+        for (DmsShopOrder child : children) {
+            if (orderDao.closePending(child.getId()) != 1) Asserts.fail("超时子订单关闭失败");
+            restockOrder(child.getId());
+            notifyOrderChanged(child, "ORDER_TIMEOUT_CLOSED");
+            closed++;
+        }
+        if (tradeDao.closePending(checkoutId) != 1) Asserts.fail("超时交易父单关闭失败");
         return closed;
     }
 
@@ -1561,6 +1709,38 @@ public class ShopServiceImpl implements ShopService {
                 Asserts.fail("商品ID不能为空");
             }
         }
+    }
+
+    private LinkedHashMap<String, List<ShopOrderItemDTO>> groupSubmitItemsByMerchant(List<ShopOrderItemDTO> items) {
+        LinkedHashMap<String, List<ShopOrderItemDTO>> groups = new LinkedHashMap<>();
+        for (ShopOrderItemDTO item : items) {
+            DmsShopProduct product = item == null || item.getProductId() == null
+                    ? null : productDao.selectById(item.getProductId());
+            if (product == null || !Integer.valueOf(1).equals(product.getStatus())) {
+                Asserts.fail("商品不存在或已下架");
+            }
+            assertTenantAccess(product.getTenantId());
+            String key = product.getMerchantId() == null ? "PLATFORM" : "MERCHANT:" + product.getMerchantId();
+            groups.computeIfAbsent(key, ignored -> new ArrayList<>()).add(item);
+        }
+        return groups;
+    }
+
+    private ShopOrderSubmitDTO copySubmit(ShopOrderSubmitDTO source, List<ShopOrderItemDTO> items) {
+        ShopOrderSubmitDTO copy = new ShopOrderSubmitDTO();
+        copy.setUserId(source.getUserId()); copy.setAgentId(source.getAgentId()); copy.setInviteCode(source.getInviteCode());
+        copy.setAddressId(source.getAddressId()); copy.setReceiverName(source.getReceiverName()); copy.setReceiverPhone(source.getReceiverPhone());
+        copy.setReceiverAddress(source.getReceiverAddress()); copy.setReceiverProvince(source.getReceiverProvince()); copy.setReceiverCity(source.getReceiverCity());
+        copy.setReceiverDistrict(source.getReceiverDistrict()); copy.setReceiverDetailAddress(source.getReceiverDetailAddress());
+        copy.setPayType(source.getPayType()); copy.setRemark(source.getRemark()); copy.setBusinessType(source.getBusinessType());
+        copy.setBusinessSourceId(source.getBusinessSourceId()); copy.setSmsCode(source.getSmsCode()); copy.setItems(new ArrayList<>(items));
+        return copy;
+    }
+
+    private String generateTradeNo(Long tradeId, LocalDateTime time) {
+        String date = (time == null ? LocalDateTime.now() : time).format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        String suffix = String.valueOf(Math.abs(tradeId == null ? 0L : tradeId) % 1_000_000L);
+        return "T" + date + "0".repeat(Math.max(0, 6 - suffix.length())) + suffix;
     }
 
     private DmsAgent resolveOwnerAgent(ShopOrderSubmitDTO dto) {

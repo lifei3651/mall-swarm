@@ -3,7 +3,9 @@ package com.macro.mall.distribution.service.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.macro.mall.distribution.config.AlipayConfig;
 import com.macro.mall.distribution.dao.DmsShopOrderDao;
+import com.macro.mall.distribution.dao.DmsShopTradeDao;
 import com.macro.mall.distribution.entity.DmsShopOrder;
+import com.macro.mall.distribution.entity.DmsShopTrade;
 import com.macro.mall.distribution.service.ShopService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,12 +22,14 @@ class AlipayNotifyFailureTest {
     private AlipayConfig config;
     private DmsShopOrderDao orderDao;
     private ShopService shopService;
+    private DmsShopTradeDao tradeDao;
 
     @BeforeEach
     void setUp() {
         config = mock(AlipayConfig.class);
         orderDao = mock(DmsShopOrderDao.class);
         shopService = mock(ShopService.class);
+        tradeDao = mock(DmsShopTradeDao.class);
         when(config.isConfigured()).thenReturn(true);
         when(config.getAppId()).thenReturn("test-app-id");
     }
@@ -84,8 +88,46 @@ class AlipayNotifyFailureTest {
         verify(shopService, times(1)).markOrderPaid(101L, "ALIPAY");
     }
 
+    @Test
+    void groupedTradeCallbackMarksAllChildrenThroughParentTrade() {
+        AlipayServiceImpl service = service(true);
+        when(tradeDao.selectByTradeNoForUpdate("ORDER-1")).thenReturn(pendingTrade());
+
+        assertEquals("success", service.handleNotify(validParams()));
+
+        verify(shopService).markCheckoutPaid(201L, "ALIPAY");
+        verifyNoInteractions(orderDao);
+    }
+
+    @Test
+    void groupedTradeAmountMismatchIsRejectedBeforePostingChildren() {
+        AlipayServiceImpl service = service(true);
+        DmsShopTrade trade = pendingTrade();
+        trade.setPayAmount(new BigDecimal("100.00"));
+        when(tradeDao.selectByTradeNoForUpdate("ORDER-1")).thenReturn(trade);
+
+        assertEquals("failure", service.handleNotify(validParams()));
+
+        verify(shopService, never()).markCheckoutPaid(anyLong(), anyString());
+        verifyNoInteractions(orderDao);
+    }
+
+    @Test
+    void duplicateGroupedTradeCallbackDoesNotPostChildrenAgain() {
+        AlipayServiceImpl service = service(true);
+        DmsShopTrade paid = pendingTrade();
+        paid.setStatus(1);
+        when(tradeDao.selectByTradeNoForUpdate("ORDER-1")).thenReturn(pendingTrade(), paid);
+
+        assertEquals("success", service.handleNotify(validParams()));
+        assertEquals("success", service.handleNotify(validParams()));
+
+        verify(shopService, times(1)).markCheckoutPaid(201L, "ALIPAY");
+        verifyNoInteractions(orderDao);
+    }
+
     private AlipayServiceImpl service(boolean signatureValid) {
-        return new AlipayServiceImpl(config, orderDao, shopService, new ObjectMapper()) {
+        return new AlipayServiceImpl(config, orderDao, tradeDao, shopService, new ObjectMapper()) {
             @Override
             protected boolean verifyNotifySignature(Map<String, String> params) {
                 return signatureValid;
@@ -110,5 +152,14 @@ class AlipayNotifyFailureTest {
         order.setStatus(0);
         order.setPayAmount(new BigDecimal("99.00"));
         return order;
+    }
+
+    private DmsShopTrade pendingTrade() {
+        DmsShopTrade trade = new DmsShopTrade();
+        trade.setId(201L);
+        trade.setTradeNo("ORDER-1");
+        trade.setStatus(0);
+        trade.setPayAmount(new BigDecimal("99.00"));
+        return trade;
     }
 }

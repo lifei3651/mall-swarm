@@ -19,6 +19,20 @@ public class ShopOrderVO implements Serializable {
 
     private DmsShopOrder order;
 
+    /** 本次一次支付使用的父交易ID；单商户订单为空并继续使用 order.id。 */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Long checkoutId;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String checkoutNo;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Boolean groupedCheckout;
+
+    /** 仅跨商户提交结果返回各商户履约子单。 */
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private List<ShopOrderVO> childOrders;
+
     /** 下单人的登录账号。 */
     private String memberAccount;
 

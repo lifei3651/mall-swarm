@@ -86,6 +86,15 @@ describe('商城订单取消入口', () => {
     expect(source).toContain('手机号或客服备注')
   })
 
+  it('平台后台明确标识商户子订单并可按联合支付单号搜索', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('联合支付单号')
+    expect(source).toContain('row.order?.tradeNo')
+    expect(source).toContain('联合支付 {{ row.order.tradeNo }}')
+    expect(source).toContain('商户子订单')
+  })
+
   it('后台退款遵循服务端售后配置，不再自行写死下单后7天', async () => {
     const source = await readFile(sourcePath, 'utf8')
 

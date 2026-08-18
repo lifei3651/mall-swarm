@@ -59,7 +59,9 @@ public class ExternalRefundCoordinator {
             Asserts.fail("退款处理中订单不存在或支付方式不正确");
         }
         if (!alipayService.isConfigured()) Asserts.fail("支付宝退款未配置，请先完成支付宝密钥配置");
-        boolean success = alipayService.refund(order.getOrderNo(), afterSale.getAfterSaleNo(),
+        String paymentOrderNo = order.getPaymentOrderNo() == null || order.getPaymentOrderNo().isBlank()
+                ? order.getOrderNo() : order.getPaymentOrderNo();
+        boolean success = alipayService.refund(paymentOrderNo, afterSale.getAfterSaleNo(),
                 afterSale.getRefundAmount().setScale(2, RoundingMode.HALF_UP).toPlainString(),
                 "商城售后退款：" + (afterSale.getReason() == null ? "后台处理" : afterSale.getReason()));
         if (!success) Asserts.fail("支付宝退款失败，售后已保留在退款处理中，可核对后重试");
