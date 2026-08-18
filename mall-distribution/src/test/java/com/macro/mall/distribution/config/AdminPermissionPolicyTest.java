@@ -58,6 +58,10 @@ class AdminPermissionPolicyTest {
                 "POST", "/shop/admin/service-addresses"));
         assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
                 "POST", "/distribution/merchant-finance/withdrawals"));
+        assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "POST", "/distribution/merchant-finance/withdrawals/12/cancel"));
+        assertFalse(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "POST", "/distribution/merchant-finance/withdrawals/12/risk-freeze"));
         assertFalse(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
                 "POST", "/distribution/merchant-finance/deposits/receive"));
     }

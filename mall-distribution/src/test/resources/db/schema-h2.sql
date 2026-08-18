@@ -824,7 +824,8 @@ CREATE TABLE IF NOT EXISTS dms_merchant_ledger (
   paid_after DECIMAL(14,2) NOT NULL DEFAULT 0,
   operator_id BIGINT,
   operator_name VARCHAR(64),
-  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(tenant_id, merchant_id, biz_type, biz_id)
 );
 
 CREATE TABLE IF NOT EXISTS dms_merchant_settlement (
@@ -885,6 +886,7 @@ CREATE TABLE IF NOT EXISTS dms_merchant_withdrawal (
   payment_reference VARCHAR(128),
   payment_voucher_url VARCHAR(512),
   status VARCHAR(20) NOT NULL DEFAULT 'SUBMITTED',
+  resume_status VARCHAR(24),
   reject_reason VARCHAR(256),
   operator_id BIGINT,
   operator_name VARCHAR(64),

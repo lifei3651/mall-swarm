@@ -5,6 +5,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import java.util.List;
 import com.macro.mall.distribution.dto.MerchantControlDTO;
+import com.macro.mall.distribution.vo.MerchantExitReadinessVO;
 
 @Mapper
 public interface DmsMerchantDao {
@@ -18,4 +19,6 @@ public interface DmsMerchantDao {
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
     int updateControls(@Param("id") Long id, @Param("status") Integer status,
                        @Param("control") MerchantControlDTO control);
+    MerchantExitReadinessVO selectExitReadiness(@Param("tenantId") Long tenantId,
+                                                @Param("merchantId") Long merchantId);
 }

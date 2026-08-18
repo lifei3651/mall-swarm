@@ -4,6 +4,7 @@ import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.distribution.dto.MerchantDepositAdjustDTO;
 import com.macro.mall.distribution.dto.MerchantControlDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalApplyDTO;
+import com.macro.mall.distribution.dto.MerchantWithdrawalActionDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalPayDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalRejectDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalReviewDTO;
@@ -15,6 +16,8 @@ import com.macro.mall.distribution.entity.DmsMerchantSettlement;
 import com.macro.mall.distribution.entity.DmsMerchantWithdrawal;
 import com.macro.mall.distribution.entity.DmsMerchantWithdrawalEvent;
 import com.macro.mall.distribution.service.MerchantService;
+import com.macro.mall.distribution.vo.MerchantBalanceReconciliationVO;
+import com.macro.mall.distribution.vo.MerchantExitReadinessVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -61,6 +64,12 @@ public class MerchantController {
         return CommonResult.success(merchantService.updateMerchantControls(id, dto));
     }
 
+    @Operation(summary = "检查商户是否满足最终退出条件")
+    @GetMapping("/merchants/{id}/exit-readiness")
+    public CommonResult<MerchantExitReadinessVO> exitReadiness(@PathVariable Long id) {
+        return CommonResult.success(merchantService.getExitReadiness(id));
+    }
+
     @Operation(summary = "商户货款账户")
     @GetMapping("/merchant-finance/accounts")
     public CommonResult<List<DmsMerchantAccount>> accounts(@RequestParam(required = false) String keyword) {
@@ -100,6 +109,13 @@ public class MerchantController {
         return CommonResult.success(merchantService.listLedgers(merchantId, bizType));
     }
 
+    @Operation(summary = "核对商户账户余额与最后一笔资金总账")
+    @GetMapping("/merchant-finance/reconciliation")
+    public CommonResult<List<MerchantBalanceReconciliationVO>> reconciliation(
+            @RequestParam(required = false) Long merchantId) {
+        return CommonResult.success(merchantService.reconcileBalances(merchantId));
+    }
+
     @Operation(summary = "从商户可提现余额冻结保证金")
     @PostMapping("/merchant-finance/deposits/freeze")
     public CommonResult<DmsMerchantDepositFlow> freezeDeposit(@Valid @RequestBody MerchantDepositAdjustDTO dto) {
@@ -136,6 +152,46 @@ public class MerchantController {
     public CommonResult<DmsMerchantWithdrawal> pay(@PathVariable Long id,
                                                     @Valid @RequestBody MerchantWithdrawalPayDTO dto) {
         return CommonResult.success(merchantService.confirmPayment(id, dto));
+    }
+
+    @Operation(summary = "标记商户提现进入付款处理中")
+    @PostMapping("/merchant-finance/withdrawals/{id}/payment-processing")
+    public CommonResult<DmsMerchantWithdrawal> startPayment(@PathVariable Long id) {
+        return CommonResult.success(merchantService.startWithdrawalPayment(id));
+    }
+
+    @Operation(summary = "登记商户提现付款失败")
+    @PostMapping("/merchant-finance/withdrawals/{id}/payment-failed")
+    public CommonResult<DmsMerchantWithdrawal> paymentFailed(@PathVariable Long id,
+                                                              @Valid @RequestBody MerchantWithdrawalActionDTO dto) {
+        return CommonResult.success(merchantService.markWithdrawalPaymentFailed(id, dto));
+    }
+
+    @Operation(summary = "商户撤回提现申请")
+    @PostMapping("/merchant-finance/withdrawals/{id}/cancel")
+    public CommonResult<DmsMerchantWithdrawal> cancel(@PathVariable Long id,
+                                                       @Valid @RequestBody MerchantWithdrawalActionDTO dto) {
+        return CommonResult.success(merchantService.cancelWithdrawal(id, dto));
+    }
+
+    @Operation(summary = "风控冻结商户提现")
+    @PostMapping("/merchant-finance/withdrawals/{id}/risk-freeze")
+    public CommonResult<DmsMerchantWithdrawal> riskFreeze(@PathVariable Long id,
+                                                           @Valid @RequestBody MerchantWithdrawalActionDTO dto) {
+        return CommonResult.success(merchantService.riskFreezeWithdrawal(id, dto));
+    }
+
+    @Operation(summary = "解除商户提现风控冻结并恢复原状态")
+    @PostMapping("/merchant-finance/withdrawals/{id}/risk-resume")
+    public CommonResult<DmsMerchantWithdrawal> riskResume(@PathVariable Long id,
+                                                           @Valid @RequestBody MerchantWithdrawalActionDTO dto) {
+        return CommonResult.success(merchantService.resumeWithdrawal(id, dto));
+    }
+
+    @Operation(summary = "确认商户提现资料归档完成")
+    @PostMapping("/merchant-finance/withdrawals/{id}/complete")
+    public CommonResult<DmsMerchantWithdrawal> complete(@PathVariable Long id) {
+        return CommonResult.success(merchantService.completeWithdrawal(id));
     }
 
     @Operation(summary = "驳回商户提现")

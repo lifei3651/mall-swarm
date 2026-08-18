@@ -30,6 +30,8 @@ public class DmsMerchantWithdrawal implements Serializable {
     private String paymentReference;
     private String paymentVoucherUrl;
     private String status;
+    /** 风控冻结前的业务状态，用于审核后准确恢复。 */
+    private String resumeStatus;
     private String rejectReason;
     private Long operatorId;
     private String operatorName;

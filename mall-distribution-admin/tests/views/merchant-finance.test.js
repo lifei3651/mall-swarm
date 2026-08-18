@@ -28,4 +28,19 @@ describe('商户货款提现', () => {
     expect(source).toContain('bankAccountNoSnapshot')
     expect(source).toContain('depositShortfallAmount')
   })
+
+  it('覆盖付款异常、撤回、风控冻结和账本对账闭环', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('PAYMENT_PROCESSING')
+    expect(source).toContain('PAYMENT_FAILED')
+    expect(source).toContain('RISK_FROZEN')
+    expect(source).toContain('cancelMerchantWithdrawal')
+    expect(source).toContain('startMerchantWithdrawalPayment')
+    expect(source).toContain('failMerchantWithdrawalPayment')
+    expect(source).toContain('completeMerchantWithdrawal')
+    expect(source).toContain('账本对账')
+    expect(source).toContain('merchantCanManageFunds')
+    expect(source).toContain('账户减总账差额')
+  })
 })

@@ -8,6 +8,8 @@ import com.macro.mall.distribution.dto.*;
 import com.macro.mall.distribution.entity.*;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.MerchantService;
+import com.macro.mall.distribution.vo.MerchantBalanceReconciliationVO;
+import com.macro.mall.distribution.vo.MerchantExitReadinessVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,8 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -71,6 +76,7 @@ public class MerchantServiceImpl implements MerchantService {
         account.setTenantId(merchant.getTenantId());
         account.setMerchantId(merchant.getId());
         accountDao.insert(account);
+        recordOpeningLedger(merchant);
         return merchantDao.selectById(merchant.getId());
     }
 
@@ -122,6 +128,7 @@ public class MerchantServiceImpl implements MerchantService {
         requirePlatformAdmin();
         DmsMerchant merchant = requireMerchant(id, false);
         normalizeControls(dto);
+        validateExitTransition(merchant, dto);
         int compatibilityStatus = "ACTIVE".equals(dto.getBusinessStatus())
                 && "APPROVED".equals(dto.getAuditStatus()) && "NORMAL".equals(dto.getExitStatus()) ? 1 : 0;
         if (merchantDao.updateControls(id, compatibilityStatus, dto) != 1) Asserts.fail("商户控制状态更新失败");
@@ -130,6 +137,28 @@ public class MerchantServiceImpl implements MerchantService {
         operationLogService.log("MERCHANT", "CONTROL_UPDATE", "MERCHANT", String.valueOf(id),
                 controlSummary(merchant), controlSummary(dto), "调整商户业务能力，原因：" + dto.getReason().trim());
         return merchantDao.selectById(id);
+    }
+
+    @Override
+    public MerchantExitReadinessVO getExitReadiness(Long id) {
+        requirePlatformAdmin();
+        requireMerchant(id, false);
+        MerchantExitReadinessVO readiness = merchantDao.selectExitReadiness(tenantId(), id);
+        if (readiness == null) Asserts.fail("商户退出检查失败");
+        List<String> blockers = new ArrayList<>();
+        addCountBlocker(blockers, readiness.getActiveProductCount(), "仍有上架商品");
+        addCountBlocker(blockers, readiness.getUnfinishedOrderCount(), "仍有待付款、待发货或待收货订单");
+        addCountBlocker(blockers, readiness.getOpenAfterSaleCount(), "仍有处理中售后");
+        addCountBlocker(blockers, readiness.getPendingSettlementCount(), "仍有待结算货款");
+        addCountBlocker(blockers, readiness.getActiveWithdrawalCount(), "仍有未结束提现单");
+        addMoneyBlocker(blockers, readiness.getPendingAmount(), "待结算余额");
+        addMoneyBlocker(blockers, readiness.getAvailableAmount(), "可提现余额");
+        addMoneyBlocker(blockers, readiness.getFrozenAmount(), "提现冻结余额");
+        addMoneyBlocker(blockers, readiness.getDepositAmount(), "未释放保证金");
+        addMoneyBlocker(blockers, readiness.getDebtAmount(), "退款欠款");
+        readiness.setBlockers(blockers);
+        readiness.setReady(blockers.isEmpty());
+        return readiness;
     }
 
     @Override
@@ -185,6 +214,50 @@ public class MerchantServiceImpl implements MerchantService {
         merchantId = resolveMerchantScope(merchantId);
         if (merchantId != null) requireMerchant(merchantId, false);
         return ledgerDao.selectList(tenantId(), merchantId, upper(bizType));
+    }
+
+    @Override
+    public List<MerchantBalanceReconciliationVO> reconcileBalances(Long merchantId) {
+        merchantId = resolveMerchantScope(merchantId);
+        if (merchantId != null) requireMerchant(merchantId, false);
+        List<DmsMerchantAccount> accounts;
+        if (merchantId == null) {
+            accounts = accountDao.selectList(tenantId(), null);
+        } else {
+            DmsMerchantAccount own = accountDao.selectByMerchantId(merchantId);
+            accounts = own == null ? List.of() : List.of(own);
+        }
+        Map<Long, DmsMerchantLedger> latestByMerchant = new HashMap<>();
+        for (DmsMerchantLedger row : ledgerDao.selectLatestList(tenantId(), merchantId)) {
+            latestByMerchant.put(row.getMerchantId(), row);
+        }
+        List<MerchantBalanceReconciliationVO> result = new ArrayList<>();
+        for (DmsMerchantAccount account : accounts) {
+            if (account == null) continue;
+            DmsMerchantLedger ledger = latestByMerchant.get(account.getMerchantId());
+            MerchantBalanceReconciliationVO row = new MerchantBalanceReconciliationVO();
+            row.setMerchantId(account.getMerchantId());
+            row.setMerchantName(account.getMerchantName());
+            row.setLedgerInitialized(ledger != null);
+            row.setLatestLedgerNo(ledger == null ? null : ledger.getLedgerNo());
+            row.setLatestLedgerTime(ledger == null ? null : ledger.getCreateTime());
+            row.setPendingAmount(money(account.getPendingAmount()));
+            row.setAvailableAmount(money(account.getAvailableAmount()));
+            row.setFrozenAmount(money(account.getFrozenAmount()));
+            row.setDepositAmount(money(account.getDepositFrozenAmount()));
+            row.setDebtAmount(money(account.getDebtAmount()));
+            row.setPaidAmount(money(account.getTotalPaidAmount()));
+            row.setPendingDifference(difference(account.getPendingAmount(), ledger == null ? null : ledger.getPendingAfter()));
+            row.setAvailableDifference(difference(account.getAvailableAmount(), ledger == null ? null : ledger.getAvailableAfter()));
+            row.setFrozenDifference(difference(account.getFrozenAmount(), ledger == null ? null : ledger.getFrozenAfter()));
+            row.setDepositDifference(difference(account.getDepositFrozenAmount(), ledger == null ? null : ledger.getDepositAfter()));
+            row.setDebtDifference(difference(account.getDebtAmount(), ledger == null ? null : ledger.getDebtAfter()));
+            row.setPaidDifference(difference(account.getTotalPaidAmount(), ledger == null ? null : ledger.getPaidAfter()));
+            row.setConsistent(ledger != null && allZero(row.getPendingDifference(), row.getAvailableDifference(),
+                    row.getFrozenDifference(), row.getDepositDifference(), row.getDebtDifference(), row.getPaidDifference()));
+            result.add(row);
+        }
+        return result;
     }
 
     @Override
@@ -294,7 +367,7 @@ public class MerchantServiceImpl implements MerchantService {
     @Transactional(rollbackFor = Exception.class)
     public DmsMerchantWithdrawal confirmPayment(Long id, MerchantWithdrawalPayDTO dto) {
         requirePlatformAdmin();
-        DmsMerchantWithdrawal withdrawal = requireWithdrawalForUpdate(id, Set.of("READY_TO_PAY"));
+        DmsMerchantWithdrawal withdrawal = requireWithdrawalForUpdate(id, Set.of("READY_TO_PAY", "PAYMENT_PROCESSING"));
         if ("PENDING".equals(withdrawal.getInvoiceStatus())) Asserts.fail("尚未收到约定发票，不能确认打款");
         BigDecimal expected = money(withdrawal.getRequestedAmount()).add(money(withdrawal.getAdjustmentAmount()));
         BigDecimal paid = money(dto == null ? null : dto.getActualPaidAmount());
@@ -311,6 +384,13 @@ public class MerchantServiceImpl implements MerchantService {
             Asserts.fail("商户冻结余额不足，不能确认打款");
         }
         String previousStatus = withdrawal.getStatus();
+        if ("READY_TO_PAY".equals(previousStatus)) {
+            withdrawal.setStatus("PAYMENT_PROCESSING");
+            applyOperator(withdrawal);
+            withdrawalDao.update(withdrawal);
+            recordWithdrawalEvent(withdrawal, "READY_TO_PAY", "PAYMENT_PROCESSING", "财务开始付款处理");
+            previousStatus = "PAYMENT_PROCESSING";
+        }
         withdrawal.setActualPaidAmount(paid);
         withdrawal.setPaymentReference(trim(dto == null ? null : dto.getPaymentReference()));
         withdrawal.setPaymentVoucherUrl(trim(dto == null ? null : dto.getPaymentVoucherUrl()));
@@ -328,9 +408,39 @@ public class MerchantServiceImpl implements MerchantService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public DmsMerchantWithdrawal startWithdrawalPayment(Long id) {
+        requirePlatformAdmin();
+        DmsMerchantWithdrawal withdrawal = requireWithdrawalForUpdate(id, Set.of("READY_TO_PAY", "PAYMENT_FAILED"));
+        if ("PENDING".equals(withdrawal.getInvoiceStatus())) Asserts.fail("尚未收到约定发票，不能开始付款");
+        String previous = withdrawal.getStatus();
+        withdrawal.setStatus("PAYMENT_PROCESSING");
+        withdrawal.setRejectReason(null);
+        applyOperator(withdrawal);
+        withdrawalDao.update(withdrawal);
+        recordWithdrawalEvent(withdrawal, previous, "PAYMENT_PROCESSING",
+                "PAYMENT_FAILED".equals(previous) ? "财务重新发起付款" : "财务开始付款处理");
+        return withdrawalDao.selectById(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public DmsMerchantWithdrawal markWithdrawalPaymentFailed(Long id, MerchantWithdrawalActionDTO dto) {
+        requirePlatformAdmin();
+        DmsMerchantWithdrawal withdrawal = requireWithdrawalForUpdate(id, Set.of("PAYMENT_PROCESSING"));
+        String reason = actionReason(dto, "请填写付款失败原因");
+        withdrawal.setStatus("PAYMENT_FAILED");
+        withdrawal.setRejectReason(reason);
+        applyOperator(withdrawal);
+        withdrawalDao.update(withdrawal);
+        recordWithdrawalEvent(withdrawal, "PAYMENT_PROCESSING", "PAYMENT_FAILED", "付款失败：" + reason);
+        return withdrawalDao.selectById(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public DmsMerchantWithdrawal rejectWithdrawal(Long id, MerchantWithdrawalRejectDTO dto) {
         requirePlatformAdmin();
-        DmsMerchantWithdrawal withdrawal = requireWithdrawalForUpdate(id, Set.of("SUBMITTED", "INVOICE_PENDING", "READY_TO_PAY"));
+        DmsMerchantWithdrawal withdrawal = requireWithdrawalForUpdate(id, Set.of("SUBMITTED", "INVOICE_PENDING", "READY_TO_PAY", "PAYMENT_FAILED"));
         String rejectReason = trim(dto == null ? null : dto.getReason());
         if (rejectReason == null) Asserts.fail("请填写驳回原因");
         DmsMerchantAccount before = accountDao.selectByMerchantIdForUpdate(withdrawal.getMerchantId());
@@ -345,6 +455,74 @@ public class MerchantServiceImpl implements MerchantService {
         recordWithdrawalEvent(withdrawal, previousStatus, "REJECTED", "财务驳回：" + rejectReason);
         recordLedger(requireMerchant(withdrawal.getMerchantId(), false), before, "WITHDRAWAL_REJECT",
                 withdrawal.getWithdrawalNo(), "提现驳回并退回冻结金额");
+        return withdrawalDao.selectById(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public DmsMerchantWithdrawal cancelWithdrawal(Long id, MerchantWithdrawalActionDTO dto) {
+        DmsMerchantWithdrawal withdrawal = requireWithdrawalForUpdate(id, Set.of("SUBMITTED", "INVOICE_PENDING"));
+        Long merchantId = currentMerchantId();
+        if (merchantId != null && !merchantId.equals(withdrawal.getMerchantId())) Asserts.fail("不能撤回其他商户的提现申请");
+        String reason = actionReason(dto, "请填写撤回原因");
+        DmsMerchantAccount before = accountDao.selectByMerchantIdForUpdate(withdrawal.getMerchantId());
+        if (accountDao.unfreeze(withdrawal.getMerchantId(), money(withdrawal.getRequestedAmount())) != 1) {
+            Asserts.fail("商户冻结余额异常，不能撤回");
+        }
+        String previous = withdrawal.getStatus();
+        withdrawal.setStatus("CANCELED");
+        withdrawal.setRejectReason(reason);
+        applyOperator(withdrawal);
+        withdrawalDao.update(withdrawal);
+        recordWithdrawalEvent(withdrawal, previous, "CANCELED", "提现申请撤回：" + reason);
+        recordLedger(requireMerchant(withdrawal.getMerchantId(), false), before, "WITHDRAWAL_CANCEL",
+                withdrawal.getWithdrawalNo(), "提现撤回并退回冻结金额");
+        return withdrawalDao.selectById(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public DmsMerchantWithdrawal riskFreezeWithdrawal(Long id, MerchantWithdrawalActionDTO dto) {
+        requirePlatformAdmin();
+        DmsMerchantWithdrawal withdrawal = requireWithdrawalForUpdate(id,
+                Set.of("SUBMITTED", "INVOICE_PENDING", "READY_TO_PAY", "PAYMENT_PROCESSING", "PAYMENT_FAILED"));
+        String reason = actionReason(dto, "请填写风控冻结原因");
+        String previous = withdrawal.getStatus();
+        withdrawal.setResumeStatus(previous);
+        withdrawal.setStatus("RISK_FROZEN");
+        applyOperator(withdrawal);
+        withdrawalDao.update(withdrawal);
+        recordWithdrawalEvent(withdrawal, previous, "RISK_FROZEN", "风控冻结：" + reason);
+        return withdrawalDao.selectById(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public DmsMerchantWithdrawal resumeWithdrawal(Long id, MerchantWithdrawalActionDTO dto) {
+        requirePlatformAdmin();
+        DmsMerchantWithdrawal withdrawal = requireWithdrawalForUpdate(id, Set.of("RISK_FROZEN"));
+        String reason = actionReason(dto, "请填写解除冻结原因");
+        String resumeStatus = upper(withdrawal.getResumeStatus());
+        if (resumeStatus == null || !Set.of("SUBMITTED", "INVOICE_PENDING", "READY_TO_PAY", "PAYMENT_PROCESSING", "PAYMENT_FAILED").contains(resumeStatus)) {
+            Asserts.fail("提现冻结前状态缺失，不能自动恢复，请联系技术人员核对审批轨迹");
+        }
+        withdrawal.setStatus(resumeStatus);
+        withdrawal.setResumeStatus(null);
+        applyOperator(withdrawal);
+        withdrawalDao.update(withdrawal);
+        recordWithdrawalEvent(withdrawal, "RISK_FROZEN", resumeStatus, "解除风控冻结：" + reason);
+        return withdrawalDao.selectById(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public DmsMerchantWithdrawal completeWithdrawal(Long id) {
+        requirePlatformAdmin();
+        DmsMerchantWithdrawal withdrawal = requireWithdrawalForUpdate(id, Set.of("PAID"));
+        withdrawal.setStatus("COMPLETED");
+        applyOperator(withdrawal);
+        withdrawalDao.update(withdrawal);
+        recordWithdrawalEvent(withdrawal, "PAID", "COMPLETED", "财务确认单据归档完成");
         return withdrawalDao.selectById(id);
     }
 
@@ -605,6 +783,51 @@ public class MerchantServiceImpl implements MerchantService {
         if (trim(dto.getReason()) == null) Asserts.fail("请填写状态调整原因");
     }
 
+    private void validateExitTransition(DmsMerchant merchant, MerchantControlDTO dto) {
+        if ("EXITING".equals(dto.getExitStatus())) {
+            if ("ACTIVE".equals(dto.getBusinessStatus()) || "ENABLED".equals(dto.getWithdrawalStatus())) {
+                Asserts.fail("进入清退中前必须先暂停新销售并冻结新增提现；历史订单和售后仍可继续履约");
+            }
+            return;
+        }
+        if (!"EXITED".equals(dto.getExitStatus())) return;
+        if (!"DISABLED".equals(dto.getAccountStatus()) || !"CLOSED".equals(dto.getBusinessStatus())
+                || !"DISABLED".equals(dto.getFulfillmentStatus()) || !"FROZEN".equals(dto.getWithdrawalStatus())
+                || !"FROZEN".equals(dto.getSettlementStatus())) {
+            Asserts.fail("确认已退出时必须同时禁止登录、停止经营和履约，并冻结提现及结算");
+        }
+        MerchantExitReadinessVO readiness = getExitReadiness(merchant.getId());
+        if (!Boolean.TRUE.equals(readiness.getReady())) {
+            Asserts.fail("商户尚不能退出：" + String.join("；", readiness.getBlockers()));
+        }
+    }
+
+    private void addCountBlocker(List<String> blockers, Integer count, String label) {
+        int value = count == null ? 0 : count;
+        if (value > 0) blockers.add(label + " " + value + " 笔");
+    }
+
+    private void addMoneyBlocker(List<String> blockers, BigDecimal amount, String label) {
+        BigDecimal value = money(amount);
+        if (value.compareTo(ZERO) != 0) blockers.add(label + " ¥" + value.toPlainString() + " 未清零");
+    }
+
+    private String actionReason(MerchantWithdrawalActionDTO dto, String emptyMessage) {
+        String reason = trim(dto == null ? null : dto.getReason());
+        if (reason == null) Asserts.fail(emptyMessage);
+        return reason;
+    }
+
+    private BigDecimal difference(BigDecimal accountValue, BigDecimal ledgerValue) {
+        if (ledgerValue == null) return money(accountValue);
+        return money(accountValue).subtract(money(ledgerValue)).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private boolean allZero(BigDecimal... values) {
+        for (BigDecimal value : values) if (money(value).compareTo(ZERO) != 0) return false;
+        return true;
+    }
+
     private String normalizeState(String value, String defaults, Set<String> allowed, String label) {
         String normalized = upper(value);
         if (normalized == null) normalized = defaults;
@@ -630,6 +853,9 @@ public class MerchantServiceImpl implements MerchantService {
     }
 
     private void recordLedger(DmsMerchant merchant, DmsMerchantAccount before, String bizType, String bizId, String summary) {
+        if (ledgerDao.selectByBusiness(merchant.getTenantId(), merchant.getId(), bizType, bizId) != null) {
+            Asserts.fail("商户资金业务已记账，请勿重复处理");
+        }
         DmsMerchantAccount after = accountDao.selectByMerchantId(merchant.getId());
         if (before == null || after == null) Asserts.fail("商户资金账户快照不存在");
         DmsMerchantLedger ledger = new DmsMerchantLedger();
@@ -648,6 +874,23 @@ public class MerchantServiceImpl implements MerchantService {
         ledger.setOperatorId(admin == null ? null : admin.getId());
         ledger.setOperatorName(admin == null ? null : (trim(admin.getNickname()) == null ? admin.getUsername() : admin.getNickname().trim()));
         if (ledgerDao.insert(ledger) != 1) Asserts.fail("商户资金流水保存失败");
+    }
+
+    private void recordOpeningLedger(DmsMerchant merchant) {
+        DmsMerchantAccount account = accountDao.selectByMerchantId(merchant.getId());
+        if (account == null) Asserts.fail("商户货款账户创建失败");
+        if (ledgerDao.selectByBusiness(merchant.getTenantId(), merchant.getId(), "OPENING_BALANCE", String.valueOf(merchant.getId())) != null) return;
+        DmsMerchantLedger ledger = new DmsMerchantLedger();
+        ledger.setTenantId(merchant.getTenantId()); ledger.setMerchantId(merchant.getId()); ledger.setMerchantName(merchant.getMerchantName());
+        ledger.setLedgerNo("ML" + IdUtil.getSnowflakeNextId()); ledger.setBizType("OPENING_BALANCE");
+        ledger.setBizId(String.valueOf(merchant.getId())); ledger.setSummary("商户资金账本期初余额");
+        ledger.setPendingDelta(money(account.getPendingAmount())); ledger.setAvailableDelta(money(account.getAvailableAmount()));
+        ledger.setFrozenDelta(money(account.getFrozenAmount())); ledger.setDepositDelta(money(account.getDepositFrozenAmount()));
+        ledger.setDebtDelta(money(account.getDebtAmount())); ledger.setPaidDelta(money(account.getTotalPaidAmount()));
+        ledger.setPendingAfter(money(account.getPendingAmount())); ledger.setAvailableAfter(money(account.getAvailableAmount()));
+        ledger.setFrozenAfter(money(account.getFrozenAmount())); ledger.setDepositAfter(money(account.getDepositFrozenAmount()));
+        ledger.setDebtAfter(money(account.getDebtAmount())); ledger.setPaidAfter(money(account.getTotalPaidAmount()));
+        if (ledgerDao.insert(ledger) != 1) Asserts.fail("商户资金期初流水保存失败");
     }
 
     private void recordWithdrawalEvent(DmsMerchantWithdrawal withdrawal, String from, String to, String remark) {

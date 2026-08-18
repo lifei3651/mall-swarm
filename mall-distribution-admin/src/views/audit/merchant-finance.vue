@@ -49,6 +49,17 @@
         </el-table>
       </el-tab-pane>
 
+      <el-tab-pane label="账本对账" name="reconciliation">
+        <el-alert title="系统逐商户比较资金账户与最后一笔总账余额；存在差额时应先停止人工打款并核查流水，不要直接改余额。" type="warning" :closable="false" show-icon />
+        <el-table :data="reconciliation" v-loading="loading" stripe class="ledger-table">
+          <el-table-column prop="merchantName" label="商户" min-width="150" />
+          <el-table-column label="对账结果" width="120"><template #default="{ row }"><el-tag :type="row.consistent ? 'success' : 'danger'">{{ row.consistent ? '账实一致' : '存在差额' }}</el-tag></template></el-table-column>
+          <el-table-column label="最后流水" min-width="190"><template #default="{ row }">{{ row.latestLedgerNo || '未建立期初账' }}<div class="ledger-sub">{{ formatTime(row.latestLedgerTime) }}</div></template></el-table-column>
+          <el-table-column label="当前账户余额" min-width="270"><template #default="{ row }"><div class="ledger-balance"><span>待结算 ¥{{ money(row.pendingAmount) }}</span><span>可提现 ¥{{ money(row.availableAmount) }}</span><span>提现冻结 ¥{{ money(row.frozenAmount) }}</span><span>保证金 ¥{{ money(row.depositAmount) }}</span><span>欠款 ¥{{ money(row.debtAmount) }}</span><span>累计打款 ¥{{ money(row.paidAmount) }}</span></div></template></el-table-column>
+          <el-table-column label="账户减总账差额" min-width="270"><template #default="{ row }"><div class="ledger-balance"><span :class="deltaClass(row.pendingDifference)">待结算 {{ signedMoney(row.pendingDifference) }}</span><span :class="deltaClass(row.availableDifference)">可提现 {{ signedMoney(row.availableDifference) }}</span><span :class="deltaClass(row.frozenDifference)">提现冻结 {{ signedMoney(row.frozenDifference) }}</span><span :class="deltaClass(row.depositDifference)">保证金 {{ signedMoney(row.depositDifference) }}</span><span :class="deltaClass(row.debtDifference)">欠款 {{ signedMoney(row.debtDifference) }}</span><span :class="deltaClass(row.paidDifference)">累计打款 {{ signedMoney(row.paidDifference) }}</span></div></template></el-table-column>
+        </el-table>
+      </el-tab-pane>
+
       <el-tab-pane label="订单货款明细" name="settlements">
         <el-table :data="settlements" v-loading="loading" stripe>
           <el-table-column prop="merchantName" label="商户" min-width="150" />
@@ -87,7 +98,7 @@
           <el-table-column label="调整"><template #default="{ row }">¥{{ money(row.adjustmentAmount) }}</template></el-table-column>
           <el-table-column label="实付"><template #default="{ row }">{{ row.actualPaidAmount == null ? '-' : `¥${money(row.actualPaidAmount)}` }}</template></el-table-column>
           <el-table-column label="状态" width="115"><template #default="{ row }"><el-tag>{{ withdrawalStatus(row.status) }}</el-tag></template></el-table-column>
-          <el-table-column label="操作" width="260"><template #default="{ row }"><el-button link @click="showEvents(row)">审批轨迹</el-button><template v-if="canManage"><el-button v-if="['SUBMITTED','INVOICE_PENDING','READY_TO_PAY'].includes(row.status)" link type="primary" @click="openReview(row)">发票/审核</el-button><el-button v-if="row.status === 'READY_TO_PAY'" link type="success" @click="openPay(row)">确认打款</el-button><el-button v-if="['SUBMITTED','INVOICE_PENDING','READY_TO_PAY'].includes(row.status)" link type="danger" @click="reject(row)">驳回</el-button></template></template></el-table-column>
+          <el-table-column label="操作" width="390"><template #default="{ row }"><el-button link @click="showEvents(row)">审批轨迹</el-button><el-button v-if="merchantCanManageFunds && ['SUBMITTED','INVOICE_PENDING'].includes(row.status)" link type="warning" @click="cancelWithdrawal(row)">撤回</el-button><template v-if="canManage"><el-button v-if="['SUBMITTED','INVOICE_PENDING','READY_TO_PAY'].includes(row.status)" link type="primary" @click="openReview(row)">发票/审核</el-button><el-button v-if="['READY_TO_PAY','PAYMENT_FAILED'].includes(row.status)" link type="success" @click="startPayment(row)">开始付款</el-button><el-button v-if="row.status === 'PAYMENT_PROCESSING'" link type="success" @click="openPay(row)">确认到账</el-button><el-button v-if="row.status === 'PAYMENT_PROCESSING'" link type="danger" @click="paymentFailed(row)">付款失败</el-button><el-button v-if="['SUBMITTED','INVOICE_PENDING','READY_TO_PAY','PAYMENT_PROCESSING','PAYMENT_FAILED'].includes(row.status)" link type="warning" @click="riskFreeze(row)">风控冻结</el-button><el-button v-if="row.status === 'RISK_FROZEN'" link type="warning" @click="riskResume(row)">解除冻结</el-button><el-button v-if="['SUBMITTED','INVOICE_PENDING','READY_TO_PAY','PAYMENT_FAILED'].includes(row.status)" link type="danger" @click="reject(row)">驳回</el-button><el-button v-if="row.status === 'PAID'" link type="primary" @click="completeWithdrawalRecord(row)">归档完成</el-button></template></template></el-table-column>
         </el-table>
       </el-tab-pane>
     </el-tabs>
@@ -115,16 +126,17 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/store'
 import { getAdminOrderWorkSummary } from '@/api/shop'
-import { applyMerchantWithdrawal, freezeMerchantDeposit, listMerchantAccounts, listMerchantDepositFlows, listMerchantLedger, listMerchantSettlements, listMerchants, listMerchantWithdrawalEvents, listMerchantWithdrawals, payMerchantWithdrawal, receiveMerchantDeposit, rejectMerchantWithdrawal, releaseMerchantDeposit, reviewMerchantWithdrawal } from '@/api/merchant'
+import { applyMerchantWithdrawal, cancelMerchantWithdrawal, completeMerchantWithdrawal, failMerchantWithdrawalPayment, freezeMerchantDeposit, freezeMerchantWithdrawal, listMerchantAccounts, listMerchantDepositFlows, listMerchantLedger, listMerchantReconciliation, listMerchantSettlements, listMerchants, listMerchantWithdrawalEvents, listMerchantWithdrawals, payMerchantWithdrawal, receiveMerchantDeposit, rejectMerchantWithdrawal, releaseMerchantDeposit, resumeMerchantWithdrawal, reviewMerchantWithdrawal, startMerchantWithdrawalPayment } from '@/api/merchant'
 
 const store = useAppStore()
 const route = useRoute()
 const isMerchantUser = computed(() => Boolean(store.userInfo?.merchantId))
+const merchantCanManageFunds = computed(() => isMerchantUser.value && store.hasPermission('finance:manage'))
 const canManage = computed(() => !isMerchantUser.value && store.hasPermission('finance:manage'))
-const canApply = computed(() => isMerchantUser.value || canManage.value)
-const financeTabs = ['accounts', 'ledger', 'settlements', 'deposits', 'withdrawals']
+const canApply = computed(() => merchantCanManageFunds.value || canManage.value)
+const financeTabs = ['accounts', 'ledger', 'reconciliation', 'settlements', 'deposits', 'withdrawals']
 const tab = ref(financeTabs.includes(String(route.query.tab || '')) ? String(route.query.tab) : 'accounts'); const loading = ref(false); const saving = ref(false)
-const merchants = ref([]); const accounts = ref([]); const settlements = ref([]); const depositFlows = ref([]); const ledger = ref([]); const withdrawals = ref([])
+const merchants = ref([]); const accounts = ref([]); const settlements = ref([]); const depositFlows = ref([]); const ledger = ref([]); const reconciliation = ref([]); const withdrawals = ref([])
 const applyVisible = ref(false); const depositVisible = ref(false); const reviewVisible = ref(false); const payVisible = ref(false)
 const current = ref(null); const currentAccount = ref(null)
 const eventsVisible = ref(false); const withdrawalEvents = ref([])
@@ -138,11 +150,11 @@ const payForm = ref({ actualPaidAmount: 0, paymentReference: '', paymentVoucherU
 const money = (value) => Number(value || 0).toFixed(2)
 const formatTime = (value) => value ? String(value).replace('T', ' ').slice(0, 19) : '-'
 const settlementStatus = (status) => ({ PENDING: { label: '待结算', type: 'warning' }, AVAILABLE: { label: '可提现', type: 'success' }, REVERSED: { label: '已冲回', type: 'info' } }[status] || { label: status || '-', type: 'info' })
-const withdrawalStatus = (status) => ({ SUBMITTED: '待审核', INVOICE_PENDING: '待收发票', READY_TO_PAY: '待打款', PAID: '已打款', REJECTED: '已驳回' }[status] || status || '-')
+const withdrawalStatus = (status) => ({ SUBMITTED: '待审核', INVOICE_PENDING: '待收发票', READY_TO_PAY: '待付款', PAYMENT_PROCESSING: '付款处理中', PAYMENT_FAILED: '付款失败', RISK_FROZEN: '风控冻结', PAID: '已打款', COMPLETED: '已完成', REJECTED: '已驳回', CANCELED: '已撤回' }[status] || status || '-')
 const operationNo = () => `MD-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`
 const withdrawalRequestNo = () => `MWR-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`
 const depositOperation = (type) => ({ FREEZE: { label: '余额转入', type: 'warning' }, RECEIVE: { label: '线下收款', type: 'primary' }, RELEASE: { label: '解冻', type: 'success' } }[type] || { label: type || '-', type: 'info' })
-const ledgerType = (type) => ({ ORDER_PENDING: '订单进入待结算', SETTLEMENT_RELEASE: '到期释放货款', AFTER_SALE_REVERSAL: '售后冲回', WITHDRAWAL_APPLY: '申请提现', WITHDRAWAL_REJECT: '提现驳回', WITHDRAWAL_PAID: '提现付款', DEPOSIT_FREEZE: '余额转保证金', DEPOSIT_RECEIVE: '线下保证金', DEPOSIT_RELEASE: '释放保证金' }[type] || type || '-')
+const ledgerType = (type) => ({ OPENING_BALANCE: '期初余额', ORDER_PENDING: '订单进入待结算', SETTLEMENT_RELEASE: '到期释放货款', AFTER_SALE_REVERSAL: '售后冲回', WITHDRAWAL_APPLY: '申请提现', WITHDRAWAL_REJECT: '提现驳回', WITHDRAWAL_CANCEL: '提现撤回', WITHDRAWAL_PAID: '提现付款', DEPOSIT_FREEZE: '余额转保证金', DEPOSIT_RECEIVE: '线下保证金', DEPOSIT_RELEASE: '释放保证金' }[type] || type || '-')
 const signedMoney = (value) => { const number = Number(value || 0); return `${number > 0 ? '+' : ''}¥${number.toFixed(2)}` }
 const deltaClass = (value) => Number(value || 0) > 0 ? 'delta-plus' : Number(value || 0) < 0 ? 'delta-minus' : 'delta-zero'
 const ledgerChanges = (row) => {
@@ -164,7 +176,7 @@ const depositDialogTip = computed(() => depositForm.value.operationType === 'FRE
     ? '仅在财务已经实际收到商户线下保证金后登记，本操作不会扣减商户货款余额。'
     : `解冻时优先抵扣退款欠款，剩余金额回到可提现余额。当前保证金 ¥${money(currentAccount.value?.depositFrozenAmount)}`)
 
-const loadCurrent = async () => { loading.value = true; try { if (tab.value === 'accounts') accounts.value = (await listMerchantAccounts()).data || []; if (tab.value === 'settlements') settlements.value = (await listMerchantSettlements()).data || []; if (tab.value === 'deposits') depositFlows.value = (await listMerchantDepositFlows()).data || []; if (tab.value === 'ledger') ledger.value = (await listMerchantLedger()).data || []; if (tab.value === 'withdrawals') withdrawals.value = (await listMerchantWithdrawals()).data || [] } finally { loading.value = false } }
+const loadCurrent = async () => { loading.value = true; try { if (tab.value === 'accounts') accounts.value = (await listMerchantAccounts()).data || []; if (tab.value === 'settlements') settlements.value = (await listMerchantSettlements()).data || []; if (tab.value === 'deposits') depositFlows.value = (await listMerchantDepositFlows()).data || []; if (tab.value === 'ledger') ledger.value = (await listMerchantLedger()).data || []; if (tab.value === 'reconciliation') reconciliation.value = (await listMerchantReconciliation()).data || []; if (tab.value === 'withdrawals') withdrawals.value = (await listMerchantWithdrawals()).data || [] } finally { loading.value = false } }
 const openApply = () => { applyForm.value = { requestNo: withdrawalRequestNo(), merchantId: isMerchantUser.value ? store.userInfo.merchantId : null, requestedAmount: 0 }; applyVisible.value = true }
 const submitApply = async () => { saving.value = true; try { await applyMerchantWithdrawal(applyForm.value); ElMessage.success('提现申请已提交'); applyVisible.value = false; tab.value = 'withdrawals'; await loadCurrent() } finally { saving.value = false } }
 const openDeposit = (row, operationType) => { currentAccount.value = row; depositForm.value = { merchantId: row.merchantId, operationType, amount: 0, reason: '' }; depositVisible.value = true }
@@ -174,6 +186,12 @@ const submitReview = async () => { await reviewMerchantWithdrawal(current.value.
 const openPay = (row) => { current.value = row; payForm.value = { actualPaidAmount: Number(row.requestedAmount || 0) + Number(row.adjustmentAmount || 0), paymentReference: '', paymentVoucherUrl: '' }; payVisible.value = true }
 const submitPay = async () => { await payMerchantWithdrawal(current.value.id, payForm.value); ElMessage.success('打款已确认'); payVisible.value = false; await loadCurrent() }
 const reject = async (row) => { const { value } = await ElMessageBox.prompt('请填写驳回原因', '驳回商户提现', { inputValidator: (v) => Boolean(v?.trim()) || '必须填写原因' }); await rejectMerchantWithdrawal(row.id, { reason: value }); ElMessage.success('已驳回；冻结金额先抵退款欠款，剩余退回可提现余额'); await loadCurrent() }
+const startPayment = async (row) => { await ElMessageBox.confirm('确认已经开始向快照中的收款账户执行付款？进入付款处理中后仍需登记成功或失败结果。', '开始付款', { type: 'warning' }); await startMerchantWithdrawalPayment(row.id); ElMessage.success('已进入付款处理中'); await loadCurrent() }
+const paymentFailed = async (row) => { const { value } = await ElMessageBox.prompt('请填写银行退回、账户异常等具体原因', '登记付款失败', { inputValidator: (v) => Boolean(v?.trim()) || '必须填写原因' }); await failMerchantWithdrawalPayment(row.id, { reason: value }); ElMessage.warning('已登记付款失败，申请金额仍保持冻结，可重试或驳回'); await loadCurrent() }
+const cancelWithdrawal = async (row) => { const { value } = await ElMessageBox.prompt('请填写撤回原因', '撤回提现申请', { inputValidator: (v) => Boolean(v?.trim()) || '必须填写原因' }); await cancelMerchantWithdrawal(row.id, { reason: value }); ElMessage.success('申请已撤回，冻结金额已按退款欠款规则退回'); await loadCurrent() }
+const riskFreeze = async (row) => { const { value } = await ElMessageBox.prompt('请填写风控冻结原因', '冻结提现流程', { inputValidator: (v) => Boolean(v?.trim()) || '必须填写原因' }); await freezeMerchantWithdrawal(row.id, { reason: value }); ElMessage.warning('提现流程已冻结，资金保持冻结不变'); await loadCurrent() }
+const riskResume = async (row) => { const { value } = await ElMessageBox.prompt('请填写解除冻结原因', '恢复提现流程', { inputValidator: (v) => Boolean(v?.trim()) || '必须填写原因' }); await resumeMerchantWithdrawal(row.id, { reason: value }); ElMessage.success('已恢复到冻结前状态'); await loadCurrent() }
+const completeWithdrawalRecord = async (row) => { await ElMessageBox.confirm('确认银行凭证、发票和审批资料均已归档？', '归档完成'); await completeMerchantWithdrawal(row.id); ElMessage.success('提现单已完成归档'); await loadCurrent() }
 const showEvents = async (row) => { withdrawalEvents.value = (await listMerchantWithdrawalEvents(row.id)).data || []; eventsVisible.value = true }
 
 onMounted(async () => {

@@ -11,4 +11,24 @@
   <sql id="cols">l.id,l.tenant_id,l.merchant_id,COALESCE(l.merchant_name,m.merchant_name) merchant_name,l.ledger_no,l.biz_type,l.biz_id,l.summary,l.pending_delta,l.available_delta,l.frozen_delta,l.deposit_delta,l.debt_delta,l.paid_delta,l.pending_after,l.available_after,l.frozen_after,l.deposit_after,l.debt_after,l.paid_after,l.operator_id,l.operator_name,l.create_time</sql>
   <insert id="insert" useGeneratedKeys="true" keyProperty="id">INSERT INTO dms_merchant_ledger(tenant_id,merchant_id,merchant_name,ledger_no,biz_type,biz_id,summary,pending_delta,available_delta,frozen_delta,deposit_delta,debt_delta,paid_delta,pending_after,available_after,frozen_after,deposit_after,debt_after,paid_after,operator_id,operator_name) VALUES(#{tenantId},#{merchantId},#{merchantName},#{ledgerNo},#{bizType},#{bizId},#{summary},#{pendingDelta},#{availableDelta},#{frozenDelta},#{depositDelta},#{debtDelta},#{paidDelta},#{pendingAfter},#{availableAfter},#{frozenAfter},#{depositAfter},#{debtAfter},#{paidAfter},#{operatorId},#{operatorName})</insert>
   <select id="selectList" resultMap="Base">SELECT <include refid="cols"/> FROM dms_merchant_ledger l LEFT JOIN dms_merchant m ON m.id=l.merchant_id WHERE l.tenant_id=#{tenantId}<if test="merchantId != null"> AND l.merchant_id=#{merchantId}</if><if test="bizType != null and bizType != ''"> AND l.biz_type=#{bizType}</if> ORDER BY l.id DESC</select>
+  <select id="selectLatestList" resultMap="Base" useCache="false" flushCache="true">
+    SELECT <include refid="cols"/>
+    FROM dms_merchant_ledger l
+    LEFT JOIN dms_merchant m ON m.id=l.merchant_id
+    INNER JOIN (
+      SELECT merchant_id,MAX(id) latest_id
+      FROM dms_merchant_ledger
+      WHERE tenant_id=#{tenantId}
+      <if test="merchantId != null">AND merchant_id=#{merchantId}</if>
+      GROUP BY merchant_id
+    ) latest ON latest.latest_id=l.id
+    ORDER BY l.merchant_id
+  </select>
+  <select id="selectByBusiness" resultMap="Base">
+    SELECT <include refid="cols"/> FROM dms_merchant_ledger l
+    LEFT JOIN dms_merchant m ON m.id=l.merchant_id
+    WHERE l.tenant_id=#{tenantId} AND l.merchant_id=#{merchantId}
+      AND l.biz_type=#{bizType} AND l.biz_id=#{bizId}
+    LIMIT 1
+  </select>
 </mapper>

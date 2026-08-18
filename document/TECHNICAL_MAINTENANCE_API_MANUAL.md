@@ -458,16 +458,24 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `POST /merchants` | `merchantName`，可选编号/联系人；主体、信用代码、银行、开票、合同、保证金目标、默认结算天数 | 商户及自动创建的货款账户 | `shop:product`；结算方式固定为 `COST_PRICE`，等待 0～365 天，资料生成版本号 |
 | `PUT /merchants/{id}` | 可修改商户资料、`requiredDepositAmount` 及 `defaultSettlementDays` | 商户 | `shop:product`；不能跨租户，编号不可改；默认等待期变化会把依赖默认值的商品退回草稿审核 |
 | `PUT /merchants/{id}/status?status=0|1` | 商户 ID、状态 | 布尔值 | `shop:product`；停用事务内下架该商户商品，公开列表、详情、库存扣减和下单再次检查启用状态 |
+| `GET /merchants/{id}/exit-readiness` | 商户 ID | `ready`、阻断数量、资金余额及 `blockers` | 平台账号；按租户聚合在售商品、未完成订单、开放售后、待结算、处理中提现和资金余额，作为清退前只读检查 |
 | `GET /merchant-finance/accounts` | 可选 `keyword` | 账户列表 | `finance:read`；返回待结算、可提现、提现冻结、保证金、应缴保证金、缺口、欠款、累计打款 |
 | `GET /merchant-finance/settlements` | 可选 `merchantId/status` | 订单货款明细 | `finance:read`；返回订单快照 `settlementDelayDays` 和固化的 `eligibleTime` |
 | `GET /merchant-finance/withdrawals` | 可选 `merchantId/status` | 提现列表 | `finance:read`；按租户及商户过滤 |
 | `GET /merchant-finance/deposit-flows` | 可选 `merchantId` | 保证金冻结/解冻流水 | `finance:read`；商户账号强制限定本商户 |
+| `GET /merchant-finance/reconciliation` | 无 | 每个商户六类账户余额、末笔总账余额、差额和 `consistent` | `finance:read`；商户账号仅返回本商户，平台返回租户范围；用于发现绕过资金总账的余额变化 |
 | `POST /merchant-finance/deposits/freeze` | `merchantId`、`amount`、`reason`、唯一 `operationNo` | 保证金流水 | `finance:manage`；平台账号将可提现转入保证金冻结，操作号持久化防重复 |
 | `POST /merchant-finance/deposits/receive` | 同上 | 保证金流水 | `finance:manage`；仅平台财务登记已核对的线下保证金到账，不占用可提现余额 |
 | `POST /merchant-finance/deposits/release` | 同上 | 保证金流水 | `finance:manage`；平台账号解冻，先抵退款欠款，剩余返回可提现 |
 | `POST /merchant-finance/withdrawals` | `merchantId`、`requestedAmount`、唯一 `requestNo` | 提现申请 | 商户可提交本商户；请求号数据库唯一并重放原结果，只冻结一次。合同、主体/银行资料和保证金必须合格，申请固化资料版本及收款快照 |
 | `PUT /merchant-finance/withdrawals/{id}/review` | `invoiceRequiredAmount`、`invoiceReceivedAmount`、`invoiceStatus=NOT_REQUIRED|PENDING|RECEIVED`、`adjustmentAmount`、`adjustmentReason` | 审核后的申请 | `finance:manage`；调整后实付必须大于 0 且不超过申请金额，非零调整必须说明原因 |
-| `POST /merchant-finance/withdrawals/{id}/pay` | `actualPaidAmount`、可选 `paymentReference/paymentVoucherUrl` | 已打款申请 | `finance:manage`；仅 `READY_TO_PAY`，实付必须等于申请金额加调整金额 |
+| `POST /merchant-finance/withdrawals/{id}/payment-processing` | 无 | 付款中的申请 | `finance:manage`；仅 `READY_TO_PAY/PAYMENT_FAILED`，资金继续冻结 |
+| `POST /merchant-finance/withdrawals/{id}/pay` | `actualPaidAmount`、可选 `paymentReference/paymentVoucherUrl` | 已打款申请 | `finance:manage`；仅 `PAYMENT_PROCESSING`；兼容旧调用时允许 `READY_TO_PAY` 先记录付款中事件，实付必须等于申请金额加调整金额 |
+| `POST /merchant-finance/withdrawals/{id}/payment-failed` | `reason` | 付款失败申请 | `finance:manage`；仅付款处理中，冻结资金不退回，可重试或驳回 |
+| `POST /merchant-finance/withdrawals/{id}/cancel` | `reason` | 已撤回申请 | 商户资金管理权限；仅申请所属商户且财务开始付款前，冻结金额只释放一次 |
+| `POST /merchant-finance/withdrawals/{id}/risk-freeze` | `reason` | 风控冻结申请 | 平台 `finance:manage`；保存冻结前状态，资金保持冻结 |
+| `POST /merchant-finance/withdrawals/{id}/risk-resume` | `reason` | 恢复后的申请 | 平台 `finance:manage`；恢复至风控冻结前状态 |
+| `POST /merchant-finance/withdrawals/{id}/complete` | 无 | 已完成申请 | 平台 `finance:manage`；仅已打款记录可归档完成 |
 | `POST /merchant-finance/withdrawals/{id}/reject` | `reason` | 已驳回申请 | `finance:manage`；冻结金额先抵退款欠款，剩余部分退回可提现并保留原因；重复驳回失败 |
 
 商品新增 `merchantId/merchantName/enrollmentSaleEnabled/teamBonusMode/settlementDelayDaysOverride`，订单及订单项保存商户、奖金模式与结算等待天数快照。`settlementDelayDaysOverride=null` 表示跟随商户默认，0～365 表示单品覆盖。公开商品和会员订单响应会移除该结算配置及订单快照，不向消费者泄露内部风险条款。
@@ -485,6 +493,10 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 后台账号新增可选 `merchantId`。绑定商户的账号只允许 `admin:read,shop:product,finance:read,finance:manage`；最后两个权限只用于本商户货款读取和发起提现，安全拦截器仅放行对应 GET 与精确的提现申请 POST，服务层再以会话 `merchantId` 覆盖请求参数。商户账号不能审核/打款、冻结保证金或访问其他商户。商品列表自动追加 `merchant_id` 条件，详情和写操作再次校验归属。商户商品状态为 `DRAFT/PENDING/APPROVED/REJECTED`，只有 `APPROVED` 可上架。上架商品先下架才能修改；保存修改后回到 `DRAFT`。字段名 `costAmount` 为兼容历史数据库和订单快照继续保留，对商户业务统一解释和展示为“结算价”。
 
 商户货款在订单支付成功后按订单项 `costAmount × quantity` 创建且只创建一次。下单时把商户默认或商品覆盖的等待天数锁入订单项，支付入账时复制到结算明细；确认收货事务内将 `eligibleTime=max(receiveTime, afterSaleDeadline)+settlementDelayDays` 固化。定时任务只选择真正到期、订单已完成且无进行中售后的记录释放为 `AVAILABLE`，不会被队列前方的长期等待或在途售后记录阻塞；迁移前历史待结算记录在任务运行时自动补齐。售后按退款数量和原成本快照冲回：待结算直接减少，已可用先扣可用余额，不足部分记入 `debtAmount`，后续新货款释放时优先抵扣欠款。
+
+新建商户账户必须在同一事务写入零余额 `OPENING_BALANCE` 总账。资金总账以 `(tenant_id, merchant_id, biz_type, biz_id)` 唯一约束业务来源，重复业务流水必须令整个账户更新事务回滚，不能吞掉重复键后继续提交余额。迁移 `V202608182130__merchant_exit_withdrawal_reconciliation.sql` 为旧账户补期初流水、增加提现 `resume_status` 及总账业务唯一索引；上线前必须先备份并通过统一迁移入口执行。
+
+退出状态从 `NORMAL` 进入 `EXITING` 时要求经营已暂停且提现已冻结；进入 `EXITED` 时要求账号、经营、履约、提现和结算全部关闭，并在事务中重新执行退出检查。退出检查不接受前端汇总结果作为依据，存在在售商品、状态 0/1/2 订单、状态 0/4/5/6 售后、待结算记录、非终态提现或任一非零资金桶时拒绝保存。
 
 账户中的 `frozenAmount` 是提现申请冻结，`depositFrozenAmount` 是平台保证金，二者严格分账。保证金可从可提现货款转入，也可由平台登记已核对的线下到账；操作使用 `operationNo` 唯一索引持久化幂等，相同操作号和相同请求返回原结果，操作类型、商户或金额不一致时拒绝复用。保证金低于 `requiredDepositAmount` 时禁止商品提交/审核通过及提现；解冻保证金时先抵 `debtAmount`，余额才进入 `availableAmount`。
 

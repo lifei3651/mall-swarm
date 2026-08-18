@@ -11,4 +11,10 @@ public interface DmsMerchantLedgerDao {
     List<DmsMerchantLedger> selectList(@Param("tenantId") Long tenantId,
                                        @Param("merchantId") Long merchantId,
                                        @Param("bizType") String bizType);
+    List<DmsMerchantLedger> selectLatestList(@Param("tenantId") Long tenantId,
+                                             @Param("merchantId") Long merchantId);
+    DmsMerchantLedger selectByBusiness(@Param("tenantId") Long tenantId,
+                                       @Param("merchantId") Long merchantId,
+                                       @Param("bizType") String bizType,
+                                       @Param("bizId") String bizId);
 }

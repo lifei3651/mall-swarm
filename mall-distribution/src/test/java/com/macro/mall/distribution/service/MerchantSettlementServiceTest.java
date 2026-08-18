@@ -6,6 +6,7 @@ import com.macro.mall.distribution.dto.MerchantWithdrawalPayDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalRejectDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalReviewDTO;
 import com.macro.mall.distribution.dto.MerchantControlDTO;
+import com.macro.mall.distribution.dto.MerchantWithdrawalActionDTO;
 import com.macro.mall.distribution.dto.ShopSkuDTO;
 import com.macro.mall.distribution.entity.DmsMerchant;
 import com.macro.mall.distribution.entity.DmsMerchantAccount;
@@ -16,6 +17,8 @@ import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.entity.DmsShopProduct;
 import com.macro.mall.distribution.entity.DmsShopAfterSaleItem;
 import com.macro.mall.distribution.security.AdminContext;
+import com.macro.mall.distribution.vo.MerchantBalanceReconciliationVO;
+import com.macro.mall.distribution.vo.MerchantExitReadinessVO;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -115,8 +118,8 @@ class MerchantSettlementServiceTest {
         assertMoney("100.00", refunded.getDebtAmount());
         assertMoney("0.00", refunded.getAvailableAmount());
 
-        assertEquals(5, merchantService.listLedgers(merchant.getId(), null).size());
-        assertEquals(3, merchantService.listWithdrawalEvents(withdrawalId).size());
+        assertEquals(6, merchantService.listLedgers(merchant.getId(), null).size());
+        assertEquals(4, merchantService.listWithdrawalEvents(withdrawalId).size());
         assertTrue(merchantService.listLedgers(merchant.getId(), "AFTER_SALE_REVERSAL").stream()
                 .anyMatch(row -> row.getDebtDelta().compareTo(new BigDecimal("100.00")) == 0));
 
@@ -381,7 +384,7 @@ class MerchantSettlementServiceTest {
             assertMoney("100.00", released.getDepositFrozenAmount());
             assertMoney("0.00", released.getDebtAmount());
             assertEquals(2, merchantService.listDepositFlows(merchantId).size());
-            assertEquals(2, merchantService.listLedgers(merchantId, null).size());
+            assertEquals(3, merchantService.listLedgers(merchantId, null).size());
         } finally {
             AdminContext.clear();
         }
@@ -546,6 +549,119 @@ class MerchantSettlementServiceTest {
         apply.setRequestNo("WITHDRAW REQUEST WITH SPACES");
         assertThrows(RuntimeException.class, () -> merchantService.applyWithdrawal(apply));
         assertMoney("100.00", account(merchant.getId()).getFrozenAmount());
+    }
+
+    @Test
+    void withdrawalExceptionalStatesPreserveFrozenMoneyAndCanResumeToCompletion() {
+        DmsMerchant merchant = new DmsMerchant();
+        merchant.setMerchantNo("M-WITHDRAW-EXCEPTION");
+        merchant.setMerchantName("提现异常流程商户");
+        preparePayoutProfile(merchant);
+        merchant = merchantService.saveMerchant(merchant);
+        jdbcTemplate.update("UPDATE dms_merchant_account SET available_amount=500 WHERE merchant_id=?", merchant.getId());
+
+        MerchantWithdrawalApplyDTO apply = new MerchantWithdrawalApplyDTO();
+        apply.setRequestNo("WITHDRAW-EXCEPTION-001");
+        apply.setMerchantId(merchant.getId());
+        apply.setRequestedAmount(new BigDecimal("200"));
+        DmsMerchantWithdrawal withdrawal = merchantService.applyWithdrawal(apply);
+
+        MerchantWithdrawalActionDTO action = new MerchantWithdrawalActionDTO();
+        action.setReason("命中人工风控规则，核对收款主体");
+        assertEquals("RISK_FROZEN", merchantService.riskFreezeWithdrawal(withdrawal.getId(), action).getStatus());
+        assertMoney("200.00", account(merchant.getId()).getFrozenAmount());
+        action.setReason("主体核验通过");
+        assertEquals("SUBMITTED", merchantService.resumeWithdrawal(withdrawal.getId(), action).getStatus());
+
+        MerchantWithdrawalReviewDTO review = new MerchantWithdrawalReviewDTO();
+        review.setInvoiceStatus("NOT_REQUIRED");
+        review.setAdjustmentAmount(BigDecimal.ZERO);
+        merchantService.reviewWithdrawal(withdrawal.getId(), review);
+        assertEquals("PAYMENT_PROCESSING", merchantService.startWithdrawalPayment(withdrawal.getId()).getStatus());
+        action.setReason("银行账户临时限制收款");
+        assertEquals("PAYMENT_FAILED", merchantService.markWithdrawalPaymentFailed(withdrawal.getId(), action).getStatus());
+        assertMoney("200.00", account(merchant.getId()).getFrozenAmount());
+        assertEquals("PAYMENT_PROCESSING", merchantService.startWithdrawalPayment(withdrawal.getId()).getStatus());
+
+        MerchantWithdrawalPayDTO pay = new MerchantWithdrawalPayDTO();
+        pay.setActualPaidAmount(new BigDecimal("200"));
+        pay.setPaymentReference("BANK-EXCEPTION-RETRY-001");
+        assertEquals("PAID", merchantService.confirmPayment(withdrawal.getId(), pay).getStatus());
+        assertEquals("COMPLETED", merchantService.completeWithdrawal(withdrawal.getId()).getStatus());
+        assertMoney("300.00", account(merchant.getId()).getAvailableAmount());
+        assertMoney("0.00", account(merchant.getId()).getFrozenAmount());
+        assertMoney("200.00", account(merchant.getId()).getTotalPaidAmount());
+        MerchantBalanceReconciliationVO reconciliation = merchantService.reconcileBalances(merchant.getId()).get(0);
+        assertTrue(reconciliation.getLedgerInitialized());
+        assertTrue(reconciliation.getConsistent());
+    }
+
+    @Test
+    void merchantCanCancelOwnPendingWithdrawalOnlyOnce() {
+        DmsMerchant merchant = new DmsMerchant();
+        merchant.setMerchantNo("M-WITHDRAW-CANCEL");
+        merchant.setMerchantName("提现撤回商户");
+        preparePayoutProfile(merchant);
+        merchant = merchantService.saveMerchant(merchant);
+        jdbcTemplate.update("UPDATE dms_merchant_account SET available_amount=300 WHERE merchant_id=?", merchant.getId());
+
+        MerchantWithdrawalApplyDTO apply = new MerchantWithdrawalApplyDTO();
+        apply.setRequestNo("WITHDRAW-CANCEL-001");
+        apply.setMerchantId(merchant.getId());
+        apply.setRequestedAmount(new BigDecimal("100"));
+        DmsMerchantWithdrawal withdrawal = merchantService.applyWithdrawal(apply);
+        DmsAdminUser merchantUser = new DmsAdminUser();
+        merchantUser.setId(97001L); merchantUser.setUsername("merchant-cancel"); merchantUser.setMerchantId(merchant.getId());
+        AdminContext.set(merchantUser);
+        try {
+            MerchantWithdrawalActionDTO action = new MerchantWithdrawalActionDTO();
+            action.setReason("本次暂不提现");
+            assertEquals("CANCELED", merchantService.cancelWithdrawal(withdrawal.getId(), action).getStatus());
+            assertThrows(RuntimeException.class, () -> merchantService.cancelWithdrawal(withdrawal.getId(), action));
+        } finally {
+            AdminContext.clear();
+        }
+        assertMoney("300.00", account(merchant.getId()).getAvailableAmount());
+        assertMoney("0.00", account(merchant.getId()).getFrozenAmount());
+    }
+
+    @Test
+    void finalMerchantExitIsBlockedUntilBusinessAndMoneyAreCleared() {
+        DmsMerchant merchant = new DmsMerchant();
+        merchant.setMerchantNo("M-EXIT-CHECK");
+        merchant.setMerchantName("退出检查商户");
+        merchant = merchantService.saveMerchant(merchant);
+        Long merchantId = merchant.getId();
+        insertMerchantOrder(9966601L, "EXIT-CHECK-ORDER", merchantId, merchant.getMerchantName(), 1);
+        jdbcTemplate.update("UPDATE dms_merchant_account SET available_amount=88 WHERE merchant_id=?", merchantId);
+
+        MerchantExitReadinessVO blocked = merchantService.getExitReadiness(merchantId);
+        assertFalse(blocked.getReady());
+        assertEquals(1, blocked.getUnfinishedOrderCount());
+        assertTrue(blocked.getBlockers().stream().anyMatch(item -> item.contains("可提现余额")));
+
+        MerchantControlDTO exit = new MerchantControlDTO();
+        exit.setAccountStatus("DISABLED"); exit.setBusinessStatus("CLOSED"); exit.setFulfillmentStatus("DISABLED");
+        exit.setWithdrawalStatus("FROZEN"); exit.setSettlementStatus("FROZEN"); exit.setDepositStatus("NORMAL");
+        exit.setAuditStatus("APPROVED"); exit.setExitStatus("EXITED"); exit.setReason("退出条件验收完成");
+        assertThrows(RuntimeException.class, () -> merchantService.updateMerchantControls(merchantId, exit));
+
+        jdbcTemplate.update("DELETE FROM dms_shop_order WHERE id=9966601");
+        jdbcTemplate.update("UPDATE dms_merchant_account SET available_amount=0 WHERE merchant_id=?", merchantId);
+        assertTrue(merchantService.getExitReadiness(merchantId).getReady());
+        assertEquals("EXITED", merchantService.updateMerchantControls(merchantId, exit).getExitStatus());
+    }
+
+    @Test
+    void reconciliationDetectsOutOfLedgerBalanceMutation() {
+        DmsMerchant merchant = new DmsMerchant();
+        merchant.setMerchantNo("M-RECONCILIATION");
+        merchant.setMerchantName("账本对账商户");
+        merchant = merchantService.saveMerchant(merchant);
+        jdbcTemplate.update("UPDATE dms_merchant_account SET available_amount=12.34 WHERE merchant_id=?", merchant.getId());
+        MerchantBalanceReconciliationVO mismatch = merchantService.reconcileBalances(merchant.getId()).get(0);
+        assertFalse(mismatch.getConsistent());
+        assertMoney("12.34", mismatch.getAvailableDifference());
     }
 
     @Test

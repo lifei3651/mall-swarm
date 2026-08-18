@@ -19,7 +19,7 @@
       <el-table-column label="履约" width="105"><template #default="{ row }"><el-tag :type="row.fulfillmentStatus === 'ENABLED' ? 'success' : 'warning'">{{ controlLabel('fulfillmentStatus', row.fulfillmentStatus) }}</el-tag></template></el-table-column>
       <el-table-column label="提现/结算/保证金" width="205"><template #default="{ row }"><span>{{ controlLabel('withdrawalStatus', row.withdrawalStatus) }}</span> / <span>{{ controlLabel('settlementStatus', row.settlementStatus) }}</span> / <span>{{ controlLabel('depositStatus', row.depositStatus) }}</span></template></el-table-column>
       <el-table-column label="审核/退出" width="145"><template #default="{ row }"><span>{{ controlLabel('auditStatus', row.auditStatus) }}</span> / <span>{{ controlLabel('exitStatus', row.exitStatus) }}</span></template></el-table-column>
-      <el-table-column label="操作" width="215" fixed="right"><template #default="{ row }"><el-button link type="primary" @click="open(row)">资料</el-button><el-button link type="primary" @click="openControls(row)">业务控制</el-button><el-button v-if="row.businessStatus === 'ACTIVE'" link type="danger" @click="freezeAll(row)">全面冻结</el-button></template></el-table-column>
+      <el-table-column label="操作" width="270" fixed="right"><template #default="{ row }"><el-button link type="primary" @click="open(row)">资料</el-button><el-button link type="primary" @click="openControls(row)">业务控制</el-button><el-button link type="warning" @click="checkExit(row)">退出检查</el-button><el-button v-if="row.businessStatus === 'ACTIVE'" link type="danger" @click="freezeAll(row)">全面冻结</el-button></template></el-table-column>
     </el-table>
     <el-dialog v-model="visible" :title="form.id ? '编辑商户' : '新增商户'" width="760px">
       <el-form :model="form" label-width="100px">
@@ -50,6 +50,9 @@
     </el-dialog>
     <el-dialog v-model="controlVisible" title="商户业务控制" width="720px">
       <el-alert title="暂停新销售不会锁死商户账号；商户仍可按履约状态处理已经成交的订单和售后。" type="warning" :closable="false" show-icon />
+      <el-alert v-if="exitReadiness" :title="exitReadiness.ready ? '退出检查通过：可以在关闭全部能力后确认已退出' : '暂不能确认已退出'" :type="exitReadiness.ready ? 'success' : 'error'" :closable="false" show-icon class="exit-alert">
+        <template #default><div v-if="!exitReadiness.ready">{{ exitReadiness.blockers.join('；') }}</div></template>
+      </el-alert>
       <el-form label-width="125px" class="control-form">
         <el-form-item label="账号状态"><el-radio-group v-model="controlForm.accountStatus"><el-radio-button value="ENABLED">允许登录</el-radio-button><el-radio-button value="DISABLED">禁止登录</el-radio-button></el-radio-group></el-form-item>
         <el-form-item label="经营状态"><el-radio-group v-model="controlForm.businessStatus"><el-radio-button value="ACTIVE">正常经营</el-radio-button><el-radio-button value="SUSPENDED">暂停新销售</el-radio-button><el-radio-button value="CLOSED">停止经营</el-radio-button></el-radio-group></el-form-item>
@@ -58,7 +61,7 @@
         <el-form-item label="结算状态"><el-switch v-model="settlementEnabled" active-text="到期释放" inactive-text="继续留在待结算" /></el-form-item>
         <el-form-item label="保证金状态"><el-switch v-model="depositNormal" active-text="正常" inactive-text="风控冻结" /></el-form-item>
         <el-form-item label="准入审核"><el-select v-model="controlForm.auditStatus"><el-option label="待审核" value="PENDING"/><el-option label="已通过" value="APPROVED"/><el-option label="已驳回" value="REJECTED"/></el-select></el-form-item>
-        <el-form-item label="退出状态"><el-select v-model="controlForm.exitStatus"><el-option label="正常" value="NORMAL"/><el-option label="清退中" value="EXITING"/><el-option label="已退出" value="EXITED"/></el-select></el-form-item>
+        <el-form-item label="退出状态"><el-select v-model="controlForm.exitStatus" @change="onExitStatusChange"><el-option label="正常" value="NORMAL"/><el-option label="清退中" value="EXITING"/><el-option label="已退出" value="EXITED"/></el-select><el-button link type="warning" @click="refreshExitReadiness">重新检查</el-button></el-form-item>
         <el-form-item label="调整原因" required><el-input v-model="controlForm.reason" type="textarea" maxlength="256" show-word-limit placeholder="记录违规、风控、合同或恢复经营的具体原因" /></el-form-item>
       </el-form>
       <template #footer><el-button @click="controlVisible=false">取消</el-button><el-button type="primary" :loading="saving" @click="submitControls">保存业务控制</el-button></template>
@@ -69,12 +72,13 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { listMerchants, saveMerchant, updateMerchantControls } from '@/api/merchant'
+import { getMerchantExitReadiness, listMerchants, saveMerchant, updateMerchantControls } from '@/api/merchant'
 
 const rows = ref([]); const keyword = ref(''); const loading = ref(false); const visible = ref(false); const saving = ref(false)
 const emptyForm = () => ({ id: null, merchantNo: '', merchantName: '', contactName: '', contactPhone: '', legalEntityName: '', unifiedSocialCreditCode: '', bankAccountName: '', bankName: '', bankAccountNo: '', invoiceTitle: '', taxpayerIdentificationNo: '', contractStatus: 'PENDING', requiredDepositAmount: 0, defaultSettlementDays: 0, status: 1, remark: '' })
 const form = ref(emptyForm())
 const controlVisible = ref(false)
+const exitReadiness = ref(null)
 const controlForm = ref({ id: null, accountStatus: 'ENABLED', businessStatus: 'ACTIVE', fulfillmentStatus: 'ENABLED', withdrawalStatus: 'ENABLED', settlementStatus: 'ENABLED', depositStatus: 'NORMAL', auditStatus: 'APPROVED', exitStatus: 'NORMAL', reason: '' })
 const withdrawalEnabled = computed({ get: () => controlForm.value.withdrawalStatus === 'ENABLED', set: (v) => { controlForm.value.withdrawalStatus = v ? 'ENABLED' : 'FROZEN' } })
 const settlementEnabled = computed({ get: () => controlForm.value.settlementStatus === 'ENABLED', set: (v) => { controlForm.value.settlementStatus = v ? 'ENABLED' : 'FROZEN' } })
@@ -82,14 +86,17 @@ const depositNormal = computed({ get: () => controlForm.value.depositStatus === 
 const load = async () => { loading.value = true; try { rows.value = (await listMerchants({ keyword: keyword.value })).data || [] } finally { loading.value = false } }
 const open = (row) => { form.value = row ? { ...row } : emptyForm(); visible.value = true }
 const submit = async () => { if (!form.value.merchantName?.trim()) return ElMessage.warning('请输入商户名称'); saving.value = true; try { await saveMerchant(form.value.id, form.value); ElMessage.success('商户资料已保存'); visible.value = false; await load() } finally { saving.value = false } }
-const openControls = (row) => { controlForm.value = { id: row.id, accountStatus: row.accountStatus || 'ENABLED', businessStatus: row.businessStatus || (row.status === 1 ? 'ACTIVE' : 'SUSPENDED'), fulfillmentStatus: row.fulfillmentStatus || 'ENABLED', withdrawalStatus: row.withdrawalStatus || 'ENABLED', settlementStatus: row.settlementStatus || 'ENABLED', depositStatus: row.depositStatus || 'NORMAL', auditStatus: row.auditStatus || 'APPROVED', exitStatus: row.exitStatus || 'NORMAL', reason: '' }; controlVisible.value = true }
-const submitControls = async () => { if (!controlForm.value.reason?.trim()) return ElMessage.warning('请填写状态调整原因'); saving.value = true; try { const { id, ...payload } = controlForm.value; await updateMerchantControls(id, payload); ElMessage.success('商户业务控制已更新'); controlVisible.value = false; await load() } finally { saving.value = false } }
-const freezeAll = async (row) => { await ElMessageBox.confirm('将禁止新销售、商品修改、提现和货款释放，但保留账号登录及历史订单履约。是否继续？', '全面冻结商户', { type: 'warning' }); openControls(row); controlForm.value.businessStatus = 'SUSPENDED'; controlForm.value.fulfillmentStatus = 'ENABLED'; controlForm.value.withdrawalStatus = 'FROZEN'; controlForm.value.settlementStatus = 'FROZEN'; controlForm.value.reason = '平台全面冻结：保留历史订单与售后履约'; await submitControls() }
+const openControls = async (row) => { controlForm.value = { id: row.id, accountStatus: row.accountStatus || 'ENABLED', businessStatus: row.businessStatus || (row.status === 1 ? 'ACTIVE' : 'SUSPENDED'), fulfillmentStatus: row.fulfillmentStatus || 'ENABLED', withdrawalStatus: row.withdrawalStatus || 'ENABLED', settlementStatus: row.settlementStatus || 'ENABLED', depositStatus: row.depositStatus || 'NORMAL', auditStatus: row.auditStatus || 'APPROVED', exitStatus: row.exitStatus || 'NORMAL', reason: '' }; exitReadiness.value = null; controlVisible.value = true; await refreshExitReadiness() }
+const refreshExitReadiness = async () => { if (!controlForm.value.id) return; exitReadiness.value = (await getMerchantExitReadiness(controlForm.value.id)).data || null }
+const checkExit = async (row) => { await openControls(row) }
+const onExitStatusChange = (status) => { if (status === 'EXITING') { controlForm.value.businessStatus = 'SUSPENDED'; controlForm.value.withdrawalStatus = 'FROZEN' } else if (status === 'EXITED') { controlForm.value.accountStatus = 'DISABLED'; controlForm.value.businessStatus = 'CLOSED'; controlForm.value.fulfillmentStatus = 'DISABLED'; controlForm.value.withdrawalStatus = 'FROZEN'; controlForm.value.settlementStatus = 'FROZEN' } }
+const submitControls = async () => { if (!controlForm.value.reason?.trim()) return ElMessage.warning('请填写状态调整原因'); if (controlForm.value.exitStatus === 'EXITED') { await refreshExitReadiness(); if (!exitReadiness.value?.ready) return ElMessage.warning('尚有未完成业务或未清资金，不能确认已退出') } saving.value = true; try { const { id, ...payload } = controlForm.value; await updateMerchantControls(id, payload); ElMessage.success('商户业务控制已更新'); controlVisible.value = false; await load() } finally { saving.value = false } }
+const freezeAll = async (row) => { await ElMessageBox.confirm('将禁止新销售、商品修改、提现和货款释放，但保留账号登录及历史订单履约。是否继续？', '全面冻结商户', { type: 'warning' }); await openControls(row); controlForm.value.businessStatus = 'SUSPENDED'; controlForm.value.fulfillmentStatus = 'ENABLED'; controlForm.value.withdrawalStatus = 'FROZEN'; controlForm.value.settlementStatus = 'FROZEN'; controlForm.value.reason = '平台全面冻结：保留历史订单与售后履约'; await submitControls() }
 const controlLabel = (field, value) => ({ accountStatus: { ENABLED: '可登录', DISABLED: '禁登录' }, businessStatus: { ACTIVE: '正常经营', SUSPENDED: '暂停销售', CLOSED: '停止经营' }, fulfillmentStatus: { ENABLED: '商户处理', PLATFORM_ONLY: '平台接管', DISABLED: '暂停处理' }, withdrawalStatus: { ENABLED: '可提现', FROZEN: '冻结提现' }, settlementStatus: { ENABLED: '正常结算', FROZEN: '冻结结算' }, depositStatus: { NORMAL: '保证金正常', FROZEN: '保证金冻结' }, auditStatus: { PENDING: '待审核', APPROVED: '已通过', REJECTED: '已驳回' }, exitStatus: { NORMAL: '正常', EXITING: '清退中', EXITED: '已退出' } }[field]?.[value] || value || '-')
 const contractLabel = (status) => ({ PENDING: '待签约', SIGNED: '已生效', EXPIRED: '已终止' }[status] || '待签约')
 onMounted(load)
 </script>
 
 <style scoped>
-.page-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.page-heading h2{margin:0}.page-heading p{margin:6px 0 0;color:#909399}.toolbar{display:flex;gap:10px;width:420px;margin:16px 0}.unit{margin-left:8px}.field-help{width:100%;color:#909399;font-size:12px;line-height:1.6;margin-top:6px}.control-form{margin-top:18px}
+.page-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.page-heading h2{margin:0}.page-heading p{margin:6px 0 0;color:#909399}.toolbar{display:flex;gap:10px;width:420px;margin:16px 0}.unit{margin-left:8px}.field-help{width:100%;color:#909399;font-size:12px;line-height:1.6;margin-top:6px}.control-form{margin-top:18px}.exit-alert{margin-top:12px}
 </style>
