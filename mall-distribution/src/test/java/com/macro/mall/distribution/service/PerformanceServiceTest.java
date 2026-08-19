@@ -9,6 +9,7 @@ import com.macro.mall.distribution.dto.AdminMemberCreateDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleApplyDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleAuditDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleItemDTO;
+import com.macro.mall.distribution.dto.ShopAfterSaleReturnShipmentDTO;
 import com.macro.mall.distribution.dto.ShopManualRefundDTO;
 import com.macro.mall.distribution.dto.ShopOrderItemDTO;
 import com.macro.mall.distribution.dto.ShopOrderSubmitDTO;
@@ -449,6 +450,59 @@ public class PerformanceServiceTest {
 
         DmsShopAfterSale second = shopAfterSaleService.apply(buyer, apply);
         assertEquals(0, second.getStatus());
+    }
+
+    @Test
+    void customerCanCancelWaitingReturnCorrectTrackingAndTimeoutReleasesOrder() {
+        newRetailVersion("RETURN_SHIPMENT_RECOVERY");
+        jdbcTemplate.update("INSERT INTO dms_shop_service_address "
+                + "(id,tenant_id,address_type,address_label,contact_name,contact_phone,province,city,district,detail_address,is_default,status) "
+                + "VALUES (99001,1,2,'退货测试地址','售后','13900000000','湖南省','长沙市','岳麓区','测试路1号',1,1)");
+        jdbcTemplate.update("UPDATE dms_shop_product SET return_address_id=99001 WHERE id=1");
+        DmsShopMember buyer = createShopMember("13999000037", "退货纠错测试", null);
+        ShopOrderVO paid = submitAndPay(buyer, 3);
+        jdbcTemplate.update("UPDATE dms_shop_order SET status=2, delivery_time=CURRENT_TIMESTAMP WHERE id=?",
+                paid.getOrder().getId());
+
+        ShopAfterSaleItemDTO item = new ShopAfterSaleItemDTO();
+        item.setOrderItemId(paid.getItems().get(0).getId());
+        item.setQuantity(1);
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
+        apply.setOrderId(paid.getOrder().getId());
+        apply.setApplyType(2);
+        apply.setItems(List.of(item));
+        apply.setReason("验证待寄回恢复路径");
+        ShopAfterSaleAuditDTO approve = new ShopAfterSaleAuditDTO();
+        approve.setStatus(1);
+        approve.setAuditUserId(1L);
+        approve.setAuditUserName("test-admin");
+
+        DmsShopAfterSale waiting = shopAfterSaleService.apply(buyer, apply);
+        assertEquals(4, shopAfterSaleService.audit(waiting.getId(), approve).getStatus());
+        assertEquals(3, shopAfterSaleService.cancel(buyer, waiting.getId()).getStatus());
+
+        DmsShopAfterSale expiring = shopAfterSaleService.apply(buyer, apply);
+        assertEquals(4, shopAfterSaleService.audit(expiring.getId(), approve).getStatus());
+        jdbcTemplate.update("UPDATE dms_shop_after_sale SET audit_time=DATEADD('DAY', -8, CURRENT_TIMESTAMP) WHERE id=?",
+                expiring.getId());
+        sqlSessionTemplate.clearCache();
+        assertEquals(1, shopAfterSaleService.expireWaitingReturnShipments(20));
+        assertEquals(3, shopAfterSaleService.listByMember(buyer).stream()
+                .filter(row -> row.getId().equals(expiring.getId())).findFirst().orElseThrow().getStatus());
+
+        DmsShopAfterSale shipped = shopAfterSaleService.apply(buyer, apply);
+        assertEquals(4, shopAfterSaleService.audit(shipped.getId(), approve).getStatus());
+        ShopAfterSaleReturnShipmentDTO firstTracking = new ShopAfterSaleReturnShipmentDTO();
+        firstTracking.setDeliveryCompany("顺丰速运");
+        firstTracking.setDeliveryNo("SF20260819001");
+        assertEquals(5, shopAfterSaleService.submitReturnShipment(buyer, shipped.getId(), firstTracking).getStatus());
+        ShopAfterSaleReturnShipmentDTO correctedTracking = new ShopAfterSaleReturnShipmentDTO();
+        correctedTracking.setDeliveryCompany("京东物流");
+        correctedTracking.setDeliveryNo("JD20260819002");
+        DmsShopAfterSale corrected = shopAfterSaleService.submitReturnShipment(buyer, shipped.getId(), correctedTracking);
+        assertEquals(5, corrected.getStatus());
+        assertEquals("京东物流", corrected.getReturnDeliveryCompany());
+        assertEquals("JD20260819002", corrected.getReturnDeliveryNo());
     }
 
     @Test

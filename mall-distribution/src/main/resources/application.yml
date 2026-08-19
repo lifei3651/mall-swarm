@@ -97,6 +97,10 @@ shop:
   order:
     pending-timeout-minutes: 30
     pending-scan-interval-ms: 60000
+  after-sale:
+    # 0表示不自动关闭；客户交付时可按售后制度调整。
+    return-shipment-timeout-days: 7
+    return-shipment-scan-interval-ms: 600000
 payment:
   verification:
     enabled: false

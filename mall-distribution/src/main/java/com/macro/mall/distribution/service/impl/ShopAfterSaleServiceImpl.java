@@ -102,6 +102,8 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
 
     @Value("${shop.payment.simulation-enabled:false}")
     private boolean simulationPaymentEnabled;
+    @Value("${shop.after-sale.return-shipment-timeout-days:7}")
+    private int returnShipmentTimeoutDays;
 
     @Override
     public void assertCanUploadProof(DmsShopMember member, Long orderId) {
@@ -266,8 +268,8 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             Asserts.fail("订单不存在");
         }
         assertTenantAccess(order.getTenantId());
-        if (!Integer.valueOf(0).equals(afterSale.getStatus())) {
-            Asserts.fail("售后申请已处理，不能取消");
+        if (!Integer.valueOf(0).equals(afterSale.getStatus()) && !Integer.valueOf(4).equals(afterSale.getStatus())) {
+            Asserts.fail("售后申请已进入寄回或退款阶段，不能取消");
         }
         afterSale.setStatus(3);
         afterSale.setAuditRemark("客户主动取消售后申请");
@@ -291,8 +293,9 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         DmsShopOrder order = orderDao.selectById(afterSale.getOrderId());
         if (order == null) Asserts.fail("订单不存在");
         assertTenantAccess(order.getTenantId());
-        if (!Integer.valueOf(2).equals(afterSale.getApplyType()) || !Integer.valueOf(4).equals(afterSale.getStatus())) {
-            Asserts.fail("当前售后状态不能填写退货物流");
+        if (!Integer.valueOf(2).equals(afterSale.getApplyType())
+                || (!Integer.valueOf(4).equals(afterSale.getStatus()) && !Integer.valueOf(5).equals(afterSale.getStatus()))) {
+            Asserts.fail("当前售后状态不能填写或修改退货物流");
         }
         afterSale.setReturnDeliveryCompany(dto.getDeliveryCompany().trim());
         afterSale.setReturnDeliveryNo(dto.getDeliveryNo().trim());
@@ -301,6 +304,30 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         afterSaleDao.updateReturnShipment(afterSale);
         notifyOrderChanged(order, "AFTER_SALE_RETURN_SHIPPED");
         return hydrate(afterSaleDao.selectById(id));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int expireWaitingReturnShipments(int limit) {
+        if (returnShipmentTimeoutDays <= 0) return 0;
+        int safeLimit = Math.max(1, Math.min(limit, 500));
+        int timeoutDays = Math.min(returnShipmentTimeoutDays, 365);
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(timeoutDays);
+        int expired = 0;
+        for (Long id : afterSaleDao.selectExpiredWaitingReturnIds(cutoff, safeLimit)) {
+            DmsShopAfterSale afterSale = afterSaleDao.selectByIdForUpdate(id);
+            if (afterSale == null || !Integer.valueOf(4).equals(afterSale.getStatus())
+                    || afterSale.getAuditTime() == null || afterSale.getAuditTime().isAfter(cutoff)) continue;
+            afterSale.setStatus(3);
+            afterSale.setAuditRemark("已超过" + timeoutDays + "天退货寄回期限，系统自动关闭");
+            afterSale.setAuditUserId(0L);
+            afterSale.setAuditUserName("系统");
+            if (afterSaleDao.updateAudit(afterSale) != 1) Asserts.fail("超时退货售后关闭失败");
+            DmsShopOrder order = orderDao.selectById(afterSale.getOrderId());
+            if (order != null) notifyOrderChanged(order, "AFTER_SALE_RETURN_TIMEOUT");
+            expired++;
+        }
+        return expired;
     }
 
     @Override

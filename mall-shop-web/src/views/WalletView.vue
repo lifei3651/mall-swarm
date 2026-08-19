@@ -30,7 +30,7 @@
       <div v-if="withdrawForm.withdrawType === 1" class="form-item"><label>开户银行</label><input v-model="withdrawForm.bankName" class="field" placeholder="例如：中国工商银行" /></div>
       <div class="form-item"><label>{{ withdrawAccountLabel }}</label><input v-model="withdrawForm.bankAccount" class="field" :placeholder="withdrawAccountPlaceholder" /></div>
       <div class="form-item"><label>收款人姓名</label><input v-model="withdrawForm.accountName" class="field" placeholder="必须与收款账户实名一致" /></div>
-      <div class="form-item"><label>提现金额</label><input v-model="withdrawForm.withdrawAmount" class="field" type="number" min="0.01" step="0.01" placeholder="0.00" /></div>
+      <div class="form-item"><label>提现金额</label><input v-model="withdrawForm.withdrawAmount" class="field" type="text" inputmode="decimal" maxlength="11" autocomplete="off" placeholder="0.00" /></div>
       <div class="form-item"><label>支付密码</label><input v-model="withdrawForm.paymentPassword" class="field" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="6位数字" /></div>
       <div class="form-item">
         <label>手机验证码</label>
@@ -149,8 +149,12 @@ const submitWithdrawal = async () => {
   if (withdrawForm.value.withdrawType === 1 && !withdrawForm.value.bankName.trim()) return showWalletError('请输入开户银行')
   if (!withdrawForm.value.bankAccount.trim()) return showWalletError(`请输入${withdrawAccountLabel.value}`)
   if (!withdrawForm.value.accountName.trim()) return showWalletError('请输入收款人姓名')
-  if (Number(withdrawForm.value.withdrawAmount || 0) <= 0) return showWalletError('请输入正确的提现金额')
-  if (Number(withdrawForm.value.withdrawAmount) > Number(wallet.value.balance || 0)) return showWalletError('提现金额不能超过可用余额')
+  const withdrawAmount = String(withdrawForm.value.withdrawAmount || '').trim()
+  if (!/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(withdrawAmount) || Number(withdrawAmount) <= 0) {
+    return showWalletError('提现金额只能填写普通数字，最多保留2位小数')
+  }
+  if (Number(withdrawAmount) > Number(wallet.value.balance || 0)) return showWalletError('提现金额不能超过可用余额')
+  withdrawForm.value.withdrawAmount = withdrawAmount
   if (!/^\d{6}$/.test(withdrawForm.value.paymentPassword)) return showWalletError('请输入6位支付密码')
   if (!/^\d{6}$/.test(withdrawForm.value.smsCode)) return showWalletError('请输入6位短信验证码')
   withdrawSaving.value = true

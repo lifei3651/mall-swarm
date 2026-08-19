@@ -43,9 +43,8 @@ const createRequestError = (message, details = {}) => {
 // 请求拦截器
 service.interceptors.request.use(
   async (config) => {
-    // 新会话只使用 HttpOnly Cookie；仅在旧会话一次性迁移时读取历史 Bearer Token。
-    const legacyToken = localStorage.getItem('token')
-    const hasSession = Boolean(legacyToken || localStorage.getItem('admin_session_present') === '1')
+    // 只使用 HttpOnly Cookie，不再从浏览器存储读取或发送 Bearer Token。
+    const hasSession = localStorage.getItem('admin_session_present') === '1'
     if (hasSession && isAdminSessionExpired()) {
       const message = '后台登录已超时，请重新登录'
       expireAdminSession(message)
@@ -54,9 +53,6 @@ service.interceptors.request.use(
       return Promise.reject(error)
     }
     config.headers['X-Admin-Client'] = 'admin-web'
-    if (legacyToken) {
-      config.headers['Authorization'] = `Bearer ${legacyToken}`
-    }
     return encryptSensitiveRequest(config)
   },
   (error) => {
@@ -68,10 +64,6 @@ service.interceptors.request.use(
 // 响应拦截器
 service.interceptors.response.use(
   (response) => {
-    if (response.config?.url === '/distribution/admin-auth/me' && localStorage.getItem('token')) {
-      localStorage.removeItem('token')
-      localStorage.setItem('admin_session_present', '1')
-    }
     if (response.config.responseType === 'blob') {
       return response
     }

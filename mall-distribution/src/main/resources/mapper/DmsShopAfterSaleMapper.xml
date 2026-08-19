@@ -175,4 +175,16 @@
           AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_shop_after_sale.order_id
                       AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
     </update>
+
+    <select id="selectExpiredWaitingReturnIdsScoped" resultType="java.lang.Long">
+        SELECT sale.id
+        FROM dms_shop_after_sale sale
+        INNER JOIN dms_shop_order scoped_order ON scoped_order.id = sale.order_id
+        WHERE sale.status = 4
+          AND sale.audit_time IS NOT NULL
+          AND sale.audit_time &lt;= #{cutoff}
+          AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId}
+        ORDER BY sale.id
+        LIMIT #{limit}
+    </select>
 </mapper>

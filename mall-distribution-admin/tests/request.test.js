@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { readFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
 
 // Mock dependencies before importing the module under test
 vi.mock('element-plus', () => ({
@@ -27,10 +29,11 @@ describe('request interceptor logic', () => {
     vi.clearAllMocks()
   })
 
-  it('token in localStorage is read for authorization', () => {
+  it('legacy token in localStorage is not used for authorization', async () => {
     localStorage.setItem('token', 'test-admin-token')
-    const token = localStorage.getItem('token')
-    expect(token).toBe('test-admin-token')
+    const source = await readFile(resolve(process.cwd(), 'src/utils/request.js'), 'utf8')
+    expect(source).not.toContain("config.headers['Authorization']")
+    expect(source).not.toContain('legacyToken')
   })
 
   it('expired session triggers expireAdminSession', () => {

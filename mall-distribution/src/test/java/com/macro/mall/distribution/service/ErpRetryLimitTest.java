@@ -3,6 +3,8 @@ package com.macro.mall.distribution.service;
 import com.macro.mall.distribution.dao.DmsErpIntegrationDao;
 import com.macro.mall.distribution.dao.DmsErpSyncTaskDao;
 import com.macro.mall.distribution.dao.DmsShopOrderDao;
+import com.macro.mall.common.tenant.TenantContext;
+import com.macro.mall.distribution.dto.ErpShipmentCallbackDTO;
 import com.macro.mall.distribution.entity.DmsErpIntegration;
 import com.macro.mall.distribution.entity.DmsErpSyncTask;
 import com.macro.mall.distribution.entity.DmsShopOrder;
@@ -18,7 +20,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -71,5 +73,54 @@ class ErpRetryLimitTest {
         verify(taskDao).markFailure(eq(11L), eq(3), eq(3), isNull(), contains("达到自动重试上限"));
         verify(operationLogService).log(eq("ERP"), eq("ORDER_PUSH_STOPPED"), eq("ERP_SYNC_TASK"),
                 eq("11"), isNull(), contains("ERP不可用"), contains("已停止自动重试"));
+    }
+
+    @Test
+    void callbackUsesAuthenticatedTenantAndRestoresPreviousContext() {
+        DmsErpIntegration integration = new DmsErpIntegration();
+        integration.setTenantId(2L);
+        integration.setProviderCode("JUSHUITAN");
+        integration.setCallbackToken("tenant-2-callback-token");
+        integration.setEnabled(1);
+        ErpShipmentCallbackDTO callback = shipmentCallback(2L, "tenant-2-callback-token");
+        when(integrationDao.selectByTenantAndProvider(2L, "JUSHUITAN")).thenReturn(integration);
+        when(orderShipmentService.shipErpOrder("ORDER-2", "顺丰速运", "SF20260819001", 1, "JUSHUITAN"))
+                .thenAnswer(ignored -> {
+                    assertEquals(2L, TenantContext.getTenantId());
+                    return true;
+                });
+
+        TenantContext.setTenantId(9L);
+        try {
+            assertTrue(service.receiveShipment(callback));
+            assertEquals(9L, TenantContext.getTenantId());
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    @Test
+    void callbackRejectsWrongTenantTokenBeforeShipment() {
+        DmsErpIntegration integration = new DmsErpIntegration();
+        integration.setTenantId(2L);
+        integration.setProviderCode("JUSHUITAN");
+        integration.setCallbackToken("expected-token");
+        integration.setEnabled(1);
+        when(integrationDao.selectByTenantAndProvider(2L, "JUSHUITAN")).thenReturn(integration);
+
+        assertThrows(RuntimeException.class, () -> service.receiveShipment(shipmentCallback(2L, "wrong-token")));
+        verifyNoInteractions(orderShipmentService);
+    }
+
+    private ErpShipmentCallbackDTO shipmentCallback(Long tenantId, String token) {
+        ErpShipmentCallbackDTO callback = new ErpShipmentCallbackDTO();
+        callback.setTenantId(tenantId);
+        callback.setProviderCode("JUSHUITAN");
+        callback.setToken(token);
+        callback.setOrderNo("ORDER-2");
+        callback.setDeliveryCompany("顺丰速运");
+        callback.setDeliveryNo("SF20260819001");
+        callback.setShipmentQuantity(1);
+        return callback;
     }
 }

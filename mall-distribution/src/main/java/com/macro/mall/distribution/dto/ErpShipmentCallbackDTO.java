@@ -3,11 +3,15 @@ package com.macro.mall.distribution.dto;
 import lombok.Data;
 import lombok.ToString;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 @Data
 public class ErpShipmentCallbackDTO {
+    @NotNull(message = "ERP客户租户不能为空")
+    @Positive(message = "ERP客户租户不正确")
+    private Long tenantId;
     @NotBlank(message = "ERP服务商编码不能为空")
     @Size(max = 64, message = "ERP服务商编码不能超过64个字符")
     private String providerCode;

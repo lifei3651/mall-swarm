@@ -15,15 +15,15 @@ export const useAppStore = defineStore('app', () => {
     roleCode: '',
   })
 
-  // Token
-  const legacyToken = localStorage.getItem('token') || ''
-  const token = ref(legacyToken || (localStorage.getItem('admin_session_present') === '1' ? 'cookie-session' : ''))
+  // HttpOnly Cookie 由浏览器管理；前端只保留不含凭证的会话标记。
+  const token = ref(localStorage.getItem('admin_session_present') === '1' ? 'cookie-session' : '')
   const expireTime = ref(localStorage.getItem('admin_session_expire_time') || '')
-  const permissions = ref(JSON.parse(localStorage.getItem('permissions') || '[]'))
-  const cachedUser = localStorage.getItem('userInfo')
-  if (cachedUser) {
-    userInfo.value = JSON.parse(cachedUser)
-  }
+  const permissions = ref([])
+  const authHydrated = ref(false)
+  // 升级后主动清理旧版遗留；这些字段不再参与会话或权限判定。
+  localStorage.removeItem('token')
+  localStorage.removeItem('userInfo')
+  localStorage.removeItem('permissions')
 
   // 切换侧边栏
   const toggleSidebar = () => {
@@ -45,12 +45,10 @@ export const useAppStore = defineStore('app', () => {
   // 设置用户信息
   const setUserInfo = (info) => {
     userInfo.value = info || {}
-    localStorage.setItem('userInfo', JSON.stringify(userInfo.value))
   }
 
   const setPermissions = (items) => {
     permissions.value = items || []
-    localStorage.setItem('permissions', JSON.stringify(permissions.value))
   }
 
   const setAuth = (auth) => {
@@ -58,6 +56,7 @@ export const useAppStore = defineStore('app', () => {
     setExpireTime(auth.expireTime)
     setUserInfo(auth.admin)
     setPermissions(auth.permissions)
+    authHydrated.value = true
   }
 
   const hasPermission = (permission) => {
@@ -86,6 +85,7 @@ export const useAppStore = defineStore('app', () => {
       roleCode: '',
     }
     permissions.value = []
+    authHydrated.value = false
     clearAdminSessionStorage()
   }
 
@@ -95,6 +95,7 @@ export const useAppStore = defineStore('app', () => {
     token,
     expireTime,
     permissions,
+    authHydrated,
     toggleSidebar,
     setToken,
     setExpireTime,

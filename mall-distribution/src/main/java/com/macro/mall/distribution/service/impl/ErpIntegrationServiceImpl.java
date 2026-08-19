@@ -2,6 +2,7 @@ package com.macro.mall.distribution.service.impl;
 
 import cn.hutool.core.util.IdUtil;
 import com.macro.mall.common.exception.Asserts;
+import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.dao.DmsErpIntegrationDao;
 import com.macro.mall.distribution.dao.DmsErpSyncTaskDao;
 import com.macro.mall.distribution.dao.DmsShopOrderDao;
@@ -108,12 +109,23 @@ public class ErpIntegrationServiceImpl implements ErpIntegrationService {
 
     @Override @Transactional(rollbackFor = Exception.class)
     public boolean receiveShipment(ErpShipmentCallbackDTO callback) {
-        if (callback == null || callback.getProviderCode() == null || callback.getOrderNo() == null || callback.getDeliveryNo() == null) Asserts.fail("ERP发货回传参数不完整");
-        DmsErpIntegration integration = integrationDao.selectByTenantAndProvider(1L, callback.getProviderCode());
+        if (callback == null || callback.getTenantId() == null || callback.getTenantId() <= 0
+                || callback.getProviderCode() == null || callback.getOrderNo() == null || callback.getDeliveryNo() == null) {
+            Asserts.fail("ERP发货回传参数不完整");
+        }
+        DmsErpIntegration integration = integrationDao.selectByTenantAndProvider(callback.getTenantId(), callback.getProviderCode());
         if (integration == null || !Integer.valueOf(1).equals(integration.getEnabled())) Asserts.fail("ERP集成未启用");
         if (!secureEquals(integration.getCallbackToken(), callback.getToken())) Asserts.fail("ERP回调鉴权失败");
-        return orderShipmentService.shipErpOrder(callback.getOrderNo(), callback.getDeliveryCompany(),
-                callback.getDeliveryNo(), callback.getShipmentQuantity(), callback.getProviderCode());
+        Long previousTenantId = TenantContext.getCurrentTenantId();
+        try {
+            // 鉴权通过后才切换到该ERP配置所属租户，订单SQL仍会执行租户过滤。
+            TenantContext.setTenantId(callback.getTenantId());
+            return orderShipmentService.shipErpOrder(callback.getOrderNo(), callback.getDeliveryCompany(),
+                    callback.getDeliveryNo(), callback.getShipmentQuantity(), callback.getProviderCode());
+        } finally {
+            if (previousTenantId == null) TenantContext.clear();
+            else TenantContext.setTenantId(previousTenantId);
+        }
     }
 
     private void validateSecureEndpoint(String endpoint) {

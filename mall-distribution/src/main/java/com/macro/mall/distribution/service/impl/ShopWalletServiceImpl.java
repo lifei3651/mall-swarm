@@ -146,7 +146,8 @@ public class ShopWalletServiceImpl implements ShopWalletService {
     public boolean transfer(DmsShopMember member, BalanceTransferDTO dto) {
         DmsShopMember current = requireCurrentMember(member);
         if (dto == null) Asserts.fail("转账信息不能为空");
-        BalanceRecipientVO ignored = findRecipient(current, dto.getRecipientPhone());
+        String recipientPhone = PhoneNumberUtils.normalize(dto.getRecipientPhone());
+        BalanceRecipientVO ignored = findRecipient(current, recipientPhone);
         verifyPaymentPassword(current, dto.getPaymentPassword());
         if (dto.getAmount() == null || dto.getAmount().stripTrailingZeros().scale() > 0) {
             Asserts.fail("转账金额只能为整数");
@@ -154,7 +155,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         BigDecimal amount = MoneyValidationUtils.requirePositiveAmount(
                 dto.getAmount(), "转账金额", MAX_TRANSFER_AMOUNT);
 
-        DmsShopMember recipient = memberDao.selectByPhone(dto.getRecipientPhone());
+        DmsShopMember recipient = memberDao.selectByPhone(recipientPhone);
         AssetTransferDTO transfer = new AssetTransferDTO();
         transfer.setFromUserId(current.getUserId());
         transfer.setToUserId(recipient.getUserId());

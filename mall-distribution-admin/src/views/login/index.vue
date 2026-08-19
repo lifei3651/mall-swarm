@@ -93,6 +93,7 @@ import defaultLogo from '@/assets/logo.svg'
 import lingqiLogo from '@/assets/lingqi-logo-mark.png'
 import { consumeAdminSessionNotice } from '@/utils/adminSession'
 import { updateAdminBrowserLogo } from '@/utils/adminBrand'
+import { safeAdminRedirect } from '@/utils/safeRedirect'
 
 const router = useRouter()
 const route = useRoute()
@@ -144,8 +145,9 @@ const handleLogin = async () => {
     store.setAuth(res.data)
     ElMessage.success('登录成功')
     const merchantHome = res.data?.admin?.merchantId ? '/audit/merchant-finance' : '/dashboard'
-    const redirect = route.query.redirect === '/dashboard' && res.data?.admin?.merchantId
-      ? merchantHome : (route.query.redirect || merchantHome)
+    const requestedRedirect = safeAdminRedirect(route.query.redirect, merchantHome)
+    const redirect = requestedRedirect === '/dashboard' && res.data?.admin?.merchantId
+      ? merchantHome : requestedRedirect
     router.replace(redirect)
   } catch (error) {
     await refreshCaptcha()

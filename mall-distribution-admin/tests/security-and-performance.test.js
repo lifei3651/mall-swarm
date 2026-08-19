@@ -16,6 +16,9 @@ describe('后台安全与只读查询', () => {
     expect(request).toContain("config.headers['X-Admin-Client'] = 'admin-web'")
     expect(store).toContain("localStorage.setItem('admin_session_present', '1')")
     expect(store).toContain("localStorage.removeItem('token')")
+    expect(request).not.toContain("config.headers['Authorization']")
+    expect(store).not.toContain("localStorage.setItem('permissions'")
+    expect(store).not.toContain("localStorage.setItem('userInfo'")
   })
 
   it('ECharts只在图表页面实际渲染时异步加载', async () => {

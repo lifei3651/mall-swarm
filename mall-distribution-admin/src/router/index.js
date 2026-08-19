@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAppStore } from '@/store'
 import { expireAdminSession, isAdminSessionExpired } from '@/utils/adminSession'
+import { getMe } from '@/api/auth'
 
 // 布局组件
 const Layout = () => import('@/components/Layout.vue')
@@ -444,7 +445,7 @@ router.afterEach(() => {
 })
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   // 设置页面标题
   const adminBrandName = localStorage.getItem('admin_brand_name') || '商城'
   document.title = to.meta.title ? `${to.meta.title} - ${adminBrandName}管理后台` : `${adminBrandName}管理后台`
@@ -461,6 +462,17 @@ router.beforeEach((to, from, next) => {
     expireAdminSession('后台登录已超时，请重新登录')
     next(false)
     return
+  }
+  // 用户和权限只从服务端会话恢复，不信任 localStorage 中可被修改的副本。
+  if (!store.authHydrated) {
+    try {
+      const res = await getMe({ silentError: true })
+      store.setAuth(res.data || {})
+    } catch {
+      expireAdminSession('无法验证后台会话，请重新登录')
+      next(false)
+      return
+    }
   }
   if (store.userInfo?.merchantId && to.path === '/dashboard') {
     next('/audit/merchant-finance')

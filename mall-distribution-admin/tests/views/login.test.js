@@ -55,6 +55,7 @@ describe('LoginView', () => {
   it('商户登录后进入商户货款工作台而不是平台总看板', async () => {
     const source = await readFile(resolve(process.cwd(), 'src/views/login/index.vue'), 'utf8')
     expect(source).toContain("res.data?.admin?.merchantId ? '/audit/merchant-finance' : '/dashboard'")
+    expect(source).toContain('safeAdminRedirect(route.query.redirect, merchantHome)')
   })
 
   it('successful login sets auth in store', async () => {

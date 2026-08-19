@@ -19,7 +19,7 @@ public interface ShopAfterSaleService {
 
     DmsShopAfterSale apply(DmsShopMember member, ShopAfterSaleApplyDTO dto);
 
-    /** 会员撤回尚未审核的售后申请，不产生退款或账务变动。 */
+    /** 会员撤回待审核或已同意但尚未寄回的售后，不产生退款或账务变动。 */
     DmsShopAfterSale cancel(DmsShopMember member, Long id);
 
     /** 客户提交退货物流，售后进入等待商家收货状态。 */
@@ -33,6 +33,9 @@ public interface ShopAfterSaleService {
 
     /** 商家确认收到退货后，执行退款及库存、财务、奖金冲销。 */
     DmsShopAfterSale confirmReturnReceived(Long id, ShopAfterSaleAuditDTO dto);
+
+    /** 自动关闭超过寄回期限仍未提交物流的退货申请；配置为0时禁用。 */
+    int expireWaitingReturnShipments(int limit);
 
     /** 后台在前台售后期限结束后登记并执行退款。 */
     DmsShopAfterSale manualRefund(Long orderId, ShopManualRefundDTO dto);

@@ -8,6 +8,7 @@ import com.macro.mall.distribution.service.ShopService;
 import com.macro.mall.distribution.service.OrderBalanceAllocationService;
 import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.MerchantService;
+import com.macro.mall.distribution.service.ShopAfterSaleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -32,6 +33,7 @@ public class ScheduleTask {
     private final OrderBalanceAllocationService orderBalanceAllocationService;
     private final OperationLogService operationLogService;
     private final MerchantService merchantService;
+    private final ShopAfterSaleService shopAfterSaleService;
     private final DistributedScheduledTaskRunner scheduledTaskRunner;
 
     /** 每分钟关闭超时待支付订单并原子返还商品及SKU库存。 */
@@ -43,6 +45,19 @@ public class ScheduleTask {
                 if (count > 0) log.info("超时待支付订单已关闭并返还库存: count={}", count);
             } catch (Exception e) {
                 log.error("超时待支付订单扫描失败", e);
+            }
+        });
+    }
+
+    /** 定时关闭已同意退货但客户长期未寄回的售后，避免订单和结算永久悬挂。 */
+    @Scheduled(fixedDelayString = "${shop.after-sale.return-shipment-scan-interval-ms:600000}")
+    public void closeExpiredWaitingReturns() {
+        scheduledTaskRunner.run("close-expired-waiting-returns", Duration.ofMinutes(30), () -> {
+            try {
+                int count = shopAfterSaleService.expireWaitingReturnShipments(200);
+                if (count > 0) log.info("超时未寄回售后已自动关闭: count={}", count);
+            } catch (Exception e) {
+                log.error("超时未寄回售后扫描失败", e);
             }
         });
     }

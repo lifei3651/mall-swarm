@@ -460,14 +460,16 @@ test('checkout only exposes configured payment channels', async () => {
   assert.match(source, /getPayConfig\(\)/)
 })
 
-test('customers can cancel only pending after-sale applications', async () => {
+test('customers can cancel before return shipment and correct submitted tracking', async () => {
   const api = await readFile(new URL('../src/api/shop.js', import.meta.url), 'utf8')
   const source = await readView('OrderDetailView.vue')
   assert.match(api, /url: `\/shop\/after-sales\/\$\{id\}\/cancel`/)
   assert.match(source, /取消申请/)
   assert.match(source, /物流公司：\{\{ sale\.returnDeliveryCompany/)
   assert.match(source, /查询退货物流/)
-  assert.match(source, /sale\.status === 0/)
+  assert.match(source, /\[0, 4\]\.includes\(sale\.status\)/)
+  assert.match(source, /修改退货物流/)
+  assert.match(source, /\^\[A-Za-z0-9_-\]\{4,64\}\$/)
   assert.match(source, /取消后不会产生退款；如仍在售后期限内/)
   assert.doesNotMatch(source, /window\.confirm\(/)
 })
@@ -584,6 +586,8 @@ test('wallet balance records show load failures instead of a misleading empty st
   assert.match(source, /余额记录加载失败，请稍后重试/)
   assert.match(source, /变动前 ¥\{\{ money\(item\.balanceBefore\) \}\}/)
   assert.match(source, /formatDateTime\(item\.createTime\)/)
+  assert.match(source, /type="text" inputmode="decimal"/)
+  assert.match(source, /提现金额只能填写普通数字/)
 })
 
 test('frontend retains configured service rules without forcing FAQ into the footer', async () => {

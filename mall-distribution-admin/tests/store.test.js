@@ -35,8 +35,11 @@ describe('useAppStore', () => {
     expect(store.userInfo.username).toBe('admin')
     expect(store.userInfo.nickname).toBe('管理员')
     expect(store.permissions).toEqual(['admin:read', 'shop:product'])
+    expect(store.authHydrated).toBe(true)
     expect(localStorage.getItem('token')).toBeNull()
     expect(localStorage.getItem('admin_session_present')).toBe('1')
+    expect(localStorage.getItem('permissions')).toBeNull()
+    expect(localStorage.getItem('userInfo')).toBeNull()
   })
 
   it('hasPermission returns true for wildcard *', () => {
@@ -95,7 +98,7 @@ describe('useAppStore', () => {
     expect(store.userInfo.username).toBe('')
   })
 
-  it('cookie-session marker persists without exposing the bearer token', () => {
+  it('cookie-session marker persists without exposing bearer token, user or permissions', () => {
     const store = useAppStore()
     store.setAuth({
       token: 'surviving-token',
@@ -103,9 +106,9 @@ describe('useAppStore', () => {
       admin: { id: 2, username: 'user2' },
       permissions: ['admin:read'],
     })
-    // After setAuth, localStorage should have the values
     expect(localStorage.getItem('token')).toBeNull()
     expect(localStorage.getItem('admin_session_present')).toBe('1')
-    expect(localStorage.getItem('permissions')).toBe('["admin:read"]')
+    expect(localStorage.getItem('permissions')).toBeNull()
+    expect(localStorage.getItem('userInfo')).toBeNull()
   })
 })

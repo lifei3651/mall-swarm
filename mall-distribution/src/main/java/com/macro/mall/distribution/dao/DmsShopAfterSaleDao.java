@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 @Mapper
 public interface DmsShopAfterSaleDao {
@@ -52,4 +53,11 @@ public interface DmsShopAfterSaleDao {
 
     int markRefundCompletedScoped(@Param("tenantId") Long tenantId, @Param("id") Long id);
     default int markRefundCompleted(Long id) { return markRefundCompletedScoped(TenantContext.getTenantId(), id); }
+
+    List<Long> selectExpiredWaitingReturnIdsScoped(@Param("tenantId") Long tenantId,
+                                                   @Param("cutoff") LocalDateTime cutoff,
+                                                   @Param("limit") int limit);
+    default List<Long> selectExpiredWaitingReturnIds(LocalDateTime cutoff, int limit) {
+        return selectExpiredWaitingReturnIdsScoped(TenantContext.getTenantId(), cutoff, limit);
+    }
 }

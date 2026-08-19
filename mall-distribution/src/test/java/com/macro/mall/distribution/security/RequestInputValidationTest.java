@@ -5,6 +5,8 @@ import com.macro.mall.distribution.controller.ShopController;
 import com.macro.mall.distribution.controller.SmsController;
 import com.macro.mall.distribution.dto.AdminLoginDTO;
 import com.macro.mall.distribution.dto.ProductPublishDTO;
+import com.macro.mall.distribution.dto.ErpShipmentCallbackDTO;
+import com.macro.mall.distribution.dto.ShopAfterSaleReturnShipmentDTO;
 import com.macro.mall.distribution.dto.SmsCodeRequestDTO;
 import com.macro.mall.distribution.entity.DmsShopProduct;
 import jakarta.validation.Valid;
@@ -45,6 +47,22 @@ class RequestInputValidationTest {
         ProductPublishDTO publish = new ProductPublishDTO();
         publish.setProduct(product);
         assertMessages(publish, "商品名称不能超过60个字");
+    }
+
+    @Test
+    void rejectsUnscopedErpCallbacksAndMalformedReturnTrackingNumbers() {
+        ErpShipmentCallbackDTO callback = new ErpShipmentCallbackDTO();
+        callback.setProviderCode("JUSHUITAN");
+        callback.setToken("token");
+        callback.setOrderNo("ORDER-1");
+        callback.setDeliveryCompany("顺丰速运");
+        callback.setDeliveryNo("SF12345678");
+        assertMessages(callback, "ERP客户租户不能为空");
+
+        ShopAfterSaleReturnShipmentDTO shipment = new ShopAfterSaleReturnShipmentDTO();
+        shipment.setDeliveryCompany("顺丰速运");
+        shipment.setDeliveryNo("../bad tracking no");
+        assertMessages(shipment, "退货运单号只能包含字母、数字、下划线和短横线");
     }
 
     @Test

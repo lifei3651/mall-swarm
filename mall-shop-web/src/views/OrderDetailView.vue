@@ -116,23 +116,24 @@
             <div v-if="sale.applyType === 2 && [4, 5].includes(sale.status)" class="after-sale-return-address">
               <strong>{{ sale.status === 4 ? '请寄回商品' : '退货物流已提交' }}</strong>
               <span>{{ sale.returnAddress || '退货地址将在审核结果中显示，请留意订单更新' }}</span>
-              <div v-if="sale.status === 4" class="return-shipment-form">
+              <div v-if="sale.status === 4 || returnShipmentEditingId === sale.id" class="return-shipment-form">
                 <input v-model="returnShipmentForm.deliveryCompany" class="field" placeholder="物流公司" maxlength="64" />
-                <input v-model="returnShipmentForm.deliveryNo" class="field" placeholder="退货运单号" maxlength="128" />
+                <input v-model="returnShipmentForm.deliveryNo" class="field" placeholder="退货运单号" maxlength="64" autocomplete="off" />
                 <button type="button" class="btn primary" :disabled="returnShipmentSaleId === sale.id" @click="submitReturnShipment(sale)">
-                  {{ returnShipmentSaleId === sale.id ? '提交中…' : '提交退货物流' }}
+                  {{ returnShipmentSaleId === sale.id ? '提交中…' : (sale.status === 5 ? '保存物流修改' : '提交退货物流') }}
                 </button>
               </div>
-              <small v-else class="return-logistics-line">
+              <small v-if="sale.status === 5" class="return-logistics-line">
                 物流公司：{{ sale.returnDeliveryCompany || '未填写' }} · 运单号：{{ sale.returnDeliveryNo || '-' }}，等待商家确认收货
                 <a v-if="sale.returnDeliveryNo" :href="trackingUrl({ deliveryCompany: sale.returnDeliveryCompany, deliveryNo: sale.returnDeliveryNo })" target="_blank" rel="noopener" class="tracking-link">查询退货物流</a>
+                <button v-if="returnShipmentEditingId !== sale.id" type="button" class="text-action" @click="startReturnShipmentEdit(sale)">修改退货物流</button>
               </small>
             </div>
             <div v-for="line in sale.items || []" :key="line.id" class="after-sale-item-line">
               <span>{{ line.productName }} {{ formatProductSpec(line) }}</span>
               <strong>× {{ line.refundQuantity }}</strong>
             </div>
-            <div v-if="sale.status === 0" class="after-sale-record-actions">
+            <div v-if="[0, 4].includes(sale.status)" class="after-sale-record-actions">
               <button type="button" class="btn secondary after-sale-cancel" :disabled="cancellingAfterSaleId === sale.id" @click="requestCancelAfterSale(sale.id)">
                 {{ cancellingAfterSaleId === sale.id ? '取消中…' : '取消申请' }}
               </button>
@@ -306,6 +307,7 @@ const cancellingAfterSaleId = ref(null)
 const pendingAfterSaleId = ref(null)
 const confirmAction = ref('')
 const returnShipmentSaleId = ref(null)
+const returnShipmentEditingId = ref(null)
 const returnShipmentForm = ref({ deliveryCompany: '', deliveryNo: '' })
 const submittingAfterSale = ref(false)
 const reasonSheetVisible = ref(false)
@@ -571,16 +573,29 @@ const submitReturnShipment = async (sale) => {
     error.value = '请填写物流公司和退货运单号'
     return
   }
+  if (!/^[A-Za-z0-9_-]{4,64}$/.test(deliveryNo)) {
+    error.value = '退货运单号需为4至64位，且只能包含字母、数字、下划线和短横线'
+    return
+  }
   returnShipmentSaleId.value = sale.id
   error.value = ''
   try {
     await submitAfterSaleReturnShipment(sale.id, { deliveryCompany, deliveryNo })
     returnShipmentForm.value = { deliveryCompany: '', deliveryNo: '' }
+    returnShipmentEditingId.value = null
     await fetchOrder()
   } catch (e) {
     error.value = e.message || '提交退货物流失败'
   } finally {
     returnShipmentSaleId.value = null
+  }
+}
+
+const startReturnShipmentEdit = (sale) => {
+  returnShipmentEditingId.value = sale.id
+  returnShipmentForm.value = {
+    deliveryCompany: sale.returnDeliveryCompany || '',
+    deliveryNo: sale.returnDeliveryNo || '',
   }
 }
 
@@ -806,6 +821,7 @@ onBeforeUnmount(() => {
 .return-shipment-form .btn { min-height: 34px; padding: 0 11px; border-radius: 7px; font-size: 12px; white-space: nowrap; }
 .return-logistics-line { display: block; }
 .return-logistics-line .tracking-link { margin-left: 8px; color: var(--teal); text-decoration: none; }
+.return-logistics-line .text-action { margin-left: 8px; padding: 0; color: var(--brand-primary); background: transparent; border: 0; font: inherit; font-weight: 700; }
 .after-sale-item-line { display: flex; justify-content: space-between; gap: 12px; padding-top: 7px; color: #69737e; font-size: 12px; }
 .after-sale-item-line strong { color: #3d4650; font-size: 12px; }
 .after-sale-record-actions { display: flex; justify-content: flex-end; margin-top: 12px; padding-top: 11px; border-top: 1px solid #f1e3e6; }
