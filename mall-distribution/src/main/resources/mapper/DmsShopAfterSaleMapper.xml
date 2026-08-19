@@ -39,38 +39,48 @@
         audit_time, create_time, update_time
     </sql>
 
-    <select id="selectById" resultMap="BaseResultMap">
+    <select id="selectByIdScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_after_sale
         WHERE id = #{id}
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_shop_after_sale.order_id
+                      AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
     </select>
 
-    <select id="selectByIdForUpdate" resultMap="BaseResultMap">
+    <select id="selectByIdForUpdateScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_after_sale
         WHERE id = #{id}
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_shop_after_sale.order_id
+                      AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
         FOR UPDATE
     </select>
 
-    <select id="selectOpenByOrderId" resultMap="BaseResultMap">
+    <select id="selectOpenByOrderIdScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_after_sale
         WHERE order_id = #{orderId} AND status IN (0, 4, 5, 6)
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_shop_after_sale.order_id
+                      AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
         ORDER BY id DESC
         LIMIT 1
     </select>
 
-    <select id="selectByOrderId" resultMap="BaseResultMap">
+    <select id="selectByOrderIdScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_after_sale
         WHERE order_id = #{orderId}
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_shop_after_sale.order_id
+                      AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
         ORDER BY id DESC
     </select>
 
-    <select id="selectByMemberId" resultMap="BaseResultMap">
+    <select id="selectByMemberIdScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_after_sale
         WHERE member_id = #{memberId}
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_shop_after_sale.order_id
+                      AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
         ORDER BY id DESC
     </select>
 
@@ -109,49 +119,60 @@
         ORDER BY id DESC
     </select>
 
-    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopAfterSale" useGeneratedKeys="true" keyProperty="id">
+    <insert id="insertScoped" useGeneratedKeys="true" keyProperty="afterSale.id">
         INSERT INTO dms_shop_after_sale
         (after_sale_no, order_id, order_no, member_id, user_id, apply_type, refund_amount,
          product_refund_amount, freight_refund_amount, refund_quantity,
          reason, proof_images, return_address_id, return_address, return_delivery_company, return_delivery_no,
          return_shipped_at, return_received_at, status)
-        VALUES
-        (#{afterSaleNo}, #{orderId}, #{orderNo}, #{memberId}, #{userId}, #{applyType}, #{refundAmount},
-         #{productRefundAmount}, #{freightRefundAmount}, #{refundQuantity},
-         #{reason}, #{proofImages}, #{returnAddressId}, #{returnAddress}, #{returnDeliveryCompany}, #{returnDeliveryNo},
-         #{returnShippedAt}, #{returnReceivedAt}, #{status})
+        SELECT #{afterSale.afterSaleNo}, #{afterSale.orderId}, #{afterSale.orderNo}, #{afterSale.memberId},
+         #{afterSale.userId}, #{afterSale.applyType}, #{afterSale.refundAmount}, #{afterSale.productRefundAmount},
+         #{afterSale.freightRefundAmount}, #{afterSale.refundQuantity}, #{afterSale.reason}, #{afterSale.proofImages},
+         #{afterSale.returnAddressId}, #{afterSale.returnAddress}, #{afterSale.returnDeliveryCompany},
+         #{afterSale.returnDeliveryNo}, #{afterSale.returnShippedAt}, #{afterSale.returnReceivedAt}, #{afterSale.status}
+        FROM dms_shop_order scoped_order
+        WHERE scoped_order.id = #{afterSale.orderId}
+          AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId}
     </insert>
 
-    <update id="updateAudit" parameterType="com.macro.mall.distribution.entity.DmsShopAfterSale">
+    <update id="updateAuditScoped">
         UPDATE dms_shop_after_sale
-        SET status = #{status},
-            audit_remark = #{auditRemark},
-            audit_user_id = #{auditUserId},
-            audit_user_name = #{auditUserName},
+        SET status = #{afterSale.status},
+            audit_remark = #{afterSale.auditRemark},
+            audit_user_id = #{afterSale.auditUserId},
+            audit_user_name = #{afterSale.auditUserName},
             audit_time = CURRENT_TIMESTAMP,
             update_time = CURRENT_TIMESTAMP
-        WHERE id = #{id}
+        WHERE id = #{afterSale.id}
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_shop_after_sale.order_id
+                      AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
     </update>
 
-    <update id="updateReturnShipment" parameterType="com.macro.mall.distribution.entity.DmsShopAfterSale">
+    <update id="updateReturnShipmentScoped">
         UPDATE dms_shop_after_sale
-        SET status = #{status}, return_delivery_company = #{returnDeliveryCompany},
-            return_delivery_no = #{returnDeliveryNo}, return_shipped_at = #{returnShippedAt},
+        SET status = #{afterSale.status}, return_delivery_company = #{afterSale.returnDeliveryCompany},
+            return_delivery_no = #{afterSale.returnDeliveryNo}, return_shipped_at = #{afterSale.returnShippedAt},
             update_time = CURRENT_TIMESTAMP
-        WHERE id = #{id}
+        WHERE id = #{afterSale.id}
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_shop_after_sale.order_id
+                      AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
     </update>
 
-    <update id="updateReturnReceived" parameterType="com.macro.mall.distribution.entity.DmsShopAfterSale">
+    <update id="updateReturnReceivedScoped">
         UPDATE dms_shop_after_sale
-        SET status = #{status}, return_received_at = #{returnReceivedAt},
-            audit_remark = #{auditRemark}, audit_user_id = #{auditUserId}, audit_user_name = #{auditUserName},
+        SET status = #{afterSale.status}, return_received_at = #{afterSale.returnReceivedAt},
+            audit_remark = #{afterSale.auditRemark}, audit_user_id = #{afterSale.auditUserId}, audit_user_name = #{afterSale.auditUserName},
             audit_time = CURRENT_TIMESTAMP, update_time = CURRENT_TIMESTAMP
-        WHERE id = #{id}
+        WHERE id = #{afterSale.id}
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_shop_after_sale.order_id
+                      AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
     </update>
 
-    <update id="markRefundCompleted">
+    <update id="markRefundCompletedScoped">
         UPDATE dms_shop_after_sale
         SET status = 1, update_time = CURRENT_TIMESTAMP
         WHERE id = #{id} AND status = 6
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_shop_after_sale.order_id
+                      AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
     </update>
 </mapper>

@@ -399,12 +399,10 @@ public class CommissionServiceImpl implements CommissionService {
         List<DmsCommissionRecord> unsettledRecords = recordDao.selectByAgentIdAndStatus(
                 agentId, CommissionStatusEnum.PENDING.getValue());
         for (DmsCommissionRecord record : unsettledRecords) {
-            try {
-                if (settleCommission(record.getId())) {
-                    totalSettled++;
-                }
-            } catch (Exception e) {
-                log.error("结算佣金失败: recordId={}", record.getId(), e);
+            // 批量结算必须与钱包入账共用同一个事务。任何一笔失败都向上抛出，
+            // 避免出现“佣金已结算、但钱包未入账”的半成功状态。
+            if (doSettleCommission(record.getId()) > 0) {
+                totalSettled++;
             }
         }
 
@@ -434,12 +432,8 @@ public class CommissionServiceImpl implements CommissionService {
             List<DmsCommissionRecord> unsettledRecords = recordDao.selectByAgentIdAndStatus(
                     childAgent.getId(), CommissionStatusEnum.PENDING.getValue());
             for (DmsCommissionRecord record : unsettledRecords) {
-                try {
-                    if (settleCommission(record.getId())) {
-                        totalSettled++;
-                    }
-                } catch (Exception e) {
-                    log.error("结算佣金失败: recordId={}", record.getId(), e);
+                if (doSettleCommission(record.getId()) > 0) {
+                    totalSettled++;
                 }
             }
 

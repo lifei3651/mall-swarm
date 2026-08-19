@@ -44,38 +44,51 @@
         <result column="company_profit" property="companyProfit"/>
     </resultMap>
 
-    <select id="selectByOrderId" resultMap="BaseResultMap">
+    <select id="selectByOrderIdScoped" resultMap="BaseResultMap">
         SELECT id, order_id, order_no, pay_amount, refund_amount, net_pay_amount, product_cost, bonus_amount, company_share_amount,
                company_profit, risk_status, remark, create_time, update_time
         FROM dms_order_finance
         WHERE order_id = #{orderId}
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order
+                      WHERE scoped_order.id = dms_order_finance.order_id
+                        AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
     </select>
 
-    <select id="selectByOrderNo" resultMap="BaseResultMap">
+    <select id="selectByOrderNoScoped" resultMap="BaseResultMap">
         SELECT id, order_id, order_no, pay_amount, refund_amount, net_pay_amount, product_cost, bonus_amount, company_share_amount,
                company_profit, risk_status, remark, create_time, update_time
         FROM dms_order_finance
         WHERE order_no = #{orderNo}
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order
+                      WHERE scoped_order.id = dms_order_finance.order_id
+                        AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
     </select>
 
-    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsOrderFinance" useGeneratedKeys="true" keyProperty="id">
+    <insert id="insertScoped" useGeneratedKeys="true" keyProperty="finance.id">
         INSERT INTO dms_order_finance (order_id, order_no, pay_amount, refund_amount, net_pay_amount, product_cost, bonus_amount,
             company_share_amount, company_profit, risk_status, remark)
-        VALUES (#{orderId}, #{orderNo}, #{payAmount}, #{refundAmount}, #{netPayAmount}, #{productCost}, #{bonusAmount},
-            #{companyShareAmount}, #{companyProfit}, #{riskStatus}, #{remark})
+        SELECT #{finance.orderId}, #{finance.orderNo}, #{finance.payAmount}, #{finance.refundAmount}, #{finance.netPayAmount},
+            #{finance.productCost}, #{finance.bonusAmount}, #{finance.companyShareAmount}, #{finance.companyProfit},
+            #{finance.riskStatus}, #{finance.remark}
+        FROM dms_shop_order scoped_order
+        WHERE scoped_order.id = #{finance.orderId}
+          AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId}
     </insert>
 
-    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsOrderFinance">
+    <update id="updateScoped">
         UPDATE dms_order_finance
-        SET order_no = #{orderNo}, pay_amount = #{payAmount}, refund_amount = #{refundAmount},
-            net_pay_amount = #{netPayAmount}, product_cost = #{productCost},
-            bonus_amount = #{bonusAmount}, company_share_amount = #{companyShareAmount},
-            company_profit = #{companyProfit}, risk_status = #{riskStatus}, remark = #{remark},
+        SET order_no = #{finance.orderNo}, pay_amount = #{finance.payAmount}, refund_amount = #{finance.refundAmount},
+            net_pay_amount = #{finance.netPayAmount}, product_cost = #{finance.productCost},
+            bonus_amount = #{finance.bonusAmount}, company_share_amount = #{finance.companyShareAmount},
+            company_profit = #{finance.companyProfit}, risk_status = #{finance.riskStatus}, remark = #{finance.remark},
             update_time = NOW()
-        WHERE order_id = #{orderId}
+        WHERE order_id = #{finance.orderId}
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order
+                      WHERE scoped_order.id = dms_order_finance.order_id
+                        AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
     </update>
 
-    <select id="selectSummary" resultMap="SummaryResultMap">
+    <select id="selectSummaryScoped" resultMap="SummaryResultMap">
         SELECT
             COUNT(1) AS order_count,
             SUM(CASE WHEN finance.risk_status = 1 THEN 1 ELSE 0 END) AS risk_order_count,
@@ -89,6 +102,7 @@
         FROM dms_order_finance finance
         INNER JOIN dms_shop_order shop_order ON shop_order.id = finance.order_id
         WHERE shop_order.pay_time IS NOT NULL
+          AND COALESCE(shop_order.tenant_id, 1) = #{tenantId}
         <if test="startTime != null">
             AND shop_order.pay_time &gt;= #{startTime}
         </if>
@@ -97,7 +111,7 @@
         </if>
     </select>
 
-    <select id="selectDailySummary" resultMap="DailySummaryResultMap">
+    <select id="selectDailySummaryScoped" resultMap="DailySummaryResultMap">
         SELECT
             DATE(shop_order.pay_time) AS stat_date,
             COUNT(1) AS order_count,
@@ -112,6 +126,7 @@
         FROM dms_order_finance finance
         INNER JOIN dms_shop_order shop_order ON shop_order.id = finance.order_id
         WHERE shop_order.pay_time IS NOT NULL
+          AND COALESCE(shop_order.tenant_id, 1) = #{tenantId}
         <if test="startTime != null">
             AND shop_order.pay_time &gt;= #{startTime}
         </if>

@@ -19,6 +19,7 @@ import com.macro.mall.distribution.dto.ProductPublishDTO;
 import com.macro.mall.distribution.dto.FreightTemplateRuleDTO;
 import com.macro.mall.distribution.dto.FreightTemplateSaveDTO;
 import com.macro.mall.distribution.entity.*;
+import com.macro.mall.distribution.enums.AgentStatusEnum;
 import com.macro.mall.distribution.service.CommissionService;
 import com.macro.mall.distribution.service.DistributionAuditService;
 import com.macro.mall.distribution.service.MemberAssetService;
@@ -1779,8 +1780,8 @@ public class ShopServiceImpl implements ShopService {
 
     private String generateTradeNo(Long tradeId, LocalDateTime time) {
         String date = (time == null ? LocalDateTime.now() : time).format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-        String suffix = String.valueOf(Math.abs(tradeId == null ? 0L : tradeId) % 1_000_000L);
-        return "T" + date + "0".repeat(Math.max(0, 6 - suffix.length())) + suffix;
+        // 保留完整雪花 ID，避免取模后在同一秒内产生交易号碰撞。
+        return "T" + date + Long.toUnsignedString(tradeId == null ? 0L : tradeId);
     }
 
     private DmsAgent resolveOwnerAgent(ShopOrderSubmitDTO dto) {
@@ -1795,6 +1796,9 @@ public class ShopServiceImpl implements ShopService {
             DmsAgent agent = agentDao.selectByInviteCode(dto.getInviteCode());
             if (agent == null) {
                 Asserts.fail("邀请码无效");
+            }
+            if (!AgentStatusEnum.NORMAL.getValue().equals(agent.getStatus())) {
+                Asserts.fail("邀请人当前不可关联新订单");
             }
             return agent;
         }

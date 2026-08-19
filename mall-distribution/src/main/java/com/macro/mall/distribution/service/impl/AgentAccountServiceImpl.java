@@ -95,7 +95,9 @@ public class AgentAccountServiceImpl implements AgentAccountService {
         if (account.getUnsettledCommission().compareTo(amount) < 0) {
             Asserts.fail("待结算佣金不足");
         }
-        accountDao.subtractUnsettledCommission(agentId, amount);
+        if (accountDao.subtractUnsettledCommission(agentId, amount) != 1) {
+            Asserts.fail("待结算佣金不足");
+        }
         log.info("减少待结算佣金: agentId={}, amount={}", agentId, amount);
         return true;
     }
@@ -108,7 +110,9 @@ public class AgentAccountServiceImpl implements AgentAccountService {
         }
 
         // 减少待结算佣金
-        accountDao.subtractUnsettledCommission(agentId, amount);
+        if (accountDao.subtractUnsettledCommission(agentId, amount) != 1) {
+            Asserts.fail("待结算佣金不足");
+        }
         // 增加已结算佣金
         accountDao.addSettledCommission(agentId, amount);
 

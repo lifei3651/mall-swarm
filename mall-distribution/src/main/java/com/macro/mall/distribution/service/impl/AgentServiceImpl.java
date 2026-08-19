@@ -66,6 +66,8 @@ import java.util.LinkedHashMap;
 @RequiredArgsConstructor
 public class AgentServiceImpl implements AgentService {
 
+    private static final int MAX_INVITE_CODE_ATTEMPTS = 32;
+
     private final DmsAgentDao agentDao;
     private final DmsAgentRelationDao relationDao;
     private final DmsAgentAccountDao accountDao;
@@ -91,6 +93,8 @@ public class AgentServiceImpl implements AgentService {
         if (shopMember == null) {
             Asserts.fail("商城会员不存在，请先注册会员或从会员中心确认用户ID");
         }
+        // 同一会员开通推广身份必须串行，与数据库 user_id 唯一约束共同防重。
+        shopMember = shopMemberDao.selectByIdForUpdate(shopMember.getId());
         registerDTO.setUserId(shopMember.getUserId());
         // 检查用户是否已经是代理
         DmsAgent existAgent = agentDao.selectByUserId(registerDTO.getUserId());
@@ -135,6 +139,9 @@ public class AgentServiceImpl implements AgentService {
             parentAgent = agentDao.selectByInviteCode(registerDTO.getInviteCode().trim().toUpperCase(java.util.Locale.ROOT));
             if (parentAgent == null) {
                 Asserts.fail("邀请码无效");
+            }
+            if (!AgentStatusEnum.NORMAL.getValue().equals(parentAgent.getStatus())) {
+                Asserts.fail("邀请人当前不可绑定新会员");
             }
             agent.setParentId(parentAgent.getId());
             agent.setAncestorIds(parentAgent.getAncestorIds() != null ?
@@ -185,8 +192,8 @@ public class AgentServiceImpl implements AgentService {
                     BindTypeEnum.INVITE_CODE.getValue()
             );
 
-            // 更新上级的团队人数
-            updateTeamMemberCount(agent.getParentId());
+            // 新增一名成员会影响整条祖先链，不只是直属上级。
+            refreshTeamMemberCounts(collectAncestorIds(agent));
         }
 
         log.info("代理注册成功: agentId={}, userId={}", agent.getId(), agent.getUserId());
@@ -271,6 +278,9 @@ public class AgentServiceImpl implements AgentService {
         if (newParentAgent == null) {
             Asserts.fail("新直属上级会员不存在");
         }
+        if (!AgentStatusEnum.NORMAL.getValue().equals(newParentAgent.getStatus())) {
+            Asserts.fail("新直属上级已停用或冻结，不能接收新团队");
+        }
 
         // 检查是否形成循环
         if (wouldCreateCycle(agentId, newParentAgentId)) {
@@ -280,6 +290,9 @@ public class AgentServiceImpl implements AgentService {
         // 记录原上级信息
         Long oldParentAgentId = agent.getParentId();
         DmsAgent oldParentAgent = oldParentAgentId != null ? agentDao.selectById(oldParentAgentId) : null;
+        Set<Long> impactedTeamCountIds = new HashSet<>(collectAncestorIds(agent));
+        impactedTeamCountIds.addAll(collectAncestorIds(newParentAgent));
+        impactedTeamCountIds.add(newParentAgentId);
 
         // 先快照整棵子树；历史业绩和历史佣金保持原样，不做结算、转移或重算。
         Map<Long, DmsAgent> subtree = new LinkedHashMap<>();
@@ -341,11 +354,8 @@ public class AgentServiceImpl implements AgentService {
         changeLog.setOperatorType(1);
         changeLogDao.insert(changeLog);
 
-        // 7. 更新新旧上级的团队人数
-        if (oldParentAgentId != null) {
-            updateTeamMemberCount(oldParentAgentId);
-        }
-        updateTeamMemberCount(newParentAgentId);
+        // 7. 移线会改变新旧两条祖先链的团队人数。
+        refreshTeamMemberCounts(impactedTeamCountIds);
 
         log.info("代理切线成功: agentId={}, oldParentId={}, newParentId={}", agentId, oldParentAgentId, newParentAgentId);
         return true;
@@ -451,6 +461,7 @@ public class AgentServiceImpl implements AgentService {
         }
         Long oldParentAgentId = agent.getParentId();
         DmsAgent oldParent = oldParentAgentId == null ? null : agentDao.selectById(oldParentAgentId);
+        Set<Long> impactedTeamCountIds = collectAncestorIds(agent);
         List<DmsAgent> children = agentDao.selectByParentId(agentId);
 
         // 1. 该会员的完整下级团队整体移交其原直属上级（无上级则提升为根节点），团队关系与历史数据保持不变。
@@ -487,10 +498,8 @@ public class AgentServiceImpl implements AgentService {
         changeLog.setOperatorType(admin == null ? 1 : 2);
         changeLogDao.insert(changeLog);
 
-        // 4. 刷新原上级团队人数。
-        if (oldParentAgentId != null) {
-            updateTeamMemberCount(oldParentAgentId);
-        }
+        // 4. 取消本人资格会影响整条原祖先链的团队人数。
+        refreshTeamMemberCounts(impactedTeamCountIds);
         log.info("取消会员资格成功: agentId={}, userId={}, reason={}", agentId, agent.getUserId(), reason);
         return true;
     }
@@ -534,11 +543,12 @@ public class AgentServiceImpl implements AgentService {
 
     @Override
     public String generateInviteCode() {
-        String code;
-        do {
-            code = RandomUtil.randomStringUpper(8);
-        } while (agentDao.selectByInviteCode(code) != null);
-        return code;
+        for (int attempt = 0; attempt < MAX_INVITE_CODE_ATTEMPTS; attempt++) {
+            String code = RandomUtil.randomStringUpper(8);
+            if (agentDao.selectByInviteCode(code) == null) return code;
+        }
+        Asserts.fail("邀请码生成失败，请稍后重试");
+        return null;
     }
 
     @Override
@@ -629,8 +639,30 @@ public class AgentServiceImpl implements AgentService {
      * 更新团队成员数
      */
     private void updateTeamMemberCount(Long agentId) {
+        if (agentId == null) return;
         int count = relationService.getTeamMemberCount(agentId);
         accountDao.updateTotalTeamMembers(agentId, count);
+    }
+
+    private Set<Long> collectAncestorIds(DmsAgent agent) {
+        Set<Long> ids = new HashSet<>();
+        if (agent == null) return ids;
+        if (agent.getAncestorIds() != null && !agent.getAncestorIds().isBlank()) {
+            for (String value : agent.getAncestorIds().split(",")) {
+                try {
+                    ids.add(Long.valueOf(value.trim()));
+                } catch (NumberFormatException ignored) {
+                    log.warn("忽略非法祖先ID: agentId={}, value={}", agent.getId(), value);
+                }
+            }
+        }
+        if (agent.getParentId() != null) ids.add(agent.getParentId());
+        return ids;
+    }
+
+    private void refreshTeamMemberCounts(Set<Long> agentIds) {
+        if (agentIds == null) return;
+        agentIds.stream().filter(java.util.Objects::nonNull).sorted().forEach(this::updateTeamMemberCount);
     }
 
     /**

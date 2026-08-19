@@ -3,6 +3,7 @@ package com.macro.mall.distribution.controller;
 import com.macro.mall.common.api.CommonPage;
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.distribution.service.PerformanceService;
+import com.macro.mall.distribution.config.DistributedScheduledTaskRunner;
 import com.macro.mall.distribution.vo.OrderPerformanceDetailVO;
 import com.macro.mall.distribution.vo.PerformanceOverviewVO;
 import com.macro.mall.distribution.vo.PerformanceRankingVO;
@@ -12,7 +13,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -26,6 +30,7 @@ import java.util.List;
 public class PerformanceController {
 
     private final PerformanceService performanceService;
+    private final DistributedScheduledTaskRunner scheduledTaskRunner;
 
     @Operation(summary = "记录订单业绩")
     @PostMapping("/record")
@@ -35,7 +40,8 @@ public class PerformanceController {
             @RequestParam java.math.BigDecimal orderAmount,
             @RequestParam Long orderUserId,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") java.time.LocalDateTime orderTime) {
-        return CommonResult.failed("订单业绩请通过支付确认或订单导入流程记录");
+        throw new ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED,
+                "订单业绩请通过支付确认或订单导入流程记录");
     }
 
     @Operation(summary = "查询代理的业绩概览")
@@ -100,16 +106,18 @@ public class PerformanceController {
     @PostMapping("/refresh/daily")
     public CommonResult<Boolean> refreshDailySummary(
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate statDate) {
-        performanceService.refreshDailySummary(statDate);
-        return CommonResult.success(true);
+        boolean executed = scheduledTaskRunner.run("daily-performance-summary", Duration.ofHours(2),
+                () -> performanceService.refreshDailySummary(statDate));
+        return executed ? CommonResult.success(true) : CommonResult.failed("业绩日汇总正在执行，请稍后重试");
     }
 
     @Operation(summary = "刷新月业绩汇总")
     @PostMapping("/refresh/monthly")
     public CommonResult<Boolean> refreshMonthlySummary(
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate statDate) {
-        performanceService.refreshMonthlySummary(statDate);
-        return CommonResult.success(true);
+        boolean executed = scheduledTaskRunner.run("monthly-performance-summary", Duration.ofHours(4),
+                () -> performanceService.refreshMonthlySummary(statDate));
+        return executed ? CommonResult.success(true) : CommonResult.failed("业绩月汇总正在执行，请稍后重试");
     }
 
     private <T> CommonPage<T> page(List<T> list, Integer pageNum, Integer pageSize) {

@@ -408,7 +408,9 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         refund.setOperatorId(dto.getOperatorId());
         refund.setOperatorName(dto.getOperatorName());
         refund.setRefundTime(dto.getRefundTime() == null ? LocalDateTime.now() : dto.getRefundTime());
-        refundDao.insert(refund);
+        if (refundDao.insert(refund) != 1) {
+            Asserts.fail("退款订单不属于当前租户");
+        }
 
         // 商品退款按实际退回数量精确冲减；运费永远不参与业绩、件数和奖金冲销。
         performanceService.reverseOrderPerformance(refund.getOrderId(), refund.getId(),
@@ -522,7 +524,14 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         finance.setCompanyShareAmount(BigDecimal.ZERO);
         finance.setCompanyProfit(nullToZero(payAmount));
         finance.setRiskStatus(0);
-        financeDao.insert(finance);
+        // 历史导入的业绩明细可能没有商城订单主表；只做临时展示，
+        // 不创建无法归属租户的孤儿财务记录。
+        if (shopOrderDao.selectById(orderId) == null) {
+            return finance;
+        }
+        if (financeDao.insert(finance) != 1) {
+            Asserts.fail("订单不属于当前租户");
+        }
         return finance;
     }
 

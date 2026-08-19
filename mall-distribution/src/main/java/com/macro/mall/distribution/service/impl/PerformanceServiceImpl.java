@@ -123,7 +123,7 @@ public class PerformanceServiceImpl implements PerformanceService {
             // 更新下属贡献记录
             agentAccountDao.addTotalOrders(parentAgent.getId(), effectiveUnits);
             updateSubordinateContribution(parentAgent.getId(), orderAgent.getId(), orderAmount,
-                    effectiveUnits, orderTime.toLocalDate());
+                    effectiveUnits, relation.getRelationLevel(), orderTime.toLocalDate());
         }
 
         log.info("记录订单业绩成功: orderId={}, orderNo={}, amount={}, userId={}", orderId, orderNo, orderAmount, orderUserId);
@@ -664,16 +664,12 @@ public class PerformanceServiceImpl implements PerformanceService {
      * 更新下属贡献记录
      */
     private void updateSubordinateContribution(Long agentId, Long subordinateAgentId,
-                                                 BigDecimal amount, int quantity, LocalDate statDate) {
+                                                 BigDecimal amount, int quantity, int relationLevel,
+                                                 LocalDate statDate) {
         DmsAgent subordinateAgent = agentDao.selectById(subordinateAgentId);
         if (subordinateAgent == null) {
             return;
         }
-
-        // 查询关系层级
-        DmsAgentRelation relation = relationDao.selectValidRelation(subordinateAgent.getUserId(),
-                agentDao.selectById(agentId).getUserId());
-        int relationLevel = relation != null ? relation.getRelationLevel() : 1;
 
         // 查询或创建贡献记录
         DmsSubordinateContribution contribution = contributionDao.selectByAgentAndSubordinate(

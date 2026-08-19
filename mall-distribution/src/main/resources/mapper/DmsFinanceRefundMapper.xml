@@ -19,45 +19,59 @@
         <result column="create_time" property="createTime"/>
     </resultMap>
 
-    <select id="selectByOrderId" resultMap="BaseResultMap">
+    <select id="selectByOrderIdScoped" resultMap="BaseResultMap">
         SELECT id, order_id, order_no, refund_no, refund_amount, product_refund_amount,
                freight_refund_amount, refund_quantity, clawback_bonus, reason,
                operator_id, operator_name, refund_time, create_time
         FROM dms_finance_refund
         WHERE order_id = #{orderId}
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order
+                      WHERE scoped_order.id = dms_finance_refund.order_id
+                        AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
         ORDER BY refund_time DESC, id DESC
     </select>
 
-    <select id="sumByOrderId" resultType="java.math.BigDecimal">
+    <select id="sumByOrderIdScoped" resultType="java.math.BigDecimal">
         SELECT IFNULL(SUM(refund_amount), 0)
         FROM dms_finance_refund
         WHERE order_id = #{orderId}
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_finance_refund.order_id
+                      AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
     </select>
 
-    <select id="sumProductByOrderId" resultType="java.math.BigDecimal">
+    <select id="sumProductByOrderIdScoped" resultType="java.math.BigDecimal">
         SELECT IFNULL(SUM(product_refund_amount), 0)
         FROM dms_finance_refund
         WHERE order_id = #{orderId}
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_finance_refund.order_id
+                      AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
     </select>
 
-    <select id="sumFreightByOrderId" resultType="java.math.BigDecimal">
+    <select id="sumFreightByOrderIdScoped" resultType="java.math.BigDecimal">
         SELECT IFNULL(SUM(freight_refund_amount), 0)
         FROM dms_finance_refund
         WHERE order_id = #{orderId}
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_finance_refund.order_id
+                      AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
     </select>
 
-    <select id="sumQuantityByOrderId" resultType="int">
+    <select id="sumQuantityByOrderIdScoped" resultType="int">
         SELECT IFNULL(SUM(refund_quantity), 0)
         FROM dms_finance_refund
         WHERE order_id = #{orderId}
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_finance_refund.order_id
+                      AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
     </select>
 
-    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsFinanceRefund" useGeneratedKeys="true" keyProperty="id">
+    <insert id="insertScoped" useGeneratedKeys="true" keyProperty="refund.id">
         INSERT INTO dms_finance_refund
         (order_id, order_no, refund_no, refund_amount, product_refund_amount, freight_refund_amount,
          refund_quantity, clawback_bonus, reason, operator_id, operator_name, refund_time)
-        VALUES
-        (#{orderId}, #{orderNo}, #{refundNo}, #{refundAmount}, #{productRefundAmount}, #{freightRefundAmount},
-         #{refundQuantity}, #{clawbackBonus}, #{reason}, #{operatorId}, #{operatorName}, #{refundTime})
+        SELECT #{refund.orderId}, #{refund.orderNo}, #{refund.refundNo}, #{refund.refundAmount},
+         #{refund.productRefundAmount}, #{refund.freightRefundAmount}, #{refund.refundQuantity},
+         #{refund.clawbackBonus}, #{refund.reason}, #{refund.operatorId}, #{refund.operatorName}, #{refund.refundTime}
+        FROM dms_shop_order scoped_order
+        WHERE scoped_order.id = #{refund.orderId}
+          AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId}
     </insert>
 </mapper>

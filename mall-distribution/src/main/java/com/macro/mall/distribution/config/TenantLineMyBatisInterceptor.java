@@ -103,7 +103,8 @@ public class TenantLineMyBatisInterceptor implements Interceptor {
         }
         // 检查 WHERE 子句中是否有 tenant_id 条件
         String afterWhere = lowerSql.substring(whereIndex + 7);
-        return afterWhere.contains("tenant_id =") || afterWhere.contains("tenant_id=");
+        return afterWhere.contains("tenant_id =") || afterWhere.contains("tenant_id=")
+                || afterWhere.contains("tenant_id, 1) =") || afterWhere.contains("tenant_id,1)=");
     }
 
     private String findTenantTable(String lowerSql) {

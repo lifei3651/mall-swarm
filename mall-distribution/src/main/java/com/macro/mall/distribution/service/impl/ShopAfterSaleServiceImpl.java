@@ -237,7 +237,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         afterSale.setProofImages(proofImages);
         afterSale.setStatus(0);
         populateReturnAddress(afterSale, order, refundItems);
-        afterSaleDao.insert(afterSale);
+        if (afterSaleDao.insert(afterSale) != 1) Asserts.fail("订单不属于当前租户");
         for (DmsShopAfterSaleItem item : refundItems) item.setAfterSaleId(afterSale.getId());
         afterSaleItemDao.insertBatch(refundItems);
         commitProofImages(member.getId(), proofImages);
@@ -428,7 +428,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         afterSale.setReason(dto.getReason() == null || dto.getReason().isBlank() ? "后台超期退款" : dto.getReason().trim());
         afterSale.setStatus(0);
         populateReturnAddress(afterSale, order, refundItems);
-        afterSaleDao.insert(afterSale);
+        if (afterSaleDao.insert(afterSale) != 1) Asserts.fail("订单不属于当前租户");
         for (DmsShopAfterSaleItem item : refundItems) item.setAfterSaleId(afterSale.getId());
         afterSaleItemDao.insertBatch(refundItems);
 
@@ -638,6 +638,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             FinanceRefundDTO refundDTO = new FinanceRefundDTO();
             refundDTO.setOrderId(afterSale.getOrderId());
             refundDTO.setOrderNo(afterSale.getOrderNo());
+            refundDTO.setRefundNo(afterSale.getAfterSaleNo());
             refundDTO.setRefundAmount(afterSale.getRefundAmount());
             refundDTO.setProductRefundAmount(afterSale.getProductRefundAmount());
             refundDTO.setFreightRefundAmount(afterSale.getFreightRefundAmount());

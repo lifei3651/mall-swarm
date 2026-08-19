@@ -15,6 +15,7 @@ import com.macro.mall.distribution.dto.ShopOrderSubmitDTO;
 import com.macro.mall.distribution.entity.*;
 import com.macro.mall.distribution.enums.CommissionStatusEnum;
 import com.macro.mall.distribution.enums.ChangeTypeEnum;
+import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.impl.NewRetailBonusPolicy;
 import com.macro.mall.distribution.service.impl.NewRetailRankService;
@@ -104,6 +105,9 @@ public class PerformanceServiceTest {
     private CommissionService commissionService;
 
     @Autowired
+    private AgentAccountService agentAccountService;
+
+    @Autowired
     private PerformanceService performanceService;
 
     @Autowired
@@ -126,6 +130,18 @@ public class PerformanceServiceTest {
 
     @Autowired
     private DmsOrderBalanceAllocationDao orderBalanceAllocationDao;
+
+    @Autowired
+    private DmsOrderFinanceDao orderFinanceDao;
+
+    @Autowired
+    private DmsFinanceRefundDao financeRefundDao;
+
+    @Autowired
+    private DmsShopAfterSaleDao afterSaleDao;
+
+    @Autowired
+    private DmsOrderCompanyShareDao companyShareDao;
 
     @Autowired
     private NewRetailRankService newRetailRankService;
@@ -745,6 +761,9 @@ public class PerformanceServiceTest {
         assertNull(relationDao.selectValidRelation(1002L, 1001L), "B到旧上级A的关系应失效");
         assertNull(relationDao.selectValidRelation(1003L, 1001L), "C到旧上级A的关系应失效");
 
+        assertEquals(0, accountDao.selectByAgentId(1L).getTotalTeamMembers());
+        assertEquals(2, accountDao.selectByAgentId(4L).getTotalTeamMembers());
+
         assertEquals(oldParentHistory, getTeamPerformance(1L), "旧上级历史业绩不得变化");
         assertEquals(newParentHistory, getTeamPerformance(4L), "新上级不得获得历史业绩");
     }
@@ -930,6 +949,8 @@ public class PerformanceServiceTest {
                 .selectByAgentIdAndStatus(2L, CommissionStatusEnum.PENDING.getValue())
                 .get(0);
         assertAmountEquals("3000.00", record.getCommissionAmount());
+        // 历史种子数据只有佣金明细，未同步待结算汇总；先补齐账务不变量再验证结算。
+        accountDao.addUnsettledCommission(2L, record.getCommissionAmount());
         assertTrue(commissionService.settleCommission(record.getId()));
 
         List<DmsMemberAssetAccount> accounts = memberAssetService.listAccounts(2L, null);
@@ -939,6 +960,50 @@ public class PerformanceServiceTest {
                 .orElseThrow();
 
         assertAmountEquals("3000.00", balanceAccount.getBalance());
+    }
+
+    @Test
+    void unsettledCommissionCannotBecomeNegative() {
+        DmsAgentAccount before = accountDao.selectByAgentId(2L);
+        BigDecimal available = before.getUnsettledCommission();
+        assertThrows(RuntimeException.class, () -> agentAccountService.subtractUnsettledCommission(
+                2L, available.add(BigDecimal.ONE)));
+        assertAmountEquals(available.toPlainString(), accountDao.selectByAgentId(2L).getUnsettledCommission());
+    }
+
+    @Test
+    void financialAndAfterSaleQueriesAreTenantScopedByOwningOrder() {
+        long orderId = 99000001L;
+        jdbcTemplate.update("INSERT INTO dms_shop_order(id,order_no,tenant_id,user_id,receiver_name,receiver_phone,receiver_address,pay_amount,status,pay_time) VALUES(?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)",
+                orderId, "TENANT2-ORDER", 2L, 99001L, "租户二", "13900000000", "测试地址", new BigDecimal("100.00"), 3);
+        jdbcTemplate.update("INSERT INTO dms_order_finance(order_id,order_no,pay_amount,net_pay_amount) VALUES(?,?,?,?)",
+                orderId, "TENANT2-ORDER", new BigDecimal("100.00"), new BigDecimal("100.00"));
+        jdbcTemplate.update("INSERT INTO dms_finance_refund(order_id,order_no,refund_no,refund_amount) VALUES(?,?,?,?)",
+                orderId, "TENANT2-ORDER", "TENANT2-REFUND", new BigDecimal("10.00"));
+        jdbcTemplate.update("INSERT INTO dms_shop_after_sale(after_sale_no,order_id,order_no,member_id,user_id,status) VALUES(?,?,?,?,?,?)",
+                "TENANT2-AFTERSALE", orderId, "TENANT2-ORDER", 99001L, 99001L, 0);
+        jdbcTemplate.update("INSERT INTO dms_order_company_share(order_id,order_no,account_id,account_name,share_rate,share_amount) VALUES(?,?,?,?,?,?)",
+                orderId, "TENANT2-ORDER", 1L, "租户二公司", new BigDecimal("0.10"), new BigDecimal("10.00"));
+
+        assertNull(orderFinanceDao.selectByOrderIdScoped(1L, orderId));
+        assertTrue(financeRefundDao.selectByOrderIdScoped(1L, orderId).isEmpty());
+        assertNull(afterSaleDao.selectByIdScoped(1L,
+                jdbcTemplate.queryForObject("SELECT id FROM dms_shop_after_sale WHERE order_id=?", Long.class, orderId)));
+        assertTrue(companyShareDao.selectByOrderIdScoped(1L, orderId).isEmpty());
+
+        assertNotNull(orderFinanceDao.selectByOrderIdScoped(2L, orderId));
+        assertEquals(1, financeRefundDao.selectByOrderIdScoped(2L, orderId).size());
+        assertEquals(1, companyShareDao.selectByOrderIdScoped(2L, orderId).size());
+        assertEquals(1L, orderFinanceDao.selectSummaryScoped(2L, null, null).getOrderCount());
+
+        // 默认便捷方法也必须使用当前租户上下文。
+        TenantContext.setTenantId(2L);
+        try {
+            assertNotNull(orderFinanceDao.selectByOrderId(orderId));
+            assertEquals(1, financeRefundDao.selectByOrderId(orderId).size());
+        } finally {
+            TenantContext.clear();
+        }
     }
 
     /**
@@ -1260,6 +1325,9 @@ public class PerformanceServiceTest {
         audit.setAuditUserId(1L);
         audit.setAuditUserName("test-admin");
         shopAfterSaleService.audit(afterSale.getId(), audit);
+
+        assertEquals(afterSale.getAfterSaleNo(),
+                auditService.getRefundsByOrderId(created.getOrder().getId()).get(0).getRefundNo());
 
         assertEquals(4, shopOrderDao.selectById(created.getOrder().getId()).getStatus());
         assertEquals(0, performanceDetailDao.sumEffectiveTeamUnits(activated.getId()));

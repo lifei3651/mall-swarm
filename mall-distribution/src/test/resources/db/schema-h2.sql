@@ -22,7 +22,10 @@ CREATE TABLE IF NOT EXISTS dms_agent (
   import_batch_id VARCHAR(64),
   remark VARCHAR(256),
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT uk_dms_agent_user_id UNIQUE (user_id),
+  CONSTRAINT uk_dms_agent_code UNIQUE (agent_code),
+  CONSTRAINT uk_dms_agent_invite_code UNIQUE (invite_code)
 );
 
 -- 代理关系表

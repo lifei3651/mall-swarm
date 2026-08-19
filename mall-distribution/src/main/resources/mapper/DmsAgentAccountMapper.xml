@@ -84,6 +84,7 @@
         UPDATE dms_agent_account
         SET unsettled_commission = unsettled_commission - #{amount}
         WHERE agent_id = #{agentId}
+          AND unsettled_commission &gt;= #{amount}
     </update>
 
     <update id="addSettledCommission">

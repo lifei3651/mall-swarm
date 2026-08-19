@@ -22,35 +22,47 @@
         <result column="share_amount" property="shareAmount"/>
     </resultMap>
 
-    <select id="selectByOrderId" resultMap="BaseResultMap">
+    <select id="selectByOrderIdScoped" resultMap="BaseResultMap">
         SELECT id, order_id, order_no, account_id, account_name, share_rate, share_amount,
                remark, create_time, update_time
         FROM dms_order_company_share
         WHERE order_id = #{orderId}
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order
+                      WHERE scoped_order.id = dms_order_company_share.order_id
+                        AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
         ORDER BY id ASC
     </select>
 
-    <select id="selectSummary" resultMap="SummaryResultMap">
-        SELECT account_id, account_name, COUNT(DISTINCT order_id) AS order_count,
-               IFNULL(SUM(share_amount), 0) AS share_amount
-        FROM dms_order_company_share
-        WHERE 1 = 1
+    <select id="selectSummaryScoped" resultMap="SummaryResultMap">
+        SELECT share.account_id, share.account_name, COUNT(DISTINCT share.order_id) AS order_count,
+               IFNULL(SUM(share.share_amount), 0) AS share_amount
+        FROM dms_order_company_share share
+        INNER JOIN dms_shop_order scoped_order ON scoped_order.id = share.order_id
+        WHERE COALESCE(scoped_order.tenant_id, 1) = #{tenantId}
         <if test="startTime != null">
-            AND create_time &gt;= #{startTime}
+            AND share.create_time &gt;= #{startTime}
         </if>
         <if test="endTime != null">
-            AND create_time &lt; #{endTime}
+            AND share.create_time &lt; #{endTime}
         </if>
-        GROUP BY account_id, account_name
+        GROUP BY share.account_id, share.account_name
         ORDER BY share_amount DESC
     </select>
 
-    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsOrderCompanyShare" useGeneratedKeys="true" keyProperty="id">
+    <insert id="insertScoped" useGeneratedKeys="true" keyProperty="share.id">
         INSERT INTO dms_order_company_share (order_id, order_no, account_id, account_name, share_rate, share_amount, remark)
-        VALUES (#{orderId}, #{orderNo}, #{accountId}, #{accountName}, #{shareRate}, #{shareAmount}, #{remark})
+        SELECT #{share.orderId}, #{share.orderNo}, #{share.accountId}, #{share.accountName}, #{share.shareRate},
+               #{share.shareAmount}, #{share.remark}
+        FROM dms_shop_order scoped_order
+        WHERE scoped_order.id = #{share.orderId}
+          AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId}
     </insert>
 
-    <delete id="deleteByOrderId">
-        DELETE FROM dms_order_company_share WHERE order_id = #{orderId}
+    <delete id="deleteByOrderIdScoped">
+        DELETE FROM dms_order_company_share
+        WHERE order_id = #{orderId}
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order
+                      WHERE scoped_order.id = dms_order_company_share.order_id
+                        AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
     </delete>
 </mapper>
