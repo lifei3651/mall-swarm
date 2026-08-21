@@ -14,6 +14,7 @@ ROLLBACK_DIR=""
 NEW_ADMIN=""
 NEW_SHOP=""
 NEW_TEAM=""
+NEW_CONFIG=""
 NEW_LOG_OUTPUT=""
 BACKUP_PATH=""
 BEFORE_COUNTS=""
@@ -42,6 +43,7 @@ cleanup_staging() {
   [[ -n "$NEW_ADMIN" && -d "$NEW_ADMIN" ]] && rm -rf -- "$NEW_ADMIN"
   [[ -n "$NEW_SHOP" && -d "$NEW_SHOP" ]] && rm -rf -- "$NEW_SHOP"
   [[ -n "$NEW_TEAM" && -d "$NEW_TEAM" ]] && rm -rf -- "$NEW_TEAM"
+  [[ -n "$NEW_CONFIG" && -f "$NEW_CONFIG" ]] && rm -f -- "$NEW_CONFIG"
   [[ -n "$NEW_LOG_OUTPUT" && -f "$NEW_LOG_OUTPUT" ]] && rm -f -- "$NEW_LOG_OUTPUT"
 }
 
@@ -52,6 +54,7 @@ rollback() {
     systemctl stop lingqimall-distribution.service || true
     [[ -s "$ROLLBACK_DIR/mall-distribution.jar" ]] && install -m 0644 "$ROLLBACK_DIR/mall-distribution.jar" "$APP_ROOT/app/mall-distribution.jar" || true
     [[ -s "$ROLLBACK_DIR/VERSION" ]] && install -m 0644 "$ROLLBACK_DIR/VERSION" "$APP_ROOT/VERSION" || true
+    [[ -s "$ROLLBACK_DIR/application.yml" ]] && install -m 0640 -o root -g lingqimall "$ROLLBACK_DIR/application.yml" "$APP_ROOT/config/application.yml" || true
     for site in admin shop team; do
       if [[ -d "$ROLLBACK_DIR/$site" ]]; then
         rm -rf -- "$APP_ROOT/nginx/$site"
@@ -100,6 +103,7 @@ ROLLBACK_DIR="$(mktemp -d /tmp/lingqimall-rollback-v1.0.62.XXXXXX)"
 install -m 0600 /usr/local/sbin/lingqimall-backup "$ROLLBACK_DIR/lingqimall-backup"
 install -m 0600 "$APP_ROOT/app/mall-distribution.jar" "$ROLLBACK_DIR/mall-distribution.jar"
 install -m 0600 "$APP_ROOT/VERSION" "$ROLLBACK_DIR/VERSION"
+install -m 0600 "$APP_ROOT/config/application.yml" "$ROLLBACK_DIR/application.yml"
 install -m 0750 "$RELEASE_DIR/production-backup.sh" /usr/local/sbin/lingqimall-backup
 BACKUP_TOOL_MUTATED=1
 
@@ -146,6 +150,52 @@ if find "$NEW_ADMIN" "$NEW_SHOP" "$NEW_TEAM" -type f -name '*.map' -print -quit 
 fi
 chown -R nginx:nginx "$NEW_ADMIN" "$NEW_SHOP" "$NEW_TEAM"
 
+NEW_CONFIG="$(mktemp /tmp/lingqimall-application-v1.0.62.XXXXXX)"
+python3 - "$APP_ROOT/config/application.yml" "$NEW_CONFIG" <<'PY'
+import pathlib
+import sys
+
+source_path = pathlib.Path(sys.argv[1])
+target_path = pathlib.Path(sys.argv[2])
+source = source_path.read_text()
+
+redis_needle = "      database: 0\n  redis:\n"
+if source.count(redis_needle) != 1:
+    raise SystemExit("unexpected spring.data.redis structure")
+if "      connect-timeout:" in source or "      lettuce:\n        pool:" in source:
+    raise SystemExit("Redis timeout/pool settings already exist unexpectedly")
+redis_replacement = """      database: 0
+      connect-timeout: 2s
+      timeout: 3s
+      lettuce:
+        pool:
+          max-active: 32
+          max-idle: 16
+          min-idle: 4
+          max-wait: 2s
+  redis:
+"""
+source = source.replace(redis_needle, redis_replacement, 1)
+
+mybatis_needle = "    map-underscore-to-camel-case: true\n\npagehelper:\n"
+if source.count(mybatis_needle) != 1:
+    raise SystemExit("unexpected MyBatis configuration structure")
+if "    local-cache-scope:" in source or "    cache-enabled:" in source:
+    raise SystemExit("MyBatis cache settings already exist unexpectedly")
+mybatis_replacement = """    map-underscore-to-camel-case: true
+    local-cache-scope: statement
+    cache-enabled: false
+
+pagehelper:
+"""
+source = source.replace(mybatis_needle, mybatis_replacement, 1)
+target_path.write_text(source)
+PY
+grep -Fq '      connect-timeout: 2s' "$NEW_CONFIG"
+grep -Fq '          max-active: 32' "$NEW_CONFIG"
+grep -Fq '    local-cache-scope: statement' "$NEW_CONFIG"
+grep -Fq '    cache-enabled: false' "$NEW_CONFIG"
+
 systemctl stop lingqimall-distribution.service
 STDOUT_SIZE="$(stat -c '%s' "$APP_ROOT/logs/distribution/stdout.log" 2>/dev/null || echo 0)"
 STDERR_SIZE="$(stat -c '%s' "$APP_ROOT/logs/distribution/stderr.log" 2>/dev/null || echo 0)"
@@ -158,6 +208,8 @@ mv "$NEW_SHOP" "$APP_ROOT/nginx/shop"; NEW_SHOP=""
 mv "$NEW_TEAM" "$APP_ROOT/nginx/team"; NEW_TEAM=""
 install -m 0644 "$RELEASE_DIR/mall-distribution.jar" "$APP_ROOT/app/mall-distribution.jar"
 install -m 0644 "$RELEASE_DIR/VERSION" "$APP_ROOT/VERSION"
+install -m 0640 -o root -g lingqimall "$NEW_CONFIG" "$APP_ROOT/config/application.yml"
+rm -f "$NEW_CONFIG"; NEW_CONFIG=""
 systemctl start lingqimall-distribution.service
 
 healthy=0
@@ -213,6 +265,10 @@ done
 
 [[ "$(sha256sum "$APP_ROOT/app/mall-distribution.jar" | awk '{print $1}')" == "$EXPECTED_JAR_SHA256" ]]
 [[ "$(tr -d '[:space:]' < "$APP_ROOT/VERSION")" == "$EXPECTED_VERSION" ]]
+grep -Fq '      connect-timeout: 2s' "$APP_ROOT/config/application.yml"
+grep -Fq '          max-active: 32' "$APP_ROOT/config/application.yml"
+grep -Fq '    local-cache-scope: statement' "$APP_ROOT/config/application.yml"
+grep -Fq '    cache-enabled: false' "$APP_ROOT/config/application.yml"
 [[ "$(database_counts)" == "$BEFORE_COUNTS" ]]
 [[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_schema_migration_history WHERE success=1')" == "$EXPECTED_MIGRATIONS" ]]
 systemctl is-active --quiet lingqimall-distribution.service
