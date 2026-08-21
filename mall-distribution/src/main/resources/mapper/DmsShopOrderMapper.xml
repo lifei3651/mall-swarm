@@ -282,7 +282,7 @@
         ORDER BY create_time DESC
     </select>
 
-    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopOrder">
+    <insert id="insertScoped">
         INSERT INTO dms_shop_order
         (id, order_no, trade_id, trade_no, payment_order_no, tenant_id, merchant_id, merchant_name, user_id, agent_id, invite_code, receiver_name, receiver_phone,
          receiver_address, receiver_province, receiver_city, receiver_district, receiver_detail_address,
@@ -290,20 +290,20 @@
          total_cost, business_type, business_source_id, status, pay_type, remark, pay_time, delivery_company, delivery_no,
          delivery_time, receive_time, cancel_time, close_time)
         VALUES
-        (#{id}, #{orderNo}, #{tradeId}, #{tradeNo}, #{paymentOrderNo}, #{tenantId}, #{merchantId}, #{merchantName}, #{userId}, #{agentId}, #{inviteCode}, #{receiverName}, #{receiverPhone},
-         #{receiverAddress}, #{receiverProvince}, #{receiverCity}, #{receiverDistrict}, #{receiverDetailAddress},
-         #{totalAmount}, #{freightAmount}, #{discountAmount}, #{payAmount}, #{totalPv},
-         #{totalCost}, #{businessType}, #{businessSourceId}, #{status}, #{payType}, #{remark}, #{payTime}, #{deliveryCompany}, #{deliveryNo},
-         #{deliveryTime}, #{receiveTime}, #{cancelTime}, #{closeTime})
+        (#{order.id}, #{order.orderNo}, #{order.tradeId}, #{order.tradeNo}, #{order.paymentOrderNo}, #{tenantId}, #{order.merchantId}, #{order.merchantName}, #{order.userId}, #{order.agentId}, #{order.inviteCode}, #{order.receiverName}, #{order.receiverPhone},
+         #{order.receiverAddress}, #{order.receiverProvince}, #{order.receiverCity}, #{order.receiverDistrict}, #{order.receiverDetailAddress},
+         #{order.totalAmount}, #{order.freightAmount}, #{order.discountAmount}, #{order.payAmount}, #{order.totalPv},
+         #{order.totalCost}, #{order.businessType}, #{order.businessSourceId}, #{order.status}, #{order.payType}, #{order.remark}, #{order.payTime}, #{order.deliveryCompany}, #{order.deliveryNo},
+         #{order.deliveryTime}, #{order.receiveTime}, #{order.cancelTime}, #{order.closeTime})
     </insert>
 
-    <update id="updateStatus">
+    <update id="updateStatusScoped">
         UPDATE dms_shop_order
         SET status = #{status}, update_time = CURRENT_TIMESTAMP
-        WHERE id = #{id}
+        WHERE id = #{id} AND COALESCE(tenant_id, 1) = #{tenantId}
     </update>
 
-    <update id="markPaid">
+    <update id="markPaidScoped">
         UPDATE dms_shop_order
         SET status = 1,
             <if test="payType != null and payType != ''">
@@ -311,50 +311,51 @@
             </if>
             pay_time = CURRENT_TIMESTAMP,
             update_time = CURRENT_TIMESTAMP
-        WHERE id = #{id} AND status = 0
+        WHERE id = #{id} AND status = 0 AND COALESCE(tenant_id, 1) = #{tenantId}
     </update>
-    <update id="updateAgentId">
-        UPDATE dms_shop_order SET agent_id=#{agentId}, update_time=CURRENT_TIMESTAMP WHERE id=#{id}
+    <update id="updateAgentIdScoped">
+        UPDATE dms_shop_order SET agent_id=#{agentId}, update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id} AND COALESCE(tenant_id, 1) = #{tenantId}
     </update>
 
-    <update id="updateServiceRemark">
+    <update id="updateServiceRemarkScoped">
         UPDATE dms_shop_order
         SET service_remark=#{serviceRemark}, update_time=CURRENT_TIMESTAMP
-        WHERE id=#{id}
+        WHERE id=#{id} AND COALESCE(tenant_id, 1) = #{tenantId}
     </update>
 
-    <update id="ship">
+    <update id="shipScoped">
         UPDATE dms_shop_order
         SET status = 2,
             delivery_company = #{deliveryCompany},
             delivery_no = #{deliveryNo},
             delivery_time = CURRENT_TIMESTAMP,
             update_time = CURRENT_TIMESTAMP
-        WHERE id = #{id} AND status = 1
+        WHERE id = #{id} AND status = 1 AND COALESCE(tenant_id, 1) = #{tenantId}
     </update>
 
-    <update id="confirmReceive">
+    <update id="confirmReceiveScoped">
         UPDATE dms_shop_order
         SET status = 3,
             receive_time = CURRENT_TIMESTAMP,
             update_time = CURRENT_TIMESTAMP
-        WHERE id = #{id} AND status = 2
+        WHERE id = #{id} AND status = 2 AND COALESCE(tenant_id, 1) = #{tenantId}
     </update>
 
-    <update id="cancel">
+    <update id="cancelScoped">
         UPDATE dms_shop_order
         SET status = 4,
             cancel_time = CURRENT_TIMESTAMP,
             update_time = CURRENT_TIMESTAMP
-        WHERE id = #{id} AND status = 0
+        WHERE id = #{id} AND status = 0 AND COALESCE(tenant_id, 1) = #{tenantId}
     </update>
 
-    <update id="closeAfterSale">
+    <update id="closeAfterSaleScoped">
         UPDATE dms_shop_order
         SET status = 4,
             close_time = CURRENT_TIMESTAMP,
             update_time = CURRENT_TIMESTAMP
-        WHERE id = #{id} AND status IN (1, 2, 3)
+        WHERE id = #{id} AND status IN (1, 2, 3) AND COALESCE(tenant_id, 1) = #{tenantId}
     </update>
 
     <select id="countValidPaidOrdersByUserId" resultType="int">
@@ -371,11 +372,11 @@
         LIMIT #{limit}
     </select>
 
-    <update id="closePending">
+    <update id="closePendingScoped">
         UPDATE dms_shop_order
         SET status = 4,
             close_time = CURRENT_TIMESTAMP,
             update_time = CURRENT_TIMESTAMP
-        WHERE id = #{id} AND status = 0
+        WHERE id = #{id} AND status = 0 AND COALESCE(tenant_id, 1) = #{tenantId}
     </update>
 </mapper>

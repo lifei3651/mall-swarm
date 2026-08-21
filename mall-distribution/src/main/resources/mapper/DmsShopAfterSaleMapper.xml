@@ -88,7 +88,7 @@
         SELECT sale.proof_images
         FROM dms_shop_after_sale sale
         INNER JOIN dms_shop_order scoped_order ON scoped_order.id = sale.order_id
-        WHERE scoped_order.tenant_id = #{tenantId}
+        WHERE COALESCE(scoped_order.tenant_id, 1) = #{tenantId}
           AND sale.member_id = #{memberId}
           AND sale.proof_images IS NOT NULL
           AND sale.proof_images != ''

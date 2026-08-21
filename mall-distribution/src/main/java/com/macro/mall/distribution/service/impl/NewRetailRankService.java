@@ -37,6 +37,17 @@ public class NewRetailRankService {
     }
 
     @Transactional(rollbackFor = Exception.class)
+    public void refreshRanksAfterOrder(Long orderId) {
+        // 新订单只会改变订单本人及支付关系快照中各级上级的件数和部门资格，无需重新计算全体会员。
+        Set<Long> affectedAgentIds = performanceDetailDao.selectByOrderId(orderId).stream()
+                .map(item -> item.getTargetAgentId())
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (affectedAgentIds.isEmpty()) return;
+        refreshRanks(false, "新增有效订单：orderId=" + orderId, affectedAgentIds);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
     public void refreshAllRanksAfterRefund(Long orderId, Long refundId) {
         // 退款只可能改变订单本人及支付快照中各级上级的件数、业绩和部门资格。
         // 严禁全员降级，否则不相关的后台调级/外部迁入会员也可能被这一笔退款误伤。

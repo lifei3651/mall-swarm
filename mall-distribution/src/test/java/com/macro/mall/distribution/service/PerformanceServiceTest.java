@@ -1014,6 +1014,12 @@ public class PerformanceServiceTest {
                 .orElseThrow();
 
         assertAmountEquals("3000.00", balanceAccount.getBalance());
+        assertFalse(commissionService.settleCommission(record.getId()));
+        DmsMemberAssetAccount balanceAfterRetry = memberAssetService.listAccounts(2L, null).stream()
+                .filter(account -> "CASH_BONUS".equals(account.getAssetCode()))
+                .findFirst()
+                .orElseThrow();
+        assertAmountEquals("3000.00", balanceAfterRetry.getBalance());
     }
 
     @Test

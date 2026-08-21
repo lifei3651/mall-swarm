@@ -29,6 +29,7 @@ public class TenantLineMyBatisInterceptor implements Interceptor {
             "dms_shop_banner",
             "dms_shop_notice",
             "dms_shop_order",
+            "dms_shop_trade",
             "dms_shop_order_shipment",
             "dms_shop_product_review"
     );

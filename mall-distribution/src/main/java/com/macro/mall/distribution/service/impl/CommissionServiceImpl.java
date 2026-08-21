@@ -95,7 +95,7 @@ public class CommissionServiceImpl implements CommissionService {
         relationSnapshots.stream()
                 .filter(item -> item.getRelationLevel() != null && item.getRelationLevel() >= 1)
                 .forEach(item -> payoutRankSnapshot.computeIfAbsent(item.getTargetAgentId(), agentDao::selectById));
-        newRetailRankService.refreshAllRanks();
+        newRetailRankService.refreshRanksAfterOrder(orderId);
 
         relationSnapshots.stream()
                 .filter(item -> Integer.valueOf(1).equals(item.getRelationLevel()))
