@@ -28,4 +28,15 @@ describe('后台安全与只读查询', () => {
       expect(view).not.toContain("import echarts from '@/utils/echarts'")
     }
   })
+
+  it('代理和商户确认打款都提交管理员二次验证密码', async () => {
+    const withdrawApi = await source('src/api/withdraw.js')
+    const withdrawView = await source('src/views/withdraw/list.vue')
+    const merchantFinance = await source('src/views/audit/merchant-finance.vue')
+
+    expect(withdrawApi).toContain('data,')
+    expect(withdrawApi).not.toContain('params: { payNo }')
+    expect(withdrawView).toContain('adminPassword: payForm.value.adminPassword')
+    expect(merchantFinance).toContain('v-model="payForm.adminPassword"')
+  })
 })

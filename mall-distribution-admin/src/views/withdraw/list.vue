@@ -114,6 +114,9 @@
         <el-form-item label="打款流水号" required>
           <el-input v-model="payForm.payNo" placeholder="请输入打款流水号" />
         </el-form-item>
+        <el-form-item label="管理员密码" required>
+          <el-input v-model="payForm.adminPassword" type="password" show-password maxlength="64" autocomplete="current-password" placeholder="二次验证当前管理员登录密码" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="payDialogVisible = false">取消</el-button>
@@ -188,6 +191,7 @@ const payForm = ref({
   withdrawNo: '',
   withdrawAmount: '',
   payNo: '',
+  adminPassword: '',
 })
 
 // 表格数据
@@ -244,6 +248,7 @@ const handleConfirmPay = (row) => {
     withdrawNo: row.withdrawNo,
     withdrawAmount: row.withdrawAmount,
     payNo: '',
+    adminPassword: '',
   }
   payDialogVisible.value = true
 }
@@ -254,10 +259,18 @@ const submitPay = async () => {
     ElMessage.warning('请输入打款流水号')
     return
   }
+  if (!payForm.value.adminPassword) {
+    ElMessage.warning('请输入当前管理员登录密码进行二次验证')
+    return
+  }
   try {
     await ElMessageBox.confirm('确定要确认打款吗？', '提示', { type: 'warning' })
     submitLoading.value = true
-    await confirmPay(payForm.value.id, payForm.value.payNo)
+    await confirmPay(payForm.value.id, {
+      payNo: payForm.value.payNo.trim(),
+      adminPassword: payForm.value.adminPassword,
+    })
+    payForm.value.adminPassword = ''
     ElMessage.success('确认打款成功')
     payDialogVisible.value = false
     fetchData()

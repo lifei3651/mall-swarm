@@ -115,7 +115,7 @@
     </el-dialog>
 
     <el-dialog v-model="reviewVisible" title="登记发票与打款调整" width="600px"><el-form label-width="120px"><el-form-item label="应开票金额"><el-input-number v-model="reviewForm.invoiceRequiredAmount" :min="0" :precision="2" style="width:100%" /></el-form-item><el-form-item label="已收票金额"><el-input-number v-model="reviewForm.invoiceReceivedAmount" :min="0" :precision="2" style="width:100%" /></el-form-item><el-form-item label="发票状态"><el-select v-model="reviewForm.invoiceStatus" style="width:100%"><el-option label="无需发票" value="NOT_REQUIRED"/><el-option label="待收发票" value="PENDING"/><el-option label="已收发票" value="RECEIVED"/></el-select></el-form-item><el-form-item label="调整金额"><el-input-number v-model="reviewForm.adjustmentAmount" :max="0" :precision="2" style="width:100%"/><div class="help">少打100元填写 -100；不自动认定为税费。</div></el-form-item><el-form-item label="调整原因"><el-input v-model="reviewForm.adjustmentReason" type="textarea" /></el-form-item></el-form><template #footer><el-button @click="reviewVisible=false">取消</el-button><el-button type="primary" @click="submitReview">保存审核</el-button></template></el-dialog>
-    <el-dialog v-model="payVisible" title="确认实际打款" width="520px"><el-form label-width="110px"><el-form-item label="实际打款"><el-input-number v-model="payForm.actualPaidAmount" :min="0.01" :precision="2" style="width:100%"/></el-form-item><el-form-item label="银行流水号"><el-input v-model="payForm.paymentReference" /></el-form-item><el-form-item label="凭证地址"><el-input v-model="payForm.paymentVoucherUrl" /></el-form-item></el-form><template #footer><el-button @click="payVisible=false">取消</el-button><el-button type="primary" @click="submitPay">确认已打款</el-button></template></el-dialog>
+    <el-dialog v-model="payVisible" title="确认实际打款" width="520px"><el-form label-width="110px"><el-form-item label="实际打款"><el-input-number v-model="payForm.actualPaidAmount" :min="0.01" :precision="2" style="width:100%"/></el-form-item><el-form-item label="银行流水号"><el-input v-model="payForm.paymentReference" /></el-form-item><el-form-item label="凭证地址"><el-input v-model="payForm.paymentVoucherUrl" /></el-form-item><el-form-item label="管理员密码" required><el-input v-model="payForm.adminPassword" type="password" show-password maxlength="64" autocomplete="current-password" placeholder="二次验证当前管理员登录密码" /></el-form-item></el-form><template #footer><el-button @click="payVisible=false">取消</el-button><el-button type="primary" @click="submitPay">确认已打款</el-button></template></el-dialog>
     <el-dialog v-model="eventsVisible" title="提现审批轨迹" width="620px"><el-timeline><el-timeline-item v-for="item in withdrawalEvents" :key="item.id" :timestamp="formatTime(item.createTime)" placement="top"><strong>{{ withdrawalStatus(item.toStatus) }}</strong><div class="event-remark">{{ item.remark || '-' }}</div><small>{{ item.operatorName || '商户提交' }}</small></el-timeline-item></el-timeline></el-dialog>
   </div>
 </template>
@@ -145,7 +145,7 @@ const ownAccount = computed(() => accounts.value[0] || {})
 const applyForm = ref({ requestNo: '', merchantId: null, requestedAmount: 0 })
 const depositForm = ref({ merchantId: null, operationType: 'FREEZE', amount: 0, reason: '' })
 const reviewForm = ref({ invoiceRequiredAmount: 0, invoiceReceivedAmount: 0, invoiceStatus: 'NOT_REQUIRED', adjustmentAmount: 0, adjustmentReason: '' })
-const payForm = ref({ actualPaidAmount: 0, paymentReference: '', paymentVoucherUrl: '' })
+const payForm = ref({ actualPaidAmount: 0, paymentReference: '', paymentVoucherUrl: '', adminPassword: '' })
 
 const money = (value) => Number(value || 0).toFixed(2)
 const formatTime = (value) => value ? String(value).replace('T', ' ').slice(0, 19) : '-'
@@ -183,8 +183,16 @@ const openDeposit = (row, operationType) => { currentAccount.value = row; deposi
 const submitDeposit = async () => { if (!depositForm.value.reason?.trim()) return ElMessage.warning('请填写保证金调整原因'); saving.value = true; try { const payload = { merchantId: depositForm.value.merchantId, amount: depositForm.value.amount, reason: depositForm.value.reason.trim(), operationNo: operationNo() }; if (depositForm.value.operationType === 'FREEZE') await freezeMerchantDeposit(payload); else if (depositForm.value.operationType === 'RECEIVE') await receiveMerchantDeposit(payload); else await releaseMerchantDeposit(payload); ElMessage.success('保证金已更新'); depositVisible.value = false; await loadCurrent() } finally { saving.value = false } }
 const openReview = (row) => { current.value = row; reviewForm.value = { invoiceRequiredAmount: Number(row.invoiceRequiredAmount || 0), invoiceReceivedAmount: Number(row.invoiceReceivedAmount || 0), invoiceStatus: row.invoiceStatus || 'NOT_REQUIRED', adjustmentAmount: Number(row.adjustmentAmount || 0), adjustmentReason: row.adjustmentReason || '' }; reviewVisible.value = true }
 const submitReview = async () => { await reviewMerchantWithdrawal(current.value.id, reviewForm.value); ElMessage.success('发票与审核信息已保存'); reviewVisible.value = false; await loadCurrent() }
-const openPay = (row) => { current.value = row; payForm.value = { actualPaidAmount: Number(row.requestedAmount || 0) + Number(row.adjustmentAmount || 0), paymentReference: '', paymentVoucherUrl: '' }; payVisible.value = true }
-const submitPay = async () => { await payMerchantWithdrawal(current.value.id, payForm.value); ElMessage.success('打款已确认'); payVisible.value = false; await loadCurrent() }
+const openPay = (row) => { current.value = row; payForm.value = { actualPaidAmount: Number(row.requestedAmount || 0) + Number(row.adjustmentAmount || 0), paymentReference: '', paymentVoucherUrl: '', adminPassword: '' }; payVisible.value = true }
+const submitPay = async () => {
+  if (!payForm.value.adminPassword) return ElMessage.warning('请输入当前管理员登录密码进行二次验证')
+  await ElMessageBox.confirm('确认银行已经实际打款，并将本笔商户提现登记为已付款？', '确认实际打款', { type: 'warning' })
+  await payMerchantWithdrawal(current.value.id, payForm.value)
+  payForm.value.adminPassword = ''
+  ElMessage.success('打款已确认')
+  payVisible.value = false
+  await loadCurrent()
+}
 const reject = async (row) => { const { value } = await ElMessageBox.prompt('请填写驳回原因', '驳回商户提现', { inputValidator: (v) => Boolean(v?.trim()) || '必须填写原因' }); await rejectMerchantWithdrawal(row.id, { reason: value }); ElMessage.success('已驳回；冻结金额先抵退款欠款，剩余退回可提现余额'); await loadCurrent() }
 const startPayment = async (row) => { await ElMessageBox.confirm('确认已经开始向快照中的收款账户执行付款？进入付款处理中后仍需登记成功或失败结果。', '开始付款', { type: 'warning' }); await startMerchantWithdrawalPayment(row.id); ElMessage.success('已进入付款处理中'); await loadCurrent() }
 const paymentFailed = async (row) => { const { value } = await ElMessageBox.prompt('请填写银行退回、账户异常等具体原因', '登记付款失败', { inputValidator: (v) => Boolean(v?.trim()) || '必须填写原因' }); await failMerchantWithdrawalPayment(row.id, { reason: value }); ElMessage.warning('已登记付款失败，申请金额仍保持冻结，可重试或驳回'); await loadCurrent() }

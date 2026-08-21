@@ -12,6 +12,24 @@ import { resolveCurrentStock, stockAdditionViolation, stockQuantityViolation } f
 const readView = (name) => readFile(new URL(`../src/views/${name}`, import.meta.url), 'utf8')
 const readStyles = () => readFile(new URL('../src/assets/styles.css', import.meta.url), 'utf8')
 
+test('storefront product images use one loop-safe fallback when remote media fails', async () => {
+  const fallback = await readFile(new URL('../src/utils/imageFallback.js', import.meta.url), 'utf8')
+  const views = await Promise.all([
+    readView('HomeView.vue'),
+    readView('ProductDetailView.vue'),
+    readView('CartView.vue'),
+    readView('CheckoutView.vue'),
+    readView('OrdersView.vue'),
+  ])
+
+  assert.match(fallback, /fallbackApplied/)
+  assert.match(fallback, /图片暂不可用/)
+  for (const source of views) {
+    assert.match(source, /applyImageFallback/)
+    assert.match(source, /@error="applyImageFallback"/)
+  }
+})
+
 test('quick add uses the first in-stock SKU without opening product detail', () => {
   const item = resolveQuickCartItem(
     { id: 7, productName: '套装', salePrice: 100, pvValue: 100, stock: 8 },

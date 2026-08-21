@@ -119,7 +119,7 @@
           本次将一次支付，并按 {{ checkoutSellers.length }} 个销售方拆成独立订单；各销售方分别发货和售后。
         </p>
         <div v-for="item in items" :key="item.cartKey || item.id" class="order-line">
-          <img :src="item.coverUrl" :alt="item.productName" />
+          <img :src="item.coverUrl" :alt="item.productName" @error="applyImageFallback" />
           <div>
             <p class="line-sub seller-line">{{ item.merchantName || '平台自营' }}</p>
             <p class="line-title">{{ item.productName }}</p>
@@ -296,6 +296,7 @@ import { createIdempotencyKey } from '@/utils/idempotency'
 import ChinaRegionSelect from '@/components/ChinaRegionSelect.vue'
 import { hasShopSession } from '@/utils/shopSession'
 import { submitTrustedAlipayForm } from '@/utils/alipay'
+import { applyImageFallback } from '@/utils/imageFallback'
 
 const route = useRoute()
 const router = useRouter()

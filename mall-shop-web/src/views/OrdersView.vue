@@ -35,7 +35,7 @@
         </RouterLink>
         <RouterLink :to="`/orders/${item.order.id}`" class="order-products">
           <div v-for="line in item.items || []" :key="line.id" class="order-product">
-            <img :src="line.productCover" :alt="line.productName" />
+            <img :src="line.productCover" :alt="line.productName" @error="applyImageFallback" />
             <div>
               <h3>{{ line.productName }}</h3>
               <p>{{ formatProductSpec(line) }}</p>
@@ -88,6 +88,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { money, statusName } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
 import { connectOrderRealtime } from '@/utils/orderRealtime'
+import { applyImageFallback } from '@/utils/imageFallback'
 
 const route = useRoute()
 const loading = ref(false)

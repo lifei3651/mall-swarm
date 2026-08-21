@@ -10,11 +10,11 @@ export function auditWithdraw(data) {
 }
 
 // 确认打款
-export function confirmPay(id, payNo) {
+export function confirmPay(id, data) {
   return request({
     url: `/distribution/withdraw/confirm-pay/${id}`,
     method: 'post',
-    params: { payNo },
+    data,
   })
 }
 

@@ -71,16 +71,16 @@
         delivery_time, after_sale_policy, service_tags, create_time, update_time
     </sql>
 
-    <select id="selectById" resultMap="BaseResultMap">
+    <select id="selectByIdScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_product
-        WHERE id = #{id}
+        WHERE id = #{id} AND tenant_id = #{tenantId}
     </select>
 
-    <select id="selectByIdForUpdate" resultMap="BaseResultMap">
+    <select id="selectByIdForUpdateScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_product
-        WHERE id = #{id}
+        WHERE id = #{id} AND tenant_id = #{tenantId}
         FOR UPDATE
     </select>
 
@@ -187,7 +187,7 @@
         ORDER BY category_name ASC
     </select>
 
-    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsShopProduct" useGeneratedKeys="true" keyProperty="id">
+    <insert id="insertScoped" useGeneratedKeys="true" keyProperty="product.id">
         INSERT INTO dms_shop_product
         (tenant_id, merchant_id, merchant_name, product_no, product_name, subtitle, category_name, cover_url, gallery_urls, sale_price,
          market_price, cost_amount, settlement_delay_days_override, pv_value, bv_value, stock, safety_stock, purchase_limit,
@@ -198,77 +198,76 @@
          freight_type, freight_amount, free_shipping_amount, freight_template_name, freight_template_id,
          delivery_time, after_sale_policy, service_tags)
         VALUES
-        (#{tenantId}, #{merchantId}, #{merchantName}, #{productNo}, #{productName}, #{subtitle}, #{categoryName}, #{coverUrl}, #{galleryUrls}, #{salePrice},
-         #{marketPrice}, #{costAmount}, #{settlementDelayDaysOverride}, #{pvValue}, #{bvValue}, #{stock}, #{safetyStock}, #{purchaseLimit},
-         #{normalSaleEnabled}, #{repurchaseSaleEnabled}, #{repurchasePrice}, #{repurchasePv}, #{repurchasePurchaseLimit}, #{enrollmentSaleEnabled}, #{teamBonusMode},
-         #{salesCount}, #{sort}, #{status}, #{merchantReviewStatus}, #{merchantReviewVersion}, #{merchantReviewRemark},
-         #{merchantReviewSubmittedAt}, #{merchantReviewedAt}, #{merchantReviewerId}, #{merchantReviewerName}, #{detail}, #{detailImages},
-         #{deliveryAddress}, #{deliveryProvince}, #{deliveryCity}, #{deliveryDistrict}, #{shippingAddressId}, #{returnAddressId},
-         #{freightType}, #{freightAmount}, #{freeShippingAmount}, #{freightTemplateName}, #{freightTemplateId},
-         #{deliveryTime}, #{afterSalePolicy}, #{serviceTags})
+        (#{tenantId}, #{product.merchantId}, #{product.merchantName}, #{product.productNo}, #{product.productName}, #{product.subtitle}, #{product.categoryName}, #{product.coverUrl}, #{product.galleryUrls}, #{product.salePrice},
+         #{product.marketPrice}, #{product.costAmount}, #{product.settlementDelayDaysOverride}, #{product.pvValue}, #{product.bvValue}, #{product.stock}, #{product.safetyStock}, #{product.purchaseLimit},
+         #{product.normalSaleEnabled}, #{product.repurchaseSaleEnabled}, #{product.repurchasePrice}, #{product.repurchasePv}, #{product.repurchasePurchaseLimit}, #{product.enrollmentSaleEnabled}, #{product.teamBonusMode},
+         #{product.salesCount}, #{product.sort}, #{product.status}, #{product.merchantReviewStatus}, #{product.merchantReviewVersion}, #{product.merchantReviewRemark},
+         #{product.merchantReviewSubmittedAt}, #{product.merchantReviewedAt}, #{product.merchantReviewerId}, #{product.merchantReviewerName}, #{product.detail}, #{product.detailImages},
+         #{product.deliveryAddress}, #{product.deliveryProvince}, #{product.deliveryCity}, #{product.deliveryDistrict}, #{product.shippingAddressId}, #{product.returnAddressId},
+         #{product.freightType}, #{product.freightAmount}, #{product.freeShippingAmount}, #{product.freightTemplateName}, #{product.freightTemplateId},
+         #{product.deliveryTime}, #{product.afterSalePolicy}, #{product.serviceTags})
     </insert>
 
-    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsShopProduct">
+    <update id="updateScoped">
         UPDATE dms_shop_product
-        SET tenant_id = #{tenantId},
-            merchant_id = #{merchantId},
-            merchant_name = #{merchantName},
-            product_no = #{productNo},
-            product_name = #{productName},
-            subtitle = #{subtitle},
-            category_name = #{categoryName},
-            cover_url = #{coverUrl},
-            gallery_urls = #{galleryUrls},
-            sale_price = #{salePrice},
-            market_price = #{marketPrice},
-            cost_amount = #{costAmount},
-            settlement_delay_days_override = #{settlementDelayDaysOverride},
-            pv_value = #{pvValue},
-            bv_value = #{bvValue},
-            stock = #{stock},
-            safety_stock = #{safetyStock},
-            purchase_limit = #{purchaseLimit},
-            normal_sale_enabled = #{normalSaleEnabled},
-            repurchase_sale_enabled = #{repurchaseSaleEnabled},
-            repurchase_price = #{repurchasePrice},
-            repurchase_pv = #{repurchasePv},
-            repurchase_purchase_limit = #{repurchasePurchaseLimit},
-            enrollment_sale_enabled = #{enrollmentSaleEnabled},
-            team_bonus_mode = #{teamBonusMode},
-            sales_count = #{salesCount},
-            sort_order = #{sort},
-            status = #{status},
-            merchant_review_status = #{merchantReviewStatus},
-            merchant_review_version = #{merchantReviewVersion},
-            merchant_review_remark = #{merchantReviewRemark},
-            merchant_review_submitted_at = #{merchantReviewSubmittedAt},
-            merchant_reviewed_at = #{merchantReviewedAt},
-            merchant_reviewer_id = #{merchantReviewerId},
-            merchant_reviewer_name = #{merchantReviewerName},
-            detail = #{detail},
-            detail_images = #{detailImages},
-            delivery_address = #{deliveryAddress},
-            delivery_province = #{deliveryProvince},
-            delivery_city = #{deliveryCity},
-            delivery_district = #{deliveryDistrict},
-            shipping_address_id = #{shippingAddressId},
-            return_address_id = #{returnAddressId},
-            freight_type = #{freightType},
-            freight_amount = #{freightAmount},
-            free_shipping_amount = #{freeShippingAmount},
-            freight_template_name = #{freightTemplateName},
-            freight_template_id = #{freightTemplateId},
-            delivery_time = #{deliveryTime},
-            after_sale_policy = #{afterSalePolicy},
-            service_tags = #{serviceTags},
+        SET merchant_id = #{product.merchantId},
+            merchant_name = #{product.merchantName},
+            product_no = #{product.productNo},
+            product_name = #{product.productName},
+            subtitle = #{product.subtitle},
+            category_name = #{product.categoryName},
+            cover_url = #{product.coverUrl},
+            gallery_urls = #{product.galleryUrls},
+            sale_price = #{product.salePrice},
+            market_price = #{product.marketPrice},
+            cost_amount = #{product.costAmount},
+            settlement_delay_days_override = #{product.settlementDelayDaysOverride},
+            pv_value = #{product.pvValue},
+            bv_value = #{product.bvValue},
+            stock = #{product.stock},
+            safety_stock = #{product.safetyStock},
+            purchase_limit = #{product.purchaseLimit},
+            normal_sale_enabled = #{product.normalSaleEnabled},
+            repurchase_sale_enabled = #{product.repurchaseSaleEnabled},
+            repurchase_price = #{product.repurchasePrice},
+            repurchase_pv = #{product.repurchasePv},
+            repurchase_purchase_limit = #{product.repurchasePurchaseLimit},
+            enrollment_sale_enabled = #{product.enrollmentSaleEnabled},
+            team_bonus_mode = #{product.teamBonusMode},
+            sales_count = #{product.salesCount},
+            sort_order = #{product.sort},
+            status = #{product.status},
+            merchant_review_status = #{product.merchantReviewStatus},
+            merchant_review_version = #{product.merchantReviewVersion},
+            merchant_review_remark = #{product.merchantReviewRemark},
+            merchant_review_submitted_at = #{product.merchantReviewSubmittedAt},
+            merchant_reviewed_at = #{product.merchantReviewedAt},
+            merchant_reviewer_id = #{product.merchantReviewerId},
+            merchant_reviewer_name = #{product.merchantReviewerName},
+            detail = #{product.detail},
+            detail_images = #{product.detailImages},
+            delivery_address = #{product.deliveryAddress},
+            delivery_province = #{product.deliveryProvince},
+            delivery_city = #{product.deliveryCity},
+            delivery_district = #{product.deliveryDistrict},
+            shipping_address_id = #{product.shippingAddressId},
+            return_address_id = #{product.returnAddressId},
+            freight_type = #{product.freightType},
+            freight_amount = #{product.freightAmount},
+            free_shipping_amount = #{product.freeShippingAmount},
+            freight_template_name = #{product.freightTemplateName},
+            freight_template_id = #{product.freightTemplateId},
+            delivery_time = #{product.deliveryTime},
+            after_sale_policy = #{product.afterSalePolicy},
+            service_tags = #{product.serviceTags},
             update_time = CURRENT_TIMESTAMP
-        WHERE id = #{id}
+        WHERE id = #{product.id} AND tenant_id = #{tenantId}
     </update>
 
-    <update id="updateStatus">
+    <update id="updateStatusScoped">
         UPDATE dms_shop_product
         SET status = #{status}, update_time = CURRENT_TIMESTAMP
-        WHERE id = #{id}
+        WHERE id = #{id} AND tenant_id = #{tenantId}
     </update>
 
     <update id="disableByMerchantId">
@@ -286,21 +285,21 @@
           AND settlement_delay_days_override IS NULL
     </update>
 
-    <update id="markReviewSubmitted">
+    <update id="markReviewSubmittedScoped">
         UPDATE dms_shop_product
         SET status=0, merchant_review_status='PENDING', merchant_review_version=#{version},
             merchant_review_remark=NULL, merchant_review_submitted_at=#{submittedAt},
             merchant_reviewed_at=NULL, merchant_reviewer_id=NULL, merchant_reviewer_name=NULL,
             update_time=CURRENT_TIMESTAMP
-        WHERE id=#{id} AND status=0 AND merchant_review_status != 'PENDING'
+        WHERE id=#{id} AND tenant_id=#{tenantId} AND status=0 AND merchant_review_status != 'PENDING'
     </update>
 
-    <update id="markReviewDecision">
+    <update id="markReviewDecisionScoped">
         UPDATE dms_shop_product
         SET status=#{status}, merchant_review_status=#{reviewStatus}, merchant_review_remark=#{remark},
             merchant_reviewed_at=#{reviewedAt}, merchant_reviewer_id=#{reviewerId},
             merchant_reviewer_name=#{reviewerName}, update_time=CURRENT_TIMESTAMP
-        WHERE id=#{id} AND merchant_review_version=#{version} AND merchant_review_status='PENDING'
+        WHERE id=#{id} AND tenant_id=#{tenantId} AND merchant_review_version=#{version} AND merchant_review_status='PENDING'
     </update>
 
     <update id="updateCategoryName">
@@ -316,22 +315,23 @@
           AND category_name = #{categoryName}
     </select>
 
-    <update id="decreaseStock">
+    <update id="decreaseStockScoped">
         UPDATE dms_shop_product
         SET stock = stock - #{quantity},
             sales_count = sales_count + #{quantity},
             update_time = CURRENT_TIMESTAMP
         WHERE id = #{id}
+          AND tenant_id = #{tenantId}
           AND status = 1
           AND (merchant_id IS NULL OR EXISTS (SELECT 1 FROM dms_merchant active_merchant WHERE active_merchant.id=dms_shop_product.merchant_id AND active_merchant.tenant_id=dms_shop_product.tenant_id AND active_merchant.status=1))
           AND stock &gt;= #{quantity}
     </update>
 
-    <update id="increaseStock">
+    <update id="increaseStockScoped">
         UPDATE dms_shop_product
         SET stock = stock + #{quantity},
             sales_count = CASE WHEN sales_count &gt;= #{quantity} THEN sales_count - #{quantity} ELSE 0 END,
             update_time = CURRENT_TIMESTAMP
-        WHERE id = #{id}
+        WHERE id = #{id} AND tenant_id = #{tenantId}
     </update>
 </mapper>

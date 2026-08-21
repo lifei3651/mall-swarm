@@ -436,8 +436,8 @@
           <div class="field-help">按本次选择的盒数占商品实付金额的比例计算，整单退完时补齐尾差。</div>
         </el-form-item>
         <el-form-item v-else label="商品退款金额" required>
-          <el-input-number v-model="manualRefundForm.productRefundAmount" :min="0.01" :precision="2" :step="0.01" controls-position="right" />
-          <div class="field-help">金额仅限商品款，不能超过订单剩余可退商品金额；仍需选择本次涉及的盒数。</div>
+          <el-input-number v-model="manualRefundForm.productRefundAmount" :min="0.01" :max="Math.max(0.01, manualRefundRemainingAmount)" :precision="2" :step="0.01" controls-position="right" />
+          <div class="field-help">金额仅限商品款，本单剩余最多可退 ¥{{ money(manualRefundRemainingAmount) }}；仍需选择本次涉及的盒数。</div>
         </el-form-item>
         <el-form-item label="退款原因">
           <el-input v-model="manualRefundForm.reason" type="textarea" :rows="3" maxlength="200" show-word-limit placeholder="请填写后台退款原因" />
@@ -672,6 +672,14 @@ const refundedQuantity = (row, itemId) => (row?.afterSales || [])
 const remainingRefundQuantity = (row, item) => Math.max(0, Number(item?.quantity || 0) - refundedQuantity(row, item?.id))
 const selectedRefundQuantity = computed(() => Object.values(manualRefundForm.value.items || {})
   .reduce((sum, quantity) => sum + Math.max(0, Number(quantity || 0)), 0))
+const manualRefundRemainingAmount = computed(() => {
+  if (!currentOrder.value) return 0
+  const productBase = Math.max(0, Number(currentOrder.value.order?.totalAmount || 0) - Number(currentOrder.value.order?.discountAmount || 0))
+  const approved = (currentOrder.value.afterSales || [])
+    .filter((sale) => [1, 6].includes(Number(sale.status)))
+    .reduce((sum, sale) => sum + Number(sale.productRefundAmount || 0), 0)
+  return Math.max(0, productBase - approved)
+})
 const manualRefundEstimate = computed(() => {
   if (!currentOrder.value || manualRefundForm.value.refundMode !== 'QUANTITY') return 0
   const productBase = Math.max(0, Number(currentOrder.value.order?.totalAmount || 0) - Number(currentOrder.value.order?.discountAmount || 0))
@@ -682,10 +690,7 @@ const manualRefundEstimate = computed(() => {
     return sum + Number(item.totalAmount || 0) * quantity / Math.max(1, Number(item.quantity || 0))
   }, 0)
   const totalRemaining = (currentOrder.value.items || []).reduce((sum, item) => sum + remainingRefundQuantity(currentOrder.value, item), 0)
-  const approved = (currentOrder.value.afterSales || [])
-    .filter((sale) => Number(sale.status) === 1)
-    .reduce((sum, sale) => sum + Number(sale.productRefundAmount || 0), 0)
-  const remainingAmount = Math.max(0, productBase - approved)
+  const remainingAmount = manualRefundRemainingAmount.value
   return selectedRefundQuantity.value === totalRemaining
     ? remainingAmount
     : Math.min(remainingAmount, selectedGross * productBase / grossTotal)
@@ -966,6 +971,11 @@ const submitManualRefund = async () => {
     ElMessage.warning('请输入大于0的商品退款金额')
     return
   }
+  if (manualRefundForm.value.refundMode === 'AMOUNT'
+    && Number(manualRefundForm.value.productRefundAmount || 0) > manualRefundRemainingAmount.value + 0.001) {
+    ElMessage.warning(`商品退款金额不能超过剩余可退金额 ¥${money(manualRefundRemainingAmount.value)}`)
+    return
+  }
   manualRefundLoading.value = true
   try {
     await manualRefundShopOrder(currentOrder.value.order.id, {
@@ -1003,6 +1013,12 @@ const auditActionLabel = computed(() => ({ 1: '通过', 2: '拒绝', 3: '取消�
 
 const submitAudit = async () => {
   const actionStatus = auditForm.value.status
+  const actionText = ({ 1: '通过该售后申请', 2: '拒绝该售后申请', 3: '关闭该退款申请' })[actionStatus] || '提交本次售后处理'
+  await ElMessageBox.confirm(
+    `确认${actionText}？该操作会改变订单售后状态${actionStatus === 1 ? '，并可能立即执行退款和账务冲销' : ''}。`,
+    '确认售后处理',
+    { type: 'warning', confirmButtonText: '确认提交', cancelButtonText: '返回检查' },
+  )
   await auditShopAfterSale(currentAfterSale.value.id, auditForm.value)
   ElMessage.success(actionStatus === 3 ? '退款申请已取消' : '审核完成')
   auditDialogVisible.value = false
@@ -1011,13 +1027,20 @@ const submitAudit = async () => {
 
 const confirmReturnReceived = async (sale) => {
   const retrying = Number(sale?.status) === 6
-  await ElMessageBox.confirm(
-    retrying ? '将使用同一售后单号重新查询并执行渠道退款，不会重复处理本地库存和奖金。是否继续？' : '确认已收到客户寄回的商品，并执行退款、库存和财务处理吗？',
+  const { value: auditRemark } = await ElMessageBox.prompt(
+    retrying ? '将使用同一售后单号重新查询并执行渠道退款，不会重复处理本地库存和奖金。请填写本次处理备注。' : '确认已收到客户寄回的商品，并执行退款、库存和财务处理。请填写验收备注。',
     retrying ? '重试渠道退款' : '确认收货并退款',
-    { type: 'warning' },
+    {
+      type: 'warning',
+      inputValue: retrying ? '渠道退款重试' : '商家确认收到退货，商品验收无误',
+      inputPlaceholder: '例如：外包装完整，商品数量核对无误',
+      inputValidator: (value) => Boolean(value?.trim()) || '请填写本次处理备注',
+      confirmButtonText: retrying ? '确认重试' : '确认收货并退款',
+      cancelButtonText: '取消',
+    },
   )
   await confirmShopAfterSaleReturnReceived(sale.id, {
-    auditRemark: '商家确认收到退货',
+    auditRemark: auditRemark.trim(),
     auditUserId: currentOperator.value.id,
     auditUserName: currentOperator.value.name,
   })

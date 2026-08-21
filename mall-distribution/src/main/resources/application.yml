@@ -28,11 +28,20 @@ spring:
       test-on-return: false
       time-between-eviction-runs-millis: 60000
       min-evictable-idle-time-millis: 300000
-  redis:
-    host: localhost
-    port: 6379
-    password:
-    database: 0
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      database: 0
+      connect-timeout: 2s
+      timeout: 3s
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+          max-wait: 2s
   cloud:
     nacos:
       discovery:
@@ -46,6 +55,9 @@ mybatis:
   type-aliases-package: com.macro.mall.distribution.entity
   configuration:
     map-underscore-to-camel-case: true
+    # 资金和库存事务依赖每次查询看到最新状态；不跨语句复用一级缓存快照。
+    local-cache-scope: statement
+    cache-enabled: false
 
 pagehelper:
   helper-dialect: mysql

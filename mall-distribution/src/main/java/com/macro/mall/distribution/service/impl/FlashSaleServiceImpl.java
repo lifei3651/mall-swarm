@@ -18,6 +18,7 @@ import com.macro.mall.distribution.entity.DmsShopSku;
 import com.macro.mall.distribution.security.SecurityRateLimitService;
 import com.macro.mall.distribution.service.FlashSaleService;
 import com.macro.mall.distribution.service.FlashSaleStockGate;
+import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.ShopBusinessModeService;
 import com.macro.mall.distribution.service.ShopService;
 import com.macro.mall.distribution.vo.FlashSaleActivityVO;
@@ -45,6 +46,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     private final ShopBusinessModeService businessModeService;
     private final FlashSaleStockGate stockGate;
     private final SecurityRateLimitService rateLimitService;
+    private final OperationLogService operationLogService;
 
     @Override
     public List<FlashSaleActivityVO> listFront() {
@@ -167,6 +169,13 @@ public class FlashSaleServiceImpl implements FlashSaleService {
             reservation.setOrderId(order.getOrder().getId());
             reservation.setOrderNo(order.getOrder().getOrderNo());
             if (reservationDao.bindOrder(reservation) <= 0) Asserts.fail("秒杀订单绑定失败，请重试");
+            DmsFlashSaleActivity remaining = activityDao.selectById(activityId);
+            operationLogService.log("FLASH_SALE_STOCK", "RESERVE", "FLASH_SALE_ACTIVITY",
+                    String.valueOf(activityId),
+                    "availableStock=" + activity.getAvailableStock(),
+                    "availableStock=" + (remaining == null ? "unknown" : remaining.getAvailableStock()),
+                    "秒杀抢购预占 " + quantity + " 件；订单号=" + order.getOrder().getOrderNo()
+                            + "；会员=" + member.getUserId());
             return order;
         } catch (RuntimeException ex) {
             if (gated) stockGate.release(activity, member.getUserId(), quantity);

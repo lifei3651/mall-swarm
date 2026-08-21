@@ -133,4 +133,16 @@ describe('商城订单取消入口', () => {
     expect(source).toContain('/api/shop/admin/after-sales/proofs/')
     expect(source).toContain('preview-teleported')
   })
+
+  it('退款金额和售后状态变更在前端提供资金操作保护', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain(':max="Math.max(0.01, manualRefundRemainingAmount)"')
+    expect(source).toContain('商品退款金额不能超过剩余可退金额')
+    expect(source).toContain("[1, 6].includes(Number(sale.status))")
+    expect(source).toContain('确认售后处理')
+    expect(source).toContain('并可能立即执行退款和账务冲销')
+    expect(source).toContain('请填写验收备注')
+    expect(source).toContain('auditRemark: auditRemark.trim()')
+  })
 })

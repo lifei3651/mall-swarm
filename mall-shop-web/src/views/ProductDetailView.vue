@@ -21,7 +21,7 @@
         <button class="floating-share" type="button" aria-label="分享" @click="shareProduct"><Share2 :size="22" /></button>
         <div ref="galleryScroller" class="gallery-scroller" @scroll.passive="onGalleryScroll">
           <div v-for="(image, index) in mainImages" :key="image + index" class="gallery-slide">
-            <img :src="image" :alt="`${product.productName} 主图${index + 1}`" />
+            <img :src="image" :alt="`${product.productName} 主图${index + 1}`" @error="applyImageFallback" />
           </div>
         </div>
         <span class="image-count">{{ activeImageIndex + 1 }}/{{ mainImages.length }}</span>
@@ -62,7 +62,7 @@
               :disabled="Number(sku.stock || 0) <= 0"
               @click="selectSku(sku)"
             >
-              <img v-if="sku.imageUrl" :src="sku.imageUrl" :alt="sku.skuName" />
+              <img v-if="sku.imageUrl" :src="sku.imageUrl" :alt="sku.skuName" @error="applyImageFallback" />
               <span>{{ sku.skuName }}</span>
               <em v-if="Number(sku.stock || 0) <= 0">缺货</em>
             </button>
@@ -140,7 +140,7 @@
         <div v-if="reviews.length" class="review-list">
           <article v-for="review in reviews" :key="review.id" class="review-item">
             <div class="review-user">
-              <div class="review-avatar"><img v-if="review.reviewerAvatar" :src="review.reviewerAvatar" alt="买家头像" /><UserRound v-else :size="20" /></div>
+              <div class="review-avatar"><img v-if="review.reviewerAvatar" :src="review.reviewerAvatar" alt="买家头像" @error="applyImageFallback" /><UserRound v-else :size="20" /></div>
               <div><strong>{{ review.reviewerName }}</strong><div class="review-stars"><Star v-for="star in 5" :key="star" :size="14" :fill="star <= review.rating ? '#ef4444' : '#e5e7eb'" :color="star <= review.rating ? '#ef4444' : '#e5e7eb'" /></div></div>
               <time>{{ formatDate(review.createTime) }}</time>
             </div>
@@ -155,7 +155,7 @@
         <div class="section-title"><span></span><h2>商品介绍</h2><span></span></div>
         <p v-if="product.detail" class="detail-copy">{{ product.detail }}</p>
         <div v-if="detailImages.length" class="detail-images">
-          <img v-for="(image, index) in detailImages" :key="image + index" :src="image" :alt="`${product.productName} 详情图${index + 1}`" loading="lazy" />
+          <img v-for="(image, index) in detailImages" :key="image + index" :src="image" :alt="`${product.productName} 详情图${index + 1}`" loading="lazy" @error="applyImageFallback" />
         </div>
         <div v-if="!product.detail && !detailImages.length" class="empty-copy">商家暂未上传图文介绍</div>
       </section>
@@ -214,6 +214,7 @@ import { requireShopSession } from '@/utils/authNavigation'
 import { cartItemKey, resolveCurrentStock, stockAdditionViolation, stockQuantityViolation } from '@/utils/stockRules'
 import { money } from '@/utils/format'
 import { toPublicWebUrl } from '@/utils/appEnvironment'
+import { applyImageFallback } from '@/utils/imageFallback'
 
 const route = useRoute()
 const router = useRouter()

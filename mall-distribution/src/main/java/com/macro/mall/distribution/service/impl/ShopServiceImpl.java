@@ -2515,6 +2515,10 @@ public class ShopServiceImpl implements ShopService {
                 flashSaleActivityDao.increaseStock(reservation.getActivityId(), reservation.getQuantity());
                 DmsFlashSaleActivity activity = flashSaleActivityDao.selectById(reservation.getActivityId());
                 flashSaleStockGate.release(activity, reservation.getUserId(), reservation.getQuantity());
+                operationLogService.log("FLASH_SALE_STOCK", "RELEASE", "FLASH_SALE_ACTIVITY",
+                        String.valueOf(reservation.getActivityId()), null,
+                        "availableStock=" + (activity == null ? "unknown" : activity.getAvailableStock()),
+                        "未付款秒杀订单释放 " + reservation.getQuantity() + " 件；订单号=" + order.getOrderNo());
             }
         }
         catalogCache.invalidateAfterCommit(order == null ? DEFAULT_TENANT_ID : order.getTenantId());

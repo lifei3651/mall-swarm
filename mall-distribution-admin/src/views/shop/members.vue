@@ -615,7 +615,15 @@ const refreshCurrentProfile = async () => {
 }
 
 const toggleStatus = async (row) => {
-  await updateShopMemberStatus(row.id, row.status === 1 ? 0 : 1)
+  const disabling = row.status === 1
+  await ElMessageBox.confirm(
+    disabling
+      ? `确认禁用会员“${memberDisplayName(row)}”？禁用后该会员将无法登录和下单，但历史订单与售后记录会保留。`
+      : `确认重新启用会员“${memberDisplayName(row)}”？启用后该会员可以恢复登录和下单。`,
+    disabling ? '禁用会员' : '启用会员',
+    { type: disabling ? 'warning' : 'info', confirmButtonText: disabling ? '确认禁用' : '确认启用', cancelButtonText: '取消' },
+  )
+  await updateShopMemberStatus(row.id, disabling ? 0 : 1)
   ElMessage.success('会员状态已更新')
   fetchMembers()
 }

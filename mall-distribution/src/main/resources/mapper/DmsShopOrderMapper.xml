@@ -132,8 +132,11 @@
                     AND EXISTS (
                         SELECT 1
                         FROM dms_shop_order_item oi
-                        LEFT JOIN dms_shop_product_review review ON review.order_item_id = oi.id
-                        WHERE oi.order_id = dms_shop_order.id AND review.id IS NULL
+                        WHERE oi.order_id = dms_shop_order.id
+                          AND NOT EXISTS (
+                              SELECT 1 FROM dms_shop_product_review review
+                              WHERE review.order_item_id = oi.id
+                          )
                     )
                 </when>
                 <when test="orderState == 'AFTER_SALE'">
@@ -161,8 +164,11 @@
                COALESCE(SUM(CASE WHEN o.status = 3 AND EXISTS (
                    SELECT 1
                    FROM dms_shop_order_item oi
-                   LEFT JOIN dms_shop_product_review review ON review.order_item_id = oi.id
-                   WHERE oi.order_id = o.id AND review.id IS NULL
+                   WHERE oi.order_id = o.id
+                     AND NOT EXISTS (
+                         SELECT 1 FROM dms_shop_product_review review
+                         WHERE review.order_item_id = oi.id
+                     )
                ) THEN 1 ELSE 0 END), 0) AS pending_review,
                COALESCE(SUM(CASE WHEN EXISTS (
                    SELECT 1 FROM dms_shop_after_sale sale

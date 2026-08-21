@@ -43,4 +43,13 @@ describe('商户货款提现', () => {
     expect(source).toContain('merchantCanManageFunds')
     expect(source).toContain('账户减总账差额')
   })
+
+  it('确认实际打款要求当前管理员密码和最终确认', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('v-model="payForm.adminPassword"')
+    expect(source).toContain('autocomplete="current-password"')
+    expect(source).toContain('请输入当前管理员登录密码进行二次验证')
+    expect(source).toContain('确认银行已经实际打款')
+  })
 })

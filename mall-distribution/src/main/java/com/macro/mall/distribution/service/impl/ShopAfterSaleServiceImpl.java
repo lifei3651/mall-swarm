@@ -47,6 +47,7 @@ import com.macro.mall.distribution.service.OrderRealtimeService;
 import com.macro.mall.distribution.service.OrderBalanceAllocationService;
 import com.macro.mall.distribution.service.FlashSaleStockGate;
 import com.macro.mall.distribution.service.MerchantService;
+import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.util.MemberAccountUtils;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.entity.DmsAdminUser;
@@ -94,6 +95,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     private final FlashSaleStockGate flashSaleStockGate;
     private final ShopMediaStorageService mediaStorageService;
     private final MerchantService merchantService;
+    private final OperationLogService operationLogService;
     private final ObjectMapper objectMapper;
     @Autowired(required = false)
     private OrderRealtimeService orderRealtimeService;
@@ -715,8 +717,11 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         if (reservation == null || flashSaleReservationDao.releaseRefundedQuantity(
                 order.getId(), reservation.getQuantity()) <= 0) return;
         flashSaleActivityDao.increaseStock(reservation.getActivityId(), reservation.getQuantity());
-        flashSaleStockGate.restoreStockOnly(flashSaleActivityDao.selectById(reservation.getActivityId()),
-                reservation.getQuantity());
+        DmsFlashSaleActivity activity = flashSaleActivityDao.selectById(reservation.getActivityId());
+        flashSaleStockGate.restoreStockOnly(activity, reservation.getQuantity());
+        DmsFlashSaleReservation updated = flashSaleReservationDao.selectByOrderId(order.getId());
+        logFlashSaleRestock(order, updated == null ? reservation : updated, activity,
+                reservation.getQuantity(), "PENDING_SHIPMENT_CANCEL");
     }
 
     private void releaseFlashSaleAfterReturn(DmsShopOrder order, int returnedQuantity) {
@@ -726,6 +731,18 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         flashSaleActivityDao.increaseStock(reservation.getActivityId(), returnedQuantity);
         DmsFlashSaleActivity activity = flashSaleActivityDao.selectById(reservation.getActivityId());
         flashSaleStockGate.restoreStockOnly(activity, returnedQuantity);
+        DmsFlashSaleReservation updated = flashSaleReservationDao.selectByOrderId(order.getId());
+        logFlashSaleRestock(order, updated == null ? reservation : updated, activity,
+                returnedQuantity, "RETURN_REFUND");
+    }
+
+    private void logFlashSaleRestock(DmsShopOrder order, DmsFlashSaleReservation reservation,
+                                     DmsFlashSaleActivity activity, int quantity, String reason) {
+        operationLogService.log("FLASH_SALE_STOCK", "RESTORE", "FLASH_SALE_ACTIVITY",
+                String.valueOf(reservation.getActivityId()), null,
+                "availableStock=" + (activity == null ? "unknown" : activity.getAvailableStock())
+                        + ", releasedQuantity=" + reservation.getReleasedQuantity(),
+                "秒杀库存回补 " + quantity + " 件；原因=" + reason + "；订单号=" + order.getOrderNo());
     }
 
     private boolean requiresExternalRefund(DmsShopOrder order, DmsShopAfterSale afterSale) {
@@ -774,20 +791,34 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     private void populateReturnAddress(DmsShopAfterSale afterSale, DmsShopOrder order,
                                        List<DmsShopAfterSaleItem> refundItems) {
         if (afterSale == null || order == null || !Integer.valueOf(2).equals(afterSale.getApplyType())) return;
-        Long productId = refundItems == null || refundItems.isEmpty() ? null : refundItems.get(0).getProductId();
-        DmsShopServiceAddress address = null;
-        if (productId != null) {
-            DmsShopProduct product = productDao.selectById(productId);
-            if (product != null && product.getReturnAddressId() != null) {
-                address = serviceAddressDao.selectById(product.getReturnAddressId());
-                if (address != null && (!Integer.valueOf(2).equals(address.getAddressType())
-                        || !Integer.valueOf(1).equals(address.getStatus()))) address = null;
-            }
+        DmsShopServiceAddress defaultAddress = serviceAddressDao.selectDefaultForMerchant(
+                order.getTenantId(), order.getMerchantId(), 2);
+        Map<Long, DmsShopServiceAddress> addressesById = new LinkedHashMap<>();
+        boolean hasMissingAddress = false;
+        for (Long productId : (refundItems == null ? List.<DmsShopAfterSaleItem>of() : refundItems).stream()
+                .map(DmsShopAfterSaleItem::getProductId).filter(Objects::nonNull).distinct().toList()) {
+            DmsShopServiceAddress address = resolveProductReturnAddress(productId, defaultAddress);
+            if (address == null) hasMissingAddress = true;
+            else addressesById.putIfAbsent(address.getId(), address);
         }
-        if (address == null) address = serviceAddressDao.selectDefaultForMerchant(order.getTenantId(), order.getMerchantId(), 2);
+        if (addressesById.size() > 1 || (hasMissingAddress && !addressesById.isEmpty())) {
+            Asserts.fail("所选商品使用不同退货地址，请按退货地址分别提交售后申请");
+        }
+        DmsShopServiceAddress address = addressesById.isEmpty() ? defaultAddress
+                : addressesById.values().iterator().next();
         if (address == null) return;
         afterSale.setReturnAddressId(address.getId());
         afterSale.setReturnAddress(joinServiceAddress(address));
+    }
+
+    private DmsShopServiceAddress resolveProductReturnAddress(Long productId,
+                                                               DmsShopServiceAddress defaultAddress) {
+        DmsShopProduct product = productDao.selectById(productId);
+        if (product == null || product.getReturnAddressId() == null) return defaultAddress;
+        DmsShopServiceAddress address = serviceAddressDao.selectById(product.getReturnAddressId());
+        if (address == null || !Integer.valueOf(2).equals(address.getAddressType())
+                || !Integer.valueOf(1).equals(address.getStatus())) return defaultAddress;
+        return address;
     }
 
     private String joinServiceAddress(DmsShopServiceAddress address) {

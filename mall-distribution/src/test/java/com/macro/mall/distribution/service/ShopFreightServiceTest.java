@@ -19,6 +19,8 @@ import com.macro.mall.distribution.dto.ShopOrderItemDTO;
 import com.macro.mall.distribution.dto.ShopOrderSubmitDTO;
 import com.macro.mall.distribution.dto.ShopSkuDTO;
 import com.macro.mall.distribution.dto.ShopAddressDTO;
+import com.macro.mall.distribution.dto.ShopAfterSaleApplyDTO;
+import com.macro.mall.distribution.dto.ShopAfterSaleItemDTO;
 import com.macro.mall.distribution.dto.ShopPasswordChangeDTO;
 import com.macro.mall.distribution.entity.DmsCommissionRecord;
 import com.macro.mall.distribution.entity.DmsFreightTemplate;
@@ -87,6 +89,7 @@ class ShopFreightServiceTest {
     @Autowired private DmsShopOrderDao orderDao;
     @Autowired private JdbcTemplate jdbcTemplate;
     @Autowired private ShopAddressService shopAddressService;
+    @Autowired private ShopAfterSaleService shopAfterSaleService;
     @Autowired private DmsCommissionRecordDao commissionRecordDao;
     @Autowired private DmsAgentChangeLogDao agentChangeLogDao;
     @Autowired private DmsOrderPerformanceDetailDao performanceDetailDao;
@@ -181,6 +184,61 @@ class ShopFreightServiceTest {
         assertEquals(1, remaining.size());
         assertEquals(second.getId(), remaining.get(0).getId());
         assertEquals(1, remaining.get(0).getIsDefault());
+    }
+
+    @Test
+    void memberCannotCreateMoreThanTwentyActiveAddresses() {
+        DmsShopMember member = createMember("13999110107", "地址上限会员", null);
+        for (int index = 1; index <= 20; index++) {
+            shopAddressService.save(member, address("长沙市岳麓区地址" + index + "号", 0));
+        }
+
+        ApiException exception = assertThrows(ApiException.class,
+                () -> shopAddressService.save(member, address("长沙市岳麓区地址21号", 0)));
+        assertTrue(exception.getMessage().contains("最多保存20个"));
+        assertEquals(20, shopAddressService.list(member).size());
+    }
+
+    @Test
+    void mixedProductReturnAddressesRequireSeparateAfterSaleApplications() {
+        DmsShopMember member = createMember("13999110108", "混合退货地址会员", null);
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_service_address
+                (id,tenant_id,address_type,address_label,contact_name,contact_phone,province,city,district,
+                 detail_address,is_default,status)
+                VALUES (990021,1,2,'仓库A','售后A','13900000001','湖南省','长沙市','岳麓区','仓库A地址',0,1),
+                       (990022,1,2,'仓库B','售后B','13900000002','广东省','广州市','天河区','仓库B地址',0,1)
+                """);
+        jdbcTemplate.update("UPDATE dms_shop_product SET return_address_id=990021 WHERE id=1");
+        jdbcTemplate.update("UPDATE dms_shop_product SET return_address_id=990022 WHERE id=2");
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_order
+                (id,order_no,tenant_id,user_id,receiver_name,receiver_phone,receiver_address,total_amount,
+                 freight_amount,discount_amount,pay_amount,total_pv,total_cost,business_type,status,pay_type,pay_time,receive_time)
+                VALUES (990020,'MIXED-RETURN-ORDER',1,?,'测试会员',?,'湖南省长沙市测试地址',
+                        20,0,0,20,0,10,'NORMAL',3,'ALIPAY',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+                """, member.getUserId(), member.getPhone());
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_order_item
+                (id,order_id,order_no,product_id,product_name,price,quantity,total_amount,pv_value,total_pv,cost_amount,total_cost)
+                VALUES (990021,990020,'MIXED-RETURN-ORDER',1,'商品A',10,1,10,0,0,5,5),
+                       (990022,990020,'MIXED-RETURN-ORDER',2,'商品B',10,1,10,0,0,5,5)
+                """);
+        ShopAfterSaleItemDTO first = new ShopAfterSaleItemDTO();
+        first.setOrderItemId(990021L);
+        first.setQuantity(1);
+        ShopAfterSaleItemDTO second = new ShopAfterSaleItemDTO();
+        second.setOrderItemId(990022L);
+        second.setQuantity(1);
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
+        apply.setOrderId(990020L);
+        apply.setApplyType(2);
+        apply.setItems(List.of(first, second));
+        apply.setReason("测试不同退货仓库");
+
+        ApiException exception = assertThrows(ApiException.class,
+                () -> shopAfterSaleService.apply(member, apply));
+        assertTrue(exception.getMessage().contains("按退货地址分别提交"));
     }
 
     @Test

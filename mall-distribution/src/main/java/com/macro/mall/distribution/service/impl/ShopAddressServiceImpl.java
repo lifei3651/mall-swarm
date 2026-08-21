@@ -2,6 +2,7 @@ package com.macro.mall.distribution.service.impl;
 
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.distribution.dao.DmsShopAddressDao;
+import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dto.ShopAddressDTO;
 import com.macro.mall.distribution.entity.DmsShopAddress;
 import com.macro.mall.distribution.entity.DmsShopMember;
@@ -17,7 +18,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ShopAddressServiceImpl implements ShopAddressService {
 
+    private static final int MAX_ACTIVE_ADDRESSES = 20;
     private final DmsShopAddressDao addressDao;
+    private final DmsShopMemberDao memberDao;
 
     @Override
     public List<DmsShopAddress> list(DmsShopMember member) {
@@ -45,7 +48,13 @@ public class ShopAddressServiceImpl implements ShopAddressService {
             addressDao.clearDefault(member.getId());
         }
         if (address.getId() == null) {
-            if (addressDao.selectByMemberId(member.getId()).isEmpty()) {
+            // 锁定会员行，使同一会员并发新增地址也必须串行经过数量上限检查。
+            if (memberDao.selectByIdForUpdate(member.getId()) == null) Asserts.fail("会员不存在");
+            List<DmsShopAddress> activeAddresses = addressDao.selectByMemberId(member.getId());
+            if (activeAddresses.size() >= MAX_ACTIVE_ADDRESSES) {
+                Asserts.fail("收货地址最多保存" + MAX_ACTIVE_ADDRESSES + "个，请删除不用的地址后再新增");
+            }
+            if (activeAddresses.isEmpty()) {
                 address.setIsDefault(1);
             }
             addressDao.insert(address);

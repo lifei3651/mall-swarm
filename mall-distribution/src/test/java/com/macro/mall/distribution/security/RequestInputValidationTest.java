@@ -16,6 +16,8 @@ import com.macro.mall.distribution.dto.AgentUpdateDTO;
 import com.macro.mall.distribution.dto.ProductPublishDTO;
 import com.macro.mall.distribution.dto.ErpShipmentCallbackDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleReturnShipmentDTO;
+import com.macro.mall.distribution.dto.ShopOrderShipDTO;
+import com.macro.mall.distribution.dto.WithdrawConfirmPayDTO;
 import com.macro.mall.distribution.dto.SmsCodeRequestDTO;
 import com.macro.mall.distribution.dto.LineChangeAuditDTO;
 import com.macro.mall.distribution.entity.DmsShopProduct;
@@ -74,6 +76,16 @@ class RequestInputValidationTest {
         shipment.setDeliveryCompany("顺丰速运");
         shipment.setDeliveryNo("../bad tracking no");
         assertMessages(shipment, "退货运单号只能包含字母、数字、下划线和短横线");
+
+        ShopOrderShipDTO outbound = new ShopOrderShipDTO();
+        outbound.setDeliveryCompany("物流公司".repeat(20));
+        outbound.setDeliveryNo("../bad tracking no");
+        assertMessages(outbound, "物流公司名称不能超过50个字", "物流单号只能包含字母、数字、下划线和短横线");
+
+        WithdrawConfirmPayDTO payment = new WithdrawConfirmPayDTO();
+        payment.setPayNo(" ");
+        payment.setAdminPassword("short");
+        assertMessages(payment, "请输入打款流水号", "当前管理员登录密码长度不正确");
     }
 
     @Test

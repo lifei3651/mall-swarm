@@ -47,7 +47,7 @@
         <div class="banner-carousel">
           <div class="banner-track" :style="{ transform: `translateX(-${bannerIndex * 100}%)` }">
             <a v-for="banner in banners" :key="banner.id" class="banner-slide" :href="banner.linkValue || '#'" @click.prevent="handleBannerClick(banner)">
-              <img :src="banner.imageUrl" :alt="banner.title || '活动广告'" loading="eager" />
+              <img :src="banner.imageUrl" :alt="banner.title || '活动广告'" loading="eager" @error="applyImageFallback" />
             </a>
           </div>
           <div v-if="banners.length > 1" class="banner-dots">
@@ -76,7 +76,7 @@
             @click="setCategory(category.name)"
           >
             <span class="category-circle">
-              <img v-if="category.image" :src="category.image" :alt="category.name" loading="eager" decoding="async" />
+              <img v-if="category.image" :src="category.image" :alt="category.name" loading="eager" decoding="async" @error="applyImageFallback" />
               <span v-else>{{ category.name.slice(0, 1) }}</span>
             </span>
             <strong>{{ category.name }}</strong>
@@ -108,7 +108,7 @@
       <div v-else-if="products.length" class="home-product-grid">
         <article v-for="product in products" :key="product.id" class="home-product-card">
           <RouterLink class="home-product-image" :to="`/product/${product.id}`" :aria-label="`查看${product.productName}`">
-            <img :src="product.coverUrl" :alt="product.productName" loading="lazy" />
+            <img :src="product.coverUrl" :alt="product.productName" loading="lazy" @error="applyImageFallback" />
             <span v-if="product.status !== 1 || product.stock <= 0" class="home-sold-out">已售罄</span>
           </RouterLink>
 
@@ -165,6 +165,7 @@ import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
 import { cartItemKey, stockAdditionViolation } from '@/utils/stockRules'
 import { requireShopSession } from '@/utils/authNavigation'
 import ProductListSkeleton from '@/components/ProductListSkeleton.vue'
+import { applyImageFallback } from '@/utils/imageFallback'
 
 const router = useRouter()
 const route = useRoute()

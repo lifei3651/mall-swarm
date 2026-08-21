@@ -21,7 +21,8 @@ public class FlashSaleStockGate {
 
     private static final DefaultRedisScript<Long> ACQUIRE_SCRIPT = new DefaultRedisScript<>(
             "if redis.call('EXISTS',KEYS[2])==1 then return -2 end; "
-                    + "local stock=tonumber(redis.call('GET',KEYS[1]) or '-1'); "
+                    + "local raw=redis.call('GET',KEYS[1]); if not raw then return -3 end; "
+                    + "local stock=tonumber(raw); "
                     + "local qty=tonumber(ARGV[1]); if stock < qty then return -1 end; "
                     + "redis.call('DECRBY',KEYS[1],qty); "
                     + "redis.call('SET',KEYS[2],ARGV[1],'EX',ARGV[2]); return stock-qty;",
@@ -43,12 +44,13 @@ public class FlashSaleStockGate {
         String memberKey = memberKey(activity, userId);
         long ttl = ttlSeconds(activity);
         try {
-            redisTemplate.opsForValue().setIfAbsent(stockKey,
-                    String.valueOf(Math.max(0, activity.getAvailableStock())), Duration.ofSeconds(ttl));
             Long result = redisTemplate.execute(ACQUIRE_SCRIPT, List.of(stockKey, memberKey),
                     String.valueOf(quantity), String.valueOf(ttl));
             if (result == null) return Result.FALLBACK;
             if (result == -2L) return Result.DUPLICATE;
+            // Redis 重启、活动配置刷新或缓存主动重建期间直接回退数据库原子守卫，
+            // 不能把“缓存暂时不存在”误报为售罄，也不能用请求里的旧活动快照重建库存。
+            if (result == -3L) return Result.FALLBACK;
             if (result < 0L) return Result.SOLD_OUT;
             return Result.ACQUIRED;
         } catch (RuntimeException ex) {
@@ -83,9 +85,13 @@ public class FlashSaleStockGate {
     public void reset(DmsFlashSaleActivity activity) {
         if (activity == null || activity.getId() == null) return;
         try {
-            redisTemplate.delete(stockKey(activity));
+            // 配置保存后的活动对象是数据库最新值，直接写入准确库存；若 Redis 重启导致键缺失，
+            // 抢购入口会安全降级到数据库，不再由并发请求使用过期快照懒初始化。
+            redisTemplate.opsForValue().set(stockKey(activity),
+                    String.valueOf(Math.max(0, activity.getAvailableStock())),
+                    Duration.ofSeconds(ttlSeconds(activity)));
         } catch (RuntimeException ex) {
-            log.warn("秒杀Redis库存缓存清理失败：{}", ex.getClass().getSimpleName());
+            log.warn("秒杀Redis库存缓存重建失败，将降级为数据库原子扣减：{}", ex.getClass().getSimpleName());
         }
     }
 

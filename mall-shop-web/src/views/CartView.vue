@@ -32,7 +32,7 @@
             <Check v-if="selectedKeys.has(item.cartKey || item.id)" :size="14" />
           </button>
           <div class="item-image-wrap">
-            <img :src="item.coverUrl" :alt="item.productName" loading="lazy" />
+            <img :src="item.coverUrl" :alt="item.productName" loading="lazy" @error="applyImageFallback" />
           </div>
           <div class="item-info">
             <p class="merchant-line">{{ item.merchantName || '平台自营' }}</p>
@@ -116,6 +116,7 @@ import { formatProductSpec } from '@/utils/productSpec'
 import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
 import { resolveCurrentStock, stockAdditionViolation, stockQuantityViolation } from '@/utils/stockRules'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import { applyImageFallback } from '@/utils/imageFallback'
 
 const router = useRouter()
 const { items, count, total, getProductQuantity, update, remove, clear: clearCart, beginCheckout } = useCart()
