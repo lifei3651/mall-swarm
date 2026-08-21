@@ -38,6 +38,7 @@
             v-model="addressPasteText"
             class="address-paste-input"
             rows="2"
+            maxlength="500"
             placeholder="粘贴：收货人、手机号、省市区和详细地址"
             @paste="handleAddressPaste"
           ></textarea>
@@ -66,7 +67,7 @@
         <div class="form-grid checkout-form-grid">
           <div v-if="addressesLoaded && !addresses.length && !addressesLoadError" class="form-item half-item">
             <label>收货人</label>
-            <input v-model="form.receiverName" class="field" placeholder="姓名" @input="form.addressId = null" />
+            <input v-model="form.receiverName" class="field" maxlength="30" placeholder="姓名" @input="form.addressId = null" />
           </div>
           <div v-if="addressesLoaded && !addresses.length && !addressesLoadError" class="form-item half-item">
             <label>手机号</label>
@@ -78,11 +79,11 @@
           </div>
           <div v-if="addressesLoaded && !addresses.length && !addressesLoadError" class="form-item full">
             <label>详细地址</label>
-            <textarea v-model="form.receiverDetailAddress" class="textarea" placeholder="街道、小区、楼栋、门牌号" @input="form.addressId = null" style="min-height:58px"></textarea>
+            <textarea v-model="form.receiverDetailAddress" class="textarea" maxlength="200" placeholder="街道、小区、楼栋、门牌号" @input="form.addressId = null" style="min-height:58px"></textarea>
           </div>
           <div class="form-item full checkout-remark-item">
             <label>订单备注</label>
-            <input v-model="form.remark" class="field" placeholder="选填，给商家留言" />
+            <input v-model="form.remark" class="field" maxlength="500" placeholder="选填，给商家留言" />
           </div>
         </div>
 
@@ -415,8 +416,11 @@ const form = ref({
 
 const openAddressPage = (mode) => {
   sessionStorage.setItem('checkout_draft', JSON.stringify({
-    form: form.value,
-    receiverRegion: receiverRegion.value,
+    form: {
+      addressId: form.value.addressId,
+      payType: form.value.payType,
+      remark: form.value.remark,
+    },
   }))
   addressPickerVisible.value = false
   router.push({ path: '/profile/addresses', query: { select: '1', mode } })
@@ -571,9 +575,12 @@ const fetchMemberPhone = async () => {
 
 const validate = () => {
   if (!form.value.receiverName) return '请填写收货人'
+  if (form.value.receiverName.trim().length > 30) return '收货人不能超过30个字'
   if (!isValidMainlandPhone(form.value.receiverPhone)) return '请填写正确的11位手机号'
   if (receiverRegion.value.length !== 3) return '请完整选择省、市、区/县'
   if (!form.value.receiverDetailAddress) return '请填写详细收货地址'
+  if (form.value.receiverDetailAddress.trim().length > 200) return '详细地址不能超过200个字'
+  if (form.value.remark.length > 500) return '订单备注不能超过500个字'
   if (!['NORMAL', 'FLASH_SALE'].includes(businessType)) return '当前商品不属于公开商城可结算范围，请返回商城重新选择'
   if (form.value.payType === 'BALANCE' && walletSummary.value.hasPaymentPassword && Number(walletSummary.value.balance || 0) < payAmount.value) return '余额不足，请选择其他支付方式'
   return ''
@@ -663,6 +670,9 @@ const closePayDialog = () => {
   if (payPasswordSubmitting.value || setupPasswordSubmitting.value) return
   showPayDialog.value = false
   paymentPasswordSaved.value = false
+  payPasswordInput.value = ''
+  setupPasswordForm.value = { loginPassword: '', smsCode: '', newPassword: '' }
+  setupPasswordConfirm.value = ''
   payPasswordError.value = ''
   setupPasswordError.value = ''
 }
@@ -787,9 +797,9 @@ const confirmPayWithPassword = async () => {
     showPayDialog.value = false
   } catch (e) {
     payPasswordError.value = e.message || '支付失败'
-    payPasswordInput.value = ''
     if (String(e.message || '').includes('锁定30分钟')) await fetchWallet()
   } finally {
+    payPasswordInput.value = ''
     payPasswordSubmitting.value = false
   }
 }

@@ -63,11 +63,11 @@
     <select id="sumUnsettledCommission" resultType="java.math.BigDecimal">
         SELECT COALESCE(SUM(commission_amount), 0)
         FROM dms_commission_record
-        WHERE status = 0
+        WHERE status = 0 AND tenant_id = #{tenantId}
     </select>
 
     <select id="countUnsettledCommission" resultType="long">
-        SELECT COUNT(*) FROM dms_commission_record WHERE status = 0
+        SELECT COUNT(*) FROM dms_commission_record WHERE status = 0 AND tenant_id = #{tenantId}
     </select>
 
     <select id="sumPendingWithdraw" resultType="java.math.BigDecimal">
@@ -297,6 +297,7 @@
                status,
                create_time AS createTime
         FROM dms_commission_record
+        WHERE tenant_id = #{tenantId}
         ORDER BY create_time DESC, id DESC
         LIMIT #{limit}
     </select>

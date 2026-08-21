@@ -57,8 +57,8 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         vo.setTodayPerformance(todaySales);
         vo.setYesterdayPerformance(zero(dashboardDao.sumPerformance(tenantId, yesterdayStart, todayStart)));
 
-        vo.setUnsettledCommission(zero(dashboardDao.sumUnsettledCommission()));
-        vo.setUnsettledCommissionCount(dashboardDao.countUnsettledCommission());
+        vo.setUnsettledCommission(zero(dashboardDao.sumUnsettledCommission(tenantId)));
+        vo.setUnsettledCommissionCount(dashboardDao.countUnsettledCommission(tenantId));
         vo.setPendingWithdrawAmount(zero(dashboardDao.sumPendingWithdraw()));
         vo.setPendingWithdrawCount(dashboardDao.countPendingWithdraw());
         vo.setTotalWithdrawAmount(zero(dashboardDao.sumSuccessfulWithdraw(null, null)));
@@ -111,7 +111,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 dashboardDao.selectMonthlyPerformanceTrend(tenantId, monthlyTrendStart.atStartOfDay(), tomorrowStart)));
         vo.setLevelDistribution(fillLevels(dashboardDao.selectLevelDistribution()));
         vo.setPendingWithdraws(dashboardDao.selectPendingWithdraws(5));
-        vo.setLatestCommissions(dashboardDao.selectLatestCommissions(5));
+        vo.setLatestCommissions(dashboardDao.selectLatestCommissions(tenantId, 5));
         return vo;
     }
 

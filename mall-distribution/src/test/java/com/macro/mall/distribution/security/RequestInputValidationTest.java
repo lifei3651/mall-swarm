@@ -2,6 +2,7 @@ package com.macro.mall.distribution.security;
 
 import com.macro.mall.distribution.controller.AdminAuthController;
 import com.macro.mall.distribution.controller.AgentController;
+import com.macro.mall.distribution.controller.CommissionController;
 import com.macro.mall.distribution.controller.MemberAssetController;
 import com.macro.mall.distribution.controller.ShopController;
 import com.macro.mall.distribution.controller.SmsController;
@@ -17,6 +18,8 @@ import com.macro.mall.distribution.dto.ProductPublishDTO;
 import com.macro.mall.distribution.dto.ErpShipmentCallbackDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleReturnShipmentDTO;
 import com.macro.mall.distribution.dto.ShopOrderShipDTO;
+import com.macro.mall.distribution.dto.ShopOrderSubmitDTO;
+import com.macro.mall.distribution.dto.CommissionQueryDTO;
 import com.macro.mall.distribution.dto.WithdrawConfirmPayDTO;
 import com.macro.mall.distribution.dto.SmsCodeRequestDTO;
 import com.macro.mall.distribution.dto.LineChangeAuditDTO;
@@ -24,7 +27,9 @@ import com.macro.mall.distribution.entity.DmsShopProduct;
 import jakarta.validation.Valid;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
+import jakarta.validation.constraints.Size;
 import org.junit.jupiter.api.Test;
+import org.springframework.validation.annotation.Validated;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -60,6 +65,19 @@ class RequestInputValidationTest {
         ProductPublishDTO publish = new ProductPublishDTO();
         publish.setProduct(product);
         assertMessages(publish, "商品名称不能超过60个字");
+
+        ShopOrderSubmitDTO order = new ShopOrderSubmitDTO();
+        order.setReceiverName("收".repeat(31));
+        order.setReceiverAddress("址".repeat(513));
+        order.setReceiverDetailAddress("详".repeat(201));
+        order.setRemark("备".repeat(501));
+        assertMessages(order, "收货人不能超过30个字", "收货地址不能超过512个字",
+                "详细地址不能超过200个字", "订单备注不能超过500个字");
+
+        CommissionQueryDTO commission = new CommissionQueryDTO();
+        commission.setMemberKey("会".repeat(65));
+        commission.setOrderNo("O".repeat(65));
+        assertMessages(commission, "会员查询条件不能超过64个字符", "订单编号不能超过64个字符");
     }
 
     @Test
@@ -103,6 +121,11 @@ class RequestInputValidationTest {
         assertValidParameter(ShopController.class, "adjustMemberLevel", AgentLevelAdjustDTO.class);
         assertValidParameter(MemberAssetController.class, "issue", AdminAssetChangeDTO.class);
         assertValidParameter(MemberAssetController.class, "deduct", AdminAssetChangeDTO.class);
+        assertValidParameter(CommissionController.class, "getCommissionRecords", CommissionQueryDTO.class);
+        assertTrue(MemberAssetController.class.isAnnotationPresent(Validated.class),
+                "MemberAssetController must activate request parameter constraints");
+        assertSizedStringParameters(MemberAssetController.class, "searchFlows", 100, 2);
+        assertSizedStringParameters(MemberAssetController.class, "summarizeFlows", 100, 2);
     }
 
     @Test
@@ -172,5 +195,20 @@ class RequestInputValidationTest {
                 .orElseThrow();
         assertNotNull(parameter.getAnnotation(Valid.class),
                 controller.getSimpleName() + "." + methodName + " must validate " + dtoType.getSimpleName());
+    }
+
+    private void assertSizedStringParameters(Class<?> controller, String methodName, int max, int expectedCount) {
+        Method method = java.util.Arrays.stream(controller.getDeclaredMethods())
+                .filter(candidate -> candidate.getName().equals(methodName))
+                .findFirst()
+                .orElseThrow();
+        long count = java.util.Arrays.stream(method.getParameters())
+                .filter(parameter -> parameter.getType().equals(String.class))
+                .map(parameter -> parameter.getAnnotation(Size.class))
+                .filter(java.util.Objects::nonNull)
+                .filter(size -> size.max() == max)
+                .count();
+        assertTrue(count >= expectedCount,
+                controller.getSimpleName() + "." + methodName + " must limit query text length");
     }
 }

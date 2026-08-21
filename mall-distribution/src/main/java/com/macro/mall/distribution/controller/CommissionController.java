@@ -15,6 +15,7 @@ import com.github.pagehelper.PageHelper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -130,7 +131,7 @@ public class CommissionController {
 
     @Operation(summary = "查询代理的佣金记录")
     @GetMapping("/records")
-    public CommonResult<CommonPage<CommissionRecordVO>> getCommissionRecords(@ModelAttribute CommissionQueryDTO queryDTO) {
+    public CommonResult<CommonPage<CommissionRecordVO>> getCommissionRecords(@Valid @ModelAttribute CommissionQueryDTO queryDTO) {
         List<CommissionRecordVO> records = commissionService.getCommissionRecords(queryDTO);
         return CommonResult.success(CommonPage.restPage(records));
     }

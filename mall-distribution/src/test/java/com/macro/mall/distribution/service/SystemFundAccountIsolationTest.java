@@ -11,6 +11,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
@@ -50,6 +52,28 @@ class SystemFundAccountIsolationTest {
         assertThat(dashboardDao.countPromotionMembers()).isEqualTo(promotionMembersBefore + 1);
         assertThat(memberDao.selectByAccount("13900009902")).isNotNull();
         assertThat(memberDao.selectByInviteCode("NORMAL1")).isNotNull();
+    }
+
+    @Test
+    void dashboardCommissionQueriesUseExplicitTenantScope() {
+        BigDecimal tenantOneBefore = dashboardDao.sumUnsettledCommission(1L);
+        long tenantOneCountBefore = dashboardDao.countUnsettledCommission(1L);
+        jdbcTemplate.update("""
+                INSERT INTO dms_commission_record
+                    (id, tenant_id, record_no, order_id, order_no, order_amount, order_user_id,
+                     agent_id, agent_user_id, agent_level, commission_level, bonus_type,
+                     commission_rate, commission_amount, status)
+                VALUES (990001, 2, 'COM-DASHBOARD-TENANT-2', 990001, 'ORDER-DASHBOARD-TENANT-2',
+                        100, 1001, 1, 1001, 1, 1, 'DIRECT_REWARD', 0.1000, 10, 0)
+                """);
+        sqlSessionTemplate.clearCache();
+
+        assertThat(dashboardDao.sumUnsettledCommission(1L)).isEqualByComparingTo(tenantOneBefore);
+        assertThat(dashboardDao.countUnsettledCommission(1L)).isEqualTo(tenantOneCountBefore);
+        assertThat(dashboardDao.selectLatestCommissions(1L, 100))
+                .noneMatch(row -> "ORDER-DASHBOARD-TENANT-2".equals(row.getOrderNo()));
+        assertThat(dashboardDao.sumUnsettledCommission(2L)).isEqualByComparingTo("10.00");
+        assertThat(dashboardDao.countUnsettledCommission(2L)).isEqualTo(1L);
     }
 
     private void insertMember(long id, long userId, String phone, String inviteCode,

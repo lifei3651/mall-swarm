@@ -101,6 +101,18 @@ class SecurityRateLimitFilterTest {
     }
 
     @Test
+    void appliesDedicatedLimitToDashboardExports() {
+        SecurityRateLimitFilter filter = new SecurityRateLimitFilter(mock(SecurityRateLimitService.class));
+
+        SecurityRateLimitFilter.Rule rule = filter.resolveRule(
+                new MockHttpServletRequest("GET", "/distribution/dashboard/export"));
+
+        assertEquals("dashboard-export", rule.name());
+        assertEquals(5, rule.maximumRequests());
+        assertEquals(60, rule.windowSeconds());
+    }
+
+    @Test
     void appliesTightLimitsToMoneyAndCredentialChanges() {
         SecurityRateLimitFilter filter = new SecurityRateLimitFilter(mock(SecurityRateLimitService.class));
 

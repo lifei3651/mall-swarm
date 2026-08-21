@@ -16,7 +16,9 @@ import com.macro.mall.distribution.vo.BalanceFlowSummaryVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,6 +29,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 @RestController
 @RequestMapping("/distribution/assets")
 @RequiredArgsConstructor
+@Validated
 public class MemberAssetController {
 
     private final MemberAssetService assetService;
@@ -49,8 +52,8 @@ public class MemberAssetController {
     @Operation(summary = "分页查询全部会员余额流水")
     @GetMapping("/flow-records")
     public CommonResult<CommonPage<BalanceFlowVO>> searchFlows(
-            @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String relatedNo,
+            @Size(max = 100, message = "会员查询条件不能超过100个字符") @RequestParam(required = false) String keyword,
+            @Size(max = 100, message = "关联单号不能超过100个字符") @RequestParam(required = false) String relatedNo,
             @RequestParam(required = false) String direction,
             @RequestParam(required = false) String sourceType,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
@@ -65,8 +68,8 @@ public class MemberAssetController {
     @Operation(summary = "汇总筛选范围内余额流水")
     @GetMapping("/flow-records/summary")
     public CommonResult<BalanceFlowSummaryVO> summarizeFlows(
-            @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String relatedNo,
+            @Size(max = 100, message = "会员查询条件不能超过100个字符") @RequestParam(required = false) String keyword,
+            @Size(max = 100, message = "关联单号不能超过100个字符") @RequestParam(required = false) String relatedNo,
             @RequestParam(required = false) String direction,
             @RequestParam(required = false) String sourceType,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,

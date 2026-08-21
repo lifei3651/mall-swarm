@@ -2,6 +2,7 @@ package com.macro.mall.distribution.dto;
 
 import lombok.Data;
 import org.springframework.format.annotation.DateTimeFormat;
+import jakarta.validation.constraints.Size;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
@@ -17,9 +18,11 @@ public class CommissionQueryDTO implements Serializable {
     private Long agentId;
 
     /** 登录账号或手机号；后台统一查询入口。 */
+    @Size(max = 64, message = "会员查询条件不能超过64个字符")
     private String memberKey;
 
     /** 订单编号 */
+    @Size(max = 64, message = "订单编号不能超过64个字符")
     private String orderNo;
 
     /** 佣金状态：0-待结算 1-已结算 2-已取消 3-已退款 */

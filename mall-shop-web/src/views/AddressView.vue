@@ -35,11 +35,11 @@
     <section v-if="editorVisible" class="panel address-editor">
       <div class="editor-head"><h3>{{ form.id ? '编辑地址' : '新增地址' }}</h3><button type="button" @click="editorVisible = false"><X :size="20" /></button></div>
       <button class="paste-button" type="button" @click="showPaste = !showPaste"><ClipboardPaste :size="16" />{{ showPaste ? '收起智能识别' : '粘贴收货信息，自动识别' }}</button>
-      <div v-if="showPaste" class="paste-box"><textarea v-model="pasteText" rows="3" placeholder="粘贴姓名、手机号、省市区和详细地址"></textarea><button type="button" @click="parseAddress">识别并填入</button></div>
+      <div v-if="showPaste" class="paste-box"><textarea v-model="pasteText" rows="3" maxlength="500" placeholder="粘贴姓名、手机号、省市区和详细地址"></textarea><button type="button" @click="parseAddress">识别并填入</button></div>
       <div class="form-grid">
         <div class="form-item" :class="{ invalid: !!fieldErrors.receiverName }">
           <label for="address-receiver-name">收货人 <span class="required">*</span></label>
-          <input id="address-receiver-name" ref="receiverNameInput" v-model="form.receiverName" class="field" :class="{ invalid: !!fieldErrors.receiverName }" aria-describedby="address-receiver-name-error" :aria-invalid="!!fieldErrors.receiverName" placeholder="姓名" @input="clearFieldError('receiverName')" />
+          <input id="address-receiver-name" ref="receiverNameInput" v-model="form.receiverName" class="field" :class="{ invalid: !!fieldErrors.receiverName }" maxlength="30" aria-describedby="address-receiver-name-error" :aria-invalid="!!fieldErrors.receiverName" placeholder="姓名" @input="clearFieldError('receiverName')" />
           <p v-if="fieldErrors.receiverName" id="address-receiver-name-error" class="field-error">{{ fieldErrors.receiverName }}</p>
         </div>
         <div class="form-item" :class="{ invalid: !!fieldErrors.receiverPhone }">
@@ -54,7 +54,7 @@
         </div>
         <div class="form-item full" :class="{ invalid: !!fieldErrors.detailAddress }">
           <label for="address-detail">详细地址 <span class="required">*</span></label>
-          <textarea id="address-detail" ref="detailAddressInput" v-model="form.detailAddress" class="textarea" :class="{ invalid: !!fieldErrors.detailAddress }" aria-describedby="address-detail-error" :aria-invalid="!!fieldErrors.detailAddress" placeholder="街道、小区、楼栋、门牌号" @input="clearFieldError('detailAddress')"></textarea>
+          <textarea id="address-detail" ref="detailAddressInput" v-model="form.detailAddress" class="textarea" :class="{ invalid: !!fieldErrors.detailAddress }" maxlength="200" aria-describedby="address-detail-error" :aria-invalid="!!fieldErrors.detailAddress" placeholder="街道、小区、楼栋、门牌号" @input="clearFieldError('detailAddress')"></textarea>
           <p v-if="fieldErrors.detailAddress" id="address-detail-error" class="field-error">{{ fieldErrors.detailAddress }}</p>
         </div>
       </div>
@@ -186,9 +186,11 @@ const focusInvalidField = (field) => {
 const validate = () => {
   const errors = { receiverName: '', receiverPhone: '', region: '', detailAddress: '' }
   if (!form.value.receiverName.trim()) errors.receiverName = '请输入收货人姓名'
+  else if (form.value.receiverName.trim().length > 30) errors.receiverName = '收货人不能超过30个字'
   if (!isValidMainlandPhone(form.value.receiverPhone)) errors.receiverPhone = '请输入正确的11位手机号'
   if (region.value.length !== 3) errors.region = '请选择完整的省、市、区/县'
   if (!form.value.detailAddress.trim()) errors.detailAddress = '请输入详细收货地址'
+  else if (form.value.detailAddress.trim().length > 200) errors.detailAddress = '详细地址不能超过200个字'
   fieldErrors.value = errors
   const firstInvalid = Object.keys(errors).find((field) => errors[field])
   if (firstInvalid) {

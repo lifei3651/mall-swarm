@@ -28,8 +28,8 @@ public interface AdminDashboardDao {
     BigDecimal sumPerformance(@Param("tenantId") Long tenantId,
                               @Param("startTime") LocalDateTime startTime,
                               @Param("endTime") LocalDateTime endTime);
-    BigDecimal sumUnsettledCommission();
-    long countUnsettledCommission();
+    BigDecimal sumUnsettledCommission(@Param("tenantId") Long tenantId);
+    long countUnsettledCommission(@Param("tenantId") Long tenantId);
     BigDecimal sumPendingWithdraw();
     long countPendingWithdraw();
     BigDecimal sumSuccessfulWithdraw(@Param("startTime") LocalDateTime startTime,
@@ -49,5 +49,6 @@ public interface AdminDashboardDao {
                                                                 @Param("endTime") LocalDateTime endTime);
     List<DashboardLevelCountVO> selectLevelDistribution();
     List<DashboardWithdrawVO> selectPendingWithdraws(@Param("limit") int limit);
-    List<DashboardCommissionVO> selectLatestCommissions(@Param("limit") int limit);
+    List<DashboardCommissionVO> selectLatestCommissions(@Param("tenantId") Long tenantId,
+                                                        @Param("limit") int limit);
 }

@@ -23,6 +23,22 @@ test('concurrent 401 responses share one login redirect and return shipment comp
   assert.doesNotMatch(orderDetail, /placeholder="物流公司" maxlength="64"/)
 })
 
+test('checkout limits address fields, avoids persisting recipient PII and clears sensitive payment state', async () => {
+  const checkout = await readView('CheckoutView.vue')
+  const address = await readView('AddressView.vue')
+  const session = await readFile(new URL('../src/utils/shopSession.js', import.meta.url), 'utf8')
+
+  assert.match(checkout, /v-model="form\.receiverName"[^>]*maxlength="30"/)
+  assert.match(checkout, /v-model="form\.receiverDetailAddress"[^>]*maxlength="200"/)
+  assert.match(checkout, /v-model="form\.remark"[^>]*maxlength="500"/)
+  assert.match(address, /v-model="form\.receiverName"[^>]*maxlength="30"/)
+  assert.match(address, /v-model="form\.detailAddress"[^>]*maxlength="200"/)
+  assert.doesNotMatch(checkout, /sessionStorage\.setItem\('checkout_draft',[\s\S]{0,180}receiverName/)
+  assert.match(checkout, /finally \{\s*payPasswordInput\.value = ''\s*payPasswordSubmitting\.value = false/)
+  assert.match(session, /let legacyShopToken = localStorage\.getItem\(LEGACY_TOKEN_KEY\)\s*localStorage\.removeItem\(LEGACY_TOKEN_KEY\)/)
+  assert.match(session, /export const getLegacyShopToken = \(\) => legacyShopToken/)
+})
+
 test('storefront product images use one loop-safe fallback when remote media fails', async () => {
   const fallback = await readFile(new URL('../src/utils/imageFallback.js', import.meta.url), 'utf8')
   const views = await Promise.all([
