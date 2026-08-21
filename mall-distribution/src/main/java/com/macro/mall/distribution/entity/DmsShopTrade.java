@@ -22,6 +22,8 @@ public class DmsShopTrade implements Serializable {
     private BigDecimal payAmount;
     /** 0待付款、1已支付、4已关闭。履约状态由子订单分别维护。 */
     private Integer status;
+    /** 0未处理、1超时关单后的迟到支付已原路退款。 */
+    private Integer lateRefundFlag;
     private LocalDateTime payTime;
     private LocalDateTime closeTime;
     private LocalDateTime createTime;

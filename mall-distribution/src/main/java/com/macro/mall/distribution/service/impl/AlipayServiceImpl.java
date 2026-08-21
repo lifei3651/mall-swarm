@@ -172,8 +172,10 @@ public class AlipayServiceImpl implements AlipayService {
                     if (trade == null) shopService.markOrderPaid(order.getId(), "ALIPAY");
                     else shopService.markCheckoutPaid(trade.getId(), "ALIPAY");
                     log.info("支付宝支付成功，交易已标记为已支付: paymentNo={}, alipayTradeNo={}", outTradeNo, tradeNo);
+                } else if (isLatePaymentRefunded(trade, order)) {
+                    log.info("支付宝迟到支付已完成原路退款，确认重复通知: paymentNo={}", outTradeNo);
                 } else if (isUnpaidClosed(trade, order)) {
-                    if (!refundLatePayment(outTradeNo, expectedAmount)) return "failure";
+                    if (!refundLatePayment(outTradeNo, expectedAmount, trade, order)) return "failure";
                     log.warn("支付宝在本地超时关单后支付，已自动原路退款: paymentNo={}, alipayTradeNo={}", outTradeNo, tradeNo);
                 } else {
                     log.info("支付宝回调订单已处理过: paymentNo={}, status={}", outTradeNo, localStatus);
@@ -213,14 +215,7 @@ public class AlipayServiceImpl implements AlipayService {
     @Override
     public boolean queryOrderStatus(String orderNo) {
         try {
-            AlipayClient client = createClient();
-            AlipayTradeQueryRequest request = new AlipayTradeQueryRequest();
-
-            Map<String, Object> bizContent = new HashMap<>();
-            bizContent.put("out_trade_no", orderNo);
-            request.setBizContent(objectMapper.writeValueAsString(bizContent));
-
-            AlipayTradeQueryResponse response = client.execute(request);
+            AlipayTradeQueryResponse response = executeTradeQuery(orderNo);
             if (response.isSuccess()) {
                 String tradeStatus = response.getTradeStatus();
                 return "TRADE_SUCCESS".equals(tradeStatus) || "TRADE_FINISHED".equals(tradeStatus);
@@ -234,6 +229,16 @@ public class AlipayServiceImpl implements AlipayService {
         }
     }
 
+    /** 支付结果查询的独立测试边界；生产实现仍使用支付宝 SDK。 */
+    protected AlipayTradeQueryResponse executeTradeQuery(String orderNo) throws Exception {
+        AlipayClient client = createClient();
+        AlipayTradeQueryRequest request = new AlipayTradeQueryRequest();
+        Map<String, Object> bizContent = new HashMap<>();
+        bizContent.put("out_trade_no", orderNo);
+        request.setBizContent(objectMapper.writeValueAsString(bizContent));
+        return client.execute(request);
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean reconcileOrderFromQuery(String orderNo) {
@@ -241,14 +246,7 @@ public class AlipayServiceImpl implements AlipayService {
             return false;
         }
         try {
-            AlipayClient client = createClient();
-            AlipayTradeQueryRequest request = new AlipayTradeQueryRequest();
-
-            Map<String, Object> bizContent = new HashMap<>();
-            bizContent.put("out_trade_no", orderNo);
-            request.setBizContent(objectMapper.writeValueAsString(bizContent));
-
-            AlipayTradeQueryResponse response = client.execute(request);
+            AlipayTradeQueryResponse response = executeTradeQuery(orderNo);
             // 只允许 TRADE_SUCCESS 触发商城入账，避免把 FINISHED/其他状态误判成支付成功。
             if (!response.isSuccess() || !"TRADE_SUCCESS".equals(response.getTradeStatus())) {
                 log.info("支付宝同步回跳查询未确认支付: orderNo={}, success={}, tradeStatus={}",
@@ -267,8 +265,10 @@ public class AlipayServiceImpl implements AlipayService {
                 if (trade == null) shopService.markOrderPaid(order.getId(), "ALIPAY");
                 else shopService.markCheckoutPaid(trade.getId(), "ALIPAY");
                 log.info("支付宝同步回跳查询确认成功，交易已标记为已支付: paymentNo={}", orderNo);
+            } else if (isLatePaymentRefunded(trade, order)) {
+                log.info("支付宝查询确认迟到支付已完成原路退款: paymentNo={}", orderNo);
             } else if (isUnpaidClosed(trade, order)) {
-                if (!refundLatePayment(orderNo, trade == null ? order.getPayAmount() : trade.getPayAmount())) {
+                if (!refundLatePayment(orderNo, trade == null ? order.getPayAmount() : trade.getPayAmount(), trade, order)) {
                     log.error("支付宝查询发现超时关单后支付，但自动退款失败: paymentNo={}", orderNo);
                     return false;
                 }
@@ -286,13 +286,32 @@ public class AlipayServiceImpl implements AlipayService {
     private boolean isUnpaidClosed(DmsShopTrade trade, DmsShopOrder order) {
         return trade != null
                 ? Integer.valueOf(4).equals(trade.getStatus()) && trade.getPayTime() == null
-                : order != null && Integer.valueOf(4).equals(order.getStatus()) && order.getPayTime() == null;
+                    && !Integer.valueOf(1).equals(trade.getLateRefundFlag())
+                : order != null && Integer.valueOf(4).equals(order.getStatus()) && order.getPayTime() == null
+                    && !Integer.valueOf(1).equals(order.getLateRefundFlag());
     }
 
-    private boolean refundLatePayment(String paymentNo, BigDecimal amount) {
+    private boolean isLatePaymentRefunded(DmsShopTrade trade, DmsShopOrder order) {
+        return trade != null
+                ? Integer.valueOf(1).equals(trade.getLateRefundFlag())
+                : order != null && Integer.valueOf(1).equals(order.getLateRefundFlag());
+    }
+
+    private boolean refundLatePayment(String paymentNo, BigDecimal amount,
+                                      DmsShopTrade trade, DmsShopOrder order) {
         String refundNo = "LATEPAY-" + SecureUtil.sha256(paymentNo).substring(0, 32);
-        return refund(paymentNo, refundNo, amount.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString(),
-                "订单超时关闭后的支付自动退回");
+        if (!refund(paymentNo, refundNo, amount.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString(),
+                "订单超时关闭后的支付自动退回")) {
+            return false;
+        }
+        int marked = trade != null ? tradeDao.markLateRefunded(trade.getId()) : orderDao.markLateRefunded(order.getId());
+        if (marked != 1) {
+            log.error("支付宝迟到支付已退款，但本地幂等标记保存失败: paymentNo={}", paymentNo);
+            return false;
+        }
+        if (trade != null) trade.setLateRefundFlag(1);
+        else order.setLateRefundFlag(1);
+        return true;
     }
 
     @Override

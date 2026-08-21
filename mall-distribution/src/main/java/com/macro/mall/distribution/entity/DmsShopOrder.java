@@ -73,6 +73,9 @@ public class DmsShopOrder implements Serializable {
 
     private String payType;
 
+    /** 0未处理、1超时关单后的迟到支付已原路退款。 */
+    private Integer lateRefundFlag;
+
     private String remark;
 
     /** 客服内部备注，不得直接序列化到会员端。 */

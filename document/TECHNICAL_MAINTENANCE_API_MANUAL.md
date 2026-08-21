@@ -197,8 +197,8 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | --- | --- | --- | --- |
 | `GET /api/v1/shop/pay/config` | 当前租户 | 可用支付方式 | 只返回已配置并启用的支付渠道 |
 | `POST /api/v1/shop/pay/alipay/create?orderId={id}` | 单商户传订单 ID；跨商户传 `checkoutId` 或任一子订单 ID | 支付宝官方表单参数 | 校验本人、状态、支付方式和金额；跨商户只用父交易号和汇总金额创建一次支付 |
-| `GET /api/v1/shop/pay/alipay/query?orderId={id}` | 单商户订单 ID、`checkoutId` 或子订单 ID | 支付状态 | 只允许本人支付宝订单主动查询；跨商户按父交易号同步全部子单 |
-| `POST /api/v1/pay/alipay/notify` | 支付宝回调表单 | 文本 `success` 或 `failure` | 先验签，再核对应用、商户、订单和金额，仅成功交易入账；重复通知幂等 |
+| `GET /api/v1/shop/pay/alipay/query?orderId={id}` | 单商户订单 ID、`checkoutId` 或子订单 ID | 支付状态 | 只允许本人支付宝订单主动查询；跨商户按父交易号同步全部子单；若查询发现本地超时关单后的迟到支付，则使用稳定退款号原路退回并保存本地退款标记 |
+| `POST /api/v1/pay/alipay/notify` | 支付宝回调表单 | 文本 `success` 或 `failure` | 先验签，再核对应用、商户、订单和金额，仅成功交易入账；迟到支付退款成功后写入订单/父交易 `late_refund_flag`，后续重复通知直接返回 `success` |
 | `GET /api/v1/payment/checkVerify` | `amount`、`tenantId` | 是否需要短信验证 | 根据租户的大额支付阈值决定是否验证 |
 | `GET /api/v1/shop/wallet/summary` | 当前会员 | `ShopWalletSummaryVO` | 返回余额、支付密码设置/锁定状态等 |
 | `POST /api/v1/shop/wallet/recipient` | `phone` | `BalanceRecipientVO` | 仅返回转账确认所需的脱敏收款人信息 |

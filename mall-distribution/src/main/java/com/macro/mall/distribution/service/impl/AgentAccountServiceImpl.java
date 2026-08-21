@@ -88,7 +88,7 @@ public class AgentAccountServiceImpl implements AgentAccountService {
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             return true;
         }
-        DmsAgentAccount account = accountDao.selectByAgentId(agentId);
+        DmsAgentAccount account = accountDao.selectByAgentIdForUpdate(agentId);
         if (account == null) {
             Asserts.fail("代理账户不存在");
         }

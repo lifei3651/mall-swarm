@@ -35,4 +35,7 @@ public interface DmsShopTradeDao {
 
     int closePendingScoped(@Param("tenantId") Long tenantId, @Param("id") Long id);
     default int closePending(Long id) { return closePendingScoped(TenantContext.getTenantId(), id); }
+
+    int markLateRefundedScoped(@Param("tenantId") Long tenantId, @Param("id") Long id);
+    default int markLateRefunded(Long id) { return markLateRefundedScoped(TenantContext.getTenantId(), id); }
 }

@@ -116,6 +116,28 @@ class TenantScopedTradeAndOrderDaoTest {
         assertEquals("TENANT-ORDER-2", orderDao.selectByOrderNo("TENANT-ORDER-2").getOrderNo());
     }
 
+    @Test
+    void latePaymentRefundMarkersAreTenantScopedAndWriteOnlyOnce() {
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_trade
+                (id, trade_no, tenant_id, user_id, pay_type, pay_amount, status)
+                VALUES (940004, 'TENANT-LATE-TRADE-1', 1, 101, 'ALIPAY', 10, 4),
+                       (940005, 'TENANT-LATE-TRADE-2', 2, 202, 'ALIPAY', 20, 4)
+                """);
+        insertOrder(940015L, "TENANT-LATE-ORDER-1", 1L, 4);
+        insertOrder(940016L, "TENANT-LATE-ORDER-2", 2L, 4);
+
+        TenantContext.setTenantId(1L);
+        assertEquals(1, tradeDao.markLateRefunded(940004L));
+        assertEquals(0, tradeDao.markLateRefunded(940004L));
+        assertEquals(0, tradeDao.markLateRefunded(940005L));
+        assertEquals(1, tradeDao.selectById(940004L).getLateRefundFlag());
+        assertEquals(1, orderDao.markLateRefunded(940015L));
+        assertEquals(0, orderDao.markLateRefunded(940015L));
+        assertEquals(0, orderDao.markLateRefunded(940016L));
+        assertEquals(1, orderDao.selectById(940015L).getLateRefundFlag());
+    }
+
     private void insertOrder(long id, String orderNo, long tenantId, int status) {
         jdbcTemplate.update("""
                 INSERT INTO dms_shop_order

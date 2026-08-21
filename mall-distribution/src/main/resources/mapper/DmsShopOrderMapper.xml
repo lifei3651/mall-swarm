@@ -31,6 +31,7 @@
         <result column="business_source_id" property="businessSourceId"/>
         <result column="status" property="status"/>
         <result column="pay_type" property="payType"/>
+        <result column="late_refund_flag" property="lateRefundFlag"/>
         <result column="remark" property="remark"/>
         <result column="service_remark" property="serviceRemark"/>
         <result column="pay_time" property="payTime"/>
@@ -57,7 +58,7 @@
         id, order_no, trade_id, trade_no, payment_order_no, tenant_id, merchant_id, merchant_name, user_id, agent_id, invite_code, receiver_name, receiver_phone,
         receiver_address, receiver_province, receiver_city, receiver_district, receiver_detail_address,
         total_amount, freight_amount, discount_amount, pay_amount, total_pv,
-        total_cost, business_type, business_source_id, status, pay_type, remark, service_remark, pay_time, delivery_company, delivery_no,
+        total_cost, business_type, business_source_id, status, pay_type, late_refund_flag, remark, service_remark, pay_time, delivery_company, delivery_no,
         delivery_time, receive_time, cancel_time, close_time, create_time, update_time
     </sql>
 
@@ -381,5 +382,16 @@
             close_time = CURRENT_TIMESTAMP,
             update_time = CURRENT_TIMESTAMP
         WHERE id = #{id} AND status = 0 AND COALESCE(tenant_id, 1) = #{tenantId}
+    </update>
+
+    <update id="markLateRefundedScoped">
+        UPDATE dms_shop_order
+        SET late_refund_flag = 1,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND status = 4
+          AND pay_time IS NULL
+          AND COALESCE(late_refund_flag, 0) = 0
+          AND COALESCE(tenant_id, 1) = #{tenantId}
     </update>
 </mapper>

@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.service.impl;
 
+import com.alipay.api.response.AlipayTradeQueryResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.macro.mall.distribution.config.AlipayConfig;
 import com.macro.mall.distribution.dao.DmsShopOrderDao;
@@ -132,16 +133,19 @@ class AlipayNotifyFailureTest {
         DmsShopOrder closed = pendingOrder();
         closed.setStatus(4);
         when(orderDao.selectByOrderNoForUpdate("ORDER-1")).thenReturn(closed);
+        when(orderDao.markLateRefunded(101L)).thenReturn(1);
         doReturn(true).when(service).refund("ORDER-1",
                 "LATEPAY-" + cn.hutool.crypto.SecureUtil.sha256("ORDER-1").substring(0, 32),
                 "99.00", "订单超时关闭后的支付自动退回");
 
         assertEquals("success", service.handleNotify(validParams()));
+        assertEquals("success", service.handleNotify(validParams()));
 
         verify(shopService, never()).markOrderPaid(anyLong(), anyString());
-        verify(service).refund("ORDER-1",
+        verify(service, times(1)).refund("ORDER-1",
                 "LATEPAY-" + cn.hutool.crypto.SecureUtil.sha256("ORDER-1").substring(0, 32),
                 "99.00", "订单超时关闭后的支付自动退回");
+        verify(orderDao, times(1)).markLateRefunded(101L);
     }
 
     @Test
@@ -154,6 +158,57 @@ class AlipayNotifyFailureTest {
 
         assertEquals("failure", service.handleNotify(validParams()));
         verify(shopService, never()).markCheckoutPaid(anyLong(), anyString());
+        verify(tradeDao, never()).markLateRefunded(anyLong());
+    }
+
+    @Test
+    void groupedLatePaymentRefundIsPersistedAndDuplicateNotificationIsAcknowledged() {
+        AlipayServiceImpl service = spy(service(true));
+        DmsShopTrade closed = pendingTrade();
+        closed.setStatus(4);
+        when(tradeDao.selectByTradeNoForUpdate("ORDER-1")).thenReturn(closed);
+        when(tradeDao.markLateRefunded(201L)).thenReturn(1);
+        doReturn(true).when(service).refund(anyString(), anyString(), anyString(), anyString());
+
+        assertEquals("success", service.handleNotify(validParams()));
+        assertEquals("success", service.handleNotify(validParams()));
+
+        verify(service, times(1)).refund(anyString(), anyString(), anyString(), anyString());
+        verify(tradeDao, times(1)).markLateRefunded(201L);
+        verifyNoInteractions(orderDao);
+    }
+
+    @Test
+    void latePaymentRefundMarkerFailureKeepsGatewayRetryEnabled() {
+        AlipayServiceImpl service = spy(service(true));
+        DmsShopTrade closed = pendingTrade();
+        closed.setStatus(4);
+        when(tradeDao.selectByTradeNoForUpdate("ORDER-1")).thenReturn(closed);
+        when(tradeDao.markLateRefunded(201L)).thenReturn(0);
+        doReturn(true).when(service).refund(anyString(), anyString(), anyString(), anyString());
+
+        assertEquals("failure", service.handleNotify(validParams()));
+        verify(tradeDao).markLateRefunded(201L);
+    }
+
+    @Test
+    void synchronousReconciliationPersistsAndHonorsLateRefundMarker() throws Exception {
+        AlipayServiceImpl service = spy(service(true));
+        AlipayTradeQueryResponse response = mock(AlipayTradeQueryResponse.class);
+        when(response.isSuccess()).thenReturn(true);
+        when(response.getTradeStatus()).thenReturn("TRADE_SUCCESS");
+        doReturn(response).when(service).executeTradeQuery("ORDER-1");
+        DmsShopOrder closed = pendingOrder();
+        closed.setStatus(4);
+        when(orderDao.selectByOrderNoForUpdate("ORDER-1")).thenReturn(closed);
+        when(orderDao.markLateRefunded(101L)).thenReturn(1);
+        doReturn(true).when(service).refund(anyString(), anyString(), anyString(), anyString());
+
+        assertEquals(true, service.reconcileOrderFromQuery("ORDER-1"));
+        assertEquals(true, service.reconcileOrderFromQuery("ORDER-1"));
+
+        verify(service, times(1)).refund(anyString(), anyString(), anyString(), anyString());
+        verify(orderDao, times(1)).markLateRefunded(101L);
     }
 
     private AlipayServiceImpl service(boolean signatureValid) {

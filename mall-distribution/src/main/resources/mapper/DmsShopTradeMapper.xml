@@ -7,10 +7,11 @@
     <result column="pay_type" property="payType"/><result column="total_amount" property="totalAmount"/>
     <result column="freight_amount" property="freightAmount"/><result column="discount_amount" property="discountAmount"/>
     <result column="pay_amount" property="payAmount"/><result column="status" property="status"/>
+    <result column="late_refund_flag" property="lateRefundFlag"/>
     <result column="pay_time" property="payTime"/><result column="close_time" property="closeTime"/>
     <result column="create_time" property="createTime"/><result column="update_time" property="updateTime"/>
   </resultMap>
-  <sql id="cols">id,trade_no,tenant_id,user_id,pay_type,total_amount,freight_amount,discount_amount,pay_amount,status,pay_time,close_time,create_time,update_time</sql>
+  <sql id="cols">id,trade_no,tenant_id,user_id,pay_type,total_amount,freight_amount,discount_amount,pay_amount,status,late_refund_flag,pay_time,close_time,create_time,update_time</sql>
   <select id="selectByIdScoped" resultMap="Base">SELECT <include refid="cols"/> FROM dms_shop_trade WHERE id=#{id} AND COALESCE(tenant_id,1)=#{tenantId}</select>
   <select id="selectByIdForUpdateScoped" resultMap="Base">SELECT <include refid="cols"/> FROM dms_shop_trade WHERE id=#{id} AND COALESCE(tenant_id,1)=#{tenantId} FOR UPDATE</select>
   <select id="selectByTradeNoScoped" resultMap="Base">SELECT <include refid="cols"/> FROM dms_shop_trade WHERE trade_no=#{tradeNo} AND COALESCE(tenant_id,1)=#{tenantId}</select>
@@ -18,4 +19,5 @@
   <insert id="insertScoped">INSERT INTO dms_shop_trade(id,trade_no,tenant_id,user_id,pay_type,total_amount,freight_amount,discount_amount,pay_amount,status) VALUES(#{trade.id},#{trade.tradeNo},#{tenantId},#{trade.userId},#{trade.payType},#{trade.totalAmount},#{trade.freightAmount},#{trade.discountAmount},#{trade.payAmount},#{trade.status})</insert>
   <update id="markPaidScoped">UPDATE dms_shop_trade SET status=1,pay_type=#{payType},pay_time=CURRENT_TIMESTAMP,update_time=CURRENT_TIMESTAMP WHERE id=#{id} AND status=0 AND COALESCE(tenant_id,1)=#{tenantId}</update>
   <update id="closePendingScoped">UPDATE dms_shop_trade SET status=4,close_time=CURRENT_TIMESTAMP,update_time=CURRENT_TIMESTAMP WHERE id=#{id} AND status=0 AND COALESCE(tenant_id,1)=#{tenantId}</update>
+  <update id="markLateRefundedScoped">UPDATE dms_shop_trade SET late_refund_flag=1,update_time=CURRENT_TIMESTAMP WHERE id=#{id} AND status=4 AND pay_time IS NULL AND COALESCE(late_refund_flag,0)=0 AND COALESCE(tenant_id,1)=#{tenantId}</update>
 </mapper>
