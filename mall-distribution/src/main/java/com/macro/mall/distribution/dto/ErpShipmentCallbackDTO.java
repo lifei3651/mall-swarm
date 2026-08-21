@@ -23,7 +23,7 @@ public class ErpShipmentCallbackDTO {
     @Size(max = 64, message = "订单编号不能超过64个字符")
     private String orderNo;
     @NotBlank(message = "物流公司不能为空")
-    @Size(max = 64, message = "物流公司不能超过64个字符")
+    @Size(max = 50, message = "物流公司名称不能超过50个字")
     private String deliveryCompany;
     @NotBlank(message = "物流单号不能为空")
     @Size(max = 64, message = "物流单号不能超过64个字符")

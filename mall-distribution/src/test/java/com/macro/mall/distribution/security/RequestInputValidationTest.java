@@ -68,9 +68,9 @@ class RequestInputValidationTest {
         callback.setProviderCode("JUSHUITAN");
         callback.setToken("token");
         callback.setOrderNo("ORDER-1");
-        callback.setDeliveryCompany("顺丰速运");
+        callback.setDeliveryCompany("物流公司".repeat(20));
         callback.setDeliveryNo("SF12345678");
-        assertMessages(callback, "ERP客户租户不能为空");
+        assertMessages(callback, "ERP客户租户不能为空", "物流公司名称不能超过50个字");
 
         ShopAfterSaleReturnShipmentDTO shipment = new ShopAfterSaleReturnShipmentDTO();
         shipment.setDeliveryCompany("物流公司".repeat(20));
