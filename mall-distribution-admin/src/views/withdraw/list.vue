@@ -78,7 +78,7 @@
         <template #default="{ row }">
           <el-button type="primary" link @click="handleDetail(row)">详情</el-button>
           <el-button
-            v-if="row.status === 1"
+            v-if="row.status === 1 && store.hasPermission('finance:manage')"
             type="success"
             link
             @click="handleConfirmPay(row)"
@@ -149,12 +149,14 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { confirmPay, getWithdrawStats, listWithdraws } from '@/api/withdraw'
+import { confirmPay, getWithdrawById, getWithdrawStats, listWithdraws } from '@/api/withdraw'
+import { useAppStore } from '@/store'
 import { memberSearchFailureMessage, memberSearchEmptyText, validateMemberSearch } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
 import { formatDateTime, formatDateTimeCell } from '@/utils/dateTime'
 
 const loading = ref(false)
+const store = useAppStore()
 const route = useRoute()
 const submitLoading = ref(false)
 const payDialogVisible = ref(false)
@@ -236,17 +238,20 @@ const handleReset = () => {
 }
 
 // 详情
-const handleDetail = (row) => {
-  detail.value = row
+const handleDetail = async (row) => {
+  detail.value = store.hasPermission('finance:manage')
+    ? (await getWithdrawById(row.id)).data || row
+    : row
   detailVisible.value = true
 }
 
 // 确认打款
-const handleConfirmPay = (row) => {
+const handleConfirmPay = async (row) => {
+  const fullRow = (await getWithdrawById(row.id)).data || row
   payForm.value = {
-    id: row.id,
-    withdrawNo: row.withdrawNo,
-    withdrawAmount: row.withdrawAmount,
+    id: fullRow.id,
+    withdrawNo: fullRow.withdrawNo,
+    withdrawAmount: fullRow.withdrawAmount,
     payNo: '',
     adminPassword: '',
   }

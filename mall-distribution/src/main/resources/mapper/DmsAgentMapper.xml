@@ -70,6 +70,63 @@
         ORDER BY agent.create_time DESC
     </select>
 
+    <select id="selectPerformanceRanking" resultType="com.macro.mall.distribution.vo.PerformanceRankingVO">
+        SELECT agent.id AS agentId,
+               agent.agent_name AS agentName,
+               agent.agent_level AS agentLevel,
+               CASE #{rankType}
+                   WHEN 1 THEN COALESCE(performance.rangePersonal, 0)
+                   WHEN 3 THEN COALESCE(recruits.rangeNew, 0)
+                   ELSE COALESCE(performance.rangeTeam, 0)
+               END AS performanceValue,
+               CASE #{rankType}
+                   WHEN 1 THEN COALESCE(performance.totalPersonal, 0)
+                   WHEN 3 THEN COALESCE(recruits.totalNew, 0)
+                   ELSE COALESCE(performance.totalTeam, 0)
+               END AS totalPerformance,
+               CASE #{rankType}
+                   WHEN 1 THEN COALESCE(performance.monthPersonal, 0)
+                   WHEN 3 THEN COALESCE(recruits.monthNew, 0)
+                   ELSE COALESCE(performance.monthTeam, 0)
+               END AS currentMonthPerformance,
+               COALESCE(recruits.totalNew, 0) AS totalNewAgentCount,
+               COALESCE(recruits.monthNew, 0) AS currentMonthNewAgentCount
+        FROM dms_agent agent
+        LEFT JOIN (
+            SELECT target_agent_id,
+                   SUM(CASE WHEN relation_level = 0 AND order_time &gt;= #{rangeStart}
+                                 THEN performance_amount ELSE 0 END) AS rangePersonal,
+                   SUM(CASE WHEN order_time &gt;= #{rangeStart}
+                                 THEN performance_amount ELSE 0 END) AS rangeTeam,
+                   SUM(CASE WHEN relation_level = 0 THEN performance_amount ELSE 0 END) AS totalPersonal,
+                   SUM(performance_amount) AS totalTeam,
+                   SUM(CASE WHEN relation_level = 0 AND order_time &gt;= #{monthStart}
+                                 THEN performance_amount ELSE 0 END) AS monthPersonal,
+                   SUM(CASE WHEN order_time &gt;= #{monthStart}
+                                 THEN performance_amount ELSE 0 END) AS monthTeam
+            FROM dms_order_performance_detail
+            WHERE status = 1 AND order_time &lt; #{endExclusive}
+            GROUP BY target_agent_id
+        ) performance ON performance.target_agent_id = agent.id
+        LEFT JOIN (
+            SELECT relation.parent_agent_id,
+                   COUNT(DISTINCT CASE WHEN child.create_time &gt;= #{rangeStart}
+                                        THEN child.id END) AS rangeNew,
+                   COUNT(DISTINCT child.id) AS totalNew,
+                   COUNT(DISTINCT CASE WHEN child.create_time &gt;= #{monthStart}
+                                        THEN child.id END) AS monthNew
+            FROM dms_agent_relation relation
+            INNER JOIN dms_agent child ON child.id = relation.agent_id
+            WHERE relation.is_valid = 1 AND child.create_time &lt; #{endExclusive}
+            GROUP BY relation.parent_agent_id
+        ) recruits ON recruits.parent_agent_id = agent.id
+        WHERE NOT EXISTS (
+            SELECT 1 FROM dms_shop_member member
+            WHERE member.user_id = agent.user_id AND member.system_account = 1
+        )
+        ORDER BY performanceValue DESC, agent.id ASC
+    </select>
+
     <select id="selectRoots" resultMap="BaseResultMap">
         SELECT agent.*
         FROM dms_agent agent

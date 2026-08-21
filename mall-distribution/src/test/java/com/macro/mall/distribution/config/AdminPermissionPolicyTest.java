@@ -32,6 +32,9 @@ class AdminPermissionPolicyTest {
         assertEquals("admin:read", AdminPermissionPolicy.requiredPermission("GET", "/distribution/dashboard"));
         assertEquals("finance:read", AdminPermissionPolicy.requiredPermission("GET", "/distribution/audit/finance/summary"));
         assertEquals("finance:manage", AdminPermissionPolicy.requiredPermission("POST", "/distribution/audit/finance/refunds"));
+        assertEquals("finance:read", AdminPermissionPolicy.requiredPermission("GET", "/distribution/withdraw/list"));
+        assertEquals("finance:manage", AdminPermissionPolicy.requiredPermission("GET", "/distribution/withdraw/18"));
+        assertEquals("finance:manage", AdminPermissionPolicy.requiredPermission("GET", "/distribution/withdraw/pending-audit"));
     }
 
     @Test

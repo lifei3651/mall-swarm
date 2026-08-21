@@ -277,7 +277,7 @@
     <select id="selectPendingWithdraws" resultType="com.macro.mall.distribution.vo.DashboardWithdrawVO">
         SELECT withdraw.id,
                withdraw.withdraw_no AS withdrawNo,
-               COALESCE(agent.agent_name, withdraw.account_name) AS agentName,
+               agent.agent_name AS agentName,
                withdraw.account_name AS accountName,
                withdraw.withdraw_amount AS withdrawAmount,
                withdraw.create_time AS createTime

@@ -19,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
+import com.github.pagehelper.PageHelper;
 
 /**
  * 业绩统计控制器
@@ -98,8 +99,14 @@ public class PerformanceController {
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate statDate,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "20") Integer pageSize) {
+        int safePageNum = pageNum == null || pageNum < 1 ? 1 : pageNum;
+        int safePageSize = pageSize == null || pageSize < 1 ? 20 : Math.min(pageSize, 100);
+        PageHelper.startPage(safePageNum, safePageSize);
         List<PerformanceRankingVO> ranking = performanceService.getPerformanceRanking(rankType, rankPeriod, statDate);
-        return CommonResult.success(page(ranking, pageNum, pageSize));
+        for (int i = 0; i < ranking.size(); i++) {
+            ranking.get(i).setRanking((safePageNum - 1) * safePageSize + i + 1);
+        }
+        return CommonResult.success(CommonPage.restPage(ranking));
     }
 
     @Operation(summary = "刷新日业绩汇总")
@@ -120,19 +127,4 @@ public class PerformanceController {
         return executed ? CommonResult.success(true) : CommonResult.failed("业绩月汇总正在执行，请稍后重试");
     }
 
-    private <T> CommonPage<T> page(List<T> list, Integer pageNum, Integer pageSize) {
-        int safePageNum = pageNum == null || pageNum < 1 ? 1 : pageNum;
-        int safePageSize = pageSize == null || pageSize < 1 ? 20 : pageSize;
-        int total = list.size();
-        int fromIndex = Math.min((safePageNum - 1) * safePageSize, total);
-        int toIndex = Math.min(fromIndex + safePageSize, total);
-
-        CommonPage<T> page = new CommonPage<>();
-        page.setPageNum(safePageNum);
-        page.setPageSize(safePageSize);
-        page.setTotal((long) total);
-        page.setTotalPage((total + safePageSize - 1) / safePageSize);
-        page.setList(list.subList(fromIndex, toIndex));
-        return page;
-    }
 }

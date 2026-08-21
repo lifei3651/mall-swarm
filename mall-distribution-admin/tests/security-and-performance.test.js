@@ -39,4 +39,12 @@ describe('后台安全与只读查询', () => {
     expect(withdrawView).toContain('adminPassword: payForm.value.adminPassword')
     expect(merchantFinance).toContain('v-model="payForm.adminPassword"')
   })
+
+  it('提现列表默认脱敏，完整收款资料只通过财务处理详情接口读取', async () => {
+    const list = await source('src/views/withdraw/list.vue')
+    const audit = await source('src/views/withdraw/audit.vue')
+    expect(list).toContain("store.hasPermission('finance:manage')")
+    expect(list).toContain('await getWithdrawById(row.id)')
+    expect(audit).toContain('await getWithdrawById(row.id)')
+  })
 })

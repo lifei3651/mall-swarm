@@ -11,6 +11,7 @@ import com.macro.mall.distribution.vo.DashboardProductRankingVO;
 import com.macro.mall.distribution.vo.DashboardRegionVO;
 import com.macro.mall.distribution.vo.DashboardTrendVO;
 import com.macro.mall.common.tenant.TenantContext;
+import com.macro.mall.distribution.util.MemberAccountUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -110,7 +111,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         vo.setMonthlyPerformanceTrend(fillMonthlyTrend(monthlyTrendStart, today.withDayOfMonth(1),
                 dashboardDao.selectMonthlyPerformanceTrend(tenantId, monthlyTrendStart.atStartOfDay(), tomorrowStart)));
         vo.setLevelDistribution(fillLevels(dashboardDao.selectLevelDistribution()));
-        vo.setPendingWithdraws(dashboardDao.selectPendingWithdraws(5));
+        var pendingWithdraws = dashboardDao.selectPendingWithdraws(5);
+        pendingWithdraws.forEach(row -> row.setAccountName(MemberAccountUtils.maskPersonName(row.getAccountName())));
+        vo.setPendingWithdraws(pendingWithdraws);
         vo.setLatestCommissions(dashboardDao.selectLatestCommissions(tenantId, 5));
         return vo;
     }

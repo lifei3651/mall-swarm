@@ -165,7 +165,7 @@ public class WithdrawServiceImpl implements WithdrawService {
     @Override
     public WithdrawRecordVO getWithdrawById(Long id) {
         DmsWithdrawRecord record = withdrawDao.selectById(id);
-        return record != null ? convertToVO(record) : null;
+        return record != null ? convertToVO(record, true) : null;
     }
 
     @Override
@@ -240,6 +240,10 @@ public class WithdrawServiceImpl implements WithdrawService {
      * 转换为VO
      */
     private WithdrawRecordVO convertToVO(DmsWithdrawRecord record) {
+        return convertToVO(record, false);
+    }
+
+    private WithdrawRecordVO convertToVO(DmsWithdrawRecord record, boolean includeSensitiveDetails) {
         WithdrawRecordVO vo = new WithdrawRecordVO();
         BeanUtils.copyProperties(record, vo);
 
@@ -249,6 +253,13 @@ public class WithdrawServiceImpl implements WithdrawService {
         if (member != null) {
             vo.setMemberAccount(MemberAccountUtils.display(member));
             vo.setMemberPhone(member.getPhone());
+        }
+
+        if (!includeSensitiveDetails) {
+            vo.setMemberAccount(MemberAccountUtils.maskAccount(vo.getMemberAccount()));
+            vo.setMemberPhone(MemberAccountUtils.maskPhone(vo.getMemberPhone()));
+            vo.setBankAccount(MemberAccountUtils.maskBankAccount(vo.getBankAccount()));
+            vo.setAccountName(MemberAccountUtils.maskPersonName(vo.getAccountName()));
         }
 
         // 设置提现方式名称

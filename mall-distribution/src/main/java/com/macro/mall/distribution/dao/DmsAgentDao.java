@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param;
 import java.util.List;
 import java.time.LocalDateTime;
 import com.macro.mall.distribution.vo.AgentInfoVO;
+import com.macro.mall.distribution.vo.PerformanceRankingVO;
 
 /**
  * 代理Mapper接口
@@ -38,6 +39,12 @@ public interface DmsAgentDao {
      * 查询所有代理
      */
     List<DmsAgent> selectAll();
+
+    /** 数据库一次聚合并排序业绩排行榜，分页由 PageHelper 在 SQL 层完成。 */
+    List<PerformanceRankingVO> selectPerformanceRanking(@Param("rankType") Integer rankType,
+                                                         @Param("rangeStart") LocalDateTime rangeStart,
+                                                         @Param("monthStart") LocalDateTime monthStart,
+                                                         @Param("endExclusive") LocalDateTime endExclusive);
 
     /** 查询没有推广上级的根代理，用于默认展示完整关系树。 */
     List<DmsAgent> selectRoots();

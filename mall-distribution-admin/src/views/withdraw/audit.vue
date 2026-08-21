@@ -75,7 +75,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { auditWithdraw, getPendingAuditWithdraws } from '@/api/withdraw'
+import { auditWithdraw, getPendingAuditWithdraws, getWithdrawById } from '@/api/withdraw'
 import { formatDateTime, formatDateTimeCell } from '@/utils/dateTime'
 
 const loading = ref(false)
@@ -99,13 +99,14 @@ const auditForm = ref({
 const pendingList = ref([])
 
 // 审核
-const handleAudit = (row, status) => {
+const handleAudit = async (row, status) => {
+  const fullRow = (await getWithdrawById(row.id)).data || row
   auditForm.value = {
-    id: row.id,
-    withdrawNo: row.withdrawNo,
-    withdrawAmount: row.withdrawAmount,
-    agentName: row.agentName,
-    memberAccount: row.memberAccount,
+    id: fullRow.id,
+    withdrawNo: fullRow.withdrawNo,
+    withdrawAmount: fullRow.withdrawAmount,
+    agentName: fullRow.agentName,
+    memberAccount: fullRow.memberAccount,
     status,
     auditRemark: '',
   }
@@ -113,8 +114,8 @@ const handleAudit = (row, status) => {
 }
 
 // 详情
-const handleDetail = (row) => {
-  detail.value = row
+const handleDetail = async (row) => {
+  detail.value = (await getWithdrawById(row.id)).data || row
   detailVisible.value = true
 }
 

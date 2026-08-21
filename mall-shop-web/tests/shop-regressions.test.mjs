@@ -107,6 +107,17 @@ test('stock checks block every cart entry point and report the current remaining
   assert.match(cart, /stockQuantityViolation\(latestStock, item\.quantity\)/)
 })
 
+test('cart refreshes display price and inventory from the server before showing totals', async () => {
+  const cart = await readView('CartView.vue')
+  assert.match(cart, /const syncCartItemFromDetail = \(item, detail\) =>/)
+  assert.match(cart, /item\.salePrice = salePrice/)
+  assert.match(cart, /item\.stock = resolveCurrentStock\(item, detail\)/)
+  assert.match(cart, /if \(item\.skuId && !sku\) \{[\s\S]*item\.stock = 0/)
+  assert.match(cart, /const refreshCartFromServer = async/)
+  assert.match(cart, /refreshCartFromServer\(\)/)
+  assert.match(cart, /商品价格和库存以结算页服务端确认为准/)
+})
+
 test('purchase limits are checked before add-to-cart and still kept as a server-side fallback', async () => {
   const helper = await readFile(new URL('../src/utils/purchaseLimit.js', import.meta.url), 'utf8')
   const home = await readView('HomeView.vue')

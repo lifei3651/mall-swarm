@@ -54,6 +54,7 @@
       </section>
 
       <aside class="panel cart-summary-panel">
+        <p class="server-price-note">{{ cartRefreshing ? '正在核对最新价格与库存…' : '商品价格和库存以结算页服务端确认为准' }}</p>
         <div class="summary-row">
           <span>商品金额</span>
           <strong>¥{{ money(manageMode ? selectedTotal : total) }}</strong>
@@ -128,6 +129,7 @@ const pendingAction = ref('')
 const selectedKeys = reactive(new Set())
 const toast = ref('')
 const quantityCheckingKeys = ref(new Set())
+const cartRefreshing = ref(false)
 let toastTimer = null
 
 const showToast = (message) => {
@@ -166,6 +168,59 @@ const setQuantityChecking = (item, checking) => {
   if (checking) next.add(key)
   else next.delete(key)
   quantityCheckingKeys.value = next
+}
+
+const boundedPv = (pv, salePrice) => Math.min(
+  Math.max(0, Number(pv || 0)),
+  Math.max(0, Number(salePrice || 0)),
+)
+
+const syncCartItemFromDetail = (item, detail) => {
+  const product = detail.product || detail || {}
+  const sku = Array.isArray(detail.skus)
+    ? detail.skus.find((row) => Number(row.id) === Number(item.skuId))
+    : null
+  if (item.skuId && !sku) {
+    item.stock = 0
+    return
+  }
+  const authoritative = sku || product
+  const salePrice = Math.max(0, Number(authoritative.salePrice ?? product.salePrice ?? 0))
+  item.salePrice = salePrice
+  item.marketPrice = Math.max(0, Number(authoritative.marketPrice ?? product.marketPrice ?? 0))
+  item.pvValue = boundedPv(authoritative.pvValue ?? product.pvValue, salePrice)
+  item.stock = resolveCurrentStock(item, detail)
+  item.purchaseLimit = Math.max(0, Number(product.purchaseLimit || 0))
+  item.productName = product.productName || item.productName
+  item.coverUrl = authoritative.coverUrl || product.coverUrl || item.coverUrl
+  item.merchantName = product.merchantName || ''
+  if (sku) {
+    item.skuName = sku.skuName || ''
+    item.skuAttrs = sku.attrsJson || sku.skuAttrs || ''
+  }
+}
+
+const refreshCartFromServer = async () => {
+  if (!items.length) return
+  cartRefreshing.value = true
+  try {
+    const details = new Map()
+    let failed = false
+    await Promise.all([...new Set(items.map((item) => Number(item.id)))].map(async (productId) => {
+      try {
+        details.set(productId, (await getProduct(productId)).data || {})
+      } catch {
+        failed = true
+      }
+    }))
+    items.forEach((item) => {
+      const detail = details.get(Number(item.id))
+      if (detail) syncCartItemFromDetail(item, detail)
+    })
+    if (failed) showToast('部分商品信息暂未更新，结算时将再次核对')
+  } finally {
+    cartRefreshing.value = false
+  }
 }
 
 const toggleManageMode = () => {
@@ -216,10 +271,8 @@ const validateCheckoutItems = async (rows) => {
   for (const item of rows) {
     if (!productDetails.has(item.id)) productDetails.set(item.id, (await getProduct(item.id)).data || {})
     const detail = productDetails.get(item.id)
-    const latestProduct = detail.product || detail
-    item.merchantName = latestProduct.merchantName || ''
-    const latestStock = resolveCurrentStock(item, detail)
-    item.stock = latestStock
+    syncCartItemFromDetail(item, detail)
+    const latestStock = item.stock
     const stockError = stockQuantityViolation(latestStock, item.quantity)
     if (stockError) throw new Error(stockError)
   }
@@ -280,7 +333,10 @@ const confirmPendingAction = () => {
 }
 
 onMounted(async () => {
-  try { displayConfig.value = (await getHome()).data?.displayConfig || {} } catch { displayConfig.value = {} }
+  await Promise.all([
+    getHome().then((res) => { displayConfig.value = res.data?.displayConfig || {} }).catch(() => { displayConfig.value = {} }),
+    refreshCartFromServer(),
+  ])
 })
 onBeforeUnmount(() => window.clearTimeout(toastTimer))
 </script>
@@ -318,6 +374,7 @@ onBeforeUnmount(() => window.clearTimeout(toastTimer))
 .quantity span { width: 36px; text-align: center; font-size: 14px; font-weight: 600; }
 
 .cart-summary-panel { border: 0; border-radius: 16px; }
+.server-price-note { margin:0 0 7px; color:var(--muted); font-size:12px; line-height:1.5; }
 .summary-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; }
 .summary-row strong { font-size: 15px; }
 .checkout-btn { width: 100%; margin-top: 14px; }

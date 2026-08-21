@@ -41,6 +41,8 @@ final class AdminPermissionPolicy {
         if (path.startsWith("/distribution/agent") || path.startsWith("/distribution/performance")
                 || path.startsWith("/distribution/account")) return "distribution:manage";
         if (path.startsWith("/distribution/dashboard")) return "admin:read";
+        if (HttpMethod.GET.matches(method) && (path.matches("/distribution/withdraw/\\d+")
+                || path.equals("/distribution/withdraw/pending-audit"))) return "finance:manage";
         if (path.startsWith("/distribution/audit/finance") || path.startsWith("/distribution/withdraw")
                 || path.startsWith("/distribution/assets") || path.startsWith("/distribution/order-asset-payments")
                 || path.startsWith("/distribution/audit/orders") || path.startsWith("/distribution/audit/bonus-sources")

@@ -302,50 +302,19 @@ public class PerformanceServiceImpl implements PerformanceService {
     @Override
     public List<PerformanceRankingVO> getPerformanceRanking(Integer rankType, Integer rankPeriod, LocalDate statDate) {
         LocalDate effectiveStatDate = statDate == null ? LocalDate.now() : statDate;
-        LocalDate[] range = resolveRankRange(rankPeriod, effectiveStatDate);
-        List<PerformanceRankingVO> rankingList = new ArrayList<>();
+        int effectiveRankType = rankType != null && rankType >= 1 && rankType <= 3 ? rankType : 2;
+        int effectiveRankPeriod = rankPeriod != null && rankPeriod >= 1 && rankPeriod <= 4 ? rankPeriod : 3;
+        LocalDate[] range = resolveRankRange(effectiveRankPeriod, effectiveStatDate);
+        List<PerformanceRankingVO> rankingList = agentDao.selectPerformanceRanking(
+                effectiveRankType, range[0].atStartOfDay(), effectiveStatDate.withDayOfMonth(1).atStartOfDay(),
+                effectiveStatDate.plusDays(1).atStartOfDay());
 
-        for (DmsAgent agent : agentDao.selectAll()) {
-            PerformanceRankingVO vo = new PerformanceRankingVO();
-            vo.setAgentId(agent.getId());
-            vo.setAgentName(agent.getAgentName());
-            vo.setAgentLevel(agent.getAgentLevel());
-            AgentLevelEnum level = AgentLevelEnum.getByValue(agent.getAgentLevel());
+        for (PerformanceRankingVO vo : rankingList) {
+            AgentLevelEnum level = AgentLevelEnum.getByValue(vo.getAgentLevel());
             vo.setAgentLevelName(level != null ? level.getName() : "未知");
-            vo.setRankType(rankType);
-            vo.setRankPeriod(rankPeriod);
+            vo.setRankType(effectiveRankType);
+            vo.setRankPeriod(effectiveRankPeriod);
             vo.setStatDate(effectiveStatDate);
-            vo.setPerformanceValue(resolveRankingValue(agent.getId(), rankType, range[0], range[1]));
-
-            LocalDate monthStart = effectiveStatDate.withDayOfMonth(1);
-            if (Objects.equals(rankType, 3)) {
-                vo.setTotalPerformance(BigDecimal.valueOf(
-                        countNewSubordinateAgents(agent.getId(), null, effectiveStatDate)));
-                vo.setCurrentMonthPerformance(BigDecimal.valueOf(
-                        countNewSubordinateAgents(agent.getId(), monthStart, effectiveStatDate)));
-            } else {
-                PerformanceOverviewVO total = new PerformanceOverviewVO();
-                calculatePerformanceOverview(total, agent.getId(), null, effectiveStatDate);
-                PerformanceOverviewVO currentMonth = new PerformanceOverviewVO();
-                calculatePerformanceOverview(currentMonth, agent.getId(), monthStart, effectiveStatDate);
-                vo.setTotalPerformance(Objects.equals(rankType, 1)
-                        ? total.getPersonalPerformance() : total.getTeamPerformance());
-                vo.setCurrentMonthPerformance(Objects.equals(rankType, 1)
-                        ? currentMonth.getPersonalPerformance() : currentMonth.getTeamPerformance());
-            }
-            vo.setTotalNewAgentCount((int) countNewSubordinateAgents(agent.getId(), null, effectiveStatDate));
-            vo.setCurrentMonthNewAgentCount((int) countNewSubordinateAgents(
-                    agent.getId(), monthStart, effectiveStatDate));
-            rankingList.add(vo);
-        }
-
-        rankingList.sort(Comparator
-                .comparing(PerformanceRankingVO::getPerformanceValue, Comparator.nullsFirst(BigDecimal::compareTo))
-                .reversed()
-                .thenComparing(PerformanceRankingVO::getAgentId));
-
-        for (int i = 0; i < rankingList.size(); i++) {
-            rankingList.get(i).setRanking(i + 1);
         }
         return rankingList;
     }

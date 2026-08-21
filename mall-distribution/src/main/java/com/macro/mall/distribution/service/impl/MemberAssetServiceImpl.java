@@ -19,6 +19,7 @@ import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.vo.BalanceFlowVO;
 import com.macro.mall.distribution.vo.BalanceFlowSummaryVO;
 import com.macro.mall.distribution.security.AdminContext;
+import com.macro.mall.distribution.util.MemberAccountUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,7 +58,21 @@ public class MemberAssetServiceImpl implements MemberAssetService {
                                                   LocalDateTime startTime, LocalDateTime endTime) {
         String normalizedKeyword = keyword == null ? null : keyword.trim();
         String normalizedRelatedNo = relatedNo == null ? null : relatedNo.trim();
-        return flowDao.selectBalanceFlowList(normalizedKeyword, normalizedRelatedNo, direction, sourceType, startTime, endTime);
+        List<BalanceFlowVO> rows = flowDao.selectBalanceFlowList(
+                normalizedKeyword, normalizedRelatedNo, direction, sourceType, startTime, endTime);
+        for (BalanceFlowVO row : rows) {
+            String rawUsername = row.getMemberUsername();
+            String rawPhone = row.getMemberPhone();
+            if (row.getMemberName() != null && (row.getMemberName().equals(rawUsername)
+                    || row.getMemberName().equals(rawPhone))) {
+                row.setMemberName(row.getMemberName().equals(rawPhone)
+                        ? MemberAccountUtils.maskPhone(row.getMemberName())
+                        : MemberAccountUtils.maskAccount(row.getMemberName()));
+            }
+            row.setMemberUsername(MemberAccountUtils.maskAccount(rawUsername));
+            row.setMemberPhone(MemberAccountUtils.maskPhone(rawPhone));
+        }
+        return rows;
     }
 
     @Override

@@ -471,6 +471,11 @@ CREATE TABLE IF NOT EXISTS dms_order_performance_detail (
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX IF NOT EXISTS idx_perf_ranking_status_time_target
+  ON dms_order_performance_detail(status, order_time, target_agent_id, relation_level);
+CREATE INDEX IF NOT EXISTS idx_relation_parent_valid_agent
+  ON dms_agent_relation(parent_agent_id, is_valid, agent_id);
+
 -- 代理业绩汇总表
 CREATE TABLE IF NOT EXISTS dms_agent_performance_summary (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
