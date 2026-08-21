@@ -561,7 +561,7 @@ public class ShopController {
     @Operation(summary = "后台修改会员登录手机号")
     @PutMapping("/admin/members/{id}/phone")
     public CommonResult<Boolean> updateMemberPhone(@PathVariable Long id,
-                                                    @RequestBody AdminMemberPhoneUpdateDTO dto) {
+                                                    @Valid @RequestBody AdminMemberPhoneUpdateDTO dto) {
         adminAuthService.verifyPassword(AdminContext.get(), dto == null ? null : dto.getAdminPassword());
         return CommonResult.success(adminMemberSecurityService.updatePhone(id, dto));
     }
@@ -569,7 +569,7 @@ public class ShopController {
     @Operation(summary = "后台重置会员登录密码")
     @PutMapping("/admin/members/{id}/login-password")
     public CommonResult<Boolean> resetMemberLoginPassword(@PathVariable Long id,
-                                                           @RequestBody AdminMemberPasswordResetDTO dto) {
+                                                           @Valid @RequestBody AdminMemberPasswordResetDTO dto) {
         adminAuthService.verifyPassword(AdminContext.get(), dto == null ? null : dto.getAdminPassword());
         return CommonResult.success(adminMemberSecurityService.resetLoginPassword(id, dto));
     }
@@ -583,7 +583,7 @@ public class ShopController {
     @Operation(summary = "统一会员列表开通推广身份或直接调级")
     @PutMapping("/admin/members/{id}/level")
     public CommonResult<AgentInfoVO> adjustMemberLevel(@PathVariable Long id,
-                                                       @RequestBody AgentLevelAdjustDTO dto) {
+                                                       @Valid @RequestBody AgentLevelAdjustDTO dto) {
         return CommonResult.success(authService.adjustMemberLevel(id, dto.getLevel(), dto.getReason()));
     }
 

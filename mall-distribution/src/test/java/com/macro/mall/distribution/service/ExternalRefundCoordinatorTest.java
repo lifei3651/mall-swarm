@@ -61,6 +61,7 @@ class ExternalRefundCoordinatorTest {
         DmsShopOrder groupedChild = alipayOrder();
         groupedChild.setPaymentOrderNo("TRADE-100");
         when(orderDao.selectById(2L)).thenReturn(groupedChild);
+        when(orderDao.selectByIdForUpdate(2L)).thenReturn(groupedChild);
         when(orderItemDao.selectByOrderId(2L)).thenReturn(List.of(orderItem(2)));
         when(saleItemDao.sumApprovedQuantityByOrderId(2L)).thenReturn(2);
         when(alipay.isConfigured()).thenReturn(true);
@@ -72,6 +73,7 @@ class ExternalRefundCoordinatorTest {
         verify(saleDao).markRefundCompleted(1L);
         verify(alipay).refund("TRADE-100", "AS-1", "99.00", "商城售后退款：测试退款");
         verify(orderDao).closeAfterSale(2L);
+        verify(orderDao).selectByIdForUpdate(2L);
         verify(manager).commit(any());
     }
 

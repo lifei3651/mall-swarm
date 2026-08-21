@@ -41,6 +41,19 @@ class ShopSessionCookieFilterTest {
     }
 
     @Test
+    void paymentVerificationReceivesTheSameAuthenticatedCookieBridge() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/payment/checkVerify");
+        request.setCookies(new Cookie(ShopSessionCookieService.COOKIE_NAME, "raw-session-token"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicReference<String> authorization = new AtomicReference<>();
+
+        filter.doFilter(request, response, (servletRequest, servletResponse) -> authorization.set(
+                ((HttpServletRequest) servletRequest).getHeader("Authorization")));
+
+        assertEquals("Bearer raw-session-token", authorization.get());
+    }
+
+    @Test
     void cookieAuthenticatedWriteRequiresStorefrontCsrfHeader() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/shop/orders");
         request.setCookies(new Cookie(ShopSessionCookieService.COOKIE_NAME, "raw-session-token"));

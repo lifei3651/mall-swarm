@@ -61,57 +61,57 @@
         delivery_time, receive_time, cancel_time, close_time, create_time, update_time
     </sql>
 
-    <select id="selectById" resultMap="BaseResultMap">
+    <select id="selectByIdScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_order
-        WHERE id = #{id}
+        WHERE id = #{id} AND COALESCE(tenant_id, 1) = #{tenantId}
     </select>
 
-    <select id="selectTradeIdById" resultType="java.lang.Long">
-        SELECT trade_id FROM dms_shop_order WHERE id = #{id}
+    <select id="selectTradeIdByIdScoped" resultType="java.lang.Long">
+        SELECT trade_id FROM dms_shop_order WHERE id = #{id} AND COALESCE(tenant_id, 1) = #{tenantId}
     </select>
 
-    <select id="selectByIdForUpdate" resultMap="BaseResultMap">
+    <select id="selectByIdForUpdateScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_order
-        WHERE id = #{id}
+        WHERE id = #{id} AND COALESCE(tenant_id, 1) = #{tenantId}
         FOR UPDATE
     </select>
 
-    <select id="selectByOrderNo" resultMap="BaseResultMap">
+    <select id="selectByOrderNoScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_order
-        WHERE order_no = #{orderNo}
+        WHERE order_no = #{orderNo} AND COALESCE(tenant_id, 1) = #{tenantId}
     </select>
 
-    <select id="selectByOrderNoForUpdate" resultMap="BaseResultMap">
+    <select id="selectByOrderNoForUpdateScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_order
-        WHERE order_no = #{orderNo}
+        WHERE order_no = #{orderNo} AND COALESCE(tenant_id, 1) = #{tenantId}
         FOR UPDATE
     </select>
 
-    <select id="selectByTradeId" resultMap="BaseResultMap">
+    <select id="selectByTradeIdScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/> FROM dms_shop_order
-        WHERE trade_id=#{tradeId} ORDER BY id ASC
+        WHERE trade_id=#{tradeId} AND COALESCE(tenant_id, 1) = #{tenantId} ORDER BY id ASC
     </select>
 
-    <select id="selectByTradeIdForUpdate" resultMap="BaseResultMap">
+    <select id="selectByTradeIdForUpdateScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/> FROM dms_shop_order
-        WHERE trade_id=#{tradeId} ORDER BY id ASC FOR UPDATE
+        WHERE trade_id=#{tradeId} AND COALESCE(tenant_id, 1) = #{tenantId} ORDER BY id ASC FOR UPDATE
     </select>
 
-    <select id="selectByUserId" resultMap="BaseResultMap">
+    <select id="selectByUserIdScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_order
-        WHERE user_id = #{userId}
+        WHERE user_id = #{userId} AND COALESCE(tenant_id, 1) = #{tenantId}
         ORDER BY create_time DESC
     </select>
 
-    <select id="selectByUserIdAndState" resultMap="BaseResultMap">
+    <select id="selectByUserIdAndStateScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_order
-        WHERE user_id = #{userId}
+        WHERE user_id = #{userId} AND COALESCE(tenant_id, 1) = #{tenantId}
         <if test="orderState != null and orderState != ''">
             <choose>
                 <when test="orderState == 'PENDING_PAYMENT'">
@@ -150,7 +150,7 @@
         ORDER BY create_time DESC
     </select>
 
-    <select id="selectStatusSummary" resultMap="StatusSummaryResultMap">
+    <select id="selectStatusSummaryScoped" resultMap="StatusSummaryResultMap">
         SELECT COUNT(*) AS total,
                COALESCE(SUM(CASE WHEN o.status = 0 THEN 1 ELSE 0 END), 0) AS pending_payment,
                COALESCE(SUM(CASE WHEN o.status = 1 AND NOT EXISTS (
@@ -169,7 +169,7 @@
                    WHERE sale.order_id = o.id AND sale.status IN (0, 4, 5, 6)
                ) THEN 1 ELSE 0 END), 0) AS after_sale
         FROM dms_shop_order o
-        WHERE o.user_id = #{userId}
+        WHERE o.user_id = #{userId} AND COALESCE(o.tenant_id, 1) = #{tenantId}
     </select>
 
     <select id="selectAdminWorkSummary" resultMap="StatusSummaryResultMap">
@@ -190,24 +190,25 @@
         <if test="merchantId != null">AND o.merchant_id=#{merchantId}</if>
     </select>
 
-    <select id="selectByAgentId" resultMap="BaseResultMap">
+    <select id="selectByAgentIdScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_order
-        WHERE agent_id = #{agentId}
+        WHERE agent_id = #{agentId} AND COALESCE(tenant_id, 1) = #{tenantId}
         ORDER BY create_time DESC
     </select>
 
-    <select id="selectByMemberUserId" resultMap="BaseResultMap">
+    <select id="selectByMemberUserIdScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_order
-        WHERE user_id = #{userId}
+        WHERE user_id = #{userId} AND COALESCE(tenant_id, 1) = #{tenantId}
         ORDER BY create_time DESC
     </select>
 
-    <select id="selectPaidProfileOrdersByUserId" resultMap="BaseResultMap">
+    <select id="selectPaidProfileOrdersByUserIdScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_order profile_order
         WHERE profile_order.user_id = #{userId}
+          AND COALESCE(profile_order.tenant_id, 1) = #{tenantId}
           AND profile_order.pay_time IS NOT NULL
           AND (
               profile_order.status IN (1, 2, 3)
@@ -297,12 +298,6 @@
          #{order.deliveryTime}, #{order.receiveTime}, #{order.cancelTime}, #{order.closeTime})
     </insert>
 
-    <update id="updateStatusScoped">
-        UPDATE dms_shop_order
-        SET status = #{status}, update_time = CURRENT_TIMESTAMP
-        WHERE id = #{id} AND COALESCE(tenant_id, 1) = #{tenantId}
-    </update>
-
     <update id="markPaidScoped">
         UPDATE dms_shop_order
         SET status = 1,
@@ -358,16 +353,18 @@
         WHERE id = #{id} AND status IN (1, 2, 3) AND COALESCE(tenant_id, 1) = #{tenantId}
     </update>
 
-    <select id="countValidPaidOrdersByUserId" resultType="int">
+    <select id="countValidPaidOrdersByUserIdScoped" resultType="int">
         SELECT COUNT(*)
         FROM dms_shop_order
         WHERE user_id = #{userId} AND status IN (1, 2, 3)
+          AND COALESCE(tenant_id, 1) = #{tenantId}
     </select>
 
-    <select id="selectExpiredPendingIds" resultType="long">
+    <select id="selectExpiredPendingIdsScoped" resultType="long">
         SELECT id
         FROM dms_shop_order
         WHERE status = 0 AND create_time &lt;= #{cutoffTime}
+          AND COALESCE(tenant_id, 1) = #{tenantId}
         ORDER BY create_time ASC, id ASC
         LIMIT #{limit}
     </select>

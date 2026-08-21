@@ -84,6 +84,8 @@ class OrderBonusE2ETest {
 
         // 5. Ship the order (status 1 -> 2)
         jdbcTemplate.update("UPDATE dms_shop_order SET status = 2, delivery_company = '测试快递', delivery_no = 'SF1234567890', delivery_time = CURRENT_TIMESTAMP WHERE id = ?", orderId);
+        // 本测试在同一事务中混用 JdbcTemplate 与 MyBatis；模拟下一次真实 HTTP 请求前清除一级缓存。
+        sqlSessionTemplate.clearCache();
 
         // 6. Confirm receipt (status 2 -> 3)
         boolean received = shopService.confirmReceive(orderId, member);

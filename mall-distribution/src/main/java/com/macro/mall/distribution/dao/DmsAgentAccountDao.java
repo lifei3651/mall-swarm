@@ -22,6 +22,9 @@ public interface DmsAgentAccountDao {
      */
     DmsAgentAccount selectByAgentId(@Param("agentId") Long agentId);
 
+    /** 资金冲减、提现等复合操作必须先锁定账户行再计算可扣金额。 */
+    DmsAgentAccount selectByAgentIdForUpdate(@Param("agentId") Long agentId);
+
     /**
      * 根据用户ID查询账户
      */

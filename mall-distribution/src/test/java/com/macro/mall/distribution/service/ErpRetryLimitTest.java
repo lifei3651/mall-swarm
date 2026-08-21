@@ -9,6 +9,7 @@ import com.macro.mall.distribution.entity.DmsErpIntegration;
 import com.macro.mall.distribution.entity.DmsErpSyncTask;
 import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.erp.ErpAdapter;
+import com.macro.mall.distribution.erp.JushuitanErpAdapter;
 import com.macro.mall.distribution.service.impl.ErpIntegrationServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -110,6 +111,25 @@ class ErpRetryLimitTest {
 
         assertThrows(RuntimeException.class, () -> service.receiveShipment(shipmentCallback(2L, "wrong-token")));
         verifyNoInteractions(orderShipmentService);
+    }
+
+    @Test
+    void unfinishedVendorAdapterCannotBePresentedAsEnabled() {
+        ErpIntegrationServiceImpl guardedService = new ErpIntegrationServiceImpl(
+                integrationDao, taskDao, orderDao, List.of(new JushuitanErpAdapter()),
+                operationLogService, orderShipmentService);
+        DmsErpIntegration integration = new DmsErpIntegration();
+        integration.setTenantId(1L);
+        integration.setProviderCode("JUSHUITAN");
+        integration.setEndpoint("https://erp.example.test/api");
+        integration.setEnabled(1);
+
+        RuntimeException error = assertThrows(RuntimeException.class,
+                () -> guardedService.saveIntegration(integration));
+
+        assertTrue(error.getMessage().contains("尚未完成客户授权接口映射"));
+        verify(integrationDao, never()).insert(any());
+        verify(integrationDao, never()).update(any());
     }
 
     private ErpShipmentCallbackDTO shipmentCallback(Long tenantId, String token) {

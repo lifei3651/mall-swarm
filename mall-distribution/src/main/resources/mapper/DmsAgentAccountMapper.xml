@@ -36,6 +36,13 @@
         WHERE agent_id = #{agentId}
     </select>
 
+    <select id="selectByAgentIdForUpdate" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_agent_account
+        WHERE agent_id = #{agentId}
+        FOR UPDATE
+    </select>
+
     <select id="selectByUserId" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_agent_account
@@ -72,6 +79,7 @@
         UPDATE dms_agent_account
         SET total_commission = total_commission - #{amount}
         WHERE agent_id = #{agentId}
+          AND total_commission &gt;= #{amount}
     </update>
 
     <update id="addUnsettledCommission">
@@ -97,6 +105,7 @@
         UPDATE dms_agent_account
         SET settled_commission = settled_commission - #{amount}
         WHERE agent_id = #{agentId}
+          AND settled_commission &gt;= #{amount}
     </update>
 
     <update id="addAvailableBalance">

@@ -2,31 +2,52 @@ package com.macro.mall.distribution.service;
 
 import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import jakarta.annotation.PreDestroy;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 订单与售后状态的单向实时通知。只发送“数据已变化”信号，页面仍通过原查询接口读取权威数据。
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class OrderRealtimeService {
 
     private static final long EMITTER_TIMEOUT_MS = 30L * 60L * 1000L;
     private final ObjectMapper objectMapper;
     private final Map<String, Subscription> subscriptions = new ConcurrentHashMap<>();
+    private final ThreadPoolExecutor senderExecutor = new ThreadPoolExecutor(
+            2, 8, 60L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1000), runnable -> {
+        Thread thread = new Thread(runnable, "order-realtime-sender");
+        thread.setDaemon(true);
+        return thread;
+    }, new ThreadPoolExecutor.AbortPolicy());
+
+    @Value("${shop.realtime.max-connections:500}")
+    private int maxConnections = 500;
+
+    @Value("${shop.realtime.max-connections-per-principal:5}")
+    private int maxConnectionsPerPrincipal = 5;
+
+    public OrderRealtimeService(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     public SseEmitter subscribeMember(Long userId) {
         return subscribe("member", userId == null ? 0L : userId);
@@ -50,7 +71,7 @@ public class OrderRealtimeService {
                 changeType == null || changeType.isBlank() ? "ORDER_CHANGED" : changeType,
                 LocalDateTime.now().toString()
         );
-        Runnable publish = () -> publishNow(event);
+        Runnable publish = () -> dispatch(() -> publishNow(event));
         if (TransactionSynchronizationManager.isSynchronizationActive()
                 && TransactionSynchronizationManager.isActualTransactionActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -67,15 +88,28 @@ public class OrderRealtimeService {
     @Scheduled(fixedDelayString = "${shop.realtime.heartbeat-ms:25000}")
     public void heartbeat() {
         subscriptions.forEach((id, subscription) -> {
-            try {
-                subscription.emitter().send(SseEmitter.event().comment("heartbeat"));
-            } catch (Exception ex) {
-                remove(id, subscription.emitter());
-            }
+            dispatch(() -> {
+                try {
+                    subscription.emitter().send(SseEmitter.event().comment("heartbeat"));
+                } catch (Exception ex) {
+                    remove(id, subscription.emitter());
+                }
+            });
         });
     }
 
-    private SseEmitter subscribe(String audience, Long audienceId) {
+    private synchronized SseEmitter subscribe(String audience, Long audienceId) {
+        int totalLimit = Math.max(1, maxConnections);
+        int principalLimit = Math.max(1, maxConnectionsPerPrincipal);
+        if (subscriptions.size() >= totalLimit) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "实时连接已满，请稍后重试");
+        }
+        long principalConnections = subscriptions.values().stream()
+                .filter(item -> audience.equals(item.audience()) && audienceId.equals(item.audienceId()))
+                .count();
+        if (principalConnections >= principalLimit) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "当前账号实时连接过多，请关闭重复页面后重试");
+        }
         SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MS);
         String id = UUID.randomUUID().toString();
         Subscription subscription = new Subscription(audience, audienceId, emitter);
@@ -89,6 +123,22 @@ public class OrderRealtimeService {
             remove(id, emitter);
         }
         return emitter;
+    }
+
+    private void dispatch(Runnable task) {
+        try {
+            senderExecutor.execute(task);
+        } catch (RuntimeException ex) {
+            // 实时通知只是刷新信号，队列满时允许丢弃，权威状态仍由查询接口返回。
+            log.warn("ORDER_REALTIME_QUEUE_FULL active={} queued={}",
+                    senderExecutor.getActiveCount(), senderExecutor.getQueue().size());
+        }
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        senderExecutor.shutdownNow();
+        subscriptions.forEach((id, subscription) -> remove(id, subscription.emitter()));
     }
 
     private void publishNow(RealtimeEvent event) {

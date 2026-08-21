@@ -69,6 +69,7 @@ class ShopFirstOrderMembershipTest {
         agent.setUserId(80001L);
         agent.setAgentName("首单会员");
 
+        when(orderDao.selectByIdForUpdate(90001L)).thenReturn(order);
         when(orderDao.selectById(90001L)).thenReturn(order);
         when(orderDao.markPaid(90001L, "ALIPAY")).thenReturn(1);
         DmsShopMember member = new DmsShopMember();
@@ -124,6 +125,7 @@ class ShopFirstOrderMembershipTest {
         agent.setUserId(80003L);
         agent.setAgentName("混合奖金会员");
 
+        when(orderDao.selectByIdForUpdate(90003L)).thenReturn(order);
         when(orderDao.selectById(90003L)).thenReturn(order);
         when(orderDao.markPaid(90003L, "BALANCE")).thenReturn(1);
         when(orderItemDao.selectByOrderId(90003L)).thenReturn(List.of(bonusItem, ordinaryItem));
@@ -156,6 +158,7 @@ class ShopFirstOrderMembershipTest {
         member.setUserId(80002L);
         member.setTeamOptIn(0);
 
+        when(orderDao.selectByIdForUpdate(90002L)).thenReturn(order);
         when(orderDao.selectById(90002L)).thenReturn(order);
         when(orderDao.markPaid(90002L, "ALIPAY")).thenReturn(1);
         when(memberDao.selectByUserId(80002L)).thenReturn(member);

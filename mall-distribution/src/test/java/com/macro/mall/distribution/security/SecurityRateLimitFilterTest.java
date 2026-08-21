@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.security;
 
+import cn.hutool.crypto.SecureUtil;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -9,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -74,5 +76,78 @@ class SecurityRateLimitFilterTest {
         assertEquals("alipay-return", rule.name());
         assertEquals(30, rule.maximumRequests());
         assertEquals(60, rule.windowSeconds());
+    }
+
+    @Test
+    void limitsPublicEncryptionChallengesWithoutRequiringAuthentication() {
+        SecurityRateLimitFilter filter = new SecurityRateLimitFilter(mock(SecurityRateLimitService.class));
+
+        SecurityRateLimitFilter.Rule rule = filter.resolveRule(
+                new MockHttpServletRequest("GET", "/security/payload-encryption/key"));
+
+        assertEquals("payload-encryption-key", rule.name());
+        assertEquals(120, rule.maximumRequests());
+    }
+
+    @Test
+    void limitsAuthenticatedPaymentPolicyChecks() {
+        SecurityRateLimitFilter filter = new SecurityRateLimitFilter(mock(SecurityRateLimitService.class));
+
+        SecurityRateLimitFilter.Rule rule = filter.resolveRule(
+                new MockHttpServletRequest("GET", "/payment/checkVerify"));
+
+        assertEquals("payment-verification", rule.name());
+        assertEquals(120, rule.maximumRequests());
+    }
+
+    @Test
+    void appliesTightLimitsToMoneyAndCredentialChanges() {
+        SecurityRateLimitFilter filter = new SecurityRateLimitFilter(mock(SecurityRateLimitService.class));
+
+        SecurityRateLimitFilter.Rule withdrawal = filter.resolveRule(
+                new MockHttpServletRequest("POST", "/shop/wallet/withdrawals"));
+        SecurityRateLimitFilter.Rule transfer = filter.resolveRule(
+                new MockHttpServletRequest("POST", "/shop/wallet/transfers"));
+        SecurityRateLimitFilter.Rule password = filter.resolveRule(
+                new MockHttpServletRequest("PUT", "/distribution/admin-users/9/password"));
+        SecurityRateLimitFilter.Rule manualAsset = filter.resolveRule(
+                new MockHttpServletRequest("POST", "/distribution/assets/deduct"));
+
+        assertEquals("wallet-withdrawal", withdrawal.name());
+        assertEquals(5, withdrawal.maximumRequests());
+        assertEquals("wallet-funds", transfer.name());
+        assertEquals(10, transfer.maximumRequests());
+        assertEquals("admin-sensitive", password.name());
+        assertEquals("admin-asset-change", manualAsset.name());
+    }
+
+    @Test
+    void externalClientCannotSpoofForwardedHeadersToChangeRateLimitIdentity() throws Exception {
+        SecurityRateLimitService limiter = mock(SecurityRateLimitService.class);
+        when(limiter.tryAcquire(org.mockito.ArgumentMatchers.anyString(), eq(10), eq(60))).thenReturn(true);
+        SecurityRateLimitFilter filter = new SecurityRateLimitFilter(limiter);
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/shop/auth/login");
+        request.setRemoteAddr("203.0.113.9");
+        request.addHeader("X-Real-IP", "198.51.100.77");
+
+        filter.doFilter(request, new MockHttpServletResponse(), mock(FilterChain.class));
+
+        verify(limiter).tryAcquire(eq("security:rate:shop-auth:" + SecureUtil.sha256("203.0.113.9")),
+                eq(10), eq(60));
+    }
+
+    @Test
+    void loopbackReverseProxyStillSuppliesTheRealClientIdentity() throws Exception {
+        SecurityRateLimitService limiter = mock(SecurityRateLimitService.class);
+        when(limiter.tryAcquire(org.mockito.ArgumentMatchers.anyString(), eq(10), eq(60))).thenReturn(true);
+        SecurityRateLimitFilter filter = new SecurityRateLimitFilter(limiter);
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/shop/auth/login");
+        request.setRemoteAddr("127.0.0.1");
+        request.addHeader("X-Real-IP", "198.51.100.77");
+
+        filter.doFilter(request, new MockHttpServletResponse(), mock(FilterChain.class));
+
+        verify(limiter).tryAcquire(eq("security:rate:shop-auth:" + SecureUtil.sha256("198.51.100.77")),
+                eq(10), eq(60));
     }
 }

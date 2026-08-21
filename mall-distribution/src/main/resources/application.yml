@@ -61,6 +61,11 @@ admin:
     # 管理后台登录成功后的绝对有效期；到期后前后端都会强制重新登录。
     session-hours: 12
 
+security:
+  cors:
+    # 空值表示拒绝所有跨域请求；客户部署脚本会写入公开商城、团队H5和后台的精确HTTPS来源。
+    allowed-origins: ${CORS_ORIGINS:}
+
 # Sa-Token 配置
 sa-token:
   token-name: Authorization

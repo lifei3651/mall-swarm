@@ -15,6 +15,7 @@ import com.macro.mall.distribution.vo.BalanceFlowVO;
 import com.macro.mall.distribution.vo.BalanceFlowSummaryVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -75,7 +76,7 @@ public class MemberAssetController {
 
     @Operation(summary = "后台人工增加会员余额（立即生效）")
     @PostMapping("/issue")
-    public CommonResult<DmsMemberAssetFlow> issue(@RequestBody AdminAssetChangeDTO dto) {
+    public CommonResult<DmsMemberAssetFlow> issue(@Valid @RequestBody AdminAssetChangeDTO dto) {
         validateManualChange(dto);
         adminAuthService.verifyPassword(AdminContext.get(), dto.getAdminPassword());
         return CommonResult.success(assetService.issue(dto), "余额已增加");
@@ -83,7 +84,7 @@ public class MemberAssetController {
 
     @Operation(summary = "后台人工扣减会员余额（立即生效）")
     @PostMapping("/deduct")
-    public CommonResult<DmsMemberAssetFlow> deduct(@RequestBody AdminAssetChangeDTO dto) {
+    public CommonResult<DmsMemberAssetFlow> deduct(@Valid @RequestBody AdminAssetChangeDTO dto) {
         validateManualChange(dto);
         adminAuthService.verifyPassword(AdminContext.get(), dto.getAdminPassword());
         return CommonResult.success(assetService.deduct(dto), "余额已扣减");

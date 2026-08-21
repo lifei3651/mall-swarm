@@ -12,6 +12,7 @@ import com.alipay.api.response.AlipayTradeRefundResponse;
 import com.alipay.api.response.AlipayTradeWapPayResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import cn.hutool.crypto.SecureUtil;
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.distribution.config.AlipayConfig;
 import com.macro.mall.distribution.entity.DmsShopOrder;
@@ -171,6 +172,9 @@ public class AlipayServiceImpl implements AlipayService {
                     if (trade == null) shopService.markOrderPaid(order.getId(), "ALIPAY");
                     else shopService.markCheckoutPaid(trade.getId(), "ALIPAY");
                     log.info("支付宝支付成功，交易已标记为已支付: paymentNo={}, alipayTradeNo={}", outTradeNo, tradeNo);
+                } else if (isUnpaidClosed(trade, order)) {
+                    if (!refundLatePayment(outTradeNo, expectedAmount)) return "failure";
+                    log.warn("支付宝在本地超时关单后支付，已自动原路退款: paymentNo={}, alipayTradeNo={}", outTradeNo, tradeNo);
                 } else {
                     log.info("支付宝回调订单已处理过: paymentNo={}, status={}", outTradeNo, localStatus);
                 }
@@ -263,6 +267,12 @@ public class AlipayServiceImpl implements AlipayService {
                 if (trade == null) shopService.markOrderPaid(order.getId(), "ALIPAY");
                 else shopService.markCheckoutPaid(trade.getId(), "ALIPAY");
                 log.info("支付宝同步回跳查询确认成功，交易已标记为已支付: paymentNo={}", orderNo);
+            } else if (isUnpaidClosed(trade, order)) {
+                if (!refundLatePayment(orderNo, trade == null ? order.getPayAmount() : trade.getPayAmount())) {
+                    log.error("支付宝查询发现超时关单后支付，但自动退款失败: paymentNo={}", orderNo);
+                    return false;
+                }
+                log.warn("支付宝查询发现超时关单后支付，已自动原路退款: paymentNo={}", orderNo);
             } else {
                 log.info("支付宝同步回跳查询订单已处理过: paymentNo={}, status={}", orderNo, localStatus);
             }
@@ -271,6 +281,18 @@ public class AlipayServiceImpl implements AlipayService {
             log.error("支付宝同步回跳查询异常: orderNo={}", orderNo, e);
             return false;
         }
+    }
+
+    private boolean isUnpaidClosed(DmsShopTrade trade, DmsShopOrder order) {
+        return trade != null
+                ? Integer.valueOf(4).equals(trade.getStatus()) && trade.getPayTime() == null
+                : order != null && Integer.valueOf(4).equals(order.getStatus()) && order.getPayTime() == null;
+    }
+
+    private boolean refundLatePayment(String paymentNo, BigDecimal amount) {
+        String refundNo = "LATEPAY-" + SecureUtil.sha256(paymentNo).substring(0, 32);
+        return refund(paymentNo, refundNo, amount.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString(),
+                "订单超时关闭后的支付自动退回");
     }
 
     @Override

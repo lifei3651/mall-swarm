@@ -51,6 +51,14 @@ public class ErpIntegrationServiceImpl implements ErpIntegrationService {
         integration.setEnabled(integration.getEnabled() == null ? 0 : integration.getEnabled());
         integration.setEnvironment(integration.getEnvironment() == null ? "TEST" : integration.getEnvironment());
         validateSecureEndpoint(integration.getEndpoint());
+        if (Integer.valueOf(1).equals(integration.getEnabled())) {
+            ErpAdapter adapter = adapters.stream()
+                    .filter(item -> integration.getProviderCode().equals(item.providerCode()))
+                    .findFirst().orElse(null);
+            if (adapter == null || !adapter.orderPushReady()) {
+                Asserts.fail(integration.getProviderCode() + " 适配器尚未完成客户授权接口映射，当前只能保存为停用，不能启用自动推单");
+            }
+        }
         DmsErpIntegration existing = integrationDao.selectByTenantAndProvider(integration.getTenantId(), integration.getProviderCode());
         if (existing == null) integrationDao.insert(integration); else { integration.setId(existing.getId()); integrationDao.update(integration); }
         DmsErpIntegration result = integrationDao.selectByTenantAndProvider(integration.getTenantId(), integration.getProviderCode());

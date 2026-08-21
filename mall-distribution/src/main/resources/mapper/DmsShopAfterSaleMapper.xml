@@ -144,6 +144,13 @@
             audit_time = CURRENT_TIMESTAMP,
             update_time = CURRENT_TIMESTAMP
         WHERE id = #{afterSale.id}
+          AND (
+            (#{afterSale.status} = 1 AND status IN (0, 6))
+            OR (#{afterSale.status} = 2 AND status = 0)
+            OR (#{afterSale.status} = 3 AND status IN (0, 4))
+            OR (#{afterSale.status} = 4 AND status = 0)
+            OR (#{afterSale.status} = 6 AND status = 0)
+          )
           AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_shop_after_sale.order_id
                       AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
     </update>
@@ -154,6 +161,8 @@
             return_delivery_no = #{afterSale.returnDeliveryNo}, return_shipped_at = #{afterSale.returnShippedAt},
             update_time = CURRENT_TIMESTAMP
         WHERE id = #{afterSale.id}
+          AND status IN (4, 5)
+          AND #{afterSale.status} = 5
           AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_shop_after_sale.order_id
                       AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
     </update>
@@ -164,6 +173,8 @@
             audit_remark = #{afterSale.auditRemark}, audit_user_id = #{afterSale.auditUserId}, audit_user_name = #{afterSale.auditUserName},
             audit_time = CURRENT_TIMESTAMP, update_time = CURRENT_TIMESTAMP
         WHERE id = #{afterSale.id}
+          AND status = 5
+          AND #{afterSale.status} = 6
           AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_shop_after_sale.order_id
                       AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
     </update>

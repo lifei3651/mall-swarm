@@ -72,7 +72,11 @@ public class ExternalRefundCoordinator {
                     && afterSaleDao.markRefundCompleted(afterSaleId) != 1) {
                 throw new IllegalStateException("支付宝已退款，但本地完成状态保存失败，请使用同一售后单重试恢复");
             }
-            if (locked != null) finalizeOrderAfterChannelSuccess(order);
+            if (locked != null) {
+                DmsShopOrder lockedOrder = orderDao.selectByIdForUpdate(locked.getOrderId());
+                if (lockedOrder == null) throw new IllegalStateException("支付宝已退款，但本地订单不存在，请人工核对");
+                finalizeOrderAfterChannelSuccess(lockedOrder);
+            }
         });
         log.info("支付宝退款与本地售后状态已完成: afterSaleId={}, afterSaleNo={}", afterSaleId, afterSale.getAfterSaleNo());
     }

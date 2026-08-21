@@ -27,6 +27,7 @@ import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import java.io.IOException;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -51,7 +52,7 @@ public class AgentController {
 
     @Operation(summary = "后台将已有商城账号设为会员")
     @PostMapping("/register")
-    public CommonResult<AgentInfoVO> register(@RequestBody AgentRegisterDTO registerDTO) {
+    public CommonResult<AgentInfoVO> register(@Valid @RequestBody AgentRegisterDTO registerDTO) {
         if (registerDTO == null || registerDTO.getUserId() == null) {
             return CommonResult.failed("请选择已有商城账号");
         }
@@ -153,7 +154,7 @@ public class AgentController {
 
     @Operation(summary = "更新会员关系信息")
     @PutMapping("/{id}")
-    public CommonResult<Boolean> updateAgent(@PathVariable Long id, @RequestBody AgentUpdateDTO updateDTO) {
+    public CommonResult<Boolean> updateAgent(@PathVariable Long id, @Valid @RequestBody AgentUpdateDTO updateDTO) {
         return CommonResult.success(agentService.updateAgentInfo(id, updateDTO));
     }
 
@@ -165,7 +166,7 @@ public class AgentController {
 
     @Operation(summary = "管理员直接调整会员卡级")
     @PutMapping("/{id}/level")
-    public CommonResult<AgentInfoVO> adjustLevel(@PathVariable Long id, @RequestBody AgentLevelAdjustDTO dto) {
+    public CommonResult<AgentInfoVO> adjustLevel(@PathVariable Long id, @Valid @RequestBody AgentLevelAdjustDTO dto) {
         return CommonResult.success(agentService.adjustLevel(id, dto.getLevel(), dto.getReason()));
     }
 
@@ -225,7 +226,7 @@ public class AgentController {
 
     @Operation(summary = "会员移线（变更直属上级关系）")
     @PostMapping("/switch-line")
-    public CommonResult<DmsLineChangeApplication> switchLine(@RequestBody AgentSwitchLineDTO switchLineDTO) {
+    public CommonResult<DmsLineChangeApplication> switchLine(@Valid @RequestBody AgentSwitchLineDTO switchLineDTO) {
         return CommonResult.success(lineChangeApplicationService.submit(switchLineDTO), "移线已执行并记录操作日志");
     }
 
@@ -237,7 +238,8 @@ public class AgentController {
 
     @Operation(summary = "处理旧版待审批移线记录")
     @PostMapping("/line-change-applications/{id}/audit")
-    public CommonResult<DmsLineChangeApplication> auditLineChange(@PathVariable Long id, @RequestBody LineChangeAuditDTO dto) {
+    public CommonResult<DmsLineChangeApplication> auditLineChange(@PathVariable Long id,
+                                                                  @Valid @RequestBody LineChangeAuditDTO dto) {
         return CommonResult.success(lineChangeApplicationService.audit(id, dto));
     }
 

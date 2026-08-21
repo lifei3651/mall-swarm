@@ -1370,7 +1370,7 @@ public class ShopServiceImpl implements ShopService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ShopOrderVO markOrderPaid(Long orderId, String payType) {
-        DmsShopOrder order = orderDao.selectById(orderId);
+        DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
         if (order == null) {
             Asserts.fail("订单不存在");
         }
@@ -1521,7 +1521,7 @@ public class ShopServiceImpl implements ShopService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean cancelOrder(Long orderId, DmsShopMember member) {
-        DmsShopOrder order = orderDao.selectById(orderId);
+        DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
         if (order == null) {
             Asserts.fail("订单不存在");
         }
@@ -1530,6 +1530,7 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("不能取消他人的订单");
         }
         if (order.getTradeId() != null) return cancelCheckout(order.getTradeId(), member);
+        if (Integer.valueOf(4).equals(order.getStatus())) return true;
         if (!Integer.valueOf(0).equals(order.getStatus())) {
             Asserts.fail("当前订单状态不能取消");
         }
@@ -1606,7 +1607,7 @@ public class ShopServiceImpl implements ShopService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean confirmReceive(Long orderId, DmsShopMember member) {
-        DmsShopOrder order = orderDao.selectById(orderId);
+        DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
         if (order == null) {
             Asserts.fail("订单不存在");
         }
@@ -1614,6 +1615,8 @@ public class ShopServiceImpl implements ShopService {
         if (member != null && !member.getUserId().equals(order.getUserId())) {
             Asserts.fail("不能确认他人的订单");
         }
+        if (Integer.valueOf(3).equals(order.getStatus())) return true;
+        if (!Integer.valueOf(2).equals(order.getStatus())) return false;
         boolean confirmed = orderDao.confirmReceive(orderId) > 0;
         if (confirmed) {
             merchantService.lockOrderSettlementEligibility(orderId);

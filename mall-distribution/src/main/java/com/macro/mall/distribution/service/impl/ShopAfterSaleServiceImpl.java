@@ -275,7 +275,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         afterSale.setAuditRemark("客户主动取消售后申请");
         afterSale.setAuditUserId(null);
         afterSale.setAuditUserName("客户本人");
-        afterSaleDao.updateAudit(afterSale);
+        if (afterSaleDao.updateAudit(afterSale) != 1) Asserts.fail("售后状态已变化，请刷新后重试");
         notifyOrderChanged(order, "AFTER_SALE_CANCELLED");
         return hydrate(afterSaleDao.selectById(id));
     }
@@ -301,7 +301,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         afterSale.setReturnDeliveryNo(dto.getDeliveryNo().trim());
         afterSale.setReturnShippedAt(LocalDateTime.now());
         afterSale.setStatus(5);
-        afterSaleDao.updateReturnShipment(afterSale);
+        if (afterSaleDao.updateReturnShipment(afterSale) != 1) Asserts.fail("售后状态已变化，请刷新后重试");
         notifyOrderChanged(order, "AFTER_SALE_RETURN_SHIPPED");
         return hydrate(afterSaleDao.selectById(id));
     }
@@ -601,7 +601,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         afterSale.setAuditRemark(dto == null ? null : dto.getAuditRemark());
         afterSale.setAuditUserId(dto == null ? null : dto.getAuditUserId());
         afterSale.setAuditUserName(dto == null ? null : dto.getAuditUserName());
-        afterSaleDao.updateAudit(afterSale);
+        if (afterSaleDao.updateAudit(afterSale) != 1) Asserts.fail("售后状态已变化，请刷新后重试");
 
         if (Integer.valueOf(1).equals(status) && Integer.valueOf(2).equals(afterSale.getApplyType())
                 && returnAddressConfigured) {
@@ -639,13 +639,13 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         afterSale.setAuditRemark(dto == null ? "商家确认收到退货" : dto.getAuditRemark());
         afterSale.setAuditUserId(dto == null ? null : dto.getAuditUserId());
         afterSale.setAuditUserName(dto == null ? null : dto.getAuditUserName());
-        afterSaleDao.updateReturnReceived(afterSale);
+        if (afterSaleDao.updateReturnReceived(afterSale) != 1) Asserts.fail("售后状态已变化，请刷新后重试");
         completeRefund(afterSale, order);
         if (requiresExternalRefund(order, afterSale)) {
             scheduleExternalRefund(afterSale.getId());
         } else {
             afterSale.setStatus(1);
-            afterSaleDao.updateAudit(afterSale);
+            if (afterSaleDao.updateAudit(afterSale) != 1) Asserts.fail("售后完成状态保存失败，请刷新后重试");
         }
         notifyOrderChanged(order, "AFTER_SALE_COMPLETED");
         return hydrate(afterSaleDao.selectById(id));

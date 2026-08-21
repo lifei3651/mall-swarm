@@ -653,8 +653,10 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
                 newStatus,
                 "退款冲账减少待结算佣金: refundId=" + refund.getId()
         );
-        accountDao.subtractUnsettledCommission(record.getAgentId(), clawbackAmount);
-        accountDao.subtractTotalCommission(record.getAgentId(), clawbackAmount);
+        if (accountDao.subtractUnsettledCommission(record.getAgentId(), clawbackAmount) != 1
+                || accountDao.subtractTotalCommission(record.getAgentId(), clawbackAmount) != 1) {
+            Asserts.fail("待结算佣金余额已变化，退款冲账已回滚，请重试");
+        }
         insertClawback(record, refund, clawbackAmount, clawbackAmount, BigDecimal.ZERO, 1, 1);
     }
 
@@ -664,17 +666,22 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         // settlement flows first so points / bonus wallets cannot remain usable
         // after the related order is refunded.
         BigDecimal walletDeducted = clawbackSettledWallets(record, refund, clawbackAmount);
-        DmsAgentAccount account = accountDao.selectByAgentId(record.getAgentId());
+        DmsAgentAccount account = accountDao.selectByAgentIdForUpdate(record.getAgentId());
+        if (account == null) Asserts.fail("代理资金账户不存在，退款冲账已停止");
         BigDecimal available = account == null ? BigDecimal.ZERO : nullToZero(account.getAvailableBalance());
         BigDecimal remaining = clawbackAmount.subtract(walletDeducted);
         BigDecimal cashDeducted = available.min(remaining);
         BigDecimal deducted = walletDeducted.add(cashDeducted);
         BigDecimal debt = clawbackAmount.subtract(deducted);
         if (cashDeducted.compareTo(BigDecimal.ZERO) > 0) {
-            accountDao.subtractAvailableBalance(record.getAgentId(), cashDeducted);
+            if (accountDao.subtractAvailableBalance(record.getAgentId(), cashDeducted) != 1) {
+                Asserts.fail("可提现佣金余额已变化，退款冲账已回滚，请重试");
+            }
         }
-        accountDao.subtractSettledCommission(record.getAgentId(), clawbackAmount);
-        accountDao.subtractTotalCommission(record.getAgentId(), clawbackAmount);
+        if (accountDao.subtractSettledCommission(record.getAgentId(), clawbackAmount) != 1
+                || accountDao.subtractTotalCommission(record.getAgentId(), clawbackAmount) != 1) {
+            Asserts.fail("已结算佣金余额不足，退款冲账已回滚，请人工核对");
+        }
         insertClawback(record, refund, clawbackAmount, deducted, debt, debt.compareTo(BigDecimal.ZERO) > 0 ? 3 : 2,
                 debt.compareTo(BigDecimal.ZERO) > 0 ? 2 : 1);
     }

@@ -126,6 +126,36 @@ class AlipayNotifyFailureTest {
         verifyNoInteractions(orderDao);
     }
 
+    @Test
+    void paymentArrivingAfterTimeoutCloseIsRefundedWithStableIdempotencyNumber() {
+        AlipayServiceImpl service = spy(service(true));
+        DmsShopOrder closed = pendingOrder();
+        closed.setStatus(4);
+        when(orderDao.selectByOrderNoForUpdate("ORDER-1")).thenReturn(closed);
+        doReturn(true).when(service).refund("ORDER-1",
+                "LATEPAY-" + cn.hutool.crypto.SecureUtil.sha256("ORDER-1").substring(0, 32),
+                "99.00", "订单超时关闭后的支付自动退回");
+
+        assertEquals("success", service.handleNotify(validParams()));
+
+        verify(shopService, never()).markOrderPaid(anyLong(), anyString());
+        verify(service).refund("ORDER-1",
+                "LATEPAY-" + cn.hutool.crypto.SecureUtil.sha256("ORDER-1").substring(0, 32),
+                "99.00", "订单超时关闭后的支付自动退回");
+    }
+
+    @Test
+    void failedLatePaymentRefundReturnsFailureSoGatewayRetries() {
+        AlipayServiceImpl service = spy(service(true));
+        DmsShopTrade closed = pendingTrade();
+        closed.setStatus(4);
+        when(tradeDao.selectByTradeNoForUpdate("ORDER-1")).thenReturn(closed);
+        doReturn(false).when(service).refund(anyString(), anyString(), anyString(), anyString());
+
+        assertEquals("failure", service.handleNotify(validParams()));
+        verify(shopService, never()).markCheckoutPaid(anyLong(), anyString());
+    }
+
     private AlipayServiceImpl service(boolean signatureValid) {
         return new AlipayServiceImpl(config, orderDao, tradeDao, shopService, new ObjectMapper()) {
             @Override

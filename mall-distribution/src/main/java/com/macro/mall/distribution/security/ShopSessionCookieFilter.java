@@ -37,7 +37,8 @@ public class ShopSessionCookieFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return !path.startsWith("/shop/") && !path.startsWith("/sms/");
+        return !path.startsWith("/shop/") && !path.startsWith("/sms/")
+                && !path.startsWith("/payment/");
     }
 
     @Override

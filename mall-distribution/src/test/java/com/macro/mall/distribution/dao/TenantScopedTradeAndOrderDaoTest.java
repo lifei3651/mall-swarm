@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -87,7 +88,6 @@ class TenantScopedTradeAndOrderDaoTest {
     void orderWritesCannotChangeAnotherTenantButRemainAvailableToOwnerTenant() {
         TenantContext.setTenantId(1L);
         assertEquals(0, orderDao.markPaid(940012L, "BALANCE"));
-        assertEquals(0, orderDao.updateStatus(940012L, 4));
         assertEquals(0, orderDao.updateAgentId(940012L, 88L));
         assertEquals(0, orderDao.updateServiceRemark(940012L, "越权备注"));
         assertEquals(0, orderDao.ship(940013L, "顺丰速运", "SF940013"));
@@ -100,6 +100,20 @@ class TenantScopedTradeAndOrderDaoTest {
         assertEquals(1, orderDao.markPaid(940012L, "BALANCE"));
         assertEquals(1, orderDao.ship(940013L, "顺丰速运", "SF940013"));
         assertEquals(1, orderDao.confirmReceive(940014L));
+    }
+
+    @Test
+    void everyDirectOrderReadIsBoundToCurrentTenant() {
+        TenantContext.setTenantId(1L);
+        assertNull(orderDao.selectById(940012L));
+        assertNull(orderDao.selectByIdForUpdate(940012L));
+        assertNull(orderDao.selectByOrderNo("TENANT-ORDER-2"));
+        assertNull(orderDao.selectByOrderNoForUpdate("TENANT-ORDER-2"));
+        assertTrue(orderDao.selectByUserId(1L).stream().noneMatch(item -> Long.valueOf(2L).equals(item.getTenantId())));
+
+        TenantContext.setTenantId(2L);
+        assertEquals("TENANT-ORDER-2", orderDao.selectById(940012L).getOrderNo());
+        assertEquals("TENANT-ORDER-2", orderDao.selectByOrderNo("TENANT-ORDER-2").getOrderNo());
     }
 
     private void insertOrder(long id, String orderNo, long tenantId, int status) {

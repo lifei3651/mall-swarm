@@ -66,6 +66,12 @@ public class SecurityRateLimitFilter extends OncePerRequestFilter {
         if (HttpMethod.GET.matches(method) && "/captcha".equals(path)) {
             return new Rule("captcha", 30, 60);
         }
+        if (HttpMethod.GET.matches(method) && "/security/payload-encryption/key".equals(path)) {
+            return new Rule("payload-encryption-key", 120, 60);
+        }
+        if (HttpMethod.GET.matches(method) && "/payment/checkVerify".equals(path)) {
+            return new Rule("payment-verification", 120, 60);
+        }
         if (HttpMethod.POST.matches(method) && path.startsWith("/sms/send")) {
             return new Rule("sms-send", 5, 60);
         }
@@ -75,6 +81,26 @@ public class SecurityRateLimitFilter extends OncePerRequestFilter {
         if (HttpMethod.GET.matches(method) && ("/pay/alipay/return".equals(path)
                 || "/shop/pay/alipay/return".equals(path))) {
             return new Rule("alipay-return", 30, 60);
+        }
+        if ((HttpMethod.POST.matches(method) || HttpMethod.PUT.matches(method))
+                && (path.matches("/distribution/admin-users/[^/]+/(password|unlock)")
+                || "/distribution/withdraw/audit".equals(path)
+                || path.matches("/distribution/withdraw/confirm-pay/[^/]+"))) {
+            return new Rule("admin-sensitive", 10, 60);
+        }
+        if (HttpMethod.POST.matches(method) && ("/distribution/assets/issue".equals(path)
+                || "/distribution/assets/deduct".equals(path))) {
+            return new Rule("admin-asset-change", 10, 60);
+        }
+        if (HttpMethod.PUT.matches(method) && "/shop/wallet/payment-password".equals(path)) {
+            return new Rule("payment-password-change", 5, 60);
+        }
+        if (HttpMethod.POST.matches(method) && ("/shop/wallet/transfers".equals(path)
+                || path.matches("/shop/wallet/orders/[^/]+/pay"))) {
+            return new Rule("wallet-funds", 10, 60);
+        }
+        if (HttpMethod.POST.matches(method) && "/shop/wallet/withdrawals".equals(path)) {
+            return new Rule("wallet-withdrawal", 5, 60);
         }
         if (path.startsWith("/shop/wallet/") && !HttpMethod.GET.matches(method)) {
             return new Rule("wallet-write", 30, 60);

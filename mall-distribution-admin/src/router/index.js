@@ -3,6 +3,19 @@ import { useAppStore } from '@/store'
 import { expireAdminSession, isAdminSessionExpired } from '@/utils/adminSession'
 import { getMe } from '@/api/auth'
 
+let authHydrationPromise = null
+
+function hydrateAdminAuth(store) {
+  if (!authHydrationPromise) {
+    authHydrationPromise = getMe({ silentError: true })
+      .then((res) => store.setAuth(res.data || {}))
+      .finally(() => {
+        authHydrationPromise = null
+      })
+  }
+  return authHydrationPromise
+}
+
 // 布局组件
 const Layout = () => import('@/components/Layout.vue')
 
@@ -466,8 +479,7 @@ router.beforeEach(async (to, from, next) => {
   // 用户和权限只从服务端会话恢复，不信任 localStorage 中可被修改的副本。
   if (!store.authHydrated) {
     try {
-      const res = await getMe({ silentError: true })
-      store.setAuth(res.data || {})
+      await hydrateAdminAuth(store)
     } catch {
       expireAdminSession('无法验证后台会话，请重新登录')
       next(false)

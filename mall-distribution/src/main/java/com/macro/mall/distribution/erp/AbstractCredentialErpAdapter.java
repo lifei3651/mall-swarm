@@ -5,6 +5,11 @@ import com.macro.mall.distribution.entity.DmsErpIntegration;
 import java.net.URI;
 
 abstract class AbstractCredentialErpAdapter implements ErpAdapter {
+    @Override
+    public boolean orderPushReady() {
+        return false;
+    }
+
     protected ErpPushResult checkConfiguration(DmsErpIntegration integration) {
         if (integration.getEndpoint() == null || integration.getEndpoint().isBlank()
                 || integration.getAppKey() == null || integration.getAppKey().isBlank()
