@@ -2,16 +2,16 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.macro.mall.distribution.dao.DmsCommissionSettlementBatchDao">
   <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsCommissionSettlementBatch">
-    <id column="id" property="id"/><result column="batch_no" property="batchNo"/><result column="period_start" property="periodStart"/>
+    <id column="id" property="id"/><result column="tenant_id" property="tenantId"/><result column="batch_no" property="batchNo"/><result column="period_start" property="periodStart"/>
     <result column="period_end" property="periodEnd"/><result column="cutoff_time" property="cutoffTime"/><result column="status" property="status"/>
     <result column="record_count" property="recordCount"/><result column="total_amount" property="totalAmount"/><result column="settled_count" property="settledCount"/>
     <result column="skipped_count" property="skippedCount"/><result column="remark" property="remark"/><result column="creator_id" property="creatorId"/>
     <result column="creator_name" property="creatorName"/><result column="executor_id" property="executorId"/><result column="executor_name" property="executorName"/>
     <result column="execute_time" property="executeTime"/><result column="create_time" property="createTime"/><result column="update_time" property="updateTime"/>
   </resultMap>
-  <sql id="cols">id,batch_no,period_start,period_end,cutoff_time,status,record_count,total_amount,settled_count,skipped_count,remark,creator_id,creator_name,executor_id,executor_name,execute_time,create_time,update_time</sql>
-  <select id="selectById" resultMap="BaseResultMap">SELECT <include refid="cols"/> FROM dms_commission_settlement_batch WHERE id=#{id}</select>
-  <select id="selectList" resultMap="BaseResultMap">SELECT <include refid="cols"/> FROM dms_commission_settlement_batch <where><if test="status != null">status=#{status}</if></where> ORDER BY id DESC</select>
-  <insert id="insert" useGeneratedKeys="true" keyProperty="id">INSERT INTO dms_commission_settlement_batch(batch_no,period_start,period_end,cutoff_time,status,record_count,total_amount,settled_count,skipped_count,remark,creator_id,creator_name) VALUES(#{batchNo},#{periodStart},#{periodEnd},#{cutoffTime},#{status},#{recordCount},#{totalAmount},#{settledCount},#{skippedCount},#{remark},#{creatorId},#{creatorName})</insert>
-  <update id="markExecuted">UPDATE dms_commission_settlement_batch SET status=1,settled_count=#{settledCount},skipped_count=#{skippedCount},executor_id=#{executorId},executor_name=#{executorName},execute_time=#{executeTime},update_time=NOW() WHERE id=#{id} AND status=0</update>
+  <sql id="cols">id,tenant_id,batch_no,period_start,period_end,cutoff_time,status,record_count,total_amount,settled_count,skipped_count,remark,creator_id,creator_name,executor_id,executor_name,execute_time,create_time,update_time</sql>
+  <select id="selectByIdScoped" resultMap="BaseResultMap">SELECT <include refid="cols"/> FROM dms_commission_settlement_batch WHERE id=#{id} AND tenant_id=#{tenantId}</select>
+  <select id="selectListScoped" resultMap="BaseResultMap">SELECT <include refid="cols"/> FROM dms_commission_settlement_batch <where>tenant_id=#{tenantId}<if test="status != null"> AND status=#{status}</if></where> ORDER BY id DESC</select>
+  <insert id="insertScoped" useGeneratedKeys="true" keyProperty="batch.id">INSERT INTO dms_commission_settlement_batch(tenant_id,batch_no,period_start,period_end,cutoff_time,status,record_count,total_amount,settled_count,skipped_count,remark,creator_id,creator_name) VALUES(#{tenantId},#{batch.batchNo},#{batch.periodStart},#{batch.periodEnd},#{batch.cutoffTime},#{batch.status},#{batch.recordCount},#{batch.totalAmount},#{batch.settledCount},#{batch.skippedCount},#{batch.remark},#{batch.creatorId},#{batch.creatorName})</insert>
+  <update id="markExecutedScoped">UPDATE dms_commission_settlement_batch SET status=1,settled_count=#{settledCount},skipped_count=#{skippedCount},executor_id=#{executorId},executor_name=#{executorName},execute_time=#{executeTime},update_time=NOW() WHERE id=#{id} AND tenant_id=#{tenantId} AND status=0</update>
 </mapper>

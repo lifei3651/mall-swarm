@@ -1,9 +1,15 @@
 package com.macro.mall.distribution.service;
 
 import com.macro.mall.common.tenant.TenantContext;
+import com.macro.mall.distribution.dao.DmsCommissionClawbackDao;
 import com.macro.mall.distribution.dao.DmsCommissionRecordDao;
+import com.macro.mall.distribution.dao.DmsCommissionSettlementBatchDao;
+import com.macro.mall.distribution.dao.DmsCommissionSettlementItemDao;
 import com.macro.mall.distribution.dao.DmsShopProductDao;
+import com.macro.mall.distribution.entity.DmsCommissionClawback;
 import com.macro.mall.distribution.entity.DmsCommissionRecord;
+import com.macro.mall.distribution.entity.DmsCommissionSettlementBatch;
+import com.macro.mall.distribution.entity.DmsCommissionSettlementItem;
 import com.macro.mall.distribution.entity.DmsShopProduct;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -13,10 +19,14 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -25,6 +35,9 @@ class TenantScopedCommissionAndProductDaoTest {
 
     @Autowired private JdbcTemplate jdbcTemplate;
     @Autowired private DmsCommissionRecordDao commissionRecordDao;
+    @Autowired private DmsCommissionClawbackDao clawbackDao;
+    @Autowired private DmsCommissionSettlementBatchDao settlementBatchDao;
+    @Autowired private DmsCommissionSettlementItemDao settlementItemDao;
     @Autowired private DmsShopProductDao productDao;
 
     @AfterEach
@@ -69,6 +82,56 @@ class TenantScopedCommissionAndProductDaoTest {
         DmsShopProduct foreignProduct = new DmsShopProduct();
         foreignProduct.setTenantId(2L);
         assertThrows(IllegalArgumentException.class, () -> productDao.insert(foreignProduct));
+    }
+
+    @Test
+    void clawbackAndSettlementSnapshotsCannotCrossTenantBoundary() {
+        jdbcTemplate.update("""
+                INSERT INTO dms_commission_clawback
+                (id,tenant_id,refund_id,commission_record_id,order_id,order_no,agent_id,
+                 original_commission_amount,clawback_amount,deducted_amount,debt_amount,clawback_type,status)
+                VALUES (991021,1,991021,991020,991020,'TENANT-ORDER',991020,10,10,0,10,3,2),
+                       (991022,2,991022,991020,991020,'TENANT-ORDER',991020,20,20,0,20,3,2)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO dms_commission_settlement_batch
+                (id,tenant_id,batch_no,period_start,period_end,cutoff_time,status,record_count,total_amount,
+                 settled_count,skipped_count,creator_id,creator_name)
+                VALUES (991031,1,'TENANT-BATCH-1',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,0,1,10,0,0,1,'tester'),
+                       (991032,2,'TENANT-BATCH-2',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,0,1,20,0,0,1,'tester')
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO dms_commission_settlement_item
+                (id,tenant_id,batch_id,commission_record_id,agent_id,agent_name,snapshot_amount,status)
+                VALUES (991041,1,991031,991021,991020,'租户一',10,0),
+                       (991042,2,991031,991022,991020,'租户二',20,0)
+                """);
+        TenantContext.setTenantId(1L);
+
+        assertEquals(List.of(991021L), clawbackDao.selectByOrderId(991020L).stream().map(DmsCommissionClawback::getId).toList());
+        assertEquals(List.of(991021L), clawbackDao.selectPendingDebtByAgentId(991020L).stream()
+                .map(DmsCommissionClawback::getId).toList());
+        assertEquals(new BigDecimal("10.00"), clawbackDao.sumByCommissionRecordId(991020L));
+        assertEquals(new BigDecimal("10.00"), clawbackDao.sumDebtByAgentId(991020L));
+        assertEquals(0, clawbackDao.updateDebtAfterOffset(991022L, BigDecimal.ONE, BigDecimal.ONE, 2));
+
+        assertNotNull(settlementBatchDao.selectById(991031L));
+        assertNull(settlementBatchDao.selectById(991032L));
+        assertTrue(settlementBatchDao.selectList(0).stream().noneMatch(row -> row.getId().equals(991032L)));
+        assertEquals(0, settlementBatchDao.markExecuted(991032L, 1, 0, 1L, "tester", java.time.LocalDateTime.now()));
+        assertEquals(List.of(991041L), settlementItemDao.selectByBatchId(991031L).stream()
+                .map(DmsCommissionSettlementItem::getId).toList());
+        assertEquals(0, settlementItemDao.updateStatus(991042L, 2, "foreign tenant"));
+
+        DmsCommissionClawback foreignClawback = new DmsCommissionClawback();
+        foreignClawback.setTenantId(2L);
+        assertThrows(IllegalArgumentException.class, () -> clawbackDao.insert(foreignClawback));
+        DmsCommissionSettlementBatch foreignBatch = new DmsCommissionSettlementBatch();
+        foreignBatch.setTenantId(2L);
+        assertThrows(IllegalArgumentException.class, () -> settlementBatchDao.insert(foreignBatch));
+        DmsCommissionSettlementItem foreignItem = new DmsCommissionSettlementItem();
+        foreignItem.setTenantId(2L);
+        assertThrows(IllegalArgumentException.class, () -> settlementItemDao.insertBatch(List.of(foreignItem)));
     }
 
     private void insertCommission(Long id, Long tenantId, String recordNo, Long orderId) {

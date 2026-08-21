@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 
 @Data
 public class DmsCommissionSettlementItem implements Serializable {
+    private Long tenantId;
     private Long id;
     private Long batchId;
     private Long commissionRecordId;

@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 /** 月度佣金结算批次，保存结算范围和金额快照。 */
 @Data
 public class DmsCommissionSettlementBatch implements Serializable {
+    private Long tenantId;
     private Long id;
     private String batchNo;
     private LocalDateTime periodStart;

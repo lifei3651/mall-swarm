@@ -203,6 +203,7 @@ CREATE TABLE IF NOT EXISTS dms_order_balance_allocation (
 
 CREATE TABLE IF NOT EXISTS dms_commission_settlement_batch (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
   batch_no VARCHAR(64) NOT NULL UNIQUE,
   period_start TIMESTAMP NOT NULL,
   period_end TIMESTAMP NOT NULL,
@@ -224,6 +225,7 @@ CREATE TABLE IF NOT EXISTS dms_commission_settlement_batch (
 
 CREATE TABLE IF NOT EXISTS dms_commission_settlement_item (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
   batch_id BIGINT NOT NULL,
   commission_record_id BIGINT NOT NULL,
   agent_id BIGINT NOT NULL,
@@ -614,6 +616,7 @@ CREATE TABLE IF NOT EXISTS dms_finance_refund (
 
 CREATE TABLE IF NOT EXISTS dms_commission_clawback (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
   refund_id BIGINT NOT NULL,
   commission_record_id BIGINT NOT NULL,
   order_id BIGINT NOT NULL,

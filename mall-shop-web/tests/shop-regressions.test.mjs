@@ -12,6 +12,17 @@ import { resolveCurrentStock, stockAdditionViolation, stockQuantityViolation } f
 const readView = (name) => readFile(new URL(`../src/views/${name}`, import.meta.url), 'utf8')
 const readStyles = () => readFile(new URL('../src/assets/styles.css', import.meta.url), 'utf8')
 
+test('concurrent 401 responses share one login redirect and return shipment company length matches outbound shipping', async () => {
+  const request = await readFile(new URL('../src/api/request.js', import.meta.url), 'utf8')
+  const orderDetail = await readView('OrderDetailView.vue')
+
+  assert.match(request, /let isRedirectingToLogin = false/)
+  assert.match(request, /!isAuthPage && !isRedirectingToLogin/)
+  assert.match(request, /finally \{\s*isRedirectingToLogin = false\s*\}/)
+  assert.match(orderDetail, /placeholder="物流公司" maxlength="50"/)
+  assert.doesNotMatch(orderDetail, /placeholder="物流公司" maxlength="64"/)
+})
+
 test('storefront product images use one loop-safe fallback when remote media fails', async () => {
   const fallback = await readFile(new URL('../src/utils/imageFallback.js', import.meta.url), 'utf8')
   const views = await Promise.all([

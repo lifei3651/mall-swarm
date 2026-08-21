@@ -38,4 +38,12 @@ describe('商品中心筛选', () => {
     expect(source).toContain('风险商品可单独设置30天')
     expect(source).toContain('effectiveSettlementDays(row)')
   })
+
+  it('编辑及上架下架按钮只向商品管理权限用户展示', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain("const canManageProducts = computed(() => store.hasPermission('shop:product'))")
+    expect(source).toContain('v-if="canManageProducts" type="primary" link')
+    expect(source).toContain('v-if="canManageProducts" :type="row.status === 1 ?')
+  })
 })

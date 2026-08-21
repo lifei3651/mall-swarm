@@ -117,7 +117,7 @@
               <strong>{{ sale.status === 4 ? '请寄回商品' : '退货物流已提交' }}</strong>
               <span>{{ sale.returnAddress || '退货地址将在审核结果中显示，请留意订单更新' }}</span>
               <div v-if="sale.status === 4 || returnShipmentEditingId === sale.id" class="return-shipment-form">
-                <input v-model="returnShipmentForm.deliveryCompany" class="field" placeholder="物流公司" maxlength="64" />
+                <input v-model="returnShipmentForm.deliveryCompany" class="field" placeholder="物流公司" maxlength="50" />
                 <input v-model="returnShipmentForm.deliveryNo" class="field" placeholder="退货运单号" maxlength="64" autocomplete="off" />
                 <button type="button" class="btn primary" :disabled="returnShipmentSaleId === sale.id" @click="submitReturnShipment(sale)">
                   {{ returnShipmentSaleId === sale.id ? '提交中…' : (sale.status === 5 ? '保存物流修改' : '提交退货物流') }}

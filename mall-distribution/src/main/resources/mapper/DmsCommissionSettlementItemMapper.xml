@@ -2,12 +2,12 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.macro.mall.distribution.dao.DmsCommissionSettlementItemDao">
   <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsCommissionSettlementItem">
-    <id column="id" property="id"/><result column="batch_id" property="batchId"/><result column="commission_record_id" property="commissionRecordId"/>
+    <id column="id" property="id"/><result column="tenant_id" property="tenantId"/><result column="batch_id" property="batchId"/><result column="commission_record_id" property="commissionRecordId"/>
     <result column="agent_id" property="agentId"/><result column="agent_name" property="agentName"/><result column="snapshot_amount" property="snapshotAmount"/>
     <result column="status" property="status"/><result column="skip_reason" property="skipReason"/><result column="create_time" property="createTime"/><result column="update_time" property="updateTime"/>
   </resultMap>
-  <sql id="cols">id,batch_id,commission_record_id,agent_id,agent_name,snapshot_amount,status,skip_reason,create_time,update_time</sql>
-  <select id="selectByBatchId" resultMap="BaseResultMap">SELECT <include refid="cols"/> FROM dms_commission_settlement_item WHERE batch_id=#{batchId} ORDER BY id</select>
-  <insert id="insertBatch">INSERT INTO dms_commission_settlement_item(batch_id,commission_record_id,agent_id,agent_name,snapshot_amount,status) VALUES <foreach collection="items" item="item" separator=",">(#{item.batchId},#{item.commissionRecordId},#{item.agentId},#{item.agentName},#{item.snapshotAmount},#{item.status})</foreach></insert>
-  <update id="updateStatus">UPDATE dms_commission_settlement_item SET status=#{status},skip_reason=#{skipReason},update_time=NOW() WHERE id=#{id} AND status=0</update>
+  <sql id="cols">id,tenant_id,batch_id,commission_record_id,agent_id,agent_name,snapshot_amount,status,skip_reason,create_time,update_time</sql>
+  <select id="selectByBatchIdScoped" resultMap="BaseResultMap">SELECT <include refid="cols"/> FROM dms_commission_settlement_item WHERE batch_id=#{batchId} AND tenant_id=#{tenantId} ORDER BY id</select>
+  <insert id="insertBatchScoped">INSERT INTO dms_commission_settlement_item(tenant_id,batch_id,commission_record_id,agent_id,agent_name,snapshot_amount,status) VALUES <foreach collection="items" item="item" separator=",">(#{tenantId},#{item.batchId},#{item.commissionRecordId},#{item.agentId},#{item.agentName},#{item.snapshotAmount},#{item.status})</foreach></insert>
+  <update id="updateStatusScoped">UPDATE dms_commission_settlement_item SET status=#{status},skip_reason=#{skipReason},update_time=NOW() WHERE id=#{id} AND tenant_id=#{tenantId} AND status=0</update>
 </mapper>

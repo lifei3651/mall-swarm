@@ -120,7 +120,10 @@
           AND NOT EXISTS (
               SELECT 1 FROM dms_commission_settlement_item item
               INNER JOIN dms_commission_settlement_batch batch ON batch.id = item.batch_id
-              WHERE item.commission_record_id = r.id AND batch.status = 0
+              WHERE item.commission_record_id = r.id
+                AND item.tenant_id = #{tenantId}
+                AND batch.tenant_id = #{tenantId}
+                AND batch.status = 0
           )
         ORDER BY r.id
     </select>

@@ -14,6 +14,8 @@ public class DmsCommissionClawback implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    private Long tenantId;
+
     private Long id;
 
     private Long refundId;

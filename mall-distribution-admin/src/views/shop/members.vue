@@ -629,6 +629,11 @@ const toggleStatus = async (row) => {
 }
 
 const unlockMember = async (row) => {
+  await ElMessageBox.confirm(
+    `确认解除会员“${memberDisplayName(row)}”的登录锁定？解除后密码错误次数将清零，会员可立即重新尝试登录。`,
+    '解除登录锁定',
+    { type: 'warning', confirmButtonText: '确认解除', cancelButtonText: '取消' },
+  )
   await unlockShopMember(row.id)
   ElMessage.success('登录锁定已解除，密码错误次数已清零')
   await refreshCurrentProfile()

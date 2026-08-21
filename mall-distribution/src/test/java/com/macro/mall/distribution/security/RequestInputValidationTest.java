@@ -73,9 +73,9 @@ class RequestInputValidationTest {
         assertMessages(callback, "ERP客户租户不能为空");
 
         ShopAfterSaleReturnShipmentDTO shipment = new ShopAfterSaleReturnShipmentDTO();
-        shipment.setDeliveryCompany("顺丰速运");
+        shipment.setDeliveryCompany("物流公司".repeat(20));
         shipment.setDeliveryNo("../bad tracking no");
-        assertMessages(shipment, "退货运单号只能包含字母、数字、下划线和短横线");
+        assertMessages(shipment, "物流公司名称不能超过50个字", "退货运单号只能包含字母、数字、下划线和短横线");
 
         ShopOrderShipDTO outbound = new ShopOrderShipDTO();
         outbound.setDeliveryCompany("物流公司".repeat(20));

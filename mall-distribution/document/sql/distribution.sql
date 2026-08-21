@@ -762,6 +762,7 @@ DROP TABLE IF EXISTS `dms_commission_settlement_item`;
 DROP TABLE IF EXISTS `dms_commission_settlement_batch`;
 CREATE TABLE `dms_commission_settlement_batch` (
   `id` bigint NOT NULL AUTO_INCREMENT,
+  `tenant_id` bigint NOT NULL DEFAULT 1 COMMENT '商城客户ID',
   `batch_no` varchar(64) NOT NULL,
   `period_start` datetime NOT NULL,
   `period_end` datetime NOT NULL,
@@ -779,10 +780,11 @@ CREATE TABLE `dms_commission_settlement_batch` (
   `execute_time` datetime DEFAULT NULL,
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`), UNIQUE KEY `uk_batch_no` (`batch_no`), KEY `idx_status_create` (`status`,`create_time`)
+  PRIMARY KEY (`id`), UNIQUE KEY `uk_batch_no` (`batch_no`), KEY `idx_status_create` (`status`,`create_time`), KEY `idx_settlement_batch_tenant_status` (`tenant_id`,`status`,`create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='月度佣金结算批次';
 CREATE TABLE `dms_commission_settlement_item` (
   `id` bigint NOT NULL AUTO_INCREMENT,
+  `tenant_id` bigint NOT NULL DEFAULT 1 COMMENT '商城客户ID',
   `batch_id` bigint NOT NULL,
   `commission_record_id` bigint NOT NULL,
   `agent_id` bigint NOT NULL,
@@ -792,7 +794,7 @@ CREATE TABLE `dms_commission_settlement_item` (
   `skip_reason` varchar(500) DEFAULT NULL,
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`), UNIQUE KEY `uk_batch_record` (`batch_id`,`commission_record_id`), KEY `idx_record` (`commission_record_id`)
+  PRIMARY KEY (`id`), UNIQUE KEY `uk_batch_record` (`batch_id`,`commission_record_id`), KEY `idx_record` (`commission_record_id`), KEY `idx_settlement_item_tenant_batch` (`tenant_id`,`batch_id`,`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='月度佣金结算批次明细和金额快照';
 
 -- ============================================================
@@ -919,6 +921,7 @@ CREATE TABLE `dms_finance_refund` (
 DROP TABLE IF EXISTS `dms_commission_clawback`;
 CREATE TABLE `dms_commission_clawback` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `tenant_id` bigint NOT NULL DEFAULT 1 COMMENT '商城客户ID',
   `refund_id` bigint NOT NULL COMMENT '退款记录ID',
   `commission_record_id` bigint NOT NULL COMMENT '原佣金记录ID',
   `order_id` bigint NOT NULL COMMENT '订单ID',
@@ -938,7 +941,10 @@ CREATE TABLE `dms_commission_clawback` (
   KEY `idx_refund_id` (`refund_id`),
   KEY `idx_commission_record_id` (`commission_record_id`),
   KEY `idx_order_id` (`order_id`),
-  KEY `idx_agent_id` (`agent_id`)
+  KEY `idx_agent_id` (`agent_id`),
+  KEY `idx_clawback_tenant_order` (`tenant_id`,`order_id`),
+  KEY `idx_clawback_tenant_agent` (`tenant_id`,`agent_id`),
+  KEY `idx_clawback_tenant_record` (`tenant_id`,`commission_record_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='佣金追回流水表';
 
 -- ============================================================

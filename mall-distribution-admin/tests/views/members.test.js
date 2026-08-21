@@ -54,4 +54,12 @@ describe('会员账号锁定解除', () => {
     expect(source).toContain('历史订单与售后记录会保留')
     expect(source).toContain("confirmButtonText: disabling ? '确认禁用' : '确认启用'")
   })
+
+  it('解除登录锁定前说明影响并要求二次确认', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('确认解除会员“${memberDisplayName(row)}”的登录锁定')
+    expect(source).toContain("'解除登录锁定'")
+    expect(source).toContain("confirmButtonText: '确认解除'")
+  })
 })

@@ -290,6 +290,9 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
                 || dto.getDeliveryNo() == null || dto.getDeliveryNo().isBlank()) {
             Asserts.fail("请填写退货物流公司和运单号");
         }
+        if (dto.getDeliveryCompany().trim().length() > 50) {
+            Asserts.fail("物流公司名称不能超过50个字");
+        }
         DmsShopAfterSale afterSale = afterSaleDao.selectByIdForUpdate(id);
         if (afterSale == null || !member.getUserId().equals(afterSale.getUserId())) Asserts.fail("售后申请不存在");
         DmsShopOrder order = orderDao.selectById(afterSale.getOrderId());

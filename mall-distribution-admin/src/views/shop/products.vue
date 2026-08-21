@@ -86,8 +86,8 @@
       <el-table-column label="审核状态" width="105"><template #default="{ row }"><el-tag v-if="row.merchantId" :type="reviewState(row).type">{{ reviewState(row).label }}</el-tag><span v-else>-</span></template></el-table-column>
       <el-table-column label="操作" fixed="right" width="210">
         <template #default="{ row }">
-          <el-button type="primary" link :disabled="row.merchantReviewStatus === 'PENDING'" @click="editProduct(row)">编辑商品</el-button>
-          <el-button :type="row.status === 1 ? 'warning' : 'success'" link :disabled="row.merchantReviewStatus === 'PENDING'" @click="toggleStatus(row)">{{ productActionLabel(row) }}</el-button>
+          <el-button v-if="canManageProducts" type="primary" link :disabled="row.merchantReviewStatus === 'PENDING'" @click="editProduct(row)">编辑商品</el-button>
+          <el-button v-if="canManageProducts" :type="row.status === 1 ? 'warning' : 'success'" link :disabled="row.merchantReviewStatus === 'PENDING'" @click="toggleStatus(row)">{{ productActionLabel(row) }}</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -457,6 +457,7 @@ const sectionAnchors = [
 const activeFreightTemplates = computed(() => freightTemplates.value.filter((item) => item.status === 1))
 const hasSku = computed(() => skuRows.value.length > 0)
 const isMerchantUser = computed(() => Boolean(store.userInfo?.merchantId))
+const canManageProducts = computed(() => store.hasPermission('shop:product'))
 const canManageSettlementCost = computed(() => isMerchantUser.value || store.hasPermission('finance:manage'))
 const canChangeMerchant = computed(() => !isMerchantUser.value && store.hasPermission('finance:manage'))
 const selectedMerchantDefaultDays = computed(() => Number(merchants.value.find((item) => Number(item.id) === Number(form.value.merchantId))?.defaultSettlementDays || 0))

@@ -4,6 +4,7 @@
 
     <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsCommissionClawback">
         <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
         <result column="refund_id" property="refundId"/>
         <result column="commission_record_id" property="commissionRecordId"/>
         <result column="order_id" property="orderId"/>
@@ -21,64 +22,68 @@
         <result column="create_time" property="createTime"/>
     </resultMap>
 
-    <select id="selectByOrderId" resultMap="BaseResultMap">
-        SELECT id, refund_id, commission_record_id, order_id, order_no, agent_id, agent_user_id, agent_name,
+    <select id="selectByOrderIdScoped" resultMap="BaseResultMap">
+        SELECT id, tenant_id, refund_id, commission_record_id, order_id, order_no, agent_id, agent_user_id, agent_name,
                original_commission_amount, clawback_amount, deducted_amount, debt_amount, clawback_type,
                status, reason, create_time
         FROM dms_commission_clawback
-        WHERE order_id = #{orderId}
+        WHERE order_id = #{orderId} AND tenant_id = #{tenantId}
         ORDER BY create_time DESC, id DESC
     </select>
 
-    <select id="selectByAgentId" resultMap="BaseResultMap">
-        SELECT id, refund_id, commission_record_id, order_id, order_no, agent_id, agent_user_id, agent_name,
+    <select id="selectByAgentIdScoped" resultMap="BaseResultMap">
+        SELECT id, tenant_id, refund_id, commission_record_id, order_id, order_no, agent_id, agent_user_id, agent_name,
+               original_commission_amount, clawback_amount, deducted_amount, debt_amount, clawback_type,
+               status, reason, create_time
+        FROM dms_commission_clawback
+        WHERE agent_id = #{agentId} AND tenant_id = #{tenantId}
+        ORDER BY create_time DESC, id DESC
+    </select>
+
+    <select id="selectPendingDebtByAgentIdScoped" resultMap="BaseResultMap">
+        SELECT id, tenant_id, refund_id, commission_record_id, order_id, order_no, agent_id, agent_user_id, agent_name,
                original_commission_amount, clawback_amount, deducted_amount, debt_amount, clawback_type,
                status, reason, create_time
         FROM dms_commission_clawback
         WHERE agent_id = #{agentId}
-        ORDER BY create_time DESC, id DESC
-    </select>
-
-    <select id="selectPendingDebtByAgentId" resultMap="BaseResultMap">
-        SELECT id, refund_id, commission_record_id, order_id, order_no, agent_id, agent_user_id, agent_name,
-               original_commission_amount, clawback_amount, deducted_amount, debt_amount, clawback_type,
-               status, reason, create_time
-        FROM dms_commission_clawback
-        WHERE agent_id = #{agentId}
+          AND tenant_id = #{tenantId}
           AND status = 2
           AND debt_amount &gt; 0
         ORDER BY create_time ASC, id ASC
         FOR UPDATE
     </select>
 
-    <select id="sumByCommissionRecordId" resultType="java.math.BigDecimal">
+    <select id="sumByCommissionRecordIdScoped" resultType="java.math.BigDecimal">
         SELECT IFNULL(SUM(clawback_amount), 0)
         FROM dms_commission_clawback
-        WHERE commission_record_id = #{commissionRecordId}
+        WHERE commission_record_id = #{commissionRecordId} AND tenant_id = #{tenantId}
     </select>
 
-    <select id="sumDebtByAgentId" resultType="java.math.BigDecimal">
+    <select id="sumDebtByAgentIdScoped" resultType="java.math.BigDecimal">
         SELECT IFNULL(SUM(debt_amount), 0)
         FROM dms_commission_clawback
         WHERE agent_id = #{agentId}
+          AND tenant_id = #{tenantId}
           AND status = 2
           AND debt_amount &gt; 0
     </select>
 
-    <update id="updateDebtAfterOffset">
+    <update id="updateDebtAfterOffsetScoped">
         UPDATE dms_commission_clawback
         SET deducted_amount = #{deductedAmount},
             debt_amount = #{debtAmount},
             status = #{status}
-        WHERE id = #{id}
+        WHERE id = #{id} AND tenant_id = #{tenantId}
     </update>
 
-    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsCommissionClawback" useGeneratedKeys="true" keyProperty="id">
+    <insert id="insertScoped" useGeneratedKeys="true" keyProperty="clawback.id">
         INSERT INTO dms_commission_clawback
-        (refund_id, commission_record_id, order_id, order_no, agent_id, agent_user_id, agent_name,
+        (tenant_id, refund_id, commission_record_id, order_id, order_no, agent_id, agent_user_id, agent_name,
          original_commission_amount, clawback_amount, deducted_amount, debt_amount, clawback_type, status, reason)
         VALUES
-        (#{refundId}, #{commissionRecordId}, #{orderId}, #{orderNo}, #{agentId}, #{agentUserId}, #{agentName},
-         #{originalCommissionAmount}, #{clawbackAmount}, #{deductedAmount}, #{debtAmount}, #{clawbackType}, #{status}, #{reason})
+        (#{tenantId}, #{clawback.refundId}, #{clawback.commissionRecordId}, #{clawback.orderId}, #{clawback.orderNo},
+         #{clawback.agentId}, #{clawback.agentUserId}, #{clawback.agentName}, #{clawback.originalCommissionAmount},
+         #{clawback.clawbackAmount}, #{clawback.deductedAmount}, #{clawback.debtAmount}, #{clawback.clawbackType},
+         #{clawback.status}, #{clawback.reason})
     </insert>
 </mapper>

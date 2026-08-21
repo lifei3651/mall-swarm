@@ -11,6 +11,7 @@ const service = axios.create({
   timeout: 30000,
   withCredentials: true,
 })
+let isRedirectingToLogin = false
 
 // 移动网络在页面切换、从支付宝/微信返回时，偶尔会把一次幂等的查询请求
 // 中断。GET 请求可以安全重试一次，避免订单页把短暂的连接抖动误报成空白页。
@@ -62,9 +63,14 @@ service.interceptors.response.use(
       clearShopSession()
       const current = router.currentRoute.value
       const isAuthPage = ['Login', 'Register', 'ForgotPassword'].includes(current.name)
-      if (!isAuthPage) {
+      if (!isAuthPage && !isRedirectingToLogin) {
+        isRedirectingToLogin = true
         notifyAuthRequired('登录状态已失效，请重新登录')
-        router.replace(loginRedirectLocation(current.fullPath))
+        try {
+          await router.replace(loginRedirectLocation(current.fullPath))
+        } finally {
+          isRedirectingToLogin = false
+        }
       }
     }
     const message = error.response?.data?.message
