@@ -79,6 +79,9 @@ backup_items=(
   usr/local/sbin/lingqimall-backup
 )
 
+# App/H5 拆分部署新增独立团队站点；旧的一体化部署可能没有该目录，按实际存在纳入备份。
+[[ -d "$APP_ROOT/nginx/team" ]] && backup_items+=("${APP_ROOT#/}/nginx/team")
+
 # 生产机既可能使用 Debian 的 sites-enabled，也可能使用 Rocky Linux 的
 # conf.d。只收集实际存在的路径，避免迁机后“备份成功”却漏掉 Nginx 配置。
 for optional_path in \
