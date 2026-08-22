@@ -20,6 +20,7 @@
   </resultMap>
   <sql id="cols">id,tenant_id,merchant_no,merchant_name,contact_name,contact_phone,legal_entity_name,unified_social_credit_code,bank_account_name,bank_name,bank_account_no,invoice_title,taxpayer_identification_no,contract_status,required_deposit_amount,profile_version,settlement_mode,default_settlement_days,account_status,business_status,fulfillment_status,withdrawal_status,settlement_status,deposit_status,audit_status,exit_status,status,remark,create_time,update_time</sql>
   <select id="selectById" resultMap="Base">SELECT <include refid="cols"/> FROM dms_merchant WHERE id=#{id}</select>
+  <select id="selectByIdForUpdate" resultMap="Base">SELECT <include refid="cols"/> FROM dms_merchant WHERE tenant_id=#{tenantId} AND id=#{id} FOR UPDATE</select>
   <select id="selectByNo" resultMap="Base">SELECT <include refid="cols"/> FROM dms_merchant WHERE tenant_id=#{tenantId} AND merchant_no=#{merchantNo} LIMIT 1</select>
   <select id="selectDefaultSettlementDays" resultType="java.lang.Integer">SELECT default_settlement_days FROM dms_merchant WHERE id=#{id}</select>
   <select id="selectList" resultMap="Base">

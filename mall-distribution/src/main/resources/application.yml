@@ -1,5 +1,13 @@
 server:
   port: 8086
+  error:
+    # 所有环境统一隐藏异常、绑定错误和堆栈；详细原因只进入服务端日志。
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+    whitelabel:
+      enabled: false
   compression:
     # Nginx 已开启 gzip；这里作为直连后端、测试环境和未来容器部署的兜底。
     enabled: true

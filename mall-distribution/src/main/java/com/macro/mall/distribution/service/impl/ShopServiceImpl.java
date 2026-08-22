@@ -54,8 +54,10 @@ import com.macro.mall.distribution.vo.DistributionSettingsVO;
 import com.macro.mall.distribution.util.MemberAccountUtils;
 import com.macro.mall.distribution.util.PhoneNumberUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.github.pagehelper.PageHelper;
@@ -83,6 +85,7 @@ import static com.macro.mall.distribution.util.ShopPublicViewSanitizer.sku;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ShopServiceImpl implements ShopService {
 
     private static final Long DEFAULT_TENANT_ID = 1L;
@@ -138,6 +141,7 @@ public class ShopServiceImpl implements ShopService {
     private final MerchantService merchantService;
     private final AdminAuthService adminAuthService;
     private final MerchantProductReviewService merchantProductReviewService;
+    private final TransactionTemplate transactionTemplate;
 
     @Value("${shop.order.pending-timeout-minutes:30}")
     private long pendingOrderTimeoutMinutes;
@@ -900,7 +904,7 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("商品ID不能为空");
         }
         if (member == null || member.getUserId() == null) {
-            Asserts.fail("请先登录后再加入购物车");
+            Asserts.unauthorized("请先登录后再加入购物车");
         }
         DmsShopProduct product = productDao.selectById(productId);
         if (product == null || !Integer.valueOf(1).equals(product.getStatus())) {
@@ -1575,27 +1579,36 @@ public class ShopServiceImpl implements ShopService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public int closeExpiredPendingOrders(int limit) {
         int safeLimit = Math.max(1, Math.min(limit, 500));
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(Math.max(1, pendingOrderTimeoutMinutes));
         int closed = 0;
         for (Long orderId : orderDao.selectExpiredPendingIds(cutoff, safeLimit)) {
-            DmsShopOrder candidate = orderDao.selectById(orderId);
-            if (candidate != null && candidate.getTradeId() != null && Integer.valueOf(0).equals(candidate.getStatus())) {
-                closed += closeExpiredCheckout(candidate.getTradeId(), cutoff);
-                continue;
-            }
-            DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
-            if (order != null && Integer.valueOf(0).equals(order.getStatus())
-                    && order.getCreateTime() != null && !order.getCreateTime().isAfter(cutoff)
-                    && orderDao.closePending(orderId) > 0) {
-                restockOrder(orderId);
-                notifyOrderChanged(order, "ORDER_TIMEOUT_CLOSED");
-                closed++;
+            try {
+                Integer itemClosed = transactionTemplate.execute(status -> closeExpiredPendingOrder(orderId, cutoff));
+                closed += itemClosed == null ? 0 : itemClosed;
+            } catch (Exception ex) {
+                // 每笔订单独立提交。一笔脏数据或库存异常不能撤销本批次已经成功关闭的其他订单。
+                log.error("超时订单自动关闭失败，保留该订单等待下轮重试: orderId={}", orderId, ex);
             }
         }
         return closed;
+    }
+
+    private int closeExpiredPendingOrder(Long orderId, LocalDateTime cutoff) {
+        DmsShopOrder candidate = orderDao.selectById(orderId);
+        if (candidate != null && candidate.getTradeId() != null && Integer.valueOf(0).equals(candidate.getStatus())) {
+            return closeExpiredCheckout(candidate.getTradeId(), cutoff);
+        }
+        DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
+        if (order != null && Integer.valueOf(0).equals(order.getStatus())
+                && order.getCreateTime() != null && !order.getCreateTime().isAfter(cutoff)
+                && orderDao.closePending(orderId) > 0) {
+            restockOrder(orderId);
+            notifyOrderChanged(order, "ORDER_TIMEOUT_CLOSED");
+            return 1;
+        }
+        return 0;
     }
 
     private int closeExpiredCheckout(Long checkoutId, LocalDateTime cutoff) {

@@ -32,6 +32,7 @@ import com.macro.mall.distribution.service.FlashSaleService;
 import com.macro.mall.distribution.service.LogisticsTrackingService;
 import com.macro.mall.distribution.service.MerchantProductReviewService;
 import com.macro.mall.distribution.security.AdminContext;
+import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.security.ShopSessionCookieService;
 import com.macro.mall.distribution.vo.ShopAuthVO;
 import com.macro.mall.distribution.vo.ShopHomeVO;
@@ -172,9 +173,9 @@ public class ShopController {
     @GetMapping(value = "/admin/events/orders", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter adminOrderEvents() {
         if (AdminContext.get() == null) {
-            Asserts.fail("请先登录管理后台");
+            Asserts.unauthorized("请先登录管理后台");
         }
-        return orderRealtimeService.subscribeAdmin(1L);
+        return orderRealtimeService.subscribeAdmin(TenantContext.getTenantId());
     }
 
     @Operation(summary = "商城账号注册（首笔有效支付后成为会员）")

@@ -13,13 +13,16 @@ import com.macro.mall.distribution.service.AgentService;
 import com.macro.mall.distribution.service.LineChangeApplicationService;
 import com.macro.mall.distribution.service.OperationLogService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class LineChangeApplicationServiceImpl implements LineChangeApplicationService {
     private final DmsLineChangeApplicationDao applicationDao;
     private final DmsAgentDao agentDao;
@@ -27,6 +30,7 @@ public class LineChangeApplicationServiceImpl implements LineChangeApplicationSe
     private final AgentService agentService;
     private final OperationLogService operationLogService;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -102,8 +106,18 @@ public class LineChangeApplicationServiceImpl implements LineChangeApplicationSe
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
-    public int executeDue() { int count=0; for (DmsLineChangeApplication item: applicationDao.selectDueApproved(LocalDateTime.now())) if (executeApproved(item.getId())) count++; return count; }
+    public int executeDue() {
+        int count = 0;
+        for (DmsLineChangeApplication item : applicationDao.selectDueApproved(LocalDateTime.now())) {
+            try {
+                Boolean executed = transactionTemplate.execute(status -> executeApproved(item.getId()));
+                if (Boolean.TRUE.equals(executed)) count++;
+            } catch (Exception ex) {
+                log.error("到期移线申请执行失败，保留本条等待人工处理或下轮重试: applicationId={}", item.getId(), ex);
+            }
+        }
+        return count;
+    }
 
     private String snapshot(Long rootAgentId) {
         Map<String,Object> data = new LinkedHashMap<>();

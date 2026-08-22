@@ -47,4 +47,10 @@ describe('后台安全与只读查询', () => {
     expect(list).toContain('await getWithdrawById(row.id)')
     expect(audit).toContain('await getWithdrawById(row.id)')
   })
+
+  it('订单实时通道遇到认证或权限错误时停止无效重连', async () => {
+    const realtime = await source('src/utils/orderRealtime.js')
+    expect(realtime).toMatch(/\[400, 401, 403, 404\]\.includes\(response\.status\)\) return/)
+    expect(realtime).toContain('retry = Math.min(retry * 2, 30000)')
+  })
 })

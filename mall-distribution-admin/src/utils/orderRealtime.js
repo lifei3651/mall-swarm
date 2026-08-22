@@ -18,6 +18,8 @@ export const connectAdminOrderRealtime = ({ onEvent, onStatus } = {}) => {
           credentials: 'same-origin',
           headers,
         })
+        // 认证、权限或路径错误不会靠重试恢复；停止连接，交由会话检查或页面导航处理。
+        if ([400, 401, 403, 404].includes(response.status)) return
         if (!response.ok || !response.body) throw new Error(`SSE ${response.status}`)
         onStatus?.(true)
         retry = 1000

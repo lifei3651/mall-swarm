@@ -8,11 +8,14 @@ import com.macro.mall.distribution.dto.*;
 import com.macro.mall.distribution.entity.*;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.MerchantService;
+import com.macro.mall.distribution.util.MemberAccountUtils;
 import com.macro.mall.distribution.vo.MerchantBalanceReconciliationVO;
 import com.macro.mall.distribution.vo.MerchantExitReadinessVO;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -26,6 +29,7 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MerchantServiceImpl implements MerchantService {
     private static final BigDecimal ZERO = BigDecimal.ZERO.setScale(2);
     private static final Set<String> INVOICE_STATES = Set.of("NOT_REQUIRED", "PENDING", "RECEIVED");
@@ -53,6 +57,7 @@ public class MerchantServiceImpl implements MerchantService {
     private final ShopAfterSaleWindowPolicy afterSaleWindowPolicy;
     private final com.macro.mall.distribution.service.ShopCatalogCacheService catalogCache;
     private final com.macro.mall.distribution.service.OperationLogService operationLogService;
+    private final TransactionTemplate transactionTemplate;
 
     @Override
     public List<DmsMerchant> listMerchants(String keyword, Integer status) {
@@ -84,8 +89,8 @@ public class MerchantServiceImpl implements MerchantService {
     @Transactional(rollbackFor = Exception.class)
     public DmsMerchant updateMerchant(Long id, DmsMerchant merchant) {
         requirePlatformAdmin();
-        Integer previousSettlementDays = merchantDao.selectDefaultSettlementDays(id);
-        DmsMerchant existing = requireMerchant(id, false);
+        DmsMerchant existing = requireMerchantForUpdate(id, false);
+        Integer previousSettlementDays = existing.getDefaultSettlementDays();
         merchant.setId(id);
         merchant.setTenantId(existing.getTenantId());
         merchant.setMerchantNo(existing.getMerchantNo());
@@ -99,6 +104,9 @@ public class MerchantServiceImpl implements MerchantService {
                     reason);
             catalogCache.invalidateAfterCommit(existing.getTenantId());
         }
+        operationLogService.log("MERCHANT", "PROFILE_UPDATE", "MERCHANT", String.valueOf(id),
+                merchantProfileSummary(existing), merchantProfileSummary(merchant),
+                "修改商户经营主体、收款资料、保证金要求或默认结算设置");
         return merchantDao.selectById(id);
     }
 
@@ -106,7 +114,7 @@ public class MerchantServiceImpl implements MerchantService {
     @Transactional(rollbackFor = Exception.class)
     public boolean updateMerchantStatus(Long id, Integer status) {
         requirePlatformAdmin();
-        DmsMerchant merchant = requireMerchant(id, false);
+        DmsMerchant merchant = requireMerchantForUpdate(id, false);
         if (status == null || (status != 0 && status != 1)) Asserts.fail("商户状态不正确");
         MerchantControlDTO control = controlsOf(merchant);
         control.setBusinessStatus(status == 1 ? "ACTIVE" : "SUSPENDED");
@@ -119,6 +127,10 @@ public class MerchantServiceImpl implements MerchantService {
         boolean updated = merchantDao.updateControls(id, compatibilityStatus, control) > 0;
         if (updated && compatibilityStatus == 0) productDao.disableByMerchantId(merchant.getTenantId(), id);
         if (updated) catalogCache.invalidateAfterCommit(merchant.getTenantId());
+        if (updated) {
+            operationLogService.log("MERCHANT", "CONTROL_UPDATE_COMPAT", "MERCHANT", String.valueOf(id),
+                    controlSummary(merchant), controlSummary(control), control.getReason());
+        }
         return updated;
     }
 
@@ -126,7 +138,7 @@ public class MerchantServiceImpl implements MerchantService {
     @Transactional(rollbackFor = Exception.class)
     public DmsMerchant updateMerchantControls(Long id, MerchantControlDTO dto) {
         requirePlatformAdmin();
-        DmsMerchant merchant = requireMerchant(id, false);
+        DmsMerchant merchant = requireMerchantForUpdate(id, false);
         normalizeControls(dto);
         validateExitTransition(merchant, dto);
         int compatibilityStatus = "ACTIVE".equals(dto.getBusinessStatus())
@@ -162,10 +174,12 @@ public class MerchantServiceImpl implements MerchantService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void assertOrderCanBePaid(Long orderId) {
         DmsShopOrder order = orderDao.selectById(orderId);
         if (order == null || order.getMerchantId() == null) return;
-        DmsMerchant merchant = requireMerchant(order.getMerchantId(), false);
+        // 与商户停业/清退操作锁同一商户行，避免支付校验通过后并发进入已停业状态。
+        DmsMerchant merchant = requireMerchantForUpdate(order.getMerchantId(), false);
         if (!"ACTIVE".equals(merchant.getBusinessStatus()) || !"APPROVED".equals(merchant.getAuditStatus())
                 || !"NORMAL".equals(merchant.getExitStatus())) {
             Asserts.fail("商品所属商户已暂停新销售，该待付款订单不能继续支付，请重新下单");
@@ -572,35 +586,52 @@ public class MerchantServiceImpl implements MerchantService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public int releaseEligibleSettlements(int limit) {
         int batchSize = Math.max(1, Math.min(500, limit));
+        Long currentTenantId = tenantId();
         // 兼容迁移前已确认收货的待结算记录；新订单会在确认收货事务内直接固化。
-        for (Long orderId : settlementDao.selectPendingOrderIds(batchSize)) {
-            lockOrderSettlementEligibility(orderId);
+        for (Long orderId : settlementDao.selectPendingOrderIds(currentTenantId, batchSize)) {
+            try {
+                transactionTemplate.executeWithoutResult(status -> lockOrderSettlementEligibility(orderId));
+            } catch (Exception ex) {
+                log.error("商户结算起算时间补齐失败，保留该订单等待下轮重试: orderId={}", orderId, ex);
+            }
         }
         int released = 0;
         LocalDateTime now = LocalDateTime.now();
-        for (Long orderId : settlementDao.selectEligibleOrderIds(now, batchSize)) {
-            DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
-            if (order == null || !Integer.valueOf(3).equals(order.getStatus())
-                    || afterSaleDao.selectOpenByOrderId(orderId) != null) continue;
-            for (DmsMerchantSettlement settlement : settlementDao.selectByOrderId(orderId)) {
-                if (!"PENDING".equals(settlement.getStatus())) continue;
-                DmsMerchantSettlement locked = settlementDao.selectByIdForUpdate(settlement.getId());
-                LocalDateTime eligibleTime = locked.getEligibleTime();
-                if (eligibleTime == null || now.isBefore(eligibleTime)) continue;
-                BigDecimal net = money(locked.getSettlementAmount()).subtract(money(locked.getReversedAmount()));
-                DmsMerchant merchant = requireMerchant(locked.getMerchantId(), false);
-                if (!"ENABLED".equals(merchant.getSettlementStatus())) continue;
-                DmsMerchantAccount before = accountDao.selectByMerchantIdForUpdate(locked.getMerchantId());
-                if (net.compareTo(ZERO) > 0 && accountDao.releasePending(locked.getMerchantId(), net) != 1) {
-                    Asserts.fail("商户待结算余额释放失败");
-                }
-                if (net.compareTo(ZERO) > 0) recordLedger(merchant, before, "SETTLEMENT_RELEASE",
-                        String.valueOf(locked.getId()), "结算到期转为可提现：" + locked.getOrderNo());
-                if (settlementDao.markAvailable(locked.getId()) == 1) released++;
+        for (Long orderId : settlementDao.selectEligibleOrderIds(currentTenantId, now, batchSize)) {
+            try {
+                Integer itemReleased = transactionTemplate.execute(status -> releaseEligibleOrder(orderId, now));
+                released += itemReleased == null ? 0 : itemReleased;
+            } catch (Exception ex) {
+                // 一笔账异常只回滚本订单，其他商户和订单仍继续释放。
+                log.error("商户货款到期释放失败，保留该订单等待下轮重试: orderId={}", orderId, ex);
             }
+        }
+        return released;
+    }
+
+    private int releaseEligibleOrder(Long orderId, LocalDateTime now) {
+        DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
+        if (order == null || !Integer.valueOf(3).equals(order.getStatus())
+                || afterSaleDao.selectOpenByOrderId(orderId) != null) return 0;
+        int released = 0;
+        for (DmsMerchantSettlement settlement : settlementDao.selectByOrderId(orderId)) {
+            if (!"PENDING".equals(settlement.getStatus())) continue;
+            DmsMerchantSettlement locked = settlementDao.selectByIdForUpdate(settlement.getId());
+            if (locked == null || !"PENDING".equals(locked.getStatus())) continue;
+            LocalDateTime eligibleTime = locked.getEligibleTime();
+            if (eligibleTime == null || now.isBefore(eligibleTime)) continue;
+            BigDecimal net = money(locked.getSettlementAmount()).subtract(money(locked.getReversedAmount()));
+            DmsMerchant merchant = requireMerchant(locked.getMerchantId(), false);
+            if (!"ENABLED".equals(merchant.getSettlementStatus())) continue;
+            DmsMerchantAccount before = accountDao.selectByMerchantIdForUpdate(locked.getMerchantId());
+            if (net.compareTo(ZERO) > 0 && accountDao.releasePending(locked.getMerchantId(), net) != 1) {
+                Asserts.fail("商户待结算余额释放失败");
+            }
+            if (net.compareTo(ZERO) > 0) recordLedger(merchant, before, "SETTLEMENT_RELEASE",
+                    String.valueOf(locked.getId()), "结算到期转为可提现：" + locked.getOrderNo());
+            if (settlementDao.markAvailable(locked.getId()) == 1) released++;
         }
         return released;
     }
@@ -671,6 +702,13 @@ public class MerchantServiceImpl implements MerchantService {
     private DmsMerchant requireMerchant(Long id, boolean active) {
         DmsMerchant merchant = id == null ? null : merchantDao.selectById(id);
         if (merchant == null || !tenantId().equals(merchant.getTenantId())) Asserts.fail("商户不存在");
+        if (active && !Integer.valueOf(1).equals(merchant.getStatus())) Asserts.fail("商户已停用");
+        return merchant;
+    }
+
+    private DmsMerchant requireMerchantForUpdate(Long id, boolean active) {
+        DmsMerchant merchant = id == null ? null : merchantDao.selectByIdForUpdate(tenantId(), id);
+        if (merchant == null) Asserts.fail("商户不存在");
         if (active && !Integer.valueOf(1).equals(merchant.getStatus())) Asserts.fail("商户已停用");
         return merchant;
     }
@@ -850,6 +888,18 @@ public class MerchantServiceImpl implements MerchantService {
                 + ",fulfillment=" + dto.getFulfillmentStatus() + ",withdrawal=" + dto.getWithdrawalStatus()
                 + ",settlement=" + dto.getSettlementStatus() + ",deposit=" + dto.getDepositStatus()
                 + ",audit=" + dto.getAuditStatus() + ",exit=" + dto.getExitStatus();
+    }
+
+    private String merchantProfileSummary(DmsMerchant merchant) {
+        if (merchant == null) return null;
+        return "name=" + trim(merchant.getMerchantName())
+                + ",legalEntity=" + MemberAccountUtils.maskPersonName(merchant.getLegalEntityName())
+                + ",creditCode=" + MemberAccountUtils.maskAccount(merchant.getUnifiedSocialCreditCode())
+                + ",bankAccountName=" + MemberAccountUtils.maskPersonName(merchant.getBankAccountName())
+                + ",bankAccountNo=" + MemberAccountUtils.maskBankAccount(merchant.getBankAccountNo())
+                + ",contract=" + merchant.getContractStatus()
+                + ",requiredDeposit=" + money(merchant.getRequiredDepositAmount()).toPlainString()
+                + ",settlementDays=" + merchant.getDefaultSettlementDays();
     }
 
     private void recordLedger(DmsMerchant merchant, DmsMerchantAccount before, String bizType, String bizId, String summary) {

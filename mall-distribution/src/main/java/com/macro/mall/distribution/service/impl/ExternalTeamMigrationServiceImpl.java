@@ -14,7 +14,9 @@ import com.macro.mall.distribution.service.ShopAuthService;
 import com.macro.mall.distribution.vo.AgentInfoVO;
 import com.macro.mall.distribution.vo.ImportResultVO;
 import com.macro.mall.distribution.util.PhoneNumberUtils;
+import com.macro.mall.distribution.util.MemberAccountUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +30,7 @@ import java.util.*;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ExternalTeamMigrationServiceImpl implements ExternalTeamMigrationService {
     private final DmsShopMemberDao memberDao;
     private final DmsAgentDao agentDao;
@@ -123,8 +126,8 @@ public class ExternalTeamMigrationServiceImpl implements ExternalTeamMigrationSe
             if (row.getExternalMemberCode()==null || row.getExternalMemberCode().isBlank()) Asserts.fail("外部会员编号不能为空");
             if (!codes.add(row.getExternalMemberCode())) Asserts.fail("外部会员编号重复："+row.getExternalMemberCode());
             row.setPhone(PhoneNumberUtils.normalize(row.getPhone()));
-            if (!PhoneNumberUtils.isValidMainlandMobile(row.getPhone())) Asserts.fail("手机号不正确："+row.getPhone());
-            if (!phones.add(row.getPhone()) || memberDao.selectByPhone(row.getPhone())!=null) Asserts.fail("手机号已存在或重复："+row.getPhone());
+            if (!PhoneNumberUtils.isValidMainlandMobile(row.getPhone())) Asserts.fail("手机号格式不正确：" + MemberAccountUtils.maskPhone(row.getPhone()));
+            if (!phones.add(row.getPhone()) || memberDao.selectByPhone(row.getPhone())!=null) Asserts.fail("手机号已存在或重复：" + MemberAccountUtils.maskPhone(row.getPhone()));
             if (baselineDao.selectByExternalCode(row.getExternalMemberCode())!=null) Asserts.fail("外部会员已平移："+row.getExternalMemberCode());
         }
         for (ExternalTeamMemberDTO row : rows) {
@@ -164,7 +167,11 @@ public class ExternalTeamMigrationServiceImpl implements ExternalTeamMigrationSe
                 d.setInitialLevel(integer(get(v,4),1));d.setHistoricalOrderCount(integer(get(v,5),0));
                 d.setHistoricalPersonalPerformance(decimal(get(v,6)));d.setHistoricalTeamPerformance(decimal(get(v,7)));d.setRemark(get(v,8));result.add(d); }
             return result;
-        } catch(Exception e){ if(e instanceof com.macro.mall.common.exception.ApiException a) throw a; throw new IllegalArgumentException("解析平移文件失败："+e.getMessage(),e); }
+        } catch(Exception e){
+            if(e instanceof com.macro.mall.common.exception.ApiException a) throw a;
+            log.warn("外部团队平移文件解析失败: type={}", e.getClass().getSimpleName(), e);
+            throw new IllegalArgumentException("解析平移文件失败，请核对文件格式和模板内容", e);
+        }
     }
     private String get(List<String> v,int i){return i<v.size()?v.get(i).trim():"";}
     private String importUsername(String externalMemberCode) {

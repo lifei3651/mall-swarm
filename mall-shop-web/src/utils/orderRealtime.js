@@ -21,6 +21,8 @@ export const connectOrderRealtime = ({ onEvent, onStatus } = {}) => {
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
         })
+        // 4xx 表示当前会话或请求本身不可用，持续重连只会制造无效请求。
+        if ([400, 401, 403, 404].includes(response.status)) return
         if (!response.ok || !response.body) throw new Error(`SSE ${response.status}`)
         onStatus?.(true)
         retry = 1000

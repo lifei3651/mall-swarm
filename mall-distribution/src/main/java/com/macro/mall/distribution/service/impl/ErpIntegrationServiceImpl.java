@@ -15,6 +15,7 @@ import com.macro.mall.distribution.service.ErpIntegrationService;
 import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.OrderShipmentService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ErpIntegrationServiceImpl implements ErpIntegrationService {
     private static final String BIZ_ORDER_PUSH = "ORDER_PUSH";
     private final DmsErpIntegrationDao integrationDao;
@@ -97,7 +99,14 @@ public class ErpIntegrationServiceImpl implements ErpIntegrationService {
         Map<String, ErpAdapter> adapterMap = adapters.stream().collect(Collectors.toMap(ErpAdapter::providerCode, item -> item));
         ErpAdapter adapter = adapterMap.get(integration.getProviderCode());
         if (adapter == null) { fail(task, "未找到ERP适配器：" + integration.getProviderCode()); return false; }
-        ErpAdapter.ErpPushResult result = adapter.pushOrder(integration, order);
+        ErpAdapter.ErpPushResult result;
+        try {
+            result = adapter.pushOrder(integration, order);
+        } catch (Exception ex) {
+            log.error("ERP适配器调用异常: taskId={}, provider={}", task.getId(), integration.getProviderCode(), ex);
+            fail(task, "ERP适配器调用异常");
+            return false;
+        }
         if (result.success()) { taskDao.markSuccess(task.getId(), result.message()); operationLogService.log("ERP", "ORDER_PUSH_SUCCESS", "ERP_SYNC_TASK", String.valueOf(task.getId()), null, result.message(), "ERP订单推送成功"); return true; }
         fail(task, result.message()); return false;
     }
@@ -109,7 +118,12 @@ public class ErpIntegrationServiceImpl implements ErpIntegrationService {
         int safeLimit = Math.max(1, Math.min(limit, 100));
         taskDao.stopExceededRetries(retryLimit);
         for (DmsErpSyncTask task : taskDao.selectRetryable(LocalDateTime.now(), safeLimit, retryLimit)) {
-            executeTask(task);
+            try {
+                executeTask(task);
+            } catch (Exception ex) {
+                // 数据库或审计设施异常时不能误写第二次失败状态；记录后继续本批其他任务。
+                log.error("ERP自动推单任务处理异常，已隔离本条并继续后续任务: taskId={}", task.getId(), ex);
+            }
             count++;
         }
         return count;

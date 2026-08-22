@@ -20,6 +20,7 @@ import com.macro.mall.distribution.service.OrderShipmentService;
 import com.macro.mall.distribution.service.OrderRealtimeService;
 import com.macro.mall.distribution.vo.OrderShipmentImportResultVO;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
@@ -43,6 +44,7 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OrderShipmentServiceImpl implements OrderShipmentService {
 
     private static final long MAX_FILE_SIZE = 10L * 1024L * 1024L;
@@ -303,7 +305,8 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
         } catch (ApiException | IllegalArgumentException ex) {
             throw ex;
         } catch (Exception ex) {
-            Asserts.fail("解析Excel失败，请使用系统下载的发货模板：" + ex.getMessage());
+            log.warn("订单发货Excel解析失败: type={}", ex.getClass().getSimpleName(), ex);
+            Asserts.fail("解析Excel失败，请使用系统下载的发货模板并核对文件内容");
             return List.of();
         }
     }

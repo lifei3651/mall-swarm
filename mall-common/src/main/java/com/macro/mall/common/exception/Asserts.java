@@ -1,6 +1,7 @@
 package com.macro.mall.common.exception;
 
 import com.macro.mall.common.api.IErrorCode;
+import com.macro.mall.common.api.ResultCode;
 
 /**
  * 断言处理类，用于抛出各种API异常
@@ -13,5 +14,9 @@ public class Asserts {
 
     public static void fail(IErrorCode errorCode) {
         throw new ApiException(errorCode);
+    }
+
+    public static void unauthorized(String message) {
+        throw new ApiException(ResultCode.UNAUTHORIZED, message);
     }
 }

@@ -15,8 +15,9 @@ public interface DmsMerchantSettlementDao {
     List<DmsMerchantSettlement> selectList(@Param("tenantId") Long tenantId,
                                            @Param("merchantId") Long merchantId,
                                            @Param("status") String status);
-    List<Long> selectPendingOrderIds(@Param("limit") Integer limit);
-    List<Long> selectEligibleOrderIds(@Param("eligibleTime") LocalDateTime eligibleTime,
+    List<Long> selectPendingOrderIds(@Param("tenantId") Long tenantId, @Param("limit") Integer limit);
+    List<Long> selectEligibleOrderIds(@Param("tenantId") Long tenantId,
+                                      @Param("eligibleTime") LocalDateTime eligibleTime,
                                       @Param("limit") Integer limit);
     int insert(DmsMerchantSettlement settlement);
     int updateEligibleTime(@Param("id") Long id, @Param("eligibleTime") LocalDateTime eligibleTime);

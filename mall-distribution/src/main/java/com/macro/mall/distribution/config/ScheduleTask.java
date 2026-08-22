@@ -69,12 +69,20 @@ public class ScheduleTask {
             try {
                 int count = commissionSettlementService.settleEligibleAfterCoolingOff(200);
                 if (count > 0) log.info("T+7奖金自动结算完成: count={}", count);
+            } catch (Exception e) {
+                log.error("售后期结束后的奖金自动结算扫描失败", e);
+            }
+            try {
                 int allocationCount = orderBalanceAllocationService.settleEligibleAfterCoolingOff(200);
                 if (allocationCount > 0) log.info("售后期结束后的平台资金自动进入余额: count={}", allocationCount);
+            } catch (Exception e) {
+                log.error("售后期结束后的平台资金归集扫描失败", e);
+            }
+            try {
                 int merchantCount = merchantService.releaseEligibleSettlements(200);
                 if (merchantCount > 0) log.info("售后期结束后的商户货款转为可提现: count={}", merchantCount);
             } catch (Exception e) {
-                log.error("售后期结束后的订单资金自动结算扫描失败", e);
+                log.error("售后期结束后的商户货款释放扫描失败", e);
             }
         });
     }

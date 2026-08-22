@@ -291,7 +291,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
     }
 
     private DmsShopMember requireCurrentMember(DmsShopMember member) {
-        if (member == null || member.getId() == null) Asserts.fail("请先登录");
+        if (member == null || member.getId() == null) Asserts.unauthorized("请先登录");
         DmsShopMember current = memberDao.selectById(member.getId());
         if (current == null || !Integer.valueOf(1).equals(current.getStatus())) Asserts.fail("登录账号不可用");
         return current;

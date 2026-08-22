@@ -109,7 +109,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
 
     @Override
     public void assertCanUploadProof(DmsShopMember member, Long orderId) {
-        if (member == null) Asserts.fail("请先登录");
+        if (member == null) Asserts.unauthorized("请先登录");
         if (orderId == null) Asserts.fail("订单ID不能为空");
         DmsShopOrder order = orderDao.selectById(orderId);
         if (order == null) Asserts.fail("订单不存在");
@@ -141,7 +141,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     @Transactional(rollbackFor = Exception.class)
     public DmsShopAfterSale apply(DmsShopMember member, ShopAfterSaleApplyDTO dto) {
         if (member == null) {
-            Asserts.fail("请先登录");
+            Asserts.unauthorized("请先登录");
         }
         if (dto == null || dto.getOrderId() == null) {
             Asserts.fail("订单ID不能为空");
@@ -253,7 +253,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     @Transactional(rollbackFor = Exception.class)
     public DmsShopAfterSale cancel(DmsShopMember member, Long id) {
         if (member == null) {
-            Asserts.fail("请先登录");
+            Asserts.unauthorized("请先登录");
         }
         if (id == null) {
             Asserts.fail("售后申请ID不能为空");
@@ -285,7 +285,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsShopAfterSale submitReturnShipment(DmsShopMember member, Long id, ShopAfterSaleReturnShipmentDTO dto) {
-        if (member == null) Asserts.fail("请先登录");
+        if (member == null) Asserts.unauthorized("请先登录");
         if (id == null || dto == null || dto.getDeliveryCompany() == null || dto.getDeliveryCompany().isBlank()
                 || dto.getDeliveryNo() == null || dto.getDeliveryNo().isBlank()) {
             Asserts.fail("请填写退货物流公司和运单号");

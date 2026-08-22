@@ -23,6 +23,13 @@ test('concurrent 401 responses share one login redirect and return shipment comp
   assert.doesNotMatch(orderDetail, /placeholder="物流公司" maxlength="64"/)
 })
 
+test('order realtime stops retrying permanent client errors while retaining network fallback', async () => {
+  const realtime = await readFile(new URL('../src/utils/orderRealtime.js', import.meta.url), 'utf8')
+
+  assert.match(realtime, /\[400, 401, 403, 404\]\.includes\(response\.status\)\) return/)
+  assert.match(realtime, /retry = Math\.min\(retry \* 2, 30000\)/)
+})
+
 test('sensitive forms block duplicate submits and order-detail balance payment sends an idempotency key', async () => {
   const [login, forgot, loginPassword, paymentPassword, orderDetail] = await Promise.all([
     readView('LoginView.vue'),

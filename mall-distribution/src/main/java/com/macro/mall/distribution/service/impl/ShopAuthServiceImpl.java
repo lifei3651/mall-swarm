@@ -133,7 +133,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsShopMember bindInviter(DmsShopMember member, ShopInviteBindDTO dto) {
-        if (member == null) Asserts.fail("请先登录");
+        if (member == null) Asserts.unauthorized("请先登录");
         if (dto == null || dto.getInviteCode() == null || dto.getInviteCode().isBlank()) {
             Asserts.fail("请输入邀请码");
         }
@@ -297,7 +297,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsShopMember setupAccount(DmsShopMember member, ShopAccountSetupDTO dto) {
-        if (member == null) Asserts.fail("请先登录");
+        if (member == null) Asserts.unauthorized("请先登录");
         if (dto == null) Asserts.fail("请输入登录账号");
         String username = normalizeLoginAccount(dto.getUsername());
         if (dto.getPassword() == null || dto.getPassword().length() < 6) Asserts.fail("密码至少需要6位");
@@ -320,7 +320,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean changePassword(DmsShopMember member, ShopPasswordChangeDTO dto) {
-        if (member == null) Asserts.fail("请先登录");
+        if (member == null) Asserts.unauthorized("请先登录");
         if (dto == null || dto.getCurrentPassword() == null || dto.getCurrentPassword().isBlank()) {
             Asserts.fail("请输入当前登录密码");
         }
@@ -344,7 +344,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsShopMember updateNickname(DmsShopMember member, ShopNicknameUpdateDTO dto) {
-        if (member == null) Asserts.fail("请先登录");
+        if (member == null) Asserts.unauthorized("请先登录");
         if (dto == null) Asserts.fail("请输入昵称");
         DmsShopMember current = memberDao.selectById(member.getId());
         if (current == null) Asserts.fail("会员不存在");
@@ -369,7 +369,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean updatePhone(DmsShopMember member, ShopPhoneUpdateDTO dto) {
-        if (member == null) Asserts.fail("请先登录");
+        if (member == null) Asserts.unauthorized("请先登录");
         if (dto == null) Asserts.fail("请输入新手机号");
         DmsShopMember current = memberDao.selectById(member.getId());
         if (current == null) Asserts.fail("会员不存在");
@@ -473,7 +473,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     public DmsShopMember requireMember(String authorization) {
         DmsShopMember member = resolveMember(authorization);
         if (member == null) {
-            Asserts.fail("请先登录");
+            Asserts.unauthorized("请先登录");
         }
         return member;
     }

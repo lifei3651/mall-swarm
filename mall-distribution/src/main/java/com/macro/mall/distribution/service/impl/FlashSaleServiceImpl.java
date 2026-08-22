@@ -125,7 +125,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ShopOrderVO submit(Long activityId, ShopOrderSubmitDTO dto, DmsShopMember member) {
-        if (member == null || member.getUserId() == null) Asserts.fail("请先登录后参与秒杀");
+        if (member == null || member.getUserId() == null) Asserts.unauthorized("请先登录后参与秒杀");
         DmsFlashSaleActivity activity = activityDao.selectById(activityId);
         Long tenantId = TenantContext.getTenantId();
         if (activity == null || !tenantId.equals(activity.getTenantId())) Asserts.fail("秒杀活动不存在");

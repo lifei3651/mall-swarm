@@ -17,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 
@@ -37,13 +38,14 @@ class LineChangeApplicationServiceTest {
     @Mock private DmsAgentRelationDao relationDao;
     @Mock private AgentService agentService;
     @Mock private OperationLogService operationLogService;
+    @Mock private TransactionTemplate transactionTemplate;
 
     private LineChangeApplicationServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new LineChangeApplicationServiceImpl(applicationDao, agentDao, relationDao,
-                agentService, operationLogService, new ObjectMapper());
+                agentService, operationLogService, new ObjectMapper(), transactionTemplate);
         DmsAdminUser admin = new DmsAdminUser();
         admin.setId(7L);
         admin.setUsername("operator");

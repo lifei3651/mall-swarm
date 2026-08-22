@@ -368,7 +368,8 @@ public class ImportServiceImpl implements ImportService {
             }
         } catch (Exception e) {
             if (e instanceof com.macro.mall.common.exception.ApiException apiException) throw apiException;
-            throw new RuntimeException("解析导入文件失败: " + e.getMessage(), e);
+            log.warn("业务导入文件解析失败: type={}", e.getClass().getSimpleName(), e);
+            throw new RuntimeException("解析导入文件失败，请核对文件格式和模板内容", e);
         }
     }
 

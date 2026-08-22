@@ -82,7 +82,7 @@ public class ProductReviewServiceImpl implements ProductReviewService {
     public DmsShopProductReview submitReview(Long productId, DmsShopMember member, ProductReviewSubmitDTO dto) {
         DmsShopProduct product = requireProduct(productId);
         if (member == null) {
-            Asserts.fail("请先登录");
+            Asserts.unauthorized("请先登录");
         }
         if (dto == null || dto.getRating() == null || dto.getRating() < 1 || dto.getRating() > 5) {
             Asserts.fail("评分必须是1到5星");

@@ -54,6 +54,29 @@ class ErpRetryLimitTest {
     }
 
     @Test
+    void oneAdapterExceptionDoesNotStopLaterRetryTasks() {
+        DmsErpSyncTask first = retryTask(11L, 101L, "201");
+        DmsErpSyncTask second = retryTask(12L, 102L, "202");
+        DmsErpIntegration firstIntegration = integration("TEST_ERP");
+        DmsErpIntegration secondIntegration = integration("TEST_ERP");
+        DmsShopOrder firstOrder = new DmsShopOrder();
+        DmsShopOrder secondOrder = new DmsShopOrder();
+        when(taskDao.selectRetryable(any(LocalDateTime.class), eq(20), eq(3))).thenReturn(List.of(first, second));
+        when(integrationDao.selectById(101L)).thenReturn(firstIntegration);
+        when(integrationDao.selectById(102L)).thenReturn(secondIntegration);
+        when(orderDao.selectById(201L)).thenReturn(firstOrder);
+        when(orderDao.selectById(202L)).thenReturn(secondOrder);
+        when(adapter.providerCode()).thenReturn("TEST_ERP");
+        when(adapter.pushOrder(same(firstIntegration), same(firstOrder))).thenThrow(new IllegalStateException("vendor timeout"));
+        when(adapter.pushOrder(same(secondIntegration), same(secondOrder))).thenReturn(new ErpAdapter.ErpPushResult(true, "ok"));
+
+        assertEquals(2, service.retryPendingTasks(20));
+
+        verify(taskDao).markFailure(eq(11L), eq(2), eq(1), any(LocalDateTime.class), eq("ERP适配器调用异常"));
+        verify(taskDao).markSuccess(12L, "ok");
+    }
+
+    @Test
     void thirdFailureStopsAutomaticRetryAndClearsNextRetryTime() {
         DmsErpSyncTask task = new DmsErpSyncTask();
         task.setId(11L);
@@ -130,6 +153,21 @@ class ErpRetryLimitTest {
         assertTrue(error.getMessage().contains("尚未完成客户授权接口映射"));
         verify(integrationDao, never()).insert(any());
         verify(integrationDao, never()).update(any());
+    }
+
+    private DmsErpSyncTask retryTask(Long id, Long integrationId, String orderId) {
+        DmsErpSyncTask task = new DmsErpSyncTask();
+        task.setId(id);
+        task.setIntegrationId(integrationId);
+        task.setBizId(orderId);
+        task.setRetryCount(0);
+        return task;
+    }
+
+    private DmsErpIntegration integration(String providerCode) {
+        DmsErpIntegration integration = new DmsErpIntegration();
+        integration.setProviderCode(providerCode);
+        return integration;
     }
 
     private ErpShipmentCallbackDTO shipmentCallback(Long tenantId, String token) {
