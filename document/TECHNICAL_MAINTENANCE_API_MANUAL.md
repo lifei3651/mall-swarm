@@ -205,7 +205,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `PUT /api/v1/shop/wallet/payment-password` | `oldPassword` 可选、`newPassword`、`loginPassword` 可选、`smsCode` | `boolean` | 首次设置与修改使用不同校验；支付密码加密保存 |
 | `POST /api/v1/shop/wallet/transfers` | `recipientPhone`、整数 `amount`、`paymentPassword`、可选 `remark`；请求键 | `boolean` | 校验双方账户、密码、余额；账户行锁内完成扣加款和双向流水 |
 | `POST /api/v1/shop/wallet/orders/{id}/pay` | 单商户传订单 ID；跨商户传 `checkoutId` 或子订单 ID；`paymentPassword`；请求键 | `ShopOrderVO` | 锁定订单/父交易和账户；跨商户只汇总扣款一次，先校验全部子单金额、状态和支付单号，再在同一事务逐子单入账 |
-| `POST /api/v1/shop/wallet/withdrawals` | `withdrawAmount`、`withdrawType` 1～3、`bankName`、`bankAccount`、`accountName`、`paymentPassword`、`smsCode`；请求键 | `WithdrawRecordVO` | 校验提现规则和余额，创建待审核记录及冻结/扣款流水 |
+| `POST /api/v1/shop/wallet/withdrawals` | `withdrawAmount`、`withdrawType` 1～3、`bankName`、`bankAccount`、`accountName`、`paymentPassword`、`smsCode`；请求键 | `WithdrawRecordVO` | 锁定会员资金范围，校验自然日/月次数与累计金额、余额、支付密码和短信后创建待审核记录及扣款流水；重复业务请求号不重复扣款 |
 | `GET /api/v1/shop/wallet/withdrawals` | 当前会员 | 提现记录列表 | 只返回本人提现记录 |
 | `GET /api/v1/shop/wallet/flows` | 当前会员 | 余额流水列表 | 只返回本人流水，不把加载失败当作空数据 |
 
@@ -610,6 +610,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | Redis | `REDIS_HOST`、`REDIS_PORT`、`REDIS_PASSWORD`、`REDIS_DATABASE` | 秒杀、限流和分布式任务依赖；关键资金幂等另由数据库持久化；监控连接和延迟 |
 | 会话 | `ADMIN_SESSION_HOURS` | 默认 12 小时；修改需安全评估 |
 | 商品媒体 | `SHOP_MEDIA_STORAGE_DIR`、`SHOP_MEDIA_PRIVATE_STORAGE_DIR`、图片尺寸和质量配置 | 公开商品图片与私密售后凭证分目录保存，两个目录都纳入备份 |
+| 提现风控 | `SHOP_WITHDRAWAL_DAILY_MAX_COUNT`、`SHOP_WITHDRAWAL_MONTHLY_MAX_COUNT`、`SHOP_WITHDRAWAL_DAILY_MAX_AMOUNT`、`SHOP_WITHDRAWAL_MONTHLY_MAX_AMOUNT` | 默认 5 次/日、50 次/月、10 万元/日、100 万元/月；客户确认后调整，四项都必须为正数 |
 | 商品与内容治理 | `SHOP_MAX_CATEGORIES`、`SHOP_CONTENT_BLOCKED_TERMS` | 分类默认最多 500 个；禁用词由客户按行业和地区维护，变更前在测试环境验证误拦截 |
 | 物流轨迹 | `SHOP_LOGISTICS_TRACKING_PROVIDER` 及客户供应商私有密钥 | `NONE` 时不查询、不虚构；供应商密钥只放服务器私有配置 |
 

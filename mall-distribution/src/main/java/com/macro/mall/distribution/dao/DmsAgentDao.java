@@ -20,6 +20,9 @@ public interface DmsAgentDao {
      */
     DmsAgent selectById(@Param("id") Long id);
 
+    /** 锁定单个代理资金操作范围，串行执行同一代理的累计限额校验。 */
+    DmsAgent selectByIdForUpdate(@Param("id") Long id);
+
     /**
      * 根据用户ID查询代理
      */

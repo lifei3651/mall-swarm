@@ -7,6 +7,7 @@ import com.macro.mall.distribution.vo.WithdrawRecordVO;
 import com.macro.mall.distribution.vo.WithdrawStatsVO;
 
 import java.util.List;
+import java.math.BigDecimal;
 
 /**
  * 提现服务接口
@@ -19,6 +20,9 @@ public interface WithdrawService {
      * @return 提现记录
      */
     WithdrawRecordVO applyWithdraw(WithdrawApplyDTO applyDTO);
+
+    /** 在消费支付密码和短信验证码前预检；实际落单时仍会在行锁内再次校验。 */
+    void validateWithdrawalLimits(Long agentId, BigDecimal amount);
 
     /**
      * 审核提现

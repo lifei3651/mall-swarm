@@ -2,9 +2,15 @@
 
 ## 仓库位置与远程地址
 
-- 唯一开发与发布主机：当前 Mac，仓库通常位于 `/Users/minmatemp/Documents/mall-swarm`
+- 唯一开发与发布主机：当前 Mac，唯一产品基座位于 `/Users/minmatemp/Documents/mall-swarm-app-h5`
 - 远程仓库：`git@github.com:lifei3651/mall-swarm.git`
 - 所有命令都必须先通过 `git rev-parse --show-toplevel` 确认当前仓库根目录，不依赖固定电脑路径。
+
+## 唯一产品基座
+
+- 自 2026-08-22 起，只维护 App / 小程序公开商城 + 团队 H5 拆分版，以及同一源码的可选一体化 H5 构建。
+- `/Users/minmatemp/Documents/mall-swarm` 原一体版只保留为历史备份，禁止继续开发、修复、合并或发布。
+- 任何候选修复必须先确认仓库根目录为 `mall-swarm-app-h5`；发现改动位于旧一体版时停止，不得将旧版构建覆盖线上。
 
 ## 开始修改前同步远程备份
 

@@ -222,10 +222,15 @@ class ShopWalletServiceTest {
         issue.setBizId("TEST_MEMBER");
         issue.setRequestId("8af17f6d-e310-4c99-bb0c-a8c7f6e8f001");
 
-        memberAssetService.issue(issue);
+        var firstFlow = memberAssetService.issue(issue);
         BigDecimal once = before.add(new BigDecimal("88.00"));
         assertEquals(0, once.compareTo(balance(1L)));
-        assertThrows(RuntimeException.class, () -> memberAssetService.issue(issue));
+        var replayedFlow = memberAssetService.issue(issue);
+        assertEquals(firstFlow.getId(), replayedFlow.getId());
+        assertEquals(0, once.compareTo(balance(1L)));
+
+        issue.setAmount(new BigDecimal("89.00"));
+        assertThrows(ApiException.class, () -> memberAssetService.issue(issue));
         assertEquals(0, once.compareTo(balance(1L)));
     }
 

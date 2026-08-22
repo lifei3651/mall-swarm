@@ -204,6 +204,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         consume.setAmount(amount);
         consume.setBizType("ORDER_BALANCE_PAYMENT");
         consume.setBizId(String.valueOf(order.getId()));
+        consume.setRequestId("ORDER_BALANCE_PAYMENT-" + order.getId());
         consume.setRemark("余额支付订单：" + order.getOrderNo());
         memberAssetService.consume(consume);
         ShopOrderVO paidOrder = shopService.markOrderPaid(orderId, "BALANCE");
@@ -230,6 +231,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         consume.setAmount(amount);
         consume.setBizType("SHOP_TRADE_BALANCE_PAYMENT");
         consume.setBizId(String.valueOf(trade.getId()));
+        consume.setRequestId("SHOP_TRADE_BALANCE_PAYMENT-" + trade.getId());
         consume.setRemark("余额支付跨商户交易：" + trade.getTradeNo());
         memberAssetService.consume(consume);
         ShopOrderVO paid = shopService.markCheckoutPaid(checkoutId, "BALANCE");
@@ -248,6 +250,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
 
         BigDecimal amount = MoneyValidationUtils.requirePositiveAmount(
                 dto.getWithdrawAmount(), "提现金额", MAX_WITHDRAW_AMOUNT);
+        withdrawService.validateWithdrawalLimits(agent.getId(), amount);
         DmsMemberAssetAccount balanceAccount = assetAccountDao.selectByAgentIdAndAssetCode(agent.getId(), BalanceAsset.CODE);
         BigDecimal balance = balanceAccount == null || balanceAccount.getBalance() == null ? BigDecimal.ZERO : balanceAccount.getBalance();
         if (balance.compareTo(amount) < 0) Asserts.fail("余额不足");

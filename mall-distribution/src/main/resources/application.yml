@@ -117,6 +117,12 @@ shop:
   payment:
     # 安全默认值：任何未显式选择 local/test 的部署都不能进入模拟支付。
     simulation-enabled: false
+  withdrawal:
+    # 团队H5基座默认风控；客户交付时可配置，拒绝单释放金额但仍计申请次数。
+    daily-max-count: ${SHOP_WITHDRAWAL_DAILY_MAX_COUNT:5}
+    monthly-max-count: ${SHOP_WITHDRAWAL_MONTHLY_MAX_COUNT:50}
+    daily-max-amount: ${SHOP_WITHDRAWAL_DAILY_MAX_AMOUNT:100000.00}
+    monthly-max-amount: ${SHOP_WITHDRAWAL_MONTHLY_MAX_AMOUNT:1000000.00}
   order:
     pending-timeout-minutes: 30
     pending-scan-interval-ms: 60000

@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import com.macro.mall.distribution.vo.WithdrawalLimitUsageVO;
 
 /**
  * 提现记录Mapper接口
@@ -47,6 +48,10 @@ public interface DmsWithdrawRecordDao {
                                    @Param("status") Integer status,
                                    @Param("startTime") LocalDateTime startTime,
                                    @Param("endTime") LocalDateTime endTime);
+
+    WithdrawalLimitUsageVO selectLimitUsage(@Param("agentId") Long agentId,
+                                             @Param("dayStart") LocalDateTime dayStart,
+                                             @Param("monthStart") LocalDateTime monthStart);
 
     /**
      * 插入记录

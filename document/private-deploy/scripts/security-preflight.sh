@@ -86,6 +86,13 @@ printf '%s' "$team_domain" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z]{2,}$
 case "$(value_of CUSTOMER_NAME):$(value_of CUSTOMER_BRAND_NAME)" in *客户公司名称*|*客户商城名称*|*待后台配置*) fail "必须填写客户真实公司名和商城名" ;; esac
 printf '%s' "$(value_of CUSTOMER_THEME_COLOR)" | grep -Eq '^#[0-9A-Fa-f]{6}$' || fail "客户主题色必须是六位十六进制颜色"
 printf '%s' "$(value_of CUSTOMER_PRODUCT_TEMPLATE)" | grep -Eq '^[a-z0-9_-]{2,32}$' || fail "商品模板标识格式不正确"
+for key in SHOP_WITHDRAWAL_DAILY_MAX_COUNT SHOP_WITHDRAWAL_MONTHLY_MAX_COUNT; do
+  printf '%s' "$(value_of "$key")" | grep -Eq '^[1-9][0-9]*$' || fail "$key 必须是正整数"
+done
+for key in SHOP_WITHDRAWAL_DAILY_MAX_AMOUNT SHOP_WITHDRAWAL_MONTHLY_MAX_AMOUNT; do
+  printf '%s' "$(value_of "$key")" | grep -Eq '^[0-9]+([.][0-9]{1,2})?$' || fail "$key 必须是最多两位小数的正金额"
+  printf '%s' "$(value_of "$key")" | grep -Eq '^0+([.]0{1,2})?$' && fail "$key 必须大于0"
+done
 cors=$(value_of CORS_ORIGINS)
 case "$cors" in *\**|*http://*) fail "CORS 只能列出客户 HTTPS 来源，禁止通配符和 HTTP" ;; esac
 case ",$cors," in *,https://"$domain",*) : ;; *) fail "CORS 必须包含公开商城域名" ;; esac
