@@ -35,6 +35,42 @@ lock_dir="${TMPDIR:-/tmp}/mall-private-migration-$(env_get COMPOSE_PROJECT_NAME)
 mkdir "$lock_dir" 2>/dev/null || { echo "已有迁移任务正在执行" >&2; exit 1; }
 trap 'rmdir "$lock_dir" 2>/dev/null || true' EXIT HUP INT TERM
 
+# distribution.sql 已含 team_opt_in，但对应历史迁移使用不可重复的直接 ADD COLUMN。
+# 只在明确的首次安装基线、字段真实存在且总账为空时登记这一项；已有客户仍按原总账升级。
+baseline_marker_table=$(mysql_cmd <<'SQL'
+SELECT COUNT(*) FROM information_schema.tables
+WHERE table_schema = DATABASE() AND table_name = 'dms_schema_baseline_marker';
+SQL
+)
+baseline_marker=0
+if [ "$baseline_marker_table" = "1" ]; then
+  baseline_marker=$(mysql_cmd <<'SQL'
+SELECT COUNT(*) FROM dms_schema_baseline_marker
+WHERE baseline_key = 'distribution_20260813';
+SQL
+)
+fi
+history_count=$(mysql_cmd <<'SQL'
+SELECT COUNT(*) FROM dms_schema_migration_history;
+SQL
+)
+if [ "$baseline_marker" = "1" ] && [ "$history_count" = "0" ]; then
+  absorbed_file="$MIGRATION_DIR/V202608170900__split_public_and_team_membership.sql"
+  [ -f "$absorbed_file" ] || { echo "缺少商城基线已吸收的团队身份迁移" >&2; exit 1; }
+  absorbed_column=$(mysql_cmd <<'SQL'
+SELECT COUNT(*) FROM information_schema.columns
+WHERE table_schema = DATABASE() AND table_name = 'dms_shop_member' AND column_name = 'team_opt_in';
+SQL
+)
+  [ "$absorbed_column" = "1" ] || { echo "商城基线标记与 team_opt_in 结构不一致" >&2; exit 1; }
+  absorbed_hash=$(checksum "$absorbed_file")
+  mysql_cmd <<SQL
+INSERT INTO dms_schema_migration_history(version, script, checksum, success, execution_time_ms)
+VALUES('202608170900', 'V202608170900__split_public_and_team_membership.sql', '$absorbed_hash', 1, 0);
+SQL
+  echo "已登记商城基线吸收的团队身份迁移"
+fi
+
 find "$MIGRATION_DIR" -maxdepth 1 -type f -name 'V*.sql' | LC_ALL=C sort | while IFS= read -r file; do
   base=$(basename "$file")
   version=$(printf '%s' "$base" | sed -n 's/^V\([0-9]\{12\}\)__[a-z0-9_]*\.sql$/\1/p')
@@ -58,7 +94,7 @@ INSERT INTO dms_schema_migration_history(version, script, checksum, success, exe
 VALUES('$version', '$base', '$hash', 1, $elapsed);
 SQL
   else
-    echo "迁移失败：$base；部署已停止，请使用升级前备份核对" >&2
+    echo "迁移失败：${base}；部署已停止，请使用升级前备份核对" >&2
     exit 1
   fi
 done

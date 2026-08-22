@@ -33,6 +33,8 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ../../mall-distribution/document/sql/distribution.sql:/init-sql/distribution/distribution.sql:ro
+      - ../../mall-distribution/document/sql/20260714_erp_integration_upgrade.sql:/init-sql/prerequisites/20260714_erp_integration_upgrade.sql:ro
+      - ../sql/20260808_add_shop_service_addresses.sql:/init-sql/prerequisites/20260808_add_shop_service_addresses.sql:ro
       - ./initdb:/docker-entrypoint-initdb.d:ro
     networks:
       - data

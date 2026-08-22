@@ -189,6 +189,10 @@ grep -q 'docker.sock' "$COMPOSE_FILE" && fail "禁止挂载 Docker socket"
 grep -q '^FROM eclipse-temurin:17\.0\.19_10-jre-jammy$' "$DEPLOY_DIR/../../mall-distribution/Dockerfile" \
   || fail "后端运行时镜像必须使用已测试的明确版本"
 grep -q '^USER mall$' "$DEPLOY_DIR/../../mall-distribution/Dockerfile" || fail "后端容器必须使用非root用户"
+[ -x "$DEPLOY_DIR/initdb/00_run_project_sql.sh" ] \
+  || fail "MySQL 初始化入口必须保留可执行权限，否则会生成空数据库"
+sh -n "$DEPLOY_DIR/initdb/00_run_project_sql.sh" \
+  || fail "MySQL 初始化入口脚本语法错误"
 
 if [ "$OFFLINE" = "false" ]; then
   command -v docker >/dev/null 2>&1 || fail "缺少 Docker"

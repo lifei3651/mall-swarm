@@ -23,4 +23,4 @@ compose() { docker compose --env-file "$ENV_FILE" -f "$DEPLOY_DIR/docker-compose
 # 覆盖前自动保留当前数据库，禁止无备份恢复。
 "$SCRIPT_DIR/backup.sh" --env "$ENV_FILE"
 gunzip -c "$BACKUP_FILE" | compose exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" exec mysql -u"$MYSQL_USER" "$MYSQL_DATABASE"'
-echo "数据库恢复完成：$BACKUP_FILE；请立即执行 scripts/deploy.sh verify"
+echo "数据库恢复完成：${BACKUP_FILE}；请立即执行 scripts/deploy.sh verify"

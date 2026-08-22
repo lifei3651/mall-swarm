@@ -12,6 +12,29 @@ compose() {
   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
 }
 env_get() { awk -v key="$1" 'index($0, key "=") == 1 { print substr($0, length(key)+2); exit }' "$ENV_FILE"; }
+wait_healthy() {
+  service=$1
+  attempt=0
+  while [ "$attempt" -lt 60 ]; do
+    container=$(compose ps -q "$service" 2>/dev/null || true)
+    if [ -n "$container" ]; then
+      health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container" 2>/dev/null || true)
+      case "$health" in
+        healthy|running) return 0 ;;
+        unhealthy|exited|dead)
+          compose logs --tail 80 "$service" >&2 || true
+          echo "$service 启动失败，当前状态：$health" >&2
+          return 1
+          ;;
+      esac
+    fi
+    attempt=$((attempt + 1))
+    sleep 2
+  done
+  compose logs --tail 80 "$service" >&2 || true
+  echo "$service 在 120 秒内未达到健康状态" >&2
+  return 1
+}
 
 case "$ACTION" in
   build) exec "$SCRIPT_DIR/build-release.sh" "$@" ;;
@@ -50,8 +73,15 @@ case "$ACTION" in
 
     # 首次部署先创建数据库基线；升级时保持数据卷，完成备份后再执行版本化迁移。
     compose up -d mysql redis
+    wait_healthy mysql
+    wait_healthy redis
     "$SCRIPT_DIR/run-migrations.sh"
-    compose up -d --build mall-distribution nginx
+    # 只重建应用和代理，不扰动数据库/Redis。构建会原子替换 html 目录，
+    # Nginx 必须重建才能重新绑定新目录，避免升级后仍持有已删除的旧挂载节点。
+    compose up -d --build --no-deps --force-recreate mall-distribution
+    wait_healthy mall-distribution
+    compose up -d --no-deps --force-recreate nginx
+    wait_healthy nginx
     "$SCRIPT_DIR/security-postflight.sh" --env "$ENV_FILE"
     ;;
   *)

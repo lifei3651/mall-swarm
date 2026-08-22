@@ -10,6 +10,14 @@ trap 'rm -rf "$STAGING"' EXIT HUP INT TERM
 
 [ -x "$ROOT_DIR/mvnw" ] || { echo "缺少 Maven Wrapper" >&2; exit 1; }
 command -v npm >/dev/null 2>&1 || { echo "缺少 Node.js/npm" >&2; exit 1; }
+version=$(tr -d '\n' < "$ROOT_DIR/VERSION")
+release_git_commit=${RELEASE_GIT_COMMIT:-$(git -C "$ROOT_DIR" rev-parse HEAD)}
+release_build_id=${RELEASE_BUILD_ID:-$(date +%Y%m%d-%H%M)-${version}}
+if [ -n "$(git -C "$ROOT_DIR" status --porcelain)" ] && [ -z "${RELEASE_BUILD_ID:-}" ]; then
+  release_build_id="${release_build_id}-dirty"
+fi
+export RELEASE_GIT_COMMIT="$release_git_commit"
+export RELEASE_BUILD_ID="$release_build_id"
 
 (cd "$ROOT_DIR" && ./mvnw clean package -Ddocker.skip=true)
 (cd "$ROOT_DIR/mall-shop-web" && npm ci && npm test -- --run && npm run build)
@@ -25,7 +33,6 @@ if find "$STAGING/html" -type f -name '*.map' -print -quit | grep -q .; then
   echo "生产构建包含 source map，已停止交付" >&2
   exit 1
 fi
-version=$(tr -d '\n' < "$ROOT_DIR/VERSION")
 grep -q "\"version\"[[:space:]]*:[[:space:]]*\"$version\"" "$STAGING/html/public/version.json" \
   || { echo "商城构建版本与根 VERSION 不一致" >&2; exit 1; }
 grep -q "\"version\"[[:space:]]*:[[:space:]]*\"$version\"" "$STAGING/html/team/version.json" \
@@ -34,8 +41,14 @@ grep -q "\"version\"[[:space:]]*:[[:space:]]*\"$version\"" "$STAGING/html/integr
   || { echo "一体化H5构建版本与根 VERSION 不一致" >&2; exit 1; }
 grep -q "\"version\"[[:space:]]*:[[:space:]]*\"$version\"" "$STAGING/html/admin/version.json" \
   || { echo "后台构建版本与根 VERSION 不一致" >&2; exit 1; }
+for manifest in "$STAGING"/html/*/version.json; do
+  grep -q "\"gitCommit\"[[:space:]]*:[[:space:]]*\"$release_git_commit\"" "$manifest" \
+    || { echo "构建清单缺少 Git 身份：$manifest" >&2; exit 1; }
+  grep -q "\"buildId\"[[:space:]]*:[[:space:]]*\"$release_build_id\"" "$manifest" \
+    || { echo "构建清单缺少构建批次：$manifest" >&2; exit 1; }
+done
 
 # html 是被 .gitignore 排除的构建产物；只替换该明确目录，不触碰客户配置、证书或数据卷。
 rm -rf "$HTML_DIR"
 mv "$STAGING/html" "$HTML_DIR"
-echo "公开商城、团队H5、一体化H5、后台和后端生产构建完成，版本：$version"
+echo "公开商城、团队H5、一体化H5、后台和后端生产构建完成，版本：${version}，批次：${release_build_id}"
