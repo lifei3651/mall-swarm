@@ -59,6 +59,9 @@ public class SecurityRateLimitFilter extends OncePerRequestFilter {
         if (HttpMethod.POST.matches(method) && "/distribution/admin-auth/login".equals(path)) {
             return new Rule("admin-login", 10, 60);
         }
+        if (HttpMethod.POST.matches(method) && "/distribution/admin-auth/step-up".equals(path)) {
+            return new Rule("admin-step-up", 10, 60);
+        }
         if (HttpMethod.POST.matches(method) && ("/shop/auth/login".equals(path)
                 || "/shop/auth/register".equals(path) || "/shop/auth/resetPassword".equals(path))) {
             return new Rule("shop-auth", 10, 60);

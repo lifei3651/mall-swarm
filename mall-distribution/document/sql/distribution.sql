@@ -2,6 +2,7 @@
 -- 分销分佣系统数据库表结构
 -- 项目: mall-distribution
 -- 创建时间: 2026-06-30
+-- 仅限全新空数据库初始化；不创建默认账号，部署后使用 private-deploy/scripts/bootstrap-admin.sh。
 -- ============================================================
 
 -- 创建数据库（如果不存在）
@@ -857,11 +858,6 @@ CREATE TABLE `dms_operation_log` (
   KEY `idx_target` (`target_type`, `target_id`),
   KEY `idx_create_time` (`create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='后台操作日志表';
-
-INSERT INTO `dms_admin_user`
-  (`id`, `username`, `password_hash`, `salt`, `nickname`, `role_code`, `permissions`, `status`)
-VALUES
-  (1, 'admin', '9caec3496b444e62944109574e4a98a3a1cde7f063c9e1c6c5700576f3ab773f', 'admin-default-salt', '超级管理员', 'SUPER_ADMIN', '*', 1);
 
 -- ============================================================
 -- 16. 订单财务审计表 (dms_order_finance)

@@ -4,6 +4,7 @@ import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.AdminAuthService;
 import com.macro.mall.distribution.service.OperationLogService;
+import com.macro.mall.distribution.service.AdminStepUpService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -19,7 +20,8 @@ class AdminInitialPasswordGateTest {
 
     private final AdminAuthService authService = mock(AdminAuthService.class);
     private final AdminSecurityConfig.AdminSecurityInterceptor interceptor =
-            new AdminSecurityConfig.AdminSecurityInterceptor(authService, mock(OperationLogService.class));
+            new AdminSecurityConfig.AdminSecurityInterceptor(authService, mock(OperationLogService.class),
+                    mock(AdminStepUpService.class));
 
     @AfterEach
     void clearContext() {

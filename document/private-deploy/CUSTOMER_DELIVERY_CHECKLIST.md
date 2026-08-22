@@ -32,10 +32,13 @@
 - [ ] `.env` 由 `prepare` 自动生成且权限为 `600`，不存在 `change_me`、固定验证码或模拟支付
 - [ ] 云安全组只公开80/443，SSH仅固定IP/VPN；已用 `firewall` 登记证据编号
 - [ ] `check` 强制预检通过，Compose只有Nginx、商城后端、MySQL和Redis四个必要服务
+- [ ] 首次安装已执行 `deploy.sh bootstrap-admin`，没有使用源码内置账号，首个管理员登录后已完成强制改密
 - [ ] MySQL、Redis和后端均没有宿主机端口；数据库维护只通过SSH登录服务器后执行容器命令
+- [ ] HTTPS响应包含 CSP、Permissions-Policy、HSTS 等安全头，常见扫描路径返回404
 - [ ] `SERVER_ADDRESS`、HTTPS、反向代理和健康检查已配置
 - [ ] `/opt/lingqimall/uploads` 已做持久化挂载
 - [ ] 生产配置文件权限符合最小权限要求，密钥文件不进入提交
+- [ ] 云磁盘、数据库快照和异地备份已启用客户云平台的静态加密，解密权限只授予备份恢复人员
 - [ ] 首次上线前完成全量备份，记录备份路径和版本号
 - [ ] 上线后核验商城、管理后台、后端健康、Nginx、MySQL、Redis
 - [ ] `verify` 部署后验收通过，并保存 `reports/security-postflight-*.txt`

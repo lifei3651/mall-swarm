@@ -2,6 +2,7 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import { expireAdminSession, isAdminSessionExpired } from '@/utils/adminSession'
 import { encryptSensitiveRequest } from '@/utils/payloadEncryption'
+import { requestAdminStepUpToken } from '@/utils/adminStepUp'
 
 // 创建axios实例
 const service = axios.create({
@@ -53,6 +54,10 @@ service.interceptors.request.use(
       return Promise.reject(error)
     }
     config.headers['X-Admin-Client'] = 'admin-web'
+    if (config.adminStepUp) {
+      config.headers['X-Admin-Step-Up-Token'] = await requestAdminStepUpToken(config)
+      delete config.adminStepUp
+    }
     return encryptSensitiveRequest(config)
   },
   (error) => {
@@ -83,7 +88,7 @@ service.interceptors.response.use(
     return res
   },
   (error) => {
-    if (error.isAdminSessionExpired) {
+    if (error.isAdminSessionExpired || error.isAdminStepUpCancelled) {
       return Promise.reject(error)
     }
     console.error('响应错误:', error)

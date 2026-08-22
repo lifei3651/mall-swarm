@@ -37,11 +37,12 @@ export function updateAdminStatus(id, status) {
     url: `/distribution/admin-users/${id}/status`,
     method: 'put',
     params: { status },
+    adminStepUp: { message: '启用或停用管理员会立即改变其后台访问权限。' },
   })
 }
 
 export function unlockAdminUser(id) {
-  return request({ url: `/distribution/admin-users/${id}/unlock`, method: 'put' })
+  return request({ url: `/distribution/admin-users/${id}/unlock`, method: 'put', adminStepUp: { message: '解除锁定会允许该管理员重新尝试登录。' } })
 }
 
 export function listPermissionOptions() {

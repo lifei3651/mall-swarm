@@ -43,11 +43,19 @@ curl --fail --silent --show-error --max-time 15 --resolve "$domain:443:127.0.0.1
   || fail "客户 HTTPS 商城入口不可用或证书不匹配"
 curl --fail --silent --show-error --max-time 15 --resolve "$team_domain:443:127.0.0.1" "https://$team_domain/" >/dev/null \
   || fail "客户 HTTPS 团队H5入口不可用或证书不匹配"
+security_headers=$(curl --fail --silent --show-error --head --max-time 15 \
+  --resolve "$domain:443:127.0.0.1" "https://$domain/")
+printf '%s\n' "$security_headers" | grep -qi '^Content-Security-Policy:' \
+  || fail "商城入口缺少 Content-Security-Policy"
+printf '%s\n' "$security_headers" | grep -qi '^Permissions-Policy:' \
+  || fail "商城入口缺少 Permissions-Policy"
+printf '%s\n' "$security_headers" | grep -qi '^Strict-Transport-Security:' \
+  || fail "商城入口缺少 Strict-Transport-Security"
 curl --fail --silent --show-error --max-time 15 --resolve "$domain:443:127.0.0.1" "https://$domain/version.json" | grep -q 'storefront-public' \
   || fail "公开域名没有返回公开商城构建"
 curl --fail --silent --show-error --max-time 15 --resolve "$team_domain:443:127.0.0.1" "https://$team_domain/version.json" | grep -q 'team-h5' \
   || fail "团队域名没有返回团队H5构建"
-for path in /api/actuator/health /api/v3/api-docs /api/swagger-ui/index.html; do
+for path in /api/actuator/health /api/v3/api-docs /api/swagger-ui/index.html /.env /.git/config /phpmyadmin/; do
   code=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 10 --resolve "$domain:443:127.0.0.1" "https://$domain$path")
   [ "$code" = "404" ] || fail "$path 必须返回 404，当前为 $code"
 done
@@ -70,6 +78,8 @@ report="$DEPLOY_DIR/reports/security-postflight-$(date +%Y%m%d_%H%M%S).txt"
   echo "mysql_binding=docker-internal-only"
   echo "internal_ports_not_public=6379,8086"
   echo "tls=PASS"
+  echo "security_headers=PASS"
+  echo "common_scanner_paths=404"
   echo "backend_health=UP"
   echo "upload_directory=writable"
   echo "sensitive_public_endpoints=404"

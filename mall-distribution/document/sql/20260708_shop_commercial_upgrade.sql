@@ -37,10 +37,7 @@ CREATE TABLE IF NOT EXISTS `dms_admin_session` (
   KEY `idx_expire_time` (`expire_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='后台管理员会话表';
 
-INSERT IGNORE INTO `dms_admin_user`
-  (`id`, `username`, `password_hash`, `salt`, `nickname`, `role_code`, `permissions`, `status`)
-VALUES
-  (1, 'admin', '9caec3496b444e62944109574e4a98a3a1cde7f063c9e1c6c5700576f3ab773f', 'admin-default-salt', '超级管理员', 'SUPER_ADMIN', '*', 1);
+-- 不再写入固定默认管理员。无管理员的历史环境升级后使用私有部署 bootstrap-admin 命令创建。
 
 CREATE TABLE IF NOT EXISTS `dms_shop_member` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '会员ID',

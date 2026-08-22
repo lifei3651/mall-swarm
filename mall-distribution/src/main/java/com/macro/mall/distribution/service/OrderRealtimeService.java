@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class OrderRealtimeService {
 
-    private static final long EMITTER_TIMEOUT_MS = 30L * 60L * 1000L;
     private final ObjectMapper objectMapper;
     private final Map<String, Subscription> subscriptions = new ConcurrentHashMap<>();
     private final ThreadPoolExecutor senderExecutor = new ThreadPoolExecutor(
@@ -44,6 +43,9 @@ public class OrderRealtimeService {
 
     @Value("${shop.realtime.max-connections-per-principal:5}")
     private int maxConnectionsPerPrincipal = 5;
+
+    @Value("${shop.realtime.connection-timeout-ms:600000}")
+    private long connectionTimeoutMs = 10L * 60L * 1000L;
 
     public OrderRealtimeService(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
@@ -110,7 +112,8 @@ public class OrderRealtimeService {
         if (principalConnections >= principalLimit) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "当前账号实时连接过多，请关闭重复页面后重试");
         }
-        SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MS);
+        // 连接到期后必须重新经过身份认证，缩短账号停用或会话撤销后的通知暴露窗口。
+        SseEmitter emitter = new SseEmitter(Math.max(60_000L, connectionTimeoutMs));
         String id = UUID.randomUUID().toString();
         Subscription subscription = new Subscription(audience, audienceId, emitter);
         subscriptions.put(id, subscription);

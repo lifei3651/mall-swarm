@@ -1,10 +1,11 @@
+# 旧版微服务开发参考，不用于当前私有部署。所有调试端口仅绑定本机，禁止直接暴露到公网。
 version: '3'
 services:
   mall-admin:
     image: mall/mall-admin:1.0-SNAPSHOT
     container_name: mall-admin
     ports:
-      - 8080:8080
+      - 127.0.0.1:8080:8080
     volumes:
       - /mydata/app/mall-admin/logs:/var/logs
       - /etc/localtime:/etc/localtime
@@ -17,7 +18,7 @@ services:
     image: mall/mall-search:1.0-SNAPSHOT
     container_name: mall-search
     ports:
-      - 8081:8081
+      - 127.0.0.1:8081:8081
     volumes:
       - /mydata/app/mall-search/logs:/var/logs
       - /etc/localtime:/etc/localtime
@@ -31,7 +32,7 @@ services:
     image: mall/mall-portal:1.0-SNAPSHOT
     container_name: mall-portal
     ports:
-      - 8085:8085
+      - 127.0.0.1:8085:8085
     volumes:
       - /mydata/app/mall-portal/logs:/var/logs
       - /etc/localtime:/etc/localtime
@@ -47,7 +48,7 @@ services:
     image: mall/mall-auth:1.0-SNAPSHOT
     container_name: mall-auth
     ports:
-      - 8401:8401
+      - 127.0.0.1:8401:8401
     volumes:
       - /mydata/app/mall-auth/logs:/var/logs
       - /etc/localtime:/etc/localtime
@@ -59,7 +60,7 @@ services:
     image: mall/mall-gateway:1.0-SNAPSHOT
     container_name: mall-gateway
     ports:
-      - 8201:8201
+      - 127.0.0.1:8201:8201
     volumes:
       - /mydata/app/mall-gateway/logs:/var/logs
       - /etc/localtime:/etc/localtime
@@ -72,7 +73,7 @@ services:
     image: mall/mall-monitor:1.0-SNAPSHOT
     container_name: mall-monitor
     ports:
-      - 8101:8101
+      - 127.0.0.1:8101:8101
     volumes:
       - /mydata/app/mall-monitor/logs:/var/logs
       - /etc/localtime:/etc/localtime

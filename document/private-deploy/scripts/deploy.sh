@@ -19,6 +19,7 @@ case "$ACTION" in
   firewall) exec "$SCRIPT_DIR/confirm-firewall.sh" "$@" ;;
   check) exec "$SCRIPT_DIR/security-preflight.sh" "$@" ;;
   verify) exec "$SCRIPT_DIR/security-postflight.sh" "$@" ;;
+  bootstrap-admin) exec "$SCRIPT_DIR/bootstrap-admin.sh" "$@" ;;
   apply)
     [ "$#" -eq 0 ] || { echo "apply 不接受额外参数" >&2; exit 2; }
     "$SCRIPT_DIR/security-preflight.sh" --env "$ENV_FILE"
@@ -54,7 +55,7 @@ case "$ACTION" in
     "$SCRIPT_DIR/security-postflight.sh" --env "$ENV_FILE"
     ;;
   *)
-    echo "用法: $0 build|prepare|firewall|check|apply|verify"
+    echo "用法: $0 build|prepare|firewall|check|apply|bootstrap-admin|verify"
     exit 2
     ;;
 esac

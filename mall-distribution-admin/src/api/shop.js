@@ -307,6 +307,7 @@ export function updateShopMemberStatus(id, status) {
     url: `/shop/admin/members/${id}/status`,
     method: 'put',
     params: { status },
+    adminStepUp: { message: '启用或停用会员会立即改变其登录状态。' },
   })
 }
 
@@ -314,6 +315,7 @@ export function unlockShopMember(id) {
   return request({
     url: `/shop/admin/members/${id}/unlock`,
     method: 'put',
+    adminStepUp: { message: '解除锁定会允许该会员重新尝试登录。' },
   })
 }
 
@@ -321,6 +323,7 @@ export function unlockShopMemberPaymentPassword(id) {
   return request({
     url: `/shop/admin/members/${id}/payment-password/unlock`,
     method: 'put',
+    adminStepUp: { message: '解除支付密码锁定属于资金安全操作。' },
   })
 }
 
@@ -345,6 +348,7 @@ export function updateShopMemberLevel(id, data) {
     url: `/shop/admin/members/${id}/level`,
     method: 'put',
     data,
+    adminStepUp: { message: '调整会员卡级会影响其权益和奖金计算。' },
   })
 }
 
@@ -360,6 +364,7 @@ export function cancelShopOrder(id) {
   return request({
     url: `/shop/admin/orders/${id}/cancel`,
     method: 'put',
+    adminStepUp: { message: '取消已付款订单可能触发退款和库存回补。' },
   })
 }
 
@@ -368,6 +373,7 @@ export function manualRefundShopOrder(id, data) {
     url: `/shop/admin/orders/${id}/refund`,
     method: 'post',
     data,
+    adminStepUp: { message: '手工退款将改变订单资金状态，请核对退款金额。' },
   })
 }
 
@@ -384,6 +390,7 @@ export function auditShopAfterSale(id, data) {
     url: `/shop/admin/after-sales/${id}/audit`,
     method: 'put',
     data,
+    adminStepUp: { message: '售后审核结果可能触发退款或关闭售后。' },
   })
 }
 
@@ -392,5 +399,6 @@ export function confirmShopAfterSaleReturnReceived(id, data) {
     url: `/shop/admin/after-sales/${id}/return-received`,
     method: 'put',
     data,
+    adminStepUp: { message: '确认退货收货可能触发最终退款。' },
   })
 }

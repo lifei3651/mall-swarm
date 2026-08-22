@@ -31,6 +31,7 @@ export function settleCommission(recordId) {
   return request({
     url: `/distribution/commission/settle/${recordId}`,
     method: 'post',
+    adminStepUp: { message: '佣金结算会改变会员资金余额。' },
   })
 }
 
@@ -40,11 +41,12 @@ export function settleCommissionBatch(recordIds) {
     url: '/distribution/commission/settle-batch',
     method: 'post',
     data: recordIds,
+    adminStepUp: { message: '批量佣金结算会同时改变多笔会员资金余额。' },
   })
 }
 
 export function createSettlementBatch(data) {
-  return request({ url: '/distribution/commission/settlement-batches', method: 'post', data })
+  return request({ url: '/distribution/commission/settlement-batches', method: 'post', data, adminStepUp: { message: '创建结算批次会锁定所选佣金记录。' } })
 }
 
 export function listSettlementBatches(params) {
@@ -52,7 +54,7 @@ export function listSettlementBatches(params) {
 }
 
 export function executeSettlementBatch(id) {
-  return request({ url: `/distribution/commission/settlement-batches/${id}/execute`, method: 'post' })
+  return request({ url: `/distribution/commission/settlement-batches/${id}/execute`, method: 'post', adminStepUp: { message: '执行结算批次会改变多笔会员资金余额。' } })
 }
 
 // 取消佣金
@@ -61,6 +63,7 @@ export function cancelCommission(recordId, cancelReason) {
     url: `/distribution/commission/cancel/${recordId}`,
     method: 'post',
     params: { cancelReason },
+    adminStepUp: { message: '取消佣金会改变会员待结算权益。' },
   })
 }
 

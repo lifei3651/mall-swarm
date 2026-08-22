@@ -20,6 +20,7 @@ run_sql_file() {
 }
 
 # 新客户以当前分销基线建库；历史 document/sql 中包含旧商城的 DROP/示例数据，禁止自动执行。
+# 基线不再创建任何默认管理员；部署完成后必须显式执行 deploy.sh bootstrap-admin。
 run_sql_file /init-sql/distribution/distribution.sql
 
 # 增量迁移由统一部署入口在基线建库后登记并执行；避免首次初始化执行了 SQL 却没有迁移记录。

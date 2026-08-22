@@ -1,0 +1,6 @@
+# 复制为同目录 generator-local.properties 后再运行代码生成；真实凭证不得提交。
+# 请使用只读、仅限本机连接的独立代码生成账号，不要使用 root。
+jdbc.driverClass=com.mysql.cj.jdbc.Driver
+jdbc.connectionURL=jdbc:mysql://127.0.0.1:3306/mall?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+jdbc.userId=mall_codegen
+jdbc.password=

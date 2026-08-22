@@ -2,8 +2,8 @@ import request from '@/utils/request'
 
 export const listMerchants = (params) => request({ url: '/distribution/merchants', method: 'get', params })
 export const saveMerchant = (id, data) => request({ url: id ? `/distribution/merchants/${id}` : '/distribution/merchants', method: id ? 'put' : 'post', data })
-export const updateMerchantStatus = (id, status) => request({ url: `/distribution/merchants/${id}/status`, method: 'put', params: { status } })
-export const updateMerchantControls = (id, data) => request({ url: `/distribution/merchants/${id}/controls`, method: 'put', data })
+export const updateMerchantStatus = (id, status) => request({ url: `/distribution/merchants/${id}/status`, method: 'put', params: { status }, adminStepUp: { message: '商户状态变更会影响其经营和历史订单处理。' } })
+export const updateMerchantControls = (id, data) => request({ url: `/distribution/merchants/${id}/controls`, method: 'put', data, adminStepUp: { message: '商户业务控制会影响销售、履约、提现和结算。' } })
 export const getMerchantExitReadiness = (id) => request({ url: `/distribution/merchants/${id}/exit-readiness`, method: 'get' })
 export const listMerchantAccounts = (params) => request({ url: '/distribution/merchant-finance/accounts', method: 'get', params })
 export const listMerchantSettlements = (params) => request({ url: '/distribution/merchant-finance/settlements', method: 'get', params })

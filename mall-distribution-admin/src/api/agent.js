@@ -50,6 +50,7 @@ export function updateAgentStatus(id, status) {
     url: `/distribution/agent/${id}/status`,
     method: 'put',
     params: { status },
+    adminStepUp: { message: '变更推广资格会影响团队关系和奖金。' },
   })
 }
 
@@ -59,6 +60,7 @@ export function adjustAgentLevel(id, data) {
     url: `/distribution/agent/${id}/level`,
     method: 'put',
     data,
+    adminStepUp: { message: '调整会员卡级会影响其权益和奖金计算。' },
   })
 }
 
@@ -108,6 +110,7 @@ export function switchLine(data) {
     url: '/distribution/agent/switch-line',
     method: 'post',
     data,
+    adminStepUp: { message: '会员移线会改变整个团队关系和后续奖金归属。' },
   })
 }
 
@@ -116,7 +119,7 @@ export function listLineChangeApplications(params) {
 }
 
 export function auditLineChangeApplication(id, data) {
-  return request({ url: `/distribution/agent/line-change-applications/${id}/audit`, method: 'post', data })
+  return request({ url: `/distribution/agent/line-change-applications/${id}/audit`, method: 'post', data, adminStepUp: { message: '审核移线申请会改变团队关系和后续奖金归属。' } })
 }
 
 // 生成推广二维码

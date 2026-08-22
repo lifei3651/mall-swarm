@@ -8,6 +8,11 @@ trap 'rm -rf "$TEST_ROOT"' EXIT HUP INT TERM
 mkdir -p "$TEST_ROOT/document" "$TEST_ROOT/mall-distribution/target"
 cp -R "$SOURCE_DIR" "$TEST_ROOT/document/private-deploy"
 DEPLOY_DIR="$TEST_ROOT/document/private-deploy"
+grep -q 'Content-Security-Policy' "$DEPLOY_DIR/nginx/conf.d/mall.conf.template"
+grep -q 'Permissions-Policy' "$DEPLOY_DIR/nginx/conf.d/mall.conf.template"
+grep -q 'autoindex off' "$DEPLOY_DIR/nginx/nginx.conf"
+grep -q 'bootstrap-admin' "$DEPLOY_DIR/scripts/deploy.sh"
+sh -n "$DEPLOY_DIR/scripts/bootstrap-admin.sh"
 printf 'FROM eclipse-temurin:17.0.19_10-jre-jammy\nUSER mall\n' > "$TEST_ROOT/mall-distribution/Dockerfile"
 
 "$DEPLOY_DIR/scripts/prepare-env.sh" \

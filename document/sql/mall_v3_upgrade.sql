@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS `ums_member_tag_relation` (
   `tag_id` bigint(20) NOT NULL COMMENT '标签ID',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_member_tag` (`member_id`, `tag_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4mb4 COMMENT='会员标签关联表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='会员标签关联表';
 
 -- ----------------------------
 -- 3. 会员等级表增加字段（不删除原表）
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS `ums_login_log` (
   PRIMARY KEY (`id`),
   KEY `idx_username` (`username`),
   KEY `idx_create_time` (`create_time`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4mb4 COMMENT='登录日志表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='登录日志表';
 
 -- ----------------------------
 -- 6. 角色模板表（新建）
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS `ums_role_template` (
   `create_time` datetime DEFAULT CURRENT_TIMESTAMP,
   `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4mb4 COMMENT='角色模板表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色模板表';
 
 INSERT IGNORE INTO `ums_role_template` (`id`, `name`, `description`, `status`) VALUES
 (1, '超级管理员', '拥有所有权限', 1),
@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS `oms_return_type` (
   `status` int(1) DEFAULT 1 COMMENT '状态',
   `sort` int(11) DEFAULT 0,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4mb4 COMMENT='售后类型表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='售后类型表';
 
 INSERT IGNORE INTO `oms_return_type` (`id`, `name`, `type`, `description`, `sort`) VALUES
 (1, '仅退款', 1, '未发货或已收货但不退货', 100),
@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS `oms_return_proof` (
   `create_time` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_return_apply_id` (`return_apply_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4mb4 COMMENT='售后凭证图片表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='售后凭证图片表';
 
 -- ----------------------------
 -- 9. 售后申请表增加字段
@@ -141,7 +141,7 @@ CREATE TABLE IF NOT EXISTS `oms_finance_flow` (
   KEY `idx_order_id` (`order_id`),
   KEY `idx_member_id` (`member_id`),
   KEY `idx_create_time` (`create_time`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4mb4 COMMENT='财务流水表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='财务流水表';
 
 -- ----------------------------
 -- 11. 物流轨迹表（新建）
@@ -159,7 +159,7 @@ CREATE TABLE IF NOT EXISTS `oms_logistics_trace` (
   PRIMARY KEY (`id`),
   KEY `idx_order_id` (`order_id`),
   KEY `idx_delivery_sn` (`delivery_sn`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4mb4 COMMENT='物流轨迹表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='物流轨迹表';
 
 -- ----------------------------
 -- 12. 首页配置表数据（依赖 mall_v2_upgrade.sql）

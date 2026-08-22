@@ -5,6 +5,7 @@ import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.AdminAuthService;
 import com.macro.mall.distribution.service.OperationLogService;
+import com.macro.mall.distribution.service.AdminStepUpService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -23,10 +24,11 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
 
     private final AdminAuthService adminAuthService;
     private final OperationLogService operationLogService;
+    private final AdminStepUpService adminStepUpService;
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(new AdminSecurityInterceptor(adminAuthService, operationLogService))
+        registry.addInterceptor(new AdminSecurityInterceptor(adminAuthService, operationLogService, adminStepUpService))
                 .addPathPatterns("/distribution/**", "/shop/admin/**")
                 // ERP 无法携带后台会话；发货回传仅通过各集成独立 callbackToken 鉴权。
                 .excludePathPatterns("/distribution/admin-auth/login", "/distribution/erp/callbacks/**",
@@ -37,10 +39,13 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
 
         private final AdminAuthService adminAuthService;
         private final OperationLogService operationLogService;
+        private final AdminStepUpService adminStepUpService;
 
-        AdminSecurityInterceptor(AdminAuthService adminAuthService, OperationLogService operationLogService) {
+        AdminSecurityInterceptor(AdminAuthService adminAuthService, OperationLogService operationLogService,
+                                 AdminStepUpService adminStepUpService) {
             this.adminAuthService = adminAuthService;
             this.operationLogService = operationLogService;
+            this.adminStepUpService = adminStepUpService;
         }
 
         @Override
@@ -61,6 +66,10 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
                 if (admin.getMerchantId() != null && !merchantWorkspaceRequest(request)) {
                     throw new ApiException("没有操作权限：商户工作台账号不能访问平台管理功能");
                 }
+                if (AdminStepUpPolicy.requires(request.getMethod(), request.getRequestURI())) {
+                    adminStepUpService.consume(admin, request.getMethod(), request.getRequestURI(),
+                            request.getHeader(AdminStepUpPolicy.HEADER));
+                }
                 AdminContext.set(admin);
                 return true;
             } catch (ApiException e) {
@@ -75,6 +84,7 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             String path = request.getRequestURI();
             return path.equals("/distribution/admin-auth/me")
                     || path.equals("/distribution/admin-auth/logout")
+                    || path.equals("/distribution/admin-auth/step-up")
                     || (path.equals("/distribution/admin-auth/password") && HttpMethod.PUT.matches(request.getMethod()));
         }
 
@@ -150,6 +160,8 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
         }
 
         private boolean shouldLog(HttpServletRequest request) {
+            // 二次验证只签发一次性凭证，真正的业务写操作会单独留痕，避免每次敏感操作产生两条日志。
+            if (request.getRequestURI().equals("/distribution/admin-auth/step-up")) return false;
             String method = request.getMethod();
             return HttpMethod.POST.matches(method) || HttpMethod.PUT.matches(method) || HttpMethod.DELETE.matches(method);
         }

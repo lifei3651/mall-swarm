@@ -34,6 +34,7 @@ __pycache__/
 !mall-shop-web/.env.team
 !mall-shop-web/.env.integrated
 .codex/
+mall-mbg/src/main/resources/generator-local.properties
 
 # 客户私有部署产生的运行数据、证书、验收报告和真实配置
 document/private-deploy/data/
