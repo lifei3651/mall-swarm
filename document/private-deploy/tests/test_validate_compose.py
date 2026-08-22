@@ -35,6 +35,8 @@ def safe_config():
                     "DB_PASSWORD": "secret",
                     "REDIS_PASSWORD": "secret",
                     "SA_TOKEN_JWT_KEY": "secret",
+                    "DATA_ENCRYPTION_KEY": "secret",
+                    "DATA_ENCRYPTION_WRITE_ENABLED": "true",
                     "ALIPAY_PRIVATE_KEY": "",
                     "SMS_ALIYUN_ACCESS_KEY_SECRET": "",
                 },

@@ -11,6 +11,12 @@ DEPLOY_DIR="$TEST_ROOT/document/private-deploy"
 grep -q 'Content-Security-Policy' "$DEPLOY_DIR/nginx/conf.d/mall.conf.template"
 grep -q 'Permissions-Policy' "$DEPLOY_DIR/nginx/conf.d/mall.conf.template"
 grep -q 'autoindex off' "$DEPLOY_DIR/nginx/nginx.conf"
+grep -q 'client_max_body_size 6m' "$DEPLOY_DIR/nginx/nginx.conf"
+if grep -q "connect-src 'self' https:" "$DEPLOY_DIR/nginx/conf.d/mall.conf.template"; then
+  echo "CSP connect-src must not allow arbitrary HTTPS origins" >&2
+  exit 1
+fi
+grep -q "connect-src 'self'" "$DEPLOY_DIR/nginx/conf.d/mall.conf.template"
 grep -q 'bootstrap-admin' "$DEPLOY_DIR/scripts/deploy.sh"
 sh -n "$DEPLOY_DIR/scripts/bootstrap-admin.sh"
 printf 'FROM eclipse-temurin:17.0.19_10-jre-jammy\nUSER mall\n' > "$TEST_ROOT/mall-distribution/Dockerfile"
@@ -25,11 +31,12 @@ printf 'FROM eclipse-temurin:17.0.19_10-jre-jammy\nUSER mall\n' > "$TEST_ROOT/ma
   --brand 测试客户商城 >/dev/null
 
 [ "$(stat -c '%a' "$DEPLOY_DIR/.env" 2>/dev/null || stat -f '%Lp' "$DEPLOY_DIR/.env")" = "600" ]
-for key in MYSQL_ROOT_PASSWORD DB_PASSWORD REDIS_PASSWORD SA_TOKEN_JWT_KEY; do
+for key in MYSQL_ROOT_PASSWORD DB_PASSWORD REDIS_PASSWORD SA_TOKEN_JWT_KEY DATA_ENCRYPTION_KEY; do
   value=$(awk -v key="$key" 'index($0, key "=") == 1 { print substr($0, length(key)+2) }' "$DEPLOY_DIR/.env")
   [ "${#value}" -ge 32 ]
   case "$value" in *change_me*) exit 1 ;; esac
 done
+[ "$(awk -F= '$1 == "DATA_ENCRYPTION_WRITE_ENABLED" { print $2 }' "$DEPLOY_DIR/.env")" = "true" ]
 
 mkdir -p "$DEPLOY_DIR/certs" "$DEPLOY_DIR/html/public" "$DEPLOY_DIR/html/team" "$DEPLOY_DIR/html/admin"
 openssl req -x509 -newkey rsa:2048 -nodes -days 365 \

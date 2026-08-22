@@ -19,11 +19,14 @@ describe('后台敏感操作二次验证', () => {
   it('账号、关系、退款、提现、佣金、批量导入和配置恢复均声明二次验证', () => {
     const files = [
       'src/api/adminUser.js', 'src/api/shop.js', 'src/api/agent.js', 'src/api/merchant.js',
-      'src/api/withdraw.js', 'src/api/commission.js', 'src/api/import.js', 'src/api/tenant.js',
+      'src/api/withdraw.js', 'src/api/commission.js', 'src/api/import.js', 'src/api/tenant.js', 'src/api/audit.js',
     ].map(source).join('\n')
     const protectedMarkers = files.match(/adminStepUp:/g) || []
-    expect(protectedMarkers.length).toBeGreaterThanOrEqual(18)
+    expect(protectedMarkers.length).toBeGreaterThanOrEqual(29)
     expect(files).toContain('/distribution/import/external-team/file')
     expect(files).toContain('/config-versions/${versionId}/restore')
+    expect(files).toContain('/merchant-finance/deposits/freeze')
+    expect(files).toContain('/merchant-finance/withdrawals/${id}/risk-freeze')
+    expect(files).toContain('/distribution/audit/finance/risk-rules')
   })
 })

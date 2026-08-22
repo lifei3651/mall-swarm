@@ -63,6 +63,9 @@ public interface DmsWithdrawRecordDao {
      */
     int update(DmsWithdrawRecord record);
 
+    List<DmsWithdrawRecord> selectSensitivePlaintextCandidates(@Param("limit") int limit);
+    int encryptSensitiveFields(@Param("id") Long id, @Param("bankAccount") String bankAccount);
+
     /**
      * 更新记录状态
      */

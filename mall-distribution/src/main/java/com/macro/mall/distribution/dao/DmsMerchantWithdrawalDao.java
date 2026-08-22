@@ -17,4 +17,7 @@ public interface DmsMerchantWithdrawalDao {
                                            @Param("status") String status);
     int insert(DmsMerchantWithdrawal withdrawal);
     int update(DmsMerchantWithdrawal withdrawal);
+    List<DmsMerchantWithdrawal> selectSensitivePlaintextCandidates(@Param("limit") int limit);
+    int encryptSensitiveFields(@Param("id") Long id,
+                               @Param("bankAccountNoSnapshot") String bankAccountNoSnapshot);
 }

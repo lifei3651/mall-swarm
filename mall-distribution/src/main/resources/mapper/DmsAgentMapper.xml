@@ -15,9 +15,9 @@
         <result column="qr_code_url" property="qrCodeUrl"/>
         <result column="phone" property="phone"/>
         <result column="real_name" property="realName"/>
-        <result column="id_card" property="idCard"/>
+        <result column="id_card" property="idCard" typeHandler="com.macro.mall.distribution.security.EncryptedStringTypeHandler"/>
         <result column="bank_name" property="bankName"/>
-        <result column="bank_account" property="bankAccount"/>
+        <result column="bank_account" property="bankAccount" typeHandler="com.macro.mall.distribution.security.EncryptedStringTypeHandler"/>
         <result column="status" property="status"/>
         <result column="source_type" property="sourceType"/>
         <result column="import_batch_id" property="importBatchId"/>
@@ -247,7 +247,9 @@
             level_depth, invite_code, qr_code_url, phone, real_name, id_card, bank_name, bank_account,
             status, source_type, import_batch_id, remark)
         VALUES (#{userId}, #{agentCode}, #{agentName}, #{agentLevel}, #{parentId}, #{ancestorIds},
-            #{levelDepth}, #{inviteCode}, #{qrCodeUrl}, #{phone}, #{realName}, #{idCard}, #{bankName}, #{bankAccount},
+            #{levelDepth}, #{inviteCode}, #{qrCodeUrl}, #{phone}, #{realName},
+            #{idCard,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler}, #{bankName},
+            #{bankAccount,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler},
             #{status}, #{sourceType}, #{importBatchId}, #{remark})
     </insert>
 
@@ -261,12 +263,36 @@
             qr_code_url = #{qrCodeUrl},
             phone = #{phone},
             real_name = #{realName},
-            id_card = #{idCard},
+            id_card = #{idCard,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler},
             bank_name = #{bankName},
-            bank_account = #{bankAccount},
+            bank_account = #{bankAccount,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler},
             status = #{status},
             remark = #{remark}
         WHERE id = #{id}
+    </update>
+
+    <select id="selectSensitivePlaintextCandidates" resultMap="BaseResultMap">
+        SELECT id, id_card, bank_account
+        FROM dms_agent
+        WHERE (id_card IS NOT NULL AND id_card != '' AND id_card NOT LIKE 'enc:v1:%')
+           OR (bank_account IS NOT NULL AND bank_account != '' AND bank_account NOT LIKE 'enc:v1:%')
+        ORDER BY id
+        LIMIT #{limit}
+    </select>
+
+    <update id="encryptSensitiveFields">
+        UPDATE dms_agent
+        SET id_card = CASE
+                WHEN id_card IS NOT NULL AND id_card != '' AND id_card NOT LIKE 'enc:v1:%'
+                    THEN #{idCard,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler}
+                ELSE id_card END,
+            bank_account = CASE
+                WHEN bank_account IS NOT NULL AND bank_account != '' AND bank_account NOT LIKE 'enc:v1:%'
+                    THEN #{bankAccount,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler}
+                ELSE bank_account END
+        WHERE id = #{id}
+          AND ((id_card IS NOT NULL AND id_card != '' AND id_card NOT LIKE 'enc:v1:%')
+            OR (bank_account IS NOT NULL AND bank_account != '' AND bank_account NOT LIKE 'enc:v1:%'))
     </update>
 
     <update id="updateStatus">

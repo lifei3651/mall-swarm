@@ -10,7 +10,7 @@
         <result column="withdraw_amount" property="withdrawAmount"/>
         <result column="withdraw_type" property="withdrawType"/>
         <result column="bank_name" property="bankName"/>
-        <result column="bank_account" property="bankAccount"/>
+        <result column="bank_account" property="bankAccount" typeHandler="com.macro.mall.distribution.security.EncryptedStringTypeHandler"/>
         <result column="account_name" property="accountName"/>
         <result column="status" property="status"/>
         <result column="audit_user_id" property="auditUserId"/>
@@ -101,7 +101,7 @@
         INSERT INTO dms_withdraw_record (withdraw_no, agent_id, user_id, withdraw_amount, withdraw_type,
             bank_name, bank_account, account_name, status)
         VALUES (#{withdrawNo}, #{agentId}, #{userId}, #{withdrawAmount}, #{withdrawType},
-            #{bankName}, #{bankAccount}, #{accountName}, #{status})
+            #{bankName}, #{bankAccount,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler}, #{accountName}, #{status})
     </insert>
 
     <update id="update" parameterType="com.macro.mall.distribution.entity.DmsWithdrawRecord">
@@ -113,6 +113,18 @@
             pay_time = #{payTime},
             pay_no = #{payNo}
         WHERE id = #{id}
+    </update>
+
+    <select id="selectSensitivePlaintextCandidates" resultMap="BaseResultMap">
+        SELECT id, bank_account FROM dms_withdraw_record
+        WHERE bank_account IS NOT NULL AND bank_account != '' AND bank_account NOT LIKE 'enc:v1:%'
+        ORDER BY id LIMIT #{limit}
+    </select>
+
+    <update id="encryptSensitiveFields">
+        UPDATE dms_withdraw_record
+        SET bank_account=#{bankAccount,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler}
+        WHERE id=#{id} AND bank_account IS NOT NULL AND bank_account != '' AND bank_account NOT LIKE 'enc:v1:%'
     </update>
 
     <update id="updateStatus">

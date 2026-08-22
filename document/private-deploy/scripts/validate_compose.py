@@ -85,6 +85,8 @@ def validate(config):
         "DB_PASSWORD": {"mall-distribution"},
         "REDIS_PASSWORD": {"redis", "mall-distribution"},
         "SA_TOKEN_JWT_KEY": {"mall-distribution"},
+        "DATA_ENCRYPTION_KEY": {"mall-distribution"},
+        "DATA_ENCRYPTION_WRITE_ENABLED": {"mall-distribution"},
         "ALIPAY_PRIVATE_KEY": {"mall-distribution"},
         "SMS_ALIYUN_ACCESS_KEY_SECRET": {"mall-distribution"},
     }

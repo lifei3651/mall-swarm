@@ -26,6 +26,12 @@ sms:
   expose-code: true
   test-code: 123456
 
+# 仅供本机开发数据库；生产环境必须使用客户独立随机密钥。
+security:
+  data-encryption-key: 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+  data-encryption:
+    write-enabled: true
+
 # Swagger 只在显式本机 profile 开启，且基础配置绑定 127.0.0.1。
 springdoc:
   api-docs:

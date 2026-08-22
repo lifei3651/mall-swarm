@@ -65,8 +65,26 @@ class ProductionSecurityConfigTest {
         MockEnvironment secure = safeProductionEnvironment()
                 .withProperty("spring.datasource.username", "mall_app")
                 .withProperty("spring.datasource.password", "strong-production-database-secret")
-                .withProperty("spring.data.redis.password", "redis-strong-random-secret-1234567890");
+                .withProperty("spring.data.redis.password", "redis-strong-random-secret-1234567890")
+                .withProperty("security.data-encryption-key",
+                        "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f");
         new ProductionSafetyGuard(secure).validate();
+    }
+
+    @Test
+    void productionGuardRequiresIndependentDataEncryptionKey() {
+        MockEnvironment missing = safeProductionEnvironment()
+                .withProperty("spring.datasource.username", "mall_app")
+                .withProperty("spring.datasource.password", "strong-production-database-secret")
+                .withProperty("spring.data.redis.password", "redis-strong-random-secret-1234567890");
+        assertThrows(IllegalStateException.class, () -> new ProductionSafetyGuard(missing).validate());
+
+        MockEnvironment malformed = safeProductionEnvironment()
+                .withProperty("spring.datasource.username", "mall_app")
+                .withProperty("spring.datasource.password", "strong-production-database-secret")
+                .withProperty("spring.data.redis.password", "redis-strong-random-secret-1234567890")
+                .withProperty("security.data-encryption-key", "too-short");
+        assertThrows(IllegalStateException.class, () -> new ProductionSafetyGuard(malformed).validate());
     }
 
     @Test

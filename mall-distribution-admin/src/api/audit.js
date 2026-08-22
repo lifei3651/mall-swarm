@@ -134,6 +134,7 @@ export function saveRiskRule(data) {
     url: '/distribution/audit/finance/risk-rules',
     method: 'post',
     data,
+    adminStepUp: { message: '修改财务风险规则会影响后续风险判断，请再次验证。' },
   })
 }
 

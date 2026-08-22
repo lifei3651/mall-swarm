@@ -20,6 +20,13 @@ class AdminStepUpPolicyTest {
         assertTrue(AdminStepUpPolicy.requires("POST", "/distribution/commission/settlement-batches/7/execute"));
         assertTrue(AdminStepUpPolicy.requires("POST", "/distribution/import/external-team/file"));
         assertTrue(AdminStepUpPolicy.requires("POST", "/distribution/tenant/1/config-versions/2/restore"));
+        assertTrue(AdminStepUpPolicy.requires("PUT", "/distribution/merchants/3"));
+        assertTrue(AdminStepUpPolicy.requires("POST", "/distribution/merchant-finance/deposits/freeze"));
+        assertTrue(AdminStepUpPolicy.requires("POST", "/distribution/merchant-finance/withdrawals"));
+        assertTrue(AdminStepUpPolicy.requires("PUT", "/distribution/merchant-finance/withdrawals/7/review"));
+        assertTrue(AdminStepUpPolicy.requires("POST", "/distribution/merchant-finance/withdrawals/7/payment-processing"));
+        assertTrue(AdminStepUpPolicy.requires("POST", "/distribution/merchant-finance/withdrawals/7/risk-freeze"));
+        assertTrue(AdminStepUpPolicy.requires("POST", "/distribution/audit/finance/risk-rules"));
     }
 
     @Test
@@ -28,5 +35,7 @@ class AdminStepUpPolicyTest {
         assertFalse(AdminStepUpPolicy.requires("PUT", "/shop/admin/orders/4/ship"));
         assertFalse(AdminStepUpPolicy.requires("PUT", "/shop/admin/orders/4/service-remark"));
         assertFalse(AdminStepUpPolicy.requires("POST", "/distribution/admin-auth/step-up"));
+        assertFalse(AdminStepUpPolicy.requires("POST", "/distribution/merchant-finance/withdrawals/7/pay"));
+        assertFalse(AdminStepUpPolicy.requires("POST", "/distribution/merchant-finance/withdrawals/7/complete"));
     }
 }

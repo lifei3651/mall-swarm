@@ -82,6 +82,7 @@ replace_value MYSQL_ROOT_PASSWORD "$(openssl rand -hex 32)"
 replace_value DB_PASSWORD "$(openssl rand -hex 32)"
 replace_value REDIS_PASSWORD "$(openssl rand -hex 32)"
 replace_value SA_TOKEN_JWT_KEY "$(openssl rand -hex 48)"
+replace_value DATA_ENCRYPTION_KEY "$(openssl rand -hex 32)"
 replace_value CUSTOMER_NAME "$CUSTOMER_NAME"
 replace_value CUSTOMER_BRAND_NAME "$BRAND_NAME"
 

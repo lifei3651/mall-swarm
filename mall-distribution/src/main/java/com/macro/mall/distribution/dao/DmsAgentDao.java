@@ -88,6 +88,14 @@ public interface DmsAgentDao {
      */
     int update(DmsAgent agent);
 
+    /** 仅供启动迁移器读取仍为明文的身份证号或银行卡号。 */
+    List<DmsAgent> selectSensitivePlaintextCandidates(@Param("limit") int limit);
+
+    /** 仅当数据库仍存在明文时改写，保证启动迁移可重试。 */
+    int encryptSensitiveFields(@Param("id") Long id,
+                               @Param("idCard") String idCard,
+                               @Param("bankAccount") String bankAccount);
+
     /**
      * 更新代理状态
      */

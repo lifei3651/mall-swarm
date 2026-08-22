@@ -47,6 +47,10 @@ public class ProductionSafetyGuard {
             if (redisPassword.length() < 32 || isWeakSecret(redisPassword)) {
                 throw new IllegalStateException("生产环境Redis密码必须为至少32位的独立强随机密钥");
             }
+            String dataEncryptionKey = environment.getProperty("security.data-encryption-key", "");
+            if (!dataEncryptionKey.matches("[0-9a-fA-F]{64}")) {
+                throw new IllegalStateException("生产环境必须配置64位十六进制敏感字段加密密钥");
+            }
         }
         if (Boolean.parseBoolean(environment.getProperty("payment.verification.enabled", "false"))
                 && !Boolean.parseBoolean(environment.getProperty("sms.provider-enabled", "false"))) {

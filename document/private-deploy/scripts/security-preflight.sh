@@ -73,6 +73,9 @@ require_secret MYSQL_ROOT_PASSWORD 32
 require_secret DB_PASSWORD 32
 require_secret REDIS_PASSWORD 32
 require_secret SA_TOKEN_JWT_KEY 48
+data_encryption_key=$(value_of DATA_ENCRYPTION_KEY)
+printf '%s' "$data_encryption_key" | grep -Eq '^[0-9A-Fa-f]{64}$' || fail "DATA_ENCRYPTION_KEY 必须是64位十六进制随机密钥"
+[ "$(value_of DATA_ENCRYPTION_WRITE_ENABLED)" = "true" ] || fail "客户正式部署必须启用 DATA_ENCRYPTION_WRITE_ENABLED=true"
 [ "$(value_of DB_HOST)" = "mysql" ] && [ "$(value_of DB_NAME)" = "mall_distribution" ] || fail "当前独立部署的数据库必须使用内部 mysql/mall_distribution"
 [ "$(value_of REDIS_HOST)" = "redis" ] && [ "$(value_of REDIS_PORT)" = "6379" ] || fail "当前独立部署的Redis必须使用内部服务"
 

@@ -84,6 +84,12 @@ admin:
     session-hours: 12
 
 security:
+  # 64位十六进制 AES-256 密钥；生产启动门禁强制要求，客户部署脚本自动生成。
+  data-encryption-key: ${DATA_ENCRYPTION_KEY:}
+  data-encryption:
+    # 既有环境首次发布先保持 false 验证兼容性，再配置为 true 并迁移；客户新部署模板强制开启。
+    write-enabled: ${DATA_ENCRYPTION_WRITE_ENABLED:false}
+    migrate-on-startup: ${DATA_ENCRYPTION_MIGRATE_ON_STARTUP:true}
   cors:
     # 空值表示拒绝所有跨域请求；客户部署脚本会写入公开商城、团队H5和后台的精确HTTPS来源。
     allowed-origins: ${CORS_ORIGINS:}

@@ -13,4 +13,8 @@ public interface DmsErpIntegrationDao {
     List<DmsErpIntegration> selectList(@Param("tenantId") Long tenantId);
     int insert(DmsErpIntegration entity);
     int update(DmsErpIntegration entity);
+    List<DmsErpIntegration> selectSensitivePlaintextCandidates(@Param("limit") int limit);
+    int encryptSensitiveFields(@Param("id") Long id,
+                               @Param("appSecret") String appSecret,
+                               @Param("callbackToken") String callbackToken);
 }

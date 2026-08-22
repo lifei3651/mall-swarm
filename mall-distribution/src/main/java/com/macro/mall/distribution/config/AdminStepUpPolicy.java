@@ -12,6 +12,8 @@ final class AdminStepUpPolicy {
 
     static boolean requires(String method, String path) {
         if (path == null) return false;
+        if ((HttpMethod.POST.matches(method) && path.equals("/distribution/merchants"))
+                || (HttpMethod.PUT.matches(method) && path.matches("/distribution/merchants/[^/]+"))) return true;
         if (HttpMethod.PUT.matches(method) && (path.matches("/distribution/admin-users/[^/]+/(status|unlock)")
                 || path.matches("/shop/admin/members/[^/]+/(status|unlock|payment-password/unlock|level)")
                 || path.matches("/distribution/agent/[^/]+/(status|level)")
@@ -27,6 +29,12 @@ final class AdminStepUpPolicy {
                 || path.matches("/distribution/commission/settlement-batches/[^/]+/execute")
                 || path.equals("/distribution/import/external-team/file")
                 || path.matches("/distribution/tenant/[^/]+/config-versions/[^/]+/restore"))) return true;
+        if (HttpMethod.POST.matches(method) && (path.matches("/distribution/merchant-finance/deposits/(freeze|receive|release)")
+                || path.equals("/distribution/merchant-finance/withdrawals")
+                || path.matches("/distribution/merchant-finance/withdrawals/[^/]+/(payment-processing|payment-failed|risk-freeze|risk-resume|reject)")
+                || path.equals("/distribution/audit/finance/risk-rules"))) return true;
+        if (HttpMethod.PUT.matches(method)
+                && path.matches("/distribution/merchant-finance/withdrawals/[^/]+/review")) return true;
         return false;
     }
 }
