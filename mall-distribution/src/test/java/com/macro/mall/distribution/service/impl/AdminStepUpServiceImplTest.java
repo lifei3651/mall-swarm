@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.service.impl;
 
+import com.macro.mall.common.api.ResultCode;
 import com.macro.mall.common.exception.ApiException;
 import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.vo.AdminStepUpTokenVO;
@@ -50,6 +51,7 @@ class AdminStepUpServiceImplTest {
         ApiException missing = assertThrows(ApiException.class,
                 () -> service.consume(admin(7L), "PUT", "/shop/admin/orders/8/cancel", null));
         assertTrue(missing.getMessage().contains("需要再次验证"));
+        assertEquals(ResultCode.FORBIDDEN, missing.getErrorCode());
 
         ApiException invalid = assertThrows(ApiException.class,
                 () -> service.consume(admin(7L), "PUT", "/shop/admin/orders/8/cancel", "wrong-token"));

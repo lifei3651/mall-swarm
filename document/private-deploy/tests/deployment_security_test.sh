@@ -23,6 +23,12 @@ if grep -q "connect-src 'self' https:" "$DEPLOY_DIR/nginx/conf.d/mall.conf.templ
 fi
 grep -q "connect-src 'self'" "$DEPLOY_DIR/nginx/conf.d/mall.conf.template"
 grep -q 'bootstrap-admin' "$DEPLOY_DIR/scripts/deploy.sh"
+grep -q '^DB_SSL_MODE=REQUIRED$' "$DEPLOY_DIR/customer.env.example"
+for service in mysql redis mall-distribution nginx; do
+  grep -A80 "^  $service:" "$DEPLOY_DIR/docker-compose.private.yml" | grep -q 'no-new-privileges:true'
+  grep -A80 "^  $service:" "$DEPLOY_DIR/docker-compose.private.yml" | grep -q 'read_only: true'
+  grep -A80 "^  $service:" "$DEPLOY_DIR/docker-compose.private.yml" | grep -q 'pids_limit:'
+done
 sh -n "$DEPLOY_DIR/scripts/bootstrap-admin.sh"
 printf 'FROM eclipse-temurin:17.0.19_10-jre-jammy\nUSER mall\n' > "$TEST_ROOT/mall-distribution/Dockerfile"
 

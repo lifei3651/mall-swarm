@@ -21,7 +21,6 @@ spring:
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
       - cn.dev33.satoken.dao.SaTokenDaoForRedisTemplate
-      - de.codecentric.boot.admin.client.autoconfigure.SpringBootAdminClientAutoConfiguration
   # H2 数据库
   datasource:
     url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE

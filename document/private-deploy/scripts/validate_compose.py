@@ -96,17 +96,27 @@ def validate(config):
             errors.append(f"{key} 的容器最小权限边界不正确")
 
     app_env = environment_map(services.get("mall-distribution", {}))
-    if not services.get("mall-distribution", {}).get("read_only"):
-        errors.append("商城后端根文件系统必须只读")
-    for name in ("mall-distribution", "nginx"):
+    for name in REQUIRED_SERVICES:
+        service = services.get(name, {})
+        if not service.get("read_only"):
+            errors.append(f"{name} 根文件系统必须只读")
         options = {
             str(option).replace("=", ":", 1)
-            for option in services.get(name, {}).get("security_opt") or []
+            for option in service.get("security_opt") or []
         }
         if "no-new-privileges:true" not in options:
             errors.append(f"{name} 必须禁止获取新权限")
+        for key, label in (("cpus", "CPU"), ("mem_limit", "内存"), ("pids_limit", "进程数")):
+            try:
+                configured = float(service.get(key, 0))
+            except (TypeError, ValueError):
+                configured = 0
+            if configured <= 0:
+                errors.append(f"{name} 必须设置有效的{label}资源上限")
     if app_env.get("SPRING_PROFILES_ACTIVE") != "prod":
         errors.append("商城后端必须强制使用 prod 环境")
+    if str(app_env.get("DB_SSL_MODE", "")).upper() not in {"REQUIRED", "VERIFY_CA", "VERIFY_IDENTITY"}:
+        errors.append("生产数据库连接必须启用 TLS")
     if str(app_env.get("SPRING_CLOUD_NACOS_DISCOVERY_ENABLED", "")).lower() != "false" \
             or str(app_env.get("SPRING_CLOUD_NACOS_CONFIG_ENABLED", "")).lower() != "false":
         errors.append("当前单体商城基座必须关闭不必要的 Nacos 客户端")

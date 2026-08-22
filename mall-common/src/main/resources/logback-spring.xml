@@ -39,6 +39,8 @@
             <maxFileSize>${LOG_FILE_MAX_SIZE:-10MB}</maxFileSize>
             <!--日志文件保留天数，默认30天-->
             <maxHistory>${LOG_FILE_MAX_HISTORY:-30}</maxHistory>
+            <!-- 即使保留天数内日志异常增长，也限制单类日志的总磁盘占用。 -->
+            <totalSizeCap>${LOG_TOTAL_SIZE_CAP:-1GB}</totalSizeCap>
         </rollingPolicy>
     </appender>
 
@@ -63,6 +65,7 @@
             <maxFileSize>${LOG_FILE_MAX_SIZE:-10MB}</maxFileSize>
             <!--日志文件保留天数，默认30天-->
             <maxHistory>${LOG_FILE_MAX_HISTORY:-30}</maxHistory>
+            <totalSizeCap>${LOG_TOTAL_SIZE_CAP:-1GB}</totalSizeCap>
         </rollingPolicy>
     </appender>
 
@@ -191,7 +194,7 @@
                 </encoder>
             </appender>
 
-            <root level="DEBUG">
+            <root level="INFO">
                 <appender-ref ref="LOG_STASH_DEBUG"/>
                 <appender-ref ref="LOG_STASH_ERROR"/>
             </root>
@@ -212,7 +215,7 @@
     <logger name="org.hibernate.validator" level="INFO"/>
     <logger name="com.alibaba.nacos.client.naming" level="INFO"/>
 
-    <root level="DEBUG">
+    <root level="INFO">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="FILE_DEBUG"/>
         <appender-ref ref="FILE_ERROR"/>

@@ -41,9 +41,15 @@ public class DistributedScheduledTaskRunner {
             log.debug("定时任务已由其他实例执行，本轮跳过: task={}", taskName);
             return false;
         }
+        long startedAt = System.nanoTime();
         try {
             task.run();
+            log.info("定时任务执行完成: task={}, durationMs={}", taskName, elapsedMillis(startedAt));
             return true;
+        } catch (RuntimeException | Error ex) {
+            log.warn("定时任务执行异常: task={}, durationMs={}, type={}",
+                    taskName, elapsedMillis(startedAt), ex.getClass().getSimpleName());
+            throw ex;
         } finally {
             try {
                 if (!redisLock.unlock(lockKey, ownerToken)) {
@@ -53,5 +59,9 @@ public class DistributedScheduledTaskRunner {
                 log.error("定时任务分布式锁释放失败: task={}", taskName, ex);
             }
         }
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
     }
 }

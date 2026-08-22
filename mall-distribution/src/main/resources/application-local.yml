@@ -12,11 +12,6 @@ spring:
         enabled: false
         import-check:
           enabled: false
-  boot:
-    admin:
-      client:
-        enabled: false
-
 # 本机测试能力必须通过显式 local profile 才能开启，基础配置始终保持安全。
 shop:
   payment:

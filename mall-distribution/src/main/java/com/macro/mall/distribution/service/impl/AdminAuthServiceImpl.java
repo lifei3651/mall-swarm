@@ -3,6 +3,8 @@ package com.macro.mall.distribution.service.impl;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.crypto.SecureUtil;
 import cn.hutool.crypto.digest.BCrypt;
+import com.macro.mall.common.api.ResultCode;
+import com.macro.mall.common.exception.ApiException;
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.distribution.dao.DmsAdminSessionDao;
 import com.macro.mall.distribution.dao.DmsAdminUserDao;
@@ -127,7 +129,7 @@ public class AdminAuthServiceImpl implements AdminAuthService {
     public DmsAdminUser requireAdmin(String authorization) {
         DmsAdminUser admin = resolveAdmin(authorization);
         if (admin == null) {
-            Asserts.fail("后台登录已失效，请重新登录");
+            throw new ApiException(ResultCode.UNAUTHORIZED, "后台登录已失效，请重新登录");
         }
         return admin;
     }
@@ -160,7 +162,7 @@ public class AdminAuthServiceImpl implements AdminAuthService {
     @Override
     public void requirePermission(DmsAdminUser admin, String permission) {
         if (!hasPermission(admin, permission)) {
-            Asserts.fail("没有操作权限：" + permission);
+            throw new ApiException(ResultCode.FORBIDDEN, "没有操作权限：" + permission);
         }
     }
 

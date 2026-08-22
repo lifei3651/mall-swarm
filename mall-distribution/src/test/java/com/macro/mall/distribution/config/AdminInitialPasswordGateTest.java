@@ -1,5 +1,7 @@
 package com.macro.mall.distribution.config;
 
+import com.macro.mall.common.api.ResultCode;
+import com.macro.mall.common.exception.ApiException;
 import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.AdminAuthService;
@@ -49,6 +51,17 @@ class AdminInitialPasswordGateTest {
 
         assertTrue(interceptor.preHandle(request, response, new Object()));
         assertEquals(admin, AdminContext.get());
+    }
+
+    @Test
+    void interceptorUsesStructuredErrorCodeInsteadOfChineseMessagePrefix() throws Exception {
+        when(authService.requireAdmin(null))
+                .thenThrow(new ApiException(ResultCode.UNAUTHORIZED, "没有操作权限但实际是会话失效"));
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/distribution/dashboard");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        assertFalse(interceptor.preHandle(request, response, new Object()));
+        assertEquals(401, response.getStatus());
     }
 
     private DmsAdminUser forcedAdmin() {

@@ -38,6 +38,8 @@
         <dependency>
             <groupId>org.mybatis.generator</groupId>
             <artifactId>mybatis-generator-core</artifactId>
+            <!-- 仅供本模块本地生成代码，禁止传递进入商城生产运行包。 -->
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>com.mysql</groupId>

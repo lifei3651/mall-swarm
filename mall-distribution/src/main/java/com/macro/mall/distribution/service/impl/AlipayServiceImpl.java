@@ -13,6 +13,7 @@ import com.alipay.api.response.AlipayTradeWapPayResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import cn.hutool.crypto.SecureUtil;
+import com.macro.mall.common.log.SensitiveLogSanitizer;
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.distribution.config.AlipayConfig;
 import com.macro.mall.distribution.entity.DmsShopOrder;
@@ -107,9 +108,11 @@ public class AlipayServiceImpl implements AlipayService {
                 return result;
             }
 
-            log.error("支付宝预支付订单创建失败: code={}, msg={}, subMsg={}",
-                    response.getCode(), response.getMsg(), response.getSubMsg());
-            Asserts.fail("创建支付宝订单失败: " + (response.getSubMsg() != null ? response.getSubMsg() : response.getMsg()));
+            log.error("支付宝预支付订单创建失败: code={}, msg={}, subMsg={}", response.getCode(),
+                    SensitiveLogSanitizer.sanitizeText(response.getMsg()),
+                    SensitiveLogSanitizer.sanitizeText(response.getSubMsg()));
+            // 第三方返回内容可能包含商户配置、内部诊断或不可控文本，只向用户返回稳定文案。
+            Asserts.fail("创建支付宝订单失败，请稍后重试或联系客服");
             return null;
         } catch (AlipayApiException e) {
             log.error("支付宝API调用异常", e);
@@ -151,7 +154,7 @@ public class AlipayServiceImpl implements AlipayService {
 
             // 3. 验证app_id
             if (!alipayConfig.getAppId().equals(appId)) {
-                log.error("支付宝回调app_id不匹配: expected={}, actual={}", alipayConfig.getAppId(), appId);
+                log.error("支付宝回调app_id不匹配");
                 return "failure";
             }
             if (!alipayConfig.getSellerId().equals(sellerId)) {
@@ -350,7 +353,8 @@ public class AlipayServiceImpl implements AlipayService {
             }
 
             log.error("支付宝退款失败: code={}, msg={}, subMsg={}",
-                    response.getCode(), response.getMsg(), response.getSubMsg());
+                    response.getCode(), SensitiveLogSanitizer.sanitizeText(response.getMsg()),
+                    SensitiveLogSanitizer.sanitizeText(response.getSubMsg()));
             return false;
         } catch (Exception e) {
             log.error("支付宝退款异常", e);

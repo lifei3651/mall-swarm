@@ -3,6 +3,7 @@ package com.macro.mall.distribution.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.macro.mall.common.exception.Asserts;
+import com.macro.mall.common.log.SensitiveLogSanitizer;
 import com.macro.mall.distribution.dao.DmsBonusCalculationSnapshotDao;
 import com.macro.mall.distribution.dao.DmsBonusCalculationTaskDao;
 import com.macro.mall.distribution.dao.DmsCommissionRecordDao;
@@ -173,7 +174,7 @@ public class BonusCalculationTaskServiceImpl implements BonusCalculationTaskServ
             return true;
         } catch (Exception e) {
             log.error("奖金异步计算失败: taskId={}, orderId={}", taskId, task.getOrderId(), e);
-            String failReason = e.getMessage();
+            String failReason = safeFailureReason(e);
             if (failReason != null && failReason.length() > 500) {
                 failReason = failReason.substring(0, 500);
             }
@@ -184,6 +185,13 @@ public class BonusCalculationTaskServiceImpl implements BonusCalculationTaskServ
             }
             return false;
         }
+    }
+
+    static String safeFailureReason(Exception exception) {
+        String message = SensitiveLogSanitizer.sanitizeText(exception == null ? null : exception.getMessage());
+        return message == null || message.isBlank()
+                ? (exception == null ? "UnknownFailure" : exception.getClass().getSimpleName())
+                : message;
     }
 
     private void saveSnapshot(DmsBonusCalculationTask task) {

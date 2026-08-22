@@ -17,12 +17,22 @@ def safe_config():
                 "image": "mysql:8.4.10",
                 "environment": {"MYSQL_ROOT_PASSWORD": "secret", "MYSQL_PASSWORD": "secret"},
                 "networks": {"data": None},
+                "read_only": True,
+                "security_opt": ["no-new-privileges:true"],
+                "cpus": 2.0,
+                "mem_limit": 2147483648,
+                "pids_limit": 256,
             },
             "redis": {
                 "image": "redis:7.2.15-alpine",
                 "environment": {"REDIS_PASSWORD": "secret"},
                 "command": ["sh", "-c", 'redis-server --rename-command KEYS "" --rename-command FLUSHALL "" --rename-command FLUSHDB "" --rename-command CONFIG "" --rename-command SHUTDOWN "" --rename-command DEBUG "" --rename-command MODULE ""'],
                 "networks": {"data": None},
+                "read_only": True,
+                "security_opt": ["no-new-privileges:true"],
+                "cpus": 1.0,
+                "mem_limit": 536870912,
+                "pids_limit": 128,
             },
             "mall-distribution": {
                 "environment": {
@@ -37,18 +47,26 @@ def safe_config():
                     "SA_TOKEN_JWT_KEY": "secret",
                     "DATA_ENCRYPTION_KEY": "secret",
                     "DATA_ENCRYPTION_WRITE_ENABLED": "true",
+                    "DB_SSL_MODE": "REQUIRED",
                     "ALIPAY_PRIVATE_KEY": "",
                     "SMS_ALIYUN_ACCESS_KEY_SECRET": "",
                 },
                 "networks": {"edge": None, "data": None},
                 "read_only": True,
                 "security_opt": ["no-new-privileges:true"],
+                "cpus": 2.0,
+                "mem_limit": 2147483648,
+                "pids_limit": 256,
             },
             "nginx": {
                 "image": "nginx:1.28.3-alpine",
                 "environment": {},
                 "networks": {"edge": None},
                 "security_opt": ["no-new-privileges:true"],
+                "read_only": True,
+                "cpus": 1.0,
+                "mem_limit": 268435456,
+                "pids_limit": 128,
                 "ports": [
                     {"target": 80, "published": "80", "host_ip": "0.0.0.0"},
                     {"target": 443, "published": "443", "host_ip": "0.0.0.0"},
@@ -72,6 +90,16 @@ class ComposeSecurityValidationTest(unittest.TestCase):
             "no-new-privileges=true"
         ]
         self.assertEqual([], MODULE.validate(config))
+
+    def test_rejects_writable_container_missing_limits_and_unencrypted_database(self):
+        config = safe_config()
+        config["services"]["mysql"]["read_only"] = False
+        config["services"]["redis"].pop("mem_limit")
+        config["services"]["mall-distribution"]["environment"]["DB_SSL_MODE"] = "DISABLED"
+        errors = MODULE.validate(config)
+        self.assertTrue(any("mysql 根文件系统必须只读" in error for error in errors))
+        self.assertTrue(any("redis 必须设置有效的内存资源上限" in error for error in errors))
+        self.assertTrue(any("数据库连接必须启用 TLS" in error for error in errors))
 
     def test_rejects_public_redis_port(self):
         config = safe_config()

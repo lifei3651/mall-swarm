@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.config;
 
 import com.macro.mall.common.exception.ApiException;
+import com.macro.mall.common.api.ResultCode;
 import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.AdminAuthService;
@@ -56,15 +57,15 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             try {
                 DmsAdminUser admin = adminAuthService.requireAdmin(request.getHeader("Authorization"));
                 if (Integer.valueOf(1).equals(admin.getMustChangePassword()) && !passwordChangeRequest(request)) {
-                    throw new ApiException("必须先修改后台初始密码，才能继续使用管理功能");
+                    throw new ApiException(ResultCode.FORBIDDEN, "必须先修改后台初始密码，才能继续使用管理功能");
                 }
                 String permission = AdminPermissionPolicy.requiredPermission(request.getMethod(), request.getRequestURI());
                 if (permission == null) {
-                    throw new ApiException("后台接口未配置权限或请求路径不合法");
+                    throw new ApiException(ResultCode.FORBIDDEN, "后台接口未配置权限或请求路径不合法");
                 }
                 adminAuthService.requirePermission(admin, permission);
                 if (admin.getMerchantId() != null && !merchantWorkspaceRequest(request)) {
-                    throw new ApiException("没有操作权限：商户工作台账号不能访问平台管理功能");
+                    throw new ApiException(ResultCode.FORBIDDEN, "没有操作权限：商户工作台账号不能访问平台管理功能");
                 }
                 if (AdminStepUpPolicy.requires(request.getMethod(), request.getRequestURI())) {
                     adminStepUpService.consume(admin, request.getMethod(), request.getRequestURI(),
@@ -73,8 +74,8 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
                 AdminContext.set(admin);
                 return true;
             } catch (ApiException e) {
-                int status = e.getMessage() != null && (e.getMessage().startsWith("没有操作权限")
-                        || e.getMessage().startsWith("必须先修改")) ? 403 : 401;
+                int status = e.getErrorCode() != null
+                        && e.getErrorCode().getCode() == ResultCode.FORBIDDEN.getCode() ? 403 : 401;
                 writeError(response, status, e.getMessage());
                 return false;
             }

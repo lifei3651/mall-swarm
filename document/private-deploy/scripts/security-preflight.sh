@@ -77,7 +77,19 @@ data_encryption_key=$(value_of DATA_ENCRYPTION_KEY)
 printf '%s' "$data_encryption_key" | grep -Eq '^[0-9A-Fa-f]{64}$' || fail "DATA_ENCRYPTION_KEY 必须是64位十六进制随机密钥"
 [ "$(value_of DATA_ENCRYPTION_WRITE_ENABLED)" = "true" ] || fail "客户正式部署必须启用 DATA_ENCRYPTION_WRITE_ENABLED=true"
 [ "$(value_of DB_HOST)" = "mysql" ] && [ "$(value_of DB_NAME)" = "mall_distribution" ] || fail "当前独立部署的数据库必须使用内部 mysql/mall_distribution"
+[ "$(value_of DB_SSL_MODE)" = "REQUIRED" ] || fail "当前生产模板必须使用 DB_SSL_MODE=REQUIRED；外部数据库应使用 VERIFY_IDENTITY"
 [ "$(value_of REDIS_HOST)" = "redis" ] && [ "$(value_of REDIS_PORT)" = "6379" ] || fail "当前独立部署的Redis必须使用内部服务"
+for key in MYSQL_CPU_LIMIT REDIS_CPU_LIMIT APP_CPU_LIMIT NGINX_CPU_LIMIT; do
+  value=$(value_of "$key")
+  printf '%s' "$value" | grep -Eq '^[0-9]+([.][0-9]+)?$' || fail "$key 必须是正数"
+  printf '%s' "$value" | grep -Eq '^0+([.]0+)?$' && fail "$key 必须大于0"
+done
+for key in MYSQL_MEMORY_LIMIT REDIS_MEMORY_LIMIT APP_MEMORY_LIMIT NGINX_MEMORY_LIMIT; do
+  printf '%s' "$(value_of "$key")" | grep -Eq '^[1-9][0-9]*[mMgG]$' || fail "$key 必须使用正数加 m/g 单位"
+done
+for key in MYSQL_PIDS_LIMIT REDIS_PIDS_LIMIT APP_PIDS_LIMIT NGINX_PIDS_LIMIT; do
+  printf '%s' "$(value_of "$key")" | grep -Eq '^[1-9][0-9]*$' || fail "$key 必须是正整数"
+done
 
 domain=$(value_of CUSTOMER_DOMAIN)
 team_domain=$(value_of TEAM_DOMAIN)

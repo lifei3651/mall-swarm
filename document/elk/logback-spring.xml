@@ -1,10 +1,30 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE configuration>
 <configuration>
+    <!-- 本文件是可复制的 ELK 参考配置，也必须复用正式日志脱敏转换器。 -->
+    <conversionRule conversionWord="safeMsg" class="com.macro.mall.common.log.SensitiveMessageConverter"/>
+    <conversionRule conversionWord="safeEx" class="com.macro.mall.common.log.SensitiveThrowableProxyConverter"/>
     <include resource="org/springframework/boot/logging/logback/base.xml"/>
     <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
         <destination>localhost:4560</destination>
-        <encoder charset="UTF-8" class="net.logstash.logback.encoder.LogstashEncoder" />
+        <encoder charset="UTF-8" class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp>
+                    <timeZone>Asia/Shanghai</timeZone>
+                </timestamp>
+                <pattern>
+                    <pattern>
+                        {
+                        "level": "%level",
+                        "thread": "%thread",
+                        "class": "%logger",
+                        "message": "%safeMsg",
+                        "stack_trace": "%safeEx{20}"
+                        }
+                    </pattern>
+                </pattern>
+            </providers>
+        </encoder>
     </appender>
     <root level="INFO">
         <appender-ref ref="LOGSTASH" />

@@ -36,6 +36,15 @@ services:
       - ./initdb:/docker-entrypoint-initdb.d:ro
     networks:
       - data
+    cpus: ${MYSQL_CPU_LIMIT}
+    mem_limit: ${MYSQL_MEMORY_LIMIT}
+    pids_limit: ${MYSQL_PIDS_LIMIT}
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+      - /var/run/mysqld:rw,noexec,nosuid,size=32m
     healthcheck:
       test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysqladmin ping -h 127.0.0.1 -uroot --silent"]
       interval: 10s
@@ -54,6 +63,14 @@ services:
       - redis_data:/data
     networks:
       - data
+    cpus: ${REDIS_CPU_LIMIT}
+    mem_limit: ${REDIS_MEMORY_LIMIT}
+    pids_limit: ${REDIS_PIDS_LIMIT}
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
     healthcheck:
       test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping 2>/dev/null | grep -q PONG"]
       interval: 10s
@@ -123,6 +140,9 @@ services:
     networks:
       - edge
       - data
+    cpus: ${APP_CPU_LIMIT}
+    mem_limit: ${APP_MEMORY_LIMIT}
+    pids_limit: ${APP_PIDS_LIMIT}
     depends_on:
       mysql:
         condition: service_healthy
@@ -160,11 +180,19 @@ services:
       - ./logs/nginx:/var/log/nginx
     networks:
       - edge
+    cpus: ${NGINX_CPU_LIMIT}
+    mem_limit: ${NGINX_MEMORY_LIMIT}
+    pids_limit: ${NGINX_PIDS_LIMIT}
     depends_on:
       mall-distribution:
         condition: service_healthy
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /etc/nginx/conf.d:rw,noexec,nosuid,size=4m
+      - /var/cache/nginx:rw,noexec,nosuid,size=32m
+      - /var/run:rw,noexec,nosuid,size=4m
 
 networks:
   edge:

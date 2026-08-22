@@ -162,7 +162,8 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,metrics,prometheus
+        # 默认仅供容器健康检查；如客户部署内网 Prometheus，再显式配置 metrics,prometheus。
+        include: ${MANAGEMENT_ENDPOINTS:health}
   endpoint:
     health:
       show-details: never

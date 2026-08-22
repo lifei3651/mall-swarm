@@ -1,7 +1,9 @@
 package com.macro.mall.distribution.service.impl;
 
 import cn.hutool.core.util.IdUtil;
+import com.macro.mall.common.exception.ApiException;
 import com.macro.mall.common.exception.Asserts;
+import com.macro.mall.common.log.SensitiveLogSanitizer;
 import com.macro.mall.distribution.dao.DmsAgentDao;
 import com.macro.mall.distribution.dao.DmsImportBatchDao;
 import com.macro.mall.distribution.dao.DmsImportDetailDao;
@@ -123,9 +125,10 @@ public class ImportServiceImpl implements ImportService {
                 log.info("导入代理成功: row={}, agentCode={}", i + 1, agent.getAgentCode());
             } catch (Exception e) {
                 detail.setStatus(2); // 失败
-                detail.setErrorMsg(e.getMessage());
+                String safeError = safeRowError(e);
+                detail.setErrorMsg(safeError);
                 failCount++;
-                errorMessages.add("第" + (i + 1) + "行: " + e.getMessage());
+                errorMessages.add("第" + (i + 1) + "行: " + safeError);
 
                 log.error("导入代理失败: row={}", i + 1, e);
             }
@@ -213,9 +216,10 @@ public class ImportServiceImpl implements ImportService {
                 log.info("导入订单成功: row={}, orderNo={}", i + 1, orderDTO.getOrderNo());
             } catch (Exception e) {
                 detail.setStatus(2); // 失败
-                detail.setErrorMsg(e.getMessage());
+                String safeError = safeRowError(e);
+                detail.setErrorMsg(safeError);
                 failCount++;
-                errorMessages.add("第" + (i + 1) + "行: " + e.getMessage());
+                errorMessages.add("第" + (i + 1) + "行: " + safeError);
 
                 log.error("导入订单失败: row={}", i + 1, e);
             }
@@ -418,6 +422,15 @@ public class ImportServiceImpl implements ImportService {
                 .map(ConstraintViolation::getMessage)
                 .findFirst().orElse("导入数据格式不正确");
         Asserts.fail(message);
+    }
+
+    static String safeRowError(Exception exception) {
+        // 校验与明确业务错误可以反馈给运营；数据库、解析器和框架异常只保留服务端日志。
+        if (exception instanceof ApiException || exception instanceof IllegalArgumentException) {
+            String message = SensitiveLogSanitizer.sanitizeText(exception.getMessage());
+            if (message != null && !message.isBlank()) return message;
+        }
+        return "该行处理失败，请核对数据；如仍失败请联系管理员并提供批次号";
     }
 
     private boolean isBlankRow(List<String> row) {

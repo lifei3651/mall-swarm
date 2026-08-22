@@ -17,6 +17,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -106,7 +107,7 @@ public class WebLogAspect {
     /**
      * 根据方法和传入的参数获取请求参数
      */
-    private Object getParameter(Method method, Object[] args) {
+    Object getParameter(Method method, Object[] args) {
         List<Object> argList = new ArrayList<>();
         Parameter[] parameters = method.getParameters();
         for (int i = 0; i < parameters.length; i++) {
@@ -129,6 +130,18 @@ public class WebLogAspect {
                 } else {
                     map.put(key, SensitiveLogSanitizer.sanitize(args[i]));
                 }
+                argList.add(map);
+            }
+            // PathVariable 也可能承载手机号、登录账号、邀请码或文件名，必须走同一脱敏边界。
+            PathVariable pathVariable = parameters[i].getAnnotation(PathVariable.class);
+            if (pathVariable != null) {
+                Map<String, Object> map = new HashMap<>();
+                String key = parameters[i].getName();
+                if (pathVariable.value() != null && !pathVariable.value().isEmpty()) {
+                    key = pathVariable.value();
+                }
+                map.put(key, SensitiveLogSanitizer.isSensitiveName(key)
+                        ? "***" : SensitiveLogSanitizer.sanitize(args[i]));
                 argList.add(map);
             }
         }
