@@ -36,10 +36,11 @@ class TenantConfigVersionServiceTest {
         TenantLegalTemplateSupport legalSupport = mock(TenantLegalTemplateSupport.class);
         OperationLogService operationLogService = mock(OperationLogService.class);
         ShopCatalogCacheService catalogCache = mock(ShopCatalogCacheService.class);
+        AdminAuthService adminAuthService = mock(AdminAuthService.class);
         ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
         TenantDisplayConfigSupport displaySupport = new TenantDisplayConfigSupport(objectMapper);
         TenantServiceImpl service = new TenantServiceImpl(tenantDao, ruleVersionDao, displayDao, versionDao,
-                displaySupport, legalSupport, operationLogService, objectMapper, catalogCache);
+                displaySupport, legalSupport, operationLogService, objectMapper, catalogCache, adminAuthService);
 
         DmsTenant current = tenant(1L, "当前商城");
         DmsTenantDisplayConfig currentDisplay = display(1L, 0);

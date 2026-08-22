@@ -10,6 +10,7 @@ import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.entity.DmsMerchant;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.AdminAuthService;
+import com.macro.mall.distribution.service.OperationLogService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -25,7 +26,9 @@ class AdminUserServiceSecurityTest {
     private final DmsAdminSessionDao sessionDao = mock(DmsAdminSessionDao.class);
     private final AdminAuthService authService = mock(AdminAuthService.class);
     private final DmsMerchantDao merchantDao = mock(DmsMerchantDao.class);
-    private final AdminUserServiceImpl service = new AdminUserServiceImpl(userDao, sessionDao, authService, merchantDao);
+    private final OperationLogService operationLogService = mock(OperationLogService.class);
+    private final AdminUserServiceImpl service = new AdminUserServiceImpl(
+            userDao, sessionDao, authService, merchantDao, operationLogService);
 
     @AfterEach
     void clearContext() { AdminContext.clear(); }

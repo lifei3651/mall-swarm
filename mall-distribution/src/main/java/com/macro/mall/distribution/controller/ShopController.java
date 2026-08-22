@@ -847,6 +847,14 @@ public class ShopController {
         return CommonResult.success(shopService.shipOrder(orderId, dto));
     }
 
+    @Operation(summary = "后台查询订单真实物流轨迹")
+    @GetMapping("/admin/orders/{orderId}/tracking")
+    public CommonResult<List<ShopLogisticsTrackingVO>> adminOrderTracking(@PathVariable Long orderId) {
+        ShopOrderVO vo = shopService.getOrder(orderId);
+        if (vo == null || vo.getOrder() == null) Asserts.fail("订单不存在或无权查看");
+        return CommonResult.success(logisticsTrackingService.query(vo.getShipments()));
+    }
+
     @Operation(summary = "保存订单客服内部备注")
     @PutMapping("/admin/orders/{orderId}/service-remark")
     public CommonResult<Boolean> updateOrderServiceRemark(@PathVariable Long orderId,

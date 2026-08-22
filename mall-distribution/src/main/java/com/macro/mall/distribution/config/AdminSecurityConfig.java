@@ -124,11 +124,17 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
         }
 
         private boolean hasDetailedBusinessLog(HttpServletRequest request) {
+            String path = request.getRequestURI();
             return isMemberLevelRequest(request)
+                    || path.equals("/distribution/admin-auth/logout")
+                    || path.startsWith("/distribution/admin-users")
+                    || path.startsWith("/distribution/withdraw")
+                    || path.startsWith("/distribution/bonus-config")
+                    || path.startsWith("/distribution/tenant")
                     || (HttpMethod.PUT.matches(request.getMethod())
-                    && request.getRequestURI().matches("/shop/admin/orders/[^/]+/service-remark"))
-                    || request.getRequestURI().matches("/shop/admin/products/[^/]+/submit-review")
-                    || request.getRequestURI().matches("/shop/admin/merchant-product-reviews/[^/]+/decision");
+                    && path.matches("/shop/admin/orders/[^/]+/service-remark"))
+                    || path.matches("/shop/admin/products/[^/]+/submit-review")
+                    || path.matches("/shop/admin/merchant-product-reviews/[^/]+/decision");
         }
 
         private boolean shouldLog(HttpServletRequest request) {

@@ -33,5 +33,11 @@ public class DmsOperationLog implements Serializable {
 
     private String remark;
 
+    private String ipAddress;
+
+    private String userAgent;
+
+    private String requestId;
+
     private LocalDateTime createTime;
 }

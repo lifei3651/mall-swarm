@@ -4,6 +4,10 @@ export const ADMIN_SESSION_EXPIRED_EVENT = 'admin-session-expired'
 
 let redirectingToLogin = false
 
+export const resetAdminLoginRedirect = () => {
+  redirectingToLogin = false
+}
+
 const safeSessionStorageSet = (key, value) => {
   try {
     window.sessionStorage.setItem(key, value)
@@ -60,7 +64,10 @@ export const expireAdminSession = (message = '后台登录已失效，请重新�
 
   const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
   const loginPath = `${base}/login`
-  if (window.location.pathname === loginPath) return
+  if (window.location.pathname === loginPath) {
+    redirectingToLogin = false
+    return
+  }
 
   redirectingToLogin = true
   const currentPath = window.location.pathname.startsWith(base)

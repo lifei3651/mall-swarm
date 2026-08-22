@@ -12,7 +12,9 @@ public interface DmsOperationLogDao {
 
     List<DmsOperationLog> selectList(@Param("moduleName") String moduleName,
                                      @Param("targetType") String targetType,
-                                     @Param("targetId") String targetId);
+                                     @Param("targetId") String targetId,
+                                     @Param("startTime") LocalDateTime startTime,
+                                     @Param("endTime") LocalDateTime endTime);
 
     int insert(DmsOperationLog log);
 

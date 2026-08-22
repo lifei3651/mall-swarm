@@ -87,6 +87,9 @@ public interface DmsShopProductDao {
     int countByCategoryName(@Param("tenantId") Long tenantId,
                             @Param("categoryName") String categoryName);
 
+    int countByFreightTemplateId(@Param("tenantId") Long tenantId,
+                                 @Param("freightTemplateId") Long freightTemplateId);
+
     int decreaseStockScoped(@Param("tenantId") Long tenantId, @Param("id") Long id,
                             @Param("quantity") Integer quantity);
     default int decreaseStock(Long id, Integer quantity) {

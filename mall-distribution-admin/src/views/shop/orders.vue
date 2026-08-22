@@ -145,6 +145,7 @@
                   <div class="sub">{{ shipment.deliveryNo || '-' }}</div>
                   <div class="sub">发货 {{ shipment.shipmentQuantity || 0 }} 件</div>
                 </div>
+                <el-button type="primary" link size="small" @click="openTracking(row)">查看轨迹</el-button>
               </div>
               <span v-else>-</span>
             </template>
@@ -279,6 +280,21 @@
         </el-table>
       </div>
       <template #footer><el-button type="primary" @click="tradeDetailVisible = false">关闭</el-button></template>
+    </el-dialog>
+
+    <el-dialog v-model="trackingVisible" title="物流轨迹" width="680px" destroy-on-close>
+      <div v-loading="trackingLoading">
+        <el-empty v-if="!trackingRows.length" description="暂无物流包裹" />
+        <el-card v-for="item in trackingRows" :key="item.shipmentId" shadow="never" class="tracking-card">
+          <template #header><strong>{{ item.deliveryCompany || '物流公司' }} · {{ item.deliveryNo || '-' }}</strong></template>
+          <el-alert :title="item.statusText || '暂无轨迹'" :type="item.events?.length ? 'success' : 'info'" :closable="false" />
+          <el-timeline v-if="item.events?.length" class="tracking-timeline">
+            <el-timeline-item v-for="event in item.events" :key="`${event.eventTime}-${event.description}`" :timestamp="event.eventTime" placement="top">
+              {{ event.description }}<span v-if="event.location"> · {{ event.location }}</span>
+            </el-timeline-item>
+          </el-timeline>
+        </el-card>
+      </div>
     </el-dialog>
 
     <el-dialog v-model="shipDialogVisible" :title="currentOrder?.order?.status === 2 ? '添加物流包裹' : '订单发货'" width="520px">
@@ -510,6 +526,7 @@ import {
   downloadOrderShipmentTemplate,
   exportShopOrders,
   getAdminOrderWorkSummary,
+  getAdminOrderTracking,
   getShopTradeDetail,
   importOrderShipments,
   listShopOrders,
@@ -571,6 +588,9 @@ const currentOrder = ref(null)
 const tradeDetailVisible = ref(false)
 const tradeDetailLoading = ref(false)
 const tradeDetail = ref({ trade: null, childOrders: [], childCount: 0, refundedAmount: 0 })
+const trackingVisible = ref(false)
+const trackingLoading = ref(false)
+const trackingRows = ref([])
 const currentAfterSale = ref(null)
 const shipForm = ref({ deliveryCompany: '', deliveryNo: '', shipmentQuantity: 1 })
 const auditForm = ref({ status: 1, auditRemark: '', auditUserId: 1, auditUserName: 'admin' })
@@ -639,6 +659,16 @@ const shipmentRows = (row) => {
     }]
   }
   return []
+}
+const openTracking = async (row) => {
+  trackingVisible.value = true
+  trackingLoading.value = true
+  trackingRows.value = []
+  try {
+    trackingRows.value = (await getAdminOrderTracking(row.order.id)).data || []
+  } finally {
+    trackingLoading.value = false
+  }
 }
 const orderedQuantity = (row) => (row?.items || []).reduce((sum, item) => sum + Number(item?.quantity || 0), 0)
 const isFullRefund = (row) => hasApprovedRefund(row) && (

@@ -16,6 +16,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Font;
@@ -49,13 +51,13 @@ public class DistributionAuditController {
 
     @Operation(summary = "更新团队业绩可见性总开关")
     @PutMapping("/settings/visibility")
-    public CommonResult<DistributionSettingsVO> updateVisibility(@RequestBody PerformanceVisibilityDTO dto) {
+    public CommonResult<DistributionSettingsVO> updateVisibility(@Valid @RequestBody PerformanceVisibilityDTO dto) {
         return CommonResult.success(auditService.updateVisibility(dto));
     }
 
     @Operation(summary = "保存单账号业绩查看权限")
     @PostMapping("/settings/permissions")
-    public CommonResult<PerformanceViewPermissionVO> savePermission(@RequestBody PerformanceViewPermissionDTO dto) {
+    public CommonResult<PerformanceViewPermissionVO> savePermission(@Valid @RequestBody PerformanceViewPermissionDTO dto) {
         return CommonResult.success(auditService.savePermission(dto));
     }
 
@@ -136,7 +138,7 @@ public class DistributionAuditController {
 
     @Operation(summary = "保存订单支付金额和产品成本")
     @PutMapping("/orders/{orderId}/finance")
-    public CommonResult<OrderFinanceVO> saveOrderFinance(@PathVariable Long orderId, @RequestBody OrderFinanceDTO dto) {
+    public CommonResult<OrderFinanceVO> saveOrderFinance(@PathVariable Long orderId, @Valid @RequestBody OrderFinanceDTO dto) {
         dto.setOrderId(orderId);
         return CommonResult.success(auditService.upsertOrderFinance(dto));
     }
@@ -144,7 +146,8 @@ public class DistributionAuditController {
     @Operation(summary = "保存订单公司分账")
     @PutMapping("/orders/{orderId}/company-shares")
     public CommonResult<List<OrderCompanyShareVO>> saveCompanyShares(@PathVariable Long orderId,
-                                                                     @RequestBody List<OrderCompanyShareDTO> shares) {
+                                                                     @Valid @Size(max = 100, message = "单个订单最多配置100条公司分账")
+                                                                     @RequestBody List<@Valid OrderCompanyShareDTO> shares) {
         return CommonResult.success(auditService.saveCompanyShares(orderId, shares));
     }
 
@@ -195,7 +198,7 @@ public class DistributionAuditController {
 
     @Operation(summary = "保存财务风险规则")
     @PostMapping("/finance/risk-rules")
-    public CommonResult<DmsFinanceRiskRule> saveRiskRule(@RequestBody DmsFinanceRiskRule rule) {
+    public CommonResult<DmsFinanceRiskRule> saveRiskRule(@Valid @RequestBody DmsFinanceRiskRule rule) {
         return CommonResult.success(auditService.saveRiskRule(rule));
     }
 

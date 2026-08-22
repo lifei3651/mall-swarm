@@ -23,10 +23,10 @@
         cost_amount, status, remark, create_time, update_time
     </sql>
 
-    <select id="selectById" resultMap="BaseResultMap">
+    <select id="selectByIdScoped" resultMap="BaseResultMap">
         SELECT <include refid="BaseColumns"/>
         FROM dms_product_pv_config
-        WHERE id = #{id}
+        WHERE tenant_id = #{tenantId} AND id = #{id}
     </select>
 
     <select id="selectList" resultMap="BaseResultMap">
@@ -49,20 +49,21 @@
         (#{tenantId}, #{productId}, #{skuId}, #{productName}, #{skuName}, #{pvValue}, #{bvValue}, #{costAmount}, #{status}, #{remark})
     </insert>
 
-    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsProductPvConfig">
+    <update id="updateScoped">
         UPDATE dms_product_pv_config
-        SET tenant_id = #{tenantId}, product_id = #{productId}, sku_id = #{skuId},
-            product_name = #{productName}, sku_name = #{skuName}, pv_value = #{pvValue},
-            bv_value = #{bvValue}, cost_amount = #{costAmount}, status = #{status},
-            remark = #{remark}, update_time = NOW()
-        WHERE id = #{id}
+        SET product_id = #{config.productId}, sku_id = #{config.skuId},
+            product_name = #{config.productName}, sku_name = #{config.skuName}, pv_value = #{config.pvValue},
+            bv_value = #{config.bvValue}, cost_amount = #{config.costAmount}, status = #{config.status},
+            remark = #{config.remark}, update_time = NOW()
+        WHERE tenant_id = #{tenantId} AND id = #{config.id}
     </update>
 
-    <update id="updateStatus">
-        UPDATE dms_product_pv_config SET status = #{status}, update_time = NOW() WHERE id = #{id}
+    <update id="updateStatusScoped">
+        UPDATE dms_product_pv_config SET status = #{status}, update_time = NOW()
+        WHERE tenant_id = #{tenantId} AND id = #{id}
     </update>
 
-    <delete id="deleteById">
-        DELETE FROM dms_product_pv_config WHERE id = #{id}
+    <delete id="deleteByIdScoped">
+        DELETE FROM dms_product_pv_config WHERE tenant_id = #{tenantId} AND id = #{id}
     </delete>
 </mapper>

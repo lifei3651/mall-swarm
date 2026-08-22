@@ -3,6 +3,8 @@ package com.macro.mall.distribution.controller;
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.distribution.dto.AdminLoginDTO;
 import com.macro.mall.distribution.service.AdminAuthService;
+import com.macro.mall.distribution.service.OperationLogService;
+import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.security.AdminSessionCookieService;
 import com.macro.mall.distribution.vo.AdminAuthVO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,12 +23,29 @@ public class AdminAuthController {
 
     private final AdminAuthService adminAuthService;
     private final AdminSessionCookieService cookieService;
+    private final OperationLogService operationLogService;
 
     @Operation(summary = "后台登录")
     @PostMapping("/login")
     public CommonResult<AdminAuthVO> login(@Valid @RequestBody AdminLoginDTO dto,
                                            HttpServletRequest request, HttpServletResponse response) {
-        AdminAuthVO auth = adminAuthService.login(dto);
+        AdminAuthVO auth;
+        try {
+            auth = adminAuthService.login(dto);
+        } catch (RuntimeException ex) {
+            operationLogService.log("ADMIN_AUTH", "LOGIN_FAILED", "ADMIN_USERNAME", dto.getUsername(),
+                    null, null, "后台登录失败（不记录密码和验证码）");
+            throw ex;
+        }
+        if (auth.getAdmin() != null) {
+            try {
+                AdminContext.set(auth.getAdmin());
+                operationLogService.log("ADMIN_AUTH", "LOGIN_SUCCESS", "ADMIN_USER",
+                        String.valueOf(auth.getAdmin().getId()), null, "session-created", "后台登录成功");
+            } finally {
+                AdminContext.clear();
+            }
+        }
         cookieService.write(request, response, auth.getToken(), auth.getExpireTime());
         if (AdminSessionCookieService.CLIENT_HEADER_VALUE.equals(request.getHeader(AdminSessionCookieService.CLIENT_HEADER))) {
             auth.setToken(null);
@@ -45,6 +64,9 @@ public class AdminAuthController {
     public CommonResult<Boolean> logout(@RequestHeader(value = "Authorization", required = false) String authorization,
                                         HttpServletRequest request, HttpServletResponse response) {
         boolean loggedOut = adminAuthService.logout(authorization);
+        operationLogService.log("ADMIN_AUTH", "LOGOUT", "ADMIN_USER",
+                AdminContext.get() == null ? null : String.valueOf(AdminContext.get().getId()),
+                "session-active", "session-revoked", "后台主动退出");
         cookieService.clear(request, response);
         return CommonResult.success(loggedOut);
     }

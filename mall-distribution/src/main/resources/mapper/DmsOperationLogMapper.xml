@@ -13,12 +13,15 @@
         <result column="before_data" property="beforeData"/>
         <result column="after_data" property="afterData"/>
         <result column="remark" property="remark"/>
+        <result column="ip_address" property="ipAddress"/>
+        <result column="user_agent" property="userAgent"/>
+        <result column="request_id" property="requestId"/>
         <result column="create_time" property="createTime"/>
     </resultMap>
 
     <select id="selectList" resultMap="BaseResultMap">
         SELECT id, module_name, operation_type, target_type, target_id, operator_id, operator_name,
-               before_data, after_data, remark, create_time
+               before_data, after_data, remark, ip_address, user_agent, request_id, create_time
         FROM dms_operation_log
         <where>
             <if test="moduleName != null and moduleName != ''">
@@ -30,15 +33,19 @@
             <if test="targetId != null and targetId != ''">
                 AND target_id = #{targetId}
             </if>
+            <if test="startTime != null">AND create_time &gt;= #{startTime}</if>
+            <if test="endTime != null">AND create_time &lt;= #{endTime}</if>
         </where>
         ORDER BY create_time DESC, id DESC
     </select>
 
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsOperationLog" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_operation_log
-        (module_name, operation_type, target_type, target_id, operator_id, operator_name, before_data, after_data, remark)
+        (module_name, operation_type, target_type, target_id, operator_id, operator_name, before_data, after_data, remark,
+         ip_address, user_agent, request_id)
         VALUES
-        (#{moduleName}, #{operationType}, #{targetType}, #{targetId}, #{operatorId}, #{operatorName}, #{beforeData}, #{afterData}, #{remark})
+        (#{moduleName}, #{operationType}, #{targetType}, #{targetId}, #{operatorId}, #{operatorName}, #{beforeData}, #{afterData}, #{remark},
+         #{ipAddress}, #{userAgent}, #{requestId})
     </insert>
 
     <select id="selectIdsBefore" resultType="java.lang.Long">

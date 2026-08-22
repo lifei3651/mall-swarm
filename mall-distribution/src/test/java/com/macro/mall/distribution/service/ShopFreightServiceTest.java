@@ -133,13 +133,54 @@ class ShopFreightServiceTest {
         assertMoney("0.00", free.getFreightAmount());
         assertMoney("299.00", free.getPayAmount());
 
-        FreightQuoteVO extra = shopService.quoteFreight(quote("湖南省", "株洲市", "天元区"), null);
+        FreightQuoteVO extra = shopService.quoteFreight(quote("湖南", "株洲", "天元"), null);
         assertMoney("15.00", extra.getFreightAmount());
         assertMoney("314.00", extra.getPayAmount());
 
         ApiException error = assertThrows(ApiException.class,
                 () -> shopService.quoteFreight(quote("湖南省", "长沙市", "岳麓区"), null));
         assertTrue(error.getMessage().contains("暂不发货"));
+
+        FreightTemplateSaveDTO disable = new FreightTemplateSaveDTO();
+        disable.setTemplateName(template.getTemplateName());
+        disable.setDefaultMode("FREE");
+        disable.setStatus(0);
+        disable.setRules(templateDTO.getRules());
+        ApiException linked = assertThrows(ApiException.class,
+                () -> shopService.updateFreightTemplate(template.getId(), disable));
+        assertTrue(linked.getMessage().contains("仍被商品使用"));
+    }
+
+    @Test
+    void freightTemplateRejectsDuplicateNormalizedRegionRules() {
+        FreightTemplateSaveDTO dto = new FreightTemplateSaveDTO();
+        dto.setTemplateName("重复地区模板");
+        dto.setDefaultMode("FREE");
+        dto.setRules(List.of(
+                rule(List.of(List.of("北京市")), "FREE", null),
+                rule(List.of(List.of("北京")), "UNAVAILABLE", null)));
+
+        ApiException error = assertThrows(ApiException.class, () -> shopService.saveFreightTemplate(dto));
+        assertTrue(error.getMessage().contains("同一地区不能重复配置"));
+    }
+
+    @Test
+    void freightTemplateIgnoresClientSuppliedTenantAndListsOnlyCurrentTenant() {
+        FreightTemplateSaveDTO dto = new FreightTemplateSaveDTO();
+        dto.setTenantId(99L);
+        dto.setTemplateName("当前客户模板");
+        dto.setDefaultMode("FREE");
+        DmsFreightTemplate saved = shopService.saveFreightTemplate(dto);
+        assertEquals(1L, saved.getTenantId());
+
+        jdbcTemplate.update("""
+                INSERT INTO dms_freight_template
+                (id, tenant_id, template_name, default_mode, default_freight_amount, rules_json, status)
+                VALUES (990099, 99, '其他客户模板', 'FREE', 0, '[]', 1)
+                """);
+        List<DmsFreightTemplate> visible = shopService.listFreightTemplates(99L, null);
+        assertTrue(visible.stream().anyMatch(item -> item.getId().equals(saved.getId())));
+        assertFalse(visible.stream().anyMatch(item -> Long.valueOf(99L).equals(item.getTenantId())));
     }
 
     @Test

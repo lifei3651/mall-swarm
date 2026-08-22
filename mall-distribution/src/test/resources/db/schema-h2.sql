@@ -250,6 +250,9 @@ CREATE TABLE IF NOT EXISTS dms_operation_log (
   before_data CLOB,
   after_data CLOB,
   remark VARCHAR(1000),
+  ip_address VARCHAR(64),
+  user_agent VARCHAR(500),
+  request_id VARCHAR(64),
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

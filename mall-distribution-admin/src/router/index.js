@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAppStore } from '@/store'
 import { expireAdminSession, isAdminSessionExpired } from '@/utils/adminSession'
 import { getMe } from '@/api/auth'
+import { ElMessage } from 'element-plus'
 
 let authHydrationPromise = null
 
@@ -90,7 +91,7 @@ const routes = [
             path: 'banners',
             name: 'ShopBannersLegacy',
             redirect: '/tenant/banners',
-            meta: { title: '首页Banner', hidden: true, permission: 'config:manage' },
+            meta: { title: '首页Banner', hidden: true, permission: 'config:shop' },
           },
         ],
       },
@@ -241,7 +242,7 @@ const routes = [
             path: 'settings',
             name: 'AuditSettings',
             component: () => import('@/views/audit/settings.vue'),
-            meta: { title: '会员端业绩查看权限', permission: 'config:manage' },
+            meta: { title: '会员端业绩查看权限', permission: 'config:bonus' },
           },
           {
             path: 'operation-logs',
@@ -262,26 +263,26 @@ const routes = [
             path: 'list',
             name: 'TenantList',
             component: () => import('@/views/tenant/list.vue'),
-            meta: { title: '商城视觉与页面', permission: 'config:manage' },
+            meta: { title: '商城视觉与页面', permission: 'config:shop' },
           },
           {
             path: 'banners',
             name: 'TenantBanners',
             component: () => import('@/views/shop/banners.vue'),
             // Banner 已并入“商城视觉与页面”，保留 URL 兼容旧书签但不再单独显示菜单。
-            meta: { title: '首页Banner', hidden: true, permission: 'config:manage' },
+            meta: { title: '首页Banner', hidden: true, permission: 'config:shop' },
           },
           {
             path: 'profile',
             name: 'TenantProfile',
             component: () => import('@/views/tenant/profile.vue'),
-            meta: { title: '商城资料与客服', permission: 'config:manage' },
+            meta: { title: '商城资料与客服', permission: 'config:shop' },
           },
           {
             path: 'business-modes',
             name: 'TenantBusinessModes',
             component: () => import('@/views/tenant/business-modes.vue'),
-            meta: { title: '秒杀与复购模式', permission: 'config:manage' },
+            meta: { title: '秒杀与复购模式', permission: 'config:bonus' },
           },
           {
             path: 'flash-sales',
@@ -293,31 +294,31 @@ const routes = [
             path: 'notices',
             name: 'TenantNotices',
             component: () => import('@/views/tenant/notices.vue'),
-            meta: { title: '商城公告', permission: 'config:manage' },
+            meta: { title: '商城公告', permission: 'config:shop' },
           },
           {
             path: 'display',
             name: 'TenantDisplay',
             redirect: '/tenant/list',
-            meta: { title: '商城装修', permission: 'config:manage' },
+            meta: { title: '商城装修', permission: 'config:shop' },
           },
           {
             path: 'legal',
             name: 'TenantLegal',
             component: () => import('@/views/tenant/legal.vue'),
-            meta: { title: '协议与规则', permission: 'config:manage' },
+            meta: { title: '协议与规则', permission: 'config:shop' },
           },
           {
             path: 'bonus-config',
             name: 'TenantBonusConfig',
             component: () => import('@/views/tenant/bonus-config.vue'),
-            meta: { title: '奖金与钱包规则', permission: 'config:manage' },
+            meta: { title: '奖金与钱包规则', permission: 'config:bonus' },
           },
           {
             path: 'erp',
             name: 'TenantErp',
             component: () => import('@/views/tenant/erp.vue'),
-            meta: { title: 'ERP订单对接', permission: 'config:manage' },
+            meta: { title: 'ERP订单对接', permission: 'config:integration' },
           },
         ],
       },
@@ -413,6 +414,12 @@ const routes = [
       },
     ],
   },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('@/views/error/NotFound.vue'),
+    meta: { title: '页面不存在', public: true },
+  },
 ]
 
 const router = createRouter({
@@ -468,6 +475,7 @@ router.beforeEach(async (to, from, next) => {
     return
   }
   if (!store.token) {
+    ElMessage.warning({ message: '请先登录后台', grouping: true })
     next({ path: '/login', query: { redirect: to.fullPath } })
     return
   }
@@ -494,6 +502,7 @@ router.beforeEach(async (to, from, next) => {
     .map((item) => item.meta?.permission)
     .filter(Boolean)
   if (requiredPermissions.length > 0 && !requiredPermissions.every((item) => store.hasPermission(item))) {
+    ElMessage.warning({ message: '当前账号没有访问该页面的权限', grouping: true })
     next(store.userInfo?.merchantId ? '/audit/merchant-finance' : '/dashboard')
     return
   }

@@ -315,6 +315,13 @@
           AND category_name = #{categoryName}
     </select>
 
+    <select id="countByFreightTemplateId" resultType="int">
+        SELECT COUNT(1)
+        FROM dms_shop_product
+        WHERE tenant_id = #{tenantId}
+          AND freight_template_id = #{freightTemplateId}
+    </select>
+
     <update id="decreaseStockScoped">
         UPDATE dms_shop_product
         SET stock = stock - #{quantity},

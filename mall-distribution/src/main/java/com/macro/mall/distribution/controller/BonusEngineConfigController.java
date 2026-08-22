@@ -53,7 +53,7 @@ public class BonusEngineConfigController {
 
     @Operation(summary = "保存商品 PV 配置")
     @PostMapping("/pv/products")
-    public CommonResult<DmsProductPvConfig> saveProductPvConfig(@RequestBody DmsProductPvConfig config) {
+    public CommonResult<DmsProductPvConfig> saveProductPvConfig(@Valid @RequestBody DmsProductPvConfig config) {
         return CommonResult.success(bonusEngineConfigService.saveProductPvConfig(config));
     }
 

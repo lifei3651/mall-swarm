@@ -16,8 +16,9 @@
 
     <sql id="Columns">id,tenant_id,template_name,default_mode,default_freight_amount,rules_json,status,create_time,update_time</sql>
 
-    <select id="selectById" resultMap="BaseResultMap">
-        SELECT <include refid="Columns"/> FROM dms_freight_template WHERE id=#{id}
+    <select id="selectByIdScoped" resultMap="BaseResultMap">
+        SELECT <include refid="Columns"/> FROM dms_freight_template
+        WHERE tenant_id=#{tenantId} AND id=#{id}
     </select>
 
     <select id="selectList" resultMap="BaseResultMap">

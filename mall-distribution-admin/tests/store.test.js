@@ -4,6 +4,7 @@ import { setActivePinia, createPinia } from 'pinia'
 vi.mock('@/utils/adminSession', () => ({
   saveAdminSessionExpireTime: vi.fn(),
   clearAdminSessionStorage: vi.fn(),
+  resetAdminLoginRedirect: vi.fn(),
 }))
 
 describe('useAppStore', () => {

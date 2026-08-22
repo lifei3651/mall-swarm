@@ -6,6 +6,8 @@ const MEMBER_KEY = 'shop_member'
 // 旧版 Token 只在当前页面内存中保留到 HttpOnly Cookie 换发完成，启动后立即清除持久化副本。
 let legacyShopToken = localStorage.getItem(LEGACY_TOKEN_KEY)
 localStorage.removeItem(LEGACY_TOKEN_KEY)
+// localStorage 只保存非敏感展示快照，不能作为已验证登录态。
+let sessionVerified = false
 
 const safeMemberSnapshot = (member) => ({
   id: member?.id || null,
@@ -18,10 +20,11 @@ export const applyShopSession = (member) => {
   legacyShopToken = null
   localStorage.removeItem(LEGACY_TOKEN_KEY)
   localStorage.setItem(MEMBER_KEY, JSON.stringify(safeMemberSnapshot(member)))
+  sessionVerified = true
   switchCartOwner(member)
 }
 
-export const hasShopSession = () => Boolean(
+export const hasShopSession = () => sessionVerified && Boolean(
   localStorage.getItem(MEMBER_KEY) || legacyShopToken,
 )
 
@@ -60,12 +63,14 @@ export const getLegacyShopToken = () => legacyShopToken
 
 export const finishLegacyTokenMigration = () => {
   legacyShopToken = null
+  sessionVerified = false
   localStorage.removeItem(LEGACY_TOKEN_KEY)
 }
 
 export const clearShopSession = ({ clearCart = false } = {}) => {
   if (clearCart) clearCurrentCart()
   legacyShopToken = null
+  sessionVerified = false
   localStorage.removeItem(LEGACY_TOKEN_KEY)
   localStorage.removeItem(MEMBER_KEY)
   switchCartOwner(null)

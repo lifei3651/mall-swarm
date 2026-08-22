@@ -69,6 +69,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -802,7 +803,7 @@ public class ShopServiceImpl implements ShopService {
 
     @Override
     public List<DmsFreightTemplate> listFreightTemplates(Long tenantId, Integer status) {
-        return freightTemplateDao.selectList(resolveTenantId(tenantId), status);
+        return freightTemplateDao.selectList(resolveTenantId(null), status);
     }
 
     @Override
@@ -821,6 +822,10 @@ public class ShopServiceImpl implements ShopService {
         assertTenantAccess(existing.getTenantId());
         DmsFreightTemplate template = toFreightTemplate(id, dto);
         template.setTenantId(existing.getTenantId());
+        if (Integer.valueOf(1).equals(existing.getStatus()) && Integer.valueOf(0).equals(template.getStatus())
+                && productDao.countByFreightTemplateId(existing.getTenantId(), existing.getId()) > 0) {
+            Asserts.fail("该运费模板仍被商品使用，请先将关联商品下架并切换配送方式后再停用");
+        }
         freightTemplateDao.update(template);
         return freightTemplateDao.selectById(id);
     }
@@ -2068,7 +2073,7 @@ public class ShopServiceImpl implements ShopService {
                 product.setFreightTemplateName(null);
             }
             case 2 -> {
-                if (product.getFreightAmount().compareTo(ZERO) < 0) Asserts.fail("未满额运费不能小于0");
+                if (product.getFreightAmount().compareTo(ZERO) <= 0) Asserts.fail("未满额运费必须大于0");
                 if (product.getFreeShippingAmount() == null || product.getFreeShippingAmount().compareTo(ZERO) <= 0) {
                     Asserts.fail("请填写满额包邮门槛");
                 }
@@ -2077,7 +2082,7 @@ public class ShopServiceImpl implements ShopService {
             }
             case 3 -> {
                 DmsFreightTemplate template = product.getFreightTemplateId() == null
-                        ? null : freightTemplateDao.selectById(product.getFreightTemplateId());
+                        ? null : freightTemplateDao.selectByIdScoped(product.getTenantId(), product.getFreightTemplateId());
                 if (template == null || !Integer.valueOf(1).equals(template.getStatus())
                         || !product.getTenantId().equals(template.getTenantId())) {
                     Asserts.fail("请选择已启用的运费模板");
@@ -2098,10 +2103,19 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("默认固定运费必须大于0");
         }
         List<FreightTemplateRuleDTO> rules = dto.getRules() == null ? Collections.emptyList() : dto.getRules();
-        for (FreightTemplateRuleDTO rule : rules) validateFreightRule(rule);
+        Set<String> assignedRegions = new HashSet<>();
+        for (FreightTemplateRuleDTO rule : rules) {
+            validateFreightRule(rule);
+            for (List<String> path : rule.getRegionPaths()) {
+                String regionKey = path.stream().map(this::normalizeRegionName).collect(java.util.stream.Collectors.joining("/"));
+                if (!assignedRegions.add(regionKey)) {
+                    Asserts.fail("同一地区不能重复配置多条运费规则：" + String.join("/", path));
+                }
+            }
+        }
         DmsFreightTemplate template = new DmsFreightTemplate();
         template.setId(id);
-        template.setTenantId(resolveTenantId(dto.getTenantId()));
+        template.setTenantId(resolveTenantId(null));
         assertTenantAccess(template.getTenantId());
         template.setTemplateName(dto.getTemplateName().trim());
         template.setDefaultMode(defaultMode);
@@ -2112,6 +2126,9 @@ public class ShopServiceImpl implements ShopService {
             throw new IllegalArgumentException("运费模板地区规则格式错误", e);
         }
         template.setStatus(dto.getStatus() == null ? 1 : dto.getStatus());
+        if (!Integer.valueOf(0).equals(template.getStatus()) && !Integer.valueOf(1).equals(template.getStatus())) {
+            Asserts.fail("运费模板状态不正确");
+        }
         return template;
     }
 
@@ -2320,7 +2337,7 @@ public class ShopServiceImpl implements ShopService {
             }
         }
         for (Map.Entry<Long, BigDecimal> entry : templateAmounts.entrySet()) {
-            DmsFreightTemplate template = freightTemplateDao.selectById(entry.getKey());
+            DmsFreightTemplate template = freightTemplateDao.selectByIdScoped(resolveTenantId(null), entry.getKey());
             if (template == null || !Integer.valueOf(1).equals(template.getStatus())) {
                 Asserts.fail("运费模板已停用，请联系客服");
             }
@@ -2495,11 +2512,27 @@ public class ShopServiceImpl implements ShopService {
     }
 
     private int regionMatchScore(List<String> path, ShopOrderSubmitDTO dto) {
-        if (path == null || path.isEmpty() || !path.get(0).equals(dto.getReceiverProvince())) return 0;
+        if (path == null || path.isEmpty() || !sameRegion(path.get(0), dto.getReceiverProvince())) return 0;
         if (path.size() == 1) return 1;
-        if (!path.get(1).equals(dto.getReceiverCity())) return 0;
+        if (!sameRegion(path.get(1), dto.getReceiverCity())) return 0;
         if (path.size() == 2) return 2;
-        return path.get(2).equals(dto.getReceiverDistrict()) ? 3 : 0;
+        return sameRegion(path.get(2), dto.getReceiverDistrict()) ? 3 : 0;
+    }
+
+    private boolean sameRegion(String configured, String actual) {
+        return normalizeRegionName(configured).equals(normalizeRegionName(actual));
+    }
+
+    private String normalizeRegionName(String value) {
+        if (value == null) return "";
+        String normalized = value.trim().replaceAll("\\s+", "");
+        for (String suffix : List.of("维吾尔自治区", "壮族自治区", "回族自治区", "特别行政区",
+                "自治州", "自治区", "地区", "省", "市", "盟", "区", "县", "旗")) {
+            if (normalized.length() > suffix.length() && normalized.endsWith(suffix)) {
+                return normalized.substring(0, normalized.length() - suffix.length());
+            }
+        }
+        return normalized;
     }
 
     private boolean blank(String value) {

@@ -212,6 +212,10 @@ export function listShopOrders(params) {
   })
 }
 
+export function getAdminOrderTracking(id) {
+  return request({ url: `/shop/admin/orders/${id}/tracking`, method: 'get' })
+}
+
 export function updateShopOrderServiceRemark(id, serviceRemark) {
   return request({
     url: `/shop/admin/orders/${id}/service-remark`,

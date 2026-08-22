@@ -7,9 +7,9 @@ import { updatePageTitle } from '@/utils/brand'
 const protectedRoute = { requiresAuth: true }
 const routes = [
   { path: '/', name: 'TeamHome', component: () => import('./TeamHomeView.vue'), meta: protectedRoute },
-  { path: '/login', name: 'Login', component: () => import('@/views/LoginView.vue') },
-  { path: '/register', name: 'Register', component: () => import('@/views/LoginView.vue') },
-  { path: '/forgot-password', name: 'ForgotPassword', component: () => import('@/views/ForgotPasswordView.vue') },
+  { path: '/login', name: 'Login', component: () => import('@/views/LoginView.vue'), meta: { public: true } },
+  { path: '/register', name: 'Register', component: () => import('@/views/LoginView.vue'), meta: { public: true } },
+  { path: '/forgot-password', name: 'ForgotPassword', component: () => import('@/views/ForgotPasswordView.vue'), meta: { public: true } },
   { path: '/invite', name: 'Invite', component: () => import('@/views/InviteView.vue'), meta: protectedRoute },
   { path: '/profile/team', name: 'ProfileTeam', component: () => import('@/views/TeamPerformanceView.vue'), meta: protectedRoute },
   { path: '/profile/wallet', name: 'ProfileWallet', component: () => import('@/views/WalletView.vue'), meta: protectedRoute },

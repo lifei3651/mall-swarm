@@ -19,10 +19,13 @@ final class AdminPermissionPolicy {
         if (path.startsWith("/distribution/admin-auth/")) return "admin:read";
         if (path.startsWith("/distribution/admin-users")) return "system:manage";
         if (path.startsWith("/distribution/operation-logs")) return "system:manage";
-        if (path.startsWith("/distribution/erp")) return "config:manage";
-        if (path.startsWith("/distribution/tenant") || path.startsWith("/distribution/bonus-config")
-                || path.startsWith("/distribution/audit/settings")) return "config:manage";
-        if (path.startsWith("/shop/admin/banners") || path.startsWith("/shop/admin/notices")) return "config:manage";
+        if (path.startsWith("/distribution/erp")) return "config:integration";
+        if (path.startsWith("/distribution/bonus-config") || path.startsWith("/distribution/audit/settings")) {
+            return "config:bonus";
+        }
+        if (HttpMethod.PUT.matches(method) && path.equals("/shop/admin/product-settings/pv")) return "config:bonus";
+        if (path.startsWith("/distribution/tenant")) return "config:shop";
+        if (path.startsWith("/shop/admin/banners") || path.startsWith("/shop/admin/notices")) return "config:shop";
         if (path.startsWith("/shop/admin/merchant-product-reviews")) return "shop:product-review";
         if (path.startsWith("/shop/admin/products") || path.startsWith("/shop/admin/skus")
                 || path.startsWith("/shop/admin/media") || path.startsWith("/shop/admin/freight-templates")

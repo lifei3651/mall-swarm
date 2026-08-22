@@ -17,7 +17,14 @@
             <el-option label="商城设置" value="BONUS_CONFIG" />
             <el-option label="ERP" value="ERP" />
             <el-option label="后台操作" value="ADMIN_API" />
+            <el-option label="后台登录" value="ADMIN_AUTH" />
+            <el-option label="后台账号" value="ADMIN_USER" />
+            <el-option label="提现" value="WITHDRAW" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="时间范围">
+          <el-date-picker v-model="dateRange" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ss"
+            start-placeholder="开始时间" end-placeholder="结束时间" @change="fetchLogs" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="fetchLogs">查询</el-button>
@@ -59,6 +66,9 @@
         <el-descriptions-item label="操作结果">{{ isFailed(current) ? '失败' : '成功' }}</el-descriptions-item>
         <el-descriptions-item label="做了什么" :span="2">{{ actionDescription(current) }}</el-descriptions-item>
         <el-descriptions-item label="关联对象" :span="2">{{ targetDescription(current) }}</el-descriptions-item>
+        <el-descriptions-item label="客户端IP">{{ current.ipAddress || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="请求关联号">{{ current.requestId || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="浏览器/客户端" :span="2">{{ current.userAgent || '-' }}</el-descriptions-item>
       </el-descriptions>
       <el-divider v-if="current.beforeData">变更前</el-divider>
       <el-input v-if="current.beforeData" :model-value="current.beforeData" type="textarea" :rows="5" readonly />
@@ -74,6 +84,7 @@ import { getOperationLogRetention, listOperationLogs } from '@/api/operationLog'
 import { formatDateTime as formatOperationTime } from '@/utils/dateTime'
 
 const query = ref({})
+const dateRange = ref([])
 const logs = ref([])
 const loading = ref(false)
 const pagination = ref({ page: 1, size: 10, total: 0 })
@@ -86,6 +97,8 @@ const fetchLogs = async () => {
   try {
     const res = await listOperationLogs({
       ...query.value,
+      startTime: dateRange.value?.[0] || undefined,
+      endTime: dateRange.value?.[1] || undefined,
       pageNum: pagination.value.page,
       pageSize: pagination.value.size,
     })
@@ -104,6 +117,7 @@ const openDetail = (row) => {
 
 const moduleName = (value) => ({
   ASSET: '会员资产', AGENT: '会员关系', ORDER: '订单', BONUS_CONFIG: '奖金设置', ERP: 'ERP', ADMIN_API: '后台操作',
+  ADMIN_AUTH: '后台登录', ADMIN_USER: '后台账号', WITHDRAW: '提现', AUDIT_LOG: '日志治理',
 }[value] || value || '其他')
 
 const operationName = (value) => ({

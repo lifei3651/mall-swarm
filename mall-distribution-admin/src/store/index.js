@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { clearAdminSessionStorage, saveAdminSessionExpireTime } from '@/utils/adminSession'
+import { clearAdminSessionStorage, resetAdminLoginRedirect, saveAdminSessionExpireTime } from '@/utils/adminSession'
 
 export const useAppStore = defineStore('app', () => {
   // 侧边栏是否折叠
@@ -57,6 +57,7 @@ export const useAppStore = defineStore('app', () => {
     setUserInfo(auth.admin)
     setPermissions(auth.permissions)
     authHydrated.value = true
+    resetAdminLoginRedirect()
   }
 
   const hasPermission = (permission) => {

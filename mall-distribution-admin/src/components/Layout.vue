@@ -168,7 +168,7 @@ const businessMenus = [
     key: 'orders', title: '订单与售后', icon: 'DataAnalysis', items: [
       { title: '订单管理', path: '/shop/orders', permission: 'shop:order' },
       { title: '订单奖金与利润追溯', path: '/audit/orders', permission: 'finance:read' },
-      { title: 'ERP订单对接', path: '/tenant/erp', permission: 'config:manage' },
+      { title: 'ERP订单对接', path: '/tenant/erp', permission: 'config:integration' },
     ],
   },
   {
@@ -195,12 +195,12 @@ const businessMenus = [
   },
   {
     key: 'operations', title: '商城设置', icon: 'OfficeBuilding', items: [
-      { title: '商城视觉与页面', path: '/tenant/list', permission: 'config:manage' },
-      { title: '商城资料与客服', path: '/tenant/profile', permission: 'config:manage' },
-      { title: '秒杀与复购模式', path: '/tenant/business-modes', permission: 'config:manage' },
-      { title: '协议与规则', path: '/tenant/legal', permission: 'config:manage' },
-      { title: '奖金与钱包规则', path: '/tenant/bonus-config', permission: 'config:manage' },
-      { title: '会员端业绩查看权限', path: '/audit/settings', permission: 'config:manage' },
+      { title: '商城视觉与页面', path: '/tenant/list', permission: 'config:shop' },
+      { title: '商城资料与客服', path: '/tenant/profile', permission: 'config:shop' },
+      { title: '秒杀与复购模式', path: '/tenant/business-modes', permission: 'config:bonus' },
+      { title: '协议与规则', path: '/tenant/legal', permission: 'config:shop' },
+      { title: '奖金与钱包规则', path: '/tenant/bonus-config', permission: 'config:bonus' },
+      { title: '会员端业绩查看权限', path: '/audit/settings', permission: 'config:bonus' },
     ],
   },
   {

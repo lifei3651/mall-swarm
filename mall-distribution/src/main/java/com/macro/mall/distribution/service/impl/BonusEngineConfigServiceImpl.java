@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.service.impl;
 
 import com.macro.mall.common.exception.Asserts;
+import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.dao.*;
 import com.macro.mall.distribution.dto.BonusSimulationDTO;
 import com.macro.mall.distribution.entity.*;
@@ -8,6 +9,7 @@ import com.macro.mall.distribution.enums.AgentStatusEnum;
 import com.macro.mall.distribution.service.BonusEngineConfigService;
 import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.PerformanceService;
+import com.macro.mall.distribution.service.ShopCatalogCacheService;
 import com.macro.mall.distribution.util.MemberAccountUtils;
 import com.macro.mall.distribution.vo.BonusSimulationVO;
 import lombok.RequiredArgsConstructor;
@@ -37,21 +39,19 @@ public class BonusEngineConfigServiceImpl implements BonusEngineConfigService {
     private final DmsShopMemberDao shopMemberDao;
     private final PerformanceService performanceService;
     private final TenantDisplayConfigSupport displayConfigSupport;
+    private final OperationLogService operationLogService;
+    private final ShopCatalogCacheService catalogCache;
 
     @Override
     public DmsTenantDisplayConfig getDisplayConfig(Long tenantId) {
-        if (tenantId == null) {
-            Asserts.fail("租户ID不能为空");
-        }
+        tenantId = TenantContext.getTenantId();
         return displayConfigSupport.prepareForRead(displayConfigDao.selectByTenantId(tenantId), tenantId);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsTenantDisplayConfig saveDisplayConfig(DmsTenantDisplayConfig config) {
-        if (config.getTenantId() == null) {
-            Asserts.fail("租户ID不能为空");
-        }
+        config.setTenantId(TenantContext.getTenantId());
         displayConfigSupport.prepareForSave(config);
         DmsTenantDisplayConfig oldConfig = displayConfigDao.selectByTenantId(config.getTenantId());
         if (oldConfig == null) {
@@ -60,23 +60,22 @@ public class BonusEngineConfigServiceImpl implements BonusEngineConfigService {
             config.setId(oldConfig.getId());
             displayConfigDao.update(config);
         }
+        catalogCache.invalidateAfterCommit(config.getTenantId());
+        operationLogService.log("BONUS_CONFIG", "DISPLAY_UPDATE", "TENANT", String.valueOf(config.getTenantId()),
+                displaySummary(oldConfig), displaySummary(config), "更新会员端奖金与业绩展示规则");
         return displayConfigSupport.prepareForRead(displayConfigDao.selectByTenantId(config.getTenantId()), config.getTenantId());
     }
 
     @Override
     public List<DmsProductPvConfig> listProductPvConfigs(Long tenantId, String keyword, Integer status) {
-        if (tenantId == null) {
-            Asserts.fail("租户ID不能为空");
-        }
+        tenantId = TenantContext.getTenantId();
         return productPvConfigDao.selectList(tenantId, keyword, status);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsProductPvConfig saveProductPvConfig(DmsProductPvConfig config) {
-        if (config.getTenantId() == null) {
-            Asserts.fail("租户ID不能为空");
-        }
+        config.setTenantId(TenantContext.getTenantId());
         if (config.getProductId() == null) {
             Asserts.fail("商品ID不能为空");
         }
@@ -95,22 +94,73 @@ public class BonusEngineConfigServiceImpl implements BonusEngineConfigService {
         if (config.getStatus() == null) {
             config.setStatus(1);
         }
+        normalizePvMoney(config);
+        DmsProductPvConfig before = config.getId() == null ? null : productPvConfigDao.selectById(config.getId());
+        if (config.getId() != null && before == null) Asserts.fail("商品PV配置不存在");
+        if (before != null && !before.getTenantId().equals(config.getTenantId())) Asserts.fail("商品PV配置不属于当前客户");
         if (config.getId() == null) {
             productPvConfigDao.insert(config);
         } else {
             productPvConfigDao.update(config);
         }
-        return productPvConfigDao.selectById(config.getId());
+        DmsProductPvConfig saved = productPvConfigDao.selectById(config.getId());
+        operationLogService.log("BONUS_CONFIG", before == null ? "PV_CREATE" : "PV_UPDATE", "PRODUCT_PV",
+                String.valueOf(config.getId()), pvSummary(before), pvSummary(saved), "维护商品PV/BV与成本配置");
+        catalogCache.invalidateAfterCommit(config.getTenantId());
+        return saved;
     }
 
     @Override
     public boolean updateProductPvStatus(Long id, Integer status) {
-        return productPvConfigDao.updateStatus(id, status) > 0;
+        if (status == null || (status != 0 && status != 1)) Asserts.fail("状态不正确");
+        DmsProductPvConfig before = productPvConfigDao.selectById(id);
+        if (before == null) Asserts.fail("商品PV配置不存在");
+        boolean updated = productPvConfigDao.updateStatus(id, status) > 0;
+        if (updated) {
+            operationLogService.log("BONUS_CONFIG", "PV_STATUS", "PRODUCT_PV", String.valueOf(id),
+                    "status=" + before.getStatus(), "status=" + status, "更新商品PV配置状态");
+            catalogCache.invalidateAfterCommit(before.getTenantId());
+        }
+        return updated;
     }
 
     @Override
     public boolean deleteProductPvConfig(Long id) {
-        return productPvConfigDao.deleteById(id) > 0;
+        DmsProductPvConfig before = productPvConfigDao.selectById(id);
+        if (before == null) Asserts.fail("商品PV配置不存在");
+        boolean deleted = productPvConfigDao.deleteById(id) > 0;
+        if (deleted) {
+            operationLogService.log("BONUS_CONFIG", "PV_DELETE", "PRODUCT_PV", String.valueOf(id),
+                    pvSummary(before), null, "删除商品PV配置");
+            catalogCache.invalidateAfterCommit(before.getTenantId());
+        }
+        return deleted;
+    }
+
+    private void normalizePvMoney(DmsProductPvConfig config) {
+        if (config.getPvValue().compareTo(BigDecimal.ZERO) < 0
+                || config.getBvValue().compareTo(BigDecimal.ZERO) < 0
+                || config.getCostAmount().compareTo(BigDecimal.ZERO) < 0) {
+            Asserts.fail("PV、BV和成本金额不能小于0");
+        }
+        config.setPvValue(config.getPvValue().setScale(2, RoundingMode.HALF_UP));
+        config.setBvValue(config.getBvValue().setScale(2, RoundingMode.HALF_UP));
+        config.setCostAmount(config.getCostAmount().setScale(2, RoundingMode.HALF_UP));
+    }
+
+    private String displaySummary(DmsTenantDisplayConfig config) {
+        if (config == null) return null;
+        return "showPv=" + config.getShowPv() + ";showTeamPerformance=" + config.getShowTeamPerformance()
+                + ";showBonusSource=" + config.getShowBonusSource()
+                + ";showBonusFlow=" + config.getShowBonusFlow();
+    }
+
+    private String pvSummary(DmsProductPvConfig config) {
+        if (config == null) return null;
+        return "tenantId=" + config.getTenantId() + ";productId=" + config.getProductId()
+                + ";skuId=" + config.getSkuId() + ";pv=" + config.getPvValue()
+                + ";bv=" + config.getBvValue() + ";cost=" + config.getCostAmount()
+                + ";status=" + config.getStatus();
     }
 
     @Override

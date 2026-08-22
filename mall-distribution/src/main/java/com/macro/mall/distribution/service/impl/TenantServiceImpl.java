@@ -14,6 +14,7 @@ import com.macro.mall.distribution.entity.DmsTenantConfigVersion;
 import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.OperationLogService;
+import com.macro.mall.distribution.service.AdminAuthService;
 import com.macro.mall.distribution.service.ShopCatalogCacheService;
 import com.macro.mall.distribution.service.TenantService;
 import com.macro.mall.distribution.service.TenantLegalTemplateSupport;
@@ -44,6 +45,7 @@ public class TenantServiceImpl implements TenantService {
     private final OperationLogService operationLogService;
     private final ObjectMapper objectMapper;
     private final ShopCatalogCacheService catalogCache;
+    private final AdminAuthService adminAuthService;
 
     @Override
     public List<DmsTenant> listTenants() {
@@ -65,6 +67,7 @@ public class TenantServiceImpl implements TenantService {
         if (tenant == null) {
             Asserts.fail("商城资料不能为空");
         }
+        DmsTenant before = tenant.getId() == null ? null : tenantDao.selectById(tenant.getId());
         if (tenant.getTenantName() == null || tenant.getTenantName().isBlank()) {
             Asserts.fail("公司名称不能为空");
         }
@@ -105,6 +108,7 @@ public class TenantServiceImpl implements TenantService {
             Asserts.fail("售后申请期限应设置为0至365天");
         }
         normalizeBusinessModes(tenant);
+        requireBusinessModeAuthority(tenant);
         if (tenant.getPoliceRecordUrl() != null && !tenant.getPoliceRecordUrl().isBlank()) {
             String policeRecordUrl = tenant.getPoliceRecordUrl().trim();
             if (!policeRecordUrl.matches("^https://.+")) {
@@ -132,7 +136,11 @@ public class TenantServiceImpl implements TenantService {
             recordConfigVersion(tenant.getId(), "PROFILE_UPDATE", null);
         }
         catalogCache.invalidateAfterCommit(tenant.getId());
-        return getTenant(tenant.getId());
+        DmsTenant saved = getTenant(tenant.getId());
+        operationLogService.log("TENANT_CONFIG", before == null ? "CREATE" : "PROFILE_UPDATE", "TENANT",
+                String.valueOf(tenant.getId()), tenantSummary(before), tenantSummary(saved),
+                before == null ? "创建商城客户配置" : "更新商城品牌、经营资料或业务模式");
+        return saved;
     }
 
     private void normalizeBusinessModes(DmsTenant tenant) {
@@ -144,6 +152,50 @@ public class TenantServiceImpl implements TenantService {
                 List.of("NONE", "STANDARD", "CUSTOM"), "NONE", "复购奖金模式"));
         tenant.setRepurchaseEligibilityMode(normalizeMode(tenant.getRepurchaseEligibilityMode(),
                 List.of("PAID_MEMBER", "AGENT", "ALL_MEMBER"), "PAID_MEMBER", "复购准入模式"));
+    }
+
+    private void requireBusinessModeAuthority(DmsTenant requested) {
+        DmsAdminUser admin = AdminContext.get();
+        if (admin == null) return;
+        DmsTenant existing = requested.getId() == null ? null : tenantDao.selectById(requested.getId());
+        boolean changed = existing == null
+                ? Integer.valueOf(1).equals(requested.getFlashSaleEnabled())
+                    || Integer.valueOf(1).equals(requested.getRepurchaseMallEnabled())
+                    || !"NONE".equals(requested.getFlashSaleBonusMode())
+                    || !"NONE".equals(requested.getRepurchaseBonusMode())
+                : !java.util.Objects.equals(normalizedFlag(existing.getFlashSaleEnabled()), requested.getFlashSaleEnabled())
+                    || !java.util.Objects.equals(normalizedFlag(existing.getRepurchaseMallEnabled()), requested.getRepurchaseMallEnabled())
+                    || !java.util.Objects.equals(normalizeMode(existing.getFlashSaleBonusMode(),
+                        List.of("NONE", "STANDARD", "CUSTOM"), "NONE", "秒杀奖金模式"), requested.getFlashSaleBonusMode())
+                    || !java.util.Objects.equals(normalizeMode(existing.getRepurchaseBonusMode(),
+                        List.of("NONE", "STANDARD", "CUSTOM"), "NONE", "复购奖金模式"), requested.getRepurchaseBonusMode())
+                    || !java.util.Objects.equals(normalizeMode(existing.getRepurchaseEligibilityMode(),
+                        List.of("PAID_MEMBER", "AGENT", "ALL_MEMBER"), "PAID_MEMBER", "复购准入模式"),
+                        requested.getRepurchaseEligibilityMode());
+        if (changed) adminAuthService.requirePermission(admin, "config:bonus");
+    }
+
+    private Integer normalizedFlag(Integer value) {
+        return Integer.valueOf(1).equals(value) ? 1 : 0;
+    }
+
+    private String tenantSummary(DmsTenant tenant) {
+        if (tenant == null) return null;
+        return "name=" + tenant.getTenantName() + ";brand=" + tenant.getBrandName()
+                + ";status=" + tenant.getStatus() + ";flashSale=" + tenant.getFlashSaleEnabled()
+                + ";repurchase=" + tenant.getRepurchaseMallEnabled()
+                + ";flashBonusMode=" + tenant.getFlashSaleBonusMode()
+                + ";repurchaseBonusMode=" + tenant.getRepurchaseBonusMode()
+                + ";afterSaleMode=" + tenant.getAfterSaleWindowMode()
+                + ";afterSaleDays=" + tenant.getAfterSaleWindowDays();
+    }
+
+    private String displaySummary(DmsTenantDisplayConfig config) {
+        if (config == null) return null;
+        return "showPv=" + config.getShowPv() + ";showTeamPerformance=" + config.getShowTeamPerformance()
+                + ";showBonusSource=" + config.getShowBonusSource()
+                + ";showBonusFlow=" + config.getShowBonusFlow()
+                + ";layout=" + config.getLayoutTemplate();
     }
 
     private String normalizeMode(String value, List<String> allowed, String defaultValue, String label) {
@@ -160,7 +212,8 @@ public class TenantServiceImpl implements TenantService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean updateTenantStatus(Long id, Integer status) {
-        if (id == null || tenantDao.selectById(id) == null) {
+        DmsTenant before = id == null ? null : tenantDao.selectById(id);
+        if (before == null) {
             Asserts.fail("商城客户不存在");
         }
         if (status == null || (status != 0 && status != 1)) {
@@ -171,6 +224,8 @@ public class TenantServiceImpl implements TenantService {
         if (updated) {
             recordConfigVersion(id, "STATUS_UPDATE", null);
             catalogCache.invalidateAfterCommit(id);
+            operationLogService.log("TENANT_CONFIG", "STATUS_UPDATE", "TENANT", String.valueOf(id),
+                    "status=" + before.getStatus(), "status=" + status, "更新商城客户启用状态");
         }
         return updated;
     }
@@ -205,7 +260,12 @@ public class TenantServiceImpl implements TenantService {
         }
         recordConfigVersion(config.getTenantId(), "DISPLAY_UPDATE", null);
         catalogCache.invalidateAfterCommit(config.getTenantId());
-        return displayConfigSupport.prepareForRead(displayConfigDao.selectByTenantId(config.getTenantId()), config.getTenantId());
+        DmsTenantDisplayConfig saved = displayConfigSupport.prepareForRead(
+                displayConfigDao.selectByTenantId(config.getTenantId()), config.getTenantId());
+        operationLogService.log("TENANT_CONFIG", "DISPLAY_UPDATE", "TENANT",
+                String.valueOf(config.getTenantId()), displaySummary(exists), displaySummary(saved),
+                "更新商城页面与会员端展示配置");
+        return saved;
     }
 
     @Override

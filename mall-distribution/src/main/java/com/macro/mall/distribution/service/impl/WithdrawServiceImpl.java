@@ -16,6 +16,7 @@ import com.macro.mall.distribution.enums.WithdrawStatusEnum;
 import com.macro.mall.distribution.service.AgentAccountService;
 import com.macro.mall.distribution.service.MemberAssetService;
 import com.macro.mall.distribution.service.WithdrawService;
+import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.vo.WithdrawRecordVO;
 import com.macro.mall.distribution.vo.WithdrawStatsVO;
 import com.macro.mall.distribution.util.MemberAccountUtils;
@@ -48,6 +49,7 @@ public class WithdrawServiceImpl implements WithdrawService {
     private final MemberAssetService memberAssetService;
     private final DmsAgentDao agentDao;
     private final DmsShopMemberDao memberDao;
+    private final OperationLogService operationLogService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -132,6 +134,11 @@ public class WithdrawServiceImpl implements WithdrawService {
 
         withdrawDao.update(record);
 
+        operationLogService.log("WITHDRAW", "AUDIT", "WITHDRAW_RECORD", String.valueOf(record.getId()),
+                "status=" + WithdrawStatusEnum.PENDING_AUDIT.getValue(),
+                "status=" + record.getStatus() + ";amount=" + record.getWithdrawAmount(),
+                "提现审核：" + (record.getAuditRemark() == null ? "未填写备注" : record.getAuditRemark()));
+
         log.info("提现审核完成: id={}, withdrawNo={}, agentId={}, amount={}, status={}, auditUserId={}",
                 record.getId(), record.getWithdrawNo(), record.getAgentId(), record.getWithdrawAmount(),
                 record.getStatus(), record.getAuditUserId());
@@ -156,6 +163,11 @@ public class WithdrawServiceImpl implements WithdrawService {
 
         accountService.addWithdrawnAmount(record.getAgentId(), record.getWithdrawAmount());
         withdrawDao.update(record);
+
+        operationLogService.log("WITHDRAW", "PAY_CONFIRMED", "WITHDRAW_RECORD", String.valueOf(record.getId()),
+                "status=" + WithdrawStatusEnum.AUDIT_PASSED.getValue(),
+                "status=" + WithdrawStatusEnum.PAY_SUCCESS.getValue() + ";payNo=" + payNo,
+                "财务确认提现打款");
 
         log.info("确认打款成功: id={}, withdrawNo={}, agentId={}, amount={}, payNo={}",
                 id, record.getWithdrawNo(), record.getAgentId(), record.getWithdrawAmount(), payNo);

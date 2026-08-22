@@ -1,6 +1,6 @@
 # 灵启商城《技术维护/接口说明手册》
 
-适用版本：`1.0.68 app-h5-split`（本地候选，线上仍为 `1.0.62`）
+适用版本：`1.0.69 app-h5-split`（本地候选，线上仍为 `1.0.62`）
 
 适用对象：后端、前端、测试、运维及后续客户定制开发人员
 
@@ -47,7 +47,7 @@
 
 商城登录后路由：`/cart`、`/checkout`、`/flash-sale`、`/repurchase`、`/invite`、`/profile`、`/profile/settings`、`/profile/wallet`、`/profile/team`、`/profile/security`、`/profile/addresses`、`/orders`、`/orders/:id`。
 
-后台入口为 `/admin/`，登录页为 `/admin/login`。其余后台路由均要求管理会话，并按 `shop:product`、`shop:order`、`shop:member`、`distribution:manage`、`commission:manage`、`finance:read`、`finance:manage`、`config:manage`、`import:manage`、`system:manage` 等权限过滤。
+后台入口为 `/admin/`，登录页为 `/admin/login`。其余后台路由均要求管理会话，并按 `shop:product`、`shop:order`、`shop:member`、`distribution:manage`、`commission:manage`、`finance:read`、`finance:manage`、`config:shop`、`config:bonus`、`config:integration`、`import:manage`、`system:manage` 等权限过滤。历史账号的 `config:manage` 登录后兼容展开为三类配置权限。
 
 ## 二、接口通用约定
 
@@ -319,6 +319,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `GET /api/v1/shop/admin/orders/shipments/import-template` | 无 | 空导入模板 |
 | `POST /api/v1/shop/admin/orders/shipments/import` | Excel 文件 | 逐行成功/失败结果 |
 | `PUT /api/v1/shop/admin/orders/{id}/ship` | `deliveryCompany`、`deliveryNo`、`shipmentQuantity` | 订单结果 |
+| `GET /api/v1/shop/admin/orders/{id}/tracking` | 订单 ID、管理会话 | 当前订单的真实包裹轨迹；按客户和商户会话归属校验，未配置服务商时返回空节点和明确状态 |
 | `PUT /api/v1/shop/admin/orders/{id}/service-remark` | `serviceRemark` 最多 500 字 | 订单结果 |
 | `PUT /api/v1/shop/admin/orders/{id}/cancel` | 订单 ID | 订单结果 |
 | `POST /api/v1/shop/admin/orders/{id}/refund` | `refundMode=QUANTITY|AMOUNT`、商品项、金额、原因、售后类型 | 售后/退款结果 |
@@ -412,7 +413,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | 提现详情与快捷查询 | `GET /api/v1/distribution/withdraw/{id}`、`GET /api/v1/distribution/withdraw/agent/{agentId}`、`GET /api/v1/distribution/withdraw/pending-audit`、`GET /api/v1/distribution/withdraw/all` | 提现或代理 ID；返回详情/列表 |
 | 提现审核 | `POST /api/v1/distribution/withdraw/audit` | 提现 ID、审核状态、原因；返回结果 |
 | 确认打款 | `POST /api/v1/distribution/withdraw/confirm-pay/{id}` | `payNo` | 返回结果 |
-| 操作日志 | `GET /api/v1/distribution/operation-logs` | 管理员、模块、方法、结果、时间、分页；返回日志分页 |
+| 操作日志 | `GET /api/v1/distribution/operation-logs` | `moduleName`、`targetType`、`targetId`、`startTime`、`endTime`、分页；返回含操作人、请求编号、IP、User-Agent、前后摘要和时间的日志分页 |
 | 日志保留配置 | `GET /api/v1/distribution/operation-logs/retention` | 无 | 返回保留周期和清理状态 |
 
 后台“单笔提前结算”和“批量提前结算”接口当前明确返回失败；奖金必须在确认收货满既定等待期且无在途售后后由系统结算。

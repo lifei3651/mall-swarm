@@ -10,6 +10,7 @@ import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.AdminUserService;
 import com.macro.mall.distribution.service.AdminAuthService;
+import com.macro.mall.distribution.service.OperationLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,7 +31,11 @@ public class AdminUserServiceImpl implements AdminUserService {
     private static final List<Map.Entry<String, String>> PERMISSION_DEFINITIONS = List.of(
             Map.entry("*", "超级管理员"), Map.entry("admin:read", "基础查看"),
             Map.entry("admin:write", "基础维护"), Map.entry("system:manage", "系统账号"),
-            Map.entry("config:manage", "客户与规则配置"), Map.entry("shop:product", "商品管理"),
+            Map.entry("config:manage", "全部商城配置（兼容权限）"),
+            Map.entry("config:shop", "品牌、页面、公告与协议"),
+            Map.entry("config:bonus", "奖金、业绩与经营模式规则"),
+            Map.entry("config:integration", "ERP与外部系统对接"),
+            Map.entry("shop:product", "商品管理"),
             Map.entry("shop:product-review", "商户商品审核"),
             Map.entry("shop:order", "订单发货"), Map.entry("shop:aftersale", "售后处理"),
             Map.entry("shop:member", "会员管理"), Map.entry("finance:read", "财务查看"),
@@ -44,6 +49,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final DmsAdminSessionDao adminSessionDao;
     private final AdminAuthService adminAuthService;
     private final com.macro.mall.distribution.dao.DmsMerchantDao merchantDao;
+    private final OperationLogService operationLogService;
 
     @Override
     public List<DmsAdminUser> listUsers(String keyword, Integer status) {
@@ -61,6 +67,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         DmsAdminUser actor = requireActorAndVerify(dto.getCurrentAdminPassword());
         validateGrantedPermissions(actor, dto.getPermissions());
         DmsAdminUser user;
+        DmsAdminUser before = null;
         if (dto.getId() == null) {
             if (dto.getUsername() == null || dto.getUsername().isBlank()) {
                 Asserts.fail("账号不能为空");
@@ -81,12 +88,17 @@ public class AdminUserServiceImpl implements AdminUserService {
             if (user == null) {
                 Asserts.fail("后台账号不存在");
             }
+            before = copyForAudit(user);
             assertCanManage(actor, user, false);
             fillEditable(user, dto);
             adminUserDao.update(user);
             adminSessionDao.disableByAdminId(user.getId());
         }
-        return sanitize(adminUserDao.selectById(user.getId()));
+        DmsAdminUser saved = adminUserDao.selectById(user.getId());
+        operationLogService.log("ADMIN_USER", before == null ? "CREATE" : "UPDATE", "ADMIN_USER",
+                String.valueOf(user.getId()), adminSummary(before), adminSummary(saved),
+                before == null ? "新增后台账号" : "修改后台账号、角色或权限");
+        return sanitize(saved);
     }
 
     @Override
@@ -105,6 +117,8 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (updated) {
             adminUserDao.clearLoginLock(id);
             adminSessionDao.disableByAdminId(id);
+            operationLogService.log("ADMIN_USER", "PASSWORD_RESET", "ADMIN_USER", String.valueOf(id),
+                    "password=unchanged", "password=reset;sessions=revoked", "重置后台账号密码");
         }
         return updated;
     }
@@ -114,7 +128,10 @@ public class AdminUserServiceImpl implements AdminUserService {
         DmsAdminUser target = id == null ? null : adminUserDao.selectById(id);
         if (target == null) Asserts.fail("后台账号不存在");
         assertCanManage(requireActor(), target, false);
-        return adminUserDao.clearLoginLock(id) > 0;
+        boolean updated = adminUserDao.clearLoginLock(id) > 0;
+        if (updated) operationLogService.log("ADMIN_USER", "UNLOCK", "ADMIN_USER", String.valueOf(id),
+                "loginLocked=true", "loginLocked=false", "解除后台账号登录锁定");
+        return updated;
     }
 
     @Override
@@ -129,8 +146,12 @@ public class AdminUserServiceImpl implements AdminUserService {
             Asserts.fail("不能禁用当前登录账号");
         }
         assertCanManage(current, target, false);
+        Integer previousStatus = target.getStatus();
         boolean updated = adminUserDao.updateStatus(id, status) > 0;
         if (updated && Integer.valueOf(0).equals(status)) adminSessionDao.disableByAdminId(id);
+        if (updated) operationLogService.log("ADMIN_USER", "STATUS_UPDATE", "ADMIN_USER", String.valueOf(id),
+                "status=" + previousStatus, "status=" + status,
+                Integer.valueOf(0).equals(status) ? "禁用后台账号并撤销会话" : "启用后台账号");
         return updated;
     }
 
@@ -260,5 +281,25 @@ public class AdminUserServiceImpl implements AdminUserService {
             user.setSalt(null);
         }
         return user;
+    }
+
+    private DmsAdminUser copyForAudit(DmsAdminUser source) {
+        if (source == null) return null;
+        DmsAdminUser copy = new DmsAdminUser();
+        copy.setId(source.getId());
+        copy.setUsername(source.getUsername());
+        copy.setNickname(source.getNickname());
+        copy.setRoleCode(source.getRoleCode());
+        copy.setPermissions(source.getPermissions());
+        copy.setMerchantId(source.getMerchantId());
+        copy.setStatus(source.getStatus());
+        return copy;
+    }
+
+    private String adminSummary(DmsAdminUser user) {
+        if (user == null) return null;
+        return "username=" + user.getUsername() + ";nickname=" + user.getNickname()
+                + ";role=" + user.getRoleCode() + ";permissions=" + user.getPermissions()
+                + ";merchantId=" + user.getMerchantId() + ";status=" + user.getStatus();
     }
 }

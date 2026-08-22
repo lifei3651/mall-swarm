@@ -23,6 +23,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.LinkedHashSet;
 
 @Service
 @RequiredArgsConstructor
@@ -176,10 +177,17 @@ public class AdminAuthServiceImpl implements AdminAuthService {
         if (admin == null || admin.getPermissions() == null || admin.getPermissions().isBlank()) {
             return Collections.emptyList();
         }
-        return Arrays.stream(admin.getPermissions().split(","))
+        LinkedHashSet<String> resolved = Arrays.stream(admin.getPermissions().split(","))
                 .map(String::trim)
                 .filter(item -> !item.isEmpty())
-                .toList();
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        // 兼容已有管理员：旧的总配置权限继续拥有三个细分权限，新账号可以按职责最小授权。
+        if (resolved.contains("config:manage")) {
+            resolved.add("config:shop");
+            resolved.add("config:bonus");
+            resolved.add("config:integration");
+        }
+        return List.copyOf(resolved);
     }
 
     private AdminAuthVO createSession(DmsAdminUser admin) {

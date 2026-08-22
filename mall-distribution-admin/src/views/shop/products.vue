@@ -36,7 +36,7 @@
           <strong>商品 PV 填写</strong>
           <span>开启后，在每个商品发布页单独填写；关闭后所有商品按 PV=0 处理，不再参与 PV 计算。</span>
         </div>
-        <el-switch v-model="performanceUnitsEnabled" inline-prompt active-text="开" inactive-text="关" @change="changePvSetting" />
+        <el-switch v-model="performanceUnitsEnabled" inline-prompt active-text="开" inactive-text="关" :disabled="!store.hasPermission('config:bonus')" @change="changePvSetting" />
       </div>
     </div>
 
@@ -93,7 +93,7 @@
     </el-table>
     <el-pagination class="pagination-container" background layout="total, prev, pager, next, sizes" :total="pagination.total" v-model:current-page="pagination.page" v-model:page-size="pagination.size" @current-change="fetchData" @size-change="fetchData" />
 
-    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑商品' : '发布新商品'" fullscreen destroy-on-close class="publish-dialog">
+    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑商品' : '发布新商品'" fullscreen destroy-on-close class="publish-dialog" :before-close="confirmCloseProductDialog">
       <div class="publish-shell" v-loading="dialogLoading">
         <el-alert title="按实际情况填写即可：商品名称和卖点尽量简洁，分类可不设置；带规格的商品请在“规格、价格与库存”中维护每个 SKU，第一张主图将作为商品封面。" type="info" :closable="false" />
         <div class="publish-layout">
@@ -324,7 +324,7 @@
           </el-form>
         </div>
       </div>
-      <template #footer><div class="dialog-footer"><el-button size="large" @click="dialogVisible = false">取消</el-button><el-button type="primary" size="large" :loading="submitting" @click="submitForm">保存商品</el-button></div></template>
+      <template #footer><div class="dialog-footer"><el-button size="large" @click="confirmCloseProductDialog(() => { dialogVisible = false })">取消</el-button><el-button type="primary" size="large" :loading="submitting" @click="submitForm">保存商品</el-button></div></template>
     </el-dialog>
 
     <el-dialog v-model="customGuaranteeVisible" title="编辑服务保障" width="520px" append-to-body destroy-on-close>
@@ -400,6 +400,7 @@ import { listMerchants } from '@/api/merchant'
 import { validateSearchKeyword } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
 import { useAppStore } from '@/store'
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 
 const store = useAppStore()
 const loading = ref(false)
@@ -430,6 +431,13 @@ const shippingAddresses = ref([])
 const returnAddresses = ref([])
 const freightTemplates = ref([])
 const deliveryRegion = ref([])
+const productSavedSnapshot = ref('')
+const productEditSnapshot = computed(() => JSON.stringify({
+  form: form.value, skus: skuRows.value, removedSkuIds: removedSkuIds.value, deliveryRegion: deliveryRegion.value,
+}))
+const hasUnsavedProduct = computed(() => dialogVisible.value
+  && Boolean(productSavedSnapshot.value) && productEditSnapshot.value !== productSavedSnapshot.value)
+useUnsavedChanges(hasUnsavedProduct, '商品资料、规格或配送设置尚未保存，确定离开吗？')
 const freightTemplateDialogVisible = ref(false)
 const freightTemplateSaving = ref(false)
 const skuAttributeVisible = ref(false)
@@ -746,6 +754,23 @@ const openDialog = async (row) => {
     } finally { dialogLoading.value = false }
   }
   clearDisabledPvValues()
+  productSavedSnapshot.value = productEditSnapshot.value
+}
+
+const confirmCloseProductDialog = async (done) => {
+  if (!hasUnsavedProduct.value) {
+    done()
+    return
+  }
+  try {
+    await ElMessageBox.confirm('商品资料、规格或配送设置尚未保存，确定关闭吗？', '未保存的修改', {
+      type: 'warning', confirmButtonText: '放弃修改', cancelButtonText: '继续编辑',
+    })
+    productSavedSnapshot.value = ''
+    done()
+  } catch {
+    // 继续编辑。
+  }
 }
 
 const editProduct = async (row) => {
@@ -937,6 +962,7 @@ const submitForm = async () => {
       removedSkuIds: removedSkuIds.value,
     })
     ElMessage.success(form.value.merchantId ? '商品已保存为下架草稿，请在列表提交审核' : '商品、图片、规格和配送信息已保存')
+    productSavedSnapshot.value = productEditSnapshot.value
     dialogVisible.value = false
     await fetchData()
   } finally { submitting.value = false }

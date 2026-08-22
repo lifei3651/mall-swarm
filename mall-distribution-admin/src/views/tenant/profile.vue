@@ -140,12 +140,17 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { uploadShopImage } from '@/api/shop'
 import { getCustomerDeliveryReadiness, listTenants, saveTenant } from '@/api/tenant'
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 
 const loading = ref(false)
 const saving = ref(false)
 const tenantForm = ref({})
 const readinessLoading = ref(false)
 const readiness = ref({ ready: false, passedRequired: 0, totalRequired: 0, items: [] })
+const savedSnapshot = ref('')
+const hasUnsavedChanges = computed(() => Boolean(tenantForm.value.id)
+  && JSON.stringify(tenantForm.value) !== savedSnapshot.value)
+useUnsavedChanges(hasUnsavedChanges, '商城主体、客服或资质资料尚未保存，确定离开吗？')
 const readinessPercent = computed(() => readiness.value.totalRequired
   ? Math.round(readiness.value.passedRequired * 100 / readiness.value.totalRequired)
   : 0)
@@ -177,6 +182,7 @@ const fetchData = async () => {
       ...current,
       showBusinessLicense: Number(current.showBusinessLicense ?? 1) === 0 ? 0 : 1,
     }
+    savedSnapshot.value = JSON.stringify(tenantForm.value)
     await fetchReadiness(current.id)
   } finally {
     loading.value = false
