@@ -48,6 +48,18 @@
         ORDER BY sort_order DESC, id DESC
     </select>
 
+    <select id="countByTenantId" resultType="int">
+        SELECT COUNT(*) FROM dms_shop_category WHERE tenant_id = #{tenantId}
+    </select>
+
+    <select id="countByNameExcludingId" resultType="int">
+        SELECT COUNT(*)
+        FROM dms_shop_category
+        WHERE tenant_id = #{tenantId}
+          AND LOWER(category_name) = LOWER(#{categoryName})
+          <if test="excludeId != null">AND id != #{excludeId}</if>
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_shop_category (tenant_id, category_name, icon_url, sort_order, status, show_on_home, remark)
         VALUES (#{tenantId}, #{categoryName}, #{iconUrl}, #{sort}, #{status}, COALESCE(#{showOnHome}, 1), #{remark})

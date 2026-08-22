@@ -67,6 +67,21 @@ class SecurityRateLimitFilterTest {
     }
 
     @Test
+    void appliesDedicatedRulesToProductImagesAndReviews() {
+        SecurityRateLimitFilter filter = new SecurityRateLimitFilter(mock(SecurityRateLimitService.class));
+
+        SecurityRateLimitFilter.Rule image = filter.resolveRule(
+                new MockHttpServletRequest("POST", "/shop/admin/media/images"));
+        SecurityRateLimitFilter.Rule review = filter.resolveRule(
+                new MockHttpServletRequest("POST", "/shop/products/18/reviews"));
+
+        assertEquals("product-image-upload", image.name());
+        assertEquals(30, image.maximumRequests());
+        assertEquals("product-review-submit", review.name());
+        assertEquals(10, review.maximumRequests());
+    }
+
+    @Test
     void appliesDedicatedRuleToAnonymousAlipayReturn() {
         SecurityRateLimitFilter filter = new SecurityRateLimitFilter(mock(SecurityRateLimitService.class));
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/pay/alipay/return");

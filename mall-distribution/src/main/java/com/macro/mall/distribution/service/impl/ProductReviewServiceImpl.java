@@ -15,6 +15,7 @@ import com.macro.mall.distribution.entity.DmsShopProduct;
 import com.macro.mall.distribution.entity.DmsShopProductReview;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.ProductReviewService;
+import com.macro.mall.distribution.service.ContentModerationService;
 import com.macro.mall.distribution.vo.ProductReviewPageVO;
 import com.macro.mall.distribution.vo.ProductReviewSummaryVO;
 import com.macro.mall.distribution.vo.ProductReviewVO;
@@ -34,6 +35,7 @@ public class ProductReviewServiceImpl implements ProductReviewService {
 
     private final DmsShopProductReviewDao reviewDao;
     private final DmsShopProductDao productDao;
+    private final ContentModerationService contentModerationService;
 
     @Override
     public ProductReviewPageVO listProductReviews(Long productId, DmsShopMember member, Integer pageNum, Integer pageSize) {
@@ -92,6 +94,7 @@ public class ProductReviewServiceImpl implements ProductReviewService {
         if (content.length() > 1000) {
             Asserts.fail("评价内容不能超过1000字");
         }
+        contentModerationService.assertAllowed("评价内容", content);
         Long tenantId = product.getTenantId() == null ? 1L : product.getTenantId();
         DmsShopOrderItem eligibleItem = reviewDao.selectEligibleOrderItem(member.getUserId(), productId, tenantId);
         if (eligibleItem == null) {
@@ -127,6 +130,9 @@ public class ProductReviewServiceImpl implements ProductReviewService {
         }
         if (status != null && status != 0 && status != 1) {
             Asserts.fail("评价状态不正确");
+        }
+        if (keyword != null && keyword.trim().length() > 100) {
+            Asserts.fail("评价搜索关键字不能超过100个字符");
         }
         int safePageNum = pageNum == null || pageNum < 1 ? 1 : pageNum;
         int safePageSize = pageSize == null ? 10 : Math.max(1, Math.min(pageSize, 100));

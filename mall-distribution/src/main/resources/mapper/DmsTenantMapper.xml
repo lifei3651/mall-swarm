@@ -50,6 +50,19 @@
         WHERE id = #{id}
     </select>
 
+    <select id="selectByIdForUpdate" resultMap="BaseResultMap">
+        SELECT id, tenant_code, tenant_name, brand_name, logo_url, theme_color, product_template,
+               company_address, unified_social_credit_code, service_phone, service_email, service_hours,
+               third_party_services, icp_number, police_record_number,
+               police_record_url, business_license_url, show_business_license,
+               user_agreement, privacy_policy, after_sale_policy, after_sale_window_mode, after_sale_window_days,
+               flash_sale_enabled, flash_sale_bonus_mode, repurchase_mall_enabled, repurchase_eligibility_mode, repurchase_bonus_mode, faqs,
+               status, remark, create_time, update_time
+        FROM dms_tenant
+        WHERE id = #{id}
+        FOR UPDATE
+    </select>
+
     <select id="selectByCode" resultMap="BaseResultMap">
         SELECT id, tenant_code, tenant_name, brand_name, logo_url, theme_color, product_template,
                company_address, unified_social_credit_code, service_phone, service_email, service_hours,

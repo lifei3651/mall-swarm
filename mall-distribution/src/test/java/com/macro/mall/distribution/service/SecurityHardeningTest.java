@@ -140,7 +140,8 @@ class SecurityHardeningTest {
         when(memberDao.selectByAccount(member.getPhone())).thenReturn(member);
 
         ShopAuthServiceImpl service = new ShopAuthServiceImpl(memberDao, memberSessionDao,
-                agentService, captchaService, smsVerificationService);
+                agentService, captchaService, smsVerificationService,
+                mock(com.macro.mall.distribution.dao.DmsTenantDao.class));
         ShopLoginDTO dto = new ShopLoginDTO();
         dto.setAccount(member.getPhone());
         dto.setPassword(password);

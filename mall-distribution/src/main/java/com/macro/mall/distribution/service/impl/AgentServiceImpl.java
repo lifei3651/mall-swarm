@@ -16,6 +16,7 @@ import com.macro.mall.distribution.dao.DmsCommissionRecordDao;
 import com.macro.mall.distribution.dao.DmsOrderBalanceAllocationDao;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsLineChangeApplicationDao;
+import com.macro.mall.distribution.dao.DmsTenantDao;
 import com.macro.mall.distribution.dto.AgentRegisterDTO;
 import com.macro.mall.distribution.dto.AgentSwitchLineDTO;
 import com.macro.mall.distribution.dto.AgentUpdateDTO;
@@ -25,6 +26,7 @@ import com.macro.mall.distribution.entity.DmsAgentChangeLog;
 import com.macro.mall.distribution.entity.DmsAgentRelation;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.common.exception.Asserts;
+import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.enums.*;
 import com.macro.mall.distribution.service.AgentRelationService;
 import com.macro.mall.distribution.service.AgentService;
@@ -81,10 +83,12 @@ public class AgentServiceImpl implements AgentService {
     private final CommissionService commissionService;
     private final PerformanceService performanceService;
     private final OperationLogService operationLogService;
+    private final DmsTenantDao tenantDao;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public AgentInfoVO register(AgentRegisterDTO registerDTO) {
+        lockAgentMutationScope();
         if (registerDTO == null || registerDTO.getUserId() == null) {
             Asserts.fail("请选择已有商城会员后再开通推广身份");
         }
@@ -249,21 +253,16 @@ public class AgentServiceImpl implements AgentService {
     @Override
     public List<AgentInfoVO> getAllDescendants(Long agentId) {
         List<DmsAgentRelation> relations = relationDao.selectAllDescendants(agentId);
-        List<AgentInfoVO> result = new ArrayList<>();
-        for (DmsAgentRelation relation : relations) {
-            DmsAgent agent = agentDao.selectById(relation.getAgentId());
-            if (agent != null) {
-                AgentInfoVO vo = convertToVO(agent);
-                vo.setParentId(relation.getParentAgentId());
-                result.add(vo);
-            }
-        }
-        return fillTreeMetrics(result);
+        List<Long> descendantIds = relations.stream().map(DmsAgentRelation::getAgentId)
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        if (descendantIds.isEmpty()) return List.of();
+        return fillTreeMetrics(convertToVOList(agentDao.selectByIds(descendantIds)));
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean switchLine(AgentSwitchLineDTO switchLineDTO) {
+        lockAgentMutationScope();
         Long agentId = switchLineDTO.getAgentId();
         Long newParentAgentId = switchLineDTO.getNewParentAgentId();
 
@@ -402,6 +401,7 @@ public class AgentServiceImpl implements AgentService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public AgentInfoVO adjustLevel(Long id, Integer level, String reason) {
+        lockAgentMutationScope();
         DmsAgent agent = agentDao.selectById(id);
         if (agent == null) Asserts.fail("会员不存在");
         if (AgentLevelEnum.getByValue(level) == null) Asserts.fail("会员卡级不正确");
@@ -445,6 +445,7 @@ public class AgentServiceImpl implements AgentService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean deactivate(Long agentId, String reason) {
+        lockAgentMutationScope();
         if (reason == null || reason.isBlank()) Asserts.fail("请输入取消会员资格的原因");
         DmsAgent agent = agentDao.selectById(agentId);
         if (agent == null) Asserts.fail("会员不存在");
@@ -660,6 +661,17 @@ public class AgentServiceImpl implements AgentService {
         return ids;
     }
 
+    /**
+     * 代理关系树是一个整体一致性对象。所有会改变节点、层级或上下级关系的事务，
+     * 先锁定当前客户租户行，保证单机和多实例部署下都按顺序执行。
+     */
+    private void lockAgentMutationScope() {
+        Long tenantId = TenantContext.getTenantId();
+        if (tenantDao.selectByIdForUpdate(tenantId) == null) {
+            Asserts.fail("商城客户配置不存在，暂不能修改会员关系");
+        }
+    }
+
     private void refreshTeamMemberCounts(Set<Long> agentIds) {
         if (agentIds == null) return;
         agentIds.stream().filter(java.util.Objects::nonNull).sorted().forEach(this::updateTeamMemberCount);
@@ -716,9 +728,36 @@ public class AgentServiceImpl implements AgentService {
      * 转换为VO列表
      */
     private List<AgentInfoVO> convertToVOList(List<DmsAgent> agents) {
-        List<AgentInfoVO> voList = new ArrayList<>();
+        if (agents == null || agents.isEmpty()) return new ArrayList<>();
+        List<Long> userIds = agents.stream().map(DmsAgent::getUserId)
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        Map<Long, DmsShopMember> members = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            for (DmsShopMember member : shopMemberDao.selectByUserIds(userIds)) {
+                members.put(member.getUserId(), member);
+            }
+        }
+        Map<Long, DmsAgent> agentsById = new HashMap<>();
+        agents.forEach(agent -> agentsById.put(agent.getId(), agent));
+        List<Long> missingParentIds = agents.stream().map(DmsAgent::getParentId)
+                .filter(java.util.Objects::nonNull).filter(id -> !agentsById.containsKey(id)).distinct().toList();
+        if (!missingParentIds.isEmpty()) {
+            agentDao.selectByIds(missingParentIds).forEach(parent -> agentsById.put(parent.getId(), parent));
+        }
+        List<AgentInfoVO> voList = new ArrayList<>(agents.size());
         for (DmsAgent agent : agents) {
-            voList.add(convertToVO(agent));
+            AgentInfoVO vo = new AgentInfoVO();
+            BeanUtils.copyProperties(agent, vo);
+            vo.setMemberAccount(MemberAccountUtils.display(members.get(agent.getUserId())));
+            AgentLevelEnum levelEnum = AgentLevelEnum.getByValue(agent.getAgentLevel());
+            vo.setAgentLevelName(levelEnum == null ? "未知" : levelEnum.getName());
+            AgentStatusEnum statusEnum = AgentStatusEnum.getByValue(agent.getStatus());
+            vo.setStatusName(statusEnum == null ? "未知" : statusEnum.getName());
+            AgentSourceTypeEnum sourceTypeEnum = AgentSourceTypeEnum.getByValue(agent.getSourceType());
+            vo.setSourceTypeName(sourceTypeEnum == null ? "未知" : sourceTypeEnum.getName());
+            DmsAgent parent = agent.getParentId() == null ? null : agentsById.get(agent.getParentId());
+            vo.setParentName(agent.getParentId() == null ? null : (parent == null ? "未知" : parent.getAgentName()));
+            voList.add(vo);
         }
         return voList;
     }

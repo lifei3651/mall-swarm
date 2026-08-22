@@ -4,6 +4,7 @@ import com.macro.mall.common.exception.ApiException;
 import com.macro.mall.common.sms.SmsBusinessType;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsShopMemberSessionDao;
+import com.macro.mall.distribution.dao.DmsTenantDao;
 import com.macro.mall.distribution.dto.ShopNicknameUpdateDTO;
 import com.macro.mall.distribution.dto.ShopPhoneUpdateDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
@@ -27,6 +28,7 @@ class ShopAccountSettingsServiceTest {
     @Mock private AgentService agentService;
     @Mock private LoginCaptchaService loginCaptchaService;
     @Mock private SmsVerificationService smsVerificationService;
+    @Mock private DmsTenantDao tenantDao;
 
     @Test
     void nicknameSupportsCommonChineseDisplayNamesAndRejectsEmoji() {
@@ -84,7 +86,8 @@ class ShopAccountSettingsServiceTest {
     }
 
     private ShopAuthServiceImpl service() {
-        return new ShopAuthServiceImpl(memberDao, sessionDao, agentService, loginCaptchaService, smsVerificationService);
+        return new ShopAuthServiceImpl(memberDao, sessionDao, agentService, loginCaptchaService, smsVerificationService,
+                tenantDao);
     }
 
     private DmsShopMember member() {

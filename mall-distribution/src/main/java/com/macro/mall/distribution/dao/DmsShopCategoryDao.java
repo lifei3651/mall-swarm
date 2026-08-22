@@ -14,6 +14,12 @@ public interface DmsShopCategoryDao {
     /** 查询首页展示的分类（status=1且show_on_home=1） */
     List<DmsShopCategory> selectHomeCategories(@Param("tenantId") Long tenantId);
 
+    int countByTenantId(@Param("tenantId") Long tenantId);
+
+    int countByNameExcludingId(@Param("tenantId") Long tenantId,
+                               @Param("categoryName") String categoryName,
+                               @Param("excludeId") Long excludeId);
+
     int insert(DmsShopCategory category);
 
     int update(DmsShopCategory category);

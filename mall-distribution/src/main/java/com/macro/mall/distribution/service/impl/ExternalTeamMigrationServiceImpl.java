@@ -134,16 +134,28 @@ public class ExternalTeamMigrationServiceImpl implements ExternalTeamMigrationSe
     }
 
     private List<ExternalTeamMemberDTO> parse(MultipartFile file) {
-        if (file==null || file.isEmpty()) Asserts.fail("请选择平移文件");
+        String extension = ImportFilePolicy.requireSupportedExtension(file);
         try {
-            List<List<String>> values = new ArrayList<>(); String name=Optional.ofNullable(file.getOriginalFilename()).orElse("").toLowerCase();
-            if (name.endsWith(".csv")) {
+            List<List<String>> values = new ArrayList<>();
+            if ("csv".equals(extension) || "txt".equals(extension)) {
                 try (BufferedReader br=new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
-                    String line; boolean header=true; while((line=br.readLine())!=null){ if(header){header=false;continue;} values.add(Arrays.stream(line.split(",",-1)).map(String::trim).toList()); }
+                    String line; boolean header=true; while((line=br.readLine())!=null){
+                        if(header){header=false;continue;}
+                        if (line.length() > ImportFilePolicy.MAX_TEXT_LINE_LENGTH) Asserts.fail("平移文件存在超长文本行");
+                        ImportFilePolicy.requireRowCount(values.size() + 1, 1000);
+                        String delimiter = line.contains("\t") ? "\t" : ",";
+                        List<String> row = Arrays.stream(line.split(delimiter,-1))
+                                .map(ImportFilePolicy::requireCellLength).toList();
+                        ImportFilePolicy.requireColumnCount(row.size());
+                        values.add(row);
+                    }
                 }
             } else {
                 try(Workbook wb=WorkbookFactory.create(file.getInputStream())) { Sheet sheet=wb.getSheetAt(0); DataFormatter f=new DataFormatter();
-                    for(int i=1;i<=sheet.getLastRowNum();i++){ Row r=sheet.getRow(i); if(r==null)continue; List<String> v=new ArrayList<>(); for(int j=0;j<9;j++)v.add(f.formatCellValue(r.getCell(j)).trim()); values.add(v); }
+                    ImportFilePolicy.requireRowCount(sheet.getLastRowNum(), 1000);
+                    for(int i=1;i<=sheet.getLastRowNum();i++){ Row r=sheet.getRow(i); if(r==null)continue;
+                        ImportFilePolicy.requireColumnCount(Math.max(r.getLastCellNum(), 0));
+                        List<String> v=new ArrayList<>(); for(int j=0;j<9;j++)v.add(ImportFilePolicy.requireCellLength(f.formatCellValue(r.getCell(j)))); values.add(v); }
                 }
             }
             List<ExternalTeamMemberDTO> result=new ArrayList<>();

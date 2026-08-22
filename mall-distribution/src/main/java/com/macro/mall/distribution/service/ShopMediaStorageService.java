@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.service;
 
 import com.macro.mall.common.exception.Asserts;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -32,6 +33,7 @@ import java.util.HexFormat;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -45,11 +47,13 @@ import java.util.stream.Stream;
  * OSS/CDN时，控制器无需再承担图片处理逻辑。</p>
  */
 @Service
+@Slf4j
 public class ShopMediaStorageService {
     static final long MAX_IMAGE_SIZE = 5L * 1024 * 1024;
     static final int MAX_TEMP_PROOFS_PER_MEMBER = 12;
     static final long MAX_TEMP_PROOF_BYTES_PER_MEMBER = 30L * 1024 * 1024;
     private static final String FILE_NAME_PATTERN = "[a-fA-F0-9]{32}\\.(jpg|jpeg|png|webp|gif)";
+    private static final AtomicBoolean POSIX_PERMISSION_WARNING_LOGGED = new AtomicBoolean(false);
 
     private final Path storageDirectory;
     private final Path privateStorageDirectory;
@@ -302,7 +306,7 @@ public class ShopMediaStorageService {
         try {
             Files.setPosixFilePermissions(target, PosixFilePermissions.fromString("rw-r--r--"));
         } catch (UnsupportedOperationException ignored) {
-            // Windows等不支持POSIX权限的平台沿用默认文件权限。
+            warnUnsupportedPosix(target);
         }
     }
 
@@ -310,7 +314,7 @@ public class ShopMediaStorageService {
         try {
             Files.setPosixFilePermissions(target, PosixFilePermissions.fromString("rw-------"));
         } catch (UnsupportedOperationException ignored) {
-            // Windows等不支持POSIX权限的平台沿用默认文件权限，访问仍由受保护接口控制。
+            warnUnsupportedPosix(target);
         }
     }
 
@@ -318,7 +322,13 @@ public class ShopMediaStorageService {
         try {
             Files.setPosixFilePermissions(target, PosixFilePermissions.fromString("rwx------"));
         } catch (UnsupportedOperationException ignored) {
-            // Windows等不支持POSIX权限的平台沿用默认目录权限，访问仍由受保护接口控制。
+            warnUnsupportedPosix(target);
+        }
+    }
+
+    private void warnUnsupportedPosix(Path target) {
+        if (POSIX_PERMISSION_WARNING_LOGGED.compareAndSet(false, true)) {
+            log.warn("当前文件系统不支持POSIX权限，媒体文件沿用系统默认权限；请核对运行账号和目录ACL: path={}", target);
         }
     }
 

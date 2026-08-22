@@ -7,6 +7,8 @@ import com.macro.mall.common.sms.SmsBusinessType;
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsShopMemberSessionDao;
+import com.macro.mall.distribution.dao.DmsTenantDao;
+import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.dto.AgentRegisterDTO;
 import com.macro.mall.distribution.dto.AgentSwitchLineDTO;
 import com.macro.mall.distribution.dto.AdminMemberCreateDTO;
@@ -57,6 +59,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     private final AgentService agentService;
     private final LoginCaptchaService loginCaptchaService;
     private final SmsVerificationService smsVerificationService;
+    private final DmsTenantDao tenantDao;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -134,6 +137,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         if (dto == null || dto.getInviteCode() == null || dto.getInviteCode().isBlank()) {
             Asserts.fail("请输入邀请码");
         }
+        lockAgentMutationScope();
         DmsShopMember current = memberDao.selectByIdForUpdate(member.getId());
         if (current == null || !Integer.valueOf(1).equals(current.getStatus())) Asserts.fail("会员不存在或不可用");
         if (current.getInviterId() != null) Asserts.fail("直属邀请关系已经绑定，不能自行修改");
@@ -214,6 +218,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public AgentInfoVO activateMember(Long userId, Integer initialLevel, String reason) {
+        lockAgentMutationScope();
         DmsShopMember member = memberDao.selectByUserId(userId);
         // 兼容旧后台页面曾展示的“会员表ID”；最终统一换成系统用户ID处理。
         if (member == null) member = memberDao.selectById(userId);
@@ -280,6 +285,12 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             dto.setNewParentAgentId(inviter.getId());
             dto.setReason("直属邀请人完成首单，恢复直接推荐关系（历史业绩和奖金不变）");
             agentService.switchLine(dto);
+        }
+    }
+
+    private void lockAgentMutationScope() {
+        if (tenantDao.selectByIdForUpdate(TenantContext.getTenantId()) == null) {
+            Asserts.fail("商城客户配置不存在，暂不能修改会员关系");
         }
     }
 

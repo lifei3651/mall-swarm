@@ -91,6 +91,12 @@ sa-token:
 
 # 仅供本地联调；生产配置会强制关闭。
 shop:
+  catalog:
+    # 商城基座默认足够大；客户确有大量行业分类时可通过环境变量调整，无需改代码。
+    max-categories: ${SHOP_MAX_CATEGORIES:500}
+  content:
+    # 逗号分隔的客户违禁词词库；基座默认空，交付时按客户经营要求配置。
+    blocked-terms: ${SHOP_CONTENT_BLOCKED_TERMS:}
   realtime:
     heartbeat-ms: ${SHOP_REALTIME_HEARTBEAT_MS:25000}
   logistics:

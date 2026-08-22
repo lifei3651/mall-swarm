@@ -8,6 +8,7 @@ import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.ImportService;
 import com.macro.mall.distribution.service.ExternalTeamMigrationService;
+import com.macro.mall.distribution.service.impl.ImportExecutionGuard;
 import com.macro.mall.distribution.vo.ImportResultVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,13 +29,15 @@ public class ImportController {
 
     private final ImportService importService;
     private final ExternalTeamMigrationService externalTeamMigrationService;
+    private final ImportExecutionGuard importExecutionGuard;
 
     @Operation(summary = "外部团队整体平移")
     @PostMapping("/external-team/file")
     public CommonResult<ImportResultVO> migrateExternalTeam(
             @RequestParam("file") MultipartFile file,
             @RequestParam(required = false) Long anchorAgentId) {
-        return CommonResult.success(externalTeamMigrationService.migrate(file, anchorAgentId));
+        return CommonResult.success(importExecutionGuard.execute(
+                () -> externalTeamMigrationService.migrate(file, anchorAgentId)));
     }
 
     @Operation(summary = "批量导入代理（Excel文件）")

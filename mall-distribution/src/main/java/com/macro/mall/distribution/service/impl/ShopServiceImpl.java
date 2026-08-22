@@ -38,6 +38,7 @@ import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.MerchantService;
 import com.macro.mall.distribution.service.AdminAuthService;
 import com.macro.mall.distribution.service.MerchantProductReviewService;
+import com.macro.mall.distribution.service.ContentModerationService;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.vo.OrderFinanceVO;
 import com.macro.mall.distribution.vo.ShopHomeVO;
@@ -86,6 +87,9 @@ public class ShopServiceImpl implements ShopService {
     private static final Long DEFAULT_TENANT_ID = 1L;
     private static final BigDecimal ZERO = BigDecimal.ZERO;
 
+    @Value("${shop.catalog.max-categories:500}")
+    private int maxCategories;
+
     private final DmsShopProductDao productDao;
     private final DmsShopCategoryDao categoryDao;
     private final DmsShopBannerDao bannerDao;
@@ -107,6 +111,7 @@ public class ShopServiceImpl implements ShopService {
     private final DmsAgentAccountDao accountDao;
     private final DmsTenantDao tenantDao;
     private final DmsTenantDisplayConfigDao displayConfigDao;
+    private final ContentModerationService contentModerationService;
     private final DmsMigrationBaselineDao migrationBaselineDao;
     private final DistributionAuditService auditService;
     private final PerformanceService performanceService;
@@ -282,8 +287,12 @@ public class ShopServiceImpl implements ShopService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsShopCategory saveCategory(DmsShopCategory category) {
+        assertPlatformCategoryManagement();
         fillCategoryDefaults(category);
         assertTenantAccess(category.getTenantId());
+        if (categoryDao.countByTenantId(category.getTenantId()) >= Math.max(1, maxCategories)) {
+            Asserts.fail("商品分类已达到商城上限（" + Math.max(1, maxCategories) + "个），请先整理现有分类");
+        }
         assertCategoryNameAvailable(category.getTenantId(), category.getCategoryName(), null);
         categoryDao.insert(category);
         catalogCache.invalidateAfterCommit(category.getTenantId());
@@ -293,6 +302,7 @@ public class ShopServiceImpl implements ShopService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsShopCategory updateCategory(Long id, DmsShopCategory category) {
+        assertPlatformCategoryManagement();
         DmsShopCategory exists = categoryDao.selectById(id);
         if (exists == null) {
             Asserts.fail("分类不存在");
@@ -314,6 +324,7 @@ public class ShopServiceImpl implements ShopService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean deleteCategory(Long id) {
+        assertPlatformCategoryManagement();
         DmsShopCategory category = categoryDao.selectById(id);
         if (category == null) {
             Asserts.fail("分类不存在或已被删除");
@@ -330,6 +341,7 @@ public class ShopServiceImpl implements ShopService {
 
     @Override
     public boolean updateCategoryStatus(Long id, Integer status) {
+        assertPlatformCategoryManagement();
         DmsShopCategory category = categoryDao.selectById(id);
         if (category == null) {
             Asserts.fail("分类不存在");
@@ -343,6 +355,7 @@ public class ShopServiceImpl implements ShopService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean updateCategoryShowOnHome(Long id, Integer showOnHome) {
+        assertPlatformCategoryManagement();
         DmsShopCategory category = categoryDao.selectById(id);
         if (category == null) {
             Asserts.fail("分类不存在");
@@ -2138,11 +2151,9 @@ public class ShopServiceImpl implements ShopService {
     }
 
     private void assertCategoryNameAvailable(Long tenantId, String categoryName, Long excludeId) {
-        boolean duplicated = categoryDao.selectList(tenantId, null).stream()
-                .anyMatch(item -> !java.util.Objects.equals(item.getId(), excludeId)
-                        && item.getCategoryName() != null
-                        && item.getCategoryName().equalsIgnoreCase(categoryName));
-        if (duplicated) Asserts.fail("分类名称已存在，请勿重复添加");
+        if (categoryDao.countByNameExcludingId(tenantId, categoryName, excludeId) > 0) {
+            Asserts.fail("分类名称已存在，请勿重复添加");
+        }
     }
 
     private void fillBannerDefaults(DmsShopBanner banner) {
@@ -2196,6 +2207,8 @@ public class ShopServiceImpl implements ShopService {
         if (notice.getContent().trim().length() > 1000) {
             Asserts.fail("公告内容不能超过1000个字");
         }
+        contentModerationService.assertAllowed("公告标题", notice.getTitle());
+        contentModerationService.assertAllowed("公告内容", notice.getContent());
         notice.setTenantId(resolveTenantId(notice.getTenantId()));
         notice.setTitle(notice.getTitle().trim());
         notice.setContent(notice.getContent().trim());
@@ -2258,10 +2271,23 @@ public class ShopServiceImpl implements ShopService {
         try {
             JsonNode node = objectMapper.readTree(value);
             if (node == null || !node.isObject()) Asserts.fail("SKU规格属性必须是JSON对象，例如 {\"颜色\":\"红色\"}");
+            if (node.size() > 20) Asserts.fail("单个SKU最多维护20项规格属性");
+            node.fields().forEachRemaining(entry -> {
+                if (entry.getKey().length() > 64) Asserts.fail("SKU规格属性名称不能超过64个字符");
+                if (!entry.getValue().isValueNode()) Asserts.fail("SKU规格属性必须使用简单键值，不能嵌套对象或数组");
+                if (entry.getValue().asText().length() > 128) Asserts.fail("SKU规格属性值不能超过128个字符");
+            });
             return objectMapper.writeValueAsString(node);
         } catch (JsonProcessingException e) {
             Asserts.fail("SKU规格属性JSON格式错误");
             return "{}";
+        }
+    }
+
+    private void assertPlatformCategoryManagement() {
+        DmsAdminUser admin = AdminContext.get();
+        if (admin != null && admin.getMerchantId() != null) {
+            Asserts.fail("商品分类由平台统一维护，商户账号不能新增、修改或删除分类");
         }
     }
 

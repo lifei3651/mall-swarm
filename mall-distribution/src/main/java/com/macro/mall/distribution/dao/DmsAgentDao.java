@@ -25,6 +25,8 @@ public interface DmsAgentDao {
      */
     DmsAgent selectByUserId(@Param("userId") Long userId);
 
+    List<DmsAgent> selectByIds(@Param("ids") List<Long> ids);
+
     /**
      * 根据代理编号查询代理
      */

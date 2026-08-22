@@ -30,6 +30,8 @@ import com.macro.mall.distribution.entity.DmsShopAddress;
 import com.macro.mall.distribution.entity.DmsShopCategory;
 import com.macro.mall.distribution.entity.DmsShopProduct;
 import com.macro.mall.distribution.entity.DmsShopSku;
+import com.macro.mall.distribution.entity.DmsAdminUser;
+import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.vo.FreightQuoteVO;
 import com.macro.mall.distribution.vo.AdminDashboardVO;
 import com.macro.mall.distribution.vo.AdminMemberVO;
@@ -553,6 +555,48 @@ class ShopFreightServiceTest {
         assertTrue(error.getMessage().contains("还有1个商品"));
         assertTrue(shopService.listAdminCategories(1L, null).stream()
                 .anyMatch(category -> savedInUse.getId().equals(category.getId())));
+    }
+
+    @Test
+    void merchantAccountCannotChangeGlobalCategories() {
+        DmsAdminUser merchantAdmin = new DmsAdminUser();
+        merchantAdmin.setId(88001L);
+        merchantAdmin.setMerchantId(99001L);
+        AdminContext.set(merchantAdmin);
+        try {
+            DmsShopCategory category = new DmsShopCategory();
+            category.setCategoryName("商户越权分类");
+            ApiException error = assertThrows(ApiException.class, () -> shopService.saveCategory(category));
+            assertTrue(error.getMessage().contains("平台统一维护"));
+        } finally {
+            AdminContext.clear();
+        }
+    }
+
+    @Test
+    void skuAttributesRejectExcessiveOrNestedStructures() {
+        DmsShopSku existing = skuDao.selectById(1L);
+        ShopSkuDTO sku = new ShopSkuDTO();
+        sku.setProductId(existing.getProductId());
+        sku.setSkuName(existing.getSkuName());
+        sku.setSalePrice(existing.getSalePrice());
+        sku.setCostAmount(existing.getCostAmount());
+        sku.setStock(existing.getStock());
+        sku.setStatus(1);
+        sku.setAttrsJson("{\"颜色\":{\"名称\":\"红色\"}}");
+
+        ApiException nested = assertThrows(ApiException.class, () -> shopService.updateSku(existing.getId(), sku));
+        assertTrue(nested.getMessage().contains("不能嵌套"));
+
+        StringBuilder excessive = new StringBuilder("{");
+        for (int i = 0; i < 21; i++) {
+            if (i > 0) excessive.append(',');
+            excessive.append('"').append("规格").append(i).append("\":\"值\"");
+        }
+        excessive.append('}');
+        sku.setAttrsJson(excessive.toString());
+        ApiException tooMany = assertThrows(ApiException.class, () -> shopService.updateSku(existing.getId(), sku));
+        assertTrue(tooMany.getMessage().contains("最多维护20项"));
     }
 
     @Test

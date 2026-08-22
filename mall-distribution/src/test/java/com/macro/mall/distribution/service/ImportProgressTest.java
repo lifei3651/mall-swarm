@@ -35,7 +35,8 @@ class ImportProgressTest {
         when(batchDao.selectByBatchNo(batch.getBatchNo())).thenReturn(batch);
         when(detailDao.selectByBatchIdAndStatus(1L, 2)).thenReturn(List.of());
         ImportServiceImpl service = new ImportServiceImpl(batchDao, detailDao, mock(DmsAgentDao.class),
-                mock(AgentService.class), new ObjectMapper(), mock(ImportTransactionHelper.class));
+                mock(AgentService.class), new ObjectMapper(), mock(ImportTransactionHelper.class),
+                mock(com.macro.mall.distribution.service.impl.ImportExecutionGuard.class));
 
         var result = service.getImportResult(batch.getBatchNo());
 

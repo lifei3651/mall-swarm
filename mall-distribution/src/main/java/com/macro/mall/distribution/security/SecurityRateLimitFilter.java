@@ -111,6 +111,12 @@ public class SecurityRateLimitFilter extends OncePerRequestFilter {
         if (HttpMethod.POST.matches(method) && "/shop/media/after-sale-proofs".equals(path)) {
             return new Rule("after-sale-proof-upload", 12, 60);
         }
+        if (HttpMethod.POST.matches(method) && "/shop/admin/media/images".equals(path)) {
+            return new Rule("product-image-upload", 30, 60);
+        }
+        if (HttpMethod.POST.matches(method) && path.matches("/shop/products/[^/]+/reviews")) {
+            return new Rule("product-review-submit", 10, 60);
+        }
         if ((path.startsWith("/shop/") || path.startsWith("/distribution/"))
                 && !HttpMethod.GET.matches(method)) {
             return new Rule("business-write", 120, 60);

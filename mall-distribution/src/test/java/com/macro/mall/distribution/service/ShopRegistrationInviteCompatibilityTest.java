@@ -3,10 +3,12 @@ package com.macro.mall.distribution.service;
 import com.macro.mall.common.exception.ApiException;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsShopMemberSessionDao;
+import com.macro.mall.distribution.dao.DmsTenantDao;
 import com.macro.mall.distribution.dto.ShopRegisterDTO;
 import com.macro.mall.distribution.dto.ShopInviteBindDTO;
 import com.macro.mall.distribution.dto.AgentSwitchLineDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
+import com.macro.mall.distribution.entity.DmsTenant;
 import com.macro.mall.distribution.service.impl.ShopAuthServiceImpl;
 import com.macro.mall.distribution.vo.AgentInfoVO;
 import org.junit.jupiter.api.Test;
@@ -35,6 +37,7 @@ class ShopRegistrationInviteCompatibilityTest {
     @Mock private AgentService agentService;
     @Mock private LoginCaptchaService loginCaptchaService;
     @Mock private SmsVerificationService smsVerificationService;
+    @Mock private DmsTenantDao tenantDao;
     @InjectMocks private ShopAuthServiceImpl authService;
 
     @Test
@@ -147,6 +150,7 @@ class ShopRegistrationInviteCompatibilityTest {
 
     @Test
     void teamH5CanBindAnUnboundPublicAccountExactlyOnceAndMoveActiveAgent() {
+        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(new DmsTenant());
         DmsShopMember member = new DmsShopMember();
         member.setId(12L); member.setUserId(1200L); member.setStatus(1);
         DmsShopMember inviter = new DmsShopMember();

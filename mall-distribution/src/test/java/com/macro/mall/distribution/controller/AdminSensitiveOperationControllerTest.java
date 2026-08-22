@@ -77,7 +77,8 @@ class AdminSensitiveOperationControllerTest {
     @Test
     void importAuditActorAlwaysComesFromAuthenticatedAdmin() {
         ImportService importService = mock(ImportService.class);
-        ImportController controller = new ImportController(importService, mock(ExternalTeamMigrationService.class));
+        ImportController controller = new ImportController(importService, mock(ExternalTeamMigrationService.class),
+                mock(com.macro.mall.distribution.service.impl.ImportExecutionGuard.class));
         DmsAdminUser admin = admin(9L, "real_operator", "真实操作人");
         AdminContext.set(admin);
         List<ImportAgentDTO> rows = List.of(new ImportAgentDTO());

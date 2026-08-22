@@ -3,10 +3,12 @@ package com.macro.mall.distribution.service;
 import cn.hutool.crypto.digest.BCrypt;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsShopMemberSessionDao;
+import com.macro.mall.distribution.dao.DmsTenantDao;
 import com.macro.mall.distribution.dto.AgentRegisterDTO;
 import com.macro.mall.distribution.dto.AdminMemberCreateDTO;
 import com.macro.mall.distribution.dto.ShopLoginDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
+import com.macro.mall.distribution.entity.DmsTenant;
 import com.macro.mall.distribution.service.impl.ShopAuthServiceImpl;
 import com.macro.mall.distribution.vo.AgentInfoVO;
 import org.junit.jupiter.api.Test;
@@ -31,10 +33,12 @@ class ShopDirectInviterActivationTest {
     @Mock private AgentService agentService;
     @Mock private LoginCaptchaService loginCaptchaService;
     @Mock private SmsVerificationService smsVerificationService;
+    @Mock private DmsTenantDao tenantDao;
     @InjectMocks private ShopAuthServiceImpl authService;
 
     @Test
     void inactiveDirectInviterIsNeverSkippedToGrandparent() {
+        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(new DmsTenant());
         DmsShopMember c = member(30L, 3003L, 3002L, "C");
         when(memberDao.selectByUserId(3003L)).thenReturn(c);
         when(agentService.getAgentByUserId(3003L)).thenReturn(null);
@@ -52,6 +56,7 @@ class ShopDirectInviterActivationTest {
 
     @Test
     void legacyMemberTableIdIsAcceptedByAdminActivation() {
+        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(new DmsTenant());
         DmsShopMember member = member(77L, 9007199254740992L, null, "后台会员");
         when(memberDao.selectByUserId(77L)).thenReturn(null);
         when(memberDao.selectById(77L)).thenReturn(member);

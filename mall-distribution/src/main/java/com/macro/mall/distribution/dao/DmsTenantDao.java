@@ -11,6 +11,11 @@ public interface DmsTenantDao {
 
     DmsTenant selectById(@Param("id") Long id);
 
+    /**
+     * 锁定当前客户配置行，作为部署内代理关系树变更的数据库互斥边界。
+     */
+    DmsTenant selectByIdForUpdate(@Param("id") Long id);
+
     DmsTenant selectByCode(@Param("tenantCode") String tenantCode);
 
     List<DmsTenant> selectAll();

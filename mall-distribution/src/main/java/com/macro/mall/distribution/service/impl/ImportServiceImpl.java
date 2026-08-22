@@ -53,6 +53,7 @@ public class ImportServiceImpl implements ImportService {
     private final AgentService agentService;
     private final ObjectMapper objectMapper;
     private final ImportTransactionHelper importTransactionHelper;
+    private final ImportExecutionGuard importExecutionGuard;
 
     @Override
     public ImportResultVO importAgents(MultipartFile file, Long operatorId, String operatorName) {
@@ -61,13 +62,16 @@ public class ImportServiceImpl implements ImportService {
 
     @Override
     public ImportResultVO importAgents(MultipartFile file, Long operatorId, String operatorName, String batchNo) {
-        List<ImportAgentDTO> agentList = parseAgentFile(file);
-        return importAgentsInternal(agentList, operatorId, operatorName, batchNo);
+        return importExecutionGuard.execute(() -> {
+            List<ImportAgentDTO> agentList = requireImportList(parseAgentFile(file));
+            return importAgentsInternal(agentList, operatorId, operatorName, batchNo);
+        });
     }
 
     @Override
     public ImportResultVO importAgents(List<ImportAgentDTO> agentList, Long operatorId, String operatorName) {
-        return importAgentsInternal(agentList, operatorId, operatorName, null);
+        return importExecutionGuard.execute(() -> importAgentsInternal(
+                requireImportList(agentList), operatorId, operatorName, null));
     }
 
     private ImportResultVO importAgentsInternal(List<ImportAgentDTO> agentList, Long operatorId,
@@ -147,13 +151,16 @@ public class ImportServiceImpl implements ImportService {
 
     @Override
     public ImportResultVO importOrders(MultipartFile file, Long operatorId, String operatorName, String batchNo) {
-        List<ImportOrderDTO> orderList = parseOrderFile(file);
-        return importOrdersInternal(orderList, operatorId, operatorName, batchNo);
+        return importExecutionGuard.execute(() -> {
+            List<ImportOrderDTO> orderList = requireImportList(parseOrderFile(file));
+            return importOrdersInternal(orderList, operatorId, operatorName, batchNo);
+        });
     }
 
     @Override
     public ImportResultVO importOrders(List<ImportOrderDTO> orderList, Long operatorId, String operatorName) {
-        return importOrdersInternal(orderList, operatorId, operatorName, null);
+        return importExecutionGuard.execute(() -> importOrdersInternal(
+                requireImportList(orderList), operatorId, operatorName, null));
     }
 
     private ImportResultVO importOrdersInternal(List<ImportOrderDTO> orderList, Long operatorId,
@@ -334,16 +341,14 @@ public class ImportServiceImpl implements ImportService {
     }
 
     private List<List<String>> readRows(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            Asserts.fail("导入文件不能为空");
-        }
-        String filename = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase();
+        String extension = ImportFilePolicy.requireSupportedExtension(file);
         try {
-            if (filename.endsWith(".csv") || filename.endsWith(".txt")) {
+            if ("csv".equals(extension) || "txt".equals(extension)) {
                 return readTextRows(file);
             }
             try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
                 Sheet sheet = workbook.getSheetAt(0);
+                ImportFilePolicy.requireRowCount(sheet.getLastRowNum(), ImportFilePolicy.MAX_IMPORT_ROWS);
                 DataFormatter formatter = new DataFormatter();
                 List<List<String>> rows = new ArrayList<>();
                 for (int i = 1; i <= sheet.getLastRowNum(); i++) {
@@ -353,14 +358,16 @@ public class ImportServiceImpl implements ImportService {
                     }
                     List<String> values = new ArrayList<>();
                     short lastCellNum = row.getLastCellNum();
+                    ImportFilePolicy.requireColumnCount(Math.max(lastCellNum, 0));
                     for (int j = 0; j < Math.max(lastCellNum, 0); j++) {
-                        values.add(formatter.formatCellValue(row.getCell(j)).trim());
+                        values.add(ImportFilePolicy.requireCellLength(formatter.formatCellValue(row.getCell(j))));
                     }
                     rows.add(values);
                 }
                 return rows;
             }
         } catch (Exception e) {
+            if (e instanceof com.macro.mall.common.exception.ApiException apiException) throw apiException;
             throw new RuntimeException("解析导入文件失败: " + e.getMessage(), e);
         }
     }
@@ -375,10 +382,22 @@ public class ImportServiceImpl implements ImportService {
                     headerSkipped = true;
                     continue;
                 }
+                if (line.length() > ImportFilePolicy.MAX_TEXT_LINE_LENGTH) {
+                    Asserts.fail("导入文件存在超长文本行");
+                }
+                ImportFilePolicy.requireRowCount(rows.size() + 1, ImportFilePolicy.MAX_IMPORT_ROWS);
                 String delimiter = line.contains("\t") ? "\t" : ",";
-                rows.add(Arrays.asList(line.split(delimiter, -1)));
+                List<String> values = Arrays.asList(line.split(delimiter, -1));
+                ImportFilePolicy.requireColumnCount(values.size());
+                rows.add(values.stream().map(ImportFilePolicy::requireCellLength).toList());
             }
         }
+        return rows;
+    }
+
+    private <T> List<T> requireImportList(List<T> rows) {
+        if (rows == null || rows.isEmpty()) Asserts.fail("导入数据不能为空");
+        ImportFilePolicy.requireRowCount(rows.size(), ImportFilePolicy.MAX_IMPORT_ROWS);
         return rows;
     }
 
