@@ -8,7 +8,12 @@ import { registerPwa } from './utils/pwa'
 import { appSurface } from './utils/appSurface'
 
 const app = createApp(App)
-installGlobalErrorHandling(app, router, appSurface === 'team' ? 'team-h5' : 'shop-public')
+const runtimeSurface = appSurface === 'team'
+  ? 'team-h5'
+  : appSurface === 'integrated'
+    ? 'shop-integrated'
+    : 'shop-public'
+installGlobalErrorHandling(app, router, runtimeSurface)
 app.use(router).mount('#app')
 startBuildFreshnessGuard()
 registerPwa()

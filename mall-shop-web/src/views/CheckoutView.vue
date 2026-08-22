@@ -288,6 +288,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, ClipboardPaste, Plus, Settings2, ShieldCheck, X } from 'lucide-vue-next'
 import { getHome, getMe, getWalletSummary, listAddresses, submitOrder, submitFlashSaleOrder, quoteFreight, checkPaymentVerify, sendSmsCode, sendPaymentPasswordSmsCode, setPaymentPassword, payOrderWithBalance, createAlipayOrder, getPayConfig } from '@/api/shop'
+import { mixedBusinessError, validateCheckoutBusinessType } from '@surface-commerce-policy'
 import { useCart } from '@/store/cart'
 import { money, joinAddress } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
@@ -581,7 +582,8 @@ const validate = () => {
   if (!form.value.receiverDetailAddress) return '请填写详细收货地址'
   if (form.value.receiverDetailAddress.trim().length > 200) return '详细地址不能超过200个字'
   if (form.value.remark.length > 500) return '订单备注不能超过500个字'
-  if (!['NORMAL', 'FLASH_SALE'].includes(businessType)) return '当前商品不属于公开商城可结算范围，请返回商城重新选择'
+  const businessError = validateCheckoutBusinessType(businessType)
+  if (businessError) return businessError
   if (form.value.payType === 'BALANCE' && walletSummary.value.hasPaymentPassword && Number(walletSummary.value.balance || 0) < payAmount.value) return '余额不足，请选择其他支付方式'
   return ''
 }
@@ -825,7 +827,7 @@ const doSubmitOrder = async (paymentPassword) => {
     let detailOrderId = pendingCheckoutDetailOrderId.value
     if (!checkoutId) {
       if (!orderRequestKey.value) orderRequestKey.value = createIdempotencyKey('order')
-      if (businessType === 'MIXED') throw new Error('普通商品和活动商品不能混合下单')
+      if (businessType === 'MIXED') throw new Error(mixedBusinessError)
       const res = businessType === 'FLASH_SALE'
         ? await submitFlashSaleOrder(businessSourceId, orderData, orderRequestKey.value)
         : await submitOrder(orderData, orderRequestKey.value)

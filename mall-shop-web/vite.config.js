@@ -7,18 +7,28 @@ import { createVersionManifestPlugin } from '../scripts/vite-version-manifest.mj
 const repoRoot = fileURLToPath(new URL('..', import.meta.url))
 
 export default defineConfig(({ mode }) => {
-  const teamSurface = mode === 'team'
+  const surface = mode === 'team' ? 'team' : mode === 'integrated' ? 'integrated' : 'public'
+  const teamSurface = surface === 'team'
+  const integratedSurface = surface === 'integrated'
+  const application = teamSurface ? 'team-h5' : integratedSurface ? 'integrated-h5' : 'storefront-public'
   return {
-  plugins: [vue(), createVersionManifestPlugin({ repoRoot, application: teamSurface ? 'team-h5' : 'storefront-public' })],
+  plugins: [vue(), createVersionManifestPlugin({ repoRoot, application })],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
       '@surface-app': path.resolve(__dirname, teamSurface ? 'src/surfaces/team/TeamApp.vue' : 'src/App.vue'),
-      '@surface-router': path.resolve(__dirname, teamSurface ? 'src/surfaces/team/router.js' : 'src/router/index.js'),
+      '@surface-router': path.resolve(__dirname, teamSurface
+        ? 'src/surfaces/team/router.js'
+        : integratedSurface
+          ? 'src/surfaces/integrated/router.js'
+          : 'src/router/index.js'),
+      '@surface-commerce-policy': path.resolve(__dirname, integratedSurface
+        ? 'src/surfaces/integrated/commercePolicy.js'
+        : 'src/surfaces/public/commercePolicy.js'),
     },
   },
   server: {
-    port: teamSurface ? 3002 : 3001,
+    port: teamSurface ? 3002 : integratedSurface ? 3003 : 3001,
     proxy: {
       '/api': {
         target: 'http://localhost:8086',
@@ -28,7 +38,7 @@ export default defineConfig(({ mode }) => {
     },
   },
   build: {
-    outDir: teamSurface ? 'dist-team' : 'dist',
+    outDir: teamSurface ? 'dist-team' : integratedSurface ? 'dist-integrated' : 'dist',
   },
   }
 })

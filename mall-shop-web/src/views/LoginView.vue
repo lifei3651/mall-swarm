@@ -261,7 +261,7 @@ import { isStaleChunkError } from '@/utils/chunkRecovery'
 import { applyShopSession } from '@/utils/shopSession'
 import { useRegisterDraft } from '@/store/registerDraft'
 import { currentBrandLogo, currentBrandName } from '@/utils/brand'
-import { isTeamSurface } from '@/utils/appSurface'
+import { hasTeamBusiness, isTeamSurface } from '@/utils/appSurface'
 
 const router = useRouter()
 const route = useRoute()
@@ -672,7 +672,7 @@ const submit = async () => {
       clearRegisterDraft()
       showRegisterPopup('账号注册成功', 'success', 1200)
       await waitForPopup(850)
-      if (isTeamSurface) {
+      if (hasTeamBusiness) {
         await router.replace('/')
       } else if (isNativeApp) {
         await router.replace('/profile')

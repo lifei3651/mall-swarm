@@ -31,14 +31,15 @@ export const restoreShopSession = async (surface = 'public') => {
   if (hasShopSession()) return true
   if (sessionRestorePromise) return sessionRestorePromise
 
-  const profilePath = surface === 'team' ? '/shop/auth/me' : '/shop/public/profile'
+  const fullAccountSurface = surface === 'team' || surface === 'integrated'
+  const profilePath = fullAccountSurface ? '/shop/auth/me' : '/shop/public/profile'
   sessionRestorePromise = fetch(`${apiBaseUrl}${profilePath}`, {
     method: 'GET',
     credentials: 'include',
     headers: {
       Accept: 'application/json',
       'X-Shop-Client': 'storefront',
-      'X-Shop-Surface': surface === 'team' ? 'team' : 'public',
+      'X-Shop-Surface': fullAccountSurface ? surface : 'public',
     },
   }).then(async (response) => {
     if (!response.ok) return false

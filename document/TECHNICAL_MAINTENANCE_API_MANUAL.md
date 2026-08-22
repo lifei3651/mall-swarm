@@ -98,7 +98,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 - 前端请求使用 `withCredentials: true`，写请求自动携带 `X-Shop-Client: storefront`。
 - 旧版本本地 Bearer Token 只用于一次性迁移；新代码不得把新 Token 写入本地存储。
 - 受保护页面的前端守卫仅用于体验，最终身份和数据权限必须由服务端判断。
-- 前端请求额外发送 `X-Shop-Surface: public|team` 供审计使用；服务端安全边界不能只信任该请求头。
+- 前端请求额外发送 `X-Shop-Surface: public|team|integrated` 供审计使用；服务端安全边界不能只信任该请求头。
 - 公开注册由服务端强制写入 `team_opt_in=0`，客户端传入关系参数也无效；团队 H5 注册或首次确认关系后才写入 `team_opt_in=1`。
 
 #### 管理后台
@@ -647,6 +647,8 @@ npm install
 npm test
 npm run build
 ```
+
+`npm run build` 会依次生成三种产物：`dist/` 为公开商城、`dist-team/` 为团队 H5、`dist-integrated/` 为一体化 H5。需要单独验证时使用 `npm run build:public`、`npm run build:team` 或 `npm run build:integrated`；公开包与一体化包分别执行功能边界门禁。
 
 管理后台：
 

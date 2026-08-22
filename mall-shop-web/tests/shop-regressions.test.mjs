@@ -258,6 +258,7 @@ test('protected routes restore a valid HttpOnly session when the local login hin
   const session = await readFile(new URL('../src/utils/shopSession.js', import.meta.url), 'utf8')
   const publicRouter = await readFile(new URL('../src/router/index.js', import.meta.url), 'utf8')
   const teamRouter = await readFile(new URL('../src/surfaces/team/router.js', import.meta.url), 'utf8')
+  const integratedRouter = await readFile(new URL('../src/surfaces/integrated/router.js', import.meta.url), 'utf8')
 
   assert.match(session, /credentials: 'include'/)
   assert.match(session, /'\/shop\/public\/profile'/)
@@ -266,6 +267,7 @@ test('protected routes restore a valid HttpOnly session when the local login hin
   assert.match(session, /applyShopSession\(member\)/)
   assert.match(publicRouter, /await restoreShopSession\('public'\)/)
   assert.match(teamRouter, /await restoreShopSession\('team'\)/)
+  assert.match(integratedRouter, /await restoreShopSession\('integrated'\)/)
 })
 
 test('captcha can be visibly refreshed when it is hard to read', async () => {
