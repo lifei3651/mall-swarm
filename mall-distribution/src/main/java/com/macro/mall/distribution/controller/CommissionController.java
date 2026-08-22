@@ -2,6 +2,7 @@ package com.macro.mall.distribution.controller;
 
 import com.macro.mall.common.api.CommonPage;
 import com.macro.mall.common.api.CommonResult;
+import com.macro.mall.distribution.dto.CommissionCancelDTO;
 import com.macro.mall.distribution.dto.CommissionQueryDTO;
 import com.macro.mall.distribution.dto.CommissionSettlementBatchCreateDTO;
 import com.macro.mall.distribution.entity.DmsBonusCalculationTask;
@@ -16,6 +17,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -89,13 +93,16 @@ public class CommissionController {
 
     @Operation(summary = "批量结算佣金")
     @PostMapping("/settle-batch")
-    public CommonResult<Integer> settleCommissionBatch(@RequestBody List<Long> recordIds) {
+    public CommonResult<Integer> settleCommissionBatch(
+            @Valid @RequestBody @Size(min = 1, max = 500, message = "单次最多选择500条佣金记录")
+            List<@NotNull(message = "佣金记录编号不能为空") @Positive(message = "佣金记录编号不正确") Long> recordIds) {
         return CommonResult.failed("奖金在订单确认收货满7天且无待处理售后后自动结算，禁止手工提前结算");
     }
 
     @Operation(summary = "创建月度佣金结算锁定批次")
     @PostMapping("/settlement-batches")
-    public CommonResult<DmsCommissionSettlementBatch> createSettlementBatch(@RequestBody CommissionSettlementBatchCreateDTO dto) {
+    public CommonResult<DmsCommissionSettlementBatch> createSettlementBatch(
+            @Valid @RequestBody CommissionSettlementBatchCreateDTO dto) {
         return CommonResult.success(settlementService.createBatch(dto));
     }
 
@@ -121,8 +128,8 @@ public class CommissionController {
     @PostMapping("/cancel/{recordId}")
     public CommonResult<Boolean> cancelCommission(
             @PathVariable Long recordId,
-            @RequestBody String cancelReason) {
-        boolean result = commissionService.cancelCommission(recordId, cancelReason);
+            @Valid @ModelAttribute CommissionCancelDTO dto) {
+        boolean result = commissionService.cancelCommission(recordId, dto.getCancelReason());
         if (result) {
             return CommonResult.success(true);
         }

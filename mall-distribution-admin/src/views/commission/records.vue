@@ -316,9 +316,14 @@ const handleCancel = async (row) => {
   try {
     const { value } = await ElMessageBox.prompt('请输入取消原因', '取消佣金', {
       inputType: 'textarea',
-      inputValidator: (v) => !!v || '请输入取消原因',
+      inputValidator: (v) => {
+        const reason = String(v || '').trim()
+        if (!reason) return '请输入取消原因'
+        if (reason.length > 200) return '取消原因不能超过200个字符'
+        return true
+      },
     })
-    await cancelCommission(row.id, value)
+    await cancelCommission(row.id, value.trim())
     ElMessage.success('取消成功')
     fetchData()
   } catch (e) {

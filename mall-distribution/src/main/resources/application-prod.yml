@@ -92,6 +92,7 @@ sa-token:
   is-share: true
   token-style: uuid
   is-log: false
+  is-read-header: true
   is-read-cookie: false
   cookie:
     secure: true

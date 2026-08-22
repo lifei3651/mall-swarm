@@ -4,6 +4,9 @@
 
 ## 2026-08-22（当前 Mac / Codex，App-H5 拆分副本）
 
+- 完成第十八轮 Cookie、API、输入校验、XSS 与 SQL 注入报告复核。确认后台取消佣金存在前后端参数协议不一致并缺少长度边界，已统一为必填且最多 200 字的查询模型，前端、控制器和服务三层一致；奖金模拟和已禁用的人工结算入口补齐 DTO 边界，已禁用的财务手填退款入口不再解析业务 DTO。逐项结论见 `document/audits/2026-08-22-security-round-18-product-review/REPORT.md`。
+- HTTPS 商城 Cookie 的 `SameSite=None` 是原生 App 跨站 API 会话需要，现有精确 CORS 白名单、自定义头预检和服务端缺头 403 已形成有效 CSRF 防护，故不误改为会破坏 App 登录的模式；Sa-Token 基础配置进一步明确只读请求头、不读 Cookie。批量导入继续保持服务层逐行校验和失败明细，不用 Controller 整批校验破坏运营语义。
+- 验证通过：Cookie/配置/输入专项 20/20，后端完整回归 437/437，后台 110/110 及生产构建成功；同时修复 AES-GCM 篡改测试因无填充 Base64 尾字符等价导致的随机失败。无数据库迁移、未连接线上、未发布，本地继续为 `1.0.75` 待发布，线上保持 `1.0.74`。
 - 完成第十七轮依赖供应链、日志、异常处理和 Docker 部署报告复核。成立项已收口：ELK 参考配置复用脱敏转换器、默认日志级别和总磁盘容量收紧，支付宝/导入/奖金失败信息在响应或落库前脱敏，后台 401/403 使用类型化错误码，公共异常兜底返回真实 HTTP 状态。逐项结论见 `document/audits/2026-08-22-security-round-17-product-review/REPORT.md`。
 - 精简生产运行包：`hutool-all` 改为 core/json/crypto，代码生成器不再传递，移除未使用的 Spring Boot Admin、Knife4j 和旧 Maven Docker 构建链；客户模板默认数据库 TLS，并为四个容器增加资源上限，MySQL/Redis/Nginx 增加只读根文件系统及预检门禁，删除未使用的旧 `external_links` Compose 文件。
 - 当前 Mac 已安装并登录官方 Docker Desktop 4.87.0（Engine 29.7.2、Compose 5.4.0）。真实空数据卷演练发现并修复三项仅运行时可见的交付缺陷：MySQL 初始化入口缺执行权限导致空库、基础 SQL 与版本迁移边界错误导致重复字段/缺 ERP 表、原子替换静态目录后 Nginx 未重建导致首页 500。

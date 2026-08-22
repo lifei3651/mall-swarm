@@ -2,6 +2,7 @@ package com.macro.mall.distribution.security;
 
 import com.macro.mall.distribution.controller.AdminAuthController;
 import com.macro.mall.distribution.controller.AgentController;
+import com.macro.mall.distribution.controller.BonusEngineConfigController;
 import com.macro.mall.distribution.controller.CommissionController;
 import com.macro.mall.distribution.controller.MemberAssetController;
 import com.macro.mall.distribution.controller.ShopController;
@@ -20,6 +21,9 @@ import com.macro.mall.distribution.dto.ShopAfterSaleReturnShipmentDTO;
 import com.macro.mall.distribution.dto.ShopOrderShipDTO;
 import com.macro.mall.distribution.dto.ShopOrderSubmitDTO;
 import com.macro.mall.distribution.dto.CommissionQueryDTO;
+import com.macro.mall.distribution.dto.CommissionCancelDTO;
+import com.macro.mall.distribution.dto.CommissionSettlementBatchCreateDTO;
+import com.macro.mall.distribution.dto.BonusSimulationDTO;
 import com.macro.mall.distribution.dto.WithdrawConfirmPayDTO;
 import com.macro.mall.distribution.dto.SmsCodeRequestDTO;
 import com.macro.mall.distribution.dto.LineChangeAuditDTO;
@@ -30,6 +34,7 @@ import jakarta.validation.Validator;
 import jakarta.validation.constraints.Size;
 import org.junit.jupiter.api.Test;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.ModelAttribute;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -56,6 +61,27 @@ class RequestInputValidationTest {
         sms.setBizType(99);
         sms.setCode("12a456");
         assertMessages(sms, "请输入正确的11位手机号", "短信业务类型不正确", "短信验证码必须是6位数字");
+    }
+
+    @Test
+    void rejectsMalformedCommissionAdministrationInputs() {
+        CommissionCancelDTO cancel = new CommissionCancelDTO();
+        cancel.setCancelReason(" ");
+        assertMessages(cancel, "请输入取消原因");
+        cancel.setCancelReason("原".repeat(201));
+        assertMessages(cancel, "取消原因不能超过200个字符");
+
+        CommissionSettlementBatchCreateDTO batch = new CommissionSettlementBatchCreateDTO();
+        batch.setRemark("备".repeat(501));
+        assertMessages(batch, "结算批次备注不能超过500个字符");
+
+        BonusSimulationDTO simulation = new BonusSimulationDTO();
+        simulation.setTenantId(0L);
+        simulation.setOrderUserId(-1L);
+        simulation.setOrderMemberKey("会".repeat(65));
+        simulation.setOrderAmount(new BigDecimal("-0.01"));
+        assertMessages(simulation, "客户编号不正确", "下单会员编号不正确",
+                "会员登录账号或手机号不能超过64个字符", "订单金额必须大于0");
     }
 
     @Test
@@ -122,6 +148,10 @@ class RequestInputValidationTest {
         assertValidParameter(MemberAssetController.class, "issue", AdminAssetChangeDTO.class);
         assertValidParameter(MemberAssetController.class, "deduct", AdminAssetChangeDTO.class);
         assertValidParameter(CommissionController.class, "getCommissionRecords", CommissionQueryDTO.class);
+        assertValidParameter(CommissionController.class, "cancelCommission", CommissionCancelDTO.class);
+        assertValidParameter(CommissionController.class, "createSettlementBatch", CommissionSettlementBatchCreateDTO.class);
+        assertValidParameter(BonusEngineConfigController.class, "simulate", BonusSimulationDTO.class);
+        assertModelAttributeParameter(CommissionController.class, "cancelCommission", CommissionCancelDTO.class);
         assertTrue(MemberAssetController.class.isAnnotationPresent(Validated.class),
                 "MemberAssetController must activate request parameter constraints");
         assertSizedStringParameters(MemberAssetController.class, "searchFlows", 100, 2);
@@ -210,5 +240,18 @@ class RequestInputValidationTest {
                 .count();
         assertTrue(count >= expectedCount,
                 controller.getSimpleName() + "." + methodName + " must limit query text length");
+    }
+
+    private void assertModelAttributeParameter(Class<?> controller, String methodName, Class<?> dtoType) {
+        Method method = java.util.Arrays.stream(controller.getDeclaredMethods())
+                .filter(candidate -> candidate.getName().equals(methodName))
+                .findFirst()
+                .orElseThrow();
+        Parameter parameter = java.util.Arrays.stream(method.getParameters())
+                .filter(candidate -> candidate.getType().equals(dtoType))
+                .findFirst()
+                .orElseThrow();
+        assertNotNull(parameter.getAnnotation(ModelAttribute.class),
+                controller.getSimpleName() + "." + methodName + " must bind the query model used by the admin client");
     }
 }

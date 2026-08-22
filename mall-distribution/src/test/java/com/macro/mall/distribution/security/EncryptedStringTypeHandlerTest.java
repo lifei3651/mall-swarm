@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.Base64;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -32,8 +33,10 @@ class EncryptedStringTypeHandlerTest {
     void rejectsTamperedCiphertextAndMissingKey() throws Exception {
         EncryptedStringTypeHandler handler = new EncryptedStringTypeHandler(KEY);
         String encrypted = handler.encrypt("6222020202020202020");
-        String tampered = encrypted.substring(0, encrypted.length() - 1)
-                + (encrypted.endsWith("A") ? "B" : "A");
+        byte[] payload = Base64.getUrlDecoder().decode(encrypted.substring(EncryptedStringTypeHandler.PREFIX.length()));
+        payload[payload.length - 1] ^= 0x01;
+        String tampered = EncryptedStringTypeHandler.PREFIX
+                + Base64.getUrlEncoder().withoutPadding().encodeToString(payload);
 
         assertThrows(SQLException.class, () -> handler.decrypt(tampered));
         EncryptedStringTypeHandler withoutKey = new EncryptedStringTypeHandler("");

@@ -234,6 +234,13 @@ public class CommissionServiceImpl implements CommissionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean cancelCommission(Long recordId, String cancelReason) {
+        String normalizedReason = cancelReason == null ? "" : cancelReason.trim();
+        if (normalizedReason.isEmpty()) {
+            Asserts.fail("请输入取消原因");
+        }
+        if (normalizedReason.length() > 200) {
+            Asserts.fail("取消原因不能超过200个字符");
+        }
         DmsCommissionRecord record = recordDao.selectByIdForUpdate(recordId);
         if (record == null) {
             Asserts.fail("佣金记录不存在");
@@ -244,14 +251,14 @@ public class CommissionServiceImpl implements CommissionService {
 
         // 更新佣金记录状态
         record.setStatus(CommissionStatusEnum.CANCELLED.getValue());
-        record.setCancelReason(cancelReason);
+        record.setCancelReason(normalizedReason);
         recordDao.update(record);
 
         // 减少代理账户的待结算佣金
         accountService.subtractUnsettledCommission(record.getAgentId(), record.getCommissionAmount());
 
-        log.info("取消佣金成功: recordId={}, agentId={}, amount={}, reason={}",
-                recordId, record.getAgentId(), record.getCommissionAmount(), cancelReason);
+        log.info("取消佣金成功: recordId={}, agentId={}, amount={}",
+                recordId, record.getAgentId(), record.getCommissionAmount());
         return true;
     }
 

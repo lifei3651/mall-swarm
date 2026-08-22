@@ -83,7 +83,7 @@ public class BonusEngineConfigController {
 
     @Operation(summary = "奖金规则模拟")
     @PostMapping("/simulate")
-    public CommonResult<BonusSimulationVO> simulate(@RequestBody BonusSimulationDTO dto) {
+    public CommonResult<BonusSimulationVO> simulate(@Valid @RequestBody BonusSimulationDTO dto) {
         return CommonResult.success(bonusEngineConfigService.simulate(dto));
     }
 }

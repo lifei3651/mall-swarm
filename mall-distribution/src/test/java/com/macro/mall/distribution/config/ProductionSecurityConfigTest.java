@@ -6,11 +6,27 @@ import org.springframework.mock.env.MockEnvironment;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 class ProductionSecurityConfigTest {
+
+    @Test
+    void baseSaTokenConfigurationDoesNotAcceptBrowserCookies() throws IOException {
+        String configuration;
+        try (var input = getClass().getClassLoader().getResourceAsStream("application.yml")) {
+            if (input == null) throw new IOException("application.yml not found");
+            configuration = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        assertTrue(configuration.contains("is-read-header: true"));
+        assertTrue(configuration.contains("is-read-cookie: false"));
+        assertTrue(configuration.contains("same-site: Strict"));
+    }
 
     @Test
     void productionGuardAcceptsOnlySafeSwitches() {

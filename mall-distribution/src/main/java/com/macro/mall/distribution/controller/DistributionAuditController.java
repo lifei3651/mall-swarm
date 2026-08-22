@@ -3,7 +3,6 @@ package com.macro.mall.distribution.controller;
 import com.macro.mall.common.api.CommonPage;
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.distribution.dto.OrderCompanyShareDTO;
-import com.macro.mall.distribution.dto.FinanceRefundDTO;
 import com.macro.mall.distribution.dto.OrderFinanceDTO;
 import com.macro.mall.distribution.dto.PerformanceViewPermissionDTO;
 import com.macro.mall.distribution.dto.PerformanceVisibilityDTO;
@@ -171,7 +170,7 @@ public class DistributionAuditController {
 
     @Operation(summary = "保存订单退款冲账")
     @PostMapping("/finance/refunds")
-    public CommonResult<DmsFinanceRefund> saveRefund(@RequestBody FinanceRefundDTO dto) {
+    public CommonResult<DmsFinanceRefund> saveRefund() {
         return CommonResult.failed("退款必须从商城订单售后按商品和实际件数发起，财务页不允许手填退款金额");
     }
 

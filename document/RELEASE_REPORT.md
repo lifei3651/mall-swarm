@@ -7,6 +7,8 @@
 
 ### App / 小程序公开商城 + 团队 H5 拆分研发记录（本地 1.0.75 待发布）
 
+- 2026-08-22 完成第十八轮 Cookie、API、输入校验、XSS 与 SQL 注入复核。修复后台取消佣金前后端参数协议不一致和原因无长度边界；奖金模拟及禁用的人工结算入口补齐输入约束，禁用的财务手填退款入口不再解析业务 DTO；Sa-Token 基础配置明确只读请求头、不读 Cookie。逐项证据见 `document/audits/2026-08-22-security-round-18-product-review/REPORT.md`。
+- 商城 HTTPS Cookie 的 `SameSite=None` 为原生 App 跨站会话兼容要求，现有精确 CORS、自定义请求头预检及服务端缺头 403 已验证有效；不以破坏 App 登录来消除扫描提示。批量导入继续按服务层逐行校验并输出失败明细。验证通过：专项 20/20、后端完整回归 437/437、后台 110/110 及生产构建；无数据库迁移、未访问线上、未发布。
 - 2026-08-22 完成第十七轮依赖、日志、异常与 Docker 部署安全复核：ELK 参考日志改为统一脱敏编码，默认日志级别与磁盘总量收紧；生产依赖移除 Hutool 全量包、Admin Client、Knife4j、代码生成器传递和旧 Maven Docker 构建链；支付宝第三方错误、导入失败与奖金失败原因在响应或落库前脱敏，后台 401/403 改为类型化错误码。
 - 客户私有部署模板默认启用数据库 TLS，MySQL、Redis、后端和 Nginx 增加可调 CPU/内存/进程限制，MySQL/Redis/Nginx 增加只读根文件系统和最小权限校验；未被发布流程引用的旧 `external_links` Compose 文件已移除。逐项证据见 `document/audits/2026-08-22-security-round-17-product-review/REPORT.md`。
 - 当前 Mac 已安装并登录官方 Docker Desktop 4.87.0（Engine 29.7.2、Compose 5.4.0），并完成真实空数据卷和同卷升级两轮验收。运行验证发现并修复 MySQL 初始化入口不可执行、基础库与历史迁移边界冲突/前置表缺失、Nginx 仍绑定被原子替换的旧静态目录三项交付缺陷；新装与升级路径现被明确分离。

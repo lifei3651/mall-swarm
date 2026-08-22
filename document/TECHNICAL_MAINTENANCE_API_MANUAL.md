@@ -391,7 +391,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | 奖金计算任务 | `GET /api/v1/distribution/commission/calculation-tasks`、`POST /api/v1/distribution/commission/calculation-tasks/process`、`POST /api/v1/distribution/commission/calculation-tasks/{id}/process` | 状态、订单、分页或任务 ID；返回任务分页/处理数量/结果 |
 | 禁止提前结算兼容接口 | `POST /api/v1/distribution/commission/settle/{recordId}`、`POST /api/v1/distribution/commission/settle-batch` | 记录 ID 或 ID 列表；当前均明确返回失败 |
 | 月度结算批次 | `POST/GET /api/v1/distribution/commission/settlement-batches`、`GET /api/v1/distribution/commission/settlement-batches/{id}/items`、`POST /api/v1/distribution/commission/settlement-batches/{id}/execute` | 结算周期和批次；返回批次与明细 |
-| 奖金取消 | `POST /api/v1/distribution/commission/cancel/{recordId}` | 取消原因；返回 `boolean` |
+| 奖金取消 | `POST /api/v1/distribution/commission/cancel/{recordId}?cancelReason=...` | 必填取消原因，最多 200 字；返回 `boolean` |
 | 业绩概览 | `GET /api/v1/distribution/performance/overview/{agentId}` | 开始/结束日期；返回会员业绩概览 |
 | 业绩贡献 | `GET /api/v1/distribution/performance/contributions/{agentId}` | 日期范围；返回下级贡献 |
 | 下级订单明细 | `GET /api/v1/distribution/performance/contributions/{agentId}/details/{subordinateAgentId}` | 日期范围；返回该下级贡献订单 |

@@ -68,6 +68,21 @@ class ShopSessionCookieFilterTest {
     }
 
     @Test
+    void cookieAuthenticatedWriteKeepsNativeAndH5ClientFlowAvailable() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/shop/orders");
+        request.setCookies(new Cookie(ShopSessionCookieService.COOKIE_NAME, "raw-session-token"));
+        request.addHeader(ShopSessionCookieService.CLIENT_HEADER, ShopSessionCookieService.CLIENT_HEADER_VALUE);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicReference<String> authorization = new AtomicReference<>();
+
+        filter.doFilter(request, response, (servletRequest, servletResponse) -> authorization.set(
+                ((HttpServletRequest) servletRequest).getHeader("Authorization")));
+
+        assertEquals("Bearer raw-session-token", authorization.get());
+        assertEquals(200, response.getStatus());
+    }
+
+    @Test
     void secureCookieIsHttpOnlyAndAuthTokenIsNotSerialized() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/shop/auth/login");
         request.addHeader("X-Forwarded-Proto", "https");

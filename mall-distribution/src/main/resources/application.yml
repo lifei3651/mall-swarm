@@ -113,6 +113,13 @@ sa-token:
   is-share: true
   token-style: uuid
   is-log: false
+  # 浏览器会话由两个专用 HttpOnly Cookie 服务管理；Sa-Token 仅允许显式 Authorization 头，避免读取同名普通 Cookie。
+  is-read-header: true
+  is-read-cookie: false
+  cookie:
+    secure: true
+    http-only: true
+    same-site: Strict
 
 # 仅供本地联调；生产配置会强制关闭。
 shop:
