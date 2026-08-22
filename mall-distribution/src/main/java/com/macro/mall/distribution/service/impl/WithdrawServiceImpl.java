@@ -5,6 +5,7 @@ import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.distribution.dao.DmsAgentDao;
 import com.macro.mall.distribution.dao.DmsWithdrawRecordDao;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
+import com.macro.mall.distribution.config.WithdrawalLimitProperties;
 import com.macro.mall.distribution.dto.AssetChangeDTO;
 import com.macro.mall.distribution.dto.WithdrawApplyDTO;
 import com.macro.mall.distribution.dto.WithdrawAuditDTO;
@@ -18,6 +19,7 @@ import com.macro.mall.distribution.service.MemberAssetService;
 import com.macro.mall.distribution.service.WithdrawService;
 import com.macro.mall.distribution.vo.WithdrawRecordVO;
 import com.macro.mall.distribution.vo.WithdrawStatsVO;
+import com.macro.mall.distribution.vo.WithdrawalLimitUsageVO;
 import com.macro.mall.distribution.util.MemberAccountUtils;
 import com.macro.mall.distribution.util.MoneyValidationUtils;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +50,7 @@ public class WithdrawServiceImpl implements WithdrawService {
     private final MemberAssetService memberAssetService;
     private final DmsAgentDao agentDao;
     private final DmsShopMemberDao memberDao;
+    private final WithdrawalLimitProperties withdrawalLimits;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -63,10 +66,11 @@ public class WithdrawServiceImpl implements WithdrawService {
         if (!List.of(1, 2, 3).contains(applyDTO.getWithdrawType())) {
             Asserts.fail("提现方式不正确");
         }
-        DmsAgent agent = agentDao.selectById(applyDTO.getAgentId());
+        DmsAgent agent = agentDao.selectByIdForUpdate(applyDTO.getAgentId());
         if (agent == null) {
             Asserts.fail("代理不存在");
         }
+        validateWithdrawalLimitsLocked(agent.getId(), withdrawAmount);
 
         // 创建提现记录
         DmsWithdrawRecord record = new DmsWithdrawRecord();
@@ -86,6 +90,7 @@ public class WithdrawServiceImpl implements WithdrawService {
         withdraw.setAmount(withdrawAmount);
         withdraw.setBizType("WITHDRAW_APPLY");
         withdraw.setBizId(record.getWithdrawNo());
+        withdraw.setRequestId("WITHDRAW_APPLY-" + record.getWithdrawNo());
         withdraw.setRemark("申请提现：" + record.getWithdrawNo());
         memberAssetService.withdraw(withdraw);
 
@@ -125,6 +130,7 @@ public class WithdrawServiceImpl implements WithdrawService {
             refund.setAmount(record.getWithdrawAmount());
             refund.setBizType("WITHDRAW_REJECT_REFUND");
             refund.setBizId(String.valueOf(record.getId()));
+            refund.setRequestId("WITHDRAW_REJECT_REFUND-" + record.getId());
             refund.setRemark("提现审核拒绝退回：" + record.getWithdrawNo());
             memberAssetService.issue(refund);
             log.info("审核拒绝，退还余额: agentId={}, amount={}", record.getAgentId(), record.getWithdrawAmount());
@@ -136,6 +142,37 @@ public class WithdrawServiceImpl implements WithdrawService {
                 record.getId(), record.getWithdrawNo(), record.getAgentId(), record.getWithdrawAmount(),
                 record.getStatus(), record.getAuditUserId());
         return true;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void validateWithdrawalLimits(Long agentId, BigDecimal amount) {
+        if (agentId == null) Asserts.fail("代理ID不能为空");
+        BigDecimal requested = MoneyValidationUtils.requirePositiveAmount(amount, "提现金额", MAX_WITHDRAW_AMOUNT);
+        if (agentDao.selectByIdForUpdate(agentId) == null) Asserts.fail("代理不存在");
+        validateWithdrawalLimitsLocked(agentId, requested);
+    }
+
+    private void validateWithdrawalLimitsLocked(Long agentId, BigDecimal amount) {
+        LocalDate today = LocalDate.now();
+        WithdrawalLimitUsageVO usage = withdrawDao.selectLimitUsage(
+                agentId, today.atStartOfDay(), today.withDayOfMonth(1).atStartOfDay());
+        long dailyCount = usage == null || usage.getDailyCount() == null ? 0L : usage.getDailyCount();
+        long monthlyCount = usage == null || usage.getMonthlyCount() == null ? 0L : usage.getMonthlyCount();
+        BigDecimal dailyAmount = usage == null || usage.getDailyAmount() == null ? BigDecimal.ZERO : usage.getDailyAmount();
+        BigDecimal monthlyAmount = usage == null || usage.getMonthlyAmount() == null ? BigDecimal.ZERO : usage.getMonthlyAmount();
+        if (dailyCount >= withdrawalLimits.getDailyMaxCount()) {
+            Asserts.fail("今日提现次数已达上限（" + withdrawalLimits.getDailyMaxCount() + "次）");
+        }
+        if (monthlyCount >= withdrawalLimits.getMonthlyMaxCount()) {
+            Asserts.fail("本月提现次数已达上限（" + withdrawalLimits.getMonthlyMaxCount() + "次）");
+        }
+        if (dailyAmount.add(amount).compareTo(withdrawalLimits.getDailyMaxAmount()) > 0) {
+            Asserts.fail("今日提现累计金额不能超过" + withdrawalLimits.getDailyMaxAmount().stripTrailingZeros().toPlainString() + "元");
+        }
+        if (monthlyAmount.add(amount).compareTo(withdrawalLimits.getMonthlyMaxAmount()) > 0) {
+            Asserts.fail("本月提现累计金额不能超过" + withdrawalLimits.getMonthlyMaxAmount().stripTrailingZeros().toPlainString() + "元");
+        }
     }
 
     @Override

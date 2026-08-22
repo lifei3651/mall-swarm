@@ -559,7 +559,7 @@ class ShopFreightServiceTest {
                 INSERT INTO dms_withdraw_record
                   (withdraw_no, agent_id, user_id, withdraw_amount, withdraw_type, account_name, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, "WD-DASHBOARD-PENDING", 1L, member.getUserId(), new BigDecimal("12.00"), 1,
+                """, "WD-DASHBOARD-PENDING", 999L, member.getUserId(), new BigDecimal("12.00"), 1,
                 member.getNickname(), 0);
 
         AdminDashboardVO dashboard = adminDashboardService.getDashboard();
@@ -595,6 +595,8 @@ class ShopFreightServiceTest {
         assertEquals(30, dashboard.getPerformanceTrend().size());
         assertEquals(8, dashboard.getLevelDistribution().size());
         assertNotNull(dashboard.getPendingWithdraws());
+        assertEquals("控***", dashboard.getPendingWithdraws().get(0).getAccountName());
+        assertEquals("控***", dashboard.getPendingWithdraws().get(0).getAgentName());
         assertNotNull(dashboard.getLatestCommissions());
     }
 

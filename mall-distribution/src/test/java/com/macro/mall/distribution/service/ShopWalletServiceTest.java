@@ -18,6 +18,7 @@ import com.macro.mall.distribution.dto.WithdrawAuditDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleApplyDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleItemDTO;
 import com.macro.mall.distribution.entity.DmsMemberAssetAccount;
+import com.macro.mall.distribution.entity.DmsMemberAssetFlow;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.vo.BalanceRecipientVO;
 import com.macro.mall.distribution.vo.ShopOrderVO;
@@ -222,10 +223,15 @@ class ShopWalletServiceTest {
         issue.setBizId("TEST_MEMBER");
         issue.setRequestId("8af17f6d-e310-4c99-bb0c-a8c7f6e8f001");
 
-        memberAssetService.issue(issue);
+        DmsMemberAssetFlow first = memberAssetService.issue(issue);
         BigDecimal once = before.add(new BigDecimal("88.00"));
         assertEquals(0, once.compareTo(balance(1L)));
-        assertThrows(RuntimeException.class, () -> memberAssetService.issue(issue));
+        DmsMemberAssetFlow replay = memberAssetService.issue(issue);
+        assertEquals(first.getId(), replay.getId());
+        assertEquals(0, once.compareTo(balance(1L)));
+
+        issue.setAmount(new BigDecimal("89.00"));
+        assertThrows(ApiException.class, () -> memberAssetService.issue(issue));
         assertEquals(0, once.compareTo(balance(1L)));
     }
 

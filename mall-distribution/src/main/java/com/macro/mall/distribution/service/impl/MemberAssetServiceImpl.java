@@ -19,12 +19,14 @@ import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.vo.BalanceFlowVO;
 import com.macro.mall.distribution.vo.BalanceFlowSummaryVO;
 import com.macro.mall.distribution.security.AdminContext;
+import com.macro.mall.distribution.util.MemberAccountUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
 import java.time.LocalDateTime;
 
 @Service
@@ -57,7 +59,21 @@ public class MemberAssetServiceImpl implements MemberAssetService {
                                                   LocalDateTime startTime, LocalDateTime endTime) {
         String normalizedKeyword = keyword == null ? null : keyword.trim();
         String normalizedRelatedNo = relatedNo == null ? null : relatedNo.trim();
-        return flowDao.selectBalanceFlowList(normalizedKeyword, normalizedRelatedNo, direction, sourceType, startTime, endTime);
+        List<BalanceFlowVO> rows = flowDao.selectBalanceFlowList(
+                normalizedKeyword, normalizedRelatedNo, direction, sourceType, startTime, endTime);
+        for (BalanceFlowVO row : rows) {
+            String rawUsername = row.getMemberUsername();
+            String rawPhone = row.getMemberPhone();
+            if (row.getMemberName() != null && (row.getMemberName().equals(rawUsername)
+                    || row.getMemberName().equals(rawPhone))) {
+                row.setMemberName(row.getMemberName().equals(rawPhone)
+                        ? MemberAccountUtils.maskPhone(row.getMemberName())
+                        : MemberAccountUtils.maskAccount(row.getMemberName()));
+            }
+            row.setMemberUsername(MemberAccountUtils.maskAccount(rawUsername));
+            row.setMemberPhone(MemberAccountUtils.maskPhone(rawPhone));
+        }
+        return rows;
     }
 
     @Override
@@ -114,9 +130,6 @@ public class MemberAssetServiceImpl implements MemberAssetService {
     @Transactional(rollbackFor = Exception.class)
     public DmsMemberAssetFlow issueSystem(AssetChangeDTO dto) {
         requireSystemRequestId(dto);
-        String flowNo = requestFlowNo(dto.getRequestId());
-        DmsMemberAssetFlow existing = flowDao.selectByFlowNo(flowNo);
-        if (existing != null) return existing;
         return changeIn(dto, 1);
     }
 
@@ -124,14 +137,13 @@ public class MemberAssetServiceImpl implements MemberAssetService {
     @Transactional(rollbackFor = Exception.class)
     public DmsMemberAssetFlow deductSystemAllowNegative(AssetChangeDTO dto) {
         requireSystemRequestId(dto);
-        String flowNo = requestFlowNo(dto.getRequestId());
-        DmsMemberAssetFlow existing = flowDao.selectByFlowNo(flowNo);
-        if (existing != null) return existing;
         if (dto.getAmount() == null || dto.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             Asserts.fail("资产数量必须大于0");
         }
         DmsAgent agent = resolveAgent(dto.getAgentId(), dto.getUserId());
         WalletOwner owner = ownerOf(agent);
+        DmsMemberAssetFlow existing = findExistingFlow(dto, 5, owner);
+        if (existing != null) return existing;
         ensureAccount(owner);
         if (accountDao.subtractBalance(agent.getId(), BalanceAsset.CODE, dto.getAmount(), 1) <= 0) {
             Asserts.fail("系统余额冲回失败");
@@ -176,6 +188,8 @@ public class MemberAssetServiceImpl implements MemberAssetService {
             Asserts.fail("资产数量必须大于0");
         }
         WalletOwner owner = resolveWalletOwner(dto.getAgentId(), dto.getUserId());
+        DmsMemberAssetFlow existing = findExistingFlow(dto, changeType, owner);
+        if (existing != null) return existing;
         ensureAccount(owner);
         if (owner.agent != null) {
             accountDao.addBalance(owner.agent.getId(), BalanceAsset.CODE, dto.getAmount());
@@ -192,6 +206,8 @@ public class MemberAssetServiceImpl implements MemberAssetService {
             Asserts.fail("资产数量必须大于0");
         }
         WalletOwner owner = resolveWalletOwner(dto.getAgentId(), dto.getUserId());
+        DmsMemberAssetFlow existing = findExistingFlow(dto, changeType, owner);
+        if (existing != null) return existing;
         ensureAccount(owner);
         int updated = owner.agent != null
                 ? accountDao.subtractBalance(owner.agent.getId(), BalanceAsset.CODE, dto.getAmount(), 0)
@@ -235,6 +251,21 @@ public class MemberAssetServiceImpl implements MemberAssetService {
         if (dto == null || dto.getRequestId() == null || dto.getRequestId().isBlank()) {
             Asserts.fail("系统资金请求号不能为空");
         }
+    }
+
+    private DmsMemberAssetFlow findExistingFlow(AssetChangeDTO dto, Integer changeType, WalletOwner owner) {
+        if (dto.getRequestId() == null || dto.getRequestId().isBlank()) return null;
+        DmsMemberAssetFlow existing = flowDao.selectByFlowNo(requestFlowNo(dto.getRequestId()));
+        if (existing == null) return null;
+        Long ownerUserId = owner.agent != null ? owner.agent.getUserId() : owner.member.getUserId();
+        boolean sameRequest = Objects.equals(ownerUserId, existing.getUserId())
+                && Objects.equals(changeType, existing.getChangeType())
+                && existing.getAmount() != null
+                && existing.getAmount().compareTo(dto.getAmount()) == 0
+                && Objects.equals(dto.getBizType(), existing.getBizType())
+                && Objects.equals(dto.getBizId(), existing.getBizId());
+        if (!sameRequest) Asserts.fail("资金请求号已被其他操作使用");
+        return existing;
     }
 
     private String requestFlowNo(String requestId) {

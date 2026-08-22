@@ -352,6 +352,7 @@ public class CommissionServiceImpl implements CommissionService {
         dto.setAmount(amount);
         dto.setBizType("COMMISSION_SETTLE");
         dto.setBizId(String.valueOf(record.getId()));
+        dto.setRequestId("COMMISSION_SETTLE-" + record.getId());
         dto.setRemark("佣金结算进入余额：" + record.getRecordNo());
         memberAssetService.issue(dto);
     }

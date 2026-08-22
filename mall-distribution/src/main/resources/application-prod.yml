@@ -110,6 +110,11 @@ shop:
     jpeg-quality: ${SHOP_MEDIA_JPEG_QUALITY:0.82}
   payment:
     simulation-enabled: false
+  withdrawal:
+    daily-max-count: ${SHOP_WITHDRAWAL_DAILY_MAX_COUNT:5}
+    monthly-max-count: ${SHOP_WITHDRAWAL_MONTHLY_MAX_COUNT:50}
+    daily-max-amount: ${SHOP_WITHDRAWAL_DAILY_MAX_AMOUNT:100000.00}
+    monthly-max-amount: ${SHOP_WITHDRAWAL_MONTHLY_MAX_AMOUNT:1000000.00}
   order:
     pending-timeout-minutes: ${ORDER_PENDING_TIMEOUT_MINUTES:30}
     pending-scan-interval-ms: ${ORDER_PENDING_SCAN_INTERVAL_MS:60000}

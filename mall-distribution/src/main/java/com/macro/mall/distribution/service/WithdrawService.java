@@ -20,6 +20,9 @@ public interface WithdrawService {
      */
     WithdrawRecordVO applyWithdraw(WithdrawApplyDTO applyDTO);
 
+    /** 在消费短信验证码前预检，并由正式申请事务再次权威校验。 */
+    void validateWithdrawalLimits(Long agentId, java.math.BigDecimal amount);
+
     /**
      * 审核提现
      * @param auditDTO 审核信息

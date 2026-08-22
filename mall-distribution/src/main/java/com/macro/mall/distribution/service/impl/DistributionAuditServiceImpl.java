@@ -687,6 +687,7 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         dto.setAmount(deductible);
         dto.setBizType("COMMISSION_CLAWBACK");
         dto.setBizId(String.valueOf(refund.getId()));
+        dto.setRequestId("COMMISSION_CLAWBACK-" + refund.getId() + "-" + record.getId());
         dto.setRemark("退款追回已结算佣金：" + record.getRecordNo() + "，refundId=" + refund.getId());
         memberAssetService.deduct(dto);
         return deductible;

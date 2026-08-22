@@ -633,6 +633,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
                 balanceRefund.setAmount(afterSale.getRefundAmount());
                 balanceRefund.setBizType("BALANCE_PAYMENT_REFUND");
                 balanceRefund.setBizId(String.valueOf(afterSale.getId()));
+                balanceRefund.setRequestId("BALANCE_PAYMENT_REFUND-" + afterSale.getId());
                 balanceRefund.setRemark("余额支付售后退款：" + afterSale.getAfterSaleNo());
                 memberAssetService.issue(balanceRefund);
             }
