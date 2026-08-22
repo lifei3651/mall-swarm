@@ -1,10 +1,12 @@
 package com.macro.mall.distribution.dao;
 
 import com.macro.mall.distribution.entity.DmsAgentAccount;
+import com.macro.mall.distribution.vo.AgentTeamMemberCountVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * 代理账户Mapper接口
@@ -94,6 +96,11 @@ public interface DmsAgentAccountDao {
      * 更新团队成员数
      */
     int updateTotalTeamMembers(@Param("agentId") Long agentId, @Param("count") Integer count);
+
+    /**
+     * 一次更新一组代理的团队人数，避免关系变更时逐个写账户。
+     */
+    int updateTotalTeamMembersBatch(@Param("counts") List<AgentTeamMemberCountVO> counts);
 
     /**
      * 删除账户

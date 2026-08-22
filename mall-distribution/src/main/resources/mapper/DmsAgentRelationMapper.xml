@@ -63,6 +63,18 @@
         ORDER BY relation_level ASC, create_time ASC
     </select>
 
+    <select id="selectTeamMemberCounts" resultType="com.macro.mall.distribution.vo.AgentTeamMemberCountVO">
+        SELECT parent_agent_id AS agentId,
+               COUNT(DISTINCT user_id) AS teamMemberCount
+        FROM dms_agent_relation
+        WHERE is_valid = 1
+          AND parent_agent_id IN
+          <foreach collection="agentIds" item="agentId" open="(" separator="," close=")">
+              #{agentId}
+          </foreach>
+        GROUP BY parent_agent_id
+    </select>
+
     <select id="selectByRelationPath" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_agent_relation

@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.dao;
 
 import com.macro.mall.distribution.entity.DmsAgentRelation;
+import com.macro.mall.distribution.vo.AgentTeamMemberCountVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -41,6 +42,11 @@ public interface DmsAgentRelationDao {
      * 查询代理的所有下级关系（包括多级）
      */
     List<DmsAgentRelation> selectAllDescendants(@Param("parentAgentId") Long parentAgentId);
+
+    /**
+     * 批量统计一组代理的有效团队人数，未产生下级关系的代理不会出现在结果中。
+     */
+    List<AgentTeamMemberCountVO> selectTeamMemberCounts(@Param("agentIds") List<Long> agentIds);
 
     /**
      * 根据关系路径查询

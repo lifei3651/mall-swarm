@@ -36,6 +36,7 @@ import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.vo.AgentInfoVO;
+import com.macro.mall.distribution.vo.AgentTeamMemberCountVO;
 import com.macro.mall.distribution.util.MemberAccountUtils;
 import com.macro.mall.distribution.util.PhoneNumberUtils;
 import lombok.RequiredArgsConstructor;
@@ -294,12 +295,7 @@ public class AgentServiceImpl implements AgentService {
         impactedTeamCountIds.add(newParentAgentId);
 
         // 先快照整棵子树；历史业绩和历史佣金保持原样，不做结算、转移或重算。
-        Map<Long, DmsAgent> subtree = new LinkedHashMap<>();
-        subtree.put(agent.getId(), agent);
-        for (DmsAgentRelation relation : relationDao.selectAllDescendants(agentId)) {
-            DmsAgent descendant = agentDao.selectById(relation.getAgentId());
-            if (descendant != null) subtree.putIfAbsent(descendant.getId(), descendant);
-        }
+        Map<Long, DmsAgent> subtree = loadSubtree(agent);
 
         // 同一事务内作废子树全部旧关系，随后按新树位置完整重建。
         relationDao.invalidRelationsByAgentIds(new ArrayList<>(subtree.keySet()), switchLineDTO.getReason());
@@ -325,7 +321,7 @@ public class AgentServiceImpl implements AgentService {
                 .sorted(Comparator.comparing(DmsAgent::getLevelDepth, Comparator.nullsLast(Integer::compareTo)))
                 .toList();
         for (DmsAgent descendant : descendants) {
-            DmsAgent parent = agentDao.selectById(descendant.getParentId());
+            DmsAgent parent = subtree.get(descendant.getParentId());
             if (parent == null) Asserts.fail("下级会员的直属上级不存在，无法重建关系");
             descendant.setAncestorIds(parent.getAncestorIds() == null || parent.getAncestorIds().isBlank()
                     ? String.valueOf(parent.getId()) : parent.getAncestorIds() + "," + parent.getId());
@@ -507,12 +503,7 @@ public class AgentServiceImpl implements AgentService {
 
     /** 无上级可移交时，把被取消会员的直接下级子树整体提升为根节点。 */
     private void reRootSubtree(DmsAgent child, String reason) {
-        Map<Long, DmsAgent> subtree = new LinkedHashMap<>();
-        subtree.put(child.getId(), child);
-        for (DmsAgentRelation relation : relationDao.selectAllDescendants(child.getId())) {
-            DmsAgent descendant = agentDao.selectById(relation.getAgentId());
-            if (descendant != null) subtree.putIfAbsent(descendant.getId(), descendant);
-        }
+        Map<Long, DmsAgent> subtree = loadSubtree(child);
         relationDao.invalidRelationsByAgentIds(new ArrayList<>(subtree.keySet()), reason);
 
         child.setParentId(null);
@@ -529,7 +520,7 @@ public class AgentServiceImpl implements AgentService {
                 .sorted(Comparator.comparing(DmsAgent::getLevelDepth, Comparator.nullsLast(Integer::compareTo)))
                 .toList();
         for (DmsAgent descendant : descendants) {
-            DmsAgent parent = agentDao.selectById(descendant.getParentId());
+            DmsAgent parent = subtree.get(descendant.getParentId());
             if (parent == null) Asserts.fail("下级会员的直属上级不存在，无法重建关系");
             descendant.setAncestorIds(parent.getAncestorIds() == null || parent.getAncestorIds().isBlank()
                     ? String.valueOf(parent.getId()) : parent.getAncestorIds() + "," + parent.getId());
@@ -636,13 +627,22 @@ public class AgentServiceImpl implements AgentService {
         }
     }
 
-    /**
-     * 更新团队成员数
-     */
-    private void updateTeamMemberCount(Long agentId) {
-        if (agentId == null) return;
-        int count = relationService.getTeamMemberCount(agentId);
-        accountDao.updateTotalTeamMembers(agentId, count);
+    private Map<Long, DmsAgent> loadSubtree(DmsAgent root) {
+        Map<Long, DmsAgent> subtree = new LinkedHashMap<>();
+        subtree.put(root.getId(), root);
+        List<Long> descendantIds = relationDao.selectAllDescendants(root.getId()).stream()
+                .map(DmsAgentRelation::getAgentId)
+                .filter(java.util.Objects::nonNull)
+                .filter(id -> !root.getId().equals(id))
+                .distinct()
+                .toList();
+        if (!descendantIds.isEmpty()) {
+            agentDao.selectByIds(descendantIds).forEach(descendant -> subtree.put(descendant.getId(), descendant));
+        }
+        if (subtree.size() != descendantIds.size() + 1) {
+            Asserts.fail("团队关系数据不完整，无法安全迁移，请先检查会员关系");
+        }
+        return subtree;
     }
 
     private Set<Long> collectAncestorIds(DmsAgent agent) {
@@ -674,7 +674,19 @@ public class AgentServiceImpl implements AgentService {
 
     private void refreshTeamMemberCounts(Set<Long> agentIds) {
         if (agentIds == null) return;
-        agentIds.stream().filter(java.util.Objects::nonNull).sorted().forEach(this::updateTeamMemberCount);
+        List<Long> ids = agentIds.stream().filter(java.util.Objects::nonNull).distinct().sorted().toList();
+        if (ids.isEmpty()) return;
+
+        Map<Long, Integer> countsByAgentId = new HashMap<>();
+        relationDao.selectTeamMemberCounts(ids).forEach(item -> countsByAgentId.put(
+                item.getAgentId(), item.getTeamMemberCount() == null ? 0 : item.getTeamMemberCount()));
+        List<AgentTeamMemberCountVO> counts = ids.stream().map(id -> {
+            AgentTeamMemberCountVO item = new AgentTeamMemberCountVO();
+            item.setAgentId(id);
+            item.setTeamMemberCount(countsByAgentId.getOrDefault(id, 0));
+            return item;
+        }).toList();
+        accountDao.updateTotalTeamMembersBatch(counts);
     }
 
     /**

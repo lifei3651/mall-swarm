@@ -139,6 +139,20 @@
         WHERE agent_id = #{agentId}
     </update>
 
+    <update id="updateTotalTeamMembersBatch">
+        UPDATE dms_agent_account
+        SET total_team_members = CASE agent_id
+            <foreach collection="counts" item="item">
+                WHEN #{item.agentId} THEN #{item.teamMemberCount}
+            </foreach>
+            ELSE total_team_members
+        END
+        WHERE agent_id IN
+        <foreach collection="counts" item="item" open="(" separator="," close=")">
+            #{item.agentId}
+        </foreach>
+    </update>
+
     <update id="deleteById">
         DELETE FROM dms_agent_account WHERE id = #{id}
     </update>
