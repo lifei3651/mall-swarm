@@ -128,6 +128,18 @@ class SecurityRateLimitFilterTest {
     }
 
     @Test
+    void appliesDedicatedLimitToBusinessImports() {
+        SecurityRateLimitFilter filter = new SecurityRateLimitFilter(mock(SecurityRateLimitService.class));
+
+        SecurityRateLimitFilter.Rule rule = filter.resolveRule(
+                new MockHttpServletRequest("POST", "/distribution/import/agents/file"));
+
+        assertEquals("business-import", rule.name());
+        assertEquals(10, rule.maximumRequests());
+        assertEquals(60, rule.windowSeconds());
+    }
+
+    @Test
     void appliesTightLimitsToMoneyAndCredentialChanges() {
         SecurityRateLimitFilter filter = new SecurityRateLimitFilter(mock(SecurityRateLimitService.class));
 

@@ -12,6 +12,11 @@ grep -q 'Content-Security-Policy' "$DEPLOY_DIR/nginx/conf.d/mall.conf.template"
 grep -q 'Permissions-Policy' "$DEPLOY_DIR/nginx/conf.d/mall.conf.template"
 grep -q 'autoindex off' "$DEPLOY_DIR/nginx/nginx.conf"
 grep -q 'client_max_body_size 6m' "$DEPLOY_DIR/nginx/nginx.conf"
+grep -q '\$request_method \$uri \$server_protocol' "$DEPLOY_DIR/nginx/nginx.conf"
+if grep -q '"\$request"' "$DEPLOY_DIR/nginx/nginx.conf"; then
+  echo "Nginx access log must not persist query strings" >&2
+  exit 1
+fi
 if grep -q "connect-src 'self' https:" "$DEPLOY_DIR/nginx/conf.d/mall.conf.template"; then
   echo "CSP connect-src must not allow arbitrary HTTPS origins" >&2
   exit 1

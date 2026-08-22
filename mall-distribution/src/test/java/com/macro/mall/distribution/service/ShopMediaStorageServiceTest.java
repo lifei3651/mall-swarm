@@ -13,6 +13,9 @@ import java.io.ByteArrayOutputStream;
 import java.nio.file.Path;
 import java.nio.file.Files;
 import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.FileTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -107,6 +110,22 @@ class ShopMediaStorageServiceTest {
 
         assertThrows(ApiException.class, () -> service.storeAfterSaleProof(101L,
                 new MockMultipartFile("file", "overflow.jpg", "image/jpeg", jpeg)));
+    }
+
+    @Test
+    void scheduledCleanupRemovesExpiredTemporaryProofsWithoutTouchingFreshOnes() throws Exception {
+        byte[] jpeg = imageBytes("jpg", 32, 32, false);
+        ShopMediaStorageService service = new ShopMediaStorageService(tempDir.toString(), 1920, 25_000_000, 0.82f);
+        ShopMediaStorageService.StoredImage expired = service.storeAfterSaleProof(101L,
+                new MockMultipartFile("file", "old.jpg", "image/jpeg", jpeg));
+        ShopMediaStorageService.StoredImage fresh = service.storeAfterSaleProof(102L,
+                new MockMultipartFile("file", "fresh.jpg", "image/jpeg", jpeg));
+        Files.setLastModifiedTime(expired.path(), FileTime.from(Instant.now().minus(25, ChronoUnit.HOURS)));
+
+        assertEquals(1, service.cleanupExpiredTemporaryProofs());
+
+        assertFalse(Files.exists(expired.path()));
+        assertTrue(Files.exists(fresh.path()));
     }
 
     private byte[] imageBytes(String format, int width, int height, boolean alpha) throws Exception {

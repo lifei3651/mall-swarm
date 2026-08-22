@@ -47,7 +47,6 @@ import java.util.Set;
 @Slf4j
 public class OrderShipmentServiceImpl implements OrderShipmentService {
 
-    private static final long MAX_FILE_SIZE = 10L * 1024L * 1024L;
     private static final int MAX_DATA_ROWS = 2000;
     private static final int MAX_COMPANY_LENGTH = 50;
     private static final int MAX_DELIVERY_NO_LENGTH = 64;
@@ -270,10 +269,8 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
     }
 
     private List<ShipmentRow> readRows(MultipartFile file) {
-        if (file == null || file.isEmpty()) Asserts.fail("导入文件不能为空");
-        if (file.getSize() > MAX_FILE_SIZE) Asserts.fail("导入文件不能超过10MB");
-        String filename = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase(Locale.ROOT);
-        if (!filename.endsWith(".xlsx") && !filename.endsWith(".xls")) Asserts.fail("仅支持Excel格式（.xlsx或.xls）");
+        String extension = ImportFilePolicy.requireSupportedExtension(file);
+        if (!"xlsx".equals(extension) && !"xls".equals(extension)) Asserts.fail("仅支持Excel格式（.xlsx或.xls）");
         try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
             if (workbook.getNumberOfSheets() == 0) Asserts.fail("Excel文件没有工作表");
             Sheet sheet = workbook.getSheetAt(0);

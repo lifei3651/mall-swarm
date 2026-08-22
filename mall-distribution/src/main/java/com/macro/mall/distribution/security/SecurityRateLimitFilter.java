@@ -84,6 +84,9 @@ public class SecurityRateLimitFilter extends OncePerRequestFilter {
         if (HttpMethod.GET.matches(method) && "/distribution/dashboard/export".equals(path)) {
             return new Rule("dashboard-export", 5, 60);
         }
+        if (HttpMethod.POST.matches(method) && path.startsWith("/distribution/import/")) {
+            return new Rule("business-import", 10, 60);
+        }
         if (HttpMethod.POST.matches(method) && path.startsWith("/sms/send")) {
             return new Rule("sms-send", 5, 60);
         }

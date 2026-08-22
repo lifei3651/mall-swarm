@@ -12,9 +12,23 @@ class ImportFilePolicyTest {
     @Test
     void acceptsSupportedBusinessFormatsAndRejectsUnknownFiles() {
         assertEquals("xlsx", ImportFilePolicy.requireSupportedExtension(
-                new MockMultipartFile("file", "members.xlsx", "application/octet-stream", new byte[]{1})));
+                new MockMultipartFile("file", "members.xlsx", "application/octet-stream",
+                        new byte[]{'P', 'K', 3, 4})));
         assertThrows(ApiException.class, () -> ImportFilePolicy.requireSupportedExtension(
                 new MockMultipartFile("file", "members.bin", "application/octet-stream", new byte[]{1})));
+    }
+
+    @Test
+    void rejectsSpoofedBinaryTextMalformedUtf8AndOversizedFiles() {
+        assertThrows(ApiException.class, () -> ImportFilePolicy.requireSupportedExtension(
+                new MockMultipartFile("file", "members.xlsx", "application/octet-stream", "not-a-zip".getBytes())));
+        assertThrows(ApiException.class, () -> ImportFilePolicy.requireSupportedExtension(
+                new MockMultipartFile("file", "members.csv", "text/csv", new byte[]{'a', 0, 'b'})));
+        assertThrows(ApiException.class, () -> ImportFilePolicy.requireSupportedExtension(
+                new MockMultipartFile("file", "members.csv", "text/csv", new byte[]{(byte) 0xC3, 0x28})));
+        assertThrows(ApiException.class, () -> ImportFilePolicy.requireSupportedExtension(
+                new MockMultipartFile("file", "members.csv", "text/csv",
+                        new byte[(int) ImportFilePolicy.MAX_IMPORT_FILE_BYTES + 1])));
     }
 
     @Test

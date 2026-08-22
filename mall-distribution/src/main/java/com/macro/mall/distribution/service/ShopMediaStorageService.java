@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.IIOImage;
@@ -356,14 +357,40 @@ public class ShopMediaStorageService {
         return directory;
     }
 
-    private void cleanupExpiredTemporaryProofs(Path directory) throws IOException {
-        if (!Files.isDirectory(directory)) return;
+    private int cleanupExpiredTemporaryProofs(Path directory) throws IOException {
+        if (!Files.isDirectory(directory)) return 0;
+        int deleted = 0;
         Instant cutoff = Instant.now().minus(24, ChronoUnit.HOURS);
         try (Stream<Path> files = Files.list(directory)) {
             for (Path path : files.filter(Files::isRegularFile).toList()) {
-                if (Files.getLastModifiedTime(path).toInstant().isBefore(cutoff)) Files.deleteIfExists(path);
+                if (Files.getLastModifiedTime(path).toInstant().isBefore(cutoff) && Files.deleteIfExists(path)) deleted++;
             }
         }
+        return deleted;
+    }
+
+    /** 每日清理所有会员超过24小时且尚未提交的售后临时凭证。 */
+    @Scheduled(cron = "${shop.media.temp-proof-cleanup-cron:0 15 4 * * ?}")
+    public synchronized int cleanupExpiredTemporaryProofs() {
+        Path root = privateStorageDirectory.resolve("after-sale-proofs").resolve("temp").normalize();
+        if (!root.startsWith(privateStorageDirectory) || !Files.isDirectory(root)) return 0;
+        int deleted = 0;
+        try (Stream<Path> directories = Files.list(root)) {
+            for (Path directory : directories.filter(Files::isDirectory).toList()) {
+                try {
+                    deleted += cleanupExpiredTemporaryProofs(directory);
+                    try (Stream<Path> remaining = Files.list(directory)) {
+                        if (remaining.findAny().isEmpty()) Files.deleteIfExists(directory);
+                    }
+                } catch (IOException e) {
+                    log.warn("清理会员售后临时凭证失败: directory={}", directory, e);
+                }
+            }
+        } catch (IOException e) {
+            log.warn("扫描售后临时凭证目录失败: root={}", root, e);
+        }
+        if (deleted > 0) log.info("已清理超过24小时的售后临时凭证: count={}", deleted);
+        return deleted;
     }
 
     private static ImageFormat detectFormat(byte[] bytes) {

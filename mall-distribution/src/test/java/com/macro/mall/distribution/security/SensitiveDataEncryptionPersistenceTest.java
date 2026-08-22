@@ -2,9 +2,11 @@ package com.macro.mall.distribution.security;
 
 import com.macro.mall.distribution.dao.DmsAgentDao;
 import com.macro.mall.distribution.dao.DmsErpIntegrationDao;
+import com.macro.mall.distribution.dao.DmsImportDetailDao;
 import com.macro.mall.distribution.config.SensitiveDataEncryptionMigrator;
 import com.macro.mall.distribution.entity.DmsAgent;
 import com.macro.mall.distribution.entity.DmsErpIntegration;
+import com.macro.mall.distribution.entity.DmsImportDetail;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -23,6 +25,7 @@ class SensitiveDataEncryptionPersistenceTest {
 
     @Autowired private DmsAgentDao agentDao;
     @Autowired private DmsErpIntegrationDao erpIntegrationDao;
+    @Autowired private DmsImportDetailDao importDetailDao;
     @Autowired private JdbcTemplate jdbcTemplate;
     @Autowired private SensitiveDataEncryptionMigrator migrator;
 
@@ -78,6 +81,24 @@ class SensitiveDataEncryptionPersistenceTest {
     }
 
     @Test
+    void importRawDataIsEncryptedAtRestAndTransparentToImportService() {
+        DmsImportDetail detail = new DmsImportDetail();
+        detail.setBatchId(980003L);
+        detail.setBatchNo("ENC-IMPORT-980003");
+        detail.setRowNum(1);
+        detail.setRawData("{\"idCard\":\"430102199003033456\",\"bankAccount\":\"6222020202020202025\"}");
+        detail.setStatus(1);
+
+        importDetailDao.insert(detail);
+
+        String stored = jdbcTemplate.queryForObject(
+                "SELECT raw_data FROM dms_import_detail WHERE id=?", String.class, detail.getId());
+        assertTrue(stored.startsWith(EncryptedStringTypeHandler.PREFIX));
+        assertNotEquals(detail.getRawData(), stored);
+        assertEquals(detail.getRawData(), importDetailDao.selectById(detail.getId()).getRawData());
+    }
+
+    @Test
     void migratesLegacyPlaintextWithoutChangingBusinessValues() {
         jdbcTemplate.update("""
                 INSERT INTO dms_agent(user_id,agent_code,agent_name,agent_level,level_depth,invite_code,
@@ -102,6 +123,12 @@ class SensitiveDataEncryptionPersistenceTest {
                     bank_account_no_snapshot,requested_amount)
                 VALUES(1,'ENC-MW-980002',?,'6222020202020202024',100)
                 """, merchantId);
+        jdbcTemplate.update("""
+                INSERT INTO dms_import_detail(batch_id,batch_no,row_num,raw_data,status)
+                VALUES(1,'ENC-IMPORT-980002',1,'{"idCard":"430102199002022345","bankAccount":"6222020202020202021"}',1)
+                """);
+        Long importDetailId = jdbcTemplate.queryForObject(
+                "SELECT id FROM dms_import_detail WHERE batch_no='ENC-IMPORT-980002'", Long.class);
 
         migrator.run(null);
 
@@ -120,5 +147,10 @@ class SensitiveDataEncryptionPersistenceTest {
         assertTrue(jdbcTemplate.queryForObject(
                 "SELECT bank_account_no_snapshot FROM dms_merchant_withdrawal WHERE withdrawal_no='ENC-MW-980002'",
                 String.class).startsWith(EncryptedStringTypeHandler.PREFIX));
+        assertTrue(jdbcTemplate.queryForObject(
+                "SELECT raw_data FROM dms_import_detail WHERE id=?", String.class, importDetailId)
+                .startsWith(EncryptedStringTypeHandler.PREFIX));
+        DmsImportDetail migratedDetail = importDetailDao.selectById(importDetailId);
+        assertTrue(migratedDetail.getRawData().contains("430102199002022345"));
     }
 }

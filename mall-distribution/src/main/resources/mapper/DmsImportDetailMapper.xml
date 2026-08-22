@@ -7,7 +7,7 @@
         <result column="batch_id" property="batchId"/>
         <result column="batch_no" property="batchNo"/>
         <result column="row_num" property="rowNum"/>
-        <result column="raw_data" property="rawData"/>
+        <result column="raw_data" property="rawData" typeHandler="com.macro.mall.distribution.security.EncryptedStringTypeHandler"/>
         <result column="status" property="status"/>
         <result column="error_msg" property="errorMsg"/>
         <result column="target_id" property="targetId"/>
@@ -40,16 +40,32 @@
 
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsImportDetail" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_import_detail (batch_id, batch_no, row_num, raw_data, status)
-        VALUES (#{batchId}, #{batchNo}, #{rowNum}, #{rawData}, #{status})
+        VALUES (#{batchId}, #{batchNo}, #{rowNum},
+                #{rawData,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler}, #{status})
     </insert>
 
     <insert id="insertBatch" parameterType="java.util.List">
         INSERT INTO dms_import_detail (batch_id, batch_no, row_num, raw_data, status)
         VALUES
         <foreach collection="list" item="item" separator=",">
-            (#{item.batchId}, #{item.batchNo}, #{item.rowNum}, #{item.rawData}, #{item.status})
+            (#{item.batchId}, #{item.batchNo}, #{item.rowNum},
+             #{item.rawData,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler}, #{item.status})
         </foreach>
     </insert>
+
+    <select id="selectSensitivePlaintextCandidates" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_import_detail
+        WHERE raw_data IS NOT NULL AND raw_data != '' AND raw_data NOT LIKE 'enc:v1:%'
+        ORDER BY id
+        LIMIT #{limit}
+    </select>
+
+    <update id="encryptRawData">
+        UPDATE dms_import_detail
+        SET raw_data=#{rawData,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler}
+        WHERE id=#{id} AND raw_data IS NOT NULL AND raw_data != '' AND raw_data NOT LIKE 'enc:v1:%'
+    </update>
 
     <update id="update" parameterType="com.macro.mall.distribution.entity.DmsImportDetail">
         UPDATE dms_import_detail

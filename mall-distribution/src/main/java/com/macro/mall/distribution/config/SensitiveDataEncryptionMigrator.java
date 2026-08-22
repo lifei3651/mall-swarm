@@ -4,11 +4,13 @@ import com.macro.mall.distribution.dao.DmsAgentDao;
 import com.macro.mall.distribution.dao.DmsErpIntegrationDao;
 import com.macro.mall.distribution.dao.DmsMerchantDao;
 import com.macro.mall.distribution.dao.DmsMerchantWithdrawalDao;
+import com.macro.mall.distribution.dao.DmsImportDetailDao;
 import com.macro.mall.distribution.dao.DmsWithdrawRecordDao;
 import com.macro.mall.distribution.entity.DmsAgent;
 import com.macro.mall.distribution.entity.DmsErpIntegration;
 import com.macro.mall.distribution.entity.DmsMerchant;
 import com.macro.mall.distribution.entity.DmsMerchantWithdrawal;
+import com.macro.mall.distribution.entity.DmsImportDetail;
 import com.macro.mall.distribution.entity.DmsWithdrawRecord;
 import com.macro.mall.distribution.security.EncryptedStringTypeHandler;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,7 @@ public class SensitiveDataEncryptionMigrator implements ApplicationRunner {
     private final DmsWithdrawRecordDao withdrawRecordDao;
     private final DmsMerchantDao merchantDao;
     private final DmsMerchantWithdrawalDao merchantWithdrawalDao;
+    private final DmsImportDetailDao importDetailDao;
     private final TransactionTemplate transactionTemplate;
 
     @Override
@@ -53,9 +56,11 @@ public class SensitiveDataEncryptionMigrator implements ApplicationRunner {
         int withdrawals = migrateWithdrawals();
         int merchants = migrateMerchants();
         int merchantWithdrawals = migrateMerchantWithdrawals();
-        if (agents > 0 || erpIntegrations > 0 || withdrawals > 0 || merchants > 0 || merchantWithdrawals > 0) {
-            log.info("历史敏感字段加密迁移完成：代理资料={}，ERP配置={}，会员提现={}，商户资料={}，商户提现={}",
-                    agents, erpIntegrations, withdrawals, merchants, merchantWithdrawals);
+        int importDetails = migrateImportDetails();
+        if (agents > 0 || erpIntegrations > 0 || withdrawals > 0 || merchants > 0
+                || merchantWithdrawals > 0 || importDetails > 0) {
+            log.info("历史敏感字段加密迁移完成：代理资料={}，ERP配置={}，会员提现={}，商户资料={}，商户提现={}，导入明细={}",
+                    agents, erpIntegrations, withdrawals, merchants, merchantWithdrawals, importDetails);
         }
     }
 
@@ -135,6 +140,23 @@ public class SensitiveDataEncryptionMigrator implements ApplicationRunner {
                 int count = 0;
                 for (DmsMerchantWithdrawal row : rows) {
                     count += merchantWithdrawalDao.encryptSensitiveFields(row.getId(), row.getBankAccountNoSnapshot());
+                }
+                return count;
+            });
+            int count = updated == null ? 0 : updated;
+            if (count == 0) return total;
+            total += count;
+        }
+    }
+
+    private int migrateImportDetails() {
+        int total = 0;
+        while (true) {
+            Integer updated = transactionTemplate.execute(status -> {
+                List<DmsImportDetail> rows = importDetailDao.selectSensitivePlaintextCandidates(BATCH_SIZE);
+                int count = 0;
+                for (DmsImportDetail row : rows) {
+                    count += importDetailDao.encryptRawData(row.getId(), row.getRawData());
                 }
                 return count;
             });

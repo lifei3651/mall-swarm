@@ -28,6 +28,8 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -38,6 +40,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Comparator;
+import java.util.Set;
 
 /**
  * 导入服务实现类
@@ -54,6 +58,7 @@ public class ImportServiceImpl implements ImportService {
     private final ObjectMapper objectMapper;
     private final ImportTransactionHelper importTransactionHelper;
     private final ImportExecutionGuard importExecutionGuard;
+    private final Validator validator;
 
     @Override
     public ImportResultVO importAgents(MultipartFile file, Long operatorId, String operatorName) {
@@ -108,6 +113,7 @@ public class ImportServiceImpl implements ImportService {
             detail.setStatus(0); // 待处理
 
             try {
+                validateRow(agentDTO);
                 // 使用独立事务处理每条记录，避免单条失败导致整个批次回滚
                 DmsAgent agent = importTransactionHelper.processAgentImport(agentDTO);
                 detail.setStatus(1); // 成功
@@ -197,6 +203,7 @@ public class ImportServiceImpl implements ImportService {
             detail.setStatus(0); // 待处理
 
             try {
+                validateRow(orderDTO);
                 // 使用独立事务处理每条记录，避免单条失败导致整个批次回滚
                 Long orderId = importTransactionHelper.processOrderImport(orderDTO);
                 detail.setStatus(1);
@@ -400,6 +407,17 @@ public class ImportServiceImpl implements ImportService {
         if (rows == null || rows.isEmpty()) Asserts.fail("导入数据不能为空");
         ImportFilePolicy.requireRowCount(rows.size(), ImportFilePolicy.MAX_IMPORT_ROWS);
         return rows;
+    }
+
+    private <T> void validateRow(T row) {
+        if (row == null) Asserts.fail("导入行不能为空");
+        Set<ConstraintViolation<T>> violations = validator.validate(row);
+        if (violations.isEmpty()) return;
+        String message = violations.stream()
+                .sorted(Comparator.comparing(violation -> violation.getPropertyPath().toString()))
+                .map(ConstraintViolation::getMessage)
+                .findFirst().orElse("导入数据格式不正确");
+        Asserts.fail(message);
     }
 
     private boolean isBlankRow(List<String> row) {

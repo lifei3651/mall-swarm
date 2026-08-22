@@ -27,6 +27,12 @@ public interface DmsImportDetailDao {
      */
     List<DmsImportDetail> selectByBatchIdAndStatus(@Param("batchId") Long batchId, @Param("status") Integer status);
 
+    /** 分批查询尚未加密的历史原始导入数据。 */
+    List<DmsImportDetail> selectSensitivePlaintextCandidates(@Param("limit") int limit);
+
+    /** 仅在原值仍为明文时执行一次透明加密，支持启动迁移安全重试。 */
+    int encryptRawData(@Param("id") Long id, @Param("rawData") String rawData);
+
     /**
      * 插入详情
      */

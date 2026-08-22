@@ -103,7 +103,7 @@ sa-token:
   is-concurrent: true
   is-share: true
   token-style: uuid
-  is-log: true
+  is-log: false
 
 # 仅供本地联调；生产配置会强制关闭。
 shop:
