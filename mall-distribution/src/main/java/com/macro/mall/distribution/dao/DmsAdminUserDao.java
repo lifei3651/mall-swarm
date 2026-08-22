@@ -3,6 +3,7 @@ package com.macro.mall.distribution.dao;
 import com.macro.mall.distribution.entity.DmsAdminUser;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface DmsAdminUserDao {
@@ -25,4 +26,5 @@ public interface DmsAdminUserDao {
     int updateLastLoginTime(@Param("id") Long id);
     int increaseFailedLogin(@Param("id") Long id, @Param("lockThreshold") Integer lockThreshold);
     int clearLoginLock(@Param("id") Long id);
+    int clearExpiredLoginLock(@Param("id") Long id, @Param("expiredBefore") LocalDateTime expiredBefore);
 }

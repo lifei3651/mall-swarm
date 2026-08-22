@@ -28,4 +28,21 @@ class AgentAccountServiceImplTest {
         verify(accountDao, never()).selectByAgentId(10L);
         verify(accountDao).subtractUnsettledCommission(10L, new BigDecimal("30.00"));
     }
+
+    @Test
+    void legacyWithdrawLocksAccountBeforeCheckingAvailableBalance() {
+        DmsAgentAccountDao accountDao = mock(DmsAgentAccountDao.class);
+        DmsShopMemberDao memberDao = mock(DmsShopMemberDao.class);
+        DmsAgentAccount account = new DmsAgentAccount();
+        account.setAvailableBalance(new BigDecimal("100.00"));
+        when(accountDao.selectByAgentIdForUpdate(10L)).thenReturn(account);
+        when(accountDao.subtractAvailableBalance(10L, new BigDecimal("30.00"))).thenReturn(1);
+        AgentAccountServiceImpl service = new AgentAccountServiceImpl(accountDao, memberDao);
+
+        assertTrue(service.withdraw(10L, new BigDecimal("30.00")));
+
+        verify(accountDao).selectByAgentIdForUpdate(10L);
+        verify(accountDao, never()).selectByAgentId(10L);
+        verify(accountDao).subtractAvailableBalance(10L, new BigDecimal("30.00"));
+    }
 }

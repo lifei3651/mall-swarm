@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.common.log.SensitiveLogSanitizer;
+import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.dao.DmsBonusCalculationSnapshotDao;
 import com.macro.mall.distribution.dao.DmsBonusCalculationTaskDao;
 import com.macro.mall.distribution.dao.DmsCommissionRecordDao;
@@ -78,6 +79,10 @@ public class BonusCalculationTaskServiceImpl implements BonusCalculationTaskServ
         if (orderUserId == null) {
             Asserts.fail("下单用户ID不能为空");
         }
+        Long currentTenantId = TenantContext.getTenantId();
+        if (tenantId != null && !currentTenantId.equals(tenantId)) {
+            Asserts.fail("不能为其他商城客户创建奖金任务");
+        }
 
         DmsBonusCalculationTask latestTask = taskDao.selectLatestByOrderId(orderId);
         if (latestTask != null) {
@@ -85,7 +90,7 @@ public class BonusCalculationTaskServiceImpl implements BonusCalculationTaskServ
         }
 
         DmsBonusCalculationTask task = new DmsBonusCalculationTask();
-        task.setTenantId(tenantId == null ? 0L : tenantId);
+        task.setTenantId(currentTenantId);
         task.setRuleVersionId(ruleVersionId);
         task.setOrderId(orderId);
         task.setOrderNo(orderNo);

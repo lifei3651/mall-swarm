@@ -92,4 +92,9 @@
     </update>
     <update id="increaseFailedLogin">UPDATE dms_admin_user SET failed_login_count=failed_login_count+1, lock_time=CASE WHEN failed_login_count+1 &gt;= #{lockThreshold} THEN NOW() ELSE lock_time END, update_time=NOW() WHERE id=#{id}</update>
     <update id="clearLoginLock">UPDATE dms_admin_user SET failed_login_count=0, lock_time=NULL, update_time=NOW() WHERE id=#{id}</update>
+    <update id="clearExpiredLoginLock">
+        UPDATE dms_admin_user
+        SET failed_login_count=0, lock_time=NULL, update_time=NOW()
+        WHERE id=#{id} AND lock_time IS NOT NULL AND lock_time &lt;= #{expiredBefore}
+    </update>
 </mapper>

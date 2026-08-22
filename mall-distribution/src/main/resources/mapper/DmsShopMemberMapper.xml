@@ -255,6 +255,11 @@
     </update>
     <update id="increaseFailedLogin">UPDATE dms_shop_member SET failed_login_count=failed_login_count+1, lock_time=CASE WHEN failed_login_count+1 &gt;= #{lockThreshold} THEN CURRENT_TIMESTAMP ELSE lock_time END, update_time=CURRENT_TIMESTAMP WHERE id=#{id}</update>
     <update id="clearLoginLock">UPDATE dms_shop_member SET failed_login_count=0, lock_time=NULL, update_time=CURRENT_TIMESTAMP WHERE id=#{id}</update>
+    <update id="clearExpiredLoginLock">
+        UPDATE dms_shop_member
+        SET failed_login_count=0, lock_time=NULL, update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id} AND lock_time IS NOT NULL AND lock_time &lt;= #{expiredBefore}
+    </update>
     <update id="updatePayPassword">
         UPDATE dms_shop_member
         SET pay_password_hash=#{payPasswordHash}, pay_password_failed_count=0,

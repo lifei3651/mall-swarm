@@ -83,22 +83,6 @@ admin:
     # 默认12小时；如确需调整，只通过服务器环境变量覆盖，不写入前端。
     session-hours: ${ADMIN_SESSION_HOURS:12}
 
-sa-token:
-  token-name: Authorization
-  token-prefix: Bearer
-  timeout: ${SA_TOKEN_TIMEOUT:86400}
-  active-timeout: ${SA_TOKEN_ACTIVE_TIMEOUT:1800}
-  is-concurrent: true
-  is-share: true
-  token-style: uuid
-  is-log: false
-  is-read-header: true
-  is-read-cookie: false
-  cookie:
-    secure: true
-    http-only: true
-    same-site: Strict
-
 # 生产环境禁止暴露接口文档和调试入口。
 springdoc:
   api-docs:

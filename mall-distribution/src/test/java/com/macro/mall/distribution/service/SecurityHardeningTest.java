@@ -117,6 +117,7 @@ class SecurityHardeningTest {
         admin.setPasswordHash(BCrypt.hashpw(password));
         admin.setLockTime(LocalDateTime.now().minusMinutes(16));
         when(adminUserDao.selectByUsername("operator")).thenReturn(admin);
+        when(adminUserDao.clearExpiredLoginLock(eq(9L), any(LocalDateTime.class))).thenReturn(1);
         AdminAuthServiceImpl service = new AdminAuthServiceImpl(adminUserDao, adminSessionDao, captchaService);
         AdminLoginDTO dto = new AdminLoginDTO();
         dto.setUsername("operator"); dto.setPassword(password);
@@ -124,7 +125,7 @@ class SecurityHardeningTest {
 
         service.login(dto);
 
-        verify(adminUserDao).clearLoginLock(9L);
+        verify(adminUserDao).clearExpiredLoginLock(eq(9L), any(LocalDateTime.class));
         verify(adminSessionDao).insert(any(DmsAdminSession.class));
     }
 
@@ -153,6 +154,92 @@ class SecurityHardeningTest {
         verify(memberSessionDao).insert(session.capture());
         assertNotEquals(result.getToken(), session.getValue().getToken());
         assertEquals(SecureUtil.sha256(result.getToken()), session.getValue().getToken());
+    }
+
+    @Test
+    void memberSessionAcceptsRawTokenButRejectsStoredTokenHashAsBearerCredential() {
+        String rawToken = "raw-member-session-token";
+        String storedHash = SecureUtil.sha256(rawToken);
+        DmsShopMemberSession session = new DmsShopMemberSession();
+        session.setMemberId(12L);
+        session.setStatus(1);
+        session.setExpireTime(LocalDateTime.now().plusHours(1));
+        DmsShopMember member = new DmsShopMember();
+        member.setId(12L);
+        member.setStatus(1);
+        when(memberSessionDao.selectByToken(storedHash)).thenReturn(session);
+        when(memberDao.selectById(12L)).thenReturn(member);
+        ShopAuthServiceImpl service = new ShopAuthServiceImpl(memberDao, memberSessionDao,
+                agentService, captchaService, smsVerificationService,
+                mock(com.macro.mall.distribution.dao.DmsTenantDao.class));
+
+        assertSame(member, service.resolveMember("Bearer " + rawToken));
+        assertNull(service.resolveMember("Bearer " + storedHash));
+        verify(memberSessionDao).selectByToken(SecureUtil.sha256(storedHash));
+        verify(memberSessionDao, times(1)).selectByToken(storedHash);
+    }
+
+    @Test
+    void adminSessionAcceptsRawTokenButRejectsStoredTokenHashAsBearerCredential() {
+        String rawToken = "raw-admin-session-token";
+        String storedHash = SecureUtil.sha256(rawToken);
+        DmsAdminSession session = new DmsAdminSession();
+        session.setAdminId(9L);
+        session.setStatus(1);
+        session.setExpireTime(LocalDateTime.now().plusHours(1));
+        DmsAdminUser admin = new DmsAdminUser();
+        admin.setId(9L);
+        admin.setStatus(1);
+        when(adminSessionDao.selectByToken(storedHash)).thenReturn(session);
+        when(adminUserDao.selectById(9L)).thenReturn(admin);
+        AdminAuthServiceImpl service = new AdminAuthServiceImpl(adminUserDao, adminSessionDao, captchaService);
+
+        assertSame(admin, service.resolveAdmin("Bearer " + rawToken));
+        assertNull(service.resolveAdmin("Bearer " + storedHash));
+        verify(adminSessionDao).selectByToken(SecureUtil.sha256(storedHash));
+        verify(adminSessionDao, times(1)).selectByToken(storedHash);
+    }
+
+    @Test
+    void expiredMemberLoginLockClearsAutomaticallyButActiveLockStillBlocksLogin() {
+        String password = "Member-password-123";
+        DmsShopMember expired = new DmsShopMember();
+        expired.setId(12L);
+        expired.setUserId(1200L);
+        expired.setPhone("13900000000");
+        expired.setPasswordHash(BCrypt.hashpw(password));
+        expired.setStatus(1);
+        expired.setLockTime(LocalDateTime.now().minusMinutes(16));
+        when(memberDao.selectByAccount(expired.getPhone())).thenReturn(expired);
+        when(memberDao.clearExpiredLoginLock(eq(12L), any(LocalDateTime.class))).thenReturn(1);
+        ShopAuthServiceImpl service = new ShopAuthServiceImpl(memberDao, memberSessionDao,
+                agentService, captchaService, smsVerificationService,
+                mock(com.macro.mall.distribution.dao.DmsTenantDao.class));
+        ShopLoginDTO dto = new ShopLoginDTO();
+        dto.setAccount(expired.getPhone());
+        dto.setPassword(password);
+        dto.setLoginType("password");
+
+        assertNotNull(service.login(dto));
+        verify(memberDao).clearExpiredLoginLock(eq(12L), any(LocalDateTime.class));
+
+        DmsShopMember active = new DmsShopMember();
+        active.setId(13L);
+        active.setUserId(1300L);
+        active.setPhone("13800000000");
+        active.setPasswordHash(BCrypt.hashpw(password));
+        active.setStatus(1);
+        active.setLockTime(LocalDateTime.now().minusMinutes(1));
+        when(memberDao.selectByAccount(active.getPhone())).thenReturn(active);
+        ShopLoginDTO activeDto = new ShopLoginDTO();
+        activeDto.setAccount(active.getPhone());
+        activeDto.setPassword(password);
+        activeDto.setLoginType("password");
+
+        RuntimeException blocked = assertThrows(RuntimeException.class, () -> service.login(activeDto));
+        assertEquals("账号或登录凭证错误", blocked.getMessage());
+        verify(memberDao, never()).clearExpiredLoginLock(eq(13L), any(LocalDateTime.class));
+        verify(memberSessionDao, never()).disableByMemberId(13L);
     }
 
     @Test

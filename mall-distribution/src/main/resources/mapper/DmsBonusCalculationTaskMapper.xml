@@ -28,24 +28,24 @@
         start_time, finish_time, create_time, update_time
     </sql>
 
-    <select id="selectById" resultMap="BaseResultMap">
+    <select id="selectByIdScoped" resultMap="BaseResultMap">
         SELECT <include refid="BaseColumns"/>
         FROM dms_bonus_calculation_task
-        WHERE id = #{id}
+        WHERE tenant_id = #{tenantId} AND id = #{id}
     </select>
 
-    <select id="selectLatestByOrderId" resultMap="BaseResultMap">
+    <select id="selectLatestByOrderIdScoped" resultMap="BaseResultMap">
         SELECT <include refid="BaseColumns"/>
         FROM dms_bonus_calculation_task
-        WHERE order_id = #{orderId}
+        WHERE tenant_id = #{tenantId} AND order_id = #{orderId}
         ORDER BY create_time DESC, id DESC
         LIMIT 1
     </select>
 
-    <select id="selectList" resultMap="BaseResultMap">
+    <select id="selectListScoped" resultMap="BaseResultMap">
         SELECT <include refid="BaseColumns"/>
         FROM dms_bonus_calculation_task
-        WHERE 1 = 1
+        WHERE tenant_id = #{tenantId}
         <if test="status != null">
             AND status = #{status}
         </if>
@@ -55,10 +55,11 @@
         ORDER BY create_time DESC, id DESC
     </select>
 
-    <select id="selectExecutable" resultMap="BaseResultMap">
+    <select id="selectExecutableScoped" resultMap="BaseResultMap">
         SELECT <include refid="BaseColumns"/>
         FROM dms_bonus_calculation_task
-        WHERE status IN (0, 3)
+        WHERE tenant_id = #{tenantId}
+          AND status IN (0, 3)
           AND retry_count &lt; max_retry_count
           AND (next_retry_time IS NULL OR next_retry_time &lt;= NOW())
         ORDER BY create_time ASC, id ASC
@@ -74,19 +75,19 @@
          #{status}, #{retryCount}, #{maxRetryCount}, #{nextRetryTime})
     </insert>
 
-    <update id="markProcessing">
+    <update id="markProcessingScoped">
         UPDATE dms_bonus_calculation_task
         SET status = 1, start_time = NOW(), update_time = NOW()
-        WHERE id = #{id} AND status IN (0, 3)
+        WHERE tenant_id = #{tenantId} AND id = #{id} AND status IN (0, 3)
     </update>
 
-    <update id="markSuccess">
+    <update id="markSuccessScoped">
         UPDATE dms_bonus_calculation_task
         SET status = 2, finish_time = NOW(), fail_reason = NULL, update_time = NOW()
-        WHERE id = #{id} AND status = 1
+        WHERE tenant_id = #{tenantId} AND id = #{id} AND status = 1
     </update>
 
-    <update id="markFailed">
+    <update id="markFailedScoped">
         UPDATE dms_bonus_calculation_task
         SET status = 3,
             retry_count = retry_count + 1,
@@ -94,6 +95,6 @@
             next_retry_time = #{nextRetryTime},
             finish_time = NOW(),
             update_time = NOW()
-        WHERE id = #{id} AND status = 1
+        WHERE tenant_id = #{tenantId} AND id = #{id} AND status = 1
     </update>
 </mapper>

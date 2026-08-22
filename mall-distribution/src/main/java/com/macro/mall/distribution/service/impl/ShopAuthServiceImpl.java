@@ -44,6 +44,7 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class ShopAuthServiceImpl implements ShopAuthService {
     private static final int MAX_FAILED_LOGIN_COUNT = 5;
+    private static final int LOGIN_LOCK_MINUTES = 15;
     /** 不存在账号也执行一次同成本校验，降低基于响应时间的账号枚举。 */
     private static final String DUMMY_PASSWORD_HASH = BCrypt.hashpw("invalid-login-placeholder");
     private static final String GENERIC_LOGIN_ERROR = "账号或登录凭证错误";
@@ -417,7 +418,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         if ("sms".equals(loginType)) {
             // 短信验证码登录
             smsVerificationService.verifyAndConsume(account, dto.getSmsCode(), SMS_BIZ_TYPE_LOGIN);
-            if (member == null || member.getLockTime() != null || !Integer.valueOf(1).equals(member.getStatus())) {
+            if (member == null || hasActiveLoginLock(member) || !Integer.valueOf(1).equals(member.getStatus())) {
                 Asserts.fail(GENERIC_LOGIN_ERROR);
             }
         } else {
@@ -429,7 +430,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             String passwordHash = member == null || member.getPasswordHash() == null || member.getPasswordHash().isBlank()
                     ? DUMMY_PASSWORD_HASH : member.getPasswordHash();
             boolean passwordMatches = checkPassword(dto.getPassword(), passwordHash);
-            if (member == null || member.getLockTime() != null || !passwordMatches) {
+            if (member == null || hasActiveLoginLock(member) || !passwordMatches) {
                 if (member == null || member.getLockTime() != null) Asserts.fail(GENERIC_LOGIN_ERROR);
                 memberDao.increaseFailedLogin(member.getId(), MAX_FAILED_LOGIN_COUNT);
                 Asserts.fail(GENERIC_LOGIN_ERROR);
@@ -457,7 +458,6 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             return null;
         }
         DmsShopMemberSession session = sessionDao.selectByToken(hashToken(token));
-        if (session == null) session = sessionDao.selectByToken(token);
         if (session == null || !Integer.valueOf(1).equals(session.getStatus())
                 || session.getExpireTime() == null || session.getExpireTime().isBefore(LocalDateTime.now())) {
             return null;
@@ -482,8 +482,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     public boolean logout(String authorization) {
         String token = stripToken(authorization);
         if (token == null) return false;
-        int updated = sessionDao.disableByToken(hashToken(token));
-        return updated > 0 || sessionDao.disableByToken(token) > 0;
+        return sessionDao.disableByToken(hashToken(token)) > 0;
     }
 
     @Override
@@ -609,6 +608,21 @@ public class ShopAuthServiceImpl implements ShopAuthService {
 
     private String hashToken(String token) {
         return SecureUtil.sha256(token);
+    }
+
+    /**
+     * 商城账号与后台账号采用相同的 15 分钟临时锁定策略。过期锁只在登录时按主键清除，
+     * 保留错误计数的防爆破能力，同时避免攻击者通过连续错误密码永久锁死他人账号。
+     */
+    private boolean hasActiveLoginLock(DmsShopMember member) {
+        if (member == null || member.getLockTime() == null) return false;
+        LocalDateTime expiredBefore = LocalDateTime.now().minusMinutes(LOGIN_LOCK_MINUTES);
+        if (member.getLockTime().isAfter(expiredBefore)) return true;
+        // 只清除本次读取到的过期锁；并发请求刚形成的新锁不能被旧请求覆盖。
+        if (memberDao.clearExpiredLoginLock(member.getId(), expiredBefore) != 1) return true;
+        member.setFailedLoginCount(0);
+        member.setLockTime(null);
+        return false;
     }
 
     private String stripToken(String authorization) {

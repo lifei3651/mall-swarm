@@ -5,11 +5,13 @@ import com.macro.mall.distribution.dao.DmsCommissionClawbackDao;
 import com.macro.mall.distribution.dao.DmsCommissionRecordDao;
 import com.macro.mall.distribution.dao.DmsCommissionSettlementBatchDao;
 import com.macro.mall.distribution.dao.DmsCommissionSettlementItemDao;
+import com.macro.mall.distribution.dao.DmsBonusCalculationTaskDao;
 import com.macro.mall.distribution.dao.DmsShopProductDao;
 import com.macro.mall.distribution.entity.DmsCommissionClawback;
 import com.macro.mall.distribution.entity.DmsCommissionRecord;
 import com.macro.mall.distribution.entity.DmsCommissionSettlementBatch;
 import com.macro.mall.distribution.entity.DmsCommissionSettlementItem;
+import com.macro.mall.distribution.entity.DmsBonusCalculationTask;
 import com.macro.mall.distribution.entity.DmsShopProduct;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +41,7 @@ class TenantScopedCommissionAndProductDaoTest {
     @Autowired private DmsCommissionSettlementBatchDao settlementBatchDao;
     @Autowired private DmsCommissionSettlementItemDao settlementItemDao;
     @Autowired private DmsShopProductDao productDao;
+    @Autowired private DmsBonusCalculationTaskDao bonusTaskDao;
 
     @AfterEach
     void clearTenant() {
@@ -132,6 +135,26 @@ class TenantScopedCommissionAndProductDaoTest {
         DmsCommissionSettlementItem foreignItem = new DmsCommissionSettlementItem();
         foreignItem.setTenantId(2L);
         assertThrows(IllegalArgumentException.class, () -> settlementItemDao.insertBatch(List.of(foreignItem)));
+    }
+
+    @Test
+    void bonusTaskReadsAndStateTransitionsCannotCrossTenantBoundary() {
+        jdbcTemplate.update("""
+                INSERT INTO dms_bonus_calculation_task
+                (id,tenant_id,rule_version_id,order_id,order_no,order_amount,order_user_id,order_user_name,
+                 status,retry_count,max_retry_count,next_retry_time)
+                VALUES (991051,1,1,991051,'TENANT-BONUS-1',100,1001,'租户一',0,0,3,CURRENT_TIMESTAMP),
+                       (991052,2,1,991052,'TENANT-BONUS-2',100,2001,'租户二',0,0,3,CURRENT_TIMESTAMP)
+                """);
+        TenantContext.setTenantId(1L);
+
+        assertNotNull(bonusTaskDao.selectById(991051L));
+        assertNull(bonusTaskDao.selectById(991052L));
+        assertEquals(List.of(991051L), bonusTaskDao.selectList(null, null).stream()
+                .map(DmsBonusCalculationTask::getId).filter(id -> id >= 991051L).toList());
+        assertEquals(0, bonusTaskDao.markProcessing(991052L));
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "SELECT status FROM dms_bonus_calculation_task WHERE id=991052", Integer.class));
     }
 
     private void insertCommission(Long id, Long tenantId, String recordNo, Long orderId) {

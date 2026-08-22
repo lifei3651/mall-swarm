@@ -756,8 +756,7 @@ public class ShopController {
 
     @Operation(summary = "查询前台订单列表")
     @GetMapping("/orders")
-    public CommonResult<CommonPage<ShopOrderVO>> orders(@RequestParam(required = false) Long userId,
-                                                        @RequestParam(required = false) Long agentId,
+    public CommonResult<CommonPage<ShopOrderVO>> orders(
                                                         @RequestHeader(value = "Authorization", required = false) String authorization,
                                                         @RequestParam(required = false) String orderState,
                                                         @RequestParam(defaultValue = "1") Integer pageNum,

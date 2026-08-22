@@ -5,6 +5,7 @@ import com.macro.mall.distribution.vo.AdminMemberVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper
@@ -62,6 +63,7 @@ public interface DmsShopMemberDao {
     int markTeamOptIn(@Param("id") Long id);
     int increaseFailedLogin(@Param("id") Long id, @Param("lockThreshold") Integer lockThreshold);
     int clearLoginLock(@Param("id") Long id);
+    int clearExpiredLoginLock(@Param("id") Long id, @Param("expiredBefore") LocalDateTime expiredBefore);
 
     int updatePayPassword(@Param("id") Long id, @Param("payPasswordHash") String payPasswordHash);
 

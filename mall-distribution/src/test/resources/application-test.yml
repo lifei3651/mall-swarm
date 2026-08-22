@@ -20,7 +20,6 @@ spring:
       - com.alibaba.cloud.nacos.NacosConfigAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
-      - cn.dev33.satoken.dao.SaTokenDaoForRedisTemplate
   # H2 数据库
   datasource:
     url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
@@ -36,10 +35,6 @@ spring:
   h2:
     console:
       enabled: true
-
-# 禁用 Sa-Token
-sa-token:
-  disable: true
 
 mybatis:
   mapper-locations: classpath:mapper/*.xml

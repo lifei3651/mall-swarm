@@ -55,14 +55,4 @@ public final class AuthConstant {
      */
     public static final String USER_TOKEN_HEADER = "user";
 
-    /**
-     * sa-token session中存储的会员信息
-     */
-    public static final String STP_MEMBER_INFO = "memberInfo";
-
-    /**
-     * sa-token session中存储的后台管理员信息
-     */
-    public static final String STP_ADMIN_INFO = "adminInfo";
-
 }

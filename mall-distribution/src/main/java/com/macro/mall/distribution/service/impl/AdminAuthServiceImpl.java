@@ -63,10 +63,14 @@ public class AdminAuthServiceImpl implements AdminAuthService {
         // 即使账号正处于锁定期，也先完成一次真实密码校验，避免锁定账号形成明显的快速响应侧信道。
         boolean passwordMatches = matchesPassword(dto.getPassword(), admin);
         if (admin.getLockTime() != null) {
-            if (admin.getLockTime().plusMinutes(LOGIN_LOCK_MINUTES).isAfter(LocalDateTime.now())) {
+            LocalDateTime expiredBefore = LocalDateTime.now().minusMinutes(LOGIN_LOCK_MINUTES);
+            if (admin.getLockTime().isAfter(expiredBefore)) {
                 Asserts.fail("账号或密码错误");
             }
-            adminUserDao.clearLoginLock(admin.getId());
+            // 只清除本次读取到的过期锁；并发请求刚形成的新锁不能被旧请求覆盖。
+            if (adminUserDao.clearExpiredLoginLock(admin.getId(), expiredBefore) != 1) {
+                Asserts.fail("账号或密码错误");
+            }
             admin.setLockTime(null);
         }
         if (!passwordMatches) {
@@ -101,8 +105,7 @@ public class AdminAuthServiceImpl implements AdminAuthService {
     public boolean logout(String authorization) {
         String token = stripToken(authorization);
         if (token == null) return false;
-        int updated = adminSessionDao.disableByToken(hashToken(token));
-        return updated > 0 || adminSessionDao.disableByToken(token) > 0;
+        return adminSessionDao.disableByToken(hashToken(token)) > 0;
     }
 
     @Override
@@ -112,7 +115,6 @@ public class AdminAuthServiceImpl implements AdminAuthService {
             return null;
         }
         DmsAdminSession session = adminSessionDao.selectByToken(hashToken(token));
-        if (session == null) session = adminSessionDao.selectByToken(token);
         if (session == null || !Integer.valueOf(1).equals(session.getStatus())
                 || session.getExpireTime() == null || session.getExpireTime().isBefore(LocalDateTime.now())) {
             return null;
