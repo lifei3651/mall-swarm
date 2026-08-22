@@ -139,6 +139,7 @@ const goToResetStep = async () => {
 }
 
 const doResetPassword = async () => {
+  if (loading.value) return
   clearError()
   if (!newPassword.value || newPassword.value.length < 6) { showError('新密码至少需要6位'); return }
   if (newPassword.value !== confirmPassword.value) { showError('两次输入的密码不一致'); return }

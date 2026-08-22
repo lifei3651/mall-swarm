@@ -92,6 +92,7 @@ const sendCode = async () => {
 }
 
 const save = async () => {
+  if (saving.value) return
   message.value = ''
   if (!form.value.currentPassword) return showMessage('请输入当前登录密码')
   if (!/^\d{6}$/.test(form.value.smsCode)) return showMessage('请输入6位短信验证码')

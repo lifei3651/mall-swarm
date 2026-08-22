@@ -268,6 +268,28 @@ class MerchantSettlementServiceTest {
     }
 
     @Test
+    void productSaleAndMarketPriceChangesLeaveAuditTrail() {
+        DmsShopProduct product = new DmsShopProduct();
+        BeanUtils.copyProperties(shopService.getProduct(1L), product);
+        product.setSalePrice(new BigDecimal("309.00"));
+        product.setMarketPrice(new BigDecimal("409.00"));
+        product.setDeliveryProvince("湖南省");
+        product.setDeliveryCity("长沙市");
+        product.setDeliveryDistrict("岳麓区");
+        product.setDeliveryAddress("湖南省 长沙市 岳麓区");
+
+        DmsShopProduct updated = shopService.updateProduct(1L, product);
+
+        assertMoney("309.00", updated.getSalePrice());
+        assertMoney("409.00", updated.getMarketPrice());
+        assertTrue(operationLogService.listLogs("SHOP_PRODUCT", "SHOP_PRODUCT", "1").stream()
+                .anyMatch(log -> "PRICE_CHANGE".equals(log.getOperationType())
+                        && log.getBeforeData().contains("salePrice=299.00")
+                        && log.getAfterData().contains("salePrice=309.00")
+                        && log.getAfterData().contains("marketPrice=409.00")));
+    }
+
+    @Test
     void merchantSkuCostCannotExceedInheritedRepurchasePrice() {
         DmsMerchant merchant = new DmsMerchant();
         merchant.setMerchantNo("M-SKU-COST-LIMIT");

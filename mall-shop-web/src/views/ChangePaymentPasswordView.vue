@@ -86,6 +86,7 @@ const sendCode = async () => {
 }
 
 const save = async () => {
+  if (saving.value) return
   message.value = ''
   if (!/^\d{6}$/.test(form.value.newPassword)) return showMessage('支付密码必须是6位数字')
   if (form.value.newPassword !== confirmPwd.value) return showMessage('两次输入的支付密码不一致')

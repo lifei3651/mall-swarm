@@ -156,6 +156,23 @@ class SecurityHardeningTest {
     }
 
     @Test
+    void memberStatusUpdateUsesLockedRowAndRejectsUnknownStates() {
+        ShopAuthServiceImpl service = new ShopAuthServiceImpl(memberDao, memberSessionDao,
+                agentService, captchaService, smsVerificationService,
+                mock(com.macro.mall.distribution.dao.DmsTenantDao.class));
+        DmsShopMember member = new DmsShopMember();
+        member.setId(12L);
+        member.setStatus(1);
+        when(memberDao.selectByIdForUpdate(12L)).thenReturn(member);
+        when(memberDao.updateStatus(12L, 0)).thenReturn(1);
+
+        assertTrue(service.updateMemberStatus(12L, 0));
+        verify(memberDao).selectByIdForUpdate(12L);
+        verify(memberDao).updateStatus(12L, 0);
+        assertThrows(RuntimeException.class, () -> service.updateMemberStatus(12L, 2));
+    }
+
+    @Test
     void financeReauthenticationRequiresCurrentAdminPassword() {
         String password = "Finance-password-123";
         DmsAdminUser admin = new DmsAdminUser();

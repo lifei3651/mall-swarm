@@ -297,6 +297,7 @@ import { connectOrderRealtime } from '@/utils/orderRealtime'
 import { isNativeApp, toPublicWebUrl } from '@/utils/appEnvironment'
 import { hasShopSession } from '@/utils/shopSession'
 import { submitTrustedAlipayForm } from '@/utils/alipay'
+import { createIdempotencyKey } from '@/utils/idempotency'
 
 const route = useRoute()
 const detail = ref({})
@@ -323,6 +324,7 @@ const afterSaleReasons = ['不想要了', '与商品描述不符', '质量问题
 const error = ref('')
 const hasToken = ref(hasShopSession())
 const paymentPassword = ref('')
+const balancePaymentRequestKey = ref('')
 const applyingAfterSale = ref(route.query.applyAfterSale === '1')
 let stopOrderRealtime = null
 let fallbackPollTimer = null
@@ -680,7 +682,9 @@ const pay = async () => {
   acting.value = true
   error.value = ''
   try {
-    await payOrderWithBalance(order.value.id, paymentPassword.value)
+    if (!balancePaymentRequestKey.value) balancePaymentRequestKey.value = createIdempotencyKey('balance-pay')
+    await payOrderWithBalance(order.value.id, paymentPassword.value, balancePaymentRequestKey.value)
+    balancePaymentRequestKey.value = ''
     paymentPassword.value = ''
     await fetchOrder()
   } catch (e) {

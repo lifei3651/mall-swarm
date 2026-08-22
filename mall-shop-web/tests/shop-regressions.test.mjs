@@ -23,6 +23,24 @@ test('concurrent 401 responses share one login redirect and return shipment comp
   assert.doesNotMatch(orderDetail, /placeholder="物流公司" maxlength="64"/)
 })
 
+test('sensitive forms block duplicate submits and order-detail balance payment sends an idempotency key', async () => {
+  const [login, forgot, loginPassword, paymentPassword, orderDetail] = await Promise.all([
+    readView('LoginView.vue'),
+    readView('ForgotPasswordView.vue'),
+    readView('ChangeLoginPasswordView.vue'),
+    readView('ChangePaymentPasswordView.vue'),
+    readView('OrderDetailView.vue'),
+  ])
+
+  assert.match(login, /const submit = async \(\) => \{\s*if \(loading\.value\) return/)
+  assert.match(forgot, /const doResetPassword = async \(\) => \{\s*if \(loading\.value\) return/)
+  assert.match(loginPassword, /const save = async \(\) => \{\s*if \(saving\.value\) return/)
+  assert.match(paymentPassword, /const save = async \(\) => \{\s*if \(saving\.value\) return/)
+  assert.match(orderDetail, /createIdempotencyKey\('balance-pay'\)/)
+  assert.match(orderDetail, /payOrderWithBalance\(order\.value\.id, paymentPassword\.value, balancePaymentRequestKey\.value\)/)
+  assert.match(orderDetail, /balancePaymentRequestKey\.value = ''/)
+})
+
 test('checkout limits address fields, avoids persisting recipient PII and clears sensitive payment state', async () => {
   const checkout = await readView('CheckoutView.vue')
   const address = await readView('AddressView.vue')

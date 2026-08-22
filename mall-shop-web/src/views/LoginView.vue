@@ -621,6 +621,7 @@ const showRegisterServerError = async (message) => {
 }
 
 const submit = async () => {
+  if (loading.value) return
   clearFeedback()
 
   // 前端校验

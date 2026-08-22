@@ -575,14 +575,17 @@ public class ShopServiceImpl implements ShopService {
         merchantProductReviewService.prepareUpdatedProduct(exists, product);
         boolean settlementTermsChanged = settlementProductTermsChanged(exists, product);
         requireSettlementCostAuthority(settlementTermsChanged, product.getSettlementCostChangeReason());
+        String beforePrice = productPriceSnapshot(exists, skuDao.selectByProductId(id, null));
         String beforeSettlement = settlementTermsChanged
                 ? settlementSnapshot(exists, skuDao.selectByProductId(id, null)) : null;
         productDao.update(product);
         logSettlementCostChange(id, beforeSettlement,
                 settlementSnapshot(product, skuDao.selectByProductId(id, null)),
                 product.getSettlementCostChangeReason(), settlementTermsChanged);
+        DmsShopProduct updated = productDao.selectById(id);
+        logProductPriceChange(id, beforePrice, productPriceSnapshot(updated, skuDao.selectByProductId(id, null)));
         catalogCache.invalidateAfterCommit(product.getTenantId());
-        return productDao.selectById(id);
+        return updated;
     }
 
     @Override
@@ -596,6 +599,7 @@ public class ShopServiceImpl implements ShopService {
         if (id != null && existingProduct == null) Asserts.fail("商品不存在");
         merchantProductReviewService.bindMerchantForWrite(product, existingProduct);
         List<DmsShopSku> existingSkus = id == null ? Collections.emptyList() : skuDao.selectByProductId(id, null);
+        String beforePrice = existingProduct == null ? null : productPriceSnapshot(existingProduct, existingSkus);
         boolean settlementTermsChanged = settlementPublishTermsChanged(existingProduct, product, existingSkus, dto.getSkus());
         requireSettlementCostAuthority(settlementTermsChanged, product.getSettlementCostChangeReason());
         String beforeSettlement = settlementTermsChanged && existingProduct != null
@@ -660,8 +664,10 @@ public class ShopServiceImpl implements ShopService {
         logSettlementCostChange(id, beforeSettlement,
                 settlementSnapshot(productDao.selectById(id), skuDao.selectByProductId(id, null)),
                 product.getSettlementCostChangeReason(), settlementTermsChanged);
+        DmsShopProduct published = productDao.selectById(id);
+        logProductPriceChange(id, beforePrice, productPriceSnapshot(published, skuDao.selectByProductId(id, null)));
         catalogCache.invalidateAfterCommit(product.getTenantId());
-        return productDao.selectById(id);
+        return published;
     }
 
     /** 校验商品只能使用所属商户自己的地址或平台明确共享地址；发货地址同时保存展示快照。 */
@@ -705,8 +711,9 @@ public class ShopServiceImpl implements ShopService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean updateProductStatus(Long id, Integer status) {
-        DmsShopProduct product = productDao.selectById(id);
+        DmsShopProduct product = productDao.selectByIdForUpdate(id);
         if (product == null) {
             Asserts.fail("商品不存在");
         }
@@ -719,6 +726,7 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("商户商品必须审核通过后才能上架");
         }
         if (target == 1) requireActiveProductMerchant(product);
+        if (Integer.valueOf(target).equals(product.getStatus())) return true;
         boolean updated = productDao.updateStatus(id, target) > 0;
         if (updated) catalogCache.invalidateAfterCommit(product.getTenantId());
         return updated;
@@ -758,7 +766,10 @@ public class ShopServiceImpl implements ShopService {
         }
         assertTenantAccess(product.getTenantId());
         requireAggregateMerchantSkuRoute(product);
+        String beforePrice = productPriceSnapshot(product, skuDao.selectByProductId(product.getId(), null));
         skuDao.insert(sku);
+        logProductPriceChange(product.getId(), beforePrice,
+                productPriceSnapshot(product, skuDao.selectByProductId(product.getId(), null)));
         catalogCache.invalidateAfterCommit(product.getTenantId());
         return skuDao.selectById(sku.getId());
     }
@@ -779,7 +790,10 @@ public class ShopServiceImpl implements ShopService {
         sku.setId(id);
         sku.setProductId(exists.getProductId());
         requireAggregateMerchantSkuRoute(product);
+        String beforePrice = productPriceSnapshot(product, skuDao.selectByProductId(product.getId(), null));
         skuDao.update(sku);
+        logProductPriceChange(product.getId(), beforePrice,
+                productPriceSnapshot(product, skuDao.selectByProductId(product.getId(), null)));
         catalogCache.invalidateAfterCommit(product.getTenantId());
         return skuDao.selectById(id);
     }
@@ -1982,6 +1996,9 @@ public class ShopServiceImpl implements ShopService {
         if (product.getProductName() == null || product.getProductName().isBlank()) {
             Asserts.fail("商品名称不能为空");
         }
+        product.setCoverUrl(normalizeProductImageUrl(product.getCoverUrl(), "商品主图"));
+        product.setGalleryUrls(normalizeProductImageList(product.getGalleryUrls(), "商品轮播图"));
+        product.setDetailImages(normalizeProductImageList(product.getDetailImages(), "商品详情图"));
         product.setProductNo(product.getProductNo() == null || product.getProductNo().isBlank()
                 ? "SPU" + IdUtil.getSnowflakeNextId()
                 : product.getProductNo());
@@ -2248,7 +2265,7 @@ public class ShopServiceImpl implements ShopService {
                 : dto.getSkuNo());
         sku.setSkuName(dto.getSkuName());
         sku.setAttrsJson(normalizeJsonObject(dto.getAttrsJson()));
-        sku.setImageUrl(dto.getImageUrl());
+        sku.setImageUrl(normalizeProductImageUrl(dto.getImageUrl(), "SKU图片"));
         sku.setSalePrice(money(dto.getSalePrice()));
         sku.setMarketPrice(money(dto.getMarketPrice()));
         sku.setCostAmount(money(dto.getCostAmount()));
@@ -2298,6 +2315,48 @@ public class ShopServiceImpl implements ShopService {
         } catch (JsonProcessingException e) {
             Asserts.fail("SKU规格属性JSON格式错误");
             return "{}";
+        }
+    }
+
+    static String normalizeProductImageUrl(String raw, String label) {
+        if (raw == null || raw.isBlank()) return null;
+        String value = raw.trim();
+        if (value.chars().anyMatch(character -> Character.isISOControl(character))) {
+            Asserts.fail(label + "地址包含非法字符");
+        }
+        try {
+            URI uri = URI.create(value);
+            if (uri.isAbsolute()) {
+                if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null || uri.getUserInfo() != null) {
+                    Asserts.fail(label + "仅支持HTTPS地址或商城内上传地址");
+                }
+            } else if (!value.startsWith("/") || value.startsWith("//") || value.contains("\\")) {
+                Asserts.fail(label + "仅支持HTTPS地址或商城内上传地址");
+            }
+            return value;
+        } catch (IllegalArgumentException exception) {
+            Asserts.fail(label + "地址格式不正确");
+            return null;
+        }
+    }
+
+    private String normalizeProductImageList(String raw, String label) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            JsonNode node = objectMapper.readTree(raw.trim());
+            if (node == null || !node.isArray()) Asserts.fail(label + "必须是图片地址数组");
+            for (int index = 0; index < node.size(); index++) {
+                JsonNode image = node.get(index);
+                if (!image.isTextual()) Asserts.fail(label + "只能包含图片地址");
+                String normalized = normalizeProductImageUrl(image.asText(), label);
+                if (normalized == null) Asserts.fail(label + "不能包含空地址");
+                ((com.fasterxml.jackson.databind.node.ArrayNode) node).set(index,
+                        objectMapper.getNodeFactory().textNode(normalized));
+            }
+            return objectMapper.writeValueAsString(node);
+        } catch (JsonProcessingException exception) {
+            Asserts.fail(label + "格式不正确");
+            return null;
         }
     }
 
@@ -2456,6 +2515,33 @@ public class ShopServiceImpl implements ShopService {
         operationLogService.log("MERCHANT_SETTLEMENT", "COST_CHANGE", "SHOP_PRODUCT",
                 String.valueOf(productId), before, after,
                 blank(reason) ? "初始化商户结算价" : reason.trim());
+    }
+
+    private String productPriceSnapshot(DmsShopProduct product, List<DmsShopSku> skus) {
+        if (product == null) return null;
+        StringBuilder snapshot = new StringBuilder()
+                .append("salePrice=").append(money(product.getSalePrice()).setScale(2, RoundingMode.HALF_UP))
+                .append(";marketPrice=").append(money(product.getMarketPrice()).setScale(2, RoundingMode.HALF_UP));
+        List<DmsShopSku> ordered = new ArrayList<>(skus == null ? Collections.emptyList() : skus);
+        ordered.sort(java.util.Comparator.comparing(DmsShopSku::getId,
+                java.util.Comparator.nullsLast(Long::compareTo)));
+        if (!ordered.isEmpty()) {
+            snapshot.append(";skuPrices=");
+            for (int index = 0; index < ordered.size(); index++) {
+                if (index > 0) snapshot.append(',');
+                DmsShopSku sku = ordered.get(index);
+                snapshot.append(sku.getId()).append(':')
+                        .append(money(sku.getSalePrice()).setScale(2, RoundingMode.HALF_UP)).append('/')
+                        .append(money(sku.getMarketPrice()).setScale(2, RoundingMode.HALF_UP));
+            }
+        }
+        return snapshot.toString();
+    }
+
+    private void logProductPriceChange(Long productId, String before, String after) {
+        if (before == null || Objects.equals(before, after)) return;
+        operationLogService.log("SHOP_PRODUCT", "PRICE_CHANGE", "SHOP_PRODUCT",
+                String.valueOf(productId), before, after, "商品售价或市场价变更");
     }
 
     private String normalizeTeamBonusMode(DmsShopProduct product) {

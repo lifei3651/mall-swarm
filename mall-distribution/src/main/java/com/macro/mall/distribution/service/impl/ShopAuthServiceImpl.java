@@ -509,11 +509,16 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean updateMemberStatus(Long id, Integer status) {
-        if (memberDao.selectById(id) == null) {
+        int target = status == null ? 1 : status;
+        if (target != 0 && target != 1) Asserts.fail("会员状态不正确");
+        DmsShopMember member = memberDao.selectByIdForUpdate(id);
+        if (member == null) {
             Asserts.fail("会员不存在");
         }
-        return memberDao.updateStatus(id, status == null ? 1 : status) > 0;
+        if (Integer.valueOf(target).equals(member.getStatus())) return true;
+        return memberDao.updateStatus(id, target) > 0;
     }
 
     @Override
