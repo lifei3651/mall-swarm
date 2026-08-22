@@ -52,19 +52,25 @@ public class AlipayServiceImpl implements AlipayService {
         return alipayConfig.isConfigured();
     }
 
-    private AlipayClient createClient() {
+    private AlipayClient createClient() throws AlipayApiException {
         if (!alipayConfig.isConfigured()) {
             Asserts.fail("支付宝未配置，请联系管理员");
         }
-        return new DefaultAlipayClient(
-                alipayConfig.getGatewayUrl(),
-                alipayConfig.getAppId(),
-                alipayConfig.getPrivateKey(),
-                "json",
-                "utf-8",
-                alipayConfig.getAlipayPublicKey(),
-                alipayConfig.getSignType()
-        );
+        return new DefaultAlipayClient(buildSdkConfig());
+    }
+
+    com.alipay.api.AlipayConfig buildSdkConfig() {
+        com.alipay.api.AlipayConfig config = new com.alipay.api.AlipayConfig();
+        config.setServerUrl(alipayConfig.getGatewayUrl());
+        config.setAppId(alipayConfig.getAppId());
+        config.setPrivateKey(alipayConfig.getPrivateKey());
+        config.setFormat("json");
+        config.setCharset("utf-8");
+        config.setAlipayPublicKey(alipayConfig.getAlipayPublicKey());
+        config.setSignType(alipayConfig.getSignType());
+        config.setConnectTimeout(boundedTimeout(alipayConfig.getConnectTimeoutMs(), 5000));
+        config.setReadTimeout(boundedTimeout(alipayConfig.getReadTimeoutMs(), 10000));
+        return config;
     }
 
     @Override
@@ -138,6 +144,7 @@ public class AlipayServiceImpl implements AlipayService {
             String tradeStatus = params.get("trade_status");   // 交易状态
             String totalAmount = params.get("total_amount");   // 订单金额
             String appId = params.get("app_id");               // 应用ID
+            String sellerId = params.get("seller_id");         // 实际收款支付宝商户UID
 
             log.info("支付宝回调: outTradeNo={}, tradeNo={}, tradeStatus={}, totalAmount={}",
                     outTradeNo, tradeNo, tradeStatus, totalAmount);
@@ -145,6 +152,10 @@ public class AlipayServiceImpl implements AlipayService {
             // 3. 验证app_id
             if (!alipayConfig.getAppId().equals(appId)) {
                 log.error("支付宝回调app_id不匹配: expected={}, actual={}", alipayConfig.getAppId(), appId);
+                return "failure";
+            }
+            if (!alipayConfig.getSellerId().equals(sellerId)) {
+                log.error("支付宝回调seller_id不匹配");
                 return "failure";
             }
 
@@ -210,6 +221,11 @@ public class AlipayServiceImpl implements AlipayService {
                 "utf-8",
                 alipayConfig.getSignType()
         );
+    }
+
+    private int boundedTimeout(int configured, int fallback) {
+        int value = configured <= 0 ? fallback : configured;
+        return Math.max(1000, Math.min(value, 60000));
     }
 
     @Override

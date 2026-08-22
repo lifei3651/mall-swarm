@@ -62,11 +62,23 @@ public class AliyunSmsSender {
         String key = properties.getAccessKeyId() + "@" + properties.getEndpoint();
         Client existing = clients.get(key);
         if (existing != null) return existing;
-        Config config = new Config().setAccessKeyId(properties.getAccessKeyId())
-                .setAccessKeySecret(properties.getAccessKeySecret()).setEndpoint(properties.getEndpoint());
+        Config config = buildClientConfig();
         Client created = new Client(config);
         clients.put(key, created);
         return created;
+    }
+
+    Config buildClientConfig() {
+        return new Config().setAccessKeyId(properties.getAccessKeyId())
+                .setAccessKeySecret(properties.getAccessKeySecret())
+                .setEndpoint(properties.getEndpoint())
+                .setConnectTimeout(boundedTimeout(properties.getConnectTimeoutMs(), 5000))
+                .setReadTimeout(boundedTimeout(properties.getReadTimeoutMs(), 10000));
+    }
+
+    private int boundedTimeout(int configured, int fallback) {
+        int value = configured <= 0 ? fallback : configured;
+        return Math.max(1000, Math.min(value, 60000));
     }
 
     private void validate(String phone, Integer bizType) {

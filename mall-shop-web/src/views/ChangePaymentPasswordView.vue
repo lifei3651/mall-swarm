@@ -26,6 +26,7 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { safeShopRedirect } from '@/utils/safeRedirect'
 import { ArrowLeft } from 'lucide-vue-next'
 import { getMe, getWalletSummary, sendPaymentPasswordSmsCode, setPaymentPassword } from '@/api/shop'
 import { isValidMainlandPhone } from '@/utils/phone'
@@ -99,7 +100,7 @@ const save = async () => {
     form.value = { oldPassword: '', newPassword: '', loginPassword: '', smsCode: '' }
     confirmPwd.value = ''
     showMessage('支付密码已保存', 'success')
-    const redirect = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/') ? route.query.redirect : ''
+    const redirect = safeShopRedirect(route.query.redirect, '')
     if (redirect) window.setTimeout(() => router.replace(redirect), 450)
   } catch (e) { showMessage(e.message || '支付密码保存失败') }
   finally { saving.value = false }

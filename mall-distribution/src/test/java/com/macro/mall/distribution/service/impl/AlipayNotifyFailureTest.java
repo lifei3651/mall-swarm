@@ -33,6 +33,7 @@ class AlipayNotifyFailureTest {
         tradeDao = mock(DmsShopTradeDao.class);
         when(config.isConfigured()).thenReturn(true);
         when(config.getAppId()).thenReturn("test-app-id");
+        when(config.getSellerId()).thenReturn("2088123456789012");
     }
 
     @Test
@@ -42,6 +43,35 @@ class AlipayNotifyFailureTest {
         assertEquals("failure", service.handleNotify(validParams()));
 
         verifyNoInteractions(orderDao, shopService);
+    }
+
+    @Test
+    void callbackForAnotherSellerIsRejectedBeforeReadingOrder() {
+        AlipayServiceImpl service = service(true);
+        Map<String, String> params = validParams();
+        params.put("seller_id", "2088000000000000");
+
+        assertEquals("failure", service.handleNotify(params));
+
+        verifyNoInteractions(orderDao, shopService);
+    }
+
+    @Test
+    void sdkClientUsesBoundedConnectionAndReadTimeouts() {
+        AlipayConfig actual = new AlipayConfig();
+        actual.setGatewayUrl("https://openapi.alipay.com/gateway.do");
+        actual.setAppId("app-1");
+        actual.setPrivateKey("private-key");
+        actual.setAlipayPublicKey("public-key");
+        actual.setSignType("RSA2");
+        actual.setConnectTimeoutMs(7000);
+        actual.setReadTimeoutMs(12000);
+        AlipayServiceImpl service = new AlipayServiceImpl(actual, orderDao, tradeDao, shopService, new ObjectMapper());
+
+        com.alipay.api.AlipayConfig sdk = service.buildSdkConfig();
+
+        assertEquals(7000, sdk.getConnectTimeout());
+        assertEquals(12000, sdk.getReadTimeout());
     }
 
     @Test
@@ -227,6 +257,7 @@ class AlipayNotifyFailureTest {
         params.put("trade_status", "TRADE_SUCCESS");
         params.put("total_amount", "99.00");
         params.put("app_id", "test-app-id");
+        params.put("seller_id", "2088123456789012");
         return params;
     }
 

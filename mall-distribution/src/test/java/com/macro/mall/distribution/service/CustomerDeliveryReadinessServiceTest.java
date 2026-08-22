@@ -48,6 +48,7 @@ class CustomerDeliveryReadinessServiceTest {
         AlipayConfig alipay = new AlipayConfig();
         alipay.setEnabled(true);
         alipay.setAppId("app");
+        alipay.setSellerId("2088123456789012");
         alipay.setPrivateKey("private");
         alipay.setAlipayPublicKey("public");
         alipay.setNotifyUrl("https://mall.example/api/pay/alipay/notify");

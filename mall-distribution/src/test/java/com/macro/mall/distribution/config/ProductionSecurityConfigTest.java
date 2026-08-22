@@ -88,6 +88,20 @@ class ProductionSecurityConfigTest {
     }
 
     @Test
+    void productionGuardRequiresAlipaySellerIdWhenPaymentIsEnabled() {
+        MockEnvironment missingSeller = completeProductionEnvironment()
+                .withProperty("alipay.enabled", "true")
+                .withProperty("alipay.appId", "app-1")
+                .withProperty("alipay.privateKey", "private-key")
+                .withProperty("alipay.alipayPublicKey", "alipay-public-key");
+
+        assertThrows(IllegalStateException.class, () -> new ProductionSafetyGuard(missingSeller).validate());
+
+        missingSeller.withProperty("alipay.sellerId", "2088123456789012");
+        new ProductionSafetyGuard(missingSeller).validate();
+    }
+
+    @Test
     void securityHeadersProtectSensitiveHttpsResponses() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/shop/wallet/summary");
         request.setSecure(true);
@@ -111,5 +125,14 @@ class ProductionSecurityConfigTest {
                 .withProperty("springdoc.swagger-ui.enabled", "false");
         environment.setActiveProfiles("prod");
         return environment;
+    }
+
+    private MockEnvironment completeProductionEnvironment() {
+        return safeProductionEnvironment()
+                .withProperty("spring.datasource.username", "mall_app")
+                .withProperty("spring.datasource.password", "strong-production-database-secret")
+                .withProperty("spring.data.redis.password", "redis-strong-random-secret-1234567890")
+                .withProperty("security.data-encryption-key",
+                        "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f");
     }
 }

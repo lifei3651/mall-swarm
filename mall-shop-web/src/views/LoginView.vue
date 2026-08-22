@@ -256,6 +256,7 @@ import { Check, CircleAlert, CircleCheckBig } from 'lucide-vue-next'
 import { getInviterPreview, getLoginCaptcha, login, register, sendSmsCode } from '@/api/shop'
 import { isNativeApp } from '@/utils/appEnvironment'
 import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
+import { safeShopRedirect } from '@/utils/safeRedirect'
 import { normalizeLoginAccountInput, resolveRegistrationErrorField, validateLoginAccount } from '@/utils/loginAccount'
 import { isStaleChunkError } from '@/utils/chunkRecovery'
 import { applyShopSession } from '@/utils/shopSession'
@@ -682,7 +683,7 @@ const submit = async () => {
       }
       return
     }
-    const redirect = router.currentRoute.value.query.redirect || (isTeamSurface ? '/' : '/profile')
+    const redirect = safeShopRedirect(router.currentRoute.value.query.redirect, isTeamSurface ? '/' : '/profile')
     await router.push(redirect)
   } catch (e) {
     if (mode.value === 'register' && await showRegisterServerError(e.message)) return

@@ -12,7 +12,6 @@ let sessionVerified = false
 const safeMemberSnapshot = (member) => ({
   id: member?.id || null,
   nickname: member?.nickname || '',
-  username: member?.username || '',
 })
 
 export const applyShopSession = (member) => {

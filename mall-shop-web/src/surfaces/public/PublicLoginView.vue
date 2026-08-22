@@ -83,6 +83,7 @@ import { getLoginCaptcha, login, registerPublic, sendSmsCode } from '@/api/shop'
 import { currentBrandLogo, currentBrandName } from '@/utils/brand'
 import { normalizeLoginAccountInput, validateLoginAccount } from '@/utils/loginAccount'
 import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
+import { safeShopRedirect } from '@/utils/safeRedirect'
 import { applyShopSession } from '@/utils/shopSession'
 
 const route = useRoute()
@@ -181,8 +182,7 @@ const validate = () => {
 }
 
 const destination = () => {
-  const requested = typeof route.query.redirect === 'string' ? route.query.redirect : ''
-  return requested.startsWith('/') && !requested.startsWith('//') ? requested : '/profile'
+  return safeShopRedirect(route.query.redirect, '/profile')
 }
 
 const submit = async () => {

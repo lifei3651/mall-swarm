@@ -14,6 +14,8 @@ public class AliyunSmsProperties {
     private String accessKeyId;
     private String accessKeySecret;
     private String endpoint = "dysmsapi.aliyuncs.com";
+    private int connectTimeoutMs = 5000;
+    private int readTimeoutMs = 10000;
     private String signName;
     private Map<String, String> templates = new HashMap<>();
 }

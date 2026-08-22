@@ -120,7 +120,7 @@ public class CustomerDeliveryReadinessService {
         add(items, "PAYMENT", "外部服务", "正式支付通道", true,
                 !simulationEnabled && alipayConfig.isConfigured()
                         && secureUrl(alipayConfig.getNotifyUrl()) && secureUrl(alipayConfig.getReturnUrl()),
-                "关闭模拟支付，并配置同一支付宝应用的APPID、密钥、HTTPS通知与回跳地址", "/tenant/profile");
+                "关闭模拟支付，并配置同一支付宝应用的APPID、商户PID、密钥、HTTPS通知与回跳地址", "/tenant/profile");
 
         boolean smsEnabled = Boolean.parseBoolean(environment.getProperty("sms.provider-enabled", "false"));
         boolean smsConfigured = smsEnabled && present(smsProperties.getAccessKeyId())

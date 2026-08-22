@@ -110,6 +110,7 @@ alipay=$(value_of ALIPAY_ENABLED)
 case "$alipay" in
   true)
     require_value ALIPAY_APP_ID
+    require_value ALIPAY_SELLER_ID
     require_secret ALIPAY_PRIVATE_KEY 32
     require_secret ALIPAY_PUBLIC_KEY 32
     for key in ALIPAY_NOTIFY_URL ALIPAY_RETURN_URL; do

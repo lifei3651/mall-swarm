@@ -16,7 +16,7 @@
 
 ## 2. 支付与短信
 
-- [ ] 支付宝企业主体、APPID、PID、应用私钥和支付宝公钥已核对为同一应用
+- [ ] 支付宝企业主体、APPID、PID（作为 `ALIPAY_SELLER_ID`）、应用私钥和支付宝公钥已核对为同一应用
 - [ ] 手机网站支付已开通，接口使用 `alipay.trade.wap.pay`，`product_code=QUICK_WAP_WAY`
 - [ ] 异步通知地址为 `https://客户域名/api/pay/alipay/notify`
 - [ ] 同步回跳地址为 `https://客户域名/api/pay/alipay/return`

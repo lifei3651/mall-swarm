@@ -51,6 +51,12 @@ public class ProductionSafetyGuard {
             if (!dataEncryptionKey.matches("[0-9a-fA-F]{64}")) {
                 throw new IllegalStateException("生产环境必须配置64位十六进制敏感字段加密密钥");
             }
+            if (enabled("alipay.enabled")) {
+                requireConfigured("alipay.appId", "生产环境启用支付宝前必须配置APPID");
+                requireConfigured("alipay.sellerId", "生产环境启用支付宝前必须配置收款商户PID");
+                requireConfigured("alipay.privateKey", "生产环境启用支付宝前必须配置应用私钥");
+                requireConfigured("alipay.alipayPublicKey", "生产环境启用支付宝前必须配置支付宝公钥");
+            }
         }
         if (Boolean.parseBoolean(environment.getProperty("payment.verification.enabled", "false"))
                 && !Boolean.parseBoolean(environment.getProperty("sms.provider-enabled", "false"))) {
@@ -66,6 +72,10 @@ public class ProductionSafetyGuard {
 
     private boolean enabled(String key) {
         return Boolean.parseBoolean(environment.getProperty(key, "false"));
+    }
+
+    private void requireConfigured(String key, String message) {
+        if (environment.getProperty(key, "").isBlank()) throw new IllegalStateException(message);
     }
 
     private boolean isProductionProfile() {

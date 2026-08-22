@@ -146,6 +146,8 @@ sms:
     access-key-id: ${SMS_ALIYUN_ACCESS_KEY_ID:}
     access-key-secret: ${SMS_ALIYUN_ACCESS_KEY_SECRET:}
     endpoint: ${SMS_ALIYUN_ENDPOINT:dysmsapi.aliyuncs.com}
+    connect-timeout-ms: ${SMS_ALIYUN_CONNECT_TIMEOUT_MS:5000}
+    read-timeout-ms: ${SMS_ALIYUN_READ_TIMEOUT_MS:10000}
     sign-name: ${SMS_ALIYUN_SIGN_NAME:}
     templates:
       register: ${SMS_TEMPLATE_REGISTER:}

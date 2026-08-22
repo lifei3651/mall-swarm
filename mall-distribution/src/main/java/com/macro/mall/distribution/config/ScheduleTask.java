@@ -88,7 +88,7 @@ public class ScheduleTask {
     }
 
     /** 每分钟重试失败的ERP推单；具体外部调用仅在已启用且完成授权的集成上发生。 */
-    @Scheduled(fixedDelay = 60000)
+    @Scheduled(fixedDelayString = "${erp.sync.scan-interval-ms:60000}")
     public void retryErpTasks() {
         scheduledTaskRunner.run("erp-push-retry", Duration.ofMinutes(5), () -> {
             try { erpIntegrationService.retryPendingTasks(20); } catch (Exception e) { log.error("重试ERP推单失败", e); }
@@ -98,7 +98,7 @@ public class ScheduleTask {
     /**
      * 每5秒处理一批待计算奖金任务
      */
-    @Scheduled(fixedDelay = 5000)
+    @Scheduled(fixedDelayString = "${bonus.calculation.scan-interval-ms:5000}")
     public void processBonusCalculationTasks() {
         scheduledTaskRunner.run("bonus-calculation", Duration.ofMinutes(2), () -> {
             try {

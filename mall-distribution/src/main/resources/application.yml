@@ -19,6 +19,15 @@ server:
 spring:
   application:
     name: mall-distribution
+  task:
+    scheduling:
+      # 订单、奖金、ERP、监控和文件清理互不长期阻塞；分布式锁继续保证业务任务只执行一次。
+      pool:
+        size: ${SCHEDULING_POOL_SIZE:4}
+      thread-name-prefix: mall-scheduler-
+      shutdown:
+        await-termination: true
+        await-termination-period: 30s
   servlet:
     multipart:
       max-file-size: 5MB
@@ -160,6 +169,8 @@ bonus:
   settlement:
     cooling-off-days: 7
     scan-interval-ms: 600000
+  calculation:
+    scan-interval-ms: ${BONUS_CALCULATION_SCAN_INTERVAL_MS:5000}
 
 order:
   balance-allocation:
@@ -170,6 +181,7 @@ erp:
   sync:
     # ERP推单连续失败达到该次数后停止自动重试，后台仍可人工重试。
     max-retries: ${ERP_SYNC_MAX_RETRIES:8}
+    scan-interval-ms: ${ERP_SYNC_SCAN_INTERVAL_MS:60000}
 
 operation-log:
   # 后台审计日志默认保留一年，服务层会强制保证不少于90天。
@@ -213,9 +225,12 @@ cache:
 alipay:
   enabled: ${ALIPAY_ENABLED:false}
   appId: ${ALIPAY_APP_ID:}
+  sellerId: ${ALIPAY_SELLER_ID:}
   privateKey: ${ALIPAY_PRIVATE_KEY:}
   alipayPublicKey: ${ALIPAY_PUBLIC_KEY:}
   notifyUrl: ${ALIPAY_NOTIFY_URL:https://lingqimall.com/api/pay/alipay/notify}
   returnUrl: ${ALIPAY_RETURN_URL:https://lingqimall.com/api/pay/alipay/return}
   gatewayUrl: https://openapi.alipay.com/gateway.do
   signType: RSA2
+  connectTimeoutMs: ${ALIPAY_CONNECT_TIMEOUT_MS:5000}
+  readTimeoutMs: ${ALIPAY_READ_TIMEOUT_MS:10000}
