@@ -64,6 +64,13 @@ describe('router guards', () => {
     expect(source).toContain("next('/audit/merchant-finance')")
   })
 
+  it('首次登录必须先完成密码修改', async () => {
+    const source = await readFile(resolve(process.cwd(), 'src/router/index.js'), 'utf8')
+    expect(source).toContain("path: '/change-password'")
+    expect(source).toContain('Number(store.userInfo?.mustChangePassword) === 1')
+    expect(source).toContain("next('/change-password')")
+  })
+
   it('shares one server session hydration request across concurrent route guards', async () => {
     const source = await readFile(resolve(process.cwd(), 'src/router/index.js'), 'utf8')
     expect(source).toContain('let authHydrationPromise = null')

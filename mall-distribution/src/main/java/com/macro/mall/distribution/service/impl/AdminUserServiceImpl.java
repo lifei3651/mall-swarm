@@ -5,6 +5,7 @@ import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.distribution.dao.DmsAdminSessionDao;
 import com.macro.mall.distribution.dao.DmsAdminUserDao;
 import com.macro.mall.distribution.dto.AdminPasswordDTO;
+import com.macro.mall.distribution.dto.AdminSelfPasswordDTO;
 import com.macro.mall.distribution.dto.AdminUserSaveDTO;
 import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.security.AdminContext;
@@ -82,6 +83,7 @@ public class AdminUserServiceImpl implements AdminUserService {
             validatePassword(dto.getPassword());
             user.setSalt(BCRYPT_MARKER);
             user.setPasswordHash(BCrypt.hashpw(dto.getPassword()));
+            user.setMustChangePassword(1);
             adminUserDao.insert(user);
         } else {
             user = adminUserDao.selectById(dto.getId());
@@ -113,12 +115,32 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
         DmsAdminUser actor = requireActorAndVerify(dto.getCurrentAdminPassword());
         assertCanManage(actor, user, false);
-        boolean updated = adminUserDao.updatePassword(id, BCrypt.hashpw(dto.getPassword()), BCRYPT_MARKER) > 0;
+        rejectReusedPassword(user, dto.getPassword());
+        boolean updated = adminUserDao.updatePassword(id, BCrypt.hashpw(dto.getPassword()), BCRYPT_MARKER, 1) > 0;
         if (updated) {
             adminUserDao.clearLoginLock(id);
             adminSessionDao.disableByAdminId(id);
             operationLogService.log("ADMIN_USER", "PASSWORD_RESET", "ADMIN_USER", String.valueOf(id),
                     "password=unchanged", "password=reset;sessions=revoked", "重置后台账号密码");
+        }
+        return updated;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean changeOwnPassword(AdminSelfPasswordDTO dto) {
+        if (dto == null) Asserts.fail("密码信息不能为空");
+        DmsAdminUser actor = requireActor();
+        adminAuthService.verifyPassword(actor, dto.getCurrentPassword());
+        validatePassword(dto.getNewPassword());
+        DmsAdminUser current = adminUserDao.selectById(actor.getId());
+        if (current == null) Asserts.fail("后台账号不存在");
+        rejectReusedPassword(current, dto.getNewPassword());
+        boolean updated = adminUserDao.updatePassword(current.getId(), BCrypt.hashpw(dto.getNewPassword()), BCRYPT_MARKER, 0) > 0;
+        if (updated) {
+            operationLogService.log("ADMIN_USER", "SELF_PASSWORD_CHANGE", "ADMIN_USER", String.valueOf(current.getId()),
+                    "password=unchanged;mustChangePassword=" + current.getMustChangePassword(),
+                    "password=changed;mustChangePassword=0", "管理员自行修改后台密码");
         }
         return updated;
     }
@@ -263,9 +285,21 @@ public class AdminUserServiceImpl implements AdminUserService {
     }
 
     private void validatePassword(String password) {
-        if (password == null || password.length() < 8 || password.length() > 64) {
-            Asserts.fail("后台密码需要8至64位");
-        }
+        if (password == null || password.length() < 10 || password.length() > 64) Asserts.fail("后台密码需要10至64位");
+        int groups = 0;
+        if (password.chars().anyMatch(Character::isLowerCase)) groups++;
+        if (password.chars().anyMatch(Character::isUpperCase)) groups++;
+        if (password.chars().anyMatch(Character::isDigit)) groups++;
+        if (password.chars().anyMatch(value -> !Character.isLetterOrDigit(value))) groups++;
+        if (groups < 3) Asserts.fail("后台密码必须包含大小写字母、数字、符号中的至少三类");
+    }
+
+    private void rejectReusedPassword(DmsAdminUser user, String password) {
+        if (user == null || user.getPasswordHash() == null || password == null) return;
+        boolean same = BCRYPT_MARKER.equals(user.getSalt()) || user.getPasswordHash().startsWith("$2")
+                ? BCrypt.checkpw(password, user.getPasswordHash())
+                : cn.hutool.crypto.SecureUtil.sha256(password + ":" + user.getSalt()).equals(user.getPasswordHash());
+        if (same) Asserts.fail("新密码不能与当前密码相同");
     }
 
     private Map<String, String> option(String value, String label) {
@@ -293,6 +327,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         copy.setPermissions(source.getPermissions());
         copy.setMerchantId(source.getMerchantId());
         copy.setStatus(source.getStatus());
+        copy.setMustChangePassword(source.getMustChangePassword());
         return copy;
     }
 

@@ -129,7 +129,7 @@
           <el-table-column prop="remark" label="规则说明" />
           <el-table-column label="操作" width="100">
             <template #default="{ row }">
-              <el-button type="primary" link @click="submitRiskRule(row)">保存</el-button>
+              <el-button type="primary" link :loading="savingRiskRuleId === row.id" :disabled="savingRiskRuleId !== null" @click="submitRiskRule(row)">保存</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -141,7 +141,7 @@
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   exportFinanceDailySummary,
   getCompanyShareSummary,
@@ -162,6 +162,7 @@ const dailyRows = ref([])
 const shareRows = ref([])
 const riskAlerts = ref([])
 const riskRules = ref([])
+const savingRiskRuleId = ref(null)
 const chartRef = ref(null)
 let chartInstance = null
 let echarts
@@ -234,9 +235,16 @@ const handleRangeChange = () => {
 }
 
 const submitRiskRule = async (row) => {
-  await saveRiskRule(row)
-  ElMessage.success('风险规则已保存')
-  fetchSummary()
+  if (savingRiskRuleId.value !== null) return
+  await ElMessageBox.confirm(`确认保存“${row.ruleName || row.ruleCode}”风险规则？变更会影响后续财务风险预警。`, '确认修改风险规则', { type: 'warning' })
+  savingRiskRuleId.value = row.id || row.ruleCode
+  try {
+    await saveRiskRule(row)
+    ElMessage.success('风险规则已保存')
+    await fetchSummary()
+  } finally {
+    savingRiskRuleId.value = null
+  }
 }
 
 const money = (value) => Number(value || 0).toFixed(2)

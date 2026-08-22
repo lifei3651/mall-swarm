@@ -2,7 +2,9 @@ package com.macro.mall.distribution.controller;
 
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.distribution.dto.AdminLoginDTO;
+import com.macro.mall.distribution.dto.AdminSelfPasswordDTO;
 import com.macro.mall.distribution.service.AdminAuthService;
+import com.macro.mall.distribution.service.AdminUserService;
 import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.security.AdminSessionCookieService;
@@ -24,6 +26,7 @@ public class AdminAuthController {
     private final AdminAuthService adminAuthService;
     private final AdminSessionCookieService cookieService;
     private final OperationLogService operationLogService;
+    private final AdminUserService adminUserService;
 
     @Operation(summary = "后台登录")
     @PostMapping("/login")
@@ -57,6 +60,12 @@ public class AdminAuthController {
     @GetMapping("/me")
     public CommonResult<AdminAuthVO> me(@RequestHeader(value = "Authorization", required = false) String authorization) {
         return CommonResult.success(adminAuthService.me(authorization));
+    }
+
+    @Operation(summary = "当前管理员修改自己的密码")
+    @PutMapping("/password")
+    public CommonResult<Boolean> changeOwnPassword(@Valid @RequestBody AdminSelfPasswordDTO dto) {
+        return CommonResult.success(adminUserService.changeOwnPassword(dto));
     }
 
     @Operation(summary = "后台退出")

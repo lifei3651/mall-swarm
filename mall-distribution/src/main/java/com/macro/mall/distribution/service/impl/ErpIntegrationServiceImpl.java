@@ -53,7 +53,18 @@ public class ErpIntegrationServiceImpl implements ErpIntegrationService {
         integration.setEnabled(integration.getEnabled() == null ? 0 : integration.getEnabled());
         integration.setEnvironment(integration.getEnvironment() == null ? "TEST" : integration.getEnvironment());
         validateSecureEndpoint(integration.getEndpoint());
+        DmsErpIntegration existing = integrationDao.selectByTenantAndProvider(integration.getTenantId(), integration.getProviderCode());
+        integration.setAppSecret(blankToNull(integration.getAppSecret()));
+        integration.setCallbackToken(blankToNull(integration.getCallbackToken()));
+        if (integration.getCallbackToken() != null && integration.getCallbackToken().length() < 32) {
+            Asserts.fail("ERP回调令牌必须使用至少32位的强随机值");
+        }
         if (Integer.valueOf(1).equals(integration.getEnabled())) {
+            String effectiveCallbackToken = integration.getCallbackToken() == null && existing != null
+                    ? existing.getCallbackToken() : integration.getCallbackToken();
+            if (effectiveCallbackToken == null || effectiveCallbackToken.length() < 32) {
+                Asserts.fail("启用ERP前必须配置至少32位的强随机回调令牌");
+            }
             ErpAdapter adapter = adapters.stream()
                     .filter(item -> integration.getProviderCode().equals(item.providerCode()))
                     .findFirst().orElse(null);
@@ -61,7 +72,6 @@ public class ErpIntegrationServiceImpl implements ErpIntegrationService {
                 Asserts.fail(integration.getProviderCode() + " 适配器尚未完成客户授权接口映射，当前只能保存为停用，不能启用自动推单");
             }
         }
-        DmsErpIntegration existing = integrationDao.selectByTenantAndProvider(integration.getTenantId(), integration.getProviderCode());
         if (existing == null) integrationDao.insert(integration); else { integration.setId(existing.getId()); integrationDao.update(integration); }
         DmsErpIntegration result = integrationDao.selectByTenantAndProvider(integration.getTenantId(), integration.getProviderCode());
         operationLogService.log("ERP", "CONFIG_SAVE", "ERP_INTEGRATION", String.valueOf(result.getId()), null,
@@ -160,6 +170,10 @@ public class ErpIntegrationServiceImpl implements ErpIntegrationService {
         } catch (IllegalArgumentException ex) {
             Asserts.fail("ERP接口地址格式不正确");
         }
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private boolean secureEquals(String expected, String actual) {

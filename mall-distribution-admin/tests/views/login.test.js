@@ -58,6 +58,12 @@ describe('LoginView', () => {
     expect(source).toContain('safeAdminRedirect(route.query.redirect, merchantHome)')
   })
 
+  it('初始密码账号登录后只能进入强制改密页', async () => {
+    const source = await readFile(resolve(process.cwd(), 'src/views/login/index.vue'), 'utf8')
+    expect(source).toContain('Number(res.data?.admin?.mustChangePassword) === 1')
+    expect(source).toContain("router.replace('/change-password')")
+  })
+
   it('successful login sets auth in store', async () => {
     const { login } = await import('@/api/auth')
     const res = await login({ username: 'admin', password: 'test123', captchaCode: 'abcd', challengeId: 'ch-001' })

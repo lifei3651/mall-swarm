@@ -43,6 +43,10 @@ public class ProductionSafetyGuard {
             if (databasePassword.isBlank() || isWeakSecret(databasePassword)) {
                 throw new IllegalStateException("生产环境数据库密码缺失或仍是示例弱口令");
             }
+            String redisPassword = environment.getProperty("spring.data.redis.password", "");
+            if (redisPassword.length() < 32 || isWeakSecret(redisPassword)) {
+                throw new IllegalStateException("生产环境Redis密码必须为至少32位的独立强随机密钥");
+            }
         }
         if (Boolean.parseBoolean(environment.getProperty("payment.verification.enabled", "false"))
                 && !Boolean.parseBoolean(environment.getProperty("sms.provider-enabled", "false"))) {

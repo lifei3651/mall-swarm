@@ -17,7 +17,7 @@ public class ErpShipmentCallbackDTO {
     private String providerCode;
     @ToString.Exclude
     @NotBlank(message = "ERP回调令牌不能为空")
-    @Size(max = 2048, message = "ERP回调令牌过长")
+    @Size(min = 32, max = 512, message = "ERP回调令牌需要32至512位")
     private String token;
     @NotBlank(message = "订单编号不能为空")
     @Size(max = 64, message = "订单编号不能超过64个字符")

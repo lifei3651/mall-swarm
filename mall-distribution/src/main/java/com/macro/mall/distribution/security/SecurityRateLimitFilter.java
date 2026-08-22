@@ -69,6 +69,12 @@ public class SecurityRateLimitFilter extends OncePerRequestFilter {
         if (HttpMethod.GET.matches(method) && "/security/payload-encryption/key".equals(path)) {
             return new Rule("payload-encryption-key", 120, 60);
         }
+        if (HttpMethod.POST.matches(method) && "/shop/client-errors".equals(path)) {
+            return new Rule("client-error-report", 30, 60);
+        }
+        if (HttpMethod.POST.matches(method) && "/distribution/erp/callbacks/shipment".equals(path)) {
+            return new Rule("erp-shipment-callback", 120, 60);
+        }
         if (HttpMethod.GET.matches(method) && "/payment/checkVerify".equals(path)) {
             return new Rule("payment-verification", 120, 60);
         }

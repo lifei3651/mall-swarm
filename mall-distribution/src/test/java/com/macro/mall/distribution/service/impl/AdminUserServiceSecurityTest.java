@@ -5,6 +5,7 @@ import com.macro.mall.distribution.dao.DmsAdminSessionDao;
 import com.macro.mall.distribution.dao.DmsAdminUserDao;
 import com.macro.mall.distribution.dao.DmsMerchantDao;
 import com.macro.mall.distribution.dto.AdminPasswordDTO;
+import com.macro.mall.distribution.dto.AdminSelfPasswordDTO;
 import com.macro.mall.distribution.dto.AdminUserSaveDTO;
 import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.entity.DmsMerchant;
@@ -18,6 +19,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 class AdminUserServiceSecurityTest {
@@ -62,7 +64,7 @@ class AdminUserServiceSecurityTest {
         dto.setCurrentAdminPassword("Current-123");
 
         assertThrows(ApiException.class, () -> service.updatePassword(1L, dto));
-        verify(userDao, never()).updatePassword(anyLong(), anyString(), anyString());
+        verify(userDao, never()).updatePassword(anyLong(), anyString(), anyString(), anyInt());
     }
 
     @Test
@@ -94,6 +96,41 @@ class AdminUserServiceSecurityTest {
         verify(userDao).update(argThat(user -> user.getMerchantId().equals(10001L)
                 && user.getPermissions().contains("shop:order")
                 && user.getPermissions().contains("shop:aftersale")));
+    }
+
+    @Test
+    void forcedPasswordChangeClearsFlagAndKeepsCurrentSessionUsable() {
+        DmsAdminUser actor = admin(10L, "admin:read");
+        actor.setPasswordHash(cn.hutool.crypto.digest.BCrypt.hashpw("Old-password-123"));
+        actor.setSalt("BCRYPT");
+        actor.setMustChangePassword(1);
+        AdminContext.set(actor);
+        when(userDao.selectById(10L)).thenReturn(actor);
+        when(userDao.updatePassword(eq(10L), anyString(), eq("BCRYPT"), eq(0))).thenReturn(1);
+        AdminSelfPasswordDTO dto = new AdminSelfPasswordDTO();
+        dto.setCurrentPassword("Old-password-123");
+        dto.setNewPassword("New-password-456!");
+
+        assertTrue(service.changeOwnPassword(dto));
+
+        verify(authService).verifyPassword(actor, "Old-password-123");
+        verify(userDao).updatePassword(eq(10L), anyString(), eq("BCRYPT"), eq(0));
+        verify(sessionDao, never()).disableByAdminId(anyLong());
+    }
+
+    @Test
+    void ownPasswordCannotReuseCurrentPassword() {
+        DmsAdminUser actor = admin(10L, "admin:read");
+        actor.setPasswordHash(cn.hutool.crypto.digest.BCrypt.hashpw("Same-password-123!"));
+        actor.setSalt("BCRYPT");
+        AdminContext.set(actor);
+        when(userDao.selectById(10L)).thenReturn(actor);
+        AdminSelfPasswordDTO dto = new AdminSelfPasswordDTO();
+        dto.setCurrentPassword("Same-password-123!");
+        dto.setNewPassword("Same-password-123!");
+
+        assertThrows(ApiException.class, () -> service.changeOwnPassword(dto));
+        verify(userDao, never()).updatePassword(anyLong(), anyString(), anyString(), anyInt());
     }
 
     private DmsAdminUser admin(Long id, String permissions) {

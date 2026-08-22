@@ -1,4 +1,6 @@
 server:
+  # 默认仅允许本机联调；容器正式部署会显式覆盖为 0.0.0.0，并由内部网络与 Nginx 保护。
+  address: 127.0.0.1
   port: 8086
   error:
     # 所有环境统一隐藏异常、绑定错误和堆栈；详细原因只进入服务端日志。
@@ -168,6 +170,22 @@ operation-log:
   retention-days: ${OPERATION_LOG_RETENTION_DAYS:365}
   # 每天低峰期分批清理过期记录；多实例部署由分布式任务锁避免重复执行。
   cleanup-cron: "${OPERATION_LOG_CLEANUP_CRON:0 30 3 * * ?}"
+
+# 接口文档默认关闭；仅显式 local 配置可开启。本地/测试也只暴露最小健康信息。
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
 
 database:
   monitor:

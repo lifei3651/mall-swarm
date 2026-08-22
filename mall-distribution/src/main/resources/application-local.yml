@@ -25,3 +25,10 @@ shop:
 sms:
   expose-code: true
   test-code: 123456
+
+# Swagger 只在显式本机 profile 开启，且基础配置绑定 127.0.0.1。
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

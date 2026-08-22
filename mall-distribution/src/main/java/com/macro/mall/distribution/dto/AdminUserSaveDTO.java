@@ -17,7 +17,7 @@ public class AdminUserSaveDTO {
     private String username;
 
     @ToString.Exclude
-    @Size(min = 8, max = 64, message = "后台密码需要8至64位")
+    @Size(min = 10, max = 64, message = "后台密码需要10至64位")
     private String password;
 
     /** 保存管理员账号前，对当前登录管理员进行二次身份确认。 */

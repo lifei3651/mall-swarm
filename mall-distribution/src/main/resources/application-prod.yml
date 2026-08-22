@@ -38,6 +38,9 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD}
       database: ${REDIS_DATABASE:0}
+      # 私有模板走 Docker 内部网络可保持 false；外部托管 Redis 应设置为 true 并配置可信证书。
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
       connect-timeout: ${REDIS_CONNECT_TIMEOUT:2s}
       timeout: ${REDIS_COMMAND_TIMEOUT:3s}
       lettuce:

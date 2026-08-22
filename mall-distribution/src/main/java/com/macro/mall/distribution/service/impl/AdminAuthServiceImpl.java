@@ -73,7 +73,8 @@ public class AdminAuthServiceImpl implements AdminAuthService {
             Asserts.fail("账号或密码错误");
         }
         if (!BCRYPT_MARKER.equals(admin.getSalt())) {
-            adminUserDao.updatePassword(admin.getId(), BCrypt.hashpw(dto.getPassword()), BCRYPT_MARKER);
+            adminUserDao.updatePassword(admin.getId(), BCrypt.hashpw(dto.getPassword()), BCRYPT_MARKER,
+                    admin.getMustChangePassword() == null ? 0 : admin.getMustChangePassword());
         }
         if (!Integer.valueOf(1).equals(admin.getStatus())) {
             Asserts.fail("后台账号已禁用");

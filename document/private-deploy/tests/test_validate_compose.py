@@ -21,6 +21,7 @@ def safe_config():
             "redis": {
                 "image": "redis:7.2.15-alpine",
                 "environment": {"REDIS_PASSWORD": "secret"},
+                "command": ["sh", "-c", 'redis-server --rename-command KEYS "" --rename-command FLUSHALL "" --rename-command FLUSHDB "" --rename-command CONFIG "" --rename-command SHUTDOWN "" --rename-command DEBUG "" --rename-command MODULE ""'],
                 "networks": {"data": None},
             },
             "mall-distribution": {
@@ -76,6 +77,11 @@ class ComposeSecurityValidationTest(unittest.TestCase):
             {"target": 6379, "published": "6379", "host_ip": "0.0.0.0"}
         ]
         self.assertTrue(any("端口" in error for error in MODULE.validate(config)))
+
+    def test_rejects_redis_without_dangerous_command_lockdown(self):
+        config = safe_config()
+        config["services"]["redis"]["command"] = ["redis-server", "--requirepass", "secret"]
+        self.assertTrue(any("Redis必须禁用危险命令" in error for error in MODULE.validate(config)))
 
     def test_rejects_floating_image_tag(self):
         config = safe_config()

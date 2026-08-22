@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.service;
 
 import com.macro.mall.distribution.dto.AdminPasswordDTO;
+import com.macro.mall.distribution.dto.AdminSelfPasswordDTO;
 import com.macro.mall.distribution.dto.AdminUserSaveDTO;
 import com.macro.mall.distribution.entity.DmsAdminUser;
 
@@ -14,6 +15,8 @@ public interface AdminUserService {
     DmsAdminUser saveUser(AdminUserSaveDTO dto);
 
     boolean updatePassword(Long id, AdminPasswordDTO dto);
+
+    boolean changeOwnPassword(AdminSelfPasswordDTO dto);
 
     boolean unlock(Long id);
 

@@ -84,7 +84,7 @@
           <el-input v-model="form.username" :disabled="!!form.id" placeholder="登录账号" />
         </el-form-item>
         <el-form-item v-if="!form.id" label="初始密码" prop="password">
-          <el-input v-model="form.password" type="password" show-password placeholder="8 至 64 位" />
+          <el-input v-model="form.password" type="password" show-password placeholder="10 至 64 位，至少三类字符" />
         </el-form-item>
         <el-form-item label="昵称" prop="nickname">
           <el-input v-model="form.nickname" placeholder="后台显示名称" />
@@ -131,7 +131,7 @@
           <el-input :model-value="currentUser.username" disabled />
         </el-form-item>
         <el-form-item label="新密码">
-          <el-input v-model="passwordForm.password" type="password" show-password placeholder="8 至 64 位" />
+          <el-input v-model="passwordForm.password" type="password" show-password placeholder="10 至 64 位，至少三类字符" />
         </el-form-item>
         <el-form-item label="当前密码">
           <el-input v-model="passwordForm.currentAdminPassword" type="password" show-password placeholder="当前登录管理员密码" />
@@ -200,7 +200,7 @@ const form = reactive({
 
 const rules = computed(() => ({
   username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
-  password: form.id ? [] : [{ required: true, min: 8, max: 64, message: '请输入8至64位密码', trigger: 'blur' }],
+  password: form.id ? [] : [{ required: true, min: 10, max: 64, message: '请输入10至64位密码', trigger: 'blur' }],
   nickname: [{ required: true, message: '请输入昵称', trigger: 'blur' }],
   roleCode: [{ required: true, message: '请输入角色标识', trigger: 'blur' }],
   permissions: [{ type: 'array', required: true, message: '请选择权限', trigger: 'change' }],
@@ -304,8 +304,8 @@ const openPassword = (row) => {
 }
 
 const submitPassword = async () => {
-  if (!passwordForm.password || passwordForm.password.length < 8 || passwordForm.password.length > 64) {
-    ElMessage.warning('请输入8至64位密码')
+  if (!passwordForm.password || passwordForm.password.length < 10 || passwordForm.password.length > 64) {
+    ElMessage.warning('请输入10至64位密码')
     return
   }
   if (!passwordForm.currentAdminPassword || passwordForm.currentAdminPassword.length < 8) {

@@ -104,9 +104,9 @@ class ErpRetryLimitTest {
         DmsErpIntegration integration = new DmsErpIntegration();
         integration.setTenantId(2L);
         integration.setProviderCode("JUSHUITAN");
-        integration.setCallbackToken("tenant-2-callback-token");
+        integration.setCallbackToken("tenant-2-callback-token-1234567890");
         integration.setEnabled(1);
-        ErpShipmentCallbackDTO callback = shipmentCallback(2L, "tenant-2-callback-token");
+        ErpShipmentCallbackDTO callback = shipmentCallback(2L, "tenant-2-callback-token-1234567890");
         when(integrationDao.selectByTenantAndProvider(2L, "JUSHUITAN")).thenReturn(integration);
         when(orderShipmentService.shipErpOrder("ORDER-2", "顺丰速运", "SF20260819001", 1, "JUSHUITAN"))
                 .thenAnswer(ignored -> {
@@ -128,7 +128,7 @@ class ErpRetryLimitTest {
         DmsErpIntegration integration = new DmsErpIntegration();
         integration.setTenantId(2L);
         integration.setProviderCode("JUSHUITAN");
-        integration.setCallbackToken("expected-token");
+        integration.setCallbackToken("expected-token-12345678901234567890");
         integration.setEnabled(1);
         when(integrationDao.selectByTenantAndProvider(2L, "JUSHUITAN")).thenReturn(integration);
 
@@ -145,6 +145,7 @@ class ErpRetryLimitTest {
         integration.setTenantId(1L);
         integration.setProviderCode("JUSHUITAN");
         integration.setEndpoint("https://erp.example.test/api");
+        integration.setCallbackToken("callback-token-12345678901234567890");
         integration.setEnabled(1);
 
         RuntimeException error = assertThrows(RuntimeException.class,

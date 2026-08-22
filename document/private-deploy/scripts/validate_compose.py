@@ -112,6 +112,11 @@ def validate(config):
         errors.append("私有部署必须强制关闭模拟支付")
     if str(app_env.get("SMS_EXPOSE_CODE", "")).lower() != "false" or app_env.get("SMS_TEST_CODE"):
         errors.append("私有部署必须强制关闭固定短信验证码")
+    redis_command = services.get("redis", {}).get("command") or []
+    redis_command_text = " ".join(redis_command) if isinstance(redis_command, list) else str(redis_command)
+    for dangerous_command in ("KEYS", "FLUSHALL", "FLUSHDB", "CONFIG", "SHUTDOWN", "DEBUG", "MODULE"):
+        if f'rename-command {dangerous_command} ""' not in redis_command_text:
+            errors.append(f"Redis必须禁用危险命令 {dangerous_command}")
     return errors
 
 

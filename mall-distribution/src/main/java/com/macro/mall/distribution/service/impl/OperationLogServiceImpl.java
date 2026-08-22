@@ -6,6 +6,7 @@ import com.macro.mall.distribution.entity.DmsOperationLog;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.common.exception.Asserts;
+import com.macro.mall.common.log.SensitiveLogSanitizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,13 +44,14 @@ public class OperationLogServiceImpl implements OperationLogService {
         log.setModuleName(moduleName);
         log.setOperationType(operationType);
         log.setTargetType(targetType);
-        log.setTargetId(targetId);
+        log.setTargetId(SensitiveLogSanitizer.sanitizeText(targetId));
         DmsAdminUser admin = AdminContext.get();
         log.setOperatorId(admin == null ? 0L : admin.getId());
         log.setOperatorName(admin == null ? "system" : admin.getUsername());
-        log.setBeforeData(beforeData);
-        log.setAfterData(afterData);
-        log.setRemark(remark);
+        // 在唯一写入边界统一脱敏；无论调用者或前端是否遗漏，都不能把凭证和客户PII写入审计表。
+        log.setBeforeData(SensitiveLogSanitizer.sanitizeText(beforeData));
+        log.setAfterData(SensitiveLogSanitizer.sanitizeText(afterData));
+        log.setRemark(SensitiveLogSanitizer.sanitizeText(remark));
         applyRequestMetadata(log);
         operationLogDao.insert(log);
     }

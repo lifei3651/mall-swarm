@@ -17,7 +17,8 @@ public interface DmsAdminUserDao {
 
     int update(DmsAdminUser user);
 
-    int updatePassword(@Param("id") Long id, @Param("passwordHash") String passwordHash, @Param("salt") String salt);
+    int updatePassword(@Param("id") Long id, @Param("passwordHash") String passwordHash,
+                       @Param("salt") String salt, @Param("mustChangePassword") Integer mustChangePassword);
 
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
 

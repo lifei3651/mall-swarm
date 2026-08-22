@@ -14,6 +14,7 @@
         <result column="merchant_name" property="merchantName"/>
         <result column="status" property="status"/>
         <result column="failed_login_count" property="failedLoginCount"/><result column="lock_time" property="lockTime"/>
+        <result column="must_change_password" property="mustChangePassword"/>
         <result column="last_login_time" property="lastLoginTime"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
@@ -22,7 +23,7 @@
     <sql id="BaseColumnList">
         u.id, u.username, u.password_hash, u.salt, u.nickname, u.role_code, u.permissions, u.merchant_id,
         m.merchant_name, u.status,
-        u.last_login_time, u.failed_login_count, u.lock_time, u.create_time, u.update_time
+        u.last_login_time, u.failed_login_count, u.lock_time, u.must_change_password, u.create_time, u.update_time
     </sql>
 
     <select id="list" resultMap="BaseResultMap">
@@ -53,8 +54,8 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO dms_admin_user (username, password_hash, salt, nickname, role_code, permissions, merchant_id, status)
-        VALUES (#{username}, #{passwordHash}, #{salt}, #{nickname}, #{roleCode}, #{permissions}, #{merchantId}, #{status})
+        INSERT INTO dms_admin_user (username, password_hash, salt, nickname, role_code, permissions, merchant_id, status, must_change_password)
+        VALUES (#{username}, #{passwordHash}, #{salt}, #{nickname}, #{roleCode}, #{permissions}, #{merchantId}, #{status}, #{mustChangePassword})
     </insert>
 
     <update id="update">
@@ -72,6 +73,7 @@
         UPDATE dms_admin_user
         SET password_hash = #{passwordHash},
             salt = #{salt},
+            must_change_password = #{mustChangePassword},
             update_time = NOW()
         WHERE id = #{id}
     </update>

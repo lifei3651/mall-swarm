@@ -31,7 +31,7 @@ spring:
       data-locations: file:src/test/resources/db/data-h2.sql
   h2:
     console:
-      enabled: true
+      enabled: false
 
 sa-token:
   disable: true

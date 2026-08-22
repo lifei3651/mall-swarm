@@ -144,6 +144,10 @@ const handleLogin = async () => {
     const res = await login(form)
     store.setAuth(res.data)
     ElMessage.success('登录成功')
+    if (Number(res.data?.admin?.mustChangePassword) === 1) {
+      router.replace('/change-password')
+      return
+    }
     const merchantHome = res.data?.admin?.merchantId ? '/audit/merchant-finance' : '/dashboard'
     const requestedRedirect = safeAdminRedirect(route.query.redirect, merchantHome)
     const redirect = requestedRedirect === '/dashboard' && res.data?.admin?.merchantId

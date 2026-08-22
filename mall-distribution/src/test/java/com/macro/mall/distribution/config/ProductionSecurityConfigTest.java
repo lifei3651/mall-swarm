@@ -55,6 +55,21 @@ class ProductionSecurityConfigTest {
     }
 
     @Test
+    void productionGuardRequiresStrongRedisPassword() {
+        MockEnvironment missingRedisPassword = safeProductionEnvironment()
+                .withProperty("spring.datasource.username", "mall_app")
+                .withProperty("spring.datasource.password", "strong-production-database-secret");
+        assertThrows(IllegalStateException.class,
+                () -> new ProductionSafetyGuard(missingRedisPassword).validate());
+
+        MockEnvironment secure = safeProductionEnvironment()
+                .withProperty("spring.datasource.username", "mall_app")
+                .withProperty("spring.datasource.password", "strong-production-database-secret")
+                .withProperty("spring.data.redis.password", "redis-strong-random-secret-1234567890");
+        new ProductionSafetyGuard(secure).validate();
+    }
+
+    @Test
     void securityHeadersProtectSensitiveHttpsResponses() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/shop/wallet/summary");
         request.setSecure(true);

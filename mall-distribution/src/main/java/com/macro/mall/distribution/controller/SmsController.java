@@ -80,7 +80,8 @@ public class SmsController {
             loginCaptchaService.verify("shop", dto.getCaptchaId(), dto.getCaptchaCode());
         }
         // 原子占用发送窗口，避免并发请求同时穿过“先检查再写入”。
-        String rateLimitKey = SMS_CODE_KEY_PREFIX + "rate:" + phone;
+        String phoneKey = PhoneNumberUtils.redisIdentity(phone);
+        String rateLimitKey = SMS_CODE_KEY_PREFIX + "rate:" + phoneKey;
         Boolean reserved = redisTemplate.opsForValue().setIfAbsent(rateLimitKey, "1", 60, TimeUnit.SECONDS);
         if (!Boolean.TRUE.equals(reserved)) {
             return CommonResult.failed("发送过于频繁，请稍后再试");
@@ -90,9 +91,9 @@ public class SmsController {
         boolean useTestCode = !providerEnabled && testCode != null && testCode.matches("\\d{6}");
         String code = useTestCode ? testCode : String.format("%06d", RANDOM.nextInt(1000000));
 
-        String codeKey = SMS_CODE_KEY_PREFIX + bizType + ":" + phone;
+        String codeKey = SMS_CODE_KEY_PREFIX + bizType + ":" + phoneKey;
         if (providerEnabled) {
-            String dailyKey = SMS_CODE_KEY_PREFIX + "daily:" + phone + ":" + LocalDate.now();
+            String dailyKey = SMS_CODE_KEY_PREFIX + "daily:" + phoneKey + ":" + LocalDate.now();
             Long sentToday = redisTemplate.opsForValue().increment(dailyKey);
             if (sentToday != null && sentToday == 1L) {
                 redisTemplate.expire(dailyKey, 1, TimeUnit.DAYS);

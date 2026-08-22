@@ -815,6 +815,7 @@ CREATE TABLE `dms_admin_user` (
   `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态：0禁用 1启用',
   `failed_login_count` int NOT NULL DEFAULT 0 COMMENT '连续密码错误次数',
   `lock_time` datetime DEFAULT NULL COMMENT '密码错误锁定时间',
+  `must_change_password` tinyint NOT NULL DEFAULT 0 COMMENT '是否必须先修改后台初始密码：0否 1是',
   `last_login_time` datetime DEFAULT NULL COMMENT '最后登录时间',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',

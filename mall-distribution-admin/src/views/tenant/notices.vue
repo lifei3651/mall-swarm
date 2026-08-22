@@ -127,7 +127,7 @@ const rules = {
   content: [{ required: true, message: '请输入公告内容', trigger: 'blur' }],
 }
 
-const emptyForm = () => ({ tenantId: 1, title: '', content: '', noticeType: 1, sort: 100, status: 1, startTime: null, endTime: null })
+const emptyForm = () => ({ title: '', content: '', noticeType: 1, sort: 100, status: 1, startTime: null, endTime: null })
 const noticeTypeMeta = (value) => ({
   1: { label: '商城通知', tag: '' },
   2: { label: '活动消息', tag: 'success' },
@@ -137,7 +137,7 @@ const noticeTypeMeta = (value) => ({
 const loadNotices = async () => {
   loading.value = true
   try {
-    const params = { tenantId: 1 }
+    const params = {}
     if (statusFilter.value !== 'all') params.status = Number(statusFilter.value)
     const result = await listShopNotices(params)
     rows.value = (result.data || []).map((item) => ({

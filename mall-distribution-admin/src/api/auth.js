@@ -20,6 +20,14 @@ export function getMe(options = {}) {
   })
 }
 
+export function changeOwnPassword(data) {
+  return request({
+    url: '/distribution/admin-auth/password',
+    method: 'put',
+    data,
+  })
+}
+
 export function logout() {
   return request({
     url: '/distribution/admin-auth/logout',

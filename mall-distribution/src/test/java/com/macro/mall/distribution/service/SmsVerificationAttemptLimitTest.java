@@ -2,6 +2,7 @@ package com.macro.mall.distribution.service;
 
 import com.macro.mall.common.exception.ApiException;
 import com.macro.mall.distribution.service.impl.SmsVerificationServiceImpl;
+import com.macro.mall.distribution.util.PhoneNumberUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,6 +30,7 @@ import static org.mockito.Mockito.when;
 class SmsVerificationAttemptLimitTest {
 
     private static final String PHONE = "13900000000";
+    private static final String PHONE_KEY = PhoneNumberUtils.redisIdentity(PHONE);
 
     @Mock private StringRedisTemplate redisTemplate;
     @Mock private ValueOperations<String, String> valueOperations;
@@ -44,8 +46,8 @@ class SmsVerificationAttemptLimitTest {
     void wrongCodeFiveTimesLocksFurtherWrongAttemptsWithoutInvalidatingVictimsCode() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(redisTemplate.execute(any(), anyList(), eq("000000"))).thenReturn(-1L);
-        when(valueOperations.get("sms:attempt:3:" + PHONE)).thenReturn(null);
-        when(valueOperations.increment("sms:attempt:3:" + PHONE))
+        when(valueOperations.get("sms:attempt:3:" + PHONE_KEY)).thenReturn(null);
+        when(valueOperations.increment("sms:attempt:3:" + PHONE_KEY))
                 .thenReturn(1L, 2L, 3L, 4L, 5L);
 
         for (int i = 1; i <= 4; i++) {
@@ -58,8 +60,8 @@ class SmsVerificationAttemptLimitTest {
                 () -> service.verifyAndConsume(PHONE, "000000", 3));
         assertEquals("验证码错误次数过多，请稍后再试", locked.getMessage());
 
-        verify(redisTemplate, never()).delete("sms:3:" + PHONE);
-        verify(redisTemplate).expire(eq("sms:attempt:3:" + PHONE), eq(5L), eq(TimeUnit.MINUTES));
+        verify(redisTemplate, never()).delete("sms:3:" + PHONE_KEY);
+        verify(redisTemplate).expire(eq("sms:attempt:3:" + PHONE_KEY), eq(5L), eq(TimeUnit.MINUTES));
 
         when(redisTemplate.execute(any(), anyList(), eq("123456"))).thenReturn(1L);
         service.verifyAndConsume(PHONE, "123456", 3);
@@ -86,6 +88,6 @@ class SmsVerificationAttemptLimitTest {
     @Test
     void resetAttemptsClearsCounter() {
         service.resetAttempts(PHONE, 3);
-        verify(redisTemplate).delete("sms:attempt:3:" + PHONE);
+        verify(redisTemplate).delete("sms:attempt:3:" + PHONE_KEY);
     }
 }

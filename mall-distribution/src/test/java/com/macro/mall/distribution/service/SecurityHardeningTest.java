@@ -65,7 +65,7 @@ class SecurityHardeningTest {
         verify(adminSessionDao).disableByAdminId(9L);
 
         ArgumentCaptor<String> passwordHash = ArgumentCaptor.forClass(String.class);
-        verify(adminUserDao).updatePassword(eq(9L), passwordHash.capture(), eq("BCRYPT"));
+        verify(adminUserDao).updatePassword(eq(9L), passwordHash.capture(), eq("BCRYPT"), eq(0));
         assertTrue(BCrypt.checkpw(password, passwordHash.getValue()));
 
         ArgumentCaptor<DmsAdminSession> session = ArgumentCaptor.forClass(DmsAdminSession.class);

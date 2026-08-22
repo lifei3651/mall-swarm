@@ -28,6 +28,12 @@ const routes = [
     meta: { title: '后台登录', public: true },
   },
   {
+    path: '/change-password',
+    name: 'ChangeAdminPassword',
+    component: () => import('@/views/login/change-password.vue'),
+    meta: { title: '修改后台密码', passwordChangeOnly: true },
+  },
+  {
     path: '/',
     component: Layout,
     redirect: '/dashboard',
@@ -493,6 +499,11 @@ router.beforeEach(async (to, from, next) => {
       next(false)
       return
     }
+  }
+  if (Number(store.userInfo?.mustChangePassword) === 1 && !to.meta.passwordChangeOnly) {
+    ElMessage.warning({ message: '请先修改后台初始密码', grouping: true })
+    next('/change-password')
+    return
   }
   if (store.userInfo?.merchantId && to.path === '/dashboard') {
     next('/audit/merchant-finance')

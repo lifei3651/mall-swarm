@@ -272,6 +272,7 @@ CREATE TABLE IF NOT EXISTS dms_admin_user (
   last_login_time TIMESTAMP,
   failed_login_count INT NOT NULL DEFAULT 0,
   lock_time TIMESTAMP,
+  must_change_password INT NOT NULL DEFAULT 0,
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

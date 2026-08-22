@@ -7,6 +7,7 @@ import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.service.ShopAuthService;
 import com.macro.mall.distribution.service.SmsVerificationService;
 import com.macro.mall.distribution.service.LoginCaptchaService;
+import com.macro.mall.distribution.util.PhoneNumberUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -66,8 +67,8 @@ class SmsControllerTest {
         controller.sendCode(dto, "Bearer token");
 
         verify(shopAuthService).requireMember("Bearer token");
-        verify(valueOperations).set(eq("sms:6:13900000000"), eq("123456"), eq(5L), eq(TimeUnit.MINUTES));
-        verify(valueOperations, never()).set(eq("sms:6:13888888888"), eq("123456"), anyLong(), eq(TimeUnit.MINUTES));
+        verify(valueOperations).set(eq(codeKey(6, "13900000000")), eq("123456"), eq(5L), eq(TimeUnit.MINUTES));
+        verify(valueOperations, never()).set(eq(codeKey(6, "13888888888")), eq("123456"), anyLong(), eq(TimeUnit.MINUTES));
     }
 
     @Test
@@ -76,7 +77,7 @@ class SmsControllerTest {
         controller.sendCode(dto, null);
 
         verify(shopAuthService, never()).requireMember(org.mockito.ArgumentMatchers.any());
-        verify(valueOperations).set(eq("sms:1:13888888888"), eq("123456"), eq(5L), eq(TimeUnit.MINUTES));
+        verify(valueOperations).set(eq(codeKey(1, "13888888888")), eq("123456"), eq(5L), eq(TimeUnit.MINUTES));
     }
 
     @Test
@@ -95,7 +96,7 @@ class SmsControllerTest {
         CommonResult<String> result = controller.sendPaymentPasswordCode("Bearer token");
 
         assertEquals(200, result.getCode());
-        verify(valueOperations).set(eq("sms:7:13900000000"), eq("123456"), eq(5L), eq(TimeUnit.MINUTES));
+        verify(valueOperations).set(eq(codeKey(7, "13900000000")), eq("123456"), eq(5L), eq(TimeUnit.MINUTES));
     }
 
     @Test
@@ -121,14 +122,14 @@ class SmsControllerTest {
 
     @Test
     void samePhoneCannotRequestAnotherCodeWithinSixtySeconds() {
-        when(valueOperations.setIfAbsent("sms:rate:13888888888", "1", 60L, TimeUnit.SECONDS)).thenReturn(false);
+        when(valueOperations.setIfAbsent(rateKey("13888888888"), "1", 60L, TimeUnit.SECONDS)).thenReturn(false);
 
         CommonResult<String> result = controller.sendCode(request("13888888888", null, 1), null);
 
         assertNotEquals(200, result.getCode());
         assertEquals("发送过于频繁，请稍后再试", result.getMessage());
         verify(aliyunSmsSender, never()).sendVerificationCode(anyString(), anyInt(), anyString());
-        verify(valueOperations, never()).set(eq("sms:1:13888888888"), anyString(), anyLong(), eq(TimeUnit.MINUTES));
+        verify(valueOperations, never()).set(eq(codeKey(1, "13888888888")), anyString(), anyLong(), eq(TimeUnit.MINUTES));
     }
 
     @Test
@@ -141,8 +142,8 @@ class SmsControllerTest {
         assertThrows(IllegalStateException.class,
                 () -> controller.sendCode(request("13888888888", null, 1), null));
 
-        verify(valueOperations, never()).set(eq("sms:1:13888888888"), anyString(), anyLong(), eq(TimeUnit.MINUTES));
-        verify(redisTemplate).delete("sms:rate:13888888888");
+        verify(valueOperations, never()).set(eq(codeKey(1, "13888888888")), anyString(), anyLong(), eq(TimeUnit.MINUTES));
+        verify(redisTemplate).delete(rateKey("13888888888"));
         verify(verificationService, never()).resetAttempts(anyString(), anyInt());
     }
 
@@ -158,5 +159,13 @@ class SmsControllerTest {
         DmsShopMember member = new DmsShopMember();
         member.setPhone(phone);
         return member;
+    }
+
+    private String codeKey(int bizType, String phone) {
+        return "sms:" + bizType + ":" + PhoneNumberUtils.redisIdentity(phone);
+    }
+
+    private String rateKey(String phone) {
+        return "sms:rate:" + PhoneNumberUtils.redisIdentity(phone);
     }
 }

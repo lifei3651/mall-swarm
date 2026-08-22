@@ -15,6 +15,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
+import com.macro.mall.distribution.entity.DmsOperationLog;
 
 class OperationLogRetentionTest {
 
@@ -37,5 +39,22 @@ class OperationLogRetentionTest {
         verify(dao, org.mockito.Mockito.atLeastOnce()).selectIdsBefore(cutoff.capture(), eq(100));
         long days = java.time.Duration.between(cutoff.getValue(), LocalDateTime.now()).toDays();
         assertTrue(days >= 89 && days <= 90);
+    }
+
+    @Test
+    void auditWriteBoundaryRedactsCredentialsAndCustomerPii() {
+        DmsOperationLogDao dao = mock(DmsOperationLogDao.class);
+        OperationLogServiceImpl service = new OperationLogServiceImpl(dao);
+
+        service.log("SECURITY", "UPDATE", "MEMBER", "13800000000",
+                "password=Secret-123;phone=13800000000", "email=test@example.com", "token=raw-token");
+
+        ArgumentCaptor<DmsOperationLog> log = ArgumentCaptor.forClass(DmsOperationLog.class);
+        verify(dao).insert(log.capture());
+        assertTrue(!log.getValue().getTargetId().contains("13800000000"));
+        assertTrue(!log.getValue().getBeforeData().contains("Secret-123"));
+        assertTrue(!log.getValue().getBeforeData().contains("13800000000"));
+        assertTrue(!log.getValue().getAfterData().contains("test@example.com"));
+        assertTrue(!log.getValue().getRemark().contains("raw-token"));
     }
 }

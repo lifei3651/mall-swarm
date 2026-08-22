@@ -51,5 +51,15 @@ describe('商户货款提现', () => {
     expect(source).toContain('autocomplete="current-password"')
     expect(source).toContain('请输入当前管理员登录密码进行二次验证')
     expect(source).toContain('确认银行已经实际打款')
+    expect(source).toContain('runAction(`pay-${current.value.id}`')
+    expect(source).toContain("payForm.value.adminPassword = ''")
+    expect(source).toContain('@closed="payForm.adminPassword = \'\'"')
+  })
+
+  it('商户货款敏感操作统一阻止重复提交', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+    expect(source).toContain('const actionBusyKey = ref(\'\')')
+    expect(source).toContain('if (actionBusyKey.value) return')
+    expect(source).toContain(':disabled="Boolean(actionBusyKey)"')
   })
 })

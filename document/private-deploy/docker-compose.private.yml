@@ -49,7 +49,7 @@ services:
     restart: unless-stopped
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\" --rename-command KEYS \"\" --rename-command FLUSHALL \"\" --rename-command FLUSHDB \"\" --rename-command CONFIG \"\" --rename-command SHUTDOWN \"\" --rename-command DEBUG \"\" --rename-command MODULE \"\""]
     volumes:
       - redis_data:/data
     networks:

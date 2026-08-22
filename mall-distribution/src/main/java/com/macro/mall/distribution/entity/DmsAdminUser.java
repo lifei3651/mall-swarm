@@ -33,6 +33,9 @@ public class DmsAdminUser implements Serializable {
     private Integer failedLoginCount;
     private LocalDateTime lockTime;
 
+    /** 新建账号或由他人重置密码后，必须先自行修改密码才能进入业务后台。 */
+    private Integer mustChangePassword;
+
     private LocalDateTime lastLoginTime;
 
     private LocalDateTime createTime;

@@ -50,6 +50,9 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             }
             try {
                 DmsAdminUser admin = adminAuthService.requireAdmin(request.getHeader("Authorization"));
+                if (Integer.valueOf(1).equals(admin.getMustChangePassword()) && !passwordChangeRequest(request)) {
+                    throw new ApiException("必须先修改后台初始密码，才能继续使用管理功能");
+                }
                 String permission = AdminPermissionPolicy.requiredPermission(request.getMethod(), request.getRequestURI());
                 if (permission == null) {
                     throw new ApiException("后台接口未配置权限或请求路径不合法");
@@ -61,10 +64,18 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
                 AdminContext.set(admin);
                 return true;
             } catch (ApiException e) {
-                int status = e.getMessage() != null && e.getMessage().startsWith("没有操作权限") ? 403 : 401;
+                int status = e.getMessage() != null && (e.getMessage().startsWith("没有操作权限")
+                        || e.getMessage().startsWith("必须先修改")) ? 403 : 401;
                 writeError(response, status, e.getMessage());
                 return false;
             }
+        }
+
+        private boolean passwordChangeRequest(HttpServletRequest request) {
+            String path = request.getRequestURI();
+            return path.equals("/distribution/admin-auth/me")
+                    || path.equals("/distribution/admin-auth/logout")
+                    || (path.equals("/distribution/admin-auth/password") && HttpMethod.PUT.matches(request.getMethod()));
         }
 
         private boolean merchantWorkspaceRequest(HttpServletRequest request) {
@@ -75,6 +86,7 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             if (path == null) return false;
             if (path.equals("/distribution/admin-auth/me")
                     || path.equals("/distribution/admin-auth/logout")
+                    || path.equals("/distribution/admin-auth/password")
                     || path.startsWith("/shop/admin/products")
                     || path.startsWith("/shop/admin/skus")
                     || path.startsWith("/shop/admin/media")) return true;

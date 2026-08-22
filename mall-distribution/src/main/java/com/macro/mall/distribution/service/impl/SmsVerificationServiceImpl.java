@@ -40,8 +40,9 @@ public class SmsVerificationServiceImpl implements SmsVerificationService {
         if (!PhoneNumberUtils.isValidMainlandMobile(phone)) Asserts.fail("会员手机号不正确");
         if (code == null || !code.matches("^\\d{6}$")) Asserts.fail("请输入6位短信验证码");
         int normalizedBizType = bizType == null ? 1 : bizType;
-        String key = SMS_CODE_KEY_PREFIX + normalizedBizType + ":" + phone;
-        String attemptKey = SMS_ATTEMPT_KEY_PREFIX + normalizedBizType + ":" + phone;
+        String phoneKey = PhoneNumberUtils.redisIdentity(phone);
+        String key = SMS_CODE_KEY_PREFIX + normalizedBizType + ":" + phoneKey;
+        String attemptKey = SMS_ATTEMPT_KEY_PREFIX + normalizedBizType + ":" + phoneKey;
         Long consumeResult = redisTemplate.execute(VERIFY_AND_CONSUME_SCRIPT, List.of(key, attemptKey), code);
         if (Long.valueOf(1L).equals(consumeResult)) {
             return;
@@ -69,6 +70,7 @@ public class SmsVerificationServiceImpl implements SmsVerificationService {
     @Override
     public void resetAttempts(String phone, Integer bizType) {
         if (phone == null || phone.isBlank()) return;
-        redisTemplate.delete(SMS_ATTEMPT_KEY_PREFIX + (bizType == null ? 1 : bizType) + ":" + phone);
+        redisTemplate.delete(SMS_ATTEMPT_KEY_PREFIX + (bizType == null ? 1 : bizType) + ":"
+                + PhoneNumberUtils.redisIdentity(phone));
     }
 }
