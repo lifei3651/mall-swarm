@@ -23,6 +23,7 @@ final class AdminStepUpPolicy {
         if (HttpMethod.POST.matches(method) && (path.equals("/distribution/agent/switch-line")
                 || path.matches("/distribution/agent/line-change-applications/[^/]+/audit")
                 || path.matches("/shop/admin/orders/[^/]+/refund")
+                || path.matches("/shop/admin/live-rooms/[^/]+/force-stop")
                 || path.equals("/distribution/withdraw/audit")
                 || path.matches("/distribution/commission/(settle/[^/]+|settle-batch|cancel/[^/]+)")
                 || path.equals("/distribution/commission/settlement-batches")
@@ -35,6 +36,7 @@ final class AdminStepUpPolicy {
                 || path.equals("/distribution/audit/finance/risk-rules"))) return true;
         if (HttpMethod.PUT.matches(method)
                 && path.matches("/distribution/merchant-finance/withdrawals/[^/]+/review")) return true;
+        if (HttpMethod.PUT.matches(method) && path.matches("/shop/admin/live-anchors/[^/]+/status")) return true;
         return false;
     }
 }

@@ -300,7 +300,7 @@ const routes = [
             path: 'live-rooms',
             name: 'TenantLiveRooms',
             component: () => import('@/views/shop/live-rooms.vue'),
-            meta: { title: '直播间管理', permission: 'shop:product' },
+            meta: { title: '直播运营中心', permission: 'shop:product' },
           },
           {
             path: 'notices',

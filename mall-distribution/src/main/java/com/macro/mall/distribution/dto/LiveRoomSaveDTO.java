@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -28,8 +29,24 @@ public class LiveRoomSaveDTO implements Serializable {
     @Size(max = 60, message = "主播名称不能超过60个字")
     private String anchorName;
 
+    private Long anchorId;
+
+    @Pattern(regexp = "PRODUCT|PLATFORM|FACTORY", message = "直播类型不正确")
+    private String liveType;
+
+    @Pattern(regexp = "EXTERNAL|TENCENT", message = "直播服务类型不正确")
+    private String providerCode;
+
     @Size(max = 2048, message = "观看地址不能超过2048个字符")
     private String watchUrl;
+
+    @Min(value = 0, message = "评论开关不正确")
+    @Max(value = 1, message = "评论开关不正确")
+    private Integer commentEnabled;
+
+    @Min(value = 0, message = "分享开关不正确")
+    @Max(value = 1, message = "分享开关不正确")
+    private Integer shareEnabled;
 
     @NotNull(message = "请选择计划开播时间")
     private LocalDateTime scheduledStartTime;

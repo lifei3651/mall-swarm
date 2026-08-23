@@ -1173,6 +1173,8 @@ public class ShopServiceImpl implements ShopService {
         order.setTotalCost(totalCost);
         order.setBusinessType(businessType);
         order.setBusinessSourceId(dto.getBusinessSourceId());
+        order.setSourceLiveRoomId(liveRoomService.resolveRecentAttribution(tenantId, order.getUserId(),
+                orderItems.stream().map(DmsShopOrderItem::getProductId).distinct().toList()));
         order.setStatus(0); // 待支付，支付回调后改为1
         String payType = dto.getPayType() == null || dto.getPayType().isBlank()
                 ? "ALIPAY" : dto.getPayType().trim().toUpperCase(java.util.Locale.ROOT);

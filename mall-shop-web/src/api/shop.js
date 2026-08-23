@@ -104,6 +104,30 @@ export function getLiveRoom(id) {
   return request({ url: `/shop/live-rooms/${id}`, method: 'get' })
 }
 
+export function listLiveComments(id, params) {
+  return request({ url: `/shop/live-rooms/${id}/comments`, method: 'get', params })
+}
+
+export function submitLiveComment(id, data) {
+  return request({ url: `/shop/live-rooms/${id}/comments`, method: 'post', data })
+}
+
+export function recordLiveEngagement(id, data) {
+  return request({ url: `/shop/live-rooms/${id}/engagement`, method: 'post', data })
+}
+
+export function getLiveStudio() {
+  return request({ url: '/shop/live-studio/me', method: 'get' })
+}
+
+export function startLiveRoom(id) {
+  return request({ url: `/shop/live-studio/rooms/${id}/start`, method: 'post' })
+}
+
+export function stopLiveRoom(id) {
+  return request({ url: `/shop/live-studio/rooms/${id}/stop`, method: 'post' })
+}
+
 export function listNewArrivals(params) {
   return request({ url: '/shop/new-arrivals', method: 'get', params })
 }

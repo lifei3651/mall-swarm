@@ -169,7 +169,7 @@ const businessMenus = [
       { title: '分类与规格', path: '/shop/categories', permission: 'shop:product' },
       { title: '商品评价', path: '/shop/reviews', permission: 'shop:product' },
       { title: '秒杀活动', path: '/tenant/flash-sales', permission: 'shop:product' },
-      { title: '直播间管理', path: '/tenant/live-rooms', permission: 'shop:product' },
+      { title: '直播运营中心', path: '/tenant/live-rooms', permission: 'shop:product' },
     ],
   },
   {

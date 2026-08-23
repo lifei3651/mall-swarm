@@ -1112,6 +1112,7 @@ CREATE TABLE IF NOT EXISTS dms_shop_order (
   total_cost DECIMAL(12,2) NOT NULL DEFAULT 0,
   business_type VARCHAR(24) NOT NULL DEFAULT 'NORMAL',
   business_source_id BIGINT,
+  source_live_room_id BIGINT,
   status INT NOT NULL DEFAULT 1,
   pay_type VARCHAR(32),
   late_refund_flag INT NOT NULL DEFAULT 0,
@@ -1209,9 +1210,18 @@ CREATE TABLE IF NOT EXISTS dms_live_room (
   subtitle VARCHAR(160),
   cover_url VARCHAR(2048) NOT NULL,
   anchor_name VARCHAR(60),
+  anchor_id BIGINT,
+  live_type VARCHAR(24) NOT NULL DEFAULT 'PRODUCT',
+  provider_code VARCHAR(24) NOT NULL DEFAULT 'EXTERNAL',
+  stream_name VARCHAR(96),
   watch_url VARCHAR(2048),
+  comment_enabled INT NOT NULL DEFAULT 1,
+  share_enabled INT NOT NULL DEFAULT 1,
   scheduled_start_time TIMESTAMP NOT NULL,
   scheduled_end_time TIMESTAMP,
+  actual_start_time TIMESTAMP,
+  actual_end_time TIMESTAMP,
+  stop_reason VARCHAR(200),
   status INT NOT NULL DEFAULT 0,
   viewer_count INT NOT NULL DEFAULT 0,
   heat_count INT NOT NULL DEFAULT 0,
@@ -1229,6 +1239,59 @@ CREATE TABLE IF NOT EXISTS dms_live_room_product (
   sort_order INT NOT NULL DEFAULT 0,
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(tenant_id, live_room_id, product_id)
+);
+
+CREATE TABLE IF NOT EXISTS dms_live_anchor (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  member_user_id BIGINT NOT NULL,
+  display_name VARCHAR(60) NOT NULL,
+  anchor_type VARCHAR(24) NOT NULL DEFAULT 'PRODUCT',
+  company_name VARCHAR(120),
+  bio VARCHAR(300),
+  status INT NOT NULL DEFAULT 1,
+  last_live_time TIMESTAMP,
+  version INT NOT NULL DEFAULT 0,
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(tenant_id, member_user_id)
+);
+
+CREATE TABLE IF NOT EXISTS dms_live_comment (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  live_room_id BIGINT NOT NULL,
+  user_id BIGINT NOT NULL,
+  display_name VARCHAR(60) NOT NULL,
+  content VARCHAR(300) NOT NULL,
+  status INT NOT NULL DEFAULT 1,
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS dms_live_view_session (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  live_room_id BIGINT NOT NULL,
+  visitor_id CHAR(36) NOT NULL,
+  user_id BIGINT,
+  enter_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  last_seen_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  duration_seconds INT NOT NULL DEFAULT 0,
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(tenant_id, live_room_id, visitor_id)
+);
+
+CREATE TABLE IF NOT EXISTS dms_live_event (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  live_room_id BIGINT NOT NULL,
+  visitor_id CHAR(36) NOT NULL,
+  user_id BIGINT,
+  event_type VARCHAR(24) NOT NULL,
+  product_id BIGINT,
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS dms_shop_service_address (

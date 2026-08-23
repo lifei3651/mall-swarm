@@ -41,7 +41,7 @@ const router = useRouter()
 const rooms = ref([])
 const loading = ref(false)
 const error = ref('')
-const stateLabel = (state) => ({ LIVE: '直播中', UPCOMING: '直播预告', ENDED: '精彩回放' }[state] || '直播')
+const stateLabel = (state) => ({ CONNECTING: '正在连接', LIVE: '直播中', UPCOMING: '直播预告', ENDED: '精彩回放' }[state] || '直播')
 const formatTime = (value) => value ? String(value).replace('T', ' ').slice(5, 16) : '开播时间待定'
 const heat = (value) => Number(value || 0) >= 10000 ? `${(Number(value) / 10000).toFixed(1)}万` : String(Number(value || 0))
 const goBack = () => window.history.length > 1 ? router.back() : router.push('/')

@@ -14,6 +14,7 @@ const routes = [
   { path: '/flash-sale', name: 'FlashSale', component: () => import('@/views/FlashSaleView.vue'), meta: protectedRoute },
   { path: '/live', name: 'LiveSquare', component: () => import('@/views/LiveSquareView.vue') },
   { path: '/live/:id', name: 'LiveRoom', component: () => import('@/views/LiveRoomView.vue') },
+  { path: '/live-studio', name: 'LiveStudio', component: () => import('@/views/LiveStudioView.vue'), meta: { requiresAuth: true } },
   { path: '/new-arrivals', name: 'NewArrivals', component: () => import('@/views/NewArrivalsView.vue') },
   { path: '/repurchase', name: 'Repurchase', component: () => import('@/views/RepurchaseView.vue'), meta: protectedRoute },
   { path: '/cart', name: 'Cart', component: () => import('@/views/CartView.vue'), meta: protectedRoute },

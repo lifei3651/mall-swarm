@@ -57,6 +57,28 @@ public class ProductionSafetyGuard {
                 requireConfigured("alipay.privateKey", "生产环境启用支付宝前必须配置应用私钥");
                 requireConfigured("alipay.alipayPublicKey", "生产环境启用支付宝前必须配置支付宝公钥");
             }
+            boolean tencentLiveConfigured = "TENCENT".equalsIgnoreCase(environment.getProperty("shop.live.provider", "EXTERNAL"))
+                    || !environment.getProperty("shop.live.tencent.push-domain", "").isBlank()
+                    || !environment.getProperty("shop.live.tencent.play-domain", "").isBlank()
+                    || !environment.getProperty("shop.live.tencent.push-auth-key", "").isBlank()
+                    || !environment.getProperty("shop.live.tencent.callback-auth-key", "").isBlank();
+            if (tencentLiveConfigured) {
+                requireConfigured("shop.live.tencent.push-domain", "启用腾讯云直播前必须配置推流域名");
+                requireConfigured("shop.live.tencent.play-domain", "启用腾讯云直播前必须配置播放域名");
+                String livePlaybackOrigin = environment.getProperty("shop.live.allowed-playback-origin", "");
+                String expectedPlaybackOrigin = "https://" + environment.getProperty("shop.live.tencent.play-domain", "");
+                if (!expectedPlaybackOrigin.equalsIgnoreCase(livePlaybackOrigin)) {
+                    throw new IllegalStateException("腾讯云直播播放域名必须同步加入直播播放来源白名单");
+                }
+                String liveAuthKey = environment.getProperty("shop.live.tencent.push-auth-key", "");
+                if (liveAuthKey.length() < 16 || isWeakSecret(liveAuthKey)) {
+                    throw new IllegalStateException("启用腾讯云直播前必须配置独立强随机推流鉴权密钥");
+                }
+                String callbackKey = environment.getProperty("shop.live.tencent.callback-auth-key", "");
+                if (callbackKey.length() < 16 || isWeakSecret(callbackKey)) {
+                    throw new IllegalStateException("启用腾讯云直播前必须配置独立强随机回调鉴权密钥");
+                }
+            }
         }
         if (Boolean.parseBoolean(environment.getProperty("payment.verification.enabled", "false"))
                 && !Boolean.parseBoolean(environment.getProperty("sms.provider-enabled", "false"))) {

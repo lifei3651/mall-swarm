@@ -43,9 +43,9 @@ grep -q 'RELEASE_GIT_COMMIT' "$DEPLOY_DIR/scripts/build-release.sh"
 grep -q '客户 HTTPS 管理后台入口不可用' "$DEPLOY_DIR/scripts/security-postflight.sh"
 grep -q '构建提交与当前交付代码不一致' "$DEPLOY_DIR/scripts/security-postflight.sh"
 for service in mysql redis mall-distribution nginx; do
-  grep -A80 "^  $service:" "$DEPLOY_DIR/docker-compose.private.yml" | grep -q 'no-new-privileges:true'
-  grep -A80 "^  $service:" "$DEPLOY_DIR/docker-compose.private.yml" | grep -q 'read_only: true'
-  grep -A80 "^  $service:" "$DEPLOY_DIR/docker-compose.private.yml" | grep -q 'pids_limit:'
+  grep -A140 "^  $service:" "$DEPLOY_DIR/docker-compose.private.yml" | grep -q 'no-new-privileges:true'
+  grep -A140 "^  $service:" "$DEPLOY_DIR/docker-compose.private.yml" | grep -q 'read_only: true'
+  grep -A140 "^  $service:" "$DEPLOY_DIR/docker-compose.private.yml" | grep -q 'pids_limit:'
 done
 sh -n "$DEPLOY_DIR/scripts/bootstrap-admin.sh"
 if LC_ALL=C grep -R -n -E '\$[A-Za-z_][A-Za-z0-9_]*[^ -~]' "$DEPLOY_DIR/scripts" --include='*.sh'; then
@@ -70,6 +70,11 @@ for key in MYSQL_ROOT_PASSWORD DB_PASSWORD REDIS_PASSWORD DATA_ENCRYPTION_KEY; d
   case "$value" in *change_me*) exit 1 ;; esac
 done
 [ "$(awk -F= '$1 == "DATA_ENCRYPTION_WRITE_ENABLED" { print $2 }' "$DEPLOY_DIR/.env")" = "true" ]
+grep -q '^SHOP_LIVE_PROVIDER=EXTERNAL$' "$DEPLOY_DIR/.env"
+grep -q '^LIVE_PLAYBACK_ORIGIN=$' "$DEPLOY_DIR/.env"
+grep -q 'LIVE_PLAYBACK_ORIGIN' "$DEPLOY_DIR/docker-compose.private.yml"
+grep -q "media-src 'self' blob: \${LIVE_PLAYBACK_ORIGIN}" "$DEPLOY_DIR/nginx/conf.d/mall.conf.template"
+grep -q "connect-src 'self' \${LIVE_PLAYBACK_ORIGIN}" "$DEPLOY_DIR/nginx/conf.d/mall.conf.template"
 
 mkdir -p "$DEPLOY_DIR/certs" "$DEPLOY_DIR/html/public" "$DEPLOY_DIR/html/team" "$DEPLOY_DIR/html/admin"
 openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
@@ -96,6 +101,13 @@ fi
   --ssh-cidr 203.0.113.10/32 \
   --evidence cloud-sg-test-001 >/dev/null
 "$DEPLOY_DIR/scripts/security-preflight.sh" --offline >/dev/null
+
+sed -i.bak 's/^SHOP_LIVE_PROVIDER=.*/SHOP_LIVE_PROVIDER=TENCENT/' "$DEPLOY_DIR/.env"
+if "$DEPLOY_DIR/scripts/security-preflight.sh" --offline >/dev/null 2>&1; then
+  echo "腾讯云直播缺少域名和密钥时预检不应通过" >&2
+  exit 1
+fi
+mv "$DEPLOY_DIR/.env.bak" "$DEPLOY_DIR/.env"
 
 printf 'source map\n' > "$DEPLOY_DIR/html/public/app.js.map"
 if "$DEPLOY_DIR/scripts/security-preflight.sh" --offline >/dev/null 2>&1; then

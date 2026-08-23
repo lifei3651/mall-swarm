@@ -68,6 +68,9 @@ public class DmsShopOrder implements Serializable {
     /** 秒杀活动等业务来源ID；普通和复购订单为空。 */
     private Long businessSourceId;
 
+    /** 最近24小时内由直播商品点击产生的服务端归因；客户端不能直接指定。 */
+    private Long sourceLiveRoomId;
+
     /** 0待付款，1待发货，2已发货，3已完成，4已关闭（取消、超时关闭或整单退款）。 */
     private Integer status;
 

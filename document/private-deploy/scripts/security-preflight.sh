@@ -146,6 +146,31 @@ case "$sms" in
   *) fail "SMS_PROVIDER_ENABLED 只能是 true 或 false" ;;
 esac
 
+live_provider=$(value_of SHOP_LIVE_PROVIDER)
+live_playback_origin=$(value_of LIVE_PLAYBACK_ORIGIN)
+if [ -n "$live_playback_origin" ]; then
+  printf '%s' "$live_playback_origin" | grep -Eq '^https://[A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z]{2,}$' \
+    || fail "LIVE_PLAYBACK_ORIGIN 必须是单个无路径的 HTTPS 来源"
+fi
+case "$live_provider" in
+  EXTERNAL) : ;;
+  TENCENT)
+    for key in TENCENT_LIVE_PUSH_DOMAIN TENCENT_LIVE_PLAY_DOMAIN TENCENT_LIVE_APP_NAME; do
+      require_value "$key"
+    done
+    printf '%s' "$(value_of TENCENT_LIVE_PUSH_DOMAIN)" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z]{2,}$' || fail "TENCENT_LIVE_PUSH_DOMAIN 格式不正确"
+    printf '%s' "$(value_of TENCENT_LIVE_PLAY_DOMAIN)" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z]{2,}$' || fail "TENCENT_LIVE_PLAY_DOMAIN 格式不正确"
+    [ "$live_playback_origin" = "https://$(value_of TENCENT_LIVE_PLAY_DOMAIN)" ] \
+      || fail "腾讯云直播的 LIVE_PLAYBACK_ORIGIN 必须等于 https://TENCENT_LIVE_PLAY_DOMAIN"
+    require_secret TENCENT_LIVE_PUSH_AUTH_KEY 16
+    require_secret TENCENT_LIVE_CALLBACK_AUTH_KEY 16
+    printf '%s' "$(value_of TENCENT_LIVE_CREDENTIAL_SECONDS)" | grep -Eq '^[0-9]+$' || fail "TENCENT_LIVE_CREDENTIAL_SECONDS 必须是整数"
+    [ "$(value_of TENCENT_LIVE_CREDENTIAL_SECONDS)" -ge 600 ] && [ "$(value_of TENCENT_LIVE_CREDENTIAL_SECONDS)" -le 86400 ] \
+      || fail "TENCENT_LIVE_CREDENTIAL_SECONDS 必须在600到86400秒之间"
+    ;;
+  *) fail "SHOP_LIVE_PROVIDER 只能是 EXTERNAL 或 TENCENT" ;;
+esac
+
 command -v openssl >/dev/null 2>&1 || fail "缺少 OpenSSL，无法检查TLS证书"
 command -v python3 >/dev/null 2>&1 || fail "缺少 Python 3，无法检查证书域名和Compose安全边界"
 [ -f "$DEPLOY_DIR/certs/cert.pem" ] || fail "缺少 certs/cert.pem"

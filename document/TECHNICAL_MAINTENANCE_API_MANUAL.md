@@ -169,6 +169,12 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `POST /api/v1/shop/products/{id}/reviews` | `rating` 1～5、`content` 最多 1000 字 | 商品评价记录 | 仅确认收货且符合资格的买家可评价 |
 | `GET /api/v1/shop/live-rooms?limit=...` | `limit` 1～50 | `LiveRoomVO[]` | 仅返回当前客户公开的预告、直播中和已结束直播；预告不返回观看地址；直播总开关关闭时返回空列表 |
 | `GET /api/v1/shop/live-rooms/{id}` | 直播间 ID | `LiveRoomVO` | 返回直播状态和正常商城在售关联商品；草稿、停用及其他客户数据不可见；直播总开关关闭时拒绝公开详情 |
+| `GET /api/v1/shop/live-rooms/{id}/comments` | `limit` 1～100 | 已公开评论列表 | 只返回审核通过且未隐藏的评论，用户名称已脱敏 |
+| `POST /api/v1/shop/live-rooms/{id}/comments` | `content` 最多 300 字、`visitorId` | 评论记录 | 会员登录后可提交；校验直播状态、评论开关、内容安全和独立频率限制 |
+| `POST /api/v1/shop/live-rooms/{id}/engagement` | `visitorId`、`eventType`、可选 `productId`、`durationSeconds` | `boolean` | 记录进入、心跳、离开、分享和商品点击；服务端校验商品确属该直播间 |
+| `GET /api/v1/shop/live-studio/me` | 当前会员会话 | `LiveStudioVO` | 查询当前账号的主播授权状态及被分配直播间 |
+| `POST /api/v1/shop/live-studio/rooms/{id}/start` | 当前会员会话 | `LiveStreamCredentialVO` | 只有该直播间已授权主播可开始；腾讯云返回短时推流地址，外部视频源返回观看地址 |
+| `POST /api/v1/shop/live-studio/rooms/{id}/stop` | 当前会员会话 | `boolean` | 只有所属主播可结束直播，状态按版本原子更新 |
 | `GET /api/v1/shop/new-arrivals?limit=...` | `limit` 1～100 | 商品列表 | 按 `first_publish_time` 倒序返回首次上架仍处于配置窗口内的正常在售商品 |
 | `GET /api/v1/shop/notices` | 分页和类型 | 公告分页 | 仅返回当前租户已启用公告 |
 | `GET /api/v1/shop/notices/{id}` | 公告 ID | 公告详情 | 校验公告所属租户和展示状态 |
@@ -447,6 +453,15 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `POST /api/v1/shop/admin/live-rooms` | `LiveRoomSaveDTO` | 新建直播间 |
 | `PUT /api/v1/shop/admin/live-rooms/{id}` | `LiveRoomSaveDTO` | 锁定并按版本更新直播间及关联商品 |
 | `PUT /api/v1/shop/admin/live-rooms/{id}/status` | `status` 0～4 | `boolean`；按版本原子切换状态 |
+| `GET /api/v1/shop/admin/live-anchors` | 可选 `status` | 已授权主播列表 |
+| `POST /api/v1/shop/admin/live-anchors` | 商城登录账号、展示名、直播类型、所属单位 | 主播授权结果；不公开登录凭证 |
+| `PUT /api/v1/shop/admin/live-anchors/{id}` | 展示名、直播类型、所属单位 | 更新主播资料；不更换绑定会员 |
+| `PUT /api/v1/shop/admin/live-anchors/{id}/status` | `status=0/1/2` | 暂停、启用或收回权限；高风险状态变更要求二次验证，暂停/收回会停止其直播 |
+| `POST /api/v1/shop/admin/live-rooms/{id}/force-stop` | `reason` 1～200 字 | 强制停播结果；要求一次性二次验证凭证并记录审计 |
+| `GET /api/v1/shop/admin/live-rooms/{id}/analytics` | 直播间 ID | 独立访客、在线人数、平均停留、分享、评论、商品点击、归因订单、成交额、转化率 |
+| `GET /api/v1/shop/admin/live-rooms/{id}/comments` | `status`、`limit` | 评论审核列表 |
+| `PUT /api/v1/shop/admin/live-comments/{id}/status` | `status=0/1/2` | 待审、通过或隐藏评论 |
+| `POST /api/v1/shop/live/callbacks/tencent` | 腾讯云 JSON：`event_type`、`stream_id`、`t`、`sign` | `boolean` | 校验 `sign=MD5(callbackKey+t)`、10 分钟有效期和流标识，推流/断流回调幂等更新直播状态 |
 | `GET /api/v1/shop/admin/flash-sales` | 状态、商品、时间、分页 | 秒杀活动分页 |
 | `POST/PUT /api/v1/shop/admin/flash-sales[/{id}]` | `FlashSaleActivitySaveDTO` | 秒杀活动 |
 | `PUT /api/v1/shop/admin/flash-sales/{id}/status` | `status` | `boolean` |
@@ -462,6 +477,10 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 交付预检检查品牌、经营主体、客服、营业执照、备案、协议、发退货地址、正式商品、明显测试内容、正式支付、正式短信以及特殊业务模式是否可执行。ERP 和真实物流属于客户可选项，不阻断未采购这些能力的客户；预检通过不替代真实支付、退款、短信、备份恢复和并发写入验收。
 
 `FlashSaleActivitySaveDTO` 关键字段：`activityName`、`productId`、可选 `skuId`、`flashPrice>=0.01`、`flashPv>=0`、`totalStock>=1`、`perUserLimit>=1`、`startTime`、未来的 `endTime`、`status`。
+
+直播采用“业务层自建、音视频能力接入云服务”的边界：商城负责主播授权、直播间、商品、评论、分享、在线人数、停留、订单归因、运营数据和风控；腾讯云负责推流接入、转码和播放分发。`EXTERNAL` 用于厂家已有监控或固定 HTTPS 视频源，`TENCENT` 用于真人移动直播。订单归因由服务端查找会员 24 小时内最近一次有效直播商品点击写入 `source_live_room_id`，不接受前端自报直播间 ID。
+
+腾讯云正式启用前设置 `SHOP_LIVE_PROVIDER=TENCENT`、`LIVE_PLAYBACK_ORIGIN=https://播放域名`、`TENCENT_LIVE_PUSH_DOMAIN`、`TENCENT_LIVE_PLAY_DOMAIN`、`TENCENT_LIVE_APP_NAME`、`TENCENT_LIVE_PUSH_AUTH_KEY`、`TENCENT_LIVE_CALLBACK_AUTH_KEY` 和可选 `TENCENT_LIVE_CREDENTIAL_SECONDS`。`LIVE_PLAYBACK_ORIGIN` 只能填写一个无路径的 HTTPS 来源，同时进入服务端观看地址白名单和浏览器 CSP；使用厂家固定视频源时填写厂家的实际播放来源。推流鉴权密钥和回调密钥只允许放在客户服务器受限环境变量，不写入数据库、Git、前端资源、接口响应或操作日志。腾讯云控制台回调地址填写 `https://客户域名/api/v1/shop/live/callbacks/tencent`，推流与断流事件均启用。
 
 `LiveRoomSaveDTO` 关键字段：`title` 2～80 字、可选 `subtitle`、HTTPS 或站内 `coverUrl`、`anchorName`、可选公开 HTTPS `watchUrl`、`scheduledStartTime`、可选 `scheduledEndTime`、`status`、非负热度/观看人数、排序和最多 20 个 `productIds`。预告或直播中至少关联一个正常商城在售商品，直播中必须有公开观看地址；后台仅允许平台账号维护。观看地址不能保存推流地址、推流密钥、AccessKey 或云直播 Secret。
 

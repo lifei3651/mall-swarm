@@ -76,6 +76,40 @@ export function updateLiveRoomStatus(id, status) {
   return request({ url: `/shop/admin/live-rooms/${id}/status`, method: 'put', params: { status } })
 }
 
+export function listLiveAnchors(params) {
+  return request({ url: '/shop/admin/live-anchors', method: 'get', params })
+}
+
+export function saveLiveAnchor(id, data) {
+  return request({ url: id ? `/shop/admin/live-anchors/${id}` : '/shop/admin/live-anchors', method: id ? 'put' : 'post', data })
+}
+
+export function updateLiveAnchorStatus(id, status) {
+  return request({
+    url: `/shop/admin/live-anchors/${id}/status`, method: 'put', params: { status },
+    adminStepUp: { message: status === 1 ? '恢复后该账号可以立即开播，请再次验证。' : '暂停或收回权限会立即停止该主播正在进行的直播，请再次验证。' },
+  })
+}
+
+export function forceStopLiveRoom(id, reason) {
+  return request({
+    url: `/shop/admin/live-rooms/${id}/force-stop`, method: 'post', params: { reason },
+    adminStepUp: { message: '强制停播会立即中断观众观看，请确认违规或运营原因后再次验证。' },
+  })
+}
+
+export function getLiveRoomAnalytics(id) {
+  return request({ url: `/shop/admin/live-rooms/${id}/analytics`, method: 'get' })
+}
+
+export function listAdminLiveComments(id, params) {
+  return request({ url: `/shop/admin/live-rooms/${id}/comments`, method: 'get', params })
+}
+
+export function updateLiveCommentStatus(id, status) {
+  return request({ url: `/shop/admin/live-comments/${id}/status`, method: 'put', params: { status } })
+}
+
 export function listShopServiceAddresses(params) {
   return request({ url: '/shop/admin/service-addresses', method: 'get', params })
 }

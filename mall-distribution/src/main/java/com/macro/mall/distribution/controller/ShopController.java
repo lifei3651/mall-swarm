@@ -52,6 +52,11 @@ import com.macro.mall.distribution.vo.FlashSaleActivityVO;
 import com.macro.mall.distribution.vo.ShopBusinessConfigVO;
 import com.macro.mall.distribution.vo.ShopLogisticsTrackingVO;
 import com.macro.mall.distribution.vo.LiveRoomVO;
+import com.macro.mall.distribution.vo.LiveAnchorVO;
+import com.macro.mall.distribution.vo.LiveAnalyticsVO;
+import com.macro.mall.distribution.vo.LiveStreamCredentialVO;
+import com.macro.mall.distribution.vo.LiveStudioVO;
+import com.macro.mall.distribution.entity.DmsLiveComment;
 import com.macro.mall.distribution.entity.DmsMerchantProductReview;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -116,6 +121,53 @@ public class ShopController {
     @GetMapping("/live-rooms/{id}")
     public CommonResult<LiveRoomVO> liveRoom(@PathVariable Long id) {
         return CommonResult.success(liveRoomService.getPublic(id));
+    }
+
+    @Operation(summary = "直播间公开评论")
+    @GetMapping("/live-rooms/{id}/comments")
+    public CommonResult<List<DmsLiveComment>> liveComments(@PathVariable Long id,
+                                                            @RequestParam(required = false) Long afterId,
+                                                            @RequestParam(defaultValue = "50") Integer limit) {
+        return CommonResult.success(liveRoomService.listComments(id, afterId, limit == null ? 50 : limit));
+    }
+
+    @Operation(summary = "提交直播评论")
+    @PostMapping("/live-rooms/{id}/comments")
+    public CommonResult<DmsLiveComment> submitLiveComment(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long id, @Valid @RequestBody LiveCommentSubmitDTO dto) {
+        return CommonResult.success(liveRoomService.submitComment(id, authService.requireMember(authorization), dto));
+    }
+
+    @Operation(summary = "记录直播观看、分享和商品点击")
+    @PostMapping("/live-rooms/{id}/engagement")
+    public CommonResult<Boolean> recordLiveEngagement(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long id, @Valid @RequestBody LiveEngagementDTO dto) {
+        return CommonResult.success(liveRoomService.recordEngagement(id, authService.resolveMember(authorization), dto));
+    }
+
+    @Operation(summary = "当前账号主播工作台")
+    @GetMapping("/live-studio/me")
+    public CommonResult<LiveStudioVO> liveStudio(
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return CommonResult.success(liveRoomService.getStudio(authService.requireMember(authorization)));
+    }
+
+    @Operation(summary = "主播开始直播并签发短时推流地址")
+    @PostMapping("/live-studio/rooms/{id}/start")
+    public CommonResult<LiveStreamCredentialVO> startLive(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long id) {
+        return CommonResult.success(liveRoomService.start(id, authService.requireMember(authorization)));
+    }
+
+    @Operation(summary = "主播结束直播")
+    @PostMapping("/live-studio/rooms/{id}/stop")
+    public CommonResult<Boolean> stopLive(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long id) {
+        return CommonResult.success(liveRoomService.stop(id, authService.requireMember(authorization)));
     }
 
     @Operation(summary = "新品速递")
@@ -209,6 +261,57 @@ public class ShopController {
     @PutMapping("/admin/live-rooms/{id}/status")
     public CommonResult<Boolean> updateLiveRoomStatus(@PathVariable Long id, @RequestParam Integer status) {
         return CommonResult.success(liveRoomService.updateStatus(id, status));
+    }
+
+    @Operation(summary = "后台直播账号列表")
+    @GetMapping("/admin/live-anchors")
+    public CommonResult<List<LiveAnchorVO>> adminLiveAnchors(@RequestParam(required = false) Integer status) {
+        return CommonResult.success(liveRoomService.listAnchors(status));
+    }
+
+    @Operation(summary = "平台直接开通直播账号")
+    @PostMapping("/admin/live-anchors")
+    public CommonResult<LiveAnchorVO> createLiveAnchor(@Valid @RequestBody LiveAnchorSaveDTO dto) {
+        return CommonResult.success(liveRoomService.saveAnchor(null, dto));
+    }
+
+    @Operation(summary = "更新直播账号资料")
+    @PutMapping("/admin/live-anchors/{id}")
+    public CommonResult<LiveAnchorVO> updateLiveAnchor(@PathVariable Long id,
+                                                       @Valid @RequestBody LiveAnchorSaveDTO dto) {
+        return CommonResult.success(liveRoomService.saveAnchor(id, dto));
+    }
+
+    @Operation(summary = "暂停、恢复或收回直播权限")
+    @PutMapping("/admin/live-anchors/{id}/status")
+    public CommonResult<Boolean> updateLiveAnchorStatus(@PathVariable Long id, @RequestParam Integer status) {
+        return CommonResult.success(liveRoomService.updateAnchorStatus(id, status));
+    }
+
+    @Operation(summary = "平台强制停播")
+    @PostMapping("/admin/live-rooms/{id}/force-stop")
+    public CommonResult<Boolean> forceStopLive(@PathVariable Long id, @RequestParam String reason) {
+        return CommonResult.success(liveRoomService.forceStop(id, reason));
+    }
+
+    @Operation(summary = "直播营销数据")
+    @GetMapping("/admin/live-rooms/{id}/analytics")
+    public CommonResult<LiveAnalyticsVO> liveAnalytics(@PathVariable Long id) {
+        return CommonResult.success(liveRoomService.getAnalytics(id));
+    }
+
+    @Operation(summary = "后台直播评论列表")
+    @GetMapping("/admin/live-rooms/{id}/comments")
+    public CommonResult<List<DmsLiveComment>> adminLiveComments(@PathVariable Long id,
+                                                                 @RequestParam(required = false) Integer status,
+                                                                 @RequestParam(defaultValue = "100") Integer limit) {
+        return CommonResult.success(liveRoomService.listAdminComments(id, status, limit == null ? 100 : limit));
+    }
+
+    @Operation(summary = "隐藏或恢复直播评论")
+    @PutMapping("/admin/live-comments/{id}/status")
+    public CommonResult<Boolean> updateLiveCommentStatus(@PathVariable Long id, @RequestParam Integer status) {
+        return CommonResult.success(liveRoomService.updateCommentStatus(id, status));
     }
 
     @Operation(summary = "会员订单与售后状态实时通知")

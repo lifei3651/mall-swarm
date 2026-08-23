@@ -321,7 +321,7 @@ const liveRooms = computed(() => home.value.liveRooms || [])
 const newArrivals = computed(() => (home.value.newArrivals || []).map(normalizeProduct))
 const showDiscovery = computed(() => liveRooms.value.length > 0 || newArrivals.value.length > 0)
 const liveRoomLiveCount = computed(() => liveRooms.value.filter((item) => item.roomState === 'LIVE').length)
-const liveStateLabel = (state) => ({ LIVE: '直播中', UPCOMING: '直播预告', ENDED: '精彩回放' }[state] || '直播')
+const liveStateLabel = (state) => ({ CONNECTING: '正在连接', LIVE: '直播中', UPCOMING: '直播预告', ENDED: '精彩回放' }[state] || '直播')
 const formatLiveTime = (value) => value ? String(value).replace('T', ' ').slice(5, 16) : '开播时间待定'
 const formatHeat = (value) => {
   const count = Math.max(0, Number(value || 0))

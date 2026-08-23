@@ -115,6 +115,19 @@ shop:
     blocked-terms: ${SHOP_CONTENT_BLOCKED_TERMS:}
   realtime:
     heartbeat-ms: ${SHOP_REALTIME_HEARTBEAT_MS:25000}
+  live:
+    # EXTERNAL 可先接厂家固定视频源；TENCENT 会在主播开播时签发短时推流地址。
+    provider: ${SHOP_LIVE_PROVIDER:EXTERNAL}
+    # 精确允许一个经过客户确认的 HTTPS 播放源，同时用于服务端地址校验和 Nginx CSP。
+    allowed-playback-origin: ${LIVE_PLAYBACK_ORIGIN:}
+    tencent:
+      push-domain: ${TENCENT_LIVE_PUSH_DOMAIN:}
+      play-domain: ${TENCENT_LIVE_PLAY_DOMAIN:}
+      app-name: ${TENCENT_LIVE_APP_NAME:live}
+      # 仅保存在服务器受限环境文件，禁止写入数据库、前端或 Git。
+      push-auth-key: ${TENCENT_LIVE_PUSH_AUTH_KEY:}
+      callback-auth-key: ${TENCENT_LIVE_CALLBACK_AUTH_KEY:}
+      credential-seconds: ${TENCENT_LIVE_CREDENTIAL_SECONDS:7200}
   logistics:
     # NONE 表示只展示物流公司和运单号；客户确定供应商后注册同名适配器并修改此项。
     tracking-provider: ${SHOP_LOGISTICS_TRACKING_PROVIDER:NONE}

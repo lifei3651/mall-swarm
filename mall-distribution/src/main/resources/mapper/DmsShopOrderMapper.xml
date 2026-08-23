@@ -29,6 +29,7 @@
         <result column="total_cost" property="totalCost"/>
         <result column="business_type" property="businessType"/>
         <result column="business_source_id" property="businessSourceId"/>
+        <result column="source_live_room_id" property="sourceLiveRoomId"/>
         <result column="status" property="status"/>
         <result column="pay_type" property="payType"/>
         <result column="late_refund_flag" property="lateRefundFlag"/>
@@ -58,7 +59,7 @@
         id, order_no, trade_id, trade_no, payment_order_no, tenant_id, merchant_id, merchant_name, user_id, agent_id, invite_code, receiver_name, receiver_phone,
         receiver_address, receiver_province, receiver_city, receiver_district, receiver_detail_address,
         total_amount, freight_amount, discount_amount, pay_amount, total_pv,
-        total_cost, business_type, business_source_id, status, pay_type, late_refund_flag, remark, service_remark, pay_time, delivery_company, delivery_no,
+        total_cost, business_type, business_source_id, source_live_room_id, status, pay_type, late_refund_flag, remark, service_remark, pay_time, delivery_company, delivery_no,
         delivery_time, receive_time, cancel_time, close_time, create_time, update_time
     </sql>
 
@@ -295,13 +296,13 @@
         (id, order_no, trade_id, trade_no, payment_order_no, tenant_id, merchant_id, merchant_name, user_id, agent_id, invite_code, receiver_name, receiver_phone,
          receiver_address, receiver_province, receiver_city, receiver_district, receiver_detail_address,
          total_amount, freight_amount, discount_amount, pay_amount, total_pv,
-         total_cost, business_type, business_source_id, status, pay_type, remark, pay_time, delivery_company, delivery_no,
+         total_cost, business_type, business_source_id, source_live_room_id, status, pay_type, remark, pay_time, delivery_company, delivery_no,
          delivery_time, receive_time, cancel_time, close_time)
         VALUES
         (#{order.id}, #{order.orderNo}, #{order.tradeId}, #{order.tradeNo}, #{order.paymentOrderNo}, #{tenantId}, #{order.merchantId}, #{order.merchantName}, #{order.userId}, #{order.agentId}, #{order.inviteCode}, #{order.receiverName}, #{order.receiverPhone},
          #{order.receiverAddress}, #{order.receiverProvince}, #{order.receiverCity}, #{order.receiverDistrict}, #{order.receiverDetailAddress},
          #{order.totalAmount}, #{order.freightAmount}, #{order.discountAmount}, #{order.payAmount}, #{order.totalPv},
-         #{order.totalCost}, #{order.businessType}, #{order.businessSourceId}, #{order.status}, #{order.payType}, #{order.remark}, #{order.payTime}, #{order.deliveryCompany}, #{order.deliveryNo},
+         #{order.totalCost}, #{order.businessType}, #{order.businessSourceId}, #{order.sourceLiveRoomId}, #{order.status}, #{order.payType}, #{order.remark}, #{order.payTime}, #{order.deliveryCompany}, #{order.deliveryNo},
          #{order.deliveryTime}, #{order.receiveTime}, #{order.cancelTime}, #{order.closeTime})
     </insert>
 

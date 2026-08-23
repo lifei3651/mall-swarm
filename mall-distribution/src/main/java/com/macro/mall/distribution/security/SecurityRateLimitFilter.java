@@ -78,6 +78,9 @@ public class SecurityRateLimitFilter extends OncePerRequestFilter {
         if (HttpMethod.POST.matches(method) && "/distribution/erp/callbacks/shipment".equals(path)) {
             return new Rule("erp-shipment-callback", 120, 60);
         }
+        if (HttpMethod.POST.matches(method) && "/shop/live/callbacks/tencent".equals(path)) {
+            return new Rule("tencent-live-callback", 300, 60);
+        }
         if (HttpMethod.GET.matches(method) && "/payment/checkVerify".equals(path)) {
             return new Rule("payment-verification", 120, 60);
         }
@@ -128,6 +131,15 @@ public class SecurityRateLimitFilter extends OncePerRequestFilter {
         }
         if (HttpMethod.POST.matches(method) && path.matches("/shop/products/[^/]+/reviews")) {
             return new Rule("product-review-submit", 10, 60);
+        }
+        if (HttpMethod.POST.matches(method) && path.matches("/shop/live-rooms/[^/]+/comments")) {
+            return new Rule("live-comment", 20, 60);
+        }
+        if (HttpMethod.POST.matches(method) && path.matches("/shop/live-rooms/[^/]+/engagement")) {
+            return new Rule("live-engagement", 180, 60);
+        }
+        if (HttpMethod.POST.matches(method) && path.matches("/shop/live-studio/rooms/[^/]+/(start|stop)")) {
+            return new Rule("live-studio-control", 12, 60);
         }
         if ((path.startsWith("/shop/") || path.startsWith("/distribution/"))
                 && !HttpMethod.GET.matches(method)) {
