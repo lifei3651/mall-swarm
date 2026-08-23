@@ -57,4 +57,43 @@
 - 售后申请状态下，“我的订单”入口、重复的“申请退款 / 售后”标题和页面末尾订单编号均已隐藏或移除。
 - 视觉浏览器已用 390 × 844 手机视口成功访问当前 Mac 的本地商城；继续进入订单详情需要登录，而当前登录页启用了图形验证码。本轮未代替用户处理验证码，因此无法生成可信的登录后 post-fix 截图或执行订单信息真实点击展开对比。没有用静态占位图冒充验收结果。
 
-final result: blocked（登录图形验证码阻断了登录后视觉验收；代码测试与生产构建均已通过）
+该历史验收项结果：blocked（登录图形验证码阻断了登录后视觉验收；代码测试与生产构建均已通过）
+
+## 商城 LOGO 与视觉装修工作台验收（2026-08-23）
+
+- Source visual truth:
+  - `/var/folders/nk/gpz82vss0513h6pd0tkfgs6h0000gn/T/codex-clipboard-d226f9f1-1b22-46e0-b506-6880de4d6739.png`
+  - `/var/folders/nk/gpz82vss0513h6pd0tkfgs6h0000gn/T/codex-clipboard-f206534d-f5f4-4cf8-a9d3-416e18eeccaa.png`
+- Implementation evidence: Codex 应用内浏览器实际渲染本次组件，使用真实线上品牌 LOGO 资源并在本地隔离数据下打开“商城视觉装修工作台”。
+- Viewport: 1280 × 720 CSS px。
+- State: 品牌视觉编辑态，真实 LOGO 已加载，主题选择、商城名称、LOGO、主题色、手机预览和底部操作同时可见。
+
+### Full-view comparison evidence
+
+- 原界面在 2732 × 1510 截图中仍需要页面级滚动，弹窗高度、手机模型和留白均过大；修复后 1280 × 720 下弹窗边界为 `top=12 / bottom=708 / height=696 / width=1120`，页面无纵向溢出。
+- 标题、草稿说明、品牌编辑表单、客户手机预览、取消和保存发布按钮均在一个视口中完整可见；内容较多的其他装修模块保留左侧区域内部滚动，不推动整个弹窗超出屏幕。
+- 手机预览保持原有信息层级和真实商城样式，仅压缩到适合后台并排校对的尺寸，不改变客户前台实际页面尺寸。
+
+### Focused region comparison evidence
+
+- LOGO：线上资源返回 `image/png`，浏览器检测 `complete=true`、原图宽度 896；后台侧栏、登录页、表格、上传编辑器和手机预览均增加相对地址规范化及加载失败回退。
+- 操作区：底部“取消 / 保存发布”两按钮在 720 高度视口内均完全可见。
+- 手机预览：实际高度 403，底边 619，未遮挡弹窗底部操作区；预览内部继续允许独立滚动查看后续商品模块。
+
+### Required fidelity surfaces
+
+- Fonts and typography: 沿用 Element Plus 和现有后台字体层级，仅压缩标题、辅助文案和手机预览字号，无异常换行。
+- Spacing and layout rhythm: 弹窗统一 12px 顶部安全边距，标题/正文/页脚使用紧凑间距，左右编辑区和预览区保持清晰分栏。
+- Colors and visual tokens: 沿用现有蓝灰后台与商城主题色，不引入新的颜色体系。
+- Image quality and asset fidelity: 使用真实商城 LOGO，不使用占位图或近似图形；加载失败时显示品牌首字或内置官方标识，避免裂图。
+- Copy and content: 原操作说明、草稿状态及保存发布语义保持不变。
+
+### Primary interactions tested
+
+1. 打开商城视觉页并点击“编辑商城视觉”，弹窗正常打开。
+2. 品牌主题、商城名称、LOGO 和主题色均可见且不被裁切。
+3. 真实 LOGO 成功加载；失败回退逻辑由自动化测试覆盖。
+4. 取消与保存发布按钮同屏可见。
+5. 页面无整体纵向溢出，手机预览保留独立滚动。
+
+final result: passed

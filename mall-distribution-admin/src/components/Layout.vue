@@ -3,7 +3,7 @@
     <!-- 侧边栏 -->
     <div class="layout-sidebar" :class="{ collapsed: isCollapsed }">
       <div class="logo">
-        <img :src="brand.logoUrl || defaultLogo" :alt="`${brand.brandName} Logo`" />
+        <img :src="sidebarLogoSrc" :alt="`${brand.brandName} Logo`" @error="handleSidebarLogoError" />
         <span v-if="!isCollapsed">{{ brand.brandName }}</span>
       </div>
       <el-menu
@@ -135,6 +135,13 @@ const store = useAppStore()
 const isCollapsed = ref(false)
 const isDashboard = computed(() => route.path === '/dashboard')
 const brand = reactive({ brandName: localStorage.getItem('admin_brand_name') || '灵启商城', logoUrl: '' })
+const brandLogoLoadFailed = ref(false)
+const sidebarLogoSrc = computed(() => brandLogoLoadFailed.value ? defaultLogo : (brand.logoUrl || defaultLogo))
+const handleSidebarLogoError = () => {
+  if (sidebarLogoSrc.value === defaultLogo) return
+  brandLogoLoadFailed.value = true
+  updateAdminBrowserLogo('')
+}
 const menuIcons = {
   CreditCard,
   DataAnalysis,
@@ -227,6 +234,7 @@ const loadBrand = async () => {
     const res = await getShopBrand()
     brand.brandName = res.data?.brandName?.trim() || '灵启商城'
     brand.logoUrl = res.data?.logoUrl || ''
+    brandLogoLoadFailed.value = false
     localStorage.setItem('admin_brand_name', brand.brandName)
     document.title = `${brand.brandName}管理后台`
     updateAdminBrowserLogo(brand.logoUrl)

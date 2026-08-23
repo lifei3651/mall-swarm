@@ -40,7 +40,7 @@
         <div class="login-content">
           <div class="login-eyebrow">ADMIN CONSOLE</div>
           <div class="login-brand">
-            <img :src="brand.logoUrl || defaultLogo" :alt="`${brand.brandName} Logo`" />
+            <img :src="loginLogoSrc" :alt="`${brand.brandName} Logo`" @error="handleLoginLogoError" />
             <h1>{{ brand.brandName }}管理后台</h1>
           </div>
           <el-alert
@@ -83,7 +83,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getLoginCaptcha, login } from '@/api/auth'
@@ -103,6 +103,13 @@ const loading = ref(false)
 const captchaImage = ref('')
 const sessionNotice = ref(consumeAdminSessionNotice())
 const brand = reactive({ brandName: localStorage.getItem('admin_brand_name') || '商城', logoUrl: '' })
+const brandLogoLoadFailed = ref(false)
+const loginLogoSrc = computed(() => brandLogoLoadFailed.value ? defaultLogo : (brand.logoUrl || defaultLogo))
+const handleLoginLogoError = () => {
+  if (loginLogoSrc.value === defaultLogo) return
+  brandLogoLoadFailed.value = true
+  updateAdminBrowserLogo('')
+}
 
 const form = reactive({
   username: '',
@@ -129,6 +136,7 @@ const loadBrand = async () => {
     const res = await getShopBrand()
     brand.brandName = res.data?.brandName?.trim() || '商城'
     brand.logoUrl = res.data?.logoUrl || ''
+    brandLogoLoadFailed.value = false
     localStorage.setItem('admin_brand_name', brand.brandName)
     document.title = `${brand.brandName}管理后台`
     updateAdminBrowserLogo(brand.logoUrl)

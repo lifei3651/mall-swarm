@@ -19,7 +19,7 @@
       <el-table-column prop="brandName" label="商城品牌名" width="180" />
       <el-table-column label="品牌LOGO" width="110" align="center">
         <template #default="{ row }">
-          <el-image v-if="row.logoUrl" :src="row.logoUrl" class="table-logo" fit="contain" />
+          <el-image v-if="row.logoUrl" :src="normalizeMediaUrl(row.logoUrl)" class="table-logo" fit="contain" />
           <span v-else class="empty-logo">未上传</span>
         </template>
       </el-table-column>
@@ -66,7 +66,7 @@
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="displayDialogVisible" title="商城视觉装修工作台" width="1120px" top="2vh" class="display-workbench-dialog" :before-close="confirmCloseDisplayDialog">
+    <el-dialog v-model="displayDialogVisible" title="商城视觉装修工作台" width="min(1120px, calc(100vw - 28px))" top="12px" class="display-workbench-dialog" :before-close="confirmCloseDisplayDialog">
       <el-alert title="左侧调整模块，右侧手机实时预览。当前修改只保存在草稿中，点击“保存发布”后才会影响客户前台。" type="info" :closable="false" class="display-alert" />
       <div class="workbench-heading">
         <div><span>当前编辑</span><strong>{{ editSectionLabel }}</strong></div>
@@ -93,7 +93,7 @@
             </div>
             <div class="visual-design-fields">
               <div class="visual-design-field"><span>商城名称</span><el-input v-model="displayForm.brandName" maxlength="64" placeholder="客户前台展示名称" /></div>
-              <div class="visual-design-field"><span>品牌 LOGO</span><div class="display-logo-editor"><el-upload action="#" :show-file-list="false" accept="image/*" :http-request="uploadDisplayLogo"><div class="display-logo-uploader"><el-image v-if="displayForm.logoUrl" :src="displayForm.logoUrl" fit="contain" /><span v-else>上传</span></div></el-upload><small>建议透明 PNG，客户前台和浏览器标签页共用</small></div></div>
+              <div class="visual-design-field"><span>品牌 LOGO</span><div class="display-logo-editor"><el-upload action="#" :show-file-list="false" accept="image/*" :http-request="uploadDisplayLogo"><div class="display-logo-uploader"><el-image v-if="displayForm.logoUrl && !displayLogoLoadFailed" :src="normalizeMediaUrl(displayForm.logoUrl)" fit="contain" @error="displayLogoLoadFailed = true" /><span v-else>{{ displayForm.logoUrl ? '重传' : '上传' }}</span></div></el-upload><small>建议透明 PNG，客户前台和浏览器标签页共用</small></div></div>
               <div class="visual-design-field"><span>主题色</span><div class="color-editor"><el-color-picker v-model="displayForm.themeColor" /><el-input v-model="displayForm.themeColor" maxlength="7" placeholder="#e7193f" /></div></div>
             </div>
           </section>
@@ -168,7 +168,7 @@
           <div class="preview-stage-heading"><div><strong>客户手机版预览</strong><span>首页模块与前台保持同一套配置</span></div><el-tag type="success">草稿预览</el-tag></div>
           <div class="mobile-preview-shell live-mobile-preview" :style="previewStyle">
             <div class="mobile-preview-status"><span>9:41</span><span>● ● ●</span></div>
-            <div class="mobile-preview-brand"><span class="mobile-preview-logo"><img v-if="displayForm.logoUrl" :src="displayForm.logoUrl" alt="" /><span v-else>{{ (displayForm.brandName || '灵启').slice(0, 1) }}</span></span><strong>{{ displayForm.brandName || '灵启商城' }}</strong><span class="mobile-preview-share">分享</span></div>
+            <div class="mobile-preview-brand"><span class="mobile-preview-logo"><img v-if="displayForm.logoUrl && !displayLogoLoadFailed" :src="normalizeMediaUrl(displayForm.logoUrl)" alt="" @error="displayLogoLoadFailed = true" /><span v-else>{{ (displayForm.brandName || '灵启').slice(0, 1) }}</span></span><strong>{{ displayForm.brandName || '灵启商城' }}</strong><span class="mobile-preview-share">分享</span></div>
             <template v-if="previewPage === 'home'">
               <div class="mobile-preview-search"><span>⌕</span><span>搜索商品</span><b>⌕</b></div>
               <template v-for="module in orderedPreviewModules" :key="module.type">
@@ -264,6 +264,7 @@ const draggingNavIndex = ref(null)
 const initializingDisplay = ref(false)
 const displayDraftDirty = ref(false)
 const savingDisplay = ref(false)
+const displayLogoLoadFailed = ref(false)
 
 const displayForm = ref({})
 const moduleNames = { banner: '首页轮播图', notice: '商城公告', category: '商品分类', trust: '服务保障', products: '精选商品' }
@@ -344,6 +345,12 @@ const normalizeModuleEnabled = (value, fallback = true) => {
   if ([true, 1, '1', 'true'].includes(value)) return true
   return fallback
 }
+const normalizeMediaUrl = (value) => {
+  const url = String(value || '').trim()
+  if (!url) return ''
+  if (/^(?:https?:|data:|blob:)/i.test(url)) return url
+  return url.startsWith('/') ? url : `/${url}`
+}
 
 const fetchData = async () => {
   loading.value = true
@@ -384,7 +391,8 @@ const displaySectionRows = computed(() => {
 
 const uploadDisplayLogo = async ({ file }) => {
   const res = await uploadShopImage(file)
-  displayForm.value.logoUrl = res.data
+  displayForm.value.logoUrl = normalizeMediaUrl(res.data)
+  displayLogoLoadFailed.value = false
   ElMessage.success('品牌LOGO上传成功')
 }
 
@@ -399,6 +407,7 @@ const openDisplayDialog = async (row, section = 'brand') => {
   displayDraftDirty.value = false
   activeEditSection.value = section
   currentTenant.value = row
+  displayLogoLoadFailed.value = false
   const [resResult, categoryResult, productResult, bannerResult] = await Promise.allSettled([
     getDisplayConfig(row.id),
     listShopCategories({ tenantId: row.id, status: 1 }),
@@ -436,7 +445,7 @@ const openDisplayDialog = async (row, section = 'brand') => {
   displayForm.value = {
     tenantId: row.id,
     brandName: row.brandName || row.tenantName || '灵启商城',
-    logoUrl: row.logoUrl || '',
+    logoUrl: normalizeMediaUrl(row.logoUrl),
     themeColor: row.themeColor || '#e7193f',
     productTemplate: normalizeTheme(row.productTemplate),
     layoutTemplate: 'standard',
@@ -805,25 +814,25 @@ onMounted(fetchData)
 .ui-preview-nav { display: grid; grid-template-columns: repeat(4, 1fr); padding: 10px 16px; color: #8a94a4; font-size: 11px; text-align: center; background: #fff; border-top: 1px solid #eef0f3; }
 .ui-preview-nav .active { color: var(--preview-color); font-weight: 700; }
 .mobile-preview-shell {
-  width: 340px;
+  width: 280px;
   max-width: 100%;
-  height: 560px;
+  height: 438px;
   margin: 0 auto;
   overflow-y: auto;
   color: var(--preview-text, #202735);
   background: var(--preview-page-bg, #f5f6f8);
-  border: 8px solid #1f2937;
-  border-radius: 30px;
-  box-shadow: 0 18px 40px rgba(31, 41, 55, .18);
+  border: 6px solid #1f2937;
+  border-radius: 25px;
+  box-shadow: 0 12px 28px rgba(31, 41, 55, .16);
 }
-.mobile-preview-status { display:flex; justify-content:space-between; padding:9px 18px 4px; color:#1f2937; font-size:11px; font-weight:700; background:#fff; }
-.mobile-preview-brand { display:grid; grid-template-columns:28px 1fr auto; align-items:center; gap:8px; padding:9px 14px 10px; background:var(--preview-header-bg, #fff); }
-.mobile-preview-logo { display:grid; width:28px; height:28px; place-items:center; overflow:hidden; color:var(--preview-color); font-weight:800; background:#fff; border:2px solid var(--preview-color); border-radius:9px; }
+.mobile-preview-status { display:flex; justify-content:space-between; padding:7px 15px 3px; color:#1f2937; font-size:10px; font-weight:700; background:#fff; }
+.mobile-preview-brand { display:grid; grid-template-columns:25px 1fr auto; align-items:center; gap:7px; padding:7px 12px 8px; background:var(--preview-header-bg, #fff); }
+.mobile-preview-logo { display:grid; width:25px; height:25px; place-items:center; overflow:hidden; color:var(--preview-color); font-weight:800; background:#fff; border:2px solid var(--preview-color); border-radius:8px; }
 .mobile-preview-logo img { width:100%; height:100%; object-fit:contain; }
-.mobile-preview-brand strong { overflow:hidden; font-size:16px; text-overflow:ellipsis; white-space:nowrap; }
-.mobile-preview-share { color:var(--preview-accent, var(--preview-color)); font-size:12px; }
-.mobile-preview-search { display:grid; grid-template-columns:24px 1fr 26px; align-items:center; gap:6px; margin:14px 12px 10px; padding:8px 10px; color:#98a2b3; background:#fff; border:1.5px solid var(--preview-accent, var(--preview-color)); border-radius:999px; }
-.mobile-preview-search b { display:grid; width:26px; height:26px; place-items:center; color:#fff; background:var(--preview-button, var(--preview-color)); border-radius:50%; }
+.mobile-preview-brand strong { overflow:hidden; font-size:14px; text-overflow:ellipsis; white-space:nowrap; }
+.mobile-preview-share { color:var(--preview-accent, var(--preview-color)); font-size:10px; }
+.mobile-preview-search { display:grid; grid-template-columns:20px 1fr 23px; align-items:center; gap:5px; margin:10px 10px 8px; padding:6px 8px; color:#98a2b3; background:#fff; border:1.5px solid var(--preview-accent, var(--preview-color)); border-radius:999px; font-size:12px; }
+.mobile-preview-search b { display:grid; width:23px; height:23px; place-items:center; color:#fff; background:var(--preview-button, var(--preview-color)); border-radius:50%; }
 .mobile-preview-banner { position:relative; display:grid; gap:4px; min-height:122px; margin:0 12px 10px; overflow:hidden; color:#fff; background:linear-gradient(135deg, color-mix(in srgb, var(--preview-color) 84%, #111 16%), var(--preview-color)); border-radius:16px; }
 .live-preview-banner img { width:100%; height:122px; object-fit:cover; }
 .live-preview-banner i { position:absolute; right:12px; bottom:8px; margin:0; }
@@ -843,9 +852,9 @@ onMounted(fetchData)
 .mobile-preview-category b { font-size:14px; }
 .mobile-preview-category strong { overflow:hidden; width:100%; text-overflow:ellipsis; white-space:nowrap; }
 .preview-empty-inline { padding:12px; color:var(--preview-muted, #98a2b3); font-size:11px; }
-.mobile-preview-heading { display:grid; gap:3px; padding:7px 14px; }
-.mobile-preview-heading strong { font-size:20px; }
-.mobile-preview-heading span { color:#98a2b3; font-size:12px; }
+.mobile-preview-heading { display:grid; gap:2px; padding:5px 11px; }
+.mobile-preview-heading strong { font-size:17px; }
+.mobile-preview-heading span { color:#98a2b3; font-size:10px; }
 .mobile-preview-page-title { display:grid; gap:4px; margin:0 12px 10px; padding:14px; background:var(--preview-card-bg, #fff); border-radius:14px; }
 .mobile-preview-page-title strong { font-size:20px; }
 .mobile-preview-page-title strong small { color:var(--preview-muted, #98a2b3); font-size:12px; font-weight:500; }
@@ -882,13 +891,13 @@ onMounted(fetchData)
 .mobile-preview-order-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:4px; padding:10px 8px 0; color:var(--preview-muted, #98a2b3); font-size:10px; text-align:center; }
 .mobile-preview-service-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:1px; margin:0 12px 10px; padding:14px 6px; color:var(--preview-text, #202735); font-size:10px; text-align:center; background:var(--preview-card-bg, #fff); border-radius:14px; }
 .mobile-preview-profile-note { margin:0 12px 14px; padding:11px; color:var(--preview-muted, #98a2b3); font-size:10px; text-align:center; background:var(--preview-card-bg, #fff); border-radius:12px; }
-.mobile-preview-products { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; padding:7px 12px 12px; }
-.mobile-preview-product { display:grid; gap:5px; min-width:0; padding:8px; background:var(--preview-card-bg, #fff); border-radius:14px; }
-.mobile-preview-product img { display:block; width:100%; height:95px; object-fit:cover; border-radius:10px; }
-.mobile-preview-product i { display:block; height:95px; background:linear-gradient(135deg, color-mix(in srgb, var(--preview-color) 15%, #fff 85%), #e9edf2); border-radius:10px; }
-.mobile-preview-product strong { overflow:hidden; font-size:13px; text-overflow:ellipsis; white-space:nowrap; }
-.mobile-preview-product small { overflow:hidden; color:#98a2b3; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
-.mobile-preview-product b { color:var(--preview-price, var(--preview-color)); font-size:15px; }
+.mobile-preview-products { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; padding:5px 10px 10px; }
+.mobile-preview-product { display:grid; gap:4px; min-width:0; padding:7px; background:var(--preview-card-bg, #fff); border-radius:12px; }
+.mobile-preview-product img { display:block; width:100%; height:72px; object-fit:cover; border-radius:8px; }
+.mobile-preview-product i { display:block; height:72px; background:linear-gradient(135deg, color-mix(in srgb, var(--preview-color) 15%, #fff 85%), #e9edf2); border-radius:8px; }
+.mobile-preview-product strong { overflow:hidden; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+.mobile-preview-product small { overflow:hidden; color:#98a2b3; font-size:9px; text-overflow:ellipsis; white-space:nowrap; }
+.mobile-preview-product b { color:var(--preview-price, var(--preview-color)); font-size:13px; }
 .mobile-preview-trust { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; margin:0 12px 12px; padding:9px 4px; color:#667085; font-size:11px; text-align:center; background:var(--preview-card-bg, #fff); border-radius:12px; }
 .mobile-preview-nav { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); padding:10px 8px 12px; color:#8a94a4; font-size:11px; text-align:center; background:#fff; border-top:1px solid #eef0f3; }
 .mobile-preview-nav span.active { color:var(--preview-color); font-weight:800; }
@@ -898,38 +907,73 @@ onMounted(fetchData)
   border-top: 1px solid #ebeef5;
 }
 .display-alert {
-  margin-bottom: 12px;
+  flex: 0 0 auto;
+  margin-bottom: 8px;
 }
-.display-workbench-dialog :deep(.el-dialog) { overflow: hidden; border-radius: 18px; }
-.display-workbench-dialog :deep(.el-dialog__header) { margin-right: 0; padding: 17px 22px 13px; border-bottom: 1px solid #edf0f5; }
-.display-workbench-dialog :deep(.el-dialog__body) { padding: 12px 20px 16px; background: #f8fafc; }
-.display-workbench-dialog :deep(.el-dialog__footer) { padding: 12px 20px; background: #fff; border-top: 1px solid #edf0f5; }
-.workbench-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; padding:0 2px; }
+:global(.el-dialog.display-workbench-dialog),
+:global(.display-workbench-dialog .el-dialog) {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 24px);
+  max-height: 820px;
+  margin: 12px auto 0;
+  overflow: hidden;
+  border-radius: 16px;
+}
+:global(.el-dialog.display-workbench-dialog .el-dialog__header),
+:global(.display-workbench-dialog .el-dialog .el-dialog__header) {
+  flex: 0 0 auto;
+  margin-right: 0;
+  padding: 14px 20px 11px;
+  border-bottom: 1px solid #edf0f5;
+}
+:global(.el-dialog.display-workbench-dialog .el-dialog__title),
+:global(.display-workbench-dialog .el-dialog .el-dialog__title) { font-size: 18px; }
+:global(.el-dialog.display-workbench-dialog .el-dialog__body),
+:global(.display-workbench-dialog .el-dialog .el-dialog__body) {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  padding: 10px 16px 12px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+:global(.el-dialog.display-workbench-dialog .el-dialog__footer),
+:global(.display-workbench-dialog .el-dialog .el-dialog__footer) {
+  flex: 0 0 auto;
+  padding: 9px 16px;
+  background: #fff;
+  border-top: 1px solid #edf0f5;
+}
+.display-alert :deep(.el-alert__content) { min-width: 0; }
+.display-alert :deep(.el-alert__title) { font-size: 12px; line-height: 18px; }
+.workbench-heading { display:flex; flex:0 0 auto; align-items:center; justify-content:space-between; gap:12px; margin:0 0 8px; padding:0 2px; }
 .workbench-heading > div:first-child { display:flex; align-items:baseline; gap:8px; }
 .workbench-heading span { color:#98a2b3; font-size:12px; }
 .workbench-heading strong { color:#1f2937; font-size:15px; }
 .workbench-heading-meta { display:flex; align-items:center; gap:6px; color:#667085; font-size:12px; }
 .draft-dot { display:inline-block; width:7px; height:7px; background:#67c23a; border-radius:50%; }
 .visual-design-panel {
-  margin-bottom: 14px;
-  padding: 14px;
+  margin-bottom: 8px;
+  padding: 10px;
   background: linear-gradient(135deg, #fbfdff, #f5f8fc);
   border: 1px solid #e4ebf3;
   border-radius: 12px;
 }
-.visual-design-panel .control-section-heading { margin-bottom: 10px; }
+.visual-design-panel .control-section-heading { margin-bottom: 7px; }
 .visual-design-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 220px;
   gap: 14px;
   align-items: start;
 }
-.compact-theme-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; margin: 0; }
-.compact-theme-grid .theme-preset { grid-template-columns: 42px minmax(0, 1fr); gap: 0 7px; padding: 7px; border-radius: 8px; }
-.compact-theme-grid .theme-preview { width: 42px; height: 34px; padding: 5px; }
+.compact-theme-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 0; }
+.compact-theme-grid .theme-preset { grid-template-columns: 38px minmax(0, 1fr); gap: 0 6px; padding: 6px; border-radius: 8px; }
+.compact-theme-grid .theme-preview { width: 38px; height: 30px; padding: 4px; }
 .compact-theme-grid .theme-preset strong { font-size: 12px; }
 .compact-theme-grid .theme-preset small { min-height: 0; overflow: hidden; font-size: 10px; line-height: 14px; text-overflow: ellipsis; white-space: nowrap; }
-.visual-design-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px 16px; padding: 4px 0; }
+.visual-design-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 12px; padding: 3px 0 0; }
 .visual-design-fields .visual-design-field:first-child { grid-column: 1 / -1; }
 .visual-design-field { display: grid; gap: 5px; color: #667085; font-size: 12px; }
 .visual-design-fields .color-editor { grid-template-columns: 32px minmax(0, 1fr); width: 100%; gap: 7px; }
@@ -941,31 +985,34 @@ onMounted(fetchData)
 .display-logo-uploader span { font-size: 11px; }
 .display-workbench {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 370px;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  flex: 1 1 auto;
+  gap: 12px;
   min-height: 0;
+  overflow: hidden;
 }
 .display-controls {
-  max-height: 590px;
+  height: 100%;
+  max-height: none;
   padding: 0 4px 0 0;
   overflow-y: auto;
 }
 .display-section-switcher {
-  margin: 0 0 10px;
+  margin: 0 0 7px;
 }
 .display-section-brand-only {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  padding: 0 2px 8px;
+  padding: 0 2px 6px;
   border-bottom: 1px solid #e7ebf2;
 }
 .display-section-brand-only span { color: #98a2b3; font-size: 11px; }
 .display-section-brand-only strong { color: var(--el-color-primary); font-size: 14px; }
 .display-section-brand-only small { margin-left: auto; color: #98a2b3; font-size: 11px; }
 .control-section {
-  margin-bottom: 14px;
-  padding: 14px;
+  margin-bottom: 8px;
+  padding: 10px;
   background: #fff;
   border: 1px solid #ebeef5;
   border-radius: 10px;
@@ -975,7 +1022,7 @@ onMounted(fetchData)
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 11px;
+  margin-bottom: 8px;
 }
 .control-section-heading div { display: grid; gap: 3px; }
 .control-section-heading strong { color: #303133; font-size: 14px; }
@@ -1039,13 +1086,15 @@ onMounted(fetchData)
   flex-direction: column;
   align-items: center;
   min-width: 0;
-  padding: 14px 12px 12px;
+  min-height: 0;
+  padding: 10px 10px 9px;
+  overflow: hidden;
   background: #f1f4f8;
   border: 1px solid #e4e9f0;
   border-radius: 14px;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.85);
 }
-.preview-stage-heading { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px; margin-bottom: 12px; }
+.preview-stage-heading { display: flex; flex:0 0 auto; align-items: center; justify-content: space-between; width: 100%; gap: 10px; margin-bottom: 8px; }
 .preview-stage-heading div { display: grid; gap: 3px; }
 .preview-stage-heading strong { color: #303133; font-size: 14px; }
 .preview-stage-heading span { color: #909399; font-size: 11px; }

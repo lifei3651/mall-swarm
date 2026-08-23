@@ -64,7 +64,17 @@ describe('商城视觉与页面工作台', () => {
     const source = await readFile(sourcePath, 'utf8')
     expect(source).toContain('setTrustEnabled')
     expect(source).toContain('Number(displayForm.showTrustStrip) === 1')
-    expect(source).toContain('margin:14px 12px 10px')
+    expect(source).toContain('margin:10px 10px 8px')
+  })
+
+  it('工作台适配当前浏览器高度并为失效Logo提供可操作降级', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+    expect(source).toContain('width="min(1120px, calc(100vw - 28px))"')
+    expect(source).toContain('height: calc(100vh - 24px)')
+    expect(source).toContain('height: 438px')
+    expect(source).toContain('displayLogoLoadFailed')
+    expect(source).toContain("displayForm.logoUrl ? '重传' : '上传'")
+    expect(source).toContain('normalizeMediaUrl')
   })
 
   it('让首页轮播图总开关状态同步到装修模块列表', async () => {

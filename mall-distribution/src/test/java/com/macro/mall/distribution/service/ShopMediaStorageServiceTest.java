@@ -78,6 +78,9 @@ class ShopMediaStorageServiceTest {
         Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(stored.path());
         assertTrue(permissions.contains(PosixFilePermission.GROUP_READ));
         assertTrue(permissions.contains(PosixFilePermission.OTHERS_READ));
+        Set<PosixFilePermission> directoryPermissions = Files.getPosixFilePermissions(stored.path().getParent());
+        assertTrue(directoryPermissions.contains(PosixFilePermission.GROUP_EXECUTE));
+        assertTrue(directoryPermissions.contains(PosixFilePermission.OTHERS_EXECUTE));
     }
 
     @Test

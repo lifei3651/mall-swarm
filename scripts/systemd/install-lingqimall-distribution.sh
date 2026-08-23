@@ -21,13 +21,19 @@ if ! id lingqimall >/dev/null 2>&1; then
   useradd --system --gid lingqimall --home-dir /nonexistent --shell /sbin/nologin lingqimall
 fi
 
-install -d -o lingqimall -g lingqimall -m 0750 /opt/lingqimall/uploads
+install -d -o lingqimall -g lingqimall -m 0711 /opt/lingqimall/uploads
+install -d -o lingqimall -g lingqimall -m 0755 /opt/lingqimall/uploads/products
+install -d -o lingqimall -g lingqimall -m 0700 /opt/lingqimall/uploads/private
 install -d -o lingqimall -g lingqimall -m 0750 /opt/lingqimall/logs
 install -d -o lingqimall -g lingqimall -m 0750 /opt/lingqimall/logs/distribution
 install -d -o lingqimall -g lingqimall -m 0750 /var/logs/spring.log
 install -d -o lingqimall -g lingqimall -m 0750 /var/logs/spring.log/debug
 install -d -o lingqimall -g lingqimall -m 0750 /var/logs/spring.log/error
 chown -R lingqimall:lingqimall /opt/lingqimall/uploads /opt/lingqimall/logs
+chmod 0711 /opt/lingqimall/uploads
+chmod 0755 /opt/lingqimall/uploads/products
+chmod 0700 /opt/lingqimall/uploads/private
+find /opt/lingqimall/uploads/products -maxdepth 1 -type f -exec chmod 0644 {} +
 chown -R lingqimall:lingqimall /var/logs/spring.log
 chown root:lingqimall /opt/lingqimall/app /opt/lingqimall/config
 chmod 0750 /opt/lingqimall/app /opt/lingqimall/config

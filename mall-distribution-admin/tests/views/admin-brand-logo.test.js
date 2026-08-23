@@ -3,6 +3,9 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { updateAdminBrowserLogo } from '@/utils/adminBrand'
 
+const layoutPath = resolve(process.cwd(), 'src/components/Layout.vue')
+const loginPath = resolve(process.cwd(), 'src/views/login/index.vue')
+
 describe('后台浏览器品牌图标', () => {
   beforeEach(() => {
     document.head.innerHTML = ''
@@ -25,5 +28,17 @@ describe('后台浏览器品牌图标', () => {
     updateAdminBrowserLogo(customerLogo)
     expect(document.head.querySelector('link[rel="icon"]')?.href).toBe(customerLogo)
     expect(document.head.querySelector('link[rel="apple-touch-icon"]')?.href).toBe(customerLogo)
+  })
+
+  it('客户Logo失效时侧边栏和登录页降级为内置品牌图', async () => {
+    const [layout, login] = await Promise.all([
+      readFile(layoutPath, 'utf8'),
+      readFile(loginPath, 'utf8'),
+    ])
+
+    expect(layout).toContain(':src="sidebarLogoSrc"')
+    expect(layout).toContain('@error="handleSidebarLogoError"')
+    expect(login).toContain(':src="loginLogoSrc"')
+    expect(login).toContain('@error="handleLoginLogoError"')
   })
 })

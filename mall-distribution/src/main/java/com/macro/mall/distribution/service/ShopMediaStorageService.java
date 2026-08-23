@@ -85,6 +85,7 @@ public class ShopMediaStorageService {
         ProcessedImage processed = processUpload(file);
 
         Files.createDirectories(storageDirectory);
+        ensureWebReadableDirectory(storageDirectory);
         String filename = contentHash(processed.bytes()).substring(0, 32) + "." + processed.extension();
         Path target = storageDirectory.resolve(filename).normalize();
         if (!target.startsWith(storageDirectory)) Asserts.fail("图片存储路径无效");
@@ -306,6 +307,14 @@ public class ShopMediaStorageService {
     private void ensureWebReadable(Path target) throws IOException {
         try {
             Files.setPosixFilePermissions(target, PosixFilePermissions.fromString("rw-r--r--"));
+        } catch (UnsupportedOperationException ignored) {
+            warnUnsupportedPosix(target);
+        }
+    }
+
+    private void ensureWebReadableDirectory(Path target) throws IOException {
+        try {
+            Files.setPosixFilePermissions(target, PosixFilePermissions.fromString("rwxr-xr-x"));
         } catch (UnsupportedOperationException ignored) {
             warnUnsupportedPosix(target);
         }
