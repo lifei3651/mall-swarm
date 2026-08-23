@@ -248,6 +248,7 @@
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useRoute } from 'vue-router'
 import { formatDateTime } from '@/utils/dateTime'
 import { listShopBanners, listShopCategories, listShopProducts, updateCategoryShowOnHome, uploadShopImage } from '@/api/shop'
 import ShopBanners from '@/views/shop/banners.vue'
@@ -261,6 +262,7 @@ import {
 } from '@/api/tenant'
 
 const loading = ref(false)
+const route = useRoute()
 const tableData = ref([])
 const displayDialogVisible = ref(false)
 const bannerDialogVisible = ref(false)
@@ -758,7 +760,13 @@ const getTemplateName = (value) => {
   return map[normalizeTheme(value)] || '热卖红'
 }
 
-onMounted(fetchData)
+onMounted(async () => {
+  await fetchData()
+  const editSection = String(route.query.editSection || '')
+  if (tableData.value[0] && Object.prototype.hasOwnProperty.call(editSectionLabels, editSection)) {
+    await openDisplayDialog(tableData.value[0], editSection)
+  }
+})
 </script>
 
 <style scoped>

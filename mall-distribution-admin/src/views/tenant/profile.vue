@@ -18,12 +18,9 @@
 
     <el-card v-if="tenantForm.id" v-loading="readinessLoading" shadow="never" class="readiness-card">
       <div class="readiness-head">
-        <div>
-          <h3>客户交付预检</h3>
-          <p>这里检查的是交给客户正式运营前的必备资料与通道；当前作为测试基座时允许未全部通过。</p>
-        </div>
+        <h3>客户资料填写</h3>
         <el-tag :type="readiness.ready ? 'success' : 'warning'" effect="dark">
-          {{ readiness.ready ? '可以进入交付验收' : `待完成 ${Math.max(0, readiness.totalRequired - readiness.passedRequired)} 项` }}
+          {{ readiness.ready ? '资料已完善' : `待完善 ${Math.max(0, readiness.totalRequired - readiness.passedRequired)} 项` }}
         </el-tag>
       </div>
       <el-progress
@@ -37,10 +34,17 @@
           <div>
             <div class="readiness-title">
               <strong>{{ item.title }}</strong>
-              <el-tag size="small" :type="item.required ? 'danger' : 'info'" effect="plain">{{ item.required ? '交付必备' : '客户可选' }}</el-tag>
+              <el-tag size="small" :type="item.required ? 'warning' : 'info'" effect="plain">{{ item.required ? '需要完善' : '按需配置' }}</el-tag>
             </div>
             <p>{{ item.detail }}</p>
-            <RouterLink v-if="!item.passed && item.actionPath" :to="item.actionPath">去处理</RouterLink>
+            <el-button
+              v-if="!item.passed && readinessActionTarget(item)"
+              link
+              type="primary"
+              class="readiness-action"
+              @click="handleReadinessAction(item)"
+            >去处理</el-button>
+            <span v-else-if="!item.passed && ['PAYMENT', 'SMS'].includes(item.code)" class="deployment-action">由技术部署配置</span>
           </div>
         </div>
       </div>
@@ -49,7 +53,7 @@
     <el-card v-loading="loading" shadow="never" class="profile-card">
       <el-empty v-if="!tenantForm.id && !loading" description="暂未找到商城资料" />
       <el-form v-else :model="tenantForm" label-width="130px" class="profile-form">
-        <section class="form-section">
+        <section id="business-profile" class="form-section">
           <h3>经营主体</h3>
           <el-form-item label="经营主体名称" required>
             <el-input v-model="tenantForm.tenantName" maxlength="128" placeholder="营业执照或实际运营主体名称" />
@@ -69,7 +73,7 @@
           </el-form-item>
         </section>
 
-        <section class="form-section">
+        <section id="customer-service" class="form-section">
           <h3>客服渠道</h3>
           <el-row :gutter="20">
             <el-col :span="12">
@@ -84,7 +88,7 @@
           </el-form-item>
         </section>
 
-        <section class="form-section">
+        <section id="agreement-services" class="form-section">
           <h3>协议与隐私资料</h3>
           <el-form-item label="第三方服务清单">
             <el-input
@@ -99,7 +103,7 @@
           </el-form-item>
         </section>
 
-        <section class="form-section">
+        <section id="qualification-filing" class="form-section">
           <h3>资质与备案</h3>
           <el-form-item label="营业执照">
             <div class="upload-row">
@@ -136,13 +140,16 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useRoute, useRouter } from 'vue-router'
 import { uploadShopImage } from '@/api/shop'
 import { getCustomerDeliveryReadiness, listTenants, saveTenant } from '@/api/tenant'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 
 const loading = ref(false)
+const route = useRoute()
+const router = useRouter()
 const saving = ref(false)
 const tenantForm = ref({})
 const readinessLoading = ref(false)
@@ -154,6 +161,38 @@ useUnsavedChanges(hasUnsavedChanges, '商城主体、客服或资质资料尚未
 const readinessPercent = computed(() => readiness.value.totalRequired
   ? Math.round(readiness.value.passedRequired * 100 / readiness.value.totalRequired)
   : 0)
+
+const readinessTargets = {
+  BRAND: { path: '/tenant/list', query: { editSection: 'brand' } },
+  LEGAL_ENTITY: { path: '/tenant/profile', hash: '#business-profile' },
+  CUSTOMER_SERVICE: { path: '/tenant/profile', hash: '#customer-service' },
+  LICENSE: { path: '/tenant/profile', hash: '#qualification-filing' },
+  ICP: { path: '/tenant/profile', hash: '#qualification-filing' },
+  LEGAL_TEXT: { path: '/tenant/legal' },
+  SPECIAL_MODE: { path: '/tenant/business-modes' },
+  SHIPPING_ADDRESS: { path: '/shop/service-addresses' },
+  RETURN_ADDRESS: { path: '/shop/service-addresses' },
+  CATALOG: { path: '/shop/products' },
+  CLEAN_DATA: { path: '/shop/products' },
+  ERP: { path: '/tenant/erp' },
+  LOGISTICS_TRACKING: { path: '/tenant/erp' },
+}
+const readinessActionTarget = (item) => readinessTargets[item?.code] || null
+const scrollToProfileSection = async (hash) => {
+  if (!hash) return
+  await nextTick()
+  document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+const handleReadinessAction = async (item) => {
+  const target = readinessActionTarget(item)
+  if (!target) return
+  if (target.path === route.path) {
+    if (route.hash !== target.hash) await router.push(target)
+    await scrollToProfileSection(target.hash)
+    return
+  }
+  await router.push(target)
+}
 
 const fetchReadiness = async (tenantId) => {
   if (!tenantId) return
@@ -230,7 +269,10 @@ const submit = async () => {
   }
 }
 
-onMounted(fetchData)
+onMounted(async () => {
+  await fetchData()
+  await scrollToProfileSection(route.hash)
+})
 </script>
 
 <style scoped>
@@ -239,9 +281,8 @@ onMounted(fetchData)
 .toolbar p { margin:6px 0 0; color:#909399; font-size:13px; }
 .page-alert { margin-bottom:16px; }
 .readiness-card { margin-bottom:16px; border:1px solid #ebeef5; }
-.readiness-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:14px; }
+.readiness-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:14px; }
 .readiness-head h3 { margin:0; color:#303133; font-size:17px; }
-.readiness-head p { margin:6px 0 0; color:#909399; font-size:12px; line-height:1.6; }
 .readiness-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:16px; }
 .readiness-item { display:flex; align-items:flex-start; gap:10px; padding:12px; background:#fff8ed; border:1px solid #f7d9a8; border-radius:9px; }
 .readiness-item.passed { background:#f1f9f4; border-color:#c9ead5; }
@@ -250,9 +291,10 @@ onMounted(fetchData)
 .readiness-title { display:flex; flex-wrap:wrap; align-items:center; gap:7px; }
 .readiness-title strong { color:#303133; font-size:13px; }
 .readiness-item p { margin:5px 0 0; color:#7a828c; font-size:12px; line-height:1.55; }
-.readiness-item a { display:inline-block; margin-top:5px; color:var(--el-color-primary); font-size:12px; text-decoration:none; }
+.readiness-action { margin-top:5px; padding:0; font-size:12px; }
+.deployment-action { display:inline-block; margin-top:7px; color:#909399; font-size:12px; }
 .profile-card { border:1px solid #ebeef5; }
-.form-section { padding:4px 0 8px; }
+.form-section { padding:4px 0 8px; scroll-margin-top:90px; }
 .form-section + .form-section { margin-top:14px; padding-top:20px; border-top:1px solid #ebeef5; }
 .form-section h3 { margin:0 0 18px; padding-left:10px; color:#303133; font-size:16px; line-height:1.4; border-left:4px solid var(--el-color-primary); }
 .field-help { width:100%; margin-top:6px; color:#909399; font-size:12px; line-height:20px; }

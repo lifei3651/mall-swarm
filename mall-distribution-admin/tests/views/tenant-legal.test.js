@@ -19,9 +19,15 @@ describe('商城协议与主体资料', () => {
     expect(source).toContain('客服工作时间')
     expect(source).toContain('第三方服务清单')
     expect(source).toContain('normalizeCreditCode')
-    expect(source).toContain('客户交付预检')
+    expect(source).toContain('客户资料填写')
     expect(source).toContain('getCustomerDeliveryReadiness')
-    expect(source).toContain('当前作为测试基座时允许未全部通过')
+    expect(source).not.toContain('客户交付预检')
+    expect(source).not.toContain('交给客户正式运营前的必备资料与通道')
+    expect(source).not.toContain('当前作为测试基座时允许未全部通过')
+    expect(source).toContain('handleReadinessAction')
+    expect(source).toContain("LEGAL_ENTITY: { path: '/tenant/profile', hash: '#business-profile' }")
+    expect(source).toContain("BRAND: { path: '/tenant/list', query: { editSection: 'brand' } }")
+    expect(source).toContain('由技术部署配置')
   })
 
   it('售后期限支持签收后与下单后两种明确配置', async () => {

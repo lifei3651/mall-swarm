@@ -82,7 +82,7 @@ public class CustomerDeliveryReadinessService {
         specialModeSafe = specialModeSafe && (!Integer.valueOf(1).equals(tenant.getRepurchaseMallEnabled())
                 || !"CUSTOM".equalsIgnoreCase(tenant.getRepurchaseBonusMode()));
         add(items, "SPECIAL_MODE", "业务规则", "秒杀与复购规则可执行", true, specialModeSafe,
-                "CUSTOM模式必须完成客户专属奖金规则开发和验收后才能启用", "/tenant/business-modes");
+                "客户专属奖金规则未配置完成前不能启用CUSTOM模式", "/tenant/business-modes");
     }
 
     private void addOperationItems(List<CustomerDeliveryReadinessVO.Item> items, long tenantId, DmsTenant tenant) {
@@ -107,7 +107,7 @@ public class CustomerDeliveryReadinessService {
         long suspiciousTotal = suspiciousProducts + suspiciousCategories + suspiciousNotices;
         add(items, "CLEAN_DATA", "商品运营", "测试内容已清理或复核", true, suspiciousTotal == 0,
                 suspiciousTotal == 0 ? "未发现明显测试名称或0.01元上架商品"
-                        : "发现" + suspiciousTotal + "项测试标识或0.01元上架商品，交付前需逐项复核",
+                        : "发现" + suspiciousTotal + "项测试标识或0.01元上架商品，请逐项复核并处理",
                 "/shop/products");
 
         boolean filingReady = present(tenant.getIcpNumber());
@@ -131,13 +131,13 @@ public class CustomerDeliveryReadinessService {
 
         boolean erpEnabled = !erpIntegrationDao.selectEnabled(tenantId).isEmpty();
         add(items, "ERP", "可选集成", "ERP订单对接", false, erpEnabled,
-                erpEnabled ? "已启用ERP集成，交付前仍需完成推单和发货回传实测"
+                erpEnabled ? "已启用ERP集成，请完成推单和发货回传实测"
                         : "客户未指定ERP时可保持关闭，不影响商城独立发货",
                 "/tenant/erp");
         String trackingProvider = environment.getProperty("shop.logistics.tracking-provider", "NONE");
         boolean trackingEnabled = present(trackingProvider) && !"NONE".equalsIgnoreCase(trackingProvider);
         add(items, "LOGISTICS_TRACKING", "可选集成", "真实物流轨迹", false, trackingEnabled,
-                trackingEnabled ? "已选择物流轨迹适配器，交付前仍需使用真实运单完成查询实测"
+                trackingEnabled ? "已选择物流轨迹适配器，请使用真实运单完成查询实测"
                         : "当前只展示承运商和运单号；客户确定物流查询服务商及授权后再启用真实轨迹",
                 "/tenant/erp");
     }

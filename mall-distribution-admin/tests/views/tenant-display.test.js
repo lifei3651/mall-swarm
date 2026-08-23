@@ -104,4 +104,12 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('恢复前的当前配置会自动保存为历史版本')
     expect(source.indexOf('await saveTenant(tenantPayload')).toBeLessThan(source.indexOf('await saveDisplayConfig(payload'))
   })
+
+  it('支持从客户资料待完善项直接打开品牌视觉编辑', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('useRoute')
+    expect(source).toContain('route.query.editSection')
+    expect(source).toContain('await openDisplayDialog(tableData.value[0], editSection)')
+  })
 })
