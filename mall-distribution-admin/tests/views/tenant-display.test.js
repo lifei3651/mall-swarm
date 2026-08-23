@@ -85,6 +85,9 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('bannerModuleVisible')
     expect(source).toContain("status: bannerModuleVisible ? '展示中' : '已隐藏'")
     expect(source).toContain('首页模块总开关已隐藏，图片不会在前台展示')
+    expect(source).toContain('>编辑{{ row.label }}</el-button>')
+    expect(source).not.toContain("row.key === 'banner' ? '进入管理'")
+    expect(source.indexOf("key: 'category'")).toBeLessThan(source.indexOf("key: 'banner'"))
   })
 
   it('支持查看和恢复商城客户配置历史版本', async () => {

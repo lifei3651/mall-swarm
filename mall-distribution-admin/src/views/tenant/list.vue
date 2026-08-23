@@ -61,7 +61,7 @@
       </el-table-column>
       <el-table-column label="操作" fixed="right" width="140">
         <template #default="{ row }">
-          <el-button type="primary" link :disabled="!tableData.length" @click="openDisplayDialog(tableData[0], row.key)">{{ row.key === 'banner' ? '进入管理' : `编辑${row.label}` }}</el-button>
+          <el-button type="primary" link :disabled="!tableData.length" @click="openDisplayDialog(tableData[0], row.key)">编辑{{ row.label }}</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -415,10 +415,10 @@ const displaySectionRows = computed(() => {
   const bannerModuleVisible = normalizeModuleEnabled(modules.find((item) => item.type === 'banner')?.enabled)
   return [
     { key: 'brand', icon: '✦', label: '品牌视觉', summary: `${row.brandName || row.tenantName || '灵启商城'} · ${getTemplateName(row.productTemplate)} · ${row.logoUrl ? '已配置 Logo' : '待上传 Logo'}`, status: row.brandName || row.logoUrl ? '已配置' : '待完善', active: Boolean(row.brandName || row.logoUrl) },
-    { key: 'banner', icon: '▣', label: '首页轮播图', summary: bannerModuleVisible ? '总开关已展示，可管理图片与点击去向' : '首页模块总开关已隐藏，图片不会在前台展示', status: bannerModuleVisible ? '展示中' : '已隐藏', active: bannerModuleVisible },
     { key: 'layout', icon: '▤', label: '首页版型与直播', summary: `${getLayoutTemplateName(currentDisplayConfig.value.layoutTemplate)} · 直播广场${Number(currentDisplayConfig.value.liveSquareEnabled ?? 1) === 1 ? '已开放' : '已关闭'}`, status: '可编辑', active: true },
     { key: 'home', icon: '⌂', label: '首页模块', summary: `${visibleModules}/${modules.length} 个模块展示，支持拖动排序`, status: '已配置', active: visibleModules > 0 },
     { key: 'category', icon: '▦', label: '分类模块', summary: '控制首页分类入口及单个分类显示', status: '可编辑', active: true },
+    { key: 'banner', icon: '▣', label: '首页轮播图', summary: bannerModuleVisible ? '总开关已展示，可管理图片与点击去向' : '首页模块总开关已隐藏，图片不会在前台展示', status: bannerModuleVisible ? '展示中' : '已隐藏', active: bannerModuleVisible },
     { key: 'nav', icon: '≡', label: '底部导航', summary: `${visibleNav} 项导航展示，支持改名、排序和隐藏`, status: '已配置', active: visibleNav > 0 },
     { key: 'colors', icon: '◉', label: '颜色微调', summary: customColorCount ? `已调整 ${customColorCount} 项颜色` : '使用主题默认颜色，可恢复默认', status: customColorCount ? '已调整' : '默认', active: customColorCount > 0 },
   ]
