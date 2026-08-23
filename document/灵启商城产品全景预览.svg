@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1060" viewBox="0 0 1600 1060" role="img" aria-labelledby="title desc">
+  <title id="title">灵启商城产品全景思维导图</title>
+  <desc id="desc">展示商城已经上线、已开发未开放、待外部条件、尚未开发、待发布和实施顺序。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f5f9ff"/>
+      <stop offset="1" stop-color="#fffaf5"/>
+    </linearGradient>
+    <linearGradient id="root" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#155eef"/>
+      <stop offset="1" stop-color="#0040c1"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#101828" flood-opacity="0.12"/>
+    </filter>
+    <style>
+      .title { font: 700 34px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #101828; }
+      .subtitle { font: 400 17px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #667085; }
+      .root-title { font: 700 30px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #fff; }
+      .root-subtitle { font: 400 16px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #dbe8ff; }
+      .branch-title { font: 700 22px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Apple Color Emoji", sans-serif; fill: #101828; }
+      .item { font: 400 16px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #344054; }
+      .small { font: 400 14px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #667085; }
+      .line { fill: none; stroke-width: 5; stroke-linecap: round; opacity: .8; }
+      .card { stroke-width: 2; filter: url(#shadow); }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1060" rx="28" fill="url(#bg)"/>
+  <text x="70" y="64" class="title">灵启商城产品全景思维导图</text>
+  <text x="70" y="96" class="subtitle">线上 1.0.80 ｜ 本地 1.0.81 待发布 ｜ 2026-08-23</text>
+
+  <path class="line" stroke="#2e90fa" d="M690 470 C570 420, 525 300, 455 265"/>
+  <path class="line" stroke="#12b76a" d="M690 525 C565 560, 520 720, 455 765"/>
+  <path class="line" stroke="#f79009" d="M910 455 C1030 395, 1065 255, 1135 220"/>
+  <path class="line" stroke="#f04438" d="M910 505 C1035 515, 1065 505, 1135 505"/>
+  <path class="line" stroke="#7a5af8" d="M910 555 C1035 620, 1070 780, 1135 815"/>
+  <path class="line" stroke="#667085" d="M800 610 C800 705, 800 830, 800 884"/>
+
+  <rect x="660" y="410" width="280" height="205" rx="28" fill="url(#root)" filter="url(#shadow)"/>
+  <text x="800" y="485" text-anchor="middle" class="root-title">灵启商城</text>
+  <text x="800" y="526" text-anchor="middle" class="root-title">产品全景</text>
+  <text x="800" y="566" text-anchor="middle" class="root-subtitle">商城 · 团队 · 后台 · 商户</text>
+
+  <rect class="card" x="65" y="145" width="410" height="260" rx="24" fill="#eff8ff" stroke="#84caff"/>
+  <text x="95" y="187" class="branch-title">🟢 已上线开放</text>
+  <text x="95" y="226" class="item">• 公开商城：商品、购物车、订单、售后</text>
+  <text x="95" y="259" class="item">• 余额支付、地址、发货、评价</text>
+  <text x="95" y="292" class="item">• 团队 H5：邀请、业绩、奖金、提现</text>
+  <text x="95" y="325" class="item">• 管理后台：商品、会员、财务、审计</text>
+  <text x="95" y="358" class="item">• 多商户：审核、子订单、货款、账本</text>
+  <text x="95" y="387" class="small">核心交易与资金闭环已经具备</text>
+
+  <rect class="card" x="65" y="650" width="410" height="250" rx="24" fill="#ecfdf3" stroke="#6ce9a6"/>
+  <text x="95" y="692" class="branch-title">🔵 1.0.81 已开发待发布</text>
+  <text x="95" y="731" class="item">• 未注册手机号登录提示更准确</text>
+  <text x="95" y="764" class="item">• 会员全景弹窗更紧凑易查看</text>
+  <text x="95" y="797" class="item">• 客户资料填写可直达对应页面</text>
+  <text x="95" y="830" class="item">• 装修、分类、直播菜单体验优化</text>
+  <text x="95" y="863" class="item">• 商品评价筛选修复</text>
+
+  <rect class="card" x="1125" y="120" width="410" height="245" rx="24" fill="#fffaeb" stroke="#fec84b"/>
+  <text x="1155" y="162" class="branch-title">🟡 已开发但未开放</text>
+  <text x="1155" y="201" class="item">• 秒杀、复购：线上总开关关闭</text>
+  <text x="1155" y="234" class="item">• 支付宝：线上参数未启用</text>
+  <text x="1155" y="267" class="item">• 直播、新品：当前没有展示内容</text>
+  <text x="1155" y="300" class="item">• Android：已有测试包，未公开下载</text>
+  <text x="1155" y="333" class="item">• 首页轮播、公告、首页分类关闭</text>
+
+  <rect class="card" x="1125" y="405" width="410" height="255" rx="24" fill="#fff4ed" stroke="#fdb022"/>
+  <text x="1155" y="447" class="branch-title">🟠 等客户资料或外部联调</text>
+  <text x="1155" y="486" class="item">• 主体、信用代码、地址、客服、备案</text>
+  <text x="1155" y="519" class="item">• 支付宝真实支付、退款、对账</text>
+  <text x="1155" y="552" class="item">• 短信真实送达、物流轨迹</text>
+  <text x="1155" y="585" class="item">• ERP 厂商正式接口</text>
+  <text x="1155" y="618" class="item">• 直播云与客户奖金/复购规则</text>
+
+  <rect class="card" x="1125" y="700" width="410" height="225" rx="24" fill="#f4f3ff" stroke="#bdb4fe"/>
+  <text x="1155" y="742" class="branch-title">⚪ 尚未开发</text>
+  <text x="1155" y="781" class="item">• 微信小程序独立前端</text>
+  <text x="1155" y="814" class="item">• 微信支付正式网关</text>
+  <text x="1155" y="847" class="item">• iOS App</text>
+  <text x="1155" y="880" class="item">• 优惠券、收藏、消息等增量模块</text>
+
+  <rect class="card" x="500" y="880" width="600" height="125" rx="24" fill="#f9fafb" stroke="#98a2b3"/>
+  <text x="800" y="922" text-anchor="middle" class="branch-title">实施顺序</text>
+  <text x="800" y="958" text-anchor="middle" class="item">P0 正式开店门禁 → P1 开放现成功能 → P2 外部联调 → P3 新渠道</text>
+  <text x="800" y="988" text-anchor="middle" class="small">当前最重要：清理测试内容、补齐客户资料、完成真实支付与客户验收</text>
+
+  <text x="70" y="1033" class="small">完整 XMind 文件含 4 个分页：产品全景、消费者购物流程、团队与商户流程、实施路线图</text>
+</svg>
