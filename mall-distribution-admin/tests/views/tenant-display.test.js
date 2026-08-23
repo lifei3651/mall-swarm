@@ -88,6 +88,11 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('>编辑{{ row.label }}</el-button>')
     expect(source).not.toContain("row.key === 'banner' ? '进入管理'")
     expect(source.indexOf("key: 'category'")).toBeLessThan(source.indexOf("key: 'banner'"))
+    expect(source).toContain('模块的“编辑首页轮播图”即可直接维护')
+    expect(source).toContain('.category-list.category-list-draft {')
+    expect(source).toContain('overflow: visible;')
+    expect(source).not.toContain('max-height: 132px')
+    expect(source).not.toContain('max-height: 180px')
   })
 
   it('支持查看和恢复商城客户配置历史版本', async () => {

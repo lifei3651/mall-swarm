@@ -99,7 +99,7 @@
           </section>
           <section v-if="activeEditSection === 'banner'" class="control-section banner-config-section">
             <div class="control-section-heading"><div><strong>首页轮播图</strong><small>图片、点击后动作和展示时间在这里统一维护</small></div><el-tag size="small" type="info">{{ previewBanners.length }} 条已启用</el-tag></div>
-            <p class="section-note banner-note">首页轮播图已单独提供管理页面；点击上方“首页轮播图”模块的“进入管理”即可直接维护。</p>
+            <p class="section-note banner-note">首页轮播图已单独提供管理页面；点击上方“首页轮播图”模块的“编辑首页轮播图”即可直接维护。</p>
           </section>
           <section v-if="activeEditSection === 'layout'" class="control-section">
             <div class="control-section-heading"><div><strong>首页版型</strong><small>选择整体信息密度；模块顺序仍可在“首页模块”中继续调整</small></div><el-tag size="small" type="info">实时预览</el-tag></div>
@@ -1116,9 +1116,8 @@ onMounted(fetchData)
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
-  max-height: 132px;
   padding: 6px;
-  overflow-y: auto;
+  overflow: visible;
   background: #f7f9fc;
   border: 1px solid #eef1f5;
   border-radius: 9px;
@@ -1382,6 +1381,6 @@ onMounted(fetchData)
   .compact-theme-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 680px) {
-  .category-list.category-list-draft { grid-template-columns: 1fr; max-height: 180px; }
+  .category-list.category-list-draft { grid-template-columns: 1fr; }
 }
 </style>
