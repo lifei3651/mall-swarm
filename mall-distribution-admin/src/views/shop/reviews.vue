@@ -107,14 +107,28 @@ const query = ref({ keyword: '', productId: null, rating: null, status: null })
 const pagination = ref({ page: 1, size: 10, total: 0 })
 const searchFeedback = ref('')
 const tableEmptyText = ref('暂无商品评价')
+const PRODUCT_OPTION_PAGE_SIZE = 100
 const { markSearchApplied: markKeywordSearchApplied } = useSearchAutoRestore(
   () => query.value.keyword,
   () => search(),
 )
 
 const fetchProducts = async () => {
-  const res = await listShopProducts({ pageNum: 1, pageSize: 200 })
-  products.value = res.data?.list || []
+  const loadedProducts = []
+  let pageNum = 1
+  let total = 0
+
+  do {
+    const res = await listShopProducts({ pageNum, pageSize: PRODUCT_OPTION_PAGE_SIZE })
+    const pageProducts = res.data?.list || []
+    loadedProducts.push(...pageProducts)
+    total = Number(res.data?.total ?? loadedProducts.length)
+    pageNum += 1
+
+    if (pageProducts.length < PRODUCT_OPTION_PAGE_SIZE) break
+  } while (loadedProducts.length < total)
+
+  products.value = loadedProducts
 }
 
 const fetchData = async () => {
