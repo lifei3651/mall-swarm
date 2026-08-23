@@ -105,8 +105,15 @@
       @size-change="fetchMembers"
     />
 
-    <el-dialog v-model="profileVisible" :title="profileDialogTitle" width="1180px" destroy-on-close>
-      <div v-loading="profileLoading">
+    <el-dialog
+      v-model="profileVisible"
+      :title="profileDialogTitle"
+      width="min(1080px, calc(100vw - 28px))"
+      top="12px"
+      class="member-profile-dialog"
+      destroy-on-close
+    >
+      <div v-loading="profileLoading" class="member-profile-content">
         <div v-if="isEditMode" class="profile-actions-panel">
           <div class="profile-actions-heading">
             <strong>会员管理操作</strong>
@@ -927,26 +934,26 @@ onMounted(async () => {
 }
 
 .block {
-  margin-top: 16px;
+  margin-top: 10px;
 }
 .profile-actions-panel {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  padding: 14px 16px;
-  margin-bottom: 12px;
+  gap: 14px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
   border: 1px solid #d9ecff;
   border-radius: 8px;
   background: #f4f9ff;
 }
-.profile-actions-heading { display:flex; flex-direction:column; gap:4px; min-width:210px; }
-.profile-actions-heading strong { color:#303133; font-size:15px; }
+.profile-actions-heading { display:flex; flex-direction:column; gap:2px; min-width:200px; }
+.profile-actions-heading strong { color:#303133; font-size:14px; }
 .profile-actions-heading span { color:#909399; font-size:12px; }
-.profile-actions-buttons { display:flex; justify-content:flex-end; align-items:center; flex-wrap:wrap; gap:10px; }
+.profile-actions-buttons { display:flex; justify-content:flex-end; align-items:center; flex-wrap:wrap; gap:8px; }
 .profile-actions-buttons :deep(.el-button),
 .profile-actions-buttons :deep(.el-dropdown) { margin:0; }
-.profile-tabs { margin-top: 4px; }
+.profile-tabs { margin-top: 0; }
 .profile-finance-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -996,9 +1003,45 @@ onMounted(async () => {
   padding: 0;
 }
 .action-tooltip-trigger { display: inline-flex; }
+:global(.el-dialog.member-profile-dialog),
+:global(.member-profile-dialog .el-dialog) {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 24px);
+  max-height: 820px;
+  margin: 12px auto 0;
+  overflow: hidden;
+  border-radius: 14px;
+}
+:global(.el-dialog.member-profile-dialog .el-dialog__header),
+:global(.member-profile-dialog .el-dialog .el-dialog__header) {
+  flex: 0 0 auto;
+  margin-right: 0;
+  padding: 14px 20px 11px;
+  border-bottom: 1px solid #edf0f5;
+}
+:global(.el-dialog.member-profile-dialog .el-dialog__title),
+:global(.member-profile-dialog .el-dialog .el-dialog__title) {
+  font-size: 18px;
+}
+:global(.el-dialog.member-profile-dialog .el-dialog__body),
+:global(.member-profile-dialog .el-dialog .el-dialog__body) {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 10px 16px 14px;
+  overflow: auto;
+  background: #f8fafc;
+}
+.member-profile-content :deep(.el-tabs__header) { margin-bottom: 10px; }
+.member-profile-content :deep(.el-tabs__item) { height: 36px; font-size: 14px; }
+.member-profile-content :deep(.el-descriptions__cell) { padding: 8px 10px !important; }
+.member-profile-content :deep(.el-card__header) { padding: 10px 14px; }
+.member-profile-content :deep(.el-card__body) { padding: 10px 14px; }
 @media (max-width: 960px) {
   .profile-actions-panel { align-items:flex-start; flex-direction:column; }
   .profile-actions-buttons { justify-content:flex-start; }
   .profile-finance-metrics { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+  :global(.el-dialog.member-profile-dialog),
+  :global(.member-profile-dialog .el-dialog) { height:calc(100vh - 16px); margin-top:8px; }
 }
 </style>

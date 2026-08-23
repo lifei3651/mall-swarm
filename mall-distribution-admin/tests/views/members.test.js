@@ -5,6 +5,16 @@ import { resolve } from 'node:path'
 const sourcePath = resolve(process.cwd(), 'src/views/shop/members.vue')
 
 describe('会员全景直属邀请人信息', () => {
+  it('会员全景弹窗采用上移、限宽和内部滚动的紧凑布局', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('width="min(1080px, calc(100vw - 28px))"')
+    expect(source).toContain('top="12px"')
+    expect(source).toContain('class="member-profile-dialog"')
+    expect(source).toContain('height: calc(100vh - 24px)')
+    expect(source).toContain('overflow: auto')
+  })
+
   it('只展示邀请人会员名称和手机号，不展示邀请人登录账号', async () => {
     const source = await readFile(sourcePath, 'utf8')
 
