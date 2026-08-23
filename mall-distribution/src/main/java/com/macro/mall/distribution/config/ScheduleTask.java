@@ -11,6 +11,7 @@ import com.macro.mall.distribution.service.MerchantService;
 import com.macro.mall.distribution.service.ShopAfterSaleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +23,7 @@ import java.time.LocalDate;
  */
 @Slf4j
 @Component
+@ConditionalOnProperty(prefix = "app.scheduling", name = "enabled", havingValue = "true", matchIfMissing = true)
 @RequiredArgsConstructor
 public class ScheduleTask {
 

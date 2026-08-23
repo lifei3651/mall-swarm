@@ -72,7 +72,6 @@ require_value CLOUD_FIREWALL_EVIDENCE
 require_secret MYSQL_ROOT_PASSWORD 32
 require_secret DB_PASSWORD 32
 require_secret REDIS_PASSWORD 32
-require_secret SA_TOKEN_JWT_KEY 48
 data_encryption_key=$(value_of DATA_ENCRYPTION_KEY)
 printf '%s' "$data_encryption_key" | grep -Eq '^[0-9A-Fa-f]{64}$' || fail "DATA_ENCRYPTION_KEY 必须是64位十六进制随机密钥"
 [ "$(value_of DATA_ENCRYPTION_WRITE_ENABLED)" = "true" ] || fail "客户正式部署必须启用 DATA_ENCRYPTION_WRITE_ENABLED=true"

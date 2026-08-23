@@ -37,8 +37,12 @@ mybatis:
 
 logging:
   level:
-    com.macro.mall.distribution: debug
+    com.macro.mall.distribution: info
     org.springframework: warn
+
+app:
+  scheduling:
+    enabled: false
 
 shop:
   payment:

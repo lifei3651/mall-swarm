@@ -44,7 +44,6 @@ def safe_config():
                     "SMS_TEST_CODE": "",
                     "DB_PASSWORD": "secret",
                     "REDIS_PASSWORD": "secret",
-                    "SA_TOKEN_JWT_KEY": "secret",
                     "DATA_ENCRYPTION_KEY": "secret",
                     "DATA_ENCRYPTION_WRITE_ENABLED": "true",
                     "DB_SSL_MODE": "REQUIRED",

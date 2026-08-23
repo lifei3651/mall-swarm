@@ -3,6 +3,7 @@ package com.macro.mall.distribution.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -13,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 /** 定期采集 Redis 可用状态和基础延迟，不读写商城业务数据。 */
 @Slf4j
 @Service
+@ConditionalOnProperty(prefix = "app.scheduling", name = "enabled", havingValue = "true", matchIfMissing = true)
 @RequiredArgsConstructor
 public class RedisCacheMonitor {
     private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;

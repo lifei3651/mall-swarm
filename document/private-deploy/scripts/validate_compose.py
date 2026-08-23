@@ -84,7 +84,6 @@ def validate(config):
         "MYSQL_ROOT_PASSWORD": {"mysql"},
         "DB_PASSWORD": {"mall-distribution"},
         "REDIS_PASSWORD": {"redis", "mall-distribution"},
-        "SA_TOKEN_JWT_KEY": {"mall-distribution"},
         "DATA_ENCRYPTION_KEY": {"mall-distribution"},
         "DATA_ENCRYPTION_WRITE_ENABLED": {"mall-distribution"},
         "ALIPAY_PRIVATE_KEY": {"mall-distribution"},

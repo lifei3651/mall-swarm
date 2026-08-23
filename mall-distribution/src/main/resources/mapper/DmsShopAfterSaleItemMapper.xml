@@ -38,7 +38,7 @@
         SELECT COALESCE(SUM(item.refund_quantity), 0)
         FROM dms_shop_after_sale_item item
         INNER JOIN dms_shop_after_sale sale ON sale.id = item.after_sale_id
-        WHERE item.order_id = #{orderId} AND sale.status = 1
+        WHERE item.order_id = #{orderId} AND sale.status IN (1, 6)
     </select>
 
     <select id="sumApprovedProductRefundByOrderId" resultType="java.math.BigDecimal">

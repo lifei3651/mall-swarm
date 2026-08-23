@@ -64,7 +64,7 @@ printf 'FROM eclipse-temurin:17.0.19_10-jre-jammy\nUSER mall\n' > "$TEST_ROOT/ma
   --brand 测试客户商城 >/dev/null
 
 [ "$(stat -c '%a' "$DEPLOY_DIR/.env" 2>/dev/null || stat -f '%Lp' "$DEPLOY_DIR/.env")" = "600" ]
-for key in MYSQL_ROOT_PASSWORD DB_PASSWORD REDIS_PASSWORD SA_TOKEN_JWT_KEY DATA_ENCRYPTION_KEY; do
+for key in MYSQL_ROOT_PASSWORD DB_PASSWORD REDIS_PASSWORD DATA_ENCRYPTION_KEY; do
   value=$(awk -v key="$key" 'index($0, key "=") == 1 { print substr($0, length(key)+2) }' "$DEPLOY_DIR/.env")
   [ "${#value}" -ge 32 ]
   case "$value" in *change_me*) exit 1 ;; esac
