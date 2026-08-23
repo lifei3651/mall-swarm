@@ -92,10 +92,10 @@ public class LoginCaptchaServiceImpl implements LoginCaptchaService {
                     new Color(15, 118, 110), new Color(29, 78, 216),
                     new Color(154, 52, 18), new Color(76, 29, 149)
             };
-            graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 28));
+            graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 34));
             for (int i = 0; i < code.length(); i++) {
                 int x = 15 + i * 29;
-                int y = 34 + random.nextInt(7);
+                int y = 38 + random.nextInt(5);
                 double angle = Math.toRadians(random.nextInt(25) - 12);
                 AffineTransform original = graphics.getTransform();
                 graphics.rotate(angle, x, y);
