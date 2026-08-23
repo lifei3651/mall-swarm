@@ -4,6 +4,7 @@ import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.dao.DmsLiveRoomDao;
 import com.macro.mall.distribution.dao.DmsShopProductDao;
+import com.macro.mall.distribution.dao.DmsTenantDisplayConfigDao;
 import com.macro.mall.distribution.dto.LiveRoomSaveDTO;
 import com.macro.mall.distribution.entity.DmsLiveRoom;
 import com.macro.mall.distribution.entity.DmsShopProduct;
@@ -34,6 +35,8 @@ public class LiveRoomServiceImpl implements LiveRoomService {
 
     private final DmsLiveRoomDao liveRoomDao;
     private final DmsShopProductDao productDao;
+    private final DmsTenantDisplayConfigDao displayConfigDao;
+    private final TenantDisplayConfigSupport displayConfigSupport;
     private final MerchantProductReviewService merchantProductReviewService;
     private final ShopCatalogCacheService catalogCache;
     private final OperationLogService operationLogService;
@@ -45,6 +48,7 @@ public class LiveRoomServiceImpl implements LiveRoomService {
 
     @Override
     public List<LiveRoomVO> listPublic(Long tenantId, int limit) {
+        if (!isPublicEnabled(tenantId)) return List.of();
         int safeLimit = Math.max(1, Math.min(50, limit));
         return liveRoomDao.selectPublicList(tenantId, safeLimit).stream()
                 .map(room -> toVo(room, true))
@@ -53,11 +57,20 @@ public class LiveRoomServiceImpl implements LiveRoomService {
 
     @Override
     public LiveRoomVO getPublic(Long id) {
+        if (!isPublicEnabled(TenantContext.getTenantId())) {
+            Asserts.fail("直播广场暂未开放");
+        }
         DmsLiveRoom room = liveRoomDao.selectById(TenantContext.getTenantId(), id);
         if (room == null || room.getStatus() == null || !List.of(1, 2, 3).contains(room.getStatus())) {
             Asserts.fail("直播间不存在或暂未公开");
         }
         return toVo(room, true);
+    }
+
+    private boolean isPublicEnabled(Long tenantId) {
+        return Integer.valueOf(1).equals(displayConfigSupport
+                .prepareForRead(displayConfigDao.selectByTenantId(tenantId), tenantId)
+                .getLiveSquareEnabled());
     }
 
     @Override

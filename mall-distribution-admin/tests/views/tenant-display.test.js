@@ -21,7 +21,7 @@ describe('商城视觉与页面工作台', () => {
 
   it('覆盖六项装修能力并让颜色微调真正作用于预览', async () => {
     const source = await readFile(sourcePath, 'utf8')
-    for (const label of ['首页轮播图', '首页模块', '分类模块', '底部导航', '颜色微调']) {
+    for (const label of ['首页轮播图', '首页版型与直播', '首页模块', '分类模块', '底部导航', '颜色微调']) {
       expect(source).toContain(label)
     }
     expect(source).toContain("if (section === 'banner')")
@@ -36,6 +36,9 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('保存发布')
     expect(source).toContain('savingDisplay')
     expect(source).toContain('showTrustStrip: form.showTrustStrip')
+    expect(source).toContain("value: 'campaign-feed'")
+    expect(source).toContain('直播广场总开关')
+    expect(source).toContain('liveSquareEnabled: form.liveSquareEnabled')
     expect(source).toContain('只提交后端实体字段')
     expect(source).toContain('saveDisplayConfig(payload, { silentError: true })')
     expect(source).toContain('商城视觉装修发布失败')
@@ -45,7 +48,7 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('extraConfigJson')
     expect(source).toContain('确认放弃未保存修改？')
     expect(source).toContain('moveNav')
-    for (const section of ['品牌视觉', '首页轮播图', '首页模块', '分类模块', '底部导航', '颜色微调']) {
+    for (const section of ['品牌视觉', '首页轮播图', '首页版型与直播', '首页模块', '分类模块', '底部导航', '颜色微调']) {
       expect(source).toContain(section)
     }
     expect(source).not.toContain("activeEditSection === 'service'")

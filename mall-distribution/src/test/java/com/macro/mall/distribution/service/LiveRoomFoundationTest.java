@@ -2,7 +2,10 @@ package com.macro.mall.distribution.service;
 
 import com.macro.mall.distribution.dao.DmsLiveRoomDao;
 import com.macro.mall.distribution.dao.DmsShopProductDao;
+import com.macro.mall.distribution.dao.DmsTenantDisplayConfigDao;
 import com.macro.mall.distribution.entity.DmsLiveRoom;
+import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
+import com.macro.mall.distribution.service.impl.TenantDisplayConfigSupport;
 import com.macro.mall.distribution.vo.LiveRoomVO;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +18,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
@@ -24,6 +28,8 @@ class LiveRoomFoundationTest {
 
     @Autowired private DmsLiveRoomDao liveRoomDao;
     @Autowired private DmsShopProductDao productDao;
+    @Autowired private DmsTenantDisplayConfigDao displayConfigDao;
+    @Autowired private TenantDisplayConfigSupport displayConfigSupport;
     @Autowired private LiveRoomService liveRoomService;
 
     @Test
@@ -47,6 +53,20 @@ class LiveRoomFoundationTest {
     void newArrivalsUseFirstPublishTimeAndExcludeOldProducts() {
         assertEquals(2, productDao.selectNewArrivals(1L, LocalDateTime.now().minusDays(1), 20).size());
         assertTrue(productDao.selectNewArrivals(1L, LocalDateTime.now().plusDays(1), 20).isEmpty());
+    }
+
+    @Test
+    void liveSquareMasterSwitchHidesListAndRejectsDirectDetailsWithoutDeletingRooms() {
+        DmsLiveRoom room = room(1L, 2, "https://live.example.com/watch/closed-switch");
+        liveRoomDao.insert(room);
+        DmsTenantDisplayConfig config = displayConfigSupport.prepareForRead(displayConfigDao.selectByTenantId(1L), 1L);
+        config.setLiveSquareEnabled(0);
+        displayConfigSupport.prepareForSave(config);
+        displayConfigDao.update(config);
+
+        assertTrue(liveRoomService.listPublic(10).isEmpty());
+        assertThrows(RuntimeException.class, () -> liveRoomService.getPublic(room.getId()));
+        assertEquals(1, liveRoomDao.selectAdminList(1L, 2).stream().filter(item -> room.getId().equals(item.getId())).count());
     }
 
     private DmsLiveRoom room(Long tenantId, Integer status, String watchUrl) {

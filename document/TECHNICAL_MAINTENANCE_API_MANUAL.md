@@ -167,8 +167,8 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `POST /api/v1/shop/products/{id}/purchase-limit/check` | 查询参数 `quantity` | 限购校验结果 | 合并历史有效订单占用和本次数量检查；提交订单时仍会再次校验 |
 | `GET /api/v1/shop/products/{id}/reviews` | `pageNum`、`pageSize` | `ProductReviewPageVO` | 返回公开评价、星级分布及当前会员评价资格 |
 | `POST /api/v1/shop/products/{id}/reviews` | `rating` 1～5、`content` 最多 1000 字 | 商品评价记录 | 仅确认收货且符合资格的买家可评价 |
-| `GET /api/v1/shop/live-rooms?limit=...` | `limit` 1～50 | `LiveRoomVO[]` | 仅返回当前客户公开的预告、直播中和已结束直播；预告不返回观看地址 |
-| `GET /api/v1/shop/live-rooms/{id}` | 直播间 ID | `LiveRoomVO` | 返回直播状态和正常商城在售关联商品；草稿、停用及其他客户数据不可见 |
+| `GET /api/v1/shop/live-rooms?limit=...` | `limit` 1～50 | `LiveRoomVO[]` | 仅返回当前客户公开的预告、直播中和已结束直播；预告不返回观看地址；直播总开关关闭时返回空列表 |
+| `GET /api/v1/shop/live-rooms/{id}` | 直播间 ID | `LiveRoomVO` | 返回直播状态和正常商城在售关联商品；草稿、停用及其他客户数据不可见；直播总开关关闭时拒绝公开详情 |
 | `GET /api/v1/shop/new-arrivals?limit=...` | `limit` 1～100 | 商品列表 | 按 `first_publish_time` 倒序返回首次上架仍处于配置窗口内的正常在售商品 |
 | `GET /api/v1/shop/notices` | 分页和类型 | 公告分页 | 仅返回当前租户已启用公告 |
 | `GET /api/v1/shop/notices/{id}` | 公告 ID | 公告详情 | 校验公告所属租户和展示状态 |
@@ -455,7 +455,9 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `GET /api/v1/distribution/erp/tasks` | 状态、订单、分页 | ERP 任务分页 |
 | `POST /api/v1/distribution/erp/tasks/{id}/retry` | 任务 ID | 重试结果 |
 
-租户保存和视觉配置保存会生成配置版本，支持审计和恢复。密钥类 ERP 配置返回时必须脱敏或不回传原值。未确定客户 ERP 时保持关闭；不得用演示地址模拟正式对接。
+租户保存和视觉配置保存会生成配置版本，支持审计和恢复。`DmsTenantDisplayConfig.layoutTemplate` 支持 `standard`、`product-focus`、`category-focus` 和 `campaign-feed`；`campaign-feed` 由商城端读取真实秒杀列表，只对 `ACTIVE`/`UPCOMING` 活动展示活动价、状态和倒计时，普通商品仍执行标准购买流程。`liveSquareEnabled` 存入既有 `extra_config_json`，缺省按 `1` 兼容历史客户；值为 `0` 时公开直播列表为空、详情拒绝访问，后台维护接口和数据不受影响。
+
+密钥类 ERP 配置返回时必须脱敏或不回传原值。未确定客户 ERP 时保持关闭；不得用演示地址模拟正式对接。
 
 交付预检检查品牌、经营主体、客服、营业执照、备案、协议、发退货地址、正式商品、明显测试内容、正式支付、正式短信以及特殊业务模式是否可执行。ERP 和真实物流属于客户可选项，不阻断未采购这些能力的客户；预检通过不替代真实支付、退款、短信、备份恢复和并发写入验收。
 

@@ -127,3 +127,45 @@ final result: passed
 - 浏览器验收未发现 P0、P1 或 P2 视觉问题；首页、直播广场、直播详情和新品列表无白屏、无横向溢出、无阻断控制台错误。
 
 passed
+
+## 活动单列版与直播总开关验收（2026-08-23）
+
+- Source visual truth: `/var/folders/nk/gpz82vss0513h6pd0tkfgs6h0000gn/T/codex-clipboard-51b3c614-d0be-43cf-8a50-67cd3fd9972f.png`（714 × 1438）。
+- Implementation evidence: `document/qa/2026-08-23-campaign-feed-home-mobile.png`（415 × 869 浏览器内容像素）。
+- Viewport/density/state: 430 × 932 CSS px，devicePixelRatio 2；后台选择 `campaign-feed`，本地隔离接口返回真实活动状态、起止时间、活动价和商品数据。
+
+### Full-view comparison evidence
+
+- 实现复用参考图的信息结构：淡色品牌与搜索区、横向分类、大图单列商品卡、橙色活动状态带、商品名称、销量、价格和绿色购买按钮；继续使用灵启商城自己的品牌、颜色和导航，不复制参考品牌“数商臻品”。
+- 手机端为单列，1280 × 800 电脑端自动为双列；桌面文档宽度小于视口宽度，无横向溢出。版型切换保留运营现有的轮播图开关，不会擅自删除或隐藏已配置内容。
+- 关闭直播广场后，首页直播列、公开直播列表和直接详情均由服务端共同关闭，后台直播间资料继续保留。
+
+### Focused region comparison evidence
+
+- 活动条：仅真实 `ACTIVE`/`UPCOMING` 秒杀活动显示，倒计时按接口起止时间每秒更新；活动按钮进入 `/flash-sale?activityId=...`，未登录时正确进入登录回跳。
+- 普通商品：无真实活动时不显示倒计时或虚假活动价，保留标准加入购物车流程。
+- 分类与商品密度：430px 下分类横向滚动，商品图片比例约 2.05:1，标题、销量、价格和按钮在一张卡内完整呈现。
+
+### Findings and iterations
+
+- 初始实现同时显示业务快捷入口和商品区，造成首屏信息重复；活动商品图片也占用过高，首屏商品露出不足。
+- 修复后，活动单列版隐藏重复的业务快捷入口、缩短商品图比例并在无搜索筛选时隐藏重复商品标题；轮播图继续尊重运营已有开关，使首屏更接近参考图的信息密度且不破坏现有装修。
+- Post-fix evidence: `document/qa/2026-08-23-campaign-feed-home-mobile.png`。未发现 P0、P1 或 P2 视觉问题。
+
+### Required fidelity surfaces
+
+- Fonts and typography: 使用商城现有中文字体层级，活动带与价格通过粗细和颜色建立主次，未出现裁切或异常换行。
+- Spacing and layout rhythm: 品牌区、分类条和商品卡使用紧凑的 8～18px 节奏，连续浏览时卡片边界清晰。
+- Colors and visual tokens: 主题色由后台配置驱动；橙色活动带和绿色购买按钮用于活动语义，不影响其他模板。
+- Image quality and asset fidelity: 使用接口商品图和商城品牌资源，未使用灰色占位块冒充交付效果。
+- Copy and content: 活动文案由真实状态生成；销量、价格和按钮含义与商城既有交易流程一致。
+
+### Primary interactions tested
+
+1. 手机端活动商品的“去抢购”进入对应秒杀活动，未登录时保留完整回跳地址。
+2. 普通商品继续显示加入购物车按钮，不被活动模板改变业务类型。
+3. 电脑端双列与手机端单列均无横向溢出。
+4. 新开浏览器页面无阻断控制台错误。
+5. 后台可在四种版型间切换，并独立控制直播广场公开状态。
+
+final result: passed

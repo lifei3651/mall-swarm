@@ -26,6 +26,10 @@ test('live square and new arrivals use real public APIs and controlled routes', 
   assert.match(router, /path: '\/live'/)
   assert.match(router, /path: '\/new-arrivals'/)
   assert.match(liveRoom, /url\.protocol !== 'https:'/)
+  assert.match(home, /campaign-feed/)
+  assert.match(home, /campaignCountdown/)
+  assert.match(home, /campaignActivity\(product\)/)
+  assert.match(home, /listFlashSales/)
 })
 
 test('public storefront excludes repurchase pages and rejects non-public checkout modes', () => {

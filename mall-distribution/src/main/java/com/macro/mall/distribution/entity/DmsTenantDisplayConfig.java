@@ -50,6 +50,12 @@ public class DmsTenantDisplayConfig implements Serializable {
     /** 手机端底部导航是否展示“分类”入口。 */
     private Integer showBottomCategoryNav;
 
+    /**
+     * 直播广场公开总开关。关闭后首页不返回直播数据，公开列表和详情也不可访问；
+     * 直播间配置本身仍保留，方便客户后续重新启用。
+     */
+    private Integer liveSquareEnabled;
+
     @Size(max = 30000, message = "商城页面配置内容过长")
     private String extraConfigJson;
 

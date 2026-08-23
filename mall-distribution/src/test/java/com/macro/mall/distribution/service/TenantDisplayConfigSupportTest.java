@@ -22,6 +22,7 @@ class TenantDisplayConfigSupportTest {
         assertEquals("standard", config.getLayoutTemplate());
         assertEquals(1, config.getShowHomeCategories());
         assertEquals(1, config.getShowBottomCategoryNav());
+        assertEquals(1, config.getLiveSquareEnabled());
         assertEquals(1, config.getShowPv());
     }
 
@@ -29,13 +30,14 @@ class TenantDisplayConfigSupportTest {
     void readsLayoutFieldsFromExistingExtraConfig() {
         DmsTenantDisplayConfig config = new DmsTenantDisplayConfig();
         config.setTenantId(2L);
-        config.setExtraConfigJson("{\"layoutTemplate\":\"product-focus\",\"showHomeCategories\":false,\"showBottomCategoryNav\":0}");
+        config.setExtraConfigJson("{\"layoutTemplate\":\"campaign-feed\",\"showHomeCategories\":false,\"showBottomCategoryNav\":0,\"liveSquareEnabled\":false}");
 
         support.prepareForRead(config, 2L);
 
-        assertEquals("product-focus", config.getLayoutTemplate());
+        assertEquals("campaign-feed", config.getLayoutTemplate());
         assertEquals(0, config.getShowHomeCategories());
         assertEquals(0, config.getShowBottomCategoryNav());
+        assertEquals(0, config.getLiveSquareEnabled());
     }
 
     @Test
@@ -45,6 +47,7 @@ class TenantDisplayConfigSupportTest {
         config.setLayoutTemplate("category-focus");
         config.setShowHomeCategories(1);
         config.setShowBottomCategoryNav(1);
+        config.setLiveSquareEnabled(0);
         config.setExtraConfigJson("{\"futureSetting\":\"keep-me\"}");
 
         support.prepareForSave(config);
@@ -53,6 +56,7 @@ class TenantDisplayConfigSupportTest {
         assertEquals("category-focus", json.get("layoutTemplate").asText());
         assertEquals(1, json.get("showHomeCategories").asInt());
         assertEquals(1, json.get("showBottomCategoryNav").asInt());
+        assertEquals(0, json.get("liveSquareEnabled").asInt());
         assertEquals("keep-me", json.get("futureSetting").asText());
     }
 

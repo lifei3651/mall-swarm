@@ -20,7 +20,8 @@ import java.util.Set;
 public class TenantDisplayConfigSupport {
 
     public static final String DEFAULT_LAYOUT_TEMPLATE = "standard";
-    private static final Set<String> LAYOUT_TEMPLATES = Set.of("standard", "product-focus", "category-focus");
+    private static final Set<String> LAYOUT_TEMPLATES = Set.of(
+            "standard", "product-focus", "category-focus", "campaign-feed");
 
     private final ObjectMapper objectMapper;
 
@@ -42,6 +43,7 @@ public class TenantDisplayConfigSupport {
         extra.put("layoutTemplate", config.getLayoutTemplate());
         extra.put("showHomeCategories", config.getShowHomeCategories());
         extra.put("showBottomCategoryNav", config.getShowBottomCategoryNav());
+        extra.put("liveSquareEnabled", config.getLiveSquareEnabled());
         try {
             config.setExtraConfigJson(objectMapper.writeValueAsString(extra));
         } catch (Exception ignored) {
@@ -61,6 +63,9 @@ public class TenantDisplayConfigSupport {
         if (config.getShowBottomCategoryNav() == null) {
             config.setShowBottomCategoryNav(toggleValue(extra.get("showBottomCategoryNav"), 1));
         }
+        if (config.getLiveSquareEnabled() == null) {
+            config.setLiveSquareEnabled(toggleValue(extra.get("liveSquareEnabled"), 1));
+        }
         normalizeLayoutFields(config);
     }
 
@@ -70,6 +75,7 @@ public class TenantDisplayConfigSupport {
                 ? template : DEFAULT_LAYOUT_TEMPLATE);
         config.setShowHomeCategories(normalizeToggle(config.getShowHomeCategories(), 1));
         config.setShowBottomCategoryNav(normalizeToggle(config.getShowBottomCategoryNav(), 1));
+        config.setLiveSquareEnabled(normalizeToggle(config.getLiveSquareEnabled(), 1));
     }
 
     private void fillDefaults(DmsTenantDisplayConfig config) {

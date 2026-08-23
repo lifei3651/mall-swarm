@@ -125,7 +125,7 @@
 
       <!-- 商品列表 -->
       <section v-else-if="mod.type === 'products' && mod.enabled" ref="productSection" class="home-product-section">
-      <div class="home-product-heading">
+      <div v-if="layoutTemplate !== 'campaign-feed' || query.categoryName || query.keyword" class="home-product-heading">
         <div>
           <h1>{{ query.categoryName || (query.keyword ? '搜索结果' : '精选商品') }}</h1>
           <p v-if="query.keyword">关键词：{{ query.keyword }}</p>
@@ -143,6 +143,11 @@
             <span v-if="product.status !== 1 || product.stock <= 0" class="home-sold-out">已售罄</span>
           </RouterLink>
 
+          <div v-if="campaignActivity(product)" class="campaign-activity-band">
+            <strong>{{ campaignActivity(product).activityState === 'ACTIVE' ? '限时活动进行中' : '限时活动即将开始' }}</strong>
+            <span>{{ campaignCountdown(campaignActivity(product)) }}</span>
+          </div>
+
           <div class="home-product-info">
             <RouterLink class="home-product-copy" :to="`/product/${product.id}`">
               <h2>{{ product.productName }}</h2>
@@ -152,10 +157,11 @@
             <div class="home-purchase-row">
               <div class="home-price">
                 <span>¥</span>
-                <strong>{{ priceParts(product.salePrice).integer }}</strong>
-                <small>.{{ priceParts(product.salePrice).decimal }}</small>
+                <strong>{{ priceParts(campaignPrice(product)).integer }}</strong>
+                <small>.{{ priceParts(campaignPrice(product)).decimal }}</small>
               </div>
               <button
+                v-if="!campaignActivity(product)"
                 type="button"
                 class="home-cart-button"
                 :disabled="product.status !== 1 || product.stock <= 0 || isAddingProduct(product.id)"
@@ -164,6 +170,10 @@
               >
                 <ShoppingCart :size="16" />
                 {{ product.status !== 1 || product.stock <= 0 ? '已售罄' : '立即加购' }}
+              </button>
+              <button v-else type="button" class="home-cart-button campaign-buy-button" @click="openCampaign(campaignActivity(product))">
+                <ShoppingCart :size="16" />
+                {{ campaignActivity(product).activityState === 'ACTIVE' ? '去抢购' : '去看看' }}
               </button>
             </div>
           </div>
@@ -186,7 +196,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ChevronRight, Flame, Megaphone, PackageOpen, Radio, Search, ShoppingCart, Sparkles } from 'lucide-vue-next'
-import { getHome, getProduct, listProducts } from '@/api/shop'
+import { getHome, getProduct, listFlashSales, listProducts } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { money } from '@/utils/format'
 import { applyBrandConfig } from '@/utils/brand'
@@ -209,6 +219,8 @@ const homeLoading = ref(false)
 const homeLoadError = ref('')
 const toast = ref('')
 const addingProductIds = ref(new Set())
+const flashSales = ref([])
+const campaignClock = ref(Date.now())
 const productSection = ref(null)
 const searchInput = ref(null)
 const query = ref({ keyword: '', categoryName: '' })
@@ -320,9 +332,38 @@ const displayExtraConfig = computed(() => readDisplayExtraConfig(displayConfig.v
 const showHomeCategories = computed(() => Number(displayConfig.value.showHomeCategories ?? 1) === 1)
 // 服务保障是说明性内容，不是首页操作入口。默认关闭，只有商家在商城视觉与页面中主动开启时展示。
 const showTrustStrip = computed(() => Number(displayExtraConfig.value.showTrustStrip ?? 0) === 1)
-const layoutTemplate = computed(() => ['standard', 'product-focus', 'category-focus'].includes(displayConfig.value.layoutTemplate)
+const layoutTemplate = computed(() => ['standard', 'product-focus', 'category-focus', 'campaign-feed'].includes(displayConfig.value.layoutTemplate)
   ? displayConfig.value.layoutTemplate
   : 'standard')
+const campaignActivities = computed(() => {
+  const activities = new Map()
+  flashSales.value
+    .filter((item) => ['ACTIVE', 'UPCOMING'].includes(item?.activityState) && item?.activity?.productId)
+    .forEach((item) => {
+      const productId = Number(item.activity.productId)
+      const current = activities.get(productId)
+      if (!current || (current.activityState !== 'ACTIVE' && item.activityState === 'ACTIVE')) {
+        activities.set(productId, item)
+      }
+    })
+  return activities
+})
+const campaignActivity = (product) => layoutTemplate.value === 'campaign-feed'
+  ? campaignActivities.value.get(Number(product.id))
+  : null
+const campaignPrice = (product) => campaignActivity(product)?.activity?.flashPrice ?? product.salePrice
+const campaignCountdown = (row) => {
+  const target = row?.activityState === 'ACTIVE' ? row?.activity?.endTime : row?.activity?.startTime
+  const seconds = Math.max(0, Math.floor((new Date(target).getTime() - campaignClock.value) / 1000))
+  if (!Number.isFinite(seconds) || seconds <= 0) return row?.activityState === 'ACTIVE' ? '即将结束' : '即将开始'
+  const days = Math.floor(seconds / 86400)
+  const hours = Math.floor((seconds % 86400) / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const remain = seconds % 60
+  const prefix = row?.activityState === 'ACTIVE' ? '距结束' : '距开始'
+  return `${prefix} ${days ? `${days}天 ` : ''}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remain).padStart(2, '0')}`
+}
+const openCampaign = (activity) => router.push({ path: '/flash-sale', query: { activityId: activity?.activity?.id } })
 const categoryEntries = computed(() => {
   const configured = home.value.categoryList || []
   const rows = configured.length
@@ -372,6 +413,11 @@ const fetchHome = async () => {
   home.value = res.data || {}
   applyBrandConfig(home.value)
   applyExtraColors(displayConfig.value)
+  if (layoutTemplate.value === 'campaign-feed') {
+    try { flashSales.value = (await listFlashSales()).data || [] } catch { flashSales.value = [] }
+  } else {
+    flashSales.value = []
+  }
 }
 
 const fetchProducts = async (scrollToResults = false) => {
@@ -471,13 +517,15 @@ const addProduct = async (product) => {
 }
 
 onMounted(async () => {
+  campaignTimer = window.setInterval(() => { campaignClock.value = Date.now() }, 1000)
   try {
     const saved = JSON.parse(localStorage.getItem('shop_recent_searches') || '[]')
     recentSearches.value = Array.isArray(saved) ? saved.filter((item) => typeof item === 'string').slice(0, 5) : []
   } catch (_) { recentSearches.value = [] }
   await reloadHome()
 })
-onUnmounted(() => { stopBannerAutoplay(); stopNoticeRotation(); window.clearTimeout(toastTimer) })
+let campaignTimer = null
+onUnmounted(() => { stopBannerAutoplay(); stopNoticeRotation(); window.clearTimeout(toastTimer); window.clearInterval(campaignTimer) })
 </script>
 
 <style scoped>
@@ -578,6 +626,16 @@ onUnmounted(() => { stopBannerAutoplay(); stopNoticeRotation(); window.clearTime
 .home-page.layout-product-focus .home-product-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px; }
 .home-page.layout-category-focus .home-category-section { background: linear-gradient(145deg,#fff,var(--brand-primary-soft)); border-color: var(--brand-primary-soft); }
 .home-page.layout-category-focus .category-circle { width: 78px; height: 78px; box-shadow: 0 7px 18px rgba(38,45,51,.10); }
+.home-page.layout-campaign-feed .home-topbar { background:color-mix(in srgb,var(--brand-primary) 14%,#eafff3 86%); border-bottom:0; }
+.home-page.layout-campaign-feed .business-entry-nav { display:none; }
+.home-page.layout-campaign-feed .home-product-section { max-width:900px; }
+.home-page.layout-campaign-feed .home-product-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.home-page.layout-campaign-feed .home-product-card { border:0; border-radius:20px; box-shadow:0 8px 22px rgba(15,23,42,.07); }
+.home-page.layout-campaign-feed .home-product-image { aspect-ratio:2.05/1; }
+.campaign-activity-band { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:11px 14px; color:#fff; background:linear-gradient(90deg,#ef3d25,#ff8617); }
+.campaign-activity-band strong { font-size:14px; }
+.campaign-activity-band span { font-size:12px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.campaign-buy-button { background:#19a83d; }
 
 .home-product-section { width: min(1180px, calc(100% - 40px)); margin: 0 auto; scroll-margin-top: 88px; }
 .home-product-heading { min-height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 4px 2px 10px; }
@@ -641,6 +699,32 @@ onUnmounted(() => { stopBannerAutoplay(); stopNoticeRotation(); window.clearTime
   .home-product-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
   .home-page.layout-product-focus .home-product-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
   .home-page.layout-category-focus .category-circle { width: 62px; height: 62px; }
+  .home-page.layout-campaign-feed .home-topbar { position:relative; }
+  .home-page.layout-campaign-feed .home-topbar-inner { grid-template-columns:minmax(0,1fr); gap:8px; min-height:116px; padding:13px 14px 15px; }
+  .home-page.layout-campaign-feed .home-brand { gap:8px; }
+  .home-page.layout-campaign-feed .home-brand strong { display:block; font-size:18px; }
+  .home-page.layout-campaign-feed .home-brand img,.home-page.layout-campaign-feed .home-brand-mark { width:38px; height:38px; flex-basis:38px; }
+  .home-page.layout-campaign-feed .home-search { width:100%; height:44px; }
+  .home-page.layout-campaign-feed .home-category-section { width:100%; margin:0 0 8px; padding:9px 8px 7px; overflow:hidden; background:#fff; border:0; border-radius:0; }
+  .home-page.layout-campaign-feed .category-grid { display:flex; gap:18px; overflow-x:auto; padding:0 4px 4px; scrollbar-width:none; }
+  .home-page.layout-campaign-feed .category-grid::-webkit-scrollbar { display:none; }
+  .home-page.layout-campaign-feed .home-category-item { flex:0 0 auto; padding:6px 0 5px; }
+  .home-page.layout-campaign-feed .category-circle { display:none; }
+  .home-page.layout-campaign-feed .home-category-item strong { overflow:visible; font-size:14px; }
+  .home-page.layout-campaign-feed .home-category-item.active strong { color:var(--brand-primary); }
+  .home-page.layout-campaign-feed .home-banner-section { width:calc(100% - 16px); }
+  .home-page.layout-campaign-feed .banner-carousel { border-radius:16px; }
+  .home-page.layout-campaign-feed .banner-slide { aspect-ratio:1.55; }
+  .home-page.layout-campaign-feed .home-product-section { width:calc(100% - 16px); }
+  .home-page.layout-campaign-feed .home-product-grid { grid-template-columns:1fr; gap:14px; }
+  .home-page.layout-campaign-feed .home-product-card { border-radius:18px; }
+  .home-page.layout-campaign-feed .home-product-info { padding:11px 14px 14px; }
+  .home-page.layout-campaign-feed .home-product-copy h2 { min-height:0; font-size:16px; line-height:1.45; }
+  .home-page.layout-campaign-feed .home-product-copy p { min-height:0; -webkit-line-clamp:2; }
+  .home-page.layout-campaign-feed .home-sales { margin-left:auto; text-align:right; }
+  .home-page.layout-campaign-feed .home-cart-button { min-width:98px; background:#19a83d; }
+  .campaign-activity-band { padding:10px 13px; }
+  .campaign-activity-band strong { font-size:14px; }
   .home-product-card { border-radius: var(--shop-card-radius); }
   .home-product-info { padding: 9px; }
   .home-product-copy h2 { min-height: 38px; font-size: 14px; line-height: 1.38; }

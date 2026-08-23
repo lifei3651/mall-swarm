@@ -101,6 +101,20 @@
             <div class="control-section-heading"><div><strong>首页轮播图</strong><small>图片、点击后动作和展示时间在这里统一维护</small></div><el-tag size="small" type="info">{{ previewBanners.length }} 条已启用</el-tag></div>
             <p class="section-note banner-note">首页轮播图已单独提供管理页面；点击上方“首页轮播图”模块的“进入管理”即可直接维护。</p>
           </section>
+          <section v-if="activeEditSection === 'layout'" class="control-section">
+            <div class="control-section-heading"><div><strong>首页版型</strong><small>选择整体信息密度；模块顺序仍可在“首页模块”中继续调整</small></div><el-tag size="small" type="info">实时预览</el-tag></div>
+            <div class="layout-template-grid">
+              <button v-for="template in layoutTemplateOptions" :key="template.value" type="button" class="layout-template-card" :class="{ active: displayForm.layoutTemplate === template.value }" @click="applyLayoutTemplate(template)">
+                <span class="layout-template-preview" :class="`preview-${template.value}`"><i></i><b></b><em></em><small></small></span>
+                <strong>{{ template.label }}</strong>
+                <small>{{ template.description }}</small>
+              </button>
+            </div>
+            <div class="control-switch-row live-feature-switch">
+              <div><strong>直播广场总开关</strong><small>关闭后首页和直播页面均不公开，已配置直播间会保留</small></div>
+              <el-switch v-model="displayForm.liveSquareEnabled" :active-value="1" :inactive-value="0" active-text="开放" inactive-text="关闭" />
+            </div>
+          </section>
           <section v-if="activeEditSection === 'home'" class="control-section">
             <div class="control-section-heading"><div><strong>首页模块</strong><small>拖动调整前台显示顺序</small></div><el-tag size="small" type="info">实时预览</el-tag></div>
             <div class="module-list module-list-sortable">
@@ -166,7 +180,7 @@
 
         <section class="preview-stage">
           <div class="preview-stage-heading"><div><strong>客户手机版预览</strong><span>首页模块与前台保持同一套配置</span></div><el-tag type="success">草稿预览</el-tag></div>
-          <div class="mobile-preview-shell live-mobile-preview" :style="previewStyle">
+          <div class="mobile-preview-shell live-mobile-preview" :class="`layout-preview-${displayForm.layoutTemplate || 'standard'}`" :style="previewStyle">
             <div class="mobile-preview-status"><span>9:41</span><span>● ● ●</span></div>
             <div class="mobile-preview-brand"><span class="mobile-preview-logo"><img v-if="displayForm.logoUrl && !displayLogoLoadFailed" :src="normalizeMediaUrl(displayForm.logoUrl)" alt="" @error="displayLogoLoadFailed = true" /><span v-else>{{ (displayForm.brandName || '灵启').slice(0, 1) }}</span></span><strong>{{ displayForm.brandName || '灵启商城' }}</strong><span class="mobile-preview-share">分享</span></div>
             <template v-if="previewPage === 'home'">
@@ -183,11 +197,11 @@
                   <div v-if="!visiblePreviewCategories.length" class="preview-empty-inline">暂无首页分类</div>
                 </div>
                 <div v-else-if="module.type === 'discovery' && module.enabled" class="mobile-preview-discovery">
-                  <div class="mobile-preview-discovery-column"><div><strong>直播广场</strong><small>全部 ›</small></div><section><b>直播间发布后展示</b><span>预告 · 直播中 · 回放</span></section></div>
+                  <div v-if="displayForm.liveSquareEnabled === 1" class="mobile-preview-discovery-column"><div><strong>直播广场</strong><small>全部 ›</small></div><section><b>直播间发布后展示</b><span>预告 · 直播中 · 回放</span></section></div>
                   <div class="mobile-preview-discovery-column"><div><strong>新品速递</strong><small>全部 ›</small></div><section><img v-if="previewProducts[0]?.coverUrl" :src="previewProducts[0].coverUrl" :alt="previewProducts[0].productName" /><b>{{ previewProducts[0]?.productName || '首次上架商品' }}</b><span>首发价 ¥{{ Number(previewProducts[0]?.salePrice || 0).toFixed(2) }}</span></section></div>
                 </div>
                 <div v-else-if="module.type === 'trust' && module.enabled && displayForm.showTrustStrip === 1" class="mobile-preview-trust"><span>安全支付</span><span>订单可查</span><span>售后无忧</span></div>
-                <div v-else-if="module.type === 'products' && module.enabled" class="mobile-preview-product-section"><div class="mobile-preview-heading"><strong>精选商品</strong><span>商城好物，为你精选</span></div><div class="mobile-preview-products"><div v-for="product in previewProducts" :key="product.id" class="mobile-preview-product"><img v-if="product.coverUrl" :src="product.coverUrl" :alt="product.productName" /><i v-else></i><strong>{{ product.productName }}</strong><small>{{ product.subtitle || '精选商品，品质保障' }}</small><b>¥{{ Number(product.salePrice || 0).toFixed(2) }}</b></div><div v-if="!previewProducts.length" class="preview-empty-module">暂无上架商品</div></div></div>
+                <div v-else-if="module.type === 'products' && module.enabled" class="mobile-preview-product-section"><div class="mobile-preview-heading"><strong>精选商品</strong><span>商城好物，为你精选</span></div><div class="mobile-preview-products" :class="{ 'campaign-preview-products': displayForm.layoutTemplate === 'campaign-feed' }"><div v-for="product in previewProducts" :key="product.id" class="mobile-preview-product"><img v-if="product.coverUrl" :src="product.coverUrl" :alt="product.productName" /><i v-else></i><span v-if="displayForm.layoutTemplate === 'campaign-feed'" class="campaign-preview-band">活动好物 · 真实活动显示倒计时</span><strong>{{ product.productName }}</strong><small>{{ product.subtitle || '精选商品，品质保障' }}</small><b>¥{{ Number(product.salePrice || 0).toFixed(2) }}</b></div><div v-if="!previewProducts.length" class="preview-empty-module">暂无上架商品</div></div></div>
               </template>
             </template>
             <div class="mobile-preview-nav" :style="{ gridTemplateColumns: `repeat(${Math.max(visiblePreviewNav.length, 1)}, minmax(0, 1fr))` }"><span v-for="nav in visiblePreviewNav" :key="nav.type" :class="{ active: nav.type === previewPage }">{{ nav.label }}</span></div>
@@ -273,7 +287,7 @@ const displayLogoLoadFailed = ref(false)
 const displayForm = ref({})
 const moduleNames = { banner: '首页轮播图', notice: '商城公告', category: '商品分类', discovery: '直播广场 / 新品速递', trust: '服务保障', products: '精选商品' }
 const navNames = { home: '首页', category: '分类', cart: '购物车', orders: '订单', profile: '我的' }
-const editSectionLabels = { brand: '品牌视觉', banner: '首页轮播图', home: '首页模块', category: '分类模块', nav: '底部导航', colors: '颜色微调' }
+const editSectionLabels = { brand: '品牌视觉', banner: '首页轮播图', layout: '首页版型与直播', home: '首页模块', category: '分类模块', nav: '底部导航', colors: '颜色微调' }
 const editSectionLabel = computed(() => editSectionLabels[activeEditSection.value] || '品牌视觉')
 const previewPages = [{ value: 'home', label: '首页' }]
 const defaultModules = () => [
@@ -350,6 +364,13 @@ const layoutTemplateOptions = [
     showHomeCategories: 1,
     showBottomCategoryNav: 1,
   },
+  {
+    value: 'campaign-feed',
+    label: '活动单列版',
+    description: '大图单列商品卡，真实秒杀显示倒计时，适合活动运营',
+    showHomeCategories: 1,
+    showBottomCategoryNav: 1,
+  },
 ]
 const legacyThemeMap = { standard: 'retail-red', beauty: 'soft-purple', food: 'fresh-green', health: 'fresh-green', course: 'premium-gold' }
 const normalizeTheme = (value) => themeOptions.some((item) => item.value === value) ? value : (legacyThemeMap[value] || 'retail-red')
@@ -395,6 +416,7 @@ const displaySectionRows = computed(() => {
   return [
     { key: 'brand', icon: '✦', label: '品牌视觉', summary: `${row.brandName || row.tenantName || '灵启商城'} · ${getTemplateName(row.productTemplate)} · ${row.logoUrl ? '已配置 Logo' : '待上传 Logo'}`, status: row.brandName || row.logoUrl ? '已配置' : '待完善', active: Boolean(row.brandName || row.logoUrl) },
     { key: 'banner', icon: '▣', label: '首页轮播图', summary: bannerModuleVisible ? '总开关已展示，可管理图片与点击去向' : '首页模块总开关已隐藏，图片不会在前台展示', status: bannerModuleVisible ? '展示中' : '已隐藏', active: bannerModuleVisible },
+    { key: 'layout', icon: '▤', label: '首页版型与直播', summary: `${getLayoutTemplateName(currentDisplayConfig.value.layoutTemplate)} · 直播广场${Number(currentDisplayConfig.value.liveSquareEnabled ?? 1) === 1 ? '已开放' : '已关闭'}`, status: '可编辑', active: true },
     { key: 'home', icon: '⌂', label: '首页模块', summary: `${visibleModules}/${modules.length} 个模块展示，支持拖动排序`, status: '已配置', active: visibleModules > 0 },
     { key: 'category', icon: '▦', label: '分类模块', summary: '控制首页分类入口及单个分类显示', status: '可编辑', active: true },
     { key: 'nav', icon: '≡', label: '底部导航', summary: `${visibleNav} 项导航展示，支持改名、排序和隐藏`, status: '已配置', active: visibleNav > 0 },
@@ -470,6 +492,7 @@ const openDisplayDialog = async (row, section = 'brand') => {
     colors: { ...defaultColors(), ...(extra.colors || {}) },
     bottomNav,
     showTrustStrip: trustEnabled ? 1 : 0,
+    liveSquareEnabled: Number(res.data?.liveSquareEnabled ?? extra.liveSquareEnabled ?? 1) === 0 ? 0 : 1,
   }
   displayDialogVisible.value = true
   await nextTick()
@@ -558,6 +581,16 @@ const applyLayoutTemplate = (template) => {
   displayForm.value.showHomeCategories = template.showHomeCategories
   const categoryNav = (displayForm.value.bottomNav || []).find((nav) => nav.type === 'category')
   if (categoryNav) categoryNav.enabled = template.showBottomCategoryNav === 1
+  if (template.value === 'campaign-feed') {
+    const order = ['category', 'banner', 'discovery', 'products', 'notice', 'trust']
+    displayForm.value.homeModules = [...(displayForm.value.homeModules || [])]
+      .sort((a, b) => {
+        const aIndex = order.indexOf(a.type)
+        const bIndex = order.indexOf(b.type)
+        return (aIndex < 0 ? order.length : aIndex) - (bIndex < 0 ? order.length : bIndex)
+      })
+      .map((module, index) => ({ ...module, sort: index + 1 }))
+  }
 }
 
 const moveModule = (index, direction) => {
@@ -666,11 +699,13 @@ const submitDisplayConfig = async () => {
       layoutTemplate: form.layoutTemplate,
       showHomeCategories: form.showHomeCategories,
       showBottomCategoryNav,
+      liveSquareEnabled: form.liveSquareEnabled,
       extraConfigJson: JSON.stringify({
         homeModules: form.homeModules,
         colors: form.colors,
         bottomNav,
         showTrustStrip: form.showTrustStrip,
+        liveSquareEnabled: form.liveSquareEnabled,
       }),
     }
     const tenantPayload = {
@@ -1137,16 +1172,17 @@ onMounted(fetchData)
 .color-editor span { color:#909399; font-size:12px; font-family:monospace; }
 .layout-template-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
 }
 .layout-template-card {
   min-width: 0;
   display: grid;
-  grid-template-rows: 92px auto auto;
-  gap: 7px;
-  padding: 12px;
+  grid-template-columns: 68px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 2px 8px;
+  padding: 8px;
   color: #303133;
   text-align: left;
   background: #fff;
@@ -1161,42 +1197,36 @@ onMounted(fetchData)
   box-shadow: 0 0 0 2px var(--el-color-primary-light-8);
   transform: translateY(-1px);
 }
-.layout-template-card strong {
-  font-size: 14px;
-}
-.layout-template-card small {
-  min-height: 36px;
-  color: #909399;
-  line-height: 18px;
-}
-.layout-preview {
-  position: relative;
-  display: grid;
-  grid-template-rows: 14px 23px 1fr 12px;
-  gap: 5px;
-  padding: 8px;
+.layout-template-card > strong { align-self:end; font-size:12px; }
+.layout-template-card > small { min-height:28px; overflow:hidden; color:#909399; font-size:10px; line-height:14px; }
+.layout-template-preview {
+  grid-row: 1 / 3;
+  display:grid;
+  grid-template-rows:8px 12px 1fr 8px;
+  gap:3px;
+  width:68px;
+  height:58px;
+  padding:5px;
   overflow: hidden;
   background: #f3f5f7;
-  border-radius: 8px;
+  border-radius:6px;
 }
-.layout-preview i {
-  display: block;
-  border-radius: 4px;
-}
-.preview-search { width: 70%; background: #fff; border: 1px solid #d9dfe6; }
-.preview-categories { background: repeating-linear-gradient(90deg, #dfe6ec 0 17%, transparent 17% 20%); }
-.preview-products { background: repeating-linear-gradient(90deg, #fff 0 31%, transparent 31% 34%); }
-.preview-nav { background: repeating-linear-gradient(90deg, #cdd6df 0 23%, transparent 23% 26%); }
-.layout-preview--product-focus {
-  grid-template-rows: 14px 0 1fr 12px;
-}
-.layout-preview--product-focus .preview-categories { display: none; }
-.layout-preview--product-focus .preview-products { background: repeating-linear-gradient(90deg, #fff 0 48%, transparent 48% 52%); }
-.layout-preview--product-focus .preview-nav { background: repeating-linear-gradient(90deg, #cdd6df 0 31%, transparent 31% 35%); }
-.layout-preview--category-focus .preview-categories {
-  height: 28px;
-  background: repeating-linear-gradient(90deg, #b9d8f5 0 17%, transparent 17% 20%);
-}
+.layout-template-preview i { display:block; background:var(--el-color-primary); border-radius:3px; }
+.layout-template-preview b { display:block; width:72%; background:#fff; border:1px solid #d9dfe6; border-radius:4px; }
+.layout-template-preview em { display:block; background:repeating-linear-gradient(90deg,#fff 0 47%,transparent 47% 53%); border-radius:3px; }
+.layout-template-preview small { display:block; min-height:0; background:#cdd6df; border-radius:3px; }
+.layout-template-preview.preview-category-focus b { background:repeating-linear-gradient(90deg,#b9d8f5 0 20%,transparent 20% 25%); }
+.layout-template-preview.preview-campaign-feed { grid-template-rows:8px 8px 1fr 8px; }
+.layout-template-preview.preview-campaign-feed em { background:repeating-linear-gradient(180deg,#fff 0 44%,#ff7a1a 44% 52%,transparent 52% 58%); }
+.live-feature-switch > div { display:grid; gap:3px; }
+.live-feature-switch small { color:#909399; font-size:11px; line-height:16px; }
+.campaign-preview-products { grid-template-columns:1fr; }
+.campaign-preview-products .mobile-preview-product img,.campaign-preview-products .mobile-preview-product i { height:118px; }
+.campaign-preview-band { padding:4px 6px; color:#fff; background:linear-gradient(90deg,#ef3d25,#ff8a18); border-radius:4px; font-size:8px; }
+.layout-preview-campaign-feed .mobile-preview-categories { padding:7px 9px; background:transparent; border-radius:0; }
+.layout-preview-campaign-feed .mobile-preview-category { flex-basis:auto; }
+.layout-preview-campaign-feed .mobile-preview-category > span { display:none; }
+.layout-preview-campaign-feed .mobile-preview-brand { background:color-mix(in srgb,var(--preview-color) 16%,#eafff3 84%); }
 @media (max-width: 700px) {
   .ui-preview-head { grid-template-columns: 28px minmax(0, 1fr) auto; }
   .ui-preview-search { display: none; }
