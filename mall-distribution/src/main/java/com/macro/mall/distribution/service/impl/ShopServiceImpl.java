@@ -38,6 +38,7 @@ import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.MerchantService;
 import com.macro.mall.distribution.service.AdminAuthService;
 import com.macro.mall.distribution.service.MerchantProductReviewService;
+import com.macro.mall.distribution.service.LiveRoomService;
 import com.macro.mall.distribution.service.ContentModerationService;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.vo.OrderFinanceVO;
@@ -141,6 +142,7 @@ public class ShopServiceImpl implements ShopService {
     private final MerchantService merchantService;
     private final AdminAuthService adminAuthService;
     private final MerchantProductReviewService merchantProductReviewService;
+    private final LiveRoomService liveRoomService;
     private final TransactionTemplate transactionTemplate;
 
     @Value("${shop.order.pending-timeout-minutes:30}")
@@ -154,6 +156,9 @@ public class ShopServiceImpl implements ShopService {
 
     @Value("${shop.catalog-cache.category-ttl-seconds:60}")
     private long categoryCacheTtlSeconds;
+
+    @Value("${shop.catalog.new-arrival-days:30}")
+    private int newArrivalDays;
 
     @Override
     public ShopHomeVO getHome(Long tenantId) {
@@ -183,6 +188,8 @@ public class ShopServiceImpl implements ShopService {
         }
         featuredProducts.forEach(item -> product(item, false));
         vo.setFeaturedProducts(featuredProducts);
+        vo.setNewArrivals(loadNewArrivals(resolvedTenantId, 8));
+        vo.setLiveRooms(liveRoomService.listPublic(resolvedTenantId, 8));
         DistributionSettingsVO publicSettings = auditService.getSettings();
         if (publicSettings != null) publicSettings.setPermissions(null);
         vo.setDistributionSettings(publicSettings);
@@ -195,6 +202,20 @@ public class ShopServiceImpl implements ShopService {
     @Override
     public List<DmsShopProduct> listProducts(Long tenantId, String keyword, String categoryName, Integer status, String stockStatus) {
         List<DmsShopProduct> products = productDao.selectFrontList(resolveTenantId(tenantId), keyword, categoryName, 1, stockStatus);
+        products.forEach(item -> product(item, false));
+        return products;
+    }
+
+    @Override
+    public List<DmsShopProduct> listNewArrivals(Long tenantId, Integer limit) {
+        return loadNewArrivals(resolveTenantId(tenantId), limit == null ? 40 : limit);
+    }
+
+    private List<DmsShopProduct> loadNewArrivals(Long tenantId, int limit) {
+        int safeLimit = Math.max(1, Math.min(100, limit));
+        int safeDays = Math.max(1, Math.min(365, newArrivalDays));
+        List<DmsShopProduct> products = productDao.selectNewArrivals(
+                tenantId, LocalDateTime.now().minusDays(safeDays), safeLimit);
         products.forEach(item -> product(item, false));
         return products;
     }

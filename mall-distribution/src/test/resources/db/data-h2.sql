@@ -22,6 +22,8 @@ DELETE FROM dms_order_finance;
 DELETE FROM dms_shop_after_sale;
 DELETE FROM dms_flash_sale_reservation;
 DELETE FROM dms_flash_sale_activity;
+DELETE FROM dms_live_room_product;
+DELETE FROM dms_live_room;
 DELETE FROM dms_shop_product_review;
 DELETE FROM dms_merchant_product_review;
 DELETE FROM dms_shop_order_shipment;

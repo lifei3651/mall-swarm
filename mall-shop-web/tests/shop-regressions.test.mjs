@@ -553,6 +553,20 @@ test('home modules and colors honor the saved visual-workbench extra configurati
   assert.match(source, /mod\.type === 'products' && mod\.enabled/)
 })
 
+test('new homepage modules are merged into an existing visual-workbench configuration', () => {
+  const defaults = [
+    { type: 'banner', enabled: true, sort: 1 },
+    { type: 'discovery', enabled: true, sort: 4 },
+    { type: 'products', enabled: true, sort: 6 },
+  ]
+  const modules = resolveHomeModules({ homeModules: [
+    { type: 'banner', enabled: false, sort: 1 },
+    { type: 'products', enabled: true, sort: 5 },
+  ] }, defaults)
+  assert.deepEqual(modules.map((item) => item.type), ['banner', 'discovery', 'products'])
+  assert.equal(modules.find((item) => item.type === 'banner').enabled, false)
+})
+
 test('checkout only exposes configured payment channels', async () => {
   const source = await readView('CheckoutView.vue')
   assert.match(source, /当前已开通余额支付；微信支付、支付宝通道完成商户配置后会自动显示。/)

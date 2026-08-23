@@ -34,6 +34,12 @@ public class ShopHomeVO implements Serializable {
 
     private List<DmsShopProduct> featuredProducts;
 
+    /** 按首次上架时间自动归集的新品，不受后续编辑时间影响。 */
+    private List<DmsShopProduct> newArrivals;
+
+    /** 首页直播广场，未配置公开直播间时为空。 */
+    private List<LiveRoomVO> liveRooms;
+
     private DistributionSettingsVO distributionSettings;
 
     private DmsTenantDisplayConfig displayConfig;

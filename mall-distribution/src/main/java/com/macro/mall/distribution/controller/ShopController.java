@@ -31,6 +31,7 @@ import com.macro.mall.distribution.service.OrderRealtimeService;
 import com.macro.mall.distribution.service.FlashSaleService;
 import com.macro.mall.distribution.service.LogisticsTrackingService;
 import com.macro.mall.distribution.service.MerchantProductReviewService;
+import com.macro.mall.distribution.service.LiveRoomService;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.security.ShopSessionCookieService;
@@ -50,6 +51,7 @@ import com.macro.mall.distribution.vo.OrderShipmentImportResultVO;
 import com.macro.mall.distribution.vo.FlashSaleActivityVO;
 import com.macro.mall.distribution.vo.ShopBusinessConfigVO;
 import com.macro.mall.distribution.vo.ShopLogisticsTrackingVO;
+import com.macro.mall.distribution.vo.LiveRoomVO;
 import com.macro.mall.distribution.entity.DmsMerchantProductReview;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -94,12 +96,33 @@ public class ShopController {
     private final FlashSaleService flashSaleService;
     private final LogisticsTrackingService logisticsTrackingService;
     private final MerchantProductReviewService merchantProductReviewService;
+    private final LiveRoomService liveRoomService;
 
     @Operation(summary = "查询可选业务入口与当前会员复购资格")
     @GetMapping("/business-config")
     public CommonResult<ShopBusinessConfigVO> businessConfig(
             @RequestHeader(value = "Authorization", required = false) String authorization) {
         return CommonResult.success(shopService.getBusinessConfig(authService.resolveMember(authorization)));
+    }
+
+    @Operation(summary = "直播广场公开列表")
+    @GetMapping("/live-rooms")
+    public CommonResult<List<LiveRoomVO>> liveRooms(
+            @RequestParam(defaultValue = "20") Integer limit) {
+        return CommonResult.success(liveRoomService.listPublic(limit == null ? 20 : limit));
+    }
+
+    @Operation(summary = "直播间公开详情")
+    @GetMapping("/live-rooms/{id}")
+    public CommonResult<LiveRoomVO> liveRoom(@PathVariable Long id) {
+        return CommonResult.success(liveRoomService.getPublic(id));
+    }
+
+    @Operation(summary = "新品速递")
+    @GetMapping("/new-arrivals")
+    public CommonResult<List<DmsShopProduct>> newArrivals(
+            @RequestParam(defaultValue = "40") Integer limit) {
+        return CommonResult.success(shopService.listNewArrivals(null, limit));
     }
 
     @Operation(summary = "秒杀活动列表")
@@ -161,6 +184,31 @@ public class ShopController {
     @PutMapping("/admin/flash-sales/{id}/status")
     public CommonResult<Boolean> updateFlashSaleStatus(@PathVariable Long id, @RequestParam Integer status) {
         return CommonResult.success(flashSaleService.updateStatus(id, status));
+    }
+
+    @Operation(summary = "后台直播间列表")
+    @GetMapping("/admin/live-rooms")
+    public CommonResult<List<LiveRoomVO>> adminLiveRooms(@RequestParam(required = false) Integer status) {
+        return CommonResult.success(liveRoomService.listAdmin(status));
+    }
+
+    @Operation(summary = "创建直播间")
+    @PostMapping("/admin/live-rooms")
+    public CommonResult<LiveRoomVO> createLiveRoom(@Valid @RequestBody LiveRoomSaveDTO dto) {
+        return CommonResult.success(liveRoomService.save(null, dto));
+    }
+
+    @Operation(summary = "更新直播间")
+    @PutMapping("/admin/live-rooms/{id}")
+    public CommonResult<LiveRoomVO> updateLiveRoom(@PathVariable Long id,
+                                                   @Valid @RequestBody LiveRoomSaveDTO dto) {
+        return CommonResult.success(liveRoomService.save(id, dto));
+    }
+
+    @Operation(summary = "更新直播间状态")
+    @PutMapping("/admin/live-rooms/{id}/status")
+    public CommonResult<Boolean> updateLiveRoomStatus(@PathVariable Long id, @RequestParam Integer status) {
+        return CommonResult.success(liveRoomService.updateStatus(id, status));
     }
 
     @Operation(summary = "会员订单与售后状态实时通知")

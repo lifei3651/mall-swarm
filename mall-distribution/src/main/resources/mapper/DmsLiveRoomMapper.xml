@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsLiveRoomDao">
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsLiveRoom">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="title" property="title"/>
+        <result column="subtitle" property="subtitle"/>
+        <result column="cover_url" property="coverUrl"/>
+        <result column="anchor_name" property="anchorName"/>
+        <result column="watch_url" property="watchUrl"/>
+        <result column="scheduled_start_time" property="scheduledStartTime"/>
+        <result column="scheduled_end_time" property="scheduledEndTime"/>
+        <result column="status" property="status"/>
+        <result column="viewer_count" property="viewerCount"/>
+        <result column="heat_count" property="heatCount"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="version" property="version"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+    <sql id="Columns">id, tenant_id, title, subtitle, cover_url, anchor_name, watch_url,
+        scheduled_start_time, scheduled_end_time, status, viewer_count, heat_count, sort_order,
+        version, create_time, update_time</sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Columns"/> FROM dms_live_room
+        WHERE tenant_id=#{tenantId} AND id=#{id}
+    </select>
+    <select id="selectByIdForUpdate" resultMap="BaseResultMap">
+        SELECT <include refid="Columns"/> FROM dms_live_room
+        WHERE tenant_id=#{tenantId} AND id=#{id} FOR UPDATE
+    </select>
+    <select id="selectAdminList" resultMap="BaseResultMap">
+        SELECT <include refid="Columns"/> FROM dms_live_room
+        WHERE tenant_id=#{tenantId}
+        <if test="status != null">AND status=#{status}</if>
+        ORDER BY sort_order DESC, scheduled_start_time DESC, id DESC
+    </select>
+    <select id="selectPublicList" resultMap="BaseResultMap">
+        SELECT <include refid="Columns"/> FROM dms_live_room
+        WHERE tenant_id=#{tenantId} AND status IN (1,2,3)
+        ORDER BY CASE status WHEN 2 THEN 0 WHEN 1 THEN 1 ELSE 2 END,
+                 CASE WHEN status=1 THEN scheduled_start_time END ASC,
+                 sort_order DESC, id DESC
+        LIMIT #{limit}
+    </select>
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsLiveRoom" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_live_room(tenant_id,title,subtitle,cover_url,anchor_name,watch_url,
+          scheduled_start_time,scheduled_end_time,status,viewer_count,heat_count,sort_order,version)
+        VALUES(#{tenantId},#{title},#{subtitle},#{coverUrl},#{anchorName},#{watchUrl},
+          #{scheduledStartTime},#{scheduledEndTime},#{status},#{viewerCount},#{heatCount},#{sortOrder},0)
+    </insert>
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsLiveRoom">
+        UPDATE dms_live_room SET title=#{title},subtitle=#{subtitle},cover_url=#{coverUrl},
+          anchor_name=#{anchorName},watch_url=#{watchUrl},scheduled_start_time=#{scheduledStartTime},
+          scheduled_end_time=#{scheduledEndTime},status=#{status},viewer_count=#{viewerCount},
+          heat_count=#{heatCount},sort_order=#{sortOrder},version=version+1,update_time=CURRENT_TIMESTAMP
+        WHERE tenant_id=#{tenantId} AND id=#{id} AND version=#{version}
+    </update>
+    <update id="updateStatus">
+        UPDATE dms_live_room SET status=#{status},version=version+1,update_time=CURRENT_TIMESTAMP
+        WHERE tenant_id=#{tenantId} AND id=#{id} AND version=#{expectedVersion}
+    </update>
+    <delete id="deleteProducts">
+        DELETE FROM dms_live_room_product WHERE tenant_id=#{tenantId} AND live_room_id=#{roomId}
+    </delete>
+    <insert id="insertProduct">
+        INSERT INTO dms_live_room_product(tenant_id,live_room_id,product_id,sort_order)
+        VALUES(#{tenantId},#{roomId},#{productId},#{sortOrder})
+    </insert>
+    <select id="selectProductIds" resultType="java.lang.Long">
+        SELECT product_id FROM dms_live_room_product
+        WHERE tenant_id=#{tenantId} AND live_room_id=#{roomId}
+        ORDER BY sort_order ASC,id ASC
+    </select>
+</mapper>

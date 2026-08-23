@@ -14,6 +14,20 @@ test('flash sale uses a dedicated endpoint and keeps its business source through
   assert.match(checkout, /submitFlashSaleOrder\(businessSourceId/)
 })
 
+test('live square and new arrivals use real public APIs and controlled routes', () => {
+  const api = read('../src/api/shop.js')
+  const home = read('../src/views/HomeView.vue')
+  const router = read('../src/router/index.js')
+  const liveRoom = read('../src/views/LiveRoomView.vue')
+  assert.match(api, /\/shop\/live-rooms/)
+  assert.match(api, /\/shop\/new-arrivals/)
+  assert.match(home, /mod\.type === 'discovery'/)
+  assert.match(home, /liveRooms\.value\.length > 0 \|\| newArrivals\.value\.length > 0/)
+  assert.match(router, /path: '\/live'/)
+  assert.match(router, /path: '\/new-arrivals'/)
+  assert.match(liveRoom, /url\.protocol !== 'https:'/)
+})
+
 test('public storefront excludes repurchase pages and rejects non-public checkout modes', () => {
   const router = read('../src/router/index.js')
   const policy = read('../src/surfaces/public/commercePolicy.js')

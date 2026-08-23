@@ -167,6 +167,9 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `POST /api/v1/shop/products/{id}/purchase-limit/check` | 查询参数 `quantity` | 限购校验结果 | 合并历史有效订单占用和本次数量检查；提交订单时仍会再次校验 |
 | `GET /api/v1/shop/products/{id}/reviews` | `pageNum`、`pageSize` | `ProductReviewPageVO` | 返回公开评价、星级分布及当前会员评价资格 |
 | `POST /api/v1/shop/products/{id}/reviews` | `rating` 1～5、`content` 最多 1000 字 | 商品评价记录 | 仅确认收货且符合资格的买家可评价 |
+| `GET /api/v1/shop/live-rooms?limit=...` | `limit` 1～50 | `LiveRoomVO[]` | 仅返回当前客户公开的预告、直播中和已结束直播；预告不返回观看地址 |
+| `GET /api/v1/shop/live-rooms/{id}` | 直播间 ID | `LiveRoomVO` | 返回直播状态和正常商城在售关联商品；草稿、停用及其他客户数据不可见 |
+| `GET /api/v1/shop/new-arrivals?limit=...` | `limit` 1～100 | 商品列表 | 按 `first_publish_time` 倒序返回首次上架仍处于配置窗口内的正常在售商品 |
 | `GET /api/v1/shop/notices` | 分页和类型 | 公告分页 | 仅返回当前租户已启用公告 |
 | `GET /api/v1/shop/notices/{id}` | 公告 ID | 公告详情 | 校验公告所属租户和展示状态 |
 
@@ -420,7 +423,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 
 只读查询使用 GET，不得为了传筛选条件改成 POST；操作日志不能仅以 HTTP 方法粗略判断业务是否写入。
 
-### 19. 租户配置、秒杀活动、复购和 ERP
+### 19. 租户配置、直播、秒杀活动、复购和 ERP
 
 | 方法与地址 | 主要入参 | `data` 出参 |
 | --- | --- | --- |
@@ -440,6 +443,10 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `GET /api/v1/distribution/bonus-config/pv/orders/{orderId}` | 订单 ID | 订单 PV 明细 |
 | `GET /api/v1/distribution/bonus-config/snapshots/orders/{orderId}` | 订单 ID | 奖金计算快照列表 |
 | `POST /api/v1/distribution/bonus-config/simulate` | `BonusSimulationDTO` | 奖金模拟结果 |
+| `GET /api/v1/shop/admin/live-rooms` | 可选 `status` | 直播间和关联商品列表；包含后台版本字段 |
+| `POST /api/v1/shop/admin/live-rooms` | `LiveRoomSaveDTO` | 新建直播间 |
+| `PUT /api/v1/shop/admin/live-rooms/{id}` | `LiveRoomSaveDTO` | 锁定并按版本更新直播间及关联商品 |
+| `PUT /api/v1/shop/admin/live-rooms/{id}/status` | `status` 0～4 | `boolean`；按版本原子切换状态 |
 | `GET /api/v1/shop/admin/flash-sales` | 状态、商品、时间、分页 | 秒杀活动分页 |
 | `POST/PUT /api/v1/shop/admin/flash-sales[/{id}]` | `FlashSaleActivitySaveDTO` | 秒杀活动 |
 | `PUT /api/v1/shop/admin/flash-sales/{id}/status` | `status` | `boolean` |
@@ -453,6 +460,10 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 交付预检检查品牌、经营主体、客服、营业执照、备案、协议、发退货地址、正式商品、明显测试内容、正式支付、正式短信以及特殊业务模式是否可执行。ERP 和真实物流属于客户可选项，不阻断未采购这些能力的客户；预检通过不替代真实支付、退款、短信、备份恢复和并发写入验收。
 
 `FlashSaleActivitySaveDTO` 关键字段：`activityName`、`productId`、可选 `skuId`、`flashPrice>=0.01`、`flashPv>=0`、`totalStock>=1`、`perUserLimit>=1`、`startTime`、未来的 `endTime`、`status`。
+
+`LiveRoomSaveDTO` 关键字段：`title` 2～80 字、可选 `subtitle`、HTTPS 或站内 `coverUrl`、`anchorName`、可选公开 HTTPS `watchUrl`、`scheduledStartTime`、可选 `scheduledEndTime`、`status`、非负热度/观看人数、排序和最多 20 个 `productIds`。预告或直播中至少关联一个正常商城在售商品，直播中必须有公开观看地址；后台仅允许平台账号维护。观看地址不能保存推流地址、推流密钥、AccessKey 或云直播 Secret。
+
+直播状态为：`0 DRAFT`、`1 UPCOMING`、`2 LIVE`、`3 ENDED`、`4 DISABLED`。实际推流、转码、防盗链、播放鉴权、录制和服务商回调由客户选定腾讯云、阿里云或其他供应商后通过适配器接入，不在通用基座中写死。
 
 ### 19.1 商户、货款、发票与人工打款
 
@@ -624,7 +635,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 
 - 基线与升级 SQL 位于 `document/sql/`。
 - 受控增量迁移位于 `document/db/migrations/`。
-- 当前功能基座重点迁移：租户配置版本与操作日志索引、售后期限配置、秒杀与复购基座、订单客服备注。
+- 当前功能基座重点迁移：租户配置版本与操作日志索引、售后期限配置、秒杀与复购基座、订单客服备注、直播广场和商品首次上架时间。
 - 新迁移文件一经在任何共享环境登记，禁止修改原内容；只能新增更高版本迁移。
 - 发布前执行迁移计划校验和完整备份，发布后核对迁移登记、表结构、索引和核心业务计数。
 
@@ -632,6 +643,8 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 
 - 商城名称、Logo、客服、经营主体、协议、视觉和业务开关均从租户配置读取，禁止重新写死“灵启”或某客户名称。
 - 租户配置修改保留历史版本，可按版本恢复。
+- 新品展示窗口由 `SHOP_NEW_ARRIVAL_DAYS` 配置，默认 30 天；首次正式上架时间只在商品第一次进入上架状态时写入，后续编辑不得覆盖。
+- 直播观看链接属于公开地址，推流密钥属于部署密钥；两者必须严格分开，通用直播间表不得保存任何推流凭证。
 - 客户特有奖金、复购结算、物流和 ERP 通过策略/适配器扩展；公共主流程只保存稳定业务类型和快照。
 - 客户交付前必须形成客户确认的规则版本，包含售后起算、有效期、支付、发货、奖金、复购、提现和退款责任边界。
 

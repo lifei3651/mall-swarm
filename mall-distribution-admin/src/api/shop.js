@@ -64,6 +64,18 @@ export function updateFlashSaleStatus(id, status) {
   return request({ url: `/shop/admin/flash-sales/${id}/status`, method: 'put', params: { status } })
 }
 
+export function listLiveRooms(params) {
+  return request({ url: '/shop/admin/live-rooms', method: 'get', params })
+}
+
+export function saveLiveRoom(id, data) {
+  return request({ url: id ? `/shop/admin/live-rooms/${id}` : '/shop/admin/live-rooms', method: id ? 'put' : 'post', data })
+}
+
+export function updateLiveRoomStatus(id, status) {
+  return request({ url: `/shop/admin/live-rooms/${id}/status`, method: 'put', params: { status } })
+}
+
 export function listShopServiceAddresses(params) {
   return request({ url: '/shop/admin/service-addresses', method: 'get', params })
 }

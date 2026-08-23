@@ -96,6 +96,18 @@ export function listFlashSales() {
   return request({ url: '/shop/flash-sales', method: 'get' })
 }
 
+export function listLiveRooms(params) {
+  return request({ url: '/shop/live-rooms', method: 'get', params })
+}
+
+export function getLiveRoom(id) {
+  return request({ url: `/shop/live-rooms/${id}`, method: 'get' })
+}
+
+export function listNewArrivals(params) {
+  return request({ url: '/shop/new-arrivals', method: 'get', params })
+}
+
 export function submitFlashSaleOrder(activityId, data, idempotencyKey) {
   return request({
     url: `/shop/flash-sales/${activityId}/orders`,

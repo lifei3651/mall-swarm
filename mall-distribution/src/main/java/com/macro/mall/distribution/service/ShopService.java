@@ -32,6 +32,8 @@ public interface ShopService {
 
     List<DmsShopProduct> listProducts(Long tenantId, String keyword, String categoryName, Integer status, String stockStatus);
 
+    List<DmsShopProduct> listNewArrivals(Long tenantId, Integer limit);
+
     CommonPage<DmsShopProduct> listProductPage(Long tenantId, String keyword, String categoryName,
                                                Integer status, String stockStatus,
                                                Integer pageNum, Integer pageSize);

@@ -297,6 +297,12 @@ const routes = [
             meta: { title: '秒杀活动', permission: 'shop:product' },
           },
           {
+            path: 'live-rooms',
+            name: 'TenantLiveRooms',
+            component: () => import('@/views/shop/live-rooms.vue'),
+            meta: { title: '直播间管理', permission: 'shop:product' },
+          },
+          {
             path: 'notices',
             name: 'TenantNotices',
             component: () => import('@/views/tenant/notices.vue'),

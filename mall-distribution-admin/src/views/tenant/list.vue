@@ -182,6 +182,10 @@
                   <div v-for="category in visiblePreviewCategories" :key="category.id" class="mobile-preview-category"><span><img v-if="category.iconUrl" :src="category.iconUrl" alt="" /><b v-else>{{ category.categoryName?.slice(0, 1) }}</b></span><strong>{{ category.categoryName }}</strong></div>
                   <div v-if="!visiblePreviewCategories.length" class="preview-empty-inline">暂无首页分类</div>
                 </div>
+                <div v-else-if="module.type === 'discovery' && module.enabled" class="mobile-preview-discovery">
+                  <div class="mobile-preview-discovery-column"><div><strong>直播广场</strong><small>全部 ›</small></div><section><b>直播间发布后展示</b><span>预告 · 直播中 · 回放</span></section></div>
+                  <div class="mobile-preview-discovery-column"><div><strong>新品速递</strong><small>全部 ›</small></div><section><img v-if="previewProducts[0]?.coverUrl" :src="previewProducts[0].coverUrl" :alt="previewProducts[0].productName" /><b>{{ previewProducts[0]?.productName || '首次上架商品' }}</b><span>首发价 ¥{{ Number(previewProducts[0]?.salePrice || 0).toFixed(2) }}</span></section></div>
+                </div>
                 <div v-else-if="module.type === 'trust' && module.enabled && displayForm.showTrustStrip === 1" class="mobile-preview-trust"><span>安全支付</span><span>订单可查</span><span>售后无忧</span></div>
                 <div v-else-if="module.type === 'products' && module.enabled" class="mobile-preview-product-section"><div class="mobile-preview-heading"><strong>精选商品</strong><span>商城好物，为你精选</span></div><div class="mobile-preview-products"><div v-for="product in previewProducts" :key="product.id" class="mobile-preview-product"><img v-if="product.coverUrl" :src="product.coverUrl" :alt="product.productName" /><i v-else></i><strong>{{ product.productName }}</strong><small>{{ product.subtitle || '精选商品，品质保障' }}</small><b>¥{{ Number(product.salePrice || 0).toFixed(2) }}</b></div><div v-if="!previewProducts.length" class="preview-empty-module">暂无上架商品</div></div></div>
               </template>
@@ -267,7 +271,7 @@ const savingDisplay = ref(false)
 const displayLogoLoadFailed = ref(false)
 
 const displayForm = ref({})
-const moduleNames = { banner: '首页轮播图', notice: '商城公告', category: '商品分类', trust: '服务保障', products: '精选商品' }
+const moduleNames = { banner: '首页轮播图', notice: '商城公告', category: '商品分类', discovery: '直播广场 / 新品速递', trust: '服务保障', products: '精选商品' }
 const navNames = { home: '首页', category: '分类', cart: '购物车', orders: '订单', profile: '我的' }
 const editSectionLabels = { brand: '品牌视觉', banner: '首页轮播图', home: '首页模块', category: '分类模块', nav: '底部导航', colors: '颜色微调' }
 const editSectionLabel = computed(() => editSectionLabels[activeEditSection.value] || '品牌视觉')
@@ -276,9 +280,18 @@ const defaultModules = () => [
   { type: 'banner', enabled: true, sort: 1 },
   { type: 'notice', enabled: true, sort: 2 },
   { type: 'category', enabled: true, sort: 3 },
-  { type: 'trust', enabled: false, sort: 4 },
-  { type: 'products', enabled: true, sort: 5 },
+  { type: 'discovery', enabled: true, sort: 4 },
+  { type: 'trust', enabled: false, sort: 5 },
+  { type: 'products', enabled: true, sort: 6 },
 ]
+const withDefaultModules = (configured) => {
+  const current = Array.isArray(configured) && configured.length ? configured : []
+  const types = new Set(current.map((item) => item?.type).filter(Boolean))
+  const rank = new Map(defaultModules().map((item, index) => [item.type, index]))
+  return [...current, ...defaultModules().filter((item) => !types.has(item.type))]
+    .sort((a, b) => (Number(a.sort || 0) - Number(b.sort || 0))
+      || ((rank.get(a.type) ?? 99) - (rank.get(b.type) ?? 99)))
+}
 const defaultBottomNav = () => [
   { type: 'home', label: '首页', enabled: true },
   { type: 'category', label: '分类', enabled: true },
@@ -373,7 +386,7 @@ const displaySectionRows = computed(() => {
   const extra = (() => {
     try { return JSON.parse(currentDisplayConfig.value?.extraConfigJson || '{}') || {} } catch { return {} }
   })()
-  const modules = Array.isArray(extra.homeModules) && extra.homeModules.length ? extra.homeModules : defaultModules()
+  const modules = withDefaultModules(extra.homeModules)
   const nav = Array.isArray(extra.bottomNav) && extra.bottomNav.length ? extra.bottomNav : defaultBottomNav()
   const customColorCount = Object.values(extra.colors || {}).filter(Boolean).length
   const visibleModules = modules.filter((item) => normalizeModuleEnabled(item.enabled)).length
@@ -433,7 +446,7 @@ const openDisplayDialog = async (row, section = 'brand') => {
     enabled: normalizeModuleEnabled(nav.enabled)
       && (nav.type !== 'category' || legacyBottomCategoryEnabled),
   }))
-  const configuredModules = Array.isArray(extra.homeModules) && extra.homeModules.length ? extra.homeModules : defaultModules()
+  const configuredModules = withDefaultModules(extra.homeModules)
   const trustEnabled = normalizeModuleEnabled(
     extra.showTrustStrip ?? configuredModules.find((module) => module.type === 'trust')?.enabled,
     false,
@@ -898,6 +911,17 @@ onMounted(fetchData)
 .mobile-preview-product strong { overflow:hidden; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
 .mobile-preview-product small { overflow:hidden; color:#98a2b3; font-size:9px; text-overflow:ellipsis; white-space:nowrap; }
 .mobile-preview-product b { color:var(--preview-price, var(--preview-color)); font-size:13px; }
+.mobile-preview-discovery { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; padding:6px 10px 11px; }
+.mobile-preview-discovery-column { min-width:0; }
+.mobile-preview-discovery-column>div { display:flex; align-items:center; justify-content:space-between; gap:4px; margin-bottom:5px; }
+.mobile-preview-discovery-column>div strong { font-size:11px; }
+.mobile-preview-discovery-column>div small { color:var(--preview-muted,#98a2b3); font-size:8px; }
+.mobile-preview-discovery-column section { position:relative; height:86px; display:flex; flex-direction:column; justify-content:flex-end; gap:3px; overflow:hidden; padding:8px; color:#fff; background:linear-gradient(145deg,#364152,#111827); border-radius:11px; }
+.mobile-preview-discovery-column:last-child section { background:linear-gradient(145deg,#7357e6,#44318d); }
+.mobile-preview-discovery-column section img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.45; }
+.mobile-preview-discovery-column section b,.mobile-preview-discovery-column section span { position:relative; z-index:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mobile-preview-discovery-column section b { font-size:10px; }
+.mobile-preview-discovery-column section span { font-size:8px; opacity:.8; }
 .mobile-preview-trust { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; margin:0 12px 12px; padding:9px 4px; color:#667085; font-size:11px; text-align:center; background:var(--preview-card-bg, #fff); border-radius:12px; }
 .mobile-preview-nav { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); padding:10px 8px 12px; color:#8a94a4; font-size:11px; text-align:center; background:#fff; border-top:1px solid #eef0f3; }
 .mobile-preview-nav span.active { color:var(--preview-color); font-weight:800; }

@@ -84,6 +84,37 @@
         </div>
       </section>
 
+      <!-- 直播广场与新品速递：只有存在真实数据时才展示，避免空白或伪直播。 -->
+      <section v-else-if="mod.type === 'discovery' && mod.enabled && showDiscovery" class="home-discovery-section" aria-label="直播广场与新品速递">
+        <div v-if="liveRooms.length" class="discovery-column discovery-live">
+          <div class="discovery-heading">
+            <div><Radio :size="18" /><h2>直播广场</h2><span v-if="liveRoomLiveCount">{{ liveRoomLiveCount }} 场直播中</span></div>
+            <RouterLink to="/live">全部 <ChevronRight :size="15" /></RouterLink>
+          </div>
+          <RouterLink class="discovery-feature" :to="`/live/${liveRooms[0].room.id}`">
+            <img :src="liveRooms[0].room.coverUrl" :alt="liveRooms[0].room.title" loading="lazy" @error="applyImageFallback" />
+            <span class="discovery-shade"></span>
+            <span class="live-state" :class="`state-${String(liveRooms[0].roomState).toLowerCase()}`">{{ liveStateLabel(liveRooms[0].roomState) }}</span>
+            <span class="live-copy"><strong>{{ liveRooms[0].room.title }}</strong><small>{{ liveRooms[0].room.anchorName || formatLiveTime(liveRooms[0].room.scheduledStartTime) }}</small></span>
+            <span class="live-heat"><Flame :size="14" /> {{ formatHeat(liveRooms[0].room.heatCount) }}</span>
+          </RouterLink>
+        </div>
+
+        <div v-if="newArrivals.length" class="discovery-column discovery-new">
+          <div class="discovery-heading">
+            <div><Sparkles :size="18" /><h2>新品速递</h2><span>首次上架好物</span></div>
+            <RouterLink to="/new-arrivals">全部 <ChevronRight :size="15" /></RouterLink>
+          </div>
+          <RouterLink class="discovery-feature" :to="`/product/${newArrivals[0].id}`">
+            <img :src="newArrivals[0].coverUrl" :alt="newArrivals[0].productName" loading="lazy" @error="applyImageFallback" />
+            <span class="discovery-shade"></span>
+            <span class="new-badge"><Sparkles :size="13" /> NEW</span>
+            <span class="live-copy"><strong>{{ newArrivals[0].productName }}</strong><small>{{ newArrivals[0].subtitle || '新品首发，品质上新' }}</small></span>
+            <span class="new-price">首发价 ¥{{ money(newArrivals[0].salePrice) }}</span>
+          </RouterLink>
+        </div>
+      </section>
+
       <!-- 信任条 -->
       <section v-else-if="mod.type === 'trust' && mod.enabled && showTrustStrip" class="home-trust-strip" aria-label="商城服务保障">
         <div v-for="item in trustItems" :key="item.title" class="trust-item">
@@ -154,7 +185,7 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Megaphone, PackageOpen, Search, ShoppingCart } from 'lucide-vue-next'
+import { ChevronRight, Flame, Megaphone, PackageOpen, Radio, Search, ShoppingCart, Sparkles } from 'lucide-vue-next'
 import { getHome, getProduct, listProducts } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { money } from '@/utils/format'
@@ -224,8 +255,9 @@ const defaultModules = [
   { type: 'banner', enabled: true, sort: 1 },
   { type: 'notice', enabled: true, sort: 2 },
   { type: 'category', enabled: true, sort: 3 },
-  { type: 'trust', enabled: true, sort: 4 },
-  { type: 'products', enabled: true, sort: 5 },
+  { type: 'discovery', enabled: true, sort: 4 },
+  { type: 'trust', enabled: true, sort: 5 },
+  { type: 'products', enabled: true, sort: 6 },
 ]
 const homeModules = computed(() => {
   return resolveHomeModules(displayConfig.value, defaultModules)
@@ -273,6 +305,16 @@ let suggestionsHideTimer
 let productRequestId = 0
 
 const allHomeProducts = computed(() => home.value.featuredProducts || [])
+const liveRooms = computed(() => home.value.liveRooms || [])
+const newArrivals = computed(() => (home.value.newArrivals || []).map(normalizeProduct))
+const showDiscovery = computed(() => liveRooms.value.length > 0 || newArrivals.value.length > 0)
+const liveRoomLiveCount = computed(() => liveRooms.value.filter((item) => item.roomState === 'LIVE').length)
+const liveStateLabel = (state) => ({ LIVE: '直播中', UPCOMING: '直播预告', ENDED: '精彩回放' }[state] || '直播')
+const formatLiveTime = (value) => value ? String(value).replace('T', ' ').slice(5, 16) : '开播时间待定'
+const formatHeat = (value) => {
+  const count = Math.max(0, Number(value || 0))
+  return count >= 10000 ? `${(count / 10000).toFixed(count >= 100000 ? 0 : 1)}万热度` : `${count}热度`
+}
 const displayConfig = computed(() => home.value.displayConfig || {})
 const displayExtraConfig = computed(() => readDisplayExtraConfig(displayConfig.value))
 const showHomeCategories = computed(() => Number(displayConfig.value.showHomeCategories ?? 1) === 1)
@@ -497,6 +539,28 @@ onUnmounted(() => { stopBannerAutoplay(); stopNoticeRotation(); window.clearTime
 }
 
 .home-category-section { width: min(1180px, calc(100% - 40px)); margin: 18px auto 16px; padding: 22px 20px; background: #fff; border: 1px solid #eceff1; border-radius: var(--shop-card-radius); }
+.home-discovery-section { width: min(1180px, calc(100% - 40px)); display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; margin: 0 auto 18px; }
+.discovery-column { min-width: 0; }
+.discovery-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; padding: 0 2px; }
+.discovery-heading > div { min-width: 0; display: flex; align-items: center; gap: 7px; }
+.discovery-heading svg { color: var(--brand-primary); }
+.discovery-heading h2 { margin: 0; color: #22272e; font-size: 19px; }
+.discovery-heading span { overflow: hidden; color: #98a2b3; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.discovery-heading > a { display: inline-flex; align-items: center; flex: 0 0 auto; color: #667085; font-size: 12px; font-weight: 700; text-decoration: none; }
+.discovery-feature { position: relative; display: block; aspect-ratio: 16/9; overflow: hidden; color: #fff; background: #eef0f3; border-radius: var(--shop-card-radius); box-shadow: 0 8px 24px rgba(15,23,42,.08); }
+.discovery-feature > img { width: 100%; height: 100%; display: block; object-fit: cover; transition: transform .3s ease; }
+.discovery-feature:hover > img { transform: scale(1.025); }
+.discovery-shade { position: absolute; inset: 0; background: linear-gradient(180deg,rgba(5,12,24,.04) 35%,rgba(5,12,24,.78) 100%); }
+.live-state,.new-badge { position: absolute; top: 12px; left: 12px; display: inline-flex; align-items: center; gap: 4px; padding: 5px 9px; color: #fff; background: rgba(17,24,39,.76); border-radius: 999px; font-size: 11px; font-weight: 800; backdrop-filter: blur(6px); }
+.live-state.state-live { background: #ef1742; }
+.live-state.state-upcoming { background: #0f9f6e; }
+.new-badge { background: #7357e6; }
+.live-copy { position: absolute; left: 14px; right: 118px; bottom: 13px; min-width: 0; }
+.live-copy strong,.live-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-copy strong { font-size: 16px; }
+.live-copy small { margin-top: 5px; color: rgba(255,255,255,.78); font-size: 11px; }
+.live-heat,.new-price { position: absolute; right: 14px; bottom: 14px; display: flex; align-items: center; gap: 3px; color: #fff; font-size: 11px; font-weight: 700; }
+.new-price { font-size: 12px; }
 .home-trust-strip { width:min(1180px,calc(100% - 40px)); display:grid; grid-template-columns:repeat(auto-fit,minmax(0,1fr)); gap:10px; margin:0 auto 18px; padding:13px 16px; background:linear-gradient(110deg,#f7fbff,#fff); border:1px solid #e4edf7; border-radius:var(--shop-card-radius); }
 .trust-item { min-width:0; padding:2px 12px; border-right:1px solid #e8eef5; }
 .trust-item:last-child { border-right:0; }
@@ -551,6 +615,16 @@ onUnmounted(() => { stopBannerAutoplay(); stopNoticeRotation(); window.clearTime
   .search-suggestions { top:calc(100% + 6px); left:-5px; right:-5px; }
   .home-share { height: 48px; font-size: 10px; }
   .home-category-section { width: calc(100% - 16px); margin: 9px auto 10px; padding: 14px 7px 12px; border-radius: var(--shop-card-radius); }
+  .home-discovery-section { width: calc(100% - 16px); gap: 10px; margin-bottom: 14px; }
+  .discovery-heading { margin-bottom: 7px; }
+  .discovery-heading h2 { font-size: 16px; }
+  .discovery-heading span { display: none; }
+  .discovery-feature { aspect-ratio: 4/5; border-radius: 15px; }
+  .live-copy { right: 10px; bottom: 33px; }
+  .live-copy strong { font-size: 14px; }
+  .live-copy small { font-size: 10px; }
+  .live-heat,.new-price { right: auto; left: 14px; bottom: 12px; }
+  .live-state,.new-badge { top: 9px; left: 9px; padding: 4px 7px; font-size: 10px; }
   .home-trust-strip { width:calc(100% - 16px); grid-template-columns:repeat(2,minmax(0,1fr)); gap:0; margin-bottom:11px; padding:10px 6px; }
   .trust-item { padding:7px 9px; border-right:0; }
   .trust-item:nth-child(-n+2) { border-bottom:1px solid #e8eef5; }

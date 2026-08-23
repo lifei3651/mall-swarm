@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 @Mapper
 public interface DmsShopProductDao {
@@ -33,6 +34,10 @@ public interface DmsShopProductDao {
 
     List<DmsShopProduct> selectRepurchaseList(@Param("tenantId") Long tenantId,
                                               @Param("keyword") String keyword);
+
+    List<DmsShopProduct> selectNewArrivals(@Param("tenantId") Long tenantId,
+                                           @Param("cutoff") LocalDateTime cutoff,
+                                           @Param("limit") Integer limit);
 
     List<String> selectCategories(@Param("tenantId") Long tenantId);
 

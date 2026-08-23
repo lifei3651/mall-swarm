@@ -32,6 +32,7 @@
         <result column="sales_count" property="salesCount"/>
         <result column="sort_order" property="sort"/>
         <result column="status" property="status"/>
+        <result column="first_publish_time" property="firstPublishTime"/>
         <result column="merchant_review_status" property="merchantReviewStatus"/>
         <result column="merchant_review_version" property="merchantReviewVersion"/>
         <result column="merchant_review_remark" property="merchantReviewRemark"/>
@@ -64,7 +65,7 @@
         sale_price, market_price, cost_amount, settlement_delay_days_override, pv_value, bv_value, stock, safety_stock, purchase_limit,
         normal_sale_enabled, repurchase_sale_enabled, repurchase_price, repurchase_pv, repurchase_purchase_limit,
         enrollment_sale_enabled, team_bonus_mode, sales_count,
-        sort_order, status, merchant_review_status, merchant_review_version, merchant_review_remark,
+        sort_order, status, first_publish_time, merchant_review_status, merchant_review_version, merchant_review_remark,
         merchant_review_submitted_at, merchant_reviewed_at, merchant_reviewer_id, merchant_reviewer_name,
         detail, detail_images, delivery_address, delivery_province, delivery_city, delivery_district, shipping_address_id, return_address_id,
         freight_type, freight_amount, free_shipping_amount, freight_template_name, freight_template_id,
@@ -121,6 +122,23 @@
           AND (product_name LIKE CONCAT('%', #{keyword}, '%') OR subtitle LIKE CONCAT('%', #{keyword}, '%'))
         </if>
         ORDER BY sort_order DESC, id DESC
+    </select>
+
+    <select id="selectNewArrivals" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_product
+        WHERE tenant_id=#{tenantId}
+          AND status=1
+          AND normal_sale_enabled=1
+          AND COALESCE(first_publish_time, create_time) &gt;= #{cutoff}
+          AND (merchant_id IS NULL OR EXISTS (
+              SELECT 1 FROM dms_merchant active_merchant
+              WHERE active_merchant.id=dms_shop_product.merchant_id
+                AND active_merchant.tenant_id=dms_shop_product.tenant_id
+                AND active_merchant.status=1
+          ))
+        ORDER BY COALESCE(first_publish_time, create_time) DESC, sort_order DESC, id DESC
+        LIMIT #{limit}
     </select>
 
     <select id="selectList" resultMap="BaseResultMap">
@@ -192,7 +210,7 @@
         (tenant_id, merchant_id, merchant_name, product_no, product_name, subtitle, category_name, cover_url, gallery_urls, sale_price,
          market_price, cost_amount, settlement_delay_days_override, pv_value, bv_value, stock, safety_stock, purchase_limit,
          normal_sale_enabled, repurchase_sale_enabled, repurchase_price, repurchase_pv, repurchase_purchase_limit, enrollment_sale_enabled, team_bonus_mode,
-         sales_count, sort_order, status, merchant_review_status, merchant_review_version, merchant_review_remark,
+         sales_count, sort_order, status, first_publish_time, merchant_review_status, merchant_review_version, merchant_review_remark,
          merchant_review_submitted_at, merchant_reviewed_at, merchant_reviewer_id, merchant_reviewer_name, detail, detail_images,
          delivery_address, delivery_province, delivery_city, delivery_district, shipping_address_id, return_address_id,
          freight_type, freight_amount, free_shipping_amount, freight_template_name, freight_template_id,
@@ -201,7 +219,7 @@
         (#{tenantId}, #{product.merchantId}, #{product.merchantName}, #{product.productNo}, #{product.productName}, #{product.subtitle}, #{product.categoryName}, #{product.coverUrl}, #{product.galleryUrls}, #{product.salePrice},
          #{product.marketPrice}, #{product.costAmount}, #{product.settlementDelayDaysOverride}, #{product.pvValue}, #{product.bvValue}, #{product.stock}, #{product.safetyStock}, #{product.purchaseLimit},
          #{product.normalSaleEnabled}, #{product.repurchaseSaleEnabled}, #{product.repurchasePrice}, #{product.repurchasePv}, #{product.repurchasePurchaseLimit}, #{product.enrollmentSaleEnabled}, #{product.teamBonusMode},
-         #{product.salesCount}, #{product.sort}, #{product.status}, #{product.merchantReviewStatus}, #{product.merchantReviewVersion}, #{product.merchantReviewRemark},
+         #{product.salesCount}, #{product.sort}, #{product.status}, CASE WHEN #{product.status}=1 THEN CURRENT_TIMESTAMP ELSE NULL END, #{product.merchantReviewStatus}, #{product.merchantReviewVersion}, #{product.merchantReviewRemark},
          #{product.merchantReviewSubmittedAt}, #{product.merchantReviewedAt}, #{product.merchantReviewerId}, #{product.merchantReviewerName}, #{product.detail}, #{product.detailImages},
          #{product.deliveryAddress}, #{product.deliveryProvince}, #{product.deliveryCity}, #{product.deliveryDistrict}, #{product.shippingAddressId}, #{product.returnAddressId},
          #{product.freightType}, #{product.freightAmount}, #{product.freeShippingAmount}, #{product.freightTemplateName}, #{product.freightTemplateId},
@@ -237,6 +255,7 @@
             sales_count = #{product.salesCount},
             sort_order = #{product.sort},
             status = #{product.status},
+            first_publish_time = CASE WHEN #{product.status}=1 AND first_publish_time IS NULL THEN CURRENT_TIMESTAMP ELSE first_publish_time END,
             merchant_review_status = #{product.merchantReviewStatus},
             merchant_review_version = #{product.merchantReviewVersion},
             merchant_review_remark = #{product.merchantReviewRemark},
@@ -266,7 +285,9 @@
 
     <update id="updateStatusScoped">
         UPDATE dms_shop_product
-        SET status = #{status}, update_time = CURRENT_TIMESTAMP
+        SET status = #{status},
+            first_publish_time = CASE WHEN #{status}=1 AND first_publish_time IS NULL THEN CURRENT_TIMESTAMP ELSE first_publish_time END,
+            update_time = CURRENT_TIMESTAMP
         WHERE id = #{id} AND tenant_id = #{tenantId}
     </update>
 
@@ -296,7 +317,9 @@
 
     <update id="markReviewDecisionScoped">
         UPDATE dms_shop_product
-        SET status=#{status}, merchant_review_status=#{reviewStatus}, merchant_review_remark=#{remark},
+        SET status=#{status},
+            first_publish_time=CASE WHEN #{status}=1 AND first_publish_time IS NULL THEN CURRENT_TIMESTAMP ELSE first_publish_time END,
+            merchant_review_status=#{reviewStatus}, merchant_review_remark=#{remark},
             merchant_reviewed_at=#{reviewedAt}, merchant_reviewer_id=#{reviewerId},
             merchant_reviewer_name=#{reviewerName}, update_time=CURRENT_TIMESTAMP
         WHERE id=#{id} AND tenant_id=#{tenantId} AND merchant_review_version=#{version} AND merchant_review_status='PENDING'

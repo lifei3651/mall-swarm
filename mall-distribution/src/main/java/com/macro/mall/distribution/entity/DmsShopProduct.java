@@ -94,6 +94,9 @@ public class DmsShopProduct implements Serializable {
 
     private Integer status;
 
+    /** 首次正式上架时间；后续编辑或重新上架不改变，用于“新品速递”稳定排序。 */
+    private LocalDateTime firstPublishTime;
+
     /** 商户商品审核状态：DRAFT/PENDING/APPROVED/REJECTED；平台自营为空。 */
     private String merchantReviewStatus;
 

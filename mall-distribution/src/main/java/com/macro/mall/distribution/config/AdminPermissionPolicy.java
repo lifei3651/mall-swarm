@@ -31,7 +31,8 @@ final class AdminPermissionPolicy {
                 || path.startsWith("/shop/admin/media") || path.startsWith("/shop/admin/freight-templates")
                 || path.startsWith("/shop/admin/product-settings") || path.startsWith("/shop/admin/reviews")
                 || path.startsWith("/shop/admin/categories") || path.startsWith("/shop/admin/service-addresses")
-                || path.startsWith("/shop/admin/flash-sales")) return "shop:product";
+                || path.startsWith("/shop/admin/flash-sales")
+                || path.startsWith("/shop/admin/live-rooms")) return "shop:product";
         if (path.startsWith("/distribution/merchants")) return "shop:product";
         if (HttpMethod.POST.matches(method) && path.matches("/shop/admin/orders/[^/]+/refund")) return "shop:aftersale";
         if (HttpMethod.PUT.matches(method) && path.matches("/shop/admin/orders/[^/]+/cancel")) return "shop:aftersale";

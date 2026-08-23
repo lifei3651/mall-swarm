@@ -120,6 +120,7 @@ const moduleNames = {
   banner: 'Banner轮播',
   notice: '商城公告',
   category: '商品分类',
+  discovery: '直播广场 / 新品速递',
   trust: '服务保障',
   products: '商品列表',
 }
@@ -136,8 +137,9 @@ const defaultModules = [
   { type: 'banner', enabled: true, sort: 1 },
   { type: 'notice', enabled: true, sort: 2 },
   { type: 'category', enabled: true, sort: 3 },
-  { type: 'trust', enabled: true, sort: 4 },
-  { type: 'products', enabled: true, sort: 5 },
+  { type: 'discovery', enabled: true, sort: 4 },
+  { type: 'trust', enabled: true, sort: 5 },
+  { type: 'products', enabled: true, sort: 6 },
 ]
 
 const defaultNav = [

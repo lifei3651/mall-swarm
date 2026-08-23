@@ -732,6 +732,7 @@ CREATE TABLE IF NOT EXISTS dms_shop_category (
   icon_url VARCHAR(512),
   sort_order INT NOT NULL DEFAULT 0,
   status INT NOT NULL DEFAULT 1,
+  first_publish_time TIMESTAMP,
   show_on_home INT NOT NULL DEFAULT 1,
   remark VARCHAR(256),
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -988,6 +989,7 @@ CREATE TABLE IF NOT EXISTS dms_shop_product (
 -- Keep the in-memory schema compatible when multiple test contexts reuse a named H2 database.
 ALTER TABLE dms_shop_product ADD COLUMN IF NOT EXISTS shipping_address_id BIGINT;
 ALTER TABLE dms_shop_product ADD COLUMN IF NOT EXISTS return_address_id BIGINT;
+ALTER TABLE dms_shop_product ADD COLUMN IF NOT EXISTS first_publish_time TIMESTAMP;
 
 CREATE TABLE IF NOT EXISTS dms_merchant_product_review (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -1198,6 +1200,35 @@ CREATE TABLE IF NOT EXISTS dms_flash_sale_reservation (
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(activity_id, user_id),
   UNIQUE(order_id)
+);
+
+CREATE TABLE IF NOT EXISTS dms_live_room (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  title VARCHAR(80) NOT NULL,
+  subtitle VARCHAR(160),
+  cover_url VARCHAR(2048) NOT NULL,
+  anchor_name VARCHAR(60),
+  watch_url VARCHAR(2048),
+  scheduled_start_time TIMESTAMP NOT NULL,
+  scheduled_end_time TIMESTAMP,
+  status INT NOT NULL DEFAULT 0,
+  viewer_count INT NOT NULL DEFAULT 0,
+  heat_count INT NOT NULL DEFAULT 0,
+  sort_order INT NOT NULL DEFAULT 0,
+  version INT NOT NULL DEFAULT 0,
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS dms_live_room_product (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  live_room_id BIGINT NOT NULL,
+  product_id BIGINT NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(tenant_id, live_room_id, product_id)
 );
 
 CREATE TABLE IF NOT EXISTS dms_shop_service_address (
