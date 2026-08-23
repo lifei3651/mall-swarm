@@ -131,6 +131,35 @@ class ShopDirectInviterActivationTest {
         verify(memberDao, never()).selectByAccount(anyString());
     }
 
+    @Test
+    void verifiedSmsLoginForUnknownPhonePromptsRegistration() {
+        ShopLoginDTO dto = new ShopLoginDTO();
+        dto.setAccount("15500000088");
+        dto.setLoginType("sms");
+        dto.setSmsCode("123456");
+
+        RuntimeException error = assertThrows(RuntimeException.class, () -> authService.login(dto));
+
+        assertEquals("该手机号尚未注册，请先注册账号", error.getMessage());
+        verify(smsVerificationService).verifyAndConsume("15500000088", "123456", 2);
+        verify(memberDao).selectByAccount("15500000088");
+    }
+
+    @Test
+    void invalidSmsCodeNeverRevealsWhetherPhoneIsRegistered() {
+        ShopLoginDTO dto = new ShopLoginDTO();
+        dto.setAccount("15500000089");
+        dto.setLoginType("sms");
+        dto.setSmsCode("654321");
+        doThrow(new IllegalArgumentException("验证码错误"))
+                .when(smsVerificationService).verifyAndConsume("15500000089", "654321", 2);
+
+        RuntimeException error = assertThrows(RuntimeException.class, () -> authService.login(dto));
+
+        assertEquals("验证码错误", error.getMessage());
+        assertNotEquals("该手机号尚未注册，请先注册账号", error.getMessage());
+    }
+
     private DmsShopMember member(Long id, Long userId, Long inviterId, String nickname) {
         DmsShopMember member = new DmsShopMember();
         member.setId(id);

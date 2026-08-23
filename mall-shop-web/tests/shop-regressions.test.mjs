@@ -928,3 +928,13 @@ test('SMS login uses the server-fixed endpoint while registration and reset reta
   assert.match(forgot, /captchaId: captchaId\.value, captchaCode: captchaCode\.value/)
   assert.match(home, /window\.open\(banner\.linkValue, '_blank', 'noopener,noreferrer'\)/)
 })
+
+test('verified SMS login for an unregistered phone gives a direct registration path', async () => {
+  const login = await readView('LoginView.vue')
+
+  assert.match(login, /该手机号尚未注册，请先注册账号/)
+  assert.match(login, /class="sms-register-notice"/)
+  assert.match(login, /@click="startRegistrationFromSms">去注册</)
+  assert.match(login, /registerForm\.value\.phone = normalizeMainlandPhone\(phone\)/)
+  assert.match(login, /手机号\.\*\(\?:尚未注册\|未注册\)/)
+})

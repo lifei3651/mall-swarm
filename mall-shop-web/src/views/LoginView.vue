@@ -62,6 +62,10 @@
             </div>
             <p v-if="loginFieldErrors.code" class="field-error">{{ loginFieldErrors.code }}</p>
           </div>
+          <div v-if="unregisteredSmsPhone" class="sms-register-notice" role="alert">
+            <span>该手机号尚未注册，请先注册账号</span>
+            <button type="button" @click="startRegistrationFromSms">去注册</button>
+          </div>
         </template>
 
         <!-- 注册 -->
@@ -274,6 +278,7 @@ const loginForm = ref({ account: '', password: '', captchaId: '', captchaCode: '
 const loginFieldErrors = ref({})
 const captchaImage = ref('')
 const smsForm = ref({ phone: '', code: '' })
+const unregisteredSmsPhone = ref('')
 const { registerForm, agreeTerms, clearRegisterDraft } = useRegisterDraft()
 const fieldErrors = ref({})
 const inviterInfo = ref(null)
@@ -295,6 +300,7 @@ const clearFeedback = ({ clearFields = true } = {}) => {
   window.clearTimeout(fieldErrorTimer)
   error.value = ''
   success.value = ''
+  unregisteredSmsPhone.value = ''
   if (clearFields) {
     loginFieldErrors.value = {}
     fieldErrors.value = {}
@@ -416,7 +422,14 @@ const handleRegisterUsernameInput = () => {
 
 const handleSmsLoginPhoneInput = () => {
   smsForm.value.phone = normalizeMainlandPhone(smsForm.value.phone)
+  unregisteredSmsPhone.value = ''
   clearLoginFieldError('phone')
+}
+
+const startRegistrationFromSms = () => {
+  const phone = unregisteredSmsPhone.value || smsForm.value.phone
+  registerForm.value.phone = normalizeMainlandPhone(phone)
+  switchMode('register')
 }
 
 const validateRegisterField = (field) => {
@@ -676,6 +689,10 @@ const submit = async () => {
       showRegisterPopup(e.message || '注册失败，请稍后重试')
       return
     }
+    if (loginType.value === 'sms' && /手机号.*(?:尚未注册|未注册)/.test(String(e.message || ''))) {
+      unregisteredSmsPhone.value = smsForm.value.phone
+      return
+    }
     error.value = isStaleChunkError(e)
       ? '页面资源已更新，正在为您重新加载，请稍候…'
       : (e.message || '提交失败')
@@ -746,6 +763,31 @@ const submit = async () => {
 .sms-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.sms-register-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  color: #b54708;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.sms-register-notice button {
+  flex: 0 0 auto;
+  padding: 5px 11px;
+  color: #fff;
+  background: var(--accent, #0f766e);
+  border: 0;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .account-links {

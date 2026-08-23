@@ -418,7 +418,12 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         if ("sms".equals(loginType)) {
             // 短信验证码登录
             smsVerificationService.verifyAndConsume(account, dto.getSmsCode(), SMS_BIZ_TYPE_LOGIN);
-            if (member == null || hasActiveLoginLock(member) || !Integer.valueOf(1).equals(member.getStatus())) {
+            // 验证码通过后，手机号归属已经得到确认，可以准确引导本人完成注册；
+            // 验证码未通过时由 verifyAndConsume 直接失败，不能借此枚举已注册账号。
+            if (member == null) {
+                Asserts.fail("该手机号尚未注册，请先注册账号");
+            }
+            if (hasActiveLoginLock(member) || !Integer.valueOf(1).equals(member.getStatus())) {
                 Asserts.fail(GENERIC_LOGIN_ERROR);
             }
         } else {
