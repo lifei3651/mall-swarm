@@ -734,6 +734,9 @@ main {
     grid-template-columns: repeat(var(--bottom-nav-columns, 4), 1fr);
     background: white;
     border-top: 1px solid var(--line);
+    transform: translate3d(0, var(--bottom-nav-viewport-shift, 0px), 0);
+    backface-visibility: hidden;
+    will-change: transform;
   }
 
   .bottom-nav a {

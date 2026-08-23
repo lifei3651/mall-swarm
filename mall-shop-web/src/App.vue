@@ -50,7 +50,7 @@
       </p>
     </footer>
 
-    <nav v-if="showGlobalChrome" class="bottom-nav" :style="{ '--bottom-nav-columns': bottomNavColumns }">
+    <nav ref="bottomNavRef" v-if="showGlobalChrome" class="bottom-nav" :style="{ '--bottom-nav-columns': bottomNavColumns }">
       <RouterLink v-for="item in bottomNavItems" :key="item.type" :to="item.path" @touchend.prevent="navigateTo(item.path)">
         <span v-if="item.type === 'cart'" class="bottom-cart-icon">
           <ShoppingBag :size="20" />
@@ -91,6 +91,7 @@ import { currentAndroidVersionCode, currentAndroidVersionName, fetchAndroidRelea
 import { isNativeApp } from '@/utils/appEnvironment'
 import { AUTH_REQUIRED_EVENT } from '@/utils/authNavigation'
 import { applyShopSession, hasShopSession } from '@/utils/shopSession'
+import { useVisualViewportFixedBottom } from '@/utils/visualViewportFixedBottom'
 
 const route = useRoute()
 const router = useRouter()
@@ -106,6 +107,8 @@ const updateError = ref('')
 const authPrompt = ref('')
 const isLoggedIn = ref(false)
 const authMember = ref({})
+const bottomNavRef = ref(null)
+useVisualViewportFixedBottom(bottomNavRef)
 let authPromptTimer
 const isHome = computed(() => route.name === 'Home')
 const isProductDetail = computed(() => route.name === 'ProductDetail')
