@@ -8,6 +8,7 @@ import { normalizeNicknameInput, validateNickname } from '../src/utils/nickname.
 import { localPurchaseLimitViolation, purchaseLimitMessage } from '../src/utils/purchaseLimitRules.js'
 import { readDisplayExtraConfig, resolveDisplayColors, resolveHomeModules } from '../src/utils/displayConfig.js'
 import { resolveCurrentStock, stockAdditionViolation, stockQuantityViolation } from '../src/utils/stockRules.js'
+import { isGatewayRecoveryError, resolveRequestErrorMessage } from '../src/utils/requestErrors.js'
 
 const readView = (name) => readFile(new URL(`../src/views/${name}`, import.meta.url), 'utf8')
 const readStyles = () => readFile(new URL('../src/assets/styles.css', import.meta.url), 'utf8')
@@ -21,6 +22,21 @@ test('concurrent 401 responses share one login redirect and return shipment comp
   assert.match(request, /finally \{\s*isRedirectingToLogin = false\s*\}/)
   assert.match(orderDetail, /placeholder="物流公司" maxlength="50"/)
   assert.doesNotMatch(orderDetail, /placeholder="物流公司" maxlength="64"/)
+})
+
+test('gateway restart errors use customer-facing Chinese copy and safe reads retry once', async () => {
+  const request = await readFile(new URL('../src/api/request.js', import.meta.url), 'utf8')
+  const gatewayError = { response: { status: 502, data: '<html>Bad Gateway</html>' } }
+
+  assert.equal(isGatewayRecoveryError(gatewayError), true)
+  assert.equal(resolveRequestErrorMessage(gatewayError), '系统正在更新或连接正在恢复，请稍后重试')
+  assert.equal(
+    resolveRequestErrorMessage({ response: { status: 500, data: {} }, message: 'Request failed with status code 500' }),
+    '系统服务暂时异常，请稍后重试',
+  )
+  assert.match(request, /isTransientTransportError\(error\) \|\| isGatewayRecoveryError\(error\)/)
+  assert.match(request, /RETRYABLE_METHODS\.has\(method\)/)
+  assert.match(request, /isGatewayRecoveryError\(error\) \? 600 : 250/)
 })
 
 test('order realtime stops retrying permanent client errors while retaining network fallback', async () => {
@@ -865,10 +881,11 @@ test('profile fits its actions into short mobile viewports', async () => {
 
 test('order queries retry one transient mobile network failure', async () => {
   const request = await readFile(new URL('../src/api/request.js', import.meta.url), 'utf8')
+  const requestErrors = await readFile(new URL('../src/utils/requestErrors.js', import.meta.url), 'utf8')
   assert.match(request, /RETRYABLE_METHODS = new Set\(\['get', 'head', 'options'\]\)/)
-  assert.match(request, /retryCount < 1 && isTransientTransportError\(error\)/)
+  assert.match(request, /retryCount < 1[\s\S]{0,100}isTransientTransportError\(error\)/)
   assert.match(request, /return service\.request\(config\)/)
-  assert.match(request, /网络暂时不可用，请检查网络后重试/)
+  assert.match(requestErrors, /网络暂时不可用，请检查网络后重试/)
 })
 
 test('storefront session uses an HttpOnly cookie instead of persisting a new bearer token', async () => {

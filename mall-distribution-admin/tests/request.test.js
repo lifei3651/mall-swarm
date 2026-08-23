@@ -91,6 +91,13 @@ describe('response error handling', () => {
     expect(ElMessage.error).toHaveBeenCalledWith('服务器内部错误')
   })
 
+  it('gateway restart errors use customer-facing Chinese copy', async () => {
+    const source = await readFile(resolve(process.cwd(), 'src/utils/request.js'), 'utf8')
+    expect(source).toContain("[502, 503, 504].includes(status)")
+    expect(source).toContain('系统正在更新或连接正在恢复，请稍后重试')
+    expect(source).not.toContain("showError(serverMessage || error.message || '请求失败')")
+  })
+
   it('network error shows connection error', () => {
     ElMessage.error('网络连接异常')
     expect(ElMessage.error).toHaveBeenCalledWith('网络连接异常')

@@ -41,6 +41,14 @@ const createRequestError = (message, details = {}) => {
   return error
 }
 
+const resolveTransportErrorMessage = (error, serverMessage) => {
+  const status = Number(error?.response?.status || 0)
+  if ([502, 503, 504].includes(status)) return '系统正在更新或连接正在恢复，请稍后重试'
+  if (status >= 500) return serverMessage || '服务器内部错误'
+  if (!error?.response) return '网络连接异常，请检查网络后重试'
+  return serverMessage || error?.message || '请求失败'
+}
+
 // 请求拦截器
 service.interceptors.request.use(
   async (config) => {
@@ -93,6 +101,7 @@ service.interceptors.response.use(
     }
     console.error('响应错误:', error)
     const serverMessage = error.response?.data?.message
+    const resolvedMessage = resolveTransportErrorMessage(error, serverMessage)
     const silentError = Boolean(error.config?.silentError)
     if (error.response) {
       const responseStatus = Number(error.response.status)
@@ -113,13 +122,18 @@ service.interceptors.response.use(
         case 500:
           if (!silentError) showError(serverMessage || '服务器内部错误')
           break
+        case 502:
+        case 503:
+        case 504:
+          if (!silentError) showError(resolvedMessage)
+          break
         default:
-          if (!silentError) showError(serverMessage || error.message || '请求失败')
+          if (!silentError) showError(resolvedMessage)
       }
     } else if (!silentError) {
-      showError('网络连接异常')
+      showError(resolvedMessage)
     }
-    return Promise.reject(createRequestError(serverMessage || error.message, {
+    return Promise.reject(createRequestError(resolvedMessage, {
       code: error.response?.data?.code,
       responseStatus: error.response?.status,
       isSilentRequest: silentError,

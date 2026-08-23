@@ -5,6 +5,7 @@ import { encryptSensitiveRequest } from '@/utils/payloadEncryption'
 import { loginRedirectLocation, notifyAuthRequired } from '@/utils/authNavigation'
 import { clearShopSession, finishLegacyTokenMigration, getLegacyShopToken } from '@/utils/shopSession'
 import { appSurface } from '@/utils/appSurface'
+import { isGatewayRecoveryError, resolveRequestErrorMessage } from '@/utils/requestErrors'
 
 const service = axios.create({
   baseURL: apiBaseUrl,
@@ -52,9 +53,10 @@ service.interceptors.response.use(
     const config = error?.config
     const method = String(config?.method || 'get').toLowerCase()
     const retryCount = Number(config?.__transportRetryCount || 0)
-    if (config && RETRYABLE_METHODS.has(method) && retryCount < 1 && isTransientTransportError(error)) {
+    if (config && RETRYABLE_METHODS.has(method) && retryCount < 1
+      && (isTransientTransportError(error) || isGatewayRecoveryError(error))) {
       config.__transportRetryCount = retryCount + 1
-      await waitBeforeRetry()
+      await waitBeforeRetry(isGatewayRecoveryError(error) ? 600 : 250)
       return service.request(config)
     }
 
@@ -73,10 +75,7 @@ service.interceptors.response.use(
         }
       }
     }
-    const message = error.response?.data?.message
-      || (isTransientTransportError(error) ? '网络暂时不可用，请检查网络后重试' : error.message)
-      || '请求失败'
-    return Promise.reject(new Error(message))
+    return Promise.reject(new Error(resolveRequestErrorMessage(error)))
   }
 )
 
