@@ -40,8 +40,13 @@ public class SmsController {
             SmsBusinessType.SET_PAYMENT_PASSWORD,
             SmsBusinessType.RESET_LOGIN_PASSWORD,
             SmsBusinessType.CHANGE_PHONE_CURRENT);
-    private static final Set<Integer> PUBLIC_BIZ_TYPES = Set.of(
-            SmsBusinessType.REGISTER, SmsBusinessType.LOGIN, SmsBusinessType.RESET_PASSWORD);
+    /**
+     * 注册和找回密码会创建或接管账号，发送短信前继续要求图形验证码。
+     * 短信登录只证明现有手机号归属，使用手机号、IP、分钟窗口和每日额度限流，
+     * 不再要求用户重复完成图形验证码。
+     */
+    private static final Set<Integer> CAPTCHA_REQUIRED_BIZ_TYPES = Set.of(
+            SmsBusinessType.REGISTER, SmsBusinessType.RESET_PASSWORD);
 
     private final StringRedisTemplate redisTemplate;
     private final AliyunSmsSender aliyunSmsSender;
@@ -76,7 +81,7 @@ public class SmsController {
         if (!PhoneNumberUtils.isValidMainlandMobile(phone)) {
             return CommonResult.failed("请输入正确的手机号");
         }
-        if (PUBLIC_BIZ_TYPES.contains(bizType)) {
+        if (CAPTCHA_REQUIRED_BIZ_TYPES.contains(bizType)) {
             loginCaptchaService.verify("shop", dto.getCaptchaId(), dto.getCaptchaCode());
         }
         // 原子占用发送窗口，避免并发请求同时穿过“先检查再写入”。
@@ -124,6 +129,19 @@ public class SmsController {
         redisTemplate.delete(codeKey);
         redisTemplate.delete(rateLimitKey);
         return CommonResult.failed("短信服务未配置");
+    }
+
+    /**
+     * 短信登录专用发送入口。业务类型由服务端固定，避免前端缓存、旧版本页面或
+     * 调用方传错 bizType 后出现“短信已收到，但登录校验查不到验证码”的问题。
+     */
+    @Operation(summary = "发送登录短信验证码")
+    @PostMapping("/send/login")
+    public CommonResult<String> sendLoginCode(@Valid @RequestBody SmsCodeRequestDTO dto) {
+        dto.setBizType(SmsBusinessType.LOGIN);
+        dto.setCaptchaId(null);
+        dto.setCaptchaCode(null);
+        return sendCode(dto, null);
     }
 
     /**

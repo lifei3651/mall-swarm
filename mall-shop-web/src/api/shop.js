@@ -420,6 +420,15 @@ export function sendSmsCode(phone, bizType = 1, captcha = {}) {
   })
 }
 
+// 验证码登录使用服务端固定业务类型，避免不同页面或缓存版本传错类型。
+export function sendLoginSmsCode(phone) {
+  return request({
+    url: '/sms/send/login',
+    method: 'post',
+    data: { phone },
+  })
+}
+
 // 支付密码验证码由服务端固定业务类型，避免不同版本页面传错短信类型。
 export function sendPaymentPasswordSmsCode() {
   return request({

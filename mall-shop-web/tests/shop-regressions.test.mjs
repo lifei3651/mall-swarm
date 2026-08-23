@@ -913,7 +913,7 @@ test('storefront session uses an HttpOnly cookie instead of persisting a new bea
   assert.match(session, /localStorage\.removeItem\(LEGACY_TOKEN_KEY\)/)
 })
 
-test('public SMS requests require captcha proof and external banners isolate the opener', async () => {
+test('SMS login uses the server-fixed endpoint while registration and reset retain captcha proof', async () => {
   const api = await readFile(new URL('../src/api/shop.js', import.meta.url), 'utf8')
   const login = await readView('LoginView.vue')
   const forgot = await readView('ForgotPasswordView.vue')
@@ -921,7 +921,10 @@ test('public SMS requests require captcha proof and external banners isolate the
 
   assert.match(api, /captchaId: captcha\.captchaId/)
   assert.match(api, /captchaCode: captcha\.captchaCode/)
-  assert.match(login, /sendSmsCode\(smsForm\.value\.phone, 2, loginForm\.value\)/)
+  assert.match(api, /export function sendLoginSmsCode\(phone\)[\s\S]*url: '\/sms\/send\/login'/)
+  assert.match(login, /sendLoginSmsCode\(smsForm\.value\.phone\)/)
+  assert.doesNotMatch(login, /id="sms-login-captcha"/)
+  assert.match(login, /sendSmsCode\(registerForm\.value\.phone, 1, loginForm\.value\)/)
   assert.match(forgot, /captchaId: captchaId\.value, captchaCode: captchaCode\.value/)
   assert.match(home, /window\.open\(banner\.linkValue, '_blank', 'noopener,noreferrer'\)/)
 })

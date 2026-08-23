@@ -81,6 +81,30 @@ class SmsControllerTest {
     }
 
     @Test
+    void loginCodeUsesServerFixedBusinessTypeWithoutImageCaptcha() {
+        SmsCodeRequestDTO dto = request("13888888888", null, 1);
+
+        CommonResult<String> result = controller.sendLoginCode(dto);
+
+        assertEquals(200, result.getCode());
+        assertEquals(2, dto.getBizType());
+        verify(loginCaptchaService, never()).verify(anyString(), anyString(), anyString());
+        verify(valueOperations).set(eq(codeKey(2, "13888888888")), eq("123456"), eq(5L), eq(TimeUnit.MINUTES));
+        verify(valueOperations, never()).set(eq(codeKey(1, "13888888888")), anyString(), anyLong(), eq(TimeUnit.MINUTES));
+    }
+
+    @Test
+    void registrationCodeStillRequiresImageCaptcha() {
+        SmsCodeRequestDTO dto = request("13888888888", null, 1);
+        dto.setCaptchaId("captcha-id");
+        dto.setCaptchaCode("A1B2");
+
+        controller.sendCode(dto, null);
+
+        verify(loginCaptchaService).verify("shop", "captcha-id", "A1B2");
+    }
+
+    @Test
     void sensitiveVerificationIgnoresClientSuppliedPhone() {
         when(shopAuthService.requireMember("Bearer token")).thenReturn(member("13900000000"));
 
