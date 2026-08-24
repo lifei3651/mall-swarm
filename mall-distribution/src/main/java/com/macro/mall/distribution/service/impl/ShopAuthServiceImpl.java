@@ -68,17 +68,23 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ShopAuthVO register(ShopRegisterDTO dto) {
-        return registerInternal(dto, true);
+        return register(dto, "integrated");
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ShopAuthVO register(ShopRegisterDTO dto, String surface) {
+        return registerInternal(dto, true, normalizeSurface(surface, "team"));
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ShopAuthVO registerPublic(ShopRegisterDTO dto) {
         // 公开 App/小程序只创建普通购物账号；即使客户端伪造 inviteCode 也不会在这里建立团队关系。
-        return registerInternal(dto, false);
+        return registerInternal(dto, false, "public");
     }
 
-    private ShopAuthVO registerInternal(ShopRegisterDTO dto, boolean requireInvitation) {
+    private ShopAuthVO registerInternal(ShopRegisterDTO dto, boolean requireInvitation, String surface) {
         validateRegister(dto);
         dto.setPhone(dto.getPhone().trim());
         dto.setUsername(normalizeLoginAccount(dto.getUsername()));
@@ -131,7 +137,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         memberDao.insert(member);
 
         // 注册只创建商城登录账号；完成首笔有效支付或后台授予后，才进入奖金体系成为一级“会员”。
-        return createSession(member);
+        return createSession(member, surface);
     }
 
     @Override
@@ -415,6 +421,12 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     @Override
     // 不包裹外层事务：密码错误时失败次数必须保留，不能随异常一起回滚。
     public ShopAuthVO login(ShopLoginDTO dto) {
+        return login(dto, "integrated");
+    }
+
+    @Override
+    // 不包裹外层事务：密码错误时失败次数必须保留，不能随异常一起回滚。
+    public ShopAuthVO login(ShopLoginDTO dto, String surface) {
         if (dto == null || dto.getAccount() == null || dto.getAccount().isBlank()) {
             Asserts.fail("账号不能为空");
         }
@@ -459,7 +471,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         memberDao.updateLastLoginTime(member.getId());
         // 单账号单会话：新登录成功后使该会员此前的全部会话失效。
         sessionDao.disableByMemberId(member.getId());
-        return createSession(member);
+        return createSession(member, normalizeSurface(surface, "public"));
     }
 
     @Override
@@ -492,6 +504,20 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             Asserts.unauthorized("请先登录");
         }
         return member;
+    }
+
+    @Override
+    public void requireSurface(String authorization, String requiredSurface) {
+        String token = stripToken(authorization);
+        if (token == null) Asserts.unauthorized("请先登录");
+        DmsShopMemberSession session = sessionDao.selectByToken(hashToken(token));
+        if (session == null || !Integer.valueOf(1).equals(session.getStatus())
+                || session.getExpireTime() == null || session.getExpireTime().isBefore(LocalDateTime.now())) {
+            Asserts.unauthorized("请先登录");
+        }
+        if (!normalizeSurface(requiredSurface, "integrated").equals(session.getSurface())) {
+            Asserts.fail("当前版本不提供余额互转，请使用三合一版");
+        }
     }
 
     @Override
@@ -575,12 +601,13 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         return memberDao.clearLoginLock(id) > 0;
     }
 
-    private ShopAuthVO createSession(DmsShopMember member) {
+    private ShopAuthVO createSession(DmsShopMember member, String surface) {
         DmsShopMemberSession session = new DmsShopMemberSession();
         session.setMemberId(member.getId());
         session.setUserId(member.getUserId());
         String rawToken = IdUtil.fastSimpleUUID() + IdUtil.fastSimpleUUID();
         session.setToken(hashToken(rawToken));
+        session.setSurface(normalizeSurface(surface, "public"));
         session.setStatus(1);
         session.setExpireTime(LocalDateTime.now().plusDays(SESSION_DAYS));
         sessionDao.insert(session);
@@ -590,6 +617,14 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         vo.setExpireTime(session.getExpireTime());
         vo.setMember(sanitize(member));
         return vo;
+    }
+
+    private String normalizeSurface(String value, String fallback) {
+        String surface = value == null ? "" : value.trim().toLowerCase(java.util.Locale.ROOT);
+        return switch (surface) {
+            case "public", "team", "integrated" -> surface;
+            default -> fallback;
+        };
     }
 
     private void validateRegister(ShopRegisterDTO dto) {

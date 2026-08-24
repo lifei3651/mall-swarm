@@ -9,7 +9,7 @@
       <span><ShieldCheck :size="28" /></span>
       <div>
         <strong>{{ wallet.hasPaymentPassword ? '支付密码已设置' : '请先设置支付密码' }}</strong>
-        <p>{{ wallet.hasPaymentPassword ? '余额支付、转账和提现均受独立密码保护' : '首次交易前必须完成设置' }}</p>
+        <p>{{ wallet.hasPaymentPassword ? '余额支付和资金操作均受独立密码保护' : '首次交易前必须完成设置' }}</p>
       </div>
     </section>
 
@@ -25,6 +25,13 @@
         <i v-if="!wallet.hasPaymentPassword" class="action-badge">待设置</i>
         <ChevronRight :size="18" />
       </RouterLink>
+      <RouterLink to="/profile/real-name" class="security-action-btn">
+        <span class="action-icon identity-icon"><BadgeCheck :size="24" /></span>
+        <span class="action-label">实名认证</span>
+        <i v-if="!wallet.realNameVerified" class="action-badge">待认证</i>
+        <i v-else class="verified-badge">{{ wallet.maskedRealName || '已认证' }}</i>
+        <ChevronRight :size="18" />
+      </RouterLink>
     </section>
   </div>
 </template>
@@ -32,11 +39,11 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowLeft, ChevronRight, KeyRound, LockKeyhole, ShieldCheck } from 'lucide-vue-next'
+import { ArrowLeft, BadgeCheck, ChevronRight, KeyRound, LockKeyhole, ShieldCheck } from 'lucide-vue-next'
 import { getWalletSummary } from '@/api/shop'
 
 const router = useRouter()
-const wallet = ref({ hasPaymentPassword: false, paymentPasswordLocked: false })
+const wallet = ref({ hasPaymentPassword: false, paymentPasswordLocked: false, realNameVerified: false })
 
 onMounted(async () => {
   try { wallet.value = (await getWalletSummary()).data || wallet.value } catch {}
@@ -58,7 +65,9 @@ onMounted(async () => {
 .action-icon { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 14px; }
 .login-icon { color: #3867d6; background: #eef3ff; }
 .pay-icon { color: #0f8a62; background: #eaf8f3; }
+.identity-icon { color:#075985; background:#eaf7ff; }
 .action-label { flex: 1; font-size: 15px; font-weight: 600; color: var(--ink); }
 .action-badge { padding: 3px 8px; color: #c2410c; background: #fff2e8; border-radius: 999px; font-size: 11px; font-style: normal; }
+.verified-badge { color:#0f8a62; font-size:12px; font-style:normal; }
 .security-action-btn > svg:last-child { color: #a1a8b0; }
 </style>

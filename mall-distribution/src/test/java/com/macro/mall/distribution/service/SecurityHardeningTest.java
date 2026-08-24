@@ -154,6 +154,25 @@ class SecurityHardeningTest {
         verify(memberSessionDao).insert(session.capture());
         assertNotEquals(result.getToken(), session.getValue().getToken());
         assertEquals(SecureUtil.sha256(result.getToken()), session.getValue().getToken());
+        assertEquals("integrated", session.getValue().getSurface());
+    }
+
+    @Test
+    void balanceTransferSurfaceUsesStoredSessionValueInsteadOfRequestHeaders() {
+        String rawToken = "surface-bound-session";
+        DmsShopMemberSession session = new DmsShopMemberSession();
+        session.setSurface("team");
+        session.setStatus(1);
+        session.setExpireTime(LocalDateTime.now().plusHours(1));
+        when(memberSessionDao.selectByToken(SecureUtil.sha256(rawToken))).thenReturn(session);
+        ShopAuthServiceImpl service = new ShopAuthServiceImpl(memberDao, memberSessionDao,
+                agentService, captchaService, smsVerificationService,
+                mock(com.macro.mall.distribution.dao.DmsTenantDao.class), mock(MemberMessageService.class));
+
+        service.requireSurface("Bearer " + rawToken, "team");
+        RuntimeException blocked = assertThrows(RuntimeException.class,
+                () -> service.requireSurface("Bearer " + rawToken, "integrated"));
+        assertEquals("当前版本不提供余额互转，请使用三合一版", blocked.getMessage());
     }
 
     @Test

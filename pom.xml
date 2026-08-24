@@ -53,6 +53,7 @@
         <bouncycastle.version>1.85.2</bouncycastle.version>
         <wechatpay-sdk.version>0.2.17</wechatpay-sdk.version>
         <aliyun-sms-sdk.version>3.1.2</aliyun-sms-sdk.version>
+        <tencentcloud-faceid-sdk.version>3.2.12</tencentcloud-faceid-sdk.version>
         <logstash-logback.version>8.0</logstash-logback.version>
         <minio.version>8.6.0</minio.version>
         <springdoc-openapi.version>2.8.17</springdoc-openapi.version>
@@ -226,6 +227,11 @@
                 <groupId>com.aliyun</groupId>
                 <artifactId>dysmsapi20170525</artifactId>
                 <version>${aliyun-sms-sdk.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.tencentcloudapi</groupId>
+                <artifactId>tencentcloud-sdk-java-faceid</artifactId>
+                <version>${tencentcloud-faceid-sdk.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

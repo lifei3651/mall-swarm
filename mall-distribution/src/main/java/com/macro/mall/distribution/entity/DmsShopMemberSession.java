@@ -18,6 +18,9 @@ public class DmsShopMemberSession implements Serializable {
 
     private String token;
 
+    /** 会话签发来源：public、team、integrated；历史会话为 legacy。 */
+    private String surface;
+
     private Integer status;
 
     private LocalDateTime expireTime;

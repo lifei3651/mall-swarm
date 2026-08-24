@@ -5,6 +5,7 @@ import com.macro.mall.common.exception.ApiException;
 import com.macro.mall.distribution.config.RedisConfig;
 import com.macro.mall.distribution.config.ScheduleTask;
 import com.macro.mall.distribution.dao.DmsMemberAssetAccountDao;
+import com.macro.mall.distribution.dao.DmsMemberRealNameDao;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsShopOrderItemDao;
 import com.macro.mall.distribution.dto.AssetChangeDTO;
@@ -19,6 +20,7 @@ import com.macro.mall.distribution.dto.ShopAfterSaleApplyDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleItemDTO;
 import com.macro.mall.distribution.entity.DmsMemberAssetAccount;
 import com.macro.mall.distribution.entity.DmsShopMember;
+import com.macro.mall.distribution.entity.DmsMemberRealName;
 import com.macro.mall.distribution.vo.BalanceRecipientVO;
 import com.macro.mall.distribution.vo.ShopOrderVO;
 import com.macro.mall.distribution.vo.PersonProfileVO;
@@ -46,6 +48,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.verify;
@@ -68,6 +71,7 @@ class ShopWalletServiceTest {
     @Autowired private MemberAssetService memberAssetService;
     @Autowired private ShopService shopService;
     @Autowired private DmsShopMemberDao memberDao;
+    @Autowired private DmsMemberRealNameDao realNameDao;
     @Autowired private DmsMemberAssetAccountDao assetAccountDao;
     @Autowired private DistributionAuditService auditService;
     @Autowired private WithdrawService withdrawService;
@@ -427,7 +431,9 @@ class ShopWalletServiceTest {
         ready.countDown();
         start.await();
         try {
-            walletService.applyWithdrawal(member, withdrawal("975310", "100.00"));
+            ShopWithdrawalApplyDTO apply = withdrawal("975310", "100.00");
+            apply.setAccountName(member.getNickname());
+            walletService.applyWithdrawal(member, apply);
             return true;
         } catch (RuntimeException expected) {
             return false;
@@ -467,7 +473,21 @@ class ShopWalletServiceTest {
         member.setInviteCode(phone.substring(phone.length() - 8));
         member.setStatus(1);
         memberDao.insert(member);
-        return memberDao.selectById(member.getId());
+        DmsShopMember saved = memberDao.selectById(member.getId());
+        DmsMemberRealName realName = new DmsMemberRealName();
+        realName.setTenantId(1L);
+        realName.setMemberId(saved.getId());
+        realName.setUserId(saved.getUserId());
+        realName.setStatus(1);
+        realName.setRealName(nickname);
+        // 同一身份证可认证多个账号：本测试同时验证数据库未错误增加身份证唯一约束。
+        realName.setIdCard("11010519491231002X");
+        realName.setProvider("TEST");
+        realName.setConsentVersion("TEST_V1");
+        realName.setConsentTime(LocalDateTime.now());
+        realName.setVerifiedTime(LocalDateTime.now());
+        realNameDao.insert(realName);
+        return saved;
     }
 
     private ShopOrderSubmitDTO orderRequest() {

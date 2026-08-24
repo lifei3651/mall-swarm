@@ -113,6 +113,16 @@ shop:
     monthly-max-count: ${SHOP_WITHDRAWAL_MONTHLY_MAX_COUNT:50}
     daily-max-amount: ${SHOP_WITHDRAWAL_DAILY_MAX_AMOUNT:100000.00}
     monthly-max-amount: ${SHOP_WITHDRAWAL_MONTHLY_MAX_AMOUNT:1000000.00}
+  real-name:
+    enabled: ${SHOP_REAL_NAME_ENABLED:false}
+    provider: TENCENT
+    secret-id: ${TENCENT_FACEID_SECRET_ID:}
+    secret-key: ${TENCENT_FACEID_SECRET_KEY:}
+    region: ${TENCENT_FACEID_REGION:ap-guangzhou}
+    endpoint: ${TENCENT_FACEID_ENDPOINT:faceid.tencentcloudapi.com}
+    daily-max-attempts-per-account: ${SHOP_REAL_NAME_DAILY_MAX_ATTEMPTS:5}
+    connect-timeout-seconds: ${TENCENT_FACEID_CONNECT_TIMEOUT_SECONDS:5}
+    read-timeout-seconds: ${TENCENT_FACEID_READ_TIMEOUT_SECONDS:10}
   order:
     pending-timeout-minutes: ${ORDER_PENDING_TIMEOUT_MINUTES:30}
     pending-scan-interval-ms: ${ORDER_PENDING_SCAN_INTERVAL_MS:60000}

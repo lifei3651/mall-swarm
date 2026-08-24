@@ -46,6 +46,8 @@ def safe_config():
                     "REDIS_PASSWORD": "secret",
                     "DATA_ENCRYPTION_KEY": "secret",
                     "DATA_ENCRYPTION_WRITE_ENABLED": "true",
+                    "TENCENT_FACEID_SECRET_ID": "secret-id",
+                    "TENCENT_FACEID_SECRET_KEY": "secret-key",
                     "DB_SSL_MODE": "REQUIRED",
                     "ALIPAY_PRIVATE_KEY": "",
                     "SMS_ALIYUN_ACCESS_KEY_SECRET": "",
@@ -122,7 +124,9 @@ class ComposeSecurityValidationTest(unittest.TestCase):
     def test_rejects_secret_leak_to_nginx(self):
         config = safe_config()
         config["services"]["nginx"]["environment"]["ALIPAY_PRIVATE_KEY"] = "leaked"
+        config["services"]["nginx"]["environment"]["TENCENT_FACEID_SECRET_KEY"] = "leaked"
         self.assertTrue(any("ALIPAY_PRIVATE_KEY" in error for error in MODULE.validate(config)))
+        self.assertTrue(any("TENCENT_FACEID_SECRET_KEY" in error for error in MODULE.validate(config)))
 
     def test_rejects_simulation_and_test_sms(self):
         config = safe_config()

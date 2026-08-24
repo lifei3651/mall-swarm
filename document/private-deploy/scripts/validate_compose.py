@@ -86,6 +86,8 @@ def validate(config):
         "REDIS_PASSWORD": {"redis", "mall-distribution"},
         "DATA_ENCRYPTION_KEY": {"mall-distribution"},
         "DATA_ENCRYPTION_WRITE_ENABLED": {"mall-distribution"},
+        "TENCENT_FACEID_SECRET_ID": {"mall-distribution"},
+        "TENCENT_FACEID_SECRET_KEY": {"mall-distribution"},
         "ALIPAY_PRIVATE_KEY": {"mall-distribution"},
         "SMS_ALIYUN_ACCESS_KEY_SECRET": {"mall-distribution"},
         "NOTIFICATION_SMS_ALIYUN_ACCESS_KEY_SECRET": {"mall-distribution"},

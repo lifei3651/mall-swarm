@@ -20,4 +20,10 @@ public class ShopWalletSummaryVO implements Serializable {
     private Integer paymentPasswordLockRemainingSeconds;
 
     private Boolean distributionActivated;
+
+    private Boolean realNameVerified;
+
+    private Boolean adultVerified;
+
+    private String maskedRealName;
 }

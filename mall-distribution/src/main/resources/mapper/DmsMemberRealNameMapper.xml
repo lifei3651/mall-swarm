@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsMemberRealNameDao">
+    <resultMap id="RealNameMap" type="com.macro.mall.distribution.entity.DmsMemberRealName">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="member_id" property="memberId"/>
+        <result column="user_id" property="userId"/>
+        <result column="status" property="status"/>
+        <result column="real_name" property="realName" typeHandler="com.macro.mall.distribution.security.EncryptedStringTypeHandler"/>
+        <result column="id_card" property="idCard" typeHandler="com.macro.mall.distribution.security.EncryptedStringTypeHandler"/>
+        <result column="provider" property="provider"/>
+        <result column="provider_request_id" property="providerRequestId"/>
+        <result column="consent_version" property="consentVersion"/>
+        <result column="consent_time" property="consentTime"/>
+        <result column="verified_time" property="verifiedTime"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectByMemberId" resultMap="RealNameMap">
+        SELECT id,tenant_id,member_id,user_id,status,real_name,id_card,provider,
+               provider_request_id,consent_version,consent_time,verified_time,create_time,update_time
+        FROM dms_member_real_name
+        WHERE tenant_id=#{tenantId} AND member_id=#{memberId}
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsMemberRealName" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_member_real_name
+        (tenant_id,member_id,user_id,status,real_name,id_card,provider,provider_request_id,
+         consent_version,consent_time,verified_time)
+        VALUES
+        (#{tenantId},#{memberId},#{userId},#{status},
+         #{realName,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler},
+         #{idCard,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler},
+         #{provider},#{providerRequestId},#{consentVersion},#{consentTime},#{verifiedTime})
+    </insert>
+
+    <insert id="insertAttempt" parameterType="com.macro.mall.distribution.entity.DmsMemberRealNameAttempt" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_member_real_name_attempt
+        (tenant_id,member_id,user_id,provider,result_code,matched,provider_request_id)
+        VALUES (#{tenantId},#{memberId},#{userId},#{provider},#{resultCode},#{matched},#{providerRequestId})
+    </insert>
+
+    <select id="countAttemptsSince" resultType="long">
+        SELECT COUNT(*) FROM dms_member_real_name_attempt
+        WHERE tenant_id=#{tenantId} AND member_id=#{memberId} AND create_time&gt;=#{since}
+    </select>
+</mapper>

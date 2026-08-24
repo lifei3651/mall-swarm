@@ -66,18 +66,23 @@ test('order realtime stops retrying permanent client errors while retaining netw
 })
 
 test('sensitive forms block duplicate submits and order-detail balance payment sends an idempotency key', async () => {
-  const [login, forgot, loginPassword, paymentPassword, orderDetail] = await Promise.all([
+  const [login, forgot, loginPassword, paymentPassword, realName, orderDetail, payloadEncryption] = await Promise.all([
     readView('LoginView.vue'),
     readView('ForgotPasswordView.vue'),
     readView('ChangeLoginPasswordView.vue'),
     readView('ChangePaymentPasswordView.vue'),
+    readView('RealNameVerificationView.vue'),
     readView('OrderDetailView.vue'),
+    readFile(new URL('../src/utils/payloadEncryption.js', import.meta.url), 'utf8'),
   ])
 
   assert.match(login, /const submit = async \(\) => \{\s*if \(loading\.value\) return/)
   assert.match(forgot, /const doResetPassword = async \(\) => \{\s*if \(loading\.value\) return/)
   assert.match(loginPassword, /const save = async \(\) => \{\s*if \(saving\.value\) return/)
   assert.match(paymentPassword, /const save = async \(\) => \{\s*if \(saving\.value\) return/)
+  assert.match(realName, /const submit = async \(\) => \{\s*if \(saving\.value\) return/)
+  assert.match(payloadEncryption, /'realname'/)
+  assert.match(payloadEncryption, /'idcard'/)
   assert.match(orderDetail, /createIdempotencyKey\('balance-pay'\)/)
   assert.match(orderDetail, /payOrderWithBalance\(order\.value\.id, paymentPassword\.value, balancePaymentRequestKey\.value\)/)
   assert.match(orderDetail, /balancePaymentRequestKey\.value = ''/)
@@ -692,13 +697,21 @@ test('checkout confirms payment password was saved before continuing payment', a
   assert.match(source, /paymentPasswordSaved\.value = true/)
 })
 
-test('wallet actions keep transfer on its own page and explain non-agent team access', async () => {
+test('wallet transfer is packaged only by integrated H5 and requires verified adult accounts', async () => {
   const wallet = await readView('WalletView.vue')
   const transfer = await readView('BalanceTransferView.vue')
+  const integratedWallet = await readFile(new URL('../src/surfaces/integrated/IntegratedWalletView.vue', import.meta.url), 'utf8')
+  const teamRouter = await readFile(new URL('../src/surfaces/team/router.js', import.meta.url), 'utf8')
+  const integratedRouter = await readFile(new URL('../src/surfaces/integrated/router.js', import.meta.url), 'utf8')
   const team = await readView('TeamPerformanceView.vue')
-  assert.match(wallet, /<RouterLink class="wallet-action-link" to="\/profile\/wallet\/transfer">/)
-  assert.match(wallet, /grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/)
+  assert.doesNotMatch(wallet, /to="\/profile\/wallet\/transfer"/)
+  assert.match(integratedWallet, /to="\/profile\/wallet\/transfer"/)
+  assert.doesNotMatch(teamRouter, /BalanceTransferView|\/profile\/wallet\/transfer/)
+  assert.match(integratedRouter, /BalanceTransferView|\/profile\/wallet\/transfer/)
+  assert.match(wallet, /grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/)
   assert.doesNotMatch(wallet, /activeTool === 'transfer'/)
+  assert.match(wallet, /realNameVerified/)
+  assert.match(transfer, /adultVerified/)
   assert.match(transfer, /转账金额只能为整数/)
   assert.match(transfer, /type="number" min="1" step="1"/)
   assert.match(transfer, /maskedLoginAccount/)

@@ -5,6 +5,7 @@ import com.macro.mall.distribution.config.RedisConfig;
 import com.macro.mall.distribution.config.ScheduleTask;
 import com.macro.mall.distribution.dao.DmsCommissionRecordDao;
 import com.macro.mall.distribution.dao.DmsMemberAssetAccountDao;
+import com.macro.mall.distribution.dao.DmsMemberRealNameDao;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsShopOrderDao;
 import com.macro.mall.distribution.dao.DmsShopOrderItemDao;
@@ -25,6 +26,7 @@ import com.macro.mall.distribution.dto.ShopWithdrawalApplyDTO;
 import com.macro.mall.distribution.dto.WithdrawAuditDTO;
 import com.macro.mall.distribution.entity.DmsCommissionRecord;
 import com.macro.mall.distribution.entity.DmsMemberAssetAccount;
+import com.macro.mall.distribution.entity.DmsMemberRealName;
 import com.macro.mall.distribution.entity.DmsOrderBalanceAllocation;
 import com.macro.mall.distribution.entity.DmsShopAfterSale;
 import com.macro.mall.distribution.entity.DmsShopMember;
@@ -92,6 +94,7 @@ class DeliveryStabilityAcceptanceTest {
     @Autowired private DmsShopProductDao productDao;
     @Autowired private DmsCommissionRecordDao commissionDao;
     @Autowired private DmsMemberAssetAccountDao assetAccountDao;
+    @Autowired private DmsMemberRealNameDao realNameDao;
     @Autowired private JdbcTemplate jdbcTemplate;
     @Autowired private SqlSessionTemplate sqlSessionTemplate;
     @MockitoBean private SmsVerificationService smsVerificationService;
@@ -229,7 +232,20 @@ class DeliveryStabilityAcceptanceTest {
                   (user_id,phone,login_account,password_hash,nickname,invite_code,status,system_account,team_opt_in)
                 VALUES (1001,'18800000001','inviter01',?,'验收邀请人','INV00001',1,0,1)
                 """, BCrypt.hashpw(INVITER_PASSWORD));
-        return memberDao.selectByUserId(1001L);
+        DmsShopMember inviter = memberDao.selectByUserId(1001L);
+        DmsMemberRealName realName = new DmsMemberRealName();
+        realName.setTenantId(1L);
+        realName.setMemberId(inviter.getId());
+        realName.setUserId(inviter.getUserId());
+        realName.setStatus(1);
+        realName.setRealName("验收邀请人");
+        realName.setIdCard("11010519491231002X");
+        realName.setProvider("TEST");
+        realName.setConsentVersion("TEST_V1");
+        realName.setConsentTime(LocalDateTime.now());
+        realName.setVerifiedTime(LocalDateTime.now());
+        realNameDao.insert(realName);
+        return inviter;
     }
 
     private DmsShopMember registerAndJoinTeam() {

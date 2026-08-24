@@ -19,16 +19,23 @@ public interface ShopAuthService {
 
     ShopAuthVO register(ShopRegisterDTO dto);
 
+    ShopAuthVO register(ShopRegisterDTO dto, String surface);
+
     /** 公开商城注册：只创建购物账号，不在注册阶段建立团队关系。 */
     ShopAuthVO registerPublic(ShopRegisterDTO dto);
 
     ShopAuthVO login(ShopLoginDTO dto);
+
+    ShopAuthVO login(ShopLoginDTO dto, String surface);
 
     DmsShopMember me(String authorization);
 
     DmsShopMember resolveMember(String authorization);
 
     DmsShopMember requireMember(String authorization);
+
+    /** 敏感能力必须校验服务端会话签发来源，不能信任客户端临时请求头。 */
+    void requireSurface(String authorization, String requiredSurface);
 
     boolean logout(String authorization);
 

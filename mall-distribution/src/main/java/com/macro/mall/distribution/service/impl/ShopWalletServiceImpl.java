@@ -30,6 +30,7 @@ import com.macro.mall.distribution.service.ShopWalletService;
 import com.macro.mall.distribution.service.SmsVerificationService;
 import com.macro.mall.distribution.service.WithdrawService;
 import com.macro.mall.distribution.service.MemberMessageService;
+import com.macro.mall.distribution.service.RealNameVerificationService;
 import com.macro.mall.distribution.service.MemberMessageEvent;
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.vo.BalanceRecipientVO;
@@ -71,6 +72,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
     private final SmsVerificationService smsVerificationService;
     private final WithdrawService withdrawService;
     private final MemberMessageService memberMessageService;
+    private final RealNameVerificationService realNameVerificationService;
 
     @Override
     public ShopWalletSummaryVO getSummary(DmsShopMember member) {
@@ -89,12 +91,17 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         summary.setPaymentPasswordLockRemainingSeconds(paymentPasswordLocked
                 ? remainingLockSeconds(current.getPayPasswordLockTime()) : 0);
         summary.setDistributionActivated(agent != null && Integer.valueOf(1).equals(agent.getStatus()));
+        var realNameStatus = realNameVerificationService.getStatus(current);
+        summary.setRealNameVerified(realNameStatus.getVerified());
+        summary.setAdultVerified(realNameStatus.getAdult());
+        summary.setMaskedRealName(realNameStatus.getMaskedRealName());
         return summary;
     }
 
     @Override
     public BalanceRecipientVO findRecipient(DmsShopMember member, String phone) {
         DmsShopMember current = requireCurrentMember(member);
+        realNameVerificationService.requireEligible(current, "余额转账");
         phone = PhoneNumberUtils.normalize(phone);
         if (!PhoneNumberUtils.isValidMainlandMobile(phone)) {
             Asserts.fail("请输入正确的收款会员手机号");
@@ -110,6 +117,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         if (recipientAgent == null || !Integer.valueOf(1).equals(recipientAgent.getStatus())) {
             Asserts.fail("该账号尚未成为会员，暂不能接收余额");
         }
+        realNameVerificationService.requireEligible(recipient, "接收余额");
         BalanceRecipientVO vo = new BalanceRecipientVO();
         vo.setMemberName(firstText(recipient.getNickname(), recipientAgent.getAgentName(), recipient.getUsername(), recipient.getPhone()));
         vo.setMaskedPhone(maskPhone(recipient.getPhone()));
@@ -253,6 +261,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
     public WithdrawRecordVO applyWithdrawal(DmsShopMember member, ShopWithdrawalApplyDTO dto) {
         DmsShopMember current = requireCurrentMember(member);
         if (dto == null) Asserts.fail("提现信息不能为空");
+        var realName = realNameVerificationService.requireEligible(current, "提现");
         DmsAgent agent = agentDao.selectByUserId(current.getUserId());
         if (agent == null || !Integer.valueOf(1).equals(agent.getStatus())) Asserts.fail("完成首笔有效订单后才可以提现");
 
@@ -264,6 +273,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         if (balance.compareTo(amount) < 0) Asserts.fail("余额不足");
         if (dto.getWithdrawType() == null || !List.of(1, 2, 3).contains(dto.getWithdrawType())) Asserts.fail("请选择正确的提现方式");
         String accountName = requiredText(dto.getAccountName(), "请填写收款人姓名");
+        if (!accountName.equals(realName.getRealName())) Asserts.fail("收款人姓名必须与实名认证姓名一致");
         String account = requiredText(dto.getBankAccount(), "请填写收款账号");
         String channelName = dto.getWithdrawType() == 1
                 ? requiredText(dto.getBankName(), "请填写开户银行")

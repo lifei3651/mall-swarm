@@ -19,6 +19,8 @@ server {
     root /usr/share/nginx/html/public;
     index index.html;
     limit_conn mall_conn 40;
+    # 覆盖浏览器自带请求头，后端会话来源只能由受控部署域名签发。
+    set $shop_surface public;
 
     location ~* ^/(?:\.git|\.svn|\.hg|\.env|\.idea|\.vscode)(?:/|$) { return 404; }
     location ~* ^/(?:phpmyadmin|adminer|wp-admin|wp-login\.php|server-status)(?:/|$) { return 404; }
@@ -50,6 +52,8 @@ server {
     root /usr/share/nginx/html/team;
     index index.html;
     limit_conn mall_conn 40;
+    # 团队拆分版不能通过伪造请求头取得三合一余额互转权限。
+    set $shop_surface team;
 
     location ~* ^/(?:\.git|\.svn|\.hg|\.env|\.idea|\.vscode)(?:/|$) { return 404; }
     location ~* ^/(?:phpmyadmin|adminer|wp-admin|wp-login\.php|server-status)(?:/|$) { return 404; }

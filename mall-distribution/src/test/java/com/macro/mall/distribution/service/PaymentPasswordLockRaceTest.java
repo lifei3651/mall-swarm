@@ -9,6 +9,7 @@ import com.macro.mall.distribution.dao.DmsShopOrderDao;
 import com.macro.mall.distribution.dto.BalanceTransferDTO;
 import com.macro.mall.distribution.entity.DmsAgent;
 import com.macro.mall.distribution.entity.DmsShopMember;
+import com.macro.mall.distribution.entity.DmsMemberRealName;
 import com.macro.mall.distribution.service.impl.ShopWalletServiceImpl;
 import org.junit.jupiter.api.Test;
 
@@ -42,11 +43,14 @@ class PaymentPasswordLockRaceTest {
         recipientAgent.setStatus(1);
         when(agentDao.selectByUserId(recipient.getUserId())).thenReturn(recipientAgent);
         when(attemptService.clearIfUnchanged(payer.getId(), 0)).thenReturn(false);
+        RealNameVerificationService realNameService = mock(RealNameVerificationService.class);
+        when(realNameService.requireEligible(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(new DmsMemberRealName());
 
         ShopWalletServiceImpl service = new ShopWalletServiceImpl(
                 memberDao, agentDao, mock(DmsMemberAssetAccountDao.class), mock(DmsShopOrderDao.class),
                 mock(com.macro.mall.distribution.dao.DmsShopTradeDao.class), memberAssetService, mock(ShopService.class), attemptService,
-                mock(SmsVerificationService.class), mock(WithdrawService.class), mock(MemberMessageService.class));
+                mock(SmsVerificationService.class), mock(WithdrawService.class), mock(MemberMessageService.class), realNameService);
         BalanceTransferDTO dto = new BalanceTransferDTO();
         dto.setRecipientPhone(recipient.getPhone());
         dto.setAmount(BigDecimal.ONE);

@@ -45,6 +45,7 @@ public class ShopWalletController {
     public CommonResult<BalanceRecipientVO> recipient(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @Valid @RequestBody BalanceRecipientQueryDTO dto) {
+        authService.requireSurface(authorization, "integrated");
         return CommonResult.success(walletService.findRecipient(authService.requireMember(authorization),
                 dto == null ? null : dto.getPhone()));
     }
@@ -63,6 +64,7 @@ public class ShopWalletController {
     public CommonResult<Boolean> transfer(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @Valid @RequestBody BalanceTransferDTO dto) {
+        authService.requireSurface(authorization, "integrated");
         return CommonResult.success(walletService.transfer(authService.requireMember(authorization), dto));
     }
 

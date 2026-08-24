@@ -30,6 +30,10 @@
             <groupId>com.aliyun</groupId>
             <artifactId>dysmsapi20170525</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.tencentcloudapi</groupId>
+            <artifactId>tencentcloud-sdk-java-faceid</artifactId>
+        </dependency>
         <!-- mall-mbg 数据库访问层 -->
         <dependency>
             <groupId>com.macro.mall</groupId>

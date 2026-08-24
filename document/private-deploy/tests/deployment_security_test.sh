@@ -24,6 +24,9 @@ if grep -q "connect-src 'self' https:" "$DEPLOY_DIR/nginx/conf.d/mall.conf.templ
   exit 1
 fi
 grep -q "connect-src 'self'" "$DEPLOY_DIR/nginx/conf.d/mall.conf.template"
+grep -q 'set \$shop_surface public;' "$DEPLOY_DIR/nginx/conf.d/mall.conf.template"
+grep -q 'set \$shop_surface team;' "$DEPLOY_DIR/nginx/conf.d/mall.conf.template"
+[ "$(grep -c 'proxy_set_header X-Shop-Surface    \$shop_surface;' "$DEPLOY_DIR/nginx/includes/shop-api.conf")" = "4" ]
 grep -q 'bootstrap-admin' "$DEPLOY_DIR/scripts/deploy.sh"
 grep -q '^DB_SSL_MODE=REQUIRED$' "$DEPLOY_DIR/customer.env.example"
 [ -x "$DEPLOY_DIR/initdb/00_run_project_sql.sh" ]
@@ -71,6 +74,7 @@ for key in MYSQL_ROOT_PASSWORD DB_PASSWORD REDIS_PASSWORD DATA_ENCRYPTION_KEY; d
 done
 [ "$(awk -F= '$1 == "DATA_ENCRYPTION_WRITE_ENABLED" { print $2 }' "$DEPLOY_DIR/.env")" = "true" ]
 grep -q '^SHOP_LIVE_PROVIDER=EXTERNAL$' "$DEPLOY_DIR/.env"
+grep -q '^SHOP_REAL_NAME_ENABLED=false$' "$DEPLOY_DIR/.env"
 grep -q '^LIVE_PLAYBACK_ORIGIN=$' "$DEPLOY_DIR/.env"
 grep -q 'LIVE_PLAYBACK_ORIGIN' "$DEPLOY_DIR/docker-compose.private.yml"
 grep -q "media-src 'self' blob: \${LIVE_PLAYBACK_ORIGIN}" "$DEPLOY_DIR/nginx/conf.d/mall.conf.template"
@@ -105,6 +109,13 @@ fi
 sed -i.bak 's/^SHOP_LIVE_PROVIDER=.*/SHOP_LIVE_PROVIDER=TENCENT/' "$DEPLOY_DIR/.env"
 if "$DEPLOY_DIR/scripts/security-preflight.sh" --offline >/dev/null 2>&1; then
   echo "腾讯云直播缺少域名和密钥时预检不应通过" >&2
+  exit 1
+fi
+mv "$DEPLOY_DIR/.env.bak" "$DEPLOY_DIR/.env"
+
+sed -i.bak 's/^SHOP_REAL_NAME_ENABLED=.*/SHOP_REAL_NAME_ENABLED=true/' "$DEPLOY_DIR/.env"
+if "$DEPLOY_DIR/scripts/security-preflight.sh" --offline >/dev/null 2>&1; then
+  echo "实名认证缺少腾讯云密钥时预检不应通过" >&2
   exit 1
 fi
 mv "$DEPLOY_DIR/.env.bak" "$DEPLOY_DIR/.env"

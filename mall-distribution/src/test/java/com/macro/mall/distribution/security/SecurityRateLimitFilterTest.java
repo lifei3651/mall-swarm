@@ -151,6 +151,8 @@ class SecurityRateLimitFilterTest {
                 new MockHttpServletRequest("PUT", "/distribution/admin-users/9/password"));
         SecurityRateLimitFilter.Rule manualAsset = filter.resolveRule(
                 new MockHttpServletRequest("POST", "/distribution/assets/deduct"));
+        SecurityRateLimitFilter.Rule realName = filter.resolveRule(
+                new MockHttpServletRequest("POST", "/shop/real-name/verify"));
 
         assertEquals("wallet-withdrawal", withdrawal.name());
         assertEquals(5, withdrawal.maximumRequests());
@@ -158,6 +160,8 @@ class SecurityRateLimitFilterTest {
         assertEquals(10, transfer.maximumRequests());
         assertEquals("admin-sensitive", password.name());
         assertEquals("admin-asset-change", manualAsset.name());
+        assertEquals("real-name-verify", realName.name());
+        assertEquals(5, realName.maximumRequests());
     }
 
     @Test

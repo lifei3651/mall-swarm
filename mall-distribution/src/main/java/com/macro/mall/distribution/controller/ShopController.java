@@ -335,7 +335,7 @@ public class ShopController {
     public CommonResult<ShopAuthVO> register(@Valid @RequestBody ShopRegisterDTO dto,
                                               HttpServletRequest request,
                                               HttpServletResponse response) {
-        ShopAuthVO auth = authService.register(dto);
+        ShopAuthVO auth = authService.register(dto, request.getHeader("X-Shop-Surface"));
         shopSessionCookieService.write(request, response, auth.getToken(), auth.getExpireTime());
         return CommonResult.success(auth);
     }
@@ -355,7 +355,7 @@ public class ShopController {
     public CommonResult<ShopAuthVO> login(@Valid @RequestBody ShopLoginDTO dto,
                                            HttpServletRequest request,
                                            HttpServletResponse response) {
-        ShopAuthVO auth = authService.login(dto);
+        ShopAuthVO auth = authService.login(dto, request.getHeader("X-Shop-Surface"));
         shopSessionCookieService.write(request, response, auth.getToken(), auth.getExpireTime());
         return CommonResult.success(auth);
     }

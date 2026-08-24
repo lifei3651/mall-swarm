@@ -57,6 +57,17 @@ public class ProductionSafetyGuard {
                 requireConfigured("alipay.privateKey", "生产环境启用支付宝前必须配置应用私钥");
                 requireConfigured("alipay.alipayPublicKey", "生产环境启用支付宝前必须配置支付宝公钥");
             }
+            if (enabled("shop.real-name.enabled")) {
+                requireConfigured("shop.real-name.secret-id", "启用实名认证前必须配置腾讯云 SecretId");
+                requireConfigured("shop.real-name.secret-key", "启用实名认证前必须配置腾讯云 SecretKey");
+                if (!enabled("security.data-encryption.write-enabled")) {
+                    throw new IllegalStateException("启用实名认证前必须开启敏感字段加密写入");
+                }
+                String endpoint = environment.getProperty("shop.real-name.endpoint", "");
+                if (!"faceid.tencentcloudapi.com".equalsIgnoreCase(endpoint.trim())) {
+                    throw new IllegalStateException("实名认证仅允许连接腾讯云官方 FaceID 接口域名");
+                }
+            }
             boolean tencentLiveConfigured = "TENCENT".equalsIgnoreCase(environment.getProperty("shop.live.provider", "EXTERNAL"))
                     || !environment.getProperty("shop.live.tencent.push-domain", "").isBlank()
                     || !environment.getProperty("shop.live.tencent.play-domain", "").isBlank()

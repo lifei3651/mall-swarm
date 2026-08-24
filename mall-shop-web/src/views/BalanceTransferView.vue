@@ -10,6 +10,10 @@
       <strong>¥{{ money(wallet.balance) }}</strong>
     </section>
 
+    <RouterLink v-if="!wallet.realNameVerified" class="identity-callout" to="/profile/real-name">
+      完成实名认证后才能使用余额转账
+    </RouterLink>
+
     <section class="panel transfer-panel">
       <h3>转账给会员</h3>
       <p class="line-sub">输入完整手机号后，请核对昵称、会员编号和脱敏账号。转账确认后即时到账。</p>
@@ -67,7 +71,7 @@ import { createIdempotencyKey } from '@/utils/idempotency'
 import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
 
 const router = useRouter()
-const wallet = ref({ balance: 0, hasPaymentPassword: false, distributionActivated: false })
+const wallet = ref({ balance: 0, hasPaymentPassword: false, distributionActivated: false, realNameVerified: false, adultVerified: false })
 const transferForm = ref({ recipientPhone: '', amount: '', paymentPassword: '', remark: '' })
 const recipient = ref(null)
 const error = ref('')
@@ -82,7 +86,7 @@ const showTransferError = (text) => {
   error.value = text
   errorTimer = window.setTimeout(() => { error.value = '' }, 1800)
 }
-const canUseBalance = computed(() => wallet.value.hasPaymentPassword && wallet.value.distributionActivated)
+const canUseBalance = computed(() => wallet.value.hasPaymentPassword && wallet.value.distributionActivated && wallet.value.realNameVerified && wallet.value.adultVerified)
 
 const fetchData = async () => {
   try { wallet.value = (await getWalletSummary()).data || wallet.value }
@@ -122,6 +126,8 @@ const requirePaymentPassword = () => {
 const submitTransfer = async () => {
   clearTransferError()
   handleAmountInput()
+  if (!wallet.value.realNameVerified) return router.push({ name: 'RealNameVerification', query: { redirect: '/profile/wallet/transfer' } })
+  if (!wallet.value.adultVerified) return showTransferError('未满18周岁暂不能使用余额转账')
   if (!requirePaymentPassword()) return
   if (!wallet.value.distributionActivated) return showTransferError('完成首笔有效订单成为会员后才可转账')
   if (!isValidMainlandPhone(transferForm.value.recipientPhone)) return showTransferError('请输入正确的11位收款会员手机号')
@@ -156,6 +162,7 @@ onBeforeUnmount(() => window.clearTimeout(errorTimer))
 .balance-summary { padding:20px 22px; color:#fff; background:linear-gradient(135deg,#e54b67,#a9183b); border-radius:17px; box-shadow:0 10px 24px rgba(169,24,59,.18); }
 .balance-summary span { color:rgba(255,255,255,.8); font-size:13px; }
 .balance-summary strong { display:block; margin-top:8px; font-size:30px; }
+.identity-callout{display:block;margin-top:12px;padding:12px 14px;color:#075985;background:#eff9ff;border:1px solid #bae6fd;border-radius:12px;text-align:center;font-size:13px;font-weight:700}
 .transfer-panel { margin-top:12px; border:0; border-radius:16px; }
 .transfer-panel > .form-item { margin-top:13px; }
 .inline-input { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; }

@@ -146,6 +146,18 @@ case "$sms" in
   *) fail "SMS_PROVIDER_ENABLED 只能是 true 或 false" ;;
 esac
 
+real_name=$(value_of SHOP_REAL_NAME_ENABLED)
+case "$real_name" in
+  true)
+    require_value TENCENT_FACEID_SECRET_ID
+    require_secret TENCENT_FACEID_SECRET_KEY 16
+    require_value TENCENT_FACEID_REGION
+    [ "$(value_of TENCENT_FACEID_ENDPOINT)" = "faceid.tencentcloudapi.com" ] || fail "实名认证只允许腾讯云官方 FaceID 接口域名"
+    ;;
+  false) : ;;
+  *) fail "SHOP_REAL_NAME_ENABLED 只能是 true 或 false" ;;
+esac
+
 notification_enabled=$(value_of EXTERNAL_NOTIFICATION_ENABLED)
 notification_worker=$(value_of EXTERNAL_NOTIFICATION_WORKER_ENABLED)
 notification_sms=$(value_of NOTIFICATION_SMS_ALIYUN_ENABLED)

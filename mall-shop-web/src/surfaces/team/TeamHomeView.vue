@@ -23,7 +23,7 @@
 
     <section class="metric-grid" :aria-busy="loading">
       <RouterLink to="/profile/wallet" class="metric-card wallet">
-        <span>可用奖金余额</span><strong>{{ loading ? '—' : `¥${money(wallet.balance)}` }}</strong><small>查看明细与提现</small>
+        <span>可用余额</span><strong>{{ loading ? '—' : `¥${money(wallet.balance)}` }}</strong><small>查看明细与资金服务</small>
       </RouterLink>
       <RouterLink to="/profile/team" class="metric-card">
         <span>本月团队业绩</span><strong>{{ loading ? '—' : `¥${money(performance.currentMonthTeamPerformance)}` }}</strong><small>查看业绩口径</small>
@@ -37,8 +37,8 @@
       <MessageCenterEntry />
       <RouterLink to="/invite"><UserRoundPlus :size="27" /><strong>邀请会员</strong><span>查看邀请码和分享入口</span></RouterLink>
       <RouterLink to="/profile/team"><ChartNoAxesCombined :size="27" /><strong>团队业绩</strong><span>查看本人和团队业绩</span></RouterLink>
-      <RouterLink to="/profile/wallet"><WalletCards :size="27" /><strong>奖金账户</strong><span>余额、流水与提现</span></RouterLink>
-      <RouterLink to="/profile/security"><ShieldCheck :size="27" /><strong>资金安全</strong><span>管理支付密码</span></RouterLink>
+      <RouterLink to="/profile/wallet"><WalletCards :size="27" /><strong>余额账户</strong><span>余额、流水与资金服务</span></RouterLink>
+      <RouterLink to="/profile/security"><ShieldCheck :size="27" /><strong>资金安全</strong><span>实名认证与支付密码</span></RouterLink>
     </section>
 
     <section class="team-notice">

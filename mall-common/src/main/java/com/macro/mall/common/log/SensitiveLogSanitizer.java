@@ -21,7 +21,7 @@ public final class SensitiveLogSanitizer {
     private static final Set<String> SENSITIVE_NAMES = Set.of(
             "password", "pwd", "token", "authorization", "cookie", "session", "secret", "privatekey",
             "publickey", "accesskey", "sign", "smscode", "verifycode", "captcha", "mobile", "phone",
-            "idcard", "bankcard", "creditcode", "address", "receiver", "loginaccount", "username", "email"
+            "idcard", "realname", "bankcard", "creditcode", "address", "receiver", "loginaccount", "username", "email"
     );
     private static final Pattern BEARER = Pattern.compile("(?i)Bearer\\s+[A-Za-z0-9._~+\\/-]+=*");
     private static final Pattern JWT = Pattern.compile("\\beyJ[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\b");

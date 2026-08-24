@@ -14,6 +14,8 @@ const SENSITIVE_FIELDS = new Set([
   'captchacode',
   'appsecret',
   'callbacktoken',
+  'realname',
+  'idcard',
   'code',
 ])
 

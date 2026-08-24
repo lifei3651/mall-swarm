@@ -13,10 +13,11 @@ class SensitiveLogSanitizerTest {
     @Test
     void masksNestedSecretsAndPersonalData() {
         Object sanitized = SensitiveLogSanitizer.sanitize(Map.of(
-                "profile", Map.of("mobile", "15912345678", "nickname", "客户"),
+                "profile", Map.of("mobile", "15912345678", "realName", "张三", "nickname", "客户"),
                 "items", List.of(Map.of("smsCode", "123456", "count", 1))));
         String text = String.valueOf(sanitized);
         assertFalse(text.contains("15912345678"));
+        assertFalse(text.contains("张三"));
         assertFalse(text.contains("123456"));
         assertTrue(text.contains("***"));
     }

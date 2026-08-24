@@ -7,18 +7,23 @@
 
     <RouterLink v-if="!wallet.hasPaymentPassword" class="security-callout" to="/profile/security">
       <ShieldAlert :size="22" />
-      <span><strong>首次交易前请设置支付密码</strong><small>用于余额支付、转账和提现验证</small></span>
+      <span><strong>首次交易前请设置支付密码</strong><small>用于余额支付和资金操作验证</small></span>
+      <ChevronRight :size="18" />
+    </RouterLink>
+    <RouterLink v-if="!wallet.realNameVerified" class="security-callout identity-callout" to="/profile/real-name">
+      <BadgeCheck :size="22" />
+      <span><strong>完成实名认证后开通资金服务</strong><small>姓名和身份证号经权威服务核验并加密保存</small></span>
       <ChevronRight :size="18" />
     </RouterLink>
 
     <section class="balance-card">
       <span>可用余额（元）</span>
       <strong>{{ money(wallet.balance) }}</strong>
-      <p>奖金及其他明确入账进入余额后，可用于商城支付、会员转账和提现。</p>
+      <p>奖金及其他明确入账进入余额后，可用于商城支付和按规则申请资金服务。</p>
     </section>
 
-    <nav class="wallet-actions">
-      <RouterLink class="wallet-action-link" to="/profile/wallet/transfer"><Send :size="21" /><span>余额转账</span></RouterLink>
+    <nav class="wallet-actions" :class="{ 'has-extra': $slots['primary-action'] }">
+      <slot name="primary-action"></slot>
       <button :class="{ active: activeTool === 'withdraw' }" type="button" @click="activeTool = 'withdraw'"><Landmark :size="21" /><span>余额提现</span></button>
       <button :class="{ active: activeTool === 'records' }" type="button" @click="activeTool = 'records'"><ReceiptText :size="21" /><span>提现记录</span></button>
       <button :class="{ active: activeTool === 'flows' }" type="button" @click="activeTool = 'flows'; loadFlows()"><History :size="21" /><span>余额记录</span></button>
@@ -71,7 +76,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, ChevronRight, History, Landmark, ReceiptText, Send, ShieldAlert } from 'lucide-vue-next'
+import { ArrowLeft, BadgeCheck, ChevronRight, History, Landmark, ReceiptText, ShieldAlert } from 'lucide-vue-next'
 import { applyWithdrawal, getProfile, getWalletSummary, listMyBalanceFlows, listMyWithdrawals, sendSmsCode } from '@/api/shop'
 import { dateTime, money } from '@/utils/format'
 import { createIdempotencyKey } from '@/utils/idempotency'
@@ -80,7 +85,7 @@ import { isValidMainlandPhone } from '@/utils/phone'
 const router = useRouter()
 const route = useRoute()
 const activeTool = ref(['withdraw', 'records', 'flows'].includes(route.query.action) ? route.query.action : 'withdraw')
-const wallet = ref({ balance: 0, hasPaymentPassword: false, distributionActivated: false })
+const wallet = ref({ balance: 0, hasPaymentPassword: false, distributionActivated: false, realNameVerified: false, adultVerified: false })
 const profile = ref({})
 const withdrawals = ref([])
 const error = ref('')
@@ -97,7 +102,7 @@ const withdrawSmsCooldown = ref(0)
 const withdrawForm = ref({ withdrawType: 1, withdrawAmount: '', bankName: '', bankAccount: '', accountName: '', paymentPassword: '', smsCode: '' })
 const balanceFlows = ref([])
 const flowsError = ref('')
-const canUseBalance = computed(() => wallet.value.hasPaymentPassword && wallet.value.distributionActivated)
+const canUseBalance = computed(() => wallet.value.hasPaymentPassword && wallet.value.distributionActivated && wallet.value.realNameVerified && wallet.value.adultVerified)
 const withdrawAccountLabel = computed(() => ({ 1: '银行卡号', 2: '微信收款账号', 3: '支付宝账号' }[withdrawForm.value.withdrawType]))
 const withdrawAccountPlaceholder = computed(() => ({ 1: '请输入银行卡号', 2: '请输入微信绑定手机号或账号', 3: '请输入支付宝账号' }[withdrawForm.value.withdrawType]))
 
@@ -144,6 +149,8 @@ const sendWithdrawCode = async () => {
 const submitWithdrawal = async () => {
   if (withdrawSaving.value) return
   clearWalletError()
+  if (!wallet.value.realNameVerified) return router.push({ name: 'RealNameVerification', query: { redirect: '/profile/wallet' } })
+  if (!wallet.value.adultVerified) return showWalletError('未满18周岁暂不能申请提现')
   if (!requirePaymentPassword()) return
   if (!wallet.value.distributionActivated) return showWalletError('完成首笔有效订单成为会员后才可提现')
   if (withdrawForm.value.withdrawType === 1 && !withdrawForm.value.bankName.trim()) return showWalletError('请输入开户银行')
@@ -186,7 +193,10 @@ onBeforeUnmount(() => window.clearTimeout(errorTimer))
 .security-callout { display:grid; grid-template-columns:32px minmax(0,1fr) auto; align-items:center; gap:9px; margin-top:12px; padding:13px 14px; color:#92400e; background:#fff8e8; border:1px solid #fde3aa; border-radius:13px; }
 .security-callout strong,.security-callout small { display:block; }
 .security-callout small { margin-top:3px; color:#b16b26; font-size:11px; }
-.wallet-actions { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; margin:13px 0; }
+.identity-callout { color:#075985; background:#eff9ff; border-color:#bae6fd; }
+.identity-callout small { color:#397795; }
+.wallet-actions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; margin:13px 0; }
+.wallet-actions.has-extra { grid-template-columns:repeat(4,minmax(0,1fr)); }
 .wallet-actions button,.wallet-action-link { min-height:72px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:#59616d; background:#fff; border:1px solid transparent; border-radius:14px; font-size:12px; }
 .wallet-action-link { text-decoration:none; }
 .wallet-actions button.active,.wallet-action-link:focus-visible { color:var(--brand-primary); border-color:var(--brand-primary); background:var(--brand-primary-soft); }

@@ -273,6 +273,14 @@ export function getWalletSummary() {
   return request({ url: '/shop/wallet/summary', method: 'get' })
 }
 
+export function getRealNameStatus() {
+  return request({ url: '/shop/real-name/status', method: 'get' })
+}
+
+export function verifyRealName(data) {
+  return request({ url: '/shop/real-name/verify', method: 'post', data })
+}
+
 export function findBalanceRecipient(phone) {
   return request({ url: '/shop/wallet/recipient', method: 'post', data: { phone } })
 }

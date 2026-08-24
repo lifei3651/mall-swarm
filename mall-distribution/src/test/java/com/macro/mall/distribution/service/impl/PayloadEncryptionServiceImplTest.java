@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.service.impl;
 
 import com.macro.mall.common.exception.ApiException;
+import com.macro.mall.distribution.dto.RealNameVerifyDTO;
 import com.macro.mall.distribution.dto.ShopLoginDTO;
 import com.macro.mall.distribution.vo.PayloadEncryptionKeyVO;
 import org.junit.jupiter.api.BeforeEach;
@@ -81,6 +82,24 @@ class PayloadEncryptionServiceImplTest {
 
         assertThrows(ApiException.class, () -> service.decryptSensitiveValues(
                 challenge.getChallengeId(), encryptAesKey(aesKey, challenge.getPublicKey()), dto));
+    }
+
+    @Test
+    void decryptsRealNameAndIdentityNumberAsSensitiveFields() throws Exception {
+        PayloadEncryptionKeyVO challenge = service.issueChallenge();
+        SecretKey aesKey = aesKey();
+        when(valueOperations.setIfAbsent(anyString(), eq("1"), eq(PayloadEncryptionServiceImpl.CHALLENGE_TTL)))
+                .thenReturn(true);
+
+        RealNameVerifyDTO dto = new RealNameVerifyDTO();
+        dto.setRealName(encryptValue("张三", "realName", challenge.getChallengeId(), aesKey));
+        dto.setIdCard(encryptValue("11010519491231002X", "idCard", challenge.getChallengeId(), aesKey));
+        dto.setSensitiveInfoConsent(true);
+
+        service.decryptSensitiveValues(challenge.getChallengeId(), encryptAesKey(aesKey, challenge.getPublicKey()), dto);
+
+        assertEquals("张三", dto.getRealName());
+        assertEquals("11010519491231002X", dto.getIdCard());
     }
 
     private SecretKey aesKey() throws Exception {

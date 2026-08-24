@@ -696,10 +696,41 @@ CREATE TABLE IF NOT EXISTS dms_shop_member_session (
   member_id BIGINT NOT NULL,
   user_id BIGINT NOT NULL,
   token VARCHAR(128) NOT NULL UNIQUE,
+  surface VARCHAR(16) NOT NULL DEFAULT 'legacy',
   status INT NOT NULL DEFAULT 1,
   expire_time TIMESTAMP NOT NULL,
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS dms_member_real_name (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  member_id BIGINT NOT NULL,
+  user_id BIGINT NOT NULL,
+  status INT NOT NULL DEFAULT 1,
+  real_name VARCHAR(512) NOT NULL,
+  id_card VARCHAR(512) NOT NULL,
+  provider VARCHAR(32) NOT NULL,
+  provider_request_id VARCHAR(128),
+  consent_version VARCHAR(64) NOT NULL,
+  consent_time TIMESTAMP NOT NULL,
+  verified_time TIMESTAMP NOT NULL,
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (tenant_id, member_id)
+);
+
+CREATE TABLE IF NOT EXISTS dms_member_real_name_attempt (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  member_id BIGINT NOT NULL,
+  user_id BIGINT NOT NULL,
+  provider VARCHAR(32) NOT NULL,
+  result_code VARCHAR(32) NOT NULL,
+  matched INT NOT NULL DEFAULT 0,
+  provider_request_id VARCHAR(128),
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS dms_idempotency_record (
