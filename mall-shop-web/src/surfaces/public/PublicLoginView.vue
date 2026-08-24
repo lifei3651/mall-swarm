@@ -28,7 +28,7 @@
           <label for="public-login-sms">短信验证码</label>
           <div class="inline-field">
             <input id="public-login-sms" v-model.trim="smsLoginForm.smsCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="请输入6位验证码" />
-            <button type="button" :disabled="smsCooldown > 0 || sendingCode" @click="sendCode(smsLoginForm.phone)">{{ smsButtonText }}</button>
+            <button type="button" :disabled="smsCooldown > 0 || sendingCode" @click="sendLoginCode">{{ smsButtonText }}</button>
           </div>
         </template>
 
@@ -44,7 +44,7 @@
           <label for="public-register-sms">短信验证码</label>
           <div class="inline-field">
             <input id="public-register-sms" v-model.trim="registerForm.smsCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="请输入6位验证码" />
-            <button type="button" :disabled="smsCooldown > 0 || sendingCode" @click="sendCode(registerForm.phone)">{{ smsButtonText }}</button>
+            <button type="button" :disabled="smsCooldown > 0 || sendingCode" @click="sendRegistrationCode">{{ smsButtonText }}</button>
           </div>
           <label class="agreement" for="public-register-agreement">
             <input id="public-register-agreement" v-model="agreed" type="checkbox" />
@@ -79,7 +79,7 @@
 <script setup>
 import { computed, inject, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getLoginCaptcha, login, registerPublic, sendSmsCode } from '@/api/shop'
+import { getLoginCaptcha, login, registerPublic, sendLoginSmsCode, sendSmsCode } from '@/api/shop'
 import { currentBrandLogo, currentBrandName } from '@/utils/brand'
 import { normalizeLoginAccountInput, validateLoginAccount } from '@/utils/loginAccount'
 import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
@@ -108,7 +108,7 @@ const loginForm = reactive({ account: '', password: '' })
 const smsLoginForm = reactive({ phone: '', smsCode: '' })
 const registerForm = reactive({ phone: '', username: '', password: '', smsCode: '' })
 const captcha = reactive({ id: '', code: '', image: '' })
-const needsCaptcha = true
+const needsCaptcha = computed(() => isRegister.value || loginType.value === 'password')
 const smsButtonText = computed(() => smsCooldown.value > 0 ? `${smsCooldown.value}s 后重发` : '获取验证码')
 
 const normalizePhone = (form) => { form.phone = normalizeMainlandPhone(form.phone) }
@@ -134,10 +134,32 @@ const startCooldown = () => {
   }, 1000)
 }
 
-const sendCode = async (phone) => {
+const resetFeedback = () => {
   error.value = ''
   success.value = ''
-  if (!isValidMainlandPhone(phone)) {
+}
+
+const sendLoginCode = async () => {
+  resetFeedback()
+  if (!isValidMainlandPhone(smsLoginForm.phone)) {
+    error.value = '请输入正确的11位手机号'
+    return
+  }
+  sendingCode.value = true
+  try {
+    await sendLoginSmsCode(smsLoginForm.phone)
+    success.value = '短信验证码已发送'
+    startCooldown()
+  } catch (e) {
+    error.value = e.message || '验证码发送失败'
+  } finally {
+    sendingCode.value = false
+  }
+}
+
+const sendRegistrationCode = async () => {
+  resetFeedback()
+  if (!isValidMainlandPhone(registerForm.phone)) {
     error.value = '请输入正确的11位手机号'
     return
   }
@@ -147,7 +169,7 @@ const sendCode = async (phone) => {
   }
   sendingCode.value = true
   try {
-    await sendSmsCode(phone, 1, { captchaId: captcha.id, captchaCode: captcha.code })
+    await sendSmsCode(registerForm.phone, 1, { captchaId: captcha.id, captchaCode: captcha.code })
     success.value = '短信验证码已发送'
     startCooldown()
     await refreshCaptcha()
