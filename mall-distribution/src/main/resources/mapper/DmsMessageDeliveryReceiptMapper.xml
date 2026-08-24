@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsMessageDeliveryReceiptDao">
+    <insert id="insertIgnore" parameterType="com.macro.mall.distribution.entity.DmsMessageDeliveryReceipt" useGeneratedKeys="true" keyProperty="id">INSERT IGNORE INTO dms_message_delivery_receipt (tenant_id,channel,provider_code,receipt_id,task_id,payload_digest,signature_valid,receipt_status,error_code) VALUES (#{tenantId},#{channel},#{providerCode},#{receiptId},#{taskId},#{payloadDigest},#{signatureValid},#{receiptStatus},#{errorCode})</insert>
+</mapper>

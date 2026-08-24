@@ -6,6 +6,10 @@ import com.macro.mall.distribution.entity.DmsMessageChannelConfig;
 import com.macro.mall.distribution.entity.DmsMessageDeliveryTask;
 import com.macro.mall.distribution.entity.DmsMessageTemplate;
 import com.macro.mall.distribution.service.MemberMessageService;
+import com.macro.mall.distribution.notification.NotificationOperationsViewService;
+import com.macro.mall.distribution.entity.DmsMessageCostBudget;
+import com.macro.mall.distribution.entity.DmsMessageDeliveryAttempt;
+import com.macro.mall.distribution.vo.NotificationRuntimeStatusVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +21,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AdminMessageOperationController {
     private final MemberMessageService messageService;
+    private final NotificationOperationsViewService notificationViewService;
 
     @GetMapping("/templates")
     public CommonResult<List<DmsMessageTemplate>> templates() { return CommonResult.success(messageService.listTemplates()); }
@@ -43,6 +48,14 @@ public class AdminMessageOperationController {
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "20") int pageSize) {
         return CommonResult.success(messageService.listDeliveries(channel, status, pageNum, pageSize));
+    }
+    @GetMapping("/runtime")
+    public CommonResult<NotificationRuntimeStatusVO> runtime() { return CommonResult.success(notificationViewService.runtime()); }
+    @GetMapping("/budgets")
+    public CommonResult<List<DmsMessageCostBudget>> budgets() { return CommonResult.success(notificationViewService.budgets()); }
+    @GetMapping("/deliveries/{taskId}/attempts")
+    public CommonResult<List<DmsMessageDeliveryAttempt>> attempts(@PathVariable Long taskId) {
+        return CommonResult.success(notificationViewService.attempts(taskId));
     }
     // 刻意不提供重发接口：特别是资金消息，普通管理员不能重放业务事实。
 }

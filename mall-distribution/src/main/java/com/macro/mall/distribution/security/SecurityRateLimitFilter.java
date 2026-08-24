@@ -81,6 +81,9 @@ public class SecurityRateLimitFilter extends OncePerRequestFilter {
         if (HttpMethod.POST.matches(method) && "/shop/live/callbacks/tencent".equals(path)) {
             return new Rule("tencent-live-callback", 300, 60);
         }
+        if (HttpMethod.POST.matches(method) && path.startsWith("/shop/notification/receipts/")) {
+            return new Rule("notification-receipt", 300, 60);
+        }
         if (HttpMethod.GET.matches(method) && "/payment/checkVerify".equals(path)) {
             return new Rule("payment-verification", 120, 60);
         }

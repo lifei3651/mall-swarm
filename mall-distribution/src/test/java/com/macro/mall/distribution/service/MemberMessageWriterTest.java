@@ -2,6 +2,7 @@ package com.macro.mall.distribution.service;
 
 import com.macro.mall.distribution.dao.*;
 import com.macro.mall.distribution.entity.*;
+import com.macro.mall.distribution.notification.ExternalNotificationProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,7 +30,7 @@ class MemberMessageWriterTest {
     @Mock ApplicationEventPublisher eventPublisher;
     MemberMessageWriter writer;
 
-    @BeforeEach void setup() { writer = new MemberMessageWriter(memberDao, messageDao, templateDao, channelDao, deliveryDao, eventPublisher); }
+    @BeforeEach void setup() { writer = new MemberMessageWriter(memberDao, messageDao, templateDao, channelDao, deliveryDao, eventPublisher, new ExternalNotificationProperties()); }
 
     @Test
     void stableEventKeyIsIdempotentSnapshotIsImmutableAndExternalChannelsStayDisabled() {
@@ -58,7 +59,7 @@ class MemberMessageWriterTest {
         verify(deliveryDao, times(4)).insertIgnore(tasks.capture());
         assertEquals("SUCCESS", tasks.getAllValues().get(0).getStatus());
         assertFalse(tasks.getAllValues().stream().filter(t -> !"IN_APP".equals(t.getChannel()))
-                .anyMatch(t -> !"DISABLED".equals(t.getStatus())));
+                .anyMatch(t -> !"SUPPRESSED".equals(t.getStatus())));
     }
 
     @Test

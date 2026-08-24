@@ -10,6 +10,7 @@ import com.macro.mall.distribution.entity.DmsMessageChannelConfig;
 import com.macro.mall.distribution.entity.DmsMessageDeliveryTask;
 import com.macro.mall.distribution.entity.DmsMessageTemplate;
 import com.macro.mall.distribution.entity.DmsShopMember;
+import com.macro.mall.distribution.notification.ExternalNotificationProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -36,6 +37,7 @@ public class MemberMessageWriter {
     private final DmsMessageChannelConfigDao channelDao;
     private final DmsMessageDeliveryTaskDao deliveryDao;
     private final ApplicationEventPublisher eventPublisher;
+    private final ExternalNotificationProperties externalProperties;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void write(MemberMessageEvent event) {
@@ -75,36 +77,54 @@ public class MemberMessageWriter {
             return;
         }
         // 发送记录和外部适配器只是旁路；即使记录表或未来外部提供商失败，已落库的站内消息也必须保留。
-        recordDeliverySafely(message, "IN_APP", "SUCCESS", null, LocalDateTime.now());
-        recordDeliverySafely(message, "SMS", "DISABLED", "CLIENT_CONFIGURATION_REQUIRED", null);
-        recordDeliverySafely(message, "APP_PUSH", "DISABLED", "CLIENT_CONFIGURATION_REQUIRED", null);
-        recordDeliverySafely(message, "MINI_PROGRAM", "DISABLED", "CLIENT_CONFIGURATION_REQUIRED", null);
+        recordDeliverySafely(message, event.eventType(), "IN_APP", "SUCCESS", null, LocalDateTime.now(), true, BigDecimal.ZERO);
+        recordDeliverySafely(message, event.eventType(), "SMS", externalStatus(channels.getSmsEnabled()), externalCode(channels.getSmsEnabled()), null,
+                Integer.valueOf(1).equals(channels.getSmsEnabled()), channels.getEstimatedSmsCost());
+        recordDeliverySafely(message, event.eventType(), "APP_PUSH", externalStatus(channels.getAppPushEnabled()), externalCode(channels.getAppPushEnabled()), null,
+                Integer.valueOf(1).equals(channels.getAppPushEnabled()), BigDecimal.ZERO);
+        recordDeliverySafely(message, event.eventType(), "MINI_PROGRAM", externalStatus(channels.getMiniProgramEnabled()), externalCode(channels.getMiniProgramEnabled()), null,
+                Integer.valueOf(1).equals(channels.getMiniProgramEnabled()), BigDecimal.ZERO);
         eventPublisher.publishEvent(new MemberMessageCreatedEvent(event.tenantId(), event.userId(), message.getId()));
     }
 
-    private void recordDeliverySafely(DmsMemberMessage message, String channel, String status, String errorCode,
-                                      LocalDateTime sentTime) {
+    private void recordDeliverySafely(DmsMemberMessage message, String eventType, String channel, String status, String errorCode,
+                                      LocalDateTime sentTime, boolean channelEnabled, BigDecimal estimatedCost) {
         try {
-            recordDelivery(message, channel, status, errorCode, sentTime);
+            recordDelivery(message, eventType, channel, status, errorCode, sentTime, channelEnabled, estimatedCost);
         } catch (RuntimeException ex) {
             log.error("MEMBER_MESSAGE_DELIVERY_RECORD_FAILED messageId={} channel={} status={}",
                     message.getId(), channel, status);
         }
     }
 
-    private void recordDelivery(DmsMemberMessage message, String channel, String status, String errorCode,
-                                LocalDateTime sentTime) {
+    private void recordDelivery(DmsMemberMessage message, String eventType, String channel, String status, String errorCode,
+                                LocalDateTime sentTime, boolean channelEnabled, BigDecimal estimatedCost) {
         DmsMessageDeliveryTask task = new DmsMessageDeliveryTask();
         task.setTenantId(message.getTenantId());
         task.setMessageId(message.getId());
+        task.setEventType(eventType);
         task.setChannel(channel);
+        task.setIdempotencyKey(message.getTenantId() + ":" + message.getId() + ":" + channel);
         task.setStatus(status);
         task.setRetryCount(0);
-        task.setEstimatedCost(BigDecimal.ZERO);
+        task.setAttemptCount(0);
+        task.setMaxAttempts(Math.max(1, externalProperties.getMaxAttempts()));
+        task.setEstimatedCost(estimatedCost == null || estimatedCost.signum() < 0 ? BigDecimal.ZERO : estimatedCost);
+        task.setActualCost(BigDecimal.ZERO);
         task.setErrorCode(errorCode);
-        task.setErrorMessage(errorCode == null ? null : "外部通道未配置且生产默认关闭");
+        task.setErrorMessage(errorCode == null ? null : (channelEnabled ? "应用启动门禁未开启" : "事件外部渠道未开启"));
+        task.setExpiresAt("IN_APP".equals(channel) ? null : LocalDateTime.now().plusHours(Math.max(1, externalProperties.getTaskTtlHours())));
         task.setSentTime(sentTime);
         deliveryDao.insertIgnore(task);
+    }
+
+    private String externalStatus(Integer channelEnabled) {
+        return Integer.valueOf(1).equals(channelEnabled) && externalProperties.isEnabled() && externalProperties.isWorkerEnabled()
+                ? "PENDING" : "SUPPRESSED";
+    }
+    private String externalCode(Integer channelEnabled) {
+        if (!Integer.valueOf(1).equals(channelEnabled)) return "CHANNEL_DISABLED";
+        return externalProperties.isEnabled() && externalProperties.isWorkerEnabled() ? null : "STARTUP_GATE_DISABLED";
     }
 
     private boolean hasText(String value) { return value != null && !value.isBlank(); }

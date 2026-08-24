@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsMessageDeliveryAttemptDao">
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsMessageDeliveryAttempt" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_message_delivery_attempt (tenant_id,task_id,attempt_no,idempotency_key,state,provider_code,provider_message_id,query_count,estimated_cost,actual_cost,error_code,error_message,submitted_time,resolved_time)
+        VALUES (#{tenantId},#{taskId},#{attemptNo},#{idempotencyKey},#{state},#{providerCode},#{providerMessageId},#{queryCount},#{estimatedCost},#{actualCost},#{errorCode},#{errorMessage},#{submittedTime},#{resolvedTime})
+    </insert>
+    <select id="selectLatest" resultType="com.macro.mall.distribution.entity.DmsMessageDeliveryAttempt">SELECT * FROM dms_message_delivery_attempt WHERE tenant_id=#{tenantId} AND task_id=#{taskId} ORDER BY attempt_no DESC LIMIT 1</select>
+    <select id="selectByTask" resultType="com.macro.mall.distribution.entity.DmsMessageDeliveryAttempt">SELECT id,tenant_id,task_id,attempt_no,state,provider_code,query_count,estimated_cost,actual_cost,error_code,submitted_time,resolved_time,create_time,update_time FROM dms_message_delivery_attempt WHERE tenant_id=#{tenantId} AND task_id=#{taskId} ORDER BY attempt_no</select>
+    <update id="updateResult">UPDATE dms_message_delivery_attempt SET state=#{state},provider_message_id=#{providerMessageId},actual_cost=COALESCE(#{actualCost},0),error_code=#{errorCode},error_message=#{errorMessage},resolved_time=#{resolvedTime},update_time=CURRENT_TIMESTAMP WHERE tenant_id=#{tenantId} AND id=#{id}</update>
+    <update id="incrementQuery">UPDATE dms_message_delivery_attempt SET query_count=query_count+1,update_time=CURRENT_TIMESTAMP WHERE tenant_id=#{tenantId} AND id=#{id}</update>
+</mapper>

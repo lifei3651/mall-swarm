@@ -49,6 +49,8 @@ def safe_config():
                     "DB_SSL_MODE": "REQUIRED",
                     "ALIPAY_PRIVATE_KEY": "",
                     "SMS_ALIYUN_ACCESS_KEY_SECRET": "",
+                    "NOTIFICATION_SMS_ALIYUN_ACCESS_KEY_SECRET": "",
+                    "NOTIFICATION_SMS_ALIYUN_RECEIPT_SECRET": "",
                 },
                 "networks": {"edge": None, "data": None},
                 "read_only": True,

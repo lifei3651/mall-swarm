@@ -4,3 +4,6 @@ export const updateMessageTemplate=(id,data)=>request({url:`/shop/admin/message-
 export const listMessageChannels=()=>request({url:'/shop/admin/message-operations/channels',method:'get'})
 export const updateInAppChannel=(id,enabled)=>request({url:`/shop/admin/message-operations/channels/${id}/in-app`,method:'put',params:{enabled}})
 export const listMessageDeliveries=(params)=>request({url:'/shop/admin/message-operations/deliveries',method:'get',params})
+export const getNotificationRuntime=()=>request({url:'/shop/admin/message-operations/runtime',method:'get'})
+export const listNotificationBudgets=()=>request({url:'/shop/admin/message-operations/budgets',method:'get'})
+export const listDeliveryAttempts=(taskId)=>request({url:`/shop/admin/message-operations/deliveries/${taskId}/attempts`,method:'get'})

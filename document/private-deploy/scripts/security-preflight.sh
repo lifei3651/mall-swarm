@@ -146,6 +146,30 @@ case "$sms" in
   *) fail "SMS_PROVIDER_ENABLED 只能是 true 或 false" ;;
 esac
 
+notification_enabled=$(value_of EXTERNAL_NOTIFICATION_ENABLED)
+notification_worker=$(value_of EXTERNAL_NOTIFICATION_WORKER_ENABLED)
+notification_sms=$(value_of NOTIFICATION_SMS_ALIYUN_ENABLED)
+for key in NOTIFICATION_MOCK_ENABLED NOTIFICATION_MOCK_APP_PUSH_ENABLED NOTIFICATION_MOCK_MINI_PROGRAM_ENABLED; do
+  [ "$(value_of "$key")" = "false" ] || fail "客户生产部署禁止启用 App/小程序模拟通知适配器：$key"
+done
+case "$notification_enabled" in
+  false)
+    [ "$notification_worker" = "false" ] || fail "外部通知关闭时发送器必须关闭"
+    [ "$notification_sms" = "false" ] || fail "外部通知关闭时通知短信适配器必须关闭"
+    ;;
+  true)
+    [ "$notification_worker" = "true" ] || fail "外部通知启用时必须显式启用发送器"
+    [ "$notification_sms" = "true" ] || fail "当前唯一真实适配器为通知短信；未启用时不得开启外部通知总开关"
+    require_value NOTIFICATION_SMS_ALIYUN_ACCESS_KEY_ID
+    require_secret NOTIFICATION_SMS_ALIYUN_ACCESS_KEY_SECRET 16
+    require_secret NOTIFICATION_SMS_ALIYUN_RECEIPT_SECRET 16
+    for key in NOTIFICATION_SMS_ALIYUN_SIGN_NAME NOTIFICATION_SMS_TEMPLATE_LOGIN_PASSWORD_CHANGED NOTIFICATION_SMS_TEMPLATE_PAY_PASSWORD_CHANGED NOTIFICATION_SMS_TEMPLATE_PHONE_CHANGED NOTIFICATION_SMS_TEMPLATE_ORDER_SHIPPED NOTIFICATION_SMS_TEMPLATE_AFTER_SALE_UPDATED NOTIFICATION_SMS_TEMPLATE_REFUND_RESULT; do
+      require_value "$key"
+    done
+    ;;
+  *) fail "EXTERNAL_NOTIFICATION_ENABLED 只能是 true 或 false" ;;
+esac
+
 live_provider=$(value_of SHOP_LIVE_PROVIDER)
 live_playback_origin=$(value_of LIVE_PLAYBACK_ORIGIN)
 if [ -n "$live_playback_origin" ]; then

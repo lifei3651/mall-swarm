@@ -1465,11 +1465,50 @@ CREATE TABLE IF NOT EXISTS dms_message_channel_config (
 );
 CREATE TABLE IF NOT EXISTS dms_message_delivery_task (
     id BIGINT AUTO_INCREMENT PRIMARY KEY, tenant_id BIGINT NOT NULL, message_id BIGINT NOT NULL,
-    channel VARCHAR(24) NOT NULL, status VARCHAR(24) NOT NULL, retry_count INT NOT NULL DEFAULT 0,
-    estimated_cost DECIMAL(10,4) NOT NULL DEFAULT 0, provider_message_id VARCHAR(128), error_code VARCHAR(64),
-    error_message VARCHAR(255), next_retry_time TIMESTAMP, sent_time TIMESTAMP,
+    event_type VARCHAR(64) NOT NULL DEFAULT 'UNKNOWN', channel VARCHAR(24) NOT NULL,
+    idempotency_key VARCHAR(190), status VARCHAR(24) NOT NULL, retry_count INT NOT NULL DEFAULT 0,
+    attempt_count INT NOT NULL DEFAULT 0, max_attempts INT NOT NULL DEFAULT 5,
+    estimated_cost DECIMAL(12,4) NOT NULL DEFAULT 0, actual_cost DECIMAL(12,4) NOT NULL DEFAULT 0,
+    provider_code VARCHAR(32), provider_message_id VARCHAR(128), error_code VARCHAR(64),
+    error_message VARCHAR(255), lease_owner VARCHAR(96), lease_until TIMESTAMP,
+    next_retry_time TIMESTAMP, expires_at TIMESTAMP, sent_time TIMESTAMP,
+    accepted_time TIMESTAMP, delivered_time TIMESTAMP,
     create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, update_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uk_message_delivery_channel UNIQUE (tenant_id, message_id, channel)
+    CONSTRAINT uk_message_delivery_channel UNIQUE (tenant_id, message_id, channel),
+    CONSTRAINT uk_message_delivery_idempotency UNIQUE (tenant_id, idempotency_key)
+);
+CREATE INDEX IF NOT EXISTS idx_message_delivery_due ON dms_message_delivery_task(status,next_retry_time,lease_until,id);
+CREATE TABLE IF NOT EXISTS dms_message_delivery_attempt (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY, tenant_id BIGINT NOT NULL, task_id BIGINT NOT NULL,
+    attempt_no INT NOT NULL, idempotency_key VARCHAR(190) NOT NULL, state VARCHAR(24) NOT NULL,
+    provider_code VARCHAR(32) NOT NULL, provider_message_id VARCHAR(128), query_count INT NOT NULL DEFAULT 0,
+    estimated_cost DECIMAL(12,4) NOT NULL DEFAULT 0, actual_cost DECIMAL(12,4) NOT NULL DEFAULT 0,
+    error_code VARCHAR(64), error_message VARCHAR(255), submitted_time TIMESTAMP, resolved_time TIMESTAMP,
+    create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, update_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_message_attempt_no UNIQUE (tenant_id,task_id,attempt_no),
+    CONSTRAINT uk_message_attempt_idempotency UNIQUE (tenant_id,idempotency_key)
+);
+CREATE TABLE IF NOT EXISTS dms_message_cost_budget (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY, tenant_id BIGINT NOT NULL, scope_type VARCHAR(16) NOT NULL,
+    scope_key VARCHAR(64) NOT NULL, daily_limit DECIMAL(12,4) NOT NULL DEFAULT 0,
+    monthly_limit DECIMAL(12,4) NOT NULL DEFAULT 0, currency CHAR(3) NOT NULL DEFAULT 'CNY',
+    enabled TINYINT NOT NULL DEFAULT 0, create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_message_budget_scope UNIQUE (tenant_id,scope_type,scope_key)
+);
+CREATE TABLE IF NOT EXISTS dms_message_recipient_authorization (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY, tenant_id BIGINT NOT NULL, member_id BIGINT NOT NULL,
+    channel VARCHAR(24) NOT NULL, endpoint_hash CHAR(64) NOT NULL, authorized TINYINT NOT NULL DEFAULT 0,
+    authorized_time TIMESTAMP, expires_at TIMESTAMP, revoked_time TIMESTAMP,
+    create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, update_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_message_recipient_channel UNIQUE (tenant_id,member_id,channel)
+);
+CREATE TABLE IF NOT EXISTS dms_message_delivery_receipt (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY, tenant_id BIGINT NOT NULL, channel VARCHAR(24) NOT NULL,
+    provider_code VARCHAR(32) NOT NULL, receipt_id VARCHAR(128) NOT NULL, task_id BIGINT,
+    payload_digest CHAR(64) NOT NULL, signature_valid TINYINT NOT NULL, receipt_status VARCHAR(24),
+    error_code VARCHAR(64), received_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_message_receipt_provider UNIQUE (tenant_id,channel,provider_code,receipt_id)
 );
 
 MERGE INTO dms_message_template (tenant_id,event_type,category,title_template,summary_template,content_template,enabled,version) KEY(tenant_id,event_type) VALUES
@@ -1490,3 +1529,7 @@ MERGE INTO dms_message_template (tenant_id,event_type,category,title_template,su
 (1,'SERVICE_NOTICE','SERVICE','服务通知','您有一条新的服务通知。','请登录后查看。',1,1);
 MERGE INTO dms_message_channel_config (tenant_id,event_type,in_app_enabled,sms_enabled,app_push_enabled,mini_program_enabled,estimated_sms_cost) KEY(tenant_id,event_type)
 SELECT 1,event_type,1,0,0,0,0 FROM dms_message_template WHERE tenant_id=1;
+MERGE INTO dms_message_cost_budget (tenant_id,scope_type,scope_key,daily_limit,monthly_limit,currency,enabled) KEY(tenant_id,scope_type,scope_key)
+VALUES (1,'TENANT','*',0,0,'CNY',0),(1,'CHANNEL','SMS',0,0,'CNY',0),(1,'CHANNEL','APP_PUSH',0,0,'CNY',0),(1,'CHANNEL','MINI_PROGRAM',0,0,'CNY',0);
+MERGE INTO dms_message_cost_budget (tenant_id,scope_type,scope_key,daily_limit,monthly_limit,currency,enabled) KEY(tenant_id,scope_type,scope_key)
+SELECT 1,'EVENT',event_type,0,0,'CNY',0 FROM dms_message_template WHERE tenant_id=1;

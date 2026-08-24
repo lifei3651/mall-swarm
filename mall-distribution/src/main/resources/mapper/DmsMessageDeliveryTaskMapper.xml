@@ -1,6 +1,58 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.macro.mall.distribution.dao.DmsMessageDeliveryTaskDao">
-    <insert id="insertIgnore" parameterType="com.macro.mall.distribution.entity.DmsMessageDeliveryTask" useGeneratedKeys="true" keyProperty="id">INSERT IGNORE INTO dms_message_delivery_task (tenant_id,message_id,channel,status,retry_count,estimated_cost,error_code,error_message,sent_time) VALUES (#{tenantId},#{messageId},#{channel},#{status},#{retryCount},#{estimatedCost},#{errorCode},#{errorMessage},#{sentTime})</insert>
-    <select id="selectList" resultType="com.macro.mall.distribution.entity.DmsMessageDeliveryTask">SELECT id,tenant_id,message_id,channel,status,retry_count,estimated_cost,error_code,error_message,next_retry_time,sent_time,create_time,update_time FROM dms_message_delivery_task WHERE tenant_id=#{tenantId}<if test="channel != null and channel != ''"> AND channel=#{channel}</if><if test="status != null and status != ''"> AND status=#{status}</if> ORDER BY id DESC</select>
+    <sql id="TaskColumns">id,tenant_id,message_id,event_type,channel,idempotency_key,status,retry_count,attempt_count,max_attempts,estimated_cost,actual_cost,provider_code,provider_message_id,error_code,error_message,lease_owner,lease_until,next_retry_time,expires_at,sent_time,accepted_time,delivered_time,create_time,update_time</sql>
+    <insert id="insertIgnore" parameterType="com.macro.mall.distribution.entity.DmsMessageDeliveryTask" useGeneratedKeys="true" keyProperty="id">INSERT IGNORE INTO dms_message_delivery_task (tenant_id,message_id,event_type,channel,idempotency_key,status,retry_count,attempt_count,max_attempts,estimated_cost,actual_cost,error_code,error_message,next_retry_time,expires_at,sent_time) VALUES (#{tenantId},#{messageId},#{eventType},#{channel},#{idempotencyKey},#{status},#{retryCount},#{attemptCount},#{maxAttempts},#{estimatedCost},#{actualCost},#{errorCode},#{errorMessage},#{nextRetryTime},#{expiresAt},#{sentTime})</insert>
+    <select id="selectList" resultType="com.macro.mall.distribution.entity.DmsMessageDeliveryTask">SELECT <include refid="TaskColumns"/> FROM dms_message_delivery_task WHERE tenant_id=#{tenantId}<if test="channel != null and channel != ''"> AND channel=#{channel}</if><if test="status != null and status != ''"> AND status=#{status}</if> ORDER BY id DESC</select>
+    <select id="selectDueIds" resultType="long">
+        SELECT id FROM dms_message_delivery_task
+        WHERE channel IN ('SMS','APP_PUSH','MINI_PROGRAM')
+          AND ((status IN ('PENDING','RETRYABLE','ACCEPTED') AND (next_retry_time IS NULL OR next_retry_time &lt;= #{now}))
+            OR (status='SENDING' AND (lease_until IS NULL OR lease_until &lt; #{now})))
+        ORDER BY id LIMIT #{limit}
+    </select>
+    <update id="claim">
+        UPDATE dms_message_delivery_task SET status='SENDING',lease_owner=#{owner},lease_until=#{leaseUntil},update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id} AND ((status IN ('PENDING','RETRYABLE','ACCEPTED') AND (next_retry_time IS NULL OR next_retry_time &lt;= #{now}))
+          OR (status='SENDING' AND (lease_until IS NULL OR lease_until &lt; #{now})))
+    </update>
+    <select id="selectById" resultType="com.macro.mall.distribution.entity.DmsMessageDeliveryTask">SELECT <include refid="TaskColumns"/> FROM dms_message_delivery_task WHERE id=#{id}</select>
+    <select id="selectByIdForUpdate" resultType="com.macro.mall.distribution.entity.DmsMessageDeliveryTask">SELECT <include refid="TaskColumns"/> FROM dms_message_delivery_task WHERE id=#{id} FOR UPDATE</select>
+    <select id="selectContext" resultType="com.macro.mall.distribution.notification.ExternalNotificationContext">
+        SELECT task.id task_id,task.tenant_id,task.message_id,message.member_id,message.user_id,task.event_type,task.channel,
+               message.title,message.summary,message.content,member.phone
+        FROM dms_message_delivery_task task
+        JOIN dms_member_message message ON message.id=task.message_id AND message.tenant_id=task.tenant_id
+        JOIN dms_shop_member member ON member.id=message.member_id AND member.user_id=message.user_id
+        WHERE task.id=#{id}
+    </select>
+    <update id="incrementAttempt">UPDATE dms_message_delivery_task SET attempt_count=attempt_count+1,update_time=CURRENT_TIMESTAMP WHERE id=#{id} AND lease_owner=#{owner} AND status='SENDING'</update>
+    <update id="markFinal">
+        UPDATE dms_message_delivery_task SET status=#{status},provider_code=#{providerCode},provider_message_id=#{providerMessageId},
+          actual_cost=actual_cost+COALESCE(#{actualCost},0),error_code=#{errorCode},error_message=#{errorMessage},
+          lease_owner=NULL,lease_until=NULL,next_retry_time=NULL,sent_time=CASE WHEN #{status} IN ('ACCEPTED','DELIVERED') THEN COALESCE(sent_time,#{resolvedTime}) ELSE sent_time END,
+          accepted_time=CASE WHEN #{status} IN ('ACCEPTED','DELIVERED') THEN COALESCE(accepted_time,#{resolvedTime}) ELSE accepted_time END,
+          delivered_time=CASE WHEN #{status}='DELIVERED' THEN COALESCE(delivered_time,#{resolvedTime}) ELSE delivered_time END,update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id} AND lease_owner=#{owner} AND status='SENDING'
+    </update>
+    <update id="markRetryable">
+        UPDATE dms_message_delivery_task SET status='RETRYABLE',retry_count=#{retryCount},next_retry_time=#{nextRetryTime},
+          error_code=#{errorCode},error_message=#{errorMessage},lease_owner=NULL,lease_until=NULL,update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id} AND lease_owner=#{owner} AND status='SENDING'
+    </update>
+    <update id="markUnknown">
+        UPDATE dms_message_delivery_task SET status='SENDING',provider_code=#{providerCode},provider_message_id=#{providerMessageId},
+          error_code=#{errorCode},error_message=#{errorMessage},lease_owner=NULL,lease_until=#{leaseUntil},update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id} AND lease_owner=#{owner} AND status='SENDING'
+    </update>
+    <update id="applyReceipt">
+        UPDATE dms_message_delivery_task SET status=#{status},provider_code=#{providerCode},provider_message_id=COALESCE(#{providerMessageId},provider_message_id),
+          error_code=#{errorCode},error_message=CASE WHEN #{status}='PERMANENT' THEN '供应商回执确认发送失败' ELSE NULL END,
+          lease_owner=NULL,lease_until=NULL,next_retry_time=NULL,
+          sent_time=CASE WHEN #{status} IN ('ACCEPTED','DELIVERED') THEN COALESCE(sent_time,#{resolvedTime}) ELSE sent_time END,
+          accepted_time=CASE WHEN #{status} IN ('ACCEPTED','DELIVERED') THEN COALESCE(accepted_time,#{resolvedTime}) ELSE accepted_time END,
+          delivered_time=CASE WHEN #{status}='DELIVERED' THEN COALESCE(delivered_time,#{resolvedTime}) ELSE delivered_time END,update_time=CURRENT_TIMESTAMP
+        WHERE tenant_id=#{tenantId} AND id=#{id} AND status IN ('SENDING','ACCEPTED')
+    </update>
+    <update id="scheduleAcceptedQuery">UPDATE dms_message_delivery_task SET next_retry_time=#{nextRetryTime},update_time=CURRENT_TIMESTAMP WHERE id=#{id} AND status='ACCEPTED'</update>
 </mapper>

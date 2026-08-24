@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsMessageCostBudgetDao">
+    <select id="selectForUpdate" resultType="com.macro.mall.distribution.entity.DmsMessageCostBudget">SELECT * FROM dms_message_cost_budget WHERE tenant_id=#{tenantId} AND scope_type=#{scopeType} AND scope_key=#{scopeKey} FOR UPDATE</select>
+    <select id="selectList" resultType="com.macro.mall.distribution.entity.DmsMessageCostBudget">SELECT * FROM dms_message_cost_budget WHERE tenant_id=#{tenantId} ORDER BY CASE scope_type WHEN 'TENANT' THEN 1 WHEN 'CHANNEL' THEN 2 ELSE 3 END,scope_key</select>
+    <select id="sumReserved" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(attempt.estimated_cost),0)
+        FROM dms_message_delivery_attempt attempt JOIN dms_message_delivery_task task ON task.id=attempt.task_id AND task.tenant_id=attempt.tenant_id
+        WHERE attempt.tenant_id=#{tenantId} AND attempt.state IN ('PREPARED','SUBMITTED','UNKNOWN','ACCEPTED','DELIVERED') AND attempt.create_time &gt;= #{fromTime}
+        <choose>
+            <when test="scopeType == 'EVENT'">AND task.event_type=#{scopeKey}</when>
+            <when test="scopeType == 'CHANNEL'">AND task.channel=#{scopeKey}</when>
+        </choose>
+    </select>
+</mapper>

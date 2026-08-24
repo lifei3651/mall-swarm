@@ -88,6 +88,8 @@ def validate(config):
         "DATA_ENCRYPTION_WRITE_ENABLED": {"mall-distribution"},
         "ALIPAY_PRIVATE_KEY": {"mall-distribution"},
         "SMS_ALIYUN_ACCESS_KEY_SECRET": {"mall-distribution"},
+        "NOTIFICATION_SMS_ALIYUN_ACCESS_KEY_SECRET": {"mall-distribution"},
+        "NOTIFICATION_SMS_ALIYUN_RECEIPT_SECRET": {"mall-distribution"},
     }
     for key, owners in sensitive_owners.items():
         actual = {name for name, service in services.items() if key in environment_map(service)}
