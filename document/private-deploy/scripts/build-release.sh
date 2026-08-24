@@ -6,7 +6,20 @@ DEPLOY_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 ROOT_DIR=$(CDPATH= cd -- "$DEPLOY_DIR/../.." && pwd)
 HTML_DIR="$DEPLOY_DIR/html"
 STAGING=$(mktemp -d "${TMPDIR:-/tmp}/mall-private-build.XXXXXX")
-trap 'rm -rf "$STAGING"' EXIT HUP INT TERM
+CANDIDATE_DIR="$ROOT_DIR/target/release-candidates"
+CANDIDATE_STAGING="$STAGING/release-candidates"
+restore_candidates() {
+  if [ -d "$CANDIDATE_STAGING" ]; then
+    mkdir -p "$ROOT_DIR/target"
+    [ ! -e "$CANDIDATE_DIR" ] || { echo "候选目录恢复目标已存在，停止覆盖" >&2; exit 1; }
+    mv "$CANDIDATE_STAGING" "$CANDIDATE_DIR"
+  fi
+}
+cleanup() {
+  restore_candidates
+  rm -rf "$STAGING"
+}
+trap cleanup EXIT HUP INT TERM
 
 [ -x "$ROOT_DIR/mvnw" ] || { echo "缺少 Maven Wrapper" >&2; exit 1; }
 command -v npm >/dev/null 2>&1 || { echo "缺少 Node.js/npm" >&2; exit 1; }
@@ -19,7 +32,13 @@ fi
 export RELEASE_GIT_COMMIT="$release_git_commit"
 export RELEASE_BUILD_ID="$release_build_id"
 
+# Maven 根模块 clean 会删除 target；正式候选属于冻结交付物，构建期间先移出再原样恢复。
+if [ -d "$CANDIDATE_DIR" ]; then
+  mv "$CANDIDATE_DIR" "$CANDIDATE_STAGING"
+fi
+
 (cd "$ROOT_DIR" && ./mvnw clean package -Ddocker.skip=true)
+restore_candidates
 (cd "$ROOT_DIR/mall-shop-web" && npm ci && npm test -- --run && npm run build)
 (cd "$ROOT_DIR/mall-distribution-admin" && npm ci && npm test -- --run && npm run build)
 
