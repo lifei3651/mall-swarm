@@ -309,6 +309,12 @@ const routes = [
             meta: { title: '商城公告', permission: 'config:shop' },
           },
           {
+            path: 'message-operations',
+            name: 'TenantMessageOperations',
+            component: () => import('@/views/tenant/message-operations.vue'),
+            meta: { title: '消息运营', permission: 'config:shop' },
+          },
+          {
             path: 'display',
             name: 'TenantDisplay',
             redirect: '/tenant/list',

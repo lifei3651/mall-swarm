@@ -34,6 +34,7 @@
     </section>
 
     <section class="action-grid">
+      <MessageCenterEntry />
       <RouterLink to="/invite"><UserRoundPlus :size="27" /><strong>邀请会员</strong><span>查看邀请码和分享入口</span></RouterLink>
       <RouterLink to="/profile/team"><ChartNoAxesCombined :size="27" /><strong>团队业绩</strong><span>查看本人和团队业绩</span></RouterLink>
       <RouterLink to="/profile/wallet"><WalletCards :size="27" /><strong>奖金账户</strong><span>余额、流水与提现</span></RouterLink>
@@ -56,6 +57,7 @@ import { ChartNoAxesCombined, ShieldCheck, UserRoundPlus, WalletCards } from 'lu
 import { bindTeamInvitation, getProfile, getProfilePerformance, getWalletSummary, logout } from '@/api/shop'
 import { money } from '@/utils/format'
 import { clearShopSession } from '@/utils/shopSession'
+import MessageCenterEntry from '@/components/MessageCenterEntry.vue'
 
 const router = useRouter()
 const loading = ref(true)

@@ -18,6 +18,9 @@ import com.macro.mall.distribution.service.AgentAccountService;
 import com.macro.mall.distribution.service.MemberAssetService;
 import com.macro.mall.distribution.service.WithdrawService;
 import com.macro.mall.distribution.service.OperationLogService;
+import com.macro.mall.distribution.service.MemberMessageService;
+import com.macro.mall.distribution.service.MemberMessageEvent;
+import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.vo.WithdrawRecordVO;
 import com.macro.mall.distribution.vo.WithdrawStatsVO;
 import com.macro.mall.distribution.vo.WithdrawalLimitUsageVO;
@@ -53,6 +56,7 @@ public class WithdrawServiceImpl implements WithdrawService {
     private final DmsShopMemberDao memberDao;
     private final OperationLogService operationLogService;
     private final WithdrawalLimitProperties withdrawalLimits;
+    private final MemberMessageService memberMessageService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -97,6 +101,7 @@ public class WithdrawServiceImpl implements WithdrawService {
         memberAssetService.withdraw(withdraw);
 
         withdrawDao.insert(record);
+        publishWithdrawal(record, "WITHDRAW_SUBMITTED");
 
         log.info("申请提现成功: agentId={}, amount={}, withdrawNo={}",
                 applyDTO.getAgentId(), withdrawAmount, record.getWithdrawNo());
@@ -139,6 +144,7 @@ public class WithdrawServiceImpl implements WithdrawService {
         }
 
         withdrawDao.update(record);
+        publishWithdrawal(record, "WITHDRAW_AUDITED");
 
         operationLogService.log("WITHDRAW", "AUDIT", "WITHDRAW_RECORD", String.valueOf(record.getId()),
                 "status=" + WithdrawStatusEnum.PENDING_AUDIT.getValue(),
@@ -202,6 +208,7 @@ public class WithdrawServiceImpl implements WithdrawService {
 
         accountService.addWithdrawnAmount(record.getAgentId(), record.getWithdrawAmount());
         withdrawDao.update(record);
+        publishWithdrawal(record, "WITHDRAW_PAID");
 
         operationLogService.log("WITHDRAW", "PAY_CONFIRMED", "WITHDRAW_RECORD", String.valueOf(record.getId()),
                 "status=" + WithdrawStatusEnum.AUDIT_PASSED.getValue(),
@@ -211,6 +218,13 @@ public class WithdrawServiceImpl implements WithdrawService {
         log.info("确认打款成功: id={}, withdrawNo={}, agentId={}, amount={}, payNo={}",
                 id, record.getWithdrawNo(), record.getAgentId(), record.getWithdrawAmount(), payNo);
         return true;
+    }
+
+    private void publishWithdrawal(DmsWithdrawRecord record, String eventType) {
+        if (record == null || record.getId() == null) return;
+        memberMessageService.publish(new MemberMessageEvent(TenantContext.getTenantId(), record.getUserId(),
+                eventType + ":" + record.getId() + ("WITHDRAW_AUDITED".equals(eventType) ? ":" + record.getStatus() : ""),
+                eventType, "WALLET_FUNDS", "WITHDRAWAL", record.getId(), null, LocalDateTime.now()));
     }
 
     @Override

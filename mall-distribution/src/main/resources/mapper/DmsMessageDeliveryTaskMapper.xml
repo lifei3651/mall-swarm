@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsMessageDeliveryTaskDao">
+    <insert id="insertIgnore" parameterType="com.macro.mall.distribution.entity.DmsMessageDeliveryTask" useGeneratedKeys="true" keyProperty="id">INSERT IGNORE INTO dms_message_delivery_task (tenant_id,message_id,channel,status,retry_count,estimated_cost,error_code,error_message,sent_time) VALUES (#{tenantId},#{messageId},#{channel},#{status},#{retryCount},#{estimatedCost},#{errorCode},#{errorMessage},#{sentTime})</insert>
+    <select id="selectList" resultType="com.macro.mall.distribution.entity.DmsMessageDeliveryTask">SELECT id,tenant_id,message_id,channel,status,retry_count,estimated_cost,error_code,error_message,next_retry_time,sent_time,create_time,update_time FROM dms_message_delivery_task WHERE tenant_id=#{tenantId}<if test="channel != null and channel != ''"> AND channel=#{channel}</if><if test="status != null and status != ''"> AND status=#{status}</if> ORDER BY id DESC</select>
+</mapper>

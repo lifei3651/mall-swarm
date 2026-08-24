@@ -317,7 +317,8 @@ public class ShopController {
     @Operation(summary = "会员订单与售后状态实时通知")
     @GetMapping(value = "/events/orders", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter orderEvents(@RequestHeader(value = "Authorization", required = false) String authorization) {
-        return orderRealtimeService.subscribeMember(authService.requireMember(authorization).getUserId());
+        return orderRealtimeService.subscribeMember(TenantContext.getTenantId(),
+                authService.requireMember(authorization).getUserId());
     }
 
     @Operation(summary = "后台订单与售后待办实时通知")

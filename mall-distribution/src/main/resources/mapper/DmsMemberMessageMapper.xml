@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsMemberMessageDao">
+    <resultMap id="MessageMap" type="com.macro.mall.distribution.entity.DmsMemberMessage">
+        <id column="id" property="id"/><result column="tenant_id" property="tenantId"/>
+        <result column="member_id" property="memberId"/><result column="user_id" property="userId"/>
+        <result column="event_key" property="eventKey"/><result column="event_type" property="eventType"/>
+        <result column="category" property="category"/><result column="title" property="title"/>
+        <result column="summary" property="summary"/><result column="content" property="content"/>
+        <result column="target_type" property="targetType"/><result column="target_id" property="targetId"/>
+        <result column="target_parent_id" property="targetParentId"/><result column="is_read" property="isRead"/>
+        <result column="read_time" property="readTime"/><result column="occurred_time" property="occurredTime"/>
+        <result column="create_time" property="createTime"/><result column="update_time" property="updateTime"/>
+    </resultMap>
+    <sql id="Columns">id,tenant_id,member_id,user_id,event_key,event_type,category,title,summary,content,target_type,target_id,target_parent_id,is_read,read_time,occurred_time,create_time,update_time</sql>
+    <insert id="insertIgnore" parameterType="com.macro.mall.distribution.entity.DmsMemberMessage" useGeneratedKeys="true" keyProperty="id">
+        INSERT IGNORE INTO dms_member_message
+        (tenant_id,member_id,user_id,event_key,event_type,category,title,summary,content,target_type,target_id,target_parent_id,is_read,occurred_time)
+        VALUES (#{tenantId},#{memberId},#{userId},#{eventKey},#{eventType},#{category},#{title},#{summary},#{content},#{targetType},#{targetId},#{targetParentId},0,#{occurredTime})
+    </insert>
+    <select id="selectOwned" resultMap="MessageMap">
+        SELECT <include refid="Columns"/> FROM dms_member_message
+        WHERE tenant_id=#{tenantId} AND member_id=#{memberId} AND id=#{id}
+    </select>
+    <select id="selectPage" resultMap="MessageMap">
+        SELECT <include refid="Columns"/> FROM dms_member_message
+        WHERE tenant_id=#{tenantId} AND member_id=#{memberId}
+        <if test="category != null and category != ''">AND category=#{category}</if>
+        ORDER BY id DESC
+    </select>
+    <select id="countUnreadByCategory" resultType="com.macro.mall.distribution.vo.MessageUnreadCountVO">
+        SELECT category, COUNT(*) unread_count FROM dms_member_message
+        WHERE tenant_id=#{tenantId} AND member_id=#{memberId} AND is_read=0 GROUP BY category
+    </select>
+    <update id="markRead">
+        UPDATE dms_member_message SET is_read=1,read_time=CURRENT_TIMESTAMP,update_time=CURRENT_TIMESTAMP
+        WHERE tenant_id=#{tenantId} AND member_id=#{memberId} AND id=#{id} AND is_read=0
+    </update>
+    <update id="markAllRead">
+        UPDATE dms_member_message SET is_read=1,read_time=CURRENT_TIMESTAMP,update_time=CURRENT_TIMESTAMP
+        WHERE tenant_id=#{tenantId} AND member_id=#{memberId} AND is_read=0
+        <if test="category != null and category != ''">AND category=#{category}</if>
+    </update>
+</mapper>

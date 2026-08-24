@@ -8,9 +8,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
 
 class OrderRealtimeServiceTest {
-    private final OrderRealtimeService service = new OrderRealtimeService(new ObjectMapper());
+    private final OrderRealtimeService service = new OrderRealtimeService(new ObjectMapper(), mock(MemberMessageService.class));
 
     @AfterEach
     void cleanup() {
@@ -21,13 +22,13 @@ class OrderRealtimeServiceTest {
     void limitsDuplicateConnectionsForTheSameAuthenticatedPrincipal() {
         ReflectionTestUtils.setField(service, "maxConnections", 10);
         ReflectionTestUtils.setField(service, "maxConnectionsPerPrincipal", 1);
-        service.subscribeMember(88L);
+        service.subscribeMember(1L, 88L);
 
         ResponseStatusException error = assertThrows(ResponseStatusException.class,
-                () -> service.subscribeMember(88L));
+                () -> service.subscribeMember(1L, 88L));
 
         assertEquals(429, error.getStatusCode().value());
-        service.subscribeMember(89L);
+        service.subscribeMember(1L, 89L);
     }
 
     @Test
@@ -37,8 +38,20 @@ class OrderRealtimeServiceTest {
         service.subscribeAdmin(1L);
 
         ResponseStatusException error = assertThrows(ResponseStatusException.class,
-                () -> service.subscribeMember(99L));
+                () -> service.subscribeMember(1L, 99L));
 
+        assertEquals(429, error.getStatusCode().value());
+    }
+
+    @Test
+    void sameUserNumberInDifferentTenantsHasAnIndependentSubscriptionBoundary() {
+        ReflectionTestUtils.setField(service, "maxConnections", 10);
+        ReflectionTestUtils.setField(service, "maxConnectionsPerPrincipal", 1);
+        service.subscribeMember(1L, 88L);
+        service.subscribeMember(2L, 88L);
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.subscribeMember(1L, 88L));
         assertEquals(429, error.getStatusCode().value());
     }
 }

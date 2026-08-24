@@ -26,6 +26,7 @@ final class AdminPermissionPolicy {
         if (HttpMethod.PUT.matches(method) && path.equals("/shop/admin/product-settings/pv")) return "config:bonus";
         if (path.startsWith("/distribution/tenant")) return "config:shop";
         if (path.startsWith("/shop/admin/banners") || path.startsWith("/shop/admin/notices")) return "config:shop";
+        if (path.startsWith("/shop/admin/message-operations")) return "config:shop";
         if (path.startsWith("/shop/admin/merchant-product-reviews")) return "shop:product-review";
         if (path.startsWith("/shop/admin/products") || path.startsWith("/shop/admin/skus")
                 || path.startsWith("/shop/admin/media") || path.startsWith("/shop/admin/freight-templates")

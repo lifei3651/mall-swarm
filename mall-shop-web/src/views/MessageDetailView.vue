@@ -1,0 +1,13 @@
+<template>
+  <main class="message-detail" :aria-busy="loading"><RouterLink to="/messages">‹ 返回消息中心</RouterLink><article v-if="message.id"><span>{{ categoryName }}</span><h1>{{ message.title }}</h1><time>{{ formatTime(message.occurredTime||message.createTime) }}</time><p>{{ message.content }}</p><button v-if="message.targetType!=='NONE'" @click="openTarget">查看相关业务</button></article><p v-if="notice" class="notice">{{ notice }}</p></main>
+</template>
+<script setup>
+import {computed,onMounted,ref} from 'vue';import{useRoute,useRouter}from'vue-router';import{getMemberMessage}from'@/api/shop'
+const route=useRoute(),router=useRouter(),message=ref({}),loading=ref(true),notice=ref('')
+const names={ORDER_LOGISTICS:'订单物流',AFTER_SALE_REFUND:'售后退款',WALLET_FUNDS:'钱包资金',ACCOUNT_SECURITY:'账户安全',SERVICE:'服务通知'}
+const categoryName=computed(()=>names[message.value.category]||'个人消息');const formatTime=v=>v?String(v).replace('T',' ').slice(0,16):''
+const existing=(name)=>router.hasRoute(name)
+const openTarget=async()=>{const m=message.value;let target=null;if(m.targetType==='ORDER'&&existing('OrderDetail'))target={name:'OrderDetail',params:{id:m.targetId}};else if(m.targetType==='AFTER_SALE'&&existing('OrderDetail')&&m.targetParentId)target={name:'OrderDetail',params:{id:m.targetParentId},query:{focus:'after-sale'}};else if(['WALLET','WITHDRAWAL'].includes(m.targetType)&&existing('ProfileWallet'))target={name:'ProfileWallet',query:m.targetType==='WITHDRAWAL'?{view:'withdrawals'}:{}};else if(m.targetType==='ACCOUNT_SECURITY')target=existing('ProfileSecurity')?{name:'ProfileSecurity'}:existing('ChangeLoginPassword')?{name:'ChangeLoginPassword'}:null;if(!target){notice.value='当前入口不提供该业务页面，已安全返回本端首页';await router.push('/');return}try{await router.push(target)}catch{notice.value='业务状态可能已变化，请从对应列表重新查看';await router.push(existing('Orders')?{name:'Orders'}:'/')}}
+onMounted(async()=>{try{message.value=(await getMemberMessage(route.params.id)).data||{}}catch(e){notice.value=e.message||'消息不存在或无权查看'}finally{loading.value=false}})
+</script>
+<style scoped>.message-detail{width:min(720px,calc(100% - 24px));margin:0 auto;padding:24px 0}.message-detail>a{color:#667085}.message-detail article{margin-top:16px;padding:25px;background:#fff;border-radius:18px}.message-detail article>span{color:var(--brand-primary,#e7193f);font-size:12px}.message-detail h1{margin:9px 0;font-size:24px}.message-detail time{color:#98a2b3;font-size:12px}.message-detail p{margin:25px 0;line-height:1.8}.message-detail button{padding:11px 18px;color:#fff;background:var(--brand-primary,#e7193f);border:0;border-radius:11px}.notice{padding:13px;color:#8a6116;background:#fff7df;border-radius:10px}</style>

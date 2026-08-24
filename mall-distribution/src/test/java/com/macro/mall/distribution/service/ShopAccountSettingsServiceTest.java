@@ -12,6 +12,7 @@ import com.macro.mall.distribution.service.impl.ShopAuthServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -29,6 +30,7 @@ class ShopAccountSettingsServiceTest {
     @Mock private LoginCaptchaService loginCaptchaService;
     @Mock private SmsVerificationService smsVerificationService;
     @Mock private DmsTenantDao tenantDao;
+    @Mock private MemberMessageService memberMessageService;
 
     @Test
     void nicknameSupportsCommonChineseDisplayNamesAndRejectsEmoji() {
@@ -67,6 +69,11 @@ class ShopAccountSettingsServiceTest {
         verify(smsVerificationService).verifyAndConsume("13900000000", "123456", SmsBusinessType.CHANGE_PHONE_CURRENT);
         verify(memberDao).updatePhoneAndDefaults(12L, "13900000000", "13800000000");
         verify(sessionDao).disableByMemberId(12L);
+        ArgumentCaptor<MemberMessageEvent> message = ArgumentCaptor.forClass(MemberMessageEvent.class);
+        verify(memberMessageService).publish(message.capture());
+        assertEquals("PHONE_CHANGED", message.getValue().eventType());
+        assertEquals("ACCOUNT_SECURITY", message.getValue().category());
+        assertEquals(1200L, message.getValue().userId());
     }
 
     @Test
@@ -87,7 +94,7 @@ class ShopAccountSettingsServiceTest {
 
     private ShopAuthServiceImpl service() {
         return new ShopAuthServiceImpl(memberDao, sessionDao, agentService, loginCaptchaService, smsVerificationService,
-                tenantDao);
+                tenantDao, memberMessageService);
     }
 
     private DmsShopMember member() {

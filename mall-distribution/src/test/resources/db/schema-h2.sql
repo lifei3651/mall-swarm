@@ -1435,3 +1435,58 @@ CREATE TABLE IF NOT EXISTS dms_erp_sync_task (
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (integration_id, biz_type, biz_id)
 );
+CREATE TABLE IF NOT EXISTS dms_member_message (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY, tenant_id BIGINT NOT NULL, member_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL, event_key VARCHAR(160) NOT NULL, event_type VARCHAR(64) NOT NULL,
+    category VARCHAR(32) NOT NULL, title VARCHAR(128) NOT NULL, summary VARCHAR(300) NOT NULL,
+    content VARCHAR(1000) NOT NULL, target_type VARCHAR(32) NOT NULL DEFAULT 'NONE', target_id BIGINT,
+    target_parent_id BIGINT, is_read TINYINT NOT NULL DEFAULT 0, read_time TIMESTAMP,
+    occurred_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_member_message_event UNIQUE (tenant_id, member_id, event_key)
+);
+CREATE INDEX IF NOT EXISTS idx_member_message_unread ON dms_member_message(tenant_id, member_id, is_read, id);
+CREATE INDEX IF NOT EXISTS idx_member_message_category ON dms_member_message(tenant_id, member_id, category, id);
+
+CREATE TABLE IF NOT EXISTS dms_message_template (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY, tenant_id BIGINT NOT NULL, event_type VARCHAR(64) NOT NULL,
+    category VARCHAR(32) NOT NULL, title_template VARCHAR(128) NOT NULL, summary_template VARCHAR(300) NOT NULL,
+    content_template VARCHAR(1000) NOT NULL, enabled TINYINT NOT NULL DEFAULT 1, version INT NOT NULL DEFAULT 1,
+    create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, update_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_message_template_event UNIQUE (tenant_id, event_type)
+);
+CREATE TABLE IF NOT EXISTS dms_message_channel_config (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY, tenant_id BIGINT NOT NULL, event_type VARCHAR(64) NOT NULL,
+    in_app_enabled TINYINT NOT NULL DEFAULT 1, sms_enabled TINYINT NOT NULL DEFAULT 0,
+    app_push_enabled TINYINT NOT NULL DEFAULT 0, mini_program_enabled TINYINT NOT NULL DEFAULT 0,
+    estimated_sms_cost DECIMAL(10,4) NOT NULL DEFAULT 0, create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_message_channel_event UNIQUE (tenant_id, event_type)
+);
+CREATE TABLE IF NOT EXISTS dms_message_delivery_task (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY, tenant_id BIGINT NOT NULL, message_id BIGINT NOT NULL,
+    channel VARCHAR(24) NOT NULL, status VARCHAR(24) NOT NULL, retry_count INT NOT NULL DEFAULT 0,
+    estimated_cost DECIMAL(10,4) NOT NULL DEFAULT 0, provider_message_id VARCHAR(128), error_code VARCHAR(64),
+    error_message VARCHAR(255), next_retry_time TIMESTAMP, sent_time TIMESTAMP,
+    create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, update_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_message_delivery_channel UNIQUE (tenant_id, message_id, channel)
+);
+
+MERGE INTO dms_message_template (tenant_id,event_type,category,title_template,summary_template,content_template,enabled,version) KEY(tenant_id,event_type) VALUES
+(1,'ORDER_PAID','ORDER_LOGISTICS','订单支付成功','订单已完成支付，可查看订单详情。','您的订单已完成支付，后续状态请以订单详情为准。',1,1),
+(1,'ORDER_CLOSED','ORDER_LOGISTICS','订单已关闭','订单已关闭，可查看订单详情。','您的订单已关闭，具体原因和退款进度请以订单详情为准。',1,1),
+(1,'ORDER_SHIPPED','ORDER_LOGISTICS','订单已发货','商家已发货，可查看物流信息。','您的订单已发货，物流信息请登录后查看。',1,1),
+(1,'ORDER_RECEIVED','ORDER_LOGISTICS','订单已完成','订单已确认收货。','您的订单已确认收货。',1,1),
+(1,'AFTER_SALE_APPLIED','AFTER_SALE_REFUND','售后申请已提交','售后申请已提交，请留意处理进展。','您的售后申请已提交。',1,1),
+(1,'AFTER_SALE_UPDATED','AFTER_SALE_REFUND','售后状态有更新','售后申请有新的处理进展。','您的售后申请状态已更新。',1,1),
+(1,'REFUND_RESULT','AFTER_SALE_REFUND','退款结果已更新','退款处理结果已更新。','退款处理结果已更新。',1,1),
+(1,'WALLET_FLOW','WALLET_FUNDS','钱包有新流水','钱包余额流水已更新。','钱包明细请登录后查看。',1,1),
+(1,'WITHDRAW_SUBMITTED','WALLET_FUNDS','提现申请已提交','提现申请已进入审核。','提现详情请登录后查看。',1,1),
+(1,'WITHDRAW_AUDITED','WALLET_FUNDS','提现审核已完成','提现申请审核状态已更新。','提现详情请登录后查看。',1,1),
+(1,'WITHDRAW_PAID','WALLET_FUNDS','提现打款状态已更新','提现打款状态已更新。','实际到账请以收款渠道为准。',1,1),
+(1,'LOGIN_PASSWORD_CHANGED','ACCOUNT_SECURITY','登录密码已修改','账号安全设置发生变化。','如非本人操作，请立即联系平台。',1,1),
+(1,'PAY_PASSWORD_CHANGED','ACCOUNT_SECURITY','支付密码已更新','资金安全设置发生变化。','验证码和密码不会进入消息正文。',1,1),
+(1,'PHONE_CHANGED','ACCOUNT_SECURITY','登录手机号已更新','账号安全设置发生变化。','完整号码不会进入消息正文。',1,1),
+(1,'SERVICE_NOTICE','SERVICE','服务通知','您有一条新的服务通知。','请登录后查看。',1,1);
+MERGE INTO dms_message_channel_config (tenant_id,event_type,in_app_enabled,sms_enabled,app_push_enabled,mini_program_enabled,estimated_sms_cost) KEY(tenant_id,event_type)
+SELECT 1,event_type,1,0,0,0,0 FROM dms_message_template WHERE tenant_id=1;

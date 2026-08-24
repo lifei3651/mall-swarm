@@ -39,6 +39,7 @@
       </section>
 
       <section class="profile-menu" :class="{ 'without-team-performance': !showTeamPerformance }">
+        <MessageCenterEntry class="menu-tile" />
         <RouterLink to="/profile/wallet" class="menu-tile">
           <span class="tile-icon wallet-icon"><WalletCards :size="26" /></span>
           <span class="tile-label">余额</span>
@@ -106,6 +107,7 @@ import {
 import { getProfile, getProfilePerformance, getWalletSummary, logout } from '@/api/shop'
 import InviteDialog from '@/components/InviteDialog.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import MessageCenterEntry from '@/components/MessageCenterEntry.vue'
 import { money } from '@/utils/format'
 import { clearShopSession } from '@/utils/shopSession'
 import { connectOrderRealtime } from '@/utils/orderRealtime'

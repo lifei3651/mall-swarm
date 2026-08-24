@@ -245,7 +245,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         for (DmsShopAfterSaleItem item : refundItems) item.setAfterSaleId(afterSale.getId());
         afterSaleItemDao.insertBatch(refundItems);
         commitProofImages(member.getId(), proofImages);
-        notifyOrderChanged(order, "AFTER_SALE_APPLIED");
+        notifyOrderChanged(order, "AFTER_SALE_APPLIED", afterSale.getId());
         return hydrate(afterSaleDao.selectById(afterSale.getId()));
     }
 
@@ -278,7 +278,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         afterSale.setAuditUserId(null);
         afterSale.setAuditUserName("客户本人");
         if (afterSaleDao.updateAudit(afterSale) != 1) Asserts.fail("售后状态已变化，请刷新后重试");
-        notifyOrderChanged(order, "AFTER_SALE_CANCELLED");
+        notifyOrderChanged(order, "AFTER_SALE_CANCELLED", afterSale.getId());
         return hydrate(afterSaleDao.selectById(id));
     }
 
@@ -307,7 +307,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         afterSale.setReturnShippedAt(LocalDateTime.now());
         afterSale.setStatus(5);
         if (afterSaleDao.updateReturnShipment(afterSale) != 1) Asserts.fail("售后状态已变化，请刷新后重试");
-        notifyOrderChanged(order, "AFTER_SALE_RETURN_SHIPPED");
+        notifyOrderChanged(order, "AFTER_SALE_RETURN_SHIPPED", afterSale.getId());
         return hydrate(afterSaleDao.selectById(id));
     }
 
@@ -329,7 +329,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             afterSale.setAuditUserName("系统");
             if (afterSaleDao.updateAudit(afterSale) != 1) Asserts.fail("超时退货售后关闭失败");
             DmsShopOrder order = orderDao.selectById(afterSale.getOrderId());
-            if (order != null) notifyOrderChanged(order, "AFTER_SALE_RETURN_TIMEOUT");
+            if (order != null) notifyOrderChanged(order, "AFTER_SALE_RETURN_TIMEOUT", afterSale.getId());
             expired++;
         }
         return expired;
@@ -610,14 +610,14 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
 
         if (Integer.valueOf(1).equals(status) && Integer.valueOf(2).equals(afterSale.getApplyType())
                 && returnAddressConfigured) {
-            notifyOrderChanged(order, "AFTER_SALE_AUDITED");
+            notifyOrderChanged(order, "AFTER_SALE_AUDITED", afterSale.getId());
             return hydrate(afterSaleDao.selectById(id));
         }
         if (Integer.valueOf(1).equals(status)) {
             completeRefund(afterSale, order);
             if (requiresExternalRefund) scheduleExternalRefund(afterSale.getId());
         }
-        notifyOrderChanged(order, "AFTER_SALE_AUDITED");
+        notifyOrderChanged(order, "AFTER_SALE_AUDITED", afterSale.getId());
         return hydrate(afterSaleDao.selectById(id));
     }
 
@@ -652,7 +652,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             afterSale.setStatus(1);
             if (afterSaleDao.updateAudit(afterSale) != 1) Asserts.fail("售后完成状态保存失败，请刷新后重试");
         }
-        notifyOrderChanged(order, "AFTER_SALE_COMPLETED");
+        notifyOrderChanged(order, "AFTER_SALE_COMPLETED", afterSale.getId());
         return hydrate(afterSaleDao.selectById(id));
     }
 
@@ -888,7 +888,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         }
     }
 
-    private void notifyOrderChanged(DmsShopOrder order, String changeType) {
-        if (orderRealtimeService != null) orderRealtimeService.orderChanged(order, changeType);
+    private void notifyOrderChanged(DmsShopOrder order, String changeType, Long afterSaleId) {
+        if (orderRealtimeService != null) orderRealtimeService.orderChanged(order, changeType, afterSaleId);
     }
 }

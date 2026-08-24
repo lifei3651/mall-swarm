@@ -481,3 +481,10 @@ export function getInviterPreview(inviteCode) {
 export function bindTeamInvitation(inviteCode) {
   return request({ url: '/shop/team/invitation', method: 'post', data: { inviteCode } })
 }
+
+export function listMemberMessages(params) { return request({ url: '/shop/messages', method: 'get', params }) }
+export function getMemberMessage(id) { return request({ url: `/shop/messages/${id}`, method: 'get' }) }
+export function getMessageUnread() { return request({ url: '/shop/messages/unread', method: 'get' }) }
+export function markMessageRead(id) { return request({ url: `/shop/messages/${id}/read`, method: 'put' }) }
+export function markMessageCategoryRead(category) { return request({ url: '/shop/messages/read-category', method: 'put', params: { category } }) }
+export function markAllMessagesRead() { return request({ url: '/shop/messages/read-all', method: 'put' }) }

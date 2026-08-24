@@ -29,6 +29,9 @@ import com.macro.mall.distribution.service.ShopService;
 import com.macro.mall.distribution.service.ShopWalletService;
 import com.macro.mall.distribution.service.SmsVerificationService;
 import com.macro.mall.distribution.service.WithdrawService;
+import com.macro.mall.distribution.service.MemberMessageService;
+import com.macro.mall.distribution.service.MemberMessageEvent;
+import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.vo.BalanceRecipientVO;
 import com.macro.mall.distribution.vo.ShopOrderVO;
 import com.macro.mall.distribution.vo.ShopWalletSummaryVO;
@@ -67,6 +70,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
     private final PaymentPasswordAttemptService passwordAttemptService;
     private final SmsVerificationService smsVerificationService;
     private final WithdrawService withdrawService;
+    private final MemberMessageService memberMessageService;
 
     @Override
     public ShopWalletSummaryVO getSummary(DmsShopMember member) {
@@ -137,6 +141,10 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         if (updated) {
             log.info("会员支付密码已{}: memberId={}, userId={}",
                     hadPaymentPassword ? "修改" : "设置", current.getId(), current.getUserId());
+            memberMessageService.publish(new MemberMessageEvent(TenantContext.getTenantId(), current.getUserId(),
+                    "PAY_PASSWORD_CHANGED:" + current.getId() + ":" + System.currentTimeMillis(),
+                    "PAY_PASSWORD_CHANGED", "ACCOUNT_SECURITY", "ACCOUNT_SECURITY", current.getId(), null,
+                    LocalDateTime.now()));
         }
         return updated;
     }

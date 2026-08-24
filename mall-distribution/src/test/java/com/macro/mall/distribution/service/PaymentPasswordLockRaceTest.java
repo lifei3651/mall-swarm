@@ -46,7 +46,7 @@ class PaymentPasswordLockRaceTest {
         ShopWalletServiceImpl service = new ShopWalletServiceImpl(
                 memberDao, agentDao, mock(DmsMemberAssetAccountDao.class), mock(DmsShopOrderDao.class),
                 mock(com.macro.mall.distribution.dao.DmsShopTradeDao.class), memberAssetService, mock(ShopService.class), attemptService,
-                mock(SmsVerificationService.class), mock(WithdrawService.class));
+                mock(SmsVerificationService.class), mock(WithdrawService.class), mock(MemberMessageService.class));
         BalanceTransferDTO dto = new BalanceTransferDTO();
         dto.setRecipientPhone(recipient.getPhone());
         dto.setAmount(BigDecimal.ONE);

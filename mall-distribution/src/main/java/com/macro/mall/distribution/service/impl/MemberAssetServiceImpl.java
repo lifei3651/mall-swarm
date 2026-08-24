@@ -16,6 +16,9 @@ import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.service.MemberAssetService;
 import com.macro.mall.distribution.service.OperationLogService;
+import com.macro.mall.distribution.service.MemberMessageService;
+import com.macro.mall.distribution.service.MemberMessageEvent;
+import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.vo.BalanceFlowVO;
 import com.macro.mall.distribution.vo.BalanceFlowSummaryVO;
 import com.macro.mall.distribution.security.AdminContext;
@@ -38,6 +41,7 @@ public class MemberAssetServiceImpl implements MemberAssetService {
     private final DmsAgentDao agentDao;
     private final DmsShopMemberDao shopMemberDao;
     private final OperationLogService operationLogService;
+    private final MemberMessageService memberMessageService;
 
     @Override
     public List<DmsMemberAssetAccount> listAccounts(Long agentId, Long userId) {
@@ -244,6 +248,9 @@ public class MemberAssetServiceImpl implements MemberAssetService {
         flow.setBizId(bizId);
         flow.setRemark(remark);
         flowDao.insert(flow);
+        memberMessageService.publish(new MemberMessageEvent(TenantContext.getTenantId(), flow.getUserId(),
+                "WALLET_FLOW:" + flow.getFlowNo(), "WALLET_FLOW", "WALLET_FUNDS", "WALLET",
+                flow.getId(), null, LocalDateTime.now()));
         return flow;
     }
 

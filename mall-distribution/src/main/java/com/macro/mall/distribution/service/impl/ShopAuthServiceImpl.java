@@ -35,6 +35,8 @@ import com.macro.mall.distribution.util.MemberNicknameUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.macro.mall.distribution.service.MemberMessageService;
+import com.macro.mall.distribution.service.MemberMessageEvent;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -61,6 +63,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     private final LoginCaptchaService loginCaptchaService;
     private final SmsVerificationService smsVerificationService;
     private final DmsTenantDao tenantDao;
+    private final MemberMessageService memberMessageService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -339,6 +342,10 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         memberDao.updatePassword(current.getId(), hash(dto.getNewPassword()));
         memberDao.clearLoginLock(current.getId());
         sessionDao.disableByMemberId(current.getId());
+        memberMessageService.publish(new MemberMessageEvent(TenantContext.getTenantId(), current.getUserId(),
+                "LOGIN_PASSWORD_CHANGED:" + current.getId() + ":" + System.currentTimeMillis(),
+                "LOGIN_PASSWORD_CHANGED", "ACCOUNT_SECURITY", "ACCOUNT_SECURITY", current.getId(), null,
+                LocalDateTime.now()));
         return true;
     }
 
@@ -398,6 +405,10 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             agentService.updateAgentInfo(agent.getId(), update);
         }
         sessionDao.disableByMemberId(current.getId());
+        memberMessageService.publish(new MemberMessageEvent(TenantContext.getTenantId(), current.getUserId(),
+                "PHONE_CHANGED:" + current.getId() + ":" + System.currentTimeMillis(),
+                "PHONE_CHANGED", "ACCOUNT_SECURITY", "ACCOUNT_SECURITY", current.getId(), null,
+                LocalDateTime.now()));
         return true;
     }
 
@@ -551,6 +562,10 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         memberDao.updatePassword(member.getId(), hash(newPassword));
         memberDao.clearLoginLock(member.getId());
         sessionDao.disableByMemberId(member.getId());
+        memberMessageService.publish(new MemberMessageEvent(TenantContext.getTenantId(), member.getUserId(),
+                "LOGIN_PASSWORD_RESET:" + member.getId() + ":" + System.currentTimeMillis(),
+                "LOGIN_PASSWORD_CHANGED", "ACCOUNT_SECURITY", "ACCOUNT_SECURITY", member.getId(), null,
+                LocalDateTime.now()));
 
     }
 

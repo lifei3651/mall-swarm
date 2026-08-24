@@ -142,7 +142,7 @@ class SecurityHardeningTest {
 
         ShopAuthServiceImpl service = new ShopAuthServiceImpl(memberDao, memberSessionDao,
                 agentService, captchaService, smsVerificationService,
-                mock(com.macro.mall.distribution.dao.DmsTenantDao.class));
+                mock(com.macro.mall.distribution.dao.DmsTenantDao.class), mock(MemberMessageService.class));
         ShopLoginDTO dto = new ShopLoginDTO();
         dto.setAccount(member.getPhone());
         dto.setPassword(password);
@@ -171,7 +171,7 @@ class SecurityHardeningTest {
         when(memberDao.selectById(12L)).thenReturn(member);
         ShopAuthServiceImpl service = new ShopAuthServiceImpl(memberDao, memberSessionDao,
                 agentService, captchaService, smsVerificationService,
-                mock(com.macro.mall.distribution.dao.DmsTenantDao.class));
+                mock(com.macro.mall.distribution.dao.DmsTenantDao.class), mock(MemberMessageService.class));
 
         assertSame(member, service.resolveMember("Bearer " + rawToken));
         assertNull(service.resolveMember("Bearer " + storedHash));
@@ -214,7 +214,7 @@ class SecurityHardeningTest {
         when(memberDao.clearExpiredLoginLock(eq(12L), any(LocalDateTime.class))).thenReturn(1);
         ShopAuthServiceImpl service = new ShopAuthServiceImpl(memberDao, memberSessionDao,
                 agentService, captchaService, smsVerificationService,
-                mock(com.macro.mall.distribution.dao.DmsTenantDao.class));
+                mock(com.macro.mall.distribution.dao.DmsTenantDao.class), mock(MemberMessageService.class));
         ShopLoginDTO dto = new ShopLoginDTO();
         dto.setAccount(expired.getPhone());
         dto.setPassword(password);
@@ -246,7 +246,7 @@ class SecurityHardeningTest {
     void memberStatusUpdateUsesLockedRowAndRejectsUnknownStates() {
         ShopAuthServiceImpl service = new ShopAuthServiceImpl(memberDao, memberSessionDao,
                 agentService, captchaService, smsVerificationService,
-                mock(com.macro.mall.distribution.dao.DmsTenantDao.class));
+                mock(com.macro.mall.distribution.dao.DmsTenantDao.class), mock(MemberMessageService.class));
         DmsShopMember member = new DmsShopMember();
         member.setId(12L);
         member.setStatus(1);
