@@ -120,7 +120,8 @@ const moduleNames = {
   banner: 'Banner轮播',
   notice: '商城公告',
   category: '商品分类',
-  discovery: '直播广场 / 新品速递',
+  live: '直播广场',
+  newArrivals: '新品速递',
   trust: '服务保障',
   products: '商品列表',
 }
@@ -137,9 +138,10 @@ const defaultModules = [
   { type: 'banner', enabled: true, sort: 1 },
   { type: 'notice', enabled: true, sort: 2 },
   { type: 'category', enabled: true, sort: 3 },
-  { type: 'discovery', enabled: true, sort: 4 },
-  { type: 'trust', enabled: true, sort: 5 },
-  { type: 'products', enabled: true, sort: 6 },
+  { type: 'live', enabled: true, sort: 4 },
+  { type: 'newArrivals', enabled: true, sort: 5 },
+  { type: 'trust', enabled: true, sort: 6 },
+  { type: 'products', enabled: true, sort: 7 },
 ]
 
 const defaultNav = [
@@ -154,11 +156,26 @@ const homeModules = ref([...defaultModules])
 const colors = reactive({ priceColor: '', pageBg: '', headerBg: '', cardBg: '' })
 const bottomNav = ref([...defaultNav])
 
+const normalizeHomeModules = (configured = []) => {
+  const modules = configured.map((item) => ({ ...item }))
+  const legacyDiscovery = modules.find((item) => item.type === 'discovery')
+  const legacyEnabled = ![false, 0, '0', 'false'].includes(legacyDiscovery?.enabled)
+  const migrated = modules.filter((item) => item.type !== 'discovery')
+  if (legacyDiscovery && !migrated.some((item) => item.type === 'live')) {
+    migrated.push({ type: 'live', enabled: legacyEnabled, sort: legacyDiscovery.sort })
+  }
+  if (legacyDiscovery && !migrated.some((item) => item.type === 'newArrivals')) {
+    migrated.push({ type: 'newArrivals', enabled: legacyEnabled, sort: Number(legacyDiscovery.sort || 0) + 0.1 })
+  }
+  const merged = defaultModules.map((fallback) => migrated.find((item) => item.type === fallback.type) || { ...fallback })
+  return merged.sort((left, right) => Number(left.sort || 0) - Number(right.sort || 0)).map((item, index) => ({ ...item, sort: index + 1 }))
+}
+
 const parseExtraConfig = (json) => {
   try {
     const config = JSON.parse(json || '{}')
     if (Array.isArray(config.homeModules) && config.homeModules.length) {
-      homeModules.value = config.homeModules
+      homeModules.value = normalizeHomeModules(config.homeModules)
     }
     if (config.colors) Object.assign(colors, config.colors)
     if (Array.isArray(config.bottomNav) && config.bottomNav.length) {

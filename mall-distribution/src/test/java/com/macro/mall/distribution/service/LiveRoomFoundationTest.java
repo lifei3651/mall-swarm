@@ -31,6 +31,7 @@ class LiveRoomFoundationTest {
     @Autowired private DmsTenantDisplayConfigDao displayConfigDao;
     @Autowired private TenantDisplayConfigSupport displayConfigSupport;
     @Autowired private LiveRoomService liveRoomService;
+    @Autowired private ShopService shopService;
 
     @Test
     void publicLiveRoomIsTenantScopedAndDoesNotExposeUpcomingWatchUrl() {
@@ -53,6 +54,18 @@ class LiveRoomFoundationTest {
     void newArrivalsUseFirstPublishTimeAndExcludeOldProducts() {
         assertEquals(2, productDao.selectNewArrivals(1L, LocalDateTime.now().minusDays(1), 20).size());
         assertTrue(productDao.selectNewArrivals(1L, LocalDateTime.now().plusDays(1), 20).isEmpty());
+    }
+
+    @Test
+    void newArrivalsMasterSwitchIsIndependentFromLiveSquare() {
+        DmsTenantDisplayConfig config = displayConfigSupport.prepareForRead(displayConfigDao.selectByTenantId(1L), 1L);
+        config.setLiveSquareEnabled(1);
+        config.setNewArrivalsEnabled(0);
+        displayConfigSupport.prepareForSave(config);
+        displayConfigDao.update(config);
+
+        assertTrue(shopService.listNewArrivals(1L, 20).isEmpty());
+        assertTrue(productDao.selectNewArrivals(1L, LocalDateTime.now().minusDays(1), 20).size() > 0);
     }
 
     @Test

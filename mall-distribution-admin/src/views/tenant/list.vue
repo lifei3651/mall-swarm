@@ -110,9 +110,19 @@
                 <small>{{ template.description }}</small>
               </button>
             </div>
-            <div class="control-switch-row live-feature-switch">
-              <div><strong>直播广场总开关</strong><small>关闭后首页和直播页面均不公开，已配置直播间会保留</small></div>
-              <el-switch v-model="displayForm.liveSquareEnabled" :active-value="1" :inactive-value="0" active-text="开放" inactive-text="关闭" />
+          </section>
+          <section v-if="activeEditSection === 'live'" class="control-section feature-control-section">
+            <div class="control-section-heading"><div><strong>直播广场</strong><small>单独控制直播入口，不影响新品速递和其他首页模块</small></div><el-tag size="small" type="info">独立模块</el-tag></div>
+            <div class="feature-toggle-card">
+              <div class="feature-toggle-copy"><span class="feature-toggle-icon">◉</span><div><strong>公开直播广场</strong><small>关闭后首页直播模块、直播列表和直播详情均不公开，已配置直播间继续保留</small></div></div>
+              <div class="feature-toggle-action"><span :class="{ enabled: displayForm.liveSquareEnabled === 1 }">{{ displayForm.liveSquareEnabled === 1 ? '已开启' : '已关闭' }}</span><el-switch v-model="displayForm.liveSquareEnabled" :active-value="1" :inactive-value="0" aria-label="开启或关闭直播广场" /></div>
+            </div>
+          </section>
+          <section v-if="activeEditSection === 'newArrivals'" class="control-section feature-control-section">
+            <div class="control-section-heading"><div><strong>新品速递</strong><small>单独控制新品入口，不影响直播广场和普通商品列表</small></div><el-tag size="small" type="info">独立模块</el-tag></div>
+            <div class="feature-toggle-card">
+              <div class="feature-toggle-copy"><span class="feature-toggle-icon new-arrivals-icon">NEW</span><div><strong>公开新品速递</strong><small>开启后自动展示近期首次上架商品；关闭只隐藏新品入口，不下架任何商品</small></div></div>
+              <div class="feature-toggle-action"><span :class="{ enabled: displayForm.newArrivalsEnabled === 1 }">{{ displayForm.newArrivalsEnabled === 1 ? '已开启' : '已关闭' }}</span><el-switch v-model="displayForm.newArrivalsEnabled" :active-value="1" :inactive-value="0" aria-label="开启或关闭新品速递" /></div>
             </div>
           </section>
           <section v-if="activeEditSection === 'home'" class="control-section">
@@ -196,9 +206,11 @@
                   <div v-for="category in visiblePreviewCategories" :key="category.id" class="mobile-preview-category"><span><img v-if="category.iconUrl" :src="category.iconUrl" alt="" /><b v-else>{{ category.categoryName?.slice(0, 1) }}</b></span><strong>{{ category.categoryName }}</strong></div>
                   <div v-if="!visiblePreviewCategories.length" class="preview-empty-inline">暂无首页分类</div>
                 </div>
-                <div v-else-if="module.type === 'discovery' && module.enabled" class="mobile-preview-discovery">
-                  <div v-if="displayForm.liveSquareEnabled === 1" class="mobile-preview-discovery-column"><div><strong>直播广场</strong><small>全部 ›</small></div><section><b>直播间发布后展示</b><span>预告 · 直播中 · 回放</span></section></div>
-                  <div class="mobile-preview-discovery-column"><div><strong>新品速递</strong><small>全部 ›</small></div><section><img v-if="previewProducts[0]?.coverUrl" :src="previewProducts[0].coverUrl" :alt="previewProducts[0].productName" /><b>{{ previewProducts[0]?.productName || '首次上架商品' }}</b><span>首发价 ¥{{ Number(previewProducts[0]?.salePrice || 0).toFixed(2) }}</span></section></div>
+                <div v-else-if="module.type === 'live' && module.enabled && displayForm.liveSquareEnabled === 1" class="mobile-preview-feature mobile-preview-live">
+                  <div><strong>直播广场</strong><small>全部 ›</small></div><section><b>直播间发布后展示</b><span>预告 · 直播中 · 回放</span></section>
+                </div>
+                <div v-else-if="module.type === 'newArrivals' && module.enabled && displayForm.newArrivalsEnabled === 1" class="mobile-preview-feature mobile-preview-new-arrivals">
+                  <div><strong>新品速递</strong><small>全部 ›</small></div><section><img v-if="previewProducts[0]?.coverUrl" :src="previewProducts[0].coverUrl" :alt="previewProducts[0].productName" /><b>{{ previewProducts[0]?.productName || '首次上架商品' }}</b><span>首发价 ¥{{ Number(previewProducts[0]?.salePrice || 0).toFixed(2) }}</span></section>
                 </div>
                 <div v-else-if="module.type === 'trust' && module.enabled && displayForm.showTrustStrip === 1" class="mobile-preview-trust"><span>安全支付</span><span>订单可查</span><span>售后无忧</span></div>
                 <div v-else-if="module.type === 'products' && module.enabled" class="mobile-preview-product-section"><div class="mobile-preview-heading"><strong>精选商品</strong><span>商城好物，为你精选</span></div><div class="mobile-preview-products" :class="{ 'campaign-preview-products': displayForm.layoutTemplate === 'campaign-feed' }"><div v-for="product in previewProducts" :key="product.id" class="mobile-preview-product"><img v-if="product.coverUrl" :src="product.coverUrl" :alt="product.productName" /><i v-else></i><span v-if="displayForm.layoutTemplate === 'campaign-feed'" class="campaign-preview-band">活动好物 · 真实活动显示倒计时</span><strong>{{ product.productName }}</strong><small>{{ product.subtitle || '精选商品，品质保障' }}</small><b>¥{{ Number(product.salePrice || 0).toFixed(2) }}</b></div><div v-if="!previewProducts.length" class="preview-empty-module">暂无上架商品</div></div></div>
@@ -287,26 +299,35 @@ const savingDisplay = ref(false)
 const displayLogoLoadFailed = ref(false)
 
 const displayForm = ref({})
-const moduleNames = { banner: '首页轮播图', notice: '商城公告', category: '商品分类', discovery: '直播广场 / 新品速递', trust: '服务保障', products: '精选商品' }
+const moduleNames = { banner: '首页轮播图', notice: '商城公告', category: '商品分类', live: '直播广场', newArrivals: '新品速递', trust: '服务保障', products: '精选商品' }
 const navNames = { home: '首页', category: '分类', cart: '购物车', orders: '订单', profile: '我的' }
-const editSectionLabels = { brand: '品牌视觉', banner: '首页轮播图', layout: '首页版型与直播', home: '首页模块', category: '分类模块', nav: '底部导航', colors: '颜色微调' }
+const editSectionLabels = { brand: '品牌视觉', banner: '首页轮播图', layout: '首页版型', live: '直播广场', newArrivals: '新品速递', home: '首页模块', category: '分类模块', nav: '底部导航', colors: '颜色微调' }
 const editSectionLabel = computed(() => editSectionLabels[activeEditSection.value] || '品牌视觉')
 const previewPages = [{ value: 'home', label: '首页' }]
 const defaultModules = () => [
   { type: 'banner', enabled: true, sort: 1 },
   { type: 'notice', enabled: true, sort: 2 },
   { type: 'category', enabled: true, sort: 3 },
-  { type: 'discovery', enabled: true, sort: 4 },
-  { type: 'trust', enabled: false, sort: 5 },
-  { type: 'products', enabled: true, sort: 6 },
+  { type: 'live', enabled: true, sort: 4 },
+  { type: 'newArrivals', enabled: true, sort: 5 },
+  { type: 'trust', enabled: false, sort: 6 },
+  { type: 'products', enabled: true, sort: 7 },
 ]
 const withDefaultModules = (configured) => {
-  const current = Array.isArray(configured) && configured.length ? configured : []
+  const raw = Array.isArray(configured) && configured.length ? configured : []
+  const legacyDiscovery = raw.find((item) => item?.type === 'discovery')
+  const current = raw.filter((item) => item?.type !== 'discovery')
+  if (legacyDiscovery) {
+    const legacySort = Number(legacyDiscovery.sort) || 4
+    if (!current.some((item) => item?.type === 'live')) current.push({ ...legacyDiscovery, type: 'live', sort: legacySort })
+    if (!current.some((item) => item?.type === 'newArrivals')) current.push({ ...legacyDiscovery, type: 'newArrivals', sort: legacySort + 0.1 })
+  }
   const types = new Set(current.map((item) => item?.type).filter(Boolean))
   const rank = new Map(defaultModules().map((item, index) => [item.type, index]))
   return [...current, ...defaultModules().filter((item) => !types.has(item.type))]
     .sort((a, b) => (Number(a.sort || 0) - Number(b.sort || 0))
       || ((rank.get(a.type) ?? 99) - (rank.get(b.type) ?? 99)))
+    .map((item, index) => ({ ...item, sort: index + 1 }))
 }
 const defaultBottomNav = () => [
   { type: 'home', label: '首页', enabled: true },
@@ -417,10 +438,12 @@ const displaySectionRows = computed(() => {
   const bannerModuleVisible = normalizeModuleEnabled(modules.find((item) => item.type === 'banner')?.enabled)
   return [
     { key: 'brand', icon: '✦', label: '品牌视觉', summary: `${row.brandName || row.tenantName || '灵启商城'} · ${getTemplateName(row.productTemplate)} · ${row.logoUrl ? '已配置 Logo' : '待上传 Logo'}`, status: row.brandName || row.logoUrl ? '已配置' : '待完善', active: Boolean(row.brandName || row.logoUrl) },
-    { key: 'layout', icon: '▤', label: '首页版型与直播', summary: `${getLayoutTemplateName(currentDisplayConfig.value.layoutTemplate)} · 直播广场${Number(currentDisplayConfig.value.liveSquareEnabled ?? 1) === 1 ? '已开放' : '已关闭'}`, status: '可编辑', active: true },
+    { key: 'layout', icon: '▤', label: '首页版型', summary: getLayoutTemplateName(currentDisplayConfig.value.layoutTemplate), status: '可编辑', active: true },
     { key: 'home', icon: '⌂', label: '首页模块', summary: `${visibleModules}/${modules.length} 个模块展示，支持拖动排序`, status: '已配置', active: visibleModules > 0 },
     { key: 'category', icon: '▦', label: '分类模块', summary: '控制首页分类入口及单个分类显示', status: '可编辑', active: true },
     { key: 'banner', icon: '▣', label: '首页轮播图', summary: bannerModuleVisible ? '总开关已展示，可管理图片与点击去向' : '首页模块总开关已隐藏，图片不会在前台展示', status: bannerModuleVisible ? '展示中' : '已隐藏', active: bannerModuleVisible },
+    { key: 'live', icon: '◉', label: '直播广场', summary: '独立控制直播首页入口、列表和详情，直播间资料不会因关闭而删除', status: Number(currentDisplayConfig.value.liveSquareEnabled ?? 1) === 1 ? '已开启' : '已关闭', active: Number(currentDisplayConfig.value.liveSquareEnabled ?? 1) === 1 },
+    { key: 'newArrivals', icon: 'N', label: '新品速递', summary: '独立控制近期首次上架商品入口，不影响商品正常销售', status: Number(currentDisplayConfig.value.newArrivalsEnabled ?? 1) === 1 ? '已开启' : '已关闭', active: Number(currentDisplayConfig.value.newArrivalsEnabled ?? 1) === 1 },
     { key: 'nav', icon: '≡', label: '底部导航', summary: `${visibleNav} 项导航展示，支持改名、排序和隐藏`, status: '已配置', active: visibleNav > 0 },
     { key: 'colors', icon: '◉', label: '颜色微调', summary: customColorCount ? `已调整 ${customColorCount} 项颜色` : '使用主题默认颜色，可恢复默认', status: customColorCount ? '已调整' : '默认', active: customColorCount > 0 },
   ]
@@ -495,6 +518,7 @@ const openDisplayDialog = async (row, section = 'brand') => {
     bottomNav,
     showTrustStrip: trustEnabled ? 1 : 0,
     liveSquareEnabled: Number(res.data?.liveSquareEnabled ?? extra.liveSquareEnabled ?? 1) === 0 ? 0 : 1,
+    newArrivalsEnabled: Number(res.data?.newArrivalsEnabled ?? extra.newArrivalsEnabled ?? 1) === 0 ? 0 : 1,
   }
   displayDialogVisible.value = true
   await nextTick()
@@ -584,7 +608,7 @@ const applyLayoutTemplate = (template) => {
   const categoryNav = (displayForm.value.bottomNav || []).find((nav) => nav.type === 'category')
   if (categoryNav) categoryNav.enabled = template.showBottomCategoryNav === 1
   if (template.value === 'campaign-feed') {
-    const order = ['category', 'banner', 'discovery', 'products', 'notice', 'trust']
+    const order = ['category', 'banner', 'live', 'newArrivals', 'products', 'notice', 'trust']
     displayForm.value.homeModules = [...(displayForm.value.homeModules || [])]
       .sort((a, b) => {
         const aIndex = order.indexOf(a.type)
@@ -702,12 +726,14 @@ const submitDisplayConfig = async () => {
       showHomeCategories: form.showHomeCategories,
       showBottomCategoryNav,
       liveSquareEnabled: form.liveSquareEnabled,
+      newArrivalsEnabled: form.newArrivalsEnabled,
       extraConfigJson: JSON.stringify({
         homeModules: form.homeModules,
         colors: form.colors,
         bottomNav,
         showTrustStrip: form.showTrustStrip,
         liveSquareEnabled: form.liveSquareEnabled,
+        newArrivalsEnabled: form.newArrivalsEnabled,
       }),
     }
     const tenantPayload = {
@@ -954,17 +980,16 @@ onMounted(async () => {
 .mobile-preview-product strong { overflow:hidden; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
 .mobile-preview-product small { overflow:hidden; color:#98a2b3; font-size:9px; text-overflow:ellipsis; white-space:nowrap; }
 .mobile-preview-product b { color:var(--preview-price, var(--preview-color)); font-size:13px; }
-.mobile-preview-discovery { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; padding:6px 10px 11px; }
-.mobile-preview-discovery-column { min-width:0; }
-.mobile-preview-discovery-column>div { display:flex; align-items:center; justify-content:space-between; gap:4px; margin-bottom:5px; }
-.mobile-preview-discovery-column>div strong { font-size:11px; }
-.mobile-preview-discovery-column>div small { color:var(--preview-muted,#98a2b3); font-size:8px; }
-.mobile-preview-discovery-column section { position:relative; height:86px; display:flex; flex-direction:column; justify-content:flex-end; gap:3px; overflow:hidden; padding:8px; color:#fff; background:linear-gradient(145deg,#364152,#111827); border-radius:11px; }
-.mobile-preview-discovery-column:last-child section { background:linear-gradient(145deg,#7357e6,#44318d); }
-.mobile-preview-discovery-column section img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.45; }
-.mobile-preview-discovery-column section b,.mobile-preview-discovery-column section span { position:relative; z-index:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.mobile-preview-discovery-column section b { font-size:10px; }
-.mobile-preview-discovery-column section span { font-size:8px; opacity:.8; }
+.mobile-preview-feature { min-width:0; padding:6px 10px 11px; }
+.mobile-preview-feature>div { display:flex; align-items:center; justify-content:space-between; gap:4px; margin-bottom:5px; }
+.mobile-preview-feature>div strong { font-size:11px; }
+.mobile-preview-feature>div small { color:var(--preview-muted,#98a2b3); font-size:8px; }
+.mobile-preview-feature section { position:relative; height:92px; display:flex; flex-direction:column; justify-content:flex-end; gap:3px; overflow:hidden; padding:9px; color:#fff; background:linear-gradient(145deg,#364152,#111827); border-radius:11px; }
+.mobile-preview-new-arrivals section { background:linear-gradient(145deg,#7357e6,#44318d); }
+.mobile-preview-feature section img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.45; }
+.mobile-preview-feature section b,.mobile-preview-feature section span { position:relative; z-index:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mobile-preview-feature section b { font-size:10px; }
+.mobile-preview-feature section span { font-size:8px; opacity:.8; }
 .mobile-preview-trust { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; margin:0 12px 12px; padding:9px 4px; color:#667085; font-size:11px; text-align:center; background:var(--preview-card-bg, #fff); border-radius:12px; }
 .mobile-preview-nav { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); padding:10px 8px 12px; color:#8a94a4; font-size:11px; text-align:center; background:#fff; border-top:1px solid #eef0f3; }
 .mobile-preview-nav span.active { color:var(--preview-color); font-weight:800; }
@@ -1225,8 +1250,17 @@ onMounted(async () => {
 .layout-template-preview.preview-category-focus b { background:repeating-linear-gradient(90deg,#b9d8f5 0 20%,transparent 20% 25%); }
 .layout-template-preview.preview-campaign-feed { grid-template-rows:8px 8px 1fr 8px; }
 .layout-template-preview.preview-campaign-feed em { background:repeating-linear-gradient(180deg,#fff 0 44%,#ff7a1a 44% 52%,transparent 52% 58%); }
-.live-feature-switch > div { display:grid; gap:3px; }
-.live-feature-switch small { color:#909399; font-size:11px; line-height:16px; }
+.feature-control-section { padding:12px; }
+.feature-toggle-card { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:15px; background:#f7f9fc; border:1px solid #e4e9f1; border-radius:12px; }
+.feature-toggle-copy { display:flex; align-items:center; gap:12px; min-width:0; }
+.feature-toggle-copy>div { display:grid; gap:4px; min-width:0; }
+.feature-toggle-copy strong { color:#303133; font-size:14px; }
+.feature-toggle-copy small { color:#7b8494; font-size:11px; line-height:17px; }
+.feature-toggle-icon { display:grid; flex:0 0 38px; width:38px; height:38px; place-items:center; color:#fff; background:linear-gradient(145deg,#ff3b55,#d8143c); border-radius:11px; font-size:17px; font-weight:900; }
+.feature-toggle-icon.new-arrivals-icon { color:#fff; background:linear-gradient(145deg,#8a67ed,#5a3ac8); font-size:9px; letter-spacing:.5px; }
+.feature-toggle-action { display:flex; align-items:center; gap:10px; flex:0 0 auto; }
+.feature-toggle-action>span { min-width:52px; color:#8a94a4; font-size:12px; font-weight:700; text-align:right; }
+.feature-toggle-action>span.enabled { color:#2f9e44; }
 .campaign-preview-products { grid-template-columns:1fr; }
 .campaign-preview-products .mobile-preview-product img,.campaign-preview-products .mobile-preview-product i { height:118px; }
 .campaign-preview-band { padding:4px 6px; color:#fff; background:linear-gradient(90deg,#ef3d25,#ff8a18); border-radius:4px; font-size:8px; }
@@ -1387,6 +1421,8 @@ onMounted(async () => {
   .visual-design-fields { grid-template-columns: 1fr; }
   .visual-design-fields .visual-design-field:first-child { grid-column: auto; }
   .compact-theme-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .feature-toggle-card { align-items:flex-start; flex-direction:column; gap:12px; }
+  .feature-toggle-action { align-self:flex-end; }
 }
 @media (max-width: 680px) {
   .category-list.category-list-draft { grid-template-columns: 1fr; }

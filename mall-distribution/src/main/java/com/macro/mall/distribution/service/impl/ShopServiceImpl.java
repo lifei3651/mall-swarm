@@ -188,7 +188,8 @@ public class ShopServiceImpl implements ShopService {
         }
         featuredProducts.forEach(item -> product(item, false));
         vo.setFeaturedProducts(featuredProducts);
-        vo.setNewArrivals(loadNewArrivals(resolvedTenantId, 8));
+        vo.setNewArrivals(isEnabled(displayConfig.getNewArrivalsEnabled())
+                ? loadNewArrivals(resolvedTenantId, 8) : List.of());
         vo.setLiveRooms(liveRoomService.listPublic(resolvedTenantId, 8));
         DistributionSettingsVO publicSettings = auditService.getSettings();
         if (publicSettings != null) publicSettings.setPermissions(null);
@@ -208,7 +209,11 @@ public class ShopServiceImpl implements ShopService {
 
     @Override
     public List<DmsShopProduct> listNewArrivals(Long tenantId, Integer limit) {
-        return loadNewArrivals(resolveTenantId(tenantId), limit == null ? 40 : limit);
+        Long resolvedTenantId = resolveTenantId(tenantId);
+        if (!isEnabled(getDisplayConfig(resolvedTenantId).getNewArrivalsEnabled())) {
+            return List.of();
+        }
+        return loadNewArrivals(resolvedTenantId, limit == null ? 40 : limit);
     }
 
     private List<DmsShopProduct> loadNewArrivals(Long tenantId, int limit) {

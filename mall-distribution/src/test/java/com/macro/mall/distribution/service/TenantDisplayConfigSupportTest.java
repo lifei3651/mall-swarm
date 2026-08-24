@@ -23,6 +23,7 @@ class TenantDisplayConfigSupportTest {
         assertEquals(1, config.getShowHomeCategories());
         assertEquals(1, config.getShowBottomCategoryNav());
         assertEquals(1, config.getLiveSquareEnabled());
+        assertEquals(1, config.getNewArrivalsEnabled());
         assertEquals(1, config.getShowPv());
     }
 
@@ -30,7 +31,7 @@ class TenantDisplayConfigSupportTest {
     void readsLayoutFieldsFromExistingExtraConfig() {
         DmsTenantDisplayConfig config = new DmsTenantDisplayConfig();
         config.setTenantId(2L);
-        config.setExtraConfigJson("{\"layoutTemplate\":\"campaign-feed\",\"showHomeCategories\":false,\"showBottomCategoryNav\":0,\"liveSquareEnabled\":false}");
+        config.setExtraConfigJson("{\"layoutTemplate\":\"campaign-feed\",\"showHomeCategories\":false,\"showBottomCategoryNav\":0,\"liveSquareEnabled\":false,\"newArrivalsEnabled\":false}");
 
         support.prepareForRead(config, 2L);
 
@@ -38,6 +39,7 @@ class TenantDisplayConfigSupportTest {
         assertEquals(0, config.getShowHomeCategories());
         assertEquals(0, config.getShowBottomCategoryNav());
         assertEquals(0, config.getLiveSquareEnabled());
+        assertEquals(0, config.getNewArrivalsEnabled());
     }
 
     @Test
@@ -48,6 +50,7 @@ class TenantDisplayConfigSupportTest {
         config.setShowHomeCategories(1);
         config.setShowBottomCategoryNav(1);
         config.setLiveSquareEnabled(0);
+        config.setNewArrivalsEnabled(0);
         config.setExtraConfigJson("{\"futureSetting\":\"keep-me\"}");
 
         support.prepareForSave(config);
@@ -57,6 +60,7 @@ class TenantDisplayConfigSupportTest {
         assertEquals(1, json.get("showHomeCategories").asInt());
         assertEquals(1, json.get("showBottomCategoryNav").asInt());
         assertEquals(0, json.get("liveSquareEnabled").asInt());
+        assertEquals(0, json.get("newArrivalsEnabled").asInt());
         assertEquals("keep-me", json.get("futureSetting").asText());
     }
 

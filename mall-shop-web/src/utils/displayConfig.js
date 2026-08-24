@@ -19,12 +19,27 @@ export const readDisplayExtraConfig = (config = {}) => {
   }
 }
 
+export const splitLegacyDiscoveryModule = (configured = []) => {
+  if (!Array.isArray(configured)) return []
+  const legacy = configured.find((module) => module?.type === 'discovery')
+  if (!legacy) return configured
+
+  const migrated = configured.filter((module) => module?.type !== 'discovery')
+  const types = new Set(migrated.map((module) => module?.type))
+  const legacySort = Number(legacy.sort) || 4
+  if (!types.has('live')) migrated.push({ ...legacy, type: 'live', sort: legacySort })
+  if (!types.has('newArrivals')) migrated.push({ ...legacy, type: 'newArrivals', sort: legacySort + 0.1 })
+  return migrated
+}
+
 export const resolveHomeModules = (config = {}, defaults = []) => {
   const extra = readDisplayExtraConfig(config)
   const configured = Array.isArray(config.homeModules) && config.homeModules.length
     ? config.homeModules
     : extra.homeModules
-  const configuredModules = Array.isArray(configured) && configured.length ? configured : null
+  const configuredModules = Array.isArray(configured) && configured.length
+    ? splitLegacyDiscoveryModule(configured)
+    : null
   const existingTypes = new Set((configuredModules || []).map((module) => module?.type).filter(Boolean))
   // 旧客户已保存装修配置时，只补充新版本新增的模块开关，不覆盖原有选择。
   const source = configuredModules

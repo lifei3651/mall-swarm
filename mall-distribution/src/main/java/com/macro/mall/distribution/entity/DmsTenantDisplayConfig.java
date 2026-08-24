@@ -56,6 +56,12 @@ public class DmsTenantDisplayConfig implements Serializable {
      */
     private Integer liveSquareEnabled;
 
+    /**
+     * 新品速递公开总开关。关闭后首页和新品列表不公开；商品及其首次上架时间不受影响。
+     * 该字段与布局模板一样持久化在 extraConfigJson，避免只为页面开关修改表结构。
+     */
+    private Integer newArrivalsEnabled;
+
     @Size(max = 30000, message = "商城页面配置内容过长")
     private String extraConfigJson;
 

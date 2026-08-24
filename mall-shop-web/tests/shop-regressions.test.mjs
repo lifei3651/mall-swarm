@@ -575,15 +575,25 @@ test('home modules and colors honor the saved visual-workbench extra configurati
 test('new homepage modules are merged into an existing visual-workbench configuration', () => {
   const defaults = [
     { type: 'banner', enabled: true, sort: 1 },
-    { type: 'discovery', enabled: true, sort: 4 },
-    { type: 'products', enabled: true, sort: 6 },
+    { type: 'live', enabled: true, sort: 4 },
+    { type: 'newArrivals', enabled: true, sort: 5 },
+    { type: 'products', enabled: true, sort: 7 },
   ]
   const modules = resolveHomeModules({ homeModules: [
     { type: 'banner', enabled: false, sort: 1 },
-    { type: 'products', enabled: true, sort: 5 },
+    { type: 'products', enabled: true, sort: 6 },
   ] }, defaults)
-  assert.deepEqual(modules.map((item) => item.type), ['banner', 'discovery', 'products'])
+  assert.deepEqual(modules.map((item) => item.type), ['banner', 'live', 'newArrivals', 'products'])
   assert.equal(modules.find((item) => item.type === 'banner').enabled, false)
+
+  const migrated = resolveHomeModules({ homeModules: [
+    { type: 'banner', enabled: true, sort: 1 },
+    { type: 'discovery', enabled: false, sort: 4 },
+    { type: 'products', enabled: true, sort: 6 },
+  ] }, defaults)
+  assert.deepEqual(migrated.map((item) => item.type), ['banner', 'live', 'newArrivals', 'products'])
+  assert.equal(migrated.find((item) => item.type === 'live').enabled, false)
+  assert.equal(migrated.find((item) => item.type === 'newArrivals').enabled, false)
 })
 
 test('checkout only exposes configured payment channels', async () => {

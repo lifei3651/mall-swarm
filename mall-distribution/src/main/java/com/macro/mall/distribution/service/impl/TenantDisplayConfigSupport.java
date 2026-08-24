@@ -44,11 +44,12 @@ public class TenantDisplayConfigSupport {
         extra.put("showHomeCategories", config.getShowHomeCategories());
         extra.put("showBottomCategoryNav", config.getShowBottomCategoryNav());
         extra.put("liveSquareEnabled", config.getLiveSquareEnabled());
+        extra.put("newArrivalsEnabled", config.getNewArrivalsEnabled());
         try {
             config.setExtraConfigJson(objectMapper.writeValueAsString(extra));
         } catch (Exception ignored) {
             // ObjectNode 序列化理论上不会失败；兜底保证界面设置仍可保存。
-            config.setExtraConfigJson("{\"layoutTemplate\":\"standard\",\"showHomeCategories\":1,\"showBottomCategoryNav\":1}");
+            config.setExtraConfigJson("{\"layoutTemplate\":\"standard\",\"showHomeCategories\":1,\"showBottomCategoryNav\":1,\"liveSquareEnabled\":1,\"newArrivalsEnabled\":1}");
         }
     }
 
@@ -66,6 +67,9 @@ public class TenantDisplayConfigSupport {
         if (config.getLiveSquareEnabled() == null) {
             config.setLiveSquareEnabled(toggleValue(extra.get("liveSquareEnabled"), 1));
         }
+        if (config.getNewArrivalsEnabled() == null) {
+            config.setNewArrivalsEnabled(toggleValue(extra.get("newArrivalsEnabled"), 1));
+        }
         normalizeLayoutFields(config);
     }
 
@@ -76,6 +80,7 @@ public class TenantDisplayConfigSupport {
         config.setShowHomeCategories(normalizeToggle(config.getShowHomeCategories(), 1));
         config.setShowBottomCategoryNav(normalizeToggle(config.getShowBottomCategoryNav(), 1));
         config.setLiveSquareEnabled(normalizeToggle(config.getLiveSquareEnabled(), 1));
+        config.setNewArrivalsEnabled(normalizeToggle(config.getNewArrivalsEnabled(), 1));
     }
 
     private void fillDefaults(DmsTenantDisplayConfig config) {
