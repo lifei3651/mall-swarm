@@ -197,25 +197,20 @@
           </section>
 
           <section v-if="activeEditSection === 'nav'" class="control-section">
-            <div class="control-section-heading"><div><strong>底部导航</strong><small>拖动排序、改名或隐藏</small></div></div>
+            <div class="control-section-heading"><div><strong>底部导航</strong><small>调整可编辑入口的顺序、名称和显示状态</small></div></div>
+            <p class="section-note nav-scope-note">核心交易与合规能力不受装修配置影响。</p>
             <div class="nav-config-list nav-list-sortable">
-              <div v-for="(nav, index) in displayForm.bottomNav" :key="nav.type" class="nav-config-row" draggable="true" @dragstart="startNavDrag(index)" @dragover.prevent @drop="dropNav(index)" @dragend="draggingNavIndex = null">
+              <div v-for="(item, index) in configurableBottomNav" :key="item.nav.type" class="nav-config-row" draggable="true" @dragstart="startNavDrag(index)" @dragover.prevent @drop="dropNav(index)" @dragend="draggingNavIndex = null">
                 <span class="drag-handle" aria-hidden="true">⋮⋮</span>
-                <span class="nav-type-name">{{ navNames[nav.type] || nav.type }}</span>
-                <el-input v-model="nav.label" maxlength="6" style="width:100px" />
+                <span class="nav-type-name">{{ navNames[item.nav.type] || item.nav.type }}</span>
+                <el-input v-model="item.nav.label" maxlength="6" style="width:100px" />
                 <div class="sort-actions" aria-label="调整底部导航顺序">
                   <el-button text size="small" :disabled="index === 0" @click="moveNav(index, -1)">上移</el-button>
-                  <el-button text size="small" :disabled="index === displayForm.bottomNav.length - 1" @click="moveNav(index, 1)">下移</el-button>
+                  <el-button text size="small" :disabled="index === configurableBottomNav.length - 1" @click="moveNav(index, 1)">下移</el-button>
                 </div>
-                <el-tag v-if="isRequiredNav(nav.type)" size="small" type="warning">系统必需</el-tag>
-                <el-switch v-model="nav.enabled" active-text="展示" inactive-text="隐藏" :disabled="isRequiredNav(nav.type)" />
+                <el-switch v-model="item.nav.enabled" active-text="展示" inactive-text="隐藏" />
               </div>
             </div>
-          </section>
-
-          <section v-if="activeEditSection === 'system'" class="control-section system-required-section">
-            <div class="control-section-heading"><div><strong>系统必需 / 合规锁定</strong><small>这些能力不属于运营装修范围，前端不可关闭，服务端也会拒绝伪造请求</small></div><el-tag size="small" type="warning">后端强制锁定</el-tag></div>
-            <div class="system-required-list"><div v-for="item in coreCapabilityRows" :key="item[0]"><span><strong>{{ item[0] }}</strong><small>{{ item[1] }}</small></span><el-switch :model-value="true" disabled active-text="已锁定" /></div></div>
           </section>
 
           <section v-if="activeEditSection === 'colors'" class="control-section">
@@ -243,7 +238,7 @@
               <p>{{ displayForm.brandCultureContent || '品牌文化正文将在这里按段落展示。' }}</p>
             </div>
             <div v-else-if="displayForm.layoutTemplate === 'category-focus'" class="mobile-category-guide-preview" :class="`guide-preview-${displayForm.categoryGuideTemplate || 'directory'}`">
-              <div class="mobile-preview-search"><span>搜索商品</span><b>搜索</b></div>
+              <div class="mobile-preview-search"><span>⌕</span><span>搜索商品</span><b>⌕</b></div>
               <template v-if="displayForm.categoryGuideTemplate === 'directory'">
                 <aside v-if="displayForm.categoryGuidePrimaryCategoriesEnabled === 1"><span v-for="category in visiblePreviewCategories.slice(0, 5)" :key="category.id">{{ category.categoryName }}</span></aside>
                 <main><div class="guide-preview-hero"><img v-if="previewProducts[0]?.coverUrl" :src="previewProducts[0].coverUrl" alt="" /><strong>{{ visiblePreviewCategories[0]?.categoryName || '精选分类' }}</strong></div><section v-if="displayForm.categoryGuideSubcategoriesEnabled === 1"><b>精选子分类</b><div><span v-for="category in visiblePreviewCategories.slice(0, 4)" :key="category.id">{{ category.categoryName }}</span></div></section><section v-if="displayForm.categoryGuideHotProductsEnabled === 1"><b>热销好物</b><div class="preview-guide-products"><article v-for="product in previewProducts.slice(0, 4)" :key="product.id"><img v-if="product.coverUrl" :src="product.coverUrl" alt="" /><span>{{ product.productName }}</span><strong>¥{{ Number(product.salePrice || 0).toFixed(2) }}</strong></article></div></section></main>
@@ -366,7 +361,7 @@ const displayLogoLoadFailed = ref(false)
 const displayForm = ref({})
 const moduleNames = { banner: '首页轮播图', notice: '商城公告', category: '商品分类', live: '直播广场', newArrivals: '新品速递', trust: '服务保障', products: '精选商品' }
 const navNames = { home: '首页', category: '分类', cart: '购物车', orders: '订单', profile: '我的' }
-const editSectionLabels = { brand: '品牌视觉', culture: '品牌文化页', banner: '首页轮播图', layout: '首页版型', live: '直播广场', newArrivals: '新品速递', home: '首页模块', category: '分类模块', nav: '底部导航', colors: '颜色微调', system: '系统必需能力' }
+const editSectionLabels = { brand: '品牌视觉', culture: '品牌文化页', banner: '首页轮播图', layout: '首页版型', live: '直播广场', newArrivals: '新品速递', home: '首页模块', category: '分类模块', nav: '底部导航', colors: '颜色微调' }
 const editSectionLabel = computed(() => editSectionLabels[activeEditSection.value] || '品牌视觉')
 const previewPages = [{ value: 'home', label: '首页' }]
 const defaultModules = () => [
@@ -407,15 +402,6 @@ const enforceRequiredBottomNav = (items = [], defaults = []) => {
   const configuredTypes = new Set(items.map((item) => item?.type).filter(Boolean))
   return [...items, ...defaults.filter((item) => isRequiredNav(item.type) && !configuredTypes.has(item.type))]
 }
-const coreCapabilityRows = [
-  ['商品详情', '商品信息、价格、库存与购买入口属于核心交易链路'],
-  ['购物车', '用户已选择商品与结算入口必须保留'],
-  ['结算与下单', '订单创建、支付与履约链路不能由运营关闭'],
-  ['账号安全', '登录密码、支付密码与安全设置属于系统必需'],
-  ['实名认证 / 隐私政策 / 用户协议', '敏感信息处理和用户权益告知属于合规锁定'],
-  ['主体资质 / 备案展示', '经营主体、备案与许可证展示属于合规锁定'],
-  ['售后与客服', '法定售后、争议处理和客服入口必须保留'],
-]
 const categoryGuideTemplateOptions = [
   { value: 'directory', label: 'A 双栏目录导航', description: '左侧一级分类，右侧子分类与热销商品，适合分类较多的商城' },
   { value: 'showcase', label: 'B 视觉品类橱窗', description: '大图品类卡、横向货架与推荐商品，适合强调视觉陈列' },
@@ -525,7 +511,8 @@ const displaySectionRows = computed(() => {
   const nav = Array.isArray(extra.bottomNav) && extra.bottomNav.length ? extra.bottomNav : defaultBottomNav()
   const customColorCount = Object.values(extra.colors || {}).filter(Boolean).length
   const visibleModules = modules.filter((item) => normalizeModuleEnabled(item.enabled)).length
-  const visibleNav = nav.filter((item) => item.enabled !== false).length
+  const configurableNav = nav.filter((item) => !isRequiredNav(item.type))
+  const visibleNav = configurableNav.filter((item) => item.enabled !== false).length
   const bannerModuleVisible = normalizeModuleEnabled(modules.find((item) => item.type === 'banner')?.enabled)
   return [
     { key: 'brand', icon: '✦', label: '品牌视觉', summary: `${row.brandName || row.tenantName || '灵启商城'} · ${getTemplateName(row.productTemplate)} · ${row.logoUrl ? '已配置 Logo' : '待上传 Logo'}`, status: row.brandName || row.logoUrl ? '已配置' : '待完善', active: Boolean(row.brandName || row.logoUrl) },
@@ -536,8 +523,7 @@ const displaySectionRows = computed(() => {
     { key: 'banner', icon: '▣', label: '首页轮播图', summary: bannerModuleVisible ? '总开关已展示，可管理图片与点击去向' : '首页模块总开关已隐藏，图片不会在前台展示', status: bannerModuleVisible ? '展示中' : '已隐藏', active: bannerModuleVisible },
     { key: 'live', icon: '◉', label: '直播广场', summary: '完整页面独立开关；包含直播中、直播预告、预约和详情，关闭不删除资料', status: Number(currentDisplayConfig.value.liveSquareEnabled ?? 1) === 1 ? '已开启' : '已关闭', active: Number(currentDisplayConfig.value.liveSquareEnabled ?? 1) === 1 },
     { key: 'newArrivals', icon: 'N', label: '新品速递', summary: `完整页面独立开关；自动新品${Number(currentDisplayConfig.value.newArrivalWindowDays ?? 30) === 0 ? '永久展示' : `展示 ${Number(currentDisplayConfig.value.newArrivalWindowDays ?? 30)} 天`}，并支持商品额外追加`, status: Number(currentDisplayConfig.value.newArrivalsEnabled ?? 1) === 1 ? '已开启' : '已关闭', active: Number(currentDisplayConfig.value.newArrivalsEnabled ?? 1) === 1 },
-    { key: 'system', icon: '锁', label: '系统必需能力', summary: '商品详情、购物车、下单、账号安全、合规、售后与客服由系统锁定', status: '合规锁定', active: true },
-    { key: 'nav', icon: '≡', label: '底部导航', summary: `${visibleNav} 项导航展示，支持改名、排序和隐藏`, status: '已配置', active: visibleNav > 0 },
+    { key: 'nav', icon: '≡', label: '底部导航', summary: `${visibleNav}/${configurableNav.length} 个可编辑入口展示`, status: '已配置', active: visibleNav > 0 },
     { key: 'colors', icon: '◉', label: '颜色微调', summary: customColorCount ? `已调整 ${customColorCount} 项颜色` : '使用主题默认颜色，可恢复默认', status: customColorCount ? '已调整' : '默认', active: customColorCount > 0 },
   ]
 })
@@ -564,7 +550,7 @@ const openDisplayDialog = async (row, section = 'brand') => {
   }
   initializingDisplay.value = true
   displayDraftDirty.value = false
-  activeEditSection.value = section
+  activeEditSection.value = Object.prototype.hasOwnProperty.call(editSectionLabels, section) ? section : 'brand'
   currentTenant.value = row
   displayLogoLoadFailed.value = false
   const [resResult, categoryResult, productResult, bannerResult] = await Promise.allSettled([
@@ -594,7 +580,6 @@ const openDisplayDialog = async (row, section = 'brand') => {
     ...nav,
     enabled: isRequiredNav(nav.type) || (normalizeModuleEnabled(nav.enabled)
       && (nav.type !== 'category' || legacyBottomCategoryEnabled)),
-    systemRequired: isRequiredNav(nav.type),
   }))
   const configuredModules = withDefaultModules(extra.homeModules)
   const trustEnabled = normalizeModuleEnabled(
@@ -718,6 +703,9 @@ const isPreviewFeatureAnchor = (module) => module?.type === previewFeatureModule
 const previewFeatureOrder = (type) => previewFeatureModules.value.findIndex((module) => module.type === type) + 1
 const visiblePreviewCategories = computed(() => categories.value.filter((category) => Number(categoryDraft.value[category.id] ?? 1) === 1))
 const visiblePreviewNav = computed(() => (displayForm.value.bottomNav || []).filter((nav) => nav.enabled !== false))
+const configurableBottomNav = computed(() => (displayForm.value.bottomNav || [])
+  .map((nav, sourceIndex) => ({ nav, sourceIndex }))
+  .filter((item) => !isRequiredNav(item.nav.type)))
 const previewStyle = computed(() => ({
   '--preview-color': displayForm.value.themeColor || currentTenant.value?.themeColor || '#e7193f',
   '--preview-page-bg': displayForm.value.colors?.pageBg || '#f5f6f8',
@@ -768,8 +756,11 @@ const moveModule = (index, direction) => {
 const moveNav = (index, direction) => {
   const next = index + direction
   const navs = displayForm.value.bottomNav || []
-  if (next < 0 || next >= navs.length) return
-  ;[navs[index], navs[next]] = [navs[next], navs[index]]
+  const configurable = configurableBottomNav.value
+  if (next < 0 || next >= configurable.length) return
+  const fromSource = configurable[index].sourceIndex
+  const toSource = configurable[next].sourceIndex
+  ;[navs[fromSource], navs[toSource]] = [navs[toSource], navs[fromSource]]
 }
 
 const reorderItems = (items, from, to) => {
@@ -788,7 +779,12 @@ const dropModule = (index) => {
 const startNavDrag = (index) => { draggingNavIndex.value = index }
 const dropNav = (index) => {
   const navs = displayForm.value.bottomNav || []
-  reorderItems(navs, draggingNavIndex.value, index)
+  const configurable = configurableBottomNav.value
+  const from = configurable[draggingNavIndex.value]?.sourceIndex
+  const to = configurable[index]?.sourceIndex
+  if (from !== undefined && to !== undefined) {
+    ;[navs[from], navs[to]] = [navs[to], navs[from]]
+  }
   draggingNavIndex.value = null
 }
 const setCategoryDraft = (category, value) => {
@@ -856,9 +852,10 @@ const submitDisplayConfig = async () => {
   savingDisplay.value = true
   try {
     const form = displayForm.value || {}
-    const bottomNav = (Array.isArray(form.bottomNav) ? form.bottomNav : []).map((nav) => (
-      isRequiredNav(nav.type) ? { ...nav, enabled: true, systemRequired: true } : nav
-    ))
+    const bottomNav = (Array.isArray(form.bottomNav) ? form.bottomNav : []).map((nav) => {
+      const { systemRequired: _legacySystemRequired, ...cleanNav } = nav
+      return isRequiredNav(nav.type) ? { ...cleanNav, enabled: true } : cleanNav
+    })
     const categoryNav = bottomNav.find((nav) => nav.type === 'category')
     const showBottomCategoryNav = categoryNav?.enabled === false ? 0 : 1
     // 只提交后端实体字段；homeModules/colors/bottomNav/showTrustStrip 等编辑态字段统一放进扩展 JSON，避免 Jackson 因未知字段拒绝请求。
@@ -1491,15 +1488,12 @@ onMounted(async () => {
 .guide-module-switches>div { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:9px 10px; background:#fff; border:1px solid #e8ecf1; border-radius:10px; font-size:12px; }
 .module-dependent-switch { min-width:190px; display:flex; align-items:flex-end; flex-direction:column; gap:4px; }
 .module-dependent-switch small { max-width:220px; color:#b26a00; font-size:10px; text-align:right; }
-.system-required-list { display:grid; gap:8px; }
-.system-required-list>div { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:13px 14px; background:#fffaf0; border:1px solid #f1dfb8; border-radius:11px; }
-.system-required-list span { display:grid; gap:4px; }
-.system-required-list small { color:#7c6a48; font-size:11px; }
+.nav-scope-note { margin:0 0 10px; color:#8a94a4; }
 .mobile-category-guide-preview { min-height:540px; padding:8px; color:#1b2430; background:#f6f7f9; }
 .mobile-category-guide-preview .mobile-preview-search { margin:0 0 8px; border-color:#1556a3; }
 .mobile-category-guide-preview .mobile-preview-search b { color:#fff; background:#1556a3; }
 .mobile-category-guide-preview h3 { margin:8px 2px; font-size:14px; }
-.guide-preview-directory { display:grid; grid-template-columns:62px minmax(0,1fr); gap:6px; }
+.guide-preview-directory { display:grid; grid-template-columns:62px minmax(0,1fr); align-content:start; gap:6px; }
 .guide-preview-directory>.mobile-preview-search { grid-column:1/-1; }
 .guide-preview-directory>aside { overflow:hidden; background:#fff; border-radius:8px; }
 .guide-preview-directory>aside span { display:block; padding:10px 3px; border-bottom:1px solid #e8ecf1; font-size:8px; text-align:center; }

@@ -131,7 +131,7 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('await openDisplayDialog(tableData.value[0], editSection)')
   })
 
-  it('支持四种主版型、三种分类导购子版型、三层开关与合规锁定', async () => {
+  it('支持四种主版型、三种分类导购子版型、三层开关与底层保护', async () => {
     const source = await readFile(sourcePath, 'utf8')
 
     for (const label of ['标准零售版', '紧凑商品版', '活动信息流版', '分类导购版']) {
@@ -147,12 +147,27 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('父版型关闭时配置保留但不可操作')
     expect(source).toContain('直播广场总开关已关闭，保留当前首页开关值')
     expect(source).toContain('新品速递总开关已关闭，保留当前首页开关值')
-    expect(source).toContain('系统必需 / 合规锁定')
-    expect(source).toContain('后端强制锁定')
     expect(source).toContain('isRequiredNav(nav.type)')
     expect(source).toContain('requiredCapabilities')
     expect(source).toContain('guide-preview-directory')
     expect(source).toContain('preview-guide-showcase')
     expect(source).toContain('preview-guide-scenarios')
+  })
+
+  it('不把核心交易与合规能力展示为装修配置项', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).not.toContain("activeEditSection === 'system'")
+    expect(source).not.toContain("key: 'system'")
+    expect(source).not.toContain('coreCapabilityRows')
+    expect(source).not.toContain('系统必需 / 合规锁定')
+    expect(source).not.toContain('后端强制锁定')
+    expect(source).not.toContain('>系统必需</el-tag>')
+    expect(source).not.toContain(':disabled="isRequiredNav(nav.type)"')
+    expect(source).toContain('v-for="(item, index) in configurableBottomNav"')
+    expect(source).toContain('核心交易与合规能力不受装修配置影响。')
+    expect(source).toContain('<div class="mobile-preview-search"><span>⌕</span><span>搜索商品</span><b>⌕</b></div>')
+    expect(source).toMatch(/\.guide-preview-directory\s*\{[^}]*align-content:start/)
+    expect(source).toContain('requiredCapabilities')
   })
 })
