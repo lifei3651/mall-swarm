@@ -2,6 +2,8 @@ package com.macro.mall.distribution.entity;
 
 import lombok.Data;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -61,6 +63,11 @@ public class DmsTenantDisplayConfig implements Serializable {
      * 该字段与布局模板一样持久化在 extraConfigJson，避免只为页面开关修改表结构。
      */
     private Integer newArrivalsEnabled;
+
+    /** 自动新品展示周期：0 表示永久，30～365 表示首次上架后的展示天数。 */
+    @Min(value = 0, message = "新品展示周期不能小于0天")
+    @Max(value = 365, message = "新品展示周期不能超过365天")
+    private Integer newArrivalWindowDays;
 
     @Size(max = 30000, message = "商城页面配置内容过长")
     private String extraConfigJson;

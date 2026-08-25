@@ -42,6 +42,9 @@ class ShopPublicViewSanitizerTest {
         product.setRepurchasePurchaseLimit(3);
         product.setMerchantReviewStatus("APPROVED");
         product.setMerchantReviewVersion(2);
+        product.setManualNewArrivalEnabled(1);
+        product.setManualNewArrivalStartTime(java.time.LocalDateTime.of(2026, 8, 25, 9, 0));
+        product.setManualNewArrivalEndTime(java.time.LocalDateTime.of(2026, 9, 24, 9, 0));
 
         JsonNode json = objectMapper.valueToTree(ShopPublicViewSanitizer.product(product, false));
 
@@ -49,7 +52,8 @@ class ShopPublicViewSanitizerTest {
                 "deliveryProvince", "deliveryCity", "deliveryDistrict", "shippingAddressId",
                 "returnAddressId", "freightTemplateId", "repurchaseSaleEnabled", "repurchasePrice",
                 "repurchasePv", "repurchasePurchaseLimit", "merchantReviewStatus", "merchantReviewVersion",
-                "settlementDelayDaysOverride"}) {
+                "settlementDelayDaysOverride", "manualNewArrivalEnabled", "manualNewArrivalStartTime",
+                "manualNewArrivalEndTime"}) {
             assertFalse(json.has(field), field + " must not be serialized in the public response");
         }
         assertEquals("公开商品", json.get("productName").asText());

@@ -175,7 +175,8 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `GET /api/v1/shop/live-studio/me` | 当前会员会话 | `LiveStudioVO` | 查询当前账号的主播授权状态及被分配直播间 |
 | `POST /api/v1/shop/live-studio/rooms/{id}/start` | 当前会员会话 | `LiveStreamCredentialVO` | 只有该直播间已授权主播可开始；腾讯云返回短时推流地址，外部视频源返回观看地址 |
 | `POST /api/v1/shop/live-studio/rooms/{id}/stop` | 当前会员会话 | `boolean` | 只有所属主播可结束直播，状态按版本原子更新 |
-| `GET /api/v1/shop/new-arrivals?limit=...` | `limit` 1～100 | 商品列表 | 按 `first_publish_time` 倒序返回首次上架仍处于配置窗口内的正常在售商品 |
+| `GET /api/v1/shop/new-arrivals?limit=...` | `limit` 1～100 | 商品列表 | 返回自动新品周期内或仍在运营手动推荐期内的正常在售商品；页面总开关关闭时返回空列表 |
+| `GET /api/v1/shop/brand-culture` | 无 | 品牌文化页配置 | 开关关闭时只返回 `enabled=false`，不返回标题、封面或正文；正文始终按纯文本展示 |
 | `GET /api/v1/shop/notices` | 分页和类型 | 公告分页 | 仅返回当前租户已启用公告 |
 | `GET /api/v1/shop/notices/{id}` | 公告 ID | 公告详情 | 校验公告所属租户和展示状态 |
 

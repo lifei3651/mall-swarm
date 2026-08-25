@@ -1,9 +1,10 @@
 <template>
   <main class="new-page">
     <header class="new-header"><button type="button" aria-label="返回" @click="goBack"><ArrowLeft :size="21" /></button><div><Sparkles :size="19" /><strong>新品速递</strong></div><RouterLink to="/" aria-label="返回首页"><Home :size="20" /></RouterLink></header>
-    <section class="new-hero"><span>JUST ARRIVED</span><h1>新鲜上架，抢先体验</h1><p>按照商品首次正式上架时间自动归集，商品后续编辑不会重复计入新品。</p></section>
+    <section class="new-hero"><span>JUST ARRIVED</span><h1>新鲜上架，抢先体验</h1><p>这里汇集近期首次上架商品和运营精选新品；展示期结束不会影响商品正常销售。</p></section>
     <section class="new-content">
       <div v-if="loading" class="new-state"><LoaderCircle class="spin" :size="28" />正在整理新品…</div>
+      <div v-else-if="disabled" class="new-state"><PackageOpen :size="32" /><strong>新品页面暂未开放</strong><RouterLink to="/">返回商城首页</RouterLink></div>
       <div v-else-if="error" class="new-state"><CircleAlert :size="28" /><strong>{{ error }}</strong><button type="button" @click="load">重新加载</button></div>
       <div v-else-if="products.length" class="new-grid">
         <RouterLink v-for="product in products" :key="product.id" :to="`/product/${product.id}`" class="new-card">
@@ -20,7 +21,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, CircleAlert, Home, LoaderCircle, PackageOpen, Sparkles } from 'lucide-vue-next'
-import { listNewArrivals } from '@/api/shop'
+import { getHome, listNewArrivals } from '@/api/shop'
 import { applyImageFallback } from '@/utils/imageFallback'
 import { money } from '@/utils/format'
 
@@ -28,11 +29,21 @@ const router = useRouter()
 const products = ref([])
 const loading = ref(false)
 const error = ref('')
+const disabled = ref(false)
 const goBack = () => window.history.length > 1 ? router.back() : router.push('/')
 const load = async () => {
   loading.value = true
   error.value = ''
-  try { products.value = (await listNewArrivals({ limit: 60 })).data || [] } catch (e) { error.value = e?.message || '新品列表暂时加载失败' } finally { loading.value = false }
+  try {
+    const home = (await getHome()).data || {}
+    if (Number(home.displayConfig?.newArrivalsEnabled ?? 1) !== 1) {
+      disabled.value = true
+      products.value = []
+      return
+    }
+    disabled.value = false
+    products.value = (await listNewArrivals({ limit: 60 })).data || []
+  } catch (e) { error.value = e?.message || '新品列表暂时加载失败' } finally { loading.value = false }
 }
 onMounted(load)
 </script>

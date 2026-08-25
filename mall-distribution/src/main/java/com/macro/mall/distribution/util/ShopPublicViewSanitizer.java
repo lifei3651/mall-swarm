@@ -32,6 +32,9 @@ public final class ShopPublicViewSanitizer {
         value.setMerchantReviewedAt(null);
         value.setMerchantReviewerId(null);
         value.setMerchantReviewerName(null);
+        value.setManualNewArrivalEnabled(null);
+        value.setManualNewArrivalStartTime(null);
+        value.setManualNewArrivalEndTime(null);
         value.setCreateTime(null);
         value.setUpdateTime(null);
         if (!repurchaseView) {

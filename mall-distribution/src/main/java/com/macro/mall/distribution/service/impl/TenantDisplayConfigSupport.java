@@ -45,6 +45,7 @@ public class TenantDisplayConfigSupport {
         extra.put("showBottomCategoryNav", config.getShowBottomCategoryNav());
         extra.put("liveSquareEnabled", config.getLiveSquareEnabled());
         extra.put("newArrivalsEnabled", config.getNewArrivalsEnabled());
+        extra.put("newArrivalWindowDays", config.getNewArrivalWindowDays());
         try {
             config.setExtraConfigJson(objectMapper.writeValueAsString(extra));
         } catch (Exception ignored) {
@@ -70,6 +71,9 @@ public class TenantDisplayConfigSupport {
         if (config.getNewArrivalsEnabled() == null) {
             config.setNewArrivalsEnabled(toggleValue(extra.get("newArrivalsEnabled"), 1));
         }
+        if (config.getNewArrivalWindowDays() == null) {
+            config.setNewArrivalWindowDays(dayValue(extra.get("newArrivalWindowDays"), 30));
+        }
         normalizeLayoutFields(config);
     }
 
@@ -81,6 +85,7 @@ public class TenantDisplayConfigSupport {
         config.setShowBottomCategoryNav(normalizeToggle(config.getShowBottomCategoryNav(), 1));
         config.setLiveSquareEnabled(normalizeToggle(config.getLiveSquareEnabled(), 1));
         config.setNewArrivalsEnabled(normalizeToggle(config.getNewArrivalsEnabled(), 1));
+        config.setNewArrivalWindowDays(normalizeNewArrivalDays(config.getNewArrivalWindowDays()));
     }
 
     private void fillDefaults(DmsTenantDisplayConfig config) {
@@ -128,5 +133,15 @@ public class TenantDisplayConfigSupport {
 
     private Integer normalizeToggle(Integer value, int defaultValue) {
         return value == null ? defaultValue : (value == 1 ? 1 : 0);
+    }
+
+    private Integer dayValue(JsonNode node, int defaultValue) {
+        if (node == null || !node.canConvertToInt()) return defaultValue;
+        return normalizeNewArrivalDays(node.asInt());
+    }
+
+    private Integer normalizeNewArrivalDays(Integer value) {
+        if (value == null) return 30;
+        return value == 0 || (value >= 30 && value <= 365) ? value : 30;
     }
 }

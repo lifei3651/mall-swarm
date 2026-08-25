@@ -97,6 +97,15 @@ public class DmsShopProduct implements Serializable {
     /** 首次正式上架时间；后续编辑或重新上架不改变，用于“新品速递”稳定排序。 */
     private LocalDateTime firstPublishTime;
 
+    /** 运营手动追加到新品页；不会改变商品分类、上下架或首次上架时间。 */
+    private Integer manualNewArrivalEnabled;
+
+    /** 本次运营推荐开始时间，用于新品页稳定排序。 */
+    private LocalDateTime manualNewArrivalStartTime;
+
+    /** 为空表示永久展示；到期后仅退出新品页。 */
+    private LocalDateTime manualNewArrivalEndTime;
+
     /** 商户商品审核状态：DRAFT/PENDING/APPROVED/REJECTED；平台自营为空。 */
     private String merchantReviewStatus;
 

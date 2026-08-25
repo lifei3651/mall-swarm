@@ -40,6 +40,10 @@ export function updateShopProductStatus(id, status) {
   })
 }
 
+export function updateProductNewArrival(id, data) {
+  return request({ url: `/shop/admin/products/${id}/new-arrival`, method: 'put', data })
+}
+
 export function submitMerchantProductReview(id) {
   return request({ url: `/shop/admin/products/${id}/submit-review`, method: 'post' })
 }

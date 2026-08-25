@@ -83,10 +83,17 @@
       <el-table-column label="会员限购" width="105"><template #default="{ row }">{{ Number(row.purchaseLimit || 0) > 0 ? `每人 ${row.purchaseLimit} 件` : '不限购' }}</template></el-table-column><el-table-column prop="salesCount" label="累计销量" width="95" />
       <el-table-column prop="sort" label="上架排序" width="95" />
       <el-table-column prop="status" label="上架状态" width="95"><template #default="{ row }"><el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '上架' : '下架' }}</el-tag></template></el-table-column>
+      <el-table-column label="新品展示" width="155">
+        <template #default="{ row }">
+          <el-tag :type="newArrivalState(row).type" size="small">{{ newArrivalState(row).label }}</el-tag>
+          <div v-if="newArrivalState(row).help" class="stock-help">{{ newArrivalState(row).help }}</div>
+        </template>
+      </el-table-column>
       <el-table-column label="审核状态" width="105"><template #default="{ row }"><el-tag v-if="row.merchantId" :type="reviewState(row).type">{{ reviewState(row).label }}</el-tag><span v-else>-</span></template></el-table-column>
-      <el-table-column label="操作" fixed="right" width="210">
+      <el-table-column label="操作" fixed="right" width="285">
         <template #default="{ row }">
           <el-button v-if="canManageProducts" type="primary" link :disabled="row.merchantReviewStatus === 'PENDING'" @click="editProduct(row)">编辑商品</el-button>
+          <el-button v-if="canManageProducts" type="primary" link :disabled="Number(row.status) !== 1 || Number(row.normalSaleEnabled) !== 1" @click="openNewArrivalDialog(row)">设置新品</el-button>
           <el-button v-if="canManageProducts" :type="row.status === 1 ? 'warning' : 'success'" link :disabled="row.merchantReviewStatus === 'PENDING'" @click="toggleStatus(row)">{{ productActionLabel(row) }}</el-button>
         </template>
       </el-table-column>
@@ -327,6 +334,25 @@
       <template #footer><div class="dialog-footer"><el-button size="large" @click="confirmCloseProductDialog(() => { dialogVisible = false })">取消</el-button><el-button type="primary" size="large" :loading="submitting" @click="submitForm">保存商品</el-button></div></template>
     </el-dialog>
 
+    <el-dialog v-model="newArrivalDialogVisible" title="设置新品展示" width="520px" append-to-body destroy-on-close>
+      <el-alert title="刚上架商品会按商城周期自动进入新品；这里用于额外推荐任意在售商品。期限结束后只退出新品页，不会下架商品。" type="info" :closable="false" show-icon style="margin-bottom:18px" />
+      <el-form :model="newArrivalForm" label-width="96px">
+        <el-form-item label="当前商品"><strong>{{ newArrivalProduct?.productName || '-' }}</strong></el-form-item>
+        <el-form-item label="额外推荐">
+          <el-radio-group v-model="newArrivalForm.mode">
+            <el-radio-button value="OFF">不额外推荐</el-radio-button>
+            <el-radio-button value="TIMED">限时推荐</el-radio-button>
+            <el-radio-button value="PERMANENT">永久推荐</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item v-if="newArrivalForm.mode === 'TIMED'" label="展示天数" required>
+          <el-input-number v-model="newArrivalForm.durationDays" :min="30" :max="365" :precision="0" />
+          <span class="quick-help">可设置 30～365 天</span>
+        </el-form-item>
+      </el-form>
+      <template #footer><el-button @click="newArrivalDialogVisible = false">取消</el-button><el-button type="primary" :loading="newArrivalSaving" @click="saveNewArrival">保存设置</el-button></template>
+    </el-dialog>
+
     <el-dialog v-model="customGuaranteeVisible" title="编辑服务保障" width="520px" append-to-body destroy-on-close>
       <el-form :model="customGuaranteeForm" label-width="80px">
         <el-form-item label="保障图标">
@@ -395,7 +421,7 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown, Box, CircleClose, Document, Medal, Money, Plus, QuestionFilled, Refresh, RefreshLeft, Search, Star, Van, WarningFilled } from '@element-plus/icons-vue'
 import { pcaTextArr } from 'element-china-area-data'
-import { createFreightTemplate, createShopCategory, getProductSettings, listFreightTemplates, listShopCategories, listShopProducts, listShopServiceAddresses, listShopSkus, publishShopProduct, submitMerchantProductReview, updateFreightTemplate, updateProductPvSetting, updateShopProductStatus, uploadShopImage } from '@/api/shop'
+import { createFreightTemplate, createShopCategory, getProductSettings, listFreightTemplates, listShopCategories, listShopProducts, listShopServiceAddresses, listShopSkus, publishShopProduct, submitMerchantProductReview, updateFreightTemplate, updateProductNewArrival, updateProductPvSetting, updateShopProductStatus, uploadShopImage } from '@/api/shop'
 import { listMerchants } from '@/api/merchant'
 import { validateSearchKeyword } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
@@ -423,6 +449,11 @@ const { markSearchApplied: markKeywordSearchApplied } = useSearchAutoRestore(
   },
 )
 const form = ref({})
+const newArrivalDialogVisible = ref(false)
+const newArrivalSaving = ref(false)
+const newArrivalProduct = ref(null)
+const newArrivalForm = ref({ mode: 'OFF', durationDays: 30 })
+const newArrivalWindowDays = ref(30)
 const skuRows = ref([])
 const removedSkuIds = ref([])
 const categories = ref([])
@@ -477,6 +508,21 @@ const productActionLabel = (row) => {
   if (row.status === 1) return '下架'
   if (!row.merchantId || row.merchantReviewStatus === 'APPROVED') return '上架'
   return row.merchantReviewStatus === 'PENDING' ? '审核中' : '提交审核'
+}
+const automaticNewArrivalActive = (row) => {
+  if (!row?.firstPublishTime || Number(row.status) !== 1 || Number(row.normalSaleEnabled) !== 1) return false
+  if (Number(newArrivalWindowDays.value) === 0) return true
+  const published = new Date(row.firstPublishTime).getTime()
+  return Number.isFinite(published) && published >= Date.now() - Number(newArrivalWindowDays.value || 30) * 86400000
+}
+const newArrivalState = (row) => {
+  const manualEnabled = Number(row?.manualNewArrivalEnabled) === 1
+  const end = row?.manualNewArrivalEndTime ? new Date(row.manualNewArrivalEndTime) : null
+  const manualActive = manualEnabled && (!end || end.getTime() > Date.now())
+  if (manualActive) return { label: end ? '运营精选' : '永久精选', type: 'success', help: end ? `至 ${String(row.manualNewArrivalEndTime).replace('T', ' ').slice(0, 10)}` : '长期展示' }
+  if (automaticNewArrivalActive(row)) return { label: '自动新品', type: 'primary', help: Number(newArrivalWindowDays.value) === 0 ? '永久规则' : `${newArrivalWindowDays.value} 天规则` }
+  if (manualEnabled) return { label: '推荐已到期', type: 'warning', help: '商品仍正常销售' }
+  return { label: '普通商品', type: 'info', help: '' }
 }
 const productPvLimit = computed(() => {
   if (!hasSku.value) return Math.max(0, Number(form.value.salePrice || 0))
@@ -683,8 +729,12 @@ const fetchProductSettings = async () => {
   try {
     const res = await getProductSettings()
     performanceUnitsEnabled.value = Number(res.data?.showPv ?? 1) === 1
+    newArrivalWindowDays.value = Number(res.data?.newArrivalWindowDays ?? 30)
     clearDisabledPvValues()
-  } catch { performanceUnitsEnabled.value = true }
+  } catch {
+    performanceUnitsEnabled.value = true
+    newArrivalWindowDays.value = 30
+  }
 }
 
 const clearDisabledPvValues = () => {
@@ -781,6 +831,39 @@ const editProduct = async (row) => {
     await fetchData()
   }
   await openDialog(row)
+}
+
+const openNewArrivalDialog = (row) => {
+  newArrivalProduct.value = row
+  const enabled = Number(row.manualNewArrivalEnabled) === 1
+  const endTime = row.manualNewArrivalEndTime ? new Date(row.manualNewArrivalEndTime) : null
+  const remainingDays = endTime ? Math.ceil((endTime.getTime() - Date.now()) / 86400000) : 0
+  newArrivalForm.value = {
+    mode: enabled ? (endTime ? 'TIMED' : 'PERMANENT') : 'OFF',
+    durationDays: Math.max(30, Math.min(365, remainingDays || 30)),
+  }
+  newArrivalDialogVisible.value = true
+}
+
+const saveNewArrival = async () => {
+  if (!newArrivalProduct.value?.id) return
+  const mode = newArrivalForm.value.mode
+  const durationDays = mode === 'PERMANENT' ? 0 : Number(newArrivalForm.value.durationDays)
+  if (mode === 'TIMED' && (!Number.isInteger(durationDays) || durationDays < 30 || durationDays > 365)) {
+    return ElMessage.warning('新品展示时间必须是30到365天之间的整数')
+  }
+  newArrivalSaving.value = true
+  try {
+    await updateProductNewArrival(newArrivalProduct.value.id, {
+      enabled: mode !== 'OFF',
+      durationDays: mode === 'OFF' ? null : durationDays,
+    })
+    ElMessage.success(mode === 'OFF' ? '已取消额外新品推荐，商品仍正常销售' : '新品展示设置已保存')
+    newArrivalDialogVisible.value = false
+    await fetchData()
+  } finally {
+    newArrivalSaving.value = false
+  }
 }
 
 const uploadFile = async (file) => {

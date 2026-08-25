@@ -46,4 +46,16 @@ describe('商品中心筛选', () => {
     expect(source).toContain('v-if="canManageProducts" type="primary" link')
     expect(source).toContain('v-if="canManageProducts" :type="row.status === 1 ?')
   })
+
+  it('运营可把任意在售商品额外加入新品并设置30到365天或永久', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('设置新品展示')
+    expect(source).toContain('updateProductNewArrival')
+    expect(source).toContain('不额外推荐')
+    expect(source).toContain('限时推荐')
+    expect(source).toContain('永久推荐')
+    expect(source).toContain(':min="30" :max="365"')
+    expect(source).toContain('期限结束后只退出新品页，不会下架商品')
+  })
 })

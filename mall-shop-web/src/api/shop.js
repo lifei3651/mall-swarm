@@ -132,6 +132,10 @@ export function listNewArrivals(params) {
   return request({ url: '/shop/new-arrivals', method: 'get', params })
 }
 
+export function getBrandCulture() {
+  return request({ url: '/shop/brand-culture', method: 'get' })
+}
+
 export function submitFlashSaleOrder(activityId, data, idempotencyKey) {
   return request({
     url: `/shop/flash-sales/${activityId}/orders`,

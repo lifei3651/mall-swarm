@@ -16,6 +16,7 @@ import com.macro.mall.distribution.dto.ShopOrderShipDTO;
 import com.macro.mall.distribution.dto.ShopOrderSubmitDTO;
 import com.macro.mall.distribution.dto.ShopSkuDTO;
 import com.macro.mall.distribution.dto.ProductPublishDTO;
+import com.macro.mall.distribution.dto.ProductNewArrivalDTO;
 import com.macro.mall.distribution.dto.FreightTemplateRuleDTO;
 import com.macro.mall.distribution.dto.FreightTemplateSaveDTO;
 import com.macro.mall.distribution.entity.*;
@@ -49,6 +50,7 @@ import com.macro.mall.distribution.vo.ShopOrderStatusSummaryVO;
 import com.macro.mall.distribution.vo.ShopTradeDetailVO;
 import com.macro.mall.distribution.vo.ShopProductDetailVO;
 import com.macro.mall.distribution.vo.ShopProfileVO;
+import com.macro.mall.distribution.vo.ShopBrandCultureVO;
 import com.macro.mall.distribution.vo.FreightQuoteVO;
 import com.macro.mall.distribution.vo.PurchaseLimitCheckVO;
 import com.macro.mall.distribution.vo.DistributionSettingsVO;
@@ -157,9 +159,6 @@ public class ShopServiceImpl implements ShopService {
     @Value("${shop.catalog-cache.category-ttl-seconds:60}")
     private long categoryCacheTtlSeconds;
 
-    @Value("${shop.catalog.new-arrival-days:30}")
-    private int newArrivalDays;
-
     @Override
     public ShopHomeVO getHome(Long tenantId) {
         Long resolvedTenantId = resolveTenantId(tenantId);
@@ -174,6 +173,7 @@ public class ShopServiceImpl implements ShopService {
         vo.setLogoUrl(tenant == null ? null : tenant.getLogoUrl());
         vo.setThemeColor(tenant == null || tenant.getThemeColor() == null ? "#0f766e" : tenant.getThemeColor());
         vo.setProductTemplate(tenant == null || tenant.getProductTemplate() == null ? "standard" : tenant.getProductTemplate());
+        vo.setBrandCultureEnabled(tenant != null && Integer.valueOf(1).equals(tenant.getBrandCultureEnabled()));
         List<DmsShopCategory> categories = categoryDao.selectHomeCategories(resolvedTenantId);
         vo.setCategoryList(categories);
         vo.setCategories(categories.isEmpty()
@@ -189,7 +189,7 @@ public class ShopServiceImpl implements ShopService {
         featuredProducts.forEach(item -> product(item, false));
         vo.setFeaturedProducts(featuredProducts);
         vo.setNewArrivals(isEnabled(displayConfig.getNewArrivalsEnabled())
-                ? loadNewArrivals(resolvedTenantId, 8) : List.of());
+                ? loadNewArrivals(resolvedTenantId, 8, displayConfig.getNewArrivalWindowDays()) : List.of());
         vo.setLiveRooms(liveRoomService.listPublic(resolvedTenantId, 8));
         DistributionSettingsVO publicSettings = auditService.getSettings();
         if (publicSettings != null) publicSettings.setPermissions(null);
@@ -210,19 +210,39 @@ public class ShopServiceImpl implements ShopService {
     @Override
     public List<DmsShopProduct> listNewArrivals(Long tenantId, Integer limit) {
         Long resolvedTenantId = resolveTenantId(tenantId);
-        if (!isEnabled(getDisplayConfig(resolvedTenantId).getNewArrivalsEnabled())) {
+        DmsTenantDisplayConfig displayConfig = getDisplayConfig(resolvedTenantId);
+        if (!isEnabled(displayConfig.getNewArrivalsEnabled())) {
             return List.of();
         }
-        return loadNewArrivals(resolvedTenantId, limit == null ? 40 : limit);
+        return loadNewArrivals(resolvedTenantId, limit == null ? 40 : limit,
+                displayConfig.getNewArrivalWindowDays());
     }
 
-    private List<DmsShopProduct> loadNewArrivals(Long tenantId, int limit) {
+    private List<DmsShopProduct> loadNewArrivals(Long tenantId, int limit, Integer windowDays) {
         int safeLimit = Math.max(1, Math.min(100, limit));
-        int safeDays = Math.max(1, Math.min(365, newArrivalDays));
+        int safeDays = windowDays == null ? 30 : windowDays;
+        LocalDateTime cutoff = safeDays == 0 ? null
+                : LocalDateTime.now().minusDays(Math.max(30, Math.min(365, safeDays)));
         List<DmsShopProduct> products = productDao.selectNewArrivals(
-                tenantId, LocalDateTime.now().minusDays(safeDays), safeLimit);
+                tenantId, cutoff, safeLimit);
         products.forEach(item -> product(item, false));
         return products;
+    }
+
+    @Override
+    public ShopBrandCultureVO getBrandCulture(Long tenantId) {
+        DmsTenant tenant = tenantDao.selectById(resolveTenantId(tenantId));
+        ShopBrandCultureVO vo = new ShopBrandCultureVO();
+        boolean enabled = tenant != null && Integer.valueOf(1).equals(tenant.getBrandCultureEnabled());
+        vo.setEnabled(enabled);
+        if (!enabled) return vo;
+        vo.setBrandName(tenant.getBrandName());
+        vo.setLogoUrl(tenant.getLogoUrl());
+        vo.setTitle(tenant.getBrandCultureTitle());
+        vo.setSubtitle(tenant.getBrandCultureSubtitle());
+        vo.setCoverUrl(tenant.getBrandCultureCoverUrl());
+        vo.setContent(tenant.getBrandCultureContent());
+        return vo;
     }
 
     @Override
@@ -760,6 +780,41 @@ public class ShopServiceImpl implements ShopService {
         boolean updated = productDao.updateStatus(id, target) > 0;
         if (updated) catalogCache.invalidateAfterCommit(product.getTenantId());
         return updated;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public DmsShopProduct updateProductNewArrival(Long id, ProductNewArrivalDTO dto) {
+        if (dto == null || dto.getEnabled() == null) Asserts.fail("请选择新品展示方式");
+        DmsShopProduct product = productDao.selectByIdForUpdate(id);
+        if (product == null) Asserts.fail("商品不存在");
+        assertTenantAccess(product.getTenantId());
+        merchantProductReviewService.assertProductAccess(product);
+
+        LocalDateTime startTime = null;
+        LocalDateTime endTime = null;
+        int enabled = Boolean.TRUE.equals(dto.getEnabled()) ? 1 : 0;
+        if (enabled == 1) {
+            if (!Integer.valueOf(1).equals(product.getStatus())
+                    || !Integer.valueOf(1).equals(product.getNormalSaleEnabled())) {
+                Asserts.fail("只有普通商城中已上架的商品才能额外加入新品");
+            }
+            Integer durationDays = dto.getDurationDays();
+            if (durationDays == null || (durationDays != 0 && (durationDays < 30 || durationDays > 365))) {
+                Asserts.fail("新品展示时间只能设置为30至365天，或选择永久");
+            }
+            startTime = LocalDateTime.now();
+            endTime = durationDays == 0 ? null : startTime.plusDays(durationDays);
+        }
+        if (productDao.updateManualNewArrivalScoped(product.getTenantId(), id, enabled, startTime, endTime) != 1) {
+            Asserts.fail("新品展示设置保存失败");
+        }
+        catalogCache.invalidateAfterCommit(product.getTenantId());
+        operationLogService.log("SHOP_PRODUCT", "NEW_ARRIVAL_UPDATE", "SHOP_PRODUCT", String.valueOf(id),
+                "enabled=" + product.getManualNewArrivalEnabled() + ";end=" + product.getManualNewArrivalEndTime(),
+                "enabled=" + enabled + ";end=" + endTime,
+                enabled == 1 ? "将商品加入新品速递" : "将商品移出运营新品");
+        return productDao.selectById(id);
     }
 
     @Override

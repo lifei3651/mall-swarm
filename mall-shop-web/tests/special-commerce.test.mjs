@@ -21,6 +21,7 @@ test('live square and new arrivals use real public APIs and controlled routes', 
   const liveRoom = read('../src/views/LiveRoomView.vue')
   assert.match(api, /\/shop\/live-rooms/)
   assert.match(api, /\/shop\/new-arrivals/)
+  assert.match(api, /\/shop\/brand-culture/)
   assert.match(home, /module\.type === 'live'/)
   assert.match(home, /module\.type === 'newArrivals'/)
   assert.doesNotMatch(home, /mod\.type === 'discovery'/)
@@ -30,11 +31,24 @@ test('live square and new arrivals use real public APIs and controlled routes', 
   assert.match(home, /newArrivals\.slice\(0, 1\)/)
   assert.match(router, /path: '\/live'/)
   assert.match(router, /path: '\/new-arrivals'/)
+  assert.match(router, /path: '\/brand-culture'/)
   assert.match(liveRoom, /url\.protocol !== 'https:'/)
   assert.match(home, /campaign-feed/)
   assert.match(home, /campaignCountdown/)
   assert.match(home, /campaignActivity\(product\)/)
   assert.match(home, /listFlashSales/)
+})
+
+test('new arrivals and brand culture respect independent page switches', () => {
+  const arrivals = read('../src/views/NewArrivalsView.vue')
+  const culture = read('../src/views/BrandCultureView.vue')
+  const app = read('../src/App.vue')
+  assert.match(arrivals, /displayConfig\?\.newArrivalsEnabled/)
+  assert.match(arrivals, /新品页面暂未开放/)
+  assert.match(culture, /!culture\.enabled/)
+  assert.match(culture, /white-space:pre-line/)
+  assert.doesNotMatch(culture, /v-html/)
+  assert.match(app, /v-if="brandCultureEnabled" to="\/brand-culture"/)
 })
 
 test('public storefront excludes repurchase pages and rejects non-public checkout modes', () => {

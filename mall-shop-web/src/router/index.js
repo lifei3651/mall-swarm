@@ -18,6 +18,7 @@ const routes = [
   { path: '/live/:id', name: 'LiveRoom', component: () => import('@/views/LiveRoomView.vue') },
   { path: '/live-studio', name: 'LiveStudio', component: () => import('@/views/LiveStudioView.vue'), meta: { requiresAuth: true } },
   { path: '/new-arrivals', name: 'NewArrivals', component: () => import('@/views/NewArrivalsView.vue') },
+  { path: '/brand-culture', name: 'BrandCulture', component: () => import('@/views/BrandCultureView.vue') },
   { path: '/cart', name: 'Cart', component: () => import('@/views/CartView.vue'), meta: { requiresAuth: true } },
   { path: '/checkout', name: 'Checkout', component: () => import('@/views/CheckoutView.vue'), meta: { requiresAuth: true } },
   { path: '/login', name: 'Login', component: () => import('@/surfaces/public/PublicLoginView.vue'), meta: { public: true } },

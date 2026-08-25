@@ -177,6 +177,12 @@ public class ShopController {
         return CommonResult.success(shopService.listNewArrivals(null, limit));
     }
 
+    @Operation(summary = "品牌文化页")
+    @GetMapping("/brand-culture")
+    public CommonResult<com.macro.mall.distribution.vo.ShopBrandCultureVO> brandCulture() {
+        return CommonResult.success(shopService.getBrandCulture(null));
+    }
+
     @Operation(summary = "秒杀活动列表")
     @GetMapping("/flash-sales")
     public CommonResult<List<FlashSaleActivityVO>> flashSales() {
@@ -623,6 +629,13 @@ public class ShopController {
     @PutMapping("/admin/products/{id}/status")
     public CommonResult<Boolean> updateProductStatus(@PathVariable Long id, @RequestParam Integer status) {
         return CommonResult.success(shopService.updateProductStatus(id, status));
+    }
+
+    @Operation(summary = "运营追加或移出新品速递")
+    @PutMapping("/admin/products/{id}/new-arrival")
+    public CommonResult<DmsShopProduct> updateProductNewArrival(@PathVariable Long id,
+                                                                @Valid @RequestBody ProductNewArrivalDTO dto) {
+        return CommonResult.success(shopService.updateProductNewArrival(id, dto));
     }
 
     @Operation(summary = "商户提交商品上架或变更审核")

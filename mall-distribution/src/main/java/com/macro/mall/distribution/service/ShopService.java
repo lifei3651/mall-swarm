@@ -5,6 +5,7 @@ import com.macro.mall.distribution.dto.ShopOrderSubmitDTO;
 import com.macro.mall.distribution.dto.ShopOrderShipDTO;
 import com.macro.mall.distribution.dto.ShopSkuDTO;
 import com.macro.mall.distribution.dto.ProductPublishDTO;
+import com.macro.mall.distribution.dto.ProductNewArrivalDTO;
 import com.macro.mall.distribution.dto.FreightTemplateSaveDTO;
 import com.macro.mall.distribution.entity.DmsShopBanner;
 import com.macro.mall.distribution.entity.DmsShopCategory;
@@ -22,6 +23,7 @@ import com.macro.mall.distribution.vo.ShopProfileVO;
 import com.macro.mall.distribution.vo.FreightQuoteVO;
 import com.macro.mall.distribution.vo.PurchaseLimitCheckVO;
 import com.macro.mall.distribution.vo.ShopBusinessConfigVO;
+import com.macro.mall.distribution.vo.ShopBrandCultureVO;
 
 import java.util.List;
 import java.util.Map;
@@ -33,6 +35,8 @@ public interface ShopService {
     List<DmsShopProduct> listProducts(Long tenantId, String keyword, String categoryName, Integer status, String stockStatus);
 
     List<DmsShopProduct> listNewArrivals(Long tenantId, Integer limit);
+
+    ShopBrandCultureVO getBrandCulture(Long tenantId);
 
     CommonPage<DmsShopProduct> listProductPage(Long tenantId, String keyword, String categoryName,
                                                Integer status, String stockStatus,
@@ -97,6 +101,8 @@ public interface ShopService {
     DmsShopProduct publishProduct(Long id, ProductPublishDTO dto);
 
     boolean updateProductStatus(Long id, Integer status);
+
+    DmsShopProduct updateProductNewArrival(Long id, ProductNewArrivalDTO dto);
 
     List<DmsShopSku> listSkus(Long productId, Integer status);
 

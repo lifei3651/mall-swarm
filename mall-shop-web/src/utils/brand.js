@@ -52,6 +52,8 @@ const pageLabels = {
   ProfileAddresses: '收货地址',
   Orders: '我的订单',
   OrderDetail: '订单详情',
+  NewArrivals: '新品速递',
+  BrandCulture: '品牌文化',
 }
 
 export const normalizeThemeKey = (value) => {
@@ -116,7 +118,7 @@ export const applyBrandConfig = (config = {}) => {
   root.style.setProperty('--shop-card-shadow', preset.shadow)
   updateBrowserLogo(logoUrl)
 
-  const brand = { brandName, logoUrl, themeColor, productTemplate }
+  const brand = { brandName, logoUrl, themeColor, productTemplate, brandCultureEnabled: config.brandCultureEnabled === true }
   window.dispatchEvent(new CustomEvent('shop-brand-updated', { detail: brand }))
   return brand
 }

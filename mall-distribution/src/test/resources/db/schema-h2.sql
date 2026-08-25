@@ -54,6 +54,11 @@ CREATE TABLE IF NOT EXISTS dms_tenant (
   logo_url VARCHAR(512),
   theme_color VARCHAR(32),
   product_template VARCHAR(64),
+  brand_culture_enabled INT NOT NULL DEFAULT 0,
+  brand_culture_title VARCHAR(80),
+  brand_culture_subtitle VARCHAR(200),
+  brand_culture_cover_url VARCHAR(2048),
+  brand_culture_content CLOB,
   company_address VARCHAR(255),
   unified_social_credit_code VARCHAR(32),
   service_phone VARCHAR(32),
@@ -990,6 +995,10 @@ CREATE TABLE IF NOT EXISTS dms_shop_product (
   sales_count INT NOT NULL DEFAULT 0,
   sort_order INT NOT NULL DEFAULT 0,
   status INT NOT NULL DEFAULT 1,
+  first_publish_time TIMESTAMP,
+  manual_new_arrival_enabled INT NOT NULL DEFAULT 0,
+  manual_new_arrival_start_time TIMESTAMP,
+  manual_new_arrival_end_time TIMESTAMP,
   merchant_review_status VARCHAR(16),
   merchant_review_version INT NOT NULL DEFAULT 0,
   merchant_review_remark VARCHAR(500),
@@ -1021,6 +1030,9 @@ CREATE TABLE IF NOT EXISTS dms_shop_product (
 ALTER TABLE dms_shop_product ADD COLUMN IF NOT EXISTS shipping_address_id BIGINT;
 ALTER TABLE dms_shop_product ADD COLUMN IF NOT EXISTS return_address_id BIGINT;
 ALTER TABLE dms_shop_product ADD COLUMN IF NOT EXISTS first_publish_time TIMESTAMP;
+ALTER TABLE dms_shop_product ADD COLUMN IF NOT EXISTS manual_new_arrival_enabled INT NOT NULL DEFAULT 0;
+ALTER TABLE dms_shop_product ADD COLUMN IF NOT EXISTS manual_new_arrival_start_time TIMESTAMP;
+ALTER TABLE dms_shop_product ADD COLUMN IF NOT EXISTS manual_new_arrival_end_time TIMESTAMP;
 
 CREATE TABLE IF NOT EXISTS dms_merchant_product_review (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,

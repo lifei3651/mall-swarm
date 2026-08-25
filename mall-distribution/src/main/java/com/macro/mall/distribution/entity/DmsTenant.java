@@ -38,6 +38,22 @@ public class DmsTenant implements Serializable {
     @Size(max = 64, message = "页面模板名称不能超过64个字符")
     private String productTemplate;
 
+    /** 独立品牌文化页，关闭时不公开入口和正文。 */
+    private Integer brandCultureEnabled;
+
+    @Size(max = 80, message = "品牌文化标题不能超过80个字")
+    private String brandCultureTitle;
+
+    @Size(max = 200, message = "品牌文化副标题不能超过200个字")
+    private String brandCultureSubtitle;
+
+    @Size(max = 2048, message = "品牌文化封面地址不能超过2048个字符")
+    private String brandCultureCoverUrl;
+
+    /** 按纯文本保存和展示，避免后台内容注入可执行脚本。 */
+    @Size(max = 30000, message = "品牌文化正文不能超过30000个字")
+    private String brandCultureContent;
+
     /** 实际经营地址及前台客服/合规信息。 */
     @Size(max = 255, message = "经营地址不能超过255个字")
     private String companyAddress;

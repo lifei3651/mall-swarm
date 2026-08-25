@@ -90,6 +90,15 @@ public class TenantServiceImpl implements TenantService {
                 "standard", "beauty", "food", "course", "health").contains(tenant.getProductTemplate())) {
             Asserts.fail("不支持的前台样式");
         }
+        tenant.setBrandCultureEnabled(Integer.valueOf(1).equals(tenant.getBrandCultureEnabled()) ? 1 : 0);
+        if (Integer.valueOf(1).equals(tenant.getBrandCultureEnabled())) {
+            if (tenant.getBrandCultureTitle() == null || tenant.getBrandCultureTitle().isBlank()) {
+                Asserts.fail("开启品牌文化页前请填写页面标题");
+            }
+            if (tenant.getBrandCultureContent() == null || tenant.getBrandCultureContent().isBlank()) {
+                Asserts.fail("开启品牌文化页前请填写品牌文化正文");
+            }
+        }
         if (tenant.getStatus() == null) {
             tenant.setStatus(1);
         }
@@ -249,6 +258,11 @@ public class TenantServiceImpl implements TenantService {
     public DmsTenantDisplayConfig saveDisplayConfig(DmsTenantDisplayConfig config) {
         if (config == null || config.getTenantId() == null) {
             Asserts.fail("租户ID不能为空");
+        }
+        if (config.getNewArrivalWindowDays() != null
+                && config.getNewArrivalWindowDays() != 0
+                && (config.getNewArrivalWindowDays() < 30 || config.getNewArrivalWindowDays() > 365)) {
+            Asserts.fail("自动新品展示时间只能设置为30至365天，或选择永久");
         }
         displayConfigSupport.prepareForSave(config);
         DmsTenantDisplayConfig exists = displayConfigDao.selectByTenantId(config.getTenantId());

@@ -33,6 +33,9 @@
         <result column="sort_order" property="sort"/>
         <result column="status" property="status"/>
         <result column="first_publish_time" property="firstPublishTime"/>
+        <result column="manual_new_arrival_enabled" property="manualNewArrivalEnabled"/>
+        <result column="manual_new_arrival_start_time" property="manualNewArrivalStartTime"/>
+        <result column="manual_new_arrival_end_time" property="manualNewArrivalEndTime"/>
         <result column="merchant_review_status" property="merchantReviewStatus"/>
         <result column="merchant_review_version" property="merchantReviewVersion"/>
         <result column="merchant_review_remark" property="merchantReviewRemark"/>
@@ -65,7 +68,8 @@
         sale_price, market_price, cost_amount, settlement_delay_days_override, pv_value, bv_value, stock, safety_stock, purchase_limit,
         normal_sale_enabled, repurchase_sale_enabled, repurchase_price, repurchase_pv, repurchase_purchase_limit,
         enrollment_sale_enabled, team_bonus_mode, sales_count,
-        sort_order, status, first_publish_time, merchant_review_status, merchant_review_version, merchant_review_remark,
+        sort_order, status, first_publish_time, manual_new_arrival_enabled, manual_new_arrival_start_time,
+        manual_new_arrival_end_time, merchant_review_status, merchant_review_version, merchant_review_remark,
         merchant_review_submitted_at, merchant_reviewed_at, merchant_reviewer_id, merchant_reviewer_name,
         detail, detail_images, delivery_address, delivery_province, delivery_city, delivery_district, shipping_address_id, return_address_id,
         freight_type, freight_amount, free_shipping_amount, freight_template_name, freight_template_id,
@@ -130,14 +134,29 @@
         WHERE tenant_id=#{tenantId}
           AND status=1
           AND normal_sale_enabled=1
-          AND COALESCE(first_publish_time, create_time) &gt;= #{cutoff}
+          AND (
+            (
+              <choose>
+                <when test="cutoff != null">COALESCE(first_publish_time, create_time) &gt;= #{cutoff}</when>
+                <otherwise>first_publish_time IS NOT NULL</otherwise>
+              </choose>
+            )
+            OR (
+              manual_new_arrival_enabled=1
+              AND (manual_new_arrival_end_time IS NULL OR manual_new_arrival_end_time &gt; CURRENT_TIMESTAMP)
+            )
+          )
           AND (merchant_id IS NULL OR EXISTS (
               SELECT 1 FROM dms_merchant active_merchant
               WHERE active_merchant.id=dms_shop_product.merchant_id
                 AND active_merchant.tenant_id=dms_shop_product.tenant_id
                 AND active_merchant.status=1
           ))
-        ORDER BY COALESCE(first_publish_time, create_time) DESC, sort_order DESC, id DESC
+        ORDER BY CASE WHEN manual_new_arrival_enabled=1
+                           AND (manual_new_arrival_end_time IS NULL OR manual_new_arrival_end_time &gt; CURRENT_TIMESTAMP)
+                      THEN 1 ELSE 0 END DESC,
+                 COALESCE(manual_new_arrival_start_time, first_publish_time, create_time) DESC,
+                 sort_order DESC, id DESC
         LIMIT #{limit}
     </select>
 
@@ -287,6 +306,15 @@
         UPDATE dms_shop_product
         SET status = #{status},
             first_publish_time = CASE WHEN #{status}=1 AND first_publish_time IS NULL THEN CURRENT_TIMESTAMP ELSE first_publish_time END,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND tenant_id = #{tenantId}
+    </update>
+
+    <update id="updateManualNewArrivalScoped">
+        UPDATE dms_shop_product
+        SET manual_new_arrival_enabled = #{enabled},
+            manual_new_arrival_start_time = #{startTime},
+            manual_new_arrival_end_time = #{endTime},
             update_time = CURRENT_TIMESTAMP
         WHERE id = #{id} AND tenant_id = #{tenantId}
     </update>

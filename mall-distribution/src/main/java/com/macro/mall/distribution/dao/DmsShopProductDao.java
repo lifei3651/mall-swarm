@@ -39,6 +39,12 @@ public interface DmsShopProductDao {
                                            @Param("cutoff") LocalDateTime cutoff,
                                            @Param("limit") Integer limit);
 
+    int updateManualNewArrivalScoped(@Param("tenantId") Long tenantId,
+                                     @Param("id") Long id,
+                                     @Param("enabled") Integer enabled,
+                                     @Param("startTime") LocalDateTime startTime,
+                                     @Param("endTime") LocalDateTime endTime);
+
     List<String> selectCategories(@Param("tenantId") Long tenantId);
 
     int insertScoped(@Param("tenantId") Long tenantId, @Param("product") DmsShopProduct product);

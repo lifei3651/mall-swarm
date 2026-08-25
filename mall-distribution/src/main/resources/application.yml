@@ -108,8 +108,6 @@ shop:
   catalog:
     # 商城基座默认足够大；客户确有大量行业分类时可通过环境变量调整，无需改代码。
     max-categories: ${SHOP_MAX_CATEGORIES:500}
-    # “新品速递”按首次上架时间自动归集，客户可在交付配置中调整为 1～365 天。
-    new-arrival-days: ${SHOP_NEW_ARRIVAL_DAYS:30}
   content:
     # 逗号分隔的客户违禁词词库；基座默认空，交付时按客户经营要求配置。
     blocked-terms: ${SHOP_CONTENT_BLOCKED_TERMS:}

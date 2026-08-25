@@ -97,6 +97,19 @@
               <div class="visual-design-field"><span>主题色</span><div class="color-editor"><el-color-picker v-model="displayForm.themeColor" /><el-input v-model="displayForm.themeColor" maxlength="7" placeholder="#e7193f" /></div></div>
             </div>
           </section>
+          <section v-if="activeEditSection === 'culture'" class="control-section feature-control-section">
+            <div class="control-section-heading"><div><strong>品牌文化页</strong><small>独立页面、独立开关；关闭后前台入口和正文均不公开</small></div><el-tag size="small" type="info">独立页面</el-tag></div>
+            <div class="feature-toggle-card">
+              <div class="feature-toggle-copy"><span class="feature-toggle-icon">文</span><div><strong>公开品牌文化页</strong><small>开启后在商城首页底部展示入口，App、公开商城和三合一商城共用同一内容</small></div></div>
+              <div class="feature-toggle-action"><span :class="{ enabled: displayForm.brandCultureEnabled === 1 }">{{ displayForm.brandCultureEnabled === 1 ? '已开启' : '已关闭' }}</span><el-switch v-model="displayForm.brandCultureEnabled" :active-value="1" :inactive-value="0" aria-label="开启或关闭品牌文化页" /></div>
+            </div>
+            <div class="culture-form">
+              <div class="visual-design-field"><span>页面标题</span><el-input v-model="displayForm.brandCultureTitle" maxlength="80" show-word-limit placeholder="例如：关于我们" /></div>
+              <div class="visual-design-field"><span>一句话介绍</span><el-input v-model="displayForm.brandCultureSubtitle" maxlength="200" show-word-limit placeholder="概括品牌理念或长期愿景" /></div>
+              <div class="visual-design-field"><span>页面封面</span><div class="culture-cover-editor"><el-upload action="#" :show-file-list="false" accept="image/*" :http-request="uploadBrandCultureCover"><el-image v-if="displayForm.brandCultureCoverUrl" :src="normalizeMediaUrl(displayForm.brandCultureCoverUrl)" fit="cover" /><span v-else>上传品牌封面</span></el-upload><el-button v-if="displayForm.brandCultureCoverUrl" type="danger" link @click="displayForm.brandCultureCoverUrl = ''">移除封面</el-button></div></div>
+              <div class="visual-design-field"><span>品牌文化正文</span><el-input v-model="displayForm.brandCultureContent" type="textarea" :rows="12" maxlength="30000" show-word-limit placeholder="可分段介绍品牌起源、使命、价值观、产品理念与服务承诺；前台会按原有换行展示。" /></div>
+            </div>
+          </section>
           <section v-if="activeEditSection === 'banner'" class="control-section banner-config-section">
             <div class="control-section-heading"><div><strong>首页轮播图</strong><small>图片、点击后动作和展示时间在这里统一维护</small></div><el-tag size="small" type="info">{{ previewBanners.length }} 条已启用</el-tag></div>
             <p class="section-note banner-note">首页轮播图已单独提供管理页面；点击上方“首页轮播图”模块的“编辑首页轮播图”即可直接维护。</p>
@@ -119,10 +132,17 @@
             </div>
           </section>
           <section v-if="activeEditSection === 'newArrivals'" class="control-section feature-control-section">
-            <div class="control-section-heading"><div><strong>新品速递</strong><small>开关保持独立；首页与直播广场横排展示，不影响普通商品列表</small></div><el-tag size="small" type="info">独立模块</el-tag></div>
+            <div class="control-section-heading"><div><strong>新品速递</strong><small>新品完整页面与首页卡片分层控制，不影响普通商品列表</small></div><el-tag size="small" type="info">独立页面</el-tag></div>
             <div class="feature-toggle-card">
-              <div class="feature-toggle-copy"><span class="feature-toggle-icon new-arrivals-icon">NEW</span><div><strong>公开新品速递</strong><small>开启后自动展示近期首次上架商品；关闭只隐藏新品入口，不下架任何商品</small></div></div>
+              <div class="feature-toggle-copy"><span class="feature-toggle-icon new-arrivals-icon">NEW</span><div><strong>新品完整页面总开关</strong><small>开启后才允许访问新品完整页面；首页卡片仍可在“首页模块”单独隐藏。关闭不会下架任何商品</small></div></div>
               <div class="feature-toggle-action"><span :class="{ enabled: displayForm.newArrivalsEnabled === 1 }">{{ displayForm.newArrivalsEnabled === 1 ? '已开启' : '已关闭' }}</span><el-switch v-model="displayForm.newArrivalsEnabled" :active-value="1" :inactive-value="0" aria-label="开启或关闭新品速递" /></div>
+            </div>
+            <div class="new-arrival-window-setting">
+              <div><strong>自动新品展示时间</strong><small>商品首次正式上架后自动进入新品；商品中心还可额外追加其他在售商品</small></div>
+              <el-radio-group :model-value="displayForm.newArrivalWindowDays === 0 ? 'PERMANENT' : 'TIMED'" @change="(mode) => { displayForm.newArrivalWindowDays = mode === 'PERMANENT' ? 0 : 30 }">
+                <el-radio-button value="TIMED">按天数</el-radio-button><el-radio-button value="PERMANENT">永久</el-radio-button>
+              </el-radio-group>
+              <div v-if="displayForm.newArrivalWindowDays !== 0" class="new-arrival-days"><el-input-number v-model="displayForm.newArrivalWindowDays" :min="30" :max="365" :precision="0" /><span>天（30～365天）</span></div>
             </div>
           </section>
           <section v-if="activeEditSection === 'home'" class="control-section">
@@ -189,11 +209,19 @@
         </aside>
 
         <section class="preview-stage">
-          <div class="preview-stage-heading"><div><strong>客户手机版预览</strong><span>首页模块与前台保持同一套配置</span></div><el-tag type="success">草稿预览</el-tag></div>
+          <div class="preview-stage-heading"><div><strong>客户手机版预览</strong><span>{{ activeEditSection === 'culture' ? '品牌文化独立页面' : '首页模块与前台保持同一套配置' }}</span></div><el-tag type="success">草稿预览</el-tag></div>
           <div class="mobile-preview-shell live-mobile-preview" :class="`layout-preview-${displayForm.layoutTemplate || 'standard'}`" :style="previewStyle">
             <div class="mobile-preview-status"><span>9:41</span><span>● ● ●</span></div>
             <div class="mobile-preview-brand"><span class="mobile-preview-logo"><img v-if="displayForm.logoUrl && !displayLogoLoadFailed" :src="normalizeMediaUrl(displayForm.logoUrl)" alt="" @error="displayLogoLoadFailed = true" /><span v-else>{{ (displayForm.brandName || '灵启').slice(0, 1) }}</span></span><strong>{{ displayForm.brandName || '灵启商城' }}</strong><span class="mobile-preview-share">分享</span></div>
-            <template v-if="previewPage === 'home'">
+            <div v-if="activeEditSection === 'culture'" class="mobile-preview-culture">
+              <img v-if="displayForm.brandCultureCoverUrl" :src="normalizeMediaUrl(displayForm.brandCultureCoverUrl)" alt="" />
+              <div v-else class="mobile-preview-culture-cover">品牌文化封面</div>
+              <span>{{ displayForm.brandCultureEnabled === 1 ? '页面已开启' : '页面已关闭' }}</span>
+              <h3>{{ displayForm.brandCultureTitle || '品牌文化' }}</h3>
+              <small>{{ displayForm.brandCultureSubtitle || '在这里介绍品牌理念与长期愿景' }}</small>
+              <p>{{ displayForm.brandCultureContent || '品牌文化正文将在这里按段落展示。' }}</p>
+            </div>
+            <template v-else-if="previewPage === 'home'">
               <div class="mobile-preview-search"><span>⌕</span><span>搜索商品</span><b>⌕</b></div>
               <template v-for="module in orderedPreviewModules" :key="module.type">
                 <div v-if="module.type === 'banner' && module.enabled" class="mobile-preview-banner live-preview-banner">
@@ -303,7 +331,7 @@ const displayLogoLoadFailed = ref(false)
 const displayForm = ref({})
 const moduleNames = { banner: '首页轮播图', notice: '商城公告', category: '商品分类', live: '直播广场', newArrivals: '新品速递', trust: '服务保障', products: '精选商品' }
 const navNames = { home: '首页', category: '分类', cart: '购物车', orders: '订单', profile: '我的' }
-const editSectionLabels = { brand: '品牌视觉', banner: '首页轮播图', layout: '首页版型', live: '直播广场', newArrivals: '新品速递', home: '首页模块', category: '分类模块', nav: '底部导航', colors: '颜色微调' }
+const editSectionLabels = { brand: '品牌视觉', culture: '品牌文化页', banner: '首页轮播图', layout: '首页版型', live: '直播广场', newArrivals: '新品速递', home: '首页模块', category: '分类模块', nav: '底部导航', colors: '颜色微调' }
 const editSectionLabel = computed(() => editSectionLabels[activeEditSection.value] || '品牌视觉')
 const previewPages = [{ value: 'home', label: '首页' }]
 const defaultModules = () => [
@@ -440,12 +468,13 @@ const displaySectionRows = computed(() => {
   const bannerModuleVisible = normalizeModuleEnabled(modules.find((item) => item.type === 'banner')?.enabled)
   return [
     { key: 'brand', icon: '✦', label: '品牌视觉', summary: `${row.brandName || row.tenantName || '灵启商城'} · ${getTemplateName(row.productTemplate)} · ${row.logoUrl ? '已配置 Logo' : '待上传 Logo'}`, status: row.brandName || row.logoUrl ? '已配置' : '待完善', active: Boolean(row.brandName || row.logoUrl) },
+    { key: 'culture', icon: '文', label: '品牌文化页', summary: row.brandCultureTitle || '独立品牌介绍页，支持封面、简介和长文内容', status: Number(row.brandCultureEnabled ?? 0) === 1 ? '已开启' : '已关闭', active: Number(row.brandCultureEnabled ?? 0) === 1 },
     { key: 'layout', icon: '▤', label: '首页版型', summary: getLayoutTemplateName(currentDisplayConfig.value.layoutTemplate), status: '可编辑', active: true },
     { key: 'home', icon: '⌂', label: '首页模块', summary: `${visibleModules}/${modules.length} 个模块展示；直播与新品横排`, status: '已配置', active: visibleModules > 0 },
     { key: 'category', icon: '▦', label: '分类模块', summary: '控制首页分类入口及单个分类显示', status: '可编辑', active: true },
     { key: 'banner', icon: '▣', label: '首页轮播图', summary: bannerModuleVisible ? '总开关已展示，可管理图片与点击去向' : '首页模块总开关已隐藏，图片不会在前台展示', status: bannerModuleVisible ? '展示中' : '已隐藏', active: bannerModuleVisible },
     { key: 'live', icon: '◉', label: '直播广场', summary: '独立控制直播首页入口、列表和详情，直播间资料不会因关闭而删除', status: Number(currentDisplayConfig.value.liveSquareEnabled ?? 1) === 1 ? '已开启' : '已关闭', active: Number(currentDisplayConfig.value.liveSquareEnabled ?? 1) === 1 },
-    { key: 'newArrivals', icon: 'N', label: '新品速递', summary: '独立控制近期首次上架商品入口，不影响商品正常销售', status: Number(currentDisplayConfig.value.newArrivalsEnabled ?? 1) === 1 ? '已开启' : '已关闭', active: Number(currentDisplayConfig.value.newArrivalsEnabled ?? 1) === 1 },
+    { key: 'newArrivals', icon: 'N', label: '新品速递', summary: `完整页面独立开关；自动新品${Number(currentDisplayConfig.value.newArrivalWindowDays ?? 30) === 0 ? '永久展示' : `展示 ${Number(currentDisplayConfig.value.newArrivalWindowDays ?? 30)} 天`}，并支持商品额外追加`, status: Number(currentDisplayConfig.value.newArrivalsEnabled ?? 1) === 1 ? '已开启' : '已关闭', active: Number(currentDisplayConfig.value.newArrivalsEnabled ?? 1) === 1 },
     { key: 'nav', icon: '≡', label: '底部导航', summary: `${visibleNav} 项导航展示，支持改名、排序和隐藏`, status: '已配置', active: visibleNav > 0 },
     { key: 'colors', icon: '◉', label: '颜色微调', summary: customColorCount ? `已调整 ${customColorCount} 项颜色` : '使用主题默认颜色，可恢复默认', status: customColorCount ? '已调整' : '默认', active: customColorCount > 0 },
   ]
@@ -456,6 +485,12 @@ const uploadDisplayLogo = async ({ file }) => {
   displayForm.value.logoUrl = normalizeMediaUrl(res.data)
   displayLogoLoadFailed.value = false
   ElMessage.success('品牌LOGO上传成功')
+}
+
+const uploadBrandCultureCover = async ({ file }) => {
+  const res = await uploadShopImage(file)
+  displayForm.value.brandCultureCoverUrl = normalizeMediaUrl(res.data)
+  ElMessage.success('品牌文化封面上传成功')
 }
 
 const openDisplayDialog = async (row, section = 'brand') => {
@@ -510,6 +545,11 @@ const openDisplayDialog = async (row, section = 'brand') => {
     logoUrl: normalizeMediaUrl(row.logoUrl),
     themeColor: row.themeColor || '#e7193f',
     productTemplate: normalizeTheme(row.productTemplate),
+    brandCultureEnabled: Number(row.brandCultureEnabled ?? 0) === 1 ? 1 : 0,
+    brandCultureTitle: row.brandCultureTitle || '',
+    brandCultureSubtitle: row.brandCultureSubtitle || '',
+    brandCultureCoverUrl: normalizeMediaUrl(row.brandCultureCoverUrl),
+    brandCultureContent: row.brandCultureContent || '',
     layoutTemplate: 'standard',
     showHomeCategories: 1,
     showBottomCategoryNav: 1,
@@ -521,6 +561,7 @@ const openDisplayDialog = async (row, section = 'brand') => {
     showTrustStrip: trustEnabled ? 1 : 0,
     liveSquareEnabled: Number(res.data?.liveSquareEnabled ?? extra.liveSquareEnabled ?? 1) === 0 ? 0 : 1,
     newArrivalsEnabled: Number(res.data?.newArrivalsEnabled ?? extra.newArrivalsEnabled ?? 1) === 0 ? 0 : 1,
+    newArrivalWindowDays: Number(res.data?.newArrivalWindowDays ?? extra.newArrivalWindowDays ?? 30),
   }
   displayDialogVisible.value = true
   await nextTick()
@@ -713,6 +754,19 @@ const submitDisplayConfig = async () => {
     ElMessage.error('未找到商城配置，请关闭后重新打开装修工作台')
     return
   }
+  if (displayForm.value.brandCultureEnabled === 1 && !displayForm.value.brandCultureTitle?.trim()) {
+    ElMessage.warning('开启品牌文化页前请填写页面标题')
+    return
+  }
+  if (displayForm.value.brandCultureEnabled === 1 && !displayForm.value.brandCultureContent?.trim()) {
+    ElMessage.warning('开启品牌文化页前请填写品牌文化正文')
+    return
+  }
+  const windowDays = Number(displayForm.value.newArrivalWindowDays)
+  if (windowDays !== 0 && (!Number.isInteger(windowDays) || windowDays < 30 || windowDays > 365)) {
+    ElMessage.warning('自动新品展示时间必须是30到365天之间的整数，或选择永久')
+    return
+  }
 
   savingDisplay.value = true
   try {
@@ -739,6 +793,7 @@ const submitDisplayConfig = async () => {
       showBottomCategoryNav,
       liveSquareEnabled: form.liveSquareEnabled,
       newArrivalsEnabled: form.newArrivalsEnabled,
+      newArrivalWindowDays: form.newArrivalWindowDays,
       extraConfigJson: JSON.stringify({
         homeModules: form.homeModules,
         colors: form.colors,
@@ -746,6 +801,7 @@ const submitDisplayConfig = async () => {
         showTrustStrip: form.showTrustStrip,
         liveSquareEnabled: form.liveSquareEnabled,
         newArrivalsEnabled: form.newArrivalsEnabled,
+        newArrivalWindowDays: form.newArrivalWindowDays,
       }),
     }
     const tenantPayload = {
@@ -755,6 +811,11 @@ const submitDisplayConfig = async () => {
       logoUrl: form.logoUrl,
       themeColor: form.themeColor,
       productTemplate: normalizeTheme(form.productTemplate),
+      brandCultureEnabled: form.brandCultureEnabled,
+      brandCultureTitle: form.brandCultureTitle?.trim() || null,
+      brandCultureSubtitle: form.brandCultureSubtitle?.trim() || null,
+      brandCultureCoverUrl: form.brandCultureCoverUrl || null,
+      brandCultureContent: form.brandCultureContent?.trim() || null,
     }
     // 资料与视觉配置按顺序保存，确保每个历史版本都是完整一致的商城快照。
     const tenantResult = await saveTenant(tenantPayload, { silentError: true })
@@ -1266,6 +1327,23 @@ onMounted(async () => {
 .layout-template-preview.preview-campaign-feed em { background:repeating-linear-gradient(180deg,#fff 0 44%,#ff7a1a 44% 52%,transparent 52% 58%); }
 .feature-control-section { padding:12px; }
 .feature-toggle-card { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:15px; background:#f7f9fc; border:1px solid #e4e9f1; border-radius:12px; }
+.new-arrival-window-setting { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:12px; margin-top:12px; padding:15px; background:#fffaf0; border:1px solid #f5dfb8; border-radius:12px; }
+.new-arrival-window-setting>div:first-child { display:grid; gap:5px; }
+.new-arrival-window-setting small { color:#8a6d3b; font-size:12px; line-height:1.55; }
+.new-arrival-days { grid-column:1/-1; display:flex; align-items:center; gap:9px; color:#8a6d3b; font-size:12px; }
+.culture-form { display:grid; gap:13px; margin-top:14px; }
+.culture-form .visual-design-field { display:grid; gap:7px; }
+.culture-form .visual-design-field>span { color:#344054; font-size:13px; font-weight:700; }
+.culture-cover-editor { display:flex; align-items:center; gap:12px; }
+.culture-cover-editor .el-upload { width:180px; height:96px; display:grid; place-items:center; overflow:hidden; color:#667085; background:#f5f7fa; border:1px dashed #cfd6e2; border-radius:12px; }
+.culture-cover-editor .el-image { width:180px; height:96px; }
+.mobile-preview-culture { display:flex; flex-direction:column; gap:8px; margin:10px; padding:10px; background:var(--preview-card-bg,#fff); border-radius:14px; }
+.mobile-preview-culture>img,.mobile-preview-culture-cover { width:100%; height:118px; object-fit:cover; border-radius:10px; }
+.mobile-preview-culture-cover { display:grid; place-items:center; color:#fff; background:linear-gradient(135deg,var(--preview-color),#3d4757); font-size:12px; }
+.mobile-preview-culture>span { align-self:flex-start; padding:3px 7px; color:var(--preview-color); background:color-mix(in srgb,var(--preview-color) 10%,#fff 90%); border-radius:999px; font-size:8px; }
+.mobile-preview-culture h3 { margin:0; color:var(--preview-text,#202735); font-size:16px; }
+.mobile-preview-culture small { color:var(--preview-muted,#98a2b3); font-size:10px; }
+.mobile-preview-culture p { max-height:92px; overflow:hidden; margin:3px 0 0; color:var(--preview-text,#202735); font-size:9px; line-height:1.65; white-space:pre-line; }
 .feature-toggle-copy { display:flex; align-items:center; gap:12px; min-width:0; }
 .feature-toggle-copy>div { display:grid; gap:4px; min-width:0; }
 .feature-toggle-copy strong { color:#303133; font-size:14px; }

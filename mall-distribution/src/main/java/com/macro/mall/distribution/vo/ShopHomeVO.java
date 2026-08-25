@@ -24,6 +24,9 @@ public class ShopHomeVO implements Serializable {
 
     private String productTemplate;
 
+    /** 品牌文化页公开状态，用于仅在开启时展示入口。 */
+    private Boolean brandCultureEnabled;
+
     private List<String> categories;
 
     private List<DmsShopCategory> categoryList;

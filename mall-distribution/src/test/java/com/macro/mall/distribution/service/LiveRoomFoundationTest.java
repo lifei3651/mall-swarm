@@ -5,8 +5,11 @@ import com.macro.mall.distribution.dao.DmsShopProductDao;
 import com.macro.mall.distribution.dao.DmsTenantDisplayConfigDao;
 import com.macro.mall.distribution.entity.DmsLiveRoom;
 import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
+import com.macro.mall.distribution.entity.DmsTenant;
+import com.macro.mall.distribution.dto.ProductNewArrivalDTO;
 import com.macro.mall.distribution.service.impl.TenantDisplayConfigSupport;
 import com.macro.mall.distribution.vo.LiveRoomVO;
+import com.macro.mall.distribution.vo.ShopBrandCultureVO;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -32,6 +35,7 @@ class LiveRoomFoundationTest {
     @Autowired private TenantDisplayConfigSupport displayConfigSupport;
     @Autowired private LiveRoomService liveRoomService;
     @Autowired private ShopService shopService;
+    @Autowired private TenantService tenantService;
 
     @Test
     void publicLiveRoomIsTenantScopedAndDoesNotExposeUpcomingWatchUrl() {
@@ -66,6 +70,51 @@ class LiveRoomFoundationTest {
 
         assertTrue(shopService.listNewArrivals(1L, 20).isEmpty());
         assertTrue(productDao.selectNewArrivals(1L, LocalDateTime.now().minusDays(1), 20).size() > 0);
+    }
+
+    @Test
+    void operatorCanAddAnyOnSaleProductForThirtyDaysOrPermanentlyWithoutChangingSaleStatus() {
+        ProductNewArrivalDTO timed = new ProductNewArrivalDTO();
+        timed.setEnabled(true);
+        timed.setDurationDays(30);
+
+        var updated = shopService.updateProductNewArrival(1L, timed);
+
+        assertEquals(1, updated.getManualNewArrivalEnabled());
+        assertTrue(updated.getManualNewArrivalEndTime().isAfter(LocalDateTime.now().plusDays(29)));
+        assertEquals(1, updated.getStatus());
+        assertEquals(List.of(1L), productDao.selectNewArrivals(1L, LocalDateTime.now().plusDays(1), 20)
+                .stream().map(item -> item.getId()).toList());
+
+        ProductNewArrivalDTO permanent = new ProductNewArrivalDTO();
+        permanent.setEnabled(true);
+        permanent.setDurationDays(0);
+        updated = shopService.updateProductNewArrival(1L, permanent);
+        assertNull(updated.getManualNewArrivalEndTime());
+
+        ProductNewArrivalDTO invalid = new ProductNewArrivalDTO();
+        invalid.setEnabled(true);
+        invalid.setDurationDays(29);
+        assertThrows(RuntimeException.class, () -> shopService.updateProductNewArrival(1L, invalid));
+    }
+
+    @Test
+    void disabledBrandCultureDoesNotExposeContentAndEnabledPageReturnsPlainContent() {
+        ShopBrandCultureVO disabled = shopService.getBrandCulture(1L);
+        assertEquals(false, disabled.getEnabled());
+        assertNull(disabled.getContent());
+
+        DmsTenant tenant = tenantService.getTenant(1L);
+        tenant.setBrandCultureEnabled(1);
+        tenant.setBrandCultureTitle("关于商城");
+        tenant.setBrandCultureSubtitle("长期主义与真实服务");
+        tenant.setBrandCultureContent("第一段\n第二段");
+        tenantService.saveTenant(tenant);
+
+        ShopBrandCultureVO enabled = shopService.getBrandCulture(1L);
+        assertEquals(true, enabled.getEnabled());
+        assertEquals("关于商城", enabled.getTitle());
+        assertEquals("第一段\n第二段", enabled.getContent());
     }
 
     @Test

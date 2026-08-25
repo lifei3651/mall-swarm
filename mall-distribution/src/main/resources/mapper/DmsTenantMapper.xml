@@ -10,6 +10,11 @@
         <result column="logo_url" property="logoUrl"/>
         <result column="theme_color" property="themeColor"/>
         <result column="product_template" property="productTemplate"/>
+        <result column="brand_culture_enabled" property="brandCultureEnabled"/>
+        <result column="brand_culture_title" property="brandCultureTitle"/>
+        <result column="brand_culture_subtitle" property="brandCultureSubtitle"/>
+        <result column="brand_culture_cover_url" property="brandCultureCoverUrl"/>
+        <result column="brand_culture_content" property="brandCultureContent"/>
         <result column="company_address" property="companyAddress"/>
         <result column="unified_social_credit_code" property="unifiedSocialCreditCode"/>
         <result column="service_phone" property="servicePhone"/>
@@ -40,6 +45,7 @@
 
     <select id="selectById" resultMap="BaseResultMap">
         SELECT id, tenant_code, tenant_name, brand_name, logo_url, theme_color, product_template,
+               brand_culture_enabled, brand_culture_title, brand_culture_subtitle, brand_culture_cover_url, brand_culture_content,
                company_address, unified_social_credit_code, service_phone, service_email, service_hours,
                third_party_services, icp_number, police_record_number,
                police_record_url, business_license_url, show_business_license,
@@ -52,6 +58,7 @@
 
     <select id="selectByIdForUpdate" resultMap="BaseResultMap">
         SELECT id, tenant_code, tenant_name, brand_name, logo_url, theme_color, product_template,
+               brand_culture_enabled, brand_culture_title, brand_culture_subtitle, brand_culture_cover_url, brand_culture_content,
                company_address, unified_social_credit_code, service_phone, service_email, service_hours,
                third_party_services, icp_number, police_record_number,
                police_record_url, business_license_url, show_business_license,
@@ -65,6 +72,7 @@
 
     <select id="selectByCode" resultMap="BaseResultMap">
         SELECT id, tenant_code, tenant_name, brand_name, logo_url, theme_color, product_template,
+               brand_culture_enabled, brand_culture_title, brand_culture_subtitle, brand_culture_cover_url, brand_culture_content,
                company_address, unified_social_credit_code, service_phone, service_email, service_hours,
                third_party_services, icp_number, police_record_number,
                police_record_url, business_license_url, show_business_license,
@@ -77,6 +85,7 @@
 
     <select id="selectAll" resultMap="BaseResultMap">
         SELECT id, tenant_code, tenant_name, brand_name, logo_url, theme_color, product_template,
+               brand_culture_enabled, brand_culture_title, brand_culture_subtitle, brand_culture_cover_url, brand_culture_content,
                company_address, unified_social_credit_code, service_phone, service_email, service_hours,
                third_party_services, icp_number, police_record_number,
                police_record_url, business_license_url, show_business_license,
@@ -89,12 +98,14 @@
 
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsTenant" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_tenant (tenant_code, tenant_name, brand_name, logo_url, theme_color, product_template,
+            brand_culture_enabled, brand_culture_title, brand_culture_subtitle, brand_culture_cover_url, brand_culture_content,
             company_address, unified_social_credit_code, service_phone, service_email, service_hours,
             third_party_services, icp_number, police_record_number, police_record_url,
             business_license_url, show_business_license, user_agreement, privacy_policy, after_sale_policy,
             after_sale_window_mode, after_sale_window_days, flash_sale_enabled, flash_sale_bonus_mode,
             repurchase_mall_enabled, repurchase_eligibility_mode, repurchase_bonus_mode, faqs, status, remark)
         VALUES (#{tenantCode}, #{tenantName}, #{brandName}, #{logoUrl}, #{themeColor}, #{productTemplate},
+            #{brandCultureEnabled}, #{brandCultureTitle}, #{brandCultureSubtitle}, #{brandCultureCoverUrl}, #{brandCultureContent},
             #{companyAddress}, #{unifiedSocialCreditCode}, #{servicePhone}, #{serviceEmail}, #{serviceHours},
             #{thirdPartyServices}, #{icpNumber}, #{policeRecordNumber}, #{policeRecordUrl},
             #{businessLicenseUrl}, #{showBusinessLicense}, #{userAgreement}, #{privacyPolicy}, #{afterSalePolicy},
@@ -106,6 +117,9 @@
         UPDATE dms_tenant
         SET tenant_code = #{tenantCode}, tenant_name = #{tenantName}, brand_name = #{brandName},
             logo_url = #{logoUrl}, theme_color = #{themeColor}, product_template = #{productTemplate},
+            brand_culture_enabled = #{brandCultureEnabled}, brand_culture_title = #{brandCultureTitle},
+            brand_culture_subtitle = #{brandCultureSubtitle}, brand_culture_cover_url = #{brandCultureCoverUrl},
+            brand_culture_content = #{brandCultureContent},
             company_address = #{companyAddress}, unified_social_credit_code = #{unifiedSocialCreditCode},
             service_phone = #{servicePhone}, service_email = #{serviceEmail}, service_hours = #{serviceHours},
             third_party_services = #{thirdPartyServices},

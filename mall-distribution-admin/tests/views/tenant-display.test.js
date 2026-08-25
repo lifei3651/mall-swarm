@@ -21,7 +21,7 @@ describe('商城视觉与页面工作台', () => {
 
   it('覆盖独立装修能力并让颜色微调真正作用于预览', async () => {
     const source = await readFile(sourcePath, 'utf8')
-    for (const label of ['首页轮播图', '首页版型', '直播广场', '新品速递', '首页模块', '分类模块', '底部导航', '颜色微调']) {
+    for (const label of ['品牌文化页', '首页轮播图', '首页版型', '直播广场', '新品速递', '首页模块', '分类模块', '底部导航', '颜色微调']) {
       expect(source).toContain(label)
     }
     expect(source).toContain("if (section === 'banner')")
@@ -38,9 +38,16 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('showTrustStrip: form.showTrustStrip')
     expect(source).toContain("value: 'campaign-feed'")
     expect(source).toContain('公开直播广场')
-    expect(source).toContain('公开新品速递')
+    expect(source).toContain('新品完整页面总开关')
     expect(source).toContain('liveSquareEnabled: form.liveSquareEnabled')
     expect(source).toContain('newArrivalsEnabled: form.newArrivalsEnabled')
+    expect(source).toContain('newArrivalWindowDays: form.newArrivalWindowDays')
+    expect(source).toContain('新品完整页面总开关')
+    expect(source).toContain('30～365天')
+    expect(source).toContain("key: 'culture'")
+    expect(source).toContain('brandCultureEnabled: form.brandCultureEnabled')
+    expect(source).toContain('品牌文化正文')
+    expect(source).toContain('uploadBrandCultureCover')
     expect(source).toContain('class="mobile-preview-feature-row"')
     expect(source).toContain('previewFeatureModules')
     expect(source).toContain("previewFeatureOrder('live')")
@@ -55,7 +62,7 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('extraConfigJson')
     expect(source).toContain('确认放弃未保存修改？')
     expect(source).toContain('moveNav')
-    for (const section of ['品牌视觉', '首页轮播图', '首页版型', '直播广场', '新品速递', '首页模块', '分类模块', '底部导航', '颜色微调']) {
+    for (const section of ['品牌视觉', '品牌文化页', '首页轮播图', '首页版型', '直播广场', '新品速递', '首页模块', '分类模块', '底部导航', '颜色微调']) {
       expect(source).toContain(section)
     }
     expect(source).not.toContain('直播广场 / 新品速递')
