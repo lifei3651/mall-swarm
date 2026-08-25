@@ -15,6 +15,7 @@ import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.AdminAuthService;
+import com.macro.mall.distribution.service.BrandCultureImagePolicy;
 import com.macro.mall.distribution.service.ShopCatalogCacheService;
 import com.macro.mall.distribution.service.TenantService;
 import com.macro.mall.distribution.service.TenantLegalTemplateSupport;
@@ -46,6 +47,7 @@ public class TenantServiceImpl implements TenantService {
     private final ObjectMapper objectMapper;
     private final ShopCatalogCacheService catalogCache;
     private final AdminAuthService adminAuthService;
+    private final BrandCultureImagePolicy brandCultureImagePolicy;
 
     @Override
     public List<DmsTenant> listTenants() {
@@ -91,14 +93,8 @@ public class TenantServiceImpl implements TenantService {
             Asserts.fail("不支持的前台样式");
         }
         tenant.setBrandCultureEnabled(Integer.valueOf(1).equals(tenant.getBrandCultureEnabled()) ? 1 : 0);
-        if (Integer.valueOf(1).equals(tenant.getBrandCultureEnabled())) {
-            if (tenant.getBrandCultureTitle() == null || tenant.getBrandCultureTitle().isBlank()) {
-                Asserts.fail("开启品牌文化页前请填写页面标题");
-            }
-            if (tenant.getBrandCultureContent() == null || tenant.getBrandCultureContent().isBlank()) {
-                Asserts.fail("开启品牌文化页前请填写品牌文化正文");
-            }
-        }
+        tenant.setBrandCultureCoverUrl(brandCultureImagePolicy.validateCover(
+                tenant.getId(), tenant.getBrandCultureCoverUrl(), before == null ? null : before.getBrandCultureCoverUrl()));
         if (tenant.getStatus() == null) {
             tenant.setStatus(1);
         }
@@ -264,6 +260,9 @@ public class TenantServiceImpl implements TenantService {
                 && (config.getNewArrivalWindowDays() < 30 || config.getNewArrivalWindowDays() > 365)) {
             Asserts.fail("自动新品展示时间只能设置为30至365天，或选择永久");
         }
+        displayConfigSupport.hydrateBrandCultureImages(config);
+        config.setBrandCultureDetailImages(brandCultureImagePolicy.validate(
+                config.getTenantId(), config.getBrandCultureDetailImages()));
         displayConfigSupport.prepareForSave(config);
         DmsTenantDisplayConfig exists = displayConfigDao.selectByTenantId(config.getTenantId());
         ensureBaselineVersion(config.getTenantId());
@@ -326,6 +325,9 @@ public class TenantServiceImpl implements TenantService {
         }
 
         restoredDisplay.setTenantId(tenantId);
+        displayConfigSupport.hydrateBrandCultureImages(restoredDisplay);
+        restoredDisplay.setBrandCultureDetailImages(brandCultureImagePolicy.validate(
+                tenantId, restoredDisplay.getBrandCultureDetailImages()));
         displayConfigSupport.prepareForSave(restoredDisplay);
         if (displayConfigDao.selectByTenantId(tenantId) == null) {
             displayConfigDao.insert(restoredDisplay);

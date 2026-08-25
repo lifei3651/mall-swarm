@@ -242,6 +242,11 @@ public class ShopServiceImpl implements ShopService {
         vo.setSubtitle(tenant.getBrandCultureSubtitle());
         vo.setCoverUrl(tenant.getBrandCultureCoverUrl());
         vo.setContent(tenant.getBrandCultureContent());
+        DmsTenantDisplayConfig display = getDisplayConfig(tenant.getId());
+        vo.setDetailImages(display.getBrandCultureDetailImages() == null ? List.of()
+                : display.getBrandCultureDetailImages().stream()
+                .map(com.macro.mall.distribution.vo.BrandCultureImageRefVO::getUrl)
+                .filter(Objects::nonNull).toList());
         return vo;
     }
 

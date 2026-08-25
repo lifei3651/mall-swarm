@@ -57,6 +57,12 @@ test('new arrivals and brand culture respect independent page switches', () => {
   assert.match(culture, /!culture\.enabled/)
   assert.match(culture, /white-space:pre-line/)
   assert.doesNotMatch(culture, /v-html/)
+  assert.match(culture, /culture\.detailImages\?\.length/)
+  assert.match(culture, /v-for="\(image, index\) in culture\.detailImages"/)
+  assert.match(culture, /loading="lazy"/)
+  assert.match(culture, /v-else-if="culture\.content"/)
+  assert.match(culture, /width:100%;height:auto/)
+  assert.match(culture, /display:block;width:100%;height:auto/)
   assert.match(app, /v-if="brandCultureEnabled" to="\/brand-culture"/)
 })
 

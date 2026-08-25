@@ -4,6 +4,7 @@ import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.service.ShopAuthService;
 import com.macro.mall.distribution.service.ShopMediaStorageService;
+import com.macro.mall.distribution.vo.BrandCultureImageRefVO;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
@@ -33,6 +34,21 @@ public class ShopMediaController {
         return CommonResult.success("/api/shop/media/images/" + stored.filename());
     }
 
+    @Operation(summary = "上传品牌文化封面或详情图")
+    @PostMapping(value = "/admin/media/brand-culture", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public CommonResult<BrandCultureImageRefVO> uploadBrandCulture(
+            @RequestParam Long tenantId,
+            @RequestParam String purpose,
+            @RequestPart("file") MultipartFile file) throws IOException {
+        if (!"cover".equals(purpose) && !"detail".equals(purpose)) {
+            com.macro.mall.common.exception.Asserts.fail("图片用途无效");
+        }
+        ShopMediaStorageService.StoredImage stored = mediaStorageService.storeBrandCultureImage(
+                tenantId, "cover".equals(purpose), file);
+        String url = "/api/shop/media/brand-culture/" + tenantId + "/" + stored.filename();
+        return CommonResult.success(new BrandCultureImageRefVO(url, stored.size()));
+    }
+
     @Operation(summary = "读取商品图片")
     @GetMapping("/media/images/{filename:.+}")
     public ResponseEntity<Resource> image(@PathVariable String filename) throws IOException {
@@ -40,6 +56,20 @@ public class ShopMediaController {
         if (stored == null) return ResponseEntity.notFound().build();
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(Duration.ofDays(1)).cachePublic().mustRevalidate())
+                .contentType(MediaType.parseMediaType(stored.contentType()))
+                .contentLength(stored.size())
+                .body(new FileSystemResource(stored.path()));
+    }
+
+    @Operation(summary = "读取品牌文化图片")
+    @GetMapping("/media/brand-culture/{tenantId}/{filename:.+}")
+    public ResponseEntity<Resource> brandCultureImage(@PathVariable Long tenantId,
+                                                       @PathVariable String filename) throws IOException {
+        ShopMediaStorageService.StoredImage stored = mediaStorageService.loadBrandCultureImage(tenantId, filename);
+        if (stored == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(Duration.ofDays(1)).cachePublic().mustRevalidate())
+                .header("X-Content-Type-Options", "nosniff")
                 .contentType(MediaType.parseMediaType(stored.contentType()))
                 .contentLength(stored.size())
                 .body(new FileSystemResource(stored.path()));

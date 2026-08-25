@@ -194,6 +194,18 @@ export function uploadShopImage(file) {
   return request({ url: '/shop/admin/media/images', method: 'post', data })
 }
 
+export function uploadBrandCultureImage(tenantId, purpose, file) {
+  const data = new FormData()
+  data.append('file', file)
+  return request({
+    url: '/shop/admin/media/brand-culture',
+    method: 'post',
+    params: { tenantId, purpose },
+    data,
+    silentError: true,
+  })
+}
+
 export function getProductSettings() {
   return request({ url: '/shop/admin/product-settings', method: 'get', params: { _t: Date.now() }, headers: { 'Cache-Control': 'no-cache' } })
 }

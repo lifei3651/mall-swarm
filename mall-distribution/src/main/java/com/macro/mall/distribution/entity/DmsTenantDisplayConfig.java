@@ -7,6 +7,8 @@ import jakarta.validation.constraints.Min;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.List;
+import com.macro.mall.distribution.vo.BrandCultureImageRefVO;
 
 /**
  * 前端展示开关配置
@@ -99,6 +101,9 @@ public class DmsTenantDisplayConfig implements Serializable {
     @Min(value = 0, message = "新品展示周期不能小于0天")
     @Max(value = 365, message = "新品展示周期不能超过365天")
     private Integer newArrivalWindowDays;
+
+    /** 品牌文化详情图，按运营顺序保存在 extraConfigJson，不新增数据库字段。 */
+    private List<BrandCultureImageRefVO> brandCultureDetailImages;
 
     @Size(max = 30000, message = "商城页面配置内容过长")
     private String extraConfigJson;

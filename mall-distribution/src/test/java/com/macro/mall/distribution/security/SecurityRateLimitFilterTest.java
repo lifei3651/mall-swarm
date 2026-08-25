@@ -72,11 +72,15 @@ class SecurityRateLimitFilterTest {
 
         SecurityRateLimitFilter.Rule image = filter.resolveRule(
                 new MockHttpServletRequest("POST", "/shop/admin/media/images"));
+        SecurityRateLimitFilter.Rule cultureImage = filter.resolveRule(
+                new MockHttpServletRequest("POST", "/shop/admin/media/brand-culture"));
         SecurityRateLimitFilter.Rule review = filter.resolveRule(
                 new MockHttpServletRequest("POST", "/shop/products/18/reviews"));
 
         assertEquals("product-image-upload", image.name());
         assertEquals(30, image.maximumRequests());
+        assertEquals("brand-culture-image-upload", cultureImage.name());
+        assertEquals(30, cultureImage.maximumRequests());
         assertEquals("product-review-submit", review.name());
         assertEquals(10, review.maximumRequests());
     }

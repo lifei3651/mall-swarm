@@ -11,6 +11,7 @@ import com.macro.mall.distribution.entity.DmsTenantConfigVersion;
 import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
 import com.macro.mall.distribution.service.impl.TenantDisplayConfigSupport;
 import com.macro.mall.distribution.service.impl.TenantServiceImpl;
+import com.macro.mall.distribution.vo.BrandCultureImageRefVO;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -37,15 +38,20 @@ class TenantConfigVersionServiceTest {
         OperationLogService operationLogService = mock(OperationLogService.class);
         ShopCatalogCacheService catalogCache = mock(ShopCatalogCacheService.class);
         AdminAuthService adminAuthService = mock(AdminAuthService.class);
+        BrandCultureImagePolicy brandCultureImagePolicy = mock(BrandCultureImagePolicy.class);
         ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
         TenantDisplayConfigSupport displaySupport = new TenantDisplayConfigSupport(objectMapper);
         TenantServiceImpl service = new TenantServiceImpl(tenantDao, ruleVersionDao, displayDao, versionDao,
-                displaySupport, legalSupport, operationLogService, objectMapper, catalogCache, adminAuthService);
+                displaySupport, legalSupport, operationLogService, objectMapper, catalogCache, adminAuthService,
+                brandCultureImagePolicy);
 
         DmsTenant current = tenant(1L, "当前商城");
         DmsTenantDisplayConfig currentDisplay = display(1L, 0);
         DmsTenant restored = tenant(1L, "历史商城");
         DmsTenantDisplayConfig restoredDisplay = display(1L, 1);
+        restoredDisplay.setBrandCultureDetailImages(List.of(
+                new BrandCultureImageRefVO("/api/shop/media/brand-culture/1/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.png", 200L),
+                new BrandCultureImageRefVO("/api/shop/media/brand-culture/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg", 100L)));
         DmsTenantConfigVersion target = new DmsTenantConfigVersion();
         target.setId(9L);
         target.setTenantId(1L);
@@ -59,6 +65,7 @@ class TenantConfigVersionServiceTest {
         when(versionDao.selectByIdAndTenantId(9L, 1L)).thenReturn(target);
         when(tenantDao.update(any(DmsTenant.class))).thenReturn(1);
         when(displayDao.update(any(DmsTenantDisplayConfig.class))).thenReturn(1);
+        when(brandCultureImagePolicy.validate(eq(1L), any())).thenAnswer(invocation -> invocation.getArgument(1));
 
         service.restoreConfigVersion(1L, 9L);
 
@@ -68,6 +75,10 @@ class TenantConfigVersionServiceTest {
         ArgumentCaptor<DmsTenantDisplayConfig> displayUpdate = ArgumentCaptor.forClass(DmsTenantDisplayConfig.class);
         verify(displayDao).update(displayUpdate.capture());
         assertEquals(1, displayUpdate.getValue().getShowPv());
+        assertEquals(List.of(
+                "/api/shop/media/brand-culture/1/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.png",
+                "/api/shop/media/brand-culture/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg"),
+                displayUpdate.getValue().getBrandCultureDetailImages().stream().map(BrandCultureImageRefVO::getUrl).toList());
 
         ArgumentCaptor<DmsTenantConfigVersion> versions = ArgumentCaptor.forClass(DmsTenantConfigVersion.class);
         verify(versionDao, times(3)).insert(versions.capture());

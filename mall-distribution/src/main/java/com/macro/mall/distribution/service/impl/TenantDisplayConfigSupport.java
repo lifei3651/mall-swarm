@@ -3,12 +3,16 @@ package com.macro.mall.distribution.service.impl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
+import com.macro.mall.distribution.vo.BrandCultureImageRefVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -50,6 +54,14 @@ public class TenantDisplayConfigSupport {
         normalizeLayoutFields(config);
 
         ObjectNode extra = readExtraObject(config.getExtraConfigJson());
+        List<BrandCultureImageRefVO> cultureImages = normalizeCultureImages(config.getBrandCultureDetailImages(), true);
+        config.setBrandCultureDetailImages(cultureImages);
+        ArrayNode cultureImageJson = extra.putArray("brandCultureDetailImages");
+        cultureImages.forEach(image -> {
+            ObjectNode item = cultureImageJson.addObject();
+            item.put("url", image.getUrl());
+            item.put("size", image.getSize() == null ? 0L : image.getSize());
+        });
         extra.put("layoutTemplate", config.getLayoutTemplate());
         extra.put("showHomeCategories", config.getShowHomeCategories());
         extra.put("showBottomCategoryNav", config.getShowBottomCategoryNav());
@@ -108,7 +120,43 @@ public class TenantDisplayConfigSupport {
         }
         JsonNode guideModules = extra.get("categoryGuideModules");
         hydrateGuideModules(config, guideModules);
+        hydrateBrandCultureImages(config);
         normalizeLayoutFields(config);
+    }
+
+    /** 兼容只回传 extraConfigJson 的旧后台，不因其未识别新字段而清空已保存详情图。 */
+    public void hydrateBrandCultureImages(DmsTenantDisplayConfig config) {
+        if (config != null && config.getBrandCultureDetailImages() == null) {
+            ObjectNode extra = readExtraObject(config.getExtraConfigJson());
+            config.setBrandCultureDetailImages(readCultureImages(extra.get("brandCultureDetailImages")));
+        }
+    }
+
+    private List<BrandCultureImageRefVO> readCultureImages(JsonNode node) {
+        List<BrandCultureImageRefVO> result = new ArrayList<>();
+        if (node == null || !node.isArray()) return result;
+        node.forEach(item -> {
+            String url = item.isTextual() ? item.asText("") : item.path("url").asText("");
+            long size = item.isObject() ? Math.max(0L, item.path("size").asLong(0L)) : 0L;
+            if (!url.isBlank() && result.size() < 10) result.add(new BrandCultureImageRefVO(url.trim(), size));
+        });
+        return result;
+    }
+
+    private List<BrandCultureImageRefVO> normalizeCultureImages(List<BrandCultureImageRefVO> images, boolean strict) {
+        List<BrandCultureImageRefVO> result = new ArrayList<>();
+        if (images == null) return result;
+        if (strict && images.size() > 10) Asserts.fail("品牌文化详情图最多上传10张");
+        for (BrandCultureImageRefVO image : images) {
+            if (image == null || image.getUrl() == null || image.getUrl().isBlank()) {
+                if (strict) Asserts.fail("品牌文化详情图地址不能为空");
+                continue;
+            }
+            if (result.size() >= 10) break;
+            result.add(new BrandCultureImageRefVO(image.getUrl().trim(), Math.max(0L,
+                    image.getSize() == null ? 0L : image.getSize())));
+        }
+        return result;
     }
 
     private void normalizeLayoutFields(DmsTenantDisplayConfig config) {

@@ -6,6 +6,8 @@ import com.macro.mall.common.exception.ApiException;
 import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
 import com.macro.mall.distribution.service.impl.TenantDisplayConfigSupport;
 import org.junit.jupiter.api.Test;
+import com.macro.mall.distribution.vo.BrandCultureImageRefVO;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -50,6 +52,34 @@ class TenantDisplayConfigSupportTest {
         assertEquals(0, config.getLiveSquareEnabled());
         assertEquals(0, config.getNewArrivalsEnabled());
         assertEquals(0, config.getNewArrivalWindowDays());
+    }
+
+    @Test
+    void brandCultureImagesRoundTripInOrderAndLegacyStringEntriesRemainReadable() throws Exception {
+        DmsTenantDisplayConfig legacy = new DmsTenantDisplayConfig();
+        legacy.setTenantId(2L);
+        legacy.setExtraConfigJson("{\"brandCultureDetailImages\":[\"/api/shop/media/brand-culture/2/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg\",{\"url\":\"/api/shop/media/brand-culture/2/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.png\",\"size\":123}]} ");
+
+        support.prepareForRead(legacy, 2L);
+        assertEquals(List.of(
+                "/api/shop/media/brand-culture/2/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg",
+                "/api/shop/media/brand-culture/2/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.png"),
+                legacy.getBrandCultureDetailImages().stream().map(BrandCultureImageRefVO::getUrl).toList());
+
+        java.util.Collections.reverse(legacy.getBrandCultureDetailImages());
+        support.prepareForSave(legacy);
+        JsonNode saved = objectMapper.readTree(legacy.getExtraConfigJson()).path("brandCultureDetailImages");
+        assertEquals("/api/shop/media/brand-culture/2/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.png", saved.get(0).path("url").asText());
+        assertEquals(123L, saved.get(0).path("size").asLong());
+    }
+
+    @Test
+    void brandCultureImageCountIsBoundedOnSave() {
+        DmsTenantDisplayConfig config = new DmsTenantDisplayConfig();
+        config.setTenantId(2L);
+        config.setBrandCultureDetailImages(java.util.Collections.nCopies(11,
+                new BrandCultureImageRefVO("/api/shop/media/brand-culture/2/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg", 1L)));
+        assertThrows(ApiException.class, () -> support.prepareForSave(config));
     }
 
     @Test
@@ -175,19 +205,25 @@ class TenantDisplayConfigSupportTest {
         first.setTenantId(21L);
         first.setCategoryGuideTemplate("directory");
         first.setCategoryGuideHotProductsEnabled(0);
+        first.setBrandCultureDetailImages(List.of(new BrandCultureImageRefVO(
+                "/api/shop/media/brand-culture/21/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg", 100L)));
         support.prepareForSave(first);
 
         DmsTenantDisplayConfig second = new DmsTenantDisplayConfig();
         second.setTenantId(22L);
         second.setCategoryGuideTemplate("scenario");
         second.setCategoryGuideHotProductsEnabled(1);
+        second.setBrandCultureDetailImages(List.of(new BrandCultureImageRefVO(
+                "/api/shop/media/brand-culture/22/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.png", 200L)));
         support.prepareForSave(second);
 
         assertEquals(21L, first.getTenantId());
         assertEquals("directory", first.getCategoryGuideTemplate());
         assertEquals(0, first.getCategoryGuideHotProductsEnabled());
+        assertTrue(first.getBrandCultureDetailImages().get(0).getUrl().contains("/21/"));
         assertEquals(22L, second.getTenantId());
         assertEquals("scenario", second.getCategoryGuideTemplate());
         assertEquals(1, second.getCategoryGuideHotProductsEnabled());
+        assertTrue(second.getBrandCultureDetailImages().get(0).getUrl().contains("/22/"));
     }
 }

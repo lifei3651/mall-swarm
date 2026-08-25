@@ -98,16 +98,26 @@
             </div>
           </section>
           <section v-if="activeEditSection === 'culture'" class="control-section feature-control-section">
-            <div class="control-section-heading"><div><strong>品牌文化页</strong><small>独立页面、独立开关；关闭后前台入口和正文均不公开</small></div><el-tag size="small" type="info">独立页面</el-tag></div>
+            <div class="control-section-heading"><div><strong>品牌文化页</strong><small>独立页面、独立开关；关闭后前台入口和内容均不公开</small></div><el-tag size="small" type="info">独立页面</el-tag></div>
             <div class="feature-toggle-card">
               <div class="feature-toggle-copy"><span class="feature-toggle-icon">文</span><div><strong>公开品牌文化页</strong><small>开启后在商城首页底部展示入口，App、公开商城和三合一商城共用同一内容</small></div></div>
               <div class="feature-toggle-action"><span :class="{ enabled: displayForm.brandCultureEnabled === 1 }">{{ displayForm.brandCultureEnabled === 1 ? '已开启' : '已关闭' }}</span><el-switch v-model="displayForm.brandCultureEnabled" :active-value="1" :inactive-value="0" aria-label="开启或关闭品牌文化页" /></div>
             </div>
             <div class="culture-form">
-              <div class="visual-design-field"><span>页面标题</span><el-input v-model="displayForm.brandCultureTitle" maxlength="80" show-word-limit placeholder="例如：关于我们" /></div>
-              <div class="visual-design-field"><span>一句话介绍</span><el-input v-model="displayForm.brandCultureSubtitle" maxlength="200" show-word-limit placeholder="概括品牌理念或长期愿景" /></div>
-              <div class="visual-design-field"><span>页面封面</span><div class="culture-cover-editor"><el-upload action="#" :show-file-list="false" accept="image/*" :http-request="uploadBrandCultureCover"><el-image v-if="displayForm.brandCultureCoverUrl" :src="normalizeMediaUrl(displayForm.brandCultureCoverUrl)" fit="cover" /><span v-else>上传品牌封面</span></el-upload><el-button v-if="displayForm.brandCultureCoverUrl" type="danger" link @click="displayForm.brandCultureCoverUrl = ''">移除封面</el-button></div></div>
-              <div class="visual-design-field"><span>品牌文化正文</span><el-input v-model="displayForm.brandCultureContent" type="textarea" :rows="12" maxlength="30000" show-word-limit placeholder="可分段介绍品牌起源、使命、价值观、产品理念与服务承诺；前台会按原有换行展示。" /></div>
+              <div class="visual-design-field"><span>页面标题（可选）</span><el-input v-model="displayForm.brandCultureTitle" maxlength="80" show-word-limit placeholder="例如：关于我们" /></div>
+              <div class="visual-design-field"><span>一句话介绍（可选）</span><el-input v-model="displayForm.brandCultureSubtitle" maxlength="200" show-word-limit placeholder="用于分享、搜索和图片加载失败时的说明" /></div>
+              <div class="visual-design-field"><span>页面封面</span><div class="culture-cover-editor"><el-upload action="#" :show-file-list="false" accept=".jpg,.jpeg,.png,.webp" :before-upload="beforeBrandCultureCoverUpload" :http-request="uploadBrandCultureCover"><el-image v-if="displayForm.brandCultureCoverUrl" :src="normalizeMediaUrl(displayForm.brandCultureCoverUrl)" fit="cover" /><span v-else>上传品牌封面</span></el-upload><div><small>建议 750×420px（约16:9），JPG/PNG/WebP，单张≤3MB</small><el-button v-if="displayForm.brandCultureCoverUrl" type="danger" link @click="displayForm.brandCultureCoverUrl = ''">移除封面</el-button></div></div></div>
+              <div class="visual-design-field culture-detail-field">
+                <span>品牌文化详情图</span>
+                <div class="culture-detail-toolbar"><small>建议宽750px，单张高度1000–3000px；JPG/PNG/WebP；单张≤5MB，合计≤30MB，最多10张</small><el-button v-if="displayForm.brandCultureDetailImages?.length" type="danger" link @click="clearBrandCultureDetails">清空全部</el-button></div>
+                <el-upload action="#" multiple :show-file-list="false" accept=".jpg,.jpeg,.png,.webp" :before-upload="beforeBrandCultureDetailUpload" :http-request="uploadBrandCultureDetail"><el-button type="primary" plain>选择详情图</el-button></el-upload>
+                <div v-if="displayForm.brandCultureDetailImages?.length" class="culture-detail-list">
+                  <div v-for="(image, index) in displayForm.brandCultureDetailImages" :key="`${image.url}-${index}`" class="culture-detail-item" draggable="true" @dragstart="brandCultureDraggingIndex = index" @dragover.prevent @drop="dropBrandCultureImage(index)" @dragend="brandCultureDraggingIndex = null">
+                    <span class="culture-detail-handle" title="拖拽排序">⋮⋮</span><img :src="normalizeMediaUrl(image.url)" :alt="`详情图${index + 1}`" loading="lazy" /><div><strong>详情图 {{ index + 1 }}</strong><small>{{ formatFileSize(image.size) }}</small></div><el-button type="danger" link @click="removeBrandCultureDetail(index)">删除</el-button>
+                  </div>
+                </div>
+                <small v-else class="culture-detail-empty">尚未上传详情图；旧客户已有文字内容会继续作为兜底展示。</small>
+              </div>
             </div>
           </section>
           <section v-if="activeEditSection === 'banner'" class="control-section banner-config-section">
@@ -235,7 +245,8 @@
               <span>{{ displayForm.brandCultureEnabled === 1 ? '页面已开启' : '页面已关闭' }}</span>
               <h3>{{ displayForm.brandCultureTitle || '品牌文化' }}</h3>
               <small>{{ displayForm.brandCultureSubtitle || '在这里介绍品牌理念与长期愿景' }}</small>
-              <p>{{ displayForm.brandCultureContent || '品牌文化正文将在这里按段落展示。' }}</p>
+              <div v-if="displayForm.brandCultureDetailImages?.length" class="mobile-preview-culture-details"><div v-for="(image, index) in displayForm.brandCultureDetailImages" :key="`${image.url}-${index}`"><img :src="normalizeMediaUrl(image.url)" :alt="`详情图${index + 1}`" loading="lazy" @error="markCulturePreviewImageError" /><span>详情图 {{ index + 1 }} 加载失败</span></div></div>
+              <p v-else>{{ displayForm.brandCultureContent || '保存详情图后，将在这里按顺序无缝展示。' }}</p>
             </div>
             <div v-else-if="displayForm.layoutTemplate === 'category-focus'" class="mobile-category-guide-preview" :class="`guide-preview-${displayForm.categoryGuideTemplate || 'directory'}`">
               <div class="mobile-preview-search"><span>⌕</span><span>搜索商品</span><b>⌕</b></div>
@@ -322,7 +333,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute } from 'vue-router'
 import { formatDateTime } from '@/utils/dateTime'
-import { listShopBanners, listShopCategories, listShopProducts, updateCategoryShowOnHome, uploadShopImage } from '@/api/shop'
+import { listShopBanners, listShopCategories, listShopProducts, updateCategoryShowOnHome, uploadBrandCultureImage, uploadShopImage } from '@/api/shop'
 import ShopBanners from '@/views/shop/banners.vue'
 import {
   getDisplayConfig,
@@ -357,6 +368,8 @@ const initializingDisplay = ref(false)
 const displayDraftDirty = ref(false)
 const savingDisplay = ref(false)
 const displayLogoLoadFailed = ref(false)
+const brandCultureDraggingIndex = ref(null)
+const pendingCultureUploads = new Map()
 
 const displayForm = ref({})
 const moduleNames = { banner: '首页轮播图', notice: '商城公告', category: '商品分类', live: '直播广场', newArrivals: '新品速递', trust: '服务保障', products: '精选商品' }
@@ -485,6 +498,7 @@ const normalizeMediaUrl = (value) => {
   if (/^(?:https?:|data:|blob:)/i.test(url)) return url
   return url.startsWith('/') ? url : `/${url}`
 }
+const markCulturePreviewImageError = (event) => event.currentTarget?.classList.add('is-error')
 
 const fetchData = async () => {
   loading.value = true
@@ -516,7 +530,7 @@ const displaySectionRows = computed(() => {
   const bannerModuleVisible = normalizeModuleEnabled(modules.find((item) => item.type === 'banner')?.enabled)
   return [
     { key: 'brand', icon: '✦', label: '品牌视觉', summary: `${row.brandName || row.tenantName || '灵启商城'} · ${getTemplateName(row.productTemplate)} · ${row.logoUrl ? '已配置 Logo' : '待上传 Logo'}`, status: row.brandName || row.logoUrl ? '已配置' : '待完善', active: Boolean(row.brandName || row.logoUrl) },
-    { key: 'culture', icon: '文', label: '品牌文化页', summary: row.brandCultureTitle || '独立品牌介绍页，支持封面、简介和长文内容', status: Number(row.brandCultureEnabled ?? 0) === 1 ? '已开启' : '已关闭', active: Number(row.brandCultureEnabled ?? 0) === 1 },
+    { key: 'culture', icon: '文', label: '品牌文化页', summary: row.brandCultureTitle || '独立品牌介绍页，支持封面与多张详情图', status: Number(row.brandCultureEnabled ?? 0) === 1 ? '已开启' : '已关闭', active: Number(row.brandCultureEnabled ?? 0) === 1 },
     { key: 'layout', icon: '▤', label: '首页版型', summary: `${getLayoutTemplateName(currentDisplayConfig.value.layoutTemplate)}${currentDisplayConfig.value.layoutTemplate === 'category-focus' ? ` · ${categoryGuideTemplateOptions.find((item) => item.value === currentDisplayConfig.value.categoryGuideTemplate)?.label || 'A 双栏目录导航'}` : ''}`, status: '可编辑', active: true },
     { key: 'home', icon: '⌂', label: '首页模块', summary: `${visibleModules}/${modules.length} 个模块展示；直播与新品横排`, status: '已配置', active: visibleModules > 0 },
     { key: 'category', icon: '▦', label: '分类模块', summary: '控制首页分类入口及单个分类显示', status: '可编辑', active: true },
@@ -536,9 +550,89 @@ const uploadDisplayLogo = async ({ file }) => {
 }
 
 const uploadBrandCultureCover = async ({ file }) => {
-  const res = await uploadShopImage(file)
-  displayForm.value.brandCultureCoverUrl = normalizeMediaUrl(res.data)
-  ElMessage.success('品牌文化封面上传成功')
+  try {
+    const res = await uploadBrandCultureImage(displayForm.value.tenantId, 'cover', file)
+    displayForm.value.brandCultureCoverUrl = normalizeMediaUrl(res.data?.url)
+    ElMessage.success('品牌文化封面上传成功')
+  } catch (error) {
+    ElMessage.error(`${file.name} 上传失败：${error?.message || '请检查图片后重试'}`)
+  }
+}
+
+const allowedCultureImage = (file) => {
+  const extension = String(file.name || '').toLowerCase().split('.').pop()
+  return ['jpg', 'jpeg', 'png', 'webp'].includes(extension)
+    && ['image/jpeg', 'image/png', 'image/webp'].includes(String(file.type || '').toLowerCase())
+}
+const beforeBrandCultureCoverUpload = (file) => {
+  if (!allowedCultureImage(file)) {
+    ElMessage.error(`${file.name} 不是可用的JPG、PNG或WebP图片，请重新导出后上传`)
+    return false
+  }
+  if (file.size > 3 * 1024 * 1024) {
+    ElMessage.error(`${file.name} 超过3MB，请压缩后再上传`)
+    return false
+  }
+  return true
+}
+const cultureUploadKey = (file) => `${file.uid || ''}:${file.name}:${file.size}:${file.lastModified || ''}`
+const cultureDetailBytes = () => (displayForm.value.brandCultureDetailImages || [])
+  .reduce((total, image) => total + Number(image.size || 0), 0)
+const beforeBrandCultureDetailUpload = (file) => {
+  if (!allowedCultureImage(file)) {
+    ElMessage.error(`${file.name} 不是可用的JPG、PNG或WebP图片，请重新导出后上传`)
+    return false
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    ElMessage.error(`${file.name} 超过5MB，请压缩后再上传`)
+    return false
+  }
+  if ((displayForm.value.brandCultureDetailImages?.length || 0) + pendingCultureUploads.size >= 10) {
+    ElMessage.error(`${file.name} 无法上传：详情图最多10张`)
+    return false
+  }
+  const pendingBytes = [...pendingCultureUploads.values()].reduce((sum, value) => sum + value, 0)
+  if (cultureDetailBytes() + pendingBytes + file.size > 30 * 1024 * 1024) {
+    const over = cultureDetailBytes() + pendingBytes + file.size - 30 * 1024 * 1024
+    ElMessage.error(`${file.name} 上传后合计将超出30MB约${formatFileSize(over)}，请先删除或压缩图片`)
+    return false
+  }
+  pendingCultureUploads.set(cultureUploadKey(file), file.size)
+  return true
+}
+const uploadBrandCultureDetail = async ({ file }) => {
+  try {
+    const res = await uploadBrandCultureImage(displayForm.value.tenantId, 'detail', file)
+    displayForm.value.brandCultureDetailImages = [
+      ...(displayForm.value.brandCultureDetailImages || []),
+      { url: normalizeMediaUrl(res.data?.url), size: Number(res.data?.size || file.size) },
+    ]
+    ElMessage.success(`${file.name} 上传成功`)
+  } catch (error) {
+    ElMessage.error(`${file.name} 上传失败：${error?.message || '请检查图片后重试'}`)
+  } finally {
+    pendingCultureUploads.delete(cultureUploadKey(file))
+  }
+}
+const formatFileSize = (size) => {
+  const bytes = Number(size || 0)
+  if (!bytes) return '大小将在保存时核验'
+  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(2)}MB` : `${Math.ceil(bytes / 1024)}KB`
+}
+const removeBrandCultureDetail = (index) => displayForm.value.brandCultureDetailImages.splice(index, 1)
+const clearBrandCultureDetails = async () => {
+  try {
+    await ElMessageBox.confirm('清空后，前台将停止展示全部详情图。旧文字内容仍会保留并作为兜底。', '确认清空全部详情图？', {
+      confirmButtonText: '确认清空', cancelButtonText: '取消', type: 'warning',
+    })
+    displayForm.value.brandCultureDetailImages = []
+  } catch { /* 用户取消 */ }
+}
+const dropBrandCultureImage = (index) => {
+  const from = brandCultureDraggingIndex.value
+  if (from == null || from === index) return
+  reorderItems(displayForm.value.brandCultureDetailImages, from, index)
+  brandCultureDraggingIndex.value = null
 }
 
 const openDisplayDialog = async (row, section = 'brand') => {
@@ -601,6 +695,9 @@ const openDisplayDialog = async (row, section = 'brand') => {
     brandCultureSubtitle: row.brandCultureSubtitle || '',
     brandCultureCoverUrl: normalizeMediaUrl(row.brandCultureCoverUrl),
     brandCultureContent: row.brandCultureContent || '',
+    brandCultureDetailImages: (res.data?.brandCultureDetailImages || extra.brandCultureDetailImages || [])
+      .map((image) => typeof image === 'string' ? { url: normalizeMediaUrl(image), size: 0 } : { url: normalizeMediaUrl(image?.url), size: Number(image?.size || 0) })
+      .filter((image) => image.url).slice(0, 10),
     layoutTemplate: 'standard',
     showHomeCategories: 1,
     showBottomCategoryNav: 1,
@@ -835,14 +932,6 @@ const submitDisplayConfig = async () => {
     ElMessage.error('未找到商城配置，请关闭后重新打开装修工作台')
     return
   }
-  if (displayForm.value.brandCultureEnabled === 1 && !displayForm.value.brandCultureTitle?.trim()) {
-    ElMessage.warning('开启品牌文化页前请填写页面标题')
-    return
-  }
-  if (displayForm.value.brandCultureEnabled === 1 && !displayForm.value.brandCultureContent?.trim()) {
-    ElMessage.warning('开启品牌文化页前请填写品牌文化正文')
-    return
-  }
   const windowDays = Number(displayForm.value.newArrivalWindowDays)
   if (windowDays !== 0 && (!Number.isInteger(windowDays) || windowDays < 30 || windowDays > 365)) {
     ElMessage.warning('自动新品展示时间必须是30到365天之间的整数，或选择永久')
@@ -888,6 +977,7 @@ const submitDisplayConfig = async () => {
       categoryGuideScenariosEnabled: form.categoryGuideScenariosEnabled,
       categoryGuideQuickEntriesEnabled: form.categoryGuideQuickEntriesEnabled,
       categoryGuidePopularProductsEnabled: form.categoryGuidePopularProductsEnabled,
+      brandCultureDetailImages: form.brandCultureDetailImages || [],
       productDetailEnabled: 1,
       cartEnabled: 1,
       checkoutEnabled: 1,
@@ -915,6 +1005,7 @@ const submitDisplayConfig = async () => {
           quickEntries: form.categoryGuideQuickEntriesEnabled,
           popularProducts: form.categoryGuidePopularProductsEnabled,
         },
+        brandCultureDetailImages: form.brandCultureDetailImages || [],
         requiredCapabilities: {
           productDetail: 1, cart: 1, checkout: 1, accountSecurity: 1,
           legalCompliance: 1, afterSales: 1, customerService: 1,
@@ -1452,6 +1543,7 @@ onMounted(async () => {
 .culture-form .visual-design-field { display:grid; gap:7px; }
 .culture-form .visual-design-field>span { color:#344054; font-size:13px; font-weight:700; }
 .culture-cover-editor { display:flex; align-items:center; gap:12px; }
+.culture-cover-editor>div { display:flex; flex-direction:column; align-items:flex-start; gap:4px; color:#6b7280; }
 .culture-cover-editor .el-upload { width:180px; height:96px; display:grid; place-items:center; overflow:hidden; color:#667085; background:#f5f7fa; border:1px dashed #cfd6e2; border-radius:12px; }
 .culture-cover-editor .el-image { width:180px; height:96px; }
 .mobile-preview-culture { display:flex; flex-direction:column; gap:8px; margin:10px; padding:10px; background:var(--preview-card-bg,#fff); border-radius:14px; }
@@ -1461,6 +1553,22 @@ onMounted(async () => {
 .mobile-preview-culture h3 { margin:0; color:var(--preview-text,#202735); font-size:16px; }
 .mobile-preview-culture small { color:var(--preview-muted,#98a2b3); font-size:10px; }
 .mobile-preview-culture p { max-height:92px; overflow:hidden; margin:3px 0 0; color:var(--preview-text,#202735); font-size:9px; line-height:1.65; white-space:pre-line; }
+.culture-detail-field { align-items:stretch; }
+.culture-detail-toolbar { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; color:#6b7280; line-height:1.6; }
+.culture-detail-list { display:grid; gap:8px; margin-top:10px; }
+.culture-detail-item { display:grid; grid-template-columns:20px 64px minmax(0,1fr) auto; gap:10px; align-items:center; padding:8px; background:#f6f7f9; border:1px solid #e8ecf1; border-radius:12px; cursor:grab; }
+.culture-detail-item:active { cursor:grabbing; }
+.culture-detail-item img { display:block; width:64px; height:72px; object-fit:cover; background:#e8ecf1; border-radius:8px; }
+.culture-detail-item div { display:flex; min-width:0; flex-direction:column; gap:4px; }
+.culture-detail-item strong { color:#1b2430; font-size:13px; }
+.culture-detail-item small,.culture-detail-empty { color:#6b7280; font-size:12px; }
+.culture-detail-handle { color:#98a2b3; font-weight:800; letter-spacing:-2px; }
+.mobile-preview-culture-details { overflow:hidden; margin:2px -10px -10px; line-height:0; }
+.mobile-preview-culture-details>div { line-height:0; }
+.mobile-preview-culture-details img { display:block; width:100%; height:auto; margin:0; border:0; }
+.mobile-preview-culture-details span { display:none; padding:14px 8px; color:#6b7280; background:#f6f7f9; font-size:9px; line-height:1.4; text-align:center; }
+.mobile-preview-culture-details img.is-error { display:none; }
+.mobile-preview-culture-details img.is-error+span { display:block; }
 .feature-toggle-copy { display:flex; align-items:center; gap:12px; min-width:0; }
 .feature-toggle-copy>div { display:grid; gap:4px; min-width:0; }
 .feature-toggle-copy strong { color:#303133; font-size:14px; }

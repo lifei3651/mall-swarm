@@ -51,6 +51,10 @@ import java.util.stream.Stream;
 @Slf4j
 public class ShopMediaStorageService {
     static final long MAX_IMAGE_SIZE = 5L * 1024 * 1024;
+    public static final long MAX_BRAND_CULTURE_COVER_SIZE = 3L * 1024 * 1024;
+    public static final long MAX_BRAND_CULTURE_DETAIL_SIZE = 5L * 1024 * 1024;
+    public static final long MAX_BRAND_CULTURE_DETAIL_TOTAL_SIZE = 30L * 1024 * 1024;
+    public static final int MAX_BRAND_CULTURE_DETAIL_COUNT = 10;
     static final int MAX_TEMP_PROOFS_PER_MEMBER = 12;
     static final long MAX_TEMP_PROOF_BYTES_PER_MEMBER = 30L * 1024 * 1024;
     private static final String FILE_NAME_PATTERN = "[a-fA-F0-9]{32}\\.(jpg|jpeg|png|webp|gif)";
@@ -91,6 +95,61 @@ public class ShopMediaStorageService {
         if (!target.startsWith(storageDirectory)) Asserts.fail("图片存储路径无效");
         writeOnce(target, processed.bytes());
         return new StoredImage(filename, target, processed.contentType(), processed.bytes().length);
+    }
+
+    /**
+     * 品牌文化图片专用存储：只接受声明类型、扩展名和真实内容一致的 JPG/PNG/WEBP，
+     * 按客户隔离并使用随机文件名，避免与公开商品图的内容寻址规则混用。
+     */
+    public StoredImage storeBrandCultureImage(Long tenantId, boolean cover, MultipartFile file) throws IOException {
+        if (tenantId == null || tenantId <= 0) Asserts.fail("商城客户信息无效");
+        long maxSize = cover ? MAX_BRAND_CULTURE_COVER_SIZE : MAX_BRAND_CULTURE_DETAIL_SIZE;
+        if (file == null || file.isEmpty()) Asserts.fail("请选择图片文件");
+        if (file.getSize() > maxSize) {
+            Asserts.fail(cover ? "页面封面不能超过3MB" : "详情图单张不能超过5MB");
+        }
+        byte[] original = file.getBytes();
+        ImageFormat detected = detectFormat(original);
+        if (detected != ImageFormat.JPEG && detected != ImageFormat.PNG && detected != ImageFormat.WEBP) {
+            Asserts.fail("仅支持真实的JPG、PNG或WebP图片，不支持SVG、GIF或其他文件");
+        }
+        validateBrandCultureMetadata(file, detected);
+        ProcessedImage processed;
+        if (detected == ImageFormat.WEBP) {
+            validateWebp(original);
+            processed = new ProcessedImage(original, "webp", "image/webp");
+        } else {
+            processed = processRaster(original);
+        }
+        if (processed.bytes().length > maxSize) {
+            Asserts.fail(cover ? "页面封面处理后仍超过3MB，请压缩后重试" : "详情图处理后仍超过5MB，请压缩后重试");
+        }
+        Path tenantDirectory = brandCultureDirectory(tenantId);
+        Files.createDirectories(tenantDirectory);
+        ensureWebReadableDirectory(storageDirectory);
+        ensureWebReadableDirectory(storageDirectory.resolve("brand-culture"));
+        ensureWebReadableDirectory(tenantDirectory);
+        String filename = UUID.randomUUID().toString().replace("-", "") + "." + processed.extension();
+        Path target = tenantDirectory.resolve(filename).normalize();
+        if (!target.startsWith(tenantDirectory)) Asserts.fail("品牌文化图片存储路径无效");
+        Files.write(target, processed.bytes(), StandardOpenOption.CREATE_NEW);
+        ensureWebReadable(target);
+        return new StoredImage(filename, target, processed.contentType(), processed.bytes().length);
+    }
+
+    public StoredImage loadBrandCultureImage(Long tenantId, String filename) throws IOException {
+        if (tenantId == null || tenantId <= 0 || filename == null || !filename.matches(FILE_NAME_PATTERN)) return null;
+        Path directory = brandCultureDirectory(tenantId);
+        Path target = directory.resolve(filename.toLowerCase(Locale.ROOT)).normalize();
+        if (!target.startsWith(directory) || !Files.isRegularFile(target)) return null;
+        return new StoredImage(filename, target, contentType(filename), Files.size(target));
+    }
+
+    public StoredImage loadBrandCultureImageByUrl(Long tenantId, String url) throws IOException {
+        if (url == null) return null;
+        String prefix = "/api/shop/media/brand-culture/" + tenantId + "/";
+        if (!url.startsWith(prefix) || url.indexOf('?', prefix.length()) >= 0 || url.indexOf('#', prefix.length()) >= 0) return null;
+        return loadBrandCultureImage(tenantId, url.substring(prefix.length()));
     }
 
     /**
@@ -259,6 +318,76 @@ public class ShopMediaStorageService {
         if (width <= 0 || height <= 0 || (long) width * height > maxPixels) {
             Asserts.fail("图片像素过大，请缩小后重试");
         }
+    }
+
+    private Path brandCultureDirectory(Long tenantId) {
+        Path directory = storageDirectory.resolve("brand-culture").resolve(String.valueOf(tenantId)).normalize();
+        if (!directory.startsWith(storageDirectory)) Asserts.fail("品牌文化图片存储路径无效");
+        return directory;
+    }
+
+    private void validateBrandCultureMetadata(MultipartFile file, ImageFormat detected) {
+        String originalName = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase(Locale.ROOT);
+        String extension = originalName.contains(".") ? originalName.substring(originalName.lastIndexOf('.') + 1) : "";
+        String mime = file.getContentType() == null ? "" : file.getContentType().split(";", 2)[0].trim().toLowerCase(Locale.ROOT);
+        boolean matches = switch (detected) {
+            case JPEG -> ("jpg".equals(extension) || "jpeg".equals(extension)) && "image/jpeg".equals(mime);
+            case PNG -> "png".equals(extension) && "image/png".equals(mime);
+            case WEBP -> "webp".equals(extension) && "image/webp".equals(mime);
+            default -> false;
+        };
+        if (!matches) Asserts.fail("文件扩展名、类型与图片真实内容不一致，请重新导出后上传");
+    }
+
+    /** 解析 WebP 容器和画布尺寸，避免仅凭 RIFF 文件头接受伪装内容。 */
+    private void validateWebp(byte[] bytes) {
+        if (bytes.length < 30 || readLe32(bytes, 4) + 8L != bytes.length) Asserts.fail("WebP图片内容不完整");
+        int offset = 12;
+        int canvasWidth = 0;
+        int canvasHeight = 0;
+        while (offset + 8 <= bytes.length) {
+            String chunk = new String(bytes, offset, 4, java.nio.charset.StandardCharsets.US_ASCII);
+            long chunkSize = readLe32(bytes, offset + 4);
+            int data = offset + 8;
+            if (chunkSize < 0 || chunkSize > Integer.MAX_VALUE || data + chunkSize > bytes.length) Asserts.fail("WebP图片内容损坏");
+            int width = 0;
+            int height = 0;
+            if ("VP8X".equals(chunk) && chunkSize >= 10) {
+                canvasWidth = 1 + readLe24(bytes, data + 4);
+                canvasHeight = 1 + readLe24(bytes, data + 7);
+                validateDimensions(canvasWidth, canvasHeight);
+            } else if ("VP8L".equals(chunk) && chunkSize >= 5 && (bytes[data] & 0xff) == 0x2f) {
+                int b1 = bytes[data + 1] & 0xff, b2 = bytes[data + 2] & 0xff;
+                int b3 = bytes[data + 3] & 0xff, b4 = bytes[data + 4] & 0xff;
+                width = 1 + b1 + ((b2 & 0x3f) << 8);
+                height = 1 + (b2 >> 6) + (b3 << 2) + ((b4 & 0x0f) << 10);
+            } else if ("VP8 ".equals(chunk) && chunkSize >= 10
+                    && (bytes[data + 3] & 0xff) == 0x9d && (bytes[data + 4] & 0xff) == 0x01
+                    && (bytes[data + 5] & 0xff) == 0x2a) {
+                width = ((bytes[data + 6] & 0xff) | ((bytes[data + 7] & 0x3f) << 8));
+                height = ((bytes[data + 8] & 0xff) | ((bytes[data + 9] & 0x3f) << 8));
+            }
+            if (width > 0 && height > 0) {
+                validateDimensions(width, height);
+                if (canvasWidth > 0 && (width > canvasWidth || height > canvasHeight)) {
+                    Asserts.fail("WebP图片画布尺寸无效");
+                }
+                return;
+            }
+            offset = (int) (data + chunkSize + (chunkSize & 1));
+        }
+        Asserts.fail("WebP图片内容无法解析");
+    }
+
+    private long readLe32(byte[] bytes, int offset) {
+        if (offset < 0 || offset + 4 > bytes.length) return -1L;
+        return (bytes[offset] & 0xffL) | ((bytes[offset + 1] & 0xffL) << 8)
+                | ((bytes[offset + 2] & 0xffL) << 16) | ((bytes[offset + 3] & 0xffL) << 24);
+    }
+
+    private int readLe24(byte[] bytes, int offset) {
+        if (offset < 0 || offset + 3 > bytes.length) return -1;
+        return (bytes[offset] & 0xff) | ((bytes[offset + 1] & 0xff) << 8) | ((bytes[offset + 2] & 0xff) << 16);
     }
 
     private byte[] writeJpeg(BufferedImage image) throws IOException {

@@ -100,10 +100,11 @@ class LiveRoomFoundationTest {
     }
 
     @Test
-    void disabledBrandCultureDoesNotExposeContentAndEnabledPageReturnsPlainContent() {
+    void disabledBrandCultureDoesNotExposeContentAndEnabledPageReturnsLegacyContentOrOrderedImages() {
         ShopBrandCultureVO disabled = shopService.getBrandCulture(1L);
         assertEquals(false, disabled.getEnabled());
         assertNull(disabled.getContent());
+        assertNull(disabled.getDetailImages());
 
         DmsTenant tenant = tenantService.getTenant(1L);
         tenant.setBrandCultureEnabled(1);
@@ -116,6 +117,23 @@ class LiveRoomFoundationTest {
         assertEquals(true, enabled.getEnabled());
         assertEquals("关于商城", enabled.getTitle());
         assertEquals("第一段\n第二段", enabled.getContent());
+        assertTrue(enabled.getDetailImages().isEmpty());
+
+        DmsTenantDisplayConfig display = displayConfigDao.selectByTenantId(1L);
+        display.setExtraConfigJson("{\"brandCultureDetailImages\":["
+                + "{\"url\":\"/api/shop/media/brand-culture/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg\",\"size\":100},"
+                + "{\"url\":\"/api/shop/media/brand-culture/1/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.png\",\"size\":200}]}");
+        displayConfigDao.update(display);
+        ShopBrandCultureVO withImages = shopService.getBrandCulture(1L);
+        assertEquals(List.of(
+                "/api/shop/media/brand-culture/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg",
+                "/api/shop/media/brand-culture/1/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.png"), withImages.getDetailImages());
+        assertEquals("第一段\n第二段", withImages.getContent());
+
+        tenant.setBrandCultureTitle(null);
+        tenant.setBrandCultureSubtitle(null);
+        tenantService.saveTenant(tenant);
+        assertEquals(true, shopService.getBrandCulture(1L).getEnabled());
     }
 
     @Test
