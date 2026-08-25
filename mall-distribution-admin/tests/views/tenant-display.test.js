@@ -20,14 +20,42 @@ describe('商城视觉与页面工作台', () => {
     expect(layout).not.toContain("title: '首页Banner'")
   })
 
-  it('覆盖独立装修能力并让颜色微调真正作用于预览', async () => {
+  it('外层只保留一张当前装修卡、一个主入口和版本记录', async () => {
     const source = await readFile(sourcePath, 'utf8')
-    for (const label of ['品牌文化页', '首页轮播图', '首页版型', '直播广场', '新品速递', '首页模块', '分类模块', '底部导航', '颜色微调']) {
-      expect(source).toContain(label)
-    }
-    expect(source).toContain("if (section === 'banner')")
-    expect(source).toContain('bannerDialogVisible.value = true')
-    expect(source).not.toContain('openBannerDialog')
+    const outer = source.slice(0, source.indexOf('<el-dialog v-model="displayDialogVisible"'))
+    expect(outer).toContain('class="current-decoration-card"')
+    expect(outer).toContain('当前商城装修')
+    expect(outer.match(/进入装修工作台/g)).toHaveLength(1)
+    expect(outer.match(/版本记录/g)).toHaveLength(1)
+    expect(outer).not.toContain('<el-table')
+    expect(outer).not.toContain('装修模块')
+    expect(outer).not.toContain('编辑商城视觉')
+    expect(source).not.toContain('displaySectionRows')
+    expect(source).toContain('currentLayoutSummary')
+    expect(source).toContain('current-decoration-preview')
+  })
+
+  it('按整体版型、品牌、首页、独立页面和底部导航组织单一工作台', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+    for (const label of ['整体版型', '品牌与主题', '首页模块', '独立页面', '底部导航']) expect(source).toContain(label)
+    expect(source).toContain("const activeEditSection = ref('layout')")
+    expect(source).toContain('v-for="(group, index) in workbenchGroups"')
+    expect(source).toContain('@click="activeEditSection = group.key"')
+    expect(source).toContain("v-if=\"activeEditSection === 'brand'\"")
+    expect(source.match(/<span>品牌 LOGO<\/span>/g)).toHaveLength(1)
+    expect(source).toContain("activeEditSection === 'pages' && independentPageTab === 'culture'")
+    expect(source).toContain("activeEditSection === 'pages' && independentPageTab === 'live'")
+    expect(source).toContain("activeEditSection === 'pages' && independentPageTab === 'newArrivals'")
+    expect(source).toContain('管理轮播图片')
+    expect(source).toContain('home-category-settings')
+    expect(source).toContain('home-template-modules')
+    expect(source).toContain("culture: 'pages', live: 'pages', newArrivals: 'pages', banner: 'home', category: 'home', colors: 'brand'")
+    expect(source).toContain('确认放弃未保存修改？')
+    expect(source).toContain('watch(displayForm')
+  })
+
+  it('保留全部装修能力并让颜色细节真正作用于预览和原有发布载荷', async () => {
+    const source = await readFile(sourcePath, 'utf8')
     expect(source).toContain('draggable="true"')
     expect(source).toContain('setCategoryDraft')
     expect(source).toContain('resetColors')
@@ -72,22 +100,19 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('extraConfigJson')
     expect(source).toContain('确认放弃未保存修改？')
     expect(source).toContain('moveNav')
-    for (const section of ['品牌视觉', '品牌文化页', '首页轮播图', '首页版型', '直播广场', '新品速递', '首页模块', '分类模块', '底部导航', '颜色微调']) {
+    for (const section of ['品牌视觉', '品牌文化页', '直播广场', '新品速递', '首页模块', '首页分类内容', '底部导航', '颜色细节']) {
       expect(source).toContain(section)
     }
     expect(source).not.toContain('直播广场 / 新品速递')
     expect(source).not.toContain('active-text="开放" inactive-text="关闭"')
     expect(source).toContain('legacyDiscovery')
     expect(source).not.toContain("activeEditSection === 'service'")
-    expect(source).toContain('displaySectionRows')
     expect(source).toContain('activeEditSection')
     expect(source).toContain('display-section-brand-only')
     expect(source).toContain('workbench-heading')
     expect(source).not.toContain('preview-page-tabs')
     expect(source).not.toContain('v-for="section in displaySections"')
-    expect(source).toContain('主题色可选')
-    expect(source).toContain('未选择时沿用系统默认主题')
-    expect(source).toContain('保存发布即可生效')
+    expect(source).toContain('先选择整体版型，再逐步配置其他内容')
   })
 
   it('品牌文化改用多图详情并保留旧文字作为不可编辑兜底', async () => {
@@ -112,7 +137,7 @@ describe('商城视觉与页面工作台', () => {
 
   it('工作台适配当前浏览器高度并为失效Logo提供可操作降级', async () => {
     const source = await readFile(sourcePath, 'utf8')
-    expect(source).toContain('width="min(1120px, calc(100vw - 28px))"')
+    expect(source).toContain('width="min(1100px, calc(100vw - 56px))"')
     expect(source).toContain('height: calc(100vh - 24px)')
     expect(source).toContain('height: 438px')
     expect(source).toContain('displayLogoLoadFailed')
@@ -120,15 +145,12 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('normalizeMediaUrl')
   })
 
-  it('让首页轮播图总开关状态同步到装修模块列表', async () => {
+  it('在首页模块组内保留轮播管理和分类内容入口且不限制内容高度', async () => {
     const source = await readFile(sourcePath, 'utf8')
-    expect(source).toContain('bannerModuleVisible')
-    expect(source).toContain("status: bannerModuleVisible ? '展示中' : '已隐藏'")
-    expect(source).toContain('首页模块总开关已隐藏，图片不会在前台展示')
-    expect(source).toContain('>编辑{{ row.label }}</el-button>')
-    expect(source).not.toContain("row.key === 'banner' ? '进入管理'")
-    expect(source.indexOf("key: 'category'")).toBeLessThan(source.indexOf("key: 'banner'"))
-    expect(source).toContain('模块的“编辑首页轮播图”即可直接维护')
+    expect(source).toContain('当前 {{ previewBanners.length }} 条已启用')
+    expect(source).toContain('@click="bannerDialogVisible = true">管理轮播图片')
+    expect(source).toContain('首页分类内容')
+    expect(source).not.toContain('>编辑{{ row.label }}</el-button>')
     expect(source).toContain('.category-list.category-list-draft {')
     expect(source).toContain('overflow: visible;')
     expect(source).not.toContain('max-height: 132px')
@@ -165,8 +187,8 @@ describe('商城视觉与页面工作台', () => {
     for (const label of ['一级分类', '子分类', '热销商品', '大型视觉品类', '品类货架', '推荐商品', '购物场景', '分类快捷入口', '人气商品']) {
       expect(source).toContain(label)
     }
-    expect(source).toContain("displayForm.layoutTemplate !== 'category-focus'")
-    expect(source).toContain('父版型关闭时配置保留但不可操作')
+    expect(source).toContain("v-if=\"displayForm.layoutTemplate === 'category-focus'\" class=\"category-guide-config\"")
+    expect(source).toContain('原有模块值会一直保留')
     expect(source).toContain('直播广场总开关已关闭，保留当前首页开关值')
     expect(source).toContain('新品速递总开关已关闭，保留当前首页开关值')
     expect(source).toContain('isRequiredNav(nav.type)')

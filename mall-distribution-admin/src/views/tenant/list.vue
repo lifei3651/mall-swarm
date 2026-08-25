@@ -3,81 +3,62 @@
     <div class="toolbar">
       <div>
         <h2>商城视觉与页面</h2>
-        <p>在这里预览并调整商城的品牌、主题色、首页样式和底部导航，保存后刷新前台即可查看。</p>
+        <p>先选择整体版型，再配置品牌、模块和独立页面，最后预览发布。</p>
       </div>
     </div>
 
-    <el-alert
-      title="主题色可选：未选择时沿用系统默认主题；选择后可在下方实时预览商城界面效果，确认无误后保存发布即可生效。"
-      type="info"
-      :closable="false"
-      show-icon
-      class="single-tenant-alert"
-    />
-
-    <el-table :data="tableData" v-loading="loading" style="width: 100%">
-      <el-table-column prop="brandName" label="商城品牌名" width="180" />
-      <el-table-column label="品牌LOGO" width="110" align="center">
-        <template #default="{ row }">
-          <el-image v-if="row.logoUrl" :src="normalizeMediaUrl(row.logoUrl)" class="table-logo" fit="contain" />
-          <span v-else class="empty-logo">未上传</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="themeColor" label="主题色" width="110">
-        <template #default="{ row }">
-          <div class="color-cell">
-            <span class="swatch" :style="{ backgroundColor: row.themeColor || '#e7193f' }"></span>
-            <span>{{ row.themeColor }}</span>
+    <section v-loading="loading" class="current-decoration-card" aria-labelledby="current-decoration-title">
+      <div v-if="tableData[0]" class="current-decoration-main">
+        <div class="current-decoration-kicker">当前商城装修</div>
+        <div class="current-decoration-brand">
+          <span class="current-decoration-logo">
+            <img v-if="tableData[0].logoUrl" :src="normalizeMediaUrl(tableData[0].logoUrl)" alt="" />
+            <b v-else>{{ (tableData[0].brandName || tableData[0].tenantName || '灵启').slice(0, 1) }}</b>
+          </span>
+          <div>
+            <h3 id="current-decoration-title">{{ tableData[0].brandName || tableData[0].tenantName || '灵启商城' }}</h3>
+            <span class="current-decoration-theme"><i :style="{ backgroundColor: tableData[0].themeColor || '#e7193f' }"></i>{{ getTemplateName(tableData[0].productTemplate) }}</span>
           </div>
-        </template>
-      </el-table-column>
-      <el-table-column prop="productTemplate" label="前台样式" width="140">
-        <template #default="{ row }">
-          <el-tag>{{ getTemplateName(row.productTemplate) }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="商城布局" width="150">
-        <template #default>
-          <el-tag type="success">{{ getLayoutTemplateName(currentDisplayConfig.layoutTemplate) }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" fixed="right" width="280">
-        <template #default="{ row }">
-          <el-button type="primary" link @click="openDisplayDialog(row)">编辑商城视觉</el-button>
-          <el-button type="primary" link @click="openVersionDialog(row)">版本记录</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+        </div>
+        <div class="current-decoration-layout">
+          <span>当前主版型</span>
+          <strong>{{ currentLayoutSummary }}</strong>
+          <el-tag size="small" :type="displayConfigLoaded ? 'success' : 'info'">{{ displayConfigLoaded ? '已发布' : '待配置' }}</el-tag>
+        </div>
+        <p>在一个工作台里完成版型、品牌、首页模块、独立页面和底部导航设置。</p>
+        <div class="current-decoration-actions">
+          <el-button type="primary" size="large" @click="openDisplayDialog(tableData[0])">进入装修工作台</el-button>
+          <el-button size="large" @click="openVersionDialog(tableData[0])">版本记录</el-button>
+        </div>
+      </div>
+      <div v-if="tableData[0]" class="current-decoration-preview" aria-label="当前商城结构预览">
+        <div class="decoration-phone">
+          <span class="decoration-phone-status">9:41</span>
+          <div class="decoration-phone-brand"><i :style="{ backgroundColor: tableData[0].themeColor || '#e7193f' }"></i><strong>{{ tableData[0].brandName || tableData[0].tenantName || '灵启商城' }}</strong></div>
+          <div class="decoration-phone-search">搜索商品</div>
+          <span class="layout-template-preview current-layout-preview" :class="`preview-${currentDisplayConfig.layoutTemplate || 'standard'}`"><i></i><b></b><em></em><small></small></span>
+          <div class="decoration-phone-nav"><span>首页</span><span>分类</span><span>购物车</span><span>我的</span></div>
+        </div>
+      </div>
+      <el-empty v-else :image-size="72" description="暂无可装修的商城" />
+    </section>
 
-    <el-table :data="displaySectionRows" class="display-section-table" row-key="key">
-      <el-table-column prop="label" label="装修模块" min-width="150">
-        <template #default="{ row }">
-          <div class="display-section-title"><span class="display-section-icon">{{ row.icon }}</span><strong>{{ row.label }}</strong></div>
-        </template>
-      </el-table-column>
-      <el-table-column prop="summary" label="当前配置" min-width="320" />
-      <el-table-column prop="status" label="状态" width="120">
-        <template #default="{ row }"><el-tag :type="row.active ? 'success' : 'info'">{{ row.status }}</el-tag></template>
-      </el-table-column>
-      <el-table-column label="操作" fixed="right" width="140">
-        <template #default="{ row }">
-          <el-button type="primary" link :disabled="!tableData.length" @click="openDisplayDialog(tableData[0], row.key)">编辑{{ row.label }}</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-
-    <el-dialog v-model="displayDialogVisible" title="商城视觉装修工作台" width="min(1120px, calc(100vw - 28px))" top="12px" class="display-workbench-dialog" :before-close="confirmCloseDisplayDialog">
-      <el-alert title="左侧调整模块，右侧手机实时预览。当前修改只保存在草稿中，点击“保存发布”后才会影响客户前台。" type="info" :closable="false" class="display-alert" />
+    <el-dialog v-model="displayDialogVisible" title="商城视觉装修工作台" width="min(1100px, calc(100vw - 56px))" top="12px" class="display-workbench-dialog" :before-close="confirmCloseDisplayDialog">
+      <el-alert title="先选择整体版型，再逐步配置其他内容。修改会实时预览，点击“保存发布”后才会影响客户前台。" type="info" :closable="false" class="display-alert" />
       <div class="workbench-heading">
         <div><span>当前编辑</span><strong>{{ editSectionLabel }}</strong></div>
         <div class="workbench-heading-meta"><span class="draft-dot"></span>右侧预览实时更新</div>
       </div>
       <div class="display-workbench">
+        <nav class="workbench-nav" aria-label="装修步骤">
+          <button v-for="(group, index) in workbenchGroups" :key="group.key" type="button" :class="{ active: activeEditSection === group.key }" @click="activeEditSection = group.key">
+            <span>{{ String(index + 1).padStart(2, '0') }}</span>
+            <div><strong>{{ group.label }}</strong><small>{{ group.description }}</small></div>
+          </button>
+        </nav>
         <aside class="display-controls">
-          <div class="display-section-switcher" aria-label="装修模块">
-            <div class="display-section-brand-only">
-              <span>编辑模块</span><strong>{{ editSectionLabel }}</strong><small>左侧调整内容，右侧同步预览</small>
-            </div>
+          <div class="display-section-switcher">
+            <div class="display-section-brand-only"><strong>{{ editSectionLabel }}</strong><small>{{ activeWorkbenchGroup?.description }}</small></div>
           </div>
           <section v-if="activeEditSection === 'brand'" class="control-section visual-design-panel">
             <div class="control-section-heading">
@@ -96,8 +77,20 @@
               <div class="visual-design-field"><span>品牌 LOGO</span><div class="display-logo-editor"><el-upload action="#" :show-file-list="false" accept="image/*" :http-request="uploadDisplayLogo"><div class="display-logo-uploader"><el-image v-if="displayForm.logoUrl && !displayLogoLoadFailed" :src="normalizeMediaUrl(displayForm.logoUrl)" fit="contain" @error="displayLogoLoadFailed = true" /><span v-else>{{ displayForm.logoUrl ? '重传' : '上传' }}</span></div></el-upload><small>建议透明 PNG，客户前台和浏览器标签页共用</small></div></div>
               <div class="visual-design-field"><span>主题色</span><div class="color-editor"><el-color-picker v-model="displayForm.themeColor" /><el-input v-model="displayForm.themeColor" maxlength="7" placeholder="#e7193f" /></div></div>
             </div>
+            <div class="brand-color-detail">
+              <div class="control-section-heading"><div><strong>颜色细节</strong><small>按需微调；留空时沿用当前主题</small></div><el-button type="primary" link @click="resetColors">恢复默认</el-button></div>
+              <div class="color-grid">
+                <label v-for="color in colorFields" :key="color.key"><span>{{ color.label }}</span><el-color-picker v-model="displayForm.colors[color.key]" show-alpha /></label>
+              </div>
+            </div>
           </section>
-          <section v-if="activeEditSection === 'culture'" class="control-section feature-control-section">
+          <section v-if="activeEditSection === 'pages'" class="control-section independent-page-hub">
+            <div class="control-section-heading"><div><strong>独立页面</strong><small>页面总开关与首页入口分层控制；关闭不删除已配置内容</small></div></div>
+            <div class="independent-page-tabs" role="tablist" aria-label="选择独立页面">
+              <button v-for="page in independentPages" :key="page.key" type="button" role="tab" :aria-selected="independentPageTab === page.key" :class="{ active: independentPageTab === page.key }" @click="independentPageTab = page.key"><span>{{ page.icon }}</span><div><strong>{{ page.label }}</strong><small>{{ page.description }}</small></div></button>
+            </div>
+          </section>
+          <section v-if="activeEditSection === 'pages' && independentPageTab === 'culture'" class="control-section feature-control-section">
             <div class="control-section-heading"><div><strong>品牌文化页</strong><small>独立页面、独立开关；关闭后前台入口和内容均不公开</small></div><el-tag size="small" type="info">独立页面</el-tag></div>
             <div class="feature-toggle-card">
               <div class="feature-toggle-copy"><span class="feature-toggle-icon">文</span><div><strong>公开品牌文化页</strong><small>开启后在商城首页底部展示入口，App、公开商城和三合一商城共用同一内容</small></div></div>
@@ -120,12 +113,8 @@
               </div>
             </div>
           </section>
-          <section v-if="activeEditSection === 'banner'" class="control-section banner-config-section">
-            <div class="control-section-heading"><div><strong>首页轮播图</strong><small>图片、点击后动作和展示时间在这里统一维护</small></div><el-tag size="small" type="info">{{ previewBanners.length }} 条已启用</el-tag></div>
-            <p class="section-note banner-note">首页轮播图已单独提供管理页面；点击上方“首页轮播图”模块的“编辑首页轮播图”即可直接维护。</p>
-          </section>
           <section v-if="activeEditSection === 'layout'" class="control-section">
-            <div class="control-section-heading"><div><strong>首页版型</strong><small>选择整体信息密度；模块顺序仍可在“首页模块”中继续调整</small></div><el-tag size="small" type="info">实时预览</el-tag></div>
+            <div class="control-section-heading"><div><strong>先选择商城大框架</strong><small>版型只改变首页布局，不会修改商品、库存、价格或订单</small></div><el-tag size="small" type="info">第一步</el-tag></div>
             <div class="layout-template-grid">
               <button v-for="template in layoutTemplateOptions" :key="template.value" type="button" class="layout-template-card" :class="{ active: displayForm.layoutTemplate === template.value }" @click="applyLayoutTemplate(template)">
                 <span class="layout-template-preview" :class="`preview-${template.value}`"><i></i><b></b><em></em><small></small></span>
@@ -133,18 +122,14 @@
                 <small>{{ template.description }}</small>
               </button>
             </div>
-            <div class="category-guide-config" :class="{ disabled: displayForm.layoutTemplate !== 'category-focus' }">
-              <div class="control-section-heading"><div><strong>分类导购子版型</strong><small>父版型关闭时配置保留但不可操作；重新选择“分类导购版”会恢复原值</small></div><el-tag size="small" :type="displayForm.layoutTemplate === 'category-focus' ? 'success' : 'info'">{{ displayForm.layoutTemplate === 'category-focus' ? '已启用' : '父开关未启用' }}</el-tag></div>
+            <div v-if="displayForm.layoutTemplate === 'category-focus'" class="category-guide-config">
+              <div class="control-section-heading"><div><strong>再选择分类导购结构</strong><small>A、B、C 是分类导购版的下一层选择，原有模块值会一直保留</small></div><el-tag size="small" type="success">分类导购</el-tag></div>
               <div class="category-guide-template-grid">
-                <button v-for="template in categoryGuideTemplateOptions" :key="template.value" type="button" :disabled="displayForm.layoutTemplate !== 'category-focus'" :class="{ active: displayForm.categoryGuideTemplate === template.value }" @click="displayForm.categoryGuideTemplate = template.value"><strong>{{ template.label }}</strong><small>{{ template.description }}</small></button>
+                <button v-for="template in categoryGuideTemplateOptions" :key="template.value" type="button" :class="{ active: displayForm.categoryGuideTemplate === template.value }" @click="displayForm.categoryGuideTemplate = template.value"><strong>{{ template.label }}</strong><small>{{ template.description }}</small></button>
               </div>
-              <div class="guide-module-switches">
-                <div v-for="module in selectedCategoryGuideModules" :key="module[0]"><span>{{ module[1] }}</span><el-switch v-model="displayForm[module[0]]" :active-value="1" :inactive-value="0" :disabled="displayForm.layoutTemplate !== 'category-focus'" /></div>
-              </div>
-              <p v-if="directoryGuideInvalid" class="guide-module-error" role="alert">请至少开启一个模块，或切换其他首页版型</p>
             </div>
           </section>
-          <section v-if="activeEditSection === 'live'" class="control-section feature-control-section">
+          <section v-if="activeEditSection === 'pages' && independentPageTab === 'live'" class="control-section feature-control-section">
             <div class="control-section-heading"><div><strong>直播广场</strong><small>直播中、直播预告与直播详情共用完整页面总开关；首页卡片仍可单独隐藏</small></div><el-tag size="small" type="info">独立页面</el-tag></div>
             <div class="feature-toggle-card">
               <div class="feature-toggle-copy"><span class="feature-toggle-icon">◉</span><div><strong>直播广场完整页面总开关</strong><small>关闭后首页直播卡片、直播中、直播预告和直播详情均不公开，已配置直播间与会员预约继续保留</small></div></div>
@@ -152,7 +137,7 @@
             </div>
             <p class="section-note">独立页面默认独立开关：今后新增单独业务页面时，必须同步提供客户级总开关、关闭后的直达保护和数据保留规则。</p>
           </section>
-          <section v-if="activeEditSection === 'newArrivals'" class="control-section feature-control-section">
+          <section v-if="activeEditSection === 'pages' && independentPageTab === 'newArrivals'" class="control-section feature-control-section">
             <div class="control-section-heading"><div><strong>新品速递</strong><small>新品完整页面与首页卡片分层控制，不影响普通商品列表</small></div><el-tag size="small" type="info">独立页面</el-tag></div>
             <div class="feature-toggle-card">
               <div class="feature-toggle-copy"><span class="feature-toggle-icon new-arrivals-icon">NEW</span><div><strong>新品完整页面总开关</strong><small>开启后才允许访问新品完整页面；首页卡片仍可在“首页模块”单独隐藏。关闭不会下架任何商品</small></div></div>
@@ -193,17 +178,24 @@
                 <el-switch v-else v-model="module.enabled" active-text="展示" inactive-text="隐藏" />
               </div>
             </div>
-          </section>
-
-          <section v-if="activeEditSection === 'category'" class="control-section category-config-section">
-            <div class="control-section-heading"><div><strong>分类模块</strong><small>先控制整体，再控制单个分类</small></div></div>
-            <div class="control-switch-row"><span>首页显示分类</span><el-switch v-model="displayForm.showHomeCategories" :active-value="1" :inactive-value="0" /></div>
-            <div class="category-list category-list-draft">
-              <div v-for="category in categories" :key="category.id" class="category-row">
-                <span>{{ category.categoryName }}</span>
-                <el-switch :model-value="categoryDraft[category.id] ?? 1" :active-value="1" :inactive-value="0" active-text="展示" inactive-text="隐藏" @change="(value) => setCategoryDraft(category, value)" />
+            <div v-if="displayForm.layoutTemplate === 'category-focus'" class="home-template-modules">
+              <div class="control-section-heading"><div><strong>{{ selectedCategoryGuideLabel }}专属模块</strong><small>只显示当前子版型可用的模块；切换版型不会清空原值</small></div><el-tag size="small" type="success">当前版型</el-tag></div>
+              <div class="guide-module-switches">
+                <div v-for="module in selectedCategoryGuideModules" :key="module[0]"><span>{{ module[1] }}</span><el-switch v-model="displayForm[module[0]]" :active-value="1" :inactive-value="0" /></div>
               </div>
-              <el-empty v-if="!categories.length" :image-size="44" description="暂无商品分类，可直接展示精选商品" />
+              <p v-if="directoryGuideInvalid" class="guide-module-error" role="alert">请至少开启一个模块，或切换其他首页版型</p>
+            </div>
+            <div class="home-category-settings">
+              <div class="control-section-heading"><div><strong>首页分类内容</strong><small>控制分类模块整体与单个分类是否展示</small></div></div>
+              <div class="control-switch-row"><span>首页显示分类</span><el-switch v-model="displayForm.showHomeCategories" :active-value="1" :inactive-value="0" /></div>
+              <div class="category-list category-list-draft">
+                <div v-for="category in categories" :key="category.id" class="category-row"><span>{{ category.categoryName }}</span><el-switch :model-value="categoryDraft[category.id] ?? 1" :active-value="1" :inactive-value="0" active-text="展示" inactive-text="隐藏" @change="(value) => setCategoryDraft(category, value)" /></div>
+                <el-empty v-if="!categories.length" :image-size="44" description="暂无商品分类，可直接展示精选商品" />
+              </div>
+            </div>
+            <div class="home-banner-settings">
+              <div><strong>轮播图片与跳转</strong><small>当前 {{ previewBanners.length }} 条已启用；在同一工作台中打开管理</small></div>
+              <el-button type="primary" plain @click="bannerDialogVisible = true">管理轮播图片</el-button>
             </div>
           </section>
 
@@ -223,24 +215,14 @@
               </div>
             </div>
           </section>
-
-          <section v-if="activeEditSection === 'colors'" class="control-section">
-            <div class="control-section-heading">
-              <div><strong>颜色微调</strong><small>不改变模块结构；保存发布后客户前台生效，未保存仅影响右侧预览</small></div>
-              <el-button type="primary" link @click="resetColors">恢复默认</el-button>
-            </div>
-            <div class="color-grid">
-              <label v-for="color in colorFields" :key="color.key"><span>{{ color.label }}</span><el-color-picker v-model="displayForm.colors[color.key]" show-alpha /></label>
-            </div>
-          </section>
         </aside>
 
         <section class="preview-stage">
-          <div class="preview-stage-heading"><div><strong>客户手机版预览</strong><span>{{ activeEditSection === 'culture' ? '品牌文化独立页面' : '首页模块与前台保持同一套配置' }}</span></div><el-tag type="success">草稿预览</el-tag></div>
+          <div class="preview-stage-heading"><div><strong>客户手机版预览</strong><span>{{ isCulturePreview ? '品牌文化独立页面' : '首页模块与前台保持同一套配置' }}</span></div><el-tag type="success">草稿预览</el-tag></div>
           <div class="mobile-preview-shell live-mobile-preview" :class="`layout-preview-${displayForm.layoutTemplate || 'standard'}`" :style="previewStyle">
             <div class="mobile-preview-status"><span>9:41</span><span>● ● ●</span></div>
             <div class="mobile-preview-brand"><span class="mobile-preview-logo"><img v-if="displayForm.logoUrl && !displayLogoLoadFailed" :src="normalizeMediaUrl(displayForm.logoUrl)" alt="" @error="displayLogoLoadFailed = true" /><span v-else>{{ (displayForm.brandName || '灵启').slice(0, 1) }}</span></span><strong>{{ displayForm.brandName || '灵启商城' }}</strong><span class="mobile-preview-share">分享</span></div>
-            <div v-if="activeEditSection === 'culture'" class="mobile-preview-culture">
+            <div v-if="isCulturePreview" class="mobile-preview-culture">
               <img v-if="displayForm.brandCultureCoverUrl" :src="normalizeMediaUrl(displayForm.brandCultureCoverUrl)" alt="" />
               <div v-else class="mobile-preview-culture-cover">品牌文化封面</div>
               <span>{{ displayForm.brandCultureEnabled === 1 ? '页面已开启' : '页面已关闭' }}</span>
@@ -362,12 +344,14 @@ const versionTenant = ref(null)
 const restoringVersionId = ref(null)
 const currentTenant = ref(null)
 const currentDisplayConfig = ref({ layoutTemplate: 'standard' })
+const displayConfigLoaded = ref(false)
 const categories = ref([])
 const previewProducts = ref([])
 const previewBanners = ref([])
 const categoryDraft = ref({})
 const previewPage = ref('home')
-const activeEditSection = ref('brand')
+const activeEditSection = ref('layout')
+const independentPageTab = ref('culture')
 const draggingModuleIndex = ref(null)
 const draggingNavIndex = ref(null)
 const initializingDisplay = ref(false)
@@ -380,8 +364,22 @@ const pendingCultureUploads = new Map()
 const displayForm = ref({})
 const moduleNames = { banner: '首页轮播图', notice: '商城公告', category: '商品分类', live: '直播广场', newArrivals: '新品速递', trust: '服务保障', products: '精选商品' }
 const navNames = { home: '首页', category: '分类', cart: '购物车', orders: '订单', profile: '我的' }
-const editSectionLabels = { brand: '品牌视觉', culture: '品牌文化页', banner: '首页轮播图', layout: '首页版型', live: '直播广场', newArrivals: '新品速递', home: '首页模块', category: '分类模块', nav: '底部导航', colors: '颜色微调' }
-const editSectionLabel = computed(() => editSectionLabels[activeEditSection.value] || '品牌视觉')
+const workbenchGroups = [
+  { key: 'layout', label: '整体版型', description: '先确定首页大框架' },
+  { key: 'brand', label: '品牌与主题', description: '统一维护名称、Logo 和颜色' },
+  { key: 'home', label: '首页模块', description: '配置内容、顺序和当前版型模块' },
+  { key: 'pages', label: '独立页面', description: '管理直播、新品与品牌文化' },
+  { key: 'nav', label: '底部导航', description: '只管理可编辑入口' },
+]
+const editSectionLabels = Object.fromEntries(workbenchGroups.map((item) => [item.key, item.label]))
+const editSectionLabel = computed(() => editSectionLabels[activeEditSection.value] || '整体版型')
+const activeWorkbenchGroup = computed(() => workbenchGroups.find((item) => item.key === activeEditSection.value))
+const independentPages = [
+  { key: 'culture', icon: '文', label: '品牌文化', description: '封面与详情图' },
+  { key: 'live', icon: '播', label: '直播广场', description: '页面总开关' },
+  { key: 'newArrivals', icon: '新', label: '新品速递', description: '页面总开关与时间' },
+]
+const isCulturePreview = computed(() => activeEditSection.value === 'pages' && independentPageTab.value === 'culture')
 const previewPages = [{ value: 'home', label: '首页' }]
 const defaultModules = () => [
   { type: 'banner', enabled: true, sort: 1 },
@@ -426,6 +424,7 @@ const categoryGuideTemplateOptions = [
   { value: 'showcase', label: 'B 视觉品类橱窗', description: '大图品类卡、横向货架与推荐商品，适合强调视觉陈列' },
   { value: 'scenario', label: 'C 需求场景导购', description: '购物场景、快捷品类与人气商品，适合按需求启发选购' },
 ]
+const selectedCategoryGuideLabel = computed(() => categoryGuideTemplateOptions.find((item) => item.value === displayForm.value.categoryGuideTemplate)?.label || 'A 双栏目录导航')
 const categoryGuideModuleGroups = [
   { template: 'directory', modules: [['categoryGuidePrimaryCategoriesEnabled', '一级分类'], ['categoryGuideSubcategoriesEnabled', '子分类'], ['categoryGuideHotProductsEnabled', '热销商品']] },
   { template: 'showcase', modules: [['categoryGuideHeroCategoriesEnabled', '大型视觉品类'], ['categoryGuideShelvesEnabled', '品类货架'], ['categoryGuideRecommendedProductsEnabled', '推荐商品']] },
@@ -499,6 +498,12 @@ const layoutTemplateOptions = [
     showBottomCategoryNav: 1,
   },
 ]
+const currentLayoutSummary = computed(() => {
+  const layout = layoutTemplateOptions.find((item) => item.value === currentDisplayConfig.value?.layoutTemplate)?.label || '标准零售版'
+  if (currentDisplayConfig.value?.layoutTemplate !== 'category-focus') return layout
+  const guide = categoryGuideTemplateOptions.find((item) => item.value === currentDisplayConfig.value?.categoryGuideTemplate)?.label || 'A 双栏目录导航'
+  return `${layout} · ${guide}`
+})
 const legacyThemeMap = { standard: 'retail-red', beauty: 'soft-purple', food: 'fresh-green', health: 'fresh-green', course: 'premium-gold' }
 const normalizeTheme = (value) => themeOptions.some((item) => item.value === value) ? value : (legacyThemeMap[value] || 'retail-red')
 const normalizeModuleEnabled = (value, fallback = true) => {
@@ -516,6 +521,7 @@ const markCulturePreviewImageError = (event) => event.currentTarget?.classList.a
 
 const fetchData = async () => {
   loading.value = true
+  displayConfigLoaded.value = false
   try {
     const res = await listTenants({ pageNum: 1, pageSize: 100 })
     const rows = res.data?.list || []
@@ -524,37 +530,12 @@ const fetchData = async () => {
     if (current) {
       const configRes = await getDisplayConfig(current.id)
       currentDisplayConfig.value = configRes.data || { layoutTemplate: 'standard' }
+      displayConfigLoaded.value = Boolean(configRes.data)
     }
   } finally {
     loading.value = false
   }
 }
-
-const displaySectionRows = computed(() => {
-  const row = tableData.value[0] || {}
-  const extra = (() => {
-    try { return JSON.parse(currentDisplayConfig.value?.extraConfigJson || '{}') || {} } catch { return {} }
-  })()
-  const modules = withDefaultModules(extra.homeModules)
-  const nav = Array.isArray(extra.bottomNav) && extra.bottomNav.length ? extra.bottomNav : defaultBottomNav()
-  const customColorCount = Object.values(extra.colors || {}).filter(Boolean).length
-  const visibleModules = modules.filter((item) => normalizeModuleEnabled(item.enabled)).length
-  const configurableNav = nav.filter((item) => !isRequiredNav(item.type))
-  const visibleNav = configurableNav.filter((item) => item.enabled !== false).length
-  const bannerModuleVisible = normalizeModuleEnabled(modules.find((item) => item.type === 'banner')?.enabled)
-  return [
-    { key: 'brand', icon: '✦', label: '品牌视觉', summary: `${row.brandName || row.tenantName || '灵启商城'} · ${getTemplateName(row.productTemplate)} · ${row.logoUrl ? '已配置 Logo' : '待上传 Logo'}`, status: row.brandName || row.logoUrl ? '已配置' : '待完善', active: Boolean(row.brandName || row.logoUrl) },
-    { key: 'culture', icon: '文', label: '品牌文化页', summary: row.brandCultureTitle || '独立品牌介绍页，支持封面与多张详情图', status: Number(row.brandCultureEnabled ?? 0) === 1 ? '已开启' : '已关闭', active: Number(row.brandCultureEnabled ?? 0) === 1 },
-    { key: 'layout', icon: '▤', label: '首页版型', summary: `${getLayoutTemplateName(currentDisplayConfig.value.layoutTemplate)}${currentDisplayConfig.value.layoutTemplate === 'category-focus' ? ` · ${categoryGuideTemplateOptions.find((item) => item.value === currentDisplayConfig.value.categoryGuideTemplate)?.label || 'A 双栏目录导航'}` : ''}`, status: '可编辑', active: true },
-    { key: 'home', icon: '⌂', label: '首页模块', summary: `${visibleModules}/${modules.length} 个模块展示；直播与新品横排`, status: '已配置', active: visibleModules > 0 },
-    { key: 'category', icon: '▦', label: '分类模块', summary: '控制首页分类入口及单个分类显示', status: '可编辑', active: true },
-    { key: 'banner', icon: '▣', label: '首页轮播图', summary: bannerModuleVisible ? '总开关已展示，可管理图片与点击去向' : '首页模块总开关已隐藏，图片不会在前台展示', status: bannerModuleVisible ? '展示中' : '已隐藏', active: bannerModuleVisible },
-    { key: 'live', icon: '◉', label: '直播广场', summary: '完整页面独立开关；包含直播中、直播预告、预约和详情，关闭不删除资料', status: Number(currentDisplayConfig.value.liveSquareEnabled ?? 1) === 1 ? '已开启' : '已关闭', active: Number(currentDisplayConfig.value.liveSquareEnabled ?? 1) === 1 },
-    { key: 'newArrivals', icon: 'N', label: '新品速递', summary: `完整页面独立开关；自动新品${Number(currentDisplayConfig.value.newArrivalWindowDays ?? 30) === 0 ? '永久展示' : `展示 ${Number(currentDisplayConfig.value.newArrivalWindowDays ?? 30)} 天`}，并支持商品额外追加`, status: Number(currentDisplayConfig.value.newArrivalsEnabled ?? 1) === 1 ? '已开启' : '已关闭', active: Number(currentDisplayConfig.value.newArrivalsEnabled ?? 1) === 1 },
-    { key: 'nav', icon: '≡', label: '底部导航', summary: `${visibleNav}/${configurableNav.length} 个可编辑入口展示`, status: '已配置', active: visibleNav > 0 },
-    { key: 'colors', icon: '◉', label: '颜色微调', summary: customColorCount ? `已调整 ${customColorCount} 项颜色` : '使用主题默认颜色，可恢复默认', status: customColorCount ? '已调整' : '默认', active: customColorCount > 0 },
-  ]
-})
 
 const uploadDisplayLogo = async ({ file }) => {
   const res = await uploadShopImage(file)
@@ -649,16 +630,15 @@ const dropBrandCultureImage = (index) => {
   brandCultureDraggingIndex.value = null
 }
 
-const openDisplayDialog = async (row, section = 'brand') => {
-  if (section === 'banner') {
-    currentTenant.value = row
-    displayDialogVisible.value = false
-    bannerDialogVisible.value = true
-    return
-  }
+const normalizeWorkbenchSection = (section) => ({
+  culture: 'pages', live: 'pages', newArrivals: 'pages', banner: 'home', category: 'home', colors: 'brand',
+}[section] || (Object.prototype.hasOwnProperty.call(editSectionLabels, section) ? section : 'layout'))
+
+const openDisplayDialog = async (row, section = 'layout') => {
   initializingDisplay.value = true
   displayDraftDirty.value = false
-  activeEditSection.value = Object.prototype.hasOwnProperty.call(editSectionLabels, section) ? section : 'brand'
+  activeEditSection.value = normalizeWorkbenchSection(section)
+  if (['culture', 'live', 'newArrivals'].includes(section)) independentPageTab.value = section
   currentTenant.value = row
   displayLogoLoadFailed.value = false
   const [resResult, categoryResult, productResult, bannerResult] = await Promise.allSettled([
@@ -1088,7 +1068,7 @@ const getTemplateName = (value) => {
 onMounted(async () => {
   await fetchData()
   const editSection = String(route.query.editSection || '')
-  if (tableData.value[0] && Object.prototype.hasOwnProperty.call(editSectionLabels, editSection)) {
+  if (tableData.value[0] && editSection) {
     await openDisplayDialog(tableData.value[0], editSection)
   }
 })
@@ -1117,40 +1097,34 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
 }
-.single-tenant-alert {
-  margin-bottom: 16px;
-}
 .version-alert {
   margin-bottom: 16px;
 }
-.display-section-table {
-  margin-top: 14px;
-}
-.display-section-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.display-section-icon {
-  display: grid;
-  width: 26px;
-  height: 26px;
-  place-items: center;
-  color: var(--el-color-primary);
-  background: #ecf5ff;
-  border-radius: 8px;
-}
-.color-cell {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.swatch {
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
-  border: 1px solid #dcdfe6;
-}
+.current-decoration-card { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:24px; min-height:400px; padding:32px 36px; overflow:hidden; background:linear-gradient(135deg,#fff 0%,#f8fbff 72%,#eef5ff 100%); border:1px solid #e1e8f0; border-radius:20px; box-shadow:0 16px 38px rgba(31,55,85,.09); }
+.current-decoration-main { display:flex; flex-direction:column; justify-content:center; min-width:0; }
+.current-decoration-kicker { margin-bottom:18px; color:#1556a3; font-size:14px; font-weight:700; letter-spacing:.08em; }
+.current-decoration-brand { display:flex; align-items:center; gap:16px; }
+.current-decoration-logo { display:grid; flex:0 0 64px; width:64px; height:64px; place-items:center; overflow:hidden; color:#1556a3; background:#fff; border:1px solid #dce6f1; border-radius:16px; box-shadow:0 8px 18px rgba(32,68,108,.08); }
+.current-decoration-logo img { width:100%; height:100%; object-fit:contain; }
+.current-decoration-logo b { font-size:26px; }
+.current-decoration-brand h3 { margin:0 0 8px; color:#1b2430; font-size:26px; line-height:1.25; }
+.current-decoration-theme { display:flex; align-items:center; gap:7px; color:#6b7280; font-size:13px; }
+.current-decoration-theme i { width:16px; height:16px; border:2px solid #fff; border-radius:50%; box-shadow:0 0 0 1px #d8dee8; }
+.current-decoration-layout { display:flex; align-items:center; gap:10px; margin-top:28px; padding:15px 0; border-top:1px solid #e8ecf1; border-bottom:1px solid #e8ecf1; }
+.current-decoration-layout > span { color:#6b7280; font-size:13px; }
+.current-decoration-layout strong { color:#1b2430; font-size:16px; }
+.current-decoration-layout .el-tag { margin-left:auto; }
+.current-decoration-main > p { margin:18px 0 22px; color:#6b7280; font-size:14px; line-height:1.75; }
+.current-decoration-actions { display:flex; flex-wrap:wrap; gap:10px; }
+.current-decoration-preview { display:grid; align-items:center; justify-items:start; min-width:0; }
+.decoration-phone { display:flex; box-sizing:border-box; width:190px; height:320px; flex-direction:column; overflow:hidden; padding:9px; color:#1b2430; background:#f6f7f9; border:7px solid #1b2430; border-radius:28px; box-shadow:0 18px 32px rgba(27,36,48,.18); }
+.decoration-phone-status { padding:0 5px 7px; font-size:9px; font-weight:700; }
+.decoration-phone-brand { display:flex; align-items:center; gap:7px; padding:8px; background:#fff; border-radius:10px; }
+.decoration-phone-brand i { width:18px; height:18px; border-radius:6px; }
+.decoration-phone-brand strong { overflow:hidden; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+.decoration-phone-search { margin:8px 0; padding:7px 10px; color:#9aa3af; font-size:9px; background:#fff; border:1px solid #dce4ed; border-radius:999px; }
+.decoration-phone .current-layout-preview { width:100%; height:auto; min-height:186px; flex:1; box-sizing:border-box; }
+.decoration-phone-nav { display:grid; grid-template-columns:repeat(4,1fr); gap:2px; padding:8px 1px 2px; color:#7b8491; font-size:8px; text-align:center; }
 .ui-preview {
   width: 100%;
   max-width: 720px;
@@ -1212,7 +1186,7 @@ onMounted(async () => {
 .mobile-preview-logo img { width:100%; height:100%; object-fit:contain; }
 .mobile-preview-brand strong { overflow:hidden; font-size:14px; text-overflow:ellipsis; white-space:nowrap; }
 .mobile-preview-share { color:var(--preview-accent, var(--preview-color)); font-size:10px; }
-.mobile-preview-search { display:grid; grid-template-columns:20px 1fr 23px; align-items:center; gap:5px; margin:10px 10px 8px; padding:6px 8px; color:#98a2b3; background:#fff; border:1.5px solid var(--preview-accent, var(--preview-color)); border-radius:999px; font-size:12px; }
+.mobile-preview-search { display:grid; grid-template-columns:20px minmax(0,1fr) 23px; align-items:center; gap:5px; margin:10px 10px 8px; padding:6px 8px; overflow:hidden; color:#98a2b3; background:#fff; border:1.5px solid var(--preview-accent, var(--preview-color)); border-radius:999px; font-size:12px; white-space:nowrap; }
 .mobile-preview-search b { display:grid; width:23px; height:23px; place-items:center; color:#fff; background:var(--preview-button, var(--preview-color)); border-radius:50%; }
 .mobile-preview-banner { position:relative; display:grid; gap:4px; min-height:122px; margin:0 12px 10px; overflow:hidden; color:#fff; background:linear-gradient(135deg, color-mix(in srgb, var(--preview-color) 84%, #111 16%), var(--preview-color)); border-radius:16px; }
 .live-preview-banner img { width:100%; height:122px; object-fit:cover; }
@@ -1378,12 +1352,22 @@ onMounted(async () => {
 .display-logo-uploader span { font-size: 11px; }
 .display-workbench {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 330px;
+  grid-template-columns: 145px minmax(0, 1fr) 285px;
   flex: 1 1 auto;
   gap: 12px;
   min-height: 0;
   overflow: hidden;
 }
+.workbench-nav { display:flex; flex-direction:column; gap:6px; padding:4px; overflow-y:auto; background:#f3f6fa; border:1px solid #e5eaf1; border-radius:12px; }
+.workbench-nav button { display:grid; grid-template-columns:26px minmax(0,1fr); align-items:start; gap:8px; width:100%; padding:11px 9px; color:#6b7280; text-align:left; background:transparent; border:1px solid transparent; border-radius:9px; cursor:pointer; }
+.workbench-nav button > span { display:grid; width:24px; height:24px; place-items:center; color:#8792a2; font-size:10px; background:#fff; border:1px solid #dfe5ed; border-radius:7px; }
+.workbench-nav button div { display:grid; gap:3px; min-width:0; }
+.workbench-nav button strong { color:#394150; font-size:13px; line-height:20px; }
+.workbench-nav button small { color:#98a2b3; font-size:10px; line-height:14px; }
+.workbench-nav button:hover,.workbench-nav button:focus-visible { background:#fff; border-color:#cad9eb; outline:none; }
+.workbench-nav button.active { background:#fff; border-color:#a9c6e7; box-shadow:0 5px 12px rgba(21,86,163,.09); }
+.workbench-nav button.active > span { color:#fff; background:#1556a3; border-color:#1556a3; }
+.workbench-nav button.active strong { color:#1556a3; }
 .display-controls {
   height: 100%;
   max-height: none;
@@ -1400,9 +1384,21 @@ onMounted(async () => {
   padding: 0 2px 6px;
   border-bottom: 1px solid #e7ebf2;
 }
-.display-section-brand-only span { color: #98a2b3; font-size: 11px; }
 .display-section-brand-only strong { color: var(--el-color-primary); font-size: 14px; }
 .display-section-brand-only small { margin-left: auto; color: #98a2b3; font-size: 11px; }
+.brand-color-detail,.home-template-modules,.home-category-settings { margin-top:14px; padding-top:14px; border-top:1px solid #e8ecf1; }
+.independent-page-hub { margin-bottom:8px; }
+.independent-page-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.independent-page-tabs button { display:grid; grid-template-columns:34px minmax(0,1fr); align-items:center; gap:9px; min-width:0; padding:10px; text-align:left; background:#f7f9fc; border:1px solid #e4e9f1; border-radius:10px; cursor:pointer; }
+.independent-page-tabs button > span { display:grid; width:32px; height:32px; place-items:center; color:#1556a3; background:#eaf2fb; border-radius:9px; font-weight:700; }
+.independent-page-tabs button div { display:grid; gap:2px; min-width:0; }
+.independent-page-tabs button strong { color:#303846; font-size:12px; }
+.independent-page-tabs button small { overflow:hidden; color:#8a94a4; font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
+.independent-page-tabs button.active { background:#f1f6fc; border-color:#1556a3; box-shadow:0 0 0 2px rgba(21,86,163,.08); }
+.home-banner-settings { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:14px; padding:13px; background:#f7f9fc; border:1px solid #e7ebf1; border-radius:10px; }
+.home-banner-settings > div { display:grid; gap:3px; }
+.home-banner-settings strong { color:#303846; font-size:13px; }
+.home-banner-settings small { color:#8a94a4; font-size:11px; }
 .control-section {
   margin-bottom: 8px;
   padding: 10px;
@@ -1794,20 +1790,33 @@ onMounted(async () => {
   gap: 8px;
 }
 .color-editor > span { margin: 0; }
+@media (max-width: 1080px) {
+  .display-workbench { grid-template-columns:minmax(0,1fr) 310px; }
+  .workbench-nav { grid-column:1 / -1; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); overflow:visible; }
+  .workbench-nav button { grid-template-columns:22px minmax(0,1fr); padding:8px 7px; }
+  .workbench-nav button > span { width:20px; height:20px; }
+  .workbench-nav button small { display:none; }
+}
 @media (max-width: 760px) {
   .toolbar { align-items: flex-start; flex-direction: column; }
   .toolbar-actions { width: 100%; }
+  .current-decoration-card { grid-template-columns:1fr; gap:22px; padding:24px 20px; }
+  .current-decoration-preview { display:none; }
+  .current-decoration-layout { align-items:flex-start; flex-wrap:wrap; }
+  .current-decoration-layout .el-tag { margin-left:0; }
   .layout-template-grid { grid-template-columns: 1fr; }
   .theme-preset-grid { grid-template-columns: 1fr; }
   .color-editor { grid-template-columns: 42px minmax(0, 1fr); }
   .color-editor > span { grid-column: 1 / 3; }
   .display-workbench { grid-template-columns: 1fr; }
+  .workbench-nav { grid-column:auto; grid-template-columns:1fr 1fr; }
   .display-controls { max-height: none; overflow: visible; }
-  .preview-stage { order: -1; }
+  .preview-stage { order: 2; }
   .visual-design-grid { grid-template-columns: 1fr; }
   .visual-design-fields { grid-template-columns: 1fr; }
   .visual-design-fields .visual-design-field:first-child { grid-column: auto; }
   .compact-theme-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .independent-page-tabs { grid-template-columns:1fr; }
   .category-guide-template-grid,.guide-module-switches { grid-template-columns:1fr; }
   .feature-toggle-card { align-items:flex-start; flex-direction:column; gap:12px; }
   .feature-toggle-action { align-self:flex-end; }
