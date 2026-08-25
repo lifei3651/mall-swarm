@@ -2,11 +2,64 @@ import { describe, expect, it } from 'vitest'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { resolveDirectoryGuideLayout } from '../../src/utils/categoryGuideLayout.js'
+import {
+  DISPLAY_COLOR_KEYS,
+  SHOP_THEME_OPTIONS,
+  applyThemePresetToForm,
+  hydrateThemeColors,
+  isThemePresetActive,
+  themePreviewVariables,
+} from '../../src/utils/shopTheme.js'
 
 const sourcePath = resolve(process.cwd(), 'src/views/tenant/list.vue')
 const layoutPath = resolve(process.cwd(), 'src/components/Layout.vue')
 
 describe('商城视觉与页面工作台', () => {
+  it('四套主题点击后同步主色和颜色细节，保存重载后保持一致', () => {
+    for (const theme of SHOP_THEME_OPTIONS) {
+      const form = {
+        productTemplate: 'retail-red',
+        themeColor: '#123456',
+        colors: Object.fromEntries(DISPLAY_COLOR_KEYS.map((key) => [key, '#1556A3'])),
+      }
+      applyThemePresetToForm(form, theme)
+      const preview = themePreviewVariables(form)
+      const savedExtra = JSON.parse(JSON.stringify({ colors: form.colors }))
+      const reloadedColors = hydrateThemeColors(theme, form.themeColor, savedExtra.colors)
+
+      expect(preview['--preview-color'].toLowerCase()).toBe(theme.color.toLowerCase())
+      expect(preview['--preview-accent'].toLowerCase()).toBe(theme.color.toLowerCase())
+      expect(preview['--preview-button'].toLowerCase()).toBe(theme.color.toLowerCase())
+      expect(reloadedColors).toEqual(form.colors)
+      expect(isThemePresetActive({ ...form, colors: reloadedColors }, theme)).toBe(true)
+    }
+    const retailRed = SHOP_THEME_OPTIONS.find((theme) => theme.value === 'retail-red')
+    const form = applyThemePresetToForm({ colors: {} }, retailRed)
+    expect(JSON.stringify(form).toLowerCase()).not.toContain('#1556a3')
+  })
+
+  it('自定义主题稳定保留，旧分类蓝色指纹仅在完整匹配时确定迁移', () => {
+    const retailRed = SHOP_THEME_OPTIONS.find((theme) => theme.value === 'retail-red')
+    const custom = {
+      priceColor: '#aa2200', pageBg: '#fffaf5', headerBg: '#ffffff', cardBg: '#fffdfb',
+      textColor: '#222222', mutedColor: '#777777', accentColor: '#123456',
+      lineColor: '#eeeeee', buttonBg: '#654321',
+    }
+    expect(hydrateThemeColors(retailRed, '#345678', custom)).toEqual(custom)
+    expect(themePreviewVariables({ themeColor: '#345678', colors: custom })['--preview-color']).toBe('#345678')
+
+    const legacyCategoryBlue = {
+      priceColor: '#E5484D', pageBg: '#F6F7F9', headerBg: '#FFFFFF', cardBg: '#FFFFFF',
+      textColor: '#1B2430', mutedColor: '#6B7280', accentColor: '#1556A3',
+      lineColor: '#E8ECF1', buttonBg: '#1556A3',
+    }
+    const migrated = hydrateThemeColors(retailRed, '#e7193f', legacyCategoryBlue)
+    expect(migrated.accentColor).toBe('#e7193f')
+    expect(migrated.buttonBg).toBe('#e7193f')
+    const missingFields = hydrateThemeColors(retailRed, '#e7193f', {})
+    expect(DISPLAY_COLOR_KEYS.every((key) => Boolean(missingFields[key]))).toBe(true)
+  })
+
   it('仅提供首页预览入口，分类、我的和购物车不作为装修模板', async () => {
     const source = await readFile(sourcePath, 'utf8')
     expect(source).toContain("{ value: 'home'")

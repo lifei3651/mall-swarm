@@ -1,3 +1,5 @@
+import { resolveDisplayColors } from './displayConfig.js'
+
 const DEFAULT_BRAND_NAME = '商城'
 const DEFAULT_THEME_COLOR = '#e7193f'
 const BRAND_LOGO_STORAGE_KEY = 'shop_logo_url'
@@ -63,6 +65,53 @@ export const normalizeThemeKey = (value) => {
 
 const normalizeColor = (value) => /^#[0-9a-f]{6}$/i.test(value || '') ? value.toLowerCase() : DEFAULT_THEME_COLOR
 
+const LEGACY_CATEGORY_COLORS = {
+  priceColor: '#e5484d',
+  pageBg: '#f6f7f9',
+  headerBg: '#ffffff',
+  cardBg: '#ffffff',
+  textColor: '#1b2430',
+  mutedColor: '#6b7280',
+  accentColor: '#1556a3',
+  lineColor: '#e8ecf1',
+  buttonBg: '#1556a3',
+}
+const DISPLAY_COLOR_KEYS = Object.keys(LEGACY_CATEGORY_COLORS)
+const colorEquals = (left, right) => String(left || '').trim().toLowerCase() === String(right || '').trim().toLowerCase()
+const isLegacyCategoryPalette = (colors) => DISPLAY_COLOR_KEYS.every((key) => colorEquals(colors?.[key], LEGACY_CATEGORY_COLORS[key]))
+
+export const resolveBrandCssVariables = (config = {}) => {
+  const themeColor = normalizeColor(config.themeColor)
+  const productTemplate = normalizeThemeKey(config.productTemplate)
+  const preset = themePresets[productTemplate]
+  const storedColors = resolveDisplayColors(config.displayConfig || config)
+  // 旧分类导购版会强制保存一套蓝色。只对完整旧指纹做兼容，其他自定义色保持原样。
+  const colors = isLegacyCategoryPalette(storedColors) && !colorEquals(themeColor, LEGACY_CATEGORY_COLORS.accentColor)
+    ? {}
+    : storedColors
+  return {
+    '--brand-primary': themeColor,
+    '--brand-primary-dark': mixHex(themeColor, [0, 0, 0], 0.18),
+    '--brand-primary-soft': mixHex(themeColor, [255, 255, 255], 0.91),
+    '--teal': themeColor,
+    '--accent': colors.accentColor || themeColor,
+    '--shop-card-radius': preset.radius,
+    '--shop-page-bg': colors.pageBg || preset.pageBackground,
+    '--shop-header-bg': colors.headerBg || preset.headerBackground,
+    '--shop-card-shadow': preset.shadow,
+    '--price-color': colors.priceColor || themeColor,
+    '--card-bg': colors.cardBg || '#ffffff',
+    '--card': colors.cardBg || '#ffffff',
+    '--text-color': colors.textColor || '#202735',
+    '--text': colors.textColor || '#202735',
+    '--ink': colors.textColor || '#202735',
+    '--muted-color': colors.mutedColor || '#6b7280',
+    '--muted': colors.mutedColor || '#6b7280',
+    '--line': colors.lineColor || '#e8ecf1',
+    '--shop-button-bg': colors.buttonBg || themeColor,
+  }
+}
+
 const mixHex = (hex, target, weight) => {
   const source = hex.slice(1).match(/../g).map((part) => Number.parseInt(part, 16))
   const mixed = source.map((value, index) => Math.round(value * (1 - weight) + target[index] * weight))
@@ -101,21 +150,12 @@ export const applyBrandConfig = (config = {}) => {
   const logoUrl = config.logoUrl || ''
   const themeColor = normalizeColor(config.themeColor)
   const productTemplate = normalizeThemeKey(config.productTemplate)
-  const preset = themePresets[productTemplate]
   const root = document.documentElement
 
   localStorage.setItem('shop_brand_name', brandName)
   localStorage.setItem(BRAND_LOGO_STORAGE_KEY, logoUrl)
   root.dataset.shopTheme = productTemplate
-  root.style.setProperty('--brand-primary', themeColor)
-  root.style.setProperty('--brand-primary-dark', mixHex(themeColor, [0, 0, 0], 0.18))
-  root.style.setProperty('--brand-primary-soft', mixHex(themeColor, [255, 255, 255], 0.91))
-  root.style.setProperty('--teal', themeColor)
-  root.style.setProperty('--accent', themeColor)
-  root.style.setProperty('--shop-card-radius', preset.radius)
-  root.style.setProperty('--shop-page-bg', preset.pageBackground)
-  root.style.setProperty('--shop-header-bg', preset.headerBackground)
-  root.style.setProperty('--shop-card-shadow', preset.shadow)
+  Object.entries(resolveBrandCssVariables(config)).forEach(([property, value]) => root.style.setProperty(property, value))
   updateBrowserLogo(logoUrl)
 
   const brand = { brandName, logoUrl, themeColor, productTemplate, brandCultureEnabled: config.brandCultureEnabled === true }

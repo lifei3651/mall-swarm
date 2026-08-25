@@ -204,7 +204,7 @@ import { getHome, getProduct, listFlashSales, listProducts } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { money } from '@/utils/format'
 import { applyBrandConfig } from '@/utils/brand'
-import { readDisplayExtraConfig, resolveDisplayColors, resolveHomeModules } from '@/utils/displayConfig'
+import { readDisplayExtraConfig, resolveHomeModules } from '@/utils/displayConfig'
 import { resolveQuickCartItem } from '@/utils/quickCart'
 import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
 import { cartItemKey, stockAdditionViolation } from '@/utils/stockRules'
@@ -280,31 +280,6 @@ const homeModules = computed(() => {
   return resolveHomeModules(displayConfig.value, defaultModules)
 })
 
-// 颜色配置注入
-const applyExtraColors = (config) => {
-  const colors = resolveDisplayColors(config)
-  const root = document.documentElement
-  if (colors.priceColor) root.style.setProperty('--price-color', colors.priceColor)
-  if (colors.headerBg) root.style.setProperty('--shop-header-bg', colors.headerBg)
-  if (colors.pageBg) root.style.setProperty('--shop-page-bg', colors.pageBg)
-  if (colors.cardBg) root.style.setProperty('--card-bg', colors.cardBg)
-  if (colors.cardBg) root.style.setProperty('--card', colors.cardBg)
-  if (colors.textColor) {
-    root.style.setProperty('--text-color', colors.textColor)
-    root.style.setProperty('--text', colors.textColor)
-    root.style.setProperty('--ink', colors.textColor)
-  }
-  if (colors.mutedColor) {
-    root.style.setProperty('--muted-color', colors.mutedColor)
-    root.style.setProperty('--muted', colors.mutedColor)
-  }
-  if (colors.accentColor) {
-    root.style.setProperty('--accent', colors.accentColor)
-    root.style.setProperty('--brand-primary', colors.accentColor)
-  }
-  if (colors.lineColor) root.style.setProperty('--line', colors.lineColor)
-  if (colors.buttonBg) root.style.setProperty('--shop-button-bg', colors.buttonBg)
-}
 const trustItems = computed(() => {
   const config = home.value.legalConfig || {}
   const items = [
@@ -426,7 +401,6 @@ const fetchHome = async () => {
   const res = await getHome()
   home.value = res.data || {}
   applyBrandConfig(home.value)
-  applyExtraColors(displayConfig.value)
   if (layoutTemplate.value === 'campaign-feed') {
     try { flashSales.value = (await listFlashSales()).data || [] } catch { flashSales.value = [] }
   } else {

@@ -66,7 +66,7 @@
               <el-tag size="small" type="success">实时预览</el-tag>
             </div>
             <div class="theme-preset-grid compact-theme-grid">
-              <button v-for="theme in themeOptions" :key="theme.value" type="button" class="theme-preset" :class="{ active: displayForm.productTemplate === theme.value }" @click.stop.prevent="applyDisplayTheme(theme)">
+              <button v-for="theme in themeOptions" :key="theme.value" type="button" class="theme-preset" :class="{ active: isThemePresetActive(displayForm, theme) }" @click.stop.prevent="applyDisplayTheme(theme)">
                 <span class="theme-preview" :style="{ '--preview-color': theme.color, '--preview-radius': theme.radius }"><i></i><b></b><em></em></span>
                 <strong>{{ theme.label }}</strong>
                 <small>{{ theme.description }}</small>
@@ -321,6 +321,14 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute } from 'vue-router'
 import { formatDateTime } from '@/utils/dateTime'
 import { resolveDirectoryGuideLayout } from '@/utils/categoryGuideLayout'
+import {
+  SHOP_THEME_OPTIONS,
+  applyThemePresetToForm,
+  hydrateThemeColors,
+  isThemePresetActive,
+  themePalette,
+  themePreviewVariables,
+} from '@/utils/shopTheme'
 import { listShopBanners, listShopCategories, listShopProducts, updateCategoryShowOnHome, uploadBrandCultureImage, uploadShopImage } from '@/api/shop'
 import ShopBanners from '@/views/shop/banners.vue'
 import {
@@ -439,17 +447,6 @@ const directoryGuidePreviewMode = computed(() => resolveDirectoryGuideLayout({
 const directoryGuideInvalid = computed(() => displayForm.value.layoutTemplate === 'category-focus'
   && displayForm.value.categoryGuideTemplate === 'directory'
   && directoryGuidePreviewMode.value === 'empty')
-const defaultColors = () => ({
-  priceColor: '',
-  pageBg: '',
-  headerBg: '',
-  cardBg: '',
-  textColor: '',
-  mutedColor: '',
-  accentColor: '',
-  lineColor: '',
-  buttonBg: '',
-})
 const colorFields = [
   { key: 'priceColor', label: '价格色' },
   { key: 'pageBg', label: '页面背景' },
@@ -461,12 +458,7 @@ const colorFields = [
   { key: 'lineColor', label: '分割线色' },
   { key: 'buttonBg', label: '按钮背景' },
 ]
-const themeOptions = [
-  { value: 'retail-red', label: '热卖红', color: '#e7193f', radius: '12px', description: '醒目促销、适合大众零售' },
-  { value: 'fresh-green', label: '清新绿', color: '#0f766e', radius: '18px', description: '自然清爽、适合健康生活' },
-  { value: 'premium-gold', label: '轻奢金', color: '#9a6a22', radius: '6px', description: '稳重精致、适合高端商品' },
-  { value: 'soft-purple', label: '雅致紫', color: '#7c3aed', radius: '20px', description: '柔和现代、适合美妆精品' },
-]
+const themeOptions = SHOP_THEME_OPTIONS
 const layoutTemplateOptions = [
   {
     value: 'standard',
@@ -678,12 +670,15 @@ const openDisplayDialog = async (row, section = 'layout') => {
     ...module,
     enabled: module.type === 'trust' ? trustEnabled : normalizeModuleEnabled(module.enabled),
   }))
+  const productTemplate = normalizeTheme(row.productTemplate)
+  const selectedTheme = themeOptions.find((theme) => theme.value === productTemplate) || themeOptions[0]
+  const themeColor = row.themeColor || selectedTheme.color
   displayForm.value = {
     tenantId: row.id,
     brandName: row.brandName || row.tenantName || '灵启商城',
     logoUrl: normalizeMediaUrl(row.logoUrl),
-    themeColor: row.themeColor || '#e7193f',
-    productTemplate: normalizeTheme(row.productTemplate),
+    themeColor,
+    productTemplate,
     brandCultureEnabled: Number(row.brandCultureEnabled ?? 0) === 1 ? 1 : 0,
     brandCultureTitle: row.brandCultureTitle || '',
     brandCultureSubtitle: row.brandCultureSubtitle || '',
@@ -698,7 +693,7 @@ const openDisplayDialog = async (row, section = 'layout') => {
     ...(res.data || {}),
     showHomeCategories: Number(res.data?.showHomeCategories ?? 1) === 0 ? 0 : 1,
     homeModules,
-    colors: { ...defaultColors(), ...(extra.colors || {}) },
+    colors: hydrateThemeColors(selectedTheme, themeColor, extra.colors),
     bottomNav,
     showTrustStrip: trustEnabled ? 1 : 0,
     liveSquareEnabled: Number(res.data?.liveSquareEnabled ?? extra.liveSquareEnabled ?? 1) === 0 ? 0 : 1,
@@ -765,8 +760,7 @@ const restoreVersion = async (row) => {
 }
 
 const applyDisplayTheme = (theme) => {
-  displayForm.value.productTemplate = theme.value
-  displayForm.value.themeColor = theme.color
+  applyThemePresetToForm(displayForm.value, theme)
 }
 
 const setTrustEnabled = (value) => {
@@ -777,7 +771,8 @@ const setTrustEnabled = (value) => {
 }
 
 const resetColors = () => {
-  displayForm.value.colors = defaultColors()
+  const theme = themeOptions.find((item) => item.value === normalizeTheme(displayForm.value.productTemplate)) || themeOptions[0]
+  displayForm.value.colors = themePalette(theme, displayForm.value.themeColor)
   ElMessage.success('颜色已恢复默认，点击“保存发布”后客户前台生效')
 }
 
@@ -797,18 +792,7 @@ const visiblePreviewNav = computed(() => (displayForm.value.bottomNav || []).fil
 const configurableBottomNav = computed(() => (displayForm.value.bottomNav || [])
   .map((nav, sourceIndex) => ({ nav, sourceIndex }))
   .filter((item) => !isRequiredNav(item.nav.type)))
-const previewStyle = computed(() => ({
-  '--preview-color': displayForm.value.themeColor || currentTenant.value?.themeColor || '#e7193f',
-  '--preview-page-bg': displayForm.value.colors?.pageBg || '#f5f6f8',
-  '--preview-header-bg': displayForm.value.colors?.headerBg || displayForm.value.themeColor || currentTenant.value?.themeColor || '#e7193f',
-  '--preview-card-bg': displayForm.value.colors?.cardBg || '#fff',
-  '--preview-text': displayForm.value.colors?.textColor || '#202735',
-  '--preview-muted': displayForm.value.colors?.mutedColor || '#98a2b3',
-  '--preview-price': displayForm.value.colors?.priceColor || displayForm.value.themeColor || '#e7193f',
-  '--preview-accent': displayForm.value.colors?.accentColor || displayForm.value.themeColor || '#e7193f',
-  '--preview-line': displayForm.value.colors?.lineColor || '#e5e7eb',
-  '--preview-button': displayForm.value.colors?.buttonBg || displayForm.value.themeColor || '#e7193f',
-}))
+const previewStyle = computed(() => themePreviewVariables(displayForm.value, currentTenant.value?.themeColor || '#e7193f'))
 
 const applyLayoutTemplate = (template) => {
   displayForm.value.layoutTemplate = template.value
@@ -827,12 +811,6 @@ const applyLayoutTemplate = (template) => {
   }
   if (template.value === 'category-focus') {
     displayForm.value.categoryGuideTemplate ||= 'directory'
-    displayForm.value.colors = {
-      ...displayForm.value.colors,
-      priceColor: '#E5484D', pageBg: '#F6F7F9', headerBg: '#FFFFFF', cardBg: '#FFFFFF',
-      textColor: '#1B2430', mutedColor: '#6B7280', accentColor: '#1556A3',
-      lineColor: '#E8ECF1', buttonBg: '#1556A3',
-    }
   }
 }
 
@@ -1612,9 +1590,9 @@ onMounted(async () => {
 .module-dependent-switch { min-width:190px; display:flex; align-items:flex-end; flex-direction:column; gap:4px; }
 .module-dependent-switch small { max-width:220px; color:#b26a00; font-size:10px; text-align:right; }
 .nav-scope-note { margin:0 0 10px; color:#8a94a4; }
-.mobile-category-guide-preview { padding:8px; color:#1b2430; background:#f6f7f9; }
-.mobile-category-guide-preview .mobile-preview-search { height:37px; min-height:37px; margin:0 0 8px; border-color:#1556a3; line-height:1; }
-.mobile-category-guide-preview .mobile-preview-search b { color:#fff; background:#1556a3; }
+.mobile-category-guide-preview { padding:8px; color:var(--preview-text); background:var(--preview-page-bg); }
+.mobile-category-guide-preview .mobile-preview-search { height:37px; min-height:37px; margin:0 0 8px; border-color:var(--preview-accent); line-height:1; }
+.mobile-category-guide-preview .mobile-preview-search b { color:#fff; background:var(--preview-accent); }
 .mobile-category-guide-preview h3 { margin:8px 2px; font-size:14px; }
 .guide-preview-directory { display:block; }
 .guide-preview-directory-body { width:100%; }
@@ -1622,7 +1600,7 @@ onMounted(async () => {
 .guide-preview-directory-body.is-content-only,.guide-preview-directory-body.is-primary-only { display:block; }
 .guide-preview-directory-body>aside { overflow:hidden; background:#fff; border-radius:8px; }
 .guide-preview-directory-body>aside span { display:block; padding:10px 3px; border-bottom:1px solid #e8ecf1; font-size:8px; text-align:center; }
-.guide-preview-directory-body>aside span:first-child { color:#1556a3; border-left:3px solid #1556a3; font-weight:800; }
+.guide-preview-directory-body>aside span:first-child { color:var(--preview-accent); border-left:3px solid var(--preview-accent); font-weight:800; }
 .guide-preview-directory-body>main { min-width:0; padding:6px; background:#fff; border-radius:8px; }
 .guide-preview-directory-body main>section { margin-top:9px; }
 .guide-preview-directory-body main>section:first-child { margin-top:0; }
@@ -1631,20 +1609,20 @@ onMounted(async () => {
 .guide-preview-directory-body main>section>div>span { padding:6px 3px; background:#f6f7f9; border-radius:5px; font-size:7px; text-align:center; }
 .guide-preview-primary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
 .guide-preview-primary-grid span { min-width:0; padding:14px 7px; overflow:hidden; color:#1b2430; background:#fff; border:1px solid #e8ecf1; border-radius:8px; font-size:9px; font-weight:700; text-align:center; text-overflow:ellipsis; white-space:nowrap; }
-.guide-preview-primary-grid span:first-child { color:#1556a3; border-color:#1556a3; box-shadow:0 0 0 2px rgba(21,86,163,.08); }
+.guide-preview-primary-grid span:first-child { color:var(--preview-accent); border-color:var(--preview-accent); box-shadow:0 0 0 2px color-mix(in srgb,var(--preview-accent) 8%,transparent); }
 .preview-guide-invalid { margin:0; padding:18px 12px; color:#6b7280; background:#fff; border:1px dashed #cfd6e2; border-radius:10px; font-size:11px; text-align:center; }
 .preview-guide-products { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; margin-top:6px; }
 .preview-guide-products article { min-width:0; overflow:hidden; padding-bottom:5px; background:#fff; border:1px solid #e8ecf1; border-radius:7px; }
 .preview-guide-products img { width:100%; height:64px; object-fit:cover; }
 .preview-guide-products span,.preview-guide-products strong { display:block; overflow:hidden; margin:3px 4px 0; font-size:7px; text-overflow:ellipsis; white-space:nowrap; }
-.preview-guide-products strong { color:#e5484d; font-size:9px; }
+.preview-guide-products strong { color:var(--preview-price); font-size:9px; }
 .preview-guide-showcase { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
 .preview-guide-showcase article { position:relative; height:108px; overflow:hidden; background:#e8ecf1; border-radius:8px; }
 .preview-guide-showcase img { width:100%; height:100%; object-fit:cover; }
 .preview-guide-showcase strong { position:absolute; left:7px; bottom:7px; color:#fff; font-size:10px; text-shadow:0 1px 3px rgba(0,0,0,.65); }
 .preview-guide-tabs { display:flex; gap:5px; overflow:hidden; margin:8px 0; }
 .preview-guide-tabs span { flex:0 0 auto; padding:5px 8px; background:#fff; border:1px solid #e8ecf1; border-radius:999px; font-size:7px; }
-.preview-guide-tabs span:first-child { color:#fff; background:#1556a3; }
+.preview-guide-tabs span:first-child { color:#fff; background:var(--preview-accent); }
 .preview-guide-scenarios { display:grid; gap:6px; }
 .preview-guide-scenarios article { position:relative; height:95px; overflow:hidden; background:#fff; border-radius:8px; }
 .preview-guide-scenarios img { width:100%; height:100%; object-fit:cover; }

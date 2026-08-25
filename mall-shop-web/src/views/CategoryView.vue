@@ -589,12 +589,12 @@ onBeforeUnmount(() => {
 
 /* 分类导购三种子版型共享同一品牌语言，仅改变信息架构。 */
 .category-guide {
-  --guide-blue: #1556a3;
-  --guide-red: #e5484d;
-  --guide-bg: #f6f7f9;
-  --guide-ink: #1b2430;
-  --guide-muted: #6b7280;
-  --guide-line: #e8ecf1;
+  --guide-blue: var(--accent,var(--brand-primary));
+  --guide-red: var(--price-color,var(--brand-primary));
+  --guide-bg: var(--shop-page-bg,#f6f7f9);
+  --guide-ink: var(--ink,#1b2430);
+  --guide-muted: var(--muted,#6b7280);
+  --guide-line: var(--line,#e8ecf1);
   padding: 4px 0 18px;
   color: var(--guide-ink);
   background: var(--guide-bg);
@@ -612,7 +612,7 @@ onBeforeUnmount(() => {
 .guide-directory-content > :first-child { margin-top: 0; }
 .guide-primary-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
 .guide-primary-grid button { min-width: 0; display: grid; gap: 5px; padding: 18px; color: var(--guide-ink); background: #fff; border: 1px solid var(--guide-line); border-radius: 14px; box-shadow: 0 5px 16px rgba(27,36,48,.05); text-align: left; }
-.guide-primary-grid button.active { color: var(--guide-blue); border-color: var(--guide-blue); box-shadow: 0 0 0 2px rgba(21,86,163,.1); }
+.guide-primary-grid button.active { color: var(--guide-blue); border-color: var(--guide-blue); box-shadow: 0 0 0 2px color-mix(in srgb,var(--guide-blue) 10%,transparent); }
 .guide-primary-grid strong { overflow: hidden; font-size: 18px; text-overflow: ellipsis; white-space: nowrap; }
 .guide-primary-grid span { overflow: hidden; color: var(--guide-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .guide-subcategories,.guide-product-section,.guide-shelf,.guide-quick-entry { margin-top: 20px; }

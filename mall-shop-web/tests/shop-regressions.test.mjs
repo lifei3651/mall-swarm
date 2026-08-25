@@ -10,9 +10,61 @@ import { enforceRequiredBottomNav, readDisplayExtraConfig, resolveCategoryGuideC
 import { resolveCurrentStock, stockAdditionViolation, stockQuantityViolation } from '../src/utils/stockRules.js'
 import { isGatewayRecoveryError, resolveRequestErrorMessage } from '../src/utils/requestErrors.js'
 import { resolveFixedBottomShift } from '../src/utils/visualViewportFixedBottom.js'
+import { resolveBrandCssVariables, themePresets } from '../src/utils/brand.js'
 
 const readView = (name) => readFile(new URL(`../src/views/${name}`, import.meta.url), 'utf8')
 const readStyles = () => readFile(new URL('../src/assets/styles.css', import.meta.url), 'utf8')
+
+test('主题预设、颜色细节和分类导购在刷新后使用同一份确定颜色', async () => {
+  const [app, home, category] = await Promise.all([
+    readFile(new URL('../src/App.vue', import.meta.url), 'utf8'),
+    readView('HomeView.vue'),
+    readView('CategoryView.vue'),
+  ])
+  const themeColors = {
+    'retail-red': '#e7193f',
+    'fresh-green': '#0f766e',
+    'premium-gold': '#9a6a22',
+    'soft-purple': '#7c3aed',
+  }
+  for (const [productTemplate, themeColor] of Object.entries(themeColors)) {
+    assert.ok(themePresets[productTemplate])
+    const variables = resolveBrandCssVariables({
+      themeColor,
+      productTemplate,
+      displayConfig: { extraConfigJson: JSON.stringify({ colors: { accentColor: themeColor, buttonBg: themeColor } }) },
+    })
+    assert.equal(variables['--brand-primary'], themeColor)
+    assert.equal(variables['--accent'], themeColor)
+    assert.equal(variables['--shop-button-bg'], themeColor)
+  }
+
+  const legacyBlue = {
+    priceColor: '#E5484D', pageBg: '#F6F7F9', headerBg: '#FFFFFF', cardBg: '#FFFFFF',
+    textColor: '#1B2430', mutedColor: '#6B7280', accentColor: '#1556A3',
+    lineColor: '#E8ECF1', buttonBg: '#1556A3',
+  }
+  const migrated = resolveBrandCssVariables({
+    themeColor: '#e7193f',
+    productTemplate: 'retail-red',
+    displayConfig: { extraConfigJson: JSON.stringify({ colors: legacyBlue }) },
+  })
+  assert.equal(migrated['--brand-primary'], '#e7193f')
+  assert.equal(migrated['--accent'], '#e7193f')
+  assert.equal(migrated['--shop-button-bg'], '#e7193f')
+
+  const custom = resolveBrandCssVariables({
+    themeColor: '#345678',
+    productTemplate: 'retail-red',
+    displayConfig: { extraConfigJson: JSON.stringify({ colors: { accentColor: '#123456', buttonBg: '#654321' } }) },
+  })
+  assert.equal(custom['--brand-primary'], '#345678')
+  assert.equal(custom['--accent'], '#123456')
+  assert.equal(custom['--shop-button-bg'], '#654321')
+  assert.doesNotMatch(app, /\.app-shell\.layout-category-focus\s*\{[^}]*--brand-primary:\s*#1556a3/s)
+  assert.doesNotMatch(home, /applyExtraColors/)
+  assert.match(category, /--guide-blue:\s*var\(--accent,var\(--brand-primary\)\)/)
+})
 
 test('category guide supports three real templates, preserves module values, and locks core nav entries', async () => {
   const categoryView = await readView('CategoryView.vue')
