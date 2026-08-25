@@ -6,6 +6,7 @@ import com.macro.mall.distribution.dao.DmsTenantDisplayConfigDao;
 import com.macro.mall.distribution.entity.DmsLiveRoom;
 import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
 import com.macro.mall.distribution.entity.DmsTenant;
+import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.dto.ProductNewArrivalDTO;
 import com.macro.mall.distribution.service.impl.TenantDisplayConfigSupport;
 import com.macro.mall.distribution.vo.LiveRoomVO;
@@ -129,6 +130,26 @@ class LiveRoomFoundationTest {
         assertTrue(liveRoomService.listPublic(10).isEmpty());
         assertThrows(RuntimeException.class, () -> liveRoomService.getPublic(room.getId()));
         assertEquals(1, liveRoomDao.selectAdminList(1L, 2).stream().filter(item -> room.getId().equals(item.getId())).count());
+    }
+
+    @Test
+    void memberCanReserveAndCancelOnlyUpcomingLiveRoomsIdempotently() {
+        DmsLiveRoom upcoming = room(1L, 1, "https://live.example.com/watch/reservation");
+        liveRoomDao.insert(upcoming);
+        liveRoomDao.insertProduct(1L, upcoming.getId(), 1L, 1);
+        DmsShopMember member = new DmsShopMember();
+        member.setUserId(1001L);
+
+        assertTrue(liveRoomService.reserve(upcoming.getId(), member));
+        assertTrue(liveRoomService.reserve(upcoming.getId(), member));
+        assertEquals(List.of(upcoming.getId()), liveRoomService.listReservations(member));
+
+        assertTrue(liveRoomService.cancelReservation(upcoming.getId(), member));
+        assertTrue(liveRoomService.listReservations(member).isEmpty());
+
+        DmsLiveRoom live = room(1L, 2, "https://live.example.com/watch/live-now");
+        liveRoomDao.insert(live);
+        assertThrows(RuntimeException.class, () -> liveRoomService.reserve(live.getId(), member));
     }
 
     private DmsLiveRoom room(Long tenantId, Integer status, String watchUrl) {

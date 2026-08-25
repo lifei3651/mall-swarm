@@ -116,6 +116,18 @@ export function recordLiveEngagement(id, data) {
   return request({ url: `/shop/live-rooms/${id}/engagement`, method: 'post', data })
 }
 
+export function listLiveReservations() {
+  return request({ url: '/shop/live-reservations', method: 'get' })
+}
+
+export function reserveLiveRoom(id) {
+  return request({ url: `/shop/live-rooms/${id}/reservation`, method: 'post' })
+}
+
+export function cancelLiveReservation(id) {
+  return request({ url: `/shop/live-rooms/${id}/reservation`, method: 'delete' })
+}
+
 export function getLiveStudio() {
   return request({ url: '/shop/live-studio/me', method: 'get' })
 }

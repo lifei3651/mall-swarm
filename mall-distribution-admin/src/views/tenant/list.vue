@@ -125,11 +125,12 @@
             </div>
           </section>
           <section v-if="activeEditSection === 'live'" class="control-section feature-control-section">
-            <div class="control-section-heading"><div><strong>直播广场</strong><small>开关保持独立；首页与新品速递横排展示，不影响其他模块</small></div><el-tag size="small" type="info">独立模块</el-tag></div>
+            <div class="control-section-heading"><div><strong>直播广场</strong><small>直播中、直播预告与直播详情共用完整页面总开关；首页卡片仍可单独隐藏</small></div><el-tag size="small" type="info">独立页面</el-tag></div>
             <div class="feature-toggle-card">
-              <div class="feature-toggle-copy"><span class="feature-toggle-icon">◉</span><div><strong>公开直播广场</strong><small>关闭后首页直播模块、直播列表和直播详情均不公开，已配置直播间继续保留</small></div></div>
+              <div class="feature-toggle-copy"><span class="feature-toggle-icon">◉</span><div><strong>直播广场完整页面总开关</strong><small>关闭后首页直播卡片、直播中、直播预告和直播详情均不公开，已配置直播间与会员预约继续保留</small></div></div>
               <div class="feature-toggle-action"><span :class="{ enabled: displayForm.liveSquareEnabled === 1 }">{{ displayForm.liveSquareEnabled === 1 ? '已开启' : '已关闭' }}</span><el-switch v-model="displayForm.liveSquareEnabled" :active-value="1" :inactive-value="0" aria-label="开启或关闭直播广场" /></div>
             </div>
+            <p class="section-note">独立页面默认独立开关：今后新增单独业务页面时，必须同步提供客户级总开关、关闭后的直达保护和数据保留规则。</p>
           </section>
           <section v-if="activeEditSection === 'newArrivals'" class="control-section feature-control-section">
             <div class="control-section-heading"><div><strong>新品速递</strong><small>新品完整页面与首页卡片分层控制，不影响普通商品列表</small></div><el-tag size="small" type="info">独立页面</el-tag></div>
@@ -473,7 +474,7 @@ const displaySectionRows = computed(() => {
     { key: 'home', icon: '⌂', label: '首页模块', summary: `${visibleModules}/${modules.length} 个模块展示；直播与新品横排`, status: '已配置', active: visibleModules > 0 },
     { key: 'category', icon: '▦', label: '分类模块', summary: '控制首页分类入口及单个分类显示', status: '可编辑', active: true },
     { key: 'banner', icon: '▣', label: '首页轮播图', summary: bannerModuleVisible ? '总开关已展示，可管理图片与点击去向' : '首页模块总开关已隐藏，图片不会在前台展示', status: bannerModuleVisible ? '展示中' : '已隐藏', active: bannerModuleVisible },
-    { key: 'live', icon: '◉', label: '直播广场', summary: '独立控制直播首页入口、列表和详情，直播间资料不会因关闭而删除', status: Number(currentDisplayConfig.value.liveSquareEnabled ?? 1) === 1 ? '已开启' : '已关闭', active: Number(currentDisplayConfig.value.liveSquareEnabled ?? 1) === 1 },
+    { key: 'live', icon: '◉', label: '直播广场', summary: '完整页面独立开关；包含直播中、直播预告、预约和详情，关闭不删除资料', status: Number(currentDisplayConfig.value.liveSquareEnabled ?? 1) === 1 ? '已开启' : '已关闭', active: Number(currentDisplayConfig.value.liveSquareEnabled ?? 1) === 1 },
     { key: 'newArrivals', icon: 'N', label: '新品速递', summary: `完整页面独立开关；自动新品${Number(currentDisplayConfig.value.newArrivalWindowDays ?? 30) === 0 ? '永久展示' : `展示 ${Number(currentDisplayConfig.value.newArrivalWindowDays ?? 30)} 天`}，并支持商品额外追加`, status: Number(currentDisplayConfig.value.newArrivalsEnabled ?? 1) === 1 ? '已开启' : '已关闭', active: Number(currentDisplayConfig.value.newArrivalsEnabled ?? 1) === 1 },
     { key: 'nav', icon: '≡', label: '底部导航', summary: `${visibleNav} 项导航展示，支持改名、排序和隐藏`, status: '已配置', active: visibleNav > 0 },
     { key: 'colors', icon: '◉', label: '颜色微调', summary: customColorCount ? `已调整 ${customColorCount} 项颜色` : '使用主题默认颜色，可恢复默认', status: customColorCount ? '已调整' : '默认', active: customColorCount > 0 },

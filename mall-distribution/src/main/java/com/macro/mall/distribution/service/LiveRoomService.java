@@ -52,6 +52,12 @@ public interface LiveRoomService {
 
     boolean recordEngagement(Long roomId, DmsShopMember member, LiveEngagementDTO dto);
 
+    List<Long> listReservations(DmsShopMember member);
+
+    boolean reserve(Long roomId, DmsShopMember member);
+
+    boolean cancelReservation(Long roomId, DmsShopMember member);
+
     LiveAnalyticsVO getAnalytics(Long roomId);
 
     Long resolveRecentAttribution(Long tenantId, Long userId, List<Long> productIds);

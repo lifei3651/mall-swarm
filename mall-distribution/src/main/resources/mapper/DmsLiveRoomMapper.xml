@@ -218,6 +218,26 @@
         INSERT INTO dms_live_event(tenant_id,live_room_id,visitor_id,user_id,event_type,product_id)
         VALUES(#{tenantId},#{roomId},#{visitorId},#{userId},#{eventType},#{productId})
     </insert>
+    <select id="selectReservedRoomIds" resultType="java.lang.Long">
+        SELECT reservation.live_room_id
+        FROM dms_live_reservation reservation
+        INNER JOIN dms_live_room room
+          ON room.id=reservation.live_room_id AND room.tenant_id=reservation.tenant_id
+        WHERE reservation.tenant_id=#{tenantId}
+          AND reservation.user_id=#{userId}
+          AND reservation.status=1
+          AND room.status=1
+        ORDER BY room.scheduled_start_time ASC, room.id ASC
+    </select>
+    <insert id="upsertReservation">
+        INSERT INTO dms_live_reservation(tenant_id,live_room_id,user_id,status)
+        VALUES(#{tenantId},#{roomId},#{userId},1)
+        ON DUPLICATE KEY UPDATE status=1,update_time=CURRENT_TIMESTAMP
+    </insert>
+    <update id="cancelReservation">
+        UPDATE dms_live_reservation SET status=0,update_time=CURRENT_TIMESTAMP
+        WHERE tenant_id=#{tenantId} AND live_room_id=#{roomId} AND user_id=#{userId}
+    </update>
     <select id="selectRecentAttributionRoom" resultType="java.lang.Long">
         SELECT live_room_id FROM dms_live_event
         WHERE tenant_id=#{tenantId} AND user_id=#{userId} AND event_type='PRODUCT_CLICK'

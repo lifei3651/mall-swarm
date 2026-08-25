@@ -147,6 +147,29 @@ public class ShopController {
         return CommonResult.success(liveRoomService.recordEngagement(id, authService.resolveMember(authorization), dto));
     }
 
+    @Operation(summary = "当前会员已预约的直播预告")
+    @GetMapping("/live-reservations")
+    public CommonResult<List<Long>> liveReservations(
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return CommonResult.success(liveRoomService.listReservations(authService.requireMember(authorization)));
+    }
+
+    @Operation(summary = "预约直播预告")
+    @PostMapping("/live-rooms/{id}/reservation")
+    public CommonResult<Boolean> reserveLiveRoom(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long id) {
+        return CommonResult.success(liveRoomService.reserve(id, authService.requireMember(authorization)));
+    }
+
+    @Operation(summary = "取消直播预约")
+    @DeleteMapping("/live-rooms/{id}/reservation")
+    public CommonResult<Boolean> cancelLiveReservation(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long id) {
+        return CommonResult.success(liveRoomService.cancelReservation(id, authService.requireMember(authorization)));
+    }
+
     @Operation(summary = "当前账号主播工作台")
     @GetMapping("/live-studio/me")
     public CommonResult<LiveStudioVO> liveStudio(

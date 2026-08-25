@@ -169,6 +169,9 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `POST /api/v1/shop/products/{id}/reviews` | `rating` 1～5、`content` 最多 1000 字 | 商品评价记录 | 仅确认收货且符合资格的买家可评价 |
 | `GET /api/v1/shop/live-rooms?limit=...` | `limit` 1～50 | `LiveRoomVO[]` | 仅返回当前客户公开的预告、直播中和已结束直播；预告不返回观看地址；直播总开关关闭时返回空列表 |
 | `GET /api/v1/shop/live-rooms/{id}` | 直播间 ID | `LiveRoomVO` | 返回直播状态和正常商城在售关联商品；草稿、停用及其他客户数据不可见；直播总开关关闭时拒绝公开详情 |
+| `GET /api/v1/shop/live-reservations` | 当前会员会话 | 已预约的直播间 ID 列表 | 仅返回当前客户、当前会员仍有效且直播仍处于预告状态的预约；未登录拒绝，直播总开关关闭时返回空列表 |
+| `POST /api/v1/shop/live-rooms/{id}/reservation` | 直播间 ID、当前会员会话 | `boolean` | 仅预告直播可预约；按客户、直播间、会员唯一幂等保存。只记录预约意向，不代表外部通知已发送 |
+| `DELETE /api/v1/shop/live-rooms/{id}/reservation` | 直播间 ID、当前会员会话 | `boolean` | 取消当前会员预约并保留状态记录；直播总开关关闭时拒绝写入 |
 | `GET /api/v1/shop/live-rooms/{id}/comments` | `limit` 1～100 | 已公开评论列表 | 只返回审核通过且未隐藏的评论，用户名称已脱敏 |
 | `POST /api/v1/shop/live-rooms/{id}/comments` | `content` 最多 300 字、`visitorId` | 评论记录 | 会员登录后可提交；校验直播状态、评论开关、内容安全和独立频率限制 |
 | `POST /api/v1/shop/live-rooms/{id}/engagement` | `visitorId`、`eventType`、可选 `productId`、`durationSeconds` | `boolean` | 记录进入、心跳、离开、分享和商品点击；服务端校验商品确属该直播间 |

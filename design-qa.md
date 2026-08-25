@@ -1,5 +1,56 @@
 # 前端重点流程视觉验收
 
+## 直播广场双页签与直播预告验收（2026-08-25）
+
+- Source visual truth:
+  - `/var/folders/nk/gpz82vss0513h6pd0tkfgs6h0000gn/T/codex-clipboard-006e8a13-2cfc-4df4-8cb4-785280633491.png`（直播中，430 × 932）。
+  - `/var/folders/nk/gpz82vss0513h6pd0tkfgs6h0000gn/T/codex-clipboard-8d679716-0abf-46a0-aeb6-21af1d89e585.png`（直播预告，430 × 932）。
+- Implementation screenshots:
+  - `document/qa/2026-08-25-live-square-live-mobile.png`（直播中，430 × 932）。
+  - `document/qa/2026-08-25-live-square-upcoming-mobile.png`（直播预告，430 × 932）。
+- Side-by-side comparison:
+  - `document/qa/2026-08-25-live-square-live-comparison.png`（左参考、右实现，860 × 932）。
+  - `document/qa/2026-08-25-live-square-upcoming-comparison.png`（左参考、右实现，860 × 932）。
+- Viewport/density: Codex应用内浏览器使用430 × 932 CSS px、devicePixelRatio 2；浏览器输出已归一为430 × 932实际像素，与参考图一比一并排比较。
+- State: 直播广场总开关开启；3场直播中、6场直播预告；直播中每场关联2件真实图像商品；未登录会员点击预约时进入登录并保留回跳地址。
+
+### Full-view comparison evidence
+
+- 两个状态均使用与参考图一致的顶部标题和“直播中 / 直播预告”双页签；页面主体在430px手机宽度内无横向溢出。
+- 直播中卡片保持左侧约46%的直播封面、右侧主播信息与上下两件商品，卡片外边距、纵向间距和信息密度与参考图接近。
+- 直播预告使用两列卡片、顶部开播时间、封面、系列标题、主播和预约按钮；首屏可稳定展示两行完整卡片及第三行封面。
+- 商城现有跨端导航与首页按钮继续保留，没有复制小程序专属胶囊按钮；该差异属于App、H5和小程序共用页面的既有产品外壳，不影响主体还原。
+
+### Focused region comparison evidence
+
+- 直播卡：参考图大直播画面约占卡片46%，实现最终调整为46%；商品缩略图提高到右侧商品行44%，标题、卖点和直播价均完整可读。
+- 预告卡：手机内容区调整为左右各15px，双列间距8px，封面比例调整为1:1.14；与参考图约18px外边距、8px列间距和略高于正方形的封面节奏接近。
+- 顶部区域：主题色以客户品牌色混入白色形成浅色顶栏，页签激活线由客户主题色驱动；实现不写死参考图品牌或装饰文字。
+- 图像：参考图使用灰色结构占位，实现使用真实商品照片演示动态直播封面和商品缩略图；生产仍完全读取每家公司后台上传的直播与商品图片。
+
+### Required fidelity surfaces
+
+- Fonts and typography: 沿用商城现有Inter、苹方、微软雅黑字体栈；标题21px、页签18px，商品名称、卖点、价格和开播时间均无异常截断或挤压。
+- Spacing and layout rhythm: 430px手机视口下使用15px主体外边距、8～10px卡片间距；直播卡左右46/54，预告两列等宽，圆角与现有商城卡片统一。
+- Colors and visual tokens: 顶栏、激活线、已预约状态读取客户主题色；直播中使用高对比直播红，价格使用商城价格色，文本对比度清晰。
+- Image quality and asset fidelity: 本地视觉数据使用线上公开商城真实商品图片，不以灰色占位、手绘图形或CSS图案冒充业务图片；图标沿用商城既有图标库。
+- Copy and content: 保留“直播广场、直播中、直播预告、预约、已预约、官方直播间、直播价”等真实业务文案；开播时间由服务端计划时间计算，不写死参考图时间。
+
+### Findings and comparison history
+
+- [P2，已修复] 初版内容区仅8px外边距、直播封面占48%，预告卡较参考图偏宽偏矮；最终调整为15px外边距、直播封面46%和预告封面1:1.14后重新截图并排比较。
+- [P2，已修复] 初版页签额外显示场次数量，信息层级比参考图更拥挤；已移除数量徽标，保留清晰的两个状态页签。
+- Post-fix并排证据为上述两张comparison图片。最终未发现仍需处理的P0、P1或P2问题；顶部小程序胶囊与商城底部导航差异属于跨端产品外壳的预期差异。
+
+### Primary interactions tested
+
+1. “直播中”和“直播预告”页签可相互切换，DOM选中状态与可见内容同步。
+2. 直播封面、主播区和两件商品分别保持正确详情链接。
+3. 未登录点击“预约”进入登录页，回跳地址完整保留`/live?tab=upcoming`；后端专项测试覆盖登录会员预约、重复预约、取消及非预告状态拒绝。
+4. 手机视口控制台错误和警告均为0。
+
+final result: passed
+
 - Source visual truth:
   - `/var/folders/nk/gpz82vss0513h6pd0tkfgs6h0000gn/T/codex-clipboard-7619d5ea-0865-40e0-b4f1-7c8e69cc4e44.png`
   - `/var/folders/nk/gpz82vss0513h6pd0tkfgs6h0000gn/T/codex-clipboard-b494a76f-5de3-4cb4-98a9-4af6e82f4231.png`

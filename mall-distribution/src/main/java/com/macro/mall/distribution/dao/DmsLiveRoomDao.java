@@ -89,6 +89,14 @@ public interface DmsLiveRoomDao {
                     @Param("visitorId") String visitorId, @Param("userId") Long userId,
                     @Param("eventType") String eventType, @Param("productId") Long productId);
 
+    List<Long> selectReservedRoomIds(@Param("tenantId") Long tenantId, @Param("userId") Long userId);
+
+    int upsertReservation(@Param("tenantId") Long tenantId, @Param("roomId") Long roomId,
+                          @Param("userId") Long userId);
+
+    int cancelReservation(@Param("tenantId") Long tenantId, @Param("roomId") Long roomId,
+                          @Param("userId") Long userId);
+
     Long selectRecentAttributionRoom(@Param("tenantId") Long tenantId, @Param("userId") Long userId,
                                      @Param("productIds") List<Long> productIds,
                                      @Param("since") java.time.LocalDateTime since);

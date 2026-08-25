@@ -574,6 +574,34 @@ public class LiveRoomServiceImpl implements LiveRoomService {
     }
 
     @Override
+    public List<Long> listReservations(DmsShopMember member) {
+        if (member == null) Asserts.unauthorized("登录后才能查看直播预约");
+        if (!isPublicEnabled(TenantContext.getTenantId())) return List.of();
+        return liveRoomDao.selectReservedRoomIds(TenantContext.getTenantId(), member.getUserId());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean reserve(Long roomId, DmsShopMember member) {
+        if (member == null) Asserts.unauthorized("登录后才能预约直播");
+        DmsLiveRoom room = requirePublicRoom(roomId);
+        if (!"UPCOMING".equals(resolveState(room))) Asserts.fail("只有直播预告可以预约");
+        if (liveRoomDao.upsertReservation(room.getTenantId(), roomId, member.getUserId()) <= 0) {
+            Asserts.fail("直播预约保存失败");
+        }
+        return true;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean cancelReservation(Long roomId, DmsShopMember member) {
+        if (member == null) Asserts.unauthorized("登录后才能取消直播预约");
+        requirePublicRoom(roomId);
+        liveRoomDao.cancelReservation(TenantContext.getTenantId(), roomId, member.getUserId());
+        return true;
+    }
+
+    @Override
     public LiveAnalyticsVO getAnalytics(Long roomId) {
         assertPlatformOperator();
         LiveAnalyticsVO result = liveRoomDao.selectAnalytics(TenantContext.getTenantId(), roomId,
