@@ -177,6 +177,35 @@ class TenantDisplayConfigSupportTest {
     }
 
     @Test
+    void activeDirectoryRejectsAllModulesOffButLegacyDefaultsAndInactiveParentRemainCompatible() {
+        DmsTenantDisplayConfig invalid = new DmsTenantDisplayConfig();
+        invalid.setTenantId(91L);
+        invalid.setLayoutTemplate("category-focus");
+        invalid.setCategoryGuideTemplate("directory");
+        invalid.setCategoryGuidePrimaryCategoriesEnabled(0);
+        invalid.setCategoryGuideSubcategoriesEnabled(0);
+        invalid.setCategoryGuideHotProductsEnabled(0);
+        assertThrows(ApiException.class, () -> support.prepareForSave(invalid));
+
+        DmsTenantDisplayConfig legacy = new DmsTenantDisplayConfig();
+        legacy.setTenantId(92L);
+        legacy.setLayoutTemplate("category-focus");
+        legacy.setCategoryGuideTemplate("directory");
+        support.prepareForSave(legacy);
+        assertEquals(1, legacy.getCategoryGuidePrimaryCategoriesEnabled());
+        assertEquals(1, legacy.getCategoryGuideSubcategoriesEnabled());
+        assertEquals(1, legacy.getCategoryGuideHotProductsEnabled());
+
+        invalid.setLayoutTemplate("standard");
+        support.prepareForSave(invalid);
+        invalid.setLayoutTemplate("category-focus");
+        invalid.setCategoryGuidePrimaryCategoriesEnabled(1);
+        support.prepareForSave(invalid);
+        assertEquals(0, invalid.getCategoryGuideSubcategoriesEnabled());
+        assertEquals(0, invalid.getCategoryGuideHotProductsEnabled());
+    }
+
+    @Test
     void requiredCapabilitiesCannotBeDisabledByTypedFieldOrExtraJson() {
         DmsTenantDisplayConfig typed = new DmsTenantDisplayConfig();
         typed.setTenantId(10L);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import { resolveDirectoryGuideLayout } from '../../src/utils/categoryGuideLayout.js'
 
 const sourcePath = resolve(process.cwd(), 'src/views/tenant/list.vue')
 const layoutPath = resolve(process.cwd(), 'src/components/Layout.vue')
@@ -175,6 +176,35 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('preview-guide-scenarios')
   })
 
+  it('A版型八种开关组合实时切换为双栏、内容全宽、一级分类全宽或无效提示', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+    const matrix = [
+      [0, 0, 0, 'empty'],
+      [1, 0, 0, 'primary-only'],
+      [0, 1, 0, 'content-only'],
+      [0, 0, 1, 'content-only'],
+      [0, 1, 1, 'content-only'],
+      [1, 1, 0, 'split'],
+      [1, 0, 1, 'split'],
+      [1, 1, 1, 'split'],
+    ]
+    for (const [primaryCategories, subcategories, hotProducts, expected] of matrix) {
+      expect(resolveDirectoryGuideLayout({ primaryCategories, subcategories, hotProducts })).toBe(expected)
+    }
+    expect(source).toContain('directoryGuidePreviewMode === \'split\'')
+    expect(source).toContain('directoryGuidePreviewMode === \'primary-only\'')
+    expect(source).toContain('directoryGuidePreviewMode === \'empty\'')
+    expect(source).toContain('v-if="directoryGuideInvalid" class="guide-module-error" role="alert">请至少开启一个模块，或切换其他首页版型</p>')
+    expect(source).toContain(':disabled="savingDisplay || directoryGuideInvalid"')
+    expect(source).toContain("displayForm.value.layoutTemplate === 'category-focus'")
+    expect(source).toContain("displayForm.value.categoryGuideTemplate === 'directory'")
+    expect(source).toContain('if (directoryGuideInvalid.value)')
+    expect(source).toContain("ElMessage.warning('请至少开启一个分类导购模块')")
+    expect(source).toContain('class="guide-preview-directory-body"')
+    expect(source).not.toContain('class="guide-preview-hero"')
+    expect(source).not.toMatch(/\.mobile-category-guide-preview\s*\{[^}]*min-height/)
+  })
+
   it('不把核心交易与合规能力展示为装修配置项', async () => {
     const source = await readFile(sourcePath, 'utf8')
 
@@ -188,7 +218,8 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('v-for="(item, index) in configurableBottomNav"')
     expect(source).toContain('核心交易与合规能力不受装修配置影响。')
     expect(source).toContain('<div class="mobile-preview-search"><span>⌕</span><span>搜索商品</span><b>⌕</b></div>')
-    expect(source).toMatch(/\.guide-preview-directory\s*\{[^}]*align-content:start/)
+    expect(source).toMatch(/\.mobile-category-guide-preview \.mobile-preview-search\s*\{[^}]*height:37px/)
+    expect(source).toMatch(/\.guide-preview-directory-body\.is-split\s*\{[^}]*grid-template-columns:62px minmax\(0,1fr\)/)
     expect(source).toContain('requiredCapabilities')
   })
 })

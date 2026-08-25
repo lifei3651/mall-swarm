@@ -17,16 +17,16 @@
       <p v-if="guideFallbackMessage" class="guide-fallback" role="status">{{ guideFallbackMessage }}</p>
 
       <template v-if="categoryGuide.template === 'directory'">
-        <div class="guide-directory-shell">
-          <aside v-if="categoryGuide.modules.primaryCategories" class="guide-primary-nav" aria-label="一级分类">
+        <div v-if="hasEnabledGuideModule" class="guide-directory-shell" :class="`is-${directoryGuideLayout}`">
+          <aside v-if="directoryGuideLayout === 'split'" class="guide-primary-nav" aria-label="一级分类">
             <button type="button" :class="{ active: !selectedCategory }" @click="selectCategory(null)">全部商品</button>
             <button v-for="category in categories" :key="category.id" type="button" :class="{ active: selectedCategory?.id === category.id }" @click="selectCategory(category)">{{ category.name }}</button>
           </aside>
-          <main class="guide-directory-content">
-            <article v-if="guideHeroProduct" class="guide-directory-hero">
-              <img :src="guideHeroProduct.coverUrl" :alt="guideHeroProduct.productName" />
-              <div><strong>{{ selectedCategory?.name || '全部商品' }}</strong><span>{{ guideHeroProduct.subtitle || '精选好物，安心选购' }}</span></div>
-            </article>
+          <section v-if="directoryGuideLayout === 'primary-only'" class="guide-primary-grid" aria-label="一级分类">
+            <button type="button" :class="{ active: !selectedCategory }" @click="selectCategory(null)"><strong>全部商品</strong><span>查看全部在售好物</span></button>
+            <button v-for="category in categories" :key="category.id" type="button" :class="{ active: selectedCategory?.id === category.id }" @click="selectCategory(category)"><strong>{{ category.name }}</strong><span>{{ category.remark || '浏览该分类商品' }}</span></button>
+          </section>
+          <main v-if="categoryGuide.modules.subcategories || categoryGuide.modules.hotProducts" class="guide-directory-content">
             <section v-if="categoryGuide.modules.subcategories" class="guide-subcategories">
               <h2>精选子分类</h2>
               <div>
@@ -101,7 +101,7 @@
       </template>
 
       <section v-if="!hasEnabledGuideModule" class="guide-safe-fallback">
-        <strong>分类导购模块已全部隐藏</strong><span>系统保留商品浏览与交易入口，避免出现空白页面。</span>
+        <strong>请至少开启一个分类导购模块</strong><span>当前配置不会发布，系统仍保留搜索、商品浏览与交易入口。</span>
         <div class="guide-product-grid"><article v-for="product in guideProducts" :key="product.id" class="guide-product-card"><RouterLink :to="`/product/${product.id}`"><img :src="product.coverUrl" :alt="product.productName" /></RouterLink><strong>{{ product.productName }}</strong><div><b>¥{{ money(product.salePrice) }}</b></div></article></div>
       </section>
     </section>
@@ -215,7 +215,7 @@ import { cartItemKey, stockAdditionViolation } from '@/utils/stockRules'
 import { currentBrandLogo, currentBrandName } from '@/utils/brand'
 import ProductListSkeleton from '@/components/ProductListSkeleton.vue'
 import { requireShopSession } from '@/utils/authNavigation'
-import { resolveCategoryGuideConfig } from '@/utils/displayConfig'
+import { resolveCategoryGuideConfig, resolveDirectoryGuideLayout } from '@/utils/displayConfig'
 
 const route = useRoute()
 const router = useRouter()
@@ -240,7 +240,7 @@ const guideProducts = computed(() => displayedProducts.value.slice(0, 8))
 const hotGuideProducts = computed(() => [...displayedProducts.value]
   .sort((a, b) => Number(b.salesCount || 0) - Number(a.salesCount || 0))
   .slice(0, 8))
-const guideHeroProduct = computed(() => guideProducts.value.find((product) => product.coverUrl) || null)
+const directoryGuideLayout = computed(() => resolveDirectoryGuideLayout(categoryGuide.value.modules))
 const productCoverForCategory = (category) => allProducts.value.find((product) => product.categoryName === category.name && product.coverUrl)?.coverUrl || category.image || ''
 const directoryQuickCategories = computed(() => categories.value
   .filter((category) => category.id !== selectedCategory.value?.id)
@@ -595,25 +595,26 @@ onBeforeUnmount(() => {
   --guide-ink: #1b2430;
   --guide-muted: #6b7280;
   --guide-line: #e8ecf1;
-  min-height: 620px;
   padding: 4px 0 18px;
   color: var(--guide-ink);
   background: var(--guide-bg);
 }
 .guide-fallback { margin: 0 0 12px; padding: 11px 14px; color: #7a4b00; background: #fff8e6; border: 1px solid #f2d9a0; border-radius: 14px; font-size: 13px; }
-.guide-directory-shell { display: grid; grid-template-columns: 180px minmax(0,1fr); gap: 12px; align-items: start; }
+.guide-directory-shell { width: 100%; }
+.guide-directory-shell.is-split { display: grid; grid-template-columns: 180px minmax(0,1fr); gap: 12px; align-items: start; }
+.guide-directory-shell.is-content-only,.guide-directory-shell.is-primary-only { display: block; }
 .guide-primary-nav { position: sticky; top: 64px; overflow: hidden; background: #fff; border: 1px solid var(--guide-line); border-radius: 14px; box-shadow: 0 7px 22px rgba(27,36,48,.05); }
 .guide-primary-nav button { position: relative; width: 100%; min-height: 64px; padding: 10px 18px; color: var(--guide-ink); background: #fff; border: 0; border-bottom: 1px solid var(--guide-line); font-size: 16px; text-align: left; }
 .guide-primary-nav button:last-child { border-bottom: 0; }
 .guide-primary-nav button.active { color: var(--guide-blue); font-weight: 800; }
 .guide-primary-nav button.active::before { content: ''; position: absolute; left: 0; top: 17px; bottom: 17px; width: 4px; background: var(--guide-blue); border-radius: 0 4px 4px 0; }
 .guide-directory-content { min-width: 0; padding: 12px; background: #fff; border: 1px solid var(--guide-line); border-radius: 14px; box-shadow: 0 7px 22px rgba(27,36,48,.05); }
-.guide-directory-hero { position: relative; min-height: 230px; overflow: hidden; background: #eef2f7; border-radius: 14px; }
-.guide-directory-hero img { width: 100%; height: 230px; object-fit: cover; }
-.guide-directory-hero div { position: absolute; left: 0; right: 0; bottom: 0; padding: 42px 22px 18px; color: #fff; background: linear-gradient(transparent,rgba(13,28,48,.78)); }
-.guide-directory-hero strong,.guide-directory-hero span { display: block; }
-.guide-directory-hero strong { font-size: 26px; }
-.guide-directory-hero span { margin-top: 5px; font-size: 14px; }
+.guide-directory-content > :first-child { margin-top: 0; }
+.guide-primary-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.guide-primary-grid button { min-width: 0; display: grid; gap: 5px; padding: 18px; color: var(--guide-ink); background: #fff; border: 1px solid var(--guide-line); border-radius: 14px; box-shadow: 0 5px 16px rgba(27,36,48,.05); text-align: left; }
+.guide-primary-grid button.active { color: var(--guide-blue); border-color: var(--guide-blue); box-shadow: 0 0 0 2px rgba(21,86,163,.1); }
+.guide-primary-grid strong { overflow: hidden; font-size: 18px; text-overflow: ellipsis; white-space: nowrap; }
+.guide-primary-grid span { overflow: hidden; color: var(--guide-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .guide-subcategories,.guide-product-section,.guide-shelf,.guide-quick-entry { margin-top: 20px; }
 .guide-subcategories h2,.guide-section-heading h2,.guide-quick-entry h2 { margin: 0; font-size: 22px; }
 .guide-subcategories > div { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 10px; margin-top: 12px; }
@@ -691,13 +692,14 @@ onBeforeUnmount(() => {
   .quick-cart-button { min-width: 88px; height: 36px; gap: 4px; padding: 0 11px; font-size: 13px; box-shadow: none; }
   .empty-state { min-height: 330px; }
   .category-guide { padding: 0 8px 18px; }
-  .guide-directory-shell { grid-template-columns: 82px minmax(0,1fr); gap: 8px; }
+  .guide-directory-shell.is-split { grid-template-columns: 82px minmax(0,1fr); gap: 8px; }
   .guide-primary-nav { top: 60px; border-radius: 12px; }
   .guide-primary-nav button { min-height: 56px; padding: 8px 6px; font-size: 13px; text-align: center; }
   .guide-directory-content { padding: 8px; border-radius: 12px; }
-  .guide-directory-hero,.guide-directory-hero img { min-height: 140px; height: 140px; }
-  .guide-directory-hero div { padding: 34px 14px 13px; }
-  .guide-directory-hero strong { font-size: 20px; }
+  .guide-primary-grid { gap: 8px; }
+  .guide-primary-grid button { padding: 14px 12px; border-radius: 12px; }
+  .guide-primary-grid strong { font-size: 15px; }
+  .guide-primary-grid span { font-size: 11px; }
   .guide-subcategories,.guide-product-section,.guide-shelf,.guide-quick-entry { margin-top: 15px; }
   .guide-subcategories h2,.guide-section-heading h2,.guide-quick-entry h2 { font-size: 18px; }
   .guide-subcategories > div { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; }

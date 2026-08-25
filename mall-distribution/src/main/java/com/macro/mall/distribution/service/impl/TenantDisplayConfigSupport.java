@@ -52,6 +52,7 @@ public class TenantDisplayConfigSupport {
         validateRequiredCapabilities(config);
         fillDefaults(config);
         normalizeLayoutFields(config);
+        validateActiveCategoryGuide(config);
 
         ObjectNode extra = readExtraObject(config.getExtraConfigJson());
         List<BrandCultureImageRefVO> cultureImages = normalizeCultureImages(config.getBrandCultureDetailImages(), true);
@@ -181,6 +182,20 @@ public class TenantDisplayConfigSupport {
         config.setCategoryGuideQuickEntriesEnabled(normalizeToggle(config.getCategoryGuideQuickEntriesEnabled(), 1));
         config.setCategoryGuidePopularProductsEnabled(normalizeToggle(config.getCategoryGuidePopularProductsEnabled(), 1));
         forceRequiredCapabilities(config);
+    }
+
+    /** A 目录版启用时至少保留一个真实模块；其他父版型只保留子值，不触发校验。 */
+    private void validateActiveCategoryGuide(DmsTenantDisplayConfig config) {
+        if (!"category-focus".equals(config.getLayoutTemplate())
+                || !"directory".equals(config.getCategoryGuideTemplate())) {
+            return;
+        }
+        boolean allDisabled = config.getCategoryGuidePrimaryCategoriesEnabled() == 0
+                && config.getCategoryGuideSubcategoriesEnabled() == 0
+                && config.getCategoryGuideHotProductsEnabled() == 0;
+        if (allDisabled) {
+            Asserts.fail("请至少开启一个分类导购模块");
+        }
     }
 
     private void fillDefaults(DmsTenantDisplayConfig config) {

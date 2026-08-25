@@ -6,7 +6,7 @@ import { extractModuleEntry } from '../src/utils/buildFreshness.js'
 import { normalizeLoginAccountInput, resolveRegistrationErrorField, validateLoginAccount } from '../src/utils/loginAccount.js'
 import { normalizeNicknameInput, validateNickname } from '../src/utils/nickname.js'
 import { localPurchaseLimitViolation, purchaseLimitMessage } from '../src/utils/purchaseLimitRules.js'
-import { enforceRequiredBottomNav, readDisplayExtraConfig, resolveCategoryGuideConfig, resolveDisplayColors, resolveHomeModules } from '../src/utils/displayConfig.js'
+import { enforceRequiredBottomNav, readDisplayExtraConfig, resolveCategoryGuideConfig, resolveDirectoryGuideLayout, resolveDisplayColors, resolveHomeModules } from '../src/utils/displayConfig.js'
 import { resolveCurrentStock, stockAdditionViolation, stockQuantityViolation } from '../src/utils/stockRules.js'
 import { isGatewayRecoveryError, resolveRequestErrorMessage } from '../src/utils/requestErrors.js'
 import { resolveFixedBottomShift } from '../src/utils/visualViewportFixedBottom.js'
@@ -46,8 +46,31 @@ test('category guide supports three real templates, preserves module values, and
   assert.match(categoryView, /guide-directory-shell/)
   assert.match(categoryView, /guide-showcase-grid/)
   assert.match(categoryView, /guide-scenarios/)
-  assert.match(categoryView, /系统保留商品浏览与交易入口，避免出现空白页面/)
+  assert.match(categoryView, /请至少开启一个分类导购模块/)
   assert.match(app, /enforceRequiredBottomNav/)
+})
+
+test('directory category guide renders all eight module combinations without empty grid tracks', async () => {
+  const categoryView = await readView('CategoryView.vue')
+  const matrix = [
+    [false, false, false, 'empty'],
+    [true, false, false, 'primary-only'],
+    [false, true, false, 'content-only'],
+    [false, false, true, 'content-only'],
+    [false, true, true, 'content-only'],
+    [true, true, false, 'split'],
+    [true, false, true, 'split'],
+    [true, true, true, 'split'],
+  ]
+  for (const [primaryCategories, subcategories, hotProducts, expected] of matrix) {
+    assert.equal(resolveDirectoryGuideLayout({ primaryCategories, subcategories, hotProducts }), expected)
+  }
+  assert.match(categoryView, /directoryGuideLayout === 'split'/)
+  assert.match(categoryView, /directoryGuideLayout === 'primary-only'/)
+  assert.match(categoryView, /categoryGuide\.modules\.subcategories \|\| categoryGuide\.modules\.hotProducts/)
+  assert.match(categoryView, /guide-directory-shell\.is-content-only,\.guide-directory-shell\.is-primary-only \{ display: block/)
+  assert.doesNotMatch(categoryView, /guide-directory-hero/)
+  assert.ok(categoryView.indexOf('class="cat-search"') < categoryView.indexOf('class="category-guide"'))
 })
 
 test('mobile bottom navigation follows the iOS visual viewport after browser chrome changes', async () => {

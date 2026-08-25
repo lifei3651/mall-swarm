@@ -64,6 +64,17 @@ export const resolveDisplayColors = (config = {}) => {
 
 export const CATEGORY_GUIDE_TEMPLATES = ['directory', 'showcase', 'scenario']
 
+export const resolveDirectoryGuideLayout = (modules = {}) => {
+  const primary = normalizeDisplayToggle(modules.primaryCategories, false)
+  const subcategories = normalizeDisplayToggle(modules.subcategories, false)
+  const hotProducts = normalizeDisplayToggle(modules.hotProducts, false)
+  const hasRightContent = subcategories || hotProducts
+  if (!primary && !hasRightContent) return 'empty'
+  if (primary && !hasRightContent) return 'primary-only'
+  if (primary) return 'split'
+  return 'content-only'
+}
+
 export const resolveCategoryGuideConfig = (config = {}) => {
   const extra = readDisplayExtraConfig(config)
   const modules = extra.categoryGuideModules && typeof extra.categoryGuideModules === 'object'

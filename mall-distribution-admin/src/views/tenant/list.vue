@@ -141,6 +141,7 @@
               <div class="guide-module-switches">
                 <div v-for="module in selectedCategoryGuideModules" :key="module[0]"><span>{{ module[1] }}</span><el-switch v-model="displayForm[module[0]]" :active-value="1" :inactive-value="0" :disabled="displayForm.layoutTemplate !== 'category-focus'" /></div>
               </div>
+              <p v-if="directoryGuideInvalid" class="guide-module-error" role="alert">请至少开启一个模块，或切换其他首页版型</p>
             </div>
           </section>
           <section v-if="activeEditSection === 'live'" class="control-section feature-control-section">
@@ -251,8 +252,12 @@
             <div v-else-if="displayForm.layoutTemplate === 'category-focus'" class="mobile-category-guide-preview" :class="`guide-preview-${displayForm.categoryGuideTemplate || 'directory'}`">
               <div class="mobile-preview-search"><span>⌕</span><span>搜索商品</span><b>⌕</b></div>
               <template v-if="displayForm.categoryGuideTemplate === 'directory'">
-                <aside v-if="displayForm.categoryGuidePrimaryCategoriesEnabled === 1"><span v-for="category in visiblePreviewCategories.slice(0, 5)" :key="category.id">{{ category.categoryName }}</span></aside>
-                <main><div class="guide-preview-hero"><img v-if="previewProducts[0]?.coverUrl" :src="previewProducts[0].coverUrl" alt="" /><strong>{{ visiblePreviewCategories[0]?.categoryName || '精选分类' }}</strong></div><section v-if="displayForm.categoryGuideSubcategoriesEnabled === 1"><b>精选子分类</b><div><span v-for="category in visiblePreviewCategories.slice(0, 4)" :key="category.id">{{ category.categoryName }}</span></div></section><section v-if="displayForm.categoryGuideHotProductsEnabled === 1"><b>热销好物</b><div class="preview-guide-products"><article v-for="product in previewProducts.slice(0, 4)" :key="product.id"><img v-if="product.coverUrl" :src="product.coverUrl" alt="" /><span>{{ product.productName }}</span><strong>¥{{ Number(product.salePrice || 0).toFixed(2) }}</strong></article></div></section></main>
+                <p v-if="directoryGuidePreviewMode === 'empty'" class="preview-guide-invalid">请至少开启一个分类导购模块</p>
+                <div v-else class="guide-preview-directory-body" :class="`is-${directoryGuidePreviewMode}`">
+                  <aside v-if="directoryGuidePreviewMode === 'split'"><span v-for="category in visiblePreviewCategories.slice(0, 5)" :key="category.id">{{ category.categoryName }}</span></aside>
+                  <div v-if="directoryGuidePreviewMode === 'primary-only'" class="guide-preview-primary-grid"><span v-for="category in visiblePreviewCategories.slice(0, 6)" :key="category.id">{{ category.categoryName }}</span></div>
+                  <main v-if="displayForm.categoryGuideSubcategoriesEnabled === 1 || displayForm.categoryGuideHotProductsEnabled === 1"><section v-if="displayForm.categoryGuideSubcategoriesEnabled === 1"><b>精选子分类</b><div><span v-for="category in visiblePreviewCategories.slice(0, 4)" :key="category.id">{{ category.categoryName }}</span></div></section><section v-if="displayForm.categoryGuideHotProductsEnabled === 1"><b>热销好物</b><div class="preview-guide-products"><article v-for="product in previewProducts.slice(0, 4)" :key="product.id"><img v-if="product.coverUrl" :src="product.coverUrl" alt="" /><span>{{ product.productName }}</span><strong>¥{{ Number(product.salePrice || 0).toFixed(2) }}</strong></article></div></section></main>
+                </div>
               </template>
               <template v-else-if="displayForm.categoryGuideTemplate === 'showcase'">
                 <h3>全部品类</h3><div v-if="displayForm.categoryGuideHeroCategoriesEnabled === 1" class="preview-guide-showcase"><article v-for="(category, index) in visiblePreviewCategories.slice(0, 4)" :key="category.id"><img v-if="previewProducts[index]?.coverUrl" :src="previewProducts[index].coverUrl" alt="" /><strong>{{ category.categoryName }}</strong></article></div><div v-if="displayForm.categoryGuideShelvesEnabled === 1" class="preview-guide-tabs"><span>全部</span><span v-for="category in visiblePreviewCategories.slice(0, 3)" :key="category.id">{{ category.categoryName }}</span></div><div v-if="displayForm.categoryGuideRecommendedProductsEnabled === 1" class="preview-guide-products"><article v-for="product in previewProducts.slice(0, 4)" :key="product.id"><img v-if="product.coverUrl" :src="product.coverUrl" alt="" /><span>{{ product.productName }}</span><strong>¥{{ Number(product.salePrice || 0).toFixed(2) }}</strong></article></div>
@@ -293,7 +298,7 @@
       </div>
       <template #footer>
         <el-button @click="closeDisplayDialog">取消</el-button>
-        <el-button type="primary" :loading="savingDisplay" :disabled="savingDisplay" @click="submitDisplayConfig">保存发布</el-button>
+        <el-button type="primary" :loading="savingDisplay" :disabled="savingDisplay || directoryGuideInvalid" @click="submitDisplayConfig">保存发布</el-button>
       </template>
     </el-dialog>
 
@@ -333,6 +338,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute } from 'vue-router'
 import { formatDateTime } from '@/utils/dateTime'
+import { resolveDirectoryGuideLayout } from '@/utils/categoryGuideLayout'
 import { listShopBanners, listShopCategories, listShopProducts, updateCategoryShowOnHome, uploadBrandCultureImage, uploadShopImage } from '@/api/shop'
 import ShopBanners from '@/views/shop/banners.vue'
 import {
@@ -426,6 +432,14 @@ const categoryGuideModuleGroups = [
   { template: 'scenario', modules: [['categoryGuideScenariosEnabled', '购物场景'], ['categoryGuideQuickEntriesEnabled', '分类快捷入口'], ['categoryGuidePopularProductsEnabled', '人气商品']] },
 ]
 const selectedCategoryGuideModules = computed(() => categoryGuideModuleGroups.find((group) => group.template === displayForm.value.categoryGuideTemplate)?.modules || [])
+const directoryGuidePreviewMode = computed(() => resolveDirectoryGuideLayout({
+  primaryCategories: displayForm.value.categoryGuidePrimaryCategoriesEnabled,
+  subcategories: displayForm.value.categoryGuideSubcategoriesEnabled,
+  hotProducts: displayForm.value.categoryGuideHotProductsEnabled,
+}))
+const directoryGuideInvalid = computed(() => displayForm.value.layoutTemplate === 'category-focus'
+  && displayForm.value.categoryGuideTemplate === 'directory'
+  && directoryGuidePreviewMode.value === 'empty')
 const defaultColors = () => ({
   priceColor: '',
   pageBg: '',
@@ -935,6 +949,10 @@ const submitDisplayConfig = async () => {
   const windowDays = Number(displayForm.value.newArrivalWindowDays)
   if (windowDays !== 0 && (!Number.isInteger(windowDays) || windowDays < 30 || windowDays > 365)) {
     ElMessage.warning('自动新品展示时间必须是30到365天之间的整数，或选择永久')
+    return
+  }
+  if (directoryGuideInvalid.value) {
+    ElMessage.warning('请至少开启一个分类导购模块')
     return
   }
 
@@ -1594,26 +1612,31 @@ onMounted(async () => {
 .category-guide-template-grid small { color:#6b7280; font-size:10px; line-height:1.5; }
 .guide-module-switches { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-top:10px; }
 .guide-module-switches>div { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:9px 10px; background:#fff; border:1px solid #e8ecf1; border-radius:10px; font-size:12px; }
+.guide-module-error { margin:8px 2px 0; color:#c2413b; font-size:12px; line-height:1.5; }
 .module-dependent-switch { min-width:190px; display:flex; align-items:flex-end; flex-direction:column; gap:4px; }
 .module-dependent-switch small { max-width:220px; color:#b26a00; font-size:10px; text-align:right; }
 .nav-scope-note { margin:0 0 10px; color:#8a94a4; }
-.mobile-category-guide-preview { min-height:540px; padding:8px; color:#1b2430; background:#f6f7f9; }
-.mobile-category-guide-preview .mobile-preview-search { margin:0 0 8px; border-color:#1556a3; }
+.mobile-category-guide-preview { padding:8px; color:#1b2430; background:#f6f7f9; }
+.mobile-category-guide-preview .mobile-preview-search { height:37px; min-height:37px; margin:0 0 8px; border-color:#1556a3; line-height:1; }
 .mobile-category-guide-preview .mobile-preview-search b { color:#fff; background:#1556a3; }
 .mobile-category-guide-preview h3 { margin:8px 2px; font-size:14px; }
-.guide-preview-directory { display:grid; grid-template-columns:62px minmax(0,1fr); align-content:start; gap:6px; }
-.guide-preview-directory>.mobile-preview-search { grid-column:1/-1; }
-.guide-preview-directory>aside { overflow:hidden; background:#fff; border-radius:8px; }
-.guide-preview-directory>aside span { display:block; padding:10px 3px; border-bottom:1px solid #e8ecf1; font-size:8px; text-align:center; }
-.guide-preview-directory>aside span:first-child { color:#1556a3; border-left:3px solid #1556a3; font-weight:800; }
-.guide-preview-directory>main { min-width:0; padding:6px; background:#fff; border-radius:8px; }
-.guide-preview-hero { position:relative; height:92px; overflow:hidden; background:#edf0f4; border-radius:8px; }
-.guide-preview-hero img { width:100%; height:100%; object-fit:cover; }
-.guide-preview-hero strong { position:absolute; left:8px; bottom:7px; color:#fff; font-size:11px; text-shadow:0 1px 3px rgba(0,0,0,.55); }
-.guide-preview-directory main>section { margin-top:9px; }
-.guide-preview-directory main>section>b,.mobile-category-guide-preview section>b { font-size:10px; }
-.guide-preview-directory main>section>div:not(.preview-guide-products) { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; margin-top:5px; }
-.guide-preview-directory main>section>div>span { padding:6px 3px; background:#f6f7f9; border-radius:5px; font-size:7px; text-align:center; }
+.guide-preview-directory { display:block; }
+.guide-preview-directory-body { width:100%; }
+.guide-preview-directory-body.is-split { display:grid; grid-template-columns:62px minmax(0,1fr); align-items:start; gap:6px; }
+.guide-preview-directory-body.is-content-only,.guide-preview-directory-body.is-primary-only { display:block; }
+.guide-preview-directory-body>aside { overflow:hidden; background:#fff; border-radius:8px; }
+.guide-preview-directory-body>aside span { display:block; padding:10px 3px; border-bottom:1px solid #e8ecf1; font-size:8px; text-align:center; }
+.guide-preview-directory-body>aside span:first-child { color:#1556a3; border-left:3px solid #1556a3; font-weight:800; }
+.guide-preview-directory-body>main { min-width:0; padding:6px; background:#fff; border-radius:8px; }
+.guide-preview-directory-body main>section { margin-top:9px; }
+.guide-preview-directory-body main>section:first-child { margin-top:0; }
+.guide-preview-directory-body main>section>b,.mobile-category-guide-preview section>b { font-size:10px; }
+.guide-preview-directory-body main>section>div:not(.preview-guide-products) { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; margin-top:5px; }
+.guide-preview-directory-body main>section>div>span { padding:6px 3px; background:#f6f7f9; border-radius:5px; font-size:7px; text-align:center; }
+.guide-preview-primary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+.guide-preview-primary-grid span { min-width:0; padding:14px 7px; overflow:hidden; color:#1b2430; background:#fff; border:1px solid #e8ecf1; border-radius:8px; font-size:9px; font-weight:700; text-align:center; text-overflow:ellipsis; white-space:nowrap; }
+.guide-preview-primary-grid span:first-child { color:#1556a3; border-color:#1556a3; box-shadow:0 0 0 2px rgba(21,86,163,.08); }
+.preview-guide-invalid { margin:0; padding:18px 12px; color:#6b7280; background:#fff; border:1px dashed #cfd6e2; border-radius:10px; font-size:11px; text-align:center; }
 .preview-guide-products { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; margin-top:6px; }
 .preview-guide-products article { min-width:0; overflow:hidden; padding-bottom:5px; background:#fff; border:1px solid #e8ecf1; border-radius:7px; }
 .preview-guide-products img { width:100%; height:64px; object-fit:cover; }

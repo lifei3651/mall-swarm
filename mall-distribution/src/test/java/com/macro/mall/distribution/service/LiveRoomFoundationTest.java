@@ -74,6 +74,18 @@ class LiveRoomFoundationTest {
     }
 
     @Test
+    void tenantDisplaySaveRejectsAnEmptyActiveDirectoryGuide() {
+        DmsTenantDisplayConfig config = tenantService.getDisplayConfig(1L);
+        config.setLayoutTemplate("category-focus");
+        config.setCategoryGuideTemplate("directory");
+        config.setCategoryGuidePrimaryCategoriesEnabled(0);
+        config.setCategoryGuideSubcategoriesEnabled(0);
+        config.setCategoryGuideHotProductsEnabled(0);
+
+        assertThrows(RuntimeException.class, () -> tenantService.saveDisplayConfig(config));
+    }
+
+    @Test
     void operatorCanAddAnyOnSaleProductForThirtyDaysOrPermanentlyWithoutChangingSaleStatus() {
         ProductNewArrivalDTO timed = new ProductNewArrivalDTO();
         timed.setEnabled(true);
