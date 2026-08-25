@@ -61,3 +61,42 @@ export const resolveDisplayColors = (config = {}) => {
   const extra = readDisplayExtraConfig(config)
   return extra.colors && typeof extra.colors === 'object' ? extra.colors : {}
 }
+
+export const CATEGORY_GUIDE_TEMPLATES = ['directory', 'showcase', 'scenario']
+
+export const resolveCategoryGuideConfig = (config = {}) => {
+  const extra = readDisplayExtraConfig(config)
+  const modules = extra.categoryGuideModules && typeof extra.categoryGuideModules === 'object'
+    ? extra.categoryGuideModules
+    : {}
+  const templateCandidate = config.categoryGuideTemplate || extra.categoryGuideTemplate
+  const template = CATEGORY_GUIDE_TEMPLATES.includes(templateCandidate) ? templateCandidate : 'directory'
+  const readModule = (field, key) => normalizeDisplayToggle(config[field] ?? modules[key], true)
+  return {
+    template,
+    modules: {
+      primaryCategories: readModule('categoryGuidePrimaryCategoriesEnabled', 'primaryCategories'),
+      subcategories: readModule('categoryGuideSubcategoriesEnabled', 'subcategories'),
+      hotProducts: readModule('categoryGuideHotProductsEnabled', 'hotProducts'),
+      heroCategories: readModule('categoryGuideHeroCategoriesEnabled', 'heroCategories'),
+      shelves: readModule('categoryGuideShelvesEnabled', 'shelves'),
+      recommendedProducts: readModule('categoryGuideRecommendedProductsEnabled', 'recommendedProducts'),
+      scenarios: readModule('categoryGuideScenariosEnabled', 'scenarios'),
+      quickEntries: readModule('categoryGuideQuickEntriesEnabled', 'quickEntries'),
+      popularProducts: readModule('categoryGuidePopularProductsEnabled', 'popularProducts'),
+    },
+  }
+}
+
+const requiredBottomNavTypes = new Set(['cart', 'profile'])
+
+/** 前端容错仅用于旧配置；服务端保存同样会拒绝关闭或移除这些系统必需入口。 */
+export const enforceRequiredBottomNav = (items = [], defaults = []) => {
+  const configured = Array.isArray(items) ? items : []
+  const types = new Set(configured.map((item) => item?.type).filter(Boolean))
+  const missingRequired = (Array.isArray(defaults) ? defaults : [])
+    .filter((item) => requiredBottomNavTypes.has(item?.type) && !types.has(item.type))
+  return [...configured, ...missingRequired].map((item) => (
+    requiredBottomNavTypes.has(item?.type) ? { ...item, enabled: true, systemRequired: true } : item
+  ))
+}

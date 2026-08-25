@@ -130,4 +130,29 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('route.query.editSection')
     expect(source).toContain('await openDisplayDialog(tableData.value[0], editSection)')
   })
+
+  it('支持四种主版型、三种分类导购子版型、三层开关与合规锁定', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    for (const label of ['标准零售版', '紧凑商品版', '活动信息流版', '分类导购版']) {
+      expect(source).toContain(label)
+    }
+    for (const label of ['A 双栏目录导航', 'B 视觉品类橱窗', 'C 需求场景导购']) {
+      expect(source).toContain(label)
+    }
+    for (const label of ['一级分类', '子分类', '热销商品', '大型视觉品类', '品类货架', '推荐商品', '购物场景', '分类快捷入口', '人气商品']) {
+      expect(source).toContain(label)
+    }
+    expect(source).toContain("displayForm.layoutTemplate !== 'category-focus'")
+    expect(source).toContain('父版型关闭时配置保留但不可操作')
+    expect(source).toContain('直播广场总开关已关闭，保留当前首页开关值')
+    expect(source).toContain('新品速递总开关已关闭，保留当前首页开关值')
+    expect(source).toContain('系统必需 / 合规锁定')
+    expect(source).toContain('后端强制锁定')
+    expect(source).toContain('isRequiredNav(nav.type)')
+    expect(source).toContain('requiredCapabilities')
+    expect(source).toContain('guide-preview-directory')
+    expect(source).toContain('preview-guide-showcase')
+    expect(source).toContain('preview-guide-scenarios')
+  })
 })

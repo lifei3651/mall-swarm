@@ -31,7 +31,7 @@ export default defineConfig(({ mode }) => {
     port: teamSurface ? 3002 : integratedSurface ? 3003 : 3001,
     proxy: {
       '/api': {
-        target: 'http://localhost:8086',
+        target: process.env.VITE_DEV_API_PROXY || 'http://localhost:8086',
         changeOrigin: true,
         rewrite: (url) => url.replace(/^\/api/, ''),
       },

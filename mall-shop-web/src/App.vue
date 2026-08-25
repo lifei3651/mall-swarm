@@ -93,6 +93,7 @@ import { isNativeApp } from '@/utils/appEnvironment'
 import { AUTH_REQUIRED_EVENT } from '@/utils/authNavigation'
 import { applyShopSession, hasShopSession } from '@/utils/shopSession'
 import { useVisualViewportFixedBottom } from '@/utils/visualViewportFixedBottom'
+import { enforceRequiredBottomNav } from '@/utils/displayConfig'
 
 const route = useRoute()
 const router = useRouter()
@@ -132,7 +133,8 @@ const bottomNavItems = computed(() => {
     const extra = JSON.parse(displayConfig.value.extraConfigJson || '{}')
     if (Array.isArray(extra.bottomNav) && extra.bottomNav.length) {
       hasConfiguredBottomNav = true
-      items = extra.bottomNav.map((item) => ({ ...item, path: defaultBottomNav.find((base) => base.type === item.type)?.path || '/' }))
+      items = enforceRequiredBottomNav(extra.bottomNav, defaultBottomNav)
+        .map((item) => ({ ...item, path: defaultBottomNav.find((base) => base.type === item.type)?.path || '/' }))
     }
   } catch (_) {}
   if (!hasConfiguredBottomNav) {
@@ -272,6 +274,14 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.app-shell.layout-category-focus {
+  --brand-primary: #1556a3;
+  --brand-primary-dark: #0f478a;
+  --brand-primary-soft: #eaf2fb;
+  --price-color: #e5484d;
+  --shop-page-bg: #f6f7f9;
+  --teal: #1556a3;
+}
 .home-main { min-height: 100vh; }
 main { min-height: calc(100vh - 120px); }
 .brand-logo { display:block; width:auto; max-width:136px; height:38px; object-fit:contain; }

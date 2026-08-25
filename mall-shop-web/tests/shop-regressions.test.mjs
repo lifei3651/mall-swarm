@@ -6,13 +6,49 @@ import { extractModuleEntry } from '../src/utils/buildFreshness.js'
 import { normalizeLoginAccountInput, resolveRegistrationErrorField, validateLoginAccount } from '../src/utils/loginAccount.js'
 import { normalizeNicknameInput, validateNickname } from '../src/utils/nickname.js'
 import { localPurchaseLimitViolation, purchaseLimitMessage } from '../src/utils/purchaseLimitRules.js'
-import { readDisplayExtraConfig, resolveDisplayColors, resolveHomeModules } from '../src/utils/displayConfig.js'
+import { enforceRequiredBottomNav, readDisplayExtraConfig, resolveCategoryGuideConfig, resolveDisplayColors, resolveHomeModules } from '../src/utils/displayConfig.js'
 import { resolveCurrentStock, stockAdditionViolation, stockQuantityViolation } from '../src/utils/stockRules.js'
 import { isGatewayRecoveryError, resolveRequestErrorMessage } from '../src/utils/requestErrors.js'
 import { resolveFixedBottomShift } from '../src/utils/visualViewportFixedBottom.js'
 
 const readView = (name) => readFile(new URL(`../src/views/${name}`, import.meta.url), 'utf8')
 const readStyles = () => readFile(new URL('../src/assets/styles.css', import.meta.url), 'utf8')
+
+test('category guide supports three real templates, preserves module values, and locks core nav entries', async () => {
+  const categoryView = await readView('CategoryView.vue')
+  const app = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8')
+  const legacy = resolveCategoryGuideConfig({ extraConfigJson: '{}' })
+  const configured = resolveCategoryGuideConfig({
+    categoryGuideTemplate: 'scenario',
+    categoryGuideScenariosEnabled: 1,
+    categoryGuideQuickEntriesEnabled: 0,
+    categoryGuidePopularProductsEnabled: 1,
+  })
+  const nav = enforceRequiredBottomNav([
+    { type: 'cart', enabled: false },
+    { type: 'profile', enabled: false },
+    { type: 'category', enabled: false },
+  ], [{ type: 'cart', enabled: true }, { type: 'profile', enabled: true }])
+  const migratedNav = enforceRequiredBottomNav(
+    [{ type: 'home', enabled: true }],
+    [{ type: 'cart', enabled: true }, { type: 'profile', enabled: true }],
+  )
+
+  assert.equal(legacy.template, 'directory')
+  assert.equal(configured.template, 'scenario')
+  assert.equal(configured.modules.quickEntries, false)
+  assert.equal(configured.modules.popularProducts, true)
+  assert.equal(nav.find((item) => item.type === 'cart').enabled, true)
+  assert.equal(nav.find((item) => item.type === 'profile').enabled, true)
+  assert.equal(nav.find((item) => item.type === 'category').enabled, false)
+  assert.equal(migratedNav.find((item) => item.type === 'cart').enabled, true)
+  assert.equal(migratedNav.find((item) => item.type === 'profile').enabled, true)
+  assert.match(categoryView, /guide-directory-shell/)
+  assert.match(categoryView, /guide-showcase-grid/)
+  assert.match(categoryView, /guide-scenarios/)
+  assert.match(categoryView, /系统保留商品浏览与交易入口，避免出现空白页面/)
+  assert.match(app, /enforceRequiredBottomNav/)
+})
 
 test('mobile bottom navigation follows the iOS visual viewport after browser chrome changes', async () => {
   const [app, teamApp, styles, index] = await Promise.all([

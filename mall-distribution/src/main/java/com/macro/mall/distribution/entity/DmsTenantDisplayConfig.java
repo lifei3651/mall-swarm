@@ -46,6 +46,37 @@ public class DmsTenantDisplayConfig implements Serializable {
     @Size(max = 64, message = "布局模板名称不能超过64个字符")
     private String layoutTemplate;
 
+    /** 分类导购子版型：directory-双栏目录、showcase-视觉橱窗、scenario-场景导购。 */
+    @Size(max = 32, message = "分类导购版型名称不能超过32个字符")
+    private String categoryGuideTemplate;
+
+    /** A 双栏目录导航模块开关。父版型切换时保留原值。 */
+    private Integer categoryGuidePrimaryCategoriesEnabled;
+    private Integer categoryGuideSubcategoriesEnabled;
+    private Integer categoryGuideHotProductsEnabled;
+
+    /** B 视觉品类橱窗模块开关。 */
+    private Integer categoryGuideHeroCategoriesEnabled;
+    private Integer categoryGuideShelvesEnabled;
+    private Integer categoryGuideRecommendedProductsEnabled;
+
+    /** C 需求场景导购模块开关。 */
+    private Integer categoryGuideScenariosEnabled;
+    private Integer categoryGuideQuickEntriesEnabled;
+    private Integer categoryGuidePopularProductsEnabled;
+
+    /**
+     * 核心交易与合规能力只能为 1。字段显式暴露给工作台和公开端，服务端保存时拒绝关闭，
+     * 不能通过伪造请求把前端的锁定态绕过。
+     */
+    private Integer productDetailEnabled;
+    private Integer cartEnabled;
+    private Integer checkoutEnabled;
+    private Integer accountSecurityEnabled;
+    private Integer legalComplianceEnabled;
+    private Integer afterSalesEnabled;
+    private Integer customerServiceEnabled;
+
     /** 首页是否展示商品分类模块。 */
     private Integer showHomeCategories;
 

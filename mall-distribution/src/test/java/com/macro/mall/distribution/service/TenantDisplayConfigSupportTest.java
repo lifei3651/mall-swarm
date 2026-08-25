@@ -2,11 +2,13 @@ package com.macro.mall.distribution.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.macro.mall.common.exception.ApiException;
 import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
 import com.macro.mall.distribution.service.impl.TenantDisplayConfigSupport;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TenantDisplayConfigSupportTest {
@@ -26,6 +28,12 @@ class TenantDisplayConfigSupportTest {
         assertEquals(1, config.getNewArrivalsEnabled());
         assertEquals(30, config.getNewArrivalWindowDays());
         assertEquals(1, config.getShowPv());
+        assertEquals("directory", config.getCategoryGuideTemplate());
+        assertEquals(1, config.getCategoryGuidePrimaryCategoriesEnabled());
+        assertEquals(1, config.getCategoryGuideHeroCategoriesEnabled());
+        assertEquals(1, config.getCategoryGuideScenariosEnabled());
+        assertEquals(1, config.getProductDetailEnabled());
+        assertEquals(1, config.getLegalComplianceEnabled());
     }
 
     @Test
@@ -54,7 +62,7 @@ class TenantDisplayConfigSupportTest {
         config.setLiveSquareEnabled(0);
         config.setNewArrivalsEnabled(0);
         config.setNewArrivalWindowDays(180);
-        config.setExtraConfigJson("{\"futureSetting\":\"keep-me\"}");
+        config.setExtraConfigJson("{\"futureSetting\":\"keep-me\",\"requiredCapabilities\":{\"futureExperimental\":0}}");
 
         support.prepareForSave(config);
         JsonNode json = objectMapper.readTree(config.getExtraConfigJson());
@@ -66,6 +74,7 @@ class TenantDisplayConfigSupportTest {
         assertEquals(0, json.get("newArrivalsEnabled").asInt());
         assertEquals(180, json.get("newArrivalWindowDays").asInt());
         assertEquals("keep-me", json.get("futureSetting").asText());
+        assertEquals(0, json.path("requiredCapabilities").path("futureExperimental").asInt());
     }
 
     @Test
@@ -83,5 +92,102 @@ class TenantDisplayConfigSupportTest {
         assertEquals(0, config.getShowHomeCategories());
         assertEquals(1, config.getShowBottomCategoryNav());
         assertTrue(objectMapper.readTree(config.getExtraConfigJson()).isObject());
+    }
+
+    @Test
+    void categoryGuideTemplateAndAllThreeModuleGroupsRoundTrip() throws Exception {
+        DmsTenantDisplayConfig config = new DmsTenantDisplayConfig();
+        config.setTenantId(8L);
+        config.setLayoutTemplate("category-focus");
+        config.setCategoryGuideTemplate("scenario");
+        config.setCategoryGuidePrimaryCategoriesEnabled(0);
+        config.setCategoryGuideSubcategoriesEnabled(1);
+        config.setCategoryGuideHotProductsEnabled(0);
+        config.setCategoryGuideHeroCategoriesEnabled(1);
+        config.setCategoryGuideShelvesEnabled(0);
+        config.setCategoryGuideRecommendedProductsEnabled(1);
+        config.setCategoryGuideScenariosEnabled(1);
+        config.setCategoryGuideQuickEntriesEnabled(0);
+        config.setCategoryGuidePopularProductsEnabled(1);
+
+        support.prepareForSave(config);
+        DmsTenantDisplayConfig restored = new DmsTenantDisplayConfig();
+        restored.setTenantId(8L);
+        restored.setExtraConfigJson(config.getExtraConfigJson());
+        support.prepareForRead(restored, 8L);
+
+        assertEquals("scenario", restored.getCategoryGuideTemplate());
+        assertEquals(0, restored.getCategoryGuidePrimaryCategoriesEnabled());
+        assertEquals(1, restored.getCategoryGuideSubcategoriesEnabled());
+        assertEquals(0, restored.getCategoryGuideHotProductsEnabled());
+        assertEquals(1, restored.getCategoryGuideHeroCategoriesEnabled());
+        assertEquals(0, restored.getCategoryGuideShelvesEnabled());
+        assertEquals(1, restored.getCategoryGuideRecommendedProductsEnabled());
+        assertEquals(1, restored.getCategoryGuideScenariosEnabled());
+        assertEquals(0, restored.getCategoryGuideQuickEntriesEnabled());
+        assertEquals(1, restored.getCategoryGuidePopularProductsEnabled());
+        assertEquals(1, objectMapper.readTree(config.getExtraConfigJson())
+                .path("requiredCapabilities").path("checkout").asInt());
+    }
+
+    @Test
+    void parentLayoutSwitchPreservesInactiveCategoryGuideValues() {
+        DmsTenantDisplayConfig config = new DmsTenantDisplayConfig();
+        config.setTenantId(9L);
+        config.setLayoutTemplate("standard");
+        config.setCategoryGuideTemplate("showcase");
+        config.setCategoryGuideShelvesEnabled(0);
+
+        support.prepareForSave(config);
+        config.setLayoutTemplate("category-focus");
+        support.prepareForSave(config);
+
+        assertEquals("showcase", config.getCategoryGuideTemplate());
+        assertEquals(0, config.getCategoryGuideShelvesEnabled());
+    }
+
+    @Test
+    void requiredCapabilitiesCannotBeDisabledByTypedFieldOrExtraJson() {
+        DmsTenantDisplayConfig typed = new DmsTenantDisplayConfig();
+        typed.setTenantId(10L);
+        typed.setCartEnabled(0);
+        assertThrows(ApiException.class, () -> support.prepareForSave(typed));
+
+        DmsTenantDisplayConfig json = new DmsTenantDisplayConfig();
+        json.setTenantId(10L);
+        json.setExtraConfigJson("{\"requiredCapabilities\":{\"legalCompliance\":0}}");
+        assertThrows(ApiException.class, () -> support.prepareForSave(json));
+
+        DmsTenantDisplayConfig nav = new DmsTenantDisplayConfig();
+        nav.setTenantId(10L);
+        nav.setExtraConfigJson("{\"bottomNav\":[{\"type\":\"cart\",\"enabled\":false}]}");
+        assertThrows(ApiException.class, () -> support.prepareForSave(nav));
+
+        DmsTenantDisplayConfig removedNav = new DmsTenantDisplayConfig();
+        removedNav.setTenantId(10L);
+        removedNav.setExtraConfigJson("{\"bottomNav\":[{\"type\":\"home\",\"enabled\":true}]}");
+        assertThrows(ApiException.class, () -> support.prepareForSave(removedNav));
+    }
+
+    @Test
+    void tenantConfigurationsRemainIndependent() {
+        DmsTenantDisplayConfig first = new DmsTenantDisplayConfig();
+        first.setTenantId(21L);
+        first.setCategoryGuideTemplate("directory");
+        first.setCategoryGuideHotProductsEnabled(0);
+        support.prepareForSave(first);
+
+        DmsTenantDisplayConfig second = new DmsTenantDisplayConfig();
+        second.setTenantId(22L);
+        second.setCategoryGuideTemplate("scenario");
+        second.setCategoryGuideHotProductsEnabled(1);
+        support.prepareForSave(second);
+
+        assertEquals(21L, first.getTenantId());
+        assertEquals("directory", first.getCategoryGuideTemplate());
+        assertEquals(0, first.getCategoryGuideHotProductsEnabled());
+        assertEquals(22L, second.getTenantId());
+        assertEquals("scenario", second.getCategoryGuideTemplate());
+        assertEquals(1, second.getCategoryGuideHotProductsEnabled());
     }
 }

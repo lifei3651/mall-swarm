@@ -3,10 +3,12 @@ package com.macro.mall.distribution.service.impl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -22,6 +24,13 @@ public class TenantDisplayConfigSupport {
     public static final String DEFAULT_LAYOUT_TEMPLATE = "standard";
     private static final Set<String> LAYOUT_TEMPLATES = Set.of(
             "standard", "product-focus", "category-focus", "campaign-feed");
+    public static final String DEFAULT_CATEGORY_GUIDE_TEMPLATE = "directory";
+    private static final Set<String> CATEGORY_GUIDE_TEMPLATES = Set.of(
+            "directory", "showcase", "scenario");
+    private static final Set<String> REQUIRED_BOTTOM_NAV_TYPES = Set.of("cart", "profile");
+    private static final Set<String> REQUIRED_CAPABILITY_KEYS = Set.of(
+            "productDetail", "cart", "checkout", "accountSecurity",
+            "legalCompliance", "afterSales", "customerService");
 
     private final ObjectMapper objectMapper;
 
@@ -36,6 +45,7 @@ public class TenantDisplayConfigSupport {
     }
 
     public void prepareForSave(DmsTenantDisplayConfig config) {
+        validateRequiredCapabilities(config);
         fillDefaults(config);
         normalizeLayoutFields(config);
 
@@ -46,6 +56,25 @@ public class TenantDisplayConfigSupport {
         extra.put("liveSquareEnabled", config.getLiveSquareEnabled());
         extra.put("newArrivalsEnabled", config.getNewArrivalsEnabled());
         extra.put("newArrivalWindowDays", config.getNewArrivalWindowDays());
+        extra.put("categoryGuideTemplate", config.getCategoryGuideTemplate());
+        ObjectNode guideModules = extra.withObject("categoryGuideModules");
+        guideModules.put("primaryCategories", config.getCategoryGuidePrimaryCategoriesEnabled());
+        guideModules.put("subcategories", config.getCategoryGuideSubcategoriesEnabled());
+        guideModules.put("hotProducts", config.getCategoryGuideHotProductsEnabled());
+        guideModules.put("heroCategories", config.getCategoryGuideHeroCategoriesEnabled());
+        guideModules.put("shelves", config.getCategoryGuideShelvesEnabled());
+        guideModules.put("recommendedProducts", config.getCategoryGuideRecommendedProductsEnabled());
+        guideModules.put("scenarios", config.getCategoryGuideScenariosEnabled());
+        guideModules.put("quickEntries", config.getCategoryGuideQuickEntriesEnabled());
+        guideModules.put("popularProducts", config.getCategoryGuidePopularProductsEnabled());
+        ObjectNode requiredCapabilities = extra.withObject("requiredCapabilities");
+        requiredCapabilities.put("productDetail", 1);
+        requiredCapabilities.put("cart", 1);
+        requiredCapabilities.put("checkout", 1);
+        requiredCapabilities.put("accountSecurity", 1);
+        requiredCapabilities.put("legalCompliance", 1);
+        requiredCapabilities.put("afterSales", 1);
+        requiredCapabilities.put("customerService", 1);
         try {
             config.setExtraConfigJson(objectMapper.writeValueAsString(extra));
         } catch (Exception ignored) {
@@ -74,6 +103,11 @@ public class TenantDisplayConfigSupport {
         if (config.getNewArrivalWindowDays() == null) {
             config.setNewArrivalWindowDays(dayValue(extra.get("newArrivalWindowDays"), 30));
         }
+        if (config.getCategoryGuideTemplate() == null) {
+            config.setCategoryGuideTemplate(textValue(extra.get("categoryGuideTemplate"), DEFAULT_CATEGORY_GUIDE_TEMPLATE));
+        }
+        JsonNode guideModules = extra.get("categoryGuideModules");
+        hydrateGuideModules(config, guideModules);
         normalizeLayoutFields(config);
     }
 
@@ -86,6 +120,19 @@ public class TenantDisplayConfigSupport {
         config.setLiveSquareEnabled(normalizeToggle(config.getLiveSquareEnabled(), 1));
         config.setNewArrivalsEnabled(normalizeToggle(config.getNewArrivalsEnabled(), 1));
         config.setNewArrivalWindowDays(normalizeNewArrivalDays(config.getNewArrivalWindowDays()));
+        String guideTemplate = config.getCategoryGuideTemplate();
+        config.setCategoryGuideTemplate(guideTemplate != null && CATEGORY_GUIDE_TEMPLATES.contains(guideTemplate)
+                ? guideTemplate : DEFAULT_CATEGORY_GUIDE_TEMPLATE);
+        config.setCategoryGuidePrimaryCategoriesEnabled(normalizeToggle(config.getCategoryGuidePrimaryCategoriesEnabled(), 1));
+        config.setCategoryGuideSubcategoriesEnabled(normalizeToggle(config.getCategoryGuideSubcategoriesEnabled(), 1));
+        config.setCategoryGuideHotProductsEnabled(normalizeToggle(config.getCategoryGuideHotProductsEnabled(), 1));
+        config.setCategoryGuideHeroCategoriesEnabled(normalizeToggle(config.getCategoryGuideHeroCategoriesEnabled(), 1));
+        config.setCategoryGuideShelvesEnabled(normalizeToggle(config.getCategoryGuideShelvesEnabled(), 1));
+        config.setCategoryGuideRecommendedProductsEnabled(normalizeToggle(config.getCategoryGuideRecommendedProductsEnabled(), 1));
+        config.setCategoryGuideScenariosEnabled(normalizeToggle(config.getCategoryGuideScenariosEnabled(), 1));
+        config.setCategoryGuideQuickEntriesEnabled(normalizeToggle(config.getCategoryGuideQuickEntriesEnabled(), 1));
+        config.setCategoryGuidePopularProductsEnabled(normalizeToggle(config.getCategoryGuidePopularProductsEnabled(), 1));
+        forceRequiredCapabilities(config);
     }
 
     private void fillDefaults(DmsTenantDisplayConfig config) {
@@ -143,5 +190,83 @@ public class TenantDisplayConfigSupport {
     private Integer normalizeNewArrivalDays(Integer value) {
         if (value == null) return 30;
         return value == 0 || (value >= 30 && value <= 365) ? value : 30;
+    }
+
+    private void hydrateGuideModules(DmsTenantDisplayConfig config, JsonNode modules) {
+        config.setCategoryGuidePrimaryCategoriesEnabled(toggleField(
+                config.getCategoryGuidePrimaryCategoriesEnabled(), modules, "primaryCategories", 1));
+        config.setCategoryGuideSubcategoriesEnabled(toggleField(
+                config.getCategoryGuideSubcategoriesEnabled(), modules, "subcategories", 1));
+        config.setCategoryGuideHotProductsEnabled(toggleField(
+                config.getCategoryGuideHotProductsEnabled(), modules, "hotProducts", 1));
+        config.setCategoryGuideHeroCategoriesEnabled(toggleField(
+                config.getCategoryGuideHeroCategoriesEnabled(), modules, "heroCategories", 1));
+        config.setCategoryGuideShelvesEnabled(toggleField(
+                config.getCategoryGuideShelvesEnabled(), modules, "shelves", 1));
+        config.setCategoryGuideRecommendedProductsEnabled(toggleField(
+                config.getCategoryGuideRecommendedProductsEnabled(), modules, "recommendedProducts", 1));
+        config.setCategoryGuideScenariosEnabled(toggleField(
+                config.getCategoryGuideScenariosEnabled(), modules, "scenarios", 1));
+        config.setCategoryGuideQuickEntriesEnabled(toggleField(
+                config.getCategoryGuideQuickEntriesEnabled(), modules, "quickEntries", 1));
+        config.setCategoryGuidePopularProductsEnabled(toggleField(
+                config.getCategoryGuidePopularProductsEnabled(), modules, "popularProducts", 1));
+    }
+
+    private Integer toggleField(Integer current, JsonNode parent, String field, int defaultValue) {
+        if (current != null) return current;
+        return parent != null && parent.isObject()
+                ? toggleValue(parent.get(field), defaultValue) : defaultValue;
+    }
+
+    private void validateRequiredCapabilities(DmsTenantDisplayConfig config) {
+        requireEnabled(config.getProductDetailEnabled(), "商品详情");
+        requireEnabled(config.getCartEnabled(), "购物车");
+        requireEnabled(config.getCheckoutEnabled(), "结算与下单");
+        requireEnabled(config.getAccountSecurityEnabled(), "账号安全");
+        requireEnabled(config.getLegalComplianceEnabled(), "合规与协议");
+        requireEnabled(config.getAfterSalesEnabled(), "售后");
+        requireEnabled(config.getCustomerServiceEnabled(), "客服");
+
+        ObjectNode extra = readExtraObject(config.getExtraConfigJson());
+        JsonNode required = extra.get("requiredCapabilities");
+        if (required != null && required.isObject()) {
+            REQUIRED_CAPABILITY_KEYS.forEach(key -> {
+                if (required.has(key) && !toggleValue(required.get(key), 1).equals(1)) {
+                    Asserts.fail("系统必需/合规锁定能力不能关闭：" + key);
+                }
+            });
+        }
+        JsonNode bottomNav = extra.get("bottomNav");
+        if (bottomNav != null && bottomNav.isArray()) {
+            Set<String> configuredTypes = new HashSet<>();
+            bottomNav.forEach(item -> {
+                String type = item.path("type").asText("");
+                configuredTypes.add(type);
+                if (REQUIRED_BOTTOM_NAV_TYPES.contains(type)
+                        && !toggleValue(item.get("enabled"), 1).equals(1)) {
+                    Asserts.fail("系统必需入口不能关闭：" + type);
+                }
+            });
+            if (!configuredTypes.containsAll(REQUIRED_BOTTOM_NAV_TYPES)) {
+                Asserts.fail("系统必需入口不能移除：cart/profile");
+            }
+        }
+    }
+
+    private void requireEnabled(Integer value, String label) {
+        if (value != null && value != 1) {
+            Asserts.fail("系统必需/合规锁定能力不能关闭：" + label);
+        }
+    }
+
+    private void forceRequiredCapabilities(DmsTenantDisplayConfig config) {
+        config.setProductDetailEnabled(1);
+        config.setCartEnabled(1);
+        config.setCheckoutEnabled(1);
+        config.setAccountSecurityEnabled(1);
+        config.setLegalComplianceEnabled(1);
+        config.setAfterSalesEnabled(1);
+        config.setCustomerServiceEnabled(1);
     }
 }
