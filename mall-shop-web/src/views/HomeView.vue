@@ -84,37 +84,39 @@
         </div>
       </section>
 
-      <!-- 直播广场与新品速递是两个独立模块，各自排序、开关和展示。 -->
-      <section v-else-if="mod.type === 'live' && mod.enabled && liveRooms.length" class="home-feature-section home-live-section" aria-label="直播广场">
-        <div class="discovery-heading">
-          <div><Radio :size="18" /><h2>直播广场</h2><span v-if="liveRoomLiveCount">{{ liveRoomLiveCount }} 场直播中</span></div>
-          <RouterLink to="/live">全部 <ChevronRight :size="15" /></RouterLink>
-        </div>
-        <div class="discovery-grid">
-          <RouterLink v-for="item in liveRooms.slice(0, 2)" :key="item.room.id" class="discovery-feature" :to="`/live/${item.room.id}`">
-            <img :src="item.room.coverUrl" :alt="item.room.title" loading="lazy" @error="applyImageFallback" />
-            <span class="discovery-shade"></span>
-            <span class="live-state" :class="`state-${String(item.roomState).toLowerCase()}`">{{ liveStateLabel(item.roomState) }}</span>
-            <span class="live-copy"><strong>{{ item.room.title }}</strong><small>{{ item.room.anchorName || formatLiveTime(item.room.scheduledStartTime) }}</small></span>
-            <span class="live-heat"><Flame :size="14" /> {{ formatHeat(item.room.heatCount) }}</span>
-          </RouterLink>
-        </div>
-      </section>
+      <!-- 两个运营模块保持独立开关与入口，并在首页合并为一行双卡片。 -->
+      <section v-else-if="isFeatureAnchor(mod)" class="home-feature-row" :class="{ 'is-single': visibleFeatureModules.length === 1 }" aria-label="直播广场与新品速递">
+        <article v-if="showLiveFeature" class="home-feature-section home-live-section" :style="{ order: featureModuleOrder('live') }" aria-label="直播广场">
+          <div class="discovery-heading">
+            <div><Radio :size="18" /><h2>直播广场</h2><span v-if="liveRoomLiveCount">{{ liveRoomLiveCount }} 场直播中</span></div>
+            <RouterLink to="/live">全部 <ChevronRight :size="15" /></RouterLink>
+          </div>
+          <div class="discovery-grid">
+            <RouterLink v-for="item in liveRooms.slice(0, 1)" :key="item.room.id" class="discovery-feature" :to="`/live/${item.room.id}`">
+              <img :src="item.room.coverUrl" :alt="item.room.title" loading="lazy" @error="applyImageFallback" />
+              <span class="discovery-shade"></span>
+              <span class="live-state" :class="`state-${String(item.roomState).toLowerCase()}`">{{ liveStateLabel(item.roomState) }}</span>
+              <span class="live-copy"><strong>{{ item.room.title }}</strong><small>{{ item.room.anchorName || formatLiveTime(item.room.scheduledStartTime) }}</small></span>
+              <span class="live-heat"><Flame :size="14" /> {{ formatHeat(item.room.heatCount) }}</span>
+            </RouterLink>
+          </div>
+        </article>
 
-      <section v-else-if="mod.type === 'newArrivals' && mod.enabled && newArrivals.length" class="home-feature-section home-new-arrivals-section" aria-label="新品速递">
-        <div class="discovery-heading">
-          <div><Sparkles :size="18" /><h2>新品速递</h2><span>首次上架好物</span></div>
-          <RouterLink to="/new-arrivals">全部 <ChevronRight :size="15" /></RouterLink>
-        </div>
-        <div class="discovery-grid">
-          <RouterLink v-for="product in newArrivals.slice(0, 2)" :key="product.id" class="discovery-feature" :to="`/product/${product.id}`">
-            <img :src="product.coverUrl" :alt="product.productName" loading="lazy" @error="applyImageFallback" />
-            <span class="discovery-shade"></span>
-            <span class="new-badge"><Sparkles :size="13" /> NEW</span>
-            <span class="live-copy"><strong>{{ product.productName }}</strong><small>{{ product.subtitle || '新品首发，品质上新' }}</small></span>
-            <span class="new-price">首发价 ¥{{ money(product.salePrice) }}</span>
-          </RouterLink>
-        </div>
+        <article v-if="showNewArrivalsFeature" class="home-feature-section home-new-arrivals-section" :style="{ order: featureModuleOrder('newArrivals') }" aria-label="新品速递">
+          <div class="discovery-heading">
+            <div><Sparkles :size="18" /><h2>新品速递</h2><span>首次上架好物</span></div>
+            <RouterLink to="/new-arrivals">全部 <ChevronRight :size="15" /></RouterLink>
+          </div>
+          <div class="discovery-grid">
+            <RouterLink v-for="product in newArrivals.slice(0, 1)" :key="product.id" class="discovery-feature" :to="`/product/${product.id}`">
+              <img :src="product.coverUrl" :alt="product.productName" loading="lazy" @error="applyImageFallback" />
+              <span class="discovery-shade"></span>
+              <span class="new-badge"><Sparkles :size="13" /> NEW</span>
+              <span class="live-copy"><strong>{{ product.productName }}</strong><small>{{ product.subtitle || '新品首发，品质上新' }}</small></span>
+              <span class="new-price">首发价 ¥{{ money(product.salePrice) }}</span>
+            </RouterLink>
+          </div>
+        </article>
       </section>
 
       <!-- 信任条 -->
@@ -322,6 +324,16 @@ let productRequestId = 0
 const allHomeProducts = computed(() => home.value.featuredProducts || [])
 const liveRooms = computed(() => home.value.liveRooms || [])
 const newArrivals = computed(() => (home.value.newArrivals || []).map(normalizeProduct))
+const visibleFeatureModules = computed(() => homeModules.value.filter((module) => {
+  if (!module.enabled) return false
+  if (module.type === 'live') return liveRooms.value.length > 0
+  if (module.type === 'newArrivals') return newArrivals.value.length > 0
+  return false
+}))
+const showLiveFeature = computed(() => visibleFeatureModules.value.some((module) => module.type === 'live'))
+const showNewArrivalsFeature = computed(() => visibleFeatureModules.value.some((module) => module.type === 'newArrivals'))
+const isFeatureAnchor = (module) => module?.type === visibleFeatureModules.value[0]?.type
+const featureModuleOrder = (type) => visibleFeatureModules.value.findIndex((module) => module.type === type) + 1
 const liveRoomLiveCount = computed(() => liveRooms.value.filter((item) => item.roomState === 'LIVE').length)
 const liveStateLabel = (state) => ({ CONNECTING: '正在连接', LIVE: '直播中', UPCOMING: '直播预告', ENDED: '精彩回放' }[state] || '直播')
 const formatLiveTime = (value) => value ? String(value).replace('T', ' ').slice(5, 16) : '开播时间待定'
@@ -589,8 +601,10 @@ onUnmounted(() => { stopBannerAutoplay(); stopNoticeRotation(); window.clearTime
 }
 
 .home-category-section { width: min(1180px, calc(100% - 40px)); margin: 18px auto 16px; padding: 22px 20px; background: #fff; border: 1px solid #eceff1; border-radius: var(--shop-card-radius); }
-.home-feature-section { width: min(1180px, calc(100% - 40px)); margin: 0 auto 18px; }
-.discovery-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.home-feature-row { width: min(1180px, calc(100% - 40px)); display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin:0 auto 18px; }
+.home-feature-row.is-single { grid-template-columns:minmax(0,1fr); }
+.home-feature-section { min-width:0; }
+.discovery-grid { display: grid; grid-template-columns: minmax(0,1fr); }
 .discovery-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; padding: 0 2px; }
 .discovery-heading > div { min-width: 0; display: flex; align-items: center; gap: 7px; }
 .discovery-heading svg { color: var(--brand-primary); }
@@ -675,12 +689,13 @@ onUnmounted(() => { stopBannerAutoplay(); stopNoticeRotation(); window.clearTime
   .search-suggestions { top:calc(100% + 6px); left:-5px; right:-5px; }
   .home-share { height: 48px; font-size: 10px; }
   .home-category-section { width: calc(100% - 16px); margin: 9px auto 10px; padding: 14px 7px 12px; border-radius: var(--shop-card-radius); }
-  .home-feature-section { width: calc(100% - 16px); margin-bottom: 14px; }
-  .discovery-grid { gap: 10px; }
+  .home-feature-row { width:calc(100% - 16px); gap:10px; margin-bottom:14px; }
   .discovery-heading { margin-bottom: 7px; }
+  .discovery-heading > div { gap:4px; }
   .discovery-heading h2 { font-size: 16px; }
   .discovery-heading span { display: none; }
-  .discovery-feature { aspect-ratio: 4/5; border-radius: 15px; }
+  .discovery-heading > a { font-size:11px; }
+  .discovery-feature { aspect-ratio: 9/10; border-radius: 15px; }
   .live-copy { right: 10px; bottom: 33px; }
   .live-copy strong { font-size: 14px; }
   .live-copy small { font-size: 10px; }

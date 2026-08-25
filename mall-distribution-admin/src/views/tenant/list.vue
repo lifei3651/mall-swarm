@@ -112,21 +112,21 @@
             </div>
           </section>
           <section v-if="activeEditSection === 'live'" class="control-section feature-control-section">
-            <div class="control-section-heading"><div><strong>直播广场</strong><small>单独控制直播入口，不影响新品速递和其他首页模块</small></div><el-tag size="small" type="info">独立模块</el-tag></div>
+            <div class="control-section-heading"><div><strong>直播广场</strong><small>开关保持独立；首页与新品速递横排展示，不影响其他模块</small></div><el-tag size="small" type="info">独立模块</el-tag></div>
             <div class="feature-toggle-card">
               <div class="feature-toggle-copy"><span class="feature-toggle-icon">◉</span><div><strong>公开直播广场</strong><small>关闭后首页直播模块、直播列表和直播详情均不公开，已配置直播间继续保留</small></div></div>
               <div class="feature-toggle-action"><span :class="{ enabled: displayForm.liveSquareEnabled === 1 }">{{ displayForm.liveSquareEnabled === 1 ? '已开启' : '已关闭' }}</span><el-switch v-model="displayForm.liveSquareEnabled" :active-value="1" :inactive-value="0" aria-label="开启或关闭直播广场" /></div>
             </div>
           </section>
           <section v-if="activeEditSection === 'newArrivals'" class="control-section feature-control-section">
-            <div class="control-section-heading"><div><strong>新品速递</strong><small>单独控制新品入口，不影响直播广场和普通商品列表</small></div><el-tag size="small" type="info">独立模块</el-tag></div>
+            <div class="control-section-heading"><div><strong>新品速递</strong><small>开关保持独立；首页与直播广场横排展示，不影响普通商品列表</small></div><el-tag size="small" type="info">独立模块</el-tag></div>
             <div class="feature-toggle-card">
               <div class="feature-toggle-copy"><span class="feature-toggle-icon new-arrivals-icon">NEW</span><div><strong>公开新品速递</strong><small>开启后自动展示近期首次上架商品；关闭只隐藏新品入口，不下架任何商品</small></div></div>
               <div class="feature-toggle-action"><span :class="{ enabled: displayForm.newArrivalsEnabled === 1 }">{{ displayForm.newArrivalsEnabled === 1 ? '已开启' : '已关闭' }}</span><el-switch v-model="displayForm.newArrivalsEnabled" :active-value="1" :inactive-value="0" aria-label="开启或关闭新品速递" /></div>
             </div>
           </section>
           <section v-if="activeEditSection === 'home'" class="control-section">
-            <div class="control-section-heading"><div><strong>首页模块</strong><small>拖动调整前台显示顺序</small></div><el-tag size="small" type="info">实时预览</el-tag></div>
+            <div class="control-section-heading"><div><strong>首页模块</strong><small>拖动调整顺序；直播与新品固定横排，相对顺序决定左右位置</small></div><el-tag size="small" type="info">实时预览</el-tag></div>
             <div class="module-list module-list-sortable">
               <div v-for="(module, index) in displayForm.homeModules" :key="module.type" class="module-item" draggable="true" @dragstart="startModuleDrag(index)" @dragover.prevent @drop="dropModule(index)" @dragend="draggingModuleIndex = null">
                 <span class="drag-handle" aria-hidden="true">⋮⋮</span>
@@ -206,11 +206,13 @@
                   <div v-for="category in visiblePreviewCategories" :key="category.id" class="mobile-preview-category"><span><img v-if="category.iconUrl" :src="category.iconUrl" alt="" /><b v-else>{{ category.categoryName?.slice(0, 1) }}</b></span><strong>{{ category.categoryName }}</strong></div>
                   <div v-if="!visiblePreviewCategories.length" class="preview-empty-inline">暂无首页分类</div>
                 </div>
-                <div v-else-if="module.type === 'live' && module.enabled && displayForm.liveSquareEnabled === 1" class="mobile-preview-feature mobile-preview-live">
-                  <div><strong>直播广场</strong><small>全部 ›</small></div><section><b>直播间发布后展示</b><span>预告 · 直播中 · 回放</span></section>
-                </div>
-                <div v-else-if="module.type === 'newArrivals' && module.enabled && displayForm.newArrivalsEnabled === 1" class="mobile-preview-feature mobile-preview-new-arrivals">
-                  <div><strong>新品速递</strong><small>全部 ›</small></div><section><img v-if="previewProducts[0]?.coverUrl" :src="previewProducts[0].coverUrl" :alt="previewProducts[0].productName" /><b>{{ previewProducts[0]?.productName || '首次上架商品' }}</b><span>首发价 ¥{{ Number(previewProducts[0]?.salePrice || 0).toFixed(2) }}</span></section>
+                <div v-else-if="isPreviewFeatureAnchor(module)" class="mobile-preview-feature-row" :class="{ 'is-single': previewFeatureModules.length === 1 }">
+                  <div v-if="showPreviewLive" class="mobile-preview-feature mobile-preview-live" :style="{ order: previewFeatureOrder('live') }">
+                    <div><strong>直播广场</strong><small>全部 ›</small></div><section><b>直播间发布后展示</b><span>预告 · 直播中 · 回放</span></section>
+                  </div>
+                  <div v-if="showPreviewNewArrivals" class="mobile-preview-feature mobile-preview-new-arrivals" :style="{ order: previewFeatureOrder('newArrivals') }">
+                    <div><strong>新品速递</strong><small>全部 ›</small></div><section><img v-if="previewProducts[0]?.coverUrl" :src="previewProducts[0].coverUrl" :alt="previewProducts[0].productName" /><b>{{ previewProducts[0]?.productName || '首次上架商品' }}</b><span>首发价 ¥{{ Number(previewProducts[0]?.salePrice || 0).toFixed(2) }}</span></section>
+                  </div>
                 </div>
                 <div v-else-if="module.type === 'trust' && module.enabled && displayForm.showTrustStrip === 1" class="mobile-preview-trust"><span>安全支付</span><span>订单可查</span><span>售后无忧</span></div>
                 <div v-else-if="module.type === 'products' && module.enabled" class="mobile-preview-product-section"><div class="mobile-preview-heading"><strong>精选商品</strong><span>商城好物，为你精选</span></div><div class="mobile-preview-products" :class="{ 'campaign-preview-products': displayForm.layoutTemplate === 'campaign-feed' }"><div v-for="product in previewProducts" :key="product.id" class="mobile-preview-product"><img v-if="product.coverUrl" :src="product.coverUrl" :alt="product.productName" /><i v-else></i><span v-if="displayForm.layoutTemplate === 'campaign-feed'" class="campaign-preview-band">活动好物 · 真实活动显示倒计时</span><strong>{{ product.productName }}</strong><small>{{ product.subtitle || '精选商品，品质保障' }}</small><b>¥{{ Number(product.salePrice || 0).toFixed(2) }}</b></div><div v-if="!previewProducts.length" class="preview-empty-module">暂无上架商品</div></div></div>
@@ -439,7 +441,7 @@ const displaySectionRows = computed(() => {
   return [
     { key: 'brand', icon: '✦', label: '品牌视觉', summary: `${row.brandName || row.tenantName || '灵启商城'} · ${getTemplateName(row.productTemplate)} · ${row.logoUrl ? '已配置 Logo' : '待上传 Logo'}`, status: row.brandName || row.logoUrl ? '已配置' : '待完善', active: Boolean(row.brandName || row.logoUrl) },
     { key: 'layout', icon: '▤', label: '首页版型', summary: getLayoutTemplateName(currentDisplayConfig.value.layoutTemplate), status: '可编辑', active: true },
-    { key: 'home', icon: '⌂', label: '首页模块', summary: `${visibleModules}/${modules.length} 个模块展示，支持拖动排序`, status: '已配置', active: visibleModules > 0 },
+    { key: 'home', icon: '⌂', label: '首页模块', summary: `${visibleModules}/${modules.length} 个模块展示；直播与新品横排`, status: '已配置', active: visibleModules > 0 },
     { key: 'category', icon: '▦', label: '分类模块', summary: '控制首页分类入口及单个分类显示', status: '可编辑', active: true },
     { key: 'banner', icon: '▣', label: '首页轮播图', summary: bannerModuleVisible ? '总开关已展示，可管理图片与点击去向' : '首页模块总开关已隐藏，图片不会在前台展示', status: bannerModuleVisible ? '展示中' : '已隐藏', active: bannerModuleVisible },
     { key: 'live', icon: '◉', label: '直播广场', summary: '独立控制直播首页入口、列表和详情，直播间资料不会因关闭而删除', status: Number(currentDisplayConfig.value.liveSquareEnabled ?? 1) === 1 ? '已开启' : '已关闭', active: Number(currentDisplayConfig.value.liveSquareEnabled ?? 1) === 1 },
@@ -587,6 +589,16 @@ const resetColors = () => {
 }
 
 const orderedPreviewModules = computed(() => [...(displayForm.value.homeModules || [])].sort((a, b) => (a.sort || 99) - (b.sort || 99)))
+const previewFeatureModules = computed(() => orderedPreviewModules.value.filter((module) => {
+  if (!module.enabled) return false
+  if (module.type === 'live') return displayForm.value.liveSquareEnabled === 1
+  if (module.type === 'newArrivals') return displayForm.value.newArrivalsEnabled === 1
+  return false
+}))
+const showPreviewLive = computed(() => previewFeatureModules.value.some((module) => module.type === 'live'))
+const showPreviewNewArrivals = computed(() => previewFeatureModules.value.some((module) => module.type === 'newArrivals'))
+const isPreviewFeatureAnchor = (module) => module?.type === previewFeatureModules.value[0]?.type
+const previewFeatureOrder = (type) => previewFeatureModules.value.findIndex((module) => module.type === type) + 1
 const visiblePreviewCategories = computed(() => categories.value.filter((category) => Number(categoryDraft.value[category.id] ?? 1) === 1))
 const visiblePreviewNav = computed(() => (displayForm.value.bottomNav || []).filter((nav) => nav.enabled !== false))
 const previewStyle = computed(() => ({
@@ -980,7 +992,9 @@ onMounted(async () => {
 .mobile-preview-product strong { overflow:hidden; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
 .mobile-preview-product small { overflow:hidden; color:#98a2b3; font-size:9px; text-overflow:ellipsis; white-space:nowrap; }
 .mobile-preview-product b { color:var(--preview-price, var(--preview-color)); font-size:13px; }
-.mobile-preview-feature { min-width:0; padding:6px 10px 11px; }
+.mobile-preview-feature-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; margin:0 10px 11px; }
+.mobile-preview-feature-row.is-single { grid-template-columns:minmax(0,1fr); }
+.mobile-preview-feature { min-width:0; }
 .mobile-preview-feature>div { display:flex; align-items:center; justify-content:space-between; gap:4px; margin-bottom:5px; }
 .mobile-preview-feature>div strong { font-size:11px; }
 .mobile-preview-feature>div small { color:var(--preview-muted,#98a2b3); font-size:8px; }

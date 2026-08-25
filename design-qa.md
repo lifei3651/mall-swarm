@@ -98,6 +98,48 @@
 
 final result: passed
 
+## 直播广场与新品速递横排验收（2026-08-25）
+
+- Source visual truth: `document/qa/2026-08-25-live-new-horizontal-reference.png`（718 × 428）。
+- Implementation screenshot: `document/qa/2026-08-25-live-new-horizontal-mobile.png`（360 × 222，手机双卡区域密度归一化截图）。
+- Side-by-side comparison: `document/qa/2026-08-25-live-new-horizontal-comparison.png`（左侧参考、右侧实现）。
+- Viewport/density/state: Codex 应用内浏览器设置 390 × 844，实际可视宽度 375，devicePixelRatio 2；本地只读代理使用线上公开商城商品资料，并仅在本地响应中补入一场直播和一个新品用于显式展示，未写入生产数据。
+- Density normalization: 参考图按 360px 宽等比归一为 360 × 215；实现区域按浏览器 2 倍密度归一为 360 × 222。比较不包含浏览器外壳、底部导航或后续商品区。
+
+### Full-view comparison evidence
+
+- “直播广场”和“新品速递”已合并为同一行的左右双卡片，每列独立保留标题、“全部”入口、真实封面、状态/新品标识、名称和热度/首发价。
+- 两项继续使用各自的运营开关和数据门禁；同时可见时按后台模块顺序决定左右位置，其中一项关闭或没有内容时，剩余项自动占满整行，不出现半行空洞。
+- 后台“客户手机版预览”同步使用相同横排结构，避免装修预览与真实商城不一致。
+
+### Focused region comparison evidence
+
+- 布局：参考图与实现均为一行两列、两列同宽、标题和“全部”在卡片上方，手机端无横向溢出。
+- 比例：初版沿用旧 4:5 竖卡，双列后区域高 248px，较参考图偏高；已将手机卡片调整为 9:10，最终区域高约 223px，与归一化参考图 215px 接近。
+- 产品边界：参考图中的符号占位被真实直播状态、NEW 标识和真实商品图片替代；这是对商城既有业务信息的保留，不复制参考图中的虚构热度或价格。
+
+### Required fidelity surfaces
+
+- Fonts and typography: 沿用商城既有中文字体、标题权重和价格层级；两列标题及“全部”不换行、不裁切。
+- Spacing and layout rhythm: 手机内容宽度扣除 8px 双侧边距，列间距 10px；两张卡等宽等高，9:10 比例和 15px 圆角接近参考图节奏。
+- Colors and visual tokens: 继续使用商城主题色、直播红色状态和新品紫色标识，不引入与现有品牌冲突的新色板。
+- Image quality and asset fidelity: 实现截图使用真实商城商品图作为本地视觉数据，不使用灰色占位块、手绘图标或伪造内容冒充交付效果。
+- Copy and content: 保留“直播广场”“新品速递”“全部”、直播标题/主播/热度和商品标题/首发价；没有把参考图中的示例价格、上线日期或热度写入产品。
+
+### Findings and comparison history
+
+- [P2，已修复] 初版横排继续使用旧 4:5 卡片，手机双卡整体偏高；调整为 9:10 后重新截图比较，区域高度与参考图接近，首屏信息密度更合理。
+- 最终并排比较未发现仍需处理的 P0、P1 或 P2 问题；参考图与实现的内容差异属于真实业务数据和既有品牌体系的预期差异。
+
+### Primary interactions tested
+
+1. 左侧“全部”进入 `/live`，右侧“全部”进入 `/new-arrivals`。
+2. 两项同时开放时保持一行两列；单项状态由自动化测试覆盖为独立展示并占满整行。
+3. 商城 85/85、后台 123/123 自动化通过；公开商城、三合一 H5 和管理后台生产构建通过。
+4. 手机预览浏览器控制台错误和警告均为 0。
+
+final result: passed
+
 ## 直播广场与新品速递验收（2026-08-23）
 
 - Source visual truth: `/var/folders/nk/gpz82vss0513h6pd0tkfgs6h0000gn/T/codex-clipboard-abfc96e0-bea4-4401-839f-712a68af641f.png`（430 × 932）。
