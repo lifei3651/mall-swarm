@@ -31,6 +31,14 @@
       show-icon
       class="banner-alert"
     />
+    <el-alert
+      v-if="!loading && !brandCultureEnabled"
+      title="品牌文化页当前已关闭：相关横幅会自动停止公开，也不能启用；图片和配置会继续保留。请先到“商城视觉与页面 → 独立页面”开启并保存。"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="banner-alert"
+    />
 
     <el-card shadow="never">
       <el-table v-loading="loading" :data="rows" row-key="id">
@@ -46,7 +54,7 @@
         <el-table-column prop="sort" label="顺序" width="80" sortable />
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-switch :model-value="Number(row.status) === 1" @change="(value) => toggleStatus(row, value)" />
+            <el-switch :model-value="Number(row.status) === 1" :disabled="isDisabledCultureBanner(row)" @change="(value) => toggleStatus(row, value)" />
           </template>
         </el-table-column>
         <el-table-column label="操作" width="140" fixed="right">
@@ -63,11 +71,11 @@
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="轮播图片" prop="imageUrl">
           <div class="image-editor">
-            <el-upload action="#" :show-file-list="false" accept="image/*" :http-request="uploadImage">
+            <el-upload action="#" :show-file-list="false" accept=".jpg,.jpeg,.png,.webp" :before-upload="beforeBannerUpload" :http-request="uploadImage">
               <el-image v-if="form.imageUrl" :src="form.imageUrl" fit="cover" class="banner-preview" />
               <div v-else class="upload-placeholder">点击上传图片</div>
             </el-upload>
-            <span class="form-help">建议使用 16:6 横幅图，单张不超过 5MB。</span>
+            <span class="form-help">{{ imageHelp }}</span>
           </div>
         </el-form-item>
         <el-form-item label="标题" prop="title"><el-input v-model="form.title" maxlength="64" show-word-limit /></el-form-item>
@@ -76,9 +84,10 @@
             <el-option label="不跳转" value="none" />
             <el-option label="商品详情" value="product" />
             <el-option label="商品分类" value="category" />
+            <el-option label="品牌文化页" value="brand_culture" />
             <el-option label="外部链接" value="url" />
           </el-select>
-          <el-input v-if="form.linkType !== 'none'" v-model="form.linkValue" :placeholder="linkPlaceholder" class="link-input" />
+          <el-input v-if="!['none', 'brand_culture'].includes(form.linkType)" v-model="form.linkValue" :placeholder="linkPlaceholder" class="link-input" />
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="12"><el-form-item label="展示顺序"><el-input-number v-model="form.sort" :min="0" :max="9999" /></el-form-item></el-col>
@@ -97,23 +106,29 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { createShopBanner, listShopBanners, updateShopBanner, updateShopBannerStatus, uploadShopImage } from '@/api/shop'
-import { getDisplayConfig } from '@/api/tenant'
+import { createShopBanner, listShopBanners, updateShopBanner, updateShopBannerStatus, uploadBrandCultureImage, uploadShopImage } from '@/api/shop'
+import { getDisplayConfig, listTenants } from '@/api/tenant'
 
 const loading = ref(false)
 const saving = ref(false)
 const rows = ref([])
 const bannerModuleEnabled = ref(true)
+const publishedBrandCultureEnabled = ref(false)
 const dialogVisible = ref(false)
 const formRef = ref()
 const form = ref({})
 const rules = { imageUrl: [{ required: true, message: '请上传轮播图片', trigger: 'change' }], title: [{ required: true, message: '请输入标题', trigger: 'blur' }] }
 const linkPlaceholder = computed(() => ({ product: '填写商品 ID', category: '填写分类名称', url: '填写 https:// 开头的链接' }[form.value.linkType] || ''))
+const brandCultureEnabled = computed(() => publishedBrandCultureEnabled.value)
+const isBrandCultureForm = computed(() => normalizeLinkType(form.value.linkType) === 'brand_culture')
+const imageHelp = computed(() => isBrandCultureForm.value
+  ? '品牌文化入口横幅建议 750×320px；JPG/PNG/WebP，单张≤3MB。尺寸为建议值，不会强制裁切。'
+  : '建议使用横幅图；JPG/PNG/WebP，单张不超过5MB。')
 const activeBannerCount = computed(() => rows.value.filter((row) => Number(row.status) === 1).length)
 
 const emptyForm = () => ({ tenantId: 1, title: '', imageUrl: '', linkType: 'none', linkValue: '', sort: 100, status: 1, timeRange: [], remark: '' })
 const normalizeLinkType = (value) => String(value || 'none').trim().toLowerCase()
-const linkTypeName = (value) => ({ none: '不跳转', product: '商品详情', category: '商品分类', url: '外部链接' }[normalizeLinkType(value)] || '不跳转')
+const linkTypeName = (value) => ({ none: '不跳转', product: '商品详情', category: '商品分类', brand_culture: '品牌文化页', url: '外部链接' }[normalizeLinkType(value)] || '不跳转')
 const normalizeRow = (row) => ({ ...row, status: Number(row.status ?? 0), linkType: normalizeLinkType(row.linkType), timeRange: [row.startTime, row.endTime].filter(Boolean) })
 const normalizeModuleEnabled = (value) => ![false, 0, '0', 'false'].includes(value)
 
@@ -130,27 +145,64 @@ const resolveBannerModuleEnabled = (config) => {
 const fetchRows = async () => {
   loading.value = true
   try {
-    const [bannerResult, configResult] = await Promise.allSettled([
+    const [bannerResult, configResult, tenantResult] = await Promise.allSettled([
       listShopBanners({ tenantId: 1 }),
       getDisplayConfig(1),
+      listTenants({ pageNum: 1, pageSize: 100 }),
     ])
     if (bannerResult.status === 'rejected') throw bannerResult.reason
     rows.value = (bannerResult.value.data || []).map(normalizeRow)
     bannerModuleEnabled.value = configResult.status === 'fulfilled'
       ? resolveBannerModuleEnabled(configResult.value.data)
       : true
+    const tenants = tenantResult.status === 'fulfilled' ? (tenantResult.value.data?.list || []) : []
+    const tenant = tenants.find((item) => Number(item.id) === 1) || tenants[0]
+    publishedBrandCultureEnabled.value = Number(tenant?.brandCultureEnabled || 0) === 1
   } finally { loading.value = false }
 }
 
 const openCreate = () => { form.value = emptyForm(); dialogVisible.value = true }
 const openEdit = (row) => { form.value = { ...emptyForm(), ...row, linkType: normalizeLinkType(row.linkType), timeRange: row.timeRange || [row.startTime, row.endTime].filter(Boolean) }; dialogVisible.value = true }
-const handleLinkTypeChange = (value) => { if (normalizeLinkType(value) === 'none') form.value.linkValue = '' }
+const handleLinkTypeChange = (value) => {
+  const type = normalizeLinkType(value)
+  if (type === 'none' || type === 'brand_culture') form.value.linkValue = ''
+  if (type === 'brand_culture' && !String(form.value.imageUrl || '').startsWith('/api/shop/media/brand-culture/1/')) {
+    form.value.imageUrl = ''
+    ElMessage.info('品牌文化横幅需要重新从当前客户专用上传区选择')
+  }
+}
+const allowedBannerImage = (file) => {
+  const extension = String(file.name || '').toLowerCase().split('.').pop()
+  return ['jpg', 'jpeg', 'png', 'webp'].includes(extension)
+    && ['image/jpeg', 'image/png', 'image/webp'].includes(String(file.type || '').toLowerCase())
+}
+const beforeBannerUpload = (file) => {
+  if (!allowedBannerImage(file)) {
+    ElMessage.error(`${file.name} 不是可用的JPG、PNG或WebP图片`)
+    return false
+  }
+  const limit = isBrandCultureForm.value ? 3 : 5
+  if (file.size > limit * 1024 * 1024) {
+    ElMessage.error(`${file.name} 超过${limit}MB，请压缩后再上传`)
+    return false
+  }
+  return true
+}
 const uploadImage = async ({ file }) => {
-  const res = await uploadShopImage(file)
-  form.value.imageUrl = res.data
+  const res = isBrandCultureForm.value
+    ? await uploadBrandCultureImage(1, 'banner', file)
+    : await uploadShopImage(file)
+  form.value.imageUrl = isBrandCultureForm.value ? res.data?.url : res.data
   ElMessage.success('图片上传成功')
 }
+const isDisabledCultureBanner = (row) => normalizeLinkType(row.linkType) === 'brand_culture'
+  && !brandCultureEnabled.value
+  && Number(row.status) !== 1
 const toggleStatus = async (row, enabled) => {
+  if (enabled && isDisabledCultureBanner(row)) {
+    ElMessage.warning('请先开启并保存品牌文化页，再启用此横幅')
+    return
+  }
   await updateShopBannerStatus(row.id, enabled ? 1 : 0)
   row.status = enabled ? 1 : 0
   ElMessage.success(enabled ? '轮播图已展示' : '轮播图已隐藏')
@@ -158,12 +210,16 @@ const toggleStatus = async (row, enabled) => {
 const submit = async () => {
   const valid = await formRef.value?.validate().catch(() => false)
   if (valid === false) return
+  if (isBrandCultureForm.value && Number(form.value.status) === 1 && !brandCultureEnabled.value) {
+    ElMessage.warning('品牌文化页当前已关闭，请先开启并保存页面，或将横幅设为隐藏')
+    return
+  }
   saving.value = true
   try {
     // 时间字段已从界面移除：编辑历史轮播图时保留原值，新建轮播图默认不设置时间。
     const payload = { ...form.value, linkType: normalizeLinkType(form.value.linkType) }
     delete payload.timeRange
-    if (payload.linkType === 'none') payload.linkValue = ''
+    if (payload.linkType === 'none' || payload.linkType === 'brand_culture') payload.linkValue = ''
     if (payload.id) await updateShopBanner(payload.id, payload)
     else await createShopBanner(payload)
     ElMessage.success('轮播图已保存')

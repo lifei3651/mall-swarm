@@ -41,6 +41,7 @@ import com.macro.mall.distribution.service.AdminAuthService;
 import com.macro.mall.distribution.service.MerchantProductReviewService;
 import com.macro.mall.distribution.service.LiveRoomService;
 import com.macro.mall.distribution.service.ContentModerationService;
+import com.macro.mall.distribution.service.BrandCultureImagePolicy;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.vo.OrderFinanceVO;
 import com.macro.mall.distribution.vo.ShopHomeVO;
@@ -145,6 +146,7 @@ public class ShopServiceImpl implements ShopService {
     private final AdminAuthService adminAuthService;
     private final MerchantProductReviewService merchantProductReviewService;
     private final LiveRoomService liveRoomService;
+    private final BrandCultureImagePolicy brandCultureImagePolicy;
     private final TransactionTemplate transactionTemplate;
 
     @Value("${shop.order.pending-timeout-minutes:30}")
@@ -179,7 +181,8 @@ public class ShopServiceImpl implements ShopService {
         vo.setCategories(categories.isEmpty()
                 ? productDao.selectCategories(resolvedTenantId)
                 : categories.stream().map(DmsShopCategory::getCategoryName).toList());
-        vo.setBanners(bannerDao.selectActive(resolvedTenantId));
+        boolean brandCultureEnabled = tenant != null && Integer.valueOf(1).equals(tenant.getBrandCultureEnabled());
+        vo.setBanners(filterPublicBanners(bannerDao.selectActive(resolvedTenantId), brandCultureEnabled));
         vo.setNotices(noticeDao.selectActive(resolvedTenantId));
         List<DmsShopProduct> featuredProducts = productDao.selectFrontList(resolvedTenantId, null, null, 1, null);
         DmsTenantDisplayConfig displayConfig = getDisplayConfig(resolvedTenantId);
@@ -461,7 +464,9 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("轮播图不存在");
         }
         assertTenantAccess(banner.getTenantId());
-        boolean updated = bannerDao.updateStatus(id, status == null ? 1 : status) > 0;
+        int nextStatus = status == null ? 1 : status;
+        assertBrandCultureBannerCanBeEnabled(banner, nextStatus);
+        boolean updated = bannerDao.updateStatus(id, nextStatus) > 0;
         if (updated) catalogCache.invalidateAfterCommit(banner.getTenantId());
         return updated;
     }
@@ -2301,16 +2306,28 @@ public class ShopServiceImpl implements ShopService {
         banner.setTenantId(resolveTenantId(banner.getTenantId()));
         banner.setTitle(banner.getTitle().trim());
         validateBannerLink(banner);
+        if ("BRAND_CULTURE".equals(banner.getLinkType())) {
+            banner.setImageUrl(brandCultureImagePolicy.validateBanner(banner.getTenantId(), banner.getImageUrl()));
+        }
         banner.setSort(banner.getSort() == null ? 0 : banner.getSort());
         banner.setStatus(banner.getStatus() == null ? 1 : banner.getStatus());
+        assertBrandCultureBannerCanBeEnabled(banner, banner.getStatus());
+    }
+
+    private void assertBrandCultureBannerCanBeEnabled(DmsShopBanner banner, Integer status) {
+        if (!"BRAND_CULTURE".equalsIgnoreCase(banner.getLinkType()) || !Integer.valueOf(1).equals(status)) return;
+        DmsTenant tenant = tenantDao.selectById(banner.getTenantId());
+        if (tenant == null || !Integer.valueOf(1).equals(tenant.getBrandCultureEnabled())) {
+            Asserts.fail("品牌文化页当前已关闭，请先在商城视觉装修工作台中开启并保存，再启用此横幅");
+        }
     }
 
     static void validateBannerLink(DmsShopBanner banner) {
         String type = banner.getLinkType() == null || banner.getLinkType().isBlank()
                 ? "NONE" : banner.getLinkType().trim().toUpperCase(Locale.ROOT);
-        if (!Set.of("NONE", "PRODUCT", "CATEGORY", "URL").contains(type)) Asserts.fail("轮播图跳转类型不支持");
+        if (!Set.of("NONE", "PRODUCT", "CATEGORY", "URL", "BRAND_CULTURE").contains(type)) Asserts.fail("轮播图跳转类型不支持");
         banner.setLinkType(type);
-        if ("NONE".equals(type)) {
+        if ("NONE".equals(type) || "BRAND_CULTURE".equals(type)) {
             banner.setLinkValue(null);
             return;
         }
@@ -2327,6 +2344,13 @@ public class ShopServiceImpl implements ShopService {
             }
         }
         banner.setLinkValue(value);
+    }
+
+    static List<DmsShopBanner> filterPublicBanners(List<DmsShopBanner> banners, boolean brandCultureEnabled) {
+        if (banners == null || banners.isEmpty()) return List.of();
+        return banners.stream()
+                .filter(banner -> brandCultureEnabled || !"BRAND_CULTURE".equalsIgnoreCase(banner.getLinkType()))
+                .toList();
     }
 
     private void fillNoticeDefaults(DmsShopNotice notice) {

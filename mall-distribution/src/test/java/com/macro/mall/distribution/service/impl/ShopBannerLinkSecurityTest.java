@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class ShopBannerLinkSecurityTest {
 
@@ -20,6 +21,14 @@ class ShopBannerLinkSecurityTest {
         DmsShopBanner banner = validate("url", " https://example.com/banner ");
         assertEquals("URL", banner.getLinkType());
         assertEquals("https://example.com/banner", banner.getLinkValue());
+    }
+
+    @Test
+    void brandCultureUsesControlledActionAndNeverAcceptsAnInjectedUrl() {
+        DmsShopBanner banner = validate("brand_culture", "https://attacker.example/redirect");
+        assertEquals("BRAND_CULTURE", banner.getLinkType());
+        assertNull(banner.getLinkValue());
+        assertThrows(ApiException.class, () -> validate("/brand-culture", "javascript:alert(1)"));
     }
 
     private DmsShopBanner validate(String type, String value) {

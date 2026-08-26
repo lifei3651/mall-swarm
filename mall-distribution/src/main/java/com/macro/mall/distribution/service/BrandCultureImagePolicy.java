@@ -40,6 +40,22 @@ public class BrandCultureImagePolicy {
         }
     }
 
+    /** 品牌文化首页横幅必须来自当前客户专用上传区，禁止使用外链或其他客户图片。 */
+    public String validateBanner(Long tenantId, String proposedUrl) {
+        if (proposedUrl == null || proposedUrl.isBlank()) Asserts.fail("请上传品牌文化横幅");
+        String url = proposedUrl.trim();
+        try {
+            ShopMediaStorageService.StoredImage stored = mediaStorageService.loadBrandCultureImageByUrl(tenantId, url);
+            if (stored == null) Asserts.fail("品牌文化横幅不存在或不属于当前客户，请重新上传");
+            if (stored.size() > ShopMediaStorageService.MAX_BRAND_CULTURE_COVER_SIZE) {
+                Asserts.fail("品牌文化横幅超过3MB，请压缩后重新上传");
+            }
+            return url;
+        } catch (IOException e) {
+            throw new IllegalStateException("校验品牌文化横幅失败", e);
+        }
+    }
+
     public List<BrandCultureImageRefVO> validate(Long tenantId, List<BrandCultureImageRefVO> images) {
         List<BrandCultureImageRefVO> source = images == null ? List.of() : images;
         if (source.size() > ShopMediaStorageService.MAX_BRAND_CULTURE_DETAIL_COUNT) {

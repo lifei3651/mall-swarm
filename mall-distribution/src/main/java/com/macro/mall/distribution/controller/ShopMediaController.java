@@ -34,17 +34,17 @@ public class ShopMediaController {
         return CommonResult.success("/api/shop/media/images/" + stored.filename());
     }
 
-    @Operation(summary = "上传品牌文化封面或详情图")
+    @Operation(summary = "上传品牌文化横幅、兼容封面或详情图")
     @PostMapping(value = "/admin/media/brand-culture", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public CommonResult<BrandCultureImageRefVO> uploadBrandCulture(
             @RequestParam Long tenantId,
             @RequestParam String purpose,
             @RequestPart("file") MultipartFile file) throws IOException {
-        if (!"cover".equals(purpose) && !"detail".equals(purpose)) {
+        if (!"banner".equals(purpose) && !"cover".equals(purpose) && !"detail".equals(purpose)) {
             com.macro.mall.common.exception.Asserts.fail("图片用途无效");
         }
         ShopMediaStorageService.StoredImage stored = mediaStorageService.storeBrandCultureImage(
-                tenantId, "cover".equals(purpose), file);
+                tenantId, !"detail".equals(purpose), file);
         String url = "/api/shop/media/brand-culture/" + tenantId + "/" + stored.filename();
         return CommonResult.success(new BrandCultureImageRefVO(url, stored.size()));
     }

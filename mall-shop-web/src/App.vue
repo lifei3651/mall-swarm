@@ -38,7 +38,6 @@
     <footer v-if="isHome" class="site-footer">
       <p>{{ legal.companyName || brand.brandName }}</p>
       <nav class="footer-links" aria-label="商城服务信息">
-        <RouterLink v-if="brandCultureEnabled" to="/brand-culture">品牌文化</RouterLink>
         <RouterLink to="/legal/after-sale">交易与售后</RouterLink>
         <RouterLink to="/legal/contact">联系客服</RouterLink>
         <RouterLink to="/legal/license">经营资质</RouterLink>
@@ -116,7 +115,8 @@ const isHome = computed(() => route.name === 'Home')
 const isProductDetail = computed(() => route.name === 'ProductDetail')
 const isCheckout = computed(() => route.name === 'Checkout')
 const isAuthPage = computed(() => ['Login', 'Register'].includes(route.name))
-const showGlobalChrome = computed(() => !isProductDetail.value && !isCheckout.value && !isAuthPage.value)
+const isBrandCulturePage = computed(() => route.name === 'BrandCulture')
+const showGlobalChrome = computed(() => !isProductDetail.value && !isCheckout.value && !isAuthPage.value && !isBrandCulturePage.value)
 const defaultBottomNav = [
   { type: 'home', label: '首页', enabled: true, path: '/' },
   { type: 'category', label: '分类', enabled: true, path: '/category' },
@@ -157,7 +157,6 @@ const layoutTemplate = computed(() => ['standard', 'product-focus', 'category-fo
   ? displayConfig.value.layoutTemplate
   : 'standard')
 const safePoliceUrl = computed(() => /^https?:\/\//i.test(legal.value.policeRecordUrl || '') ? legal.value.policeRecordUrl : '')
-const brandCultureEnabled = computed(() => brand.value.brandCultureEnabled === true)
 const navigateTo = (path) => {
   if (route.path !== path) router.push(path)
 }

@@ -60,10 +60,21 @@ test('new arrivals and brand culture respect independent page switches', () => {
   assert.match(culture, /culture\.detailImages\?\.length/)
   assert.match(culture, /v-for="\(image, index\) in culture\.detailImages"/)
   assert.match(culture, /loading="lazy"/)
-  assert.match(culture, /v-else-if="culture\.content"/)
+  assert.match(culture, /v-if="culture\.content"/)
   assert.match(culture, /width:100%;height:auto/)
   assert.match(culture, /display:block;width:100%;height:auto/)
-  assert.match(app, /v-if="brandCultureEnabled" to="\/brand-culture"/)
+  assert.doesNotMatch(app, />品牌文化<\/RouterLink>/)
+  assert.match(app, /route\.name === 'BrandCulture'/)
+  assert.match(app, /!isBrandCulturePage\.value/)
+  assert.match(culture, /class="culture-content" :class="\{ 'detail-first': culture\.detailImages\?\.length \}"/)
+  assert.match(culture, /culture-content\.detail-first/)
+})
+
+test('brand culture carousel uses a controlled internal route without arbitrary URL data', () => {
+  const home = read('../src/views/HomeView.vue')
+  assert.match(home, /if \(linkType === 'brand_culture'\) \{[\s\S]*router\.push\('\/brand-culture'\)[\s\S]*return[\s\S]*if \(!banner\.linkValue\) return/)
+  assert.match(home, /router\.push\('\/brand-culture'\)/)
+  assert.doesNotMatch(home, /router\.push\(banner\.linkValue\)/)
 })
 
 test('public storefront excludes repurchase pages and rejects non-public checkout modes', () => {

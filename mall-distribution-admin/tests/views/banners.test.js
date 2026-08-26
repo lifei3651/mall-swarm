@@ -42,4 +42,19 @@ describe('首页轮播图管理', () => {
     expect(source).toContain('首页轮播图总开关当前为“隐藏”')
     expect(source).toContain('getDisplayConfig(1)')
   })
+
+  it('品牌文化横幅使用受控动作、专用上传和页面开关联动', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('label="品牌文化页" value="brand_culture"')
+    expect(source).toContain("uploadBrandCultureImage(1, 'banner', file)")
+    expect(source).toContain('750×320px')
+    expect(source).toContain('单张≤3MB')
+    expect(source).toContain('publishedBrandCultureEnabled')
+    expect(source).toContain('品牌文化页当前已关闭')
+    expect(source).toContain('Number(row.status) !== 1')
+    expect(source).toContain("!['none', 'brand_culture'].includes(form.linkType)")
+    expect(source).toContain("payload.linkType === 'brand_culture'")
+    expect(source).not.toContain("linkValue = '/brand-culture'")
+  })
 })

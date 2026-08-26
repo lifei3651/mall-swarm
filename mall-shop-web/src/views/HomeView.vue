@@ -245,8 +245,12 @@ const startBannerAutoplay = () => {
 }
 const stopBannerAutoplay = () => { if (bannerTimer) { window.clearInterval(bannerTimer); bannerTimer = null } }
 const handleBannerClick = (banner) => {
-  if (!banner.linkValue) return
   const linkType = String(banner.linkType || '').toLowerCase()
+  if (linkType === 'brand_culture') {
+    router.push('/brand-culture')
+    return
+  }
+  if (!banner.linkValue) return
   if (linkType === 'product') router.push(`/product/${banner.linkValue}`)
   else if (linkType === 'category') { query.value.categoryName = banner.linkValue; fetchProducts(true) }
   else if (linkType === 'url') window.open(banner.linkValue, '_blank', 'noopener,noreferrer')

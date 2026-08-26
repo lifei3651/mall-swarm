@@ -107,7 +107,9 @@ class ShopMediaStorageServiceTest {
         List<BrandCultureImageRefVO> validated = policy.validate(21L, List.of(new BrandCultureImageRefVO(url, 1L)));
         assertEquals(stored.size(), validated.get(0).getSize());
         assertEquals(url, policy.validateCover(21L, url, null));
+        assertEquals(url, policy.validateBanner(21L, url));
         assertThrows(ApiException.class, () -> policy.validateCover(22L, url, null));
+        assertThrows(ApiException.class, () -> policy.validateBanner(22L, url));
         assertEquals("https://legacy.example/cover.jpg",
                 policy.validateCover(21L, "https://legacy.example/cover.jpg", "https://legacy.example/cover.jpg"));
         assertThrows(ApiException.class, () -> policy.validateCover(
