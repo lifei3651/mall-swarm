@@ -88,7 +88,8 @@ feature_business_counts() { feature_business_counts_for "$DB_NAME"; }
 
 tenant_display_config_hash_for() {
   local database=$1
-  mysql --protocol=socket -uroot "$database" -NBe "SELECT SHA2(GROUP_CONCAT(CONCAT_WS('#',
+  mysql --protocol=socket -uroot "$database" -NBe "SET SESSION group_concat_max_len=16777216;
+    SELECT SHA2(GROUP_CONCAT(CONCAT_WS('#',
       t.id, COALESCE(t.brand_name,''), COALESCE(t.logo_url,''), COALESCE(t.theme_color,''),
       COALESCE(t.product_template,''), COALESCE(t.brand_culture_enabled,''),
       COALESCE(t.brand_culture_title,''), COALESCE(t.brand_culture_subtitle,''),
@@ -381,6 +382,7 @@ tar -tzf "$RELEASE_DIR/integrated.tar.gz" | grep -Fx './version.json' >/dev/null
 grep -Fq '"version": "1.0.91"' "$RELEASE_DIR/RELEASE_MANIFEST.json"
 grep -Fq "\"gitCommit\": \"$EXPECTED_GIT_COMMIT\"" "$RELEASE_DIR/RELEASE_MANIFEST.json"
 grep -Fq "\"buildId\": \"$EXPECTED_BUILD_ID\"" "$RELEASE_DIR/RELEASE_MANIFEST.json"
+[[ "$(grep -Fc 'SET SESSION group_concat_max_len=16777216;' "$RELEASE_DIR/release.sh")" == 2 ]]
 verify_packaged_notification_defaults
 
 systemctl is-active --quiet lingqimall-distribution.service
