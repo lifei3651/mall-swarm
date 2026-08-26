@@ -121,10 +121,10 @@ const navIconMap = { home: Home, category: Grid3x3, cart: ShoppingBag, orders: C
 const navIcon = (type) => navIconMap[type] || Home
 const bottomNavItems = computed(() => {
   let configured = null
-  let independent = false
+  let hasIndependentMarker = false
   try {
     const extra = JSON.parse(displayConfig.value.extraConfigJson || '{}')
-    independent = extra.bottomNavIndependent === 1
+    hasIndependentMarker = Object.prototype.hasOwnProperty.call(extra, 'bottomNavIndependent')
     if (Array.isArray(extra.bottomNav) && extra.bottomNav.length) {
       configured = extra.bottomNav
     }
@@ -133,7 +133,7 @@ const bottomNavItems = computed(() => {
     ? true
     : Number(displayConfig.value.showBottomCategoryNav ?? 1) === 1
   const items = resolveBottomNav(configured, { legacyCategoryEnabled })
-  if (!independent
+  if (!hasIndependentMarker
       && displayConfig.value.layoutTemplate === 'product-focus'
       && Number(displayConfig.value.showBottomCategoryNav ?? 1) === 0) {
     const category = items.find((item) => item.type === 'category')

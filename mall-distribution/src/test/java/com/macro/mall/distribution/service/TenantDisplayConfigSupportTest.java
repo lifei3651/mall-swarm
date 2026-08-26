@@ -273,6 +273,63 @@ class TenantDisplayConfigSupportTest {
     }
 
     @Test
+    void firstSaveRestoresLegacyProductFocusCategoryEvenWhenNavStoredItAsDisabled() throws Exception {
+        DmsTenantDisplayConfig legacy = new DmsTenantDisplayConfig();
+        legacy.setTenantId(12L);
+        legacy.setLayoutTemplate("product-focus");
+        legacy.setShowBottomCategoryNav(0);
+        legacy.setExtraConfigJson("{\"futureSetting\":\"keep\",\"bottomNav\":["
+                + "{\"type\":\"category\",\"enabled\":false,\"futureStyle\":\"keep\"},"
+                + "{\"type\":\"orders\",\"enabled\":true}]}");
+
+        support.prepareForSave(legacy);
+
+        JsonNode saved = objectMapper.readTree(legacy.getExtraConfigJson());
+        assertEquals(1, saved.path("bottomNav").get(1).path("enabled").asInt());
+        assertEquals("keep", saved.path("bottomNav").get(1).path("futureStyle").asText());
+        assertEquals(1, saved.path("bottomNav").get(3).path("enabled").asInt());
+        assertEquals("keep", saved.path("futureSetting").asText());
+        assertEquals(1, saved.path("bottomNavIndependent").asInt());
+        assertEquals(1, legacy.getShowBottomCategoryNav());
+    }
+
+    @Test
+    void firstSaveRestoresLegacyProductFocusCategoryWhenBottomNavIsMissing() throws Exception {
+        DmsTenantDisplayConfig legacy = new DmsTenantDisplayConfig();
+        legacy.setTenantId(13L);
+        legacy.setExtraConfigJson("{\"layoutTemplate\":\"product-focus\","
+                + "\"showBottomCategoryNav\":0,\"futureSetting\":\"keep\"}");
+
+        support.prepareForSave(legacy);
+
+        JsonNode saved = objectMapper.readTree(legacy.getExtraConfigJson());
+        assertEquals(1, saved.path("bottomNav").get(1).path("enabled").asInt());
+        assertEquals(0, saved.path("bottomNav").get(3).path("enabled").asInt());
+        assertEquals("product-focus", saved.path("layoutTemplate").asText());
+        assertEquals(1, saved.path("bottomNavIndependent").asInt());
+        assertEquals("keep", saved.path("futureSetting").asText());
+        assertEquals(1, legacy.getShowBottomCategoryNav());
+    }
+
+    @Test
+    void independentMarkerPreservesUserDisabledCategoryOnProductFocus() throws Exception {
+        DmsTenantDisplayConfig independent = new DmsTenantDisplayConfig();
+        independent.setTenantId(14L);
+        independent.setLayoutTemplate("product-focus");
+        independent.setShowBottomCategoryNav(0);
+        independent.setExtraConfigJson("{\"bottomNavIndependent\":1,\"bottomNav\":["
+                + "{\"type\":\"category\",\"enabled\":false,\"futureStyle\":\"keep\"}]}");
+
+        support.prepareForSave(independent);
+
+        JsonNode saved = objectMapper.readTree(independent.getExtraConfigJson());
+        assertEquals(0, saved.path("bottomNav").get(1).path("enabled").asInt());
+        assertEquals("keep", saved.path("bottomNav").get(1).path("futureStyle").asText());
+        assertEquals(1, saved.path("bottomNavIndependent").asInt());
+        assertEquals(0, independent.getShowBottomCategoryNav());
+    }
+
+    @Test
     void tenantConfigurationsRemainIndependent() {
         DmsTenantDisplayConfig first = new DmsTenantDisplayConfig();
         first.setTenantId(21L);

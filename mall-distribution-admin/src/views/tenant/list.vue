@@ -616,7 +616,7 @@ const openDisplayDialog = async (row, section = 'layout') => {
   displayExtraBase.value = extra && typeof extra === 'object' && !Array.isArray(extra) ? extra : {}
   const legacyBottomCategoryEnabled = Number(res.data?.showBottomCategoryNav ?? 1) === 1
   const hasConfiguredBottomNav = Array.isArray(extra.bottomNav) && extra.bottomNav.length > 0
-  const legacyTemplateCoupledCategory = extra.bottomNavIndependent !== 1
+  const legacyTemplateCoupledCategory = !Object.prototype.hasOwnProperty.call(extra, 'bottomNavIndependent')
     && res.data?.layoutTemplate === 'product-focus'
     && Number(res.data?.showBottomCategoryNav ?? 1) === 0
   const bottomNav = normalizeBottomNav(hasConfiguredBottomNav ? extra.bottomNav : null, {

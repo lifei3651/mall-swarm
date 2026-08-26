@@ -53,11 +53,29 @@ public class TenantDisplayConfigSupport {
     public void prepareForSave(DmsTenantDisplayConfig config) {
         validateRequiredCapabilities(config);
         fillDefaults(config);
+
+        ObjectNode extra = readExtraObject(config.getExtraConfigJson());
+        String submittedLayoutTemplate = config.getLayoutTemplate() == null
+                ? textValue(extra.get("layoutTemplate"), DEFAULT_LAYOUT_TEMPLATE)
+                : config.getLayoutTemplate();
+        Integer submittedCategoryEnabled = config.getShowBottomCategoryNav() == null
+                ? toggleValue(extra.get("showBottomCategoryNav"), 1)
+                : config.getShowBottomCategoryNav();
+        boolean restoreLegacyTemplateCoupledCategory = !extra.has("bottomNavIndependent")
+                && "product-focus".equals(submittedLayoutTemplate)
+                && normalizeToggle(submittedCategoryEnabled, 1) == 0;
+        if (config.getLayoutTemplate() == null) {
+            config.setLayoutTemplate(submittedLayoutTemplate);
+        }
+        if (config.getShowBottomCategoryNav() == null) {
+            config.setShowBottomCategoryNav(submittedCategoryEnabled);
+        }
+
         normalizeLayoutFields(config);
         validateActiveCategoryGuide(config);
 
-        ObjectNode extra = readExtraObject(config.getExtraConfigJson());
-        config.setShowBottomCategoryNav(normalizeBottomNav(extra, config.getShowBottomCategoryNav()));
+        config.setShowBottomCategoryNav(normalizeBottomNav(
+                extra, config.getShowBottomCategoryNav(), restoreLegacyTemplateCoupledCategory));
         List<BrandCultureImageRefVO> cultureImages = normalizeCultureImages(config.getBrandCultureDetailImages(), true);
         config.setBrandCultureDetailImages(cultureImages);
         ArrayNode cultureImageJson = extra.putArray("brandCultureDetailImages");
@@ -319,8 +337,10 @@ public class TenantDisplayConfigSupport {
     /**
      * 底部导航独立于首页版型。保留每个已知项的未知字段，仅将受控入口归一为最多五项。
      * 旧数组缺少分类时默认显示，缺少订单时默认隐藏；完全没有数组时仍尊重旧 showBottomCategoryNav 字段。
+     * 仅当独立标记缺失且命中旧紧凑版联动指纹时，首次保存恢复分类；写入标记后尊重用户手动关闭。
      */
-    private Integer normalizeBottomNav(ObjectNode extra, Integer legacyCategoryEnabled) {
+    private Integer normalizeBottomNav(ObjectNode extra, Integer legacyCategoryEnabled,
+                                       boolean restoreLegacyTemplateCoupledCategory) {
         JsonNode raw = extra.get("bottomNav");
         boolean hasConfiguredNav = raw != null && raw.isArray() && !raw.isEmpty();
         Map<String, ObjectNode> configured = new LinkedHashMap<>();
@@ -350,6 +370,8 @@ public class TenantDisplayConfigSupport {
             }
             int enabled;
             if (REQUIRED_BOTTOM_NAV_TYPES.contains(type)) {
+                enabled = 1;
+            } else if ("category".equals(type) && restoreLegacyTemplateCoupledCategory) {
                 enabled = 1;
             } else if (configured.containsKey(type)) {
                 enabled = toggleValue(item.get("enabled"), "category".equals(type) ? 1 : 0);

@@ -107,6 +107,7 @@ test('category guide supports three real templates while bottom navigation stays
   assert.match(categoryView, /请至少开启一个分类导购模块/)
   assert.match(app, /resolveBottomNav/)
   assert.match(app, /bottomNavIndependent/)
+  assert.match(app, /Object\.prototype\.hasOwnProperty\.call\(extra, 'bottomNavIndependent'\)/)
 })
 
 test('directory category guide renders all eight module combinations without empty grid tracks', async () => {

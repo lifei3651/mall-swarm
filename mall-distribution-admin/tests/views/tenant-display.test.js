@@ -156,6 +156,7 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('确认放弃未保存修改？')
     expect(source).toContain('normalizeBottomNav(form.bottomNav)')
     expect(source).toContain('bottomNavIndependent: 1')
+    expect(source).toContain("Object.prototype.hasOwnProperty.call(extra, 'bottomNavIndependent')")
     for (const section of ['品牌视觉', '品牌文化页', '直播广场', '新品速递', '首页模块', '首页分类内容', '底部导航', '颜色细节']) {
       expect(source).toContain(section)
     }
