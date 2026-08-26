@@ -10,9 +10,10 @@ import com.macro.mall.distribution.vo.BrandCultureImageRefVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.HashSet;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -31,7 +32,8 @@ public class TenantDisplayConfigSupport {
     public static final String DEFAULT_CATEGORY_GUIDE_TEMPLATE = "directory";
     private static final Set<String> CATEGORY_GUIDE_TEMPLATES = Set.of(
             "directory", "showcase", "scenario");
-    private static final Set<String> REQUIRED_BOTTOM_NAV_TYPES = Set.of("cart", "profile");
+    private static final List<String> BOTTOM_NAV_TYPES = List.of("home", "category", "cart", "orders", "profile");
+    private static final Set<String> REQUIRED_BOTTOM_NAV_TYPES = Set.of("home", "cart", "profile");
     private static final Set<String> REQUIRED_CAPABILITY_KEYS = Set.of(
             "productDetail", "cart", "checkout", "accountSecurity",
             "legalCompliance", "afterSales", "customerService");
@@ -55,6 +57,7 @@ public class TenantDisplayConfigSupport {
         validateActiveCategoryGuide(config);
 
         ObjectNode extra = readExtraObject(config.getExtraConfigJson());
+        config.setShowBottomCategoryNav(normalizeBottomNav(extra, config.getShowBottomCategoryNav()));
         List<BrandCultureImageRefVO> cultureImages = normalizeCultureImages(config.getBrandCultureDetailImages(), true);
         config.setBrandCultureDetailImages(cultureImages);
         ArrayNode cultureImageJson = extra.putArray("brandCultureDetailImages");
@@ -88,6 +91,7 @@ public class TenantDisplayConfigSupport {
         requiredCapabilities.put("legalCompliance", 1);
         requiredCapabilities.put("afterSales", 1);
         requiredCapabilities.put("customerService", 1);
+        extra.put("bottomNavIndependent", 1);
         try {
             config.setExtraConfigJson(objectMapper.writeValueAsString(extra));
         } catch (Exception ignored) {
@@ -302,19 +306,64 @@ public class TenantDisplayConfigSupport {
         }
         JsonNode bottomNav = extra.get("bottomNav");
         if (bottomNav != null && bottomNav.isArray()) {
-            Set<String> configuredTypes = new HashSet<>();
             bottomNav.forEach(item -> {
                 String type = item.path("type").asText("");
-                configuredTypes.add(type);
                 if (REQUIRED_BOTTOM_NAV_TYPES.contains(type)
                         && !toggleValue(item.get("enabled"), 1).equals(1)) {
                     Asserts.fail("系统必需入口不能关闭：" + type);
                 }
             });
-            if (!configuredTypes.containsAll(REQUIRED_BOTTOM_NAV_TYPES)) {
-                Asserts.fail("系统必需入口不能移除：cart/profile");
-            }
         }
+    }
+
+    /**
+     * 底部导航独立于首页版型。保留每个已知项的未知字段，仅将受控入口归一为最多五项。
+     * 旧数组缺少分类时默认显示，缺少订单时默认隐藏；完全没有数组时仍尊重旧 showBottomCategoryNav 字段。
+     */
+    private Integer normalizeBottomNav(ObjectNode extra, Integer legacyCategoryEnabled) {
+        JsonNode raw = extra.get("bottomNav");
+        boolean hasConfiguredNav = raw != null && raw.isArray() && !raw.isEmpty();
+        Map<String, ObjectNode> configured = new LinkedHashMap<>();
+        if (hasConfiguredNav) {
+            raw.forEach(item -> {
+                if (!item.isObject()) return;
+                String type = item.path("type").asText("");
+                if (BOTTOM_NAV_TYPES.contains(type) && !configured.containsKey(type)) {
+                    configured.put(type, ((ObjectNode) item).deepCopy());
+                }
+            });
+        }
+
+        ArrayNode normalized = objectMapper.createArrayNode();
+        int categoryEnabled = 1;
+        for (String type : BOTTOM_NAV_TYPES) {
+            ObjectNode item = configured.getOrDefault(type, objectMapper.createObjectNode());
+            item.put("type", type);
+            if (!item.hasNonNull("label") || item.path("label").asText().isBlank()) {
+                item.put("label", switch (type) {
+                    case "home" -> "首页";
+                    case "category" -> "分类";
+                    case "cart" -> "购物车";
+                    case "orders" -> "订单";
+                    default -> "我的";
+                });
+            }
+            int enabled;
+            if (REQUIRED_BOTTOM_NAV_TYPES.contains(type)) {
+                enabled = 1;
+            } else if (configured.containsKey(type)) {
+                enabled = toggleValue(item.get("enabled"), "category".equals(type) ? 1 : 0);
+            } else if ("category".equals(type)) {
+                enabled = hasConfiguredNav ? 1 : normalizeToggle(legacyCategoryEnabled, 1);
+            } else {
+                enabled = 0;
+            }
+            item.put("enabled", enabled == 1);
+            if ("category".equals(type)) categoryEnabled = enabled;
+            normalized.add(item);
+        }
+        extra.set("bottomNav", normalized);
+        return categoryEnabled;
     }
 
     private void requireEnabled(Integer value, String label) {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { resolveDirectoryGuideLayout } from '../../src/utils/categoryGuideLayout.js'
+import { normalizeBottomNav } from '../../src/utils/bottomNav.js'
 import {
   DISPLAY_COLOR_KEYS,
   SHOP_THEME_OPTIONS,
@@ -153,7 +154,8 @@ describe('商城视觉与页面工作台', () => {
     expect(source).not.toContain('<label><span>品牌 LOGO</span>')
     expect(source).toContain('extraConfigJson')
     expect(source).toContain('确认放弃未保存修改？')
-    expect(source).toContain('moveNav')
+    expect(source).toContain('normalizeBottomNav(form.bottomNav)')
+    expect(source).toContain('bottomNavIndependent: 1')
     for (const section of ['品牌视觉', '品牌文化页', '直播广场', '新品速递', '首页模块', '首页分类内容', '底部导航', '颜色细节']) {
       expect(source).toContain(section)
     }
@@ -292,11 +294,48 @@ describe('商城视觉与页面工作台', () => {
     expect(source).not.toContain('后端强制锁定')
     expect(source).not.toContain('>系统必需</el-tag>')
     expect(source).not.toContain(':disabled="isRequiredNav(nav.type)"')
-    expect(source).toContain('v-for="(item, index) in configurableBottomNav"')
-    expect(source).toContain('核心交易与合规能力不受装修配置影响。')
+    expect(source).toContain('v-for="nav in configurableBottomNav"')
+    expect(source).toContain('切换首页版型不会改动这里')
     expect(source).toContain('<div class="mobile-preview-search"><span>⌕</span><span>搜索商品</span><b>⌕</b></div>')
     expect(source).toMatch(/\.mobile-category-guide-preview \.mobile-preview-search\s*\{[^}]*height:37px/)
     expect(source).toMatch(/\.guide-preview-directory-body\.is-split\s*\{[^}]*grid-template-columns:62px minmax\(0,1fr\)/)
     expect(source).toContain('requiredCapabilities')
+  })
+
+  it('四个首页版型不得改写独立底栏，历史缺失项按安全默认补齐', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+    const applyLayout = source.slice(source.indexOf('const applyLayoutTemplate'), source.indexOf('const moveModule'))
+    expect(applyLayout).not.toContain('bottomNav')
+    expect(applyLayout).not.toContain('showBottomCategoryNav')
+
+    const historical = normalizeBottomNav([
+      { type: 'home', label: '商城', enabled: false, futureStyle: 'keep' },
+      { type: 'cart', label: '购物车', enabled: false },
+      { type: 'profile', label: '我的', enabled: false },
+    ])
+    expect(historical.map((item) => item.type)).toEqual(['home', 'category', 'cart', 'orders', 'profile'])
+    expect(historical.find((item) => item.type === 'category').enabled).toBe(true)
+    expect(historical.find((item) => item.type === 'orders').enabled).toBe(false)
+    expect(historical.filter((item) => ['home', 'cart', 'profile'].includes(item.type)).every((item) => item.enabled)).toBe(true)
+    expect(historical[0].futureStyle).toBe('keep')
+
+    for (const categoryEnabled of [false, true]) {
+      for (const ordersEnabled of [false, true]) {
+        const selected = normalizeBottomNav([
+          { type: 'home', enabled: true },
+          { type: 'category', enabled: categoryEnabled },
+          { type: 'cart', enabled: true },
+          { type: 'orders', enabled: ordersEnabled },
+          { type: 'profile', enabled: true },
+        ])
+        for (const layout of ['standard', 'product-focus', 'category-focus', 'campaign-feed']) {
+          const refreshed = normalizeBottomNav(JSON.parse(JSON.stringify(selected)))
+          expect({ layout, nav: refreshed }.nav).toEqual(selected)
+        }
+      }
+    }
+    expect(source).toContain("isEditableBottomNav(nav.type)")
+    expect(source).toContain('...displayExtraBase.value')
+    expect(source).toContain('分类页、首页分类模块和“我的”中的订单都会继续保留')
   })
 })

@@ -206,7 +206,7 @@ class TenantDisplayConfigSupportTest {
     }
 
     @Test
-    void requiredCapabilitiesCannotBeDisabledByTypedFieldOrExtraJson() {
+    void requiredCapabilitiesCannotBeDisabledButMissingNavItemsAreSafelyNormalized() throws Exception {
         DmsTenantDisplayConfig typed = new DmsTenantDisplayConfig();
         typed.setTenantId(10L);
         typed.setCartEnabled(0);
@@ -224,8 +224,52 @@ class TenantDisplayConfigSupportTest {
 
         DmsTenantDisplayConfig removedNav = new DmsTenantDisplayConfig();
         removedNav.setTenantId(10L);
-        removedNav.setExtraConfigJson("{\"bottomNav\":[{\"type\":\"home\",\"enabled\":true}]}");
-        assertThrows(ApiException.class, () -> support.prepareForSave(removedNav));
+        removedNav.setExtraConfigJson("{\"futureSetting\":\"keep\",\"bottomNav\":[{\"type\":\"home\",\"enabled\":true,\"futureStyle\":\"keep\"}]}");
+        support.prepareForSave(removedNav);
+        JsonNode normalized = objectMapper.readTree(removedNav.getExtraConfigJson());
+        assertEquals(List.of("home", "category", "cart", "orders", "profile"),
+                java.util.stream.StreamSupport.stream(normalized.path("bottomNav").spliterator(), false)
+                        .map(item -> item.path("type").asText()).toList());
+        assertEquals(1, normalized.path("bottomNav").get(1).path("enabled").asInt());
+        assertEquals(0, normalized.path("bottomNav").get(3).path("enabled").asInt());
+        assertEquals("keep", normalized.path("bottomNav").get(0).path("futureStyle").asText());
+        assertEquals("keep", normalized.path("futureSetting").asText());
+        assertEquals(1, normalized.path("bottomNavIndependent").asInt());
+
+        DmsTenantDisplayConfig hiddenHome = new DmsTenantDisplayConfig();
+        hiddenHome.setTenantId(10L);
+        hiddenHome.setExtraConfigJson("{\"bottomNav\":[{\"type\":\"home\",\"enabled\":false}]}");
+        assertThrows(ApiException.class, () -> support.prepareForSave(hiddenHome));
+    }
+
+    @Test
+    void categoryAndOrdersVisibilityRoundTripWithoutChangingRoutesOrCapabilities() throws Exception {
+        DmsTenantDisplayConfig config = new DmsTenantDisplayConfig();
+        config.setTenantId(11L);
+        config.setLayoutTemplate("campaign-feed");
+        config.setExtraConfigJson("{\"bottomNav\":["
+                + "{\"type\":\"home\",\"enabled\":true},"
+                + "{\"type\":\"category\",\"enabled\":false},"
+                + "{\"type\":\"cart\",\"enabled\":true},"
+                + "{\"type\":\"orders\",\"enabled\":true},"
+                + "{\"type\":\"profile\",\"enabled\":true}]}");
+
+        support.prepareForSave(config);
+        JsonNode saved = objectMapper.readTree(config.getExtraConfigJson());
+        assertEquals(0, saved.path("bottomNav").get(1).path("enabled").asInt());
+        assertEquals(1, saved.path("bottomNav").get(3).path("enabled").asInt());
+        assertEquals(0, config.getShowBottomCategoryNav());
+        assertEquals(1, config.getCartEnabled());
+        assertEquals(1, config.getAccountSecurityEnabled());
+
+        for (String layout : List.of("standard", "product-focus", "category-focus", "campaign-feed")) {
+            config.setLayoutTemplate(layout);
+            if ("category-focus".equals(layout)) config.setCategoryGuidePrimaryCategoriesEnabled(1);
+            support.prepareForSave(config);
+            JsonNode nav = objectMapper.readTree(config.getExtraConfigJson()).path("bottomNav");
+            assertEquals(0, nav.get(1).path("enabled").asInt());
+            assertEquals(1, nav.get(3).path("enabled").asInt());
+        }
     }
 
     @Test

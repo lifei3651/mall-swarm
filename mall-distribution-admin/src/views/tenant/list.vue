@@ -200,18 +200,13 @@
           </section>
 
           <section v-if="activeEditSection === 'nav'" class="control-section">
-            <div class="control-section-heading"><div><strong>底部导航</strong><small>调整可编辑入口的顺序、名称和显示状态</small></div></div>
-            <p class="section-note nav-scope-note">核心交易与合规能力不受装修配置影响。</p>
+            <div class="control-section-heading"><div><strong>底部导航</strong><small>独立控制分类和订单入口，切换首页版型不会改动这里</small></div></div>
+            <p class="section-note nav-scope-note">隐藏只会移除底栏入口：分类页、首页分类模块和“我的”中的订单都会继续保留。</p>
             <div class="nav-config-list nav-list-sortable">
-              <div v-for="(item, index) in configurableBottomNav" :key="item.nav.type" class="nav-config-row" draggable="true" @dragstart="startNavDrag(index)" @dragover.prevent @drop="dropNav(index)" @dragend="draggingNavIndex = null">
-                <span class="drag-handle" aria-hidden="true">⋮⋮</span>
-                <span class="nav-type-name">{{ navNames[item.nav.type] || item.nav.type }}</span>
-                <el-input v-model="item.nav.label" maxlength="6" style="width:100px" />
-                <div class="sort-actions" aria-label="调整底部导航顺序">
-                  <el-button text size="small" :disabled="index === 0" @click="moveNav(index, -1)">上移</el-button>
-                  <el-button text size="small" :disabled="index === configurableBottomNav.length - 1" @click="moveNav(index, 1)">下移</el-button>
-                </div>
-                <el-switch v-model="item.nav.enabled" active-text="展示" inactive-text="隐藏" />
+              <div v-for="nav in configurableBottomNav" :key="nav.type" class="nav-config-row">
+                <span class="nav-type-name">{{ navNames[nav.type] || nav.type }}</span>
+                <el-input v-model="nav.label" maxlength="6" style="width:100px" />
+                <el-switch v-model="nav.enabled" active-text="展示" inactive-text="隐藏" />
               </div>
             </div>
           </section>
@@ -323,6 +318,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute } from 'vue-router'
 import { formatDateTime } from '@/utils/dateTime'
 import { resolveDirectoryGuideLayout } from '@/utils/categoryGuideLayout'
+import { isEditableBottomNav, normalizeBottomNav } from '@/utils/bottomNav'
 import {
   SHOP_THEME_OPTIONS,
   applyThemePresetToForm,
@@ -363,13 +359,13 @@ const previewPage = ref('home')
 const activeEditSection = ref('layout')
 const independentPageTab = ref('culture')
 const draggingModuleIndex = ref(null)
-const draggingNavIndex = ref(null)
 const initializingDisplay = ref(false)
 const displayDraftDirty = ref(false)
 const savingDisplay = ref(false)
 const displayLogoLoadFailed = ref(false)
 const brandCultureDraggingIndex = ref(null)
 const pendingCultureUploads = new Map()
+const displayExtraBase = ref({})
 
 const displayForm = ref({})
 const moduleNames = { banner: '首页轮播图', notice: '商城公告', category: '商品分类', live: '直播广场', newArrivals: '新品速递', trust: '服务保障', products: '精选商品' }
@@ -416,19 +412,8 @@ const withDefaultModules = (configured) => {
       || ((rank.get(a.type) ?? 99) - (rank.get(b.type) ?? 99)))
     .map((item, index) => ({ ...item, sort: index + 1 }))
 }
-const defaultBottomNav = () => [
-  { type: 'home', label: '首页', enabled: true },
-  { type: 'category', label: '分类', enabled: true },
-  { type: 'cart', label: '购物车', enabled: true },
-  { type: 'orders', label: '订单', enabled: false },
-  { type: 'profile', label: '我的', enabled: true },
-]
-const requiredNavTypes = new Set(['cart', 'profile'])
+const requiredNavTypes = new Set(['home', 'cart', 'profile'])
 const isRequiredNav = (type) => requiredNavTypes.has(type)
-const enforceRequiredBottomNav = (items = [], defaults = []) => {
-  const configuredTypes = new Set(items.map((item) => item?.type).filter(Boolean))
-  return [...items, ...defaults.filter((item) => isRequiredNav(item.type) && !configuredTypes.has(item.type))]
-}
 const categoryGuideTemplateOptions = [
   { value: 'directory', label: 'A 双栏目录导航', description: '左侧一级分类，右侧子分类与热销商品，适合分类较多的商城' },
   { value: 'showcase', label: 'B 视觉品类橱窗', description: '大图品类卡、横向货架与推荐商品，适合强调视觉陈列' },
@@ -465,9 +450,8 @@ const layoutTemplateOptions = [
   {
     value: 'standard',
     label: '标准零售版',
-    description: '首页分类与底部四导航并存，适合综合商城',
+    description: '首页信息均衡展示，适合综合商城',
     showHomeCategories: 1,
-    showBottomCategoryNav: 1,
     showTrustStrip: 0,
   },
   {
@@ -475,21 +459,18 @@ const layoutTemplateOptions = [
     label: '紧凑商品版',
     description: '弱化分类、提高商品密度，适合商品较少的商城',
     showHomeCategories: 0,
-    showBottomCategoryNav: 0,
   },
   {
     value: 'category-focus',
     label: '分类导购版',
     description: '三种真实导购结构可选，适合品类和商品较多的商城',
     showHomeCategories: 1,
-    showBottomCategoryNav: 1,
   },
   {
     value: 'campaign-feed',
     label: '活动信息流版',
     description: '大图信息流商品卡，真实秒杀显示倒计时，适合活动运营',
     showHomeCategories: 1,
-    showBottomCategoryNav: 1,
   },
 ]
 const currentLayoutSummary = computed(() => {
@@ -632,16 +613,17 @@ const openDisplayDialog = async (row, section = 'layout') => {
   const raw = res.data?.extraConfigJson || '{}'
   let extra = {}
   try { extra = JSON.parse(raw) || {} } catch { extra = {} }
+  displayExtraBase.value = extra && typeof extra === 'object' && !Array.isArray(extra) ? extra : {}
   const legacyBottomCategoryEnabled = Number(res.data?.showBottomCategoryNav ?? 1) === 1
-  const configuredBottomNav = enforceRequiredBottomNav(
-    Array.isArray(extra.bottomNav) && extra.bottomNav.length ? extra.bottomNav : defaultBottomNav(),
-    defaultBottomNav(),
-  )
-  const bottomNav = configuredBottomNav.map((nav) => ({
-    ...nav,
-    enabled: isRequiredNav(nav.type) || (normalizeModuleEnabled(nav.enabled)
-      && (nav.type !== 'category' || legacyBottomCategoryEnabled)),
-  }))
+  const hasConfiguredBottomNav = Array.isArray(extra.bottomNav) && extra.bottomNav.length > 0
+  const legacyTemplateCoupledCategory = extra.bottomNavIndependent !== 1
+    && res.data?.layoutTemplate === 'product-focus'
+    && Number(res.data?.showBottomCategoryNav ?? 1) === 0
+  const bottomNav = normalizeBottomNav(hasConfiguredBottomNav ? extra.bottomNav : null, {
+    legacyCategoryEnabled: hasConfiguredBottomNav ? true : legacyBottomCategoryEnabled,
+  })
+  // 旧版“紧凑商品版”会强制关闭分类底栏；首次进入新工作台时仅修复这一可识别的历史副作用。
+  if (legacyTemplateCoupledCategory) bottomNav.find((nav) => nav.type === 'category').enabled = true
   const configuredModules = withDefaultModules(extra.homeModules)
   const trustEnabled = normalizeModuleEnabled(
     extra.showTrustStrip ?? configuredModules.find((module) => module.type === 'trust')?.enabled,
@@ -771,15 +753,12 @@ const previewFeatureOrder = (type) => previewFeatureModules.value.findIndex((mod
 const visiblePreviewCategories = computed(() => categories.value.filter((category) => Number(categoryDraft.value[category.id] ?? 1) === 1))
 const visiblePreviewNav = computed(() => (displayForm.value.bottomNav || []).filter((nav) => nav.enabled !== false))
 const configurableBottomNav = computed(() => (displayForm.value.bottomNav || [])
-  .map((nav, sourceIndex) => ({ nav, sourceIndex }))
-  .filter((item) => !isRequiredNav(item.nav.type)))
+  .filter((nav) => isEditableBottomNav(nav.type)))
 const previewStyle = computed(() => themePreviewVariables(displayForm.value, currentTenant.value?.themeColor || '#e7193f'))
 
 const applyLayoutTemplate = (template) => {
   displayForm.value.layoutTemplate = template.value
   displayForm.value.showHomeCategories = template.showHomeCategories
-  const categoryNav = (displayForm.value.bottomNav || []).find((nav) => nav.type === 'category')
-  if (categoryNav) categoryNav.enabled = template.showBottomCategoryNav === 1
   if (template.value === 'campaign-feed') {
     const order = ['category', 'banner', 'live', 'newArrivals', 'products', 'notice', 'trust']
     displayForm.value.homeModules = [...(displayForm.value.homeModules || [])]
@@ -803,16 +782,6 @@ const moveModule = (index, direction) => {
   modules.forEach((module, itemIndex) => { module.sort = itemIndex + 1 })
 }
 
-const moveNav = (index, direction) => {
-  const next = index + direction
-  const navs = displayForm.value.bottomNav || []
-  const configurable = configurableBottomNav.value
-  if (next < 0 || next >= configurable.length) return
-  const fromSource = configurable[index].sourceIndex
-  const toSource = configurable[next].sourceIndex
-  ;[navs[fromSource], navs[toSource]] = [navs[toSource], navs[fromSource]]
-}
-
 const reorderItems = (items, from, to) => {
   if (from === null || from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return
   const [item] = items.splice(from, 1)
@@ -825,17 +794,6 @@ const dropModule = (index) => {
   reorderItems(modules, draggingModuleIndex.value, index)
   modules.forEach((module, itemIndex) => { module.sort = itemIndex + 1 })
   draggingModuleIndex.value = null
-}
-const startNavDrag = (index) => { draggingNavIndex.value = index }
-const dropNav = (index) => {
-  const navs = displayForm.value.bottomNav || []
-  const configurable = configurableBottomNav.value
-  const from = configurable[draggingNavIndex.value]?.sourceIndex
-  const to = configurable[index]?.sourceIndex
-  if (from !== undefined && to !== undefined) {
-    ;[navs[from], navs[to]] = [navs[to], navs[from]]
-  }
-  draggingNavIndex.value = null
 }
 const setCategoryDraft = (category, value) => {
   categoryDraft.value = { ...categoryDraft.value, [category.id]: Number(value) }
@@ -898,7 +856,7 @@ const submitDisplayConfig = async () => {
   savingDisplay.value = true
   try {
     const form = displayForm.value || {}
-    const bottomNav = (Array.isArray(form.bottomNav) ? form.bottomNav : []).map((nav) => {
+    const bottomNav = normalizeBottomNav(form.bottomNav).map((nav) => {
       const { systemRequired: _legacySystemRequired, ...cleanNav } = nav
       return isRequiredNav(nav.type) ? { ...cleanNav, enabled: true } : cleanNav
     })
@@ -943,9 +901,11 @@ const submitDisplayConfig = async () => {
       afterSalesEnabled: 1,
       customerServiceEnabled: 1,
       extraConfigJson: JSON.stringify({
+        ...displayExtraBase.value,
         homeModules: form.homeModules,
         colors: form.colors,
         bottomNav,
+        bottomNavIndependent: 1,
         showTrustStrip: form.showTrustStrip,
         liveSquareEnabled: form.liveSquareEnabled,
         newArrivalsEnabled: form.newArrivalsEnabled,

@@ -92,7 +92,7 @@ import { isNativeApp } from '@/utils/appEnvironment'
 import { AUTH_REQUIRED_EVENT } from '@/utils/authNavigation'
 import { applyShopSession, hasShopSession } from '@/utils/shopSession'
 import { useVisualViewportFixedBottom } from '@/utils/visualViewportFixedBottom'
-import { enforceRequiredBottomNav } from '@/utils/displayConfig'
+import { resolveBottomNav } from '@/utils/bottomNav'
 
 const route = useRoute()
 const router = useRouter()
@@ -117,29 +117,27 @@ const isCheckout = computed(() => route.name === 'Checkout')
 const isAuthPage = computed(() => ['Login', 'Register'].includes(route.name))
 const isBrandCulturePage = computed(() => route.name === 'BrandCulture')
 const showGlobalChrome = computed(() => !isProductDetail.value && !isCheckout.value && !isAuthPage.value && !isBrandCulturePage.value)
-const defaultBottomNav = [
-  { type: 'home', label: '首页', enabled: true, path: '/' },
-  { type: 'category', label: '分类', enabled: true, path: '/category' },
-  { type: 'cart', label: '购物车', enabled: true, path: '/cart' },
-  { type: 'orders', label: '订单', enabled: false, path: '/orders' },
-  { type: 'profile', label: '我的', enabled: true, path: '/profile' },
-]
 const navIconMap = { home: Home, category: Grid3x3, cart: ShoppingBag, orders: ClipboardList, profile: UserRound }
 const navIcon = (type) => navIconMap[type] || Home
 const bottomNavItems = computed(() => {
-  let items = defaultBottomNav
-  let hasConfiguredBottomNav = false
+  let configured = null
+  let independent = false
   try {
     const extra = JSON.parse(displayConfig.value.extraConfigJson || '{}')
+    independent = extra.bottomNavIndependent === 1
     if (Array.isArray(extra.bottomNav) && extra.bottomNav.length) {
-      hasConfiguredBottomNav = true
-      items = enforceRequiredBottomNav(extra.bottomNav, defaultBottomNav)
-        .map((item) => ({ ...item, path: defaultBottomNav.find((base) => base.type === item.type)?.path || '/' }))
+      configured = extra.bottomNav
     }
   } catch (_) {}
-  if (!hasConfiguredBottomNav) {
-    const legacyCategoryEnabled = Number(displayConfig.value.showBottomCategoryNav ?? 1) === 1
-    return items.filter((item) => item.enabled !== false && (item.type !== 'category' || legacyCategoryEnabled))
+  const legacyCategoryEnabled = configured
+    ? true
+    : Number(displayConfig.value.showBottomCategoryNav ?? 1) === 1
+  const items = resolveBottomNav(configured, { legacyCategoryEnabled })
+  if (!independent
+      && displayConfig.value.layoutTemplate === 'product-focus'
+      && Number(displayConfig.value.showBottomCategoryNav ?? 1) === 0) {
+    const category = items.find((item) => item.type === 'category')
+    if (category) category.enabled = true
   }
   return items.filter((item) => item.enabled !== false)
 })

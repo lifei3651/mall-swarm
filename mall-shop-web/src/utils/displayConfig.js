@@ -98,16 +98,3 @@ export const resolveCategoryGuideConfig = (config = {}) => {
     },
   }
 }
-
-const requiredBottomNavTypes = new Set(['cart', 'profile'])
-
-/** 前端容错仅用于旧配置；服务端保存同样会拒绝关闭或移除这些系统必需入口。 */
-export const enforceRequiredBottomNav = (items = [], defaults = []) => {
-  const configured = Array.isArray(items) ? items : []
-  const types = new Set(configured.map((item) => item?.type).filter(Boolean))
-  const missingRequired = (Array.isArray(defaults) ? defaults : [])
-    .filter((item) => requiredBottomNavTypes.has(item?.type) && !types.has(item.type))
-  return [...configured, ...missingRequired].map((item) => (
-    requiredBottomNavTypes.has(item?.type) ? { ...item, enabled: true, systemRequired: true } : item
-  ))
-}
