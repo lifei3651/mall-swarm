@@ -68,6 +68,9 @@ test('new arrivals and brand culture respect independent page switches', () => {
   assert.match(app, /!isBrandCulturePage\.value/)
   assert.match(culture, /class="culture-content" :class="\{ 'detail-first': culture\.detailImages\?\.length \}"/)
   assert.match(culture, /culture-content\.detail-first/)
+  assert.match(culture, /class="culture-page" :class="\{ 'has-detail-images': culture\.enabled && culture\.detailImages\?\.length \}"/)
+  assert.match(culture, /culture-page\{min-height:100vh;padding-bottom:82px/)
+  assert.match(culture, /culture-page\.has-detail-images\{padding-bottom:0\}/)
 })
 
 test('brand culture carousel uses a controlled internal route without arbitrary URL data', () => {

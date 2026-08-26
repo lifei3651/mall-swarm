@@ -1,6 +1,8 @@
 package com.macro.mall.distribution.controller;
 
 import com.macro.mall.common.api.CommonResult;
+import com.macro.mall.common.exception.Asserts;
+import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.service.ShopAuthService;
 import com.macro.mall.distribution.service.ShopMediaStorageService;
@@ -40,12 +42,12 @@ public class ShopMediaController {
             @RequestParam Long tenantId,
             @RequestParam String purpose,
             @RequestPart("file") MultipartFile file) throws IOException {
-        if (!"banner".equals(purpose) && !"cover".equals(purpose) && !"detail".equals(purpose)) {
-            com.macro.mall.common.exception.Asserts.fail("图片用途无效");
-        }
+        if (!"banner".equals(purpose) && !"cover".equals(purpose) && !"detail".equals(purpose)) Asserts.fail("图片用途无效");
+        Long currentTenantId = TenantContext.getTenantId();
+        if (!currentTenantId.equals(tenantId)) Asserts.fail("无权向其他租户上传品牌文化图片");
         ShopMediaStorageService.StoredImage stored = mediaStorageService.storeBrandCultureImage(
-                tenantId, !"detail".equals(purpose), file);
-        String url = "/api/shop/media/brand-culture/" + tenantId + "/" + stored.filename();
+                currentTenantId, !"detail".equals(purpose), file);
+        String url = "/api/shop/media/brand-culture/" + currentTenantId + "/" + stored.filename();
         return CommonResult.success(new BrandCultureImageRefVO(url, stored.size()));
     }
 

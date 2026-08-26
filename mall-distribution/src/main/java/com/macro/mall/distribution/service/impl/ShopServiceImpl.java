@@ -434,6 +434,7 @@ public class ShopServiceImpl implements ShopService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsShopBanner saveBanner(DmsShopBanner banner) {
+        if (banner != null) banner.setTenantId(resolveTenantId(null));
         fillBannerDefaults(banner);
         assertTenantAccess(banner.getTenantId());
         bannerDao.insert(banner);
@@ -450,8 +451,8 @@ public class ShopServiceImpl implements ShopService {
         }
         assertTenantAccess(exists.getTenantId());
         banner.setId(id);
-        fillBannerDefaults(banner);
         banner.setTenantId(exists.getTenantId());
+        fillBannerDefaults(banner);
         bannerDao.update(banner);
         catalogCache.invalidateAfterCommit(banner.getTenantId());
         return bannerDao.selectById(id);
