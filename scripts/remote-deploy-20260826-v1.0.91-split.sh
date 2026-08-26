@@ -27,6 +27,11 @@ if [[ "${1:-}" != "--authorize-release" || "${LINGQIMALL_RELEASE_AUTHORIZATION:-
   exit 3
 fi
 shift
+PREFLIGHT_ONLY=0
+if [[ "${1:-}" == "--preflight-only" ]]; then
+  PREFLIGHT_ONLY=1
+  shift
+fi
 [[ "$#" == 0 ]]
 
 DB_NAME=mall_distribution
@@ -103,6 +108,11 @@ tenant_display_config_hash_for() {
 }
 
 tenant_display_config_hash() { tenant_display_config_hash_for "$DB_NAME"; }
+
+tenant_theme_for() {
+  local database=$1
+  mysql --protocol=socket -uroot "$database" -NBe "SELECT COALESCE(theme_color,'') FROM dms_tenant WHERE id=1"
+}
 
 brand_culture_banner_counts() {
   mysql_cmd -NBe "SELECT CONCAT(COUNT(*),':',COALESCE(SUM(status=1),0))
@@ -298,6 +308,7 @@ verify_backup_restoreability() {
     [[ "$(database_counts_for "$verify_db")" == "$BEFORE_COUNTS" ]]
     [[ "$(feature_business_counts_for "$verify_db")" == "$BEFORE_FEATURE_COUNTS" ]]
     [[ "$(tenant_display_config_hash_for "$verify_db")" == "$BEFORE_TENANT_CONFIG_HASH" ]]
+    [[ "$(tenant_theme_for "$verify_db")" == "$EXPECTED_PRE_RELEASE_THEME" ]]
   )
 }
 
@@ -404,7 +415,7 @@ ENCRYPTION_DROPIN_SHA="$(sha256sum /etc/systemd/system/lingqimall-distribution.s
 [[ "$BEFORE_FEATURE_COUNTS" == "$EXPECTED_PRE_RELEASE_FEATURE_COUNTS" ]]
 [[ "$BEFORE_TENANT_CONFIG_HASH" == "$EXPECTED_PRE_RELEASE_TENANT_CONFIG_HASH" ]]
 [[ "$BEFORE_BRAND_BANNERS" == "$EXPECTED_PRE_RELEASE_BRAND_BANNERS" ]]
-[[ "$(mysql_cmd -NBe 'SELECT COALESCE(theme_color,\"\") FROM dms_tenant WHERE id=1')" == "$EXPECTED_PRE_RELEASE_THEME" ]]
+[[ "$(tenant_theme_for "$DB_NAME")" == "$EXPECTED_PRE_RELEASE_THEME" ]]
 [[ "$ENCRYPTION_ENV_SHA" == "$EXPECTED_ENCRYPTION_ENV_SHA" ]]
 [[ "$ENCRYPTION_DROPIN_SHA" == "$EXPECTED_ENCRYPTION_DROPIN_SHA" ]]
 [[ -n "$DB_CREATE_SQL" ]]
@@ -419,6 +430,11 @@ verify_business_state_unchanged
 [[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_erp_sync_task WHERE status IN (0,1,2)')" == 0 ]]
 [[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_line_change_application WHERE status IN (0,1)')" == 0 ]]
 [[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_shop_order WHERE status=0 AND create_time<=NOW()-INTERVAL 30 MINUTE')" == 0 ]]
+
+if [[ "$PREFLIGHT_ONLY" == 1 ]]; then
+  echo "release-preflight-success version=$EXPECTED_VERSION config=$BEFORE_TENANT_CONFIG_HASH theme=$EXPECTED_PRE_RELEASE_THEME"
+  exit 0
+fi
 
 ROLLBACK_DIR="$(mktemp -d /tmp/lingqimall-rollback-v1.0.91.XXXXXX)"
 install -m 0600 /usr/local/sbin/lingqimall-backup "$ROLLBACK_DIR/lingqimall-backup"
