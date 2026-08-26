@@ -2,7 +2,7 @@
 
 更新时间：2026-08-26（Asia/Shanghai）
 当前线上版本标记：`1.0.90`
-当前本地版本：`1.0.90`（`codex/app-h5-split`；线上同版本，本地另含待发布的品牌文化轮播入口收口、首页版型与底部导航解耦、整体版型纯视觉收口）
+当前本地版本：`1.0.91`（`codex/app-h5-split`；正式候选准备中）
 线上环境：公开商城 https://lingqimall.com ；团队 H5 https://www.lingqimall.com ；管理后台 https://lingqimall.com/admin/
 
 ### 1.0.90 后续本地增量：整体版型纯视觉排版收口（待发布）
