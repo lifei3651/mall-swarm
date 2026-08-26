@@ -696,6 +696,32 @@ test('home modules and colors honor the saved visual-workbench extra configurati
   assert.match(source, /mod\.type === 'products' && mod\.enabled/)
 })
 
+test('all four home layouts keep one module order and only apply distinct visual styles', async () => {
+  const source = await readView('HomeView.vue')
+  const configured = [
+    { type: 'products', enabled: true, sort: 1 },
+    { type: 'category', enabled: false, sort: 2 },
+    { type: 'banner', enabled: true, sort: 3 },
+  ]
+  const expected = resolveHomeModules({ homeModules: configured }, [])
+
+  for (const layoutTemplate of ['standard', 'product-focus', 'category-focus', 'campaign-feed']) {
+    const refreshed = resolveHomeModules({
+      layoutTemplate,
+      homeModules: JSON.parse(JSON.stringify(configured)),
+    }, [])
+    assert.deepEqual(refreshed, expected)
+  }
+
+  assert.match(source, /v-for="mod in homeModules"/)
+  assert.match(source, /mod\.type === 'category' && mod\.enabled && showHomeCategories/)
+  assert.match(source, /\['standard', 'product-focus', 'category-focus', 'campaign-feed'\]\.includes/)
+  assert.match(source, /\.home-page\.layout-product-focus \.home-product-grid/)
+  assert.match(source, /\.home-page\.layout-category-focus \.home-category-section/)
+  assert.match(source, /\.home-page\.layout-campaign-feed \.home-product-card/)
+  assert.doesNotMatch(source, /\.home-page\.layout-campaign-feed \.business-entry-nav\s*\{[^}]*display\s*:\s*none/s)
+})
+
 test('new homepage modules are merged into an existing visual-workbench configuration', () => {
   const defaults = [
     { type: 'banner', enabled: true, sort: 1 },

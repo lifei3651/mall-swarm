@@ -177,6 +177,53 @@ class TenantDisplayConfigSupportTest {
     }
 
     @Test
+    void allFourVisualLayoutsPreserveHomeModulesCategoryVisibilityAndChildConfiguration() throws Exception {
+        DmsTenantDisplayConfig config = new DmsTenantDisplayConfig();
+        config.setTenantId(90L);
+        config.setShowHomeCategories(0);
+        config.setLiveSquareEnabled(0);
+        config.setNewArrivalsEnabled(1);
+        config.setCategoryGuideTemplate("scenario");
+        config.setCategoryGuidePrimaryCategoriesEnabled(0);
+        config.setCategoryGuideSubcategoriesEnabled(1);
+        config.setCategoryGuideHotProductsEnabled(0);
+        config.setCategoryGuideHeroCategoriesEnabled(1);
+        config.setCategoryGuideShelvesEnabled(0);
+        config.setCategoryGuideRecommendedProductsEnabled(1);
+        config.setCategoryGuideScenariosEnabled(1);
+        config.setCategoryGuideQuickEntriesEnabled(0);
+        config.setCategoryGuidePopularProductsEnabled(1);
+        config.setExtraConfigJson("{\"homeModules\":["
+                + "{\"type\":\"products\",\"enabled\":true,\"sort\":1},"
+                + "{\"type\":\"category\",\"enabled\":false,\"sort\":2},"
+                + "{\"type\":\"banner\",\"enabled\":true,\"sort\":3}],"
+                + "\"bottomNav\":["
+                + "{\"type\":\"home\",\"enabled\":true},"
+                + "{\"type\":\"category\",\"enabled\":false},"
+                + "{\"type\":\"cart\",\"enabled\":true},"
+                + "{\"type\":\"orders\",\"enabled\":true},"
+                + "{\"type\":\"profile\",\"enabled\":true}],"
+                + "\"futureSetting\":{\"nested\":\"keep\"}}");
+        JsonNode expectedModules = objectMapper.readTree(config.getExtraConfigJson()).path("homeModules").deepCopy();
+
+        for (String layout : List.of("standard", "product-focus", "category-focus", "campaign-feed")) {
+            config.setLayoutTemplate(layout);
+            support.prepareForSave(config);
+            JsonNode saved = objectMapper.readTree(config.getExtraConfigJson());
+
+            assertEquals(expectedModules, saved.path("homeModules"));
+            assertEquals(0, config.getShowHomeCategories());
+            assertEquals("scenario", config.getCategoryGuideTemplate());
+            assertEquals(0, config.getCategoryGuidePrimaryCategoriesEnabled());
+            assertEquals(0, config.getCategoryGuideShelvesEnabled());
+            assertEquals(0, config.getCategoryGuideQuickEntriesEnabled());
+            assertEquals(0, saved.path("bottomNav").get(1).path("enabled").asInt());
+            assertEquals(1, saved.path("bottomNav").get(3).path("enabled").asInt());
+            assertEquals("keep", saved.path("futureSetting").path("nested").asText());
+        }
+    }
+
+    @Test
     void activeDirectoryRejectsAllModulesOffButLegacyDefaultsAndInactiveParentRemainCompatible() {
         DmsTenantDisplayConfig invalid = new DmsTenantDisplayConfig();
         invalid.setTenantId(91L);

@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { resolveDirectoryGuideLayout } from '../../src/utils/categoryGuideLayout.js'
 import { normalizeBottomNav } from '../../src/utils/bottomNav.js'
+import { SHOP_LAYOUT_TEMPLATES, applyVisualLayoutTemplate } from '../../src/utils/layoutTemplate.js'
 import {
   DISPLAY_COLOR_KEYS,
   SHOP_THEME_OPTIONS,
@@ -63,7 +64,7 @@ describe('商城视觉与页面工作台', () => {
 
   it('仅提供首页预览入口，分类、我的和购物车不作为装修模板', async () => {
     const source = await readFile(sourcePath, 'utf8')
-    expect(source).toContain("{ value: 'home'")
+    expect(source).toContain("const previewPage = ref('home')")
     expect(source).not.toContain("{ value: 'category'")
     expect(source).not.toContain("{ value: 'profile'")
     expect(source).not.toContain("{ value: 'cart'")
@@ -338,5 +339,78 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain("isEditableBottomNav(nav.type)")
     expect(source).toContain('...displayExtraBase.value')
     expect(source).toContain('分类页、首页分类模块和“我的”中的订单都会继续保留')
+  })
+
+  it('四个整体版型只改变视觉排版并完整保留全部独立配置', () => {
+    const form = {
+      layoutTemplate: 'standard',
+      showHomeCategories: 0,
+      homeModules: [
+        { type: 'products', enabled: true, sort: 1, futureStyle: 'wide' },
+        { type: 'category', enabled: false, sort: 2 },
+        { type: 'banner', enabled: true, sort: 3 },
+        { type: 'notice', enabled: false, sort: 4 },
+      ],
+      brandName: '保持品牌',
+      logoUrl: '/logo.png',
+      themeColor: '#123456',
+      colors: { accentColor: '#654321', futureColor: '#abcdef' },
+      liveSquareEnabled: 0,
+      newArrivalsEnabled: 1,
+      brandCultureEnabled: 0,
+      brandCultureDetailImages: [{ url: '/culture.webp', size: 1234 }],
+      bottomNav: [
+        { type: 'home', label: '首页', enabled: true },
+        { type: 'category', label: '分类', enabled: false },
+        { type: 'cart', label: '购物车', enabled: true },
+        { type: 'orders', label: '订单', enabled: true },
+        { type: 'profile', label: '我的', enabled: true },
+      ],
+      categoryGuideTemplate: 'scenario',
+      categoryGuidePrimaryCategoriesEnabled: 0,
+      categoryGuideSubcategoriesEnabled: 1,
+      categoryGuideHotProductsEnabled: 0,
+      categoryGuideHeroCategoriesEnabled: 1,
+      categoryGuideShelvesEnabled: 0,
+      categoryGuideRecommendedProductsEnabled: 1,
+      categoryGuideScenariosEnabled: 1,
+      categoryGuideQuickEntriesEnabled: 0,
+      categoryGuidePopularProductsEnabled: 1,
+      futureSetting: { nested: ['keep'] },
+    }
+    const withoutLayout = ({ layoutTemplate: _layoutTemplate, ...rest }) => rest
+    const preserved = structuredClone(withoutLayout(form))
+
+    for (const layoutTemplate of SHOP_LAYOUT_TEMPLATES) {
+      applyVisualLayoutTemplate(form, layoutTemplate)
+      expect(form.layoutTemplate).toBe(layoutTemplate)
+      expect(withoutLayout(form)).toEqual(preserved)
+
+      const refreshed = JSON.parse(JSON.stringify(form))
+      expect(withoutLayout(refreshed)).toEqual(preserved)
+      expect(refreshed.homeModules.map(({ type, enabled, sort }) => ({ type, enabled, sort })))
+        .toEqual(preserved.homeModules.map(({ type, enabled, sort }) => ({ type, enabled, sort })))
+    }
+
+    applyVisualLayoutTemplate(form, 'campaign-feed')
+    expect(form.homeModules).toEqual(preserved.homeModules)
+    applyVisualLayoutTemplate(form, 'category-focus')
+    expect(form.categoryGuideTemplate).toBe('scenario')
+    expect(withoutLayout(form)).toEqual(preserved)
+  })
+
+  it('工作台明确整体版型边界且四版型首页共用同一模块预览', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+    const applyLayout = source.slice(source.indexOf('const applyLayoutTemplate'), source.indexOf('const openPreviewNav'))
+
+    expect(source).toContain('只改变排版，不改变模块开关、排序、品牌、独立页面或底部导航')
+    expect(applyLayout).toContain('applyVisualLayoutTemplate(displayForm.value, template?.value)')
+    for (const forbidden of ['showHomeCategories', 'homeModules', 'bottomNav', 'brandName', 'logoUrl', 'campaign-feed', 'categoryGuideTemplate']) {
+      expect(applyLayout).not.toContain(forbidden)
+    }
+    expect(source).toContain("displayForm.layoutTemplate === 'category-focus' && previewPage === 'category'")
+    expect(source).toContain("v-else-if=\"previewPage === 'home'\"")
+    expect(source).toContain('v-for="module in orderedPreviewModules"')
+    expect(source).toContain("module.type === 'category' && module.enabled && displayForm.showHomeCategories === 1")
   })
 })

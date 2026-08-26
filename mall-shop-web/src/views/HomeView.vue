@@ -621,7 +621,6 @@ onUnmounted(() => { stopBannerAutoplay(); stopNoticeRotation(); window.clearTime
 .home-page.layout-category-focus .home-category-section { background: linear-gradient(145deg,#fff,var(--brand-primary-soft)); border-color: var(--brand-primary-soft); }
 .home-page.layout-category-focus .category-circle { width: 78px; height: 78px; box-shadow: 0 7px 18px rgba(38,45,51,.10); }
 .home-page.layout-campaign-feed .home-topbar { background:color-mix(in srgb,var(--brand-primary) 14%,#eafff3 86%); border-bottom:0; }
-.home-page.layout-campaign-feed .business-entry-nav { display:none; }
 .home-page.layout-campaign-feed .home-product-section { max-width:900px; }
 .home-page.layout-campaign-feed .home-product-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
 .home-page.layout-campaign-feed .home-product-card { border:0; border-radius:20px; box-shadow:0 8px 22px rgba(15,23,42,.07); }

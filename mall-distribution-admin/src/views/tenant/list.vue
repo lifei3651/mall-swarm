@@ -114,7 +114,7 @@
             </div>
           </section>
           <section v-if="activeEditSection === 'layout'" class="control-section">
-            <div class="control-section-heading"><div><strong>先选择商城大框架</strong><small>版型只改变首页布局，不会修改商品、库存、价格或订单</small></div><el-tag size="small" type="info">第一步</el-tag></div>
+            <div class="control-section-heading"><div><strong>先选择商城大框架</strong><small>只改变排版，不改变模块开关、排序、品牌、独立页面或底部导航</small></div><el-tag size="small" type="info">第一步</el-tag></div>
             <div class="layout-template-grid">
               <button v-for="template in layoutTemplateOptions" :key="template.value" type="button" class="layout-template-card" :class="{ active: displayForm.layoutTemplate === template.value }" @click="applyLayoutTemplate(template)">
                 <span class="layout-template-preview" :class="`preview-${template.value}`"><i></i><b></b><em></em><small></small></span>
@@ -228,7 +228,7 @@
                 <p>{{ displayForm.brandCultureContent || '保存详情图后，将在这里按顺序无缝展示。' }}</p>
               </template>
             </div>
-            <div v-else-if="displayForm.layoutTemplate === 'category-focus'" class="mobile-category-guide-preview" :class="`guide-preview-${displayForm.categoryGuideTemplate || 'directory'}`">
+            <div v-else-if="displayForm.layoutTemplate === 'category-focus' && previewPage === 'category'" class="mobile-category-guide-preview" :class="`guide-preview-${displayForm.categoryGuideTemplate || 'directory'}`">
               <div class="mobile-preview-search"><span>⌕</span><span>搜索商品</span><b>⌕</b></div>
               <template v-if="displayForm.categoryGuideTemplate === 'directory'">
                 <p v-if="directoryGuidePreviewMode === 'empty'" class="preview-guide-invalid">请至少开启一个分类导购模块</p>
@@ -271,7 +271,7 @@
                 <div v-else-if="module.type === 'products' && module.enabled" class="mobile-preview-product-section"><div class="mobile-preview-heading"><strong>精选商品</strong><span>商城好物，为你精选</span></div><div class="mobile-preview-products" :class="{ 'campaign-preview-products': displayForm.layoutTemplate === 'campaign-feed' }"><div v-for="product in previewProducts" :key="product.id" class="mobile-preview-product"><img v-if="product.coverUrl" :src="product.coverUrl" :alt="product.productName" /><i v-else></i><span v-if="displayForm.layoutTemplate === 'campaign-feed'" class="campaign-preview-band">活动好物 · 真实活动显示倒计时</span><strong>{{ product.productName }}</strong><small>{{ product.subtitle || '精选商品，品质保障' }}</small><b>¥{{ Number(product.salePrice || 0).toFixed(2) }}</b></div><div v-if="!previewProducts.length" class="preview-empty-module">暂无上架商品</div></div></div>
               </template>
             </template>
-            <div v-if="!isCulturePreview" class="mobile-preview-nav" :style="{ gridTemplateColumns: `repeat(${Math.max(visiblePreviewNav.length, 1)}, minmax(0, 1fr))` }"><span v-for="nav in visiblePreviewNav" :key="nav.type" :class="{ active: nav.type === previewPage }">{{ nav.label }}</span></div>
+            <div v-if="!isCulturePreview" class="mobile-preview-nav" :style="{ gridTemplateColumns: `repeat(${Math.max(visiblePreviewNav.length, 1)}, minmax(0, 1fr))` }"><span v-for="nav in visiblePreviewNav" :key="nav.type" :class="{ active: nav.type === previewPage }" @click="openPreviewNav(nav.type)">{{ nav.label }}</span></div>
           </div>
         </section>
       </div>
@@ -319,6 +319,7 @@ import { useRoute } from 'vue-router'
 import { formatDateTime } from '@/utils/dateTime'
 import { resolveDirectoryGuideLayout } from '@/utils/categoryGuideLayout'
 import { isEditableBottomNav, normalizeBottomNav } from '@/utils/bottomNav'
+import { applyVisualLayoutTemplate } from '@/utils/layoutTemplate'
 import {
   SHOP_THEME_OPTIONS,
   applyThemePresetToForm,
@@ -386,7 +387,6 @@ const independentPages = [
   { key: 'newArrivals', icon: '新', label: '新品速递', description: '页面总开关与时间' },
 ]
 const isCulturePreview = computed(() => activeEditSection.value === 'pages' && independentPageTab.value === 'culture')
-const previewPages = [{ value: 'home', label: '首页' }]
 const defaultModules = () => [
   { type: 'banner', enabled: true, sort: 1 },
   { type: 'notice', enabled: true, sort: 2 },
@@ -451,26 +451,21 @@ const layoutTemplateOptions = [
     value: 'standard',
     label: '标准零售版',
     description: '首页信息均衡展示，适合综合商城',
-    showHomeCategories: 1,
-    showTrustStrip: 0,
   },
   {
     value: 'product-focus',
     label: '紧凑商品版',
-    description: '弱化分类、提高商品密度，适合商品较少的商城',
-    showHomeCategories: 0,
+    description: '压缩卡片留白、提高商品密度，适合快速浏览商品',
   },
   {
     value: 'category-focus',
     label: '分类导购版',
-    description: '三种真实导购结构可选，适合品类和商品较多的商城',
-    showHomeCategories: 1,
+    description: '放大分类视觉，三种分类页导购结构可选',
   },
   {
     value: 'campaign-feed',
     label: '活动信息流版',
     description: '大图信息流商品卡，真实秒杀显示倒计时，适合活动运营',
-    showHomeCategories: 1,
   },
 ]
 const currentLayoutSummary = computed(() => {
@@ -591,6 +586,7 @@ const normalizeWorkbenchSection = (section) => ({
 const openDisplayDialog = async (row, section = 'layout') => {
   initializingDisplay.value = true
   displayDraftDirty.value = false
+  previewPage.value = 'home'
   activeEditSection.value = normalizeWorkbenchSection(section)
   if (['culture', 'live', 'newArrivals'].includes(section)) independentPageTab.value = section
   currentTenant.value = row
@@ -757,20 +753,13 @@ const configurableBottomNav = computed(() => (displayForm.value.bottomNav || [])
 const previewStyle = computed(() => themePreviewVariables(displayForm.value, currentTenant.value?.themeColor || '#e7193f'))
 
 const applyLayoutTemplate = (template) => {
-  displayForm.value.layoutTemplate = template.value
-  displayForm.value.showHomeCategories = template.showHomeCategories
-  if (template.value === 'campaign-feed') {
-    const order = ['category', 'banner', 'live', 'newArrivals', 'products', 'notice', 'trust']
-    displayForm.value.homeModules = [...(displayForm.value.homeModules || [])]
-      .sort((a, b) => {
-        const aIndex = order.indexOf(a.type)
-        const bIndex = order.indexOf(b.type)
-        return (aIndex < 0 ? order.length : aIndex) - (bIndex < 0 ? order.length : bIndex)
-      })
-      .map((module, index) => ({ ...module, sort: index + 1 }))
-  }
-  if (template.value === 'category-focus') {
-    displayForm.value.categoryGuideTemplate ||= 'directory'
+  applyVisualLayoutTemplate(displayForm.value, template?.value)
+  previewPage.value = 'home'
+}
+
+const openPreviewNav = (type) => {
+  if (type === 'home' || (type === 'category' && displayForm.value.layoutTemplate === 'category-focus')) {
+    previewPage.value = type
   }
 }
 
@@ -1514,6 +1503,15 @@ onMounted(async () => {
 .campaign-preview-products { grid-template-columns:1fr; }
 .campaign-preview-products .mobile-preview-product img,.campaign-preview-products .mobile-preview-product i { height:118px; }
 .campaign-preview-band { padding:4px 6px; color:#fff; background:linear-gradient(90deg,#ef3d25,#ff8a18); border-radius:4px; font-size:8px; }
+.layout-preview-standard .mobile-preview-product { border:1px solid var(--preview-line,#e8ecf1); }
+.layout-preview-product-focus .mobile-preview-products { grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; }
+.layout-preview-product-focus .mobile-preview-product { gap:3px; padding:5px; border-radius:9px; }
+.layout-preview-product-focus .mobile-preview-product img,.layout-preview-product-focus .mobile-preview-product i { height:52px; border-radius:6px; }
+.layout-preview-product-focus .mobile-preview-product small { display:none; }
+.layout-preview-product-focus .mobile-preview-product strong { font-size:9px; }
+.layout-preview-product-focus .mobile-preview-product b { font-size:11px; }
+.layout-preview-category-focus .mobile-preview-categories { padding:12px 9px; background:linear-gradient(145deg,#fff,color-mix(in srgb,var(--preview-accent) 9%,#fff 91%)); border:1px solid color-mix(in srgb,var(--preview-accent) 18%,#fff 82%); }
+.layout-preview-category-focus .mobile-preview-category > span { width:40px; height:40px; box-shadow:0 5px 12px rgba(38,45,51,.1); }
 .layout-preview-campaign-feed .mobile-preview-categories { padding:7px 9px; background:transparent; border-radius:0; }
 .layout-preview-campaign-feed .mobile-preview-category { flex-basis:auto; }
 .layout-preview-campaign-feed .mobile-preview-category > span { display:none; }
