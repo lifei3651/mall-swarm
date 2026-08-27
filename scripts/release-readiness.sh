@@ -54,16 +54,13 @@ if [[ "$ALLOW_DIRTY" != 1 ]]; then
   fi
 fi
 
-for retired_host in "${LINGQIMALL_RETIRED_HOSTS[@]}"; do
+for non_mall_host in "${LINGQIMALL_FORBIDDEN_DEPLOY_HOSTS[@]}"; do
   while IFS= read -r file; do
     [[ "$file" == "$SCRIPT_DIR/production-targets.sh" ]] && continue
-    fail "可执行脚本仍引用退役主机：$file"
-  done < <(grep -RIl --include='*.sh' -- "$retired_host" "$SCRIPT_DIR" || true)
-  if ssh-keygen -F "$retired_host" -f "$HOME/.ssh/known_hosts" >/dev/null 2>&1; then
-    fail "本机仍信任退役主机 SSH 指纹：$retired_host"
-  fi
+    fail "商城发布脚本仍引用非商城主机：$file"
+  done < <(grep -RIl --include='*.sh' -- "$non_mall_host" "$SCRIPT_DIR" || true)
 done
-pass "唯一仓库、远程同步与退役主机门禁"
+pass "唯一仓库、远程同步与非商城主机隔离门禁"
 
 TMP_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/lingqimall-release-readiness.XXXXXX")
 cleanup() { rm -rf "$TMP_ROOT"; }

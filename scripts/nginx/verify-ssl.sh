@@ -106,9 +106,9 @@ echo "--- 5. IP 直接访问检查 ---"
 if [ -z "$ORIGIN_IP" ]; then
     warn "未显式提供当前生产源站IP，已跳过；不会再使用历史IP猜测"
 else
-    for retired_host in "${LINGQIMALL_RETIRED_HOSTS[@]}"; do
-        if [ "$ORIGIN_IP" = "$retired_host" ]; then
-            fail "拒绝检查已退役主机：$ORIGIN_IP"
+    for non_mall_host in "${LINGQIMALL_FORBIDDEN_DEPLOY_HOSTS[@]}"; do
+        if [ "$ORIGIN_IP" = "$non_mall_host" ]; then
+            fail "拒绝把非商城主机作为商城源站：$ORIGIN_IP"
             exit 1
         fi
     done
