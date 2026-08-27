@@ -74,7 +74,7 @@ audit_archive() {
   local errors="$TMP_ROOT/${label}.errors"
   tar -tzf "$archive" >"$listing" 2>"$errors" || fail "$label 无法读取"
   if grep -Eiq 'LIBARCHIVE\.xattr|SCHILY\.xattr|com\.apple' "$errors" \
-    || gzip -cd "$archive" 2>/dev/null | LC_ALL=C grep -aEq 'LIBARCHIVE\.xattr|SCHILY\.xattr|com\.apple\.'; then
+    || gzip -cd "$archive" 2>/dev/null | LC_ALL=C grep -aE 'LIBARCHIVE\.xattr|SCHILY\.xattr|com\.apple\.' >/dev/null; then
     fail "$label 包含扩展属性"
   fi
   if grep -Eq '(^|/)\._|(^|/)__MACOSX(/|$)|(^|/)\.\.(/|$)|^/' "$listing"; then

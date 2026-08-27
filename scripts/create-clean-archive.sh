@@ -42,11 +42,21 @@ fi
 
 export COPYFILE_DISABLE=1
 tar_options=(-czf "$OUTPUT_ARCHIVE" -C "$STAGING/content" .)
-if tar --help 2>&1 | grep -q -- '--no-xattrs'; then
-  tar_options=(--no-xattrs "${tar_options[@]}")
-fi
-if tar --help 2>&1 | grep -q -- '--no-mac-metadata'; then
-  tar_options=(--no-mac-metadata "${tar_options[@]}")
+# macOS 自带 bsdtar 支持这些选项，但帮助文本不一定列出；用空目录实际探测，
+# 避免因帮助文本缺项而把 provenance 等 PAX 扩展属性带入交付包。
+mkdir -p "$STAGING/tar-option-probe"
+if tar --no-xattrs --no-mac-metadata -cf "$STAGING/tar-option-probe.tar" \
+  -C "$STAGING/tar-option-probe" . >/dev/null 2>&1; then
+  tar_options=(--no-xattrs --no-mac-metadata "${tar_options[@]}")
+else
+  if tar --no-xattrs -cf "$STAGING/tar-option-probe-xattrs.tar" \
+    -C "$STAGING/tar-option-probe" . >/dev/null 2>&1; then
+    tar_options=(--no-xattrs "${tar_options[@]}")
+  fi
+  if tar --no-mac-metadata -cf "$STAGING/tar-option-probe-mac.tar" \
+    -C "$STAGING/tar-option-probe" . >/dev/null 2>&1; then
+    tar_options=(--no-mac-metadata "${tar_options[@]}")
+  fi
 fi
 tar "${tar_options[@]}"
 
@@ -54,7 +64,7 @@ LISTING="$STAGING/listing.txt"
 ERRORS="$STAGING/tar-errors.txt"
 tar -tzf "$OUTPUT_ARCHIVE" >"$LISTING" 2>"$ERRORS"
 if grep -Eiq 'LIBARCHIVE\.xattr|SCHILY\.xattr|com\.apple' "$ERRORS" \
-  || gzip -cd "$OUTPUT_ARCHIVE" 2>/dev/null | LC_ALL=C grep -aEq 'LIBARCHIVE\.xattr|SCHILY\.xattr|com\.apple\.'; then
+  || gzip -cd "$OUTPUT_ARCHIVE" 2>/dev/null | LC_ALL=C grep -aE 'LIBARCHIVE\.xattr|SCHILY\.xattr|com\.apple\.' >/dev/null; then
   echo "归档仍包含扩展属性，已停止交付" >&2
   exit 1
 fi
