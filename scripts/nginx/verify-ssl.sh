@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 # =============================================================
 # SSL 安全验证脚本 — 检查部署后的 HTTPS 配置
-# 用法：bash verify-ssl.sh [域名]
+# 用法：bash verify-ssl.sh [域名] [当前生产源站IP]
 # =============================================================
 set -euo pipefail
 
 DOMAIN="${1:-lingqimall.com}"
+ORIGIN_IP="${2:-}"
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+# shellcheck source=../production-targets.sh
+source "$SCRIPT_DIR/../production-targets.sh"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -96,15 +100,24 @@ else
     warn "无法获取证书信息"
 fi
 
-# 7. 检查 IP 直接访问是否返回 404
+# 7. 可选检查当前生产源站 IP 直接访问是否返回 404
 echo ""
 echo "--- 5. IP 直接访问检查 ---"
-IP="121.40.242.129"
-IP_CODE=$(curl -sI "http://$IP" --max-time 10 -o /dev/null -w '%{http_code}')
-if [ "$IP_CODE" = "404" ]; then
-    pass "IP 直接访问返回 404（安全）"
+if [ -z "$ORIGIN_IP" ]; then
+    warn "未显式提供当前生产源站IP，已跳过；不会再使用历史IP猜测"
 else
-    warn "IP 直接访问返回 $IP_CODE（建议返回 404）"
+    for retired_host in "${LINGQIMALL_RETIRED_HOSTS[@]}"; do
+        if [ "$ORIGIN_IP" = "$retired_host" ]; then
+            fail "拒绝检查已退役主机：$ORIGIN_IP"
+            exit 1
+        fi
+    done
+    IP_CODE=$(curl -sI "http://$ORIGIN_IP" --max-time 10 -o /dev/null -w '%{http_code}')
+    if [ "$IP_CODE" = "404" ]; then
+        pass "当前生产源站IP直接访问返回 404（安全）"
+    else
+        warn "当前生产源站IP直接访问返回 $IP_CODE（建议返回 404）"
+    fi
 fi
 
 # 8. 检查生产调试入口是否关闭

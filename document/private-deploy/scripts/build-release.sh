@@ -31,6 +31,7 @@ if [ -n "$(git -C "$ROOT_DIR" status --porcelain)" ] && [ -z "${RELEASE_BUILD_ID
 fi
 export RELEASE_GIT_COMMIT="$release_git_commit"
 export RELEASE_BUILD_ID="$release_build_id"
+export COPYFILE_DISABLE=1
 
 # Maven 根模块 clean 会删除 target；正式候选属于冻结交付物，构建期间先移出再原样恢复。
 if [ -d "$CANDIDATE_DIR" ]; then
@@ -47,6 +48,15 @@ cp -R "$ROOT_DIR/mall-shop-web/dist/." "$STAGING/html/public/"
 cp -R "$ROOT_DIR/mall-shop-web/dist-team/." "$STAGING/html/team/"
 cp -R "$ROOT_DIR/mall-shop-web/dist-integrated/." "$STAGING/html/integrated/"
 cp -R "$ROOT_DIR/mall-distribution-admin/dist/." "$STAGING/html/admin/"
+
+# 只清理临时构建副本的 macOS 扩展属性，防止后续内包/外包携带 AppleDouble 或 PAX xattr。
+if command -v xattr >/dev/null 2>&1; then
+  xattr -cr "$STAGING/html"
+fi
+if find "$STAGING/html" \( -name '._*' -o -name '__MACOSX' \) -print -quit | grep -q .; then
+  echo "生产构建包含 macOS 隐藏元数据，已停止交付" >&2
+  exit 1
+fi
 
 if find "$STAGING/html" -type f -name '*.map' -print -quit | grep -q .; then
   echo "生产构建包含 source map，已停止交付" >&2
