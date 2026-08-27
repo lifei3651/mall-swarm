@@ -436,6 +436,7 @@ import { memberSearchEmptyText, validateMemberSearch } from '@/utils/searchFeedb
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
 import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
 import { formatDateTime, formatDateTimeCell } from '@/utils/dateTime'
+import { customerBonusName } from '@/utils/customerBonus'
 
 const loading = ref(false)
 const route = useRoute()
@@ -530,9 +531,7 @@ const orderTag = (row) => {
 }
 const joinAddress = (address) => [address.province, address.city, address.district, address.detailAddress].filter(Boolean).join('')
 const percent = (value) => `${(Number(value || 0) * 100).toFixed(2)}%`
-const bonusTypeText = (row) => row.bonusType === 'DIRECT_REWARD'
-  ? '直推奖'
-  : row.bonusType === 'DIRECTOR_SHARE' ? '董事团队分红' : '历史奖金'
+const bonusTypeText = (row) => customerBonusName(row)
 const isIncome = (type) => [1, 4].includes(Number(type))
 const assetFlowSourceText = (row) => {
   if (String(row.bizType || '').endsWith('MANUAL_MEMBER_ADJUST')) {

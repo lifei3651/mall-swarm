@@ -233,7 +233,7 @@
               <el-col :span="8"><el-form-item label="复购商城"><el-switch v-model="form.repurchaseSaleEnabled" :active-value="1" :inactive-value="0" active-text="销售" inactive-text="不销售" /></el-form-item></el-col>
               <el-col :span="8"><el-form-item label="报单区"><el-switch v-model="form.enrollmentSaleEnabled" :active-value="1" :inactive-value="0" active-text="预配置" inactive-text="不进入" /></el-form-item></el-col>
             </el-row>
-            <el-form-item label="团队奖金"><el-select v-model="form.teamBonusMode" style="width:360px"><el-option v-if="!form.merchantId" label="继承商城现有规则" value="INHERIT"/><el-option label="不产生团队奖金" value="NONE"/><el-option label="使用现有标准奖金" value="STANDARD"/><el-option label="客户定制（配置后开放）" value="CUSTOM"/></el-select><div class="field-help">商户商品必须明确选择；产生团队奖金的商品只放复购区或报单区，不进入公开普通商城。</div></el-form-item>
+            <el-form-item label="客户奖金处理"><el-select v-model="form.teamBonusMode" style="width:390px"><el-option v-if="!form.merchantId" label="继承当前订单渠道的处理方式" value="INHERIT"/><el-option label="不交给客户奖金程序" value="NONE"/><el-option v-if="form.teamBonusMode === 'STANDARD'" label="历史兼容状态（新客户禁用）" value="STANDARD" disabled/><el-option label="交给客户奖金程序（接入后开放）" value="CUSTOM"/></el-select><div class="field-help">商城基座不决定奖金；客户独立程序未接入前不得选择。涉及客户奖金的商户商品只放复购区或报单区，不进入公开普通商城。</div></el-form-item>
             <el-row v-if="form.repurchaseSaleEnabled === 1" :gutter="20">
               <el-col :span="8"><el-form-item label="商品复购价" required><el-input-number v-model="form.repurchasePrice" :min="0.01" :precision="2" controls-position="right" style="width:100%" /><div class="field-help">多规格可在SKU单独覆盖，未填写时继承此价格。</div></el-form-item></el-col>
               <el-col :span="8"><el-form-item label="商品复购PV"><el-input-number v-model="form.repurchasePv" :min="0" :max="Number(form.repurchasePrice || 0)" :precision="2" controls-position="right" style="width:100%" /></el-form-item></el-col>
@@ -994,7 +994,7 @@ const submitForm = async () => {
   if (Number(form.value.purchaseLimit || 0) < 0 || !Number.isInteger(Number(form.value.purchaseLimit || 0))) return ElMessage.warning('会员限购数量必须是大于等于0的整数')
   if (Number(form.value.normalSaleEnabled) !== 1 && Number(form.value.repurchaseSaleEnabled) !== 1 && Number(form.value.enrollmentSaleEnabled) !== 1) return ElMessage.warning('商品至少选择一个销售渠道')
   if (form.value.merchantId && form.value.teamBonusMode === 'INHERIT') return ElMessage.warning('商户商品必须明确选择团队奖金模式')
-  if (form.value.merchantId && form.value.teamBonusMode === 'STANDARD' && Number(form.value.normalSaleEnabled) === 1) return ElMessage.warning('产生团队奖金的商户商品不能同时进入普通商城')
+  if (form.value.merchantId && ['STANDARD', 'CUSTOM'].includes(form.value.teamBonusMode) && Number(form.value.normalSaleEnabled) === 1) return ElMessage.warning('交给客户奖金程序处理的商户商品不能同时进入公开普通商城')
   if (form.value.merchantId && Number(form.value.costAmount || 0) <= 0) return ElMessage.warning('商户商品必须填写大于0的结算价')
   if (form.value.settlementDelayMode === 'OVERRIDE' && (!Number.isInteger(Number(form.value.settlementDelayDaysOverride)) || Number(form.value.settlementDelayDaysOverride) < 0 || Number(form.value.settlementDelayDaysOverride) > 365)) return ElMessage.warning('商品结算等待天数必须是0到365之间的整数')
   if (Number(form.value.repurchaseSaleEnabled) === 1 && Number(form.value.repurchasePrice || 0) <= 0) return ElMessage.warning('启用复购商城后请填写复购价')

@@ -21,7 +21,7 @@ public interface ShopAuthService {
 
     ShopAuthVO register(ShopRegisterDTO dto, String surface);
 
-    /** 公开商城注册：只创建购物账号，不在注册阶段建立团队关系。 */
+    /** 公开商城注册：普通入口创建购物账号；邀请链接在同一事务中创建账号并绑定邀请人。 */
     ShopAuthVO registerPublic(ShopRegisterDTO dto);
 
     ShopAuthVO login(ShopLoginDTO dto);

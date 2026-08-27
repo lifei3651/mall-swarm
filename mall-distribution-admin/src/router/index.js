@@ -330,7 +330,7 @@ const routes = [
             path: 'bonus-config',
             name: 'TenantBonusConfig',
             component: () => import('@/views/tenant/bonus-config.vue'),
-            meta: { title: '奖金与钱包规则', permission: 'config:bonus' },
+            meta: { title: '客户奖金接入', permission: 'config:bonus' },
           },
           {
             path: 'erp',

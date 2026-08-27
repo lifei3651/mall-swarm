@@ -24,13 +24,19 @@ for migration in \
   20260711_commission_settlement_batch_upgrade.sql \
   20260711_line_change_approval_upgrade.sql \
   20260711_order_relation_snapshot_upgrade.sql \
-  20260714_erp_integration_upgrade.sql \
-  20260714_new_retail_default_rule.sql; do
+  20260714_erp_integration_upgrade.sql; do
   mysql "$DATABASE" < "$UPLOAD_DIR/$migration"
 done
 
+mysql "$DATABASE" <<'SQL'
+INSERT INTO dms_commission_rule_version
+  (tenant_id, version_no, version_name, status, effective_time, remark)
+VALUES
+  (1, 'CUSTOMER_BONUS_DISABLED', '客户奖金程序未接入', 1, NOW(),
+   '商城基座安全默认值：正常交易不产生奖金，客户制度开发并验收后再替换');
+SQL
 mysql -Nse "SELECT version_no, status FROM $DATABASE.dms_commission_rule_version WHERE tenant_id=1" \
-  | grep -qx 'NEW_RETAIL_SIMPLE_DEFAULT[[:space:]]1'
+  | grep -qx 'CUSTOMER_BONUS_DISABLED[[:space:]]1'
 
 RELEASE_DIR="$APP_ROOT/releases/$(date +%Y%m%d%H%M%S)"
 mkdir -p "$RELEASE_DIR"

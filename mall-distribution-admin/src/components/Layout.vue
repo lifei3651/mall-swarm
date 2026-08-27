@@ -208,7 +208,7 @@ const businessMenus = [
       { title: '消息运营', path: '/tenant/message-operations', permission: 'config:shop' },
       { title: '秒杀与复购模式', path: '/tenant/business-modes', permission: 'config:bonus' },
       { title: '协议与规则', path: '/tenant/legal', permission: 'config:shop' },
-      { title: '奖金与钱包规则', path: '/tenant/bonus-config', permission: 'config:bonus' },
+      { title: '客户奖金接入', path: '/tenant/bonus-config', permission: 'config:bonus' },
       { title: '会员端业绩查看权限', path: '/audit/settings', permission: 'config:bonus' },
     ],
   },

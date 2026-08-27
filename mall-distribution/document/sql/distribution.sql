@@ -140,8 +140,8 @@ CREATE TABLE `dms_tenant` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='租户/客户公司表';
 
 -- ============================================================
--- 4. 佣金规则版本表 (dms_commission_rule_version)
--- 每个客户只保留一条 NEW_RETAIL_SIMPLE_DEFAULT，用于订单审计快照
+-- 4. 客户奖金程序版本表 (dms_commission_rule_version)
+-- 商城基座只保存客户项目启用的程序版本，不在公共结构中定义奖金公式
 -- ============================================================
 DROP TABLE IF EXISTS `dms_commission_rule_version`;
 CREATE TABLE `dms_commission_rule_version` (
@@ -332,7 +332,7 @@ CREATE TABLE `dms_commission_record` (
   `agent_name` varchar(64) DEFAULT NULL COMMENT '代理名称',
   `agent_level` tinyint NOT NULL COMMENT '代理等级',
   `commission_level` int NOT NULL COMMENT '与下单人的关系深度（不限层）',
-  `bonus_type` varchar(32) NOT NULL COMMENT 'DIRECT_REWARD或DIRECTOR_SHARE',
+  `bonus_type` varchar(32) NOT NULL COMMENT '客户奖金程序定义的类型代码；DIRECT_REWARD/DIRECTOR_SHARE仅为历史示例兼容值',
   `commission_rate` decimal(5,4) NOT NULL COMMENT '佣金比例',
   `commission_amount` decimal(10,2) NOT NULL COMMENT '佣金金额',
   `status` tinyint NOT NULL DEFAULT 0 COMMENT '状态：0-待结算 1-已结算 2-已取消 3-已退款',
@@ -963,7 +963,7 @@ CREATE TABLE `dms_finance_risk_rule` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='财务风险规则表';
 
 INSERT INTO `dms_finance_risk_rule` (`rule_code`, `rule_name`, `threshold_value`, `enabled`, `remark`) VALUES
-('BONUS_PAYOUT_RATE_MAX', '奖金拨出率预警阈值', 0.35, 1, '运营预警阈值；正式规则理论硬上限为79%（直推65%+董事分红14%）'),
+('BONUS_PAYOUT_RATE_MAX', '奖金拨出率预警阈值', 0.35, 1, '通用运营预警阈值；客户项目应根据已确认制度和利润模型单独校准'),
 ('PROFIT_RATE_MIN', '利润率下限', 0.10, 1, '单笔及汇总利润率低于该值时预警'),
 ('LOSS_ORDER_COUNT_MAX', '风险订单数上限', 0, 1, '风险订单数大于该值时预警');
 

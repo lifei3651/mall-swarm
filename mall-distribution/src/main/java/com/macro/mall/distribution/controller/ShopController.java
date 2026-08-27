@@ -369,7 +369,7 @@ public class ShopController {
         return CommonResult.success(auth);
     }
 
-    @Operation(summary = "公开 App/小程序账号注册（不建立团队关系）")
+    @Operation(summary = "公开 App/小程序账号注册（邀请链接注册时一次性绑定邀请人）")
     @PostMapping("/public/auth/register")
     public CommonResult<ShopAuthVO> registerPublic(@Valid @RequestBody ShopRegisterDTO dto,
                                                    HttpServletRequest request,
@@ -1141,7 +1141,7 @@ public class ShopController {
     }
 
     @Operation(summary = "注册页查询脱敏邀请人信息")
-    @GetMapping("/invite/{inviteCode}")
+    @GetMapping("/public/inviter-preview/{inviteCode}")
     public CommonResult<java.util.Map<String, Object>> inviterPreview(@PathVariable String inviteCode) {
         return CommonResult.success(shopService.getInviterPreview(inviteCode));
     }

@@ -9,6 +9,18 @@
         </div>
       </header>
 
+      <section v-if="isRegister && hasInviteLink" class="inviter-card" :class="{ invalid: inviteError }">
+        <div>
+          <span>邀请人</span>
+          <strong v-if="inviterLoading">正在核对…</strong>
+          <strong v-else-if="inviterInfo">{{ inviterInfo.nickname || '商城会员' }}</strong>
+          <strong v-else>邀请码暂不可用</strong>
+        </div>
+        <small>邀请码：{{ inviteCodeFromUrl }}</small>
+        <p v-if="inviteError">{{ inviteError }}</p>
+        <p v-else>提交注册后将一次性建立邀请关系，注册人不能自行修改。</p>
+      </section>
+
       <div v-if="!isRegister" class="login-tabs" role="tablist" aria-label="登录方式">
         <button type="button" :class="{ active: loginType === 'password' }" @click="switchLoginType('password')">密码登录</button>
         <button type="button" :class="{ active: loginType === 'sms' }" @click="switchLoginType('sms')">验证码登录</button>
@@ -65,7 +77,7 @@
 
         <p v-if="error" class="form-message error" role="alert">{{ error }}</p>
         <p v-if="success" class="form-message success" role="status">{{ success }}</p>
-        <button class="submit-button" type="submit" :disabled="loading">{{ loading ? '正在提交…' : (isRegister ? '注册并登录' : '登录') }}</button>
+        <button class="submit-button" type="submit" :disabled="loading || inviterLoading">{{ submitButtonText }}</button>
       </form>
 
       <footer class="auth-footer">
@@ -79,7 +91,7 @@
 <script setup>
 import { computed, inject, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getLoginCaptcha, login, registerPublic, sendLoginSmsCode, sendSmsCode } from '@/api/shop'
+import { getInviterPreview, getLoginCaptcha, login, registerPublic, sendLoginSmsCode, sendSmsCode } from '@/api/shop'
 import { currentBrandLogo, currentBrandName } from '@/utils/brand'
 import { normalizeLoginAccountInput, validateLoginAccount } from '@/utils/loginAccount'
 import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
@@ -99,6 +111,9 @@ const loading = ref(false)
 const sendingCode = ref(false)
 const error = ref('')
 const success = ref('')
+const inviterLoading = ref(false)
+const inviterInfo = ref(null)
+const inviteError = ref('')
 const agreed = ref(false)
 const confirmPassword = ref('')
 const smsCooldown = ref(0)
@@ -106,10 +121,20 @@ let cooldownTimer
 
 const loginForm = reactive({ account: '', password: '' })
 const smsLoginForm = reactive({ phone: '', smsCode: '' })
-const registerForm = reactive({ phone: '', username: '', password: '', smsCode: '' })
+const registerForm = reactive({ phone: '', username: '', password: '', smsCode: '', inviteCode: '' })
 const captcha = reactive({ id: '', code: '', image: '' })
 const needsCaptcha = computed(() => isRegister.value || loginType.value === 'password')
 const smsButtonText = computed(() => smsCooldown.value > 0 ? `${smsCooldown.value}s 后重发` : '获取验证码')
+const inviteCodeFromUrl = computed(() => {
+  const value = route.query.inviteCode || route.query.code
+  return typeof value === 'string' ? value.trim().toUpperCase() : ''
+})
+const hasInviteLink = computed(() => !!inviteCodeFromUrl.value)
+const submitButtonText = computed(() => {
+  if (loading.value) return '正在提交…'
+  if (!isRegister.value) return '登录'
+  return hasInviteLink.value ? '注册并绑定邀请人' : '注册并登录'
+})
 
 const normalizePhone = (form) => { form.phone = normalizeMainlandPhone(form.phone) }
 const normalizeAccount = () => { registerForm.username = normalizeLoginAccountInput(registerForm.username) }
@@ -137,6 +162,32 @@ const startCooldown = () => {
 const resetFeedback = () => {
   error.value = ''
   success.value = ''
+}
+
+const loadInviter = async () => {
+  inviterInfo.value = null
+  inviteError.value = ''
+  registerForm.inviteCode = inviteCodeFromUrl.value
+  if (!hasInviteLink.value) return true
+  if (!/^[A-Z0-9]{8}$/.test(inviteCodeFromUrl.value)) {
+    inviteError.value = '邀请链接不完整，请向邀请人重新获取二维码'
+    return false
+  }
+  inviterLoading.value = true
+  try {
+    const res = await getInviterPreview(inviteCodeFromUrl.value)
+    if (!res.data?.valid) {
+      inviteError.value = res.data?.message || '邀请码无效，请向邀请人核对'
+      return false
+    }
+    inviterInfo.value = res.data
+    return true
+  } catch (e) {
+    inviteError.value = e.message || '邀请人暂时无法核对，请稍后重试'
+    return false
+  } finally {
+    inviterLoading.value = false
+  }
 }
 
 const sendLoginCode = async () => {
@@ -167,6 +218,10 @@ const sendRegistrationCode = async () => {
     error.value = '请先输入图形验证码'
     return
   }
+  if (hasInviteLink.value && !inviterInfo.value && !(await loadInviter())) {
+    error.value = inviteError.value
+    return
+  }
   sendingCode.value = true
   try {
     await sendSmsCode(registerForm.phone, 1, { captchaId: captcha.id, captchaCode: captcha.code })
@@ -190,6 +245,7 @@ const validate = () => {
     if (registerForm.password !== confirmPassword.value) return '两次输入的登录密码不一致'
     if (!/^\d{6}$/.test(registerForm.smsCode)) return '请输入6位短信验证码'
     if (!agreed.value) return '请阅读并同意用户服务协议和隐私政策'
+    if (hasInviteLink.value && !inviterInfo.value) return inviteError.value || '请先确认邀请人信息'
     return ''
   }
   if (loginType.value === 'sms') {
@@ -208,6 +264,7 @@ const destination = () => {
 }
 
 const submit = async () => {
+  if (isRegister.value && hasInviteLink.value && !inviterInfo.value) await loadInviter()
   error.value = validate()
   success.value = ''
   if (error.value) return
@@ -215,7 +272,7 @@ const submit = async () => {
   try {
     let res
     if (isRegister.value) {
-      res = await registerPublic({ ...registerForm })
+      res = await registerPublic({ ...registerForm, inviteCode: hasInviteLink.value ? inviteCodeFromUrl.value : '' })
     } else if (loginType.value === 'sms') {
       res = await login({ account: smsLoginForm.phone, smsCode: smsLoginForm.smsCode, loginType: 'sms' })
     } else {
@@ -231,7 +288,7 @@ const submit = async () => {
   }
 }
 
-const switchMode = () => router.push({ name: isRegister.value ? 'Login' : 'Register' })
+const switchMode = () => router.push({ name: isRegister.value ? 'Login' : 'Register', query: route.query })
 const switchLoginType = (type) => {
   loginType.value = type
   error.value = ''
@@ -244,6 +301,7 @@ watch(() => route.name, () => {
   success.value = ''
   refreshCaptcha()
 })
+watch(inviteCodeFromUrl, loadInviter, { immediate: true })
 onMounted(refreshCaptcha)
 onBeforeUnmount(() => window.clearInterval(cooldownTimer))
 </script>
@@ -252,6 +310,7 @@ onBeforeUnmount(() => window.clearInterval(cooldownTimer))
 .public-auth-page{min-height:calc(100vh - 80px);display:grid;place-items:center;padding:28px 16px;background:linear-gradient(145deg,var(--brand-primary-soft,#fff3f5),#f7f8fb 55%)}
 .public-auth-card{width:min(480px,100%);padding:28px;background:#fff;border:1px solid #edf0f4;border-radius:24px;box-shadow:0 24px 70px rgba(15,23,42,.1)}
 .auth-heading{display:flex;align-items:center;gap:14px;margin-bottom:22px}.auth-heading img{width:54px;height:54px;object-fit:contain;border-radius:14px}.auth-heading h1{margin:0;color:#17202e;font-size:23px}.auth-heading p{margin:6px 0 0;color:#7b8493;font-size:13px}
+.inviter-card{display:grid;gap:7px;margin:-4px 0 18px;padding:14px 16px;color:#475467;background:#f8fafc;border:1px solid #d8e2ef;border-radius:14px}.inviter-card>div{display:flex;align-items:center;justify-content:space-between;gap:12px}.inviter-card span,.inviter-card small{color:#667085;font-size:12px}.inviter-card strong{color:#17202e}.inviter-card p{margin:0;color:#667085;font-size:12px;line-height:1.6}.inviter-card.invalid{background:#fff7f6;border-color:#f3c5c0}.inviter-card.invalid strong,.inviter-card.invalid p{color:#b42318}
 .login-tabs{display:grid;grid-template-columns:1fr 1fr;margin-bottom:20px;padding:4px;background:#f3f5f8;border-radius:12px}.login-tabs button{height:40px;color:#667085;background:transparent;border:0;border-radius:9px}.login-tabs button.active{color:var(--brand-primary,#e7193f);background:#fff;box-shadow:0 3px 12px rgba(15,23,42,.08);font-weight:700}
 .auth-form{display:grid;gap:9px}.auth-form label{margin-top:5px;color:#344054;font-size:13px;font-weight:650}.auth-form input{width:100%;height:46px;padding:0 14px;color:#17202e;background:#fff;border:1px solid #d9dfe8;border-radius:12px;outline:none;box-sizing:border-box}.auth-form input:focus{border-color:var(--brand-primary,#e7193f);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand-primary,#e7193f) 12%,transparent)}
 .inline-field{display:grid;grid-template-columns:minmax(0,1fr) 122px;gap:9px}.inline-field>button{height:46px;padding:0 10px;color:var(--brand-primary,#e7193f);background:var(--brand-primary-soft,#fff0f3);border:0;border-radius:12px;font-weight:700}.inline-field>button:disabled{opacity:.55}.captcha-block{display:grid;gap:9px}.captcha-field .captcha-button{display:flex;align-items:center;justify-content:center;gap:6px;padding:3px 8px;color:#667085;background:#f6f7f9}.captcha-button img{max-width:72px;height:36px;object-fit:contain}.captcha-button span{font-size:11px}

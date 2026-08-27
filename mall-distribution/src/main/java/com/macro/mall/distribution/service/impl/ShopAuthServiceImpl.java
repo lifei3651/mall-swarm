@@ -74,17 +74,20 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ShopAuthVO register(ShopRegisterDTO dto, String surface) {
-        return registerInternal(dto, true, normalizeSurface(surface, "team"));
+        return registerInternal(dto, true, true, normalizeSurface(surface, "team"));
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ShopAuthVO registerPublic(ShopRegisterDTO dto) {
-        // 公开 App/小程序只创建普通购物账号；即使客户端伪造 inviteCode 也不会在这里建立团队关系。
-        return registerInternal(dto, false, "public");
+        // 普通入口继续只创建购物账号；通过邀请二维码进入时，注册提交本身即为一次性关系确认。
+        // 页面只展示脱敏邀请人和不可自行修改提示，不在公开商城展示任何奖金制度。
+        boolean invitedRegistration = dto != null && dto.getInviteCode() != null && !dto.getInviteCode().isBlank();
+        return registerInternal(dto, invitedRegistration, false, "public");
     }
 
-    private ShopAuthVO registerInternal(ShopRegisterDTO dto, boolean requireInvitation, String surface) {
+    private ShopAuthVO registerInternal(ShopRegisterDTO dto, boolean requireInvitation,
+                                        boolean allowFoundingMember, String surface) {
         validateRegister(dto);
         dto.setPhone(dto.getPhone().trim());
         dto.setUsername(normalizeLoginAccount(dto.getUsername()));
@@ -102,9 +105,10 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             Asserts.fail("该登录账号已被使用，请更换登录账号");
         }
 
-        // 团队 H5 继续遵守原邀请注册规则；公开商城注册始终保持无团队关系。
+        // 团队 H5 必须携带邀请；公开商城普通入口不绑定，扫码邀请入口在本次注册中一次性绑定。
         Long inviterId = null;
-        boolean foundingMember = requireInvitation && memberDao.countForFoundingTeamMember() == 0;
+        boolean foundingMember = requireInvitation && allowFoundingMember
+                && memberDao.countForFoundingTeamMember() == 0;
         if (requireInvitation && !foundingMember) {
             if (dto.getInviteCode() == null || dto.getInviteCode().isBlank()) {
                 Asserts.fail("请输入邀请码");

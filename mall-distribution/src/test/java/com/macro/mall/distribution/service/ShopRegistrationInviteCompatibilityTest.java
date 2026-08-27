@@ -133,9 +133,27 @@ class ShopRegistrationInviteCompatibilityTest {
     }
 
     @Test
-    void publicRegistrationNeverCreatesTeamRelationshipEvenWhenInviteCodeIsForged() {
+    void publicRegistrationFromInviteLinkBindsDirectInviterInSameTransaction() {
         ShopRegisterDTO dto = validRegistration("15500000124", "public_user_1");
-        dto.setInviteCode("OLDLINK1");
+        DmsShopMember inviter = new DmsShopMember();
+        inviter.setUserId(880088L);
+        inviter.setStatus(1);
+        when(memberDao.selectByInviteCode("INVITE01")).thenReturn(inviter);
+
+        authService.registerPublic(dto);
+
+        ArgumentCaptor<DmsShopMember> memberCaptor = ArgumentCaptor.forClass(DmsShopMember.class);
+        verify(memberDao).insert(memberCaptor.capture());
+        assertEquals(880088L, memberCaptor.getValue().getInviterId());
+        assertEquals(1, memberCaptor.getValue().getTeamOptIn());
+        verify(memberDao, never()).countForFoundingTeamMember();
+        verify(agentService, never()).getAgentByInviteCode(any());
+    }
+
+    @Test
+    void publicRegistrationWithoutInviteLinkRemainsOrdinaryShoppingAccount() {
+        ShopRegisterDTO dto = validRegistration("15500000125", "public_user_2");
+        dto.setInviteCode(null);
 
         authService.registerPublic(dto);
 

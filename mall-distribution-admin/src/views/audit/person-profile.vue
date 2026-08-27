@@ -194,6 +194,7 @@ import { getPersonProfile } from '@/api/audit'
 import { memberSearchFailureMessage, validateMemberSearch } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
 import { formatDateTime, formatDateTimeCell } from '@/utils/dateTime'
+import { customerBonusName } from '@/utils/customerBonus'
 
 const loading = ref(false)
 const route = useRoute()
@@ -264,9 +265,7 @@ const assetFlowTypeText = (type) => ({
   5: '扣减',
 }[type] || '未知')
 
-const bonusTypeText = (row) => row.bonusType === 'DIRECT_REWARD'
-  ? '直推奖'
-  : row.bonusType === 'DIRECTOR_SHARE' ? '董事团队分红' : '历史奖金'
+const bonusTypeText = (row) => customerBonusName(row)
 const isIncome = (type) => [1, 4].includes(Number(type))
 const assetFlowSourceText = (row) => {
   if (String(row.bizType || '').endsWith('MANUAL_MEMBER_ADJUST')) {

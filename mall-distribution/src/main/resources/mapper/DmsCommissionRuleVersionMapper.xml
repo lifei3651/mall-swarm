@@ -29,6 +29,13 @@
         LIMIT 1
     </select>
 
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT id, tenant_id, version_no, version_name, status, effective_time, remark, create_time, update_time
+        FROM dms_commission_rule_version
+        WHERE tenant_id = #{tenantId} AND id = #{id}
+        LIMIT 1
+    </select>
+
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsCommissionRuleVersion" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_commission_rule_version (tenant_id, version_no, version_name, status, effective_time, remark)
         VALUES (#{tenantId}, #{versionNo}, #{versionName}, #{status}, #{effectiveTime}, #{remark})

@@ -191,11 +191,14 @@ public class BonusEngineConfigServiceImpl implements BonusEngineConfigService {
         }
         Long tenantId = dto.getTenantId() == null ? 1L : dto.getTenantId();
         DmsCommissionRuleVersion version = ruleVersionDao.selectActiveByTenantId(tenantId);
-        if (version == null || !VERSION_NO.equals(version.getVersionNo())) {
-            Asserts.fail("当前客户未启用唯一的新零售正式奖金版本");
+        if (version == null || com.macro.mall.distribution.bonus.CustomerBonusPolicyCodes.DISABLED.equals(version.getVersionNo())) {
+            Asserts.fail("当前客户奖金程序尚未接入");
+        }
+        if (!VERSION_NO.equals(version.getVersionNo())) {
+            Asserts.fail("当前客户奖金程序未提供通用模拟器，请使用客户独立项目的验收工具");
         }
         if (dto.getRuleVersionId() != null && !dto.getRuleVersionId().equals(version.getId())) {
-            Asserts.fail("只能验证当前启用的新零售正式奖金版本");
+            Asserts.fail("只能验证当前启用的客户奖金版本");
         }
         List<BonusSimulationVO.BonusReceiverVO> receivers = new ArrayList<>();
         BigDecimal totalBonus = BigDecimal.ZERO;

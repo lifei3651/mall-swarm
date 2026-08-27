@@ -85,7 +85,7 @@ public class DmsShopProduct implements Serializable {
     /** 预留的报单区渠道，客户制度确认前不开放前台下单。 */
     private Integer enrollmentSaleEnabled;
 
-    /** INHERIT兼容历史、NONE不参与、STANDARD标准奖金、CUSTOM客户定制。 */
+    /** INHERIT沿用渠道、NONE不进入客户奖金程序、STANDARD仅兼容历史示例、CUSTOM交给客户项目实现。 */
     private String teamBonusMode;
 
     private Integer salesCount;

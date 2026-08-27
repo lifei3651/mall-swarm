@@ -227,8 +227,9 @@ public class BonusCalculationTaskServiceImpl implements BonusCalculationTaskServ
         BigDecimal totalOut = totalBonus.add(productCost).add(companyShare);
         BigDecimal bonusPayoutRate = task.getOrderAmount().compareTo(BigDecimal.ZERO) > 0
                 ? totalBonus.divide(task.getOrderAmount(), 8, RoundingMode.HALF_UP) : BigDecimal.ZERO;
-        String riskStatus = totalOut.compareTo(task.getOrderAmount()) > 0
-                || bonusPayoutRate.compareTo(NewRetailBonusPolicy.maximumTotalPayoutRate()) > 0 ? "BLOCK" : "PASS";
+        // 基座只执行“总流出不得超过实付”的通用资金不变量。
+        // 客户奖金比例、级差压缩和其他制度阈值必须由客户项目自行校验，不能引用历史示例制度。
+        String riskStatus = totalOut.compareTo(task.getOrderAmount()) > 0 ? "BLOCK" : "PASS";
 
         Map<String, Object> input = new LinkedHashMap<>();
         input.put("orderId", task.getOrderId());
@@ -237,7 +238,6 @@ public class BonusCalculationTaskServiceImpl implements BonusCalculationTaskServ
         input.put("orderUserId", task.getOrderUserId());
         input.put("orderUserName", task.getOrderUserName());
         input.put("ruleVersionId", task.getRuleVersionId());
-        input.put("directorCompression", "NEAREST_ONE_PER_DIRECTOR_RANK");
         input.put("relationSnapshot", relationSnapshots);
         input.put("pvDetails", pvDetails);
 
@@ -261,7 +261,6 @@ public class BonusCalculationTaskServiceImpl implements BonusCalculationTaskServ
         result.put("commissionRecords", commissionDetails);
         result.put("totalBonus", totalBonus);
         result.put("bonusPayoutRate", bonusPayoutRate);
-        result.put("configuredMaximumBonusPayoutRate", NewRetailBonusPolicy.maximumTotalPayoutRate());
         result.put("totalPv", totalPv);
         result.put("productCost", productCost);
         result.put("companyShare", companyShare);

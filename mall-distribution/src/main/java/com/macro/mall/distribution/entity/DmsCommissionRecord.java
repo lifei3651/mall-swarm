@@ -20,7 +20,7 @@ public class DmsCommissionRecord implements Serializable {
     @Schema(description = "tenantId")
     private Long tenantId;
 
-    /** 固定奖金版本ID */
+    /** 当前客户项目的奖金程序版本ID */
     @Schema(description = "ruleVersionId")
     private Long ruleVersionId;
 
@@ -72,7 +72,7 @@ public class DmsCommissionRecord implements Serializable {
     @Schema(description = "commissionLevel")
     private Integer commissionLevel;
 
-    /** 奖金类型：DIRECT_REWARD-直推奖，DIRECTOR_SHARE-董事团队分红（同等级仅最近一人）。 */
+    /** 客户奖金程序返回的类型编码；商城基座不预设具体制度。 */
     @Schema(description = "bonusType")
     private String bonusType;
 

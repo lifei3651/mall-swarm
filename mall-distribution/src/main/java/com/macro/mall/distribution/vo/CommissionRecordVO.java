@@ -47,7 +47,7 @@ public class CommissionRecordVO implements Serializable {
     /** 佣金层级 */
     private Integer commissionLevel;
 
-    /** DIRECT_REWARD-直推奖，DIRECTOR_SHARE-董事团队分红（同等级仅最近一人） */
+    /** 客户奖金程序返回的类型编码。 */
     private String bonusType;
 
     /** 佣金层级名称 */

@@ -541,6 +541,7 @@ import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
 import { useAppStore } from '@/store'
 import { formatDateTime } from '@/utils/dateTime'
 import { logisticsCompanyOptions } from '@/utils/logisticsCompanies'
+import { customerBonusName } from '@/utils/customerBonus'
 
 const appStore = useAppStore()
 const route = useRoute()
@@ -611,9 +612,7 @@ const { markSearchApplied: markOrderSearchApplied } = useSearchAutoRestore(
 const money = (value) => Number(value || 0).toFixed(2)
 const percent = (value) => `${(Number(value || 0) * 100).toFixed(2)}%`
 const payoutExceeded = (orderAmount, bonusAmount) => Number(bonusAmount || 0) > Number(orderAmount || 0)
-const bonusTypeName = (row) => row.bonusType === 'DIRECT_REWARD'
-  ? '直推奖'
-  : row.bonusType === 'DIRECTOR_SHARE' ? '董事团队分红' : '历史奖金'
+const bonusTypeName = (row) => customerBonusName(row)
 const afterSaleStatus = (status) => ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待客户寄回', 5: '待商家收货', 6: '退款处理中' }[status] || '处理中')
 const afterSaleTag = (status) => ({ 0: 'warning', 1: 'success', 2: 'info', 3: 'warning', 4: 'warning', 5: 'primary', 6: 'warning' }[status] || 'info')
 const tradeStatusLabel = (status) => ({ 0: '待付款', 1: '已支付', 4: '已关闭' }[Number(status)] || '未知')

@@ -129,6 +129,7 @@ import { getAgentById } from '@/api/agent'
 import { getCommissionRecords } from '@/api/commission'
 import { getWithdrawsByAgentId } from '@/api/withdraw'
 import { formatDateTimeCell } from '@/utils/dateTime'
+import { customerBonusName } from '@/utils/customerBonus'
 
 const router = useRouter()
 const route = useRoute()
@@ -143,9 +144,7 @@ const recentCommissions = ref([])
 // 最近提现记录
 const recentWithdraws = ref([])
 
-const getBonusName = (row) => row.bonusType === 'DIRECT_REWARD'
-  ? '直推奖'
-  : row.bonusType === 'DIRECTOR_SHARE' ? `董事团队分红（第${row.commissionLevel}层）` : '历史奖金'
+const getBonusName = (row) => customerBonusName(row, { includeLevel: true })
 
 // 获取状态类型
 const getStatusType = (status) => {

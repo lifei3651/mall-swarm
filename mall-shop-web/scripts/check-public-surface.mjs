@@ -6,7 +6,8 @@ const blocked = [
   { label: '团队关系接口', pattern: /\/shop\/(?:team|invite)(?:\/|`|"|')/i },
   { label: '团队资料接口', pattern: /\/shop\/profile\/performance/i },
   { label: '资金划转接口', pattern: /\/shop\/wallet\/(?:withdrawals|transfers|recipient)/i },
-  { label: '团队业务文字', pattern: /团队|邀请|奖金|佣金|提现|复购|层级|代理等级/ },
+  // 公开注册允许显示脱敏邀请人并在注册时绑定；仍禁止团队经营、奖金和提现业务进入公开包。
+  { label: '团队经营文字', pattern: /团队|奖金|佣金|提现|复购|层级|代理等级/ },
   { label: '团队页面路由', pattern: /["'`]\/(?:invite|performance|wallet\/transfer)["'`]/i },
 ]
 

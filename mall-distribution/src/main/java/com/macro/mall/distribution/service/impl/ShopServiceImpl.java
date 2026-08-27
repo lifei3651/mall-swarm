@@ -2177,8 +2177,9 @@ public class ShopServiceImpl implements ShopService {
                 Asserts.fail("商户商品结算价不能高于复购价");
             }
             if ("INHERIT".equals(bonusMode)) Asserts.fail("商户商品必须明确选择是否参与团队奖金");
-            if ("STANDARD".equals(bonusMode) && Integer.valueOf(1).equals(product.getNormalSaleEnabled())) {
-                Asserts.fail("参与团队奖金的商户商品只能进入复购区或报单区，不能同时在普通商城销售");
+            if (("STANDARD".equals(bonusMode) || "CUSTOM".equals(bonusMode))
+                    && Integer.valueOf(1).equals(product.getNormalSaleEnabled())) {
+                Asserts.fail("交给客户奖金程序处理的商户商品只能进入复购区或报单区，不能同时在普通商城销售");
             }
         }
         product.setSalesCount(product.getSalesCount() == null ? 0 : product.getSalesCount());

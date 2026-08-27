@@ -3,12 +3,16 @@ package com.macro.mall.distribution.service.impl;
 import cn.hutool.core.util.IdUtil;
 import com.github.pagehelper.PageHelper;
 import com.macro.mall.distribution.dao.*;
+import com.macro.mall.distribution.bonus.CustomerBonusOrderContext;
+import com.macro.mall.distribution.bonus.CustomerBonusPayout;
+import com.macro.mall.distribution.bonus.CustomerBonusPolicy;
+import com.macro.mall.distribution.bonus.CustomerBonusPolicyRegistry;
+import com.macro.mall.distribution.bonus.CustomerBonusPayoutValidator;
 import com.macro.mall.distribution.dto.AssetChangeDTO;
 import com.macro.mall.distribution.dto.CommissionQueryDTO;
 import com.macro.mall.distribution.entity.*;
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.distribution.enums.CommissionStatusEnum;
-import com.macro.mall.distribution.enums.AgentStatusEnum;
 import com.macro.mall.distribution.service.AgentAccountService;
 import com.macro.mall.distribution.service.CommissionService;
 import com.macro.mall.distribution.service.DistributionAuditService;
@@ -26,12 +30,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
-import static com.macro.mall.distribution.service.impl.NewRetailBonusPolicy.*;
+import static com.macro.mall.distribution.service.impl.NewRetailBonusPolicy.DIRECTOR_SHARE;
+import static com.macro.mall.distribution.service.impl.NewRetailBonusPolicy.DIRECT_REWARD;
 
 /**
  * 佣金服务实现类
@@ -45,7 +47,6 @@ public class CommissionServiceImpl implements CommissionService {
     private final DmsCommissionRuleVersionDao ruleVersionDao;
     private final DmsAgentDao agentDao;
     private final DmsAgentRelationDao relationDao;
-    private final DmsOrderRelationSnapshotDao relationSnapshotDao;
     private final DmsAgentAccountDao accountDao;
     private final DmsCommissionClawbackDao clawbackDao;
     private final DmsShopOrderDao shopOrderDao;
@@ -54,9 +55,9 @@ public class CommissionServiceImpl implements CommissionService {
     private final AgentAccountService accountService;
     private final DistributionAuditService auditService;
     private final MemberAssetService memberAssetService;
-    private final NewRetailRankService newRetailRankService;
     private final PerformanceService performanceService;
     private final ShopAfterSaleWindowPolicy afterSaleWindowPolicy;
+    private final CustomerBonusPolicyRegistry bonusPolicyRegistry;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -71,97 +72,66 @@ public class CommissionServiceImpl implements CommissionService {
                                               Long orderUserId, String orderUserName) {
         Long resolvedTenantId = tenantId == null ? 1L : tenantId;
         DmsCommissionRuleVersion version = ruleVersionDao.selectActiveByTenantId(resolvedTenantId);
-        if (version == null || !VERSION_NO.equals(version.getVersionNo())) {
-            Asserts.fail("当前客户未启用唯一的新零售正式奖金版本，已阻止奖金计算");
+        if (version == null) {
+            Asserts.fail("当前客户奖金程序尚未接入，已阻止产生不确定奖金");
         }
-        calculateNewRetailCommission(resolvedTenantId, version.getId(), orderId, orderNo, orderAmount,
-                orderUserId, orderUserName);
-    }
-
-    /** 新零售正式规则：直属推荐人获得直推奖；每个董事等级只向关系链上最近的一人发放团队分红。 */
-    private void calculateNewRetailCommission(Long tenantId, Long ruleVersionId, Long orderId,
-                                               String orderNo, BigDecimal orderAmount,
-                                               Long orderUserId, String orderUserName) {
         if (!recordDao.selectByOrderId(orderId).isEmpty()) {
-            log.info("订单新零售奖金已计算，忽略重复请求: orderId={}", orderId);
+            log.info("订单奖金已计算，忽略重复请求: orderId={}", orderId);
             return;
         }
-        DmsAgent orderAgent = agentDao.selectByUserId(orderUserId);
-        if (orderAgent == null) return;
-        List<DmsOrderRelationSnapshot> relationSnapshots = relationSnapshotDao.selectByOrderId(orderId);
 
-        // 奖金比例冻结为支付前卡级。当前订单业绩已落库后执行晋级；升级只影响本单之后的新订单。
-        Map<Long, DmsAgent> payoutRankSnapshot = new LinkedHashMap<>();
-        relationSnapshots.stream()
-                .filter(item -> item.getRelationLevel() != null && item.getRelationLevel() >= 1)
-                .forEach(item -> payoutRankSnapshot.computeIfAbsent(item.getTargetAgentId(), agentDao::selectById));
-        newRetailRankService.refreshRanksAfterOrder(orderId);
-
-        relationSnapshots.stream()
-                .filter(item -> Integer.valueOf(1).equals(item.getRelationLevel()))
-                .findFirst()
-                .ifPresent(item -> {
-                    DmsAgent inviter = payoutRankSnapshot.get(item.getTargetAgentId());
-                    if (inviter != null && AgentStatusEnum.NORMAL.getValue().equals(inviter.getStatus())) {
-                        addNewRetailPendingRecord(tenantId, ruleVersionId, orderId, orderNo, orderAmount,
-                                orderUserId, orderUserName, inviter, 1, DIRECT_REWARD,
-                                directRate(inviter.getAgentLevel()), "新零售直推奖（按本单支付前卡级）");
-                    }
-                });
-
-        // 每位董事/合伙人对自己无限层团队的每笔订单获得对应分红；本人订单不属于团队分红。
-        // 同级只有一人拿奖：关系链上同级别（如一星董事）只取最近的一位发放。
-        java.util.Set<Integer> paidLevels = new java.util.HashSet<>();
-        java.util.Set<Long> paidDirectorIds = new java.util.HashSet<>();
-        relationSnapshots.stream()
-                .filter(item -> item.getRelationLevel() != null && item.getRelationLevel() >= 1)
-                .sorted(Comparator.comparing(DmsOrderRelationSnapshot::getRelationLevel))
-                .forEach(item -> {
-                    DmsAgent director = payoutRankSnapshot.get(item.getTargetAgentId());
-                    if (director == null || !AgentStatusEnum.NORMAL.getValue().equals(director.getStatus())
-                            || !paidDirectorIds.add(director.getId())) return;
-                    BigDecimal rate = directorShareRate(director.getAgentLevel());
-                    if (rate.compareTo(BigDecimal.ZERO) <= 0) return;
-                    // 同级只发一人（关系链由近到远，第一个命中的就是最近的）
-                    if (!paidLevels.add(director.getAgentLevel())) return;
-                    addNewRetailPendingRecord(tenantId, ruleVersionId, orderId, orderNo, orderAmount,
-                            orderUserId, orderUserName, director, item.getRelationLevel(), DIRECTOR_SHARE, rate,
-                            "董事团队新增业绩分红（同等级仅最近一人，按本单支付前卡级，关系层级"
-                                    + item.getRelationLevel() + "）");
-                });
+        CustomerBonusPolicy policy = bonusPolicyRegistry.require(version.getVersionNo());
+        CustomerBonusOrderContext context = new CustomerBonusOrderContext(
+                resolvedTenantId, version.getId(), orderId, orderNo, orderAmount, orderUserId, orderUserName);
+        List<CustomerBonusPayout> payouts = CustomerBonusPayoutValidator.validate(context, policy.calculate(context));
+        for (CustomerBonusPayout payout : payouts) {
+            addPendingRecord(context, payout);
+        }
+        policy.afterOrder(context);
         auditService.refreshOrderFinance(orderId, orderNo, orderAmount);
     }
 
-    private void addNewRetailPendingRecord(Long tenantId, Long ruleVersionId, Long orderId, String orderNo,
-                                           BigDecimal orderAmount, Long orderUserId, String orderUserName,
-                                           DmsAgent receiver, int commissionLevel, String bonusType,
-                                           BigDecimal rate, String remark) {
-        if (rate.compareTo(BigDecimal.ZERO) <= 0) return;
-        BigDecimal amount = orderAmount.multiply(rate).setScale(2, RoundingMode.HALF_UP);
+    private void addPendingRecord(CustomerBonusOrderContext context, CustomerBonusPayout payout) {
+        DmsAgent receiver = agentDao.selectById(payout.receiverAgentId());
+        if (receiver == null || receiver.getUserId() == null) {
+            Asserts.fail("客户奖金程序指定的接收人不存在");
+        }
+        BigDecimal amount = payout.amount() == null ? BigDecimal.ZERO
+                : payout.amount().setScale(2, RoundingMode.HALF_UP);
+        BigDecimal rate = payout.rate() == null ? BigDecimal.ZERO
+                : payout.rate().setScale(4, RoundingMode.HALF_UP);
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) return;
+        if (payout.bonusCode() == null || payout.bonusCode().isBlank()) {
+            Asserts.fail("客户奖金程序返回了缺少类型编码的结果");
+        }
         DmsCommissionRecord record = new DmsCommissionRecord();
-        record.setTenantId(tenantId);
-        record.setRuleVersionId(ruleVersionId);
+        record.setTenantId(context.tenantId());
+        record.setRuleVersionId(context.ruleVersionId());
         record.setRecordNo(generateRecordNo());
-        record.setOrderId(orderId);
-        record.setOrderNo(orderNo);
-        record.setOrderAmount(orderAmount);
-        record.setOrderUserId(orderUserId);
-        record.setOrderUserName(orderUserName);
+        record.setOrderId(context.orderId());
+        record.setOrderNo(context.orderNo());
+        record.setOrderAmount(context.bonusBaseAmount());
+        record.setOrderUserId(context.orderUserId());
+        record.setOrderUserName(context.orderUserName());
         record.setAgentId(receiver.getId());
         record.setAgentUserId(receiver.getUserId());
         record.setAgentName(receiver.getAgentName());
         record.setAgentLevel(receiver.getAgentLevel());
-        record.setCommissionLevel(commissionLevel);
-        record.setBonusType(bonusType);
+        record.setCommissionLevel(payout.relationshipLevel() == null ? 0 : payout.relationshipLevel());
+        record.setBonusType(payout.bonusCode().trim());
         record.setCommissionRate(rate);
         record.setCommissionAmount(amount);
         record.setStatus(CommissionStatusEnum.PENDING.getValue());
-        record.setRemark(remark);
+        record.setRemark(payout.remark());
         recordDao.insert(record);
         DebtOffsetResult offset = offsetAgentDebt(record, amount);
         if (offset.offsetAmount().compareTo(BigDecimal.ZERO) > 0) {
             record.setCommissionAmount(offset.payableAmount());
-            record.setRemark(remark + "；历史退款欠款自动抵扣：" + offset.offsetAmount());
+            String baseRemark = payout.remark() == null ? "" : payout.remark();
+            String suffix = "历史退款欠款自动抵扣：" + offset.offsetAmount();
+            int baseLimit = Math.max(0, 256 - suffix.length() - (baseRemark.isBlank() ? 0 : 1));
+            if (baseRemark.length() > baseLimit) baseRemark = baseRemark.substring(0, baseLimit);
+            record.setRemark(baseRemark + (baseRemark.isBlank() ? "" : "；") + suffix);
             if (offset.payableAmount().compareTo(BigDecimal.ZERO) == 0) record.setStatus(CommissionStatusEnum.REFUNDED.getValue());
             recordDao.updateAmountAndStatus(record.getId(), record.getCommissionAmount(), record.getStatus(), record.getRemark());
         }
@@ -395,7 +365,11 @@ public class CommissionServiceImpl implements CommissionService {
         if (DIRECTOR_SHARE.equals(record.getBonusType())) {
             return "无限层团队分红（第" + record.getCommissionLevel() + "层）";
         }
-        return "历史奖金";
+        if (record.getRemark() != null && !record.getRemark().isBlank()) {
+            return record.getRemark().split("；", 2)[0];
+        }
+        return record.getBonusType() == null || record.getBonusType().isBlank()
+                ? "客户奖金" : record.getBonusType();
     }
 
     @Override

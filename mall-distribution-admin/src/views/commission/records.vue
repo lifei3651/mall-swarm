@@ -17,11 +17,8 @@
             <el-option label="已退款" :value="3" />
           </el-select>
         </el-form-item>
-        <el-form-item label="奖金类型">
-          <el-select v-model="searchForm.bonusType" placeholder="请选择" clearable @change="handleSearch">
-            <el-option label="直推奖" value="DIRECT_REWARD" />
-            <el-option label="董事团队分红" value="DIRECTOR_SHARE" />
-          </el-select>
+        <el-form-item label="奖金类型代码">
+          <el-input v-model="searchForm.bonusType" placeholder="按客户程序的类型代码查询" clearable @keyup.enter="handleSearch" />
         </el-form-item>
         <el-form-item label="时间范围">
           <el-date-picker
@@ -181,6 +178,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { memberSearchFailureMessage, memberSearchEmptyText, validateMemberSearch, validateSearchKeyword } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
 import { formatDateTime, formatDateTimeCell } from '@/utils/dateTime'
+import { customerBonusName } from '@/utils/customerBonus'
 import {
   cancelCommission,
   getCommissionRecords,
@@ -202,7 +200,7 @@ const searchForm = ref({
   memberKey: route.query.memberAccount || '',
   orderNo: route.query.orderNo || '',
   status: route.query.status === undefined || route.query.status === '' ? null : Number(route.query.status),
-  bonusType: route.query.bonusType || null,
+  bonusType: route.query.bonusType || '',
   dateRange: [],
 })
 
@@ -232,9 +230,7 @@ const { markSearchApplied: markOrderSearchApplied } = useSearchAutoRestore(
   () => handleSearch(),
 )
 
-const getBonusName = (row) => row.bonusType === 'DIRECT_REWARD'
-  ? '直推奖'
-  : row.bonusType === 'DIRECTOR_SHARE' ? '董事团队分红' : '历史奖金'
+const getBonusName = (row) => customerBonusName(row)
 
 // 获取状态类型
 const getStatusType = (status) => {
@@ -276,7 +272,7 @@ const handleReset = () => {
     memberKey: '',
     orderNo: '',
     status: null,
-    bonusType: null,
+    bonusType: '',
     dateRange: [],
   }
   handleSearch()

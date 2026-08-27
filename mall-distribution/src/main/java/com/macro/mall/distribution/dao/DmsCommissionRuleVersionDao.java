@@ -13,6 +13,8 @@ public interface DmsCommissionRuleVersionDao {
 
     DmsCommissionRuleVersion selectActiveByTenantId(@Param("tenantId") Long tenantId);
 
+    DmsCommissionRuleVersion selectById(@Param("tenantId") Long tenantId, @Param("id") Long id);
+
     int insert(DmsCommissionRuleVersion version);
 
 }

@@ -17,7 +17,6 @@ import com.macro.mall.distribution.dto.ShopAfterSaleApplyDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleAuditDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleItemDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleReturnShipmentDTO;
-import com.macro.mall.distribution.dto.ShopInviteBindDTO;
 import com.macro.mall.distribution.dto.ShopOrderItemDTO;
 import com.macro.mall.distribution.dto.ShopOrderShipDTO;
 import com.macro.mall.distribution.dto.ShopOrderSubmitDTO;
@@ -255,19 +254,13 @@ class DeliveryStabilityAcceptanceTest {
         register.setPassword(LOGIN_PASSWORD);
         register.setNickname("交付验收会员");
         register.setSmsCode("123456");
+        register.setInviteCode("INV00001");
         ShopAuthVO auth = authService.registerPublic(register);
         assertNotNull(auth.getToken());
         DmsShopMember member = memberDao.selectById(auth.getMember().getId());
-        assertEquals(0, member.getTeamOptIn());
-        assertNull(member.getInviterId());
-
-        ShopInviteBindDTO bind = new ShopInviteBindDTO();
-        bind.setInviteCode("INV00001");
-        authService.bindInviter(member, bind);
-        DmsShopMember joined = memberDao.selectById(member.getId());
-        assertEquals(1, joined.getTeamOptIn());
-        assertEquals(1001L, joined.getInviterId());
-        return joined;
+        assertEquals(1, member.getTeamOptIn());
+        assertEquals(1001L, member.getInviterId());
+        return member;
     }
 
     private void setPaymentPassword(DmsShopMember member, String loginPassword, String paymentPassword) {

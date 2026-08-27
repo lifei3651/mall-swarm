@@ -497,7 +497,7 @@ export function getInviteInfo() {
 
 export function getInviterPreview(inviteCode) {
   return request({
-    url: `/shop/invite/${encodeURIComponent(inviteCode)}`,
+    url: `/shop/public/inviter-preview/${encodeURIComponent(inviteCode)}`,
     method: 'get',
   })
 }

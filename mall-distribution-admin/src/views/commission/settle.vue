@@ -87,6 +87,7 @@
 import { ref, onMounted } from 'vue'
 import { getCommissionRecords, listSettlementBatches } from '@/api/commission'
 import { formatDateTimeCell } from '@/utils/dateTime'
+import { customerBonusName } from '@/utils/customerBonus'
 
 const loading = ref(false)
 const settlementBatches = ref([])
@@ -107,9 +108,7 @@ const stats = ref({
 // 表格数据
 const tableData = ref([])
 
-const getBonusName = (row) => row.bonusType === 'DIRECT_REWARD'
-  ? '直推奖'
-  : row.bonusType === 'DIRECTOR_SHARE' ? `董事团队分红（第${row.commissionLevel}层）` : '历史奖金'
+const getBonusName = (row) => customerBonusName(row, { includeLevel: true })
 
 // 分页大小变化
 const handleSizeChange = (size) => {

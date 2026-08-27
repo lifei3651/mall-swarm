@@ -29,7 +29,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-import static com.macro.mall.distribution.service.impl.NewRetailBonusPolicy.VERSION_NO;
+import static com.macro.mall.distribution.bonus.CustomerBonusPolicyCodes.DISABLED;
 
 @Service
 @RequiredArgsConstructor
@@ -237,9 +237,7 @@ public class TenantServiceImpl implements TenantService {
 
     @Override
     public List<DmsCommissionRuleVersion> listRuleVersions(Long tenantId) {
-        return versionDao.selectByTenantId(tenantId).stream()
-                .filter(version -> VERSION_NO.equals(version.getVersionNo()))
-                .toList();
+        return versionDao.selectByTenantId(tenantId);
     }
 
     @Override
@@ -345,11 +343,11 @@ public class TenantServiceImpl implements TenantService {
     private void createDefaultVersion(DmsTenant tenant) {
         DmsCommissionRuleVersion version = new DmsCommissionRuleVersion();
         version.setTenantId(tenant.getId());
-        version.setVersionNo(VERSION_NO);
-        version.setVersionName("新零售正式奖金方案");
+        version.setVersionNo(DISABLED);
+        version.setVersionName("客户奖金程序未接入");
         version.setStatus(1);
         version.setEffectiveTime(LocalDateTime.now());
-        version.setRemark("唯一固定方案：八级晋升、直推奖、董事团队分红（同等级仅最近一人）");
+        version.setRemark("商城基座安全默认值：正常交易不产生奖金，客户制度开发并验收后再替换");
         versionDao.insert(version);
     }
 

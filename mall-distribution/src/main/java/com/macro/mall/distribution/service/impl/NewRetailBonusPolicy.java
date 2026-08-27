@@ -3,9 +3,10 @@ package com.macro.mall.distribution.service.impl;
 import java.math.BigDecimal;
 
 /**
- * 当前商城唯一生效的新零售奖金口径。
+ * 历史演示数据使用的新零售样例常量。
  *
- * <p>比例固化在代码中，后台不能新增、编辑或切换其他奖金规则，避免旧版三级分佣与正式方案串用。</p>
+ * <p>仅由兼容程序读取，不是商城基座默认制度，也不得用于新客户交付。
+ * 每个客户派生项目应实现自己的 CustomerBonusPolicy。</p>
  */
 public final class NewRetailBonusPolicy {
 

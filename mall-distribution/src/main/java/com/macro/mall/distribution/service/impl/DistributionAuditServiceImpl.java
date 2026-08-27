@@ -2,6 +2,10 @@ package com.macro.mall.distribution.service.impl;
 
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.distribution.constants.BalanceAsset;
+import com.macro.mall.distribution.bonus.CustomerBonusPolicy;
+import com.macro.mall.distribution.bonus.CustomerBonusPolicyRegistry;
+import com.macro.mall.distribution.bonus.CustomerBonusRefundContext;
+import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.dao.*;
 import com.macro.mall.distribution.dto.FinanceRefundDTO;
 import com.macro.mall.distribution.dto.AssetChangeDTO;
@@ -43,6 +47,8 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
     private final DmsFinanceRiskRuleDao riskRuleDao;
     private final DmsCommissionClawbackDao clawbackDao;
     private final DmsCommissionRecordDao commissionRecordDao;
+    private final DmsCommissionRuleVersionDao ruleVersionDao;
+    private final DmsOrderRelationSnapshotDao relationSnapshotDao;
     private final DmsAgentAccountDao accountDao;
     private final DmsOrderPerformanceDetailDao performanceDetailDao;
     private final DmsShopOrderDao shopOrderDao;
@@ -54,7 +60,7 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
     private final DmsOrderBalanceAllocationDao orderBalanceAllocationDao;
     private final PerformanceService performanceService;
     private final MemberAssetService memberAssetService;
-    private final NewRetailRankService newRetailRankService;
+    private final CustomerBonusPolicyRegistry bonusPolicyRegistry;
 
     @Override
     public DistributionSettingsVO getSettings() {
@@ -422,9 +428,30 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         }
         recalculate(finance);
         financeDao.update(finance);
-        // 退款冲减商品件数和无限层团队业绩后允许自动降级；移线流程不会调用此方法。
-        newRetailRankService.refreshAllRanksAfterRefund(refund.getOrderId(), refund.getId());
+        notifyCustomerPolicyAfterRefund(refund);
         return refund;
+    }
+
+    private void notifyCustomerPolicyAfterRefund(DmsFinanceRefund refund) {
+        Long ruleVersionId = relationSnapshotDao.selectByOrderId(refund.getOrderId()).stream()
+                .map(DmsOrderRelationSnapshot::getRuleVersionId)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElseGet(() -> commissionRecordDao.selectByOrderId(refund.getOrderId()).stream()
+                        .map(DmsCommissionRecord::getRuleVersionId)
+                        .filter(Objects::nonNull)
+                        .findFirst()
+                        .orElse(null));
+        if (ruleVersionId == null) return;
+        Long tenantId = TenantContext.getTenantId();
+        DmsCommissionRuleVersion version = ruleVersionDao.selectById(tenantId, ruleVersionId);
+        if (version == null) {
+            Asserts.fail("订单原客户奖金程序版本不存在，已阻止不完整退款处理");
+        }
+        CustomerBonusPolicy policy = bonusPolicyRegistry.require(version.getVersionNo());
+        policy.afterRefund(new CustomerBonusRefundContext(
+                tenantId, ruleVersionId, refund.getOrderId(), refund.getId(),
+                refund.getProductRefundAmount(), refund.getRefundQuantity(), refund.getRefundTime()));
     }
 
     @Override
@@ -566,9 +593,6 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         DmsFinanceRiskRule payoutRule = riskRuleDao.selectByCode("BONUS_PAYOUT_RATE_MAX");
         if (isEnabled(payoutRule) && merchandiseRevenue.compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal payoutRate = bonus.divide(merchandiseRevenue, 8, RoundingMode.HALF_UP);
-            if (payoutRate.compareTo(NewRetailBonusPolicy.maximumTotalPayoutRate()) > 0) {
-                riskReasons.add("奖金拨出率超过正式规则理论硬上限79%");
-            }
             if (payoutRate.compareTo(payoutRule.getThresholdValue()) > 0) {
                 riskReasons.add("奖金拨出率" + payoutRate.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP)
                         + "%超过阈值" + payoutRule.getThresholdValue().multiply(BigDecimal.valueOf(100)).stripTrailingZeros().toPlainString() + "%");
@@ -919,7 +943,7 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
 
     private void ensureDefaultRiskRules() {
         saveDefaultRiskRule("BONUS_PAYOUT_RATE_MAX", "奖金拨出率预警阈值", new BigDecimal("0.35"),
-                "运营预警阈值；正式规则理论硬上限为79%（直推65%+董事分红14%）");
+                "通用运营预警阈值；客户项目应根据已确认制度和利润模型单独校准");
         saveDefaultRiskRule("PROFIT_RATE_MIN", "利润率下限", new BigDecimal("0.10"), "利润率低于该值时预警");
         saveDefaultRiskRule("LOSS_ORDER_COUNT_MAX", "亏损订单数上限", BigDecimal.ZERO, "亏损风险订单数大于该值时预警");
     }

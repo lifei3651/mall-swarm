@@ -31,7 +31,7 @@ public class CommissionQueryDTO implements Serializable {
     /** 与下单人的关系深度，不限层 */
     private Integer commissionLevel;
 
-    /** DIRECT_REWARD-直推奖，DIRECTOR_SHARE-董事团队分红（同等级仅最近一人） */
+    /** 客户奖金程序返回的类型编码。 */
     private String bonusType;
 
     /** 开始时间 */
