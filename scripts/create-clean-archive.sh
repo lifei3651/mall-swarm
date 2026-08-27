@@ -63,8 +63,20 @@ tar "${tar_options[@]}"
 LISTING="$STAGING/listing.txt"
 ERRORS="$STAGING/tar-errors.txt"
 tar -tzf "$OUTPUT_ARCHIVE" >"$LISTING" 2>"$ERRORS"
-if grep -Eiq 'LIBARCHIVE\.xattr|SCHILY\.xattr|com\.apple' "$ERRORS" \
-  || gzip -cd "$OUTPUT_ARCHIVE" 2>/dev/null | LC_ALL=C grep -aE 'LIBARCHIVE\.xattr|SCHILY\.xattr|com\.apple\.' >/dev/null; then
+if ! python3 - "$OUTPUT_ARCHIVE" <<'PY'
+import sys
+import tarfile
+
+with tarfile.open(sys.argv[1], "r:gz") as archive:
+    global_headers = getattr(archive, "pax_headers", {})
+    if any("xattr" in key.lower() or "com.apple" in key.lower() for key in global_headers):
+        raise SystemExit(1)
+    for member in archive.getmembers():
+        headers = getattr(member, "pax_headers", {})
+        if any("xattr" in key.lower() or "com.apple" in key.lower() for key in headers):
+            raise SystemExit(1)
+PY
+then
   echo "归档仍包含扩展属性，已停止交付" >&2
   exit 1
 fi
