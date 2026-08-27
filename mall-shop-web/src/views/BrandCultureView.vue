@@ -22,7 +22,7 @@
           <span v-else>{{ String(culture.brandName || '品牌').slice(0, 1) }}</span>
           <div><small>{{ culture.brandName || '品牌故事' }}</small><h1>{{ culture.title || '品牌文化' }}</h1><p v-if="culture.subtitle">{{ culture.subtitle }}</p></div>
         </div>
-        <div v-if="culture.content" class="culture-body">{{ culture.content }}</div>
+        <div v-if="safeLegacyContent" class="culture-body">{{ safeLegacyContent }}</div>
         <div v-else class="culture-empty">{{ culture.subtitle || '品牌内容正在准备中' }}</div>
       </template>
     </article>
@@ -30,7 +30,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, BookOpen, CircleAlert, Home, LoaderCircle } from 'lucide-vue-next'
 import { getBrandCulture } from '@/api/shop'
@@ -42,6 +42,11 @@ const loading = ref(false)
 const error = ref('')
 const goBack = () => window.history.length > 1 ? router.back() : router.push('/')
 const markDetailImageError = (event) => event.currentTarget?.classList.add('is-error')
+const looksLikeImageReference = (value) => /^[^\r\n。！？；]{1,240}\.(?:jpe?g|png|webp|gif)(?:\?[^\r\n]*)?$/i.test(value)
+const safeLegacyContent = computed(() => {
+  const value = String(culture.value.content || '').trim()
+  return value && !looksLikeImageReference(value) ? value : ''
+})
 const load = async () => {
   loading.value = true
   error.value = ''

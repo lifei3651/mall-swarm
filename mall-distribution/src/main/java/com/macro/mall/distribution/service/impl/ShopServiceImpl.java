@@ -83,6 +83,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.net.URI;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import static com.macro.mall.distribution.util.ShopPublicViewSanitizer.product;
 import static com.macro.mall.distribution.util.ShopPublicViewSanitizer.sku;
@@ -91,6 +92,9 @@ import static com.macro.mall.distribution.util.ShopPublicViewSanitizer.sku;
 @RequiredArgsConstructor
 @Slf4j
 public class ShopServiceImpl implements ShopService {
+
+    private static final Pattern BRAND_CULTURE_IMAGE_REFERENCE = Pattern.compile(
+            "(?i)^[^\\r\\n。！？；]{1,240}\\.(?:jpe?g|png|webp|gif)(?:\\?[^\\r\\n]*)?$");
 
     private static final Long DEFAULT_TENANT_ID = 1L;
     private static final BigDecimal ZERO = BigDecimal.ZERO;
@@ -244,13 +248,20 @@ public class ShopServiceImpl implements ShopService {
         vo.setTitle(tenant.getBrandCultureTitle());
         vo.setSubtitle(tenant.getBrandCultureSubtitle());
         vo.setCoverUrl(tenant.getBrandCultureCoverUrl());
-        vo.setContent(tenant.getBrandCultureContent());
+        vo.setContent(sanitizeBrandCultureContent(tenant.getBrandCultureContent()));
         DmsTenantDisplayConfig display = getDisplayConfig(tenant.getId());
         vo.setDetailImages(display.getBrandCultureDetailImages() == null ? List.of()
                 : display.getBrandCultureDetailImages().stream()
                 .map(com.macro.mall.distribution.vo.BrandCultureImageRefVO::getUrl)
                 .filter(Objects::nonNull).toList());
         return vo;
+    }
+
+    private String sanitizeBrandCultureContent(String content) {
+        if (content == null) return null;
+        String trimmed = content.trim();
+        if (trimmed.isEmpty() || BRAND_CULTURE_IMAGE_REFERENCE.matcher(trimmed).matches()) return null;
+        return content;
     }
 
     @Override

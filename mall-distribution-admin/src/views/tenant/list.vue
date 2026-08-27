@@ -100,6 +100,7 @@
               <div class="visual-design-field"><span>页面标题（可选）</span><el-input v-model="displayForm.brandCultureTitle" maxlength="80" show-word-limit placeholder="例如：关于我们" /></div>
               <div class="visual-design-field"><span>一句话介绍（可选）</span><el-input v-model="displayForm.brandCultureSubtitle" maxlength="200" show-word-limit placeholder="用于分享、搜索和图片加载失败时的说明" /></div>
               <el-alert title="首页入口横幅已统一放到“首页模块 → 轮播图片与跳转”管理，建议750×320px、JPG/PNG/WebP、单张≤3MB。这里不再重复维护页面封面。" type="info" :closable="false" show-icon />
+              <el-alert v-if="displayForm.brandCultureEnabled === 1 && !displayForm.brandCultureDetailImages?.length" :title="brandCultureContentWarning" type="warning" :closable="false" show-icon />
               <div class="visual-design-field culture-detail-field">
                 <span>品牌文化详情图</span>
                 <div class="culture-detail-toolbar"><small>建议宽750px，单张高度1000–3000px；JPG/PNG/WebP；单张≤5MB，合计≤30MB，最多10张</small><el-button v-if="displayForm.brandCultureDetailImages?.length" type="danger" link @click="clearBrandCultureDetails">清空全部</el-button></div>
@@ -109,7 +110,7 @@
                     <span class="culture-detail-handle" title="拖拽排序">⋮⋮</span><img :src="normalizeMediaUrl(image.url)" :alt="`详情图${index + 1}`" loading="lazy" /><div><strong>详情图 {{ index + 1 }}</strong><small>{{ formatFileSize(image.size) }}</small></div><el-button type="danger" link @click="removeBrandCultureDetail(index)">删除</el-button>
                   </div>
                 </div>
-                <small v-else class="culture-detail-empty">尚未上传详情图；旧客户已有文字内容会继续作为兜底展示。</small>
+                <small v-else class="culture-detail-empty">尚未上传详情图；真正的旧文字仍可兜底，图片文件名或图片地址不会作为正文显示。</small>
               </div>
             </div>
           </section>
@@ -225,7 +226,7 @@
                 <span>{{ displayForm.brandCultureEnabled === 1 ? '页面已开启' : '页面已关闭' }}</span>
                 <h3>{{ displayForm.brandCultureTitle || '品牌文化' }}</h3>
                 <small>{{ displayForm.brandCultureSubtitle || '在这里介绍品牌理念与长期愿景' }}</small>
-                <p>{{ displayForm.brandCultureContent || '保存详情图后，将在这里按顺序无缝展示。' }}</p>
+                <p>{{ safePreviewBrandCultureContent || '品牌内容正在准备中' }}</p>
               </template>
             </div>
             <div v-else-if="displayForm.layoutTemplate === 'category-focus' && previewPage === 'category'" class="mobile-category-guide-preview" :class="`guide-preview-${displayForm.categoryGuideTemplate || 'directory'}`">
@@ -369,6 +370,14 @@ const pendingCultureUploads = new Map()
 const displayExtraBase = ref({})
 
 const displayForm = ref({})
+const looksLikeCultureImageReference = (value) => /^[^\r\n。！？；]{1,240}\.(?:jpe?g|png|webp|gif)(?:\?[^\r\n]*)?$/i.test(value)
+const safePreviewBrandCultureContent = computed(() => {
+  const value = String(displayForm.value.brandCultureContent || '').trim()
+  return value && !looksLikeCultureImageReference(value) ? value : ''
+})
+const brandCultureContentWarning = computed(() => safePreviewBrandCultureContent.value
+  ? '页面已开启，目前仍在展示旧文字介绍；建议上传详情图后再开放首页横幅入口。'
+  : '页面已开启，但还没有详情图；前台会显示“品牌内容正在准备中”。建议素材上传完成后再开放首页横幅入口。')
 const moduleNames = { banner: '首页轮播图', notice: '商城公告', category: '商品分类', live: '直播广场', newArrivals: '新品速递', trust: '服务保障', products: '精选商品' }
 const navNames = { home: '首页', category: '分类', cart: '购物车', orders: '订单', profile: '我的' }
 const workbenchGroups = [

@@ -131,6 +131,13 @@ class LiveRoomFoundationTest {
         assertEquals("第一段\n第二段", enabled.getContent());
         assertTrue(enabled.getDetailImages().isEmpty());
 
+        tenant.setBrandCultureContent("数商臻品品牌文化页 (6).png");
+        tenantService.saveTenant(tenant);
+        assertNull(shopService.getBrandCulture(1L).getContent());
+
+        tenant.setBrandCultureContent("第一段\n第二段");
+        tenantService.saveTenant(tenant);
+
         DmsTenantDisplayConfig display = displayConfigDao.selectByTenantId(1L);
         display.setExtraConfigJson("{\"brandCultureDetailImages\":["
                 + "{\"url\":\"/api/shop/media/brand-culture/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg\",\"size\":100},"
