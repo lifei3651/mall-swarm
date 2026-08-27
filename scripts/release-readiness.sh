@@ -121,6 +121,9 @@ if [[ -n "$CANDIDATE" ]]; then
     lingqimall-security.conf release.sh; do
     [[ -s "$CANDIDATE_ROOT/$required" ]] || fail "候选缺少 $required"
   done
+  [[ -x "$CANDIDATE_ROOT/production-backup.sh" ]] || fail "候选备份脚本不可执行"
+  [[ -x "$CANDIDATE_ROOT/db-migrate.sh" ]] || fail "候选迁移脚本不可执行"
+  [[ -x "$CANDIDATE_ROOT/release.sh" ]] || fail "候选发布脚本不可执行"
   for inner in admin shop team integrated; do
     audit_archive "$CANDIDATE_ROOT/$inner.tar.gz" "$inner"
     INNER_ROOT="$TMP_ROOT/inner-$inner"
