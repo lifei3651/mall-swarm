@@ -83,8 +83,11 @@ backup_items=(
 [[ -d "$APP_ROOT/nginx/team" ]] && backup_items+=("${APP_ROOT#/}/nginx/team")
 
 # 生产机既可能使用 Debian 的 sites-enabled，也可能使用 Rocky Linux 的
-# conf.d。只收集实际存在的路径，避免迁机后“备份成功”却漏掉 Nginx 配置。
+# conf.d。/etc/lingqimall 保存短信等外部服务的 root-only 环境文件，必须与
+# /opt/lingqimall/config 一并进入同一份 0600 完整备份，避免迁机后通道配置丢失。
+# 只收集实际存在的路径，避免不同系统布局导致备份失败。
 for optional_path in \
+  etc/lingqimall \
   etc/systemd/system/lingqimall-distribution.service.d \
   etc/nginx/nginx.conf \
   etc/nginx/conf.d \
