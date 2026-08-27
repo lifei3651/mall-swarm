@@ -21,7 +21,7 @@ public class NotificationOperationsViewService {
     private final DmsMessageDeliveryAttemptDao attemptDao;
     private final DmsMessageDeliveryTaskDao taskDao;
     private final ExternalNotificationProperties external;
-    private final AliyunNotificationSmsProperties sms;
+    private final ServiceSmsReadinessService serviceSmsReadinessService;
 
     public List<DmsMessageCostBudget> budgets() { return budgetDao.selectList(TenantContext.getTenantId()); }
     public List<DmsMessageDeliveryAttempt> attempts(Long taskId) {
@@ -32,7 +32,9 @@ public class NotificationOperationsViewService {
     public NotificationRuntimeStatusVO runtime() {
         NotificationRuntimeStatusVO view=new NotificationRuntimeStatusVO();
         view.setExternalEnabled(external.isEnabled()); view.setWorkerEnabled(external.isWorkerEnabled());
-        view.setSmsStatus(!external.isEnabled()?"关闭（默认安全状态）":sms.isEnabled()?"配置门禁已通过，仍需预算与用户授权":"等待客户短信账号和审核模板");
+        var readiness=serviceSmsReadinessService.evaluate(TenantContext.getTenantId());
+        view.setServiceSmsReadiness(readiness);
+        view.setSmsStatus(readiness.isReadyForMemberOptIn()?"已满足会员自主开启条件":"尚未开放（查看下方接入进度）");
         view.setAppPushStatus("仅有统一内核模拟适配器，未选择真实供应商");
         view.setMiniProgramStatus("仅有统一内核模拟适配器，未创建小程序前端");
         view.setBudgetStatus("租户、事件、渠道三层日/月上限均需大于零且未超额");

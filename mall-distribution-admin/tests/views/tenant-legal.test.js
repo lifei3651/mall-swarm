@@ -27,6 +27,7 @@ describe('商城协议与主体资料', () => {
     expect(source).toContain('handleReadinessAction')
     expect(source).toContain("LEGAL_ENTITY: { path: '/tenant/profile', hash: '#business-profile' }")
     expect(source).toContain("BRAND: { path: '/tenant/list', query: { editSection: 'brand' } }")
+    expect(source).toContain("SERVICE_SMS: { path: '/tenant/message-operations' }")
     expect(source).toContain('由技术部署配置')
   })
 

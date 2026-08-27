@@ -12,7 +12,9 @@ import com.macro.mall.distribution.entity.DmsShopCategory;
 import com.macro.mall.distribution.entity.DmsShopProduct;
 import com.macro.mall.distribution.entity.DmsShopServiceAddress;
 import com.macro.mall.distribution.entity.DmsTenant;
+import com.macro.mall.distribution.notification.ServiceSmsReadinessService;
 import com.macro.mall.distribution.vo.CustomerDeliveryReadinessVO;
+import com.macro.mall.distribution.vo.ServiceSmsReadinessVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +41,7 @@ class CustomerDeliveryReadinessServiceTest {
     @Mock private DmsShopServiceAddressDao serviceAddressDao;
     @Mock private DmsErpIntegrationDao erpIntegrationDao;
     @Mock private Environment environment;
+    @Mock private ServiceSmsReadinessService serviceSmsReadinessService;
 
     private CustomerDeliveryReadinessService service;
     private DmsShopProduct product;
@@ -59,7 +62,7 @@ class CustomerDeliveryReadinessServiceTest {
         sms.setSignName("客户商城");
         sms.setTemplates(Map.of("REGISTER", "SMS_1"));
         service = new CustomerDeliveryReadinessService(tenantDao, categoryDao, productDao, noticeDao,
-                serviceAddressDao, erpIntegrationDao, alipay, sms, environment);
+                serviceAddressDao, erpIntegrationDao, alipay, sms, environment, serviceSmsReadinessService);
 
         when(tenantDao.selectById(1L)).thenReturn(completeTenant());
         DmsShopCategory category = new DmsShopCategory();
@@ -75,6 +78,7 @@ class CustomerDeliveryReadinessServiceTest {
         when(erpIntegrationDao.selectEnabled(1L)).thenReturn(List.of());
         when(environment.getProperty("shop.payment.simulation-enabled", "false")).thenReturn("false");
         when(environment.getProperty("sms.provider-enabled", "false")).thenReturn("true");
+        when(serviceSmsReadinessService.evaluate(1L)).thenReturn(new ServiceSmsReadinessVO());
     }
 
     @Test

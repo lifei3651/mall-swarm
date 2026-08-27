@@ -13,4 +13,11 @@ describe('message operations safety boundary',()=>{
     expect(api).not.toMatch(/export function (retry|resend)/i)
     expect(source).not.toMatch(/@(click|confirm)=["'][^"']*(retry|resend|重发)/i)
   })
+  it('shows one read-only service SMS readiness panel instead of a dangerous all-on action',()=>{
+    expect(source).toContain('通知短信开通进度')
+    expect(source).toContain('合规、服务商、模板、事件、费用和运行门禁')
+    expect(source).toContain('会员已授权')
+    expect(source).toContain('serviceSmsReadiness')
+    expect(source).not.toMatch(/@(click|confirm)=["'][^"']*(全开|开启短信|enableSms)/i)
+  })
 })

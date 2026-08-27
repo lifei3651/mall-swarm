@@ -13,6 +13,12 @@
         WHERE tenant_id=#{tenantId} AND member_id=#{memberId} AND channel=#{channel} AND authorized=1
           AND revoked_time IS NULL AND (expires_at IS NULL OR expires_at &gt; #{now}) LIMIT 1
     </select>
+    <select id="countActiveConsent" resultType="int">
+        SELECT COUNT(*) FROM dms_message_recipient_authorization
+        WHERE tenant_id=#{tenantId} AND channel=#{channel} AND authorized=1
+          AND consent_version=#{consentVersion} AND revoked_time IS NULL
+          AND (expires_at IS NULL OR expires_at &gt; #{now})
+    </select>
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsMessageRecipientAuthorization" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_message_recipient_authorization
           (tenant_id,member_id,channel,endpoint_hash,authorized,authorized_time,expires_at,revoked_time,consent_version,consent_surface)

@@ -12,6 +12,7 @@ import com.macro.mall.distribution.entity.DmsShopCategory;
 import com.macro.mall.distribution.entity.DmsShopNotice;
 import com.macro.mall.distribution.entity.DmsShopProduct;
 import com.macro.mall.distribution.entity.DmsTenant;
+import com.macro.mall.distribution.notification.ServiceSmsReadinessService;
 import com.macro.mall.distribution.vo.CustomerDeliveryReadinessVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
@@ -37,6 +38,7 @@ public class CustomerDeliveryReadinessService {
     private final AlipayConfig alipayConfig;
     private final AliyunSmsProperties smsProperties;
     private final Environment environment;
+    private final ServiceSmsReadinessService serviceSmsReadinessService;
 
     public CustomerDeliveryReadinessVO evaluate(Long tenantId) {
         long actualTenantId = tenantId == null ? 1L : tenantId;
@@ -126,8 +128,16 @@ public class CustomerDeliveryReadinessService {
         boolean smsConfigured = smsEnabled && present(smsProperties.getAccessKeyId())
                 && present(smsProperties.getAccessKeySecret()) && present(smsProperties.getSignName())
                 && smsProperties.getTemplates() != null && !smsProperties.getTemplates().isEmpty();
-        add(items, "SMS", "外部服务", "正式短信通道", true, smsConfigured,
-                "启用短信服务并通过服务器环境变量配置签名、模板和密钥", "/tenant/profile");
+        add(items, "SMS", "外部服务", "验证码短信通道", true, smsConfigured,
+                "配置注册、登录和找回密码使用的签名、模板和密钥", "/tenant/profile");
+
+        var serviceSms = serviceSmsReadinessService.evaluate(tenantId);
+        add(items, "SERVICE_SMS", "可选集成", "订单与售后服务短信", false,
+                serviceSms.isReadyForMemberOptIn(),
+                serviceSms.isReadyForMemberOptIn()
+                        ? "已满足会员自主开启条件，当前已有" + serviceSms.getActiveAuthorizationCount() + "人授权"
+                        : "尚未完成合规、服务商、6个模板、事件、费用和运行门禁的全套检查",
+                "/tenant/message-operations");
 
         boolean erpEnabled = !erpIntegrationDao.selectEnabled(tenantId).isEmpty();
         add(items, "ERP", "可选集成", "ERP订单对接", false, erpEnabled,

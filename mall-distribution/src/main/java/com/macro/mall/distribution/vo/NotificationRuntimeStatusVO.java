@@ -11,4 +11,5 @@ public class NotificationRuntimeStatusVO {
     private String miniProgramStatus;
     private String budgetStatus;
     private String authorizationStatus;
+    private ServiceSmsReadinessVO serviceSmsReadiness;
 }

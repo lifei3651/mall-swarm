@@ -174,6 +174,7 @@ const readinessTargets = {
   RETURN_ADDRESS: { path: '/shop/service-addresses' },
   CATALOG: { path: '/shop/products' },
   CLEAN_DATA: { path: '/shop/products' },
+  SERVICE_SMS: { path: '/tenant/message-operations' },
   ERP: { path: '/tenant/erp' },
   LOGISTICS_TRACKING: { path: '/tenant/erp' },
 }

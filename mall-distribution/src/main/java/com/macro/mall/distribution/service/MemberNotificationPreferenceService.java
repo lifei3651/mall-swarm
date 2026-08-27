@@ -2,28 +2,21 @@ package com.macro.mall.distribution.service;
 
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.common.tenant.TenantContext;
-import com.macro.mall.distribution.dao.DmsMessageChannelConfigDao;
-import com.macro.mall.distribution.dao.DmsMessageCostBudgetDao;
 import com.macro.mall.distribution.dao.DmsMessageRecipientAuthorizationDao;
-import com.macro.mall.distribution.entity.DmsMessageChannelConfig;
-import com.macro.mall.distribution.entity.DmsMessageCostBudget;
 import com.macro.mall.distribution.entity.DmsMessageRecipientAuthorization;
 import com.macro.mall.distribution.entity.DmsShopMember;
-import com.macro.mall.distribution.notification.AliyunNotificationSmsProperties;
-import com.macro.mall.distribution.notification.ExternalNotificationProperties;
+import com.macro.mall.distribution.notification.ServiceSmsReadinessService;
 import com.macro.mall.distribution.vo.ServiceSmsPreferenceVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
-import java.util.List;
 import java.util.Set;
 
 @Service
@@ -31,16 +24,10 @@ import java.util.Set;
 public class MemberNotificationPreferenceService {
     public static final String CONSENT_VERSION = DmsMessageRecipientAuthorization.SERVICE_SMS_CONSENT_VERSION;
     private static final String CHANNEL = "SMS";
-    private static final Set<String> ALLOWED_EVENTS = Set.of(
-            "LOGIN_PASSWORD_CHANGED", "PAY_PASSWORD_CHANGED", "PHONE_CHANGED",
-            "ORDER_SHIPPED", "AFTER_SALE_UPDATED", "REFUND_RESULT");
     private static final Set<String> SURFACES = Set.of("public", "team", "integrated");
 
     private final DmsMessageRecipientAuthorizationDao authorizationDao;
-    private final DmsMessageChannelConfigDao channelDao;
-    private final DmsMessageCostBudgetDao budgetDao;
-    private final ExternalNotificationProperties external;
-    private final AliyunNotificationSmsProperties sms;
+    private final ServiceSmsReadinessService readinessService;
 
     public ServiceSmsPreferenceVO status(DmsShopMember member) {
         requireMember(member);
@@ -53,7 +40,7 @@ public class MemberNotificationPreferenceService {
                 && authorization.getRevokedTime() == null
                 && (authorization.getExpiresAt() == null || authorization.getExpiresAt().isAfter(LocalDateTime.now()))
                 && samePhone && currentConsent;
-        boolean available = channelReady(tenantId);
+        boolean available = readinessService.canOfferMemberOptIn(tenantId);
 
         ServiceSmsPreferenceVO view = new ServiceSmsPreferenceVO();
         view.setAvailable(available);
@@ -76,7 +63,7 @@ public class MemberNotificationPreferenceService {
         String phone = normalizedPhone(member.getPhone());
         DmsMessageRecipientAuthorization current = authorizationDao.selectByMemberChannel(tenantId, member.getId(), CHANNEL);
         if (enabled) {
-            if (!channelReady(tenantId)) Asserts.fail("服务短信尚未开放，请继续使用站内消息");
+            if (!readinessService.canOfferMemberOptIn(tenantId)) Asserts.fail("服务短信尚未开放，请继续使用站内消息");
             if (!consent) Asserts.fail("请先确认服务短信说明");
             DmsMessageRecipientAuthorization next = preference(tenantId, member, phone, true, surface, LocalDateTime.now());
             persist(current, next);
@@ -112,25 +99,6 @@ public class MemberNotificationPreferenceService {
         return value;
     }
 
-    private boolean channelReady(Long tenantId) {
-        if (!external.isEnabled() || !external.isWorkerEnabled() || !sms.isEnabled()
-                || blank(sms.getAccessKeyId()) || blank(sms.getAccessKeySecret())
-                || blank(sms.getSignName()) || blank(sms.getReceiptSecret())) return false;
-        List<String> events = channelDao.selectList(tenantId).stream()
-                .filter(config -> Integer.valueOf(1).equals(config.getSmsEnabled()))
-                .map(DmsMessageChannelConfig::getEventType).filter(ALLOWED_EVENTS::contains).toList();
-        if (events.isEmpty() || events.stream().anyMatch(event -> blank(sms.getTemplates().get(event)))) return false;
-        List<DmsMessageCostBudget> budgets = budgetDao.selectList(tenantId);
-        return budgetReady(budgets, "TENANT", "*") && budgetReady(budgets, "CHANNEL", CHANNEL)
-                && events.stream().allMatch(event -> budgetReady(budgets, "EVENT", event));
-    }
-
-    private boolean budgetReady(List<DmsMessageCostBudget> budgets, String type, String key) {
-        return budgets.stream().anyMatch(value -> type.equals(value.getScopeType()) && key.equals(value.getScopeKey())
-                && Integer.valueOf(1).equals(value.getEnabled()) && positive(value.getDailyLimit()) && positive(value.getMonthlyLimit()));
-    }
-
-    private boolean positive(BigDecimal value) { return value != null && value.signum() > 0; }
     private void requireMember(DmsShopMember member) { if (member == null || member.getId() == null) Asserts.unauthorized("请先登录"); }
     private String normalizedPhone(String phone) {
         String value = phone == null ? "" : phone.trim();
@@ -146,5 +114,4 @@ public class MemberNotificationPreferenceService {
         try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8))); }
         catch (NoSuchAlgorithmException exception) { throw new IllegalStateException("SHA-256不可用", exception); }
     }
-    private boolean blank(String value) { return value == null || value.isBlank(); }
 }

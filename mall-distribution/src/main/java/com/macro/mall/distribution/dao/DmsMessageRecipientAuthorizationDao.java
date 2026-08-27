@@ -13,6 +13,10 @@ public interface DmsMessageRecipientAuthorizationDao {
                                                    @Param("memberId") Long memberId,
                                                    @Param("channel") String channel,
                                                    @Param("now") LocalDateTime now);
+    int countActiveConsent(@Param("tenantId") Long tenantId,
+                           @Param("channel") String channel,
+                           @Param("consentVersion") String consentVersion,
+                           @Param("now") LocalDateTime now);
     int insert(DmsMessageRecipientAuthorization authorization);
     int updatePreference(DmsMessageRecipientAuthorization authorization);
 }
