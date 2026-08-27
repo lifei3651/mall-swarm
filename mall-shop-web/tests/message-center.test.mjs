@@ -25,3 +25,10 @@ test('red dot uses 99 plus and realtime only refreshes server unread state',()=>
   const entry=read('src/components/MessageCenterEntry.vue');assert.match(entry,/>99\?'99\+'/);assert.match(entry,/getMessageUnread/);assert.match(entry,/connectOrderRealtime/)
   const center=read('src/views/MessageCenterView.vue');assert.match(entry,/setInterval\(refresh,30000\)/);assert.match(center,/setInterval\(\(\)=>load\(true\),30000\)/)
 })
+
+test('service SMS is explicit, non-marketing and can still be revoked when the provider is unavailable',()=>{
+  const api=read('src/api/shop.js');assert.match(api,/\/shop\/messages\/preferences\/sms/)
+  const center=read('src/views/MessageCenterView.vue')
+  assert.match(center,/订单发货、售后退款和账号安全变化/);assert.match(center,/不含营销内容/);assert.match(center,/role="switch"/)
+  assert.match(center,/!smsPreference\.available&&!smsPreference\.enabled/);assert.match(center,/consent:enabled/)
+})

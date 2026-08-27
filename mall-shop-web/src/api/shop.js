@@ -512,3 +512,5 @@ export function getMessageUnread() { return request({ url: '/shop/messages/unrea
 export function markMessageRead(id) { return request({ url: `/shop/messages/${id}/read`, method: 'put' }) }
 export function markMessageCategoryRead(category) { return request({ url: '/shop/messages/read-category', method: 'put', params: { category } }) }
 export function markAllMessagesRead() { return request({ url: '/shop/messages/read-all', method: 'put' }) }
+export function getServiceSmsPreference() { return request({ url: '/shop/messages/preferences/sms', method: 'get' }) }
+export function updateServiceSmsPreference(data) { return request({ url: '/shop/messages/preferences/sms', method: 'put', data }) }

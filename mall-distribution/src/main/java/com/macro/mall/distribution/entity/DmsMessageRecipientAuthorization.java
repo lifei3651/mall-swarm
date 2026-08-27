@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 
 @Data
 public class DmsMessageRecipientAuthorization implements Serializable {
+    public static final String SERVICE_SMS_CONSENT_VERSION = "SERVICE_SMS_V1_20260827";
     private Long id;
     @JsonIgnore private Long tenantId;
     @JsonIgnore private Long memberId;
@@ -17,4 +18,8 @@ public class DmsMessageRecipientAuthorization implements Serializable {
     private LocalDateTime authorizedTime;
     private LocalDateTime expiresAt;
     private LocalDateTime revokedTime;
+    private String consentVersion;
+    private String consentSurface;
+    private LocalDateTime createTime;
+    private LocalDateTime updateTime;
 }

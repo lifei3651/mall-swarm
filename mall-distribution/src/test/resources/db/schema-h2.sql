@@ -1554,6 +1554,7 @@ CREATE TABLE IF NOT EXISTS dms_message_recipient_authorization (
     id BIGINT AUTO_INCREMENT PRIMARY KEY, tenant_id BIGINT NOT NULL, member_id BIGINT NOT NULL,
     channel VARCHAR(24) NOT NULL, endpoint_hash CHAR(64) NOT NULL, authorized TINYINT NOT NULL DEFAULT 0,
     authorized_time TIMESTAMP, expires_at TIMESTAMP, revoked_time TIMESTAMP,
+    consent_version VARCHAR(64), consent_surface VARCHAR(16),
     create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, update_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uk_message_recipient_channel UNIQUE (tenant_id,member_id,channel)
 );

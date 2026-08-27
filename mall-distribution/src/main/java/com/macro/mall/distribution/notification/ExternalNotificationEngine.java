@@ -196,10 +196,11 @@ public class ExternalNotificationEngine {
     private void finalizeWithoutAttempt(DmsMessageDeliveryTask task,String state,String code) {
         taskDao.markFinal(task.getId(),workerId,state,null,null,BigDecimal.ZERO,safeCode(code),safeMessage(code),LocalDateTime.now(BUSINESS_ZONE));
     }
-    private boolean validAuthorization(ExternalNotificationContext context,DmsMessageRecipientAuthorization authorization) {
+    boolean validAuthorization(ExternalNotificationContext context,DmsMessageRecipientAuthorization authorization) {
         if (authorization==null || authorization.getEndpointHash()==null || !authorization.getEndpointHash().matches("[a-f0-9]{64}")) return false;
         if (!"SMS".equals(context.getChannel())) return true;
-        return MessageDigest.isEqual(authorization.getEndpointHash().getBytes(StandardCharsets.US_ASCII),sha256(context.getPhone()).getBytes(StandardCharsets.US_ASCII));
+        return DmsMessageRecipientAuthorization.SERVICE_SMS_CONSENT_VERSION.equals(authorization.getConsentVersion())
+                && MessageDigest.isEqual(authorization.getEndpointHash().getBytes(StandardCharsets.US_ASCII),sha256(context.getPhone()).getBytes(StandardCharsets.US_ASCII));
     }
     static String sha256(String value) {
         try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest((value==null?"":value).getBytes(StandardCharsets.UTF_8))); }

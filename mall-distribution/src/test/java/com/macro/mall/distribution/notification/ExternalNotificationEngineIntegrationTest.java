@@ -2,6 +2,7 @@ package com.macro.mall.distribution.notification;
 
 import com.macro.mall.distribution.dao.*;
 import com.macro.mall.distribution.entity.DmsMessageDeliveryAttempt;
+import com.macro.mall.distribution.entity.DmsMessageRecipientAuthorization;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -45,6 +46,21 @@ class ExternalNotificationEngineIntegrationTest {
         properties.setBaseRetrySeconds(1); properties.setMaxRetrySeconds(8); properties.setUnknownQueryLimit(1);
         adapter=new ScriptedAdapter();
         engine=new ExternalNotificationEngine(taskDao,attemptDao,budgetDao,authorizationDao,properties,List.of(adapter),transactionManager);
+    }
+
+    @Test
+    void smsAuthorizationRequiresCurrentConsentAndCurrentPhone() {
+        ExternalNotificationContext context = new ExternalNotificationContext();
+        context.setChannel("SMS");
+        context.setPhone("13900000001");
+        DmsMessageRecipientAuthorization authorization = new DmsMessageRecipientAuthorization();
+        authorization.setEndpointHash(ExternalNotificationEngine.sha256(context.getPhone()));
+
+        assertFalse(engine.validAuthorization(context, authorization));
+        authorization.setConsentVersion(DmsMessageRecipientAuthorization.SERVICE_SMS_CONSENT_VERSION);
+        assertTrue(engine.validAuthorization(context, authorization));
+        context.setPhone("13900000002");
+        assertFalse(engine.validAuthorization(context, authorization));
     }
 
     @Test

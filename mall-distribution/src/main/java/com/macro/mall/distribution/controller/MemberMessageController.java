@@ -3,12 +3,16 @@ package com.macro.mall.distribution.controller;
 import com.macro.mall.common.api.CommonPage;
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.distribution.entity.DmsMemberMessage;
+import com.macro.mall.distribution.dto.ServiceSmsPreferenceUpdateDTO;
 import com.macro.mall.distribution.service.MemberMessageService;
+import com.macro.mall.distribution.service.MemberNotificationPreferenceService;
 import com.macro.mall.distribution.service.ShopAuthService;
 import com.macro.mall.distribution.vo.MessageUnreadSummaryVO;
+import com.macro.mall.distribution.vo.ServiceSmsPreferenceVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "MemberMessageController", description = "登录会员个人消息中心（不含商城公告）")
@@ -18,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 public class MemberMessageController {
     private final ShopAuthService authService;
     private final MemberMessageService messageService;
+    private final MemberNotificationPreferenceService preferenceService;
 
     @Operation(summary = "个人消息分页列表；列表曝光不会自动已读")
     @GetMapping
@@ -65,5 +70,22 @@ public class MemberMessageController {
     public CommonResult<Integer> readAll(
             @RequestHeader(value = "Authorization", required = false) String authorization) {
         return CommonResult.success(messageService.markAllRead(authService.requireMember(authorization), null));
+    }
+
+    @Operation(summary = "查询当前会员服务短信偏好；不返回手机号原文或内部配置")
+    @GetMapping("/preferences/sms")
+    public CommonResult<ServiceSmsPreferenceVO> serviceSmsPreference(
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return CommonResult.success(preferenceService.status(authService.requireMember(authorization)));
+    }
+
+    @Operation(summary = "会员主动开启或撤回服务短信；营销短信不在此范围")
+    @PutMapping("/preferences/sms")
+    public CommonResult<ServiceSmsPreferenceVO> updateServiceSmsPreference(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestHeader(value = "X-Shop-Surface", required = false) String surface,
+            @Valid @RequestBody ServiceSmsPreferenceUpdateDTO input) {
+        return CommonResult.success(preferenceService.update(authService.requireMember(authorization),
+                Boolean.TRUE.equals(input.getEnabled()), Boolean.TRUE.equals(input.getConsent()), surface));
     }
 }
