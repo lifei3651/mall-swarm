@@ -126,6 +126,8 @@ shop:
   order:
     pending-timeout-minutes: ${ORDER_PENDING_TIMEOUT_MINUTES:30}
     pending-scan-interval-ms: ${ORDER_PENDING_SCAN_INTERVAL_MS:60000}
+    auto-receive-days: ${ORDER_AUTO_RECEIVE_DAYS:15}
+    auto-receive-scan-interval-ms: ${ORDER_AUTO_RECEIVE_SCAN_INTERVAL_MS:600000}
   after-sale:
     return-shipment-timeout-days: ${AFTER_SALE_RETURN_SHIPMENT_TIMEOUT_DAYS:7}
     return-shipment-scan-interval-ms: ${AFTER_SALE_RETURN_SHIPMENT_SCAN_INTERVAL_MS:600000}

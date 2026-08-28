@@ -1581,6 +1581,52 @@ public class PerformanceServiceTest {
                 "SELECT stock FROM dms_shop_product WHERE id=1", Integer.class));
     }
 
+    /** 自动收货只处理发货满15天且没有处理中售后的订单，并从实际收货时间重新起算售后期。 */
+    @Test
+    void autoReceiveWaitsForDeadlineAndOpenAfterSaleThenStartsReceivedWindow() {
+        newRetailVersion("AUTO_RECEIVE_AFTER_SALE_GATE");
+        DmsShopMember member = createShopMember("13999000057", "自动收货门禁会员", null);
+        ShopOrderVO paid = submitAndPay(member, 2);
+        ShopOrderShipDTO shipment = new ShopOrderShipDTO();
+        shipment.setDeliveryCompany("顺丰速运");
+        shipment.setDeliveryNo("SF-AUTO-RECEIVE-001");
+        shipment.setShipmentQuantity(2);
+        assertTrue(orderShipmentService.shipOrder(paid.getOrder().getId(), shipment));
+
+        ShopOrderVO shipped = shopService.getOrder(paid.getOrder().getId());
+        assertEquals(15, shipped.getAutoReceiveDays());
+        assertTrue(shipped.getAutoReceiveEnabled());
+        assertNotNull(shipped.getAutoReceiveDeadline());
+        assertNull(shipped.getAfterSaleDeadline(), "签收后售后期不能在确认收货前提前起算");
+        assertEquals(0, shopService.autoConfirmExpiredShippedOrders(20), "未满15天不能自动确认收货");
+
+        jdbcTemplate.update("UPDATE dms_shop_order SET delivery_time=DATEADD('DAY', -16, CURRENT_TIMESTAMP) WHERE id=?",
+                paid.getOrder().getId());
+        sqlSessionTemplate.clearCache();
+        ShopAfterSaleItemDTO refundItem = new ShopAfterSaleItemDTO();
+        refundItem.setOrderItemId(paid.getItems().get(0).getId());
+        refundItem.setQuantity(1);
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
+        apply.setOrderId(paid.getOrder().getId());
+        apply.setItems(List.of(refundItem));
+        apply.setReason("物流停滞 / 未收到货");
+        DmsShopAfterSale openAfterSale = shopAfterSaleService.apply(member, apply);
+
+        assertEquals(0, shopService.autoConfirmExpiredShippedOrders(20), "处理中售后必须阻止自动确认收货");
+        assertEquals(2, shopOrderDao.selectById(paid.getOrder().getId()).getStatus());
+        shopAfterSaleService.cancel(member, openAfterSale.getId());
+
+        assertEquals(1, shopService.autoConfirmExpiredShippedOrders(20));
+        DmsShopOrder received = shopOrderDao.selectById(paid.getOrder().getId());
+        assertEquals(3, received.getStatus());
+        assertNotNull(received.getReceiveTime());
+        assertEquals(0, shopService.autoConfirmExpiredShippedOrders(20), "重复扫描不能重复确认收货");
+        ShopOrderVO completed = shopService.getOrder(paid.getOrder().getId());
+        assertFalse(completed.getAutoReceiveEnabled());
+        assertNotNull(completed.getAfterSaleDeadline());
+        assertEquals(received.getReceiveTime().plusDays(7), completed.getAfterSaleDeadline());
+    }
+
     /** 混合订单退普通商品不能误扣团队业绩和奖金；退奖金商品时才按对应金额、数量冲销。 */
     @Test
     void mixedOrderRefundOnlyClawsBackBonusEligibleItems() {

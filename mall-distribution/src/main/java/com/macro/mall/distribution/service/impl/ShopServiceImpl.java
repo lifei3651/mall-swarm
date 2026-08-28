@@ -156,6 +156,9 @@ public class ShopServiceImpl implements ShopService {
     @Value("${shop.order.pending-timeout-minutes:30}")
     private long pendingOrderTimeoutMinutes;
 
+    @Value("${shop.order.auto-receive-days:15}")
+    private int autoReceiveDays;
+
     @Value("${shop.catalog-cache.home-ttl-seconds:30}")
     private long homeCacheTtlSeconds;
 
@@ -1472,6 +1475,13 @@ public class ShopServiceImpl implements ShopService {
         vo.setAfterSaleWindowLabel(afterSaleWindowPolicy.label(window));
         vo.setAfterSaleDeadline(afterSaleWindowPolicy.deadline(order, window));
         vo.setAfterSaleSelfServiceEnabled(window.days() > 0);
+        int safeAutoReceiveDays = Math.max(1, Math.min(autoReceiveDays, 365));
+        boolean waitingForAutoReceive = Integer.valueOf(2).equals(order.getStatus())
+                && order.getDeliveryTime() != null;
+        vo.setAutoReceiveDays(safeAutoReceiveDays);
+        vo.setAutoReceiveEnabled(waitingForAutoReceive);
+        vo.setAutoReceiveDeadline(waitingForAutoReceive
+                ? order.getDeliveryTime().plusDays(safeAutoReceiveDays) : null);
     }
 
     /**
@@ -1698,6 +1708,41 @@ public class ShopServiceImpl implements ShopService {
             }
         }
         return closed;
+    }
+
+    @Override
+    public int autoConfirmExpiredShippedOrders(int limit) {
+        int safeLimit = Math.max(1, Math.min(limit, 500));
+        int safeDays = Math.max(1, Math.min(autoReceiveDays, 365));
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(safeDays);
+        int confirmed = 0;
+        for (Long orderId : orderDao.selectExpiredShippedIds(cutoff, safeLimit)) {
+            try {
+                Integer itemConfirmed = transactionTemplate.execute(status -> autoConfirmExpiredShippedOrder(orderId, cutoff));
+                confirmed += itemConfirmed == null ? 0 : itemConfirmed;
+            } catch (Exception ex) {
+                log.error("到期订单自动确认收货失败，保留该订单等待下轮重试: orderId={}", orderId, ex);
+            }
+        }
+        return confirmed;
+    }
+
+    private int autoConfirmExpiredShippedOrder(Long orderId, LocalDateTime cutoff) {
+        DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
+        if (order == null || !Integer.valueOf(2).equals(order.getStatus())
+                || order.getDeliveryTime() == null || order.getDeliveryTime().isAfter(cutoff)
+                || afterSaleDao.selectOpenByOrderId(orderId) != null) {
+            return 0;
+        }
+        if (orderDao.confirmReceive(orderId) <= 0) return 0;
+        merchantService.lockOrderSettlementEligibility(orderId);
+        order.setStatus(3);
+        order.setReceiveTime(LocalDateTime.now());
+        operationLogService.log("SHOP_ORDER", "AUTO_RECEIVE", "SHOP_ORDER", String.valueOf(orderId),
+                "status=2", "status=3", "发货满" + Math.max(1, Math.min(autoReceiveDays, 365))
+                        + "天且无处理中售后，系统自动确认收货：" + order.getOrderNo());
+        notifyOrderChanged(order, "ORDER_RECEIVED");
+        return 1;
     }
 
     private int closeExpiredPendingOrder(Long orderId, LocalDateTime cutoff) {

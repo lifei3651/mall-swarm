@@ -19,6 +19,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ScheduleTaskIsolationTest {
@@ -51,5 +52,22 @@ class ScheduleTaskIsolationTest {
 
         verify(orderBalanceAllocationService).settleEligibleAfterCoolingOff(200);
         verify(merchantService).releaseEligibleSettlements(200);
+    }
+
+    @Test
+    void autoReceiptUsesDedicatedDistributedTaskAndInvokesTheBoundedBatch() {
+        ScheduleTask task = new ScheduleTask(performanceService, bonusCalculationTaskService,
+                erpIntegrationService, commissionSettlementService, shopService,
+                orderBalanceAllocationService, operationLogService, merchantService,
+                shopAfterSaleService, scheduledTaskRunner);
+        doAnswer(invocation -> {
+            invocation.<Runnable>getArgument(2).run();
+            return true;
+        }).when(scheduledTaskRunner).run(eq("auto-confirm-receipt"), any(), any());
+        when(shopService.autoConfirmExpiredShippedOrders(200)).thenReturn(1);
+
+        task.autoConfirmExpiredShippedOrders();
+
+        verify(shopService).autoConfirmExpiredShippedOrders(200);
     }
 }

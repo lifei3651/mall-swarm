@@ -1004,6 +1004,21 @@ test('order detail describes only locally known delivery facts without inventing
   assert.match(source, /aria-label="真实物流轨迹"/)
 })
 
+test('fulfilled orders show auto-receipt protection, logistics after-sale reasons and per-package actions', async () => {
+  const detail = await readView('OrderDetailView.vue')
+  const orders = await readView('OrdersView.vue')
+  assert.match(detail, /detail\.autoReceiveEnabled/)
+  assert.match(detail, /自动确认收货/)
+  assert.match(detail, /处理中不会自动确认收货/)
+  assert.match(detail, /物流停滞 \/ 未收到货/)
+  assert.match(detail, /拒收 \/ 退回商家/)
+  assert.match(detail, /startLogisticsAfterSale/)
+  assert.match(detail, /shipment\.shipmentQuantity/)
+  assert.match(detail, /:href="trackingUrl\(shipment\)"/)
+  assert.match(orders, /item\.autoReceiveEnabled/)
+  assert.match(orders, /未收到 \/ 拒收/)
+})
+
 test('order detail does not display a generic after-sale deadline notice', async () => {
   const source = await readView('OrderDetailView.vue')
   assert.doesNotMatch(source, /售后入口期限/)

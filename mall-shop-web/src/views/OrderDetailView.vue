@@ -29,7 +29,7 @@
             <span>{{ logisticsStatusDescription }}</span>
           </div>
           <a v-if="trackingUrl(shipments[0])" :href="trackingUrl(shipments[0])" target="_blank" rel="noopener" class="logistics-overview-link">
-            查询承运商
+            {{ shipments.length > 1 ? '查询包裹1' : '查询承运商' }}
             <ChevronRight :size="17" />
           </a>
         </div>
@@ -38,9 +38,12 @@
             <span class="courier-icon">{{ courierInitial(shipment.deliveryCompany) }}</span>
             <div>
               <strong>{{ shipment.deliveryCompany || '快递公司' }}</strong>
-              <p>包裹 {{ index + 1 }} · 运单号 {{ shipment.deliveryNo || '-' }}</p>
+              <p>包裹 {{ index + 1 }} · {{ Number(shipment.shipmentQuantity || 0) }} 件商品 · 运单号 {{ shipment.deliveryNo || '-' }}</p>
             </div>
-            <button v-if="shipment.deliveryNo" type="button" class="copy-btn" @click="copyText(shipment.deliveryNo)">复制</button>
+            <div v-if="shipment.deliveryNo" class="package-actions">
+              <a :href="trackingUrl(shipment)" target="_blank" rel="noopener" class="copy-btn">查询</a>
+              <button type="button" class="copy-btn" @click="copyText(shipment.deliveryNo)">复制</button>
+            </div>
           </div>
           <ol v-if="trackingFor(shipment).events?.length" class="tracking-timeline" aria-label="真实物流轨迹">
             <li v-for="event in trackingFor(shipment).events" :key="`${event.eventTime}-${event.description}`">
@@ -248,6 +251,13 @@
         <p v-else-if="order.status === 0 && order.payType !== 'BALANCE'" class="channel-tip">
           {{ payTypeName(order.payType) }}订单已保留；当前通道完成配置后可继续支付。
         </p>
+        <div v-if="order.status === 2 && detail.autoReceiveEnabled" class="auto-receive-tip">
+          <div>
+            <strong>{{ autoReceiveNotice }}</strong>
+            <span>如尚未收到、物流停滞或已经拒收，请先提交售后，处理中不会自动确认收货。</span>
+          </div>
+          <button v-if="canApplyAfterSale" type="button" @click="startLogisticsAfterSale">物流异常 / 拒收</button>
+        </div>
         <div class="inline-actions">
           <button v-if="canApplyAfterSale && !applyingAfterSale" class="btn secondary" @click="startAfterSale">申请售后</button>
           <button v-if="order.status === 0" class="btn secondary" :disabled="acting" @click="requestOrderConfirmation('cancel-order')">取消订单</button>
@@ -320,7 +330,8 @@ const proofInput = ref(null)
 const proofUploads = ref([])
 const uploadingProofs = ref(false)
 const afterSaleErrors = ref({ items: '', reason: '', server: '' })
-const afterSaleReasons = ['不想要了', '与商品描述不符', '质量问题', '收到商品少件 / 漏发', '商品破损或污渍', '商家发错货', '其他原因']
+const logisticsAfterSaleReasons = ['物流停滞 / 未收到货', '拒收 / 退回商家']
+const afterSaleReasons = ['不想要了', '与商品描述不符', '质量问题', '收到商品少件 / 漏发', '商品破损或污渍', '商家发错货', ...logisticsAfterSaleReasons, '其他原因']
 const error = ref('')
 const hasToken = ref(hasShopSession())
 const paymentPassword = ref('')
@@ -388,6 +399,9 @@ const logisticsStatusDescription = computed(() => {
     ? `发货时间 ${dateTime(order.value.deliveryTime)}，实际轨迹以承运商查询为准`
     : '商家已发货，实际轨迹以承运商查询为准'
 })
+const autoReceiveNotice = computed(() => detail.value.autoReceiveDeadline
+  ? `预计 ${dateTime(detail.value.autoReceiveDeadline)} 自动确认收货`
+  : `发货满 ${Number(detail.value.autoReceiveDays || 15)} 天自动确认收货`)
 const afterSales = computed(() => detail.value.afterSales || [])
 const proofFilenames = (sale) => {
   try {
@@ -475,9 +489,17 @@ const startAfterSale = () => {
   applyingAfterSale.value = true
 }
 
+const startLogisticsAfterSale = () => {
+  startAfterSale()
+  afterSaleForm.value.applyType = 1
+  selectedReason.value = logisticsAfterSaleReasons[0]
+  afterSaleForm.value.reason = logisticsAfterSaleReasons[0]
+}
+
 const selectAfterSaleReason = (reason) => {
   selectedReason.value = reason
   afterSaleForm.value.reason = reason
+  if (logisticsAfterSaleReasons.includes(reason)) afterSaleForm.value.applyType = 1
   afterSaleErrors.value.reason = ''
   reasonSheetVisible.value = false
 }
@@ -911,6 +933,8 @@ onBeforeUnmount(() => {
 .logistics-package-row .courier-icon { width: 36px; height: 36px; display: grid; place-items: center; color: #fff; background: #2f3540; border-radius: 10px; font-size: 13px; font-weight: 800; }
 .logistics-package-row strong { display: block; color: var(--ink); font-size: 13px; }
 .logistics-package-row p { overflow: hidden; margin: 4px 0 0; color: #8b949e; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.package-actions { display: flex; align-items: center; gap: 6px; }
+.package-actions a { text-decoration: none; }
 .tracking-timeline { display: grid; gap: 0; margin: 0 0 13px 17px; padding: 0 0 0 18px; list-style: none; border-left: 1px solid #dfe5e8; }
 .tracking-timeline li { position: relative; padding: 0 0 12px 4px; }
 .tracking-timeline li:last-child { padding-bottom: 0; }
@@ -924,6 +948,11 @@ onBeforeUnmount(() => {
 .delivery-address-row strong { color: var(--ink); font-size: 13px; }
 .delivery-address-row span { color: #7a838d; font-size: 12px; line-height: 1.55; }
 .copy-btn { padding: 4px 9px; color: var(--brand-primary, #e7193f); background: #fff; border: 1px solid var(--brand-primary-soft, #f8ccd5); border-radius: 999px; font-size: 11px; cursor: pointer; }
+.auto-receive-tip { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 12px; color: #6d4b12; background: #fff9e9; border: 1px solid #f2dfb2; border-radius: 12px; }
+.auto-receive-tip > div { display: grid; gap: 4px; min-width: 0; }
+.auto-receive-tip strong { color: #6a4308; font-size: 13px; }
+.auto-receive-tip span { color: #8b6a34; font-size: 11px; line-height: 1.5; }
+.auto-receive-tip button { flex: 0 0 auto; padding: 6px 10px; color: #9a4d0b; background: #fff; border: 1px solid #e8c98e; border-radius: 999px; font-size: 11px; font-weight: 800; cursor: pointer; }
 
 .order-info-card { margin-top: 14px; border-top: 1px solid #edf0f2; border-bottom: 1px solid #edf0f2; }
 .order-info-toggle { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 9px; width: 100%; min-height: 52px; padding: 0; color: var(--ink); background: transparent; border: 0; text-align: left; }
@@ -939,4 +968,10 @@ onBeforeUnmount(() => {
 
 .balance-pay-box label { display: block; margin-bottom: 8px; font-weight: 700; }
 .balance-pay-box .line-sub, .channel-tip { line-height: 1.6; }
+
+@media (max-width: 600px) {
+  .logistics-package-row { grid-template-columns: 38px minmax(0, 1fr); }
+  .package-actions { grid-column: 2; }
+  .auto-receive-tip { align-items: flex-start; flex-direction: column; }
+}
 </style>

@@ -47,6 +47,10 @@
           <span>共 {{ totalQuantity(item) }} 件</span>
           <span>实付 <strong>¥{{ money(item.order.payAmount) }}</strong></span>
         </div>
+        <div v-if="item.order.status === 2 && item.autoReceiveEnabled" class="auto-receive-summary">
+          <span>预计 {{ dateTime(item.autoReceiveDeadline) }} 自动确认收货</span>
+          <RouterLink v-if="canApplyAfterSale(item)" :to="`/orders/${item.order.id}?applyAfterSale=1`">未收到 / 拒收</RouterLink>
+        </div>
         <div v-if="item.afterSales?.length" class="after-sale-summary">
           售后申请 {{ item.afterSales.length }} 条 · {{ afterSaleStatus(item.afterSales[0]?.status) }}
         </div>
@@ -85,7 +89,7 @@ import { useRoute } from 'vue-router'
 import { ChevronLeft, ChevronRight, PackageOpen, RefreshCw } from 'lucide-vue-next'
 import { cancelOrder, confirmReceive, getProfileOrderSummary, listMyOrders } from '@/api/shop'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
-import { money, statusName } from '@/utils/format'
+import { dateTime, money, statusName } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
 import { connectOrderRealtime } from '@/utils/orderRealtime'
 import { applyImageFallback } from '@/utils/imageFallback'
@@ -317,6 +321,8 @@ onBeforeUnmount(() => {
 .order-product p, .order-product > span { margin: 0; color: var(--muted); font-size: 12px; }
 .order-total { display: flex; justify-content: flex-end; gap: 12px; padding: 4px 14px 10px; color: var(--muted); font-size: 12px; }
 .order-total strong { color: var(--ink); font-size: 16px; }
+.auto-receive-summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 14px 9px; padding: 8px 10px; color: #80601f; background: #fff9e9; border-radius: 7px; font-size: 11px; }
+.auto-receive-summary a { flex: 0 0 auto; color: #a14f0b; font-weight: 800; }
 .after-sale-summary { margin: 0 14px 9px; padding: 8px 10px; color: #a65a16; background: #fff7ed; border-radius: 7px; font-size: 12px; }
 .order-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 14px 12px; border-top: 1px solid #f0f2f1; }
 .order-action { min-width: 76px; padding: 7px 11px; color: var(--ink); background: #fff; border: 1px solid #d7ddda; border-radius: 999px; text-align: center; font-size: 12px; }

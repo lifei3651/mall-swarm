@@ -164,6 +164,9 @@ shop:
   order:
     pending-timeout-minutes: 30
     pending-scan-interval-ms: 60000
+    # 系统必需履约规则：完整发货满15天且没有处理中售后时自动确认收货。
+    auto-receive-days: 15
+    auto-receive-scan-interval-ms: 600000
   after-sale:
     # 0表示不自动关闭；客户交付时可按售后制度调整。
     return-shipment-timeout-days: 7

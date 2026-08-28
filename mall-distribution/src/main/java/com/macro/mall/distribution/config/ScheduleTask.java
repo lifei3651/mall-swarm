@@ -51,6 +51,19 @@ public class ScheduleTask {
         });
     }
 
+    /** 每10分钟确认发货已满保护期且没有处理中售后的订单，避免订单永久停留在待收货。 */
+    @Scheduled(fixedDelayString = "${shop.order.auto-receive-scan-interval-ms:600000}")
+    public void autoConfirmExpiredShippedOrders() {
+        scheduledTaskRunner.run("auto-confirm-receipt", Duration.ofMinutes(30), () -> {
+            try {
+                int count = shopService.autoConfirmExpiredShippedOrders(200);
+                if (count > 0) log.info("到期订单已自动确认收货: count={}", count);
+            } catch (Exception e) {
+                log.error("到期订单自动确认收货扫描失败", e);
+            }
+        });
+    }
+
     /** 定时关闭已同意退货但客户长期未寄回的售后，避免订单和结算永久悬挂。 */
     @Scheduled(fixedDelayString = "${shop.after-sale.return-shipment-scan-interval-ms:600000}")
     public void closeExpiredWaitingReturns() {

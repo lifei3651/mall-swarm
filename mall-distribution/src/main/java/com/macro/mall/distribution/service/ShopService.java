@@ -156,6 +156,9 @@ public interface ShopService {
 
     int closeExpiredPendingOrders(int limit);
 
+    /** 发货超过保护天数且没有处理中售后的订单，自动确认收货。 */
+    int autoConfirmExpiredShippedOrders(int limit);
+
     boolean shipOrder(Long orderId, ShopOrderShipDTO dto);
 
     boolean updateOrderServiceRemark(Long orderId, String serviceRemark);

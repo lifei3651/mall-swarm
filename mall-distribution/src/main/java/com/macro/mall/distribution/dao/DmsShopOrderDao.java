@@ -133,6 +133,13 @@ public interface DmsShopOrderDao {
         return selectExpiredPendingIdsScoped(TenantContext.getTenantId(), cutoffTime, limit);
     }
 
+    List<Long> selectExpiredShippedIdsScoped(@Param("tenantId") Long tenantId,
+                                             @Param("cutoffTime") LocalDateTime cutoffTime,
+                                             @Param("limit") Integer limit);
+    default List<Long> selectExpiredShippedIds(LocalDateTime cutoffTime, Integer limit) {
+        return selectExpiredShippedIdsScoped(TenantContext.getTenantId(), cutoffTime, limit);
+    }
+
     int closePendingScoped(@Param("tenantId") Long tenantId, @Param("id") Long id);
     default int closePending(Long id) { return closePendingScoped(TenantContext.getTenantId(), id); }
 

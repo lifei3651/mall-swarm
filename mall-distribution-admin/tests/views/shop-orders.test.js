@@ -56,6 +56,15 @@ describe('商城订单取消入口', () => {
     expect(source).not.toContain('<el-input v-model="shipForm.deliveryCompany"')
   })
 
+  it('订单列表显示每个包裹件数和预计自动收货时间', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('shipment.shipmentQuantity || 0')
+    expect(source).toContain('row.autoReceiveEnabled')
+    expect(source).toContain('row.autoReceiveDeadline')
+    expect(source).toContain('自动收货')
+  })
+
   it('待发货与售后使用独立数字提醒，售后队列不再展示发货入口', async () => {
     const source = await readFile(sourcePath, 'utf8')
 

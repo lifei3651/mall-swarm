@@ -145,6 +145,9 @@
                   <div class="sub">{{ shipment.deliveryNo || '-' }}</div>
                   <div class="sub">发货 {{ shipment.shipmentQuantity || 0 }} 件</div>
                 </div>
+                <div v-if="row.autoReceiveEnabled" class="sub auto-receive-deadline">
+                  {{ formatDateTime(row.autoReceiveDeadline) }} 自动收货
+                </div>
                 <el-button type="primary" link size="small" @click="openTracking(row)">查看轨迹</el-button>
               </div>
               <span v-else>-</span>
@@ -1322,6 +1325,7 @@ onBeforeUnmount(() => {
   color: #606266;
   line-height: 1.8;
 }
+.auto-receive-deadline { margin-top: 4px; color: #b26a00; font-weight: 600; }
 
 .remaining-tip {
   margin-left: 10px;

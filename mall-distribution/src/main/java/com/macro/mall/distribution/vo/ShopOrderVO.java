@@ -63,5 +63,10 @@ public class ShopOrderVO implements Serializable {
     private LocalDateTime afterSaleDeadline;
     private Boolean afterSaleSelfServiceEnabled;
 
+    /** 当前订单的自动确认收货规则；只在已完整发货且尚未确认收货时生成截止时间。 */
+    private Integer autoReceiveDays;
+    private LocalDateTime autoReceiveDeadline;
+    private Boolean autoReceiveEnabled;
+
     private DmsTenantDisplayConfig displayConfig;
 }
