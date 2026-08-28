@@ -179,9 +179,12 @@ manifest = {
 (project / "CUSTOMER_PROJECT.md").write_text(
     f"""# {customer_name}商城独立项目
 
-项目标识：`{customer_code}`  
-商城基座版本：`{base_version}`  
-商城基座提交：`{source_commit}`  
+项目标识：`{customer_code}`
+
+商城基座版本：`{base_version}`
+
+商城基座提交：`{source_commit}`
+
 派生时间：`{derived_at}`
 
 ## 当前状态
