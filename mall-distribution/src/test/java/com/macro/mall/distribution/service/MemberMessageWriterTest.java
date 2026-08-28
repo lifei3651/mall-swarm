@@ -63,7 +63,7 @@ class MemberMessageWriterTest {
     }
 
     @Test
-    void allFiveCategoriesPersistAndExternalRecordFailureCannotLoseInAppMessage() {
+    void allCategoriesAndServiceTicketTargetPersistWhileExternalRecordFailureCannotLoseInAppMessage() {
         DmsShopMember member = new DmsShopMember(); member.setId(7L); member.setStatus(1);
         DmsMessageTemplate template = new DmsMessageTemplate(); template.setEnabled(1);
         template.setTitleTemplate("安全标题"); template.setSummaryTemplate("登录后查看"); template.setContentTemplate("登录后查看详情");
@@ -84,7 +84,8 @@ class MemberMessageWriterTest {
                 new String[]{"AFTER_SALE_REFUND", "AFTER_SALE_UPDATED", "AFTER_SALE"},
                 new String[]{"WALLET_FUNDS", "WALLET_FLOW", "WALLET"},
                 new String[]{"ACCOUNT_SECURITY", "LOGIN_PASSWORD_CHANGED", "ACCOUNT_SECURITY"},
-                new String[]{"SERVICE", "SERVICE_NOTICE", "NONE"});
+                new String[]{"SERVICE", "SERVICE_NOTICE", "NONE"},
+                new String[]{"SERVICE", "SERVICE_NOTICE", "SERVICE_TICKET"});
         for (int i = 0; i < cases.size(); i++) {
             String[] item = cases.get(i);
             Long targetId = "NONE".equals(item[2]) ? null : 100L + i;
@@ -93,8 +94,8 @@ class MemberMessageWriterTest {
                     item[0], item[2], targetId, targetParentId, LocalDateTime.now());
             assertDoesNotThrow(() -> writer.write(event));
         }
-        verify(messageDao, times(5)).insertIgnore(any());
-        verify(eventPublisher, times(5)).publishEvent(any(MemberMessageCreatedEvent.class));
+        verify(messageDao, times(6)).insertIgnore(any());
+        verify(eventPublisher, times(6)).publishEvent(any(MemberMessageCreatedEvent.class));
     }
 
     @Test

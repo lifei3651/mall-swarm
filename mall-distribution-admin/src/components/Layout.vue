@@ -174,6 +174,7 @@ const businessMenus = [
   {
     key: 'orders', title: '订单与售后', icon: 'DataAnalysis', items: [
       { title: '订单管理', path: '/shop/orders', permission: 'shop:order' },
+      { title: '客服工单', path: '/shop/service-tickets', permission: 'shop:order' },
       { title: '订单奖金与利润追溯', path: '/audit/orders', permission: 'finance:read' },
       { title: 'ERP订单对接', path: '/tenant/erp', permission: 'config:integration' },
     ],
@@ -387,7 +388,7 @@ const breadcrumbs = computed(() => {
 })
 
 const hasMenuPermission = (item) => {
-  if (store.userInfo?.merchantId) return ['/shop/products', '/shop/service-addresses', '/shop/orders', '/audit/merchant-finance'].includes(item.path)
+  if (store.userInfo?.merchantId) return ['/shop/products', '/shop/service-addresses', '/shop/orders', '/shop/service-tickets', '/audit/merchant-finance'].includes(item.path)
   return !item.permission || store.hasPermission(item.permission)
 }
 const visibleBusinessMenus = computed(() => businessMenus

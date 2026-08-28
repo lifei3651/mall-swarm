@@ -29,7 +29,7 @@
       <RouterLink to="/profile/security/change-login-password"><KeyRound :size="25" /><strong>登录密码</strong><span>保护账号安全</span></RouterLink>
       <RouterLink to="/profile/real-name"><BadgeCheck :size="25" /><strong>实名认证</strong><span>{{ wallet.realNameVerified ? '当前账号已认证' : '身份信息加密核验' }}</span></RouterLink>
       <RouterLink to="/legal/after-sale"><ShieldCheck :size="25" /><strong>售后规则</strong><span>查看服务说明</span></RouterLink>
-      <RouterLink to="/legal/contact"><Headphones :size="25" /><strong>联系客服</strong><span>获取服务支持</span></RouterLink>
+      <RouterLink to="/support"><Headphones :size="25" /><strong>客服工单</strong><span>咨询、投诉与处理进度</span></RouterLink>
     </section>
 
     <p v-if="error" class="profile-error" role="alert">{{ error }}</p>

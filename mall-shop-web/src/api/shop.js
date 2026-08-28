@@ -263,6 +263,26 @@ export function listMyOrders(params) {
   })
 }
 
+export function listServiceTickets(params) {
+  return request({ url: '/shop/service-tickets', method: 'get', params })
+}
+
+export function createServiceTicket(data, idempotencyKey) {
+  return request({ url: '/shop/service-tickets', method: 'post', data, headers: idempotencyHeaders(idempotencyKey) })
+}
+
+export function getServiceTicket(id) {
+  return request({ url: `/shop/service-tickets/${id}`, method: 'get' })
+}
+
+export function replyServiceTicket(id, data, idempotencyKey) {
+  return request({ url: `/shop/service-tickets/${id}/replies`, method: 'post', data, headers: idempotencyHeaders(idempotencyKey) })
+}
+
+export function closeServiceTicket(id) {
+  return request({ url: `/shop/service-tickets/${id}/close`, method: 'put' })
+}
+
 export function cancelOrder(id) {
   return request({
     url: `/shop/orders/${id}/cancel`,

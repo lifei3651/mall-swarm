@@ -109,6 +109,9 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             }
             if (HttpMethod.GET.matches(method) && path.startsWith("/distribution/merchants")) return true;
             if (path.startsWith("/shop/admin/service-addresses")) return true;
+            if (path.startsWith("/shop/admin/service-tickets")) {
+                return HttpMethod.GET.matches(method) || HttpMethod.POST.matches(method);
+            }
             if (path.startsWith("/shop/admin/orders")) {
                 if (HttpMethod.GET.matches(method)) return true;
                 return HttpMethod.PUT.matches(method) && (path.matches("/shop/admin/orders/[^/]+/ship")
@@ -156,6 +159,7 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
                     || path.startsWith("/distribution/tenant")
                     || (HttpMethod.PUT.matches(request.getMethod())
                     && path.matches("/shop/admin/orders/[^/]+/service-remark"))
+                    || path.matches("/shop/admin/service-tickets/[^/]+/replies")
                     || path.matches("/shop/admin/products/[^/]+/submit-review")
                     || path.matches("/shop/admin/merchant-product-reviews/[^/]+/decision");
         }
@@ -193,6 +197,7 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             if (path.matches("/shop/admin/orders/[^/]+/cancel")) return "后台取消或退款商城订单";
             if (path.equals("/shop/admin/orders/shipments/import")) return "Excel批量导入订单物流并发货";
             if (path.matches("/shop/admin/after-sales/[^/]+/audit")) return "审核商城售后";
+            if (path.matches("/shop/admin/service-tickets/[^/]+/replies")) return "回复会员客服工单";
             if (path.matches("/shop/admin/reviews/[^/]+/status")) return "显示或隐藏商品评价";
             if (path.startsWith("/distribution/withdraw")) return "处理会员提现";
             if (path.startsWith("/distribution/tenant")) return "修改商城品牌或界面设置";

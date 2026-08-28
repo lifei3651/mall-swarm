@@ -174,6 +174,9 @@ shop:
     # 仅用于前后台处理时限和平台优先介入提示，超时不会自动退款。
     merchant-audit-timeout-hours: 48
     merchant-return-confirm-timeout-days: 7
+  service-ticket:
+    # 客服首次响应目标只用于排队和超时提醒，不自动关闭、退款或改变交易状态。
+    first-response-hours: ${SHOP_SERVICE_TICKET_FIRST_RESPONSE_HOURS:24}
 payment:
   verification:
     enabled: false

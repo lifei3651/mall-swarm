@@ -1435,6 +1435,54 @@ CREATE TABLE IF NOT EXISTS dms_shop_after_sale (
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS dms_shop_service_ticket (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  ticket_no VARCHAR(32) NOT NULL,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  merchant_id BIGINT,
+  member_id BIGINT NOT NULL,
+  user_id BIGINT NOT NULL,
+  type VARCHAR(32) NOT NULL,
+  subject VARCHAR(100) NOT NULL,
+  status VARCHAR(24) NOT NULL DEFAULT 'OPEN',
+  order_id BIGINT,
+  order_no VARCHAR(64),
+  after_sale_id BIGINT,
+  after_sale_no VARCHAR(64),
+  assigned_admin_id BIGINT,
+  assigned_admin_name VARCHAR(64),
+  last_reply_by VARCHAR(16) NOT NULL,
+  last_reply_time TIMESTAMP NOT NULL,
+  first_response_deadline TIMESTAMP NOT NULL,
+  first_response_at TIMESTAMP,
+  resolved_time TIMESTAMP,
+  closed_time TIMESTAMP,
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT uk_shop_service_ticket_no UNIQUE (tenant_id, ticket_no)
+);
+
+CREATE INDEX IF NOT EXISTS idx_shop_service_ticket_member
+  ON dms_shop_service_ticket(tenant_id, member_id, status, last_reply_time);
+CREATE INDEX IF NOT EXISTS idx_shop_service_ticket_merchant
+  ON dms_shop_service_ticket(tenant_id, merchant_id, status, first_response_deadline);
+CREATE INDEX IF NOT EXISTS idx_shop_service_ticket_after_sale
+  ON dms_shop_service_ticket(tenant_id, after_sale_id, status);
+
+CREATE TABLE IF NOT EXISTS dms_shop_service_ticket_reply (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  ticket_id BIGINT NOT NULL,
+  sender_type VARCHAR(16) NOT NULL,
+  sender_id BIGINT,
+  sender_name VARCHAR(64),
+  content VARCHAR(1000) NOT NULL,
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_shop_service_ticket_reply
+  ON dms_shop_service_ticket_reply(tenant_id, ticket_id, id);
+
 ALTER TABLE dms_shop_after_sale ADD COLUMN IF NOT EXISTS return_delivery_company VARCHAR(64);
 ALTER TABLE dms_shop_after_sale ADD COLUMN IF NOT EXISTS return_delivery_no VARCHAR(128);
 ALTER TABLE dms_shop_after_sale ADD COLUMN IF NOT EXISTS return_shipped_at TIMESTAMP;

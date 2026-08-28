@@ -30,7 +30,7 @@ public class MemberMessageWriter {
     private static final Set<String> CATEGORIES = Set.of("ORDER_LOGISTICS", "AFTER_SALE_REFUND",
             "WALLET_FUNDS", "ACCOUNT_SECURITY", "SERVICE");
     private static final Set<String> TARGETS = Set.of("NONE", "ORDER", "AFTER_SALE", "WALLET",
-            "WITHDRAWAL", "ACCOUNT_SECURITY");
+            "WITHDRAWAL", "ACCOUNT_SECURITY", "SERVICE_TICKET");
     private final DmsShopMemberDao memberDao;
     private final DmsMemberMessageDao messageDao;
     private final DmsMessageTemplateDao templateDao;
@@ -130,7 +130,8 @@ public class MemberMessageWriter {
     private boolean hasText(String value) { return value != null && !value.isBlank(); }
     private boolean safeTarget(MemberMessageEvent event) {
         if ("NONE".equals(event.targetType())) return event.targetId() == null && event.targetParentId() == null;
-        if ("ORDER".equals(event.targetType()) || "WITHDRAWAL".equals(event.targetType())) {
+        if ("ORDER".equals(event.targetType()) || "WITHDRAWAL".equals(event.targetType())
+                || "SERVICE_TICKET".equals(event.targetType())) {
             return positive(event.targetId()) && event.targetParentId() == null;
         }
         if ("AFTER_SALE".equals(event.targetType())) {

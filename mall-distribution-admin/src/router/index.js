@@ -82,6 +82,12 @@ const routes = [
             meta: { title: '订单管理', permission: 'shop:order' },
           },
           {
+            path: 'service-tickets',
+            name: 'ShopServiceTickets',
+            component: () => import('@/views/shop/service-tickets.vue'),
+            meta: { title: '客服工单', permission: 'shop:order' },
+          },
+          {
             path: 'categories',
             name: 'ShopCategories',
             component: () => import('@/views/shop/categories.vue'),

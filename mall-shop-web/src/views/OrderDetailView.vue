@@ -267,6 +267,7 @@
           <button v-if="canApplyAfterSale" type="button" @click="startLogisticsAfterSale">物流异常 / 拒收</button>
         </div>
         <div class="inline-actions">
+          <RouterLink class="btn secondary" :to="serviceTicketLink">联系客服</RouterLink>
           <button v-if="canApplyAfterSale && !applyingAfterSale" class="btn secondary" @click="startAfterSale">申请售后</button>
           <RouterLink v-if="Number(detail.pendingReviewCount || 0) > 0" class="btn secondary" :to="pendingReviewLink">去评价</RouterLink>
           <button v-if="order.status === 0" class="btn secondary" :disabled="acting" @click="requestOrderConfirmation('cancel-order')">取消订单</button>
@@ -416,6 +417,17 @@ const pendingReviewLink = computed(() => ({
   query: detail.value.pendingReviewOrderItemId ? { orderItemId: detail.value.pendingReviewOrderItemId } : {},
 }))
 const afterSales = computed(() => detail.value.afterSales || [])
+const serviceTicketLink = computed(() => {
+  const sale = afterSales.value[0]
+  return {
+    path: '/support',
+    query: {
+      create: '1',
+      orderId: order.value?.id,
+      ...(sale ? { type: 'AFTER_SALE_DISPUTE', afterSaleId: sale.id, subject: '订单售后处理咨询' } : { type: 'CONSULTATION', subject: '订单问题咨询' }),
+    },
+  }
+})
 const proofFilenames = (sale) => {
   try {
     const parsed = JSON.parse(sale?.proofImages || '[]')

@@ -278,6 +278,23 @@ export function getAdminOrderTracking(id) {
   return request({ url: `/shop/admin/orders/${id}/tracking`, method: 'get' })
 }
 
+export function listAdminServiceTickets(params) {
+  return request({ url: '/shop/admin/service-tickets', method: 'get', params })
+}
+
+export function getAdminServiceTicket(id) {
+  return request({ url: `/shop/admin/service-tickets/${id}`, method: 'get' })
+}
+
+export function replyAdminServiceTicket(id, data, idempotencyKey) {
+  return request({
+    url: `/shop/admin/service-tickets/${id}/replies`,
+    method: 'post',
+    data,
+    headers: idempotencyKey ? { 'X-Idempotency-Key': idempotencyKey } : undefined,
+  })
+}
+
 export function updateShopOrderServiceRemark(id, serviceRemark) {
   return request({
     url: `/shop/admin/orders/${id}/service-remark`,

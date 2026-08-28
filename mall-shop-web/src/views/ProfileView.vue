@@ -57,6 +57,10 @@
           <span class="tile-icon address-icon"><MapPinned :size="26" /></span>
           <span class="tile-label">收货地址</span>
         </RouterLink>
+        <RouterLink to="/support" class="menu-tile">
+          <span class="tile-icon service-icon"><Headphones :size="26" /></span>
+          <span class="tile-label">客服工单</span>
+        </RouterLink>
       </section>
 
         <p v-if="error" class="profile-error">{{ error }}</p>
@@ -91,6 +95,7 @@ import {
   Crown,
   Gem,
   Gift,
+  Headphones,
   MapPinned,
   Medal,
   MessageSquareText,

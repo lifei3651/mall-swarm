@@ -152,6 +152,7 @@ const oldApiDescription = (path = '', method = '') => {
   if (path.startsWith('/distribution/operation-logs')) return '查看后台操作日志'
   if (/\/shop\/admin\/orders\/[^/]+\/ship/.test(path)) return '商城订单发货'
   if (/\/shop\/admin\/after-sales\/[^/]+\/audit/.test(path)) return '审核商城售后'
+  if (/\/shop\/admin\/service-tickets\/[^/]+\/replies/.test(path)) return '回复会员客服工单'
   if (path.startsWith('/shop/admin/orders')) return viewing ? '查看商城订单' : '处理商城订单'
   if (path.startsWith('/shop/admin/products')) return viewing ? '查看商品资料' : '维护商品资料或上架状态'
   if (path.startsWith('/shop/admin/categories')) return viewing ? '查看商品分类' : '维护商品分类'

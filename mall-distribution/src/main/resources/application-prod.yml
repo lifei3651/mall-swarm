@@ -133,6 +133,8 @@ shop:
     return-shipment-scan-interval-ms: ${AFTER_SALE_RETURN_SHIPMENT_SCAN_INTERVAL_MS:600000}
     merchant-audit-timeout-hours: ${AFTER_SALE_MERCHANT_AUDIT_TIMEOUT_HOURS:48}
     merchant-return-confirm-timeout-days: ${AFTER_SALE_MERCHANT_RETURN_CONFIRM_TIMEOUT_DAYS:7}
+  service-ticket:
+    first-response-hours: ${SHOP_SERVICE_TICKET_FIRST_RESPONSE_HOURS:24}
 payment:
   verification:
     enabled: ${PAYMENT_LARGE_AMOUNT_VERIFY_ENABLED:false}

@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsShopServiceTicketDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsShopServiceTicket">
+        <id column="id" property="id"/>
+        <result column="ticket_no" property="ticketNo"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="merchant_id" property="merchantId"/>
+        <result column="member_id" property="memberId"/>
+        <result column="user_id" property="userId"/>
+        <result column="type" property="type"/>
+        <result column="subject" property="subject"/>
+        <result column="status" property="status"/>
+        <result column="order_id" property="orderId"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="after_sale_id" property="afterSaleId"/>
+        <result column="after_sale_no" property="afterSaleNo"/>
+        <result column="assigned_admin_id" property="assignedAdminId"/>
+        <result column="assigned_admin_name" property="assignedAdminName"/>
+        <result column="last_reply_by" property="lastReplyBy"/>
+        <result column="last_reply_time" property="lastReplyTime"/>
+        <result column="first_response_deadline" property="firstResponseDeadline"/>
+        <result column="first_response_at" property="firstResponseAt"/>
+        <result column="resolved_time" property="resolvedTime"/>
+        <result column="closed_time" property="closedTime"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, ticket_no, tenant_id, merchant_id, member_id, user_id, type, subject, status,
+        order_id, order_no, after_sale_id, after_sale_no, assigned_admin_id, assigned_admin_name,
+        last_reply_by, last_reply_time, first_response_deadline, first_response_at,
+        resolved_time, closed_time, create_time, update_time
+    </sql>
+
+    <select id="selectOwned" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_service_ticket
+        WHERE tenant_id = #{tenantId} AND member_id = #{memberId} AND id = #{id}
+    </select>
+
+    <select id="selectOwnedForUpdate" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_service_ticket
+        WHERE tenant_id = #{tenantId} AND member_id = #{memberId} AND id = #{id}
+        FOR UPDATE
+    </select>
+
+    <select id="selectAdmin" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_service_ticket
+        WHERE tenant_id = #{tenantId} AND id = #{id}
+        <if test="merchantId != null">AND merchant_id = #{merchantId}</if>
+    </select>
+
+    <select id="selectAdminForUpdate" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_service_ticket
+        WHERE tenant_id = #{tenantId} AND id = #{id}
+        <if test="merchantId != null">AND merchant_id = #{merchantId}</if>
+        FOR UPDATE
+    </select>
+
+    <select id="selectOwnedList" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_service_ticket
+        WHERE tenant_id = #{tenantId} AND member_id = #{memberId}
+        <if test="status != null and status != ''">AND status = #{status}</if>
+        ORDER BY CASE WHEN status IN ('OPEN', 'PROCESSING', 'WAITING_MEMBER', 'RESOLVED') THEN 0 ELSE 1 END,
+                 last_reply_time DESC, id DESC
+    </select>
+
+    <select id="selectAdminList" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_service_ticket ticket
+        <where>
+            ticket.tenant_id = #{tenantId}
+            <if test="merchantId != null">AND ticket.merchant_id = #{merchantId}</if>
+            <if test="status != null and status != ''">AND ticket.status = #{status}</if>
+            <if test="type != null and type != ''">AND ticket.type = #{type}</if>
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    ticket.ticket_no LIKE CONCAT('%', #{keyword}, '%')
+                    OR ticket.subject LIKE CONCAT('%', #{keyword}, '%')
+                    OR ticket.order_no LIKE CONCAT('%', #{keyword}, '%')
+                    OR ticket.after_sale_no LIKE CONCAT('%', #{keyword}, '%')
+                    OR EXISTS (SELECT 1 FROM dms_shop_member member
+                               WHERE member.id = ticket.member_id
+                                 AND (member.login_account LIKE CONCAT('%', #{keyword}, '%')
+                                      OR member.nickname LIKE CONCAT('%', #{keyword}, '%')
+                                      OR member.phone LIKE CONCAT('%', #{keyword}, '%')))
+                )
+            </if>
+        </where>
+        ORDER BY CASE WHEN ticket.first_response_at IS NULL
+                            AND ticket.first_response_deadline &lt; CURRENT_TIMESTAMP
+                            AND ticket.status != 'CLOSED' THEN 0 ELSE 1 END,
+                 CASE ticket.status WHEN 'OPEN' THEN 0 WHEN 'PROCESSING' THEN 1
+                                    WHEN 'WAITING_MEMBER' THEN 2 WHEN 'RESOLVED' THEN 3 ELSE 4 END,
+                 ticket.last_reply_time DESC, ticket.id DESC
+    </select>
+
+    <select id="countActiveOwned" resultType="int">
+        SELECT COUNT(*) FROM dms_shop_service_ticket
+        WHERE tenant_id = #{tenantId} AND member_id = #{memberId}
+          AND status IN ('OPEN', 'PROCESSING', 'WAITING_MEMBER', 'RESOLVED')
+    </select>
+
+    <select id="countActiveByAfterSale" resultType="int">
+        SELECT COUNT(*) FROM dms_shop_service_ticket
+        WHERE tenant_id = #{tenantId} AND member_id = #{memberId} AND after_sale_id = #{afterSaleId}
+          AND status IN ('OPEN', 'PROCESSING', 'WAITING_MEMBER', 'RESOLVED')
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_shop_service_ticket
+        (ticket_no, tenant_id, merchant_id, member_id, user_id, type, subject, status,
+         order_id, order_no, after_sale_id, after_sale_no, last_reply_by, last_reply_time,
+         first_response_deadline)
+        VALUES
+        (#{ticketNo}, #{tenantId}, #{merchantId}, #{memberId}, #{userId}, #{type}, #{subject}, #{status},
+         #{orderId}, #{orderNo}, #{afterSaleId}, #{afterSaleNo}, #{lastReplyBy}, #{lastReplyTime},
+         #{firstResponseDeadline})
+    </insert>
+
+    <update id="updateAfterMemberReply">
+        UPDATE dms_shop_service_ticket
+        SET status = 'OPEN', last_reply_by = 'MEMBER', last_reply_time = #{replyTime},
+            resolved_time = NULL, closed_time = NULL, update_time = CURRENT_TIMESTAMP
+        WHERE tenant_id = #{tenantId} AND member_id = #{memberId} AND id = #{id} AND status != 'CLOSED'
+    </update>
+
+    <update id="updateAfterAdminReply">
+        UPDATE dms_shop_service_ticket
+        SET status = #{status}, assigned_admin_id = #{adminId}, assigned_admin_name = #{adminName},
+            last_reply_by = 'ADMIN', last_reply_time = #{replyTime},
+            first_response_at = COALESCE(first_response_at, #{replyTime}),
+            resolved_time = CASE WHEN #{status} IN ('RESOLVED', 'CLOSED') THEN #{replyTime} ELSE NULL END,
+            closed_time = CASE WHEN #{status} = 'CLOSED' THEN #{replyTime} ELSE NULL END,
+            update_time = CURRENT_TIMESTAMP
+        WHERE tenant_id = #{tenantId} AND id = #{id} AND status != 'CLOSED'
+        <if test="merchantId != null">AND merchant_id = #{merchantId}</if>
+    </update>
+
+    <update id="closeOwned">
+        UPDATE dms_shop_service_ticket
+        SET status = 'CLOSED', last_reply_by = 'MEMBER', last_reply_time = #{closeTime},
+            resolved_time = COALESCE(resolved_time, #{closeTime}), closed_time = #{closeTime},
+            update_time = CURRENT_TIMESTAMP
+        WHERE tenant_id = #{tenantId} AND member_id = #{memberId} AND id = #{id} AND status != 'CLOSED'
+    </update>
+</mapper>

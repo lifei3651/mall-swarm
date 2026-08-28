@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsShopServiceTicketReplyDao">
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsShopServiceTicketReply">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="ticket_id" property="ticketId"/>
+        <result column="sender_type" property="senderType"/>
+        <result column="sender_id" property="senderId"/>
+        <result column="sender_name" property="senderName"/>
+        <result column="content" property="content"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <select id="selectByTicketId" resultMap="BaseResultMap">
+        SELECT id, tenant_id, ticket_id, sender_type, sender_id, sender_name, content, create_time
+        FROM dms_shop_service_ticket_reply
+        WHERE tenant_id = #{tenantId} AND ticket_id = #{ticketId}
+        ORDER BY id
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_shop_service_ticket_reply
+        (tenant_id, ticket_id, sender_type, sender_id, sender_name, content)
+        SELECT #{tenantId}, #{ticketId}, #{senderType}, #{senderId}, #{senderName}, #{content}
+        WHERE EXISTS (SELECT 1 FROM dms_shop_service_ticket ticket
+                      WHERE ticket.id = #{ticketId} AND ticket.tenant_id = #{tenantId})
+    </insert>
+</mapper>

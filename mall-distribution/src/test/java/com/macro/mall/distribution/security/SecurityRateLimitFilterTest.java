@@ -67,6 +67,20 @@ class SecurityRateLimitFilterTest {
     }
 
     @Test
+    void appliesDedicatedRuleToMemberAndAdminServiceTicketReplies() {
+        SecurityRateLimitFilter filter = new SecurityRateLimitFilter(mock(SecurityRateLimitService.class));
+        SecurityRateLimitFilter.Rule member = filter.resolveRule(
+                new MockHttpServletRequest("POST", "/shop/service-tickets/18/replies"));
+        SecurityRateLimitFilter.Rule admin = filter.resolveRule(
+                new MockHttpServletRequest("POST", "/shop/admin/service-tickets/18/replies"));
+
+        assertEquals("service-ticket-write", member.name());
+        assertEquals(10, member.maximumRequests());
+        assertEquals("service-ticket-write", admin.name());
+        assertEquals(10, admin.maximumRequests());
+    }
+
+    @Test
     void appliesDedicatedRulesToProductImagesAndReviews() {
         SecurityRateLimitFilter filter = new SecurityRateLimitFilter(mock(SecurityRateLimitService.class));
 

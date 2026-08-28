@@ -19,6 +19,8 @@ DELETE FROM dms_commission_clawback;
 DELETE FROM dms_finance_refund;
 DELETE FROM dms_order_company_share;
 DELETE FROM dms_order_finance;
+DELETE FROM dms_shop_service_ticket_reply;
+DELETE FROM dms_shop_service_ticket;
 DELETE FROM dms_shop_after_sale;
 DELETE FROM dms_flash_sale_reservation;
 DELETE FROM dms_flash_sale_activity;
