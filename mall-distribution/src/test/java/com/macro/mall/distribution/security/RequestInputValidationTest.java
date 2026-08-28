@@ -54,7 +54,8 @@ class RequestInputValidationTest {
         AdminLoginDTO login = new AdminLoginDTO();
         login.setUsername("a".repeat(65));
         login.setPassword("p".repeat(65));
-        assertMessages(login, "后台账号不能超过64个字符", "后台密码不能超过64位");
+        login.setPortal("UNKNOWN");
+        assertMessages(login, "后台账号不能超过64个字符", "后台密码不能超过64位", "后台登录入口不正确");
 
         SmsCodeRequestDTO sms = new SmsCodeRequestDTO();
         sms.setPhone("123");

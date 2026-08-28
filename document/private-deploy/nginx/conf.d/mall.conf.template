@@ -26,6 +26,8 @@ server {
     location ~* ^/(?:phpmyadmin|adminer|wp-admin|wp-login\.php|server-status)(?:/|$) { return 404; }
     location ~* \.(?:bak|old|orig|save|sql|log|ini|conf|ya?ml|properties)$ { return 404; }
 
+    location = /merchant/login { return 302 /admin/merchant/login; }
+    location = /platform/login { return 302 /admin/platform/login; }
     location = /admin { return 301 /admin/; }
     location ^~ /admin/ {
         root /usr/share/nginx/html;

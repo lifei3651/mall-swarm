@@ -3,6 +3,7 @@ import { useAppStore } from '@/store'
 import { expireAdminSession, isAdminSessionExpired } from '@/utils/adminSession'
 import { getMe } from '@/api/auth'
 import { ElMessage } from 'element-plus'
+import { adminPortalLoginPath, readAdminPortal } from '@/utils/adminPortal'
 
 let authHydrationPromise = null
 
@@ -23,9 +24,19 @@ const Layout = () => import('@/components/Layout.vue')
 const routes = [
   {
     path: '/login',
-    name: 'Login',
+    redirect: (to) => ({ path: '/merchant/login', query: to.query }),
+  },
+  {
+    path: '/merchant/login',
+    name: 'MerchantLogin',
     component: () => import('@/views/login/index.vue'),
-    meta: { title: '后台登录', public: true },
+    meta: { title: '商家后台登录', public: true, portal: 'MERCHANT' },
+  },
+  {
+    path: '/platform/login',
+    name: 'PlatformLogin',
+    component: () => import('@/views/login/index.vue'),
+    meta: { title: '平台总后台登录', public: true, portal: 'PLATFORM' },
   },
   {
     path: '/change-password',
@@ -500,7 +511,7 @@ router.beforeEach(async (to, from, next) => {
   }
   if (!store.token) {
     ElMessage.warning({ message: '请先登录后台', grouping: true })
-    next({ path: '/login', query: { redirect: to.fullPath } })
+    next({ path: adminPortalLoginPath(readAdminPortal()), query: { redirect: to.fullPath } })
     return
   }
   if (isAdminSessionExpired()) {

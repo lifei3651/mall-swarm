@@ -59,7 +59,8 @@ npm run build:integrated
 
 - 公开商城：`https://lingqimall.com`
 - 团队 H5：`https://www.lingqimall.com`
-- 管理后台：`https://lingqimall.com/admin/`
+- 商家后台登录：`https://lingqimall.com/merchant/login`
+- 平台总后台登录：`https://lingqimall.com/platform/login`
 
 一体化模式是可选交付方式，不与拆分模式同时作为同一客户的主入口。客户不需要 App / 小程序上架隔离时，可将 `dist-integrated/` 作为客户 H5 域名的静态根目录；需要 App / 小程序合规边界时，继续部署 `dist/` 与 `dist-team/` 两个独立域名。两种方式共用同一后端、数据库和管理后台，不复制业务代码或数据。
 

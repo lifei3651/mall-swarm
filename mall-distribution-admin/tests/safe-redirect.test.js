@@ -21,6 +21,8 @@ describe('后台登录跳转边界', () => {
 
   it('拒绝登录页循环和非字符串输入', () => {
     expect(safeAdminRedirect('/login', '/dashboard')).toBe('/dashboard')
+    expect(safeAdminRedirect('/merchant/login', '/dashboard')).toBe('/dashboard')
+    expect(safeAdminRedirect('/platform/login', '/dashboard')).toBe('/dashboard')
     expect(safeAdminRedirect(['//evil.example'], '/dashboard')).toBe('/dashboard')
   })
 })

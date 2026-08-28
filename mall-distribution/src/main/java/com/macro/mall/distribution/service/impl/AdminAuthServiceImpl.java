@@ -86,6 +86,7 @@ public class AdminAuthServiceImpl implements AdminAuthService {
             Asserts.fail("后台账号已禁用");
         }
         requireMerchantAccountEnabled(admin, false);
+        requireLoginPortal(admin, dto.getPortal());
         adminUserDao.updateLastLoginTime(admin.getId());
         // 单账号单会话：新登录成功后使该管理员此前的全部会话失效。
         adminSessionDao.disableByAdminId(admin.getId());
@@ -261,5 +262,19 @@ public class AdminAuthServiceImpl implements AdminAuthService {
         if (merchantDao == null) return true;
         DmsMerchant merchant = merchantDao.selectById(admin.getMerchantId());
         return merchant != null && "ENABLED".equals(merchant.getAccountStatus());
+    }
+
+    private void requireLoginPortal(DmsAdminUser admin, String portal) {
+        if (portal == null || portal.isBlank()) return;
+        if (!"PLATFORM".equals(portal) && !"MERCHANT".equals(portal)) {
+            Asserts.fail("后台登录入口不正确");
+        }
+        boolean merchantAccount = admin.getMerchantId() != null;
+        if ("PLATFORM".equals(portal) && merchantAccount) {
+            Asserts.fail("该账号属于商家后台，请使用商家登录入口");
+        }
+        if ("MERCHANT".equals(portal) && !merchantAccount) {
+            Asserts.fail("该账号属于平台总后台，请使用平台登录入口");
+        }
     }
 }

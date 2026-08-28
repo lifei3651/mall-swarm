@@ -38,10 +38,13 @@
 
       <section class="login-panel">
         <div class="login-content">
-          <div class="login-eyebrow">ADMIN CONSOLE</div>
+          <div class="login-eyebrow">{{ portalEyebrow }}</div>
           <div class="login-brand">
             <img :src="loginLogoSrc" :alt="`${brand.brandName} Logo`" @error="handleLoginLogoError" />
-            <h1>{{ brand.brandName }}管理后台</h1>
+            <div>
+              <h1>{{ loginHeading }}</h1>
+              <p class="portal-description">{{ portalDescription }}</p>
+            </div>
           </div>
           <el-alert
             v-if="sessionNotice"
@@ -53,7 +56,7 @@
           />
           <el-form ref="formRef" :model="form" :rules="rules" size="large" @keyup.enter="handleLogin">
             <el-form-item prop="username">
-              <el-input v-model="form.username" placeholder="后台账号" clearable />
+              <el-input v-model="form.username" :placeholder="accountPlaceholder" clearable />
             </el-form-item>
             <el-form-item prop="password">
               <el-input v-model="form.password" placeholder="密码" type="password" show-password clearable />
@@ -68,7 +71,7 @@
               </div>
             </el-form-item>
             <el-button type="primary" :loading="loading" class="login-button" @click="handleLogin">
-              安全登录
+              登录{{ portalButtonLabel }}
             </el-button>
           </el-form>
         </div>
@@ -83,7 +86,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getLoginCaptcha, login } from '@/api/auth'
@@ -94,6 +97,13 @@ import lingqiLogo from '@/assets/lingqi-logo-mark.png'
 import { consumeAdminSessionNotice } from '@/utils/adminSession'
 import { updateAdminBrowserLogo } from '@/utils/adminBrand'
 import { safeAdminRedirect } from '@/utils/safeRedirect'
+import {
+  ADMIN_PORTAL_MERCHANT,
+  ADMIN_PORTAL_PLATFORM,
+  adminPortalForAccount,
+  normalizeAdminPortal,
+  saveAdminPortal,
+} from '@/utils/adminPortal'
 
 const router = useRouter()
 const route = useRoute()
@@ -105,6 +115,16 @@ const sessionNotice = ref(consumeAdminSessionNotice())
 const brand = reactive({ brandName: localStorage.getItem('admin_brand_name') || '商城', logoUrl: '' })
 const brandLogoLoadFailed = ref(false)
 const loginLogoSrc = computed(() => brandLogoLoadFailed.value ? defaultLogo : (brand.logoUrl || defaultLogo))
+const portal = computed(() => normalizeAdminPortal(route.meta.portal, ADMIN_PORTAL_MERCHANT))
+const isPlatformPortal = computed(() => portal.value === ADMIN_PORTAL_PLATFORM)
+const portalEyebrow = computed(() => isPlatformPortal.value ? 'PLATFORM CONSOLE' : 'MERCHANT CONSOLE')
+const loginHeading = computed(() => `${brand.brandName}${isPlatformPortal.value ? '平台总后台' : '商家后台'}`)
+const portalDescription = computed(() => isPlatformPortal.value
+  ? '仅供平台管理人员登录'
+  : '仅供已开通的商家账号登录')
+const accountPlaceholder = computed(() => isPlatformPortal.value ? '平台管理员账号' : '商家账号')
+const portalButtonLabel = computed(() => isPlatformPortal.value ? '平台总后台' : '商家后台')
+watch(portal, (value) => saveAdminPortal(value), { immediate: true })
 const handleLoginLogoError = () => {
   if (loginLogoSrc.value === defaultLogo) return
   brandLogoLoadFailed.value = true
@@ -138,7 +158,7 @@ const loadBrand = async () => {
     brand.logoUrl = res.data?.logoUrl || ''
     brandLogoLoadFailed.value = false
     localStorage.setItem('admin_brand_name', brand.brandName)
-    document.title = `${brand.brandName}管理后台`
+    document.title = `${loginHeading.value}登录`
     updateAdminBrowserLogo(brand.logoUrl)
   } catch {
     // 品牌读取失败不阻断管理员登录。
@@ -149,7 +169,12 @@ const handleLogin = async () => {
   await formRef.value?.validate()
   loading.value = true
   try {
-    const res = await login(form)
+    const res = await login({ ...form, portal: portal.value })
+    const accountPortal = adminPortalForAccount(res.data?.admin)
+    if (accountPortal !== portal.value) {
+      throw new Error('登录入口与账号类型不一致')
+    }
+    saveAdminPortal(accountPortal)
     store.setAuth(res.data)
     ElMessage.success('登录成功')
     if (Number(res.data?.admin?.mustChangePassword) === 1) {
@@ -228,6 +253,13 @@ onMounted(() => Promise.allSettled([refreshCaptcha(), loadBrand()]))
     height: 120px;
     background: rgba(255, 255, 255, 0.05);
   }
+}
+
+.portal-description {
+  margin: 5px 0 0;
+  color: #7b8798;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .developer-brand,

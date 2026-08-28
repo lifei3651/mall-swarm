@@ -3,6 +3,7 @@ package com.macro.mall.distribution.dto;
 import lombok.Data;
 import lombok.ToString;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.io.Serializable;
@@ -27,4 +28,8 @@ public class AdminLoginDTO implements Serializable {
     @ToString.Exclude
     @Size(max = 16, message = "图形验证码不能超过16个字符")
     private String captchaCode;
+
+    /** 新版管理端明确声明登录入口；为空仅用于兼容发布前已打开的旧页面。 */
+    @Pattern(regexp = "PLATFORM|MERCHANT", message = "后台登录入口不正确")
+    private String portal;
 }

@@ -128,6 +128,7 @@ import {
   isAdminSessionExpired,
 } from '@/utils/adminSession'
 import { updateAdminBrowserLogo } from '@/utils/adminBrand'
+import { adminPortalForAccount, adminPortalLoginPath, saveAdminPortal } from '@/utils/adminPortal'
 
 const route = useRoute()
 const router = useRouter()
@@ -405,12 +406,13 @@ watch(() => store.userInfo?.merchantId, (merchantId) => {
 
 const handleCommand = async (command) => {
   if (command === 'logout') {
+    const portal = saveAdminPortal(adminPortalForAccount(store.userInfo))
     try {
       await logoutApi()
     } finally {
       store.logout()
       ElMessage.success('已退出登录')
-      router.replace('/login')
+      router.replace(adminPortalLoginPath(portal))
     }
   }
 }

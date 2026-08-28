@@ -58,6 +58,15 @@ describe('LoginView', () => {
     expect(source).toContain('safeAdminRedirect(route.query.redirect, merchantHome)')
   })
 
+  it('按入口向服务端声明平台或商家身份并校验返回账号类型', async () => {
+    const source = await readFile(resolve(process.cwd(), 'src/views/login/index.vue'), 'utf8')
+    expect(source).toContain('portal: portal.value')
+    expect(source).toContain('adminPortalForAccount(res.data?.admin)')
+    expect(source).toContain('accountPortal !== portal.value')
+    expect(source).toContain("'仅供平台管理人员登录'")
+    expect(source).toContain("'仅供已开通的商家账号登录'")
+  })
+
   it('初始密码账号登录后只能进入强制改密页', async () => {
     const source = await readFile(resolve(process.cwd(), 'src/views/login/index.vue'), 'utf8')
     expect(source).toContain('Number(res.data?.admin?.mustChangePassword) === 1')

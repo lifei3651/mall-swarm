@@ -47,7 +47,7 @@
 
 商城登录后路由：`/cart`、`/checkout`、`/flash-sale`、`/repurchase`、`/invite`、`/profile`、`/profile/settings`、`/profile/wallet`、`/profile/team`、`/profile/security`、`/profile/addresses`、`/orders`、`/orders/:id`。
 
-后台入口为 `/admin/`，登录页为 `/admin/login`。其余后台路由均要求管理会话，并按 `shop:product`、`shop:order`、`shop:member`、`distribution:manage`、`commission:manage`、`finance:read`、`finance:manage`、`config:shop`、`config:bonus`、`config:integration`、`import:manage`、`system:manage` 等权限过滤。历史账号的 `config:manage` 登录后兼容展开为三类配置权限。
+后台按账号归属提供两个登录入口：商家使用 `/merchant/login`（转到 `/admin/merchant/login`），平台管理人员使用 `/platform/login`（转到 `/admin/platform/login`）。旧 `/admin/login` 只兼容转到商家入口。登录请求会声明入口类型，服务端在密码与验证码通过后再次核对账号是否绑定商户，进错入口不会创建会话；发布前已打开的旧页面在过渡期仍兼容，但登录后的后端商户白名单、权限和数据范围校验不变。其余后台路由均要求管理会话，并按 `shop:product`、`shop:order`、`shop:member`、`distribution:manage`、`commission:manage`、`finance:read`、`finance:manage`、`config:shop`、`config:bonus`、`config:integration`、`import:manage`、`system:manage` 等权限过滤。历史账号的 `config:manage` 登录后兼容展开为三类配置权限。
 
 ## 二、接口通用约定
 

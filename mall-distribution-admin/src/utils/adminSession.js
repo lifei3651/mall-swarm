@@ -1,3 +1,5 @@
+import { adminPortalLoginPath, readAdminPortal } from '@/utils/adminPortal'
+
 const SESSION_EXPIRE_KEY = 'admin_session_expire_time'
 const SESSION_NOTICE_KEY = 'admin_session_notice'
 export const ADMIN_SESSION_EXPIRED_EVENT = 'admin-session-expired'
@@ -63,7 +65,7 @@ export const expireAdminSession = (message = '后台登录已失效，请重新�
   if (redirectingToLogin) return
 
   const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
-  const loginPath = `${base}/login`
+  const loginPath = `${base}${adminPortalLoginPath(readAdminPortal())}`
   if (window.location.pathname === loginPath) {
     redirectingToLogin = false
     return

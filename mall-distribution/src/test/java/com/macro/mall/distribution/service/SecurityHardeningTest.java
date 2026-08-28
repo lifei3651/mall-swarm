@@ -78,6 +78,48 @@ class SecurityHardeningTest {
     }
 
     @Test
+    void platformAndMerchantAccountsCannotUseTheWrongLoginPortal() {
+        String password = "Valid-password-123";
+        DmsAdminUser platform = new DmsAdminUser();
+        platform.setId(10L);
+        platform.setUsername("platform-admin");
+        platform.setPasswordHash(BCrypt.hashpw(password));
+        platform.setSalt("BCRYPT");
+        platform.setStatus(1);
+        DmsAdminUser merchant = new DmsAdminUser();
+        merchant.setId(11L);
+        merchant.setUsername("merchant-admin");
+        merchant.setPasswordHash(BCrypt.hashpw(password));
+        merchant.setSalt("BCRYPT");
+        merchant.setStatus(1);
+        merchant.setMerchantId(88L);
+        when(adminUserDao.selectByUsername("platform-admin")).thenReturn(platform);
+        when(adminUserDao.selectByUsername("merchant-admin")).thenReturn(merchant);
+        AdminAuthServiceImpl service = new AdminAuthServiceImpl(adminUserDao, adminSessionDao, captchaService);
+
+        AdminLoginDTO platformAtMerchantPortal = new AdminLoginDTO();
+        platformAtMerchantPortal.setUsername("platform-admin");
+        platformAtMerchantPortal.setPassword(password);
+        platformAtMerchantPortal.setCaptchaId("captcha-platform");
+        platformAtMerchantPortal.setCaptchaCode("8A2K");
+        platformAtMerchantPortal.setPortal("MERCHANT");
+        RuntimeException platformBlocked = assertThrows(RuntimeException.class,
+                () -> service.login(platformAtMerchantPortal));
+        assertEquals("该账号属于平台总后台，请使用平台登录入口", platformBlocked.getMessage());
+
+        AdminLoginDTO merchantAtPlatformPortal = new AdminLoginDTO();
+        merchantAtPlatformPortal.setUsername("merchant-admin");
+        merchantAtPlatformPortal.setPassword(password);
+        merchantAtPlatformPortal.setCaptchaId("captcha-merchant");
+        merchantAtPlatformPortal.setCaptchaCode("8A2K");
+        merchantAtPlatformPortal.setPortal("PLATFORM");
+        RuntimeException merchantBlocked = assertThrows(RuntimeException.class,
+                () -> service.login(merchantAtPlatformPortal));
+        assertEquals("该账号属于商家后台，请使用商家登录入口", merchantBlocked.getMessage());
+        verify(adminSessionDao, never()).insert(any(DmsAdminSession.class));
+    }
+
+    @Test
     void adminLoginStopsBeforePasswordLookupWhenCaptchaFails() {
         AdminAuthServiceImpl service = new AdminAuthServiceImpl(adminUserDao, adminSessionDao, captchaService);
         AdminLoginDTO dto = new AdminLoginDTO();
