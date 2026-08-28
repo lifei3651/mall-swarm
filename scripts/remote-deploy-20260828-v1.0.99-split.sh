@@ -347,10 +347,10 @@ verify_backup() {
 }
 
 verify_backup_restoreability() {
-  local verify_db=mall_distribution_release_verify_1098
+  local verify_db=mall_distribution_release_verify_1099
   local verify_create_sql="${DB_CREATE_SQL/\`$DB_NAME\`/\`$verify_db\`}"
   (
-    trap 'mysql_root -e "DROP DATABASE IF EXISTS \`mall_distribution_release_verify_1098\`" >/dev/null 2>&1 || true' EXIT
+    trap 'mysql_root -e "DROP DATABASE IF EXISTS \`mall_distribution_release_verify_1099\`" >/dev/null 2>&1 || true' EXIT
     mysql_root -e "DROP DATABASE IF EXISTS \`${verify_db}\`; ${verify_create_sql};"
     gzip -dc "$BACKUP_BEFORE/database.sql.gz" | mysql --protocol=socket -uroot "$verify_db"
     [[ "$(mysql --protocol=socket -uroot "$verify_db" -NBe 'SELECT COUNT(*) FROM dms_schema_migration_history WHERE success=1')" == "$EXPECTED_PREVIOUS_MIGRATIONS" ]]
