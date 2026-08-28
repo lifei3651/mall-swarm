@@ -1,8 +1,8 @@
 # 灵启商城发版报告（按版本迭代）
 
-更新时间：2026-08-27（Asia/Shanghai）
+更新时间：2026-08-28（Asia/Shanghai）
 当前线上版本标记：`1.0.92`
-当前本地版本：`1.0.92`（`codex/app-h5-split`；线上版本已发布，另有下一版本增量待发布）
+当前本地版本：`1.0.93`（`codex/app-h5-split`；正式候选准备中）
 线上环境：公开商城 https://lingqimall.com ；团队 H5 https://www.lingqimall.com ；管理后台 https://lingqimall.com/admin/
 
 ### 下一版本本地增量：商城基座与客户奖金程序解耦（待发布）
