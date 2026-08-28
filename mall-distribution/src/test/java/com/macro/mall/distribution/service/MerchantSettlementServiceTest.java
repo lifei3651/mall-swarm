@@ -8,6 +8,7 @@ import com.macro.mall.distribution.dto.MerchantWithdrawalReviewDTO;
 import com.macro.mall.distribution.dto.MerchantControlDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalActionDTO;
 import com.macro.mall.distribution.dto.ShopSkuDTO;
+import com.macro.mall.distribution.dto.ShopAfterSaleAuditDTO;
 import com.macro.mall.distribution.entity.DmsMerchant;
 import com.macro.mall.distribution.entity.DmsMerchantAccount;
 import com.macro.mall.distribution.entity.DmsMerchantDepositFlow;
@@ -542,6 +543,47 @@ class MerchantSettlementServiceTest {
             assertDoesNotThrow(() -> shopAfterSaleService.assertAdminCanReadProof(1001L, "merchant-one-proof.png"));
             assertThrows(RuntimeException.class,
                     () -> shopAfterSaleService.assertAdminCanReadProof(1001L, "merchant-two-proof.png"));
+        } finally {
+            AdminContext.clear();
+        }
+    }
+
+    @Test
+    void merchantWorkspaceCannotAuditAnotherMerchantsAfterSaleByGuessingItsId() {
+        DmsMerchant first = new DmsMerchant();
+        first.setMerchantNo("M-AFTERSALE-ONE"); first.setMerchantName("售后隔离商户一");
+        first = merchantService.saveMerchant(first);
+        DmsMerchant second = new DmsMerchant();
+        second.setMerchantNo("M-AFTERSALE-TWO"); second.setMerchantName("售后隔离商户二");
+        second = merchantService.saveMerchant(second);
+        long firstOrder = 9966411L;
+        long secondOrder = 9966412L;
+        insertMerchantOrder(firstOrder, "AFTERSALE-ORDER-ONE", first.getId(), first.getMerchantName(), 2);
+        insertMerchantOrder(secondOrder, "AFTERSALE-ORDER-TWO", second.getId(), second.getMerchantName(), 2);
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_after_sale
+                (after_sale_no,order_id,order_no,member_id,user_id,apply_type,refund_amount,
+                 product_refund_amount,freight_refund_amount,refund_quantity,reason,status)
+                VALUES ('AFTERSALE-AS-ONE',?, 'AFTERSALE-ORDER-ONE',1001,1001,1,10,10,0,1,'隔离测试',0),
+                       ('AFTERSALE-AS-TWO',?, 'AFTERSALE-ORDER-TWO',1001,1001,1,10,10,0,1,'隔离测试',0)
+                """, firstOrder, secondOrder);
+        Long ownAfterSaleId = jdbcTemplate.queryForObject(
+                "SELECT id FROM dms_shop_after_sale WHERE after_sale_no='AFTERSALE-AS-ONE'", Long.class);
+        Long otherAfterSaleId = jdbcTemplate.queryForObject(
+                "SELECT id FROM dms_shop_after_sale WHERE after_sale_no='AFTERSALE-AS-TWO'", Long.class);
+
+        DmsAdminUser merchantAdmin = new DmsAdminUser();
+        merchantAdmin.setId(96511L); merchantAdmin.setUsername("merchant-aftersale-one");
+        merchantAdmin.setMerchantId(first.getId()); merchantAdmin.setPermissions("shop:aftersale");
+        AdminContext.set(merchantAdmin);
+        try {
+            ShopAfterSaleAuditDTO reject = new ShopAfterSaleAuditDTO();
+            reject.setStatus(2);
+            reject.setAuditRemark("售后资料不完整");
+            RuntimeException denied = assertThrows(RuntimeException.class,
+                    () -> shopAfterSaleService.audit(otherAfterSaleId, reject));
+            assertTrue(denied.getMessage().contains("其他商户"));
+            assertDoesNotThrow(() -> shopAfterSaleService.audit(ownAfterSaleId, reject));
         } finally {
             AdminContext.clear();
         }

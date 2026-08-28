@@ -5,12 +5,14 @@ import com.macro.mall.common.exception.ApiException;
 import com.macro.mall.distribution.dao.DmsShopAfterSaleDao;
 import com.macro.mall.distribution.dao.DmsShopAfterSaleItemDao;
 import com.macro.mall.distribution.dao.DmsShopOrderItemDao;
+import com.macro.mall.distribution.dao.DmsShopOrderShipmentDao;
 import com.macro.mall.distribution.dao.DmsAgentDao;
 import com.macro.mall.distribution.dao.DmsShopOrderDao;
 import com.macro.mall.distribution.entity.DmsAgent;
 import com.macro.mall.distribution.entity.DmsShopAfterSale;
 import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.entity.DmsShopOrderItem;
+import com.macro.mall.distribution.entity.DmsShopOrderShipment;
 import com.macro.mall.distribution.enums.AgentSourceTypeEnum;
 import com.macro.mall.distribution.service.AgentService;
 import com.macro.mall.distribution.service.AlipayService;
@@ -32,6 +34,7 @@ public class ExternalRefundCoordinator {
     private final DmsShopAfterSaleItemDao afterSaleItemDao;
     private final DmsShopOrderDao orderDao;
     private final DmsShopOrderItemDao orderItemDao;
+    private final DmsShopOrderShipmentDao orderShipmentDao;
     private final DmsAgentDao agentDao;
     private final AgentService agentService;
     private final AlipayService alipayService;
@@ -39,12 +42,14 @@ public class ExternalRefundCoordinator {
 
     public ExternalRefundCoordinator(DmsShopAfterSaleDao afterSaleDao, DmsShopAfterSaleItemDao afterSaleItemDao,
                                      DmsShopOrderDao orderDao, DmsShopOrderItemDao orderItemDao,
+                                     DmsShopOrderShipmentDao orderShipmentDao,
                                      DmsAgentDao agentDao, AgentService agentService,
                                      AlipayService alipayService, PlatformTransactionManager transactionManager) {
         this.afterSaleDao = afterSaleDao;
         this.afterSaleItemDao = afterSaleItemDao;
         this.orderDao = orderDao;
         this.orderItemDao = orderItemDao;
+        this.orderShipmentDao = orderShipmentDao;
         this.agentDao = agentDao;
         this.agentService = agentService;
         this.alipayService = alipayService;
@@ -85,7 +90,11 @@ public class ExternalRefundCoordinator {
         int originalQuantity = orderItemDao.selectByOrderId(order.getId()).stream()
                 .map(DmsShopOrderItem::getQuantity).filter(java.util.Objects::nonNull)
                 .mapToInt(Integer::intValue).sum();
-        if (afterSaleItemDao.sumApprovedQuantityByOrderId(order.getId()) < originalQuantity) return;
+        int refundedQuantity = afterSaleItemDao.sumApprovedQuantityByOrderId(order.getId());
+        if (refundedQuantity < originalQuantity) {
+            reconcilePartiallyShippedOrder(order, originalQuantity - refundedQuantity);
+            return;
+        }
         orderDao.closeAfterSale(order.getId());
         DmsAgent agent = agentDao.selectByUserId(order.getUserId());
         if (agent == null || !AgentSourceTypeEnum.SELF_REGISTER.getValue().equals(agent.getSourceType())
@@ -95,6 +104,17 @@ public class ExternalRefundCoordinator {
                     "退款后退回非会员：名下已无有效支付订单，订单：" + order.getOrderNo());
         } catch (ApiException e) {
             log.warn("渠道退款完成后自动取消会员资格未执行: userId={}, reason={}", order.getUserId(), e.getMessage());
+        }
+    }
+
+    private void reconcilePartiallyShippedOrder(DmsShopOrder order, int shippableQuantity) {
+        if (!Integer.valueOf(1).equals(order.getStatus())
+                || orderShipmentDao.sumQuantityByOrderId(order.getId()) < shippableQuantity) return;
+        java.util.List<DmsShopOrderShipment> shipments = orderShipmentDao.selectByOrderId(order.getId());
+        if (shipments == null || shipments.isEmpty()) return;
+        DmsShopOrderShipment latest = shipments.get(shipments.size() - 1);
+        if (orderDao.ship(order.getId(), latest.getDeliveryCompany(), latest.getDeliveryNo()) != 1) {
+            throw new IllegalStateException("支付宝已退款，但订单发货状态同步失败，请使用同一售后单重试恢复");
         }
     }
 }

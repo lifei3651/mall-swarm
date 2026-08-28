@@ -12,6 +12,7 @@ import com.macro.mall.distribution.dto.ShopAfterSaleItemDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleReturnShipmentDTO;
 import com.macro.mall.distribution.dto.ShopManualRefundDTO;
 import com.macro.mall.distribution.dto.ShopOrderItemDTO;
+import com.macro.mall.distribution.dto.ShopOrderShipDTO;
 import com.macro.mall.distribution.dto.ShopOrderSubmitDTO;
 import com.macro.mall.distribution.entity.*;
 import com.macro.mall.distribution.enums.CommissionStatusEnum;
@@ -156,6 +157,9 @@ public class PerformanceServiceTest {
 
     @Autowired
     private ShopAfterSaleService shopAfterSaleService;
+
+    @Autowired
+    private OrderShipmentService orderShipmentService;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -1486,6 +1490,95 @@ public class PerformanceServiceTest {
         shopAfterSaleService.audit(second.getId(), audit);
         assertEquals(4, performanceDetailDao.sumEffectiveTeamUnits(agent.getId()));
         assertAmountEquals("299.00", commissionRecordDao.selectById(direct.getId()).getCommissionAmount());
+    }
+
+    /** 先发一件、再退掉剩余一件后，订单已无待发货数量，必须自动进入可确认收货状态。 */
+    @Test
+    void partialShipmentThenRemainingRefundReconcilesOrderToShipped() {
+        newRetailVersion("PARTIAL_SHIPMENT_REFUND_STATE");
+        DmsShopMember member = createShopMember("13999000054", "分批发货退款会员", null);
+        ShopOrderVO paid = submitAndPay(member, 2);
+        ShopOrderShipDTO shipment = new ShopOrderShipDTO();
+        shipment.setDeliveryCompany("顺丰速运");
+        shipment.setDeliveryNo("SF-PARTIAL-REFUND-001");
+        shipment.setShipmentQuantity(1);
+        assertTrue(orderShipmentService.shipOrder(paid.getOrder().getId(), shipment));
+        assertEquals(1, shopOrderDao.selectById(paid.getOrder().getId()).getStatus());
+
+        ShopAfterSaleItemDTO refundItem = new ShopAfterSaleItemDTO();
+        refundItem.setOrderItemId(paid.getItems().get(0).getId());
+        refundItem.setQuantity(1);
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
+        apply.setOrderId(paid.getOrder().getId());
+        apply.setItems(List.of(refundItem));
+        apply.setReason("退掉分批发货后的剩余一件");
+        DmsShopAfterSale afterSale = shopAfterSaleService.apply(member, apply);
+        ShopAfterSaleAuditDTO audit = new ShopAfterSaleAuditDTO();
+        audit.setStatus(1);
+        audit.setAuditUserId(1L);
+        audit.setAuditUserName("test-admin");
+        shopAfterSaleService.audit(afterSale.getId(), audit);
+
+        DmsShopOrder reconciled = shopOrderDao.selectById(paid.getOrder().getId());
+        assertEquals(2, reconciled.getStatus());
+        assertEquals("SF-PARTIAL-REFUND-001", reconciled.getDeliveryNo());
+        assertTrue(shopService.confirmReceive(reconciled.getId(), member));
+    }
+
+    /** 分批发货记录已经存在时，即使随后整单退款也不能把原发货运费退回。 */
+    @Test
+    void partialShipmentBeforeFullRefundLocksOriginalFreight() {
+        newRetailVersion("PARTIAL_SHIPMENT_FREIGHT_LOCK");
+        jdbcTemplate.update("UPDATE dms_shop_product SET freight_type=1, freight_amount=12.00 WHERE id=1");
+        DmsShopMember member = createShopMember("13999000055", "分批发货运费会员", null);
+        ShopOrderVO paid = submitAndPay(member, 2);
+        ShopOrderShipDTO shipment = new ShopOrderShipDTO();
+        shipment.setDeliveryCompany("中通快递");
+        shipment.setDeliveryNo("ZT-PARTIAL-FREIGHT-001");
+        shipment.setShipmentQuantity(1);
+        assertTrue(orderShipmentService.shipOrder(paid.getOrder().getId(), shipment));
+
+        ShopAfterSaleItemDTO refundItem = new ShopAfterSaleItemDTO();
+        refundItem.setOrderItemId(paid.getItems().get(0).getId());
+        refundItem.setQuantity(2);
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
+        apply.setOrderId(paid.getOrder().getId());
+        apply.setItems(List.of(refundItem));
+        apply.setReason("分批发货后整单退款");
+
+        DmsShopAfterSale afterSale = shopAfterSaleService.apply(member, apply);
+
+        assertAmountEquals("0.00", afterSale.getFreightRefundAmount());
+    }
+
+    /** 完全未发货的仅退款必须回补所退商品库存，且退款状态门禁保证只回补一次。 */
+    @Test
+    void unshippedRefundRestoresSelectedInventoryExactlyOnce() {
+        newRetailVersion("UNSHIPPED_REFUND_STOCK_RESTORE");
+        DmsShopMember member = createShopMember("13999000056", "未发货退款库存会员", null);
+        ShopOrderVO paid = submitAndPay(member, 2);
+        int stockAfterOrder = jdbcTemplate.queryForObject(
+                "SELECT stock FROM dms_shop_product WHERE id=1", Integer.class);
+
+        ShopAfterSaleItemDTO refundItem = new ShopAfterSaleItemDTO();
+        refundItem.setOrderItemId(paid.getItems().get(0).getId());
+        refundItem.setQuantity(1);
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
+        apply.setOrderId(paid.getOrder().getId());
+        apply.setItems(List.of(refundItem));
+        apply.setReason("未发货商品仅退款");
+        DmsShopAfterSale afterSale = shopAfterSaleService.apply(member, apply);
+        ShopAfterSaleAuditDTO audit = new ShopAfterSaleAuditDTO();
+        audit.setStatus(1);
+        audit.setAuditUserId(1L);
+        audit.setAuditUserName("test-admin");
+        shopAfterSaleService.audit(afterSale.getId(), audit);
+
+        assertEquals(stockAfterOrder + 1, jdbcTemplate.queryForObject(
+                "SELECT stock FROM dms_shop_product WHERE id=1", Integer.class));
+        assertThrows(RuntimeException.class, () -> shopAfterSaleService.audit(afterSale.getId(), audit));
+        assertEquals(stockAfterOrder + 1, jdbcTemplate.queryForObject(
+                "SELECT stock FROM dms_shop_product WHERE id=1", Integer.class));
     }
 
     /** 混合订单退普通商品不能误扣团队业绩和奖金；退奖金商品时才按对应金额、数量冲销。 */

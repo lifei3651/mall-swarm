@@ -11,6 +11,7 @@ import com.macro.mall.distribution.dao.DmsShopAfterSaleDao;
 import com.macro.mall.distribution.dao.DmsShopAfterSaleItemDao;
 import com.macro.mall.distribution.dao.DmsShopOrderDao;
 import com.macro.mall.distribution.dao.DmsShopOrderItemDao;
+import com.macro.mall.distribution.dao.DmsShopOrderShipmentDao;
 import com.macro.mall.distribution.dao.DmsShopProductDao;
 import com.macro.mall.distribution.dao.DmsShopServiceAddressDao;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
@@ -31,6 +32,7 @@ import com.macro.mall.distribution.entity.DmsShopAfterSaleItem;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.entity.DmsShopOrderItem;
+import com.macro.mall.distribution.entity.DmsShopOrderShipment;
 import com.macro.mall.distribution.entity.DmsShopProduct;
 import com.macro.mall.distribution.entity.DmsShopServiceAddress;
 import com.macro.mall.distribution.entity.DmsFlashSaleActivity;
@@ -81,6 +83,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     private final DmsShopAfterSaleItemDao afterSaleItemDao;
     private final DmsShopOrderDao orderDao;
     private final DmsShopOrderItemDao orderItemDao;
+    private final DmsShopOrderShipmentDao orderShipmentDao;
     private final DmsShopProductDao productDao;
     private final DmsShopServiceAddressDao serviceAddressDao;
     private final DmsShopSkuDao skuDao;
@@ -222,7 +225,9 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         lastItem.setRefundAmount(lastItem.getRefundAmount().add(allocationDifference));
 
         // 未发货且退完剩余全部商品时自动退还运费；一旦发货，原发货运费锁定为不可退。
-        boolean notShipped = Integer.valueOf(1).equals(order.getStatus()) && order.getDeliveryTime() == null;
+        boolean notShipped = Integer.valueOf(1).equals(order.getStatus())
+                && order.getDeliveryTime() == null
+                && orderShipmentDao.sumQuantityByOrderId(order.getId()) == 0;
         BigDecimal freightRefund = notShipped && refundAllRemaining ? nullToZero(order.getFreightAmount()) : BigDecimal.ZERO;
         BigDecimal amount = productRefund.add(freightRefund).setScale(2, java.math.RoundingMode.HALF_UP);
 
@@ -298,6 +303,11 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         DmsShopOrder order = orderDao.selectById(afterSale.getOrderId());
         if (order == null) Asserts.fail("订单不存在");
         assertTenantAccess(order.getTenantId());
+        if (Integer.valueOf(5).equals(afterSale.getStatus())
+                && dto.getDeliveryCompany().trim().equals(afterSale.getReturnDeliveryCompany())
+                && dto.getDeliveryNo().trim().equals(afterSale.getReturnDeliveryNo())) {
+            return hydrate(afterSale);
+        }
         if (!Integer.valueOf(2).equals(afterSale.getApplyType())
                 || (!Integer.valueOf(4).equals(afterSale.getStatus()) && !Integer.valueOf(5).equals(afterSale.getStatus()))) {
             Asserts.fail("当前售后状态不能填写或修改退货物流");
@@ -500,12 +510,6 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         refund.setOperatorId(operatorId);
         refund.setOperatorName(operatorName);
         manualRefund(orderId, refund);
-        // 待发货订单尚未出库，整单退款后释放下单时预占的 SKU 与商品库存。
-        for (DmsShopOrderItem item : orderItemDao.selectByOrderId(orderId)) {
-            if (item.getSkuId() != null) skuDao.increaseStock(item.getSkuId(), item.getQuantity());
-            productDao.increaseStock(item.getProductId(), item.getQuantity());
-        }
-        releaseFlashSaleAfterPendingCancellation(order);
         return true;
     }
 
@@ -631,6 +635,11 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         if (order == null) Asserts.fail("订单不存在");
         assertTenantAccess(order.getTenantId());
         assertMerchantAfterSaleAccess(order);
+        if (Integer.valueOf(1).equals(afterSale.getStatus())
+                && Integer.valueOf(2).equals(afterSale.getApplyType())
+                && afterSale.getReturnReceivedAt() != null) {
+            return hydrate(afterSale);
+        }
         if (Integer.valueOf(6).equals(afterSale.getStatus())) {
             if (!requiresExternalRefund(order, afterSale)) Asserts.fail("当前退款状态不需要调用外部支付渠道");
             scheduleExternalRefund(afterSale.getId());
@@ -713,24 +722,39 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
                 memberAssetService.issue(balanceRefund);
             }
             merchantService.reverseAfterSaleItems(items);
-            if (Integer.valueOf(2).equals(afterSale.getApplyType())) {
-                int returnedQuantity = 0;
-                for (DmsShopAfterSaleItem item : items) {
-                    if (item.getSkuId() != null) skuDao.increaseStock(item.getSkuId(), item.getRefundQuantity());
-                    productDao.increaseStock(item.getProductId(), item.getRefundQuantity());
-                    returnedQuantity += item.getRefundQuantity() == null ? 0 : item.getRefundQuantity();
-                }
-                releaseFlashSaleAfterReturn(order, returnedQuantity);
-            }
+            restoreInventoryAfterRefund(afterSale, order, items);
             int originalQuantity = orderItems.stream()
                     .map(DmsShopOrderItem::getQuantity).filter(Objects::nonNull).mapToInt(Integer::intValue).sum();
             boolean externalRefundPending = requiresExternalRefund(order, afterSale);
-            if (!externalRefundPending
-                    && afterSaleItemDao.sumApprovedQuantityByOrderId(order.getId()) >= originalQuantity) {
-                orderDao.closeAfterSale(afterSale.getOrderId());
-            }
+            if (!externalRefundPending) reconcileOrderStateAfterRefund(order, originalQuantity);
             // 退款后退回非会员：名下已无有效支付订单时自动取消推广资格（含其下级团队自动移交）。
             if (!externalRefundPending) autoDemoteMemberAfterFullRefund(order);
+    }
+
+    /**
+     * 分批发货后再退掉未发部分时，已发数量可能已经覆盖新的可发数量。
+     * 此时订单应进入“已发货”，否则会永久停在待发货且会员无法确认收货。
+     */
+    private void reconcileOrderStateAfterRefund(DmsShopOrder order, int originalQuantity) {
+        int refundedQuantity = afterSaleItemDao.sumApprovedQuantityByOrderId(order.getId());
+        if (refundedQuantity >= originalQuantity) {
+            orderDao.closeAfterSale(order.getId());
+            order.setStatus(4);
+            return;
+        }
+        if (!Integer.valueOf(1).equals(order.getStatus())) return;
+        int shippableQuantity = Math.max(0, originalQuantity - refundedQuantity);
+        if (orderShipmentDao.sumQuantityByOrderId(order.getId()) < shippableQuantity) return;
+        List<DmsShopOrderShipment> shipments = orderShipmentDao.selectByOrderId(order.getId());
+        if (shipments == null || shipments.isEmpty()) return;
+        DmsShopOrderShipment latest = shipments.get(shipments.size() - 1);
+        if (orderDao.ship(order.getId(), latest.getDeliveryCompany(), latest.getDeliveryNo()) != 1) {
+            Asserts.fail("退款后订单发货状态同步失败，请刷新后重试");
+        }
+        order.setStatus(2);
+        order.setDeliveryCompany(latest.getDeliveryCompany());
+        order.setDeliveryNo(latest.getDeliveryNo());
+        order.setDeliveryTime(latest.getDeliveryTime());
     }
 
     private BigDecimal calculateBonusBase(DmsShopOrder order, List<DmsShopOrderItem> items) {
@@ -761,29 +785,35 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
                 || "STANDARD".equalsIgnoreCase(mode);
     }
 
-    private void releaseFlashSaleAfterPendingCancellation(DmsShopOrder order) {
-        if (order == null || !ShopBusinessType.FLASH_SALE.equals(order.getBusinessType())) return;
-        DmsFlashSaleReservation reservation = flashSaleReservationDao.selectByOrderId(order.getId());
-        if (reservation == null || flashSaleReservationDao.releaseRefundedQuantity(
-                order.getId(), reservation.getQuantity()) <= 0) return;
-        flashSaleActivityDao.increaseStock(reservation.getActivityId(), reservation.getQuantity());
-        DmsFlashSaleActivity activity = flashSaleActivityDao.selectById(reservation.getActivityId());
-        flashSaleStockGate.restoreStockOnly(activity, reservation.getQuantity());
-        DmsFlashSaleReservation updated = flashSaleReservationDao.selectByOrderId(order.getId());
-        logFlashSaleRestock(order, updated == null ? reservation : updated, activity,
-                reservation.getQuantity(), "PENDING_SHIPMENT_CANCEL");
+    private void restoreInventoryAfterRefund(DmsShopAfterSale afterSale, DmsShopOrder order,
+                                             List<DmsShopAfterSaleItem> items) {
+        boolean physicalReturn = Integer.valueOf(2).equals(afterSale.getApplyType());
+        boolean beforeAnyShipment = Integer.valueOf(1).equals(order.getStatus())
+                && order.getDeliveryTime() == null
+                && orderShipmentDao.sumQuantityByOrderId(order.getId()) == 0;
+        if (!physicalReturn && !beforeAnyShipment) return;
+        int restoredQuantity = 0;
+        for (DmsShopAfterSaleItem item : items) {
+            int quantity = item.getRefundQuantity() == null ? 0 : item.getRefundQuantity();
+            if (quantity <= 0) continue;
+            if (item.getSkuId() != null) skuDao.increaseStock(item.getSkuId(), quantity);
+            productDao.increaseStock(item.getProductId(), quantity);
+            restoredQuantity += quantity;
+        }
+        releaseFlashSaleAfterRefund(order, restoredQuantity,
+                physicalReturn ? "RETURN_REFUND" : "UNSHIPPED_REFUND");
     }
 
-    private void releaseFlashSaleAfterReturn(DmsShopOrder order, int returnedQuantity) {
-        if (order == null || returnedQuantity <= 0 || !ShopBusinessType.FLASH_SALE.equals(order.getBusinessType())) return;
+    private void releaseFlashSaleAfterRefund(DmsShopOrder order, int restoredQuantity, String reason) {
+        if (order == null || restoredQuantity <= 0 || !ShopBusinessType.FLASH_SALE.equals(order.getBusinessType())) return;
         DmsFlashSaleReservation reservation = flashSaleReservationDao.selectByOrderId(order.getId());
-        if (reservation == null || flashSaleReservationDao.releaseRefundedQuantity(order.getId(), returnedQuantity) <= 0) return;
-        flashSaleActivityDao.increaseStock(reservation.getActivityId(), returnedQuantity);
+        if (reservation == null || flashSaleReservationDao.releaseRefundedQuantity(order.getId(), restoredQuantity) <= 0) return;
+        flashSaleActivityDao.increaseStock(reservation.getActivityId(), restoredQuantity);
         DmsFlashSaleActivity activity = flashSaleActivityDao.selectById(reservation.getActivityId());
-        flashSaleStockGate.restoreStockOnly(activity, returnedQuantity);
+        flashSaleStockGate.restoreStockOnly(activity, restoredQuantity);
         DmsFlashSaleReservation updated = flashSaleReservationDao.selectByOrderId(order.getId());
         logFlashSaleRestock(order, updated == null ? reservation : updated, activity,
-                returnedQuantity, "RETURN_REFUND");
+                restoredQuantity, reason);
     }
 
     private void logFlashSaleRestock(DmsShopOrder order, DmsFlashSaleReservation reservation,

@@ -198,10 +198,20 @@ class DeliveryStabilityAcceptanceTest {
         returnShipment.setDeliveryNo("SFRETURN001");
         afterSale = afterSaleService.submitReturnShipment(member, afterSale.getId(), returnShipment);
         assertEquals(5, afterSale.getStatus());
+        LocalDateTime firstReturnShippedAt = afterSale.getReturnShippedAt();
+        DmsShopAfterSale repeatedShipment = afterSaleService.submitReturnShipment(member, afterSale.getId(), returnShipment);
+        assertEquals(firstReturnShippedAt, repeatedShipment.getReturnShippedAt(),
+                "同一退货物流重复提交必须幂等，不能改写首次寄回时间");
         afterSale = afterSaleService.confirmReturnReceived(afterSale.getId(), audit);
         assertEquals(1, afterSale.getStatus());
         assertEquals(4, orderDao.selectById(refundable.getOrder().getId()).getStatus());
         assertMoney(beforeRefundOrder, balance(member.getUserId()));
+        int stockAfterRefund = productDao.selectById(1L).getStock();
+        DmsShopAfterSale repeatedConfirmation = afterSaleService.confirmReturnReceived(afterSale.getId(), audit);
+        assertEquals(1, repeatedConfirmation.getStatus());
+        assertMoney(beforeRefundOrder, balance(member.getUserId()));
+        assertEquals(stockAfterRefund, productDao.selectById(1L).getStock(),
+                "重复确认收货不能再次退款或回补库存");
         List<DmsOrderBalanceAllocation> refundedAllocations =
                 orderBalanceAllocationService.listByOrderId(refundable.getOrder().getId());
         assertEquals(2, refundedAllocations.size());
