@@ -129,6 +129,7 @@ import {
 } from '@/utils/adminSession'
 import { updateAdminBrowserLogo } from '@/utils/adminBrand'
 import { adminPortalForAccount, adminPortalLoginPath, saveAdminPortal } from '@/utils/adminPortal'
+import { MERCHANT_HOME_PATH, isMerchantWorkspacePath } from '@/utils/adminWorkspace'
 
 const route = useRoute()
 const router = useRouter()
@@ -389,19 +390,21 @@ const breadcrumbs = computed(() => {
 })
 
 const hasMenuPermission = (item) => {
-  if (store.userInfo?.merchantId) return ['/shop/products', '/shop/service-addresses', '/shop/orders', '/shop/service-tickets', '/audit/merchant-finance'].includes(item.path)
+  if (store.userInfo?.merchantId) {
+    return isMerchantWorkspacePath(item.path) && (!item.permission || store.hasPermission(item.permission))
+  }
   return !item.permission || store.hasPermission(item.permission)
 }
 const visibleBusinessMenus = computed(() => businessMenus
   .map((menu) => menu.items
     ? { ...menu, items: menu.items.filter(hasMenuPermission) }
     : (store.userInfo?.merchantId && menu.path === '/dashboard'
-      ? { ...menu, title: '商户工作台', path: '/audit/merchant-finance' }
+      ? { ...menu, title: '商户工作台', path: MERCHANT_HOME_PATH }
       : menu))
   .filter((menu) => menu.path || menu.items?.length))
 
 watch(() => store.userInfo?.merchantId, (merchantId) => {
-  if (merchantId && route.path === '/dashboard') router.replace('/audit/merchant-finance')
+  if (merchantId && route.path === '/dashboard') router.replace(MERCHANT_HOME_PATH)
 }, { immediate: true })
 
 const handleCommand = async (command) => {

@@ -10,10 +10,12 @@ describe('customer service ticket workbench', () => {
   it('is a dedicated order-service page for platform and scoped merchants', () => {
     const router = read('src/router/index.js')
     const layout = read('src/components/Layout.vue')
+    const workspace = read('src/utils/adminWorkspace.js')
     expect(router).toMatch(/path: 'service-tickets'/)
     expect(router).toMatch(/permission: 'shop:order'/)
     expect(layout).toMatch(/客服工单[^\n]+\/shop\/service-tickets/)
-    expect(layout).toMatch(/merchantId[\s\S]*\/shop\/service-tickets/)
+    expect(layout).toContain('isMerchantWorkspacePath(item.path)')
+    expect(workspace).toContain("'/shop/service-tickets'")
   })
 
   it('shows conversation, next responsibility and explicit reply state', () => {

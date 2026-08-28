@@ -35,6 +35,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { changeOwnPassword, getMe } from '@/api/auth'
 import { useAppStore } from '@/store'
+import { adminHomePath } from '@/utils/adminWorkspace'
 
 const router = useRouter()
 const store = useAppStore()
@@ -70,7 +71,7 @@ const submit = async () => {
     store.setAuth(result.data || {})
     clearPasswords()
     ElMessage.success('后台密码已更新')
-    await router.replace(store.userInfo?.merchantId ? '/audit/merchant-finance' : '/dashboard')
+    await router.replace(adminHomePath(store.userInfo))
   } finally {
     clearPasswords()
     saving.value = false

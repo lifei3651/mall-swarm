@@ -52,10 +52,9 @@ describe('LoginView', () => {
     expect(source).toMatch(/@click="refreshCaptcha"/)
   })
 
-  it('商户登录后进入商户货款工作台而不是平台总看板', async () => {
+  it('登录后按账号身份进入对应工作台并过滤越权回跳地址', async () => {
     const source = await readFile(resolve(process.cwd(), 'src/views/login/index.vue'), 'utf8')
-    expect(source).toContain("res.data?.admin?.merchantId ? '/audit/merchant-finance' : '/dashboard'")
-    expect(source).toContain('safeAdminRedirect(route.query.redirect, merchantHome)')
+    expect(source).toContain('resolveAdminRedirect(route.query.redirect, res.data?.admin)')
   })
 
   it('按入口向服务端声明平台或商家身份并校验返回账号类型', async () => {

@@ -96,7 +96,6 @@ import defaultLogo from '@/assets/logo.svg'
 import lingqiLogo from '@/assets/lingqi-logo-mark.png'
 import { consumeAdminSessionNotice } from '@/utils/adminSession'
 import { updateAdminBrowserLogo } from '@/utils/adminBrand'
-import { safeAdminRedirect } from '@/utils/safeRedirect'
 import {
   ADMIN_PORTAL_MERCHANT,
   ADMIN_PORTAL_PLATFORM,
@@ -104,6 +103,7 @@ import {
   normalizeAdminPortal,
   saveAdminPortal,
 } from '@/utils/adminPortal'
+import { resolveAdminRedirect } from '@/utils/adminWorkspace'
 
 const router = useRouter()
 const route = useRoute()
@@ -181,11 +181,7 @@ const handleLogin = async () => {
       router.replace('/change-password')
       return
     }
-    const merchantHome = res.data?.admin?.merchantId ? '/audit/merchant-finance' : '/dashboard'
-    const requestedRedirect = safeAdminRedirect(route.query.redirect, merchantHome)
-    const redirect = requestedRedirect === '/dashboard' && res.data?.admin?.merchantId
-      ? merchantHome : requestedRedirect
-    router.replace(redirect)
+    router.replace(resolveAdminRedirect(route.query.redirect, res.data?.admin))
   } catch (error) {
     await refreshCaptcha()
     throw error

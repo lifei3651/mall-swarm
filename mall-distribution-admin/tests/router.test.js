@@ -67,10 +67,12 @@ describe('router guards', () => {
     expect(store.hasPermission('system:manage')).toBe(true)
   })
 
-  it('merchant dashboard route is redirected to merchant finance', async () => {
+  it('merchant routes are limited to the dedicated merchant workspace', async () => {
     const source = await readFile(resolve(process.cwd(), 'src/router/index.js'), 'utf8')
-    expect(source).toContain("store.userInfo?.merchantId && to.path === '/dashboard'")
-    expect(source).toContain("next('/audit/merchant-finance')")
+    expect(source).toContain("path: 'merchant/home'")
+    expect(source).toContain('isMerchantWorkspacePath(to.path)')
+    expect(source).toContain('next(MERCHANT_HOME_PATH)')
+    expect(source).toContain('item.meta?.merchantOnly')
   })
 
   it('首次登录必须先完成密码修改', async () => {

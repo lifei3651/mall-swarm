@@ -4,6 +4,12 @@ import { expireAdminSession, isAdminSessionExpired } from '@/utils/adminSession'
 import { getMe } from '@/api/auth'
 import { ElMessage } from 'element-plus'
 import { adminPortalLoginPath, readAdminPortal } from '@/utils/adminPortal'
+import {
+  MERCHANT_HOME_PATH,
+  PLATFORM_HOME_PATH,
+  adminHomePath,
+  isMerchantWorkspacePath,
+} from '@/utils/adminWorkspace'
 
 let authHydrationPromise = null
 
@@ -49,6 +55,12 @@ const routes = [
     component: Layout,
     redirect: '/dashboard',
     children: [
+      {
+        path: 'merchant/home',
+        name: 'MerchantHome',
+        component: () => import('@/views/merchant/home.vue'),
+        meta: { title: '商户工作台', icon: 'Monitor', merchantOnly: true },
+      },
       {
         path: 'dashboard',
         name: 'Dashboard',
@@ -534,8 +546,15 @@ router.beforeEach(async (to, from, next) => {
     next('/change-password')
     return
   }
-  if (store.userInfo?.merchantId && to.path === '/dashboard') {
-    next('/audit/merchant-finance')
+  const isMerchant = Boolean(store.userInfo?.merchantId)
+  if (to.matched.some((item) => item.meta?.merchantOnly) && !isMerchant) {
+    ElMessage.warning({ message: '商户工作台仅供商家账号使用', grouping: true })
+    next(PLATFORM_HOME_PATH)
+    return
+  }
+  if (isMerchant && !isMerchantWorkspacePath(to.path)) {
+    ElMessage.warning({ message: '当前页面仅供平台管理人员使用', grouping: true })
+    next(MERCHANT_HOME_PATH)
     return
   }
   const requiredPermissions = to.matched
@@ -543,7 +562,7 @@ router.beforeEach(async (to, from, next) => {
     .filter(Boolean)
   if (requiredPermissions.length > 0 && !requiredPermissions.every((item) => store.hasPermission(item))) {
     ElMessage.warning({ message: '当前账号没有访问该页面的权限', grouping: true })
-    next(store.userInfo?.merchantId ? '/audit/merchant-finance' : '/dashboard')
+    next(adminHomePath(store.userInfo))
     return
   }
   next()
