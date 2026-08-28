@@ -66,6 +66,16 @@ describe('LoginView', () => {
     expect(source).toContain("'仅供已开通的商家账号登录'")
   })
 
+  it('入口错误时保留明确报错并提供正确入口，不跨入口传递密码', async () => {
+    const source = await readFile(resolve(process.cwd(), 'src/views/login/index.vue'), 'utf8')
+    expect(source).toContain('adminPortalMismatchFromError(error)')
+    expect(source).toContain('{{ portalMismatch.message }}')
+    expect(source).toContain('{{ portalMismatchActionLabel }}')
+    expect(source).toContain('form.password = \'\'')
+    expect(source).toContain('router.replace({ path: adminPortalLoginPath(targetPortal), query: route.query })')
+    expect(source).toContain('系统不会跨入口传递登录凭据')
+  })
+
   it('初始密码账号登录后只能进入强制改密页', async () => {
     const source = await readFile(resolve(process.cwd(), 'src/views/login/index.vue'), 'utf8')
     expect(source).toContain('Number(res.data?.admin?.mustChangePassword) === 1')
