@@ -66,4 +66,10 @@ public class DmsShopAfterSale implements Serializable {
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;
+
+    /** 下一责任方与处理时限为运行时派生字段，不落库，也不代表超时自动退款。 */
+    private String nextActionParty;
+    private LocalDateTime nextActionDeadline;
+    private Boolean nextActionOverdue;
+    private String nextActionHint;
 }

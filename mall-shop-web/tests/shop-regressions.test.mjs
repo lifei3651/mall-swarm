@@ -1019,6 +1019,21 @@ test('fulfilled orders show auto-receipt protection, logistics after-sale reason
   assert.match(orders, /未收到 \/ 拒收/)
 })
 
+test('pending reviews lock the exact order item and after-sale disputes show deadlines and reapply entry', async () => {
+  const orders = await readView('OrdersView.vue')
+  const orderDetail = await readView('OrderDetailView.vue')
+  const productDetail = await readView('ProductDetailView.vue')
+  assert.match(orders, /pendingReviewOrderItemId/)
+  assert.match(orders, /pendingReviewProductId/)
+  assert.match(orderDetail, /pendingReviewLink/)
+  assert.match(productDetail, /reviewOrderItemId/)
+  assert.match(productDetail, /orderItemId: reviewOrderItemId\.value/)
+  assert.match(orderDetail, /sale\.nextActionDeadline/)
+  assert.match(orderDetail, /sale\.nextActionOverdue/)
+  assert.match(orderDetail, /处理说明：/)
+  assert.match(orderDetail, /补充凭证重新申请/)
+})
+
 test('order detail does not display a generic after-sale deadline notice', async () => {
   const source = await readView('OrderDetailView.vue')
   assert.doesNotMatch(source, /售后入口期限/)

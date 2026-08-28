@@ -65,6 +65,16 @@ describe('商城订单取消入口', () => {
     expect(source).toContain('自动收货')
   })
 
+  it('售后展示下一责任时限，超时升级平台介入但不自动退款', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('nextActionHint')
+    expect(source).toContain('nextActionDeadline')
+    expect(source).toContain('nextActionOverdue')
+    expect(source).toContain('超时只升级为平台优先介入，不会自动退款')
+    expect(source).toContain('拒绝或关闭必须说明具体原因')
+  })
+
   it('待发货与售后使用独立数字提醒，售后队列不再展示发货入口', async () => {
     const source = await readFile(sourcePath, 'utf8')
 

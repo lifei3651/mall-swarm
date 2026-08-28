@@ -171,6 +171,9 @@ shop:
     # 0表示不自动关闭；客户交付时可按售后制度调整。
     return-shipment-timeout-days: 7
     return-shipment-scan-interval-ms: 600000
+    # 仅用于前后台处理时限和平台优先介入提示，超时不会自动退款。
+    merchant-audit-timeout-hours: 48
+    merchant-return-confirm-timeout-days: 7
 payment:
   verification:
     enabled: false

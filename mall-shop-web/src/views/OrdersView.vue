@@ -59,7 +59,7 @@
           <button v-if="item.order.status === 0 && isTradeActionOwner(item)" class="order-action" :disabled="actingId === item.order.id" @click="requestOrderAction('cancel', item.order.id)">{{ item.order.tradeId ? '取消联合订单' : '取消订单' }}</button>
           <RouterLink v-if="item.order.status === 0 && isTradeActionOwner(item)" class="order-action primary-action" :to="`/orders/${item.order.id}`">{{ item.order.tradeId ? '支付全部子单' : '立即支付' }}</RouterLink>
           <button v-if="item.order.status === 2" class="order-action primary-action" :disabled="actingId === item.order.id" @click="requestOrderAction('receive', item.order.id)">确认收货</button>
-          <RouterLink v-if="Number(item.pendingReviewCount || 0) > 0" class="order-action primary-action" :to="`/product/${item.items?.[0]?.productId}`">去评价</RouterLink>
+          <RouterLink v-if="Number(item.pendingReviewCount || 0) > 0" class="order-action primary-action" :to="reviewLink(item)">去评价</RouterLink>
           <RouterLink v-if="canApplyAfterSale(item)" class="order-action" :to="`/orders/${item.order.id}?applyAfterSale=1`">申请售后</RouterLink>
         </div>
       </article>
@@ -219,6 +219,10 @@ const setRealtimeConnected = (connected) => {
 }
 
 const totalQuantity = (item) => (item.items || []).reduce((sum, line) => sum + Number(line.quantity || 0), 0)
+const reviewLink = (item) => ({
+  path: `/product/${item.pendingReviewProductId || item.items?.[0]?.productId}`,
+  query: item.pendingReviewOrderItemId ? { orderItemId: item.pendingReviewOrderItemId } : {},
+})
 const afterSaleStatus = (status) => ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待客户寄回', 5: '待商家收货', 6: '退款处理中' }[status] || '处理中')
 const afterSaleDeadline = (item) => {
   const configured = Date.parse(String(item?.afterSaleDeadline || '').replace(' ', 'T'))

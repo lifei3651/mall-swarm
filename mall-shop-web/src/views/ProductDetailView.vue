@@ -248,6 +248,10 @@ const reviewLoading = ref(false)
 const reviewSubmitting = ref(false)
 const reviewFormVisible = ref(false)
 const reviewForm = ref({ rating: 5, content: '' })
+const reviewOrderItemId = computed(() => {
+  const value = Number(route.query.orderItemId)
+  return Number.isInteger(value) && value > 0 ? value : null
+})
 
 const parseArray = (value) => {
   if (Array.isArray(value)) return value.filter(Boolean)
@@ -340,7 +344,11 @@ const fetchReviews = async (reset = true) => {
   reviewLoading.value = true
   try {
     const pageNum = reset ? 1 : reviewPage.value
-    const res = await getProductReviews(product.value.id, { pageNum, pageSize: 5 })
+    const res = await getProductReviews(product.value.id, {
+      pageNum,
+      pageSize: 5,
+      ...(reviewOrderItemId.value ? { orderItemId: reviewOrderItemId.value } : {}),
+    })
     reviewData.value = res.data || reviewData.value
     const list = res.data?.page?.list || []
     reviews.value = reset ? list : [...reviews.value, ...list]
@@ -420,7 +428,11 @@ const submitReviewForm = async () => {
   if (!reviewForm.value.content.trim()) return showToast('请填写评价内容')
   reviewSubmitting.value = true
   try {
-    await submitProductReview(product.value.id, { rating: reviewForm.value.rating, content: reviewForm.value.content.trim() })
+    await submitProductReview(product.value.id, {
+      rating: reviewForm.value.rating,
+      content: reviewForm.value.content.trim(),
+      ...(reviewOrderItemId.value ? { orderItemId: reviewOrderItemId.value } : {}),
+    })
     reviewForm.value = { rating: 5, content: '' }
     reviewFormVisible.value = false
     await fetchReviews(true)
@@ -444,7 +456,7 @@ const barPercent = (star) => {
   return Math.round((countForStar(star) / max) * 100)
 }
 
-watch(() => route.params.id, fetchProduct, { immediate: true })
+watch(() => [route.params.id, route.query.orderItemId], fetchProduct, { immediate: true })
 onBeforeUnmount(() => window.clearTimeout(toastTimer))
 </script>
 

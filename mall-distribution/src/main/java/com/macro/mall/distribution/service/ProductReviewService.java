@@ -9,7 +9,13 @@ import com.macro.mall.distribution.vo.ProductReviewPageVO;
 
 public interface ProductReviewService {
 
-    ProductReviewPageVO listProductReviews(Long productId, DmsShopMember member, Integer pageNum, Integer pageSize);
+    ProductReviewPageVO listProductReviews(Long productId, DmsShopMember member, Long orderItemId,
+                                           Integer pageNum, Integer pageSize);
+
+    default ProductReviewPageVO listProductReviews(Long productId, DmsShopMember member,
+                                                   Integer pageNum, Integer pageSize) {
+        return listProductReviews(productId, member, null, pageNum, pageSize);
+    }
 
     DmsShopProductReview submitReview(Long productId, DmsShopMember member, ProductReviewSubmitDTO dto);
 

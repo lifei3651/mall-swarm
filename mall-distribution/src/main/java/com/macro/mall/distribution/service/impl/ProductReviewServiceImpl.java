@@ -38,7 +38,8 @@ public class ProductReviewServiceImpl implements ProductReviewService {
     private final ContentModerationService contentModerationService;
 
     @Override
-    public ProductReviewPageVO listProductReviews(Long productId, DmsShopMember member, Integer pageNum, Integer pageSize) {
+    public ProductReviewPageVO listProductReviews(Long productId, DmsShopMember member, Long orderItemId,
+                                                  Integer pageNum, Integer pageSize) {
         DmsShopProduct product = requireProduct(productId);
         ProductReviewSummaryVO summary = reviewDao.selectSummary(productId);
         int safePageNum = pageNum == null || pageNum < 1 ? 1 : pageNum;
@@ -65,7 +66,7 @@ public class ProductReviewServiceImpl implements ProductReviewService {
                 ? BigDecimal.ZERO : summary.getAverageRating();
         result.setAverageRating(average.setScale(1, RoundingMode.HALF_UP));
         Long tenantId = product.getTenantId() == null ? 1L : product.getTenantId();
-        boolean canReview = member != null && reviewDao.selectEligibleOrderItem(member.getUserId(), productId, tenantId) != null;
+        boolean canReview = member != null && eligibleOrderItem(member.getUserId(), productId, tenantId, orderItemId) != null;
         result.setCanReview(canReview);
         if (member == null) {
             result.setReviewHint("登录后，已确认收货的买家可以评价");
@@ -96,7 +97,7 @@ public class ProductReviewServiceImpl implements ProductReviewService {
         }
         contentModerationService.assertAllowed("评价内容", content);
         Long tenantId = product.getTenantId() == null ? 1L : product.getTenantId();
-        DmsShopOrderItem eligibleItem = reviewDao.selectEligibleOrderItem(member.getUserId(), productId, tenantId);
+        DmsShopOrderItem eligibleItem = eligibleOrderItem(member.getUserId(), productId, tenantId, dto.getOrderItemId());
         if (eligibleItem == null) {
             Asserts.fail("只有购买并确认收货后才能评价，或该笔订单已经评价过");
         }
@@ -120,6 +121,12 @@ public class ProductReviewServiceImpl implements ProductReviewService {
             Asserts.fail("该笔订单已经评价过，请勿重复提交");
         }
         return reviewDao.selectById(review.getId());
+    }
+
+    private DmsShopOrderItem eligibleOrderItem(Long userId, Long productId, Long tenantId, Long orderItemId) {
+        return orderItemId == null
+                ? reviewDao.selectEligibleOrderItem(userId, productId, tenantId)
+                : reviewDao.selectEligibleOrderItemById(userId, productId, tenantId, orderItemId);
     }
 
     @Override

@@ -106,10 +106,15 @@
             <div class="after-sale-progress" :class="`progress-${sale.status}`" aria-label="售后处理进度">
               <span class="progress-step complete">提交申请</span>
               <span class="progress-track"></span>
-              <span class="progress-step" :class="{ complete: sale.status !== 0 && sale.status !== 3 }">平台审核</span>
+              <span class="progress-step" :class="{ complete: sale.status !== 0 && sale.status !== 3 }">售后审核</span>
               <span class="progress-track"></span>
               <span class="progress-step" :class="{ complete: sale.status === 1 }">处理完成</span>
             </div>
+            <div v-if="sale.nextActionHint" class="after-sale-next-action" :class="{ overdue: sale.nextActionOverdue }">
+              <strong>{{ sale.nextActionHint }}</strong>
+              <span v-if="sale.nextActionDeadline">处理截止：{{ dateTime(sale.nextActionDeadline) }}</span>
+            </div>
+            <p v-if="sale.auditRemark" class="line-sub after-sale-audit-remark">处理说明：{{ sale.auditRemark }}</p>
             <p class="line-sub after-sale-amounts">商品 {{ sale.refundQuantity || 0 }} 件 · 商品款 ¥{{ money(sale.productRefundAmount) }} · 运费 ¥{{ money(sale.freightRefundAmount) }}</p>
             <div v-if="proofFilenames(sale).length" class="after-sale-proof-list" aria-label="售后凭证">
               <a v-for="filename in proofFilenames(sale)" :key="filename" :href="memberProofUrl(filename)" target="_blank" rel="noopener">
@@ -136,9 +141,12 @@
               <span>{{ line.productName }} {{ formatProductSpec(line) }}</span>
               <strong>× {{ line.refundQuantity }}</strong>
             </div>
-            <div v-if="[0, 4].includes(sale.status)" class="after-sale-record-actions">
-              <button type="button" class="btn secondary after-sale-cancel" :disabled="cancellingAfterSaleId === sale.id" @click="requestCancelAfterSale(sale.id)">
+            <div v-if="[0, 2, 4].includes(sale.status)" class="after-sale-record-actions">
+              <button v-if="[0, 4].includes(sale.status)" type="button" class="btn secondary after-sale-cancel" :disabled="cancellingAfterSaleId === sale.id" @click="requestCancelAfterSale(sale.id)">
                 {{ cancellingAfterSaleId === sale.id ? '取消中…' : '取消申请' }}
+              </button>
+              <button v-if="sale.status === 2 && canApplyAfterSale" type="button" class="btn secondary after-sale-cancel" @click="startAfterSale">
+                补充凭证重新申请
               </button>
             </div>
           </div>
@@ -260,6 +268,7 @@
         </div>
         <div class="inline-actions">
           <button v-if="canApplyAfterSale && !applyingAfterSale" class="btn secondary" @click="startAfterSale">申请售后</button>
+          <RouterLink v-if="Number(detail.pendingReviewCount || 0) > 0" class="btn secondary" :to="pendingReviewLink">去评价</RouterLink>
           <button v-if="order.status === 0" class="btn secondary" :disabled="acting" @click="requestOrderConfirmation('cancel-order')">取消订单</button>
           <button v-if="order.status === 0" class="btn primary" :disabled="acting" @click="pay">立即支付</button>
           <button v-if="order.status === 2" class="btn primary" :disabled="acting" @click="requestOrderConfirmation('receive-order')">确认收货</button>
@@ -402,6 +411,10 @@ const logisticsStatusDescription = computed(() => {
 const autoReceiveNotice = computed(() => detail.value.autoReceiveDeadline
   ? `预计 ${dateTime(detail.value.autoReceiveDeadline)} 自动确认收货`
   : `发货满 ${Number(detail.value.autoReceiveDays || 15)} 天自动确认收货`)
+const pendingReviewLink = computed(() => ({
+  path: `/product/${detail.value.pendingReviewProductId || items.value[0]?.productId}`,
+  query: detail.value.pendingReviewOrderItemId ? { orderItemId: detail.value.pendingReviewOrderItemId } : {},
+}))
 const afterSales = computed(() => detail.value.afterSales || [])
 const proofFilenames = (sale) => {
   try {
@@ -837,6 +850,10 @@ onBeforeUnmount(() => {
 .progress-track { height: 1px; flex: 1; margin: 0 7px; background: #e4e8ec; }
 .progress-1 .progress-track:first-of-type { background: var(--brand-primary, #e7193f); }
 .after-sale-amounts { margin: 0 0 9px; }
+.after-sale-next-action { display: grid; gap: 4px; margin: 0 0 10px; padding: 9px 11px; color: #6c5630; background: #fff9e9; border-radius: 9px; font-size: 11px; }
+.after-sale-next-action strong { font-size: 12px; }
+.after-sale-next-action.overdue { color: #b42318; background: #fff1f0; border: 1px solid #fecdca; }
+.after-sale-audit-remark { margin: 0 0 9px; padding: 8px 10px; background: #f6f7f8; border-radius: 8px; line-height: 1.55; }
 .after-sale-proof-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 10px; }
 .after-sale-proof-list a { width: 66px; height: 66px; overflow: hidden; border: 1px solid #e7eaed; border-radius: 9px; background: #f7f8f9; }
 .after-sale-proof-list img { width: 100%; height: 100%; display: block; object-fit: cover; }

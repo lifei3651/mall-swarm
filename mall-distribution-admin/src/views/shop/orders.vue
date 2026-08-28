@@ -115,6 +115,10 @@
                   {{ afterSaleStatus(activeAfterSale(row).status) }}
                 </el-tag>
                 <div class="sub">申请 {{ Number(activeAfterSale(row).refundQuantity || 0) }} 件 · ¥{{ money(activeAfterSale(row).refundAmount) }}</div>
+                <div v-if="activeAfterSale(row).nextActionHint" class="after-sale-action-deadline" :class="{ overdue: activeAfterSale(row).nextActionOverdue }">
+                  {{ activeAfterSale(row).nextActionHint }}
+                  <span v-if="activeAfterSale(row).nextActionDeadline">{{ formatDateTime(activeAfterSale(row).nextActionDeadline) }} 截止</span>
+                </div>
               </div>
               <div v-if="hasApprovedRefund(row)" class="refund-summary">
                 <el-tag size="small" :type="isFullRefund(row) ? 'danger' : 'warning'">
@@ -381,6 +385,15 @@
         <el-form-item label="申请原因">
           <div class="after-sale-reason">{{ currentAfterSale?.reason || '-' }}</div>
         </el-form-item>
+        <el-alert
+          v-if="currentAfterSale?.nextActionHint"
+          :title="currentAfterSale.nextActionHint"
+          :description="currentAfterSale.nextActionDeadline ? `${formatDateTime(currentAfterSale.nextActionDeadline)} 截止；超时只升级为平台优先介入，不会自动退款。` : ''"
+          :type="currentAfterSale.nextActionOverdue ? 'error' : 'warning'"
+          :closable="false"
+          show-icon
+          class="after-sale-action-alert"
+        />
         <el-form-item v-if="afterSaleProofUrls(currentAfterSale).length" label="图片凭证">
           <div class="after-sale-proof-grid">
             <el-image
@@ -394,7 +407,7 @@
           </div>
         </el-form-item>
         <el-form-item label="审核备注">
-          <el-input v-model="auditForm.auditRemark" type="textarea" :rows="4" />
+          <el-input v-model="auditForm.auditRemark" type="textarea" :rows="4" maxlength="500" show-word-limit :placeholder="auditForm.status === 1 ? '可填写处理说明' : '拒绝或关闭必须说明具体原因，会员端会直接展示'" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -1045,6 +1058,10 @@ const auditActionLabel = computed(() => ({ 1: '通过', 2: '拒绝', 3: '取消�
 
 const submitAudit = async () => {
   const actionStatus = auditForm.value.status
+  if ([2, 3].includes(actionStatus) && !auditForm.value.auditRemark.trim()) {
+    ElMessage.warning(actionStatus === 2 ? '请填写拒绝原因' : '请填写关闭原因')
+    return
+  }
   const actionText = ({ 1: '通过该售后申请', 2: '拒绝该售后申请', 3: '关闭该退款申请' })[actionStatus] || '提交本次售后处理'
   await ElMessageBox.confirm(
     `确认${actionText}？该操作会改变订单售后状态${actionStatus === 1 ? '，并可能立即执行退款和账务冲销' : ''}。`,
@@ -1326,6 +1343,9 @@ onBeforeUnmount(() => {
   line-height: 1.8;
 }
 .auto-receive-deadline { margin-top: 4px; color: #b26a00; font-weight: 600; }
+.after-sale-action-deadline { display: grid; gap: 2px; margin-top: 5px; color: #8a650f; font-size: 11px; line-height: 1.4; }
+.after-sale-action-deadline.overdue { color: #d92d20; font-weight: 700; }
+.after-sale-action-alert { margin-bottom: 16px; }
 
 .remaining-tip {
   margin-left: 10px;

@@ -55,6 +55,9 @@ public class ShopOrderVO implements Serializable {
 
     /** 已完成订单中尚未评价的商品明细数量。 */
     private Integer pendingReviewCount;
+    /** 待评价入口必须指向本订单内的具体商品明细，避免同款复购时写错订单。 */
+    private Long pendingReviewOrderItemId;
+    private Long pendingReviewProductId;
 
     /** 当前订单适用的客户售后入口规则，由服务端统一计算，前端不得自行猜测。 */
     private String afterSaleWindowMode;

@@ -93,6 +93,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     private final OrderBalanceAllocationService orderBalanceAllocationService;
     private final ExternalRefundCoordinator externalRefundCoordinator;
     private final ShopAfterSaleWindowPolicy afterSaleWindowPolicy;
+    private final ShopAfterSaleTimelinePolicy afterSaleTimelinePolicy;
     private final DmsFlashSaleActivityDao flashSaleActivityDao;
     private final DmsFlashSaleReservationDao flashSaleReservationDao;
     private final FlashSaleStockGate flashSaleStockGate;
@@ -595,6 +596,10 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
                 && !Integer.valueOf(3).equals(status)) {
             Asserts.fail("审核状态不正确");
         }
+        String auditRemark = dto == null || dto.getAuditRemark() == null ? "" : dto.getAuditRemark().trim();
+        if ((Integer.valueOf(2).equals(status) || Integer.valueOf(3).equals(status)) && auditRemark.isEmpty()) {
+            Asserts.fail(Integer.valueOf(2).equals(status) ? "拒绝售后必须填写原因" : "关闭售后必须填写原因");
+        }
         // 退货退款先进入“待寄回”，客户提交物流后再由商家确认收货并退款。
         boolean returnAddressConfigured = afterSale.getReturnAddress() != null
                 && !afterSale.getReturnAddress().isBlank();
@@ -607,7 +612,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         } else {
             afterSale.setStatus(status);
         }
-        afterSale.setAuditRemark(dto == null ? null : dto.getAuditRemark());
+        afterSale.setAuditRemark(auditRemark.isEmpty() ? null : auditRemark);
         afterSale.setAuditUserId(dto == null ? null : dto.getAuditUserId());
         afterSale.setAuditUserName(dto == null ? null : dto.getAuditUserName());
         if (afterSaleDao.updateAudit(afterSale) != 1) Asserts.fail("售后状态已变化，请刷新后重试");
@@ -914,6 +919,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             afterSale.setItems(afterSaleItemDao.selectByAfterSaleId(afterSale.getId()));
             DmsShopMember member = memberDao.selectByUserId(afterSale.getUserId());
             afterSale.setMemberAccount(MemberAccountUtils.display(member));
+            afterSaleTimelinePolicy.enrich(afterSale);
         }
         return afterSale;
     }

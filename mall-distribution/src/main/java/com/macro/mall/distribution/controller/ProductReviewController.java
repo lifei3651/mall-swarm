@@ -29,10 +29,11 @@ public class ProductReviewController {
     public CommonResult<ProductReviewPageVO> productReviews(
             @PathVariable Long productId,
             @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(required = false) Long orderItemId,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize) {
         DmsShopMember member = authService.resolveMember(authorization);
-        return CommonResult.success(productReviewService.listProductReviews(productId, member, pageNum, pageSize));
+        return CommonResult.success(productReviewService.listProductReviews(productId, member, orderItemId, pageNum, pageSize));
     }
 
     @Operation(summary = "已确认收货的买家发表评价")

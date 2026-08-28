@@ -27,6 +27,15 @@ public interface DmsShopProductReviewDao {
                                              @Param("productId") Long productId,
                                              @Param("tenantId") Long tenantId);
 
+    DmsShopOrderItem selectEligibleOrderItemById(@Param("userId") Long userId,
+                                                 @Param("productId") Long productId,
+                                                 @Param("tenantId") Long tenantId,
+                                                 @Param("orderItemId") Long orderItemId);
+
+    List<DmsShopOrderItem> selectUnreviewedByOrderId(@Param("userId") Long userId,
+                                                     @Param("orderId") Long orderId,
+                                                     @Param("tenantId") Long tenantId);
+
     int countUnreviewedByOrderId(@Param("userId") Long userId,
                                  @Param("orderId") Long orderId,
                                  @Param("tenantId") Long tenantId);

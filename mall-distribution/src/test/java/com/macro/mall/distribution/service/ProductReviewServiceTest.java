@@ -119,6 +119,26 @@ class ProductReviewServiceTest {
         assertEquals(0L, result.getStar1Count());
     }
 
+    @Test
+    void exactOrderItemReviewDoesNotConsumeAnotherRepurchaseOrder() {
+        DmsShopMember member = member(991020L, "复购评价会员", "13900001020");
+        insertOrderItem(99120L, "EXACT-99120", member.getUserId(), 3, 1L);
+        insertOrderItem(99121L, "EXACT-99121", member.getUserId(), 3, 1L);
+        Long firstItemId = orderItemId(99120L);
+        Long secondItemId = orderItemId(99121L);
+
+        ProductReviewSubmitDTO exact = review(5, "只评价指定的第一笔订单");
+        exact.setOrderItemId(firstItemId);
+        DmsShopProductReview submitted = productReviewService.submitReview(1L, member, exact);
+
+        assertEquals(99120L, submitted.getOrderId());
+        assertEquals(firstItemId, submitted.getOrderItemId());
+        assertEquals(0, productReviewDao.countUnreviewedByOrderId(member.getUserId(), 99120L, 1L));
+        assertEquals(1, productReviewDao.countUnreviewedByOrderId(member.getUserId(), 99121L, 1L));
+        assertFalse(productReviewService.listProductReviews(1L, member, firstItemId, 1, 10).getCanReview());
+        assertTrue(productReviewService.listProductReviews(1L, member, secondItemId, 1, 10).getCanReview());
+    }
+
     private DmsShopMember member(Long userId, String nickname, String phone) {
         DmsShopMember member = new DmsShopMember();
         member.setUserId(userId);
@@ -151,5 +171,10 @@ class ProductReviewServiceTest {
                  pv_value, total_pv, cost_amount, total_cost)
                 VALUES (?, ?, ?, '轻奢焕活礼盒', 299, 1, 299, 0, 0, 100, 100)
                 """, orderId, orderNo, productId);
+    }
+
+    private Long orderItemId(Long orderId) {
+        return jdbcTemplate.queryForObject(
+                "SELECT id FROM dms_shop_order_item WHERE order_id=? ORDER BY id LIMIT 1", Long.class, orderId);
     }
 }

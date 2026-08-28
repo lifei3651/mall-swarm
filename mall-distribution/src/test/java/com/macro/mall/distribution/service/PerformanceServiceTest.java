@@ -425,6 +425,9 @@ public class PerformanceServiceTest {
         cancel.setStatus(3);
         cancel.setAuditUserId(1L);
         cancel.setAuditUserName("test-admin");
+        assertThrows(RuntimeException.class, () -> shopAfterSaleService.audit(afterSale.getId(), cancel),
+                "后台关闭售后必须给会员可见的具体原因");
+        cancel.setAuditRemark("客户与客服协商后关闭申请");
         DmsShopAfterSale cancelled = shopAfterSaleService.audit(afterSale.getId(), cancel);
 
         assertEquals(3, cancelled.getStatus());

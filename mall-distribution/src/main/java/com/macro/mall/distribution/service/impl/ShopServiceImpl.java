@@ -140,6 +140,7 @@ public class ShopServiceImpl implements ShopService {
     private final ObjectMapper objectMapper;
     private final ShopCatalogCacheService catalogCache;
     private final ShopAfterSaleWindowPolicy afterSaleWindowPolicy;
+    private final ShopAfterSaleTimelinePolicy afterSaleTimelinePolicy;
     private final ShopBusinessModeService businessModeService;
     private final DmsFlashSaleActivityDao flashSaleActivityDao;
     private final DmsFlashSaleReservationDao flashSaleReservationDao;
@@ -1336,7 +1337,7 @@ public class ShopServiceImpl implements ShopService {
             vo.setMerchantFulfillmentAllowed(currentMerchantFulfillmentAllowed());
         }
         vo.setAfterSales(hydrateAfterSales(afterSaleDao.selectByOrderId(orderId)));
-        vo.setPendingReviewCount(pendingReviewCount(order));
+        fillPendingReview(vo, order);
         fillAfterSaleWindow(vo, order);
         vo.setDisplayConfig(getDisplayConfig(order.getTenantId()));
         return vo;
@@ -1365,7 +1366,7 @@ public class ShopServiceImpl implements ShopService {
             fillShipments(vo, order);
             vo.setFinance(auditService.getOrderFinanceDetail(order.getId()).getFinance());
             vo.setAfterSales(hydrateAfterSales(afterSaleDao.selectByOrderId(order.getId())));
-            vo.setPendingReviewCount(pendingReviewCount(order));
+            fillPendingReview(vo, order);
             fillAfterSaleWindow(vo, order);
             vo.setDisplayConfig(getDisplayConfig(order.getTenantId()));
             return vo;
@@ -1396,7 +1397,7 @@ public class ShopServiceImpl implements ShopService {
             if (!merchantWorkspace) vo.setFinance(auditService.getOrderFinanceDetail(order.getId()).getFinance());
             if (merchantWorkspace) vo.setMerchantFulfillmentAllowed(merchantFulfillmentAllowed);
             vo.setAfterSales(hydrateAfterSales(afterSaleDao.selectByOrderId(order.getId())));
-            vo.setPendingReviewCount(pendingReviewCount(order));
+            fillPendingReview(vo, order);
             fillAfterSaleWindow(vo, order);
             vo.setDisplayConfig(getDisplayConfig(order.getTenantId()));
             return vo;
@@ -1457,6 +1458,7 @@ public class ShopServiceImpl implements ShopService {
             afterSale.setItems(afterSaleItemDao.selectByAfterSaleId(afterSale.getId()));
             DmsShopMember member = memberDao.selectByUserId(afterSale.getUserId());
             afterSale.setMemberAccount(MemberAccountUtils.display(member));
+            afterSaleTimelinePolicy.enrich(afterSale);
         }
         return afterSales;
     }
@@ -1511,11 +1513,20 @@ public class ShopServiceImpl implements ShopService {
         vo.setShipments(shipments == null ? Collections.emptyList() : shipments);
     }
 
-    private int pendingReviewCount(DmsShopOrder order) {
-        if (order == null || !Integer.valueOf(3).equals(order.getStatus()) || order.getUserId() == null) {
-            return 0;
+    private void fillPendingReview(ShopOrderVO vo, DmsShopOrder order) {
+        if (vo == null) return;
+        vo.setPendingReviewCount(0);
+        vo.setPendingReviewOrderItemId(null);
+        vo.setPendingReviewProductId(null);
+        if (order == null || !Integer.valueOf(3).equals(order.getStatus()) || order.getUserId() == null) return;
+        Long tenantId = order.getTenantId() == null ? 1L : order.getTenantId();
+        List<DmsShopOrderItem> pending = productReviewDao.selectUnreviewedByOrderId(
+                order.getUserId(), order.getId(), tenantId);
+        vo.setPendingReviewCount(pending.size());
+        if (!pending.isEmpty()) {
+            vo.setPendingReviewOrderItemId(pending.get(0).getId());
+            vo.setPendingReviewProductId(pending.get(0).getProductId());
         }
-        return productReviewDao.countUnreviewedByOrderId(order.getUserId(), order.getId(), order.getTenantId());
     }
 
     @Override
@@ -1910,7 +1921,7 @@ public class ShopServiceImpl implements ShopService {
             fillShipments(orderVO, order);
             orderVO.setFinance(auditService.getOrderFinanceDetail(order.getId()).getFinance());
             orderVO.setAfterSales(hydrateAfterSales(afterSaleDao.selectByOrderId(order.getId())));
-            orderVO.setPendingReviewCount(pendingReviewCount(order));
+            fillPendingReview(orderVO, order);
             fillAfterSaleWindow(orderVO, order);
             orderVO.setDisplayConfig(getDisplayConfig(order.getTenantId()));
             return orderVO;

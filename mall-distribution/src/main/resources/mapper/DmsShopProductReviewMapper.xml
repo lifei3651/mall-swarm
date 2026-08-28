@@ -87,6 +87,37 @@
         LIMIT 1
     </select>
 
+    <select id="selectEligibleOrderItemById" resultType="com.macro.mall.distribution.entity.DmsShopOrderItem">
+        SELECT oi.id, oi.order_id, oi.order_no, oi.product_id, oi.sku_id, oi.product_name,
+               oi.sku_name, oi.sku_attrs, oi.product_cover, oi.price, oi.quantity, oi.total_amount,
+               oi.pv_value, oi.total_pv, oi.cost_amount, oi.total_cost, oi.create_time
+        FROM dms_shop_order_item oi
+        INNER JOIN dms_shop_order o ON o.id = oi.order_id
+        LEFT JOIN dms_shop_product_review r ON r.order_item_id = oi.id
+        WHERE oi.id = #{orderItemId}
+          AND o.user_id = #{userId}
+          AND o.status = 3
+          AND o.tenant_id = #{tenantId}
+          AND oi.product_id = #{productId}
+          AND r.id IS NULL
+        LIMIT 1
+    </select>
+
+    <select id="selectUnreviewedByOrderId" resultType="com.macro.mall.distribution.entity.DmsShopOrderItem">
+        SELECT oi.id, oi.order_id, oi.order_no, oi.product_id, oi.sku_id, oi.product_name,
+               oi.sku_name, oi.sku_attrs, oi.product_cover, oi.price, oi.quantity, oi.total_amount,
+               oi.pv_value, oi.total_pv, oi.cost_amount, oi.total_cost, oi.create_time
+        FROM dms_shop_order_item oi
+        INNER JOIN dms_shop_order o ON o.id = oi.order_id
+        LEFT JOIN dms_shop_product_review r ON r.order_item_id = oi.id
+        WHERE o.user_id = #{userId}
+          AND o.id = #{orderId}
+          AND o.status = 3
+          AND o.tenant_id = #{tenantId}
+          AND r.id IS NULL
+        ORDER BY oi.id ASC
+    </select>
+
     <select id="countUnreviewedByOrderId" resultType="int">
         SELECT COUNT(*)
         FROM dms_shop_order_item oi
