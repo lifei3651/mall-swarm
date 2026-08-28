@@ -99,6 +99,29 @@ SQL
   fi
 done
 
+# 早期私有部署初始化只创建了租户，没有落安全关闭的奖金版本。
+# 仅在整张版本表为空时补齐；一旦客户项目已有任何版本，绝不自动启用、停用或替换其制度。
+bonus_version_count=$(mysql_cmd <<'SQL'
+SELECT COUNT(*) FROM dms_commission_rule_version WHERE tenant_id = 1;
+SQL
+)
+if [ "$bonus_version_count" = "0" ]; then
+  mysql_cmd <<'SQL'
+INSERT INTO dms_commission_rule_version
+  (tenant_id, version_no, version_name, status, effective_time, remark)
+VALUES
+  (1, 'CUSTOMER_BONUS_DISABLED', '客户奖金程序未接入', 1, NOW(),
+   '商城基座安全默认值：正常交易不产生奖金，客户制度开发并验收后再替换');
+SQL
+  echo "已补齐新客户安全关闭的奖金程序"
+fi
+active_bonus_version_count=$(mysql_cmd <<'SQL'
+SELECT COUNT(*) FROM dms_commission_rule_version WHERE tenant_id = 1 AND status = 1;
+SQL
+)
+[ "$active_bonus_version_count" = "1" ] \
+  || { echo "客户必须且只能启用一个奖金程序，当前为 ${active_bonus_version_count} 个" >&2; exit 1; }
+
 # 客户资料是可重复应用的交付配置，不属于通用数据库结构迁移；使用十六进制避免SQL转义和注入。
 customer_name=$(unquote "$(env_get CUSTOMER_NAME)")
 brand_name=$(unquote "$(env_get CUSTOMER_BRAND_NAME)")

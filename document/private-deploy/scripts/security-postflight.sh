@@ -64,6 +64,12 @@ SQL
 )
 [ "$successful_migrations" = "$expected_migrations" ] \
   || fail "数据库迁移总账不完整，成功 $successful_migrations/$expected_migrations"
+active_bonus_versions=$(mysql_query <<'SQL'
+SELECT COUNT(*) FROM dms_commission_rule_version WHERE tenant_id = 1 AND status = 1;
+SQL
+)
+[ "$active_bonus_versions" = "1" ] \
+  || fail "客户必须且只能启用一个奖金程序，当前为 $active_bonus_versions 个"
 
 if command -v ss >/dev/null 2>&1; then
   listening=$(ss -H -lnt | awk '{print $4}')
@@ -159,6 +165,7 @@ report="$DEPLOY_DIR/reports/security-postflight-$(date +%Y%m%d_%H%M%S).txt"
   echo "backend_health=UP"
   echo "database_baseline=PASS"
   echo "database_migrations=PASS($successful_migrations/$expected_migrations)"
+  echo "active_customer_bonus_policy=PASS(1)"
   echo "upload_directory=writable"
   echo "sensitive_public_endpoints=404"
 } > "$report"

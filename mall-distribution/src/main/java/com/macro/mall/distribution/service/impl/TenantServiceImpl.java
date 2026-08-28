@@ -354,6 +354,9 @@ public class TenantServiceImpl implements TenantService {
     private DmsTenantDisplayConfig defaultDisplayConfig(Long tenantId) {
         DmsTenantDisplayConfig config = new DmsTenantDisplayConfig();
         config.setTenantId(tenantId);
+        // 新客户尚未接入独立奖金制度时，PV 等内部经营数据默认不展示。
+        // 历史客户缺字段时仍由 TenantDisplayConfigSupport 的兼容默认值处理，不受这里影响。
+        config.setShowPv(0);
         displayConfigSupport.prepareForSave(config);
         return config;
     }
