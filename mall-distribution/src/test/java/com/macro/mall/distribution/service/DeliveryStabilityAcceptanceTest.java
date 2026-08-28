@@ -3,9 +3,15 @@ package com.macro.mall.distribution.service;
 import cn.hutool.crypto.digest.BCrypt;
 import com.macro.mall.distribution.config.RedisConfig;
 import com.macro.mall.distribution.config.ScheduleTask;
+import com.macro.mall.distribution.bonus.CustomerBonusOrderContext;
+import com.macro.mall.distribution.bonus.CustomerBonusPayout;
+import com.macro.mall.distribution.bonus.CustomerBonusPolicy;
+import com.macro.mall.distribution.bonus.CustomerBonusPolicyCodes;
+import com.macro.mall.distribution.bonus.CustomerBonusRefundContext;
 import com.macro.mall.distribution.dao.DmsCommissionRecordDao;
 import com.macro.mall.distribution.dao.DmsMemberAssetAccountDao;
 import com.macro.mall.distribution.dao.DmsMemberRealNameDao;
+import com.macro.mall.distribution.dao.DmsOrderRelationSnapshotDao;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsShopOrderDao;
 import com.macro.mall.distribution.dao.DmsShopOrderItemDao;
@@ -41,16 +47,21 @@ import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.FilterType;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -73,6 +84,7 @@ import static org.junit.jupiter.api.Assertions.*;
         RedisConfig.class,
         ScheduleTask.class
 }))
+@Import(DeliveryStabilityAcceptanceTest.CustomerPolicyFixtureConfig.class)
 class DeliveryStabilityAcceptanceTest {
 
     private static final String LOGIN_PASSWORD = "Delivery123";
@@ -92,10 +104,12 @@ class DeliveryStabilityAcceptanceTest {
     @Autowired private DmsShopOrderItemDao orderItemDao;
     @Autowired private DmsShopProductDao productDao;
     @Autowired private DmsCommissionRecordDao commissionDao;
+    @Autowired private DmsOrderRelationSnapshotDao relationSnapshotDao;
     @Autowired private DmsMemberAssetAccountDao assetAccountDao;
     @Autowired private DmsMemberRealNameDao realNameDao;
     @Autowired private JdbcTemplate jdbcTemplate;
     @Autowired private SqlSessionTemplate sqlSessionTemplate;
+    @Autowired private TestCustomerBonusPolicy customerBonusPolicy;
     @MockitoBean private SmsVerificationService smsVerificationService;
 
     @Test
@@ -197,12 +211,93 @@ class DeliveryStabilityAcceptanceTest {
         assertEquals(initialProductStock - 1, productDao.selectById(1L).getStock(),
                 "第一单保留销量，第二单退货只回补一次库存");
 
-        // 流水守恒：初始余额 = 当前余额 + 两笔有效支出（第一单和已打款提现）。
+        // 客户派生项目可接入独立制度；即使支付后切换成其他制度，退款仍回调原制度。
+        customerBonusPolicy.reset();
+        Long customVersionId = activatePolicy(TestCustomerBonusPolicy.POLICY_CODE, "验收客户独立制度");
+        BigDecimal beforeCustomOrder = balance(member.getUserId());
+        ShopOrderVO customOrder = submitAndPay(member);
+        List<DmsCommissionRecord> customCommissions = commissionDao.selectByOrderId(customOrder.getOrder().getId());
+        assertEquals(1, customCommissions.size());
+        assertEquals(TestCustomerBonusPolicy.BONUS_CODE, customCommissions.get(0).getBonusType());
+        assertEquals(customVersionId, customCommissions.get(0).getRuleVersionId());
+        assertMoney("14.95", customCommissions.get(0).getCommissionAmount());
+        assertEquals(1, customerBonusPolicy.orderEvents());
+
+        Long disabledVersionId = activatePolicy(CustomerBonusPolicyCodes.DISABLED, "新客户默认无奖金");
+        returnAndRefund(member, customOrder, "SF-ACCEPT-003", "SFRETURN003", "客户制度切换退款验收");
+        DmsCommissionRecord refundedCustomCommission = commissionDao
+                .selectByOrderId(customOrder.getOrder().getId()).get(0);
+        assertEquals(3, refundedCustomCommission.getStatus());
+        assertMoney("0.00", refundedCustomCommission.getCommissionAmount());
+        assertMoney(beforeCustomOrder, balance(member.getUserId()));
+        assertEquals(1, customerBonusPolicy.refundEvents(),
+                "退款必须回调订单支付时冻结的客户制度，而不是后来切换的制度");
+
+        // 新客户默认无奖金，但注册、下单、支付、履约、售后和退款仍完整可用。
+        BigDecimal beforeDisabledOrder = balance(member.getUserId());
+        ShopOrderVO disabledOrder = submitAndPay(member);
+        assertTrue(commissionDao.selectByOrderId(disabledOrder.getOrder().getId()).isEmpty());
+        var disabledSnapshots = relationSnapshotDao.selectByOrderId(disabledOrder.getOrder().getId());
+        assertFalse(disabledSnapshots.isEmpty());
+        assertTrue(disabledSnapshots.stream()
+                .allMatch(item -> disabledVersionId.equals(item.getRuleVersionId())));
+        returnAndRefund(member, disabledOrder, "SF-ACCEPT-004", "SFRETURN004", "默认无奖金全流程验收");
+        assertMoney(beforeDisabledOrder, balance(member.getUserId()));
+        assertTrue(commissionDao.selectByOrderId(disabledOrder.getOrder().getId()).isEmpty());
+        assertEquals(1, customerBonusPolicy.refundEvents(),
+                "默认无奖金订单退款不能误调用其他客户制度");
+        assertEquals(initialProductStock - 1, productDao.selectById(1L).getStock(),
+                "两笔扩展验收订单退款后也必须各自只回补一次库存");
+
+        // 流水守恒：所有退款单回到支付前余额，只保留第一单有效消费。
         BigDecimal memberEffectiveOut = first.getOrder().getPayAmount();
         assertMoney(initialBalance.subtract(memberEffectiveOut), balance(member.getUserId()));
         assertEquals(1, jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM dms_finance_refund WHERE order_id=?",
                 Integer.class, refundable.getOrder().getId()));
+    }
+
+    private Long activatePolicy(String policyCode, String policyName) {
+        jdbcTemplate.update("UPDATE dms_commission_rule_version SET status=0 WHERE tenant_id=1");
+        jdbcTemplate.update("""
+                INSERT INTO dms_commission_rule_version
+                  (tenant_id,version_no,version_name,status,effective_time,remark)
+                VALUES (1,?,?,1,CURRENT_TIMESTAMP,'交付验收动态切换')
+                """, policyCode, policyName);
+        sqlSessionTemplate.clearCache();
+        return jdbcTemplate.queryForObject("""
+                SELECT id FROM dms_commission_rule_version
+                WHERE tenant_id=1 AND status=1 ORDER BY id DESC LIMIT 1
+                """, Long.class);
+    }
+
+    private DmsShopAfterSale returnAndRefund(DmsShopMember member, ShopOrderVO order,
+                                             String deliveryNo, String returnDeliveryNo, String reason) {
+        shipAndReceive(order.getOrder().getId(), member, deliveryNo);
+        Long orderItemId = orderItemDao.selectByOrderId(order.getOrder().getId()).get(0).getId();
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
+        apply.setOrderId(order.getOrder().getId());
+        apply.setApplyType(2);
+        apply.setReason(reason);
+        ShopAfterSaleItemDTO item = new ShopAfterSaleItemDTO();
+        item.setOrderItemId(orderItemId);
+        item.setQuantity(1);
+        apply.setItems(List.of(item));
+        DmsShopAfterSale afterSale = afterSaleService.apply(member, apply);
+        ShopAfterSaleAuditDTO audit = new ShopAfterSaleAuditDTO();
+        audit.setStatus(1);
+        audit.setAuditUserId(1L);
+        audit.setAuditUserName("交付验收客服");
+        audit.setAuditRemark("同意退货，等待寄回");
+        afterSale = afterSaleService.audit(afterSale.getId(), audit);
+        ShopAfterSaleReturnShipmentDTO shipment = new ShopAfterSaleReturnShipmentDTO();
+        shipment.setDeliveryCompany("顺丰速运");
+        shipment.setDeliveryNo(returnDeliveryNo);
+        afterSaleService.submitReturnShipment(member, afterSale.getId(), shipment);
+        DmsShopAfterSale completed = afterSaleService.confirmReturnReceived(afterSale.getId(), audit);
+        assertEquals(1, completed.getStatus());
+        assertEquals(4, orderDao.selectById(order.getOrder().getId()).getStatus());
+        return completed;
     }
 
     private void prepareSystemFundAccounts() {
@@ -348,5 +443,67 @@ class DeliveryStabilityAcceptanceTest {
 
     private void assertMoney(BigDecimal expected, BigDecimal actual) {
         assertEquals(0, expected.compareTo(actual), "expected=" + expected + ", actual=" + actual);
+    }
+
+    @TestConfiguration
+    static class CustomerPolicyFixtureConfig {
+        @Bean
+        TestCustomerBonusPolicy testCustomerBonusPolicy(DmsOrderRelationSnapshotDao relationSnapshotDao) {
+            return new TestCustomerBonusPolicy(relationSnapshotDao);
+        }
+    }
+
+    static class TestCustomerBonusPolicy implements CustomerBonusPolicy {
+        static final String POLICY_CODE = "CUSTOMER_ACCEPTANCE_V1";
+        static final String BONUS_CODE = "CUSTOMER_ACCEPTANCE_REWARD";
+
+        private final DmsOrderRelationSnapshotDao relationSnapshotDao;
+        private final AtomicInteger orderEvents = new AtomicInteger();
+        private final AtomicInteger refundEvents = new AtomicInteger();
+
+        TestCustomerBonusPolicy(DmsOrderRelationSnapshotDao relationSnapshotDao) {
+            this.relationSnapshotDao = relationSnapshotDao;
+        }
+
+        @Override
+        public String policyCode() {
+            return POLICY_CODE;
+        }
+
+        @Override
+        public List<CustomerBonusPayout> calculate(CustomerBonusOrderContext context) {
+            return relationSnapshotDao.selectByOrderId(context.orderId()).stream()
+                    .filter(item -> Integer.valueOf(1).equals(item.getRelationLevel()))
+                    .findFirst()
+                    .map(item -> List.of(new CustomerBonusPayout(
+                            item.getTargetAgentId(), 1, BONUS_CODE, new BigDecimal("0.0500"),
+                            context.bonusBaseAmount().multiply(new BigDecimal("0.0500"))
+                                    .setScale(2, RoundingMode.HALF_UP),
+                            "交付验收客户独立制度")))
+                    .orElseGet(List::of);
+        }
+
+        @Override
+        public void afterOrder(CustomerBonusOrderContext context) {
+            orderEvents.incrementAndGet();
+        }
+
+        @Override
+        public void afterRefund(CustomerBonusRefundContext context) {
+            refundEvents.incrementAndGet();
+        }
+
+        void reset() {
+            orderEvents.set(0);
+            refundEvents.set(0);
+        }
+
+        int orderEvents() {
+            return orderEvents.get();
+        }
+
+        int refundEvents() {
+            return refundEvents.get();
+        }
     }
 }

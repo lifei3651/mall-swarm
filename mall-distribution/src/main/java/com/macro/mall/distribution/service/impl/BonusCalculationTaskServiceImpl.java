@@ -156,6 +156,7 @@ public class BonusCalculationTaskServiceImpl implements BonusCalculationTaskServ
             List<DmsCommissionRecord> oldRecords = commissionRecordDao.selectByOrderId(task.getOrderId());
             if (oldRecords.isEmpty()) {
                 commissionService.calculateAndRecordCommission(
+                        task.getTenantId(),
                         task.getOrderId(),
                         task.getOrderNo(),
                         task.getOrderAmount(),

@@ -31,6 +31,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import static com.macro.mall.distribution.service.impl.NewRetailBonusPolicy.DIRECTOR_SHARE;
 import static com.macro.mall.distribution.service.impl.NewRetailBonusPolicy.DIRECT_REWARD;
@@ -45,6 +46,7 @@ public class CommissionServiceImpl implements CommissionService {
 
     private final DmsCommissionRecordDao recordDao;
     private final DmsCommissionRuleVersionDao ruleVersionDao;
+    private final DmsOrderRelationSnapshotDao orderRelationSnapshotDao;
     private final DmsAgentDao agentDao;
     private final DmsAgentRelationDao relationDao;
     private final DmsAgentAccountDao accountDao;
@@ -71,7 +73,7 @@ public class CommissionServiceImpl implements CommissionService {
     public void calculateAndRecordCommission(Long tenantId, Long orderId, String orderNo, BigDecimal orderAmount,
                                               Long orderUserId, String orderUserName) {
         Long resolvedTenantId = tenantId == null ? 1L : tenantId;
-        DmsCommissionRuleVersion version = ruleVersionDao.selectActiveByTenantId(resolvedTenantId);
+        DmsCommissionRuleVersion version = resolveOrderRuleVersion(resolvedTenantId, orderId);
         if (version == null) {
             Asserts.fail("当前客户奖金程序尚未接入，已阻止产生不确定奖金");
         }
@@ -89,6 +91,29 @@ public class CommissionServiceImpl implements CommissionService {
         }
         policy.afterOrder(context);
         auditService.refreshOrderFinance(orderId, orderNo, orderAmount);
+    }
+
+    /**
+     * 正常支付订单必须使用支付瞬间冻结在关系快照中的客户制度版本。
+     * 仅为没有关系快照的历史导入或兼容调用保留“当前启用版本”回退。
+     */
+    private DmsCommissionRuleVersion resolveOrderRuleVersion(Long tenantId, Long orderId) {
+        List<Long> frozenVersionIds = orderRelationSnapshotDao.selectByOrderId(orderId).stream()
+                .map(DmsOrderRelationSnapshot::getRuleVersionId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (frozenVersionIds.size() > 1) {
+            Asserts.fail("订单关系快照包含多个客户奖金程序版本，已阻止不一致计算");
+        }
+        if (frozenVersionIds.size() == 1) {
+            DmsCommissionRuleVersion frozenVersion = ruleVersionDao.selectById(tenantId, frozenVersionIds.get(0));
+            if (frozenVersion == null) {
+                Asserts.fail("订单冻结的客户奖金程序版本不存在，已阻止不完整计算");
+            }
+            return frozenVersion;
+        }
+        return ruleVersionDao.selectActiveByTenantId(tenantId);
     }
 
     private void addPendingRecord(CustomerBonusOrderContext context, CustomerBonusPayout payout) {
