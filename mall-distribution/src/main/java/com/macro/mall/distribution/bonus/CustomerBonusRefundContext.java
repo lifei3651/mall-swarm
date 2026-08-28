@@ -11,6 +11,10 @@ public record CustomerBonusRefundContext(
         Long refundId,
         BigDecimal productRefundAmount,
         Integer refundQuantity,
+        BigDecimal bonusBaseAmount,
+        BigDecimal bonusRefundAmount,
+        Integer bonusRefundQuantity,
+        BigDecimal cumulativeBonusRefundAmount,
         LocalDateTime refundTime
 ) {
 }

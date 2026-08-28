@@ -42,6 +42,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -1400,6 +1401,39 @@ public class PerformanceServiceTest {
                 "退款只能重算订单本人及其支付快照上级，不能降级无关会员");
     }
 
+    /** 支付宝渠道尚未确认退款成功时，不能提前关闭订单或取消首单会员资格。 */
+    @Test
+    void externalRefundWaitsForChannelSuccessBeforeClosingOrderAndDemotingMember() {
+        newRetailVersion("EXTERNAL_REFUND_MEMBERSHIP_GATE");
+        DmsShopMember member = createShopMember("13999000053", "渠道退款会员", null);
+        ShopOrderVO paid = submitAndPay(member, 1);
+        DmsAgent activated = agentDao.selectByUserId(member.getUserId());
+        assertNotNull(activated);
+
+        ShopAfterSaleItemDTO refundItem = new ShopAfterSaleItemDTO();
+        refundItem.setOrderItemId(paid.getItems().get(0).getId());
+        refundItem.setQuantity(1);
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
+        apply.setOrderId(paid.getOrder().getId());
+        apply.setItems(List.of(refundItem));
+        apply.setReason("等待支付宝渠道确认");
+        DmsShopAfterSale afterSale = shopAfterSaleService.apply(member, apply);
+        ShopAfterSaleAuditDTO audit = new ShopAfterSaleAuditDTO();
+        audit.setStatus(1);
+        audit.setAuditUserId(1L);
+        audit.setAuditUserName("test-admin");
+
+        ReflectionTestUtils.setField(shopAfterSaleService, "simulationPaymentEnabled", false);
+        try {
+            DmsShopAfterSale processing = shopAfterSaleService.audit(afterSale.getId(), audit);
+            assertEquals(6, processing.getStatus());
+            assertEquals(1, shopOrderDao.selectById(paid.getOrder().getId()).getStatus());
+            assertNotNull(agentDao.selectByUserId(member.getUserId()));
+        } finally {
+            ReflectionTestUtils.setField(shopAfterSaleService, "simulationPaymentEnabled", true);
+        }
+    }
+
     /** 已发货后部分退货必须按实际件数冲减，原发货运费锁定不退。 */
     @Test
     void testPartialAfterShipmentRefundReversesExactQuantityAndNeverRefundsFreight() {
@@ -1452,6 +1486,77 @@ public class PerformanceServiceTest {
         shopAfterSaleService.audit(second.getId(), audit);
         assertEquals(4, performanceDetailDao.sumEffectiveTeamUnits(agent.getId()));
         assertAmountEquals("299.00", commissionRecordDao.selectById(direct.getId()).getCommissionAmount());
+    }
+
+    /** 混合订单退普通商品不能误扣团队业绩和奖金；退奖金商品时才按对应金额、数量冲销。 */
+    @Test
+    void mixedOrderRefundOnlyClawsBackBonusEligibleItems() {
+        newRetailVersion("MIXED_ORDER_REFUND_SCOPE");
+        jdbcTemplate.update("UPDATE dms_shop_product SET team_bonus_mode='STANDARD' WHERE id=1");
+        jdbcTemplate.update("UPDATE dms_shop_product SET team_bonus_mode='NONE' WHERE id=2");
+
+        DmsShopMember inviter = createShopMember("13999000051", "混合退款直推人", null);
+        submitAndPay(inviter, 1);
+        DmsShopMember buyer = createShopMember("13999000052", "混合退款购买人", inviter.getUserId());
+
+        ShopOrderItemDTO bonusItem = new ShopOrderItemDTO();
+        bonusItem.setProductId(1L);
+        bonusItem.setSkuId(1L);
+        bonusItem.setQuantity(2);
+        ShopOrderItemDTO ordinaryItem = new ShopOrderItemDTO();
+        ordinaryItem.setProductId(2L);
+        ordinaryItem.setSkuId(3L);
+        ordinaryItem.setQuantity(1);
+        ShopOrderSubmitDTO submit = new ShopOrderSubmitDTO();
+        submit.setReceiverName(buyer.getNickname());
+        submit.setReceiverPhone(buyer.getPhone());
+        submit.setReceiverAddress("湖南省长沙市混合退款测试地址");
+        submit.setPayType("ALIPAY");
+        submit.setItems(List.of(bonusItem, ordinaryItem));
+        ShopOrderVO paid = shopService.markOrderPaid(
+                shopService.submitOrder(submit, buyer).getOrder().getId(), "ALIPAY");
+
+        DmsAgent buyerAgent = agentDao.selectByUserId(buyer.getUserId());
+        assertEquals(2, accountDao.selectByAgentId(buyerAgent.getId()).getTotalOrders());
+        DmsCommissionRecord direct = commissionRecordDao.selectByOrderId(paid.getOrder().getId()).stream()
+                .filter(item -> "DIRECT_REWARD".equals(item.getBonusType())).findFirst().orElseThrow();
+        BigDecimal originalCommission = direct.getCommissionAmount();
+
+        ShopAfterSaleItemDTO ordinaryRefundItem = new ShopAfterSaleItemDTO();
+        ordinaryRefundItem.setOrderItemId(paid.getItems().stream()
+                .filter(item -> Long.valueOf(2L).equals(item.getProductId())).findFirst().orElseThrow().getId());
+        ordinaryRefundItem.setQuantity(1);
+        ShopAfterSaleApplyDTO ordinaryApply = new ShopAfterSaleApplyDTO();
+        ordinaryApply.setOrderId(paid.getOrder().getId());
+        ordinaryApply.setItems(List.of(ordinaryRefundItem));
+        ordinaryApply.setReason("只退普通商品");
+        DmsShopAfterSale ordinaryAfterSale = shopAfterSaleService.apply(buyer, ordinaryApply);
+        ShopAfterSaleAuditDTO audit = new ShopAfterSaleAuditDTO();
+        audit.setStatus(1);
+        audit.setAuditUserId(1L);
+        audit.setAuditUserName("test-admin");
+        shopAfterSaleService.audit(ordinaryAfterSale.getId(), audit);
+
+        assertEquals(2, accountDao.selectByAgentId(buyerAgent.getId()).getTotalOrders());
+        assertAmountEquals(originalCommission.toPlainString(),
+                commissionRecordDao.selectById(direct.getId()).getCommissionAmount());
+        assertAmountEquals("0.00", clawbackDao.sumByCommissionRecordId(direct.getId()));
+
+        ShopAfterSaleItemDTO bonusRefundItem = new ShopAfterSaleItemDTO();
+        bonusRefundItem.setOrderItemId(paid.getItems().stream()
+                .filter(item -> Long.valueOf(1L).equals(item.getProductId())).findFirst().orElseThrow().getId());
+        bonusRefundItem.setQuantity(1);
+        ShopAfterSaleApplyDTO bonusApply = new ShopAfterSaleApplyDTO();
+        bonusApply.setOrderId(paid.getOrder().getId());
+        bonusApply.setItems(List.of(bonusRefundItem));
+        bonusApply.setReason("再退一件奖金商品");
+        DmsShopAfterSale bonusAfterSale = shopAfterSaleService.apply(buyer, bonusApply);
+        shopAfterSaleService.audit(bonusAfterSale.getId(), audit);
+
+        assertEquals(1, accountDao.selectByAgentId(buyerAgent.getId()).getTotalOrders());
+        assertAmountEquals(originalCommission.divide(new BigDecimal("2"), 2, java.math.RoundingMode.HALF_UP)
+                        .toPlainString(),
+                commissionRecordDao.selectById(direct.getId()).getCommissionAmount());
     }
 
     /** 已结算奖金已被消费时，退款仍须成功，未追回部分形成欠款并按净奖金重算财务。 */

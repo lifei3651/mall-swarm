@@ -667,6 +667,18 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     }
 
     private void completeRefund(DmsShopAfterSale afterSale, DmsShopOrder order) {
+            List<DmsShopAfterSaleItem> items = afterSaleItemDao.selectByAfterSaleId(afterSale.getId());
+            List<DmsShopOrderItem> orderItems = orderItemDao.selectByOrderId(order.getId());
+            Map<Long, DmsShopOrderItem> orderItemsById = new LinkedHashMap<>();
+            for (DmsShopOrderItem orderItem : orderItems) orderItemsById.put(orderItem.getId(), orderItem);
+            BigDecimal bonusRefundAmount = items.stream()
+                    .filter(item -> isBonusEligibleOrderItem(orderItemsById.get(item.getOrderItemId())))
+                    .map(DmsShopAfterSaleItem::getRefundAmount).filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            int bonusRefundQuantity = items.stream()
+                    .filter(item -> isBonusEligibleOrderItem(orderItemsById.get(item.getOrderItemId())))
+                    .map(DmsShopAfterSaleItem::getRefundQuantity).filter(Objects::nonNull)
+                    .mapToInt(Integer::intValue).sum();
             FinanceRefundDTO refundDTO = new FinanceRefundDTO();
             refundDTO.setOrderId(afterSale.getOrderId());
             refundDTO.setOrderNo(afterSale.getOrderNo());
@@ -675,6 +687,11 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             refundDTO.setProductRefundAmount(afterSale.getProductRefundAmount());
             refundDTO.setFreightRefundAmount(afterSale.getFreightRefundAmount());
             refundDTO.setRefundQuantity(afterSale.getRefundQuantity());
+            refundDTO.setBonusBaseAmount(calculateBonusBase(order, orderItems));
+            refundDTO.setBonusRefundAmount(bonusRefundAmount);
+            refundDTO.setBonusRefundQuantity(bonusRefundQuantity);
+            refundDTO.setCumulativeBonusRefundAmount(
+                    nullToZero(afterSaleItemDao.sumApprovedBonusRefundByOrderId(order.getId())));
             refundDTO.setClawbackBonus(1);
             refundDTO.setReason("售后退款：" + afterSale.getReason());
             refundDTO.setOperatorId(afterSale.getAuditUserId());
@@ -695,7 +712,6 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
                 balanceRefund.setRemark("余额支付售后退款：" + afterSale.getAfterSaleNo());
                 memberAssetService.issue(balanceRefund);
             }
-            List<DmsShopAfterSaleItem> items = afterSaleItemDao.selectByAfterSaleId(afterSale.getId());
             merchantService.reverseAfterSaleItems(items);
             if (Integer.valueOf(2).equals(afterSale.getApplyType())) {
                 int returnedQuantity = 0;
@@ -706,13 +722,43 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
                 }
                 releaseFlashSaleAfterReturn(order, returnedQuantity);
             }
-            int originalQuantity = orderItemDao.selectByOrderId(order.getId()).stream()
+            int originalQuantity = orderItems.stream()
                     .map(DmsShopOrderItem::getQuantity).filter(Objects::nonNull).mapToInt(Integer::intValue).sum();
-            if (afterSaleItemDao.sumApprovedQuantityByOrderId(order.getId()) >= originalQuantity) {
+            boolean externalRefundPending = requiresExternalRefund(order, afterSale);
+            if (!externalRefundPending
+                    && afterSaleItemDao.sumApprovedQuantityByOrderId(order.getId()) >= originalQuantity) {
                 orderDao.closeAfterSale(afterSale.getOrderId());
             }
             // 退款后退回非会员：名下已无有效支付订单时自动取消推广资格（含其下级团队自动移交）。
-            autoDemoteMemberAfterFullRefund(order);
+            if (!externalRefundPending) autoDemoteMemberAfterFullRefund(order);
+    }
+
+    private BigDecimal calculateBonusBase(DmsShopOrder order, List<DmsShopOrderItem> items) {
+        if (items == null || items.isEmpty()) {
+            BigDecimal productAmount = order.getTotalAmount() == null
+                    ? nullToZero(order.getPayAmount()).subtract(nullToZero(order.getFreightAmount()))
+                    : nullToZero(order.getTotalAmount());
+            return productAmount.subtract(nullToZero(order.getDiscountAmount())).max(BigDecimal.ZERO)
+                    .setScale(2, java.math.RoundingMode.HALF_UP);
+        }
+        BigDecimal gross = items.stream().map(DmsShopOrderItem::getTotalAmount)
+                .filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal eligible = items.stream().filter(this::isBonusEligibleOrderItem)
+                .map(DmsShopOrderItem::getTotalAmount).filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (gross.compareTo(BigDecimal.ZERO) <= 0 || eligible.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO.setScale(2);
+        }
+        BigDecimal eligibleDiscount = nullToZero(order.getDiscountAmount()).multiply(eligible)
+                .divide(gross, 2, java.math.RoundingMode.HALF_UP);
+        return eligible.subtract(eligibleDiscount).max(BigDecimal.ZERO)
+                .setScale(2, java.math.RoundingMode.HALF_UP);
+    }
+
+    private boolean isBonusEligibleOrderItem(DmsShopOrderItem item) {
+        String mode = item == null ? null : item.getTeamBonusMode();
+        return mode == null || mode.isBlank() || "INHERIT".equalsIgnoreCase(mode)
+                || "STANDARD".equalsIgnoreCase(mode);
     }
 
     private void releaseFlashSaleAfterPendingCancellation(DmsShopOrder order) {

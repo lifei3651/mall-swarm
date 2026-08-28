@@ -382,6 +382,31 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         BigDecimal productBase = productAmount.subtract(nullToZero(shopOrder.getDiscountAmount())).max(BigDecimal.ZERO);
         if (productBase.compareTo(BigDecimal.ZERO) <= 0) Asserts.fail("订单商品实付金额异常，不能冲销业绩");
 
+        boolean preciseBonusScope = dto.getBonusRefundAmount() != null
+                || dto.getBonusRefundQuantity() != null
+                || dto.getBonusBaseAmount() != null
+                || dto.getCumulativeBonusRefundAmount() != null;
+        BigDecimal bonusRefund = preciseBonusScope ? nullToZero(dto.getBonusRefundAmount()) : productRefund;
+        int bonusRefundQuantity = preciseBonusScope
+                ? (dto.getBonusRefundQuantity() == null ? 0 : dto.getBonusRefundQuantity())
+                : refundQuantity;
+        BigDecimal bonusBase = preciseBonusScope ? nullToZero(dto.getBonusBaseAmount()) : productBase;
+        BigDecimal cumulativeBonusRefund = preciseBonusScope
+                ? nullToZero(dto.getCumulativeBonusRefundAmount()) : null;
+        if (bonusRefund.compareTo(BigDecimal.ZERO) < 0 || bonusRefund.compareTo(productRefund) > 0) {
+            Asserts.fail("奖金商品退款金额不正确");
+        }
+        if (bonusRefundQuantity < 0 || bonusRefundQuantity > refundQuantity) {
+            Asserts.fail("奖金商品退款数量不正确");
+        }
+        if (bonusRefund.compareTo(BigDecimal.ZERO) > 0 && bonusBase.compareTo(BigDecimal.ZERO) <= 0) {
+            Asserts.fail("订单奖金商品基数异常，不能冲销奖金");
+        }
+        if (preciseBonusScope && (cumulativeBonusRefund.compareTo(bonusRefund) < 0
+                || cumulativeBonusRefund.compareTo(bonusBase) > 0)) {
+            Asserts.fail("奖金商品累计退款金额不正确");
+        }
+
         BigDecimal productRefunded = nullToZero(refundDao.sumProductByOrderId(dto.getOrderId()));
         BigDecimal freightRefunded = nullToZero(refundDao.sumFreightByOrderId(dto.getOrderId()));
         BigDecimal productRefundable = productBase.subtract(productRefunded).max(BigDecimal.ZERO);
@@ -420,19 +445,25 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
 
         // 商品退款按实际退回数量精确冲减；运费永远不参与业绩、件数和奖金冲销。
         performanceService.reverseOrderPerformance(refund.getOrderId(), refund.getId(),
-                productRefund, refundQuantity, refund.getRefundTime());
-        BigDecimal cumulativeProductRefundRate = productRefunded.add(productRefund)
-                .min(productBase).divide(productBase, 8, RoundingMode.HALF_UP);
+                bonusRefund, bonusRefundQuantity, refund.getRefundTime());
+        BigDecimal cumulativeProductRefundRate = preciseBonusScope
+                ? (bonusBase.compareTo(BigDecimal.ZERO) <= 0 ? BigDecimal.ZERO
+                    : cumulativeBonusRefund.min(bonusBase).divide(bonusBase, 8, RoundingMode.HALF_UP))
+                : productRefunded.add(productRefund).min(productBase)
+                    .divide(productBase, 8, RoundingMode.HALF_UP);
         if (Integer.valueOf(1).equals(refund.getClawbackBonus())) {
             clawbackCommissions(finance, refund, cumulativeProductRefundRate);
         }
         recalculate(finance);
         financeDao.update(finance);
-        notifyCustomerPolicyAfterRefund(refund);
+        notifyCustomerPolicyAfterRefund(refund, bonusBase, bonusRefund,
+                bonusRefundQuantity, preciseBonusScope ? cumulativeBonusRefund : productRefunded.add(productRefund));
         return refund;
     }
 
-    private void notifyCustomerPolicyAfterRefund(DmsFinanceRefund refund) {
+    private void notifyCustomerPolicyAfterRefund(DmsFinanceRefund refund, BigDecimal bonusBase,
+                                                 BigDecimal bonusRefund, Integer bonusRefundQuantity,
+                                                 BigDecimal cumulativeBonusRefund) {
         Long ruleVersionId = relationSnapshotDao.selectByOrderId(refund.getOrderId()).stream()
                 .map(DmsOrderRelationSnapshot::getRuleVersionId)
                 .filter(Objects::nonNull)
@@ -451,7 +482,9 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         CustomerBonusPolicy policy = bonusPolicyRegistry.require(version.getVersionNo());
         policy.afterRefund(new CustomerBonusRefundContext(
                 tenantId, ruleVersionId, refund.getOrderId(), refund.getId(),
-                refund.getProductRefundAmount(), refund.getRefundQuantity(), refund.getRefundTime()));
+                refund.getProductRefundAmount(), refund.getRefundQuantity(),
+                bonusBase, bonusRefund, bonusRefundQuantity,
+                cumulativeBonusRefund, refund.getRefundTime()));
     }
 
     @Override

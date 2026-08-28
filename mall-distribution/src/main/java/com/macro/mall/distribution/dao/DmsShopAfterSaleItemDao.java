@@ -17,6 +17,9 @@ public interface DmsShopAfterSaleItemDao {
 
     BigDecimal sumApprovedProductRefundByOrderId(@Param("orderId") Long orderId);
 
+    /** 只累计下单快照中参与团队奖金的商品退款金额。 */
+    BigDecimal sumApprovedBonusRefundByOrderId(@Param("orderId") Long orderId);
+
     /** 按订单SKU/商品下单时冻结的单位成本，计算已审批退货对应成本。 */
     BigDecimal sumApprovedCostByOrderId(@Param("orderId") Long orderId);
 
