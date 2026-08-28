@@ -2,10 +2,10 @@
 
 更新时间：2026-08-28（Asia/Shanghai）
 当前线上版本标记：`1.0.96`
-当前本地版本：`1.0.96`（`codex/app-h5-split`；含待发布增量）
+当前本地版本：`1.0.97`（`codex/app-h5-split`；正式候选冻结中）
 线上环境：公开商城 https://lingqimall.com ；团队 H5 https://www.lingqimall.com ；管理后台 https://lingqimall.com/admin/
 
-### 1.0.96 后续本地增量：平台与商家双登录入口（待发布）
+### 1.0.97 平台与商家双登录入口（待发布）
 
 - 管理后台从单一`/admin/login`拆分为商家`/admin/merchant/login`和平台`/admin/platform/login`两条真实路由；对外另提供更易记的`/merchant/login`与`/platform/login`跳转。旧`/admin/login`保留兼容并转到商家入口，避免已有商家书签失效。
 - 两个页面复用同一套稳定登录组件，但分别显示“商家后台 / 平台总后台”、账号占位、专属说明和按钮文案；当前入口会保留在浏览器中，会话超时和主动退出后返回原账号所属入口，不再统一回到混合登录页。
