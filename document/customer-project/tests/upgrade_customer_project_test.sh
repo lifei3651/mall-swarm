@@ -17,7 +17,9 @@ cp "$ROOT_DIR/document/customer-project/scripts/upgrade-customer-project.sh" \
   "$BASE_REPO/document/customer-project/scripts/upgrade-customer-project.sh"
 chmod +x "$BASE_REPO/document/customer-project/scripts/upgrade-customer-project.sh"
 git -C "$BASE_REPO" add document/customer-project/scripts/upgrade-customer-project.sh
-git -C "$BASE_REPO" commit -q -m '加入客户项目升级工具'
+if ! git -C "$BASE_REPO" diff --cached --quiet; then
+  git -C "$BASE_REPO" commit -q -m '加入客户项目升级工具'
+fi
 OLD_COMMIT=$(git -C "$BASE_REPO" rev-parse HEAD)
 
 CUSTOMER_PROJECT="$TEST_ROOT/customer"
