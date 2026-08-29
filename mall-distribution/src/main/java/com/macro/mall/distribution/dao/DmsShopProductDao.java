@@ -107,6 +107,12 @@ public interface DmsShopProductDao {
         return decreaseStockScoped(TenantContext.getTenantId(), id, quantity);
     }
 
+    int decreaseStockForExchangeScoped(@Param("tenantId") Long tenantId, @Param("id") Long id,
+                                       @Param("quantity") Integer quantity);
+    default int decreaseStockForExchange(Long id, Integer quantity) {
+        return decreaseStockForExchangeScoped(TenantContext.getTenantId(), id, quantity);
+    }
+
     int increaseStockScoped(@Param("tenantId") Long tenantId, @Param("id") Long id,
                             @Param("quantity") Integer quantity);
     default int increaseStock(Long id, Integer quantity) {

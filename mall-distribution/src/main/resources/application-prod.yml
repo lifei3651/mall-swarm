@@ -133,6 +133,9 @@ shop:
     return-shipment-scan-interval-ms: ${AFTER_SALE_RETURN_SHIPMENT_SCAN_INTERVAL_MS:600000}
     merchant-audit-timeout-hours: ${AFTER_SALE_MERCHANT_AUDIT_TIMEOUT_HOURS:48}
     merchant-return-confirm-timeout-days: ${AFTER_SALE_MERCHANT_RETURN_CONFIRM_TIMEOUT_DAYS:7}
+    merchant-exchange-shipment-timeout-days: ${AFTER_SALE_MERCHANT_EXCHANGE_SHIPMENT_TIMEOUT_DAYS:3}
+    exchange-auto-receive-days: ${AFTER_SALE_EXCHANGE_AUTO_RECEIVE_DAYS:15}
+    exchange-receipt-scan-interval-ms: ${AFTER_SALE_EXCHANGE_RECEIPT_SCAN_INTERVAL_MS:600000}
   service-ticket:
     first-response-hours: ${SHOP_SERVICE_TICKET_FIRST_RESPONSE_HOURS:24}
 payment:

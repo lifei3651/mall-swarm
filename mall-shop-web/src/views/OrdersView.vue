@@ -52,7 +52,7 @@
           <RouterLink v-if="canApplyAfterSale(item)" :to="`/orders/${item.order.id}?applyAfterSale=1`">未收到 / 拒收</RouterLink>
         </div>
         <div v-if="item.afterSales?.length" class="after-sale-summary">
-          售后申请 {{ item.afterSales.length }} 条 · {{ afterSaleStatus(item.afterSales[0]?.status) }}
+          售后申请 {{ item.afterSales.length }} 条 · {{ afterSaleStatus(item.afterSales[0]?.status, item.afterSales[0]?.applyType) }}
         </div>
         <div class="order-actions">
           <RouterLink class="order-action" :to="`/orders/${item.order.id}`">查看详情</RouterLink>
@@ -115,7 +115,7 @@ const validTabs = new Set(['all', 'pending-payment', 'pending-shipment', 'pendin
 const activeTab = computed(() => validTabs.has(route.query.tab) ? route.query.tab : 'all')
 
 const activeAfterSales = (item) => (item.afterSales || [])
-  .filter((sale) => [0, 4, 5, 6].includes(Number(sale.status)))
+  .filter((sale) => [0, 4, 5, 6, 7, 8].includes(Number(sale.status)))
 const isAfterSale = (item) => item.order?.status === 5 || activeAfterSales(item).length > 0
 const tabs = computed(() => [
   { key: 'all', label: '全部', count: 0 },
@@ -223,7 +223,10 @@ const reviewLink = (item) => ({
   path: `/product/${item.pendingReviewProductId || item.items?.[0]?.productId}`,
   query: item.pendingReviewOrderItemId ? { orderItemId: item.pendingReviewOrderItemId } : {},
 })
-const afterSaleStatus = (status) => ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待客户寄回', 5: '待商家收货', 6: '退款处理中' }[status] || '处理中')
+const afterSaleStatus = (status, applyType) => {
+  if (Number(applyType) === 3 && Number(status) === 1) return '换货完成'
+  return ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待客户寄回', 5: '待商家收货', 6: '退款处理中', 7: '待商家换货发出', 8: '换货已发出' }[status] || '处理中')
+}
 const afterSaleDeadline = (item) => {
   const configured = Date.parse(String(item?.afterSaleDeadline || '').replace(' ', 'T'))
   if (Number.isFinite(configured)) return configured
@@ -232,19 +235,24 @@ const afterSaleDeadline = (item) => {
   return Number.isFinite(created) ? created + Number(item?.afterSaleWindowDays ?? 7) * 24 * 60 * 60 * 1000 : Number.POSITIVE_INFINITY
 }
 const unavailableAfterSaleQuantity = (item) => (item.afterSales || [])
-  .filter((sale) => [0, 1, 4, 5, 6].includes(Number(sale.status)))
+  .filter((sale) => Number(sale.applyType) === 3
+    ? [0, 4, 5, 7, 8].includes(Number(sale.status))
+    : [0, 1, 4, 5, 6].includes(Number(sale.status)))
   .flatMap((sale) => sale.items || [])
   .reduce((sum, line) => sum + Number(line.refundQuantity || 0), 0)
 const orderQuantity = (item) => (item.items || []).reduce((sum, line) => sum + Number(line.quantity || 0), 0)
 const orderDisplayStatus = (item) => {
-  if (isAfterSale(item)) return `退款/售后 · ${afterSaleStatus(activeAfterSales(item)[0]?.status)}`
+  if (isAfterSale(item)) {
+    const sale = activeAfterSales(item)[0]
+    return `退款/售后 · ${afterSaleStatus(sale?.status, sale?.applyType)}`
+  }
   if (Number(item.pendingReviewCount || 0) > 0) return '待评价'
   return statusName(item.order?.status)
 }
 const canApplyAfterSale = (item) => ![0, 4].includes(item.order?.status)
   && item.afterSaleSelfServiceEnabled !== false
   && Date.now() < afterSaleDeadline(item)
-  && !(item.afterSales || []).some((sale) => [0, 4, 5, 6].includes(sale.status))
+  && !(item.afterSales || []).some((sale) => [0, 4, 5, 6, 7, 8].includes(sale.status))
   && unavailableAfterSaleQuantity(item) < orderQuantity(item)
 
 const requestOrderAction = (type, id) => {

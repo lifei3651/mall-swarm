@@ -22,5 +22,8 @@ public interface DmsShopSkuDao {
 
     int decreaseStock(@Param("id") Long id, @Param("quantity") Integer quantity);
 
+    /** 换货补发只扣可售库存，不增加销量；下架规格仍需履行既有售后义务。 */
+    int decreaseStockForExchange(@Param("id") Long id, @Param("quantity") Integer quantity);
+
     int increaseStock(@Param("id") Long id, @Param("quantity") Integer quantity);
 }

@@ -51,6 +51,15 @@ public interface DmsShopAfterSaleDao {
     int updateReturnReceivedScoped(@Param("tenantId") Long tenantId, @Param("afterSale") DmsShopAfterSale afterSale);
     default int updateReturnReceived(DmsShopAfterSale afterSale) { return updateReturnReceivedScoped(TenantContext.getTenantId(), afterSale); }
 
+    int updateExchangeShipmentScoped(@Param("tenantId") Long tenantId, @Param("afterSale") DmsShopAfterSale afterSale);
+    default int updateExchangeShipment(DmsShopAfterSale afterSale) { return updateExchangeShipmentScoped(TenantContext.getTenantId(), afterSale); }
+
+    int completeExchangeScoped(@Param("tenantId") Long tenantId, @Param("id") Long id,
+                               @Param("receivedAt") LocalDateTime receivedAt);
+    default int completeExchange(Long id, LocalDateTime receivedAt) {
+        return completeExchangeScoped(TenantContext.getTenantId(), id, receivedAt);
+    }
+
     int markRefundCompletedScoped(@Param("tenantId") Long tenantId, @Param("id") Long id);
     default int markRefundCompleted(Long id) { return markRefundCompletedScoped(TenantContext.getTenantId(), id); }
 
@@ -59,5 +68,12 @@ public interface DmsShopAfterSaleDao {
                                                    @Param("limit") int limit);
     default List<Long> selectExpiredWaitingReturnIds(LocalDateTime cutoff, int limit) {
         return selectExpiredWaitingReturnIdsScoped(TenantContext.getTenantId(), cutoff, limit);
+    }
+
+    List<Long> selectExpiredExchangeShipmentIdsScoped(@Param("tenantId") Long tenantId,
+                                                       @Param("cutoff") LocalDateTime cutoff,
+                                                       @Param("limit") int limit);
+    default List<Long> selectExpiredExchangeShipmentIds(LocalDateTime cutoff, int limit) {
+        return selectExpiredExchangeShipmentIdsScoped(TenantContext.getTenantId(), cutoff, limit);
     }
 }

@@ -112,9 +112,10 @@
             <template #default="{ row }">
               <div v-if="activeAfterSale(row)" class="after-sale-summary">
                 <el-tag size="small" :type="afterSaleTag(activeAfterSale(row).status)">
-                  {{ afterSaleStatus(activeAfterSale(row).status) }}
+                  {{ afterSaleStatus(activeAfterSale(row).status, activeAfterSale(row).applyType) }}
                 </el-tag>
-                <div class="sub">申请 {{ Number(activeAfterSale(row).refundQuantity || 0) }} 件 · ¥{{ money(activeAfterSale(row).refundAmount) }}</div>
+                <div v-if="Number(activeAfterSale(row).applyType) === 3" class="sub">同规格换货 {{ Number(activeAfterSale(row).refundQuantity || 0) }} 件 · 不退款</div>
+                <div v-else class="sub">申请 {{ Number(activeAfterSale(row).refundQuantity || 0) }} 件 · ¥{{ money(activeAfterSale(row).refundAmount) }}</div>
                 <div v-if="activeAfterSale(row).nextActionHint" class="after-sale-action-deadline" :class="{ overdue: activeAfterSale(row).nextActionOverdue }">
                   {{ activeAfterSale(row).nextActionHint }}
                   <span v-if="activeAfterSale(row).nextActionDeadline">{{ formatDateTime(activeAfterSale(row).nextActionDeadline) }} 截止</span>
@@ -199,12 +200,16 @@
                 <template v-else-if="activeAfterSale(row)">
                   <el-tag v-if="Number(activeAfterSale(row).status) === 4" type="warning">等待客户寄回</el-tag>
                   <el-button v-else-if="canMerchantFulfill(row) && Number(activeAfterSale(row).status) === 5" type="success" link @click.stop="confirmReturnReceived(activeAfterSale(row))">
-                    确认退货并退款
+                    {{ Number(activeAfterSale(row).applyType) === 3 ? '确认收到换货退件' : '确认退货并退款' }}
                   </el-button>
                   <el-button v-else-if="canMerchantFulfill(row) && Number(activeAfterSale(row).status) === 6" type="warning" link @click.stop="confirmReturnReceived(activeAfterSale(row))">
                     重试渠道退款
                   </el-button>
-                  <el-tag v-else type="warning">退款处理中</el-tag>
+                  <el-button v-else-if="canMerchantFulfill(row) && Number(activeAfterSale(row).status) === 7" type="primary" link @click.stop="openExchangeShipment(activeAfterSale(row))">
+                    发出换货商品
+                  </el-button>
+                  <el-tag v-else-if="Number(activeAfterSale(row).status) === 8" type="primary">换货商品已发出</el-tag>
+                  <el-tag v-else type="warning">处理中</el-tag>
                 </template>
                 <el-button v-if="canShipOrder(row)" type="primary" link @click="openShip(row)">
                   {{ shipmentRows(row).length ? '继续发货' : '发货' }}
@@ -418,6 +423,37 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="exchangeShipmentDialogVisible" title="发出换货商品" width="520px" destroy-on-close>
+      <el-alert
+        title="仅发出原订单同规格商品"
+        description="本次会扣减对应商品和规格的可售库存，但不会增加销量，也不会退款或重算原订单奖金。客户寄回的商品不会自动计入可售库存。"
+        type="warning"
+        :closable="false"
+        show-icon
+        class="after-sale-action-alert"
+      />
+      <el-form :model="exchangeShipmentForm" label-width="92px">
+        <el-form-item label="售后号">
+          <el-input :model-value="currentAfterSale?.afterSaleNo" disabled />
+        </el-form-item>
+        <el-form-item label="换货数量">
+          <span>{{ Number(currentAfterSale?.refundQuantity || 0) }} 件</span>
+        </el-form-item>
+        <el-form-item label="物流公司" required>
+          <el-select v-model="exchangeShipmentForm.deliveryCompany" filterable clearable placeholder="请选择物流公司" style="width: 100%">
+            <el-option v-for="company in logisticsCompanyOptions" :key="company" :label="company" :value="company" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="物流单号" required>
+          <el-input v-model.trim="exchangeShipmentForm.deliveryNo" maxlength="64" autocomplete="off" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="exchangeShipmentDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="exchangeShipmentLoading" @click="submitExchangeShipment">确认发出</el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="manualRefundDialogVisible" title="后台退款" width="720px" destroy-on-close>
       <el-alert
         title="前台售后期限已结束，后台退款会写入售后、财务和奖金冲销记录。"
@@ -548,6 +584,7 @@ import {
   listShopOrders,
   manualRefundShopOrder,
   shipShopOrder,
+  shipShopAfterSaleExchangeReplacement,
   updateShopOrderServiceRemark,
 } from '@/api/shop'
 import { getOrderFinance } from '@/api/audit'
@@ -594,6 +631,8 @@ const shipmentResult = ref({ success: false, totalRows: 0, shippedCount: 0, skip
 const auditDialogVisible = ref(false)
 const manualRefundDialogVisible = ref(false)
 const manualRefundLoading = ref(false)
+const exchangeShipmentDialogVisible = ref(false)
+const exchangeShipmentLoading = ref(false)
 const serviceRemarkDialogVisible = ref(false)
 const serviceRemarkLoading = ref(false)
 const serviceRemarkForm = ref('')
@@ -610,6 +649,7 @@ const trackingLoading = ref(false)
 const trackingRows = ref([])
 const currentAfterSale = ref(null)
 const shipForm = ref({ deliveryCompany: '', deliveryNo: '', shipmentQuantity: 1 })
+const exchangeShipmentForm = ref({ deliveryCompany: '', deliveryNo: '' })
 const auditForm = ref({ status: 1, auditRemark: '', auditUserId: 1, auditUserName: 'admin' })
 const manualRefundForm = ref({ refundMode: 'QUANTITY', productRefundAmount: 0, items: {}, reason: '' })
 const currentOperator = computed(() => ({
@@ -629,8 +669,11 @@ const money = (value) => Number(value || 0).toFixed(2)
 const percent = (value) => `${(Number(value || 0) * 100).toFixed(2)}%`
 const payoutExceeded = (orderAmount, bonusAmount) => Number(bonusAmount || 0) > Number(orderAmount || 0)
 const bonusTypeName = (row) => customerBonusName(row)
-const afterSaleStatus = (status) => ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待客户寄回', 5: '待商家收货', 6: '退款处理中' }[status] || '处理中')
-const afterSaleTag = (status) => ({ 0: 'warning', 1: 'success', 2: 'info', 3: 'warning', 4: 'warning', 5: 'primary', 6: 'warning' }[status] || 'info')
+const afterSaleStatus = (status, applyType) => {
+  if (Number(applyType) === 3 && Number(status) === 1) return '换货完成'
+  return ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待客户寄回', 5: '待商家收货', 6: '退款处理中', 7: '待换货发出', 8: '换货已发出' }[status] || '处理中')
+}
+const afterSaleTag = (status) => ({ 0: 'warning', 1: 'success', 2: 'info', 3: 'warning', 4: 'warning', 5: 'primary', 6: 'warning', 7: 'warning', 8: 'primary' }[status] || 'info')
 const tradeStatusLabel = (status) => ({ 0: '待付款', 1: '已支付', 4: '已关闭' }[Number(status)] || '未知')
 const payTypeLabel = (payType) => ({ BALANCE: '余额支付', ALIPAY: '支付宝', WECHAT: '微信支付' }[payType] || payType || '-')
 const afterSaleProofUrls = (sale) => {
@@ -645,9 +688,9 @@ const afterSaleProofUrls = (sale) => {
     return []
   }
 }
-const hasPendingAfterSale = (row) => (row?.afterSales || []).some((item) => [0, 4, 5, 6].includes(Number(item.status)))
-const activeAfterSale = (row) => (row?.afterSales || []).find((item) => [0, 4, 5, 6].includes(Number(item.status)))
-const approvedAfterSales = (row) => (row?.afterSales || []).filter((item) => Number(item.status) === 1)
+const hasPendingAfterSale = (row) => (row?.afterSales || []).some((item) => [0, 4, 5, 6, 7, 8].includes(Number(item.status)))
+const activeAfterSale = (row) => (row?.afterSales || []).find((item) => [0, 4, 5, 6, 7, 8].includes(Number(item.status)))
+const approvedAfterSales = (row) => (row?.afterSales || []).filter((item) => [1, 2].includes(Number(item.applyType)) && Number(item.status) === 1)
 const hasApprovedRefund = (row) => approvedAfterSales(row).length > 0
 const approvedRefundAmount = (row) => approvedAfterSales(row)
   .reduce((sum, item) => sum + Number(item.refundAmount || 0), 0)
@@ -710,7 +753,9 @@ const canManualRefund = (row) => !isMerchantUser.value && !hasPendingAfterSale(r
   && [1, 2, 3].includes(Number(row?.order?.status))
   && isCustomerAfterSaleClosed(row)
 const refundedQuantity = (row, itemId) => (row?.afterSales || [])
-  .filter((sale) => [0, 1, 4, 5, 6].includes(Number(sale.status)))
+  .filter((sale) => Number(sale.applyType) === 3
+    ? [0, 4, 5, 7, 8].includes(Number(sale.status))
+    : [0, 1, 4, 5, 6].includes(Number(sale.status)))
   .flatMap((sale) => sale.items || [])
   .filter((item) => item.orderItemId === itemId)
   .reduce((sum, item) => sum + Number(item.refundQuantity || 0), 0)
@@ -721,7 +766,7 @@ const manualRefundRemainingAmount = computed(() => {
   if (!currentOrder.value) return 0
   const productBase = Math.max(0, Number(currentOrder.value.order?.totalAmount || 0) - Number(currentOrder.value.order?.discountAmount || 0))
   const approved = (currentOrder.value.afterSales || [])
-    .filter((sale) => [1, 6].includes(Number(sale.status)))
+    .filter((sale) => [1, 2].includes(Number(sale.applyType)) && [1, 6].includes(Number(sale.status)))
     .reduce((sum, sale) => sum + Number(sale.productRefundAmount || 0), 0)
   return Math.max(0, productBase - approved)
 })
@@ -1053,8 +1098,8 @@ const openAudit = (row, status) => {
   auditDialogVisible.value = true
 }
 
-const auditDialogTitle = computed(() => ({ 1: '通过售后', 2: '拒绝售后', 3: '取消退款申请' }[auditForm.value.status] || '处理售后'))
-const auditActionLabel = computed(() => ({ 1: '通过', 2: '拒绝', 3: '取消退款' }[auditForm.value.status] || '提交'))
+const auditDialogTitle = computed(() => ({ 1: '通过售后', 2: '拒绝售后', 3: '关闭售后申请' }[auditForm.value.status] || '处理售后'))
+const auditActionLabel = computed(() => ({ 1: '通过', 2: '拒绝', 3: '关闭售后' }[auditForm.value.status] || '提交'))
 
 const submitAudit = async () => {
   const actionStatus = auditForm.value.status
@@ -1062,29 +1107,38 @@ const submitAudit = async () => {
     ElMessage.warning(actionStatus === 2 ? '请填写拒绝原因' : '请填写关闭原因')
     return
   }
-  const actionText = ({ 1: '通过该售后申请', 2: '拒绝该售后申请', 3: '关闭该退款申请' })[actionStatus] || '提交本次售后处理'
+  const exchange = Number(currentAfterSale.value?.applyType) === 3
+  const actionText = ({ 1: '通过该售后申请', 2: '拒绝该售后申请', 3: '关闭该售后申请' })[actionStatus] || '提交本次售后处理'
+  const approvedImpact = exchange
+    ? '，客户需要寄回原商品，确认退件后再发出同规格商品；不会退款或重算奖金'
+    : '，并可能立即执行退款和账务冲销'
   await ElMessageBox.confirm(
-    `确认${actionText}？该操作会改变订单售后状态${actionStatus === 1 ? '，并可能立即执行退款和账务冲销' : ''}。`,
+    `确认${actionText}？该操作会改变订单售后状态${actionStatus === 1 ? approvedImpact : ''}。`,
     '确认售后处理',
     { type: 'warning', confirmButtonText: '确认提交', cancelButtonText: '返回检查' },
   )
   await auditShopAfterSale(currentAfterSale.value.id, auditForm.value)
-  ElMessage.success(actionStatus === 3 ? '退款申请已取消' : '审核完成')
+  ElMessage.success(actionStatus === 3 ? '售后申请已关闭' : '审核完成')
   auditDialogVisible.value = false
   await Promise.all([fetchOrders(), fetchWorkSummary()])
 }
 
 const confirmReturnReceived = async (sale) => {
   const retrying = Number(sale?.status) === 6
+  const exchange = Number(sale?.applyType) === 3
   const { value: auditRemark } = await ElMessageBox.prompt(
-    retrying ? '将使用同一售后单号重新查询并执行渠道退款，不会重复处理本地库存和奖金。请填写本次处理备注。' : '确认已收到客户寄回的商品，并执行退款、库存和财务处理。请填写验收备注。',
-    retrying ? '重试渠道退款' : '确认收货并退款',
+    retrying
+      ? '将使用同一售后单号重新查询并执行渠道退款，不会重复处理本地库存和奖金。请填写本次处理备注。'
+      : exchange
+        ? '确认收到客户寄回的商品后，售后会进入“待换货发出”；此步不退款、不回补可售库存，也不重算奖金。请填写验收备注。'
+        : '确认已收到客户寄回的商品，并执行退款、库存和财务处理。请填写验收备注。',
+    retrying ? '重试渠道退款' : exchange ? '确认收到换货退件' : '确认收货并退款',
     {
       type: 'warning',
-      inputValue: retrying ? '渠道退款重试' : '商家确认收到退货，商品验收无误',
+      inputValue: retrying ? '渠道退款重试' : exchange ? '商家确认收到换货退件，商品验收完成' : '商家确认收到退货，商品验收无误',
       inputPlaceholder: '例如：外包装完整，商品数量核对无误',
       inputValidator: (value) => Boolean(value?.trim()) || '请填写本次处理备注',
-      confirmButtonText: retrying ? '确认重试' : '确认收货并退款',
+      confirmButtonText: retrying ? '确认重试' : exchange ? '确认收到退件' : '确认收货并退款',
       cancelButtonText: '取消',
     },
   )
@@ -1093,8 +1147,32 @@ const confirmReturnReceived = async (sale) => {
     auditUserId: currentOperator.value.id,
     auditUserName: currentOperator.value.name,
   })
-  ElMessage.success(retrying ? '渠道退款已恢复完成' : '已确认收货并完成退款处理')
+  ElMessage.success(retrying ? '渠道退款已恢复完成' : exchange ? '已确认退件，等待发出换货商品' : '已确认收货并完成退款处理')
   await Promise.all([fetchOrders(), fetchWorkSummary()])
+}
+
+const openExchangeShipment = (sale) => {
+  currentAfterSale.value = sale
+  exchangeShipmentForm.value = { deliveryCompany: '', deliveryNo: '' }
+  exchangeShipmentDialogVisible.value = true
+}
+
+const submitExchangeShipment = async () => {
+  const deliveryCompany = exchangeShipmentForm.value.deliveryCompany?.trim()
+  const deliveryNo = exchangeShipmentForm.value.deliveryNo?.trim()
+  if (!deliveryCompany || !/^[A-Za-z0-9_-]{4,64}$/.test(deliveryNo || '')) {
+    ElMessage.warning('请选择物流公司，并填写4至64位字母、数字、下划线或短横线组成的物流单号')
+    return
+  }
+  exchangeShipmentLoading.value = true
+  try {
+    await shipShopAfterSaleExchangeReplacement(currentAfterSale.value.id, { deliveryCompany, deliveryNo })
+    ElMessage.success('换货商品已发出，库存已扣减，等待客户确认收货')
+    exchangeShipmentDialogVisible.value = false
+    await Promise.all([fetchOrders(), fetchWorkSummary()])
+  } finally {
+    exchangeShipmentLoading.value = false
+  }
 }
 
 onMounted(() => {

@@ -620,9 +620,9 @@ test('profile renders immediately and loads order counts, wallet and performance
 test('pending shipment and active after-sale use mutually exclusive current states', async () => {
   const orders = await readView('OrdersView.vue')
 
-  assert.match(orders, /\[0, 4, 5, 6\]\.includes\(Number\(sale\.status\)\)/)
+  assert.match(orders, /\[0, 4, 5, 6, 7, 8\]\.includes\(Number\(sale\.status\)\)/)
   assert.match(orders, /activeAfterSales\(item\)\.length > 0/)
-  assert.match(orders, /afterSaleStatus\(activeAfterSales\(item\)\[0\]\?\.status\)/)
+  assert.match(orders, /afterSaleStatus\(sale\?\.status, sale\?\.applyType\)/)
 })
 
 test('profile shows every team performance entry only when backend grants access', async () => {
@@ -1060,7 +1060,7 @@ test('refund flow defaults to all items and keeps the application form concise',
   assert.match(source, /reason: \[selectedReason\.value, afterSaleForm\.value\.reasonDetail\.trim\(\)\]/)
   assert.match(source, /选择商品和数量/)
   assert.match(source, /class="required-star"/)
-  assert.match(source, /退款商品数量不能为 0，请至少选择 1 件商品/)
+  assert.match(source, /售后商品数量不能为 0，请至少选择 1 件商品/)
   assert.match(source, /scrollIntoView\(\{ behavior: 'smooth', block: 'center' \}\)/)
   assert.match(source, /after-sale-field-error/)
   assert.match(source, /uploadAfterSaleProof\(order\.value\.id, proof\.file\)/)
@@ -1069,6 +1069,9 @@ test('refund flow defaults to all items and keeps the application form concise',
   assert.match(source, /for \(const proof of proofUploads\.value\)/)
   assert.match(source, /JSON\.stringify\(proofFilenames\)/)
   assert.match(source, /memberProofUrl/)
+  assert.match(source, /同规格换货/)
+  assert.match(source, /confirmAfterSaleExchangeReceived/)
+  assert.match(source, /\[0, 4, 5, 7, 8\]/)
 })
 
 test('order detail keeps four payment facts visible and collapses five order information fields', async () => {

@@ -56,7 +56,7 @@
              WHERE COALESCE(o.tenant_id,1)=m.tenant_id AND o.merchant_id=m.id AND o.status IN (0,1,2)) AS unfinished_order_count,
            (SELECT COUNT(*) FROM dms_shop_after_sale s
              INNER JOIN dms_shop_order so ON so.id=s.order_id
-             WHERE COALESCE(so.tenant_id,1)=m.tenant_id AND so.merchant_id=m.id AND s.status IN (0,4,5,6)) AS open_after_sale_count,
+             WHERE COALESCE(so.tenant_id,1)=m.tenant_id AND so.merchant_id=m.id AND s.status IN (0,4,5,6,7,8)) AS open_after_sale_count,
            (SELECT COUNT(*) FROM dms_merchant_settlement ms
              WHERE ms.tenant_id=m.tenant_id AND ms.merchant_id=m.id AND ms.status='PENDING') AS pending_settlement_count,
            (SELECT COUNT(*) FROM dms_merchant_withdrawal mw

@@ -49,11 +49,35 @@ class ShopAfterSaleTimelinePolicyTest {
         assertEquals(5, waitingMerchant.getStatus());
     }
 
+    @Test
+    void exchangeShipmentAndReceiptExposeTheCorrectResponsibleParty() {
+        ShopAfterSaleTimelinePolicy policy = policy();
+        DmsShopAfterSale waitingMerchantShipment = new DmsShopAfterSale();
+        waitingMerchantShipment.setApplyType(3);
+        waitingMerchantShipment.setStatus(7);
+        waitingMerchantShipment.setReturnReceivedAt(LocalDateTime.now().minusDays(4));
+        policy.enrich(waitingMerchantShipment);
+        assertEquals("MERCHANT", waitingMerchantShipment.getNextActionParty());
+        assertTrue(waitingMerchantShipment.getNextActionOverdue());
+        assertTrue(waitingMerchantShipment.getNextActionHint().contains("换货商品"));
+
+        DmsShopAfterSale waitingMemberReceipt = new DmsShopAfterSale();
+        waitingMemberReceipt.setApplyType(3);
+        waitingMemberReceipt.setStatus(8);
+        waitingMemberReceipt.setExchangeShippedAt(LocalDateTime.now().minusDays(2));
+        policy.enrich(waitingMemberReceipt);
+        assertEquals("MEMBER", waitingMemberReceipt.getNextActionParty());
+        assertFalse(waitingMemberReceipt.getNextActionOverdue());
+        assertTrue(waitingMemberReceipt.getNextActionHint().contains("确认收货"));
+    }
+
     private ShopAfterSaleTimelinePolicy policy() {
         ShopAfterSaleTimelinePolicy policy = new ShopAfterSaleTimelinePolicy();
         ReflectionTestUtils.setField(policy, "merchantAuditTimeoutHours", 48);
         ReflectionTestUtils.setField(policy, "returnShipmentTimeoutDays", 7);
         ReflectionTestUtils.setField(policy, "merchantReturnConfirmTimeoutDays", 7);
+        ReflectionTestUtils.setField(policy, "merchantExchangeShipmentTimeoutDays", 3);
+        ReflectionTestUtils.setField(policy, "exchangeAutoReceiveDays", 15);
         return policy;
     }
 }

@@ -1426,6 +1426,10 @@ CREATE TABLE IF NOT EXISTS dms_shop_after_sale (
   return_delivery_no VARCHAR(128),
   return_shipped_at TIMESTAMP,
   return_received_at TIMESTAMP,
+  exchange_delivery_company VARCHAR(50),
+  exchange_delivery_no VARCHAR(64),
+  exchange_shipped_at TIMESTAMP,
+  exchange_received_at TIMESTAMP,
   status INT NOT NULL DEFAULT 0,
   audit_remark VARCHAR(512),
   audit_user_id BIGINT,
@@ -1487,6 +1491,10 @@ ALTER TABLE dms_shop_after_sale ADD COLUMN IF NOT EXISTS return_delivery_company
 ALTER TABLE dms_shop_after_sale ADD COLUMN IF NOT EXISTS return_delivery_no VARCHAR(128);
 ALTER TABLE dms_shop_after_sale ADD COLUMN IF NOT EXISTS return_shipped_at TIMESTAMP;
 ALTER TABLE dms_shop_after_sale ADD COLUMN IF NOT EXISTS return_received_at TIMESTAMP;
+ALTER TABLE dms_shop_after_sale ADD COLUMN IF NOT EXISTS exchange_delivery_company VARCHAR(50);
+ALTER TABLE dms_shop_after_sale ADD COLUMN IF NOT EXISTS exchange_delivery_no VARCHAR(64);
+ALTER TABLE dms_shop_after_sale ADD COLUMN IF NOT EXISTS exchange_shipped_at TIMESTAMP;
+ALTER TABLE dms_shop_after_sale ADD COLUMN IF NOT EXISTS exchange_received_at TIMESTAMP;
 
 CREATE TABLE IF NOT EXISTS dms_shop_after_sale_item (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,

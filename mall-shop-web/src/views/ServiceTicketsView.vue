@@ -23,7 +23,7 @@
         <select v-model="form.orderId"><option value="">不关联订单</option><option v-for="item in orders" :key="item.order.id" :value="String(item.order.id)">{{ item.order.orderNo }} · {{ orderName(item) }}</option></select>
       </label>
       <label v-if="selectedOrder?.afterSales?.length">关联售后（售后争议必选）
-        <select v-model="form.afterSaleId"><option value="">不关联售后</option><option v-for="sale in selectedOrder.afterSales" :key="sale.id" :value="String(sale.id)">{{ sale.afterSaleNo }} · {{ afterSaleStatus(sale.status) }}</option></select>
+        <select v-model="form.afterSaleId"><option value="">不关联售后</option><option v-for="sale in selectedOrder.afterSales" :key="sale.id" :value="String(sale.id)">{{ sale.afterSaleNo }} · {{ afterSaleStatus(sale.status, sale.applyType) }}</option></select>
       </label>
       <label>问题说明<textarea v-model.trim="form.content" maxlength="1000" rows="6" placeholder="请说明发生了什么、希望如何协助处理。涉及售后图片请先在订单售后中提交凭证。"></textarea><small>{{ form.content.length }}/1000</small></label>
       <p class="safe-hint">请勿填写登录密码、支付密码、短信验证码或银行卡号。</p>
@@ -79,7 +79,10 @@ watch(() => form.orderId, () => {
 
 const typeName = (value) => types.find((item) => item.key === value)?.label || '其他'
 const statusName = (value) => ({ OPEN: '待处理', PROCESSING: '处理中', WAITING_MEMBER: '待我补充', RESOLVED: '已答复', CLOSED: '已关闭' }[value] || value)
-const afterSaleStatus = (value) => ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待寄回', 5: '待商家收货', 6: '退款处理中' }[value] || '处理中')
+const afterSaleStatus = (value, applyType) => {
+  if (Number(applyType) === 3 && Number(value) === 1) return '换货完成'
+  return ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待寄回', 5: '待商家收货', 6: '退款处理中', 7: '待商家换货发出', 8: '换货已发出' }[value] || '处理中')
+}
 const orderName = (item) => item.items?.[0]?.productName || '商城订单'
 const time = (value) => value ? String(value).replace('T', ' ').slice(0, 16) : ''
 

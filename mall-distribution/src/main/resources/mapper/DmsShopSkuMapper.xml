@@ -94,4 +94,10 @@
             update_time = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
+
+    <update id="decreaseStockForExchange">
+        UPDATE dms_shop_sku
+        SET stock = stock - #{quantity}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND stock &gt;= #{quantity}
+    </update>
 </mapper>

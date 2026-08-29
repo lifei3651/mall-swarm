@@ -31,21 +31,23 @@
         SELECT COALESCE(SUM(item.refund_quantity), 0)
         FROM dms_shop_after_sale_item item
         INNER JOIN dms_shop_after_sale sale ON sale.id = item.after_sale_id
-        WHERE item.order_item_id = #{orderItemId} AND sale.status IN (0, 1, 4, 5, 6)
+        WHERE item.order_item_id = #{orderItemId}
+          AND ((sale.apply_type IN (1, 2) AND sale.status IN (0, 1, 4, 5, 6))
+            OR (sale.apply_type = 3 AND sale.status IN (0, 4, 5, 7, 8)))
     </select>
 
     <select id="sumApprovedQuantityByOrderId" resultType="int">
         SELECT COALESCE(SUM(item.refund_quantity), 0)
         FROM dms_shop_after_sale_item item
         INNER JOIN dms_shop_after_sale sale ON sale.id = item.after_sale_id
-        WHERE item.order_id = #{orderId} AND sale.status IN (1, 6)
+        WHERE item.order_id = #{orderId} AND sale.apply_type IN (1, 2) AND sale.status IN (1, 6)
     </select>
 
     <select id="sumApprovedProductRefundByOrderId" resultType="java.math.BigDecimal">
         SELECT COALESCE(SUM(item.refund_amount), 0)
         FROM dms_shop_after_sale_item item
         INNER JOIN dms_shop_after_sale sale ON sale.id = item.after_sale_id
-        WHERE item.order_id = #{orderId} AND sale.status IN (1, 6)
+        WHERE item.order_id = #{orderId} AND sale.apply_type IN (1, 2) AND sale.status IN (1, 6)
     </select>
 
     <select id="sumApprovedBonusRefundByOrderId" resultType="java.math.BigDecimal">
@@ -54,6 +56,7 @@
         INNER JOIN dms_shop_after_sale sale ON sale.id = item.after_sale_id
         INNER JOIN dms_shop_order_item order_item ON order_item.id = item.order_item_id
         WHERE item.order_id = #{orderId}
+          AND sale.apply_type IN (1, 2)
           AND sale.status IN (1, 6)
           AND UPPER(TRIM(COALESCE(order_item.team_bonus_mode, 'INHERIT'))) IN ('INHERIT', 'STANDARD', '')
     </select>
@@ -63,7 +66,7 @@
         FROM dms_shop_after_sale_item item
         INNER JOIN dms_shop_after_sale sale ON sale.id = item.after_sale_id
         INNER JOIN dms_shop_order_item order_item ON order_item.id = item.order_item_id
-        WHERE item.order_id = #{orderId} AND sale.status IN (1, 6)
+        WHERE item.order_id = #{orderId} AND sale.apply_type IN (1, 2) AND sale.status IN (1, 6)
     </select>
 
     <insert id="insertBatch">

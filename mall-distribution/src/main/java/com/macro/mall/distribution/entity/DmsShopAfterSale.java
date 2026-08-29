@@ -53,6 +53,12 @@ public class DmsShopAfterSale implements Serializable {
     private LocalDateTime returnShippedAt;
     private LocalDateTime returnReceivedAt;
 
+    /** 同规格换货中，商家发出的替换商品物流。 */
+    private String exchangeDeliveryCompany;
+    private String exchangeDeliveryNo;
+    private LocalDateTime exchangeShippedAt;
+    private LocalDateTime exchangeReceivedAt;
+
     private Integer status;
 
     private String auditRemark;

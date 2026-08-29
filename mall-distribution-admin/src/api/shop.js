@@ -478,6 +478,15 @@ export function confirmShopAfterSaleReturnReceived(id, data) {
     url: `/shop/admin/after-sales/${id}/return-received`,
     method: 'put',
     data,
-    adminStepUp: { message: '确认退货收货可能触发最终退款。' },
+    adminStepUp: { message: '确认收到客户退件会推进退款或换货流程。' },
+  })
+}
+
+export function shipShopAfterSaleExchangeReplacement(id, data) {
+  return request({
+    url: `/shop/admin/after-sales/${id}/exchange-shipment`,
+    method: 'put',
+    data,
+    adminStepUp: { message: '发出换货商品会扣减对应商品与规格的可售库存，请核对物流单号。' },
   })
 }

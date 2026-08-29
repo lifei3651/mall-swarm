@@ -2,6 +2,7 @@ package com.macro.mall.distribution.service;
 
 import com.macro.mall.distribution.dto.ShopAfterSaleApplyDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleAuditDTO;
+import com.macro.mall.distribution.dto.ShopAfterSaleExchangeShipmentDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleReturnShipmentDTO;
 import com.macro.mall.distribution.dto.ShopManualRefundDTO;
 import com.macro.mall.distribution.entity.DmsShopAfterSale;
@@ -33,6 +34,15 @@ public interface ShopAfterSaleService {
 
     /** 商家确认收到退货后，执行退款及库存、财务、奖金冲销。 */
     DmsShopAfterSale confirmReturnReceived(Long id, ShopAfterSaleAuditDTO dto);
+
+    /** 商家收到换货退件后，发出同一订单规格的替换商品。 */
+    DmsShopAfterSale shipExchangeReplacement(Long id, ShopAfterSaleExchangeShipmentDTO dto);
+
+    /** 会员确认收到替换商品；不产生退款或奖金重算。 */
+    DmsShopAfterSale confirmExchangeReceived(DmsShopMember member, Long id);
+
+    /** 自动完成超过保护期仍未主动确认的换货收货。 */
+    int autoCompleteExpiredExchangeReceipts(int limit);
 
     /** 自动关闭超过寄回期限仍未提交物流的退货申请；配置为0时禁用。 */
     int expireWaitingReturnShipments(int limit);

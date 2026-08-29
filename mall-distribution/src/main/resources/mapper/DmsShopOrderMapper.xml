@@ -123,7 +123,7 @@
                     AND status = 1
                     AND NOT EXISTS (
                         SELECT 1 FROM dms_shop_after_sale sale
-                        WHERE sale.order_id = dms_shop_order.id AND sale.status IN (0, 4, 5, 6)
+                        WHERE sale.order_id = dms_shop_order.id AND sale.status IN (0, 4, 5, 6, 7, 8)
                     )
                 </when>
                 <when test="orderState == 'PENDING_RECEIPT'">
@@ -160,7 +160,7 @@
                COALESCE(SUM(CASE WHEN o.status = 0 THEN 1 ELSE 0 END), 0) AS pending_payment,
                COALESCE(SUM(CASE WHEN o.status = 1 AND NOT EXISTS (
                    SELECT 1 FROM dms_shop_after_sale sale
-                   WHERE sale.order_id = o.id AND sale.status IN (0, 4, 5, 6)
+                   WHERE sale.order_id = o.id AND sale.status IN (0, 4, 5, 6, 7, 8)
                ) THEN 1 ELSE 0 END), 0) AS pending_shipment,
                COALESCE(SUM(CASE WHEN o.status = 2 THEN 1 ELSE 0 END), 0) AS pending_receipt,
                COALESCE(SUM(CASE WHEN o.status = 3 AND EXISTS (
@@ -174,7 +174,7 @@
                ) THEN 1 ELSE 0 END), 0) AS pending_review,
                COALESCE(SUM(CASE WHEN EXISTS (
                    SELECT 1 FROM dms_shop_after_sale sale
-                   WHERE sale.order_id = o.id AND sale.status IN (0, 4, 5, 6)
+                   WHERE sale.order_id = o.id AND sale.status IN (0, 4, 5, 6, 7, 8)
                ) THEN 1 ELSE 0 END), 0) AS after_sale
         FROM dms_shop_order o
         WHERE o.user_id = #{userId} AND COALESCE(o.tenant_id, 1) = #{tenantId}
@@ -185,13 +185,13 @@
                0 AS pending_payment,
                COALESCE(SUM(CASE WHEN o.status = 1 AND NOT EXISTS (
                    SELECT 1 FROM dms_shop_after_sale sale
-                   WHERE sale.order_id = o.id AND sale.status IN (0, 4, 5, 6)
+                   WHERE sale.order_id = o.id AND sale.status IN (0, 4, 5, 6, 7, 8)
                ) THEN 1 ELSE 0 END), 0) AS pending_shipment,
                0 AS pending_receipt,
                0 AS pending_review,
                COALESCE(SUM(CASE WHEN EXISTS (
                    SELECT 1 FROM dms_shop_after_sale sale
-                   WHERE sale.order_id = o.id AND sale.status IN (0, 4, 5, 6)
+                   WHERE sale.order_id = o.id AND sale.status IN (0, 4, 5, 6, 7, 8)
                ) THEN 1 ELSE 0 END), 0) AS after_sale
         FROM dms_shop_order o
         WHERE COALESCE(o.tenant_id, 1) = #{tenantId}
@@ -249,30 +249,32 @@
                         AND status = 1
                         AND NOT EXISTS (
                             SELECT 1 FROM dms_shop_after_sale sale
-                            WHERE sale.order_id = dms_shop_order.id AND sale.status IN (0, 4, 5, 6)
+                            WHERE sale.order_id = dms_shop_order.id AND sale.status IN (0, 4, 5, 6, 7, 8)
                         )
                     </when>
                     <when test="orderState == 'AFTER_SALE'">
                         AND EXISTS (
                             SELECT 1 FROM dms_shop_after_sale sale
-                            WHERE sale.order_id = dms_shop_order.id AND sale.status IN (0, 4, 5, 6)
+                            WHERE sale.order_id = dms_shop_order.id AND sale.status IN (0, 4, 5, 6, 7, 8)
                         )
                     </when>
                     <when test="orderState == 'COMPLETED'">
                         AND status = 3
                         AND NOT EXISTS (
                             SELECT 1 FROM dms_shop_after_sale sale
-                            WHERE sale.order_id = dms_shop_order.id AND sale.status IN (0, 4, 5, 6)
+                            WHERE sale.order_id = dms_shop_order.id AND sale.status IN (0, 4, 5, 6, 7, 8)
                         )
                     </when>
                     <when test="orderState == 'REFUNDED'">
                         AND EXISTS (
                             SELECT 1 FROM dms_shop_after_sale sale
-                            WHERE sale.order_id = dms_shop_order.id AND sale.status = 1
+                            WHERE sale.order_id = dms_shop_order.id
+                              AND sale.apply_type IN (1, 2)
+                              AND sale.status = 1
                         )
                         AND NOT EXISTS (
                             SELECT 1 FROM dms_shop_after_sale sale
-                            WHERE sale.order_id = dms_shop_order.id AND sale.status IN (0, 4, 5, 6)
+                            WHERE sale.order_id = dms_shop_order.id AND sale.status IN (0, 4, 5, 6, 7, 8)
                         )
                     </when>
                 </choose>
@@ -387,7 +389,7 @@
           AND NOT EXISTS (
               SELECT 1 FROM dms_shop_after_sale after_sale
               WHERE after_sale.order_id = shop_order.id
-                AND after_sale.status IN (0, 4, 5, 6)
+                AND after_sale.status IN (0, 4, 5, 6, 7, 8)
           )
         ORDER BY shop_order.delivery_time ASC, shop_order.id ASC
         LIMIT #{limit}

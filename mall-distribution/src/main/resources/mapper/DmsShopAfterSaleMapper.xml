@@ -22,6 +22,10 @@
         <result column="return_delivery_no" property="returnDeliveryNo"/>
         <result column="return_shipped_at" property="returnShippedAt"/>
         <result column="return_received_at" property="returnReceivedAt"/>
+        <result column="exchange_delivery_company" property="exchangeDeliveryCompany"/>
+        <result column="exchange_delivery_no" property="exchangeDeliveryNo"/>
+        <result column="exchange_shipped_at" property="exchangeShippedAt"/>
+        <result column="exchange_received_at" property="exchangeReceivedAt"/>
         <result column="status" property="status"/>
         <result column="audit_remark" property="auditRemark"/>
         <result column="audit_user_id" property="auditUserId"/>
@@ -35,7 +39,8 @@
         id, after_sale_no, order_id, order_no, member_id, user_id, apply_type, refund_amount,
         product_refund_amount, freight_refund_amount, refund_quantity,
         reason, proof_images, return_address_id, return_address, return_delivery_company, return_delivery_no,
-        return_shipped_at, return_received_at, status, audit_remark, audit_user_id, audit_user_name,
+        return_shipped_at, return_received_at, exchange_delivery_company, exchange_delivery_no,
+        exchange_shipped_at, exchange_received_at, status, audit_remark, audit_user_id, audit_user_name,
         audit_time, create_time, update_time
     </sql>
 
@@ -59,7 +64,7 @@
     <select id="selectOpenByOrderIdScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_after_sale
-        WHERE order_id = #{orderId} AND status IN (0, 4, 5, 6)
+        WHERE order_id = #{orderId} AND status IN (0, 4, 5, 6, 7, 8)
           AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_shop_after_sale.order_id
                       AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
         ORDER BY id DESC
@@ -174,7 +179,26 @@
             audit_time = CURRENT_TIMESTAMP, update_time = CURRENT_TIMESTAMP
         WHERE id = #{afterSale.id}
           AND status = 5
-          AND #{afterSale.status} = 6
+          AND ((apply_type = 2 AND #{afterSale.status} = 6)
+            OR (apply_type = 3 AND #{afterSale.status} = 7))
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_shop_after_sale.order_id
+                      AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
+    </update>
+
+    <update id="updateExchangeShipmentScoped">
+        UPDATE dms_shop_after_sale
+        SET status = 8, exchange_delivery_company = #{afterSale.exchangeDeliveryCompany},
+            exchange_delivery_no = #{afterSale.exchangeDeliveryNo}, exchange_shipped_at = #{afterSale.exchangeShippedAt},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{afterSale.id} AND apply_type = 3 AND status = 7
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_shop_after_sale.order_id
+                      AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
+    </update>
+
+    <update id="completeExchangeScoped">
+        UPDATE dms_shop_after_sale
+        SET status = 1, exchange_received_at = #{receivedAt}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND apply_type = 3 AND status = 8
           AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_shop_after_sale.order_id
                       AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
     </update>
@@ -194,6 +218,19 @@
         WHERE sale.status = 4
           AND sale.audit_time IS NOT NULL
           AND sale.audit_time &lt;= #{cutoff}
+          AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId}
+        ORDER BY sale.id
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectExpiredExchangeShipmentIdsScoped" resultType="java.lang.Long">
+        SELECT sale.id
+        FROM dms_shop_after_sale sale
+        INNER JOIN dms_shop_order scoped_order ON scoped_order.id = sale.order_id
+        WHERE sale.apply_type = 3
+          AND sale.status = 8
+          AND sale.exchange_shipped_at IS NOT NULL
+          AND sale.exchange_shipped_at &lt;= #{cutoff}
           AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId}
         ORDER BY sale.id
         LIMIT #{limit}

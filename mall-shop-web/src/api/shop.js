@@ -396,6 +396,13 @@ export function submitAfterSaleReturnShipment(id, data) {
   })
 }
 
+export function confirmAfterSaleExchangeReceived(id) {
+  return request({
+    url: `/shop/after-sales/${id}/exchange-received`,
+    method: 'put',
+  })
+}
+
 export function getProfile(params) {
   return request({
     url: '/shop/profile',

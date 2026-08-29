@@ -20,10 +20,12 @@ describe('商城订单取消入口', () => {
     expect(source).not.toContain("sale.reason || '未填写原因'")
     expect(source).toContain('label="履约状态"')
     expect(source).toContain('label="售后 / 退款"')
-    expect(source).toContain('[0, 4, 5, 6].includes(Number(item.status))')
+    expect(source).toContain('[0, 4, 5, 6, 7, 8].includes(Number(item.status))')
     expect(source).toContain('Number(item.status) === 1')
     expect(source).toContain("'全额退款' : '部分退款'")
     expect(source).toContain('实退 ¥')
+    expect(source).toContain('发出换货商品')
+    expect(source).toContain('shipShopAfterSaleExchangeReplacement')
   })
 
   it('主操作优先处理售后和发货，奖金、取消及后台退款收进更多操作', async () => {

@@ -21,6 +21,12 @@ public class ShopAfterSaleTimelinePolicy {
     @Value("${shop.after-sale.merchant-return-confirm-timeout-days:7}")
     private int merchantReturnConfirmTimeoutDays;
 
+    @Value("${shop.after-sale.merchant-exchange-shipment-timeout-days:3}")
+    private int merchantExchangeShipmentTimeoutDays;
+
+    @Value("${shop.after-sale.exchange-auto-receive-days:15}")
+    private int exchangeAutoReceiveDays;
+
     public DmsShopAfterSale enrich(DmsShopAfterSale sale) {
         if (sale == null) return null;
         sale.setNextActionDeadline(null);
@@ -43,6 +49,15 @@ public class ShopAfterSaleTimelinePolicy {
         } else if (Integer.valueOf(6).equals(status)) {
             sale.setNextActionParty("PLATFORM");
             sale.setNextActionHint("退款通道处理中，请勿重复提交");
+        } else if (Integer.valueOf(7).equals(status)) {
+            LocalDateTime base = sale.getReturnReceivedAt() == null ? sale.getUpdateTime() : sale.getReturnReceivedAt();
+            apply(sale, "MERCHANT", plusDays(base, safeExchangeShipmentDays()),
+                    "退件已收货，等待商家发出同规格替换商品", "换货商品补发已超时，请平台客服优先介入");
+        } else if (Integer.valueOf(8).equals(status)) {
+            LocalDateTime deadline = exchangeAutoReceiveDays <= 0 ? null
+                    : plusDays(sale.getExchangeShippedAt(), Math.min(exchangeAutoReceiveDays, 365));
+            apply(sale, "MEMBER", deadline,
+                    "替换商品已发出，请确认收货", "替换商品已到自动确认期限，将由系统完成换货");
         } else if (Integer.valueOf(2).equals(status)) {
             sale.setNextActionParty("MEMBER");
             sale.setNextActionHint("申请已被拒绝，可在售后期限内补充凭证后重新申请或联系客服");
@@ -65,6 +80,10 @@ public class ShopAfterSaleTimelinePolicy {
 
     private int safeReturnConfirmDays() {
         return Math.max(1, Math.min(merchantReturnConfirmTimeoutDays, 365));
+    }
+
+    private int safeExchangeShipmentDays() {
+        return Math.max(1, Math.min(merchantExchangeShipmentTimeoutDays, 365));
     }
 
     private LocalDateTime plusHours(LocalDateTime value, int hours) {

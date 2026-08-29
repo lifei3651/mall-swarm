@@ -8,6 +8,7 @@ import com.macro.mall.distribution.dto.CommissionQueryDTO;
 import com.macro.mall.distribution.dto.AdminMemberCreateDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleApplyDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleAuditDTO;
+import com.macro.mall.distribution.dto.ShopAfterSaleExchangeShipmentDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleItemDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleReturnShipmentDTO;
 import com.macro.mall.distribution.dto.ShopManualRefundDTO;
@@ -50,6 +51,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -1445,6 +1447,10 @@ public class PerformanceServiceTest {
     @Test
     void testPartialAfterShipmentRefundReversesExactQuantityAndNeverRefundsFreight() {
         newRetailVersion("PARTIAL_REFUND_EXACT_QUANTITY");
+        jdbcTemplate.update("INSERT INTO dms_shop_service_address "
+                + "(id,tenant_id,address_type,address_label,contact_name,contact_phone,province,city,district,detail_address,is_default,status) "
+                + "VALUES (99004,1,2,'部分退货测试地址','售后','13900000000','湖南省','长沙市','岳麓区','部分退货测试路1号',1,1)");
+        jdbcTemplate.update("UPDATE dms_shop_product SET return_address_id=99004 WHERE id=1");
         jdbcTemplate.update("UPDATE dms_shop_product SET freight_type=1, freight_amount=12.00 WHERE id=1");
         DmsShopMember inviter = createShopMember("13999000033", "部分退款直推人", null);
         submitAndPay(inviter, 1);
@@ -1470,7 +1476,12 @@ public class PerformanceServiceTest {
         audit.setStatus(1);
         audit.setAuditUserId(1L);
         audit.setAuditUserName("test-admin");
-        shopAfterSaleService.audit(afterSale.getId(), audit);
+        assertEquals(4, shopAfterSaleService.audit(afterSale.getId(), audit).getStatus());
+        ShopAfterSaleReturnShipmentDTO returnShipment = new ShopAfterSaleReturnShipmentDTO();
+        returnShipment.setDeliveryCompany("顺丰速运");
+        returnShipment.setDeliveryNo("SFPARTIALREFUND001");
+        assertEquals(5, shopAfterSaleService.submitReturnShipment(member, afterSale.getId(), returnShipment).getStatus());
+        assertEquals(1, shopAfterSaleService.confirmReturnReceived(afterSale.getId(), audit).getStatus());
 
         assertEquals(7, performanceDetailDao.sumEffectiveTeamUnits(agent.getId()));
         assertEquals(7, accountDao.selectByAgentId(agent.getId()).getTotalOrders());
@@ -1490,7 +1501,10 @@ public class PerformanceServiceTest {
         secondApply.setItems(List.of(secondItem));
         secondApply.setReason("再次部分退3件");
         DmsShopAfterSale second = shopAfterSaleService.apply(member, secondApply);
-        shopAfterSaleService.audit(second.getId(), audit);
+        assertEquals(4, shopAfterSaleService.audit(second.getId(), audit).getStatus());
+        returnShipment.setDeliveryNo("SFPARTIALREFUND002");
+        assertEquals(5, shopAfterSaleService.submitReturnShipment(member, second.getId(), returnShipment).getStatus());
+        assertEquals(1, shopAfterSaleService.confirmReturnReceived(second.getId(), audit).getStatus());
         assertEquals(4, performanceDetailDao.sumEffectiveTeamUnits(agent.getId()));
         assertAmountEquals("299.00", commissionRecordDao.selectById(direct.getId()).getCommissionAmount());
     }
@@ -1582,6 +1596,113 @@ public class PerformanceServiceTest {
         assertThrows(RuntimeException.class, () -> shopAfterSaleService.audit(afterSale.getId(), audit));
         assertEquals(stockAfterOrder + 1, jdbcTemplate.queryForObject(
                 "SELECT stock FROM dms_shop_product WHERE id=1", Integer.class));
+    }
+
+    /** 同规格换货不动原订单资金和奖金，只在换货发出时扣一次可售库存。 */
+    @Test
+    void sameSkuExchangeKeepsFinanceAndBonusStableAndDeductsReplacementStockOnce() {
+        newRetailVersion("SAME_SKU_EXCHANGE_FLOW");
+        jdbcTemplate.update("INSERT INTO dms_shop_service_address "
+                + "(id,tenant_id,address_type,address_label,contact_name,contact_phone,province,city,district,detail_address,is_default,status) "
+                + "VALUES (99003,1,2,'换货退件地址','售后','13900000000','湖南省','长沙市','岳麓区','换货测试路1号',1,1)");
+        jdbcTemplate.update("UPDATE dms_shop_product SET return_address_id=99003 WHERE id=1");
+        DmsShopMember member = createShopMember("13999000058", "同规格换货会员", null);
+        ShopOrderVO paid = submitAndPay(member, 2);
+        jdbcTemplate.update("UPDATE dms_shop_order SET status=2, delivery_time=CURRENT_TIMESTAMP WHERE id=?",
+                paid.getOrder().getId());
+        sqlSessionTemplate.clearCache();
+
+        int productStockBefore = jdbcTemplate.queryForObject("SELECT stock FROM dms_shop_product WHERE id=1", Integer.class);
+        int productSalesBefore = jdbcTemplate.queryForObject("SELECT sales_count FROM dms_shop_product WHERE id=1", Integer.class);
+        int skuStockBefore = jdbcTemplate.queryForObject("SELECT stock FROM dms_shop_sku WHERE id=1", Integer.class);
+        int skuSalesBefore = jdbcTemplate.queryForObject("SELECT sales_count FROM dms_shop_sku WHERE id=1", Integer.class);
+        BigDecimal commissionBefore = commissionRecordDao.selectByOrderId(paid.getOrder().getId()).stream()
+                .map(DmsCommissionRecord::getCommissionAmount).filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        ShopAfterSaleItemDTO exchangeItem = new ShopAfterSaleItemDTO();
+        exchangeItem.setOrderItemId(paid.getItems().get(0).getId());
+        exchangeItem.setQuantity(1);
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
+        apply.setOrderId(paid.getOrder().getId());
+        apply.setApplyType(3);
+        apply.setItems(List.of(exchangeItem));
+        apply.setReason("商品瑕疵，申请同规格换货");
+        DmsShopAfterSale exchange = shopAfterSaleService.apply(member, apply);
+        assertEquals(0, exchange.getStatus());
+        assertAmountEquals("0.00", exchange.getRefundAmount());
+        assertAmountEquals("0.00", exchange.getProductRefundAmount());
+
+        ShopAfterSaleAuditDTO audit = new ShopAfterSaleAuditDTO();
+        audit.setStatus(1);
+        audit.setAuditUserId(1L);
+        audit.setAuditUserName("test-admin");
+        audit.setAuditRemark("同意同规格换货，等待客户寄回");
+        exchange = shopAfterSaleService.audit(exchange.getId(), audit);
+        assertEquals(4, exchange.getStatus());
+
+        ShopAfterSaleReturnShipmentDTO returnShipment = new ShopAfterSaleReturnShipmentDTO();
+        returnShipment.setDeliveryCompany("顺丰速运");
+        returnShipment.setDeliveryNo("SFEXCHANGE0001");
+        exchange = shopAfterSaleService.submitReturnShipment(member, exchange.getId(), returnShipment);
+        assertEquals(5, exchange.getStatus());
+        exchange = shopAfterSaleService.confirmReturnReceived(exchange.getId(), audit);
+        assertEquals(7, exchange.getStatus());
+        assertTrue(auditService.getRefundsByOrderId(paid.getOrder().getId()).isEmpty());
+        assertEquals(productStockBefore, jdbcTemplate.queryForObject("SELECT stock FROM dms_shop_product WHERE id=1", Integer.class));
+
+        ShopAfterSaleExchangeShipmentDTO replacement = new ShopAfterSaleExchangeShipmentDTO();
+        replacement.setDeliveryCompany("京东物流");
+        replacement.setDeliveryNo("JDEXCHANGE0001");
+        exchange = shopAfterSaleService.shipExchangeReplacement(exchange.getId(), replacement);
+        assertEquals(8, exchange.getStatus());
+        assertEquals(productStockBefore - 1, jdbcTemplate.queryForObject("SELECT stock FROM dms_shop_product WHERE id=1", Integer.class));
+        assertEquals(skuStockBefore - 1, jdbcTemplate.queryForObject("SELECT stock FROM dms_shop_sku WHERE id=1", Integer.class));
+        assertEquals(productSalesBefore, jdbcTemplate.queryForObject("SELECT sales_count FROM dms_shop_product WHERE id=1", Integer.class));
+        assertEquals(skuSalesBefore, jdbcTemplate.queryForObject("SELECT sales_count FROM dms_shop_sku WHERE id=1", Integer.class));
+
+        DmsShopAfterSale repeatedShipment = shopAfterSaleService.shipExchangeReplacement(exchange.getId(), replacement);
+        assertEquals(8, repeatedShipment.getStatus());
+        assertEquals(productStockBefore - 1, jdbcTemplate.queryForObject("SELECT stock FROM dms_shop_product WHERE id=1", Integer.class));
+        assertEquals(skuStockBefore - 1, jdbcTemplate.queryForObject("SELECT stock FROM dms_shop_sku WHERE id=1", Integer.class));
+
+        exchange = shopAfterSaleService.confirmExchangeReceived(member, exchange.getId());
+        assertEquals(1, exchange.getStatus());
+        assertNotNull(exchange.getExchangeReceivedAt());
+        assertEquals(1, shopAfterSaleService.confirmExchangeReceived(member, exchange.getId()).getStatus());
+        assertNull(afterSaleDao.selectOpenByOrderId(paid.getOrder().getId()));
+        assertEquals(2, shopOrderDao.selectById(paid.getOrder().getId()).getStatus());
+        assertTrue(auditService.getRefundsByOrderId(paid.getOrder().getId()).isEmpty());
+        BigDecimal commissionAfter = commissionRecordDao.selectByOrderId(paid.getOrder().getId()).stream()
+                .map(DmsCommissionRecord::getCommissionAmount).filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        assertAmountEquals(commissionBefore.toPlainString(), commissionAfter);
+
+        DmsShopAfterSale autoExchange = shopAfterSaleService.apply(member, apply);
+        autoExchange = shopAfterSaleService.audit(autoExchange.getId(), audit);
+        returnShipment.setDeliveryNo("SFEXCHANGE0002");
+        shopAfterSaleService.submitReturnShipment(member, autoExchange.getId(), returnShipment);
+        autoExchange = shopAfterSaleService.confirmReturnReceived(autoExchange.getId(), audit);
+        replacement.setDeliveryNo("JDEXCHANGE0002");
+        autoExchange = shopAfterSaleService.shipExchangeReplacement(autoExchange.getId(), replacement);
+        assertEquals(8, autoExchange.getStatus());
+        jdbcTemplate.update("UPDATE dms_shop_after_sale SET exchange_shipped_at=DATEADD('DAY', -16, CURRENT_TIMESTAMP) WHERE id=?",
+                autoExchange.getId());
+        sqlSessionTemplate.clearCache();
+        assertEquals(1, shopAfterSaleService.autoCompleteExpiredExchangeReceipts(20));
+        assertEquals(1, shopAfterSaleService.confirmExchangeReceived(member, autoExchange.getId()).getStatus(),
+                "自动完成后的客户重复确认必须幂等");
+
+        ShopAfterSaleItemDTO fullRefundItem = new ShopAfterSaleItemDTO();
+        fullRefundItem.setOrderItemId(paid.getItems().get(0).getId());
+        fullRefundItem.setQuantity(2);
+        ShopAfterSaleApplyDTO refund = new ShopAfterSaleApplyDTO();
+        refund.setOrderId(paid.getOrder().getId());
+        refund.setApplyType(1);
+        refund.setItems(List.of(fullRefundItem));
+        refund.setReason("换货完成后仍可按原购买数量申请资金售后");
+        assertEquals(2, shopAfterSaleService.apply(member, refund).getRefundQuantity(),
+                "已完成换货不能永久占用原订单可退款数量");
     }
 
     /** 自动收货只处理发货满15天且没有处理中售后的订单，并从实际收货时间重新起算售后期。 */

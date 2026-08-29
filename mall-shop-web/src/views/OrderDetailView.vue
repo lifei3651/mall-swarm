@@ -76,7 +76,7 @@
           </div>
           <div class="order-line-trailing">
             <strong class="order-line-amount">¥{{ money(item.totalAmount) }}</strong>
-            <div v-if="applyingAfterSale && remainingQuantity(item) > 0" class="quantity-stepper" :aria-label="`${item.productName}退款数量`">
+            <div v-if="applyingAfterSale && remainingQuantity(item) > 0" class="quantity-stepper" :aria-label="`${item.productName}售后数量`">
               <button type="button" :disabled="refundQuantities[item.id] <= 0" @click="setRefundQuantity(item, -1)">−</button>
               <output>{{ refundQuantities[item.id] || 0 }}</output>
               <button type="button" :disabled="remainingQuantity(item) <= (refundQuantities[item.id] || 0)" @click="setRefundQuantity(item, 1)">＋</button>
@@ -98,12 +98,21 @@
             <div class="after-sale-record-head">
               <span class="after-sale-status-dot" :class="`status-${sale.status}`"></span>
               <div class="after-sale-record-title">
-                <strong>{{ afterSaleStatus(sale.status) }}</strong>
+                <strong>{{ afterSaleStatus(sale.status, sale.applyType) }}</strong>
                 <span>申请单号 {{ sale.afterSaleNo }}</span>
               </div>
-              <strong class="refund-total">¥{{ money(sale.refundAmount) }}</strong>
+              <strong class="refund-total">{{ sale.applyType === 3 ? '同规格换货' : `¥${money(sale.refundAmount)}` }}</strong>
             </div>
-            <div class="after-sale-progress" :class="`progress-${sale.status}`" aria-label="售后处理进度">
+            <div v-if="sale.applyType === 3" class="after-sale-progress exchange-progress" :class="`progress-${sale.status}`" aria-label="换货处理进度">
+              <span class="progress-step complete">提交申请</span>
+              <span class="progress-track"></span>
+              <span class="progress-step" :class="{ complete: [1, 4, 5, 7, 8].includes(sale.status) }">审核寄回</span>
+              <span class="progress-track"></span>
+              <span class="progress-step" :class="{ complete: [1, 8].includes(sale.status) }">换货发出</span>
+              <span class="progress-track"></span>
+              <span class="progress-step" :class="{ complete: sale.status === 1 }">换货完成</span>
+            </div>
+            <div v-else class="after-sale-progress" :class="`progress-${sale.status}`" aria-label="售后处理进度">
               <span class="progress-step complete">提交申请</span>
               <span class="progress-track"></span>
               <span class="progress-step" :class="{ complete: sale.status !== 0 && sale.status !== 3 }">售后审核</span>
@@ -115,13 +124,14 @@
               <span v-if="sale.nextActionDeadline">处理截止：{{ dateTime(sale.nextActionDeadline) }}</span>
             </div>
             <p v-if="sale.auditRemark" class="line-sub after-sale-audit-remark">处理说明：{{ sale.auditRemark }}</p>
-            <p class="line-sub after-sale-amounts">商品 {{ sale.refundQuantity || 0 }} 件 · 商品款 ¥{{ money(sale.productRefundAmount) }} · 运费 ¥{{ money(sale.freightRefundAmount) }}</p>
+            <p v-if="sale.applyType === 3" class="line-sub after-sale-amounts">同规格换货 {{ sale.refundQuantity || 0 }} 件 · 不退款 · 原订单金额与结算记录保持不变</p>
+            <p v-else class="line-sub after-sale-amounts">商品 {{ sale.refundQuantity || 0 }} 件 · 商品款 ¥{{ money(sale.productRefundAmount) }} · 运费 ¥{{ money(sale.freightRefundAmount) }}</p>
             <div v-if="proofFilenames(sale).length" class="after-sale-proof-list" aria-label="售后凭证">
               <a v-for="filename in proofFilenames(sale)" :key="filename" :href="memberProofUrl(filename)" target="_blank" rel="noopener">
                 <img :src="memberProofUrl(filename)" alt="售后凭证图片" />
               </a>
             </div>
-            <div v-if="sale.applyType === 2 && [4, 5].includes(sale.status)" class="after-sale-return-address">
+            <div v-if="[2, 3].includes(sale.applyType) && [4, 5].includes(sale.status)" class="after-sale-return-address">
               <strong>{{ sale.status === 4 ? '请寄回商品' : '退货物流已提交' }}</strong>
               <span>{{ sale.returnAddress || '退货地址将在审核结果中显示，请留意订单更新' }}</span>
               <div v-if="sale.status === 4 || returnShipmentEditingId === sale.id" class="return-shipment-form">
@@ -136,6 +146,17 @@
                 <a v-if="sale.returnDeliveryNo" :href="trackingUrl({ deliveryCompany: sale.returnDeliveryCompany, deliveryNo: sale.returnDeliveryNo })" target="_blank" rel="noopener" class="tracking-link">查询退货物流</a>
                 <button v-if="returnShipmentEditingId !== sale.id" type="button" class="text-action" @click="startReturnShipmentEdit(sale)">修改退货物流</button>
               </small>
+            </div>
+            <div v-if="sale.applyType === 3 && [7, 8, 1].includes(sale.status)" class="after-sale-return-address exchange-shipment-card">
+              <strong>{{ sale.status === 7 ? '商家已收到退件，正在准备换货商品' : sale.status === 8 ? '换货商品已发出' : '换货已完成' }}</strong>
+              <span v-if="sale.status === 7">商家发出同规格商品后，物流信息会显示在这里。</span>
+              <span v-else>物流公司：{{ sale.exchangeDeliveryCompany || '未填写' }} · 运单号：{{ sale.exchangeDeliveryNo || '-' }}</span>
+              <small v-if="sale.exchangeDeliveryNo" class="return-logistics-line">
+                <a :href="trackingUrl({ deliveryNo: sale.exchangeDeliveryNo })" target="_blank" rel="noopener" class="tracking-link">查询换货物流</a>
+              </small>
+              <button v-if="sale.status === 8" type="button" class="btn primary exchange-received-button" :disabled="confirmingExchangeId === sale.id" @click="requestExchangeReceived(sale.id)">
+                {{ confirmingExchangeId === sale.id ? '确认中…' : '确认收到换货商品' }}
+              </button>
             </div>
             <div v-for="line in sale.items || []" :key="line.id" class="after-sale-item-line">
               <span>{{ line.productName }} {{ formatProductSpec(line) }}</span>
@@ -166,6 +187,11 @@
                 <span><strong>退货退款</strong><small>需要寄回商品</small></span>
                 <CircleCheck v-if="afterSaleForm.applyType === 2" :size="18" class="type-check" />
               </button>
+              <button type="button" class="after-sale-type exchange-option" :class="{ selected: afterSaleForm.applyType === 3, disabled: !canApplyExchange }" :disabled="!canApplyExchange" @click="afterSaleForm.applyType = 3">
+                <RefreshCw :size="21" />
+                <span><strong>同规格换货</strong><small>{{ canApplyExchange ? '寄回原商品，换发同规格商品，不补差价' : '订单发货后才可申请换货' }}</small></span>
+                <CircleCheck v-if="afterSaleForm.applyType === 3" :size="18" class="type-check" />
+              </button>
             </div>
           </div>
 
@@ -195,7 +221,11 @@
             </div>
           </div>
 
-          <div class="refund-estimate">
+          <div v-if="afterSaleForm.applyType === 3" class="refund-estimate exchange-estimate">
+            <div class="estimate-head"><span>换货金额</span><strong>¥0.00</strong></div>
+            <small>仅换发同规格商品，不退款、不补差价，原订单金额与结算记录保持不变。</small>
+          </div>
+          <div v-else class="refund-estimate">
             <div class="estimate-head"><span>预计退款</span><strong>¥{{ money(estimatedProductRefund + estimatedFreightRefund) }}</strong></div>
           </div>
           <p v-if="afterSaleErrors.server" class="after-sale-submit-error" role="alert">{{ afterSaleErrors.server }}</p>
@@ -308,8 +338,8 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { ChevronDown, ChevronRight, CircleCheck, ImagePlus, MapPin, PackageCheck, RotateCcw, Truck, UserRound } from 'lucide-vue-next'
-import { applyAfterSale, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmReceive, createAlipayOrder, getOrder, getOrderTracking, payOrderWithBalance, submitAfterSaleReturnShipment, uploadAfterSaleProof } from '@/api/shop'
+import { ChevronDown, ChevronRight, CircleCheck, ImagePlus, MapPin, PackageCheck, RefreshCw, RotateCcw, Truck, UserRound } from 'lucide-vue-next'
+import { applyAfterSale, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmAfterSaleExchangeReceived, confirmReceive, createAlipayOrder, getOrder, getOrderTracking, payOrderWithBalance, submitAfterSaleReturnShipment, uploadAfterSaleProof } from '@/api/shop'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { dateTime, money, statusName } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
@@ -328,6 +358,7 @@ const cancellingAfterSaleId = ref(null)
 const pendingAfterSaleId = ref(null)
 const confirmAction = ref('')
 const returnShipmentSaleId = ref(null)
+const confirmingExchangeId = ref(null)
 const returnShipmentEditingId = ref(null)
 const returnShipmentForm = ref({ deliveryCompany: '', deliveryNo: '' })
 const submittingAfterSale = ref(false)
@@ -351,7 +382,7 @@ let stopOrderRealtime = null
 let fallbackPollTimer = null
 let realtimeRefreshTimer = null
 let disposed = false
-const confirmationBusy = computed(() => acting.value || Boolean(cancellingAfterSaleId.value))
+const confirmationBusy = computed(() => acting.value || Boolean(cancellingAfterSaleId.value) || Boolean(confirmingExchangeId.value))
 const confirmationDialog = computed(() => ({
   'cancel-order': {
     title: '取消这笔订单？',
@@ -379,6 +410,15 @@ const confirmationDialog = computed(() => ({
     loadingText: '取消中…',
     iconType: 'afterSale',
     isDanger: true,
+  },
+  'receive-exchange': {
+    title: '确认收到换货商品？',
+    message: '请确认商家换发的同规格商品已经签收且数量无误。确认后本次换货将完成。',
+    confirmText: '确认收到',
+    cancelText: '暂未收到',
+    loadingText: '确认中…',
+    iconType: 'receive',
+    isDanger: false,
   },
 }[confirmAction.value] || {}))
 const order = computed(() => detail.value.order)
@@ -456,9 +496,10 @@ const canApplyAfterSale = computed(() => {
   if (detail.value.afterSaleSelfServiceEnabled === false) return false
   if ([0, 4].includes(order.value.status)) return false
   if (Date.now() >= afterSaleDeadline.value) return false
-  if (afterSales.value.some((item) => [0, 4, 5, 6].includes(item.status))) return false
+  if (afterSales.value.some((item) => [0, 4, 5, 6, 7, 8].includes(item.status))) return false
   return totalRemainingQuantity.value > 0
 })
+const canApplyExchange = computed(() => [2, 3].includes(Number(order.value?.status)))
 const afterSaleForm = ref({
   applyType: 1,
   reason: '',
@@ -467,7 +508,9 @@ const afterSaleForm = ref({
 const refundQuantities = ref({})
 
 const usedQuantity = (orderItemId) => afterSales.value
-  .filter((sale) => [0, 1, 4, 5, 6].includes(sale.status))
+  .filter((sale) => Number(sale.applyType) === 3
+    ? [0, 4, 5, 7, 8].includes(Number(sale.status))
+    : [0, 1, 4, 5, 6].includes(Number(sale.status)))
   .flatMap((sale) => sale.items || [])
   .filter((item) => item.orderItemId === orderItemId)
   .reduce((sum, item) => sum + Number(item.refundQuantity || 0), 0)
@@ -480,7 +523,7 @@ const selectedRefundQuantity = computed(() => selectedRefundItems.value.reduce((
 const totalRemainingQuantity = computed(() => (detail.value.items || []).reduce((sum, item) => sum + remainingQuantity(item), 0))
 const refundAllRemaining = computed(() => selectedRefundQuantity.value > 0 && selectedRefundQuantity.value === totalRemainingQuantity.value)
 const approvedProductRefund = computed(() => afterSales.value
-  .filter((sale) => sale.status === 1)
+  .filter((sale) => [1, 2].includes(Number(sale.applyType)) && sale.status === 1)
   .reduce((sum, sale) => sum + Number(sale.productRefundAmount || 0), 0))
 const productBase = computed(() => Math.max(0, Number(order.value?.totalAmount || 0) - Number(order.value?.discountAmount || 0)))
 const estimatedProductRefund = computed(() => {
@@ -571,7 +614,10 @@ const scrollToAfterSaleError = async (target) => {
   target?.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
 
-const afterSaleStatus = (status) => ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '审核通过，待寄回', 5: '已寄回，待收货', 6: '已收货，退款中' }[status] || '处理中')
+const afterSaleStatus = (status, applyType) => {
+  if (Number(applyType) === 3 && Number(status) === 1) return '换货完成'
+  return ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '审核通过，待寄回', 5: '已寄回，待收货', 6: '已收货，退款中', 7: '退件已收，待换货发出', 8: '换货已发出，待收货' }[status] || '处理中')
+}
 const payTypeName = (value) => ({ WECHAT: '微信支付', ALIPAY: '支付宝', BALANCE: '余额' }[value] || value || '未选择')
 const copyText = async (text) => { try { await navigator.clipboard.writeText(text) } catch {} }
 
@@ -583,6 +629,11 @@ const requestOrderConfirmation = (action) => {
 const requestCancelAfterSale = (id) => {
   pendingAfterSaleId.value = id
   requestOrderConfirmation('cancel-after-sale')
+}
+
+const requestExchangeReceived = (id) => {
+  pendingAfterSaleId.value = id
+  requestOrderConfirmation('receive-exchange')
 }
 
 const closeOrderConfirmation = () => {
@@ -613,6 +664,24 @@ const confirmOrderAction = () => {
   if (confirmAction.value === 'cancel-order') return cancel()
   if (confirmAction.value === 'receive-order') return receive()
   if (confirmAction.value === 'cancel-after-sale') return confirmCancelAfterSale()
+  if (confirmAction.value === 'receive-exchange') return confirmExchangeReceived()
+}
+
+const confirmExchangeReceived = async () => {
+  const id = pendingAfterSaleId.value
+  if (!id || confirmingExchangeId.value) return
+  confirmingExchangeId.value = id
+  error.value = ''
+  try {
+    await confirmAfterSaleExchangeReceived(id)
+    await fetchOrder()
+  } catch (e) {
+    error.value = e.message || '确认换货收货失败'
+  } finally {
+    confirmingExchangeId.value = null
+    confirmAction.value = ''
+    pendingAfterSaleId.value = null
+  }
 }
 
 const submitReturnShipment = async (sale) => {
@@ -757,7 +826,7 @@ const receive = async () => {
 const submitAfterSale = async () => {
   afterSaleErrors.value = { items: '', reason: '', server: '' }
   if (!selectedRefundItems.value.length) {
-    afterSaleErrors.value.items = '退款商品数量不能为 0，请至少选择 1 件商品'
+    afterSaleErrors.value.items = '售后商品数量不能为 0，请至少选择 1 件商品'
     scrollToAfterSaleError(refundItemsSection)
     return
   }
@@ -893,6 +962,8 @@ onBeforeUnmount(() => {
 .proof-add { display: grid; place-items: center; align-content: center; gap: 5px; min-height: 78px; color: #8c96a0; background: #fafbfb; border: 1px dashed #cfd6dc; font-size: 11px; }
 .proof-add svg { color: var(--brand-primary, #e7193f); }
 .after-sale-type-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.after-sale-type.exchange-option { grid-column: 1 / -1; }
+.after-sale-type.disabled { cursor: not-allowed; opacity: .62; }
 .after-sale-type { position: relative; display: flex; align-items: flex-start; gap: 10px; min-height: 76px; padding: 13px 12px; color: #8b96a1; text-align: left; background: #fff; border: 1px solid #e1e6ea; border-radius: 12px; }
 .after-sale-type svg { flex: 0 0 auto; color: #e97947; }
 .after-sale-type span { display: grid; gap: 4px; min-width: 0; }
@@ -915,6 +986,10 @@ onBeforeUnmount(() => {
 .after-sale-field-error { margin: 8px 0 0; color: #d92d20; font-size: 12px; font-weight: 700; line-height: 1.5; }
 .after-sale-submit-error { margin: 12px 0 0; padding: 10px 12px; color: #b42318; background: #fff1f0; border: 1px solid #fecdca; border-radius: 9px; font-size: 12px; font-weight: 700; line-height: 1.5; }
 .refund-estimate { margin-top: 4px; padding: 15px; background: #fff7f8; border: 1px solid #f4dbe0; border-radius: 12px; }
+.exchange-estimate small { display: block; margin-top: 7px; color: #7b858f; font-size: 11px; line-height: 1.55; }
+.exchange-shipment-card { border-color: #b9ddd7; background: #f2fbf9; }
+.exchange-received-button { align-self: flex-start; min-height: 34px; margin-top: 8px; padding: 0 12px; font-size: 12px; }
+.exchange-progress { grid-template-columns: auto 1fr auto 1fr auto 1fr auto; }
 .estimate-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .estimate-head span { color: #7b858f; font-size: 13px; }
 .estimate-head strong { color: var(--brand-primary, #e7193f); font-size: 22px; }

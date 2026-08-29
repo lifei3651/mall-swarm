@@ -1171,6 +1171,14 @@ public class ShopController {
         return CommonResult.success(afterSaleService.submitReturnShipment(authService.requireMember(authorization), id, dto));
     }
 
+    @Operation(summary = "会员确认收到换货替换商品")
+    @PutMapping("/after-sales/{id}/exchange-received")
+    public CommonResult<DmsShopAfterSale> confirmExchangeReceived(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long id) {
+        return CommonResult.success(afterSaleService.confirmExchangeReceived(authService.requireMember(authorization), id));
+    }
+
     @Operation(summary = "我的售后")
     @GetMapping("/after-sales")
     public CommonResult<List<DmsShopAfterSale>> myAfterSales(
@@ -1195,11 +1203,20 @@ public class ShopController {
         return CommonResult.success(afterSaleService.audit(id, dto));
     }
 
-    @Operation(summary = "后台确认收到退货并退款")
+    @Operation(summary = "后台确认收到退货；退款单执行退款，换货单进入待补发")
     @PutMapping("/admin/after-sales/{id}/return-received")
     public CommonResult<DmsShopAfterSale> confirmReturnReceived(@PathVariable Long id,
                                                                 @Valid @RequestBody(required = false) ShopAfterSaleAuditDTO dto) {
         return CommonResult.success(afterSaleService.confirmReturnReceived(id, dto));
+    }
+
+
+    @Operation(summary = "后台发出同规格换货替换商品")
+    @PutMapping("/admin/after-sales/{id}/exchange-shipment")
+    public CommonResult<DmsShopAfterSale> shipExchangeReplacement(
+            @PathVariable Long id,
+            @Valid @RequestBody ShopAfterSaleExchangeShipmentDTO dto) {
+        return CommonResult.success(afterSaleService.shipExchangeReplacement(id, dto));
     }
 
     private void applyFrontOrderVisibility(ShopOrderVO vo) {

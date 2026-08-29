@@ -84,7 +84,7 @@
           AND o.receive_time &lt;= #{receivedCutoff}
           AND NOT EXISTS (
               SELECT 1 FROM dms_shop_after_sale sale
-              WHERE sale.order_id = a.order_id AND sale.status IN (0, 4, 5, 6)
+              WHERE sale.order_id = a.order_id AND sale.status IN (0, 4, 5, 6, 7, 8)
           )
         ORDER BY o.receive_time, a.order_id,
                  CASE a.allocation_type WHEN 'PRODUCT_COST' THEN 1 ELSE 2 END

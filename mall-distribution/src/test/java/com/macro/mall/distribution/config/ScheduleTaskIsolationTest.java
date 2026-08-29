@@ -70,4 +70,21 @@ class ScheduleTaskIsolationTest {
 
         verify(shopService).autoConfirmExpiredShippedOrders(200);
     }
+
+    @Test
+    void exchangeAutoReceiptUsesDedicatedDistributedTaskAndInvokesTheBoundedBatch() {
+        ScheduleTask task = new ScheduleTask(performanceService, bonusCalculationTaskService,
+                erpIntegrationService, commissionSettlementService, shopService,
+                orderBalanceAllocationService, operationLogService, merchantService,
+                shopAfterSaleService, scheduledTaskRunner);
+        doAnswer(invocation -> {
+            invocation.<Runnable>getArgument(2).run();
+            return true;
+        }).when(scheduledTaskRunner).run(eq("auto-complete-exchange-receipts"), any(), any());
+        when(shopAfterSaleService.autoCompleteExpiredExchangeReceipts(200)).thenReturn(1);
+
+        task.autoCompleteExpiredExchangeReceipts();
+
+        verify(shopAfterSaleService).autoCompleteExpiredExchangeReceipts(200);
+    }
 }

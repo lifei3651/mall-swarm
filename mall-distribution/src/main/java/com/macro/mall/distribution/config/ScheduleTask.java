@@ -77,6 +77,19 @@ public class ScheduleTask {
         });
     }
 
+    /** 到期自动确认替换商品收货，避免会员未操作导致换货与结算永久悬挂。 */
+    @Scheduled(fixedDelayString = "${shop.after-sale.exchange-receipt-scan-interval-ms:600000}")
+    public void autoCompleteExpiredExchangeReceipts() {
+        scheduledTaskRunner.run("auto-complete-exchange-receipts", Duration.ofMinutes(30), () -> {
+            try {
+                int count = shopAfterSaleService.autoCompleteExpiredExchangeReceipts(200);
+                if (count > 0) log.info("到期换货已自动确认收货: count={}", count);
+            } catch (Exception e) {
+                log.error("到期换货自动确认收货扫描失败", e);
+            }
+        });
+    }
+
     /** 每10分钟扫描：订单确认收货满7天且没有待处理售后的奖金自动结算。 */
     @Scheduled(fixedDelayString = "${bonus.settlement.scan-interval-ms:600000}")
     public void settleCoolingOffCommissions() {
