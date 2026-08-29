@@ -265,10 +265,10 @@ exchange_schema_counts_for() {
   mysql_root -NBe "SELECT CONCAT(
     (SELECT COUNT(*) FROM information_schema.columns
       WHERE table_schema='${database}' AND table_name='dms_shop_after_sale'
-        AND column_name IN ('exchange_shipping_company','exchange_shipping_no','exchange_shipped_time','exchange_delivered_time')), ':',
+        AND column_name IN ('exchange_delivery_company','exchange_delivery_no','exchange_shipped_at','exchange_received_at')), ':',
     (SELECT COUNT(DISTINCT index_name) FROM information_schema.statistics
       WHERE table_schema='${database}' AND table_name='dms_shop_after_sale'
-        AND index_name='idx_after_sale_exchange_auto_confirm')
+        AND index_name='idx_after_sale_exchange_receipt')
   )"
 }
 
@@ -733,4 +733,3 @@ DB_MUTATED=0
 trap - EXIT
 rm -rf -- "$RELEASE_DIR" "$ROLLBACK_DIR"
 echo "release-success version=$EXPECTED_VERSION backup-before=$BACKUP_BEFORE backup-after=$BACKUP_AFTER build=$EXPECTED_BUILD_ID core-counts=$BEFORE_COUNTS migrations=$EXPECTED_MIGRATIONS customer-bonus-policy-preserved=yes customer-bootstrap-safe=on service-sms-schema=on service-ticket-schema=on service-ticket-records=0 exchange=same-sku promotion-join-mode=FIRST_PAID_ORDER display-workbench=multi-layout category-guide=A:B:C compliance-locks=server-enforced message-seeds=15:15 notification-tables=4 budgets=19:off authorizations=0 external-channels=off real-name=off session-surface=on transfer=integrated-only feature-state=$BEFORE_FEATURE_COUNTS tenant-config-preserved=yes encryption-preserved=yes jar=$EXPECTED_JAR_SHA256"
-
