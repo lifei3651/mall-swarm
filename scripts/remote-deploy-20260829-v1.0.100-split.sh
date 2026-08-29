@@ -1,0 +1,736 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+APP_ROOT=/opt/lingqimall
+RELEASE_DIR=/tmp/lingqimall-release-v1.0.100
+EXPECTED_VERSION=1.0.100
+EXPECTED_PREVIOUS_VERSION=1.0.99
+EXPECTED_PREVIOUS_GIT_COMMIT=5cbf46ea5d0b0c464010fdafa74c1a779f4d7bf5
+EXPECTED_PREVIOUS_BUILD_ID=20260828-1653-1.0.99
+EXPECTED_GIT_COMMIT=f097c1d860bea0ebb84fe506488ff76f1fc4adcd
+EXPECTED_BUILD_ID=20260829-2301-1.0.100
+EXPECTED_JAR_SHA256=f506e2daf7f1a660c6dcd4bf6358f5aed2eef65b3a769b9a16c84173c5d69c28
+EXPECTED_PREVIOUS_MIGRATIONS=28
+EXPECTED_MIGRATIONS=30
+EXPECTED_PRE_RELEASE_CORE_COUNTS=45:2:18:27:58:13450.00:5:6:3
+EXPECTED_PRE_RELEASE_FEATURE_COUNTS=1:0:0:0:0:0:0:0
+EXPECTED_PRE_RELEASE_TENANT_CONFIG_HASH=33bcd606960fc4091057d5c9041e8d34cc84f5d57cad949b573b7f9af5805909
+EXPECTED_PRE_RELEASE_BRAND_BANNERS=0:0
+EXPECTED_PRE_RELEASE_THEME='#7c3aed'
+EXPECTED_ACTIVE_BONUS_POLICY='1:NEW_RETAIL_SIMPLE_DEFAULT'
+EXPECTED_ENCRYPTION_ENV_SHA=293d5848dac2437809421e43cc58a33b301c913e08c92db6225f4727d5ace9e0
+EXPECTED_ENCRYPTION_DROPIN_SHA=dc898887d68fc758ef688f4ed68a38f5d84d5feb7c3088ea9683ffd3c908646d
+
+# 默认只允许验签和阅读。正式执行必须同时提供参数与版本绑定授权变量，避免误触生产变更。
+if [[ "${1:-}" != "--authorize-release" || "${LINGQIMALL_RELEASE_AUTHORIZATION:-}" != "$EXPECTED_VERSION" ]]; then
+  echo "waiting-for-explicit-release-authorization version=$EXPECTED_VERSION" >&2
+  echo "authorized usage: LINGQIMALL_RELEASE_AUTHORIZATION=$EXPECTED_VERSION ./release.sh --authorize-release" >&2
+  exit 3
+fi
+shift
+PREFLIGHT_ONLY=0
+if [[ "${1:-}" == "--preflight-only" ]]; then
+  PREFLIGHT_ONLY=1
+  shift
+fi
+[[ "$#" == 0 ]]
+
+DB_NAME=mall_distribution
+ROLLBACK_DIR=""
+NEW_ADMIN=""
+NEW_SHOP=""
+NEW_TEAM=""
+BACKUP_BEFORE=""
+BACKUP_AFTER=""
+BEFORE_COUNTS=""
+BEFORE_FEATURE_COUNTS=""
+BEFORE_TENANT_CONFIG_HASH=""
+BEFORE_BRAND_BANNERS=""
+DB_CREATE_SQL=""
+ENCRYPTION_ENV_SHA=""
+ENCRYPTION_DROPIN_SHA=""
+APP_MUTATED=0
+STATIC_MUTATED=0
+NGINX_MUTATED=0
+BACKUP_TOOL_MUTATED=0
+DB_MUTATED=0
+MIGRATION_COMPLETED=0
+
+mysql_cmd() { mysql --protocol=socket -uroot "$DB_NAME" "$@"; }
+mysql_root() { mysql --protocol=socket -uroot "$@"; }
+
+database_counts_for() {
+  local database=$1
+  mysql --protocol=socket -uroot "$database" -NBe "SELECT CONCAT(
+    (SELECT COUNT(*) FROM dms_shop_member WHERE system_account=0), ':',
+    (SELECT COUNT(*) FROM dms_shop_member WHERE system_account=1), ':',
+    (SELECT COUNT(*) FROM dms_shop_order), ':',
+    (SELECT COUNT(*) FROM dms_commission_record), ':',
+    (SELECT COUNT(*) FROM dms_member_asset_flow), ':',
+    (SELECT COALESCE(SUM(balance),0) FROM dms_member_asset_account), ':',
+    (SELECT COUNT(*) FROM dms_shop_product), ':',
+    (SELECT COUNT(*) FROM dms_shop_category), ':',
+    (SELECT COUNT(*) FROM dms_admin_user WHERE status=1)
+  )"
+}
+
+database_counts() { database_counts_for "$DB_NAME"; }
+
+feature_business_counts_for() {
+  local database=$1
+  mysql --protocol=socket -uroot "$database" -NBe "SELECT CONCAT(
+    (SELECT COALESCE(SUM(brand_culture_enabled),0) FROM dms_tenant), ':',
+    (SELECT COALESCE(SUM(manual_new_arrival_enabled),0) FROM dms_shop_product), ':',
+    (SELECT COUNT(*) FROM dms_live_reservation), ':',
+    (SELECT COUNT(*) FROM dms_member_real_name), ':',
+    (SELECT COUNT(*) FROM dms_member_real_name_attempt), ':',
+    (SELECT COUNT(*) FROM dms_message_recipient_authorization), ':',
+    (SELECT COUNT(*) FROM dms_message_delivery_attempt), ':',
+    (SELECT COUNT(*) FROM dms_message_delivery_receipt)
+  )"
+}
+
+feature_business_counts() { feature_business_counts_for "$DB_NAME"; }
+
+tenant_display_config_hash_for() {
+  local database=$1
+  mysql --protocol=socket -uroot "$database" -NBe "SET SESSION group_concat_max_len=16777216;
+    SELECT SHA2(GROUP_CONCAT(CONCAT_WS('#',
+      t.id, COALESCE(t.brand_name,''), COALESCE(t.logo_url,''), COALESCE(t.theme_color,''),
+      COALESCE(t.product_template,''), COALESCE(t.brand_culture_enabled,''),
+      COALESCE(t.brand_culture_title,''), COALESCE(t.brand_culture_subtitle,''),
+      COALESCE(t.brand_culture_cover_url,''), COALESCE(t.brand_culture_content,''),
+      COALESCE(d.show_pv,''), COALESCE(d.show_team_performance,''), COALESCE(d.show_bonus_source,''),
+      COALESCE(d.show_bonus_flow,''), COALESCE(d.show_profit,''), COALESCE(d.show_rank,''),
+      COALESCE(d.show_binary_area,''), COALESCE(d.show_retail_module,''), COALESCE(d.show_store_module,''),
+      COALESCE(d.show_company_share,''), COALESCE(d.extra_config_json,''))
+      ORDER BY t.id SEPARATOR '||'),256)
+    FROM dms_tenant t LEFT JOIN dms_tenant_display_config d ON d.tenant_id=t.id"
+}
+
+tenant_display_config_hash() { tenant_display_config_hash_for "$DB_NAME"; }
+
+tenant_theme_for() {
+  local database=$1
+  mysql --protocol=socket -uroot "$database" -NBe "SELECT COALESCE(theme_color,'') FROM dms_tenant WHERE id=1"
+}
+
+brand_culture_banner_counts() {
+  mysql_cmd -NBe "SELECT CONCAT(COUNT(*),':',COALESCE(SUM(status=1),0))
+    FROM dms_shop_banner WHERE UPPER(REPLACE(link_type,'-','_'))='BRAND_CULTURE'"
+}
+
+active_bonus_policy_for() {
+  local database=$1
+  mysql --protocol=socket -uroot "$database" -NBe "SELECT CONCAT(COUNT(*),':',COALESCE(GROUP_CONCAT(version_no ORDER BY id SEPARATOR ','),''))
+    FROM dms_commission_rule_version WHERE tenant_id=1 AND status=1"
+}
+
+active_bonus_policy() { active_bonus_policy_for "$DB_NAME"; }
+
+service_sms_preference_column_count_for() {
+  local database=$1
+  mysql_root -NBe "SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema='${database}' AND table_name='dms_message_recipient_authorization'
+      AND column_name IN ('consent_version','consent_surface')"
+}
+
+service_sms_preference_column_count() { service_sms_preference_column_count_for "$DB_NAME"; }
+
+verify_service_sms_preference_schema() {
+  [[ "$(service_sms_preference_column_count)" == 2 ]]
+}
+
+verify_business_state_unchanged() {
+  [[ -n "$BEFORE_FEATURE_COUNTS" && "$(feature_business_counts)" == "$BEFORE_FEATURE_COUNTS" ]]
+  [[ -n "$BEFORE_TENANT_CONFIG_HASH" && "$(tenant_display_config_hash)" == "$BEFORE_TENANT_CONFIG_HASH" ]]
+  [[ -n "$BEFORE_BRAND_BANNERS" && "$(brand_culture_banner_counts)" == "$BEFORE_BRAND_BANNERS" ]]
+}
+
+plaintext_sensitive_value_count() {
+  mysql_cmd -NBe "SELECT
+      (SELECT COUNT(*) FROM dms_agent WHERE id_card IS NOT NULL AND id_card <> '' AND id_card NOT LIKE 'enc:v1:%') +
+      (SELECT COUNT(*) FROM dms_agent WHERE bank_account IS NOT NULL AND bank_account <> '' AND bank_account NOT LIKE 'enc:v1:%') +
+      (SELECT COUNT(*) FROM dms_erp_integration WHERE app_secret IS NOT NULL AND app_secret <> '' AND app_secret NOT LIKE 'enc:v1:%') +
+      (SELECT COUNT(*) FROM dms_erp_integration WHERE callback_token IS NOT NULL AND callback_token <> '' AND callback_token NOT LIKE 'enc:v1:%') +
+      (SELECT COUNT(*) FROM dms_withdraw_record WHERE bank_account IS NOT NULL AND bank_account <> '' AND bank_account NOT LIKE 'enc:v1:%') +
+      (SELECT COUNT(*) FROM dms_merchant WHERE bank_account_no IS NOT NULL AND bank_account_no <> '' AND bank_account_no NOT LIKE 'enc:v1:%') +
+      (SELECT COUNT(*) FROM dms_merchant_withdrawal WHERE bank_account_no_snapshot IS NOT NULL AND bank_account_no_snapshot <> '' AND bank_account_no_snapshot NOT LIKE 'enc:v1:%') +
+      (SELECT COUNT(*) FROM dms_import_detail WHERE raw_data IS NOT NULL AND raw_data <> '' AND raw_data NOT LIKE 'enc:v1:%')"
+}
+
+message_table_count() {
+  mysql_cmd -NBe "SELECT COUNT(*) FROM information_schema.tables
+    WHERE table_schema='${DB_NAME}' AND table_name IN
+    ('dms_member_message','dms_message_template','dms_message_channel_config','dms_message_delivery_task')"
+}
+
+verify_message_schema() {
+  [[ "$(message_table_count)" == 4 ]]
+  [[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_message_template')" == 15 ]]
+  [[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_message_channel_config')" == 15 ]]
+  [[ "$(mysql_cmd -NBe 'SELECT COUNT(DISTINCT category) FROM dms_message_template')" == 5 ]]
+  [[ "$(mysql_cmd -NBe 'SELECT COALESCE(SUM(sms_enabled),0)+COALESCE(SUM(app_push_enabled),0)+COALESCE(SUM(mini_program_enabled),0) FROM dms_message_channel_config')" == 0 ]]
+  [[ "$(mysql_cmd -NBe "SELECT COUNT(DISTINCT CONCAT(table_name,':',index_name)) FROM information_schema.statistics WHERE table_schema='${DB_NAME}' AND index_name IN ('uk_member_message_event','idx_member_message_unread','idx_member_message_category','uk_message_template_event','uk_message_channel_event','uk_message_delivery_channel','idx_message_delivery_status')")" == 7 ]]
+}
+
+notification_kernel_table_count() {
+  mysql_cmd -NBe "SELECT COUNT(*) FROM information_schema.tables
+    WHERE table_schema='${DB_NAME}' AND table_name IN
+    ('dms_message_delivery_attempt','dms_message_cost_budget','dms_message_recipient_authorization','dms_message_delivery_receipt')"
+}
+
+verify_notification_kernel() {
+  [[ "$(notification_kernel_table_count)" == 4 ]]
+  [[ "$(mysql_cmd -NBe "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${DB_NAME}' AND table_name='dms_message_delivery_task'")" == 25 ]]
+  [[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_message_cost_budget')" == 19 ]]
+  [[ "$(mysql_cmd -NBe 'SELECT COALESCE(SUM(enabled),0) FROM dms_message_cost_budget')" == 0 ]]
+  [[ "$(mysql_cmd -NBe 'SELECT COALESCE(SUM(daily_limit),0)+COALESCE(SUM(monthly_limit),0) FROM dms_message_cost_budget')" == 0.0000 ]]
+  [[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_message_recipient_authorization')" == 0 ]]
+  [[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_message_delivery_attempt')" == 0 ]]
+  [[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_message_delivery_receipt')" == 0 ]]
+  [[ "$(mysql_cmd -NBe "SELECT COUNT(*) FROM dms_message_delivery_task WHERE channel IN ('SMS','APP_PUSH','MINI_PROGRAM') AND status IN ('PENDING','SENDING','ACCEPTED','RETRYABLE')")" == 0 ]]
+  verify_message_schema
+}
+
+real_name_table_count() {
+  mysql_cmd -NBe "SELECT COUNT(*) FROM information_schema.tables
+    WHERE table_schema='${DB_NAME}' AND table_name IN
+    ('dms_member_real_name','dms_member_real_name_attempt')"
+}
+
+session_surface_column_count() {
+  mysql_cmd -NBe "SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema='${DB_NAME}' AND table_name='dms_shop_member_session' AND column_name='surface'"
+}
+
+verify_real_name_schema() {
+  [[ "$(real_name_table_count)" == 2 ]]
+  [[ "$(session_surface_column_count)" == 1 ]]
+  [[ "$(mysql_cmd -NBe "SELECT COUNT(DISTINCT index_name) FROM information_schema.statistics WHERE table_schema='${DB_NAME}' AND table_name='dms_member_real_name' AND index_name='uk_member_real_name_account' AND non_unique=0")" == 1 ]]
+  [[ "$(mysql_cmd -NBe "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema='${DB_NAME}' AND table_name='dms_member_real_name' AND non_unique=0 AND column_name IN ('real_name','id_card')")" == 0 ]]
+  [[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_member_real_name')" == 0 ]]
+  [[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_member_real_name_attempt')" == 0 ]]
+  [[ "$(mysql_cmd -NBe "SELECT COUNT(*) FROM dms_shop_member_session WHERE surface NOT IN ('legacy','public','team','integrated')")" == 0 ]]
+}
+
+feature_schema_object_count() {
+  mysql_cmd -NBe "SELECT
+    (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${DB_NAME}' AND table_name='dms_shop_product' AND column_name IN ('manual_new_arrival_enabled','manual_new_arrival_start_time','manual_new_arrival_end_time')) +
+    (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${DB_NAME}' AND table_name='dms_tenant' AND column_name IN ('brand_culture_enabled','brand_culture_title','brand_culture_subtitle','brand_culture_cover_url','brand_culture_content')) +
+    (SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}' AND table_name='dms_live_reservation')"
+}
+
+verify_feature_schema() {
+  [[ "$(feature_schema_object_count)" == 9 ]]
+  [[ "$(mysql_cmd -NBe "SELECT COUNT(DISTINCT index_name) FROM information_schema.statistics WHERE table_schema='${DB_NAME}' AND table_name='dms_shop_product' AND index_name='idx_shop_product_manual_new_arrival'")" == 1 ]]
+  [[ "$(mysql_cmd -NBe "SELECT COUNT(DISTINCT index_name) FROM information_schema.statistics WHERE table_schema='${DB_NAME}' AND table_name='dms_live_reservation' AND index_name IN ('uk_live_reservation_member','idx_live_reservation_notice')")" == 2 ]]
+}
+
+service_ticket_table_count_for() {
+  local database=$1
+  mysql_root -NBe "SELECT COUNT(*) FROM information_schema.tables
+    WHERE table_schema='${database}' AND table_name IN
+    ('dms_shop_service_ticket','dms_shop_service_ticket_reply')"
+}
+
+service_ticket_table_count() { service_ticket_table_count_for "$DB_NAME"; }
+
+verify_service_ticket_schema_for() {
+  local database=$1
+  [[ "$(service_ticket_table_count_for "$database")" == 2 ]]
+  [[ "$(mysql_root -NBe "SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema='${database}' AND table_name='dms_shop_service_ticket'
+      AND column_name IN ('tenant_id','merchant_id','member_id','order_id','after_sale_id','first_response_deadline','first_response_at')")" == 7 ]]
+  [[ "$(mysql_root -NBe "SELECT COUNT(DISTINCT CONCAT(table_name,':',index_name)) FROM information_schema.statistics
+    WHERE table_schema='${database}' AND index_name IN
+      ('uk_shop_service_ticket_no','idx_shop_service_ticket_member','idx_shop_service_ticket_merchant','idx_shop_service_ticket_after_sale','idx_shop_service_ticket_reply')")" == 5 ]]
+  [[ "$(mysql_root -NBe "SELECT COUNT(*) FROM information_schema.referential_constraints
+    WHERE constraint_schema='${database}' AND table_name IN ('dms_shop_service_ticket','dms_shop_service_ticket_reply')")" == 0 ]]
+  [[ "$(mysql --protocol=socket -uroot "$database" -NBe 'SELECT COUNT(*) FROM dms_shop_service_ticket')" == 0 ]]
+  [[ "$(mysql --protocol=socket -uroot "$database" -NBe 'SELECT COUNT(*) FROM dms_shop_service_ticket_reply')" == 0 ]]
+}
+
+verify_service_ticket_schema() { verify_service_ticket_schema_for "$DB_NAME"; }
+
+
+promotion_join_mode_column_count_for() {
+  local database=$1
+  mysql_root -NBe "SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema='${database}' AND table_name='dms_tenant' AND column_name='promotion_join_mode'"
+}
+
+exchange_schema_counts_for() {
+  local database=$1
+  mysql_root -NBe "SELECT CONCAT(
+    (SELECT COUNT(*) FROM information_schema.columns
+      WHERE table_schema='${database}' AND table_name='dms_shop_after_sale'
+        AND column_name IN ('exchange_shipping_company','exchange_shipping_no','exchange_shipped_time','exchange_delivered_time')), ':',
+    (SELECT COUNT(DISTINCT index_name) FROM information_schema.statistics
+      WHERE table_schema='${database}' AND table_name='dms_shop_after_sale'
+        AND index_name='idx_after_sale_exchange_auto_confirm')
+  )"
+}
+
+verify_release_additions_absent_for() {
+  local database=$1
+  [[ "$(promotion_join_mode_column_count_for "$database")" == 0 ]]
+  [[ "$(exchange_schema_counts_for "$database")" == 0:0 ]]
+}
+
+verify_release_schema_for() {
+  local database=$1
+  [[ "$(promotion_join_mode_column_count_for "$database")" == 1 ]]
+  [[ "$(exchange_schema_counts_for "$database")" == 4:1 ]]
+  [[ "$(mysql --protocol=socket -uroot "$database" -NBe "SELECT promotion_join_mode FROM dms_tenant WHERE id=1")" == FIRST_PAID_ORDER ]]
+}
+
+verify_packaged_notification_defaults() {
+  local packaged_config packaged_prod_config
+  packaged_config="$(unzip -p "$RELEASE_DIR/mall-distribution.jar" BOOT-INF/classes/application.yml)"
+  packaged_prod_config="$(unzip -p "$RELEASE_DIR/mall-distribution.jar" BOOT-INF/classes/application-prod.yml)"
+  for expected_default in \
+    '${EXTERNAL_NOTIFICATION_ENABLED:false}' \
+    '${EXTERNAL_NOTIFICATION_WORKER_ENABLED:false}' \
+    '${NOTIFICATION_SMS_ALIYUN_ENABLED:false}' \
+    '${NOTIFICATION_MOCK_ENABLED:false}' \
+    '${NOTIFICATION_MOCK_APP_PUSH_ENABLED:false}' \
+    '${NOTIFICATION_MOCK_MINI_PROGRAM_ENABLED:false}' \
+    '${SHOP_REAL_NAME_ENABLED:false}'; do
+    grep -Fq "$expected_default" <<< "$packaged_config"
+  done
+  for expected_default in \
+    '${ORDER_AUTO_RECEIVE_DAYS:15}' \
+    '${ORDER_AUTO_RECEIVE_SCAN_INTERVAL_MS:600000}' \
+    '${AFTER_SALE_MERCHANT_AUDIT_TIMEOUT_HOURS:48}' \
+    '${AFTER_SALE_MERCHANT_RETURN_CONFIRM_TIMEOUT_DAYS:7}' \
+    '${SHOP_SERVICE_TICKET_FIRST_RESPONSE_HOURS:24}'; do
+    grep -Fq "$expected_default" <<< "$packaged_prod_config"
+  done
+}
+
+verify_notification_runtime_disabled() {
+  local main_pid runtime_environment
+  main_pid="$(systemctl show lingqimall-distribution.service --property=MainPID --value)"
+  [[ "$main_pid" =~ ^[1-9][0-9]*$ ]]
+  runtime_environment="$(tr '\0' '\n' < "/proc/$main_pid/environ")"
+  if grep -Eiq '^(EXTERNAL_NOTIFICATION_ENABLED|EXTERNAL_NOTIFICATION_WORKER_ENABLED|NOTIFICATION_SMS_ALIYUN_ENABLED|NOTIFICATION_MOCK_ENABLED|NOTIFICATION_MOCK_APP_PUSH_ENABLED|NOTIFICATION_MOCK_MINI_PROGRAM_ENABLED|SHOP_REAL_NAME_ENABLED)=(true|1)$' <<< "$runtime_environment"; then
+    echo "external notification and real-name runtime gates must remain disabled" >&2
+    return 1
+  fi
+}
+
+verify_surface_nginx() {
+  grep -Fq 'map $host $shop_surface {' /etc/nginx/conf.d/lingqimall.conf
+  grep -Fq 'default public;' /etc/nginx/conf.d/lingqimall.conf
+  grep -Fq 'www.lingqimall.com team;' /etc/nginx/conf.d/lingqimall.conf
+  [[ "$(grep -Fc 'proxy_set_header X-Shop-Surface' /etc/nginx/conf.d/lingqimall.conf)" -ge 5 ]]
+}
+
+verify_previous_public_manifests() {
+  local public_manifest team_manifest admin_manifest manifest application
+  public_manifest="$(curl --http1.1 -fsS --max-time 12 -H 'Cache-Control: no-cache' "https://lingqimall.com/version.json?preflight=$EXPECTED_BUILD_ID")"
+  team_manifest="$(curl --http1.1 -fsS --max-time 12 -H 'Cache-Control: no-cache' "https://www.lingqimall.com/version.json?preflight=$EXPECTED_BUILD_ID")"
+  admin_manifest="$(curl --http1.1 -fsS --max-time 12 -H 'Cache-Control: no-cache' "https://lingqimall.com/admin/version.json?preflight=$EXPECTED_BUILD_ID")"
+  for manifest_spec in "$public_manifest|storefront-public" "$team_manifest|team-h5" "$admin_manifest|admin"; do
+    manifest="${manifest_spec%|*}"
+    application="${manifest_spec##*|}"
+    grep -q "\"version\": \"$EXPECTED_PREVIOUS_VERSION\"" <<< "$manifest"
+    grep -q "\"gitCommit\": \"$EXPECTED_PREVIOUS_GIT_COMMIT\"" <<< "$manifest"
+    grep -q "\"buildId\": \"$EXPECTED_PREVIOUS_BUILD_ID\"" <<< "$manifest"
+    grep -q "\"application\": \"$application\"" <<< "$manifest"
+  done
+}
+
+wait_for_health() {
+  local healthy=0
+  for _ in $(seq 1 60); do
+    if curl -fsS --max-time 5 http://127.0.0.1:8086/actuator/health 2>/dev/null | grep -q '"status":"UP"'; then
+      healthy=1
+      break
+    fi
+    sleep 2
+  done
+  [[ "$healthy" == 1 ]]
+}
+
+verify_backup() {
+  local backup_path=$1
+  [[ "$backup_path" =~ ^/opt/lingqimall/backups/full/20[0-9]{6}_[0-9]{6}$ ]]
+  (
+    cd "$backup_path"
+    sha256sum -c SHA256SUMS
+    gzip -t database.sql.gz
+    local listing
+    listing="$(mktemp)"
+    trap 'rm -f "$listing"' EXIT
+    tar -tzf files-and-config.tar.gz > "$listing"
+    grep -Fx 'opt/lingqimall/app/mall-distribution.jar' "$listing" >/dev/null
+    grep -Fx 'opt/lingqimall/config/application.yml' "$listing" >/dev/null
+    grep -Fx 'opt/lingqimall/nginx/admin/index.html' "$listing" >/dev/null
+    grep -Fx 'opt/lingqimall/nginx/shop/index.html' "$listing" >/dev/null
+    grep -Fx 'opt/lingqimall/nginx/team/index.html' "$listing" >/dev/null
+    grep -Fx 'etc/systemd/system/lingqimall-distribution.service' "$listing" >/dev/null
+    grep -Fx 'etc/nginx/conf.d/lingqimall.conf' "$listing" >/dev/null
+    grep -Fx 'opt/lingqimall/config/data-encryption.env' "$listing" >/dev/null
+    grep -Fx 'etc/systemd/system/lingqimall-distribution.service.d/data-encryption.conf' "$listing" >/dev/null
+    grep -Eq '^etc/lingqimall(/|$)' "$listing"
+  )
+}
+
+verify_backup_restoreability() {
+  local verify_db=mall_distribution_release_verify_1100
+  local verify_create_sql="${DB_CREATE_SQL/\`$DB_NAME\`/\`$verify_db\`}"
+  (
+    trap 'mysql_root -e "DROP DATABASE IF EXISTS \`mall_distribution_release_verify_1100\`" >/dev/null 2>&1 || true' EXIT
+    mysql_root -e "DROP DATABASE IF EXISTS \`${verify_db}\`; ${verify_create_sql};"
+    gzip -dc "$BACKUP_BEFORE/database.sql.gz" | mysql --protocol=socket -uroot "$verify_db"
+    [[ "$(mysql --protocol=socket -uroot "$verify_db" -NBe 'SELECT COUNT(*) FROM dms_schema_migration_history WHERE success=1')" == "$EXPECTED_PREVIOUS_MIGRATIONS" ]]
+    [[ "$(mysql --protocol=socket -uroot "$verify_db" -NBe 'SELECT COUNT(*) FROM dms_schema_migration_history WHERE success<>1')" == 0 ]]
+    [[ "$(mysql_root -NBe "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${verify_db}' AND table_name IN ('dms_member_message','dms_message_template','dms_message_channel_config','dms_message_delivery_task')")" == 4 ]]
+    [[ "$(mysql_root -NBe "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${verify_db}' AND table_name IN ('dms_message_delivery_attempt','dms_message_cost_budget','dms_message_recipient_authorization','dms_message_delivery_receipt')")" == 4 ]]
+    [[ "$(mysql_root -NBe "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${verify_db}' AND table_name IN ('dms_member_real_name','dms_member_real_name_attempt')")" == 2 ]]
+    [[ "$(mysql_root -NBe "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${verify_db}' AND table_name='dms_shop_member_session' AND column_name='surface'")" == 1 ]]
+    [[ "$(mysql_root -NBe "SELECT (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${verify_db}' AND table_name='dms_shop_product' AND column_name IN ('manual_new_arrival_enabled','manual_new_arrival_start_time','manual_new_arrival_end_time')) + (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${verify_db}' AND table_name='dms_tenant' AND column_name IN ('brand_culture_enabled','brand_culture_title','brand_culture_subtitle','brand_culture_cover_url','brand_culture_content')) + (SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${verify_db}' AND table_name='dms_live_reservation')")" == 9 ]]
+    [[ "$(mysql --protocol=socket -uroot "$verify_db" -NBe 'SELECT COUNT(*) FROM dms_message_template')" == 15 ]]
+    [[ "$(mysql --protocol=socket -uroot "$verify_db" -NBe 'SELECT COUNT(*) FROM dms_message_channel_config')" == 15 ]]
+    [[ "$(mysql --protocol=socket -uroot "$verify_db" -NBe 'SELECT COALESCE(SUM(sms_enabled),0)+COALESCE(SUM(app_push_enabled),0)+COALESCE(SUM(mini_program_enabled),0) FROM dms_message_channel_config')" == 0 ]]
+    [[ "$(database_counts_for "$verify_db")" == "$BEFORE_COUNTS" ]]
+    [[ "$(feature_business_counts_for "$verify_db")" == "$BEFORE_FEATURE_COUNTS" ]]
+    [[ "$(tenant_display_config_hash_for "$verify_db")" == "$BEFORE_TENANT_CONFIG_HASH" ]]
+    [[ "$(tenant_theme_for "$verify_db")" == "$EXPECTED_PRE_RELEASE_THEME" ]]
+    [[ "$(active_bonus_policy_for "$verify_db")" == "$EXPECTED_ACTIVE_BONUS_POLICY" ]]
+    [[ "$(service_sms_preference_column_count_for "$verify_db")" == 2 ]]
+    verify_service_ticket_schema_for "$verify_db"
+    verify_release_additions_absent_for "$verify_db"
+  )
+}
+
+restore_database_from_backup() {
+  verify_backup "$BACKUP_BEFORE"
+  [[ -n "$DB_CREATE_SQL" ]]
+  mysql_root -e "DROP DATABASE IF EXISTS \`${DB_NAME}\`; ${DB_CREATE_SQL};"
+  gzip -dc "$BACKUP_BEFORE/database.sql.gz" | mysql_cmd
+  [[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_schema_migration_history WHERE success=1')" == "$EXPECTED_PREVIOUS_MIGRATIONS" ]]
+  [[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_schema_migration_history WHERE success<>1')" == 0 ]]
+  [[ "$(message_table_count)" == 4 ]]
+  verify_notification_kernel
+  verify_real_name_schema
+  verify_feature_schema
+  [[ "$(service_sms_preference_column_count)" == 2 ]]
+  verify_service_ticket_schema
+  verify_release_additions_absent_for "$DB_NAME"
+  [[ "$(active_bonus_policy)" == "$EXPECTED_ACTIVE_BONUS_POLICY" ]]
+  [[ "$(database_counts)" == "$BEFORE_COUNTS" ]]
+  verify_business_state_unchanged
+  [[ "$(plaintext_sensitive_value_count)" == 0 ]]
+}
+
+cleanup_staging() {
+  [[ -n "$NEW_ADMIN" && -d "$NEW_ADMIN" ]] && rm -rf -- "$NEW_ADMIN"
+  [[ -n "$NEW_SHOP" && -d "$NEW_SHOP" ]] && rm -rf -- "$NEW_SHOP"
+  [[ -n "$NEW_TEAM" && -d "$NEW_TEAM" ]] && rm -rf -- "$NEW_TEAM"
+  return 0
+}
+
+rollback() {
+  local code=$?
+  local database_recovered=1
+  set +e
+  if [[ "$code" != 0 ]]; then
+    echo "1.0.100 release failed; entering bounded recovery" >&2
+    if [[ "$DB_MUTATED" == 1 || "$APP_MUTATED" == 1 ]]; then
+      systemctl stop lingqimall-distribution.service >/dev/null 2>&1 || true
+    fi
+    if [[ "$DB_MUTATED" == 1 && "$MIGRATION_COMPLETED" == 0 ]]; then
+      if restore_database_from_backup; then
+        echo "database restored from verified pre-release backup: $BACKUP_BEFORE" >&2
+      else
+        database_recovered=0
+        echo "CRITICAL: database restore failed; application remains stopped for manual recovery" >&2
+      fi
+    fi
+    if [[ "$STATIC_MUTATED" == 1 ]]; then
+      for site in admin shop team; do
+        if [[ -d "$ROLLBACK_DIR/$site" ]]; then
+          rm -rf -- "$APP_ROOT/nginx/$site"
+          mv "$ROLLBACK_DIR/$site" "$APP_ROOT/nginx/$site"
+        fi
+      done
+      chown -R nginx:nginx "$APP_ROOT/nginx/admin" "$APP_ROOT/nginx/shop" "$APP_ROOT/nginx/team" 2>/dev/null || true
+    fi
+    if [[ "$NGINX_MUTATED" == 1 ]]; then
+      [[ -s "$ROLLBACK_DIR/lingqimall.conf" ]] && install -m 0644 "$ROLLBACK_DIR/lingqimall.conf" /etc/nginx/conf.d/lingqimall.conf
+      [[ -s "$ROLLBACK_DIR/00-lingqimall-limits.conf" ]] && install -m 0644 "$ROLLBACK_DIR/00-lingqimall-limits.conf" /etc/nginx/conf.d/00-lingqimall-limits.conf
+      nginx -t && systemctl reload nginx || true
+    fi
+    if [[ "$APP_MUTATED" == 1 ]]; then
+      [[ -s "$ROLLBACK_DIR/mall-distribution.jar" ]] && install -m 0644 "$ROLLBACK_DIR/mall-distribution.jar" "$APP_ROOT/app/mall-distribution.jar"
+      [[ -s "$ROLLBACK_DIR/VERSION" ]] && install -m 0644 "$ROLLBACK_DIR/VERSION" "$APP_ROOT/VERSION"
+      if [[ "$database_recovered" == 1 ]]; then systemctl start lingqimall-distribution.service || true; fi
+    fi
+    if [[ "$BACKUP_TOOL_MUTATED" == 1 && -s "$ROLLBACK_DIR/lingqimall-backup" ]]; then
+      install -m 0750 "$ROLLBACK_DIR/lingqimall-backup" /usr/local/sbin/lingqimall-backup || true
+    fi
+  fi
+  cleanup_staging
+  exit "$code"
+}
+trap rollback EXIT
+
+[[ "$RELEASE_DIR" == /tmp/lingqimall-release-v1.0.100 ]]
+for file in mall-distribution.jar admin.tar.gz shop.tar.gz team.tar.gz integrated.tar.gz VERSION RELEASE_MANIFEST.json SHA256SUMS production-backup.sh db-migrate.sh lingqimall.conf lingqimall-security.conf release.sh; do
+  [[ -s "$RELEASE_DIR/$file" ]]
+done
+[[ -x "$RELEASE_DIR/production-backup.sh" && -x "$RELEASE_DIR/db-migrate.sh" ]]
+[[ "$(find "$RELEASE_DIR/document/db/migrations" -maxdepth 1 -type f -name 'V*.sql' | wc -l)" == "$EXPECTED_MIGRATIONS" ]]
+[[ "$(tr -d '[:space:]' < "$RELEASE_DIR/VERSION")" == "$EXPECTED_VERSION" ]]
+[[ "$(tr -d '[:space:]' < "$APP_ROOT/VERSION")" == "$EXPECTED_PREVIOUS_VERSION" ]]
+(cd "$RELEASE_DIR" && sha256sum -c SHA256SUMS)
+[[ "$(sha256sum "$RELEASE_DIR/mall-distribution.jar" | awk '{print $1}')" == "$EXPECTED_JAR_SHA256" ]]
+tar -tzf "$RELEASE_DIR/integrated.tar.gz" | grep -Fx './version.json' >/dev/null
+grep -Fq '"version": "1.0.100"' "$RELEASE_DIR/RELEASE_MANIFEST.json"
+grep -Fq "\"gitCommit\": \"$EXPECTED_GIT_COMMIT\"" "$RELEASE_DIR/RELEASE_MANIFEST.json"
+grep -Fq "\"buildId\": \"$EXPECTED_BUILD_ID\"" "$RELEASE_DIR/RELEASE_MANIFEST.json"
+[[ "$(grep -Fc 'SET SESSION group_concat_max_len=16777216;' "$RELEASE_DIR/release.sh")" == 2 ]]
+verify_packaged_notification_defaults
+
+systemctl is-active --quiet lingqimall-distribution.service
+systemctl is-active --quiet nginx
+systemctl is-active --quiet mysqld
+systemctl is-active --quiet redis
+redis-cli ping | grep -qx PONG
+curl -fsS --max-time 8 http://127.0.0.1:8086/actuator/health | grep -q '"status":"UP"'
+verify_notification_runtime_disabled
+verify_previous_public_manifests
+BEFORE_COUNTS="$(database_counts)"
+BEFORE_FEATURE_COUNTS="$(feature_business_counts)"
+BEFORE_TENANT_CONFIG_HASH="$(tenant_display_config_hash)"
+BEFORE_BRAND_BANNERS="$(brand_culture_banner_counts)"
+DB_CREATE_SQL="$(mysql_root -NBe "SELECT CONCAT('CREATE DATABASE \`${DB_NAME}\` CHARACTER SET ',default_character_set_name,' COLLATE ',default_collation_name) FROM information_schema.schemata WHERE schema_name='${DB_NAME}'")"
+ENCRYPTION_ENV_SHA="$(sha256sum "$APP_ROOT/config/data-encryption.env" | awk '{print $1}')"
+ENCRYPTION_DROPIN_SHA="$(sha256sum /etc/systemd/system/lingqimall-distribution.service.d/data-encryption.conf | awk '{print $1}')"
+[[ "$BEFORE_COUNTS" == "$EXPECTED_PRE_RELEASE_CORE_COUNTS" ]]
+[[ "$BEFORE_FEATURE_COUNTS" == "$EXPECTED_PRE_RELEASE_FEATURE_COUNTS" ]]
+[[ "$BEFORE_TENANT_CONFIG_HASH" == "$EXPECTED_PRE_RELEASE_TENANT_CONFIG_HASH" ]]
+[[ "$BEFORE_BRAND_BANNERS" == "$EXPECTED_PRE_RELEASE_BRAND_BANNERS" ]]
+[[ "$(tenant_theme_for "$DB_NAME")" == "$EXPECTED_PRE_RELEASE_THEME" ]]
+[[ "$ENCRYPTION_ENV_SHA" == "$EXPECTED_ENCRYPTION_ENV_SHA" ]]
+[[ "$ENCRYPTION_DROPIN_SHA" == "$EXPECTED_ENCRYPTION_DROPIN_SHA" ]]
+[[ -n "$DB_CREATE_SQL" ]]
+[[ "$(plaintext_sensitive_value_count)" == 0 ]]
+[[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_schema_migration_history WHERE success=1')" == "$EXPECTED_PREVIOUS_MIGRATIONS" ]]
+[[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_schema_migration_history WHERE success<>1')" == 0 ]]
+verify_notification_kernel
+verify_real_name_schema
+verify_feature_schema
+[[ "$(service_sms_preference_column_count)" == 2 ]]
+verify_service_ticket_schema
+verify_release_additions_absent_for "$DB_NAME"
+[[ "$(active_bonus_policy)" == "$EXPECTED_ACTIVE_BONUS_POLICY" ]]
+verify_business_state_unchanged
+[[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_bonus_calculation_task WHERE status IN (0,1)')" == 0 ]]
+[[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_erp_sync_task WHERE status IN (0,1,2)')" == 0 ]]
+[[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_line_change_application WHERE status IN (0,1)')" == 0 ]]
+[[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_shop_order WHERE status=0 AND create_time<=NOW()-INTERVAL 30 MINUTE')" == 0 ]]
+
+if [[ "$PREFLIGHT_ONLY" == 1 ]]; then
+  echo "release-preflight-success version=$EXPECTED_VERSION config=$BEFORE_TENANT_CONFIG_HASH theme=$EXPECTED_PRE_RELEASE_THEME"
+  exit 0
+fi
+
+ROLLBACK_DIR="$(mktemp -d /tmp/lingqimall-rollback-v1.0.100.XXXXXX)"
+install -m 0600 /usr/local/sbin/lingqimall-backup "$ROLLBACK_DIR/lingqimall-backup"
+install -m 0600 "$APP_ROOT/app/mall-distribution.jar" "$ROLLBACK_DIR/mall-distribution.jar"
+install -m 0600 "$APP_ROOT/VERSION" "$ROLLBACK_DIR/VERSION"
+install -m 0600 /etc/nginx/conf.d/lingqimall.conf "$ROLLBACK_DIR/lingqimall.conf"
+install -m 0600 /etc/nginx/conf.d/00-lingqimall-limits.conf "$ROLLBACK_DIR/00-lingqimall-limits.conf"
+install -m 0750 "$RELEASE_DIR/production-backup.sh" /usr/local/sbin/lingqimall-backup
+BACKUP_TOOL_MUTATED=1
+
+DB_AUTH_MODE=socket DB_USER=root /usr/local/sbin/lingqimall-backup
+BACKUP_BEFORE="$(readlink -f "$APP_ROOT/backups/full/latest")"
+verify_backup "$BACKUP_BEFORE"
+verify_backup_restoreability
+[[ "$(database_counts)" == "$BEFORE_COUNTS" ]]
+
+NEW_ADMIN="$(mktemp -d "$APP_ROOT/nginx/.admin-v1.0.100.XXXXXX")"
+NEW_SHOP="$(mktemp -d "$APP_ROOT/nginx/.shop-v1.0.100.XXXXXX")"
+NEW_TEAM="$(mktemp -d "$APP_ROOT/nginx/.team-v1.0.100.XXXXXX")"
+tar -xzf "$RELEASE_DIR/admin.tar.gz" -C "$NEW_ADMIN"
+tar -xzf "$RELEASE_DIR/shop.tar.gz" -C "$NEW_SHOP"
+tar -xzf "$RELEASE_DIR/team.tar.gz" -C "$NEW_TEAM"
+for manifest_spec in "$NEW_ADMIN/version.json:admin" "$NEW_SHOP/version.json:storefront-public" "$NEW_TEAM/version.json:team-h5"; do
+  manifest="${manifest_spec%%:*}"
+  application="${manifest_spec##*:}"
+  grep -q '"version": "1.0.100"' "$manifest"
+  grep -q "\"gitCommit\": \"$EXPECTED_GIT_COMMIT\"" "$manifest"
+  grep -q "\"buildId\": \"$EXPECTED_BUILD_ID\"" "$manifest"
+  grep -q "\"application\": \"$application\"" "$manifest"
+done
+if find "$NEW_ADMIN" "$NEW_SHOP" "$NEW_TEAM" -type f -name '*.map' -print -quit | grep -q .; then
+  echo "source map found in release assets" >&2
+  exit 1
+fi
+grep -R -Fq '前往平台总后台' "$NEW_ADMIN/assets"
+grep -R -Fq '前往商家后台' "$NEW_ADMIN/assets"
+chown -R nginx:nginx "$NEW_ADMIN" "$NEW_SHOP" "$NEW_TEAM"
+
+systemctl stop lingqimall-distribution.service
+APP_MUTATED=1
+DB_MUTATED=1
+MIGRATION_ROOT_DIR="$RELEASE_DIR" DB_AUTH_MODE=socket DB_USER=root DB_NAME="$DB_NAME" "$RELEASE_DIR/db-migrate.sh" apply
+[[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_schema_migration_history WHERE success=1')" == "$EXPECTED_MIGRATIONS" ]]
+[[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_schema_migration_history WHERE success<>1')" == 0 ]]
+verify_message_schema
+verify_notification_kernel
+verify_real_name_schema
+verify_feature_schema
+verify_service_sms_preference_schema
+verify_service_ticket_schema
+verify_release_schema_for "$DB_NAME"
+[[ "$(active_bonus_policy)" == "$EXPECTED_ACTIVE_BONUS_POLICY" ]]
+verify_business_state_unchanged
+MIGRATION_COMPLETED=1
+
+install -m 0644 "$RELEASE_DIR/mall-distribution.jar" "$APP_ROOT/app/mall-distribution.jar"
+install -m 0644 "$RELEASE_DIR/VERSION" "$APP_ROOT/VERSION"
+systemctl start lingqimall-distribution.service
+wait_for_health
+[[ "$(database_counts)" == "$BEFORE_COUNTS" ]]
+[[ "$(plaintext_sensitive_value_count)" == 0 ]]
+verify_message_schema
+verify_notification_kernel
+verify_real_name_schema
+verify_feature_schema
+verify_service_sms_preference_schema
+verify_service_ticket_schema
+verify_release_schema_for "$DB_NAME"
+[[ "$(active_bonus_policy)" == "$EXPECTED_ACTIVE_BONUS_POLICY" ]]
+verify_business_state_unchanged
+verify_notification_runtime_disabled
+curl -fsS --max-time 12 http://127.0.0.1:8086/shop/home >/dev/null
+[[ "$(database_counts)" == "$BEFORE_COUNTS" ]]
+[[ "$(sha256sum "$APP_ROOT/config/data-encryption.env" | awk '{print $1}')" == "$ENCRYPTION_ENV_SHA" ]]
+[[ "$(sha256sum /etc/systemd/system/lingqimall-distribution.service.d/data-encryption.conf | awk '{print $1}')" == "$ENCRYPTION_DROPIN_SHA" ]]
+
+mv "$APP_ROOT/nginx/admin" "$ROLLBACK_DIR/admin"
+mv "$APP_ROOT/nginx/shop" "$ROLLBACK_DIR/shop"
+mv "$APP_ROOT/nginx/team" "$ROLLBACK_DIR/team"
+mv "$NEW_ADMIN" "$APP_ROOT/nginx/admin"; NEW_ADMIN=""
+mv "$NEW_SHOP" "$APP_ROOT/nginx/shop"; NEW_SHOP=""
+mv "$NEW_TEAM" "$APP_ROOT/nginx/team"; NEW_TEAM=""
+STATIC_MUTATED=1
+install -m 0644 "$RELEASE_DIR/lingqimall.conf" /etc/nginx/conf.d/lingqimall.conf
+install -m 0644 "$RELEASE_DIR/lingqimall-security.conf" /etc/nginx/conf.d/00-lingqimall-limits.conf
+NGINX_MUTATED=1
+nginx -t
+systemctl reload nginx
+verify_surface_nginx
+
+public_manifest="$(curl --http1.1 -fsS --max-time 12 -H 'Cache-Control: no-cache' "https://lingqimall.com/version.json?release=$EXPECTED_BUILD_ID")"
+team_manifest="$(curl --http1.1 -fsS --max-time 12 -H 'Cache-Control: no-cache' "https://www.lingqimall.com/version.json?release=$EXPECTED_BUILD_ID")"
+admin_manifest="$(curl --http1.1 -fsS --max-time 12 -H 'Cache-Control: no-cache' "https://lingqimall.com/admin/version.json?release=$EXPECTED_BUILD_ID")"
+for manifest_spec in "$public_manifest|storefront-public" "$team_manifest|team-h5" "$admin_manifest|admin"; do
+  manifest="${manifest_spec%|*}"
+  application="${manifest_spec##*|}"
+  grep -q '"version": "1.0.100"' <<< "$manifest"
+  grep -q "\"gitCommit\": \"$EXPECTED_GIT_COMMIT\"" <<< "$manifest"
+  grep -q "\"buildId\": \"$EXPECTED_BUILD_ID\"" <<< "$manifest"
+  grep -q "\"application\": \"$application\"" <<< "$manifest"
+done
+
+for url in 'https://lingqimall.com/' 'https://www.lingqimall.com/' 'https://lingqimall.com/admin/'; do
+  curl --http1.1 -fsS --max-time 12 "$url" | grep -q '<div id="app">'
+done
+[[ "$(curl --http1.1 -sS -o /dev/null -w '%{http_code}:%{redirect_url}' --max-time 12 'https://lingqimall.com/merchant/login')" == '302:https://lingqimall.com/admin/merchant/login' ]]
+[[ "$(curl --http1.1 -sS -o /dev/null -w '%{http_code}:%{redirect_url}' --max-time 12 'https://lingqimall.com/platform/login')" == '302:https://lingqimall.com/admin/platform/login' ]]
+for url in 'https://lingqimall.com/admin/merchant/login' 'https://lingqimall.com/admin/platform/login' 'https://lingqimall.com/admin/login'; do
+  curl --http1.1 -fsS --max-time 12 "$url" | grep -q '<div id="app">'
+done
+grep -R -Fq 'MERCHANT CONSOLE' "$APP_ROOT/nginx/admin/assets"
+grep -R -Fq 'PLATFORM CONSOLE' "$APP_ROOT/nginx/admin/assets"
+grep -R -Fq 'MERCHANT WORKSPACE' "$APP_ROOT/nginx/admin/assets"
+grep -R -Fq '/merchant/home' "$APP_ROOT/nginx/admin/assets"
+grep -R -Fq '当前页面仅供平台管理人员使用' "$APP_ROOT/nginx/admin/assets"
+grep -R -Fq '前往平台总后台' "$APP_ROOT/nginx/admin/assets"
+grep -R -Fq '前往商家后台' "$APP_ROOT/nginx/admin/assets"
+curl --http1.1 -fsS --max-time 12 'https://lingqimall.com/api/shop/home' >/dev/null
+curl --http1.1 -fsS --max-time 12 'https://www.lingqimall.com/api/shop/home' >/dev/null
+curl --http1.1 -fsS --max-time 12 'https://lingqimall.com/api/shop/live-rooms?limit=1' | grep -q '"code":200'
+curl --http1.1 -fsS --max-time 12 'https://lingqimall.com/api/shop/new-arrivals?limit=1' | grep -q '"code":200'
+curl --http1.1 -fsS --max-time 12 'https://lingqimall.com/api/shop/brand-culture' | grep -q '"code":200'
+[[ "$(curl --http1.1 -sS -o /dev/null -w '%{http_code}' --max-time 12 'https://lingqimall.com/api/shop/live-reservations')" == 401 ]]
+sms_login_probe="$(curl --http1.1 -sS --max-time 12 -H 'Content-Type: application/json' --data '{"phone":"1"}' 'https://lingqimall.com/api/sms/send/login')"
+grep -q '请输入正确的11位手机号' <<< "$sms_login_probe"
+product_response="$(curl --http1.1 -fsS --max-time 12 'https://lingqimall.com/api/shop/products?pageNum=1&pageSize=1')"
+for forbidden in costPrice costAmount bvValue safetyStock shippingAddress shippingAddressId deliveryAddress returnAddressId freightTemplateId repurchasePrice repurchasePv repurchaseEnabled repurchaseConfig settlementPrice merchantId; do
+  ! grep -q "\"$forbidden\"" <<< "$product_response"
+done
+[[ "$(curl --http1.1 -sS -o /dev/null -w '%{http_code}' --max-time 12 'https://lingqimall.com/api/shop/messages/unread')" == 401 ]]
+[[ "$(curl --http1.1 -sS -o /dev/null -w '%{http_code}' --max-time 12 'https://lingqimall.com/api/shop/service-tickets')" == 401 ]]
+[[ "$(curl --http1.1 -sS -o /dev/null -w '%{http_code}' --max-time 12 'https://www.lingqimall.com/api/shop/service-tickets')" == 401 ]]
+[[ "$(curl --http1.1 -sS -o /dev/null -w '%{http_code}' --max-time 12 'https://lingqimall.com/api/shop/admin/service-tickets')" == 401 ]]
+[[ "$(curl --http1.1 -sS -o /dev/null -w '%{http_code}' --max-time 12 'https://lingqimall.com/api/shop/admin/message-operations/templates')" == 401 ]]
+[[ "$(curl --http1.1 -sS -o /dev/null -w '%{http_code}' --max-time 12 'https://lingqimall.com/api/shop/real-name/status')" == 401 ]]
+[[ "$(curl --http1.1 -sS -o /dev/null -w '%{http_code}' --max-time 12 'https://www.lingqimall.com/api/shop/real-name/status')" == 401 ]]
+transfer_probe='{"recipientPhone":"13800000000","amount":1,"paymentPassword":"000000"}'
+# 资金接口在进入会话和端面校验前先执行加密载荷门禁，匿名明文探针固定返回 400，且不得产生转账。
+[[ "$(curl --http1.1 -sS -o /dev/null -w '%{http_code}' --max-time 12 -H 'Content-Type: application/json' --data "$transfer_probe" 'https://lingqimall.com/api/shop/wallet/transfers')" == 400 ]]
+[[ "$(curl --http1.1 -sS -o /dev/null -w '%{http_code}' --max-time 12 -H 'Content-Type: application/json' --data "$transfer_probe" 'https://www.lingqimall.com/api/shop/wallet/transfers')" == 400 ]]
+for host in lingqimall.com www.lingqimall.com; do
+  [[ "$(curl --http1.1 -sS -o /dev/null -w '%{http_code}' --max-time 12 "https://$host/api/distribution/admin-auth/me")" == 401 ]]
+  [[ "$(curl --http1.1 -sS -o /dev/null -w '%{http_code}' --max-time 12 "https://$host/api/actuator/health")" == 404 ]]
+done
+for path in '/.env' '/.git/config' '/phpmyadmin/' '/api/swagger-ui/index.html'; do
+  [[ "$(curl --http1.1 -sS -o /dev/null -w '%{http_code}' --max-time 12 "https://lingqimall.com$path")" == 404 ]]
+done
+security_headers="$(curl --http1.1 -fsSI --max-time 12 https://lingqimall.com/)"
+grep -qi '^content-security-policy:' <<< "$security_headers"
+grep -qi '^permissions-policy:' <<< "$security_headers"
+grep -qi '^strict-transport-security:' <<< "$security_headers"
+
+DB_AUTH_MODE=socket DB_USER=root /usr/local/sbin/lingqimall-backup
+BACKUP_AFTER="$(readlink -f "$APP_ROOT/backups/full/latest")"
+[[ "$BACKUP_AFTER" != "$BACKUP_BEFORE" ]]
+verify_backup "$BACKUP_AFTER"
+
+[[ "$(sha256sum "$APP_ROOT/app/mall-distribution.jar" | awk '{print $1}')" == "$EXPECTED_JAR_SHA256" ]]
+[[ "$(database_counts)" == "$BEFORE_COUNTS" ]]
+[[ "$(plaintext_sensitive_value_count)" == 0 ]]
+verify_message_schema
+verify_notification_kernel
+verify_real_name_schema
+verify_feature_schema
+verify_service_sms_preference_schema
+verify_service_ticket_schema
+verify_release_schema_for "$DB_NAME"
+[[ "$(active_bonus_policy)" == "$EXPECTED_ACTIVE_BONUS_POLICY" ]]
+verify_business_state_unchanged
+verify_notification_runtime_disabled
+verify_surface_nginx
+[[ "$(sha256sum "$APP_ROOT/config/data-encryption.env" | awk '{print $1}')" == "$ENCRYPTION_ENV_SHA" ]]
+[[ "$(sha256sum /etc/systemd/system/lingqimall-distribution.service.d/data-encryption.conf | awk '{print $1}')" == "$ENCRYPTION_DROPIN_SHA" ]]
+[[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_schema_migration_history WHERE success=1')" == "$EXPECTED_MIGRATIONS" ]]
+[[ "$(mysql_cmd -NBe 'SELECT COUNT(*) FROM dms_schema_migration_history WHERE success<>1')" == 0 ]]
+systemctl is-active --quiet lingqimall-distribution.service
+systemctl is-active --quiet nginx
+systemctl is-active --quiet mysqld
+systemctl is-active --quiet redis
+redis-cli ping | grep -qx PONG
+
+sleep 16
+if journalctl -u lingqimall-distribution.service --since '-3 minutes' --no-pager | grep -E 'Application run failed|OutOfMemoryError|Access denied for user|UnsatisfiedDependencyException|BeanCreationException| ERROR ' >/dev/null; then
+  echo "1.0.100 startup log verification failed" >&2
+  exit 1
+fi
+
+APP_MUTATED=0
+STATIC_MUTATED=0
+NGINX_MUTATED=0
+BACKUP_TOOL_MUTATED=0
+DB_MUTATED=0
+trap - EXIT
+rm -rf -- "$RELEASE_DIR" "$ROLLBACK_DIR"
+echo "release-success version=$EXPECTED_VERSION backup-before=$BACKUP_BEFORE backup-after=$BACKUP_AFTER build=$EXPECTED_BUILD_ID core-counts=$BEFORE_COUNTS migrations=$EXPECTED_MIGRATIONS customer-bonus-policy-preserved=yes customer-bootstrap-safe=on service-sms-schema=on service-ticket-schema=on service-ticket-records=0 exchange=same-sku promotion-join-mode=FIRST_PAID_ORDER display-workbench=multi-layout category-guide=A:B:C compliance-locks=server-enforced message-seeds=15:15 notification-tables=4 budgets=19:off authorizations=0 external-channels=off real-name=off session-surface=on transfer=integrated-only feature-state=$BEFORE_FEATURE_COUNTS tenant-config-preserved=yes encryption-preserved=yes jar=$EXPECTED_JAR_SHA256"
+
