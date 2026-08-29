@@ -1,0 +1,98 @@
+name: 商城质量门禁
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: 后端测试与构建
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 读取代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: 后端完整回归
+        run: ./mvnw --batch-mode test
+
+      - name: 后端生产构建
+        run: ./mvnw --batch-mode -DskipTests package
+
+  frontend:
+    name: ${{ matrix.name }}测试与构建
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: 商城三端
+            directory: mall-shop-web
+          - name: 管理后台
+            directory: mall-distribution-admin
+    defaults:
+      run:
+        working-directory: ${{ matrix.directory }}
+    steps:
+      - name: 读取代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ${{ matrix.directory }}/package-lock.json
+
+      - name: 安装锁定依赖
+        run: npm ci
+
+      - name: 自动化测试
+        run: npm test
+
+      - name: 生产构建
+        run: npm run build
+
+  delivery-boundary:
+    name: 客户交付与安全边界
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: 读取完整历史
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 当前模块边界
+        run: ./scripts/verify-active-module-boundary.sh
+
+      - name: 私有部署安全测试
+        run: |
+          sh document/private-deploy/tests/deployment_security_test.sh
+          python3 document/private-deploy/tests/test_validate_compose.py
+
+      - name: 基座客户项目工具测试
+        shell: bash
+        run: |
+          if [[ -x document/customer-project/tests/derive_customer_project_test.sh ]]; then
+            document/customer-project/tests/derive_customer_project_test.sh
+          fi
+          if [[ -x document/customer-project/tests/upgrade_customer_project_test.sh ]]; then
+            document/customer-project/tests/upgrade_customer_project_test.sh
+          fi

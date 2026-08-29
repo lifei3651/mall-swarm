@@ -40,6 +40,8 @@ npm --prefix mall-shop-web run build
 npm --prefix mall-distribution-admin run build
 ```
 
+仓库提交和合并请求还会通过`.github/workflows/quality-gate.yml`自动执行后端回归与构建、商城三端与管理后台测试构建、客户项目派生/升级工具以及私有部署安全边界检查。自动门禁不读取生产密钥，也不连接或发布服务器。
+
 正式版本以仓库根目录的 `VERSION` 为准。发布前必须核对发版报告、线上版本、完整备份和必要回归，禁止覆盖、回退或清理客户数据。
 
 ## 版权与开源合规
