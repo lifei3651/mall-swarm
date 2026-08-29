@@ -129,6 +129,7 @@ CREATE TABLE `dms_tenant` (
   `after_sale_policy` longtext COMMENT '售后政策',
   `after_sale_window_mode` varchar(32) NOT NULL DEFAULT 'RECEIVED' COMMENT '售后期限起算：RECEIVED-签收后，ORDER_CREATED-下单后',
   `after_sale_window_days` int NOT NULL DEFAULT 7 COMMENT '客户售后入口有效天数',
+  `promotion_join_mode` varchar(32) NOT NULL DEFAULT 'DISABLED' COMMENT '推广资格开通方式',
   `faqs` longtext COMMENT '常见问题JSON',
   `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态：0-禁用 1-启用',
   `remark` varchar(256) DEFAULT NULL COMMENT '备注',

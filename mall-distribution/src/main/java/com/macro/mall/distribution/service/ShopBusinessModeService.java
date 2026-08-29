@@ -78,7 +78,7 @@ public class ShopBusinessModeService {
         if (eligible) return "您可以进入复购商城";
         if (!enabled(tenant == null ? null : tenant.getRepurchaseMallEnabled())) return "复购商城尚未开启";
         return "AGENT".equals(mode(tenant.getRepurchaseEligibilityMode(), "PAID_MEMBER"))
-                ? "复购商城仅向达到代理级别的会员开放" : "完成首笔有效支付成为会员后可进入复购商城";
+                ? "复购商城仅向达到代理级别的会员开放" : "按本商城规则开通推广资格后可进入复购商城";
     }
 
     private void rejectUnconfiguredCustom(String value, String label) {

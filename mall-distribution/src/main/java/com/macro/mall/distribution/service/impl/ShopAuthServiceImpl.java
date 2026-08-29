@@ -22,6 +22,7 @@ import com.macro.mall.distribution.dto.AgentUpdateDTO;
 import com.macro.mall.distribution.dto.ShopRegisterDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsShopMemberSession;
+import com.macro.mall.distribution.entity.DmsTenant;
 import com.macro.mall.distribution.service.AgentService;
 import com.macro.mall.distribution.service.LoginCaptchaService;
 import com.macro.mall.distribution.service.ShopAuthService;
@@ -30,6 +31,8 @@ import com.macro.mall.distribution.vo.AgentInfoVO;
 import com.macro.mall.distribution.vo.AdminMemberVO;
 import com.macro.mall.distribution.vo.ShopAuthVO;
 import com.macro.mall.distribution.enums.AgentLevelEnum;
+import com.macro.mall.distribution.enums.AgentSourceTypeEnum;
+import com.macro.mall.distribution.enums.PromotionJoinModeEnum;
 import com.macro.mall.distribution.util.PhoneNumberUtils;
 import com.macro.mall.distribution.util.MemberNicknameUtils;
 import lombok.RequiredArgsConstructor;
@@ -140,7 +143,14 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         member.setTeamOptIn(requireInvitation ? 1 : 0);
         memberDao.insert(member);
 
-        // 注册只创建商城登录账号；完成首笔有效支付或后台授予后，才进入奖金体系成为一级“会员”。
+        // 邀请关系在注册交易内一次性绑定；是否同时开通推广资格，由客户业务模式独立决定。
+        DmsTenant tenant = tenantDao.selectById(TenantContext.getTenantId());
+        PromotionJoinModeEnum joinMode = PromotionJoinModeEnum.forExisting(
+                tenant == null ? null : tenant.getPromotionJoinMode());
+        if (requireInvitation && joinMode.autoOnInvite()) {
+            activateMember(member.getUserId(), 1,
+                    foundingMember ? "团队首位成员注册后自动开通推广资格" : "受邀注册后自动开通推广资格");
+        }
         return createSession(member, surface);
     }
 
@@ -151,7 +161,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         if (dto == null || dto.getInviteCode() == null || dto.getInviteCode().isBlank()) {
             Asserts.fail("请输入邀请码");
         }
-        lockAgentMutationScope();
+        DmsTenant tenant = lockAgentMutationScope();
         DmsShopMember current = memberDao.selectByIdForUpdate(member.getId());
         if (current == null || !Integer.valueOf(1).equals(current.getStatus())) Asserts.fail("会员不存在或不可用");
         if (current.getInviterId() != null) Asserts.fail("直属邀请关系已经绑定，不能自行修改");
@@ -173,6 +183,13 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         }
         if (memberDao.bindInviterIdIfAbsent(current.getId(), inviter.getUserId()) <= 0) {
             Asserts.fail("直属邀请关系已经绑定，请刷新后查看");
+        }
+        // 首次进入团队端并主动绑定关系，视为团队业务参与选择；资格仍由客户模式决定。
+        memberDao.markTeamOptIn(current.getId());
+
+        if (PromotionJoinModeEnum.forExisting(tenant.getPromotionJoinMode()).autoOnInvite()
+                && currentAgent == null) {
+            currentAgent = activateMember(current.getUserId(), 1, "首次绑定直属邀请关系后自动开通推广资格");
         }
 
         AgentInfoVO inviterAgent = agentService.getAgentByUserId(inviter.getUserId());
@@ -219,8 +236,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         member.setInviteCode(IdUtil.fastSimpleUUID().substring(0, 8).toUpperCase());
         member.setInviterId(inviter == null ? null : inviter.getUserId());
         member.setStatus(1);
-        // 后台“会员管理”属于团队业务入口；普通购物账号只能从公开商城注册接口创建。
-        // 因此后台新增的账号即使暂未授予推广资格，也应保留原有的首单激活/奖金行为。
+        // 后台“会员管理”属于团队业务入口；是否自动开通资格仍遵循当前客户模式。
         member.setTeamOptIn(1);
         memberDao.insert(member);
         if (Boolean.TRUE.equals(dto.getActivateDistribution())) {
@@ -247,9 +263,14 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             dto.setUserId(canonicalUserId); dto.setAgentName(member.getNickname()); dto.setPhone(member.getPhone());
             dto.setInitialLevel(target);
             dto.setReason(reason == null || reason.isBlank() ? "授予推广资格" : reason.trim());
-            boolean selfActivatedByOrder = reason != null
-                    && reason.startsWith("完成首笔有效支付订单");
-            dto.setSourceType(reason != null && reason.startsWith("外部团队平移") ? 4 : (selfActivatedByOrder ? 1 : 3));
+            boolean activatedByOrder = reason != null && reason.startsWith("完成首笔有效支付订单");
+            boolean activatedByInvite = reason != null && (reason.startsWith("受邀注册")
+                    || reason.startsWith("首次绑定直属邀请关系") || reason.startsWith("团队首位成员注册"));
+            dto.setSourceType(reason != null && reason.startsWith("外部团队平移")
+                    ? AgentSourceTypeEnum.BATCH_IMPORT.getValue()
+                    : activatedByOrder ? AgentSourceTypeEnum.SELF_REGISTER.getValue()
+                    : activatedByInvite ? AgentSourceTypeEnum.SCAN_CODE.getValue()
+                    : AgentSourceTypeEnum.ADMIN_ADD.getValue());
             // 直属邀请关系只认一代。B尚未成为会员时，C不能越过B挂到A名下。
             AgentInfoVO directInviter = member.getInviterId() == null
                     ? null : agentService.getAgentByUserId(member.getInviterId());
@@ -285,8 +306,8 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     }
 
     /**
-     * 如果C比直属邀请人B更早完成首单，C会暂时没有推广上级，绝不错误归到A。
-     * B以后成为会员时，把B直接邀请且已经激活的会员移回B名下；历史订单快照不变，未来订单按新关系计算。
+     * 如果C比直属邀请人B更早开通推广资格，C会暂时没有推广上级，绝不错误归到A。
+     * B以后开通资格时，把B直接邀请且已经激活的会员移回B名下；历史订单快照不变，未来订单按新关系计算。
      */
     private void restoreDirectInvitees(AgentInfoVO inviter) {
         List<DmsShopMember> invitees = memberDao.selectByInviterId(inviter.getUserId());
@@ -297,15 +318,17 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             AgentSwitchLineDTO dto = new AgentSwitchLineDTO();
             dto.setAgentId(invitee.getId());
             dto.setNewParentAgentId(inviter.getId());
-            dto.setReason("直属邀请人完成首单，恢复直接推荐关系（历史业绩和奖金不变）");
+            dto.setReason("直属邀请人开通推广资格，恢复直接推荐关系（历史业绩和奖金不变）");
             agentService.switchLine(dto);
         }
     }
 
-    private void lockAgentMutationScope() {
-        if (tenantDao.selectByIdForUpdate(TenantContext.getTenantId()) == null) {
+    private DmsTenant lockAgentMutationScope() {
+        DmsTenant tenant = tenantDao.selectByIdForUpdate(TenantContext.getTenantId());
+        if (tenant == null) {
             Asserts.fail("商城客户配置不存在，暂不能修改会员关系");
         }
+        return tenant;
     }
 
     @Override

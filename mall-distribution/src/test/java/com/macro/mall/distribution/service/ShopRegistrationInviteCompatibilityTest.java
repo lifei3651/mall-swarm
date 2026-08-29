@@ -7,6 +7,7 @@ import com.macro.mall.distribution.dao.DmsTenantDao;
 import com.macro.mall.distribution.dto.ShopRegisterDTO;
 import com.macro.mall.distribution.dto.ShopInviteBindDTO;
 import com.macro.mall.distribution.dto.AgentSwitchLineDTO;
+import com.macro.mall.distribution.dto.AgentRegisterDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsTenant;
 import com.macro.mall.distribution.service.impl.ShopAuthServiceImpl;
@@ -20,12 +21,16 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.any;
 
 @ExtendWith(MockitoExtension.class)
 class ShopRegistrationInviteCompatibilityTest {
@@ -164,6 +169,39 @@ class ShopRegistrationInviteCompatibilityTest {
         verify(memberDao, never()).countForFoundingTeamMember();
         verify(memberDao, never()).selectByInviteCode(any());
         verify(agentService, never()).getAgentByInviteCode(any());
+    }
+
+    @Test
+    void invitedPublicRegistrationCanOpenQualificationImmediatelyWhenCustomerChoosesIt() {
+        ShopRegisterDTO dto = validRegistration("15500000126", "public_user_3");
+        DmsShopMember inviter = new DmsShopMember();
+        inviter.setUserId(880088L);
+        inviter.setStatus(1);
+        when(memberDao.selectByInviteCode("INVITE01")).thenReturn(inviter);
+        DmsTenant tenant = new DmsTenant();
+        tenant.setPromotionJoinMode("AUTO_ON_INVITE");
+        when(tenantDao.selectById(1L)).thenReturn(tenant);
+        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(tenant);
+
+        AtomicReference<DmsShopMember> inserted = new AtomicReference<>();
+        doAnswer(invocation -> {
+            inserted.set(invocation.getArgument(0));
+            return 1;
+        }).when(memberDao).insert(any(DmsShopMember.class));
+        when(memberDao.selectByUserId(any())).thenAnswer(invocation -> inserted.get());
+        when(memberDao.selectByInviterId(any())).thenReturn(List.of());
+        AgentInfoVO activated = new AgentInfoVO();
+        activated.setId(99001L);
+        activated.setUserId(99002L);
+        activated.setAgentLevel(1);
+        when(agentService.register(any(AgentRegisterDTO.class))).thenReturn(activated);
+
+        authService.registerPublic(dto);
+
+        ArgumentCaptor<AgentRegisterDTO> agentCaptor = ArgumentCaptor.forClass(AgentRegisterDTO.class);
+        verify(agentService).register(agentCaptor.capture());
+        assertEquals(2, agentCaptor.getValue().getSourceType());
+        assertEquals("受邀注册后自动开通推广资格", agentCaptor.getValue().getReason());
     }
 
     @Test

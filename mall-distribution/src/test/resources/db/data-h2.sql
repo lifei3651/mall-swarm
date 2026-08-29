@@ -97,8 +97,8 @@ VALUES (4, 1004, 'AG004', '赵六(D)', 4, NULL, NULL, 1, 'INV004', 1, 1);
 INSERT INTO dms_agent (id, user_id, agent_code, agent_name, agent_level, parent_id, ancestor_ids, level_depth, invite_code, status, source_type)
 VALUES (5, 1005, 'AG005', '钱七(E)', 1, NULL, NULL, 1, 'INV005', 1, 1);
 
-INSERT INTO dms_tenant (id, tenant_code, tenant_name, brand_name, theme_color, product_template, status)
-VALUES (1, 'DEFAULT', '商城运营主体', '商城', '#0f766e', 'standard', 1);
+INSERT INTO dms_tenant (id, tenant_code, tenant_name, brand_name, theme_color, product_template, promotion_join_mode, status)
+VALUES (1, 'DEFAULT', '商城运营主体', '商城', '#0f766e', 'standard', 'FIRST_PAID_ORDER', 1);
 
 INSERT INTO dms_commission_rule_version
   (id, tenant_id, version_no, version_name, status, effective_time, remark)

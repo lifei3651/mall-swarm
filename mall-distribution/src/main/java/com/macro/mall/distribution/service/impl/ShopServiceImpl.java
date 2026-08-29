@@ -21,6 +21,7 @@ import com.macro.mall.distribution.dto.FreightTemplateRuleDTO;
 import com.macro.mall.distribution.dto.FreightTemplateSaveDTO;
 import com.macro.mall.distribution.entity.*;
 import com.macro.mall.distribution.enums.AgentStatusEnum;
+import com.macro.mall.distribution.enums.PromotionJoinModeEnum;
 import com.macro.mall.distribution.service.CommissionService;
 import com.macro.mall.distribution.service.DistributionAuditService;
 import com.macro.mall.distribution.service.MemberAssetService;
@@ -1559,19 +1560,29 @@ public class ShopServiceImpl implements ShopService {
                 ? order.getBusinessType() == null || ShopBusinessType.NORMAL.equals(order.getBusinessType())
                 : businessModeService.usesStandardBonus(tenant, order.getBusinessType())));
         DmsShopMember payingMember = order.getUserId() == null ? null : memberDao.selectByUserId(order.getUserId());
-        // 旧数据字段为空时继续兼容原一体化商城；新公开商城账号明确写0，不进入团队奖金链路。
-        boolean teamParticipant = payingMember == null || !Integer.valueOf(0).equals(payingMember.getTeamOptIn());
-        boolean teamBonusEligible = standardBonus && teamParticipant;
+        DmsAgent existingAgent = order.getUserId() == null ? null : agentDao.selectByUserId(order.getUserId());
+        boolean activeQualification = existingAgent != null
+                && AgentStatusEnum.NORMAL.getValue().equals(existingAgent.getStatus());
+        // teamOptIn只代表主动进入团队业务；邀请关系和推广资格由客户模式分别控制。
+        boolean teamParticipant = payingMember != null && !Integer.valueOf(0).equals(payingMember.getTeamOptIn());
+        PromotionJoinModeEnum joinMode = PromotionJoinModeEnum.forExisting(
+                tenant == null ? null : tenant.getPromotionJoinMode());
+        boolean autoJoinOnThisOrder = !activeQualification && existingAgent == null && teamParticipant
+                && (joinMode.autoOnPaidOrder()
+                    || (joinMode.autoOnInvite() && payingMember.getInviterId() != null));
+        boolean teamBonusEligible = standardBonus && (activeQualification || autoJoinOnThisOrder);
         if (updated > 0) {
-            // 只有已在团队H5主动加入团队业务的账号，首笔有效支付后才进入奖金体系。
-            if (teamBonusEligible && order.getUserId() != null) {
+            if (standardBonus && autoJoinOnThisOrder && order.getUserId() != null) {
                 com.macro.mall.distribution.vo.AgentInfoVO activated = authService.activateMember(
                         order.getUserId(), 1, "完成首笔有效支付订单，成为会员，订单：" + order.getOrderNo());
                 order.setAgentId(activated.getId());
                 orderDao.updateAgentId(orderId, activated.getId());
+            } else if (teamBonusEligible && existingAgent != null) {
+                order.setAgentId(existingAgent.getId());
+                orderDao.updateAgentId(orderId, existingAgent.getId());
             }
             if (teamBonusEligible) {
-                // 只有采用标准奖金规则的订单才冻结关系并进入业绩奖金链路。
+                // 只有采用标准奖金规则且已具备推广资格的订单才冻结关系并进入客户奖金链路。
                 relationSnapshotService.capture(order);
             }
         }

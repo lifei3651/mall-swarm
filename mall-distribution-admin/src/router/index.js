@@ -317,7 +317,7 @@ const routes = [
             path: 'business-modes',
             name: 'TenantBusinessModes',
             component: () => import('@/views/tenant/business-modes.vue'),
-            meta: { title: '秒杀与复购模式', permission: 'config:bonus' },
+            meta: { title: '团队、秒杀与复购模式', permission: 'config:bonus' },
           },
           {
             path: 'flash-sales',

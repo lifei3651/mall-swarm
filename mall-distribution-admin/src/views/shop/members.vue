@@ -1,7 +1,7 @@
 <template>
   <div class="page-container">
     <el-alert
-      title="本页统一管理全部商城账号。未进入体系的账号可直接设定1–8级；完成首单或后台设级后，会在同一行显示卡级、业绩和奖金账户。"
+      title="本页统一管理全部商城账号。未进入体系的账号可直接设定1–8级；按客户业务模式或后台设级开通后，会在同一行显示卡级、业绩和账户。"
       type="info"
       :closable="false"
       show-icon
@@ -391,7 +391,7 @@
     </el-dialog>
 
     <el-dialog v-model="createVisible" title="后台新增商城会员" width="620px" destroy-on-close>
-      <el-alert title="登录账号和手机号必填。填写初始密码后可使用登录账号或手机号登录；不填写则先通过手机号验证码登录。不开通会员身份时，完成首笔有效支付后才成为正式会员。" type="info" :closable="false" show-icon />
+      <el-alert title="登录账号和手机号必填。填写初始密码后可使用登录账号或手机号登录；不填写则先通过手机号验证码登录。不开通推广资格时，后续是否自动开通由当前客户业务模式决定。" type="info" :closable="false" show-icon />
       <el-form :model="createForm" label-width="120px" class="create-form">
         <el-form-item label="登录账号" required>
           <el-input v-model="createForm.username" maxlength="20" placeholder="4至20位，以英文字母开头" @input="value => createForm.username = normalizeLoginAccountInput(value)" />
@@ -411,7 +411,7 @@
             <el-option v-for="item in inviterOptions" :key="item.id" :value="item.userId" :label="`${item.nickname || item.phone}（${item.username || item.phone}）`" />
           </el-select>
         </el-form-item>
-        <el-form-item label="直接设为会员"><el-switch v-model="createForm.activateDistribution" /><div class="form-tip">后台例外操作；普通用户必须完成首笔有效支付后才成为会员。</div></el-form-item>
+        <el-form-item label="直接开通资格"><el-switch v-model="createForm.activateDistribution" /><div class="form-tip">关闭时只创建商城账号，后续按当前客户业务模式处理。</div></el-form-item>
         <template v-if="createForm.activateDistribution">
           <el-form-item label="初始卡级" required><el-select v-model="createForm.initialLevel" style="width:100%"><el-option v-for="item in levels" :key="item.value" :label="item.label" :value="item.value" /></el-select></el-form-item>
           <el-form-item label="操作原因" required><el-input v-model="createForm.reason" type="textarea" :rows="3" placeholder="将写入调级操作日志" /></el-form-item>

@@ -30,7 +30,7 @@
       </template>
 
       <el-alert
-        title="只有完成首笔有效订单或由后台直接设定级别、已经进入奖金体系的会员才会出现在这里。"
+        title="只有按当前客户规则开通推广资格、已经进入客户团队体系的会员才会出现在这里。"
         type="info"
         :closable="false"
         show-icon

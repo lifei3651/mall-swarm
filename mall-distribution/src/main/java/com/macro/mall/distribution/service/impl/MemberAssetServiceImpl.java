@@ -290,7 +290,7 @@ public class MemberAssetServiceImpl implements MemberAssetService {
             return;
         }
         if (owner.agent != null) {
-            // 商城账号可能先持有余额、后完成首单成为正式会员。此时应沿用原账户，
+            // 商城账号可能先持有余额、后按客户规则开通推广资格。此时应沿用原账户，
             // 仅补齐代理关联，不能再插入一条相同 user_id 的钱包账户。
             account = accountDao.selectByUserIdAndAssetCode(owner.agent.getUserId(), BalanceAsset.CODE);
             if (account != null) {

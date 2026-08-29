@@ -152,7 +152,7 @@ const submitWithdrawal = async () => {
   if (!wallet.value.realNameVerified) return router.push({ name: 'RealNameVerification', query: { redirect: '/profile/wallet' } })
   if (!wallet.value.adultVerified) return showWalletError('未满18周岁暂不能申请提现')
   if (!requirePaymentPassword()) return
-  if (!wallet.value.distributionActivated) return showWalletError('完成首笔有效订单成为会员后才可提现')
+  if (!wallet.value.distributionActivated) return showWalletError('该账号尚未按商城规则开通推广资格，暂不能提现')
   if (withdrawForm.value.withdrawType === 1 && !withdrawForm.value.bankName.trim()) return showWalletError('请输入开户银行')
   if (!withdrawForm.value.bankAccount.trim()) return showWalletError(`请输入${withdrawAccountLabel.value}`)
   if (!withdrawForm.value.accountName.trim()) return showWalletError('请输入收款人姓名')

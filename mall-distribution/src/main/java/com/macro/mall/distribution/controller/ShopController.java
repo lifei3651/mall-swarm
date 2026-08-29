@@ -359,7 +359,7 @@ public class ShopController {
         return orderRealtimeService.subscribeAdmin(TenantContext.getTenantId());
     }
 
-    @Operation(summary = "商城账号注册（首笔有效支付后成为会员）")
+    @Operation(summary = "商城账号注册（推广资格按客户业务模式开通）")
     @PostMapping("/auth/register")
     public CommonResult<ShopAuthVO> register(@Valid @RequestBody ShopRegisterDTO dto,
                                               HttpServletRequest request,

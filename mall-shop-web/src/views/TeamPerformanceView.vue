@@ -8,8 +8,8 @@
     <div v-if="loading" class="empty">正在加载业绩数据...</div>
     <section v-else-if="!canView" class="empty locked-state">
       <LockKeyhole :size="38" />
-      <h3>{{ profile.agent ? '业绩数据暂未开放' : '完成首单后开通业绩查询' }}</h3>
-      <p>{{ profile.agent ? '该功能由商城后台按代理权限开放。' : '当前账号尚未开通代理身份，完成首笔有效订单后即可查看。' }}</p>
+      <h3>{{ profile.agent ? '业绩数据暂未开放' : '开通推广资格后可查询' }}</h3>
+      <p>{{ profile.agent ? '该功能由商城后台按代理权限开放。' : '当前账号尚未开通推广资格，请按本商城规则申请或联系管理员。' }}</p>
     </section>
     <template v-else>
       <section class="performance-hero">

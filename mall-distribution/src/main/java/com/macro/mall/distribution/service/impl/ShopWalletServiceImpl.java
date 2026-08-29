@@ -263,7 +263,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         if (dto == null) Asserts.fail("提现信息不能为空");
         var realName = realNameVerificationService.requireEligible(current, "提现");
         DmsAgent agent = agentDao.selectByUserId(current.getUserId());
-        if (agent == null || !Integer.valueOf(1).equals(agent.getStatus())) Asserts.fail("完成首笔有效订单后才可以提现");
+        if (agent == null || !Integer.valueOf(1).equals(agent.getStatus())) Asserts.fail("该账号尚未开通推广资格，暂不能提现");
 
         BigDecimal amount = MoneyValidationUtils.requirePositiveAmount(
                 dto.getWithdrawAmount(), "提现金额", MAX_WITHDRAW_AMOUNT);

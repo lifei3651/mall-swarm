@@ -100,6 +100,12 @@ public class DmsTenant implements Serializable {
     @Max(value = 365, message = "售后申请期限不能超过365天")
     private Integer afterSaleWindowDays;
 
+    /**
+     * 推广资格开通方式。邀请关系与推广资格相互独立，客户奖金公式不在此处定义。
+     */
+    @Pattern(regexp = "DISABLED|AUTO_ON_INVITE|MANUAL_REVIEW|FIRST_PAID_ORDER", message = "推广资格开通方式不正确")
+    private String promotionJoinMode;
+
     /** 秒杀模块和复购商城均为客户级可选能力，默认关闭。 */
     private Integer flashSaleEnabled;
 

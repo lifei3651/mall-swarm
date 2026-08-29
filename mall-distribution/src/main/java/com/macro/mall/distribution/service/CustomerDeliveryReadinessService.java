@@ -12,6 +12,7 @@ import com.macro.mall.distribution.entity.DmsShopCategory;
 import com.macro.mall.distribution.entity.DmsShopNotice;
 import com.macro.mall.distribution.entity.DmsShopProduct;
 import com.macro.mall.distribution.entity.DmsTenant;
+import com.macro.mall.distribution.enums.PromotionJoinModeEnum;
 import com.macro.mall.distribution.notification.ServiceSmsReadinessService;
 import com.macro.mall.distribution.vo.CustomerDeliveryReadinessVO;
 import lombok.RequiredArgsConstructor;
@@ -79,6 +80,21 @@ public class CustomerDeliveryReadinessService {
                 present(tenant.getUserAgreement()) && present(tenant.getPrivacyPolicy())
                         && present(tenant.getAfterSalePolicy()) && tenant.getAfterSaleWindowDays() != null,
                 "确认用户协议、隐私政策和交易售后规则均为客户最终版本", "/tenant/legal");
+        PromotionJoinModeEnum promotionMode = null;
+        try {
+            promotionMode = PromotionJoinModeEnum.forExisting(tenant.getPromotionJoinMode());
+        } catch (IllegalArgumentException ignored) {
+            // 交付检查应返回可操作项，不因脏配置直接中断整个页面。
+        }
+        add(items, "PROMOTION_JOIN_MODE", "业务规则", "推广资格开通方式", true,
+                promotionMode != null,
+                promotionMode == PromotionJoinModeEnum.FIRST_PAID_ORDER
+                        ? "当前为老商城首笔有效订单兼容方式，新客户使用前需再次确认业务与合规要求"
+                        : promotionMode == PromotionJoinModeEnum.DISABLED
+                            ? "当前安全关闭；客户制度开发和验收完成后再选择开通方式"
+                            : promotionMode == null ? "推广资格开通方式无效，请重新保存"
+                            : "邀请关系与推广资格已按客户要求独立配置",
+                "/tenant/business-modes");
         boolean specialModeSafe = !Integer.valueOf(1).equals(tenant.getFlashSaleEnabled())
                 || !"CUSTOM".equalsIgnoreCase(tenant.getFlashSaleBonusMode());
         specialModeSafe = specialModeSafe && (!Integer.valueOf(1).equals(tenant.getRepurchaseMallEnabled())

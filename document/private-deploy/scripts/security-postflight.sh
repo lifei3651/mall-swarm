@@ -70,6 +70,14 @@ SQL
 )
 [ "$active_bonus_versions" = "1" ] \
   || fail "客户必须且只能启用一个奖金程序，当前为 $active_bonus_versions 个"
+promotion_join_mode=$(mysql_query <<'SQL'
+SELECT promotion_join_mode FROM dms_tenant WHERE id = 1;
+SQL
+)
+case "$promotion_join_mode" in
+  DISABLED|AUTO_ON_INVITE|MANUAL_REVIEW|FIRST_PAID_ORDER) ;;
+  *) fail "推广资格开通方式不正确：$promotion_join_mode" ;;
+esac
 
 if command -v ss >/dev/null 2>&1; then
   listening=$(ss -H -lnt | awk '{print $4}')
@@ -166,6 +174,7 @@ report="$DEPLOY_DIR/reports/security-postflight-$(date +%Y%m%d_%H%M%S).txt"
   echo "database_baseline=PASS"
   echo "database_migrations=PASS($successful_migrations/$expected_migrations)"
   echo "active_customer_bonus_policy=PASS(1)"
+  echo "promotion_join_mode=PASS($promotion_join_mode)"
   echo "upload_directory=writable"
   echo "sensitive_public_endpoints=404"
 } > "$report"

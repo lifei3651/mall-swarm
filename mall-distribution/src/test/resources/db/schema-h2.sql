@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS dms_tenant (
   after_sale_policy CLOB,
   after_sale_window_mode VARCHAR(32) NOT NULL DEFAULT 'RECEIVED',
   after_sale_window_days INT NOT NULL DEFAULT 7,
+  promotion_join_mode VARCHAR(32) NOT NULL DEFAULT 'DISABLED',
   flash_sale_enabled INT NOT NULL DEFAULT 0,
   flash_sale_bonus_mode VARCHAR(16) NOT NULL DEFAULT 'NONE',
   repurchase_mall_enabled INT NOT NULL DEFAULT 0,

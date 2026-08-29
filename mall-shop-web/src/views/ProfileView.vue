@@ -19,7 +19,7 @@
         <div class="identity-stats" :class="{ 'without-team-performance': !showTeamPerformance }">
           <RouterLink to="/profile/wallet"><span>余额</span><strong>{{ walletLoading ? '加载中' : `¥${money(walletSummary.balance)}` }}</strong></RouterLink>
           <RouterLink v-if="showTeamPerformance" to="/profile/team"><span>本月团队业绩</span><strong>{{ teamPerformanceText }}</strong></RouterLink>
-          <div><span>团队身份</span><strong>{{ profileLoading ? '加载中' : (activeAgent ? identityInfo.name : '首单后开通') }}</strong></div>
+          <div><span>团队身份</span><strong>{{ profileLoading ? '加载中' : (activeAgent ? identityInfo.name : '尚未开通') }}</strong></div>
         </div>
         </section>
 

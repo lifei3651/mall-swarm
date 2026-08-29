@@ -12,6 +12,7 @@ import com.macro.mall.distribution.entity.DmsCommissionRuleVersion;
 import com.macro.mall.distribution.entity.DmsTenant;
 import com.macro.mall.distribution.entity.DmsTenantConfigVersion;
 import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
+import com.macro.mall.distribution.enums.PromotionJoinModeEnum;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.AdminAuthService;
@@ -112,7 +113,11 @@ public class TenantServiceImpl implements TenantService {
         } else if (tenant.getAfterSaleWindowDays() < 0 || tenant.getAfterSaleWindowDays() > 365) {
             Asserts.fail("售后申请期限应设置为0至365天");
         }
-        normalizeBusinessModes(tenant);
+        if (before != null && (tenant.getPromotionJoinMode() == null || tenant.getPromotionJoinMode().isBlank())) {
+            // 兼容旧后台或旧API提交：未携带新字段时保留客户当前选择，不能静默改回默认值。
+            tenant.setPromotionJoinMode(before.getPromotionJoinMode());
+        }
+        normalizeBusinessModes(tenant, before == null);
         requireBusinessModeAuthority(tenant);
         if (tenant.getPoliceRecordUrl() != null && !tenant.getPoliceRecordUrl().isBlank()) {
             String policeRecordUrl = tenant.getPoliceRecordUrl().trim();
@@ -148,7 +153,14 @@ public class TenantServiceImpl implements TenantService {
         return saved;
     }
 
-    private void normalizeBusinessModes(DmsTenant tenant) {
+    private void normalizeBusinessModes(DmsTenant tenant, boolean newTenant) {
+        try {
+            tenant.setPromotionJoinMode((newTenant
+                    ? PromotionJoinModeEnum.forNew(tenant.getPromotionJoinMode())
+                    : PromotionJoinModeEnum.forExisting(tenant.getPromotionJoinMode())).name());
+        } catch (IllegalArgumentException ex) {
+            Asserts.fail(ex.getMessage());
+        }
         tenant.setFlashSaleEnabled(Integer.valueOf(1).equals(tenant.getFlashSaleEnabled()) ? 1 : 0);
         tenant.setRepurchaseMallEnabled(Integer.valueOf(1).equals(tenant.getRepurchaseMallEnabled()) ? 1 : 0);
         tenant.setFlashSaleBonusMode(normalizeMode(tenant.getFlashSaleBonusMode(),
@@ -164,11 +176,14 @@ public class TenantServiceImpl implements TenantService {
         if (admin == null) return;
         DmsTenant existing = requested.getId() == null ? null : tenantDao.selectById(requested.getId());
         boolean changed = existing == null
-                ? Integer.valueOf(1).equals(requested.getFlashSaleEnabled())
+                ? !PromotionJoinModeEnum.DISABLED.name().equals(requested.getPromotionJoinMode())
+                    || Integer.valueOf(1).equals(requested.getFlashSaleEnabled())
                     || Integer.valueOf(1).equals(requested.getRepurchaseMallEnabled())
                     || !"NONE".equals(requested.getFlashSaleBonusMode())
                     || !"NONE".equals(requested.getRepurchaseBonusMode())
-                : !java.util.Objects.equals(normalizedFlag(existing.getFlashSaleEnabled()), requested.getFlashSaleEnabled())
+                : !java.util.Objects.equals(PromotionJoinModeEnum.forExisting(existing.getPromotionJoinMode()).name(),
+                        requested.getPromotionJoinMode())
+                    || !java.util.Objects.equals(normalizedFlag(existing.getFlashSaleEnabled()), requested.getFlashSaleEnabled())
                     || !java.util.Objects.equals(normalizedFlag(existing.getRepurchaseMallEnabled()), requested.getRepurchaseMallEnabled())
                     || !java.util.Objects.equals(normalizeMode(existing.getFlashSaleBonusMode(),
                         List.of("NONE", "STANDARD", "CUSTOM"), "NONE", "秒杀奖金模式"), requested.getFlashSaleBonusMode())
@@ -188,6 +203,7 @@ public class TenantServiceImpl implements TenantService {
         if (tenant == null) return null;
         return "name=" + tenant.getTenantName() + ";brand=" + tenant.getBrandName()
                 + ";status=" + tenant.getStatus() + ";flashSale=" + tenant.getFlashSaleEnabled()
+                + ";promotionJoinMode=" + tenant.getPromotionJoinMode()
                 + ";repurchase=" + tenant.getRepurchaseMallEnabled()
                 + ";flashBonusMode=" + tenant.getFlashSaleBonusMode()
                 + ";repurchaseBonusMode=" + tenant.getRepurchaseBonusMode()
@@ -316,7 +332,7 @@ public class TenantServiceImpl implements TenantService {
         if (restoredTenant.getAfterSaleWindowDays() == null) {
             restoredTenant.setAfterSaleWindowDays(7);
         }
-        normalizeBusinessModes(restoredTenant);
+        normalizeBusinessModes(restoredTenant, false);
         legalTemplateSupport.applyDefaults(restoredTenant);
         if (tenantDao.update(restoredTenant) == 0) {
             Asserts.fail("恢复商城资料失败");

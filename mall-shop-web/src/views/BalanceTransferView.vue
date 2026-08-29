@@ -36,7 +36,7 @@
       <div class="form-item"><label>支付密码</label><input v-model="transferForm.paymentPassword" class="field" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="6位数字" /></div>
       <div class="form-item"><label>转账备注（选填）</label><input v-model="transferForm.remark" class="field" maxlength="100" placeholder="给收款方留言" /></div>
       <button class="btn primary submit-button" :disabled="transferSaving || !canUseBalance" @click="submitTransfer">{{ transferSaving ? '转账中' : '确认转账' }}</button>
-      <p v-if="!wallet.distributionActivated" class="form-warning">完成首笔有效订单成为会员后，才可以转账和接收余额。</p>
+      <p v-if="!wallet.distributionActivated" class="form-warning">按本商城规则开通推广资格后，才可以转账和接收余额。</p>
     </section>
 
     <div v-if="error" class="transfer-toast" role="alert" aria-live="assertive">{{ error }}</div>
@@ -129,7 +129,7 @@ const submitTransfer = async () => {
   if (!wallet.value.realNameVerified) return router.push({ name: 'RealNameVerification', query: { redirect: '/profile/wallet/transfer' } })
   if (!wallet.value.adultVerified) return showTransferError('未满18周岁暂不能使用余额转账')
   if (!requirePaymentPassword()) return
-  if (!wallet.value.distributionActivated) return showTransferError('完成首笔有效订单成为会员后才可转账')
+  if (!wallet.value.distributionActivated) return showTransferError('该账号尚未按商城规则开通推广资格，暂不能转账')
   if (!isValidMainlandPhone(transferForm.value.recipientPhone)) return showTransferError('请输入正确的11位收款会员手机号')
   if (!recipient.value) return showTransferError('请先核对收款会员')
   if (amountError.value) return showTransferError(amountError.value)

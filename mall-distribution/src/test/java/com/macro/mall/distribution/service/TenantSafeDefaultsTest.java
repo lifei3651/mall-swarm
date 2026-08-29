@@ -60,6 +60,8 @@ class TenantSafeDefaultsTest {
                 operationLogService, new ObjectMapper(), catalogCache, adminAuthService, imagePolicy);
         service.saveTenant(tenant);
 
+        assertEquals("DISABLED", tenant.getPromotionJoinMode());
+
         ArgumentCaptor<DmsCommissionRuleVersion> version = ArgumentCaptor.forClass(DmsCommissionRuleVersion.class);
         verify(versionDao).insert(version.capture());
         assertEquals(CustomerBonusPolicyCodes.DISABLED, version.getValue().getVersionNo());
