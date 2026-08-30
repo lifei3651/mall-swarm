@@ -76,8 +76,25 @@
           <strong>购买数量</strong>
           <div class="quantity-control">
             <button type="button" aria-label="减少购买数量" :disabled="quantity <= 1" @click="decreaseQuantity"><Minus :size="17" aria-hidden="true" /></button>
-            <span aria-live="polite" :aria-label="`当前购买数量${quantity}件`">{{ quantity }}</span>
-            <button type="button" aria-label="增加购买数量" :disabled="quantity >= currentStock" @click="increaseQuantity"><Plus :size="17" aria-hidden="true" /></button>
+            <input
+              :value="quantityInput"
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              maxlength="10"
+              autocomplete="off"
+              role="spinbutton"
+              aria-label="手动输入购买数量"
+              aria-valuemin="1"
+              :aria-valuemax="maxSelectableQuantity"
+              :aria-valuenow="quantity"
+              :disabled="soldOut"
+              @input="handleQuantityInput"
+              @blur="commitQuantityInput"
+              @focus="$event.target.select()"
+              @keydown="preventInvalidQuantityKey"
+            />
+            <button type="button" aria-label="增加购买数量" :disabled="quantity >= maxSelectableQuantity" @click="increaseQuantity"><Plus :size="17" aria-hidden="true" /></button>
           </div>
           <small>库存 {{ currentStock }} 件</small>
           <small v-if="Number(displayProduct.purchaseLimit || 0) > 0" class="purchase-limit-hint">每位会员限购 {{ displayProduct.purchaseLimit }} 件</small>
@@ -212,6 +229,7 @@ import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
 import { hasShopSession } from '@/utils/shopSession'
 import { requireShopSession } from '@/utils/authNavigation'
 import { cartItemKey, resolveCurrentStock, stockAdditionViolation, stockQuantityViolation } from '@/utils/stockRules'
+import { resolvePositiveIntegerQuantity, sanitizePositiveIntegerInput } from '@/utils/quantityInput'
 import { money } from '@/utils/format'
 import { toPublicWebUrl } from '@/utils/appEnvironment'
 import { applyImageFallback } from '@/utils/imageFallback'
@@ -236,6 +254,7 @@ const displayConfig = ref({})
 const skus = ref([])
 const selectedSkuId = ref(null)
 const quantity = ref(1)
+const quantityInput = ref('1')
 const loading = ref(false)
 const errorMessage = ref('')
 const toast = ref('')
@@ -310,6 +329,11 @@ const displayProduct = computed(() => selectedSku.value ? {
   stock: selectedSku.value.stock,
 } : (product.value ? { ...product.value, pvValue: boundedPv(product.value.pvValue, product.value.salePrice) } : {}))
 const currentStock = computed(() => Math.max(0, Number(displayProduct.value.stock || 0)))
+const maxSelectableQuantity = computed(() => {
+  const stock = Math.max(1, Math.floor(currentStock.value || 1))
+  const purchaseLimit = Math.floor(Number(displayProduct.value.purchaseLimit || 0))
+  return purchaseLimit > 0 ? Math.min(stock, purchaseLimit) : stock
+})
 const soldOut = computed(() => product.value?.status !== 1 || currentStock.value <= 0)
 const freightLabel = computed(() => {
   const type = Number(product.value?.freightType || 0)
@@ -366,7 +390,7 @@ const fetchProduct = async () => {
     displayConfig.value = res.data?.displayConfig || {}
     skus.value = res.data?.skus || []
     selectedSkuId.value = skus.value.find((sku) => Number(sku.stock || 0) > 0)?.id || skus.value[0]?.id || null
-    quantity.value = 1
+    resetQuantity()
     activeImageIndex.value = 0
     await fetchReviews(true)
   } catch (error) {
@@ -374,13 +398,36 @@ const fetchProduct = async () => {
   } finally { loading.value = false }
 }
 
-const selectSku = (sku) => { selectedSkuId.value = sku.id; quantity.value = 1 }
-const decreaseQuantity = () => { quantity.value = Math.max(1, quantity.value - 1) }
-const increaseQuantity = () => { quantity.value = Math.min(currentStock.value, quantity.value + 1) }
+const setQuantity = (value) => {
+  quantity.value = resolvePositiveIntegerQuantity(value, maxSelectableQuantity.value)
+  quantityInput.value = String(quantity.value)
+}
+const resetQuantity = () => setQuantity(1)
+const handleQuantityInput = (event) => {
+  const sanitized = sanitizePositiveIntegerInput(event.target.value)
+  quantityInput.value = sanitized
+  event.target.value = sanitized
+  if (!sanitized) return
+  const resolved = resolvePositiveIntegerQuantity(sanitized, maxSelectableQuantity.value)
+  quantity.value = resolved
+  if (String(resolved) !== sanitized) {
+    quantityInput.value = String(resolved)
+    event.target.value = quantityInput.value
+  }
+}
+const commitQuantityInput = () => setQuantity(quantityInput.value)
+const preventInvalidQuantityKey = (event) => {
+  if (event.isComposing || event.metaKey || event.ctrlKey || event.altKey) return
+  if (event.key.length === 1 && !/^\d$/.test(event.key)) event.preventDefault()
+}
+const selectSku = (sku) => { selectedSkuId.value = sku.id; resetQuantity() }
+const decreaseQuantity = () => setQuantity(quantity.value - 1)
+const increaseQuantity = () => setQuantity(quantity.value + 1)
 const addToCart = async () => {
   if (!requireShopSession(router, route.fullPath, '请先登录后再加入购物车')) return
   if (soldOut.value) return showToast('该商品暂时缺货')
   if (purchaseActionPending.value) return
+  commitQuantityInput()
   purchaseActionPending.value = true
   try {
     const detail = (await getProduct(displayProduct.value.id)).data || {}
@@ -400,6 +447,7 @@ const buyNow = async () => {
   if (!requireShopSession(router, route.fullPath, '请先登录后再购买商品')) return
   if (soldOut.value) return showToast('该商品暂时缺货')
   if (purchaseActionPending.value) return
+  commitQuantityInput()
   purchaseActionPending.value = true
   try {
     const detail = (await getProduct(displayProduct.value.id)).data || {}
@@ -511,9 +559,11 @@ onBeforeUnmount(() => window.clearTimeout(toastTimer))
 .quantity-row strong { font-size:15px; }
 .quantity-row small { color:#9ca3af; }
 .quantity-row .purchase-limit-hint { color:var(--brand-primary); }
-.quantity-control { height:36px; display:grid; grid-template-columns:36px 44px 36px; margin-left:auto; overflow:hidden; border:1px solid #e5e7eb; border-radius:6px; }
-.quantity-control button,.quantity-control span { display:grid; place-items:center; padding:0; background:#fff; border:0; }
-.quantity-control span { border-left:1px solid #e5e7eb; border-right:1px solid #e5e7eb; }
+.quantity-control { height:36px; display:grid; grid-template-columns:36px 52px 36px; margin-left:auto; overflow:hidden; border:1px solid #e5e7eb; border-radius:6px; }
+.quantity-control button { display:grid; place-items:center; padding:0; background:#fff; border:0; }
+.quantity-control input { width:52px; min-width:0; padding:0 3px; color:#20242b; background:#fff; border:0; border-left:1px solid #e5e7eb; border-right:1px solid #e5e7eb; border-radius:0; outline:0; font-size:15px; font-weight:600; line-height:36px; text-align:center; }
+.quantity-control input:focus { box-shadow:inset 0 0 0 1px var(--brand-primary); }
+.quantity-control input:disabled { color:#9ca3af; background:#f8fafc; }
 
 .content-section { margin-top:8px; background:#fff; }
 .section-title { display:grid; grid-template-columns:minmax(30px,1fr) auto minmax(30px,1fr); align-items:center; gap:15px; padding:22px 18px; }

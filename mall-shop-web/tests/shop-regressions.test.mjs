@@ -9,6 +9,7 @@ import { localPurchaseLimitViolation, purchaseLimitMessage } from '../src/utils/
 import { readDisplayExtraConfig, resolveCategoryGuideConfig, resolveDirectoryGuideLayout, resolveDisplayColors, resolveHomeModules } from '../src/utils/displayConfig.js'
 import { resolveBottomNav } from '../src/utils/bottomNav.js'
 import { resolveCurrentStock, stockAdditionViolation, stockQuantityViolation } from '../src/utils/stockRules.js'
+import { resolvePositiveIntegerQuantity, sanitizePositiveIntegerInput } from '../src/utils/quantityInput.js'
 import { isGatewayRecoveryError, resolveRequestErrorMessage } from '../src/utils/requestErrors.js'
 import { resolveBrandCssVariables, themePresets } from '../src/utils/brand.js'
 
@@ -308,6 +309,27 @@ test('stock checks block every cart entry point and report the current remaining
   assert.match(detail, /resolveCurrentStock\(displayProduct\.value, detail\)/)
   assert.match(cart, /const latestStock = resolveCurrentStock\(item, detail\)/)
   assert.match(cart, /stockQuantityViolation\(latestStock, item\.quantity\)/)
+})
+
+test('product quantity input accepts positive integers only and remains bounded by sale limits', async () => {
+  assert.equal(sanitizePositiveIntegerInput('12'), '12')
+  assert.equal(sanitizePositiveIntegerInput('００7'), '7')
+  assert.equal(sanitizePositiveIntegerInput('12.5'), '12')
+  assert.equal(sanitizePositiveIntegerInput('-3'), '')
+  assert.equal(sanitizePositiveIntegerInput('8件'), '8')
+  assert.equal(sanitizePositiveIntegerInput('abc9'), '')
+  assert.equal(resolvePositiveIntegerQuantity('', 800), 1)
+  assert.equal(resolvePositiveIntegerQuantity('0', 800), 1)
+  assert.equal(resolvePositiveIntegerQuantity('900', 800), 800)
+
+  const detail = await readView('ProductDetailView.vue')
+  assert.match(detail, /aria-label="手动输入购买数量"/)
+  assert.match(detail, /inputmode="numeric"/)
+  assert.match(detail, /pattern="\[0-9\]\*"/)
+  assert.match(detail, /@input="handleQuantityInput"/)
+  assert.match(detail, /@blur="commitQuantityInput"/)
+  assert.match(detail, /quantity >= maxSelectableQuantity/)
+  assert.match(detail, /commitQuantityInput\(\)[\s\S]*purchaseActionPending\.value = true/)
 })
 
 test('cart refreshes display price and inventory from the server before showing totals', async () => {
