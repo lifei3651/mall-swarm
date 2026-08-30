@@ -1,5 +1,5 @@
 <template>
-  <div class="app-shell" :class="[{ 'home-shell': isHome }, `layout-${layoutTemplate}`]">
+  <div class="app-shell" :class="[{ 'home-shell': isHome, 'has-global-chrome': showGlobalChrome }, `layout-${layoutTemplate}`]">
     <header v-if="showGlobalChrome" class="site-header desktop-site-header">
       <RouterLink class="brand desktop-brand" to="/" aria-label="返回商城首页">
         <img v-if="brand.logoUrl" class="brand-logo" :src="brand.logoUrl" :alt="`${brand.brandName} Logo`" />
@@ -31,26 +31,28 @@
       </div>
     </header>
 
-    <main :class="{ 'home-main': isHome }">
-      <RouterView />
-    </main>
+    <div ref="pageScrollRef" class="app-page-scroll">
+      <main :class="{ 'home-main': isHome }">
+        <RouterView />
+      </main>
 
-    <footer v-if="isHome" class="site-footer">
-      <p>{{ legal.companyName || brand.brandName }}</p>
-      <nav class="footer-links" aria-label="商城服务信息">
-        <RouterLink to="/legal/after-sale">交易与售后</RouterLink>
-        <RouterLink to="/legal/contact">联系客服</RouterLink>
-        <RouterLink to="/legal/license">经营资质</RouterLink>
-        <RouterLink to="/legal/agreement">用户协议</RouterLink>
-        <RouterLink to="/legal/privacy">隐私政策</RouterLink>
-      </nav>
-      <p class="records">
-        <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">{{ legal.icpNumber || '湘ICP备2026028410号-1' }}</a>
-        <a v-if="safePoliceUrl" :href="safePoliceUrl" target="_blank" rel="noopener noreferrer">{{ legal.policeRecordNumber || '公安备案' }}</a>
-      </p>
-    </footer>
+      <footer v-if="isHome" class="site-footer">
+        <p>{{ legal.companyName || brand.brandName }}</p>
+        <nav class="footer-links" aria-label="商城服务信息">
+          <RouterLink to="/legal/after-sale">交易与售后</RouterLink>
+          <RouterLink to="/legal/contact">联系客服</RouterLink>
+          <RouterLink to="/legal/license">经营资质</RouterLink>
+          <RouterLink to="/legal/agreement">用户协议</RouterLink>
+          <RouterLink to="/legal/privacy">隐私政策</RouterLink>
+        </nav>
+        <p class="records">
+          <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">{{ legal.icpNumber || '湘ICP备2026028410号-1' }}</a>
+          <a v-if="safePoliceUrl" :href="safePoliceUrl" target="_blank" rel="noopener noreferrer">{{ legal.policeRecordNumber || '公安备案' }}</a>
+        </p>
+      </footer>
+    </div>
 
-    <nav ref="bottomNavRef" v-if="showGlobalChrome" class="bottom-nav" :style="{ '--bottom-nav-columns': bottomNavColumns }">
+    <nav v-if="showGlobalChrome" class="bottom-nav" :style="{ '--bottom-nav-columns': bottomNavColumns }">
       <RouterLink v-for="item in bottomNavItems" :key="item.type" :to="item.path" @touchend.prevent="navigateTo(item.path)">
         <span v-if="item.type === 'cart'" class="bottom-cart-icon">
           <ShoppingBag :size="20" />
@@ -81,7 +83,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Home, ShoppingBag, UserRound, Grid3x3, ClipboardList } from 'lucide-vue-next'
 import { getHome, getLegalConfig, getMe } from '@/api/shop'
@@ -91,7 +93,6 @@ import { currentAndroidVersionCode, currentAndroidVersionName, fetchAndroidRelea
 import { isNativeApp } from '@/utils/appEnvironment'
 import { AUTH_REQUIRED_EVENT } from '@/utils/authNavigation'
 import { applyShopSession, hasShopSession } from '@/utils/shopSession'
-import { useVisualViewportFixedBottom } from '@/utils/visualViewportFixedBottom'
 import { resolveBottomNav } from '@/utils/bottomNav'
 
 const route = useRoute()
@@ -108,8 +109,7 @@ const updateError = ref('')
 const authPrompt = ref('')
 const isLoggedIn = ref(false)
 const authMember = ref({})
-const bottomNavRef = ref(null)
-useVisualViewportFixedBottom(bottomNavRef)
+const pageScrollRef = ref(null)
 let authPromptTimer
 const isHome = computed(() => route.name === 'Home')
 const isProductDetail = computed(() => route.name === 'ProductDetail')
@@ -253,6 +253,9 @@ watch(addSequence, (sequence) => {
   cartFeedback.value = `+${lastAddedQuantity.value || 1}`
   window.clearTimeout(cartFeedbackTimer)
   cartFeedbackTimer = window.setTimeout(() => { cartFeedback.value = '' }, 1400)
+})
+watch(() => route.fullPath, () => {
+  nextTick(() => pageScrollRef.value?.scrollTo({ top: 0, left: 0 }))
 })
 onMounted(() => {
   window.addEventListener(AUTH_REQUIRED_EVENT, showAuthPrompt)

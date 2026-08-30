@@ -10,7 +10,6 @@ import { readDisplayExtraConfig, resolveCategoryGuideConfig, resolveDirectoryGui
 import { resolveBottomNav } from '../src/utils/bottomNav.js'
 import { resolveCurrentStock, stockAdditionViolation, stockQuantityViolation } from '../src/utils/stockRules.js'
 import { isGatewayRecoveryError, resolveRequestErrorMessage } from '../src/utils/requestErrors.js'
-import { resolveFixedBottomShift } from '../src/utils/visualViewportFixedBottom.js'
 import { resolveBrandCssVariables, themePresets } from '../src/utils/brand.js'
 
 const readView = (name) => readFile(new URL(`../src/views/${name}`, import.meta.url), 'utf8')
@@ -149,7 +148,7 @@ test('directory category guide renders all eight module combinations without emp
   assert.ok(categoryView.indexOf('class="cat-search"') < categoryView.indexOf('class="category-guide"'))
 })
 
-test('mobile bottom navigation follows the iOS visual viewport after browser chrome changes', async () => {
+test('mobile bottom navigation remains a non-fixed viewport row after browser chrome changes', async () => {
   const [app, teamApp, styles, index] = await Promise.all([
     readFile(new URL('../src/App.vue', import.meta.url), 'utf8'),
     readFile(new URL('../src/surfaces/team/TeamApp.vue', import.meta.url), 'utf8'),
@@ -157,13 +156,17 @@ test('mobile bottom navigation follows the iOS visual viewport after browser chr
     readFile(new URL('../index.html', import.meta.url), 'utf8'),
   ])
 
-  assert.equal(resolveFixedBottomShift(0, 640, 740), 100)
-  assert.equal(resolveFixedBottomShift(100, 740, 740), 100)
-  assert.equal(resolveFixedBottomShift(0, 700, 640), -60)
-  assert.match(app, /ref="bottomNavRef"/)
-  assert.match(app, /useVisualViewportFixedBottom\(bottomNavRef\)/)
-  assert.match(teamApp, /useVisualViewportFixedBottom\(teamBottomNavRef\)/)
-  assert.match(styles, /--bottom-nav-viewport-shift/)
+  assert.match(app, /class="app-page-scroll"/)
+  assert.match(app, /'has-global-chrome': showGlobalChrome/)
+  assert.match(styles, /\.app-shell\.has-global-chrome\s*\{[\s\S]*height: 100dvh;[\s\S]*grid-template-rows: minmax\(0, 1fr\) auto;[\s\S]*overflow: hidden;/)
+  assert.match(styles, /\.app-shell\.has-global-chrome > \.app-page-scroll\s*\{[\s\S]*overflow-y: auto;/)
+  assert.match(styles, /\.bottom-nav\s*\{[\s\S]*position: relative;/)
+  assert.match(teamApp, /\.team-shell\{height:100vh;height:100dvh;[\s\S]*grid-template-rows:auto minmax\(0,1fr\) auto;[\s\S]*overflow:hidden/)
+  assert.match(teamApp, /\.team-bottom-nav\{position:relative;/)
+  assert.doesNotMatch(app, /useVisualViewportFixedBottom|bottomNavRef/)
+  assert.doesNotMatch(teamApp, /useVisualViewportFixedBottom|teamBottomNavRef/)
+  assert.doesNotMatch(styles, /--bottom-nav-viewport-shift/)
+  assert.doesNotMatch(teamApp, /--bottom-nav-viewport-shift/)
   assert.match(index, /viewport-fit=cover/)
 })
 

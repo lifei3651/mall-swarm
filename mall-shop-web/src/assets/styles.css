@@ -73,6 +73,10 @@ button {
   padding-bottom: 0;
 }
 
+.app-page-scroll {
+  min-width: 0;
+}
+
 .site-header {
   position: sticky;
   top: 0;
@@ -723,10 +727,7 @@ main {
   }
 
   .bottom-nav {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    position: relative;
     z-index: 30;
     height: calc(52px + env(safe-area-inset-bottom));
     padding-bottom: env(safe-area-inset-bottom);
@@ -734,9 +735,28 @@ main {
     grid-template-columns: repeat(var(--bottom-nav-columns, 4), 1fr);
     background: white;
     border-top: 1px solid var(--line);
-    transform: translate3d(0, var(--bottom-nav-viewport-shift, 0px), 0);
-    backface-visibility: hidden;
-    will-change: transform;
+  }
+
+  /*
+   * iOS/微信的动态浏览器工具栏会让 fixed 元素偶发使用旧视口绘制。
+   * 导航改为视口网格的固定行，页面内容在独立区域滚动，避免任何 JS
+   * 位移补偿或 fixed 合成层把导航顶到商品列表中间。
+   */
+  .app-shell.has-global-chrome {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    overflow: hidden;
+  }
+
+  .app-shell.has-global-chrome > .app-page-scroll {
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
   }
 
   .bottom-nav a {
