@@ -27,6 +27,7 @@
       <MessageCenterEntry />
       <RouterLink to="/profile/addresses"><MapPinned :size="25" /><strong>收货地址</strong><span>管理常用地址</span></RouterLink>
       <RouterLink to="/profile/security/change-login-password"><KeyRound :size="25" /><strong>登录密码</strong><span>保护账号安全</span></RouterLink>
+      <RouterLink to="/profile/security"><ShieldCheck :size="25" /><strong>支付安全</strong><span>{{ wallet.hasPaymentPassword ? '修改支付密码' : '设置支付密码' }}</span></RouterLink>
       <RouterLink to="/profile/real-name"><BadgeCheck :size="25" /><strong>实名认证</strong><span>{{ wallet.realNameVerified ? '当前账号已认证' : '身份信息加密核验' }}</span></RouterLink>
       <RouterLink to="/legal/after-sale"><ShieldCheck :size="25" /><strong>售后规则</strong><span>查看服务说明</span></RouterLink>
       <RouterLink to="/support"><Headphones :size="25" /><strong>客服工单</strong><span>咨询、投诉与处理进度</span></RouterLink>
@@ -68,7 +69,7 @@ const loggingOut = ref(false)
 const confirmVisible = ref(false)
 const error = ref('')
 const profile = ref({})
-const wallet = ref({ balance: 0, realNameVerified: false })
+const wallet = ref({ balance: 0, hasPaymentPassword: false, realNameVerified: false })
 let stopRealtime
 
 const member = computed(() => profile.value.member || {})

@@ -6,7 +6,7 @@
     </header>
 
     <section class="panel form-panel">
-      <p class="form-hint">支付密码为6位数字，用于余额支付、转账和提现验证</p>
+      <p class="form-hint">支付密码为6位数字，用于余额支付和敏感资金操作验证</p>
       <p v-if="locked" class="warning">支付密码因连续输入错误已临时锁定，请30分钟后再试。</p>
       <div v-if="hasPassword" class="form-item"><label>当前支付密码</label><input v-model="form.oldPassword" class="field" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="请输入原6位支付密码" /></div>
       <template v-else>

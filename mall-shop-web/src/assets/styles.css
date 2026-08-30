@@ -800,6 +800,34 @@ main {
   .bottom-nav a.router-link-active {
     color: var(--teal);
   }
+
+  /* iOS 会对小于 16px 的输入框自动放大页面；移动端统一守住该下限。 */
+  html.shop-mobile-viewport-locked input:not([type="checkbox"]):not([type="radio"]),
+  html.shop-mobile-viewport-locked textarea,
+  html.shop-mobile-viewport-locked select {
+    font-size: 16px;
+  }
+
+  /*
+   * 键盘出现时功能导航不应被挤到键盘上方。内容区保留键盘高度的滚动空间，
+   * 当前输入框由 mobileViewport 统一滚入可视区域，键盘关闭后导航自动恢复。
+   */
+  html.shop-mobile-keyboard-open .app-shell.has-global-chrome {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  html.shop-mobile-keyboard-open .bottom-nav {
+    display: none;
+  }
+
+  html.shop-mobile-keyboard-open .app-shell > .app-page-scroll {
+    padding-bottom: var(--shop-keyboard-inset, 0px);
+    scroll-padding-bottom: calc(var(--shop-keyboard-inset, 0px) + 24px);
+  }
+
+  html.shop-mobile-keyboard-open .public-auth-page {
+    min-height: 100%;
+  }
 }
 
 @media (max-width: 560px) {

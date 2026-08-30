@@ -12,6 +12,7 @@ import { resolveCurrentStock, stockAdditionViolation, stockQuantityViolation } f
 import { resolvePositiveIntegerQuantity, sanitizePositiveIntegerInput } from '../src/utils/quantityInput.js'
 import { isGatewayRecoveryError, resolveRequestErrorMessage } from '../src/utils/requestErrors.js'
 import { resolveBrandCssVariables, themePresets } from '../src/utils/brand.js'
+import { isMobileKeyboardOpen, isTextEntryTarget } from '../src/utils/mobileViewport.js'
 
 const readView = (name) => readFile(new URL(`../src/views/${name}`, import.meta.url), 'utf8')
 const readStyles = () => readFile(new URL('../src/assets/styles.css', import.meta.url), 'utf8')
@@ -182,10 +183,31 @@ test('mobile bottom navigation uses one visual viewport and one scroll owner', a
   assert.match(teamApp, /installMobileViewport\(720\)/)
   assert.match(viewport, /window\.visualViewport/)
   assert.match(viewport, /--shop-visual-viewport-height/)
+  assert.match(viewport, /shop-mobile-keyboard-open/)
+  assert.match(viewport, /document\.addEventListener\('focusin', settle, true\)/)
+  assert.match(viewport, /--shop-keyboard-inset/)
+  assert.match(styles, /html\.shop-mobile-keyboard-open \.bottom-nav[\s\S]*display: none;/)
+  assert.match(teamApp, /shop-mobile-keyboard-open[\s\S]*\.team-bottom-nav[^\{]*\{display:none\}/)
   assert.doesNotMatch(viewport, /translate|offsetTop|bottom-nav-viewport-shift/)
   assert.doesNotMatch(styles, /--bottom-nav-viewport-shift/)
   assert.doesNotMatch(teamApp, /--bottom-nav-viewport-shift/)
   assert.match(index, /viewport-fit=cover/)
+})
+
+test('mobile keyboard detection only activates for a focused text field and a materially reduced viewport', () => {
+  const textInput = { tagName: 'INPUT', type: 'text', isContentEditable: false }
+  const numericInput = { tagName: 'INPUT', type: 'number', isContentEditable: false }
+  const checkbox = { tagName: 'INPUT', type: 'checkbox', isContentEditable: false }
+  const textarea = { tagName: 'TEXTAREA', isContentEditable: false }
+
+  assert.equal(isTextEntryTarget(textInput), true)
+  assert.equal(isTextEntryTarget(numericInput), true)
+  assert.equal(isTextEntryTarget(textarea), true)
+  assert.equal(isTextEntryTarget(checkbox), false)
+  assert.equal(isMobileKeyboardOpen({ activeElement: textInput, layoutHeight: 844, viewportHeight: 520 }), true)
+  assert.equal(isMobileKeyboardOpen({ activeElement: textInput, layoutHeight: 844, viewportHeight: 760 }), false)
+  assert.equal(isMobileKeyboardOpen({ activeElement: checkbox, layoutHeight: 844, viewportHeight: 520 }), false)
+  assert.equal(isMobileKeyboardOpen({ activeElement: null, layoutHeight: 844, viewportHeight: 520 }), false)
 })
 
 test('concurrent 401 responses share one login redirect and return shipment company length matches outbound shipping', async () => {
@@ -888,6 +910,20 @@ test('wallet password setup prompt is shown first and uses payment password word
   assert.match(security, /设置支付密码/)
   assert.match(change, /支付密码为6位数字/)
   assert.doesNotMatch(`${security}\n${change}\n${orderDetail}`, /交易密码|二级密码/)
+})
+
+test('public mall exposes payment security and payment password routes from profile and wallet', async () => {
+  const [router, profile, wallet] = await Promise.all([
+    readFile(new URL('../src/router/index.js', import.meta.url), 'utf8'),
+    readFile(new URL('../src/surfaces/public/PublicProfileView.vue', import.meta.url), 'utf8'),
+    readFile(new URL('../src/surfaces/public/PublicWalletView.vue', import.meta.url), 'utf8'),
+  ])
+  assert.match(router, /path: '\/profile\/security'.*SecurityView\.vue/)
+  assert.match(router, /path: '\/profile\/security\/change-payment-password'.*ChangePaymentPasswordView\.vue/)
+  assert.match(profile, /to="\/profile\/security"[\s\S]*支付安全/)
+  assert.match(profile, /wallet\.hasPaymentPassword \? '修改支付密码' : '设置支付密码'/)
+  assert.match(wallet, /to="\/profile\/security"/)
+  assert.match(wallet, /首次余额交易前需要完成设置/)
 })
 
 test('payment password setup uses the dedicated server-side SMS endpoint', async () => {
