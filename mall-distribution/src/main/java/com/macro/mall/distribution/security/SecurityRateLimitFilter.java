@@ -70,6 +70,16 @@ public class SecurityRateLimitFilter extends OncePerRequestFilter {
         if (HttpMethod.POST.matches(method) && "/shop/wechat-mini-program/auth/login".equals(path)) {
             return new Rule("wechat-mini-login", 10, 60);
         }
+        if (HttpMethod.POST.matches(method) && ("/pay/wechat/notify".equals(path)
+                || "/shop/pay/wechat/notify".equals(path)
+                || "/pay/wechat/refund-notify".equals(path)
+                || "/shop/pay/wechat/refund-notify".equals(path))) {
+            return new Rule("wechat-pay-callback", 6000, 60);
+        }
+        if (HttpMethod.POST.matches(method) && ("/pay/wechat/create".equals(path)
+                || "/shop/pay/wechat/create".equals(path))) {
+            return new Rule("wechat-pay-create", 20, 60);
+        }
         if (HttpMethod.GET.matches(method) && "/captcha".equals(path)) {
             return new Rule("captcha", 30, 60);
         }

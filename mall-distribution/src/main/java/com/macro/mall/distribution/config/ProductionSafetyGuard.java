@@ -7,6 +7,10 @@ import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
 import java.util.Set;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
  * 危险测试能力保险丝：不能只依赖 profile 名为 prod，因为遗漏 profile 本身就是常见误部署。
@@ -25,6 +29,9 @@ public class ProductionSafetyGuard {
         if (enabled("shop.wechat-mini-program.phone-authorization-enabled")
                 && !enabled("shop.wechat-mini-program.enabled")) {
             throw new IllegalStateException("微信手机号快捷验证必须在小程序登录开启后才能启用");
+        }
+        if (enabled("shop.wechat-pay.enabled") && !enabled("shop.wechat-mini-program.enabled")) {
+            throw new IllegalStateException("微信支付必须在微信小程序登录开启后才能启用");
         }
         boolean dangerousTestFeature = enabled("shop.payment.simulation-enabled")
                 || enabled("sms.expose-code") || (testCode != null && !testCode.isBlank());
@@ -87,6 +94,25 @@ public class ProductionSafetyGuard {
                     throw new IllegalStateException("启用微信小程序前必须开启敏感字段加密写入");
                 }
             }
+            if (enabled("shop.wechat-pay.enabled")) {
+                String mchId = environment.getProperty("shop.wechat-pay.mch-id", "").trim();
+                if (!mchId.matches("[0-9]{8,32}")) {
+                    throw new IllegalStateException("启用微信支付前必须配置合法的客户商户号");
+                }
+                String serial = environment.getProperty("shop.wechat-pay.merchant-serial-number", "").trim();
+                if (!serial.matches("[0-9A-Fa-f]{16,64}")) {
+                    throw new IllegalStateException("启用微信支付前必须配置合法的商户证书序列号");
+                }
+                requireConfigured("shop.wechat-pay.public-key-id", "启用微信支付前必须配置微信支付公钥ID");
+                String apiV3Key = environment.getProperty("shop.wechat-pay.api-v3-key", "");
+                if (apiV3Key.getBytes(StandardCharsets.UTF_8).length != 32 || isWeakSecret(apiV3Key)) {
+                    throw new IllegalStateException("启用微信支付前必须配置32字节独立API v3密钥");
+                }
+                requireReadableAbsoluteFile("shop.wechat-pay.private-key-path", "商户API私钥");
+                requireReadableAbsoluteFile("shop.wechat-pay.public-key-path", "微信支付公钥");
+                requireHttpsCallback("shop.wechat-pay.notify-url", "/wechat/notify");
+                requireHttpsCallback("shop.wechat-pay.refund-notify-url", "/wechat/refund-notify");
+            }
             boolean tencentLiveConfigured = "TENCENT".equalsIgnoreCase(environment.getProperty("shop.live.provider", "EXTERNAL"))
                     || !environment.getProperty("shop.live.tencent.push-domain", "").isBlank()
                     || !environment.getProperty("shop.live.tencent.play-domain", "").isBlank()
@@ -128,6 +154,33 @@ public class ProductionSafetyGuard {
 
     private void requireConfigured(String key, String message) {
         if (environment.getProperty(key, "").isBlank()) throw new IllegalStateException(message);
+    }
+
+    private void requireReadableAbsoluteFile(String key, String label) {
+        String value = environment.getProperty(key, "").trim();
+        Path path;
+        try {
+            path = Path.of(value);
+        } catch (Exception ex) {
+            throw new IllegalStateException(label + "路径不合法");
+        }
+        if (!path.isAbsolute() || !Files.isRegularFile(path) || !Files.isReadable(path)) {
+            throw new IllegalStateException(label + "必须是服务器受限目录中的可读绝对路径文件");
+        }
+    }
+
+    private void requireHttpsCallback(String key, String expectedSuffix) {
+        String value = environment.getProperty(key, "").trim();
+        try {
+            URI uri = URI.create(value);
+            if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null
+                    || uri.getRawQuery() != null || uri.getRawFragment() != null
+                    || uri.getPath() == null || !uri.getPath().endsWith(expectedSuffix)) {
+                throw new IllegalArgumentException();
+            }
+        } catch (Exception ex) {
+            throw new IllegalStateException(key + "必须是客户HTTPS域名下的固定微信回调地址");
+        }
     }
 
     private boolean isProductionProfile() {

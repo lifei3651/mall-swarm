@@ -33,11 +33,7 @@ Page({
   checkout() {
     if (!this.data.count) { wx.showToast({ title: '请先选择商品', icon: 'none' }); return }
     if (!auth.requireLogin('/pages/cart/index')) return
-    wx.showModal({
-      title: '支付能力待客户配置',
-      content: '商品、购物车和微信登录基座已就绪。微信支付必须使用客户自己的商户号完成 API v3 配置后才开放下单，当前不会创建无法支付的订单。',
-      showCancel: false
-    })
+    wx.navigateTo({ url: '/pages/checkout/index' })
   },
   goShopping() { wx.switchTab({ url: '/pages/home/index' }) }
 })

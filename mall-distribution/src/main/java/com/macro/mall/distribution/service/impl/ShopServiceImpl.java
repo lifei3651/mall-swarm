@@ -20,6 +20,7 @@ import com.macro.mall.distribution.dto.ProductNewArrivalDTO;
 import com.macro.mall.distribution.dto.FreightTemplateRuleDTO;
 import com.macro.mall.distribution.dto.FreightTemplateSaveDTO;
 import com.macro.mall.distribution.entity.*;
+import com.macro.mall.distribution.event.WeChatPayCloseEvent;
 import com.macro.mall.distribution.enums.AgentStatusEnum;
 import com.macro.mall.distribution.enums.PromotionJoinModeEnum;
 import com.macro.mall.distribution.service.CommissionService;
@@ -65,6 +66,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import com.github.pagehelper.PageHelper;
 import cn.hutool.crypto.digest.DigestUtil;
 
@@ -133,6 +135,8 @@ public class ShopServiceImpl implements ShopService {
     private final OrderRelationSnapshotService relationSnapshotService;
     @Autowired(required = false)
     private OrderRealtimeService orderRealtimeService;
+    @Autowired(required = false)
+    private ApplicationEventPublisher applicationEventPublisher;
     private final OrderBalanceAllocationService orderBalanceAllocationService;
     private final ShopAuthService authService;
     private final PaymentVerificationService paymentVerificationService;
@@ -1683,7 +1687,10 @@ public class ShopServiceImpl implements ShopService {
         if (trade == null) Asserts.fail("支付交易不存在");
         assertTenantAccess(trade.getTenantId());
         if (member != null && !member.getUserId().equals(trade.getUserId())) Asserts.fail("不能取消他人的订单");
-        if (Integer.valueOf(4).equals(trade.getStatus())) return true;
+        if (Integer.valueOf(4).equals(trade.getStatus())) {
+            publishWechatClose(trade.getPayType(), trade.getTradeNo());
+            return true;
+        }
         if (!Integer.valueOf(0).equals(trade.getStatus())) Asserts.fail("当前交易状态不能取消");
         List<DmsShopOrder> children = orderDao.selectByTradeIdForUpdate(checkoutId);
         if (children.isEmpty()) Asserts.fail("支付交易没有履约子订单");
@@ -1696,6 +1703,7 @@ public class ShopServiceImpl implements ShopService {
             notifyOrderChanged(child, "ORDER_CANCELLED");
         }
         if (tradeDao.closePending(checkoutId) != 1) Asserts.fail("交易父单关闭失败");
+        publishWechatClose(trade.getPayType(), trade.getTradeNo());
         return true;
     }
 
@@ -1711,7 +1719,10 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("不能取消他人的订单");
         }
         if (order.getTradeId() != null) return cancelCheckout(order.getTradeId(), member);
-        if (Integer.valueOf(4).equals(order.getStatus())) return true;
+        if (Integer.valueOf(4).equals(order.getStatus())) {
+            publishWechatClose(order.getPayType(), paymentNo(order));
+            return true;
+        }
         if (!Integer.valueOf(0).equals(order.getStatus())) {
             Asserts.fail("当前订单状态不能取消");
         }
@@ -1719,6 +1730,7 @@ public class ShopServiceImpl implements ShopService {
         if (updated > 0) {
             restockOrder(orderId);
             notifyOrderChanged(order, "ORDER_CANCELLED");
+            publishWechatClose(order.getPayType(), paymentNo(order));
         }
         return updated > 0;
     }
@@ -1786,6 +1798,7 @@ public class ShopServiceImpl implements ShopService {
                 && orderDao.closePending(orderId) > 0) {
             restockOrder(orderId);
             notifyOrderChanged(order, "ORDER_TIMEOUT_CLOSED");
+            publishWechatClose(order.getPayType(), paymentNo(order));
             return 1;
         }
         return 0;
@@ -1805,7 +1818,19 @@ public class ShopServiceImpl implements ShopService {
             closed++;
         }
         if (tradeDao.closePending(checkoutId) != 1) Asserts.fail("超时交易父单关闭失败");
+        publishWechatClose(trade.getPayType(), trade.getTradeNo());
         return closed;
+    }
+
+    private void publishWechatClose(String payType, String paymentNo) {
+        if (applicationEventPublisher == null || !"WECHAT".equalsIgnoreCase(payType)
+                || paymentNo == null || paymentNo.isBlank()) return;
+        applicationEventPublisher.publishEvent(new WeChatPayCloseEvent(paymentNo));
+    }
+
+    private String paymentNo(DmsShopOrder order) {
+        return order.getPaymentOrderNo() == null || order.getPaymentOrderNo().isBlank()
+                ? order.getOrderNo() : order.getPaymentOrderNo();
     }
 
     @Override

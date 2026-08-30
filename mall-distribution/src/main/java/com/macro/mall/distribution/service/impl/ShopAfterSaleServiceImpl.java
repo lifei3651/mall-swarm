@@ -948,7 +948,8 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
 
     private boolean requiresExternalRefund(DmsShopOrder order, DmsShopAfterSale afterSale) {
         return !simulationPaymentEnabled && order != null && afterSale != null
-                && "ALIPAY".equalsIgnoreCase(order.getPayType())
+                && ("ALIPAY".equalsIgnoreCase(order.getPayType())
+                    || "WECHAT".equalsIgnoreCase(order.getPayType()))
                 && afterSale.getRefundAmount() != null
                 && afterSale.getRefundAmount().compareTo(BigDecimal.ZERO) > 0;
     }

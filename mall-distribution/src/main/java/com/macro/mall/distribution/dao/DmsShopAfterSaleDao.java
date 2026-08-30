@@ -17,6 +17,12 @@ public interface DmsShopAfterSaleDao {
     DmsShopAfterSale selectByIdForUpdateScoped(@Param("tenantId") Long tenantId, @Param("id") Long id);
     default DmsShopAfterSale selectByIdForUpdate(Long id) { return selectByIdForUpdateScoped(TenantContext.getTenantId(), id); }
 
+    DmsShopAfterSale selectByAfterSaleNoForUpdateScoped(@Param("tenantId") Long tenantId,
+                                                        @Param("afterSaleNo") String afterSaleNo);
+    default DmsShopAfterSale selectByAfterSaleNoForUpdate(String afterSaleNo) {
+        return selectByAfterSaleNoForUpdateScoped(TenantContext.getTenantId(), afterSaleNo);
+    }
+
     DmsShopAfterSale selectOpenByOrderIdScoped(@Param("tenantId") Long tenantId, @Param("orderId") Long orderId);
     default DmsShopAfterSale selectOpenByOrderId(Long orderId) { return selectOpenByOrderIdScoped(TenantContext.getTenantId(), orderId); }
 

@@ -124,6 +124,16 @@ class SmsControllerTest {
     }
 
     @Test
+    void paymentEndpointUsesBoundPhoneAndServerSideBusinessType() {
+        when(shopAuthService.requireMember("Bearer token")).thenReturn(member("13900000000"));
+
+        CommonResult<String> result = controller.sendPaymentCode("Bearer token");
+
+        assertEquals(200, result.getCode());
+        verify(valueOperations).set(eq(codeKey(6, "13900000000")), eq("123456"), eq(5L), eq(TimeUnit.MINUTES));
+    }
+
+    @Test
     void unsupportedBusinessTypeIsRejectedBeforeAnySmsAction() {
         CommonResult<String> result = controller.sendCode(request("13888888888", null, 99), null);
 

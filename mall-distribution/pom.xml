@@ -123,6 +123,11 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- 微信支付 API v3 官方 Java SDK（小程序 JSAPI 支付、验签回调与退款） -->
+        <dependency>
+            <groupId>com.github.wechatpay-apiv3</groupId>
+            <artifactId>wechatpay-java</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.dom4j</groupId>
             <artifactId>dom4j</artifactId>

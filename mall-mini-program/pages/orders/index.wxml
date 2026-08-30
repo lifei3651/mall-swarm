@@ -9,6 +9,7 @@
       <view><text>{{line.productName}}</text><text class="order-spec">{{line.skuName || ''}} × {{line.quantity}}</text></view>
     </view>
     <view class="order-total">实付 <text>¥{{item.amountText}}</text></view>
-    <button wx:if="{{item.order.status === 0}}" class="secondary-button" bindtap="paymentNotice">查看支付说明</button>
+    <button wx:if="{{item.order.status === 0 && item.order.payType === 'WECHAT'}}" class="primary-button"
+      data-id="{{item.order.id}}" loading="{{payingId === item.order.id}}" disabled="{{payingId !== null}}" bindtap="pay">微信支付</button>
   </view>
 </view>

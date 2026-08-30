@@ -86,6 +86,7 @@ grep -q '^SHOP_LIVE_PROVIDER=EXTERNAL$' "$DEPLOY_DIR/.env"
 grep -q '^SHOP_REAL_NAME_ENABLED=false$' "$DEPLOY_DIR/.env"
 grep -q '^WECHAT_MINI_PROGRAM_ENABLED=false$' "$DEPLOY_DIR/.env"
 grep -q '^WECHAT_MINI_PROGRAM_PHONE_AUTH_ENABLED=false$' "$DEPLOY_DIR/.env"
+grep -q '^WECHAT_PAY_ENABLED=false$' "$DEPLOY_DIR/.env"
 grep -q '^LIVE_PLAYBACK_ORIGIN=$' "$DEPLOY_DIR/.env"
 grep -q 'LIVE_PLAYBACK_ORIGIN' "$DEPLOY_DIR/docker-compose.private.yml"
 grep -q "media-src 'self' blob: \${LIVE_PLAYBACK_ORIGIN}" "$DEPLOY_DIR/nginx/conf.d/mall.conf.template"
@@ -137,6 +138,17 @@ if "$DEPLOY_DIR/scripts/security-preflight.sh" --offline >/dev/null 2>&1; then
   exit 1
 fi
 mv "$DEPLOY_DIR/.env.bak" "$DEPLOY_DIR/.env"
+
+cp "$DEPLOY_DIR/.env" "$DEPLOY_DIR/.env.wechat-test"
+sed -i.bak 's/^WECHAT_MINI_PROGRAM_ENABLED=.*/WECHAT_MINI_PROGRAM_ENABLED=true/' "$DEPLOY_DIR/.env" && rm -f "$DEPLOY_DIR/.env.bak"
+sed -i.bak 's/^WECHAT_MINI_PROGRAM_APP_ID=.*/WECHAT_MINI_PROGRAM_APP_ID=wx1234567890abcdef/' "$DEPLOY_DIR/.env" && rm -f "$DEPLOY_DIR/.env.bak"
+sed -i.bak 's/^WECHAT_MINI_PROGRAM_APP_SECRET=.*/WECHAT_MINI_PROGRAM_APP_SECRET=strong-customer-app-secret/' "$DEPLOY_DIR/.env" && rm -f "$DEPLOY_DIR/.env.bak"
+sed -i.bak 's/^WECHAT_PAY_ENABLED=.*/WECHAT_PAY_ENABLED=true/' "$DEPLOY_DIR/.env" && rm -f "$DEPLOY_DIR/.env.bak"
+if "$DEPLOY_DIR/scripts/security-preflight.sh" --offline >/dev/null 2>&1; then
+  echo "微信支付缺少客户商户号、密钥和证书时预检不应通过" >&2
+  exit 1
+fi
+mv "$DEPLOY_DIR/.env.wechat-test" "$DEPLOY_DIR/.env"
 
 printf 'source map\n' > "$DEPLOY_DIR/html/public/app.js.map"
 if "$DEPLOY_DIR/scripts/security-preflight.sh" --offline >/dev/null 2>&1; then

@@ -5,7 +5,12 @@ import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.dao.DmsShopOrderDao;
 import com.macro.mall.distribution.dao.DmsShopTradeDao;
 import com.macro.mall.distribution.service.AlipayService;
+import com.macro.mall.distribution.service.WeChatPayService;
 import com.macro.mall.distribution.service.ShopAuthService;
+import com.macro.mall.distribution.service.impl.ExternalRefundCoordinator;
+import com.macro.mall.distribution.vo.WeChatPayParametersVO;
+import com.macro.mall.distribution.wechat.WeChatPayGateway;
+import com.macro.mall.common.log.SensitiveLogSanitizer;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsShopTrade;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,6 +38,8 @@ import java.util.Map;
 public class ShopPayController {
 
     private final AlipayService alipayService;
+    private final WeChatPayService weChatPayService;
+    private final ExternalRefundCoordinator externalRefundCoordinator;
     private final ShopAuthService authService;
     private final DmsShopOrderDao orderDao;
     private final DmsShopTradeDao tradeDao;
@@ -131,7 +138,74 @@ public class ShopPayController {
     public CommonResult<Map<String, Object>> getPayConfig() {
         Map<String, Object> config = new HashMap<>();
         config.put("alipayEnabled", alipayService.isConfigured());
+        config.put("wechatPayEnabled", weChatPayService.isConfigured());
         return CommonResult.success(config);
+    }
+
+    @Operation(summary = "创建微信小程序支付订单")
+    @PostMapping("/wechat/create")
+    public CommonResult<WeChatPayParametersVO> createWechatOrder(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam Long orderId) {
+        return CommonResult.success(weChatPayService.createPayOrder(orderId,
+                authService.requireMember(authorization)));
+    }
+
+    @Operation(summary = "查询并核对微信支付订单状态")
+    @GetMapping("/wechat/query")
+    public CommonResult<Boolean> queryWechatOrder(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam Long orderId) {
+        return CommonResult.success(weChatPayService.reconcileOrder(orderId,
+                authService.requireMember(authorization)));
+    }
+
+    @Operation(summary = "微信支付异步通知")
+    @PostMapping("/wechat/notify")
+    public ResponseEntity<?> wechatNotify(
+            @RequestHeader(value = "Wechatpay-Serial", required = false) String serial,
+            @RequestHeader(value = "Wechatpay-Signature", required = false) String signature,
+            @RequestHeader(value = "Wechatpay-Timestamp", required = false) String timestamp,
+            @RequestHeader(value = "Wechatpay-Nonce", required = false) String nonce,
+            @RequestHeader(value = "Wechatpay-Signature-Type", required = false, defaultValue = "WECHATPAY2-SHA256-RSA2048") String signatureType,
+            @RequestBody String body) {
+        try {
+            weChatPayService.handlePaymentNotification(notification(serial, signature, timestamp, nonce, signatureType, body));
+            return ResponseEntity.noContent().build();
+        } catch (Exception ex) {
+            log.warn("微信支付通知处理失败: {}", SensitiveLogSanitizer.sanitizeText(ex.getMessage()));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("code", "FAIL", "message", "支付通知处理失败"));
+        }
+    }
+
+    @Operation(summary = "微信退款异步通知")
+    @PostMapping("/wechat/refund-notify")
+    public ResponseEntity<?> wechatRefundNotify(
+            @RequestHeader(value = "Wechatpay-Serial", required = false) String serial,
+            @RequestHeader(value = "Wechatpay-Signature", required = false) String signature,
+            @RequestHeader(value = "Wechatpay-Timestamp", required = false) String timestamp,
+            @RequestHeader(value = "Wechatpay-Nonce", required = false) String nonce,
+            @RequestHeader(value = "Wechatpay-Signature-Type", required = false, defaultValue = "WECHATPAY2-SHA256-RSA2048") String signatureType,
+            @RequestBody String body) {
+        try {
+            WeChatPayGateway.RefundNotification notification = weChatPayService.parseRefundNotification(
+                    notification(serial, signature, timestamp, nonce, signatureType, body));
+            externalRefundCoordinator.completeWechatRefund(notification);
+            return ResponseEntity.noContent().build();
+        } catch (Exception ex) {
+            log.warn("微信退款通知处理失败: {}", SensitiveLogSanitizer.sanitizeText(ex.getMessage()));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("code", "FAIL", "message", "退款通知处理失败"));
+        }
+    }
+
+    private WeChatPayGateway.NotificationRequest notification(String serial, String signature, String timestamp,
+                                                               String nonce, String signatureType, String body) {
+        if (serial == null || signature == null || timestamp == null || nonce == null || body == null || body.isBlank()) {
+            throw new IllegalArgumentException("微信通知请求头或正文不完整");
+        }
+        return new WeChatPayGateway.NotificationRequest(serial, signature, timestamp, nonce, signatureType, body);
     }
 
     private PaymentTarget paymentTarget(Long checkoutOrOrderId) {

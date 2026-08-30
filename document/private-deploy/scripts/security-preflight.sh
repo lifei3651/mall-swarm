@@ -150,6 +150,34 @@ case "$wechat_mini" in
   *) fail "WECHAT_MINI_PROGRAM_ENABLED 只能是 true 或 false" ;;
 esac
 
+wechat_pay=$(value_of WECHAT_PAY_ENABLED)
+case "$wechat_pay" in
+  true)
+    [ "$wechat_mini" = "true" ] || fail "启用微信支付前必须启用微信小程序登录"
+    printf '%s' "$(value_of WECHAT_PAY_MCH_ID)" | grep -Eq '^[0-9]{8,32}$' || fail "微信支付商户号格式不正确"
+    printf '%s' "$(value_of WECHAT_PAY_MERCHANT_SERIAL_NUMBER)" | grep -Eq '^[0-9A-Fa-f]{16,64}$' \
+      || fail "微信支付商户证书序列号格式不正确"
+    require_value WECHAT_PAY_PUBLIC_KEY_ID
+    api_v3_key=$(value_of WECHAT_PAY_API_V3_KEY)
+    [ "${#api_v3_key}" -eq 32 ] || fail "WECHAT_PAY_API_V3_KEY 必须正好32字节"
+    cert_dir=$(value_of WECHAT_PAY_CERT_DIR)
+    case "$cert_dir" in /*) : ;; *) cert_dir="$DEPLOY_DIR/${cert_dir#./}" ;; esac
+    [ -d "$cert_dir" ] || fail "微信支付证书目录不存在：$cert_dir"
+    private_key="$cert_dir/apiclient_key.pem"
+    public_key="$cert_dir/wechatpay_public_key.pem"
+    [ -f "$private_key" ] && [ -f "$public_key" ] || fail "微信支付私钥或公钥PEM文件缺失"
+    [ "$(file_mode "$private_key")" = "600" ] || fail "微信支付商户API私钥权限必须是600"
+    case "$(value_of WECHAT_PAY_PRIVATE_KEY_PATH)" in /run/secrets/wechat-pay/apiclient_key.pem) : ;; *) fail "微信支付容器私钥路径不可修改" ;; esac
+    case "$(value_of WECHAT_PAY_PUBLIC_KEY_PATH)" in /run/secrets/wechat-pay/wechatpay_public_key.pem) : ;; *) fail "微信支付容器公钥路径不可修改" ;; esac
+    for key in WECHAT_PAY_NOTIFY_URL WECHAT_PAY_REFUND_NOTIFY_URL; do
+      value=$(value_of "$key")
+      case "$value" in "https://$domain"/api/pay/wechat/*) : ;; *) fail "$key 必须使用客户HTTPS主域名和固定微信支付回调路径" ;; esac
+    done
+    ;;
+  false) : ;;
+  *) fail "WECHAT_PAY_ENABLED 只能是 true 或 false" ;;
+esac
+
 sms=$(value_of SMS_PROVIDER_ENABLED)
 case "$sms" in
   true)

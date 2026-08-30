@@ -57,6 +57,8 @@ command -v openssl >/dev/null 2>&1 || { echo "缺少 openssl，不能安全生�
 umask 077
 cp "$TEMPLATE" "$ENV_FILE"
 chmod 600 "$ENV_FILE"
+mkdir -p "$DEPLOY_DIR/secrets/wechat-pay"
+chmod 700 "$DEPLOY_DIR/secrets" "$DEPLOY_DIR/secrets/wechat-pay"
 
 replace_value() {
   key=$1

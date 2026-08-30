@@ -289,7 +289,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, ClipboardPaste, Plus, Settings2, ShieldCheck, X } from 'lucide-vue-next'
-import { getHome, getMe, getWalletSummary, listAddresses, submitOrder, submitFlashSaleOrder, quoteFreight, checkPaymentVerify, sendSmsCode, sendPaymentPasswordSmsCode, setPaymentPassword, payOrderWithBalance, createAlipayOrder, getPayConfig } from '@/api/shop'
+import { getHome, getMe, getWalletSummary, listAddresses, submitOrder, submitFlashSaleOrder, quoteFreight, checkPaymentVerify, sendPaymentSmsCode, sendPaymentPasswordSmsCode, setPaymentPassword, payOrderWithBalance, createAlipayOrder, getPayConfig } from '@/api/shop'
 import { mixedBusinessError, validateCheckoutBusinessType } from '@surface-commerce-policy'
 import { useCart } from '@/store/cart'
 import { money, joinAddress } from '@/utils/format'
@@ -665,7 +665,7 @@ const sendVerifyCode = async () => {
     return
   }
   try {
-    await sendSmsCode(memberPhone.value, 6) // 6=支付确认；服务端会再次绑定当前登录会员手机号
+    await sendPaymentSmsCode()
     smsCooldown.value = 60
     window.clearInterval(paymentSmsTimer)
     paymentSmsTimer = window.setInterval(() => {

@@ -1,0 +1,34 @@
+<view class="checkout-page">
+  <view wx:if="{{loading}}" class="empty">正在加载结算信息…</view>
+  <block wx:else>
+    <view class="address-card" bindtap="chooseAddress">
+      <block wx:if="{{address}}">
+        <view class="address-head"><text>{{address.receiverName}}</text><text>{{address.receiverPhone}}</text></view>
+        <view class="address-detail">{{address.province}}{{address.city}}{{address.district}}{{address.detailAddress}}</view>
+      </block>
+      <view wx:else class="address-empty">＋ 添加收货地址</view>
+      <text class="arrow">›</text>
+    </view>
+    <view class="checkout-items">
+      <view class="checkout-item" wx:for="{{rows}}" wx:key="key">
+        <image src="{{item.coverUrl}}" mode="aspectFill" />
+        <view><text class="item-name">{{item.productName}}</text><text class="muted">{{item.skuName || '默认规格'}} × {{item.quantity}}</text></view>
+        <text class="item-price">¥{{item.priceText}}</text>
+      </view>
+    </view>
+    <view class="remark-card"><text>订单备注</text><input maxlength="500" placeholder="选填，可填写给商家的说明" value="{{remark}}" bindinput="remarkInput" /></view>
+    <view class="pay-card"><text>支付方式</text><view><text class="wechat-dot">✓</text> 微信支付</view></view>
+    <view wx:if="{{needSmsVerify}}" class="sms-card">
+      <view><text class="sms-title">大额支付验证</text><text class="muted">验证码只发送到当前账号绑定手机号</text></view>
+      <view class="sms-row">
+        <input type="number" maxlength="6" placeholder="6位验证码" value="{{smsCode}}" bindinput="smsCodeInput" />
+        <button size="mini" loading="{{smsSending}}" disabled="{{smsSending || smsCooldown > 0}}" bindtap="sendPaymentSms">{{smsCooldown > 0 ? smsCooldown + '秒' : '获取验证码'}}</button>
+      </view>
+    </view>
+    <view class="amount-card"><view><text>商品金额</text><text>¥{{total}}</text></view><view><text>运费</text><text>{{freight === '--' ? '待确认' : '¥' + freight}}</text></view></view>
+    <view class="checkout-footer">
+      <view><text class="muted">共 {{count}} 件</text><text>合计 ¥{{payTotal || total}}</text></view>
+      <button class="primary-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">提交并支付</button>
+    </view>
+  </block>
+</view>

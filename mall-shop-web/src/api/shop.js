@@ -488,6 +488,14 @@ export function sendPaymentPasswordSmsCode() {
   })
 }
 
+// 大额支付确认验证码同样由服务端固定业务类型和绑定手机号。
+export function sendPaymentSmsCode() {
+  return request({
+    url: '/sms/send/payment',
+    method: 'post',
+  })
+}
+
 export function verifySmsCode(phone, code, bizType = 1) {
   return request({
     url: '/sms/verify',

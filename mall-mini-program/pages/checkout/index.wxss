@@ -1,0 +1,31 @@
+.checkout-page { min-height: 100vh; padding: 22rpx 22rpx 180rpx; }
+.address-card { position: relative; padding: 28rpx 64rpx 28rpx 28rpx; border-radius: 24rpx; background: #fff; }
+.address-head { display: flex; gap: 28rpx; font-weight: 700; }
+.address-detail { margin-top: 14rpx; line-height: 42rpx; color: #555e6d; }
+.address-empty { padding: 16rpx 0; color: var(--brand); font-weight: 600; }
+.arrow { position: absolute; right: 28rpx; top: 50%; transform: translateY(-50%); color: #a4abb6; font-size: 46rpx; }
+.checkout-items { margin-top: 20rpx; padding: 8rpx 24rpx; border-radius: 24rpx; background: #fff; }
+.checkout-item { display: flex; align-items: center; padding: 20rpx 0; border-bottom: 1rpx solid #edf0f3; }
+.checkout-item:last-child { border-bottom: 0; }
+.checkout-item image { flex: none; width: 130rpx; height: 130rpx; border-radius: 16rpx; background: #eef0f3; }
+.checkout-item > view { min-width: 0; flex: 1; margin-left: 18rpx; }
+.checkout-item text { display: block; }
+.item-name { margin-bottom: 12rpx; font-weight: 600; }
+.item-price { flex: none; margin-left: 12rpx; color: var(--brand); font-weight: 700; }
+.remark-card, .pay-card { display: flex; align-items: center; margin-top: 20rpx; padding: 28rpx; border-radius: 24rpx; background: #fff; }
+.remark-card > text, .pay-card > text { flex: none; font-weight: 600; }
+.remark-card input { min-width: 0; flex: 1; margin-left: 28rpx; text-align: right; }
+.pay-card { justify-content: space-between; }
+.sms-card { margin-top: 20rpx; padding: 28rpx; border-radius: 24rpx; background: #fff; }
+.sms-card > view:first-child text { display: block; }
+.sms-title { margin-bottom: 8rpx; font-weight: 600; }
+.sms-row { display: flex; align-items: center; gap: 18rpx; margin-top: 20rpx; }
+.sms-row input { min-width: 0; flex: 1; height: 76rpx; padding: 0 20rpx; border: 1rpx solid #dfe3e8; border-radius: 14rpx; }
+.sms-row button { flex: none; width: 220rpx; margin: 0; color: var(--brand); }
+.amount-card { margin-top: 20rpx; padding: 18rpx 28rpx; border-radius: 24rpx; background: #fff; }
+.amount-card view { display: flex; justify-content: space-between; padding: 12rpx 0; }
+.wechat-dot { display: inline-block; width: 38rpx; height: 38rpx; margin-right: 10rpx; border-radius: 50%; background: #07c160; color: #fff; text-align: center; line-height: 38rpx; }
+.checkout-footer { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; padding: 18rpx 24rpx calc(18rpx + env(safe-area-inset-bottom)); background: #fff; box-shadow: 0 -8rpx 30rpx rgba(20,30,50,.08); }
+.checkout-footer > view text { display: block; }
+.checkout-footer > view text:last-child { margin-top: 4rpx; color: var(--brand); font-size: 32rpx; font-weight: 700; }
+.checkout-footer button { width: 280rpx; margin: 0; }

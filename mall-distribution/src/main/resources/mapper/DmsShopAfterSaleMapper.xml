@@ -61,6 +61,16 @@
         FOR UPDATE
     </select>
 
+    <select id="selectByAfterSaleNoForUpdateScoped" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_after_sale
+        WHERE after_sale_no = #{afterSaleNo}
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order WHERE scoped_order.id = dms_shop_after_sale.order_id
+                      AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
+        LIMIT 1
+        FOR UPDATE
+    </select>
+
     <select id="selectOpenByOrderIdScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_after_sale

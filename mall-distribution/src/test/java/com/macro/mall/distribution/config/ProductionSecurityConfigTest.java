@@ -2,6 +2,7 @@ package com.macro.mall.distribution.config;
 
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -9,6 +10,8 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 class ProductionSecurityConfigTest {
 
@@ -132,6 +135,35 @@ class ProductionSecurityConfigTest {
     }
 
     @Test
+    void productionWechatPayRequiresMiniProgramAndCompleteApiV3Material(@TempDir Path tempDir) throws Exception {
+        MockEnvironment paymentWithoutMini = new MockEnvironment()
+                .withProperty("shop.wechat-pay.enabled", "true")
+                .withProperty("shop.wechat-mini-program.enabled", "false");
+        assertThrows(IllegalStateException.class,
+                () -> new ProductionSafetyGuard(paymentWithoutMini).validate());
+
+        Path privateKey = Files.writeString(tempDir.resolve("apiclient_key.pem"), "private-key");
+        Path publicKey = Files.writeString(tempDir.resolve("wechatpay_public_key.pem"), "public-key");
+        MockEnvironment complete = completeProductionEnvironment()
+                .withProperty("shop.wechat-mini-program.enabled", "true")
+                .withProperty("shop.wechat-mini-program.app-id", "wx1234567890abcdef")
+                .withProperty("shop.wechat-mini-program.app-secret", "customer-strong-wechat-secret")
+                .withProperty("shop.wechat-mini-program.privacy-consent-version", "privacy-2026-08")
+                .withProperty("security.data-encryption.write-enabled", "true")
+                .withProperty("shop.wechat-pay.enabled", "true")
+                .withProperty("shop.wechat-pay.mch-id", "1900000001")
+                .withProperty("shop.wechat-pay.merchant-serial-number", "ABCDEF0123456789")
+                .withProperty("shop.wechat-pay.private-key-path", privateKey.toString())
+                .withProperty("shop.wechat-pay.public-key-id", "PUB_KEY_ID_ABCDEF")
+                .withProperty("shop.wechat-pay.public-key-path", publicKey.toString())
+                .withProperty("shop.wechat-pay.api-v3-key", "12345678901234567890123456789012")
+                .withProperty("shop.wechat-pay.notify-url", "https://mall.example.com/api/pay/wechat/notify")
+                .withProperty("shop.wechat-pay.refund-notify-url", "https://mall.example.com/api/pay/wechat/refund-notify");
+
+        new ProductionSafetyGuard(complete).validate();
+    }
+
+    @Test
     void securityHeadersProtectSensitiveHttpsResponses() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/shop/wallet/summary");
         request.setSecure(true);
@@ -144,6 +176,16 @@ class ProductionSecurityConfigTest {
         assertEquals("no-store", response.getHeader("Cache-Control"));
         assertEquals("max-age=31536000; includeSubDomains",
                 response.getHeader("Strict-Transport-Security"));
+    }
+
+    @Test
+    void securityHeadersPreventWechatPaymentCaching() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/pay/wechat/notify");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        new SecurityHeadersFilter().doFilter(request, response, mock(FilterChain.class));
+
+        assertEquals("no-store", response.getHeader("Cache-Control"));
     }
 
     private MockEnvironment safeProductionEnvironment() {

@@ -66,6 +66,20 @@ class SecurityRateLimitFilterTest {
     }
 
     @Test
+    void appliesDedicatedRulesToWechatPaymentAndCallbacks() {
+        SecurityRateLimitFilter filter = new SecurityRateLimitFilter(mock(SecurityRateLimitService.class));
+        SecurityRateLimitFilter.Rule create = filter.resolveRule(
+                new MockHttpServletRequest("POST", "/shop/pay/wechat/create"));
+        SecurityRateLimitFilter.Rule notify = filter.resolveRule(
+                new MockHttpServletRequest("POST", "/pay/wechat/notify"));
+
+        assertEquals("wechat-pay-create", create.name());
+        assertEquals(20, create.maximumRequests());
+        assertEquals("wechat-pay-callback", notify.name());
+        assertEquals(6000, notify.maximumRequests());
+    }
+
+    @Test
     void appliesDedicatedRuleToAfterSaleProofUploads() {
         SecurityRateLimitFilter filter = new SecurityRateLimitFilter(mock(SecurityRateLimitService.class));
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/shop/media/after-sale-proofs");

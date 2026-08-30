@@ -115,6 +115,20 @@ shop:
     privacy-consent-version: ${WECHAT_MINI_PROGRAM_PRIVACY_VERSION:MINI_PROGRAM_PRIVACY_V1}
     connect-timeout-ms: ${WECHAT_MINI_PROGRAM_CONNECT_TIMEOUT_MS:5000}
     read-timeout-ms: ${WECHAT_MINI_PROGRAM_READ_TIMEOUT_MS:10000}
+  wechat-pay:
+    # 程序能力与客户商户资料分离：代码可随基座交付，未完成客户签约和联调时保持关闭。
+    enabled: ${WECHAT_PAY_ENABLED:false}
+    mch-id: ${WECHAT_PAY_MCH_ID:}
+    merchant-serial-number: ${WECHAT_PAY_MERCHANT_SERIAL_NUMBER:}
+    # 两个PEM文件只能放在服务器受限目录，禁止写入仓库、镜像或前端。
+    private-key-path: ${WECHAT_PAY_PRIVATE_KEY_PATH:}
+    public-key-id: ${WECHAT_PAY_PUBLIC_KEY_ID:}
+    public-key-path: ${WECHAT_PAY_PUBLIC_KEY_PATH:}
+    api-v3-key: ${WECHAT_PAY_API_V3_KEY:}
+    notify-url: ${WECHAT_PAY_NOTIFY_URL:}
+    refund-notify-url: ${WECHAT_PAY_REFUND_NOTIFY_URL:}
+    connect-timeout-ms: ${WECHAT_PAY_CONNECT_TIMEOUT_MS:5000}
+    read-timeout-ms: ${WECHAT_PAY_READ_TIMEOUT_MS:10000}
   catalog:
     # 商城基座默认足够大；客户确有大量行业分类时可通过环境变量调整，无需改代码。
     max-categories: ${SHOP_MAX_CATEGORIES:500}

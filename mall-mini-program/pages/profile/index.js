@@ -16,7 +16,7 @@ Page({
   },
   login() { wx.navigateTo({ url: '/pages/login/index' }) },
   orders() { if (this.requireLogin()) wx.navigateTo({ url: '/pages/orders/index' }) },
-  addresses() { wx.showToast({ title: '地址管理将在支付接入阶段开放', icon: 'none' }) },
+  addresses() { if (this.requireLogin()) wx.navigateTo({ url: '/pages/address/index' }) },
   service() { wx.showToast({ title: '售后入口随订单履约阶段开放', icon: 'none' }) },
   requireLogin() { if (this.data.loggedIn) return true; this.login(); return false },
   logout() {

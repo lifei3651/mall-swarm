@@ -7,11 +7,13 @@ import com.macro.mall.distribution.dao.DmsShopOrderItemDao;
 import com.macro.mall.distribution.dao.DmsShopOrderShipmentDao;
 import com.macro.mall.distribution.dao.DmsAgentDao;
 import com.macro.mall.distribution.dao.DmsShopOrderDao;
+import com.macro.mall.distribution.dao.DmsShopTradeDao;
 import com.macro.mall.distribution.entity.DmsShopAfterSale;
 import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.entity.DmsShopOrderItem;
 import com.macro.mall.distribution.entity.DmsShopOrderShipment;
 import com.macro.mall.distribution.service.impl.ExternalRefundCoordinator;
+import com.macro.mall.distribution.wechat.WeChatPayGateway;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionStatus;
@@ -41,7 +43,8 @@ class ExternalRefundCoordinatorTest {
                 mock(DmsShopAfterSaleItemDao.class), mock(DmsShopOrderDao.class),
                 mock(DmsShopOrderItemDao.class), mock(DmsShopOrderShipmentDao.class),
                 mock(DmsAgentDao.class), mock(AgentService.class),
-                alipay, mock(PlatformTransactionManager.class)).process(1L));
+                mock(DmsShopTradeDao.class), alipay, mock(WeChatPayService.class),
+                mock(PlatformTransactionManager.class)).process(1L));
 
         verifyNoInteractions(alipay);
     }
@@ -71,7 +74,8 @@ class ExternalRefundCoordinatorTest {
         when(alipay.refund("TRADE-100", "AS-1", "99.00", "商城售后退款：测试退款")).thenReturn(true);
 
         new ExternalRefundCoordinator(saleDao, saleItemDao, orderDao, orderItemDao,
-                mock(DmsShopOrderShipmentDao.class), agentDao, agentService, alipay, manager).process(1L);
+                mock(DmsShopOrderShipmentDao.class), agentDao, agentService,
+                mock(DmsShopTradeDao.class), alipay, mock(WeChatPayService.class), manager).process(1L);
 
         verify(saleDao).markRefundCompleted(1L);
         verify(alipay).refund("TRADE-100", "AS-1", "99.00", "商城售后退款：测试退款");
@@ -97,7 +101,9 @@ class ExternalRefundCoordinatorTest {
 
         assertThrows(ApiException.class,
                 () -> new ExternalRefundCoordinator(saleDao, saleItemDao, orderDao, orderItemDao,
-                        mock(DmsShopOrderShipmentDao.class), agentDao, agentService, alipay, manager).process(1L));
+                        mock(DmsShopOrderShipmentDao.class), agentDao, agentService,
+                        mock(DmsShopTradeDao.class), alipay, mock(WeChatPayService.class), manager).process(1L));
+
         verify(saleDao, never()).markRefundCompleted(1L);
     }
 
@@ -131,7 +137,8 @@ class ExternalRefundCoordinatorTest {
         when(alipay.refund("ORDER-2", "AS-1", "99.00", "商城售后退款：测试退款")).thenReturn(true);
 
         new ExternalRefundCoordinator(saleDao, saleItemDao, orderDao, orderItemDao,
-                shipmentDao, mock(DmsAgentDao.class), mock(AgentService.class), alipay, manager).process(1L);
+                shipmentDao, mock(DmsAgentDao.class), mock(AgentService.class),
+                mock(DmsShopTradeDao.class), alipay, mock(WeChatPayService.class), manager).process(1L);
 
         verify(orderDao).ship(2L, "顺丰速运", "SF-PARTIAL-001");
         verify(orderDao, never()).closeAfterSale(2L);
@@ -158,9 +165,82 @@ class ExternalRefundCoordinatorTest {
         assertThrows(IllegalStateException.class,
                 () -> new ExternalRefundCoordinator(saleDao, saleItemDao, orderDao, orderItemDao,
                         mock(DmsShopOrderShipmentDao.class), mock(DmsAgentDao.class),
-                        mock(AgentService.class), alipay, manager).process(1L));
+                        mock(AgentService.class), mock(DmsShopTradeDao.class), alipay,
+                        mock(WeChatPayService.class), manager).process(1L));
 
         verify(manager).rollback(transaction);
+        verify(orderDao, never()).closeAfterSale(2L);
+    }
+
+    @Test
+    void wechatProcessingRefundWaitsForSignedCallback() {
+        DmsShopAfterSaleDao saleDao = mock(DmsShopAfterSaleDao.class);
+        DmsShopOrderDao orderDao = mock(DmsShopOrderDao.class);
+        WeChatPayService wechat = mock(WeChatPayService.class);
+        DmsShopAfterSale sale = pendingSale();
+        DmsShopOrder order = wechatOrder();
+        when(saleDao.selectById(1L)).thenReturn(sale);
+        when(orderDao.selectById(2L)).thenReturn(order);
+        when(wechat.isConfigured()).thenReturn(true);
+        when(wechat.requestRefund("ORDER-2", "AS-1", new BigDecimal("99.00"),
+                new BigDecimal("99.00"), "商城售后退款：测试退款"))
+                .thenReturn(WeChatPayService.RefundState.PROCESSING);
+
+        new ExternalRefundCoordinator(saleDao, mock(DmsShopAfterSaleItemDao.class), orderDao,
+                mock(DmsShopOrderItemDao.class), mock(DmsShopOrderShipmentDao.class),
+                mock(DmsAgentDao.class), mock(AgentService.class), mock(DmsShopTradeDao.class),
+                mock(AlipayService.class), wechat, mock(PlatformTransactionManager.class)).process(1L);
+
+        verify(saleDao, never()).markRefundCompleted(1L);
+    }
+
+    @Test
+    void signedWechatRefundCallbackCompletesMatchingProcessingSale() {
+        DmsShopAfterSaleDao saleDao = mock(DmsShopAfterSaleDao.class);
+        DmsShopAfterSaleItemDao saleItemDao = mock(DmsShopAfterSaleItemDao.class);
+        DmsShopOrderDao orderDao = mock(DmsShopOrderDao.class);
+        DmsShopOrderItemDao orderItemDao = mock(DmsShopOrderItemDao.class);
+        PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
+        when(manager.getTransaction(any())).thenReturn(mock(TransactionStatus.class));
+        DmsShopAfterSale sale = pendingSale();
+        DmsShopOrder order = wechatOrder();
+        when(saleDao.selectByAfterSaleNoForUpdate("AS-1")).thenReturn(sale);
+        when(saleDao.selectByIdForUpdate(1L)).thenReturn(sale);
+        when(saleDao.markRefundCompleted(1L)).thenReturn(1);
+        when(orderDao.selectByIdForUpdate(2L)).thenReturn(order);
+        when(orderItemDao.selectByOrderId(2L)).thenReturn(List.of(orderItem(2)));
+        when(saleItemDao.sumApprovedQuantityByOrderId(2L)).thenReturn(2);
+
+        new ExternalRefundCoordinator(saleDao, saleItemDao, orderDao, orderItemDao,
+                mock(DmsShopOrderShipmentDao.class), mock(DmsAgentDao.class), mock(AgentService.class),
+                mock(DmsShopTradeDao.class), mock(AlipayService.class), mock(WeChatPayService.class), manager)
+                .completeWechatRefund(new WeChatPayGateway.RefundNotification(
+                        "SUCCESS", "ORDER-2", "AS-1", 9900L, 9900L, "CNY"));
+
+        verify(saleDao).markRefundCompleted(1L);
+        verify(orderDao).closeAfterSale(2L);
+    }
+
+    @Test
+    void repeatedSignedWechatRefundCallbackOnlyValidatesAndDoesNotFinalizeAgain() {
+        DmsShopAfterSaleDao saleDao = mock(DmsShopAfterSaleDao.class);
+        DmsShopOrderDao orderDao = mock(DmsShopOrderDao.class);
+        PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
+        when(manager.getTransaction(any())).thenReturn(mock(TransactionStatus.class));
+        DmsShopAfterSale sale = pendingSale();
+        sale.setStatus(1);
+        DmsShopOrder order = wechatOrder();
+        when(saleDao.selectByAfterSaleNoForUpdate("AS-1")).thenReturn(sale);
+        when(orderDao.selectByIdForUpdate(2L)).thenReturn(order);
+
+        new ExternalRefundCoordinator(saleDao, mock(DmsShopAfterSaleItemDao.class), orderDao,
+                mock(DmsShopOrderItemDao.class), mock(DmsShopOrderShipmentDao.class),
+                mock(DmsAgentDao.class), mock(AgentService.class), mock(DmsShopTradeDao.class),
+                mock(AlipayService.class), mock(WeChatPayService.class), manager)
+                .completeWechatRefund(new WeChatPayGateway.RefundNotification(
+                        "SUCCESS", "ORDER-2", "AS-1", 9900L, 9900L, "CNY"));
+
+        verify(saleDao, never()).markRefundCompleted(1L);
         verify(orderDao, never()).closeAfterSale(2L);
     }
 
@@ -180,6 +260,13 @@ class ExternalRefundCoordinatorTest {
         order.setId(2L);
         order.setOrderNo("ORDER-2");
         order.setPayType("ALIPAY");
+        return order;
+    }
+
+    private DmsShopOrder wechatOrder() {
+        DmsShopOrder order = alipayOrder();
+        order.setPayType("WECHAT");
+        order.setPayAmount(new BigDecimal("99.00"));
         return order;
     }
 

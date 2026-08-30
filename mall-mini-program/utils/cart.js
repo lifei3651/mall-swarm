@@ -13,5 +13,6 @@ function add(item) {
 function update(key, patch) { return save(list().map((row) => row.key === key ? { ...row, ...patch } : row)) }
 function remove(key) { return save(list().filter((row) => row.key !== key)) }
 function clearSelected() { return save(list().filter((row) => !row.selected)) }
+function selected() { return list().filter((row) => row.selected) }
 
-module.exports = { list, add, update, remove, clearSelected }
+module.exports = { list, add, update, remove, clearSelected, selected }

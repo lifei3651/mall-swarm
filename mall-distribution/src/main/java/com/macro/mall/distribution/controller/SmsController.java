@@ -158,6 +158,21 @@ public class SmsController {
         return sendCode(dto, authorization);
     }
 
+    /**
+     * 大额支付确认验证码专用入口。手机号和业务类型均由服务端确定，
+     * 小程序与 H5 都不能通过修改请求参数把验证码发往其他号码。
+     */
+    @Operation(summary = "发送大额支付确认短信验证码")
+    @PostMapping("/send/payment")
+    public CommonResult<String> sendPaymentCode(
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        DmsShopMember member = shopAuthService.requireMember(authorization);
+        SmsCodeRequestDTO dto = new SmsCodeRequestDTO();
+        dto.setPhone(member.getPhone());
+        dto.setBizType(SmsBusinessType.PAYMENT);
+        return sendCode(dto, authorization);
+    }
+
     @Operation(summary = "验证验证码")
     @PostMapping("/verify")
     public CommonResult<Boolean> verifyCode(@Valid @RequestBody SmsCodeRequestDTO dto,

@@ -219,7 +219,9 @@ public class ShopController {
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable Long activityId, @Valid @RequestBody ShopOrderSubmitDTO dto) {
         DmsShopMember member = authService.requireMember(authorization);
-        if (member.getPayPasswordHash() == null || member.getPayPasswordHash().isBlank()) {
+        String requestedPayType = dto.getPayType() == null ? "ALIPAY" : dto.getPayType().trim().toUpperCase(java.util.Locale.ROOT);
+        if ("BALANCE".equals(requestedPayType)
+                && (member.getPayPasswordHash() == null || member.getPayPasswordHash().isBlank())) {
             Asserts.fail("首次交易前请先设置6位支付密码");
         }
         return CommonResult.success(ShopPublicViewSanitizer.order(flashSaleService.submit(activityId, dto, member)));
@@ -860,7 +862,9 @@ public class ShopController {
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @Valid @RequestBody ShopOrderSubmitDTO dto) {
         DmsShopMember member = authService.requireMember(authorization);
-        if (member.getPayPasswordHash() == null || member.getPayPasswordHash().isBlank()) {
+        String requestedPayType = dto.getPayType() == null ? "ALIPAY" : dto.getPayType().trim().toUpperCase(java.util.Locale.ROOT);
+        if ("BALANCE".equals(requestedPayType)
+                && (member.getPayPasswordHash() == null || member.getPayPasswordHash().isBlank())) {
             Asserts.fail("首次交易前请先设置6位支付密码");
         }
         // 强制使用当前登录用户的 userId，忽略 DTO 中的值
