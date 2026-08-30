@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.security;
 
 import cn.hutool.crypto.SecureUtil;
+import com.macro.mall.common.api.CommonResult;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -47,7 +48,7 @@ public class SecurityRateLimitFilter extends OncePerRequestFilter {
             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
             response.setContentType("application/json;charset=UTF-8");
             response.setHeader("Retry-After", String.valueOf(rule.windowSeconds));
-            response.getWriter().write("{\"code\":429,\"message\":\"操作过于频繁，请稍后再试\",\"data\":null}");
+            response.getWriter().write(CommonResult.failed(429, "操作过于频繁，请稍后再试").toString());
             return;
         }
         filterChain.doFilter(request, response);

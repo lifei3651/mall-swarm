@@ -3,7 +3,7 @@
 <configuration>
     <conversionRule conversionWord="safeMsg" class="com.macro.mall.common.log.SensitiveMessageConverter"/>
     <conversionRule conversionWord="safeEx" class="com.macro.mall.common.log.SensitiveThrowableProxyConverter"/>
-    <property name="SAFE_LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{50} - %safeMsg%n%safeEx"/>
+    <property name="SAFE_LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] [requestId=%X{requestId:-system}] %logger{50} - %safeMsg%n%safeEx"/>
     <!--配置不打印logback内部的状态信息，排查logback配置问题时可注释掉-->
     <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
     <!--引用默认日志配置-->
@@ -98,6 +98,7 @@
                                 "service": "${APP_NAME:-}",
                                 "pid": "${PID:-}",
                                 "thread": "%thread",
+                                "requestId": "%X{requestId:-}",
                                 "class": "%logger",
                                 "message": "%safeMsg",
                                 "stack_trace": "%safeEx{20}"
@@ -131,6 +132,7 @@
                                 "service": "${APP_NAME:-}",
                                 "pid": "${PID:-}",
                                 "thread": "%thread",
+                                "requestId": "%X{requestId:-}",
                                 "class": "%logger",
                                 "message": "%safeMsg",
                                 "stack_trace": "%safeEx{20}"
@@ -159,6 +161,7 @@
                                 "service": "${APP_NAME:-}",
                                 "pid": "${PID:-}",
                                 "thread": "%thread",
+                                "requestId": "%X{requestId:-}",
                                 "class": "%logger",
                                 "message": "%safeMsg",
                                 "stack_trace": "%safeEx{20}"
@@ -185,6 +188,7 @@
                                 "project": "lingqi-mall",
                                 "level": "%level",
                                 "service": "${APP_NAME:-}",
+                                "requestId": "%X{requestId:-}",
                                 "class": "%logger",
                                 "message": "%safeMsg"
                                 }

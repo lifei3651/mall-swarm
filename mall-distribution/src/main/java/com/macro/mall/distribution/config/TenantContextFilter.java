@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.config;
 
+import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.entity.DmsShopMember;
@@ -52,6 +53,6 @@ public class TenantContextFilter extends OncePerRequestFilter {
         response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType("application/json;charset=UTF-8");
-        response.getWriter().write("{\"code\":400,\"message\":\"租户ID格式不正确\",\"data\":null}");
+        response.getWriter().write(CommonResult.failed(400, "租户ID格式不正确").toString());
     }
 }

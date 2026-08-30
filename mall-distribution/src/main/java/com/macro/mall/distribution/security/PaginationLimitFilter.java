@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.security;
 
+import com.macro.mall.common.api.CommonResult;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,7 +33,7 @@ public class PaginationLimitFilter extends OncePerRequestFilter {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
             response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write("{\"code\":400,\"message\":\"每页数量必须为1至100\",\"data\":null}");
+            response.getWriter().write(CommonResult.failed(400, "每页数量必须为1至100").toString());
             return;
         }
         filterChain.doFilter(request, response);

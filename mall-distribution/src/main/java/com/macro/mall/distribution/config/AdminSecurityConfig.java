@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.config;
 
+import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.common.exception.ApiException;
 import com.macro.mall.common.api.ResultCode;
 import com.macro.mall.distribution.entity.DmsAdminUser;
@@ -214,14 +215,7 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             response.setStatus(status);
             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
             response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write("{\"code\":" + status + ",\"message\":\"" + escapeJson(message) + "\",\"data\":null}");
-        }
-
-        private String escapeJson(String value) {
-            if (value == null) {
-                return "";
-            }
-            return value.replace("\\", "\\\\").replace("\"", "\\\"");
+            response.getWriter().write(CommonResult.failed(status, message == null ? "" : message).toString());
         }
     }
 }

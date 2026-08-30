@@ -1,6 +1,8 @@
 package com.macro.mall.common.api;
 
 import cn.hutool.json.JSONUtil;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.macro.mall.common.log.RequestIdContext;
 
 /**
  * 通用返回对象
@@ -9,6 +11,9 @@ import cn.hutool.json.JSONUtil;
 public class CommonResult<T> {
     private int code;
     private String message;
+    /** 用于关联本次响应、服务端日志及后台操作日志的请求编号。 */
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private String requestId;
     private T data;
 
     protected CommonResult() {
@@ -17,6 +22,7 @@ public class CommonResult<T> {
     protected CommonResult(int code, String message, T data) {
         this.code = code;
         this.message = message;
+        this.requestId = RequestIdContext.get();
         this.data = data;
     }
 
@@ -62,6 +68,13 @@ public class CommonResult<T> {
      */
     public static <T> CommonResult<T> failed(String message) {
         return new CommonResult<T>(ResultCode.FAILED.getCode(), message, null);
+    }
+
+    /**
+     * 供安全过滤器等控制器之外的统一错误出口使用。
+     */
+    public static <T> CommonResult<T> failed(int code, String message) {
+        return new CommonResult<T>(code, message, null);
     }
 
     /**
@@ -114,6 +127,14 @@ public class CommonResult<T> {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public String getRequestId() {
+        return requestId;
+    }
+
+    public void setRequestId(String requestId) {
+        this.requestId = requestId;
     }
 
     public T getData() {

@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.service.impl;
 
+import com.macro.mall.common.log.RequestIdContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,7 +19,7 @@ import java.util.UUID;
 public class RequestCorrelationFilter extends OncePerRequestFilter {
 
     public static final String REQUEST_ID_ATTRIBUTE = "operationLogRequestId";
-    private static final String HEADER = "X-Request-ID";
+    public static final String HEADER = "X-Request-ID";
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -28,6 +29,12 @@ public class RequestCorrelationFilter extends OncePerRequestFilter {
                 ? supplied : UUID.randomUUID().toString();
         request.setAttribute(REQUEST_ID_ATTRIBUTE, requestId);
         response.setHeader(HEADER, requestId);
-        filterChain.doFilter(request, response);
+        try {
+            RequestIdContext.set(requestId);
+            filterChain.doFilter(request, response);
+        } finally {
+            // 容器线程会复用；请求结束必须清理，避免下一位用户串用上一请求编号。
+            RequestIdContext.clear();
+        }
     }
 }

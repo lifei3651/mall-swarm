@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.security;
 
+import com.macro.mall.common.api.CommonResult;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -67,7 +68,7 @@ public class AdminSessionCookieFilter extends OncePerRequestFilter {
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType("application/json;charset=UTF-8");
-        response.getWriter().write("{\"code\":403,\"message\":\"后台请求来源校验失败，请刷新页面后重试\",\"data\":null}");
+        response.getWriter().write(CommonResult.failed(403, "后台请求来源校验失败，请刷新页面后重试").toString());
     }
 
     private static final class AuthorizationHeaderRequest extends HttpServletRequestWrapper {
