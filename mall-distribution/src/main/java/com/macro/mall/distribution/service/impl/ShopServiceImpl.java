@@ -1871,6 +1871,9 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("该订单正在售后处理中，暂不能确认收货");
         }
         boolean confirmed = orderDao.confirmReceive(orderId) > 0;
+        if (!confirmed && afterSaleDao.selectOpenByOrderId(orderId) != null) {
+            Asserts.fail("该订单正在售后处理中，暂不能确认收货");
+        }
         if (confirmed) {
             merchantService.lockOrderSettlementEligibility(orderId);
             notifyOrderChanged(order, "ORDER_RECEIVED");
