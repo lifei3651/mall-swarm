@@ -94,7 +94,7 @@
               <span>邀请人</span><strong>正在确认...</strong>
             </div>
             <div v-else-if="inviterInfo" class="inviter-info-card valid">
-              <span>邀请人</span><strong>{{ inviterInfo.nickname || '-' }}</strong><small>邀请码：{{ inviterInfo.inviteCode }}</small>
+              <span>邀请人昵称</span><strong>{{ inviterInfo.nickname || '商城会员' }}</strong>
             </div>
             <div v-else-if="inviteError" class="inviter-info-card invalid">
               <span>邀请码</span><strong>{{ inviteError }}</strong>
@@ -261,7 +261,7 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } fr
 import { useRouter, useRoute } from 'vue-router'
 import { Check, CircleAlert, CircleCheckBig } from 'lucide-vue-next'
 import { getInviterPreview, getLoginCaptcha, login, register, sendLoginSmsCode, sendSmsCode } from '@/api/shop'
-import { isNativeApp } from '@/utils/appEnvironment'
+import { toPublicRegistrationUrl, toPublicWebUrl } from '@/utils/appEnvironment'
 import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
 import { safeShopRedirect } from '@/utils/safeRedirect'
 import { normalizeLoginAccountInput, resolveRegistrationErrorField, validateLoginAccount } from '@/utils/loginAccount'
@@ -269,7 +269,7 @@ import { isStaleChunkError } from '@/utils/chunkRecovery'
 import { applyShopSession } from '@/utils/shopSession'
 import { useRegisterDraft } from '@/store/registerDraft'
 import { currentBrandLogo, currentBrandName } from '@/utils/brand'
-import { hasTeamBusiness, isTeamSurface } from '@/utils/appSurface'
+import { isTeamSurface } from '@/utils/appSurface'
 
 const router = useRouter()
 const route = useRoute()
@@ -340,6 +340,10 @@ const normalizeRegisterFeedback = (message, field = '') => {
 const waitForPopup = (duration) => new Promise((resolve) => window.setTimeout(resolve, duration))
 
 const switchMode = (value) => {
+  if (value === 'register' && isTeamSurface) {
+    window.location.assign(toPublicRegistrationUrl(route.query))
+    return
+  }
   mode.value = value
   clearFeedback()
   if (value === 'login') {
@@ -358,6 +362,10 @@ const switchLoginType = (value) => {
 onMounted(() => {
   if (route.query.notice) success.value = String(route.query.notice).slice(0, 80)
   const urlInviteCode = route.query.inviteCode || route.query.code
+  if (isTeamSurface && (urlInviteCode || route.name === 'Register' || route.query.mode === 'register')) {
+    window.location.replace(toPublicRegistrationUrl(route.query))
+    return
+  }
   if (urlInviteCode) {
     registerForm.value.inviteCode = urlInviteCode
     mode.value = 'register' // 自动切换到注册模式
@@ -672,13 +680,9 @@ const submit = async () => {
       clearRegisterDraft()
       showRegisterPopup('账号注册成功', 'success', 1200)
       await waitForPopup(850)
-      if (hasTeamBusiness) {
-        await router.replace('/')
-      } else if (isNativeApp) {
-        await router.replace('/profile')
-      } else {
-        await router.replace({ name: 'AppDownload', query: { registered: '1' } })
-      }
+      // 团队端的遗留注册会话也必须离开团队页面，进入公开购物商城。
+      if (isTeamSurface) window.location.replace(toPublicWebUrl('/'))
+      else await router.replace('/')
       return
     }
     const redirect = safeShopRedirect(router.currentRoute.value.query.redirect, isTeamSurface ? '/' : '/profile')

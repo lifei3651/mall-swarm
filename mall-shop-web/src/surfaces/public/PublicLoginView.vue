@@ -64,14 +64,12 @@
           </p>
           <section v-if="showInviterCard" class="inviter-card" :class="{ invalid: inviteError }" aria-live="polite">
             <div>
-              <span>邀请人</span>
+              <span>邀请人昵称</span>
               <strong v-if="inviterLoading">正在核对…</strong>
               <strong v-else-if="inviterInfo">{{ inviterInfo.nickname || '商城会员' }}</strong>
               <strong v-else>邀请码暂不可用</strong>
             </div>
-            <small>邀请码：{{ normalizedInviteCode }}</small>
             <p v-if="inviteError">{{ inviteError }}</p>
-            <p v-else-if="inviterInfo">提交注册后将一次性建立邀请关系，注册人不能自行修改。</p>
           </section>
           <label for="public-register-sms">短信验证码</label>
           <div class="inline-field">
@@ -157,14 +155,14 @@ const hasInviteCode = computed(() => !!normalizedInviteCode.value)
 const showInviterCard = computed(() => hasInviteCode.value
   && (inviteCodeLocked.value || inviterLoading.value || !!inviterInfo.value || !!inviteError.value))
 const inviteHelpText = computed(() => {
-  if (inviterInfo.value) return '邀请人已确认，注册时将直接建立邀请关系'
-  if (hasInviteCode.value) return '请核对邀请人后再注册'
-  return '普通购物可不填；填写后注册时直接绑定邀请人'
+  if (inviterInfo.value) return '邀请人昵称已确认'
+  if (hasInviteCode.value) return '请核对邀请人昵称后再注册'
+  return '普通购物可不填邀请码'
 })
 const submitButtonText = computed(() => {
   if (loading.value) return '正在提交…'
   if (!isRegister.value) return '登录'
-  return hasInviteCode.value ? '注册并绑定邀请人' : '注册并登录'
+  return '注册并登录'
 })
 
 const normalizePhone = (form) => { form.phone = normalizeMainlandPhone(form.phone) }
@@ -294,9 +292,7 @@ const validate = () => {
   return ''
 }
 
-const destination = () => {
-  return safeShopRedirect(route.query.redirect, isRegister.value ? '/' : '/profile')
-}
+const destination = () => safeShopRedirect(route.query.redirect, '/profile')
 
 const submit = async () => {
   if (isRegister.value && hasInviteCode.value && !inviterInfo.value) await loadInviter()
@@ -319,7 +315,9 @@ const submit = async () => {
       res = await login({ ...loginForm, captchaId: captcha.id, captchaCode: captcha.code, loginType: 'password' })
     }
     applyShopSession(res.data?.member || res.data)
-    await router.replace(destination())
+    // 注册完成后不继承旧登录页的 redirect，固定进入可购物的公开商城首页。
+    if (isRegister.value) await router.replace({ name: 'Home' })
+    else await router.replace(destination())
   } catch (e) {
     error.value = e.message || (isRegister.value ? '注册失败，请检查填写内容' : '登录失败，请检查账号信息')
     if (loginType.value === 'password' || isRegister.value) await refreshCaptcha()

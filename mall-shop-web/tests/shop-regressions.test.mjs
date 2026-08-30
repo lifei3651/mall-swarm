@@ -16,18 +16,30 @@ import { resolveBrandCssVariables, themePresets } from '../src/utils/brand.js'
 const readView = (name) => readFile(new URL(`../src/views/${name}`, import.meta.url), 'utf8')
 const readStyles = () => readFile(new URL('../src/assets/styles.css', import.meta.url), 'utf8')
 
-test('invitation QR opens the public mall registration and team H5 never binds relationships a second time', async () => {
-  const [inviteCard, publicLogin, teamHome, shopApi, teamEnv] = await Promise.all([
+test('all invitation and legacy team registration paths enter the public shopping mall', async () => {
+  const [inviteCard, publicLogin, login, teamHome, teamRouter, appEnvironment, shopApi, teamEnv] = await Promise.all([
     readFile(new URL('../src/components/InviteCard.vue', import.meta.url), 'utf8'),
     readFile(new URL('../src/surfaces/public/PublicLoginView.vue', import.meta.url), 'utf8'),
+    readView('LoginView.vue'),
     readFile(new URL('../src/surfaces/team/TeamHomeView.vue', import.meta.url), 'utf8'),
+    readFile(new URL('../src/surfaces/team/router.js', import.meta.url), 'utf8'),
+    readFile(new URL('../src/utils/appEnvironment.js', import.meta.url), 'utf8'),
     readFile(new URL('../src/api/shop.js', import.meta.url), 'utf8'),
     readFile(new URL('../.env.team', import.meta.url), 'utf8'),
   ])
 
   assert.match(inviteCard, /toPublicWebUrl\('\/register'\)/)
   assert.match(teamEnv, /VITE_PUBLIC_WEB_ORIGIN=https:\/\/lingqimall\.com/)
-  assert.match(publicLogin, /isRegister\.value \? '\/' : '\/profile'/)
+  assert.match(appEnvironment, /export const toPublicRegistrationUrl/)
+  assert.match(appEnvironment, /\^\[A-Z0-9\]\{8\}\$/)
+  assert.match(teamRouter, /to\.name === 'Register'/)
+  assert.match(teamRouter, /window\.location\.replace\(toPublicRegistrationUrl\(to\.query\)\)/)
+  assert.match(login, /value === 'register' && isTeamSurface/)
+  assert.match(login, /window\.location\.assign\(toPublicRegistrationUrl\(route\.query\)\)/)
+  assert.match(login, /window\.location\.replace\(toPublicWebUrl\('\/'\)\)/)
+  assert.match(publicLogin, /if \(isRegister\.value\) await router\.replace\(\{ name: 'Home' \}\)/)
+  assert.doesNotMatch(publicLogin, /邀请码：\{\{ normalizedInviteCode \}\}/)
+  assert.doesNotMatch(login, /inviterInfo\.inviteCode/)
   assert.doesNotMatch(teamHome, /首次进入，请确认您的邀请关系|bindTeamInvitation|team-invite-code|确认关系/)
   assert.doesNotMatch(shopApi, /\/shop\/team\/invitation|bindTeamInvitation/)
 })

@@ -24,7 +24,7 @@ class ShopInvitePreviewTest {
     @InjectMocks private ShopServiceImpl shopService;
 
     @Test
-    void previewNormalizesCodeAndReturnsOnlyMaskedPublicFields() {
+    void previewNormalizesCodeAndReturnsOnlyPublicNickname() {
         DmsShopMember inviter = new DmsShopMember();
         inviter.setNickname("邀请会员甲");
         inviter.setPhone("13900001234");
@@ -35,9 +35,8 @@ class ShopInvitePreviewTest {
         Map<String, Object> preview = shopService.getInviterPreview(" abcd1234 ");
 
         assertEquals(true, preview.get("valid"));
-        assertEquals("ABCD1234", preview.get("inviteCode"));
-        assertEquals("邀***甲", preview.get("nickname"));
-        assertEquals(3, preview.size(), "注册页不得返回手机号、用户ID等额外信息");
+        assertEquals("邀请会员甲", preview.get("nickname"));
+        assertEquals(2, preview.size(), "注册页只能返回校验状态和邀请人昵称");
     }
 
     @Test
@@ -56,8 +55,8 @@ class ShopInvitePreviewTest {
         Map<String, Object> preview = shopService.getInviterPreview("oldlink1");
 
         assertEquals(true, preview.get("valid"));
-        assertEquals("历***乙", preview.get("nickname"));
-        assertEquals("OLDLINK1", preview.get("inviteCode"));
+        assertEquals("历史会员乙", preview.get("nickname"));
+        assertEquals(2, preview.size());
     }
 
     @Test
@@ -68,7 +67,21 @@ class ShopInvitePreviewTest {
         Map<String, Object> preview = shopService.getInviterPreview("invalid1");
 
         assertEquals(false, preview.get("valid"));
-        assertEquals("INVALID1", preview.get("inviteCode"));
         assertEquals("未找到该邀请码，请向邀请人核对", preview.get("message"));
+        assertEquals(2, preview.size());
+    }
+
+    @Test
+    void missingNicknameNeverFallsBackToLoginAccount() {
+        DmsShopMember inviter = new DmsShopMember();
+        inviter.setUsername("private_login_account");
+        inviter.setStatus(1);
+        when(memberDao.selectByInviteCode("NICKLESS")).thenReturn(inviter);
+
+        Map<String, Object> preview = shopService.getInviterPreview("nickless");
+
+        assertEquals(true, preview.get("valid"));
+        assertEquals("商城会员", preview.get("nickname"));
+        assertEquals(2, preview.size());
     }
 }

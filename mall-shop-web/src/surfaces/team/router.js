@@ -3,6 +3,7 @@ import { loginRedirectLocation, notifyAuthRequired } from '@/utils/authNavigatio
 import { clearStaleChunkRecovery, recoverFromStaleChunk } from '@/utils/chunkRecovery'
 import { hasShopSession, restoreShopSession } from '@/utils/shopSession'
 import { updatePageTitle } from '@/utils/brand'
+import { toPublicRegistrationUrl } from '@/utils/appEnvironment'
 
 const protectedRoute = { requiresAuth: true }
 const routes = [
@@ -34,6 +35,13 @@ const router = createRouter({
 
 router.onError((error, to) => recoverFromStaleChunk(error, to ? router.resolve(to).href : undefined))
 router.beforeEach(async (to, from, next) => {
+  // 团队 H5 只负责团队服务，不承载购物账号注册。旧书签或旧二维码进入
+  // /register 时也必须回到公开商城，避免注册完成后误落到团队业绩首页。
+  if (to.name === 'Register') {
+    window.location.replace(toPublicRegistrationUrl(to.query))
+    next(false)
+    return
+  }
   const authenticated = !to.meta.requiresAuth
     || hasShopSession()
     || await restoreShopSession('team')

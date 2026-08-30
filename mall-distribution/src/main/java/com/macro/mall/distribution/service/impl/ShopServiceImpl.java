@@ -3093,24 +3093,15 @@ public class ShopServiceImpl implements ShopService {
         }
         if (inviter == null || !Integer.valueOf(1).equals(inviter.getStatus())) {
             preview.put("valid", false);
-            preview.put("inviteCode", normalizedCode);
             preview.put("message", "未找到该邀请码，请向邀请人核对");
             return preview;
         }
         String displayName = inviter.getNickname();
-        if (displayName == null || displayName.isBlank()) displayName = inviter.getUsername();
         if (displayName == null || displayName.isBlank()) displayName = "商城会员";
         preview.put("valid", true);
-        preview.put("inviteCode", normalizedCode);
-        preview.put("nickname", maskInviterName(displayName));
+        // 昵称是会员主动设置的公开展示名。注册页不回传账号、手机号、用户编号或邀请码。
+        preview.put("nickname", displayName.trim());
         return preview;
-    }
-
-    private String maskInviterName(String name) {
-        String value = name.trim();
-        if (value.length() <= 1) return "*";
-        if (value.length() == 2) return value.substring(0, 1) + "*";
-        return value.substring(0, 1) + "***" + value.substring(value.length() - 1);
     }
 
     private void notifyOrderChanged(DmsShopOrder order, String changeType) {
