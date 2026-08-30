@@ -993,6 +993,7 @@ public class ShopServiceImpl implements ShopService {
                 }
             }
             BigDecimal price = resolveBusinessPrice(businessType, product, sku, flashActivity);
+            requirePurchasablePrice(price);
             BigDecimal lineAmount = price.multiply(BigDecimal.valueOf(quantity));
             productAmount = productAmount.add(lineAmount);
             String merchantKey = product.getMerchantId() == null ? "PLATFORM" : "MERCHANT:" + product.getMerchantId();
@@ -1176,6 +1177,10 @@ public class ShopServiceImpl implements ShopService {
                 if (sku == null || !product.getId().equals(sku.getProductId()) || !Integer.valueOf(1).equals(sku.getStatus())) {
                     Asserts.fail("SKU不存在或已下架：" + product.getProductName());
                 }
+            }
+            BigDecimal price = resolveBusinessPrice(businessType, product, sku, flashActivity);
+            requirePurchasablePrice(price);
+            if (itemDTO.getSkuId() != null) {
                 if (sku.getStock() == null || sku.getStock() < quantity || skuDao.decreaseStock(sku.getId(), quantity) <= 0) {
                     Asserts.fail("SKU库存不足：" + sku.getSkuName());
                 }
@@ -1193,7 +1198,6 @@ public class ShopServiceImpl implements ShopService {
             }
             tenantId = product.getTenantId() == null ? DEFAULT_TENANT_ID : product.getTenantId();
 
-            BigDecimal price = resolveBusinessPrice(businessType, product, sku, flashActivity);
             // 金额、PV、库存全部以服务端实时商品数据为准，客户端传值不参与计算。
             // 旧数据即使存在 PV 大于售价，也会在这里被强制限制，不能进入订单快照。
             BigDecimal pv = resolveBusinessPv(businessType, product, sku, flashActivity, price);
@@ -2190,6 +2194,13 @@ public class ShopServiceImpl implements ShopService {
         product.setSalePrice(money(product.getSalePrice()));
         product.setMarketPrice(money(product.getMarketPrice()));
         product.setCostAmount(money(product.getCostAmount()));
+        requireNonNegativeMoney(product.getSalePrice(), "商品销售价");
+        requireNonNegativeMoney(product.getMarketPrice(), "商品划线价");
+        requireNonNegativeMoney(product.getCostAmount(), "商品成本价");
+        if (!Integer.valueOf(0).equals(product.getNormalSaleEnabled())
+                && product.getSalePrice().compareTo(ZERO) <= 0) {
+            Asserts.fail("启用普通销售时商品销售价必须大于0");
+        }
         if (product.getSettlementDelayDaysOverride() != null
                 && (product.getSettlementDelayDaysOverride() < 0 || product.getSettlementDelayDaysOverride() > 365)) {
             Asserts.fail("商品结算等待天数必须在0到365天之间");
@@ -2209,6 +2220,8 @@ public class ShopServiceImpl implements ShopService {
         product.setEnrollmentSaleEnabled(Integer.valueOf(1).equals(product.getEnrollmentSaleEnabled()) ? 1 : 0);
         product.setRepurchasePrice(money(product.getRepurchasePrice()));
         product.setRepurchasePv(money(product.getRepurchasePv()));
+        requireNonNegativeMoney(product.getRepurchasePrice(), "商品复购价");
+        requireNonNegativeMoney(product.getRepurchasePv(), "商品复购PV");
         product.setRepurchasePurchaseLimit(product.getRepurchasePurchaseLimit() == null
                 ? 0 : Math.max(0, product.getRepurchasePurchaseLimit()));
         if (Integer.valueOf(1).equals(product.getRepurchaseSaleEnabled())) {
@@ -2474,10 +2487,20 @@ public class ShopServiceImpl implements ShopService {
         sku.setSalePrice(money(dto.getSalePrice()));
         sku.setMarketPrice(money(dto.getMarketPrice()));
         sku.setCostAmount(money(dto.getCostAmount()));
+        requireNonNegativeMoney(sku.getSalePrice(), "SKU销售价");
+        requireNonNegativeMoney(sku.getMarketPrice(), "SKU划线价");
+        requireNonNegativeMoney(sku.getCostAmount(), "SKU成本价");
         sku.setPvValue(money(dto.getPvValue()));
         sku.setRepurchasePrice(dto.getRepurchasePrice() == null ? null : money(dto.getRepurchasePrice()));
         sku.setRepurchasePv(dto.getRepurchasePv() == null ? null : money(dto.getRepurchasePv()));
+        requireNonNegativeMoney(sku.getRepurchasePrice(), "SKU复购价");
+        requireNonNegativeMoney(sku.getRepurchasePv(), "SKU复购PV");
+        sku.setStatus(dto.getStatus() == null ? 1 : dto.getStatus());
         DmsShopProduct product = productDao.selectById(dto.getProductId());
+        if (product != null && Integer.valueOf(1).equals(product.getNormalSaleEnabled())
+                && Integer.valueOf(1).equals(sku.getStatus()) && sku.getSalePrice().compareTo(ZERO) <= 0) {
+            Asserts.fail("启用普通销售时有效SKU销售价必须大于0");
+        }
         if (product != null && isPvEnabled(product.getTenantId())) {
             validatePv(sku.getPvValue(), sku.getSalePrice(), "SKU PV");
         } else {
@@ -2501,7 +2524,6 @@ public class ShopServiceImpl implements ShopService {
         sku.setStock(dto.getStock() == null ? 0 : dto.getStock());
         sku.setSafetyStock(dto.getSafetyStock() == null ? 0 : Math.max(0, dto.getSafetyStock()));
         sku.setSalesCount(0);
-        sku.setStatus(dto.getStatus() == null ? 1 : dto.getStatus());
         return sku;
     }
 
@@ -2933,6 +2955,19 @@ public class ShopServiceImpl implements ShopService {
 
     private BigDecimal money(BigDecimal amount) {
         return amount == null ? ZERO : amount;
+    }
+
+    private void requireNonNegativeMoney(BigDecimal amount, String fieldName) {
+        if (amount != null && amount.compareTo(ZERO) < 0) {
+            Asserts.fail(fieldName + "不能小于0");
+        }
+    }
+
+    /** 兼容历史异常数据：即使绕过后台保存，也不能生成零价或负价订单。 */
+    private void requirePurchasablePrice(BigDecimal price) {
+        if (money(price).compareTo(ZERO) <= 0) {
+            Asserts.fail("商品价格异常，暂时无法购买，请联系商城客服");
+        }
     }
 
     /** SKU 配置大于 0 时覆盖商品默认 PV；否则继承默认值，并始终受当前售价上限保护。 */

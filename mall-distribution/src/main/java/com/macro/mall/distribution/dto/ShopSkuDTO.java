@@ -30,10 +30,13 @@ public class ShopSkuDTO implements Serializable {
     @Size(max = 2048, message = "SKU图片地址不能超过2048个字符")
     private String imageUrl;
 
+    @PositiveOrZero(message = "SKU销售价不能小于0")
     private BigDecimal salePrice;
 
+    @PositiveOrZero(message = "SKU划线价不能小于0")
     private BigDecimal marketPrice;
 
+    @PositiveOrZero(message = "SKU成本价不能小于0")
     private BigDecimal costAmount;
 
     private BigDecimal pvValue;

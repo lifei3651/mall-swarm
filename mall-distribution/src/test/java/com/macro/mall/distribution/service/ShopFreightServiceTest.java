@@ -349,6 +349,64 @@ class ShopFreightServiceTest {
     }
 
     @Test
+    void productAndSkuMoneyCannotBeNegativeOrPurchasableAtZeroPrice() {
+        DmsShopProduct negativeSaleProduct = editableProduct(1L);
+        negativeSaleProduct.setSalePrice(new BigDecimal("-0.01"));
+        ApiException productSaleError = assertThrows(ApiException.class,
+                () -> shopService.updateProduct(negativeSaleProduct.getId(), negativeSaleProduct));
+        assertTrue(productSaleError.getMessage().contains("商品销售价不能小于0"));
+
+        DmsShopProduct negativeMarketProduct = editableProduct(1L);
+        negativeMarketProduct.setMarketPrice(new BigDecimal("-0.01"));
+        ApiException productMarketError = assertThrows(ApiException.class,
+                () -> shopService.updateProduct(negativeMarketProduct.getId(), negativeMarketProduct));
+        assertTrue(productMarketError.getMessage().contains("商品划线价不能小于0"));
+
+        DmsShopProduct negativeCostProduct = editableProduct(1L);
+        negativeCostProduct.setCostAmount(new BigDecimal("-0.01"));
+        ApiException productCostError = assertThrows(ApiException.class,
+                () -> shopService.updateProduct(negativeCostProduct.getId(), negativeCostProduct));
+        assertTrue(productCostError.getMessage().contains("商品成本价不能小于0"));
+
+        DmsShopProduct zeroSaleProduct = editableProduct(1L);
+        zeroSaleProduct.setSalePrice(BigDecimal.ZERO);
+        ApiException zeroSaleError = assertThrows(ApiException.class,
+                () -> shopService.updateProduct(zeroSaleProduct.getId(), zeroSaleProduct));
+        assertTrue(zeroSaleError.getMessage().contains("启用普通销售时商品销售价必须大于0"));
+
+        DmsShopSku existing = skuDao.selectById(1L);
+        ShopSkuDTO negativeSaleSku = editableSku(existing);
+        negativeSaleSku.setSalePrice(new BigDecimal("-0.01"));
+        ApiException skuSaleError = assertThrows(ApiException.class,
+                () -> shopService.updateSku(existing.getId(), negativeSaleSku));
+        assertTrue(skuSaleError.getMessage().contains("SKU销售价不能小于0"));
+
+        ShopSkuDTO negativeMarketSku = editableSku(existing);
+        negativeMarketSku.setMarketPrice(new BigDecimal("-0.01"));
+        ApiException skuMarketError = assertThrows(ApiException.class,
+                () -> shopService.updateSku(existing.getId(), negativeMarketSku));
+        assertTrue(skuMarketError.getMessage().contains("SKU划线价不能小于0"));
+
+        ShopSkuDTO negativeCostSku = editableSku(existing);
+        negativeCostSku.setCostAmount(new BigDecimal("-0.01"));
+        ApiException skuCostError = assertThrows(ApiException.class,
+                () -> shopService.updateSku(existing.getId(), negativeCostSku));
+        assertTrue(skuCostError.getMessage().contains("SKU成本价不能小于0"));
+
+        ShopSkuDTO zeroSaleSku = editableSku(existing);
+        zeroSaleSku.setSalePrice(BigDecimal.ZERO);
+        ApiException zeroSkuError = assertThrows(ApiException.class,
+                () -> shopService.updateSku(existing.getId(), zeroSaleSku));
+        assertTrue(zeroSkuError.getMessage().contains("启用普通销售时有效SKU销售价必须大于0"));
+
+        // 兼容修复前或绕过服务层写入的异常数据：报价和下单入口仍必须停止。
+        jdbcTemplate.update("UPDATE dms_shop_sku SET sale_price=-0.01 WHERE id=?", existing.getId());
+        ApiException legacyPriceError = assertThrows(ApiException.class,
+                () -> shopService.quoteFreight(quote("湖南省", "长沙市", "岳麓区"), null));
+        assertTrue(legacyPriceError.getMessage().contains("商品价格异常"));
+    }
+
+    @Test
     void disablingProductPvIgnoresHiddenHistoricalPvValues() {
         jdbcTemplate.update("UPDATE dms_tenant_display_config SET show_pv=0 WHERE tenant_id=1");
 
@@ -768,6 +826,32 @@ class ShopFreightServiceTest {
         product.setFreeShippingAmount(freeShippingAmount);
         product.setFreightTemplateId(templateId);
         return shopService.updateProduct(product.getId(), product);
+    }
+
+    private DmsShopProduct editableProduct(Long id) {
+        DmsShopProduct product = productDao.selectById(id);
+        product.setDeliveryProvince("湖南省");
+        product.setDeliveryCity("长沙市");
+        product.setDeliveryDistrict("岳麓区");
+        return product;
+    }
+
+    private ShopSkuDTO editableSku(DmsShopSku existing) {
+        ShopSkuDTO sku = new ShopSkuDTO();
+        sku.setProductId(existing.getProductId());
+        sku.setSkuName(existing.getSkuName());
+        sku.setSkuNo(existing.getSkuNo());
+        sku.setAttrsJson(existing.getAttrsJson());
+        sku.setSalePrice(existing.getSalePrice());
+        sku.setMarketPrice(existing.getMarketPrice());
+        sku.setCostAmount(existing.getCostAmount());
+        sku.setPvValue(existing.getPvValue());
+        sku.setRepurchasePrice(existing.getRepurchasePrice());
+        sku.setRepurchasePv(existing.getRepurchasePv());
+        sku.setStock(existing.getStock());
+        sku.setSafetyStock(existing.getSafetyStock());
+        sku.setStatus(existing.getStatus());
+        return sku;
     }
 
     private FreightTemplateRuleDTO rule(List<List<String>> paths, String mode, String amount) {

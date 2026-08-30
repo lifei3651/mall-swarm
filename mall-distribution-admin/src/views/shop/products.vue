@@ -169,7 +169,7 @@
             <template v-if="!hasSku">
               <el-alert title="单规格商品只需在这里填写一组价格和库存，商城下单直接使用这组数据。" type="success" :closable="false" show-icon style="margin-bottom:18px" />
               <el-row :gutter="20">
-                <el-col :span="6"><el-form-item label="销售价" required><el-input-number v-model="form.salePrice" :min="0" :precision="2" :step="1" controls-position="right" class="money-input" /></el-form-item></el-col>
+                <el-col :span="6"><el-form-item label="销售价" required><el-input-number v-model="form.salePrice" :min="Number(form.normalSaleEnabled) === 1 ? 0.01 : 0" :precision="2" :step="1" controls-position="right" class="money-input" /></el-form-item></el-col>
                 <el-col :span="6"><el-form-item label="划线价"><el-input-number v-model="form.marketPrice" :min="0" :precision="2" :step="1" controls-position="right" class="money-input" /></el-form-item></el-col>
                 <el-col :span="6"><el-form-item :label="form.merchantId ? '结算价' : '参考成本价'"><el-input-number v-model="form.costAmount" :min="0" :precision="2" :step="1" controls-position="right" class="money-input" :disabled="Boolean(form.merchantId) && !canManageSettlementCost" /></el-form-item></el-col>
                 <el-col :span="6"><el-form-item label="可售库存"><el-input-number v-model="form.stock" :min="0" :step="1" controls-position="right" class="money-input" /></el-form-item></el-col>
@@ -204,7 +204,7 @@
                   </template>
                 </el-table-column>
                 <el-table-column label="SKU编码" min-width="150"><template #default="{ row }"><el-input v-model="row.skuNo" placeholder="留空自动生成" /></template></el-table-column>
-                <el-table-column label="销售价" width="150"><template #default="{ row }"><el-input-number v-model="row.salePrice" :min="0" :precision="2" controls-position="right" /></template></el-table-column>
+                <el-table-column label="销售价" width="150"><template #default="{ row }"><el-input-number v-model="row.salePrice" :min="Number(form.normalSaleEnabled) === 1 && Number(row.status) === 1 ? 0.01 : 0" :precision="2" controls-position="right" /></template></el-table-column>
                 <el-table-column label="划线价" width="150"><template #default="{ row }"><el-input-number v-model="row.marketPrice" :min="0" :precision="2" controls-position="right" /></template></el-table-column>
                 <el-table-column :label="form.merchantId ? '结算价' : '参考成本价'" width="150"><template #default="{ row }"><el-input-number v-model="row.costAmount" :min="0" :precision="2" controls-position="right" :disabled="Boolean(form.merchantId) && !canManageSettlementCost" /></template></el-table-column>
                 <el-table-column v-if="performanceUnitsEnabled" label="单件PV" width="165">
@@ -989,6 +989,18 @@ const submitForm = async () => {
   if (!form.value.productName?.trim()) return ElMessage.warning('请输入商品名称')
   if (!form.value.mainImages.length) return ElMessage.warning('请至少上传一张商品主图')
   if (deliveryRegion.value.length !== 3) return ElMessage.warning('请选择完整的发货省、市、区/县')
+  if (Number(form.value.salePrice || 0) < 0) return ElMessage.warning('商品销售价不能小于0')
+  if (Number(form.value.marketPrice || 0) < 0) return ElMessage.warning('商品划线价不能小于0')
+  if (Number(form.value.costAmount || 0) < 0) return ElMessage.warning('商品成本价不能小于0')
+  if (Number(form.value.repurchasePrice || 0) < 0) return ElMessage.warning('商品复购价不能小于0')
+  if (Number(form.value.repurchasePv || 0) < 0) return ElMessage.warning('商品复购PV不能小于0')
+  if (skuRows.value.some((item) => Number(item.salePrice || 0) < 0)) return ElMessage.warning('SKU销售价不能小于0')
+  if (skuRows.value.some((item) => Number(item.marketPrice || 0) < 0)) return ElMessage.warning('SKU划线价不能小于0')
+  if (skuRows.value.some((item) => Number(item.costAmount || 0) < 0)) return ElMessage.warning('SKU成本价不能小于0')
+  if (skuRows.value.some((item) => Number(item.repurchasePrice || 0) < 0)) return ElMessage.warning('SKU复购价不能小于0')
+  if (skuRows.value.some((item) => Number(item.repurchasePv || 0) < 0)) return ElMessage.warning('SKU复购PV不能小于0')
+  if (Number(form.value.normalSaleEnabled) === 1 && !hasSku.value && Number(form.value.salePrice || 0) <= 0) return ElMessage.warning('启用普通销售时商品销售价必须大于0')
+  if (Number(form.value.normalSaleEnabled) === 1 && skuRows.value.some((item) => Number(item.status) === 1 && Number(item.salePrice || 0) <= 0)) return ElMessage.warning('启用普通销售时有效SKU销售价必须大于0')
   if (form.value.freightType === 1 && Number(form.value.freightAmount || 0) <= 0) return ElMessage.warning('固定运费必须大于0')
   if (form.value.freightType === 2 && Number(form.value.freeShippingAmount || 0) <= 0) return ElMessage.warning('请填写满额包邮门槛')
   if (Number(form.value.purchaseLimit || 0) < 0 || !Number.isInteger(Number(form.value.purchaseLimit || 0))) return ElMessage.warning('会员限购数量必须是大于等于0的整数')

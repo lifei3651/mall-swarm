@@ -44,10 +44,13 @@ public class DmsShopProduct implements Serializable {
     @Size(max = 10000, message = "商品轮播图内容过长")
     private String galleryUrls;
 
+    @PositiveOrZero(message = "商品销售价不能小于0")
     private BigDecimal salePrice;
 
+    @PositiveOrZero(message = "商品划线价不能小于0")
     private BigDecimal marketPrice;
 
+    @PositiveOrZero(message = "商品成本价不能小于0")
     private BigDecimal costAmount;
 
     /** 仅用于后台提交商户结算价变更原因，不写入商品表。 */
