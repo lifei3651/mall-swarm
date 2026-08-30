@@ -38,5 +38,10 @@ public interface DmsMemberAssetFlowDao {
     List<DmsMemberAssetFlow> selectCommissionSettlementFlows(@Param("agentId") Long agentId,
                                                               @Param("commissionRecordId") Long commissionRecordId);
 
+    /** Assets deducted for one concrete commission record during an order refund. */
+    List<DmsMemberAssetFlow> selectCommissionClawbackFlows(@Param("agentId") Long agentId,
+                                                           @Param("refundId") Long refundId,
+                                                           @Param("recordNo") String recordNo);
+
     int insert(DmsMemberAssetFlow flow);
 }

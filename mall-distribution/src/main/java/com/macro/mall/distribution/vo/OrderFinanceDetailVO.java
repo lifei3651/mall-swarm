@@ -17,6 +17,9 @@ public class OrderFinanceDetailVO implements Serializable {
 
     private List<CommissionRecordVO> bonusFlows;
 
+    /** 订单奖金从关系冻结、计算、实际记录到入账和退款冲销的完整只读链路。 */
+    private OrderBonusTraceVO bonusTrace;
+
     private List<OrderCompanyShareVO> companyShares;
 
     private List<DmsFinanceRefund> refunds;

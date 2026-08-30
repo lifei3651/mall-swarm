@@ -18,6 +18,7 @@ import com.macro.mall.distribution.enums.CommissionStatusEnum;
 import com.macro.mall.distribution.service.DistributionAuditService;
 import com.macro.mall.distribution.service.PerformanceService;
 import com.macro.mall.distribution.service.MemberAssetService;
+import com.macro.mall.distribution.service.OrderBonusTraceService;
 import com.macro.mall.distribution.vo.*;
 import com.macro.mall.distribution.util.MemberAccountUtils;
 import lombok.RequiredArgsConstructor;
@@ -61,6 +62,7 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
     private final PerformanceService performanceService;
     private final MemberAssetService memberAssetService;
     private final CustomerBonusPolicyRegistry bonusPolicyRegistry;
+    private final OrderBonusTraceService orderBonusTraceService;
 
     @Override
     public DistributionSettingsVO getSettings() {
@@ -248,12 +250,19 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
     @Override
     public OrderFinanceDetailVO getOrderFinanceDetail(Long orderId) {
         DmsOrderFinance finance = ensureFinance(orderId, null, null);
+        DmsShopOrder order = shopOrderDao.selectById(orderId);
+        if (order == null) Asserts.fail("订单不存在或不属于当前客户");
+        List<DmsCommissionRecord> commissionRecords = commissionRecordDao.selectByOrderId(orderId);
+        List<CommissionRecordVO> bonusFlows = commissionRecords.stream().map(this::toCommissionVO).toList();
+        List<DmsFinanceRefund> refunds = refundDao.selectByOrderId(orderId);
+        List<DmsCommissionClawback> clawbacks = clawbackDao.selectByOrderId(orderId);
         OrderFinanceDetailVO vo = new OrderFinanceDetailVO();
         vo.setFinance(toFinanceVO(finance));
-        vo.setBonusFlows(commissionRecordDao.selectByOrderId(orderId).stream().map(this::toCommissionVO).toList());
+        vo.setBonusFlows(bonusFlows);
+        vo.setBonusTrace(orderBonusTraceService.build(order, commissionRecords, bonusFlows, refunds, clawbacks));
         vo.setCompanyShares(companyShareDao.selectByOrderId(orderId).stream().map(this::toCompanyShareVO).toList());
-        vo.setRefunds(refundDao.selectByOrderId(orderId));
-        vo.setClawbacks(clawbackDao.selectByOrderId(orderId));
+        vo.setRefunds(refunds);
+        vo.setClawbacks(clawbacks);
         List<DmsOrderBalanceAllocation> allocations = orderBalanceAllocationDao.selectByOrderId(orderId);
         allocations.forEach(item -> item.setTargetAccount(
                 MemberAccountUtils.display(shopMemberDao.selectById(item.getTargetMemberId()))));

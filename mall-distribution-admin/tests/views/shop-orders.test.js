@@ -39,6 +39,20 @@ describe('商城订单取消入口', () => {
     expect(source).toContain('command="BONUS"')
   })
 
+  it('订单奖金使用全链路追溯并把原有实际奖金记录保留为其中一个阶段', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('订单奖金全链路追溯')
+    expect(source).toContain('全链路时间线')
+    expect(source).toContain('计算依据与冻结关系')
+    expect(source).toContain('实际奖金记录')
+    expect(source).toContain('余额入账与扣回流水')
+    expect(source).toContain('退款冲销、欠款抵扣与待追回')
+    expect(source).toContain('bonusTrace.actualRecords')
+    expect(source).toContain('bonusTrace.assetFlows')
+    expect(source).toContain('bonusTrace.clawbacks')
+  })
+
   it('物流批量发货同时提供预填发货表和独立空白导入模板', async () => {
     const source = await readFile(sourcePath, 'utf8')
 

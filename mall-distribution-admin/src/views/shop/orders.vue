@@ -517,7 +517,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="bonusDialogVisible" title="订单奖金去向" width="960px" destroy-on-close>
+    <el-dialog v-model="bonusDialogVisible" title="订单奖金全链路追溯" width="1180px" destroy-on-close>
       <div v-loading="bonusLoading">
         <el-descriptions :column="4" border class="bonus-summary">
           <el-descriptions-item label="订单编号">{{ bonusOrder.orderNo || '-' }}</el-descriptions-item>
@@ -533,6 +533,16 @@
         </el-descriptions>
 
         <el-alert
+          v-if="bonusTrace.statusName"
+          :title="`当前状态：${bonusTrace.statusName}`"
+          :description="bonusTrace.explanation"
+          :type="bonusTraceAlertType"
+          :closable="false"
+          show-icon
+          class="bonus-alert"
+        />
+
+        <el-alert
           v-if="payoutExceeded(bonusFinance.finance?.payAmount, bonusFinance.finance?.bonusAmount)"
           title="风险提醒：该订单奖金总拨出已经超过订单总金额"
           type="error"
@@ -541,7 +551,68 @@
           class="bonus-alert"
         />
 
-        <el-table :data="bonusFinance.bonusFlows || []" style="width: 100%" empty-text="该订单暂未产生奖金记录">
+        <div class="bonus-trace-metrics">
+          <div><span>程序计算金额</span><strong>¥{{ money(bonusTrace.calculatedAmount) }}</strong></div>
+          <div><span>待结算</span><strong>¥{{ money(bonusTrace.pendingAmount) }}</strong></div>
+          <div><span>已结算净额</span><strong>¥{{ money(bonusTrace.settledNetAmount) }}</strong></div>
+          <div><span>累计冲减/追回</span><strong>¥{{ money(bonusTrace.clawbackAmount) }}</strong></div>
+          <div><span>当前有效净额</span><strong class="primary-value">¥{{ money(bonusTrace.currentNetAmount) }}</strong></div>
+          <div><span>待追回</span><strong :class="{ danger: Number(bonusTrace.debtAmount || 0) > 0 }">¥{{ money(bonusTrace.debtAmount) }}</strong></div>
+        </div>
+
+        <section class="bonus-trace-section">
+          <div class="bonus-trace-title">
+            <div><h3>全链路时间线</h3><p>按真实发生时间串联支付、关系冻结、计算、入账、退款和冲销。</p></div>
+          </div>
+          <el-timeline v-if="bonusTrace.timeline?.length" class="bonus-timeline">
+            <el-timeline-item
+              v-for="item in bonusTrace.timeline"
+              :key="`${item.code}-${item.time}-${item.description}`"
+              :timestamp="formatDateTime(item.time)"
+              :type="traceEventType(item.status)"
+              placement="top"
+            >
+              <strong>{{ item.title }}</strong>
+              <p>{{ item.description }}</p>
+            </el-timeline-item>
+          </el-timeline>
+          <el-empty v-else description="该订单尚未进入奖金链路" :image-size="72" />
+        </section>
+
+        <section class="bonus-trace-section">
+          <div class="bonus-trace-title">
+            <div><h3>计算依据与冻结关系</h3><p>这里只展示订单支付时保存的证据，不按当前上下级关系倒推。</p></div>
+          </div>
+          <el-descriptions :column="4" border class="bonus-program-summary">
+            <el-descriptions-item label="客户奖金程序">{{ bonusTrace.ruleVersionName || '未进入奖金程序' }}</el-descriptions-item>
+            <el-descriptions-item label="程序版本">{{ bonusTrace.ruleVersionNo || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="计算方式">{{ bonusTrace.calculationTaskStatusName || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="冻结关系">{{ bonusTrace.relationCount || 0 }} 层</el-descriptions-item>
+          </el-descriptions>
+          <el-table :data="bonusTrace.relationChain || []" style="width:100%" empty-text="该订单没有冻结推广关系">
+            <el-table-column prop="relationLevel" label="关系深度" width="100" />
+            <el-table-column prop="memberAccount" label="会员登录账号" min-width="150" />
+            <el-table-column prop="memberName" label="会员昵称" min-width="140" />
+            <el-table-column prop="relationPath" label="冻结关系路径" min-width="220" show-overflow-tooltip />
+            <el-table-column label="冻结时间" width="170">
+              <template #default="{ row }">{{ formatDateTime(row.snapshotTime) }}</template>
+            </el-table-column>
+          </el-table>
+          <el-table v-if="bonusTrace.calculationEvidence?.length" :data="bonusTrace.calculationEvidence" class="bonus-evidence-table" style="width:100%">
+            <el-table-column prop="id" label="计算证据号" width="120" />
+            <el-table-column label="计算PV" width="130"><template #default="{ row }">{{ money(row.totalPv) }}</template></el-table-column>
+            <el-table-column label="计算奖金" width="140"><template #default="{ row }">¥{{ money(row.totalBonus) }}</template></el-table-column>
+            <el-table-column prop="riskStatusName" label="通用资金校验" width="130" />
+            <el-table-column label="留存时间" min-width="170"><template #default="{ row }">{{ formatDateTime(row.createTime) }}</template></el-table-column>
+          </el-table>
+        </section>
+
+        <section class="bonus-trace-section">
+          <div class="bonus-trace-title">
+            <div><h3>实际奖金记录</h3><p>保留原“奖金去向”的真实记录；每一行都是客户奖金程序实际生成的收款结果。</p></div>
+            <el-tag type="success" effect="plain">现有实际记录 {{ bonusTrace.actualRecords?.length || 0 }} 条</el-tag>
+          </div>
+        <el-table :data="bonusTrace.actualRecords || []" style="width: 100%" empty-text="该订单暂未产生实际奖金记录">
           <el-table-column prop="recordNo" label="奖金记录号" min-width="180" />
           <el-table-column prop="agentMemberAccount" label="获奖登录账号" width="145" />
           <el-table-column prop="agentName" label="获奖会员" width="130" />
@@ -560,6 +631,43 @@
             <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
           </el-table-column>
         </el-table>
+        </section>
+
+        <section class="bonus-trace-section">
+          <div class="bonus-trace-title">
+            <div><h3>余额入账与扣回流水</h3><p>只有真实改变会员余额的动作才会出现在这里，可核对流水号和变动前后余额。</p></div>
+          </div>
+          <el-table :data="bonusTrace.assetFlows || []" style="width:100%" empty-text="该订单尚无奖金余额变动">
+            <el-table-column prop="flowNo" label="资产流水号" min-width="190" />
+            <el-table-column prop="recordNo" label="奖金记录号" min-width="180" />
+            <el-table-column prop="memberAccount" label="会员登录账号" width="145" />
+            <el-table-column prop="memberName" label="会员昵称" width="125" />
+            <el-table-column prop="actionName" label="动作" width="100">
+              <template #default="{ row }"><el-tag :type="row.action === 'CLAWBACK' ? 'warning' : 'success'">{{ row.actionName }}</el-tag></template>
+            </el-table-column>
+            <el-table-column label="金额" width="110"><template #default="{ row }">¥{{ money(row.amount) }}</template></el-table-column>
+            <el-table-column label="变动前" width="110"><template #default="{ row }">¥{{ money(row.balanceBefore) }}</template></el-table-column>
+            <el-table-column label="变动后" width="110"><template #default="{ row }">¥{{ money(row.balanceAfter) }}</template></el-table-column>
+            <el-table-column label="发生时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createTime) }}</template></el-table-column>
+          </el-table>
+        </section>
+
+        <section class="bonus-trace-section">
+          <div class="bonus-trace-title">
+            <div><h3>退款冲销、欠款抵扣与待追回</h3><p>区分应追回、已经扣回、历史欠款抵扣和仍待追回，避免只看奖金记录误判实际净额。</p></div>
+          </div>
+          <el-table :data="bonusTrace.clawbacks || []" style="width:100%" empty-text="该订单没有奖金退款冲销">
+            <el-table-column prop="recordNo" label="奖金记录号" min-width="180" />
+            <el-table-column prop="memberAccount" label="会员登录账号" width="145" />
+            <el-table-column prop="typeName" label="追回方式" min-width="150" />
+            <el-table-column label="应追回" width="105"><template #default="{ row }">¥{{ money(row.clawbackAmount) }}</template></el-table-column>
+            <el-table-column label="已冲减" width="105"><template #default="{ row }">¥{{ money(row.deductedAmount) }}</template></el-table-column>
+            <el-table-column label="待追回" width="105"><template #default="{ row }"><span :class="{ danger: Number(row.debtAmount || 0) > 0 }">¥{{ money(row.debtAmount) }}</span></template></el-table-column>
+            <el-table-column prop="statusName" label="状态" width="100" />
+            <el-table-column prop="reason" label="原因" min-width="180" show-overflow-tooltip />
+            <el-table-column label="发生时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createTime) }}</template></el-table-column>
+          </el-table>
+        </section>
       </div>
     </el-dialog>
   </div>
@@ -640,6 +748,20 @@ const bonusDialogVisible = ref(false)
 const bonusLoading = ref(false)
 const bonusFinance = ref({})
 const bonusOrder = ref({ orderNo: '', memberAccount: '' })
+const bonusTrace = computed(() => bonusFinance.value?.bonusTrace || {
+  actualRecords: bonusFinance.value?.bonusFlows || [],
+  relationChain: [],
+  calculationEvidence: [],
+  assetFlows: [],
+  clawbacks: [],
+  timeline: [],
+})
+const bonusTraceAlertType = computed(() => {
+  if (['CALCULATION_FAILED', 'DATA_CONFLICT', 'DEBT_PENDING'].includes(bonusTrace.value?.status)) return 'error'
+  if (['PENDING_SETTLEMENT', 'PARTIALLY_SETTLED', 'REFUND_ADJUSTED', 'DEBT_OFFSET'].includes(bonusTrace.value?.status)) return 'warning'
+  if (['SETTLED'].includes(bonusTrace.value?.status)) return 'success'
+  return 'info'
+})
 const currentOrder = ref(null)
 const tradeDetailVisible = ref(false)
 const tradeDetailLoading = ref(false)
@@ -669,6 +791,7 @@ const money = (value) => Number(value || 0).toFixed(2)
 const percent = (value) => `${(Number(value || 0) * 100).toFixed(2)}%`
 const payoutExceeded = (orderAmount, bonusAmount) => Number(bonusAmount || 0) > Number(orderAmount || 0)
 const bonusTypeName = (row) => customerBonusName(row)
+const traceEventType = (status) => ({ success: 'success', warning: 'warning', danger: 'danger', info: 'info' }[status] || 'info')
 const afterSaleStatus = (status, applyType) => {
   if (Number(applyType) === 3 && Number(status) === 1) return '换货完成'
   return ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待客户寄回', 5: '待商家收货', 6: '退款处理中', 7: '待换货发出', 8: '换货已发出' }[status] || '处理中')
@@ -1371,6 +1494,85 @@ onBeforeUnmount(() => {
 
 .bonus-alert {
   margin-bottom: 16px;
+}
+
+.bonus-trace-metrics {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin-bottom: 18px;
+}
+
+.bonus-trace-metrics > div {
+  min-width: 0;
+  padding: 14px;
+  background: #f7f9fc;
+  border: 1px solid #e8edf4;
+  border-radius: 10px;
+}
+
+.bonus-trace-metrics span {
+  display: block;
+  margin-bottom: 7px;
+  color: #7a8494;
+  font-size: 12px;
+}
+
+.bonus-trace-metrics strong {
+  color: #303133;
+  font-size: 18px;
+}
+
+.bonus-trace-metrics .primary-value {
+  color: #409eff;
+}
+
+.bonus-trace-section {
+  margin-top: 18px;
+  padding: 18px;
+  background: #fff;
+  border: 1px solid #e8edf4;
+  border-radius: 12px;
+}
+
+.bonus-trace-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.bonus-trace-title h3 {
+  margin: 0;
+  color: #303133;
+  font-size: 16px;
+}
+
+.bonus-trace-title p,
+.bonus-timeline p {
+  margin: 5px 0 0;
+  color: #7a8494;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.bonus-timeline {
+  padding: 8px 4px 0;
+}
+
+.bonus-program-summary {
+  margin-bottom: 14px;
+}
+
+.bonus-evidence-table {
+  margin-top: 14px;
+}
+
+@media (max-width: 1200px) {
+  .bonus-trace-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .merchant-order-scope-tip {

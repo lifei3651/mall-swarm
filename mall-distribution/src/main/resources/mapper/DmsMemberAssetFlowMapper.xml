@@ -192,6 +192,18 @@
         ORDER BY id ASC
     </select>
 
+    <select id="selectCommissionClawbackFlows" resultMap="BaseResultMap">
+        SELECT id, flow_no, agent_id, user_id, related_agent_id, related_user_id, asset_code, asset_name,
+               change_type, amount, balance_before, balance_after, operator_id, operator_name, biz_type, biz_id, remark, create_time
+        FROM dms_member_asset_flow
+        WHERE agent_id = #{agentId}
+          AND biz_type = 'COMMISSION_CLAWBACK'
+          AND biz_id = CAST(#{refundId} AS CHAR)
+          AND change_type = 5
+          AND remark LIKE CONCAT('%', #{recordNo}, '%')
+        ORDER BY id ASC
+    </select>
+
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsMemberAssetFlow" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_member_asset_flow
         (flow_no, agent_id, user_id, related_agent_id, related_user_id, asset_code, asset_name,
