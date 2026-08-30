@@ -99,7 +99,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 - 旧版本本地 Bearer Token 只用于一次性迁移；新代码不得把新 Token 写入本地存储。
 - 受保护页面的前端守卫仅用于体验，最终身份和数据权限必须由服务端判断。
 - 前端请求额外发送 `X-Shop-Surface: public|team|integrated` 供审计使用；服务端安全边界不能只信任该请求头。
-- 公开注册由服务端强制写入 `team_opt_in=0`，客户端传入关系参数也无效；团队 H5 注册或首次确认关系后才写入 `team_opt_in=1`。
+- 公开普通注册写入 `team_opt_in=0`；从有效邀请链接或二维码进入时，公开注册在同一事务中绑定邀请人并写入 `team_opt_in=1`。团队 H5 不允许普通账号事后补绑关系。
 
 #### 管理后台
 
@@ -131,10 +131,10 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | 方法与地址 | 主要入参 | `data` 出参 | 核心逻辑 |
 | --- | --- | --- | --- |
 | `GET /api/v1/captcha?scene=shop` | `scene=shop` | `LoginCaptchaVO`：验证码编号、图片 | 创建商城登录图形验证码 |
-| `POST /api/v1/shop/public/auth/register` | `phone`、`username`、`password`、`smsCode` | 登录/会员会话结果 | 公开 App/小程序注册；服务端忽略任何邀请码，创建 `team_opt_in=0` 的普通购物账号并写入会话 Cookie |
+| `POST /api/v1/shop/public/auth/register` | `phone`、`username`、`password`、`smsCode`、邀请链接可带 `inviteCode` | 登录/会员会话结果 | 普通入口创建 `team_opt_in=0` 的购物账号；有效邀请入口在注册交易内绑定邀请人并写入 `team_opt_in=1`，随后进入公开商城 |
 | `POST /api/v1/shop/auth/register` | `phone`、`username`、`password`、`smsCode`、`inviteCode` | 登录/会员会话结果 | 团队 H5 注册；校验短信、账号唯一性和邀请关系，创建 `team_opt_in=1` 的账号 |
-| `POST /api/v1/shop/auth/login` | `account`、`loginType=password|sms`；密码方式传 `password`、`captchaId`、`captchaCode`，短信方式传 `smsCode` | 登录/会员会话结果 | 校验账号状态和锁定次数，成功后使旧会话失效 |
-| `GET /api/v1/shop/auth/me` | 会话 Cookie | 当前会员资料和权限 | 校验会话，可完成旧 Token 向 Cookie 的一次性迁移 |
+| `POST /api/v1/shop/auth/login` | `account`、`loginType=password|sms`；密码方式传 `password`、`captchaId`、`captchaCode`，短信方式传 `smsCode` | 登录/会员会话结果 | 校验账号状态和锁定次数；团队入口额外要求 `team_opt_in=1`，成功后使旧会话失效 |
+| `GET /api/v1/shop/auth/me` | 会话 Cookie、`X-Shop-Surface` | 当前会员资料和权限 | 校验会话和入口资格，可完成旧 Token 向 Cookie 的一次性迁移 |
 | `POST /api/v1/shop/auth/logout` | 会话 Cookie | `boolean` | 注销当前商城会话 |
 | `POST /api/v1/shop/auth/resetPassword` | `phone`、`smsCode`、`newPassword` | `boolean` | 验证短信后重置登录密码并失效旧会话 |
 | `PUT /api/v1/shop/auth/account` | `username`、`password` | 会员资料 | 为仅手机号会员补充登录账号和密码 |
@@ -145,8 +145,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `POST /api/v1/sms/send/payment-password` | 当前会员会话 | 脱敏发送结果 | 固定向绑定手机号发送支付密码验证码 |
 | `POST /api/v1/sms/verify` | `phone`、`bizType`、`code` | `boolean` | 验证对应业务验证码 |
 | `GET /api/v1/shop/invite/my` | 当前会员会话 | 邀请码、链接、二维码和会员信息 | 返回当前会员邀请信息 |
-| `GET /api/v1/shop/invite/{inviteCode}` | 路径邀请码 | 邀请人预览 | 注册前确认邀请人，不返回敏感资料 |
-| `POST /api/v1/shop/team/invitation` | `inviteCode` | 当前会员公开资料 | 为公开商城账号首次确认直属关系；会员行锁加条件更新，只允许绑定一次，不能绑定自己 |
+| `GET /api/v1/shop/public/inviter-preview/{inviteCode}` | 路径邀请码 | 邀请人预览 | 注册前展示脱敏邀请人，不返回敏感资料 |
 | `GET /api/v1/shop/public/profile` | 当前会员会话 | 会员公开资料、订单状态数量 | 公开商城个人中心；不返回代理、层级、业绩、奖金、资产账户或关系资料 |
 
 账号约束：手机号为中国大陆 11 位号码；登录账号为 4～20 位，以英文字母开头，仅支持字母、数字和下划线；登录密码为 6～32 位；短信验证码为 6 位数字。

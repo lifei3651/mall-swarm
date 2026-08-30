@@ -14,7 +14,7 @@
             </el-radio-group>
           </el-form-item>
           <p v-if="form.promotionJoinMode === 'DISABLED'">只保留一次性邀请关系，不自动产生推广身份；适合尚未完成客户制度开发的新项目。</p>
-          <p v-else-if="form.promotionJoinMode === 'AUTO_ON_INVITE'">用户扫码注册或在团队端首次绑定有效邀请人后，立即开通基础推广资格。</p>
+          <p v-else-if="form.promotionJoinMode === 'AUTO_ON_INVITE'">用户通过邀请链接或二维码注册并绑定邀请人后，立即开通基础推广资格。</p>
           <p v-else-if="form.promotionJoinMode === 'MANUAL_REVIEW'">系统先保存邀请关系，管理员审核客户要求的资料后，再在会员管理中开通。</p>
           <el-alert v-else title="这是老商城兼容方式。请确认客户业务及合规要求确实以购买作为资格条件，再用于新客户。" type="error" :closable="false" show-icon />
         </section>

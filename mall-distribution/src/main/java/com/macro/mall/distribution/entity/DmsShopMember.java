@@ -49,7 +49,7 @@ public class DmsShopMember implements Serializable {
     /** 0-普通商城会员，1-系统内部资金账户（不参与会员统计、登录或团队关系）。 */
     private Integer systemAccount;
 
-    /** 是否主动加入团队业务；公开商城注册默认为0，团队H5注册/确认关系后为1。 */
+    /** 是否加入团队业务；公开普通注册为0，受邀注册或后台开通为1。 */
     @JsonIgnore
     private Integer teamOptIn;
 

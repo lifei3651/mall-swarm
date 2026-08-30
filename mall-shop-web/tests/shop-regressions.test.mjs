@@ -16,6 +16,22 @@ import { resolveBrandCssVariables, themePresets } from '../src/utils/brand.js'
 const readView = (name) => readFile(new URL(`../src/views/${name}`, import.meta.url), 'utf8')
 const readStyles = () => readFile(new URL('../src/assets/styles.css', import.meta.url), 'utf8')
 
+test('invitation QR opens the public mall registration and team H5 never binds relationships a second time', async () => {
+  const [inviteCard, publicLogin, teamHome, shopApi, teamEnv] = await Promise.all([
+    readFile(new URL('../src/components/InviteCard.vue', import.meta.url), 'utf8'),
+    readFile(new URL('../src/surfaces/public/PublicLoginView.vue', import.meta.url), 'utf8'),
+    readFile(new URL('../src/surfaces/team/TeamHomeView.vue', import.meta.url), 'utf8'),
+    readFile(new URL('../src/api/shop.js', import.meta.url), 'utf8'),
+    readFile(new URL('../.env.team', import.meta.url), 'utf8'),
+  ])
+
+  assert.match(inviteCard, /toPublicWebUrl\('\/register'\)/)
+  assert.match(teamEnv, /VITE_PUBLIC_WEB_ORIGIN=https:\/\/lingqimall\.com/)
+  assert.match(publicLogin, /isRegister\.value \? '\/' : '\/profile'/)
+  assert.doesNotMatch(teamHome, /首次进入，请确认您的邀请关系|bindTeamInvitation|team-invite-code|确认关系/)
+  assert.doesNotMatch(shopApi, /\/shop\/team\/invitation|bindTeamInvitation/)
+})
+
 test('主题预设、颜色细节和分类导购在刷新后使用同一份确定颜色', async () => {
   const [app, home, category] = await Promise.all([
     readFile(new URL('../src/App.vue', import.meta.url), 'utf8'),

@@ -4,9 +4,8 @@ import com.macro.mall.common.exception.ApiException;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsShopMemberSessionDao;
 import com.macro.mall.distribution.dao.DmsTenantDao;
+import com.macro.mall.distribution.dto.ShopLoginDTO;
 import com.macro.mall.distribution.dto.ShopRegisterDTO;
-import com.macro.mall.distribution.dto.ShopInviteBindDTO;
-import com.macro.mall.distribution.dto.AgentSwitchLineDTO;
 import com.macro.mall.distribution.dto.AgentRegisterDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsTenant;
@@ -107,7 +106,6 @@ class ShopRegistrationInviteCompatibilityTest {
     @Test
     void registrationAcceptsLegacyAgentInviteCodeAndBindsDirectInviter() {
         String phone = "15500000123";
-        when(memberDao.countForFoundingTeamMember()).thenReturn(5L);
         when(memberDao.selectByInviteCode("OLDLINK1")).thenReturn(null);
 
         AgentInfoVO legacyAgent = new AgentInfoVO();
@@ -138,6 +136,17 @@ class ShopRegistrationInviteCompatibilityTest {
     }
 
     @Test
+    void teamRegistrationNeverCreatesAnAnonymousFoundingMember() {
+        ShopRegisterDTO dto = validRegistration("15500000127", "team_user_1");
+        dto.setInviteCode(null);
+
+        ApiException error = assertThrows(ApiException.class, () -> authService.register(dto, "team"));
+
+        assertEquals("请输入邀请码", error.getMessage());
+        verify(memberDao, never()).insert(any(DmsShopMember.class));
+    }
+
+    @Test
     void publicRegistrationFromInviteLinkBindsDirectInviterInSameTransaction() {
         ShopRegisterDTO dto = validRegistration("15500000124", "public_user_1");
         DmsShopMember inviter = new DmsShopMember();
@@ -151,7 +160,6 @@ class ShopRegistrationInviteCompatibilityTest {
         verify(memberDao).insert(memberCaptor.capture());
         assertEquals(880088L, memberCaptor.getValue().getInviterId());
         assertEquals(1, memberCaptor.getValue().getTeamOptIn());
-        verify(memberDao, never()).countForFoundingTeamMember();
         verify(agentService, never()).getAgentByInviteCode(any());
     }
 
@@ -166,7 +174,6 @@ class ShopRegistrationInviteCompatibilityTest {
         verify(memberDao).insert(memberCaptor.capture());
         assertEquals(null, memberCaptor.getValue().getInviterId());
         assertEquals(0, memberCaptor.getValue().getTeamOptIn());
-        verify(memberDao, never()).countForFoundingTeamMember();
         verify(memberDao, never()).selectByInviteCode(any());
         verify(agentService, never()).getAgentByInviteCode(any());
     }
@@ -205,32 +212,25 @@ class ShopRegistrationInviteCompatibilityTest {
     }
 
     @Test
-    void teamH5CanBindAnUnboundPublicAccountExactlyOnceAndMoveActiveAgent() {
-        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(new DmsTenant());
+    void ordinaryShoppingAccountCannotLoginToTeamH5AndBindLater() {
+        String phone = "15500000128";
         DmsShopMember member = new DmsShopMember();
-        member.setId(12L); member.setUserId(1200L); member.setStatus(1);
-        DmsShopMember inviter = new DmsShopMember();
-        inviter.setId(13L); inviter.setUserId(1300L); inviter.setStatus(1);
-        when(memberDao.selectByIdForUpdate(12L)).thenReturn(member);
-        when(memberDao.selectByInviteCode("INVITE01")).thenReturn(inviter);
-        when(memberDao.bindInviterIdIfAbsent(12L, 1300L)).thenReturn(1);
-        when(memberDao.selectById(12L)).thenReturn(member);
-        AgentInfoVO currentAgent = new AgentInfoVO();
-        currentAgent.setId(21L); currentAgent.setUserId(1200L);
-        AgentInfoVO inviterAgent = new AgentInfoVO();
-        inviterAgent.setId(22L); inviterAgent.setUserId(1300L);
-        when(agentService.getAgentByUserId(1200L)).thenReturn(currentAgent);
-        when(agentService.getAgentByUserId(1300L)).thenReturn(inviterAgent);
+        member.setId(12L);
+        member.setUserId(1200L);
+        member.setPhone(phone);
+        member.setStatus(1);
+        member.setTeamOptIn(0);
+        when(memberDao.selectByAccount(phone)).thenReturn(member);
+        ShopLoginDTO dto = new ShopLoginDTO();
+        dto.setAccount(phone);
+        dto.setLoginType("sms");
+        dto.setSmsCode("123456");
 
-        ShopInviteBindDTO dto = new ShopInviteBindDTO();
-        dto.setInviteCode(" invite01 ");
-        authService.bindInviter(member, dto);
+        ApiException error = assertThrows(ApiException.class, () -> authService.login(dto, "team"));
 
-        ArgumentCaptor<AgentSwitchLineDTO> lineCaptor = ArgumentCaptor.forClass(AgentSwitchLineDTO.class);
-        verify(agentService).switchLine(lineCaptor.capture());
-        assertEquals(21L, lineCaptor.getValue().getAgentId());
-        assertEquals(22L, lineCaptor.getValue().getNewParentAgentId());
-        assertEquals("公开商城账号首次进入团队H5绑定直属邀请关系", lineCaptor.getValue().getReason());
+        assertEquals("当前账号未加入团队服务，请联系平台管理员核对处理", error.getMessage());
+        verify(memberDao, never()).updateLastLoginTime(12L);
+        verify(sessionDao, never()).insert(any());
     }
 
     private ShopRegisterDTO validRegistration(String phone, String username) {

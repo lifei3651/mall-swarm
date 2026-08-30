@@ -260,7 +260,7 @@ const validate = () => {
 }
 
 const destination = () => {
-  return safeShopRedirect(route.query.redirect, '/profile')
+  return safeShopRedirect(route.query.redirect, isRegister.value ? '/' : '/profile')
 }
 
 const submit = async () => {

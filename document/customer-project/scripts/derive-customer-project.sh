@@ -130,6 +130,20 @@ for line in android_lines:
     updated_lines.append(f"{key}={replacements[key]}" if key in replacements else line)
 android_env.write_text("\n".join(updated_lines) + "\n", encoding="utf-8")
 
+team_env = project / "mall-shop-web/.env.team"
+team_lines = team_env.read_text(encoding="utf-8").splitlines()
+team_updated = []
+team_origin_seen = False
+for line in team_lines:
+    if line.startswith("VITE_PUBLIC_WEB_ORIGIN="):
+        team_updated.append("VITE_PUBLIC_WEB_ORIGIN=https://replace-with-customer-domain.invalid")
+        team_origin_seen = True
+    else:
+        team_updated.append(line)
+if not team_origin_seen:
+    team_updated.append("VITE_PUBLIC_WEB_ORIGIN=https://replace-with-customer-domain.invalid")
+team_env.write_text("\n".join(team_updated) + "\n", encoding="utf-8")
+
 mini_runtime = project / "mall-mini-program/config/runtime.js"
 mini_program_included = mini_runtime.is_file()
 if mini_program_included:
@@ -262,6 +276,8 @@ if find "$PROJECT_STAGE/scripts" -maxdepth 1 -type f -name 'remote-*' -print -qu
 fi
 grep -q 'replace-with-customer-domain.invalid' "$PROJECT_STAGE/mall-shop-web/.env.android" \
   || { echo "Android 客户域名安全占位未生效" >&2; exit 1; }
+grep -q 'VITE_PUBLIC_WEB_ORIGIN=https://replace-with-customer-domain.invalid' "$PROJECT_STAGE/mall-shop-web/.env.team" \
+  || { echo "团队H5公开商城域名安全占位未生效" >&2; exit 1; }
 if [[ -f "$PROJECT_STAGE/mall-mini-program/config/runtime.js" ]]; then
   grep -q 'replace-with-customer-domain.invalid/api' "$PROJECT_STAGE/mall-mini-program/config/runtime.js" \
     || { echo "微信小程序客户域名安全占位未生效" >&2; exit 1; }

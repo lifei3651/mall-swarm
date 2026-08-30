@@ -391,8 +391,9 @@ public class ShopController {
 
     @Operation(summary = "当前会员")
     @GetMapping("/auth/me")
-    public CommonResult<DmsShopMember> me(@RequestHeader(value = "Authorization", required = false) String authorization) {
-        return CommonResult.success(authService.me(authorization));
+    public CommonResult<DmsShopMember> me(@RequestHeader(value = "Authorization", required = false) String authorization,
+                                           HttpServletRequest request) {
+        return CommonResult.success(authService.me(authorization, request.getHeader("X-Shop-Surface")));
     }
 
     @Operation(summary = "退出登录")
@@ -1130,14 +1131,6 @@ public class ShopController {
             @RequestHeader(value = "Authorization", required = false) String authorization) {
         DmsShopMember member = authService.requireMember(authorization);
         return CommonResult.success(shopService.getInviteInfo(member));
-    }
-
-    @Operation(summary = "团队H5首次绑定直属邀请关系")
-    @PostMapping("/team/invitation")
-    public CommonResult<DmsShopMember> bindTeamInvitation(
-            @RequestHeader(value = "Authorization", required = false) String authorization,
-            @Valid @RequestBody ShopInviteBindDTO dto) {
-        return CommonResult.success(authService.bindInviter(authService.requireMember(authorization), dto));
     }
 
     @Operation(summary = "注册页查询脱敏邀请人信息")

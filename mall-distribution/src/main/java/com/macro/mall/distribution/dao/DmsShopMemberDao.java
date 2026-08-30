@@ -27,12 +27,6 @@ public interface DmsShopMemberDao {
 
     DmsShopMember selectByInviteCode(@Param("inviteCode") String inviteCode);
 
-    /**
-     * Locks the membership set while a founding member is being created. This
-     * prevents two concurrent empty-store registrations from both becoming roots.
-     */
-    long countForFoundingTeamMember();
-
     List<DmsShopMember> selectList(@Param("keyword") String keyword,
                                    @Param("status") Integer status);
 
@@ -59,7 +53,6 @@ public interface DmsShopMemberDao {
                       @Param("passwordHash") String passwordHash);
     int updateInviterId(@Param("id") Long id, @Param("inviterId") Long inviterId);
 
-    int bindInviterIdIfAbsent(@Param("id") Long id, @Param("inviterId") Long inviterId);
     int markTeamOptIn(@Param("id") Long id);
     int increaseFailedLogin(@Param("id") Long id, @Param("lockThreshold") Integer lockThreshold);
     int clearLoginLock(@Param("id") Long id);

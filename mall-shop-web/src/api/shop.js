@@ -529,10 +529,6 @@ export function getInviterPreview(inviteCode) {
   })
 }
 
-export function bindTeamInvitation(inviteCode) {
-  return request({ url: '/shop/team/invitation', method: 'post', data: { inviteCode } })
-}
-
 export function listMemberMessages(params) { return request({ url: '/shop/messages', method: 'get', params }) }
 export function getMemberMessage(id) { return request({ url: `/shop/messages/${id}`, method: 'get' }) }
 export function getMessageUnread() { return request({ url: '/shop/messages/unread', method: 'get' }) }

@@ -13,7 +13,7 @@ public enum PromotionJoinModeEnum {
     /** 不自动开通；新客户基座的安全默认值。 */
     DISABLED,
 
-    /** 扫码注册或在团队端首次绑定邀请关系后立即开通。 */
+    /** 通过邀请链接或二维码注册后立即开通。 */
     AUTO_ON_INVITE,
 
     /** 只允许后台审核后开通。 */

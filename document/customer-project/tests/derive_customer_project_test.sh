@@ -38,6 +38,7 @@ SOURCE_VERSION=$(git -C "$ROOT_DIR" show "${SOURCE_COMMIT}:VERSION" | tr -d '\r\
 grep -q 'customer_demo' "$DESTINATION/AGENTS.md"
 grep -q 'CUSTOMER_BONUS_DISABLED' "$DESTINATION/CUSTOMER_PROJECT.md"
 grep -q 'replace-with-customer-domain.invalid' "$DESTINATION/mall-shop-web/.env.android"
+grep -q 'VITE_PUBLIC_WEB_ORIGIN=https://replace-with-customer-domain.invalid' "$DESTINATION/mall-shop-web/.env.team"
 grep -q 'replace-with-customer-domain.invalid/api' "$DESTINATION/mall-mini-program/config/runtime.js"
 grep -Fq 'notifyUrl: ${ALIPAY_NOTIFY_URL:}' "$DESTINATION/mall-distribution/src/main/resources/application.yml"
 grep -q "form-action 'self' https://openapi.alipay.com" "$DESTINATION/scripts/nginx/lingqimall.conf"

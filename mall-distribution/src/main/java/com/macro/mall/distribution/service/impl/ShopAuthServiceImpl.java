@@ -17,7 +17,6 @@ import com.macro.mall.distribution.dto.ShopLoginDTO;
 import com.macro.mall.distribution.dto.ShopPasswordChangeDTO;
 import com.macro.mall.distribution.dto.ShopNicknameUpdateDTO;
 import com.macro.mall.distribution.dto.ShopPhoneUpdateDTO;
-import com.macro.mall.distribution.dto.ShopInviteBindDTO;
 import com.macro.mall.distribution.dto.AgentUpdateDTO;
 import com.macro.mall.distribution.dto.ShopRegisterDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
@@ -77,7 +76,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ShopAuthVO register(ShopRegisterDTO dto, String surface) {
-        return registerInternal(dto, true, true, normalizeSurface(surface, "team"));
+        return registerInternal(dto, true, normalizeSurface(surface, "team"));
     }
 
     @Override
@@ -86,11 +85,10 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         // 普通入口继续只创建购物账号；通过邀请二维码进入时，注册提交本身即为一次性关系确认。
         // 页面只展示脱敏邀请人和不可自行修改提示，不在公开商城展示任何奖金制度。
         boolean invitedRegistration = dto != null && dto.getInviteCode() != null && !dto.getInviteCode().isBlank();
-        return registerInternal(dto, invitedRegistration, false, "public");
+        return registerInternal(dto, invitedRegistration, "public");
     }
 
-    private ShopAuthVO registerInternal(ShopRegisterDTO dto, boolean requireInvitation,
-                                        boolean allowFoundingMember, String surface) {
+    private ShopAuthVO registerInternal(ShopRegisterDTO dto, boolean requireInvitation, String surface) {
         validateRegister(dto);
         dto.setPhone(dto.getPhone().trim());
         dto.setUsername(normalizeLoginAccount(dto.getUsername()));
@@ -110,9 +108,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
 
         // 团队 H5 必须携带邀请；公开商城普通入口不绑定，扫码邀请入口在本次注册中一次性绑定。
         Long inviterId = null;
-        boolean foundingMember = requireInvitation && allowFoundingMember
-                && memberDao.countForFoundingTeamMember() == 0;
-        if (requireInvitation && !foundingMember) {
+        if (requireInvitation) {
             if (dto.getInviteCode() == null || dto.getInviteCode().isBlank()) {
                 Asserts.fail("请输入邀请码");
             }
@@ -148,59 +144,9 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         PromotionJoinModeEnum joinMode = PromotionJoinModeEnum.forExisting(
                 tenant == null ? null : tenant.getPromotionJoinMode());
         if (requireInvitation && joinMode.autoOnInvite()) {
-            activateMember(member.getUserId(), 1,
-                    foundingMember ? "团队首位成员注册后自动开通推广资格" : "受邀注册后自动开通推广资格");
+            activateMember(member.getUserId(), 1, "受邀注册后自动开通推广资格");
         }
         return createSession(member, surface);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public DmsShopMember bindInviter(DmsShopMember member, ShopInviteBindDTO dto) {
-        if (member == null) Asserts.unauthorized("请先登录");
-        if (dto == null || dto.getInviteCode() == null || dto.getInviteCode().isBlank()) {
-            Asserts.fail("请输入邀请码");
-        }
-        DmsTenant tenant = lockAgentMutationScope();
-        DmsShopMember current = memberDao.selectByIdForUpdate(member.getId());
-        if (current == null || !Integer.valueOf(1).equals(current.getStatus())) Asserts.fail("会员不存在或不可用");
-        if (current.getInviterId() != null) Asserts.fail("直属邀请关系已经绑定，不能自行修改");
-
-        String code = dto.getInviteCode().trim().toUpperCase(java.util.Locale.ROOT);
-        DmsShopMember inviter = memberDao.selectByInviteCode(code);
-        if (inviter == null) {
-            AgentInfoVO legacyInviter = agentService.getAgentByInviteCode(code);
-            if (legacyInviter != null && Integer.valueOf(1).equals(legacyInviter.getStatus())) {
-                inviter = memberDao.selectByUserId(legacyInviter.getUserId());
-            }
-        }
-        if (inviter == null || !Integer.valueOf(1).equals(inviter.getStatus())) Asserts.fail("邀请码无效");
-        if (Objects.equals(inviter.getUserId(), current.getUserId())) Asserts.fail("不能绑定自己的邀请码");
-
-        AgentInfoVO currentAgent = agentService.getAgentByUserId(current.getUserId());
-        if (currentAgent != null && currentAgent.getParentId() != null) {
-            Asserts.fail("当前账号已经存在团队上级，不能重复绑定");
-        }
-        if (memberDao.bindInviterIdIfAbsent(current.getId(), inviter.getUserId()) <= 0) {
-            Asserts.fail("直属邀请关系已经绑定，请刷新后查看");
-        }
-        // 首次进入团队端并主动绑定关系，视为团队业务参与选择；资格仍由客户模式决定。
-        memberDao.markTeamOptIn(current.getId());
-
-        if (PromotionJoinModeEnum.forExisting(tenant.getPromotionJoinMode()).autoOnInvite()
-                && currentAgent == null) {
-            currentAgent = activateMember(current.getUserId(), 1, "首次绑定直属邀请关系后自动开通推广资格");
-        }
-
-        AgentInfoVO inviterAgent = agentService.getAgentByUserId(inviter.getUserId());
-        if (currentAgent != null && inviterAgent != null) {
-            AgentSwitchLineDTO switchLine = new AgentSwitchLineDTO();
-            switchLine.setAgentId(currentAgent.getId());
-            switchLine.setNewParentAgentId(inviterAgent.getId());
-            switchLine.setReason("公开商城账号首次进入团队H5绑定直属邀请关系");
-            agentService.switchLine(switchLine);
-        }
-        return sanitize(memberDao.selectById(current.getId()));
     }
 
     @Override
@@ -495,6 +441,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         if (!Integer.valueOf(1).equals(member.getStatus())) {
             Asserts.fail(GENERIC_LOGIN_ERROR);
         }
+        requireSurfaceAccess(member, surface);
         memberDao.updateLastLoginTime(member.getId());
         // 单账号单会话：新登录成功后使该会员此前的全部会话失效。
         sessionDao.disableByMemberId(member.getId());
@@ -583,6 +530,13 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     @Override
     public DmsShopMember me(String authorization) {
         return sanitize(requireMember(authorization));
+    }
+
+    @Override
+    public DmsShopMember me(String authorization, String surface) {
+        DmsShopMember member = requireMember(authorization);
+        requireSurfaceAccess(member, surface);
+        return sanitize(member);
     }
 
     @Override
@@ -731,6 +685,13 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             case "public", "team", "integrated", "mini-program" -> surface;
             default -> fallback;
         };
+    }
+
+    private void requireSurfaceAccess(DmsShopMember member, String surface) {
+        if ("team".equals(normalizeSurface(surface, "public"))
+                && !Integer.valueOf(1).equals(member.getTeamOptIn())) {
+            Asserts.fail("当前账号未加入团队服务，请联系平台管理员核对处理");
+        }
     }
 
     private void validateRegister(ShopRegisterDTO dto) {

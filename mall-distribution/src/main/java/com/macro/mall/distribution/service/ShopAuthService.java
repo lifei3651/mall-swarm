@@ -7,7 +7,6 @@ import com.macro.mall.distribution.dto.ShopAccountSetupDTO;
 import com.macro.mall.distribution.dto.ShopPasswordChangeDTO;
 import com.macro.mall.distribution.dto.ShopNicknameUpdateDTO;
 import com.macro.mall.distribution.dto.ShopPhoneUpdateDTO;
-import com.macro.mall.distribution.dto.ShopInviteBindDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.vo.ShopAuthVO;
 import com.macro.mall.distribution.vo.AgentInfoVO;
@@ -35,6 +34,9 @@ public interface ShopAuthService {
     ShopAuthVO loginWechatMember(Long memberId);
 
     DmsShopMember me(String authorization);
+
+    /** 按入口校验账号是否具备访问资格，团队入口只允许已受邀或后台开通的账号。 */
+    DmsShopMember me(String authorization, String surface);
 
     DmsShopMember resolveMember(String authorization);
 
@@ -66,9 +68,6 @@ public interface ShopAuthService {
     DmsShopMember updateNickname(DmsShopMember member, ShopNicknameUpdateDTO dto);
 
     boolean updatePhone(DmsShopMember member, ShopPhoneUpdateDTO dto);
-
-    /** 团队 H5 首次进入时绑定唯一直属邀请关系；绑定后不可自行修改。 */
-    DmsShopMember bindInviter(DmsShopMember member, ShopInviteBindDTO dto);
 
     /**
      * 重置会员密码（忘记密码）

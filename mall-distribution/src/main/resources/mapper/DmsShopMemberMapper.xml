@@ -87,10 +87,6 @@
         LIMIT 1
     </select>
 
-    <select id="countForFoundingTeamMember" resultType="long">
-        SELECT COUNT(*) FROM dms_shop_member WHERE system_account = 0 AND team_opt_in = 1 FOR UPDATE
-    </select>
-
     <select id="selectList" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_member
@@ -244,11 +240,6 @@
     </update>
     <update id="updateInviterId">
         UPDATE dms_shop_member SET inviter_id=#{inviterId}, update_time=CURRENT_TIMESTAMP WHERE id=#{id}
-    </update>
-    <update id="bindInviterIdIfAbsent">
-        UPDATE dms_shop_member
-        SET inviter_id=#{inviterId}, team_opt_in=1, update_time=CURRENT_TIMESTAMP
-        WHERE id=#{id} AND inviter_id IS NULL
     </update>
     <update id="markTeamOptIn">
         UPDATE dms_shop_member SET team_opt_in=1, update_time=CURRENT_TIMESTAMP WHERE id=#{id}
