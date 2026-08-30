@@ -1736,6 +1736,11 @@ public class PerformanceServiceTest {
         apply.setReason("物流停滞 / 未收到货");
         DmsShopAfterSale openAfterSale = shopAfterSaleService.apply(member, apply);
 
+        RuntimeException manualReceiveError = assertThrows(RuntimeException.class,
+                () -> shopService.confirmReceive(paid.getOrder().getId(), member));
+        assertTrue(manualReceiveError.getMessage().contains("售后处理中"));
+        ShopOrderVO openAfterSaleOrder = shopService.getOrder(paid.getOrder().getId());
+        assertFalse(openAfterSaleOrder.getAutoReceiveEnabled(), "处理中售后不应继续向客户展示自动收货倒计时");
         assertEquals(0, shopService.autoConfirmExpiredShippedOrders(20), "处理中售后必须阻止自动确认收货");
         assertEquals(2, shopOrderDao.selectById(paid.getOrder().getId()).getStatus());
         shopAfterSaleService.cancel(member, openAfterSale.getId());

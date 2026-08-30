@@ -289,7 +289,7 @@
         <p v-else-if="order.status === 0 && order.payType !== 'BALANCE'" class="channel-tip">
           {{ payTypeName(order.payType) }}订单已保留；当前通道完成配置后可继续支付。
         </p>
-        <div v-if="order.status === 2 && detail.autoReceiveEnabled" class="auto-receive-tip">
+        <div v-if="order.status === 2 && detail.autoReceiveEnabled && !hasActiveAfterSale" class="auto-receive-tip">
           <div>
             <strong>{{ autoReceiveNotice }}</strong>
             <span>如尚未收到、物流停滞或已经拒收，请先提交售后，处理中不会自动确认收货。</span>
@@ -302,7 +302,7 @@
           <RouterLink v-if="Number(detail.pendingReviewCount || 0) > 0" class="btn secondary" :to="pendingReviewLink">去评价</RouterLink>
           <button v-if="order.status === 0" class="btn secondary" :disabled="acting" @click="requestOrderConfirmation('cancel-order')">取消订单</button>
           <button v-if="order.status === 0" class="btn primary" :disabled="acting" @click="pay">立即支付</button>
-          <button v-if="order.status === 2" class="btn primary" :disabled="acting" @click="requestOrderConfirmation('receive-order')">确认收货</button>
+          <button v-if="order.status === 2 && !hasActiveAfterSale" class="btn primary" :disabled="acting" @click="requestOrderConfirmation('receive-order')">确认收货</button>
         </div>
         <p v-if="error" style="color: var(--coral); line-height: 1.6">{{ error }}</p>
       </aside>
@@ -457,6 +457,8 @@ const pendingReviewLink = computed(() => ({
   query: detail.value.pendingReviewOrderItemId ? { orderItemId: detail.value.pendingReviewOrderItemId } : {},
 }))
 const afterSales = computed(() => detail.value.afterSales || [])
+const hasActiveAfterSale = computed(() => afterSales.value
+  .some((item) => [0, 4, 5, 6, 7, 8].includes(Number(item.status))))
 const serviceTicketLink = computed(() => {
   const sale = afterSales.value[0]
   return {

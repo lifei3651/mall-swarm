@@ -1483,8 +1483,12 @@ public class ShopServiceImpl implements ShopService {
         vo.setAfterSaleDeadline(afterSaleWindowPolicy.deadline(order, window));
         vo.setAfterSaleSelfServiceEnabled(window.days() > 0);
         int safeAutoReceiveDays = Math.max(1, Math.min(autoReceiveDays, 365));
+        boolean hasOpenAfterSale = vo.getAfterSales() != null && vo.getAfterSales().stream()
+                .anyMatch(sale -> sale != null && sale.getStatus() != null
+                        && java.util.Set.of(0, 4, 5, 6, 7, 8).contains(sale.getStatus()));
         boolean waitingForAutoReceive = Integer.valueOf(2).equals(order.getStatus())
-                && order.getDeliveryTime() != null;
+                && order.getDeliveryTime() != null
+                && !hasOpenAfterSale;
         vo.setAutoReceiveDays(safeAutoReceiveDays);
         vo.setAutoReceiveEnabled(waitingForAutoReceive);
         vo.setAutoReceiveDeadline(waitingForAutoReceive
@@ -1838,6 +1842,9 @@ public class ShopServiceImpl implements ShopService {
         }
         if (Integer.valueOf(3).equals(order.getStatus())) return true;
         if (!Integer.valueOf(2).equals(order.getStatus())) return false;
+        if (afterSaleDao.selectOpenByOrderId(orderId) != null) {
+            Asserts.fail("该订单正在售后处理中，暂不能确认收货");
+        }
         boolean confirmed = orderDao.confirmReceive(orderId) > 0;
         if (confirmed) {
             merchantService.lockOrderSettlementEligibility(orderId);

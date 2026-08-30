@@ -47,7 +47,7 @@
           <span>共 {{ totalQuantity(item) }} 件</span>
           <span>实付 <strong>¥{{ money(item.order.payAmount) }}</strong></span>
         </div>
-        <div v-if="item.order.status === 2 && item.autoReceiveEnabled" class="auto-receive-summary">
+        <div v-if="item.order.status === 2 && item.autoReceiveEnabled && !isAfterSale(item)" class="auto-receive-summary">
           <span>预计 {{ dateTime(item.autoReceiveDeadline) }} 自动确认收货</span>
           <RouterLink v-if="canApplyAfterSale(item)" :to="`/orders/${item.order.id}?applyAfterSale=1`">未收到 / 拒收</RouterLink>
         </div>
@@ -58,7 +58,7 @@
           <RouterLink class="order-action" :to="`/orders/${item.order.id}`">查看详情</RouterLink>
           <button v-if="item.order.status === 0 && isTradeActionOwner(item)" class="order-action" :disabled="actingId === item.order.id" @click="requestOrderAction('cancel', item.order.id)">{{ item.order.tradeId ? '取消联合订单' : '取消订单' }}</button>
           <RouterLink v-if="item.order.status === 0 && isTradeActionOwner(item)" class="order-action primary-action" :to="`/orders/${item.order.id}`">{{ item.order.tradeId ? '支付全部子单' : '立即支付' }}</RouterLink>
-          <button v-if="item.order.status === 2" class="order-action primary-action" :disabled="actingId === item.order.id" @click="requestOrderAction('receive', item.order.id)">确认收货</button>
+          <button v-if="item.order.status === 2 && !isAfterSale(item)" class="order-action primary-action" :disabled="actingId === item.order.id" @click="requestOrderAction('receive', item.order.id)">确认收货</button>
           <RouterLink v-if="Number(item.pendingReviewCount || 0) > 0" class="order-action primary-action" :to="reviewLink(item)">去评价</RouterLink>
           <RouterLink v-if="canApplyAfterSale(item)" class="order-action" :to="`/orders/${item.order.id}?applyAfterSale=1`">申请售后</RouterLink>
         </div>

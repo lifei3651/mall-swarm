@@ -850,7 +850,7 @@ test('alipay checkout reconstructs a safe official payment form and CSP allows o
   assert.match(checkout, /removeCheckedOutItems\(\)/)
   assert.equal((checkout.match(/removeCheckedOutItems\(\)/g) || []).length, 1)
   assert.ok(checkout.indexOf('detailOrderId = res.data.order.id') < checkout.indexOf('removeCheckedOutItems()'))
-  assert.match(checkout, /let checkoutId = pendingCheckoutId\.value/)
+  assert.match(checkout, /const \{ checkoutId, detailOrderId \} = await ensurePendingOrder\(\)/)
   assert.match(checkout, /pendingCheckoutId\.value = checkoutId/)
   assert.match(checkout, /:disabled="Boolean\(pendingCheckoutId\)"/)
   assert.match(detail, /createAlipayOrder\(order\.value\.id\)/)
@@ -886,6 +886,34 @@ test('checkout confirms payment password was saved before continuing payment', a
   assert.match(source, /支付密码已设置/)
   assert.match(source, /continueAfterPasswordSaved/)
   assert.match(source, /paymentPasswordSaved\.value = true/)
+})
+
+test('checkout creates a pending-payment order before balance authentication and returns abandoned payment to its list', async () => {
+  const source = await readView('CheckoutView.vue')
+
+  assert.ok(source.indexOf('await ensurePendingOrder()') < source.indexOf('showPayDialog.value = true'))
+  assert.match(source, /“提交订单”先落成待支付订单/)
+  assert.match(source, /订单已创建；关闭或返回后，可在“待支付”继续付款/)
+  assert.match(source, /persistPendingCheckout\(\)/)
+  assert.match(source, /leaveForPendingPayment/)
+  assert.match(source, /router\.replace\(\{ path: '\/orders', query: \{ tab: 'pending-payment' \} \}\)/)
+  assert.match(source, /if \(pendingCheckoutId\.value\) \{\s*leaveForPendingPayment\(\)/)
+  assert.match(source, /onBeforeRouteLeave\(\(to\) =>/)
+  assert.match(source, /to\.path === '\/profile\/security\/change-payment-password'/)
+  assert.ok(source.indexOf('pendingCheckoutId.value = checkoutId') < source.indexOf('await payOrderWithBalance(checkoutId'))
+  assert.match(source, /clearPendingCheckoutReference\(\)/)
+  assert.doesNotMatch(source, /clearPendingCheckoutReference\(\)\s*\n\s*submitTrustedAlipayForm/)
+})
+
+test('active after-sale orders leave the pending-receipt queue and cannot be confirmed from the customer UI', async () => {
+  const orders = await readView('OrdersView.vue')
+  const detail = await readView('OrderDetailView.vue')
+
+  assert.match(orders, /item\.order\.status === 2 && !isAfterSale\(item\)/)
+  assert.match(orders, /item\.autoReceiveEnabled && !isAfterSale\(item\)/)
+  assert.match(detail, /const hasActiveAfterSale = computed/)
+  assert.match(detail, /order\.status === 2 && !hasActiveAfterSale/)
+  assert.match(detail, /detail\.autoReceiveEnabled && !hasActiveAfterSale/)
 })
 
 test('wallet transfer is packaged only by integrated H5 and requires verified adult accounts', async () => {

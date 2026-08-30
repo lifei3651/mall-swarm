@@ -200,6 +200,7 @@
         <template v-else-if="!walletSummary.hasPaymentPassword">
           <h3 id="setup-pay-dialog-title">首次设置支付密码</h3>
           <p>设置成功后将继续支付本订单。支付密码用于保护账户余额支付，请勿与登录密码相同。</p>
+          <p class="pending-payment-hint">订单已创建；关闭或返回后，可在“待支付”继续付款。</p>
           <div class="dialog-form">
             <label>
               <span>当前登录密码</span>
@@ -244,6 +245,7 @@
             <p class="payment-method-name">余额支付</p>
             <div class="payment-amount"><small>¥</small><strong>{{ money(payAmount) }}</strong></div>
             <p class="payment-balance-copy">可用余额 ¥{{ money(walletSummary.balance) }}</p>
+            <p class="pending-payment-hint">订单已创建；关闭或返回后，可在“待支付”继续付款。</p>
 
             <div class="payment-password-label"><span>请输入6位支付密码</span><em>{{ payPasswordInput.length }}/6</em></div>
             <button
@@ -258,7 +260,7 @@
             <div class="payment-assist-row">
               <p v-if="payPasswordError" class="payment-password-error">{{ payPasswordError }}</p>
               <p v-else class="payment-secure-copy"><ShieldCheck :size="15" />支付密码将通过加密连接验证</p>
-              <RouterLink to="/profile/security/change-payment-password" @click="closePayDialog">忘记密码</RouterLink>
+              <RouterLink to="/profile/security/change-payment-password" @click="resetPayDialogState">忘记密码</RouterLink>
             </div>
 
             <button
@@ -285,7 +287,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, ClipboardPaste, Plus, Settings2, ShieldCheck, X } from 'lucide-vue-next'
 import { getHome, getMe, getWalletSummary, listAddresses, submitOrder, submitFlashSaleOrder, quoteFreight, checkPaymentVerify, sendSmsCode, sendPaymentPasswordSmsCode, setPaymentPassword, payOrderWithBalance, createAlipayOrder, getPayConfig } from '@/api/shop'
 import { mixedBusinessError, validateCheckoutBusinessType } from '@surface-commerce-policy'
@@ -368,6 +370,10 @@ const paymentOptions = computed(() => {
 })
 
 const goBack = () => {
+  if (pendingCheckoutId.value) {
+    leaveForPendingPayment()
+    return
+  }
   if (window.history.state?.back) {
     router.back()
     return
@@ -382,6 +388,31 @@ const smsCode = ref('')
 // 支付渠道失败时保留已经创建的订单，重试只能继续支付原交易，不能再次生成订单。
 const pendingCheckoutId = ref(null)
 const pendingCheckoutDetailOrderId = ref(null)
+const PENDING_CHECKOUT_STORAGE_KEY = 'pending_checkout_order'
+const persistPendingCheckout = () => {
+  if (!pendingCheckoutId.value) return
+  try {
+    sessionStorage.setItem(PENDING_CHECKOUT_STORAGE_KEY, JSON.stringify({
+      checkoutId: pendingCheckoutId.value,
+      detailOrderId: pendingCheckoutDetailOrderId.value,
+    }))
+  } catch {
+    // 会话存储不可用时仍保留当前页面内的待支付订单引用。
+  }
+}
+const clearPendingCheckoutStorage = () => {
+  try { sessionStorage.removeItem(PENDING_CHECKOUT_STORAGE_KEY) } catch {}
+}
+const restorePendingCheckout = () => {
+  try {
+    const value = JSON.parse(sessionStorage.getItem(PENDING_CHECKOUT_STORAGE_KEY) || 'null')
+    if (!value?.checkoutId) return
+    pendingCheckoutId.value = value.checkoutId
+    pendingCheckoutDetailOrderId.value = value.detailOrderId || value.checkoutId
+  } catch {
+    clearPendingCheckoutStorage()
+  }
+}
 const smsCooldown = ref(0)
 
 // 支付密码弹窗
@@ -668,8 +699,7 @@ const sendSetupPasswordCode = async () => {
   }
 }
 
-const closePayDialog = () => {
-  if (payPasswordSubmitting.value || setupPasswordSubmitting.value) return
+const resetPayDialogState = () => {
   showPayDialog.value = false
   paymentPasswordSaved.value = false
   payPasswordInput.value = ''
@@ -677,6 +707,29 @@ const closePayDialog = () => {
   setupPasswordConfirm.value = ''
   payPasswordError.value = ''
   setupPasswordError.value = ''
+}
+
+const clearPendingCheckoutReference = () => {
+  pendingCheckoutId.value = null
+  pendingCheckoutDetailOrderId.value = null
+  orderRequestKey.value = ''
+  balancePaymentRequestKey.value = ''
+  clearPendingCheckoutStorage()
+}
+
+const leaveForPendingPayment = () => {
+  resetPayDialogState()
+  clearPendingCheckoutReference()
+  router.replace({ path: '/orders', query: { tab: 'pending-payment' } })
+}
+
+const closePayDialog = () => {
+  if (payPasswordSubmitting.value || setupPasswordSubmitting.value) return
+  if (pendingCheckoutId.value) {
+    leaveForPendingPayment()
+    return
+  }
+  resetPayDialogState()
 }
 
 const appendPayDigit = (digit) => {
@@ -771,14 +824,22 @@ const submit = async () => {
 
   // 余额支付需要输入支付密码，弹出对话框
   if (form.value.payType === 'BALANCE') {
-    payPasswordInput.value = ''
-    paymentPasswordSaved.value = false
-    payPasswordError.value = ''
-    setupPasswordError.value = ''
-    if (!walletSummary.value.hasPaymentPassword && !await fetchMemberPhone()) {
-      setupPasswordError.value = '账号信息加载失败，请重新登录'
+    submitting.value = true
+    try {
+      await ensurePendingOrder()
+      payPasswordInput.value = ''
+      paymentPasswordSaved.value = false
+      payPasswordError.value = ''
+      setupPasswordError.value = ''
+      if (!walletSummary.value.hasPaymentPassword && !await fetchMemberPhone()) {
+        setupPasswordError.value = '账号信息加载失败，请重新登录'
+      }
+      showPayDialog.value = true
+    } catch (e) {
+      showCheckoutError(e.message || '提交失败')
+    } finally {
+      submitting.value = false
     }
-    showPayDialog.value = true
     return
   }
 
@@ -806,46 +867,51 @@ const confirmPayWithPassword = async () => {
   }
 }
 
+const ensurePendingOrder = async () => {
+  if (pendingCheckoutId.value) {
+    return {
+      checkoutId: pendingCheckoutId.value,
+      detailOrderId: pendingCheckoutDetailOrderId.value || pendingCheckoutId.value,
+    }
+  }
+  if (!orderRequestKey.value) orderRequestKey.value = createIdempotencyKey('order')
+  if (businessType === 'MIXED') throw new Error(mixedBusinessError)
+  const orderData = {
+    ...form.value,
+    businessType,
+    businessSourceId,
+    items: items.map((item) => ({
+      productId: item.id,
+      skuId: item.skuId,
+      quantity: item.quantity,
+    })),
+  }
+  if (needSmsVerify.value) orderData.smsCode = smsCode.value
+  const res = businessType === 'FLASH_SALE'
+    ? await submitFlashSaleOrder(businessSourceId, orderData, orderRequestKey.value)
+    : await submitOrder(orderData, orderRequestKey.value)
+  const checkoutId = res.data.checkoutId || res.data.order.id
+  const detailOrderId = res.data.order.id
+  orderRequestKey.value = ''
+  // “提交订单”先落成待支付订单；关闭、返回或支付失败后只能继续支付原订单，不能重复下单。
+  removeCheckedOutItems()
+  pendingCheckoutId.value = checkoutId
+  pendingCheckoutDetailOrderId.value = detailOrderId
+  persistPendingCheckout()
+  return { checkoutId, detailOrderId }
+}
+
 const doSubmitOrder = async (paymentPassword) => {
   if (submitting.value) return
   submitting.value = true
   clearCheckoutError()
   try {
-    const orderData = {
-      ...form.value,
-      businessType,
-      businessSourceId,
-      items: items.map((item) => ({
-        productId: item.id,
-        skuId: item.skuId,
-        quantity: item.quantity,
-      })),
-    }
-    if (needSmsVerify.value) orderData.smsCode = smsCode.value
-
-    let checkoutId = pendingCheckoutId.value
-    let detailOrderId = pendingCheckoutDetailOrderId.value
-    if (!checkoutId) {
-      if (!orderRequestKey.value) orderRequestKey.value = createIdempotencyKey('order')
-      if (businessType === 'MIXED') throw new Error(mixedBusinessError)
-      const res = businessType === 'FLASH_SALE'
-        ? await submitFlashSaleOrder(businessSourceId, orderData, orderRequestKey.value)
-        : await submitOrder(orderData, orderRequestKey.value)
-      checkoutId = res.data.checkoutId || res.data.order.id
-      detailOrderId = res.data.order.id
-      orderRequestKey.value = ''
-      // 订单已创建就从购物车移除，支付失败时从待付款订单继续支付，避免返回购物车重复下单。
-      removeCheckedOutItems()
-      pendingCheckoutId.value = checkoutId
-      pendingCheckoutDetailOrderId.value = detailOrderId
-    }
+    const { checkoutId, detailOrderId } = await ensurePendingOrder()
     if (paymentPassword) {
       // 余额支付
       if (!balancePaymentRequestKey.value) balancePaymentRequestKey.value = createIdempotencyKey('balance-pay')
       await payOrderWithBalance(checkoutId, paymentPassword, balancePaymentRequestKey.value)
-      balancePaymentRequestKey.value = ''
-      pendingCheckoutId.value = null
-      pendingCheckoutDetailOrderId.value = null
+      clearPendingCheckoutReference()
     } else if (form.value.payType === 'ALIPAY') {
       // 支付宝支付：创建支付宝订单并跳转
       const alipayRes = await createAlipayOrder(checkoutId)
@@ -867,6 +933,11 @@ const doSubmitOrder = async (paymentPassword) => {
 }
 
 onMounted(() => {
+  restorePendingCheckout()
+  if (pendingCheckoutId.value) {
+    leaveForPendingPayment()
+    return
+  }
   if (!items.length) {
     router.replace('/cart')
     return
@@ -885,6 +956,14 @@ const fetchPayConfig = async () => {
     payConfig.value = res.data || {}
   } catch {}
 }
+onBeforeRouteLeave((to) => {
+  if (!pendingCheckoutId.value
+    || to.path.startsWith('/orders')
+    || to.path === '/profile/security/change-payment-password') return true
+  resetPayDialogState()
+  clearPendingCheckoutReference()
+  return { path: '/orders', query: { tab: 'pending-payment' } }
+})
 onBeforeUnmount(() => {
   window.clearInterval(setupSmsTimer)
   window.clearInterval(paymentSmsTimer)
@@ -895,6 +974,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .checkout-page { padding-top: 10px; }
+.pending-payment-hint { margin:8px 0 0; color:#7a5a16; font-size:12px; line-height:1.5; text-align:center; }
 .checkout-toast { position:fixed; top:calc(18px + env(safe-area-inset-top)); left:50%; z-index:1200; max-width:min(88vw,420px); padding:11px 16px; color:#fff; background:rgba(180,35,24,.96); border-radius:10px; box-shadow:0 8px 24px rgba(15,23,42,.18); transform:translateX(-50%); font-size:13px; line-height:1.5; text-align:center; pointer-events:none; }
 .checkout-page-head {
   position: sticky;
