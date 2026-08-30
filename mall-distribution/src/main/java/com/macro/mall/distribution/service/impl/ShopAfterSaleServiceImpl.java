@@ -16,8 +16,6 @@ import com.macro.mall.distribution.dao.DmsShopProductDao;
 import com.macro.mall.distribution.dao.DmsShopServiceAddressDao;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsShopSkuDao;
-import com.macro.mall.distribution.dao.DmsFlashSaleActivityDao;
-import com.macro.mall.distribution.dao.DmsFlashSaleReservationDao;
 import com.macro.mall.distribution.dao.DmsMerchantDao;
 import com.macro.mall.distribution.dto.FinanceRefundDTO;
 import com.macro.mall.distribution.dto.AssetChangeDTO;
@@ -36,10 +34,7 @@ import com.macro.mall.distribution.entity.DmsShopOrderItem;
 import com.macro.mall.distribution.entity.DmsShopOrderShipment;
 import com.macro.mall.distribution.entity.DmsShopProduct;
 import com.macro.mall.distribution.entity.DmsShopServiceAddress;
-import com.macro.mall.distribution.entity.DmsFlashSaleActivity;
-import com.macro.mall.distribution.entity.DmsFlashSaleReservation;
 import com.macro.mall.distribution.entity.DmsMerchant;
-import com.macro.mall.distribution.constants.ShopBusinessType;
 import com.macro.mall.distribution.enums.AgentSourceTypeEnum;
 import com.macro.mall.distribution.service.AgentService;
 import com.macro.mall.distribution.service.DistributionAuditService;
@@ -48,9 +43,9 @@ import com.macro.mall.distribution.service.ShopAfterSaleService;
 import com.macro.mall.distribution.service.ShopMediaStorageService;
 import com.macro.mall.distribution.service.OrderRealtimeService;
 import com.macro.mall.distribution.service.OrderBalanceAllocationService;
-import com.macro.mall.distribution.service.FlashSaleStockGate;
 import com.macro.mall.distribution.service.MerchantService;
 import com.macro.mall.distribution.service.OperationLogService;
+import com.macro.mall.distribution.service.RefundInventoryRestockService;
 import com.macro.mall.distribution.util.MemberAccountUtils;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.entity.DmsAdminUser;
@@ -95,9 +90,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     private final ExternalRefundCoordinator externalRefundCoordinator;
     private final ShopAfterSaleWindowPolicy afterSaleWindowPolicy;
     private final ShopAfterSaleTimelinePolicy afterSaleTimelinePolicy;
-    private final DmsFlashSaleActivityDao flashSaleActivityDao;
-    private final DmsFlashSaleReservationDao flashSaleReservationDao;
-    private final FlashSaleStockGate flashSaleStockGate;
+    private final RefundInventoryRestockService refundInventoryRestockService;
     private final ShopMediaStorageService mediaStorageService;
     private final MerchantService merchantService;
     private final OperationLogService operationLogService;
@@ -843,10 +836,12 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
                 memberAssetService.issue(balanceRefund);
             }
             merchantService.reverseAfterSaleItems(items);
-            restoreInventoryAfterRefund(afterSale, order, items);
+            boolean externalRefundPending = requiresExternalRefund(order, afterSale);
+            // 余额及模拟支付在当前事务内已完成退款，可立即回补。
+            // 支付宝/微信必须等渠道确认成功，再由 ExternalRefundCoordinator 在完成事务中回补。
+            if (!externalRefundPending) refundInventoryRestockService.restoreAfterRefundCompleted(afterSale, order);
             int originalQuantity = orderItems.stream()
                     .map(DmsShopOrderItem::getQuantity).filter(Objects::nonNull).mapToInt(Integer::intValue).sum();
-            boolean externalRefundPending = requiresExternalRefund(order, afterSale);
             if (!externalRefundPending) reconcileOrderStateAfterRefund(order, originalQuantity);
             // 退款后退回非会员：名下已无有效支付订单时自动取消推广资格（含其下级团队自动移交）。
             if (!externalRefundPending) autoDemoteMemberAfterFullRefund(order);
@@ -904,46 +899,6 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         String mode = item == null ? null : item.getTeamBonusMode();
         return mode == null || mode.isBlank() || "INHERIT".equalsIgnoreCase(mode)
                 || "STANDARD".equalsIgnoreCase(mode);
-    }
-
-    private void restoreInventoryAfterRefund(DmsShopAfterSale afterSale, DmsShopOrder order,
-                                             List<DmsShopAfterSaleItem> items) {
-        boolean physicalReturn = Integer.valueOf(2).equals(afterSale.getApplyType());
-        boolean beforeAnyShipment = Integer.valueOf(1).equals(order.getStatus())
-                && order.getDeliveryTime() == null
-                && orderShipmentDao.sumQuantityByOrderId(order.getId()) == 0;
-        if (!physicalReturn && !beforeAnyShipment) return;
-        int restoredQuantity = 0;
-        for (DmsShopAfterSaleItem item : items) {
-            int quantity = item.getRefundQuantity() == null ? 0 : item.getRefundQuantity();
-            if (quantity <= 0) continue;
-            if (item.getSkuId() != null) skuDao.increaseStock(item.getSkuId(), quantity);
-            productDao.increaseStock(item.getProductId(), quantity);
-            restoredQuantity += quantity;
-        }
-        releaseFlashSaleAfterRefund(order, restoredQuantity,
-                physicalReturn ? "RETURN_REFUND" : "UNSHIPPED_REFUND");
-    }
-
-    private void releaseFlashSaleAfterRefund(DmsShopOrder order, int restoredQuantity, String reason) {
-        if (order == null || restoredQuantity <= 0 || !ShopBusinessType.FLASH_SALE.equals(order.getBusinessType())) return;
-        DmsFlashSaleReservation reservation = flashSaleReservationDao.selectByOrderId(order.getId());
-        if (reservation == null || flashSaleReservationDao.releaseRefundedQuantity(order.getId(), restoredQuantity) <= 0) return;
-        flashSaleActivityDao.increaseStock(reservation.getActivityId(), restoredQuantity);
-        DmsFlashSaleActivity activity = flashSaleActivityDao.selectById(reservation.getActivityId());
-        flashSaleStockGate.restoreStockOnly(activity, restoredQuantity);
-        DmsFlashSaleReservation updated = flashSaleReservationDao.selectByOrderId(order.getId());
-        logFlashSaleRestock(order, updated == null ? reservation : updated, activity,
-                restoredQuantity, reason);
-    }
-
-    private void logFlashSaleRestock(DmsShopOrder order, DmsFlashSaleReservation reservation,
-                                     DmsFlashSaleActivity activity, int quantity, String reason) {
-        operationLogService.log("FLASH_SALE_STOCK", "RESTORE", "FLASH_SALE_ACTIVITY",
-                String.valueOf(reservation.getActivityId()), null,
-                "availableStock=" + (activity == null ? "unknown" : activity.getAvailableStock())
-                        + ", releasedQuantity=" + reservation.getReleasedQuantity(),
-                "秒杀库存回补 " + quantity + " 件；原因=" + reason + "；订单号=" + order.getOrderNo());
     }
 
     private boolean requiresExternalRefund(DmsShopOrder order, DmsShopAfterSale afterSale) {

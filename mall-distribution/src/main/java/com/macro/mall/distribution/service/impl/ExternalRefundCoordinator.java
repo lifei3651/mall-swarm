@@ -18,6 +18,7 @@ import com.macro.mall.distribution.entity.DmsShopTrade;
 import com.macro.mall.distribution.enums.AgentSourceTypeEnum;
 import com.macro.mall.distribution.service.AgentService;
 import com.macro.mall.distribution.service.AlipayService;
+import com.macro.mall.distribution.service.RefundInventoryRestockService;
 import com.macro.mall.distribution.service.WeChatPayService;
 import com.macro.mall.distribution.wechat.WeChatPayGateway;
 import cn.hutool.crypto.SecureUtil;
@@ -44,6 +45,7 @@ public class ExternalRefundCoordinator {
     private final DmsShopOrderShipmentDao orderShipmentDao;
     private final DmsAgentDao agentDao;
     private final AgentService agentService;
+    private final RefundInventoryRestockService refundInventoryRestockService;
     private final AlipayService alipayService;
     private final WeChatPayService weChatPayService;
     private final TransactionTemplate transactionTemplate;
@@ -52,6 +54,7 @@ public class ExternalRefundCoordinator {
                                      DmsShopOrderDao orderDao, DmsShopOrderItemDao orderItemDao,
                                      DmsShopOrderShipmentDao orderShipmentDao,
                                      DmsAgentDao agentDao, AgentService agentService,
+                                     RefundInventoryRestockService refundInventoryRestockService,
                                      DmsShopTradeDao tradeDao, AlipayService alipayService,
                                      WeChatPayService weChatPayService, PlatformTransactionManager transactionManager) {
         this.afterSaleDao = afterSaleDao;
@@ -62,6 +65,7 @@ public class ExternalRefundCoordinator {
         this.orderShipmentDao = orderShipmentDao;
         this.agentDao = agentDao;
         this.agentService = agentService;
+        this.refundInventoryRestockService = refundInventoryRestockService;
         this.alipayService = alipayService;
         this.weChatPayService = weChatPayService;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
@@ -129,15 +133,16 @@ public class ExternalRefundCoordinator {
     private void completeChannelRefund(Long afterSaleId, String channelName) {
         transactionTemplate.executeWithoutResult(status -> {
             DmsShopAfterSale locked = afterSaleDao.selectByIdForUpdate(afterSaleId);
-            if (locked != null && Integer.valueOf(6).equals(locked.getStatus())
-                    && afterSaleDao.markRefundCompleted(afterSaleId) != 1) {
+            // 只有第一次把“退款中”原子迁移为“已完成”的事务可以回补库存。
+            // 重复回调看到状态 1 直接返回，不得再加库存。
+            if (locked == null || !Integer.valueOf(6).equals(locked.getStatus())) return;
+            if (afterSaleDao.markRefundCompleted(afterSaleId) != 1) {
                 throw new IllegalStateException(channelName + "已退款，但本地完成状态保存失败，请使用同一售后单重试恢复");
             }
-            if (locked != null) {
-                DmsShopOrder lockedOrder = orderDao.selectByIdForUpdate(locked.getOrderId());
-                if (lockedOrder == null) throw new IllegalStateException(channelName + "已退款，但本地订单不存在，请人工核对");
-                finalizeOrderAfterChannelSuccess(lockedOrder);
-            }
+            DmsShopOrder lockedOrder = orderDao.selectByIdForUpdate(locked.getOrderId());
+            if (lockedOrder == null) throw new IllegalStateException(channelName + "已退款，但本地订单不存在，请人工核对");
+            refundInventoryRestockService.restoreAfterRefundCompleted(locked, lockedOrder);
+            finalizeOrderAfterChannelSuccess(lockedOrder);
         });
         log.info("{}退款与本地售后状态已完成: afterSaleId={}", channelName, afterSaleId);
     }
