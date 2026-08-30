@@ -574,6 +574,7 @@ test('registration login account filters illegal characters and validates its st
   assert.equal(resolveRegistrationErrorField('该手机号已注册，请直接登录'), 'phone')
   assert.equal(resolveRegistrationErrorField('该登录账号已被使用'), 'username')
   assert.equal(resolveRegistrationErrorField('邀请码无效'), 'inviteCode')
+  assert.equal(resolveRegistrationErrorField('图形验证码错误'), 'captchaCode')
   assert.equal(resolveRegistrationErrorField('短信验证码错误'), 'smsCode')
   assert.equal(resolveRegistrationErrorField('登录密码需为6至32位'), 'password')
   assert.equal(resolveRegistrationErrorField('网络错误'), '')
@@ -588,6 +589,10 @@ test('registration submit uses accurate popup feedback instead of a red bottom l
   assert.match(login, /短信验证码应为6位/)
   assert.match(login, /短信验证码错误，请重新输入/)
   assert.match(login, /短信验证码已过期，请重新获取/)
+  assert.match(login, /fieldErrors\.captchaCode/)
+  assert.match(login, /获取短信验证码需要填写图形验证码/)
+  assert.match(login, /@blur="registerForm\.smsCode\?\.trim\(\) && validateRegisterField\('smsCode'\)"/)
+  assert.doesNotMatch(login, /请先输入图形验证码/)
   assert.match(login, /showRegisterPopup\('账号注册成功', 'success'/)
 })
 

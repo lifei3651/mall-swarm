@@ -105,7 +105,7 @@ const sendCode = async () => {
     return
   }
   if (!captchaId.value || !captchaCode.value) {
-    showError('请先输入图形验证码')
+    showError('获取短信验证码需要填写图形验证码')
     return
   }
   try {

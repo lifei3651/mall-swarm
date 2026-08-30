@@ -177,7 +177,7 @@
                 aria-required="true"
                 :aria-invalid="!!fieldErrors.smsCode"
                 @input="clearFieldError('smsCode')"
-                @blur="validateRegisterField('smsCode')"
+                @blur="registerForm.smsCode?.trim() && validateRegisterField('smsCode')"
               />
               <button type="button" class="btn sms-btn" :disabled="smsCooldown > 0" @click="sendCodeForRegister">
                 {{ smsCooldown > 0 ? `${smsCooldown}s` : '获取验证码' }}
@@ -188,11 +188,22 @@
           <div class="form-item full">
             <label for="register-captcha">发送短信前验证</label>
             <div class="captcha-row">
-              <input id="register-captcha" v-model="loginForm.captchaCode" class="field" placeholder="请输入图形验证码" maxlength="4" autocomplete="off" />
+              <input
+                id="register-captcha"
+                v-model="loginForm.captchaCode"
+                class="field"
+                :class="{ 'has-error': fieldErrors.captchaCode }"
+                placeholder="请输入图形验证码"
+                maxlength="4"
+                autocomplete="off"
+                :aria-invalid="!!fieldErrors.captchaCode"
+                @input="clearFieldError('captchaCode')"
+              />
               <button type="button" class="captcha-refresh" aria-label="刷新图形验证码" @click="refreshCaptcha">
                 <img :src="captchaImage" class="captcha-image" alt="图形验证码" /><span>换一张</span>
               </button>
             </div>
+            <p v-if="fieldErrors.captchaCode" class="field-error">{{ fieldErrors.captchaCode }}</p>
           </div>
         </template>
       </div>
@@ -583,7 +594,9 @@ const sendCodeForRegister = async () => {
     return
   }
   if (!loginForm.value.captchaId || !loginForm.value.captchaCode) {
-    error.value = '请先输入图形验证码'
+    fieldErrors.value.captchaCode = '获取短信验证码需要填写图形验证码'
+    scheduleRegisterErrorsClear()
+    await focusFirstRegisterError()
     return
   }
   try {

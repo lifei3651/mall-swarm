@@ -258,7 +258,7 @@ const sendRegistrationCode = async () => {
     return
   }
   if (!captcha.id || !captcha.code) {
-    error.value = '请先输入图形验证码'
+    error.value = '获取短信验证码需要填写图形验证码'
     return
   }
   if (hasInviteCode.value && !inviterInfo.value && !(await loadInviter())) {

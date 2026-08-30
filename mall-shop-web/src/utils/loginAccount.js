@@ -18,6 +18,7 @@ export const resolveRegistrationErrorField = (message) => {
   if (/手机号/.test(text)) return 'phone'
   if (/登录账号|用户名|账号/.test(text)) return 'username'
   if (/邀请码|邀请人/.test(text)) return 'inviteCode'
+  if (/图形验证码|验证码图片/.test(text)) return 'captchaCode'
   if (/短信验证码|验证码/.test(text)) return 'smsCode'
   if (/登录密码|密码/.test(text)) return 'password'
   return ''
