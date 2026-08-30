@@ -42,17 +42,22 @@ test('public storefront shows captcha only for registration and password login',
   assert.doesNotMatch(view, /const needsCaptcha = true/)
 })
 
-test('invite QR registration previews inviter and binds in the same registration submission', async () => {
+test('public registration accepts an optional manual invite code and QR registration locks the prefilled code', async () => {
   const [view, api] = await Promise.all([
     readProjectFile('src/surfaces/public/PublicLoginView.vue'),
     readProjectFile('src/api/shop.js'),
   ])
 
   assert.match(view, /route\.query\.inviteCode \|\| route\.query\.code/)
-  assert.match(view, /await getInviterPreview\(inviteCodeFromUrl\.value\)/)
+  assert.match(view, /id="public-register-invite"/)
+  assert.match(view, /邀请码 <span class="optional-mark">选填<\/span>/)
+  assert.match(view, /:disabled="inviteCodeLocked"/)
+  assert.match(view, /@click="loadInviter"/)
+  assert.match(view, /const normalizedInviteCode = computed/)
+  assert.match(view, /await getInviterPreview\(inviteCode\)/)
   assert.match(api, /url: `\/shop\/public\/inviter-preview\/\$\{encodeURIComponent\(inviteCode\)\}`/)
   assert.match(view, /提交注册后将一次性建立邀请关系，注册人不能自行修改/)
   assert.match(view, /注册并绑定邀请人/)
-  assert.match(view, /registerPublic\(\{ \.\.\.registerForm, inviteCode: hasInviteLink\.value \? inviteCodeFromUrl\.value : '' \}\)/)
+  assert.match(view, /registerPublic\(\{ \.\.\.registerForm, inviteCode: hasInviteCode\.value \? normalizedInviteCode\.value : '' \}\)/)
   assert.doesNotMatch(view, /直推奖|团队分红|奖金比例|推广收益/)
 })

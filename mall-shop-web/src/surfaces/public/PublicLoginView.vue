@@ -9,18 +9,6 @@
         </div>
       </header>
 
-      <section v-if="isRegister && hasInviteLink" class="inviter-card" :class="{ invalid: inviteError }">
-        <div>
-          <span>邀请人</span>
-          <strong v-if="inviterLoading">正在核对…</strong>
-          <strong v-else-if="inviterInfo">{{ inviterInfo.nickname || '商城会员' }}</strong>
-          <strong v-else>邀请码暂不可用</strong>
-        </div>
-        <small>邀请码：{{ inviteCodeFromUrl }}</small>
-        <p v-if="inviteError">{{ inviteError }}</p>
-        <p v-else>提交注册后将一次性建立邀请关系，注册人不能自行修改。</p>
-      </section>
-
       <div v-if="!isRegister" class="login-tabs" role="tablist" aria-label="登录方式">
         <button type="button" :class="{ active: loginType === 'password' }" @click="switchLoginType('password')">密码登录</button>
         <button type="button" :class="{ active: loginType === 'sms' }" @click="switchLoginType('sms')">验证码登录</button>
@@ -53,6 +41,38 @@
           <input id="public-register-password" v-model="registerForm.password" type="password" autocomplete="new-password" minlength="6" maxlength="32" placeholder="请输入6至32位密码" />
           <label for="public-register-confirm">确认登录密码</label>
           <input id="public-register-confirm" v-model="confirmPassword" type="password" autocomplete="new-password" minlength="6" maxlength="32" placeholder="请再次输入登录密码" />
+          <label for="public-register-invite">邀请码 <span class="optional-mark">选填</span></label>
+          <div class="inline-field invite-field">
+            <input
+              id="public-register-invite"
+              v-model="registerForm.inviteCode"
+              name="inviteCode"
+              autocomplete="off"
+              autocapitalize="characters"
+              maxlength="8"
+              placeholder="请输入8位邀请码"
+              :disabled="inviteCodeLocked"
+              aria-describedby="public-register-invite-help"
+              @input="handleInviteCodeInput"
+            />
+            <button type="button" :disabled="inviteCodeLocked || inviterLoading" @click="loadInviter">
+              {{ inviterLoading ? '核对中…' : inviterInfo ? '已核对' : inviteCodeLocked ? '扫码带入' : '核对邀请人' }}
+            </button>
+          </div>
+          <p id="public-register-invite-help" class="field-help">
+            {{ inviteHelpText }}
+          </p>
+          <section v-if="showInviterCard" class="inviter-card" :class="{ invalid: inviteError }" aria-live="polite">
+            <div>
+              <span>邀请人</span>
+              <strong v-if="inviterLoading">正在核对…</strong>
+              <strong v-else-if="inviterInfo">{{ inviterInfo.nickname || '商城会员' }}</strong>
+              <strong v-else>邀请码暂不可用</strong>
+            </div>
+            <small>邀请码：{{ normalizedInviteCode }}</small>
+            <p v-if="inviteError">{{ inviteError }}</p>
+            <p v-else-if="inviterInfo">提交注册后将一次性建立邀请关系，注册人不能自行修改。</p>
+          </section>
           <label for="public-register-sms">短信验证码</label>
           <div class="inline-field">
             <input id="public-register-sms" v-model.trim="registerForm.smsCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="请输入6位验证码" />
@@ -118,6 +138,7 @@ const agreed = ref(false)
 const confirmPassword = ref('')
 const smsCooldown = ref(0)
 let cooldownTimer
+let inviteRequestSequence = 0
 
 const loginForm = reactive({ account: '', password: '' })
 const smsLoginForm = reactive({ phone: '', smsCode: '' })
@@ -129,15 +150,31 @@ const inviteCodeFromUrl = computed(() => {
   const value = route.query.inviteCode || route.query.code
   return typeof value === 'string' ? value.trim().toUpperCase() : ''
 })
-const hasInviteLink = computed(() => !!inviteCodeFromUrl.value)
+const inviteCodeLocked = computed(() => !!inviteCodeFromUrl.value)
+const normalizedInviteCode = computed(() => String(registerForm.inviteCode || '').trim().toUpperCase())
+const hasInviteCode = computed(() => !!normalizedInviteCode.value)
+const showInviterCard = computed(() => hasInviteCode.value
+  && (inviteCodeLocked.value || inviterLoading.value || !!inviterInfo.value || !!inviteError.value))
+const inviteHelpText = computed(() => {
+  if (inviterInfo.value) return '邀请人已确认，注册时将直接建立邀请关系'
+  if (hasInviteCode.value) return '请核对邀请人后再注册'
+  return '普通购物可不填；填写后注册时直接绑定邀请人'
+})
 const submitButtonText = computed(() => {
   if (loading.value) return '正在提交…'
   if (!isRegister.value) return '登录'
-  return hasInviteLink.value ? '注册并绑定邀请人' : '注册并登录'
+  return hasInviteCode.value ? '注册并绑定邀请人' : '注册并登录'
 })
 
 const normalizePhone = (form) => { form.phone = normalizeMainlandPhone(form.phone) }
 const normalizeAccount = () => { registerForm.username = normalizeLoginAccountInput(registerForm.username) }
+const handleInviteCodeInput = () => {
+  registerForm.inviteCode = String(registerForm.inviteCode || '').replace(/\s+/g, '').toUpperCase().slice(0, 8)
+  inviteRequestSequence += 1
+  inviterLoading.value = false
+  inviterInfo.value = null
+  inviteError.value = ''
+}
 
 const refreshCaptcha = async () => {
   try {
@@ -165,17 +202,22 @@ const resetFeedback = () => {
 }
 
 const loadInviter = async () => {
+  const inviteCode = normalizedInviteCode.value
   inviterInfo.value = null
   inviteError.value = ''
-  registerForm.inviteCode = inviteCodeFromUrl.value
-  if (!hasInviteLink.value) return true
-  if (!/^[A-Z0-9]{8}$/.test(inviteCodeFromUrl.value)) {
-    inviteError.value = '邀请链接不完整，请向邀请人重新获取二维码'
+  if (!inviteCode) return true
+  registerForm.inviteCode = inviteCode
+  if (!/^[A-Z0-9]{8}$/.test(inviteCode)) {
+    inviteError.value = inviteCodeLocked.value
+      ? '邀请链接不完整，请向邀请人重新获取二维码'
+      : '请输入完整的8位邀请码'
     return false
   }
+  const requestSequence = ++inviteRequestSequence
   inviterLoading.value = true
   try {
-    const res = await getInviterPreview(inviteCodeFromUrl.value)
+    const res = await getInviterPreview(inviteCode)
+    if (requestSequence !== inviteRequestSequence) return false
     if (!res.data?.valid) {
       inviteError.value = res.data?.message || '邀请码无效，请向邀请人核对'
       return false
@@ -183,10 +225,11 @@ const loadInviter = async () => {
     inviterInfo.value = res.data
     return true
   } catch (e) {
+    if (requestSequence !== inviteRequestSequence) return false
     inviteError.value = e.message || '邀请人暂时无法核对，请稍后重试'
     return false
   } finally {
-    inviterLoading.value = false
+    if (requestSequence === inviteRequestSequence) inviterLoading.value = false
   }
 }
 
@@ -218,7 +261,7 @@ const sendRegistrationCode = async () => {
     error.value = '请先输入图形验证码'
     return
   }
-  if (hasInviteLink.value && !inviterInfo.value && !(await loadInviter())) {
+  if (hasInviteCode.value && !inviterInfo.value && !(await loadInviter())) {
     error.value = inviteError.value
     return
   }
@@ -245,7 +288,7 @@ const validate = () => {
     if (registerForm.password !== confirmPassword.value) return '两次输入的登录密码不一致'
     if (!/^\d{6}$/.test(registerForm.smsCode)) return '请输入6位短信验证码'
     if (!agreed.value) return '请阅读并同意用户服务协议和隐私政策'
-    if (hasInviteLink.value && !inviterInfo.value) return inviteError.value || '请先确认邀请人信息'
+    if (hasInviteCode.value && !inviterInfo.value) return inviteError.value || '请先确认邀请人信息'
     return ''
   }
   if (loginType.value === 'sms') {
@@ -264,7 +307,7 @@ const destination = () => {
 }
 
 const submit = async () => {
-  if (isRegister.value && hasInviteLink.value && !inviterInfo.value) await loadInviter()
+  if (isRegister.value && hasInviteCode.value && !inviterInfo.value) await loadInviter()
   error.value = validate()
   success.value = ''
   if (error.value) return
@@ -272,7 +315,7 @@ const submit = async () => {
   try {
     let res
     if (isRegister.value) {
-      res = await registerPublic({ ...registerForm, inviteCode: hasInviteLink.value ? inviteCodeFromUrl.value : '' })
+      res = await registerPublic({ ...registerForm, inviteCode: hasInviteCode.value ? normalizedInviteCode.value : '' })
     } else if (loginType.value === 'sms') {
       res = await login({ account: smsLoginForm.phone, smsCode: smsLoginForm.smsCode, loginType: 'sms' })
     } else {
@@ -301,7 +344,11 @@ watch(() => route.name, () => {
   success.value = ''
   refreshCaptcha()
 })
-watch(inviteCodeFromUrl, loadInviter, { immediate: true })
+watch(inviteCodeFromUrl, async (inviteCode) => {
+  registerForm.inviteCode = inviteCode
+  handleInviteCodeInput()
+  if (inviteCode) await loadInviter()
+}, { immediate: true })
 onMounted(refreshCaptcha)
 onBeforeUnmount(() => window.clearInterval(cooldownTimer))
 </script>
@@ -310,10 +357,11 @@ onBeforeUnmount(() => window.clearInterval(cooldownTimer))
 .public-auth-page{min-height:calc(100vh - 80px);display:grid;place-items:center;padding:28px 16px;background:linear-gradient(145deg,var(--brand-primary-soft,#fff3f5),#f7f8fb 55%)}
 .public-auth-card{width:min(480px,100%);padding:28px;background:#fff;border:1px solid #edf0f4;border-radius:24px;box-shadow:0 24px 70px rgba(15,23,42,.1)}
 .auth-heading{display:flex;align-items:center;gap:14px;margin-bottom:22px}.auth-heading img{width:54px;height:54px;object-fit:contain;border-radius:14px}.auth-heading h1{margin:0;color:#17202e;font-size:23px}.auth-heading p{margin:6px 0 0;color:#7b8493;font-size:13px}
-.inviter-card{display:grid;gap:7px;margin:-4px 0 18px;padding:14px 16px;color:#475467;background:#f8fafc;border:1px solid #d8e2ef;border-radius:14px}.inviter-card>div{display:flex;align-items:center;justify-content:space-between;gap:12px}.inviter-card span,.inviter-card small{color:#667085;font-size:12px}.inviter-card strong{color:#17202e}.inviter-card p{margin:0;color:#667085;font-size:12px;line-height:1.6}.inviter-card.invalid{background:#fff7f6;border-color:#f3c5c0}.inviter-card.invalid strong,.inviter-card.invalid p{color:#b42318}
+.inviter-card{display:grid;gap:7px;margin:2px 0 4px;padding:14px 16px;color:#475467;background:#f8fafc;border:1px solid #d8e2ef;border-radius:14px}.inviter-card>div{display:flex;align-items:center;justify-content:space-between;gap:12px}.inviter-card span,.inviter-card small{color:#667085;font-size:12px}.inviter-card strong{color:#17202e}.inviter-card p{margin:0;color:#667085;font-size:12px;line-height:1.6}.inviter-card.invalid{background:#fff7f6;border-color:#f3c5c0}.inviter-card.invalid strong,.inviter-card.invalid p{color:#b42318}
 .login-tabs{display:grid;grid-template-columns:1fr 1fr;margin-bottom:20px;padding:4px;background:#f3f5f8;border-radius:12px}.login-tabs button{height:40px;color:#667085;background:transparent;border:0;border-radius:9px}.login-tabs button.active{color:var(--brand-primary,#e7193f);background:#fff;box-shadow:0 3px 12px rgba(15,23,42,.08);font-weight:700}
 .auth-form{display:grid;gap:9px}.auth-form label{margin-top:5px;color:#344054;font-size:13px;font-weight:650}.auth-form input{width:100%;height:46px;padding:0 14px;color:#17202e;background:#fff;border:1px solid #d9dfe8;border-radius:12px;outline:none;box-sizing:border-box}.auth-form input:focus{border-color:var(--brand-primary,#e7193f);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand-primary,#e7193f) 12%,transparent)}
 .inline-field{display:grid;grid-template-columns:minmax(0,1fr) 122px;gap:9px}.inline-field>button{height:46px;padding:0 10px;color:var(--brand-primary,#e7193f);background:var(--brand-primary-soft,#fff0f3);border:0;border-radius:12px;font-weight:700}.inline-field>button:disabled{opacity:.55}.captcha-block{display:grid;gap:9px}.captcha-field .captcha-button{display:flex;align-items:center;justify-content:center;gap:6px;padding:3px 8px;color:#667085;background:#f6f7f9}.captcha-button img{max-width:72px;height:36px;object-fit:contain}.captcha-button span{font-size:11px}
+.optional-mark{margin-left:4px;color:#98a2b3;font-size:11px;font-weight:500}.field-help{margin:-3px 0 2px;color:#667085;font-size:12px;line-height:1.5}.invite-field>button{font-size:12px}
 .agreement{display:flex;align-items:flex-start;gap:8px;margin:8px 0!important;font-weight:400!important;line-height:1.6}.agreement input{width:18px;height:18px;margin-top:2px;flex:0 0 auto}.agreement a{color:var(--brand-primary,#e7193f)}
 .form-message{margin:4px 0;padding:10px 12px;border-radius:10px;font-size:13px}.form-message.error{color:#b42318;background:#fff1f0}.form-message.success{color:#087443;background:#ecfdf3}.submit-button{height:48px;margin-top:8px;color:#fff;background:var(--brand-primary,#e7193f);border:0;border-radius:13px;font-size:15px;font-weight:750}.submit-button:disabled{opacity:.6}
 .auth-footer{display:flex;justify-content:space-between;margin-top:18px}.auth-footer button,.auth-footer a{padding:0;color:#667085;background:none;border:0;font-size:13px}
