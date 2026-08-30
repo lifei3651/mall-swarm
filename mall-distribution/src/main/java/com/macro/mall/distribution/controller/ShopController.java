@@ -442,7 +442,8 @@ public class ShopController {
     @PostMapping("/auth/resetPassword")
     public CommonResult<Boolean> resetPassword(@Valid @RequestBody ShopPasswordResetDTO dto) {
         authService.resetPassword(dto == null ? null : dto.getPhone(),
-                dto == null ? null : dto.getSmsCode(), dto == null ? null : dto.getNewPassword());
+                dto == null ? null : dto.getSmsCode(), dto == null ? null : dto.getNewPassword(),
+                dto == null ? null : dto.getCaptchaId(), dto == null ? null : dto.getCaptchaCode());
         return CommonResult.success(true);
     }
 

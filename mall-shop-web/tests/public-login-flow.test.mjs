@@ -12,7 +12,7 @@ const sectionBetween = (source, start, end) => {
   return source.slice(startIndex, endIndex)
 }
 
-test('public storefront registration and SMS login use separate fixed-purpose endpoints', async () => {
+test('public storefront registration SMS can be requested before image captcha', async () => {
   const [view, api] = await Promise.all([
     readProjectFile('src/surfaces/public/PublicLoginView.vue'),
     readProjectFile('src/api/shop.js'),
@@ -28,9 +28,8 @@ test('public storefront registration and SMS login use separate fixed-purpose en
   assert.doesNotMatch(loginSender, /sendSmsCode|captcha\.|refreshCaptcha/)
 
   assert.match(view, /@click="sendRegistrationCode"/)
-  assert.match(registrationSender, /if \(!captcha\.id \|\| !captcha\.code\)/)
-  assert.match(registrationSender, /await sendSmsCode\(registerForm\.phone, 1, \{ captchaId: captcha\.id, captchaCode: captcha\.code \}\)/)
-  assert.doesNotMatch(registrationSender, /sendLoginSmsCode/)
+  assert.match(registrationSender, /await sendSmsCode\(registerForm\.phone, 1\)/)
+  assert.doesNotMatch(registrationSender, /captcha\.|loadInviter|refreshCaptcha|sendLoginSmsCode/)
 })
 
 test('public storefront shows captcha only for registration and password login', async () => {
@@ -38,7 +37,9 @@ test('public storefront shows captcha only for registration and password login',
 
   assert.match(view, /<div v-if="needsCaptcha" class="captcha-block">/)
   assert.match(view, /const needsCaptcha = computed\(\(\) => isRegister\.value \|\| loginType\.value === 'password'\)/)
-  assert.match(view, /if \(!captcha\.id \|\| !captcha\.code\) return '请输入图形验证码'/)
+  assert.match(view, /if \(!captcha\.id \|\| !\/\^\[A-Za-z0-9\]\{4\}\$\/\.test\(captcha\.code\)\) return '请输入4位图形验证码'/)
+  assert.match(view, /captchaId: captcha\.id/)
+  assert.match(view, /captchaCode: captcha\.code/)
   assert.doesNotMatch(view, /const needsCaptcha = true/)
 })
 
@@ -58,6 +59,6 @@ test('public registration accepts an optional manual invite code and QR registra
   assert.match(api, /url: `\/shop\/public\/inviter-preview\/\$\{encodeURIComponent\(inviteCode\)\}`/)
   assert.match(view, /提交注册后将一次性建立邀请关系，注册人不能自行修改/)
   assert.match(view, /注册并绑定邀请人/)
-  assert.match(view, /registerPublic\(\{ \.\.\.registerForm, inviteCode: hasInviteCode\.value \? normalizedInviteCode\.value : '' \}\)/)
+  assert.match(view, /registerPublic\(\{[\s\S]*\.\.\.registerForm,[\s\S]*inviteCode: hasInviteCode\.value \? normalizedInviteCode\.value : '',[\s\S]*captchaId: captcha\.id,[\s\S]*captchaCode: captcha\.code/)
   assert.doesNotMatch(view, /直推奖|团队分红|奖金比例|推广收益/)
 })

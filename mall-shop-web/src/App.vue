@@ -94,6 +94,7 @@ import { isNativeApp } from '@/utils/appEnvironment'
 import { AUTH_REQUIRED_EVENT } from '@/utils/authNavigation'
 import { applyShopSession, hasShopSession } from '@/utils/shopSession'
 import { resolveBottomNav } from '@/utils/bottomNav'
+import { installMobileViewport } from '@/utils/mobileViewport'
 
 const route = useRoute()
 const router = useRouter()
@@ -111,6 +112,7 @@ const isLoggedIn = ref(false)
 const authMember = ref({})
 const pageScrollRef = ref(null)
 let authPromptTimer
+let releaseMobileViewport
 const isHome = computed(() => route.name === 'Home')
 const isProductDetail = computed(() => route.name === 'ProductDetail')
 const isCheckout = computed(() => route.name === 'Checkout')
@@ -258,6 +260,7 @@ watch(() => route.fullPath, () => {
   nextTick(() => pageScrollRef.value?.scrollTo({ top: 0, left: 0 }))
 })
 onMounted(() => {
+  releaseMobileViewport = installMobileViewport(920)
   window.addEventListener(AUTH_REQUIRED_EVENT, showAuthPrompt)
   window.addEventListener('storage', syncAuthState)
   syncAuthState()
@@ -266,6 +269,7 @@ onMounted(() => {
   checkAndroidUpdate()
 })
 onBeforeUnmount(() => {
+  releaseMobileViewport?.()
   window.removeEventListener(AUTH_REQUIRED_EVENT, showAuthPrompt)
   window.removeEventListener('storage', syncAuthState)
   window.clearTimeout(cartFeedbackTimer)
@@ -301,7 +305,10 @@ main { min-height: calc(100vh - 120px); }
 @keyframes auth-toast-in { from{opacity:0;transform:translate(-50%,8px)} to{opacity:1;transform:translate(-50%,0)} }
 @keyframes cart-feedback { 0%{opacity:0;transform:translateY(8px) scale(.75)} 20%{opacity:1;transform:translateY(0) scale(1.08)} 75%{opacity:1;transform:translateY(-4px) scale(1)} 100%{opacity:0;transform:translateY(-12px) scale(.9)} }
 @media (min-width: 921px) { .site-footer { padding-bottom: 28px; } }
-@media (max-width: 920px) { .desktop-site-header { display:none; } }
+@media (max-width: 920px) {
+  .desktop-site-header { display:none; }
+  .home-main, main { min-height:100%; }
+}
 .update-overlay { position:fixed; inset:0; z-index:10000; display:grid; place-items:center; padding:20px; background:rgba(15,23,42,.55); backdrop-filter:blur(3px); }
 .update-dialog { width:min(390px,100%); padding:24px; background:#fff; border-radius:20px; box-shadow:0 24px 70px rgba(0,0,0,.24); }
 .update-badge { display:inline-flex; padding:4px 10px; color:#08724f; background:#e8f8f1; border-radius:999px; font-size:12px; font-weight:800; }

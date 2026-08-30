@@ -93,6 +93,11 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         dto.setPhone(dto.getPhone().trim());
         dto.setUsername(normalizeLoginAccount(dto.getUsername()));
 
+        // 两种验证码都在最终提交时校验，页面填写和短信发送不再有先后依赖。
+        // 先消费一次性图形验证码；若短信错误，前端刷新图形验证码即可重试，
+        // 正确短信不会因后续校验失败而被提前消费。
+        loginCaptchaService.verify("shop", dto.getCaptchaId(), dto.getCaptchaCode());
+
         // 先证明手机号归属，再告知已注册或登录账号冲突，避免匿名枚举会员名单。
         smsVerificationService.verifyAndConsume(dto.getPhone(), dto.getSmsCode(), SMS_BIZ_TYPE_REGISTER);
         if (memberDao.selectByPhone(dto.getPhone()) != null) {
@@ -623,7 +628,8 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     }
 
     @Override
-    public void resetPassword(String phone, String smsCode, String newPassword) {
+    public void resetPassword(String phone, String smsCode, String newPassword,
+                              String captchaId, String captchaCode) {
         phone = PhoneNumberUtils.normalize(phone);
         if (!PhoneNumberUtils.isValidMainlandMobile(phone)) {
             Asserts.fail("请输入正确的11位手机号");
@@ -634,6 +640,9 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         if (newPassword == null || newPassword.length() < 6) {
             Asserts.fail("密码至少需要6位");
         }
+
+        // 图形验证码和短信验证码都在最终提交时校验，获取短信不依赖填写顺序。
+        loginCaptchaService.verify("shop", captchaId, captchaCode);
 
         // 验证短信验证码（含错误次数限制）
         smsVerificationService.verifyAndConsume(phone, smsCode, SMS_BIZ_TYPE_RESET_PASSWORD);

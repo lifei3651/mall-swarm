@@ -74,8 +74,10 @@ public interface ShopAuthService {
      * @param phone 手机号
      * @param smsCode 短信验证码
      * @param newPassword 新密码
+     * @param captchaId 图形验证码编号
+     * @param captchaCode 图形验证码
      */
-    void resetPassword(String phone, String smsCode, String newPassword);
+    void resetPassword(String phone, String smsCode, String newPassword, String captchaId, String captchaCode);
 
     boolean unlockMember(Long id);
 }

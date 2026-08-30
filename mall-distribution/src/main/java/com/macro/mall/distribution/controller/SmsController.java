@@ -7,7 +7,6 @@ import com.macro.mall.distribution.dto.SmsCodeRequestDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.service.ShopAuthService;
 import com.macro.mall.distribution.service.SmsVerificationService;
-import com.macro.mall.distribution.service.LoginCaptchaService;
 import com.macro.mall.distribution.util.PhoneNumberUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -40,19 +39,10 @@ public class SmsController {
             SmsBusinessType.SET_PAYMENT_PASSWORD,
             SmsBusinessType.RESET_LOGIN_PASSWORD,
             SmsBusinessType.CHANGE_PHONE_CURRENT);
-    /**
-     * 注册和找回密码会创建或接管账号，发送短信前继续要求图形验证码。
-     * 短信登录只证明现有手机号归属，使用手机号、IP、分钟窗口和每日额度限流，
-     * 不再要求用户重复完成图形验证码。
-     */
-    private static final Set<Integer> CAPTCHA_REQUIRED_BIZ_TYPES = Set.of(
-            SmsBusinessType.REGISTER, SmsBusinessType.RESET_PASSWORD);
-
     private final StringRedisTemplate redisTemplate;
     private final AliyunSmsSender aliyunSmsSender;
     private final SmsVerificationService smsVerificationService;
     private final ShopAuthService shopAuthService;
-    private final LoginCaptchaService loginCaptchaService;
 
     @Value("${sms.expose-code:false}")
     private boolean exposeCode;
@@ -81,9 +71,9 @@ public class SmsController {
         if (!PhoneNumberUtils.isValidMainlandMobile(phone)) {
             return CommonResult.failed("请输入正确的手机号");
         }
-        if (CAPTCHA_REQUIRED_BIZ_TYPES.contains(bizType)) {
-            loginCaptchaService.verify("shop", dto.getCaptchaId(), dto.getCaptchaCode());
-        }
+        // 获取短信只证明手机号可接收验证码，不依赖图形验证码的填写顺序。
+        // 图形验证码与短信验证码会在注册/找回密码最终提交时分别校验；
+        // 发送端继续由 IP 限流、手机号 60 秒窗口及每日额度共同防刷。
         // 原子占用发送窗口，避免并发请求同时穿过“先检查再写入”。
         String phoneKey = PhoneNumberUtils.redisIdentity(phone);
         String rateLimitKey = SMS_CODE_KEY_PREFIX + "rate:" + phoneKey;

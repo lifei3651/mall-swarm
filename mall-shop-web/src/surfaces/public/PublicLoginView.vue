@@ -93,6 +93,7 @@
               <span>换一张</span>
             </button>
           </div>
+          <p v-if="isRegister" class="field-help">可与短信验证码任意顺序填写，提交注册时统一校验</p>
         </div>
 
         <p v-if="error" class="form-message error" role="alert">{{ error }}</p>
@@ -257,23 +258,13 @@ const sendRegistrationCode = async () => {
     error.value = '请输入正确的11位手机号'
     return
   }
-  if (!captcha.id || !captcha.code) {
-    error.value = '获取短信验证码需要填写图形验证码'
-    return
-  }
-  if (hasInviteCode.value && !inviterInfo.value && !(await loadInviter())) {
-    error.value = inviteError.value
-    return
-  }
   sendingCode.value = true
   try {
-    await sendSmsCode(registerForm.phone, 1, { captchaId: captcha.id, captchaCode: captcha.code })
+    await sendSmsCode(registerForm.phone, 1)
     success.value = '短信验证码已发送'
     startCooldown()
-    await refreshCaptcha()
   } catch (e) {
     error.value = e.message || '验证码发送失败'
-    await refreshCaptcha()
   } finally {
     sendingCode.value = false
   }
@@ -287,6 +278,7 @@ const validate = () => {
     if (registerForm.password.length < 6 || registerForm.password.length > 32) return '登录密码需为6至32位'
     if (registerForm.password !== confirmPassword.value) return '两次输入的登录密码不一致'
     if (!/^\d{6}$/.test(registerForm.smsCode)) return '请输入6位短信验证码'
+    if (!captcha.id || !/^[A-Za-z0-9]{4}$/.test(captcha.code)) return '请输入4位图形验证码'
     if (!agreed.value) return '请阅读并同意用户服务协议和隐私政策'
     if (hasInviteCode.value && !inviterInfo.value) return inviteError.value || '请先确认邀请人信息'
     return ''
@@ -315,7 +307,12 @@ const submit = async () => {
   try {
     let res
     if (isRegister.value) {
-      res = await registerPublic({ ...registerForm, inviteCode: hasInviteCode.value ? normalizedInviteCode.value : '' })
+      res = await registerPublic({
+        ...registerForm,
+        inviteCode: hasInviteCode.value ? normalizedInviteCode.value : '',
+        captchaId: captcha.id,
+        captchaCode: captcha.code,
+      })
     } else if (loginType.value === 'sms') {
       res = await login({ account: smsLoginForm.phone, smsCode: smsLoginForm.smsCode, loginType: 'sms' })
     } else {

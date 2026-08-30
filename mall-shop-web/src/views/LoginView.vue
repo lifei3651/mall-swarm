@@ -186,7 +186,7 @@
             <p v-if="fieldErrors.smsCode" class="field-error">{{ fieldErrors.smsCode }}</p>
           </div>
           <div class="form-item full">
-            <label for="register-captcha">发送短信前验证</label>
+            <label for="register-captcha">图形验证码 <span class="required-mark" aria-hidden="true">*</span></label>
             <div class="captcha-row">
               <input
                 id="register-captcha"
@@ -204,6 +204,7 @@
               </button>
             </div>
             <p v-if="fieldErrors.captchaCode" class="field-error">{{ fieldErrors.captchaCode }}</p>
+            <p v-else class="field-hint">可与短信验证码任意顺序填写，提交注册时统一校验</p>
           </div>
         </template>
       </div>
@@ -453,6 +454,8 @@ const validateRegisterField = (field) => {
     if (message) fieldErrors.value.username = message
   } else if (field === 'smsCode' && !/^\d{6}$/.test(form.smsCode?.trim() || '')) {
     fieldErrors.value.smsCode = '短信验证码应为6位'
+  } else if (field === 'captchaCode' && !/^[A-Za-z0-9]{4}$/.test(loginForm.value.captchaCode?.trim() || '')) {
+    fieldErrors.value.captchaCode = '请输入4位图形验证码'
   } else if (field === 'password') {
     const length = form.password?.length || 0
     if (length < 6 || length > 32) fieldErrors.value.password = '登录密码需为6至32位'
@@ -476,6 +479,7 @@ const validateRegisterForm = () => {
   validateRegisterField('phone')
   validateRegisterField('username')
   validateRegisterField('smsCode')
+  validateRegisterField('captchaCode')
   validateRegisterField('password')
   if (!agreeTerms.value) fieldErrors.value.agreement = '请先阅读并同意用户服务协议和隐私政策'
   if (Object.keys(fieldErrors.value).length) scheduleRegisterErrorsClear()
@@ -582,31 +586,12 @@ const sendCodeForRegister = async () => {
     await focusFirstRegisterError()
     return
   }
-  const inviteCode = normalizeInviteCode(registerForm.value.inviteCode)
-  if (!inviteCode || !/^[A-Z0-9]{8}$/.test(inviteCode)) {
-    fieldErrors.value.inviteCode = inviteCode ? '请输入完整的8位邀请码' : '请输入邀请码（注册必须有邀请人）'
-    scheduleRegisterErrorsClear()
-    await focusFirstRegisterError()
-    return
-  }
-  if (!await loadInviter()) {
-    await focusFirstRegisterError()
-    return
-  }
-  if (!loginForm.value.captchaId || !loginForm.value.captchaCode) {
-    fieldErrors.value.captchaCode = '获取短信验证码需要填写图形验证码'
-    scheduleRegisterErrorsClear()
-    await focusFirstRegisterError()
-    return
-  }
   try {
-    await sendSmsCode(registerForm.value.phone, 1, loginForm.value) // 1=注册
+    await sendSmsCode(registerForm.value.phone, 1) // 1=注册
     success.value = '验证码已发送'
     startCooldown()
-    await refreshCaptcha()
   } catch (e) {
     if (!await showRegisterServerError(e.message)) error.value = e.message || '发送失败'
-    await refreshCaptcha()
   }
 }
 
@@ -677,7 +662,9 @@ const submit = async () => {
         phone: registerForm.value.phone.trim(),
         username: registerForm.value.username.trim(),
         smsCode: registerForm.value.smsCode.trim(),
-        inviteCode: normalizeInviteCode(registerForm.value.inviteCode)
+        inviteCode: normalizeInviteCode(registerForm.value.inviteCode),
+        captchaId: loginForm.value.captchaId,
+        captchaCode: loginForm.value.captchaCode.trim()
       })
     }
     applyShopSession(res.data.member)
@@ -697,8 +684,11 @@ const submit = async () => {
     const redirect = safeShopRedirect(router.currentRoute.value.query.redirect, isTeamSurface ? '/' : '/profile')
     await router.push(redirect)
   } catch (e) {
-    if (mode.value === 'register' && await showRegisterServerError(e.message)) return
     if (mode.value === 'register') {
+      const fieldHandled = await showRegisterServerError(e.message)
+      // 图形验证码是一次性的：最终注册请求失败后立即换新，短信验证码仍按原有效期保留。
+      await refreshCaptcha()
+      if (fieldHandled) return
       showRegisterPopup(e.message || '注册失败，请稍后重试')
       return
     }
@@ -838,6 +828,7 @@ const submit = async () => {
 .field.has-error { border-color: var(--coral); box-shadow: 0 0 0 2px color-mix(in srgb, var(--coral) 12%, transparent); }
 .field-error { margin: 0; color: var(--coral); font-size: 12px; line-height: 1.45; }
 .field-success { margin: 0; color: #0f8a62; font-size: 12px; line-height: 1.45; }
+.field-hint { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .agreement-error { margin: 7px 0 0 26px; }
 
 .inviter-status-slot { min-height: 38px; grid-column: 1 / -1; }

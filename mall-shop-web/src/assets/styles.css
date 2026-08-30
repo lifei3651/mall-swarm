@@ -36,6 +36,22 @@ body {
   background: var(--shop-page-bg);
 }
 
+/* 移动端只允许应用内容区滚动，禁止 document/body 再形成第二条滚动链。 */
+html.shop-mobile-viewport-locked,
+html.shop-mobile-viewport-locked body,
+html.shop-mobile-viewport-locked #app {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html.shop-mobile-viewport-locked body {
+  position: fixed;
+  inset: 0;
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -738,25 +754,31 @@ main {
   }
 
   /*
-   * iOS/微信的动态浏览器工具栏会让 fixed 元素偶发使用旧视口绘制。
-   * 导航改为视口网格的固定行，页面内容在独立区域滚动，避免任何 JS
-   * 位移补偿或 fixed 合成层把导航顶到商品列表中间。
+   * 整个应用固定在 visualViewport 的实时高度内。底部导航仍是网格正常行，
+   * 只有中间内容区滚动，因此地址栏变化不会留下旧视口，也不会出现双滚动。
    */
-  .app-shell.has-global-chrome {
-    height: 100vh;
-    height: 100dvh;
+  .app-shell {
+    position: fixed;
+    inset: 0 auto auto 0;
+    width: var(--shop-visual-viewport-width, 100vw);
+    height: var(--shop-visual-viewport-height, 100dvh);
     min-height: 0;
     display: grid;
-    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-rows: minmax(0, 1fr);
     overflow: hidden;
   }
 
-  .app-shell.has-global-chrome > .app-page-scroll {
+  .app-shell.has-global-chrome {
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .app-shell > .app-page-scroll {
     min-height: 0;
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
+    scroll-padding-bottom: max(18px, env(safe-area-inset-bottom));
   }
 
   .bottom-nav a {

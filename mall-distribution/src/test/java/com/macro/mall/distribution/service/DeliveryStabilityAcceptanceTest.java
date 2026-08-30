@@ -111,6 +111,7 @@ class DeliveryStabilityAcceptanceTest {
     @Autowired private SqlSessionTemplate sqlSessionTemplate;
     @Autowired private TestCustomerBonusPolicy customerBonusPolicy;
     @MockitoBean private SmsVerificationService smsVerificationService;
+    @MockitoBean private LoginCaptchaService loginCaptchaService;
 
     @Test
     void registrationToRefundBonusAndWithdrawalRemainConsistent() {
@@ -359,6 +360,8 @@ class DeliveryStabilityAcceptanceTest {
         register.setPassword(LOGIN_PASSWORD);
         register.setNickname("交付验收会员");
         register.setSmsCode("123456");
+        register.setCaptchaId("delivery-captcha-id");
+        register.setCaptchaCode("A1B2");
         register.setInviteCode("INV00001");
         ShopAuthVO auth = authService.registerPublic(register);
         assertNotNull(auth.getToken());

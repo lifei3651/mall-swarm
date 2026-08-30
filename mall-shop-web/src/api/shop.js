@@ -518,7 +518,13 @@ export function resetPassword(data) {
   return request({
     url: '/shop/auth/resetPassword',
     method: 'post',
-    data: { phone: data.phone, smsCode: data.code, newPassword: data.newPassword },
+    data: {
+      phone: data.phone,
+      smsCode: data.code,
+      newPassword: data.newPassword,
+      captchaId: data.captchaId,
+      captchaCode: data.captchaCode,
+    },
   })
 }
 

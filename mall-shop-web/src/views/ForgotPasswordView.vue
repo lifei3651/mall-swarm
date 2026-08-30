@@ -24,6 +24,7 @@
                 <img :src="captchaImage" alt="图形验证码" />
               </button>
             </div>
+            <p class="field-hint">可与短信验证码任意顺序填写，重置密码时统一校验</p>
           </div>
           <div class="form-item full">
             <label for="forgot-code">验证码</label>
@@ -104,18 +105,12 @@ const sendCode = async () => {
     showError('请输入正确的11位手机号')
     return
   }
-  if (!captchaId.value || !captchaCode.value) {
-    showError('获取短信验证码需要填写图形验证码')
-    return
-  }
   try {
-    await sendSmsCode(phone.value, 3, { captchaId: captchaId.value, captchaCode: captchaCode.value }) // 3=找回密码
+    await sendSmsCode(phone.value, 3) // 3=找回密码
     cooldown.value = 60
     const timer = setInterval(() => { cooldown.value--; if (cooldown.value <= 0) clearInterval(timer) }, 1000)
-    await refreshCaptcha()
   } catch (e) {
     showError(e.message || '验证码发送失败')
-    await refreshCaptcha()
   }
 }
 
@@ -134,6 +129,7 @@ const goToResetStep = async () => {
   clearError()
   if (!isValidMainlandPhone(phone.value)) { showError('请输入正确的11位手机号'); return }
   if (!code.value || code.value.length !== 6) { showError('请输入6位验证码'); return }
+  if (!captchaId.value || !/^[A-Za-z0-9]{4}$/.test(captchaCode.value.trim())) { showError('请输入4位图形验证码'); return }
   // 不在这里验证验证码，而是直接进入下一步，由 resetPassword 接口一次性验证并重置
   step.value = 2
 }
@@ -145,11 +141,18 @@ const doResetPassword = async () => {
   if (newPassword.value !== confirmPassword.value) { showError('两次输入的密码不一致'); return }
   loading.value = true
   try {
-    await resetPassword({ phone: phone.value, code: code.value, newPassword: newPassword.value })
+    await resetPassword({
+      phone: phone.value,
+      code: code.value,
+      newPassword: newPassword.value,
+      captchaId: captchaId.value,
+      captchaCode: captchaCode.value.trim(),
+    })
     clearShopSession()
     step.value = 3
   } catch (e) {
     showError(e.message || '密码重置失败')
+    await refreshCaptcha()
   } finally {
     loading.value = false
   }
@@ -166,6 +169,7 @@ onMounted(refreshCaptcha)
 .sms-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .captcha-button { width:142px; height:48px; padding:0; border:1px solid #d8dee9; border-radius:8px; overflow:hidden; background:#fff; cursor:pointer; }
 .captcha-button img { width:100%; height:100%; object-fit:cover; display:block; }
+.field-hint { margin:0; color:var(--muted,#667085); font-size:12px; line-height:1.5; }
 .back-login-link { color:var(--accent,#0f766e); font-size:13px; font-weight:700; text-decoration:none; }
 .success-state { text-align: center; padding: 30px 0; }
 .success-icon { font-size: 48px; margin-bottom: 16px; }

@@ -149,23 +149,28 @@ test('directory category guide renders all eight module combinations without emp
   assert.ok(categoryView.indexOf('class="cat-search"') < categoryView.indexOf('class="category-guide"'))
 })
 
-test('mobile bottom navigation remains a non-fixed viewport row after browser chrome changes', async () => {
-  const [app, teamApp, styles, index] = await Promise.all([
+test('mobile bottom navigation uses one visual viewport and one scroll owner', async () => {
+  const [app, teamApp, styles, viewport, index] = await Promise.all([
     readFile(new URL('../src/App.vue', import.meta.url), 'utf8'),
     readFile(new URL('../src/surfaces/team/TeamApp.vue', import.meta.url), 'utf8'),
     readStyles(),
+    readFile(new URL('../src/utils/mobileViewport.js', import.meta.url), 'utf8'),
     readFile(new URL('../index.html', import.meta.url), 'utf8'),
   ])
 
   assert.match(app, /class="app-page-scroll"/)
   assert.match(app, /'has-global-chrome': showGlobalChrome/)
-  assert.match(styles, /\.app-shell\.has-global-chrome\s*\{[\s\S]*height: 100dvh;[\s\S]*grid-template-rows: minmax\(0, 1fr\) auto;[\s\S]*overflow: hidden;/)
-  assert.match(styles, /\.app-shell\.has-global-chrome > \.app-page-scroll\s*\{[\s\S]*overflow-y: auto;/)
+  assert.match(styles, /html\.shop-mobile-viewport-locked body[\s\S]*position: fixed;/)
+  assert.match(styles, /\.app-shell\s*\{[\s\S]*height: var\(--shop-visual-viewport-height, 100dvh\);[\s\S]*overflow: hidden;/)
+  assert.match(styles, /\.app-shell > \.app-page-scroll\s*\{[\s\S]*overflow-y: auto;/)
   assert.match(styles, /\.bottom-nav\s*\{[\s\S]*position: relative;/)
-  assert.match(teamApp, /\.team-shell\{height:100vh;height:100dvh;[\s\S]*grid-template-rows:auto minmax\(0,1fr\) auto;[\s\S]*overflow:hidden/)
+  assert.match(teamApp, /\.team-shell\{position:fixed;[\s\S]*height:var\(--shop-visual-viewport-height,100dvh\);[\s\S]*grid-template-rows:auto minmax\(0,1fr\) auto;[\s\S]*overflow:hidden/)
   assert.match(teamApp, /\.team-bottom-nav\{position:relative;/)
-  assert.doesNotMatch(app, /useVisualViewportFixedBottom|bottomNavRef/)
-  assert.doesNotMatch(teamApp, /useVisualViewportFixedBottom|teamBottomNavRef/)
+  assert.match(app, /installMobileViewport\(920\)/)
+  assert.match(teamApp, /installMobileViewport\(720\)/)
+  assert.match(viewport, /window\.visualViewport/)
+  assert.match(viewport, /--shop-visual-viewport-height/)
+  assert.doesNotMatch(viewport, /translate|offsetTop|bottom-nav-viewport-shift/)
   assert.doesNotMatch(styles, /--bottom-nav-viewport-shift/)
   assert.doesNotMatch(teamApp, /--bottom-nav-viewport-shift/)
   assert.match(index, /viewport-fit=cover/)
@@ -583,7 +588,7 @@ test('desktop shell exposes the same configured navigation and account entry as 
   assert.match(app, /class="desktop-login-link" :to="loginLocation">登录/)
   assert.match(app, /class="desktop-register-link" to="\/register">注册/)
   assert.match(app, /window\.addEventListener\('storage', syncAuthState\)/)
-  assert.match(app, /@media \(max-width: 920px\) \{ \.desktop-site-header \{ display:none; \} \}/)
+  assert.match(app, /@media \(max-width: 920px\) \{[\s\S]*\.desktop-site-header \{ display:none; \}/)
 })
 
 test('registration login account filters illegal characters and validates its structure', () => {
@@ -612,7 +617,9 @@ test('registration submit uses accurate popup feedback instead of a red bottom l
   assert.match(login, /短信验证码错误，请重新输入/)
   assert.match(login, /短信验证码已过期，请重新获取/)
   assert.match(login, /fieldErrors\.captchaCode/)
-  assert.match(login, /获取短信验证码需要填写图形验证码/)
+  assert.match(login, /可与短信验证码任意顺序填写，提交注册时统一校验/)
+  assert.match(login, /await sendSmsCode\(registerForm\.value\.phone, 1\)/)
+  assert.doesNotMatch(login, /获取短信验证码需要填写图形验证码/)
   assert.match(login, /@blur="registerForm\.smsCode\?\.trim\(\) && validateRegisterField\('smsCode'\)"/)
   assert.doesNotMatch(login, /请先输入图形验证码/)
   assert.match(login, /showRegisterPopup\('账号注册成功', 'success'/)
@@ -1207,19 +1214,22 @@ test('storefront session uses an HttpOnly cookie instead of persisting a new bea
   assert.match(session, /localStorage\.removeItem\(LEGACY_TOKEN_KEY\)/)
 })
 
-test('SMS login uses the server-fixed endpoint while registration and reset retain captcha proof', async () => {
+test('registration and reset request SMS independently and submit both proofs at completion', async () => {
   const api = await readFile(new URL('../src/api/shop.js', import.meta.url), 'utf8')
   const login = await readView('LoginView.vue')
   const forgot = await readView('ForgotPasswordView.vue')
   const home = await readView('HomeView.vue')
 
-  assert.match(api, /captchaId: captcha\.captchaId/)
-  assert.match(api, /captchaCode: captcha\.captchaCode/)
   assert.match(api, /export function sendLoginSmsCode\(phone\)[\s\S]*url: '\/sms\/send\/login'/)
   assert.match(login, /sendLoginSmsCode\(smsForm\.value\.phone\)/)
   assert.doesNotMatch(login, /id="sms-login-captcha"/)
-  assert.match(login, /sendSmsCode\(registerForm\.value\.phone, 1, loginForm\.value\)/)
-  assert.match(forgot, /captchaId: captchaId\.value, captchaCode: captchaCode\.value/)
+  assert.match(login, /sendSmsCode\(registerForm\.value\.phone, 1\)/)
+  assert.match(login, /captchaId: loginForm\.value\.captchaId/)
+  assert.match(login, /captchaCode: loginForm\.value\.captchaCode\.trim\(\)/)
+  assert.match(forgot, /sendSmsCode\(phone\.value, 3\)/)
+  assert.match(forgot, /captchaId: captchaId\.value/)
+  assert.match(forgot, /captchaCode: captchaCode\.value\.trim\(\)/)
+  assert.doesNotMatch(login, /sendSmsCode\(registerForm\.value\.phone, 1, loginForm\.value\)/)
   assert.match(home, /window\.open\(banner\.linkValue, '_blank', 'noopener,noreferrer'\)/)
 })
 

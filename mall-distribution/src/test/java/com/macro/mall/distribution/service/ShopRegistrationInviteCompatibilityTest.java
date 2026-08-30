@@ -30,6 +30,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.inOrder;
 
 @ExtendWith(MockitoExtension.class)
 class ShopRegistrationInviteCompatibilityTest {
@@ -179,6 +180,18 @@ class ShopRegistrationInviteCompatibilityTest {
     }
 
     @Test
+    void registrationChecksImageAndSmsCodesOnlyAtFinalSubmission() {
+        ShopRegisterDTO dto = validRegistration("15500000129", "public_user_4");
+        dto.setInviteCode(null);
+
+        authService.registerPublic(dto);
+
+        var ordered = inOrder(loginCaptchaService, smsVerificationService);
+        ordered.verify(loginCaptchaService).verify("shop", "captcha-id", "A1B2");
+        ordered.verify(smsVerificationService).verifyAndConsume("15500000129", "123456", 1);
+    }
+
+    @Test
     void invitedPublicRegistrationCanOpenQualificationImmediatelyWhenCustomerChoosesIt() {
         ShopRegisterDTO dto = validRegistration("15500000126", "public_user_3");
         DmsShopMember inviter = new DmsShopMember();
@@ -240,6 +253,8 @@ class ShopRegistrationInviteCompatibilityTest {
         dto.setNickname("新用户");
         dto.setPassword("secure888");
         dto.setSmsCode("123456");
+        dto.setCaptchaId("captcha-id");
+        dto.setCaptchaCode("A1B2");
         dto.setInviteCode("INVITE01");
         return dto;
     }

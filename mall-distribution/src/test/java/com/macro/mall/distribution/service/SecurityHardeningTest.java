@@ -357,6 +357,8 @@ class SecurityHardeningTest {
         ShopRegisterDTO register = new ShopRegisterDTO();
         register.setPassword(secret);
         register.setSmsCode(secret);
+        register.setCaptchaId(secret);
+        register.setCaptchaCode(secret);
         assertSensitiveAbsent(register, secret);
 
         AdminLoginDTO adminLogin = new AdminLoginDTO();

@@ -52,7 +52,7 @@ class SmsControllerTest {
         when(valueOperations.setIfAbsent(anyString(), eq("1"), eq(60L), eq(TimeUnit.SECONDS))).thenReturn(true);
         loginCaptchaService = mock(LoginCaptchaService.class);
 
-        controller = new SmsController(redisTemplate, aliyunSmsSender, verificationService, shopAuthService, loginCaptchaService);
+        controller = new SmsController(redisTemplate, aliyunSmsSender, verificationService, shopAuthService);
         ReflectionTestUtils.setField(controller, "providerEnabled", false);
         ReflectionTestUtils.setField(controller, "exposeCode", true);
         ReflectionTestUtils.setField(controller, "testCode", "123456");
@@ -94,14 +94,13 @@ class SmsControllerTest {
     }
 
     @Test
-    void registrationCodeStillRequiresImageCaptcha() {
-        SmsCodeRequestDTO dto = request("13888888888", null, 1);
-        dto.setCaptchaId("captcha-id");
-        dto.setCaptchaCode("A1B2");
+    void registrationAndPasswordResetCodesDoNotRequireImageCaptcha() {
+        controller.sendCode(request("13888888888", null, 1), null);
+        controller.sendCode(request("13999999999", null, 3), null);
 
-        controller.sendCode(dto, null);
-
-        verify(loginCaptchaService).verify("shop", "captcha-id", "A1B2");
+        verifyNoInteractions(loginCaptchaService);
+        verify(valueOperations).set(eq(codeKey(1, "13888888888")), eq("123456"), eq(5L), eq(TimeUnit.MINUTES));
+        verify(valueOperations).set(eq(codeKey(3, "13999999999")), eq("123456"), eq(5L), eq(TimeUnit.MINUTES));
     }
 
     @Test
