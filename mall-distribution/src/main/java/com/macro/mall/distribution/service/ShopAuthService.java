@@ -28,6 +28,12 @@ public interface ShopAuthService {
 
     ShopAuthVO login(ShopLoginDTO dto, String surface);
 
+    /** 微信官方手机号已由服务端验证后，登录既有账号或创建普通商城账号。 */
+    ShopAuthVO loginOrRegisterWechat(String verifiedPhone, String inviteCode);
+
+    /** 已绑定微信身份的会员免密码换取小程序商城会话。 */
+    ShopAuthVO loginWechatMember(Long memberId);
+
     DmsShopMember me(String authorization);
 
     DmsShopMember resolveMember(String authorization);

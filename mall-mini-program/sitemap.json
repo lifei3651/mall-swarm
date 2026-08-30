@@ -1,0 +1,9 @@
+{
+  "desc": "商城商品页允许微信索引，会员和交易页面不开放索引",
+  "rules": [
+    { "action": "allow", "page": "pages/home/index" },
+    { "action": "allow", "page": "pages/category/index" },
+    { "action": "allow", "page": "pages/product/index" },
+    { "action": "disallow", "page": "*" }
+  ]
+}

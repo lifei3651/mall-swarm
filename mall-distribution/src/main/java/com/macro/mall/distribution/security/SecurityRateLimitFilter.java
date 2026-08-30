@@ -66,6 +66,9 @@ public class SecurityRateLimitFilter extends OncePerRequestFilter {
                 || "/shop/auth/register".equals(path) || "/shop/auth/resetPassword".equals(path))) {
             return new Rule("shop-auth", 10, 60);
         }
+        if (HttpMethod.POST.matches(method) && "/shop/wechat-mini-program/auth/login".equals(path)) {
+            return new Rule("wechat-mini-login", 10, 60);
+        }
         if (HttpMethod.GET.matches(method) && "/captcha".equals(path)) {
             return new Rule("captcha", 30, 60);
         }

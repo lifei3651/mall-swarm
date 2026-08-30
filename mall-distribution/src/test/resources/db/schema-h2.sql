@@ -709,6 +709,27 @@ CREATE TABLE IF NOT EXISTS dms_shop_member_session (
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS dms_wechat_mini_program_identity (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT NOT NULL DEFAULT 1,
+  member_id BIGINT NOT NULL,
+  user_id BIGINT NOT NULL,
+  app_id_hash CHAR(64) NOT NULL,
+  open_id_hash CHAR(64) NOT NULL,
+  union_id_hash CHAR(64),
+  open_id VARCHAR(512) NOT NULL,
+  union_id VARCHAR(512),
+  privacy_consent_version VARCHAR(64) NOT NULL,
+  privacy_consent_time TIMESTAMP NOT NULL,
+  phone_authorized_time TIMESTAMP,
+  status INT NOT NULL DEFAULT 1,
+  last_login_time TIMESTAMP NOT NULL,
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (tenant_id, app_id_hash, open_id_hash),
+  UNIQUE (tenant_id, app_id_hash, member_id)
+);
+
 CREATE TABLE IF NOT EXISTS dms_member_real_name (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   tenant_id BIGINT NOT NULL DEFAULT 1,

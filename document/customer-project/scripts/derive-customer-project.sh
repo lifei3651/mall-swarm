@@ -112,6 +112,7 @@ DERIVED_AT=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 python3 - "$PROJECT_STAGE" "$CUSTOMER_CODE" "$CUSTOMER_NAME" "$SOURCE_COMMIT" "$BASE_VERSION" "$BASE_REMOTE" "$DERIVED_AT" <<'PY'
 import json
 import pathlib
+import re
 import sys
 
 project = pathlib.Path(sys.argv[1])
@@ -128,6 +129,17 @@ for line in android_lines:
     key = line.split("=", 1)[0]
     updated_lines.append(f"{key}={replacements[key]}" if key in replacements else line)
 android_env.write_text("\n".join(updated_lines) + "\n", encoding="utf-8")
+
+mini_runtime = project / "mall-mini-program/config/runtime.js"
+mini_program_included = mini_runtime.is_file()
+if mini_program_included:
+    mini_text = re.sub(
+        r"API_BASE_URL: '[^']*'",
+        "API_BASE_URL: 'https://replace-with-customer-domain.invalid/api'",
+        mini_runtime.read_text(encoding="utf-8"),
+        count=1,
+    )
+    mini_runtime.write_text(mini_text, encoding="utf-8")
 
 application_yml = project / "mall-distribution/src/main/resources/application.yml"
 application_text = application_yml.read_text(encoding="utf-8")
@@ -170,6 +182,7 @@ manifest = {
     "gitRemoteConfigured": False,
     "productionTargetConfigured": False,
     "defaultBonusPolicy": "CUSTOMER_BONUS_DISABLED",
+    "miniProgramIncluded": mini_program_included,
 }
 (project / "CUSTOMER_PROJECT_ORIGIN.json").write_text(
     json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
@@ -193,6 +206,7 @@ manifest = {
 - 尚未配置 Git 远程仓库和正式服务器目标。
 - 奖金程序默认为 `CUSTOMER_BONUS_DISABLED`；交易和售后可以验收，但不会产生奖金。
 - Android 接口地址已替换为不可访问的安全占位域名，配置客户正式域名前不得发布 App。
+{('- 微信小程序项目已包含，但仍使用不可访问的客户域名占位和游客 AppID；客户主体、隐私政策、合法域名和密钥未配置前不得提交审核。' if mini_program_included else '- 当前来源基座尚未包含微信小程序；如客户需要，应先升级到包含小程序的已验收基座版本。')}
 
 ## 接下来必须完成
 
@@ -200,7 +214,8 @@ manifest = {
 2. 冻结客户确认的制度原文、流程图、异常口径和验收案例。
 3. 在本项目实现客户专属 `CustomerBonusPolicy`，不得把制度反向写回商城基座。
 4. 使用 `document/private-deploy/scripts/deploy.sh` 配置客户独立域名、服务器和受保护密钥。
-5. 跑通注册邀请、购买支付、履约售后、奖金结算、退款追回、提现和备份恢复后再上线。
+5. 如交付微信小程序，使用客户自己的 AppID、AppSecret、合法域名和隐私政策完成真机登录；支付仍需客户自己的微信支付商户号单独联调。
+6. 跑通注册邀请、购买支付、履约售后、奖金结算、退款追回、提现和备份恢复后再上线。
 """,
     encoding="utf-8",
 )
@@ -247,6 +262,10 @@ if find "$PROJECT_STAGE/scripts" -maxdepth 1 -type f -name 'remote-*' -print -qu
 fi
 grep -q 'replace-with-customer-domain.invalid' "$PROJECT_STAGE/mall-shop-web/.env.android" \
   || { echo "Android 客户域名安全占位未生效" >&2; exit 1; }
+if [[ -f "$PROJECT_STAGE/mall-mini-program/config/runtime.js" ]]; then
+  grep -q 'replace-with-customer-domain.invalid/api' "$PROJECT_STAGE/mall-mini-program/config/runtime.js" \
+    || { echo "微信小程序客户域名安全占位未生效" >&2; exit 1; }
+fi
 grep -Fq 'notifyUrl: ${ALIPAY_NOTIFY_URL:}' "$PROJECT_STAGE/mall-distribution/src/main/resources/application.yml" \
   || { echo "支付宝客户回调安全占位未生效" >&2; exit 1; }
 grep -q "form-action 'self' https://openapi.alipay.com" "$PROJECT_STAGE/scripts/nginx/lingqimall.conf" \

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsWechatMiniProgramIdentityDao">
+
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsWechatMiniProgramIdentity">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="member_id" property="memberId"/>
+        <result column="user_id" property="userId"/>
+        <result column="app_id_hash" property="appIdHash"/>
+        <result column="open_id_hash" property="openIdHash"/>
+        <result column="union_id_hash" property="unionIdHash"/>
+        <result column="open_id" property="openId" typeHandler="com.macro.mall.distribution.security.EncryptedStringTypeHandler"/>
+        <result column="union_id" property="unionId" typeHandler="com.macro.mall.distribution.security.EncryptedStringTypeHandler"/>
+        <result column="privacy_consent_version" property="privacyConsentVersion"/>
+        <result column="privacy_consent_time" property="privacyConsentTime"/>
+        <result column="phone_authorized_time" property="phoneAuthorizedTime"/>
+        <result column="status" property="status"/>
+        <result column="last_login_time" property="lastLoginTime"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, tenant_id, member_id, user_id, app_id_hash, open_id_hash, union_id_hash,
+        open_id, union_id, privacy_consent_version, privacy_consent_time,
+        phone_authorized_time, status, last_login_time, create_time, update_time
+    </sql>
+
+    <select id="selectActive" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM dms_wechat_mini_program_identity
+        WHERE tenant_id = #{tenantId} AND app_id_hash = #{appIdHash}
+          AND open_id_hash = #{openIdHash} AND status = 1
+        LIMIT 1
+    </select>
+
+    <select id="selectByMember" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM dms_wechat_mini_program_identity
+        WHERE tenant_id = #{tenantId} AND app_id_hash = #{appIdHash}
+          AND member_id = #{memberId} AND status = 1
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsWechatMiniProgramIdentity"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_wechat_mini_program_identity
+        (tenant_id, member_id, user_id, app_id_hash, open_id_hash, union_id_hash,
+         open_id, union_id, privacy_consent_version, privacy_consent_time,
+         phone_authorized_time, status, last_login_time)
+        VALUES
+        (#{tenantId}, #{memberId}, #{userId}, #{appIdHash}, #{openIdHash}, #{unionIdHash},
+         #{openId,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler},
+         #{unionId,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler},
+         #{privacyConsentVersion}, #{privacyConsentTime}, #{phoneAuthorizedTime},
+         #{status}, #{lastLoginTime})
+    </insert>
+
+    <update id="updateLogin" parameterType="com.macro.mall.distribution.entity.DmsWechatMiniProgramIdentity">
+        UPDATE dms_wechat_mini_program_identity
+        SET union_id_hash = COALESCE(#{unionIdHash}, union_id_hash),
+            union_id = COALESCE(
+              #{unionId,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler}, union_id),
+            privacy_consent_version = #{privacyConsentVersion},
+            privacy_consent_time = #{privacyConsentTime},
+            last_login_time = #{lastLoginTime},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND tenant_id = #{tenantId} AND status = 1
+    </update>
+</mapper>

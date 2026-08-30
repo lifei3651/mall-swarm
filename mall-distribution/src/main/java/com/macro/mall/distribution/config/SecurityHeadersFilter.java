@@ -28,6 +28,7 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
         }
         String path = request.getRequestURI();
         if (path.startsWith("/distribution/") || path.startsWith("/shop/auth/")
+                || path.startsWith("/shop/wechat-mini-program/auth/")
                 || path.startsWith("/shop/wallet/") || path.startsWith("/shop/orders/")
                 || path.equals("/shop/client-errors")) {
             response.setHeader("Cache-Control", "no-store");

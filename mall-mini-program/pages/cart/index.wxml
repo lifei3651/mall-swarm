@@ -1,0 +1,24 @@
+<view class="cart-page">
+  <view wx:if="{{!rows.length}}" class="empty cart-empty"><view>购物车还是空的</view><button class="primary-button" bindtap="goShopping">去逛逛</button></view>
+  <block wx:else>
+    <view class="cart-list">
+      <view class="cart-row" wx:for="{{rows}}" wx:key="key">
+        <view class="check {{item.selected ? 'checked' : ''}}" data-key="{{item.key}}" data-selected="{{item.selected}}" bindtap="toggle">{{item.selected ? '✓' : ''}}</view>
+        <image src="{{item.coverUrl}}" mode="aspectFill" data-id="{{item.productId}}" bindtap="openProduct" />
+        <view class="cart-copy">
+          <view class="cart-title" data-id="{{item.productId}}" bindtap="openProduct">{{item.productName}}</view>
+          <view class="muted spec">{{item.skuName}}</view>
+          <view class="cart-line">
+            <text>¥{{item.priceText}}</text>
+            <view class="counter"><button data-key="{{item.key}}" data-delta="-1" bindtap="quantity">−</button><text>{{item.quantity}}</text><button data-key="{{item.key}}" data-delta="1" bindtap="quantity">＋</button></view>
+          </view>
+          <button class="remove" data-key="{{item.key}}" bindtap="remove">删除</button>
+        </view>
+      </view>
+    </view>
+    <view class="cart-footer">
+      <view><text class="muted">已选 {{count}} 件</text><view>合计 <text>¥{{total}}</text></view></view>
+      <button class="primary-button" bindtap="checkout">去结算</button>
+    </view>
+  </block>
+</view>

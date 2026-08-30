@@ -1,0 +1,15 @@
+<view class="profile-page">
+  <view class="profile-card">
+    <view class="avatar">{{loggedIn ? '会' : '游'}}</view>
+    <view class="profile-copy" wx:if="{{loggedIn}}"><view>{{member.nickname || '商城会员'}}</view><text>{{member.phone || ''}}</text></view>
+    <view class="profile-copy" wx:else><view>欢迎来到商城</view><text>登录后查看订单与售后</text></view>
+    <button wx:if="{{!loggedIn}}" class="login-small" bindtap="login">微信登录</button>
+  </view>
+  <view class="menu card">
+    <view bindtap="orders"><text>我的订单</text><text>›</text></view>
+    <view bindtap="addresses"><text>收货地址</text><text>›</text></view>
+    <view bindtap="service"><text>售后与客服</text><text>›</text></view>
+  </view>
+  <view class="compliance card"><view>安心购物</view><text>本端仅提供商品浏览、购物车、订单和售后服务；经营主体、隐私政策与支付资料均由当前商城独立配置。</text></view>
+  <button wx:if="{{loggedIn}}" class="secondary-button logout" bindtap="logout">退出登录</button>
+</view>

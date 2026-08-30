@@ -133,6 +133,23 @@ case "$alipay" in
   *) fail "ALIPAY_ENABLED 只能是 true 或 false" ;;
 esac
 
+wechat_mini=$(value_of WECHAT_MINI_PROGRAM_ENABLED)
+wechat_phone=$(value_of WECHAT_MINI_PROGRAM_PHONE_AUTH_ENABLED)
+case "$wechat_phone" in true|false) : ;; *) fail "WECHAT_MINI_PROGRAM_PHONE_AUTH_ENABLED 只能是 true 或 false" ;; esac
+case "$wechat_mini" in
+  true)
+    printf '%s' "$(value_of WECHAT_MINI_PROGRAM_APP_ID)" | grep -Eq '^wx[0-9A-Za-z]{16}$' \
+      || fail "启用微信小程序前必须填写合法的客户 AppID"
+    require_secret WECHAT_MINI_PROGRAM_APP_SECRET 16
+    printf '%s' "$(value_of WECHAT_MINI_PROGRAM_PRIVACY_VERSION)" | grep -Eq '^[A-Za-z0-9_.-]{3,64}$' \
+      || fail "微信小程序隐私政策版本格式不正确"
+    ;;
+  false)
+    [ "$wechat_phone" = "false" ] || fail "微信小程序登录关闭时手机号快捷验证也必须关闭"
+    ;;
+  *) fail "WECHAT_MINI_PROGRAM_ENABLED 只能是 true 或 false" ;;
+esac
+
 sms=$(value_of SMS_PROVIDER_ENABLED)
 case "$sms" in
   true)

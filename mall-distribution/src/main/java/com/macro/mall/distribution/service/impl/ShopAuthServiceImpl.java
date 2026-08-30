@@ -502,6 +502,85 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ShopAuthVO loginOrRegisterWechat(String verifiedPhone, String inviteCode) {
+        String phone = PhoneNumberUtils.normalize(verifiedPhone);
+        if (!PhoneNumberUtils.isValidMainlandMobile(phone)) {
+            Asserts.fail("当前商城仅支持中国大陆手机号");
+        }
+        DmsShopMember existing = memberDao.selectByPhone(phone);
+        if (existing != null) {
+            return loginWechatMemberInternal(existing);
+        }
+        if (memberDao.selectByUsername(phone) != null) {
+            Asserts.fail("该手机号已被其他账号占用，请联系客服处理");
+        }
+
+        Long inviterId = null;
+        boolean invitedRegistration = inviteCode != null && !inviteCode.isBlank();
+        if (invitedRegistration) {
+            DmsShopMember inviter = resolveActiveInviter(inviteCode);
+            inviterId = inviter.getUserId();
+        }
+
+        DmsShopMember member = new DmsShopMember();
+        member.setUserId(IdUtil.getSnowflakeNextId());
+        member.setPhone(phone);
+        // 与手机号相同表示仍可在“账号安全”中设置独立登录账号；密码使用不可预测随机值。
+        member.setUsername(phone);
+        member.setPasswordHash(hash(IdUtil.fastSimpleUUID() + IdUtil.fastSimpleUUID()));
+        member.setNickname("微信用户");
+        member.setInviteCode(IdUtil.fastSimpleUUID().substring(0, 8).toUpperCase(java.util.Locale.ROOT));
+        member.setInviterId(inviterId);
+        member.setStatus(1);
+        member.setTeamOptIn(invitedRegistration ? 1 : 0);
+        memberDao.insert(member);
+
+        DmsTenant tenant = tenantDao.selectById(TenantContext.getTenantId());
+        PromotionJoinModeEnum joinMode = PromotionJoinModeEnum.forExisting(
+                tenant == null ? null : tenant.getPromotionJoinMode());
+        if (invitedRegistration && joinMode.autoOnInvite()) {
+            activateMember(member.getUserId(), 1, "微信扫码受邀注册后自动开通推广资格");
+        }
+        return createSession(member, "mini-program");
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ShopAuthVO loginWechatMember(Long memberId) {
+        if (memberId == null) Asserts.fail("微信账号尚未绑定商城会员");
+        DmsShopMember member = memberDao.selectByIdForUpdate(memberId);
+        return loginWechatMemberInternal(member);
+    }
+
+    private ShopAuthVO loginWechatMemberInternal(DmsShopMember member) {
+        if (member == null || !Integer.valueOf(1).equals(member.getStatus())
+                || Integer.valueOf(1).equals(member.getSystemAccount())) {
+            Asserts.fail("商城账号不可用，请联系客服处理");
+        }
+        memberDao.updateLastLoginTime(member.getId());
+        member.setLastLoginTime(LocalDateTime.now());
+        sessionDao.disableByMemberId(member.getId());
+        return createSession(member, "mini-program");
+    }
+
+    private DmsShopMember resolveActiveInviter(String inviteCode) {
+        String normalized = inviteCode.trim().toUpperCase(java.util.Locale.ROOT);
+        DmsShopMember inviter = memberDao.selectByInviteCode(normalized);
+        if (inviter == null) {
+            AgentInfoVO legacyInviter = agentService.getAgentByInviteCode(normalized);
+            if (legacyInviter != null && Integer.valueOf(1).equals(legacyInviter.getStatus())) {
+                inviter = memberDao.selectByUserId(legacyInviter.getUserId());
+            }
+        }
+        if (inviter == null || !Integer.valueOf(1).equals(inviter.getStatus())
+                || Integer.valueOf(1).equals(inviter.getSystemAccount())) {
+            Asserts.fail("邀请码无效");
+        }
+        return inviter;
+    }
+
+    @Override
     public DmsShopMember me(String authorization) {
         return sanitize(requireMember(authorization));
     }
@@ -649,7 +728,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     private String normalizeSurface(String value, String fallback) {
         String surface = value == null ? "" : value.trim().toLowerCase(java.util.Locale.ROOT);
         return switch (surface) {
-            case "public", "team", "integrated" -> surface;
+            case "public", "team", "integrated", "mini-program" -> surface;
             default -> fallback;
         };
     }

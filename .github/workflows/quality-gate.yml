@@ -46,6 +46,8 @@ jobs:
             directory: mall-shop-web
           - name: 管理后台
             directory: mall-distribution-admin
+          - name: 微信小程序
+            directory: mall-mini-program
     defaults:
       run:
         working-directory: ${{ matrix.directory }}

@@ -84,6 +84,8 @@ done
 [ "$(awk -F= '$1 == "DATA_ENCRYPTION_WRITE_ENABLED" { print $2 }' "$DEPLOY_DIR/.env")" = "true" ]
 grep -q '^SHOP_LIVE_PROVIDER=EXTERNAL$' "$DEPLOY_DIR/.env"
 grep -q '^SHOP_REAL_NAME_ENABLED=false$' "$DEPLOY_DIR/.env"
+grep -q '^WECHAT_MINI_PROGRAM_ENABLED=false$' "$DEPLOY_DIR/.env"
+grep -q '^WECHAT_MINI_PROGRAM_PHONE_AUTH_ENABLED=false$' "$DEPLOY_DIR/.env"
 grep -q '^LIVE_PLAYBACK_ORIGIN=$' "$DEPLOY_DIR/.env"
 grep -q 'LIVE_PLAYBACK_ORIGIN' "$DEPLOY_DIR/docker-compose.private.yml"
 grep -q "media-src 'self' blob: \${LIVE_PLAYBACK_ORIGIN}" "$DEPLOY_DIR/nginx/conf.d/mall.conf.template"
@@ -125,6 +127,13 @@ mv "$DEPLOY_DIR/.env.bak" "$DEPLOY_DIR/.env"
 sed -i.bak 's/^SHOP_REAL_NAME_ENABLED=.*/SHOP_REAL_NAME_ENABLED=true/' "$DEPLOY_DIR/.env"
 if "$DEPLOY_DIR/scripts/security-preflight.sh" --offline >/dev/null 2>&1; then
   echo "实名认证缺少腾讯云密钥时预检不应通过" >&2
+  exit 1
+fi
+mv "$DEPLOY_DIR/.env.bak" "$DEPLOY_DIR/.env"
+
+sed -i.bak 's/^WECHAT_MINI_PROGRAM_ENABLED=.*/WECHAT_MINI_PROGRAM_ENABLED=true/' "$DEPLOY_DIR/.env"
+if "$DEPLOY_DIR/scripts/security-preflight.sh" --offline >/dev/null 2>&1; then
+  echo "微信小程序缺少客户 AppID 和 AppSecret 时预检不应通过" >&2
   exit 1
 fi
 mv "$DEPLOY_DIR/.env.bak" "$DEPLOY_DIR/.env"

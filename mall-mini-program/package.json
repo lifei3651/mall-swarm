@@ -1,0 +1,11 @@
+{
+  "name": "lingqi-mall-mini-program",
+  "version": "1.0.0",
+  "private": true,
+  "description": "灵启商城微信小程序公共基座",
+  "scripts": {
+    "build": "npm run check",
+    "check": "node scripts/check-project.mjs",
+    "test": "node --test tests/*.test.mjs"
+  }
+}

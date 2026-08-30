@@ -105,6 +105,16 @@ security:
 
 # 仅供本地联调；生产配置会强制关闭。
 shop:
+  wechat-mini-program:
+    # 小程序登录属于公共基座，但每个客户必须使用自己的微信主体、AppID 和密钥。
+    enabled: ${WECHAT_MINI_PROGRAM_ENABLED:false}
+    # 首次注册才需要手机号快捷验证；客户未确认微信侧能力与成本前保持关闭。
+    phone-authorization-enabled: ${WECHAT_MINI_PROGRAM_PHONE_AUTH_ENABLED:false}
+    app-id: ${WECHAT_MINI_PROGRAM_APP_ID:}
+    app-secret: ${WECHAT_MINI_PROGRAM_APP_SECRET:}
+    privacy-consent-version: ${WECHAT_MINI_PROGRAM_PRIVACY_VERSION:MINI_PROGRAM_PRIVACY_V1}
+    connect-timeout-ms: ${WECHAT_MINI_PROGRAM_CONNECT_TIMEOUT_MS:5000}
+    read-timeout-ms: ${WECHAT_MINI_PROGRAM_READ_TIMEOUT_MS:10000}
   catalog:
     # 商城基座默认足够大；客户确有大量行业分类时可通过环境变量调整，无需改代码。
     max-categories: ${SHOP_MAX_CATEGORIES:500}

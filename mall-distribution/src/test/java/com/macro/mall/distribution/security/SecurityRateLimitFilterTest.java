@@ -55,6 +55,17 @@ class SecurityRateLimitFilterTest {
     }
 
     @Test
+    void appliesDedicatedRuleToWechatMiniProgramLogin() {
+        SecurityRateLimitFilter filter = new SecurityRateLimitFilter(mock(SecurityRateLimitService.class));
+        SecurityRateLimitFilter.Rule rule = filter.resolveRule(
+                new MockHttpServletRequest("POST", "/shop/wechat-mini-program/auth/login"));
+
+        assertEquals("wechat-mini-login", rule.name());
+        assertEquals(10, rule.maximumRequests());
+        assertEquals(60, rule.windowSeconds());
+    }
+
+    @Test
     void appliesDedicatedRuleToAfterSaleProofUploads() {
         SecurityRateLimitFilter filter = new SecurityRateLimitFilter(mock(SecurityRateLimitService.class));
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/shop/media/after-sale-proofs");

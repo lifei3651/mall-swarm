@@ -1,0 +1,56 @@
+<view class="page" style="--brand: {{themeColor}}">
+  <view wx:if="{{loading}}" class="empty">正在加载商城…</view>
+  <view wx:elif="{{error}}" class="empty">
+    <view>{{error}}</view>
+    <button class="secondary-button retry" bindtap="retry">重新加载</button>
+  </view>
+  <block wx:else>
+    <view class="brand-head">
+      <image wx:if="{{home.logoUrl}}" class="brand-logo" src="{{home.logoUrl}}" mode="aspectFill" />
+      <view class="brand-copy">
+        <view class="brand-name">{{home.brandName || '商城'}}</view>
+        <view class="brand-note">好商品，放心选</view>
+      </view>
+    </view>
+
+    <view class="search-box">
+      <text class="search-icon">⌕</text>
+      <input value="{{keyword}}" bindinput="onKeywordInput" bindconfirm="search" confirm-type="search" placeholder="搜索商品" />
+      <button bindtap="search">搜索</button>
+    </view>
+
+    <swiper wx:if="{{home.banners && home.banners.length}}" class="banner" indicator-dots autoplay circular interval="4500">
+      <swiper-item wx:for="{{home.banners}}" wx:key="id">
+        <image src="{{item.imageUrl}}" mode="aspectFill" />
+      </swiper-item>
+    </swiper>
+
+    <scroll-view wx:if="{{home.categoryList && home.categoryList.length}}" class="categories" scroll-x enhanced show-scrollbar="{{false}}">
+      <view class="category-row">
+        <view class="category-item" wx:for="{{home.categoryList}}" wx:key="id" data-name="{{item.categoryName}}" bindtap="openCategory">
+          <image wx:if="{{item.iconUrl}}" src="{{item.iconUrl}}" mode="aspectFill" />
+          <view wx:else class="category-placeholder">{{item.initial}}</view>
+          <text>{{item.categoryName}}</text>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view wx:if="{{home.notices && home.notices.length}}" class="notice card">
+      <text class="notice-label">公告</text>
+      <text class="notice-text">{{home.notices[0].title}}</text>
+    </view>
+
+    <view class="section-head"><text>精选好物</text><text class="muted">为你推荐</text></view>
+    <view wx:if="{{products.length}}" class="product-grid">
+      <view class="product-card" wx:for="{{products}}" wx:key="id" data-id="{{item.id}}" bindtap="openProduct">
+        <image class="product-cover" src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
+        <view class="product-copy">
+          <view class="product-title">{{item.productName}}</view>
+          <view class="product-subtitle">{{item.subtitle}}</view>
+          <view class="product-price">¥{{item.priceText}}</view>
+        </view>
+      </view>
+    </view>
+    <view wx:else class="empty">当前还没有上架商品</view>
+  </block>
+</view>

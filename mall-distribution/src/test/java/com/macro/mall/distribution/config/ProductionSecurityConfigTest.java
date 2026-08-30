@@ -102,6 +102,36 @@ class ProductionSecurityConfigTest {
     }
 
     @Test
+    void miniProgramPhoneAuthorizationCannotBeEnabledByItself() {
+        MockEnvironment environment = new MockEnvironment()
+                .withProperty("shop.wechat-mini-program.enabled", "false")
+                .withProperty("shop.wechat-mini-program.phone-authorization-enabled", "true");
+
+        assertThrows(IllegalStateException.class, () -> new ProductionSafetyGuard(environment).validate());
+    }
+
+    @Test
+    void productionMiniProgramRequiresCustomerCredentialsAndEncryption() {
+        MockEnvironment missingCredentials = completeProductionEnvironment()
+                .withProperty("shop.wechat-mini-program.enabled", "true")
+                .withProperty("security.data-encryption.write-enabled", "true");
+        assertThrows(IllegalStateException.class,
+                () -> new ProductionSafetyGuard(missingCredentials).validate());
+
+        MockEnvironment encryptionDisabled = completeProductionEnvironment()
+                .withProperty("shop.wechat-mini-program.enabled", "true")
+                .withProperty("shop.wechat-mini-program.app-id", "wx1234567890abcdef")
+                .withProperty("shop.wechat-mini-program.app-secret", "customer-strong-wechat-secret")
+                .withProperty("shop.wechat-mini-program.privacy-consent-version", "privacy-2026-08")
+                .withProperty("security.data-encryption.write-enabled", "false");
+        assertThrows(IllegalStateException.class,
+                () -> new ProductionSafetyGuard(encryptionDisabled).validate());
+
+        encryptionDisabled.withProperty("security.data-encryption.write-enabled", "true");
+        new ProductionSafetyGuard(encryptionDisabled).validate();
+    }
+
+    @Test
     void securityHeadersProtectSensitiveHttpsResponses() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/shop/wallet/summary");
         request.setSecure(true);

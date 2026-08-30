@@ -1,0 +1,12 @@
+.orders-page { min-height: 100vh; padding: 22rpx; }
+.order-card { margin-bottom: 18rpx; padding: 24rpx; border-radius: 24rpx; background: #fff; }
+.order-head { display: flex; justify-content: space-between; padding-bottom: 20rpx; border-bottom: 1rpx solid #edf0f3; color: #858d9a; font-size: 23rpx; }
+.order-head text:last-child { color: var(--brand); }
+.order-item { display: flex; margin-top: 20rpx; }
+.order-item image { flex: none; width: 130rpx; height: 130rpx; border-radius: 16rpx; background: #eef0f3; }
+.order-item view { min-width: 0; flex: 1; margin-left: 18rpx; }
+.order-item view text { display: block; font-weight: 600; line-height: 38rpx; }
+.order-spec { display: block; margin-top: 10rpx; color: #8e95a2; font-size: 24rpx; }
+.order-total { margin-top: 22rpx; text-align: right; }
+.order-total text { color: var(--brand); font-size: 32rpx; font-weight: 700; }
+.order-card button { width: 230rpx; margin: 18rpx 0 0 auto; font-size: 24rpx; }

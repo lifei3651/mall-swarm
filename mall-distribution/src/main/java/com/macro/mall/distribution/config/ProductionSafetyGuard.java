@@ -22,6 +22,10 @@ public class ProductionSafetyGuard {
     @PostConstruct
     void validate() {
         String testCode = environment.getProperty("sms.test-code", "");
+        if (enabled("shop.wechat-mini-program.phone-authorization-enabled")
+                && !enabled("shop.wechat-mini-program.enabled")) {
+            throw new IllegalStateException("微信手机号快捷验证必须在小程序登录开启后才能启用");
+        }
         boolean dangerousTestFeature = enabled("shop.payment.simulation-enabled")
                 || enabled("sms.expose-code") || (testCode != null && !testCode.isBlank());
         if (dangerousTestFeature && !hasOnlyExplicitTestProfiles()) {
@@ -66,6 +70,21 @@ public class ProductionSafetyGuard {
                 String endpoint = environment.getProperty("shop.real-name.endpoint", "");
                 if (!"faceid.tencentcloudapi.com".equalsIgnoreCase(endpoint.trim())) {
                     throw new IllegalStateException("实名认证仅允许连接腾讯云官方 FaceID 接口域名");
+                }
+            }
+            if (enabled("shop.wechat-mini-program.enabled")) {
+                String appId = environment.getProperty("shop.wechat-mini-program.app-id", "").trim();
+                if (!appId.matches("wx[0-9A-Za-z]{16}")) {
+                    throw new IllegalStateException("启用微信小程序前必须配置合法的客户 AppID");
+                }
+                String appSecret = environment.getProperty("shop.wechat-mini-program.app-secret", "");
+                if (appSecret.length() < 16 || isWeakSecret(appSecret)) {
+                    throw new IllegalStateException("启用微信小程序前必须配置客户独立的强 AppSecret");
+                }
+                requireConfigured("shop.wechat-mini-program.privacy-consent-version",
+                        "启用微信小程序前必须登记已审核的隐私政策版本");
+                if (!enabled("security.data-encryption.write-enabled")) {
+                    throw new IllegalStateException("启用微信小程序前必须开启敏感字段加密写入");
                 }
             }
             boolean tencentLiveConfigured = "TENCENT".equalsIgnoreCase(environment.getProperty("shop.live.provider", "EXTERNAL"))

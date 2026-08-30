@@ -1,0 +1,14 @@
+.category-page { height: 100vh; display: flex; flex-direction: column; background: #fff; }
+.category-search { margin: 18rpx 22rpx; height: 76rpx; display: flex; overflow: hidden; background: #f4f5f7; border-radius: 999rpx; }
+.category-search input { flex: 1; height: 100%; padding: 0 28rpx; }
+.category-search button { width: 116rpx; line-height: 76rpx; padding: 0; border-radius: 0; background: var(--brand); color: #fff; font-size: 26rpx; }
+.category-body { min-height: 0; flex: 1; display: flex; border-top: 1rpx solid #edf0f3; }
+.category-side { width: 188rpx; height: 100%; background: #f6f7f9; }
+.side-item { min-height: 102rpx; padding: 30rpx 18rpx; text-align: center; color: #555e6d; }
+.side-item.active { background: #fff; color: var(--brand); font-weight: 700; border-left: 6rpx solid var(--brand); }
+.category-products { flex: 1; height: 100%; padding: 20rpx; }
+.compact-grid { gap: 14rpx; padding-bottom: 36rpx; }
+.compact-grid .product-cover { height: 220rpx; }
+.compact-grid .product-copy { padding: 14rpx; }
+.compact-grid .product-title { min-height: 68rpx; font-size: 25rpx; line-height: 34rpx; }
+.compact-grid .product-price { font-size: 29rpx; }
