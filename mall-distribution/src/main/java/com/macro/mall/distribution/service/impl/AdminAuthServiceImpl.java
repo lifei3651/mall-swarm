@@ -54,8 +54,12 @@ public class AdminAuthServiceImpl implements AdminAuthService {
                 || dto.getPassword() == null || dto.getPassword().isBlank()) {
             Asserts.fail("账号和密码不能为空");
         }
+        if (!"PLATFORM".equals(dto.getPortal()) && !"MERCHANT".equals(dto.getPortal())) {
+            Asserts.fail("后台登录入口不正确");
+        }
         loginCaptchaService.verify("admin", dto.getCaptchaId(), dto.getCaptchaCode());
-        DmsAdminUser admin = adminUserDao.selectByUsername(dto.getUsername());
+        // 入口级查询：错误入口中的账号等同于不存在，不识别账号归属，也不锁定另一入口的账号。
+        DmsAdminUser admin = adminUserDao.selectByUsernameAndPortal(dto.getUsername(), dto.getPortal());
         if (admin == null) {
             BCrypt.checkpw(dto.getPassword(), DUMMY_PASSWORD_HASH);
             Asserts.fail("账号或密码错误");
@@ -86,7 +90,6 @@ public class AdminAuthServiceImpl implements AdminAuthService {
             Asserts.fail("后台账号已禁用");
         }
         requireMerchantAccountEnabled(admin, false);
-        requireLoginPortal(admin, dto.getPortal());
         adminUserDao.updateLastLoginTime(admin.getId());
         // 单账号单会话：新登录成功后使该管理员此前的全部会话失效。
         adminSessionDao.disableByAdminId(admin.getId());
@@ -264,17 +267,4 @@ public class AdminAuthServiceImpl implements AdminAuthService {
         return merchant != null && "ENABLED".equals(merchant.getAccountStatus());
     }
 
-    private void requireLoginPortal(DmsAdminUser admin, String portal) {
-        if (portal == null || portal.isBlank()) return;
-        if (!"PLATFORM".equals(portal) && !"MERCHANT".equals(portal)) {
-            Asserts.fail("后台登录入口不正确");
-        }
-        boolean merchantAccount = admin.getMerchantId() != null;
-        if ("PLATFORM".equals(portal) && merchantAccount) {
-            Asserts.fail("该账号属于商家后台，请使用商家登录入口");
-        }
-        if ("MERCHANT".equals(portal) && !merchantAccount) {
-            Asserts.fail("该账号属于平台总后台，请使用平台登录入口");
-        }
-    }
 }

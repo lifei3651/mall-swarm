@@ -56,7 +56,7 @@ class AdminLoginEncryptedPayloadPipelineTest {
                         .header(EncryptedPayloadRequestBodyAdvice.ENCRYPTED_KEY_HEADER, "encrypted-key")
                         .content("""
                                 {"username":"security-probe","password":"enc:v1:iv:ciphertext",
-                                 "captchaId":"captcha-id","captchaCode":"enc:v1:iv:ciphertext"}
+                                 "captchaId":"captcha-id","captchaCode":"enc:v1:iv:ciphertext","portal":"PLATFORM"}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));

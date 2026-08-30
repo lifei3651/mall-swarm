@@ -25,7 +25,7 @@ class AdminLoginPayloadEncryptionIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"username":"security-probe","password":"plain-password",
-                                 "captchaId":"captcha-id","captchaCode":"A7K9"}
+                                 "captchaId":"captcha-id","captchaCode":"A7K9","portal":"PLATFORM"}
                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("页面安全组件已更新，请刷新页面后重试"));

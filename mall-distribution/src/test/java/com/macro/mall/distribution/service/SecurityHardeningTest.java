@@ -50,7 +50,7 @@ class SecurityHardeningTest {
         admin.setSalt(salt);
         admin.setStatus(1);
         admin.setPermissions("admin:read");
-        when(adminUserDao.selectByUsername("operator")).thenReturn(admin);
+        when(adminUserDao.selectByUsernameAndPortal("operator", "PLATFORM")).thenReturn(admin);
 
         AdminAuthServiceImpl service = new AdminAuthServiceImpl(adminUserDao, adminSessionDao, captchaService);
         AdminLoginDTO dto = new AdminLoginDTO();
@@ -58,6 +58,7 @@ class SecurityHardeningTest {
         dto.setPassword(password);
         dto.setCaptchaId("captcha-id");
         dto.setCaptchaCode("8A2K");
+        dto.setPortal("PLATFORM");
         LocalDateTime expectedExpireAfter = LocalDateTime.now().plusHours(12);
         var result = service.login(dto);
 
@@ -80,21 +81,6 @@ class SecurityHardeningTest {
     @Test
     void platformAndMerchantAccountsCannotUseTheWrongLoginPortal() {
         String password = "Valid-password-123";
-        DmsAdminUser platform = new DmsAdminUser();
-        platform.setId(10L);
-        platform.setUsername("platform-admin");
-        platform.setPasswordHash(BCrypt.hashpw(password));
-        platform.setSalt("BCRYPT");
-        platform.setStatus(1);
-        DmsAdminUser merchant = new DmsAdminUser();
-        merchant.setId(11L);
-        merchant.setUsername("merchant-admin");
-        merchant.setPasswordHash(BCrypt.hashpw(password));
-        merchant.setSalt("BCRYPT");
-        merchant.setStatus(1);
-        merchant.setMerchantId(88L);
-        when(adminUserDao.selectByUsername("platform-admin")).thenReturn(platform);
-        when(adminUserDao.selectByUsername("merchant-admin")).thenReturn(merchant);
         AdminAuthServiceImpl service = new AdminAuthServiceImpl(adminUserDao, adminSessionDao, captchaService);
 
         AdminLoginDTO platformAtMerchantPortal = new AdminLoginDTO();
@@ -105,7 +91,7 @@ class SecurityHardeningTest {
         platformAtMerchantPortal.setPortal("MERCHANT");
         RuntimeException platformBlocked = assertThrows(RuntimeException.class,
                 () -> service.login(platformAtMerchantPortal));
-        assertEquals("该账号属于平台总后台，请使用平台登录入口", platformBlocked.getMessage());
+        assertEquals("账号或密码错误", platformBlocked.getMessage());
 
         AdminLoginDTO merchantAtPlatformPortal = new AdminLoginDTO();
         merchantAtPlatformPortal.setUsername("merchant-admin");
@@ -115,7 +101,10 @@ class SecurityHardeningTest {
         merchantAtPlatformPortal.setPortal("PLATFORM");
         RuntimeException merchantBlocked = assertThrows(RuntimeException.class,
                 () -> service.login(merchantAtPlatformPortal));
-        assertEquals("该账号属于商家后台，请使用商家登录入口", merchantBlocked.getMessage());
+        assertEquals("账号或密码错误", merchantBlocked.getMessage());
+        verify(adminUserDao).selectByUsernameAndPortal("platform-admin", "MERCHANT");
+        verify(adminUserDao).selectByUsernameAndPortal("merchant-admin", "PLATFORM");
+        verify(adminUserDao, never()).selectByUsername(anyString());
         verify(adminSessionDao, never()).insert(any(DmsAdminSession.class));
     }
 
@@ -127,6 +116,7 @@ class SecurityHardeningTest {
         dto.setPassword("password");
         dto.setCaptchaId("expired-captcha");
         dto.setCaptchaCode("0000");
+        dto.setPortal("PLATFORM");
         doThrow(new IllegalArgumentException("图形验证码错误或已过期"))
                 .when(captchaService).verify("admin", "expired-captcha", "0000");
 
@@ -140,11 +130,12 @@ class SecurityHardeningTest {
         admin.setId(9L);
         admin.setUsername("operator");
         admin.setLockTime(LocalDateTime.now().minusMinutes(1));
-        when(adminUserDao.selectByUsername("operator")).thenReturn(admin);
+        when(adminUserDao.selectByUsernameAndPortal("operator", "PLATFORM")).thenReturn(admin);
         AdminAuthServiceImpl service = new AdminAuthServiceImpl(adminUserDao, adminSessionDao, captchaService);
         AdminLoginDTO dto = new AdminLoginDTO();
         dto.setUsername("operator"); dto.setPassword("wrong-password");
         dto.setCaptchaId("captcha"); dto.setCaptchaCode("8A2K");
+        dto.setPortal("PLATFORM");
 
         RuntimeException error = assertThrows(RuntimeException.class, () -> service.login(dto));
         assertEquals("账号或密码错误", error.getMessage());
@@ -158,12 +149,13 @@ class SecurityHardeningTest {
         admin.setPermissions("admin:read"); admin.setSalt("BCRYPT");
         admin.setPasswordHash(BCrypt.hashpw(password));
         admin.setLockTime(LocalDateTime.now().minusMinutes(16));
-        when(adminUserDao.selectByUsername("operator")).thenReturn(admin);
+        when(adminUserDao.selectByUsernameAndPortal("operator", "PLATFORM")).thenReturn(admin);
         when(adminUserDao.clearExpiredLoginLock(eq(9L), any(LocalDateTime.class))).thenReturn(1);
         AdminAuthServiceImpl service = new AdminAuthServiceImpl(adminUserDao, adminSessionDao, captchaService);
         AdminLoginDTO dto = new AdminLoginDTO();
         dto.setUsername("operator"); dto.setPassword(password);
         dto.setCaptchaId("captcha"); dto.setCaptchaCode("8A2K");
+        dto.setPortal("PLATFORM");
 
         service.login(dto);
 

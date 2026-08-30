@@ -29,7 +29,8 @@ public class AdminLoginDTO implements Serializable {
     @Size(max = 16, message = "图形验证码不能超过16个字符")
     private String captchaCode;
 
-    /** 新版管理端明确声明登录入口；为空仅用于兼容发布前已打开的旧页面。 */
+    /** 平台和商家必须从各自入口登录，不提供混合或自动识别入口。 */
+    @NotBlank(message = "后台登录入口不能为空")
     @Pattern(regexp = "PLATFORM|MERCHANT", message = "后台登录入口不正确")
     private String portal;
 }

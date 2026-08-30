@@ -14,6 +14,9 @@ public interface DmsAdminUserDao {
 
     DmsAdminUser selectByUsername(@Param("username") String username);
 
+    DmsAdminUser selectByUsernameAndPortal(@Param("username") String username,
+                                           @Param("portal") String portal);
+
     int insert(DmsAdminUser user);
 
     int update(DmsAdminUser user);

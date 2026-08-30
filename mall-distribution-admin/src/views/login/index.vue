@@ -54,21 +54,12 @@
             show-icon
             :closable="false"
           />
-          <div v-if="portalMismatch" class="portal-mismatch" role="alert" aria-live="assertive">
-            <div>
-              <strong>{{ portalMismatch.message }}</strong>
-              <span>请前往正确入口重新输入密码，系统不会跨入口传递登录凭据。</span>
-            </div>
-            <el-button type="primary" plain @click="goToCorrectPortal">
-              {{ portalMismatchActionLabel }}
-            </el-button>
-          </div>
           <el-form ref="formRef" :model="form" :rules="rules" size="large" @keyup.enter="handleLogin">
             <el-form-item prop="username">
-              <el-input v-model="form.username" :placeholder="accountPlaceholder" clearable @input="clearPortalMismatch" />
+              <el-input v-model="form.username" :placeholder="accountPlaceholder" clearable />
             </el-form-item>
             <el-form-item prop="password">
-              <el-input v-model="form.password" placeholder="密码" type="password" show-password clearable @input="clearPortalMismatch" />
+              <el-input v-model="form.password" placeholder="密码" type="password" show-password clearable />
             </el-form-item>
             <el-form-item prop="captchaCode">
               <div class="captcha-row">
@@ -109,8 +100,6 @@ import {
   ADMIN_PORTAL_MERCHANT,
   ADMIN_PORTAL_PLATFORM,
   adminPortalForAccount,
-  adminPortalLoginPath,
-  adminPortalMismatchFromError,
   normalizeAdminPortal,
   saveAdminPortal,
 } from '@/utils/adminPortal'
@@ -123,7 +112,6 @@ const formRef = ref()
 const loading = ref(false)
 const captchaImage = ref('')
 const sessionNotice = ref(consumeAdminSessionNotice())
-const portalMismatch = ref(null)
 const brand = reactive({ brandName: localStorage.getItem('admin_brand_name') || '商城', logoUrl: '' })
 const brandLogoLoadFailed = ref(false)
 const loginLogoSrc = computed(() => brandLogoLoadFailed.value ? defaultLogo : (brand.logoUrl || defaultLogo))
@@ -136,9 +124,6 @@ const portalDescription = computed(() => isPlatformPortal.value
   : '仅供已开通的商家账号登录')
 const accountPlaceholder = computed(() => isPlatformPortal.value ? '平台管理员账号' : '商家账号')
 const portalButtonLabel = computed(() => isPlatformPortal.value ? '平台总后台' : '商家后台')
-const portalMismatchActionLabel = computed(() => portalMismatch.value?.targetPortal === ADMIN_PORTAL_PLATFORM
-  ? '前往平台总后台'
-  : '前往商家后台')
 watch(portal, (value) => saveAdminPortal(value), { immediate: true })
 const handleLoginLogoError = () => {
   if (loginLogoSrc.value === defaultLogo) return
@@ -157,20 +142,6 @@ const rules = {
   username: [{ required: true, message: '请输入后台账号', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
   captchaCode: [{ required: true, message: '请输入图形验证码', trigger: 'blur' }],
-}
-
-const clearPortalMismatch = () => {
-  portalMismatch.value = null
-}
-
-const goToCorrectPortal = () => {
-  const targetPortal = portalMismatch.value?.targetPortal
-  if (!targetPortal) return
-  form.password = ''
-  form.captchaCode = ''
-  portalMismatch.value = null
-  saveAdminPortal(targetPortal)
-  router.replace({ path: adminPortalLoginPath(targetPortal), query: route.query })
 }
 
 const refreshCaptcha = async () => {
@@ -196,13 +167,12 @@ const loadBrand = async () => {
 
 const handleLogin = async () => {
   await formRef.value?.validate()
-  portalMismatch.value = null
   loading.value = true
   try {
     const res = await login({ ...form, portal: portal.value })
     const accountPortal = adminPortalForAccount(res.data?.admin)
     if (accountPortal !== portal.value) {
-      throw new Error('登录入口与账号类型不一致')
+      throw new Error('账号或密码错误')
     }
     saveAdminPortal(accountPortal)
     store.setAuth(res.data)
@@ -213,12 +183,7 @@ const handleLogin = async () => {
     }
     router.replace(resolveAdminRedirect(route.query.redirect, res.data?.admin))
   } catch (error) {
-    const mismatch = adminPortalMismatchFromError(error)
     await refreshCaptcha()
-    if (mismatch) {
-      portalMismatch.value = mismatch
-      return
-    }
     throw error
   } finally {
     loading.value = false
@@ -460,38 +425,6 @@ onMounted(() => Promise.allSettled([refreshCaptcha(), loadBrand()]))
 
 .session-notice {
   margin-bottom: 18px;
-}
-
-.portal-mismatch {
-  display: grid;
-  gap: 12px;
-  margin-bottom: 18px;
-  padding: 14px;
-  border: 1px solid #f3c27a;
-  border-radius: 10px;
-  background: #fff8ed;
-
-  strong,
-  span {
-    display: block;
-  }
-
-  strong {
-    color: #8a4b08;
-    font-size: 14px;
-    line-height: 1.5;
-  }
-
-  span {
-    margin-top: 4px;
-    color: #8d6b45;
-    font-size: 12px;
-    line-height: 1.6;
-  }
-
-  .el-button {
-    width: 100%;
-  }
 }
 
 .captcha-row {

@@ -29,10 +29,6 @@ const Layout = () => import('@/components/Layout.vue')
 
 const routes = [
   {
-    path: '/login',
-    redirect: (to) => ({ path: '/merchant/login', query: to.query }),
-  },
-  {
     path: '/merchant/login',
     name: 'MerchantLogin',
     component: () => import('@/views/login/index.vue'),

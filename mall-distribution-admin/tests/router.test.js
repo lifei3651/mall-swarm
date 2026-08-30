@@ -33,13 +33,13 @@ describe('router guards', () => {
     expect(to.meta.public).toBe(true)
   })
 
-  it('平台与商家使用不同登录路由，旧地址转到商家入口', async () => {
+  it('平台与商家只有两个独立登录路由，不保留混合登录页', async () => {
     const source = await readFile(resolve(process.cwd(), 'src/router/index.js'), 'utf8')
     expect(source).toContain("path: '/merchant/login'")
     expect(source).toContain("path: '/platform/login'")
     expect(source).toContain("meta: { title: '商家后台登录', public: true, portal: 'MERCHANT' }")
     expect(source).toContain("meta: { title: '平台总后台登录', public: true, portal: 'PLATFORM' }")
-    expect(source).toContain("redirect: (to) => ({ path: '/merchant/login', query: to.query })")
+    expect(source).not.toContain("path: '/login'")
   })
 
   it('protected route without token should redirect', () => {

@@ -16,17 +16,6 @@ export const adminPortalForAccount = (admin) => (
   admin?.merchantId ? ADMIN_PORTAL_MERCHANT : ADMIN_PORTAL_PLATFORM
 )
 
-export const adminPortalMismatchFromError = (error) => {
-  const message = String(error?.message || '').trim()
-  if (message === '该账号属于平台总后台，请使用平台登录入口') {
-    return { message, targetPortal: ADMIN_PORTAL_PLATFORM }
-  }
-  if (message === '该账号属于商家后台，请使用商家登录入口') {
-    return { message, targetPortal: ADMIN_PORTAL_MERCHANT }
-  }
-  return null
-}
-
 export const readAdminPortal = () => {
   try {
     return normalizeAdminPortal(localStorage.getItem(ADMIN_PORTAL_KEY))

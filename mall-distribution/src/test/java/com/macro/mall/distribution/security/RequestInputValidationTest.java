@@ -57,6 +57,11 @@ class RequestInputValidationTest {
         login.setPortal("UNKNOWN");
         assertMessages(login, "后台账号不能超过64个字符", "后台密码不能超过64位", "后台登录入口不正确");
 
+        AdminLoginDTO missingPortal = new AdminLoginDTO();
+        missingPortal.setUsername("operator");
+        missingPortal.setPassword("Valid-password-123");
+        assertMessages(missingPortal, "后台登录入口不能为空");
+
         SmsCodeRequestDTO sms = new SmsCodeRequestDTO();
         sms.setPhone("123");
         sms.setBizType(99);

@@ -53,6 +53,15 @@
         LIMIT 1
     </select>
 
+    <select id="selectByUsernameAndPortal" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumnList"/>
+        FROM dms_admin_user u LEFT JOIN dms_merchant m ON m.id=u.merchant_id
+        WHERE u.username = #{username}
+          AND ((#{portal} = 'PLATFORM' AND u.merchant_id IS NULL)
+            OR (#{portal} = 'MERCHANT' AND u.merchant_id IS NOT NULL))
+        LIMIT 1
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_admin_user (username, password_hash, salt, nickname, role_code, permissions, merchant_id, status, must_change_password)
         VALUES (#{username}, #{passwordHash}, #{salt}, #{nickname}, #{roleCode}, #{permissions}, #{merchantId}, #{status}, #{mustChangePassword})
