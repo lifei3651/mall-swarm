@@ -108,6 +108,13 @@ describe('商城订单取消入口', () => {
     expect(source).toContain("query.orderState === 'PENDING_SHIPMENT'")
   })
 
+  it('订单状态筛选包含独立的已发货入口', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain("{ label: '已发货', value: 'SHIPPED' }")
+    expect(source).toContain("2: '已发货'")
+  })
+
   it('订单末尾提供仅后台可见的客服备注并保留客户原留言', async () => {
     const source = await readFile(sourcePath, 'utf8')
 

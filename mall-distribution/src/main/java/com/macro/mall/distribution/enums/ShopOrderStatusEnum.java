@@ -9,7 +9,7 @@ import lombok.Getter;
 public enum ShopOrderStatusEnum {
     PENDING_PAYMENT(0, "待支付"),
     PENDING_SHIPMENT(1, "待发货"),
-    SHIPPED(2, "待收货"),
+    SHIPPED(2, "已发货"),
     COMPLETED(3, "已完成"),
     CLOSED(4, "已关闭");
 

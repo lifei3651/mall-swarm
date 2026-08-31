@@ -1455,7 +1455,7 @@ public class ShopServiceImpl implements ShopService {
     private String normalizeAdminOrderState(String orderState) {
         if (orderState == null || orderState.isBlank()) return null;
         String normalized = orderState.trim().toUpperCase(java.util.Locale.ROOT);
-        if (!java.util.Set.of("PENDING_PAYMENT", "PENDING_SHIPMENT", "AFTER_SALE", "COMPLETED", "REFUNDED")
+        if (!java.util.Set.of("PENDING_PAYMENT", "PENDING_SHIPMENT", "SHIPPED", "AFTER_SALE", "COMPLETED", "REFUNDED")
                 .contains(normalized)) {
             Asserts.fail("订单状态筛选条件不正确");
         }

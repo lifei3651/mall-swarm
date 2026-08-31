@@ -77,6 +77,7 @@ class ShopOrderStateFilterTest {
         assertOrderNos("PENDING_PAYMENT", "FILTER-PAY");
         assertOrderNos("PENDING_SHIPMENT", "FILTER-REFUND", "FILTER-SHIP", "FILTER-SHIP-CANCELED");
         assertUserOrderNos("PENDING_SHIPMENT", "FILTER-REFUND", "FILTER-SHIP", "FILTER-SHIP-CANCELED");
+        assertOrderNos("SHIPPED", "FILTER-RECEIVE", "FILTER-RECEIVE-CANCELED");
         assertUserOrderNos("PENDING_RECEIPT", "FILTER-RECEIVE", "FILTER-RECEIVE-CANCELED");
         assertOrderNos("AFTER_SALE", "FILTER-AFTER", "FILTER-RECEIVE-AFTER", "FILTER-SHIP-AFTER");
         assertOrderNos("COMPLETED", "FILTER-DONE");

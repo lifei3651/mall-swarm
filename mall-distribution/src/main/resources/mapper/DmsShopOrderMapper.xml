@@ -259,6 +259,13 @@
                             WHERE sale.order_id = dms_shop_order.id AND sale.status NOT IN (1, 2, 3)
                         )
                     </when>
+                    <when test="orderState == 'SHIPPED'">
+                        AND status = 2
+                        AND NOT EXISTS (
+                            SELECT 1 FROM dms_shop_after_sale sale
+                            WHERE sale.order_id = dms_shop_order.id AND sale.status NOT IN (1, 2, 3)
+                        )
+                    </when>
                     <when test="orderState == 'AFTER_SALE'">
                         AND EXISTS (
                             SELECT 1 FROM dms_shop_after_sale sale

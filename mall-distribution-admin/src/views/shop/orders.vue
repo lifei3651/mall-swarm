@@ -724,6 +724,7 @@ const orderStateOptions = [
   { label: '全部', value: '' },
   { label: '待付款', value: 'PENDING_PAYMENT' },
   { label: '待发货', value: 'PENDING_SHIPMENT' },
+  { label: '已发货', value: 'SHIPPED' },
   { label: '待售后', value: 'AFTER_SALE' },
   { label: '已完成', value: 'COMPLETED' },
   { label: '已退款', value: 'REFUNDED' },
