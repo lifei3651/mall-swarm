@@ -74,7 +74,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -1092,7 +1091,7 @@ public class ShopServiceImpl implements ShopService {
 
         LocalDateTime now = LocalDateTime.now();
         Long tradeId = IdUtil.getSnowflakeNextId();
-        String tradeNo = generateTradeNo(tradeId, now);
+        String tradeNo = ShopOrderNoGenerator.generateTrade(tradeId);
         List<ShopOrderVO> children = new ArrayList<>();
         BigDecimal totalAmount = ZERO;
         BigDecimal freightAmount = ZERO;
@@ -1134,7 +1133,7 @@ public class ShopServiceImpl implements ShopService {
         DmsAgent ownerAgent = resolveOwnerAgent(dto);
         LocalDateTime now = LocalDateTime.now();
         Long orderId = IdUtil.getSnowflakeNextId();
-        String orderNo = ShopOrderNoGenerator.generate(orderId, now);
+        String orderNo = ShopOrderNoGenerator.generate(orderId);
 
         List<DmsShopOrderItem> orderItems = new ArrayList<>();
         Map<Long, ProductShippingContext> shippingProducts = new LinkedHashMap<>();
@@ -2035,12 +2034,6 @@ public class ShopServiceImpl implements ShopService {
         copy.setPayType(source.getPayType()); copy.setRemark(source.getRemark()); copy.setBusinessType(source.getBusinessType());
         copy.setBusinessSourceId(source.getBusinessSourceId()); copy.setSmsCode(source.getSmsCode()); copy.setItems(new ArrayList<>(items));
         return copy;
-    }
-
-    private String generateTradeNo(Long tradeId, LocalDateTime time) {
-        String date = (time == null ? LocalDateTime.now() : time).format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-        // 保留完整雪花 ID，避免取模后在同一秒内产生交易号碰撞。
-        return "T" + date + Long.toUnsignedString(tradeId == null ? 0L : tradeId);
     }
 
     private DmsAgent resolveOwnerAgent(ShopOrderSubmitDTO dto) {

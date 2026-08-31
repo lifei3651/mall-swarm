@@ -115,6 +115,15 @@ describe('商城订单取消入口', () => {
     expect(source).toContain("2: '已发货'")
   })
 
+  it('订单编号与购买账号使用独立列展示', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('label="订单编号"')
+    expect(source).toContain('label="购买账号"')
+    expect(source).toContain('{{ row.memberAccount || \'-\' }}')
+    expect(source).not.toContain('登录账号 {{ row.memberAccount')
+  })
+
   it('订单末尾提供仅后台可见的客服备注并保留客户原留言', async () => {
     const source = await readFile(sourcePath, 'utf8')
 

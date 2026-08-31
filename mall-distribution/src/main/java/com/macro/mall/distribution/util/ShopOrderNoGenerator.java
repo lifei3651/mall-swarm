@@ -1,29 +1,28 @@
 package com.macro.mall.distribution.util;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Locale;
-import java.util.Objects;
 
-/** 商城订单编号生成器：时间可读，唯一性由完整雪花订单ID保证。 */
+/** 商城业务编号生成器：使用完整雪花ID的36进制编码，兼顾短小与全局唯一。 */
 public final class ShopOrderNoGenerator {
 
-    private static final String PREFIX = "L";
     private static final int ID_TOKEN_LENGTH = 13;
-    private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     private ShopOrderNoGenerator() {
     }
 
-    public static String generate(long orderId, LocalDateTime createTime) {
-        if (orderId <= 0) {
-            throw new IllegalArgumentException("订单ID必须大于0");
-        }
-        Objects.requireNonNull(createTime, "订单创建时间不能为空");
+    public static String generate(long orderId) {
+        return generate("L", orderId, "订单ID必须大于0");
+    }
 
-        // 正数 long 的36进制编码最多13位；固定补齐后长度稳定，并完整保留ID的唯一性。
-        String idToken = Long.toUnsignedString(orderId, 36).toUpperCase(Locale.ROOT);
+    public static String generateTrade(long tradeId) {
+        return generate("T", tradeId, "联合支付ID必须大于0");
+    }
+
+    private static String generate(String prefix, long id, String invalidMessage) {
+        if (id <= 0) throw new IllegalArgumentException(invalidMessage);
+        // 正数long的36进制编码最多13位；固定补齐且完整保留雪花ID，不使用截断或随机取模。
+        String idToken = Long.toUnsignedString(id, 36).toUpperCase(Locale.ROOT);
         String paddedToken = "0".repeat(ID_TOKEN_LENGTH - idToken.length()) + idToken;
-        return PREFIX + DATE_TIME.format(createTime) + paddedToken;
+        return prefix + paddedToken;
     }
 }

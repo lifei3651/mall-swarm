@@ -99,7 +99,11 @@
               <el-tag v-if="row.order?.tradeId" size="small" effect="plain" type="info">商户子订单</el-tag>
               <el-button v-if="row.order?.tradeId && !isMerchantUser" type="primary" link size="small" @click.stop="openTradeDetail(row.order.tradeId)">查看联合单</el-button>
               <el-tag v-if="row.order?.businessType && row.order.businessType !== 'NORMAL'" size="small" effect="plain" :type="row.order.businessType === 'FLASH_SALE' ? 'danger' : 'warning'">{{ row.order.businessType === 'FLASH_SALE' ? '秒杀订单' : '复购订单' }}</el-tag>
-              <div class="sub">登录账号 {{ row.memberAccount || '-' }}</div>
+            </template>
+          </el-table-column>
+          <el-table-column label="购买账号" min-width="130">
+            <template #default="{ row }">
+              <span class="buyer-account">{{ row.memberAccount || '-' }}</span>
             </template>
           </el-table-column>
           <el-table-column label="履约状态" width="100">
