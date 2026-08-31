@@ -80,8 +80,9 @@ logging:
 
 admin:
   security:
-    # 默认12小时；如确需调整，只通过服务器环境变量覆盖，不写入前端。
-    session-hours: ${ADMIN_SESSION_HOURS:12}
+    # 私域后台默认7天、最多3个常用终端；客户可通过服务器环境变量收紧或放宽。
+    session-hours: ${ADMIN_SESSION_HOURS:168}
+    max-active-sessions: ${ADMIN_MAX_ACTIVE_SESSIONS:3}
 
 # 生产环境禁止暴露接口文档和调试入口。
 springdoc:
@@ -91,6 +92,10 @@ springdoc:
     enabled: false
 
 shop:
+  security:
+    # 商城会员默认30天、最多5个终端，避免公开商城、团队H5和小程序互相顶掉。
+    session-days: ${SHOP_SESSION_DAYS:30}
+    max-active-sessions: ${SHOP_MAX_ACTIVE_SESSIONS:5}
   realtime:
     heartbeat-ms: ${SHOP_REALTIME_HEARTBEAT_MS:25000}
   logistics:

@@ -66,7 +66,7 @@ public class ShopSessionCookieFilter extends OncePerRequestFilter {
         // the HttpOnly cookie after /auth/me validates the legacy bearer token.
         if (!cookieAuthenticated && authorization != null && authorization.startsWith("Bearer ")
                 && "/shop/auth/me".equals(request.getRequestURI()) && response.getStatus() < 400) {
-            cookieService.write(request, response, authorization.substring(7), LocalDateTime.now().plusDays(7));
+            cookieService.write(request, response, authorization.substring(7), LocalDateTime.now().plusDays(30));
         }
     }
 

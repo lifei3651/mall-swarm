@@ -89,8 +89,9 @@ logging:
 
 admin:
   security:
-    # 管理后台登录成功后的绝对有效期；到期后前后端都会强制重新登录。
-    session-hours: 12
+    # 私域后台默认保持7天、最多3个常用终端；密码变更、禁用和主动退出仍立即撤销对应会话。
+    session-hours: 168
+    max-active-sessions: 3
 
 security:
   # 64位十六进制 AES-256 密钥；生产启动门禁强制要求，客户部署脚本自动生成。
@@ -105,6 +106,10 @@ security:
 
 # 仅供本地联调；生产配置会强制关闭。
 shop:
+  security:
+    # 公开商城、团队H5、小程序共用会员账号时，最多保留5个终端并保持30天。
+    session-days: 30
+    max-active-sessions: 5
   wechat-mini-program:
     # 小程序登录属于公共基座，但每个客户必须使用自己的微信主体、AppID 和密钥。
     enabled: ${WECHAT_MINI_PROGRAM_ENABLED:false}

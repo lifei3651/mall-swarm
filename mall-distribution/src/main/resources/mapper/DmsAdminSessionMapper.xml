@@ -36,4 +36,13 @@
         SET status = 0, update_time = NOW()
         WHERE admin_id = #{adminId} AND status = 1
     </update>
+
+    <select id="selectActiveByAdminId" resultMap="BaseResultMap">
+        SELECT id, admin_id, username, token, status, expire_time, create_time, update_time
+        FROM dms_admin_session
+        WHERE admin_id = #{adminId}
+          AND status = 1
+          AND expire_time &gt; NOW()
+        ORDER BY create_time DESC, id DESC
+    </select>
 </mapper>

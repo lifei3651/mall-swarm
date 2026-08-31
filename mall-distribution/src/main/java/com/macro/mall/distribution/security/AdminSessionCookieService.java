@@ -20,7 +20,7 @@ public class AdminSessionCookieService {
     public void write(HttpServletRequest request, HttpServletResponse response, String token, LocalDateTime expireTime) {
         if (token == null || token.isBlank()) return;
         long maxAge = Duration.between(LocalDateTime.now(), expireTime == null
-                ? LocalDateTime.now().plusHours(12) : expireTime).getSeconds();
+                ? LocalDateTime.now().plusDays(7) : expireTime).getSeconds();
         response.addHeader("Set-Cookie", buildCookie(request, token, Math.max(maxAge, 1)).toString());
     }
 

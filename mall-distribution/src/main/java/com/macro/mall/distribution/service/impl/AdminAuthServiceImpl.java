@@ -43,9 +43,13 @@ public class AdminAuthServiceImpl implements AdminAuthService {
     @Autowired(required = false)
     private DmsMerchantDao merchantDao;
 
-    /** 管理后台绝对会话默认12小时，避免资金后台长期保持登录。 */
-    @Value("${admin.security.session-hours:12}")
-    private long sessionHours = 12;
+    /** 管理后台默认保持7天；高风险资金操作仍使用独立二次验证。 */
+    @Value("${admin.security.session-hours:168}")
+    private long sessionHours = 168;
+
+    /** 允许少量常用终端并存，超过后只淘汰最早的会话。 */
+    @Value("${admin.security.max-active-sessions:3}")
+    private int maxActiveSessions = 3;
 
     @Override
     // 不包裹外层事务：密码错误时失败次数必须在抛出异常前独立提交，不能随异常回滚。
@@ -91,8 +95,6 @@ public class AdminAuthServiceImpl implements AdminAuthService {
         }
         requireMerchantAccountEnabled(admin, false);
         adminUserDao.updateLastLoginTime(admin.getId());
-        // 单账号单会话：新登录成功后使该管理员此前的全部会话失效。
-        adminSessionDao.disableByAdminId(admin.getId());
         return createSession(admin);
     }
 
@@ -208,6 +210,7 @@ public class AdminAuthServiceImpl implements AdminAuthService {
         session.setStatus(1);
         session.setExpireTime(LocalDateTime.now().plusHours(Math.max(1, sessionHours)));
         adminSessionDao.insert(session);
+        retainRecentSessions(admin.getId());
 
         AdminAuthVO vo = new AdminAuthVO();
         vo.setToken(rawToken);
@@ -215,6 +218,18 @@ public class AdminAuthServiceImpl implements AdminAuthService {
         vo.setAdmin(sanitize(admin));
         vo.setPermissions(permissions(admin));
         return vo;
+    }
+
+    private void retainRecentSessions(Long adminId) {
+        List<DmsAdminSession> activeSessions = adminSessionDao.selectActiveByAdminId(adminId);
+        if (activeSessions == null) return;
+        int keepCount = Math.max(1, maxActiveSessions);
+        for (int index = keepCount; index < activeSessions.size(); index++) {
+            String storedTokenHash = activeSessions.get(index).getToken();
+            if (storedTokenHash != null && !storedTokenHash.isBlank()) {
+                adminSessionDao.disableByToken(storedTokenHash);
+            }
+        }
     }
 
     private boolean matchesPassword(String password, DmsAdminUser admin) {

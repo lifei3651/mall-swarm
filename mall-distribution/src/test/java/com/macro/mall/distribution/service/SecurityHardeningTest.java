@@ -22,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -59,11 +60,12 @@ class SecurityHardeningTest {
         dto.setCaptchaId("captcha-id");
         dto.setCaptchaCode("8A2K");
         dto.setPortal("PLATFORM");
-        LocalDateTime expectedExpireAfter = LocalDateTime.now().plusHours(12);
+        LocalDateTime expectedExpireAfter = LocalDateTime.now().plusDays(7);
         var result = service.login(dto);
 
         verify(captchaService).verify("admin", "captcha-id", "8A2K");
-        verify(adminSessionDao).disableByAdminId(9L);
+        verify(adminSessionDao).selectActiveByAdminId(9L);
+        verify(adminSessionDao, never()).disableByAdminId(9L);
 
         ArgumentCaptor<String> passwordHash = ArgumentCaptor.forClass(String.class);
         verify(adminUserDao).updatePassword(eq(9L), passwordHash.capture(), eq("BCRYPT"), eq(0));
@@ -74,7 +76,7 @@ class SecurityHardeningTest {
         assertNotEquals(result.getToken(), session.getValue().getToken());
         assertEquals(SecureUtil.sha256(result.getToken()), session.getValue().getToken());
         assertFalse(session.getValue().getExpireTime().isBefore(expectedExpireAfter));
-        assertFalse(session.getValue().getExpireTime().isAfter(LocalDateTime.now().plusHours(12)));
+        assertFalse(session.getValue().getExpireTime().isAfter(LocalDateTime.now().plusDays(7)));
         assertEquals(session.getValue().getExpireTime(), result.getExpireTime());
     }
 
@@ -183,12 +185,69 @@ class SecurityHardeningTest {
         dto.setLoginType("password");
         var result = service.login(dto);
 
-        verify(memberSessionDao).disableByMemberId(12L);
+        verify(memberSessionDao).selectActiveByMemberId(12L);
+        verify(memberSessionDao, never()).disableByMemberId(12L);
         ArgumentCaptor<DmsShopMemberSession> session = ArgumentCaptor.forClass(DmsShopMemberSession.class);
         verify(memberSessionDao).insert(session.capture());
         assertNotEquals(result.getToken(), session.getValue().getToken());
         assertEquals(SecureUtil.sha256(result.getToken()), session.getValue().getToken());
         assertEquals("integrated", session.getValue().getSurface());
+        assertFalse(session.getValue().getExpireTime().isBefore(LocalDateTime.now().plusDays(30).minusSeconds(2)));
+    }
+
+    @Test
+    void adminLoginKeepsThreeRecentDevicesAndOnlyRevokesTheOldestOne() {
+        String password = "Admin-password-123";
+        DmsAdminUser admin = new DmsAdminUser();
+        admin.setId(21L);
+        admin.setUsername("private-admin");
+        admin.setPasswordHash(BCrypt.hashpw(password));
+        admin.setSalt("BCRYPT");
+        admin.setStatus(1);
+        when(adminUserDao.selectByUsernameAndPortal("private-admin", "PLATFORM")).thenReturn(admin);
+        when(adminSessionDao.selectActiveByAdminId(21L)).thenReturn(List.of(
+                adminSession("newest"), adminSession("second"), adminSession("third"), adminSession("oldest")));
+
+        AdminLoginDTO dto = new AdminLoginDTO();
+        dto.setUsername("private-admin");
+        dto.setPassword(password);
+        dto.setPortal("PLATFORM");
+        new AdminAuthServiceImpl(adminUserDao, adminSessionDao, captchaService).login(dto);
+
+        verify(adminSessionDao).disableByToken("oldest");
+        verify(adminSessionDao, never()).disableByToken("newest");
+        verify(adminSessionDao, never()).disableByToken("second");
+        verify(adminSessionDao, never()).disableByToken("third");
+    }
+
+    @Test
+    void memberLoginKeepsFiveRecentDevicesAndOnlyRevokesTheOldestOne() {
+        String password = "Member-password-123";
+        DmsShopMember member = new DmsShopMember();
+        member.setId(22L);
+        member.setUserId(2200L);
+        member.setPhone("13700000000");
+        member.setPasswordHash(BCrypt.hashpw(password));
+        member.setStatus(1);
+        when(memberDao.selectByAccount(member.getPhone())).thenReturn(member);
+        when(memberSessionDao.selectActiveByMemberId(22L)).thenReturn(List.of(
+                memberSession("newest"), memberSession("second"), memberSession("third"),
+                memberSession("fourth"), memberSession("fifth"), memberSession("oldest")));
+
+        ShopLoginDTO dto = new ShopLoginDTO();
+        dto.setAccount(member.getPhone());
+        dto.setPassword(password);
+        dto.setLoginType("password");
+        new ShopAuthServiceImpl(memberDao, memberSessionDao, agentService, captchaService,
+                smsVerificationService, mock(com.macro.mall.distribution.dao.DmsTenantDao.class),
+                mock(MemberMessageService.class)).login(dto);
+
+        verify(memberSessionDao).disableByToken("oldest");
+        verify(memberSessionDao, never()).disableByToken("newest");
+        verify(memberSessionDao, never()).disableByToken("second");
+        verify(memberSessionDao, never()).disableByToken("third");
+        verify(memberSessionDao, never()).disableByToken("fourth");
+        verify(memberSessionDao, never()).disableByToken("fifth");
     }
 
     @Test
@@ -428,5 +487,17 @@ class SecurityHardeningTest {
 
     private void assertSensitiveAbsent(Object value, String secret) {
         assertFalse(value.toString().contains(secret), value.getClass().getSimpleName() + " leaked a secret");
+    }
+
+    private DmsAdminSession adminSession(String storedTokenHash) {
+        DmsAdminSession session = new DmsAdminSession();
+        session.setToken(storedTokenHash);
+        return session;
+    }
+
+    private DmsShopMemberSession memberSession(String storedTokenHash) {
+        DmsShopMemberSession session = new DmsShopMemberSession();
+        session.setToken(storedTokenHash);
+        return session;
     }
 }

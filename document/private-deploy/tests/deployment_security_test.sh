@@ -55,9 +55,9 @@ grep -q "name '__MACOSX'" "$DEPLOY_DIR/scripts/build-release.sh"
 grep -q '客户 HTTPS 管理后台入口不可用' "$DEPLOY_DIR/scripts/security-postflight.sh"
 grep -q '构建提交与当前交付代码不一致' "$DEPLOY_DIR/scripts/security-postflight.sh"
 for service in mysql redis mall-distribution nginx; do
-  grep -A140 "^  $service:" "$DEPLOY_DIR/docker-compose.private.yml" | grep -q 'no-new-privileges:true'
-  grep -A140 "^  $service:" "$DEPLOY_DIR/docker-compose.private.yml" | grep -q 'read_only: true'
-  grep -A140 "^  $service:" "$DEPLOY_DIR/docker-compose.private.yml" | grep -q 'pids_limit:'
+  grep -A180 "^  $service:" "$DEPLOY_DIR/docker-compose.private.yml" | grep -q 'no-new-privileges:true'
+  grep -A180 "^  $service:" "$DEPLOY_DIR/docker-compose.private.yml" | grep -q 'read_only: true'
+  grep -A180 "^  $service:" "$DEPLOY_DIR/docker-compose.private.yml" | grep -q 'pids_limit:'
 done
 sh -n "$DEPLOY_DIR/scripts/bootstrap-admin.sh"
 if LC_ALL=C grep -R -n -E '\$[A-Za-z_][A-Za-z0-9_]*[^ -~]' "$DEPLOY_DIR/scripts" --include='*.sh'; then

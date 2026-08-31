@@ -36,4 +36,13 @@
         SET status = 0, update_time = CURRENT_TIMESTAMP
         WHERE member_id = #{memberId}
     </update>
+
+    <select id="selectActiveByMemberId" resultMap="BaseResultMap">
+        SELECT id, member_id, user_id, token, surface, status, expire_time, create_time, update_time
+        FROM dms_shop_member_session
+        WHERE member_id = #{memberId}
+          AND status = 1
+          AND expire_time &gt; NOW()
+        ORDER BY create_time DESC, id DESC
+    </select>
 </mapper>

@@ -54,7 +54,7 @@ public class AdminSessionCookieFilter extends OncePerRequestFilter {
 
         if (!cookieAuthenticated && authorization != null && authorization.startsWith("Bearer ")
                 && "/distribution/admin-auth/me".equals(request.getRequestURI()) && response.getStatus() < 400) {
-            cookieService.write(request, response, authorization.substring(7), LocalDateTime.now().plusHours(12));
+            cookieService.write(request, response, authorization.substring(7), LocalDateTime.now().plusDays(7));
         }
     }
 

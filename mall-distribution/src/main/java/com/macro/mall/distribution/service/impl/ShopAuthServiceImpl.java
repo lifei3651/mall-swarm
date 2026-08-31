@@ -35,6 +35,7 @@ import com.macro.mall.distribution.enums.PromotionJoinModeEnum;
 import com.macro.mall.distribution.util.PhoneNumberUtils;
 import com.macro.mall.distribution.util.MemberNicknameUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.macro.mall.distribution.service.MemberMessageService;
@@ -53,7 +54,13 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     private static final String DUMMY_PASSWORD_HASH = BCrypt.hashpw("invalid-login-placeholder");
     private static final String GENERIC_LOGIN_ERROR = "账号或登录凭证错误";
 
-    private static final int SESSION_DAYS = 7;
+    /** 私域商城默认保持30天，避免多端使用时频繁重新登录。 */
+    @Value("${shop.security.session-days:30}")
+    private int sessionDays = 30;
+
+    /** 公开商城、团队H5、小程序和常用浏览器合计最多保留5个有效会话。 */
+    @Value("${shop.security.max-active-sessions:5}")
+    private int maxActiveSessions = 5;
     // 统一短信验证码 Key 格式：sms:{bizType}:{phone}
     private static final int SMS_BIZ_TYPE_REGISTER = 1;
     private static final int SMS_BIZ_TYPE_LOGIN = 2;
@@ -448,8 +455,6 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         }
         requireSurfaceAccess(member, surface);
         memberDao.updateLastLoginTime(member.getId());
-        // 单账号单会话：新登录成功后使该会员此前的全部会话失效。
-        sessionDao.disableByMemberId(member.getId());
         return createSession(member, normalizeSurface(surface, "public"));
     }
 
@@ -512,7 +517,6 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         }
         memberDao.updateLastLoginTime(member.getId());
         member.setLastLoginTime(LocalDateTime.now());
-        sessionDao.disableByMemberId(member.getId());
         return createSession(member, "mini-program");
     }
 
@@ -678,14 +682,27 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         session.setToken(hashToken(rawToken));
         session.setSurface(normalizeSurface(surface, "public"));
         session.setStatus(1);
-        session.setExpireTime(LocalDateTime.now().plusDays(SESSION_DAYS));
+        session.setExpireTime(LocalDateTime.now().plusDays(Math.max(1, sessionDays)));
         sessionDao.insert(session);
+        retainRecentSessions(member.getId());
 
         ShopAuthVO vo = new ShopAuthVO();
         vo.setToken(rawToken);
         vo.setExpireTime(session.getExpireTime());
         vo.setMember(sanitize(member));
         return vo;
+    }
+
+    private void retainRecentSessions(Long memberId) {
+        List<DmsShopMemberSession> activeSessions = sessionDao.selectActiveByMemberId(memberId);
+        if (activeSessions == null) return;
+        int keepCount = Math.max(1, maxActiveSessions);
+        for (int index = keepCount; index < activeSessions.size(); index++) {
+            String storedTokenHash = activeSessions.get(index).getToken();
+            if (storedTokenHash != null && !storedTokenHash.isBlank()) {
+                sessionDao.disableByToken(storedTokenHash);
+            }
+        }
     }
 
     private String normalizeSurface(String value, String fallback) {
