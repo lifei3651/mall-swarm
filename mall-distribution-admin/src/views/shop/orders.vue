@@ -521,7 +521,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="bonusDialogVisible" title="订单奖金全链路追溯" width="1180px" destroy-on-close>
+    <el-dialog v-model="bonusDialogVisible" title="订单奖金去向" width="1180px" destroy-on-close>
       <div v-loading="bonusLoading">
         <el-descriptions :column="4" border class="bonus-summary">
           <el-descriptions-item label="订单编号">{{ bonusOrder.orderNo || '-' }}</el-descriptions-item>
@@ -563,53 +563,6 @@
           <div><span>当前有效净额</span><strong class="primary-value">¥{{ money(bonusTrace.currentNetAmount) }}</strong></div>
           <div><span>待追回</span><strong :class="{ danger: Number(bonusTrace.debtAmount || 0) > 0 }">¥{{ money(bonusTrace.debtAmount) }}</strong></div>
         </div>
-
-        <section class="bonus-trace-section">
-          <div class="bonus-trace-title">
-            <div><h3>全链路时间线</h3><p>按真实发生时间串联支付、关系冻结、计算、入账、退款和冲销。</p></div>
-          </div>
-          <el-timeline v-if="bonusTrace.timeline?.length" class="bonus-timeline">
-            <el-timeline-item
-              v-for="item in bonusTrace.timeline"
-              :key="`${item.code}-${item.time}-${item.description}`"
-              :timestamp="formatDateTime(item.time)"
-              :type="traceEventType(item.status)"
-              placement="top"
-            >
-              <strong>{{ item.title }}</strong>
-              <p>{{ item.description }}</p>
-            </el-timeline-item>
-          </el-timeline>
-          <el-empty v-else description="该订单尚未进入奖金链路" :image-size="72" />
-        </section>
-
-        <section class="bonus-trace-section">
-          <div class="bonus-trace-title">
-            <div><h3>计算依据与冻结关系</h3><p>这里只展示订单支付时保存的证据，不按当前上下级关系倒推。</p></div>
-          </div>
-          <el-descriptions :column="4" border class="bonus-program-summary">
-            <el-descriptions-item label="客户奖金程序">{{ bonusTrace.ruleVersionName || '未进入奖金程序' }}</el-descriptions-item>
-            <el-descriptions-item label="程序版本">{{ bonusTrace.ruleVersionNo || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="计算方式">{{ bonusTrace.calculationTaskStatusName || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="冻结关系">{{ bonusTrace.relationCount || 0 }} 层</el-descriptions-item>
-          </el-descriptions>
-          <el-table :data="bonusTrace.relationChain || []" style="width:100%" empty-text="该订单没有冻结推广关系">
-            <el-table-column prop="relationLevel" label="关系深度" width="100" />
-            <el-table-column prop="memberAccount" label="会员登录账号" min-width="150" />
-            <el-table-column prop="memberName" label="会员昵称" min-width="140" />
-            <el-table-column prop="relationPath" label="冻结关系路径" min-width="220" show-overflow-tooltip />
-            <el-table-column label="冻结时间" width="170">
-              <template #default="{ row }">{{ formatDateTime(row.snapshotTime) }}</template>
-            </el-table-column>
-          </el-table>
-          <el-table v-if="bonusTrace.calculationEvidence?.length" :data="bonusTrace.calculationEvidence" class="bonus-evidence-table" style="width:100%">
-            <el-table-column prop="id" label="计算证据号" width="120" />
-            <el-table-column label="计算PV" width="130"><template #default="{ row }">{{ money(row.totalPv) }}</template></el-table-column>
-            <el-table-column label="计算奖金" width="140"><template #default="{ row }">¥{{ money(row.totalBonus) }}</template></el-table-column>
-            <el-table-column prop="riskStatusName" label="通用资金校验" width="130" />
-            <el-table-column label="留存时间" min-width="170"><template #default="{ row }">{{ formatDateTime(row.createTime) }}</template></el-table-column>
-          </el-table>
-        </section>
 
         <section class="bonus-trace-section">
           <div class="bonus-trace-title">
@@ -672,6 +625,64 @@
             <el-table-column label="发生时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createTime) }}</template></el-table-column>
           </el-table>
         </section>
+
+        <el-collapse v-model="bonusAuditSections" class="bonus-audit-collapse">
+          <el-collapse-item name="trace-evidence">
+            <template #title>
+              <div class="bonus-audit-collapse-title">
+                <strong>查看审计详情</strong>
+                <span>支付、关系冻结、程序版本与计算证据</span>
+              </div>
+            </template>
+
+            <section class="bonus-trace-section bonus-audit-section">
+              <div class="bonus-trace-title">
+                <div><h3>全链路时间线</h3><p>按真实发生时间串联支付、关系冻结、计算、入账、退款和冲销。</p></div>
+              </div>
+              <el-timeline v-if="bonusTrace.timeline?.length" class="bonus-timeline">
+                <el-timeline-item
+                  v-for="item in bonusTrace.timeline"
+                  :key="`${item.code}-${item.time}-${item.description}`"
+                  :timestamp="formatDateTime(item.time)"
+                  :type="traceEventType(item.status)"
+                  placement="top"
+                >
+                  <strong>{{ item.title }}</strong>
+                  <p>{{ item.description }}</p>
+                </el-timeline-item>
+              </el-timeline>
+              <el-empty v-else description="该订单尚未进入奖金链路" :image-size="72" />
+            </section>
+
+            <section class="bonus-trace-section bonus-audit-section">
+              <div class="bonus-trace-title">
+                <div><h3>计算依据与冻结关系</h3><p>这里只展示订单支付时保存的证据，不按当前上下级关系倒推。</p></div>
+              </div>
+              <el-descriptions :column="4" border class="bonus-program-summary">
+                <el-descriptions-item label="客户奖金程序">{{ bonusTrace.ruleVersionName || '未进入奖金程序' }}</el-descriptions-item>
+                <el-descriptions-item label="程序版本">{{ bonusTrace.ruleVersionNo || '-' }}</el-descriptions-item>
+                <el-descriptions-item label="计算方式">{{ bonusTrace.calculationTaskStatusName || '-' }}</el-descriptions-item>
+                <el-descriptions-item label="冻结关系">{{ bonusTrace.relationCount || 0 }} 层</el-descriptions-item>
+              </el-descriptions>
+              <el-table :data="bonusTrace.relationChain || []" style="width:100%" empty-text="该订单没有冻结推广关系">
+                <el-table-column prop="relationLevel" label="关系深度" width="100" />
+                <el-table-column prop="memberAccount" label="会员登录账号" min-width="150" />
+                <el-table-column prop="memberName" label="会员昵称" min-width="140" />
+                <el-table-column prop="relationPath" label="冻结关系路径" min-width="220" show-overflow-tooltip />
+                <el-table-column label="冻结时间" width="170">
+                  <template #default="{ row }">{{ formatDateTime(row.snapshotTime) }}</template>
+                </el-table-column>
+              </el-table>
+              <el-table v-if="bonusTrace.calculationEvidence?.length" :data="bonusTrace.calculationEvidence" class="bonus-evidence-table" style="width:100%">
+                <el-table-column prop="id" label="计算证据号" width="120" />
+                <el-table-column label="计算PV" width="130"><template #default="{ row }">{{ money(row.totalPv) }}</template></el-table-column>
+                <el-table-column label="计算奖金" width="140"><template #default="{ row }">¥{{ money(row.totalBonus) }}</template></el-table-column>
+                <el-table-column prop="riskStatusName" label="通用资金校验" width="130" />
+                <el-table-column label="留存时间" min-width="170"><template #default="{ row }">{{ formatDateTime(row.createTime) }}</template></el-table-column>
+              </el-table>
+            </section>
+          </el-collapse-item>
+        </el-collapse>
       </div>
     </el-dialog>
   </div>
@@ -753,6 +764,7 @@ const bonusDialogVisible = ref(false)
 const bonusLoading = ref(false)
 const bonusFinance = ref({})
 const bonusOrder = ref({ orderNo: '', memberAccount: '' })
+const bonusAuditSections = ref([])
 const bonusTrace = computed(() => bonusFinance.value?.bonusTrace || {
   actualRecords: bonusFinance.value?.bonusFlows || [],
   relationChain: [],
@@ -1129,6 +1141,7 @@ const openBonusFlows = async (orderId, orderNo, memberAccount) => {
   if (!orderId) return ElMessage.warning('订单信息不完整，无法查询奖金去向')
   bonusOrder.value = { orderNo, memberAccount }
   bonusFinance.value = {}
+  bonusAuditSections.value = []
   bonusDialogVisible.value = true
   bonusLoading.value = true
   try {
@@ -1572,6 +1585,46 @@ onBeforeUnmount(() => {
 
 .bonus-evidence-table {
   margin-top: 14px;
+}
+
+.bonus-audit-collapse {
+  margin-top: 18px;
+  border: 1px solid #e8edf4;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.bonus-audit-collapse :deep(.el-collapse-item__header) {
+  height: auto;
+  min-height: 64px;
+  padding: 12px 18px;
+  border-bottom: 0;
+}
+
+.bonus-audit-collapse :deep(.el-collapse-item__wrap) {
+  border-bottom: 0;
+}
+
+.bonus-audit-collapse :deep(.el-collapse-item__content) {
+  padding: 0 18px 18px;
+}
+
+.bonus-audit-collapse-title {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.bonus-audit-collapse-title span {
+  color: #909399;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.bonus-audit-section {
+  margin-top: 14px;
+  background: #fafbfd;
 }
 
 @media (max-width: 1200px) {

@@ -39,10 +39,14 @@ describe('商城订单取消入口', () => {
     expect(source).toContain('command="BONUS"')
   })
 
-  it('订单奖金使用全链路追溯并把原有实际奖金记录保留为其中一个阶段', async () => {
+  it('订单奖金默认展示真实去向，并将技术追溯证据收进审计详情', async () => {
     const source = await readFile(sourcePath, 'utf8')
 
-    expect(source).toContain('订单奖金全链路追溯')
+    expect(source).toContain('title="订单奖金去向"')
+    expect(source).toContain('v-model="bonusAuditSections"')
+    expect(source).toContain('bonusAuditSections.value = []')
+    expect(source).toContain('查看审计详情')
+    expect(source.indexOf('<h3>实际奖金记录</h3>')).toBeLessThan(source.indexOf('<strong>查看审计详情</strong>'))
     expect(source).toContain('全链路时间线')
     expect(source).toContain('计算依据与冻结关系')
     expect(source).toContain('实际奖金记录')
