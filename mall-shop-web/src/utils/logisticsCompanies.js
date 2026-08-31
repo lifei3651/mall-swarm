@@ -1,0 +1,18 @@
+export const STANDARD_LOGISTICS_COMPANIES = Object.freeze([
+  '顺丰速运',
+  '京东物流',
+  '中通快递',
+  '圆通速递',
+  '申通快递',
+  '韵达快递',
+  '极兔速递',
+  '中国邮政',
+  'EMS',
+  '德邦快递',
+  '跨越速运',
+  '安能物流',
+  '壹米滴答',
+  'DHL',
+  'FedEx',
+  'UPS',
+])

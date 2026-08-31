@@ -210,15 +210,19 @@ test('mobile keyboard detection only activates for a focused text field and a ma
   assert.equal(isMobileKeyboardOpen({ activeElement: null, layoutHeight: 844, viewportHeight: 520 }), false)
 })
 
-test('concurrent 401 responses share one login redirect and return shipment company length matches outbound shipping', async () => {
+test('concurrent 401 responses share one login redirect and return shipment uses a standard carrier selector', async () => {
   const request = await readFile(new URL('../src/api/request.js', import.meta.url), 'utf8')
   const orderDetail = await readView('OrderDetailView.vue')
+  const logisticsCompanies = await readFile(new URL('../src/utils/logisticsCompanies.js', import.meta.url), 'utf8')
 
   assert.match(request, /let isRedirectingToLogin = false/)
   assert.match(request, /!isAuthPage && !isRedirectingToLogin/)
   assert.match(request, /finally \{\s*isRedirectingToLogin = false\s*\}/)
-  assert.match(orderDetail, /placeholder="物流公司" maxlength="50"/)
-  assert.doesNotMatch(orderDetail, /placeholder="物流公司" maxlength="64"/)
+  assert.match(orderDetail, /<select[\s\S]*v-model="returnShipmentForm\.deliveryCompany"/)
+  assert.match(orderDetail, /请选择快递公司/)
+  assert.match(orderDetail, /请输入4至64位快递单号/)
+  assert.match(logisticsCompanies, /顺丰速运/)
+  assert.match(logisticsCompanies, /中国邮政/)
 })
 
 test('gateway restart errors use customer-facing Chinese copy and safe reads retry once', async () => {
@@ -852,6 +856,10 @@ test('customers can cancel before return shipment and correct submitted tracking
   assert.match(source, /\[0, 4\]\.includes\(sale\.status\)/)
   assert.match(source, /修改退货物流/)
   assert.match(source, /\^\[A-Za-z0-9_-\]\{4,64\}\$/)
+  assert.match(source, /退货物流未提交/)
+  assert.match(source, /returnShipmentErrors\.deliveryNo/)
+  assert.match(source, /scrollIntoView/)
+  assert.match(source, /showReturnShipmentError\(sale\.id, 'deliveryNo'/)
   assert.match(source, /取消后不会产生退款；如仍在售后期限内/)
   assert.doesNotMatch(source, /window\.confirm\(/)
 })

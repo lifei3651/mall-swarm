@@ -19,11 +19,11 @@
           </div>
           <h3 :id="titleId" class="confirm-title">{{ title }}</h3>
           <p :id="messageId" class="confirm-message">{{ message }}</p>
-          <div class="confirm-actions">
-            <button ref="cancelButtonRef" class="confirm-button secondary" type="button" :disabled="busy" @click="onCancel">
+          <div class="confirm-actions" :class="{ single: !showCancel }">
+            <button v-if="showCancel" ref="cancelButtonRef" class="confirm-button secondary" type="button" :disabled="busy" @click="onCancel">
               {{ cancelText }}
             </button>
-            <button class="confirm-button primary" :class="{ danger: isDanger }" type="button" :disabled="busy" @click="onConfirm">
+            <button ref="confirmButtonRef" class="confirm-button primary" :class="{ danger: isDanger }" type="button" :disabled="busy" @click="onConfirm">
               <span v-if="busy" class="confirm-spinner" aria-hidden="true"></span>
               {{ busy ? loadingText : confirmText }}
             </button>
@@ -48,11 +48,13 @@ const props = defineProps({
   iconType: { type: String, default: 'warning' },
   isDanger: { type: Boolean, default: false },
   busy: { type: Boolean, default: false },
+  showCancel: { type: Boolean, default: true },
 })
 
 const emit = defineEmits(['confirm', 'cancel'])
 const dialogRef = ref(null)
 const cancelButtonRef = ref(null)
+const confirmButtonRef = ref(null)
 const uid = useId()
 const titleId = `confirm-title-${uid}`
 const messageId = `confirm-message-${uid}`
@@ -82,7 +84,8 @@ const handleKeydown = (event) => {
 watch(() => props.visible, async (visible) => {
   if (!visible) return
   await nextTick()
-  cancelButtonRef.value?.focus()
+  if (props.showCancel) cancelButtonRef.value?.focus()
+  else confirmButtonRef.value?.focus()
 })
 
 onMounted(() => window.addEventListener('keydown', handleKeydown))
@@ -166,6 +169,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
   grid-template-columns: 1fr 1fr;
   gap: 11px;
 }
+
+.confirm-actions.single { grid-template-columns: 1fr; }
 
 .confirm-button {
   min-height: 46px;

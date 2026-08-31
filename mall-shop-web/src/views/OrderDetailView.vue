@@ -134,9 +134,48 @@
             <div v-if="[2, 3].includes(sale.applyType) && [4, 5].includes(sale.status)" class="after-sale-return-address">
               <strong>{{ sale.status === 4 ? '请寄回商品' : '退货物流已提交' }}</strong>
               <span>{{ sale.returnAddress || '退货地址将在审核结果中显示，请留意订单更新' }}</span>
-              <div v-if="sale.status === 4 || returnShipmentEditingId === sale.id" class="return-shipment-form">
-                <input v-model="returnShipmentForm.deliveryCompany" class="field" placeholder="物流公司" maxlength="50" />
-                <input v-model="returnShipmentForm.deliveryNo" class="field" placeholder="退货运单号" maxlength="64" autocomplete="off" />
+              <div
+                v-if="sale.status === 4 || returnShipmentEditingId === sale.id"
+                :id="`return-shipment-form-${sale.id}`"
+                class="return-shipment-form"
+              >
+                <label class="return-shipment-field">
+                  <span>快递公司</span>
+                  <select
+                    :id="`return-delivery-company-${sale.id}`"
+                    v-model="returnShipmentForm.deliveryCompany"
+                    class="field"
+                    :class="{ invalid: returnShipmentErrors.deliveryCompany }"
+                    aria-label="选择退货快递公司"
+                    @change="clearReturnShipmentError('deliveryCompany')"
+                  >
+                    <option value="" disabled>请选择快递公司</option>
+                    <option
+                      v-if="returnShipmentForm.deliveryCompany && !standardLogisticsCompanies.includes(returnShipmentForm.deliveryCompany)"
+                      :value="returnShipmentForm.deliveryCompany"
+                    >
+                      {{ returnShipmentForm.deliveryCompany }}（历史记录）
+                    </option>
+                    <option v-for="company in standardLogisticsCompanies" :key="company" :value="company">{{ company }}</option>
+                  </select>
+                  <small v-if="returnShipmentErrors.deliveryCompany" class="return-shipment-error" role="alert">{{ returnShipmentErrors.deliveryCompany }}</small>
+                </label>
+                <label class="return-shipment-field">
+                  <span>快递单号</span>
+                  <input
+                    :id="`return-delivery-no-${sale.id}`"
+                    v-model="returnShipmentForm.deliveryNo"
+                    class="field"
+                    :class="{ invalid: returnShipmentErrors.deliveryNo }"
+                    placeholder="请输入4至64位快递单号"
+                    maxlength="64"
+                    autocomplete="off"
+                    autocapitalize="characters"
+                    spellcheck="false"
+                    @input="clearReturnShipmentError('deliveryNo')"
+                  />
+                  <small v-if="returnShipmentErrors.deliveryNo" class="return-shipment-error" role="alert">{{ returnShipmentErrors.deliveryNo }}</small>
+                </label>
                 <button type="button" class="btn primary" :disabled="returnShipmentSaleId === sale.id" @click="submitReturnShipment(sale)">
                   {{ returnShipmentSaleId === sale.id ? '提交中…' : (sale.status === 5 ? '保存物流修改' : '提交退货物流') }}
                 </button>
@@ -320,6 +359,16 @@
       </section>
     </div>
     <ConfirmDialog
+      :visible="returnShipmentAlert.visible"
+      title="退货物流未提交"
+      :message="returnShipmentAlert.message"
+      confirm-text="返回修改"
+      icon-type="warning"
+      :show-cancel="false"
+      @confirm="closeReturnShipmentAlert"
+      @cancel="closeReturnShipmentAlert"
+    />
+    <ConfirmDialog
       :visible="Boolean(confirmAction)"
       :title="confirmationDialog.title"
       :message="confirmationDialog.message"
@@ -348,6 +397,7 @@ import { isNativeApp, toPublicWebUrl } from '@/utils/appEnvironment'
 import { hasShopSession } from '@/utils/shopSession'
 import { submitTrustedAlipayForm } from '@/utils/alipay'
 import { createIdempotencyKey } from '@/utils/idempotency'
+import { STANDARD_LOGISTICS_COMPANIES } from '@/utils/logisticsCompanies'
 
 const route = useRoute()
 const detail = ref({})
@@ -361,6 +411,9 @@ const returnShipmentSaleId = ref(null)
 const confirmingExchangeId = ref(null)
 const returnShipmentEditingId = ref(null)
 const returnShipmentForm = ref({ deliveryCompany: '', deliveryNo: '' })
+const returnShipmentErrors = ref({ deliveryCompany: '', deliveryNo: '' })
+const returnShipmentAlert = ref({ visible: false, message: '', saleId: null, field: '' })
+const standardLogisticsCompanies = STANDARD_LOGISTICS_COMPANIES
 const submittingAfterSale = ref(false)
 const reasonSheetVisible = ref(false)
 const selectedReason = ref('')
@@ -689,15 +742,20 @@ const confirmExchangeReceived = async () => {
 const submitReturnShipment = async (sale) => {
   const deliveryCompany = returnShipmentForm.value.deliveryCompany.trim()
   const deliveryNo = returnShipmentForm.value.deliveryNo.trim()
-  if (!deliveryCompany || !deliveryNo) {
-    error.value = '请填写物流公司和退货运单号'
+  if (!deliveryCompany) {
+    showReturnShipmentError(sale.id, 'deliveryCompany', '请选择快递公司')
+    return
+  }
+  if (!deliveryNo) {
+    showReturnShipmentError(sale.id, 'deliveryNo', '请输入快递单号')
     return
   }
   if (!/^[A-Za-z0-9_-]{4,64}$/.test(deliveryNo)) {
-    error.value = '退货运单号需为4至64位，且只能包含字母、数字、下划线和短横线'
+    showReturnShipmentError(sale.id, 'deliveryNo', '快递单号需为4至64位，只能包含字母、数字、下划线或短横线')
     return
   }
   returnShipmentSaleId.value = sale.id
+  returnShipmentErrors.value = { deliveryCompany: '', deliveryNo: '' }
   error.value = ''
   try {
     await submitAfterSaleReturnShipment(sale.id, { deliveryCompany, deliveryNo })
@@ -705,7 +763,13 @@ const submitReturnShipment = async (sale) => {
     returnShipmentEditingId.value = null
     await fetchOrder()
   } catch (e) {
-    error.value = e.message || '提交退货物流失败'
+    const message = e.message || '提交退货物流失败，请稍后重试'
+    const field = message.includes('物流公司') || message.includes('快递公司')
+      ? 'deliveryCompany'
+      : message.includes('运单') || message.includes('单号')
+        ? 'deliveryNo'
+        : ''
+    showReturnShipmentError(sale.id, field, message)
   } finally {
     returnShipmentSaleId.value = null
   }
@@ -713,10 +777,38 @@ const submitReturnShipment = async (sale) => {
 
 const startReturnShipmentEdit = (sale) => {
   returnShipmentEditingId.value = sale.id
+  returnShipmentErrors.value = { deliveryCompany: '', deliveryNo: '' }
+  returnShipmentAlert.value = { visible: false, message: '', saleId: null, field: '' }
   returnShipmentForm.value = {
     deliveryCompany: sale.returnDeliveryCompany || '',
     deliveryNo: sale.returnDeliveryNo || '',
   }
+}
+
+const clearReturnShipmentError = (field) => {
+  if (!returnShipmentErrors.value[field]) return
+  returnShipmentErrors.value = { ...returnShipmentErrors.value, [field]: '' }
+}
+
+const showReturnShipmentError = (saleId, field, message) => {
+  returnShipmentErrors.value = {
+    deliveryCompany: field === 'deliveryCompany' ? message : '',
+    deliveryNo: field === 'deliveryNo' ? message : '',
+  }
+  returnShipmentAlert.value = { visible: true, message, saleId, field }
+  nextTick(() => {
+    document.getElementById(`return-shipment-form-${saleId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  })
+}
+
+const closeReturnShipmentAlert = () => {
+  const { saleId, field } = returnShipmentAlert.value
+  returnShipmentAlert.value = { visible: false, message: '', saleId: null, field: '' }
+  nextTick(() => {
+    if (!saleId || !field) return
+    const id = field === 'deliveryCompany' ? `return-delivery-company-${saleId}` : `return-delivery-no-${saleId}`
+    document.getElementById(id)?.focus({ preventScroll: true })
+  })
 }
 
 const courierInitial = (company) => {
@@ -942,9 +1034,14 @@ onBeforeUnmount(() => {
 .after-sale-proof-list img { width: 100%; height: 100%; display: block; object-fit: cover; }
 .after-sale-return-address { display: grid; gap: 4px; margin: 10px 0 4px; padding: 10px 12px; color: #8a4b12; background: #fff8ed; border: 1px solid #f5d7ad; border-radius: 9px; font-size: 12px; line-height: 1.5; }
 .after-sale-return-address strong { color: #7a3f0a; font-size: 13px; }
-.return-shipment-form { display: grid; grid-template-columns: 1fr 1.2fr auto; gap: 8px; margin-top: 8px; }
-.return-shipment-form .field { min-height: 34px; padding: 0 9px; border: 1px solid #e8c996; border-radius: 7px; background: #fff; }
-.return-shipment-form .btn { min-height: 34px; padding: 0 11px; border-radius: 7px; font-size: 12px; white-space: nowrap; }
+.return-shipment-form { display: grid; grid-template-columns: 1fr 1.2fr auto; align-items: start; gap: 8px; margin-top: 8px; }
+.return-shipment-field { display: grid; gap: 5px; min-width: 0; color: #7a3f0a; font-size: 11px; font-weight: 750; }
+.return-shipment-form .field { width: 100%; min-height: 38px; padding: 0 10px; color: var(--ink); border: 1px solid #e8c996; border-radius: 8px; background: #fff; font-size: 12px; outline: none; }
+.return-shipment-form select.field { appearance: auto; }
+.return-shipment-form .field:focus { border-color: var(--brand-primary, #e7193f); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary, #e7193f) 13%, transparent); }
+.return-shipment-form .field.invalid { border-color: #e5484d; background: #fff8f7; box-shadow: 0 0 0 3px rgba(229, 72, 77, .12); }
+.return-shipment-error { color: #c43228; font-size: 11px; font-weight: 650; line-height: 1.45; }
+.return-shipment-form .btn { align-self: end; min-height: 38px; padding: 0 11px; border-radius: 8px; font-size: 12px; white-space: nowrap; }
 .return-logistics-line { display: block; }
 .return-logistics-line .tracking-link { margin-left: 8px; color: var(--teal); text-decoration: none; }
 .return-logistics-line .text-action { margin-left: 8px; padding: 0; color: var(--brand-primary); background: transparent; border: 0; font: inherit; font-weight: 700; }
