@@ -11,7 +11,6 @@ export function migrateExternalTeam(file, anchorAgentId, onUploadProgress) {
     headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 10 * 60 * 1000,
     onUploadProgress,
-    adminStepUp: { message: '外部团队整体迁入会批量建立会员和团队关系。' },
   })
 }
 

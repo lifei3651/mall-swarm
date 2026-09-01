@@ -16,8 +16,6 @@ import com.macro.mall.distribution.entity.DmsMerchantSettlement;
 import com.macro.mall.distribution.entity.DmsMerchantWithdrawal;
 import com.macro.mall.distribution.entity.DmsMerchantWithdrawalEvent;
 import com.macro.mall.distribution.service.MerchantService;
-import com.macro.mall.distribution.service.AdminAuthService;
-import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.vo.MerchantBalanceReconciliationVO;
 import com.macro.mall.distribution.vo.MerchantExitReadinessVO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,7 +32,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MerchantController {
     private final MerchantService merchantService;
-    private final AdminAuthService adminAuthService;
 
     @Operation(summary = "商户列表")
     @GetMapping("/merchants")
@@ -154,7 +151,6 @@ public class MerchantController {
     @PostMapping("/merchant-finance/withdrawals/{id}/pay")
     public CommonResult<DmsMerchantWithdrawal> pay(@PathVariable Long id,
                                                     @Valid @RequestBody MerchantWithdrawalPayDTO dto) {
-        adminAuthService.verifyPassword(AdminContext.get(), dto.getAdminPassword());
         return CommonResult.success(merchantService.confirmPayment(id, dto));
     }
 

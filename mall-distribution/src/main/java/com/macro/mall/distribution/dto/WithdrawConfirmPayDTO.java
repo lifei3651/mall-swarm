@@ -14,8 +14,4 @@ public class WithdrawConfirmPayDTO implements Serializable {
     @NotBlank(message = "请输入打款流水号")
     @Size(max = 128, message = "打款流水号不能超过128个字符")
     private String payNo;
-
-    @NotBlank(message = "请输入当前管理员登录密码")
-    @Size(min = 8, max = 64, message = "当前管理员登录密码长度不正确")
-    private String adminPassword;
 }

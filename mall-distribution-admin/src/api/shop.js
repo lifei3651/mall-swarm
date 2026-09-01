@@ -91,14 +91,12 @@ export function saveLiveAnchor(id, data) {
 export function updateLiveAnchorStatus(id, status) {
   return request({
     url: `/shop/admin/live-anchors/${id}/status`, method: 'put', params: { status },
-    adminStepUp: { message: status === 1 ? '恢复后该账号可以立即开播，请再次验证。' : '暂停或收回权限会立即停止该主播正在进行的直播，请再次验证。' },
   })
 }
 
 export function forceStopLiveRoom(id, reason) {
   return request({
     url: `/shop/admin/live-rooms/${id}/force-stop`, method: 'post', params: { reason },
-    adminStepUp: { message: '强制停播会立即中断观众观看，请确认违规或运营原因后再次验证。' },
   })
 }
 
@@ -386,7 +384,6 @@ export function updateShopMemberStatus(id, status) {
     url: `/shop/admin/members/${id}/status`,
     method: 'put',
     params: { status },
-    adminStepUp: { message: '启用或停用会员会立即改变其登录状态。' },
   })
 }
 
@@ -394,7 +391,6 @@ export function unlockShopMember(id) {
   return request({
     url: `/shop/admin/members/${id}/unlock`,
     method: 'put',
-    adminStepUp: { message: '解除锁定会允许该会员重新尝试登录。' },
   })
 }
 
@@ -402,7 +398,6 @@ export function unlockShopMemberPaymentPassword(id) {
   return request({
     url: `/shop/admin/members/${id}/payment-password/unlock`,
     method: 'put',
-    adminStepUp: { message: '解除支付密码锁定属于资金安全操作。' },
   })
 }
 
@@ -427,7 +422,6 @@ export function updateShopMemberLevel(id, data) {
     url: `/shop/admin/members/${id}/level`,
     method: 'put',
     data,
-    adminStepUp: { message: '调整会员卡级会影响其权益和奖金计算。' },
   })
 }
 
@@ -443,7 +437,6 @@ export function cancelShopOrder(id) {
   return request({
     url: `/shop/admin/orders/${id}/cancel`,
     method: 'put',
-    adminStepUp: { message: '取消已付款订单可能触发退款和库存回补。' },
   })
 }
 
@@ -452,7 +445,6 @@ export function manualRefundShopOrder(id, data) {
     url: `/shop/admin/orders/${id}/refund`,
     method: 'post',
     data,
-    adminStepUp: { message: '手工退款将改变订单资金状态，请核对退款金额。' },
   })
 }
 
@@ -477,7 +469,6 @@ export function confirmShopAfterSaleReturnReceived(id, data) {
     url: `/shop/admin/after-sales/${id}/return-received`,
     method: 'put',
     data,
-    adminStepUp: { message: '确认收到客户退件会推进退款或换货流程。' },
   })
 }
 
@@ -486,6 +477,5 @@ export function shipShopAfterSaleExchangeReplacement(id, data) {
     url: `/shop/admin/after-sales/${id}/exchange-shipment`,
     method: 'put',
     data,
-    adminStepUp: { message: '发出换货商品会扣减对应商品与规格的可售库存，请核对物流单号。' },
   })
 }

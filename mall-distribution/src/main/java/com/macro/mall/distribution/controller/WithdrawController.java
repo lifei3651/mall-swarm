@@ -7,7 +7,6 @@ import com.macro.mall.distribution.dto.WithdrawQueryDTO;
 import com.macro.mall.distribution.dto.WithdrawConfirmPayDTO;
 import com.macro.mall.distribution.service.WithdrawService;
 import com.macro.mall.distribution.service.PerformanceService;
-import com.macro.mall.distribution.service.AdminAuthService;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.vo.WithdrawRecordVO;
 import com.macro.mall.distribution.vo.WithdrawStatsVO;
@@ -33,7 +32,6 @@ public class WithdrawController {
 
     private final WithdrawService withdrawService;
     private final PerformanceService performanceService;
-    private final AdminAuthService adminAuthService;
 
     @Operation(summary = "审核提现")
     @PostMapping("/audit")
@@ -53,7 +51,6 @@ public class WithdrawController {
     @PostMapping("/confirm-pay/{id}")
     public CommonResult<Boolean> confirmPay(@PathVariable Long id,
                                             @Valid @RequestBody WithdrawConfirmPayDTO dto) {
-        adminAuthService.verifyPassword(AdminContext.get(), dto.getAdminPassword());
         boolean result = withdrawService.confirmPay(id, dto.getPayNo().trim());
         if (result) {
             return CommonResult.success(true);

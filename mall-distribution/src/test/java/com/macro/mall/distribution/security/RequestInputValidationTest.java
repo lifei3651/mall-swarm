@@ -134,8 +134,7 @@ class RequestInputValidationTest {
 
         WithdrawConfirmPayDTO payment = new WithdrawConfirmPayDTO();
         payment.setPayNo(" ");
-        payment.setAdminPassword("short");
-        assertMessages(payment, "请输入打款流水号", "当前管理员登录密码长度不正确");
+        assertMessages(payment, "请输入打款流水号");
     }
 
     @Test

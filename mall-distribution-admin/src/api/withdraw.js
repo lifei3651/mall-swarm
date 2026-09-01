@@ -6,7 +6,6 @@ export function auditWithdraw(data) {
     url: '/distribution/withdraw/audit',
     method: 'post',
     data,
-    adminStepUp: { message: '提现审核会改变会员资金状态，请核对金额和结论。' },
   })
 }
 

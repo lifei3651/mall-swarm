@@ -2,7 +2,13 @@ package com.macro.mall.distribution.config;
 
 import org.springframework.http.HttpMethod;
 
-/** 需要重新验证当前管理员密码的高影响写操作。 */
+/**
+ * 需要重新验证当前管理员密码的账号安全与团队关系写操作。
+ *
+ * 日常经营动作由菜单权限、业务状态机、精准确认和操作日志保护，避免后台人员
+ * 在售后、提现、结算等连续工作中反复输入登录密码。人工增减会员余额使用各自
+ * DTO 内的当前管理员密码校验，不经过本策略。
+ */
 final class AdminStepUpPolicy {
 
     static final String HEADER = "X-Admin-Step-Up-Token";
@@ -12,33 +18,10 @@ final class AdminStepUpPolicy {
 
     static boolean requires(String method, String path) {
         if (path == null) return false;
-        if ((HttpMethod.POST.matches(method) && path.equals("/distribution/merchants"))
-                || (HttpMethod.PUT.matches(method) && path.matches("/distribution/merchants/[^/]+"))) return true;
-        if (HttpMethod.PUT.matches(method) && (path.matches("/distribution/admin-users/[^/]+/(status|unlock)")
-                || path.matches("/shop/admin/members/[^/]+/(status|unlock|payment-password/unlock|level)")
-                || path.matches("/distribution/agent/[^/]+/(status|level)")
-                || path.matches("/distribution/merchants/[^/]+/(status|controls)")
-                || path.matches("/shop/admin/orders/[^/]+/cancel")
-                // 日常售后审核由权限、商户归属、状态机、业务确认和操作日志保护；
-                // 只有确认退件并推进退款时才再次验证当前管理员密码。
-                || path.matches("/shop/admin/after-sales/[^/]+/return-received"))) return true;
-        if (HttpMethod.POST.matches(method) && (path.equals("/distribution/agent/switch-line")
-                || path.matches("/distribution/agent/line-change-applications/[^/]+/audit")
-                || path.matches("/shop/admin/orders/[^/]+/refund")
-                || path.matches("/shop/admin/live-rooms/[^/]+/force-stop")
-                || path.equals("/distribution/withdraw/audit")
-                || path.matches("/distribution/commission/(settle/[^/]+|settle-batch|cancel/[^/]+)")
-                || path.equals("/distribution/commission/settlement-batches")
-                || path.matches("/distribution/commission/settlement-batches/[^/]+/execute")
-                || path.equals("/distribution/import/external-team/file")
-                || path.matches("/distribution/tenant/[^/]+/config-versions/[^/]+/restore"))) return true;
-        if (HttpMethod.POST.matches(method) && (path.matches("/distribution/merchant-finance/deposits/(freeze|receive|release)")
-                || path.equals("/distribution/merchant-finance/withdrawals")
-                || path.matches("/distribution/merchant-finance/withdrawals/[^/]+/(payment-processing|payment-failed|risk-freeze|risk-resume|reject)")
-                || path.equals("/distribution/audit/finance/risk-rules"))) return true;
         if (HttpMethod.PUT.matches(method)
-                && path.matches("/distribution/merchant-finance/withdrawals/[^/]+/review")) return true;
-        if (HttpMethod.PUT.matches(method) && path.matches("/shop/admin/live-anchors/[^/]+/status")) return true;
-        return false;
+                && path.matches("/distribution/admin-users/[^/]+/(status|unlock)")) return true;
+        return HttpMethod.POST.matches(method)
+                && (path.equals("/distribution/agent/switch-line")
+                || path.matches("/distribution/agent/line-change-applications/[^/]+/audit"));
     }
 }

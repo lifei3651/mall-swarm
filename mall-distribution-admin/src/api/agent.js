@@ -50,7 +50,6 @@ export function updateAgentStatus(id, status) {
     url: `/distribution/agent/${id}/status`,
     method: 'put',
     params: { status },
-    adminStepUp: { message: '变更推广资格会影响团队关系和奖金。' },
   })
 }
 
@@ -60,7 +59,6 @@ export function adjustAgentLevel(id, data) {
     url: `/distribution/agent/${id}/level`,
     method: 'put',
     data,
-    adminStepUp: { message: '调整会员卡级会影响其权益和奖金计算。' },
   })
 }
 

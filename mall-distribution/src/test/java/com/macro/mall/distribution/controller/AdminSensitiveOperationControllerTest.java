@@ -89,38 +89,28 @@ class AdminSensitiveOperationControllerTest {
     }
 
     @Test
-    void agentWithdrawalPaymentRequiresCurrentAdministratorPassword() {
+    void agentWithdrawalPaymentUsesBusinessConfirmationWithoutRepeatedPassword() {
         WithdrawService withdrawService = mock(WithdrawService.class);
-        AdminAuthService adminAuthService = mock(AdminAuthService.class);
         WithdrawController controller = new WithdrawController(
-                withdrawService, mock(com.macro.mall.distribution.service.PerformanceService.class), adminAuthService);
-        DmsAdminUser admin = admin(10L, "finance", "财务");
-        AdminContext.set(admin);
+                withdrawService, mock(com.macro.mall.distribution.service.PerformanceService.class));
         WithdrawConfirmPayDTO dto = new WithdrawConfirmPayDTO();
         dto.setPayNo("BANK-20260821-001");
-        dto.setAdminPassword("correct-password");
 
         controller.confirmPay(100L, dto);
 
-        verify(adminAuthService).verifyPassword(admin, "correct-password");
         verify(withdrawService).confirmPay(100L, "BANK-20260821-001");
     }
 
     @Test
-    void merchantWithdrawalPaymentRequiresCurrentAdministratorPassword() {
+    void merchantWithdrawalPaymentUsesBusinessConfirmationWithoutRepeatedPassword() {
         MerchantService merchantService = mock(MerchantService.class);
-        AdminAuthService adminAuthService = mock(AdminAuthService.class);
-        MerchantController controller = new MerchantController(merchantService, adminAuthService);
-        DmsAdminUser admin = admin(11L, "merchant_finance", "商户财务");
-        AdminContext.set(admin);
+        MerchantController controller = new MerchantController(merchantService);
         MerchantWithdrawalPayDTO dto = new MerchantWithdrawalPayDTO();
         dto.setActualPaidAmount(new BigDecimal("100.00"));
         dto.setPaymentReference("BANK-20260821-002");
-        dto.setAdminPassword("correct-password");
 
         controller.pay(200L, dto);
 
-        verify(adminAuthService).verifyPassword(admin, "correct-password");
         verify(merchantService).confirmPayment(200L, dto);
     }
 

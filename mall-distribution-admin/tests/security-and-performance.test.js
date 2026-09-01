@@ -29,15 +29,17 @@ describe('后台安全与只读查询', () => {
     }
   })
 
-  it('代理和商户确认打款都提交管理员二次验证密码', async () => {
+  it('代理和商户确认打款使用准确业务确认且不重复提交登录密码', async () => {
     const withdrawApi = await source('src/api/withdraw.js')
     const withdrawView = await source('src/views/withdraw/list.vue')
     const merchantFinance = await source('src/views/audit/merchant-finance.vue')
 
     expect(withdrawApi).toContain('data,')
     expect(withdrawApi).not.toContain('params: { payNo }')
-    expect(withdrawView).toContain('adminPassword: payForm.value.adminPassword')
-    expect(merchantFinance).toContain('v-model="payForm.adminPassword"')
+    expect(withdrawView).toContain('确认已经实际打款 ¥${payForm.value.withdrawAmount}')
+    expect(withdrawView).not.toContain('payForm.adminPassword')
+    expect(merchantFinance).toContain('确认银行已经实际打款 ¥${money(payForm.value.actualPaidAmount)}')
+    expect(merchantFinance).not.toContain('payForm.adminPassword')
   })
 
   it('提现列表默认脱敏，完整收款资料只通过财务处理详情接口读取', async () => {

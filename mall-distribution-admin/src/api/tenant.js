@@ -73,6 +73,5 @@ export function restoreTenantConfigVersion(tenantId, versionId) {
   return request({
     url: `/distribution/tenant/${tenantId}/config-versions/${versionId}/restore`,
     method: 'post',
-    adminStepUp: { message: '恢复历史配置会覆盖当前商城规则和展示设置。' },
   })
 }
