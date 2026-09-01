@@ -19,7 +19,9 @@ final class AdminStepUpPolicy {
                 || path.matches("/distribution/agent/[^/]+/(status|level)")
                 || path.matches("/distribution/merchants/[^/]+/(status|controls)")
                 || path.matches("/shop/admin/orders/[^/]+/cancel")
-                || path.matches("/shop/admin/after-sales/[^/]+/(audit|return-received)"))) return true;
+                // 日常售后审核由权限、商户归属、状态机、业务确认和操作日志保护；
+                // 只有确认退件并推进退款时才再次验证当前管理员密码。
+                || path.matches("/shop/admin/after-sales/[^/]+/return-received"))) return true;
         if (HttpMethod.POST.matches(method) && (path.equals("/distribution/agent/switch-line")
                 || path.matches("/distribution/agent/line-change-applications/[^/]+/audit")
                 || path.matches("/shop/admin/orders/[^/]+/refund")

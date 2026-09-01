@@ -29,4 +29,15 @@ describe('后台敏感操作二次验证', () => {
     expect(files).toContain('/merchant-finance/withdrawals/${id}/risk-freeze')
     expect(files).toContain('/distribution/audit/finance/risk-rules')
   })
+
+  it('日常售后审核不重复验证密码，确认退件退款仍保留二次验证', () => {
+    const shopApi = source('src/api/shop.js')
+    const auditRequest = shopApi.match(/export function auditShopAfterSale[\s\S]*?\n}\n/)?.[0] || ''
+    const returnReceivedRequest = shopApi.match(/export function confirmShopAfterSaleReturnReceived[\s\S]*?\n}\n/)?.[0] || ''
+
+    expect(auditRequest).toContain('/after-sales/${id}/audit')
+    expect(auditRequest).not.toContain('adminStepUp')
+    expect(returnReceivedRequest).toContain('/after-sales/${id}/return-received')
+    expect(returnReceivedRequest).toContain('adminStepUp')
+  })
 })

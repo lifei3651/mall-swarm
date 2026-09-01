@@ -200,4 +200,15 @@ describe('商城订单取消入口', () => {
     expect(source).toContain('请填写验收备注')
     expect(source).toContain('auditRemark: auditRemark.trim()')
   })
+
+  it('商家售后审核保留明确业务确认，但不再重复要求登录密码', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+    const shopApi = await readFile(resolve(process.cwd(), 'src/api/shop.js'), 'utf8')
+
+    expect(source).toContain('确认售后处理')
+    expect(source).toContain("confirmButtonText: '确认提交'")
+    expect(source).toContain("cancelButtonText: '返回检查'")
+    const auditRequest = shopApi.match(/export function auditShopAfterSale[\s\S]*?\n}\n/)?.[0] || ''
+    expect(auditRequest).not.toContain('adminStepUp')
+  })
 })

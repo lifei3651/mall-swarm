@@ -469,7 +469,6 @@ export function auditShopAfterSale(id, data) {
     url: `/shop/admin/after-sales/${id}/audit`,
     method: 'put',
     data,
-    adminStepUp: { message: '售后审核结果可能触发退款或关闭售后。' },
   })
 }
 
