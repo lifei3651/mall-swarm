@@ -26,7 +26,7 @@ public class WithdrawAuditDTO implements Serializable {
     private Integer status;
 
     /** 审核备注 */
-    @Size(max = 500, message = "审核备注不能超过500个字")
+    @Size(max = 256, message = "审核备注不能超过256个字")
     private String auditRemark;
 
     /** 审核人ID */

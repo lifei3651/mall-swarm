@@ -20,6 +20,8 @@ import com.macro.mall.distribution.service.WithdrawService;
 import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.MemberMessageService;
 import com.macro.mall.distribution.service.MemberMessageEvent;
+import com.macro.mall.distribution.service.WithdrawalPayoutService;
+import com.macro.mall.distribution.service.WithdrawalRiskPolicyService;
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.vo.WithdrawRecordVO;
 import com.macro.mall.distribution.vo.WithdrawStatsVO;
@@ -57,6 +59,8 @@ public class WithdrawServiceImpl implements WithdrawService {
     private final OperationLogService operationLogService;
     private final WithdrawalLimitProperties withdrawalLimits;
     private final MemberMessageService memberMessageService;
+    private final WithdrawalPayoutService withdrawalPayoutService;
+    private final WithdrawalRiskPolicyService withdrawalRiskPolicyService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -77,6 +81,7 @@ public class WithdrawServiceImpl implements WithdrawService {
             Asserts.fail("代理不存在");
         }
         validateWithdrawalLimitsLocked(agent.getId(), withdrawAmount);
+        ReviewDecision review = reviewDecision(agent.getId(), applyDTO, withdrawAmount);
 
         // 创建提现记录
         DmsWithdrawRecord record = new DmsWithdrawRecord();
@@ -88,7 +93,13 @@ public class WithdrawServiceImpl implements WithdrawService {
         record.setBankName(applyDTO.getBankName());
         record.setBankAccount(applyDTO.getBankAccount());
         record.setAccountName(applyDTO.getAccountName());
-        record.setStatus(WithdrawStatusEnum.PENDING_AUDIT.getValue());
+        record.setStatus(review.manualRequired()
+                ? WithdrawStatusEnum.PENDING_AUDIT.getValue()
+                : WithdrawStatusEnum.AUDIT_PASSED.getValue());
+        record.setAuditTime(review.manualRequired() ? null : LocalDateTime.now());
+        record.setAuditRemark(review.manualRequired()
+                ? "需人工审核：" + review.reason()
+                : "系统风控自动通过：" + review.reason());
 
         // 支付、转账、提现共用 CASH_BONUS 余额，申请时立即扣减并写入资产流水。
         AssetChangeDTO withdraw = new AssetChangeDTO();
@@ -102,9 +113,11 @@ public class WithdrawServiceImpl implements WithdrawService {
 
         withdrawDao.insert(record);
         publishWithdrawal(record, "WITHDRAW_SUBMITTED");
+        if (!review.manualRequired()) publishWithdrawal(record, "WITHDRAW_AUDITED");
 
-        log.info("申请提现成功: agentId={}, amount={}, withdrawNo={}",
-                applyDTO.getAgentId(), withdrawAmount, record.getWithdrawNo());
+        log.info("申请提现成功: agentId={}, amount={}, withdrawNo={}, reviewMode={}",
+                applyDTO.getAgentId(), withdrawAmount, record.getWithdrawNo(),
+                review.manualRequired() ? "MANUAL" : "AUTO");
 
         return convertToVO(record);
     }
@@ -128,7 +141,7 @@ public class WithdrawServiceImpl implements WithdrawService {
         record.setStatus(auditDTO.getStatus());
         record.setAuditUserId(auditDTO.getAuditUserId());
         record.setAuditTime(LocalDateTime.now());
-        record.setAuditRemark(auditDTO.getAuditRemark());
+        record.setAuditRemark(mergeAuditRemark(record.getAuditRemark(), auditDTO.getAuditRemark()));
 
         // 如果审核拒绝，原路退还到同一个余额钱包。
         if (WithdrawStatusEnum.AUDIT_REJECTED.getValue().equals(auditDTO.getStatus())) {
@@ -172,22 +185,56 @@ public class WithdrawServiceImpl implements WithdrawService {
                 agentId, today.atStartOfDay(), today.withDayOfMonth(1).atStartOfDay());
         long dailyCount = usage == null || usage.getDailyCount() == null ? 0L : usage.getDailyCount();
         long monthlyCount = usage == null || usage.getMonthlyCount() == null ? 0L : usage.getMonthlyCount();
-        BigDecimal dailyAmount = usage == null || usage.getDailyAmount() == null ? BigDecimal.ZERO : usage.getDailyAmount();
-        BigDecimal monthlyAmount = usage == null || usage.getMonthlyAmount() == null ? BigDecimal.ZERO : usage.getMonthlyAmount();
         if (dailyCount >= withdrawalLimits.getDailyMaxCount()) {
             Asserts.fail("今日提现次数已达上限（" + withdrawalLimits.getDailyMaxCount() + "次）");
         }
         if (monthlyCount >= withdrawalLimits.getMonthlyMaxCount()) {
             Asserts.fail("本月提现次数已达上限（" + withdrawalLimits.getMonthlyMaxCount() + "次）");
         }
-        if (dailyAmount.add(amount).compareTo(withdrawalLimits.getDailyMaxAmount()) > 0) {
-            Asserts.fail("今日提现累计金额不能超过"
-                    + withdrawalLimits.getDailyMaxAmount().stripTrailingZeros().toPlainString() + "元");
+    }
+
+    private ReviewDecision reviewDecision(Long agentId, WithdrawApplyDTO applyDTO, BigDecimal amount) {
+        List<String> reasons = new ArrayList<>();
+        Integer withdrawType = applyDTO.getWithdrawType();
+        BigDecimal manualReviewThreshold = withdrawalRiskPolicyService.manualReviewThreshold();
+        if (!withdrawalPayoutService.isReady(withdrawType)) {
+            reasons.add("官方渠道尚未完成客户签约与安全配置");
         }
-        if (monthlyAmount.add(amount).compareTo(withdrawalLimits.getMonthlyMaxAmount()) > 0) {
-            Asserts.fail("本月提现累计金额不能超过"
-                    + withdrawalLimits.getMonthlyMaxAmount().stripTrailingZeros().toPlainString() + "元");
+        if (manualReviewThreshold.signum() <= 0) {
+            reasons.add("自动审核已关闭");
+        } else if (amount.compareTo(manualReviewThreshold) > 0) {
+            reasons.add("单笔金额超过"
+                    + manualReviewThreshold.stripTrailingZeros().toPlainString() + "元");
         }
+        DmsWithdrawRecord previous = withdrawDao.selectLatestSuccessfulByAgentAndType(agentId, withdrawType);
+        if (previous == null) {
+            reasons.add("该渠道首次提现");
+        } else if (Integer.valueOf(3).equals(withdrawType)
+                && !sameText(previous.getBankAccount(), applyDTO.getBankAccount())) {
+            reasons.add("支付宝收款账号与最近一次成功提现不一致");
+        }
+        if (!reasons.isEmpty()) return new ReviewDecision(true, String.join("；", reasons));
+        return new ReviewDecision(false, "单笔金额未超过"
+                + manualReviewThreshold.stripTrailingZeros().toPlainString()
+                + "元且收款身份已核验");
+    }
+
+    private boolean sameText(String left, String right) {
+        return left != null && right != null && left.trim().equals(right.trim());
+    }
+
+    private String mergeAuditRemark(String riskRemark, String operatorRemark) {
+        String operator = operatorRemark == null ? "" : operatorRemark.trim();
+        if (operator.isEmpty()) return riskRemark;
+        if (riskRemark == null || riskRemark.isBlank()) return limitRemark(operator);
+        return limitRemark(riskRemark + "；人工审核：" + operator);
+    }
+
+    private String limitRemark(String value) {
+        return value == null || value.length() <= 256 ? value : value.substring(0, 256);
+    }
+
+    private record ReviewDecision(boolean manualRequired, String reason) {
     }
 
     @Override

@@ -26,4 +26,7 @@ public class ShopWalletSummaryVO implements Serializable {
     private Boolean adultVerified;
 
     private String maskedRealName;
+
+    /** 单笔超过该金额时进入一次人工审核；首次提现和支付宝换号也会人工审核。 */
+    private BigDecimal withdrawalManualReviewThreshold;
 }

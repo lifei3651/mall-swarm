@@ -9,6 +9,7 @@ import com.macro.mall.distribution.entity.DmsAgent;
 import com.macro.mall.distribution.dto.WithdrawApplyDTO;
 import com.macro.mall.distribution.entity.DmsWithdrawRecord;
 import com.macro.mall.distribution.service.impl.WithdrawServiceImpl;
+import com.macro.mall.distribution.vo.WithdrawRecordVO;
 import com.macro.mall.distribution.vo.WithdrawalLimitUsageVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,7 @@ import java.math.BigDecimal;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -32,6 +34,8 @@ class WithdrawalLimitServiceTest {
     private WithdrawServiceImpl service;
     private MemberMessageService messages;
     private MemberAssetService assets;
+    private WithdrawalPayoutService payouts;
+    private WithdrawalRiskPolicyService riskPolicy;
 
     @BeforeEach
     void setUp() {
@@ -42,15 +46,17 @@ class WithdrawalLimitServiceTest {
         agent.setUserId(70L);
         when(agentDao.selectByIdForUpdate(1L)).thenReturn(agent);
         WithdrawalLimitProperties limits = new WithdrawalLimitProperties();
-        limits.setDailyMaxCount(3);
+        limits.setDailyMaxCount(2);
         limits.setMonthlyMaxCount(10);
-        limits.setDailyMaxAmount(new BigDecimal("100.00"));
-        limits.setMonthlyMaxAmount(new BigDecimal("500.00"));
+        limits.setManualReviewThreshold(new BigDecimal("1000.00"));
         messages = mock(MemberMessageService.class);
         assets = mock(MemberAssetService.class);
+        payouts = mock(WithdrawalPayoutService.class);
+        riskPolicy = mock(WithdrawalRiskPolicyService.class);
+        when(riskPolicy.manualReviewThreshold()).thenReturn(new BigDecimal("1000.00"));
         service = new WithdrawServiceImpl(withdrawDao, mock(AgentAccountService.class),
                 assets, agentDao, mock(DmsShopMemberDao.class),
-                mock(OperationLogService.class), limits, messages);
+                mock(OperationLogService.class), limits, messages, payouts, riskPolicy);
     }
 
     @Test
@@ -60,17 +66,48 @@ class WithdrawalLimitServiceTest {
     }
 
     @Test
-    void rejectsDailyAndMonthlyCountOrAmountOverflow() {
+    void rejectsDailyAndMonthlyRequestCountButNotCumulativeAmount() {
         when(withdrawDao.selectLimitUsage(eq(1L), any(), any()))
-                .thenReturn(usage(3, "20", 4, "100"))
-                .thenReturn(usage(1, "20", 10, "100"))
-                .thenReturn(usage(1, "90", 4, "100"))
-                .thenReturn(usage(1, "20", 4, "490"));
+                .thenReturn(usage(2, "999999", 4, "999999"))
+                .thenReturn(usage(1, "999999", 10, "999999"))
+                .thenReturn(usage(1, "999999", 4, "999999"));
 
         assertThrows(ApiException.class, () -> service.validateWithdrawalLimits(1L, BigDecimal.TEN));
         assertThrows(ApiException.class, () -> service.validateWithdrawalLimits(1L, BigDecimal.TEN));
-        assertThrows(ApiException.class, () -> service.validateWithdrawalLimits(1L, new BigDecimal("20")));
-        assertThrows(ApiException.class, () -> service.validateWithdrawalLimits(1L, new BigDecimal("20")));
+        assertDoesNotThrow(() -> service.validateWithdrawalLimits(1L, new BigDecimal("2000")));
+    }
+
+    @Test
+    void familiarPayeeWithinSingleThresholdIsAutomaticallyApproved() {
+        when(withdrawDao.selectLimitUsage(eq(1L), any(), any())).thenReturn(usage(0, "0", 0, "0"));
+        when(payouts.isReady(3)).thenReturn(true);
+        DmsWithdrawRecord previous = successful("member@example.com");
+        when(withdrawDao.selectLatestSuccessfulByAgentAndType(1L, 3)).thenReturn(previous);
+
+        WithdrawRecordVO record = service.applyWithdraw(withdrawal("900.00", "member@example.com"));
+
+        assertEquals(1, record.getStatus());
+        assertTrue(record.getAuditRemark().contains("系统风控自动通过"));
+    }
+
+    @Test
+    void firstLargeOrChangedPayeeWithdrawalNeedsOnlyOneManualReview() {
+        when(withdrawDao.selectLimitUsage(eq(1L), any(), any())).thenReturn(usage(0, "0", 0, "0"));
+        when(payouts.isReady(3)).thenReturn(true);
+
+        WithdrawRecordVO first = service.applyWithdraw(withdrawal("200.00", "first@example.com"));
+        assertEquals(0, first.getStatus());
+        assertTrue(first.getAuditRemark().contains("首次提现"));
+
+        when(withdrawDao.selectLatestSuccessfulByAgentAndType(1L, 3))
+                .thenReturn(successful("old@example.com"));
+        WithdrawRecordVO changed = service.applyWithdraw(withdrawal("200.00", "new@example.com"));
+        assertEquals(0, changed.getStatus());
+        assertTrue(changed.getAuditRemark().contains("收款账号"));
+
+        WithdrawRecordVO large = service.applyWithdraw(withdrawal("1000.01", "old@example.com"));
+        assertEquals(0, large.getStatus());
+        assertTrue(large.getAuditRemark().contains("超过1000元"));
     }
 
     @Test
@@ -101,5 +138,23 @@ class WithdrawalLimitServiceTest {
         usage.setMonthlyCount(monthlyCount);
         usage.setMonthlyAmount(new BigDecimal(monthlyAmount));
         return usage;
+    }
+
+    private WithdrawApplyDTO withdrawal(String amount, String account) {
+        WithdrawApplyDTO dto = new WithdrawApplyDTO();
+        dto.setAgentId(1L);
+        dto.setWithdrawAmount(new BigDecimal(amount));
+        dto.setWithdrawType(3);
+        dto.setBankName("支付宝");
+        dto.setBankAccount(account);
+        dto.setAccountName("测试");
+        return dto;
+    }
+
+    private DmsWithdrawRecord successful(String account) {
+        DmsWithdrawRecord record = new DmsWithdrawRecord();
+        record.setBankAccount(account);
+        record.setStatus(3);
+        return record;
     }
 }

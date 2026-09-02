@@ -25,6 +25,17 @@ public class WithdrawalPayoutServiceImpl implements WithdrawalPayoutService {
     private final WeChatMiniProgramProperties miniProgramProperties;
 
     @Override
+    public boolean isReady(Integer withdrawType) {
+        if (!Integer.valueOf(2).equals(withdrawType) && !Integer.valueOf(3).equals(withdrawType)) return false;
+        return gateway(withdrawType).configured();
+    }
+
+    @Override
+    public void requireReady(Long withdrawId) {
+        configuredGateway(withdrawId);
+    }
+
+    @Override
     public WithdrawalPayoutVO start(Long withdrawId) {
         WithdrawalPayoutGateway gateway = configuredGateway(withdrawId);
         WithdrawalPayoutTransactionService.Reservation reservation = transactions.reserve(withdrawId);

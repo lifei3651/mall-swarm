@@ -174,11 +174,10 @@ shop:
     # 安全默认值：任何未显式选择 local/test 的部署都不能进入模拟支付。
     simulation-enabled: false
   withdrawal:
-    # 团队H5基座默认风控；客户交付时可配置，拒绝单释放金额但仍计申请次数。
-    daily-max-count: ${SHOP_WITHDRAWAL_DAILY_MAX_COUNT:5}
-    monthly-max-count: ${SHOP_WITHDRAWAL_MONTHLY_MAX_COUNT:50}
-    daily-max-amount: ${SHOP_WITHDRAWAL_DAILY_MAX_AMOUNT:100000.00}
-    monthly-max-amount: ${SHOP_WITHDRAWAL_MONTHLY_MAX_AMOUNT:1000000.00}
+    # 保留频次防刷；金额只按单笔阈值决定是否需要一次人工审核，不拦截日/月累计金额。
+    daily-max-count: ${SHOP_WITHDRAWAL_DAILY_MAX_COUNT:2}
+    monthly-max-count: ${SHOP_WITHDRAWAL_MONTHLY_MAX_COUNT:10}
+    manual-review-threshold: ${SHOP_WITHDRAWAL_MANUAL_REVIEW_THRESHOLD:1000.00}
   withdrawal-payout:
     # 奖金转账与商城收款分开授权；客户没有单独签约、配置并验收前始终关闭。
     enabled: ${WITHDRAWAL_PAYOUT_ENABLED:false}

@@ -1035,6 +1035,9 @@ test('wallet balance records show load failures instead of a misleading empty st
   assert.match(source, /formatDateTime\(item\.createTime\)/)
   assert.match(source, /type="text" inputmode="decimal"/)
   assert.match(source, /提现金额只能填写普通数字/)
+  assert.match(source, /首次提现、支付宝换号或超过阈值时只需后台审核一次/)
+  assert.match(source, /不需要填写微信号/)
+  assert.doesNotMatch(source, /微信收款账号|请输入微信绑定手机号或账号/)
 })
 
 test('frontend retains configured service rules without forcing FAQ into the footer', async () => {

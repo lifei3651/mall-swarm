@@ -125,12 +125,12 @@ const submitAudit = async () => {
   try {
     await ElMessageBox.confirm(`确定要${action}该提现申请吗？`, '提示', { type: 'warning' })
     submitLoading.value = true
-    await auditWithdraw({
+    const response = await auditWithdraw({
       id: auditForm.value.id,
       status: auditForm.value.status,
       auditRemark: auditForm.value.auditRemark,
     })
-    ElMessage.success(`${action}成功`)
+    ElMessage.success(response.message || `${action}成功`)
     auditDialogVisible.value = false
     fetchData()
   } catch (e) {

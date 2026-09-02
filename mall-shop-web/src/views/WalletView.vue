@@ -31,9 +31,9 @@
 
     <section v-if="activeTool === 'withdraw'" class="panel wallet-form-panel">
       <h3>申请提现</h3>
-      <div class="form-item"><label>提现方式</label><select v-model.number="withdrawForm.withdrawType" class="field"><option :value="1">银行卡</option><option :value="2">微信</option><option :value="3">支付宝</option></select></div>
-      <div v-if="withdrawForm.withdrawType === 1" class="form-item"><label>开户银行</label><input v-model="withdrawForm.bankName" class="field" placeholder="例如：中国工商银行" /></div>
-      <div class="form-item"><label>{{ withdrawAccountLabel }}</label><input v-model="withdrawForm.bankAccount" class="field" :placeholder="withdrawAccountPlaceholder" /></div>
+      <div class="form-item"><label>提现方式</label><select v-model.number="withdrawForm.withdrawType" class="field"><option :value="2">微信</option><option :value="3">支付宝</option></select></div>
+      <div v-if="withdrawForm.withdrawType === 2" class="withdraw-channel-note">款项将转至当前会员绑定的小程序微信账户，不需要填写微信号。</div>
+      <div v-else class="form-item"><label>支付宝账号</label><input v-model="withdrawForm.bankAccount" class="field" placeholder="请输入支付宝账号" /></div>
       <div class="form-item"><label>收款人姓名</label><input v-model="withdrawForm.accountName" class="field" placeholder="必须与收款账户实名一致" /></div>
       <div class="form-item"><label>提现金额</label><input v-model="withdrawForm.withdrawAmount" class="field" type="text" inputmode="decimal" maxlength="11" autocomplete="off" placeholder="0.00" /></div>
       <div class="form-item"><label>支付密码</label><input v-model="withdrawForm.paymentPassword" class="field" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="6位数字" /></div>
@@ -42,7 +42,7 @@
         <div class="inline-input"><input v-model="withdrawForm.smsCode" class="field" inputmode="numeric" maxlength="6" placeholder="6位验证码" /><button type="button" :disabled="withdrawSmsCooldown > 0" @click="sendWithdrawCode">{{ withdrawSmsCooldown > 0 ? `${withdrawSmsCooldown}s` : '获取验证码' }}</button></div>
       </div>
       <button class="btn primary submit-button" :disabled="withdrawSaving || !canUseBalance" @click="submitWithdrawal">{{ withdrawSaving ? '提交中' : '申请提现' }}</button>
-      <p class="line-sub">申请后相应余额会冻结；审核拒绝将自动退回，审核通过后由后台打款。</p>
+      <p class="line-sub">{{ withdrawalPolicyText }}</p>
     </section>
 
     <section v-else-if="activeTool === 'records'" class="panel records-panel">
@@ -85,7 +85,7 @@ import { isValidMainlandPhone } from '@/utils/phone'
 const router = useRouter()
 const route = useRoute()
 const activeTool = ref(['withdraw', 'records', 'flows'].includes(route.query.action) ? route.query.action : 'withdraw')
-const wallet = ref({ balance: 0, hasPaymentPassword: false, distributionActivated: false, realNameVerified: false, adultVerified: false })
+const wallet = ref({ balance: 0, hasPaymentPassword: false, distributionActivated: false, realNameVerified: false, adultVerified: false, withdrawalManualReviewThreshold: 1000 })
 const profile = ref({})
 const withdrawals = ref([])
 const error = ref('')
@@ -99,13 +99,15 @@ const showWalletError = (text) => {
 const withdrawSaving = ref(false)
 const withdrawalRequestKey = ref('')
 const withdrawSmsCooldown = ref(0)
-const withdrawForm = ref({ withdrawType: 1, withdrawAmount: '', bankName: '', bankAccount: '', accountName: '', paymentPassword: '', smsCode: '' })
+const withdrawForm = ref({ withdrawType: 2, withdrawAmount: '', bankName: '', bankAccount: '', accountName: '', paymentPassword: '', smsCode: '' })
 const balanceFlows = ref([])
 const flowsError = ref('')
 const canUseBalance = computed(() => wallet.value.hasPaymentPassword && wallet.value.distributionActivated && wallet.value.realNameVerified && wallet.value.adultVerified)
-const withdrawAccountLabel = computed(() => ({ 1: '银行卡号', 2: '微信收款账号', 3: '支付宝账号' }[withdrawForm.value.withdrawType]))
-const withdrawAccountPlaceholder = computed(() => ({ 1: '请输入银行卡号', 2: '请输入微信绑定手机号或账号', 3: '请输入支付宝账号' }[withdrawForm.value.withdrawType]))
-
+const withdrawalPolicyText = computed(() => {
+  const threshold = Number(wallet.value.withdrawalManualReviewThreshold ?? 1000)
+  if (threshold <= 0) return '当前所有提现均只需后台审核一次，审核通过后系统自动打款。'
+  return `单笔不超过 ¥${money(threshold)} 且收款身份已核验时自动打款；首次提现、支付宝换号或超过阈值时只需后台审核一次。`
+})
 const fetchData = async () => {
   clearWalletError()
   try {
@@ -153,8 +155,7 @@ const submitWithdrawal = async () => {
   if (!wallet.value.adultVerified) return showWalletError('未满18周岁暂不能申请提现')
   if (!requirePaymentPassword()) return
   if (!wallet.value.distributionActivated) return showWalletError('该账号尚未按商城规则开通推广资格，暂不能提现')
-  if (withdrawForm.value.withdrawType === 1 && !withdrawForm.value.bankName.trim()) return showWalletError('请输入开户银行')
-  if (!withdrawForm.value.bankAccount.trim()) return showWalletError(`请输入${withdrawAccountLabel.value}`)
+  if (withdrawForm.value.withdrawType === 3 && !withdrawForm.value.bankAccount.trim()) return showWalletError('请输入支付宝账号')
   if (!withdrawForm.value.accountName.trim()) return showWalletError('请输入收款人姓名')
   const withdrawAmount = String(withdrawForm.value.withdrawAmount || '').trim()
   if (!/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(withdrawAmount) || Number(withdrawAmount) <= 0) {
@@ -169,7 +170,7 @@ const submitWithdrawal = async () => {
     if (!withdrawalRequestKey.value) withdrawalRequestKey.value = createIdempotencyKey('withdrawal')
     await applyWithdrawal(withdrawForm.value, withdrawalRequestKey.value)
     withdrawalRequestKey.value = ''
-    withdrawForm.value = { withdrawType: 1, withdrawAmount: '', bankName: '', bankAccount: '', accountName: '', paymentPassword: '', smsCode: '' }
+    withdrawForm.value = { withdrawType: 2, withdrawAmount: '', bankName: '', bankAccount: '', accountName: '', paymentPassword: '', smsCode: '' }
     activeTool.value = 'records'
     await fetchData()
   } catch (e) { showWalletError(e.message || '提现申请失败') }
@@ -208,6 +209,7 @@ onBeforeUnmount(() => window.clearTimeout(errorTimer))
 .recipient-card small { grid-column:1/-1; color:#668077; }
 .submit-button { width:100%; margin-top:16px; }
 .form-warning { color:#b45309; font-size:12px; }
+.withdraw-channel-note { margin-top:13px; padding:10px 12px; color:#075985; background:#eff9ff; border-radius:9px; font-size:12px; line-height:1.55; }
 .records-empty { padding:34px 0; color:var(--muted); text-align:center; }
 .records-error { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 10px; padding:10px 12px; color:#b42318; background:#fff1f0; border-radius:10px; font-size:12px; }
 .records-error button { flex:0 0 auto; padding:4px 9px; color:#b42318; background:#fff; border:1px solid #f3b4ae; border-radius:7px; font-size:12px; }

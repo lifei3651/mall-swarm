@@ -22,6 +22,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -31,6 +32,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/shop/wallet")
 @RequiredArgsConstructor
+@Slf4j
 public class ShopWalletController {
 
     private final ShopAuthService authService;
@@ -89,7 +91,22 @@ public class ShopWalletController {
     public CommonResult<WithdrawRecordVO> applyWithdrawal(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @Valid @RequestBody ShopWithdrawalApplyDTO dto) {
-        return CommonResult.success(walletService.applyWithdrawal(authService.requireMember(authorization), dto));
+        DmsShopMember member = authService.requireMember(authorization);
+        WithdrawRecordVO record = walletService.applyWithdrawal(member, dto);
+        if (Integer.valueOf(1).equals(record.getStatus())) {
+            Long withdrawId = record.getId();
+            try {
+                withdrawalPayoutService.start(withdrawId);
+                record = walletService.listWithdrawals(member).stream()
+                        .filter(item -> withdrawId.equals(item.getId()))
+                        .findFirst().orElse(record);
+            } catch (RuntimeException error) {
+                // 申请和余额扣减已经提交，渠道异常不能伪装成“申请失败”诱导会员重复提交。
+                log.error("自动发起提现渠道打款失败: withdrawId={}, error={}",
+                        withdrawId, error.getClass().getSimpleName());
+            }
+        }
+        return CommonResult.success(record);
     }
 
     @Operation(summary = "会员查询自己的提现记录")

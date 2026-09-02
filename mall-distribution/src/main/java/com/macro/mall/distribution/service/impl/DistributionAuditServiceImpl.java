@@ -5,6 +5,7 @@ import com.macro.mall.distribution.constants.BalanceAsset;
 import com.macro.mall.distribution.bonus.CustomerBonusPolicy;
 import com.macro.mall.distribution.bonus.CustomerBonusPolicyRegistry;
 import com.macro.mall.distribution.bonus.CustomerBonusRefundContext;
+import com.macro.mall.distribution.config.WithdrawalLimitProperties;
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.dao.*;
 import com.macro.mall.distribution.dto.FinanceRefundDTO;
@@ -19,6 +20,7 @@ import com.macro.mall.distribution.service.DistributionAuditService;
 import com.macro.mall.distribution.service.PerformanceService;
 import com.macro.mall.distribution.service.MemberAssetService;
 import com.macro.mall.distribution.service.OrderBonusTraceService;
+import com.macro.mall.distribution.service.WithdrawalRiskPolicyService;
 import com.macro.mall.distribution.vo.*;
 import com.macro.mall.distribution.util.MemberAccountUtils;
 import lombok.RequiredArgsConstructor;
@@ -63,6 +65,7 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
     private final MemberAssetService memberAssetService;
     private final CustomerBonusPolicyRegistry bonusPolicyRegistry;
     private final OrderBonusTraceService orderBonusTraceService;
+    private final WithdrawalLimitProperties withdrawalLimits;
 
     @Override
     public DistributionSettingsVO getSettings() {
@@ -984,6 +987,9 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
     }
 
     private void ensureDefaultRiskRules() {
+        saveDefaultRiskRule(WithdrawalRiskPolicyService.MANUAL_REVIEW_AMOUNT_RULE,
+                "会员提现单笔人工审核阈值", withdrawalLimits.getManualReviewThreshold(),
+                "不超过该金额且不是首次提现、支付宝未换号时自动打款；超过后只需人工审核一次");
         saveDefaultRiskRule("BONUS_PAYOUT_RATE_MAX", "奖金拨出率预警阈值", new BigDecimal("0.35"),
                 "通用运营预警阈值；客户项目应根据已确认制度和利润模型单独校准");
         saveDefaultRiskRule("PROFIT_RATE_MIN", "利润率下限", new BigDecimal("0.10"), "利润率低于该值时预警");

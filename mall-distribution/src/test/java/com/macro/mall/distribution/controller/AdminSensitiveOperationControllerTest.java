@@ -4,6 +4,7 @@ import com.macro.mall.distribution.dto.AdminMemberCreateDTO;
 import com.macro.mall.distribution.dto.ImportAgentDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalPayDTO;
 import com.macro.mall.distribution.dto.WithdrawConfirmPayDTO;
+import com.macro.mall.distribution.dto.WithdrawAuditDTO;
 import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.AdminAuthService;
@@ -24,6 +25,8 @@ import com.macro.mall.distribution.service.ShopService;
 import com.macro.mall.distribution.service.ShopServiceAddressService;
 import com.macro.mall.distribution.service.TenantService;
 import com.macro.mall.distribution.service.WithdrawService;
+import com.macro.mall.distribution.service.WithdrawalPayoutService;
+import com.macro.mall.distribution.vo.WithdrawalPayoutVO;
 import com.macro.mall.distribution.security.ShopSessionCookieService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +38,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class AdminSensitiveOperationControllerTest {
 
@@ -101,6 +105,28 @@ class AdminSensitiveOperationControllerTest {
         controller.confirmPay(100L, dto);
 
         verify(withdrawService).confirmPay(100L, "BANK-20260821-001");
+    }
+
+    @Test
+    void oneManualApprovalImmediatelyStartsOfficialPayout() {
+        WithdrawService withdrawService = mock(WithdrawService.class);
+        WithdrawalPayoutService payoutService = mock(WithdrawalPayoutService.class);
+        WithdrawController controller = new WithdrawController(
+                withdrawService, payoutService, mock(com.macro.mall.distribution.service.PerformanceService.class));
+        AdminContext.set(admin(12L, "finance", "财务审核"));
+        WithdrawAuditDTO dto = new WithdrawAuditDTO();
+        dto.setId(200L);
+        dto.setStatus(1);
+        when(withdrawService.auditWithdraw(dto)).thenReturn(true);
+        WithdrawalPayoutVO processing = new WithdrawalPayoutVO();
+        processing.setState("PROCESSING");
+        when(payoutService.start(200L)).thenReturn(processing);
+
+        controller.auditWithdraw(dto);
+
+        verify(payoutService).requireReady(200L);
+        verify(withdrawService).auditWithdraw(dto);
+        verify(payoutService).start(200L);
     }
 
     @Test

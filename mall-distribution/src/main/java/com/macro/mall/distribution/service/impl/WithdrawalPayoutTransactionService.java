@@ -5,12 +5,10 @@ import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsWithdrawalPayoutDao;
 import com.macro.mall.distribution.dao.DmsWithdrawRecordDao;
-import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsWithdrawalPayout;
 import com.macro.mall.distribution.entity.DmsWithdrawRecord;
 import com.macro.mall.distribution.enums.WithdrawStatusEnum;
-import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.AgentAccountService;
 import com.macro.mall.distribution.service.MemberMessageEvent;
 import com.macro.mall.distribution.service.MemberMessageService;
@@ -23,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Objects;
 
 /** 把渠道调用前后的状态变化锁在短事务中，外部网络请求不会占用数据库事务。 */
 @Service
@@ -52,11 +49,6 @@ public class WithdrawalPayoutTransactionService {
                 && !Integer.valueOf(3).equals(withdraw.getWithdrawType())) {
             Asserts.fail("该提现方式暂不支持渠道打款");
         }
-        DmsAdminUser actor = AdminContext.get();
-        if (actor != null && Objects.equals(actor.getId(), withdraw.getAuditUserId())) {
-            Asserts.fail("提现审核与渠道打款必须由不同后台账号完成");
-        }
-
         DmsWithdrawalPayout payout = payoutDao.selectByWithdrawIdForUpdate(withdrawId);
         boolean initiate = false;
         if (payout == null) {

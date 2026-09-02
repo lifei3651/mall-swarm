@@ -31,6 +31,7 @@ import com.macro.mall.distribution.service.SmsVerificationService;
 import com.macro.mall.distribution.service.WithdrawService;
 import com.macro.mall.distribution.service.MemberMessageService;
 import com.macro.mall.distribution.service.RealNameVerificationService;
+import com.macro.mall.distribution.service.WithdrawalRiskPolicyService;
 import com.macro.mall.distribution.service.MemberMessageEvent;
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.vo.BalanceRecipientVO;
@@ -73,6 +74,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
     private final WithdrawService withdrawService;
     private final MemberMessageService memberMessageService;
     private final RealNameVerificationService realNameVerificationService;
+    private final WithdrawalRiskPolicyService withdrawalRiskPolicyService;
 
     @Override
     public ShopWalletSummaryVO getSummary(DmsShopMember member) {
@@ -95,6 +97,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         summary.setRealNameVerified(realNameStatus.getVerified());
         summary.setAdultVerified(realNameStatus.getAdult());
         summary.setMaskedRealName(realNameStatus.getMaskedRealName());
+        summary.setWithdrawalManualReviewThreshold(withdrawalRiskPolicyService.manualReviewThreshold());
         return summary;
     }
 
@@ -271,13 +274,15 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         DmsMemberAssetAccount balanceAccount = assetAccountDao.selectByAgentIdAndAssetCode(agent.getId(), BalanceAsset.CODE);
         BigDecimal balance = balanceAccount == null || balanceAccount.getBalance() == null ? BigDecimal.ZERO : balanceAccount.getBalance();
         if (balance.compareTo(amount) < 0) Asserts.fail("余额不足");
-        if (dto.getWithdrawType() == null || !List.of(1, 2, 3).contains(dto.getWithdrawType())) Asserts.fail("请选择正确的提现方式");
+        if (dto.getWithdrawType() == null || !List.of(2, 3).contains(dto.getWithdrawType())) {
+            Asserts.fail("银行卡提现尚未接入可核验通道，请选择微信或支付宝");
+        }
         String accountName = requiredText(dto.getAccountName(), "请填写收款人姓名");
         if (!accountName.equals(realName.getRealName())) Asserts.fail("收款人姓名必须与实名认证姓名一致");
-        String account = requiredText(dto.getBankAccount(), "请填写收款账号");
-        String channelName = dto.getWithdrawType() == 1
-                ? requiredText(dto.getBankName(), "请填写开户银行")
-                : (dto.getWithdrawType() == 2 ? "微信" : "支付宝");
+        String account = dto.getWithdrawType() == 2
+                ? "当前绑定微信账户"
+                : requiredText(dto.getBankAccount(), "请填写支付宝账号");
+        String channelName = dto.getWithdrawType() == 2 ? "微信" : "支付宝";
 
         verifyPaymentPassword(current, dto.getPaymentPassword());
         smsVerificationService.verifyAndConsume(current.getPhone(), dto.getSmsCode(), 5);

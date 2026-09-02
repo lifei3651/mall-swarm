@@ -114,10 +114,9 @@ shop:
   payment:
     simulation-enabled: false
   withdrawal:
-    daily-max-count: ${SHOP_WITHDRAWAL_DAILY_MAX_COUNT:5}
-    monthly-max-count: ${SHOP_WITHDRAWAL_MONTHLY_MAX_COUNT:50}
-    daily-max-amount: ${SHOP_WITHDRAWAL_DAILY_MAX_AMOUNT:100000.00}
-    monthly-max-amount: ${SHOP_WITHDRAWAL_MONTHLY_MAX_AMOUNT:1000000.00}
+    daily-max-count: ${SHOP_WITHDRAWAL_DAILY_MAX_COUNT:2}
+    monthly-max-count: ${SHOP_WITHDRAWAL_MONTHLY_MAX_COUNT:10}
+    manual-review-threshold: ${SHOP_WITHDRAWAL_MANUAL_REVIEW_THRESHOLD:1000.00}
   real-name:
     enabled: ${SHOP_REAL_NAME_ENABLED:false}
     provider: TENCENT

@@ -84,7 +84,7 @@
             :loading="payoutLoadingId === row.id"
             @click="handleStartPayout(row)"
           >
-            发起渠道打款
+            异常重试打款
           </el-button>
           <el-button
             v-if="row.status === 2 && [2, 3].includes(row.withdrawType) && store.hasPermission('finance:manage')"
@@ -226,9 +226,9 @@ const handleDetail = async (row) => {
 const handleStartPayout = async (row) => {
   try {
     await ElMessageBox.confirm(
-      `将通过${row.withdrawTypeName}官方渠道发起 ¥${row.withdrawAmount} 转账。渠道受理不等于成功，系统只在官方结果核对通过后记为打款成功。`,
-      '发起渠道打款',
-      { type: 'warning', confirmButtonText: '确认发起', cancelButtonText: '返回核对' },
+      `这笔提现在自动打款时未完成，将通过${row.withdrawTypeName}官方渠道重新处理 ¥${row.withdrawAmount}。系统只在官方结果核对通过后记为成功。`,
+      '异常重试打款',
+      { type: 'warning', confirmButtonText: '确认重试', cancelButtonText: '返回核对' },
     )
     payoutLoadingId.value = row.id
     const result = (await startWithdrawalPayout(row.id)).data || {}

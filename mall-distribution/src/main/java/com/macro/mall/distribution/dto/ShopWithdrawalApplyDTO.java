@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.ToString;
 
@@ -24,10 +25,12 @@ public class ShopWithdrawalApplyDTO implements Serializable {
     @Min(value = 1, message = "提现方式不正确")
     @Max(value = 3, message = "提现方式不正确")
     private Integer withdrawType;
+    @Size(max = 128, message = "收款渠道名称不能超过128个字")
     private String bankName;
-    @NotBlank(message = "请填写收款账号")
+    @Size(max = 128, message = "收款账号不能超过128个字")
     private String bankAccount;
     @NotBlank(message = "请填写收款人姓名")
+    @Size(max = 64, message = "收款人姓名不能超过64个字")
     private String accountName;
     @NotBlank(message = "请输入支付密码")
     @Pattern(regexp = "^\\d{6}$", message = "支付密码必须是6位数字")

@@ -10,7 +10,7 @@ import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
 
-/** 团队 H5 提现累计风控；客户交付时可配置，但任何部署都保留明确上限。 */
+/** 会员提现频次与单笔人工审核阈值；不使用日/月累计金额拦截正常提现。 */
 @Data
 @Validated
 @Component
@@ -18,16 +18,12 @@ import java.math.BigDecimal;
 public class WithdrawalLimitProperties {
 
     @Min(1)
-    private int dailyMaxCount = 5;
+    private int dailyMaxCount = 2;
 
     @Min(1)
-    private int monthlyMaxCount = 50;
+    private int monthlyMaxCount = 10;
 
     @NotNull
     @DecimalMin("0.01")
-    private BigDecimal dailyMaxAmount = new BigDecimal("100000.00");
-
-    @NotNull
-    @DecimalMin("0.01")
-    private BigDecimal monthlyMaxAmount = new BigDecimal("1000000.00");
+    private BigDecimal manualReviewThreshold = new BigDecimal("1000.00");
 }

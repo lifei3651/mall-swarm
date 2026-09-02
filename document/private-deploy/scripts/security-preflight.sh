@@ -103,7 +103,7 @@ printf '%s' "$(value_of CUSTOMER_PRODUCT_TEMPLATE)" | grep -Eq '^[a-z0-9_-]{2,32
 for key in SHOP_WITHDRAWAL_DAILY_MAX_COUNT SHOP_WITHDRAWAL_MONTHLY_MAX_COUNT; do
   printf '%s' "$(value_of "$key")" | grep -Eq '^[1-9][0-9]*$' || fail "$key 必须是正整数"
 done
-for key in SHOP_WITHDRAWAL_DAILY_MAX_AMOUNT SHOP_WITHDRAWAL_MONTHLY_MAX_AMOUNT; do
+for key in SHOP_WITHDRAWAL_MANUAL_REVIEW_THRESHOLD; do
   printf '%s' "$(value_of "$key")" | grep -Eq '^[0-9]+([.][0-9]{1,2})?$' || fail "$key 必须是最多两位小数的正金额"
   printf '%s' "$(value_of "$key")" | grep -Eq '^0+([.]0{1,2})?$' && fail "$key 必须大于0"
 done

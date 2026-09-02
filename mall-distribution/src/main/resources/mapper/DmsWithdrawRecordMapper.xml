@@ -89,19 +89,28 @@
 
     <select id="selectLimitUsage" resultType="com.macro.mall.distribution.vo.WithdrawalLimitUsageVO">
         SELECT COALESCE(SUM(CASE WHEN create_time &gt;= #{dayStart} THEN 1 ELSE 0 END), 0) AS dailyCount,
-               COALESCE(SUM(CASE WHEN create_time &gt;= #{dayStart} AND status != 4 THEN withdraw_amount ELSE 0 END), 0) AS dailyAmount,
-               COUNT(*) AS monthlyCount,
-               COALESCE(SUM(CASE WHEN status != 4 THEN withdraw_amount ELSE 0 END), 0) AS monthlyAmount
+               COUNT(*) AS monthlyCount
         FROM dms_withdraw_record
         WHERE agent_id = #{agentId}
           AND create_time &gt;= #{monthStart}
     </select>
 
+    <select id="selectLatestSuccessfulByAgentAndType" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_withdraw_record
+        WHERE agent_id = #{agentId}
+          AND withdraw_type = #{withdrawType}
+          AND status = 3
+        ORDER BY pay_time DESC, id DESC
+        LIMIT 1
+    </select>
+
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsWithdrawRecord" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_withdraw_record (withdraw_no, agent_id, user_id, withdraw_amount, withdraw_type,
-            bank_name, bank_account, account_name, status)
+            bank_name, bank_account, account_name, status, audit_user_id, audit_time, audit_remark)
         VALUES (#{withdrawNo}, #{agentId}, #{userId}, #{withdrawAmount}, #{withdrawType},
-            #{bankName}, #{bankAccount,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler}, #{accountName}, #{status})
+            #{bankName}, #{bankAccount,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler}, #{accountName},
+            #{status}, #{auditUserId}, #{auditTime}, #{auditRemark})
     </insert>
 
     <update id="update" parameterType="com.macro.mall.distribution.entity.DmsWithdrawRecord">

@@ -16,6 +16,7 @@ import com.github.pagehelper.PageHelper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
@@ -30,6 +31,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/distribution/withdraw")
 @RequiredArgsConstructor
+@Slf4j
 public class WithdrawController {
 
     private final WithdrawService withdrawService;
@@ -43,11 +45,26 @@ public class WithdrawController {
             auditDTO.setAuditUserId(AdminContext.get().getId());
             auditDTO.setAuditUserName(AdminContext.get().getNickname());
         }
+        boolean approved = Integer.valueOf(1).equals(auditDTO.getStatus());
+        if (approved) withdrawalPayoutService.requireReady(auditDTO.getId());
         boolean result = withdrawService.auditWithdraw(auditDTO);
-        if (result) {
-            return CommonResult.success(true);
+        if (!result) return CommonResult.failed("审核失败");
+        if (!approved) return CommonResult.success(true, "已驳回，冻结金额已退回会员余额");
+        try {
+            WithdrawalPayoutVO payout = withdrawalPayoutService.start(auditDTO.getId());
+            if (payout != null && "SUCCESS".equals(payout.getState())) {
+                return CommonResult.success(true, "审核通过，官方渠道已核验到账");
+            }
+            if (payout != null && "FAILED".equals(payout.getState())) {
+                return CommonResult.success(true, "审核通过，但渠道返回失败，请在提现记录中重试");
+            }
+            return CommonResult.success(true, "审核通过，系统已发起渠道打款");
+        } catch (RuntimeException error) {
+            // 审核已经落库，返回准确结果，避免操作人误以为审核失败后重复点击。
+            log.error("提现审核通过后自动发起打款失败: withdrawId={}, error={}",
+                    auditDTO.getId(), error.getClass().getSimpleName());
+            return CommonResult.success(true, "审核已通过，渠道发起异常，请在提现记录中重试");
         }
-        return CommonResult.failed("审核失败");
     }
 
     @Deprecated

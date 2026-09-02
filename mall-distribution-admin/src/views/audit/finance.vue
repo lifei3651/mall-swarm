@@ -114,9 +114,10 @@
         />
       </el-tab-pane>
       <el-tab-pane label="风险规则" name="rules">
+        <el-alert type="info" :closable="false" show-icon title="“会员提现单笔人工审核阈值”会直接决定提现流程：启用后，不超过阈值的已核验收款账户自动打款，超过阈值只人工审核一次；关闭后全部人工审核一次。" />
         <el-table :data="riskRules" style="width: 100%">
           <el-table-column prop="ruleName" label="风险规则" min-width="180" />
-          <el-table-column prop="thresholdValue" label="预警阈值" width="180">
+          <el-table-column prop="thresholdValue" label="规则阈值" width="180">
             <template #default="{ row }">
               <el-input-number v-model="row.thresholdValue" :precision="4" :step="0.01" />
             </template>
@@ -236,7 +237,8 @@ const handleRangeChange = () => {
 
 const submitRiskRule = async (row) => {
   if (savingRiskRuleId.value !== null) return
-  await ElMessageBox.confirm(`确认保存“${row.ruleName || row.ruleCode}”风险规则？变更会影响后续财务风险预警。`, '确认修改风险规则', { type: 'warning' })
+  const impact = row.ruleCode === 'MEMBER_WITHDRAW_MANUAL_REVIEW_AMOUNT' ? '后续会员提现是否需要人工审核' : '后续财务风险预警'
+  await ElMessageBox.confirm(`确认保存“${row.ruleName || row.ruleCode}”风险规则？变更会影响${impact}。`, '确认修改风险规则', { type: 'warning' })
   savingRiskRuleId.value = row.id || row.ruleCode
   try {
     await saveRiskRule(row)
