@@ -120,7 +120,8 @@ public class SecurityRateLimitFilter extends OncePerRequestFilter {
         if ((HttpMethod.POST.matches(method) || HttpMethod.PUT.matches(method))
                 && (path.matches("/distribution/admin-users/[^/]+/(password|unlock)")
                 || "/distribution/withdraw/audit".equals(path)
-                || path.matches("/distribution/withdraw/confirm-pay/[^/]+"))) {
+                || path.matches("/distribution/withdraw/confirm-pay/[^/]+")
+                || path.matches("/distribution/withdraw/[^/]+/payout/(start|reconcile)"))) {
             return new Rule("admin-sensitive", 10, 60);
         }
         if (HttpMethod.POST.matches(method) && ("/distribution/assets/issue".equals(path)
@@ -136,6 +137,10 @@ public class SecurityRateLimitFilter extends OncePerRequestFilter {
         }
         if (HttpMethod.POST.matches(method) && "/shop/wallet/withdrawals".equals(path)) {
             return new Rule("wallet-withdrawal", 5, 60);
+        }
+        if (HttpMethod.POST.matches(method)
+                && path.matches("/shop/wallet/withdrawals/[^/]+/wechat-confirmation")) {
+            return new Rule("wallet-payout-confirmation", 10, 60);
         }
         if (HttpMethod.POST.matches(method) && "/shop/real-name/verify".equals(path)) {
             return new Rule("real-name-verify", 5, 60);

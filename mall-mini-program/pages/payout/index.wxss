@@ -1,0 +1,10 @@
+.payout-page { min-height: 100vh; padding: 24rpx; }
+.notice-card { padding: 28rpx; border-radius: 24rpx; background: #fff; }
+.notice-card view { font-size: 32rpx; font-weight: 700; }
+.notice-card text { display: block; margin-top: 14rpx; color: var(--muted); font-size: 24rpx; line-height: 40rpx; }
+.payout-card { display: flex; align-items: center; gap: 24rpx; margin-top: 20rpx; padding: 26rpx; border-radius: 24rpx; background: #fff; }
+.payout-copy { min-width: 0; flex: 1; }
+.payout-copy text, .payout-copy strong { display: block; }
+.payout-copy text { color: var(--muted); font-size: 23rpx; }
+.payout-copy strong { margin: 10rpx 0; font-size: 34rpx; }
+.payout-card button { flex: none; width: 210rpx; margin: 0; font-size: 24rpx; }

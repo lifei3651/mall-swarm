@@ -31,12 +31,7 @@ public interface WithdrawService {
      */
     boolean auditWithdraw(WithdrawAuditDTO auditDTO);
 
-    /**
-     * 确认打款
-     * @param id 提现记录ID
-     * @param payNo 打款流水号
-     * @return 是否成功
-     */
+    /** 旧人工确认入口已停用；仅为兼容旧调用保留并始终安全拒绝。 */
     boolean confirmPay(Long id, String payNo);
 
     /**

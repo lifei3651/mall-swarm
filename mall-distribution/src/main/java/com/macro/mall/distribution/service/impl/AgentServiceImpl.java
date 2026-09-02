@@ -15,6 +15,7 @@ import com.macro.mall.distribution.dao.DmsCommissionClawbackDao;
 import com.macro.mall.distribution.dao.DmsCommissionRecordDao;
 import com.macro.mall.distribution.dao.DmsOrderBalanceAllocationDao;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
+import com.macro.mall.distribution.dao.DmsShopMemberSessionDao;
 import com.macro.mall.distribution.dao.DmsLineChangeApplicationDao;
 import com.macro.mall.distribution.dao.DmsTenantDao;
 import com.macro.mall.distribution.dto.AgentRegisterDTO;
@@ -76,6 +77,7 @@ public class AgentServiceImpl implements AgentService {
     private final DmsAgentAccountDao accountDao;
     private final DmsAgentChangeLogDao changeLogDao;
     private final DmsShopMemberDao shopMemberDao;
+    private final DmsShopMemberSessionDao shopMemberSessionDao;
     private final DmsLineChangeApplicationDao lineChangeApplicationDao;
     private final DmsCommissionRecordDao commissionDao;
     private final DmsOrderBalanceAllocationDao orderBalanceAllocationDao;
@@ -391,7 +393,13 @@ public class AgentServiceImpl implements AgentService {
 
     @Override
     public boolean updateStatus(Long id, Integer status) {
-        return agentDao.updateStatus(id, status) > 0;
+        DmsAgent agent = agentDao.selectById(id);
+        boolean updated = agent != null && agentDao.updateStatus(id, status) > 0;
+        if (updated && !AgentStatusEnum.NORMAL.getValue().equals(status)) {
+            DmsShopMember member = shopMemberDao.selectByUserId(agent.getUserId());
+            if (member != null) shopMemberSessionDao.disableByMemberIdAndSurface(member.getId(), "team");
+        }
+        return updated;
     }
 
     @Override
@@ -479,6 +487,10 @@ public class AgentServiceImpl implements AgentService {
         relationDao.deleteByAgentId(agentId);
         accountDao.deleteByAgentId(agentId);
         agentDao.hardDeleteById(agentId);
+        DmsShopMember deactivatedMember = shopMemberDao.selectByUserId(agent.getUserId());
+        if (deactivatedMember != null) {
+            shopMemberSessionDao.disableByMemberIdAndSurface(deactivatedMember.getId(), "team");
+        }
 
         // 3. 变更留痕。
         DmsAgentChangeLog changeLog = new DmsAgentChangeLog();

@@ -44,7 +44,7 @@ public class PayloadEncryptionServiceImpl implements PayloadEncryptionService {
     static final Set<String> SENSITIVE_FIELDS = Set.of(
             "password", "currentpassword", "currentadminpassword", "newpassword", "oldpassword",
             "loginpassword", "paymentpassword", "adminpassword", "confirmpassword",
-            "smscode", "captchacode", "appsecret", "callbacktoken",
+            "smscode", "currentphonesmscode", "newphonesmscode", "captchacode", "appsecret", "callbacktoken",
             "realname", "idcard", "code"
     );
 

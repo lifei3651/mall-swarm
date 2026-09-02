@@ -29,15 +29,17 @@ describe('后台安全与只读查询', () => {
     }
   })
 
-  it('代理和商户确认打款使用准确业务确认且不重复提交登录密码', async () => {
+  it('会员提现只使用官方渠道核对，商户人工打款仍使用准确业务确认且不重复提交登录密码', async () => {
     const withdrawApi = await source('src/api/withdraw.js')
     const withdrawView = await source('src/views/withdraw/list.vue')
     const merchantFinance = await source('src/views/audit/merchant-finance.vue')
 
-    expect(withdrawApi).toContain('data,')
-    expect(withdrawApi).not.toContain('params: { payNo }')
-    expect(withdrawView).toContain('确认已经实际打款 ¥${payForm.value.withdrawAmount}')
-    expect(withdrawView).not.toContain('payForm.adminPassword')
+    expect(withdrawApi).toContain('/payout/start')
+    expect(withdrawApi).toContain('/payout/reconcile')
+    expect(withdrawApi).not.toContain('confirm-pay')
+    expect(withdrawApi).not.toContain('payNo')
+    expect(withdrawView).toContain('渠道受理不等于成功，系统只在官方结果核对通过后记为打款成功')
+    expect(withdrawView).not.toContain('payForm')
     expect(merchantFinance).toContain('确认银行已经实际打款 ¥${money(payForm.value.actualPaidAmount)}')
     expect(merchantFinance).not.toContain('payForm.adminPassword')
   })

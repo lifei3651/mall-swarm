@@ -188,20 +188,28 @@ class SecurityRateLimitFilterTest {
 
         SecurityRateLimitFilter.Rule withdrawal = filter.resolveRule(
                 new MockHttpServletRequest("POST", "/shop/wallet/withdrawals"));
+        SecurityRateLimitFilter.Rule payoutConfirmation = filter.resolveRule(
+                new MockHttpServletRequest("POST", "/shop/wallet/withdrawals/18/wechat-confirmation"));
         SecurityRateLimitFilter.Rule transfer = filter.resolveRule(
                 new MockHttpServletRequest("POST", "/shop/wallet/transfers"));
         SecurityRateLimitFilter.Rule password = filter.resolveRule(
                 new MockHttpServletRequest("PUT", "/distribution/admin-users/9/password"));
         SecurityRateLimitFilter.Rule manualAsset = filter.resolveRule(
                 new MockHttpServletRequest("POST", "/distribution/assets/deduct"));
+        SecurityRateLimitFilter.Rule payout = filter.resolveRule(
+                new MockHttpServletRequest("POST", "/distribution/withdraw/18/payout/start"));
         SecurityRateLimitFilter.Rule realName = filter.resolveRule(
                 new MockHttpServletRequest("POST", "/shop/real-name/verify"));
 
         assertEquals("wallet-withdrawal", withdrawal.name());
         assertEquals(5, withdrawal.maximumRequests());
+        assertEquals("wallet-payout-confirmation", payoutConfirmation.name());
+        assertEquals(10, payoutConfirmation.maximumRequests());
         assertEquals("wallet-funds", transfer.name());
         assertEquals(10, transfer.maximumRequests());
         assertEquals("admin-sensitive", password.name());
+        assertEquals("admin-sensitive", payout.name());
+        assertEquals(10, payout.maximumRequests());
         assertEquals("admin-asset-change", manualAsset.name());
         assertEquals("real-name-verify", realName.name());
         assertEquals(5, realName.maximumRequests());

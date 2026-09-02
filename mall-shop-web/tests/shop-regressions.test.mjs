@@ -455,6 +455,8 @@ test('profile opens one compact invite dialog instead of navigating away', async
   const source = await readView('ProfileView.vue')
   assert.doesNotMatch(source, /注册用户/)
   assert.doesNotMatch(source, /to="\/orders">全部/)
+  assert.match(source, /<button v-if="activeAgent"[^>]*@click="openInvite"/)
+  assert.match(source, /Number\(agent\?\.status \|\| 0\) === 1 && level >= 1 && level <= 8/)
   assert.match(source, /inviteDialogVisible\.value = true/)
   assert.match(source, /<InviteDialog :visible="inviteDialogVisible"/)
   assert.doesNotMatch(source, /window\.location\.assign\('\/invite'\)/)

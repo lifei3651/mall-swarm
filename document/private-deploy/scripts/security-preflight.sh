@@ -178,6 +178,31 @@ case "$wechat_pay" in
   *) fail "WECHAT_PAY_ENABLED 只能是 true 或 false" ;;
 esac
 
+payout=$(value_of WITHDRAWAL_PAYOUT_ENABLED)
+payout_alipay=$(value_of WITHDRAWAL_PAYOUT_ALIPAY_ENABLED)
+payout_wechat=$(value_of WITHDRAWAL_PAYOUT_WECHAT_ENABLED)
+for value in "$payout" "$payout_alipay" "$payout_wechat"; do
+  case "$value" in true|false) : ;; *) fail "奖金转账开关只能是 true 或 false" ;; esac
+done
+if [ "$payout" = "false" ]; then
+  [ "$payout_alipay" = "false" ] && [ "$payout_wechat" = "false" ] \
+    || fail "奖金转账总开关关闭时各渠道也必须关闭"
+else
+  [ "$payout_alipay" = "true" ] || [ "$payout_wechat" = "true" ] \
+    || fail "启用奖金转账时必须选择至少一个官方渠道"
+  [ "$(value_of DATA_ENCRYPTION_WRITE_ENABLED)" = "true" ] \
+    || fail "启用奖金转账前必须开启敏感字段加密"
+  [ "$payout_alipay" = "false" ] || [ "$alipay" = "true" ] \
+    || fail "启用支付宝奖金转账前必须完成支付宝配置"
+  if [ "$payout_wechat" = "true" ]; then
+    [ "$wechat_pay" = "true" ] && [ "$wechat_mini" = "true" ] \
+      || fail "启用微信奖金转账前必须完成微信支付和小程序配置"
+    require_value WITHDRAWAL_PAYOUT_WECHAT_SCENE_ID
+    require_value WITHDRAWAL_PAYOUT_WECHAT_REPORT_INFO_TYPE
+    require_value WITHDRAWAL_PAYOUT_WECHAT_REPORT_INFO_CONTENT
+  fi
+fi
+
 sms=$(value_of SMS_PROVIDER_ENABLED)
 case "$sms" in
   true)

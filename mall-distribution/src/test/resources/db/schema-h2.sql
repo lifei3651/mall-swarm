@@ -280,6 +280,7 @@ CREATE TABLE IF NOT EXISTS dms_admin_user (
   lock_time TIMESTAMP,
   must_change_password INT NOT NULL DEFAULT 0,
   credential_expires_at TIMESTAMP,
+  credential_consumed_at TIMESTAMP,
   default_logistics_company VARCHAR(50),
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -433,6 +434,25 @@ CREATE TABLE IF NOT EXISTS dms_withdraw_record (
   audit_remark VARCHAR(256),
   pay_time TIMESTAMP,
   pay_no VARCHAR(64),
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS dms_withdrawal_payout (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  withdraw_id BIGINT NOT NULL UNIQUE,
+  withdraw_no VARCHAR(64) NOT NULL,
+  attempt_no INT NOT NULL DEFAULT 1,
+  request_no VARCHAR(64) NOT NULL UNIQUE,
+  channel VARCHAR(16) NOT NULL,
+  state VARCHAR(32) NOT NULL,
+  provider_status VARCHAR(32),
+  provider_order_no VARCHAR(128) UNIQUE,
+  amount DECIMAL(10,2) NOT NULL,
+  recipient_hash CHAR(64),
+  response_digest CHAR(64),
+  failure_code VARCHAR(64),
+  confirmation_package VARCHAR(2048),
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

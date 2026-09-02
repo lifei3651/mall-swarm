@@ -45,3 +45,14 @@ test('小程序结算保留服务端大额支付短信验证', async () => {
   assert.match(checkout, /url: '\/sms\/send\/payment'/)
   assert.match(checkout, /smsCode: this\.data\.needSmsVerify/)
 })
+
+test('微信收款确认仅从本人提现单取参数并在原生确认后再次服务端核验', async () => {
+  const fs = await import('node:fs/promises')
+  const app = JSON.parse(await fs.readFile(new URL('../app.json', import.meta.url), 'utf8'))
+  const page = await fs.readFile(new URL('../pages/payout/index.js', import.meta.url), 'utf8')
+  assert.ok(app.pages.includes('pages/payout/index'))
+  assert.match(page, /wx\.canIUse\('requestMerchantTransfer'\)/)
+  assert.match(page, /wx\.requestMerchantTransfer/)
+  assert.match(page, /withdrawals\/\$\{withdrawId\}\/wechat-confirmation/)
+  assert.equal((page.match(/await this\.prepare\(withdrawId\)/g) || []).length, 2)
+})

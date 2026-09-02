@@ -179,6 +179,15 @@ shop:
     monthly-max-count: ${SHOP_WITHDRAWAL_MONTHLY_MAX_COUNT:50}
     daily-max-amount: ${SHOP_WITHDRAWAL_DAILY_MAX_AMOUNT:100000.00}
     monthly-max-amount: ${SHOP_WITHDRAWAL_MONTHLY_MAX_AMOUNT:1000000.00}
+  withdrawal-payout:
+    # 奖金转账与商城收款分开授权；客户没有单独签约、配置并验收前始终关闭。
+    enabled: ${WITHDRAWAL_PAYOUT_ENABLED:false}
+    alipay-enabled: ${WITHDRAWAL_PAYOUT_ALIPAY_ENABLED:false}
+    wechat-enabled: ${WITHDRAWAL_PAYOUT_WECHAT_ENABLED:false}
+    # 以下三项必须使用客户与微信签约后获准的真实场景资料，基座不预填业务含义。
+    wechat-transfer-scene-id: ${WITHDRAWAL_PAYOUT_WECHAT_SCENE_ID:}
+    wechat-report-info-type: ${WITHDRAWAL_PAYOUT_WECHAT_REPORT_INFO_TYPE:}
+    wechat-report-info-content: ${WITHDRAWAL_PAYOUT_WECHAT_REPORT_INFO_CONTENT:}
   real-name:
     # 安全默认关闭；客户交付时配置腾讯云实名核身密钥后才能发起外部核验。
     enabled: ${SHOP_REAL_NAME_ENABLED:false}

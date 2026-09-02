@@ -29,6 +29,9 @@ public interface DmsAdminUserDao {
                                 @Param("salt") String salt,
                                 @Param("credentialExpiresAt") LocalDateTime credentialExpiresAt);
 
+    /** 原子认领一次性临时凭据；只有未使用且未过期的凭据能成功一次。 */
+    int consumeTemporaryCredential(@Param("id") Long id, @Param("now") LocalDateTime now);
+
     int updateDefaultLogisticsCompany(@Param("id") Long id,
                                       @Param("defaultLogisticsCompany") String defaultLogisticsCompany);
 

@@ -15,7 +15,7 @@ public class AdminMemberPasswordResetDTO implements Serializable {
     /** 新登录密码，不是支付密码。 */
     @ToString.Exclude
     @NotBlank(message = "请输入新登录密码")
-    @Size(min = 6, max = 32, message = "新登录密码需要6至32位")
+    @Size(min = 10, max = 32, message = "新登录密码需要10至32位")
     private String newPassword;
 
     @NotBlank(message = "请填写重置登录密码的原因")

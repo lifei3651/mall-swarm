@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsWithdrawalPayoutDao">
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsWithdrawalPayout">
+        <id column="id" property="id"/>
+        <result column="withdraw_id" property="withdrawId"/>
+        <result column="withdraw_no" property="withdrawNo"/>
+        <result column="attempt_no" property="attemptNo"/>
+        <result column="request_no" property="requestNo"/>
+        <result column="channel" property="channel"/>
+        <result column="state" property="state"/>
+        <result column="provider_status" property="providerStatus"/>
+        <result column="provider_order_no" property="providerOrderNo"/>
+        <result column="amount" property="amount"/>
+        <result column="recipient_hash" property="recipientHash"/>
+        <result column="response_digest" property="responseDigest"/>
+        <result column="failure_code" property="failureCode"/>
+        <result column="confirmation_package" property="confirmationPackage"
+                typeHandler="com.macro.mall.distribution.security.EncryptedStringTypeHandler"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Columns">id, withdraw_id, withdraw_no, attempt_no, request_no, channel, state,
+        provider_status, provider_order_no, amount, recipient_hash, response_digest, failure_code,
+        confirmation_package, create_time, update_time</sql>
+
+    <select id="selectByWithdrawId" resultMap="BaseResultMap">
+        SELECT <include refid="Columns"/> FROM dms_withdrawal_payout WHERE withdraw_id=#{withdrawId}
+    </select>
+
+    <select id="selectByWithdrawIdForUpdate" resultMap="BaseResultMap">
+        SELECT <include refid="Columns"/> FROM dms_withdrawal_payout WHERE withdraw_id=#{withdrawId} FOR UPDATE
+    </select>
+
+    <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsWithdrawalPayout"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dms_withdrawal_payout
+          (withdraw_id, withdraw_no, attempt_no, request_no, channel, state, amount)
+        VALUES
+          (#{withdrawId}, #{withdrawNo}, #{attemptNo}, #{requestNo}, #{channel}, #{state}, #{amount})
+    </insert>
+
+    <update id="update" parameterType="com.macro.mall.distribution.entity.DmsWithdrawalPayout">
+        UPDATE dms_withdrawal_payout
+        SET attempt_no=#{attemptNo}, request_no=#{requestNo}, channel=#{channel}, state=#{state},
+            provider_status=#{providerStatus}, provider_order_no=#{providerOrderNo}, amount=#{amount},
+            recipient_hash=#{recipientHash}, response_digest=#{responseDigest}, failure_code=#{failureCode},
+            confirmation_package=#{confirmationPackage,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler},
+            update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id}
+    </update>
+</mapper>

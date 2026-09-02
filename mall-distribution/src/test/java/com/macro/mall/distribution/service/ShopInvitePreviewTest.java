@@ -30,7 +30,9 @@ class ShopInvitePreviewTest {
         inviter.setPhone("13900001234");
         inviter.setUserId(99887766L);
         inviter.setStatus(1);
+        DmsAgent agent = activeAgent(99887766L);
         when(memberDao.selectByInviteCode("ABCD1234")).thenReturn(inviter);
+        when(agentDao.selectByUserId(99887766L)).thenReturn(agent);
 
         Map<String, Object> preview = shopService.getInviterPreview(" abcd1234 ");
 
@@ -44,6 +46,7 @@ class ShopInvitePreviewTest {
         DmsAgent legacyAgent = new DmsAgent();
         legacyAgent.setUserId(99887766L);
         legacyAgent.setStatus(1);
+        legacyAgent.setAgentLevel(1);
         DmsShopMember inviter = new DmsShopMember();
         inviter.setUserId(99887766L);
         inviter.setNickname("历史会员乙");
@@ -51,6 +54,7 @@ class ShopInvitePreviewTest {
         when(memberDao.selectByInviteCode("OLDLINK1")).thenReturn(null);
         when(agentDao.selectByInviteCode("OLDLINK1")).thenReturn(legacyAgent);
         when(memberDao.selectByUserId(99887766L)).thenReturn(inviter);
+        when(agentDao.selectByUserId(99887766L)).thenReturn(legacyAgent);
 
         Map<String, Object> preview = shopService.getInviterPreview("oldlink1");
 
@@ -75,13 +79,23 @@ class ShopInvitePreviewTest {
     void missingNicknameNeverFallsBackToLoginAccount() {
         DmsShopMember inviter = new DmsShopMember();
         inviter.setUsername("private_login_account");
+        inviter.setUserId(99887766L);
         inviter.setStatus(1);
         when(memberDao.selectByInviteCode("NICKLESS")).thenReturn(inviter);
+        when(agentDao.selectByUserId(99887766L)).thenReturn(activeAgent(99887766L));
 
         Map<String, Object> preview = shopService.getInviterPreview("nickless");
 
         assertEquals(true, preview.get("valid"));
         assertEquals("商城会员", preview.get("nickname"));
         assertEquals(2, preview.size());
+    }
+
+    private DmsAgent activeAgent(Long userId) {
+        DmsAgent agent = new DmsAgent();
+        agent.setUserId(userId);
+        agent.setStatus(1);
+        agent.setAgentLevel(1);
+        return agent;
     }
 }

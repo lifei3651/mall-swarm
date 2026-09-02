@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.service;
 
 import cn.hutool.crypto.digest.BCrypt;
+import com.macro.mall.common.exception.ApiException;
 import com.macro.mall.distribution.config.RedisConfig;
 import com.macro.mall.distribution.config.ScheduleTask;
 import com.macro.mall.distribution.bonus.CustomerBonusOrderContext;
@@ -163,8 +164,9 @@ class DeliveryStabilityAcceptanceTest {
         approve.setAuditUserName("交付验收财务");
         approve.setAuditRemark("奖金提现核对通过");
         assertTrue(withdrawService.auditWithdraw(approve));
-        assertTrue(withdrawService.confirmPay(withdrawal.getId(), "BANK-ACCEPT-001"));
-        assertEquals(WithdrawStatusEnum.PAY_SUCCESS.getValue(),
+        assertThrows(ApiException.class,
+                () -> withdrawService.confirmPay(withdrawal.getId(), "BANK-ACCEPT-001"));
+        assertEquals(WithdrawStatusEnum.AUDIT_PASSED.getValue(),
                 withdrawService.getWithdrawById(withdrawal.getId()).getStatus());
 
         // 第二单走退货退款：余额原路退回、奖金冲销、库存只回补一次。

@@ -30,6 +30,8 @@ SENSITIVE_FIELDS = {
     "adminpassword",
     "confirmpassword",
     "smscode",
+    "currentphonesmscode",
+    "newphonesmscode",
     "captchacode",
     "appsecret",
     "callbacktoken",

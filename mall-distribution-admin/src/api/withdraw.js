@@ -9,13 +9,24 @@ export function auditWithdraw(data) {
   })
 }
 
-// 确认打款
-export function confirmPay(id, data) {
+// 发起官方渠道打款
+export function startWithdrawalPayout(id) {
   return request({
-    url: `/distribution/withdraw/confirm-pay/${id}`,
+    url: `/distribution/withdraw/${id}/payout/start`,
     method: 'post',
-    data,
   })
+}
+
+// 核对官方渠道结果
+export function reconcileWithdrawalPayout(id) {
+  return request({
+    url: `/distribution/withdraw/${id}/payout/reconcile`,
+    method: 'post',
+  })
+}
+
+export function getWithdrawalPayout(id) {
+  return request({ url: `/distribution/withdraw/${id}/payout`, method: 'get', silentError: true })
 }
 
 // 查询提现记录

@@ -44,11 +44,11 @@
         <div class="form-grid">
           <div class="form-item full">
             <label for="forgot-new-password">新密码</label>
-            <input id="forgot-new-password" v-model="newPassword" name="newPassword" class="field" type="password" minlength="6" maxlength="32" autocomplete="new-password" placeholder="至少6位" />
+            <input id="forgot-new-password" v-model="newPassword" name="newPassword" class="field" type="password" minlength="10" maxlength="32" autocomplete="new-password" placeholder="10至32位" />
           </div>
           <div class="form-item full">
             <label for="forgot-confirm-password">确认密码</label>
-            <input id="forgot-confirm-password" v-model="confirmPassword" name="confirmPassword" class="field" type="password" minlength="6" maxlength="32" autocomplete="new-password" placeholder="再次输入密码" />
+            <input id="forgot-confirm-password" v-model="confirmPassword" name="confirmPassword" class="field" type="password" minlength="10" maxlength="32" autocomplete="new-password" placeholder="再次输入密码" />
           </div>
         </div>
         <button type="button" class="btn primary" style="width: 100%; margin-top: 18px" :disabled="loading" @click="doResetPassword">
@@ -137,7 +137,7 @@ const goToResetStep = async () => {
 const doResetPassword = async () => {
   if (loading.value) return
   clearError()
-  if (!newPassword.value || newPassword.value.length < 6) { showError('新密码至少需要6位'); return }
+  if (!newPassword.value || newPassword.value.length < 10 || newPassword.value.length > 32) { showError('新密码需要10至32位'); return }
   if (newPassword.value !== confirmPassword.value) { showError('两次输入的密码不一致'); return }
   loading.value = true
   try {

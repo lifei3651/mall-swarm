@@ -66,7 +66,7 @@ class ShopAccountSetupSecurityTest {
     private ShopAccountSetupDTO setup(String username) {
         ShopAccountSetupDTO dto = new ShopAccountSetupDTO();
         dto.setUsername(username);
-        dto.setPassword("secure888");
+        dto.setPassword("Secure!8888");
         return dto;
     }
 }

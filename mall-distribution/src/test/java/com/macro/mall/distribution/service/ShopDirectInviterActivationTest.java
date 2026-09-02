@@ -77,15 +77,15 @@ class ShopDirectInviterActivationTest {
         AdminMemberCreateDTO dto = new AdminMemberCreateDTO();
         dto.setPhone("15500000006");
         dto.setUsername("member_account_6");
-        dto.setPassword("secure888");
+        dto.setPassword("Secure!8888");
         dto.setNickname("");
 
         authService.createAdminMember(dto);
 
         ArgumentCaptor<DmsShopMember> captor = ArgumentCaptor.forClass(DmsShopMember.class);
         verify(memberDao).insert(captor.capture());
-        assertTrue(BCrypt.checkpw("secure888", captor.getValue().getPasswordHash()));
-        assertNotEquals("secure888", captor.getValue().getPasswordHash());
+        assertTrue(BCrypt.checkpw("Secure!8888", captor.getValue().getPasswordHash()));
+        assertNotEquals("Secure!8888", captor.getValue().getPasswordHash());
         assertEquals("member_account_6", captor.getValue().getUsername());
         assertEquals("member_account_6", captor.getValue().getNickname());
     }

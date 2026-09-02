@@ -78,12 +78,22 @@
         <template #default="{ row }">
           <el-button type="primary" link @click="handleDetail(row)">详情</el-button>
           <el-button
-            v-if="row.status === 1 && store.hasPermission('finance:manage')"
+            v-if="row.status === 1 && [2, 3].includes(row.withdrawType) && store.hasPermission('finance:manage')"
             type="success"
             link
-            @click="handleConfirmPay(row)"
+            :loading="payoutLoadingId === row.id"
+            @click="handleStartPayout(row)"
           >
-            确认打款
+            发起渠道打款
+          </el-button>
+          <el-button
+            v-if="row.status === 2 && [2, 3].includes(row.withdrawType) && store.hasPermission('finance:manage')"
+            type="warning"
+            link
+            :loading="payoutLoadingId === row.id"
+            @click="handleReconcilePayout(row)"
+          >
+            核对渠道结果
           </el-button>
         </template>
       </el-table-column>
@@ -101,25 +111,6 @@
         @current-change="handleCurrentChange"
       />
     </div>
-
-    <!-- 确认打款对话框 -->
-    <el-dialog v-model="payDialogVisible" title="确认打款" width="400px">
-      <el-form :model="payForm" label-width="100px">
-        <el-form-item label="提现单号">
-          <el-input :value="payForm.withdrawNo" disabled />
-        </el-form-item>
-        <el-form-item label="提现金额">
-          <el-input :value="`¥${payForm.withdrawAmount}`" disabled />
-        </el-form-item>
-        <el-form-item label="打款流水号" required>
-          <el-input v-model="payForm.payNo" placeholder="请输入打款流水号" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="payDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitPay" :loading="submitLoading">确定</el-button>
-      </template>
-    </el-dialog>
 
     <el-dialog v-model="detailVisible" title="提现详情" width="700px">
       <el-descriptions :column="2" border>
@@ -146,7 +137,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { confirmPay, getWithdrawById, getWithdrawStats, listWithdraws } from '@/api/withdraw'
+import { getWithdrawById, getWithdrawStats, listWithdraws, reconcileWithdrawalPayout, startWithdrawalPayout } from '@/api/withdraw'
 import { useAppStore } from '@/store'
 import { memberSearchFailureMessage, memberSearchEmptyText, validateMemberSearch } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
@@ -155,8 +146,7 @@ import { formatDateTime, formatDateTimeCell } from '@/utils/dateTime'
 const loading = ref(false)
 const store = useAppStore()
 const route = useRoute()
-const submitLoading = ref(false)
-const payDialogVisible = ref(false)
+const payoutLoadingId = ref(null)
 const detailVisible = ref(false)
 const detail = ref({})
 const searchFeedback = ref('')
@@ -182,14 +172,6 @@ const stats = ref({
   pending: '0.00',
   success: '0.00',
   rejected: '0.00',
-})
-
-// 打款表单
-const payForm = ref({
-  id: null,
-  withdrawNo: '',
-  withdrawAmount: '',
-  payNo: '',
 })
 
 // 表格数据
@@ -241,41 +223,32 @@ const handleDetail = async (row) => {
   detailVisible.value = true
 }
 
-// 确认打款
-const handleConfirmPay = async (row) => {
-  const fullRow = (await getWithdrawById(row.id)).data || row
-  payForm.value = {
-    id: fullRow.id,
-    withdrawNo: fullRow.withdrawNo,
-    withdrawAmount: fullRow.withdrawAmount,
-    payNo: '',
-  }
-  payDialogVisible.value = true
-}
-
-// 提交打款
-const submitPay = async () => {
-  if (!payForm.value.payNo) {
-    ElMessage.warning('请输入打款流水号')
-    return
-  }
+const handleStartPayout = async (row) => {
   try {
     await ElMessageBox.confirm(
-      `确认已经实际打款 ¥${payForm.value.withdrawAmount}，流水号 ${payForm.value.payNo.trim()}？确认后该提现单将标记为已打款。`,
-      '确认实际打款',
-      { type: 'warning', confirmButtonText: '确认已打款', cancelButtonText: '返回核对' },
+      `将通过${row.withdrawTypeName}官方渠道发起 ¥${row.withdrawAmount} 转账。渠道受理不等于成功，系统只在官方结果核对通过后记为打款成功。`,
+      '发起渠道打款',
+      { type: 'warning', confirmButtonText: '确认发起', cancelButtonText: '返回核对' },
     )
-    submitLoading.value = true
-    await confirmPay(payForm.value.id, {
-      payNo: payForm.value.payNo.trim(),
-    })
-    ElMessage.success('确认打款成功')
-    payDialogVisible.value = false
-    fetchData()
+    payoutLoadingId.value = row.id
+    const result = (await startWithdrawalPayout(row.id)).data || {}
+    ElMessage.success(result.state === 'SUCCESS' ? '官方渠道已核验打款成功' : '渠道已受理，等待最终结果')
+    await fetchData()
   } catch (e) {
     // 取消
   } finally {
-    submitLoading.value = false
+    payoutLoadingId.value = null
+  }
+}
+
+const handleReconcilePayout = async (row) => {
+  payoutLoadingId.value = row.id
+  try {
+    const result = (await reconcileWithdrawalPayout(row.id)).data || {}
+    ElMessage.success(result.state === 'SUCCESS' ? '官方渠道已核验打款成功' : '已核对，当前仍未取得最终成功结果')
+    await fetchData()
+  } finally {
+    payoutLoadingId.value = null
   }
 }
 

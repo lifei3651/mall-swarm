@@ -6,10 +6,12 @@ import com.macro.mall.distribution.dto.WithdrawAuditDTO;
 import com.macro.mall.distribution.dto.WithdrawQueryDTO;
 import com.macro.mall.distribution.dto.WithdrawConfirmPayDTO;
 import com.macro.mall.distribution.service.WithdrawService;
+import com.macro.mall.distribution.service.WithdrawalPayoutService;
 import com.macro.mall.distribution.service.PerformanceService;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.vo.WithdrawRecordVO;
 import com.macro.mall.distribution.vo.WithdrawStatsVO;
+import com.macro.mall.distribution.vo.WithdrawalPayoutVO;
 import com.github.pagehelper.PageHelper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,6 +33,7 @@ import java.util.List;
 public class WithdrawController {
 
     private final WithdrawService withdrawService;
+    private final WithdrawalPayoutService withdrawalPayoutService;
     private final PerformanceService performanceService;
 
     @Operation(summary = "审核提现")
@@ -47,7 +50,8 @@ public class WithdrawController {
         return CommonResult.failed("审核失败");
     }
 
-    @Operation(summary = "确认打款")
+    @Deprecated
+    @Operation(summary = "旧人工确认打款入口（已安全停用）")
     @PostMapping("/confirm-pay/{id}")
     public CommonResult<Boolean> confirmPay(@PathVariable Long id,
                                             @Valid @RequestBody WithdrawConfirmPayDTO dto) {
@@ -56,6 +60,25 @@ public class WithdrawController {
             return CommonResult.success(true);
         }
         return CommonResult.failed("确认打款失败");
+    }
+
+    @Operation(summary = "发起微信或支付宝官方渠道打款")
+    @PostMapping("/{id}/payout/start")
+    public CommonResult<WithdrawalPayoutVO> startPayout(@PathVariable Long id) {
+        return CommonResult.success(withdrawalPayoutService.start(id));
+    }
+
+    @Operation(summary = "向官方渠道核对提现打款结果")
+    @PostMapping("/{id}/payout/reconcile")
+    public CommonResult<WithdrawalPayoutVO> reconcilePayout(@PathVariable Long id) {
+        return CommonResult.success(withdrawalPayoutService.reconcile(id));
+    }
+
+    @Operation(summary = "查询提现渠道打款状态")
+    @GetMapping("/{id}/payout")
+    public CommonResult<WithdrawalPayoutVO> payout(@PathVariable Long id) {
+        WithdrawalPayoutVO payout = withdrawalPayoutService.get(id);
+        return payout == null ? CommonResult.failed("尚未发起渠道打款") : CommonResult.success(payout);
     }
 
     @Operation(summary = "查询提现记录")

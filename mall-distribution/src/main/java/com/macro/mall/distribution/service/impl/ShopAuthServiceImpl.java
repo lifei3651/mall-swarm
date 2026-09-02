@@ -34,6 +34,8 @@ import com.macro.mall.distribution.enums.AgentSourceTypeEnum;
 import com.macro.mall.distribution.enums.PromotionJoinModeEnum;
 import com.macro.mall.distribution.util.PhoneNumberUtils;
 import com.macro.mall.distribution.util.MemberNicknameUtils;
+import com.macro.mall.distribution.security.MemberPasswordPolicy;
+import com.macro.mall.distribution.security.EffectiveMemberPolicy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -83,7 +85,11 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ShopAuthVO register(ShopRegisterDTO dto, String surface) {
-        return registerInternal(dto, true, normalizeSurface(surface, "team"));
+        String normalizedSurface = normalizeSurface(surface, "team");
+        if ("team".equals(normalizedSurface)) {
+            Asserts.fail("会员服务后台不提供账号注册，请使用已有商城账号登录");
+        }
+        return registerInternal(dto, true, normalizedSurface);
     }
 
     @Override
@@ -136,6 +142,9 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             if (inviter == null || !Integer.valueOf(1).equals(inviter.getStatus())) {
                 Asserts.fail("邀请码无效");
             }
+            if (!EffectiveMemberPolicy.isActive(inviter, agentService.getAgentByUserId(inviter.getUserId()))) {
+                Asserts.fail("邀请码无效");
+            }
             inviterId = inviter.getUserId();
         }
 
@@ -173,9 +182,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             Asserts.fail("登录账号不能与手机号相同");
         }
         String initialPassword = dto.getPassword() == null ? "" : dto.getPassword();
-        if (!initialPassword.isBlank() && (initialPassword.length() < 6 || initialPassword.length() > 32)) {
-            Asserts.fail("初始密码需要6至32位");
-        }
+        if (!initialPassword.isBlank()) MemberPasswordPolicy.validate(initialPassword, username, dto.getPhone());
         if (memberDao.selectByAccount(dto.getPhone()) != null) Asserts.fail("该手机号已被注册或用作登录账号");
         if (memberDao.selectByAccount(username) != null) Asserts.fail("登录账号已存在");
         String nickname = dto.getNickname() == null || dto.getNickname().isBlank()
@@ -254,6 +261,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             // 调整为非会员：取消推广资格（下级团队自动移交原上级，余额与历史数据保留）。
             if (agent == null) Asserts.fail("该账号尚未进入奖金体系，无需取消会员资格");
             agentService.deactivate(agent.getId(), reason.trim());
+            sessionDao.disableByMemberIdAndSurface(member.getId(), "team");
             return null;
         }
         if (AgentLevelEnum.getByValue(level) == null) Asserts.fail("会员级别不正确");
@@ -295,13 +303,13 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         if (member == null) Asserts.unauthorized("请先登录");
         if (dto == null) Asserts.fail("请输入登录账号");
         String username = normalizeLoginAccount(dto.getUsername());
-        if (dto.getPassword() == null || dto.getPassword().length() < 6) Asserts.fail("密码至少需要6位");
         DmsShopMember current = memberDao.selectByIdForUpdate(member.getId());
         if (current == null) Asserts.fail("会员不存在");
         if (current.getUsername() != null && !current.getUsername().isBlank()
                 && !Objects.equals(current.getUsername(), current.getPhone())) {
             Asserts.fail("登录账号已经设置，如需修改密码请使用账号安全功能");
         }
+        MemberPasswordPolicy.validate(dto.getPassword(), username, current.getPhone());
         DmsShopMember same = memberDao.selectByUsername(username);
         if (same != null && !same.getId().equals(current.getId())) Asserts.fail("登录账号已存在");
         if (memberDao.updateAccount(current.getId(), username, hash(dto.getPassword())) <= 0) {
@@ -319,11 +327,10 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         if (dto == null || dto.getCurrentPassword() == null || dto.getCurrentPassword().isBlank()) {
             Asserts.fail("请输入当前登录密码");
         }
-        if (dto.getNewPassword() == null || dto.getNewPassword().length() < 6 || dto.getNewPassword().length() > 32) {
-            Asserts.fail("新登录密码需要6至32位");
-        }
         DmsShopMember current = memberDao.selectById(member.getId());
-        if (current == null || !checkPassword(dto.getCurrentPassword(), current.getPasswordHash())) {
+        if (current == null) Asserts.fail("会员不存在");
+        MemberPasswordPolicy.validate(dto.getNewPassword(), current.getUsername(), current.getPhone());
+        if (!checkPassword(dto.getCurrentPassword(), current.getPasswordHash())) {
             Asserts.fail("当前登录密码不正确");
         }
         if (checkPassword(dto.getNewPassword(), current.getPasswordHash())) {
@@ -533,6 +540,9 @@ public class ShopAuthServiceImpl implements ShopAuthService {
                 || Integer.valueOf(1).equals(inviter.getSystemAccount())) {
             Asserts.fail("邀请码无效");
         }
+        if (!EffectiveMemberPolicy.isActive(inviter, agentService.getAgentByUserId(inviter.getUserId()))) {
+            Asserts.fail("邀请码无效");
+        }
         return inviter;
     }
 
@@ -587,6 +597,10 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         if (!normalizeSurface(requiredSurface, "integrated").equals(session.getSurface())) {
             Asserts.fail("当前版本不提供余额互转，请使用三合一版");
         }
+        if ("team".equals(normalizeSurface(requiredSurface, "integrated"))) {
+            DmsShopMember member = memberDao.selectById(session.getMemberId());
+            requireSurfaceAccess(member, "team");
+        }
     }
 
     @Override
@@ -628,7 +642,9 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             Asserts.fail("会员不存在");
         }
         if (Integer.valueOf(target).equals(member.getStatus())) return true;
-        return memberDao.updateStatus(id, target) > 0;
+        boolean updated = memberDao.updateStatus(id, target) > 0;
+        if (updated && target == 0) sessionDao.disableByMemberId(id);
+        return updated;
     }
 
     @Override
@@ -641,10 +657,8 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         if (smsCode == null || smsCode.isBlank()) {
             Asserts.fail("验证码不能为空");
         }
-        if (newPassword == null || newPassword.length() < 6) {
-            Asserts.fail("密码至少需要6位");
-        }
-
+        // 弱密码无需消耗图形或短信验证码；账号相关校验在证明手机号归属后再补做。
+        MemberPasswordPolicy.validate(newPassword, null, phone);
         // 图形验证码和短信验证码都在最终提交时校验，获取短信不依赖填写顺序。
         loginCaptchaService.verify("shop", captchaId, captchaCode);
 
@@ -656,6 +670,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         if (member == null) {
             Asserts.fail("该手机号未注册");
         }
+        MemberPasswordPolicy.validate(newPassword, member.getUsername(), member.getPhone());
 
         // 更新密码（使用专用方法确保更新 password_hash 字段）
         memberDao.updatePassword(member.getId(), hash(newPassword));
@@ -714,9 +729,9 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     }
 
     private void requireSurfaceAccess(DmsShopMember member, String surface) {
-        if ("team".equals(normalizeSurface(surface, "public"))
-                && !Integer.valueOf(1).equals(member.getTeamOptIn())) {
-            Asserts.fail("当前账号未加入团队服务，请联系平台管理员核对处理");
+        if ("team".equals(normalizeSurface(surface, "public"))) {
+            EffectiveMemberPolicy.require(member,
+                    member == null ? null : agentService.getAgentByUserId(member.getUserId()));
         }
     }
 
@@ -726,9 +741,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         }
         String username = dto.getUsername() == null ? "" : dto.getUsername().trim();
         normalizeLoginAccount(username);
-        if (dto.getPassword() == null || dto.getPassword().length() < 6 || dto.getPassword().length() > 32) {
-            Asserts.fail("登录密码需为6至32位");
-        }
+        MemberPasswordPolicy.validate(dto.getPassword(), username, dto.getPhone());
     }
 
     private String normalizeLoginAccount(String value) {

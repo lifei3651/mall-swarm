@@ -189,30 +189,30 @@ class ShopFreightServiceTest {
         create.setPhone("13999110105");
         create.setUsername("member_13999110105");
         create.setNickname("密码修改会员");
-        create.setPassword("login123");
+        create.setPassword("Current!1234");
         DmsShopMember member = shopAuthService.createAdminMember(create);
 
         ShopPasswordChangeDTO wrong = new ShopPasswordChangeDTO();
         wrong.setCurrentPassword("wrong123");
-        wrong.setNewPassword("newpass123");
+        wrong.setNewPassword("Renewed!1234");
         assertThrows(ApiException.class, () -> shopAuthService.changePassword(member, wrong));
 
         ShopPasswordChangeDTO missingSms = new ShopPasswordChangeDTO();
-        missingSms.setCurrentPassword("login123");
-        missingSms.setNewPassword("newpass123");
+        missingSms.setCurrentPassword("Current!1234");
+        missingSms.setNewPassword("Renewed!1234");
         doThrow(new ApiException("请输入6位短信验证码")).when(smsVerificationService)
                 .verifyAndConsume(member.getPhone(), null, 8);
         assertThrows(ApiException.class, () -> shopAuthService.changePassword(member, missingSms));
-        assertTrue(BCrypt.checkpw("login123", memberDao.selectById(member.getId()).getPasswordHash()));
+        assertTrue(BCrypt.checkpw("Current!1234", memberDao.selectById(member.getId()).getPasswordHash()));
 
         ShopPasswordChangeDTO correct = new ShopPasswordChangeDTO();
-        correct.setCurrentPassword("login123");
-        correct.setNewPassword("newpass123");
+        correct.setCurrentPassword("Current!1234");
+        correct.setNewPassword("Renewed!1234");
         correct.setSmsCode("123456");
         assertTrue(shopAuthService.changePassword(member, correct));
         verify(smsVerificationService).verifyAndConsume(member.getPhone(), "123456", 8);
-        assertTrue(BCrypt.checkpw("newpass123", memberDao.selectById(member.getId()).getPasswordHash()));
-        assertFalse(BCrypt.checkpw("login123", memberDao.selectById(member.getId()).getPasswordHash()));
+        assertTrue(BCrypt.checkpw("Renewed!1234", memberDao.selectById(member.getId()).getPasswordHash()));
+        assertFalse(BCrypt.checkpw("Current!1234", memberDao.selectById(member.getId()).getPasswordHash()));
     }
 
     @Test

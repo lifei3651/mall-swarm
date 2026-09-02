@@ -23,7 +23,7 @@
         <el-form-item label="确认新密码" prop="confirmPassword">
           <el-input v-model="form.confirmPassword" type="password" show-password maxlength="64" autocomplete="new-password" />
         </el-form-item>
-        <el-button type="primary" size="large" :loading="saving" class="submit" @click="submit">保存新密码并进入后台</el-button>
+        <el-button type="primary" size="large" :loading="saving" class="submit" @click="submit">保存新密码并重新登录</el-button>
       </el-form>
     </el-card>
   </main>
@@ -33,9 +33,9 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { changeOwnPassword, getMe } from '@/api/auth'
+import { changeOwnPassword } from '@/api/auth'
 import { useAppStore } from '@/store'
-import { adminHomePath } from '@/utils/adminWorkspace'
+import { adminPortalForAccount, adminPortalLoginPath, saveAdminPortal } from '@/utils/adminPortal'
 
 const router = useRouter()
 const store = useAppStore()
@@ -66,12 +66,12 @@ const submit = async () => {
   await formRef.value?.validate()
   saving.value = true
   try {
+    const portal = saveAdminPortal(adminPortalForAccount(store.userInfo))
     await changeOwnPassword({ currentPassword: form.currentPassword, newPassword: form.newPassword })
-    const result = await getMe({ silentError: true })
-    store.setAuth(result.data || {})
+    store.logout()
     clearPasswords()
-    ElMessage.success('后台密码已更新')
-    await router.replace(adminHomePath(store.userInfo))
+    ElMessage.success('后台密码已更新，请使用新密码重新登录')
+    await router.replace(adminPortalLoginPath(portal))
   } finally {
     clearPasswords()
     saving.value = false

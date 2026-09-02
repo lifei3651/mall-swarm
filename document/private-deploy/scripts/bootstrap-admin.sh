@@ -15,7 +15,7 @@ admin_password=''
 admin_password_confirm=''
 cleanup() {
   stty echo 2>/dev/null || true
-  unset admin_password admin_password_confirm password_b64
+  unset admin_password admin_password_confirm password_hash password_hash_b64
 }
 trap cleanup EXIT
 trap 'cleanup; exit 130' HUP INT TERM
@@ -49,7 +49,16 @@ printf %s "$admin_password" | grep -q '[^A-Za-z0-9]' && groups=$((groups + 1)) |
 [ "$groups" -ge 3 ] || { echo "密码复杂度不足" >&2; exit 2; }
 
 username_b64=$(printf %s "$admin_username" | base64 | tr -d '\r\n')
-password_b64=$(printf %s "$admin_password" | base64 | tr -d '\r\n')
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps -q mall-distribution | grep -q . \
+  || { echo "商城服务尚未启动，无法安全生成 BCrypt 密码哈希" >&2; exit 1; }
+password_hash=$(printf %s "$admin_password" | docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" \
+  exec -T mall-distribution java -Dloader.main=com.macro.mall.distribution.security.AdminPasswordHashCli \
+  -cp /app/app.jar org.springframework.boot.loader.launch.PropertiesLauncher)
+case "$password_hash" in
+  '$2a$'*|'$2b$'*|'$2y$'*) ;;
+  *) echo "BCrypt 密码哈希生成失败" >&2; exit 1 ;;
+esac
+password_hash_b64=$(printf %s "$password_hash" | base64 | tr -d '\r\n')
 
 existing=$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T mysql \
   sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -NBe "SELECT COUNT(*) FROM ${MYSQL_DATABASE}.dms_admin_user"')
@@ -58,13 +67,13 @@ existing=$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T mysq
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T mysql \
   sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot "$MYSQL_DATABASE"' <<SQL
 SET @bootstrap_username = CONVERT(FROM_BASE64('$username_b64') USING utf8mb4);
-SET @bootstrap_password = CONVERT(FROM_BASE64('$password_b64') USING utf8mb4);
-SET @bootstrap_salt = LOWER(REPLACE(UUID(), '-', ''));
+SET @bootstrap_hash = CONVERT(FROM_BASE64('$password_hash_b64') USING utf8mb4);
 INSERT INTO dms_admin_user
-  (username, password_hash, salt, nickname, role_code, permissions, status, must_change_password)
+  (username, password_hash, salt, nickname, role_code, permissions, status, must_change_password,
+   credential_expires_at, credential_consumed_at)
 VALUES
-  (@bootstrap_username, SHA2(CONCAT(@bootstrap_password, ':', @bootstrap_salt), 256), @bootstrap_salt,
-   '首个管理员', 'SUPER_ADMIN', '*', 1, 1);
+  (@bootstrap_username, @bootstrap_hash, 'BCRYPT',
+   '首个管理员', 'SUPER_ADMIN', '*', 1, 1, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 24 HOUR), NULL);
 SQL
 
-echo "首个管理员已创建。首次登录后系统会强制改密，并自动迁移为 BCrypt。"
+echo "首个管理员已创建。初始密码24小时有效且只能登录一次，首次登录后必须立即设置正式密码。"

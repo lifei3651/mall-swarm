@@ -17,6 +17,7 @@ Page({
   login() { wx.navigateTo({ url: '/pages/login/index' }) },
   orders() { if (this.requireLogin()) wx.navigateTo({ url: '/pages/orders/index' }) },
   addresses() { if (this.requireLogin()) wx.navigateTo({ url: '/pages/address/index' }) },
+  payout() { if (this.requireLogin()) wx.navigateTo({ url: '/pages/payout/index' }) },
   service() { wx.showToast({ title: '售后入口随订单履约阶段开放', icon: 'none' }) },
   requireLogin() { if (this.data.loggedIn) return true; this.login(); return false },
   logout() {

@@ -376,7 +376,7 @@
       <el-alert title="这里重置的是商城登录密码，不是6位支付密码。原密码无法查看；重置后会员当前所有登录会话立即失效。" type="warning" :closable="false" show-icon />
       <el-form :model="passwordForm" label-width="115px" class="level-form">
         <el-form-item label="会员"><el-input :model-value="`${passwordForm.memberName}（${passwordForm.memberAccount}）`" disabled /></el-form-item>
-        <el-form-item label="新登录密码" required><el-input v-model="passwordForm.newPassword" type="password" show-password maxlength="32" autocomplete="new-password" placeholder="6至32位" /></el-form-item>
+        <el-form-item label="新登录密码" required><el-input v-model="passwordForm.newPassword" type="password" show-password minlength="10" maxlength="32" autocomplete="new-password" placeholder="10至32位" /></el-form-item>
         <el-form-item label="再次确认" required><el-input v-model="passwordForm.confirmPassword" type="password" show-password maxlength="32" autocomplete="new-password" placeholder="请再次输入新密码" /></el-form-item>
         <el-form-item label="重置原因" required><el-input v-model="passwordForm.reason" type="textarea" :rows="3" maxlength="300" show-word-limit placeholder="例如：客户完成身份核实后申请后台重置" /></el-form-item>
         <el-form-item label="管理员密码" required>
@@ -399,7 +399,7 @@
         </el-form-item>
         <el-form-item label="手机号" required><el-input v-model="createForm.phone" maxlength="11" inputmode="numeric" placeholder="请输入11位手机号" @input="value => createForm.phone = normalizeMainlandPhone(value)" /></el-form-item>
         <el-form-item label="初始登录密码">
-          <el-input v-model="createForm.password" type="password" show-password maxlength="32" autocomplete="new-password" placeholder="选填，6至32位" />
+          <el-input v-model="createForm.password" type="password" show-password minlength="10" maxlength="32" autocomplete="new-password" placeholder="选填，10至32位" />
           <div class="form-tip">填写后可使用登录账号或手机号加密码登录；留空则先使用手机号验证码登录。</div>
         </el-form-item>
         <el-form-item label="昵称">
@@ -716,7 +716,7 @@ const submitPhoneUpdate = async () => {
 
 const submitPasswordReset = async () => {
   const data = passwordForm.value
-  if (!data.newPassword || data.newPassword.length < 6 || data.newPassword.length > 32) return ElMessage.warning('新登录密码需要6至32位')
+  if (!data.newPassword || data.newPassword.length < 10 || data.newPassword.length > 32) return ElMessage.warning('新登录密码需要10至32位')
   if (data.newPassword !== data.confirmPassword) return ElMessage.warning('两次输入的新登录密码不一致')
   if (!data.reason.trim()) return ElMessage.warning('请填写重置登录密码的原因')
   if (!data.adminPassword) return ElMessage.warning('请输入当前管理员登录密码进行二次验证')
@@ -898,7 +898,7 @@ const submitCreate = async () => {
   if (username === createForm.value.phone) return ElMessage.warning('登录账号不能与手机号相同')
   createForm.value.username = username
   createForm.value.nickname = createForm.value.nickname.trim()
-  if (createForm.value.password && (createForm.value.password.length < 6 || createForm.value.password.length > 32)) return ElMessage.warning('初始密码需要6至32位')
+  if (createForm.value.password && (createForm.value.password.length < 10 || createForm.value.password.length > 32)) return ElMessage.warning('初始密码需要10至32位')
   if (createForm.value.activateDistribution && !createForm.value.reason.trim()) return ElMessage.warning('请填写开通和调级原因')
   createLoading.value = true
   try {

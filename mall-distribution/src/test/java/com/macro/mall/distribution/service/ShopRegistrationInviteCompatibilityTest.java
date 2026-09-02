@@ -12,6 +12,7 @@ import com.macro.mall.distribution.entity.DmsTenant;
 import com.macro.mall.distribution.service.impl.ShopAuthServiceImpl;
 import com.macro.mall.distribution.vo.AgentInfoVO;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
@@ -31,6 +32,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class ShopRegistrationInviteCompatibilityTest {
@@ -45,11 +47,20 @@ class ShopRegistrationInviteCompatibilityTest {
     @Mock private DmsTenantDao tenantDao;
     @InjectMocks private ShopAuthServiceImpl authService;
 
+    @BeforeEach
+    void activeInviter() {
+        AgentInfoVO agent = new AgentInfoVO();
+        agent.setUserId(880088L);
+        agent.setStatus(1);
+        agent.setAgentLevel(1);
+        lenient().when(agentService.getAgentByUserId(880088L)).thenReturn(agent);
+    }
+
     @Test
     void registrationRejectsMissingRequiredUsernameBeforeWritingMember() {
         ShopRegisterDTO dto = new ShopRegisterDTO();
         dto.setPhone("15500000123");
-        dto.setPassword("secure888");
+        dto.setPassword("Secure!8888");
 
         ApiException error = assertThrows(ApiException.class, () -> authService.register(dto));
 
@@ -112,6 +123,7 @@ class ShopRegistrationInviteCompatibilityTest {
         AgentInfoVO legacyAgent = new AgentInfoVO();
         legacyAgent.setUserId(880088L);
         legacyAgent.setStatus(1);
+        legacyAgent.setAgentLevel(1);
         when(agentService.getAgentByInviteCode("OLDLINK1")).thenReturn(legacyAgent);
 
         DmsShopMember inviter = new DmsShopMember();
@@ -123,7 +135,7 @@ class ShopRegistrationInviteCompatibilityTest {
         dto.setPhone(phone);
         dto.setUsername("new_user_123");
         dto.setNickname("该字段不再用于注册昵称");
-        dto.setPassword("secure888");
+        dto.setPassword("Secure!8888");
         dto.setSmsCode("123456");
         dto.setInviteCode(" oldlink1 ");
 
@@ -143,7 +155,7 @@ class ShopRegistrationInviteCompatibilityTest {
 
         ApiException error = assertThrows(ApiException.class, () -> authService.register(dto, "team"));
 
-        assertEquals("请输入邀请码", error.getMessage());
+        assertEquals("会员服务后台不提供账号注册，请使用已有商城账号登录", error.getMessage());
         verify(memberDao, never()).insert(any(DmsShopMember.class));
     }
 
@@ -241,7 +253,7 @@ class ShopRegistrationInviteCompatibilityTest {
 
         ApiException error = assertThrows(ApiException.class, () -> authService.login(dto, "team"));
 
-        assertEquals("当前账号未加入团队服务，请联系平台管理员核对处理", error.getMessage());
+        assertEquals("当前账号暂未开通会员服务，如有疑问请联系客服核对会员资格。", error.getMessage());
         verify(memberDao, never()).updateLastLoginTime(12L);
         verify(sessionDao, never()).insert(any());
     }
@@ -251,7 +263,7 @@ class ShopRegistrationInviteCompatibilityTest {
         dto.setPhone(phone);
         dto.setUsername(username);
         dto.setNickname("新用户");
-        dto.setPassword("secure888");
+        dto.setPassword("Secure!8888");
         dto.setSmsCode("123456");
         dto.setCaptchaId("captcha-id");
         dto.setCaptchaCode("A1B2");

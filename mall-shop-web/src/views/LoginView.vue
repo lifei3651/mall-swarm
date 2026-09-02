@@ -62,8 +62,8 @@
             <p v-if="loginFieldErrors.code" class="field-error">{{ loginFieldErrors.code }}</p>
           </div>
           <div v-if="unregisteredSmsPhone" class="sms-register-notice" role="alert">
-            <span>该手机号尚未注册，请先注册账号</span>
-            <button type="button" @click="startRegistrationFromSms">去注册</button>
+            <span>{{ isTeamSurface ? '当前手机号没有可用的商城账号，请联系客服核对' : '该手机号尚未注册，请先注册账号' }}</span>
+            <button v-if="!isTeamSurface" type="button" @click="startRegistrationFromSms">去注册</button>
           </div>
         </template>
 
@@ -149,8 +149,8 @@
               class="field"
               :class="{ 'has-error': fieldErrors.password }"
               type="password"
-              placeholder="请输入6至32位密码"
-              minlength="6"
+              placeholder="请输入10至32位密码"
+              minlength="10"
               maxlength="32"
               autocomplete="new-password"
               aria-required="true"
@@ -228,8 +228,8 @@
       </button>
 
       <div v-if="mode === 'login'" class="account-links">
-        <button type="button" @click="switchMode('register')">注册新账号</button>
-        <span></span>
+        <button v-if="!isTeamSurface" type="button" @click="switchMode('register')">注册新账号</button>
+        <span v-if="!isTeamSurface"></span>
         <RouterLink to="/forgot-password">忘记密码</RouterLink>
       </div>
 
@@ -465,7 +465,7 @@ const validateRegisterField = (field) => {
     fieldErrors.value.captchaCode = '请输入4位图形验证码'
   } else if (field === 'password') {
     const length = form.password?.length || 0
-    if (length < 6 || length > 32) fieldErrors.value.password = '登录密码需为6至32位'
+    if (length < 10 || length > 32) fieldErrors.value.password = '登录密码需为10至32位'
   }
   if (fieldErrors.value[field]) scheduleRegisterErrorsClear()
   return !fieldErrors.value[field]

@@ -191,33 +191,9 @@ public class WithdrawServiceImpl implements WithdrawService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public boolean confirmPay(Long id, String payNo) {
-        DmsWithdrawRecord record = withdrawDao.selectByIdForUpdate(id);
-        if (record == null) {
-            Asserts.fail("提现记录不存在");
-        }
-        if (!WithdrawStatusEnum.AUDIT_PASSED.getValue().equals(record.getStatus())) {
-            Asserts.fail("提现状态不正确，无法确认打款");
-        }
-
-        // 更新打款信息
-        record.setStatus(WithdrawStatusEnum.PAY_SUCCESS.getValue());
-        record.setPayTime(LocalDateTime.now());
-        record.setPayNo(payNo);
-
-        accountService.addWithdrawnAmount(record.getAgentId(), record.getWithdrawAmount());
-        withdrawDao.update(record);
-        publishWithdrawal(record, "WITHDRAW_PAID");
-
-        operationLogService.log("WITHDRAW", "PAY_CONFIRMED", "WITHDRAW_RECORD", String.valueOf(record.getId()),
-                "status=" + WithdrawStatusEnum.AUDIT_PASSED.getValue(),
-                "status=" + WithdrawStatusEnum.PAY_SUCCESS.getValue() + ";payNo=" + payNo,
-                "财务确认提现打款");
-
-        log.info("确认打款成功: id={}, withdrawNo={}, agentId={}, amount={}, payNo={}",
-                id, record.getWithdrawNo(), record.getAgentId(), record.getWithdrawAmount(), payNo);
-        return true;
+        Asserts.fail("人工填写流水号确认打款的入口已停用，请使用微信或支付宝官方渠道打款并核对结果");
+        return false;
     }
 
     private void publishWithdrawal(DmsWithdrawRecord record, String eventType) {

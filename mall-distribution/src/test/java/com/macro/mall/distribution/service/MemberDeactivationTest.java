@@ -45,6 +45,7 @@ class MemberDeactivationTest {
     private static final long USER_B = 910000000000000002L;
 
     @Autowired private ShopAuthService shopAuthService;
+    @Autowired private ShopService shopService;
     @Autowired private AgentService agentService;
     @Autowired private MemberAssetService memberAssetService;
     @Autowired private DmsShopMemberDao shopMemberDao;
@@ -111,6 +112,17 @@ class MemberDeactivationTest {
                 () -> agentService.deactivate(agentAId, "测试取消"));
         assertTrue(error.getMessage().contains("待结算奖金"));
         assertNotNull(agentService.getAgentByUserId(USER_A));
+    }
+
+    @Test
+    void inactiveAgentCannotReadTeamPerformanceThroughRetainedShoppingSession() {
+        jdbcTemplate.update("UPDATE dms_agent SET status = 2 WHERE user_id = ?", USER_A);
+
+        var profile = shopService.getProfilePerformance(shopMemberDao.selectByUserId(USER_A));
+
+        assertFalse(profile.getCanViewTeamPerformance());
+        assertNull(profile.getPerformance());
+        assertNull(profile.getAgent());
     }
 
     private AssetChangeDTO change(Long userId, BigDecimal amount, String bizId, String requestId) {

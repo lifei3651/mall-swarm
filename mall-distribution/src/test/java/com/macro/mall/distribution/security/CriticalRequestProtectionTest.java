@@ -41,7 +41,7 @@ class CriticalRequestProtectionTest {
 
         assertTrue(messages.contains("请输入正确的11位手机号"));
         assertTrue(messages.contains("登录账号需为4至20位，必须以英文字母开头且仅支持字母、数字和下划线"));
-        assertTrue(messages.contains("登录密码需为6至32位"));
+        assertTrue(messages.contains("登录密码需为10至32位"));
         assertTrue(messages.contains("短信验证码必须是6位数字"));
     }
 

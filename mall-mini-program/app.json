@@ -6,6 +6,7 @@
     "pages/cart/index",
     "pages/login/index",
     "pages/profile/index",
+    "pages/payout/index",
     "pages/orders/index",
     "pages/checkout/index",
     "pages/address/index"

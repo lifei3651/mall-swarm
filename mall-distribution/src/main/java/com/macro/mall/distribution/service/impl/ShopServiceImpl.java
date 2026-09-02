@@ -45,6 +45,7 @@ import com.macro.mall.distribution.service.LiveRoomService;
 import com.macro.mall.distribution.service.ContentModerationService;
 import com.macro.mall.distribution.service.BrandCultureImagePolicy;
 import com.macro.mall.distribution.security.AdminContext;
+import com.macro.mall.distribution.security.EffectiveMemberPolicy;
 import com.macro.mall.distribution.vo.OrderFinanceVO;
 import com.macro.mall.distribution.vo.ShopHomeVO;
 import com.macro.mall.distribution.vo.ShopLegalConfigVO;
@@ -1929,11 +1930,11 @@ public class ShopServiceImpl implements ShopService {
         }
         DmsAgent agent = agentDao.selectByUserId(member.getUserId());
         vo.setMember(member);
-        vo.setAgent(agent);
-        if (agent == null) {
+        if (!EffectiveMemberPolicy.isActive(member, agent)) {
             vo.setCanViewTeamPerformance(false);
             return vo;
         }
+        vo.setAgent(agent);
         boolean canView = auditService.canViewTeamPerformance(agent.getId(), agent.getUserId());
         vo.setCanViewTeamPerformance(canView);
         if (canView) {
@@ -3046,6 +3047,9 @@ public class ShopServiceImpl implements ShopService {
         // 已经进入会员关系体系的老账号曾经生成过第二套邀请码。继续展示关系体系中的
         // 历史邀请码，避免已经发出的二维码和注册链接失效；新账号激活后两处邀请码一致。
         DmsAgent selfAgent = agentDao.selectByUserId(member.getUserId());
+        if (!EffectiveMemberPolicy.isActive(member, selfAgent)) {
+            Asserts.fail(EffectiveMemberPolicy.ACCESS_DENIED_MESSAGE);
+        }
         String publicInviteCode = selfAgent != null && selfAgent.getInviteCode() != null
                 && !selfAgent.getInviteCode().isBlank()
                 ? selfAgent.getInviteCode() : member.getInviteCode();
@@ -3084,7 +3088,8 @@ public class ShopServiceImpl implements ShopService {
                 inviter = memberDao.selectByUserId(legacyAgent.getUserId());
             }
         }
-        if (inviter == null || !Integer.valueOf(1).equals(inviter.getStatus())) {
+        DmsAgent effectiveAgent = inviter == null ? null : agentDao.selectByUserId(inviter.getUserId());
+        if (!EffectiveMemberPolicy.isActive(inviter, effectiveAgent)) {
             preview.put("valid", false);
             preview.put("message", "未找到该邀请码，请向邀请人核对");
             return preview;

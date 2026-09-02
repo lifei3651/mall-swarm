@@ -6,6 +6,7 @@ import com.macro.mall.distribution.dao.DmsTenantDao;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsShopMemberSession;
 import com.macro.mall.distribution.entity.DmsTenant;
+import com.macro.mall.distribution.vo.AgentInfoVO;
 import com.macro.mall.distribution.service.impl.ShopAuthServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -36,6 +37,11 @@ class ShopWechatRegistrationServiceTest {
         inviter.setStatus(1);
         inviter.setSystemAccount(0);
         when(memberDao.selectByInviteCode("ABCD1234")).thenReturn(inviter);
+        AgentInfoVO activeInviter = new AgentInfoVO();
+        activeInviter.setUserId(1000L);
+        activeInviter.setStatus(1);
+        activeInviter.setAgentLevel(1);
+        when(agentService.getAgentByUserId(1000L)).thenReturn(activeInviter);
         when(memberDao.insert(any())).thenAnswer(invocation -> {
             DmsShopMember member = invocation.getArgument(0);
             member.setId(20L);

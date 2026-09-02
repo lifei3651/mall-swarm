@@ -404,6 +404,31 @@ CREATE TABLE `dms_withdraw_record` (
   KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='提现记录表';
 
+DROP TABLE IF EXISTS `dms_withdrawal_payout`;
+CREATE TABLE `dms_withdrawal_payout` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `withdraw_id` bigint NOT NULL COMMENT '提现记录ID',
+  `withdraw_no` varchar(64) NOT NULL COMMENT '提现单号',
+  `attempt_no` int NOT NULL DEFAULT 1 COMMENT '仅在官方明确失败后递增',
+  `request_no` varchar(64) NOT NULL COMMENT '发送给官方渠道的幂等业务单号',
+  `channel` varchar(16) NOT NULL COMMENT 'WECHAT/ALIPAY',
+  `state` varchar(32) NOT NULL COMMENT 'PROCESSING/WAIT_USER_CONFIRM/SUCCESS/FAILED/UNKNOWN',
+  `provider_status` varchar(32) DEFAULT NULL COMMENT '渠道原始状态码',
+  `provider_order_no` varchar(128) DEFAULT NULL COMMENT '渠道打款单号',
+  `amount` decimal(10,2) NOT NULL COMMENT '渠道请求金额快照',
+  `recipient_hash` char(64) DEFAULT NULL COMMENT '渠道及收款身份不可逆摘要',
+  `response_digest` char(64) DEFAULT NULL COMMENT '核验响应关键字段摘要',
+  `failure_code` varchar(64) DEFAULT NULL COMMENT '安全清洗后的失败码',
+  `confirmation_package` varchar(2048) DEFAULT NULL COMMENT '微信用户确认包（应用层加密）',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_withdrawal_payout_withdraw_id` (`withdraw_id`),
+  UNIQUE KEY `uk_withdrawal_payout_request_no` (`request_no`),
+  UNIQUE KEY `uk_withdrawal_payout_provider_order_no` (`provider_order_no`),
+  KEY `idx_withdrawal_payout_state` (`state`,`update_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='会员奖金提现官方渠道打款证据';
+
 -- ============================================================
 -- 7. 代理变更日志表 (dms_agent_change_log)
 -- 记录代理切线、升级等变更操作
@@ -819,6 +844,7 @@ CREATE TABLE `dms_admin_user` (
   `lock_time` datetime DEFAULT NULL COMMENT '密码错误锁定时间',
   `must_change_password` tinyint NOT NULL DEFAULT 0 COMMENT '是否必须先修改后台初始密码：0否 1是',
   `credential_expires_at` datetime DEFAULT NULL COMMENT '一次性临时凭据到期时间；正式密码为空',
+  `credential_consumed_at` datetime DEFAULT NULL COMMENT '一次性临时凭据首次成功登录消费时间',
   `default_logistics_company` varchar(50) DEFAULT NULL COMMENT '当前后台账号导单默认物流公司',
   `last_login_time` datetime DEFAULT NULL COMMENT '最后登录时间',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',

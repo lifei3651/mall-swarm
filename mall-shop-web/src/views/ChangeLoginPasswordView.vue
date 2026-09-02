@@ -18,7 +18,7 @@
         </div>
         <p v-if="maskedPhone" class="phone-hint">验证码将发送至 {{ maskedPhone }}</p>
       </div>
-      <div class="form-item"><label>新登录密码</label><input v-model="form.newPassword" class="field" type="password" autocomplete="new-password" placeholder="6至32位" /></div>
+      <div class="form-item"><label>新登录密码</label><input v-model="form.newPassword" class="field" type="password" minlength="10" maxlength="32" autocomplete="new-password" placeholder="10至32位" /></div>
       <div class="form-item"><label>确认新登录密码</label><input v-model="confirmPwd" class="field" type="password" autocomplete="new-password" placeholder="请再次输入" /></div>
       <button class="btn primary save-btn" :disabled="saving" @click="save">{{ saving ? '保存中' : '修改登录密码' }}</button>
       <RouterLink class="forgot-link" to="/forgot-password">忘记当前密码？使用手机验证码找回</RouterLink>
@@ -96,7 +96,7 @@ const save = async () => {
   message.value = ''
   if (!form.value.currentPassword) return showMessage('请输入当前登录密码')
   if (!/^\d{6}$/.test(form.value.smsCode)) return showMessage('请输入6位短信验证码')
-  if (form.value.newPassword.length < 6 || form.value.newPassword.length > 32) return showMessage('新登录密码需要6至32位')
+  if (form.value.newPassword.length < 10 || form.value.newPassword.length > 32) return showMessage('新登录密码需要10至32位')
   if (form.value.newPassword !== confirmPwd.value) return showMessage('两次输入的新登录密码不一致')
   saving.value = true
   try {

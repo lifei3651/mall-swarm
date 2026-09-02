@@ -13,6 +13,7 @@ import com.macro.mall.distribution.service.AgentService;
 import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.vo.AgentInfoVO;
 import com.macro.mall.distribution.util.PhoneNumberUtils;
+import com.macro.mall.distribution.security.MemberPasswordPolicy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,11 +70,8 @@ public class AdminMemberSecurityServiceImpl implements AdminMemberSecurityServic
     @Transactional(rollbackFor = Exception.class)
     public boolean resetLoginPassword(Long memberId, AdminMemberPasswordResetDTO dto) {
         DmsShopMember member = requireMember(memberId);
-        if (dto == null || dto.getNewPassword() == null
-                || dto.getNewPassword().length() < 6 || dto.getNewPassword().length() > 32) {
-            Asserts.fail("新登录密码需要6至32位");
-        }
-        if (dto.getNewPassword().isBlank()) Asserts.fail("新登录密码不能全为空格");
+        if (dto == null) Asserts.fail("请输入新登录密码");
+        MemberPasswordPolicy.validate(dto.getNewPassword(), member.getUsername(), member.getPhone());
         if (dto.getReason() == null || dto.getReason().trim().isEmpty()) {
             Asserts.fail("请填写重置登录密码的原因");
         }

@@ -13,7 +13,7 @@
           </div>
           <div class="identity-actions">
             <RouterLink to="/profile/settings" class="identity-action"><Settings :size="16" />设置</RouterLink>
-            <button type="button" class="identity-action" @click="openInvite"><Gift :size="16" />邀请</button>
+            <button v-if="activeAgent" type="button" class="identity-action" @click="openInvite"><Gift :size="16" />邀请</button>
           </div>
         </div>
         <div class="identity-stats" :class="{ 'without-team-performance': !showTeamPerformance }">
@@ -144,7 +144,11 @@ const rankMap = {
   7: { name: '三星董事', icon: Sparkles, className: 'rank-7' },
   8: { name: '合伙人', icon: Crown, className: 'rank-8' },
 }
-const activeAgent = computed(() => Number(profile.value.agent?.status || 0) === 1 ? profile.value.agent : null)
+const activeAgent = computed(() => {
+  const agent = profile.value.agent
+  const level = Number(agent?.agentLevel || 0)
+  return Number(agent?.status || 0) === 1 && level >= 1 && level <= 8 ? agent : null
+})
 const identityInfo = computed(() => rankMap[Number(activeAgent.value?.agentLevel || 0)] || rankMap[0])
 const memberName = computed(() => profile.value.member?.nickname || profile.value.agent?.agentName || '商城用户')
 const accountName = computed(() => profile.value.member?.username || profile.value.member?.phone || '-')

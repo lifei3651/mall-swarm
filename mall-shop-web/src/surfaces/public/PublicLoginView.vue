@@ -38,9 +38,9 @@
           <label for="public-register-account">登录账号</label>
           <input id="public-register-account" v-model="registerForm.username" autocomplete="username" maxlength="20" placeholder="4至20位，以英文字母开头" @input="normalizeAccount" />
           <label for="public-register-password">登录密码</label>
-          <input id="public-register-password" v-model="registerForm.password" type="password" autocomplete="new-password" minlength="6" maxlength="32" placeholder="请输入6至32位密码" />
+          <input id="public-register-password" v-model="registerForm.password" type="password" autocomplete="new-password" minlength="10" maxlength="32" placeholder="请输入10至32位密码" />
           <label for="public-register-confirm">确认登录密码</label>
-          <input id="public-register-confirm" v-model="confirmPassword" type="password" autocomplete="new-password" minlength="6" maxlength="32" placeholder="请再次输入登录密码" />
+          <input id="public-register-confirm" v-model="confirmPassword" type="password" autocomplete="new-password" minlength="10" maxlength="32" placeholder="请再次输入登录密码" />
           <label for="public-register-invite">邀请码 <span class="optional-mark">选填</span></label>
           <div class="inline-field invite-field">
             <input
@@ -273,7 +273,7 @@ const validate = () => {
     if (!isValidMainlandPhone(registerForm.phone)) return '请输入正确的11位手机号'
     const accountError = validateLoginAccount(registerForm.username)
     if (accountError) return accountError
-    if (registerForm.password.length < 6 || registerForm.password.length > 32) return '登录密码需为6至32位'
+    if (registerForm.password.length < 10 || registerForm.password.length > 32) return '登录密码需为10至32位'
     if (registerForm.password !== confirmPassword.value) return '两次输入的登录密码不一致'
     if (!/^\d{6}$/.test(registerForm.smsCode)) return '请输入6位短信验证码'
     if (!captcha.id || !/^[A-Za-z0-9]{4}$/.test(captcha.code)) return '请输入4位图形验证码'

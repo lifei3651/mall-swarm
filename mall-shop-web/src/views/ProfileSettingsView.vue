@@ -28,7 +28,7 @@
       <h3>设置登录账号</h3>
       <p>该账号用于密码登录，保存后不能自行修改。</p>
       <input v-model="accountForm.username" class="field" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="4至20位，以英文字母开头" @input="handleAccountInput" />
-      <input v-model="accountForm.password" class="field" type="password" maxlength="32" autocomplete="new-password" placeholder="设置6至32位登录密码" />
+      <input v-model="accountForm.password" class="field" type="password" minlength="10" maxlength="32" autocomplete="new-password" placeholder="设置10至32位登录密码" />
       <button type="button" class="btn primary" :disabled="savingAccount" @click="saveAccount">{{ savingAccount ? '保存中' : '保存登录账号' }}</button>
     </section>
 
@@ -193,7 +193,7 @@ const handleAccountInput = () => { accountForm.value.username = normalizeLoginAc
 const saveAccount = async () => {
   const accountError = validateLoginAccount(accountForm.value.username)
   if (accountError) return showMessage(accountError)
-  if (accountForm.value.password.length < 6 || accountForm.value.password.length > 32) return showMessage('登录密码需要6至32位')
+  if (accountForm.value.password.length < 10 || accountForm.value.password.length > 32) return showMessage('登录密码需要10至32位')
   savingAccount.value = true
   try {
     await setupAccount(accountForm.value)

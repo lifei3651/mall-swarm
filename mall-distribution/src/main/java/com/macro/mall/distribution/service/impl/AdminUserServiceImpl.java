@@ -185,9 +185,10 @@ public class AdminUserServiceImpl implements AdminUserService {
         rejectReusedPassword(current, dto.getNewPassword());
         boolean updated = adminUserDao.updatePassword(current.getId(), BCrypt.hashpw(dto.getNewPassword()), BCRYPT_MARKER, 0) > 0;
         if (updated) {
+            adminSessionDao.disableByAdminId(current.getId());
             operationLogService.log("ADMIN_USER", "SELF_PASSWORD_CHANGE", "ADMIN_USER", String.valueOf(current.getId()),
                     "password=unchanged;mustChangePassword=" + current.getMustChangePassword(),
-                    "password=changed;mustChangePassword=0", "管理员自行修改后台密码");
+                    "password=changed;mustChangePassword=0;sessions=revoked", "管理员自行修改后台密码并撤销全部会话");
         }
         return updated;
     }

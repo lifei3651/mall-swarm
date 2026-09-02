@@ -42,6 +42,8 @@ public class AdminAuthServiceImpl implements AdminAuthService {
     private final LoginCaptchaService loginCaptchaService;
     @Autowired(required = false)
     private DmsMerchantDao merchantDao;
+    @Autowired(required = false)
+    private AdminLoginTransactionService loginTransactionService;
 
     /** 管理后台默认保持7天；高风险资金操作仍使用独立二次验证。 */
     @Value("${admin.security.session-hours:168}")
@@ -87,9 +89,9 @@ public class AdminAuthServiceImpl implements AdminAuthService {
             Asserts.fail("账号或密码错误");
         }
         if (Integer.valueOf(1).equals(admin.getMustChangePassword())
-                && admin.getCredentialExpiresAt() != null
-                && !admin.getCredentialExpiresAt().isAfter(LocalDateTime.now())) {
-            Asserts.fail("一次性临时密码已过期，请联系平台或商户负责人重新生成");
+                && (admin.getCredentialExpiresAt() == null
+                || !admin.getCredentialExpiresAt().isAfter(LocalDateTime.now()))) {
+            Asserts.fail("一次性临时密码已使用或已过期，请联系平台或商户负责人重新生成");
         }
         if (!BCRYPT_MARKER.equals(admin.getSalt())) {
             adminUserDao.updatePassword(admin.getId(), BCrypt.hashpw(dto.getPassword()), BCRYPT_MARKER,
@@ -99,7 +101,6 @@ public class AdminAuthServiceImpl implements AdminAuthService {
             Asserts.fail("后台账号已禁用");
         }
         requireMerchantAccountEnabled(admin, false);
-        adminUserDao.updateLastLoginTime(admin.getId());
         return createSession(admin);
     }
 
@@ -207,6 +208,23 @@ public class AdminAuthServiceImpl implements AdminAuthService {
     }
 
     private AdminAuthVO createSession(DmsAdminUser admin) {
+        if (loginTransactionService != null) {
+            AdminLoginTransactionService.IssuedSession issued = loginTransactionService.issue(
+                    admin, sessionHours, maxActiveSessions);
+            AdminAuthVO vo = new AdminAuthVO();
+            vo.setToken(issued.token());
+            vo.setExpireTime(issued.expireTime());
+            vo.setAdmin(sanitize(admin));
+            vo.setPermissions(permissions(admin));
+            return vo;
+        }
+        // 仅供不启动 Spring 的单元测试使用；生产始终走上面的事务服务。
+        LocalDateTime now = LocalDateTime.now();
+        if (Integer.valueOf(1).equals(admin.getMustChangePassword())
+                && adminUserDao.consumeTemporaryCredential(admin.getId(), now) != 1) {
+            Asserts.fail("一次性临时密码已使用或已过期，请联系平台或商户负责人重新生成");
+        }
+        adminUserDao.updateLastLoginTime(admin.getId());
         DmsAdminSession session = new DmsAdminSession();
         session.setAdminId(admin.getId());
         session.setUsername(admin.getUsername());

@@ -14,6 +14,6 @@ public class ShopAccountSetupDTO implements Serializable {
     private String username;
     @ToString.Exclude
     @NotBlank(message = "请输入登录密码")
-    @Size(min = 6, max = 32, message = "登录密码需为6至32位")
+    @Size(min = 10, max = 32, message = "登录密码需为10至32位")
     private String password;
 }

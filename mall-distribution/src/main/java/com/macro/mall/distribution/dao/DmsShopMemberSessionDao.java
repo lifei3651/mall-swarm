@@ -17,5 +17,7 @@ public interface DmsShopMemberSessionDao {
 
     int disableByMemberId(@Param("memberId") Long memberId);
 
+    int disableByMemberIdAndSurface(@Param("memberId") Long memberId, @Param("surface") String surface);
+
     List<DmsShopMemberSession> selectActiveByMemberId(@Param("memberId") Long memberId);
 }

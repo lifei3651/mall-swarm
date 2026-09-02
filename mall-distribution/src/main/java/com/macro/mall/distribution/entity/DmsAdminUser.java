@@ -40,6 +40,9 @@ public class DmsAdminUser implements Serializable {
     /** 一次性临时凭据到期时间；用户改成自己的正式密码后清空。 */
     private LocalDateTime credentialExpiresAt;
 
+    /** 首次成功认证时原子写入；不清除强制改密标记，避免绕过首次改密。 */
+    private LocalDateTime credentialConsumedAt;
+
     /** 当前操作账号在订单导入/导出中使用的默认物流公司。 */
     private String defaultLogisticsCompany;
 

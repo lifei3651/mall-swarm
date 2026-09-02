@@ -11,16 +11,19 @@ import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsMemberAssetFlow;
 import com.macro.mall.distribution.service.ShopAuthService;
 import com.macro.mall.distribution.service.ShopWalletService;
+import com.macro.mall.distribution.service.WithdrawalPayoutService;
 import com.macro.mall.distribution.vo.BalanceRecipientVO;
 import com.macro.mall.distribution.vo.ShopOrderVO;
 import com.macro.mall.distribution.util.ShopPublicViewSanitizer;
 import com.macro.mall.distribution.vo.ShopWalletSummaryVO;
 import com.macro.mall.distribution.vo.WithdrawRecordVO;
+import com.macro.mall.distribution.vo.WechatTransferConfirmationVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.util.List;
 
@@ -32,6 +35,7 @@ public class ShopWalletController {
 
     private final ShopAuthService authService;
     private final ShopWalletService walletService;
+    private final WithdrawalPayoutService withdrawalPayoutService;
 
     @Operation(summary = "余额与支付密码状态")
     @GetMapping("/summary")
@@ -93,6 +97,17 @@ public class ShopWalletController {
     public CommonResult<List<WithdrawRecordVO>> listWithdrawals(
             @RequestHeader(value = "Authorization", required = false) String authorization) {
         return CommonResult.success(walletService.listWithdrawals(authService.requireMember(authorization)));
+    }
+
+    @Operation(summary = "微信小程序为本人核对并拉取待确认收款参数")
+    @PostMapping("/withdrawals/{id}/wechat-confirmation")
+    public CommonResult<WechatTransferConfirmationVO> prepareWechatConfirmation(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long id,
+            HttpServletResponse response) {
+        response.setHeader("Cache-Control", "no-store");
+        DmsShopMember member = authService.requireMember(authorization);
+        return CommonResult.success(withdrawalPayoutService.prepareWechatConfirmation(member, id));
     }
 
     @Operation(summary = "会员查询自己的余额流水")

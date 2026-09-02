@@ -17,7 +17,7 @@ public class AdminMemberCreateDTO implements Serializable {
     @Pattern(regexp = "^[A-Za-z][A-Za-z0-9_]{3,19}$", message = "登录账号需为4至20位，必须以英文字母开头且仅支持字母、数字和下划线")
     private String username;
     @ToString.Exclude
-    @Size(min = 6, max = 32, message = "登录密码需为6至32位")
+    @Size(min = 10, max = 32, message = "登录密码需为10至32位")
     private String password;
     @Size(max = 20, message = "昵称不能超过20个字符")
     private String nickname;

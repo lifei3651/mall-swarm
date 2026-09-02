@@ -103,7 +103,7 @@ class AdminUserServiceSecurityTest {
     }
 
     @Test
-    void forcedPasswordChangeClearsFlagAndKeepsCurrentSessionUsable() {
+    void forcedPasswordChangeClearsFlagAndRevokesExistingSessions() {
         DmsAdminUser actor = admin(10L, "admin:read");
         actor.setPasswordHash(cn.hutool.crypto.digest.BCrypt.hashpw("Old-password-123"));
         actor.setSalt("BCRYPT");
@@ -119,7 +119,7 @@ class AdminUserServiceSecurityTest {
 
         verify(authService).verifyPassword(actor, "Old-password-123");
         verify(userDao).updatePassword(eq(10L), anyString(), eq("BCRYPT"), eq(0));
-        verify(sessionDao, never()).disableByAdminId(anyLong());
+        verify(sessionDao).disableByAdminId(10L);
     }
 
     @Test

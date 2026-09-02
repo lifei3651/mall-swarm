@@ -101,7 +101,7 @@ class SecurityHardeningTest {
         RuntimeException error = assertThrows(RuntimeException.class,
                 () -> new AdminAuthServiceImpl(adminUserDao, adminSessionDao, captchaService).login(dto));
 
-        assertTrue(error.getMessage().contains("临时密码已过期"));
+        assertTrue(error.getMessage().contains("临时密码已使用或已过期"));
         verify(adminSessionDao, never()).insert(any(DmsAdminSession.class));
     }
 
@@ -118,6 +118,7 @@ class SecurityHardeningTest {
         admin.setMustChangePassword(1);
         admin.setCredentialExpiresAt(credentialExpiresAt);
         when(adminUserDao.selectByUsernameAndPortal("first-login-admin", "PLATFORM")).thenReturn(admin);
+        when(adminUserDao.consumeTemporaryCredential(eq(11L), any(LocalDateTime.class))).thenReturn(1);
 
         AdminLoginDTO dto = new AdminLoginDTO();
         dto.setUsername("first-login-admin");
@@ -304,10 +305,21 @@ class SecurityHardeningTest {
     void balanceTransferSurfaceUsesStoredSessionValueInsteadOfRequestHeaders() {
         String rawToken = "surface-bound-session";
         DmsShopMemberSession session = new DmsShopMemberSession();
+        session.setMemberId(12L);
         session.setSurface("team");
         session.setStatus(1);
         session.setExpireTime(LocalDateTime.now().plusHours(1));
+        DmsShopMember member = new DmsShopMember();
+        member.setId(12L);
+        member.setUserId(1200L);
+        member.setStatus(1);
+        com.macro.mall.distribution.vo.AgentInfoVO agent = new com.macro.mall.distribution.vo.AgentInfoVO();
+        agent.setUserId(1200L);
+        agent.setStatus(1);
+        agent.setAgentLevel(1);
         when(memberSessionDao.selectByToken(SecureUtil.sha256(rawToken))).thenReturn(session);
+        when(memberDao.selectById(12L)).thenReturn(member);
+        when(agentService.getAgentByUserId(1200L)).thenReturn(agent);
         ShopAuthServiceImpl service = new ShopAuthServiceImpl(memberDao, memberSessionDao,
                 agentService, captchaService, smsVerificationService,
                 mock(com.macro.mall.distribution.dao.DmsTenantDao.class), mock(MemberMessageService.class));

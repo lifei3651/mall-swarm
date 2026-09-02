@@ -11,6 +11,8 @@ const SENSITIVE_FIELDS = new Set([
   'adminpassword',
   'confirmpassword',
   'smscode',
+  'currentphonesmscode',
+  'newphonesmscode',
   'captchacode',
   'appsecret',
   'callbacktoken',

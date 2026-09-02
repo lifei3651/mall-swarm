@@ -33,6 +33,30 @@ public class ProductionSafetyGuard {
         if (enabled("shop.wechat-pay.enabled") && !enabled("shop.wechat-mini-program.enabled")) {
             throw new IllegalStateException("微信支付必须在微信小程序登录开启后才能启用");
         }
+        boolean payoutEnabled = enabled("shop.withdrawal-payout.enabled");
+        boolean alipayPayoutEnabled = enabled("shop.withdrawal-payout.alipay-enabled");
+        boolean wechatPayoutEnabled = enabled("shop.withdrawal-payout.wechat-enabled");
+        if (!payoutEnabled && (alipayPayoutEnabled || wechatPayoutEnabled)) {
+            throw new IllegalStateException("奖金转账总开关关闭时不能单独开启渠道");
+        }
+        if (payoutEnabled && !alipayPayoutEnabled && !wechatPayoutEnabled) {
+            throw new IllegalStateException("启用奖金转账时必须明确选择支付宝或微信渠道");
+        }
+        if (alipayPayoutEnabled && !enabled("alipay.enabled")) {
+            throw new IllegalStateException("启用支付宝奖金转账前必须先完成支付宝官方能力配置");
+        }
+        if (wechatPayoutEnabled && (!enabled("shop.wechat-pay.enabled")
+                || !enabled("shop.wechat-mini-program.enabled"))) {
+            throw new IllegalStateException("启用微信奖金转账前必须先完成微信支付和小程序配置");
+        }
+        if (wechatPayoutEnabled) {
+            requireConfigured("shop.withdrawal-payout.wechat-transfer-scene-id", "微信奖金转账必须配置签约场景ID");
+            requireConfigured("shop.withdrawal-payout.wechat-report-info-type", "微信奖金转账必须配置场景报备类型");
+            requireConfigured("shop.withdrawal-payout.wechat-report-info-content", "微信奖金转账必须配置场景报备内容");
+        }
+        if (payoutEnabled && !enabled("security.data-encryption.write-enabled")) {
+            throw new IllegalStateException("启用奖金转账前必须开启敏感字段加密写入");
+        }
         boolean dangerousTestFeature = enabled("shop.payment.simulation-enabled")
                 || enabled("sms.expose-code") || (testCode != null && !testCode.isBlank());
         if (dangerousTestFeature && !hasOnlyExplicitTestProfiles()) {

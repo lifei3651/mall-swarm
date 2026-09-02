@@ -131,6 +131,7 @@ class AgentMutationLockTest {
                 accountDao,
                 mock(DmsAgentChangeLogDao.class),
                 mock(DmsShopMemberDao.class),
+                mock(DmsShopMemberSessionDao.class),
                 mock(DmsLineChangeApplicationDao.class),
                 mock(DmsCommissionRecordDao.class),
                 mock(DmsOrderBalanceAllocationDao.class),

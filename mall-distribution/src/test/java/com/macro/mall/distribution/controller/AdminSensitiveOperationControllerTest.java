@@ -93,7 +93,8 @@ class AdminSensitiveOperationControllerTest {
     void agentWithdrawalPaymentUsesBusinessConfirmationWithoutRepeatedPassword() {
         WithdrawService withdrawService = mock(WithdrawService.class);
         WithdrawController controller = new WithdrawController(
-                withdrawService, mock(com.macro.mall.distribution.service.PerformanceService.class));
+                withdrawService, mock(com.macro.mall.distribution.service.WithdrawalPayoutService.class),
+                mock(com.macro.mall.distribution.service.PerformanceService.class));
         WithdrawConfirmPayDTO dto = new WithdrawConfirmPayDTO();
         dto.setPayNo("BANK-20260821-001");
 
