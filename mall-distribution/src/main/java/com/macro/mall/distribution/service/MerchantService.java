@@ -9,7 +9,10 @@ import java.util.List;
 public interface MerchantService {
     List<DmsMerchant> listMerchants(String keyword, Integer status);
     DmsMerchant saveMerchant(DmsMerchant merchant);
+    DmsMerchant onboardMerchant(MerchantOnboardingDTO dto);
     DmsMerchant updateMerchant(Long id, DmsMerchant merchant);
+    DmsMerchant currentMerchantProfile();
+    DmsMerchant submitCurrentMerchantProfile(MerchantProfileSubmitDTO dto);
     boolean updateMerchantStatus(Long id, Integer status);
     DmsMerchant updateMerchantControls(Long id, MerchantControlDTO dto);
     MerchantExitReadinessVO getExitReadiness(Long id);

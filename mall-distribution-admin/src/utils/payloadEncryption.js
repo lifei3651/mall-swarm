@@ -3,6 +3,7 @@ import axios from 'axios'
 const SENSITIVE_FIELDS = new Set([
   'password',
   'currentpassword',
+  'currentadminpassword',
   'newpassword',
   'oldpassword',
   'loginpassword',

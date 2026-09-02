@@ -6,6 +6,8 @@ export const saveMerchant = (id, data) => request({
   method: id ? 'put' : 'post',
   data,
 })
+export const getCurrentMerchantProfile = () => request({ url: '/distribution/merchants/current-profile', method: 'get' })
+export const submitCurrentMerchantProfile = (data) => request({ url: '/distribution/merchants/current-profile', method: 'put', data })
 export const updateMerchantStatus = (id, status) => request({ url: `/distribution/merchants/${id}/status`, method: 'put', params: { status } })
 export const updateMerchantControls = (id, data) => request({ url: `/distribution/merchants/${id}/controls`, method: 'put', data })
 export const getMerchantExitReadiness = (id) => request({ url: `/distribution/merchants/${id}/exit-readiness`, method: 'get' })

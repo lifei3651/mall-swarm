@@ -17,6 +17,7 @@ public interface DmsMerchantDao {
                                  @Param("status") Integer status);
     int insert(DmsMerchant merchant);
     int update(DmsMerchant merchant);
+    int submitProfile(@Param("merchant") DmsMerchant merchant);
     List<DmsMerchant> selectSensitivePlaintextCandidates(@Param("limit") int limit);
     int encryptSensitiveFields(@Param("id") Long id, @Param("bankAccountNo") String bankAccountNo);
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);

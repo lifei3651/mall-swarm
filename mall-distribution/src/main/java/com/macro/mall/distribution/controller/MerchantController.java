@@ -8,6 +8,8 @@ import com.macro.mall.distribution.dto.MerchantWithdrawalActionDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalPayDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalRejectDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalReviewDTO;
+import com.macro.mall.distribution.dto.MerchantOnboardingDTO;
+import com.macro.mall.distribution.dto.MerchantProfileSubmitDTO;
 import com.macro.mall.distribution.entity.DmsMerchant;
 import com.macro.mall.distribution.entity.DmsMerchantAccount;
 import com.macro.mall.distribution.entity.DmsMerchantDepositFlow;
@@ -40,10 +42,22 @@ public class MerchantController {
         return CommonResult.success(merchantService.listMerchants(keyword, status));
     }
 
-    @Operation(summary = "新增商户")
+    @Operation(summary = "开通商户及其工作台初始账号")
     @PostMapping("/merchants")
-    public CommonResult<DmsMerchant> save(@Valid @RequestBody DmsMerchant merchant) {
-        return CommonResult.success(merchantService.saveMerchant(merchant));
+    public CommonResult<DmsMerchant> save(@Valid @RequestBody MerchantOnboardingDTO dto) {
+        return CommonResult.success(merchantService.onboardMerchant(dto));
+    }
+
+    @Operation(summary = "当前商户入驻资料")
+    @GetMapping("/merchants/current-profile")
+    public CommonResult<DmsMerchant> currentProfile() {
+        return CommonResult.success(merchantService.currentMerchantProfile());
+    }
+
+    @Operation(summary = "商户提交经营、收款与开票资料以申请平台认证")
+    @PutMapping("/merchants/current-profile")
+    public CommonResult<DmsMerchant> submitCurrentProfile(@Valid @RequestBody MerchantProfileSubmitDTO dto) {
+        return CommonResult.success(merchantService.submitCurrentMerchantProfile(dto));
     }
 
     @Operation(summary = "修改商户")

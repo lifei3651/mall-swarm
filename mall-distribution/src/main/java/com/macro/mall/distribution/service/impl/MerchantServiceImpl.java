@@ -1,12 +1,14 @@
 package com.macro.mall.distribution.service.impl;
 
 import cn.hutool.core.util.IdUtil;
+import cn.hutool.crypto.digest.BCrypt;
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.dao.*;
 import com.macro.mall.distribution.dto.*;
 import com.macro.mall.distribution.entity.*;
 import com.macro.mall.distribution.security.AdminContext;
+import com.macro.mall.distribution.service.AdminAuthService;
 import com.macro.mall.distribution.service.MerchantService;
 import com.macro.mall.distribution.util.MemberAccountUtils;
 import com.macro.mall.distribution.vo.MerchantBalanceReconciliationVO;
@@ -43,6 +45,7 @@ public class MerchantServiceImpl implements MerchantService {
     private static final Set<String> EXIT_STATES = Set.of("NORMAL", "EXITING", "EXITED");
 
     private final DmsMerchantDao merchantDao;
+    private final DmsAdminUserDao adminUserDao;
     private final DmsMerchantAccountDao accountDao;
     private final DmsMerchantSettlementDao settlementDao;
     private final DmsMerchantWithdrawalDao withdrawalDao;
@@ -57,6 +60,7 @@ public class MerchantServiceImpl implements MerchantService {
     private final ShopAfterSaleWindowPolicy afterSaleWindowPolicy;
     private final com.macro.mall.distribution.service.ShopCatalogCacheService catalogCache;
     private final com.macro.mall.distribution.service.OperationLogService operationLogService;
+    private final AdminAuthService adminAuthService;
     private final TransactionTemplate transactionTemplate;
 
     @Override
@@ -87,6 +91,61 @@ public class MerchantServiceImpl implements MerchantService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public DmsMerchant onboardMerchant(MerchantOnboardingDTO dto) {
+        DmsAdminUser actor = requirePlatformActorAndVerify(dto == null ? null : dto.getCurrentAdminPassword());
+        if (dto == null) Asserts.fail("商户开通信息不能为空");
+        String username = trim(dto.getUsername());
+        if (username == null || !username.matches("^[A-Za-z][A-Za-z0-9_]{3,31}$")) {
+            Asserts.fail("商家账号需为4至32位，必须以英文字母开头且仅支持字母、数字和下划线");
+        }
+        validateAdminPassword(dto.getPassword());
+        if (adminUserDao.selectByUsername(username) != null) Asserts.fail("商家账号已存在");
+
+        DmsMerchant merchant = new DmsMerchant();
+        merchant.setMerchantNo(dto.getMerchantNo());
+        merchant.setMerchantName(dto.getMerchantName());
+        merchant.setContactName(dto.getContactName());
+        merchant.setContactPhone(dto.getContactPhone());
+        merchant.setRequiredDepositAmount(dto.getRequiredDepositAmount());
+        merchant.setDefaultSettlementDays(dto.getDefaultSettlementDays());
+        merchant.setAccountStatus("ENABLED");
+        merchant.setBusinessStatus("SUSPENDED");
+        merchant.setFulfillmentStatus("ENABLED");
+        merchant.setWithdrawalStatus("FROZEN");
+        merchant.setSettlementStatus("FROZEN");
+        merchant.setDepositStatus("NORMAL");
+        merchant.setAuditStatus("PENDING");
+        merchant.setExitStatus("NORMAL");
+        merchant.setStatus(0);
+        normalizeMerchant(merchant);
+        if (merchantDao.selectByNo(merchant.getTenantId(), merchant.getMerchantNo()) != null) Asserts.fail("商户编号已存在");
+        merchantDao.insert(merchant);
+
+        DmsMerchantAccount account = new DmsMerchantAccount();
+        account.setTenantId(merchant.getTenantId());
+        account.setMerchantId(merchant.getId());
+        accountDao.insert(account);
+        recordOpeningLedger(merchant);
+
+        DmsAdminUser merchantAdmin = new DmsAdminUser();
+        merchantAdmin.setUsername(username);
+        merchantAdmin.setPasswordHash(BCrypt.hashpw(dto.getPassword()));
+        merchantAdmin.setSalt("BCRYPT");
+        merchantAdmin.setNickname(trim(dto.getContactName()) == null ? merchant.getMerchantName() : trim(dto.getContactName()));
+        merchantAdmin.setRoleCode("MERCHANT");
+        merchantAdmin.setPermissions("admin:read,shop:product,shop:order,shop:aftersale,finance:read,finance:manage");
+        merchantAdmin.setMerchantId(merchant.getId());
+        merchantAdmin.setStatus(1);
+        merchantAdmin.setMustChangePassword(1);
+        adminUserDao.insert(merchantAdmin);
+        operationLogService.log("MERCHANT", "ONBOARD", "MERCHANT", String.valueOf(merchant.getId()),
+                null, "merchant=" + merchant.getMerchantNo() + ";account=" + username + ";audit=PENDING",
+                "开通商户工作台，等待商户提交经营与结算资料；操作人=" + actor.getUsername());
+        return merchantDao.selectById(merchant.getId());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public DmsMerchant updateMerchant(Long id, DmsMerchant merchant) {
         requirePlatformAdmin();
         DmsMerchant existing = requireMerchantForUpdate(id, false);
@@ -108,6 +167,39 @@ public class MerchantServiceImpl implements MerchantService {
                 merchantProfileSummary(existing), merchantProfileSummary(merchant),
                 "修改商户经营主体、收款资料、保证金要求或默认结算设置");
         return merchantDao.selectById(id);
+    }
+
+    @Override
+    public DmsMerchant currentMerchantProfile() {
+        Long merchantId = currentMerchantId();
+        if (merchantId == null) Asserts.fail("仅商户工作台账号可以查看入驻资料");
+        return requireMerchant(merchantId, false);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public DmsMerchant submitCurrentMerchantProfile(MerchantProfileSubmitDTO dto) {
+        Long merchantId = currentMerchantId();
+        if (merchantId == null) Asserts.fail("仅商户工作台账号可以提交入驻资料");
+        DmsMerchant existing = requireMerchantForUpdate(merchantId, false);
+        if (dto == null) Asserts.fail("入驻资料不能为空");
+        existing.setContactName(trim(dto.getContactName()));
+        existing.setContactPhone(trim(dto.getContactPhone()));
+        existing.setLegalEntityName(trim(dto.getLegalEntityName()));
+        existing.setUnifiedSocialCreditCode(upper(dto.getUnifiedSocialCreditCode()));
+        existing.setBankAccountName(trim(dto.getBankAccountName()));
+        existing.setBankName(trim(dto.getBankName()));
+        existing.setBankAccountNo(trim(dto.getBankAccountNo()));
+        existing.setInvoiceTitle(trim(dto.getInvoiceTitle()));
+        existing.setTaxpayerIdentificationNo(upper(dto.getTaxpayerIdentificationNo()));
+        validateMerchantProfile(existing);
+        if (merchantDao.submitProfile(existing) != 1) Asserts.fail("提交商户入驻资料失败");
+        merchantProductReviewDao.rejectPendingByMerchant(existing.getTenantId(), existing.getId(), "商户准入资料已更新，请在认证通过后重新提交商品审核");
+        productDao.disableByMerchantId(existing.getTenantId(), existing.getId());
+        catalogCache.invalidateAfterCommit(existing.getTenantId());
+        operationLogService.log("MERCHANT", "PROFILE_SUBMIT", "MERCHANT", String.valueOf(existing.getId()),
+                null, merchantProfileSummary(existing), "商户提交经营主体、收款与开票资料，等待平台认证");
+        return merchantDao.selectById(existing.getId());
     }
 
     @Override
@@ -140,6 +232,14 @@ public class MerchantServiceImpl implements MerchantService {
         requirePlatformAdmin();
         DmsMerchant merchant = requireMerchantForUpdate(id, false);
         normalizeControls(dto);
+        if ("APPROVED".equals(dto.getAuditStatus()) && !"APPROVED".equals(merchant.getAuditStatus())) {
+            if (!"PENDING".equals(merchant.getAuditStatus())) Asserts.fail("商户需要重新提交入驻资料后才能认证通过");
+            validateMerchantProfile(merchant);
+            // 平台认证是商户恢复经营的准入动作；商品仍需逐个提交平台审核后才能上架。
+            dto.setBusinessStatus("ACTIVE");
+            dto.setWithdrawalStatus("ENABLED");
+            dto.setSettlementStatus("ENABLED");
+        }
         validateExitTransition(merchant, dto);
         int compatibilityStatus = "ACTIVE".equals(dto.getBusinessStatus())
                 && "APPROVED".equals(dto.getAuditStatus()) && "NORMAL".equals(dto.getExitStatus()) ? 1 : 0;
@@ -795,6 +895,39 @@ public class MerchantServiceImpl implements MerchantService {
     }
     private void requirePlatformAdmin() {
         if (AdminContext.get() != null && AdminContext.get().getMerchantId() != null) Asserts.fail("商户工作台账号不能维护商户资料");
+    }
+
+    private DmsAdminUser requirePlatformActorAndVerify(String currentPassword) {
+        requirePlatformAdmin();
+        DmsAdminUser actor = AdminContext.get();
+        if (actor == null) Asserts.fail("后台登录已失效，请重新登录");
+        adminAuthService.requirePermission(actor, "system:manage");
+        adminAuthService.verifyPassword(actor, currentPassword);
+        return actor;
+    }
+
+    private void validateMerchantProfile(DmsMerchant merchant) {
+        if (trim(merchant.getLegalEntityName()) == null) Asserts.fail("请填写经营主体");
+        if (merchant.getUnifiedSocialCreditCode() == null || !merchant.getUnifiedSocialCreditCode().matches("^[0-9A-HJ-NPQRTUWXY]{18}$")) {
+            Asserts.fail("请填写18位统一社会信用代码");
+        }
+        if (trim(merchant.getBankAccountName()) == null || trim(merchant.getBankName()) == null || trim(merchant.getBankAccountNo()) == null) {
+            Asserts.fail("请完整填写收款账户资料");
+        }
+        if (trim(merchant.getInvoiceTitle()) == null || merchant.getTaxpayerIdentificationNo() == null
+                || !merchant.getTaxpayerIdentificationNo().matches("^[0-9A-HJ-NPQRTUWXY]{18}$")) {
+            Asserts.fail("请填写发票抬头和18位纳税人识别号");
+        }
+    }
+
+    private void validateAdminPassword(String password) {
+        if (password == null || password.length() < 10 || password.length() > 64) Asserts.fail("后台密码需要10至64位");
+        int groups = 0;
+        if (password.chars().anyMatch(Character::isLowerCase)) groups++;
+        if (password.chars().anyMatch(Character::isUpperCase)) groups++;
+        if (password.chars().anyMatch(Character::isDigit)) groups++;
+        if (password.chars().anyMatch(value -> !Character.isLetterOrDigit(value))) groups++;
+        if (groups < 3) Asserts.fail("后台密码必须包含大小写字母、数字、符号中的至少三类");
     }
     private void requirePayoutProfile(DmsMerchant merchant) {
         if (!"SIGNED".equals(merchant.getContractStatus())) Asserts.fail("商户合同尚未生效，不能申请提现");

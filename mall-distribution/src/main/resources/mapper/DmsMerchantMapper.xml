@@ -37,6 +37,17 @@
     VALUES(#{tenantId},#{merchantNo},#{merchantName},#{contactName},#{contactPhone},#{legalEntityName},#{unifiedSocialCreditCode},#{bankAccountName},#{bankName},#{bankAccountNo,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler},#{invoiceTitle},#{taxpayerIdentificationNo},#{contractStatus},#{requiredDepositAmount},#{profileVersion},#{settlementMode},#{defaultSettlementDays},#{accountStatus},#{businessStatus},#{fulfillmentStatus},#{withdrawalStatus},#{settlementStatus},#{depositStatus},#{auditStatus},#{exitStatus},#{status},#{remark})
   </insert>
   <update id="update">UPDATE dms_merchant SET merchant_name=#{merchantName},contact_name=#{contactName},contact_phone=#{contactPhone},legal_entity_name=#{legalEntityName},unified_social_credit_code=#{unifiedSocialCreditCode},bank_account_name=#{bankAccountName},bank_name=#{bankName},bank_account_no=#{bankAccountNo,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler},invoice_title=#{invoiceTitle},taxpayer_identification_no=#{taxpayerIdentificationNo},contract_status=#{contractStatus},required_deposit_amount=#{requiredDepositAmount},profile_version=profile_version+1,settlement_mode=#{settlementMode},default_settlement_days=#{defaultSettlementDays},remark=#{remark},update_time=CURRENT_TIMESTAMP WHERE id=#{id}</update>
+  <update id="submitProfile">
+    UPDATE dms_merchant
+    SET contact_name=#{merchant.contactName},contact_phone=#{merchant.contactPhone},
+      legal_entity_name=#{merchant.legalEntityName},unified_social_credit_code=#{merchant.unifiedSocialCreditCode},
+      bank_account_name=#{merchant.bankAccountName},bank_name=#{merchant.bankName},
+      bank_account_no=#{merchant.bankAccountNo,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler},
+      invoice_title=#{merchant.invoiceTitle},taxpayer_identification_no=#{merchant.taxpayerIdentificationNo},
+      contract_status='PENDING',audit_status='PENDING',business_status='SUSPENDED',status=0,
+      profile_version=profile_version+1,update_time=CURRENT_TIMESTAMP
+    WHERE id=#{merchant.id} AND tenant_id=#{merchant.tenantId}
+  </update>
   <select id="selectSensitivePlaintextCandidates" resultMap="Base">SELECT id,bank_account_no FROM dms_merchant WHERE bank_account_no IS NOT NULL AND bank_account_no!='' AND bank_account_no NOT LIKE 'enc:v1:%' ORDER BY id LIMIT #{limit}</select>
   <update id="encryptSensitiveFields">UPDATE dms_merchant SET bank_account_no=#{bankAccountNo,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler} WHERE id=#{id} AND bank_account_no IS NOT NULL AND bank_account_no!='' AND bank_account_no NOT LIKE 'enc:v1:%'</update>
   <update id="updateStatus">UPDATE dms_merchant SET status=#{status},update_time=CURRENT_TIMESTAMP WHERE id=#{id}</update>

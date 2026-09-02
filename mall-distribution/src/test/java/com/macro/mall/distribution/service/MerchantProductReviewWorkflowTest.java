@@ -1,6 +1,8 @@
 package com.macro.mall.distribution.service;
 
 import com.macro.mall.distribution.dto.MerchantProductReviewDecisionDTO;
+import com.macro.mall.distribution.dto.MerchantControlDTO;
+import com.macro.mall.distribution.dto.MerchantProfileSubmitDTO;
 import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.entity.DmsMerchant;
 import com.macro.mall.distribution.entity.DmsMerchantProductReview;
@@ -113,6 +115,38 @@ class MerchantProductReviewWorkflowTest {
         assertThrows(RuntimeException.class, () -> shopService.getProduct(1L));
         assertThrows(RuntimeException.class, () -> reviewService.submit(1L));
         assertTrue(shopService.listAdminProductPage(1L, null, null, null, null, 1, 20).getList().isEmpty());
+    }
+
+    @Test
+    void merchantMustSubmitCompleteProfileAndPassPlatformCertificationBeforeProductReview() {
+        DmsMerchant merchant = merchant("M-ONBOARD-1", "入驻认证测试商户");
+        jdbcTemplate.update("UPDATE dms_merchant SET status=0,business_status='SUSPENDED',audit_status='PENDING' WHERE id=?", merchant.getId());
+        jdbcTemplate.update("UPDATE dms_shop_product SET merchant_id=?,merchant_name=?,sale_price=99,cost_amount=50,status=0,team_bonus_mode='NONE',merchant_review_status='DRAFT',merchant_review_version=0 WHERE id=1",
+                merchant.getId(), merchant.getMerchantName());
+
+        AdminContext.set(admin(7021L, "onboarding_merchant", "入驻商户", "admin:read,shop:product", merchant));
+        MerchantProfileSubmitDTO profile = new MerchantProfileSubmitDTO();
+        profile.setContactName("商户联系人"); profile.setContactPhone("13800138000");
+        profile.setLegalEntityName("入驻认证测试商户有限公司"); profile.setUnifiedSocialCreditCode("91350100M000100Y43");
+        profile.setBankAccountName("入驻认证测试商户有限公司"); profile.setBankName("测试银行测试支行"); profile.setBankAccountNo("6222021234567890123");
+        profile.setInvoiceTitle("入驻认证测试商户有限公司"); profile.setTaxpayerIdentificationNo("91350100M000100Y43");
+        DmsMerchant pending = merchantService.submitCurrentMerchantProfile(profile);
+        assertEquals("PENDING", pending.getAuditStatus());
+        assertEquals(0, pending.getStatus());
+        assertThrows(RuntimeException.class, () -> reviewService.submit(1L));
+
+        MerchantControlDTO approval = new MerchantControlDTO();
+        approval.setAccountStatus("ENABLED"); approval.setBusinessStatus("SUSPENDED"); approval.setFulfillmentStatus("ENABLED");
+        approval.setWithdrawalStatus("FROZEN"); approval.setSettlementStatus("FROZEN"); approval.setDepositStatus("NORMAL");
+        approval.setAuditStatus("APPROVED"); approval.setExitStatus("NORMAL"); approval.setReason("资料核验通过");
+        AdminContext.set(admin(7022L, "platform_reviewer", "平台认证员", "admin:read,system:manage", null));
+        DmsMerchant approved = merchantService.updateMerchantControls(merchant.getId(), approval);
+        assertEquals("APPROVED", approved.getAuditStatus());
+        assertEquals("ACTIVE", approved.getBusinessStatus());
+        assertEquals(1, approved.getStatus());
+
+        AdminContext.set(admin(7021L, "onboarding_merchant", "入驻商户", "admin:read,shop:product", approved));
+        assertEquals("PENDING", reviewService.submit(1L).getStatus());
     }
 
     private DmsMerchant merchant(String no, String name) {

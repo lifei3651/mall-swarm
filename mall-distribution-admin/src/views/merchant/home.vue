@@ -66,7 +66,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowRight, Goods, Key, Lock, Service, ShoppingCart, Wallet } from '@element-plus/icons-vue'
+import { ArrowRight, Goods, Key, Lock, OfficeBuilding, Service, ShoppingCart, Wallet } from '@element-plus/icons-vue'
 import { useAppStore } from '@/store'
 import { getAdminOrderWorkSummary } from '@/api/shop'
 import { listMerchantAccounts } from '@/api/merchant'
@@ -86,6 +86,13 @@ const merchantName = computed(() => (
 const money = (value) => `¥${Number(value || 0).toFixed(2)}`
 
 const quickActions = computed(() => [
+  {
+    title: '入驻资料与认证',
+    description: '填写经营主体、收款与开票资料并提交平台认证',
+    path: '/merchant/profile',
+    icon: OfficeBuilding,
+    value: null,
+  },
   store.hasPermission('shop:product') && {
     title: '商品管理',
     description: '维护商品、规格、库存与上下架申请',

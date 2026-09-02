@@ -163,9 +163,14 @@ const menuIcon = (name) => menuIcons[name] || Setting
 const businessMenus = [
   { key: 'dashboard', title: '工作台', icon: 'Monitor', path: '/dashboard' },
   {
+    key: 'merchant-onboarding', title: '入驻与认证', icon: 'OfficeBuilding', items: [
+      { title: '经营与结算资料', path: '/merchant/profile', merchantOnly: true },
+    ],
+  },
+  {
     key: 'products', title: '商品与库存', icon: 'Goods', items: [
       { title: '商品管理', path: '/shop/products', permission: 'shop:product' },
-      { title: '商户管理', path: '/shop/merchants', permission: 'shop:product' },
+      { title: '商户管理', path: '/shop/merchants', permission: 'system:manage' },
       { title: '商户商品审核', path: '/shop/merchant-product-reviews', permission: 'shop:product-review' },
       { title: '发货与退货地址', path: '/shop/service-addresses', permission: 'shop:product' },
       { title: '分类与规格', path: '/shop/categories', permission: 'shop:product' },
@@ -390,6 +395,7 @@ const breadcrumbs = computed(() => {
 })
 
 const hasMenuPermission = (item) => {
+  if (item.merchantOnly && !store.userInfo?.merchantId) return false
   if (store.userInfo?.merchantId) {
     return isMerchantWorkspacePath(item.path) && (!item.permission || store.hasPermission(item.permission))
   }

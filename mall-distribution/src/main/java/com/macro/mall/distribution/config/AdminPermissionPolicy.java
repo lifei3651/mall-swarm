@@ -36,6 +36,7 @@ final class AdminPermissionPolicy {
                 || path.startsWith("/shop/admin/flash-sales")
                 || path.startsWith("/shop/admin/live-rooms") || path.startsWith("/shop/admin/live-anchors")
                 || path.startsWith("/shop/admin/live-comments")) return "shop:product";
+        if (path.equals("/distribution/merchants/current-profile")) return "admin:read";
         if (path.startsWith("/distribution/merchants")) return "shop:product";
         if (HttpMethod.POST.matches(method) && path.matches("/shop/admin/orders/[^/]+/refund")) return "shop:aftersale";
         if (HttpMethod.PUT.matches(method) && path.matches("/shop/admin/orders/[^/]+/cancel")) return "shop:aftersale";

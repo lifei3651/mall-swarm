@@ -232,8 +232,10 @@ public class MerchantProductReviewServiceImpl implements MerchantProductReviewSe
 
     private void requireActiveMerchant(Long merchantId) {
         DmsMerchant merchant = merchantId == null ? null : merchantDao.selectById(merchantId);
-        if (merchant == null || !Integer.valueOf(1).equals(merchant.getStatus())) {
-            Asserts.fail("商品所属商户不存在或已停用，不能提交或通过审核");
+        if (merchant == null || !Integer.valueOf(1).equals(merchant.getStatus())
+                || !"ACTIVE".equals(merchant.getBusinessStatus()) || !"APPROVED".equals(merchant.getAuditStatus())
+                || !"NORMAL".equals(merchant.getExitStatus())) {
+            Asserts.fail("商户尚未完成平台认证或当前未处于正常经营状态，不能提交或通过商品审核");
         }
     }
 

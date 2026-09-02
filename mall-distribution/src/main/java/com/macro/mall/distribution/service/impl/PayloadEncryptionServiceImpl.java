@@ -42,7 +42,7 @@ public class PayloadEncryptionServiceImpl implements PayloadEncryptionService {
     static final String ENCRYPTED_PREFIX = "enc:v1:";
     static final Duration CHALLENGE_TTL = Duration.ofMinutes(2);
     static final Set<String> SENSITIVE_FIELDS = Set.of(
-            "password", "currentpassword", "newpassword", "oldpassword",
+            "password", "currentpassword", "currentadminpassword", "newpassword", "oldpassword",
             "loginpassword", "paymentpassword", "adminpassword", "confirmpassword",
             "smscode", "captchacode", "appsecret", "callbacktoken",
             "realname", "idcard", "code"

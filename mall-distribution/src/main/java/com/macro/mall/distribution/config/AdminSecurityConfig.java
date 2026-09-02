@@ -99,6 +99,7 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             if (path.equals("/distribution/admin-auth/me")
                     || path.equals("/distribution/admin-auth/logout")
                     || path.equals("/distribution/admin-auth/password")
+                    || path.equals("/distribution/merchants/current-profile")
                     || path.startsWith("/shop/admin/products")
                     || path.startsWith("/shop/admin/skus")
                     || path.startsWith("/shop/admin/media")) return true;

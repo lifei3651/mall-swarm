@@ -58,6 +58,12 @@ const routes = [
         meta: { title: '商户工作台', icon: 'Monitor', merchantOnly: true },
       },
       {
+        path: 'merchant/profile',
+        name: 'MerchantProfile',
+        component: () => import('@/views/merchant/profile.vue'),
+        meta: { title: '入驻资料与认证', icon: 'OfficeBuilding', merchantOnly: true },
+      },
+      {
         path: 'dashboard',
         name: 'Dashboard',
         component: () => import('@/views/dashboard/index.vue'),
@@ -80,7 +86,7 @@ const routes = [
             path: 'merchants',
             name: 'ShopMerchants',
             component: () => import('@/views/shop/merchants.vue'),
-            meta: { title: '商户管理', permission: 'shop:product' },
+            meta: { title: '商户管理', permission: 'system:manage' },
           },
           {
             path: 'merchant-product-reviews',
