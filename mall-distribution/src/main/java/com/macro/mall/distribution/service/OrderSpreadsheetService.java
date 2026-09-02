@@ -86,6 +86,11 @@ public class OrderSpreadsheetService {
     }
 
     public void writeShipmentTemplate(List<ShopOrderVO> orders, OutputStream outputStream) throws IOException {
+        writeShipmentTemplate(orders, null, outputStream);
+    }
+
+    public void writeShipmentTemplate(List<ShopOrderVO> orders, String defaultLogisticsCompany,
+                                      OutputStream outputStream) throws IOException {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("订单发货");
             String[] headers = {"订单号", "物流公司", "物流单号", "发货数量"};
@@ -99,7 +104,7 @@ public class OrderSpreadsheetService {
                 if (order == null || !Integer.valueOf(1).equals(order.getStatus())) continue;
                 Row row = sheet.createRow(rowIndex++);
                 setText(row, 0, order.getOrderNo(), textStyle);
-                setText(row, 1, "", textStyle);
+                setText(row, 1, defaultLogisticsCompany, textStyle);
                 setText(row, 2, "", textStyle);
                 setNumber(row, 3, remainingShipmentQuantity(item), null);
             }
@@ -113,6 +118,10 @@ public class OrderSpreadsheetService {
      * 避免客户未删除示例行便直接导入，造成错误发货。
      */
     public void writeShipmentImportTemplate(OutputStream outputStream) throws IOException {
+        writeShipmentImportTemplate(null, outputStream);
+    }
+
+    public void writeShipmentImportTemplate(String defaultLogisticsCompany, OutputStream outputStream) throws IOException {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             Sheet dataSheet = workbook.createSheet("物流发货导入");
             writePlainHeader(dataSheet, new String[]{"订单号", "物流公司", "物流单号", "发货数量"});
@@ -124,7 +133,9 @@ public class OrderSpreadsheetService {
             Sheet instructionSheet = workbook.createSheet("填写说明");
             writePlainHeader(instructionSheet, new String[]{"填写项目", "填写要求", "示例"});
             writeInstructionRow(instructionSheet, 1, "订单号", "必填；填写商城后台显示的完整订单号", "L202608091234567890");
-            writeInstructionRow(instructionSheet, 2, "物流公司", "必填；最多50个字符", "顺丰速运");
+            String defaultCompany = defaultLogisticsCompany == null || defaultLogisticsCompany.isBlank()
+                    ? "顺丰速运" : defaultLogisticsCompany.trim();
+            writeInstructionRow(instructionSheet, 2, "物流公司", "可留空使用当前后台账号已设置的默认物流公司；最多50个字符", defaultCompany);
             writeInstructionRow(instructionSheet, 3, "物流单号", "必填；4至64位，只能包含字母、数字、下划线和短横线", "SF1234567890");
             writeInstructionRow(instructionSheet, 4, "发货数量", "必填；填写大于0的整数，不能超过订单剩余可发件数", "1");
             writeInstructionRow(instructionSheet, 5, "拆分包裹", "同一订单分多个包裹时，复制订单号并分行填写不同物流信息", "每个包裹一行");

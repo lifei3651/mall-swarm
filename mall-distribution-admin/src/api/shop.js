@@ -345,6 +345,14 @@ export function downloadOrderShipmentImportTemplate() {
   })
 }
 
+export function getOrderLogisticsPreference() {
+  return request({ url: '/shop/admin/orders/logistics-preference', method: 'get' })
+}
+
+export function updateOrderLogisticsPreference(company) {
+  return request({ url: '/shop/admin/orders/logistics-preference', method: 'put', data: { company } })
+}
+
 export function importOrderShipments(file) {
   const data = new FormData()
   data.append('file', file)

@@ -30,6 +30,7 @@ public class DmsMerchantProductReview implements Serializable {
     private Long reviewerId;
     private String reviewerName;
     private String reviewRemark;
+    private String reviewChecklistJson;
     private LocalDateTime reviewedAt;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;

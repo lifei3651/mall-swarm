@@ -32,6 +32,14 @@ export function updateAdminPassword(id, data) {
   })
 }
 
+export function issueAdminTemporaryCredential(id, data) {
+  return request({
+    url: `/distribution/admin-users/${id}/temporary-credential`,
+    method: 'post',
+    data,
+  })
+}
+
 export function updateAdminStatus(id, status) {
   return request({
     url: `/distribution/admin-users/${id}/status`,

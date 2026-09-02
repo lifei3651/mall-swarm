@@ -121,7 +121,10 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
                 continue;
             }
             try {
-                shipment = normalize(row.deliveryCompany(), row.deliveryNo(), parseQuantity(row.shipmentQuantity()));
+                String company = trim(row.deliveryCompany());
+                DmsAdminUser operator = AdminContext.get();
+                if (company == null && operator != null) company = trim(operator.getDefaultLogisticsCompany());
+                shipment = normalize(company, row.deliveryNo(), parseQuantity(row.shipmentQuantity()));
             } catch (IllegalArgumentException ex) {
                 addError(result, row, ex.getMessage());
                 continue;

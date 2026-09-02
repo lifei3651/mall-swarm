@@ -99,6 +99,7 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             if (path.equals("/distribution/admin-auth/me")
                     || path.equals("/distribution/admin-auth/logout")
                     || path.equals("/distribution/admin-auth/password")
+                    || path.startsWith("/distribution/admin-users")
                     || path.equals("/distribution/merchants/current-profile")
                     || path.startsWith("/shop/admin/products")
                     || path.startsWith("/shop/admin/skus")
@@ -117,7 +118,8 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             if (path.startsWith("/shop/admin/orders")) {
                 if (HttpMethod.GET.matches(method)) return true;
                 return HttpMethod.PUT.matches(method) && (path.matches("/shop/admin/orders/[^/]+/ship")
-                        || path.matches("/shop/admin/orders/[^/]+/service-remark"));
+                        || path.matches("/shop/admin/orders/[^/]+/service-remark")
+                        || path.equals("/shop/admin/orders/logistics-preference"));
             }
             if (path.startsWith("/shop/admin/after-sales")) {
                 return HttpMethod.GET.matches(method) || (HttpMethod.PUT.matches(method)

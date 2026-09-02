@@ -19,6 +19,8 @@ describe('admin workspace routing', () => {
   it('keeps merchant business pages and their query strings', () => {
     expect(isMerchantWorkspacePath('/shop/orders?state=WAIT_SHIP')).toBe(true)
     expect(resolveAdminRedirect('/shop/orders?state=WAIT_SHIP', merchant)).toBe('/shop/orders?state=WAIT_SHIP')
+    expect(isMerchantWorkspacePath('/merchant/staff')).toBe(true)
+    expect(resolveAdminRedirect('/merchant/staff', merchant)).toBe('/merchant/staff')
   })
 
   it('sends merchant accounts away from platform-only pages', () => {

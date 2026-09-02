@@ -83,6 +83,25 @@ class OrderShipmentServiceTest {
     }
 
     @Test
+    void blankCarrierUsesCurrentAccountsDefaultLogisticsCompany() throws Exception {
+        DmsShopOrder order = pendingOrder(11L, "SO10001");
+        when(orderDao.selectByOrderNoForUpdate("SO10001")).thenReturn(order);
+        when(orderItemDao.sumQuantityByOrderId(11L)).thenReturn(1);
+        when(shipmentDao.insert(any(DmsShopOrderShipment.class))).thenReturn(1);
+        when(orderDao.ship(11L, "京东物流", "JD1234567890")).thenReturn(1);
+        DmsAdminUser operator = new DmsAdminUser();
+        operator.setId(9001L);
+        operator.setDefaultLogisticsCompany("京东物流");
+        AdminContext.set(operator);
+
+        OrderShipmentImportResultVO result = service.importShipments(workbook(
+                new String[]{"SO10001", "", "JD1234567890", "1"}));
+
+        assertTrue(result.isSuccess());
+        verify(orderDao).ship(11L, "京东物流", "JD1234567890");
+    }
+
+    @Test
     void invalidRowIsSkippedWithoutBlockingValidShipments() throws Exception {
         DmsShopOrder order = pendingOrder(11L, "SO10001");
         when(orderDao.selectByOrderNoForUpdate("SO10001")).thenReturn(order);

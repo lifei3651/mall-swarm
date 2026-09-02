@@ -23,7 +23,7 @@
     </el-table>
     <el-dialog v-model="visible" :title="form.id ? '商户经营设置' : '开通商户及商家账号'" width="760px">
       <el-form :model="form" label-width="100px">
-        <el-alert v-if="!form.id" title="开通后商家使用下方账号登录，首次登录必须自行修改密码；经营主体、收款与开票资料由商家在自己的后台填写并提交认证。" type="info" :closable="false" show-icon style="margin-bottom:18px" />
+        <el-alert v-if="!form.id" title="平台只设置商家登录账号；系统会生成24小时有效的一次性临时密码，商家首次登录后必须自行设置正式密码。经营主体、收款与开票资料仍由商家提交认证。" type="info" :closable="false" show-icon style="margin-bottom:18px" />
         <el-divider content-position="left">基础资料</el-divider>
         <el-form-item label="商户编号"><el-input v-model="form.merchantNo" :disabled="Boolean(form.id)" placeholder="留空自动生成" /></el-form-item>
         <el-form-item label="商户名称" required><el-input v-model="form.merchantName" maxlength="128" /></el-form-item>
@@ -32,7 +32,6 @@
         <template v-if="!form.id">
           <el-divider content-position="left">商家登录账号</el-divider>
           <el-form-item label="商家账号" required><el-input v-model="form.username" maxlength="32" placeholder="4至32位，以字母开头，可用字母、数字、下划线" autocomplete="off" /></el-form-item>
-          <el-form-item label="初始密码" required><el-input v-model="form.password" type="password" show-password maxlength="64" placeholder="10至64位，至少三类字符" autocomplete="new-password" /></el-form-item>
           <el-form-item label="当前密码" required><el-input v-model="form.currentAdminPassword" type="password" show-password maxlength="64" placeholder="确认当前平台管理员身份" autocomplete="current-password" /></el-form-item>
         </template>
         <template v-else>
@@ -56,6 +55,11 @@
         <el-form-item v-if="form.id" label="备注"><el-input v-model="form.remark" type="textarea" maxlength="500" show-word-limit /></el-form-item>
       </el-form>
       <template #footer><el-button @click="visible=false">取消</el-button><el-button type="primary" :loading="saving" @click="submit">保存</el-button></template>
+    </el-dialog>
+    <el-dialog v-model="credentialVisible" title="商家一次性登录凭据" width="500px" :close-on-click-modal="false">
+      <el-alert title="临时密码只显示本次，请立即安全交给商家；24小时后失效，首次登录必须修改正式密码。" type="warning" :closable="false" show-icon />
+      <div class="credential-card"><span>登录账号</span><strong>{{ credential.username }}</strong><span>临时密码</span><strong class="temporary-password">{{ credential.temporaryPassword }}</strong><span>有效期至</span><strong>{{ formatCredentialTime(credential.expiresAt) }}</strong></div>
+      <template #footer><el-button type="primary" @click="copyCredential">复制凭据</el-button><el-button @click="credentialVisible=false">我已保存</el-button></template>
     </el-dialog>
     <el-dialog v-model="controlVisible" title="商户业务控制" width="720px">
       <el-alert title="暂停新销售不会锁死商户账号；商户仍可按履约状态处理已经成交的订单和售后。" type="warning" :closable="false" show-icon />
@@ -84,7 +88,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { getMerchantExitReadiness, listMerchants, saveMerchant, updateMerchantControls } from '@/api/merchant'
 
 const rows = ref([]); const keyword = ref(''); const loading = ref(false); const visible = ref(false); const saving = ref(false)
-const emptyForm = () => ({ id: null, merchantNo: '', merchantName: '', contactName: '', contactPhone: '', legalEntityName: '', unifiedSocialCreditCode: '', bankAccountName: '', bankName: '', bankAccountNo: '', invoiceTitle: '', taxpayerIdentificationNo: '', contractStatus: 'PENDING', requiredDepositAmount: 0, defaultSettlementDays: 0, status: 0, remark: '', username: '', password: '', currentAdminPassword: '' })
+const credentialVisible = ref(false)
+const credential = ref({ username: '', temporaryPassword: '', expiresAt: '' })
+const emptyForm = () => ({ id: null, merchantNo: '', merchantName: '', contactName: '', contactPhone: '', legalEntityName: '', unifiedSocialCreditCode: '', bankAccountName: '', bankName: '', bankAccountNo: '', invoiceTitle: '', taxpayerIdentificationNo: '', contractStatus: 'PENDING', requiredDepositAmount: 0, defaultSettlementDays: 0, status: 0, remark: '', username: '', currentAdminPassword: '' })
 const form = ref(emptyForm())
 const controlVisible = ref(false)
 const exitReadiness = ref(null)
@@ -97,11 +103,12 @@ const open = (row) => { form.value = row ? { ...row } : emptyForm(); visible.val
 const submit = async () => {
   if (!form.value.merchantName?.trim()) return ElMessage.warning('请输入商户名称')
   if (!form.value.id && !/^[A-Za-z][A-Za-z0-9_]{3,31}$/.test(form.value.username || '')) return ElMessage.warning('请输入规范的商家账号')
-  if (!form.value.id && (!form.value.password || form.value.password.length < 10)) return ElMessage.warning('初始密码至少10位')
   if (!form.value.id && !form.value.currentAdminPassword) return ElMessage.warning('请输入当前管理员密码')
   saving.value = true
-  try { await saveMerchant(form.value.id, form.value); ElMessage.success(form.value.id ? '商户经营设置已保存' : '商户已开通，请将账号交给商家完成首次登录和资料认证'); visible.value = false; await load() } finally { saving.value = false }
+  try { const response = await saveMerchant(form.value.id, form.value); if (!form.value.id) { credential.value = { username: response.data?.onboardingUsername || form.value.username, temporaryPassword: response.data?.temporaryPassword || '', expiresAt: response.data?.credentialExpiresAt || '' }; credentialVisible.value = true }; ElMessage.success(form.value.id ? '商户经营设置已保存' : '商户已开通，请保存一次性登录凭据'); visible.value = false; await load() } finally { saving.value = false }
 }
+const formatCredentialTime = (value) => value ? String(value).replace('T', ' ').slice(0, 19) : '-'
+const copyCredential = async () => { await navigator.clipboard.writeText(`商家登录账号：${credential.value.username}\n一次性临时密码：${credential.value.temporaryPassword}\n有效期至：${formatCredentialTime(credential.value.expiresAt)}\n首次登录后必须立即修改正式密码。`); ElMessage.success('商家登录凭据已复制') }
 const openControls = async (row) => { controlForm.value = { id: row.id, accountStatus: row.accountStatus || 'ENABLED', businessStatus: row.businessStatus || (row.status === 1 ? 'ACTIVE' : 'SUSPENDED'), fulfillmentStatus: row.fulfillmentStatus || 'ENABLED', withdrawalStatus: row.withdrawalStatus || 'ENABLED', settlementStatus: row.settlementStatus || 'ENABLED', depositStatus: row.depositStatus || 'NORMAL', auditStatus: row.auditStatus || 'PENDING', exitStatus: row.exitStatus || 'NORMAL', reason: '' }; exitReadiness.value = null; controlVisible.value = true; await refreshExitReadiness() }
 const refreshExitReadiness = async () => { if (!controlForm.value.id) return; exitReadiness.value = (await getMerchantExitReadiness(controlForm.value.id)).data || null }
 const checkExit = async (row) => { await openControls(row) }
@@ -114,5 +121,5 @@ onMounted(load)
 </script>
 
 <style scoped>
-.page-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.page-heading h2{margin:0}.page-heading p{margin:6px 0 0;color:#909399}.toolbar{display:flex;gap:10px;width:420px;margin:16px 0}.unit{margin-left:8px}.field-help{width:100%;color:#909399;font-size:12px;line-height:1.6;margin-top:6px}.control-form{margin-top:18px}.exit-alert{margin-top:12px}
+.page-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.page-heading h2{margin:0}.page-heading p{margin:6px 0 0;color:#909399}.toolbar{display:flex;gap:10px;width:420px;margin:16px 0}.unit{margin-left:8px}.field-help{width:100%;color:#909399;font-size:12px;line-height:1.6;margin-top:6px}.control-form{margin-top:18px}.exit-alert{margin-top:12px}.credential-card{display:grid;grid-template-columns:100px minmax(0,1fr);gap:14px;margin-top:18px;padding:18px;border:1px solid #e1e8f0;border-radius:10px;background:#f8fafc}.credential-card span{color:#7b8798}.credential-card strong{word-break:break-all}.temporary-password{color:#b54708;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:18px;letter-spacing:.8px}
 </style>

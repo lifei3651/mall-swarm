@@ -12,10 +12,11 @@
     <result column="submitter_id" property="submitterId"/><result column="submitter_name" property="submitterName"/>
     <result column="submitted_at" property="submittedAt"/><result column="reviewer_id" property="reviewerId"/>
     <result column="reviewer_name" property="reviewerName"/><result column="review_remark" property="reviewRemark"/>
+    <result column="review_checklist_json" property="reviewChecklistJson"/>
     <result column="reviewed_at" property="reviewedAt"/><result column="create_time" property="createTime"/>
     <result column="update_time" property="updateTime"/>
   </resultMap>
-  <sql id="cols">id,tenant_id,merchant_id,merchant_name,product_id,review_version,review_type,status,product_no,product_name,sale_price,settlement_price,sku_count,product_snapshot,submitter_id,submitter_name,submitted_at,reviewer_id,reviewer_name,review_remark,reviewed_at,create_time,update_time</sql>
+  <sql id="cols">id,tenant_id,merchant_id,merchant_name,product_id,review_version,review_type,status,product_no,product_name,sale_price,settlement_price,sku_count,product_snapshot,submitter_id,submitter_name,submitted_at,reviewer_id,reviewer_name,review_remark,review_checklist_json,reviewed_at,create_time,update_time</sql>
   <select id="selectById" resultMap="Base">SELECT <include refid="cols"/> FROM dms_merchant_product_review WHERE id=#{id}</select>
   <select id="selectByIdForUpdate" resultMap="Base">SELECT <include refid="cols"/> FROM dms_merchant_product_review WHERE id=#{id} FOR UPDATE</select>
   <select id="selectList" resultMap="Base">
@@ -33,7 +34,7 @@
     VALUES(#{tenantId},#{merchantId},#{merchantName},#{productId},#{reviewVersion},#{reviewType},#{status},#{productNo},#{productName},#{salePrice},#{settlementPrice},#{skuCount},#{productSnapshot},#{submitterId},#{submitterName},#{submittedAt})
   </insert>
   <update id="updateDecision">
-    UPDATE dms_merchant_product_review SET status=#{status},reviewer_id=#{reviewerId},reviewer_name=#{reviewerName},review_remark=#{reviewRemark},reviewed_at=#{reviewedAt},update_time=CURRENT_TIMESTAMP
+    UPDATE dms_merchant_product_review SET status=#{status},reviewer_id=#{reviewerId},reviewer_name=#{reviewerName},review_remark=#{reviewRemark},review_checklist_json=#{reviewChecklistJson},reviewed_at=#{reviewedAt},update_time=CURRENT_TIMESTAMP
     WHERE id=#{id} AND status='PENDING'
   </update>
   <update id="rejectPendingByMerchant">

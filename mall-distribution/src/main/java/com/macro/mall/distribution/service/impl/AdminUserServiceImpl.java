@@ -6,12 +6,15 @@ import com.macro.mall.distribution.dao.DmsAdminSessionDao;
 import com.macro.mall.distribution.dao.DmsAdminUserDao;
 import com.macro.mall.distribution.dto.AdminPasswordDTO;
 import com.macro.mall.distribution.dto.AdminSelfPasswordDTO;
+import com.macro.mall.distribution.dto.AdminTemporaryCredentialDTO;
 import com.macro.mall.distribution.dto.AdminUserSaveDTO;
 import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.security.AdminContext;
+import com.macro.mall.distribution.security.TemporaryAdminCredential;
 import com.macro.mall.distribution.service.AdminUserService;
 import com.macro.mall.distribution.service.AdminAuthService;
 import com.macro.mall.distribution.service.OperationLogService;
+import com.macro.mall.distribution.vo.AdminTemporaryCredentialVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.LinkedHashSet;
+import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
 @Service
@@ -41,10 +45,16 @@ public class AdminUserServiceImpl implements AdminUserService {
             Map.entry("shop:order", "订单发货"), Map.entry("shop:aftersale", "售后处理"),
             Map.entry("shop:member", "会员管理"), Map.entry("finance:read", "财务查看"),
             Map.entry("finance:manage", "财务处理"), Map.entry("distribution:manage", "代理业绩"),
+            Map.entry("merchant:staff-manage", "商户子账号管理"),
             Map.entry("line-change:apply", "移线管理（提交后直接生效）"),
             Map.entry("commission:manage", "佣金处理"), Map.entry("import:manage", "批量导入"));
     private static final Set<String> KNOWN_PERMISSIONS = PERMISSION_DEFINITIONS.stream()
             .map(Map.Entry::getKey).collect(Collectors.toUnmodifiableSet());
+    private static final Set<String> MERCHANT_STAFF_PERMISSIONS = Set.of(
+            "admin:read", "shop:product", "shop:order", "shop:aftersale", "finance:read", "finance:manage");
+    private static final Set<String> LOGISTICS_COMPANIES = Set.of(
+            "顺丰速运", "京东物流", "中通快递", "圆通速递", "申通快递", "韵达快递", "极兔速递",
+            "中国邮政", "EMS", "德邦快递", "跨越速运", "安能物流", "壹米滴答", "DHL", "FedEx", "UPS");
 
     private final DmsAdminUserDao adminUserDao;
     private final DmsAdminSessionDao adminSessionDao;
@@ -54,7 +64,8 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Override
     public List<DmsAdminUser> listUsers(String keyword, Integer status) {
-        List<DmsAdminUser> users = adminUserDao.list(keyword, status);
+        DmsAdminUser actor = requireAccountManager();
+        List<DmsAdminUser> users = adminUserDao.list(keyword, status, actor.getMerchantId());
         users.forEach(this::sanitize);
         return users;
     }
@@ -66,24 +77,33 @@ public class AdminUserServiceImpl implements AdminUserService {
             Asserts.fail("账号信息不能为空");
         }
         DmsAdminUser actor = requireActorAndVerify(dto.getCurrentAdminPassword());
+        requireAccountManager(actor);
+        dto.setPermissions(normalizeRequestedPermissions(dto.getPermissions()));
+        if (actor.getMerchantId() != null) {
+            dto.setMerchantId(actor.getMerchantId());
+            if (dto.getPermissions() != null && dto.getPermissions().contains("merchant:staff-manage")) {
+                Asserts.fail("商户子账号不能继续授予账号管理权限");
+            }
+        }
         validateGrantedPermissions(actor, dto.getPermissions());
         DmsAdminUser user;
         DmsAdminUser before = null;
+        String temporaryPassword = null;
+        LocalDateTime credentialExpiresAt = null;
         if (dto.getId() == null) {
             if (dto.getUsername() == null || dto.getUsername().isBlank()) {
                 Asserts.fail("账号不能为空");
-            }
-            if (dto.getPassword() == null || dto.getPassword().isBlank()) {
-                Asserts.fail("初始密码不能为空");
             }
             if (adminUserDao.selectByUsername(dto.getUsername()) != null) {
                 Asserts.fail("账号已存在");
             }
             user = buildUser(dto);
-            validatePassword(dto.getPassword());
+            temporaryPassword = TemporaryAdminCredential.generate();
+            credentialExpiresAt = TemporaryAdminCredential.expiresAt();
             user.setSalt(BCRYPT_MARKER);
-            user.setPasswordHash(BCrypt.hashpw(dto.getPassword()));
+            user.setPasswordHash(BCrypt.hashpw(temporaryPassword));
             user.setMustChangePassword(1);
+            user.setCredentialExpiresAt(credentialExpiresAt);
             adminUserDao.insert(user);
         } else {
             user = adminUserDao.selectById(dto.getId());
@@ -92,11 +112,15 @@ public class AdminUserServiceImpl implements AdminUserService {
             }
             before = copyForAudit(user);
             assertCanManage(actor, user, false);
-            fillEditable(user, dto);
+            fillEditable(user, dto, actor);
             adminUserDao.update(user);
             adminSessionDao.disableByAdminId(user.getId());
         }
         DmsAdminUser saved = adminUserDao.selectById(user.getId());
+        if (saved != null && temporaryPassword != null) {
+            saved.setTemporaryPassword(temporaryPassword);
+            saved.setCredentialExpiresAt(credentialExpiresAt);
+        }
         operationLogService.log("ADMIN_USER", before == null ? "CREATE" : "UPDATE", "ADMIN_USER",
                 String.valueOf(user.getId()), adminSummary(before), adminSummary(saved),
                 before == null ? "新增后台账号" : "修改后台账号、角色或权限");
@@ -114,9 +138,11 @@ public class AdminUserServiceImpl implements AdminUserService {
             Asserts.fail("后台账号不存在");
         }
         DmsAdminUser actor = requireActorAndVerify(dto.getCurrentAdminPassword());
+        requireAccountManager(actor);
         assertCanManage(actor, user, false);
         rejectReusedPassword(user, dto.getPassword());
-        boolean updated = adminUserDao.updatePassword(id, BCrypt.hashpw(dto.getPassword()), BCRYPT_MARKER, 1) > 0;
+        LocalDateTime expiresAt = TemporaryAdminCredential.expiresAt();
+        boolean updated = adminUserDao.updateTemporaryPassword(id, BCrypt.hashpw(dto.getPassword()), BCRYPT_MARKER, expiresAt) > 0;
         if (updated) {
             adminUserDao.clearLoginLock(id);
             adminSessionDao.disableByAdminId(id);
@@ -124,6 +150,27 @@ public class AdminUserServiceImpl implements AdminUserService {
                     "password=unchanged", "password=reset;sessions=revoked", "重置后台账号密码");
         }
         return updated;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AdminTemporaryCredentialVO issueTemporaryCredential(Long id, AdminTemporaryCredentialDTO dto) {
+        if (id == null || dto == null) Asserts.fail("账号和身份确认信息不能为空");
+        DmsAdminUser actor = requireActorAndVerify(dto.getCurrentAdminPassword());
+        requireAccountManager(actor);
+        DmsAdminUser target = adminUserDao.selectById(id);
+        if (target == null) Asserts.fail("后台账号不存在");
+        assertCanManage(actor, target, false);
+        String temporaryPassword = TemporaryAdminCredential.generate();
+        LocalDateTime expiresAt = TemporaryAdminCredential.expiresAt();
+        if (adminUserDao.updateTemporaryPassword(id, BCrypt.hashpw(temporaryPassword), BCRYPT_MARKER, expiresAt) <= 0) {
+            Asserts.fail("临时登录凭据生成失败，请刷新后重试");
+        }
+        adminSessionDao.disableByAdminId(id);
+        operationLogService.log("ADMIN_USER", "TEMPORARY_CREDENTIAL", "ADMIN_USER", String.valueOf(id),
+                "credential=unchanged", "temporaryCredentialIssued=true;sessions=revoked;expiresAt=" + expiresAt,
+                "生成一次性后台临时登录凭据");
+        return new AdminTemporaryCredentialVO(target.getUsername(), temporaryPassword, expiresAt);
     }
 
     @Override
@@ -149,7 +196,8 @@ public class AdminUserServiceImpl implements AdminUserService {
     public boolean unlock(Long id) {
         DmsAdminUser target = id == null ? null : adminUserDao.selectById(id);
         if (target == null) Asserts.fail("后台账号不存在");
-        assertCanManage(requireActor(), target, false);
+        DmsAdminUser actor = requireAccountManager();
+        assertCanManage(actor, target, false);
         boolean updated = adminUserDao.clearLoginLock(id) > 0;
         if (updated) operationLogService.log("ADMIN_USER", "UNLOCK", "ADMIN_USER", String.valueOf(id),
                 "loginLocked=true", "loginLocked=false", "解除后台账号登录锁定");
@@ -161,7 +209,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (id == null || status == null) {
             Asserts.fail("参数不能为空");
         }
-        DmsAdminUser current = requireActor();
+        DmsAdminUser current = requireAccountManager();
         DmsAdminUser target = adminUserDao.selectById(id);
         if (target == null) Asserts.fail("后台账号不存在");
         if (id.equals(current.getId()) && Integer.valueOf(0).equals(status)) {
@@ -179,18 +227,20 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Override
     public List<Map<String, String>> permissionOptions() {
-        DmsAdminUser actor = requireActor();
+        DmsAdminUser actor = requireAccountManager();
         Set<String> actorPermissions = permissionSet(actor);
         boolean root = actorPermissions.contains(SUPER_PERMISSION);
         return PERMISSION_DEFINITIONS.stream()
+                .filter(entry -> actor.getMerchantId() == null || MERCHANT_STAFF_PERMISSIONS.contains(entry.getKey()))
                 .filter(entry -> root || actorPermissions.contains(entry.getKey()))
                 .map(entry -> option(entry.getKey(), entry.getValue())).toList();
     }
 
     @Override
     public List<Map<String, Object>> merchantOptions() {
-        requireActor();
+        DmsAdminUser actor = requireAccountManager();
         return merchantDao.selectList(com.macro.mall.common.tenant.TenantContext.getTenantId(), null, null).stream()
+                .filter(item -> actor.getMerchantId() == null || actor.getMerchantId().equals(item.getId()))
                 .filter(item -> !"EXITED".equals(item.getExitStatus()))
                 .map(item -> {
             Map<String, Object> option = new LinkedHashMap<>();
@@ -204,11 +254,11 @@ public class AdminUserServiceImpl implements AdminUserService {
     private DmsAdminUser buildUser(AdminUserSaveDTO dto) {
         DmsAdminUser user = new DmsAdminUser();
         user.setUsername(dto.getUsername().trim());
-        fillEditable(user, dto);
+        fillEditable(user, dto, requireActor());
         return user;
     }
 
-    private void fillEditable(DmsAdminUser user, AdminUserSaveDTO dto) {
+    private void fillEditable(DmsAdminUser user, AdminUserSaveDTO dto, DmsAdminUser actor) {
         user.setNickname(blankToDefault(dto.getNickname(), dto.getUsername()));
         user.setRoleCode(blankToDefault(dto.getRoleCode(), "OPERATOR"));
         user.setPermissions(joinPermissions(dto.getPermissions()));
@@ -217,9 +267,10 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (dto.getMerchantId() != null) {
             com.macro.mall.distribution.entity.DmsMerchant merchant = merchantDao.selectById(dto.getMerchantId());
             if (merchant == null || "EXITED".equals(merchant.getExitStatus())) Asserts.fail("绑定商户不存在或已退出");
-            Set<String> allowed = Set.of("admin:read", "shop:product", "shop:order", "shop:aftersale", "finance:read", "finance:manage");
+            Set<String> allowed = new LinkedHashSet<>(MERCHANT_STAFF_PERMISSIONS);
+            if (actor.getMerchantId() == null) allowed.add("merchant:staff-manage");
             if (!allowed.containsAll(permissionSet(user))) Asserts.fail("商户工作台账号只能授予本商户商品、订单、售后和货款权限");
-            user.setRoleCode("MERCHANT");
+            user.setRoleCode(permissionSet(user).contains("merchant:staff-manage") ? "MERCHANT_OWNER" : "MERCHANT_STAFF");
         }
     }
 
@@ -241,6 +292,21 @@ public class AdminUserServiceImpl implements AdminUserService {
                 .collect(Collectors.joining(","));
     }
 
+    private List<String> normalizeRequestedPermissions(List<String> permissions) {
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        if (permissions != null) permissions.stream()
+                .filter(item -> item != null && !item.isBlank())
+                .map(String::trim).forEach(normalized::add);
+        if (normalized.isEmpty()) normalized.add("admin:read");
+        if (!normalized.contains(SUPER_PERMISSION)) {
+            // 售后必须读取所属订单，财务处理必须读取台账；依赖权限由前后端同时明确补齐。
+            if (normalized.contains("shop:aftersale")) normalized.add("shop:order");
+            if (normalized.contains("finance:manage")) normalized.add("finance:read");
+            if (normalized.contains("line-change:apply")) normalized.add("distribution:manage");
+        }
+        return List.copyOf(normalized);
+    }
+
     private DmsAdminUser requireActorAndVerify(String currentPassword) {
         DmsAdminUser actor = requireActor();
         adminAuthService.verifyPassword(actor, currentPassword);
@@ -250,6 +316,16 @@ public class AdminUserServiceImpl implements AdminUserService {
     private DmsAdminUser requireActor() {
         DmsAdminUser actor = AdminContext.get();
         if (actor == null || actor.getId() == null) Asserts.fail("后台登录已失效，请重新登录");
+        return actor;
+    }
+
+    private DmsAdminUser requireAccountManager() {
+        return requireAccountManager(requireActor());
+    }
+
+    private DmsAdminUser requireAccountManager(DmsAdminUser actor) {
+        String permission = actor.getMerchantId() == null ? "system:manage" : "merchant:staff-manage";
+        adminAuthService.requirePermission(actor, permission);
         return actor;
     }
 
@@ -266,6 +342,14 @@ public class AdminUserServiceImpl implements AdminUserService {
     }
 
     private void assertCanManage(DmsAdminUser actor, DmsAdminUser target, boolean allowSelf) {
+        if (actor.getMerchantId() != null) {
+            if (!allowSelf && actor.getId().equals(target.getId())) Asserts.fail("不能通过子账号管理修改当前登录账号");
+            if (!actor.getMerchantId().equals(target.getMerchantId())) Asserts.fail("不能管理其他商户的账号");
+            if ("MERCHANT_OWNER".equals(target.getRoleCode()) || permissionSet(target).contains("merchant:staff-manage")) {
+                Asserts.fail("商户负责人账号只能由平台管理员维护");
+            }
+            return;
+        }
         Set<String> actorPermissions = permissionSet(actor);
         if (actorPermissions.contains(SUPER_PERMISSION)) return;
         if (!allowSelf && actor.getId().equals(target.getId())) Asserts.fail("不能通过账号管理修改当前登录账号");
@@ -317,6 +401,25 @@ public class AdminUserServiceImpl implements AdminUserService {
         return user;
     }
 
+    @Override
+    public String currentDefaultLogisticsCompany() {
+        DmsAdminUser actor = requireActor();
+        DmsAdminUser current = adminUserDao.selectById(actor.getId());
+        return current == null ? null : current.getDefaultLogisticsCompany();
+    }
+
+    @Override
+    public String updateCurrentDefaultLogisticsCompany(String company) {
+        DmsAdminUser actor = requireActor();
+        String normalized = company == null ? null : company.trim();
+        if (normalized == null || !LOGISTICS_COMPANIES.contains(normalized)) Asserts.fail("请选择系统支持的默认物流公司");
+        String before = currentDefaultLogisticsCompany();
+        if (adminUserDao.updateDefaultLogisticsCompany(actor.getId(), normalized) <= 0) Asserts.fail("默认物流公司保存失败");
+        operationLogService.log("ADMIN_PREFERENCE", "LOGISTICS_DEFAULT", "ADMIN_USER", String.valueOf(actor.getId()),
+                before, normalized, "设置订单导入导出的默认物流公司");
+        return normalized;
+    }
+
     private DmsAdminUser copyForAudit(DmsAdminUser source) {
         if (source == null) return null;
         DmsAdminUser copy = new DmsAdminUser();
@@ -328,6 +431,8 @@ public class AdminUserServiceImpl implements AdminUserService {
         copy.setMerchantId(source.getMerchantId());
         copy.setStatus(source.getStatus());
         copy.setMustChangePassword(source.getMustChangePassword());
+        copy.setCredentialExpiresAt(source.getCredentialExpiresAt());
+        copy.setDefaultLogisticsCompany(source.getDefaultLogisticsCompany());
         return copy;
     }
 

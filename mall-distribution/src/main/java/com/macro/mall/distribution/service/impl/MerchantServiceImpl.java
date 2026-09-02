@@ -8,6 +8,7 @@ import com.macro.mall.distribution.dao.*;
 import com.macro.mall.distribution.dto.*;
 import com.macro.mall.distribution.entity.*;
 import com.macro.mall.distribution.security.AdminContext;
+import com.macro.mall.distribution.security.TemporaryAdminCredential;
 import com.macro.mall.distribution.service.AdminAuthService;
 import com.macro.mall.distribution.service.MerchantService;
 import com.macro.mall.distribution.util.MemberAccountUtils;
@@ -98,7 +99,6 @@ public class MerchantServiceImpl implements MerchantService {
         if (username == null || !username.matches("^[A-Za-z][A-Za-z0-9_]{3,31}$")) {
             Asserts.fail("商家账号需为4至32位，必须以英文字母开头且仅支持字母、数字和下划线");
         }
-        validateAdminPassword(dto.getPassword());
         if (adminUserDao.selectByUsername(username) != null) Asserts.fail("商家账号已存在");
 
         DmsMerchant merchant = new DmsMerchant();
@@ -128,20 +128,27 @@ public class MerchantServiceImpl implements MerchantService {
         recordOpeningLedger(merchant);
 
         DmsAdminUser merchantAdmin = new DmsAdminUser();
+        String temporaryPassword = TemporaryAdminCredential.generate();
+        LocalDateTime credentialExpiresAt = TemporaryAdminCredential.expiresAt();
         merchantAdmin.setUsername(username);
-        merchantAdmin.setPasswordHash(BCrypt.hashpw(dto.getPassword()));
+        merchantAdmin.setPasswordHash(BCrypt.hashpw(temporaryPassword));
         merchantAdmin.setSalt("BCRYPT");
         merchantAdmin.setNickname(trim(dto.getContactName()) == null ? merchant.getMerchantName() : trim(dto.getContactName()));
-        merchantAdmin.setRoleCode("MERCHANT");
-        merchantAdmin.setPermissions("admin:read,shop:product,shop:order,shop:aftersale,finance:read,finance:manage");
+        merchantAdmin.setRoleCode("MERCHANT_OWNER");
+        merchantAdmin.setPermissions("admin:read,shop:product,shop:order,shop:aftersale,finance:read,finance:manage,merchant:staff-manage");
         merchantAdmin.setMerchantId(merchant.getId());
         merchantAdmin.setStatus(1);
         merchantAdmin.setMustChangePassword(1);
+        merchantAdmin.setCredentialExpiresAt(credentialExpiresAt);
         adminUserDao.insert(merchantAdmin);
         operationLogService.log("MERCHANT", "ONBOARD", "MERCHANT", String.valueOf(merchant.getId()),
                 null, "merchant=" + merchant.getMerchantNo() + ";account=" + username + ";audit=PENDING",
                 "开通商户工作台，等待商户提交经营与结算资料；操作人=" + actor.getUsername());
-        return merchantDao.selectById(merchant.getId());
+        DmsMerchant result = merchantDao.selectById(merchant.getId());
+        result.setOnboardingUsername(username);
+        result.setTemporaryPassword(temporaryPassword);
+        result.setCredentialExpiresAt(credentialExpiresAt);
+        return result;
     }
 
     @Override
@@ -920,15 +927,6 @@ public class MerchantServiceImpl implements MerchantService {
         }
     }
 
-    private void validateAdminPassword(String password) {
-        if (password == null || password.length() < 10 || password.length() > 64) Asserts.fail("后台密码需要10至64位");
-        int groups = 0;
-        if (password.chars().anyMatch(Character::isLowerCase)) groups++;
-        if (password.chars().anyMatch(Character::isUpperCase)) groups++;
-        if (password.chars().anyMatch(Character::isDigit)) groups++;
-        if (password.chars().anyMatch(value -> !Character.isLetterOrDigit(value))) groups++;
-        if (groups < 3) Asserts.fail("后台密码必须包含大小写字母、数字、符号中的至少三类");
-    }
     private void requirePayoutProfile(DmsMerchant merchant) {
         if (!"SIGNED".equals(merchant.getContractStatus())) Asserts.fail("商户合同尚未生效，不能申请提现");
         if (trim(merchant.getLegalEntityName()) == null || trim(merchant.getUnifiedSocialCreditCode()) == null

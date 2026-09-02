@@ -6,6 +6,7 @@ export const MERCHANT_HOME_PATH = '/merchant/home'
 export const MERCHANT_WORKSPACE_PATHS = Object.freeze([
   MERCHANT_HOME_PATH,
   '/merchant/profile',
+  '/merchant/staff',
   '/change-password',
   '/shop/products',
   '/shop/service-addresses',

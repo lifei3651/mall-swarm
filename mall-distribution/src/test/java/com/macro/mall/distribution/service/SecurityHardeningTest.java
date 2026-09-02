@@ -81,6 +81,56 @@ class SecurityHardeningTest {
     }
 
     @Test
+    void expiredTemporaryAdminCredentialCannotCreateSession() {
+        String password = "Temporary-password-123!";
+        DmsAdminUser admin = new DmsAdminUser();
+        admin.setId(10L);
+        admin.setUsername("temporary-admin");
+        admin.setPasswordHash(BCrypt.hashpw(password));
+        admin.setSalt("BCRYPT");
+        admin.setStatus(1);
+        admin.setMustChangePassword(1);
+        admin.setCredentialExpiresAt(LocalDateTime.now().minusMinutes(1));
+        when(adminUserDao.selectByUsernameAndPortal("temporary-admin", "PLATFORM")).thenReturn(admin);
+
+        AdminLoginDTO dto = new AdminLoginDTO();
+        dto.setUsername("temporary-admin");
+        dto.setPassword(password);
+        dto.setPortal("PLATFORM");
+
+        RuntimeException error = assertThrows(RuntimeException.class,
+                () -> new AdminAuthServiceImpl(adminUserDao, adminSessionDao, captchaService).login(dto));
+
+        assertTrue(error.getMessage().contains("临时密码已过期"));
+        verify(adminSessionDao, never()).insert(any(DmsAdminSession.class));
+    }
+
+    @Test
+    void firstLoginSessionNeverOutlivesTemporaryCredential() {
+        String password = "Temporary-password-456!";
+        LocalDateTime credentialExpiresAt = LocalDateTime.now().plusMinutes(30);
+        DmsAdminUser admin = new DmsAdminUser();
+        admin.setId(11L);
+        admin.setUsername("first-login-admin");
+        admin.setPasswordHash(BCrypt.hashpw(password));
+        admin.setSalt("BCRYPT");
+        admin.setStatus(1);
+        admin.setMustChangePassword(1);
+        admin.setCredentialExpiresAt(credentialExpiresAt);
+        when(adminUserDao.selectByUsernameAndPortal("first-login-admin", "PLATFORM")).thenReturn(admin);
+
+        AdminLoginDTO dto = new AdminLoginDTO();
+        dto.setUsername("first-login-admin");
+        dto.setPassword(password);
+        dto.setPortal("PLATFORM");
+        new AdminAuthServiceImpl(adminUserDao, adminSessionDao, captchaService).login(dto);
+
+        ArgumentCaptor<DmsAdminSession> session = ArgumentCaptor.forClass(DmsAdminSession.class);
+        verify(adminSessionDao).insert(session.capture());
+        assertEquals(credentialExpiresAt, session.getValue().getExpireTime());
+    }
+
+    @Test
     void platformAndMerchantAccountsCannotUseTheWrongLoginPortal() {
         String password = "Valid-password-123";
         AdminAuthServiceImpl service = new AdminAuthServiceImpl(adminUserDao, adminSessionDao, captchaService);

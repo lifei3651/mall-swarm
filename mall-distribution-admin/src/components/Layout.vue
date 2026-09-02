@@ -70,6 +70,18 @@
           </el-breadcrumb>
         </div>
         <div class="header-right">
+          <el-popover placement="bottom-end" :width="340" trigger="click">
+            <template #reference>
+              <button type="button" class="todo-bell" aria-label="查看经营待办">
+                <el-icon><Bell /></el-icon><sup v-if="todoTotal">{{ todoTotal > 99 ? '99+' : todoTotal }}</sup>
+              </button>
+            </template>
+            <div class="todo-popover">
+              <div class="todo-popover-title"><strong>经营待办</strong><span>{{ todoTotal ? `共 ${todoTotal} 项` : '暂无待办' }}</span></div>
+              <button v-for="item in todoItems" :key="item.key" type="button" @click="router.push(item.path)"><span>{{ item.title }}</span><strong>{{ item.count }}</strong></button>
+              <p v-if="!todoItems.length">当前没有需要处理的认证、商品、订单、售后或财务事项。</p>
+            </div>
+          </el-popover>
           <div class="system-status"><i></i><span>系统运行正常</span></div>
           <el-dropdown @command="handleCommand">
             <span class="user-info">
@@ -100,6 +112,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import {
   CreditCard,
+  Bell,
   DataAnalysis,
   DArrowLeft,
   DArrowRight,
@@ -118,6 +131,8 @@ import {
 } from '@element-plus/icons-vue'
 import { getMe, logout as logoutApi } from '@/api/auth'
 import { getAdminOrderWorkSummary } from '@/api/shop'
+import { listMerchantProductReviews } from '@/api/shop'
+import { listMerchants, listMerchantWithdrawals } from '@/api/merchant'
 import { connectAdminOrderRealtime } from '@/utils/orderRealtime'
 import { getShopBrand } from '@/api/shopBrand'
 import { useAppStore } from '@/store'
@@ -138,6 +153,27 @@ const isCollapsed = ref(false)
 const isDashboard = computed(() => route.path === '/dashboard')
 const brand = reactive({ brandName: localStorage.getItem('admin_brand_name') || '灵启商城', logoUrl: '' })
 const brandLogoLoadFailed = ref(false)
+const todoSummary = reactive({ pendingShipment: 0, afterSale: 0, merchantCertification: 0, productReview: 0, finance: 0 })
+const todoItems = computed(() => [
+  store.hasPermission('shop:order') && { key: 'pendingShipment', title: '待发货订单', count: todoSummary.pendingShipment, path: '/shop/orders?orderState=PENDING_SHIPMENT' },
+  store.hasPermission('shop:order') && { key: 'afterSale', title: '待处理售后', count: todoSummary.afterSale, path: '/shop/orders?orderState=AFTER_SALE' },
+  store.userInfo?.merchantId && { key: 'merchantCertification', title: '入驻资料待完善', count: todoSummary.merchantCertification, path: '/merchant/profile' },
+  !store.userInfo?.merchantId && store.hasPermission('system:manage') && store.hasPermission('shop:product') && { key: 'merchantCertification', title: '待认证商户', count: todoSummary.merchantCertification, path: '/shop/merchants' },
+  store.hasPermission('shop:product-review') && { key: 'productReview', title: '待审核商户商品', count: todoSummary.productReview, path: '/shop/merchant-product-reviews' },
+  store.hasPermission('finance:read') && { key: 'finance', title: store.userInfo?.merchantId ? '提现与发票待跟进' : '商户财务待处理', count: todoSummary.finance, path: '/audit/merchant-finance?tab=withdrawals' },
+].filter((item) => item && Number(item.count || 0) > 0))
+const todoTotal = computed(() => todoItems.value.reduce((sum, item) => sum + Number(item.count || 0), 0))
+const initializedTodoKeys = new Set()
+const updateTodoValues = (next) => {
+  const increased = []
+  Object.entries(next).forEach(([key, value]) => {
+    const count = Math.max(0, Number(value || 0))
+    if (initializedTodoKeys.has(key) && count > Number(todoSummary[key] || 0)) increased.push(count - Number(todoSummary[key] || 0))
+    todoSummary[key] = count
+    initializedTodoKeys.add(key)
+  })
+  if (increased.length) ElNotification({ title: '有新的经营待办', message: `新增 ${increased.reduce((sum, value) => sum + value, 0)} 项，请在右上角待办中查看。`, type: 'warning', duration: 5000 })
+}
 const sidebarLogoSrc = computed(() => brandLogoLoadFailed.value ? defaultLogo : (brand.logoUrl || defaultLogo))
 const handleSidebarLogoError = () => {
   if (sidebarLogoSrc.value === defaultLogo) return
@@ -165,6 +201,7 @@ const businessMenus = [
   {
     key: 'merchant-onboarding', title: '入驻与认证', icon: 'OfficeBuilding', items: [
       { title: '经营与结算资料', path: '/merchant/profile', merchantOnly: true },
+      { title: '子账号与权限', path: '/merchant/staff', permission: 'merchant:staff-manage', merchantOnly: true },
     ],
   },
   {
@@ -255,6 +292,7 @@ const loadBrand = async () => {
 
 let sessionCheckTimer
 let orderWorkTimer
+let operationalTodoTimer
 let stopOrderRealtime
 let realtimeRefreshTimer
 let lastActivityCheck = 0
@@ -302,7 +340,7 @@ const checkSessionOnActivity = () => {
 const checkSessionOnVisibility = () => {
   if (document.visibilityState === 'visible') {
     checkServerSession(true)
-    loadOrderWorkSummary()
+    loadAllTodos()
   }
 }
 
@@ -314,11 +352,38 @@ const loadOrderWorkSummary = async () => {
       pendingShipment: Number(res.data?.pendingShipment || 0),
       afterSale: Number(res.data?.afterSale || 0),
     }
+    updateTodoValues(summary)
     window.dispatchEvent(new CustomEvent('admin-order-work-summary', { detail: summary }))
   } catch {
     // 待办数字读取失败不影响后台使用，下一轮定时刷新会自动重试。
   }
 }
+
+const loadOperationalTodos = async () => {
+  if (!store.token) return
+  const jobs = []
+  if (store.hasPermission('shop:product')) {
+    jobs.push(listMerchants().then((res) => {
+      const rows = res.data || []
+      updateTodoValues({ merchantCertification: store.userInfo?.merchantId
+        ? (rows.some((item) => item.auditStatus !== 'APPROVED') ? 1 : 0)
+        : rows.filter((item) => item.auditStatus === 'PENDING').length })
+    }))
+  }
+  if (store.hasPermission('shop:product-review')) {
+    jobs.push(listMerchantProductReviews({ status: 'PENDING', pageNum: 1, pageSize: 1 })
+      .then((res) => updateTodoValues({ productReview: Number(res.data?.total || 0) })))
+  }
+  if (store.hasPermission('finance:read')) {
+    jobs.push(listMerchantWithdrawals().then((res) => {
+      const active = new Set(['SUBMITTED', 'INVOICE_PENDING', 'READY_TO_PAY', 'PAYMENT_PROCESSING', 'PAYMENT_FAILED', 'RISK_FROZEN'])
+      updateTodoValues({ finance: (res.data || []).filter((item) => active.has(item.status)).length })
+    }))
+  }
+  await Promise.allSettled(jobs)
+}
+
+const loadAllTodos = () => Promise.allSettled([loadOrderWorkSummary(), loadOperationalTodos()])
 
 const handleRealtimeOrderChange = () => {
   window.clearTimeout(realtimeRefreshTimer)
@@ -344,8 +409,9 @@ const handleSessionExpired = () => {
 onMounted(() => {
   loadBrand()
   checkServerSession(true)
-  loadOrderWorkSummary()
+  loadAllTodos()
   sessionCheckTimer = window.setInterval(() => checkServerSession(true), 60000)
+  operationalTodoTimer = window.setInterval(loadOperationalTodos, 60000)
   stopOrderRealtime = connectAdminOrderRealtime({
     onEvent: handleRealtimeOrderChange,
     onStatus: handleRealtimeStatus,
@@ -359,6 +425,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.clearInterval(sessionCheckTimer)
   window.clearInterval(orderWorkTimer)
+  window.clearInterval(operationalTodoTimer)
   window.clearTimeout(realtimeRefreshTimer)
   stopOrderRealtime?.()
   window.removeEventListener('focus', checkSessionOnVisibility)
@@ -602,6 +669,11 @@ const handleCommand = async (command) => {
     align-items: center;
     gap: 22px;
 
+    .todo-bell { position:relative; display:grid; width:38px; height:38px; place-items:center; color:#53657d; background:#f5f7fb; border:1px solid #e2e8f0; border-radius:10px; cursor:pointer; }
+    .todo-bell:hover { color:#1556a3; border-color:#9dbce0; background:#eef5fd; }
+    .todo-bell .el-icon { font-size:19px; }
+    .todo-bell sup { position:absolute; top:-7px; right:-8px; min-width:20px; height:20px; padding:0 5px; color:#fff; background:#e5484d; border:2px solid #fff; border-radius:999px; font-size:10px; font-weight:800; line-height:16px; }
+
     .system-status {
       display: inline-flex;
       align-items: center;
@@ -632,6 +704,14 @@ const handleCommand = async (command) => {
     }
   }
 }
+
+:global(.todo-popover) { display:grid; gap:8px; }
+:global(.todo-popover-title) { display:flex; align-items:center; justify-content:space-between; padding-bottom:9px; border-bottom:1px solid #edf0f4; }
+:global(.todo-popover-title strong) { color:#27364f; font-size:15px; }
+:global(.todo-popover-title span),:global(.todo-popover p) { color:#8a95a6; font-size:12px; }
+:global(.todo-popover button) { display:flex; align-items:center; justify-content:space-between; width:100%; padding:10px 11px; color:#46566e; background:#f8fafc; border:1px solid #e7ecf2; border-radius:8px; cursor:pointer; }
+:global(.todo-popover button:hover) { color:#1556a3; border-color:#b5cbe4; background:#f1f6fc; }
+:global(.todo-popover button strong) { min-width:28px; color:#fff; background:#e5484d; border-radius:999px; line-height:24px; text-align:center; }
 
 .layout-content {
   flex: 1;

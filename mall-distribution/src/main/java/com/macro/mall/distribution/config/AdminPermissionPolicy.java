@@ -17,7 +17,9 @@ final class AdminPermissionPolicy {
         if (HttpMethod.POST.matches(method) && path.equals("/distribution/agent/switch-line")) return "line-change:apply";
         if (HttpMethod.GET.matches(method) && path.equals("/distribution/agent/line-change-applications")) return "line-change:apply";
         if (path.startsWith("/distribution/admin-auth/")) return "admin:read";
-        if (path.startsWith("/distribution/admin-users")) return "system:manage";
+        // 账号管理服务会进一步区分平台 system:manage 与商户负责人 merchant:staff-manage，
+        // 此处只完成登录门禁，避免把商户子账号接口错误当成平台功能。
+        if (path.startsWith("/distribution/admin-users")) return "admin:read";
         if (path.startsWith("/distribution/operation-logs")) return "system:manage";
         if (path.startsWith("/distribution/erp")) return "config:integration";
         if (path.startsWith("/distribution/bonus-config") || path.startsWith("/distribution/audit/settings")) {

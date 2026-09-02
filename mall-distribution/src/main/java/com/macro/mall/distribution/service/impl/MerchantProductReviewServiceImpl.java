@@ -12,6 +12,7 @@ import com.macro.mall.distribution.dao.DmsMerchantAccountDao;
 import com.macro.mall.distribution.dao.DmsShopProductDao;
 import com.macro.mall.distribution.dao.DmsShopSkuDao;
 import com.macro.mall.distribution.dto.MerchantProductReviewDecisionDTO;
+import com.macro.mall.distribution.dto.MerchantProductReviewCheckDTO;
 import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.entity.DmsMerchant;
 import com.macro.mall.distribution.entity.DmsMerchantProductReview;
@@ -30,6 +31,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -40,6 +42,14 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class MerchantProductReviewServiceImpl implements MerchantProductReviewService {
     private static final Set<String> REVIEW_STATES = Set.of("DRAFT", "PENDING", "APPROVED", "REJECTED");
+    private static final Map<String, String> REVIEW_CHECKS = Map.ofEntries(
+            Map.entry("BASIC_INFO", "商品标题、图片和基础信息"),
+            Map.entry("CATEGORY_QUALIFICATION", "经营类目与相关资质"),
+            Map.entry("CONTENT_COMPLIANCE", "详情内容与禁限售合规"),
+            Map.entry("PRICE_SETTLEMENT", "销售价、结算价与异常价格"),
+            Map.entry("STOCK_DELIVERY", "SKU库存、发货与物流设置"),
+            Map.entry("AFTER_SALE_PROMISE", "售后规则与服务承诺")
+    );
     private final DmsMerchantProductReviewDao reviewDao;
     private final DmsShopProductDao productDao;
     private final DmsShopSkuDao skuDao;
@@ -196,6 +206,7 @@ public class MerchantProductReviewServiceImpl implements MerchantProductReviewSe
         boolean approved = dto != null && Boolean.TRUE.equals(dto.getApproved());
         String remark = trim(dto == null ? null : dto.getRemark());
         if (!approved && remark == null) Asserts.fail("驳回时必须填写原因");
+        String checklistJson = validateAndSerializeChecklist(dto, approved);
         DmsShopProduct product = productDao.selectByIdForUpdate(review.getProductId());
         if (product == null || !Objects.equals(product.getMerchantReviewVersion(), review.getReviewVersion())
                 || !"PENDING".equals(product.getMerchantReviewStatus())) Asserts.fail("商品资料已变化，本次审核不能继续");
@@ -209,6 +220,7 @@ public class MerchantProductReviewServiceImpl implements MerchantProductReviewSe
         review.setReviewerId(admin.getId());
         review.setReviewerName(adminName(admin));
         review.setReviewRemark(remark);
+        review.setReviewChecklistJson(checklistJson);
         review.setReviewedAt(now);
         if (reviewDao.updateDecision(review) != 1) Asserts.fail("该审核已被其他人员处理");
         if (productDao.markReviewDecision(product.getId(), review.getReviewVersion(), result,
@@ -228,6 +240,38 @@ public class MerchantProductReviewServiceImpl implements MerchantProductReviewSe
         product.setMerchantReviewedAt(null);
         product.setMerchantReviewerId(null);
         product.setMerchantReviewerName(null);
+    }
+
+    private String validateAndSerializeChecklist(MerchantProductReviewDecisionDTO dto, boolean approved) {
+        List<MerchantProductReviewCheckDTO> checks = dto == null ? null : dto.getChecks();
+        if (checks == null || checks.size() != REVIEW_CHECKS.size()) {
+            Asserts.fail("请逐项完成全部商品审核项目");
+        }
+        Set<String> seen = new LinkedHashSet<>();
+        boolean hasRejectedItem = false;
+        List<Map<String, Object>> normalized = new java.util.ArrayList<>();
+        for (MerchantProductReviewCheckDTO check : checks) {
+            String code = check == null ? null : trim(check.getCode());
+            if (code == null || !REVIEW_CHECKS.containsKey(code) || !seen.add(code)) {
+                Asserts.fail("商品审核项目不完整或包含重复项目");
+            }
+            if (check.getPassed() == null) Asserts.fail("请选择每一项审核结果");
+            if (!check.getPassed()) hasRejectedItem = true;
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("code", code);
+            item.put("label", REVIEW_CHECKS.get(code));
+            item.put("passed", check.getPassed());
+            normalized.add(item);
+        }
+        if (!seen.equals(REVIEW_CHECKS.keySet())) Asserts.fail("请逐项完成全部商品审核项目");
+        if (approved && hasRejectedItem) Asserts.fail("审核通过前，全部审核项目都必须为通过");
+        if (!approved && !hasRejectedItem) Asserts.fail("驳回商品时至少要标记一项不通过");
+        try {
+            return objectMapper.writeValueAsString(normalized);
+        } catch (JsonProcessingException e) {
+            Asserts.fail("商品审核清单保存失败");
+            return "[]";
+        }
     }
 
     private void requireActiveMerchant(Long merchantId) {

@@ -516,10 +516,15 @@ test('mobile interactive areas suppress the browser tap highlight without disabl
 
 test('registration page does not expose internal membership activation copy', async () => {
   const login = await readView('LoginView.vue')
+  const publicLogin = await readFile(new URL('../src/surfaces/public/PublicLoginView.vue', import.meta.url), 'utf8')
 
   assert.doesNotMatch(login, /注册后是商城用户/)
   assert.doesNotMatch(login, /完成首笔有效支付订单后正式成为会员/)
-  assert.match(login, /<p v-if="mode === 'login'">登录后可管理地址、订单和售后。<\/p>/)
+  assert.doesNotMatch(login, /登录后可管理地址、订单和售后/)
+  assert.match(login, /商城账号登录/)
+  assert.doesNotMatch(publicLogin, /登录后继续管理购物车和订单/)
+  assert.doesNotMatch(publicLogin, /登录商城账号/)
+  assert.match(publicLogin, /商城账号登录/)
 })
 
 test('protected routes restore a valid HttpOnly session when the local login hint is missing', async () => {

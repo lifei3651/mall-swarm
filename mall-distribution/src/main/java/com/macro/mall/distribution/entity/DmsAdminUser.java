@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.entity;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -35,6 +36,16 @@ public class DmsAdminUser implements Serializable {
 
     /** 新建账号或由他人重置密码后，必须先自行修改密码才能进入业务后台。 */
     private Integer mustChangePassword;
+
+    /** 一次性临时凭据到期时间；用户改成自己的正式密码后清空。 */
+    private LocalDateTime credentialExpiresAt;
+
+    /** 当前操作账号在订单导入/导出中使用的默认物流公司。 */
+    private String defaultLogisticsCompany;
+
+    /** 只在创建或重置成功的当前响应中返回一次，从不写入数据库和日志。 */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String temporaryPassword;
 
     private LocalDateTime lastLoginTime;
 

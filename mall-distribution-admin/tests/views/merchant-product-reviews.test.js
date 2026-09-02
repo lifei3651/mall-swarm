@@ -14,6 +14,13 @@ describe('商户商品审核闭环', () => {
     expect(source).toContain('驳回修改')
     expect(source).toContain('审核通过，商品已自动上架')
     expect(source).toContain('请填写驳回原因')
+    expect(source).toContain("code: 'BASIC_INFO'")
+    expect(source).toContain("code: 'CATEGORY_QUALIFICATION'")
+    expect(source).toContain("code: 'CONTENT_COMPLIANCE'")
+    expect(source).toContain("code: 'PRICE_SETTLEMENT'")
+    expect(source).toContain("code: 'STOCK_DELIVERY'")
+    expect(source).toContain("code: 'AFTER_SALE_PROMISE'")
+    expect(source).toContain('全部审核项目都必须为通过')
   })
 
   it('商品页要求先下架再改价并说明新老订单的结算口径', async () => {

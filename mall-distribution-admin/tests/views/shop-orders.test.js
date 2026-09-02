@@ -64,6 +64,10 @@ describe('商城订单取消入口', () => {
     expect(source).toContain('下载导入模板')
     expect(source).toContain('downloadOrderShipmentImportTemplate')
     expect(source).toContain('物流发货导入模板.xlsx')
+    expect(source).toContain('导单默认物流商')
+    expect(source).toContain('getOrderLogisticsPreference')
+    expect(source).toContain('updateOrderLogisticsPreference')
+    expect(source).toContain('导入表物流公司留空时也使用该默认值')
   })
 
   it('人工发货使用可搜索的标准物流公司下拉选择', async () => {

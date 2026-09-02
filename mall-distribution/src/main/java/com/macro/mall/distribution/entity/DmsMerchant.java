@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.entity;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -66,4 +67,12 @@ public class DmsMerchant implements Serializable {
     private String remark;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+
+    /** 以下三个字段只在平台刚开通商户时返回一次，不持久化。 */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String onboardingUsername;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String temporaryPassword;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private LocalDateTime credentialExpiresAt;
 }

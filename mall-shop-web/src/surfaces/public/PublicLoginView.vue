@@ -4,8 +4,8 @@
       <header class="auth-heading">
         <img :src="brandLogo" :alt="`${brandName} Logo`" @error="logoFailed = true" />
         <div>
-          <h1>{{ isRegister ? '注册商城账号' : '登录商城账号' }}</h1>
-          <p>{{ isRegister ? '注册后即可购物、查询订单和申请售后' : '登录后继续管理购物车和订单' }}</p>
+          <h1>{{ isRegister ? '注册商城账号' : '商城账号登录' }}</h1>
+          <p v-if="isRegister">注册后即可购物、查询订单和申请售后</p>
         </div>
       </header>
 

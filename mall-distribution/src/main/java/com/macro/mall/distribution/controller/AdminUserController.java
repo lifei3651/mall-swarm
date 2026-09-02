@@ -5,8 +5,10 @@ import com.macro.mall.common.api.CommonPage;
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.distribution.dto.AdminPasswordDTO;
 import com.macro.mall.distribution.dto.AdminUserSaveDTO;
+import com.macro.mall.distribution.dto.AdminTemporaryCredentialDTO;
 import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.service.AdminUserService;
+import com.macro.mall.distribution.vo.AdminTemporaryCredentialVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +53,13 @@ public class AdminUserController {
     @PutMapping("/{id}/password")
     public CommonResult<Boolean> updatePassword(@PathVariable Long id, @Valid @RequestBody AdminPasswordDTO dto) {
         return CommonResult.success(adminUserService.updatePassword(id, dto));
+    }
+
+    @Operation(summary = "生成24小时有效且首次登录必须修改的一次性临时凭据")
+    @PostMapping("/{id}/temporary-credential")
+    public CommonResult<AdminTemporaryCredentialVO> issueTemporaryCredential(
+            @PathVariable Long id, @Valid @RequestBody AdminTemporaryCredentialDTO dto) {
+        return CommonResult.success(adminUserService.issueTemporaryCredential(id, dto));
     }
 
     @Operation(summary = "解除后台账号密码错误锁定")

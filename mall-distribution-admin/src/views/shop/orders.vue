@@ -60,6 +60,14 @@
         show-icon
         class="shipping-workflow-tip"
       />
+      <div v-if="query.orderState === 'PENDING_SHIPMENT' && merchantFulfillmentAllowed" class="default-logistics-row">
+        <strong>导单默认物流商</strong>
+        <el-select v-model="defaultLogisticsCompany" filterable placeholder="请选择默认物流公司" style="width:220px">
+          <el-option v-for="company in logisticsCompanyOptions" :key="company" :label="company" :value="company" />
+        </el-select>
+        <el-button type="primary" plain :loading="logisticsPreferenceSaving" @click="saveLogisticsPreference">保存默认</el-button>
+        <span>下载发货表时自动填入；导入表物流公司留空时也使用该默认值，仍可逐行覆盖。</span>
+      </div>
     </div>
 
     <el-alert v-if="orderSearchFeedback" :title="orderSearchFeedback" type="warning" :closable="false" show-icon class="search-feedback" />
@@ -689,7 +697,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Download, Refresh, Search, Upload } from '@element-plus/icons-vue'
@@ -702,6 +710,7 @@ import {
   exportShopOrders,
   getAdminOrderWorkSummary,
   getAdminOrderTracking,
+  getOrderLogisticsPreference,
   getShopTradeDetail,
   importOrderShipments,
   listShopOrders,
@@ -709,6 +718,7 @@ import {
   shipShopOrder,
   shipShopAfterSaleExchangeReplacement,
   updateShopOrderServiceRemark,
+  updateOrderLogisticsPreference,
 } from '@/api/shop'
 import { getOrderFinance } from '@/api/audit'
 import { formatProductSpec } from '@/utils/productSpec'
@@ -727,6 +737,8 @@ const exportLoading = ref(false)
 const templateLoading = ref(false)
 const importTemplateLoading = ref(false)
 const importLoading = ref(false)
+const logisticsPreferenceSaving = ref(false)
+const defaultLogisticsCompany = ref('')
 const orders = ref([])
 const merchantFulfillmentAllowed = computed(() => !isMerchantUser.value
   || !orders.value.length
@@ -991,6 +1003,14 @@ const changeOrderState = (orderState) => {
   fetchOrders()
 }
 
+watch(() => route.query.orderState, (value) => {
+  const next = orderStateOptions.some((item) => item.value === value) ? String(value) : ''
+  if (next === query.value.orderState) return
+  query.value.orderState = next
+  pagination.value.page = 1
+  fetchOrders()
+})
+
 const resetOrderQuery = () => {
   query.value.keyword = ''
   pagination.value.page = 1
@@ -1048,6 +1068,16 @@ const handleDownloadShipmentImportTemplate = async () => {
   }
 }
 
+const loadLogisticsPreference = async () => {
+  try { defaultLogisticsCompany.value = (await getOrderLogisticsPreference()).data || '' } catch { defaultLogisticsCompany.value = '' }
+}
+
+const saveLogisticsPreference = async () => {
+  if (!defaultLogisticsCompany.value) return ElMessage.warning('请选择默认物流公司')
+  logisticsPreferenceSaving.value = true
+  try { await updateOrderLogisticsPreference(defaultLogisticsCompany.value); ElMessage.success('导单默认物流商已保存') } finally { logisticsPreferenceSaving.value = false }
+}
+
 const handleShipmentImport = async ({ file }) => {
   try {
     await ElMessageBox.confirm(
@@ -1074,7 +1104,7 @@ const handleShipmentImport = async ({ file }) => {
 const openShip = (row) => {
   currentOrder.value = row
   shipForm.value = {
-    deliveryCompany: '',
+    deliveryCompany: defaultLogisticsCompany.value,
     deliveryNo: '',
     shipmentQuantity: remainingShipmentQuantity(row),
   }
@@ -1294,7 +1324,7 @@ const confirmReturnReceived = async (sale) => {
 
 const openExchangeShipment = (sale) => {
   currentAfterSale.value = sale
-  exchangeShipmentForm.value = { deliveryCompany: '', deliveryNo: '' }
+  exchangeShipmentForm.value = { deliveryCompany: defaultLogisticsCompany.value, deliveryNo: '' }
   exchangeShipmentDialogVisible.value = true
 }
 
@@ -1319,6 +1349,7 @@ const submitExchangeShipment = async () => {
 onMounted(() => {
   fetchOrders()
   fetchWorkSummary()
+  loadLogisticsPreference()
   window.addEventListener('admin-order-work-summary', handleWorkSummaryUpdate)
   window.addEventListener('admin-order-changed', handleRealtimeOrderChange)
 })
@@ -1653,6 +1684,10 @@ onBeforeUnmount(() => {
 .shipping-workflow-tip {
   margin: -2px 0 16px;
 }
+
+.default-logistics-row { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin:-4px 0 16px; padding:12px 14px; color:#475467; background:#f7f9fc; border:1px solid #e3e9f1; border-radius:8px; }
+.default-logistics-row strong { color:#344054; }
+.default-logistics-row span { color:#7b8798; font-size:12px; }
 
 .search-feedback {
   margin-bottom: 16px;

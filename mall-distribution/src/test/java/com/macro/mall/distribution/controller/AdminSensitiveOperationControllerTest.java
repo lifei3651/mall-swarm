@@ -8,6 +8,7 @@ import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.AdminAuthService;
 import com.macro.mall.distribution.service.AdminMemberSecurityService;
+import com.macro.mall.distribution.service.AdminUserService;
 import com.macro.mall.distribution.service.ExternalTeamMigrationService;
 import com.macro.mall.distribution.service.FlashSaleService;
 import com.macro.mall.distribution.service.ImportService;
@@ -118,7 +119,7 @@ class AdminSensitiveOperationControllerTest {
         return new ShopController(
                 mock(ShopService.class), shopAuthService, mock(ShopAddressService.class),
                 mock(ShopServiceAddressService.class), mock(ShopAfterSaleService.class), mock(TenantService.class),
-                adminAuthService, mock(AdminMemberSecurityService.class), mock(OrderShipmentService.class),
+                adminAuthService, mock(AdminUserService.class), mock(AdminMemberSecurityService.class), mock(OrderShipmentService.class),
                 mock(OrderSpreadsheetService.class), mock(ShopSessionCookieService.class),
                 mock(OrderRealtimeService.class), mock(FlashSaleService.class), mock(LogisticsTrackingService.class),
                 mock(com.macro.mall.distribution.service.MerchantProductReviewService.class),

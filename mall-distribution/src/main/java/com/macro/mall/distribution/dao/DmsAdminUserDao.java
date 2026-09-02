@@ -8,7 +8,8 @@ import java.util.List;
 
 public interface DmsAdminUserDao {
 
-    List<DmsAdminUser> list(@Param("keyword") String keyword, @Param("status") Integer status);
+    List<DmsAdminUser> list(@Param("keyword") String keyword, @Param("status") Integer status,
+                            @Param("merchantId") Long merchantId);
 
     DmsAdminUser selectById(@Param("id") Long id);
 
@@ -23,6 +24,13 @@ public interface DmsAdminUserDao {
 
     int updatePassword(@Param("id") Long id, @Param("passwordHash") String passwordHash,
                        @Param("salt") String salt, @Param("mustChangePassword") Integer mustChangePassword);
+
+    int updateTemporaryPassword(@Param("id") Long id, @Param("passwordHash") String passwordHash,
+                                @Param("salt") String salt,
+                                @Param("credentialExpiresAt") LocalDateTime credentialExpiresAt);
+
+    int updateDefaultLogisticsCompany(@Param("id") Long id,
+                                      @Param("defaultLogisticsCompany") String defaultLogisticsCompany);
 
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
 

@@ -24,6 +24,7 @@ import com.macro.mall.distribution.service.ShopAuthService;
 import com.macro.mall.distribution.service.ShopService;
 import com.macro.mall.distribution.service.TenantService;
 import com.macro.mall.distribution.service.AdminAuthService;
+import com.macro.mall.distribution.service.AdminUserService;
 import com.macro.mall.distribution.service.AdminMemberSecurityService;
 import com.macro.mall.distribution.service.OrderShipmentService;
 import com.macro.mall.distribution.service.OrderSpreadsheetService;
@@ -93,6 +94,7 @@ public class ShopController {
     private final ShopAfterSaleService afterSaleService;
     private final TenantService tenantService;
     private final AdminAuthService adminAuthService;
+    private final AdminUserService adminUserService;
     private final AdminMemberSecurityService adminMemberSecurityService;
     private final OrderShipmentService orderShipmentService;
     private final OrderSpreadsheetService orderSpreadsheetService;
@@ -1019,14 +1021,26 @@ public class ShopController {
             Asserts.fail("待发货订单超过2000条，请先使用订单号、收货人或手机号筛选后分批下载");
         }
         prepareExcelDownload(response, "待发货订单物流回填-" + LocalDate.now() + ".xlsx");
-        orderSpreadsheetService.writeShipmentTemplate(orders, response.getOutputStream());
+        orderSpreadsheetService.writeShipmentTemplate(orders, adminUserService.currentDefaultLogisticsCompany(), response.getOutputStream());
     }
 
     @Operation(summary = "下载物流发货导入空白模板")
     @GetMapping("/admin/orders/shipments/import-template")
     public void downloadShipmentImportTemplate(HttpServletResponse response) throws IOException {
         prepareExcelDownload(response, "物流发货导入模板.xlsx");
-        orderSpreadsheetService.writeShipmentImportTemplate(response.getOutputStream());
+        orderSpreadsheetService.writeShipmentImportTemplate(adminUserService.currentDefaultLogisticsCompany(), response.getOutputStream());
+    }
+
+    @Operation(summary = "查询当前后台账号导单默认物流公司")
+    @GetMapping("/admin/orders/logistics-preference")
+    public CommonResult<String> logisticsPreference() {
+        return CommonResult.success(adminUserService.currentDefaultLogisticsCompany());
+    }
+
+    @Operation(summary = "保存当前后台账号导单默认物流公司")
+    @PutMapping("/admin/orders/logistics-preference")
+    public CommonResult<String> updateLogisticsPreference(@Valid @RequestBody AdminLogisticsPreferenceDTO dto) {
+        return CommonResult.success(adminUserService.updateCurrentDefaultLogisticsCompany(dto.getCompany()));
     }
 
     @Operation(summary = "Excel批量导入订单物流信息并发货")

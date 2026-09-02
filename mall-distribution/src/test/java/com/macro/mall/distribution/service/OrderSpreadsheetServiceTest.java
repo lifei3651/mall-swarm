@@ -66,6 +66,28 @@ class OrderSpreadsheetServiceTest {
     }
 
     @Test
+    void shipmentTemplatesUseSelectedDefaultLogisticsCompany() throws Exception {
+        DmsShopOrder order = new DmsShopOrder();
+        order.setOrderNo("SO2083490924069793792");
+        order.setStatus(1);
+        ShopOrderVO view = new ShopOrderVO();
+        view.setOrder(order);
+        view.setItems(List.of());
+        ByteArrayOutputStream populatedOutput = new ByteArrayOutputStream();
+        service.writeShipmentTemplate(List.of(view), "京东物流", populatedOutput);
+
+        try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(populatedOutput.toByteArray()))) {
+            assertEquals("京东物流", workbook.getSheet("订单发货").getRow(1).getCell(1).getStringCellValue());
+        }
+
+        ByteArrayOutputStream blankOutput = new ByteArrayOutputStream();
+        service.writeShipmentImportTemplate("京东物流", blankOutput);
+        try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(blankOutput.toByteArray()))) {
+            assertEquals("京东物流", workbook.getSheet("填写说明").getRow(2).getCell(2).getStringCellValue());
+        }
+    }
+
+    @Test
     void shipmentImportTemplateKeepsDataSheetBlankAndPlacesExamplesInInstructions() throws Exception {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         service.writeShipmentImportTemplate(output);

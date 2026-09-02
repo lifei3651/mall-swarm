@@ -64,6 +64,12 @@ const routes = [
         meta: { title: '入驻资料与认证', icon: 'OfficeBuilding', merchantOnly: true },
       },
       {
+        path: 'merchant/staff',
+        name: 'MerchantStaff',
+        component: () => import('@/views/system/admin-users.vue'),
+        meta: { title: '子账号与权限', icon: 'User', merchantOnly: true, permission: 'merchant:staff-manage' },
+      },
+      {
         path: 'dashboard',
         name: 'Dashboard',
         component: () => import('@/views/dashboard/index.vue'),

@@ -66,7 +66,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowRight, Goods, Key, Lock, OfficeBuilding, Service, ShoppingCart, Wallet } from '@element-plus/icons-vue'
+import { ArrowRight, Goods, Key, Lock, OfficeBuilding, Service, ShoppingCart, User, Wallet } from '@element-plus/icons-vue'
 import { useAppStore } from '@/store'
 import { getAdminOrderWorkSummary } from '@/api/shop'
 import { listMerchantAccounts } from '@/api/merchant'
@@ -91,6 +91,13 @@ const quickActions = computed(() => [
     description: '填写经营主体、收款与开票资料并提交平台认证',
     path: '/merchant/profile',
     icon: OfficeBuilding,
+    value: null,
+  },
+  store.hasPermission('merchant:staff-manage') && {
+    title: '子账号与权限',
+    description: '按商品、订单、售后和财务岗位分配权限',
+    path: '/merchant/staff',
+    icon: User,
     value: null,
   },
   store.hasPermission('shop:product') && {

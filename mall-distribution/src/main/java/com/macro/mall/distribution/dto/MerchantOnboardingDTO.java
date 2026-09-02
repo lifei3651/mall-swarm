@@ -33,9 +33,9 @@ public class MerchantOnboardingDTO {
     @Pattern(regexp = "^[A-Za-z][A-Za-z0-9_]{3,31}$", message = "商家账号需为4至32位，必须以英文字母开头且仅支持字母、数字和下划线")
     private String username;
 
+    /** 兼容旧客户端；服务端会忽略此值并生成24小时一次性临时密码。 */
     @ToString.Exclude
-    @NotBlank(message = "初始密码不能为空")
-    @Size(min = 10, max = 64, message = "初始密码需要10至64位")
+    @Size(max = 64, message = "初始密码长度不正确")
     private String password;
 
     /** 创建商家账号前，对当前平台管理员进行身份确认。 */

@@ -5,7 +5,7 @@
         <h2>{{ isMerchantUser ? '商户货款工作台' : '商户货款' }}</h2>
         <p>{{ isMerchantUser ? '查看本商户待结算、可提现、保证金和提现进度。' : '管理结算周期、售后冲回、保证金、发票和人工打款。' }}</p>
       </div>
-      <el-button v-if="canApply" type="primary" @click="openApply">{{ isMerchantUser ? '申请提现' : '代商户申请提现' }}</el-button>
+      <div class="heading-actions"><el-button :disabled="loading || !currentExportRows.length" @click="exportCurrentFinanceTable">导出当前台账</el-button><el-button v-if="canApply" type="primary" @click="openApply">{{ isMerchantUser ? '申请提现' : '代商户申请提现' }}</el-button></div>
     </div>
 
     <el-alert v-if="!isMerchantUser" title="保证金与提现冻结分开记账。系统不自动计算税费；需要少打款时使用负数调整金额并填写原因。" type="warning" :closable="false" show-icon />
@@ -121,7 +121,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/store'
@@ -143,6 +143,7 @@ const current = ref(null); const currentAccount = ref(null)
 const eventsVisible = ref(false); const withdrawalEvents = ref([])
 const orderSummary = ref({ pendingShipment: 0, afterSale: 0 })
 const ownAccount = computed(() => accounts.value[0] || {})
+const currentExportRows = computed(() => ({ accounts: accounts.value, ledger: ledger.value, reconciliation: reconciliation.value, settlements: settlements.value, deposits: depositFlows.value, withdrawals: withdrawals.value }[tab.value] || []))
 const applyForm = ref({ requestNo: '', merchantId: null, requestedAmount: 0 })
 const depositForm = ref({ merchantId: null, operationType: 'FREEZE', amount: 0, reason: '' })
 const reviewForm = ref({ invoiceRequiredAmount: 0, invoiceReceivedAmount: 0, invoiceStatus: 'NOT_REQUIRED', adjustmentAmount: 0, adjustmentReason: '' })
@@ -170,6 +171,28 @@ const ledgerChanges = (row) => {
   return items.length ? items : [{ label: '余额', value: 0 }]
 }
 const maskBankAccount = (value) => { const text = String(value || ''); return text.length <= 8 ? text : `${text.slice(0, 4)} **** ${text.slice(-4)}` }
+const csvValue = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`
+const financeExportColumns = () => ({
+  accounts: [['商户', 'merchantName'], ['待结算', 'pendingAmount'], ['可提现', 'availableAmount'], ['提现冻结', 'frozenAmount'], ['保证金', 'depositFrozenAmount'], ['保证金缺口', 'depositShortfallAmount'], ['退款欠款', 'debtAmount'], ['累计打款', 'totalPaidAmount']],
+  ledger: [['流水号', 'ledgerNo'], ['商户', 'merchantName'], ['业务类型', (row) => ledgerType(row.bizType)], ['摘要', 'summary'], ['待结算变动', 'pendingDelta'], ['可提现变动', 'availableDelta'], ['提现冻结变动', 'frozenDelta'], ['保证金变动', 'depositDelta'], ['欠款变动', 'debtDelta'], ['累计打款变动', 'paidDelta'], ['时间', 'createTime']],
+  reconciliation: [['商户', 'merchantName'], ['对账结果', (row) => row.consistent ? '账实一致' : '存在差额'], ['最后流水', 'latestLedgerNo'], ['待结算差额', 'pendingDifference'], ['可提现差额', 'availableDifference'], ['提现冻结差额', 'frozenDifference'], ['保证金差额', 'depositDifference'], ['欠款差额', 'debtDifference'], ['累计打款差额', 'paidDifference']],
+  settlements: [['商户', 'merchantName'], ['订单号', 'orderNo'], ['数量', 'quantity'], ['结算单价', 'costAmount'], ['应结货款', 'settlementAmount'], ['已冲回', 'reversedAmount'], ['结算等待天数', 'settlementDelayDays'], ['预计可结算', 'eligibleTime'], ['状态', (row) => settlementStatus(row.status).label]],
+  deposits: [['商户', 'merchantName'], ['操作', (row) => depositOperation(row.operationType).label], ['金额', 'amount'], ['操作后保证金', 'balanceAfter'], ['原因', 'reason'], ['操作人', 'operatorName'], ['时间', 'createTime']],
+  withdrawals: [['申请单号', 'withdrawalNo'], ['商户', 'merchantName'], ['收款户名', 'bankAccountNameSnapshot'], ['收款账号', (row) => maskBankAccount(row.bankAccountNoSnapshot)], ['申请金额', 'requestedAmount'], ['应开票', 'invoiceRequiredAmount'], ['已收票', 'invoiceReceivedAmount'], ['调整', 'adjustmentAmount'], ['实付', 'actualPaidAmount'], ['状态', (row) => withdrawalStatus(row.status)]],
+}[tab.value] || [])
+const exportCurrentFinanceTable = () => {
+  const columns = financeExportColumns()
+  const lines = [columns.map(([label]) => csvValue(label)).join(','), ...currentExportRows.value.map((row) => columns.map(([, field]) => csvValue(typeof field === 'function' ? field(row) : row[field])).join(','))]
+  const blob = new Blob([`\ufeff${lines.join('\r\n')}`], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `商户财务-${tab.value}-${new Date().toISOString().slice(0, 10)}.csv`; document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url)
+  ElMessage.success('当前财务台账已导出')
+}
+watch(() => route.query.tab, (value) => {
+  const next = financeTabs.includes(String(value || '')) ? String(value) : 'accounts'
+  if (next === tab.value) return
+  tab.value = next
+  loadCurrent()
+})
 const depositDialogTitle = computed(() => ({ FREEZE: '从商户余额转入保证金', RECEIVE: '登记线下收到的保证金', RELEASE: '解冻商户保证金' }[depositForm.value.operationType] || '调整保证金'))
 const depositDialogTip = computed(() => depositForm.value.operationType === 'FREEZE'
   ? `本次金额将从可提现余额转入保证金。当前可提现 ¥${money(currentAccount.value?.availableAmount)}`
@@ -223,5 +246,5 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.page-heading h2{margin:0}.page-heading p{margin:6px 0 0;color:#909399}.merchant-summary{display:grid;grid-template-columns:repeat(6,minmax(140px,1fr));gap:12px;margin:16px 0}.summary-card{display:flex;flex-direction:column;gap:7px;padding:16px;border:1px solid #e6ebf2;border-radius:10px;background:#fff}.summary-card span{color:#606266;font-size:13px}.summary-card strong{color:#25324b;font-size:22px}.summary-card small{color:#909399}.available{color:#1b6f3a!important}.deposit{color:#b26a00}.debt,.delta-minus{color:#d93838!important;font-weight:700}.delta-plus{color:#16834b;font-weight:700}.delta-zero{color:#909399}.dialog-form{margin-top:18px}.help,.event-remark,.ledger-sub{color:#606266;font-size:12px;margin-top:6px}.ledger-table{margin-top:14px}.ledger-change-list,.ledger-balance{display:flex;flex-wrap:wrap;gap:7px 10px}.ledger-change{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:6px;background:#f5f7fa}.ledger-change small{color:#606266}.ledger-balance span{min-width:132px;color:#4b5563;font-size:12px}@media(max-width:1100px){.merchant-summary{grid-template-columns:repeat(3,minmax(150px,1fr))}}@media(max-width:760px){.page-heading{align-items:flex-start;gap:12px;flex-direction:column}.merchant-summary{grid-template-columns:repeat(2,minmax(130px,1fr))}}
+.page-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.page-heading h2{margin:0}.page-heading p{margin:6px 0 0;color:#909399}.heading-actions{display:flex;gap:8px}.merchant-summary{display:grid;grid-template-columns:repeat(6,minmax(140px,1fr));gap:12px;margin:16px 0}.summary-card{display:flex;flex-direction:column;gap:7px;padding:16px;border:1px solid #e6ebf2;border-radius:10px;background:#fff}.summary-card span{color:#606266;font-size:13px}.summary-card strong{color:#25324b;font-size:22px}.summary-card small{color:#909399}.available{color:#1b6f3a!important}.deposit{color:#b26a00}.debt,.delta-minus{color:#d93838!important;font-weight:700}.delta-plus{color:#16834b;font-weight:700}.delta-zero{color:#909399}.dialog-form{margin-top:18px}.help,.event-remark,.ledger-sub{color:#606266;font-size:12px;margin-top:6px}.ledger-table{margin-top:14px}.ledger-change-list,.ledger-balance{display:flex;flex-wrap:wrap;gap:7px 10px}.ledger-change{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:6px;background:#f5f7fa}.ledger-change small{color:#606266}.ledger-balance span{min-width:132px;color:#4b5563;font-size:12px}@media(max-width:1100px){.merchant-summary{grid-template-columns:repeat(3,minmax(150px,1fr))}}@media(max-width:760px){.page-heading{align-items:flex-start;gap:12px;flex-direction:column}.heading-actions{width:100%;flex-wrap:wrap}.merchant-summary{grid-template-columns:repeat(2,minmax(130px,1fr))}}
 </style>

@@ -2,8 +2,10 @@ package com.macro.mall.distribution.service;
 
 import com.macro.mall.distribution.dto.AdminPasswordDTO;
 import com.macro.mall.distribution.dto.AdminSelfPasswordDTO;
+import com.macro.mall.distribution.dto.AdminTemporaryCredentialDTO;
 import com.macro.mall.distribution.dto.AdminUserSaveDTO;
 import com.macro.mall.distribution.entity.DmsAdminUser;
+import com.macro.mall.distribution.vo.AdminTemporaryCredentialVO;
 
 import java.util.List;
 import java.util.Map;
@@ -16,6 +18,8 @@ public interface AdminUserService {
 
     boolean updatePassword(Long id, AdminPasswordDTO dto);
 
+    AdminTemporaryCredentialVO issueTemporaryCredential(Long id, AdminTemporaryCredentialDTO dto);
+
     boolean changeOwnPassword(AdminSelfPasswordDTO dto);
 
     boolean unlock(Long id);
@@ -25,4 +29,8 @@ public interface AdminUserService {
     List<Map<String, String>> permissionOptions();
 
     List<Map<String, Object>> merchantOptions();
+
+    String currentDefaultLogisticsCompany();
+
+    String updateCurrentDefaultLogisticsCompany(String company);
 }

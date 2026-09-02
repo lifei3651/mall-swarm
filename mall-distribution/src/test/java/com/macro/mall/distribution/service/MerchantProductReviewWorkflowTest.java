@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.service;
 
 import com.macro.mall.distribution.dto.MerchantProductReviewDecisionDTO;
+import com.macro.mall.distribution.dto.MerchantProductReviewCheckDTO;
 import com.macro.mall.distribution.dto.MerchantControlDTO;
 import com.macro.mall.distribution.dto.MerchantProfileSubmitDTO;
 import com.macro.mall.distribution.entity.DmsAdminUser;
@@ -18,6 +19,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -53,6 +55,7 @@ class MerchantProductReviewWorkflowTest {
 
         MerchantProductReviewDecisionDTO approve = new MerchantProductReviewDecisionDTO();
         approve.setApproved(true);
+        approve.setChecks(reviewChecks(null));
         AdminContext.set(admin(7002L, "product_reviewer", "商品审核员", "admin:read,shop:product-review", null));
         DmsMerchantProductReview approved = reviewService.decide(first.getId(), approve);
         assertEquals("APPROVED", approved.getStatus());
@@ -85,6 +88,7 @@ class MerchantProductReviewWorkflowTest {
         MerchantProductReviewDecisionDTO reject = new MerchantProductReviewDecisionDTO();
         reject.setApproved(false);
         reject.setRemark("结算价依据不完整，请补充合同后重新提交");
+        reject.setChecks(reviewChecks("PRICE_SETTLEMENT"));
         AdminContext.set(admin(7002L, "product_reviewer", "商品审核员", "admin:read,shop:product-review", null));
         reviewService.decide(second.getId(), reject);
         DmsShopProduct rejected = shopService.getProduct(1L);
@@ -167,5 +171,15 @@ class MerchantProductReviewWorkflowTest {
         DmsShopProduct copy = new DmsShopProduct();
         BeanUtils.copyProperties(value, copy);
         return copy;
+    }
+
+    private List<MerchantProductReviewCheckDTO> reviewChecks(String rejectedCode) {
+        return List.of("BASIC_INFO", "CATEGORY_QUALIFICATION", "CONTENT_COMPLIANCE", "PRICE_SETTLEMENT",
+                        "STOCK_DELIVERY", "AFTER_SALE_PROMISE").stream().map(code -> {
+            MerchantProductReviewCheckDTO item = new MerchantProductReviewCheckDTO();
+            item.setCode(code);
+            item.setPassed(!code.equals(rejectedCode));
+            return item;
+        }).toList();
     }
 }

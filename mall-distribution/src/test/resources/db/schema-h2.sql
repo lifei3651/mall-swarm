@@ -279,6 +279,8 @@ CREATE TABLE IF NOT EXISTS dms_admin_user (
   failed_login_count INT NOT NULL DEFAULT 0,
   lock_time TIMESTAMP,
   must_change_password INT NOT NULL DEFAULT 0,
+  credential_expires_at TIMESTAMP,
+  default_logistics_company VARCHAR(50),
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -1077,6 +1079,7 @@ CREATE TABLE IF NOT EXISTS dms_merchant_product_review (
   reviewer_id BIGINT,
   reviewer_name VARCHAR(64),
   review_remark VARCHAR(500),
+  review_checklist_json CLOB,
   reviewed_at TIMESTAMP,
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

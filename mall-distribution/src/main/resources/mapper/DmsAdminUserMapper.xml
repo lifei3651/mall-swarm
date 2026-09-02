@@ -15,6 +15,8 @@
         <result column="status" property="status"/>
         <result column="failed_login_count" property="failedLoginCount"/><result column="lock_time" property="lockTime"/>
         <result column="must_change_password" property="mustChangePassword"/>
+        <result column="credential_expires_at" property="credentialExpiresAt"/>
+        <result column="default_logistics_company" property="defaultLogisticsCompany"/>
         <result column="last_login_time" property="lastLoginTime"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
@@ -23,7 +25,8 @@
     <sql id="BaseColumnList">
         u.id, u.username, u.password_hash, u.salt, u.nickname, u.role_code, u.permissions, u.merchant_id,
         m.merchant_name, u.status,
-        u.last_login_time, u.failed_login_count, u.lock_time, u.must_change_password, u.create_time, u.update_time
+        u.last_login_time, u.failed_login_count, u.lock_time, u.must_change_password,
+        u.credential_expires_at, u.default_logistics_company, u.create_time, u.update_time
     </sql>
 
     <select id="list" resultMap="BaseResultMap">
@@ -35,6 +38,9 @@
             </if>
             <if test="status != null">
                 AND u.status = #{status}
+            </if>
+            <if test="merchantId != null">
+                AND u.merchant_id = #{merchantId}
             </if>
         </where>
         ORDER BY u.id DESC
@@ -63,8 +69,10 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO dms_admin_user (username, password_hash, salt, nickname, role_code, permissions, merchant_id, status, must_change_password)
-        VALUES (#{username}, #{passwordHash}, #{salt}, #{nickname}, #{roleCode}, #{permissions}, #{merchantId}, #{status}, #{mustChangePassword})
+        INSERT INTO dms_admin_user (username, password_hash, salt, nickname, role_code, permissions, merchant_id, status,
+                                    must_change_password, credential_expires_at, default_logistics_company)
+        VALUES (#{username}, #{passwordHash}, #{salt}, #{nickname}, #{roleCode}, #{permissions}, #{merchantId}, #{status},
+                #{mustChangePassword}, #{credentialExpiresAt}, #{defaultLogisticsCompany})
     </insert>
 
     <update id="update">
@@ -83,8 +91,22 @@
         SET password_hash = #{passwordHash},
             salt = #{salt},
             must_change_password = #{mustChangePassword},
+            credential_expires_at = CASE WHEN #{mustChangePassword}=0 THEN NULL ELSE credential_expires_at END,
             update_time = NOW()
         WHERE id = #{id}
+    </update>
+
+    <update id="updateTemporaryPassword">
+        UPDATE dms_admin_user
+        SET password_hash = #{passwordHash}, salt = #{salt}, must_change_password = 1,
+            credential_expires_at = #{credentialExpiresAt}, failed_login_count = 0, lock_time = NULL,
+            update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateDefaultLogisticsCompany">
+        UPDATE dms_admin_user SET default_logistics_company=#{defaultLogisticsCompany}, update_time=NOW()
+        WHERE id=#{id}
     </update>
 
     <update id="updateStatus">

@@ -49,6 +49,10 @@
         <el-table-column label="结算价" width="130"><template #default="{ row }"><strong class="settlement-price">¥{{ money(row.costAmount) }}</strong></template></el-table-column>
         <el-table-column prop="stock" label="库存" width="100" />
       </el-table>
+      <el-table v-if="savedChecklist.length" :data="savedChecklist" border size="small" class="checklist-table">
+        <el-table-column prop="label" label="结构化审核项目" min-width="260" />
+        <el-table-column label="审核结果" width="120"><template #default="{ row }"><el-tag :type="row.passed ? 'success' : 'danger'">{{ row.passed ? '通过' : '不通过' }}</el-tag></template></el-table-column>
+      </el-table>
       <el-descriptions v-if="current.status !== 'PENDING'" :column="1" border class="review-result">
         <el-descriptions-item label="审核人">{{ current.reviewerName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="审核说明">{{ current.reviewRemark || '审核通过' }}</el-descriptions-item>
@@ -59,6 +63,14 @@
       <el-alert :title="`请确认：销售价 ¥${money(current.salePrice)}，结算价 ¥${money(current.settlementPrice)}，售后窗口结束后再等待 ${snapshot.effectiveSettlementDays || 0} 天`" type="warning" :closable="false" show-icon />
       <el-form label-width="90px" class="decision-form">
         <el-form-item label="审核结果"><el-radio-group v-model="decision.approved"><el-radio-button :value="true">通过并上架</el-radio-button><el-radio-button :value="false">驳回修改</el-radio-button></el-radio-group></el-form-item>
+        <el-form-item label="审核清单" required>
+          <div class="decision-checklist">
+            <div v-for="item in decision.checks" :key="item.code" class="decision-check-row">
+              <span>{{ item.label }}</span>
+              <el-radio-group v-model="item.passed" size="small"><el-radio-button :value="true">通过</el-radio-button><el-radio-button :value="false">不通过</el-radio-button></el-radio-group>
+            </div>
+          </div>
+        </el-form-item>
         <el-form-item label="审核说明" :required="decision.approved === false"><el-input v-model="decision.remark" type="textarea" :rows="4" maxlength="500" show-word-limit :placeholder="decision.approved ? '可选：填写审核说明' : '请明确填写驳回原因，方便商户修改'" /></el-form-item>
       </el-form>
       <template #footer><el-button @click="decisionVisible=false">取消</el-button><el-button :type="decision.approved ? 'success' : 'danger'" :loading="saving" @click="submitDecision">确认{{ decision.approved ? '通过并上架' : '驳回' }}</el-button></template>
@@ -76,28 +88,41 @@ import { formatDateTimeCell } from '@/utils/dateTime'
 const rows = ref([]); const loading = ref(false); const saving = ref(false)
 const detailVisible = ref(false); const decisionVisible = ref(false); const current = ref({})
 const query = reactive({ keyword: '', status: 'PENDING' }); const pagination = reactive({ page: 1, size: 20, total: 0 })
-const decision = reactive({ approved: true, remark: '' })
+const reviewCheckDefinitions = [
+  { code: 'BASIC_INFO', label: '商品标题、图片和基础信息' },
+  { code: 'CATEGORY_QUALIFICATION', label: '经营类目与相关资质' },
+  { code: 'CONTENT_COMPLIANCE', label: '详情内容与禁限售合规' },
+  { code: 'PRICE_SETTLEMENT', label: '销售价、结算价与异常价格' },
+  { code: 'STOCK_DELIVERY', label: 'SKU库存、发货与物流设置' },
+  { code: 'AFTER_SALE_PROMISE', label: '售后规则与服务承诺' },
+]
+const freshChecks = () => reviewCheckDefinitions.map((item) => ({ ...item, passed: null }))
+const decision = reactive({ approved: true, remark: '', checks: freshChecks() })
 const pendingCount = computed(() => query.status === 'PENDING' ? pagination.total : rows.value.filter((item) => item.status === 'PENDING').length)
 const money = (value) => Number(value || 0).toFixed(2)
 const dateTime = (value) => value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-'
 const statusMeta = (value) => ({ PENDING: { label: '待审核', type: 'warning' }, APPROVED: { label: '已通过', type: 'success' }, REJECTED: { label: '已驳回', type: 'danger' } }[value] || { label: value || '-', type: 'info' })
 const snapshot = computed(() => { try { return JSON.parse(current.value.productSnapshot || '{}') } catch { return {} } })
 const snapshotSkus = computed(() => (snapshot.value.skus || []).filter((item) => Number(item.status) === 1))
+const savedChecklist = computed(() => { try { return JSON.parse(current.value.reviewChecklistJson || '[]') } catch { return [] } })
 const load = async () => { loading.value = true; try { const res = await listMerchantProductReviews({ ...query, pageNum: pagination.page, pageSize: pagination.size }); rows.value = res.data?.list || []; pagination.total = res.data?.total || 0 } finally { loading.value = false } }
 const search = () => { pagination.page = 1; load() }
 const reset = () => { query.keyword = ''; query.status = 'PENDING'; search() }
 const openDetail = (row) => { current.value = row; detailVisible.value = true }
-const openDecision = (row) => { current.value = row; decision.approved = true; decision.remark = ''; decisionVisible.value = true }
+const openDecision = (row) => { current.value = row; decision.approved = true; decision.remark = ''; decision.checks = freshChecks(); decisionVisible.value = true }
 const submitDecision = async () => {
+  if (decision.checks.some((item) => item.passed === null)) return ElMessage.warning('请逐项完成全部商品审核项目')
+  if (decision.approved && decision.checks.some((item) => item.passed !== true)) return ElMessage.warning('审核通过前，全部审核项目都必须为通过')
+  if (!decision.approved && decision.checks.every((item) => item.passed === true)) return ElMessage.warning('驳回商品时至少要标记一项不通过')
   if (!decision.approved && !decision.remark.trim()) return ElMessage.warning('请填写驳回原因')
   const action = decision.approved ? '通过并自动上架' : '驳回并保持下架'
   await ElMessageBox.confirm(`确认${action}“${current.value.productName}”？`, '确认审核', { type: 'warning' })
   saving.value = true
-  try { await decideMerchantProductReview(current.value.id, { approved: decision.approved, remark: decision.remark.trim() || null }); ElMessage.success(decision.approved ? '审核通过，商品已自动上架' : '已驳回，等待商户修改后重新提交'); decisionVisible.value = false; await load() } finally { saving.value = false }
+  try { await decideMerchantProductReview(current.value.id, { approved: decision.approved, remark: decision.remark.trim() || null, checks: decision.checks.map(({ code, passed }) => ({ code, passed })) }); ElMessage.success(decision.approved ? '审核通过，商品已自动上架' : '已驳回，等待商户修改后重新提交'); decisionVisible.value = false; await load() } finally { saving.value = false }
 }
 onMounted(load)
 </script>
 
 <style scoped>
-.page-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.page-heading h2{margin:0}.page-heading p{margin:6px 0 0;color:#909399}.toolbar{display:flex;gap:10px;width:min(720px,100%);margin:16px 0}.toolbar .el-input{flex:1}.toolbar .el-select{width:170px}.el-table small{display:block;margin-top:5px;color:#909399}.sale-price{font-weight:700;color:#e65d00}.settlement-price{font-weight:800;color:#1b6f3a}.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}.detail-grid>div{display:flex;flex-direction:column;gap:7px;padding:14px;border:1px solid #ebeef5;border-radius:8px}.detail-grid span{color:#909399;font-size:13px}.price-card strong{font-size:24px;color:#e65d00}.price-card.settlement{border-color:#b7dfc4;background:#f0f9f3}.price-card.settlement strong{color:#1b6f3a}.sku-table,.review-result{margin-top:16px}.decision-form{margin-top:20px}
+.page-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.page-heading h2{margin:0}.page-heading p{margin:6px 0 0;color:#909399}.toolbar{display:flex;gap:10px;width:min(720px,100%);margin:16px 0}.toolbar .el-input{flex:1}.toolbar .el-select{width:170px}.el-table small{display:block;margin-top:5px;color:#909399}.sale-price{font-weight:700;color:#e65d00}.settlement-price{font-weight:800;color:#1b6f3a}.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}.detail-grid>div{display:flex;flex-direction:column;gap:7px;padding:14px;border:1px solid #ebeef5;border-radius:8px}.detail-grid span{color:#909399;font-size:13px}.price-card strong{font-size:24px;color:#e65d00}.price-card.settlement{border-color:#b7dfc4;background:#f0f9f3}.price-card.settlement strong{color:#1b6f3a}.sku-table,.checklist-table,.review-result{margin-top:16px}.decision-form{margin-top:20px}.decision-checklist{display:grid;width:100%;gap:10px}.decision-check-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 12px;border:1px solid #e7ecf2;border-radius:8px;background:#fafbfc}.decision-check-row>span{color:#344054;font-weight:600}
 </style>

@@ -86,6 +86,11 @@ public class AdminAuthServiceImpl implements AdminAuthService {
             DmsAdminUser refreshed = adminUserDao.selectById(admin.getId());
             Asserts.fail("账号或密码错误");
         }
+        if (Integer.valueOf(1).equals(admin.getMustChangePassword())
+                && admin.getCredentialExpiresAt() != null
+                && !admin.getCredentialExpiresAt().isAfter(LocalDateTime.now())) {
+            Asserts.fail("一次性临时密码已过期，请联系平台或商户负责人重新生成");
+        }
         if (!BCRYPT_MARKER.equals(admin.getSalt())) {
             adminUserDao.updatePassword(admin.getId(), BCrypt.hashpw(dto.getPassword()), BCRYPT_MARKER,
                     admin.getMustChangePassword() == null ? 0 : admin.getMustChangePassword());
@@ -208,7 +213,12 @@ public class AdminAuthServiceImpl implements AdminAuthService {
         String rawToken = IdUtil.fastSimpleUUID() + IdUtil.fastSimpleUUID();
         session.setToken(hashToken(rawToken));
         session.setStatus(1);
-        session.setExpireTime(LocalDateTime.now().plusHours(Math.max(1, sessionHours)));
+        LocalDateTime sessionExpireTime = LocalDateTime.now().plusHours(Math.max(1, sessionHours));
+        if (Integer.valueOf(1).equals(admin.getMustChangePassword()) && admin.getCredentialExpiresAt() != null
+                && admin.getCredentialExpiresAt().isBefore(sessionExpireTime)) {
+            sessionExpireTime = admin.getCredentialExpiresAt();
+        }
+        session.setExpireTime(sessionExpireTime);
         adminSessionDao.insert(session);
         retainRecentSessions(admin.getId());
 
@@ -265,6 +275,8 @@ public class AdminAuthServiceImpl implements AdminAuthService {
         copy.setMerchantName(admin.getMerchantName());
         copy.setStatus(admin.getStatus());
         copy.setMustChangePassword(admin.getMustChangePassword());
+        copy.setCredentialExpiresAt(admin.getCredentialExpiresAt());
+        copy.setDefaultLogisticsCompany(admin.getDefaultLogisticsCompany());
         copy.setLastLoginTime(admin.getLastLoginTime());
         copy.setCreateTime(admin.getCreateTime());
         copy.setUpdateTime(admin.getUpdateTime());

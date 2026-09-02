@@ -61,4 +61,11 @@ describe('商户货款提现', () => {
     expect(source).toContain('if (actionBusyKey.value) return')
     expect(source).toContain(':disabled="Boolean(actionBusyKey)"')
   })
+
+  it('可把当前财务页签导出为CSV留档', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+    expect(source).toContain('导出当前台账')
+    expect(source).toContain('exportCurrentFinanceTable')
+    expect(source).toContain("type: 'text/csv;charset=utf-8'")
+  })
 })
