@@ -26,6 +26,7 @@ Page({
       home.categoryList = (home.categoryList || []).map((item) => ({
         ...item,
         iconUrl: format.mediaUrl(item.iconUrl),
+        iconFailed: false,
         initial: String(item.categoryName || '商').slice(0, 1)
       }))
       const themeColor = /^#[0-9a-fA-F]{6}$/.test(home.themeColor || '') ? home.themeColor : '#e7193f'
@@ -40,6 +41,11 @@ Page({
     }
   },
   logoError() { this.setData({ logoFailed: true }) },
+  categoryIconError(event) {
+    const index = Number(event.currentTarget.dataset.index)
+    if (!Number.isInteger(index) || !this.data.home.categoryList || !this.data.home.categoryList[index]) return
+    this.setData({ [`home.categoryList[${index}].iconFailed`]: true })
+  },
   onKeywordInput(event) { this.setData({ keyword: event.detail.value }) },
   search() {
     const keyword = String(this.data.keyword || '').trim()
@@ -48,6 +54,15 @@ Page({
       const page = pages[pages.length - 1]
       if (page && page.applyKeyword) page.applyKeyword(keyword)
     } })
+  },
+  openBanner(event) {
+    const type = String(event.currentTarget.dataset.type || '').toUpperCase()
+    const value = String(event.currentTarget.dataset.value || '').trim()
+    if (type === 'PRODUCT' && /^\d+$/.test(value)) {
+      wx.navigateTo({ url: `/pages/product/index?id=${value}` })
+      return
+    }
+    if (type === 'CATEGORY' && value) this.openCategory({ currentTarget: { dataset: { name: value } } })
   },
   openProduct(event) { wx.navigateTo({ url: `/pages/product/index?id=${event.currentTarget.dataset.id}` }) },
   openCategory(event) {

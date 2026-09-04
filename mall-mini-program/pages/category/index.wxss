@@ -19,3 +19,7 @@
 .category-product-card .product-title { min-height: 0; line-height: 36rpx; font-size: 26rpx; font-weight: 650; -webkit-line-clamp: 2; }
 .category-product-card .product-subtitle { margin-top: 8rpx; font-size: 22rpx; }
 .category-product-card .product-price { margin-top: auto; font-size: 31rpx; }
+.category-empty text { display: block; }
+.category-empty text:first-child { color: var(--ink); font-size: 29rpx; font-weight: 700; }
+.category-empty text:nth-child(2) { margin-top: 8rpx; font-size: 22rpx; }
+.category-empty button { width: 220rpx; margin-top: 24rpx; font-size: 24rpx; }

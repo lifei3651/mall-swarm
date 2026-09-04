@@ -6,6 +6,7 @@ Page({
   onLoad() { this.loadCategories() },
   onPullDownRefresh() { this.loadProducts().finally(() => wx.stopPullDownRefresh()) },
   async loadCategories() {
+    this.setData({ loading: true, error: '' })
     try {
       const categories = await request({ url: '/shop/categories' })
       this.setData({ categories: categories || [] })
@@ -25,6 +26,7 @@ Page({
   selectCategory(event) { this.setData({ active: event.currentTarget.dataset.name || '' }, () => this.loadProducts()) },
   onKeywordInput(event) { this.setData({ keyword: event.detail.value }) },
   search() { this.loadProducts() },
+  retry() { return this.data.categories.length ? this.loadProducts() : this.loadCategories() },
   applyCategory(name) { this.setData({ active: name || '' }, () => this.loadProducts()) },
   applyKeyword(keyword) { this.setData({ keyword: keyword || '' }, () => this.loadProducts()) },
   openProduct(event) { wx.navigateTo({ url: `/pages/product/index?id=${event.currentTarget.dataset.id}` }) }

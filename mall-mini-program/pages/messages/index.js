@@ -65,6 +65,7 @@ Page({
       this.setData({ loading: false })
     }
   },
+  retry() { this.load(true) },
   selectCategory(event) {
     this.setData({ category: String(event.currentTarget.dataset.key || '') }, () => this.load(true))
   },

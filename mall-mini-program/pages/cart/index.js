@@ -21,7 +21,7 @@ Page({
     })
   },
   toggle(event) {
-    cart.update(event.currentTarget.dataset.key, { selected: !event.currentTarget.dataset.selected })
+    cart.update(event.currentTarget.dataset.key, { selected: (event.detail.value || []).includes('selected') })
     this.refresh()
   },
   quantity(event) {
@@ -30,7 +30,7 @@ Page({
     cart.update(key, { quantity: Math.max(1, Math.min(99, row.quantity + Number(event.currentTarget.dataset.delta))) })
     this.refresh()
   },
-  toggleAll() { cart.selectAll(!this.data.allSelected); this.refresh() },
+  toggleAll(event) { cart.selectAll((event.detail.value || []).includes('selected')); this.refresh() },
   remove(event) {
     const key = event.currentTarget.dataset.key
     wx.showModal({

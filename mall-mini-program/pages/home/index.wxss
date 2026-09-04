@@ -14,9 +14,10 @@
 .categories { margin: 24rpx -24rpx 0; width: auto; }
 .category-row { display: flex; padding: 4rpx 24rpx 10rpx; }
 .category-item { flex: none; width: 136rpx; margin-right: 10rpx; text-align: center; font-size: 24rpx; color: #3d4655; }
-.category-icon { display: flex; align-items: center; justify-content: center; width: 96rpx; height: 96rpx; margin: 0 auto 12rpx; border-radius: 30rpx; background: #fff1f4; overflow: hidden; }
+.category-icon { position: relative; display: flex; align-items: center; justify-content: center; width: 96rpx; height: 96rpx; margin: 0 auto 12rpx; border-radius: 30rpx; background: #fff1f4; overflow: hidden; }
 .category-icon image, .category-placeholder { width: 100%; height: 100%; }
 .category-placeholder { display: flex; align-items: center; justify-content: center; color: var(--brand); font-size: 30rpx; font-weight: 750; }
+.category-icon image { position: absolute; inset: 0; }
 .category-item > text { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .notice { display: flex; align-items: center; margin-top: 22rpx; padding: 22rpx 24rpx; }
 .notice-label { padding-right: 18rpx; color: var(--brand); font-weight: 700; }

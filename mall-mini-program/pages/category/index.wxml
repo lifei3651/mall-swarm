@@ -12,7 +12,7 @@
     <scroll-view class="category-products" scroll-y>
       <view class="result-head"><text>{{active || '全部商品'}}</text><text>{{products.length}} 件</text></view>
       <view wx:if="{{loading}}" class="empty">正在加载…</view>
-      <view wx:elif="{{error}}" class="empty">{{error}}</view>
+      <view wx:elif="{{error}}" class="empty category-empty"><text>商品加载失败</text><text>{{error}}</text><button class="secondary-button" bindtap="retry">重新加载</button></view>
       <view wx:elif="{{products.length}}" class="category-product-list">
         <view class="category-product-card" wx:for="{{products}}" wx:key="id" data-id="{{item.id}}" bindtap="openProduct">
           <image class="product-cover" src="{{item.coverUrl}}" mode="aspectFill" lazy-load />

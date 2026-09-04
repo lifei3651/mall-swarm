@@ -23,7 +23,7 @@
     </view>
 
     <swiper wx:if="{{home.banners && home.banners.length}}" class="banner" indicator-dots autoplay circular interval="4500">
-      <swiper-item wx:for="{{home.banners}}" wx:key="id">
+      <swiper-item wx:for="{{home.banners}}" wx:key="id" data-type="{{item.linkType}}" data-value="{{item.linkValue}}" bindtap="openBanner">
         <image src="{{item.imageUrl}}" mode="aspectFill" />
       </swiper-item>
     </swiper>
@@ -32,8 +32,8 @@
       <view class="category-row">
         <view class="category-item" wx:for="{{home.categoryList}}" wx:key="id" data-name="{{item.categoryName}}" bindtap="openCategory">
           <view class="category-icon">
-            <image wx:if="{{item.iconUrl}}" src="{{item.iconUrl}}" mode="aspectFill" />
-            <view wx:else class="category-placeholder">{{item.initial}}</view>
+            <view class="category-placeholder">{{item.initial}}</view>
+            <image wx:if="{{item.iconUrl && !item.iconFailed}}" src="{{item.iconUrl}}" mode="aspectFill" data-index="{{index}}" binderror="categoryIconError" />
           </view>
           <text>{{item.categoryName}}</text>
         </view>

@@ -15,7 +15,7 @@
     </view>
   </scroll-view>
   <view wx:if="{{loading && !rows.length}}" class="empty">正在加载消息…</view>
-  <view wx:elif="{{error && !rows.length}}" class="empty message-empty"><text>消息加载失败</text><text>{{error}}</text></view>
+  <view wx:elif="{{error && !rows.length}}" class="empty message-empty"><text>消息加载失败</text><text>{{error}}</text><button class="secondary-button" bindtap="retry">重新加载</button></view>
   <view wx:elif="{{!rows.length}}" class="empty message-empty"><text>暂时没有新消息</text><text>订单、退款和到账进度会在这里更新</text><button wx:if="{{subscriptionAvailable}}" class="secondary-button" bindtap="subscriptions">设置微信提醒</button></view>
   <block wx:else>
     <view wx:for="{{rows}}" wx:key="id" class="message-card {{item.isRead === 1 ? '' : 'unread'}}" data-id="{{item.id}}" bindtap="openMessage">

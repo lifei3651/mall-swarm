@@ -230,3 +230,25 @@ test('分类页使用适合侧边栏宽度的单列商品卡片', async () => {
   assert.doesNotMatch(categoryView, /class="product-grid compact-grid"/)
   assert.match(categoryStyle, /\.category-product-card\s*\{[^}]*display:\s*flex;/s)
 })
+
+test('小程序第三轮交互优化提供原生选择、图片兜底和失败重试', async () => {
+  const fs = await import('node:fs/promises')
+  const homePage = await fs.readFile(new URL('../pages/home/index.js', import.meta.url), 'utf8')
+  const homeView = await fs.readFile(new URL('../pages/home/index.wxml', import.meta.url), 'utf8')
+  const cartPage = await fs.readFile(new URL('../pages/cart/index.js', import.meta.url), 'utf8')
+  const cartView = await fs.readFile(new URL('../pages/cart/index.wxml', import.meta.url), 'utf8')
+  const categoryView = await fs.readFile(new URL('../pages/category/index.wxml', import.meta.url), 'utf8')
+  const productView = await fs.readFile(new URL('../pages/product/index.wxml', import.meta.url), 'utf8')
+  const messageView = await fs.readFile(new URL('../pages/messages/index.wxml', import.meta.url), 'utf8')
+  assert.match(homePage, /openBanner\(event\)/)
+  assert.match(homePage, /categoryIconError\(event\)/)
+  assert.match(homeView, /bindtap="openBanner"/)
+  assert.match(homeView, /binderror="categoryIconError"/)
+  assert.match(cartView, /checkbox-group class="row-selector"/)
+  assert.match(cartView, /checkbox-group class="select-all"/)
+  assert.doesNotMatch(cartView, /\? '✓' : ''/)
+  assert.match(cartPage, /event\.detail\.value/)
+  for (const view of [categoryView, productView, messageView]) {
+    assert.match(view, /bindtap="retry">重新加载<\/button>/)
+  }
+})

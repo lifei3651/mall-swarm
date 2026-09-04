@@ -10,6 +10,7 @@ Page({
   },
   onLoad(options) { this.productId = Number(options.id); this.load() },
   async load() {
+    this.setData({ loading: true, error: '' })
     try {
       const detail = await request({ url: `/shop/products/${this.productId}` })
       const product = format.product(detail.product)
@@ -29,6 +30,7 @@ Page({
     } catch (error) { this.setData({ error: error.message }) }
     finally { this.setData({ loading: false }) }
   },
+  retry() { this.load() },
   selectSku(event) {
     const skuIndex = Number(event.currentTarget.dataset.index)
     const sku = this.data.skus[skuIndex]

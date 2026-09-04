@@ -29,3 +29,7 @@
 .add-cart-button { flex: 1; color: var(--brand); background: #fff2f4; border-radius: 999rpx; font-weight: 600; }
 .product-actions .primary-button { flex: 1; }
 .product-actions button[disabled] { color: #fff; background: #c9cdd4; }
+.product-empty text { display: block; }
+.product-empty text:first-child { color: var(--ink); font-size: 30rpx; font-weight: 700; }
+.product-empty text:nth-child(2) { margin-top: 10rpx; font-size: 23rpx; }
+.product-empty button { width: 220rpx; margin-top: 28rpx; font-size: 24rpx; }

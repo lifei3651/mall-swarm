@@ -1,6 +1,6 @@
 <view class="product-page">
   <view wx:if="{{loading}}" class="empty">正在加载商品…</view>
-  <view wx:elif="{{error}}" class="empty">{{error}}</view>
+  <view wx:elif="{{error}}" class="empty product-empty"><text>商品加载失败</text><text>{{error}}</text><button class="secondary-button" bindtap="retry">重新加载</button></view>
   <block wx:else>
     <view class="hero-shell"><image class="hero" src="{{product.coverUrl}}" mode="aspectFill" /></view>
     <view class="detail-card">
