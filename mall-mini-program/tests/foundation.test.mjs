@@ -183,12 +183,12 @@ test('地址支持编辑且删除前需要二次确认', async () => {
   assert.match(view, /设为默认地址/)
 })
 
-test('小程序主导航使用真实图标且登录主操作保持全宽', async () => {
+test('小程序主导航使用真实中性图标且登录主操作保持全宽', async () => {
   const fs = await import('node:fs/promises')
   const app = JSON.parse(await fs.readFile(new URL('../app.json', import.meta.url), 'utf8'))
   for (const item of app.tabBar.list) {
     assert.match(item.iconPath, /^assets\/tabbar\/.+\.png$/)
-    assert.match(item.selectedIconPath, /^assets\/tabbar\/.+-selected\.png$/)
+    assert.equal(item.selectedIconPath, item.iconPath)
     const normal = await fs.stat(new URL(`../${item.iconPath}`, import.meta.url))
     const selected = await fs.stat(new URL(`../${item.selectedIconPath}`, import.meta.url))
     assert.ok(normal.size > 100)
@@ -196,6 +196,21 @@ test('小程序主导航使用真实图标且登录主操作保持全宽', async
   }
   const loginStyle = await fs.readFile(new URL('../pages/login/index.wxss', import.meta.url), 'utf8')
   assert.match(loginStyle, /\.login-button\s*\{[^}]*width:\s*100%/s)
+})
+
+test('小程序第六轮个人中心优化避免订单入口截断并统一品牌视觉', async () => {
+  const fs = await import('node:fs/promises')
+  const view = await fs.readFile(new URL('../pages/profile/index.wxml', import.meta.url), 'utf8')
+  const style = await fs.readFile(new URL('../pages/profile/index.wxss', import.meta.url), 'utf8')
+  for (const note of ['等待完成付款', '等待商家发货', '查看物流进度', '查看处理进度']) {
+    assert.match(view, new RegExp(note))
+  }
+  assert.match(view, /aria-label="查看退款和售后订单"/)
+  assert.match(view, /aria-label="管理收货地址"/)
+  assert.match(view, /咨询订单与售后问题/)
+  assert.match(style, /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/)
+  assert.match(style, /background:\s*linear-gradient\(135deg,\s*#fff 0%,\s*var\(--brand-soft\) 100%\)/)
+  assert.doesNotMatch(style, /#fff2f5|#f0dfe3/)
 })
 
 test('小程序第二轮视觉收口保持清晰的登录、订单、地址与结算层级', async () => {

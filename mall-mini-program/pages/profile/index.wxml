@@ -12,20 +12,40 @@
   </view>
   <view class="section-label">我的订单</view>
   <view class="order-panel card">
-    <view class="order-panel-head" bindtap="orders"><text>订单中心</text><text>查看全部订单 ›</text></view>
+    <view class="order-panel-head" bindtap="orders" aria-role="button" aria-label="查看全部订单"><text>订单中心</text><text>查看全部订单 ›</text></view>
     <view class="order-shortcuts">
-      <button data-tab="pending-payment" bindtap="orderTab"><text wx:if="{{orderSummary.pendingPayment}}" class="shortcut-count">{{orderSummary.pendingPayment > 99 ? '99+' : orderSummary.pendingPayment}}</text><text>待支付</text></button>
-      <button data-tab="pending-shipment" bindtap="orderTab"><text wx:if="{{orderSummary.pendingShipment}}" class="shortcut-count">{{orderSummary.pendingShipment > 99 ? '99+' : orderSummary.pendingShipment}}</text><text>待发货</text></button>
-      <button data-tab="pending-receipt" bindtap="orderTab"><text wx:if="{{orderSummary.pendingReceipt}}" class="shortcut-count">{{orderSummary.pendingReceipt > 99 ? '99+' : orderSummary.pendingReceipt}}</text><text>待收货</text></button>
-      <button data-tab="after-sale" bindtap="orderTab"><text wx:if="{{orderSummary.afterSale}}" class="shortcut-count">{{orderSummary.afterSale > 99 ? '99+' : orderSummary.afterSale}}</text><text>退款 / 售后</text></button>
+      <button data-tab="pending-payment" bindtap="orderTab" aria-label="查看待支付订单">
+        <text wx:if="{{orderSummary.pendingPayment}}" class="shortcut-count">{{orderSummary.pendingPayment > 99 ? '99+' : orderSummary.pendingPayment}}</text>
+        <view class="shortcut-copy"><text class="shortcut-name">待支付</text><text class="shortcut-note">等待完成付款</text></view>
+      </button>
+      <button data-tab="pending-shipment" bindtap="orderTab" aria-label="查看待发货订单">
+        <text wx:if="{{orderSummary.pendingShipment}}" class="shortcut-count">{{orderSummary.pendingShipment > 99 ? '99+' : orderSummary.pendingShipment}}</text>
+        <view class="shortcut-copy"><text class="shortcut-name">待发货</text><text class="shortcut-note">等待商家发货</text></view>
+      </button>
+      <button data-tab="pending-receipt" bindtap="orderTab" aria-label="查看待收货订单">
+        <text wx:if="{{orderSummary.pendingReceipt}}" class="shortcut-count">{{orderSummary.pendingReceipt > 99 ? '99+' : orderSummary.pendingReceipt}}</text>
+        <view class="shortcut-copy"><text class="shortcut-name">待收货</text><text class="shortcut-note">查看物流进度</text></view>
+      </button>
+      <button data-tab="after-sale" bindtap="orderTab" aria-label="查看退款和售后订单">
+        <text wx:if="{{orderSummary.afterSale}}" class="shortcut-count">{{orderSummary.afterSale > 99 ? '99+' : orderSummary.afterSale}}</text>
+        <view class="shortcut-copy"><text class="shortcut-name">退款 / 售后</text><text class="shortcut-note">查看处理进度</text></view>
+      </button>
     </view>
   </view>
   <view class="section-label">常用服务</view>
   <view class="menu card">
-    <view bindtap="messages"><text>消息与提醒 <text wx:if="{{unreadCount}}" class="unread-badge">{{unreadText}}</text></text><text>›</text></view>
-    <view bindtap="addresses"><text>收货地址</text><text>›</text></view>
-    <view wx:if="{{payoutCount}}" bindtap="payout"><text>微信收款确认 <text class="unread-badge">{{payoutCount > 99 ? '99+' : payoutCount}}</text></text><text>›</text></view>
-    <button class="contact-row" open-type="contact" show-message-card><text>在线客服</text><text>›</text></button>
+    <view class="menu-row" bindtap="messages" aria-role="button" aria-label="查看消息与提醒">
+      <view class="menu-copy"><text>消息与提醒 <text wx:if="{{unreadCount}}" class="unread-badge">{{unreadText}}</text></text><text>订单、退款和到账进度</text></view><text class="menu-arrow">›</text>
+    </view>
+    <view class="menu-row" bindtap="addresses" aria-role="button" aria-label="管理收货地址">
+      <view class="menu-copy"><text>收货地址</text><text>管理常用收货信息</text></view><text class="menu-arrow">›</text>
+    </view>
+    <view class="menu-row" wx:if="{{payoutCount}}" bindtap="payout" aria-role="button" aria-label="确认微信提现收款">
+      <view class="menu-copy"><text>微信收款确认 <text class="unread-badge">{{payoutCount > 99 ? '99+' : payoutCount}}</text></text><text>完成微信收款确认</text></view><text class="menu-arrow">›</text>
+    </view>
+    <button class="contact-row" open-type="contact" show-message-card aria-label="联系在线客服">
+      <view class="menu-copy"><text>在线客服</text><text>咨询订单与售后问题</text></view><text class="menu-arrow">›</text>
+    </button>
   </view>
   <view class="section-label">购物保障</view>
   <view class="compliance card"><view>安心购物</view><text>本端仅提供商品浏览、购物车、订单和售后服务；经营主体、隐私政策与支付资料均由当前商城独立配置。</text></view>
