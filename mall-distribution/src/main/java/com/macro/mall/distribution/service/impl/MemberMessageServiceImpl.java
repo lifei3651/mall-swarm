@@ -111,7 +111,8 @@ public class MemberMessageServiceImpl implements MemberMessageService {
         DmsMessageChannelConfig current = channelDao.selectById(TenantContext.getTenantId(), id);
         if (current == null) Asserts.fail("消息渠道配置不存在");
         channelDao.updateInApp(TenantContext.getTenantId(), id, enabled ? 1 : 0);
-        operationLogService.log("MESSAGE", "CHANNEL_UPDATED", "MESSAGE_CHANNEL", String.valueOf(id), null, "inApp=" + enabled + ";external=false", "外部渠道继续保持关闭");
+        operationLogService.log("MESSAGE", "CHANNEL_UPDATED", "MESSAGE_CHANNEL", String.valueOf(id), null,
+                "inApp=" + enabled, "仅更新站内消息开关，不改变外部渠道配置");
         return channelDao.selectById(TenantContext.getTenantId(), id);
     }
     @Override public CommonPage<DmsMessageDeliveryTask> listDeliveries(String channel, String status, int pageNum, int pageSize) {

@@ -1,0 +1,11 @@
+<view class="detail-page">
+  <view wx:if="{{loading}}" class="empty">正在加载消息…</view>
+  <view wx:elif="{{error}}" class="empty">{{error}}</view>
+  <view wx:elif="{{message}}" class="detail-card">
+    <text class="category">{{categoryName}}</text>
+    <view class="title">{{message.title}}</view>
+    <text class="time">{{displayTime}}</text>
+    <text class="content">{{message.content}}</text>
+    <button wx:if="{{message.targetType !== 'NONE'}}" class="primary-button" bindtap="openTarget">查看相关业务</button>
+  </view>
+</view>

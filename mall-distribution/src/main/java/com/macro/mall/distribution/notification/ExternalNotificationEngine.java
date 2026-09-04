@@ -126,6 +126,8 @@ public class ExternalNotificationEngine {
     }
 
     private String checkBudgets(DmsMessageDeliveryTask task, BigDecimal nextCost) {
+        // 微信订阅消息等零成本官方通道不受短信费用预算阻断，但仍受授权、模板和总开关约束。
+        if (nextCost == null || nextCost.signum() == 0) return null;
         List<BudgetKey> keys=List.of(new BudgetKey("TENANT","*"),new BudgetKey("EVENT",task.getEventType()),new BudgetKey("CHANNEL",task.getChannel()));
         LocalDate today=LocalDate.now(BUSINESS_ZONE);
         LocalDateTime dayStart=today.atStartOfDay();

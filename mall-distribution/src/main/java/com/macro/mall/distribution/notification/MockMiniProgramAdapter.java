@@ -2,12 +2,14 @@ package com.macro.mall.distribution.notification;
 
 import com.macro.mall.distribution.entity.DmsMessageDeliveryAttempt;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "notification.mock.mini-program-enabled", havingValue = "true")
 public class MockMiniProgramAdapter implements ExternalNotificationAdapter {
     private final ExternalNotificationProperties external;
     private final MockNotificationProperties mock;

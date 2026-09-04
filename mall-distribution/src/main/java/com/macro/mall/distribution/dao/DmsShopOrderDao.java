@@ -32,6 +32,9 @@ public interface DmsShopOrderDao {
     List<DmsShopOrder> selectByTradeIdScoped(@Param("tenantId") Long tenantId, @Param("tradeId") Long tradeId);
     default List<DmsShopOrder> selectByTradeId(Long tradeId) { return selectByTradeIdScoped(TenantContext.getTenantId(), tradeId); }
 
+    List<DmsShopOrder> selectByPaymentOrderNoScoped(@Param("tenantId") Long tenantId,
+                                                    @Param("paymentOrderNo") String paymentOrderNo);
+
     List<DmsShopOrder> selectByTradeIdForUpdateScoped(@Param("tenantId") Long tenantId, @Param("tradeId") Long tradeId);
     default List<DmsShopOrder> selectByTradeIdForUpdate(Long tradeId) {
         return selectByTradeIdForUpdateScoped(TenantContext.getTenantId(), tradeId);

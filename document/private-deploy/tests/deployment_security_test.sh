@@ -86,6 +86,8 @@ grep -q '^SHOP_LIVE_PROVIDER=EXTERNAL$' "$DEPLOY_DIR/.env"
 grep -q '^SHOP_REAL_NAME_ENABLED=false$' "$DEPLOY_DIR/.env"
 grep -q '^WECHAT_MINI_PROGRAM_ENABLED=false$' "$DEPLOY_DIR/.env"
 grep -q '^WECHAT_MINI_PROGRAM_PHONE_AUTH_ENABLED=false$' "$DEPLOY_DIR/.env"
+grep -q '^WECHAT_MINI_PROGRAM_SUBSCRIBE_MESSAGE_ENABLED=false$' "$DEPLOY_DIR/.env"
+grep -q '^WECHAT_MINI_PROGRAM_SHIPPING_INFO_ENABLED=false$' "$DEPLOY_DIR/.env"
 grep -q '^WECHAT_PAY_ENABLED=false$' "$DEPLOY_DIR/.env"
 grep -q '^WITHDRAWAL_PAYOUT_ENABLED=false$' "$DEPLOY_DIR/.env"
 grep -q '^WITHDRAWAL_PAYOUT_ALIPAY_ENABLED=false$' "$DEPLOY_DIR/.env"
@@ -120,6 +122,19 @@ fi
   --ssh-cidr 203.0.113.10/32 \
   --evidence cloud-sg-test-001 >/dev/null
 "$DEPLOY_DIR/scripts/security-preflight.sh" --offline >/dev/null
+
+cp "$DEPLOY_DIR/.env" "$DEPLOY_DIR/.env.subscription-test"
+sed -i.bak 's/^WECHAT_MINI_PROGRAM_ENABLED=.*/WECHAT_MINI_PROGRAM_ENABLED=true/' "$DEPLOY_DIR/.env" && rm -f "$DEPLOY_DIR/.env.bak"
+sed -i.bak 's/^WECHAT_MINI_PROGRAM_APP_ID=.*/WECHAT_MINI_PROGRAM_APP_ID=wx1234567890abcdef/' "$DEPLOY_DIR/.env" && rm -f "$DEPLOY_DIR/.env.bak"
+sed -i.bak 's/^WECHAT_MINI_PROGRAM_APP_SECRET=.*/WECHAT_MINI_PROGRAM_APP_SECRET=strong-customer-app-secret/' "$DEPLOY_DIR/.env" && rm -f "$DEPLOY_DIR/.env.bak"
+sed -i.bak 's/^WECHAT_MINI_PROGRAM_SUBSCRIBE_MESSAGE_ENABLED=.*/WECHAT_MINI_PROGRAM_SUBSCRIBE_MESSAGE_ENABLED=true/' "$DEPLOY_DIR/.env" && rm -f "$DEPLOY_DIR/.env.bak"
+sed -i.bak 's/^EXTERNAL_NOTIFICATION_ENABLED=.*/EXTERNAL_NOTIFICATION_ENABLED=true/' "$DEPLOY_DIR/.env" && rm -f "$DEPLOY_DIR/.env.bak"
+sed -i.bak 's/^EXTERNAL_NOTIFICATION_WORKER_ENABLED=.*/EXTERNAL_NOTIFICATION_WORKER_ENABLED=true/' "$DEPLOY_DIR/.env" && rm -f "$DEPLOY_DIR/.env.bak"
+for key in WECHAT_SUBSCRIBE_TEMPLATE_ORDER_SHIPPED WECHAT_SUBSCRIBE_TEMPLATE_AFTER_SALE_UPDATED WECHAT_SUBSCRIBE_TEMPLATE_REFUND_RESULT WECHAT_SUBSCRIBE_TEMPLATE_WITHDRAW_PAID; do
+  sed -i.bak "s/^${key}=.*/${key}=template_1234567890abcdef123456/" "$DEPLOY_DIR/.env" && rm -f "$DEPLOY_DIR/.env.bak"
+done
+"$DEPLOY_DIR/scripts/security-preflight.sh" --offline >/dev/null
+mv "$DEPLOY_DIR/.env.subscription-test" "$DEPLOY_DIR/.env"
 
 sed -i.bak 's/^SHOP_LIVE_PROVIDER=.*/SHOP_LIVE_PROVIDER=TENCENT/' "$DEPLOY_DIR/.env"
 if "$DEPLOY_DIR/scripts/security-preflight.sh" --offline >/dev/null 2>&1; then

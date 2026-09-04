@@ -15,6 +15,10 @@ public interface DmsWechatMiniProgramIdentityDao {
                                                  @Param("appIdHash") String appIdHash,
                                                  @Param("memberId") Long memberId);
 
+    DmsWechatMiniProgramIdentity selectByUser(@Param("tenantId") Long tenantId,
+                                               @Param("appIdHash") String appIdHash,
+                                               @Param("userId") Long userId);
+
     int insert(DmsWechatMiniProgramIdentity identity);
 
     int updateLogin(DmsWechatMiniProgramIdentity identity);

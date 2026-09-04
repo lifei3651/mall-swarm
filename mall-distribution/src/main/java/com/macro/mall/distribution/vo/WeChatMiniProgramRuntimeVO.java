@@ -3,6 +3,7 @@ package com.macro.mall.distribution.vo;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.List;
 
 @Data
 public class WeChatMiniProgramRuntimeVO implements Serializable {
@@ -19,4 +20,8 @@ public class WeChatMiniProgramRuntimeVO implements Serializable {
     private boolean paymentEnabled;
 
     private boolean subscribeMessageEnabled;
+
+    private boolean shippingInfoEnabled;
+
+    private List<WeChatSubscriptionTemplateVO> subscriptionTemplates = List.of();
 }

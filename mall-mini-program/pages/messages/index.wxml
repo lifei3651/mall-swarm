@@ -1,0 +1,28 @@
+<view class="message-page">
+  <view class="message-head">
+    <view><text>个人消息</text><view>消息中心</view><text>订单、退款和到账进度都在这里</text></view>
+    <button wx:if="{{unread.total}}" bindtap="readAll">全部已读</button>
+  </view>
+  <view wx:if="{{subscriptionAvailable}}" class="subscribe-card" bindtap="subscriptions">
+    <view><text>微信服务提醒</text><text>按需订阅发货、退款和到账提醒</text></view><text>›</text>
+  </view>
+  <scroll-view class="category-list" scroll-x enhanced show-scrollbar="{{false}}">
+    <view class="category-row">
+      <button wx:for="{{categories}}" wx:key="key" data-key="{{item.key}}" class="{{category === item.key ? 'active' : ''}}" bindtap="selectCategory">
+        {{item.label}}
+        <text wx:if="{{item.count}}">{{item.count > 99 ? '99+' : item.count}}</text>
+      </button>
+    </view>
+  </scroll-view>
+  <view wx:if="{{loading && !rows.length}}" class="empty">正在加载消息…</view>
+  <view wx:elif="{{error && !rows.length}}" class="empty">{{error}}</view>
+  <view wx:elif="{{!rows.length}}" class="empty">当前分类暂无个人消息</view>
+  <block wx:else>
+    <view wx:for="{{rows}}" wx:key="id" class="message-card {{item.isRead === 1 ? '' : 'unread'}}" data-id="{{item.id}}" bindtap="openMessage">
+      <view class="dot"></view>
+      <view class="message-copy"><text>{{item.title}}</text><text>{{item.summary}}</text><text>{{item.displayTime}}</text></view>
+      <text class="arrow">›</text>
+    </view>
+    <button wx:if="{{pageNum < totalPage}}" class="more" loading="{{loading}}" bindtap="loadMore">加载更多</button>
+  </block>
+</view>

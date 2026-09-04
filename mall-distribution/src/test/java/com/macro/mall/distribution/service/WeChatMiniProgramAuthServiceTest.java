@@ -2,6 +2,7 @@ package com.macro.mall.distribution.service;
 
 import com.macro.mall.common.exception.ApiException;
 import com.macro.mall.distribution.config.WeChatMiniProgramProperties;
+import com.macro.mall.distribution.config.WeChatPayProperties;
 import com.macro.mall.distribution.dto.WeChatMiniProgramLoginDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsWechatMiniProgramIdentity;
@@ -28,6 +29,7 @@ class WeChatMiniProgramAuthServiceTest {
     private WeChatMiniProgramProperties properties;
     private WeChatMiniProgramGateway gateway;
     private WeChatMiniProgramAccountService accountService;
+    private WeChatSubscriptionService subscriptionService;
     private WeChatMiniProgramAuthService service;
 
     @BeforeEach
@@ -40,7 +42,9 @@ class WeChatMiniProgramAuthServiceTest {
         properties.setPrivacyConsentVersion("PRIVACY_2026_08");
         gateway = mock(WeChatMiniProgramGateway.class);
         accountService = mock(WeChatMiniProgramAccountService.class);
-        service = new WeChatMiniProgramAuthService(properties, gateway, accountService);
+        subscriptionService = mock(WeChatSubscriptionService.class);
+        service = new WeChatMiniProgramAuthService(properties, gateway, accountService, subscriptionService,
+                new WeChatPayProperties());
     }
 
     @Test
@@ -107,13 +111,16 @@ class WeChatMiniProgramAuthServiceTest {
     }
 
     @Test
-    void neverAdvertisesPaymentOrSubscriptionBeforeGatewaysExist() {
+    void runtimeOnlyAdvertisesSubscriptionWhenAllGatesAreReady() {
         var runtime = service.runtime();
 
         assertTrue(runtime.isEnabled());
         assertTrue(runtime.isPhoneAuthorizationEnabled());
         assertFalse(runtime.isPaymentEnabled());
         assertFalse(runtime.isSubscribeMessageEnabled());
+
+        when(subscriptionService.ready()).thenReturn(true);
+        assertTrue(service.runtime().isSubscribeMessageEnabled());
     }
 
     @Test

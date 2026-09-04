@@ -17,6 +17,12 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -63,6 +69,73 @@ public class OfficialWeChatMiniProgramGateway implements WeChatMiniProgramGatewa
         return exchangePhoneCode(code, false);
     }
 
+    @Override
+    public SubscribeMessageResult sendSubscribeMessage(SubscribeMessageCommand command) {
+        requireLoginReady();
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("touser", command.openId());
+        body.put("template_id", command.templateId());
+        if (command.page() != null && !command.page().isBlank()) body.put("page", command.page());
+        body.put("miniprogram_state", command.miniProgramState());
+        body.put("lang", "zh_CN");
+        ObjectNode data = body.putObject("data");
+        for (Map.Entry<String, String> entry : command.data().entrySet()) {
+            data.putObject(entry.getKey()).put("value", entry.getValue());
+        }
+        JsonNode response = postWithAccessToken("/cgi-bin/message/subscribe/send", body, false,
+                "微信订阅消息发送失败");
+        return new SubscribeMessageResult(response.path("errcode").asInt(0));
+    }
+
+    @Override
+    public ShippingInfoResult uploadShippingInfo(ShippingInfoCommand command) {
+        requireLoginReady();
+        ObjectNode body = objectMapper.createObjectNode();
+        ObjectNode orderKey = body.putObject("order_key");
+        orderKey.put("order_number_type", 1);
+        orderKey.put("mchid", command.merchantId());
+        orderKey.put("out_trade_no", command.paymentOrderNo());
+        body.put("logistics_type", 1);
+        body.put("delivery_mode", 2);
+        body.put("is_all_delivered", command.allDelivered());
+        var shippingList = body.putArray("shipping_list");
+        for (ShippingItem item : command.shipments()) {
+            ObjectNode row = shippingList.addObject();
+            row.put("tracking_no", item.trackingNo());
+            row.put("express_company", item.expressCompany());
+            row.put("item_desc", item.itemDescription());
+            if (item.receiverContact() != null && !item.receiverContact().isBlank()) {
+                row.putObject("contact").put("receiver_contact", item.receiverContact());
+            }
+        }
+        body.put("upload_time", OffsetDateTime.now(ZoneOffset.ofHours(8))
+                .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+        body.putObject("payer").put("openid", command.openId());
+        JsonNode response = postWithAccessToken("/wxa/sec/order/upload_shipping_info", body, false,
+                "微信发货信息同步失败");
+        return new ShippingInfoResult(response.path("errcode").asInt(0));
+    }
+
+    @Override
+    public List<DeliveryCompany> deliveryCompanies() {
+        requireLoginReady();
+        JsonNode response = postWithAccessToken("/cgi-bin/express/delivery/open_msg/get_delivery_list",
+                objectMapper.createObjectNode(), false, "微信物流公司列表获取失败");
+        failOnWeChatError(response, "微信物流公司列表获取失败");
+        List<DeliveryCompany> rows = new ArrayList<>();
+        JsonNode data = response.path("data");
+        if (data.isArray()) {
+            for (JsonNode row : data) {
+                String id = text(row, "delivery_id");
+                String name = text(row, "delivery_name");
+                if (id != null && !id.isBlank() && name != null && !name.isBlank()) {
+                    rows.add(new DeliveryCompany(id, name));
+                }
+            }
+        }
+        return List.copyOf(rows);
+    }
+
     private PhoneNumber exchangePhoneCode(String code, boolean retried) {
         String token = accessToken();
         ObjectNode body = objectMapper.createObjectNode();
@@ -107,6 +180,18 @@ public class OfficialWeChatMiniProgramGateway implements WeChatMiniProgramGatewa
             cachedAccessToken = current;
             return current.value();
         }
+    }
+
+    private JsonNode postWithAccessToken(String path, JsonNode body, boolean retried, String failureMessage) {
+        String separator = path.contains("?") ? "&" : "?";
+        JsonNode response = postJson(API_ORIGIN + path + separator + "access_token=" + encode(accessToken()),
+                body, failureMessage);
+        int errorCode = response.path("errcode").asInt(0);
+        if (!retried && (errorCode == 40001 || errorCode == 40014 || errorCode == 42001)) {
+            cachedAccessToken = null;
+            return postWithAccessToken(path, body, true, failureMessage);
+        }
+        return response;
     }
 
     private JsonNode getJson(String url, String failureMessage) {

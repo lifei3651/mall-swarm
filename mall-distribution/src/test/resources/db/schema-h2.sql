@@ -1659,6 +1659,25 @@ CREATE TABLE IF NOT EXISTS dms_message_recipient_authorization (
     create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, update_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uk_message_recipient_channel UNIQUE (tenant_id,member_id,channel)
 );
+CREATE TABLE IF NOT EXISTS dms_mini_program_subscription_grant (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY, tenant_id BIGINT NOT NULL, member_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL, template_id_hash CHAR(64) NOT NULL, client_request_id VARCHAR(64) NOT NULL,
+    status VARCHAR(16) NOT NULL DEFAULT 'AVAILABLE', reserved_task_id BIGINT, authorized_time TIMESTAMP NOT NULL,
+    reserved_time TIMESTAMP, consumed_time TIMESTAMP, create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_mini_subscribe_request UNIQUE (tenant_id,member_id,template_id_hash,client_request_id),
+    CONSTRAINT uk_mini_subscribe_task UNIQUE (tenant_id,reserved_task_id)
+);
+CREATE INDEX IF NOT EXISTS idx_mini_subscribe_available ON dms_mini_program_subscription_grant(tenant_id,member_id,template_id_hash,status,id);
+CREATE TABLE IF NOT EXISTS dms_wechat_shipping_sync_task (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY, tenant_id BIGINT NOT NULL, payment_order_no VARCHAR(64) NOT NULL,
+    user_id BIGINT NOT NULL, status VARCHAR(16) NOT NULL DEFAULT 'PENDING', revision INT NOT NULL DEFAULT 1,
+    synced_revision INT NOT NULL DEFAULT 0, attempt_count INT NOT NULL DEFAULT 0, next_retry_time TIMESTAMP,
+    lease_owner VARCHAR(96), lease_until TIMESTAMP, payload_digest CHAR(64), error_code VARCHAR(64), synced_time TIMESTAMP,
+    create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, update_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_wechat_shipping_payment UNIQUE (tenant_id,payment_order_no)
+);
+CREATE INDEX IF NOT EXISTS idx_wechat_shipping_due ON dms_wechat_shipping_sync_task(status,next_retry_time,lease_until,id);
 CREATE TABLE IF NOT EXISTS dms_message_delivery_receipt (
     id BIGINT AUTO_INCREMENT PRIMARY KEY, tenant_id BIGINT NOT NULL, channel VARCHAR(24) NOT NULL,
     provider_code VARCHAR(32) NOT NULL, receipt_id VARCHAR(128) NOT NULL, task_id BIGINT,
@@ -1684,7 +1703,7 @@ MERGE INTO dms_message_template (tenant_id,event_type,category,title_template,su
 (1,'PHONE_CHANGED','ACCOUNT_SECURITY','登录手机号已更新','账号安全设置发生变化。','完整号码不会进入消息正文。',1,1),
 (1,'SERVICE_NOTICE','SERVICE','服务通知','您有一条新的服务通知。','请登录后查看。',1,1);
 MERGE INTO dms_message_channel_config (tenant_id,event_type,in_app_enabled,sms_enabled,app_push_enabled,mini_program_enabled,estimated_sms_cost) KEY(tenant_id,event_type)
-SELECT 1,event_type,1,0,0,0,0 FROM dms_message_template WHERE tenant_id=1;
+SELECT 1,event_type,1,0,0,CASE WHEN event_type IN ('ORDER_SHIPPED','AFTER_SALE_UPDATED','REFUND_RESULT','WITHDRAW_PAID') THEN 1 ELSE 0 END,0 FROM dms_message_template WHERE tenant_id=1;
 MERGE INTO dms_message_cost_budget (tenant_id,scope_type,scope_key,daily_limit,monthly_limit,currency,enabled) KEY(tenant_id,scope_type,scope_key)
 VALUES (1,'TENANT','*',0,0,'CNY',0),(1,'CHANNEL','SMS',0,0,'CNY',0),(1,'CHANNEL','APP_PUSH',0,0,'CNY',0),(1,'CHANNEL','MINI_PROGRAM',0,0,'CNY',0);
 MERGE INTO dms_message_cost_budget (tenant_id,scope_type,scope_key,daily_limit,monthly_limit,currency,enabled) KEY(tenant_id,scope_type,scope_key)

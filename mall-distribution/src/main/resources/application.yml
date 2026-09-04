@@ -115,11 +115,45 @@ shop:
     enabled: ${WECHAT_MINI_PROGRAM_ENABLED:false}
     # 首次注册才需要手机号快捷验证；客户未确认微信侧能力与成本前保持关闭。
     phone-authorization-enabled: ${WECHAT_MINI_PROGRAM_PHONE_AUTH_ENABLED:false}
+    # 订阅消息与微信支付发货信息是两套独立能力，均需客户真机验收后单独开启。
+    subscribe-message-enabled: ${WECHAT_MINI_PROGRAM_SUBSCRIBE_MESSAGE_ENABLED:false}
+    shipping-info-enabled: ${WECHAT_MINI_PROGRAM_SHIPPING_INFO_ENABLED:false}
     app-id: ${WECHAT_MINI_PROGRAM_APP_ID:}
     app-secret: ${WECHAT_MINI_PROGRAM_APP_SECRET:}
     privacy-consent-version: ${WECHAT_MINI_PROGRAM_PRIVACY_VERSION:MINI_PROGRAM_PRIVACY_V1}
     connect-timeout-ms: ${WECHAT_MINI_PROGRAM_CONNECT_TIMEOUT_MS:5000}
     read-timeout-ms: ${WECHAT_MINI_PROGRAM_READ_TIMEOUT_MS:10000}
+    mini-program-state: ${WECHAT_MINI_PROGRAM_STATE:formal}
+    # 字段编号必须与公众平台实际选用的模板一致；默认编号为空，因此绝不会误发。
+    subscription-templates:
+      ORDER_SHIPPED:
+        template-id: ${WECHAT_SUBSCRIBE_TEMPLATE_ORDER_SHIPPED:}
+        title: 订单发货提醒
+        page: pages/orders/index
+        status-key: ${WECHAT_SUBSCRIBE_ORDER_SHIPPED_STATUS_KEY:phrase1}
+        time-key: ${WECHAT_SUBSCRIBE_ORDER_SHIPPED_TIME_KEY:time2}
+        remark-key: ${WECHAT_SUBSCRIBE_ORDER_SHIPPED_REMARK_KEY:thing3}
+      AFTER_SALE_UPDATED:
+        template-id: ${WECHAT_SUBSCRIBE_TEMPLATE_AFTER_SALE_UPDATED:}
+        title: 售后进度提醒
+        page: pages/orders/index
+        status-key: ${WECHAT_SUBSCRIBE_AFTER_SALE_STATUS_KEY:phrase1}
+        time-key: ${WECHAT_SUBSCRIBE_AFTER_SALE_TIME_KEY:time2}
+        remark-key: ${WECHAT_SUBSCRIBE_AFTER_SALE_REMARK_KEY:thing3}
+      REFUND_RESULT:
+        template-id: ${WECHAT_SUBSCRIBE_TEMPLATE_REFUND_RESULT:}
+        title: 退款结果提醒
+        page: pages/orders/index
+        status-key: ${WECHAT_SUBSCRIBE_REFUND_STATUS_KEY:phrase1}
+        time-key: ${WECHAT_SUBSCRIBE_REFUND_TIME_KEY:time2}
+        remark-key: ${WECHAT_SUBSCRIBE_REFUND_REMARK_KEY:thing3}
+      WITHDRAW_PAID:
+        template-id: ${WECHAT_SUBSCRIBE_TEMPLATE_WITHDRAW_PAID:}
+        title: 提现打款提醒
+        page: pages/payout/index
+        status-key: ${WECHAT_SUBSCRIBE_WITHDRAW_STATUS_KEY:phrase1}
+        time-key: ${WECHAT_SUBSCRIBE_WITHDRAW_TIME_KEY:time2}
+        remark-key: ${WECHAT_SUBSCRIBE_WITHDRAW_REMARK_KEY:thing3}
   wechat-pay:
     # 程序能力与客户商户资料分离：代码可随基座交付，未完成客户签约和联调时保持关闭。
     enabled: ${WECHAT_PAY_ENABLED:false}

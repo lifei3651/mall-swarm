@@ -6,6 +6,7 @@
     <button wx:if="{{!loggedIn}}" class="login-small" bindtap="login">微信登录</button>
   </view>
   <view class="menu card">
+    <view bindtap="messages"><text>消息与提醒 <text wx:if="{{unreadCount}}" class="unread-badge">{{unreadText}}</text></text><text>›</text></view>
     <view bindtap="orders"><text>我的订单</text><text>›</text></view>
     <view bindtap="addresses"><text>收货地址</text><text>›</text></view>
     <view bindtap="payout"><text>微信收款确认</text><text>›</text></view>

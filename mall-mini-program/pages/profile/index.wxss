@@ -9,6 +9,7 @@
 .menu view { display: flex; justify-content: space-between; padding: 30rpx 4rpx; border-bottom: 1rpx solid #edf0f4; }
 .menu view:last-child { border-bottom: 0; }
 .menu view text:last-child { color: #adb3be; font-size: 38rpx; }
+.menu .unread-badge { display: inline-block; min-width: 34rpx; height: 34rpx; margin-left: 10rpx; padding: 0 9rpx; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 20rpx; line-height: 34rpx; text-align: center; }
 .compliance { margin-top: 24rpx; padding: 28rpx; }
 .compliance view { font-weight: 700; }
 .compliance text { display: block; margin-top: 14rpx; color: #858d9b; line-height: 42rpx; font-size: 24rpx; }

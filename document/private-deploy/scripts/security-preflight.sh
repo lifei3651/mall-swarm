@@ -135,7 +135,11 @@ esac
 
 wechat_mini=$(value_of WECHAT_MINI_PROGRAM_ENABLED)
 wechat_phone=$(value_of WECHAT_MINI_PROGRAM_PHONE_AUTH_ENABLED)
+wechat_subscribe=$(value_of WECHAT_MINI_PROGRAM_SUBSCRIBE_MESSAGE_ENABLED)
+wechat_shipping=$(value_of WECHAT_MINI_PROGRAM_SHIPPING_INFO_ENABLED)
 case "$wechat_phone" in true|false) : ;; *) fail "WECHAT_MINI_PROGRAM_PHONE_AUTH_ENABLED 只能是 true 或 false" ;; esac
+case "$wechat_subscribe" in true|false) : ;; *) fail "WECHAT_MINI_PROGRAM_SUBSCRIBE_MESSAGE_ENABLED 只能是 true 或 false" ;; esac
+case "$wechat_shipping" in true|false) : ;; *) fail "WECHAT_MINI_PROGRAM_SHIPPING_INFO_ENABLED 只能是 true 或 false" ;; esac
 case "$wechat_mini" in
   true)
     printf '%s' "$(value_of WECHAT_MINI_PROGRAM_APP_ID)" | grep -Eq '^wx[0-9A-Za-z]{16}$' \
@@ -143,9 +147,30 @@ case "$wechat_mini" in
     require_secret WECHAT_MINI_PROGRAM_APP_SECRET 16
     printf '%s' "$(value_of WECHAT_MINI_PROGRAM_PRIVACY_VERSION)" | grep -Eq '^[A-Za-z0-9_.-]{3,64}$' \
       || fail "微信小程序隐私政策版本格式不正确"
+    [ "$(value_of WECHAT_MINI_PROGRAM_STATE)" = "formal" ] \
+      || fail "客户生产部署的微信小程序状态必须是 formal"
+    if [ "$wechat_subscribe" = "true" ]; then
+      for key in WECHAT_SUBSCRIBE_TEMPLATE_ORDER_SHIPPED WECHAT_SUBSCRIBE_TEMPLATE_AFTER_SALE_UPDATED WECHAT_SUBSCRIBE_TEMPLATE_REFUND_RESULT WECHAT_SUBSCRIBE_TEMPLATE_WITHDRAW_PAID; do
+        printf '%s' "$(value_of "$key")" | grep -Eq '^[A-Za-z0-9_-]{20,128}$' \
+          || fail "启用微信订阅消息前必须填写合法模板编号：$key"
+      done
+      for key in WECHAT_SUBSCRIBE_ORDER_SHIPPED_STATUS_KEY WECHAT_SUBSCRIBE_AFTER_SALE_STATUS_KEY WECHAT_SUBSCRIBE_REFUND_STATUS_KEY WECHAT_SUBSCRIBE_WITHDRAW_STATUS_KEY; do
+        printf '%s' "$(value_of "$key")" | grep -Eq '^phrase[0-9]{1,3}$' \
+          || fail "微信订阅消息状态字段必须使用 phrase 类型：$key"
+      done
+      for key in WECHAT_SUBSCRIBE_ORDER_SHIPPED_TIME_KEY WECHAT_SUBSCRIBE_AFTER_SALE_TIME_KEY WECHAT_SUBSCRIBE_REFUND_TIME_KEY WECHAT_SUBSCRIBE_WITHDRAW_TIME_KEY; do
+        printf '%s' "$(value_of "$key")" | grep -Eq '^(time|date)[0-9]{1,3}$' \
+          || fail "微信订阅消息时间字段必须使用 time 或 date 类型：$key"
+      done
+      for key in WECHAT_SUBSCRIBE_ORDER_SHIPPED_REMARK_KEY WECHAT_SUBSCRIBE_AFTER_SALE_REMARK_KEY WECHAT_SUBSCRIBE_REFUND_REMARK_KEY WECHAT_SUBSCRIBE_WITHDRAW_REMARK_KEY; do
+        printf '%s' "$(value_of "$key")" | grep -Eq '^thing[0-9]{1,3}$' \
+          || fail "微信订阅消息备注字段必须使用 thing 类型：$key"
+      done
+    fi
     ;;
   false)
-    [ "$wechat_phone" = "false" ] || fail "微信小程序登录关闭时手机号快捷验证也必须关闭"
+    [ "$wechat_phone" = "false" ] && [ "$wechat_subscribe" = "false" ] && [ "$wechat_shipping" = "false" ] \
+      || fail "微信小程序登录关闭时手机号、订阅消息和发货同步都必须关闭"
     ;;
   *) fail "WECHAT_MINI_PROGRAM_ENABLED 只能是 true 或 false" ;;
 esac
@@ -177,6 +202,8 @@ case "$wechat_pay" in
   false) : ;;
   *) fail "WECHAT_PAY_ENABLED 只能是 true 或 false" ;;
 esac
+[ "$wechat_shipping" = "false" ] || [ "$wechat_pay" = "true" ] \
+  || fail "启用微信发货信息同步前必须完成微信支付配置"
 
 payout=$(value_of WITHDRAWAL_PAYOUT_ENABLED)
 payout_alipay=$(value_of WITHDRAWAL_PAYOUT_ALIPAY_ENABLED)
@@ -231,9 +258,12 @@ esac
 notification_enabled=$(value_of EXTERNAL_NOTIFICATION_ENABLED)
 notification_worker=$(value_of EXTERNAL_NOTIFICATION_WORKER_ENABLED)
 notification_sms=$(value_of NOTIFICATION_SMS_ALIYUN_ENABLED)
+case "$notification_sms" in true|false) : ;; *) fail "NOTIFICATION_SMS_ALIYUN_ENABLED 只能是 true 或 false" ;; esac
 for key in NOTIFICATION_MOCK_ENABLED NOTIFICATION_MOCK_APP_PUSH_ENABLED NOTIFICATION_MOCK_MINI_PROGRAM_ENABLED; do
   [ "$(value_of "$key")" = "false" ] || fail "客户生产部署禁止启用 App/小程序模拟通知适配器：$key"
 done
+[ "$wechat_subscribe" = "false" ] || { [ "$notification_enabled" = "true" ] && [ "$notification_worker" = "true" ]; } \
+  || fail "启用微信订阅消息前必须开启外部通知总门禁和发送器"
 case "$notification_enabled" in
   false)
     [ "$notification_worker" = "false" ] || fail "外部通知关闭时发送器必须关闭"
@@ -241,13 +271,16 @@ case "$notification_enabled" in
     ;;
   true)
     [ "$notification_worker" = "true" ] || fail "外部通知启用时必须显式启用发送器"
-    [ "$notification_sms" = "true" ] || fail "当前唯一真实适配器为通知短信；未启用时不得开启外部通知总开关"
-    require_value NOTIFICATION_SMS_ALIYUN_ACCESS_KEY_ID
-    require_secret NOTIFICATION_SMS_ALIYUN_ACCESS_KEY_SECRET 16
-    require_secret NOTIFICATION_SMS_ALIYUN_RECEIPT_SECRET 16
-    for key in NOTIFICATION_SMS_ALIYUN_SIGN_NAME NOTIFICATION_SMS_TEMPLATE_LOGIN_PASSWORD_CHANGED NOTIFICATION_SMS_TEMPLATE_PAY_PASSWORD_CHANGED NOTIFICATION_SMS_TEMPLATE_PHONE_CHANGED NOTIFICATION_SMS_TEMPLATE_ORDER_SHIPPED NOTIFICATION_SMS_TEMPLATE_AFTER_SALE_UPDATED NOTIFICATION_SMS_TEMPLATE_REFUND_RESULT; do
-      require_value "$key"
-    done
+    [ "$notification_sms" = "true" ] || [ "$wechat_subscribe" = "true" ] \
+      || fail "外部通知总门禁开启时必须至少启用一个真实通知渠道"
+    if [ "$notification_sms" = "true" ]; then
+      require_value NOTIFICATION_SMS_ALIYUN_ACCESS_KEY_ID
+      require_secret NOTIFICATION_SMS_ALIYUN_ACCESS_KEY_SECRET 16
+      require_secret NOTIFICATION_SMS_ALIYUN_RECEIPT_SECRET 16
+      for key in NOTIFICATION_SMS_ALIYUN_SIGN_NAME NOTIFICATION_SMS_TEMPLATE_LOGIN_PASSWORD_CHANGED NOTIFICATION_SMS_TEMPLATE_PAY_PASSWORD_CHANGED NOTIFICATION_SMS_TEMPLATE_PHONE_CHANGED NOTIFICATION_SMS_TEMPLATE_ORDER_SHIPPED NOTIFICATION_SMS_TEMPLATE_AFTER_SALE_UPDATED NOTIFICATION_SMS_TEMPLATE_REFUND_RESULT; do
+        require_value "$key"
+      done
+    fi
     ;;
   *) fail "EXTERNAL_NOTIFICATION_ENABLED 只能是 true 或 false" ;;
 esac

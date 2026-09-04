@@ -2,6 +2,7 @@ package com.macro.mall.distribution.service;
 
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.distribution.config.WeChatMiniProgramProperties;
+import com.macro.mall.distribution.config.WeChatPayProperties;
 import com.macro.mall.distribution.dto.WeChatMiniProgramLoginDTO;
 import com.macro.mall.distribution.entity.DmsWechatMiniProgramIdentity;
 import com.macro.mall.distribution.util.PhoneNumberUtils;
@@ -21,15 +22,19 @@ public class WeChatMiniProgramAuthService {
     private final WeChatMiniProgramProperties properties;
     private final WeChatMiniProgramGateway gateway;
     private final WeChatMiniProgramAccountService accountService;
+    private final WeChatSubscriptionService subscriptionService;
+    private final WeChatPayProperties weChatPayProperties;
 
     public WeChatMiniProgramRuntimeVO runtime() {
         WeChatMiniProgramRuntimeVO view = new WeChatMiniProgramRuntimeVO();
         view.setEnabled(properties.loginReady());
         view.setPhoneAuthorizationEnabled(properties.phoneAuthorizationReady());
         view.setPrivacyConsentVersion(properties.getPrivacyConsentVersion());
-        // 未完成正式支付网关和订阅消息适配前必须保持 false，不能用配置伪装成已完成。
+        // 支付开关仍由独立支付配置接口返回；这里不把拥有AppID误报成已完成资金联调。
         view.setPaymentEnabled(false);
-        view.setSubscribeMessageEnabled(false);
+        view.setSubscribeMessageEnabled(subscriptionService.ready());
+        view.setShippingInfoEnabled(properties.shippingInfoReady() && weChatPayProperties.isConfigured());
+        view.setSubscriptionTemplates(subscriptionService.publicTemplates());
         return view;
     }
 

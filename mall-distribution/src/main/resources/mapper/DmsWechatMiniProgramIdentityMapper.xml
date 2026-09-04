@@ -43,6 +43,14 @@
         LIMIT 1
     </select>
 
+    <select id="selectByUser" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM dms_wechat_mini_program_identity
+        WHERE tenant_id = #{tenantId} AND app_id_hash = #{appIdHash}
+          AND user_id = #{userId} AND status = 1
+        LIMIT 1
+    </select>
+
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsWechatMiniProgramIdentity"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_wechat_mini_program_identity

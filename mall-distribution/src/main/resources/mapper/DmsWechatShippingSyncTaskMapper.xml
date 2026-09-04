@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsWechatShippingSyncTaskDao">
+    <sql id="Columns">id,tenant_id,payment_order_no,user_id,status,revision,synced_revision,attempt_count,next_retry_time,lease_owner,lease_until,payload_digest,error_code,synced_time,create_time,update_time</sql>
+    <insert id="enqueue">
+        INSERT INTO dms_wechat_shipping_sync_task (tenant_id,payment_order_no,user_id,status,revision,synced_revision,attempt_count)
+        VALUES (#{tenantId},#{paymentOrderNo},#{userId},'PENDING',1,0,0)
+        ON DUPLICATE KEY UPDATE user_id=VALUES(user_id),revision=revision+1,
+          status=CASE WHEN status='SENDING' THEN status ELSE 'PENDING' END,
+          next_retry_time=NULL,error_code=NULL,update_time=CURRENT_TIMESTAMP
+    </insert>
+    <select id="selectDueIds" resultType="long">
+        SELECT id FROM dms_wechat_shipping_sync_task
+        WHERE ((status IN ('PENDING','RETRYABLE') AND (next_retry_time IS NULL OR next_retry_time &lt;= #{now}))
+          OR (status='SENDING' AND (lease_until IS NULL OR lease_until &lt; #{now})))
+        ORDER BY id LIMIT #{limit}
+    </select>
+    <update id="claim">
+        UPDATE dms_wechat_shipping_sync_task SET status='SENDING',lease_owner=#{owner},lease_until=#{leaseUntil},
+          attempt_count=attempt_count+1,update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id} AND ((status IN ('PENDING','RETRYABLE') AND (next_retry_time IS NULL OR next_retry_time &lt;= #{now}))
+          OR (status='SENDING' AND (lease_until IS NULL OR lease_until &lt; #{now})))
+    </update>
+    <select id="selectById" resultType="com.macro.mall.distribution.entity.DmsWechatShippingSyncTask">
+        SELECT <include refid="Columns"/> FROM dms_wechat_shipping_sync_task WHERE id=#{id}
+    </select>
+    <update id="markSuccess">
+        UPDATE dms_wechat_shipping_sync_task SET synced_revision=#{revision},payload_digest=#{payloadDigest},
+          status=CASE WHEN revision=#{revision} THEN 'SUCCESS' ELSE 'PENDING' END,
+          error_code=NULL,synced_time=#{now},lease_owner=NULL,lease_until=NULL,next_retry_time=NULL,update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id} AND lease_owner=#{owner} AND status='SENDING'
+    </update>
+    <update id="markRetry">
+        UPDATE dms_wechat_shipping_sync_task SET
+          status=CASE WHEN revision=#{revision} THEN 'RETRYABLE' ELSE 'PENDING' END,
+          next_retry_time=CASE WHEN revision=#{revision} THEN #{nextRetryTime} ELSE NULL END,
+          error_code=#{errorCode},lease_owner=NULL,lease_until=NULL,update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id} AND lease_owner=#{owner} AND status='SENDING'
+    </update>
+    <update id="markPermanent">
+        UPDATE dms_wechat_shipping_sync_task SET synced_revision=#{revision},
+          status=CASE WHEN revision=#{revision} THEN 'PERMANENT' ELSE 'PENDING' END,
+          error_code=#{errorCode},synced_time=#{now},lease_owner=NULL,lease_until=NULL,next_retry_time=NULL,update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id} AND lease_owner=#{owner} AND status='SENDING'
+    </update>
+</mapper>

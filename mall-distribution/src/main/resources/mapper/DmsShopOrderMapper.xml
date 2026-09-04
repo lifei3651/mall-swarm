@@ -98,6 +98,12 @@
         WHERE trade_id=#{tradeId} AND COALESCE(tenant_id, 1) = #{tenantId} ORDER BY id ASC
     </select>
 
+    <select id="selectByPaymentOrderNoScoped" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/> FROM dms_shop_order
+        WHERE COALESCE(payment_order_no,order_no)=#{paymentOrderNo}
+          AND COALESCE(tenant_id,1)=#{tenantId} ORDER BY id ASC
+    </select>
+
     <select id="selectByTradeIdForUpdateScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/> FROM dms_shop_order
         WHERE trade_id=#{tradeId} AND COALESCE(tenant_id, 1) = #{tenantId} ORDER BY id ASC FOR UPDATE

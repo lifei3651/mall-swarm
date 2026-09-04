@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsMiniProgramSubscriptionGrantDao">
+    <sql id="Columns">id,tenant_id,member_id,user_id,template_id_hash,client_request_id,status,reserved_task_id,authorized_time,reserved_time,consumed_time,create_time,update_time</sql>
+    <insert id="insertIgnore" parameterType="com.macro.mall.distribution.entity.DmsMiniProgramSubscriptionGrant">
+        INSERT IGNORE INTO dms_mini_program_subscription_grant
+          (tenant_id,member_id,user_id,template_id_hash,client_request_id,status,authorized_time)
+        VALUES (#{tenantId},#{memberId},#{userId},#{templateIdHash},#{clientRequestId},'AVAILABLE',#{authorizedTime})
+    </insert>
+    <select id="countAvailable" resultType="int">
+        SELECT COUNT(*) FROM dms_mini_program_subscription_grant
+        WHERE tenant_id=#{tenantId} AND member_id=#{memberId} AND template_id_hash=#{templateIdHash} AND status='AVAILABLE'
+    </select>
+    <select id="selectReservedByTask" resultType="com.macro.mall.distribution.entity.DmsMiniProgramSubscriptionGrant">
+        SELECT <include refid="Columns"/> FROM dms_mini_program_subscription_grant
+        WHERE tenant_id=#{tenantId} AND reserved_task_id=#{taskId} AND status='RESERVED' LIMIT 1
+    </select>
+    <select id="selectAvailableForUpdate" resultType="com.macro.mall.distribution.entity.DmsMiniProgramSubscriptionGrant">
+        SELECT <include refid="Columns"/> FROM dms_mini_program_subscription_grant
+        WHERE tenant_id=#{tenantId} AND member_id=#{memberId} AND template_id_hash=#{templateIdHash} AND status='AVAILABLE'
+        ORDER BY id LIMIT 1 FOR UPDATE
+    </select>
+    <update id="reserve">
+        UPDATE dms_mini_program_subscription_grant SET status='RESERVED',reserved_task_id=#{taskId},reserved_time=CURRENT_TIMESTAMP,update_time=CURRENT_TIMESTAMP
+        WHERE tenant_id=#{tenantId} AND id=#{id} AND status='AVAILABLE'
+    </update>
+    <update id="markConsumed">
+        UPDATE dms_mini_program_subscription_grant SET status='CONSUMED',consumed_time=CURRENT_TIMESTAMP,update_time=CURRENT_TIMESTAMP
+        WHERE tenant_id=#{tenantId} AND reserved_task_id=#{taskId} AND status='RESERVED'
+    </update>
+    <update id="markInvalid">
+        UPDATE dms_mini_program_subscription_grant SET status='INVALID',consumed_time=CURRENT_TIMESTAMP,update_time=CURRENT_TIMESTAMP
+        WHERE tenant_id=#{tenantId} AND reserved_task_id=#{taskId} AND status='RESERVED'
+    </update>
+</mapper>

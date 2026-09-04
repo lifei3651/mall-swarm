@@ -4,5 +4,5 @@
     <select id="selectByEventType" resultType="com.macro.mall.distribution.entity.DmsMessageChannelConfig">SELECT * FROM dms_message_channel_config WHERE tenant_id=#{tenantId} AND event_type=#{eventType}</select>
     <select id="selectById" resultType="com.macro.mall.distribution.entity.DmsMessageChannelConfig">SELECT * FROM dms_message_channel_config WHERE tenant_id=#{tenantId} AND id=#{id}</select>
     <select id="selectList" resultType="com.macro.mall.distribution.entity.DmsMessageChannelConfig">SELECT * FROM dms_message_channel_config WHERE tenant_id=#{tenantId} ORDER BY event_type</select>
-    <update id="updateInApp">UPDATE dms_message_channel_config SET in_app_enabled=#{enabled},sms_enabled=0,app_push_enabled=0,mini_program_enabled=0,update_time=CURRENT_TIMESTAMP WHERE tenant_id=#{tenantId} AND id=#{id}</update>
+    <update id="updateInApp">UPDATE dms_message_channel_config SET in_app_enabled=#{enabled},update_time=CURRENT_TIMESTAMP WHERE tenant_id=#{tenantId} AND id=#{id}</update>
 </mapper>

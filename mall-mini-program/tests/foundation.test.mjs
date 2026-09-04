@@ -71,6 +71,23 @@ test('微信收款确认仅从本人提现单取参数并在原生确认后再�
   assert.equal((page.match(/await this\.prepare\(withdrawId\)/g) || []).length, 2)
 })
 
+test('小程序提供个人消息中心与用户主动触发的微信订阅授权', async () => {
+  const fs = await import('node:fs/promises')
+  const app = JSON.parse(await fs.readFile(new URL('../app.json', import.meta.url), 'utf8'))
+  const profile = await fs.readFile(new URL('../pages/profile/index.wxml', import.meta.url), 'utf8')
+  const messages = await fs.readFile(new URL('../pages/messages/index.js', import.meta.url), 'utf8')
+  const subscriptions = await fs.readFile(new URL('../pages/subscriptions/index.js', import.meta.url), 'utf8')
+  assert.ok(app.pages.includes('pages/messages/index'))
+  assert.ok(app.pages.includes('pages/message-detail/index'))
+  assert.ok(app.pages.includes('pages/subscriptions/index'))
+  assert.match(profile, /消息与提醒/)
+  assert.match(messages, /\/shop\/messages\/unread/)
+  assert.match(messages, /\/shop\/messages\/read-all/)
+  assert.match(subscriptions, /wx\.requestSubscribeMessage/)
+  assert.match(subscriptions, /result\[id\] === 'accept'/)
+  assert.match(subscriptions, /\/subscriptions\/grants/)
+})
+
 test('WXML 条件兜底与列表循环使用独立节点，避免微信编译器拒绝', async () => {
   const fs = await import('node:fs/promises')
   for (const page of ['orders', 'payout']) {
