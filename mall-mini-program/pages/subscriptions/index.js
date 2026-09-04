@@ -1,5 +1,6 @@
 const request = require('../../utils/request')
 const auth = require('../../utils/auth')
+const theme = require('../../utils/theme')
 
 function requestSubscribeMessage(templateIds) {
   return new Promise((resolve, reject) => {
@@ -23,8 +24,8 @@ function normalizeTemplates(templates) {
 }
 
 Page({
-  data: { loading: true, requesting: false, templates: [], error: '' },
-  onLoad() { if (auth.requireLogin('/pages/subscriptions/index')) this.load() },
+  data: { ...theme.pageData(), loading: true, requesting: false, templates: [], error: '' },
+  onLoad() { theme.apply(this); if (auth.requireLogin('/pages/subscriptions/index')) this.load() },
   async load() {
     this.setData({ loading: true, error: '' })
     try {

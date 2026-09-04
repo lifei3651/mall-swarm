@@ -1,10 +1,11 @@
 const cart = require('../../utils/cart')
 const format = require('../../utils/format')
 const auth = require('../../utils/auth')
+const theme = require('../../utils/theme')
 
 Page({
-  data: { rows: [], total: '0.00', count: 0, allSelected: false },
-  onShow() { this.refresh() },
+  data: { ...theme.pageData(), rows: [], total: '0.00', count: 0, allSelected: false },
+  onShow() { theme.apply(this); this.refresh() },
   refresh() {
     const rows = cart.list().map((row) => ({
       ...row,
@@ -37,7 +38,7 @@ Page({
       title: '移除商品',
       content: '确定把这件商品移出购物车吗？',
       confirmText: '移除',
-      confirmColor: '#e7193f',
+      confirmColor: this.data.themeColor,
       success: ({ confirm }) => {
         if (!confirm) return
         cart.remove(key)

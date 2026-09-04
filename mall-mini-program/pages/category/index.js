@@ -1,9 +1,11 @@
 const request = require('../../utils/request')
 const format = require('../../utils/format')
+const theme = require('../../utils/theme')
 
 Page({
-  data: { categories: [], active: '', keyword: '', products: [], loading: true, error: '' },
-  onLoad() { this.loadCategories() },
+  data: { ...theme.pageData(), categories: [], active: '', keyword: '', products: [], loading: true, error: '' },
+  onLoad() { theme.apply(this); this.loadCategories() },
+  onShow() { theme.sync(this) },
   onPullDownRefresh() { this.loadProducts().finally(() => wx.stopPullDownRefresh()) },
   async loadCategories() {
     this.setData({ loading: true, error: '' })

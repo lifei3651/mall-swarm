@@ -1,8 +1,10 @@
 const request = require('../../utils/request')
 const auth = require('../../utils/auth')
+const theme = require('../../utils/theme')
 
 Page({
   data: {
+    ...theme.pageData(),
     loading: true,
     rows: [],
     showForm: false,
@@ -11,6 +13,7 @@ Page({
     saving: false
   },
   onLoad(options) {
+    theme.apply(this)
     this.selectMode = options.select === '1'
     this.setData({ selectMode: this.selectMode })
     if (auth.requireLogin('/pages/address/index')) this.load()
@@ -100,7 +103,7 @@ Page({
       title: '删除收货地址',
       content: '删除后无法恢复，确定继续吗？',
       confirmText: '删除',
-      confirmColor: '#e7193f',
+      confirmColor: this.data.themeColor,
       success: async ({ confirm }) => {
         if (!confirm) return
         try {

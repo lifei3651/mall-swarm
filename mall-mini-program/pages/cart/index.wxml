@@ -1,10 +1,10 @@
-<view class="cart-page">
+<view class="cart-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}">
   <view wx:if="{{!rows.length}}" class="empty cart-empty"><view>购物车还是空的</view><button class="primary-button" bindtap="goShopping">去逛逛</button></view>
   <block wx:else>
     <view class="cart-list">
       <view class="cart-row" wx:for="{{rows}}" wx:key="key">
         <checkbox-group class="row-selector" data-key="{{item.key}}" bindchange="toggle">
-          <checkbox value="selected" checked="{{item.selected}}" color="#e7193f" aria-label="{{item.selected ? '取消选择商品' : '选择商品'}}" />
+          <checkbox value="selected" checked="{{item.selected}}" color="{{themeColor}}" aria-label="{{item.selected ? '取消选择商品' : '选择商品'}}" />
         </checkbox-group>
         <image src="{{item.coverUrl}}" mode="aspectFill" data-id="{{item.productId}}" bindtap="openProduct" />
         <view class="cart-copy">
@@ -20,7 +20,7 @@
     </view>
     <view class="cart-footer">
       <checkbox-group class="select-all" bindchange="toggleAll">
-        <label><checkbox value="selected" checked="{{allSelected}}" color="#e7193f" aria-label="全选商品" /><text>全选</text></label>
+        <label><checkbox value="selected" checked="{{allSelected}}" color="{{themeColor}}" aria-label="全选商品" /><text>全选</text></label>
       </checkbox-group>
       <view class="cart-total"><text class="muted">已选 {{count}} 件</text><view>合计 <text>¥{{total}}</text></view></view>
       <button class="primary-button" bindtap="checkout">去结算</button>

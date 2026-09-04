@@ -1,5 +1,5 @@
 .brand-head { display: flex; align-items: center; padding: 10rpx 4rpx 26rpx; }
-.brand-logo-shell { display: flex; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; border: 1rpx solid #f0dfe3; border-radius: 24rpx; background: #fff2f5; box-shadow: 0 8rpx 24rpx rgba(35,42,56,.07); overflow: hidden; }
+.brand-logo-shell { display: flex; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; border: 1rpx solid var(--line); border-radius: 24rpx; background: var(--brand-soft); box-shadow: 0 8rpx 24rpx rgba(35,42,56,.07); overflow: hidden; }
 .brand-logo { width: 74rpx; height: 74rpx; }
 .brand-logo-fallback { width: 62rpx; height: 62rpx; }
 .brand-copy { margin-left: 18rpx; }
@@ -14,7 +14,7 @@
 .categories { margin: 24rpx -24rpx 0; width: auto; }
 .category-row { display: flex; padding: 4rpx 24rpx 10rpx; }
 .category-item { flex: none; width: 136rpx; margin-right: 10rpx; text-align: center; font-size: 24rpx; color: #3d4655; }
-.category-icon { position: relative; display: flex; align-items: center; justify-content: center; width: 96rpx; height: 96rpx; margin: 0 auto 12rpx; border-radius: 30rpx; background: #fff1f4; overflow: hidden; }
+.category-icon { position: relative; display: flex; align-items: center; justify-content: center; width: 96rpx; height: 96rpx; margin: 0 auto 12rpx; border-radius: 30rpx; background: var(--brand-soft); overflow: hidden; }
 .category-icon image, .category-placeholder { width: 100%; height: 100%; }
 .category-placeholder { display: flex; align-items: center; justify-content: center; color: var(--brand); font-size: 30rpx; font-weight: 750; }
 .category-icon image { position: absolute; inset: 0; }

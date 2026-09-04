@@ -1,5 +1,6 @@
 const request = require('../../utils/request')
 const auth = require('../../utils/auth')
+const theme = require('../../utils/theme')
 
 const CATEGORIES = [
   { key: '', label: '全部' },
@@ -16,6 +17,7 @@ function formatTime(value) {
 
 Page({
   data: {
+    ...theme.pageData(),
     categories: CATEGORIES.map((item) => ({ ...item, count: 0 })),
     category: '',
     rows: [],
@@ -26,8 +28,8 @@ Page({
     error: '',
     subscriptionAvailable: false
   },
-  onLoad() { if (auth.requireLogin('/pages/messages/index')) this.load(true) },
-  onShow() { if (this.loadedOnce && auth.requireLogin('/pages/messages/index')) this.load(true) },
+  onLoad() { theme.apply(this); if (auth.requireLogin('/pages/messages/index')) this.load(true) },
+  onShow() { theme.sync(this); if (this.loadedOnce && auth.requireLogin('/pages/messages/index')) this.load(true) },
   onPullDownRefresh() { this.load(true).finally(() => wx.stopPullDownRefresh()) },
   async load(reset) {
     if (this.data.loading && !reset) return

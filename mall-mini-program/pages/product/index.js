@@ -2,13 +2,15 @@ const request = require('../../utils/request')
 const cart = require('../../utils/cart')
 const format = require('../../utils/format')
 const auth = require('../../utils/auth')
+const theme = require('../../utils/theme')
 
 Page({
   data: {
+    ...theme.pageData(),
     loading: true, error: '', product: {}, skus: [], skuIndex: 0, quantity: 1,
     priceText: '0.00', stock: 0, soldOut: false
   },
-  onLoad(options) { this.productId = Number(options.id); this.load() },
+  onLoad(options) { theme.apply(this); this.productId = Number(options.id); this.load() },
   async load() {
     this.setData({ loading: true, error: '' })
     try {

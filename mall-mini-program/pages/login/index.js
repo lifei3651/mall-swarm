@@ -2,13 +2,16 @@ const auth = require('../../utils/auth')
 const session = require('../../utils/session')
 const invite = require('../../utils/invite')
 const runtimeConfig = require('../../config/runtime')
+const theme = require('../../utils/theme')
 
 Page({
   data: {
+    ...theme.pageData(),
     loading: true, submitting: false, enabled: false, phoneEnabled: false,
     agreed: false, privacyVersion: '', inviteCode: '', error: ''
   },
   onLoad(options) {
+    theme.apply(this)
     try { this.redirect = decodeURIComponent(options.redirect || '') } catch (_) { this.redirect = '' }
     this.loadRuntime()
   },

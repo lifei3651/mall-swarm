@@ -8,6 +8,7 @@ const { buildQuery } = require('../utils/request')
 const payment = require('../utils/payment')
 const format = require('../utils/format')
 const orderCenter = require('../utils/order-center')
+const theme = require('../utils/theme')
 
 test('邀请码只接受八位字母数字并统一大写', () => {
   assert.equal(invite.normalizeInviteCode('ab12cd34'), 'AB12CD34')
@@ -251,4 +252,26 @@ test('小程序第三轮交互优化提供原生选择、图片兜底和失败�
   for (const view of [categoryView, productView, messageView]) {
     assert.match(view, /bindtap="retry">重新加载<\/button>/)
   }
+})
+
+test('小程序第四轮视觉收口让全部页面跟随后台品牌主题', async () => {
+  const fs = await import('node:fs/promises')
+  assert.equal(theme.normalizeColor('#7C3AED'), '#7c3aed')
+  assert.equal(theme.softColor('#7c3aed'), '#f2ebfd')
+  assert.equal(theme.normalizeColor('not-a-color'), '#e7193f')
+
+  const app = JSON.parse(await fs.readFile(new URL('../app.json', import.meta.url), 'utf8'))
+  const pageNames = app.pages.map((page) => page.split('/')[1])
+  for (const pageName of pageNames) {
+    const page = await fs.readFile(new URL(`../pages/${pageName}/index.js`, import.meta.url), 'utf8')
+    const view = await fs.readFile(new URL(`../pages/${pageName}/index.wxml`, import.meta.url), 'utf8')
+    assert.match(page, /theme\.pageData\(\)/, `${pageName} 缺少主题初始值`)
+    assert.match(view, /--brand: \{\{themeColor\}\}/, `${pageName} 缺少品牌色绑定`)
+    assert.match(view, /--brand-soft: \{\{themeSoftColor\}\}/, `${pageName} 缺少浅品牌色绑定`)
+  }
+
+  const cartView = await fs.readFile(new URL('../pages/cart/index.wxml', import.meta.url), 'utf8')
+  const loginView = await fs.readFile(new URL('../pages/login/index.wxml', import.meta.url), 'utf8')
+  assert.match(cartView, /color="\{\{themeColor\}\}"/)
+  assert.match(loginView, /color="\{\{themeColor\}\}"/)
 })

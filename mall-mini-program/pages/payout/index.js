@@ -1,6 +1,7 @@
 const request = require('../../utils/request')
 const auth = require('../../utils/auth')
 const format = require('../../utils/format')
+const theme = require('../../utils/theme')
 
 function requestMerchantTransfer(parameters) {
   return new Promise((resolve, reject) => {
@@ -13,9 +14,9 @@ function isUserCancel(error) {
 }
 
 Page({
-  data: { loading: true, error: '', rows: [], actingId: null },
-  onLoad() { if (auth.requireLogin('/pages/payout/index')) this.load() },
-  onShow() { if (this.loadedOnce && auth.requireLogin('/pages/payout/index')) this.load() },
+  data: { ...theme.pageData(), loading: true, error: '', rows: [], actingId: null },
+  onLoad() { theme.apply(this); if (auth.requireLogin('/pages/payout/index')) this.load() },
+  onShow() { theme.sync(this); if (this.loadedOnce && auth.requireLogin('/pages/payout/index')) this.load() },
   onPullDownRefresh() { this.load().finally(() => wx.stopPullDownRefresh()) },
   async load() {
     this.setData({ loading: true, error: '' })

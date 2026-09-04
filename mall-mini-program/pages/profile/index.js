@@ -1,12 +1,14 @@
 const session = require('../../utils/session')
 const request = require('../../utils/request')
+const theme = require('../../utils/theme')
 
 Page({
   data: {
+    ...theme.pageData(),
     loggedIn: false, member: null, unreadCount: 0, unreadText: '', payoutCount: 0,
     orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, afterSale: 0 }
   },
-  onShow() { this.refresh() },
+  onShow() { theme.apply(this); this.refresh() },
   async refresh() {
     const token = session.getToken()
     this.setData({ loggedIn: Boolean(token), member: session.getMember() })

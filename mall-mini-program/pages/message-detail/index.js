@@ -1,5 +1,6 @@
 const request = require('../../utils/request')
 const auth = require('../../utils/auth')
+const theme = require('../../utils/theme')
 
 const CATEGORY_NAMES = {
   ORDER_LOGISTICS: '订单物流',
@@ -10,8 +11,9 @@ const CATEGORY_NAMES = {
 }
 
 Page({
-  data: { loading: true, error: '', message: null, categoryName: '', displayTime: '' },
+  data: { ...theme.pageData(), loading: true, error: '', message: null, categoryName: '', displayTime: '' },
   onLoad(options) {
+    theme.apply(this)
     if (!auth.requireLogin(`/pages/message-detail/index?id=${options.id || ''}`)) return
     this.load(Number(options.id))
   },

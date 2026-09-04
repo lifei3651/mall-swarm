@@ -1,4 +1,4 @@
-<view class="checkout-page">
+<view class="checkout-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}">
   <view wx:if="{{loading}}" class="empty">正在加载结算信息…</view>
   <block wx:else>
     <view class="section-kicker"><text>收货信息</text><text>请确认地址准确无误</text></view>

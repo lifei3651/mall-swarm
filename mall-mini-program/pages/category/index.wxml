@@ -1,4 +1,4 @@
-<view class="category-page">
+<view class="category-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}">
   <view class="category-search">
     <image src="/assets/icons/search.png" mode="aspectFit" />
     <input value="{{keyword}}" bindinput="onKeywordInput" bindconfirm="search" confirm-type="search" placeholder="搜索商品" />

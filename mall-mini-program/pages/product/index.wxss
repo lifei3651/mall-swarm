@@ -10,7 +10,7 @@
 .panel-title { margin-bottom: 22rpx; font-weight: 750; }
 .sku-list { display: flex; flex-wrap: wrap; gap: 16rpx; }
 .sku { padding: 14rpx 24rpx; border: 1rpx solid #e5e8ee; border-radius: 999rpx; background: #f7f8fa; }
-.sku.active { border-color: var(--brand); color: var(--brand); background: #fff4f6; }
+.sku.active { border-color: var(--brand); color: var(--brand); background: var(--brand-soft); }
 .sku.disabled { color: #aeb4be; text-decoration: line-through; background: #f1f2f4; }
 .sku text { margin-left: 8rpx; font-size: 20rpx; text-decoration: none; }
 .quantity-panel { display: flex; justify-content: space-between; align-items: center; }
@@ -18,7 +18,7 @@
 .quantity-panel button { width: 68rpx; height: 60rpx; line-height: 60rpx; padding: 0; background: #f2f4f7; }
 .quantity-panel view text { width: 78rpx; text-align: center; }
 .service-panel > view { display: flex; flex-wrap: wrap; gap: 14rpx; }
-.service-panel > view text { padding: 8rpx 14rpx; border-radius: 999rpx; color: #a23b50; background: #fff1f4; font-size: 22rpx; }
+.service-panel > view text { padding: 8rpx 14rpx; border-radius: 999rpx; color: var(--brand); background: var(--brand-soft); font-size: 22rpx; }
 .service-panel > text { display: block; margin-top: 16rpx; color: #858d9b; font-size: 23rpx; }
 .description text { color: #626b79; line-height: 48rpx; white-space: pre-wrap; }
 .product-actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 14rpx; padding: 16rpx 22rpx calc(16rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid #eceef2; background: #fff; box-shadow: 0 -8rpx 30rpx rgba(20,30,50,.08); }
@@ -26,7 +26,7 @@
 .cart-shortcut { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 116rpx; border-radius: 18rpx; background: #fff; color: #525c6d; line-height: 1; }
 .cart-shortcut image { width: 34rpx; height: 34rpx; }
 .cart-shortcut text { margin-top: 5rpx; font-size: 20rpx; }
-.add-cart-button { flex: 1; color: var(--brand); background: #fff2f4; border-radius: 999rpx; font-weight: 600; }
+.add-cart-button { flex: 1; color: var(--brand); background: var(--brand-soft); border-radius: 999rpx; font-weight: 600; }
 .product-actions .primary-button { flex: 1; }
 .product-actions button[disabled] { color: #fff; background: #c9cdd4; }
 .product-empty text { display: block; }

@@ -1,4 +1,4 @@
-<view class="address-page">
+<view class="address-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}">
   <view class="address-toolbar">
     <view>
       <text>{{selectMode ? '选择收货地址' : '收货地址'}}</text>
@@ -22,7 +22,7 @@
     <input data-field="receiverPhone" value="{{form.receiverPhone}}" maxlength="11" type="number" placeholder="手机号" bindinput="input" />
     <picker mode="region" value="{{form.region}}" bindchange="region"><view class="region">{{form.regionText || '请选择省、市、区/县'}}</view></picker>
     <input data-field="detailAddress" value="{{form.detailAddress}}" maxlength="200" placeholder="街道、门牌号等详细地址" bindinput="input" />
-    <view class="default-setting"><view><text>设为默认地址</text><text>结算时优先使用</text></view><switch checked="{{form.isDefault}}" color="#e7193f" bindchange="defaultChange" /></view>
+    <view class="default-setting"><view><text>设为默认地址</text><text>结算时优先使用</text></view><switch checked="{{form.isDefault}}" color="{{themeColor}}" bindchange="defaultChange" /></view>
     <button class="primary-button" loading="{{saving}}" disabled="{{saving}}" bindtap="save">{{form.id ? '保存修改' : '保存地址'}}</button>
   </view>
 </view>

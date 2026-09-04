@@ -1,4 +1,4 @@
-<view class="page" style="--brand: {{themeColor}}">
+<view class="page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}">
   <view wx:if="{{loading}}" class="empty">正在加载商城…</view>
   <view wx:elif="{{error}}" class="empty">
     <view>{{error}}</view>

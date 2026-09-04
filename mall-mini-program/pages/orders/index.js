@@ -2,6 +2,7 @@ const request = require('../../utils/request')
 const auth = require('../../utils/auth')
 const format = require('../../utils/format')
 const payment = require('../../utils/payment')
+const theme = require('../../utils/theme')
 
 const STATUS = { 0: '待支付', 1: '待发货', 2: '已发货', 3: '已完成', 4: '已取消' }
 const AFTER_SALE_STATUS = { 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待寄回', 5: '待商家收货', 6: '退款处理中', 7: '待换货发出', 8: '换货已发出' }
@@ -15,16 +16,19 @@ const TABS = [
 
 Page({
   data: {
+    ...theme.pageData(),
     loading: true, loadingMore: false, error: '', rows: [], total: 0, pageNum: 0, pageSize: 10,
     tabs: TABS, activeTab: 'all', wechatPayEnabled: false, payingId: null
   },
   onLoad(options) {
+    theme.apply(this)
     const activeTab = TABS.some((tab) => tab.key === options.tab) ? options.tab : 'all'
     this.setData({ activeTab })
     const redirect = `/pages/orders/index${activeTab === 'all' ? '' : `?tab=${activeTab}`}`
     if (auth.requireLogin(redirect)) Promise.all([this.loadConfig(), this.loadSummary(), this.load(true)])
   },
   onShow() {
+    theme.sync(this)
     if (this.loadedOnce && auth.requireLogin('/pages/orders/index')) Promise.all([this.loadSummary(), this.load(true)])
   },
   onPullDownRefresh() {

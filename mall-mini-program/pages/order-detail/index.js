@@ -2,6 +2,7 @@ const request = require('../../utils/request')
 const auth = require('../../utils/auth')
 const format = require('../../utils/format')
 const orderCenter = require('../../utils/order-center')
+const theme = require('../../utils/theme')
 
 const STATUS = { 0: '待付款', 1: '待发货', 2: '已发货', 3: '已完成', 4: '已关闭', 5: '售后中' }
 const AFTER_SALE_STATUS = { 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待寄回', 5: '待商家收货', 6: '退款处理中', 7: '待商家换货发出', 8: '换货已发出' }
@@ -17,8 +18,9 @@ function addressText(order) {
 }
 
 Page({
-  data: { loading: true, error: '', rows: [], paymentNo: '', totalText: '0.00', actingId: null, cancellingAfterSaleId: null },
+  data: { ...theme.pageData(), loading: true, error: '', rows: [], paymentNo: '', totalText: '0.00', actingId: null, cancellingAfterSaleId: null },
   onLoad(options) {
+    theme.apply(this)
     const orderId = Number(options.id)
     const paymentNo = orderCenter.normalizePaymentNo(options.orderNo || options.paymentNo)
     if (!orderId && !paymentNo) {
@@ -32,6 +34,7 @@ Page({
     if (auth.requireLogin(this.redirect)) this.load()
   },
   onShow() {
+    theme.sync(this)
     if (this.loadedOnce && auth.requireLogin(this.redirect)) this.load()
   },
   onPullDownRefresh() {
@@ -121,7 +124,7 @@ Page({
       title: '取消订单',
       content: '取消后将释放库存，这笔订单无法恢复。',
       confirmText: '确认取消',
-      confirmColor: '#e7193f',
+      confirmColor: this.data.themeColor,
       success: async ({ confirm }) => {
         if (!confirm) return
         this.setData({ actingId: orderId })
@@ -141,7 +144,7 @@ Page({
       title: '取消售后申请',
       content: '取消后不会产生退款；如仍在售后期限内，可以重新申请。',
       confirmText: '确认取消',
-      confirmColor: '#e7193f',
+      confirmColor: this.data.themeColor,
       success: async ({ confirm }) => {
         if (!confirm) return
         this.setData({ cancellingAfterSaleId: id })

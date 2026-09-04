@@ -1,4 +1,4 @@
-<view class="payout-page">
+<view class="payout-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}">
   <view class="notice-card">
     <view>微信收款确认</view>
     <text>平台发起微信提现后，需要由收款会员本人在微信内确认。页面显示成功前，系统仍会向微信核验最终结果。</text>

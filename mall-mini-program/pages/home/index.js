@@ -1,5 +1,6 @@
 const request = require('../../utils/request')
 const format = require('../../utils/format')
+const theme = require('../../utils/theme')
 
 Page({
   data: {
@@ -8,7 +9,7 @@ Page({
     home: {},
     products: [],
     keyword: '',
-    themeColor: '#e7193f',
+    ...theme.pageData(),
     logoFailed: false
   },
   onLoad() { this.loadHome() },
@@ -29,11 +30,9 @@ Page({
         iconFailed: false,
         initial: String(item.categoryName || '商').slice(0, 1)
       }))
-      const themeColor = /^#[0-9a-fA-F]{6}$/.test(home.themeColor || '') ? home.themeColor : '#e7193f'
-      getApp().globalData.brand = home
-      this.setData({ home, products, themeColor, logoFailed: false })
+      const palette = theme.remember(home)
+      this.setData({ home, products, ...palette, logoFailed: false })
       wx.setNavigationBarTitle({ title: home.brandName || '商城首页' })
-      wx.setTabBarStyle({ selectedColor: themeColor })
     } catch (error) {
       this.setData({ error: error.message || '加载失败' })
     } finally {

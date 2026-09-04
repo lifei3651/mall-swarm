@@ -3,6 +3,7 @@ const cart = require('../../utils/cart')
 const format = require('../../utils/format')
 const auth = require('../../utils/auth')
 const payment = require('../../utils/payment')
+const theme = require('../../utils/theme')
 
 function idempotencyKey() {
   return `MINI-CHECKOUT-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`
@@ -10,6 +11,7 @@ function idempotencyKey() {
 
 Page({
   data: {
+    ...theme.pageData(),
     loading: true,
     submitting: false,
     rows: [],
@@ -26,10 +28,11 @@ Page({
     remark: ''
   },
   onLoad() {
+    theme.apply(this)
     if (!auth.requireLogin('/pages/checkout/index')) return
     this.submitKey = idempotencyKey()
   },
-  onShow() { if (auth.requireLogin('/pages/checkout/index')) this.load() },
+  onShow() { theme.sync(this); if (auth.requireLogin('/pages/checkout/index')) this.load() },
   async load() {
     const rows = cart.selected().map((row) => ({
       ...row,

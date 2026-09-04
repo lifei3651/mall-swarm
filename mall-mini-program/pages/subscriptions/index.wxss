@@ -1,5 +1,5 @@
 .subscription-page { min-height: 100vh; padding: 24rpx; }
-.intro-card { padding: 32rpx; border: 1rpx solid #f0dfe3; border-radius: 26rpx; background: linear-gradient(135deg, #fff 0%, #fff1f4 100%); box-shadow: var(--shadow); color: var(--ink); }
+.intro-card { padding: 32rpx; border: 1rpx solid var(--line); border-radius: 26rpx; background: linear-gradient(135deg, #fff 0%, var(--brand-soft) 100%); box-shadow: var(--shadow); color: var(--ink); }
 .intro-card > text:first-child { display: block; color: var(--brand); font-size: 22rpx; font-weight: 650; }
 .intro-card view { font-size: 38rpx; font-weight: 750; }
 .intro-card view { margin-top: 8rpx; }
