@@ -6,7 +6,7 @@
 .summary-label { color: var(--muted); font-size: 24rpx; }
 .summary-amount { margin-top: 8rpx; color: var(--brand); font-size: 48rpx; font-weight: 750; }
 .summary-meta, .summary-no { display: block; margin-top: 12rpx; color: #737c8b; font-size: 23rpx; line-height: 34rpx; word-break: break-all; }
-.order-card { margin-top: 20rpx; padding: 26rpx; border-radius: 26rpx; background: #fff; }
+.order-card { margin-top: 20rpx; padding: 26rpx; border: 1rpx solid #e8eaf0; border-radius: 26rpx; background: #fff; box-shadow: var(--shadow); }
 .order-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; padding-bottom: 20rpx; border-bottom: 1rpx solid var(--line); }
 .order-head view { min-width: 0; }
 .merchant-name { display: block; font-weight: 700; }

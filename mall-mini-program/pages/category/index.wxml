@@ -1,5 +1,6 @@
 <view class="category-page">
   <view class="category-search">
+    <image src="/assets/icons/search.png" mode="aspectFit" />
     <input value="{{keyword}}" bindinput="onKeywordInput" bindconfirm="search" confirm-type="search" placeholder="搜索商品" />
     <button bindtap="search">搜索</button>
   </view>
@@ -9,6 +10,7 @@
       <view class="side-item {{active === item.categoryName ? 'active' : ''}}" wx:for="{{categories}}" wx:key="id" data-name="{{item.categoryName}}" bindtap="selectCategory">{{item.categoryName}}</view>
     </scroll-view>
     <scroll-view class="category-products" scroll-y>
+      <view class="result-head"><text>{{active || '全部商品'}}</text><text>{{products.length}} 件</text></view>
       <view wx:if="{{loading}}" class="empty">正在加载…</view>
       <view wx:elif="{{error}}" class="empty">{{error}}</view>
       <view wx:elif="{{products.length}}" class="product-grid compact-grid">

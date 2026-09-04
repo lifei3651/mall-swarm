@@ -181,3 +181,18 @@ test('地址支持编辑且删除前需要二次确认', async () => {
   assert.match(view, /保存修改/)
   assert.match(view, /设为默认地址/)
 })
+
+test('小程序主导航使用真实图标且登录主操作保持全宽', async () => {
+  const fs = await import('node:fs/promises')
+  const app = JSON.parse(await fs.readFile(new URL('../app.json', import.meta.url), 'utf8'))
+  for (const item of app.tabBar.list) {
+    assert.match(item.iconPath, /^assets\/tabbar\/.+\.png$/)
+    assert.match(item.selectedIconPath, /^assets\/tabbar\/.+-selected\.png$/)
+    const normal = await fs.stat(new URL(`../${item.iconPath}`, import.meta.url))
+    const selected = await fs.stat(new URL(`../${item.selectedIconPath}`, import.meta.url))
+    assert.ok(normal.size > 100)
+    assert.ok(selected.size > 100)
+  }
+  const loginStyle = await fs.readFile(new URL('../pages/login/index.wxss', import.meta.url), 'utf8')
+  assert.match(loginStyle, /\.login-button\s*\{[^}]*width:\s*100%/s)
+})

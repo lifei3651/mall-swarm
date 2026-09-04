@@ -1,5 +1,5 @@
 .detail-page { min-height: 100vh; padding: 24rpx; }
-.detail-card { padding: 34rpx; border-radius: 26rpx; background: #fff; }
+.detail-card { padding: 34rpx; border: 1rpx solid #e8eaf0; border-radius: 26rpx; background: #fff; box-shadow: var(--shadow); }
 .category { color: var(--brand); font-size: 23rpx; }
 .title { margin-top: 14rpx; font-size: 38rpx; font-weight: 700; line-height: 52rpx; }
 .time { display: block; margin-top: 14rpx; color: #9ba2af; font-size: 22rpx; }

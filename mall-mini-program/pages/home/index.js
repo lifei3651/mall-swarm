@@ -8,7 +8,8 @@ Page({
     home: {},
     products: [],
     keyword: '',
-    themeColor: '#e7193f'
+    themeColor: '#e7193f',
+    logoFailed: false
   },
   onLoad() { this.loadHome() },
   onPullDownRefresh() { this.loadHome().finally(() => wx.stopPullDownRefresh()) },
@@ -29,7 +30,7 @@ Page({
       }))
       const themeColor = /^#[0-9a-fA-F]{6}$/.test(home.themeColor || '') ? home.themeColor : '#e7193f'
       getApp().globalData.brand = home
-      this.setData({ home, products, themeColor })
+      this.setData({ home, products, themeColor, logoFailed: false })
       wx.setNavigationBarTitle({ title: home.brandName || '商城首页' })
       wx.setTabBarStyle({ selectedColor: themeColor })
     } catch (error) {
@@ -38,6 +39,7 @@ Page({
       this.setData({ loading: false })
     }
   },
+  logoError() { this.setData({ logoFailed: true }) },
   onKeywordInput(event) { this.setData({ keyword: event.detail.value }) },
   search() {
     const keyword = String(this.data.keyword || '').trim()

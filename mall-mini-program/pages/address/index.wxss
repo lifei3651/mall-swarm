@@ -1,12 +1,12 @@
 .address-page { min-height: 100vh; padding: 22rpx; }
-.address-row { position: relative; margin-bottom: 18rpx; padding: 26rpx; border-radius: 22rpx; background: #fff; }
+.address-row { position: relative; margin-bottom: 18rpx; padding: 26rpx; border: 1rpx solid #e8eaf0; border-radius: 22rpx; background: #fff; box-shadow: var(--shadow); }
 .address-row > view { display: flex; align-items: center; gap: 20rpx; font-weight: 700; }
 .address-row > text { display: block; margin-top: 12rpx; color: #697180; line-height: 40rpx; }
 .default-tag { padding: 3rpx 10rpx; border-radius: 8rpx; background: #fff0f2; color: var(--brand); font-size: 20rpx; }
 .address-actions { display: flex; justify-content: flex-end; gap: 10rpx; margin-top: 16rpx; }
 .address-actions button { width: 100rpx; min-height: 58rpx; margin: 0; padding: 0; background: transparent; color: #697180; font-size: 23rpx; line-height: 58rpx; }
 .address-actions button:last-child { color: #a94a5b; }
-.address-form { margin-top: 22rpx; padding: 28rpx; border-radius: 24rpx; background: #fff; }
+.address-form { margin-top: 22rpx; padding: 28rpx; border: 1rpx solid #e8eaf0; border-radius: 24rpx; background: #fff; box-shadow: var(--shadow); }
 .form-title { margin-bottom: 18rpx; font-size: 32rpx; font-weight: 700; }
 .form-head { display: flex; align-items: center; justify-content: space-between; }
 .form-head button { width: auto; min-height: 58rpx; margin: -8rpx 0 10rpx; padding: 0 12rpx; color: #697180; background: transparent; font-size: 23rpx; }

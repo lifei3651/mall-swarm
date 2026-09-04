@@ -6,7 +6,10 @@
   </view>
   <block wx:else>
     <view class="brand-head">
-      <image wx:if="{{home.logoUrl}}" class="brand-logo" src="{{home.logoUrl}}" mode="aspectFill" />
+      <view class="brand-logo-shell">
+        <image wx:if="{{home.logoUrl && !logoFailed}}" class="brand-logo" src="{{home.logoUrl}}" mode="aspectFit" binderror="logoError" />
+        <image wx:else class="brand-logo brand-logo-fallback" src="/assets/lingqi-logo-mark.png" mode="aspectFit" />
+      </view>
       <view class="brand-copy">
         <view class="brand-name">{{home.brandName || '商城'}}</view>
         <view class="brand-note">好商品，放心选</view>
@@ -14,7 +17,7 @@
     </view>
 
     <view class="search-box">
-      <text class="search-icon">⌕</text>
+      <image class="search-icon" src="/assets/icons/search.png" mode="aspectFit" />
       <input value="{{keyword}}" bindinput="onKeywordInput" bindconfirm="search" confirm-type="search" placeholder="搜索商品" />
       <button bindtap="search">搜索</button>
     </view>
@@ -28,8 +31,10 @@
     <scroll-view wx:if="{{home.categoryList && home.categoryList.length}}" class="categories" scroll-x enhanced show-scrollbar="{{false}}">
       <view class="category-row">
         <view class="category-item" wx:for="{{home.categoryList}}" wx:key="id" data-name="{{item.categoryName}}" bindtap="openCategory">
-          <image wx:if="{{item.iconUrl}}" src="{{item.iconUrl}}" mode="aspectFill" />
-          <view wx:else class="category-placeholder">{{item.initial}}</view>
+          <view class="category-icon">
+            <image wx:if="{{item.iconUrl}}" src="{{item.iconUrl}}" mode="aspectFill" />
+            <view wx:else class="category-placeholder">{{item.initial}}</view>
+          </view>
           <text>{{item.categoryName}}</text>
         </view>
       </view>
@@ -40,7 +45,7 @@
       <text class="notice-text">{{home.notices[0].title}}</text>
     </view>
 
-    <view class="section-head"><text>精选好物</text><text class="muted">为你推荐</text></view>
+    <view class="section-head"><text>精选好物</text><text class="muted">为你推荐 · {{products.length}}件</text></view>
     <view wx:if="{{products.length}}" class="product-grid">
       <view class="product-card" wx:for="{{products}}" wx:key="id" data-id="{{item.id}}" bindtap="openProduct">
         <image class="product-cover" src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
