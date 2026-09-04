@@ -1,5 +1,6 @@
 <view class="subscription-page">
   <view class="intro-card">
+    <text>重要进度及时知道</text>
     <view>微信服务提醒</view>
     <text>可订阅发货、售后退款和到账等重要进度，不发送营销内容。</text>
   </view>
@@ -8,10 +9,10 @@
   <view wx:elif="{{!templates.length}}" class="empty">当前商城暂未开放微信服务提醒</view>
   <block wx:else>
     <view class="template-card" wx:for="{{templates}}" wx:key="templateId">
-      <view><text>{{item.title}}</text><text>当前可用 {{item.availableGrants || 0}} 次</text></view>
-      <text>{{item.availableGrants ? '已开启' : '待开启'}}</text>
+      <view><text>{{item.title}}</text><text>{{item.grantText}}</text></view>
+      <text class="template-status {{item.availableGrants ? 'ready' : ''}}">{{item.availableGrants ? '已开启' : '待开启'}}</text>
     </view>
-    <button class="primary-button subscribe-button" loading="{{requesting}}" disabled="{{requesting}}" bindtap="subscribe">开启一次提醒</button>
-    <text class="notice">微信服务提醒按平台规则为单次授权：每成功发送一次会消耗一次，可随时回到本页再次开启；拒绝授权不影响站内消息和正常使用。</text>
+    <button class="primary-button subscribe-button" loading="{{requesting}}" disabled="{{requesting}}" bindtap="subscribe">开启微信提醒</button>
+    <view class="notice"><text>微信提醒需要你主动同意，每次授权只用于一次服务进度通知。</text><text>拒绝授权不影响站内消息和商城正常使用。</text></view>
   </block>
 </view>

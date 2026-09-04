@@ -11,6 +11,17 @@ function requestId() {
   return `sub_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`
 }
 
+function normalizeTemplates(templates) {
+  return (templates || []).map((item) => {
+    const availableGrants = Math.max(0, Number(item.availableGrants || 0))
+    return {
+      ...item,
+      availableGrants,
+      grantText: availableGrants ? `剩余 ${availableGrants} 次提醒` : '授权后可接收一次提醒'
+    }
+  })
+}
+
 Page({
   data: { loading: true, requesting: false, templates: [], error: '' },
   onLoad() { if (auth.requireLogin('/pages/subscriptions/index')) this.load() },
@@ -18,7 +29,7 @@ Page({
     this.setData({ loading: true, error: '' })
     try {
       const templates = await request({ url: '/shop/wechat-mini-program/subscriptions' })
-      this.setData({ templates: templates || [] })
+      this.setData({ templates: normalizeTemplates(templates) })
     } catch (error) { this.setData({ error: error.message || '提醒设置加载失败' }) }
     finally { this.setData({ loading: false }) }
   },
@@ -42,7 +53,7 @@ Page({
         method: 'POST',
         data: { requestId: requestId(), acceptedTemplateIds }
       })
-      this.setData({ templates: templates || [] })
+      this.setData({ templates: normalizeTemplates(templates) })
       wx.showToast({ title: '提醒已开启', icon: 'success' })
     } catch (error) {
       const cancelled = /cancel/i.test(String(error && (error.errMsg || error.message || error)))

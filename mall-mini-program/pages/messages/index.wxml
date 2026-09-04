@@ -1,6 +1,6 @@
 <view class="message-page">
   <view class="message-head">
-    <view><text>个人消息</text><view>消息中心</view><text>订单、退款和到账进度都在这里</text></view>
+    <view><view>消息与提醒</view><text>集中查看订单、退款和到账进度</text></view>
     <button wx:if="{{unread.total}}" bindtap="readAll">全部已读</button>
   </view>
   <view wx:if="{{subscriptionAvailable}}" class="subscribe-card" bindtap="subscriptions">
@@ -15,8 +15,8 @@
     </view>
   </scroll-view>
   <view wx:if="{{loading && !rows.length}}" class="empty">正在加载消息…</view>
-  <view wx:elif="{{error && !rows.length}}" class="empty">{{error}}</view>
-  <view wx:elif="{{!rows.length}}" class="empty">当前分类暂无个人消息</view>
+  <view wx:elif="{{error && !rows.length}}" class="empty message-empty"><text>消息加载失败</text><text>{{error}}</text></view>
+  <view wx:elif="{{!rows.length}}" class="empty message-empty"><text>暂时没有新消息</text><text>订单、退款和到账进度会在这里更新</text><button wx:if="{{subscriptionAvailable}}" class="secondary-button" bindtap="subscriptions">设置微信提醒</button></view>
   <block wx:else>
     <view wx:for="{{rows}}" wx:key="id" class="message-card {{item.isRead === 1 ? '' : 'unread'}}" data-id="{{item.id}}" bindtap="openMessage">
       <view class="dot"></view>

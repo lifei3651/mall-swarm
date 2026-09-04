@@ -2,19 +2,21 @@
   <view class="login-brand">
     <view class="login-mark"><image src="/assets/lingqi-logo-mark.png" mode="aspectFit" /></view>
     <view class="login-title">商城账号登录</view>
-    <view class="login-subtitle">老用户直接登录；首次使用可授权微信手机号完成注册和账号匹配。</view>
+    <view class="login-subtitle">使用微信安全连接当前商城账号</view>
   </view>
   <view class="login-card">
     <view wx:if="{{inviteCode}}" class="invite-tip">已识别邀请关系：{{inviteCode}}<text>仅首次注册时一次性绑定</text></view>
     <view wx:if="{{loading}}" class="empty">正在检查商城配置…</view>
     <block wx:else>
-      <button class="secondary-button login-button" loading="{{submitting}}" disabled="{{submitting || !enabled}}" bindtap="returningLogin">已有账号，微信登录</button>
-      <button wx:if="{{phoneEnabled}}" class="primary-button login-button" open-type="getPhoneNumber" loading="{{submitting}}" disabled="{{submitting || !enabled}}" bindgetphonenumber="phoneLogin">首次使用，手机号一键注册</button>
-      <view wx:else class="not-ready">当前商城尚未开启手机号快捷注册</view>
-      <view class="agreement" bindtap="toggleAgreement">
-        <view class="agreement-check {{agreed ? 'checked' : ''}}">{{agreed ? '✓' : ''}}</view>
-        <text>我已阅读并同意</text><text class="privacy-link" catchtap="openPrivacy">《隐私保护说明》</text>
+      <view class="login-card-head"><text>选择登录方式</text><text>登录过程由微信授权完成</text></view>
+      <view class="agreement">
+        <checkbox-group bindchange="agreementChange"><checkbox value="agreed" checked="{{agreed}}" color="#e7193f" /></checkbox-group>
+        <text>我已阅读并同意</text><text class="privacy-link" bindtap="openPrivacy">《隐私保护说明》</text>
       </view>
+      <button class="primary-button login-button" loading="{{submitting}}" disabled="{{submitting || !enabled}}" bindtap="returningLogin">商城账号登录</button>
+      <button wx:if="{{phoneEnabled}}" class="secondary-button login-button register-button" open-type="getPhoneNumber" loading="{{submitting}}" disabled="{{submitting || !enabled}}" bindgetphonenumber="phoneLogin">首次使用，手机号快捷注册</button>
+      <view wx:else class="not-ready">首次使用注册功能暂未开放</view>
+      <view wx:if="{{!agreed}}" class="agreement-hint">请先阅读并同意隐私保护说明</view>
       <view wx:if="{{error}}" class="login-error">{{error}}</view>
     </block>
   </view>

@@ -1,4 +1,9 @@
 .address-page { min-height: 100vh; padding: 22rpx; }
+.address-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 8rpx 6rpx 22rpx; }
+.address-toolbar view text { display: block; }
+.address-toolbar view text:first-child { font-size: 34rpx; font-weight: 750; }
+.address-toolbar view text:last-child { margin-top: 6rpx; color: var(--muted); font-size: 22rpx; }
+.address-toolbar button { flex: none; width: 168rpx; min-height: 68rpx; margin: 0; padding: 0; border: 1rpx solid #f0cbd3; border-radius: 999rpx; background: #fff9fa; color: var(--brand); font-size: 24rpx; line-height: 68rpx; }
 .address-row { position: relative; margin-bottom: 18rpx; padding: 26rpx; border: 1rpx solid #e8eaf0; border-radius: 22rpx; background: #fff; box-shadow: var(--shadow); }
 .address-row > view { display: flex; align-items: center; gap: 20rpx; font-weight: 700; }
 .address-row > text { display: block; margin-top: 12rpx; color: #697180; line-height: 40rpx; }
@@ -6,10 +11,15 @@
 .address-actions { display: flex; justify-content: flex-end; gap: 10rpx; margin-top: 16rpx; }
 .address-actions button { width: 100rpx; min-height: 58rpx; margin: 0; padding: 0; background: transparent; color: #697180; font-size: 23rpx; line-height: 58rpx; }
 .address-actions button:last-child { color: #a94a5b; }
+.address-empty-state { padding: 90rpx 30rpx 34rpx; color: var(--muted); text-align: center; }
+.address-empty-state text { display: block; }
+.address-empty-state text:first-child { color: var(--ink); font-size: 30rpx; font-weight: 700; }
+.address-empty-state text:last-child { margin-top: 10rpx; font-size: 23rpx; }
 .address-form { margin-top: 22rpx; padding: 28rpx; border: 1rpx solid #e8eaf0; border-radius: 24rpx; background: #fff; box-shadow: var(--shadow); }
-.form-title { margin-bottom: 18rpx; font-size: 32rpx; font-weight: 700; }
+.form-title { font-size: 32rpx; font-weight: 700; }
 .form-head { display: flex; align-items: center; justify-content: space-between; }
-.form-head button { width: auto; min-height: 58rpx; margin: -8rpx 0 10rpx; padding: 0 12rpx; color: #697180; background: transparent; font-size: 23rpx; }
+.form-head > view > text { display: block; margin-top: 6rpx; color: var(--muted); font-size: 22rpx; }
+.form-head button { width: auto; min-height: 58rpx; margin: 0; padding: 0 12rpx; color: #697180; background: transparent; font-size: 23rpx; }
 .address-form input, .region { height: 88rpx; margin-top: 16rpx; padding: 0 22rpx; border: 1rpx solid #e5e8ed; border-radius: 16rpx; line-height: 88rpx; }
 .region { color: #697180; }
 .default-setting { display: flex; align-items: center; justify-content: space-between; margin-top: 20rpx; padding: 16rpx 2rpx; }

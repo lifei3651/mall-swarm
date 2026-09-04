@@ -34,7 +34,7 @@ Page({
     } catch (error) { this.setData({ error: error.message }) }
     finally { this.setData({ loading: false }) }
   },
-  toggleAgreement() { this.setData({ agreed: !this.data.agreed }) },
+  agreementChange(event) { this.setData({ agreed: (event.detail.value || []).includes('agreed') }) },
   checkReady() {
     if (!this.data.enabled) { wx.showToast({ title: '当前客户尚未开通小程序登录', icon: 'none' }); return false }
     if (!this.data.agreed) { wx.showToast({ title: '请先阅读并同意隐私政策', icon: 'none' }); return false }

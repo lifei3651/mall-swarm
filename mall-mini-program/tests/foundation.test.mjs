@@ -196,3 +196,37 @@ test('小程序主导航使用真实图标且登录主操作保持全宽', async
   const loginStyle = await fs.readFile(new URL('../pages/login/index.wxss', import.meta.url), 'utf8')
   assert.match(loginStyle, /\.login-button\s*\{[^}]*width:\s*100%/s)
 })
+
+test('小程序第二轮视觉收口保持清晰的登录、订单、地址与结算层级', async () => {
+  const fs = await import('node:fs/promises')
+  const loginConfig = JSON.parse(await fs.readFile(new URL('../pages/login/index.json', import.meta.url), 'utf8'))
+  const loginView = await fs.readFile(new URL('../pages/login/index.wxml', import.meta.url), 'utf8')
+  const profilePage = await fs.readFile(new URL('../pages/profile/index.js', import.meta.url), 'utf8')
+  const profileView = await fs.readFile(new URL('../pages/profile/index.wxml', import.meta.url), 'utf8')
+  const addressPage = await fs.readFile(new URL('../pages/address/index.js', import.meta.url), 'utf8')
+  const addressView = await fs.readFile(new URL('../pages/address/index.wxml', import.meta.url), 'utf8')
+  const checkoutView = await fs.readFile(new URL('../pages/checkout/index.wxml', import.meta.url), 'utf8')
+  assert.equal(loginConfig.navigationBarTitleText, '商城账号登录')
+  assert.match(loginView, /checkbox-group bindchange="agreementChange"/)
+  assert.ok(loginView.indexOf('我已阅读并同意') < loginView.indexOf('商城账号登录<\/button>'))
+  assert.match(profilePage, /\/shop\/profile\/order-summary/)
+  for (const tab of ['pending-payment', 'pending-shipment', 'pending-receipt', 'after-sale']) {
+    assert.match(profileView, new RegExp(`data-tab="${tab}"`))
+  }
+  assert.match(addressPage, /showForm: false/)
+  assert.match(addressPage, /startAdd\(\)/)
+  assert.match(addressView, /wx:if="\{\{showForm\}\}" class="address-form"/)
+  assert.match(checkoutView, /应付金额/)
+  assert.match(checkoutView, /<radio checked color="#07c160"/)
+})
+
+test('分类页使用适合侧边栏宽度的单列商品卡片', async () => {
+  const fs = await import('node:fs/promises')
+  const categoryView = await fs.readFile(new URL('../pages/category/index.wxml', import.meta.url), 'utf8')
+  const categoryStyle = await fs.readFile(new URL('../pages/category/index.wxss', import.meta.url), 'utf8')
+  assert.match(categoryView, /class="category-product-list"/)
+  assert.match(categoryView, /class="category-product-card"/)
+  assert.match(categoryView, /item\.subtitle/)
+  assert.doesNotMatch(categoryView, /class="product-grid compact-grid"/)
+  assert.match(categoryStyle, /\.category-product-card\s*\{[^}]*display:\s*flex;/s)
+})

@@ -9,17 +9,17 @@
   <view wx:elif="{{!rows.length}}" class="empty empty-orders"><text>这里还没有订单</text><button class="primary-button" bindtap="goShopping">去逛逛</button></view>
   <block wx:else>
     <view class="order-card" wx:for="{{rows}}" wx:key="key" data-id="{{item.order.id}}" bindtap="openDetail">
-      <view class="order-head"><text>{{item.order.orderNo}}</text><text>{{item.statusText}}</text></view>
+      <view class="order-head"><view class="order-head-copy"><text>{{item.order.merchantName || '商城订单'}}</text><text>{{item.order.orderNo}}</text></view><text class="status-pill {{item.statusText === '售后处理中' ? 'after-sale' : ''}}">{{item.statusText}}</text></view>
       <view class="order-item" wx:for="{{item.items}}" wx:key="id" wx:for-item="line">
         <image src="{{line.productCover}}" mode="aspectFill" />
         <view><text>{{line.productName}}</text><text class="order-spec">{{line.skuName || ''}} × {{line.quantity}}</text></view>
       </view>
       <view wx:if="{{item.afterSaleText}}" class="after-sale-summary">售后进度：{{item.afterSaleText}}</view>
-      <view class="order-total"><text>共 {{item.quantity}} 件</text><view>实付 <text>¥{{item.amountText}}</text></view></view>
+      <view class="order-total"><text>共 {{item.quantity}} 件商品</text><view><text>实付</text><text>¥{{item.amountText}}</text></view></view>
       <view class="order-actions">
         <button class="secondary-button" data-id="{{item.order.id}}" catchtap="openDetail">查看详情</button>
-      <button wx:if="{{item.order.status === 0 && item.order.payType === 'WECHAT'}}" class="primary-button"
-        data-id="{{item.order.id}}" loading="{{payingId === item.order.id}}" disabled="{{payingId !== null}}" catchtap="pay">微信支付</button>
+        <button wx:if="{{item.order.status === 0 && item.order.payType === 'WECHAT'}}" class="primary-button"
+          data-id="{{item.order.id}}" loading="{{payingId === item.order.id}}" disabled="{{payingId !== null}}" catchtap="pay">微信支付</button>
       </view>
     </view>
     <button wx:if="{{rows.length < total}}" class="load-more secondary-button" loading="{{loadingMore}}" disabled="{{loadingMore}}" bindtap="loadMore">加载更多订单</button>

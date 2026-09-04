@@ -5,15 +5,21 @@ Page({
   data: {
     loading: true,
     rows: [],
+    showForm: false,
+    selectMode: false,
     form: { id: null, receiverName: '', receiverPhone: '', region: [], regionText: '', detailAddress: '', isDefault: false },
     saving: false
   },
   onLoad(options) {
     this.selectMode = options.select === '1'
+    this.setData({ selectMode: this.selectMode })
     if (auth.requireLogin('/pages/address/index')) this.load()
   },
   async load() {
-    try { this.setData({ rows: await request({ url: '/shop/addresses' }) || [] }) }
+    try {
+      const rows = await request({ url: '/shop/addresses' }) || []
+      this.setData({ rows, showForm: this.data.showForm || !rows.length })
+    }
     catch (error) { wx.showToast({ title: error.message || '地址加载失败', icon: 'none' }) }
     finally { this.setData({ loading: false }) }
   },
@@ -25,11 +31,17 @@ Page({
     this.setData({ 'form.region': region, 'form.regionText': region.join(' ') })
   },
   defaultChange(event) { this.setData({ 'form.isDefault': Boolean(event.detail.value) }) },
+  startAdd() {
+    this.setData({
+      showForm: true,
+      form: { id: null, receiverName: '', receiverPhone: '', region: [], regionText: '', detailAddress: '', isDefault: !this.data.rows.length }
+    })
+  },
   edit(event) {
     const row = this.data.rows.find((item) => item.id === Number(event.currentTarget.dataset.id))
     if (!row) return
     const region = [row.province, row.city, row.district].filter(Boolean)
-    this.setData({ form: {
+    this.setData({ showForm: true, form: {
       id: row.id,
       receiverName: row.receiverName || '',
       receiverPhone: row.receiverPhone || '',
@@ -39,9 +51,15 @@ Page({
       isDefault: Number(row.isDefault) === 1
     } })
   },
-  cancelEdit() { this.resetForm() },
-  resetForm() {
-    this.setData({ form: { id: null, receiverName: '', receiverPhone: '', region: [], regionText: '', detailAddress: '', isDefault: false } })
+  cancelEdit() {
+    if (!this.data.rows.length) return
+    this.resetForm(false)
+  },
+  resetForm(showForm = false) {
+    this.setData({
+      showForm,
+      form: { id: null, receiverName: '', receiverPhone: '', region: [], regionText: '', detailAddress: '', isDefault: false }
+    })
   },
   async save() {
     const form = this.data.form
@@ -59,7 +77,7 @@ Page({
       } })
       wx.showToast({ title: form.id ? '地址已更新' : '地址已保存', icon: 'success' })
       if (this.selectMode) setTimeout(() => wx.navigateBack(), 500)
-      else { this.resetForm(); await this.load() }
+      else { this.resetForm(false); await this.load() }
     } catch (error) { wx.showToast({ title: error.message || '保存失败', icon: 'none' }) }
     finally { this.setData({ saving: false }) }
   },
@@ -87,7 +105,7 @@ Page({
         if (!confirm) return
         try {
           await request({ url: `/shop/addresses/${id}`, method: 'DELETE' })
-          if (this.data.form.id === id) this.resetForm()
+          if (this.data.form.id === id) this.resetForm(false)
           await this.load()
         } catch (error) { wx.showToast({ title: error.message || '删除失败', icon: 'none' }) }
       }

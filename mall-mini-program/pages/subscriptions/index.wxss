@@ -1,11 +1,16 @@
 .subscription-page { min-height: 100vh; padding: 24rpx; }
 .intro-card { padding: 32rpx; border: 1rpx solid #f0dfe3; border-radius: 26rpx; background: linear-gradient(135deg, #fff 0%, #fff1f4 100%); box-shadow: var(--shadow); color: var(--ink); }
+.intro-card > text:first-child { display: block; color: var(--brand); font-size: 22rpx; font-weight: 650; }
 .intro-card view { font-size: 38rpx; font-weight: 750; }
-.intro-card text { display: block; margin-top: 14rpx; color: #687284; font-size: 24rpx; line-height: 40rpx; }
+.intro-card view { margin-top: 8rpx; }
+.intro-card > text:last-child { display: block; margin-top: 14rpx; color: #687284; font-size: 24rpx; line-height: 40rpx; }
 .template-card { display: flex; align-items: center; justify-content: space-between; margin-top: 16rpx; padding: 28rpx; border: 1rpx solid #e8eaf0; border-radius: 22rpx; background: #fff; box-shadow: var(--shadow); }
 .template-card view text { display: block; }
 .template-card view text:first-child { font-weight: 700; }
 .template-card view text:last-child { margin-top: 8rpx; color: #9097a4; font-size: 23rpx; }
-.template-card>text { color: var(--brand); font-size: 23rpx; }
+.template-status { flex: none; padding: 7rpx 14rpx; border-radius: 999rpx; color: #7d8592; background: #f2f3f5; font-size: 22rpx; }
+.template-status.ready { color: #087d48; background: #eaf8f1; }
 .subscribe-button { margin-top: 34rpx; font-size: 27rpx; }
-.notice { display: block; margin: 24rpx 12rpx; color: #777f8e; font-size: 23rpx; line-height: 40rpx; }
+.notice { margin: 24rpx 12rpx; color: #777f8e; font-size: 23rpx; line-height: 40rpx; }
+.notice text { display: block; }
+.notice text + text { margin-top: 8rpx; }
