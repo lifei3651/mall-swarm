@@ -23,7 +23,11 @@ Page({
       ])
       const products = (productPage && productPage.list ? productPage.list : []).map(format.product)
       home.logoUrl = format.mediaUrl(home.logoUrl)
-      home.banners = (home.banners || []).map((item) => ({ ...item, imageUrl: format.mediaUrl(item.imageUrl) }))
+      home.banners = (home.banners || []).map((item) => ({
+        ...item,
+        imageUrl: format.mediaUrl(item.imageUrl),
+        imageFailed: false
+      }))
       home.categoryList = (home.categoryList || []).map((item) => ({
         ...item,
         iconUrl: format.mediaUrl(item.iconUrl),
@@ -44,6 +48,16 @@ Page({
     const index = Number(event.currentTarget.dataset.index)
     if (!Number.isInteger(index) || !this.data.home.categoryList || !this.data.home.categoryList[index]) return
     this.setData({ [`home.categoryList[${index}].iconFailed`]: true })
+  },
+  bannerImageError(event) {
+    const index = Number(event.currentTarget.dataset.index)
+    if (!Number.isInteger(index) || !this.data.home.banners || !this.data.home.banners[index]) return
+    this.setData({ [`home.banners[${index}].imageFailed`]: true })
+  },
+  productImageError(event) {
+    const index = Number(event.currentTarget.dataset.index)
+    if (!Number.isInteger(index) || !this.data.products[index]) return
+    this.setData({ [`products[${index}].imageFailed`]: true })
   },
   onKeywordInput(event) { this.setData({ keyword: event.detail.value }) },
   search() {

@@ -2,11 +2,15 @@
   <view wx:if="{{loading}}" class="empty">正在加载商品…</view>
   <view wx:elif="{{error}}" class="empty product-empty"><text>商品加载失败</text><text>{{error}}</text><button class="secondary-button" bindtap="retry">重新加载</button></view>
   <block wx:else>
-    <view class="hero-shell"><image class="hero" src="{{product.coverUrl}}" mode="aspectFill" /></view>
+    <view class="hero-shell">
+      <view wx:if="{{!product.coverUrl || product.imageFailed}}" class="hero media-fallback"><image src="/assets/lingqi-logo-mark.png" mode="aspectFit" /></view>
+      <image wx:else class="hero" src="{{product.coverUrl}}" mode="aspectFill" binderror="productImageError" />
+      <text wx:if="{{soldOut}}" class="sold-out-badge">暂时缺货</text>
+    </view>
     <view class="detail-card">
-      <view class="price-row"><view class="detail-price">¥{{priceText}}</view><text class="stock-text">{{soldOut ? '暂时缺货' : '库存 ' + stock + ' 件'}}</text></view>
+      <view class="price-row"><view class="detail-price"><text>¥</text>{{priceText}}</view><text class="stock-text">{{soldOut ? '暂时缺货' : '库存 ' + stock + ' 件'}}</text></view>
       <view class="detail-title">{{product.productName}}</view>
-      <view class="detail-subtitle">{{product.subtitle}}</view>
+      <view wx:if="{{product.subtitle}}" class="detail-subtitle">{{product.subtitle}}</view>
     </view>
     <view wx:if="{{skus.length}}" class="detail-card sku-panel">
       <view class="panel-title">选择规格</view>
@@ -14,7 +18,7 @@
         <view class="sku {{skuIndex === index ? 'active' : ''}} {{item.stock <= 0 ? 'disabled' : ''}}" wx:for="{{skus}}" wx:key="id" data-index="{{index}}" bindtap="selectSku">{{item.skuName || item.specName || '默认规格'}}<text wx:if="{{item.stock <= 0}}">缺货</text></view>
       </view>
     </view>
-    <view class="detail-card quantity-panel"><text>购买数量</text><view><button data-delta="-1" bindtap="changeQuantity">−</button><text>{{quantity}}</text><button data-delta="1" bindtap="changeQuantity">＋</button></view></view>
+    <view class="detail-card quantity-panel"><text>购买数量</text><view><button data-delta="-1" bindtap="changeQuantity" aria-label="减少购买数量">−</button><text>{{quantity}}</text><button data-delta="1" bindtap="changeQuantity" aria-label="增加购买数量">＋</button></view></view>
     <view class="detail-card service-panel"><view><text>正品保障</text><text>订单可查</text><text>售后有记录</text></view><text>服务规则以商品说明和订单状态为准</text></view>
     <view class="detail-card description"><view class="panel-title">商品介绍</view><text>{{product.description || '商品详情由商家配置后展示。'}}</text></view>
     <view class="product-actions">

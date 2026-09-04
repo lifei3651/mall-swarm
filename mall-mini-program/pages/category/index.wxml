@@ -14,12 +14,15 @@
       <view wx:if="{{loading}}" class="empty">正在加载…</view>
       <view wx:elif="{{error}}" class="empty category-empty"><text>商品加载失败</text><text>{{error}}</text><button class="secondary-button" bindtap="retry">重新加载</button></view>
       <view wx:elif="{{products.length}}" class="category-product-list">
-        <view class="category-product-card" wx:for="{{products}}" wx:key="id" data-id="{{item.id}}" bindtap="openProduct">
-          <image class="product-cover" src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
+        <view class="category-product-card" wx:for="{{products}}" wx:key="id" data-id="{{item.id}}" bindtap="openProduct" aria-role="button" aria-label="{{item.productName}}，价格{{item.priceText}}元">
+          <view class="category-product-media">
+            <view wx:if="{{!item.coverUrl || item.imageFailed}}" class="media-fallback"><image src="/assets/lingqi-logo-mark.png" mode="aspectFit" /></view>
+            <image wx:else class="product-cover" src="{{item.coverUrl}}" mode="aspectFill" lazy-load data-index="{{index}}" binderror="productImageError" />
+          </view>
           <view class="product-copy">
             <view class="product-title">{{item.productName}}</view>
             <view wx:if="{{item.subtitle}}" class="product-subtitle">{{item.subtitle}}</view>
-            <view class="product-price">¥{{item.priceText}}</view>
+            <view class="product-price"><text>¥</text>{{item.priceText}}</view>
           </view>
         </view>
       </view>

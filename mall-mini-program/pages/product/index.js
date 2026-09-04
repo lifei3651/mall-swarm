@@ -33,6 +33,7 @@ Page({
     finally { this.setData({ loading: false }) }
   },
   retry() { this.load() },
+  productImageError() { this.setData({ 'product.imageFailed': true }) },
   selectSku(event) {
     const skuIndex = Number(event.currentTarget.dataset.index)
     const sku = this.data.skus[skuIndex]

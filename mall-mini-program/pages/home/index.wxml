@@ -23,14 +23,15 @@
     </view>
 
     <swiper wx:if="{{home.banners && home.banners.length}}" class="banner" indicator-dots autoplay circular interval="4500">
-      <swiper-item wx:for="{{home.banners}}" wx:key="id" data-type="{{item.linkType}}" data-value="{{item.linkValue}}" bindtap="openBanner">
-        <image src="{{item.imageUrl}}" mode="aspectFill" />
+      <swiper-item wx:for="{{home.banners}}" wx:key="id" data-type="{{item.linkType}}" data-value="{{item.linkValue}}" bindtap="openBanner" aria-role="button" aria-label="{{item.title || '商城活动'}}">
+        <view wx:if="{{!item.imageUrl || item.imageFailed}}" class="banner-fallback media-fallback"><image src="/assets/lingqi-logo-mark.png" mode="aspectFit" /></view>
+        <image wx:else src="{{item.imageUrl}}" mode="aspectFill" data-index="{{index}}" binderror="bannerImageError" />
       </swiper-item>
     </swiper>
 
     <scroll-view wx:if="{{home.categoryList && home.categoryList.length}}" class="categories" scroll-x enhanced show-scrollbar="{{false}}">
       <view class="category-row">
-        <view class="category-item" wx:for="{{home.categoryList}}" wx:key="id" data-name="{{item.categoryName}}" bindtap="openCategory">
+        <view class="category-item" wx:for="{{home.categoryList}}" wx:key="id" data-name="{{item.categoryName}}" bindtap="openCategory" aria-role="button" aria-label="查看{{item.categoryName}}分类">
           <view class="category-icon">
             <view class="category-placeholder">{{item.initial}}</view>
             <image wx:if="{{item.iconUrl && !item.iconFailed}}" src="{{item.iconUrl}}" mode="aspectFill" data-index="{{index}}" binderror="categoryIconError" />
@@ -47,12 +48,15 @@
 
     <view class="section-head"><text>精选好物</text><text class="muted">为你推荐 · {{products.length}}件</text></view>
     <view wx:if="{{products.length}}" class="product-grid">
-      <view class="product-card" wx:for="{{products}}" wx:key="id" data-id="{{item.id}}" bindtap="openProduct">
-        <image class="product-cover" src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
+      <view class="product-card" wx:for="{{products}}" wx:key="id" data-id="{{item.id}}" bindtap="openProduct" aria-role="button" aria-label="{{item.productName}}，价格{{item.priceText}}元">
+        <view class="product-media">
+          <view wx:if="{{!item.coverUrl || item.imageFailed}}" class="product-cover media-fallback"><image src="/assets/lingqi-logo-mark.png" mode="aspectFit" /></view>
+          <image wx:else class="product-cover" src="{{item.coverUrl}}" mode="aspectFill" lazy-load data-index="{{index}}" binderror="productImageError" />
+        </view>
         <view class="product-copy">
           <view class="product-title">{{item.productName}}</view>
-          <view class="product-subtitle">{{item.subtitle}}</view>
-          <view class="product-price">¥{{item.priceText}}</view>
+          <view wx:if="{{item.subtitle}}" class="product-subtitle">{{item.subtitle}}</view>
+          <view class="product-price"><text>¥</text>{{item.priceText}}</view>
         </view>
       </view>
     </view>

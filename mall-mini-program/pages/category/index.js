@@ -31,5 +31,10 @@ Page({
   retry() { return this.data.categories.length ? this.loadProducts() : this.loadCategories() },
   applyCategory(name) { this.setData({ active: name || '' }, () => this.loadProducts()) },
   applyKeyword(keyword) { this.setData({ keyword: keyword || '' }, () => this.loadProducts()) },
+  productImageError(event) {
+    const index = Number(event.currentTarget.dataset.index)
+    if (!Number.isInteger(index) || !this.data.products[index]) return
+    this.setData({ [`products[${index}].imageFailed`]: true })
+  },
   openProduct(event) { wx.navigateTo({ url: `/pages/product/index?id=${event.currentTarget.dataset.id}` }) }
 })

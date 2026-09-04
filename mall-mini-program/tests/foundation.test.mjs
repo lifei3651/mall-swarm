@@ -275,3 +275,28 @@ test('小程序第四轮视觉收口让全部页面跟随后台品牌主题', as
   assert.match(cartView, /color="\{\{themeColor\}\}"/)
   assert.match(loginView, /color="\{\{themeColor\}\}"/)
 })
+
+test('小程序第五轮视觉收口为核心浏览路径提供图片兜底与清晰商品层级', async () => {
+  const fs = await import('node:fs/promises')
+  const normalized = format.product({ productName: '测试商品', description: '完整介绍', coverUrl: '' })
+  assert.equal(normalized.description, '完整介绍')
+  assert.equal(normalized.imageFailed, false)
+
+  const homePage = await fs.readFile(new URL('../pages/home/index.js', import.meta.url), 'utf8')
+  const homeView = await fs.readFile(new URL('../pages/home/index.wxml', import.meta.url), 'utf8')
+  const categoryPage = await fs.readFile(new URL('../pages/category/index.js', import.meta.url), 'utf8')
+  const categoryView = await fs.readFile(new URL('../pages/category/index.wxml', import.meta.url), 'utf8')
+  const productPage = await fs.readFile(new URL('../pages/product/index.js', import.meta.url), 'utf8')
+  const productView = await fs.readFile(new URL('../pages/product/index.wxml', import.meta.url), 'utf8')
+
+  assert.match(homePage, /bannerImageError\(event\)/)
+  assert.match(homePage, /productImageError\(event\)/)
+  assert.match(homeView, /class="banner-fallback media-fallback"/)
+  assert.match(homeView, /class="product-cover media-fallback"/)
+  assert.match(homeView, /aria-label="\{\{item\.productName\}\}，价格\{\{item\.priceText\}\}元"/)
+  assert.match(categoryPage, /productImageError\(event\)/)
+  assert.match(categoryView, /class="category-product-media"/)
+  assert.match(productPage, /'product\.imageFailed': true/)
+  assert.match(productView, /class="sold-out-badge"/)
+  assert.match(productView, /aria-label="减少购买数量"/)
+})

@@ -17,8 +17,9 @@ function product(raw = {}) {
     ...raw,
     productName: raw.productName || raw.name || '商城商品',
     subtitle: raw.subtitle || '',
-    description: raw.detail || '',
+    description: raw.detail || raw.description || '',
     coverUrl: mediaUrl(raw.coverUrl || raw.picUrl),
+    imageFailed: false,
     salePrice: Number(raw.salePrice || raw.price || 0),
     stock: Math.max(0, Number(raw.stock || 0)),
     priceText: money(raw.salePrice || raw.price)
