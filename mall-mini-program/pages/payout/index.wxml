@@ -6,13 +6,15 @@
   <view wx:if="{{loading}}" class="empty">正在加载…</view>
   <view wx:elif="{{error}}" class="empty">{{error}}</view>
   <view wx:elif="{{!rows.length}}" class="empty">暂无待确认的微信提现</view>
-  <view wx:else class="payout-card" wx:for="{{rows}}" wx:key="id">
-    <view class="payout-copy">
-      <text>{{item.withdrawNo}}</text>
-      <strong>¥{{item.amountText}}</strong>
-      <text>{{item.statusName || '打款处理中'}}</text>
+  <block wx:else>
+    <view class="payout-card" wx:for="{{rows}}" wx:key="id">
+      <view class="payout-copy">
+        <text>{{item.withdrawNo}}</text>
+        <strong>¥{{item.amountText}}</strong>
+        <text>{{item.statusName || '打款处理中'}}</text>
+      </view>
+      <button class="primary-button" data-id="{{item.id}}" loading="{{actingId === item.id}}"
+        disabled="{{actingId !== null}}" bindtap="confirm">核对并确认</button>
     </view>
-    <button class="primary-button" data-id="{{item.id}}" loading="{{actingId === item.id}}"
-      disabled="{{actingId !== null}}" bindtap="confirm">核对并确认</button>
-  </view>
+  </block>
 </view>

@@ -32,5 +32,10 @@ if (!loginPage.includes('runtime.privacyConsentVersion !== runtimeConfig.PRIVACY
 for (const file of walk(join(root, 'pages')).filter((item) => item.endsWith('.wxml'))) {
   const view = readFileSync(file, 'utf8')
   if (/奖金|团队层级|余额互转/.test(view)) throw new Error(`公开小程序出现不允许展示的业务词：${file}`)
+  for (const tag of view.match(/<[^>]+>/g) || []) {
+    if (/\bwx:(?:elif|else)\b/.test(tag) && /\bwx:for=/.test(tag)) {
+      throw new Error(`小程序条件分支不能与列表循环写在同一节点：${file}`)
+    }
+  }
 }
 console.log('微信小程序工程结构、JSON、JavaScript 与 HTTPS 配置检查通过')

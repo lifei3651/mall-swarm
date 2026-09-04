@@ -56,3 +56,13 @@ test('微信收款确认仅从本人提现单取参数并在原生确认后再�
   assert.match(page, /withdrawals\/\$\{withdrawId\}\/wechat-confirmation/)
   assert.equal((page.match(/await this\.prepare\(withdrawId\)/g) || []).length, 2)
 })
+
+test('WXML 条件兜底与列表循环使用独立节点，避免微信编译器拒绝', async () => {
+  const fs = await import('node:fs/promises')
+  for (const page of ['orders', 'payout']) {
+    const view = await fs.readFile(new URL(`../pages/${page}/index.wxml`, import.meta.url), 'utf8')
+    for (const tag of view.match(/<[^>]+>/g) || []) {
+      assert.equal(/\bwx:(?:elif|else)\b/.test(tag) && /\bwx:for=/.test(tag), false)
+    }
+  }
+})
