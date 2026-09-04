@@ -592,6 +592,23 @@ class ShopFreightServiceTest {
     }
 
     @Test
+    void paymentNumberLookupHydratesOnlyTheOwningMembersOrder() {
+        DmsShopMember owner = createMember("13999110111", "微信订单找回会员", null);
+        DmsShopMember other = createMember("13999110112", "其他会员", null);
+        ShopOrderVO pending = shopService.submitOrder(pendingOrder(1, 1L), owner);
+        String paymentNo = pending.getOrder().getPaymentOrderNo();
+
+        List<ShopOrderVO> rows = shopService.listOrdersByPaymentNo(owner.getUserId(), paymentNo);
+
+        assertEquals(1, rows.size());
+        assertEquals(pending.getOrder().getId(), rows.get(0).getOrder().getId());
+        assertFalse(rows.get(0).getItems().isEmpty());
+        ApiException hidden = assertThrows(ApiException.class,
+                () -> shopService.listOrdersByPaymentNo(other.getUserId(), paymentNo));
+        assertEquals("订单不存在或无权查看", hidden.getMessage());
+    }
+
+    @Test
     void adminMemberProfileExcludesUnpaidAndUnpaidClosedOrders() {
         DmsShopMember member = createMember("13999110110", "会员全景订单口径", null);
         ShopOrderVO pending = shopService.submitOrder(pendingOrder(1, 1L), member);

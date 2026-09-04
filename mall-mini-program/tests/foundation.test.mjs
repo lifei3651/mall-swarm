@@ -7,6 +7,7 @@ const invite = require('../utils/invite')
 const { buildQuery } = require('../utils/request')
 const payment = require('../utils/payment')
 const format = require('../utils/format')
+const orderCenter = require('../utils/order-center')
 
 test('邀请码只接受八位字母数字并统一大写', () => {
   assert.equal(invite.normalizeInviteCode('ab12cd34'), 'AB12CD34')
@@ -45,6 +46,12 @@ test('微信支付参数只接受服务端签发的完整字段并映射package'
     signType: 'RSA', paySign: 'signature'
   })
   assert.throws(() => payment.normalizeParameters({ timeStamp: '1' }), /参数不完整/)
+})
+
+test('微信购物订单只接受安全商户单号并生成固定详情路径', () => {
+  assert.equal(orderCenter.normalizePaymentNo(' T0000000000001 '), 'T0000000000001')
+  assert.equal(orderCenter.normalizePaymentNo('../other-order'), '')
+  assert.equal(orderCenter.detailPath('T0000000000001'), '/pages/order-detail/index?orderNo=T0000000000001')
 })
 
 test('用户取消微信支付与真实支付错误分开处理', () => {
@@ -86,6 +93,17 @@ test('小程序提供个人消息中心与用户主动触发的微信订阅授�
   assert.match(subscriptions, /wx\.requestSubscribeMessage/)
   assert.match(subscriptions, /result\[id\] === 'accept'/)
   assert.match(subscriptions, /\/subscriptions\/grants/)
+})
+
+test('微信购物订单可以按商户单号直达本人订单详情', async () => {
+  const fs = await import('node:fs/promises')
+  const app = JSON.parse(await fs.readFile(new URL('../app.json', import.meta.url), 'utf8'))
+  const page = await fs.readFile(new URL('../pages/order-detail/index.js', import.meta.url), 'utf8')
+  assert.ok(app.pages.includes('pages/order-detail/index'))
+  assert.match(page, /options\.orderNo \|\| options\.paymentNo/)
+  assert.match(page, /\/shop\/orders\/payment-detail/)
+  assert.match(page, /auth\.requireLogin\(this\.redirect\)/)
+  assert.match(page, /\/shop\/orders\/\$\{orderId\}\/receive/)
 })
 
 test('WXML 条件兜底与列表循环使用独立节点，避免微信编译器拒绝', async () => {

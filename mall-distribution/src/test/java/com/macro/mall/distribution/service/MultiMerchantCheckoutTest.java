@@ -153,6 +153,35 @@ class MultiMerchantCheckoutTest {
         assertThrows(ApiException.class, () -> shopService.getAdminTrade(10L));
     }
 
+    @Test
+    void wechatOrderCenterResolvesEveryOwnedChildByPaymentNumber() {
+        DmsShopOrder first = child(11L, "60.00");
+        DmsShopOrder second = child(12L, "90.00");
+        when(orderDao.selectByPaymentOrderNoScoped(1L, "T-10")).thenReturn(List.of(first, second));
+        doReturn(orderView(first)).when(shopService).getOrder(11L);
+        doReturn(orderView(second)).when(shopService).getOrder(12L);
+
+        List<ShopOrderVO> rows = shopService.listOrdersByPaymentNo(100L, " T-10 ");
+
+        assertEquals(List.of(11L, 12L), rows.stream().map(row -> row.getOrder().getId()).toList());
+    }
+
+    @Test
+    void wechatOrderCenterDoesNotRevealAnotherMembersPaymentNumber() {
+        DmsShopOrder otherMembersOrder = child(11L, "60.00");
+        otherMembersOrder.setUserId(200L);
+        when(orderDao.selectByPaymentOrderNoScoped(1L, "T-10")).thenReturn(List.of(otherMembersOrder));
+
+        assertThrows(ApiException.class, () -> shopService.listOrdersByPaymentNo(100L, "T-10"));
+        verify(shopService, never()).getOrder(anyLong());
+    }
+
+    @Test
+    void wechatOrderCenterRejectsMalformedPaymentNumberBeforeDatabaseLookup() {
+        assertThrows(ApiException.class, () -> shopService.listOrdersByPaymentNo(100L, "../T-10"));
+        verifyNoInteractions(orderDao);
+    }
+
     private DmsShopTrade trade(int status, String amount) {
         DmsShopTrade trade = new DmsShopTrade();
         trade.setId(10L);

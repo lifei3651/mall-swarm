@@ -1382,6 +1382,21 @@ public class ShopServiceImpl implements ShopService {
         }).toList();
     }
 
+    @Override
+    public List<ShopOrderVO> listOrdersByPaymentNo(Long userId, String paymentOrderNo) {
+        String normalized = paymentOrderNo == null ? null : paymentOrderNo.trim();
+        if (userId == null || normalized == null || normalized.isBlank() || normalized.length() > 64
+                || !normalized.matches("[A-Za-z0-9_-]+")) {
+            Asserts.fail("订单不存在或无权查看");
+        }
+        List<DmsShopOrder> orders = orderDao.selectByPaymentOrderNoScoped(resolveTenantId(null), normalized);
+        if (orders == null || orders.isEmpty()
+                || orders.stream().anyMatch(order -> order == null || !userId.equals(order.getUserId()))) {
+            Asserts.fail("订单不存在或无权查看");
+        }
+        return orders.stream().map(order -> getOrder(order.getId())).toList();
+    }
+
     private String normalizeFrontOrderState(String orderState) {
         if (orderState == null || orderState.isBlank() || "ALL".equalsIgnoreCase(orderState)) return null;
         String normalized = orderState.trim().toUpperCase(java.util.Locale.ROOT);

@@ -11,6 +11,7 @@
     "pages/subscriptions/index",
     "pages/payout/index",
     "pages/orders/index",
+    "pages/order-detail/index",
     "pages/checkout/index",
     "pages/address/index"
   ],

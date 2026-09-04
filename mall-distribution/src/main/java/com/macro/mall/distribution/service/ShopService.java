@@ -137,6 +137,9 @@ public interface ShopService {
 
     List<ShopOrderVO> listOrders(Long userId, Long agentId, String orderState);
 
+    /** 微信购物订单按微信支付商户单号找回；联合支付会返回同一次付款的全部履约子订单。 */
+    List<ShopOrderVO> listOrdersByPaymentNo(Long userId, String paymentOrderNo);
+
     List<ShopOrderVO> listAdminOrders(String keyword, Integer status, String orderState);
 
     ShopOrderStatusSummaryVO getAdminOrderWorkSummary();

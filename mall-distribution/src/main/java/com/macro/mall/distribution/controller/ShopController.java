@@ -887,6 +887,17 @@ public class ShopController {
         return CommonResult.success(shopService.quoteFreight(dto, member));
     }
 
+    @Operation(summary = "微信购物订单按商户单号找回本人订单详情")
+    @GetMapping("/orders/payment-detail")
+    public CommonResult<List<ShopOrderVO>> paymentOrderDetail(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam String paymentNo) {
+        DmsShopMember member = authService.requireMember(authorization);
+        List<ShopOrderVO> orders = shopService.listOrdersByPaymentNo(member.getUserId(), paymentNo);
+        orders.forEach(this::applyFrontOrderVisibility);
+        return CommonResult.success(orders);
+    }
+
     @Operation(summary = "查询订单详情")
     @GetMapping("/orders/{orderId}")
     public CommonResult<ShopOrderVO> orderDetail(
