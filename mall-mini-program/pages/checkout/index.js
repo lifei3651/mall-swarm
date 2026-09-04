@@ -31,7 +31,11 @@ Page({
   },
   onShow() { if (auth.requireLogin('/pages/checkout/index')) this.load() },
   async load() {
-    const rows = cart.selected().map((row) => ({ ...row, priceText: format.money(row.salePrice) }))
+    const rows = cart.selected().map((row) => ({
+      ...row,
+      coverUrl: format.mediaUrl(row.coverUrl),
+      priceText: format.money(row.salePrice)
+    }))
     if (!rows.length) {
       wx.showToast({ title: '没有待结算商品', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 600)

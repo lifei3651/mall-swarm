@@ -20,8 +20,11 @@ Page({
         request({ url: '/shop/products', params: { status: 1, pageNum: 1, pageSize: 20 } })
       ])
       const products = (productPage && productPage.list ? productPage.list : []).map(format.product)
+      home.logoUrl = format.mediaUrl(home.logoUrl)
+      home.banners = (home.banners || []).map((item) => ({ ...item, imageUrl: format.mediaUrl(item.imageUrl) }))
       home.categoryList = (home.categoryList || []).map((item) => ({
         ...item,
+        iconUrl: format.mediaUrl(item.iconUrl),
         initial: String(item.categoryName || '商').slice(0, 1)
       }))
       const themeColor = /^#[0-9a-fA-F]{6}$/.test(home.themeColor || '') ? home.themeColor : '#e7193f'

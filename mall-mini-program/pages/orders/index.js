@@ -16,6 +16,7 @@ Page({
       const result = await request({ url: '/shop/orders', params: { pageNum: 1, pageSize: 30 } })
       const rows = (result.list || []).map((row) => ({
         ...row,
+        items: (row.items || []).map((item) => ({ ...item, productCover: format.mediaUrl(item.productCover) })),
         key: row.order.id,
         statusText: STATUS[row.order.status] || '处理中',
         amountText: format.money(row.order.payAmount || row.order.totalAmount)

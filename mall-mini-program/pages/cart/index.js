@@ -8,6 +8,7 @@ Page({
   refresh() {
     const rows = cart.list().map((row) => ({
       ...row,
+      coverUrl: format.mediaUrl(row.coverUrl),
       priceText: format.money(row.salePrice),
       lineTotal: format.money(Number(row.salePrice) * row.quantity)
     }))

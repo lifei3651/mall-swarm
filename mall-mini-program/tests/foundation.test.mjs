@@ -6,6 +6,7 @@ const require = createRequire(import.meta.url)
 const invite = require('../utils/invite')
 const { buildQuery } = require('../utils/request')
 const payment = require('../utils/payment')
+const format = require('../utils/format')
 
 test('邀请码只接受八位字母数字并统一大写', () => {
   assert.equal(invite.normalizeInviteCode('ab12cd34'), 'AB12CD34')
@@ -20,6 +21,19 @@ test('二维码 scene 可以承载直接邀请码或查询参数', () => {
 
 test('请求查询参数过滤空值并编码', () => {
   assert.equal(buildQuery({ keyword: '护肤 套装', page: 1, empty: '' }), 'keyword=%E6%8A%A4%E8%82%A4%20%E5%A5%97%E8%A3%85&page=1')
+})
+
+test('站内媒体相对地址转换为当前商城的完整HTTPS地址', () => {
+  assert.equal(
+    format.mediaUrl('/api/shop/media/images/abc.png'),
+    'https://lingqimall.com/api/shop/media/images/abc.png'
+  )
+  assert.equal(
+    format.mediaUrl('/shop/media/images/abc.png'),
+    'https://lingqimall.com/api/shop/media/images/abc.png'
+  )
+  assert.equal(format.mediaUrl('https://images.example.com/abc.png'), 'https://images.example.com/abc.png')
+  assert.equal(format.mediaUrl('/assets/local.png'), '/assets/local.png')
 })
 
 test('微信支付参数只接受服务端签发的完整字段并映射package', () => {
