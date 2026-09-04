@@ -1,11 +1,18 @@
 .address-page { min-height: 100vh; padding: 22rpx; }
-.address-row { position: relative; margin-bottom: 18rpx; padding: 26rpx 110rpx 26rpx 26rpx; border-radius: 22rpx; background: #fff; }
+.address-row { position: relative; margin-bottom: 18rpx; padding: 26rpx; border-radius: 22rpx; background: #fff; }
 .address-row > view { display: flex; align-items: center; gap: 20rpx; font-weight: 700; }
 .address-row > text { display: block; margin-top: 12rpx; color: #697180; line-height: 40rpx; }
 .default-tag { padding: 3rpx 10rpx; border-radius: 8rpx; background: #fff0f2; color: var(--brand); font-size: 20rpx; }
-.address-row button { position: absolute; right: 18rpx; top: 50%; width: 84rpx; padding: 0; transform: translateY(-50%); background: transparent; color: #929aa7; font-size: 23rpx; }
+.address-actions { display: flex; justify-content: flex-end; gap: 10rpx; margin-top: 16rpx; }
+.address-actions button { width: 100rpx; min-height: 58rpx; margin: 0; padding: 0; background: transparent; color: #697180; font-size: 23rpx; line-height: 58rpx; }
+.address-actions button:last-child { color: #a94a5b; }
 .address-form { margin-top: 22rpx; padding: 28rpx; border-radius: 24rpx; background: #fff; }
 .form-title { margin-bottom: 18rpx; font-size: 32rpx; font-weight: 700; }
+.form-head { display: flex; align-items: center; justify-content: space-between; }
+.form-head button { width: auto; min-height: 58rpx; margin: -8rpx 0 10rpx; padding: 0 12rpx; color: #697180; background: transparent; font-size: 23rpx; }
 .address-form input, .region { height: 88rpx; margin-top: 16rpx; padding: 0 22rpx; border: 1rpx solid #e5e8ed; border-radius: 16rpx; line-height: 88rpx; }
 .region { color: #697180; }
-.address-form button { margin-top: 28rpx; }
+.default-setting { display: flex; align-items: center; justify-content: space-between; margin-top: 20rpx; padding: 16rpx 2rpx; }
+.default-setting view text { display: block; }
+.default-setting view text:last-child { margin-top: 6rpx; color: #8a92a0; font-size: 22rpx; }
+.address-form > .primary-button { margin-top: 28rpx; }

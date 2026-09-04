@@ -67,7 +67,10 @@ Page({
   finish() {
     if (!session.getToken()) return
     if (this.redirect && this.redirect.startsWith('/pages/')) {
-      wx.redirectTo({ url: this.redirect, fail: () => wx.switchTab({ url: '/pages/profile/index' }) })
+      const pagePath = this.redirect.split('?')[0]
+      const tabPages = new Set(['/pages/home/index', '/pages/category/index', '/pages/cart/index', '/pages/profile/index'])
+      if (tabPages.has(pagePath)) wx.switchTab({ url: pagePath })
+      else wx.redirectTo({ url: this.redirect, fail: () => wx.switchTab({ url: '/pages/profile/index' }) })
     } else wx.switchTab({ url: '/pages/profile/index' })
   },
   openPrivacy() {

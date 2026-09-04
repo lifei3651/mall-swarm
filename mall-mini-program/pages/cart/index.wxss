@@ -13,6 +13,9 @@
 .counter text { width: 58rpx; text-align: center; }
 .remove { position: absolute; right: 14rpx; top: 10rpx; padding: 0 8rpx; background: transparent; color: #969daa; font-size: 22rpx; }
 .cart-footer { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; display: flex; align-items: center; justify-content: space-between; padding: 18rpx 24rpx calc(18rpx + env(safe-area-inset-bottom)); background: #fff; box-shadow: 0 -8rpx 30rpx rgba(20,30,50,.08); }
-.cart-footer > view > view { margin-top: 4rpx; font-weight: 600; }
-.cart-footer > view > view text { color: var(--brand); font-size: 34rpx; }
-.cart-footer button { width: 250rpx; margin: 0; }
+.select-all { display: flex; align-items: center; min-height: 72rpx; color: #4f5866; font-size: 25rpx; }
+.select-all .check { margin-right: 10rpx; }
+.cart-total { margin-left: auto; margin-right: 18rpx; text-align: right; }
+.cart-total > view { margin-top: 4rpx; font-weight: 600; }
+.cart-total > view text { color: var(--brand); font-size: 32rpx; }
+.cart-footer button { width: 220rpx; margin: 0; }

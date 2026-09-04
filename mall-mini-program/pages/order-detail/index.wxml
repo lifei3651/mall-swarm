@@ -10,7 +10,7 @@
   </view>
   <block wx:else>
     <view class="payment-summary">
-      <text class="summary-label">微信支付订单</text>
+      <text class="summary-label">订单详情</text>
       <view class="summary-amount">¥{{totalText}}</view>
       <text class="summary-meta">本次付款包含 {{rows.length}} 个履约订单</text>
       <text class="summary-no">商户单号 {{paymentNo}}</text>
@@ -42,14 +42,29 @@
           <view wx:if="{{shipment.deliveryTimeText}}"><text>发货时间</text><text>{{shipment.deliveryTimeText}}</text></view>
         </view>
       </block>
+      <view wx:if="{{item.afterSales.length}}" class="after-sale-list">
+        <view class="section-title">退款 / 售后进度</view>
+        <view class="after-sale-record" wx:for="{{item.afterSales}}" wx:key="id" wx:for-item="sale">
+          <view class="after-sale-head"><view><text>{{sale.typeText}}</text><text>{{sale.afterSaleNo}}</text></view><text>{{sale.statusText}}</text></view>
+          <view class="after-sale-meta"><text>{{sale.createTimeText}}</text><text wx:if="{{sale.applyType !== 3}}">¥{{sale.amountText}}</text></view>
+          <text wx:if="{{sale.nextActionHint}}" class="next-action">{{sale.nextActionHint}}</text>
+          <text wx:if="{{sale.auditRemark}}" class="audit-remark">处理说明：{{sale.auditRemark}}</text>
+          <button wx:if="{{sale.cancellable}}" class="secondary-button cancel-after-sale" data-id="{{sale.id}}"
+            loading="{{cancellingAfterSaleId === sale.id}}" disabled="{{cancellingAfterSaleId !== null}}" bindtap="cancelAfterSale">取消申请</button>
+        </view>
+      </view>
       <view class="order-info">
         <view><text>下单时间</text><text>{{item.order.createTimeText || '-'}}</text></view>
         <view><text>付款时间</text><text>{{item.order.payTimeText || '-'}}</text></view>
         <view><text>实付金额</text><text class="paid-amount">¥{{item.order.amountText}}</text></view>
       </view>
-      <button wx:if="{{item.order.status === 2}}" class="primary-button receive-button"
-        data-id="{{item.order.id}}" loading="{{actingId === item.order.id}}" disabled="{{actingId !== null}}"
-        bindtap="receive">确认收货</button>
+      <view class="detail-actions">
+        <button wx:if="{{item.order.status === 0}}" class="secondary-button cancel-order"
+          data-id="{{item.order.id}}" disabled="{{actingId !== null}}" bindtap="cancelOrder">取消订单</button>
+        <button wx:if="{{item.order.status === 2}}" class="primary-button receive-button"
+          data-id="{{item.order.id}}" loading="{{actingId === item.order.id}}" disabled="{{actingId !== null}}"
+          bindtap="receive">确认收货</button>
+      </view>
     </view>
     <button class="secondary-button all-orders" bindtap="openOrders">查看全部订单</button>
   </block>

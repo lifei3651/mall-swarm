@@ -9,8 +9,9 @@
     <view bindtap="messages"><text>消息与提醒 <text wx:if="{{unreadCount}}" class="unread-badge">{{unreadText}}</text></text><text>›</text></view>
     <view bindtap="orders"><text>我的订单</text><text>›</text></view>
     <view bindtap="addresses"><text>收货地址</text><text>›</text></view>
-    <view bindtap="payout"><text>微信收款确认</text><text>›</text></view>
-    <view bindtap="service"><text>售后与客服</text><text>›</text></view>
+    <view wx:if="{{payoutCount}}" bindtap="payout"><text>微信收款确认 <text class="unread-badge">{{payoutCount > 99 ? '99+' : payoutCount}}</text></text><text>›</text></view>
+    <view bindtap="service"><text>退款 / 售后</text><text>›</text></view>
+    <button class="contact-row" open-type="contact" show-message-card><text>在线客服</text><text>›</text></button>
   </view>
   <view class="compliance card"><view>安心购物</view><text>本端仅提供商品浏览、购物车、订单和售后服务；经营主体、隐私政策与支付资料均由当前商城独立配置。</text></view>
   <button wx:if="{{loggedIn}}" class="secondary-button logout" bindtap="logout">退出登录</button>

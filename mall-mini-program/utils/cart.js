@@ -12,7 +12,9 @@ function add(item) {
 }
 function update(key, patch) { return save(list().map((row) => row.key === key ? { ...row, ...patch } : row)) }
 function remove(key) { return save(list().filter((row) => row.key !== key)) }
+function selectAll(selected) { return save(list().map((row) => ({ ...row, selected: Boolean(selected) }))) }
+function selectOnly(key) { return save(list().map((row) => ({ ...row, selected: row.key === key }))) }
 function clearSelected() { return save(list().filter((row) => !row.selected)) }
 function selected() { return list().filter((row) => row.selected) }
 
-module.exports = { list, add, update, remove, clearSelected, selected }
+module.exports = { list, add, update, remove, selectAll, selectOnly, clearSelected, selected }

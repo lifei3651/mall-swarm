@@ -17,7 +17,8 @@
       </view>
     </view>
     <view class="cart-footer">
-      <view><text class="muted">已选 {{count}} 件</text><view>合计 <text>¥{{total}}</text></view></view>
+      <view class="select-all" bindtap="toggleAll"><view class="check {{allSelected ? 'checked' : ''}}">{{allSelected ? '✓' : ''}}</view><text>全选</text></view>
+      <view class="cart-total"><text class="muted">已选 {{count}} 件</text><view>合计 <text>¥{{total}}</text></view></view>
       <button class="primary-button" bindtap="checkout">去结算</button>
     </view>
   </block>

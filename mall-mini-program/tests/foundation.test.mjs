@@ -115,3 +115,69 @@ test('WXML 条件兜底与列表循环使用独立节点，避免微信编译器
     }
   }
 })
+
+test('登录完成后可以正确返回购物车等 tab 页面', async () => {
+  const fs = await import('node:fs/promises')
+  const page = await fs.readFile(new URL('../pages/login/index.js', import.meta.url), 'utf8')
+  assert.match(page, /tabPages\.has\(pagePath\)/)
+  assert.match(page, /wx\.switchTab\(\{ url: pagePath \}\)/)
+})
+
+test('商品详情按规格展示价格库存并提供立即购买', async () => {
+  const fs = await import('node:fs/promises')
+  const page = await fs.readFile(new URL('../pages/product/index.js', import.meta.url), 'utf8')
+  const view = await fs.readFile(new URL('../pages/product/index.wxml', import.meta.url), 'utf8')
+  assert.match(page, /cart\.selectOnly\(key\)/)
+  assert.match(page, /stock: Math\.max/)
+  assert.match(view, /立即购买/)
+  assert.match(view, /class="stock-text"/)
+})
+
+test('购物车支持全选并在删除前确认', async () => {
+  const fs = await import('node:fs/promises')
+  const page = await fs.readFile(new URL('../pages/cart/index.js', import.meta.url), 'utf8')
+  const view = await fs.readFile(new URL('../pages/cart/index.wxml', import.meta.url), 'utf8')
+  assert.match(page, /cart\.selectAll/)
+  assert.match(page, /title: '移除商品'/)
+  assert.match(view, /全选/)
+})
+
+test('订单列表提供状态筛选、分页和订单详情入口', async () => {
+  const fs = await import('node:fs/promises')
+  const page = await fs.readFile(new URL('../pages/orders/index.js', import.meta.url), 'utf8')
+  const view = await fs.readFile(new URL('../pages/orders/index.wxml', import.meta.url), 'utf8')
+  assert.match(page, /orderState: tab\.state/)
+  assert.match(page, /pages\/order-detail\/index\?id=/)
+  assert.match(page, /this\.data\.rows\.concat\(rows\)/)
+  assert.match(page, /退款\/售后/)
+  assert.match(view, /class="order-tabs"/)
+})
+
+test('订单详情同时支持微信订单找回和站内订单入口', async () => {
+  const fs = await import('node:fs/promises')
+  const page = await fs.readFile(new URL('../pages/order-detail/index.js', import.meta.url), 'utf8')
+  const view = await fs.readFile(new URL('../pages/order-detail/index.wxml', import.meta.url), 'utf8')
+  assert.match(page, /options\.id/)
+  assert.match(page, /url: `\/shop\/orders\/\$\{this\.orderId\}`/)
+  assert.match(page, /after-sales\/\$\{id\}\/cancel/)
+  assert.match(view, /退款 \/ 售后进度/)
+})
+
+test('个人中心只在待确认提现存在时显示收款入口并提供微信客服', async () => {
+  const fs = await import('node:fs/promises')
+  const page = await fs.readFile(new URL('../pages/profile/index.js', import.meta.url), 'utf8')
+  const view = await fs.readFile(new URL('../pages/profile/index.wxml', import.meta.url), 'utf8')
+  assert.match(page, /payoutCount/)
+  assert.match(view, /wx:if="\{\{payoutCount\}\}"/)
+  assert.match(view, /open-type="contact"/)
+})
+
+test('地址支持编辑且删除前需要二次确认', async () => {
+  const fs = await import('node:fs/promises')
+  const page = await fs.readFile(new URL('../pages/address/index.js', import.meta.url), 'utf8')
+  const view = await fs.readFile(new URL('../pages/address/index.wxml', import.meta.url), 'utf8')
+  assert.match(page, /edit\(event\)/)
+  assert.match(page, /title: '删除收货地址'/)
+  assert.match(view, /保存修改/)
+  assert.match(view, /设为默认地址/)
+})

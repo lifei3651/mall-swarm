@@ -1,27 +1,67 @@
 const request = require('../../utils/request')
 const cart = require('../../utils/cart')
 const format = require('../../utils/format')
+const auth = require('../../utils/auth')
 
 Page({
-  data: { loading: true, error: '', product: {}, skus: [], skuIndex: 0, quantity: 1 },
+  data: {
+    loading: true, error: '', product: {}, skus: [], skuIndex: 0, quantity: 1,
+    priceText: '0.00', stock: 0, soldOut: false
+  },
   onLoad(options) { this.productId = Number(options.id); this.load() },
   async load() {
     try {
       const detail = await request({ url: `/shop/products/${this.productId}` })
-      this.setData({ product: format.product(detail.product), skus: detail.skus || [] })
+      const product = format.product(detail.product)
+      const skus = (detail.skus || []).map((sku) => ({ ...sku, priceText: format.money(sku.salePrice) }))
+      const availableIndex = skus.findIndex((sku) => Number(sku.stock || 0) > 0)
+      const skuIndex = availableIndex >= 0 ? availableIndex : 0
+      const selected = skus[skuIndex]
+      this.setData({
+        product,
+        skus,
+        skuIndex,
+        priceText: selected ? selected.priceText : product.priceText,
+        stock: Math.max(0, Number(selected ? selected.stock : product.stock || 0)),
+        soldOut: Number(product.status || 1) !== 1 || Math.max(0, Number(selected ? selected.stock : product.stock || 0)) <= 0
+      })
       wx.setNavigationBarTitle({ title: detail.product.productName || '商品详情' })
     } catch (error) { this.setData({ error: error.message }) }
     finally { this.setData({ loading: false }) }
   },
-  selectSku(event) { this.setData({ skuIndex: Number(event.currentTarget.dataset.index) }) },
-  changeQuantity(event) { this.setData({ quantity: Math.max(1, Math.min(99, this.data.quantity + Number(event.currentTarget.dataset.delta))) }) },
-  addToCart() {
+  selectSku(event) {
+    const skuIndex = Number(event.currentTarget.dataset.index)
+    const sku = this.data.skus[skuIndex]
+    if (!sku || Number(sku.stock || 0) <= 0) return
+    this.setData({ skuIndex, quantity: 1, priceText: sku.priceText, stock: Number(sku.stock || 0), soldOut: false })
+  },
+  changeQuantity(event) {
+    const maximum = Math.max(1, Math.min(99, Number(this.data.stock || 1)))
+    this.setData({ quantity: Math.max(1, Math.min(maximum, this.data.quantity + Number(event.currentTarget.dataset.delta))) })
+  },
+  purchaseItem() {
     const product = this.data.product
     const sku = this.data.skus[this.data.skuIndex]
-    cart.add({ productId: product.id, skuId: sku ? sku.id : null, productName: product.productName,
+    if (this.data.soldOut) {
+      wx.showToast({ title: '该商品暂时缺货', icon: 'none' })
+      return null
+    }
+    const item = { productId: product.id, skuId: sku ? sku.id : null, productName: product.productName,
       coverUrl: product.coverUrl, salePrice: sku ? Number(sku.salePrice || product.salePrice) : product.salePrice,
-      skuName: sku ? (sku.skuName || sku.specName || '') : '', quantity: this.data.quantity })
+      skuName: sku ? (sku.skuName || sku.specName || '') : '', quantity: this.data.quantity }
+    cart.add(item)
+    return `${item.productId}:${item.skuId || 0}`
+  },
+  addToCart() {
+    if (!this.purchaseItem()) return
     wx.showToast({ title: '已加入购物车', icon: 'success' })
+  },
+  buyNow() {
+    if (!auth.requireLogin(`/pages/product/index?id=${this.productId}`)) return
+    const key = this.purchaseItem()
+    if (!key) return
+    cart.selectOnly(key)
+    wx.navigateTo({ url: '/pages/checkout/index' })
   },
   goCart() { wx.switchTab({ url: '/pages/cart/index' }) }
 })

@@ -27,5 +27,18 @@
 .shipment view text:last-child, .order-info view text:last-child { min-width: 0; color: #343c4a; text-align: right; word-break: break-all; }
 .order-info { margin-top: 22rpx; }
 .order-info .paid-amount { color: var(--brand); font-size: 29rpx; font-weight: 700; }
-.receive-button { width: 240rpx; margin: 24rpx 0 0 auto; font-size: 25rpx; }
+.section-title { margin-bottom: 14rpx; font-weight: 700; }
+.after-sale-list { margin-top: 22rpx; padding-top: 22rpx; border-top: 1rpx solid var(--line); }
+.after-sale-record { margin-top: 14rpx; padding: 20rpx; border-radius: 18rpx; background: #fff8ed; }
+.after-sale-head, .after-sale-meta { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; }
+.after-sale-head > view text { display: block; }
+.after-sale-head > view text:first-child { font-weight: 700; }
+.after-sale-head > view text:last-child { margin-top: 6rpx; color: #8a92a0; font-size: 21rpx; }
+.after-sale-head > text { flex: none; color: #a25b15; font-size: 24rpx; font-weight: 700; }
+.after-sale-meta { margin-top: 14rpx; color: #737c8b; font-size: 22rpx; }
+.next-action, .audit-remark { display: block; margin-top: 14rpx; color: #6c5630; font-size: 23rpx; line-height: 36rpx; }
+.audit-remark { padding-top: 12rpx; border-top: 1rpx solid #f2dfc3; }
+.cancel-after-sale { width: 190rpx; margin: 18rpx 0 0 auto; font-size: 23rpx; }
+.detail-actions { display: flex; justify-content: flex-end; gap: 14rpx; margin-top: 24rpx; }
+.detail-actions button { width: 220rpx; margin: 0; font-size: 25rpx; }
 .all-orders { margin-top: 24rpx; font-size: 26rpx; }

@@ -3,7 +3,7 @@ const format = require('../../utils/format')
 const auth = require('../../utils/auth')
 
 Page({
-  data: { rows: [], total: '0.00', count: 0 },
+  data: { rows: [], total: '0.00', count: 0, allSelected: false },
   onShow() { this.refresh() },
   refresh() {
     const rows = cart.list().map((row) => ({
@@ -16,7 +16,8 @@ Page({
     this.setData({
       rows,
       count: selected.reduce((sum, row) => sum + row.quantity, 0),
-      total: format.money(selected.reduce((sum, row) => sum + Number(row.salePrice) * row.quantity, 0))
+      total: format.money(selected.reduce((sum, row) => sum + Number(row.salePrice) * row.quantity, 0)),
+      allSelected: rows.length > 0 && selected.length === rows.length
     })
   },
   toggle(event) {
@@ -29,7 +30,21 @@ Page({
     cart.update(key, { quantity: Math.max(1, Math.min(99, row.quantity + Number(event.currentTarget.dataset.delta))) })
     this.refresh()
   },
-  remove(event) { cart.remove(event.currentTarget.dataset.key); this.refresh() },
+  toggleAll() { cart.selectAll(!this.data.allSelected); this.refresh() },
+  remove(event) {
+    const key = event.currentTarget.dataset.key
+    wx.showModal({
+      title: '移除商品',
+      content: '确定把这件商品移出购物车吗？',
+      confirmText: '移除',
+      confirmColor: '#e7193f',
+      success: ({ confirm }) => {
+        if (!confirm) return
+        cart.remove(key)
+        this.refresh()
+      }
+    })
+  },
   openProduct(event) { wx.navigateTo({ url: `/pages/product/index?id=${event.currentTarget.dataset.id}` }) },
   checkout() {
     if (!this.data.count) { wx.showToast({ title: '请先选择商品', icon: 'none' }); return }
