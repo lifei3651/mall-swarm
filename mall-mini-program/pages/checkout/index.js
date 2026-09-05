@@ -13,13 +13,18 @@ Page({
   data: {
     ...theme.pageData(),
     loading: true,
+    loadError: '',
     submitting: false,
+    quoteLoading: false,
+    quoteReady: false,
+    quoteError: '',
+    activityName: '',
     rows: [],
     address: null,
     count: 0,
     total: '0.00',
-    freight: '0.00',
-    payTotal: '0.00',
+    freight: '--',
+    payTotal: '--',
     wechatPayEnabled: false,
     needSmsVerify: false,
     smsCode: '',
@@ -27,58 +32,148 @@ Page({
     smsSending: false,
     remark: ''
   },
-  onLoad() {
+  onLoad(options = {}) {
     theme.apply(this)
-    if (!auth.requireLogin('/pages/checkout/index')) return
+    this.flashSaleMode = Object.prototype.hasOwnProperty.call(options, 'activityId')
+    this.activityId = this.flashSaleMode ? format.identifier(options.activityId) : ''
+    this.activityQuantity = options.quantity === undefined ? 1 : Number(options.quantity)
+    this.route = this.flashSaleMode
+      ? `/pages/checkout/index?activityId=${encodeURIComponent(options.activityId || '')}&quantity=${encodeURIComponent(options.quantity === undefined ? '1' : options.quantity)}`
+      : '/pages/checkout/index'
     this.submitKey = idempotencyKey()
   },
-  onShow() { theme.sync(this); if (auth.requireLogin('/pages/checkout/index')) this.load() },
-  async load() {
-    const rows = cart.selected().map((row) => ({
-      ...row,
-      coverUrl: format.mediaUrl(row.coverUrl),
-      priceText: format.money(row.salePrice)
-    }))
-    if (!rows.length) {
-      wx.showToast({ title: '没有待结算商品', icon: 'none' })
-      setTimeout(() => wx.navigateBack(), 600)
-      return
+  onShow() {
+    theme.sync(this)
+    if (this.data.submitting || this.createdPaymentId) return
+    if (auth.requireLogin(this.route || '/pages/checkout/index')) {
+      if (!this.submitKey) this.submitKey = idempotencyKey()
+      return this.load()
     }
-    this.setData({ loading: true, rows,
-      count: rows.reduce((sum, row) => sum + row.quantity, 0),
-      total: format.money(rows.reduce((sum, row) => sum + Number(row.salePrice) * row.quantity, 0)) })
+    this.invalidateQuote()
+    this.setData({ loading: false, address: null, wechatPayEnabled: false })
+  },
+  invalidateQuote() {
+    this.quoteGeneration = (this.quoteGeneration || 0) + 1
+    this.quotedPayload = ''
+    this.setData({ quoteReady: false, quoteLoading: false, quoteError: '', freight: '--', payTotal: '--', needSmsVerify: false })
+  },
+  async load() {
+    if (this.data.submitting || this.createdPaymentId) return
+    const generation = this.loadGeneration = (this.loadGeneration || 0) + 1
+    this.invalidateQuote()
+    this.setData({ loading: true, loadError: '', wechatPayEnabled: false })
     try {
-      const [addresses, config] = await Promise.all([
+      const source = this.flashSaleMode ? await this.loadActivity() : { rows: cart.selected(), activityName: '' }
+      if (generation !== this.loadGeneration) return
+      const rows = source.rows.map((row) => {
+        const productId = format.identifier(row.productId)
+        const skuId = row.skuId === null || row.skuId === undefined || row.skuId === '' ? '' : format.identifier(row.skuId)
+        if (!productId || (row.skuId && !skuId) || !Number.isInteger(row.quantity) || row.quantity < 1 || row.quantity > 99) {
+          throw new Error('待结算商品信息无效，请返回重新选择')
+        }
+        return { ...row, productId, skuId, coverUrl: format.mediaUrl(row.coverUrl), priceText: format.money(row.salePrice) }
+      })
+      this.setData({ rows, activityName: source.activityName,
+        count: rows.reduce((sum, row) => sum + row.quantity, 0),
+        total: format.money(rows.reduce((sum, row) => sum + Number(row.salePrice) * row.quantity, 0)) })
+      if (!rows.length) throw new Error('没有待结算商品，请返回购物车选择')
+      const [rawAddresses, config] = await Promise.all([
         request({ url: '/shop/addresses' }), request({ url: '/shop/pay/config' })
       ])
-      const address = (addresses || []).find((item) => item.isDefault === 1) || (addresses || [])[0] || null
-      this.setData({ address, wechatPayEnabled: Boolean(config.wechatPayEnabled) })
+      if (generation !== this.loadGeneration) return
+      const addresses = (rawAddresses || []).filter((item) => format.identifier(item.id))
+      const currentId = this.selectedAddressId || (this.data.address && String(this.data.address.id))
+      const address = (addresses || []).find((item) => String(item.id) === currentId)
+        || (addresses || []).find((item) => Number(item.isDefault) === 1) || (addresses || [])[0] || null
+      this.selectedAddressId = address ? String(address.id) : ''
+      this.setData({ address, wechatPayEnabled: Boolean(config && config.wechatPayEnabled === true) })
       if (address) await this.quoteFreight(address)
     } catch (error) {
+      if (generation !== this.loadGeneration) return
+      this.setData({ loadError: error.message || '结算信息加载失败' })
       wx.showToast({ title: error.message || '结算信息加载失败', icon: 'none' })
-    } finally { this.setData({ loading: false }) }
+    } finally { if (generation === this.loadGeneration) this.setData({ loading: false }) }
   },
-  chooseAddress() { wx.navigateTo({ url: '/pages/address/index?select=1' }) },
+  async loadActivity() {
+    if (!this.activityId || !Number.isInteger(this.activityQuantity) || this.activityQuantity < 1 || this.activityQuantity > 99) {
+      throw new Error('活动结算参数无效，请返回活动页重新选择')
+    }
+    const activities = await request({ url: '/shop/flash-sales' })
+    const source = (activities || []).find((item) => format.identifier(item.activity && item.activity.id) === this.activityId)
+    if (!source || source.activityState !== 'ACTIVE') throw new Error('该活动当前不可购买，请返回活动页查看')
+    const activity = source.activity, product = source.product || {}, sku = source.sku
+    const productId = format.identifier(product.id)
+    const skuId = sku ? format.identifier(sku.id) : ''
+    const activitySkuId = activity.skuId === null || activity.skuId === undefined ? '' : format.identifier(activity.skuId)
+    if (!productId || productId !== format.identifier(activity.productId)
+      || skuId !== activitySkuId || (activity.skuId !== null && activity.skuId !== undefined && !activitySkuId)) {
+      throw new Error('活动商品信息不完整，请返回活动页重试')
+    }
+    const limit = Number(activity.perUserLimit), stock = Number(activity.availableStock)
+    if (!Number.isInteger(limit) || !Number.isInteger(stock) || this.activityQuantity > Math.min(limit, stock)) {
+      throw new Error('购买数量超过活动限购或剩余库存，请返回活动页调整')
+    }
+    if (activity.flashPrice === null || activity.flashPrice === undefined || !Number.isFinite(Number(activity.flashPrice)) || Number(activity.flashPrice) <= 0) {
+      throw new Error('活动价格暂不可用，请稍后重试')
+    }
+    return { activityName: activity.activityName || '限时活动', rows: [{
+      key: `flash-${this.activityId}`, productId, skuId, productName: product.productName,
+      skuName: sku ? sku.skuName : '', coverUrl: (sku && sku.coverUrl) || product.coverUrl,
+      salePrice: activity.flashPrice, quantity: this.activityQuantity
+    }] }
+  },
+  acceptSelectedAddress(address) {
+    const id = address && format.identifier(address.id)
+    if (!id) return
+    this.selectedAddressId = id
+    this.invalidateQuote()
+  },
+  chooseAddress() {
+    if (this.data.submitting || this.createdPaymentId) return
+    wx.navigateTo({
+      url: '/pages/address/index?select=1',
+      events: { addressSelected: (address) => this.acceptSelectedAddress(address) }
+    })
+  },
   async quoteFreight(address) {
+    this.invalidateQuote()
+    const generation = this.quoteGeneration
+    const payload = this.orderPayload(address, false)
+    this.setData({ quoteLoading: true })
     try {
       const quote = await request({
         url: '/shop/orders/freight-quote', method: 'POST',
-        data: this.orderPayload(address, false)
+        data: payload
       })
+      if (generation !== this.quoteGeneration) return
+      if (!quote || ['productAmount', 'freightAmount', 'payAmount'].some((key) =>
+        quote[key] === null || quote[key] === undefined || String(quote[key]).trim() === ''
+        || !Number.isFinite(Number(quote[key])) || Number(quote[key]) < 0)) {
+        throw new Error('结算金额返回异常，请重新计算')
+      }
+      const needSmsVerify = await this.checkPaymentVerify(quote.payAmount)
+      if (generation !== this.quoteGeneration) return
+      this.quotedPayload = JSON.stringify(payload)
       this.setData({
         total: format.money(quote.productAmount),
         freight: format.money(quote.freightAmount),
-        payTotal: format.money(quote.payAmount)
+        payTotal: format.money(quote.payAmount),
+        needSmsVerify, quoteReady: true, quoteError: ''
       })
-      await this.checkPaymentVerify(quote.payAmount)
     } catch (error) {
-      this.setData({ freight: '--', payTotal: this.data.total })
-      throw error
-    }
+      if (generation !== this.quoteGeneration) return
+      this.setData({ quoteReady: false, freight: '--', payTotal: '--', quoteError: error.message || '结算金额计算失败，请重试' })
+    } finally { if (generation === this.quoteGeneration) this.setData({ quoteLoading: false }) }
+  },
+  retryQuote() {
+    if (this.data.submitting || this.data.quoteLoading) return
+    if (this.data.loadError) return this.load()
+    if (this.data.address) return this.quoteFreight(this.data.address)
   },
   async checkPaymentVerify(amount) {
     const config = await request({ url: '/payment/checkVerify', params: { amount } })
-    this.setData({ needSmsVerify: Boolean(config && config.needVerify) })
+    if (!config || typeof config.needVerify !== 'boolean') throw new Error('支付验证配置加载失败，请重新计算')
+    return config.needVerify
   },
   smsCodeInput(event) {
     this.setData({ smsCode: String(event.detail.value || '').replace(/\D/g, '').slice(0, 6) })
@@ -100,21 +195,32 @@ Page({
       wx.showToast({ title: error.message || '验证码发送失败', icon: 'none' })
     } finally { this.setData({ smsSending: false }) }
   },
-  onUnload() { clearInterval(this.smsTimer) },
+  onHide() {
+    this.loadGeneration = (this.loadGeneration || 0) + 1
+    this.invalidateQuote()
+  },
+  onUnload() { this.onHide(); clearInterval(this.smsTimer) },
   orderPayload(address, includeRemark = true) {
     return {
-      addressId: address.id,
+      addressId: format.identifier(address.id),
       payType: 'WECHAT',
-      businessType: 'NORMAL',
+      businessType: this.flashSaleMode ? 'FLASH_SALE' : 'NORMAL',
+      ...(this.flashSaleMode ? { businessSourceId: this.activityId } : {}),
       remark: includeRemark && this.data.remark ? this.data.remark : undefined,
-      smsCode: this.data.needSmsVerify ? this.data.smsCode : undefined,
+      ...(includeRemark ? { smsCode: this.data.needSmsVerify ? this.data.smsCode : undefined } : {}),
       items: this.data.rows.map((row) => ({ productId: row.productId, skuId: row.skuId || undefined, quantity: row.quantity }))
     }
   },
   remarkInput(event) { this.setData({ remark: String(event.detail.value || '').slice(0, 500) }) },
   async submit() {
-    if (this.data.submitting) return
+    if (this.data.submitting || this.createdPaymentId) return
+    if (!auth.requireLogin(this.route || '/pages/checkout/index')) return
     if (!this.data.address) { wx.showToast({ title: '请先添加收货地址', icon: 'none' }); return }
+    if (this.data.loading || this.data.quoteLoading || !this.data.quoteReady
+        || this.quotedPayload !== JSON.stringify(this.orderPayload(this.data.address, false))) {
+      wx.showToast({ title: this.data.quoteLoading ? '结算金额正在计算，请稍候' : '请先完成结算金额计算', icon: 'none' })
+      return
+    }
     if (!this.data.wechatPayEnabled) {
       wx.showModal({ title: '微信支付暂未开放', content: '当前客户尚未完成微信支付商户资料配置与真实联调，因此不会创建无法支付的新订单。', showCancel: false })
       return
@@ -128,21 +234,23 @@ Page({
     let paymentId = null
     try {
       const order = await request({
-        url: '/shop/orders', method: 'POST', idempotencyKey: this.submitKey,
+        url: this.flashSaleMode ? `/shop/flash-sales/${this.activityId}/orders` : '/shop/orders', method: 'POST', idempotencyKey: this.submitKey,
         data: this.orderPayload(this.data.address)
       })
-      paymentId = order.checkoutId || order.order.id
-      cart.clearSelected()
+      paymentId = format.identifier(order && (order.checkoutId || (order.order && order.order.id)))
+      this.createdPaymentId = paymentId || 'CREATED_WITH_UNKNOWN_ID'
+      if (!paymentId) throw new Error('订单已提交，但订单标识异常，请到“我的订单”核对状态后再操作')
+      if (!this.flashSaleMode) cart.clearSelected()
       wx.hideLoading()
       const confirmed = await payment.payOrder(paymentId)
       wx.showToast({ title: confirmed ? '支付成功' : '支付结果确认中', icon: confirmed ? 'success' : 'none' })
       setTimeout(() => wx.redirectTo({ url: '/pages/orders/index' }), 700)
     } catch (error) {
       wx.hideLoading()
-      if (paymentId) {
+      if (this.createdPaymentId) {
         wx.showModal({
           title: '订单已保留',
-          content: payment.isUserCancel(error)
+          content: !paymentId ? error.message : payment.isUserCancel(error)
             ? '你已取消微信支付，可在“我的订单 → 待支付”继续付款。'
             : `微信支付暂未完成：${error.message || '请稍后重试'}。订单已保留在待支付。`,
           showCancel: false,

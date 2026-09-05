@@ -62,6 +62,8 @@ Page({
     }
   },
   login() { wx.navigateTo({ url: '/pages/login/index' }) },
+  legal() { wx.navigateTo({ url: '/pages/legal/index' }) },
+  security() { if (this.requireLogin()) wx.navigateTo({ url: '/pages/account-security/index' }) },
   messages() { if (this.requireLogin()) wx.navigateTo({ url: '/pages/messages/index' }) },
   orders() { if (this.requireLogin()) wx.navigateTo({ url: '/pages/orders/index' }) },
   orderTab(event) {

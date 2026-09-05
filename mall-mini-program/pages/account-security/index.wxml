@@ -1,0 +1,45 @@
+<view class="security-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
+  <view wx:if="{{loading}}" class="empty">正在读取账号信息…</view>
+  <view wx:elif="{{!member}}" class="empty"><text>{{error || '请先登录后管理账号'}}</text><button class="secondary-button" bindtap="onShow">重新加载</button></view>
+  <block wx:else>
+    <view class="panel">
+      <view class="section-title">账号资料</view>
+      <view class="account-row"><text>商城账号</text><text>{{canSetupAccount ? '尚未设置' : member.username}}</text></view>
+      <view class="account-row"><text>绑定手机号</text><text>{{maskedPhone}}</text></view>
+      <text class="field-label">昵称</text>
+      <input class="field" value="{{nickname}}" data-field="nickname" bindinput="fieldInput" maxlength="20" disabled="{{action !== ''}}" placeholder="请输入2至20个字符" aria-label="商城昵称" />
+      <button class="secondary-button" bindtap="saveNickname" loading="{{action === 'nickname'}}" disabled="{{action !== ''}}">保存昵称</button>
+    </view>
+    <view wx:if="{{canSetupAccount}}" class="panel">
+      <view class="section-title">设置商城账号</view>
+      <text class="hint">首次微信注册尚未设置独立账号。设置后可用于商城密码登录，账号不可自行修改。</text>
+      <text class="field-label">登录账号</text>
+      <input class="field" value="{{username}}" data-field="username" bindinput="fieldInput" maxlength="20" disabled="{{action !== ''}}" placeholder="4至20位，以英文字母开头" aria-label="设置商城登录账号" />
+      <text class="field-label">登录密码</text>
+      <input class="field" value="{{password}}" password data-field="password" bindinput="fieldInput" maxlength="32" disabled="{{action !== ''}}" placeholder="10至32位，不含账号、手机号和空格" aria-label="设置商城登录密码" />
+      <text class="field-label">确认登录密码</text>
+      <input class="field" value="{{confirmPassword}}" password data-field="confirmPassword" bindinput="fieldInput" maxlength="32" disabled="{{action !== ''}}" placeholder="请再次输入密码" aria-label="确认商城登录密码" />
+      <button class="primary-button" bindtap="setupAccount" loading="{{action === 'account'}}" disabled="{{action !== ''}}">保存账号并重新登录</button>
+    </view>
+    <view wx:else class="panel">
+      <view class="section-title">修改登录密码</view>
+      <text class="hint">修改后所有旧会话失效，需要重新登录。请勿将密码或验证码提供给他人。</text>
+      <text class="field-label">当前密码</text>
+      <input class="field" value="{{currentPassword}}" password data-field="currentPassword" bindinput="fieldInput" maxlength="32" disabled="{{action !== ''}}" placeholder="请输入当前登录密码" aria-label="当前登录密码" />
+      <text class="field-label">短信验证码</text>
+      <view class="sms-row">
+        <input class="field code-input" value="{{smsCode}}" type="number" data-field="smsCode" bindinput="fieldInput" maxlength="6" disabled="{{action !== ''}}" placeholder="6位验证码" aria-label="绑定手机号验证码" />
+        <button class="secondary-button sms-button" bindtap="sendCode" disabled="{{action !== '' || sendingCode || countdown > 0}}">{{countdown > 0 ? countdown + '秒' : sendingCode ? '发送中' : '获取验证码'}}</button>
+      </view>
+      <text class="hint">验证码将发送至 {{maskedPhone}}</text>
+      <text class="field-label">新密码</text>
+      <input class="field" value="{{newPassword}}" password data-field="newPassword" bindinput="fieldInput" maxlength="32" disabled="{{action !== ''}}" placeholder="10至32位，不含账号、手机号和空格" aria-label="新登录密码" />
+      <text class="field-label">确认新密码</text>
+      <input class="field" value="{{confirmPassword}}" password data-field="confirmPassword" bindinput="fieldInput" maxlength="32" disabled="{{action !== ''}}" placeholder="请再次输入新密码" aria-label="确认新登录密码" />
+      <button class="primary-button" bindtap="changePassword" loading="{{action === 'password'}}" disabled="{{action !== ''}}">修改密码并重新登录</button>
+    </view>
+    <text wx:if="{{error}}" class="error-message">{{error}}</text>
+    <text wx:if="{{message}}" class="success-message">{{message}}</text>
+    <view class="panel help-panel"><text class="hint">忘记当前密码或需要更换绑定手机号？请联系当前商城客服核验身份后处理。</text><button class="secondary-button" open-type="contact" show-message-card="{{true}}">联系商城客服</button></view>
+  </block>
+</view>

@@ -15,6 +15,12 @@ public interface DmsWechatShippingSyncTaskDao {
     int claim(@Param("id") Long id, @Param("owner") String owner,
               @Param("now") LocalDateTime now, @Param("leaseUntil") LocalDateTime leaseUntil);
     DmsWechatShippingSyncTask selectById(@Param("id") Long id);
+    DmsWechatShippingSyncTask selectScoped(@Param("tenantId") Long tenantId, @Param("id") Long id);
+    List<DmsWechatShippingSyncTask> listScoped(@Param("tenantId") Long tenantId, @Param("status") String status,
+                                             @Param("offset") int offset, @Param("limit") int limit);
+    long countScoped(@Param("tenantId") Long tenantId, @Param("status") String status);
+    int retryPermanent(@Param("tenantId") Long tenantId, @Param("id") Long id,
+                       @Param("revision") Integer revision);
     int markSuccess(@Param("id") Long id, @Param("owner") String owner,
                     @Param("revision") Integer revision, @Param("payloadDigest") String payloadDigest,
                     @Param("now") LocalDateTime now);

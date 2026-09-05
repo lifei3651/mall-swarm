@@ -1,4 +1,7 @@
 .checkout-page { min-height: 100vh; padding: 22rpx 22rpx 180rpx; }
+.checkout-error { display: flex; align-items: center; gap: 20rpx; margin: 16rpx 0; padding: 22rpx; border-radius: 16rpx; color: #b42318; background: var(--paper); font-size: 25rpx; }
+.checkout-error text { flex: 1; min-width: 0; }
+.checkout-error button { flex: none; width: auto; min-height: 72rpx; margin: 0; padding: 8rpx 18rpx; color: var(--accent); font-size: 25rpx; }
 .section-kicker { display: flex; align-items: flex-end; justify-content: space-between; margin: 8rpx 6rpx 14rpx; }
 .section-kicker text:first-child { font-size: 29rpx; font-weight: 750; }
 .section-kicker text:last-child { color: var(--muted); font-size: 22rpx; }

@@ -46,6 +46,7 @@ import com.macro.mall.distribution.service.OrderBalanceAllocationService;
 import com.macro.mall.distribution.service.MerchantService;
 import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.RefundInventoryRestockService;
+import com.macro.mall.distribution.service.WeChatShippingInfoService;
 import com.macro.mall.distribution.util.MemberAccountUtils;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.entity.DmsAdminUser;
@@ -99,6 +100,8 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     private OrderRealtimeService orderRealtimeService;
     @Autowired(required = false)
     private DmsMerchantDao merchantDao;
+    @Autowired
+    private WeChatShippingInfoService weChatShippingInfoService;
 
     @Value("${shop.payment.simulation-enabled:false}")
     private boolean simulationPaymentEnabled;
@@ -871,6 +874,10 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         order.setDeliveryCompany(latest.getDeliveryCompany());
         order.setDeliveryNo(latest.getDeliveryNo());
         order.setDeliveryTime(latest.getDeliveryTime());
+        // 零元赠品退款无需调用支付退款接口，但仍可能结束微信实付订单的分批发货。
+        if (!simulationPaymentEnabled && "WECHAT".equalsIgnoreCase(order.getPayType())) {
+            weChatShippingInfoService.enqueue(order);
+        }
     }
 
     private BigDecimal calculateBonusBase(DmsShopOrder order, List<DmsShopOrderItem> items) {

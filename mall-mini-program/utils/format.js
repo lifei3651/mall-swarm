@@ -2,6 +2,13 @@ const runtime = require('../config/runtime')
 
 function money(value) { return Number(value || 0).toFixed(2) }
 
+// Identifiers are opaque decimal strings. Never recover an already rounded Number.
+function identifier(value) {
+  if (typeof value === 'number' && (!Number.isSafeInteger(value) || value <= 0)) return ''
+  const text = String(value ?? '').trim()
+  return /^[1-9]\d{0,18}$/.test(text) ? text : ''
+}
+
 function mediaUrl(value) {
   const raw = String(value || '').trim()
   if (!raw) return ''
@@ -26,4 +33,4 @@ function product(raw = {}) {
   }
 }
 
-module.exports = { money, mediaUrl, product }
+module.exports = { money, mediaUrl, product, identifier }

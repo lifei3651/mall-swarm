@@ -8,6 +8,7 @@
     <button wx:if="{{!showForm}}" bindtap="startAdd">新增地址</button>
   </view>
   <view wx:if="{{loading}}" class="empty">正在加载地址…</view>
+  <view wx:elif="{{loadError}}" class="address-empty-state"><text>{{loadError}}</text><button bindtap="load">重新加载</button></view>
   <view wx:elif="{{rows.length}}" class="address-list">
     <view class="address-row" wx:for="{{rows}}" wx:key="id" data-id="{{item.id}}" bindtap="choose">
       <view><text>{{item.receiverName}}</text><text>{{item.receiverPhone}}</text><text wx:if="{{item.isDefault === 1}}" class="default-tag">默认</text></view>
@@ -23,6 +24,6 @@
     <picker mode="region" value="{{form.region}}" bindchange="region"><view class="region">{{form.regionText || '请选择省、市、区/县'}}</view></picker>
     <input data-field="detailAddress" value="{{form.detailAddress}}" maxlength="200" placeholder="街道、门牌号等详细地址" bindinput="input" />
     <view class="default-setting"><view><text>设为默认地址</text><text>结算时优先使用</text></view><switch checked="{{form.isDefault}}" color="{{themeColor}}" bindchange="defaultChange" /></view>
-    <button class="primary-button" loading="{{saving}}" disabled="{{saving}}" bindtap="save">{{form.id ? '保存修改' : '保存地址'}}</button>
+    <button class="primary-button" loading="{{saving}}" disabled="{{saving || loading || loadError}}" bindtap="save">{{form.id ? '保存修改' : '保存地址'}}</button>
   </view>
 </view>

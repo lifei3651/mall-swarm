@@ -76,11 +76,6 @@ Page({
       else wx.redirectTo({ url: this.redirect, fail: () => wx.switchTab({ url: '/pages/profile/index' }) })
     } else wx.switchTab({ url: '/pages/profile/index' })
   },
-  openPrivacy() {
-    wx.showModal({
-      title: '隐私保护说明',
-      content: '仅在您主动授权后取得微信绑定手机号，用于创建或匹配商城账号。微信标识只在服务器加密保存，不展示给其他用户，也不会返回到小程序页面。',
-      showCancel: false
-    })
-  }
+  openPrivacy() { wx.navigateTo({ url: '/pages/legal/index?type=privacy' }) },
+  openAgreement() { wx.navigateTo({ url: '/pages/legal/index?type=agreement' }) }
 })

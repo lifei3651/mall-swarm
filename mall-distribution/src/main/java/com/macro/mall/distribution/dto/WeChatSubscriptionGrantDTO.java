@@ -16,6 +16,6 @@ public class WeChatSubscriptionGrantDTO implements Serializable {
     private String requestId;
 
     @NotEmpty(message = "没有可记录的订阅授权")
-    @Size(max = 5, message = "单次最多记录5个订阅模板")
+    @Size(max = 3, message = "单次最多记录3个订阅模板")
     private List<@NotBlank @Size(max = 128) String> acceptedTemplateIds;
 }

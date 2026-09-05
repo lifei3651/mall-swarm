@@ -1,13 +1,21 @@
 <template>
   <div class="page">
     <div class="intro"><div><h2>消息运营</h2><p>个人消息与商城公告相互独立；外部失败不会影响订单、售后、资金或站内消息。</p></div><el-tag type="warning">外部通道生产默认关闭</el-tag></div>
-    <el-alert title="本页只展示运行状态、硬上限和脱敏结果，不提供人工重发，也不能在后台绕过客户配置门禁。" type="warning" :closable="false"/>
+    <el-alert title="用户通知不提供人工重发；微信发货同步仅允许授权管理员确认后重新排队，不能绕过客户配置门禁。" type="warning" :closable="false"/>
     <div class="runtime-grid">
       <div class="runtime-card"><span>外部发送总门禁</span><b>{{ runtime.externalEnabled && runtime.workerEnabled ? '已开启' : '关闭' }}</b></div>
       <div class="runtime-card"><span>通知短信</span><b>{{ runtime.smsStatus || '读取中' }}</b></div>
       <div class="runtime-card"><span>App 推送</span><b>{{ runtime.appPushStatus || '读取中' }}</b></div>
       <div class="runtime-card"><span>小程序通知</span><b>{{ runtime.miniProgramStatus || '读取中' }}</b></div>
     </div>
+    <section class="sms-readiness-panel">
+      <h3>微信提醒逐项配置</h3>
+      <p>四类提醒分别检查。配置就绪不代表用户已授权或微信已送达，不在这里开启运行门禁。</p>
+      <ul class="readiness-list"><li v-for="item in runtime.miniProgramTemplates || []" :key="item.eventType" :class="{passed:item.runtimeReady}">
+        <i>{{item.runtimeReady?'✓':'!'}}</i><div><strong>{{item.title}} · {{item.templateConfigured?'模板已配置':'待配置'}}</strong><p>{{item.detail}}</p></div>
+      </li></ul>
+    </section>
+    <WeChatShippingPanel />
     <section class="sms-readiness-panel">
       <div class="readiness-head">
         <div><h3>通知短信开通进度</h3><p>集中核对合规、服务商、模板、事件、费用和运行门禁；本页不会一键开启或发送短信。</p></div>
@@ -47,6 +55,7 @@
   </div>
 </template>
 <script setup>
+import WeChatShippingPanel from './wechat-shipping-panel.vue'
 import{computed,onMounted,ref}from'vue';import{ElMessage}from'element-plus';import{listMessageTemplates,updateMessageTemplate,listMessageChannels,updateInAppChannel,listMessageDeliveries,getNotificationRuntime,listNotificationBudgets,listDeliveryAttempts}from'@/api/messageOperation'
 const tab=ref('templates'),templates=ref([]),channels=ref([]),deliveries=ref([]),budgets=ref([]),runtime=ref({}),attempts=ref([]),pageNum=ref(1),total=ref(0),dialog=ref(false),attemptDialog=ref(false),form=ref({})
 const statusText={SUCCESS:'站内已完成',PENDING:'待领取',SENDING:'发送或查单中',ACCEPTED:'供应商已受理',DELIVERED:'已送达',RETRYABLE:'等待重试',PERMANENT:'永久失败',SUPPRESSED:'安全抑制',EXPIRED:'已过期',PREPARED:'已预留预算',SUBMITTED:'已提交供应商',UNKNOWN:'结果待查询'}

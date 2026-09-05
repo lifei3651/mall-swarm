@@ -1,0 +1,18 @@
+<view class="page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
+  <view wx:if="{{loading}}" class="empty">正在加载活动…</view>
+  <view wx:elif="{{error}}" class="empty"><text>{{error}}</text><button class="secondary-button" bindtap="load">重新加载</button></view>
+  <block wx:elif="{{rows.length}}">
+    <view wx:for="{{rows}}" wx:key="activity.id" class="card campaign-card">
+      <image wx:if="{{item.product.coverUrl && !item.product.imageFailed}}" class="campaign-cover" src="{{item.product.coverUrl}}" mode="aspectFill" data-index="{{index}}" binderror="imageError" />
+      <view wx:else class="campaign-cover media-fallback"><image src="/assets/lingqi-logo-mark.png" mode="aspectFit" /></view>
+      <view class="campaign-copy"><view class="campaign-title">{{item.activity.activityName}}</view><view>{{item.product.productName}} {{item.sku.skuName || ''}}</view>
+        <view class="product-price">¥{{item.priceText}}</view><view class="muted">剩余 {{item.activity.availableStock}} 件 · 每人限购 {{item.activity.perUserLimit}} 件</view>
+        <view class="muted">{{item.activity.startTime}} 至 {{item.activity.endTime}}</view>
+        <picker wx:if="{{item.canBuy}}" range="{{item.quantities}}" value="{{item.quantity - 1}}" data-id="{{item.activity.id}}" bindchange="quantityChange"><view class="quantity">购买数量：{{item.quantity}} 件 · 点击选择</view></picker>
+        <button class="primary-button" disabled="{{!item.canBuy}}" data-id="{{item.activity.id}}" bindtap="buy">{{item.label}}</button>
+      </view>
+    </view>
+    <view class="empty">活动资格、库存和结算金额以服务器实时核验为准</view>
+  </block>
+  <view wx:else class="empty">暂无可展示的活动</view>
+</view>

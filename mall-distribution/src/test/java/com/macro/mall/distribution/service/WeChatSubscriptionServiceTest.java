@@ -110,4 +110,33 @@ class WeChatSubscriptionServiceTest {
         external.setWorkerEnabled(false);
         assertEquals(List.of(), service.publicTemplates());
     }
+
+    @Test
+    void reportsEachMissingTemplateInsteadOfClaimingAllFourReady() {
+        var rows = service.readiness();
+        assertEquals(4, rows.size());
+        assertEquals(1, rows.stream().filter(row -> row.templateConfigured()).count());
+        assertEquals(1, rows.stream().filter(row -> row.runtimeReady()).count());
+        assertEquals("WITHDRAW_PAID", rows.get(3).eventType());
+        external.setWorkerEnabled(false);
+        assertEquals(0, service.readiness().stream().filter(row -> row.runtimeReady()).count());
+        assertEquals(1, service.readiness().stream().filter(row -> row.templateConfigured()).count());
+    }
+
+    @Test
+    void rejectsFourTemplatesEvenIfCalledWithoutControllerValidation() {
+        WeChatSubscriptionGrantDTO input = new WeChatSubscriptionGrantDTO();
+        input.setRequestId("request_1234567890");
+        input.setAcceptedTemplateIds(List.of("a", "b", "c", "d"));
+        assertThrows(ApiException.class, () -> service.record(member, input));
+        verify(grantDao, never()).insertIgnore(any());
+        verify(identityDao, never()).selectByMember(any(), any(), any());
+    }
+
+    @Test
+    void invalidTemplateTargetIsNotReportedReadyOrOfferedForSubscription() {
+        properties.getSubscriptionTemplates().get("ORDER_SHIPPED").setPage("https://not-a-mini-page.example");
+        assertEquals(0, service.readiness().stream().filter(row -> row.templateConfigured()).count());
+        assertEquals(List.of(), service.publicTemplates());
+    }
 }

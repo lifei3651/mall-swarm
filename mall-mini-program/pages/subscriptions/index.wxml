@@ -5,14 +5,20 @@
     <text>可订阅发货、售后退款和到账等重要进度，不发送营销内容。</text>
   </view>
   <view wx:if="{{loading}}" class="empty">正在读取提醒设置…</view>
-  <view wx:elif="{{error}}" class="empty">{{error}}</view>
+  <view wx:elif="{{error}}" class="empty">{{error}}<button class="retry-button" bindtap="load">重新加载</button></view>
   <view wx:elif="{{!templates.length}}" class="empty">当前商城暂未开放微信服务提醒</view>
   <block wx:else>
     <view class="template-card" wx:for="{{templates}}" wx:key="templateId">
       <view><text>{{item.title}}</text><text>{{item.grantText}}</text></view>
       <text class="template-status {{item.availableGrants ? 'ready' : ''}}">{{item.availableGrants ? '已开启' : '待开启'}}</text>
     </view>
-    <button class="primary-button subscribe-button" loading="{{requesting}}" disabled="{{requesting}}" bindtap="subscribe">开启微信提醒</button>
-    <view class="notice"><text>微信提醒需要你主动同意，每次授权只用于一次服务进度通知。</text><text>拒绝授权不影响站内消息和商城正常使用。</text></view>
+    <button wx:if="{{pendingGrant}}" class="primary-button subscribe-button" loading="{{requesting}}" disabled="{{requesting}}" bindtap="syncGrant">同步授权结果</button>
+    <block wx:else>
+      <view class="subscription-group" wx:for="{{groups}}" wx:key="key">
+        <text class="group-title">{{item.title}}</text>
+        <button class="primary-button subscribe-button" data-group="{{item.key}}" loading="{{requesting}}" disabled="{{requesting}}" bindtap="subscribe">开启微信提醒{{groups.length > 1 ? '（第' + (index + 1) + '组）' : ''}}</button>
+      </view>
+    </block>
+    <view class="notice"><text>微信提醒需要你主动同意，每次授权只用于一次服务进度通知。</text><text wx:if="{{groups.length > 1}}">微信每次最多选择三类提醒，请按需分别开启每组。</text><text>拒绝授权不影响站内消息和商城正常使用。</text></view>
   </block>
 </view>

@@ -10,6 +10,9 @@ import com.macro.mall.distribution.notification.NotificationOperationsViewServic
 import com.macro.mall.distribution.entity.DmsMessageCostBudget;
 import com.macro.mall.distribution.entity.DmsMessageDeliveryAttempt;
 import com.macro.mall.distribution.vo.NotificationRuntimeStatusVO;
+import com.macro.mall.distribution.vo.WeChatShippingOperationsVO;
+import com.macro.mall.distribution.dto.WeChatShippingRetryDTO;
+import com.macro.mall.distribution.service.WeChatShippingOperationsService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +25,7 @@ import java.util.List;
 public class AdminMessageOperationController {
     private final MemberMessageService messageService;
     private final NotificationOperationsViewService notificationViewService;
+    private final WeChatShippingOperationsService shippingOperationsService;
 
     @GetMapping("/templates")
     public CommonResult<List<DmsMessageTemplate>> templates() { return CommonResult.success(messageService.listTemplates()); }
@@ -57,5 +61,16 @@ public class AdminMessageOperationController {
     public CommonResult<List<DmsMessageDeliveryAttempt>> attempts(@PathVariable Long taskId) {
         return CommonResult.success(notificationViewService.attempts(taskId));
     }
-    // 刻意不提供重发接口：特别是资金消息，普通管理员不能重放业务事实。
+    @GetMapping("/shipping-synchronizations")
+    public CommonResult<WeChatShippingOperationsVO> shippingSynchronizations(
+            @RequestParam(required = false) String status, @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        return CommonResult.success(shippingOperationsService.list(status, pageNum, pageSize));
+    }
+    @PostMapping("/shipping-synchronizations/{taskId}/retry")
+    public CommonResult<Void> retryShipping(@PathVariable Long taskId, @Valid @RequestBody WeChatShippingRetryDTO input) {
+        shippingOperationsService.retry(taskId, input.revision());
+        return CommonResult.success(null);
+    }
+    // 不提供资金消息重发；上述操作仅重新同步既有物流事实，不改变交易或资金。
 }

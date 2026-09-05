@@ -1,0 +1,13 @@
+{
+  "name": "node-forge",
+  "version": "1.4.0",
+  "source": "https://registry.npmjs.org/node-forge/-/node-forge-1.4.0.tgz",
+  "integrity": "sha512-LarFH0+6VfriEhqMMcLX2F7SwSXeWwnEAJEsYm5QKWchiVYVvJyV9v7UDvUv+w5HO23ZpQTXDv/GxdDdMyOuoQ==",
+  "license": "BSD-3-Clause",
+  "compiler": "esbuild@0.28.2",
+  "sha256": "b7a8751f60d4078603ae0290670b0bc7a13d234d89b74ac62a15ba93e18994b7",
+  "bytes": 109895,
+  "repository": "https://github.com/digitalbazaar/forge",
+  "regeneration": "node mall-mini-program/scripts/build-payload-crypto.mjs",
+  "restrictions": "Only RSA-OAEP SHA256/MGF1-SHA256 and AES-256-GCM are exposed. Default forge PRNG is replaced with a fail-closed stub; all entropy must be supplied by wx.getRandomValues."
+}

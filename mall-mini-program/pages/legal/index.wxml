@@ -1,0 +1,23 @@
+<view class="page legal-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
+  <view wx:if="{{loading}}" class="empty">正在加载…</view>
+  <view wx:elif="{{error}}" class="empty"><text>{{error}}</text><button class="secondary-button" bindtap="load">重新加载</button></view>
+  <block wx:else>
+    <view wx:if="{{!type}}" class="card legal-menu"><button wx:for="{{entries}}" wx:key="type" data-type="{{item.type}}" bindtap="open">{{item.title}}<text>查看</text></button></view>
+    <view wx:elif="{{type === 'license'}}" class="card legal-content">
+      <view class="info"><text>运营主体</text><text user-select>{{config.companyName || '暂未配置'}}</text></view>
+      <view class="info"><text>统一社会信用代码</text><text user-select>{{config.unifiedSocialCreditCode || '暂未配置'}}</text></view>
+      <view class="info"><text>经营地址</text><text user-select>{{config.companyAddress || '暂未配置'}}</text></view>
+      <view class="info"><text>ICP备案号</text><text user-select>{{config.icpNumber || '暂未配置'}}</text></view>
+      <view class="info"><text>公安备案号</text><text user-select>{{config.policeRecordNumber || '暂未配置'}}</text></view>
+      <image wx:if="{{config.businessLicenseUrl && config.showBusinessLicense !== false}}" class="license-image" src="{{config.businessLicenseUrl}}" mode="widthFix" />
+    </view>
+    <view wx:elif="{{type === 'contact'}}" class="card legal-content">
+      <view class="info"><text>客服电话</text><text user-select>{{config.servicePhone || '暂未配置'}}</text></view>
+      <view class="info"><text>客服邮箱</text><text user-select>{{config.serviceEmail || '暂未配置'}}</text></view>
+      <view class="info"><text>服务时间</text><text>{{config.serviceHours || '以客服实际在线时间为准'}}</text></view>
+      <button class="primary-button" open-type="contact">在线客服</button>
+    </view>
+    <view wx:elif="{{type === 'faq'}}" class="card legal-content"><view wx:for="{{faqs}}" wx:key="index" class="faq"><view class="question">{{item.question}}</view><text user-select>{{item.answer}}</text></view><view wx:if="{{!faqs.length}}" class="empty">暂未配置常见问题，请联系客服。</view></view>
+    <view wx:else class="card legal-content"><text user-select>{{content || '该内容暂未配置，请联系客服。'}}</text></view>
+  </block>
+</view>

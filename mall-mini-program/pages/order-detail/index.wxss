@@ -39,6 +39,11 @@
 .next-action, .audit-remark { display: block; margin-top: 14rpx; color: #6c5630; font-size: 23rpx; line-height: 36rpx; }
 .audit-remark { padding-top: 12rpx; border-top: 1rpx solid #f2dfc3; }
 .cancel-after-sale { width: 190rpx; margin: 18rpx 0 0 auto; font-size: 23rpx; }
-.detail-actions { display: flex; justify-content: flex-end; gap: 14rpx; margin-top: 24rpx; }
+.detail-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 14rpx; margin-top: 24rpx; }
 .detail-actions button { width: 220rpx; margin: 0; font-size: 25rpx; }
 .all-orders { margin-top: 24rpx; font-size: 26rpx; }
+.detail-page .sale-action { width: 100%; margin-top: 16rpx; font-size: 25rpx; }
+.shipment-form { margin-top: 18rpx; padding: 20rpx; background: var(--paper); border-radius: 18rpx; }
+.form-label { display: block; margin: 18rpx 0 12rpx; color: var(--ink); font-size: 24rpx; }
+.shipment-input { min-height: 84rpx; padding: 0 16rpx; border: 1rpx solid var(--line); border-radius: 12rpx; color: var(--ink); font-size: 26rpx; }
+.shipment-error { display: block; margin-top: 16rpx; color: #b42318; font-size: 24rpx; line-height: 36rpx; }

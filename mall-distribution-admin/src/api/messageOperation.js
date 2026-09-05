@@ -7,3 +7,5 @@ export const listMessageDeliveries=(params)=>request({url:'/shop/admin/message-o
 export const getNotificationRuntime=()=>request({url:'/shop/admin/message-operations/runtime',method:'get'})
 export const listNotificationBudgets=()=>request({url:'/shop/admin/message-operations/budgets',method:'get'})
 export const listDeliveryAttempts=(taskId)=>request({url:`/shop/admin/message-operations/deliveries/${taskId}/attempts`,method:'get'})
+export const listShippingSynchronizations=(params)=>request({url:'/shop/admin/message-operations/shipping-synchronizations',method:'get',params})
+export const requeueShippingSynchronization=(taskId,revision)=>request({url:`/shop/admin/message-operations/shipping-synchronizations/${encodeURIComponent(taskId)}/retry`,method:'post',data:{revision}})

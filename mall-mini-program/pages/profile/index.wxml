@@ -44,9 +44,13 @@
       <image class="service-icon" src="/assets/profile/wallet.png" mode="aspectFit" aria-hidden="true" /><text class="menu-name">微信收款确认</text>
       <text class="unread-badge">{{payoutCount > 99 ? '99+' : payoutCount}}</text><image class="menu-arrow" src="/assets/profile/chevron-right.png" aria-hidden="true" />
     </button>
+    <button wx:if="{{loggedIn}}" class="menu-row" bindtap="security" aria-label="管理账号与密码" hover-class="row-pressed">
+      <image class="service-icon" src="/assets/profile/user-round.png" mode="aspectFit" aria-hidden="true" /><text class="menu-name">账号与安全</text><image class="menu-arrow" src="/assets/profile/chevron-right.png" aria-hidden="true" />
+    </button>
     <button class="menu-row contact-row" open-type="contact" show-message-card aria-label="联系在线客服" hover-class="row-pressed">
       <image class="service-icon" src="/assets/profile/headset.png" mode="aspectFit" aria-hidden="true" /><text class="menu-name">在线客服</text><image class="menu-arrow" src="/assets/profile/chevron-right.png" aria-hidden="true" />
     </button>
   </view>
+  <button class="legal-link" bindtap="legal">用户协议 · 隐私政策 · 商城资质</button>
   <button wx:if="{{loggedIn}}" class="logout" bindtap="logout" hover-class="row-pressed">退出登录</button>
 </view>

@@ -1,6 +1,7 @@
 const request = require('../../utils/request')
 const auth = require('../../utils/auth')
 const theme = require('../../utils/theme')
+const format = require('../../utils/format')
 
 const CATEGORIES = [
   { key: '', label: '全部' },
@@ -28,12 +29,15 @@ Page({
     error: '',
     subscriptionAvailable: false
   },
-  onLoad() { theme.apply(this); if (auth.requireLogin('/pages/messages/index')) this.load(true) },
-  onShow() { theme.sync(this); if (this.loadedOnce && auth.requireLogin('/pages/messages/index')) this.load(true) },
+  onLoad() { theme.apply(this) },
+  onShow() { theme.sync(this); if (!this.fetching) return this.load(true) },
   onPullDownRefresh() { this.load(true).finally(() => wx.stopPullDownRefresh()) },
   async load(reset) {
+    if (!auth.requireLogin('/pages/messages/index')) return
     if (this.data.loading && !reset) return
-    this.setData({ loading: true, error: '' })
+    const sequence = this.sequence = (this.sequence || 0) + 1
+    this.fetching = true
+    this.setData({ loading: true, error: '', ...(reset ? { rows: [], pageNum: 0, totalPage: 1 } : {}) })
     try {
       const next = reset ? 1 : this.data.pageNum + 1
       const [page, unread, templates] = await Promise.all([
@@ -44,6 +48,7 @@ Page({
         request({ url: '/shop/messages/unread' }),
         request({ url: '/shop/wechat-mini-program/subscriptions' }).catch(() => [])
       ])
+      if (sequence !== this.sequence) return
       const incoming = (page.list || []).map((item) => ({
         ...item,
         displayTime: formatTime(item.occurredTime || item.createTime)
@@ -62,9 +67,9 @@ Page({
         subscriptionAvailable: Boolean(templates && templates.length)
       })
     } catch (error) {
-      this.setData({ error: error.message || '消息加载失败' })
+      if (sequence === this.sequence) this.setData({ error: error.message || '消息加载失败' })
     } finally {
-      this.setData({ loading: false })
+      if (sequence === this.sequence) { this.fetching = false; this.setData({ loading: false }) }
     }
   },
   retry() { this.load(true) },
@@ -72,7 +77,8 @@ Page({
     this.setData({ category: String(event.currentTarget.dataset.key || '') }, () => this.load(true))
   },
   openMessage(event) {
-    wx.navigateTo({ url: `/pages/message-detail/index?id=${Number(event.currentTarget.dataset.id)}` })
+    const id = format.identifier(event.currentTarget.dataset.id)
+    if (id) wx.navigateTo({ url: `/pages/message-detail/index?id=${id}` })
   },
   subscriptions() { wx.navigateTo({ url: '/pages/subscriptions/index' }) },
   async readAll() {

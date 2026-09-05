@@ -1,6 +1,8 @@
 <view class="checkout-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
   <view wx:if="{{loading}}" class="empty">正在加载结算信息…</view>
   <block wx:else>
+    <view wx:if="{{loadError}}" class="checkout-error"><text>{{loadError}}</text><button bindtap="load">重新加载</button></view>
+    <view wx:if="{{activityName}}" class="section-kicker"><text>限时活动</text><text>{{activityName}}</text></view>
     <view class="section-kicker"><text>收货信息</text><text>请确认地址准确无误</text></view>
     <view class="address-card" bindtap="chooseAddress">
       <block wx:if="{{address}}">
@@ -27,10 +29,11 @@
         <button size="mini" loading="{{smsSending}}" disabled="{{smsSending || smsCooldown > 0}}" bindtap="sendPaymentSms">{{smsCooldown > 0 ? smsCooldown + '秒' : '获取验证码'}}</button>
       </view>
     </view>
-    <view class="amount-card"><view><text>商品金额</text><text>¥{{total}}</text></view><view><text>运费</text><text>{{freight === '--' ? '待确认' : '¥' + freight}}</text></view><view class="amount-total"><text>应付金额</text><text>¥{{payTotal || total}}</text></view></view>
+    <view wx:if="{{quoteError}}" class="checkout-error"><text>{{quoteError}}</text><button bindtap="retryQuote">重新计算</button></view>
+    <view class="amount-card"><view><text>商品金额</text><text>¥{{total}}</text></view><view><text>运费</text><text>{{freight === '--' ? '待确认' : '¥' + freight}}</text></view><view class="amount-total"><text>应付金额</text><text>{{quoteReady ? '¥' + payTotal : quoteLoading ? '正在计算…' : '待确认'}}</text></view></view>
     <view class="checkout-footer">
-      <view><text class="muted">应付</text><text>¥{{payTotal || total}}</text></view>
-      <button class="primary-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">提交并支付</button>
+      <view><text class="muted">应付</text><text>{{quoteReady ? '¥' + payTotal : '待确认'}}</text></view>
+      <button class="primary-button" loading="{{submitting || quoteLoading}}" disabled="{{submitting || loading || quoteLoading || !quoteReady}}" bindtap="submit">{{quoteLoading ? '金额计算中' : '提交并支付'}}</button>
     </view>
   </block>
 </view>

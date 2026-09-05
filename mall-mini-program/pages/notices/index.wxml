@@ -1,0 +1,7 @@
+<view class="page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
+  <view wx:if="{{loading}}" class="empty">正在加载…</view>
+  <view wx:elif="{{error}}" class="empty"><text>{{error}}</text><button class="secondary-button" bindtap="load">重新加载</button></view>
+  <view wx:elif="{{notice}}" class="card notice-detail"><view class="notice-title">{{notice.title}}</view><text user-select>{{notice.content}}</text></view>
+  <block wx:elif="{{rows.length}}"><button wx:for="{{rows}}" wx:key="id" class="card notice-row" data-id="{{item.id}}" bindtap="open">{{item.title}}<text>查看详情</text></button></block>
+  <view wx:else class="empty">暂无公告</view>
+</view>

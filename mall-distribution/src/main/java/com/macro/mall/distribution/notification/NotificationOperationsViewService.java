@@ -43,6 +43,7 @@ public class NotificationOperationsViewService {
         view.setSmsStatus(readiness.isReadyForMemberOptIn()?"已满足会员自主开启条件":"尚未开放（查看下方接入进度）");
         view.setAppPushStatus("仅有统一内核模拟适配器，未选择真实供应商");
         view.setMiniProgramStatus(miniProgramStatus());
+        view.setMiniProgramTemplates(subscriptionService.readiness());
         view.setBudgetStatus("租户、事件、渠道三层日/月上限均需大于零且未超额");
         view.setAuthorizationStatus("每位用户对应渠道必须存在有效授权和合格终端摘要");
         return view;
@@ -51,8 +52,9 @@ public class NotificationOperationsViewService {
     private String miniProgramStatus() {
         boolean subscriptionReady = subscriptionService.ready();
         boolean shippingReady = miniProgramProperties.shippingInfoReady() && weChatPayProperties.isConfigured();
-        if (subscriptionReady && shippingReady) return "订阅提醒与微信支付发货同步均已就绪";
-        if (subscriptionReady) return "订阅提醒已就绪；微信支付发货同步未开启";
+        long configured = subscriptionService.readiness().stream().filter(row -> row.templateConfigured()).count();
+        if (subscriptionReady) return "订阅模板已配置 " + configured + "/4 类；微信发货同步"
+                + (shippingReady ? "门禁已开启（请核对任务台账）" : "未开启");
         if (shippingReady) return "微信支付发货同步已就绪；订阅提醒未开启";
         if (!miniProgramProperties.loginReady()) return "待完成小程序正式密钥配置";
         if (!external.isEnabled() || !external.isWorkerEnabled()) return "小程序已接入；外部发送总门禁关闭";

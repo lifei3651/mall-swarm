@@ -13,6 +13,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.lang.reflect.Field;
+import java.lang.reflect.Array;
 import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
@@ -202,6 +203,12 @@ public class PayloadEncryptionServiceImpl implements PayloadEncryptionService {
             collection.forEach(item -> collectNested(item, result));
             return;
         }
+        if (value.getClass().isArray()) {
+            // Raw signed callback bodies (byte[]) contain no named fields and must remain opaque.
+            if (value.getClass().getComponentType().isPrimitive()) return;
+            for (int index = 0; index < Array.getLength(value); index++) collectNested(Array.get(value, index), result);
+            return;
+        }
         if (isTerminalType(value.getClass())) return;
 
         Class<?> type = value.getClass();
@@ -226,7 +233,8 @@ public class PayloadEncryptionServiceImpl implements PayloadEncryptionService {
     }
 
     private void collectNested(Object value, List<SensitiveField> result) {
-        if (value == null || isTerminalType(value.getClass())) return;
+        // Container dispatch must precede the java.* terminal guard, including nested Map/List values.
+        if (value == null) return;
         collectSensitiveFields(value, result);
     }
 

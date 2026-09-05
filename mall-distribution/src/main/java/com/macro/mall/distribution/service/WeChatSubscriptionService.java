@@ -14,6 +14,7 @@ import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsWechatMiniProgramIdentity;
 import com.macro.mall.distribution.notification.ExternalNotificationProperties;
 import com.macro.mall.distribution.vo.WeChatSubscriptionTemplateVO;
+import com.macro.mall.distribution.vo.WeChatSubscriptionReadinessVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -48,6 +49,21 @@ public class WeChatSubscriptionService {
                 && externalProperties.isEnabled() && externalProperties.isWorkerEnabled();
     }
 
+    public List<WeChatSubscriptionReadinessVO> readiness() {
+        List<WeChatSubscriptionReadinessVO> rows = new ArrayList<>();
+        String[][] events = {{"ORDER_SHIPPED", "订单发货提醒"}, {"AFTER_SALE_UPDATED", "售后进度提醒"},
+                {"REFUND_RESULT", "退款结果提醒"}, {"WITHDRAW_PAID", "提现打款提醒"}};
+        for (String[] event : events) {
+            boolean configured = template(event[0]) != null;
+            boolean runtime = configured && ready();
+            String detail = !configured ? "模板编号或字段/页面映射尚未配置完整"
+                    : !runtime ? "模板已配置，登录/订阅/外部发送运行门禁尚未全部开启"
+                    : "配置就绪；仍需对应事件渠道、预算门禁、用户逐次授权及真机送达验收";
+            rows.add(new WeChatSubscriptionReadinessVO(event[0], event[1], configured, runtime, detail));
+        }
+        return List.copyOf(rows);
+    }
+
     @Transactional(readOnly = true)
     public List<WeChatSubscriptionTemplateVO> status(DmsShopMember member) {
         requireMember(member);
@@ -58,6 +74,8 @@ public class WeChatSubscriptionService {
     public List<WeChatSubscriptionTemplateVO> record(DmsShopMember member, WeChatSubscriptionGrantDTO input) {
         requireMember(member);
         if (!ready()) Asserts.fail("当前小程序尚未开通订阅消息");
+        if (input == null || input.getAcceptedTemplateIds() == null || input.getAcceptedTemplateIds().isEmpty()
+                || input.getAcceptedTemplateIds().size() > 3) Asserts.fail("单次只能记录1至3个订阅模板");
         Set<String> accepted = new HashSet<>(input.getAcceptedTemplateIds());
         if (accepted.size() != input.getAcceptedTemplateIds().size()) Asserts.fail("订阅模板不能重复");
         Map<String, WeChatMiniProgramProperties.SubscriptionTemplate> configured = properties.getSubscriptionTemplates();

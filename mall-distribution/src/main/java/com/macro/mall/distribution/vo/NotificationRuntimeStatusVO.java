@@ -12,4 +12,5 @@ public class NotificationRuntimeStatusVO {
     private String budgetStatus;
     private String authorizationStatus;
     private ServiceSmsReadinessVO serviceSmsReadiness;
+    private java.util.List<WeChatSubscriptionReadinessVO> miniProgramTemplates;
 }

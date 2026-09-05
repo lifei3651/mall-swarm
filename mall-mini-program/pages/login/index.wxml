@@ -9,7 +9,7 @@
     <block wx:else>
       <view class="agreement">
         <checkbox-group bindchange="agreementChange" class="agreement-control"><checkbox class="agreement-checkbox" value="agreed" checked="{{agreed}}" color="{{themeColor}}" aria-label="阅读并同意隐私保护说明" /></checkbox-group>
-        <view class="agreement-copy"><text>我已阅读并同意</text><text class="privacy-link" bindtap="openPrivacy">《隐私保护说明》</text></view>
+        <view class="agreement-copy"><text>我已阅读并同意</text><text class="privacy-link" bindtap="openAgreement">《用户服务协议》</text><text>和</text><text class="privacy-link" bindtap="openPrivacy">《隐私政策》</text></view>
       </view>
       <button class="primary-button login-button" loading="{{submitting}}" disabled="{{submitting || !enabled}}" bindtap="returningLogin">商城账号登录</button>
       <button wx:if="{{phoneEnabled}}" class="secondary-button login-button register-button" open-type="getPhoneNumber" loading="{{submitting}}" disabled="{{submitting || !enabled}}" bindgetphonenumber="phoneLogin">首次使用，手机号快捷注册</button>

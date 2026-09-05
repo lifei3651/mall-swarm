@@ -1,0 +1,4 @@
+.notice-row { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 20rpx; padding: 28rpx; text-align: left; background: var(--paper); color: var(--ink); line-height: 1.6; font-size: 28rpx; }
+.notice-row text { flex: none; margin-left: 20rpx; font-size: 22rpx; color: var(--muted); }
+.notice-detail { padding: 32rpx; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 28rpx; line-height: 1.8; }
+.notice-title { margin-bottom: 24rpx; font-size: 36rpx; font-weight: 600; }

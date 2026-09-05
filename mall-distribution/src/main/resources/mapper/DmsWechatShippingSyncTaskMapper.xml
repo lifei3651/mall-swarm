@@ -24,6 +24,24 @@
     <select id="selectById" resultType="com.macro.mall.distribution.entity.DmsWechatShippingSyncTask">
         SELECT <include refid="Columns"/> FROM dms_wechat_shipping_sync_task WHERE id=#{id}
     </select>
+    <select id="selectScoped" resultType="com.macro.mall.distribution.entity.DmsWechatShippingSyncTask">
+        SELECT <include refid="Columns"/> FROM dms_wechat_shipping_sync_task WHERE tenant_id=#{tenantId} AND id=#{id}
+    </select>
+    <sql id="ScopedFilter">
+        tenant_id=#{tenantId}<if test="status != null and status != ''"> AND status=#{status}</if>
+    </sql>
+    <select id="listScoped" resultType="com.macro.mall.distribution.entity.DmsWechatShippingSyncTask">
+        SELECT <include refid="Columns"/> FROM dms_wechat_shipping_sync_task
+        WHERE <include refid="ScopedFilter"/> ORDER BY update_time DESC,id DESC LIMIT #{limit} OFFSET #{offset}
+    </select>
+    <select id="countScoped" resultType="long">
+        SELECT COUNT(*) FROM dms_wechat_shipping_sync_task WHERE <include refid="ScopedFilter"/>
+    </select>
+    <update id="retryPermanent">
+        UPDATE dms_wechat_shipping_sync_task SET status='PENDING',revision=revision+1,attempt_count=0,
+            next_retry_time=NULL,lease_owner=NULL,lease_until=NULL,error_code=NULL,update_time=CURRENT_TIMESTAMP
+        WHERE tenant_id=#{tenantId} AND id=#{id} AND revision=#{revision} AND status='PERMANENT'
+    </update>
     <update id="markSuccess">
         UPDATE dms_wechat_shipping_sync_task SET synced_revision=#{revision},payload_digest=#{payloadDigest},
           status=CASE WHEN revision=#{revision} THEN 'SUCCESS' ELSE 'PENDING' END,

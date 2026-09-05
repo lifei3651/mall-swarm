@@ -49,6 +49,23 @@
           <view class="after-sale-meta"><text>{{sale.createTimeText}}</text><text wx:if="{{sale.applyType !== 3}}">¥{{sale.amountText}}</text></view>
           <text wx:if="{{sale.nextActionHint}}" class="next-action">{{sale.nextActionHint}}</text>
           <text wx:if="{{sale.auditRemark}}" class="audit-remark">处理说明：{{sale.auditRemark}}</text>
+          <view wx:if="{{sale.canReturn}}" class="return-info">
+            <text class="next-action">退货地址：{{sale.returnAddress || '等待商家提供退货地址，请勿自行寄回'}}</text>
+            <text wx:if="{{sale.returnDeliveryNo}}" class="next-action">已寄回：{{sale.returnDeliveryCompany}} {{sale.returnDeliveryNo}}</text>
+            <button class="secondary-button sale-action" data-id="{{sale.id}}" bindtap="editShipment">{{sale.status === 5 ? '修改退货物流' : '填写退货物流'}}</button>
+          </view>
+          <text wx:if="{{sale.exchangeDeliveryNo}}" class="next-action">换货物流：{{sale.exchangeDeliveryCompany}} {{sale.exchangeDeliveryNo}}</text>
+          <button wx:if="{{sale.canReceiveExchange}}" class="primary-button sale-action" data-id="{{sale.id}}" loading="{{cancellingAfterSaleId === sale.id}}"
+            disabled="{{cancellingAfterSaleId !== null}}" bindtap="receiveExchange">确认收到换货商品</button>
+          <view wx:if="{{editingSaleId === sale.id}}" class="shipment-form">
+            <text class="form-label">快递公司</text>
+            <input class="shipment-input" value="{{deliveryCompany}}" data-field="deliveryCompany" bindinput="shipmentInput" maxlength="50" placeholder="例如：顺丰速运" disabled="{{submittingShipment}}" aria-label="退货快递公司" />
+            <text class="form-label">快递单号</text>
+            <input class="shipment-input" value="{{deliveryNo}}" data-field="deliveryNo" bindinput="shipmentInput" maxlength="64" placeholder="请输入4至64位快递单号" disabled="{{submittingShipment}}" aria-label="退货快递单号" />
+            <text wx:if="{{shipmentError}}" class="shipment-error">{{shipmentError}}</text>
+            <button class="primary-button sale-action" bindtap="submitShipment" loading="{{submittingShipment}}" disabled="{{submittingShipment}}">保存退货物流</button>
+            <button class="secondary-button sale-action" bindtap="closeShipment" disabled="{{submittingShipment}}">暂不填写</button>
+          </view>
           <button wx:if="{{sale.cancellable}}" class="secondary-button cancel-after-sale" data-id="{{sale.id}}"
             loading="{{cancellingAfterSaleId === sale.id}}" disabled="{{cancellingAfterSaleId !== null}}" bindtap="cancelAfterSale">取消申请</button>
         </view>
@@ -61,7 +78,8 @@
       <view class="detail-actions">
         <button wx:if="{{item.order.status === 0}}" class="secondary-button cancel-order"
           data-id="{{item.order.id}}" disabled="{{actingId !== null}}" bindtap="cancelOrder">取消订单</button>
-        <button wx:if="{{item.order.status === 2}}" class="primary-button receive-button"
+        <button wx:if="{{item.canApplyAfterSale}}" class="secondary-button" data-id="{{item.order.id}}" bindtap="applyAfterSale">申请售后</button>
+        <button wx:if="{{item.canReceive}}" class="primary-button receive-button"
           data-id="{{item.order.id}}" loading="{{actingId === item.order.id}}" disabled="{{actingId !== null}}"
           bindtap="receive">确认收货</button>
       </view>

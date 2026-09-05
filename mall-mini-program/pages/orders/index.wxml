@@ -6,7 +6,7 @@
     </view>
   </scroll-view>
   <view wx:if="{{loading}}" class="empty">正在加载订单…</view>
-  <view wx:elif="{{error}}" class="empty error-state"><text>{{error}}</text><button class="secondary-button" bindtap="load">重新加载</button></view>
+  <view wx:elif="{{error}}" class="empty error-state"><text>{{error}}</text><button class="secondary-button" bindtap="retry">重新加载</button></view>
   <view wx:elif="{{!rows.length}}" class="empty empty-orders"><text>这里还没有订单</text><button class="primary-button" bindtap="goShopping">去逛逛</button></view>
   <block wx:else>
     <view class="order-card" wx:for="{{rows}}" wx:key="key" data-id="{{item.order.id}}" bindtap="openDetail">

@@ -1,0 +1,17 @@
+.security-page { min-height: 100vh; padding: 24rpx 24rpx calc(48rpx + env(safe-area-inset-bottom)); }
+.panel { margin-bottom: 24rpx; padding: 28rpx; border-radius: var(--radius); color: var(--ink); background: var(--paper); }
+.section-title { margin-bottom: 20rpx; font-size: 31rpx; font-weight: 600; }
+.account-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; margin: 20rpx 0; font-size: 25rpx; line-height: 38rpx; }
+.account-row text:last-child { min-width: 0; max-width: 65%; color: var(--muted); word-break: break-all; text-align: right; }
+.field-label { display: block; margin: 26rpx 0 14rpx; font-size: 25rpx; font-weight: 500; }
+.field { box-sizing: border-box; width: 100%; min-height: 88rpx; padding: 0 18rpx; color: var(--ink); background: var(--paper); border: 1rpx solid var(--line); border-radius: 14rpx; font-size: 25rpx; }
+.hint { display: block; color: var(--muted); font-size: 23rpx; line-height: 37rpx; }
+.security-page .primary-button, .security-page .secondary-button { width: 100%; margin-top: 24rpx; font-size: 26rpx; }
+.sms-row { display: flex; align-items: stretch; gap: 12rpx; margin-bottom: 14rpx; }
+.code-input { flex: 1; min-width: 0; width: 0; }
+.security-page .sms-button { flex: none; width: 180rpx; min-width: 0; margin: 0; padding: 16rpx 8rpx; font-size: 24rpx; line-height: 54rpx; }
+.security-page button[disabled] { opacity: .5; }
+.error-message, .success-message { display: block; margin: 20rpx 8rpx; font-size: 25rpx; line-height: 38rpx; }
+.error-message { color: #b42318; }
+.success-message { color: #08754b; }
+.help-panel { margin-top: 24rpx; }

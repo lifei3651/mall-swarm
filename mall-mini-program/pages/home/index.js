@@ -9,6 +9,7 @@ Page({
     error: '',
     home: {},
     products: [],
+    campaigns: [], campaignError: '',
     keyword: '',
     ...theme.pageData(),
     logoFailed: false
@@ -45,8 +46,14 @@ Page({
       home.newArrivals = (home.newArrivals || []).map(format.product)
       home.liveRooms = (home.liveRooms || []).filter((item) => item && item.room).map((item) => ({ ...item, room: { ...item.room, coverUrl: format.mediaUrl(item.room.coverUrl) } }))
       const decoration = display.home(home.displayConfig)
+      let campaigns = [], campaignError = ''
+      if (decoration.layoutTemplate === 'campaign-feed') {
+        try {
+          campaigns = (await request({ url: '/shop/flash-sales' }) || []).filter((row) => row && row.activity && row.product).map((row) => ({ ...row, priceText: format.money(row.activity.flashPrice), stateText: ({ ACTIVE: '进行中', UPCOMING: '即将开始', SOLD_OUT: '已抢完', ENDED: '已结束' })[row.activityState] || '暂不可用' }))
+        } catch (_) { campaignError = '限时活动加载失败，点击重新查看' }
+      }
       const brandCultureEnabled = display.toggle(home.brandCultureEnabled, false)
-      this.setData({ home, products, ...palette, ...decoration, brandCultureEnabled, logoFailed: false, error: '' })
+      this.setData({ home, products, campaigns, campaignError, ...palette, ...decoration, brandCultureEnabled, logoFailed: false, error: '' })
       this.loadedOnce = true
       wx.setNavigationBarTitle({ title: home.brandName || '商城首页' })
     } catch (error) {
@@ -82,6 +89,14 @@ Page({
     this.setData({ [`products[${index}].imageFailed`]: true })
   },
   onKeywordInput(event) { this.setData({ keyword: event.detail.value }) },
+  notices() { wx.navigateTo({ url: '/pages/notices/index' }) },
+  campaign(event) { const id = format.identifier(event.currentTarget.dataset.id); wx.navigateTo({ url: `/pages/campaign/index${id ? '?id=' + id : ''}` }) },
+  allProducts() {
+    wx.switchTab({ url: '/pages/category/index', success: () => {
+      const pages = getCurrentPages(); const page = pages[pages.length - 1]
+      if (page && page.showAll) page.showAll()
+    } })
+  },
   search() {
     const keyword = String(this.data.keyword || '').trim()
     wx.switchTab({ url: '/pages/category/index', success: () => {

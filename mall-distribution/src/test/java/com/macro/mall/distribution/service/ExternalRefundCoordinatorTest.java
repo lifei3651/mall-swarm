@@ -15,6 +15,7 @@ import com.macro.mall.distribution.entity.DmsShopOrderShipment;
 import com.macro.mall.distribution.service.impl.ExternalRefundCoordinator;
 import com.macro.mall.distribution.wechat.WeChatPayGateway;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionStatus;
 
@@ -29,6 +30,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
 
 class ExternalRefundCoordinatorTest {
     @Test
@@ -296,6 +299,78 @@ class ExternalRefundCoordinatorTest {
         verify(orderDao, never()).closeAfterSale(2L);
         verifyNoInteractions(inventoryRestockService);
     }
+
+    @Test
+    void remainingItemWechatRefundEnqueuesLatestShippingRevisionOnceAfterStateTransition() {
+        PartialWechatRefund fixture = partialWechatRefund();
+        fixture.coordinator.completeWechatRefund(fixture.notification);
+        var sequence = org.mockito.Mockito.inOrder(fixture.orderDao, fixture.shipping, fixture.manager);
+        sequence.verify(fixture.orderDao).ship(2L, "顺丰速运", "SF-PARTIAL-001");
+        sequence.verify(fixture.shipping).enqueue(fixture.order);
+        sequence.verify(fixture.manager).commit(any());
+        // 数据库已完成状态的重复回调只验单/验金额，不再升发货同步版本。
+        fixture.sale.setStatus(1);
+        fixture.coordinator.completeWechatRefund(fixture.notification);
+        verify(fixture.shipping, times(1)).enqueue(fixture.order);
+        verify(fixture.saleDao, times(1)).markRefundCompleted(1L);
+    }
+
+    @Test
+    void shippingQueuePersistenceFailureRollsBackRefundLocalCompletionAndCanRetry() {
+        PartialWechatRefund fixture = partialWechatRefund();
+        doThrow(new IllegalStateException("任务保存失败")).when(fixture.shipping).enqueue(fixture.order);
+        assertThrows(IllegalStateException.class, () -> fixture.coordinator.completeWechatRefund(fixture.notification));
+        verify(fixture.manager).rollback(any());
+        // 第一次仅验单的只读事务提交；完成事务不能在任务未保存时提交。
+        verify(fixture.manager, times(1)).commit(any());
+        verify(fixture.saleDao).markRefundCompleted(1L);
+    }
+
+    @Test
+    void mismatchedWechatRefundAmountNeverEnqueuesShippingOrCompletesSale() {
+        PartialWechatRefund fixture = partialWechatRefund();
+        assertThrows(ApiException.class, () -> fixture.coordinator.completeWechatRefund(
+                new WeChatPayGateway.RefundNotification("SUCCESS", "ORDER-2", "AS-1", 1L, 9900L, "CNY")));
+        verifyNoInteractions(fixture.shipping);
+        verify(fixture.saleDao, never()).markRefundCompleted(1L);
+    }
+
+    private PartialWechatRefund partialWechatRefund() {
+        DmsShopAfterSaleDao saleDao = mock(DmsShopAfterSaleDao.class);
+        DmsShopAfterSaleItemDao saleItemDao = mock(DmsShopAfterSaleItemDao.class);
+        DmsShopOrderDao orderDao = mock(DmsShopOrderDao.class);
+        DmsShopOrderItemDao itemDao = mock(DmsShopOrderItemDao.class);
+        DmsShopOrderShipmentDao shipmentDao = mock(DmsShopOrderShipmentDao.class);
+        PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
+        WeChatShippingInfoService shipping = mock(WeChatShippingInfoService.class);
+        when(manager.getTransaction(any())).thenReturn(mock(TransactionStatus.class));
+        DmsShopAfterSale sale = pendingSale();
+        DmsShopOrder order = wechatOrder();
+        order.setStatus(1);
+        when(saleDao.selectByAfterSaleNoForUpdate("AS-1")).thenReturn(sale);
+        when(saleDao.selectByIdForUpdate(1L)).thenReturn(sale);
+        when(saleDao.markRefundCompleted(1L)).thenReturn(1);
+        when(orderDao.selectByIdForUpdate(2L)).thenReturn(order);
+        when(itemDao.selectByOrderId(2L)).thenReturn(List.of(orderItem(2)));
+        when(saleItemDao.sumApprovedQuantityByOrderId(2L)).thenReturn(1);
+        DmsShopOrderShipment shipment = new DmsShopOrderShipment();
+        shipment.setDeliveryCompany("顺丰速运");
+        shipment.setDeliveryNo("SF-PARTIAL-001");
+        when(shipmentDao.sumQuantityByOrderId(2L)).thenReturn(1);
+        when(shipmentDao.selectByOrderId(2L)).thenReturn(List.of(shipment));
+        when(orderDao.ship(2L, "顺丰速运", "SF-PARTIAL-001")).thenReturn(1);
+        ExternalRefundCoordinator coordinator = new ExternalRefundCoordinator(saleDao, saleItemDao,
+                orderDao, itemDao, shipmentDao, mock(DmsAgentDao.class), mock(AgentService.class),
+                mock(RefundInventoryRestockService.class), mock(DmsShopTradeDao.class),
+                mock(AlipayService.class), mock(WeChatPayService.class), manager);
+        ReflectionTestUtils.setField(coordinator, "weChatShippingInfoService", shipping);
+        return new PartialWechatRefund(coordinator, saleDao, orderDao, manager, shipping, sale, order,
+                new WeChatPayGateway.RefundNotification("SUCCESS", "ORDER-2", "AS-1", 9900L, 9900L, "CNY"));
+    }
+
+    private record PartialWechatRefund(ExternalRefundCoordinator coordinator, DmsShopAfterSaleDao saleDao,
+            DmsShopOrderDao orderDao, PlatformTransactionManager manager, WeChatShippingInfoService shipping,
+            DmsShopAfterSale sale, DmsShopOrder order, WeChatPayGateway.RefundNotification notification) { }
 
     private DmsShopAfterSale pendingSale() {
         DmsShopAfterSale sale = new DmsShopAfterSale();

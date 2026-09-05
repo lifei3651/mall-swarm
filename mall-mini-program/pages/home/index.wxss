@@ -1,5 +1,5 @@
 .brand-head { display: flex; align-items: center; padding: 10rpx 4rpx 26rpx; }
-.brand-logo-shell { display: flex; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; border: 1rpx solid var(--line); border-radius: 24rpx; background: var(--brand-soft); box-shadow: 0 8rpx 24rpx rgba(35,42,56,.07); overflow: hidden; }
+.brand-logo-shell { display: flex; flex: none; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; border: 1rpx solid var(--line); border-radius: 24rpx; background: var(--brand-soft); box-shadow: 0 8rpx 24rpx rgba(35,42,56,.07); overflow: hidden; }
 .brand-logo { width: 74rpx; height: 74rpx; }
 .brand-logo-fallback { width: 62rpx; height: 62rpx; }
 .brand-copy { margin-left: 18rpx; }
@@ -33,8 +33,8 @@
 .home-page { padding-bottom: calc(160rpx + env(safe-area-inset-bottom)); }
 .brand-head { background: var(--header); border-radius: var(--radius); padding: 20rpx; margin-bottom: 20rpx; }
 .brand-copy { flex: 1; min-width: 0; }
-.brand-name { overflow-wrap: break-word; }
-.culture-link { flex: none; margin: 0 0 0 8rpx; padding: 8rpx; background: transparent; color: var(--accent); font-size: 22rpx; }
+.brand-name, .brand-note { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-page .culture-link { flex: none; width: auto; min-width: 0; margin: 0 0 0 8rpx; padding: 8rpx; background: transparent; color: var(--accent); font-size: 22rpx; }
 .search-box { border-color: var(--line); background: var(--paper); }
 .search-box button { background: var(--button); }
 .arrival-row { display: flex; gap: 18rpx; }
@@ -53,3 +53,7 @@
 .layout-campaign-feed .product-media, .layout-campaign-feed .product-cover { height: 580rpx; }
 .layout-campaign-feed .product-title { min-height: 0; }
 .layout-campaign-feed .product-price { margin-top: 18rpx; }
+.campaign-entry { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 24rpx; margin-bottom: 20rpx; background: var(--paper); text-align: left; color: var(--ink); font-size: 28rpx; line-height: 1.5; }
+.campaign-entry view { min-width: 0; margin-right: 20rpx; }
+.campaign-entry view text { display: block; }
+.campaign-entry .muted { font-size: 22rpx; margin-top: 8rpx; }

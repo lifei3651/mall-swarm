@@ -20,6 +20,8 @@ import com.macro.mall.distribution.service.AgentService;
 import com.macro.mall.distribution.service.AlipayService;
 import com.macro.mall.distribution.service.RefundInventoryRestockService;
 import com.macro.mall.distribution.service.WeChatPayService;
+import com.macro.mall.distribution.service.WeChatShippingInfoService;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.macro.mall.distribution.wechat.WeChatPayGateway;
 import cn.hutool.crypto.SecureUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -49,6 +51,7 @@ public class ExternalRefundCoordinator {
     private final AlipayService alipayService;
     private final WeChatPayService weChatPayService;
     private final TransactionTemplate transactionTemplate;
+    @Autowired private WeChatShippingInfoService weChatShippingInfoService;
 
     public ExternalRefundCoordinator(DmsShopAfterSaleDao afterSaleDao, DmsShopAfterSaleItemDao afterSaleItemDao,
                                      DmsShopOrderDao orderDao, DmsShopOrderItemDao orderItemDao,
@@ -239,5 +242,7 @@ public class ExternalRefundCoordinator {
         if (orderDao.ship(order.getId(), latest.getDeliveryCompany(), latest.getDeliveryNo()) != 1) {
             throw new IllegalStateException("外部渠道已退款，但订单发货状态同步失败，请使用同一售后单重试恢复");
         }
+        // 退款使已有包裹覆盖剩余应发数量：与退款完成同事务更新同步版本，不能只等新包裹事件。
+        if ("WECHAT".equalsIgnoreCase(order.getPayType())) weChatShippingInfoService.enqueue(order);
     }
 }

@@ -15,10 +15,12 @@ function isUserCancel(error) {
 
 Page({
   data: { ...theme.pageData(), loading: true, error: '', rows: [], actingId: null },
-  onLoad() { theme.apply(this); if (auth.requireLogin('/pages/payout/index')) this.load() },
-  onShow() { theme.sync(this); if (this.loadedOnce && auth.requireLogin('/pages/payout/index')) this.load() },
+  onLoad() { theme.apply(this) },
+  onShow() { theme.sync(this); if (!this.fetching) return this.load() },
   onPullDownRefresh() { this.load().finally(() => wx.stopPullDownRefresh()) },
   async load() {
+    if (this.fetching || !auth.requireLogin('/pages/payout/index')) return
+    this.fetching = true
     this.setData({ loading: true, error: '' })
     try {
       const records = await request({ url: '/shop/wallet/withdrawals' })
@@ -30,11 +32,12 @@ Page({
     } catch (error) {
       this.setData({ error: error.message || '收款记录加载失败' })
     } finally {
+      this.fetching = false
       this.setData({ loading: false })
     }
   },
   async confirm(event) {
-    const withdrawId = Number(event.currentTarget.dataset.id)
+    const withdrawId = format.identifier(event.currentTarget.dataset.id)
     if (!withdrawId || this.data.actingId) return
     if (!wx.canIUse || !wx.canIUse('requestMerchantTransfer')) {
       wx.showModal({

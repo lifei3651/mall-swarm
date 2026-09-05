@@ -7,9 +7,21 @@ let brandPromise = null
 let refreshedAt = 0
 let revision = 0
 
-function normalizeColor(value) {
-  return /^#[0-9a-fA-F]{6}$/.test(String(value || '')) ? String(value).toLowerCase() : DEFAULT_COLOR
+function opaqueColor(value, fallback) {
+  const valid = display.color(value, '')
+  if (!valid) return fallback
+  let channels, alpha = 1
+  if (valid.startsWith('#')) {
+    const hex = valid.length === 4 ? valid.slice(1).split('').map((part) => part + part).join('') : valid.slice(1)
+    channels = [0, 2, 4].map((index) => parseInt(hex.slice(index, index + 2), 16))
+    if (hex.length === 8) alpha = parseInt(hex.slice(6), 16) / 255
+  } else {
+    const parts = valid.slice(valid.indexOf('(') + 1, -1).split(',').map(Number)
+    channels = parts.slice(0, 3); alpha = parts.length === 4 ? parts[3] : 1
+  }
+  return '#' + channels.map((channel) => Math.round(channel * alpha + 255 * (1 - alpha)).toString(16).padStart(2, '0')).join('')
 }
+function normalizeColor(value) { return opaqueColor(value, DEFAULT_COLOR) }
 
 function softColor(value) {
   const color = normalizeColor(value)
@@ -18,10 +30,7 @@ function softColor(value) {
 }
 
 function nativeColor(value) {
-  let text = String(value || '')
-  if (/^#[a-f\d]{3}$/i.test(text)) text = '#' + text.slice(1).split('').map((char) => char + char).join('')
-  if (/^#[a-f\d]{6}$/i.test(text)) return text
-  return '#ffffff'
+  return opaqueColor(value, '#ffffff')
 }
 
 function currentColor() {
@@ -42,7 +51,7 @@ function currentBrand() {
 function pageData(value) {
   const brand = typeof value === 'object' && value ? value : { ...currentBrand(), ...(value ? { themeColor: value } : {}) }
   const colors = display.palette(brand)
-  const themeColor = colors.primary
+  const themeColor = normalizeColor(colors.primary)
   const themeSoftColor = softColor(themeColor)
   const variables = { brand: themeColor, 'brand-soft': themeSoftColor, canvas: colors.pageBg, header: colors.headerBg, paper: colors.cardBg, ink: colors.textColor, muted: colors.mutedColor, price: colors.priceColor, accent: colors.accentColor, line: colors.lineColor, button: colors.buttonBg, radius: colors.radius }
   return { themeColor, themeSoftColor, themeStyle: Object.entries(variables).map(([key, val]) => `--${key}: ${val}`).join(';') + `;background:${colors.pageBg};color:${colors.textColor}`, bottomNav: display.navigation(brand.displayConfig || {}), ...display.category(brand.displayConfig || {}) }

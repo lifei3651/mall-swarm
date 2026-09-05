@@ -11,6 +11,9 @@
 .template-status { flex: none; padding: 7rpx 14rpx; border-radius: 999rpx; color: #7d8592; background: #f2f3f5; font-size: 22rpx; }
 .template-status.ready { color: #087d48; background: #eaf8f1; }
 .subscribe-button { margin-top: 34rpx; font-size: 27rpx; }
+.subscription-group { margin-top: 28rpx; }
+.group-title { display: block; color: var(--muted); font-size: 23rpx; line-height: 36rpx; }
+.subscription-group .subscribe-button { margin-top: 12rpx; }
 .notice { margin: 24rpx 12rpx; color: #777f8e; font-size: 23rpx; line-height: 40rpx; }
 .notice text { display: block; }
 .notice text + text { margin-top: 8rpx; }

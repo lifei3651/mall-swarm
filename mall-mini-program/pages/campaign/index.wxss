@@ -1,0 +1,8 @@
+.campaign-card { overflow: hidden; margin-bottom: 24rpx; }
+.campaign-cover { display: block; width: 100%; height: 320rpx; }
+.campaign-copy { padding: 28rpx; font-size: 26rpx; line-height: 1.6; }
+.campaign-title { font-size: 34rpx; font-weight: 600; margin-bottom: 12rpx; }
+.campaign-copy .product-price { margin: 16rpx 0; }
+.campaign-copy .muted { margin-bottom: 12rpx; font-size: 23rpx; overflow-wrap: anywhere; }
+.quantity { margin: 20rpx 0; padding: 20rpx; border: 1rpx solid var(--line); border-radius: 16rpx; }
+.campaign-copy button { width: 100%; }

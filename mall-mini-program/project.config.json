@@ -4,6 +4,12 @@
   "libVersion": "3.7.12",
   "projectname": "lingqi-mall-mini-program",
   "miniprogramRoot": "./",
+  "packOptions": {
+    "ignore": [
+      { "type": "folder", "value": "scripts" },
+      { "type": "folder", "value": "tests" }
+    ]
+  },
   "setting": {
     "es6": true,
     "enhance": true,

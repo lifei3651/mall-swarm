@@ -52,7 +52,7 @@ public class WeChatMiniProgramProperties {
 
     public boolean subscribeMessageReady() {
         return loginReady() && subscribeMessageEnabled
-                && subscriptionTemplates.values().stream().anyMatch(SubscriptionTemplate::ready);
+                && subscriptionTemplates.values().stream().anyMatch(template -> template != null && template.ready());
     }
 
     public boolean shippingInfoReady() {
@@ -83,7 +83,8 @@ public class WeChatMiniProgramProperties {
             return present(templateId)
                     && statusKey != null && statusKey.matches("^phrase[0-9]{1,3}$")
                     && timeKey != null && timeKey.matches("^(time|date)[0-9]{1,3}$")
-                    && remarkKey != null && remarkKey.matches("^thing[0-9]{1,3}$");
+                    && remarkKey != null && remarkKey.matches("^thing[0-9]{1,3}$")
+                    && (page == null || page.isBlank() || page.matches("^pages/[A-Za-z0-9_/?=&.-]{1,180}$"));
         }
 
         private boolean present(String value) {
