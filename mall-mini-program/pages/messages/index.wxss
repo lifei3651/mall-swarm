@@ -2,18 +2,18 @@
 .message-head { display: flex; align-items: flex-end; justify-content: space-between; padding: 30rpx; border: 1rpx solid var(--line); border-radius: 28rpx; background: linear-gradient(135deg, #fff 0%, var(--brand-soft) 100%); box-shadow: var(--shadow); color: var(--ink); }
 .message-head>view>view { font-size: 39rpx; font-weight: 750; }
 .message-head>view>text { display: block; margin-top: 9rpx; color: #687284; font-size: 22rpx; }
-.message-head button { flex: none; width: 150rpx; margin: 0; padding: 0; background: #fff; color: var(--brand); border: 1rpx solid var(--line); font-size: 23rpx; }
-.subscribe-card { display: flex; align-items: center; justify-content: space-between; margin-top: 18rpx; padding: 26rpx; border: 1rpx solid #e8eaf0; border-radius: 22rpx; background: #fff; box-shadow: var(--shadow); }
+.message-head button { flex: none; width: 150rpx; margin: 0; padding: 0; background: var(--paper); color: var(--accent); border: 1rpx solid var(--line); font-size: 23rpx; }
+.subscribe-card { display: flex; align-items: center; justify-content: space-between; margin-top: 18rpx; padding: 26rpx; border: 1rpx solid var(--line); border-radius: 22rpx; background: var(--paper); box-shadow: var(--shadow); }
 .subscribe-card view text { display: block; }
 .subscribe-card view text:first-child { font-weight: 700; }
 .subscribe-card view text:last-child { margin-top: 8rpx; color: #858d9b; font-size: 23rpx; }
 .subscribe-card>text { color: #adb3be; font-size: 38rpx; }
 .category-list { width: 100%; margin: 18rpx 0 10rpx; white-space: nowrap; }
 .category-row { display: flex; gap: 12rpx; }
-.category-row button { flex: none; margin: 0; padding: 0 24rpx; border-radius: 999rpx; background: #fff; color: #697182; font-size: 24rpx; line-height: 70rpx; }
-.category-row button.active { background: var(--brand); color: #fff; }
+.category-row button { flex: none; margin: 0; padding: 0 24rpx; border-radius: 999rpx; background: var(--paper); color: #697182; font-size: 24rpx; line-height: 70rpx; }
+.category-row button.active { background: var(--button); color: #fff; }
 .category-row button text { display: inline-block; margin-left: 8rpx; }
-.message-card { display: flex; align-items: flex-start; gap: 18rpx; margin-top: 14rpx; padding: 26rpx; border: 1rpx solid #e8eaf0; border-radius: 22rpx; background: #fff; box-shadow: var(--shadow); }
+.message-card { display: flex; align-items: flex-start; gap: 18rpx; margin-top: 14rpx; padding: 26rpx; border: 1rpx solid var(--line); border-radius: 22rpx; background: var(--paper); box-shadow: var(--shadow); }
 .dot { flex: none; width: 12rpx; height: 12rpx; margin-top: 12rpx; border-radius: 50%; background: transparent; }
 .message-card.unread .dot { background: var(--brand); }
 .message-empty { padding-top: 92rpx; }
@@ -27,4 +27,4 @@
 .message-copy text:nth-child(2) { margin-top: 10rpx; color: #697182; font-size: 24rpx; line-height: 38rpx; }
 .message-copy text:last-child { margin-top: 12rpx; color: #a0a6b1; font-size: 21rpx; }
 .arrow { color: #adb3be; font-size: 38rpx; }
-.more { width: 220rpx; margin: 28rpx auto; border-radius: 999rpx; background: #fff; font-size: 24rpx; }
+.more { width: 220rpx; margin: 28rpx auto; border-radius: 999rpx; background: var(--paper); font-size: 24rpx; }

@@ -1,0 +1,8 @@
+.culture-image { display: block; width: 100%; }
+.culture-copy, .room { padding: 24rpx; margin-bottom: 24rpx; }
+.culture-text { display: block; margin-top: 24rpx; line-height: 1.9; white-space: pre-wrap; }
+.room video { width: 100%; height: 400rpx; }
+.live-card { margin-bottom: 24rpx; padding: 20rpx; }
+.live-card image { width: 100%; height: 320rpx; border-radius: var(--radius); }
+.live-card > view { margin-top: 16rpx; font-weight: 650; }
+.empty button { margin-top: 24rpx; }

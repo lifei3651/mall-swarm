@@ -1,19 +1,19 @@
-.category-page { height: 100vh; display: flex; flex-direction: column; background: #fff; }
+.category-page { height: 100vh; display: flex; flex-direction: column; background: var(--paper); }
 .category-search { margin: 18rpx 22rpx; height: 80rpx; display: flex; align-items: center; overflow: hidden; border: 1rpx solid #e5e8ed; background: #f7f8fa; border-radius: 22rpx; }
 .category-search image { flex: none; width: 32rpx; height: 32rpx; margin-left: 24rpx; opacity: .72; }
 .category-search input { flex: 1; height: 100%; padding: 0 16rpx; font-size: 26rpx; }
-.category-search button { width: 118rpx; height: 80rpx; line-height: 80rpx; padding: 0; border-radius: 0; background: var(--brand); color: #fff; font-size: 26rpx; font-weight: 650; }
+.category-search button { width: 118rpx; height: 80rpx; line-height: 80rpx; padding: 0; border-radius: 0; background: var(--button); color: #fff; font-size: 26rpx; font-weight: 650; }
 .category-body { min-height: 0; flex: 1; display: flex; border-top: 1rpx solid #edf0f3; }
 .category-side { width: 184rpx; height: 100%; background: #f5f6f8; }
 .side-item { min-height: 104rpx; padding: 32rpx 16rpx; overflow: hidden; text-align: center; white-space: nowrap; text-overflow: ellipsis; color: #555f70; font-size: 25rpx; }
-.side-item.active { position: relative; background: #fff; color: var(--brand); font-weight: 750; }
+.side-item.active { position: relative; background: var(--paper); color: var(--accent); font-weight: 750; }
 .side-item.active::before { position: absolute; top: 28rpx; bottom: 28rpx; left: 0; width: 6rpx; border-radius: 0 999rpx 999rpx 0; background: var(--brand); content: ''; }
-.category-products { flex: 1; height: 100%; padding: 18rpx; background: #fff; }
+.category-products { flex: 1; height: 100%; padding: 18rpx; background: var(--paper); }
 .result-head { display: flex; align-items: center; justify-content: space-between; padding: 4rpx 2rpx 18rpx; }
 .result-head text:first-child { font-size: 29rpx; font-weight: 750; }
 .result-head text:last-child { color: var(--muted); font-size: 22rpx; }
 .category-product-list { padding-bottom: 40rpx; }
-.category-product-card { display: flex; min-height: 186rpx; margin-bottom: 16rpx; overflow: hidden; border: 1rpx solid #eceef2; border-radius: 20rpx; background: #fff; }
+.category-product-card { display: flex; min-height: 186rpx; margin-bottom: 16rpx; overflow: hidden; border: 1rpx solid var(--line); border-radius: var(--radius); background: var(--paper); }
 .category-product-media { flex: none; width: 176rpx; height: 176rpx; margin: 5rpx; overflow: hidden; border-radius: 16rpx; background: #eef0f3; }
 .category-product-media > image, .category-product-media > view { width: 100%; height: 100%; }
 .category-product-media .media-fallback image { width: 64rpx; height: 64rpx; }
@@ -27,3 +27,20 @@
 .category-empty text:first-child { color: var(--ink); font-size: 29rpx; font-weight: 700; }
 .category-empty text:nth-child(2) { margin-top: 8rpx; font-size: 22rpx; }
 .category-empty button { width: 220rpx; margin-top: 24rpx; font-size: 24rpx; }
+.category-page { padding-bottom: calc(112rpx + env(safe-area-inset-bottom)); box-sizing: border-box; }
+.category-search { flex: none; background: var(--header); border-color: var(--line); }
+.category-search button { background: var(--button); }
+.category-products, .category-side { background: var(--canvas); }
+.guide-category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18rpx; margin-bottom: 24rpx; }
+.guide-category { overflow: hidden; text-align: center; padding-bottom: 18rpx; }
+.guide-category image, .guide-placeholder { width: 100%; height: 180rpx; display: block; margin-bottom: 14rpx; }
+.guide-placeholder { display: flex; align-items: center; justify-content: center; background: var(--brand-soft); color: var(--accent); }
+.guide-showcase .guide-category image, .guide-showcase .guide-placeholder { height: 260rpx; }
+.guide-scenario .guide-category-grid { grid-template-columns: minmax(0, 1fr); }
+.guide-scenario .guide-category image, .guide-scenario .guide-placeholder { height: 280rpx; }
+.guide-quick { margin-bottom: 24rpx; }
+.guide-quick button { display: inline-block; margin: 0 14rpx 14rpx 0; padding: 12rpx 24rpx; background: var(--paper); color: var(--ink); border: 1rpx solid var(--line); border-radius: 999rpx; font-size: 24rpx; }
+.guide-back { margin-bottom: 20rpx; font-size: 24rpx; }
+.category-products { width: 0; min-width: 0; }
+.category-side { flex: none; }
+.category-search input { min-width: 0; }

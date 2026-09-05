@@ -1,10 +1,10 @@
 .subscription-page { min-height: 100vh; padding: 24rpx; }
 .intro-card { padding: 32rpx; border: 1rpx solid var(--line); border-radius: 26rpx; background: linear-gradient(135deg, #fff 0%, var(--brand-soft) 100%); box-shadow: var(--shadow); color: var(--ink); }
-.intro-card > text:first-child { display: block; color: var(--brand); font-size: 22rpx; font-weight: 650; }
+.intro-card > text:first-child { display: block; color: var(--accent); font-size: 22rpx; font-weight: 650; }
 .intro-card view { font-size: 38rpx; font-weight: 750; }
 .intro-card view { margin-top: 8rpx; }
 .intro-card > text:last-child { display: block; margin-top: 14rpx; color: #687284; font-size: 24rpx; line-height: 40rpx; }
-.template-card { display: flex; align-items: center; justify-content: space-between; margin-top: 16rpx; padding: 28rpx; border: 1rpx solid #e8eaf0; border-radius: 22rpx; background: #fff; box-shadow: var(--shadow); }
+.template-card { display: flex; align-items: center; justify-content: space-between; margin-top: 16rpx; padding: 28rpx; border: 1rpx solid var(--line); border-radius: 22rpx; background: var(--paper); box-shadow: var(--shadow); }
 .template-card view text { display: block; }
 .template-card view text:first-child { font-weight: 700; }
 .template-card view text:last-child { margin-top: 8rpx; color: #9097a4; font-size: 23rpx; }

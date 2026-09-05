@@ -1,23 +1,41 @@
-<view class="category-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}">
+<view class="category-page {{guideEnabled ? 'guide-' + guideTemplate : ''}}" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
   <view class="category-search">
     <image src="/assets/icons/search.png" mode="aspectFit" />
     <input value="{{keyword}}" bindinput="onKeywordInput" bindconfirm="search" confirm-type="search" placeholder="搜索商品" />
     <button bindtap="search">搜索</button>
   </view>
   <view class="category-body">
-    <scroll-view class="category-side" scroll-y>
+    <scroll-view wx:if="{{!guideEnabled || (guideTemplate === 'directory' && guide.primaryCategories && (guide.subcategories || guide.hotProducts))}}" class="category-side" scroll-y>
       <view class="side-item {{active === '' ? 'active' : ''}}" data-name="" bindtap="selectCategory">全部商品</view>
       <view class="side-item {{active === item.categoryName ? 'active' : ''}}" wx:for="{{categories}}" wx:key="id" data-name="{{item.categoryName}}" bindtap="selectCategory">{{item.categoryName}}</view>
     </scroll-view>
     <scroll-view class="category-products" scroll-y>
-      <view class="result-head"><text>{{active || '全部商品'}}</text><text>{{products.length}} 件</text></view>
+      <block wx:if="{{guideEnabled && !keyword && !active}}">
+        <view wx:if="{{(guideTemplate === 'directory' && (guide.subcategories || (guide.primaryCategories && !guide.hotProducts))) || (guideTemplate === 'showcase' && guide.heroCategories) || (guideTemplate === 'scenario' && guide.scenarios)}}" class="guide-categories">
+          <view class="section-head"><text>{{guideTemplate === 'scenario' ? '今天想买什么？' : guideTemplate === 'showcase' ? '全部品类' : guide.subcategories ? '精选分类' : '商品分类'}}</text></view>
+          <view class="guide-category-grid">
+            <view wx:for="{{categories}}" wx:key="id" class="guide-category card" data-name="{{item.categoryName}}" bindtap="selectCategory">
+              <image wx:if="{{item.iconUrl && !item.iconFailed}}" src="{{item.iconUrl}}" mode="aspectFill" data-index="{{index}}" binderror="categoryIconError" />
+              <view wx:else class="guide-placeholder">{{item.categoryName}}</view>
+              <text>{{item.categoryName}}</text>
+            </view>
+          </view>
+        </view>
+        <view wx:if="{{(guideTemplate === 'showcase' && guide.shelves) || (guideTemplate === 'scenario' && guide.quickEntries)}}" class="guide-quick">
+          <view class="section-head"><text>按品类找商品</text></view>
+          <button wx:for="{{categories}}" wx:key="id" data-name="{{item.categoryName}}" bindtap="selectCategory">{{item.categoryName}}</button>
+        </view>
+      </block>
+      <block wx:if="{{!guideEnabled || !guideHasContent || keyword || active || (guideTemplate === 'directory' && guide.hotProducts) || (guideTemplate === 'showcase' && guide.recommendedProducts) || (guideTemplate === 'scenario' && guide.popularProducts)}}">
+      <view class="result-head"><text>{{active || (guideEnabled && !keyword && guideHasContent ? (guideTemplate === 'showcase' ? '推荐商品' : '人气好物') : '全部商品')}}</text><text>{{guideEnabled && guideHasContent && !keyword && !active && guideTemplate !== 'showcase' ? hotProducts.length : products.length}} 件</text></view>
+      <button wx:if="{{guideEnabled && (active || keyword)}}" class="guide-back secondary-button" bindtap="clearFilter">返回分类导购</button>
       <view wx:if="{{loading}}" class="empty">正在加载…</view>
       <view wx:elif="{{error}}" class="empty category-empty"><text>商品加载失败</text><text>{{error}}</text><button class="secondary-button" bindtap="retry">重新加载</button></view>
       <view wx:elif="{{products.length}}" class="category-product-list">
-        <view class="category-product-card" wx:for="{{products}}" wx:key="id" data-id="{{item.id}}" bindtap="openProduct" aria-role="button" aria-label="{{item.productName}}，价格{{item.priceText}}元">
+        <view class="category-product-card" wx:for="{{guideEnabled && guideHasContent && !keyword && !active && guideTemplate !== 'showcase' ? hotProducts : products}}" wx:key="id" data-id="{{item.id}}" bindtap="openProduct" aria-role="button" aria-label="{{item.productName}}，价格{{item.priceText}}元">
           <view class="category-product-media">
             <view wx:if="{{!item.coverUrl || item.imageFailed}}" class="media-fallback"><image src="/assets/lingqi-logo-mark.png" mode="aspectFit" /></view>
-            <image wx:else class="product-cover" src="{{item.coverUrl}}" mode="aspectFill" lazy-load data-index="{{index}}" binderror="productImageError" />
+            <image wx:else class="product-cover" src="{{item.coverUrl}}" mode="aspectFill" lazy-load data-id="{{item.id}}" binderror="productImageError" />
           </view>
           <view class="product-copy">
             <view class="product-title">{{item.productName}}</view>
@@ -27,6 +45,9 @@
         </view>
       </view>
       <view wx:else class="empty">这个分类还没有商品</view>
+      </block>
+      <view wx:elif="{{loading}}" class="empty">正在加载…</view>
+      <view wx:elif="{{error}}" class="empty"><text>{{error}}</text><button class="secondary-button" bindtap="retry">重新加载</button></view>
     </scroll-view>
   </view>
 </view>

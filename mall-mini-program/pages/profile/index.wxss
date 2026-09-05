@@ -1,12 +1,12 @@
-.profile-page { min-height: 100vh; padding: 32rpx 24rpx 52rpx; }
+.profile-page { min-height: 100vh; padding: 32rpx 24rpx calc(160rpx + env(safe-area-inset-bottom)); }
 .profile-card { padding: 32rpx; border: 1rpx solid var(--line); border-radius: 28rpx; background: linear-gradient(135deg, #fff 0%, var(--brand-soft) 100%); box-shadow: var(--shadow); color: var(--ink); }
 .profile-main { display: flex; align-items: center; }
-.avatar { display: flex; flex: none; align-items: center; justify-content: center; width: 106rpx; height: 106rpx; border-radius: 30rpx; background: #fff; box-shadow: 0 8rpx 24rpx rgba(35,42,56,.08); color: var(--brand); font-size: 38rpx; font-weight: 750; }
+.avatar { display: flex; flex: none; align-items: center; justify-content: center; width: 106rpx; height: 106rpx; border-radius: 30rpx; background: var(--paper); box-shadow: 0 8rpx 24rpx rgba(35,42,56,.08); color: var(--accent); font-size: 38rpx; font-weight: 750; }
 .avatar image { width: 76rpx; height: 76rpx; }
 .profile-copy { min-width: 0; flex: 1; margin-left: 24rpx; }
 .profile-copy view { font-size: 36rpx; font-weight: 750; }
 .profile-copy text { display: block; margin-top: 8rpx; color: #697386; font-size: 24rpx; }
-.login-small { width: 100%; height: 82rpx; margin: 26rpx 0 0; padding: 0; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 27rpx; font-weight: 650; line-height: 82rpx; box-shadow: 0 10rpx 24rpx rgba(31,38,52,.14); }
+.login-small { width: 100%; height: 82rpx; margin: 26rpx 0 0; padding: 0; border-radius: 999rpx; background: var(--button); color: #fff; font-size: 27rpx; font-weight: 650; line-height: 82rpx; box-shadow: 0 10rpx 24rpx rgba(31,38,52,.14); }
 .section-label { margin: 30rpx 8rpx 14rpx; color: #697386; font-size: 24rpx; font-weight: 650; }
 .order-panel { overflow: hidden; }
 .order-panel-head { display: flex; align-items: center; justify-content: space-between; min-height: 88rpx; padding: 0 26rpx; border-bottom: 1rpx solid #edf0f4; }
@@ -14,7 +14,7 @@
 .order-panel-head text:last-child { color: #858d9b; font-size: 23rpx; }
 .order-shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12rpx; padding: 18rpx; }
 .order-shortcuts button { position: relative; display: flex; align-items: center; min-width: 0; min-height: 112rpx; margin: 0; padding: 18rpx 20rpx; border: 1rpx solid var(--line); border-radius: 18rpx; background: #f7f8fa; color: var(--ink); text-align: left; line-height: 1.4; }
-.order-shortcuts button:active { background: var(--brand-soft); border-color: var(--brand); }
+.order-shortcuts button:active { background: var(--brand-soft); border-color: var(--accent); }
 .shortcut-copy { min-width: 0; }
 .shortcut-name { display: block; overflow: hidden; font-size: 27rpx; font-weight: 650; white-space: nowrap; text-overflow: ellipsis; }
 .shortcut-note { display: block; margin-top: 6rpx; overflow: hidden; color: var(--muted); font-size: 21rpx; white-space: nowrap; text-overflow: ellipsis; }

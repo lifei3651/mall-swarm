@@ -1,4 +1,4 @@
-<view class="page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}">
+<view class="page home-page layout-{{layoutTemplate}}" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
   <view wx:if="{{loading}}" class="empty">正在加载商城…</view>
   <view wx:elif="{{error}}" class="empty">
     <view>{{error}}</view>
@@ -14,6 +14,7 @@
         <view class="brand-name">{{home.brandName || '商城'}}</view>
         <view class="brand-note">好商品，放心选</view>
       </view>
+      <button wx:if="{{brandCultureEnabled}}" class="culture-link" data-type="culture" bindtap="openContent">品牌文化 ›</button>
     </view>
 
     <view class="search-box">
@@ -22,14 +23,15 @@
       <button bindtap="search">搜索</button>
     </view>
 
-    <swiper wx:if="{{home.banners && home.banners.length}}" class="banner" indicator-dots autoplay circular interval="4500">
+    <block wx:for="{{homeModules}}" wx:key="type" wx:for-item="module">
+    <swiper wx:if="{{module.type === 'banner' && home.banners && home.banners.length}}" class="banner" indicator-dots autoplay circular interval="4500">
       <swiper-item wx:for="{{home.banners}}" wx:key="id" data-type="{{item.linkType}}" data-value="{{item.linkValue}}" bindtap="openBanner" aria-role="button" aria-label="{{item.title || '商城活动'}}">
         <view wx:if="{{!item.imageUrl || item.imageFailed}}" class="banner-fallback media-fallback"><image src="/assets/lingqi-logo-mark.png" mode="aspectFit" /></view>
         <image wx:else src="{{item.imageUrl}}" mode="aspectFill" data-index="{{index}}" binderror="bannerImageError" />
       </swiper-item>
     </swiper>
 
-    <scroll-view wx:if="{{home.categoryList && home.categoryList.length}}" class="categories" scroll-x enhanced show-scrollbar="{{false}}">
+    <scroll-view wx:if="{{module.type === 'category' && home.categoryList && home.categoryList.length}}" class="categories" scroll-x enhanced show-scrollbar="{{false}}">
       <view class="category-row">
         <view class="category-item" wx:for="{{home.categoryList}}" wx:key="id" data-name="{{item.categoryName}}" bindtap="openCategory" aria-role="button" aria-label="查看{{item.categoryName}}分类">
           <view class="category-icon">
@@ -41,11 +43,34 @@
       </view>
     </scroll-view>
 
-    <view wx:if="{{home.notices && home.notices.length}}" class="notice card">
+    <view wx:if="{{module.type === 'notice' && home.notices && home.notices.length}}" class="notice card">
       <text class="notice-label">公告</text>
       <text class="notice-text">{{home.notices[0].title}}</text>
     </view>
 
+    <view wx:if="{{module.type === 'newArrivals' && home.newArrivals.length}}">
+      <view class="section-head" data-type="newArrivals" bindtap="openContent"><text>新品速递</text><text class="muted">查看全部 ›</text></view>
+      <scroll-view class="arrival-scroll" scroll-x>
+        <view class="arrival-row">
+          <view class="arrival-card card" wx:for="{{home.newArrivals}}" wx:key="id" data-id="{{item.id}}" bindtap="openProduct">
+            <image wx:if="{{item.coverUrl && !item.imageFailed}}" src="{{item.coverUrl}}" mode="aspectFill" data-index="{{index}}" binderror="arrivalImageError" />
+            <view wx:else class="arrival-placeholder media-fallback">新品</view>
+            <view class="product-copy"><view class="product-title">{{item.productName}}</view><view class="product-price">¥{{item.priceText}}</view></view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+    <view wx:if="{{module.type === 'live' && home.liveRooms.length}}">
+      <view class="section-head" data-type="live" bindtap="openContent"><text>直播广场</text><text class="muted">查看全部 ›</text></view>
+      <view class="live-card card" wx:for="{{home.liveRooms}}" wx:key="room.id" data-id="{{item.room.id}}" bindtap="openLive">
+        <image wx:if="{{item.room.coverUrl}}" src="{{item.room.coverUrl}}" mode="aspectFill" />
+        <view><text class="live-label">{{item.roomState === 'LIVE' ? '直播中' : item.roomState === 'ENDED' ? '已结束' : '直播预告'}}</text><view>{{item.room.title}}</view><text class="muted">{{item.room.anchorName}}</text></view>
+      </view>
+    </view>
+    <view wx:if="{{module.type === 'trust'}}" class="trust-strip card">
+      <text>订单可查询</text><text>售后可申请</text><text wx:if="{{home.legalConfig.servicePhone}}">客服 {{home.legalConfig.servicePhone}}</text>
+    </view>
+    <block wx:if="{{module.type === 'products'}}">
     <view class="section-head"><text>精选好物</text><text class="muted">为你推荐 · {{products.length}}件</text></view>
     <view wx:if="{{products.length}}" class="product-grid">
       <view class="product-card" wx:for="{{products}}" wx:key="id" data-id="{{item.id}}" bindtap="openProduct" aria-role="button" aria-label="{{item.productName}}，价格{{item.priceText}}元">
@@ -61,5 +86,7 @@
       </view>
     </view>
     <view wx:else class="empty">当前还没有上架商品</view>
+    </block>
+    </block>
   </block>
 </view>

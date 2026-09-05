@@ -1,4 +1,5 @@
-<view class="orders-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}">
+<view class="orders-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
+  <decoration-nav id="decoration-nav" />
   <scroll-view class="order-tabs" scroll-x enhanced show-scrollbar="{{false}}">
     <view class="tab {{activeTab === item.key ? 'active' : ''}}" wx:for="{{tabs}}" wx:key="key" data-key="{{item.key}}" bindtap="selectTab">
       <text>{{item.label}}</text><text wx:if="{{item.count}}" class="tab-count">{{item.count > 99 ? '99+' : item.count}}</text>

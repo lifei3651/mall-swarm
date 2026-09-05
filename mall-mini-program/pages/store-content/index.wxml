@@ -1,0 +1,34 @@
+<view class="page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
+  <view wx:if="{{loading}}" class="empty">正在加载…</view>
+  <view wx:elif="{{error}}" class="empty"><view>{{error}}</view><button class="secondary-button" bindtap="retry">重新加载</button></view>
+  <block wx:else>
+    <block wx:if="{{type === 'culture'}}">
+      <block wx:if="{{culture.detailImages.length}}">
+        <view wx:for="{{culture.detailImages}}" wx:key="index">
+          <image wx:if="{{!item.failed}}" class="culture-image" src="{{item.url}}" mode="widthFix" data-index="{{index}}" binderror="detailImageError" />
+          <view wx:else class="empty">第 {{index + 1}} 张图片加载失败，请下拉重试</view>
+        </view>
+      </block>
+      <view wx:else class="culture-copy card"><image wx:if="{{culture.coverUrl}}" class="culture-image" src="{{culture.coverUrl}}" mode="widthFix" /><view class="section-head">{{culture.title || culture.brandName}}</view><view class="muted">{{culture.subtitle}}</view><text class="culture-text">{{culture.content || '品牌内容正在准备中'}}</text></view>
+    </block>
+    <view wx:if="{{type === 'live' && room}}" class="room card">
+      <video wx:if="{{videoUrl && !videoFailed}}" src="{{videoUrl}}" controls binderror="videoError" />
+      <view wx:else class="empty">{{room.roomState === 'UPCOMING' ? '直播尚未开始' : videoFailed ? '视频加载失败，请稍后下拉重试' : '当前暂无小程序可播放的视频'}}</view>
+      <view class="section-head">{{room.room.title}}</view><text class="muted">{{room.room.subtitle}}</text>
+    </view>
+    <block wx:if="{{type === 'live' && !room}}">
+      <view wx:for="{{rooms}}" wx:key="index" class="live-card card" data-id="{{item.room.id}}" bindtap="openRoom">
+        <image wx:if="{{item.room.coverUrl}}" src="{{item.room.coverUrl}}" mode="aspectFill" /><view>{{item.room.title}}</view><text class="muted">{{item.roomState === 'LIVE' ? '直播中' : item.roomState === 'ENDED' ? '已结束' : '直播预告'}}</text>
+      </view>
+      <view wx:if="{{!rooms.length}}" class="empty">暂时没有直播内容</view>
+    </block>
+    <view wx:if="{{products.length}}" class="product-grid">
+      <view wx:for="{{products}}" wx:key="id" class="product-card" data-id="{{item.id}}" bindtap="openProduct">
+        <image wx:if="{{item.coverUrl && !item.imageFailed}}" class="product-cover" src="{{item.coverUrl}}" mode="aspectFill" data-index="{{index}}" binderror="productImageError" />
+        <view wx:else class="product-cover media-fallback">商品图片</view>
+        <view class="product-copy"><view class="product-title">{{item.productName}}</view><view class="product-price">¥{{item.priceText}}</view></view>
+      </view>
+    </view>
+    <view wx:if="{{type === 'newArrivals' && !products.length}}" class="empty">暂时没有新品</view>
+  </block>
+</view>

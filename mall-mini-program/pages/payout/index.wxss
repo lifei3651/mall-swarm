@@ -1,8 +1,8 @@
 .payout-page { min-height: 100vh; padding: 24rpx; }
-.notice-card { padding: 28rpx; border: 1rpx solid #e8eaf0; border-radius: 24rpx; background: #fff; box-shadow: var(--shadow); }
+.notice-card { padding: 28rpx; border: 1rpx solid var(--line); border-radius: 24rpx; background: var(--paper); box-shadow: var(--shadow); }
 .notice-card view { font-size: 32rpx; font-weight: 700; }
 .notice-card text { display: block; margin-top: 14rpx; color: var(--muted); font-size: 24rpx; line-height: 40rpx; }
-.payout-card { display: flex; align-items: center; gap: 24rpx; margin-top: 20rpx; padding: 26rpx; border: 1rpx solid #e8eaf0; border-radius: 24rpx; background: #fff; box-shadow: var(--shadow); }
+.payout-card { display: flex; align-items: center; gap: 24rpx; margin-top: 20rpx; padding: 26rpx; border: 1rpx solid var(--line); border-radius: 24rpx; background: var(--paper); box-shadow: var(--shadow); }
 .payout-copy { min-width: 0; flex: 1; }
 .payout-copy text, .payout-copy strong { display: block; }
 .payout-copy text { color: var(--muted); font-size: 23rpx; }

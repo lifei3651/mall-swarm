@@ -1,4 +1,4 @@
-<view class="product-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}">
+<view class="product-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
   <view wx:if="{{loading}}" class="empty">正在加载商品…</view>
   <view wx:elif="{{error}}" class="empty product-empty"><text>商品加载失败</text><text>{{error}}</text><button class="secondary-button" bindtap="retry">重新加载</button></view>
   <block wx:else>

@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/home/index",
+    "pages/store-content/index",
     "pages/category/index",
     "pages/product/index",
     "pages/cart/index",
@@ -23,6 +24,7 @@
     "backgroundTextStyle": "dark"
   },
   "tabBar": {
+    "custom": true,
     "color": "#7c8493",
     "selectedColor": "#e7193f",
     "backgroundColor": "#ffffff",

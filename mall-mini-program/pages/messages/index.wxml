@@ -1,4 +1,4 @@
-<view class="message-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}">
+<view class="message-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
   <view class="message-head">
     <view><view>消息与提醒</view><text>集中查看订单、退款和到账进度</text></view>
     <button wx:if="{{unread.total}}" bindtap="readAll">全部已读</button>

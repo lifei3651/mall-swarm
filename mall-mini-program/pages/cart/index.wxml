@@ -1,4 +1,4 @@
-<view class="cart-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}">
+<view class="cart-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
   <view wx:if="{{!rows.length}}" class="empty cart-empty"><view>购物车还是空的</view><button class="primary-button" bindtap="goShopping">去逛逛</button></view>
   <block wx:else>
     <view class="cart-list">

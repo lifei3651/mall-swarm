@@ -1,8 +1,11 @@
 const request = require('./request')
+const display = require('./display-config')
 
 const STORAGE_KEY = 'mall_mini_theme_color'
 const DEFAULT_COLOR = '#e7193f'
 let brandPromise = null
+let refreshedAt = 0
+let revision = 0
 
 function normalizeColor(value) {
   return /^#[0-9a-fA-F]{6}$/.test(String(value || '')) ? String(value).toLowerCase() : DEFAULT_COLOR
@@ -12,6 +15,13 @@ function softColor(value) {
   const color = normalizeColor(value)
   const channels = [1, 3, 5].map((index) => Number.parseInt(color.slice(index, index + 2), 16))
   return `#${channels.map((channel) => Math.round(channel * 0.1 + 255 * 0.9).toString(16).padStart(2, '0')).join('')}`
+}
+
+function nativeColor(value) {
+  let text = String(value || '')
+  if (/^#[a-f\d]{3}$/i.test(text)) text = '#' + text.slice(1).split('').map((char) => char + char).join('')
+  if (/^#[a-f\d]{6}$/i.test(text)) return text
+  return '#ffffff'
 }
 
 function currentColor() {
@@ -25,18 +35,29 @@ function currentColor() {
   }
 }
 
+function currentBrand() {
+  try { return getApp().globalData.brand || { themeColor: currentColor() } } catch (_) { return { themeColor: currentColor() } }
+}
+
 function pageData(value) {
-  const themeColor = normalizeColor(value || currentColor())
-  return { themeColor, themeSoftColor: softColor(themeColor) }
+  const brand = typeof value === 'object' && value ? value : { ...currentBrand(), ...(value ? { themeColor: value } : {}) }
+  const colors = display.palette(brand)
+  const themeColor = colors.primary
+  const themeSoftColor = softColor(themeColor)
+  const variables = { brand: themeColor, 'brand-soft': themeSoftColor, canvas: colors.pageBg, header: colors.headerBg, paper: colors.cardBg, ink: colors.textColor, muted: colors.mutedColor, price: colors.priceColor, accent: colors.accentColor, line: colors.lineColor, button: colors.buttonBg, radius: colors.radius }
+  return { themeColor, themeSoftColor, themeStyle: Object.entries(variables).map(([key, val]) => `--${key}: ${val}`).join(';') + `;background:${colors.pageBg};color:${colors.textColor}`, bottomNav: display.navigation(brand.displayConfig || {}), ...display.category(brand.displayConfig || {}) }
 }
 
 function remember(brand) {
-  const palette = pageData(brand && brand.themeColor)
+  revision++
+  const palette = pageData(brand || {})
+  refreshedAt = Date.now()
   try {
     const app = getApp()
     if (app && app.globalData) app.globalData.brand = brand || { themeColor: palette.themeColor }
     wx.setStorageSync(STORAGE_KEY, palette.themeColor)
-    wx.setTabBarStyle({ selectedColor: palette.themeColor })
+    if (wx.setTabBarStyle) wx.setTabBarStyle({ selectedColor: normalizeColor(palette.themeColor) })
+    if (typeof getCurrentPages === 'function') getCurrentPages().forEach((page) => sync(page, palette))
   } catch (_) {}
   return palette
 }
@@ -44,7 +65,19 @@ function remember(brand) {
 function sync(page, palette = pageData()) {
   if (!page || typeof page.setData !== 'function') return palette
   const data = page.data || {}
-  if (data.themeColor !== palette.themeColor || data.themeSoftColor !== palette.themeSoftColor) page.setData(palette)
+  if (data.themeStyle !== palette.themeStyle || JSON.stringify(data.bottomNav) !== JSON.stringify(palette.bottomNav) || JSON.stringify(data.guide) !== JSON.stringify(palette.guide) || data.guideTemplate !== palette.guideTemplate || data.guideEnabled !== palette.guideEnabled) page.setData(palette)
+  const tab = typeof page.getTabBar === 'function' && page.getTabBar()
+  if (tab && typeof tab.refresh === 'function') tab.refresh(palette)
+  const inlineTab = typeof page.selectComponent === 'function' && page.selectComponent('#decoration-nav')
+  if (inlineTab && typeof inlineTab.refresh === 'function') inlineTab.refresh(palette)
+  try {
+    const pages = getCurrentPages()
+    if (pages[pages.length - 1] === page && wx.setNavigationBarColor) {
+      const header = nativeColor(display.palette(currentBrand()).headerBg)
+      const channels = [1, 3, 5].map((index) => parseInt(header.slice(index, index + 2), 16))
+      wx.setNavigationBarColor({ backgroundColor: header, frontColor: channels[0] * .299 + channels[1] * .587 + channels[2] * .114 < 140 ? '#ffffff' : '#000000' })
+    }
+  } catch (_) {}
   return palette
 }
 
@@ -52,13 +85,14 @@ function apply(page) {
   const initial = sync(page)
   try {
     const app = getApp()
-    if (app && app.globalData && app.globalData.brand) return Promise.resolve(initial)
+    if (app && app.globalData && app.globalData.brand && Date.now() - refreshedAt < 10000) return Promise.resolve(initial)
   } catch (_) {
     return Promise.resolve(initial)
   }
   if (!brandPromise) {
+    const requestRevision = revision
     brandPromise = request({ url: '/shop/home' })
-      .then((brand) => remember(brand))
+      .then((brand) => requestRevision === revision ? remember(brand) : pageData())
       .catch(() => initial)
       .finally(() => { brandPromise = null })
   }
