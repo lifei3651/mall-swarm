@@ -23,7 +23,7 @@ flock -n 8
 MUTATED=0
 ROLLBACK_DIR=''
 VERIFY_DB=''
-START_TIME=$(date --iso-8601=seconds)
+START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
 
 fail() { echo "mini-backend-release-failed: $*" >&2; exit 1; }
 mysql_db() { mysql --protocol=socket -uroot "$1" "${@:2}"; }
@@ -175,7 +175,8 @@ done
 [[ "$(protected_hashes)" == "$BEFORE_FILES" ]]
 [[ "$(sha256sum "$APP_ROOT/app/mall-distribution.jar" | awk '{print $1}')" == "$(sha256sum "$RELEASE_DIR/mall-distribution.jar" | awk '{print $1}')" ]]
 sleep 10
-if journalctl -u "$SERVICE" --since "$START_TIME" --no-pager | grep -Eq 'Application run failed|OutOfMemoryError|UnsatisfiedDependencyException|BeanCreationException'; then fail 'startup failure'; fi
+journalctl -u "$SERVICE" --since "$START_TIME" --no-pager > "$ROLLBACK_DIR/new-journal.log"
+if grep -Eq 'Application run failed|OutOfMemoryError|UnsatisfiedDependencyException|BeanCreationException' "$ROLLBACK_DIR/new-journal.log"; then fail 'startup failure'; fi
 for log_spec in "stdout.log:$STDOUT_OFFSET" "stderr.log:$STDERR_OFFSET"; do
   log_name=${log_spec%%:*}
   log_offset=${log_spec##*:}
