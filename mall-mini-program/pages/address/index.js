@@ -2,6 +2,8 @@ const request = require('../../utils/request')
 const auth = require('../../utils/auth')
 const theme = require('../../utils/theme')
 const format = require('../../utils/format')
+const wechatAddress = require('../../utils/wechat-address')
+const session = require('../../utils/session')
 
 Page({
   data: {
@@ -12,7 +14,7 @@ Page({
     showForm: false,
     selectMode: false,
     form: { id: null, receiverName: '', receiverPhone: '', region: [], regionText: '', detailAddress: '', isDefault: false },
-    saving: false
+    saving: false, importing: false, importMessage: ''
   },
   onLoad(options = {}) {
     theme.apply(this)
@@ -20,8 +22,8 @@ Page({
     this.setData({ selectMode: this.selectMode })
   },
   onShow() {
-    theme.sync(this)
-    if (this.data.saving || this.returning) return
+    theme.apply(this)
+    if (this.data.saving || this.data.importing || this.returning) return
     if (auth.requireLogin(`/pages/address/index${this.selectMode ? '?select=1' : ''}`)) return this.load()
     this.setData({ loading: false, rows: [] })
   },
@@ -41,9 +43,27 @@ Page({
     }
     finally { if (generation === this.loadGeneration) this.setData({ loading: false }) }
   },
-  onUnload() { this.loadGeneration = (this.loadGeneration || 0) + 1 },
+  onUnload() { this.disposed = true; this.loadGeneration = (this.loadGeneration || 0) + 1 },
+  async importWechatAddress() {
+    if (this.data.saving || this.data.loading || this.data.importing || this.returning) return
+    if (!auth.requireLogin('/pages/address/index')) return
+    const token = session.getToken()
+    const snapshot = JSON.stringify(this.data.form)
+    this.setData({ importing: true, importMessage: '' })
+    try {
+      if (this.data.showForm && (this.data.form.receiverName || this.data.form.detailAddress)) {
+        const confirmed = await new Promise((resolve) => wx.showModal({ title: '导入为新地址', content: '当前未保存的编辑将被替换，已保存的地址和默认设置不会改变。是否继续？', success: (r) => resolve(r.confirm), fail: () => resolve(false) }))
+        if (!confirmed) return
+      }
+      const form = await wechatAddress.choose()
+      if (this.disposed || token !== session.getToken() || snapshot !== JSON.stringify(this.data.form)) return
+      this.setData({ form, showForm: true, importMessage: '已回填微信地址，请核对后保存。尚未提交或修改默认地址。' })
+    } catch (error) { if (!this.disposed && token === session.getToken()) this.setData({ importMessage: error.message }) }
+    finally { if (!this.disposed) this.setData({ importing: false }) }
+  },
   input(event) {
-    this.setData({ [`form.${event.currentTarget.dataset.field}`]: event.detail.value })
+    const field = event.currentTarget.dataset.field
+    if (['receiverName', 'receiverPhone', 'detailAddress'].includes(field) && !this.data.importing) this.setData({ [`form.${field}`]: event.detail.value })
   },
   region(event) {
     const region = event.detail.value || []

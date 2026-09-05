@@ -10,6 +10,18 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SensitiveLogSanitizerTest {
+
+    @org.junit.jupiter.api.Test
+    void wechatTemporaryCredentialsAndOptionalProfileAreMasked() {
+        String sanitized = String.valueOf(SensitiveLogSanitizer.sanitize(java.util.Map.of(
+                "loginCode", "one-use-wechat-code", "phoneCode", "one-use-phone-code",
+                "nickname", "private-nickname", "avatarUrl", "private-avatar-url")));
+        org.junit.jupiter.api.Assertions.assertFalse(sanitized.contains("one-use"));
+        org.junit.jupiter.api.Assertions.assertFalse(sanitized.contains("private-"));
+        String text = SensitiveLogSanitizer.sanitizeText("{\"loginCode\":\"once-only\",\"phone_code\":\"another-only\"}");
+        org.junit.jupiter.api.Assertions.assertFalse(text.contains("once-only"));
+        org.junit.jupiter.api.Assertions.assertFalse(text.contains("another-only"));
+    }
     @Test
     void masksNestedSecretsAndPersonalData() {
         Object sanitized = SensitiveLogSanitizer.sanitize(Map.of(

@@ -32,6 +32,16 @@ import static org.mockito.Mockito.when;
 class RefundInventoryRestockServiceTest {
 
     @Test
+    void corruptLastLineCannotPartiallyRestockEarlierValidLines() {
+        Fixture fixture = new Fixture();
+        when(fixture.afterSaleItemDao.selectByAfterSaleId(1L))
+                .thenReturn(List.of(item(10L, null, 1), item(20L, null, -1)));
+        when(fixture.productDao.increaseStock(10L, 1)).thenReturn(1);
+        assertThrows(ApiException.class, () -> fixture.service.restoreAfterRefundCompleted(afterSale(2), order(3)));
+        verifyNoInteractions(fixture.productDao, fixture.skuDao, fixture.operationLogService);
+    }
+
+    @Test
     void returnedGoodsRestoreExactProductAndSkuQuantity() {
         Fixture fixture = new Fixture();
         DmsShopAfterSale afterSale = afterSale(2);
@@ -71,10 +81,11 @@ class RefundInventoryRestockServiceTest {
         DmsShopAfterSale afterSale = afterSale(1);
         DmsShopOrder order = order(2);
         order.setDeliveryTime(LocalDateTime.now());
+        when(fixture.afterSaleItemDao.selectByAfterSaleId(1L)).thenReturn(List.of(item(10L, null, 1)));
 
         assertEquals(0, fixture.service.restoreAfterRefundCompleted(afterSale, order));
 
-        verifyNoInteractions(fixture.afterSaleItemDao, fixture.productDao, fixture.skuDao,
+        verifyNoInteractions(fixture.productDao, fixture.skuDao,
                 fixture.flashSaleActivityDao, fixture.flashSaleReservationDao,
                 fixture.flashSaleStockGate, fixture.operationLogService);
     }

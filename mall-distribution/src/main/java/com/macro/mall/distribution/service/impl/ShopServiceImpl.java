@@ -962,9 +962,7 @@ public class ShopServiceImpl implements ShopService {
 
     @Override
     public FreightQuoteVO quoteFreight(ShopOrderSubmitDTO dto, DmsShopMember member) {
-        if (dto == null || dto.getItems() == null || dto.getItems().isEmpty()) {
-            Asserts.fail("订单商品不能为空");
-        }
+        com.macro.mall.distribution.util.ShopQuantityChecks.order(dto);
         if (member != null) dto.setUserId(member.getUserId());
         String businessType = businessModeService.normalizeType(dto.getBusinessType());
         Long tenantId = resolveTenantId(null);
@@ -1049,6 +1047,7 @@ public class ShopServiceImpl implements ShopService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ShopOrderVO submitOrder(ShopOrderSubmitDTO dto, DmsShopMember member) {
+        com.macro.mall.distribution.util.ShopQuantityChecks.order(dto);
         String businessType = businessModeService.normalizeType(dto == null ? null : dto.getBusinessType());
         if (ShopBusinessType.FLASH_SALE.equals(businessType)) {
             Asserts.fail("秒杀订单必须从秒杀活动入口提交");
@@ -1060,6 +1059,7 @@ public class ShopServiceImpl implements ShopService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ShopOrderVO submitReservedFlashSaleOrder(ShopOrderSubmitDTO dto, DmsShopMember member) {
+        com.macro.mall.distribution.util.ShopQuantityChecks.order(dto);
         String businessType = businessModeService.normalizeType(dto == null ? null : dto.getBusinessType());
         if (!ShopBusinessType.FLASH_SALE.equals(businessType)) Asserts.fail("秒杀订单业务类型不正确");
         member = prepareOrderSubmit(dto, member);
@@ -1067,6 +1067,7 @@ public class ShopServiceImpl implements ShopService {
     }
 
     private DmsShopMember prepareOrderSubmit(ShopOrderSubmitDTO dto, DmsShopMember member) {
+        com.macro.mall.distribution.util.ShopQuantityChecks.order(dto);
         if (member != null) {
             DmsShopMember lockedMember = memberDao.selectByIdForUpdate(member.getId());
             if (lockedMember == null || !Integer.valueOf(1).equals(lockedMember.getStatus())) {

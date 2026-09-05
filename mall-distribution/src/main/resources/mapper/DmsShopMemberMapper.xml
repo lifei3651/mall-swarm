@@ -227,6 +227,9 @@
             update_time = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
+    <update id="updateAvatarUrl">
+        UPDATE dms_shop_member SET avatar_url = #{avatarUrl}, update_time = NOW() WHERE id = #{id} AND status = 1
+    </update>
     <update id="updateNickname">
         UPDATE dms_shop_member
         SET nickname = #{nickname}, update_time = CURRENT_TIMESTAMP

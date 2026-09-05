@@ -36,3 +36,5 @@
 .product-empty text:first-child { color: var(--ink); font-size: 30rpx; font-weight: 700; }
 .product-empty text:nth-child(2) { margin-top: 10rpx; font-size: 23rpx; }
 .product-empty button { width: 220rpx; margin-top: 28rpx; font-size: 24rpx; }
+.detail-image{display:block;width:100%;margin-top:16rpx}.description text,.detail-subtitle,.stock-text{color:var(--muted,#64748b)}.sku,.quantity-panel button{background:var(--canvas,#f5f6f8);color:var(--ink,#20242e)}.detail-card{border-color:var(--line,#e5e8ee);border-radius:var(--radius,24rpx)}
+.sku-image{width:180rpx;height:180rpx;display:block;margin-bottom:18rpx}.sku-attribute{font-size:25rpx;color:var(--muted,#64748b);line-height:1.6;margin-bottom:10rpx}

@@ -40,10 +40,16 @@ Page({
       wx.navigateTo({ url: id ? `/pages/order-detail/index?id=${id}` : '/pages/orders/index' })
       return
     }
-    if (message.targetType === 'WALLET' || message.targetType === 'WITHDRAWAL') {
-      wx.navigateTo({ url: '/pages/payout/index' })
+    if (message.targetType === 'WALLET') {
+      wx.navigateTo({ url: '/pages/wallet/index' })
       return
     }
+    if (message.targetType === 'WITHDRAWAL') {
+      const id = format.identifier(message.targetId)
+      wx.navigateTo({ url: id ? `/pages/payout/index?history=1&id=${id}` : '/pages/payout/index?history=1' })
+      return
+    }
+    if (message.targetType === 'SERVICE_TICKET') { wx.navigateTo({ url: '/pages/legal/index?type=contact' }); return }
     if (message.targetType === 'ACCOUNT_SECURITY') { wx.navigateTo({ url: '/pages/account-security/index' }); return }
     wx.showToast({ title: '请从对应功能入口查看', icon: 'none' })
   }

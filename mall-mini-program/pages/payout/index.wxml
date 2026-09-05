@@ -1,19 +1,21 @@
 <view class="payout-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
   <view class="notice-card">
-    <view>微信收款确认</view>
-    <text>平台发起微信提现后，需要由收款会员本人在微信内确认。页面显示成功前，系统仍会向微信核验最终结果。</text>
+    <view>{{history ? '提现记录' : '微信收款确认'}}</view>
+    <text>{{history ? '这里展示历史提现及处理状态。仅正在打款的微信提现可进入收款核对，最终到账以渠道核验结果为准。' : '平台发起微信提现后，需要由收款会员本人在微信内确认。页面显示成功前，系统仍会向微信核验最终结果。'}}</text>
   </view>
   <view wx:if="{{loading}}" class="empty">正在加载…</view>
-  <view wx:elif="{{error}}" class="empty">{{error}}</view>
-  <view wx:elif="{{!rows.length}}" class="empty">暂无待确认的微信提现</view>
+  <view wx:elif="{{error}}" class="empty"><text>{{error}}</text><button class="secondary-button" bindtap="load">重新加载</button></view>
+  <view wx:elif="{{!rows.length}}" class="empty">{{history ? '暂无对应提现记录，请联系客服核查' : '暂无待确认的微信提现'}}</view>
   <block wx:else>
     <view class="payout-card" wx:for="{{rows}}" wx:key="id">
       <view class="payout-copy">
         <text>{{item.withdrawNo}}</text>
         <strong>¥{{item.amountText}}</strong>
-        <text>{{item.statusName || '打款处理中'}}</text>
+        <text>{{item.withdrawTypeName || '提现'}} · {{item.statusName || '状态待核对'}}</text>
+        <text>{{item.timeText}}</text>
+        <text wx:if="{{item.auditRemark}}">处理说明：{{item.auditRemark}}</text>
       </view>
-      <button class="primary-button" data-id="{{item.id}}" loading="{{actingId === item.id}}"
+      <button wx:if="{{item.canConfirm}}" class="primary-button" data-id="{{item.id}}" loading="{{actingId === item.id}}"
         disabled="{{actingId !== null}}" bindtap="confirm">核对并确认</button>
     </view>
   </block>

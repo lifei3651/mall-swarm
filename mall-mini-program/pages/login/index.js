@@ -38,6 +38,8 @@ Page({
     finally { this.setData({ loading: false }) }
   },
   agreementChange(event) { this.setData({ agreed: (event.detail.value || []).includes('agreed') }) },
+  onShow() { theme.apply(this); this.setData({ logoFailed: false }) },
+  logoError() { this.setData({ logoFailed: true }) },
   checkReady() {
     if (!this.data.enabled) { wx.showToast({ title: '当前客户尚未开通小程序登录', icon: 'none' }); return false }
     if (!this.data.agreed) { wx.showToast({ title: '请先阅读并同意隐私政策', icon: 'none' }); return false }

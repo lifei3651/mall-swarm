@@ -24,7 +24,10 @@ function harness(name, { respond, loggedIn = true, selected = goods, stack = [] 
   }
   const mocks = {
     '../../utils/request': async (options) => { calls.push(plain(options)); return respond ? respond(options) : undefined },
-    '../../utils/cart': { selected: () => selected, clearSelected: () => { cleared++ } },
+    '../../utils/cart': { selected: () => selected, directItems: () => selected, clearDirectCheckout() {}, clearSelected: () => { cleared++ } },
+    '../../utils/session': { getToken: () => loggedIn ? 'test-session' : '' },
+    '../../utils/wechat-address': { choose: async () => { throw new Error('请显式配置地址导入测试') } },
+    '../../utils/catalog': { refresh: async (rows) => rows },
     '../../utils/auth': { requireLogin: (route) => { loginChecks.push(route); return loggedIn } },
     '../../utils/format': { money: (value) => Number(value).toFixed(2), mediaUrl: (value) => value,
       identifier: (value) => typeof value === 'number' && (!Number.isSafeInteger(value) || value <= 0) ? '' : /^[1-9]\d{0,18}$/.test(String(value ?? '').trim()) ? String(value).trim() : '' },

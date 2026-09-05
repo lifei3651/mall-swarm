@@ -8,7 +8,7 @@ Page({
   data: {
     ...theme.pageData(),
     loading: true, error: '', product: {}, skus: [], skuIndex: 0, quantity: 1,
-    priceText: '0.00', stock: 0, soldOut: false
+    priceText: '0.00', stock: 0, soldOut: false, selectedSku: {}
   },
   onLoad(options = {}) { theme.apply(this); this.productId = format.identifier(options.id); this.load() },
   async load() {
@@ -17,14 +17,14 @@ Page({
     try {
       const detail = await request({ url: `/shop/products/${this.productId}` })
       const product = format.product(detail.product)
-      const skus = (detail.skus || []).map((sku) => ({ ...sku, priceText: format.money(sku.salePrice) }))
+      const skus = (detail.skus || []).map(format.sku)
       const availableIndex = skus.findIndex((sku) => Number(sku.stock || 0) > 0)
       const skuIndex = availableIndex >= 0 ? availableIndex : 0
       const selected = skus[skuIndex]
       this.setData({
         product,
         skus,
-        skuIndex,
+        skuIndex, selectedSku: selected || {},
         priceText: selected ? selected.priceText : product.priceText,
         stock: Math.max(0, Number(selected ? selected.stock : product.stock || 0)),
         soldOut: Number(product.status ?? 1) !== 1 || Math.max(0, Number(selected ? selected.stock : product.stock || 0)) <= 0
@@ -39,10 +39,10 @@ Page({
     const skuIndex = Number(event.currentTarget.dataset.index)
     const sku = this.data.skus[skuIndex]
     if (!sku || Number(sku.stock || 0) <= 0 || Number(this.data.product.status ?? 1) !== 1) return
-    this.setData({ skuIndex, quantity: 1, priceText: sku.priceText, stock: Number(sku.stock || 0), soldOut: false })
+    this.setData({ skuIndex, selectedSku: sku, quantity: 1, priceText: sku.priceText, stock: Number(sku.stock || 0), soldOut: false })
   },
   changeQuantity(event) {
-    const maximum = Math.max(1, Math.min(99, Number(this.data.stock || 1)))
+    const maximum = Math.max(1, Math.min(99, Number(this.data.stock || 1), Number(this.data.product.purchaseLimit) > 0 ? Number(this.data.product.purchaseLimit) : 99))
     this.setData({ quantity: Math.max(1, Math.min(maximum, this.data.quantity + Number(event.currentTarget.dataset.delta))) })
   },
   purchaseItem() {
@@ -56,19 +56,19 @@ Page({
     const item = { productId: product.id, skuId: sku ? sku.id : null, productName: product.productName,
       coverUrl: product.coverUrl, salePrice: sku ? Number(sku.salePrice ?? product.salePrice) : product.salePrice,
       skuName: sku ? (sku.skuName || sku.specName || '') : '', quantity: this.data.quantity }
-    cart.add(item)
-    return `${item.productId}:${item.skuId || 0}`
+    return item
   },
   addToCart() {
-    if (!this.purchaseItem()) return
+    const item = this.purchaseItem()
+    if (!item) return
+    cart.add(item)
     wx.showToast({ title: '已加入购物车', icon: 'success' })
   },
   buyNow() {
     if (!auth.requireLogin(`/pages/product/index?id=${this.productId}`)) return
-    const key = this.purchaseItem()
-    if (!key) return
-    cart.selectOnly(key)
-    wx.navigateTo({ url: '/pages/checkout/index' })
+    const item = this.purchaseItem()
+    if (!item || !cart.beginDirectCheckout(item)) return
+    wx.navigateTo({ url: '/pages/checkout/index?direct=1' })
   },
   goCart() { wx.switchTab({ url: '/pages/cart/index' }) }
 })

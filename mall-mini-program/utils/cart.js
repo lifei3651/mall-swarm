@@ -1,4 +1,6 @@
 const CART_KEY = 'mall_mini_cart'
+const session = require('./session')
+let direct = null
 
 function list() { return wx.getStorageSync(CART_KEY) || [] }
 function save(rows) { wx.setStorageSync(CART_KEY, rows); return rows }
@@ -16,5 +18,16 @@ function selectAll(selected) { return save(list().map((row) => ({ ...row, select
 function selectOnly(key) { return save(list().map((row) => ({ ...row, selected: row.key === key }))) }
 function clearSelected() { return save(list().filter((row) => !row.selected)) }
 function selected() { return list().filter((row) => row.selected) }
+function beginDirectCheckout(item) {
+  const token = session.getToken()
+  if (!token) return false
+  direct = { token, item: { ...item, key: `${item.productId}:${item.skuId || 0}`, selected: true } }
+  return true
+}
+function directItems() {
+  if (!direct || !session.getToken() || direct.token !== session.getToken()) { direct = null; return [] }
+  return [{ ...direct.item }]
+}
+function clearDirectCheckout() { direct = null }
 
-module.exports = { list, add, update, remove, selectAll, selectOnly, clearSelected, selected }
+module.exports = { list, add, update, remove, selectAll, selectOnly, clearSelected, selected, beginDirectCheckout, directItems, clearDirectCheckout }

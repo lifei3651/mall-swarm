@@ -11,6 +11,9 @@ import java.util.List;
 public interface DmsShopAfterSaleItemDao {
     List<DmsShopAfterSaleItem> selectByAfterSaleId(@Param("afterSaleId") Long afterSaleId);
 
+    /** Validate reserved history before refund or stock mutation. */
+    int countInvalidReservedItemsByOrderId(@Param("orderId") Long orderId);
+
     int sumReservedQuantityByOrderItemId(@Param("orderItemId") Long orderItemId);
 
     int sumApprovedQuantityByOrderId(@Param("orderId") Long orderId);

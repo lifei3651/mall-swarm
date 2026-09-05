@@ -6,6 +6,7 @@
     <view class="title">{{message.title}}</view>
     <text class="time">{{displayTime}}</text>
     <text class="content">{{message.content}}</text>
-    <button wx:if="{{message.targetType !== 'NONE'}}" class="primary-button" bindtap="openTarget">查看相关业务</button>
+    <text wx:if="{{message.targetType === 'SERVICE_TICKET'}}" class="content">小程序暂未开放完整工单详情，可联系商城客服继续处理。</text>
+    <button wx:if="{{message.targetType !== 'NONE'}}" class="primary-button" bindtap="openTarget">{{message.targetType === 'SERVICE_TICKET' ? '联系商城客服' : '查看相关业务'}}</button>
   </view>
 </view>

@@ -2,6 +2,7 @@ package com.macro.mall.distribution.service.impl;
 
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.common.exception.ApiException;
+import com.macro.mall.distribution.util.ShopQuantityChecks;
 import com.macro.mall.distribution.dao.DmsShopAfterSaleDao;
 import com.macro.mall.distribution.dao.DmsShopAfterSaleItemDao;
 import com.macro.mall.distribution.dao.DmsShopOrderItemDao;
@@ -82,6 +83,7 @@ public class ExternalRefundCoordinator {
                 && !"WECHAT".equalsIgnoreCase(order.getPayType()))) {
             Asserts.fail("退款处理中订单不存在或支付方式不正确");
         }
+        validateRefundState(afterSale);
         String paymentOrderNo = order.getPaymentOrderNo() == null || order.getPaymentOrderNo().isBlank()
                 ? order.getOrderNo() : order.getPaymentOrderNo();
         String reason = "商城售后退款：" + (afterSale.getReason() == null ? "后台处理" : afterSale.getReason());
@@ -139,6 +141,7 @@ public class ExternalRefundCoordinator {
             // 只有第一次把“退款中”原子迁移为“已完成”的事务可以回补库存。
             // 重复回调看到状态 1 直接返回，不得再加库存。
             if (locked == null || !Integer.valueOf(6).equals(locked.getStatus())) return;
+            validateRefundState(locked);
             if (afterSaleDao.markRefundCompleted(afterSaleId) != 1) {
                 throw new IllegalStateException(channelName + "已退款，但本地完成状态保存失败，请使用同一售后单重试恢复");
             }
@@ -148,6 +151,13 @@ public class ExternalRefundCoordinator {
             finalizeOrderAfterChannelSuccess(lockedOrder);
         });
         log.info("{}退款与本地售后状态已完成: afterSaleId={}", channelName, afterSaleId);
+    }
+
+    private void validateRefundState(DmsShopAfterSale sale) {
+        ShopQuantityChecks.refundLines(afterSaleItemDao.selectByAfterSaleId(sale.getId()));
+        if (afterSaleItemDao.countInvalidReservedItemsByOrderId(sale.getOrderId()) != 0) {
+            Asserts.fail("历史售后数量或商品归属异常，请联系平台核查，禁止继续退款");
+        }
     }
 
     private void completeLateWechatRefund(WeChatPayGateway.RefundNotification notification) {
@@ -214,9 +224,10 @@ public class ExternalRefundCoordinator {
 
     private void finalizeOrderAfterChannelSuccess(DmsShopOrder order) {
         int originalQuantity = orderItemDao.selectByOrderId(order.getId()).stream()
-                .map(DmsShopOrderItem::getQuantity).filter(java.util.Objects::nonNull)
-                .mapToInt(Integer::intValue).sum();
+                .map(item -> com.macro.mall.distribution.util.ShopQuantityChecks.positive(item.getQuantity()))
+                .reduce(0, com.macro.mall.distribution.util.ShopQuantityChecks::add);
         int refundedQuantity = afterSaleItemDao.sumApprovedQuantityByOrderId(order.getId());
+        ShopQuantityChecks.remaining(originalQuantity, refundedQuantity);
         if (refundedQuantity < originalQuantity) {
             reconcilePartiallyShippedOrder(order, originalQuantity - refundedQuantity);
             return;

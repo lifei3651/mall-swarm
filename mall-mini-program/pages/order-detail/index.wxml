@@ -39,9 +39,16 @@
         <view class="shipment" wx:for="{{item.shipments}}" wx:key="id" wx:for-item="shipment">
           <view><text>物流</text><text>{{shipment.deliveryCompany || '物流公司待更新'}}</text></view>
           <view><text>运单号</text><text>{{shipment.deliveryNo || '-'}}</text></view>
+          <button wx:if="{{shipment.deliveryNo}}" class="secondary-button" data-number="{{shipment.deliveryNo}}" bindtap="copyDeliveryNo">复制运单号</button>
           <view wx:if="{{shipment.deliveryTimeText}}"><text>发货时间</text><text>{{shipment.deliveryTimeText}}</text></view>
         </view>
       </block>
+      <button wx:if="{{item.shipments.length}}" class="secondary-button" data-id="{{item.order.id}}" bindtap="loadTracking" loading="{{trackingLoading && trackingOrderId === item.order.id}}" disabled="{{trackingLoading}}">查询 / 刷新物流轨迹</button>
+      <view wx:if="{{trackingOrderId === item.order.id}}" class="tracking-panel">
+        <text wx:if="{{trackingError}}" class="shipment-error">{{trackingError}}</text>
+        <text wx:if="{{!trackingLoading && !trackingError && !trackingRows.length}}">暂未查到物流轨迹，可复制运单号向承运商查询</text>
+        <view wx:for="{{trackingRows}}" wx:key="deliveryNo" wx:for-item="tracking"><view>{{tracking.deliveryCompany}} {{tracking.deliveryNo}}</view><text class="tracking-status">{{tracking.statusText}}</text><view wx:for="{{tracking.events}}" wx:key="index" wx:for-item="progress" class="tracking-event"><text>{{progress.description}} {{progress.location}}</text><text>{{progress.time}}</text></view></view>
+      </view>
       <view wx:if="{{item.afterSales.length}}" class="after-sale-list">
         <view class="section-title">退款 / 售后进度</view>
         <view class="after-sale-record" wx:for="{{item.afterSales}}" wx:key="id" wx:for-item="sale">
@@ -59,6 +66,7 @@
             disabled="{{cancellingAfterSaleId !== null}}" bindtap="receiveExchange">确认收到换货商品</button>
           <view wx:if="{{editingSaleId === sale.id}}" class="shipment-form">
             <text class="form-label">快递公司</text>
+            <picker range="{{carriers}}" bindchange="selectCarrier" disabled="{{submittingShipment}}"><view class="shipment-input">{{deliveryCompany || '从常用快递中选择'}}</view></picker>
             <input class="shipment-input" value="{{deliveryCompany}}" data-field="deliveryCompany" bindinput="shipmentInput" maxlength="50" placeholder="例如：顺丰速运" disabled="{{submittingShipment}}" aria-label="退货快递公司" />
             <text class="form-label">快递单号</text>
             <input class="shipment-input" value="{{deliveryNo}}" data-field="deliveryNo" bindinput="shipmentInput" maxlength="64" placeholder="请输入4至64位快递单号" disabled="{{submittingShipment}}" aria-label="退货快递单号" />

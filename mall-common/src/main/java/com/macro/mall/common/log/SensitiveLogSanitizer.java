@@ -21,7 +21,8 @@ public final class SensitiveLogSanitizer {
     private static final Set<String> SENSITIVE_NAMES = Set.of(
             "password", "pwd", "token", "authorization", "cookie", "session", "secret", "privatekey",
             "publickey", "accesskey", "sign", "smscode", "verifycode", "captcha", "mobile", "phone",
-            "idcard", "realname", "bankcard", "creditcode", "address", "receiver", "loginaccount", "username", "email"
+            "idcard", "realname", "bankcard", "creditcode", "address", "receiver", "loginaccount", "username", "email",
+            "logincode", "nickname", "avatar"
     );
     private static final Pattern BEARER = Pattern.compile("(?i)Bearer\\s+[A-Za-z0-9._~+\\/-]+=*");
     private static final Pattern JWT = Pattern.compile("\\beyJ[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\b");
@@ -29,7 +30,7 @@ public final class SensitiveLogSanitizer {
     private static final Pattern EMAIL = Pattern.compile("(?i)\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b");
     private static final Pattern PRIVATE_KEY = Pattern.compile("(?s)-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----");
     private static final Pattern KEY_VALUE_SECRET = Pattern.compile(
-            "(?i)(password|pwd|token|secret|smscode|verifycode|captcha|authorization|cookie)(\\s*[:=]\\s*)(?:Bearer\\s+)?[^,;\\s}\\]]+");
+            "(?i)(password|pwd|token|secret|smscode|verifycode|captcha|authorization|cookie|login[-_]?code|phone[-_]?code|nickname|avatar(?:[-_]?url)?)([\"']?\\s*[:=]\\s*[\"']?)(?:Bearer\\s+)?[^,;\\s}\\]\"']+");
 
     private SensitiveLogSanitizer() {}
 

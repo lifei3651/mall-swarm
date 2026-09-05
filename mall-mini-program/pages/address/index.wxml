@@ -7,6 +7,8 @@
     </view>
     <button wx:if="{{!showForm}}" bindtap="startAdd">新增地址</button>
   </view>
+  <button class="secondary-button wechat-import" bindtap="importWechatAddress" loading="{{importing}}" disabled="{{loading || saving || importing || loadError}}">从微信导入收货地址</button>
+  <view wx:if="{{importMessage}}" class="import-message">{{importMessage}}</view>
   <view wx:if="{{loading}}" class="empty">正在加载地址…</view>
   <view wx:elif="{{loadError}}" class="address-empty-state"><text>{{loadError}}</text><button bindtap="load">重新加载</button></view>
   <view wx:elif="{{rows.length}}" class="address-list">
@@ -27,3 +29,4 @@
     <button class="primary-button" loading="{{saving}}" disabled="{{saving || loading || loadError}}" bindtap="save">{{form.id ? '保存修改' : '保存地址'}}</button>
   </view>
 </view>
+<privacy-consent id="privacy-consent" />

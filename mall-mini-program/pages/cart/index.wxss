@@ -20,3 +20,4 @@
 .cart-total > view text { color: var(--price); font-size: 32rpx; }
 .cart-footer button { width: 230rpx; height: 84rpx; margin: 0; line-height: 84rpx; }
 .cart-footer { bottom: calc(112rpx + env(safe-area-inset-bottom)); padding-bottom: 18rpx; }
+.cart-warning{font-size:24rpx;line-height:1.6;color:#b42318;margin-top:10rpx}

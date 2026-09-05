@@ -148,6 +148,9 @@ public class SecurityRateLimitFilter extends OncePerRequestFilter {
         if (path.startsWith("/shop/wallet/") && !HttpMethod.GET.matches(method)) {
             return new Rule("wallet-write", 30, 60);
         }
+        if (HttpMethod.POST.matches(method) && "/shop/media/member-avatar".equals(path)) {
+            return new Rule("member-avatar-upload", 5, 60);
+        }
         if (HttpMethod.POST.matches(method) && "/shop/media/after-sale-proofs".equals(path)) {
             return new Rule("after-sale-proof-upload", 12, 60);
         }

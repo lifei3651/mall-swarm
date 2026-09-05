@@ -27,6 +27,27 @@
         ORDER BY id
     </select>
 
+    <select id="countInvalidReservedItemsByOrderId" resultType="int">
+        SELECT COUNT(*) FROM (
+            SELECT item.order_item_id
+            FROM dms_shop_after_sale_item item
+            INNER JOIN dms_shop_after_sale sale ON sale.id = item.after_sale_id
+            LEFT JOIN dms_shop_order_item original ON original.id = item.order_item_id
+            WHERE sale.order_id = #{orderId}
+              AND ((sale.apply_type IN (1, 2) AND sale.status IN (0, 1, 4, 5, 6))
+                OR (sale.apply_type = 3 AND sale.status IN (0, 4, 5, 7, 8)))
+            GROUP BY item.order_item_id
+            HAVING MIN(item.refund_quantity) &lt;= 0
+                OR COUNT(item.refund_quantity) != COUNT(*)
+                OR MIN(COALESCE(original.quantity, 0)) &lt;= 0
+                OR SUM(item.refund_quantity) &gt; MIN(original.quantity)
+                OR MAX(CASE WHEN item.order_id != sale.order_id OR original.order_id != sale.order_id
+                    OR item.product_id != original.product_id
+                    OR COALESCE(item.sku_id, 0) != COALESCE(original.sku_id, 0)
+                    THEN 1 ELSE 0 END) = 1
+        ) invalid_items
+    </select>
+
     <select id="sumReservedQuantityByOrderItemId" resultType="int">
         SELECT COALESCE(SUM(item.refund_quantity), 0)
         FROM dms_shop_after_sale_item item

@@ -8,6 +8,7 @@ const { identifier, afterSaleEligibility } = require('./policy')
 const STATUS = { 0: '待付款', 1: '待发货', 2: '已发货', 3: '已完成', 4: '已关闭', 5: '售后中' }
 const AFTER_SALE_STATUS = { 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待寄回', 5: '待商家收货', 6: '退款处理中', 7: '待商家换货发出', 8: '换货已发出' }
 const AFTER_SALE_TYPE = { 1: '仅退款', 2: '退货退款', 3: '同规格换货' }
+const CARRIERS = ['顺丰速运', '京东物流', '中通快递', '圆通速递', '申通快递', '韵达快递', '极兔速递', '中国邮政', 'EMS', '德邦快递', '跨越速运', '安能物流', '壹米滴答', 'DHL', 'FedEx', 'UPS']
 
 function formatTime(value) {
   return value ? String(value).replace('T', ' ').slice(0, 16) : ''
@@ -20,7 +21,8 @@ function addressText(order) {
 
 Page({
   data: { ...theme.pageData(), loading: true, error: '', rows: [], paymentNo: '', totalText: '0.00', actingId: null, cancellingAfterSaleId: null,
-    editingSaleId: '', deliveryCompany: '', deliveryNo: '', shipmentError: '', submittingShipment: false },
+    editingSaleId: '', deliveryCompany: '', deliveryNo: '', shipmentError: '', submittingShipment: false,
+    carriers: CARRIERS, trackingOrderId: '', trackingLoading: false, trackingError: '', trackingRows: [] },
   onLoad(options = {}) {
     theme.apply(this)
     const orderId = identifier(options.id)
@@ -35,7 +37,7 @@ Page({
     this.setData({ paymentNo })
   },
   onShow() {
-    theme.sync(this)
+    theme.apply(this)
     if (this.redirect && auth.requireLogin(this.redirect)) return this.load()
     this.requestVersion = (this.requestVersion || 0) + 1
     if (this.redirect) this.setData({ loading: false, rows: [] })
@@ -109,6 +111,30 @@ Page({
     } finally {
       if (!this.disposed && version === this.requestVersion) this.setData({ loading: false })
     }
+  },
+  selectCarrier(event) {
+    const company = CARRIERS[Number(event.detail.value)]
+    if (company && !this.data.submittingShipment) this.setData({ deliveryCompany: company, shipmentError: '' })
+  },
+  async loadTracking(event) {
+    const id = identifier(event.currentTarget.dataset.id)
+    if (!id || this.data.trackingLoading || !this.data.rows.some((row) => row.order.id === id)) return
+    const version = this.requestVersion
+    this.setData({ trackingOrderId: id, trackingLoading: true, trackingError: '', trackingRows: [] })
+    try {
+      const records = await request({ url: `/shop/orders/${id}/tracking` })
+      if (this.disposed || version !== this.requestVersion) return
+      this.setData({ trackingRows: (Array.isArray(records) ? records : []).map((record) => ({
+        deliveryNo: String(record.deliveryNo || ''), deliveryCompany: record.deliveryCompany || '',
+        statusText: record.statusText || (record.configured ? '暂无新物流轨迹' : '商城尚未配置物流轨迹服务，可复制单号向承运商查询'),
+        events: (record.events || []).map((item) => ({ description: item.description || '', location: item.location || '', time: formatTime(item.eventTime) }))
+      })) })
+    } catch (error) { if (!this.disposed && version === this.requestVersion) this.setData({ trackingError: error.message || '物流查询失败，请重试' }) }
+    finally { if (!this.disposed) this.setData({ trackingLoading: false }) }
+  },
+  copyDeliveryNo(event) {
+    const number = String(event.currentTarget.dataset.number || '')
+    if (number && number.length <= 64) wx.setClipboardData({ data: number })
   },
   receive(event) {
     const orderId = identifier(event.currentTarget.dataset.id)

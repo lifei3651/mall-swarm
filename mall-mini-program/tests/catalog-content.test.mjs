@@ -137,7 +137,7 @@ test('商品加载未完成或已下架时不能加入购物车，免费SKU不�
   h.page.setData({ loading: false, product: { id: '10', status: 0 }, soldOut: true })
   assert.equal(h.page.purchaseItem(), null)
   h.page.setData({ product: { id: '10', status: 1, salePrice: 50 }, soldOut: false, skus: [{ id: '11', salePrice: 0, stock: 5 }] })
-  h.page.purchaseItem(); assert.equal(h.cart[0].salePrice, 0)
+  h.page.addToCart(); assert.equal(h.cart[0].salePrice, 0)
 })
 
 for (const name of ['messages', 'payout', 'message-detail']) {

@@ -30,7 +30,7 @@ Page({
     subscriptionAvailable: false
   },
   onLoad() { theme.apply(this) },
-  onShow() { theme.sync(this); if (!this.fetching) return this.load(true) },
+  onShow() { theme.apply(this); if (!this.fetching) return this.load(true) },
   onPullDownRefresh() { this.load(true).finally(() => wx.stopPullDownRefresh()) },
   async load(reset) {
     if (!auth.requireLogin('/pages/messages/index')) return

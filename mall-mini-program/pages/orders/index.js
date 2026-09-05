@@ -27,7 +27,7 @@ Page({
     this.setData({ activeTab })
   },
   onShow() {
-    theme.sync(this)
+    theme.apply(this)
     const redirect = `/pages/orders/index${this.data.activeTab === 'all' ? '' : `?tab=${this.data.activeTab}`}`
     if (auth.requireLogin(redirect)) return Promise.all([this.loadConfig(), this.loadSummary(), this.load(true)])
     this.requestVersion = (this.requestVersion || 0) + 1

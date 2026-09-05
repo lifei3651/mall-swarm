@@ -17,7 +17,7 @@ Page({
     if (!orderId) this.setData({ loading: false, error: '订单编号不正确' })
   },
   onShow() {
-    theme.sync(this)
+    theme.apply(this)
     if (!this.data.orderId) return
     if (!auth.requireLogin(`/pages/after-sale/index?orderId=${this.data.orderId}`)) return
     // Choosing an image also triggers onShow; do not wipe the user's draft.

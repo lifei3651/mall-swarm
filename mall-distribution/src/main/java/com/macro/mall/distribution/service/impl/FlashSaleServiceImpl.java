@@ -126,6 +126,8 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     @Transactional(rollbackFor = Exception.class)
     public ShopOrderVO submit(Long activityId, ShopOrderSubmitDTO dto, DmsShopMember member) {
         if (member == null || member.getUserId() == null) Asserts.unauthorized("请先登录后参与秒杀");
+        com.macro.mall.distribution.util.ShopQuantityChecks.order(dto);
+        if (dto.getItems().size() != 1) Asserts.fail("秒杀订单只能包含一个活动商品");
         DmsFlashSaleActivity activity = activityDao.selectById(activityId);
         Long tenantId = TenantContext.getTenantId();
         if (activity == null || !tenantId.equals(activity.getTenantId())) Asserts.fail("秒杀活动不存在");
@@ -133,9 +135,8 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         LocalDateTime now = LocalDateTime.now();
         if (!Integer.valueOf(1).equals(activity.getStatus()) || now.isBefore(activity.getStartTime())) Asserts.fail("秒杀尚未开始");
         if (!now.isBefore(activity.getEndTime())) Asserts.fail("秒杀已结束");
-        if (dto == null || dto.getItems() == null || dto.getItems().size() != 1) Asserts.fail("秒杀订单只能包含一个活动商品");
         ShopOrderItemDTO item = dto.getItems().get(0);
-        int quantity = item.getQuantity() == null || item.getQuantity() <= 0 ? 1 : item.getQuantity();
+        int quantity = item.getQuantity();
         if (!activity.getProductId().equals(item.getProductId()) || !java.util.Objects.equals(activity.getSkuId(), item.getSkuId())) {
             Asserts.fail("秒杀商品与活动不一致");
         }

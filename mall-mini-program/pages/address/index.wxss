@@ -26,3 +26,4 @@
 .default-setting view text { display: block; }
 .default-setting view text:last-child { margin-top: 6rpx; color: #8a92a0; font-size: 22rpx; }
 .address-form > .primary-button { margin-top: 28rpx; }
+.wechat-import{margin:0 0 24rpx}.import-message{font-size:25rpx;line-height:1.6;color:var(--ink-muted,#64748b);margin:0 0 24rpx}

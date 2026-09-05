@@ -1,5 +1,6 @@
 const request = require('./request')
 const display = require('./display-config')
+const format = require('./format')
 
 const STORAGE_KEY = 'mall_mini_theme_color'
 const DEFAULT_COLOR = '#e7193f'
@@ -54,7 +55,7 @@ function pageData(value) {
   const themeColor = normalizeColor(colors.primary)
   const themeSoftColor = softColor(themeColor)
   const variables = { brand: themeColor, 'brand-soft': themeSoftColor, canvas: colors.pageBg, header: colors.headerBg, paper: colors.cardBg, ink: colors.textColor, muted: colors.mutedColor, price: colors.priceColor, accent: colors.accentColor, line: colors.lineColor, button: colors.buttonBg, radius: colors.radius }
-  return { themeColor, themeSoftColor, themeStyle: Object.entries(variables).map(([key, val]) => `--${key}: ${val}`).join(';') + `;background:${colors.pageBg};color:${colors.textColor}`, bottomNav: display.navigation(brand.displayConfig || {}), ...display.category(brand.displayConfig || {}) }
+  return { brandName: String(brand.brandName || '商城'), brandLogo: format.mediaUrl(brand.logoUrl), themeColor, themeSoftColor, themeStyle: Object.entries(variables).map(([key, val]) => `--${key}: ${val}`).join(';') + `;background:${colors.pageBg};color:${colors.textColor}`, bottomNav: display.navigation(brand.displayConfig || {}), ...display.category(brand.displayConfig || {}) }
 }
 
 function remember(brand) {
@@ -74,7 +75,7 @@ function remember(brand) {
 function sync(page, palette = pageData()) {
   if (!page || typeof page.setData !== 'function') return palette
   const data = page.data || {}
-  if (data.themeStyle !== palette.themeStyle || JSON.stringify(data.bottomNav) !== JSON.stringify(palette.bottomNav) || JSON.stringify(data.guide) !== JSON.stringify(palette.guide) || data.guideTemplate !== palette.guideTemplate || data.guideEnabled !== palette.guideEnabled) page.setData(palette)
+  if (data.brandLogo !== palette.brandLogo || data.brandName !== palette.brandName || data.themeStyle !== palette.themeStyle || JSON.stringify(data.bottomNav) !== JSON.stringify(palette.bottomNav) || JSON.stringify(data.guide) !== JSON.stringify(palette.guide) || data.guideTemplate !== palette.guideTemplate || data.guideEnabled !== palette.guideEnabled) page.setData(palette)
   const tab = typeof page.getTabBar === 'function' && page.getTabBar()
   if (tab && typeof tab.refresh === 'function') tab.refresh(palette)
   const inlineTab = typeof page.selectComponent === 'function' && page.selectComponent('#decoration-nav')

@@ -2,6 +2,7 @@
   <view wx:if="{{loading}}" class="empty">正在加载…</view>
   <view wx:elif="{{error}}" class="empty"><text>{{error}}</text><button class="secondary-button" bindtap="load">重新加载</button></view>
   <block wx:else>
+    <view wx:if="{{type === 'privacy'}}" class="card legal-content"><text user-select>{{miniPrivacy}}</text></view>
     <view wx:if="{{!type}}" class="card legal-menu"><button wx:for="{{entries}}" wx:key="type" data-type="{{item.type}}" bindtap="open">{{item.title}}<text>查看</text></button></view>
     <view wx:elif="{{type === 'license'}}" class="card legal-content">
       <view class="info"><text>运营主体</text><text user-select>{{config.companyName || '暂未配置'}}</text></view>

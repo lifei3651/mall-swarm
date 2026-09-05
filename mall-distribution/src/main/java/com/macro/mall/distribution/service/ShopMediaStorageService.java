@@ -97,6 +97,44 @@ public class ShopMediaStorageService {
         return new StoredImage(filename, target, processed.contentType(), processed.bytes().length);
     }
 
+    /** Owner-only avatar; bounded replacement, never placed in the public product directory. */
+    public synchronized StoredImage storeMemberAvatar(Long memberId, MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty() || file.getSize() > 2L * 1024 * 1024) Asserts.fail("请选择不超过2MB的头像");
+        byte[] bytes = file.getBytes();
+        ImageFormat format = detectFormat(bytes);
+        if (format != ImageFormat.JPEG && format != ImageFormat.PNG) Asserts.fail("头像仅支持真实的JPG或PNG图片");
+        ProcessedImage processed = processRaster(bytes, 512);
+        Path directory = memberAvatarDirectory(memberId);
+        Files.createDirectories(directory);
+        ensurePrivateDirectory(privateStorageDirectory);
+        ensurePrivateDirectory(directory.getParent());
+        ensurePrivateDirectory(directory);
+        String filename = "avatar." + processed.extension();
+        Path target = directory.resolve(filename);
+        Path temporary = Files.createTempFile(directory, "avatar-", ".tmp");
+        try {
+            ensurePrivate(temporary);
+            Files.write(temporary, processed.bytes());
+            try { Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING); }
+            catch (AtomicMoveNotSupportedException e) { Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING); }
+            ensurePrivate(target);
+        } finally { Files.deleteIfExists(temporary); }
+        // Only two fixed raster filenames can exist for an account; no unbounded historical uploads.
+        return new StoredImage(filename, target, processed.contentType(), processed.bytes().length);
+    }
+
+    public StoredImage loadMemberAvatar(Long memberId, String filename) throws IOException {
+        if (!"avatar.jpg".equals(filename) && !"avatar.png".equals(filename)) return null;
+        Path target = memberAvatarDirectory(memberId).resolve(filename);
+        if (!Files.isRegularFile(target)) return null;
+        return new StoredImage(filename, target, contentType(filename), Files.size(target));
+    }
+
+    private Path memberAvatarDirectory(Long memberId) {
+        if (memberId == null || memberId <= 0) Asserts.fail("账号信息无效");
+        return privateStorageDirectory.resolve("member-avatars").resolve(String.valueOf(memberId));
+    }
+
     /**
      * 品牌文化图片专用存储：只接受声明类型、扩展名和真实内容一致的 JPG/PNG/WEBP，
      * 按客户隔离并使用随机文件名，避免与公开商品图的内容寻址规则混用。
@@ -245,10 +283,14 @@ public class ShopMediaStorageService {
     }
 
     private ProcessedImage processRaster(byte[] source) throws IOException {
+        return processRaster(source, maxDimension);
+    }
+
+    private ProcessedImage processRaster(byte[] source, int dimension) throws IOException {
         BufferedImage input = readImage(source);
         int sourceWidth = input.getWidth();
         int sourceHeight = input.getHeight();
-        double scale = Math.min(1.0d, (double) maxDimension / Math.max(sourceWidth, sourceHeight));
+        double scale = Math.min(1.0d, (double) dimension / Math.max(sourceWidth, sourceHeight));
         int targetWidth = Math.max(1, (int) Math.round(sourceWidth * scale));
         int targetHeight = Math.max(1, (int) Math.round(sourceHeight * scale));
         boolean preserveAlpha = input.getColorModel().hasAlpha();

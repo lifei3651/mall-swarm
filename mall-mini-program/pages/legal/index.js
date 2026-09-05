@@ -3,7 +3,7 @@ const theme = require('../../utils/theme')
 const legal = require('../../utils/legal')
 const format = require('../../utils/format')
 Page({
-  data: { ...theme.pageData(), type: '', loading: true, error: '', config: {}, content: '', faqs: [], entries: Object.entries(legal.titles).map(([type, title]) => ({ type, title })) },
+  data: { ...theme.pageData(), type: '', loading: true, error: '', config: {}, content: '', miniPrivacy: legal.miniPrivacy, faqs: [], entries: Object.entries(legal.titles).map(([type, title]) => ({ type, title })) },
   onLoad(options = {}) {
     theme.apply(this)
     const type = Object.hasOwnProperty.call(legal.titles, options.type) ? options.type : ''

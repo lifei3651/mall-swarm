@@ -15,6 +15,7 @@
     "pages/message-detail/index",
     "pages/subscriptions/index",
     "pages/payout/index",
+    "pages/wallet/index",
     "pages/orders/index",
     "pages/order-detail/index",
     "pages/after-sale/index",
@@ -41,6 +42,8 @@
       { "pagePath": "pages/profile/index", "text": "我的", "iconPath": "assets/tabbar/profile.png", "selectedIconPath": "assets/tabbar/profile.png" }
     ]
   },
+  "requiredPrivateInfos": ["chooseAddress"],
+  "usingComponents": { "privacy-consent": "/components/privacy-consent/index" },
   "style": "v2",
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents"

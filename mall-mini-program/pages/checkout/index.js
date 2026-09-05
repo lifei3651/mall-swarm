@@ -4,6 +4,7 @@ const format = require('../../utils/format')
 const auth = require('../../utils/auth')
 const payment = require('../../utils/payment')
 const theme = require('../../utils/theme')
+const catalog = require('../../utils/catalog')
 
 function idempotencyKey() {
   return `MINI-CHECKOUT-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`
@@ -35,15 +36,16 @@ Page({
   onLoad(options = {}) {
     theme.apply(this)
     this.flashSaleMode = Object.prototype.hasOwnProperty.call(options, 'activityId')
+    this.directMode = options.direct === '1'
     this.activityId = this.flashSaleMode ? format.identifier(options.activityId) : ''
     this.activityQuantity = options.quantity === undefined ? 1 : Number(options.quantity)
     this.route = this.flashSaleMode
       ? `/pages/checkout/index?activityId=${encodeURIComponent(options.activityId || '')}&quantity=${encodeURIComponent(options.quantity === undefined ? '1' : options.quantity)}`
-      : '/pages/checkout/index'
+      : this.directMode ? '/pages/checkout/index?direct=1' : '/pages/checkout/index'
     this.submitKey = idempotencyKey()
   },
   onShow() {
-    theme.sync(this)
+    theme.apply(this)
     if (this.data.submitting || this.createdPaymentId) return
     if (auth.requireLogin(this.route || '/pages/checkout/index')) {
       if (!this.submitKey) this.submitKey = idempotencyKey()
@@ -63,7 +65,13 @@ Page({
     this.invalidateQuote()
     this.setData({ loading: true, loadError: '', wechatPayEnabled: false })
     try {
-      const source = this.flashSaleMode ? await this.loadActivity() : { rows: cart.selected(), activityName: '' }
+      if (this.flashSaleMode && this.directMode) throw new Error('结算入口无效，请返回重新选择')
+      const source = this.flashSaleMode ? await this.loadActivity() : { rows: this.directMode ? cart.directItems() : cart.selected(), activityName: '' }
+      if (!this.flashSaleMode) {
+        source.rows = await catalog.refresh(source.rows)
+        const invalid = source.rows.find((row) => row.unavailable)
+        if (invalid) throw new Error(invalid.unavailable)
+      }
       if (generation !== this.loadGeneration) return
       const rows = source.rows.map((row) => {
         const productId = format.identifier(row.productId)
@@ -240,7 +248,8 @@ Page({
       paymentId = format.identifier(order && (order.checkoutId || (order.order && order.order.id)))
       this.createdPaymentId = paymentId || 'CREATED_WITH_UNKNOWN_ID'
       if (!paymentId) throw new Error('订单已提交，但订单标识异常，请到“我的订单”核对状态后再操作')
-      if (!this.flashSaleMode) cart.clearSelected()
+      if (this.directMode) cart.clearDirectCheckout()
+      else if (!this.flashSaleMode) cart.clearSelected()
       wx.hideLoading()
       const confirmed = await payment.payOrder(paymentId)
       wx.showToast({ title: confirmed ? '支付成功' : '支付结果确认中', icon: confirmed ? 'success' : 'none' })

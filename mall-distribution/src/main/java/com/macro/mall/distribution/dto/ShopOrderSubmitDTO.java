@@ -57,6 +57,7 @@ public class ShopOrderSubmitDTO implements Serializable {
     private String smsCode;
 
     @NotEmpty(message = "订单商品不能为空")
+    @Size(max = 200, message = "单次订单最多200项商品，请拆分下单")
     @Valid
     private List<ShopOrderItemDTO> items;
 }

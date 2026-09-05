@@ -1,0 +1,8 @@
+<view wx:if="{{visible}}" class="privacy-mask" catchtouchmove="stop">
+  <view class="privacy-panel" role="dialog" aria-label="个人信息授权说明">
+    <view class="privacy-title">先了解你的信息如何使用</view>
+    <text class="privacy-copy">仅在你主动选择时，读取本次功能需要的信息：头像和昵称用于账号资料；收货地址用于回填配送信息；手机号用于注册或绑定账号。地址需核对并保存后才会提交。拒绝可继续浏览，地址和昵称也可手动填写。</text>
+    <button class="privacy-link" bindtap="openContract">查看《用户隐私保护指引》</button>
+    <view class="privacy-actions"><button bindtap="decline">暂不授权</button><button id="privacy-agree" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="agree" class="privacy-accept">同意并继续</button></view>
+  </view>
+</view>

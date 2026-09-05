@@ -1,6 +1,6 @@
 <view class="profile-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
   <view class="profile-header">
-    <view class="avatar"><image src="/assets/profile/user-round.png" mode="aspectFit" aria-hidden="true" /></view>
+    <view class="avatar" bindtap="security" role="button" aria-label="编辑头像和昵称"><image src="{{avatarSrc}}" mode="aspectFill" aria-hidden="true" /></view>
     <view class="profile-copy">
       <text class="profile-name">{{loggedIn ? (member.nickname || '商城会员') : '还未登录'}}</text>
       <text class="profile-subtitle">{{loggedIn ? (member.phone || '欢迎回来') : '欢迎来到商城'}}</text>
@@ -33,6 +33,7 @@
   </view>
   <view class="menu card">
     <view class="panel-head"><text class="panel-title">常用服务</text></view>
+    <button wx:if="{{loggedIn}}" class="menu-row" bindtap="wallet" aria-label="查看钱包和完整提现记录"><image class="service-icon" src="/assets/profile/credit-card.png" mode="aspectFit" aria-hidden="true" /><text class="menu-label">钱包与到账</text><image class="menu-arrow" src="/assets/profile/chevron-right.png" aria-hidden="true" /></button>
     <button class="menu-row" bindtap="messages" aria-label="查看消息与提醒" hover-class="row-pressed">
       <image class="service-icon" src="/assets/profile/bell.png" mode="aspectFit" aria-hidden="true" /><text class="menu-name">消息与提醒</text>
       <text wx:if="{{loggedIn && unreadCount}}" class="unread-badge">{{unreadText}}</text><image class="menu-arrow" src="/assets/profile/chevron-right.png" aria-hidden="true" />

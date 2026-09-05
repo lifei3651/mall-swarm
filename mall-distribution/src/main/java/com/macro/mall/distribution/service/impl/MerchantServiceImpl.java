@@ -746,6 +746,7 @@ public class MerchantServiceImpl implements MerchantService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void reverseAfterSaleItems(List<DmsShopAfterSaleItem> items) {
+        com.macro.mall.distribution.util.ShopQuantityChecks.refundLines(items);
         for (DmsShopAfterSaleItem item : items == null ? List.<DmsShopAfterSaleItem>of() : items) {
             DmsMerchantSettlement settlement = settlementDao.selectByOrderItemIdForUpdate(item.getOrderItemId());
             if (settlement == null) continue;

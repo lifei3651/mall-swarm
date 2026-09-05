@@ -10,6 +10,7 @@ import java.util.List;
 
 @Mapper
 public interface DmsShopMemberDao {
+    int updateAvatarUrl(@Param("id") Long id, @Param("avatarUrl") String avatarUrl);
 
     DmsShopMember selectById(@Param("id") Long id);
 

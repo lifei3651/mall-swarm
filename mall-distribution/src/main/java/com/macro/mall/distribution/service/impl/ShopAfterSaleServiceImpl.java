@@ -48,6 +48,7 @@ import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.RefundInventoryRestockService;
 import com.macro.mall.distribution.service.WeChatShippingInfoService;
 import com.macro.mall.distribution.util.MemberAccountUtils;
+import com.macro.mall.distribution.util.ShopQuantityChecks;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.entity.DmsAdminUser;
 import lombok.extern.slf4j.Slf4j;
@@ -177,18 +178,14 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         List<DmsShopOrderItem> orderItems = orderItemDao.selectByOrderId(order.getId());
         Map<Long, DmsShopOrderItem> byId = new LinkedHashMap<>();
         for (DmsShopOrderItem item : orderItems) byId.put(item.getId(), item);
-        Map<Long, Integer> selected = new LinkedHashMap<>();
-        dto.getItems().forEach(item -> {
-            if (item == null || item.getOrderItemId() == null || item.getQuantity() == null || item.getQuantity() <= 0) {
-                Asserts.fail("售后商品和数量不正确");
-            }
-            selected.merge(item.getOrderItemId(), item.getQuantity(), Integer::sum);
-        });
+        Map<Long, Integer> selected = ShopQuantityChecks.refundSelection(dto.getItems());
 
-        int totalRemainingQuantity = 0;
+        validateRefundHistory(order.getId());
+
+        long totalRemainingQuantity = 0;
         for (DmsShopOrderItem item : orderItems) {
             int reserved = afterSaleItemDao.sumReservedQuantityByOrderItemId(item.getId());
-            totalRemainingQuantity += Math.max(0, item.getQuantity() - reserved);
+            totalRemainingQuantity += ShopQuantityChecks.remaining(item.getQuantity(), reserved);
         }
         List<DmsShopAfterSaleItem> refundItems = new ArrayList<>();
         int refundQuantity = 0;
@@ -202,7 +199,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             DmsShopOrderItem source = byId.get(entry.getKey());
             if (source == null) Asserts.fail("售后商品不属于当前订单");
             int reserved = afterSaleItemDao.sumReservedQuantityByOrderItemId(source.getId());
-            int remaining = Math.max(0, source.getQuantity() - reserved);
+            int remaining = ShopQuantityChecks.remaining(source.getQuantity(), reserved);
             if (entry.getValue() > remaining) Asserts.fail(source.getProductName() + "最多可退" + remaining + "件");
             DmsShopAfterSaleItem item = new DmsShopAfterSaleItem();
             item.setOrderId(order.getId()); item.setOrderItemId(source.getId());
@@ -215,7 +212,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             item.setRefundAmount(grossRefund.multiply(productBase)
                     .divide(grossOrderAmount, 2, java.math.RoundingMode.HALF_UP));
             refundItems.add(item);
-            refundQuantity += entry.getValue();
+            refundQuantity = ShopQuantityChecks.add(refundQuantity, entry.getValue());
         }
         if (refundQuantity <= 0) Asserts.fail("请选择实际退回的商品数量");
         BigDecimal approvedProductRefund = nullToZero(afterSaleItemDao.sumApprovedProductRefundByOrderId(order.getId()));
@@ -379,13 +376,9 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         List<DmsShopOrderItem> orderItems = orderItemDao.selectByOrderId(orderId);
         Map<Long, DmsShopOrderItem> byId = new LinkedHashMap<>();
         for (DmsShopOrderItem item : orderItems) byId.put(item.getId(), item);
-        Map<Long, Integer> selected = new LinkedHashMap<>();
-        dto.getItems().forEach(item -> {
-            if (item == null || item.getOrderItemId() == null || item.getQuantity() == null || item.getQuantity() <= 0) {
-                Asserts.fail("退款商品和盒数不正确");
-            }
-            selected.merge(item.getOrderItemId(), item.getQuantity(), Integer::sum);
-        });
+        Map<Long, Integer> selected = ShopQuantityChecks.refundSelection(dto.getItems());
+
+        validateRefundHistory(orderId);
 
         BigDecimal grossOrderAmount = orderItems.stream().map(DmsShopOrderItem::getTotalAmount)
                 .filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -394,10 +387,10 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             Asserts.fail("订单商品金额异常，不能退款");
         }
 
-        int totalRemainingQuantity = 0;
+        long totalRemainingQuantity = 0;
         for (DmsShopOrderItem item : orderItems) {
             int reserved = afterSaleItemDao.sumReservedQuantityByOrderItemId(item.getId());
-            totalRemainingQuantity += Math.max(0, nullToZero(item.getQuantity()) - reserved);
+            totalRemainingQuantity += ShopQuantityChecks.remaining(item.getQuantity(), reserved);
         }
         List<DmsShopAfterSaleItem> refundItems = new ArrayList<>();
         int refundQuantity = 0;
@@ -406,7 +399,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             DmsShopOrderItem source = byId.get(entry.getKey());
             if (source == null) Asserts.fail("退款商品不属于当前订单");
             int reserved = afterSaleItemDao.sumReservedQuantityByOrderItemId(source.getId());
-            int remaining = Math.max(0, nullToZero(source.getQuantity()) - reserved);
+            int remaining = ShopQuantityChecks.remaining(source.getQuantity(), reserved);
             if (entry.getValue() > remaining) Asserts.fail(source.getProductName() + "最多可退" + remaining + "盒");
             DmsShopAfterSaleItem item = new DmsShopAfterSaleItem();
             item.setOrderId(orderId);
@@ -422,7 +415,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             item.setRefundAmount(grossRefund);
             refundItems.add(item);
             selectedGross = selectedGross.add(grossRefund);
-            refundQuantity += entry.getValue();
+            refundQuantity = ShopQuantityChecks.add(refundQuantity, entry.getValue());
         }
         if (refundQuantity <= 0) Asserts.fail("请选择本次退款涉及的商品盒数");
         if (selectedGross.compareTo(BigDecimal.ZERO) <= 0) Asserts.fail("所选商品金额异常，不能退款");
@@ -612,6 +605,10 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             Asserts.fail(Integer.valueOf(2).equals(status) ? "拒绝售后必须填写原因" : "关闭售后必须填写原因");
         }
         // 退货退款与换货均先进入“待寄回”；换货不会进入退款或奖金冲销链路。
+        if (Integer.valueOf(1).equals(status)) {
+            ShopQuantityChecks.refundLines(afterSaleItemDao.selectByAfterSaleId(afterSale.getId()));
+            validateRefundHistory(order.getId());
+        }
         boolean returnAddressConfigured = afterSale.getReturnAddress() != null
                 && !afterSale.getReturnAddress().isBlank();
         boolean physicalReturn = Integer.valueOf(2).equals(afterSale.getApplyType())
@@ -792,8 +789,16 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
                 ? actor.getUsername() : actor.getNickname());
     }
 
+    private void validateRefundHistory(Long orderId) {
+        if (afterSaleItemDao.countInvalidReservedItemsByOrderId(orderId) != 0) {
+            Asserts.fail("历史售后数量或商品归属异常，请联系平台核查，禁止继续退款");
+        }
+    }
+
     private void completeRefund(DmsShopAfterSale afterSale, DmsShopOrder order) {
             List<DmsShopAfterSaleItem> items = afterSaleItemDao.selectByAfterSaleId(afterSale.getId());
+            ShopQuantityChecks.refundLines(items);
+            validateRefundHistory(order.getId());
             List<DmsShopOrderItem> orderItems = orderItemDao.selectByOrderId(order.getId());
             Map<Long, DmsShopOrderItem> orderItemsById = new LinkedHashMap<>();
             for (DmsShopOrderItem orderItem : orderItems) orderItemsById.put(orderItem.getId(), orderItem);
@@ -804,7 +809,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             int bonusRefundQuantity = items.stream()
                     .filter(item -> isBonusEligibleOrderItem(orderItemsById.get(item.getOrderItemId())))
                     .map(DmsShopAfterSaleItem::getRefundQuantity).filter(Objects::nonNull)
-                    .mapToInt(Integer::intValue).sum();
+                    .reduce(0, ShopQuantityChecks::add);
             FinanceRefundDTO refundDTO = new FinanceRefundDTO();
             refundDTO.setOrderId(afterSale.getOrderId());
             refundDTO.setOrderNo(afterSale.getOrderNo());
@@ -844,7 +849,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             // 支付宝/微信必须等渠道确认成功，再由 ExternalRefundCoordinator 在完成事务中回补。
             if (!externalRefundPending) refundInventoryRestockService.restoreAfterRefundCompleted(afterSale, order);
             int originalQuantity = orderItems.stream()
-                    .map(DmsShopOrderItem::getQuantity).filter(Objects::nonNull).mapToInt(Integer::intValue).sum();
+                    .map(item -> ShopQuantityChecks.positive(item.getQuantity())).reduce(0, ShopQuantityChecks::add);
             if (!externalRefundPending) reconcileOrderStateAfterRefund(order, originalQuantity);
             // 退款后退回非会员：名下已无有效支付订单时自动取消推广资格（含其下级团队自动移交）。
             if (!externalRefundPending) autoDemoteMemberAfterFullRefund(order);
@@ -856,6 +861,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
      */
     private void reconcileOrderStateAfterRefund(DmsShopOrder order, int originalQuantity) {
         int refundedQuantity = afterSaleItemDao.sumApprovedQuantityByOrderId(order.getId());
+        ShopQuantityChecks.remaining(originalQuantity, refundedQuantity);
         if (refundedQuantity >= originalQuantity) {
             orderDao.closeAfterSale(order.getId());
             order.setStatus(4);

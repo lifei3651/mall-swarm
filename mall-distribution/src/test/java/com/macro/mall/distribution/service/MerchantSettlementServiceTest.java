@@ -113,6 +113,7 @@ class MerchantSettlementServiceTest {
 
         DmsShopAfterSaleItem refundItem = new DmsShopAfterSaleItem();
         refundItem.setOrderItemId(orderItemId);
+        refundItem.setProductId(1L);
         refundItem.setRefundQuantity(2);
         merchantService.reverseAfterSaleItems(List.of(refundItem));
         DmsMerchantAccount refunded = account(merchant.getId());
@@ -778,6 +779,7 @@ class MerchantSettlementServiceTest {
 
         DmsShopAfterSaleItem refund = new DmsShopAfterSaleItem();
         refund.setOrderItemId(itemId);
+        refund.setProductId(1L);
         refund.setRefundQuantity(3);
         merchantService.reverseAfterSaleItems(List.of(refund));
 

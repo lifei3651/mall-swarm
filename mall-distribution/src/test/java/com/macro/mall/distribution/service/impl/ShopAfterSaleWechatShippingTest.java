@@ -71,7 +71,10 @@ class ShopAfterSaleWechatShippingTest {
         DmsShopOrderItem item = new DmsShopOrderItem(); item.setId(4L); item.setQuantity(2);
         item.setTotalAmount(BigDecimal.TEN);
         when(orderItems.selectByOrderId(2L)).thenReturn(List.of(item));
-        when(saleItems.selectByAfterSaleId(1L)).thenReturn(List.of());
+        DmsShopAfterSaleItem returnedGift = new DmsShopAfterSaleItem();
+        returnedGift.setOrderItemId(4L); returnedGift.setProductId(1L);
+        returnedGift.setRefundQuantity(1); returnedGift.setRefundAmount(BigDecimal.ZERO);
+        when(saleItems.selectByAfterSaleId(1L)).thenReturn(List.of(returnedGift));
         when(saleItems.sumApprovedQuantityByOrderId(2L)).thenReturn(1);
         DmsShopOrderShipment shipment = new DmsShopOrderShipment();
         shipment.setDeliveryCompany("顺丰速运"); shipment.setDeliveryNo("SF-PARTIAL-001");

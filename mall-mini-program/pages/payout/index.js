@@ -14,9 +14,9 @@ function isUserCancel(error) {
 }
 
 Page({
-  data: { ...theme.pageData(), loading: true, error: '', rows: [], actingId: null },
-  onLoad() { theme.apply(this) },
-  onShow() { theme.sync(this); if (!this.fetching) return this.load() },
+  data: { ...theme.pageData(), loading: true, error: '', rows: [], actingId: null, history: false },
+  onLoad(options = {}) { theme.apply(this); this.withdrawId = format.identifier(options.id); this.setData({ history: options.history === '1' || Boolean(this.withdrawId) }) },
+  onShow() { theme.apply(this); if (!this.fetching) return this.load() },
   onPullDownRefresh() { this.load().finally(() => wx.stopPullDownRefresh()) },
   async load() {
     if (this.fetching || !auth.requireLogin('/pages/payout/index')) return
@@ -25,8 +25,10 @@ Page({
     try {
       const records = await request({ url: '/shop/wallet/withdrawals' })
       const rows = (records || [])
-        .filter((item) => Number(item.withdrawType) === 2 && Number(item.status) === 2)
-        .map((item) => ({ ...item, amountText: format.money(item.withdrawAmount) }))
+        .filter((item) => this.withdrawId ? format.identifier(item.id) === this.withdrawId : this.data.history || (Number(item.withdrawType) === 2 && Number(item.status) === 2))
+        .map((item) => ({ ...item, id: format.identifier(item.id), amountText: format.money(item.withdrawAmount),
+          canConfirm: Number(item.withdrawType) === 2 && Number(item.status) === 2,
+          timeText: String(item.createTime || '').replace('T', ' ').slice(0, 16) }))
       this.loadedOnce = true
       this.setData({ rows })
     } catch (error) {
@@ -38,7 +40,7 @@ Page({
   },
   async confirm(event) {
     const withdrawId = format.identifier(event.currentTarget.dataset.id)
-    if (!withdrawId || this.data.actingId) return
+    if (!withdrawId || this.data.actingId || !this.data.rows.some((row) => format.identifier(row.id) === withdrawId && row.canConfirm)) return
     if (!wx.canIUse || !wx.canIUse('requestMerchantTransfer')) {
       wx.showModal({
         title: '当前微信版本暂不支持',

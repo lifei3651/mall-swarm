@@ -1,4 +1,6 @@
 <view class="cart-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
+  <view wx:if="{{checking}}" class="muted">正在核对最新价格和库存…</view>
+  <view wx:if="{{checkError}}"><text>{{checkError}}</text><button bindtap="refresh">重新校验</button></view>
   <view wx:if="{{!rows.length}}" class="empty cart-empty"><view>购物车还是空的</view><button class="primary-button" bindtap="goShopping">去逛逛</button></view>
   <block wx:else>
     <view class="cart-list">
@@ -10,6 +12,7 @@
         <view class="cart-copy">
           <view class="cart-title" data-id="{{item.productId}}" bindtap="openProduct">{{item.productName}}</view>
           <view class="muted spec">{{item.skuName}}</view>
+          <view wx:if="{{item.unavailable}}" class="cart-warning">{{item.unavailable}}</view>
           <view class="cart-line">
             <text>¥{{item.priceText}}</text>
             <view class="counter"><button data-key="{{item.key}}" data-delta="-1" bindtap="quantity">−</button><text>{{item.quantity}}</text><button data-key="{{item.key}}" data-delta="1" bindtap="quantity">＋</button></view>
@@ -23,7 +26,7 @@
         <label><checkbox value="selected" checked="{{allSelected}}" color="{{themeColor}}" aria-label="全选商品" /><text>全选</text></label>
       </checkbox-group>
       <view class="cart-total"><text class="muted">已选 {{count}} 件</text><view>合计 <text>¥{{total}}</text></view></view>
-      <button class="primary-button" bindtap="checkout">去结算</button>
+      <button class="primary-button" disabled="{{checking || checkError}}" bindtap="checkout">去结算</button>
     </view>
   </block>
 </view>

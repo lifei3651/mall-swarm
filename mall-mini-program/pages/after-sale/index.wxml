@@ -43,3 +43,4 @@
     <button class="primary-button submit-button" bindtap="submit" loading="{{submitting}}" disabled="{{submitting || selectingProof}}">{{submitting ? '正在提交，请稍候' : '提交售后申请'}}</button>
   </block>
 </view>
+<privacy-consent id="privacy-consent" />

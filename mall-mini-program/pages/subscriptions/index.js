@@ -38,7 +38,7 @@ function subscriptionGroups(templates) {
 Page({
   data: { ...theme.pageData(), loading: true, requesting: false, templates: [], groups: [], pendingGrant: false, error: '' },
   onLoad() { theme.apply(this) },
-  onShow() { theme.sync(this); if (!this.data.requesting) return this.load() },
+  onShow() { theme.apply(this); if (!this.data.requesting) return this.load() },
   onUnload() { this.disposed = true; this.loadVersion = (this.loadVersion || 0) + 1; this.pendingGrant = null; this.pendingGrantToken = null },
   async load() {
     const version = this.loadVersion = (this.loadVersion || 0) + 1

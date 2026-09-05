@@ -19,6 +19,8 @@ function harness({ respond = () => member, loggedIn = true } = {}) {
       if (path === '../../utils/auth') return { requireLogin: (redirect) => { if (!loggedIn) routes.push(`login:${redirect}`); return loggedIn } }
       if (path === '../../utils/session') return { clearSession: () => { cleared++; loggedIn = false } }
       if (path === '../../utils/theme') return { pageData: () => ({}), apply() {}, sync() {} }
+      if (path === '../../utils/privacy') return { requireConsent: async () => {} }
+      if (path === '../../utils/member-avatar') return { fallback: '/assets/profile/user-round.png', load: async () => '/assets/profile/user-round.png', release() {} }
       assert.fail(`Unknown dependency ${path}`)
     },
     Date: DateMock,
@@ -155,7 +157,8 @@ test('离开页面/卸载清空密码验证码与计时器，晚到资料不恢�
 
 test('密码控件隐藏显示，验证码与密码不置于路由/存储，不虚构找回或注销能力', () => {
   const code = readFileSync(new URL('../pages/account-security/index.js', import.meta.url), 'utf8')
-  assert.doesNotMatch(code, /setStorageSync|console\.|\/forgot-password|\/account\/delete/)
+  assert.doesNotMatch(code, /setStorageSync\([^\n]*(?:password|smsCode|EMPTY_SECRETS)|console\.|\/forgot-password|\/account\/delete/)
+  assert.match(code, /setStorageSync\('mall_mini_member', member\)/)
   const view = readFileSync(new URL('../pages/account-security/index.wxml', import.meta.url), 'utf8')
   for (const field of ['password', 'currentPassword', 'newPassword', 'confirmPassword']) {
     const tags = (view.match(/<input[^>]+>/g) || []).filter((tag) => tag.includes(`data-field="${field}"`))

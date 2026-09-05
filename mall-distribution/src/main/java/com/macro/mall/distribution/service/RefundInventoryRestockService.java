@@ -44,6 +44,11 @@ public class RefundInventoryRestockService {
     @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
     public int restoreAfterRefundCompleted(DmsShopAfterSale afterSale, DmsShopOrder order) {
         if (afterSale == null || order == null) Asserts.fail("退款库存回补信息不完整");
+        List<DmsShopAfterSaleItem> items = afterSaleItemDao.selectByAfterSaleId(afterSale.getId());
+        com.macro.mall.distribution.util.ShopQuantityChecks.refundLines(items);
+        if (afterSaleItemDao.countInvalidReservedItemsByOrderId(order.getId()) != 0) {
+            Asserts.fail("历史售后数量或商品归属异常，请联系平台核查");
+        }
         boolean physicalReturn = Integer.valueOf(2).equals(afterSale.getApplyType());
         boolean beforeAnyShipment = Integer.valueOf(1).equals(order.getStatus())
                 && order.getDeliveryTime() == null
@@ -51,12 +56,9 @@ public class RefundInventoryRestockService {
         // 已发货的“仅退款”没有商品退回，不能增加可售库存。
         if (!physicalReturn && !beforeAnyShipment) return 0;
 
-        List<DmsShopAfterSaleItem> items = afterSaleItemDao.selectByAfterSaleId(afterSale.getId());
-        if (items == null || items.isEmpty()) Asserts.fail("退款库存回补商品明细为空");
         int restoredQuantity = 0;
         for (DmsShopAfterSaleItem item : items) {
-            int quantity = item.getRefundQuantity() == null ? 0 : item.getRefundQuantity();
-            if (quantity <= 0) continue;
+            int quantity = item.getRefundQuantity();
             if (item.getSkuId() != null && skuDao.increaseStock(item.getSkuId(), quantity) != 1) {
                 Asserts.fail("退款规格库存回补失败，请使用同一售后单重试");
             }

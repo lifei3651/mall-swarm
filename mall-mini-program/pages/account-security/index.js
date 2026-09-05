@@ -2,6 +2,8 @@ const request = require('../../utils/request')
 const auth = require('../../utils/auth')
 const session = require('../../utils/session')
 const theme = require('../../utils/theme')
+const privacy = require('../../utils/privacy')
+const avatar = require('../../utils/member-avatar')
 
 const EMPTY_SECRETS = { password: '', currentPassword: '', newPassword: '', confirmPassword: '', smsCode: '' }
 function passwordError(value, username, phone) {
@@ -14,21 +16,23 @@ function passwordError(value, username, phone) {
 
 Page({
   data: { ...theme.pageData(), ...EMPTY_SECRETS, loading: true, error: '', message: '', member: null,
-    username: '', nickname: '', maskedPhone: '', canSetupAccount: false, action: '', sendingCode: false, countdown: 0 },
+    username: '', nickname: '', useWechatNickname: false, avatarSrc: avatar.fallback, maskedPhone: '', canSetupAccount: false, action: '', sendingCode: false, countdown: 0 },
   onLoad() { theme.apply(this) },
   onShow() {
     this.hidden = false
-    theme.sync(this)
+    theme.apply(this)
     this.updateCountdown()
+    if (this.data.action) return
     if (auth.requireLogin('/pages/account-security/index')) return this.load()
     this.requestVersion = (this.requestVersion || 0) + 1
     this.setData({ ...EMPTY_SECRETS, loading: false, member: null, nickname: '', username: '', maskedPhone: '', canSetupAccount: false })
   },
   onHide() {
+    avatar.release(this.data.avatarSrc)
     this.hidden = true
     this.requestVersion = (this.requestVersion || 0) + 1
     clearTimeout(this.countdownTimer)
-    this.setData({ ...EMPTY_SECRETS })
+    this.setData({ ...EMPTY_SECRETS, avatarSrc: avatar.fallback })
   },
   onUnload() { this.disposed = true; this.onHide() },
   async load() {
@@ -42,6 +46,9 @@ Page({
       const phone = String(member.phone || '')
       this.setData({ member, nickname: member.nickname || '', username: '', canSetupAccount: !username.trim() || username === phone,
         maskedPhone: /^1[3-9]\d{9}$/.test(phone) ? `${phone.slice(0, 3)}****${phone.slice(-4)}` : '尚未绑定有效手机号' })
+      const avatarSrc = await avatar.load(member.avatarUrl)
+      if (this.disposed || this.hidden || version !== this.requestVersion) avatar.release(avatarSrc)
+      else { avatar.release(this.data.avatarSrc); this.setData({ avatarSrc }) }
     } catch (error) {
       if (!this.disposed && !this.hidden && version === this.requestVersion) this.setData({ ...EMPTY_SECRETS, member: null, canSetupAccount: false, error: error.message || '账号信息加载失败' })
     } finally { if (!this.disposed && !this.hidden && version === this.requestVersion) this.setData({ loading: false }) }
@@ -54,9 +61,35 @@ Page({
     if (field === 'smsCode') value = value.replace(/\D/g, '').slice(0, 6)
     this.setData({ [field]: value, error: '', message: '' })
   },
-  async saveNickname() {
+  async enableWechatNickname() {
+    if (this.data.action) return
+    try { await privacy.requireConsent(); if (!this.disposed) this.setData({ useWechatNickname: true, error: '' }) }
+    catch (error) { if (!this.disposed) this.setData({ error: error.message, useWechatNickname: false }) }
+  },
+  async chooseAvatar(event) {
+    if (this.data.action || !this.data.member || !event.detail.avatarUrl) return
+    const token = session.getToken()
+    const path = event.detail.avatarUrl
+    this.requestVersion = (this.requestVersion || 0) + 1
+    this.setData({ action: 'avatar', loading: false, error: '', message: '' })
+    try {
+      await privacy.requireConsent()
+      if (this.disposed || token !== session.getToken()) return
+      const avatarUrl = await avatar.upload(path)
+      if (this.disposed || token !== session.getToken()) return
+      const member = { ...this.data.member, avatarUrl }
+      wx.setStorageSync('mall_mini_member', member)
+      const avatarSrc = await avatar.load(avatarUrl)
+      if (this.disposed || this.hidden || token !== session.getToken()) { avatar.release(avatarSrc); return }
+      avatar.release(this.data.avatarSrc)
+      this.setData({ member, avatarSrc, message: '头像已更新' })
+    } catch (error) { if (!this.disposed && token === session.getToken()) this.setData({ error: error.message || '头像更新失败' }) }
+    finally { avatar.release(path); if (!this.disposed) this.setData({ action: '' }) }
+  },
+  async saveNickname(event) {
     if (this.data.action || this.data.loading || !this.data.member) return
-    const nickname = this.data.nickname.trim().replace(/\s+/g, ' ')
+    // Use the submitted native value: WeChat nickname moderation may clear it after blur.
+    const nickname = String(event && event.detail && event.detail.value ? event.detail.value.nickname || '' : this.data.nickname).trim().replace(/\s+/g, ' ')
     if (!/^[\u3400-\u9fffA-Za-z0-9·_\- ]{2,20}$/.test(nickname)) { this.setData({ error: '昵称需为2至20个字符，支持中文、字母、数字、空格、·、-和_' }); return }
     this.setData({ action: 'nickname', error: '', message: '' })
     try {

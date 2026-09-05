@@ -111,7 +111,7 @@ public class ProductReviewServiceImpl implements ProductReviewService {
         review.setOrderItemId(eligibleItem.getId());
         review.setUserId(member.getUserId());
         review.setReviewerName(maskReviewerName(member));
-        review.setReviewerAvatar(member.getAvatarUrl());
+        review.setReviewerAvatar(publicAvatar(member.getAvatarUrl()));
         review.setRating(dto.getRating());
         review.setContent(content);
         review.setStatus(1);
@@ -190,11 +190,16 @@ public class ProductReviewServiceImpl implements ProductReviewService {
         ProductReviewVO vo = new ProductReviewVO();
         vo.setId(review.getId());
         vo.setReviewerName(review.getReviewerName());
-        vo.setReviewerAvatar(review.getReviewerAvatar());
+        vo.setReviewerAvatar(publicAvatar(review.getReviewerAvatar()));
         vo.setRating(review.getRating());
         vo.setContent(review.getContent());
         vo.setCreateTime(review.getCreateTime());
         return vo;
+    }
+
+    private String publicAvatar(String url) {
+        // Account avatars are private, including when a historical review is re-read.
+        return url != null && url.contains("/shop/media/member-avatar/") ? null : url;
     }
 
     private String maskReviewerName(DmsShopMember member) {

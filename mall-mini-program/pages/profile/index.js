@@ -1,20 +1,25 @@
 const session = require('../../utils/session')
 const request = require('../../utils/request')
 const theme = require('../../utils/theme')
+const avatar = require('../../utils/member-avatar')
 
 Page({
   data: {
     ...theme.pageData(),
-    loggedIn: false, member: null, unreadCount: 0, unreadText: '', payoutCount: 0,
+    loggedIn: false, member: null, avatarSrc: avatar.fallback, unreadCount: 0, unreadText: '', payoutCount: 0,
     orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, afterSale: 0 }
   },
   onShow() { theme.apply(this); this.refresh() },
+  onHide() { this.refreshVersion = (this.refreshVersion || 0) + 1; avatar.release(this.data.avatarSrc); this.setData({ avatarSrc: avatar.fallback }) },
+  onUnload() { this.onHide() },
   async refresh() {
+    const version = this.refreshVersion = (this.refreshVersion || 0) + 1
     const token = session.getToken()
     this.setData({ loggedIn: Boolean(token), member: session.getMember() })
     if (!token) {
+      avatar.release(this.data.avatarSrc)
       this.setData({
-        member: null,
+        member: null, avatarSrc: avatar.fallback,
         unreadCount: 0,
         unreadText: '',
         payoutCount: 0,
@@ -24,10 +29,16 @@ Page({
     }
     try {
       const member = await request({ url: '/shop/auth/me' })
+      if (version !== this.refreshVersion || session.getToken() !== token) return
       wx.setStorageSync('mall_mini_member', member)
       this.setData({ member })
+      const avatarSrc = await avatar.load(member.avatarUrl)
+      if (version !== this.refreshVersion || session.getToken() !== token) { avatar.release(avatarSrc); return }
+      avatar.release(this.data.avatarSrc)
+      this.setData({ avatarSrc })
       await Promise.all([this.loadUnread(), this.loadPayoutCount(), this.loadOrderSummary()])
     } catch (_) {
+      if (version !== this.refreshVersion || session.getToken() !== token) return
       this.setData({
         loggedIn: false, member: null, unreadCount: 0, unreadText: '', payoutCount: 0,
         orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, afterSale: 0 }
@@ -73,6 +84,7 @@ Page({
   },
   addresses() { if (this.requireLogin()) wx.navigateTo({ url: '/pages/address/index' }) },
   payout() { if (this.requireLogin()) wx.navigateTo({ url: '/pages/payout/index' }) },
+  wallet() { if (this.requireLogin()) wx.navigateTo({ url: '/pages/wallet/index' }) },
   service() {
     if (!this.requireLogin()) return
     wx.navigateTo({ url: '/pages/orders/index?tab=after-sale' })

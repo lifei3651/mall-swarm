@@ -4,11 +4,16 @@
   <block wx:else>
     <view class="panel">
       <view class="section-title">账号资料</view>
+      <button class="avatar-picker" open-type="chooseAvatar" bindchooseavatar="chooseAvatar" disabled="{{action !== ''}}" aria-label="选择并更新账号头像"><image src="{{avatarSrc}}" mode="aspectFill" /><text>{{action === 'avatar' ? '正在更新…' : '选择并更新头像'}}</text></button>
+      <text class="hint">头像仅用于个人账号展示。可选择微信头像或本地图片，支持2MB以内JPG/PNG。</text>
       <view class="account-row"><text>商城账号</text><text>{{canSetupAccount ? '尚未设置' : member.username}}</text></view>
       <view class="account-row"><text>绑定手机号</text><text>{{maskedPhone}}</text></view>
       <text class="field-label">昵称</text>
-      <input class="field" value="{{nickname}}" data-field="nickname" bindinput="fieldInput" maxlength="20" disabled="{{action !== ''}}" placeholder="请输入2至20个字符" aria-label="商城昵称" />
-      <button class="secondary-button" bindtap="saveNickname" loading="{{action === 'nickname'}}" disabled="{{action !== ''}}">保存昵称</button>
+      <button wx:if="{{!useWechatNickname}}" class="secondary-button" bindtap="enableWechatNickname" disabled="{{action !== ''}}">使用微信昵称填写</button>
+      <form bindsubmit="saveNickname">
+        <input class="field" type="{{useWechatNickname ? 'nickname' : 'text'}}" name="nickname" value="{{nickname}}" data-field="nickname" bindinput="fieldInput" maxlength="20" disabled="{{action !== ''}}" placeholder="请输入2至20个字符，也可手动填写" aria-label="商城昵称" />
+        <button class="secondary-button" form-type="submit" loading="{{action === 'nickname'}}" disabled="{{action !== ''}}">保存昵称</button>
+      </form>
     </view>
     <view wx:if="{{canSetupAccount}}" class="panel">
       <view class="section-title">设置商城账号</view>
@@ -43,3 +48,4 @@
     <view class="panel help-panel"><text class="hint">忘记当前密码或需要更换绑定手机号？请联系当前商城客服核验身份后处理。</text><button class="secondary-button" open-type="contact" show-message-card="{{true}}">联系商城客服</button></view>
   </block>
 </view>
+<privacy-consent id="privacy-consent" />
