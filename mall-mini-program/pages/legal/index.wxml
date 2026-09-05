@@ -3,6 +3,13 @@
   <view wx:elif="{{error}}" class="empty"><text>{{error}}</text><button class="secondary-button" bindtap="load">重新加载</button></view>
   <block wx:else>
     <view wx:if="{{type === 'privacy'}}" class="card legal-content"><text user-select>{{miniPrivacy}}</text></view>
+    <view wx:if="{{type === 'privacy'}}" class="card legal-content">
+      <view class="question">隐私问题与账号申请</view>
+      <view wx:if="{{config.servicePhone}}" class="info"><text>客服电话</text><text user-select>{{config.servicePhone}}</text></view>
+      <view wx:if="{{config.serviceEmail}}" class="info"><text>客服邮箱</text><text user-select>{{config.serviceEmail}}</text></view>
+      <text wx:if="{{!config.servicePhone && !config.serviceEmail}}">商城暂未公布客服电话和邮箱，需由运营方补充。可尝试通过下方在线客服咨询。</text>
+      <button class="primary-button" open-type="contact">在线客服</button>
+    </view>
     <view wx:if="{{!type}}" class="card legal-menu"><button wx:for="{{entries}}" wx:key="type" data-type="{{item.type}}" bindtap="open">{{item.title}}<text>查看</text></button></view>
     <view wx:elif="{{type === 'license'}}" class="card legal-content">
       <view class="info"><text>运营主体</text><text user-select>{{config.companyName || '暂未配置'}}</text></view>
@@ -19,6 +26,6 @@
       <button class="primary-button" open-type="contact">在线客服</button>
     </view>
     <view wx:elif="{{type === 'faq'}}" class="card legal-content"><view wx:for="{{faqs}}" wx:key="index" class="faq"><view class="question">{{item.question}}</view><text user-select>{{item.answer}}</text></view><view wx:if="{{!faqs.length}}" class="empty">暂未配置常见问题，请联系客服。</view></view>
-    <view wx:else class="card legal-content"><text user-select>{{content || '该内容暂未配置，请联系客服。'}}</text></view>
+    <view wx:else class="card legal-content"><view wx:if="{{type === 'privacy'}}" class="question">商城通用隐私政策</view><text user-select>{{content || '该内容暂未配置，请联系客服。'}}</text></view>
   </block>
 </view>

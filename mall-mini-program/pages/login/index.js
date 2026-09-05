@@ -10,18 +10,27 @@ Page({
     loading: true, submitting: false, enabled: false, phoneEnabled: false,
     agreed: false, privacyVersion: '', inviteCode: '', error: ''
   },
-  onLoad(options) {
+  onLoad(options = {}) {
     theme.apply(this)
     try { this.redirect = decodeURIComponent(options.redirect || '') } catch (_) { this.redirect = '' }
     this.loadRuntime()
   },
   async loadRuntime() {
+    if (this.data.submitting) return
+    const sequence = this._runtimeSequence = (this._runtimeSequence || 0) + 1
+    this.setData({ loading: true, enabled: false, phoneEnabled: false, privacyVersion: '', error: '' })
     try {
       const runtime = await auth.runtime()
+      if (sequence !== this._runtimeSequence) return
+      if (!runtime || runtime.enabled !== true) {
+        this.setData({ error: '商城登录服务暂未就绪，请稍后重试或联系商城客服' })
+        return
+      }
       if (runtime.enabled && runtime.privacyConsentVersion !== runtimeConfig.PRIVACY_CONSENT_VERSION) {
         this.setData({
           enabled: false,
           phoneEnabled: false,
+          agreed: false,
           privacyVersion: '',
           inviteCode: invite.getPendingInvite(),
           error: '小程序隐私版本与服务器配置不一致，请联系商城客服更新小程序后再登录'
@@ -29,19 +38,28 @@ Page({
         return
       }
       this.setData({
-        enabled: runtime.enabled,
-        phoneEnabled: runtime.phoneAuthorizationEnabled,
+        enabled: true,
+        phoneEnabled: runtime.phoneAuthorizationEnabled === true,
         privacyVersion: runtime.privacyConsentVersion,
         inviteCode: invite.getPendingInvite()
       })
-    } catch (error) { this.setData({ error: error.message }) }
-    finally { this.setData({ loading: false }) }
+    } catch (error) {
+      if (sequence === this._runtimeSequence) this.setData({ error: error && error.message || '商城配置加载失败，请重试' })
+    } finally {
+      if (sequence === this._runtimeSequence) { this._runtimeChecked = true; this.setData({ loading: false }) }
+    }
   },
   agreementChange(event) { this.setData({ agreed: (event.detail.value || []).includes('agreed') }) },
-  onShow() { theme.apply(this); this.setData({ logoFailed: false }) },
+  onShow() {
+    theme.apply(this)
+    this.setData({ logoFailed: false })
+    if (this._runtimeChecked && !this.data.submitting && (!this.data.enabled || !this.data.phoneEnabled)) this.loadRuntime()
+  },
+  onUnload() { this._runtimeSequence = (this._runtimeSequence || 0) + 1 },
   logoError() { this.setData({ logoFailed: true }) },
   checkReady() {
-    if (!this.data.enabled) { wx.showToast({ title: '当前客户尚未开通小程序登录', icon: 'none' }); return false }
+    if (this.data.loading || this.data.submitting) return false
+    if (!this.data.enabled) { wx.showToast({ title: '商城登录服务暂未就绪，请重试', icon: 'none' }); return false }
     if (!this.data.agreed) { wx.showToast({ title: '请先阅读并同意隐私政策', icon: 'none' }); return false }
     return true
   },
@@ -50,6 +68,7 @@ Page({
   },
   async phoneLogin(event) {
     if (!this.checkReady()) return
+    if (!this.data.phoneEnabled) { wx.showToast({ title: '手机号快捷注册暂不可用', icon: 'none' }); return }
     if (event.detail.errMsg !== 'getPhoneNumber:ok' || !event.detail.code) {
       wx.showToast({ title: '需要手机号授权才能完成首次注册', icon: 'none' })
       return
@@ -57,6 +76,7 @@ Page({
     await this.executeLogin(event.detail.code)
   },
   async executeLogin(phoneCode) {
+    if (this.data.submitting) return
     this.setData({ submitting: true, error: '' })
     try {
       const result = await auth.login({ phoneCode, privacyConsentVersion: this.data.privacyVersion })

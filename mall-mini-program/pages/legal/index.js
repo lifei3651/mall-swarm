@@ -15,6 +15,8 @@ Page({
     this.setData({ loading: true, error: '' })
     try {
       const config = await request({ url: '/shop/legal-config' }) || {}
+      config.servicePhone = legal.contactValue(config.servicePhone)
+      config.serviceEmail = legal.contactValue(config.serviceEmail)
       const url = format.mediaUrl(config.businessLicenseUrl)
       config.businessLicenseUrl = /^https:\/\//i.test(url) ? url : ''
       this.setData({ config, content: legal.content(this.data.type, config), faqs: legal.faqs(config) })
