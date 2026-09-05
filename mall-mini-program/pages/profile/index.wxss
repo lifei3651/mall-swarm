@@ -1,33 +1,37 @@
-.profile-page { min-height: 100vh; padding: 32rpx 24rpx calc(160rpx + env(safe-area-inset-bottom)); }
-.profile-card { padding: 32rpx; border: 1rpx solid var(--line); border-radius: 28rpx; background: linear-gradient(135deg, #fff 0%, var(--brand-soft) 100%); box-shadow: var(--shadow); color: var(--ink); }
-.profile-main { display: flex; align-items: center; }
-.avatar { display: flex; flex: none; align-items: center; justify-content: center; width: 106rpx; height: 106rpx; border-radius: 30rpx; background: var(--paper); box-shadow: 0 8rpx 24rpx rgba(35,42,56,.08); color: var(--accent); font-size: 38rpx; font-weight: 750; }
-.avatar image { width: 76rpx; height: 76rpx; }
-.profile-copy { min-width: 0; flex: 1; margin-left: 24rpx; }
-.profile-copy view { font-size: 36rpx; font-weight: 750; }
-.profile-copy text { display: block; margin-top: 8rpx; color: #697386; font-size: 24rpx; }
-.login-small { width: 100%; height: 82rpx; margin: 26rpx 0 0; padding: 0; border-radius: 999rpx; background: var(--button); color: #fff; font-size: 27rpx; font-weight: 650; line-height: 82rpx; box-shadow: 0 10rpx 24rpx rgba(31,38,52,.14); }
-.section-label { margin: 30rpx 8rpx 14rpx; color: #697386; font-size: 24rpx; font-weight: 650; }
-.order-panel { overflow: hidden; }
-.order-panel-head { display: flex; align-items: center; justify-content: space-between; min-height: 88rpx; padding: 0 26rpx; border-bottom: 1rpx solid #edf0f4; }
-.order-panel-head text:first-child { font-weight: 750; }
-.order-panel-head text:last-child { color: #858d9b; font-size: 23rpx; }
-.order-shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12rpx; padding: 18rpx; }
-.order-shortcuts button { position: relative; display: flex; align-items: center; min-width: 0; min-height: 112rpx; margin: 0; padding: 18rpx 20rpx; border: 1rpx solid var(--line); border-radius: 18rpx; background: #f7f8fa; color: var(--ink); text-align: left; line-height: 1.4; }
-.order-shortcuts button:active { background: var(--brand-soft); border-color: var(--accent); }
-.shortcut-copy { min-width: 0; }
-.shortcut-name { display: block; overflow: hidden; font-size: 27rpx; font-weight: 650; white-space: nowrap; text-overflow: ellipsis; }
-.shortcut-note { display: block; margin-top: 6rpx; overflow: hidden; color: var(--muted); font-size: 21rpx; white-space: nowrap; text-overflow: ellipsis; }
-.shortcut-count { position: absolute; top: 10rpx; right: 10rpx; z-index: 1; min-width: 32rpx; height: 32rpx; padding: 0 8rpx; border: 2rpx solid #fff; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 19rpx; line-height: 30rpx; text-align: center; }
-.menu { padding: 0 24rpx; }
-.menu-row { display: flex; align-items: center; justify-content: space-between; min-height: 108rpx; padding: 14rpx 4rpx; border-bottom: 1rpx solid #edf0f4; }
-.menu-copy { min-width: 0; flex: 1; }
-.menu-copy > text:first-child { display: block; font-size: 28rpx; font-weight: 600; }
-.menu-copy > text:last-child { display: block; margin-top: 4rpx; color: var(--muted); font-size: 22rpx; line-height: 32rpx; }
-.menu-arrow { flex: none; margin-left: 20rpx; color: #9ca4b1; font-size: 36rpx; }
-.menu .contact-row { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 108rpx; margin: 0; padding: 14rpx 4rpx; color: var(--ink); text-align: left; background: transparent; border-radius: 0; font-size: 28rpx; line-height: 1.4; }
-.menu .unread-badge { display: inline-block; min-width: 34rpx; height: 34rpx; margin-left: 10rpx; padding: 0 9rpx; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 20rpx; line-height: 34rpx; text-align: center; }
-.compliance { padding: 28rpx; }
-.compliance view { font-weight: 750; }
-.compliance text { display: block; margin-top: 14rpx; color: #687284; line-height: 42rpx; font-size: 24rpx; }
-.logout { margin-top: 42rpx; }
+.profile-page { min-height: 100vh; padding: 12rpx 32rpx calc(144rpx + env(safe-area-inset-bottom)); }
+.profile-header { display: flex; align-items: center; min-height: 184rpx; padding: 24rpx 0 32rpx; gap: 20rpx; }
+.avatar { display: flex; flex: none; align-items: center; justify-content: center; width: 96rpx; height: 96rpx; border-radius: 50%; background: var(--paper); }
+.avatar image { display: block; width: 52rpx; height: 52rpx; opacity: .7; }
+.profile-copy { flex: 1; min-width: 0; }
+.profile-name { display: block; overflow: hidden; color: var(--ink); font-size: 36rpx; font-weight: 600; line-height: 52rpx; white-space: nowrap; text-overflow: ellipsis; }
+.profile-subtitle { display: block; margin-top: 4rpx; overflow: hidden; color: var(--muted); font-size: 23rpx; line-height: 34rpx; white-space: nowrap; text-overflow: ellipsis; }
+.profile-page .login-small { flex: none; display: flex; align-items: center; justify-content: center; width: auto; min-height: 88rpx; margin: 0; padding: 16rpx 22rpx; border-radius: 18rpx; background: var(--button); color: #fff; font-size: 24rpx; font-weight: 500; line-height: 36rpx; box-shadow: none; }
+.profile-page .card { overflow: hidden; border: 0; border-radius: var(--radius); box-shadow: none; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; min-height: 90rpx; padding: 12rpx 28rpx; }
+.panel-title { color: var(--ink); font-size: 30rpx; font-weight: 600; line-height: 44rpx; }
+.profile-page .all-orders { display: flex; align-items: center; justify-content: flex-end; min-height: 72rpx; margin: 0 -12rpx 0 12rpx; padding: 12rpx; background: transparent; color: var(--muted); font-size: 23rpx; font-weight: 400; line-height: 36rpx; border-radius: 12rpx; }
+.all-orders image { width: 24rpx; height: 24rpx; margin-left: 6rpx; opacity: .5; }
+.order-shortcuts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 6rpx 12rpx 24rpx; }
+.order-shortcuts button { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; max-width: 100%; min-width: 0; min-height: 126rpx; margin: 0; padding: 12rpx 2rpx; border: 0; border-radius: 16rpx; background: transparent; color: var(--ink); line-height: 1.4; }
+.shortcut-icon { position: relative; width: 54rpx; height: 54rpx; margin-bottom: 14rpx; }
+.shortcut-icon image { display: block; width: 100%; height: 100%; }
+.shortcut-name { display: block; font-size: 24rpx; font-weight: 400; line-height: 36rpx; white-space: nowrap; }
+.shortcut-count { position: absolute; top: -12rpx; left: 36rpx; z-index: 1; min-width: 32rpx; height: 32rpx; padding: 0 7rpx; border: 2rpx solid var(--paper); border-radius: 999rpx; background: var(--accent); color: #fff; font-size: 19rpx; line-height: 28rpx; text-align: center; }
+.menu { margin-top: 24rpx; padding: 0 28rpx 4rpx; }
+.menu .panel-head { padding: 12rpx 0; }
+.profile-page .menu-row { display: flex; align-items: center; width: 100%; min-height: 104rpx; margin: 0; padding: 20rpx 0; border-radius: 0; border-bottom: 1rpx solid var(--line); background: transparent; color: var(--ink); text-align: left; line-height: 40rpx; }
+.profile-page .menu-row:last-child { border-bottom: 0; }
+.service-icon { flex: none; width: 38rpx; height: 38rpx; margin-right: 22rpx; opacity: .8; }
+.menu-name { flex: 1; min-width: 0; font-size: 28rpx; font-weight: 400; overflow-wrap: anywhere; }
+.menu-arrow { flex: none; width: 28rpx; height: 28rpx; margin-left: 16rpx; opacity: .4; }
+.unread-badge { flex: none; min-width: 34rpx; padding: 0 10rpx; margin-left: 12rpx; border-radius: 999rpx; background: var(--accent); color: #fff; font-size: 21rpx; line-height: 34rpx; text-align: center; }
+.profile-page .logout { width: 100%; min-height: 96rpx; margin-top: 28rpx; padding: 24rpx; border-radius: var(--radius); background: var(--paper); color: var(--muted); font-size: 26rpx; font-weight: 400; line-height: 40rpx; }
+.profile-page .row-pressed { background: var(--brand-soft); }
+.profile-page .button-pressed { opacity: .8; }
+@media (max-width: 350px) {
+  .profile-page { padding-left: 24rpx; padding-right: 24rpx; }
+  .profile-header { gap: 16rpx; }
+  .avatar { width: 84rpx; height: 84rpx; }
+  .profile-name { font-size: 34rpx; }
+  .profile-page .login-small { padding-left: 16rpx; padding-right: 16rpx; }
+}

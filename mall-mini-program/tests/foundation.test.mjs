@@ -169,7 +169,7 @@ test('个人中心只在待确认提现存在时显示收款入口并提供微�
   const page = await fs.readFile(new URL('../pages/profile/index.js', import.meta.url), 'utf8')
   const view = await fs.readFile(new URL('../pages/profile/index.wxml', import.meta.url), 'utf8')
   assert.match(page, /payoutCount/)
-  assert.match(view, /wx:if="\{\{payoutCount\}\}"/)
+  assert.match(view, /wx:if="\{\{loggedIn && payoutCount\}\}"/)
   assert.match(view, /open-type="contact"/)
 })
 
@@ -196,20 +196,21 @@ test('小程序主导航使用真实中性图标且登录主操作保持全宽',
   }
   const loginStyle = await fs.readFile(new URL('../pages/login/index.wxss', import.meta.url), 'utf8')
   assert.match(loginStyle, /\.login-button\s*\{[^}]*width:\s*100%/s)
+  assert.match(loginStyle, /\.login-page \.register-button\s*\{[^}]*font-size:\s*26rpx;[^}]*font-weight:\s*400;/s)
 })
 
-test('小程序第六轮个人中心优化避免订单入口截断并统一品牌视觉', async () => {
+test('个人中心使用紧凑图标入口并保留可访问标签和后台主题', async () => {
   const fs = await import('node:fs/promises')
   const view = await fs.readFile(new URL('../pages/profile/index.wxml', import.meta.url), 'utf8')
   const style = await fs.readFile(new URL('../pages/profile/index.wxss', import.meta.url), 'utf8')
-  for (const note of ['等待完成付款', '等待商家发货', '查看物流进度', '查看处理进度']) {
-    assert.match(view, new RegExp(note))
-  }
   assert.match(view, /aria-label="查看退款和售后订单"/)
   assert.match(view, /aria-label="管理收货地址"/)
-  assert.match(view, /咨询订单与售后问题/)
-  assert.match(style, /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/)
-  assert.match(style, /background:\s*linear-gradient\(135deg,\s*#fff 0%,\s*var\(--brand-soft\) 100%\)/)
+  assert.match(view, /open-type="contact"/)
+  assert.match(style, /grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/)
+  assert.match(style, /background:\s*var\(--button\)/)
+  assert.match(style, /white-space:\s*nowrap/)
+  assert.match(style, /\.order-shortcuts button\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*100%;/)
+  assert.doesNotMatch(view, /订单中心|shortcut-note|经营主体、隐私政策与支付资料均由/)
   assert.doesNotMatch(style, /#fff2f5|#f0dfe3/)
 })
 
