@@ -20,9 +20,16 @@
 .quantity-panel view { display: flex; align-items: center; }
 .quantity-panel button { width: 72rpx; height: 72rpx; line-height: 72rpx; margin: 0; padding: 0; border-radius: 12rpx; background: var(--canvas); }
 .quantity-panel view text { width: 78rpx; text-align: center; }
-.service-panel > view { display: flex; flex-wrap: wrap; gap: 14rpx; }
-.service-panel > view text { padding: 8rpx 14rpx; border-radius: 999rpx; color: var(--accent); background: var(--brand-soft); font-size: 22rpx; }
-.service-panel > text { display: block; margin-top: 16rpx; color: #858d9b; font-size: 23rpx; }
+.service-heading { color: var(--ink); font-size: 30rpx; font-weight: 600; line-height: 1.5; }
+.service-caption { display: block; margin-top: 6rpx; color: var(--muted); font-size: 24rpx; line-height: 1.6; }
+.service-list { margin-top: 22rpx; }
+.service-item { display: flex; align-items: flex-start; gap: 20rpx; padding: 24rpx 0; }
+.service-item-separated { border-top: 1rpx solid var(--line); }
+.service-symbol { display: flex; align-items: center; justify-content: center; flex: none; width: 44rpx; height: 44rpx; border-radius: 50%; background: var(--brand-soft); color: var(--accent); }
+.service-check { width: 13rpx; height: 21rpx; margin-top: -5rpx; border-right: 3rpx solid currentColor; border-bottom: 3rpx solid currentColor; transform: rotate(45deg); }
+.service-content { flex: 1; min-width: 0; }
+.service-title { display: block; color: var(--ink); font-size: 28rpx; font-weight: 600; line-height: 1.55; overflow-wrap: anywhere; word-break: break-all; }
+.service-description { display: block; margin-top: 8rpx; color: var(--muted); font-size: 26rpx; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-all; }
 .description text { color: #626b79; line-height: 48rpx; white-space: pre-wrap; }
 .product-actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 14rpx; padding: 16rpx 22rpx calc(16rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid #eceef2; background: var(--paper); box-shadow: 0 -8rpx 30rpx rgba(20,30,50,.08); }
 .product-actions button { box-sizing: border-box; min-width: 0; margin: 0; height: 96rpx; min-height: 96rpx; line-height: 96rpx; padding: 0; font-size: 28rpx; }
