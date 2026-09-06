@@ -5,7 +5,7 @@
     <view class="profile-copy">
       <text class="profile-name">{{loggedIn ? (member.nickname || '商城账号') : '商城账号登录'}}</text>
       <text wx:if="{{loggedIn}}" class="profile-subtitle">个人资料</text>
-      <text wx:if="{{loggedIn && capabilities.ready}}" class="profile-subtitle">{{capabilities.membershipActive ? '会员服务已开通' : '购物账号'}}</text>
+      <text wx:if="{{loggedIn && capabilities.ready}}" class="membership-badge level-{{capabilities.membershipLevel}}">{{capabilities.membershipLabel}}</text>
     </view>
     <image class="account-arrow" src="/assets/profile/chevron-right.png" mode="aspectFit" aria-hidden="true" />
   </button>
@@ -35,26 +35,16 @@
   </view>
   <view class="menu card">
     <view class="panel-head"><text class="panel-title">常用服务</text></view>
-    <button wx:if="{{loggedIn && capabilities.canInvite && shareReady}}" class="menu-row" open-type="share" aria-label="分享商城邀请好友"><image class="service-icon" src="/assets/profile/user-round.png" mode="aspectFit" aria-hidden="true" /><text class="menu-name">邀请好友</text><image class="menu-arrow" src="/assets/profile/chevron-right.png" aria-hidden="true" /></button>
-    <button wx:if="{{loggedIn && shareError}}" class="menu-row" bindtap="retryShare"><text class="menu-name">{{shareError}}</text></button>
-    <button wx:if="{{loggedIn}}" class="menu-row" bindtap="wallet" aria-label="查看钱包和完整提现记录"><image class="service-icon" src="/assets/profile/credit-card.png" mode="aspectFit" aria-hidden="true" /><text class="menu-label">钱包与到账</text><image class="menu-arrow" src="/assets/profile/chevron-right.png" aria-hidden="true" /></button>
-    <button class="menu-row" bindtap="messages" aria-label="查看消息与提醒" hover-class="row-pressed">
-      <image class="service-icon" src="/assets/profile/bell.png" mode="aspectFit" aria-hidden="true" /><text class="menu-name">消息与提醒</text>
-      <text wx:if="{{loggedIn && unreadCount}}" class="unread-badge">{{unreadText}}</text><image class="menu-arrow" src="/assets/profile/chevron-right.png" aria-hidden="true" />
-    </button>
-    <button class="menu-row" bindtap="addresses" aria-label="管理收货地址" hover-class="row-pressed">
-      <image class="service-icon" src="/assets/profile/map-pin.png" mode="aspectFit" aria-hidden="true" /><text class="menu-name">收货地址</text><image class="menu-arrow" src="/assets/profile/chevron-right.png" aria-hidden="true" />
-    </button>
-    <button class="menu-row" wx:if="{{loggedIn && payoutCount}}" bindtap="payout" aria-label="确认微信提现收款" hover-class="row-pressed">
-      <image class="service-icon" src="/assets/profile/wallet.png" mode="aspectFit" aria-hidden="true" /><text class="menu-name">微信收款确认</text>
-      <text class="unread-badge">{{payoutCount > 99 ? '99+' : payoutCount}}</text><image class="menu-arrow" src="/assets/profile/chevron-right.png" aria-hidden="true" />
-    </button>
-    <button wx:if="{{loggedIn}}" class="menu-row" bindtap="security" aria-label="管理账号与密码" hover-class="row-pressed">
-      <image class="service-icon" src="/assets/profile/user-round.png" mode="aspectFit" aria-hidden="true" /><text class="menu-name">账号与安全</text><image class="menu-arrow" src="/assets/profile/chevron-right.png" aria-hidden="true" />
-    </button>
-    <button class="menu-row contact-row" open-type="contact" show-message-card aria-label="联系在线客服" hover-class="row-pressed">
-      <image class="service-icon" src="/assets/profile/headset.png" mode="aspectFit" aria-hidden="true" /><text class="menu-name">在线客服</text><image class="menu-arrow" src="/assets/profile/chevron-right.png" aria-hidden="true" />
-    </button>
+    <view class="service-grid">
+      <button wx:if="{{loggedIn}}" class="service-tile" bindtap="wallet" aria-label="查看余额和提现" hover-class="row-pressed"><view class="tile-icon wallet-icon tone-purple"><image src="/assets/profile/wallet-white.png" mode="aspectFit" /></view><text>余额</text></button>
+      <button class="service-tile" bindtap="messages" aria-label="查看消息与提醒" hover-class="row-pressed"><view class="tile-icon tone-orange"><image src="/assets/profile/bell-white.png" mode="aspectFit" /><text wx:if="{{loggedIn && unreadCount}}" class="tile-badge">{{unreadText}}</text></view><text>消息提醒</text></button>
+      <button class="service-tile" bindtap="addresses" aria-label="管理收货地址" hover-class="row-pressed"><view class="tile-icon tone-blue"><image src="/assets/profile/map-pin-white.png" mode="aspectFit" /></view><text>收货地址</text></button>
+      <button class="service-tile" open-type="contact" show-message-card aria-label="联系在线客服" hover-class="row-pressed"><view class="tile-icon tone-green"><image src="/assets/profile/headset-white.png" mode="aspectFit" /></view><text>在线客服</text></button>
+      <button wx:if="{{loggedIn}}" class="service-tile" bindtap="security" hover-class="row-pressed"><view class="tile-icon tone-blue"><image src="/assets/profile/user-round-white.png" mode="aspectFit" /></view><text>账号安全</text></button>
+      <button wx:if="{{loggedIn && capabilities.canInvite && shareReady}}" class="service-tile" open-type="share" aria-label="分享商城邀请好友" hover-class="row-pressed"><view class="tile-icon tone-orange"><image src="/assets/profile/user-round-plus-white.png" mode="aspectFit" /></view><text>邀请好友</text></button>
+      <button wx:if="{{loggedIn && payoutCount}}" class="service-tile" bindtap="payout" aria-label="确认微信提现收款" hover-class="row-pressed"><view class="tile-icon tone-purple"><image src="/assets/profile/credit-card-white.png" mode="aspectFit" /><text class="tile-badge">{{payoutCount > 99 ? '99+' : payoutCount}}</text></view><text>收款确认</text></button>
+    </view>
+    <button wx:if="{{loggedIn && shareError}}" class="share-retry" bindtap="retryShare">邀请服务暂不可用，点击重试</button>
   </view>
   <button class="legal-link" bindtap="legal">用户协议 · 隐私政策 · 商城资质</button>
   <button wx:if="{{loggedIn}}" class="logout" bindtap="logout" hover-class="row-pressed">退出登录</button>

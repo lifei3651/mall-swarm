@@ -1,6 +1,7 @@
 const runtime = require('../config/runtime')
 const session = require('./session')
 const encryption = require('./payload-encryption')
+const { transportError, statusError } = require('./transport-error')
 
 function buildQuery(params) {
   encryption.assertSafeQuery(params)
@@ -36,13 +37,14 @@ function transport(options, token) {
         }
         if (response.statusCode === 401) session.clearSession()
         if (response.statusCode < 200 || response.statusCode >= 300 || payload.code !== 200) {
-          reject(new Error(payload.message || (response.statusCode === 401 ? '请先登录' : '网络请求失败')))
+          const message = typeof payload.message === 'string' && /[\u3400-\u9fff]/.test(payload.message) && !/<(?:html|script)|exception|stacktrace/i.test(payload.message) ? payload.message : statusError(response.statusCode)
+          reject(new Error(message))
           return
         }
         resolve(payload.data)
       },
       fail(error) {
-        reject(new Error(error && error.errMsg ? error.errMsg.replace(/^request:fail\s*/, '') : '网络连接失败'))
+        reject(new Error(transportError(error)))
       }
     })
   })

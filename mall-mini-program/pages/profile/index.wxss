@@ -11,6 +11,7 @@
 .profile-page .card { overflow: hidden; border: 0; border-radius: var(--radius); box-shadow: none; }
 .panel-head { display: flex; align-items: center; justify-content: space-between; min-height: 90rpx; padding: 12rpx 28rpx; }
 .panel-title { color: var(--ink); font-size: 30rpx; font-weight: 600; line-height: 44rpx; }
+.order-panel .panel-head { margin: 0 28rpx; padding-left: 0; padding-right: 0; border-bottom: 1rpx solid var(--line); }
 .profile-page .all-orders { display: flex; align-items: center; justify-content: flex-end; min-height: 72rpx; margin: 0 -12rpx 0 12rpx; padding: 12rpx; background: transparent; color: var(--muted); font-size: 23rpx; font-weight: 400; line-height: 36rpx; border-radius: 12rpx; }
 .all-orders image { width: 24rpx; height: 24rpx; margin-left: 6rpx; opacity: .5; }
 .order-shortcuts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 6rpx 12rpx 24rpx; }
@@ -31,6 +32,19 @@
 .profile-page .row-pressed { background: var(--brand-soft); }
 .profile-page .button-pressed { opacity: .8; }
 .profile-page .legal-link { width: 100%; margin-top: 24rpx; padding: 20rpx 0; color: var(--muted); background: transparent; font-size: 23rpx; line-height: 36rpx; font-weight: 400; }
+.service-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10rpx 8rpx; padding: 0 0 20rpx; }
+.profile-page .service-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; min-width: 0; min-height: 142rpx; margin: 0; padding: 14rpx 0; border-radius: 16rpx; background: transparent; color: var(--ink); font-size: 23rpx; font-weight: 400; line-height: 34rpx; }
+.tile-icon { position: relative; display: flex; align-items: center; justify-content: center; width: 68rpx; height: 68rpx; margin-bottom: 12rpx; border-radius: 50%; }
+.wallet-icon { border-radius:18rpx; }
+.tile-icon image { width: 38rpx; height: 38rpx; }
+.tone-purple { background: var(--brand); }
+.tone-orange { background: #ff6248; }
+.tone-blue { background: #4388f7; }
+.tone-green { background: #23a981; }
+.tile-badge { position: absolute; top: -8rpx; right: -12rpx; min-width: 28rpx; padding: 0 6rpx; border: 2rpx solid var(--paper); border-radius: 16rpx; background: #c73135; color: white; font-size: 18rpx; line-height: 28rpx; }
+.profile-page .share-retry { margin: 0; padding: 14rpx; background: transparent; color: var(--muted); font-size: 23rpx; line-height: 36rpx; }
+.membership-badge { display: inline-block; margin-top: 8rpx; padding: 2rpx 14rpx; border-radius: 8rpx; background: #eceef2; color: #535f72; font-size: 21rpx; line-height: 32rpx; }
+.level-1 { background: #e8f1ff; color: #285597; }.level-2 { background: #f1e9ff; color: #6535a5; }.level-3 { background: #e5f6ee; color: #196747; }.level-4 { background: #e4f2f8; color: #175777; }.level-5 { background: #fff0dd; color: #87551c; }.level-6 { background: #fde8d6; color: #89441d; }.level-7 { background: #f5dba9; color: #704817; }.level-8 { background: #292c38; color: #f3d39b; }
 @media (max-width: 350px) {
   .profile-page { padding-left: 24rpx; padding-right: 24rpx; }
   .profile-header { gap: 16rpx; }

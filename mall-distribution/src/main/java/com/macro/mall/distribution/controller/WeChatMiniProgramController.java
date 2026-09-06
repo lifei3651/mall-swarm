@@ -34,7 +34,7 @@ public class WeChatMiniProgramController {
     private final WeChatSubscriptionService subscriptionService;
     private final WeChatMiniProgramMemberService memberService;
 
-    @Operation(summary = "本人小程序会员能力，不返回团队等级、关系或收益数据")
+    @Operation(summary = "本人小程序会员能力及本人等级，不返回团队关系或他人数据")
     @GetMapping("/member-capabilities")
     public CommonResult<WeChatMiniProgramMemberService.Capabilities> capabilities(
             @RequestHeader(value = "Authorization", required = false) String authorization,

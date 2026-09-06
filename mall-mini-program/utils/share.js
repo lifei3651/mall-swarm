@@ -1,3 +1,4 @@
+const feedback = require('./feedback')
 const session = require('./session')
 const capabilities = require('./member-capabilities')
 
@@ -26,7 +27,7 @@ function message(page, path, title) {
   const ready = state && state.token === session.getToken()
   // Only the current sender's server-verified code; never forward a captured recipient code.
   const code = ready ? state.code : ''
-  if (!ready) wx.showToast({ title: '分享身份已变化，请返回重试', icon: 'none' })
+  if (!ready) feedback.toast({ title: '分享身份已变化，请返回重试', icon: 'none' })
   return { title: String(title || '商城').slice(0, 60), path: path + (code ? `${path.includes('?') ? '&' : '?'}inviteCode=${encodeURIComponent(code)}` : '') }
 }
 module.exports = { prepare, hide, message }

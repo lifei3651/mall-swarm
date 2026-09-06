@@ -27,7 +27,8 @@ class WeChatMiniProgramMemberServiceTest {
         when(agents.selectByUserId(100L)).thenReturn(a);
         var result = service.capabilities(m);
         assertTrue(result.membershipActive()); assertTrue(result.canInvite()); assertEquals("ABCD1234", result.inviteCode());
-        assertEquals(5, result.getClass().getRecordComponents().length);
+        assertEquals(7, result.getClass().getRecordComponents().length);
+        assertEquals(1, result.membershipLevel()); assertEquals("会员", result.membershipLabel());
     }
     @Test void invalidRankDisabledAndSystemAccountsCannotInvite() {
         var m = member(); when(agents.selectByUserId(100L)).thenReturn(agent(999, 1));

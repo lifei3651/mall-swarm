@@ -1,3 +1,4 @@
+import { runMiniScript } from './helpers/run-mini-script.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -24,7 +25,7 @@ function pageHarness(name, response = () => ({})) {
     '../../utils/auth': { requireLogin: (url) => { logins.push(url); return loggedIn } },
     '../../utils/cart': { add: (row) => cart.push(row), selectOnly() {} }
   }
-  vm.runInNewContext(readFileSync(new URL(`../pages/${name}/index.js`, import.meta.url), 'utf8'), {
+  runMiniScript(readFileSync(new URL(`../pages/${name}/index.js`, import.meta.url), 'utf8'), {
     Page: (value) => { definition = value }, require: (id) => { assert.ok(Object.hasOwn(mocks, id), id); return mocks[id] },
     wx: { navigateTo: (options) => nav.push(options.url), setNavigationBarTitle() {}, showToast() {}, stopPullDownRefresh() {} }
   })

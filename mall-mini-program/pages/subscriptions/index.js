@@ -1,3 +1,4 @@
+const feedback = require('../../utils/feedback')
 const request = require('../../utils/request')
 const auth = require('../../utils/auth')
 const session = require('../../utils/session')
@@ -44,19 +45,19 @@ Page({
     const version = this.loadVersion = (this.loadVersion || 0) + 1
     if (!auth.requireLogin('/pages/subscriptions/index')) {
       this.pendingGrant = null; this.pendingGrantToken = null
-      this.setData({ loading: false, templates: [], groups: [], pendingGrant: false })
+      feedback.update(this, { loading: false, templates: [], groups: [], pendingGrant: false })
       return
     }
     if (this.pendingGrant && this.pendingGrantToken !== session.getToken()) {
-      this.pendingGrant = null; this.pendingGrantToken = null; this.setData({ pendingGrant: false })
+      this.pendingGrant = null; this.pendingGrantToken = null; feedback.update(this, { pendingGrant: false })
     }
-    this.setData({ loading: true, error: '' })
+    feedback.update(this, { loading: true, error: '' })
     try {
       const templates = await request({ url: '/shop/wechat-mini-program/subscriptions' })
       if (this.disposed || version !== this.loadVersion) return
-      this.setData({ templates: normalizeTemplates(templates), groups: subscriptionGroups(templates) })
-    } catch (error) { if (!this.disposed && version === this.loadVersion) this.setData({ templates: [], groups: [], error: error.message || '提醒设置加载失败' }) }
-    finally { if (!this.disposed && version === this.loadVersion) this.setData({ loading: false }) }
+      feedback.update(this, { templates: normalizeTemplates(templates), groups: subscriptionGroups(templates) })
+    } catch (error) { if (!this.disposed && version === this.loadVersion) feedback.update(this, { templates: [], groups: [], error: error.message || '提醒设置加载失败' }) }
+    finally { if (!this.disposed && version === this.loadVersion) feedback.update(this, { loading: false }) }
   },
   async subscribe(event) {
     if (this.disposed || this.data.loading || this.data.requesting || !this.data.templates.length) return
@@ -70,43 +71,43 @@ Page({
     const group = this.data.groups.find((item) => item.key === String(event && event.currentTarget && event.currentTarget.dataset.group || '0'))
     const templateIds = group ? group.templateIds.slice(0, 3) : []
     if (!templateIds.length) return
-    this.setData({ requesting: true })
+    feedback.update(this, { requesting: true })
     try {
       const result = await requestSubscribeMessage(templateIds)
       if (this.disposed || session.getToken() !== token) return
       const acceptedTemplateIds = templateIds.filter((id) => result[id] === 'accept')
       if (!acceptedTemplateIds.length) {
-        wx.showToast({ title: '本次未开启提醒', icon: 'none' })
+        feedback.toast({ title: '本次未开启提醒', icon: 'none' })
         return
       }
       this.pendingGrant = { requestId: requestId(), acceptedTemplateIds }
       this.pendingGrantToken = token
-      this.setData({ pendingGrant: true })
+      feedback.update(this, { pendingGrant: true })
       await this.syncGrant()
     } catch (error) {
       if (this.disposed) return
       const cancelled = /cancel/i.test(String(error && (error.errMsg || error.message || error)))
-      wx.showToast({ title: cancelled ? '已取消设置' : (error.message || '提醒设置失败'), icon: 'none' })
-    } finally { if (!this.disposed) this.setData({ requesting: false }) }
+      feedback.toast({ title: cancelled ? '已取消设置' : (error.message || '提醒设置失败'), icon: 'none' })
+    } finally { if (!this.disposed) feedback.update(this, { requesting: false }) }
   },
   async syncGrant() {
     if (this.disposed || !this.pendingGrant || this.syncingGrant) return
     if (session.getToken() !== this.pendingGrantToken) {
       this.pendingGrant = null; this.pendingGrantToken = null
-      this.setData({ pendingGrant: false })
-      wx.showToast({ title: '登录状态已变化，请重新设置提醒', icon: 'none' })
+      feedback.update(this, { pendingGrant: false })
+      feedback.toast({ title: '登录状态已变化，请重新设置提醒', icon: 'none' })
       await this.load(); return
     }
     this.syncingGrant = true
-    this.setData({ requesting: true })
+    feedback.update(this, { requesting: true })
     try {
       const templates = await request({ url: '/shop/wechat-mini-program/subscriptions/grants', method: 'POST', data: this.pendingGrant })
       if (this.disposed) return
       this.pendingGrant = null; this.pendingGrantToken = null
-      this.setData({ pendingGrant: false, templates: normalizeTemplates(templates), groups: subscriptionGroups(templates) })
-      wx.showToast({ title: '本组提醒已开启', icon: 'success' })
+      feedback.update(this, { pendingGrant: false, templates: normalizeTemplates(templates), groups: subscriptionGroups(templates) })
+      feedback.toast({ title: '本组提醒已开启', icon: 'success' })
     } catch (_) {
-      if (!this.disposed) wx.showToast({ title: '授权结果尚未同步，请点击重试', icon: 'none' })
-    } finally { this.syncingGrant = false; if (!this.disposed) this.setData({ requesting: false }) }
+      if (!this.disposed) feedback.toast({ title: '授权结果尚未同步，请点击重试', icon: 'none' })
+    } finally { this.syncingGrant = false; if (!this.disposed) feedback.update(this, { requesting: false }) }
   }
 })

@@ -16,6 +16,7 @@
     "pages/subscriptions/index",
     "pages/payout/index",
     "pages/wallet/index",
+    "pages/withdraw/index",
     "pages/orders/index",
     "pages/order-detail/index",
     "pages/after-sale/index",

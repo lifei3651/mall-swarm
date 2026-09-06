@@ -1,3 +1,4 @@
+import { runMiniScript } from './helpers/run-mini-script.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -7,7 +8,7 @@ const templates = ['发货', '售后', '退款', '到账'].map((title,index)=>({
 function setup({ result = {}, failGrant = false, loggedIn = true } = {}) {
   let definition, fail = failGrant, token = loggedIn ? 'session-1' : ''
   const requested=[], grants=[], toasts=[], loginRequests=[], loads=[]
-  vm.runInNewContext(readFileSync(new URL('../pages/subscriptions/index.js',import.meta.url),'utf8'),{
+  runMiniScript(readFileSync(new URL('../pages/subscriptions/index.js',import.meta.url),'utf8'),{
     Page:value=>{definition=value},
     require:id=>id.endsWith('/theme')?{pageData:()=>({}),apply(){},sync(){}}:id.endsWith('/session')?{getToken:()=>token}:id.endsWith('/auth')?{requireLogin:()=>{if(token)return true;loginRequests.push(true);return false}}:async({url,data})=>{
       loads.push(url)

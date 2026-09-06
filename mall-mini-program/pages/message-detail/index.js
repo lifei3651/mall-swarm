@@ -1,3 +1,4 @@
+const feedback = require('../../utils/feedback')
 const request = require('../../utils/request')
 const auth = require('../../utils/auth')
 const theme = require('../../utils/theme')
@@ -19,19 +20,19 @@ Page({
   },
   onShow() { if (!this.fetching && !this.data.message && auth.requireLogin(`/pages/message-detail/index?id=${this.messageId}`)) return this.load(this.messageId) },
   async load(id) {
-    if (!id) { this.setData({ loading: false, error: '消息编号不正确' }); return }
+    if (!id) { feedback.update(this, { loading: false, error: '消息编号不正确' }); return }
     if (this.fetching) return
     this.fetching = true
-    this.setData({ loading: true, error: '' })
+    feedback.update(this, { loading: true, error: '' })
     try {
       const message = await request({ url: `/shop/messages/${id}` })
-      this.setData({
+      feedback.update(this, {
         message,
         categoryName: CATEGORY_NAMES[message.category] || '个人消息',
         displayTime: String(message.occurredTime || message.createTime || '').replace('T', ' ').slice(0, 16)
       })
-    } catch (error) { this.setData({ error: error.message || '消息不存在或无权查看' }) }
-    finally { this.fetching = false; this.setData({ loading: false }) }
+    } catch (error) { feedback.update(this, { error: error.message || '消息不存在或无权查看' }) }
+    finally { this.fetching = false; feedback.update(this, { loading: false }) }
   },
   openTarget() {
     const message = this.data.message || {}
@@ -51,6 +52,6 @@ Page({
     }
     if (message.targetType === 'SERVICE_TICKET') { wx.navigateTo({ url: '/pages/legal/index?type=contact' }); return }
     if (message.targetType === 'ACCOUNT_SECURITY') { wx.navigateTo({ url: '/pages/account-security/index' }); return }
-    wx.showToast({ title: '请从对应功能入口查看', icon: 'none' })
+    feedback.toast({ title: '请从对应功能入口查看', icon: 'none' })
   }
 })

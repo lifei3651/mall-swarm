@@ -1,3 +1,4 @@
+const feedback = require('../../utils/feedback')
 const request = require('../../utils/request')
 const auth = require('../../utils/auth')
 const format = require('../../utils/format')
@@ -15,13 +16,13 @@ function isUserCancel(error) {
 
 Page({
   data: { ...theme.pageData(), loading: true, error: '', rows: [], actingId: null, history: false },
-  onLoad(options = {}) { theme.apply(this); this.withdrawId = format.identifier(options.id); this.setData({ history: options.history === '1' || Boolean(this.withdrawId) }) },
+  onLoad(options = {}) { theme.apply(this); this.withdrawId = format.identifier(options.id); feedback.update(this, { history: options.history === '1' || Boolean(this.withdrawId) }) },
   onShow() { theme.apply(this); if (!this.fetching) return this.load() },
   onPullDownRefresh() { this.load().finally(() => wx.stopPullDownRefresh()) },
   async load() {
     if (this.fetching || !auth.requireLogin('/pages/payout/index')) return
     this.fetching = true
-    this.setData({ loading: true, error: '' })
+    feedback.update(this, { loading: true, error: '' })
     try {
       const records = await request({ url: '/shop/wallet/withdrawals' })
       const rows = (records || [])
@@ -30,12 +31,12 @@ Page({
           canConfirm: Number(item.withdrawType) === 2 && Number(item.status) === 2,
           timeText: String(item.createTime || '').replace('T', ' ').slice(0, 16) }))
       this.loadedOnce = true
-      this.setData({ rows })
+      feedback.update(this, { rows })
     } catch (error) {
-      this.setData({ error: error.message || '收款记录加载失败' })
+      feedback.update(this, { error: error.message || '收款记录加载失败' })
     } finally {
       this.fetching = false
-      this.setData({ loading: false })
+      feedback.update(this, { loading: false })
     }
   },
   async confirm(event) {
@@ -49,19 +50,19 @@ Page({
       })
       return
     }
-    this.setData({ actingId: withdrawId })
+    feedback.update(this, { actingId: withdrawId })
     wx.showLoading({ title: '正在核对', mask: true })
     try {
       const detail = await this.prepare(withdrawId)
       if (detail.state === 'SUCCESS') {
         wx.hideLoading()
-        wx.showToast({ title: '收款成功', icon: 'success' })
+        feedback.toast({ title: '收款成功', icon: 'success' })
         await this.load()
         return
       }
       if (detail.state !== 'WAIT_USER_CONFIRM' || !detail.mchId || !detail.appId || !detail.packageInfo) {
         wx.hideLoading()
-        wx.showToast({ title: '渠道仍在处理中，请稍后重试', icon: 'none', duration: 2600 })
+        feedback.toast({ title: '渠道仍在处理中，请稍后重试', icon: 'none', duration: 2600 })
         await this.load()
         return
       }
@@ -70,7 +71,7 @@ Page({
       wx.showLoading({ title: '正在确认结果', mask: true })
       const verified = await this.prepare(withdrawId)
       wx.hideLoading()
-      wx.showToast({
+      feedback.toast({
         title: verified.state === 'SUCCESS' ? '收款成功' : '结果确认中，请稍后查看',
         icon: verified.state === 'SUCCESS' ? 'success' : 'none',
         duration: 2600
@@ -78,13 +79,13 @@ Page({
       await this.load()
     } catch (error) {
       wx.hideLoading()
-      wx.showToast({
+      feedback.toast({
         title: isUserCancel(error) ? '已取消确认，可稍后继续' : (error.message || '确认收款失败'),
         icon: 'none',
         duration: 2600
       })
     } finally {
-      this.setData({ actingId: null })
+      feedback.update(this, { actingId: null })
     }
   },
   prepare(withdrawId) {

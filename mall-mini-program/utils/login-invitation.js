@@ -1,3 +1,4 @@
+const feedback = require('./feedback')
 const invite = require('./invite')
 const request = require('./request')
 
@@ -16,28 +17,28 @@ const methods = {
     this._inviteFingerprint = key
     this._verifiedInviteCode = ''
     this._inviteSequence = (this._inviteSequence || 0) + 1
-    this.setData({ ...data, inviteCode: state.selected?.code || '', inviteFromLink: state.selected?.source === 'link',
+    feedback.update(this, { ...data, inviteCode: state.selected?.code || '', inviteFromLink: state.selected?.source === 'link',
       inviteExpanded: !!state.selected || !!state.expired || !!state.invalid, inviteReady: !state.selected && !state.expired && !state.invalid, inviteConflict: !!state.candidate,
       inviteError: state.invalid ? '收到的邀请格式不正确，请重新扫码、填写邀请码，或明确选择不使用邀请'
         : state.expired ? '先前邀请已过期或无法确认时间，请重新扫码、填写邀请码，或明确选择不使用邀请' : '' })
     if (state.selected) return this.checkInvitation()
   },
-  toggleInvitation() { if (!this.data.submitting) this.setData({ inviteExpanded: !this.data.inviteExpanded }) },
+  toggleInvitation() { if (!this.data.submitting) feedback.update(this, { inviteExpanded: !this.data.inviteExpanded }) },
   invitationInput(event) {
     if (this.data.submitting || this.data.inviteFromLink || this.data.inviteConflict) return
     const value = String(event.detail.value || '').trim().toUpperCase().slice(0, 8)
     this._inviteSequence = (this._inviteSequence || 0) + 1
     this._verifiedInviteCode = ''
-    this.setData({ inviteCode: value, inviteReady: false, inviteBusy: false, inviterName: '', inviteError: '' })
+    feedback.update(this, { inviteCode: value, inviteReady: false, inviteBusy: false, inviterName: '', inviteError: '' })
   },
   async checkInvitation() {
     if (this._inactive || this.data.submitting) return
     const code = invite.normalizeInviteCode(this.data.inviteCode)
-    if (!code) { this.setData({ inviteReady: false, inviteError: '请输入8位字母或数字邀请码，或选择不使用邀请' }); return }
+    if (!code) { feedback.update(this, { inviteReady: false, inviteError: '请输入8位字母或数字邀请码，或选择不使用邀请' }); return }
     const sequence = this._inviteSequence = (this._inviteSequence || 0) + 1
     const stateKey = fingerprint(), candidate = invite.getState().candidate
     this._verifiedInviteCode = ''
-    this.setData({ inviteBusy: true, inviteReady: false, inviteError: '', inviterName: '', candidateName: '', candidateValid: false })
+    feedback.update(this, { inviteBusy: true, inviteReady: false, inviteError: '', inviterName: '', candidateName: '', candidateValid: false })
     try {
       let name = '', failure = ''
       try { name = await preview(code) } catch (error) { failure = error.message || '邀请人核对失败，请重试' }
@@ -53,11 +54,11 @@ const methods = {
         this._inviteFingerprint = fingerprint()
       }
       this._verifiedInviteCode = candidate || !name ? '' : code
-      this.setData({ inviterName: name, inviteError: failure, candidateName, candidateValid, inviteConflict: !!candidate, inviteReady: !candidate && !!name })
+      feedback.update(this, { inviterName: name, inviteError: failure, candidateName, candidateValid, inviteConflict: !!candidate, inviteReady: !candidate && !!name })
     } catch (error) {
-      if (!this._inactive && sequence === this._inviteSequence) this.setData({ inviteReady: false, inviteError: error.message || '邀请人核对失败，请重试' })
+      if (!this._inactive && sequence === this._inviteSequence) feedback.update(this, { inviteReady: false, inviteError: error.message || '邀请人核对失败，请重试' })
     } finally {
-      if (!this._inactive && sequence === this._inviteSequence) this.setData({ inviteBusy: false })
+      if (!this._inactive && sequence === this._inviteSequence) feedback.update(this, { inviteBusy: false })
     }
   },
   chooseInvitation(event) {
@@ -75,7 +76,7 @@ const methods = {
   invitationReady() {
     if (this._inviteFingerprint !== fingerprint()) { this.syncInvitation(true); return false }
     if (this.data.inviteBusy || this.data.inviteConflict || !this.data.inviteReady) {
-      wx.showToast({ title: '请先核对邀请人，或选择不使用邀请', icon: 'none' })
+      feedback.toast({ title: '请先核对邀请人，或选择不使用邀请', icon: 'none' })
       return false
     }
     return true

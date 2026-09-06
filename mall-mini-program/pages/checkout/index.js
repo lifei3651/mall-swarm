@@ -1,3 +1,4 @@
+const feedback = require('../../utils/feedback')
 const request = require('../../utils/request')
 const cart = require('../../utils/cart')
 const format = require('../../utils/format')
@@ -52,18 +53,18 @@ Page({
       return this.load()
     }
     this.invalidateQuote()
-    this.setData({ loading: false, address: null, wechatPayEnabled: false })
+    feedback.update(this, { loading: false, address: null, wechatPayEnabled: false })
   },
   invalidateQuote() {
     this.quoteGeneration = (this.quoteGeneration || 0) + 1
     this.quotedPayload = ''
-    this.setData({ quoteReady: false, quoteLoading: false, quoteError: '', freight: '--', payTotal: '--', needSmsVerify: false })
+    feedback.update(this, { quoteReady: false, quoteLoading: false, quoteError: '', freight: '--', payTotal: '--', needSmsVerify: false })
   },
   async load() {
     if (this.data.submitting || this.createdPaymentId) return
     const generation = this.loadGeneration = (this.loadGeneration || 0) + 1
     this.invalidateQuote()
-    this.setData({ loading: true, loadError: '', wechatPayEnabled: false })
+    feedback.update(this, { loading: true, loadError: '', wechatPayEnabled: false })
     try {
       if (this.flashSaleMode && this.directMode) throw new Error('结算入口无效，请返回重新选择')
       const source = this.flashSaleMode ? await this.loadActivity() : { rows: this.directMode ? cart.directItems() : cart.selected(), activityName: '' }
@@ -81,7 +82,7 @@ Page({
         }
         return { ...row, productId, skuId, coverUrl: format.mediaUrl(row.coverUrl), priceText: format.money(row.salePrice) }
       })
-      this.setData({ rows, activityName: source.activityName,
+      feedback.update(this, { rows, activityName: source.activityName,
         count: rows.reduce((sum, row) => sum + row.quantity, 0),
         total: format.money(rows.reduce((sum, row) => sum + Number(row.salePrice) * row.quantity, 0)) })
       if (!rows.length) throw new Error('没有待结算商品，请返回购物车选择')
@@ -94,13 +95,13 @@ Page({
       const address = (addresses || []).find((item) => String(item.id) === currentId)
         || (addresses || []).find((item) => Number(item.isDefault) === 1) || (addresses || [])[0] || null
       this.selectedAddressId = address ? String(address.id) : ''
-      this.setData({ address, wechatPayEnabled: Boolean(config && config.wechatPayEnabled === true) })
+      feedback.update(this, { address, wechatPayEnabled: Boolean(config && config.wechatPayEnabled === true) })
       if (address) await this.quoteFreight(address)
     } catch (error) {
       if (generation !== this.loadGeneration) return
-      this.setData({ loadError: error.message || '结算信息加载失败' })
-      wx.showToast({ title: error.message || '结算信息加载失败', icon: 'none' })
-    } finally { if (generation === this.loadGeneration) this.setData({ loading: false }) }
+      feedback.update(this, { loadError: error.message || '结算信息加载失败' })
+      feedback.toast({ title: error.message || '结算信息加载失败', icon: 'none' })
+    } finally { if (generation === this.loadGeneration) feedback.update(this, { loading: false }) }
   },
   async loadActivity() {
     if (!this.activityId || !Number.isInteger(this.activityQuantity) || this.activityQuantity < 1 || this.activityQuantity > 99) {
@@ -147,7 +148,7 @@ Page({
     this.invalidateQuote()
     const generation = this.quoteGeneration
     const payload = this.orderPayload(address, false)
-    this.setData({ quoteLoading: true })
+    feedback.update(this, { quoteLoading: true })
     try {
       const quote = await request({
         url: '/shop/orders/freight-quote', method: 'POST',
@@ -162,7 +163,7 @@ Page({
       const needSmsVerify = await this.checkPaymentVerify(quote.payAmount)
       if (generation !== this.quoteGeneration) return
       this.quotedPayload = JSON.stringify(payload)
-      this.setData({
+      feedback.update(this, {
         total: format.money(quote.productAmount),
         freight: format.money(quote.freightAmount),
         payTotal: format.money(quote.payAmount),
@@ -170,8 +171,8 @@ Page({
       })
     } catch (error) {
       if (generation !== this.quoteGeneration) return
-      this.setData({ quoteReady: false, freight: '--', payTotal: '--', quoteError: error.message || '结算金额计算失败，请重试' })
-    } finally { if (generation === this.quoteGeneration) this.setData({ quoteLoading: false }) }
+      feedback.update(this, { quoteReady: false, freight: '--', payTotal: '--', quoteError: error.message || '结算金额计算失败，请重试' })
+    } finally { if (generation === this.quoteGeneration) feedback.update(this, { quoteLoading: false }) }
   },
   retryQuote() {
     if (this.data.submitting || this.data.quoteLoading) return
@@ -184,24 +185,24 @@ Page({
     return config.needVerify
   },
   smsCodeInput(event) {
-    this.setData({ smsCode: String(event.detail.value || '').replace(/\D/g, '').slice(0, 6) })
+    feedback.update(this, { smsCode: String(event.detail.value || '').replace(/\D/g, '').slice(0, 6) })
   },
   async sendPaymentSms() {
     if (this.data.smsSending || this.data.smsCooldown > 0) return
-    this.setData({ smsSending: true })
+    feedback.update(this, { smsSending: true })
     try {
       await request({ url: '/sms/send/payment', method: 'POST' })
-      this.setData({ smsCooldown: 60 })
+      feedback.update(this, { smsCooldown: 60 })
       clearInterval(this.smsTimer)
       this.smsTimer = setInterval(() => {
         const next = Math.max(0, this.data.smsCooldown - 1)
-        this.setData({ smsCooldown: next })
+        feedback.update(this, { smsCooldown: next })
         if (!next) clearInterval(this.smsTimer)
       }, 1000)
-      wx.showToast({ title: '验证码已发送', icon: 'success' })
+      feedback.toast({ title: '验证码已发送', icon: 'success' })
     } catch (error) {
-      wx.showToast({ title: error.message || '验证码发送失败', icon: 'none' })
-    } finally { this.setData({ smsSending: false }) }
+      feedback.toast({ title: error.message || '验证码发送失败', icon: 'none' })
+    } finally { feedback.update(this, { smsSending: false }) }
   },
   onHide() {
     this.loadGeneration = (this.loadGeneration || 0) + 1
@@ -219,14 +220,14 @@ Page({
       items: this.data.rows.map((row) => ({ productId: row.productId, skuId: row.skuId || undefined, quantity: row.quantity }))
     }
   },
-  remarkInput(event) { this.setData({ remark: String(event.detail.value || '').slice(0, 500) }) },
+  remarkInput(event) { feedback.update(this, { remark: String(event.detail.value || '').slice(0, 500) }) },
   async submit() {
     if (this.data.submitting || this.createdPaymentId) return
     if (!auth.requireLogin(this.route || '/pages/checkout/index')) return
-    if (!this.data.address) { wx.showToast({ title: '请先添加收货地址', icon: 'none' }); return }
+    if (!this.data.address) { feedback.toast({ title: '请先添加收货地址', icon: 'none' }); return }
     if (this.data.loading || this.data.quoteLoading || !this.data.quoteReady
         || this.quotedPayload !== JSON.stringify(this.orderPayload(this.data.address, false))) {
-      wx.showToast({ title: this.data.quoteLoading ? '结算金额正在计算，请稍候' : '请先完成结算金额计算', icon: 'none' })
+      feedback.toast({ title: this.data.quoteLoading ? '结算金额正在计算，请稍候' : '请先完成结算金额计算', icon: 'none' })
       return
     }
     if (!this.data.wechatPayEnabled) {
@@ -234,10 +235,10 @@ Page({
       return
     }
     if (this.data.needSmsVerify && !/^\d{6}$/.test(this.data.smsCode)) {
-      wx.showToast({ title: '请输入6位支付验证码', icon: 'none' })
+      feedback.toast({ title: '请输入6位支付验证码', icon: 'none' })
       return
     }
-    this.setData({ submitting: true })
+    feedback.update(this, { submitting: true })
     wx.showLoading({ title: '正在提交订单', mask: true })
     let paymentId = null
     try {
@@ -252,8 +253,8 @@ Page({
       else if (!this.flashSaleMode) cart.clearSelected()
       wx.hideLoading()
       const confirmed = await payment.payOrder(paymentId)
-      wx.showToast({ title: confirmed ? '支付成功' : '支付结果确认中', icon: confirmed ? 'success' : 'none' })
-      setTimeout(() => wx.redirectTo({ url: '/pages/orders/index' }), 700)
+      await feedback.toast({ title: confirmed ? '支付成功' : '支付结果确认中', icon: confirmed ? 'success' : 'none' })
+      wx.redirectTo({ url: '/pages/orders/index' })
     } catch (error) {
       wx.hideLoading()
       if (this.createdPaymentId) {
@@ -266,8 +267,8 @@ Page({
           success: () => wx.redirectTo({ url: '/pages/orders/index' })
         })
       } else {
-        wx.showToast({ title: error.message || '订单提交失败', icon: 'none', duration: 2600 })
+        feedback.toast({ title: error.message || '订单提交失败', icon: 'none', duration: 2600 })
       }
-    } finally { this.setData({ submitting: false }) }
+    } finally { feedback.update(this, { submitting: false }) }
   }
 })

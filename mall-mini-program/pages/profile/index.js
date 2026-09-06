@@ -1,3 +1,4 @@
+const feedback = require('../../utils/feedback')
 const session = require('../../utils/session')
 const request = require('../../utils/request')
 const theme = require('../../utils/theme')
@@ -12,18 +13,18 @@ Page({
     loggedIn: false, member: null, loginVisible: false, avatarSrc: avatar.fallback, unreadCount: 0, unreadText: '', payoutCount: 0,
     orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, afterSale: 0 }
   },
-  onShow() { theme.apply(this); this.setLoginVisible(this.data.loginVisible); this.refresh() },
-  onHide() { share.hide(this); this.refreshVersion = (this.refreshVersion || 0) + 1; avatar.release(this.data.avatarSrc); this.setData({ avatarSrc: avatar.fallback, capabilities: capabilities.empty() }) },
+  onShow() { if (typeof wx.setNavigationBarTitle === 'function') wx.setNavigationBarTitle({ title: '我的' }); theme.apply(this); this.setLoginVisible(this.data.loginVisible); this.refresh() },
+  onHide() { share.hide(this); this.refreshVersion = (this.refreshVersion || 0) + 1; avatar.release(this.data.avatarSrc); feedback.update(this, { avatarSrc: avatar.fallback, capabilities: capabilities.empty() }) },
   onUnload() { this.onHide() },
   async refresh() {
     const version = this.refreshVersion = (this.refreshVersion || 0) + 1
     const token = session.getToken()
-    this.setData({ capabilities: capabilities.empty() })
+    feedback.update(this, { capabilities: capabilities.empty() })
     const rights = this.loadCapabilities(version, token)
-    this.setData({ loggedIn: Boolean(token), member: session.getMember() })
+    feedback.update(this, { loggedIn: Boolean(token), member: session.getMember() })
     if (!token) {
       avatar.release(this.data.avatarSrc)
-      this.setData({
+      feedback.update(this, {
         member: null, avatarSrc: avatar.fallback,
         unreadCount: 0,
         unreadText: '',
@@ -36,18 +37,18 @@ Page({
       const member = await request({ url: '/shop/auth/me' })
       if (version !== this.refreshVersion || session.getToken() !== token) return
       wx.setStorageSync('mall_mini_member', member)
-      this.setData({ member })
+      feedback.update(this, { member })
       const avatarSrc = await avatar.load(member.avatarUrl)
       if (version !== this.refreshVersion || session.getToken() !== token) { avatar.release(avatarSrc); return }
       avatar.release(this.data.avatarSrc)
-      this.setData({ avatarSrc })
+      feedback.update(this, { avatarSrc })
       await Promise.all([this.loadUnread(), this.loadPayoutCount(), this.loadOrderSummary()])
       await rights
     } catch (_) {
       if (version !== this.refreshVersion || session.getToken() !== token) return
       share.hide(this)
       avatar.release(this.data.avatarSrc)
-      this.setData({
+      feedback.update(this, {
         capabilities: capabilities.empty(), shareReady: false,
         loggedIn: false, member: null, avatarSrc: avatar.fallback, unreadCount: 0, unreadText: '', payoutCount: 0,
         orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, afterSale: 0 }
@@ -56,7 +57,7 @@ Page({
   },
   async loadCapabilities(version = this.refreshVersion, token = session.getToken()) {
     const result = await share.prepare(this)
-    if (result && version === this.refreshVersion && token === session.getToken()) this.setData({ capabilities: result })
+    if (result && version === this.refreshVersion && token === session.getToken()) feedback.update(this, { capabilities: result })
   },
   retryShare() { return this.loadCapabilities() },
   onShareAppMessage() { return share.message(this, '/pages/home/index', this.data.brandName) },
@@ -64,27 +65,27 @@ Page({
     try {
       const unread = await request({ url: '/shop/messages/unread' })
       const count = Number(unread && unread.total ? unread.total : 0)
-      this.setData({ unreadCount: count, unreadText: count > 99 ? '99+' : String(count || '') })
-    } catch (_) { this.setData({ unreadCount: 0, unreadText: '' }) }
+      feedback.update(this, { unreadCount: count, unreadText: count > 99 ? '99+' : String(count || '') })
+    } catch (_) { feedback.update(this, { unreadCount: 0, unreadText: '' }) }
   },
   async loadPayoutCount() {
     try {
       const records = await request({ url: '/shop/wallet/withdrawals' })
       const payoutCount = (records || []).filter((item) => Number(item.withdrawType) === 2 && Number(item.status) === 2).length
-      this.setData({ payoutCount })
-    } catch (_) { this.setData({ payoutCount: 0 }) }
+      feedback.update(this, { payoutCount })
+    } catch (_) { feedback.update(this, { payoutCount: 0 }) }
   },
   async loadOrderSummary() {
     try {
       const summary = await request({ url: '/shop/profile/order-summary' })
-      this.setData({ orderSummary: {
+      feedback.update(this, { orderSummary: {
         pendingPayment: Number(summary && summary.pendingPayment || 0),
         pendingShipment: Number(summary && summary.pendingShipment || 0),
         pendingReceipt: Number(summary && summary.pendingReceipt || 0),
         afterSale: Number(summary && summary.afterSale || 0)
       } })
     } catch (_) {
-      this.setData({ orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, afterSale: 0 } })
+      feedback.update(this, { orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, afterSale: 0 } })
     }
   },
   accountEntry() {
@@ -93,12 +94,12 @@ Page({
   },
   login(redirect = '') {
     const panel = this.selectComponent('#login-sheet')
-    if (!panel) { wx.showToast({ title: '登录入口加载中，请稍后重试', icon: 'none' }); return }
+    if (!panel) { feedback.toast({ title: '登录入口加载中，请稍后重试', icon: 'none' }); return }
     this.setLoginVisible(true)
     panel.open(redirect)
   },
   setLoginVisible(visible) {
-    this.setData({ loginVisible: visible })
+    feedback.update(this, { loginVisible: visible })
     if (visible) share.hide(this)
     const tab = typeof this.getTabBar === 'function' && this.getTabBar()
     if (tab) tab.setData({ hidden: visible })
@@ -141,7 +142,7 @@ Page({
         if (!result.confirm) return
         try { await request({ url: '/shop/auth/logout', method: 'POST' }) } catch (_) {}
         session.clearSession()
-        this.setData({
+        feedback.update(this, {
           unreadCount: 0, unreadText: '', payoutCount: 0,
           orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, afterSale: 0 }
         })

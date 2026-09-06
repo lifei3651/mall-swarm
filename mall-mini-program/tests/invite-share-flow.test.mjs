@@ -1,3 +1,4 @@
+import { runMiniScript } from './helpers/run-mini-script.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import vm from 'node:vm'
@@ -32,7 +33,7 @@ function harness({ handle, token = '', login } = {}) {
     if (file === 'utils/theme.js') return { pageData: () => ({}), apply() {} }
     if (cache.has(file)) return cache.get(file).exports
     const module = { exports: {} }; cache.set(file, module)
-    vm.runInNewContext(source(file), { module, wx, Date: { now: () => time },
+    runMiniScript(source(file), { module, wx, Date: { now: () => time },
       require: (id) => load(path.posix.normalize(path.posix.join(path.posix.dirname(file), id + (id.endsWith('.js') ? '' : '.js')))) }, { filename: file })
     return module.exports
   }

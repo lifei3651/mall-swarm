@@ -1,3 +1,4 @@
+import { runMiniScript } from './helpers/run-mini-script.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -35,7 +36,7 @@ function harness(name, { respond, loggedIn = true, selected = goods, stack = [] 
     '../../utils/theme': { pageData: () => ({}), apply() {}, sync() {} }
   }
   const source = new URL(`../pages/${name}/index.js`, import.meta.url)
-  vm.runInNewContext(readFileSync(source, 'utf8'), {
+  runMiniScript(readFileSync(source, 'utf8'), {
     Page: (value) => { definition = value },
     require: (id) => { assert.ok(Object.hasOwn(mocks, id), `Explicit mock for ${id}`); return mocks[id] },
     wx, getCurrentPages: () => stack, setTimeout: (fn) => { timers.push(fn); return timers.length },

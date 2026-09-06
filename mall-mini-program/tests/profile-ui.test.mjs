@@ -1,3 +1,4 @@
+import { runMiniScript } from './helpers/run-mini-script.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -24,7 +25,7 @@ function loadProfile({ token = '', member = null, respond } = {}) {
     pageData: () => ({ themeStyle: '--brand: #7c3aed;' }),
     apply: () => { themeApplied++; return Promise.resolve({}) }
   }
-  vm.runInNewContext(readFileSync(sourceUrl, 'utf8'), {
+  runMiniScript(readFileSync(sourceUrl, 'utf8'), {
     Page: (value) => { definition = value },
     require: (id) => {
       const mocks = { '../../utils/session': session, '../../utils/request': request, '../../utils/theme': theme,
@@ -235,6 +236,16 @@ test('个人中心视觉布局保留四个可读订单入口、登录、常用�
   assert.ok(attribute(contact, 'aria-label'))
 })
 
+test('原生按钮宽度显式定义，钱包行不缩成半行且会员入口使用宫格', () => {
+  const css = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
+  assert.match(css('pages/wallet/index.wxss'), /\.record-entry\s*\{[^}]*width:100%/)
+  assert.match(css('pages/wallet/index.wxss'), /\.withdraw-button\s*\{[^}]*width:auto/)
+  assert.match(css('pages/withdraw/index.wxss'), /\.withdraw-page \.primary-button\s*\{[^}]*width:100%/)
+  assert.match(css('pages/profile/index.wxss'), /\.service-grid\s*\{[^}]*repeat\(4/)
+  assert.match(css('pages/profile/index.wxss'), /\.order-panel \.panel-head\s*\{[^}]*border-bottom: 1rpx/)
+  assert.match(css('pages/profile/index.js'), /setNavigationBarTitle\(\{ title: '我的'/)
+})
+
 test('个人中心全部本地图标资源真实存在且具有有效PNG尺寸', () => {
   const view = readFileSync(new URL('../pages/profile/index.wxml', import.meta.url), 'utf8')
   const imageTags = view.match(/<image\b[^>]*>/g) || []
@@ -259,7 +270,7 @@ test('个人中心订单、消息和收款角标均受登录态显示保护', ()
   for (const tag of view.match(/<[^>]+>/g) || []) {
     if (tag.startsWith('</')) { stack.pop(); continue }
     const condition = attribute(tag, 'wx:if') || ''
-    if (/\b(shortcut-count|unread-badge)\b/.test(attribute(tag, 'class') || '')) {
+    if (/\b(shortcut-count|tile-badge)\b/.test(attribute(tag, 'class') || '')) {
       badges++
       const conditions = [...stack, condition]
       assert.ok(conditions.some((value) => /\bloggedIn\s*&&/.test(value)), `角标本身或父级需要登录门禁：${tag}`)

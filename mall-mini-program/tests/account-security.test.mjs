@@ -1,3 +1,4 @@
+import { runMiniScript } from './helpers/run-mini-script.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import vm from 'node:vm'
@@ -12,7 +13,7 @@ function harness({ respond = () => member, loggedIn = true } = {}) {
   let definition, cleared = 0, now = 100000
   const requests = [], routes = [], timers = new Map()
   const DateMock = class extends Date { static now() { return now } }
-  vm.runInNewContext(readFileSync(new URL('../pages/account-security/index.js', import.meta.url), 'utf8'), {
+  runMiniScript(readFileSync(new URL('../pages/account-security/index.js', import.meta.url), 'utf8'), {
     Page: (value) => { definition = value },
     require: (path) => {
       if (path === '../../utils/request') return async (options) => { requests.push(plain(options)); return respond(options) }

@@ -1,4 +1,5 @@
 const theme = require('../utils/theme')
+const feedback = require('../utils/feedback')
 Component({
   data: { ...theme.pageData(), active: 'home', hidden: false },
   lifetimes: { attached() { this.refresh() } },
@@ -16,7 +17,7 @@ Component({
       if (!item || item.type === this.data.active) return
       // 订单保持普通页面，兼容原来的筛选参数、微信订单找回及登录回跳。
       const method = item.type === 'orders' ? 'navigateTo' : 'switchTab'
-      wx[method]({ url: item.path, fail: () => wx.showToast({ title: '页面暂时无法打开，请重试', icon: 'none' }) })
+      wx[method]({ url: item.path, fail: () => feedback.toast({ title: '页面暂时无法打开，请重试', icon: 'none' }) })
     }
   }
 })

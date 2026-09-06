@@ -4,8 +4,8 @@
   <block wx:else>
     <view class="panel">
       <view class="section-title">账号资料</view>
-      <button class="avatar-picker" open-type="chooseAvatar" bindchooseavatar="chooseAvatar" disabled="{{action !== ''}}" aria-label="选择并更新账号头像"><image src="{{avatarSrc}}" mode="aspectFill" /><text>{{action === 'avatar' ? '正在更新…' : '选择并更新头像'}}</text></button>
-      <text class="hint">头像仅用于个人账号展示。可选择微信头像或本地图片，支持2MB以内JPG/PNG。</text>
+      <button class="avatar-picker" open-type="chooseAvatar" bindchooseavatar="chooseAvatar" disabled="{{action !== ''}}" aria-label="选择并更新账号头像"><text class="avatar-label">头像</text><image src="{{avatarSrc}}" mode="aspectFill" /><text class="avatar-action">{{action === 'avatar' ? '更新中' : '更换'}}</text><image class="avatar-arrow" src="/assets/profile/chevron-right.png" mode="aspectFit" /></button>
+      <text class="hint avatar-hint">选择微信头像或相册图片，仅用于账号展示。支持2MB以内JPG/PNG。</text>
       <view class="account-row"><text>商城账号</text><text>{{canSetupAccount ? '尚未设置' : member.username}}</text></view>
       <view class="account-row"><text>绑定手机号</text><text>{{maskedPhone}}</text></view>
       <text class="field-label">昵称</text>
@@ -45,9 +45,7 @@
       <input class="field" value="{{confirmPassword}}" password data-field="confirmPassword" bindinput="fieldInput" maxlength="32" disabled="{{action !== ''}}" placeholder="请再次输入新密码" aria-label="确认新登录密码" />
       <button class="primary-button" bindtap="changePassword" loading="{{action === 'password'}}" disabled="{{action !== ''}}">修改密码并重新登录</button>
     </view>
-    <text wx:if="{{error}}" class="error-message">{{error}}</text>
-    <text wx:if="{{message}}" class="success-message">{{message}}</text>
-    <view class="panel help-panel"><text class="hint">忘记当前密码或需要更换绑定手机号？请联系当前商城客服核验身份后处理。</text><button class="secondary-button" open-type="contact" show-message-card="{{true}}">联系商城客服</button></view>
+    <view class="help-panel"><text class="hint">忘记当前密码或需要更换手机号？</text><button class="support-link" open-type="contact" show-message-card="{{true}}">联系商城客服</button></view>
   </block>
 </view>
 <privacy-consent id="privacy-consent" />

@@ -1,3 +1,4 @@
+import { runMiniScript } from './helpers/run-mini-script.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import vm from 'node:vm'
@@ -19,7 +20,7 @@ function harness(runtime, { token = '', response = { accessToken: 'test-session'
     '../config/runtime': { PRIVACY_CONSENT_VERSION: version },
     './theme': { pageData: () => ({}), apply() {} }
   }
-  vm.runInNewContext(source('utils/login-flow.js'), {
+  runMiniScript(source('utils/login-flow.js'), {
     module, require: (id) => { assert.ok(mocks[id], id); return mocks[id] },
     wx: { showToast: (value) => notices.push(value), navigateTo: (value) => navigations.push(value),
       redirectTo: (value) => navigations.push(value), switchTab: (value) => navigations.push(value) }, setTimeout() {}

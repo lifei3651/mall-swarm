@@ -3,10 +3,11 @@ package com.macro.mall.distribution.service;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.dao.DmsAgentDao;
 import com.macro.mall.distribution.security.EffectiveMemberPolicy;
+import com.macro.mall.distribution.enums.AgentLevelEnum;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-/** Public native capabilities, not a team/earnings profile. No rank, relations or bonus amounts. */
+/** Authenticated member's own capabilities and display rank only; never a team profile. */
 @Service
 @RequiredArgsConstructor
 public class WeChatMiniProgramMemberService {
@@ -27,9 +28,12 @@ public class WeChatMiniProgramMemberService {
         // Wallet ownership is independent of invitation/promotion eligibility.
         boolean accountActive = member != null && Integer.valueOf(1).equals(member.getStatus())
                 && !Integer.valueOf(1).equals(member.getSystemAccount());
-        return new Capabilities(active, code != null, code, accountActive, accountActive);
+        var level = active ? AgentLevelEnum.getByValue(agent.getAgentLevel()) : null;
+        return new Capabilities(active, code != null, code, accountActive, accountActive,
+                level == null ? null : level.getValue(), level == null ? "购物账号" : level.getName());
     }
 
     public record Capabilities(boolean membershipActive, boolean canInvite, String inviteCode,
-                               boolean canViewWallet, boolean canViewPayoutRecords) {}
+                               boolean canViewWallet, boolean canViewPayoutRecords,
+                               Integer membershipLevel, String membershipLabel) {}
 }

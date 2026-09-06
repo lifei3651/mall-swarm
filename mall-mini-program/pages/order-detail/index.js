@@ -1,3 +1,4 @@
+const feedback = require('../../utils/feedback')
 const request = require('../../utils/request')
 const auth = require('../../utils/auth')
 const format = require('../../utils/format')
@@ -28,19 +29,19 @@ Page({
     const orderId = identifier(options.id)
     const paymentNo = orderCenter.normalizePaymentNo(options.orderNo || options.paymentNo)
     if (!orderId && !paymentNo) {
-      this.setData({ loading: false, error: '订单编号不正确' })
+      feedback.update(this, { loading: false, error: '订单编号不正确' })
       return
     }
     this.orderId = orderId || null
     this.paymentNo = paymentNo
     this.redirect = this.orderId ? `/pages/order-detail/index?id=${this.orderId}` : orderCenter.detailPath(paymentNo)
-    this.setData({ paymentNo })
+    feedback.update(this, { paymentNo })
   },
   onShow() {
     theme.apply(this)
     if (this.redirect && auth.requireLogin(this.redirect)) return this.load()
     this.requestVersion = (this.requestVersion || 0) + 1
-    if (this.redirect) this.setData({ loading: false, rows: [] })
+    if (this.redirect) feedback.update(this, { loading: false, rows: [] })
   },
   onUnload() { this.disposed = true; this.requestVersion = (this.requestVersion || 0) + 1 },
   onPullDownRefresh() {
@@ -52,7 +53,7 @@ Page({
   },
   async load() {
     const version = this.requestVersion = (this.requestVersion || 0) + 1
-    this.setData({ loading: true, error: '' })
+    feedback.update(this, { loading: true, error: '' })
     try {
       const result = this.orderId
         ? await request({ url: `/shop/orders/${this.orderId}` })
@@ -101,36 +102,36 @@ Page({
         }
       })
       this.loadedOnce = true
-      this.setData({
+      feedback.update(this, {
         rows,
         paymentNo: this.paymentNo || (rows[0] && (rows[0].order.paymentOrderNo || rows[0].order.orderNo)) || '',
         totalText: format.money(rows.reduce((sum, row) => sum + Number(row.order.payAmount || 0), 0))
       })
     } catch (error) {
-      if (!this.disposed && version === this.requestVersion) this.setData({ error: error.message || '订单不存在或无权查看', rows: [] })
+      if (!this.disposed && version === this.requestVersion) feedback.update(this, { error: error.message || '订单不存在或无权查看', rows: [] })
     } finally {
-      if (!this.disposed && version === this.requestVersion) this.setData({ loading: false })
+      if (!this.disposed && version === this.requestVersion) feedback.update(this, { loading: false })
     }
   },
   selectCarrier(event) {
     const company = CARRIERS[Number(event.detail.value)]
-    if (company && !this.data.submittingShipment) this.setData({ deliveryCompany: company, shipmentError: '' })
+    if (company && !this.data.submittingShipment) feedback.update(this, { deliveryCompany: company, shipmentError: '' })
   },
   async loadTracking(event) {
     const id = identifier(event.currentTarget.dataset.id)
     if (!id || this.data.trackingLoading || !this.data.rows.some((row) => row.order.id === id)) return
     const version = this.requestVersion
-    this.setData({ trackingOrderId: id, trackingLoading: true, trackingError: '', trackingRows: [] })
+    feedback.update(this, { trackingOrderId: id, trackingLoading: true, trackingError: '', trackingRows: [] })
     try {
       const records = await request({ url: `/shop/orders/${id}/tracking` })
       if (this.disposed || version !== this.requestVersion) return
-      this.setData({ trackingRows: (Array.isArray(records) ? records : []).map((record) => ({
+      feedback.update(this, { trackingRows: (Array.isArray(records) ? records : []).map((record) => ({
         deliveryNo: String(record.deliveryNo || ''), deliveryCompany: record.deliveryCompany || '',
         statusText: record.statusText || (record.configured ? '暂无新物流轨迹' : '商城尚未配置物流轨迹服务，可复制单号向承运商查询'),
         events: (record.events || []).map((item) => ({ description: item.description || '', location: item.location || '', time: formatTime(item.eventTime) }))
       })) })
-    } catch (error) { if (!this.disposed && version === this.requestVersion) this.setData({ trackingError: error.message || '物流查询失败，请重试' }) }
-    finally { if (!this.disposed) this.setData({ trackingLoading: false }) }
+    } catch (error) { if (!this.disposed && version === this.requestVersion) feedback.update(this, { trackingError: error.message || '物流查询失败，请重试' }) }
+    finally { if (!this.disposed) feedback.update(this, { trackingLoading: false }) }
   },
   copyDeliveryNo(event) {
     const number = String(event.currentTarget.dataset.number || '')
@@ -145,15 +146,15 @@ Page({
       confirmText: '确认收货',
       success: async ({ confirm }) => {
         if (!confirm || this.data.actingId) return
-        this.setData({ actingId: orderId })
+        feedback.update(this, { actingId: orderId })
         try {
           await request({ url: `/shop/orders/${orderId}/receive`, method: 'PUT' })
-          wx.showToast({ title: '已确认收货', icon: 'success' })
+          feedback.toast({ title: '已确认收货', icon: 'success' })
           await this.load()
         } catch (error) {
-          wx.showToast({ title: error.message || '确认失败', icon: 'none', duration: 2600 })
+          feedback.toast({ title: error.message || '确认失败', icon: 'none', duration: 2600 })
         } finally {
-          this.setData({ actingId: null })
+          feedback.update(this, { actingId: null })
         }
       }
     })
@@ -168,13 +169,13 @@ Page({
       confirmColor: this.data.themeColor,
       success: async ({ confirm }) => {
         if (!confirm || this.data.actingId) return
-        this.setData({ actingId: orderId })
+        feedback.update(this, { actingId: orderId })
         try {
           await request({ url: `/shop/orders/${orderId}/cancel`, method: 'PUT' })
-          wx.showToast({ title: '订单已取消', icon: 'success' })
+          feedback.toast({ title: '订单已取消', icon: 'success' })
           await this.load()
-        } catch (error) { wx.showToast({ title: error.message || '取消失败', icon: 'none' }) }
-        finally { this.setData({ actingId: null }) }
+        } catch (error) { feedback.toast({ title: error.message || '取消失败', icon: 'none' }) }
+        finally { feedback.update(this, { actingId: null }) }
       }
     })
   },
@@ -188,13 +189,13 @@ Page({
       confirmColor: this.data.themeColor,
       success: async ({ confirm }) => {
         if (!confirm || this.data.cancellingAfterSaleId) return
-        this.setData({ cancellingAfterSaleId: id })
+        feedback.update(this, { cancellingAfterSaleId: id })
         try {
           await request({ url: `/shop/after-sales/${id}/cancel`, method: 'PUT' })
-          wx.showToast({ title: '售后申请已取消', icon: 'success' })
+          feedback.toast({ title: '售后申请已取消', icon: 'success' })
           await this.load()
-        } catch (error) { wx.showToast({ title: error.message || '取消失败', icon: 'none' }) }
-        finally { this.setData({ cancellingAfterSaleId: null }) }
+        } catch (error) { feedback.toast({ title: error.message || '取消失败', icon: 'none' }) }
+        finally { feedback.update(this, { cancellingAfterSaleId: null }) }
       }
     })
   },
@@ -214,29 +215,29 @@ Page({
     const id = identifier(event.currentTarget.dataset.id)
     const sale = this.findSale(id)
     if (!sale || !sale.canReturn || this.data.submittingShipment) return
-    this.setData({ editingSaleId: id, deliveryCompany: sale.returnDeliveryCompany || '', deliveryNo: sale.returnDeliveryNo || '', shipmentError: '' })
+    feedback.update(this, { editingSaleId: id, deliveryCompany: sale.returnDeliveryCompany || '', deliveryNo: sale.returnDeliveryNo || '', shipmentError: '' })
   },
   shipmentInput(event) {
     const field = event.currentTarget.dataset.field
-    if (!this.data.submittingShipment && ['deliveryCompany', 'deliveryNo'].includes(field)) this.setData({ [field]: event.detail.value, shipmentError: '' })
+    if (!this.data.submittingShipment && ['deliveryCompany', 'deliveryNo'].includes(field)) feedback.update(this, { [field]: event.detail.value, shipmentError: '' })
   },
-  closeShipment() { if (!this.data.submittingShipment) this.setData({ editingSaleId: '', shipmentError: '' }) },
+  closeShipment() { if (!this.data.submittingShipment) feedback.update(this, { editingSaleId: '', shipmentError: '' }) },
   async submitShipment() {
     const id = this.data.editingSaleId
     const sale = this.findSale(id)
     if (!sale || !sale.canReturn || this.data.submittingShipment) return
     const deliveryCompany = this.data.deliveryCompany.trim()
     const deliveryNo = this.data.deliveryNo.trim()
-    if (!deliveryCompany || deliveryCompany.length > 50) { this.setData({ shipmentError: '请填写1至50字的快递公司名称' }); return }
-    if (!/^[A-Za-z0-9_-]{4,64}$/.test(deliveryNo)) { this.setData({ shipmentError: '快递单号需为4至64位字母、数字、下划线或短横线' }); return }
-    this.setData({ submittingShipment: true, shipmentError: '' })
+    if (!deliveryCompany || deliveryCompany.length > 50) { feedback.update(this, { shipmentError: '请填写1至50字的快递公司名称' }); return }
+    if (!/^[A-Za-z0-9_-]{4,64}$/.test(deliveryNo)) { feedback.update(this, { shipmentError: '快递单号需为4至64位字母、数字、下划线或短横线' }); return }
+    feedback.update(this, { submittingShipment: true, shipmentError: '' })
     try {
       await request({ url: `/shop/after-sales/${id}/return-shipment`, method: 'PUT', data: { deliveryCompany, deliveryNo } })
-      this.setData({ editingSaleId: '', deliveryCompany: '', deliveryNo: '' })
-      wx.showToast({ title: '退货物流已提交', icon: 'success' })
+      feedback.update(this, { editingSaleId: '', deliveryCompany: '', deliveryNo: '' })
+      feedback.toast({ title: '退货物流已提交', icon: 'success' })
       await this.load()
-    } catch (error) { this.setData({ shipmentError: error.message || '物流提交失败，请重试' }) }
-    finally { this.setData({ submittingShipment: false }) }
+    } catch (error) { feedback.update(this, { shipmentError: error.message || '物流提交失败，请重试' }) }
+    finally { feedback.update(this, { submittingShipment: false }) }
   },
   receiveExchange(event) {
     const id = identifier(event.currentTarget.dataset.id)
@@ -245,13 +246,13 @@ Page({
     wx.showModal({ title: '确认收到换货商品', content: '请确认换货商品已收到且无误，确认后本次换货将完成。', confirmText: '确认收货',
       success: async ({ confirm }) => {
         if (!confirm || this.data.cancellingAfterSaleId) return
-        this.setData({ cancellingAfterSaleId: id })
+        feedback.update(this, { cancellingAfterSaleId: id })
         try {
           await request({ url: `/shop/after-sales/${id}/exchange-received`, method: 'PUT' })
-          wx.showToast({ title: '已确认换货收货', icon: 'success' })
+          feedback.toast({ title: '已确认换货收货', icon: 'success' })
           await this.load()
-        } catch (error) { wx.showToast({ title: error.message || '确认失败', icon: 'none' }) }
-        finally { this.setData({ cancellingAfterSaleId: null }) }
+        } catch (error) { feedback.toast({ title: error.message || '确认失败', icon: 'none' }) }
+        finally { feedback.update(this, { cancellingAfterSaleId: null }) }
       }
     })
   },

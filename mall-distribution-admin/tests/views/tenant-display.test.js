@@ -122,12 +122,12 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('showTrustStrip: form.showTrustStrip')
     expect(source).toContain("value: 'campaign-feed'")
     expect(source).toContain('直播广场完整页面总开关')
-    expect(source).toContain('独立页面默认独立开关')
-    expect(source).toContain('新品完整页面总开关')
+    expect(source).toContain('首页模块不再重复设置开关')
+    expect(source).toContain('新品展示位置')
     expect(source).toContain('liveSquareEnabled: form.liveSquareEnabled')
     expect(source).toContain('newArrivalsEnabled: form.newArrivalsEnabled')
     expect(source).toContain('newArrivalWindowDays: form.newArrivalWindowDays')
-    expect(source).toContain('新品完整页面总开关')
+    expect(source).toContain('新品展示位置')
     expect(source).toContain('30～365天')
     expect(source).toContain("key: 'culture'")
     expect(source).toContain('brandCultureEnabled: form.brandCultureEnabled')
@@ -251,9 +251,9 @@ describe('商城视觉与页面工作台', () => {
       expect(source).toContain(label)
     }
     expect(source).toContain("v-if=\"displayForm.layoutTemplate === 'category-focus'\" class=\"category-guide-config\"")
-    expect(source).toContain('原有模块值会一直保留')
-    expect(source).toContain('直播广场总开关已关闭，保留当前首页开关值')
-    expect(source).toContain('新品速递总开关已关闭，保留当前首页开关值')
+    expect(source).toContain('首页内容保持原配置')
+    expect(source).toContain("featurePlacement(displayForm, 'live')")
+    expect(source).toContain("featurePlacement(displayForm, 'newArrivals')")
     expect(source).toContain('isRequiredNav(nav.type)')
     expect(source).toContain('requiredCapabilities')
     expect(source).toContain('guide-preview-directory')
@@ -405,7 +405,7 @@ describe('商城视觉与页面工作台', () => {
 
   it('工作台明确整体版型边界且四版型首页共用同一模块预览', async () => {
     const source = await readFile(sourcePath, 'utf8')
-    const applyLayout = source.slice(source.indexOf('const applyLayoutTemplate'), source.indexOf('const openPreviewNav'))
+    const applyLayout = source.slice(source.indexOf('const applyLayoutTemplate'), source.indexOf('const selectCategoryGuide'))
 
     expect(source).toContain('只改变排版，不改变模块开关、排序、品牌、独立页面或底部导航')
     expect(applyLayout).toContain('applyVisualLayoutTemplate(displayForm.value, template?.value)')

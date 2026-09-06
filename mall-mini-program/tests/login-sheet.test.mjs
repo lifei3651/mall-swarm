@@ -1,3 +1,4 @@
+import { runMiniScript } from './helpers/run-mini-script.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import vm from 'node:vm'
@@ -17,9 +18,9 @@ function harness({ runtime = async () => ready, login, token = '' } = {}) {
   }
   const context = { module: { exports: {} }, require: (id) => { assert.ok(deps[id], id); return deps[id] },
     wx: { showToast() {}, navigateTo: (value) => routes.push(value) } }
-  vm.runInNewContext(source('utils/login-flow.js'), context)
+  runMiniScript(source('utils/login-flow.js'), context)
   let component
-  vm.runInNewContext(source('components/login-sheet/index.js'), {
+  runMiniScript(source('components/login-sheet/index.js'), {
     require: (id) => id === '../../utils/login-flow' ? context.module.exports : session,
     Component: (value) => { component = value }
   })
@@ -117,7 +118,7 @@ test('原登录路由复用同一表单，保留结算深链且关闭可返回�
   const opened = [], completed = [], routes = []
   let page
   const flow = { finish() { completed.push(this.redirect) } }
-  vm.runInNewContext(source('pages/login/index.js'), {
+  runMiniScript(source('pages/login/index.js'), {
     Page: (value) => { page = value }, require: () => flow,
     wx: { navigateBack: (options) => routes.push(options), switchTab: (options) => routes.push(options) }
   })
@@ -161,5 +162,7 @@ test('个人中心采用整行账号入口和独立隐私组件，弹窗的单�
   assert.doesNotMatch(panel, /中国移动|登录其他账号|首次使用.*注册/)
   assert.match(source('custom-tab-bar/index.wxml'), /wx:if="\{\{!hidden\}\}"/)
   assert.match(source('components/login-sheet/index.wxss'), /\.login-panel \.login-button\s*\{[^}]*width: 100%/)
-  assert.match(source('components/login-sheet/index.wxss'), /\.login-panel \.login-button\[disabled\]\s*\{[^}]*background: #eef0f3/)
+  assert.match(source('components/login-sheet/index.wxss'), /\.login-panel \.login-button\.is-disabled\s*\{[^}]*background: #eef0f3/)
+  assert.doesNotMatch(source('components/login-sheet/index.wxss'), /\[disabled\]/)
+  assert.match(source('components/login-sheet/index.wxml'), /class="login-button[^"\n]*is-disabled/)
 })

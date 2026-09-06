@@ -124,25 +124,25 @@
               </button>
             </div>
             <div v-if="displayForm.layoutTemplate === 'category-focus'" class="category-guide-config">
-              <div class="control-section-heading"><div><strong>再选择分类导购结构</strong><small>A、B、C 是分类导购版的下一层选择，原有模块值会一直保留</small></div><el-tag size="small" type="success">分类导购</el-tag></div>
+              <div class="control-section-heading"><div><strong>再选择分类页结构</strong><small>A、B、C 作用于“分类”页面，右侧已自动切到分类预览；首页内容保持原配置</small></div><el-tag size="small" type="success">分类页预览</el-tag></div>
               <div class="category-guide-template-grid">
-                <button v-for="template in categoryGuideTemplateOptions" :key="template.value" type="button" :class="{ active: displayForm.categoryGuideTemplate === template.value }" @click="displayForm.categoryGuideTemplate = template.value"><strong>{{ template.label }}</strong><small>{{ template.description }}</small></button>
+                <button v-for="template in categoryGuideTemplateOptions" :key="template.value" type="button" :class="{ active: displayForm.categoryGuideTemplate === template.value }" @click="selectCategoryGuide(template.value)"><strong>{{ template.label }}</strong><small>{{ template.description }}</small></button>
               </div>
             </div>
           </section>
           <section v-if="activeEditSection === 'pages' && independentPageTab === 'live'" class="control-section feature-control-section">
-            <div class="control-section-heading"><div><strong>直播广场</strong><small>直播中、直播预告与直播详情共用完整页面总开关；首页卡片仍可单独隐藏</small></div><el-tag size="small" type="info">独立页面</el-tag></div>
+            <div class="control-section-heading"><div><strong>直播广场</strong><small>只在此处选择展示位置，首页模块不再重复设置开关</small></div><el-tag size="small" type="info">展示位置</el-tag></div>
             <div class="feature-toggle-card">
-              <div class="feature-toggle-copy"><span class="feature-toggle-icon">◉</span><div><strong>直播广场完整页面总开关</strong><small>关闭后首页直播卡片、直播中、直播预告和直播详情均不公开，已配置直播间与会员预约继续保留</small></div></div>
-              <div class="feature-toggle-action"><span :class="{ enabled: displayForm.liveSquareEnabled === 1 }">{{ displayForm.liveSquareEnabled === 1 ? '已开启' : '已关闭' }}</span><el-switch v-model="displayForm.liveSquareEnabled" :active-value="1" :inactive-value="0" aria-label="开启或关闭直播广场" /></div>
+              <div class="feature-toggle-copy"><span class="feature-toggle-icon">◉</span><div><strong>直播广场完整页面总开关与展示位置</strong><small>关闭后首页直播卡片、直播中、直播预告和直播详情均不公开，已配置直播间与会员预约继续保留</small></div></div>
+              <el-radio-group :model-value="featurePlacement(displayForm, 'live')" @change="value => setFeaturePlacement(displayForm, 'live', value)" aria-label="直播展示位置"><el-radio-button v-for="(label, value) in placementLabels" :key="value" :value="value">{{ label }}</el-radio-button></el-radio-group>
             </div>
-            <p class="section-note">独立页面默认独立开关：今后新增单独业务页面时，必须同步提供客户级总开关、关闭后的直达保护和数据保留规则。</p>
+            <p class="section-note">关闭：页面与首页入口都隐藏；仅独立页面：页面可访问，但不在首页展示；页面与首页入口：两处同时展示。关闭不删除内容。</p>
           </section>
           <section v-if="activeEditSection === 'pages' && independentPageTab === 'newArrivals'" class="control-section feature-control-section">
-            <div class="control-section-heading"><div><strong>新品速递</strong><small>新品完整页面与首页卡片分层控制，不影响普通商品列表</small></div><el-tag size="small" type="info">独立页面</el-tag></div>
+            <div class="control-section-heading"><div><strong>新品速递</strong><small>只在此处选择展示位置，不影响普通商品列表</small></div><el-tag size="small" type="info">展示位置</el-tag></div>
             <div class="feature-toggle-card">
-              <div class="feature-toggle-copy"><span class="feature-toggle-icon new-arrivals-icon">NEW</span><div><strong>新品完整页面总开关</strong><small>开启后才允许访问新品完整页面；首页卡片仍可在“首页模块”单独隐藏。关闭不会下架任何商品</small></div></div>
-              <div class="feature-toggle-action"><span :class="{ enabled: displayForm.newArrivalsEnabled === 1 }">{{ displayForm.newArrivalsEnabled === 1 ? '已开启' : '已关闭' }}</span><el-switch v-model="displayForm.newArrivalsEnabled" :active-value="1" :inactive-value="0" aria-label="开启或关闭新品速递" /></div>
+              <div class="feature-toggle-copy"><span class="feature-toggle-icon new-arrivals-icon">NEW</span><div><strong>新品展示位置</strong><small>仅独立页面不会展示首页卡片；关闭同时隐藏页面和首页入口，不会下架或删除商品</small></div></div>
+              <el-radio-group :model-value="featurePlacement(displayForm, 'newArrivals')" @change="value => setFeaturePlacement(displayForm, 'newArrivals', value)" aria-label="新品展示位置"><el-radio-button v-for="(label, value) in placementLabels" :key="value" :value="value">{{ label }}</el-radio-button></el-radio-group>
             </div>
             <div class="new-arrival-window-setting">
               <div><strong>自动新品展示时间</strong><small>商品首次正式上架后自动进入新品；商品中心还可额外追加其他在售商品</small></div>
@@ -172,9 +172,8 @@
                   @change="setTrustEnabled"
                 />
                 <div v-else-if="module.type === 'live' || module.type === 'newArrivals'" class="module-dependent-switch">
-                  <small v-if="module.type === 'live' && displayForm.liveSquareEnabled !== 1">直播广场总开关已关闭，保留当前首页开关值</small>
-                  <small v-if="module.type === 'newArrivals' && displayForm.newArrivalsEnabled !== 1">新品速递总开关已关闭，保留当前首页开关值</small>
-                  <el-switch v-model="module.enabled" active-text="展示" inactive-text="隐藏" :disabled="(module.type === 'live' && displayForm.liveSquareEnabled !== 1) || (module.type === 'newArrivals' && displayForm.newArrivalsEnabled !== 1)" />
+                  <small>{{ placementLabels[featurePlacement(displayForm, module.type)] }}</small>
+                  <el-button link type="primary" @click="editFeaturePlacement(module.type)">设置展示位置</el-button>
                 </div>
                 <el-switch v-else v-model="module.enabled" active-text="展示" inactive-text="隐藏" />
               </div>
@@ -321,6 +320,7 @@ import { formatDateTime } from '@/utils/dateTime'
 import { resolveDirectoryGuideLayout } from '@/utils/categoryGuideLayout'
 import { isEditableBottomNav, normalizeBottomNav } from '@/utils/bottomNav'
 import { applyVisualLayoutTemplate } from '@/utils/layoutTemplate'
+import { featurePlacement, setFeaturePlacement, placementLabels } from '@/utils/featurePlacement'
 import {
   SHOP_THEME_OPTIONS,
   applyThemePresetToForm,
@@ -763,8 +763,10 @@ const previewStyle = computed(() => themePreviewVariables(displayForm.value, cur
 
 const applyLayoutTemplate = (template) => {
   applyVisualLayoutTemplate(displayForm.value, template?.value)
-  previewPage.value = 'home'
+  previewPage.value = template?.value === 'category-focus' ? 'category' : 'home'
 }
+const selectCategoryGuide = (template) => { displayForm.value.categoryGuideTemplate = template; previewPage.value = 'category' }
+const editFeaturePlacement = (type) => { activeEditSection.value = 'pages'; independentPageTab.value = type }
 
 const openPreviewNav = (type) => {
   if (type === 'home' || (type === 'category' && displayForm.value.layoutTemplate === 'category-focus')) {
@@ -797,6 +799,9 @@ const setCategoryDraft = (category, value) => {
   categoryDraft.value = { ...categoryDraft.value, [category.id]: Number(value) }
 }
 
+watch(activeEditSection, (section) => {
+  previewPage.value = section === 'layout' && displayForm.value.layoutTemplate === 'category-focus' ? 'category' : 'home'
+})
 watch(displayForm, () => {
   if (!initializingDisplay.value && displayDialogVisible.value) displayDraftDirty.value = true
 }, { deep: true })
@@ -1466,6 +1471,8 @@ onMounted(async () => {
 .layout-template-preview.preview-campaign-feed em { background:repeating-linear-gradient(180deg,#fff 0 44%,#ff7a1a 44% 52%,transparent 52% 58%); }
 .feature-control-section { padding:12px; }
 .feature-toggle-card { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:15px; background:#f7f9fc; border:1px solid #e4e9f1; border-radius:12px; }
+.feature-control-section .feature-toggle-card { flex-wrap:wrap; }
+.feature-control-section .el-radio-group { flex:0 0 100%; display:flex; gap:8px; }
 .new-arrival-window-setting { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:12px; margin-top:12px; padding:15px; background:#fffaf0; border:1px solid #f5dfb8; border-radius:12px; }
 .new-arrival-window-setting>div:first-child { display:grid; gap:5px; }
 .new-arrival-window-setting small { color:#8a6d3b; font-size:12px; line-height:1.55; }
@@ -1513,12 +1520,12 @@ onMounted(async () => {
 .campaign-preview-products .mobile-preview-product img,.campaign-preview-products .mobile-preview-product i { height:118px; }
 .campaign-preview-band { padding:4px 6px; color:#fff; background:linear-gradient(90deg,#ef3d25,#ff8a18); border-radius:4px; font-size:8px; }
 .layout-preview-standard .mobile-preview-product { border:1px solid var(--preview-line,#e8ecf1); }
-.layout-preview-product-focus .mobile-preview-products { grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; }
+.layout-preview-product-focus .mobile-preview-products { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
 .layout-preview-product-focus .mobile-preview-product { gap:3px; padding:5px; border-radius:9px; }
-.layout-preview-product-focus .mobile-preview-product img,.layout-preview-product-focus .mobile-preview-product i { height:52px; border-radius:6px; }
+.layout-preview-product-focus .mobile-preview-product img,.layout-preview-product-focus .mobile-preview-product i { height:106px; border-radius:8px; }
 .layout-preview-product-focus .mobile-preview-product small { display:none; }
-.layout-preview-product-focus .mobile-preview-product strong { font-size:9px; }
-.layout-preview-product-focus .mobile-preview-product b { font-size:11px; }
+.layout-preview-product-focus .mobile-preview-product strong { font-size:12px; }
+.layout-preview-product-focus .mobile-preview-product b { font-size:13px; }
 .layout-preview-category-focus .mobile-preview-categories { padding:12px 9px; background:linear-gradient(145deg,#fff,color-mix(in srgb,var(--preview-accent) 9%,#fff 91%)); border:1px solid color-mix(in srgb,var(--preview-accent) 18%,#fff 82%); }
 .layout-preview-category-focus .mobile-preview-category > span { width:40px; height:40px; box-shadow:0 5px 12px rgba(38,45,51,.1); }
 .layout-preview-campaign-feed .mobile-preview-categories { padding:7px 9px; background:transparent; border-radius:0; }

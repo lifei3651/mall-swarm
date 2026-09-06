@@ -1,3 +1,4 @@
+import { runMiniScript } from './helpers/run-mini-script.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import vm from 'node:vm'
@@ -7,6 +8,7 @@ import { dirname, resolve } from 'node:path'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const plain = (value) => JSON.parse(JSON.stringify(value))
+const eligibleWallet = { balance: '18.21', distributionActivated: true, realNameVerified: true, adultVerified: true, hasPaymentPassword: true, paymentPasswordLocked: false }
 function environment({ respond = () => ({}), consent = true, wx: overrides = {} } = {}) {
   const storage = new Map([['mall_mini_access_token', 'owner-session']])
   const calls = [], uploads = [], downloads = [], routes = [], removed = [], cache = new Map()
@@ -29,7 +31,7 @@ function environment({ respond = () => ({}), consent = true, wx: overrides = {} 
     if (file === resolve(root, 'utils/theme.js')) return { pageData: () => ({}), apply() {}, sync() {} }
     if (cache.has(file)) return cache.get(file).exports
     const module = { exports: {} }; cache.set(file, module)
-    vm.runInNewContext(readFileSync(file, 'utf8'), {
+    runMiniScript(readFileSync(file, 'utf8'), {
       module, exports: module.exports, require: (id) => load(id, dirname(file)), wx,
       Page: (value) => { definition = value }, Component: (value) => { component = value },
       getCurrentPages: () => currentPage ? [currentPage] : [], setTimeout, clearTimeout
@@ -61,6 +63,54 @@ test('钱包记录按真实收支方向展示，空余额不能伪装为0元', a
   page.onHide(); assert.equal(page.data.flows.length, 0)
   const invalid = environment({ respond: ({ url }) => url.endsWith('/summary') ? { balance: null } : [] }).page('wallet')
   await invalid.onShow(); assert.equal(invalid.data.balance, '--'); assert.match(invalid.data.error, /信息不完整/)
+})
+
+test('奖金与余额分别读取，待发放不计入余额且未知金额不显示假零', async () => {
+  const e=environment({respond:({url})=>url.endsWith('/summary') ? {balance:'18.21'} : url.endsWith('/bonus-summary') ? {issuedBonus:'61.12',pendingBonus:'24.50'} : []}), page=e.page('wallet')
+  await page.onShow(); await new Promise(done=>setImmediate(done))
+  assert.equal(page.data.balance,'18.21'); assert.equal(page.data.issuedBonus,'61.12'); assert.equal(page.data.pendingBonus,'24.50')
+  page.onHide(); assert.equal(page.data.pendingBonus,'--')
+  const bad=environment({respond:({url})=>url.endsWith('/summary') ? {balance:18.21} : []}).page('wallet')
+  await bad.onShow(); await new Promise(done=>setImmediate(done)); assert.equal(bad.data.issuedBonus,'--'); assert.match(bad.data.bonusError,/暂不可用/)
+})
+
+test('本人会员等级只接受已激活且1至8的服务端等级，不从余额或邀请关系推导', async () => {
+  for(const [membershipActive,membershipLevel,expected] of [[true,2,2],[true,99,0],[false,8,0]]) {
+    const e=environment({respond:()=>({membershipActive,membershipLevel,canInvite:false,canViewWallet:true,canViewPayoutRecords:true})})
+    const result=await e.load('utils/member-capabilities').load(); assert.equal(result.membershipLevel,expected)
+    if(expected===2) assert.equal(result.membershipLabel,'VIP会员')
+  }
+})
+
+test('上传域名错误可定位，已上传但下载失败必须说明已保存而非再次上传', async () => {
+  const e=environment({wx:{uploadFile:({fail})=>fail({errMsg:'uploadFile:fail url not in domain list'}),downloadFile:({fail})=>fail({errMsg:'downloadFile:fail url not in domain list'})}})
+  const avatar=e.load('utils/member-avatar')
+  await assert.rejects(avatar.upload('wxfile://tmp-132'),/uploadFile 合法域名/)
+  await assert.rejects(avatar.load('/api/shop/media/member-avatar/132/avatar.jpg',true),/已保存.*downloadFile 合法域名/)
+  assert.equal(await avatar.load('/api/shop/media/member-avatar/132/avatar.jpg'),avatar.fallback)
+})
+
+test('提现保留资格、实名、成年与支付密码条件，不创建无法通过校验的新申请', async () => {
+  for(const key of ['distributionActivated','realNameVerified','adultVerified','hasPaymentPassword']) {
+    const e=environment({respond:({url})=>url.endsWith('/summary')?{...eligibleWallet,[key]:false}:{id:'132',phone:'13800000000'}}), page=e.page('withdraw')
+    await page.onShow(); assert.ok(page.data.blockReason); await page.submit(); assert.equal(e.calls.length,2)
+  }
+})
+
+test('提现校验金额/密码/验证码，仅提交微信本人提现且不可连点重复，离页清空秘密', async () => {
+  let release; const result=new Promise(resolve=>{release=resolve})
+  const e=environment({respond:({url,method})=>method==='POST'?result:url.endsWith('/summary')?eligibleWallet:{id:'132',phone:'13800000000'}}), page=e.page('withdraw')
+  e.wx.redirectTo=({url})=>e.routes.push(url)
+  await page.onShow(); await page.submit(); assert.equal(e.calls.length,2)
+  const form={withdrawAmount:'20',accountName:'测试用户',paymentPassword:'123456',smsCode:'654321'}
+  page.setData({form}); await page.submit(); assert.equal(e.calls.length,2)
+  page.setData({form:{...form,withdrawAmount:'18.21'}})
+  const first=page.submit(); await new Promise(done=>setImmediate(done)); await page.submit()
+  assert.equal(e.calls.length,3); const call=e.calls.at(-1)
+  assert.equal(call.url,'/shop/wallet/withdrawals'); assert.equal(call.data.withdrawType,2)
+  assert.equal(call.data.withdrawAmount,'18.21'); assert.match(call.idempotencyKey,/^MINI-WITHDRAW-/)
+  release({id:'1'}); await first; assert.equal(page.data.form.paymentPassword,'')
+  assert.equal(e.routes.at(-1),'/pages/payout/index?history=1'); page.onHide(); assert.equal(page.data.form.smsCode,'')
 })
 
 test('会员身份独立核对，普通账号有余额不变会员；能力慢请求或失败不挡钱包', async () => {

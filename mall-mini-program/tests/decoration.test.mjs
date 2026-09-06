@@ -1,3 +1,4 @@
+import { runMiniScript } from './helpers/run-mini-script.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
@@ -80,7 +81,7 @@ function load(file, mocks = {}) {
   const module = { exports: {} }
   const filename = new URL(file, import.meta.url)
   const localRequire = createRequire(filename)
-  vm.runInNewContext(readFileSync(filename, 'utf8'), { module, require: (id) => mocks[id] || localRequire(id), Page: (value) => { page = value }, Component: (value) => { page = value }, ...mocks.globals }, { filename: filename.pathname })
+  runMiniScript(readFileSync(filename, 'utf8'), { module, require: (id) => mocks[id] || localRequire(id), Page: (value) => { page = value }, Component: (value) => { page = value }, ...mocks.globals }, { filename: filename.pathname })
   return page || module.exports
 }
 function instance(definition) {

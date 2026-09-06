@@ -27,7 +27,7 @@ class WeChatMiniProgramCapabilitiesControllerTest {
         var member = new DmsShopMember();
         member.setId(42L);
         when(auth.requireMember("Bearer mock-session")).thenReturn(member);
-        var rights = new WeChatMiniProgramMemberService.Capabilities(false, false, null, true, true);
+        var rights = new WeChatMiniProgramMemberService.Capabilities(false, false, null, true, true, null, "购物账号");
         when(members.capabilities(member)).thenReturn(rights);
         var response = new MockHttpServletResponse();
         assertSame(rights, controller.capabilities("Bearer mock-session", response).getData());

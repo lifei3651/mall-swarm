@@ -1,3 +1,4 @@
+const feedback = require('../../utils/feedback')
 const cart = require('../../utils/cart')
 const format = require('../../utils/format')
 const auth = require('../../utils/auth')
@@ -11,14 +12,14 @@ Page({
     const generation = this.generation = (this.generation || 0) + 1
     const snapshot = JSON.stringify(cart.list())
     this.renderRows(cart.list())
-    this.setData({ checking: true, checkError: '' })
+    feedback.update(this, { checking: true, checkError: '' })
     try {
       const rows = await catalog.refresh(cart.list())
       if (generation !== this.generation || snapshot !== JSON.stringify(cart.list())) return
       for (const row of rows) cart.update(row.key, { salePrice: row.salePrice, productName: row.productName, skuName: row.skuName, coverUrl: row.coverUrl })
       this.renderRows(rows)
-    } catch (error) { if (generation === this.generation) this.setData({ checkError: error.message || '商品信息校验失败，请重试' }) }
-    finally { if (generation === this.generation) this.setData({ checking: false }) }
+    } catch (error) { if (generation === this.generation) feedback.update(this, { checkError: error.message || '商品信息校验失败，请重试' }) }
+    finally { if (generation === this.generation) feedback.update(this, { checking: false }) }
   },
   onHide() { this.generation = (this.generation || 0) + 1 },
   renderRows(source) {
@@ -29,7 +30,7 @@ Page({
       lineTotal: format.money(Number(row.salePrice) * row.quantity)
     }))
     const selected = rows.filter((row) => row.selected)
-    this.setData({
+    feedback.update(this, {
       rows,
       count: selected.reduce((sum, row) => sum + row.quantity, 0),
       total: format.money(selected.reduce((sum, row) => sum + Number(row.salePrice) * row.quantity, 0)),
@@ -64,9 +65,9 @@ Page({
   },
   openProduct(event) { wx.navigateTo({ url: `/pages/product/index?id=${event.currentTarget.dataset.id}` }) },
   checkout() {
-    if (this.data.checking) { wx.showToast({ title: '正在核对最新价格与库存', icon: 'none' }); return }
-    if (this.data.checkError || this.data.rows.some((row) => row.selected && row.unavailable)) { wx.showToast({ title: this.data.checkError || '请先处理已选商品的问题', icon: 'none' }); return }
-    if (!this.data.count) { wx.showToast({ title: '请先选择商品', icon: 'none' }); return }
+    if (this.data.checking) { feedback.toast({ title: '正在核对最新价格与库存', icon: 'none' }); return }
+    if (this.data.checkError || this.data.rows.some((row) => row.selected && row.unavailable)) { feedback.toast({ title: this.data.checkError || '请先处理已选商品的问题', icon: 'none' }); return }
+    if (!this.data.count) { feedback.toast({ title: '请先选择商品', icon: 'none' }); return }
     if (!auth.requireLogin('/pages/cart/index')) return
     wx.navigateTo({ url: '/pages/checkout/index' })
   },

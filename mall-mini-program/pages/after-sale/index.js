@@ -1,3 +1,4 @@
+const feedback = require('../../utils/feedback')
 const request = require('../../utils/request')
 const auth = require('../../utils/auth')
 const session = require('../../utils/session')
@@ -13,8 +14,8 @@ Page({
   onLoad(options = {}) {
     theme.apply(this)
     const orderId = identifier(options.orderId)
-    this.setData({ orderId })
-    if (!orderId) this.setData({ loading: false, error: '订单编号不正确' })
+    feedback.update(this, { orderId })
+    if (!orderId) feedback.update(this, { loading: false, error: '订单编号不正确' })
   },
   onShow() {
     theme.apply(this)
@@ -27,37 +28,37 @@ Page({
   async load() {
     if (!this.data.orderId || this.loadingRequest) return
     this.loadingRequest = true
-    this.setData({ loading: true, error: '' })
+    feedback.update(this, { loading: true, error: '' })
     try {
       const detail = await request({ url: `/shop/orders/${this.data.orderId}` })
       if (this.disposed) return
       const eligibility = afterSaleEligibility(detail)
       this.initialized = true
-      this.setData({ orderNo: detail.order.orderNo || '', allowed: eligibility.allowed,
+      feedback.update(this, { orderNo: detail.order.orderNo || '', allowed: eligibility.allowed,
         unavailableReason: eligibility.reason, canExchange: eligibility.canExchange,
         items: remainingItems(detail).map((item) => ({ ...item, selectedQuantity: item.remaining,
           productCover: format.mediaUrl(item.productCover) })) })
-    } catch (error) { if (!this.disposed) this.setData({ error: error.message || '售后信息加载失败' }) }
-    finally { this.loadingRequest = false; if (!this.disposed) this.setData({ loading: false }) }
+    } catch (error) { if (!this.disposed) feedback.update(this, { error: error.message || '售后信息加载失败' }) }
+    finally { this.loadingRequest = false; if (!this.disposed) feedback.update(this, { loading: false }) }
   },
   selectType(event) {
     const applyType = Number(event.currentTarget.dataset.type)
     if (this.data.submitting || ![1, 2, 3].includes(applyType) || (applyType === 3 && !this.data.canExchange)) return
-    this.setData({ applyType, submitError: '' })
+    feedback.update(this, { applyType, submitError: '' })
   },
   changeQuantity(event) {
     if (this.data.submitting) return
     const id = identifier(event.currentTarget.dataset.id)
     const delta = Number(event.currentTarget.dataset.delta)
     if (![1, -1].includes(delta)) return
-    this.setData({ items: this.data.items.map((item) => item.id === id
+    feedback.update(this, { items: this.data.items.map((item) => item.id === id
       ? { ...item, selectedQuantity: Math.max(0, Math.min(item.remaining, item.selectedQuantity + delta)) } : item), submitError: '' })
   },
-  reasonInput(event) { if (!this.data.submitting) this.setData({ reason: event.detail.value, submitError: '' }) },
+  reasonInput(event) { if (!this.data.submitting) feedback.update(this, { reason: event.detail.value, submitError: '' }) },
   chooseProof() {
     if (this.data.submitting || this.data.selectingProof || this.data.proofs.length >= 6) return
-    if (!wx.chooseMedia) { this.setData({ submitError: '当前微信不支持选图，请升级微信；也可以不上传凭证直接申请' }); return }
-    this.setData({ selectingProof: true, submitError: '' })
+    if (!wx.chooseMedia) { feedback.update(this, { submitError: '当前微信不支持选图，请升级微信；也可以不上传凭证直接申请' }); return }
+    feedback.update(this, { selectingProof: true, submitError: '' })
     wx.chooseMedia({ count: 6 - this.data.proofs.length, mediaType: ['image'], sourceType: ['album', 'camera'], sizeType: ['compressed'],
       success: ({ tempFiles }) => {
         if (this.disposed) return
@@ -68,17 +69,17 @@ Page({
           selectedPaths.add(file.tempFilePath)
           return true
         })
-        this.setData({ proofs: this.data.proofs.concat(valid.map((file) => ({ path: file.tempFilePath, filename: '' }))),
+        feedback.update(this, { proofs: this.data.proofs.concat(valid.map((file) => ({ path: file.tempFilePath, filename: '' }))),
           submitError: valid.length !== files.length ? '单张图片不能超过5MB，重复、过大或无效图片未添加' : '' })
       },
-      fail: (error) => { if (!this.disposed && !/cancel/i.test(error.errMsg || '')) this.setData({ submitError: '未能选取图片，请检查微信权限；也可以不上传凭证直接申请' }) },
-      complete: () => { if (!this.disposed) this.setData({ selectingProof: false }) }
+      fail: (error) => { if (!this.disposed && !/cancel/i.test(error.errMsg || '')) feedback.update(this, { submitError: '未能选取图片，请检查微信权限；也可以不上传凭证直接申请' }) },
+      complete: () => { if (!this.disposed) feedback.update(this, { selectingProof: false }) }
     })
   },
   removeProof(event) {
     if (this.data.submitting) return
     const index = Number(event.currentTarget.dataset.index)
-    if (Number.isInteger(index) && index >= 0 && index < this.data.proofs.length) this.setData({ proofs: this.data.proofs.filter((_, position) => position !== index) })
+    if (Number.isInteger(index) && index >= 0 && index < this.data.proofs.length) feedback.update(this, { proofs: this.data.proofs.filter((_, position) => position !== index) })
   },
   uploadProof(proof) {
     const token = session.getToken()
@@ -105,16 +106,16 @@ Page({
     const items = this.data.items.filter((item) => item.id && item.selectedQuantity > 0)
       .map((item) => ({ orderItemId: item.id, quantity: item.selectedQuantity }))
     const reason = this.data.reason.trim()
-    if (!items.length) { this.setData({ submitError: '请至少选择1件需要售后的商品' }); return }
-    if (!reason || reason.length > 170) { this.setData({ submitError: '请填写1至170字的申请原因' }); return }
+    if (!items.length) { feedback.update(this, { submitError: '请至少选择1件需要售后的商品' }); return }
+    if (!reason || reason.length > 170) { feedback.update(this, { submitError: '请填写1至170字的申请原因' }); return }
     if (this.data.applyType === 3 && !this.data.canExchange) return
-    this.setData({ submitting: true, submitError: '' })
+    feedback.update(this, { submitting: true, submitError: '' })
     try {
       for (let index = 0; index < this.data.proofs.length; index++) {
         const proof = this.data.proofs[index]
         if (!proof.filename) {
           const filename = await this.uploadProof(proof)
-          this.setData({ proofs: this.data.proofs.map((item, position) => position === index ? { ...item, filename } : item) })
+          feedback.update(this, { proofs: this.data.proofs.map((item, position) => position === index ? { ...item, filename } : item) })
         }
       }
       const filenames = this.data.proofs.map((proof) => proof.filename)
@@ -122,11 +123,11 @@ Page({
         orderId: this.data.orderId, applyType: this.data.applyType, reason, items,
         proofImages: filenames.length ? JSON.stringify(filenames) : null
       } })
-      this.setData({ submitted: true })
-      wx.showToast({ title: '售后申请已提交', icon: 'success' })
+      feedback.update(this, { submitted: true })
+      await feedback.toast({ title: '售后申请已提交', icon: 'success' })
       this.openOrder()
-    } catch (error) { this.setData({ submitError: error.message || '申请未确认成功，请查看订单售后进度后再重试' }) }
-    finally { this.setData({ submitting: false }) }
+    } catch (error) { feedback.update(this, { submitError: error.message || '申请未确认成功，请查看订单售后进度后再重试' }) }
+    finally { feedback.update(this, { submitting: false }) }
   },
   openOrder() { wx.redirectTo({ url: `/pages/order-detail/index?id=${this.data.orderId}` }) }
 })

@@ -14,8 +14,12 @@ await mkdir(output, { recursive: true })
 for (const [file, name] of Object.entries({
   'user-round': 'UserRound', 'credit-card': 'CreditCard', package: 'Package',
   truck: 'Truck', 'rotate-ccw': 'RotateCcw', bell: 'Bell', 'map-pin': 'MapPin',
-  headset: 'Headset', wallet: 'Wallet', 'chevron-right': 'ChevronRight'
+  headset: 'Headset', wallet: 'Wallet', 'chevron-right': 'ChevronRight', 'user-round-plus': 'UserRoundPlus'
 })) {
   const svg = await renderToString(createSSRApp(icons[name], { size: 96, color: '#30394a', strokeWidth: 1.6 }))
   await sharp(Buffer.from(svg)).png().toFile(fileURLToPath(new URL(`${file}.png`, output)))
+  if (['user-round', 'user-round-plus', 'credit-card', 'bell', 'map-pin', 'headset', 'wallet'].includes(file)) {
+    const white = await renderToString(createSSRApp(icons[name], { size: 96, color: '#ffffff', strokeWidth: 1.9 }))
+    await sharp(Buffer.from(white)).png().toFile(fileURLToPath(new URL(`${file}-white.png`, output)))
+  }
 }

@@ -1,3 +1,4 @@
+const feedback = require('../../utils/feedback')
 const request = require('../../utils/request')
 const auth = require('../../utils/auth')
 const format = require('../../utils/format')
@@ -11,23 +12,23 @@ Page({
   async load() {
     if (this.fetching) return
     this.fetching = true
-    this.setData({ loading: true, error: '' })
+    feedback.update(this, { loading: true, error: '' })
     try {
       const result = await request({ url: '/shop/flash-sales' })
       const rows = (result || []).filter((row) => row && row.activity && row.product && (!this.activityId || String(row.activity.id) === this.activityId)).map((row) => {
         const maximum = Math.max(0, Math.min(99, Number(row.activity.perUserLimit || 0), Number(row.activity.availableStock || 0)))
         return { ...row, product: format.product(row.product), priceText: format.money(row.activity.flashPrice), quantity: 1, quantities: Array.from({ length: maximum }, (_, index) => index + 1), canBuy: row.activityState === 'ACTIVE' && maximum > 0, label: labels[row.activityState] || '暂不可用' }
       })
-      this.setData({ rows }); this.loadedOnce = true
-    } catch (error) { this.setData({ error: error.message || '活动加载失败' }) }
-    finally { this.fetching = false; this.setData({ loading: false }) }
+      feedback.update(this, { rows }); this.loadedOnce = true
+    } catch (error) { feedback.update(this, { error: error.message || '活动加载失败' }) }
+    finally { this.fetching = false; feedback.update(this, { loading: false }) }
   },
   quantityChange(event) {
     const index = this.data.rows.findIndex((row) => String(row.activity.id) === String(event.currentTarget.dataset.id))
     const choice = Number(event.detail.value)
-    if (index >= 0 && Number.isInteger(choice) && this.data.rows[index].quantities[choice]) this.setData({ [`rows[${index}].quantity`]: this.data.rows[index].quantities[choice] })
+    if (index >= 0 && Number.isInteger(choice) && this.data.rows[index].quantities[choice]) feedback.update(this, { [`rows[${index}].quantity`]: this.data.rows[index].quantities[choice] })
   },
-  imageError(event) { const index = Number(event.currentTarget.dataset.index); if (Number.isInteger(index) && this.data.rows[index]) this.setData({ [`rows[${index}].product.imageFailed`]: true }) },
+  imageError(event) { const index = Number(event.currentTarget.dataset.index); if (Number.isInteger(index) && this.data.rows[index]) feedback.update(this, { [`rows[${index}].product.imageFailed`]: true }) },
   buy(event) {
     const row = this.data.rows.find((item) => String(item.activity.id) === String(event.currentTarget.dataset.id))
     if (!row || !row.canBuy || this.data.loading || this.data.error) return

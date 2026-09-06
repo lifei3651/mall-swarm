@@ -1,3 +1,4 @@
+import { runMiniScript } from './helpers/run-mini-script.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import vm from 'node:vm'
@@ -7,7 +8,7 @@ const source = (file) => readFileSync(new URL(`../${file}`, import.meta.url), 'u
 function harness() {
   let time = 1000000
   const storage = new Map(), module = { exports: {} }
-  vm.runInNewContext(source('utils/invite.js'), {
+  runMiniScript(source('utils/invite.js'), {
     module, require: () => ({ API_BASE_URL: 'https://shop.test/api' }), Date: { now: () => time },
     wx: { getStorageSync: (key) => storage.get(key), setStorageSync: (key, value) => storage.set(key, value), removeStorageSync: (key) => storage.delete(key) }
   })

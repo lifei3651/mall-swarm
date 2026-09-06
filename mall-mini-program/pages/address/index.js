@@ -1,3 +1,4 @@
+const feedback = require('../../utils/feedback')
 const request = require('../../utils/request')
 const auth = require('../../utils/auth')
 const theme = require('../../utils/theme')
@@ -19,29 +20,29 @@ Page({
   onLoad(options = {}) {
     theme.apply(this)
     this.selectMode = options.select === '1'
-    this.setData({ selectMode: this.selectMode })
+    feedback.update(this, { selectMode: this.selectMode })
   },
   onShow() {
     theme.apply(this)
     if (this.data.saving || this.data.importing || this.returning) return
     if (auth.requireLogin(`/pages/address/index${this.selectMode ? '?select=1' : ''}`)) return this.load()
-    this.setData({ loading: false, rows: [] })
+    feedback.update(this, { loading: false, rows: [] })
   },
   async load() {
     const generation = this.loadGeneration = (this.loadGeneration || 0) + 1
-    this.setData({ loading: true, loadError: '' })
+    feedback.update(this, { loading: true, loadError: '' })
     try {
       const response = await request({ url: '/shop/addresses' }) || []
       const rows = response.filter((row) => format.identifier(row.id)).map((row) => ({ ...row, id: format.identifier(row.id), isDefault: Number(row.isDefault) }))
       if (generation !== this.loadGeneration) return
-      this.setData({ rows, showForm: this.data.showForm || !rows.length })
+      feedback.update(this, { rows, showForm: this.data.showForm || !rows.length })
     }
     catch (error) {
       if (generation !== this.loadGeneration) return
-      this.setData({ loadError: error.message || '地址加载失败' })
-      wx.showToast({ title: error.message || '地址加载失败', icon: 'none' })
+      feedback.update(this, { loadError: error.message || '地址加载失败' })
+      feedback.toast({ title: error.message || '地址加载失败', icon: 'none' })
     }
-    finally { if (generation === this.loadGeneration) this.setData({ loading: false }) }
+    finally { if (generation === this.loadGeneration) feedback.update(this, { loading: false }) }
   },
   onUnload() { this.disposed = true; this.loadGeneration = (this.loadGeneration || 0) + 1 },
   async importWechatAddress() {
@@ -49,7 +50,7 @@ Page({
     if (!auth.requireLogin('/pages/address/index')) return
     const token = session.getToken()
     const snapshot = JSON.stringify(this.data.form)
-    this.setData({ importing: true, importMessage: '' })
+    feedback.update(this, { importing: true, importMessage: '' })
     try {
       if (this.data.showForm && (this.data.form.receiverName || this.data.form.detailAddress)) {
         const confirmed = await new Promise((resolve) => wx.showModal({ title: '导入为新地址', content: '当前未保存的编辑将被替换，已保存的地址和默认设置不会改变。是否继续？', success: (r) => resolve(r.confirm), fail: () => resolve(false) }))
@@ -57,22 +58,22 @@ Page({
       }
       const form = await wechatAddress.choose()
       if (this.disposed || token !== session.getToken() || snapshot !== JSON.stringify(this.data.form)) return
-      this.setData({ form, showForm: true, importMessage: '已回填微信地址，请核对后保存。尚未提交或修改默认地址。' })
-    } catch (error) { if (!this.disposed && token === session.getToken()) this.setData({ importMessage: error.message }) }
-    finally { if (!this.disposed) this.setData({ importing: false }) }
+      feedback.update(this, { form, showForm: true, importMessage: '已回填微信地址，请核对后保存。尚未提交或修改默认地址。' })
+    } catch (error) { if (!this.disposed && token === session.getToken()) feedback.update(this, { importMessage: error.message }) }
+    finally { if (!this.disposed) feedback.update(this, { importing: false }) }
   },
   input(event) {
     const field = event.currentTarget.dataset.field
-    if (['receiverName', 'receiverPhone', 'detailAddress'].includes(field) && !this.data.importing) this.setData({ [`form.${field}`]: event.detail.value })
+    if (['receiverName', 'receiverPhone', 'detailAddress'].includes(field) && !this.data.importing) feedback.update(this, { [`form.${field}`]: event.detail.value })
   },
   region(event) {
     const region = event.detail.value || []
-    this.setData({ 'form.region': region, 'form.regionText': region.join(' ') })
+    feedback.update(this, { 'form.region': region, 'form.regionText': region.join(' ') })
   },
-  defaultChange(event) { this.setData({ 'form.isDefault': Boolean(event.detail.value) }) },
+  defaultChange(event) { feedback.update(this, { 'form.isDefault': Boolean(event.detail.value) }) },
   startAdd() {
     if (this.data.saving || this.data.loading) return
-    this.setData({
+    feedback.update(this, {
       showForm: true,
       form: { id: null, receiverName: '', receiverPhone: '', region: [], regionText: '', detailAddress: '', isDefault: !this.data.rows.length }
     })
@@ -83,7 +84,7 @@ Page({
     const row = id && this.data.rows.find((item) => format.identifier(item.id) === id)
     if (!row) return
     const region = [row.province, row.city, row.district].filter(Boolean)
-    this.setData({ showForm: true, form: {
+    feedback.update(this, { showForm: true, form: {
       id: row.id,
       receiverName: row.receiverName || '',
       receiverPhone: row.receiverPhone || '',
@@ -98,7 +99,7 @@ Page({
     this.resetForm(false)
   },
   resetForm(showForm = false) {
-    this.setData({
+    feedback.update(this, {
       showForm,
       form: { id: null, receiverName: '', receiverPhone: '', region: [], regionText: '', detailAddress: '', isDefault: false }
     })
@@ -106,12 +107,12 @@ Page({
   async save() {
     if (this.data.saving || this.data.loading || this.data.loadError || this.returning) return
     const form = this.data.form
-    if (form.id !== null && form.id !== undefined && !format.identifier(form.id)) { wx.showToast({ title: '地址信息无效，请重新选择', icon: 'none' }); return }
-    if (!form.receiverName.trim()) { wx.showToast({ title: '请输入收货人', icon: 'none' }); return }
-    if (!/^1[3-9]\d{9}$/.test(form.receiverPhone.trim())) { wx.showToast({ title: '请输入正确手机号', icon: 'none' }); return }
-    if (!form.region || form.region.length !== 3) { wx.showToast({ title: '请选择省市区', icon: 'none' }); return }
-    if (!form.detailAddress.trim()) { wx.showToast({ title: '请输入详细地址', icon: 'none' }); return }
-    this.setData({ saving: true })
+    if (form.id !== null && form.id !== undefined && !format.identifier(form.id)) { feedback.toast({ title: '地址信息无效，请重新选择', icon: 'none' }); return }
+    if (!form.receiverName.trim()) { feedback.toast({ title: '请输入收货人', icon: 'none' }); return }
+    if (!/^1[3-9]\d{9}$/.test(form.receiverPhone.trim())) { feedback.toast({ title: '请输入正确手机号', icon: 'none' }); return }
+    if (!form.region || form.region.length !== 3) { feedback.toast({ title: '请选择省市区', icon: 'none' }); return }
+    if (!form.detailAddress.trim()) { feedback.toast({ title: '请输入详细地址', icon: 'none' }); return }
+    feedback.update(this, { saving: true })
     try {
       const saved = await request({ url: '/shop/addresses', method: 'POST', data: {
         id: form.id ? format.identifier(form.id) : undefined,
@@ -119,11 +120,11 @@ Page({
         province: form.region[0], city: form.region[1], district: form.region[2],
         detailAddress: form.detailAddress.trim(), isDefault: form.isDefault || !this.data.rows.length ? 1 : 0
       } })
-      wx.showToast({ title: form.id ? '地址已更新' : '地址已保存', icon: 'success' })
+      await feedback.toast({ title: form.id ? '地址已更新' : '地址已保存', icon: 'success' })
       if (this.selectMode) this.returnSelectedAddress(saved)
       else { this.resetForm(false); await this.load() }
-    } catch (error) { wx.showToast({ title: error.message || '保存失败', icon: 'none' }) }
-    finally { this.setData({ saving: false }) }
+    } catch (error) { feedback.toast({ title: error.message || '保存失败', icon: 'none' }) }
+    finally { feedback.update(this, { saving: false }) }
   },
   returnSelectedAddress(address) {
     const id = address && format.identifier(address.id)
@@ -142,7 +143,7 @@ Page({
       }
     }
     wx.navigateBack({ delta: checkoutIndex >= 0 ? pages.length - 1 - checkoutIndex : 1,
-      fail: () => { this.returning = false; wx.showToast({ title: '请返回结算页重新选择地址', icon: 'none' }) } })
+      fail: () => { this.returning = false; feedback.toast({ title: '请返回结算页重新选择地址', icon: 'none' }) } })
   },
   async choose(event) {
     if (this.data.saving || this.data.loading || this.returning || this.data.loadError) return
@@ -150,7 +151,7 @@ Page({
     const row = id && this.data.rows.find((item) => format.identifier(item.id) === id)
     if (!row) return
     if (this.selectMode) { this.returnSelectedAddress(row); return }
-    this.setData({ saving: true })
+    feedback.update(this, { saving: true })
     try {
       await request({ url: '/shop/addresses', method: 'POST', data: {
         id: row.id, receiverName: row.receiverName, receiverPhone: row.receiverPhone,
@@ -158,8 +159,8 @@ Page({
         detailAddress: row.detailAddress, isDefault: 1
       } })
       await this.load()
-    } catch (error) { wx.showToast({ title: error.message || '选择失败', icon: 'none' }) }
-    finally { this.setData({ saving: false }) }
+    } catch (error) { feedback.toast({ title: error.message || '选择失败', icon: 'none' }) }
+    finally { feedback.update(this, { saving: false }) }
   },
   async remove(event) {
     if (this.data.saving || this.data.loading || this.returning) return
@@ -174,13 +175,13 @@ Page({
       confirmColor: this.data.themeColor,
       success: async ({ confirm }) => {
         if (!confirm || this.data.saving) return
-        this.setData({ saving: true })
+        feedback.update(this, { saving: true })
         try {
           await request({ url: `/shop/addresses/${id}`, method: 'DELETE' })
           if (String(this.data.form.id) === String(id)) this.resetForm(false)
           await this.load()
-        } catch (error) { wx.showToast({ title: error.message || '删除失败', icon: 'none' }) }
-        finally { this.setData({ saving: false }) }
+        } catch (error) { feedback.toast({ title: error.message || '删除失败', icon: 'none' }) }
+        finally { feedback.update(this, { saving: false }) }
       }
     })
   }

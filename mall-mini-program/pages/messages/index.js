@@ -1,3 +1,4 @@
+const feedback = require('../../utils/feedback')
 const request = require('../../utils/request')
 const auth = require('../../utils/auth')
 const theme = require('../../utils/theme')
@@ -37,7 +38,7 @@ Page({
     if (this.data.loading && !reset) return
     const sequence = this.sequence = (this.sequence || 0) + 1
     this.fetching = true
-    this.setData({ loading: true, error: '', ...(reset ? { rows: [], pageNum: 0, totalPage: 1 } : {}) })
+    feedback.update(this, { loading: true, error: '', ...(reset ? { rows: [], pageNum: 0, totalPage: 1 } : {}) })
     try {
       const next = reset ? 1 : this.data.pageNum + 1
       const [page, unread, templates] = await Promise.all([
@@ -55,7 +56,7 @@ Page({
       }))
       this.loadedOnce = true
       const normalizedUnread = unread || { total: 0, categories: {} }
-      this.setData({
+      feedback.update(this, {
         rows: reset ? incoming : this.data.rows.concat(incoming),
         unread: normalizedUnread,
         categories: CATEGORIES.map((item) => ({
@@ -67,14 +68,14 @@ Page({
         subscriptionAvailable: Boolean(templates && templates.length)
       })
     } catch (error) {
-      if (sequence === this.sequence) this.setData({ error: error.message || '消息加载失败' })
+      if (sequence === this.sequence) feedback.update(this, { error: error.message || '消息加载失败' })
     } finally {
-      if (sequence === this.sequence) { this.fetching = false; this.setData({ loading: false }) }
+      if (sequence === this.sequence) { this.fetching = false; feedback.update(this, { loading: false }) }
     }
   },
   retry() { this.load(true) },
   selectCategory(event) {
-    this.setData({ category: String(event.currentTarget.dataset.key || '') }, () => this.load(true))
+    feedback.update(this, { category: String(event.currentTarget.dataset.key || '') }, () => this.load(true))
   },
   openMessage(event) {
     const id = format.identifier(event.currentTarget.dataset.id)
@@ -85,7 +86,7 @@ Page({
     try {
       await request({ url: '/shop/messages/read-all', method: 'PUT' })
       await this.load(true)
-    } catch (error) { wx.showToast({ title: error.message || '操作失败', icon: 'none' }) }
+    } catch (error) { feedback.toast({ title: error.message || '操作失败', icon: 'none' }) }
   },
   loadMore() { if (this.data.pageNum < this.data.totalPage) this.load(false) }
 })

@@ -1,3 +1,4 @@
+import { runMiniScript } from './helpers/run-mini-script.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import vm from 'node:vm'
@@ -32,7 +33,7 @@ function harness(name, { respond = async () => ({}), loggedIn = true, payOrder =
     './policy': policy,
     '../order-detail/policy': policy
   }
-  vm.runInNewContext(readFileSync(new URL(`../pages/${name}/index.js`, import.meta.url), 'utf8'), {
+  runMiniScript(readFileSync(new URL(`../pages/${name}/index.js`, import.meta.url), 'utf8'), {
     Page: (value) => { definition = value }, require: (key) => {
       assert.ok(Object.hasOwn(dependencies, key), key); return dependencies[key]
     },

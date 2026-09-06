@@ -1,3 +1,4 @@
+const feedback = require('./feedback')
 const auth = require('./auth')
 const session = require('./session')
 const invitation = require('./login-invitation')
@@ -14,7 +15,7 @@ function loginContext(redirect) {
   }
   const label = ({ '/pages/address/index': '管理收货地址', '/pages/account-security/index': '完善账号资料',
     '/pages/messages/index': '查看消息与提醒', '/pages/payout/index': '查看收款记录',
-    '/pages/wallet/index': '查看钱包', '/pages/cart/index': '返回购物车',
+    '/pages/wallet/index': '查看钱包', '/pages/withdraw/index': '申请提现', '/pages/cart/index': '返回购物车',
     '/pages/checkout/index': '继续核对订单', '/pages/product/index': '返回商品详情' })[path]
   return typeof label === 'string' ? label : ''
 }
@@ -51,23 +52,23 @@ module.exports = {
     this._inactive = false
     theme.apply(this)
     try { this.redirect = decodeURIComponent(options.redirect || '') } catch (_) { this.redirect = '' }
-    this.setData({ contextHint: loginContext(this.redirect) })
+    feedback.update(this, { contextHint: loginContext(this.redirect) })
     this.syncInvitation(true)
     return this.loadRuntime()
   },
   async loadRuntime() {
     if (this._inactive || this.data.submitting) return
     const sequence = this._runtimeSequence = (this._runtimeSequence || 0) + 1
-    this.setData({ loading: true, enabled: false, phoneEnabled: false, privacyVersion: '', error: '', loginNotice: '', showLoginHelp: false })
+    feedback.update(this, { loading: true, enabled: false, phoneEnabled: false, privacyVersion: '', error: '', loginNotice: '', showLoginHelp: false })
     try {
       const runtime = await auth.runtime()
       if (sequence !== this._runtimeSequence) return
       if (!runtime || runtime.enabled !== true) {
-        this.setData({ error: '商城登录服务暂未就绪，请稍后重试或联系商城客服' })
+        feedback.update(this, { error: '商城登录服务暂未就绪，请稍后重试或联系商城客服' })
         return
       }
       if (runtime.enabled && runtime.privacyConsentVersion !== runtimeConfig.PRIVACY_CONSENT_VERSION) {
-        this.setData({
+        feedback.update(this, {
           enabled: false,
           phoneEnabled: false,
           agreed: false,
@@ -76,25 +77,25 @@ module.exports = {
         })
         return
       }
-      this.setData({
+      feedback.update(this, {
         enabled: true,
         phoneEnabled: runtime.phoneAuthorizationEnabled === true,
         privacyVersion: runtime.privacyConsentVersion
       })
     } catch (error) {
-      if (sequence === this._runtimeSequence) this.setData({ error: error && error.message || '商城配置加载失败，请重试' })
+      if (sequence === this._runtimeSequence) feedback.update(this, { error: error && error.message || '商城配置加载失败，请重试' })
     } finally {
-      if (sequence === this._runtimeSequence) { this._runtimeChecked = true; this.setData({ loading: false }) }
+      if (sequence === this._runtimeSequence) { this._runtimeChecked = true; feedback.update(this, { loading: false }) }
     }
   },
   agreementChange(event) {
     const agreed = (event.detail.value || []).includes('agreed')
-    this.setData({ agreed, agreementRequired: false })
+    feedback.update(this, { agreed, agreementRequired: false })
   },
   requireAgreement() { if (this.checkReady()) this.invitationReady() },
   onShow() {
     theme.apply(this)
-    this.setData({ logoFailed: false })
+    feedback.update(this, { logoFailed: false })
     if (!this.data.submitting) this.syncInvitation()
     if (this._runtimeChecked && !this.data.submitting && (!this.data.enabled || !this.data.phoneEnabled)) this.loadRuntime()
   },
@@ -104,13 +105,13 @@ module.exports = {
     this._loginSequence = (this._loginSequence || 0) + 1
     this._inviteSequence = (this._inviteSequence || 0) + 1
   },
-  logoError() { this.setData({ logoFailed: true }) },
+  logoError() { feedback.update(this, { logoFailed: true }) },
   checkReady() {
     if (this._inactive || this.data.loading || this.data.submitting) return false
-    if (!this.data.enabled) { wx.showToast({ title: '商城登录服务暂未就绪，请重试', icon: 'none' }); return false }
+    if (!this.data.enabled) { feedback.toast({ title: '商城登录服务暂未就绪，请重试', icon: 'none' }); return false }
     if (!this.data.agreed) {
-      this.setData({ agreementRequired: true })
-      wx.showToast({ title: '请先阅读并同意相关协议', icon: 'none' })
+      feedback.update(this, { agreementRequired: true })
+      feedback.toast({ title: '请先阅读并同意相关协议', icon: 'none' })
       return false
     }
     return true
@@ -121,13 +122,13 @@ module.exports = {
   async phoneLogin(event) {
     if (!this.checkReady()) return
     if (!this.data.phoneEnabled) {
-      this.setData({ error: '微信手机号快捷登录暂不可用，请稍后重试或联系商城客服。', loginNotice: '', showLoginHelp: true })
+      feedback.update(this, { error: '微信手机号快捷登录暂不可用，请稍后重试或联系商城客服。', loginNotice: '', showLoginHelp: true })
       return
     }
     const detail = event && event.detail || {}
     if (detail.errMsg !== 'getPhoneNumber:ok' || typeof detail.code !== 'string' || !detail.code.trim()) {
-      const feedback = phoneAuthorizationFeedback(detail)
-      this.setData({ error: feedback.error || '', loginNotice: feedback.notice || '', showLoginHelp: true })
+      const authorizationResult = phoneAuthorizationFeedback(detail)
+      feedback.update(this, { error: authorizationResult.error || '', loginNotice: authorizationResult.notice || '', showLoginHelp: true })
       return
     }
     if (this.invitationReady()) await this.executeLogin(detail.code)
@@ -136,24 +137,24 @@ module.exports = {
     if (this._inactive || this.data.submitting) return
     const sequence = this._loginSequence = (this._loginSequence || 0) + 1
     const inviteCode = phoneCode ? this._verifiedInviteCode || '' : ''
-    this.setData({ submitting: true, error: '', loginNotice: '', showLoginHelp: false })
+    feedback.update(this, { submitting: true, error: '', loginNotice: '', showLoginHelp: false })
     try {
       const result = await auth.login({ phoneCode, inviteCode, privacyConsentVersion: this.data.privacyVersion })
       if (sequence !== this._loginSequence || this._inactive) return
       if (result && result.phoneAuthorizationRequired) {
-        this.setData({ loginNotice: '此微信尚未关联商城账号，请通过手机号验证后继续登录或注册。', showLoginHelp: !this.data.phoneEnabled })
+        feedback.update(this, { loginNotice: '此微信尚未关联商城账号，请通过手机号验证后继续登录或注册。', showLoginHelp: !this.data.phoneEnabled })
         return
       }
       if (!result || typeof result.accessToken !== 'string' || !result.accessToken || session.getToken() !== result.accessToken) {
         throw new Error('登录未完成，请重试或联系商城客服')
       }
-      wx.showToast({ title: result.newMember ? '注册成功' : '登录成功', icon: 'success' })
+      feedback.toast({ title: result.newMember ? '注册成功' : '登录成功', icon: 'success' })
       if (result.newMember) this.redirect = '/pages/home/index'
       this.finish()
     } catch (error) {
-      if (sequence === this._loginSequence && !this._inactive) this.setData({ error: error && error.message || '登录失败，请重试或联系商城客服', showLoginHelp: true })
+      if (sequence === this._loginSequence && !this._inactive) feedback.update(this, { error: error && error.message || '登录失败，请重试或联系商城客服', showLoginHelp: true })
     } finally {
-      if (sequence === this._loginSequence && !this._inactive) this.setData({ submitting: false })
+      if (sequence === this._loginSequence && !this._inactive) feedback.update(this, { submitting: false })
     }
   },
   finish() {

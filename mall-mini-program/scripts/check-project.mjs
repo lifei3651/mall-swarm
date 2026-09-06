@@ -31,7 +31,9 @@ if (!loginPage.includes('runtime.privacyConsentVersion !== runtimeConfig.PRIVACY
 }
 for (const file of walk(root).filter((item) => item.endsWith('.wxml'))) {
   const view = readFileSync(file, 'utf8')
-  if (/奖金|团队层级|余额互转/.test(view)) throw new Error(`公开小程序出现不允许展示的业务词：${file}`)
+  // Explicitly approved own-money view; this does not permit team trees or other members' earnings.
+  const ownMoneyView = file === join(root, 'pages/wallet/index.wxml')
+  if (/团队层级|余额互转/.test(view) || (!ownMoneyView && /奖金/.test(view))) throw new Error(`公开小程序出现不允许展示的业务词：${file}`)
   for (const tag of view.match(/<[^>]+>/g) || []) {
     if (/\bwx:(?:elif|else)\b/.test(tag) && /\bwx:for=/.test(tag)) {
       throw new Error(`小程序条件分支不能与列表循环写在同一节点：${file}`)

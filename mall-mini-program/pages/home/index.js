@@ -1,3 +1,4 @@
+const feedback = require('../../utils/feedback')
 const request = require('../../utils/request')
 const format = require('../../utils/format')
 const theme = require('../../utils/theme')
@@ -28,7 +29,7 @@ Page({
     return this.refreshing
   },
   async fetchHome(silent) {
-    if (!silent) this.setData({ loading: true, error: '' })
+    if (!silent) feedback.update(this, { loading: true, error: '' })
     try {
       const [home, productPage] = await Promise.all([
         request({ url: '/shop/home' }),
@@ -58,14 +59,15 @@ Page({
         } catch (_) { campaignError = '限时活动加载失败，点击重新查看' }
       }
       const brandCultureEnabled = display.toggle(home.brandCultureEnabled, false)
-      this.setData({ home, products, campaigns, campaignError, ...palette, ...decoration, brandCultureEnabled, logoFailed: false, error: '' })
+      feedback.update(this, { home, products, campaigns, campaignError, ...palette, ...decoration, brandCultureEnabled, logoFailed: false, error: '' })
       this.loadedOnce = true
-      wx.setNavigationBarTitle({ title: home.brandName || '商城首页' })
+      // A slow homepage response must not rename the page the user has since opened.
+      if (typeof getCurrentPages === 'function' && getCurrentPages().slice(-1)[0] === this) wx.setNavigationBarTitle({ title: home.brandName || '商城首页' })
     } catch (error) {
-      if (!silent) this.setData({ error: error.message || '加载失败' })
-      else wx.showToast({ title: '装修更新失败，暂保留原页面', icon: 'none' })
+      if (!silent) feedback.update(this, { error: error.message || '加载失败' })
+      else feedback.toast({ title: '装修更新失败，暂保留原页面', icon: 'none' })
     } finally {
-      this.setData({ loading: false })
+      feedback.update(this, { loading: false })
     }
   },
   openContent(event) {
@@ -75,25 +77,25 @@ Page({
   openLive(event) { wx.navigateTo({ url: `/pages/store-content/index?type=live&id=${event.currentTarget.dataset.id}` }) },
   arrivalImageError(event) {
     const index = Number(event.currentTarget.dataset.index)
-    if (Number.isInteger(index) && this.data.home.newArrivals[index]) this.setData({ [`home.newArrivals[${index}].imageFailed`]: true })
+    if (Number.isInteger(index) && this.data.home.newArrivals[index]) feedback.update(this, { [`home.newArrivals[${index}].imageFailed`]: true })
   },
-  logoError() { this.setData({ logoFailed: true }) },
+  logoError() { feedback.update(this, { logoFailed: true }) },
   categoryIconError(event) {
     const index = Number(event.currentTarget.dataset.index)
     if (!Number.isInteger(index) || !this.data.home.categoryList || !this.data.home.categoryList[index]) return
-    this.setData({ [`home.categoryList[${index}].iconFailed`]: true })
+    feedback.update(this, { [`home.categoryList[${index}].iconFailed`]: true })
   },
   bannerImageError(event) {
     const index = Number(event.currentTarget.dataset.index)
     if (!Number.isInteger(index) || !this.data.home.banners || !this.data.home.banners[index]) return
-    this.setData({ [`home.banners[${index}].imageFailed`]: true })
+    feedback.update(this, { [`home.banners[${index}].imageFailed`]: true })
   },
   productImageError(event) {
     const index = Number(event.currentTarget.dataset.index)
     if (!Number.isInteger(index) || !this.data.products[index]) return
-    this.setData({ [`products[${index}].imageFailed`]: true })
+    feedback.update(this, { [`products[${index}].imageFailed`]: true })
   },
-  onKeywordInput(event) { this.setData({ keyword: event.detail.value }) },
+  onKeywordInput(event) { feedback.update(this, { keyword: event.detail.value }) },
   notices() { wx.navigateTo({ url: '/pages/notices/index' }) },
   campaign(event) { const id = format.identifier(event.currentTarget.dataset.id); wx.navigateTo({ url: `/pages/campaign/index${id ? '?id=' + id : ''}` }) },
   allProducts() {
@@ -118,7 +120,7 @@ Page({
       return
     }
     if (type === 'URL') {
-      wx.showToast({ title: '此活动链接暂不支持在小程序内打开', icon: 'none' })
+      feedback.toast({ title: '此活动链接暂不支持在小程序内打开', icon: 'none' })
       return
     }
     if (type === 'PRODUCT' && /^\d+$/.test(value)) {
