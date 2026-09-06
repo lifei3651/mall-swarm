@@ -67,15 +67,27 @@ test('个人中心每次显示都会刷新账户状态并应用商城主题', ()
   assert.equal(harness.themeApplied(), 2)
 })
 
-test('个人中心游客点击受保护入口只跳登录，不打开订单或个人信息页面', () => {
+test('个人中心游客点击受保护入口只跳登录，并保留原始目标及订单筛选', () => {
   const { page, navigations, calls } = loadProfile()
-  for (const handler of ['messages', 'orders', 'addresses', 'payout', 'service']) page[handler]()
-  for (const tab of ['pending-payment', 'pending-shipment', 'pending-receipt', 'after-sale']) {
+  for (const handler of ['security', 'messages', 'orders', 'addresses', 'payout', 'wallet', 'service']) page[handler]()
+  const tabs = ['pending-payment', 'pending-shipment', 'pending-receipt', 'after-sale']
+  for (const tab of tabs) {
     page.orderTab({ currentTarget: { dataset: { tab } } })
   }
-  assert.equal(navigations.length, 9)
-  assert.ok(navigations.every((url) => url === '/pages/login/index'))
+  const targets = ['/pages/account-security/index', '/pages/messages/index', '/pages/orders/index',
+    '/pages/address/index', '/pages/payout/index', '/pages/wallet/index', '/pages/orders/index?tab=after-sale',
+    ...tabs.map((tab) => `/pages/orders/index?tab=${tab}`)]
+  assert.deepEqual(navigations, targets.map((url) => `/pages/login/index?redirect=${encodeURIComponent(url)}`))
   assert.deepEqual(calls, [])
+})
+
+test('个人中心过期登录显示不能绕过门禁，非法订单筛选回落全部订单', () => {
+  const { page, navigations } = loadProfile()
+  page.setData({ loggedIn: true })
+  page.addresses()
+  page.orderTab({ currentTarget: { dataset: { tab: 'all&orderId=other' } } })
+  assert.deepEqual(navigations, ['/pages/address/index', '/pages/orders/index?tab=all']
+    .map((url) => `/pages/login/index?redirect=${encodeURIComponent(url)}`))
 })
 
 test('个人中心登录后保留消息、订单、地址、收款及售后正确入口', () => {

@@ -3,6 +3,7 @@
 .login-mark { display: flex; flex: none; align-items: center; justify-content: center; width: 132rpx; height: 132rpx; border-radius: 32rpx; background: var(--paper); }
 .login-mark image { display: block; width: 100rpx; height: 100rpx; }
 .login-title { max-width: 100%; margin-top: 28rpx; font-size: 40rpx; font-weight: 600; line-height: 56rpx; overflow-wrap: anywhere; }
+.login-context { margin-top: 16rpx; font-size: 26rpx; line-height: 38rpx; color: var(--muted); }
 .login-card { margin-top: 72rpx; }
 .invite-tip { margin-bottom: 24rpx; padding: 18rpx 20rpx; border-radius: 16rpx; background: var(--paper); color: var(--ink); font-size: 24rpx; overflow-wrap: anywhere; }
 .invite-tip text { display: block; margin-top: 6rpx; color: var(--muted); font-size: 22rpx; }
@@ -18,5 +19,6 @@
 .agreement-hint { padding-left: 54rpx; margin-top: 6rpx; color: #b4233f; font-size: 24rpx; line-height: 36rpx; }
 .not-ready { margin-top: 20rpx; color: var(--muted); font-size: 24rpx; line-height: 38rpx; }
 .login-error { margin-top: 24rpx; padding: 18rpx 20rpx; border-radius: 16rpx; background: #fff5f6; color: #b4233f; font-size: 24rpx; line-height: 38rpx; overflow-wrap: anywhere; }
+.login-notice { margin-top: 24rpx; color: var(--muted); font-size: 24rpx; line-height: 38rpx; overflow-wrap: anywhere; }
 .login-help { display: flex; flex-wrap: wrap; justify-content: center; gap: 8rpx 24rpx; margin-top: 24rpx; }
 .login-help .help-button { margin: 0; padding: 16rpx 8rpx; min-height: 72rpx; background: transparent; color: var(--muted); font-size: 24rpx; line-height: 40rpx; }

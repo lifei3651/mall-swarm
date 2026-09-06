@@ -2,6 +2,7 @@
   <view class="login-brand">
     <view class="login-mark"><image src="{{brandLogo && !logoFailed ? brandLogo : '/assets/lingqi-logo-mark.png'}}" binderror="logoError" mode="aspectFit" aria-hidden="true" /></view>
     <view class="login-title">{{brandName || '商城账号登录'}}</view>
+    <view wx:if="{{contextHint}}" class="login-context">登录后{{contextHint}}</view>
   </view>
   <view class="login-card">
     <view wx:if="{{inviteCode}}" class="invite-tip">已识别邀请关系：{{inviteCode}}<text>仅首次注册时一次性绑定</text></view>
@@ -18,8 +19,9 @@
         <view class="agreement-copy"><text>我已阅读并同意</text><text class="privacy-link" bindtap="openAgreement" role="link">《用户服务协议》</text><text>和</text><text class="privacy-link" bindtap="openPrivacy" role="link">《隐私政策》</text></view>
       </view>
       <view wx:if="{{agreementRequired && !agreed}}" class="agreement-hint">请先阅读并勾选同意以上协议</view>
+      <view wx:if="{{loginNotice}}" class="login-notice">{{loginNotice}}</view>
       <view wx:if="{{error}}" class="login-error">{{error}}</view>
-      <view wx:if="{{!enabled || !phoneEnabled}}" class="login-help">
+      <view wx:if="{{!enabled || !phoneEnabled || showLoginHelp}}" class="login-help">
         <button class="help-button" disabled="{{submitting}}" bindtap="loadRuntime">重新检查服务</button>
         <button class="help-button" open-type="contact">联系商城客服</button>
       </view>

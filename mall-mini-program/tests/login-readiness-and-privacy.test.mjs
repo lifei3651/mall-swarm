@@ -9,23 +9,131 @@ const legal = require('../utils/legal')
 const source = (file) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
 const version = 'MINI_PROGRAM_PRIVACY_V1'
 const ready = { enabled: true, phoneAuthorizationEnabled: true, privacyConsentVersion: version }
-function harness(runtime) {
+function harness(runtime, { token = '', response = {} } = {}) {
   let definition
-  const calls = [], notices = []
+  const calls = [], notices = [], navigations = []
   const mocks = {
-    '../../utils/auth': { runtime, login: async (data) => { calls.push(data); return {} } },
-    '../../utils/session': { getToken: () => '' },
+    '../../utils/auth': { runtime, login: async (data) => { calls.push(data); return response } },
+    '../../utils/session': { getToken: () => token },
     '../../utils/invite': { getPendingInvite: () => 'TESTINVITE' },
     '../../config/runtime': { PRIVACY_CONSENT_VERSION: version },
     '../../utils/theme': { pageData: () => ({}), apply() {} }
   }
   vm.runInNewContext(source('pages/login/index.js'), {
     Page(value) { definition = value }, require: (id) => { assert.ok(mocks[id], id); return mocks[id] },
-    wx: { showToast: (value) => notices.push(value), navigateTo() {} }, setTimeout() {}
+    wx: { showToast: (value) => notices.push(value), navigateTo: (value) => navigations.push(value),
+      redirectTo: (value) => navigations.push(value), switchTab: (value) => navigations.push(value) }, setTimeout() {}
   })
   const page = { ...definition, data: { ...definition.data }, setData(patch) { Object.assign(this.data, patch) } }
-  return { page, calls, notices }
+  return { page, calls, notices, navigations }
 }
+
+test('用户取消或拒绝手机号授权是可恢复提示，不误报首次注册或发登录请求', async () => {
+  for (const errMsg of ['getPhoneNumber:fail user deny', 'getPhoneNumber:fail cancel', 'getPhoneNumber:fail auth deny']) {
+    const { page, calls } = harness(async () => ready)
+    await page.loadRuntime()
+    page.data.agreed = true
+    await page.phoneLogin({ detail: { errMsg } })
+    assert.equal(calls.length, 0)
+    assert.equal(page.data.error, '')
+    assert.match(page.data.loginNotice, /取消.*重新选择/)
+    assert.doesNotMatch(page.data.loginNotice, /首次注册/)
+    assert.equal(page.data.submitting, false)
+  }
+})
+
+test('手机号能力不足与不支持只解释不可用，不推断资质原因或输出原始错误', async () => {
+  for (const errMsg of ['getPhoneNumber:fail no permission', 'getPhoneNumber:fail api is unauthorized', 'getPhoneNumber:fail not support']) {
+    const { page, calls } = harness(async () => ready)
+    await page.loadRuntime()
+    page.data.agreed = true
+    await page.phoneLogin({ detail: { errMsg: `${errMsg} sensitive-detail`, code: 'not-valid' } })
+    assert.equal(calls.length, 0)
+    assert.match(page.data.error, /暂不可用/)
+    assert.equal(page.data.showLoginHelp, true)
+    assert.doesNotMatch(page.data.error, /sensitive-detail|首次注册|认证失败/)
+  }
+})
+
+test('手机号网络失败和返回凭证缺失分别提示，不因ok字符串或异常事件误登录', async () => {
+  for (const event of [undefined, {}, { detail: {} }, { detail: { errMsg: 'getPhoneNumber:ok' } },
+    { detail: { errMsg: 'getPhoneNumber:ok', code: ' ' } }, { detail: { errMsg: 'getPhoneNumber:ok', code: {} } }]) {
+    const { page, calls } = harness(async () => ready)
+    await page.loadRuntime(); page.data.agreed = true
+    await page.phoneLogin(event)
+    assert.equal(calls.length, 0)
+    assert.match(page.data.error, /未收到有效.*重新/)
+    assert.equal(page.data.showLoginHelp, true)
+  }
+  const { page, calls } = harness(async () => ready)
+  await page.loadRuntime(); page.data.agreed = true
+  await page.phoneLogin({ detail: { errMsg: 'getPhoneNumber:fail network timeout' } })
+  assert.match(page.data.error, /网络.*重试/)
+  assert.equal(calls.length, 0)
+})
+
+test('首次微信关联反馈不把已有商城账号叫新注册，拒绝后成功重试清除旧提示', async () => {
+  const { page, calls } = harness(async () => ready, { response: { phoneAuthorizationRequired: true } })
+  await page.loadRuntime(); page.data.agreed = true
+  await page.returningLogin()
+  assert.match(page.data.loginNotice, /手机号.*继续登录或注册/)
+  assert.doesNotMatch(page.data.loginNotice, /首次注册/)
+  const retry = harness(async () => ready)
+  await retry.page.loadRuntime(); retry.page.data.agreed = true
+  await retry.page.phoneLogin({ detail: { errMsg: 'getPhoneNumber:fail user deny' } })
+  await retry.page.phoneLogin({ detail: { errMsg: 'getPhoneNumber:ok', code: 'valid-code' } })
+  assert.equal(retry.page.data.loginNotice, '')
+  assert.equal(retry.page.data.error, '')
+  assert.equal(retry.calls.length, 1)
+  assert.equal(calls.length, 1)
+})
+
+test('登录页持有会话后回到原任务，无会话不跳受保护页；四个Tab使用原生切换', () => {
+  const protectedTargets = ['/pages/orders/index?tab=pending-payment', '/pages/address/index', '/pages/messages/index']
+  for (const url of protectedTargets) {
+    const { page, navigations } = harness(async () => ready, { token: 'test-session' })
+    page.redirect = url; page.finish()
+    assert.equal(navigations[0].url, url)
+  }
+  const guest = harness(async () => ready)
+  guest.page.redirect = protectedTargets[0]; guest.page.finish()
+  assert.equal(guest.navigations.length, 0)
+  const logged = harness(async () => ready, { token: 'test-session' })
+  logged.page.redirect = '/pages/cart/index?ignored=1'; logged.page.finish()
+  assert.equal(logged.navigations[0].url, '/pages/cart/index')
+})
+
+test('登录上下文只使用受控任务名称，不把任意来源参数显示给用户', async () => {
+  const cases = [
+    ['/pages/orders/index?tab=pending-payment', '查看待支付订单'],
+    ['/pages/orders/index?tab=after-sale', '查看退款与售后'],
+    ['/pages/address/index', '管理收货地址'],
+    ['/pages/orders/index?tab=unknown-secret', '查看我的订单'],
+    ['/pages/orders/index?tab=constructor', '查看我的订单'],
+    ['/pages/orders/index?tab=__proto__', '查看我的订单'], ['toString', ''],
+    ['https://example.com/private?token=should-not-render', ''],
+    ['/pages/unknown/index?token=should-not-render', ''], ['', '']
+  ]
+  for (const [target, hint] of cases) {
+    const { page } = harness(async () => ready)
+    page.onLoad({ redirect: encodeURIComponent(target) })
+    assert.equal(page.data.contextHint, hint)
+    await Promise.resolve()
+  }
+  const { page } = harness(async () => ready)
+  page.onLoad({ redirect: '%' })
+  assert.equal(page.data.contextHint, '')
+})
+
+test('未知手机号失败保留安全的通用恢复提示，不回显微信原始返回', async () => {
+  const { page, calls } = harness(async () => ready)
+  await page.loadRuntime(); page.data.agreed = true
+  await page.phoneLogin({ detail: { errMsg: 'getPhoneNumber:fail unrecognized private-payload' } })
+  assert.equal(calls.length, 0)
+  assert.match(page.data.error, /授权未完成.*客服/)
+  assert.doesNotMatch(page.data.error, /private-payload/)
+  assert.equal(page.data.showLoginHelp, true)
+})
 
 test('协议移到操作区下方，未同意时两个入口都只提示而不登录或授权', async () => {
   const { page, calls, notices } = harness(async () => ready)

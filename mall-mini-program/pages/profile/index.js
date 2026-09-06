@@ -74,22 +74,24 @@ Page({
   },
   login() { wx.navigateTo({ url: '/pages/login/index' }) },
   legal() { wx.navigateTo({ url: '/pages/legal/index' }) },
-  security() { if (this.requireLogin()) wx.navigateTo({ url: '/pages/account-security/index' }) },
-  messages() { if (this.requireLogin()) wx.navigateTo({ url: '/pages/messages/index' }) },
-  orders() { if (this.requireLogin()) wx.navigateTo({ url: '/pages/orders/index' }) },
+  openMemberPage(url) { if (this.requireLogin(url)) wx.navigateTo({ url }) },
+  security() { this.openMemberPage('/pages/account-security/index') },
+  messages() { this.openMemberPage('/pages/messages/index') },
+  orders() { this.openMemberPage('/pages/orders/index') },
   orderTab(event) {
-    if (!this.requireLogin()) return
-    const tab = String(event.currentTarget.dataset.tab || 'all')
-    wx.navigateTo({ url: `/pages/orders/index?tab=${tab}` })
+    const value = event && event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.tab
+    const tab = ['pending-payment', 'pending-shipment', 'pending-receipt', 'after-sale'].includes(value) ? value : 'all'
+    this.openMemberPage(`/pages/orders/index?tab=${tab}`)
   },
-  addresses() { if (this.requireLogin()) wx.navigateTo({ url: '/pages/address/index' }) },
-  payout() { if (this.requireLogin()) wx.navigateTo({ url: '/pages/payout/index' }) },
-  wallet() { if (this.requireLogin()) wx.navigateTo({ url: '/pages/wallet/index' }) },
-  service() {
-    if (!this.requireLogin()) return
-    wx.navigateTo({ url: '/pages/orders/index?tab=after-sale' })
+  addresses() { this.openMemberPage('/pages/address/index') },
+  payout() { this.openMemberPage('/pages/payout/index') },
+  wallet() { this.openMemberPage('/pages/wallet/index') },
+  service() { this.openMemberPage('/pages/orders/index?tab=after-sale') },
+  requireLogin(redirect = '/pages/profile/index') {
+    if (this.data.loggedIn && session.getToken()) return true
+    wx.navigateTo({ url: `/pages/login/index?redirect=${encodeURIComponent(redirect)}` })
+    return false
   },
-  requireLogin() { if (this.data.loggedIn) return true; this.login(); return false },
   logout() {
     wx.showModal({
       title: '退出登录',
