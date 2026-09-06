@@ -12,7 +12,7 @@
         <button class="primary-button" disabled="{{!item.canBuy}}" data-id="{{item.activity.id}}" bindtap="buy">{{item.label}}</button>
       </view>
     </view>
-    <view class="empty">活动资格、库存和结算金额以服务器实时核验为准</view>
+    <view class="campaign-footnote">活动资格、库存和结算金额以服务器实时核验为准</view>
   </block>
   <view wx:else class="empty">暂无可展示的活动</view>
 </view>

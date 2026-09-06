@@ -1,8 +1,8 @@
-.detail-page { min-height: 100vh; padding: 22rpx 22rpx 56rpx; }
+.detail-page { min-height: 100vh; padding: 24rpx 24rpx calc(56rpx + env(safe-area-inset-bottom)); }
 .empty-state { padding: 140rpx 40rpx; text-align: center; color: var(--muted); }
 .empty-state text { display: block; line-height: 44rpx; }
 .empty-state button { width: 300rpx; margin-top: 34rpx; font-size: 25rpx; }
-.payment-summary { padding: 30rpx; border-radius: 26rpx; background: linear-gradient(135deg, #fff 0%, #fff5f7 100%); box-shadow: 0 8rpx 28rpx rgba(42, 50, 66, .05); }
+.payment-summary { padding: 30rpx; border: 1rpx solid var(--line); border-radius: var(--radius); background: var(--paper); box-shadow: var(--shadow); overflow-wrap: anywhere; }
 .summary-label { color: var(--muted); font-size: 24rpx; }
 .summary-amount { margin-top: 8rpx; color: var(--price); font-size: 48rpx; font-weight: 750; }
 .summary-meta, .summary-no { display: block; margin-top: 12rpx; color: #737c8b; font-size: 23rpx; line-height: 34rpx; word-break: break-all; }
@@ -18,7 +18,7 @@
 .item-name { display: -webkit-box; overflow: hidden; font-weight: 600; line-height: 38rpx; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .item-spec { display: block; margin-top: 10rpx; color: var(--muted); font-size: 23rpx; }
 .item-price { flex: none; font-size: 24rpx; }
-.recipient { margin-top: 22rpx; padding: 20rpx; border-radius: 18rpx; background: #f7f8fa; }
+.recipient { margin-top: 22rpx; padding: 20rpx; border-radius: 18rpx; background: var(--canvas); overflow-wrap: anywhere; }
 .recipient text { display: block; color: #596272; font-size: 24rpx; line-height: 38rpx; }
 .recipient text:first-child { color: var(--ink); font-weight: 600; }
 .shipment { margin-top: 18rpx; padding: 20rpx; border: 1rpx solid #edf0f3; border-radius: 18rpx; }

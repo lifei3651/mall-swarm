@@ -8,7 +8,7 @@ Page({
   data: {
     ...theme.pageData(),
     loading: true, submitting: false, enabled: false, phoneEnabled: false,
-    agreed: false, privacyVersion: '', inviteCode: '', error: ''
+    agreed: false, agreementRequired: false, privacyVersion: '', inviteCode: '', error: ''
   },
   onLoad(options = {}) {
     theme.apply(this)
@@ -49,7 +49,11 @@ Page({
       if (sequence === this._runtimeSequence) { this._runtimeChecked = true; this.setData({ loading: false }) }
     }
   },
-  agreementChange(event) { this.setData({ agreed: (event.detail.value || []).includes('agreed') }) },
+  agreementChange(event) {
+    const agreed = (event.detail.value || []).includes('agreed')
+    this.setData({ agreed, agreementRequired: false })
+  },
+  requireAgreement() { this.checkReady() },
   onShow() {
     theme.apply(this)
     this.setData({ logoFailed: false })
@@ -60,7 +64,11 @@ Page({
   checkReady() {
     if (this.data.loading || this.data.submitting) return false
     if (!this.data.enabled) { wx.showToast({ title: '商城登录服务暂未就绪，请重试', icon: 'none' }); return false }
-    if (!this.data.agreed) { wx.showToast({ title: '请先阅读并同意隐私政策', icon: 'none' }); return false }
+    if (!this.data.agreed) {
+      this.setData({ agreementRequired: true })
+      wx.showToast({ title: '请先阅读并同意相关协议', icon: 'none' })
+      return false
+    }
     return true
   },
   async returningLogin() {
@@ -81,7 +89,7 @@ Page({
     try {
       const result = await auth.login({ phoneCode, privacyConsentVersion: this.data.privacyVersion })
       if (result.phoneAuthorizationRequired) {
-        wx.showToast({ title: '首次登录请点击手机号一键注册', icon: 'none' })
+        wx.showToast({ title: '首次使用请选择手机号快捷登录 / 注册', icon: 'none' })
         return
       }
       wx.showToast({ title: result.newMember ? '注册成功' : '登录成功', icon: 'success' })

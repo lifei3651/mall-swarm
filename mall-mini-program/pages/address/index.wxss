@@ -1,12 +1,12 @@
-.address-page { min-height: 100vh; padding: 22rpx; }
+.address-page { min-height: 100vh; padding: 24rpx 24rpx calc(48rpx + env(safe-area-inset-bottom)); }
 .address-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 8rpx 6rpx 22rpx; }
 .address-toolbar view text { display: block; }
 .address-toolbar view text:first-child { font-size: 34rpx; font-weight: 750; }
 .address-toolbar view text:last-child { margin-top: 6rpx; color: var(--muted); font-size: 22rpx; }
 .address-toolbar button { flex: none; width: 168rpx; min-height: 68rpx; margin: 0; padding: 0; border: 1rpx solid var(--line); border-radius: 999rpx; background: var(--brand-soft); color: var(--accent); font-size: 24rpx; line-height: 68rpx; }
 .address-row { position: relative; margin-bottom: 18rpx; padding: 26rpx; border: 1rpx solid var(--line); border-radius: 22rpx; background: var(--paper); box-shadow: var(--shadow); }
-.address-row > view { display: flex; align-items: center; gap: 20rpx; font-weight: 700; }
-.address-row > text { display: block; margin-top: 12rpx; color: #697180; line-height: 40rpx; }
+.address-row > view { display: flex; flex-wrap: wrap; align-items: center; gap: 12rpx 20rpx; font-weight: 600; overflow-wrap: anywhere; }
+.address-row > text { display: block; margin-top: 12rpx; color: var(--muted); line-height: 40rpx; overflow-wrap: anywhere; }
 .default-tag { padding: 3rpx 10rpx; border-radius: 8rpx; background: var(--brand-soft); color: var(--accent); font-size: 20rpx; }
 .address-actions { display: flex; justify-content: flex-end; gap: 10rpx; margin-top: 16rpx; }
 .address-actions button { width: 100rpx; min-height: 58rpx; margin: 0; padding: 0; background: transparent; color: #697180; font-size: 23rpx; line-height: 58rpx; }
@@ -20,8 +20,14 @@
 .form-head { display: flex; align-items: center; justify-content: space-between; }
 .form-head > view > text { display: block; margin-top: 6rpx; color: var(--muted); font-size: 22rpx; }
 .form-head button { width: auto; min-height: 58rpx; margin: 0; padding: 0 12rpx; color: #697180; background: transparent; font-size: 23rpx; }
-.address-form input, .region { height: 88rpx; margin-top: 16rpx; padding: 0 22rpx; border: 1rpx solid #e5e8ed; border-radius: 16rpx; line-height: 88rpx; }
-.region { color: #697180; }
+.field-label { display: block; margin: 26rpx 0 12rpx; font-size: 26rpx; font-weight: 500; }
+.address-form input, .region { min-height: 88rpx; height: auto; padding: 0 22rpx; border: 1rpx solid var(--line); border-radius: 16rpx; color: var(--ink); font-size: 26rpx; line-height: 44rpx; }
+.address-form input { height: 88rpx; }
+.region { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; padding-top: 20rpx; padding-bottom: 20rpx; }
+.region text { min-width: 0; flex: 1; }
+.region image { flex: none; width: 28rpx; height: 28rpx; }
+.region-placeholder { color: var(--muted); }
+.detail-input { width: 100%; min-height: 132rpx; padding: 20rpx 22rpx; border: 1rpx solid var(--line); border-radius: 16rpx; color: var(--ink); font-size: 26rpx; line-height: 42rpx; }
 .default-setting { display: flex; align-items: center; justify-content: space-between; margin-top: 20rpx; padding: 16rpx 2rpx; }
 .default-setting view text { display: block; }
 .default-setting view text:last-child { margin-top: 6rpx; color: #8a92a0; font-size: 22rpx; }

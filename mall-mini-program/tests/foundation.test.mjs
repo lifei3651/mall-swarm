@@ -226,7 +226,7 @@ test('小程序第二轮视觉收口保持清晰的登录、订单、地址与�
   const checkoutView = await fs.readFile(new URL('../pages/checkout/index.wxml', import.meta.url), 'utf8')
   assert.equal(loginConfig.navigationBarTitleText, '商城账号登录')
   assert.match(loginView, /checkbox-group bindchange="agreementChange"/)
-  assert.ok(loginView.indexOf('我已阅读并同意') < loginView.indexOf('商城账号登录<\/button>'))
+  assert.ok(loginView.indexOf('我已阅读并同意') > loginView.indexOf('商城账号登录<\/button>'))
   assert.match(profilePage, /\/shop\/profile\/order-summary/)
   for (const tab of ['pending-payment', 'pending-shipment', 'pending-receipt', 'after-sale']) {
     assert.match(profileView, new RegExp(`data-tab="${tab}"`))

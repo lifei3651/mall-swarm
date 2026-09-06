@@ -27,6 +27,42 @@ function harness(runtime) {
   return { page, calls, notices }
 }
 
+test('协议移到操作区下方，未同意时两个入口都只提示而不登录或授权', async () => {
+  const { page, calls, notices } = harness(async () => ready)
+  await page.loadRuntime()
+  assert.equal(page.data.agreed, false)
+  await page.returningLogin()
+  page.requireAgreement()
+  await page.phoneLogin({ detail: { errMsg: 'getPhoneNumber:ok', code: 'ignored-before-consent' } })
+  assert.equal(calls.length, 0)
+  assert.equal(page.data.agreed, false)
+  assert.equal(page.data.agreementRequired, true)
+  assert.ok(notices.every((item) => /请先阅读/.test(item.title)))
+  const view = source('pages/login/index.wxml')
+  assert.ok(view.indexOf('class="agreement ') > view.lastIndexOf('手机号快捷登录 / 注册</button>'))
+  assert.match(view, /<button wx:if="\{\{agreed\}\}"[^>]*open-type="getPhoneNumber"/)
+  assert.match(view, /<button wx:else[^>]*bindtap="requireAgreement"/)
+  assert.match(view, /checked="\{\{agreed\}\}"/)
+})
+
+test('勾选只清除提示不自动登录，取消勾选后重新拦截授权', async () => {
+  const { page, calls } = harness(async () => ready)
+  await page.loadRuntime()
+  page.requireAgreement()
+  page.agreementChange({ detail: { value: ['agreed'] } })
+  assert.equal(page.data.agreementRequired, false)
+  assert.equal(calls.length, 0)
+  await page.phoneLogin({ detail: { errMsg: 'getPhoneNumber:ok', code: 'approved-phone-code' } })
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].phoneCode, 'approved-phone-code')
+  assert.equal(calls[0].privacyConsentVersion, version)
+  page.agreementChange({ detail: { value: [] } })
+  await page.returningLogin()
+  assert.equal(calls.length, 1)
+  assert.equal(page.data.agreed, false)
+  assert.equal(page.data.agreementRequired, true)
+})
+
 test('登录服务未就绪时准确提示服务状态，不误报只关闭了注册', async () => {
   const { page } = harness(async () => ({ ...ready, enabled: false }))
   await page.loadRuntime()

@@ -1,8 +1,8 @@
 <view class="after-sale-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
   <view wx:if="{{loading}}" class="empty">正在加载售后信息…</view>
   <view wx:elif="{{error}}" class="empty"><text>{{error}}</text><button class="secondary-button" bindtap="load">重新加载</button></view>
-  <view wx:elif="{{submitted}}" class="panel"><text>售后申请已提交</text><button class="primary-button" bindtap="openOrder">查看售后进度</button></view>
-  <view wx:elif="{{!allowed}}" class="panel"><text>{{unavailableReason}}</text><button class="secondary-button" bindtap="openOrder">返回订单</button></view>
+  <view wx:elif="{{submitted}}" class="panel result-panel"><text>售后申请已提交</text><button class="primary-button" bindtap="openOrder">查看售后进度</button></view>
+  <view wx:elif="{{!allowed}}" class="panel result-panel"><text>{{unavailableReason}}</text><button class="secondary-button" bindtap="openOrder">返回订单</button></view>
   <block wx:else>
     <view class="panel">
       <view class="section-title">选择售后商品</view><text class="muted">订单号 {{orderNo}} · 不申请的商品请将数量调为0</text>

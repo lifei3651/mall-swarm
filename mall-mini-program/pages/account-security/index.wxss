@@ -9,8 +9,9 @@
 .security-page .primary-button, .security-page .secondary-button { width: 100%; margin-top: 24rpx; font-size: 26rpx; }
 .sms-row { display: flex; align-items: stretch; gap: 12rpx; margin-bottom: 14rpx; }
 .code-input { flex: 1; min-width: 0; width: 0; }
-.security-page .sms-button { flex: none; width: 180rpx; min-width: 0; margin: 0; padding: 16rpx 8rpx; font-size: 24rpx; line-height: 54rpx; }
-.security-page button[disabled] { opacity: .5; }
+.security-page .sms-button { flex: none; width: 180rpx; min-width: 0; margin: 0; padding: 22rpx 8rpx; font-size: 24rpx; line-height: 40rpx; }
+.nickname-actions { display: flex; gap: 16rpx; }
+.nickname-actions button { flex: 1; }
 .error-message, .success-message { display: block; margin: 20rpx 8rpx; font-size: 25rpx; line-height: 38rpx; }
 .error-message { color: #b42318; }
 .success-message { color: #08754b; }

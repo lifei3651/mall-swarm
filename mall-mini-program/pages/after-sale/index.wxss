@@ -7,7 +7,7 @@
 .product-copy { flex: 1; min-width: 0; }
 .product-name { display: block; font-size: 26rpx; line-height: 38rpx; word-break: break-all; }
 .quantity { display: flex; flex-wrap: wrap; align-items: center; gap: 14rpx; margin-top: 16rpx; font-size: 26rpx; }
-.after-sale-page .quantity-button { width: 64rpx; min-width: 64rpx; min-height: 64rpx; margin: 0; padding: 0; line-height: 62rpx; border-radius: 12rpx; font-size: 30rpx; background: var(--paper); color: var(--ink); border: 1rpx solid var(--line); }
+.after-sale-page .quantity-button { width: 72rpx; min-width: 72rpx; min-height: 72rpx; margin: 0; padding: 0; line-height: 70rpx; border-radius: 12rpx; font-size: 30rpx; background: var(--paper); color: var(--ink); border: 1rpx solid var(--line); }
 .type-options { display: flex; flex-wrap: wrap; gap: 12rpx; margin-bottom: 18rpx; }
 .after-sale-page .type-button { flex: 1; min-width: 140rpx; width: auto; margin: 0; padding: 18rpx 8rpx; font-size: 25rpx; line-height: 38rpx; border: 1rpx solid var(--line); background: var(--paper); color: var(--ink); border-radius: 14rpx; }
 .after-sale-page .type-button.selected { color: var(--accent); border-color: var(--accent); background: var(--brand-soft); }
@@ -21,3 +21,6 @@
 .after-sale-page .remove-proof { width: 100%; margin: 4rpx 0 0; padding: 6rpx; min-height: 64rpx; font-size: 23rpx; color: var(--muted); background: var(--paper); }
 .after-sale-page .secondary-button, .after-sale-page .submit-button { width: 100%; margin-top: 20rpx; font-size: 27rpx; }
 .form-error { display: block; margin: 18rpx 6rpx; color: #b42318; font-size: 25rpx; line-height: 38rpx; }
+.result-panel { padding: 48rpx 28rpx; text-align: center; }
+.result-panel > text { display: block; font-size: 30rpx; line-height: 46rpx; overflow-wrap: anywhere; }
+.result-panel > button { margin-top: 32rpx; }

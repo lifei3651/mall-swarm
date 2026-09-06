@@ -9,10 +9,12 @@
       <view class="account-row"><text>商城账号</text><text>{{canSetupAccount ? '尚未设置' : member.username}}</text></view>
       <view class="account-row"><text>绑定手机号</text><text>{{maskedPhone}}</text></view>
       <text class="field-label">昵称</text>
-      <button wx:if="{{!useWechatNickname}}" class="secondary-button" bindtap="enableWechatNickname" disabled="{{action !== ''}}">使用微信昵称填写</button>
       <form bindsubmit="saveNickname">
         <input class="field" type="{{useWechatNickname ? 'nickname' : 'text'}}" name="nickname" value="{{nickname}}" data-field="nickname" bindinput="fieldInput" maxlength="20" disabled="{{action !== ''}}" placeholder="请输入2至20个字符，也可手动填写" aria-label="商城昵称" />
-        <button class="secondary-button" form-type="submit" loading="{{action === 'nickname'}}" disabled="{{action !== ''}}">保存昵称</button>
+        <view class="nickname-actions">
+          <button wx:if="{{!useWechatNickname}}" class="secondary-button" bindtap="enableWechatNickname" disabled="{{action !== ''}}">使用微信昵称</button>
+          <button class="primary-button" form-type="submit" loading="{{action === 'nickname'}}" disabled="{{action !== ''}}">保存昵称</button>
+        </view>
       </form>
     </view>
     <view wx:if="{{canSetupAccount}}" class="panel">

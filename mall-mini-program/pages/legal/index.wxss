@@ -1,6 +1,9 @@
-.legal-page { padding-bottom: 64rpx; }
+.legal-page { padding-bottom: calc(64rpx + env(safe-area-inset-bottom)); }
+.legal-content + .legal-content { margin-top: 20rpx; }
+.legal-menu { overflow: hidden; }
+.legal-menu button:last-child { border-bottom: 0; }
 .legal-content { padding: 32rpx; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 28rpx; line-height: 1.8; }
-.legal-menu button { display: flex; justify-content: space-between; width: 100%; margin: 0; padding: 28rpx; border-bottom: 1rpx solid var(--line); color: var(--ink); background: var(--paper); font-size: 28rpx; text-align: left; }
+.legal-menu button { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; width: 100%; min-height: 96rpx; margin: 0; padding: 28rpx; border-bottom: 1rpx solid var(--line); color: var(--ink); background: var(--paper); font-size: 28rpx; line-height: 40rpx; text-align: left; }
 .legal-menu button text, .info > text:first-child { color: var(--muted); font-size: 24rpx; }
 .info { margin-bottom: 28rpx; }
 .info text { display: block; }

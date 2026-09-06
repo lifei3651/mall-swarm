@@ -1,6 +1,6 @@
 <view class="profile-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
   <view class="profile-header">
-    <view class="avatar" bindtap="security" role="button" aria-label="编辑头像和昵称"><image src="{{avatarSrc}}" mode="aspectFill" aria-hidden="true" /></view>
+    <view class="avatar" bindtap="security" role="button" aria-label="{{loggedIn ? '编辑头像和昵称' : '商城账号登录'}}"><image src="{{avatarSrc}}" mode="aspectFill" aria-hidden="true" /></view>
     <view class="profile-copy">
       <text class="profile-name">{{loggedIn ? (member.nickname || '商城会员') : '还未登录'}}</text>
       <text class="profile-subtitle">{{loggedIn ? (member.phone || '欢迎回来') : '欢迎来到商城'}}</text>

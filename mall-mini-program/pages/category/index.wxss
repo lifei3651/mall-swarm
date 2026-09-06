@@ -2,7 +2,7 @@
 .category-search { margin: 18rpx 22rpx; height: 80rpx; display: flex; align-items: center; overflow: hidden; border: 1rpx solid #e5e8ed; background: #f7f8fa; border-radius: 22rpx; }
 .category-search image { flex: none; width: 32rpx; height: 32rpx; margin-left: 24rpx; opacity: .72; }
 .category-search input { flex: 1; height: 100%; padding: 0 16rpx; font-size: 26rpx; }
-.category-search button { width: 118rpx; height: 80rpx; line-height: 80rpx; padding: 0; border-radius: 0; background: var(--button); color: #fff; font-size: 26rpx; font-weight: 650; }
+.category-search button { flex: none; width: 118rpx; height: 80rpx; line-height: 80rpx; padding: 0; border-radius: 0; background: var(--button); color: #fff; font-size: 26rpx; font-weight: 650; }
 .category-body { min-height: 0; flex: 1; display: flex; border-top: 1rpx solid #edf0f3; }
 .category-side { width: 184rpx; height: 100%; background: #f5f6f8; }
 .side-item { min-height: 104rpx; padding: 32rpx 16rpx; overflow: hidden; text-align: center; white-space: nowrap; text-overflow: ellipsis; color: #555f70; font-size: 25rpx; }
@@ -47,4 +47,4 @@
 .no-results { padding: 96rpx 20rpx; }
 .no-results .no-results-description { font-size: 25rpx; line-height: 40rpx; }
 .empty-actions { display: flex; flex-direction: column; align-items: center; gap: 18rpx; margin-top: 30rpx; }
-.empty-actions button { width: 100%; max-width: 320rpx; min-height: 88rpx; line-height: 88rpx; margin: 0; padding: 0 12rpx; font-size: 26rpx; }
+.empty-actions button { width: 100%; max-width: 320rpx; min-height: 88rpx; line-height: 40rpx; margin: 0; padding: 22rpx 12rpx; font-size: 26rpx; }

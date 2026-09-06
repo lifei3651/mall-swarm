@@ -10,7 +10,7 @@
     <view class="payout-card" wx:for="{{rows}}" wx:key="id">
       <view class="payout-copy">
         <text>{{item.withdrawNo}}</text>
-        <strong>¥{{item.amountText}}</strong>
+        <text class="payout-amount">¥{{item.amountText}}</text>
         <text>{{item.withdrawTypeName || '提现'}} · {{item.statusName || '状态待核对'}}</text>
         <text>{{item.timeText}}</text>
         <text wx:if="{{item.auditRemark}}">处理说明：{{item.auditRemark}}</text>

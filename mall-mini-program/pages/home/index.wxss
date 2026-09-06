@@ -7,8 +7,8 @@
 .brand-note { margin-top: 4rpx; color: #778092; font-size: 24rpx; }
 .search-box { height: 84rpx; padding-left: 24rpx; display: flex; align-items: center; border: 1rpx solid #e4e7ec; border-radius: 22rpx; background: var(--paper); box-shadow: 0 8rpx 24rpx rgba(35,42,56,.05); overflow: hidden; }
 .search-icon { flex: none; width: 34rpx; height: 34rpx; opacity: .78; }
-.search-box input { flex: 1; height: 100%; margin-left: 14rpx; font-size: 27rpx; }
-.search-box button { width: 132rpx; height: 84rpx; line-height: 84rpx; border-radius: 0; padding: 0; background: var(--button); color: #fff; font-size: 27rpx; font-weight: 650; }
+.search-box input { min-width: 0; flex: 1; height: 100%; margin-left: 14rpx; font-size: 27rpx; }
+.search-box button { flex: none; width: 132rpx; height: 84rpx; line-height: 84rpx; border-radius: 0; padding: 0; background: var(--button); color: #fff; font-size: 27rpx; font-weight: 650; }
 .banner { height: 306rpx; margin-top: 24rpx; border-radius: 26rpx; overflow: hidden; background: #eceef2; box-shadow: var(--shadow); }
 .banner image { width: 100%; height: 100%; }
 .banner-fallback { width: 100%; height: 100%; }

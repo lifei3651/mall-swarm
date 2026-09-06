@@ -1,10 +1,9 @@
-.payout-page { min-height: 100vh; padding: 24rpx; }
+.payout-page { min-height: 100vh; padding: 24rpx 24rpx calc(48rpx + env(safe-area-inset-bottom)); }
 .notice-card { padding: 28rpx; border: 1rpx solid var(--line); border-radius: 24rpx; background: var(--paper); box-shadow: var(--shadow); }
 .notice-card view { font-size: 32rpx; font-weight: 700; }
 .notice-card text { display: block; margin-top: 14rpx; color: var(--muted); font-size: 24rpx; line-height: 40rpx; }
 .payout-card { display: flex; align-items: center; gap: 24rpx; margin-top: 20rpx; padding: 26rpx; border: 1rpx solid var(--line); border-radius: 24rpx; background: var(--paper); box-shadow: var(--shadow); }
-.payout-copy { min-width: 0; flex: 1; }
-.payout-copy text, .payout-copy strong { display: block; }
-.payout-copy text { color: var(--muted); font-size: 23rpx; }
-.payout-copy strong { margin: 10rpx 0; font-size: 34rpx; }
+.payout-copy { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.payout-copy text { display: block; color: var(--muted); font-size: 24rpx; line-height: 38rpx; }
+.payout-copy .payout-amount { margin: 10rpx 0; color: var(--ink); font-size: 34rpx; font-weight: 600; line-height: 48rpx; }
 .payout-card button { flex: none; width: 210rpx; margin: 0; font-size: 24rpx; }

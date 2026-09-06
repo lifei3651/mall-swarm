@@ -1,22 +1,28 @@
 <view class="login-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
   <view class="login-brand">
     <view class="login-mark"><image src="{{brandLogo && !logoFailed ? brandLogo : '/assets/lingqi-logo-mark.png'}}" binderror="logoError" mode="aspectFit" aria-hidden="true" /></view>
-    <view class="login-title">商城账号登录</view>
+    <view class="login-title">{{brandName || '商城账号登录'}}</view>
   </view>
   <view class="login-card">
     <view wx:if="{{inviteCode}}" class="invite-tip">已识别邀请关系：{{inviteCode}}<text>仅首次注册时一次性绑定</text></view>
     <view wx:if="{{loading}}" class="empty">正在检查商城配置…</view>
     <block wx:else>
-      <view class="agreement">
-        <checkbox-group bindchange="agreementChange" class="agreement-control"><checkbox class="agreement-checkbox" value="agreed" checked="{{agreed}}" color="{{themeColor}}" aria-label="阅读并同意隐私保护说明" /></checkbox-group>
-        <view class="agreement-copy"><text>我已阅读并同意</text><text class="privacy-link" bindtap="openAgreement">《用户服务协议》</text><text>和</text><text class="privacy-link" bindtap="openPrivacy">《隐私政策》</text></view>
-      </view>
       <button class="primary-button login-button" loading="{{submitting}}" disabled="{{submitting || !enabled}}" bindtap="returningLogin">商城账号登录</button>
-      <button wx:if="{{phoneEnabled}}" class="secondary-button login-button register-button" open-type="getPhoneNumber" loading="{{submitting}}" disabled="{{submitting || !enabled || !agreed}}" bindgetphonenumber="phoneLogin">首次使用，手机号快捷注册</button>
+      <block wx:if="{{phoneEnabled}}">
+        <button wx:if="{{agreed}}" class="secondary-button login-button register-button" open-type="getPhoneNumber" loading="{{submitting}}" disabled="{{submitting || !enabled}}" bindgetphonenumber="phoneLogin">手机号快捷登录 / 注册</button>
+        <button wx:else class="secondary-button login-button register-button" disabled="{{submitting || !enabled}}" bindtap="requireAgreement">手机号快捷登录 / 注册</button>
+      </block>
       <view wx:elif="{{enabled}}" class="not-ready">手机号快捷注册暂不可用，请稍后重试或联系商城客服。</view>
+      <view class="agreement {{agreementRequired ? 'agreement-required' : ''}}">
+        <checkbox-group bindchange="agreementChange" class="agreement-control"><checkbox class="agreement-checkbox" value="agreed" checked="{{agreed}}" color="{{themeColor}}" aria-label="我已阅读并同意用户服务协议和隐私政策" /></checkbox-group>
+        <view class="agreement-copy"><text>我已阅读并同意</text><text class="privacy-link" bindtap="openAgreement" role="link">《用户服务协议》</text><text>和</text><text class="privacy-link" bindtap="openPrivacy" role="link">《隐私政策》</text></view>
+      </view>
+      <view wx:if="{{agreementRequired && !agreed}}" class="agreement-hint">请先阅读并勾选同意以上协议</view>
       <view wx:if="{{error}}" class="login-error">{{error}}</view>
-      <button wx:if="{{!enabled || !phoneEnabled}}" class="secondary-button login-button register-button" disabled="{{submitting}}" bindtap="loadRuntime">重新检查登录服务</button>
-      <button wx:if="{{!enabled || !phoneEnabled}}" class="secondary-button login-button register-button" open-type="contact">联系商城客服</button>
+      <view wx:if="{{!enabled || !phoneEnabled}}" class="login-help">
+        <button class="help-button" disabled="{{submitting}}" bindtap="loadRuntime">重新检查服务</button>
+        <button class="help-button" open-type="contact">联系商城客服</button>
+      </view>
     </block>
   </view>
 </view>

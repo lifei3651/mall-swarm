@@ -1,18 +1,22 @@
-.login-page { min-height: 100vh; padding: 64rpx 36rpx; background: var(--canvas); color: var(--ink); }
-.login-brand { display: flex; align-items: center; padding: 0 8rpx; }
-.login-mark { display: flex; flex: none; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; margin-right: 24rpx; border-radius: 20rpx; background: var(--paper); }
-.login-mark image { display: block; width: 64rpx; height: 64rpx; }
-.login-title { min-width: 0; font-size: 36rpx; font-weight: 600; line-height: 50rpx; }
-.login-card { margin-top: 36rpx; padding: 28rpx; border-radius: 24rpx; background: var(--paper); }
-.invite-tip { margin-bottom: 24rpx; padding: 18rpx 20rpx; border-radius: 12rpx; background: var(--brand-soft); color: var(--accent); font-size: 24rpx; overflow-wrap: anywhere; }
+.login-page { min-height: 100vh; padding: 88rpx 48rpx calc(64rpx + env(safe-area-inset-bottom)); background: var(--canvas); color: var(--ink); }
+.login-brand { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.login-mark { display: flex; flex: none; align-items: center; justify-content: center; width: 132rpx; height: 132rpx; border-radius: 32rpx; background: var(--paper); }
+.login-mark image { display: block; width: 100rpx; height: 100rpx; }
+.login-title { max-width: 100%; margin-top: 28rpx; font-size: 40rpx; font-weight: 600; line-height: 56rpx; overflow-wrap: anywhere; }
+.login-card { margin-top: 72rpx; }
+.invite-tip { margin-bottom: 24rpx; padding: 18rpx 20rpx; border-radius: 16rpx; background: var(--paper); color: var(--ink); font-size: 24rpx; overflow-wrap: anywhere; }
 .invite-tip text { display: block; margin-top: 6rpx; color: var(--muted); font-size: 22rpx; }
 .login-card .empty { padding: 48rpx 16rpx; font-size: 26rpx; }
-.login-page .login-button { display: flex; align-items: center; justify-content: center; width: 100%; max-width: 100%; min-height: 88rpx; height: auto; margin: 16rpx 0 0; padding: 18rpx 20rpx; border-radius: 16rpx; line-height: 40rpx; font-size: 28rpx; font-weight: 600; text-align: center; box-shadow: none; }
+.login-page .login-button { display: flex; align-items: center; justify-content: center; width: 100%; max-width: 100%; min-height: 96rpx; height: auto; margin: 18rpx 0 0; padding: 24rpx; border-radius: 20rpx; line-height: 40rpx; font-size: 28rpx; font-weight: 600; text-align: center; box-shadow: none; }
 .login-page .register-button { color: var(--ink); border-color: var(--line); background: var(--paper); font-size: 26rpx; font-weight: 400; }
-.agreement { display: flex; align-items: center; min-height: 64rpx; margin: 0 0 18rpx; text-align: left; font-size: 24rpx; line-height: 38rpx; color: var(--muted); }
-.agreement-control { display: flex; flex: none; align-items: center; margin-left: -8rpx; margin-right: 4rpx; }
-.agreement-checkbox { transform: scale(.8); transform-origin: center; }
+.agreement { display: flex; align-items: flex-start; margin-top: 28rpx; padding: 8rpx 0; border-radius: 12rpx; text-align: left; font-size: 24rpx; line-height: 38rpx; color: var(--muted); }
+.agreement-control { display: flex; flex: none; align-items: center; justify-content: center; min-width: 64rpx; min-height: 64rpx; margin-top: -13rpx; margin-left: -12rpx; margin-right: 2rpx; }
+.agreement-checkbox { transform: scale(.72); transform-origin: center; }
 .agreement-copy { flex: 1; min-width: 0; }
 .privacy-link { color: var(--accent); }
-.not-ready { margin-top: 24rpx; color: var(--muted); font-size: 24rpx; line-height: 38rpx; text-align: center; }
-.login-error { margin-top: 24rpx; padding: 18rpx 20rpx; border-radius: 12rpx; background: #fff5f6; color: #b4233f; font-size: 24rpx; line-height: 38rpx; overflow-wrap: anywhere; }
+.agreement-required { background: var(--brand-soft); }
+.agreement-hint { padding-left: 54rpx; margin-top: 6rpx; color: #b4233f; font-size: 24rpx; line-height: 36rpx; }
+.not-ready { margin-top: 20rpx; color: var(--muted); font-size: 24rpx; line-height: 38rpx; }
+.login-error { margin-top: 24rpx; padding: 18rpx 20rpx; border-radius: 16rpx; background: #fff5f6; color: #b4233f; font-size: 24rpx; line-height: 38rpx; overflow-wrap: anywhere; }
+.login-help { display: flex; flex-wrap: wrap; justify-content: center; gap: 8rpx 24rpx; margin-top: 24rpx; }
+.login-help .help-button { margin: 0; padding: 16rpx 8rpx; min-height: 72rpx; background: transparent; color: var(--muted); font-size: 24rpx; line-height: 40rpx; }
