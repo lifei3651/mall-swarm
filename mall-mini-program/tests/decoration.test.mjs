@@ -96,7 +96,7 @@ test('首页再次显示会重新取装修；失败保留旧数据，不清空�
     '../../utils/share': { prepare: async () => null, hide() {} },
     '../../utils/request': async ({ url }) => { calls++; if (fail) throw new Error('offline'); return url === '/shop/home' ? structuredClone(home) : { list: [{ id: 1, salePrice: 2 }] } },
     '../../utils/theme': { pageData: () => ({}), remember: () => ({}), sync: () => {} },
-    globals: { wx: { setNavigationBarTitle() {}, showToast({ title }) { notice = title } } }
+    globals: { clearTimeout, setTimeout, wx: { setNavigationBarTitle() {}, showToast({ title }) { notice = title } } }
   }))
   await page.loadHome()
   assert.ok(!types(page.data.homeModules).includes('banner'))

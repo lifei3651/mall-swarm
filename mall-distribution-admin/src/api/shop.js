@@ -1,5 +1,14 @@
 import request from '@/utils/request'
 
+// Decoration previews read the same published catalog and activities as the storefront.
+export function listStorefrontProducts(params) {
+  return request({ url: '/shop/products', method: 'get', params })
+}
+
+export function listStorefrontFlashSales() {
+  return request({ url: '/shop/flash-sales', method: 'get' })
+}
+
 export function listShopProducts(params) {
   return request({
     url: '/shop/admin/products',

@@ -6,6 +6,7 @@ const display = require('../../utils/display-config')
 const share = require('../../utils/share')
 const quickCart = require('../../utils/quick-cart')
 const categoryProduct = require('../../utils/category-product')
+const { decorateCampaignProducts } = require('../../utils/campaign-display')
 
 Page({
   ...quickCart.methods,
@@ -22,8 +23,8 @@ Page({
     logoFailed: false
   },
   onLoad() { this.loadHome() },
-  onShow() { quickCart.show(this); share.prepare(this); theme.sync(this); if (this.loadedOnce) this.loadHome(true) },
-  onHide() { quickCart.hide(this); share.hide(this) },
+  onShow() { this.campaignClockActive = true; quickCart.show(this); share.prepare(this); theme.sync(this); this.startCampaignClock(); if (this.loadedOnce) this.loadHome(true) },
+  onHide() { this.campaignClockActive = false; clearTimeout(this.campaignTimer); quickCart.hide(this); share.hide(this) },
   onUnload() { this.onHide() },
   onShareAppMessage() { return share.message(this, '/pages/home/index', this.data.home.brandName || this.data.brandName) },
   retryShare() { return share.prepare(this) },
@@ -60,11 +61,14 @@ Page({
       let campaigns = [], campaignError = ''
       if (decoration.layoutTemplate === 'campaign-feed') {
         try {
-          campaigns = (await request({ url: '/shop/flash-sales' }) || []).filter((row) => row && row.activity && row.product).map((row) => ({ ...row, priceText: format.money(row.activity.flashPrice), stateText: ({ ACTIVE: '进行中', UPCOMING: '即将开始', SOLD_OUT: '已抢完', ENDED: '已结束' })[row.activityState] || '暂不可用' }))
-        } catch (_) { campaignError = '限时活动加载失败，点击重新查看' }
+          campaigns = await request({ url: '/shop/flash-sales' })
+          if (!Array.isArray(campaigns)) throw new Error('活动数据不完整')
+        } catch (_) { campaigns = []; campaignError = '活动信息暂不可用，以下按普通售价展示。点击重试' }
       }
       const brandCultureEnabled = display.toggle(home.brandCultureEnabled, false)
-      feedback.update(this, { home, products, campaigns, campaignError, ...palette, ...decoration, brandCultureEnabled, logoFailed: false, error: '' })
+      this.baseProducts = products
+      feedback.update(this, { home, products: decorateCampaignProducts(products, campaigns, decoration.layoutTemplate), campaigns, campaignError, ...palette, ...decoration, brandCultureEnabled, logoFailed: false, error: '' })
+      this.startCampaignClock()
       this.loadedOnce = true
       // A slow homepage response must not rename the page the user has since opened.
       if (typeof getCurrentPages === 'function' && getCurrentPages().slice(-1)[0] === this) wx.setNavigationBarTitle({ title: home.brandName || '商城首页' })
@@ -75,6 +79,23 @@ Page({
       feedback.update(this, { loading: false })
     }
   },
+  startCampaignClock() {
+    clearTimeout(this.campaignTimer)
+    if (!this.campaignClockActive || this.data.layoutTemplate !== 'campaign-feed' || !this.data.products.some(product => product.campaign)) return
+    this.campaignTimer = setTimeout(() => {
+      if (!this.campaignClockActive) return
+      const patch = {}
+      decorateCampaignProducts(this.baseProducts || [], this.data.campaigns, this.data.layoutTemplate).forEach((product, index) => {
+        const previous = this.data.products[index]
+        if (!previous || JSON.stringify(previous.campaign) === JSON.stringify(product.campaign)) return
+        patch[`products[${index}].campaign`] = product.campaign
+        if (previous.priceText !== product.priceText) patch[`products[${index}].priceText`] = product.priceText
+      })
+      if (Object.keys(patch).length) this.setData(patch)
+      this.startCampaignClock()
+    }, 1000)
+  },
+  retryCampaigns() { return this.loadHome() },
   openContent(event) {
     const type = event.currentTarget.dataset.type
     if (['culture', 'live', 'newArrivals'].includes(type)) wx.navigateTo({ url: `/pages/store-content/index?type=${type}` })
@@ -98,6 +119,7 @@ Page({
   productImageError(event) {
     const index = Number(event.currentTarget.dataset.index)
     if (!Number.isInteger(index) || !this.data.products[index]) return
+    if (this.baseProducts && this.baseProducts[index]) this.baseProducts[index].imageFailed = true
     feedback.update(this, { [`products[${index}].imageFailed`]: true })
   },
   onKeywordInput(event) { feedback.update(this, { keyword: event.detail.value }) },
@@ -134,7 +156,13 @@ Page({
     }
     if (type === 'CATEGORY' && value) this.openCategory({ currentTarget: { dataset: { name: value } } })
   },
-  openProduct(event) { wx.navigateTo({ url: `/pages/product/index?id=${event.currentTarget.dataset.id}` }) },
+  openProduct(event) {
+    const id = format.identifier(event.currentTarget.dataset.id)
+    if (!id) return
+    const product = this.data.products.find(item => String(item.id) === id)
+    if (product && product.campaign) return this.campaign({ currentTarget: { dataset: { id: product.campaign.id } } })
+    wx.navigateTo({ url: `/pages/product/index?id=${id}` })
+  },
   openCategory(event) {
     const name = event.currentTarget.dataset.name || ''
     wx.switchTab({ url: '/pages/category/index', success: () => {

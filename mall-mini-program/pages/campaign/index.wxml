@@ -2,7 +2,7 @@
   <view wx:if="{{loading}}" class="empty">正在加载活动…</view>
   <view wx:elif="{{error}}" class="empty"><text>{{error}}</text><button class="secondary-button" bindtap="load">重新加载</button></view>
   <block wx:elif="{{rows.length}}">
-    <view wx:for="{{rows}}" wx:key="activity.id" class="card campaign-card">
+    <view wx:for="{{rows}}" wx:key="id" class="card campaign-card">
       <image wx:if="{{item.product.coverUrl && !item.product.imageFailed}}" class="campaign-cover" src="{{item.product.coverUrl}}" mode="aspectFill" data-index="{{index}}" binderror="imageError" />
       <view wx:else class="campaign-cover media-fallback"><image src="/assets/lingqi-logo-mark.png" mode="aspectFit" /></view>
       <view class="campaign-copy"><view class="campaign-title">{{item.activity.activityName}}</view><view>{{item.product.productName}} {{item.sku.skuName || ''}}</view>

@@ -17,7 +17,7 @@ Page({
       const result = await request({ url: '/shop/flash-sales' })
       const rows = (result || []).filter((row) => row && row.activity && row.product && (!this.activityId || String(row.activity.id) === this.activityId)).map((row) => {
         const maximum = Math.max(0, Math.min(99, Number(row.activity.perUserLimit || 0), Number(row.activity.availableStock || 0)))
-        return { ...row, product: format.product(row.product), priceText: format.money(row.activity.flashPrice), quantity: 1, quantities: Array.from({ length: maximum }, (_, index) => index + 1), canBuy: row.activityState === 'ACTIVE' && maximum > 0, label: labels[row.activityState] || '暂不可用' }
+        return { ...row, id: String(row.activity.id), product: format.product(row.product), priceText: format.money(row.activity.flashPrice), quantity: 1, quantities: Array.from({ length: maximum }, (_, index) => index + 1), canBuy: row.activityState === 'ACTIVE' && maximum > 0, label: labels[row.activityState] || '暂不可用' }
       })
       feedback.update(this, { rows }); this.loadedOnce = true
     } catch (error) { feedback.update(this, { error: error.message || '活动加载失败' }) }

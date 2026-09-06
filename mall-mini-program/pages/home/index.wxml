@@ -72,11 +72,7 @@
       <text>订单可查询</text><text>售后可申请</text><text wx:if="{{home.legalConfig.servicePhone}}">客服 {{home.legalConfig.servicePhone}}</text>
     </view>
     <block wx:if="{{module.type === 'products'}}">
-    <block wx:if="{{layoutTemplate === 'campaign-feed'}}">
-      <view class="section-head" bindtap="campaign" aria-role="button" aria-label="查看限时活动"><text>限时活动</text><text class="muted">查看全部</text></view>
-      <button wx:if="{{campaignError}}" class="secondary-button" bindtap="campaign">{{campaignError}}</button>
-      <button wx:for="{{campaigns}}" wx:key="activity.id" class="campaign-entry card" data-id="{{item.activity.id}}" bindtap="campaign"><view><text>{{item.activity.activityName}}</text><text class="muted">{{item.stateText}} · 每人限购 {{item.activity.perUserLimit}} 件</text></view><text class="product-price">¥{{item.priceText}}</text></button>
-    </block>
+    <button wx:if="{{layoutTemplate === 'campaign-feed' && campaignError}}" class="secondary-button campaign-retry" bindtap="retryCampaigns">{{campaignError}}</button>
     <view class="section-head"><text>精选好物</text><text class="muted">为你推荐 · {{products.length}}件</text></view>
     <view wx:if="{{products.length}}" class="product-grid">
       <view class="product-card" wx:for="{{products}}" wx:key="id" data-id="{{item.id}}" bindtap="openProduct" aria-role="button" aria-label="{{item.productName}}，价格{{item.priceText}}元">
@@ -84,12 +80,14 @@
           <view wx:if="{{!item.coverUrl || item.imageFailed}}" class="product-cover media-fallback"><image src="/assets/lingqi-logo-mark.png" mode="aspectFit" /></view>
           <image wx:else class="product-cover" src="{{item.coverUrl}}" mode="aspectFill" lazy-load data-index="{{index}}" binderror="productImageError" />
         </view>
+        <view wx:if="{{item.campaign}}" class="campaign-activity-band"><text class="campaign-label">{{item.campaign.label}}</text><text class="campaign-countdown">{{item.campaign.countdown}}</text></view>
         <view class="product-copy">
           <view class="product-title">{{item.productName}}</view>
           <view wx:if="{{item.subtitle}}" class="product-subtitle">{{item.subtitle}}</view>
           <view class="home-purchase-row">
             <view class="product-price"><text>¥</text>{{item.priceText}}</view>
-            <button class="home-quick-cart {{item.soldOut || !!addingId ? 'is-disabled' : ''}}" data-id="{{item.id}}" catchtap="quickAdd" disabled="{{item.soldOut || !!addingId}}" loading="{{addingId === '' + item.id}}" aria-label="{{item.soldOut ? '已售罄' : '加入购物车：' + item.productName}}"><text wx:if="{{item.soldOut}}">售罄</text><image wx:else src="/assets/tabbar/cart.png" mode="aspectFit" /></button>
+            <button wx:if="{{item.campaign}}" class="campaign-buy-button" data-id="{{item.campaign.id}}" catchtap="campaign" aria-label="{{item.campaign.actionLabel + '：' + item.productName}}">{{item.campaign.actionLabel}}</button>
+            <button wx:else class="home-quick-cart {{item.soldOut || !!addingId ? 'is-disabled' : ''}}" data-id="{{item.id}}" catchtap="quickAdd" disabled="{{item.soldOut || !!addingId}}" loading="{{addingId === '' + item.id}}" aria-label="{{item.soldOut ? '已售罄' : '加入购物车：' + item.productName}}"><text wx:if="{{item.soldOut}}">售罄</text><image wx:else src="/assets/tabbar/cart.png" mode="aspectFit" /></button>
           </view>
         </view>
       </view>

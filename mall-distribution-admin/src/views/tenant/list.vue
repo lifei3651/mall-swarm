@@ -130,6 +130,16 @@
               </div>
             </div>
           </section>
+          <section v-if="displayForm.layoutTemplate === 'campaign-feed' && ['layout', 'home'].includes(activeEditSection)" class="control-section campaign-source-panel">
+            <div class="control-section-heading"><div><strong>限时活动 · 商品卡内容</strong><small>来源：秒杀活动管理，与H5和小程序读取同一份已公开活动</small></div><el-tag size="small" type="info">当前版型</el-tag></div>
+            <p>活动绑定到对应商品卡，显示真实活动价、开始/结束倒计时和抢购入口；普通商品不添加活动标签。切换版型不会创建或启用活动。</p>
+            <p v-if="previewCampaignLoading" role="status">正在读取活动…</p>
+            <p v-else-if="previewCampaignError" class="campaign-source-error" role="alert">{{ previewCampaignError }}</p>
+            <p v-else-if="!previewCampaignCount" class="campaign-source-state">当前没有可展示的活动，手机预览与前台只显示普通商品。请核对秒杀业务是否开启、活动是否启用及商品是否上架。</p>
+            <p v-else class="campaign-source-state">已读取 {{ previewCampaignCount }} 个活动商品，当前预览中匹配 {{ previewCampaignProductCount }} 件。预览展示公开商品列表的前20件，排序与小程序一致。</p>
+            <div class="campaign-source-actions"><router-link to="/tenant/flash-sales" target="_blank" rel="noopener noreferrer">管理秒杀活动 ↗</router-link><el-button :loading="previewCampaignLoading" @click="loadPreviewCampaigns">刷新活动</el-button></div>
+            <small>活动在管理页单独保存；关闭或结束后活动标签消失，商品恢复普通售价。保存装修只更新版型，不修改活动价格、库存或限购。</small>
+          </section>
           <section v-if="activeEditSection === 'pages' && independentPageTab === 'live'" class="control-section feature-control-section">
             <div class="control-section-heading"><div><strong>直播广场</strong><small>只在此处选择展示位置，首页模块不再重复设置开关</small></div><el-tag size="small" type="info">展示位置</el-tag></div>
             <div class="feature-toggle-card">
@@ -268,7 +278,19 @@
                   </div>
                 </div>
                 <div v-else-if="module.type === 'trust' && module.enabled && displayForm.showTrustStrip === 1" class="mobile-preview-trust"><span>安全支付</span><span>订单可查</span><span>售后无忧</span></div>
-                <div v-else-if="module.type === 'products' && module.enabled" class="mobile-preview-product-section"><div class="mobile-preview-heading"><strong>精选商品</strong><span>商城好物，为你精选</span></div><div class="mobile-preview-products" :class="{ 'campaign-preview-products': displayForm.layoutTemplate === 'campaign-feed' }"><div v-for="product in previewProducts" :key="product.id" class="mobile-preview-product"><img v-if="product.coverUrl" :src="product.coverUrl" :alt="product.productName" /><i v-else></i><span v-if="displayForm.layoutTemplate === 'campaign-feed'" class="campaign-preview-band">活动好物 · 真实活动显示倒计时</span><strong>{{ product.productName }}</strong><small>{{ product.subtitle || '精选商品，品质保障' }}</small><b>¥{{ Number(product.salePrice || 0).toFixed(2) }}</b></div><div v-if="!previewProducts.length" class="preview-empty-module">暂无上架商品</div></div></div>
+                <div v-else-if="module.type === 'products' && module.enabled" class="mobile-preview-product-section">
+                  <div class="mobile-preview-heading"><strong>精选商品</strong><span>商城好物，为你精选</span></div>
+                  <div v-if="displayForm.layoutTemplate === 'campaign-feed' && previewCampaignError" class="preview-empty-module">活动读取失败，暂按普通售价展示</div>
+                  <div class="mobile-preview-products" :class="{ 'campaign-preview-products': displayForm.layoutTemplate === 'campaign-feed' }">
+                    <div v-for="product in campaignPreviewProducts" :key="product.id" class="mobile-preview-product">
+                      <img v-if="product.coverUrl" :src="product.coverUrl" :alt="product.productName" /><i v-else></i>
+                      <div v-if="product.campaign" class="campaign-preview-band"><strong class="campaign-preview-label">{{ product.campaign.label }}</strong><span>{{ product.campaign.countdown }}</span></div>
+                      <strong>{{ product.productName }}</strong><small>{{ product.subtitle || '精选商品，品质保障' }}</small>
+                      <div class="campaign-preview-purchase"><b>¥{{ product.priceText }}</b><span v-if="product.campaign" class="campaign-preview-action">{{ product.campaign.actionLabel }}</span><span v-else class="campaign-preview-action">加购</span></div>
+                    </div>
+                    <div v-if="!previewProducts.length" class="preview-empty-module">暂无上架商品</div>
+                  </div>
+                </div>
               </template>
             </template>
             <div v-if="!isCulturePreview" class="mobile-preview-nav" :style="{ gridTemplateColumns: `repeat(${Math.max(visiblePreviewNav.length, 1)}, minmax(0, 1fr))` }"><span v-for="nav in visiblePreviewNav" :key="nav.type" :class="{ active: nav.type === previewPage }" @click="openPreviewNav(nav.type)">{{ nav.label }}</span></div>
@@ -313,13 +335,14 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute } from 'vue-router'
 import { formatDateTime } from '@/utils/dateTime'
 import { resolveDirectoryGuideLayout } from '@/utils/categoryGuideLayout'
 import { isEditableBottomNav, normalizeBottomNav } from '@/utils/bottomNav'
 import { applyVisualLayoutTemplate } from '@/utils/layoutTemplate'
+import { campaignIndex, decorateCampaignProducts } from '@/utils/campaignDisplay'
 import { featurePlacement, setFeaturePlacement, placementLabels } from '@/utils/featurePlacement'
 import {
   SHOP_THEME_OPTIONS,
@@ -329,7 +352,7 @@ import {
   themePalette,
   themePreviewVariables,
 } from '@/utils/shopTheme'
-import { listShopBanners, listShopCategories, listShopProducts, updateCategoryShowOnHome, uploadBrandCultureImage, uploadShopImage } from '@/api/shop'
+import { listShopBanners, listShopCategories, listStorefrontProducts, listStorefrontFlashSales, updateCategoryShowOnHome, uploadBrandCultureImage, uploadShopImage } from '@/api/shop'
 import ShopBanners from '@/views/shop/banners.vue'
 import {
   getDisplayConfig,
@@ -355,6 +378,15 @@ const currentDisplayConfig = ref({ layoutTemplate: 'standard' })
 const displayConfigLoaded = ref(false)
 const categories = ref([])
 const previewProducts = ref([])
+const previewCampaignRows = ref([])
+const previewCampaignLoading = ref(false)
+const previewCampaignError = ref('')
+const previewCampaignClock = ref(Date.now())
+let previewCampaignVersion = 0
+let previewCampaignTimer
+const campaignPreviewProducts = computed(() => decorateCampaignProducts(previewProducts.value, previewCampaignRows.value, displayForm.value.layoutTemplate, previewCampaignClock.value))
+const previewCampaignCount = computed(() => campaignIndex(previewCampaignRows.value, previewCampaignClock.value).size)
+const previewCampaignProductCount = computed(() => campaignPreviewProducts.value.filter(product => product.campaign).length)
 const previewBanners = ref([])
 const categoryDraft = ref({})
 const previewPage = ref('home')
@@ -603,7 +635,7 @@ const openDisplayDialog = async (row, section = 'layout') => {
   const [resResult, categoryResult, productResult, bannerResult] = await Promise.allSettled([
     getDisplayConfig(row.id),
     listShopCategories({ tenantId: row.id, status: 1 }),
-    listShopProducts({ tenantId: row.id, status: 1, pageNum: 1, pageSize: 6 }),
+    listStorefrontProducts({ status: 1, pageNum: 1, pageSize: 20 }),
     listShopBanners({ tenantId: row.id }),
   ])
   if (resResult.status === 'rejected') throw resResult.reason
@@ -766,6 +798,33 @@ const applyLayoutTemplate = (template) => {
   previewPage.value = template?.value === 'category-focus' ? 'category' : 'home'
 }
 const selectCategoryGuide = (template) => { displayForm.value.categoryGuideTemplate = template; previewPage.value = 'category' }
+const loadPreviewCampaigns = async () => {
+  const version = ++previewCampaignVersion
+  const tenantId = currentTenant.value?.id
+  previewCampaignRows.value = []
+  previewCampaignLoading.value = true
+  previewCampaignError.value = ''
+  try {
+    const result = await listStorefrontFlashSales()
+    if (version !== previewCampaignVersion || !displayDialogVisible.value || tenantId !== currentTenant.value?.id) return
+    if (!Array.isArray(result.data)) throw new Error('活动数据不完整')
+    if (result.data.some(row => row?.activity?.tenantId != null && String(row.activity.tenantId) !== String(tenantId))) throw new Error('活动不属于当前商城')
+    previewCampaignRows.value = result.data
+    previewCampaignClock.value = Date.now()
+  } catch (_) {
+    if (version !== previewCampaignVersion || !displayDialogVisible.value) return
+    previewCampaignError.value = '活动读取失败，无法确认活动状态；预览暂按普通售价显示，请刷新重试。'
+    ElMessageBox.alert(previewCampaignError.value, '活动预览未就绪', { confirmButtonText: '知道了', type: 'warning' }).catch(() => {})
+  } finally { if (version === previewCampaignVersion) previewCampaignLoading.value = false }
+}
+watch([displayDialogVisible, () => displayForm.value.layoutTemplate], ([visible, layout]) => {
+  clearInterval(previewCampaignTimer)
+  if (visible && layout === 'campaign-feed') {
+    loadPreviewCampaigns()
+    previewCampaignTimer = setInterval(() => { previewCampaignClock.value = Date.now() }, 1000)
+  } else { previewCampaignVersion++; previewCampaignRows.value = []; previewCampaignLoading.value = false; previewCampaignError.value = '' }
+})
+onUnmounted(() => { previewCampaignVersion++; clearInterval(previewCampaignTimer) })
 const editFeaturePlacement = (type) => { activeEditSection.value = 'pages'; independentPageTab.value = type }
 
 const openPreviewNav = (type) => {
@@ -1518,7 +1577,17 @@ onMounted(async () => {
 .feature-toggle-action>span.enabled { color:#2f9e44; }
 .campaign-preview-products { grid-template-columns:1fr; }
 .campaign-preview-products .mobile-preview-product img,.campaign-preview-products .mobile-preview-product i { height:118px; }
-.campaign-preview-band { padding:4px 6px; color:#fff; background:linear-gradient(90deg,#ef3d25,#ff8a18); border-radius:4px; font-size:8px; }
+.campaign-preview-band { display:flex; flex-wrap:wrap; justify-content:space-between; gap:4px; padding:7px 8px; color:var(--preview-accent); background:color-mix(in srgb,var(--preview-accent) 10%,var(--preview-card-bg)); border-radius:4px; font-size:10px; }
+.campaign-preview-band .campaign-preview-label { margin:0; font-size:10px; }
+.campaign-preview-purchase { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:6px 0 0; }
+.campaign-preview-purchase b { margin:0; }
+.campaign-preview-action { padding:6px 10px; color:#fff; background:var(--preview-button); border-radius:999px; font-size:10px; font-style:normal; }
+.campaign-source-panel p { margin:10px 0; color:#606b7b; font-size:13px; line-height:1.7; }
+.campaign-source-panel>small { display:block; color:#7b8493; font-size:12px; line-height:1.7; }
+.campaign-source-panel .campaign-source-state { padding:10px 12px; background:#f4f6fa; border-radius:8px; }
+.campaign-source-panel .campaign-source-error { color:#b42318; }
+.campaign-source-actions { display:flex; align-items:center; flex-wrap:wrap; gap:16px; margin:12px 0; }
+.campaign-source-actions a { color:#1556a3; font-size:14px; font-weight:600; text-decoration:none; }
 .layout-preview-standard .mobile-preview-product { border:1px solid var(--preview-line,#e8ecf1); }
 .layout-preview-product-focus .mobile-preview-products { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
 .layout-preview-product-focus .mobile-preview-product { gap:3px; padding:5px; border-radius:9px; }
