@@ -9,7 +9,7 @@ Component({
       const pages = getCurrentPages()
       const page = pages[pages.length - 1]
       this.setData({ ...palette, active: String(page && page.route || '').split('/')[1] || 'home',
-        hidden: Boolean(page && page.data && page.data.loginVisible) })
+        hidden: Boolean(page && page.data && (page.data.loginVisible || page.data.skuVisible)) })
     },
     navigate(event) {
       if (this.data.hidden) return

@@ -507,6 +507,38 @@ class ShopFreightServiceTest {
     }
 
     @Test
+    void publicCategorySortingCoversAllPagesAndKeepsDefaultOrder() {
+        var cheapest = shopService.listProductPage(null, null, null, 0, null, 1, 1, "priceAsc");
+        var second = shopService.listProductPage(null, null, null, 0, null, 2, 1, "priceAsc");
+        assertEquals(2L, cheapest.getList().get(0).getId());
+        assertEquals(1L, second.getList().get(0).getId());
+        assertEquals(cheapest.getTotal(), second.getTotal());
+        assertEquals(1L, shopService.listProductPage(null, null, null, 1, null, 1, 1, "priceDesc").getList().get(0).getId());
+        assertEquals(2L, shopService.listProductPage(null, null, null, 1, null, 1, 1, "sales").getList().get(0).getId());
+        assertEquals(1L, shopService.listProductPage(null, null, null, 1, null, 1, 1).getList().get(0).getId());
+        assertNull(cheapest.getList().get(0).getCostAmount());
+    }
+
+    @Test
+    void publicCategorySortingPreservesFiltersAndRejectsSqlLikeSortInput() {
+        var filtered = shopService.listProductPage(null, "焕活", "护理套装", 1, null, 1, 20, "sales");
+        assertEquals(1, filtered.getList().size());
+        assertEquals(1L, filtered.getList().get(0).getId());
+        var invalid = shopService.listProductPage(null, null, null, 1, null, 1, 20, "sale_price; DROP TABLE dms_shop_product");
+        assertEquals(1L, invalid.getList().get(0).getId());
+        assertNotNull(productDao.selectById(2L));
+    }
+
+    @Test
+    void sortedCatalogueStillHidesInactiveAndRepurchaseOnlyProducts() {
+        jdbcTemplate.update("UPDATE dms_shop_product SET normal_sale_enabled=0 WHERE id=2");
+        assertEquals(List.of(1L), productDao.selectFrontSortedList(1L, null, null, 1, null, "sales").stream().map(DmsShopProduct::getId).toList());
+        jdbcTemplate.update("UPDATE dms_shop_product SET status=0 WHERE id=1");
+        assertTrue(productDao.selectFrontSortedList(1L, null, null, 1, null, "priceAsc").isEmpty());
+        assertTrue(productDao.selectFrontSortedList(2L, null, null, 1, null, "priceDesc").isEmpty());
+    }
+
+    @Test
     void legacyOversizedPvIsCappedAndQuantityIsMultipliedInOrderSnapshot() {
         jdbcTemplate.update("UPDATE dms_shop_product SET sale_price=99.00, pv_value=220.00 WHERE id=1");
         jdbcTemplate.update("UPDATE dms_shop_sku SET sale_price=99.00, pv_value=0.00 WHERE id=1");

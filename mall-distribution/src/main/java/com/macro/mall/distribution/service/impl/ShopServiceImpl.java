@@ -313,17 +313,31 @@ public class ShopServiceImpl implements ShopService {
     public CommonPage<DmsShopProduct> listProductPage(Long tenantId, String keyword, String categoryName,
                                                       Integer status, String stockStatus,
                                                       Integer pageNum, Integer pageSize) {
+        return listProductPage(tenantId, keyword, categoryName, status, stockStatus, pageNum, pageSize, "default");
+    }
+
+    static String normalizeProductSort(String sortMode) {
+        return java.util.Set.of("sales", "priceAsc", "priceDesc").contains(sortMode == null ? "" : sortMode)
+                ? sortMode : "default";
+    }
+
+    @Override
+    public CommonPage<DmsShopProduct> listProductPage(Long tenantId, String keyword, String categoryName,
+                                                      Integer status, String stockStatus,
+                                                      Integer pageNum, Integer pageSize, String sortMode) {
         Long resolvedTenantId = resolveTenantId(tenantId);
+        String safeSort = normalizeProductSort(sortMode);
         int resolvedPageNum = pageNum == null || pageNum < 1 ? 1 : pageNum;
         int resolvedPageSize = pageSize == null || pageSize < 1 ? 12 : Math.min(pageSize, 100);
         String parameters = String.join("|",
                 String.valueOf(keyword), String.valueOf(categoryName), "1",
                 String.valueOf(stockStatus), String.valueOf(resolvedPageNum), String.valueOf(resolvedPageSize));
-        String cacheKey = "products:" + DigestUtil.sha256Hex(parameters);
+        String cacheKey = "products:" + DigestUtil.sha256Hex(parameters + ("default".equals(safeSort) ? "" : "|" + safeSort));
         return catalogCache.getPage(resolvedTenantId, cacheKey, DmsShopProduct.class, productCacheTtlSeconds, () -> {
             PageHelper.startPage(resolvedPageNum, resolvedPageSize);
-            List<DmsShopProduct> products = productDao.selectFrontList(
-                    resolvedTenantId, keyword, categoryName, 1, stockStatus);
+            List<DmsShopProduct> products = "default".equals(safeSort)
+                    ? productDao.selectFrontList(resolvedTenantId, keyword, categoryName, 1, stockStatus)
+                    : productDao.selectFrontSortedList(resolvedTenantId, keyword, categoryName, 1, stockStatus, safeSort);
             products.forEach(item -> product(item, false));
             return CommonPage.restPage(products);
         });

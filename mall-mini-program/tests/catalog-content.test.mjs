@@ -21,6 +21,8 @@ function pageHarness(name, response = () => ({})) {
     '../../utils/share': { prepare: async () => null, hide() {} },
     '../../utils/request': async (options) => { calls.push(plain(options)); return response(options) },
     '../../utils/format': format, '../../utils/legal': legal,
+    '../../utils/category-product': require('../utils/category-product'),
+    '../../utils/session': { getToken: () => loggedIn ? 'test-token' : '' },
     '../../utils/theme': { pageData: () => ({}), apply: async () => ({}), sync() {} },
     '../../utils/auth': { requireLogin: (url) => { logins.push(url); return loggedIn } },
     '../../utils/cart': { add: (row) => cart.push(row), selectOnly() {} }

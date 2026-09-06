@@ -35,6 +35,13 @@ public interface DmsShopProductDao {
     List<DmsShopProduct> selectRepurchaseList(@Param("tenantId") Long tenantId,
                                               @Param("keyword") String keyword);
 
+    List<DmsShopProduct> selectFrontSortedList(@Param("tenantId") Long tenantId,
+                                               @Param("keyword") String keyword,
+                                               @Param("categoryName") String categoryName,
+                                               @Param("status") Integer status,
+                                               @Param("stockStatus") String stockStatus,
+                                               @Param("sortMode") String sortMode);
+
     List<DmsShopProduct> selectNewArrivals(@Param("tenantId") Long tenantId,
                                            @Param("cutoff") LocalDateTime cutoff,
                                            @Param("limit") Integer limit);

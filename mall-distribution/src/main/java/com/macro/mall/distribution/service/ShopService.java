@@ -42,6 +42,10 @@ public interface ShopService {
                                                Integer status, String stockStatus,
                                                Integer pageNum, Integer pageSize);
 
+    CommonPage<DmsShopProduct> listProductPage(Long tenantId, String keyword, String categoryName,
+                                               Integer status, String stockStatus,
+                                               Integer pageNum, Integer pageSize, String sortMode);
+
     CommonPage<DmsShopProduct> listAdminProductPage(Long tenantId, String keyword, String categoryName,
                                                     Integer status, String stockStatus,
                                                     Integer pageNum, Integer pageSize);

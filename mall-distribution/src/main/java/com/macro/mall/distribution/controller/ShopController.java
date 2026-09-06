@@ -597,10 +597,11 @@ public class ShopController {
                                                              @RequestParam(required = false) Integer status,
                                                              @RequestParam(required = false) String stockStatus,
                                                              @RequestParam(defaultValue = "1") Integer pageNum,
-                                                             @RequestParam(defaultValue = "12") Integer pageSize) {
+                                                             @RequestParam(defaultValue = "12") Integer pageSize,
+                                                             @RequestParam(defaultValue = "default") String sortMode) {
         // 前台不接受 tenantId 参数，使用默认租户
         return CommonResult.success(shopService.listProductPage(
-                null, keyword, categoryName, status, stockStatus, pageNum, pageSize));
+                null, keyword, categoryName, status, stockStatus, pageNum, pageSize, sortMode));
     }
 
     @Operation(summary = "后台完整商品列表（包含复购专属商品）")

@@ -28,19 +28,31 @@
       </block>
       <block wx:if="{{browsingAll || !guideEnabled || !guideHasContent || searchedKeyword || active || (guideTemplate === 'directory' && guide.hotProducts) || (guideTemplate === 'showcase' && guide.recommendedProducts) || (guideTemplate === 'scenario' && guide.popularProducts)}}">
       <view class="result-head"><text>{{searchedKeyword ? '搜索结果' : active || (guideEnabled && guideHasContent && !browsingAll ? (guideTemplate === 'showcase' ? '推荐商品' : '人气好物') : '全部商品')}}</text><text>共 {{total}} 件</text></view>
+      <view class="sort-tabs" aria-label="商品排序">
+        <button class="sort-tab {{sortMode === 'default' ? 'selected' : ''}}" data-mode="default" bindtap="changeSort">综合</button>
+        <button class="sort-tab {{sortMode === 'sales' ? 'selected' : ''}}" data-mode="sales" bindtap="changeSort">销量</button>
+        <button class="sort-tab {{sortMode === 'priceAsc' || sortMode === 'priceDesc' ? 'selected' : ''}}" data-mode="price" bindtap="changeSort">{{sortMode === 'priceAsc' ? '价格从低到高' : sortMode === 'priceDesc' ? '价格从高到低' : '价格'}}</button>
+      </view>
       <button wx:if="{{guideEnabled && (active || searchedKeyword || browsingAll)}}" class="guide-back secondary-button" bindtap="clearFilter">返回分类导购</button>
       <view wx:if="{{loading}}" class="empty">正在加载…</view>
       <view wx:elif="{{error}}" class="empty category-empty"><text>商品加载失败</text><text>{{error}}</text><button class="secondary-button" bindtap="retry">重新加载</button></view>
       <view wx:elif="{{products.length}}" class="category-product-list">
-        <view class="category-product-card" wx:for="{{guideEnabled && guideHasContent && !searchedKeyword && !active && !browsingAll && guideTemplate !== 'showcase' ? hotProducts : products}}" wx:key="id" data-id="{{item.id}}" bindtap="openProduct" aria-role="button" aria-label="{{item.productName}}，价格{{item.priceText}}元">
-          <view class="category-product-media">
+        <view class="category-product-card" wx:for="{{guideEnabled && guideHasContent && !searchedKeyword && !active && !browsingAll && guideTemplate !== 'showcase' ? hotProducts : products}}" wx:key="id">
+          <view class="category-product-media" data-id="{{item.id}}" bindtap="openProduct" aria-role="button" aria-label="查看{{item.productName}}详情">
             <view wx:if="{{!item.coverUrl || item.imageFailed}}" class="media-fallback"><image src="/assets/lingqi-logo-mark.png" mode="aspectFit" /></view>
             <image wx:else class="product-cover" src="{{item.coverUrl}}" mode="aspectFill" lazy-load data-id="{{item.id}}" binderror="productImageError" />
+            <view wx:if="{{item.soldOut}}" class="sold-out-label">已售罄</view>
           </view>
           <view class="product-copy">
-            <view class="product-title">{{item.productName}}</view>
-            <view wx:if="{{item.subtitle}}" class="product-subtitle">{{item.subtitle}}</view>
-            <view class="product-price"><text>¥</text>{{item.priceText}}</view>
+            <view class="product-description" data-id="{{item.id}}" bindtap="openProduct" aria-role="button" aria-label="查看{{item.productName}}详情">
+              <view class="product-title">{{item.productName}}</view>
+              <view wx:if="{{item.subtitle}}" class="product-subtitle">{{item.subtitle}}</view>
+            </view>
+            <view wx:if="{{item.salesText}}" class="product-sales">{{item.salesText}}</view>
+            <view class="purchase-row">
+              <view class="product-price" aria-label="价格{{item.priceText}}元"><text class="currency">¥</text><text class="price-integer">{{item.priceInteger}}</text><text class="price-decimal">.{{item.priceDecimal}}</text></view>
+              <button class="quick-cart-button {{item.soldOut || !!addingId ? 'is-disabled' : ''}}" data-id="{{item.id}}" catchtap="quickAdd" disabled="{{item.soldOut || !!addingId}}" loading="{{addingId === '' + item.id}}" aria-label="{{item.soldOut ? '已售罄' : '加入购物车：' + item.productName}}">{{item.soldOut ? '已售罄' : addingId === '' + item.id ? '加购中' : '立即加购'}}</button>
+            </view>
           </view>
         </view>
       </view>
@@ -63,5 +75,16 @@
       <view wx:elif="{{error}}" class="empty"><text>{{error}}</text><button class="secondary-button" bindtap="retry">重新加载</button></view>
       <button wx:if="{{guideEnabled && !active && !searchedKeyword && !browsingAll}}" class="secondary-button guide-back" bindtap="showAll">查看全部商品</button>
     </scroll-view>
+  </view>
+  <view wx:if="{{skuVisible}}" class="sku-overlay" catchtap="closeSku" catchtouchmove="stopTap">
+    <view class="sku-sheet" catchtap="stopTap" role="dialog" aria-label="选择商品规格">
+      <view class="sku-heading"><text>选择规格</text><button class="sku-close" bindtap="closeSku" disabled="{{confirming}}">关闭</button></view>
+      <view class="sku-product-name">{{skuProduct.productName}}</view>
+      <view class="sku-price">{{selectedSkuId ? '¥' + selectedPrice : '请选择规格查看价格'}}</view>
+      <scroll-view scroll-y class="sku-options">
+        <button wx:for="{{skuOptions}}" wx:key="id" class="sku-option {{selectedSkuId === '' + item.id ? 'selected' : ''}} {{item.stock <= 0 || confirming ? 'is-disabled' : ''}}" data-id="{{item.id}}" bindtap="selectCartSku" disabled="{{item.stock <= 0 || confirming}}">{{item.skuName || item.specName || '商品规格'}} · ¥{{item.priceText}}{{item.stock <= 0 ? '（售罄）' : ''}}</button>
+      </scroll-view>
+      <button class="primary-button sku-confirm" bindtap="confirmSku" loading="{{confirming}}" disabled="{{confirming}}">{{confirming ? '正在确认' : '确认加入购物车'}}</button>
+    </view>
   </view>
 </view>

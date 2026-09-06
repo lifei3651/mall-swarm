@@ -89,7 +89,7 @@
         FOR UPDATE
     </select>
 
-    <select id="selectFrontList" resultMap="BaseResultMap">
+    <sql id="Front_Product_Query">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_product
         <where>
@@ -111,7 +111,21 @@
                 AND stock &gt; safety_stock AND NOT EXISTS (SELECT 1 FROM dms_shop_sku sku WHERE sku.product_id=dms_shop_product.id AND sku.status=1 AND sku.stock &lt;= COALESCE(NULLIF(sku.safety_stock,0),dms_shop_product.safety_stock))
             </if>
         </where>
+    </sql>
+
+    <select id="selectFrontList" resultMap="BaseResultMap">
+        <include refid="Front_Product_Query"/>
         ORDER BY status DESC, sort_order DESC, id DESC
+    </select>
+
+    <select id="selectFrontSortedList" resultMap="BaseResultMap">
+        <include refid="Front_Product_Query"/>
+        <choose>
+            <when test="sortMode == 'sales'">ORDER BY sales_count DESC, id DESC</when>
+            <when test="sortMode == 'priceAsc'">ORDER BY sale_price ASC, id DESC</when>
+            <when test="sortMode == 'priceDesc'">ORDER BY sale_price DESC, id DESC</when>
+            <otherwise>ORDER BY status DESC, sort_order DESC, id DESC</otherwise>
+        </choose>
     </select>
 
     <select id="selectRepurchaseList" resultMap="BaseResultMap">
