@@ -1,4 +1,4 @@
-<view class="navigation" style="{{themeStyle}};background:var(--paper)">
+<view wx:if="{{!hidden}}" class="navigation" style="{{themeStyle}};background:var(--paper)">
   <button wx:for="{{bottomNav}}" wx:key="type" class="nav-item {{active === item.type ? 'selected' : ''}}" data-type="{{item.type}}" bindtap="navigate" aria-label="{{item.label}}" aria-current="{{active === item.type ? 'page' : 'false'}}">
     <view wx:if="{{item.type === 'orders'}}" class="orders-icon"><text>≡</text></view>
     <image wx:else class="nav-icon" src="{{item.icon}}" mode="aspectFit" />

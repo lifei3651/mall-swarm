@@ -9,22 +9,22 @@ const legal = require('../utils/legal')
 const source = (file) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
 const version = 'MINI_PROGRAM_PRIVACY_V1'
 const ready = { enabled: true, phoneAuthorizationEnabled: true, privacyConsentVersion: version }
-function harness(runtime, { token = '', response = {} } = {}) {
-  let definition
+function harness(runtime, { token = '', response = { accessToken: 'test-session' } } = {}) {
+  const module = { exports: {} }
   const calls = [], notices = [], navigations = []
   const mocks = {
-    '../../utils/auth': { runtime, login: async (data) => { calls.push(data); return response } },
-    '../../utils/session': { getToken: () => token },
-    '../../utils/invite': { getPendingInvite: () => 'TESTINVITE' },
-    '../../config/runtime': { PRIVACY_CONSENT_VERSION: version },
-    '../../utils/theme': { pageData: () => ({}), apply() {} }
+    './auth': { runtime, login: async (data) => { calls.push(data); if (response.accessToken) token = response.accessToken; return response } },
+    './session': { getToken: () => token },
+    './invite': { getPendingInvite: () => 'TESTINVITE' },
+    '../config/runtime': { PRIVACY_CONSENT_VERSION: version },
+    './theme': { pageData: () => ({}), apply() {} }
   }
-  vm.runInNewContext(source('pages/login/index.js'), {
-    Page(value) { definition = value }, require: (id) => { assert.ok(mocks[id], id); return mocks[id] },
+  vm.runInNewContext(source('utils/login-flow.js'), {
+    module, require: (id) => { assert.ok(mocks[id], id); return mocks[id] },
     wx: { showToast: (value) => notices.push(value), navigateTo: (value) => navigations.push(value),
       redirectTo: (value) => navigations.push(value), switchTab: (value) => navigations.push(value) }, setTimeout() {}
   })
-  const page = { ...definition, data: { ...definition.data }, setData(patch) { Object.assign(this.data, patch) } }
+  const page = { ...module.exports, data: { ...module.exports.data }, setData(patch) { Object.assign(this.data, patch) } }
   return { page, calls, notices, navigations }
 }
 
@@ -37,6 +37,7 @@ test('用户取消或拒绝手机号授权是可恢复提示，不误报首次�
     assert.equal(calls.length, 0)
     assert.equal(page.data.error, '')
     assert.match(page.data.loginNotice, /取消.*重新选择/)
+    assert.equal(page.data.showLoginHelp, true, '取消手机号后仍可主动使用已关联的微信账号')
     assert.doesNotMatch(page.data.loginNotice, /首次注册/)
     assert.equal(page.data.submitting, false)
   }
@@ -135,7 +136,7 @@ test('未知手机号失败保留安全的通用恢复提示，不回显微信�
   assert.equal(page.data.showLoginHelp, true)
 })
 
-test('协议移到操作区下方，未同意时两个入口都只提示而不登录或授权', async () => {
+test('协议移到操作区下方，未同意时统一入口只提示而不登录或授权', async () => {
   const { page, calls, notices } = harness(async () => ready)
   await page.loadRuntime()
   assert.equal(page.data.agreed, false)
@@ -146,8 +147,8 @@ test('协议移到操作区下方，未同意时两个入口都只提示而不�
   assert.equal(page.data.agreed, false)
   assert.equal(page.data.agreementRequired, true)
   assert.ok(notices.every((item) => /请先阅读/.test(item.title)))
-  const view = source('pages/login/index.wxml')
-  assert.ok(view.indexOf('class="agreement ') > view.lastIndexOf('手机号快捷登录 / 注册</button>'))
+  const view = source('components/login-sheet/index.wxml')
+  assert.ok(view.indexOf('class="agreement ') > view.lastIndexOf('手机号快捷登录</button>'))
   assert.match(view, /<button wx:if="\{\{agreed\}\}"[^>]*open-type="getPhoneNumber"/)
   assert.match(view, /<button wx:else[^>]*bindtap="requireAgreement"/)
   assert.match(view, /checked="\{\{agreed\}\}"/)
@@ -177,7 +178,7 @@ test('登录服务未就绪时准确提示服务状态，不误报只关闭了�
   assert.equal(page.data.enabled, false)
   assert.equal(page.data.phoneEnabled, false)
   assert.match(page.data.error, /登录服务暂未就绪/)
-  const view = source('pages/login/index.wxml')
+  const view = source('components/login-sheet/index.wxml')
   assert.doesNotMatch(view, /首次使用注册功能暂未开放/)
   assert.match(view, /bindtap="loadRuntime"/)
 })

@@ -1,0 +1,35 @@
+<view wx:if="{{visible}}" class="login-shell {{presentation === 'page' ? 'login-full-page' : 'login-modal'}}" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}};{{presentation !== 'page' ? 'background:transparent' : ''}}">
+  <view wx:if="{{presentation !== 'page'}}" class="login-backdrop" bindtap="close" catchtouchmove="stop" aria-hidden="true" />
+  <view class="login-panel" role="dialog" aria-label="商城账号登录" aria-modal="true">
+    <view class="login-heading">
+      <image class="login-logo" src="{{brandLogo && !logoFailed ? brandLogo : '/assets/lingqi-logo-mark.png'}}" binderror="logoError" mode="aspectFit" aria-hidden="true" />
+      <text class="login-title">{{presentation === 'page' ? brandName : '商城账号登录'}}</text>
+      <button class="close-button" bindtap="close" disabled="{{submitting}}" aria-label="关闭登录，返回商城">关闭</button>
+    </view>
+    <view class="login-content">
+      <view wx:if="{{contextHint}}" class="login-context">登录后{{contextHint}}</view>
+      <view wx:if="{{loading}}" class="login-loading">正在检查商城配置…</view>
+      <block wx:else>
+        <block wx:if="{{phoneEnabled}}">
+          <button wx:if="{{agreed}}" class="login-button" open-type="getPhoneNumber" loading="{{submitting}}" disabled="{{submitting || !enabled}}" bindgetphonenumber="phoneLogin">手机号快捷登录</button>
+          <button wx:else class="login-button" disabled="{{submitting || !enabled}}" bindtap="requireAgreement">手机号快捷登录</button>
+        </block>
+        <button wx:else class="login-button" loading="{{submitting}}" disabled="{{submitting || !enabled}}" bindtap="returningLogin">商城账号登录</button>
+        <view class="agreement {{agreementRequired ? 'agreement-required' : ''}}">
+          <checkbox-group bindchange="agreementChange" class="agreement-control"><checkbox class="agreement-checkbox" value="agreed" checked="{{agreed}}" disabled="{{submitting}}" color="{{themeColor}}" aria-label="我已阅读并同意用户服务协议和隐私政策" /></checkbox-group>
+          <view class="agreement-copy"><text>我已阅读并同意</text><text class="privacy-link" bindtap="openAgreement" role="link">《用户服务协议》</text><text>和</text><text class="privacy-link" bindtap="openPrivacy" role="link">《隐私政策》</text></view>
+        </view>
+        <view wx:if="{{agreementRequired && !agreed}}" class="agreement-hint">请先阅读并勾选同意以上协议</view>
+        <view wx:if="{{inviteCode}}" class="invite-tip"><text>已识别邀请码 {{inviteCode}}</text><text class="invite-caption">仅在首次注册时按商城规则绑定</text></view>
+        <view wx:if="{{enabled && !phoneEnabled}}" class="login-notice">手机号快捷登录暂不可用，已关联此微信的商城账号仍可登录。</view>
+        <view wx:if="{{loginNotice}}" class="login-notice">{{loginNotice}}</view>
+        <view wx:if="{{error}}" class="login-error" role="alert">{{error}}</view>
+        <view wx:if="{{!enabled || !phoneEnabled || showLoginHelp}}" class="login-help">
+          <button wx:if="{{enabled && phoneEnabled && showLoginHelp}}" class="help-button" disabled="{{submitting}}" bindtap="returningLogin">使用已关联微信登录</button>
+          <button class="help-button" disabled="{{submitting}}" bindtap="loadRuntime">重新检查服务</button>
+          <button class="help-button" disabled="{{submitting}}" open-type="contact">联系商城客服</button>
+        </view>
+      </block>
+    </view>
+  </view>
+</view>

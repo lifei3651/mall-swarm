@@ -1,11 +1,13 @@
 .profile-page { min-height: 100vh; padding: 12rpx 32rpx calc(144rpx + env(safe-area-inset-bottom)); }
-.profile-header { display: flex; align-items: center; min-height: 184rpx; padding: 24rpx 0 32rpx; gap: 20rpx; }
+.profile-page .profile-header { display: flex; align-items: center; width: 100%; min-height: 176rpx; margin: 0; padding: 24rpx 0 32rpx; gap: 24rpx; border-radius: 16rpx; background: transparent; text-align: left; }
 .avatar { display: flex; flex: none; align-items: center; justify-content: center; width: 96rpx; height: 96rpx; border-radius: 50%; background: var(--paper); }
 .avatar image { display: block; width: 52rpx; height: 52rpx; opacity: .7; }
+.avatar-loaded { overflow: hidden; }
+.avatar-loaded image { width: 100%; height: 100%; opacity: 1; }
+.account-arrow { flex: none; width: 30rpx; height: 30rpx; margin-left: 12rpx; opacity: .5; }
 .profile-copy { flex: 1; min-width: 0; }
 .profile-name { display: block; overflow: hidden; color: var(--ink); font-size: 36rpx; font-weight: 600; line-height: 52rpx; white-space: nowrap; text-overflow: ellipsis; }
 .profile-subtitle { display: block; margin-top: 4rpx; overflow: hidden; color: var(--muted); font-size: 23rpx; line-height: 34rpx; white-space: nowrap; text-overflow: ellipsis; }
-.profile-page .login-small { flex: none; display: flex; align-items: center; justify-content: center; width: auto; min-height: 88rpx; margin: 0; padding: 16rpx 22rpx; border-radius: 18rpx; background: var(--button); color: #fff; font-size: 24rpx; font-weight: 500; line-height: 36rpx; box-shadow: none; }
 .profile-page .card { overflow: hidden; border: 0; border-radius: var(--radius); box-shadow: none; }
 .panel-head { display: flex; align-items: center; justify-content: space-between; min-height: 90rpx; padding: 12rpx 28rpx; }
 .panel-title { color: var(--ink); font-size: 30rpx; font-weight: 600; line-height: 44rpx; }
@@ -34,5 +36,4 @@
   .profile-header { gap: 16rpx; }
   .avatar { width: 84rpx; height: 84rpx; }
   .profile-name { font-size: 34rpx; }
-  .profile-page .login-small { padding-left: 16rpx; padding-right: 16rpx; }
 }

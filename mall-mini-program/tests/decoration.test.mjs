@@ -141,6 +141,9 @@ test('导航按固定页面跳转，订单仍是普通页面，未知配置不�
   const component = { ...definition.methods, data: { active: 'home', bottomNav: display.navigation(wrap({ bottomNav: [{ type: 'orders', enabled: true }] })) } }
   for (const type of ['category', 'orders', 'evil', 'home']) component.navigate({ currentTarget: { dataset: { type } } })
   assert.deepEqual(calls, [['tab', '/pages/category/index'], ['page', '/pages/orders/index']])
+  component.data.hidden = true
+  component.navigate({ currentTarget: { dataset: { type: 'category' } } })
+  assert.equal(calls.length, 2, '登录弹窗打开时不得穿透触发底部导航')
 })
 test('分类快速切换时忽略旧响应，避免名称与商品列表错配', async () => {
   const requests = [deferred(), deferred()]; let i = 0

@@ -1,12 +1,13 @@
-<view class="profile-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
-  <view class="profile-header">
-    <view class="avatar" bindtap="security" role="button" aria-label="{{loggedIn ? '编辑头像和昵称' : '商城账号登录'}}"><image src="{{avatarSrc}}" mode="aspectFill" aria-hidden="true" /></view>
+<page-meta page-style="{{loginVisible ? 'overflow:hidden' : ''}}" />
+<view class="profile-page" aria-hidden="{{loginVisible}}" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
+  <button class="profile-header" bindtap="accountEntry" hover-class="row-pressed" aria-label="{{loggedIn ? '编辑头像、昵称和个人资料' : '商城账号登录'}}">
+    <view class="avatar {{loggedIn && avatarSrc !== '/assets/profile/user-round.png' ? 'avatar-loaded' : ''}}"><image src="{{avatarSrc}}" mode="aspectFill" aria-hidden="true" /></view>
     <view class="profile-copy">
-      <text class="profile-name">{{loggedIn ? (member.nickname || '商城会员') : '还未登录'}}</text>
-      <text class="profile-subtitle">{{loggedIn ? (member.phone || '欢迎回来') : '欢迎来到商城'}}</text>
+      <text class="profile-name">{{loggedIn ? (member.nickname || '商城账号') : '商城账号登录'}}</text>
+      <text wx:if="{{loggedIn}}" class="profile-subtitle">个人资料</text>
     </view>
-    <button wx:if="{{!loggedIn}}" class="login-small" bindtap="login" hover-class="button-pressed">商城账号登录</button>
-  </view>
+    <image class="account-arrow" src="/assets/profile/chevron-right.png" mode="aspectFit" aria-hidden="true" />
+  </button>
   <view class="order-panel card">
     <view class="panel-head">
       <text class="panel-title">我的订单</text>
@@ -55,3 +56,5 @@
   <button class="legal-link" bindtap="legal">用户协议 · 隐私政策 · 商城资质</button>
   <button wx:if="{{loggedIn}}" class="logout" bindtap="logout" hover-class="row-pressed">退出登录</button>
 </view>
+<login-sheet id="login-sheet" bindsuccess="authorized" bindclose="loginClosed" />
+<privacy-consent id="privacy-consent" />

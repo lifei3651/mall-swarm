@@ -8,7 +8,7 @@ const zeroSummary = { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, 
 const plain = (value) => JSON.parse(JSON.stringify(value))
 
 function loadProfile({ token = '', member = null, respond } = {}) {
-  const calls = [], navigations = [], modals = [], stored = []
+  const calls = [], navigations = [], modals = [], stored = [], panels = []
   let definition, cleared = 0, themeApplied = 0
   const session = {
     getToken: () => token,
@@ -38,8 +38,8 @@ function loadProfile({ token = '', member = null, respond } = {}) {
       setStorageSync: (key, value) => stored.push([key, plain(value)])
     }
   }, { filename: sourceUrl.pathname })
-  const page = { ...definition, data: plain(definition.data), setData(patch) { Object.assign(this.data, plain(patch)) } }
-  return { page, calls, navigations, modals, stored, cleared: () => cleared, themeApplied: () => themeApplied }
+  const page = { ...definition, data: plain(definition.data), selectComponent() { return { open: (url) => panels.push(url) } }, setData(patch) { Object.assign(this.data, plain(patch)) } }
+  return { page, calls, navigations, modals, stored, panels, cleared: () => cleared, themeApplied: () => themeApplied }
 }
 
 test('个人中心游客刷新不请求账户接口，并清空上一个账号资料和角标', async () => {
@@ -67,8 +67,43 @@ test('个人中心每次显示都会刷新账户状态并应用商城主题', ()
   assert.equal(harness.themeApplied(), 2)
 })
 
-test('个人中心游客点击受保护入口只跳登录，并保留原始目标及订单筛选', () => {
-  const { page, navigations, calls } = loadProfile()
+test('整行账号入口：游客开弹窗，会员进入个人资料；关闭后恢复页面', () => {
+  const guest = loadProfile()
+  const tabVisibility = []
+  guest.page.getTabBar = () => ({ setData: ({ hidden }) => tabVisibility.push(hidden) })
+  guest.page.accountEntry()
+  assert.deepEqual(guest.panels, [''])
+  assert.equal(guest.page.data.loginVisible, true)
+  assert.deepEqual(guest.navigations, [])
+  guest.page.loginClosed()
+  assert.equal(guest.page.data.loginVisible, false)
+  assert.deepEqual(tabVisibility, [true, false], '弹窗期间隐藏底部导航，关闭后恢复')
+  const member = loadProfile({ token: 'test-token' })
+  member.page.setData({ loggedIn: true })
+  member.page.accountEntry()
+  assert.deepEqual(member.navigations, ['/pages/account-security/index'])
+  assert.deepEqual(member.panels, [])
+})
+
+test('弹窗完成必须有会话；刷新同一头像区域并只恢复受控业务目标', () => {
+  const guest = loadProfile()
+  guest.page.refresh = () => assert.fail('无会话不得刷新为已登录')
+  guest.page.authorized({ detail: { redirect: '/pages/orders/index' } })
+  assert.deepEqual(guest.navigations, [])
+  const member = loadProfile({ token: 'test-token' })
+  let refreshed = 0
+  member.page.refresh = () => { refreshed++ }
+  for (const redirect of ['', '/pages/profile/index', 'https://example.com', '/pages/orders/index?tab=pending-payment']) {
+    member.page.setData({ loginVisible: true })
+    member.page.authorized({ detail: { redirect } })
+    assert.equal(member.page.data.loginVisible, false)
+  }
+  assert.equal(refreshed, 4)
+  assert.deepEqual(member.navigations, ['/pages/orders/index?tab=pending-payment'])
+})
+
+test('个人中心游客点击受保护入口只开登录弹窗，并保留原始目标及订单筛选', () => {
+  const { page, navigations, calls, panels } = loadProfile()
   for (const handler of ['security', 'messages', 'orders', 'addresses', 'payout', 'wallet', 'service']) page[handler]()
   const tabs = ['pending-payment', 'pending-shipment', 'pending-receipt', 'after-sale']
   for (const tab of tabs) {
@@ -77,17 +112,18 @@ test('个人中心游客点击受保护入口只跳登录，并保留原始目�
   const targets = ['/pages/account-security/index', '/pages/messages/index', '/pages/orders/index',
     '/pages/address/index', '/pages/payout/index', '/pages/wallet/index', '/pages/orders/index?tab=after-sale',
     ...tabs.map((tab) => `/pages/orders/index?tab=${tab}`)]
-  assert.deepEqual(navigations, targets.map((url) => `/pages/login/index?redirect=${encodeURIComponent(url)}`))
+  assert.deepEqual(panels, targets)
+  assert.deepEqual(navigations, [])
   assert.deepEqual(calls, [])
 })
 
 test('个人中心过期登录显示不能绕过门禁，非法订单筛选回落全部订单', () => {
-  const { page, navigations } = loadProfile()
+  const { page, navigations, panels } = loadProfile()
   page.setData({ loggedIn: true })
   page.addresses()
   page.orderTab({ currentTarget: { dataset: { tab: 'all&orderId=other' } } })
-  assert.deepEqual(navigations, ['/pages/address/index', '/pages/orders/index?tab=all']
-    .map((url) => `/pages/login/index?redirect=${encodeURIComponent(url)}`))
+  assert.deepEqual(panels, ['/pages/address/index', '/pages/orders/index?tab=all'])
+  assert.deepEqual(navigations, [])
 })
 
 test('个人中心登录后保留消息、订单、地址、收款及售后正确入口', () => {
@@ -138,11 +174,12 @@ test('个人中心加载本人信息、真实订单角标、未读消息和待�
 
 test('个人中心账户读取失败时不继续显示旧会员或交易计数', async () => {
   const { page, calls } = loadProfile({ token: 'expired-test-token', member: { nickname: '旧会员' }, respond: () => { throw new Error('Unauthorized') } })
-  page.setData({ loggedIn: true, unreadCount: 8, unreadText: '8', payoutCount: 3,
+  page.setData({ loggedIn: true, avatarSrc: 'wxfile://previous-member-avatar', unreadCount: 8, unreadText: '8', payoutCount: 3,
     orderSummary: { pendingPayment: 1, pendingShipment: 2, pendingReceipt: 3, afterSale: 4 } })
   await page.refresh()
   assert.equal(page.data.loggedIn, false)
   assert.equal(page.data.member, null)
+  assert.equal(page.data.avatarSrc, '/assets/profile/user-round.png')
   assert.equal(page.data.unreadCount, 0)
   assert.equal(page.data.unreadText, '')
   assert.equal(page.data.payoutCount, 0)
@@ -189,7 +226,7 @@ test('个人中心视觉布局保留四个可读订单入口、登录、常用�
   assert.deepEqual(shortcuts.map((tag) => attribute(tag, 'data-tab')).sort(),
     ['pending-payment', 'pending-shipment', 'pending-receipt', 'after-sale'].sort())
   for (const tag of shortcuts) assert.ok(attribute(tag, 'aria-label'), '订单入口保留可读操作名称')
-  for (const handler of ['login', 'orders', 'messages', 'addresses', 'payout', 'logout']) {
+  for (const handler of ['accountEntry', 'orders', 'messages', 'addresses', 'payout', 'logout']) {
     assert.ok(tags.some((tag) => attribute(tag, 'bindtap') === handler), `保留 ${handler} 点击绑定`)
   }
   const contact = tags.find((tag) => attribute(tag, 'open-type') === 'contact')

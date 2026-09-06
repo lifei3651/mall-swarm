@@ -1,3 +1,4 @@
 {
-  "navigationBarTitleText": "商城账号登录"
+  "navigationBarTitleText": "商城账号登录",
+  "usingComponents": { "login-sheet": "/components/login-sheet/index" }
 }

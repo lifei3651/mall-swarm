@@ -6,10 +6,10 @@ const avatar = require('../../utils/member-avatar')
 Page({
   data: {
     ...theme.pageData(),
-    loggedIn: false, member: null, avatarSrc: avatar.fallback, unreadCount: 0, unreadText: '', payoutCount: 0,
+    loggedIn: false, member: null, loginVisible: false, avatarSrc: avatar.fallback, unreadCount: 0, unreadText: '', payoutCount: 0,
     orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, afterSale: 0 }
   },
-  onShow() { theme.apply(this); this.refresh() },
+  onShow() { theme.apply(this); this.setLoginVisible(this.data.loginVisible); this.refresh() },
   onHide() { this.refreshVersion = (this.refreshVersion || 0) + 1; avatar.release(this.data.avatarSrc); this.setData({ avatarSrc: avatar.fallback }) },
   onUnload() { this.onHide() },
   async refresh() {
@@ -39,8 +39,9 @@ Page({
       await Promise.all([this.loadUnread(), this.loadPayoutCount(), this.loadOrderSummary()])
     } catch (_) {
       if (version !== this.refreshVersion || session.getToken() !== token) return
+      avatar.release(this.data.avatarSrc)
       this.setData({
-        loggedIn: false, member: null, unreadCount: 0, unreadText: '', payoutCount: 0,
+        loggedIn: false, member: null, avatarSrc: avatar.fallback, unreadCount: 0, unreadText: '', payoutCount: 0,
         orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, afterSale: 0 }
       })
     }
@@ -72,7 +73,31 @@ Page({
       this.setData({ orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, afterSale: 0 } })
     }
   },
-  login() { wx.navigateTo({ url: '/pages/login/index' }) },
+  accountEntry() {
+    if (this.data.loggedIn && session.getToken()) this.security()
+    else this.login()
+  },
+  login(redirect = '') {
+    const panel = this.selectComponent('#login-sheet')
+    if (!panel) { wx.showToast({ title: '登录入口加载中，请稍后重试', icon: 'none' }); return }
+    this.setLoginVisible(true)
+    panel.open(redirect)
+  },
+  setLoginVisible(visible) {
+    this.setData({ loginVisible: visible })
+    const tab = typeof this.getTabBar === 'function' && this.getTabBar()
+    if (tab) tab.setData({ hidden: visible })
+  },
+  loginClosed() { this.setLoginVisible(false) },
+  authorized(event) {
+    this.loginClosed()
+    if (!session.getToken()) return
+    this.refresh()
+    const redirect = event && event.detail && event.detail.redirect
+    const allowed = new Set(['/pages/account-security/index', '/pages/messages/index', '/pages/orders/index',
+      '/pages/address/index', '/pages/payout/index', '/pages/wallet/index'])
+    if (typeof redirect === 'string' && allowed.has(redirect.split('?')[0])) wx.navigateTo({ url: redirect })
+  },
   legal() { wx.navigateTo({ url: '/pages/legal/index' }) },
   openMemberPage(url) { if (this.requireLogin(url)) wx.navigateTo({ url }) },
   security() { this.openMemberPage('/pages/account-security/index') },
@@ -89,7 +114,7 @@ Page({
   service() { this.openMemberPage('/pages/orders/index?tab=after-sale') },
   requireLogin(redirect = '/pages/profile/index') {
     if (this.data.loggedIn && session.getToken()) return true
-    wx.navigateTo({ url: `/pages/login/index?redirect=${encodeURIComponent(redirect)}` })
+    this.login(redirect)
     return false
   },
   logout() {

@@ -25,11 +25,11 @@ for (const file of walk(root).filter((item) => item.endsWith('.js'))) {
 const runtime = readFileSync(join(root, 'config/runtime.js'), 'utf8')
 if (!runtime.includes("API_BASE_URL: 'https://")) throw new Error('小程序 API 必须使用 HTTPS 域名')
 if (runtime.includes('APP_SECRET')) throw new Error('小程序前端禁止保存 AppSecret')
-const loginPage = readFileSync(join(root, 'pages/login/index.js'), 'utf8')
+const loginPage = readFileSync(join(root, 'utils/login-flow.js'), 'utf8')
 if (!loginPage.includes('runtime.privacyConsentVersion !== runtimeConfig.PRIVACY_CONSENT_VERSION')) {
   throw new Error('小程序登录必须阻止前后端隐私版本不一致')
 }
-for (const file of walk(join(root, 'pages')).filter((item) => item.endsWith('.wxml'))) {
+for (const file of walk(root).filter((item) => item.endsWith('.wxml'))) {
   const view = readFileSync(file, 'utf8')
   if (/奖金|团队层级|余额互转/.test(view)) throw new Error(`公开小程序出现不允许展示的业务词：${file}`)
   for (const tag of view.match(/<[^>]+>/g) || []) {

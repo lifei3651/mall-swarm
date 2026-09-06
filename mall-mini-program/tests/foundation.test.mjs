@@ -119,7 +119,7 @@ test('WXML 条件兜底与列表循环使用独立节点，避免微信编译器
 
 test('登录完成后可以正确返回购物车等 tab 页面', async () => {
   const fs = await import('node:fs/promises')
-  const page = await fs.readFile(new URL('../pages/login/index.js', import.meta.url), 'utf8')
+  const page = await fs.readFile(new URL('../utils/login-flow.js', import.meta.url), 'utf8')
   assert.match(page, /tabPages\.has\(pagePath\)/)
   assert.match(page, /wx\.switchTab\(\{ url: pagePath \}\)/)
 })
@@ -195,9 +195,9 @@ test('小程序主导航使用真实中性图标且登录主操作保持全宽',
     assert.ok(normal.size > 100)
     assert.ok(selected.size > 100)
   }
-  const loginStyle = await fs.readFile(new URL('../pages/login/index.wxss', import.meta.url), 'utf8')
+  const loginStyle = await fs.readFile(new URL('../components/login-sheet/index.wxss', import.meta.url), 'utf8')
   assert.match(loginStyle, /\.login-button\s*\{[^}]*width:\s*100%/s)
-  assert.match(loginStyle, /\.login-page \.register-button\s*\{[^}]*font-size:\s*26rpx;[^}]*font-weight:\s*400;/s)
+  assert.doesNotMatch(loginStyle, /register-button/)
 })
 
 test('个人中心使用紧凑图标入口并保留可访问标签和后台主题', async () => {
@@ -208,7 +208,7 @@ test('个人中心使用紧凑图标入口并保留可访问标签和后台主�
   assert.match(view, /aria-label="管理收货地址"/)
   assert.match(view, /open-type="contact"/)
   assert.match(style, /grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/)
-  assert.match(style, /background:\s*var\(--button\)/)
+  assert.match(style, /background:\s*var\(--paper\)/)
   assert.match(style, /white-space:\s*nowrap/)
   assert.match(style, /\.order-shortcuts button\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*100%;/)
   assert.doesNotMatch(view, /订单中心|shortcut-note|经营主体、隐私政策与支付资料均由/)
@@ -218,7 +218,7 @@ test('个人中心使用紧凑图标入口并保留可访问标签和后台主�
 test('小程序第二轮视觉收口保持清晰的登录、订单、地址与结算层级', async () => {
   const fs = await import('node:fs/promises')
   const loginConfig = JSON.parse(await fs.readFile(new URL('../pages/login/index.json', import.meta.url), 'utf8'))
-  const loginView = await fs.readFile(new URL('../pages/login/index.wxml', import.meta.url), 'utf8')
+  const loginView = await fs.readFile(new URL('../components/login-sheet/index.wxml', import.meta.url), 'utf8')
   const profilePage = await fs.readFile(new URL('../pages/profile/index.js', import.meta.url), 'utf8')
   const profileView = await fs.readFile(new URL('../pages/profile/index.wxml', import.meta.url), 'utf8')
   const addressPage = await fs.readFile(new URL('../pages/address/index.js', import.meta.url), 'utf8')
@@ -280,15 +280,15 @@ test('小程序第四轮视觉收口让全部页面跟随后台品牌主题', as
   const app = JSON.parse(await fs.readFile(new URL('../app.json', import.meta.url), 'utf8'))
   const pageNames = app.pages.map((page) => page.split('/')[1])
   for (const pageName of pageNames) {
-    const page = await fs.readFile(new URL(`../pages/${pageName}/index.js`, import.meta.url), 'utf8')
-    const view = await fs.readFile(new URL(`../pages/${pageName}/index.wxml`, import.meta.url), 'utf8')
+    const page = await fs.readFile(new URL(pageName === 'login' ? '../utils/login-flow.js' : `../pages/${pageName}/index.js`, import.meta.url), 'utf8')
+    const view = await fs.readFile(new URL(pageName === 'login' ? '../components/login-sheet/index.wxml' : `../pages/${pageName}/index.wxml`, import.meta.url), 'utf8')
     assert.match(page, /theme\.pageData\(\)/, `${pageName} 缺少主题初始值`)
     assert.match(view, /--brand: \{\{themeColor\}\}/, `${pageName} 缺少品牌色绑定`)
     assert.match(view, /--brand-soft: \{\{themeSoftColor\}\}/, `${pageName} 缺少浅品牌色绑定`)
   }
 
   const cartView = await fs.readFile(new URL('../pages/cart/index.wxml', import.meta.url), 'utf8')
-  const loginView = await fs.readFile(new URL('../pages/login/index.wxml', import.meta.url), 'utf8')
+  const loginView = await fs.readFile(new URL('../components/login-sheet/index.wxml', import.meta.url), 'utf8')
   assert.match(cartView, /color="\{\{themeColor\}\}"/)
   assert.match(loginView, /color="\{\{themeColor\}\}"/)
 })
