@@ -23,3 +23,9 @@ test('缩短列表缩略图不拉伸图片，也不删除详情入口及详情�
   assert.match(detail, /class="hero"[^>]*mode="aspectFit"/)
   assert.match(detail, /class="detail-image"[^>]*mode="widthFix"/)
 })
+test('首页查看全部商品与商品列表保留独立间距，不改变入口行为', () => {
+  const view = readFileSync(new URL('../pages/home/index.wxml', import.meta.url), 'utf8')
+  const style = readFileSync(new URL('../pages/home/index.wxss', import.meta.url), 'utf8')
+  assert.match(view, /class="secondary-button all-products-button" bindtap="allProducts">查看全部商品/)
+  assert.match(style, /\.home-page \.all-products-button\s*\{\s*margin-top:\s*24rpx;/)
+})

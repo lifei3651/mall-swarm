@@ -92,7 +92,7 @@
       </view>
     </view>
     <view wx:else class="empty">当前还没有上架商品</view>
-    <button wx:if="{{products.length}}" class="secondary-button" bindtap="allProducts">查看全部商品</button>
+    <button wx:if="{{products.length}}" class="secondary-button all-products-button" bindtap="allProducts">查看全部商品</button>
     </block>
     </block>
   </block>

@@ -31,6 +31,7 @@
 .product-price text { margin-right: 2rpx; font-size: 24rpx; }
 .retry { width: 240rpx; margin-top: 28rpx; }
 .home-page { padding-bottom: calc(160rpx + env(safe-area-inset-bottom)); }
+.home-page .all-products-button { margin-top: 24rpx; }
 .brand-head { background: var(--header); border-radius: var(--radius); padding: 20rpx; margin-bottom: 20rpx; }
 .brand-copy { flex: 1; min-width: 0; }
 .brand-name, .brand-note { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
