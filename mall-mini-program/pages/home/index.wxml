@@ -5,6 +5,7 @@
     <button class="secondary-button retry" bindtap="retry">重新加载</button>
   </view>
   <block wx:else>
+    <button wx:if="{{shareError}}" class="secondary-button" bindtap="retryShare">{{shareError}}</button>
     <view class="brand-head">
       <view class="brand-logo-shell">
         <image wx:if="{{home.logoUrl && !logoFailed}}" class="brand-logo" src="{{home.logoUrl}}" mode="aspectFit" binderror="logoError" />

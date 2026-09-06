@@ -6,6 +6,7 @@ import com.macro.mall.distribution.dto.WeChatSubscriptionGrantDTO;
 import com.macro.mall.distribution.service.ShopAuthService;
 import com.macro.mall.distribution.service.WeChatMiniProgramAuthService;
 import com.macro.mall.distribution.service.WeChatSubscriptionService;
+import com.macro.mall.distribution.service.WeChatMiniProgramMemberService;
 import com.macro.mall.distribution.vo.WeChatMiniProgramLoginVO;
 import com.macro.mall.distribution.vo.WeChatMiniProgramRuntimeVO;
 import com.macro.mall.distribution.vo.WeChatSubscriptionTemplateVO;
@@ -31,6 +32,16 @@ public class WeChatMiniProgramController {
     private final WeChatMiniProgramAuthService authService;
     private final ShopAuthService shopAuthService;
     private final WeChatSubscriptionService subscriptionService;
+    private final WeChatMiniProgramMemberService memberService;
+
+    @Operation(summary = "本人小程序会员能力，不返回团队等级、关系或收益数据")
+    @GetMapping("/member-capabilities")
+    public CommonResult<WeChatMiniProgramMemberService.Capabilities> capabilities(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            jakarta.servlet.http.HttpServletResponse response) {
+        response.setHeader("Cache-Control", "no-store");
+        return CommonResult.success(memberService.capabilities(shopAuthService.requireMember(authorization)));
+    }
 
     @Operation(summary = "查询小程序能力是否已由当前客户正式配置")
     @GetMapping("/runtime")

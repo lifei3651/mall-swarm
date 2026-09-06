@@ -12,6 +12,7 @@ function saveSession(data) {
 function clearSession() {
   wx.removeStorageSync(TOKEN_KEY)
   wx.removeStorageSync(MEMBER_KEY)
+  require('./invite').clearPendingInvite()
 }
 
 module.exports = { getToken, getMember, saveSession, clearSession }

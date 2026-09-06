@@ -2,15 +2,20 @@ const request = require('../../utils/request')
 const auth = require('../../utils/auth')
 const theme = require('../../utils/theme')
 const format = require('../../utils/format')
+const capabilities = require('../../utils/member-capabilities')
 const validMoney = (value) => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value)) && Number(value) >= 0
 Page({
-  data: { ...theme.pageData(), loading: true, error: '', balance: '--', flows: [] },
+  data: { ...theme.pageData(), loading: true, error: '', balance: '--', flows: [], membershipLabel: '', membershipError: '' },
   onShow() { theme.apply(this); if (auth.requireLogin('/pages/wallet/index')) return this.load(); this.setData({ loading: false, balance: '--', flows: [] }) },
-  onHide() { this.version = (this.version || 0) + 1; this.setData({ balance: '--', flows: [] }) },
+  onHide() { this.version = (this.version || 0) + 1; this.setData({ balance: '--', flows: [], membershipLabel: '', membershipError: '' }) },
   onUnload() { this.onHide() },
   async load() {
     const version = this.version = (this.version || 0) + 1
-    this.setData({ loading: true, error: '' })
+    this.setData({ loading: true, error: '', membershipLabel: '', membershipError: '' })
+    // A rights lookup failure cannot hide legitimate personal funds or manufacture team eligibility.
+    capabilities.load().then((value) => {
+      if (version === this.version && value.ready) this.setData({ membershipLabel: value.membershipActive ? '会员服务已开通' : '购物账号' })
+    }).catch(() => { if (version === this.version) this.setData({ membershipError: '会员身份暂未核对，请稍后重试；本人资金记录不受影响' }) })
     try {
       const [summary, records] = await Promise.all([request({ url: '/shop/wallet/summary' }), request({ url: '/shop/wallet/flows' })])
       if (version !== this.version) return

@@ -2,7 +2,9 @@
   <view wx:if="{{loading}}" class="empty">正在核对钱包记录…</view>
   <view wx:elif="{{error}}" class="empty"><text>{{error}}</text><button bindtap="load" class="secondary-button">重新加载</button></view>
   <block wx:else>
+    <view wx:if="{{membershipLabel || membershipError}}" class="muted">{{membershipLabel || membershipError}}</view>
     <view class="card wallet-summary"><text>当前余额</text><view>¥{{balance}}</view><button class="secondary-button" bindtap="history">提现记录与微信收款确认</button></view>
+    <view class="muted">余额包含不同来源的入账，以本人资金明细为准；会员资格单独核对。</view>
     <view class="section-label">最近余额记录</view>
     <view wx:if="{{!flows.length}}" class="empty">暂无余额记录</view>
     <view class="card wallet-flow" wx:for="{{flows}}" wx:key="id"><view><text>{{item.title}}</text><text>{{item.amount}}</text></view><text class="muted">{{item.time}}</text><text class="muted">变动前 ¥{{item.before}} · 变动后 ¥{{item.after}}</text></view>

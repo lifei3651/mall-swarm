@@ -1,6 +1,6 @@
 const auth = require('./auth')
 const session = require('./session')
-const invite = require('./invite')
+const invitation = require('./login-invitation')
 const runtimeConfig = require('../config/runtime')
 const theme = require('./theme')
 
@@ -41,15 +41,18 @@ function phoneAuthorizationFeedback(detail) {
 module.exports = {
   data: {
     ...theme.pageData(),
+    ...invitation.data,
     loading: true, submitting: false, enabled: false, phoneEnabled: false,
     agreed: false, agreementRequired: false, privacyVersion: '', inviteCode: '', error: '',
     loginNotice: '', showLoginHelp: false, contextHint: ''
   },
+  ...invitation.methods,
   onLoad(options = {}) {
     this._inactive = false
     theme.apply(this)
     try { this.redirect = decodeURIComponent(options.redirect || '') } catch (_) { this.redirect = '' }
     this.setData({ contextHint: loginContext(this.redirect) })
+    this.syncInvitation(true)
     return this.loadRuntime()
   },
   async loadRuntime() {
@@ -69,7 +72,6 @@ module.exports = {
           phoneEnabled: false,
           agreed: false,
           privacyVersion: '',
-          inviteCode: invite.getPendingInvite(),
           error: '小程序隐私版本与服务器配置不一致，请联系商城客服更新小程序后再登录'
         })
         return
@@ -77,8 +79,7 @@ module.exports = {
       this.setData({
         enabled: true,
         phoneEnabled: runtime.phoneAuthorizationEnabled === true,
-        privacyVersion: runtime.privacyConsentVersion,
-        inviteCode: invite.getPendingInvite()
+        privacyVersion: runtime.privacyConsentVersion
       })
     } catch (error) {
       if (sequence === this._runtimeSequence) this.setData({ error: error && error.message || '商城配置加载失败，请重试' })
@@ -90,16 +91,18 @@ module.exports = {
     const agreed = (event.detail.value || []).includes('agreed')
     this.setData({ agreed, agreementRequired: false })
   },
-  requireAgreement() { this.checkReady() },
+  requireAgreement() { if (this.checkReady()) this.invitationReady() },
   onShow() {
     theme.apply(this)
     this.setData({ logoFailed: false })
+    if (!this.data.submitting) this.syncInvitation()
     if (this._runtimeChecked && !this.data.submitting && (!this.data.enabled || !this.data.phoneEnabled)) this.loadRuntime()
   },
   onUnload() {
     this._inactive = true
     this._runtimeSequence = (this._runtimeSequence || 0) + 1
     this._loginSequence = (this._loginSequence || 0) + 1
+    this._inviteSequence = (this._inviteSequence || 0) + 1
   },
   logoError() { this.setData({ logoFailed: true }) },
   checkReady() {
@@ -127,14 +130,15 @@ module.exports = {
       this.setData({ error: feedback.error || '', loginNotice: feedback.notice || '', showLoginHelp: true })
       return
     }
-    await this.executeLogin(detail.code)
+    if (this.invitationReady()) await this.executeLogin(detail.code)
   },
   async executeLogin(phoneCode) {
     if (this._inactive || this.data.submitting) return
     const sequence = this._loginSequence = (this._loginSequence || 0) + 1
+    const inviteCode = phoneCode ? this._verifiedInviteCode || '' : ''
     this.setData({ submitting: true, error: '', loginNotice: '', showLoginHelp: false })
     try {
-      const result = await auth.login({ phoneCode, privacyConsentVersion: this.data.privacyVersion })
+      const result = await auth.login({ phoneCode, inviteCode, privacyConsentVersion: this.data.privacyVersion })
       if (sequence !== this._loginSequence || this._inactive) return
       if (result && result.phoneAuthorizationRequired) {
         this.setData({ loginNotice: '此微信尚未关联商城账号，请通过手机号验证后继续登录或注册。', showLoginHelp: !this.data.phoneEnabled })
@@ -144,6 +148,7 @@ module.exports = {
         throw new Error('登录未完成，请重试或联系商城客服')
       }
       wx.showToast({ title: result.newMember ? '注册成功' : '登录成功', icon: 'success' })
+      if (result.newMember) this.redirect = '/pages/home/index'
       this.finish()
     } catch (error) {
       if (sequence === this._loginSequence && !this._inactive) this.setData({ error: error && error.message || '登录失败，请重试或联系商城客服', showLoginHelp: true })

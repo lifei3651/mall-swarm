@@ -230,6 +230,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             dto.setReason(reason == null || reason.isBlank() ? "授予推广资格" : reason.trim());
             boolean activatedByOrder = reason != null && reason.startsWith("完成首笔有效支付订单");
             boolean activatedByInvite = reason != null && (reason.startsWith("受邀注册")
+                    || reason.startsWith("微信扫码受邀注册")
                     || reason.startsWith("首次绑定直属邀请关系") || reason.startsWith("团队首位成员注册"));
             dto.setSourceType(reason != null && reason.startsWith("外部团队平移")
                     ? AgentSourceTypeEnum.BATCH_IMPORT.getValue()

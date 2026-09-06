@@ -3,6 +3,7 @@ const cart = require('../../utils/cart')
 const format = require('../../utils/format')
 const auth = require('../../utils/auth')
 const theme = require('../../utils/theme')
+const share = require('../../utils/share')
 
 Page({
   data: {
@@ -11,6 +12,11 @@ Page({
     priceText: '0.00', stock: 0, soldOut: false, selectedSku: {}
   },
   onLoad(options = {}) { theme.apply(this); this.productId = format.identifier(options.id); this.load() },
+  onShow() { return share.prepare(this) },
+  onHide() { share.hide(this) },
+  onUnload() { share.hide(this) },
+  onShareAppMessage() { return share.message(this, this.productId ? `/pages/product/index?id=${encodeURIComponent(this.productId)}` : '/pages/home/index', this.data.product.productName || this.data.brandName) },
+  retryShare() { return share.prepare(this) },
   async load() {
     if (!this.productId) { this.setData({ loading: false, error: '商品编号不正确' }); return }
     this.setData({ loading: true, error: '' })

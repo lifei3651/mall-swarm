@@ -10,7 +10,8 @@ function harness({ runtime = async () => ready, login, token = '' } = {}) {
   const session = { getToken: () => token }
   const deps = {
     './auth': { runtime, login: async (data) => { calls.push(data); const result = login ? await login(data) : { accessToken: 'test-session' }; if (result.accessToken) token = result.accessToken; return result } },
-    './session': session, './invite': { getPendingInvite: () => 'ABCD1234' },
+    './session': session, './login-invitation': { data: { inviteReady: true }, methods: {
+      syncInvitation() { this.setData({ inviteCode: 'ABCD1234' }) }, invitationReady: () => true } },
     '../config/runtime': { PRIVACY_CONSENT_VERSION: ready.privacyConsentVersion },
     './theme': { pageData: () => ({}), apply() {} }
   }
@@ -154,7 +155,7 @@ test('个人中心采用整行账号入口和独立隐私组件，弹窗的单�
   assert.match(view, /<privacy-consent id="privacy-consent"/)
   const panel = source('components/login-sheet/index.wxml')
   assert.ok(panel.indexOf('class="agreement ') > panel.indexOf('open-type="getPhoneNumber"'))
-  assert.match(panel, /wx:if="\{\{agreed\}\}"[^>]*open-type="getPhoneNumber"/)
+  assert.match(panel, /wx:if="\{\{agreed && inviteReady && !inviteBusy && !inviteConflict\}\}"[^>]*open-type="getPhoneNumber"/)
   assert.match(panel, /wx:else[^>]*bindtap="requireAgreement"/)
   assert.match(panel, /role="dialog"/)
   assert.doesNotMatch(panel, /中国移动|登录其他账号|首次使用.*注册/)

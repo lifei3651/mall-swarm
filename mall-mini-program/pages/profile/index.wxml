@@ -5,6 +5,7 @@
     <view class="profile-copy">
       <text class="profile-name">{{loggedIn ? (member.nickname || '商城账号') : '商城账号登录'}}</text>
       <text wx:if="{{loggedIn}}" class="profile-subtitle">个人资料</text>
+      <text wx:if="{{loggedIn && capabilities.ready}}" class="profile-subtitle">{{capabilities.membershipActive ? '会员服务已开通' : '购物账号'}}</text>
     </view>
     <image class="account-arrow" src="/assets/profile/chevron-right.png" mode="aspectFit" aria-hidden="true" />
   </button>
@@ -34,6 +35,8 @@
   </view>
   <view class="menu card">
     <view class="panel-head"><text class="panel-title">常用服务</text></view>
+    <button wx:if="{{loggedIn && capabilities.canInvite && shareReady}}" class="menu-row" open-type="share" aria-label="分享商城邀请好友"><image class="service-icon" src="/assets/profile/user-round.png" mode="aspectFit" aria-hidden="true" /><text class="menu-name">邀请好友</text><image class="menu-arrow" src="/assets/profile/chevron-right.png" aria-hidden="true" /></button>
+    <button wx:if="{{loggedIn && shareError}}" class="menu-row" bindtap="retryShare"><text class="menu-name">{{shareError}}</text></button>
     <button wx:if="{{loggedIn}}" class="menu-row" bindtap="wallet" aria-label="查看钱包和完整提现记录"><image class="service-icon" src="/assets/profile/credit-card.png" mode="aspectFit" aria-hidden="true" /><text class="menu-label">钱包与到账</text><image class="menu-arrow" src="/assets/profile/chevron-right.png" aria-hidden="true" /></button>
     <button class="menu-row" bindtap="messages" aria-label="查看消息与提醒" hover-class="row-pressed">
       <image class="service-icon" src="/assets/profile/bell.png" mode="aspectFit" aria-hidden="true" /><text class="menu-name">消息与提醒</text>

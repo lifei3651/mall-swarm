@@ -22,4 +22,5 @@ function faqs(config = {}) {
       .map((item) => ({ question: String(item.question), answer: resolveText(item.answer, config) }))
   } catch (_) { return [] }
 }
-module.exports = { titles, resolveText, content, faqs, miniPrivacy: miniPrivacy + miniClientNotice, contactValue }
+const miniInviteNotice = '\n\n8. 邀请功能为可选。小程序会暂存你从分享、扫码或手动填写获得的邀请码及来源，用于首次注册时核对邀请人；有效缓存最长24小时，登录成功、退出登录或主动选择不使用邀请时清理。收到不同邀请会提示选择，不会自动替换；过期后需重新核对或明确选择不使用邀请。首次注册成立的邀请关系由商城服务端保存，缓存清理不删除已成立的关系，已有账号不会因收到分享重新绑定。具备邀请资格的账号主动分享商城或商品时，会在分享路径中携带本人的公开邀请码，接收人可核对邀请人的公开昵称。分享不包含手机号、登录凭据或团队明细。'
+module.exports = { titles, resolveText, content, faqs, miniPrivacy: miniPrivacy + miniClientNotice + miniInviteNotice, contactValue }

@@ -2,6 +2,7 @@ const request = require('../../utils/request')
 const format = require('../../utils/format')
 const theme = require('../../utils/theme')
 const display = require('../../utils/display-config')
+const share = require('../../utils/share')
 
 Page({
   data: {
@@ -15,7 +16,11 @@ Page({
     logoFailed: false
   },
   onLoad() { this.loadHome() },
-  onShow() { theme.sync(this); if (this.loadedOnce) this.loadHome(true) },
+  onShow() { share.prepare(this); theme.sync(this); if (this.loadedOnce) this.loadHome(true) },
+  onHide() { share.hide(this) },
+  onUnload() { share.hide(this) },
+  onShareAppMessage() { return share.message(this, '/pages/home/index', this.data.home.brandName || this.data.brandName) },
+  retryShare() { return share.prepare(this) },
   onPullDownRefresh() { this.loadHome().finally(() => wx.stopPullDownRefresh()) },
   async loadHome(silent = false) {
     if (this.refreshing) return this.refreshing

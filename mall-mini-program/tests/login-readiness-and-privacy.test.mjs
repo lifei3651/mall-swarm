@@ -15,7 +15,7 @@ function harness(runtime, { token = '', response = { accessToken: 'test-session'
   const mocks = {
     './auth': { runtime, login: async (data) => { calls.push(data); if (response.accessToken) token = response.accessToken; return response } },
     './session': { getToken: () => token },
-    './invite': { getPendingInvite: () => 'TESTINVITE' },
+    './login-invitation': { data: { inviteReady: true }, methods: { syncInvitation() {}, invitationReady: () => true } },
     '../config/runtime': { PRIVACY_CONSENT_VERSION: version },
     './theme': { pageData: () => ({}), apply() {} }
   }
@@ -149,7 +149,7 @@ test('协议移到操作区下方，未同意时统一入口只提示而不登�
   assert.ok(notices.every((item) => /请先阅读/.test(item.title)))
   const view = source('components/login-sheet/index.wxml')
   assert.ok(view.indexOf('class="agreement ') > view.lastIndexOf('手机号快捷登录</button>'))
-  assert.match(view, /<button wx:if="\{\{agreed\}\}"[^>]*open-type="getPhoneNumber"/)
+  assert.match(view, /<button wx:if="\{\{agreed && inviteReady && !inviteBusy && !inviteConflict\}\}"[^>]*open-type="getPhoneNumber"/)
   assert.match(view, /<button wx:else[^>]*bindtap="requireAgreement"/)
   assert.match(view, /checked="\{\{agreed\}\}"/)
 })

@@ -2,19 +2,24 @@ const session = require('../../utils/session')
 const request = require('../../utils/request')
 const theme = require('../../utils/theme')
 const avatar = require('../../utils/member-avatar')
+const share = require('../../utils/share')
+const capabilities = require('../../utils/member-capabilities')
 
 Page({
   data: {
     ...theme.pageData(),
+    capabilities: capabilities.empty(), shareReady: false, shareError: '',
     loggedIn: false, member: null, loginVisible: false, avatarSrc: avatar.fallback, unreadCount: 0, unreadText: '', payoutCount: 0,
     orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, afterSale: 0 }
   },
   onShow() { theme.apply(this); this.setLoginVisible(this.data.loginVisible); this.refresh() },
-  onHide() { this.refreshVersion = (this.refreshVersion || 0) + 1; avatar.release(this.data.avatarSrc); this.setData({ avatarSrc: avatar.fallback }) },
+  onHide() { share.hide(this); this.refreshVersion = (this.refreshVersion || 0) + 1; avatar.release(this.data.avatarSrc); this.setData({ avatarSrc: avatar.fallback, capabilities: capabilities.empty() }) },
   onUnload() { this.onHide() },
   async refresh() {
     const version = this.refreshVersion = (this.refreshVersion || 0) + 1
     const token = session.getToken()
+    this.setData({ capabilities: capabilities.empty() })
+    const rights = this.loadCapabilities(version, token)
     this.setData({ loggedIn: Boolean(token), member: session.getMember() })
     if (!token) {
       avatar.release(this.data.avatarSrc)
@@ -37,15 +42,24 @@ Page({
       avatar.release(this.data.avatarSrc)
       this.setData({ avatarSrc })
       await Promise.all([this.loadUnread(), this.loadPayoutCount(), this.loadOrderSummary()])
+      await rights
     } catch (_) {
       if (version !== this.refreshVersion || session.getToken() !== token) return
+      share.hide(this)
       avatar.release(this.data.avatarSrc)
       this.setData({
+        capabilities: capabilities.empty(), shareReady: false,
         loggedIn: false, member: null, avatarSrc: avatar.fallback, unreadCount: 0, unreadText: '', payoutCount: 0,
         orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, afterSale: 0 }
       })
     }
   },
+  async loadCapabilities(version = this.refreshVersion, token = session.getToken()) {
+    const result = await share.prepare(this)
+    if (result && version === this.refreshVersion && token === session.getToken()) this.setData({ capabilities: result })
+  },
+  retryShare() { return this.loadCapabilities() },
+  onShareAppMessage() { return share.message(this, '/pages/home/index', this.data.brandName) },
   async loadUnread() {
     try {
       const unread = await request({ url: '/shop/messages/unread' })
@@ -85,15 +99,17 @@ Page({
   },
   setLoginVisible(visible) {
     this.setData({ loginVisible: visible })
+    if (visible) share.hide(this)
     const tab = typeof this.getTabBar === 'function' && this.getTabBar()
     if (tab) tab.setData({ hidden: visible })
   },
-  loginClosed() { this.setLoginVisible(false) },
+  loginClosed() { this.setLoginVisible(false); this.loadCapabilities() },
   authorized(event) {
     this.loginClosed()
     if (!session.getToken()) return
     this.refresh()
     const redirect = event && event.detail && event.detail.redirect
+    if (redirect === '/pages/home/index') { wx.switchTab({ url: redirect }); return }
     const allowed = new Set(['/pages/account-security/index', '/pages/messages/index', '/pages/orders/index',
       '/pages/address/index', '/pages/payout/index', '/pages/wallet/index'])
     if (typeof redirect === 'string' && allowed.has(redirect.split('?')[0])) wx.navigateTo({ url: redirect })

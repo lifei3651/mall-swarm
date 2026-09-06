@@ -92,6 +92,7 @@ test('首页再次显示会重新取装修；失败保留旧数据，不清空�
   let home = { brandName: '商城', displayConfig: wrap({ homeModules: [{ type: 'banner', enabled: false }] }) }
   let fail = false, calls = 0, notice = ''
   const page = instance(load('../pages/home/index.js', {
+    '../../utils/share': { prepare: async () => null, hide() {} },
     '../../utils/request': async ({ url }) => { calls++; if (fail) throw new Error('offline'); return url === '/shop/home' ? structuredClone(home) : { list: [{ id: 1, salePrice: 2 }] } },
     '../../utils/theme': { pageData: () => ({}), remember: () => ({}), sync: () => {} },
     globals: { wx: { setNavigationBarTitle() {}, showToast({ title }) { notice = title } } }

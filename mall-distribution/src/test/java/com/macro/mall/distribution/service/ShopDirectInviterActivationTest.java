@@ -11,6 +11,7 @@ import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsTenant;
 import com.macro.mall.distribution.service.impl.ShopAuthServiceImpl;
 import com.macro.mall.distribution.vo.AgentInfoVO;
+import com.macro.mall.distribution.enums.AgentSourceTypeEnum;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -35,6 +36,19 @@ class ShopDirectInviterActivationTest {
     @Mock private SmsVerificationService smsVerificationService;
     @Mock private DmsTenantDao tenantDao;
     @InjectMocks private ShopAuthServiceImpl authService;
+
+    @Test
+    void wechatInvitedActivationHasSameSourceAsH5InvitationNotAdminCreation() {
+        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(new DmsTenant());
+        DmsShopMember invited = member(30L, 3003L, null, "受邀用户");
+        when(memberDao.selectByUserId(3003L)).thenReturn(invited);
+        when(agentService.register(any())).thenReturn(agent(33L, 3003L, null));
+        when(memberDao.selectByInviterId(3003L)).thenReturn(List.of());
+        authService.activateMember(3003L, 1, "微信扫码受邀注册后自动开通推广资格");
+        ArgumentCaptor<AgentRegisterDTO> captor = ArgumentCaptor.forClass(AgentRegisterDTO.class);
+        verify(agentService).register(captor.capture());
+        assertEquals(AgentSourceTypeEnum.SCAN_CODE.getValue(), captor.getValue().getSourceType());
+    }
 
     @Test
     void inactiveDirectInviterIsNeverSkippedToGrandparent() {

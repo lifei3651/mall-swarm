@@ -11,7 +11,7 @@
       <view wx:if="{{loading}}" class="login-loading">正在检查商城配置…</view>
       <block wx:else>
         <block wx:if="{{phoneEnabled}}">
-          <button wx:if="{{agreed}}" class="login-button" open-type="getPhoneNumber" loading="{{submitting}}" disabled="{{submitting || !enabled}}" bindgetphonenumber="phoneLogin">手机号快捷登录</button>
+          <button wx:if="{{agreed && inviteReady && !inviteBusy && !inviteConflict}}" class="login-button" open-type="getPhoneNumber" loading="{{submitting}}" disabled="{{submitting || !enabled}}" bindgetphonenumber="phoneLogin">手机号快捷登录</button>
           <button wx:else class="login-button" disabled="{{submitting || !enabled}}" bindtap="requireAgreement">手机号快捷登录</button>
         </block>
         <button wx:else class="login-button" loading="{{submitting}}" disabled="{{submitting || !enabled}}" bindtap="returningLogin">商城账号登录</button>
@@ -20,7 +20,17 @@
           <view class="agreement-copy"><text>我已阅读并同意</text><text class="privacy-link" bindtap="openAgreement" role="link">《用户服务协议》</text><text>和</text><text class="privacy-link" bindtap="openPrivacy" role="link">《隐私政策》</text></view>
         </view>
         <view wx:if="{{agreementRequired && !agreed}}" class="agreement-hint">请先阅读并勾选同意以上协议</view>
-        <view wx:if="{{inviteCode}}" class="invite-tip"><text>已识别邀请码 {{inviteCode}}</text><text class="invite-caption">仅在首次注册时按商城规则绑定</text></view>
+        <button wx:if="{{!inviteExpanded}}" class="help-button" bindtap="toggleInvitation" disabled="{{submitting}}">有邀请码？（选填）</button>
+        <view wx:if="{{inviteExpanded}}" class="invite-tip">
+          <text class="invite-caption">{{inviteFromLink ? '来自分享或扫码的邀请' : '邀请码（选填）'}} · 仅首次注册绑定，已有账号不换上级</text>
+          <view wx:if="{{!inviteFromLink}}" class="invite-input-row"><input class="invite-input" value="{{inviteCode}}" maxlength="8" placeholder="输入8位邀请码" bindinput="invitationInput" disabled="{{submitting}}" aria-label="邀请码，选填" /><button class="help-button" bindtap="checkInvitation" disabled="{{submitting || inviteBusy}}">核对</button></view>
+          <text wx:if="{{inviteBusy}}" class="invite-caption">正在核对邀请人…</text>
+          <text wx:if="{{inviterName}}">邀请人：{{inviterName}}</text>
+          <text wx:if="{{inviteConflict}}" class="invite-caption">又收到一份邀请，请明确选择。本次邀请：{{candidateName || '核对中'}}</text>
+          <view wx:if="{{inviteConflict}}" class="login-help"><button class="help-button" data-choice="keep" bindtap="chooseInvitation" disabled="{{submitting || inviteBusy}}">保留当前邀请</button><button class="help-button" data-choice="new" bindtap="chooseInvitation" disabled="{{submitting || inviteBusy || !candidateValid}}">使用本次邀请</button></view>
+          <text wx:if="{{inviteError}}" class="login-error" role="alert">{{inviteError}}</text>
+          <view class="login-help"><button wx:if="{{inviteError}}" class="help-button" bindtap="checkInvitation" disabled="{{submitting || inviteBusy}}">重新核对</button><button class="help-button" bindtap="clearInvitation" disabled="{{submitting}}">不使用邀请</button></view>
+        </view>
         <view wx:if="{{enabled && !phoneEnabled}}" class="login-notice">手机号快捷登录暂不可用，已关联此微信的商城账号仍可登录。</view>
         <view wx:if="{{loginNotice}}" class="login-notice">{{loginNotice}}</view>
         <view wx:if="{{error}}" class="login-error" role="alert">{{error}}</view>

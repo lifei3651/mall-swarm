@@ -12,22 +12,25 @@ async function runtime() {
   return request({ url: '/shop/wechat-mini-program/runtime' })
 }
 
-async function login({ phoneCode = '', privacyConsentVersion }) {
+async function login({ phoneCode = '', privacyConsentVersion, inviteCode = '' }) {
+  const previousToken = session.getToken()
   const loginCode = await wxLoginCode()
+  if (session.getToken() !== previousToken) throw new Error('登录状态已变化，请重新操作')
   const data = await request({
     url: '/shop/wechat-mini-program/auth/login',
     method: 'POST',
     data: {
       loginCode,
       phoneCode: phoneCode || undefined,
-      inviteCode: invite.getPendingInvite() || undefined,
+      inviteCode: invite.normalizeInviteCode(inviteCode) || undefined,
       privacyAgreed: true,
       privacyConsentVersion
     }
   })
+  if (session.getToken() !== previousToken) throw new Error('登录状态已变化，请重新操作')
   if (data && data.accessToken) {
     session.saveSession(data)
-    if (data.newMember) invite.clearPendingInvite()
+    invite.clearPendingInvite()
   }
   return data
 }

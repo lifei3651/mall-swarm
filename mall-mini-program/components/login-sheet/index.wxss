@@ -22,6 +22,8 @@
 .agreement-hint { margin-top: 8rpx; color: #b4233f; font-size: 24rpx; line-height: 36rpx; }
 .invite-tip { display: flex; flex-direction: column; gap: 4rpx; margin-top: 24rpx; padding-top: 20rpx; border-top: 1rpx solid var(--line); font-size: 24rpx; line-height: 36rpx; overflow-wrap: anywhere; }
 .invite-caption { color: var(--muted); }
+.invite-input-row { display: flex; align-items: center; gap: 16rpx; }
+.invite-input { flex: 1; min-width: 0; height: 88rpx; padding: 0 20rpx; border: 1rpx solid var(--line); border-radius: 12rpx; font-size: 28rpx; }
 .login-error { margin-top: 24rpx; padding: 18rpx 20rpx; border-radius: 16rpx; background: #fff5f6; color: #b4233f; font-size: 24rpx; line-height: 38rpx; overflow-wrap: anywhere; }
 .login-notice { margin-top: 24rpx; color: var(--muted); font-size: 24rpx; line-height: 38rpx; overflow-wrap: anywhere; }
 .login-help { display: flex; flex-wrap: wrap; justify-content: center; gap: 8rpx 20rpx; margin-top: 16rpx; }

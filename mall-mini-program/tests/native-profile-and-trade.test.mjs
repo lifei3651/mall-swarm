@@ -63,6 +63,27 @@ test('钱包记录按真实收支方向展示，空余额不能伪装为0元', a
   await invalid.onShow(); assert.equal(invalid.data.balance, '--'); assert.match(invalid.data.error, /信息不完整/)
 })
 
+test('会员身份独立核对，普通账号有余额不变会员；能力慢请求或失败不挡钱包', async () => {
+  for (const mode of ['ordinary', 'slow', 'failed']) {
+    const e = environment({ respond: ({ url }) => {
+      if (url.endsWith('/member-capabilities')) {
+        if (mode === 'slow') return new Promise(() => {})
+        if (mode === 'failed') throw new Error('offline')
+        return { membershipActive: false, canInvite: false, inviteCode: null, canViewWallet: true, canViewPayoutRecords: true }
+      }
+      return url.endsWith('/summary') ? { balance: '888' } : []
+    } }), page = e.page('wallet')
+    await page.onShow()
+    assert.equal(page.data.loading, false)
+    assert.equal(page.data.balance, '888.00')
+    assert.equal(page.data.error, '')
+    await new Promise((done) => setImmediate(done))
+    if (mode === 'ordinary') assert.equal(page.data.membershipLabel, '购物账号')
+    if (mode === 'failed') assert.match(page.data.membershipError, /暂未核对/)
+    page.onHide(); assert.equal(page.data.membershipLabel, '')
+  }
+})
+
 test('已到账提现通知能定位历史单据，不错误调用确认收款', async () => {
   const e = environment({ respond: () => [
     { id: '9007199254740995', status: 3, withdrawType: 2, withdrawAmount: '200' },

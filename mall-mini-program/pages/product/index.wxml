@@ -10,6 +10,8 @@
     <view class="detail-card">
       <view class="price-row"><view class="detail-price"><text>¥</text>{{priceText}}</view><text class="stock-text">{{soldOut ? '暂时缺货' : '库存 ' + stock + ' 件'}}</text></view>
       <view class="detail-title">{{product.productName}}</view>
+      <button wx:if="{{shareReady}}" class="secondary-button" open-type="share">分享商品</button>
+      <button wx:elif="{{shareError}}" class="secondary-button" bindtap="retryShare">{{shareError}}</button>
       <view wx:if="{{product.subtitle}}" class="detail-subtitle">{{product.subtitle}}</view>
       <view wx:if="{{product.purchaseLimit > 0}}" class="detail-subtitle">每位会员限购 {{product.purchaseLimit}} 件，剩余可购数量以结算校验为准</view>
     </view>

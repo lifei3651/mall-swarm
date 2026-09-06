@@ -17,6 +17,7 @@ function pageHarness(name, response = () => ({})) {
   let definition, loggedIn = true
   const calls = [], nav = [], logins = [], cart = []
   const mocks = {
+    '../../utils/share': { prepare: async () => null, hide() {} },
     '../../utils/request': async (options) => { calls.push(plain(options)); return response(options) },
     '../../utils/format': format, '../../utils/legal': legal,
     '../../utils/theme': { pageData: () => ({}), apply: async () => ({}), sync() {} },

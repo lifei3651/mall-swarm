@@ -28,6 +28,7 @@ function loadProfile({ token = '', member = null, respond } = {}) {
     Page: (value) => { definition = value },
     require: (id) => {
       const mocks = { '../../utils/session': session, '../../utils/request': request, '../../utils/theme': theme,
+        '../../utils/share': { prepare: async () => null, hide() {} }, '../../utils/member-capabilities': { empty: () => ({ ready: false }) },
         '../../utils/member-avatar': { fallback: '/assets/profile/user-round.png', load: async () => '/assets/profile/user-round.png', release() {} } }
       assert.ok(Object.hasOwn(mocks, id), `Profile dependency must have an explicit mock: ${id}`)
       return mocks[id]
