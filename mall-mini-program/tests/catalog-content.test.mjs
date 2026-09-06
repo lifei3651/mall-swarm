@@ -91,6 +91,83 @@ test('外部搜索清除旧分类，外部分类清除旧搜索，查看全部�
   assert.equal(h.page.data.browsingAll, true); assert.equal(h.page.data.active, '')
 })
 
+test('搜索空状态只跟随已提交关键词，清空搜索保留分类，查看全部清除所有筛选', async () => {
+  const h = pageHarness('category', () => ({ list: [], total: 0 }))
+  h.page.setData({ active: '护理', keyword: '  不存在的商品  ' })
+  await h.page.loadProducts()
+  assert.equal(h.page.data.searchedKeyword, '不存在的商品')
+  h.page.onKeywordInput({ detail: { value: '尚未提交' } })
+  assert.equal(h.page.data.searchedKeyword, '不存在的商品')
+  await h.page.clearSearch()
+  assert.equal(h.page.data.keyword, '')
+  assert.equal(h.page.data.searchedKeyword, '')
+  assert.equal(h.calls.at(-1).params.categoryName, '护理')
+  assert.equal(h.calls.at(-1).params.keyword, '')
+  h.page.showAll(); await tick()
+  assert.equal(h.page.data.active, '')
+  assert.equal(h.page.data.searchedKeyword, '')
+  assert.equal(h.page.data.browsingAll, true)
+})
+
+test('清空搜索后旧请求晚到，不恢复旧关键词或覆盖全部商品', async () => {
+  const old = pending()
+  const h = pageHarness('category', ({ params }) => params.keyword ? old.promise : { list: [{ id: '2' }], total: 1 })
+  h.page.setData({ keyword: '旧关键词' }); const first = h.page.loadProducts()
+  await h.page.clearSearch()
+  old.resolve({ list: [], total: 0 }); await first
+  assert.equal(h.page.data.searchedKeyword, '')
+  assert.equal(h.page.data.products[0].id, '2')
+  assert.equal(h.page.data.loading, false)
+})
+
+test('导购预览中仅输入草稿不启用分页，提交搜索后可正常分页', async () => {
+  const h = pageHarness('category', ({ params }) => ({ list: [{ id: String(params.pageNum) }], total: 3, totalPage: 3 }))
+  h.page.setData({ guideEnabled: true, guideHasContent: true, guideTemplate: 'directory' })
+  await h.page.loadProducts()
+  h.page.onKeywordInput({ detail: { value: '草稿' } }); await h.page.loadMore()
+  assert.equal(h.calls.length, 1)
+  await h.page.loadProducts(); await h.page.loadMore()
+  assert.equal(h.calls.at(-1).params.keyword, '草稿')
+  assert.equal(h.calls.at(-1).params.pageNum, 2)
+})
+
+test('规格单价摘要复用真实选中价格，零价和缺货保护不受布局调整影响', async () => {
+  const h = pageHarness('product', () => ({ product: { id: '10', status: 1, stock: 10, salePrice: 100 }, skus: [
+    { id: '11', skuName: '家庭装', salePrice: 100, stock: 10 },
+    { id: '12', skuName: '第二规格', salePrice: 200, stock: 8 },
+    { id: '13', skuName: '赠品', salePrice: 0, stock: 2 },
+    { id: '14', skuName: '缺货规格', salePrice: 300, stock: 0 }
+  ] }))
+  h.page.productId = '10'; await h.page.load()
+  h.page.setData({ quantity: 2 })
+  h.page.selectSku({ currentTarget: { dataset: { index: 1 } } })
+  assert.equal(h.page.data.priceText, '200.00')
+  assert.equal(h.page.data.selectedSku.skuName, '第二规格')
+  assert.equal(h.page.data.stock, 8)
+  assert.equal(h.page.data.quantity, 1)
+  h.page.selectSku({ currentTarget: { dataset: { index: 2 } } })
+  assert.equal(h.page.data.priceText, '0.00')
+  h.page.selectSku({ currentTarget: { dataset: { index: 3 } } })
+  assert.equal(h.page.data.selectedSku.id, '13')
+  h.page.addToCart()
+  assert.equal(h.cart[0].salePrice, 0)
+  const view = readFileSync(new URL('../pages/product/index.wxml', import.meta.url), 'utf8')
+  assert.match(view, /class="sku-unit-price">¥\{\{priceText\}\}/)
+  assert.match(view, /已选：\{\{selectedSku\.skuName/)
+})
+
+test('购物车删除在独立操作行，商品底栏图标不压缩，搜索空状态有真实恢复绑定', () => {
+  const read = (path) => readFileSync(new URL(`../pages/${path}`, import.meta.url), 'utf8')
+  assert.match(read('cart/index.wxml'), /class="cart-item-actions"><button[^>]+bindtap="remove"/)
+  assert.doesNotMatch(read('cart/index.wxss'), /\.remove\s*\{[^}]*position:\s*absolute/)
+  assert.match(read('cart/index.wxss'), /\.cart-item-actions\s*\{[^}]*display:\s*flex/)
+  assert.match(read('product/index.wxss'), /\.product-actions \.cart-shortcut\s*\{[^}]*flex:\s*0 0 108rpx[^}]*line-height:\s*1;/)
+  assert.match(read('product/index.wxss'), /\.cart-shortcut image\s*\{[^}]*flex:\s*none/)
+  assert.match(read('category/index.wxml'), /searchedKeyword \? '没有找到相关商品' : active \? '这个分类还没有商品' : '商城暂时没有商品'/)
+  assert.match(read('category/index.wxml'), /bindtap="clearSearch">清空搜索/)
+  assert.match(read('category/index.wxml'), /bindtap="showAll">查看全部商品/)
+})
+
 test('商城政策使用后台完整内容并替换主体，异常FAQ不崩溃', () => {
   const config = { privacyPolicy: '第一段\n{{companyName}} 联系 {{servicePhone}}\n最后一段', companyName: '测试商城主体', servicePhone: '客服电话', faqs: '[{"question":"如何退款","answer":"联系 {{companyName}}"}]' }
   assert.equal(legal.content('privacy', config), '第一段\n测试商城主体 联系 客服电话\n最后一段')

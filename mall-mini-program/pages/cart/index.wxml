@@ -15,9 +15,9 @@
           <view wx:if="{{item.unavailable}}" class="cart-warning">{{item.unavailable}}</view>
           <view class="cart-line">
             <text>¥{{item.priceText}}</text>
-            <view class="counter"><button data-key="{{item.key}}" data-delta="-1" bindtap="quantity">−</button><text>{{item.quantity}}</text><button data-key="{{item.key}}" data-delta="1" bindtap="quantity">＋</button></view>
+            <view class="counter"><button data-key="{{item.key}}" data-delta="-1" bindtap="quantity" disabled="{{item.quantity <= 1}}" aria-label="减少商品数量">−</button><text>{{item.quantity}}</text><button data-key="{{item.key}}" data-delta="1" bindtap="quantity" disabled="{{item.quantity >= 99}}" aria-label="增加商品数量">＋</button></view>
           </view>
-          <button class="remove" data-key="{{item.key}}" bindtap="remove">删除</button>
+          <view class="cart-item-actions"><button class="remove" data-key="{{item.key}}" bindtap="remove" aria-label="从购物车移除{{item.productName}}">删除</button></view>
         </view>
       </view>
     </view>

@@ -3,7 +3,7 @@ const format = require('../../utils/format')
 const theme = require('../../utils/theme')
 
 Page({
-  data: { ...theme.pageData(), categories: [], active: '', keyword: '', products: [], hotProducts: [], loading: true, error: '', pageNum: 0, total: 0, hasMore: false, loadingMore: false, moreError: '', browsingAll: false },
+  data: { ...theme.pageData(), categories: [], active: '', keyword: '', searchedKeyword: '', products: [], hotProducts: [], loading: true, error: '', pageNum: 0, total: 0, hasMore: false, loadingMore: false, moreError: '', browsingAll: false },
   onLoad() { theme.apply(this); this.loadCategories() },
   onShow() { theme.apply(this) },
   onPullDownRefresh() { Promise.all([theme.apply(this), this.loadCategories()]).finally(() => wx.stopPullDownRefresh()) },
@@ -21,7 +21,7 @@ Page({
     const sequence = this.productSequence = (this.productSequence || 0) + 1
     const next = reset ? 1 : this.data.pageNum + 1
     const params = { ...this.productQuery, status: 1, pageNum: next, pageSize: 20 }
-    this.setData(reset ? { loading: true, error: '', moreError: '', products: [], hotProducts: [], pageNum: 0, total: 0, hasMore: false, loadingMore: false } : { loadingMore: true, moreError: '' })
+    this.setData(reset ? { searchedKeyword: this.productQuery.keyword, loading: true, error: '', moreError: '', products: [], hotProducts: [], pageNum: 0, total: 0, hasMore: false, loadingMore: false } : { loadingMore: true, moreError: '' })
     try {
       const result = await request({ url: '/shop/products', params })
       if (sequence !== this.productSequence) return
@@ -36,10 +36,11 @@ Page({
   selectCategory(event) { this.setData({ active: event.currentTarget.dataset.name || '', keyword: '', browsingAll: false }, () => this.loadProducts()) },
   onKeywordInput(event) { this.setData({ keyword: event.detail.value }) },
   search() { this.loadProducts() },
+  clearSearch() { this.setData({ keyword: '' }); return this.loadProducts() },
   clearFilter() { this.setData({ keyword: '', active: '', browsingAll: false }); this.loadProducts() },
   showAll() { this.setData({ keyword: '', active: '', browsingAll: true }); this.loadProducts() },
   loadMore() {
-    if (this.data.guideEnabled && this.data.guideHasContent && !this.data.browsingAll && !this.data.active && !this.data.keyword && this.data.guideTemplate !== 'showcase') return
+    if (this.data.guideEnabled && this.data.guideHasContent && !this.data.browsingAll && !this.data.active && !this.data.searchedKeyword && this.data.guideTemplate !== 'showcase') return
     return this.loadProducts(false)
   },
   retry() { return this.data.categories.length ? this.loadProducts() : this.loadCategories() },

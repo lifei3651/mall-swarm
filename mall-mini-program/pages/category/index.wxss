@@ -44,3 +44,7 @@
 .category-products { width: 0; min-width: 0; }
 .category-side { flex: none; }
 .category-search input { min-width: 0; }
+.no-results { padding: 96rpx 20rpx; }
+.no-results .no-results-description { font-size: 25rpx; line-height: 40rpx; }
+.empty-actions { display: flex; flex-direction: column; align-items: center; gap: 18rpx; margin-top: 30rpx; }
+.empty-actions button { width: 100%; max-width: 320rpx; min-height: 88rpx; line-height: 88rpx; margin: 0; padding: 0 12rpx; font-size: 26rpx; }
