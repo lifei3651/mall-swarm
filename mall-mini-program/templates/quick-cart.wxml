@@ -1,0 +1,11 @@
+  <view wx:if="{{skuVisible}}" class="sku-overlay" catchtap="closeSku" catchtouchmove="stopTap">
+    <view class="sku-sheet" catchtap="stopTap" role="dialog" aria-label="选择商品规格">
+      <view class="sku-heading"><text>选择规格</text><button class="sku-close" bindtap="closeSku" disabled="{{confirming}}">关闭</button></view>
+      <view class="sku-product-name">{{skuProduct.productName}}</view>
+      <view class="sku-price">{{selectedSkuId ? '¥' + selectedPrice : '请选择规格查看价格'}}</view>
+      <scroll-view scroll-y class="sku-options">
+        <button wx:for="{{skuOptions}}" wx:key="id" class="sku-option {{selectedSkuId === '' + item.id ? 'selected' : ''}} {{item.stock <= 0 || confirming ? 'is-disabled' : ''}}" data-id="{{item.id}}" bindtap="selectCartSku" disabled="{{item.stock <= 0 || confirming}}">{{item.skuName || item.specName || '商品规格'}} · ¥{{item.priceText}}{{item.stock <= 0 ? '（售罄）' : ''}}</button>
+      </scroll-view>
+      <button class="primary-button sku-confirm" bindtap="confirmSku" loading="{{confirming}}" disabled="{{confirming}}">{{confirming ? '正在确认' : '确认加入购物车'}}</button>
+    </view>
+  </view>

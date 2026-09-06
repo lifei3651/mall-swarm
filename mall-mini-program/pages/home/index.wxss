@@ -1,3 +1,4 @@
+@import "../../styles/quick-cart.wxss";
 .brand-head { display: flex; align-items: center; padding: 10rpx 4rpx 26rpx; }
 .brand-logo-shell { display: flex; flex: none; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; border: 1rpx solid var(--line); border-radius: 24rpx; background: var(--brand-soft); box-shadow: 0 8rpx 24rpx rgba(35,42,56,.07); overflow: hidden; }
 .brand-logo { width: 74rpx; height: 74rpx; }
@@ -29,6 +30,12 @@
 .product-copy { flex: 1; display: flex; flex-direction: column; }
 .product-price { margin-top: auto; }
 .product-price text { margin-right: 2rpx; font-size: 24rpx; }
+.home-purchase-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8rpx; margin-top: auto; padding-top: 12rpx; }
+.home-purchase-row .product-price { margin: 0; }
+.home-purchase-row .home-quick-cart { display: flex; align-items: center; justify-content: center; flex: none; width: 44px; height: 44px; min-width: 44px; margin: 0 0 0 auto; padding: 8rpx; line-height: 1; border-radius: 50%; background: var(--brand-soft); }
+.home-quick-cart image { width: 40rpx; height: 40rpx; }
+.home-quick-cart text { color: var(--muted); font-size: 22rpx; }
+.home-purchase-row .home-quick-cart.is-disabled { background: #eef0f3; opacity: .65; }
 .retry { width: 240rpx; margin-top: 28rpx; }
 .home-page { padding-bottom: calc(160rpx + env(safe-area-inset-bottom)); }
 .home-page .all-products-button { margin-top: 24rpx; }

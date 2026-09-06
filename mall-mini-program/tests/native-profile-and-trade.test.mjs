@@ -10,7 +10,7 @@ const root = fileURLToPath(new URL('..', import.meta.url))
 const plain = (value) => JSON.parse(JSON.stringify(value))
 const eligibleWallet = { balance: '18.21', distributionActivated: true, realNameVerified: true, adultVerified: true, hasPaymentPassword: true, paymentPasswordLocked: false }
 function environment({ respond = () => ({}), consent = true, wx: overrides = {} } = {}) {
-  const storage = new Map([['mall_mini_access_token', 'owner-session']])
+  const storage = new Map([['mall_mini_access_token', 'owner-session'], ['mall_mini_member', { id: '1' }]])
   const calls = [], uploads = [], downloads = [], routes = [], removed = [], cache = new Map()
   let definition, component, currentPage, privacyListener
   const wx = {
@@ -160,12 +160,12 @@ test('物流查询只接受当前订单，未配置服务不伪造运输进度',
   page.selectCarrier({ detail: { value: '0' } }); assert.equal(page.data.deliveryCompany, '顺丰速运')
 })
 
-test('直接购买独立于原购物车：原有2件，直接买1件仍为1件且不改变勾选', () => {
-  const e = environment(), cart = e.load('utils/cart'), session = e.load('utils/session')
+test('直接购买独立于原购物车：原有2件，直接买1件仍为1件且不改变勾选', async () => {
+  const e = environment({ respond: ({ method }) => method === 'POST' ? { allowed: true } : { product: { id: '10', status: 1, salePrice: 9, stock: 5 }, skus: [] } }), cart = e.load('utils/cart'), session = e.load('utils/session')
   cart.add({ productId: '10', quantity: 2, salePrice: 9 }); const before = JSON.stringify(cart.list())
   const page = e.page('product'); page.productId = '10'
   page.setData({ loading: false, soldOut: false, product: { id: '10', status: 1, salePrice: 9 }, quantity: 1 })
-  page.buyNow()
+  await page.buyNow()
   assert.equal(cart.directItems()[0].quantity, 1)
   assert.equal(JSON.stringify(cart.list()), before)
   assert.equal(e.routes[0], '/pages/checkout/index?direct=1')
@@ -177,7 +177,7 @@ test('直接购买独立于原购物车：原有2件，直接买1件仍为1件�
 test('切换账号不能继承直接购买暂存，暂存不写本地存储', () => {
   const e = environment(), cart = e.load('utils/cart')
   cart.beginDirectCheckout({ productId: '10', quantity: 1 })
-  assert.equal(e.storage.size, 1)
+  assert.equal(e.storage.size, 2)
   e.storage.set('mall_mini_access_token', 'another-session')
   assert.equal(cart.directItems().length, 0)
 })
@@ -291,9 +291,11 @@ test('商品最新价格、零价SKU、失效规格、库存和配置限购均�
     { productId: '1', skuId: 'removed', quantity: 1 },
     { productId: '1', skuId: '2', quantity: 3 }
   ])
-  assert.equal(e.calls.length, 1); assert.equal(rows[0].salePrice, 0); assert.equal(rows[0].unavailable, '')
+  assert.equal(e.calls.length, 1); assert.equal(rows[0].salePrice, 0); assert.match(rows[0].unavailable, /限购/)
   assert.match(rows[1].unavailable, /规格/); assert.match(rows[2].unavailable, /限购/)
   assert.equal(rows[2].quantity, 3, '不静默修改购买数量')
+  const valid = await e.load('utils/catalog').refresh([{ productId: '1', skuId: '2', quantity: 1, salePrice: 99 }])
+  assert.equal(valid[0].salePrice, 0); assert.equal(valid[0].unavailable, '')
 })
 
 test('商品读取失败、下架、无效价格必须阻止结算', async () => {

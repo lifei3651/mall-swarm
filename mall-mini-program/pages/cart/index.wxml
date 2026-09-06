@@ -6,7 +6,7 @@
     <view class="cart-list">
       <view class="cart-row" wx:for="{{rows}}" wx:key="key">
         <checkbox-group class="row-selector" data-key="{{item.key}}" bindchange="toggle">
-          <checkbox value="selected" checked="{{item.selected}}" color="{{themeColor}}" aria-label="{{item.selected ? '取消选择商品' : '选择商品'}}" />
+          <checkbox value="selected" checked="{{item.selected}}" disabled="{{quantityChecking || checkoutChecking}}" color="{{themeColor}}" aria-label="{{item.selected ? '取消选择商品' : '选择商品'}}" />
         </checkbox-group>
         <image src="{{item.coverUrl}}" mode="aspectFill" data-id="{{item.productId}}" bindtap="openProduct" />
         <view class="cart-copy">
@@ -15,18 +15,18 @@
           <view wx:if="{{item.unavailable}}" class="cart-warning">{{item.unavailable}}</view>
           <view class="cart-line">
             <text>¥{{item.priceText}}</text>
-            <view class="counter"><button data-key="{{item.key}}" data-delta="-1" bindtap="quantity" disabled="{{item.quantity <= 1}}" aria-label="减少商品数量">−</button><text>{{item.quantity}}</text><button data-key="{{item.key}}" data-delta="1" bindtap="quantity" disabled="{{item.quantity >= 99}}" aria-label="增加商品数量">＋</button></view>
+            <view class="counter"><button data-key="{{item.key}}" data-delta="-1" bindtap="quantity" disabled="{{item.quantity <= 1 || quantityChecking || checkoutChecking}}" aria-label="减少商品数量">−</button><text>{{item.quantity}}</text><button data-key="{{item.key}}" data-delta="1" bindtap="quantity" disabled="{{item.quantity >= 99 || quantityChecking || checkoutChecking}}" loading="{{quantityChecking === item.key}}" aria-label="增加商品数量">{{quantityChecking === item.key ? '' : '＋'}}</button></view>
           </view>
-          <view class="cart-item-actions"><button class="remove" data-key="{{item.key}}" bindtap="remove" aria-label="从购物车移除{{item.productName}}">删除</button></view>
+          <view class="cart-item-actions"><button class="remove" data-key="{{item.key}}" bindtap="remove" disabled="{{quantityChecking || checkoutChecking}}" aria-label="从购物车移除{{item.productName}}">删除</button></view>
         </view>
       </view>
     </view>
     <view class="cart-footer">
       <checkbox-group class="select-all" bindchange="toggleAll">
-        <label><checkbox value="selected" checked="{{allSelected}}" color="{{themeColor}}" aria-label="全选商品" /><text>全选</text></label>
+        <label><checkbox value="selected" checked="{{allSelected}}" disabled="{{quantityChecking || checkoutChecking}}" color="{{themeColor}}" aria-label="全选商品" /><text>全选</text></label>
       </checkbox-group>
       <view class="cart-total"><text class="muted">已选 {{count}} 件</text><view>合计 <text>¥{{total}}</text></view></view>
-      <button class="primary-button" disabled="{{checking || checkError}}" bindtap="checkout">去结算</button>
+      <button class="primary-button" disabled="{{checking || checkError || quantityChecking || checkoutChecking}}" loading="{{checkoutChecking}}" bindtap="checkout">{{checkoutChecking ? '正在核对限购' : '去结算'}}</button>
     </view>
   </block>
 </view>

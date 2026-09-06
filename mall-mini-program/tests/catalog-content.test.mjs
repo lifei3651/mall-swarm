@@ -19,14 +19,26 @@ function pageHarness(name, response = () => ({})) {
   const calls = [], nav = [], logins = [], cart = []
   const mocks = {
     '../../utils/share': { prepare: async () => null, hide() {} },
-    '../../utils/request': async (options) => { calls.push(plain(options)); return response(options) },
+    '../../utils/request': async (options) => { calls.push(plain(options)); return options.url.endsWith('/purchase-limit/check') ? { allowed: true } : response(options) },
     '../../utils/format': format, '../../utils/legal': legal,
     '../../utils/category-product': require('../utils/category-product'),
     '../../utils/session': { getToken: () => loggedIn ? 'test-token' : '' },
     '../../utils/theme': { pageData: () => ({}), apply: async () => ({}), sync() {} },
     '../../utils/auth': { requireLogin: (url) => { logins.push(url); return loggedIn } },
-    '../../utils/cart': { add: (row) => cart.push(row), selectOnly() {} }
+    '../../utils/cart': { list: () => cart, add: (row) => cart.push(row), selectOnly() {} }
   }
+  const modules = new Map()
+  function localUtility(name) {
+    if (mocks[`../../utils/${name}`]) return mocks[`../../utils/${name}`]
+    if (modules.has(name)) return modules.get(name).exports
+    const module = { exports: {} }; modules.set(name, module)
+    runMiniScript(readFileSync(new URL(`../utils/${name}.js`, import.meta.url), 'utf8'), {
+      module, require: id => localUtility(id.replace('./', '')), wx: { showToast() {} }
+    })
+    return module.exports
+  }
+  mocks['../../utils/quick-cart'] = localUtility('quick-cart')
+  mocks['../../utils/purchase-limit'] = localUtility('purchase-limit')
   runMiniScript(readFileSync(new URL(`../pages/${name}/index.js`, import.meta.url), 'utf8'), {
     Page: (value) => { definition = value }, require: (id) => { assert.ok(Object.hasOwn(mocks, id), id); return mocks[id] },
     wx: { navigateTo: (options) => nav.push(options.url), setNavigationBarTitle() {}, showToast() {}, stopPullDownRefresh() {} }
@@ -153,7 +165,7 @@ test('规格单价摘要复用真实选中价格，零价和缺货保护不受�
   assert.equal(h.page.data.priceText, '0.00')
   h.page.selectSku({ currentTarget: { dataset: { index: 3 } } })
   assert.equal(h.page.data.selectedSku.id, '13')
-  h.page.addToCart()
+  await h.page.addToCart()
   assert.equal(h.cart[0].salePrice, 0)
   const view = readFileSync(new URL('../pages/product/index.wxml', import.meta.url), 'utf8')
   assert.match(view, /class="sku-unit-price">¥\{\{priceText\}\}/)
@@ -213,12 +225,12 @@ test('活动入口只传活动ID与受限数量，不放入普通购物车；结
 })
 
 test('商品加载未完成或已下架时不能加入购物车，免费SKU不被普通价格覆盖', async () => {
-  const h = pageHarness('product')
+  const h = pageHarness('product', () => ({ product: { id: '10', status: 1, salePrice: 50, stock: 5 }, skus: [{ id: '11', salePrice: 0, stock: 5 }] }))
   assert.equal(h.page.purchaseItem(), null)
   h.page.setData({ loading: false, product: { id: '10', status: 0 }, soldOut: true })
   assert.equal(h.page.purchaseItem(), null)
   h.page.setData({ product: { id: '10', status: 1, salePrice: 50 }, soldOut: false, skus: [{ id: '11', salePrice: 0, stock: 5 }] })
-  h.page.addToCart(); assert.equal(h.cart[0].salePrice, 0)
+  await h.page.addToCart(); assert.equal(h.cart[0].salePrice, 0)
 })
 
 for (const name of ['messages', 'payout', 'message-detail']) {

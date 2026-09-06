@@ -87,7 +87,10 @@
         <view class="product-copy">
           <view class="product-title">{{item.productName}}</view>
           <view wx:if="{{item.subtitle}}" class="product-subtitle">{{item.subtitle}}</view>
-          <view class="product-price"><text>¥</text>{{item.priceText}}</view>
+          <view class="home-purchase-row">
+            <view class="product-price"><text>¥</text>{{item.priceText}}</view>
+            <button class="home-quick-cart {{item.soldOut || !!addingId ? 'is-disabled' : ''}}" data-id="{{item.id}}" catchtap="quickAdd" disabled="{{item.soldOut || !!addingId}}" loading="{{addingId === '' + item.id}}" aria-label="{{item.soldOut ? '已售罄' : '加入购物车：' + item.productName}}"><text wx:if="{{item.soldOut}}">售罄</text><image wx:else src="/assets/tabbar/cart.png" mode="aspectFit" /></button>
+          </view>
         </view>
       </view>
     </view>
@@ -96,4 +99,5 @@
     </block>
     </block>
   </block>
+  <include src="/templates/quick-cart.wxml" />
 </view>

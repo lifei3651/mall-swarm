@@ -13,7 +13,7 @@
       <button wx:if="{{shareReady}}" class="secondary-button" open-type="share">分享商品</button>
       <button wx:elif="{{shareError}}" class="secondary-button" bindtap="retryShare">{{shareError}}</button>
       <view wx:if="{{product.subtitle}}" class="detail-subtitle">{{product.subtitle}}</view>
-      <view wx:if="{{product.purchaseLimit > 0}}" class="detail-subtitle">每位会员限购 {{product.purchaseLimit}} 件，剩余可购数量以结算校验为准</view>
+      <view wx:if="{{product.purchaseLimit > 0}}" class="detail-subtitle">每位会员限购 {{product.purchaseLimit}} 件，不同规格合并计算；加购及结算时核对剩余额度</view>
     </view>
     <view wx:if="{{skus.length}}" class="detail-card sku-panel">
       <view class="panel-title">选择规格</view>
@@ -34,8 +34,8 @@
     <view wx:if="{{product.afterSalePolicy}}" class="detail-card description"><view class="panel-title">本商品售后说明</view><text>{{product.afterSalePolicy}}</text></view>
     <view class="product-actions">
       <button class="cart-shortcut" bindtap="goCart" aria-label="查看购物车"><image src="/assets/tabbar/cart.png" mode="aspectFit" /><text>购物车</text></button>
-      <button class="add-cart-button" disabled="{{soldOut}}" bindtap="addToCart">加入购物车</button>
-      <button class="primary-button" disabled="{{soldOut}}" bindtap="buyNow">{{soldOut ? '暂时缺货' : '立即购买'}}</button>
+      <button class="add-cart-button" disabled="{{soldOut || purchasePending}}" loading="{{purchasePending}}" bindtap="addToCart">加入购物车</button>
+      <button class="primary-button" disabled="{{soldOut || purchasePending}}" bindtap="buyNow">{{soldOut ? '暂时缺货' : purchasePending ? '正在核对' : '立即购买'}}</button>
     </view>
   </block>
 </view>

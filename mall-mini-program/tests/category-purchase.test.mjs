@@ -2,26 +2,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { runMiniScript } from './helpers/run-mini-script.mjs'
+import { commerceEnv } from './helpers/commerce-env.mjs'
 const require = createRequire(import.meta.url)
 const product = require('../utils/category-product')
 const detail = () => ({ product: { id: '1', productName: '测试商品', salePrice: 9, stock: 5, status: 1 }, skus: [] })
 const event = (id) => ({ currentTarget: { dataset: { id } } })
 const tick = () => new Promise(resolve => setImmediate(resolve))
-function harness(respond = () => detail()) {
-  let definition, token = '', tabHidden = false
-  const rows = [], calls = [], notices = []
-  runMiniScript(readFileSync(new URL('../pages/category/index.js', import.meta.url), 'utf8'), {
-    Page(value) { definition = value }, require(id) {
-      if (id.endsWith('/request')) return async options => { calls.push(options); return respond(options) }
-      if (id.endsWith('/theme')) return { pageData: () => ({}), apply: async () => {} }
-      if (id.endsWith('/session')) return { getToken: () => token }
-      if (id.endsWith('/cart')) return { list: () => rows, add: item => rows.push(item) }
-      return require(id.replace('../../utils/', '../utils/'))
-    }, wx: { showToast: item => notices.push(item.title) }
-  })
-  const page = { ...definition, data: structuredClone(definition.data), setData(patch, done) { Object.assign(this.data, patch); done?.() }, getTabBar: () => ({ setData({ hidden }) { tabHidden = hidden } }) }
-  return { page, rows, calls, notices, token(value) { token = value }, get tabHidden() { return tabHidden } }
+function harness(respond = options => options.method === 'POST' ? { allowed: true } : detail()) {
+  const e = commerceEnv(respond), page = e.page('category'), cart = e.load('utils/cart')
+  return { ...e, page, get rows() { return cart.list() }, get tabHidden() { return e.tabHidden } }
 }
 
 test('分类真实销量与拆分价格，缺失销量不编造零和榜单', () => {
@@ -51,13 +40,13 @@ test('无规格商品核对详情后直接加购并显眼提示', async () => {
 })
 test('多规格不默认替用户选，选中后重新核对再加购，关闭恢复导航', async () => {
   const d = detail(); d.skus = [{id:'8',skuName:'赠品',salePrice:0,stock:1},{id:'9',salePrice:19,stock:0}]
-  const h = harness(() => d); await h.page.quickAdd(event('1'))
+  const h = harness(options => options.method === 'POST' ? {allowed:true} : d); await h.page.quickAdd(event('1'))
   assert.equal(h.rows.length, 0); assert.equal(h.tabHidden, true)
   await h.page.confirmSku(); assert.equal(h.rows.length, 0)
   h.page.selectCartSku(event('9')); assert.equal(h.page.data.selectedSkuId, '')
   h.page.selectCartSku(event('8')); await h.page.confirmSku()
   assert.equal(h.rows[0].skuId, '8'); assert.equal(h.rows[0].salePrice, 0)
-  assert.equal(h.tabHidden, false); assert.equal(h.calls.length, 2)
+  assert.equal(h.tabHidden, false); assert.equal(h.calls.length, 3)
 })
 test('登录用户历史限购不允许时不加入购物车', async () => {
   const h = harness(({method}) => method === 'POST' ? {allowed:false,message:'已达到累计限购'} : detail()); h.token('member')
@@ -91,7 +80,7 @@ test('已选规格从详情中消失时不改为默认无规格商品', () => {
   assert.throws(() => product.purchase(detail(), '8', []), /规格已失效/)
 })
 test('加购与详情分开点击，规格弹层与主按钮存在', () => {
-  const view = readFileSync(new URL('../pages/category/index.wxml', import.meta.url), 'utf8')
+  const view = readFileSync(new URL('../pages/category/index.wxml', import.meta.url), 'utf8') + readFileSync(new URL('../templates/quick-cart.wxml', import.meta.url), 'utf8')
   const styles = readFileSync(new URL('../pages/category/index.wxss', import.meta.url), 'utf8')
   assert.match(view, /catchtap="quickAdd"/); assert.match(view, /bindtap="confirmSku"/)
   assert.match(view, /立即加购/); assert.doesNotMatch(view, /近期销量|回购|好评率|榜第/)

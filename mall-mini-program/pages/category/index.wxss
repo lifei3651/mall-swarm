@@ -1,3 +1,4 @@
+@import "../../styles/quick-cart.wxss";
 .category-page { height: 100vh; display: flex; flex-direction: column; background: var(--paper); }
 .category-search { margin: 18rpx 22rpx; height: 80rpx; display: flex; align-items: center; overflow: hidden; border: 1rpx solid #e5e8ed; background: #f7f8fa; border-radius: 22rpx; }
 .category-search image { flex: none; width: 32rpx; height: 32rpx; margin-left: 24rpx; opacity: .72; }
@@ -74,17 +75,6 @@
 .purchase-row .quick-cart-button { display: flex; align-items: center; justify-content: center; flex: none; min-width: 132rpx; width: auto; min-height: 68rpx; margin: 0 0 0 auto; padding: 12rpx 16rpx; border-radius: 999rpx; color: #fff; background: var(--button); font-size: 24rpx; font-weight: 600; line-height: 36rpx; white-space: nowrap; }
 .purchase-row .quick-cart-button.is-disabled { background: #e8ebef; color: #6b7280; }
 .sold-out-label { position: absolute; bottom: 0; left: 0; right: 0; padding: 8rpx; text-align: center; color: #fff; background: rgba(30,37,50,.65); font-size: 24rpx; }
-.sku-overlay { position: fixed; inset: 0; z-index: 200; display: flex; align-items: flex-end; background: rgba(20,25,35,.45); }
-.sku-sheet { width: 100%; max-height: 85vh; padding: 28rpx 30rpx calc(28rpx + env(safe-area-inset-bottom)); border-radius: 28rpx 28rpx 0 0; background: var(--paper); }
-.sku-heading { display: flex; align-items: center; justify-content: space-between; font-size: 34rpx; font-weight: 650; }
-.sku-heading .sku-close { width: auto; min-height: 80rpx; margin: 0; padding: 18rpx 12rpx; color: var(--muted); background: transparent; font-size: 26rpx; line-height: 40rpx; }
-.sku-product-name { margin-top: 16rpx; font-size: 28rpx; line-height: 42rpx; }
-.sku-price { margin: 16rpx 0 24rpx; color: var(--price); font-size: 30rpx; }
-.sku-options { max-height: 32vh; }
-.sku-options .sku-option { width: 100%; min-height: 88rpx; margin: 0 0 16rpx; padding: 20rpx; border: 1rpx solid var(--line); border-radius: 16rpx; color: var(--ink); background: var(--canvas); font-size: 26rpx; line-height: 42rpx; text-align: left; }
-.sku-options .selected { color: var(--accent); border-color: var(--accent); background: var(--brand-soft); }
-.sku-options .sku-option.is-disabled { color: #8a919c; background: #f2f3f5; }
-.sku-sheet .sku-confirm { margin-top: 24rpx; }
 .purchase-row .quick-cart-button, .sort-tabs .sort-tab { min-height: 44px; }
 @media (max-width: 360px) {
   .category-product-card .product-title { font-size: 14px; line-height: 20px; }

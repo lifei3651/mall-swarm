@@ -4,9 +4,14 @@ const format = require('../../utils/format')
 const theme = require('../../utils/theme')
 const display = require('../../utils/display-config')
 const share = require('../../utils/share')
+const quickCart = require('../../utils/quick-cart')
+const categoryProduct = require('../../utils/category-product')
 
 Page({
+  ...quickCart.methods,
+  quickCartRoute: '/pages/home/index',
   data: {
+    ...quickCart.data,
     loading: true,
     error: '',
     home: {},
@@ -17,9 +22,9 @@ Page({
     logoFailed: false
   },
   onLoad() { this.loadHome() },
-  onShow() { share.prepare(this); theme.sync(this); if (this.loadedOnce) this.loadHome(true) },
-  onHide() { share.hide(this) },
-  onUnload() { share.hide(this) },
+  onShow() { quickCart.show(this); share.prepare(this); theme.sync(this); if (this.loadedOnce) this.loadHome(true) },
+  onHide() { quickCart.hide(this); share.hide(this) },
+  onUnload() { this.onHide() },
   onShareAppMessage() { return share.message(this, '/pages/home/index', this.data.home.brandName || this.data.brandName) },
   retryShare() { return share.prepare(this) },
   onPullDownRefresh() { this.loadHome().finally(() => wx.stopPullDownRefresh()) },
@@ -35,7 +40,7 @@ Page({
         request({ url: '/shop/home' }),
         request({ url: '/shop/products', params: { status: 1, pageNum: 1, pageSize: 20 } })
       ])
-      const products = (productPage && productPage.list ? productPage.list : []).map(format.product)
+      const products = (productPage && productPage.list ? productPage.list : []).map(categoryProduct.card)
       home.logoUrl = format.mediaUrl(home.logoUrl)
       home.banners = (home.banners || []).map((item) => ({
         ...item,

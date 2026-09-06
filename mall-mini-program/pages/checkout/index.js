@@ -69,7 +69,7 @@ Page({
       if (this.flashSaleMode && this.directMode) throw new Error('结算入口无效，请返回重新选择')
       const source = this.flashSaleMode ? await this.loadActivity() : { rows: this.directMode ? cart.directItems() : cart.selected(), activityName: '' }
       if (!this.flashSaleMode) {
-        source.rows = await catalog.refresh(source.rows)
+        source.rows = await catalog.refresh(source.rows, { checkLimits: true })
         const invalid = source.rows.find((row) => row.unavailable)
         if (invalid) throw new Error(invalid.unavailable)
       }
