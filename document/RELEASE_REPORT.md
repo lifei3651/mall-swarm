@@ -2,8 +2,15 @@
 
 更新时间：2026-09-07（Asia/Shanghai）
 当前线上版本：后端与管理后台`1.0.132`（2026-09-07 09:34–09:38部署并复核）；公开商城/团队H5静态仍`1.0.115`。09:44真实132源码已上传腾讯，工具确认覆盖原体验版；未提审、未正式发布。
-当前本地版本：`1.0.132`（`codex/security-membership-payout`；业务提交91e5a6d8）。正式上传目录固定为`/Users/minmatemp/Documents/mall-swarm-app-h5/dist/wechat-mini-program`；历史假数据QA副本仍严禁上传，真机授权/头像/资金验收仍待。
+当前本地版本：`1.0.133`（`codex/security-membership-payout`；业务基线36e65caa，本轮更新版本并准备上传）。正式上传目录固定为`/Users/minmatemp/Documents/mall-swarm-app-h5/dist/wechat-mini-program`；历史假数据QA副本仍严禁上传，真机授权/头像/资金验收仍待。
 线上环境：公开商城 https://lingqimall.com ；团队 H5 https://www.lingqimall.com ；管理后台 https://lingqimall.com/admin/
+
+### 1.0.133 小程序发版（准备中，待上传结果）
+
+- 用户明确要求发版，源码同步成功且工作区原先干净；将VERSION与小程序包版本统一为133。业务基线36e65caa，包含此前H5功能对照修复、登录回调/邀请返回稳定性和首页搜索跳分类；不混入临时QA请求层。
+- 本轮重新验证357/357小程序测试、工程检查、官方30个WXML/32个WXSS编译及差异检查通过；不将模拟器或自动用例视为真机授权/资金全流程通过。真实渠道与64项清单未完成项保留。
+- 与已发布业务91e5a6d8相比，无H5、后台、后端代码差异，因此本轮不部署服务器、不动客户配置/数据。只读服务器确认VM-4-6-rockylinux、VERSION132、JAR SHA-256 e23979000f84f4636f8844b04972723e20139306bcd560e9485b150ee7768975、服务active和健康UP；公开H5静态115、后台132亦一致。
+- 仅准备更新开发/体验版，固定目录生成前保留原132工程；上传结果另行记录。没有提交审核或正式发布。详见`document/RELEASE_CANDIDATE_1.0.133.md`。下方“VERSION仍132/未上传”属于当时开发记录，以本节最新状态为准。
 
 ### 132之后的本地修复（工作编号133，未部署/上传/提审）
 
