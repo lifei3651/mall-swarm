@@ -5,14 +5,18 @@ const cart = require('./cart')
 const session = require('./session')
 const auth = require('./auth')
 const purchaseLimit = require('./purchase-limit')
+const { resolveQuickCartItem } = require('./h5-rules/quickCart')
 
 // H5 lists add the first in-stock SKU; explicit selection belongs to details.
 function firstAvailableSku(detail) {
   const skus = Array.isArray(detail.skus) ? detail.skus : []
   if (!skus.length) return null
-  const sku = skus.find(item => Number(item.status ?? 1) === 1 && Number(item.stock) > 0)
-  if (!sku) throw new Error('该商品暂时缺货')
-  return sku.id
+  // Preserve native fail-closed handling of explicitly disabled SKUs.
+  const available = skus.filter(item => Number(item.status ?? 1) === 1)
+  if (!available.length) throw new Error('该商品暂时缺货')
+  const selection = resolveQuickCartItem(detail.product, { ...detail, skus: available })
+  if (!selection) throw new Error('该商品暂时缺货')
+  return selection.skuId
 }
 const data = { addingId: '' }
 function show(page) { page._inactive = false }

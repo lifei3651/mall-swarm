@@ -5,7 +5,8 @@ import { encryptSensitiveRequest } from '@/utils/payloadEncryption'
 import { loginRedirectLocation, notifyAuthRequired } from '@/utils/authNavigation'
 import { clearShopSession, finishLegacyTokenMigration, getLegacyShopToken } from '@/utils/shopSession'
 import { appSurface } from '@/utils/appSurface'
-import { isGatewayRecoveryError, resolveRequestErrorMessage } from '@/utils/requestErrors'
+import { resolveRequestErrorMessage } from '@/utils/requestErrors'
+import { retryDelay } from '@/utils/transportRetry'
 
 const service = axios.create({
   baseURL: apiBaseUrl,
@@ -16,13 +17,6 @@ let isRedirectingToLogin = false
 
 // 移动网络在页面切换、从支付宝/微信返回时，偶尔会把一次幂等的查询请求
 // 中断。GET 请求可以安全重试一次，避免订单页把短暂的连接抖动误报成空白页。
-const RETRYABLE_METHODS = new Set(['get', 'head', 'options'])
-const isTransientTransportError = (error) => {
-  if (error?.response) return false
-  return ['ERR_NETWORK', 'ECONNABORTED', 'ETIMEDOUT'].includes(error?.code)
-    || error?.message === 'Network Error'
-}
-
 const waitBeforeRetry = (delay = 250) => new Promise((resolve) => setTimeout(resolve, delay))
 
 service.interceptors.request.use(async (config) => {
@@ -53,10 +47,10 @@ service.interceptors.response.use(
     const config = error?.config
     const method = String(config?.method || 'get').toLowerCase()
     const retryCount = Number(config?.__transportRetryCount || 0)
-    if (config && RETRYABLE_METHODS.has(method) && retryCount < 1
-      && (isTransientTransportError(error) || isGatewayRecoveryError(error))) {
+    const delay = retryDelay(method, error, retryCount)
+    if (config && delay !== null) {
       config.__transportRetryCount = retryCount + 1
-      await waitBeforeRetry(isGatewayRecoveryError(error) ? 600 : 250)
+      await waitBeforeRetry(delay)
       return service.request(config)
     }
 

@@ -22,6 +22,8 @@ function harness(name, { respond = async () => ({}), loggedIn = true, payOrder =
   const calls = [], routes = [], modals = [], toasts = [], uploads = []
   const auth = { requireLogin: (redirect) => { if (!loggedIn) routes.push(`login:${redirect}`); return loggedIn } }
   const dependencies = {
+    '../../utils/order-list': require('../utils/order-list.js'),
+    '../../utils/foreground-refresh': { ...require('../utils/foreground-refresh.js'), start() {}, stop() {} },
     '../../utils/request': async (options) => { calls.push(plain(options)); return respond(options) },
     '../../utils/auth': auth,
     '../../utils/session': { getToken: () => loggedIn ? 'test-token' : '', clearSession() { cleared++; loggedIn = false } },

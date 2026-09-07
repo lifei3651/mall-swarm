@@ -7,6 +7,7 @@ const balancePayment = require('../../utils/balance-order')
 const format = require('../../utils/format')
 const orderCenter = require('../../utils/order-center')
 const theme = require('../../utils/theme')
+const foreground = require('../../utils/foreground-refresh')
 const { identifier, afterSaleEligibility, amountLabel, paymentSummary } = require('./policy')
 
 const STATUS = { 0: '待付款', 1: '待发货', 2: '已发货', 3: '已完成', 4: '已关闭', 5: '售后中' }
@@ -44,13 +45,14 @@ Page({
   },
   onShow() {
     this.hidden = false
+    foreground.start(this, () => this.load(true), () => !this.redirect || this.data.loading || this.data.paying || this.data.actingId || this.data.balanceDialog || this.data.balanceBusy || this.data.balanceLoading || this.data.editingSaleId || this.data.submittingShipment || this.data.cancellingAfterSaleId || this.data.trackingLoading)
     theme.apply(this)
     if (this.data.paying) return
     if (this.redirect && auth.requireLogin(this.redirect)) return this.load().then(() => { if (this.autoPay && this.data.paymentChannel === 'BALANCE') { this.autoPay = false; return this.openBalancePayment() } })
     this.requestVersion = (this.requestVersion || 0) + 1
     if (this.redirect) feedback.update(this, { loading: false, rows: [], ...paymentSummary() })
   },
-  onHide() { this.hidden = true; this.setData({ balancePassword: '', balanceDialog: false, ...(this.data.actingId === 'balance' && !this.data.balanceBusy ? { actingId: null } : {}) }) },
+  onHide() { this.hidden = true; foreground.stop(this); this.requestVersion = (this.requestVersion || 0) + 1; this.setData({ balancePassword: '', balanceDialog: false, ...(this.data.actingId === 'balance' && !this.data.balanceBusy ? { actingId: null } : {}) }) },
   onUnload() { this.onHide(); this.disposed = true; this.requestVersion = (this.requestVersion || 0) + 1 },
   onPullDownRefresh() {
     if (this.data.paying || (!this.orderId && !this.paymentNo)) {
@@ -59,11 +61,14 @@ Page({
     }
     this.load().finally(() => wx.stopPullDownRefresh())
   },
-  async load() {
+  async load(quiet = false) {
+    quiet = quiet === true
+    if (quiet && (this.hidden || this.data.loading || this.data.paying || this.data.actingId || this.data.balanceDialog || this.data.balanceBusy || this.data.editingSaleId || this.data.submittingShipment)) return false
     const version = this.requestVersion = (this.requestVersion || 0) + 1
     const token = session.getToken()
-    const current = () => !this.disposed && version === this.requestVersion && token === session.getToken()
-    feedback.update(this, { loading: true, error: '' })
+    const current = () => !this.disposed && !this.hidden && version === this.requestVersion && token === session.getToken()
+      && !(quiet && (this.data.paying || this.data.actingId || this.data.balanceDialog || this.data.balanceBusy || this.data.editingSaleId || this.data.submittingShipment))
+    if (!quiet) feedback.update(this, { loading: true, error: '' })
     try {
       const result = this.orderId
         ? await request({ url: `/shop/orders/${this.orderId}` })
@@ -127,12 +132,17 @@ Page({
       this.loadedOnce = true
       feedback.update(this, {
         rows,
+        error: '',
         paymentNo: this.paymentNo || (rows[0] && (rows[0].order.paymentOrderNo || rows[0].order.orderNo)) || '',
         ...paymentSummary(rows)
       })
+      this.quietErrorShown = false
       return true
     } catch (error) {
-      if (current()) feedback.update(this, { error: error.message || '订单不存在或无权查看', rows: [], ...paymentSummary() })
+      if (current()) {
+        if (!quiet) feedback.update(this, { error: error.message || '订单不存在或无权查看', rows: [], ...paymentSummary() })
+        else if (!this.quietErrorShown) { this.quietErrorShown = true; feedback.notice('订单暂未刷新，当前显示上次记录。请下拉刷新核对最新进度。', '更新未完成') }
+      }
       return false
     } finally {
       if (!this.disposed && version === this.requestVersion) {

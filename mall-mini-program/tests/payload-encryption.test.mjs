@@ -63,6 +63,49 @@ function decode(call, field, value, changedChallenge) {
   decipher.setAAD(Buffer.from(`${changedChallenge || call.header['X-Payload-Encryption-Id']}:${field.toLowerCase()}`, 'utf8'))
   return Buffer.concat([decipher.update(encrypted.subarray(0, -16)), decipher.final()]).toString('utf8')
 }
+
+test('R05：只读临时网络和网关故障重试一次，正确保留微信请求身份', async () => {
+  for (const gateway of [false, true]) {
+    let count = 0
+    const h = harness({ clockTimeout: callback => { callback(); return 0 }, response(options) {
+      if (++count === 1) return gateway ? options.success({ statusCode: 503, data: '<html>bad gateway</html>' }) : options.fail({ errMsg: 'request:fail timeout' })
+      options.success({ statusCode: 200, data: { code: 200, data: { ok: true } } })
+    } })
+    assert.deepEqual(plain(await h.request({ url: '/shop/orders' })), { ok: true })
+    assert.equal(count, 2)
+    assert.equal(h.calls[1].header.Authorization, h.calls[0].header.Authorization)
+  }
+})
+
+test('R05：写入、业务拒绝、证书/域名/取消错误不重试，连续网络失败只请求两次', async () => {
+  for (const sample of [
+    { method: 'POST', failure: 'request:fail timeout', expected: 1 },
+    { method: 'PUT', failure: 'request:fail network disconnected', expected: 1 },
+    { method: 'GET', failure: 'request:fail ssl handshake timeout', expected: 1 },
+    { method: 'GET', failure: 'request:fail url not in domain list', expected: 1 },
+    { method: 'GET', failure: 'request:fail cancel', expected: 1 },
+    { method: 'GET', status: 200, code: 403, expected: 1 },
+    { method: 'GET', status: 403, code: 403, expected: 1 },
+    { method: 'GET', failure: 'request:fail timeout', expected: 2 }
+  ]) {
+    const h = harness({ clockTimeout: callback => { callback(); return 0 }, response(options) {
+      if (sample.failure) options.fail({ errMsg: sample.failure })
+      else options.success({ statusCode: sample.status, data: { code: sample.code, message: '请求被拒绝' } })
+    } })
+    await assert.rejects(h.request({ url: '/shop/orders', method: sample.method }))
+    assert.equal(h.calls.length, sample.expected)
+  }
+})
+
+test('R05：重试等待期间换号不携带旧令牌重发', async () => {
+  let resume
+  const h = harness({ clockTimeout: callback => { resume = callback; return 0 }, response: options => options.fail({ errMsg: 'request:fail timeout' }) })
+  const task = h.request({ url: '/shop/orders' })
+  await new Promise(resolve => setImmediate(resolve))
+  h.setToken('fixture-session-b'); resume()
+  await assert.rejects(task, /登录状态已变化/)
+  assert.equal(h.calls.length, 1)
+})
 const submit = (h, data = { smsCode: 'fixture-code' }) => h.request({ url: '/shop/orders', method: 'POST', data, idempotencyKey: 'fixture-idempotency' })
 const tick = () => new Promise((resolveTick) => setImmediate(resolveTick))
 

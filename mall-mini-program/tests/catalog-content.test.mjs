@@ -18,6 +18,7 @@ function pageHarness(name, response = () => ({})) {
   let definition, loggedIn = true
   const calls = [], nav = [], logins = [], cart = []
   const mocks = {
+    '../../utils/foreground-refresh': { ...require('../utils/foreground-refresh.js'), start() {}, stop() {} },
     '../../utils/share': { prepare: async () => null, hide() {} },
     '../../utils/request': async (options) => { calls.push(plain(options)); return options.url.endsWith('/purchase-limit/check') ? { allowed: true } : response(options) },
     '../../utils/format': format, '../../utils/legal': legal,

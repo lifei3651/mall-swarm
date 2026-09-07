@@ -1,4 +1,5 @@
 // Keep database identifiers opaque: converting a Snowflake ID to Number loses digits.
+const { afterSaleDeadline } = require('../../utils/h5-rules/orderListRules')
 function identifier(value) {
   if (typeof value === 'number' && !Number.isSafeInteger(value)) return ''
   const id = String(value == null ? '' : value)
@@ -21,11 +22,7 @@ function remainingItems(detail) {
 function afterSaleEligibility(detail, now = Date.now()) {
   const order = detail.order || {}
   let reason = ''
-  let deadline = Date.parse(String(detail.afterSaleDeadline || '').replace(' ', 'T'))
-  if (!Number.isFinite(deadline) && detail.afterSaleWindowMode !== 'RECEIVED') {
-    const created = Date.parse(String(order.createTime || '').replace(' ', 'T'))
-    if (Number.isFinite(created)) deadline = created + Number(detail.afterSaleWindowDays == null ? 7 : detail.afterSaleWindowDays) * 86400000
-  }
+  const deadline = afterSaleDeadline(detail)
   if (!identifier(order.id)) reason = '订单编号不正确，请重新打开订单'
   else if (detail.afterSaleSelfServiceEnabled === false) reason = '当前订单暂不支持自助售后，请联系商城客服'
   else if ([0, 4].includes(Number(order.status))) reason = '当前订单状态不能申请售后'

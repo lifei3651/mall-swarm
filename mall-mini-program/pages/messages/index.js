@@ -4,6 +4,7 @@ const auth = require('../../utils/auth')
 const theme = require('../../utils/theme')
 const format = require('../../utils/format')
 const session = require('../../utils/session')
+const foreground = require('../../utils/foreground-refresh')
 
 const CATEGORIES = [
   { key: '', label: '全部' },
@@ -33,9 +34,9 @@ Page({
     smsPreference: { available: false, enabled: false, maskedPhone: '', statusText: '正在确认服务状态' }, smsBusy: false, smsError: ''
   },
   onLoad() { theme.apply(this) },
-  onShow() { this.inactive = false; theme.apply(this); this.loadSmsPreference(); if (!this.fetching) return this.load(true) },
-  onHide() { this.inactive = true; this.sequence = (this.sequence || 0) + 1; this.smsSequence = (this.smsSequence || 0) + 1; this.fetching = false; this.setData({ loading: false }) },
-  onUnload() { this.onHide() },
+  onShow() { this.inactive = false; foreground.start(this, () => this.refreshQuietly(), () => this.fetching || this.data.reading || this.data.smsBusy); theme.apply(this); this.loadSmsPreference(); if (!this.fetching) return this.load(true) },
+  onHide() { this.inactive = true; foreground.stop(this); this.sequence = (this.sequence || 0) + 1; this.smsSequence = (this.smsSequence || 0) + 1; this.fetching = false; this.setData({ loading: false }) },
+  onUnload() { this.onHide(); this.disposed = true },
   onPullDownRefresh() { this.load(true).finally(() => wx.stopPullDownRefresh()) },
   async load(reset) {
     if (!auth.requireLogin('/pages/messages/index')) return
@@ -79,6 +80,27 @@ Page({
     }
   },
   retry() { this.load(true) },
+  async refreshQuietly() {
+    if (this.inactive || this.fetching || this.quietRefreshing || this.data.reading || this.data.smsBusy) return
+    const token = session.getToken(), sequence = this.sequence = (this.sequence || 0) + 1, category = this.data.category
+    if (!token) return
+    const current = () => !this.inactive && !this.disposed && !this.data.reading && !this.data.smsBusy && token === session.getToken() && sequence === this.sequence && category === this.data.category
+    this.quietRefreshing = true
+    try {
+      const result = await foreground.visiblePages(request, { url: '/shop/messages', params: { category: category || undefined }, pageCount: this.data.pageNum, pageSize: 20 }, current)
+      if (!result || !current()) return
+      const unread = await request({ url: '/shop/messages/unread' })
+      if (!current()) return
+      if (!unread || typeof unread !== 'object') throw new Error('未读消息状态暂不可用')
+      const seen = new Set()
+      this.setData({ error: '', rows: result.list.filter(item => { const id = String(item.id); if (seen.has(id)) return false; seen.add(id); return true }).map(item => ({ ...item, displayTime: formatTime(item.occurredTime || item.createTime) })),
+        unread, categories: CATEGORIES.map(item => ({ ...item, count: Number(item.key ? unread.categories?.[item.key] || 0 : unread.total || 0) })),
+        pageNum: Number(result.pageNum || Math.max(1, Math.ceil(result.list.length / 20))), totalPage: Number(result.totalPage || 1) })
+      this.quietErrorShown = false
+    } catch (error) {
+      if (current() && !this.quietErrorShown) { this.quietErrorShown = true; feedback.notice('消息暂未刷新，当前显示上次记录。请下拉刷新后核对最新提醒。', '更新未完成') }
+    } finally { this.quietRefreshing = false }
+  },
   selectCategory(event) {
     feedback.update(this, { category: String(event.currentTarget.dataset.key || '') }, () => this.load(true))
   },

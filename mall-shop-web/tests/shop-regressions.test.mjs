@@ -235,9 +235,11 @@ test('gateway restart errors use customer-facing Chinese copy and safe reads ret
     resolveRequestErrorMessage({ response: { status: 500, data: {} }, message: 'Request failed with status code 500' }),
     '系统服务暂时异常，请稍后重试',
   )
-  assert.match(request, /isTransientTransportError\(error\) \|\| isGatewayRecoveryError\(error\)/)
-  assert.match(request, /RETRYABLE_METHODS\.has\(method\)/)
-  assert.match(request, /isGatewayRecoveryError\(error\) \? 600 : 250/)
+  const { retryDelay } = await import('../src/utils/transportRetry.js')
+  assert.match(request, /retryDelay\(method, error, retryCount\)/)
+  assert.equal(retryDelay('get', gatewayError), 600)
+  assert.equal(retryDelay('get', { code: 'ERR_NETWORK' }), 250)
+  assert.equal(retryDelay('post', gatewayError), null)
 })
 
 test('order realtime stops retrying permanent client errors while retaining network fallback', async () => {
@@ -1263,8 +1265,10 @@ test('profile fits its actions into short mobile viewports', async () => {
 test('order queries retry one transient mobile network failure', async () => {
   const request = await readFile(new URL('../src/api/request.js', import.meta.url), 'utf8')
   const requestErrors = await readFile(new URL('../src/utils/requestErrors.js', import.meta.url), 'utf8')
-  assert.match(request, /RETRYABLE_METHODS = new Set\(\['get', 'head', 'options'\]\)/)
-  assert.match(request, /retryCount < 1[\s\S]{0,100}isTransientTransportError\(error\)/)
+  const sharedRetry = await readFile(new URL('../src/utils/transportRetry.js', import.meta.url), 'utf8')
+  assert.match(request, /import \{ retryDelay \} from '@\/utils\/transportRetry'/)
+  assert.match(sharedRetry, /RETRYABLE_METHODS = new Set\(\['get', 'head', 'options'\]\)/)
+  assert.match(sharedRetry, /retryCount < 1[\s\S]{0,100}isTransientTransportError\(error\)/)
   assert.match(request, /return service\.request\(config\)/)
   assert.match(requestErrors, /网络暂时不可用，请检查网络后重试/)
 })

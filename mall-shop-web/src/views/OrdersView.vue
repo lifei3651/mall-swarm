@@ -93,6 +93,7 @@ import { dateTime, money, statusName } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
 import { connectOrderRealtime } from '@/utils/orderRealtime'
 import { applyImageFallback } from '@/utils/imageFallback'
+import { isTradeActionOwner as ownsTradeAction, canApplyAfterSale } from '@/utils/orderListRules'
 
 const route = useRoute()
 const loading = ref(false)
@@ -126,8 +127,7 @@ const tabs = computed(() => [
   { key: 'after-sale', label: '退款/售后', count: Number(orderSummary.value.afterSale || 0) },
 ])
 const filteredOrders = computed(() => orders.value)
-const isTradeActionOwner = (item) => !item.order?.tradeId
-  || filteredOrders.value.find((row) => String(row.order?.tradeId || '') === String(item.order.tradeId))?.order?.id === item.order.id
+const isTradeActionOwner = (item) => ownsTradeAction(item, filteredOrders.value)
 const hasMore = computed(() => orders.value.length < total.value)
 const pendingOrder = computed(() => orders.value.find((item) => item.order?.id === pendingOrderAction.value.id)?.order)
 const orderActionDialog = computed(() => pendingOrderAction.value.type === 'receive' ? {
@@ -227,20 +227,6 @@ const afterSaleStatus = (status, applyType) => {
   if (Number(applyType) === 3 && Number(status) === 1) return '换货完成'
   return ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待客户寄回', 5: '待商家收货', 6: '退款处理中', 7: '待商家换货发出', 8: '换货已发出' }[status] || '处理中')
 }
-const afterSaleDeadline = (item) => {
-  const configured = Date.parse(String(item?.afterSaleDeadline || '').replace(' ', 'T'))
-  if (Number.isFinite(configured)) return configured
-  if (item?.afterSaleWindowMode === 'RECEIVED') return Number.POSITIVE_INFINITY
-  const created = Date.parse(String(item?.order?.createTime || '').replace(' ', 'T'))
-  return Number.isFinite(created) ? created + Number(item?.afterSaleWindowDays ?? 7) * 24 * 60 * 60 * 1000 : Number.POSITIVE_INFINITY
-}
-const unavailableAfterSaleQuantity = (item) => (item.afterSales || [])
-  .filter((sale) => Number(sale.applyType) === 3
-    ? [0, 4, 5, 7, 8].includes(Number(sale.status))
-    : [0, 1, 4, 5, 6].includes(Number(sale.status)))
-  .flatMap((sale) => sale.items || [])
-  .reduce((sum, line) => sum + Number(line.refundQuantity || 0), 0)
-const orderQuantity = (item) => (item.items || []).reduce((sum, line) => sum + Number(line.quantity || 0), 0)
 const orderDisplayStatus = (item) => {
   if (isAfterSale(item)) {
     const sale = activeAfterSales(item)[0]
@@ -249,12 +235,6 @@ const orderDisplayStatus = (item) => {
   if (Number(item.pendingReviewCount || 0) > 0) return '待评价'
   return statusName(item.order?.status)
 }
-const canApplyAfterSale = (item) => ![0, 4].includes(item.order?.status)
-  && item.afterSaleSelfServiceEnabled !== false
-  && Date.now() < afterSaleDeadline(item)
-  && !(item.afterSales || []).some((sale) => [0, 4, 5, 6, 7, 8].includes(sale.status))
-  && unavailableAfterSaleQuantity(item) < orderQuantity(item)
-
 const requestOrderAction = (type, id) => {
   if (actingId.value) return
   pendingOrderAction.value = { type, id }

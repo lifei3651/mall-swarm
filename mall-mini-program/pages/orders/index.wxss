@@ -26,3 +26,7 @@
 .order-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 14rpx; margin-top: 18rpx; }
 .order-card .order-actions button { width: 210rpx; margin: 0; font-size: 24rpx; }
 .load-more { width: 300rpx; margin-top: 26rpx; font-size: 25rpx; }
+.auto-receive-summary { margin-top: 20rpx; padding-top: 16rpx; border-top: 1rpx solid var(--line); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6rpx 16rpx; }
+.auto-receive-summary text { color: var(--muted); font-size: 23rpx; line-height: 1.6; }
+.auto-receive-summary button { margin: 0; padding: 16rpx 0; min-height: 88rpx; color: var(--brand); background: transparent; font-size: 24rpx; line-height: 56rpx; }
+.auto-receive-summary button::after { border: 0; }
