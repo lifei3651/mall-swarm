@@ -2,9 +2,8 @@ const feedback = require('../../utils/feedback')
 const request = require('../../utils/request')
 const auth = require('../../utils/auth')
 const format = require('../../utils/format')
-const payment = require('../../utils/payment')
 const theme = require('../../utils/theme')
-const { identifier } = require('../order-detail/policy')
+const { identifier, amountLabel } = require('../order-detail/policy')
 
 const STATUS = { 0: '待支付', 1: '待发货', 2: '已发货', 3: '已完成', 4: '已取消' }
 const AFTER_SALE_STATUS = { 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待寄回', 5: '待商家收货', 6: '退款处理中', 7: '待换货发出', 8: '换货已发出' }
@@ -20,7 +19,7 @@ Page({
   data: {
     ...theme.pageData(),
     loading: true, loadingMore: false, error: '', rows: [], total: 0, pageNum: 0, pageSize: 10,
-    tabs: TABS, activeTab: 'all', wechatPayEnabled: false, payingId: null
+    tabs: TABS, activeTab: 'all'
   },
   onLoad(options = {}) {
     theme.apply(this)
@@ -30,10 +29,10 @@ Page({
   onShow() {
     theme.apply(this)
     const redirect = `/pages/orders/index${this.data.activeTab === 'all' ? '' : `?tab=${this.data.activeTab}`}`
-    if (auth.requireLogin(redirect)) return Promise.all([this.loadConfig(), this.loadSummary(), this.load(true)])
+    if (auth.requireLogin(redirect)) return Promise.all([this.loadSummary(), this.load(true)])
     this.requestVersion = (this.requestVersion || 0) + 1
     this.summaryVersion = (this.summaryVersion || 0) + 1
-    feedback.update(this, { loading: false, loadingMore: false, rows: [], total: 0, pageNum: 0, tabs: TABS, wechatPayEnabled: false })
+    feedback.update(this, { loading: false, loadingMore: false, rows: [], total: 0, pageNum: 0, tabs: TABS })
   },
   onUnload() { this.disposed = true; this.requestVersion = (this.requestVersion || 0) + 1 },
   onPullDownRefresh() {
@@ -72,6 +71,7 @@ Page({
         afterSaleText: row.afterSales && row.afterSales.length
           ? (AFTER_SALE_STATUS[Number(row.afterSales[0].status)] || '处理中') : '',
         amountText: format.money(row.order.payAmount == null ? row.order.totalAmount : row.order.payAmount),
+        amountLabel: amountLabel(row.order),
         quantity: (row.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)
       }))
       this.loadedOnce = true
@@ -86,34 +86,14 @@ Page({
       if (!this.disposed && version === this.requestVersion) feedback.update(this, { loading: false, loadingMore: false })
     }
   },
-  async loadConfig() {
-    try {
-      const config = await request({ url: '/shop/pay/config' })
-      feedback.update(this, { wechatPayEnabled: Boolean(config.wechatPayEnabled) })
-    } catch (_) { feedback.update(this, { wechatPayEnabled: false }) }
-  },
-  async pay(event) {
+  pay(event) {
     const orderId = identifier(event.currentTarget.dataset.id)
-    if (!orderId) return
-    if (!this.data.wechatPayEnabled) {
-      wx.showModal({ title: '微信支付暂未开放', content: '当前客户尚未完成微信支付商户资料配置与真实联调。', showCancel: false })
-      return
-    }
-    if (this.data.payingId) return
-    feedback.update(this, { payingId: orderId })
-    wx.showLoading({ title: '正在调起支付', mask: true })
-    try {
-      const confirmed = await payment.payOrder(orderId)
-      wx.hideLoading()
-      feedback.toast({ title: confirmed ? '支付成功' : '支付结果确认中', icon: confirmed ? 'success' : 'none' })
-      await Promise.all([this.load(true), this.loadSummary()])
-    } catch (error) {
-      wx.hideLoading()
-      feedback.toast({ title: payment.isUserCancel(error) ? '已取消支付，订单保留在待支付' : (error.message || '支付失败'), icon: 'none', duration: 2600 })
-      await Promise.all([this.load(true), this.loadSummary()])
-    } finally {
-      feedback.update(this, { payingId: null })
-    }
+    const row = this.data.rows.find((item) => item.order.id === orderId)
+    if (!row || row.order.status !== 0 || row.order.payType !== 'WECHAT' || this.openingPayment) return
+    if (!auth.requireLogin(`/pages/order-detail/index?id=${orderId}`)) return
+    // One recovery path: review the latest full trade amount before native payment.
+    this.openingPayment = true
+    wx.navigateTo({ url: `/pages/order-detail/index?id=${orderId}`, complete: () => { this.openingPayment = false } })
   },
   selectTab(event) {
     const activeTab = String(event.currentTarget.dataset.key || 'all')

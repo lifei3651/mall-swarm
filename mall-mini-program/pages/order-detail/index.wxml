@@ -10,10 +10,12 @@
   </view>
   <block wx:else>
     <view class="payment-summary">
-      <text class="summary-label">订单详情</text>
+      <text class="summary-label">{{summaryLabel}}</text>
       <view class="summary-amount">¥{{totalText}}</view>
-      <text class="summary-meta">本次付款包含 {{rows.length}} 个履约订单</text>
+      <text class="summary-meta">{{summaryMeta}}</text>
       <text class="summary-no">商户单号 {{paymentNo}}</text>
+      <text wx:if="{{paymentHint}}" class="payment-hint">{{paymentHint}}</text>
+      <button wx:if="{{payOrderId}}" class="primary-button continue-payment" bindtap="pay" loading="{{paying}}" disabled="{{actingId !== null}}">{{paying ? '正在确认支付…' : rows.length > 1 ? '合并支付' : '继续支付'}}</button>
     </view>
     <view class="order-card" wx:for="{{rows}}" wx:key="key">
       <view class="order-head">
@@ -81,7 +83,8 @@
       <view class="order-info">
         <view><text>下单时间</text><text>{{item.order.createTimeText || '-'}}</text></view>
         <view><text>付款时间</text><text>{{item.order.payTimeText || '-'}}</text></view>
-        <view><text>实付金额</text><text class="paid-amount">¥{{item.order.amountText}}</text></view>
+        <view wx:if="{{item.order.freightAmount !== null && item.order.freightAmount !== undefined}}"><text>运费（已含）</text><text>¥{{item.order.freightText}}</text></view>
+        <view><text>{{item.order.amountLabel}}</text><text class="paid-amount">¥{{item.order.amountText}}</text></view>
       </view>
       <view class="detail-actions">
         <button wx:if="{{item.order.status === 0}}" class="secondary-button cancel-order"

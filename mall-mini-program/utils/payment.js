@@ -28,23 +28,32 @@ function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds))
 }
 
-async function queryUntilConfirmed(orderId, attempts = 5) {
+function requireCurrent(canContinue) {
+  if (!canContinue()) throw new Error('登录状态或页面已变化，请重新打开订单')
+}
+
+async function queryUntilConfirmed(orderId, attempts = 5, canContinue = () => true) {
   for (let index = 0; index < attempts; index += 1) {
+    requireCurrent(canContinue)
     const paid = await request({ url: '/shop/pay/wechat/query', params: { orderId } })
+    requireCurrent(canContinue)
     if (paid) return true
     if (index < attempts - 1) await delay(800 + index * 400)
   }
   return false
 }
 
-async function payOrder(orderId) {
+async function payOrder(orderId, canContinue = () => true) {
+  requireCurrent(canContinue)
   const parameters = await request({
     url: '/shop/pay/wechat/create',
     method: 'POST',
     params: { orderId }
   })
+  requireCurrent(canContinue)
   await requestPayment(parameters)
-  return queryUntilConfirmed(orderId)
+  requireCurrent(canContinue)
+  return queryUntilConfirmed(orderId, 5, canContinue)
 }
 
 module.exports = { normalizeParameters, requestPayment, isUserCancel, queryUntilConfirmed, payOrder }

@@ -97,20 +97,17 @@ test('加载更多尚未返回时重置可发新请求，旧分页结果不会�
   assert.equal(h.page.data.pageNum, 1)
 })
 
-test('支付成功或取消都刷新当前筛选第一页和计数，不误翻下一页', async () => {
-  for (const cancelled of [false, true]) {
-    const paid = []
-    const h = harness('orders', { respond: ({ url }) => url === '/shop/orders' ? list() : {}, payOrder: async (id) => {
-      paid.push(id); if (cancelled) throw new Error('cancel'); return true
-    } })
-    h.page.setData({ wechatPayEnabled: true, pageNum: 3, loading: false, activeTab: 'pending-payment' })
-    await h.page.pay(event({ id: ID }))
-    assert.deepEqual(paid, [ID])
-    assert.equal(h.calls.find((call) => call.url === '/shop/orders').params.pageNum, 1)
-    assert.equal(h.calls.find((call) => call.url === '/shop/orders').params.orderState, 'PENDING_PAYMENT')
-    assert.ok(h.calls.some((call) => call.url === '/shop/profile/order-summary'))
-    assert.equal(h.page.data.payingId, null)
-  }
+test('列表去付款统一到详情核对金额，返回后刷新当前筛选第一页及计数', async () => {
+  const h = harness('orders', { respond: ({ url }) => url === '/shop/orders' ? list() : {} })
+  h.page.onLoad({ tab: 'pending-payment' }); await h.page.onShow()
+  assert.equal(h.page.data.rows[0].amountLabel, '待付金额')
+  h.page.pay(event({ id: ID })); h.page.pay(event({ id: ID }))
+  assert.deepEqual(h.routes, [`/pages/order-detail/index?id=${ID}`])
+  assert.equal(h.calls.some(call => call.url.includes('/pay/')), false)
+  h.page.setData({ pageNum: 3 }); await h.page.onShow()
+  assert.equal(h.calls.filter(call => call.url === '/shop/orders').at(-1).params.pageNum, 1)
+  assert.equal(h.calls.filter(call => call.url === '/shop/orders').at(-1).params.orderState, 'PENDING_PAYMENT')
+  assert.ok(h.calls.some(call => call.url === '/shop/profile/order-summary'))
 })
 
 test('订单详情支持字符串ID登录回跳与ID下拉刷新', async () => {

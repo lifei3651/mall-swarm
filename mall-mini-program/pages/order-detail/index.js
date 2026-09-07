@@ -1,10 +1,12 @@
 const feedback = require('../../utils/feedback')
 const request = require('../../utils/request')
 const auth = require('../../utils/auth')
+const session = require('../../utils/session')
+const payment = require('../../utils/payment')
 const format = require('../../utils/format')
 const orderCenter = require('../../utils/order-center')
 const theme = require('../../utils/theme')
-const { identifier, afterSaleEligibility } = require('./policy')
+const { identifier, afterSaleEligibility, amountLabel, paymentSummary } = require('./policy')
 
 const STATUS = { 0: '待付款', 1: '待发货', 2: '已发货', 3: '已完成', 4: '已关闭', 5: '售后中' }
 const AFTER_SALE_STATUS = { 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待寄回', 5: '待商家收货', 6: '退款处理中', 7: '待商家换货发出', 8: '换货已发出' }
@@ -21,7 +23,7 @@ function addressText(order) {
 }
 
 Page({
-  data: { ...theme.pageData(), loading: true, error: '', rows: [], paymentNo: '', totalText: '0.00', actingId: null, cancellingAfterSaleId: null,
+  data: { ...theme.pageData(), ...paymentSummary(), loading: true, error: '', rows: [], paymentNo: '', actingId: null, paying: false, cancellingAfterSaleId: null,
     editingSaleId: '', deliveryCompany: '', deliveryNo: '', shipmentError: '', submittingShipment: false,
     carriers: CARRIERS, trackingOrderId: '', trackingLoading: false, trackingError: '', trackingRows: [] },
   onLoad(options = {}) {
@@ -39,13 +41,14 @@ Page({
   },
   onShow() {
     theme.apply(this)
+    if (this.data.paying) return
     if (this.redirect && auth.requireLogin(this.redirect)) return this.load()
     this.requestVersion = (this.requestVersion || 0) + 1
-    if (this.redirect) feedback.update(this, { loading: false, rows: [] })
+    if (this.redirect) feedback.update(this, { loading: false, rows: [], ...paymentSummary() })
   },
   onUnload() { this.disposed = true; this.requestVersion = (this.requestVersion || 0) + 1 },
   onPullDownRefresh() {
-    if (!this.orderId && !this.paymentNo) {
+    if (this.data.paying || (!this.orderId && !this.paymentNo)) {
       wx.stopPullDownRefresh()
       return
     }
@@ -53,13 +56,26 @@ Page({
   },
   async load() {
     const version = this.requestVersion = (this.requestVersion || 0) + 1
+    const token = session.getToken()
+    const current = () => !this.disposed && version === this.requestVersion && token === session.getToken()
     feedback.update(this, { loading: true, error: '' })
     try {
       const result = this.orderId
         ? await request({ url: `/shop/orders/${this.orderId}` })
         : await request({ url: '/shop/orders/payment-detail', params: { paymentNo: this.paymentNo } })
-      if (this.disposed || version !== this.requestVersion) return
-      const source = Array.isArray(result) ? result : (result ? [result] : [])
+      if (!current()) return false
+      let source = Array.isArray(result) ? result : (result ? [result] : [])
+      const first = source[0] && source[0].order
+      if (this.orderId && first && first.tradeId && Number(first.status) === 0) {
+        const groupNo = orderCenter.normalizePaymentNo(first.paymentOrderNo || first.tradeNo)
+        if (!groupNo) throw new Error('合并订单信息不完整，请从全部订单重新进入')
+        source = await request({ url: '/shop/orders/payment-detail', params: { paymentNo: groupNo } })
+        if (!current()) return false
+        if (!Array.isArray(source) || !source.length || !source.some((row) => identifier(row.order && row.order.id) === this.orderId)
+          || source.some((row) => !row.order || String(row.order.tradeId) !== String(first.tradeId))) {
+          throw new Error('合并订单信息发生变化，请刷新后重试')
+        }
+      }
       const rows = source.map((row) => {
         const order = row.order || {}
         return {
@@ -73,6 +89,8 @@ Page({
             status: Number(order.status),
             statusText: STATUS[Number(order.status)] || '处理中',
             amountText: format.money(order.payAmount == null ? order.totalAmount : order.payAmount),
+            amountLabel: amountLabel(order),
+            freightText: format.money(order.freightAmount),
             createTimeText: formatTime(order.createTime),
             payTimeText: formatTime(order.payTime),
             addressText: addressText(order)
@@ -105,12 +123,62 @@ Page({
       feedback.update(this, {
         rows,
         paymentNo: this.paymentNo || (rows[0] && (rows[0].order.paymentOrderNo || rows[0].order.orderNo)) || '',
-        totalText: format.money(rows.reduce((sum, row) => sum + Number(row.order.payAmount || 0), 0))
+        ...paymentSummary(rows)
       })
+      return true
     } catch (error) {
-      if (!this.disposed && version === this.requestVersion) feedback.update(this, { error: error.message || '订单不存在或无权查看', rows: [] })
+      if (current()) feedback.update(this, { error: error.message || '订单不存在或无权查看', rows: [], ...paymentSummary() })
+      return false
     } finally {
-      if (!this.disposed && version === this.requestVersion) feedback.update(this, { loading: false })
+      if (!this.disposed && version === this.requestVersion) {
+        feedback.update(this, { loading: false, ...(token !== session.getToken() ? { rows: [], ...paymentSummary() } : {}) })
+      }
+    }
+  },
+  async pay() {
+    if (this.data.paying || this.data.actingId || this.data.loading || !this.data.payOrderId) return
+    if (!auth.requireLogin(this.redirect)) return
+    const token = session.getToken()
+    const current = () => !this.disposed && token === session.getToken()
+    const previous = `${this.data.payOrderId}:${this.data.totalText}:${this.data.rows.map((row) => row.order.id).join(',')}`
+    feedback.update(this, { paying: true, actingId: 'payment' })
+    wx.showLoading({ title: '正在核对订单', mask: true })
+    try {
+      const config = await request({ url: '/shop/pay/config' })
+      if (!current()) return
+      if (!config || config.wechatPayEnabled !== true) {
+        feedback.notice('商城暂未开放微信支付，请稍后重试或联系商城客服。', '暂不能支付')
+        return
+      }
+      if (!await this.load() || !current()) return
+      const next = `${this.data.payOrderId}:${this.data.totalText}:${this.data.rows.map((row) => row.order.id).join(',')}`
+      if (!this.data.payOrderId || previous !== next) {
+        feedback.notice('订单状态或付款金额已更新，请核对页面后再操作。', '订单已更新')
+        return
+      }
+      let result, failure
+      try { result = await payment.payOrder(this.data.payOrderId, current) } catch (error) { failure = error }
+      if (!current()) return
+      wx.hideLoading()
+      const refreshed = await this.load()
+      if (!current()) return
+      if (refreshed && this.data.rows.length && this.data.rows.every((row) => [1, 2, 3, 5].includes(row.order.status))) {
+        feedback.notice('支付已确认，可在订单中查看发货进度。', '支付成功')
+      } else if (failure && payment.isUserCancel(failure)) {
+        feedback.notice('已取消本次支付。订单状态已重新查询；如仍待付款，可稍后继续支付。', '已取消支付')
+      } else if (failure) {
+        feedback.notice(`${failure.message || '微信支付未完成，请检查网络后重试'}。如已扣款，请先刷新订单确认结果，勿重复付款。`, '支付未完成')
+      } else {
+        feedback.notice(result && refreshed && this.data.rows.some((row) => row.order.status === 4)
+          ? '付款结果已返回，但订单已关闭。请查看退款进度或联系商城客服，勿重复付款。'
+          : '支付结果还在确认中，请稍后下拉刷新订单；如已扣款，勿重复付款。', '请核对订单状态')
+      }
+    } catch (error) {
+      if (current()) feedback.notice(error.message || '暂时无法核对支付信息，请检查网络后重试', '支付未发起')
+    } finally {
+      wx.hideLoading()
+      if (!this.disposed) feedback.update(this, { paying: false, actingId: null,
+        ...(!current() ? { rows: [], ...paymentSummary() } : {}) })
     }
   },
   selectCarrier(event) {
@@ -164,7 +232,9 @@ Page({
     if (!orderId || this.data.actingId) return
     wx.showModal({
       title: '取消订单',
-      content: '取消后将释放库存，这笔订单无法恢复。',
+      content: this.data.rows.some((row) => row.order.id === orderId && row.order.tradeId)
+        ? '这是合并支付订单，取消将同时关闭该交易下所有待付款子订单并释放库存，无法恢复。'
+        : '取消后将释放库存，这笔订单无法恢复。',
       confirmText: '确认取消',
       confirmColor: this.data.themeColor,
       success: async ({ confirm }) => {

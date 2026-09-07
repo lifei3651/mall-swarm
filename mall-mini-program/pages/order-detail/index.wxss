@@ -4,6 +4,8 @@
 .empty-state button { width: 300rpx; margin-top: 34rpx; font-size: 25rpx; }
 .payment-summary { padding: 30rpx; border: 1rpx solid var(--line); border-radius: var(--radius); background: var(--paper); box-shadow: var(--shadow); overflow-wrap: anywhere; }
 .summary-label { color: var(--muted); font-size: 24rpx; }
+.payment-summary .continue-payment { width: 100%; margin-top: 24rpx; font-size: 28rpx; }
+.payment-hint { display: block; margin-top: 20rpx; font-size: 25rpx; line-height: 1.6; color: var(--muted); }
 .summary-amount { margin-top: 8rpx; color: var(--price); font-size: 48rpx; font-weight: 750; }
 .summary-meta, .summary-no { display: block; margin-top: 12rpx; color: #737c8b; font-size: 23rpx; line-height: 34rpx; word-break: break-all; }
 .order-card { margin-top: 20rpx; padding: 26rpx; border: 1rpx solid var(--line); border-radius: var(--radius); background: var(--paper); box-shadow: var(--shadow); }

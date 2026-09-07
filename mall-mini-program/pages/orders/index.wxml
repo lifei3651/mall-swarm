@@ -16,11 +16,11 @@
         <view><text>{{line.productName}}</text><text class="order-spec">{{line.skuName || ''}} × {{line.quantity}}</text></view>
       </view>
       <view wx:if="{{item.afterSaleText}}" class="after-sale-summary">售后进度：{{item.afterSaleText}}</view>
-      <view class="order-total"><text>共 {{item.quantity}} 件商品</text><view><text>实付</text><text>¥{{item.amountText}}</text></view></view>
+      <view class="order-total"><text>共 {{item.quantity}} 件商品</text><view><text>{{item.amountLabel}}</text><text>¥{{item.amountText}}</text></view></view>
       <view class="order-actions">
         <button class="secondary-button" data-id="{{item.order.id}}" catchtap="openDetail">查看详情</button>
         <button wx:if="{{item.order.status === 0 && item.order.payType === 'WECHAT'}}" class="primary-button"
-          data-id="{{item.order.id}}" loading="{{payingId === item.order.id}}" disabled="{{payingId !== null}}" catchtap="pay">微信支付</button>
+          data-id="{{item.order.id}}" catchtap="pay">去付款</button>
       </view>
     </view>
     <button wx:if="{{rows.length < total}}" class="load-more secondary-button" loading="{{loadingMore}}" disabled="{{loadingMore}}" bindtap="loadMore">加载更多订单</button>
