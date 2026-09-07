@@ -143,14 +143,28 @@ Page({
     } })
   },
   search() {
+    if (this.searchNavigating || this.purchaseInactive) return
     const keyword = String(this.data.keyword || '').trim()
-    this.setData({ keyword, searchedKeyword: keyword, searchFocused: false, recentSearches: searchHistory.remember(keyword) })
+    clearTimeout(this.suggestionsTimer)
+    this.setData({ keyword, searchFocused: false, recentSearches: searchHistory.remember(keyword) })
     if (wx.hideKeyboard) wx.hideKeyboard()
-    return this.filterProducts(true)
+    this.searchNavigating = true
+    // A native tab cannot receive query parameters in switchTab's URL.
+    // Apply the keyword after WeChat has created/shown the category page.
+    wx.switchTab({
+      url: '/pages/category/index',
+      success: () => {
+        const page = getCurrentPages().slice(-1)[0]
+        if (page && typeof page.applyKeyword === 'function') page.applyKeyword(keyword)
+        else feedback.notice('分类页暂未就绪，请重新搜索。搜索内容已保留。')
+      },
+      fail: () => feedback.notice('未能打开商品分类，请重试。搜索内容已保留。'),
+      complete: () => { this.searchNavigating = false }
+    })
   },
   focusSearch() { clearTimeout(this.suggestionsTimer); this.setData({ searchFocused: true, recentSearches: searchHistory.list() }) },
   blurSearch() { this.suggestionsTimer = setTimeout(() => this.setData({ searchFocused: false }), 150) },
-  applySearch(event) { this.setData({ keyword: String(event.currentTarget.dataset.keyword || ''), activeCategory: '' }); return this.search() },
+  applySearch(event) { this.setData({ keyword: String(event.currentTarget.dataset.keyword || '') }); return this.search() },
   clearFilter() { this.setData({ keyword: '', searchedKeyword: '', activeCategory: '' }); return this.filterProducts() },
   async filterProducts(scroll = false) {
     const sequence = this.productSequence = (this.productSequence || 0) + 1

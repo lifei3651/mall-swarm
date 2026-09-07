@@ -59,7 +59,10 @@ Page({
   },
   retry() { return this.data.categories.length ? this.loadProducts() : this.loadCategories() },
   applyCategory(name) { feedback.update(this, { active: name || '', keyword: '', browsingAll: false }, () => this.loadProducts()) },
-  applyKeyword(keyword) { feedback.update(this, { keyword: keyword || '', active: '', browsingAll: true }, () => this.loadProducts()) },
+  applyKeyword(keyword) {
+    feedback.update(this, { keyword: String(keyword || '').trim(), active: '', browsingAll: true, sortMode: 'default' })
+    return this.loadProducts()
+  },
   productImageError(event) {
     const index = this.data.products.findIndex((item) => String(item.id) === String(event.currentTarget.dataset.id))
     if (!Number.isInteger(index) || !this.data.products[index]) return

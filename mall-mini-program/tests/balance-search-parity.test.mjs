@@ -68,14 +68,14 @@ test('余额请求结果未知不冒充成功、不重建订单；相同订单�
 test('首次未设支付密码引导安全页，不使用登录密码直接扣款', async () => {
   const env=commerceEnv(()=>({...wallet,hasPaymentPassword:false})),page=env.page('order-detail'); page.load=async()=>true;page.setData({rows:clone(rows),payOrderId:'11',paymentChannel:'BALANCE',totalText:'50.00'}); await page.openBalancePayment(); page.setupPaymentPassword(); assert.equal(env.routes[0],'/pages/account-settings/index?section=payment'); assert.equal(page.data.balanceDialog,false); assert.equal(env.calls.some(c=>c.method==='POST'),false)
 })
-test('首页搜索/分类保持原页、60条查询、最近5条去重，不读取剪贴板', async () => {
-  const env=commerceEnv(()=>({list:[]})),page=env.page('home'); page.setData({keyword:' 护理 '}); await page.search(); assert.equal(env.routes.length,0); assert.deepEqual(env.calls.at(-1).params,{status:1,pageNum:1,pageSize:60,keyword:'护理',categoryName:''})
+test('首页分类筛选仍留原页、60条查询、最近5条去重，不读取剪贴板', async () => {
+  const env=commerceEnv(()=>({list:[]})),page=env.page('home'); await page.filterProducts(); assert.equal(env.routes.length,0); assert.deepEqual(env.calls.at(-1).params,{status:1,pageNum:1,pageSize:60,keyword:'',categoryName:''})
   await page.openCategory({currentTarget:{dataset:{name:'健康'}}}); assert.equal(env.calls.at(-1).params.categoryName,'健康'); await page.openCategory({currentTarget:{dataset:{name:'健康'}}}); assert.equal(env.calls.at(-1).params.categoryName,'')
   const history=env.load('utils/search-history'); for(const word of ['1','2','3','4','5','6','3'])history.remember(word); assert.deepEqual(Array.from(history.list()),['3','6','5','4','2']); await page.clearFilter(); assert.equal(page.data.searchedKeyword,'')
 })
-test('首页慢搜索/慢刷新不能覆盖新筛选；离开后不回写商品', async () => {
+test('首页慢分类筛选/慢刷新不能覆盖新筛选；离开后不回写商品', async () => {
   const first=deferred(),second=deferred();let count=0
   const env=commerceEnv(({url})=>url==='/shop/home'?{categoryList:[],displayConfig:{}}:++count===1?first.promise:second.promise),page=env.page('home')
-  const refresh=page.fetchHome(true); page.setData({keyword:'新查询'});const search=page.search();second.resolve({list:[{id:'2',name:'新结果'}]}); await search;first.resolve({list:[{id:'1',name:'旧结果'}]});await refresh;assert.equal(page.data.products[0].id,'2')
+  const refresh=page.fetchHome(true);const search=page.openCategory({currentTarget:{dataset:{name:'新分类'}}});second.resolve({list:[{id:'2',name:'新结果'}]}); await search;first.resolve({list:[{id:'1',name:'旧结果'}]});await refresh;assert.equal(page.data.products[0].id,'2')
   const delayed=deferred(),env2=commerceEnv(()=>delayed.promise),page2=env2.page('home');const work=page2.filterProducts();page2.onHide();delayed.resolve({list:[{id:'3'}]});await work;assert.equal(page2.data.products.length,0)
 })

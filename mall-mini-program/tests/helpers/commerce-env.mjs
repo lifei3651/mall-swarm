@@ -8,7 +8,7 @@ const clone = value => JSON.parse(JSON.stringify(value))
 export function commerceEnv(respond = () => ({}), token = 'member') {
   const storage = new Map([['mall_mini_access_token', token], ['mall_mini_member', { id: '1' }]]), cache = new Map()
   const calls = [], notices = [], routes = []
-  let definition, tabHidden = false
+  let definition, tabHidden = false, currentPages = []
   const wx = {
     getStorageSync: key => storage.has(key) ? clone(storage.get(key)) : undefined,
     setStorageSync: (key, value) => storage.set(key, clone(value)), removeStorageSync: key => storage.delete(key),
@@ -24,7 +24,7 @@ export function commerceEnv(respond = () => ({}), token = 'member') {
     if (cache.has(file)) return cache.get(file).exports
     const module = { exports: {} }; cache.set(file, module)
     runMiniScript(readFileSync(file, 'utf8'), { module, exports: module.exports,
-      require: id => load(id, dirname(file)), wx, Page: value => { definition = value }, getCurrentPages: () => [], setTimeout, clearTimeout })
+      require: id => load(id, dirname(file)), wx, Page: value => { definition = value }, getCurrentPages: () => currentPages, setTimeout, clearTimeout })
     return module.exports
   }
   function page(name) {
@@ -38,5 +38,5 @@ export function commerceEnv(respond = () => ({}), token = 'member') {
       done?.()
     } }
   }
-  return { load, page, calls, notices, routes, storage, wx, token: value => storage.set('mall_mini_access_token', value), get tabHidden() { return tabHidden } }
+  return { load, page, calls, notices, routes, storage, wx, pages: value => { currentPages = value }, token: value => storage.set('mall_mini_access_token', value), get tabHidden() { return tabHidden } }
 }
