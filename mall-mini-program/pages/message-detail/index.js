@@ -50,7 +50,7 @@ Page({
       wx.navigateTo({ url: id ? `/pages/payout/index?history=1&id=${id}` : '/pages/payout/index?history=1' })
       return
     }
-    if (message.targetType === 'SERVICE_TICKET') { wx.navigateTo({ url: '/pages/legal/index?type=contact' }); return }
+    if (message.targetType === 'SERVICE_TICKET') { const id = format.identifier(message.targetId); wx.navigateTo({ url: id ? `/pages/support-detail/index?id=${id}` : '/pages/support/index' }); return }
     if (message.targetType === 'ACCOUNT_SECURITY') { wx.navigateTo({ url: '/pages/account-security/index' }); return }
     feedback.toast({ title: '请从对应功能入口查看', icon: 'none' })
   }

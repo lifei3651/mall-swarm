@@ -3,6 +3,7 @@ const request = require('../../utils/request')
 const auth = require('../../utils/auth')
 const theme = require('../../utils/theme')
 const format = require('../../utils/format')
+const session = require('../../utils/session')
 
 const CATEGORIES = [
   { key: '', label: '全部' },
@@ -28,15 +29,19 @@ Page({
     totalPage: 1,
     loading: true,
     error: '',
-    subscriptionAvailable: false
+    subscriptionAvailable: false, reading: false,
+    smsPreference: { available: false, enabled: false, maskedPhone: '', statusText: '正在确认服务状态' }, smsBusy: false, smsError: ''
   },
   onLoad() { theme.apply(this) },
-  onShow() { theme.apply(this); if (!this.fetching) return this.load(true) },
+  onShow() { this.inactive = false; theme.apply(this); this.loadSmsPreference(); if (!this.fetching) return this.load(true) },
+  onHide() { this.inactive = true; this.sequence = (this.sequence || 0) + 1; this.smsSequence = (this.smsSequence || 0) + 1; this.fetching = false; this.setData({ loading: false }) },
+  onUnload() { this.onHide() },
   onPullDownRefresh() { this.load(true).finally(() => wx.stopPullDownRefresh()) },
   async load(reset) {
     if (!auth.requireLogin('/pages/messages/index')) return
     if (this.data.loading && !reset) return
     const sequence = this.sequence = (this.sequence || 0) + 1
+    const token = session.getToken()
     this.fetching = true
     feedback.update(this, { loading: true, error: '', ...(reset ? { rows: [], pageNum: 0, totalPage: 1 } : {}) })
     try {
@@ -49,7 +54,7 @@ Page({
         request({ url: '/shop/messages/unread' }),
         request({ url: '/shop/wechat-mini-program/subscriptions' }).catch(() => [])
       ])
-      if (sequence !== this.sequence) return
+      if (sequence !== this.sequence || this.inactive || token !== session.getToken()) return
       const incoming = (page.list || []).map((item) => ({
         ...item,
         displayTime: formatTime(item.occurredTime || item.createTime)
@@ -82,11 +87,47 @@ Page({
     if (id) wx.navigateTo({ url: `/pages/message-detail/index?id=${id}` })
   },
   subscriptions() { wx.navigateTo({ url: '/pages/subscriptions/index' }) },
-  async readAll() {
+  support() { wx.navigateTo({ url: '/pages/support/index' }) },
+  async loadSmsPreference() {
+    if (!session.getToken()) return
+    const token = session.getToken(), sequence = this.smsSequence = (this.smsSequence || 0) + 1
+    const current = () => !this.inactive && token === session.getToken() && sequence === this.smsSequence
+    this.setData({ smsError: '' })
     try {
-      await request({ url: '/shop/messages/read-all', method: 'PUT' })
-      await this.load(true)
-    } catch (error) { feedback.toast({ title: error.message || '操作失败', icon: 'none' }) }
+      const result = await request({ url: '/shop/messages/preferences/sms' })
+      if (!result || typeof result.enabled !== 'boolean') throw new Error('短信设置暂不可用')
+      if (current()) this.setData({ smsPreference: result })
+    } catch (_) { if (current()) this.setData({ smsPreference: { available: false, enabled: false, statusText: '暂时无法读取短信设置，站内消息不受影响' }, smsError: '短信设置加载失败' }) }
+  },
+  async changeSmsPreference() {
+    if (this.data.smsBusy || this.inactive || (!this.data.smsPreference.available && !this.data.smsPreference.enabled) || !auth.requireLogin('/pages/messages/index')) return
+    const token = session.getToken(), enabled = !this.data.smsPreference.enabled, current = () => !this.inactive && token === session.getToken()
+    this.setData({ smsBusy: true })
+    try {
+      if (enabled) {
+        const confirmed = await new Promise(resolve => wx.showModal({ title: '开启重要进度短信？', content: '开启后，商城可向当前绑定手机号发送订单发货、售后退款和账号安全变化提醒，不会用于营销。你可以随时在消息中心关闭。', confirmText: '同意并开启', success: result => resolve(result.confirm), fail: () => resolve(false) }))
+        if (!confirmed || !current()) return
+      }
+      const result = await request({ url: '/shop/messages/preferences/sms', method: 'PUT', data: { enabled, consent: enabled } })
+      if (!current()) return
+      if (!result || typeof result.enabled !== 'boolean') throw new Error('设置结果待确认，请重新读取短信设置')
+      this.setData({ smsPreference: result, smsError: '' })
+      await feedback.notice(result.enabled ? '已开启重要进度短信' : '已关闭重要进度短信', '设置完成')
+    } catch (error) { if (current()) await feedback.notice(error.message || '短信设置保存失败，请重试') }
+    finally { this.setData({ smsBusy: false }) }
+  },
+  readAll() { return this.markRead(false) },
+  readCategory() { return this.markRead(true) },
+  async markRead(categoryOnly) {
+    if (this.data.reading || this.inactive || !auth.requireLogin('/pages/messages/index')) return
+    const category = this.data.category, token = session.getToken()
+    if (categoryOnly && !CATEGORIES.some(item => item.key && item.key === category)) return
+    this.setData({ reading: true })
+    try {
+      await request({ url: categoryOnly ? '/shop/messages/read-category' : '/shop/messages/read-all', method: 'PUT', ...(categoryOnly ? { params: { category } } : {}) })
+      if (!this.inactive && token === session.getToken()) await this.load(true)
+    } catch (error) { if (!this.inactive && token === session.getToken()) feedback.toast({ title: error.message || '操作失败', icon: 'none' }) }
+    finally { this.setData({ reading: false }) }
   },
   loadMore() { if (this.data.pageNum < this.data.totalPage) this.load(false) }
 })

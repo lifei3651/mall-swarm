@@ -6,6 +6,22 @@ import { readFileSync } from 'node:fs'
 
 const source = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 const ready = { enabled: true, phoneAuthorizationEnabled: true, privacyConsentVersion: 'MINI_PROGRAM_PRIVACY_V1' }
+
+test('微信授权回调早于页面恢复：先等原生界面返回，再关闭登录层并且只继续一次', async () => {
+  const h=harness();await h.panel.open('/pages/address/index');h.panel.data.agreed=true
+  h.panel.beginPhoneAuthorization();assert.equal(h.panel.data.authorizingPhone,true)
+  h.component.pageLifetimes.hide.call(h.panel)
+  await h.panel.phoneLogin({detail:{errMsg:'getPhoneNumber:ok',code:'mock-valid-phone-code'}})
+  assert.equal(h.events.length,0);assert.equal(h.panel.data.visible,true)
+  h.component.pageLifetimes.show.call(h.panel);assert.equal(h.events.length,1);assert.equal(h.panel.data.visible,false);assert.equal(h.events[0].detail.redirect,'/pages/address/index')
+  h.component.pageLifetimes.show.call(h.panel);assert.equal(h.events.length,1)
+})
+test('原生短信窗口尚未返回凭证时绝不伪造登录；返回不能重载配置或替换授权按钮', async () => {
+  let checks=0;const h=harness({runtime:async()=>{checks++;return ready}});await h.panel.open('');h.panel.data.agreed=true;h.panel.beginPhoneAuthorization()
+  h.component.pageLifetimes.hide.call(h.panel);h.component.pageLifetimes.show.call(h.panel)
+  assert.equal(checks,1);assert.equal(h.calls.length,0);assert.equal(h.events.length,0);assert.equal(h.panel.data.visible,true);assert.equal(h.panel.data.phoneEnabled,true)
+  await h.panel.phoneLogin({detail:{errMsg:'getPhoneNumber:fail cancel'}});assert.equal(h.panel.data.authorizingPhone,false);assert.equal(h.calls.length,0)
+})
 function harness({ runtime = async () => ready, login, token = '' } = {}) {
   const events = [], calls = [], routes = []
   const session = { getToken: () => token }
@@ -25,7 +41,7 @@ function harness({ runtime = async () => ready, login, token = '' } = {}) {
     Component: (value) => { component = value }
   })
   const panel = { ...component.methods, data: { ...component.data }, properties: { presentation: 'sheet' },
-    setData(patch) { Object.assign(this.data, patch) }, triggerEvent(name, detail) { events.push({ name, detail }) } }
+    setData(patch, callback) { Object.assign(this.data, patch); callback?.() }, triggerEvent(name, detail) { events.push({ name, detail }) } }
   return { panel, component, events, calls, routes }
 }
 
@@ -67,7 +83,7 @@ test('未同意不发请求，授权成功只通知原任务且不暴露会话�
   assert.equal(h.calls.length, 1)
   assert.equal(h.calls[0].privacyConsentVersion, ready.privacyConsentVersion)
   assert.equal(h.panel.data.visible, false)
-  assert.deepEqual(JSON.parse(JSON.stringify(h.events)), [{ name: 'success', detail: { redirect: '/pages/address/index' } }])
+  assert.deepEqual(JSON.parse(JSON.stringify(h.events)), [{ name: 'success', detail: { redirect: '/pages/address/index', message: '登录成功' } }])
   await h.panel.open('')
   assert.equal(h.panel.data.agreed, false)
 })

@@ -41,12 +41,12 @@ test('只展示已有启用保障，无配置不制造保障，缺少说明不�
 test('真实商品页加载保留后台保障顺序、长说明及售后政策，不改交易数据', async () => {
   const tags = Array.from({ length: 8 }, (_, index) => ({ title: `已配置服务${index + 1}`, description: '原始规则第一段\n第二段包含非常长的条件说明'.repeat(3) }))
   const product = { id: '27', productName: '服务区验收', status: 1, salePrice: 99, stock: 4, purchaseLimit: 2, serviceTags: JSON.stringify(tags), afterSalePolicy: '保留本商品原有售后规则' }
-  const env = commerceEnv(() => ({ product, skus: [] }))
+  const env = commerceEnv(({ url }) => url.endsWith('/reviews') ? { page: { list: [], total: 0 }, reviewCount: 0, canReview: false } : ({ product, skus: [] }))
   const page = env.page('product'); page.productId = '27'; await page.load()
   assert.deepEqual(page.data.product.serviceTags, tags)
   assert.equal(page.data.product.afterSalePolicy, product.afterSalePolicy)
   assert.equal(page.data.product.purchaseLimit, 2)
   assert.equal(page.data.priceText, '99.00')
   assert.equal(page.data.stock, 4)
-  assert.deepEqual(env.calls, [{ url: '/shop/products/27' }])
+  assert.deepEqual(env.calls, [{ url: '/shop/products/27' }, { url: '/shop/products/27/reviews', params: { pageNum: 1, pageSize: 5 } }])
 })

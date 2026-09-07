@@ -5,6 +5,7 @@ const theme = require('../../utils/theme')
 const format = require('../../utils/format')
 const wechatAddress = require('../../utils/wechat-address')
 const session = require('../../utils/session')
+const addressParser = require('../../utils/address-parser')
 
 Page({
   data: {
@@ -15,7 +16,7 @@ Page({
     showForm: false,
     selectMode: false,
     form: { id: null, receiverName: '', receiverPhone: '', region: [], regionText: '', detailAddress: '', isDefault: false },
-    saving: false, importing: false, importMessage: ''
+    saving: false, importing: false, importMessage: '', pastedAddress: ''
   },
   onLoad(options = {}) {
     theme.apply(this)
@@ -30,11 +31,12 @@ Page({
   },
   async load() {
     const generation = this.loadGeneration = (this.loadGeneration || 0) + 1
+    const token = session.getToken()
     feedback.update(this, { loading: true, loadError: '' })
     try {
       const response = await request({ url: '/shop/addresses' }) || []
       const rows = response.filter((row) => format.identifier(row.id)).map((row) => ({ ...row, id: format.identifier(row.id), isDefault: Number(row.isDefault) }))
-      if (generation !== this.loadGeneration) return
+      if (generation !== this.loadGeneration || token !== session.getToken() || this.disposed) return
       feedback.update(this, { rows, showForm: this.data.showForm || !rows.length })
     }
     catch (error) {
@@ -64,7 +66,18 @@ Page({
   },
   input(event) {
     const field = event.currentTarget.dataset.field
-    if (['receiverName', 'receiverPhone', 'detailAddress'].includes(field) && !this.data.importing) feedback.update(this, { [`form.${field}`]: event.detail.value })
+    if (['receiverName', 'receiverPhone', 'detailAddress'].includes(field) && !this.data.importing && !this.data.saving) feedback.update(this, { [`form.${field}`]: event.detail.value })
+  },
+  pasteInput(event) { if (!this.data.saving && !this.data.importing) this.setData({ pastedAddress: String(event.detail.value || '').slice(0,1000) }) },
+  async recognizeAddress() {
+    if (this.data.saving || this.data.importing) return
+    if (!this.data.pastedAddress.trim()) { await feedback.notice('请先在输入框粘贴收货信息'); return }
+    const parsed = addressParser.parseChineseAddress(this.data.pastedAddress)
+    const form = { ...this.data.form }
+    for (const key of ['receiverName', 'receiverPhone', 'detailAddress']) if (parsed[key]) form[key] = parsed[key]
+    if (parsed.province && parsed.city && parsed.district) { form.region = [parsed.province, parsed.city, parsed.district]; form.regionText = form.region.join(' ') }
+    this.setData({ form })
+    await feedback.notice('已识别并回填，请核对姓名、电话、省市区和详细地址后保存。未识别完整的字段请手动补充。', '请核对收货信息')
   },
   region(event) {
     const region = event.detail.value || []
@@ -112,6 +125,7 @@ Page({
     if (!/^1[3-9]\d{9}$/.test(form.receiverPhone.trim())) { feedback.toast({ title: '请输入正确手机号', icon: 'none' }); return }
     if (!form.region || form.region.length !== 3) { feedback.toast({ title: '请选择省市区', icon: 'none' }); return }
     if (!form.detailAddress.trim()) { feedback.toast({ title: '请输入详细地址', icon: 'none' }); return }
+    const token = session.getToken()
     feedback.update(this, { saving: true })
     try {
       const saved = await request({ url: '/shop/addresses', method: 'POST', data: {
@@ -120,7 +134,9 @@ Page({
         province: form.region[0], city: form.region[1], district: form.region[2],
         detailAddress: form.detailAddress.trim(), isDefault: form.isDefault || !this.data.rows.length ? 1 : 0
       } })
+      if (this.disposed || token !== session.getToken()) return
       await feedback.toast({ title: form.id ? '地址已更新' : '地址已保存', icon: 'success' })
+      if (this.disposed || token !== session.getToken()) return
       if (this.selectMode) this.returnSelectedAddress(saved)
       else { this.resetForm(false); await this.load() }
     } catch (error) { feedback.toast({ title: error.message || '保存失败', icon: 'none' }) }
@@ -151,6 +167,13 @@ Page({
     const row = id && this.data.rows.find((item) => format.identifier(item.id) === id)
     if (!row) return
     if (this.selectMode) { this.returnSelectedAddress(row); return }
+  },
+  async makeDefault(event) {
+    if (this.data.saving || this.data.loading || this.returning || this.data.loadError) return
+    const id = format.identifier(event.currentTarget.dataset.id)
+    const row = id && this.data.rows.find(item => format.identifier(item.id) === id)
+    if (!row || Number(row.isDefault) === 1) return
+    const token = session.getToken()
     feedback.update(this, { saving: true })
     try {
       await request({ url: '/shop/addresses', method: 'POST', data: {
@@ -158,8 +181,9 @@ Page({
         province: row.province, city: row.city, district: row.district,
         detailAddress: row.detailAddress, isDefault: 1
       } })
+      if (this.disposed || token !== session.getToken()) return
       await this.load()
-    } catch (error) { feedback.toast({ title: error.message || '选择失败', icon: 'none' }) }
+    } catch (error) { if (!this.disposed && token === session.getToken()) feedback.toast({ title: error.message || '设置默认地址失败', icon: 'none' }) }
     finally { feedback.update(this, { saving: false }) }
   },
   async remove(event) {
@@ -168,16 +192,18 @@ Page({
     const row = candidateId && this.data.rows.find((item) => format.identifier(item.id) === candidateId)
     if (!row) return
     const id = row.id
+    const token = session.getToken()
     wx.showModal({
       title: '删除收货地址',
       content: '删除后无法恢复，确定继续吗？',
       confirmText: '删除',
       confirmColor: this.data.themeColor,
       success: async ({ confirm }) => {
-        if (!confirm || this.data.saving) return
+        if (!confirm || this.data.saving || this.disposed || token !== session.getToken()) return
         feedback.update(this, { saving: true })
         try {
           await request({ url: `/shop/addresses/${id}`, method: 'DELETE' })
+          if (this.disposed || token !== session.getToken()) return
           if (String(this.data.form.id) === String(id)) this.resetForm(false)
           await this.load()
         } catch (error) { feedback.toast({ title: error.message || '删除失败', icon: 'none' }) }

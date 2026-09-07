@@ -6,16 +6,26 @@ const auth = require('../../utils/auth')
 const theme = require('../../utils/theme')
 const share = require('../../utils/share')
 const purchaseLimit = require('../../utils/purchase-limit')
+const quantityRules = require('../../utils/quantity')
+const reviews = require('../../utils/product-reviews')
+const session = require('../../utils/session')
 
 Page({
+  ...reviews.methods,
   data: {
     ...theme.pageData(),
+    ...reviews.data,
     loading: true, error: '', product: {}, skus: [], skuIndex: 0, quantity: 1,
-    priceText: '0.00', stock: 0, soldOut: false, selectedSku: {}, purchasePending: false
+    priceText: '0.00', stock: 0, soldOut: false, selectedSku: {}, purchasePending: false, quantityInput: '1', maxQuantity: 1, galleryIndex: 0, cartCount: 0
   },
-  onLoad(options = {}) { theme.apply(this); this.productId = format.identifier(options.id); this.load() },
-  onShow() { this.purchaseInactive = false; return share.prepare(this) },
-  onHide() { this.purchaseInactive = true; this.purchaseSequence = (this.purchaseSequence || 0) + 1; this.setData({ purchasePending: false }); share.hide(this) },
+  onLoad(options = {}) { theme.apply(this); this.productId = format.identifier(options.id); this.reviewOrderItemId = format.identifier(options.orderItemId); this.load() },
+  onShow() {
+    this.purchaseInactive = false; this.setData({ cartCount: cart.count() })
+    if (this.reviewOwner !== session.getToken()) { this.reviewOwner = session.getToken(); this.setData({ ...reviews.data }) }
+    if (!this.data.loading && this.productId) this.loadReviews()
+    return share.prepare(this)
+  },
+  onHide() { this.purchaseInactive = true; this.purchaseSequence = (this.purchaseSequence || 0) + 1; this.setData({ purchasePending: false }); reviews.hide(this); share.hide(this) },
   onUnload() { this.onHide() },
   onShareAppMessage() { return share.message(this, this.productId ? `/pages/product/index?id=${encodeURIComponent(this.productId)}` : '/pages/home/index', this.data.product.productName || this.data.brandName) },
   retryShare() { return share.prepare(this) },
@@ -29,15 +39,19 @@ Page({
       const availableIndex = skus.findIndex((sku) => Number(sku.stock || 0) > 0)
       const skuIndex = availableIndex >= 0 ? availableIndex : 0
       const selected = skus[skuIndex]
+      const stock = Math.max(0, Number(selected ? selected.stock : product.stock || 0))
       feedback.update(this, {
         product,
         skus,
         skuIndex, selectedSku: selected || {},
         priceText: selected ? selected.priceText : product.priceText,
-        stock: Math.max(0, Number(selected ? selected.stock : product.stock || 0)),
+        stock, maxQuantity: quantityRules.maximum(stock, product.purchaseLimit), quantity: 1, quantityInput: '1',
+        marketPriceText: format.money(selected ? selected.marketPrice : product.marketPrice), marketPrice: Number(selected ? selected.marketPrice : product.marketPrice || 0),
+        freightLabel: this.freightLabel(product),
         soldOut: Number(product.status ?? 1) !== 1 || Math.max(0, Number(selected ? selected.stock : product.stock || 0)) <= 0
       })
       wx.setNavigationBarTitle({ title: detail.product.productName || '商品详情' })
+      this.loadReviews()
     } catch (error) { feedback.update(this, { error: error.message }) }
     finally { feedback.update(this, { loading: false }) }
   },
@@ -48,12 +62,23 @@ Page({
     const skuIndex = Number(event.currentTarget.dataset.index)
     const sku = this.data.skus[skuIndex]
     if (!sku || Number(sku.stock || 0) <= 0 || Number(this.data.product.status ?? 1) !== 1) return
-    feedback.update(this, { skuIndex, selectedSku: sku, quantity: 1, priceText: sku.priceText, stock: Number(sku.stock || 0), soldOut: false })
+    feedback.update(this, { skuIndex, selectedSku: sku, quantity: 1, quantityInput: '1', maxQuantity: quantityRules.maximum(sku.stock, this.data.product.purchaseLimit), marketPrice: Number(sku.marketPrice || 0), marketPriceText: format.money(sku.marketPrice), priceText: sku.priceText, stock: Number(sku.stock || 0), soldOut: false })
   },
   changeQuantity(event) {
     if (this.data.purchasePending || ![1, -1].includes(Number(event.currentTarget.dataset.delta))) return
-    const maximum = Math.max(1, Math.min(99, Number(this.data.stock || 1), Number(this.data.product.purchaseLimit) > 0 ? Number(this.data.product.purchaseLimit) : 99))
-    feedback.update(this, { quantity: Math.max(1, Math.min(maximum, this.data.quantity + Number(event.currentTarget.dataset.delta))) })
+    this.setQuantity(this.data.quantity + Number(event.currentTarget.dataset.delta))
+  },
+  setQuantity(value) { const quantity = quantityRules.resolve(value, quantityRules.maximum(this.data.stock, this.data.product.purchaseLimit)); this.setData({ quantity, quantityInput: String(quantity) }) },
+  quantityChanged(event) {
+    if (this.data.purchasePending) return
+    const value = quantityRules.sanitize(event.detail.value)
+    if (!value) { this.setData({ quantityInput: '' }); return '' }
+    this.setQuantity(value); return this.data.quantityInput
+  },
+  commitQuantity() { if (!this.data.purchasePending) this.setQuantity(this.data.quantityInput) },
+  galleryChanged(event) { this.setData({ galleryIndex: Number(event.detail.current) || 0 }) },
+  freightLabel(product) {
+    return ({ 1: `统一运费 ¥${format.money(product.freightAmount)}`, 2: `满 ¥${format.money(product.freeShippingAmount)} 包邮，未满 ¥${format.money(product.freightAmount)}`, 3: '按配送地区计算，部分地区暂不配送' })[Number(product.freightType)] || '全国包邮'
   },
   purchaseItem() {
     const product = this.data.product
@@ -72,6 +97,7 @@ Page({
   buyNow() { return this.purchaseAction(true) },
   async purchaseAction(direct) {
     if (this.data.purchasePending || this.purchaseInactive) return
+    if (!this.data.quantityInput) this.commitQuantity()
     if (!auth.requireLogin(`/pages/product/index?id=${this.productId || this.data.product.id}`)) return
     const item = this.purchaseItem()
     if (!item) return
@@ -88,10 +114,12 @@ Page({
         wx.navigateTo({ url: '/pages/checkout/index?direct=1' })
       } else {
         cart.add(selection.item)
+        this.setData({ cartCount: cart.count() })
         await feedback.notice(`已加入购物车，数量 +${selection.item.quantity}`, '操作完成')
       }
     } catch (error) { if (current()) await feedback.notice(error.message || '商品信息更新失败，请稍后重试', direct ? '暂时无法购买' : '未能加入购物车') }
     finally { if (sequence === this.purchaseSequence) this.setData({ purchasePending: false }) }
   },
-  goCart() { wx.switchTab({ url: '/pages/cart/index' }) }
+  goCart() { wx.switchTab({ url: '/pages/cart/index' }) },
+  goHome() { wx.switchTab({ url: '/pages/home/index' }) }
 })

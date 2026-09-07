@@ -15,12 +15,13 @@
     <view class="address-row" wx:for="{{rows}}" wx:key="id" data-id="{{item.id}}" bindtap="choose">
       <view><text>{{item.receiverName}}</text><text>{{item.receiverPhone}}</text><text wx:if="{{item.isDefault === 1}}" class="default-tag">默认</text></view>
       <text>{{item.province}}{{item.city}}{{item.district}}{{item.detailAddress}}</text>
-      <view class="address-actions"><button data-id="{{item.id}}" catchtap="edit">编辑</button><button data-id="{{item.id}}" catchtap="remove">删除</button></view>
+      <view class="address-actions"><button wx:if="{{item.isDefault !== 1}}" data-id="{{item.id}}" catchtap="makeDefault">设为默认</button><button data-id="{{item.id}}" catchtap="edit">编辑</button><button data-id="{{item.id}}" catchtap="remove">删除</button></view>
     </view>
   </view>
   <view wx:else class="address-empty-state"><text>还没有收货地址</text><text>新增后可在结算时直接选择</text></view>
   <view wx:if="{{showForm}}" class="address-form">
     <view class="form-head"><view><view class="form-title">{{form.id ? '编辑收货地址' : '新增收货地址'}}</view><text>请填写真实有效的收货信息</text></view><button wx:if="{{rows.length}}" bindtap="cancelEdit">取消</button></view>
+    <view class="paste-address"><text class="field-label">粘贴识别收货信息</text><textarea value="{{pastedAddress}}" bindinput="pasteInput" maxlength="1000" disabled="{{saving || importing}}" placeholder="在这里粘贴姓名、手机号、省市区及详细地址" aria-label="手动粘贴待识别的收货信息" /><button class="secondary-button" bindtap="recognizeAddress" disabled="{{saving || importing}}">识别并填入</button><text>仅识别你主动粘贴的内容，不会自动读取剪贴板。请核对后保存。</text></view>
     <text class="field-label">收货人</text>
     <input data-field="receiverName" value="{{form.receiverName}}" maxlength="30" placeholder="请输入收货人姓名" aria-label="收货人姓名" bindinput="input" />
     <text class="field-label">联系电话</text>

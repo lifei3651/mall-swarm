@@ -18,7 +18,10 @@
       <view wx:if="{{item.afterSaleText}}" class="after-sale-summary">售后进度：{{item.afterSaleText}}</view>
       <view class="order-total"><text>共 {{item.quantity}} 件商品</text><view><text>{{item.amountLabel}}</text><text>¥{{item.amountText}}</text></view></view>
       <view class="order-actions">
+        <button wx:if="{{item.order.status === 0}}" class="secondary-button" data-id="{{item.order.id}}" catchtap="cancelOrder" disabled="{{actingId}}">取消订单</button>
+        <button wx:if="{{item.canReceive}}" class="primary-button" data-id="{{item.order.id}}" catchtap="receive" disabled="{{actingId}}">确认收货</button>
         <button class="secondary-button" data-id="{{item.order.id}}" catchtap="openDetail">查看详情</button>
+        <button wx:if="{{item.pendingReviewProductId && item.pendingReviewOrderItemId}}" class="primary-button" data-id="{{item.order.id}}" catchtap="review">去评价</button>
         <button wx:if="{{item.order.status === 0 && item.order.payType === 'WECHAT'}}" class="primary-button"
           data-id="{{item.order.id}}" catchtap="pay">去付款</button>
       </view>

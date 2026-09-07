@@ -171,6 +171,7 @@ test('品牌文化空字段不会渲染null，关闭的独立页面不继续获�
   const paths = []
   let enabled = true
   const page = instance(load('../pages/store-content/index.js', {
+    '../../utils/live': { stop() {} }, '../../utils/session': { getToken: () => '' },
     '../../utils/request': async ({ url }) => { paths.push(url); return url === '/shop/home' ? { brandCultureEnabled: enabled } : { enabled: true, title: null, subtitle: null, content: null, detailImages: [] } },
     '../../utils/theme': { pageData: () => ({}), remember: () => ({}) }, globals: { wx: { setNavigationBarTitle() {} } }
   }))
@@ -186,7 +187,8 @@ test('品牌文化空字段不会渲染null，关闭的独立页面不继续获�
 test('直播详情拒绝网页及不安全视频地址，不把后台链接当脚本执行', async () => {
   for (const url of ['javascript:alert(1)', 'http://example.com/live.mp4', 'https://example.com/page', 'https://example.com/live.m3u8?token=test']) {
     const page = instance(load('../pages/store-content/index.js', {
-      '../../utils/request': async ({ url: path }) => path === '/shop/home' ? { displayConfig: { liveSquareEnabled: 1 } } : { roomState: 'LIVE', room: { watchUrl: url }, products: [] },
+      '../../utils/live': { stop() {}, start() {}, room: value => value }, '../../utils/session': { getToken: () => '' },
+      '../../utils/request': async ({ url: path }) => path === '/shop/home' ? { displayConfig: { liveSquareEnabled: 1 } } : { roomState: 'LIVE', room: { id: '1', watchUrl: url }, products: [] },
       '../../utils/theme': { pageData: () => ({}), remember: () => ({}) }, globals: { wx: { setNavigationBarTitle() {} } }
     }))
     page.contentType = 'live'; page.roomId = 1

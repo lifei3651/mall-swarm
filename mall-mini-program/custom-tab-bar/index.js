@@ -1,5 +1,6 @@
 const theme = require('../utils/theme')
 const feedback = require('../utils/feedback')
+const cart = require('../utils/cart')
 Component({
   data: { ...theme.pageData(), active: 'home', hidden: false },
   lifetimes: { attached() { this.refresh() } },
@@ -8,7 +9,7 @@ Component({
     refresh(palette = theme.pageData()) {
       const pages = getCurrentPages()
       const page = pages[pages.length - 1]
-      this.setData({ ...palette, active: String(page && page.route || '').split('/')[1] || 'home',
+      this.setData({ ...palette, cartCount: cart.count(), active: String(page && page.route || '').split('/')[1] || 'home',
         hidden: Boolean(page && page.data && (page.data.loginVisible || page.data.skuVisible)) })
     },
     navigate(event) {

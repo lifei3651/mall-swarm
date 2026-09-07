@@ -43,13 +43,14 @@ module.exports = {
   data: {
     ...theme.pageData(),
     ...invitation.data,
-    loading: true, submitting: false, enabled: false, phoneEnabled: false,
+    loading: true, submitting: false, authorizingPhone: false, enabled: false, phoneEnabled: false,
     agreed: false, agreementRequired: false, privacyVersion: '', inviteCode: '', error: '',
     loginNotice: '', showLoginHelp: false, contextHint: ''
   },
   ...invitation.methods,
   onLoad(options = {}) {
     this._inactive = false
+    this._loginSuccessMessage = ''
     theme.apply(this)
     try { this.redirect = decodeURIComponent(options.redirect || '') } catch (_) { this.redirect = '' }
     feedback.update(this, { contextHint: loginContext(this.redirect) })
@@ -57,7 +58,7 @@ module.exports = {
     return this.loadRuntime()
   },
   async loadRuntime() {
-    if (this._inactive || this.data.submitting) return
+    if (this._inactive || this.data.submitting || this.data.authorizingPhone) return
     const sequence = this._runtimeSequence = (this._runtimeSequence || 0) + 1
     feedback.update(this, { loading: true, enabled: false, phoneEnabled: false, privacyVersion: '', error: '', loginNotice: '', showLoginHelp: false })
     try {
@@ -94,6 +95,7 @@ module.exports = {
   },
   requireAgreement() { if (this.checkReady()) this.invitationReady() },
   onShow() {
+    if (this.data.authorizingPhone || this.data.submitting) return
     theme.apply(this)
     feedback.update(this, { logoFailed: false })
     if (!this.data.submitting) this.syncInvitation()
@@ -104,6 +106,7 @@ module.exports = {
     this._runtimeSequence = (this._runtimeSequence || 0) + 1
     this._loginSequence = (this._loginSequence || 0) + 1
     this._inviteSequence = (this._inviteSequence || 0) + 1
+    this.setData({ authorizingPhone: false })
   },
   logoError() { feedback.update(this, { logoFailed: true }) },
   checkReady() {
@@ -119,7 +122,11 @@ module.exports = {
   async returningLogin() {
     if (this.checkReady()) await this.executeLogin('')
   },
+  beginPhoneAuthorization() {
+    if (this.checkReady() && this.data.phoneEnabled && this.invitationReady()) this.setData({ authorizingPhone: true })
+  },
   async phoneLogin(event) {
+    this.setData({ authorizingPhone: false })
     if (!this.checkReady()) return
     if (!this.data.phoneEnabled) {
       feedback.update(this, { error: '微信手机号快捷登录暂不可用，请稍后重试或联系商城客服。', loginNotice: '', showLoginHelp: true })
@@ -148,7 +155,9 @@ module.exports = {
       if (!result || typeof result.accessToken !== 'string' || !result.accessToken || session.getToken() !== result.accessToken) {
         throw new Error('登录未完成，请重试或联系商城客服')
       }
-      feedback.toast({ title: result.newMember ? '注册成功' : '登录成功', icon: 'success' })
+      // Do not open a second native modal while WeChat's phone sheet is closing.
+      // The destination shows this notice after the login UI has been removed.
+      this._loginSuccessMessage = result.newMember ? '注册成功' : '登录成功'
       if (result.newMember) this.redirect = '/pages/home/index'
       this.finish()
     } catch (error) {
@@ -159,12 +168,15 @@ module.exports = {
   },
   finish() {
     if (!session.getToken()) return
+    const token = session.getToken()
+    const success = () => { if (this._loginSuccessMessage && session.getToken() === token) feedback.notice(this._loginSuccessMessage, '操作完成') }
+    const fallback = () => wx.switchTab({ url: '/pages/profile/index', success, fail: () => feedback.notice('账号已登录，但页面未能打开。请返回“我的”继续操作。') })
     if (this.redirect && this.redirect.startsWith('/pages/')) {
       const pagePath = this.redirect.split('?')[0]
       const tabPages = new Set(['/pages/home/index', '/pages/category/index', '/pages/cart/index', '/pages/profile/index'])
-      if (tabPages.has(pagePath)) wx.switchTab({ url: pagePath })
-      else wx.redirectTo({ url: this.redirect, fail: () => wx.switchTab({ url: '/pages/profile/index' }) })
-    } else wx.switchTab({ url: '/pages/profile/index' })
+      if (tabPages.has(pagePath)) wx.switchTab({ url: pagePath, success, fail: fallback })
+      else wx.redirectTo({ url: this.redirect, success, fail: fallback })
+    } else fallback()
   },
   openPrivacy() { wx.navigateTo({ url: '/pages/legal/index?type=privacy' }) },
   openAgreement() { wx.navigateTo({ url: '/pages/legal/index?type=agreement' }) }

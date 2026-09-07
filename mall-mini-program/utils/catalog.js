@@ -2,6 +2,7 @@ const request = require('./request')
 const format = require('./format')
 const purchaseLimit = require('./purchase-limit')
 const session = require('./session')
+const quantityRules = require('./quantity')
 
 // At most four concurrent reads and one fetch per distinct product. Never change user quantities.
 async function refresh(rows, options = {}) {
@@ -45,13 +46,14 @@ async function refresh(rows, options = {}) {
     const price = rawPrice === null || rawPrice === undefined || rawPrice === '' ? NaN : Number(rawPrice)
     const limit = Number(product && product.purchaseLimit || 0)
     if (!unavailable && (!Number.isInteger(stock) || stock < 1)) unavailable = '暂时缺货'
-    if (!unavailable && (!Number.isInteger(row.quantity) || row.quantity < 1 || row.quantity > 99 || row.quantity > stock)) unavailable = '数量超过库存或购买上限，请调整'
+    if (!unavailable && (!quantityRules.valid(row.quantity) || row.quantity > stock)) unavailable = '数量超过库存或购买上限，请调整'
     if (!unavailable && limit > 0 && quantities.get(format.identifier(row.productId)) > limit) unavailable = `每位会员限购${limit}件，不同规格合并计算，请调整`
     if (!unavailable && (!Number.isFinite(price) || price < 0)) unavailable = '商品价格异常，请稍后重试'
     if (!unavailable && limitErrors.has(format.identifier(row.productId))) unavailable = limitErrors.get(format.identifier(row.productId))
     return { ...row, unavailable, stock, purchaseLimit: limit,
       productName: product && product.productName || row.productName,
       skuName: sku ? sku.skuName || '' : row.skuName,
+      skuAttrs: sku ? sku.attrsJson || '' : '', merchantName: product && product.merchantName || '',
       coverUrl: format.mediaUrl(sku && sku.imageUrl || product && product.coverUrl || row.coverUrl),
       salePrice: Number.isFinite(price) && price >= 0 ? price : row.salePrice }
   })

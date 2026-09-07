@@ -22,11 +22,13 @@ function pageHarness(name, response = () => ({})) {
     '../../utils/request': async (options) => { calls.push(plain(options)); return options.url.endsWith('/purchase-limit/check') ? { allowed: true } : response(options) },
     '../../utils/format': format, '../../utils/legal': legal,
     '../../utils/category-product': require('../utils/category-product'),
+    '../../utils/search-history': { list: () => [], remember: value => [value] },
     '../../utils/campaign-display': require('../utils/campaign-display'),
+    '../../utils/quantity': require('../utils/quantity'),
     '../../utils/session': { getToken: () => loggedIn ? 'test-token' : '' },
     '../../utils/theme': { pageData: () => ({}), apply: async () => ({}), sync() {} },
     '../../utils/auth': { requireLogin: (url) => { logins.push(url); return loggedIn } },
-    '../../utils/cart': { list: () => cart, add: (row) => cart.push(row), selectOnly() {} }
+    '../../utils/cart': { list: () => cart, count: () => cart.reduce((sum, row) => sum + row.quantity, 0), add: (row) => cart.push(row), selectOnly() {} }
   }
   const modules = new Map()
   function localUtility(name) {
@@ -40,6 +42,7 @@ function pageHarness(name, response = () => ({})) {
   }
   mocks['../../utils/quick-cart'] = localUtility('quick-cart')
   mocks['../../utils/purchase-limit'] = localUtility('purchase-limit')
+  mocks['../../utils/product-reviews'] = localUtility('product-reviews')
   runMiniScript(readFileSync(new URL(`../pages/${name}/index.js`, import.meta.url), 'utf8'), {
     Page: (value) => { definition = value }, require: (id) => { assert.ok(Object.hasOwn(mocks, id), id); return mocks[id] },
     wx: { navigateTo: (options) => nav.push(options.url), setNavigationBarTitle() {}, showToast() {}, stopPullDownRefresh() {} }
@@ -173,11 +176,12 @@ test('规格单价摘要复用真实选中价格，零价和缺货保护不受�
   assert.match(view, /已选：\{\{selectedSku\.skuName/)
 })
 
-test('购物车删除在独立操作行，商品底栏图标不压缩，搜索空状态有真实恢复绑定', () => {
+test('购物车按H5管理模式批量删除，商品底栏图标不压缩，搜索空状态有真实恢复绑定', () => {
   const read = (path) => readFileSync(new URL(`../pages/${path}`, import.meta.url), 'utf8')
-  assert.match(read('cart/index.wxml'), /class="cart-item-actions"><button[^>]+bindtap="remove"/)
+  assert.match(read('cart/index.wxml'), /bindtap="toggleManage"/)
+  assert.match(read('cart/index.wxml'), /bindtap="removeSelected"/)
+  assert.match(read('cart/index.wxml'), /bindtap="clearCart"/)
   assert.doesNotMatch(read('cart/index.wxss'), /\.remove\s*\{[^}]*position:\s*absolute/)
-  assert.match(read('cart/index.wxss'), /\.cart-item-actions\s*\{[^}]*display:\s*flex/)
   assert.match(read('product/index.wxss'), /\.product-actions \.cart-shortcut\s*\{[^}]*flex:\s*0 0 108rpx[^}]*line-height:\s*1;/)
   assert.match(read('product/index.wxss'), /\.cart-shortcut image\s*\{[^}]*flex:\s*none/)
   assert.match(read('category/index.wxml'), /searchedKeyword \? '没有找到相关商品' : active \? '这个分类还没有商品' : '商城暂时没有商品'/)

@@ -11,16 +11,23 @@
       </block>
       <view wx:else class="culture-copy card"><image wx:if="{{culture.coverUrl}}" class="culture-image" src="{{culture.coverUrl}}" mode="widthFix" /><view class="section-head">{{culture.title || culture.brandName}}</view><view class="muted">{{culture.subtitle}}</view><text class="culture-text">{{culture.content || '品牌内容正在准备中'}}</text></view>
     </block>
-    <view wx:if="{{type === 'live' && room}}" class="room card">
-      <video wx:if="{{videoUrl && !videoFailed}}" src="{{videoUrl}}" controls binderror="videoError" />
-      <view wx:else class="empty">{{room.roomState === 'UPCOMING' ? '直播尚未开始' : videoFailed ? '视频加载失败，请稍后下拉重试' : '当前暂无小程序可播放的视频'}}</view>
-      <view class="section-head">{{room.room.title}}</view><text class="muted">{{room.room.subtitle}}</text>
-    </view>
+    <block wx:if="{{type === 'live' && room}}">
+      <view class="live-stage"><video wx:if="{{videoUrl && !videoFailed}}" src="{{videoUrl}}" poster="{{room.room.coverUrl}}" controls binderror="videoError" /><block wx:else><image wx:if="{{room.room.coverUrl}}" src="{{room.room.coverUrl}}" mode="aspectFill"/><view class="stage-copy"><text>{{room.room.title}}</text><text>{{room.roomState === 'UPCOMING' ? room.room.scheduleText : room.roomState === 'CONNECTING' ? '主播正在连接视频，请稍候' : videoFailed ? '视频加载失败，请下拉重试' : '暂无小程序可播放的视频'}}</text></view></block><text class="stage-state">{{room.roomState === 'LIVE' ? '直播中' : room.roomState === 'ENDED' ? '精彩回放' : room.roomState === 'CONNECTING' ? '正在连接' : '直播预告'}}</text></view>
+      <view class="live-chat card"><view class="chat-heading"><text>直播互动</text><text class="muted">{{room.room.viewerText}} 人正在看</text></view><scroll-view scroll-y class="comment-list" scroll-top="{{commentScroll}}"><view wx:if="{{!comments.length}}" class="comment-empty">直播评论会显示在这里</view><view wx:for="{{comments}}" wx:key="id" class="comment-row"><text>{{item.displayName}}</text><text>{{item.content}}</text></view></scroll-view><button wx:if="{{commentError}}" class="comment-error" bindtap="retryComments">{{commentError}}</button><view wx:if="{{room.roomState === 'LIVE' && room.room.commentEnabled === 1}}" class="comment-form"><input value="{{commentText}}" maxlength="300" bindinput="commentInput" placeholder="说点什么…" disabled="{{commentSaving}}"/><button class="primary-button" bindtap="sendComment" disabled="{{commentSaving || !commentText}}">{{commentSaving ? '发送中' : '发送'}}</button></view><text wx:else class="comment-closed">{{room.room.commentEnabled === 1 ? '开播后可以参与评论' : '平台已关闭本场评论'}}</text></view>
+      <view class="live-info card"><view class="live-anchor"><image src="/assets/profile/user-round.png"/><view><text>{{room.room.anchorName || '商城主播'}}</text><text class="muted">{{room.room.title}}</text></view></view><button wx:if="{{room.room.shareEnabled === 1 && shareReady}}" class="share-button" open-type="share">分享</button><view class="live-metrics"><text>{{room.room.heatText}} 热度</text><text>{{room.roomState === 'LIVE' ? '直播正在进行' : room.roomState === 'ENDED' ? '本场直播已结束' : room.room.scheduleText}}</text></view></view>
+      <view class="section-head"><text>直播好物</text><text class="muted">{{products.length}} 件</text></view><view wx:if="{{!products.length}}" class="empty">关联商品已下架或暂不可售</view>
+    </block>
     <block wx:if="{{type === 'live' && !room}}">
-      <view wx:for="{{rooms}}" wx:key="index" class="live-card card" data-id="{{item.room.id}}" bindtap="openRoom">
-        <image wx:if="{{item.room.coverUrl}}" src="{{item.room.coverUrl}}" mode="aspectFill" /><view>{{item.room.title}}</view><text class="muted">{{item.roomState === 'LIVE' ? '直播中' : item.roomState === 'ENDED' ? '已结束' : '直播预告'}}</text>
+      <view class="live-tabs"><button class="{{liveTab === 'live' ? 'active' : ''}}" data-tab="live" bindtap="selectLiveTab">直播中</button><button class="{{liveTab === 'upcoming' ? 'active' : ''}}" data-tab="upcoming" bindtap="selectLiveTab">直播预告</button></view>
+      <view class="{{liveTab === 'upcoming' ? 'upcoming-grid' : 'live-room-list'}}">
+        <view wx:for="{{filteredRooms}}" wx:key="index" class="{{liveTab === 'upcoming' ? 'upcoming-card' : 'live-room-card'}}">
+          <view class="live-cover" data-id="{{item.room.id}}" bindtap="openRoom"><image wx:if="{{item.room.coverUrl}}" src="{{item.room.coverUrl}}" mode="aspectFill"/><text class="live-state">{{liveTab === 'upcoming' ? item.room.scheduleText : item.roomState === 'CONNECTING' ? '连接中' : '直播中'}}</text><text wx:if="{{liveTab === 'live'}}" class="live-title">{{item.room.title}}</text></view>
+          <view class="live-room-panel"><view wx:if="{{liveTab === 'upcoming'}}" class="upcoming-title" data-id="{{item.room.id}}" bindtap="openRoom">{{item.room.title}}</view><view class="live-anchor"><image src="/assets/profile/user-round.png"/><view><text>{{item.room.anchorName || '官方直播间'}}</text><text wx:if="{{liveTab === 'live'}}" class="muted">{{item.room.subtitle || '带你看精选好物'}}</text></view><button wx:if="{{liveTab === 'upcoming'}}" class="reserve-button {{item.reserved ? 'reserved' : ''}}" data-id="{{item.room.id}}" catchtap="reserve" disabled="{{!!reservingId}}">{{reservingId === item.room.id ? '处理中' : item.reserved ? '已预约' : '预约'}}</button></view>
+            <view wx:if="{{liveTab === 'live'}}" class="live-product-stack"><view wx:for="{{item.products}}" wx:for-item="product" wx:for-index="productIndex" wx:key="id" wx:if="{{productIndex < 2}}" class="live-product-row" data-id="{{product.id}}" bindtap="openProduct"><image src="{{product.coverUrl}}" mode="aspectFill"/><view><text>{{product.productName}}</text><text class="muted">{{product.subtitle || '直播间精选商品'}}</text><text class="live-price">¥{{product.priceText}}</text></view></view></view>
+          </view>
+        </view>
       </view>
-      <view wx:if="{{!rooms.length}}" class="empty">暂时没有直播内容</view>
+      <view wx:if="{{!filteredRooms.length}}" class="empty">{{liveTab === 'upcoming' ? '暂时没有直播预告' : '当前没有正在直播'}}<button class="secondary-button" data-tab="{{liveTab === 'upcoming' ? 'live' : 'upcoming'}}" bindtap="selectLiveTab">{{liveTab === 'upcoming' ? '去看正在直播' : '查看直播预告'}}</button></view>
     </block>
     <view wx:if="{{products.length}}" class="product-grid">
       <view wx:for="{{products}}" wx:key="id" class="product-card" data-id="{{item.id}}" bindtap="openProduct">

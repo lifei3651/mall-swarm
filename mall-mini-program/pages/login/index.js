@@ -9,6 +9,6 @@ Page({
     try { redirect = decodeURIComponent(this.options.redirect || '') } catch (_) {}
     this.selectComponent('#login-sheet').open(redirect)
   },
-  authorized(event) { this.redirect = event.detail.redirect; flow.finish.call(this) },
+  authorized(event) { this.redirect = event.detail.redirect; this._loginSuccessMessage = event.detail.message || ''; flow.finish.call(this) },
   close() { wx.navigateBack({ fail: () => wx.switchTab({ url: '/pages/profile/index' }) }) }
 })

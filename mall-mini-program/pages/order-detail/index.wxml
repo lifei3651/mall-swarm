@@ -22,6 +22,7 @@
         <view>
           <text class="merchant-name">{{item.order.merchantName || '商城订单'}}</text>
           <text class="order-no">订单号 {{item.order.orderNo}}</text>
+          <button class="copy-order" data-id="{{item.order.id}}" bindtap="copyOrderNo">复制订单号</button>
         </view>
         <text class="order-status">{{item.order.statusText}}</text>
       </view>
@@ -87,6 +88,8 @@
         <view><text>{{item.order.amountLabel}}</text><text class="paid-amount">¥{{item.order.amountText}}</text></view>
       </view>
       <view class="detail-actions">
+        <button class="secondary-button" data-id="{{item.order.id}}" bindtap="support">客服工单</button>
+        <button wx:if="{{item.pendingReviewProductId && item.pendingReviewOrderItemId}}" class="primary-button" data-id="{{item.order.id}}" bindtap="review">去评价</button>
         <button wx:if="{{item.order.status === 0}}" class="secondary-button cancel-order"
           data-id="{{item.order.id}}" disabled="{{actingId !== null}}" bindtap="cancelOrder">取消订单</button>
         <button wx:if="{{item.canApplyAfterSale}}" class="secondary-button" data-id="{{item.order.id}}" bindtap="applyAfterSale">申请售后</button>
@@ -97,4 +100,5 @@
     </view>
     <button class="secondary-button all-orders" bindtap="openOrders">查看全部订单</button>
   </block>
+  <include src="../../templates/balance-payment.wxml" />
 </view>

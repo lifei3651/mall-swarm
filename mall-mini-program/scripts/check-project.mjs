@@ -20,6 +20,9 @@ const walk = (directory) => readdirSync(directory).flatMap((name) => {
 })
 for (const file of walk(root).filter((item) => item.endsWith('.js'))) {
   execFileSync(process.execPath, ['--check', file], { stdio: 'pipe' })
+  if (/require\s*\(\s*['"][^'"]+\.json['"]\s*\)/.test(readFileSync(file, 'utf8'))) {
+    throw new Error(`原生小程序不能直接 require JSON，请生成等价 JS 数据模块：${file}`)
+  }
 }
 
 const runtime = readFileSync(join(root, 'config/runtime.js'), 'utf8')

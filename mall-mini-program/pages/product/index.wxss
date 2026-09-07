@@ -50,3 +50,51 @@
 .selected-spec-price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10rpx; color: var(--muted); font-size: 24rpx; }
 .sku-unit-price { color: var(--price); font-size: 36rpx; font-weight: 750; }
 .selected-spec-stock { margin-left: auto; color: var(--muted); font-size: 24rpx; }
+/* Follow H5 ProductDetailView's full-width sections, not oversized floating cards. */
+.product-page { padding: 0 0 calc(150rpx + env(safe-area-inset-bottom)); }
+.hero-shell { border-radius: 0; box-shadow: none; background: var(--paper); }
+.hero { height: 750rpx; background: var(--paper); }
+.image-count { position: absolute; right: 28rpx; bottom: 24rpx; min-width: 84rpx; padding: 10rpx 18rpx; color: #fff; background: rgba(28,28,28,.58); border-radius: 999rpx; font-size: 24rpx; text-align: center; }
+.sold-out-badge { bottom: 84rpx; }
+.detail-card { border: 0; border-radius: 0; box-shadow: none; padding: 28rpx; }
+.detail-price { font-size: 64rpx; }
+.market-price { color: var(--muted); text-decoration: line-through; font-size: 24rpx; }
+.sales-count { margin-left: auto; color: var(--muted); font-size: 24rpx; }
+.seller-badge { display: inline-block; margin-top: 24rpx; padding: 4rpx 16rpx; color: #8a5a20; background: #fff7e8; border-radius: 999rpx; font-size: 22rpx; }
+.delivery-panel > view { display: flex; gap: 24rpx; padding: 24rpx 0; border-bottom: 1rpx solid var(--line); }
+.delivery-panel > view > text { flex: none; width: 64rpx; color: var(--muted); }
+.delivery-panel > view > view { flex: 1; min-width: 0; }
+.delivery-panel > view > view > text { display: block; margin-top: 10rpx; color: var(--muted); font-size: 24rpx; }
+.sku { border-radius: 12rpx; }
+.quantity-panel { flex-wrap: wrap; gap: 16rpx; }
+.quantity-panel input { width: 116rpx; height: 72rpx; min-width: 0; border-top: 1rpx solid var(--line); border-bottom: 1rpx solid var(--line); text-align: center; font-size: 28rpx; }
+.quantity-panel .quantity-stock { width: 100%; text-align: right; color: var(--muted); font-size: 24rpx; }
+.product-actions { gap: 10rpx; padding-left: 14rpx; padding-right: 14rpx; }
+.product-actions .cart-shortcut { position: relative; flex-basis: 88rpx; width: 88rpx; }
+.product-actions .add-cart-button, .product-actions .primary-button { border-radius: 999rpx; font-size: 26rpx; }
+.product-actions .add-cart-button { color: #9b550e; background: #f8c27d; }
+.cart-shortcut .cart-count { position: absolute; left: 50%; top: 0; margin: 0; padding: 0 8rpx; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 20rpx; }
+.review-heading { display: flex; align-items: center; gap: 16rpx; justify-content: space-between; padding-bottom: 24rpx; border-bottom: 1rpx solid var(--line); }
+.review-heading .panel-title { margin-bottom: 8rpx; }
+.review-heading .muted, .review-heading .panel-title text { font-size: 24rpx; color: var(--muted); }
+.review-heading button { flex: none; margin: 0; min-width: 134rpx; padding: 12rpx 20rpx; border: 1rpx solid var(--brand); border-radius: 999rpx; background: var(--paper); color: var(--brand); font-size: 25rpx; line-height: 40rpx; }
+.rating-distribution { padding: 24rpx 0; }
+.rating-bar { display: flex; align-items: center; gap: 16rpx; margin: 8rpx 0; font-size: 24rpx; color: var(--muted); }
+.rating-bar > text { width: 56rpx; }
+.rating-track { flex: 1; height: 14rpx; background: var(--line); border-radius: 8rpx; overflow: hidden; }
+.rating-track > view { height: 100%; background: var(--brand); }
+.review-editor { padding: 24rpx; margin: 24rpx 0; background: var(--canvas); border-radius: 16rpx; }
+.rating-options { display: flex; gap: 8rpx; margin: 16rpx 0; }
+.rating-options button { flex: 1; margin: 0; padding: 8rpx; font-size: 24rpx; background: var(--paper); border: 1rpx solid var(--line); }
+.rating-options .rating-selected { border-color: var(--brand); color: var(--brand); background: var(--brand-soft); }
+.review-editor textarea { width: 100%; min-height: 210rpx; padding: 20rpx; border: 1rpx solid var(--line); border-radius: 12rpx; background: var(--paper); }
+.review-editor > .muted { display: block; text-align: right; padding: 12rpx 0; font-size: 24rpx; }
+.review-item { padding: 24rpx 0; border-bottom: 1rpx solid var(--line); }
+.review-user { display: flex; align-items: center; gap: 16rpx; }
+.review-user image { width: 68rpx; height: 68rpx; border-radius: 50%; background: var(--canvas); }
+.review-user > view { flex: 1; min-width: 0; }
+.review-user > view text { display: block; margin-top: 6rpx; color: var(--brand); font-size: 24rpx; }
+.review-user > text { color: var(--muted); font-size: 22rpx; }
+.review-content { display: block; padding-top: 20rpx; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }
+.review-state { display: block; text-align: center; padding: 40rpx 0; color: var(--muted); font-size: 26rpx; }
+.review-error { padding: 20rpx 0; color: #b42318; }

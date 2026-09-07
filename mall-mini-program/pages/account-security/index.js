@@ -17,14 +17,14 @@ function passwordError(value, username, phone) {
 
 Page({
   data: { ...theme.pageData(), ...EMPTY_SECRETS, loading: true, error: '', message: '', member: null,
-    username: '', nickname: '', useWechatNickname: false, avatarSrc: avatar.fallback, maskedPhone: '', canSetupAccount: false, action: '', sendingCode: false, countdown: 0 },
-  onLoad() { theme.apply(this) },
+    username: '', nickname: '', mode: 'profile', useWechatNickname: false, avatarSrc: avatar.fallback, maskedPhone: '', canSetupAccount: false, action: '', sendingCode: false, countdown: 0 },
+  onLoad(options = {}) { theme.apply(this); this.setData({ mode: options.mode === 'password' ? 'password' : 'profile' }); if (wx.setNavigationBarTitle) wx.setNavigationBarTitle({ title: options.mode === 'password' ? '登录密码' : '账号资料' }) },
   onShow() {
     this.hidden = false
     theme.apply(this)
     this.updateCountdown()
     if (this.data.action) return
-    if (auth.requireLogin('/pages/account-security/index')) return this.load()
+    if (auth.requireLogin(`/pages/account-security/index${this.data.mode === 'password' ? '?mode=password' : ''}`)) return this.load()
     this.requestVersion = (this.requestVersion || 0) + 1
     feedback.update(this, { ...EMPTY_SECRETS, loading: false, member: null, nickname: '', username: '', maskedPhone: '', canSetupAccount: false })
   },
@@ -38,17 +38,18 @@ Page({
   onUnload() { this.disposed = true; this.onHide() },
   async load() {
     const version = this.requestVersion = (this.requestVersion || 0) + 1
+    const token = session.getToken()
     feedback.update(this, { loading: true, error: '' })
     try {
       const member = await request({ url: '/shop/auth/me' })
-      if (this.disposed || this.hidden || version !== this.requestVersion) return
+      if (this.disposed || this.hidden || token !== session.getToken() || version !== this.requestVersion) return
       if (!member || !member.id) throw new Error('账号信息加载失败，请重新登录')
       const username = String(member.username || '')
       const phone = String(member.phone || '')
       feedback.update(this, { member, nickname: member.nickname || '', username: '', canSetupAccount: !username.trim() || username === phone,
         maskedPhone: /^1[3-9]\d{9}$/.test(phone) ? `${phone.slice(0, 3)}****${phone.slice(-4)}` : '尚未绑定有效手机号' })
       const avatarSrc = await avatar.load(member.avatarUrl)
-      if (this.disposed || this.hidden || version !== this.requestVersion) avatar.release(avatarSrc)
+      if (this.disposed || this.hidden || token !== session.getToken() || version !== this.requestVersion) avatar.release(avatarSrc)
       else { avatar.release(this.data.avatarSrc); feedback.update(this, { avatarSrc }) }
     } catch (error) {
       if (!this.disposed && !this.hidden && version === this.requestVersion) feedback.update(this, { ...EMPTY_SECRETS, member: null, canSetupAccount: false, error: error.message || '账号信息加载失败' })
@@ -93,10 +94,11 @@ Page({
     // Use the submitted native value: WeChat nickname moderation may clear it after blur.
     const nickname = String(event && event.detail && event.detail.value ? event.detail.value.nickname || '' : this.data.nickname).trim().replace(/\s+/g, ' ')
     if (!/^[\u3400-\u9fffA-Za-z0-9·_\- ]{2,20}$/.test(nickname)) { feedback.update(this, { error: '昵称需为2至20个字符，支持中文、字母、数字、空格、·、-和_' }); return }
+    const token = session.getToken()
     feedback.update(this, { action: 'nickname', error: '', message: '' })
     try {
       const member = await request({ url: '/shop/auth/nickname', method: 'PUT', data: { nickname } })
-      if (!this.disposed && !this.hidden) feedback.update(this, { member: member || { ...this.data.member, nickname }, nickname, message: '昵称已保存' })
+      if (!this.disposed && !this.hidden && token === session.getToken()) feedback.update(this, { member: member || { ...this.data.member, nickname }, nickname, message: '昵称已保存' })
     } catch (error) { if (!this.disposed && !this.hidden) feedback.update(this, { error: error.message || '昵称保存失败' }) }
     finally { if (!this.disposed) feedback.update(this, { action: '' }) }
   },
@@ -120,21 +122,26 @@ Page({
     await this.saveCredentials('/shop/auth/password', { currentPassword: this.data.currentPassword, newPassword: this.data.newPassword, smsCode: this.data.smsCode }, 'password')
   },
   async saveCredentials(url, data, action) {
+    const token = session.getToken()
     feedback.update(this, { action, error: '', message: '' })
     try {
       // The shared request layer encrypts sensitive fields before wx.request.
       // No password / SMS code is placed in URLs, persistent storage or logs.
       await request({ url, method: 'PUT', data })
+      if (token !== session.getToken()) return
       session.clearSession()
       feedback.update(this, { ...EMPTY_SECRETS, member: null })
       if (!this.disposed && !this.hidden) {
         await feedback.toast({ title: '已保存，请重新登录', icon: 'none' })
-        wx.redirectTo({ url: '/pages/login/index' })
+        if (!session.getToken()) wx.redirectTo({ url: '/pages/login/index' })
       }
     } catch (error) {
       if (!this.disposed) feedback.update(this, { ...EMPTY_SECRETS, error: this.hidden ? '' : error.message || '保存失败，请重新填写后重试' })
     } finally { if (!this.disposed) feedback.update(this, { action: '' }) }
   },
+  loginPassword() { wx.navigateTo({ url: '/pages/account-security/index?mode=password' }) },
+  changePhone() { wx.navigateTo({ url: '/pages/account-settings/index?section=phone' }) },
+  paymentSecurity() { wx.navigateTo({ url: '/pages/account-settings/index?section=security' }) },
   updateCountdown() {
     clearTimeout(this.countdownTimer)
     const countdown = Math.max(0, Math.ceil(((this.resendAt || 0) - Date.now()) / 1000))

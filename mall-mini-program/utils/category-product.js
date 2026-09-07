@@ -1,4 +1,5 @@
 const format = require('./format')
+const quantities = require('./quantity')
 
 function card(raw) {
   const product = format.product(raw)
@@ -17,7 +18,7 @@ function limitMessage(productName, limit, remaining) {
 }
 
 function purchase(detail, skuId, rows, addedQuantity = 1) {
-  if (!Number.isInteger(addedQuantity) || addedQuantity < 1 || addedQuantity > 99) throw new Error('购买数量必须为1至99的整数')
+  if (!quantities.valid(addedQuantity)) throw new Error('购买数量必须为有效的正整数')
   const product = format.product(detail.product)
   if (!format.identifier(product.id) || Number(product.status ?? 1) !== 1) throw new Error('商品已下架，请刷新列表')
   const skus = Array.isArray(detail.skus) ? detail.skus : []
@@ -34,11 +35,14 @@ function purchase(detail, skuId, rows, addedQuantity = 1) {
   const existingSku = sameProduct.filter((item) => String(item.skuId || '') === String(sku ? sku.id : '')).reduce((sum, item) => sum + quantity(item), 0)
   const existingProduct = sameProduct.reduce((sum, item) => sum + quantity(item), 0)
   const productQuantity = existingProduct + addedQuantity
-  if (existingSku + addedQuantity > Math.min(99, stock)) throw new Error(`购物车数量已达可购买上限（${Math.min(99, stock)}件）`)
+  if (!quantities.valid(existingSku + addedQuantity) || existingSku + addedQuantity > stock) throw new Error(`购物车数量已达可购买上限（${Math.min(quantities.MAX_QUANTITY, stock)}件）`)
   if (Number(product.purchaseLimit) > 0 && productQuantity > Number(product.purchaseLimit)) throw new Error(limitMessage(product.productName, Number(product.purchaseLimit), Math.max(0, Number(product.purchaseLimit) - existingProduct)))
   return { productQuantity, item: { productId: product.id, skuId: sku ? sku.id : null,
     productName: product.productName, coverUrl: format.mediaUrl(sku && sku.imageUrl) || product.coverUrl,
-    salePrice: price, skuName: sku ? (sku.skuName || sku.specName || '') : '', quantity: addedQuantity } }
+    salePrice: price, marketPrice: Number(sku ? sku.marketPrice || 0 : product.marketPrice || 0),
+    merchantName: product.merchantName || '', subtitle: product.subtitle || '',
+    skuAttrs: sku ? (sku.attrsJson || sku.skuAttrs || '') : '', stock, purchaseLimit: Number(product.purchaseLimit || 0),
+    skuName: sku ? (sku.skuName || sku.specName || '') : '', quantity: addedQuantity } }
 }
 
 module.exports = { card, purchase, limitMessage }

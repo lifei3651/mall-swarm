@@ -3,6 +3,7 @@ const request = require('../../utils/request')
 const auth = require('../../utils/auth')
 const format = require('../../utils/format')
 const theme = require('../../utils/theme')
+const session = require('../../utils/session')
 const { identifier, amountLabel } = require('../order-detail/policy')
 
 const STATUS = { 0: '待支付', 1: '待发货', 2: '已发货', 3: '已完成', 4: '已取消' }
@@ -12,6 +13,7 @@ const TABS = [
   { key: 'pending-payment', label: '待支付', state: 'PENDING_PAYMENT', countKey: 'pendingPayment' },
   { key: 'pending-shipment', label: '待发货', state: 'PENDING_SHIPMENT', countKey: 'pendingShipment' },
   { key: 'pending-receipt', label: '待收货', state: 'PENDING_RECEIPT', countKey: 'pendingReceipt' },
+  { key: 'pending-review', label: '待评价', state: 'PENDING_REVIEW', countKey: 'pendingReview' },
   { key: 'after-sale', label: '退款/售后', state: 'AFTER_SALE', countKey: 'afterSale' }
 ]
 
@@ -19,7 +21,7 @@ Page({
   data: {
     ...theme.pageData(),
     loading: true, loadingMore: false, error: '', rows: [], total: 0, pageNum: 0, pageSize: 10,
-    tabs: TABS, activeTab: 'all'
+    tabs: TABS, activeTab: 'all', actingId: ''
   },
   onLoad(options = {}) {
     theme.apply(this)
@@ -66,6 +68,7 @@ Page({
         order: { ...row.order, id: identifier(row.order.id), status: Number(row.order.status) },
         items: (row.items || []).map((item) => ({ ...item, productCover: format.mediaUrl(item.productCover) })),
         key: identifier(row.order.id),
+        canReceive: Number(row.order.status) === 2 && !(row.afterSales || []).some(sale => [0,4,5,6,7,8].includes(Number(sale.status))),
         statusText: (row.afterSales || []).some((sale) => [0, 4, 5, 6, 7, 8].includes(Number(sale.status)))
           ? '售后处理中' : (STATUS[row.order.status] || '处理中'),
         afterSaleText: row.afterSales && row.afterSales.length
@@ -103,6 +106,34 @@ Page({
   openDetail(event) {
     const id = identifier(event.currentTarget.dataset.id)
     if (id) wx.navigateTo({ url: `/pages/order-detail/index?id=${id}` })
+  },
+  review(event) {
+    const row = this.data.rows.find(item => item.order.id === identifier(event.currentTarget.dataset.id))
+    const productId = row && identifier(row.pendingReviewProductId)
+    const orderItemId = row && identifier(row.pendingReviewOrderItemId)
+    if (!productId || !orderItemId) { feedback.notice('评价入口已变化，请刷新订单后重试'); return }
+    wx.navigateTo({ url: `/pages/product/index?id=${productId}&orderItemId=${orderItemId}` })
+  },
+  cancelOrder(event) { return this.orderAction(event, 'cancel') },
+  receive(event) { return this.orderAction(event, 'receive') },
+  async orderAction(event, action) {
+    if (this.disposed || this.data.actingId || !auth.requireLogin('/pages/orders/index')) return
+    const id = identifier(event.currentTarget.dataset.id), row = this.data.rows.find(item => item.order.id === id)
+    if (!row || (action === 'cancel' ? row.order.status !== 0 : !row.canReceive)) return
+    const token = session.getToken(), current = () => !this.disposed && token === session.getToken()
+    this.setData({ actingId: id })
+    try {
+      const confirmed = await new Promise(resolve => wx.showModal({ title: action === 'cancel' ? '取消订单' : '确认收到商品', content: action === 'cancel' ? (row.order.tradeId ? '这是合并支付订单，取消将同时关闭该交易下所有待付款子订单并释放库存，无法恢复。' : '取消后将释放库存，这笔订单无法恢复。') : '确认后订单将完成；如商品未收到或存在问题，请暂时不要确认。', confirmText: action === 'cancel' ? '确认取消' : '确认收货', success: result => resolve(result.confirm), fail: () => resolve(false) }))
+      if (!confirmed || !current()) return
+      const latest = await request({ url: `/shop/orders/${id}` })
+      if (!current()) return
+      if (identifier(latest?.order?.id) !== id || (action === 'cancel' ? Number(latest.order.status) !== 0 : Number(latest.order.status) !== 2 || (latest.afterSales || []).some(sale => [0,4,5,6,7,8].includes(Number(sale.status))))) throw new Error('订单状态已变化，请刷新后操作')
+      await request({ url: `/shop/orders/${id}/${action}`, method: 'PUT' })
+      if (!current()) return
+      await feedback.notice(action === 'cancel' ? '订单已取消' : '已确认收货', '操作完成')
+      if (current()) await Promise.all([this.load(true), this.loadSummary()])
+    } catch (error) { if (current()) await feedback.notice(error.message || '操作结果待确认，请刷新订单核对后再试') }
+    finally { if (!this.disposed) this.setData({ actingId: '' }) }
   },
   retry() { return this.load(true) },
   loadMore() {

@@ -18,7 +18,7 @@ function harness({ respond = () => member, loggedIn = true } = {}) {
     require: (path) => {
       if (path === '../../utils/request') return async (options) => { requests.push(plain(options)); return respond(options) }
       if (path === '../../utils/auth') return { requireLogin: (redirect) => { if (!loggedIn) routes.push(`login:${redirect}`); return loggedIn } }
-      if (path === '../../utils/session') return { clearSession: () => { cleared++; loggedIn = false } }
+      if (path === '../../utils/session') return { getToken: () => loggedIn ? 'test-member' : '', clearSession: () => { cleared++; loggedIn = false } }
       if (path === '../../utils/theme') return { pageData: () => ({}), apply() {}, sync() {} }
       if (path === '../../utils/privacy') return { requireConsent: async () => {} }
       if (path === '../../utils/member-avatar') return { fallback: '/assets/profile/user-round.png', load: async () => '/assets/profile/user-round.png', release() {} }
@@ -167,5 +167,5 @@ test('密码控件隐藏显示，验证码与密码不置于路由/存储，不�
     assert.ok(tags.every((tag) => /\spassword(?:\s|=)/.test(tag)))
   }
   assert.match(view, /open-type="contact"/)
-  assert.match(view, /忘记当前密码/)
+  assert.match(view, /需要帮助或旧手机号已停用/)
 })

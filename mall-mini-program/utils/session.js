@@ -9,7 +9,11 @@ function saveSession(data) {
   wx.setStorageSync(MEMBER_KEY, data.member || null)
   return true
 }
-function clearSession() {
+function clearSession({ clearCart = false } = {}) {
+  if (clearCart) {
+    const member = getMember(), id = member && member.id
+    if (getToken() && (typeof id !== 'number' || Number.isSafeInteger(id)) && /^[1-9]\d{0,18}$/.test(String(id || ''))) wx.removeStorageSync(`mall_mini_cart_v2:member:${id}`)
+  }
   wx.removeStorageSync(TOKEN_KEY)
   wx.removeStorageSync(MEMBER_KEY)
   require('./invite').clearPendingInvite()

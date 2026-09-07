@@ -25,6 +25,7 @@ function environment({ respond = () => ({}), consent = true, wx: overrides = {} 
     ...overrides
   }
   function load(relative, parent = root) {
+    if (relative.endsWith('.json')) return JSON.parse(readFileSync(resolve(parent, relative), 'utf8'))
     const file = resolve(parent, relative.endsWith('.js') ? relative : `${relative}.js`)
     if (file === resolve(root, 'utils/request.js')) return async (options) => { calls.push(plain(options)); return respond(options) }
     if (file === resolve(root, 'utils/auth.js')) return { requireLogin: () => Boolean(storage.get('mall_mini_access_token')) }

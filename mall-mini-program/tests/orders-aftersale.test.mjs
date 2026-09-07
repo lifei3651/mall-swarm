@@ -28,6 +28,7 @@ function harness(name, { respond = async () => ({}), loggedIn = true, payOrder =
     '../../config/runtime': { API_BASE_URL: 'https://example.test/api' },
     '../../utils/format': { mediaUrl: (url) => url || '', money: (value) => Number(value || 0).toFixed(2) },
     '../../utils/payment': { payOrder, isUserCancel: (error) => /cancel/i.test(error.message || '') },
+    '../../utils/balance-order': { data: {}, methods: {} },
     '../../utils/order-center': { normalizePaymentNo: (value) => /^[A-Za-z0-9_-]{6,64}$/.test(value || '') ? value : '', detailPath: (value) => `/pages/order-detail/index?orderNo=${value}` },
     '../../utils/theme': { pageData: () => ({}), apply() {}, sync() {} },
     './policy': policy,
@@ -284,7 +285,8 @@ test('凭证401清理会话，失败不得继续提交售后申请', async () =>
 
 test('原生售后表单及详情提供完整实际绑定，不只显示进度文案', () => {
   const form = readFileSync(new URL('../pages/after-sale/index.wxml', import.meta.url), 'utf8')
-  for (const handler of ['changeQuantity', 'selectType', 'reasonInput', 'chooseProof', 'removeProof', 'submit']) assert.match(form, new RegExp(`bind(?:tap|input)="${handler}"`))
+  for (const handler of ['changeQuantity', 'selectType', 'reasonDetailInput', 'chooseProof', 'removeProof', 'submit']) assert.match(form, new RegExp(`bind(?:tap|input)="${handler}"`))
+  assert.match(form, /bindchange="selectReason"/)
   const view = readFileSync(new URL('../pages/order-detail/index.wxml', import.meta.url), 'utf8')
   for (const handler of ['applyAfterSale', 'cancelAfterSale', 'editShipment', 'submitShipment', 'receiveExchange']) assert.ok(view.includes(`bindtap="${handler}"`))
 })

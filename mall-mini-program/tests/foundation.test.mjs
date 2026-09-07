@@ -121,7 +121,7 @@ test('登录完成后可以正确返回购物车等 tab 页面', async () => {
   const fs = await import('node:fs/promises')
   const page = await fs.readFile(new URL('../utils/login-flow.js', import.meta.url), 'utf8')
   assert.match(page, /tabPages\.has\(pagePath\)/)
-  assert.match(page, /wx\.switchTab\(\{ url: pagePath \}\)/)
+  assert.match(page, /wx\.switchTab\(\{ url: pagePath, success, fail: fallback \}\)/)
 })
 
 test('商品详情按规格展示价格库存并提供立即购买', async () => {
@@ -130,9 +130,9 @@ test('商品详情按规格展示价格库存并提供立即购买', async () =>
   const view = await fs.readFile(new URL('../pages/product/index.wxml', import.meta.url), 'utf8')
   assert.match(page, /cart\.beginDirectCheckout\(selection\.item\)/)
   assert.doesNotMatch(page, /cart\.selectOnly/)
-  assert.match(page, /stock: Math\.max/)
+  assert.match(page, /const stock = Math\.max\(0,/)
   assert.match(view, /立即购买/)
-  assert.match(view, /class="stock-text"/)
+  assert.match(view, /class="quantity-stock"/)
 })
 
 test('购物车支持全选并在删除前确认', async () => {
@@ -235,7 +235,7 @@ test('小程序第二轮视觉收口保持清晰的登录、订单、地址与�
   assert.match(addressPage, /startAdd\(\)/)
   assert.match(addressView, /wx:if="\{\{showForm\}\}" class="address-form"/)
   assert.match(checkoutView, /应付金额/)
-  assert.match(checkoutView, /<radio checked color="#07c160"/)
+  assert.match(checkoutView, /<radio checked="\{\{payType === 'WECHAT'\}\}" color="#07c160"/)
 })
 
 test('分类页使用适合侧边栏宽度的单列商品卡片', async () => {
@@ -262,8 +262,8 @@ test('小程序第三轮交互优化提供原生选择、图片兜底和失败�
   assert.match(homePage, /categoryIconError\(event\)/)
   assert.match(homeView, /bindtap="openBanner"/)
   assert.match(homeView, /binderror="categoryIconError"/)
-  assert.match(cartView, /checkbox-group class="row-selector"/)
-  assert.match(cartView, /checkbox-group class="select-all"/)
+  assert.match(cartView, /checkbox-group[^>]+class="row-selector"/)
+  assert.match(cartView, /checkbox-group[^>]+class="select-all"/)
   assert.doesNotMatch(cartView, /\? '✓' : ''/)
   assert.match(cartPage, /event\.detail\.value/)
   for (const view of [categoryView, productView, messageView]) {

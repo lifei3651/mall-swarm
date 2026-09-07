@@ -5,12 +5,14 @@ const session = require('../../utils/session')
 const runtime = require('../../config/runtime')
 const format = require('../../utils/format')
 const theme = require('../../utils/theme')
-const { identifier, remainingItems, afterSaleEligibility } = require('../order-detail/policy')
+const { identifier, remainingItems, afterSaleEligibility, refundEstimate } = require('../order-detail/policy')
+const logisticsReasons = ['物流停滞 / 未收到货', '拒收 / 退回商家']
+const reasons = ['不想要了', '与商品描述不符', '质量问题', '收到商品少件 / 漏发', '商品破损或污渍', '商家发错货', ...logisticsReasons, '其他原因']
 
 Page({
   data: { ...theme.pageData(), loading: true, error: '', submitError: '', submitting: false,
     orderId: '', orderNo: '', items: [], allowed: false, unavailableReason: '', canExchange: false,
-    applyType: 1, reason: '', proofs: [], selectingProof: false, submitted: false },
+    applyType: 1, reason: '', reasons, reasonDetail: '', proofs: [], selectingProof: false, submitted: false, estimateText: '0.00', estimateProduct: '0.00', estimateFreight: '0.00' },
   onLoad(options = {}) {
     theme.apply(this)
     const orderId = identifier(options.orderId)
@@ -19,6 +21,9 @@ Page({
   },
   onShow() {
     theme.apply(this)
+    const token = session.getToken()
+    if (this.owner && this.owner !== token) { this.initialized = false; this.detail = null; this.setData({ items: [], proofs: [], reason: '', reasonDetail: '', allowed: false, submitted: false }) }
+    this.owner = token
     if (!this.data.orderId) return
     if (!auth.requireLogin(`/pages/after-sale/index?orderId=${this.data.orderId}`)) return
     // Choosing an image also triggers onShow; do not wipe the user's draft.
@@ -28,16 +33,19 @@ Page({
   async load() {
     if (!this.data.orderId || this.loadingRequest) return
     this.loadingRequest = true
+    const token = session.getToken()
     feedback.update(this, { loading: true, error: '' })
     try {
       const detail = await request({ url: `/shop/orders/${this.data.orderId}` })
-      if (this.disposed) return
+      if (this.disposed || token !== session.getToken()) return
       const eligibility = afterSaleEligibility(detail)
+      this.owner = token; this.detail = detail
       this.initialized = true
       feedback.update(this, { orderNo: detail.order.orderNo || '', allowed: eligibility.allowed,
         unavailableReason: eligibility.reason, canExchange: eligibility.canExchange,
         items: remainingItems(detail).map((item) => ({ ...item, selectedQuantity: item.remaining,
           productCover: format.mediaUrl(item.productCover) })) })
+      this.updateEstimate()
     } catch (error) { if (!this.disposed) feedback.update(this, { error: error.message || '售后信息加载失败' }) }
     finally { this.loadingRequest = false; if (!this.disposed) feedback.update(this, { loading: false }) }
   },
@@ -45,6 +53,7 @@ Page({
     const applyType = Number(event.currentTarget.dataset.type)
     if (this.data.submitting || ![1, 2, 3].includes(applyType) || (applyType === 3 && !this.data.canExchange)) return
     feedback.update(this, { applyType, submitError: '' })
+    this.updateEstimate()
   },
   changeQuantity(event) {
     if (this.data.submitting) return
@@ -53,15 +62,20 @@ Page({
     if (![1, -1].includes(delta)) return
     feedback.update(this, { items: this.data.items.map((item) => item.id === id
       ? { ...item, selectedQuantity: Math.max(0, Math.min(item.remaining, item.selectedQuantity + delta)) } : item), submitError: '' })
+    this.updateEstimate()
   },
+  updateEstimate() { const value = refundEstimate(this.detail || {},this.data.items,this.data.applyType); this.setData({ estimateText: format.money(value.total), estimateProduct: format.money(value.product), estimateFreight: format.money(value.freight) }) },
   reasonInput(event) { if (!this.data.submitting) feedback.update(this, { reason: event.detail.value, submitError: '' }) },
+  selectReason(event) { const reason = reasons[Number(event.detail.value)]; if (!this.data.submitting && reason) { this.setData({ reason, ...(logisticsReasons.includes(reason) ? { applyType: 1 } : {}), submitError: '' }); this.updateEstimate() } },
+  reasonDetailInput(event) { if (!this.data.submitting) this.setData({ reasonDetail: String(event.detail.value || '').slice(0,170), submitError: '' }) },
   chooseProof() {
     if (this.data.submitting || this.data.selectingProof || this.data.proofs.length >= 6) return
     if (!wx.chooseMedia) { feedback.update(this, { submitError: '当前微信不支持选图，请升级微信；也可以不上传凭证直接申请' }); return }
     feedback.update(this, { selectingProof: true, submitError: '' })
+    const token = session.getToken()
     wx.chooseMedia({ count: 6 - this.data.proofs.length, mediaType: ['image'], sourceType: ['album', 'camera'], sizeType: ['compressed'],
       success: ({ tempFiles }) => {
-        if (this.disposed) return
+        if (this.disposed || token !== session.getToken()) return
         const files = (tempFiles || []).slice(0, 6 - this.data.proofs.length)
         const selectedPaths = new Set(this.data.proofs.map((proof) => proof.path))
         const valid = files.filter((file) => {
@@ -89,6 +103,7 @@ Page({
         filePath: proof.path, name: 'file', timeout: 30000,
         header: { Authorization: `Bearer ${token}`, 'X-Shop-Client': 'wechat-mini-program', 'X-Shop-Surface': 'mini-program' },
         success: (response) => {
+          if (token !== session.getToken() || this.disposed) { reject(new Error('登录状态或页面已变化，请重新打开售后申请')); return }
           if (response.statusCode === 401) session.clearSession()
           let result
           try { result = JSON.parse(response.data) } catch (_) { reject(new Error('凭证上传返回异常，请重试')); return }
@@ -105,28 +120,33 @@ Page({
     if (this.data.submitting || this.data.submitted || this.data.selectingProof || !this.data.allowed) return
     const items = this.data.items.filter((item) => item.id && item.selectedQuantity > 0)
       .map((item) => ({ orderItemId: item.id, quantity: item.selectedQuantity }))
-    const reason = this.data.reason.trim()
+    const reason = [this.data.reason.trim(), this.data.reasonDetail.trim()].filter(Boolean).join('：')
     if (!items.length) { feedback.update(this, { submitError: '请至少选择1件需要售后的商品' }); return }
-    if (!reason || reason.length > 170) { feedback.update(this, { submitError: '请填写1至170字的申请原因' }); return }
+    if (!this.data.reason.trim() || reason.length > 200) { feedback.update(this, { submitError: '请选择申请原因，补充说明不超过170字' }); return }
     if (this.data.applyType === 3 && !this.data.canExchange) return
+    const token = session.getToken(), current = () => !this.disposed && !!token && token === session.getToken()
+    if (!current() || (this.owner && this.owner !== token)) return
     feedback.update(this, { submitting: true, submitError: '' })
     try {
       for (let index = 0; index < this.data.proofs.length; index++) {
         const proof = this.data.proofs[index]
         if (!proof.filename) {
           const filename = await this.uploadProof(proof)
+          if (!current()) return
           feedback.update(this, { proofs: this.data.proofs.map((item, position) => position === index ? { ...item, filename } : item) })
         }
       }
       const filenames = this.data.proofs.map((proof) => proof.filename)
+      if (!current()) return
       await request({ url: '/shop/after-sales', method: 'POST', data: {
         orderId: this.data.orderId, applyType: this.data.applyType, reason, items,
         proofImages: filenames.length ? JSON.stringify(filenames) : null
       } })
+      if (!current()) return
       feedback.update(this, { submitted: true })
       await feedback.toast({ title: '售后申请已提交', icon: 'success' })
-      this.openOrder()
-    } catch (error) { feedback.update(this, { submitError: error.message || '申请未确认成功，请查看订单售后进度后再重试' }) }
+      if (current()) this.openOrder()
+    } catch (error) { if (current()) feedback.update(this, { submitError: error.message || '申请未确认成功，请查看订单售后进度后再重试' }) }
     finally { feedback.update(this, { submitting: false }) }
   },
   openOrder() { wx.redirectTo({ url: `/pages/order-detail/index?id=${this.data.orderId}` }) }

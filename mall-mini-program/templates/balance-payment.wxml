@@ -1,0 +1,8 @@
+<view wx:if="{{balanceDialog}}" class="balance-mask">
+  <view class="balance-sheet" aria-role="dialog" aria-label="余额支付确认">
+    <view class="balance-title">余额支付</view><text class="balance-pay-amount">¥{{totalText}}</text><text class="balance-pay-hint">{{rows.length > 1 ? '本次支付完整合并交易，包含全部子订单。' : '支付结果以服务端订单状态为准。'}}</text>
+    <block wx:if="{{balanceWallet.hasPaymentPassword}}"><text class="balance-label">支付密码</text><input class="balance-password-input" password maxlength="6" value="{{balancePassword}}" bindinput="balanceInput" disabled="{{balanceBusy}}" placeholder="请输入6位支付密码" aria-label="6位支付密码"/><button class="primary-button" bindtap="confirmBalancePayment" loading="{{balanceBusy}}" disabled="{{balanceBusy}}">确认支付 ¥{{totalText}}</button></block>
+    <block wx:else><text class="balance-pay-hint">首次使用余额支付，请先设置独立的6位支付密码。订单已经保留，设置后可继续支付。</text><button class="primary-button" bindtap="setupPaymentPassword">设置支付密码</button></block>
+    <button class="balance-close" bindtap="closeBalance" disabled="{{balanceBusy}}">暂不支付，保留订单</button>
+  </view>
+</view>

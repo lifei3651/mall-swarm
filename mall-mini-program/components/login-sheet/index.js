@@ -6,12 +6,17 @@ Component({
   properties: { presentation: { type: String, value: 'sheet' } },
   data: { ...data, visible: false },
   lifetimes: { detached() { this.onUnload() } },
-  pageLifetimes: { show() { if (this.data.visible) this.onShow() } },
+  pageLifetimes: {
+    hide() { this._hostHidden = true },
+    show() { this._hostHidden = false; if (this._pendingFinish) this.finish(); else if (this.data.visible) this.onShow() }
+  },
   methods: {
     ...methods,
     open(redirect = '') {
       if (this.data.visible || this.data.submitting) return
       this._runtimeChecked = false
+      this._pendingFinish = false
+      this._hostHidden = false
       this.setData({ ...data, visible: true, logoFailed: false })
       return this.onLoad({ redirect: encodeURIComponent(redirect) })
     },
@@ -23,9 +28,14 @@ Component({
     },
     finish() {
       if (!session.getToken() || !this.data.visible || this._inactive) return
+      if (this._hostHidden) { this._pendingFinish = true; return }
+      this._pendingFinish = false
       this._inactive = true
-      this.setData({ visible: false, agreed: false, submitting: false })
-      this.triggerEvent('success', { redirect: this.redirect || '' })
+      const token = session.getToken(), sequence = this._loginSequence
+      this.setData({ visible: false, agreed: false, submitting: false, authorizingPhone: false }, () => {
+        if (token !== session.getToken() || sequence !== this._loginSequence) return
+        this.triggerEvent('success', { redirect: this.redirect || '', message: this._loginSuccessMessage || '' })
+      })
     },
     stop() {}
   }

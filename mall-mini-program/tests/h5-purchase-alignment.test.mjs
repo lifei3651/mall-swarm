@@ -102,9 +102,9 @@ test('历史限购接口失败或返回不完整时不可静默加购', async ()
   }
 })
 
-test('列表/详情/购物车共用限购模块，首页按钮阻止冒泡并复用规格弹层', () => {
+test('列表/详情/购物车共用限购模块，首页按钮阻止冒泡且不再弹额外规格层', () => {
   const read=f=>readFileSync(new URL('../'+f,import.meta.url),'utf8')
   for(const f of ['utils/quick-cart.js','pages/product/index.js','pages/cart/index.js'])assert.match(read(f),/purchaseLimit\.checkAddition/)
-  const home=read('pages/home/index.wxml');assert.match(home,/catchtap="quickAdd"/);assert.match(home,/include src="\/templates\/quick-cart.wxml"/)
+  const home=read('pages/home/index.wxml');assert.match(home,/catchtap="quickAdd"/);assert.doesNotMatch(home,/include src="\/templates\/quick-cart.wxml"/)
   assert.match(read('pages/checkout/index.js'),/catalog\.refresh\(source\.rows, \{ checkLimits: true \}\)/)
 })

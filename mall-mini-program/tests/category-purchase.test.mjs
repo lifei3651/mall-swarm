@@ -25,28 +25,25 @@ test('新鲜价格及零价规格不回落到主商品价格', () => {
   assert.throws(() => product.purchase(d, '', []), /选择/)
   d.product.status = 0; assert.throws(() => product.purchase(d, '8', []), /下架/)
 })
-test('同规格库存、跨规格限购及99件上限在加购前拦截', () => {
+test('同规格库存、跨规格限购拦截，不添加H5不存在的99件限制', () => {
   const d = detail(); d.product.purchaseLimit = 2
   assert.throws(() => product.purchase(d, null, [{productId: '1',skuId: '8',quantity: 2}]), /限购/)
   d.product.purchaseLimit = 0
   assert.throws(() => product.purchase(d, null, [{productId: '1',quantity: 5}]), /上限/)
   d.product.stock = 500
-  assert.throws(() => product.purchase(d, null, [{productId: '1',quantity: 99}]), /上限/)
+  assert.equal(product.purchase(d, null, [{productId: '1',quantity: 99}]).productQuantity, 100)
 })
 test('无规格商品核对详情后直接加购并显眼提示', async () => {
   const h = harness(); await h.page.quickAdd(event('1'))
   assert.equal(h.rows.length, 1); assert.equal(h.rows[0].salePrice, 9)
   assert.ok(h.notices.some(text => text.includes('已加入购物车')))
 })
-test('多规格不默认替用户选，选中后重新核对再加购，关闭恢复导航', async () => {
+test('多规格列表加购与H5一致：直接加入首个有库存规格，零价不回退', async () => {
   const d = detail(); d.skus = [{id:'8',skuName:'赠品',salePrice:0,stock:1},{id:'9',salePrice:19,stock:0}]
   const h = harness(options => options.method === 'POST' ? {allowed:true} : d); await h.page.quickAdd(event('1'))
-  assert.equal(h.rows.length, 0); assert.equal(h.tabHidden, true)
-  await h.page.confirmSku(); assert.equal(h.rows.length, 0)
-  h.page.selectCartSku(event('9')); assert.equal(h.page.data.selectedSkuId, '')
-  h.page.selectCartSku(event('8')); await h.page.confirmSku()
+  assert.equal(h.rows.length, 1); assert.equal(h.tabHidden, false)
   assert.equal(h.rows[0].skuId, '8'); assert.equal(h.rows[0].salePrice, 0)
-  assert.equal(h.tabHidden, false); assert.equal(h.calls.length, 3)
+  assert.equal(h.tabHidden, false); assert.equal(h.calls.length, 2)
 })
 test('登录用户历史限购不允许时不加入购物车', async () => {
   const h = harness(({method}) => method === 'POST' ? {allowed:false,message:'已达到累计限购'} : detail()); h.token('member')
@@ -79,10 +76,10 @@ test('排序参数跟随完整分页，未提交输入不混入后续页', async
 test('已选规格从详情中消失时不改为默认无规格商品', () => {
   assert.throws(() => product.purchase(detail(), '8', []), /规格已失效/)
 })
-test('加购与详情分开点击，规格弹层与主按钮存在', () => {
-  const view = readFileSync(new URL('../pages/category/index.wxml', import.meta.url), 'utf8') + readFileSync(new URL('../templates/quick-cart.wxml', import.meta.url), 'utf8')
+test('列表文字加购与详情分开点击，不再挂额外规格弹层', () => {
+  const view = readFileSync(new URL('../pages/category/index.wxml', import.meta.url), 'utf8')
   const styles = readFileSync(new URL('../pages/category/index.wxss', import.meta.url), 'utf8')
-  assert.match(view, /catchtap="quickAdd"/); assert.match(view, /bindtap="confirmSku"/)
+  assert.match(view, /catchtap="quickAdd"/); assert.doesNotMatch(view, /quick-cart.wxml/)
   assert.match(view, /立即加购/); assert.doesNotMatch(view, /近期销量|回购|好评率|榜第/)
   assert.match(styles, /quick-cart-button, \.sort-tabs \.sort-tab \{ min-height: 44px/)
   assert.doesNotMatch(styles, /\[disabled\]/)

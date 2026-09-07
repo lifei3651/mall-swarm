@@ -12,6 +12,7 @@
       <text class="balance-note">余额包含奖金及其他入账；提现仍需满足实名、支付密码与审核规则。</text>
     </view>
     <button class="record-entry" bindtap="history"><image src="/assets/profile/credit-card.png" /><text>提现记录</text><text class="record-subtitle">进度与收款确认</text><image class="chevron" src="/assets/profile/chevron-right.png" /></button>
+    <button class="record-entry" bindtap="security"><image src="/assets/profile/user-round.png" /><text>支付安全</text><text class="record-subtitle">支付密码与实名</text><image class="chevron" src="/assets/profile/chevron-right.png" /></button>
     <view class="section-label">余额明细</view>
     <view class="card flow-panel">
       <view wx:if="{{!flows.length}}" class="empty">暂无余额记录</view>

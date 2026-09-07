@@ -1,7 +1,9 @@
 <view class="page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
+  <view wx:if="{{!detail}}" class="notice-heading"><view>公告中心</view><text>了解最新系统通知、活动资讯和物流动态</text></view>
+  <view wx:if="{{!detail}}" class="notice-filters"><button wx:for="{{types}}" wx:key="id" class="notice-chip {{filterType === item.id ? 'active' : ''}}" data-type="{{item.id}}" bindtap="filter">{{item.label}}</button></view>
   <view wx:if="{{loading}}" class="empty">正在加载…</view>
   <view wx:elif="{{error}}" class="empty"><text>{{error}}</text><button class="secondary-button" bindtap="load">重新加载</button></view>
-  <view wx:elif="{{notice}}" class="card notice-detail"><view class="notice-title">{{notice.title}}</view><text user-select>{{notice.content}}</text></view>
-  <block wx:elif="{{rows.length}}"><button wx:for="{{rows}}" wx:key="id" class="card notice-row" data-id="{{item.id}}" bindtap="open"><view class="notice-row-title">{{item.title}}</view><text>查看详情</text></button></block>
+  <view wx:elif="{{notice}}" class="notice-detail"><button class="notice-back" bindtap="backToList">返回公告列表</button><view class="notice-title">{{notice.title}}</view><view class="notice-meta"><text class="notice-tag">{{notice.typeLabel}}</text><text>{{notice.dateText}}</text></view><text class="notice-content" user-select>{{notice.content}}</text></view>
+  <block wx:elif="{{filteredRows.length}}"><button wx:for="{{filteredRows}}" wx:key="id" class="notice-row" data-id="{{item.id}}" bindtap="open"><image class="notice-icon" src="/assets/profile/bell.png"/><view class="notice-info"><view class="notice-row-title">{{item.title}}</view><view class="notice-meta"><text class="notice-tag">{{item.typeLabel}}</text><text>{{item.dateText}}</text></view></view><image class="notice-arrow" src="/assets/profile/chevron-right.png"/></button></block>
   <view wx:else class="empty">暂无公告</view>
 </view>

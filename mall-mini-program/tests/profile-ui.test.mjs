@@ -5,10 +5,30 @@ import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
 
 const sourceUrl = new URL('../pages/profile/index.js', import.meta.url)
-const zeroSummary = { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, afterSale: 0 }
+const zeroSummary = { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, pendingReview: 0, afterSale: 0 }
 const plain = (value) => JSON.parse(JSON.stringify(value))
+const deferred = () => { let resolve; const promise = new Promise(ok => { resolve = ok }); return { promise, resolve } }
 
-function loadProfile({ token = '', member = null, respond } = {}) {
+test('录屏回归：分享返回期间同一账号的会员标识和邀请按钮保留位置，核验完成前不允许分享', async () => {
+  const wait = deferred(), rights = { ready: true, canInvite: true, membershipLevel: 1, membershipLabel: '会员' }
+  const h = loadProfile({ token:'same-owner', member:{nickname:'本地会员'}, respond:({url})=>url==='/shop/auth/me'?{nickname:'本地会员'}:url.endsWith('/withdrawals')?[]:{}, prepare: async page => { page.setData({shareReady:false}); await wait.promise; page.setData({shareReady:true}); return rights } })
+  h.page.displayToken='same-owner'; h.page.setData({loggedIn:true,capabilities:rights,shareReady:true,avatarSrc:'/assets/profile/user-round.png'})
+  h.page.onHide(); assert.deepEqual(h.page.data.capabilities,rights); assert.equal(h.page.data.shareReady,false)
+  const refreshing=h.page.onShow(); assert.deepEqual(h.page.data.capabilities,rights); assert.equal(h.page.data.shareReady,false)
+  wait.resolve(); await refreshing; assert.deepEqual(h.page.data.capabilities,rights); assert.equal(h.page.data.shareReady,true)
+  const view=readFileSync(new URL('../pages/profile/index.wxml',import.meta.url),'utf8')
+  assert.match(view,/wx:if="\{\{loggedIn && capabilities.canInvite\}\}"/); assert.match(view,/disabled="\{\{!shareReady \|\| loginVisible\}\}"/)
+})
+test('会员资格核验失败或换号必须撤销旧资格，后台晚到的角标不污染新账号', async () => {
+  const wait=deferred(),h=loadProfile({token:'old',respond:()=>wait.promise});h.page.refreshVersion=1;h.page.displayToken='old';h.page.setData({capabilities:{ready:true,canInvite:true}})
+  const badges=Promise.all([h.page.loadUnread(1,'old'),h.page.loadPayoutCount(1,'old'),h.page.loadOrderSummary(1,'old')]);h.token('new');wait.resolve({total:88,pendingPayment:99});await badges;assert.equal(h.page.data.unreadCount,0);assert.equal(h.page.data.orderSummary.pendingPayment,0)
+  await h.page.loadCapabilities(1,'new');assert.equal(h.page.data.capabilities.ready,false)
+})
+test('旧账号退出请求晚到不清除后来登录的新账号', async () => {
+  const wait=deferred(),h=loadProfile({token:'old',respond:()=>wait.promise});h.page.logout();const task=h.modals[0].success({confirm:true});h.token('new');wait.resolve({});await task;assert.equal(h.cleared(),0)
+})
+
+function loadProfile({ token = '', member = null, respond, prepare = async () => null } = {}) {
   const calls = [], navigations = [], modals = [], stored = [], panels = []
   let definition, cleared = 0, themeApplied = 0
   const session = {
@@ -29,7 +49,7 @@ function loadProfile({ token = '', member = null, respond } = {}) {
     Page: (value) => { definition = value },
     require: (id) => {
       const mocks = { '../../utils/session': session, '../../utils/request': request, '../../utils/theme': theme,
-        '../../utils/share': { prepare: async () => null, hide() {} }, '../../utils/member-capabilities': { empty: () => ({ ready: false }) },
+        '../../utils/share': { prepare, hide() {} }, '../../utils/member-capabilities': { empty: () => ({ ready: false }) },
         '../../utils/member-avatar': { fallback: '/assets/profile/user-round.png', load: async () => '/assets/profile/user-round.png', release() {} } }
       assert.ok(Object.hasOwn(mocks, id), `Profile dependency must have an explicit mock: ${id}`)
       return mocks[id]
@@ -41,7 +61,7 @@ function loadProfile({ token = '', member = null, respond } = {}) {
     }
   }, { filename: sourceUrl.pathname })
   const page = { ...definition, data: plain(definition.data), selectComponent() { return { open: (url) => panels.push(url) } }, setData(patch) { Object.assign(this.data, plain(patch)) } }
-  return { page, calls, navigations, modals, stored, panels, cleared: () => cleared, themeApplied: () => themeApplied }
+  return { page, calls, navigations, modals, stored, panels, token: value => { token = value }, cleared: () => cleared, themeApplied: () => themeApplied }
 }
 
 test('个人中心游客刷新不请求账户接口，并清空上一个账号资料和角标', async () => {
@@ -148,7 +168,7 @@ test('个人中心四个订单状态快捷入口不因视觉改版丢失筛选�
 
 test('个人中心加载本人信息、真实订单角标、未读消息和待确认微信收款', async () => {
   const member = { nickname: '测试会员', phone: '13800000000' }
-  const summary = { pendingPayment: 2, pendingShipment: 3, pendingReceipt: 4, afterSale: 5 }
+  const summary = { pendingPayment: 2, pendingShipment: 3, pendingReceipt: 4, pendingReview: 6, afterSale: 5 }
   const results = {
     '/shop/auth/me': member,
     '/shop/messages/unread': { total: 108 },
@@ -219,14 +239,14 @@ test('个人中心确认退出后清理会话和全部账户角标', async () =>
   assert.deepEqual(harness.page.data.orderSummary, zeroSummary)
 })
 
-test('个人中心视觉布局保留四个可读订单入口、登录、常用服务及原生在线客服', () => {
+test('个人中心视觉布局保留五个可读订单入口、登录、常用服务及原生在线客服', () => {
   const view = readFileSync(new URL('../pages/profile/index.wxml', import.meta.url), 'utf8')
   const tags = view.match(/<[^>]+>/g) || []
   const attribute = (tag, name) => tag.match(new RegExp(`(?:^|\\s)${name}="([^"]*)"`))?.[1]
   const shortcuts = tags.filter((tag) => attribute(tag, 'bindtap') === 'orderTab')
-  assert.equal(shortcuts.length, 4)
+  assert.equal(shortcuts.length, 5)
   assert.deepEqual(shortcuts.map((tag) => attribute(tag, 'data-tab')).sort(),
-    ['pending-payment', 'pending-shipment', 'pending-receipt', 'after-sale'].sort())
+    ['pending-payment', 'pending-shipment', 'pending-receipt', 'pending-review', 'after-sale'].sort())
   for (const tag of shortcuts) assert.ok(attribute(tag, 'aria-label'), '订单入口保留可读操作名称')
   for (const handler of ['accountEntry', 'orders', 'messages', 'addresses', 'payout', 'logout']) {
     assert.ok(tags.some((tag) => attribute(tag, 'bindtap') === handler), `保留 ${handler} 点击绑定`)

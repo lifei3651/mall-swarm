@@ -6,7 +6,9 @@ const display = require('../../utils/display-config')
 const share = require('../../utils/share')
 const quickCart = require('../../utils/quick-cart')
 const categoryProduct = require('../../utils/category-product')
+const searchHistory = require('../../utils/search-history')
 const { decorateCampaignProducts } = require('../../utils/campaign-display')
+const displayPrices = (products) => products.map(product => ({ ...product, priceInteger: product.priceText.split('.')[0], priceDecimal: product.priceText.split('.')[1] }))
 
 Page({
   ...quickCart.methods,
@@ -19,12 +21,13 @@ Page({
     products: [],
     campaigns: [], campaignError: '',
     keyword: '',
+    activeCategory: '', searchedKeyword: '', searchFocused: false, recentSearches: [], hotSearches: ['护理套装','健康生活','品质好物'], productsLoading: false, productError: '',
     ...theme.pageData(),
     logoFailed: false
   },
-  onLoad() { this.loadHome() },
+  onLoad() { this.setData({ recentSearches: searchHistory.list() }); this.loadHome() },
   onShow() { this.campaignClockActive = true; quickCart.show(this); share.prepare(this); theme.sync(this); this.startCampaignClock(); if (this.loadedOnce) this.loadHome(true) },
-  onHide() { this.campaignClockActive = false; clearTimeout(this.campaignTimer); quickCart.hide(this); share.hide(this) },
+  onHide() { this.campaignClockActive = false; this.productSequence = (this.productSequence || 0) + 1; clearTimeout(this.suggestionsTimer); this.setData({ searchFocused: false, productsLoading: false }); clearTimeout(this.campaignTimer); quickCart.hide(this); share.hide(this) },
   onUnload() { this.onHide() },
   onShareAppMessage() { return share.message(this, '/pages/home/index', this.data.home.brandName || this.data.brandName) },
   retryShare() { return share.prepare(this) },
@@ -35,11 +38,12 @@ Page({
     return this.refreshing
   },
   async fetchHome(silent) {
+    const sequence = this.productSequence = (this.productSequence || 0) + 1
     if (!silent) feedback.update(this, { loading: true, error: '' })
     try {
       const [home, productPage] = await Promise.all([
         request({ url: '/shop/home' }),
-        request({ url: '/shop/products', params: { status: 1, pageNum: 1, pageSize: 20 } })
+        request({ url: '/shop/products', params: { status: 1, pageNum: 1, pageSize: 60, keyword: this.data.searchedKeyword, categoryName: this.data.activeCategory } })
       ])
       const products = (productPage && productPage.list ? productPage.list : []).map(categoryProduct.card)
       home.logoUrl = format.mediaUrl(home.logoUrl)
@@ -66,17 +70,19 @@ Page({
         } catch (_) { campaigns = []; campaignError = '活动信息暂不可用，以下按普通售价展示。点击重试' }
       }
       const brandCultureEnabled = display.toggle(home.brandCultureEnabled, false)
+      if (sequence !== this.productSequence) return
       this.baseProducts = products
-      feedback.update(this, { home, products: decorateCampaignProducts(products, campaigns, decoration.layoutTemplate), campaigns, campaignError, ...palette, ...decoration, brandCultureEnabled, logoFailed: false, error: '' })
+      feedback.update(this, { home, products: displayPrices(decorateCampaignProducts(products, campaigns, decoration.layoutTemplate)), campaigns, campaignError, ...palette, ...decoration, brandCultureEnabled, logoFailed: false, error: '' })
       this.startCampaignClock()
       this.loadedOnce = true
       // A slow homepage response must not rename the page the user has since opened.
       if (typeof getCurrentPages === 'function' && getCurrentPages().slice(-1)[0] === this) wx.setNavigationBarTitle({ title: home.brandName || '商城首页' })
     } catch (error) {
+      if (sequence !== this.productSequence) return
       if (!silent) feedback.update(this, { error: error.message || '加载失败' })
       else feedback.toast({ title: '装修更新失败，暂保留原页面', icon: 'none' })
     } finally {
-      feedback.update(this, { loading: false })
+      if (sequence === this.productSequence) feedback.update(this, { loading: false })
     }
   },
   startCampaignClock() {
@@ -89,7 +95,11 @@ Page({
         const previous = this.data.products[index]
         if (!previous || JSON.stringify(previous.campaign) === JSON.stringify(product.campaign)) return
         patch[`products[${index}].campaign`] = product.campaign
-        if (previous.priceText !== product.priceText) patch[`products[${index}].priceText`] = product.priceText
+        if (previous.priceText !== product.priceText) {
+          patch[`products[${index}].priceText`] = product.priceText
+          patch[`products[${index}].priceInteger`] = product.priceText.split('.')[0]
+          patch[`products[${index}].priceDecimal`] = product.priceText.split('.')[1]
+        }
       })
       if (Object.keys(patch).length) this.setData(patch)
       this.startCampaignClock()
@@ -124,6 +134,7 @@ Page({
   },
   onKeywordInput(event) { feedback.update(this, { keyword: event.detail.value }) },
   notices() { wx.navigateTo({ url: '/pages/notices/index' }) },
+  openNotice(event) { const id = format.identifier(event.currentTarget.dataset.id); wx.navigateTo({ url: id ? `/pages/notices/index?id=${id}` : '/pages/notices/index' }) },
   campaign(event) { const id = format.identifier(event.currentTarget.dataset.id); wx.navigateTo({ url: `/pages/campaign/index${id ? '?id=' + id : ''}` }) },
   allProducts() {
     wx.switchTab({ url: '/pages/category/index', success: () => {
@@ -133,12 +144,29 @@ Page({
   },
   search() {
     const keyword = String(this.data.keyword || '').trim()
-    wx.switchTab({ url: '/pages/category/index', success: () => {
-      const pages = getCurrentPages()
-      const page = pages[pages.length - 1]
-      if (page && page.applyKeyword) page.applyKeyword(keyword)
-    } })
+    this.setData({ keyword, searchedKeyword: keyword, searchFocused: false, recentSearches: searchHistory.remember(keyword) })
+    if (wx.hideKeyboard) wx.hideKeyboard()
+    return this.filterProducts(true)
   },
+  focusSearch() { clearTimeout(this.suggestionsTimer); this.setData({ searchFocused: true, recentSearches: searchHistory.list() }) },
+  blurSearch() { this.suggestionsTimer = setTimeout(() => this.setData({ searchFocused: false }), 150) },
+  applySearch(event) { this.setData({ keyword: String(event.currentTarget.dataset.keyword || ''), activeCategory: '' }); return this.search() },
+  clearFilter() { this.setData({ keyword: '', searchedKeyword: '', activeCategory: '' }); return this.filterProducts() },
+  async filterProducts(scroll = false) {
+    const sequence = this.productSequence = (this.productSequence || 0) + 1
+    this.setData({ productsLoading: true, loading: false, productError: '' })
+    try {
+      const result = await request({ url: '/shop/products', params: { status: 1, pageNum: 1, pageSize: 60, keyword: this.data.searchedKeyword, categoryName: this.data.activeCategory } })
+      if (sequence !== this.productSequence) return
+      if (!result || !Array.isArray(result.list)) throw new Error('商品列表暂不可用，请重试')
+      this.baseProducts = result.list.map(categoryProduct.card)
+      this.setData({ products: displayPrices(decorateCampaignProducts(this.baseProducts, this.data.campaigns, this.data.layoutTemplate)) })
+      this.startCampaignClock()
+      if (scroll && wx.pageScrollTo) wx.pageScrollTo({ selector: '#home-product-section', duration: 200 })
+    } catch (error) { if (sequence === this.productSequence) feedback.update(this, { productError: error.message || '商品搜索失败' }) }
+    finally { if (sequence === this.productSequence) this.setData({ productsLoading: false }) }
+  },
+  retryProducts() { return this.filterProducts() },
   openBanner(event) {
     const type = String(event.currentTarget.dataset.type || '').toUpperCase()
     const value = String(event.currentTarget.dataset.value || '').trim()
@@ -165,11 +193,8 @@ Page({
   },
   openCategory(event) {
     const name = event.currentTarget.dataset.name || ''
-    wx.switchTab({ url: '/pages/category/index', success: () => {
-      const pages = getCurrentPages()
-      const page = pages[pages.length - 1]
-      if (page && page.applyCategory) page.applyCategory(name)
-    } })
+    this.setData({ activeCategory: this.data.activeCategory === name ? '' : name })
+    return this.filterProducts(true)
   },
   retry() { this.loadHome() }
 })

@@ -27,11 +27,13 @@
         <button class="type-button {{applyType === 3 ? 'selected' : ''}}" data-type="3" bindtap="selectType" disabled="{{submitting || !canExchange}}">同规格换货</button>
       </view>
       <text class="muted">{{applyType === 3 ? '换货不退款，审核通过后按商家提供的地址寄回商品。' : '退款金额由服务器根据实际商品、优惠及运费规则计算，以审核结果为准。'}}</text>
+      <view class="refund-estimate"><view><text>{{applyType === 3 ? '换货金额' : '预计退款'}}</text><text class="estimate-total">¥{{estimateText}}</text></view><text wx:if="{{applyType !== 3}}" class="muted">商品款 ¥{{estimateProduct}} · 运费 ¥{{estimateFreight}}，实际以审核结果为准</text><text wx:else class="muted">同规格换货不退款，原订单金额与结算记录保持不变</text></view>
     </view>
     <view class="panel">
       <view class="section-title">申请原因</view>
-      <textarea class="reason-input" value="{{reason}}" maxlength="170" bindinput="reasonInput" disabled="{{submitting}}" placeholder="请说明需要退款或换货的原因（必填）" aria-label="售后申请原因" />
-      <text class="counter">{{reason.length}}/170</text>
+      <picker range="{{reasons}}" bindchange="selectReason" disabled="{{submitting}}" aria-label="选择售后申请原因"><view class="reason-picker">{{reason || '请选择申请原因（必填）'}}</view></picker>
+      <textarea class="reason-input" value="{{reasonDetail}}" maxlength="170" bindinput="reasonDetailInput" disabled="{{submitting}}" placeholder="补充说明（选填），帮助平台更快处理" aria-label="售后申请补充说明" />
+      <text class="counter">{{reasonDetail.length}}/170</text>
       <view class="section-title proof-title">图片凭证（选填）</view>
       <text class="muted">最多6张，每张不超过5MB；请勿上传身份证、银行卡等无关敏感信息。</text>
       <view class="proof-grid">

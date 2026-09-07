@@ -1,5 +1,6 @@
-.notice-row { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 20rpx; padding: 28rpx; text-align: left; background: var(--paper); color: var(--ink); line-height: 1.6; font-size: 28rpx; }
-.notice-row text { flex: none; margin-left: 20rpx; font-size: 22rpx; color: var(--muted); }
-.notice-row-title { min-width: 0; flex: 1; overflow-wrap: anywhere; }
-.notice-detail { padding: 32rpx; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 28rpx; line-height: 1.8; }
-.notice-title { margin-bottom: 24rpx; font-size: 36rpx; font-weight: 600; }
+.notice-heading { margin-bottom: 38rpx; }.notice-heading > view { margin-bottom: 12rpx; font-size: 42rpx; font-weight: 700; }.notice-heading > text { color: var(--muted); font-size: 27rpx; line-height: 1.5; }
+.notice-filters { display: flex; flex-wrap: wrap; gap: 16rpx; margin-bottom: 30rpx; }.notice-chip { margin: 0; padding: 14rpx 24rpx; color: var(--muted); background: var(--paper); border-radius: 36rpx; font-size: 26rpx; line-height: 1.4; }.notice-chip.active { color: var(--brand); background: var(--brand-soft); }
+.notice-row { display: flex; align-items: center; gap: 26rpx; width: 100%; margin: 0 0 20rpx; padding: 30rpx; border-radius: 24rpx; text-align: left; background: var(--paper); color: var(--ink); line-height: 1.6; font-size: 28rpx; }
+.notice-icon { width: 48rpx; height: 48rpx; flex: none; }.notice-arrow { width: 30rpx; height: 30rpx; flex: none; }.notice-info { min-width: 0; flex: 1; }.notice-row-title { margin-bottom: 14rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.notice-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 18rpx; font-size: 24rpx; color: var(--muted); }.notice-tag { padding: 4rpx 14rpx; background: var(--brand-soft); color: var(--brand); border-radius: 16rpx; }
+.notice-detail { overflow-wrap: anywhere; font-size: 29rpx; line-height: 1.8; }.notice-back { margin: 0 0 32rpx; padding: 0; text-align: left; font-size: 27rpx; background: transparent; color: var(--brand); }.notice-title { margin-bottom: 24rpx; font-size: 42rpx; font-weight: 700; }.notice-content { display: block; margin-top: 40rpx; padding: 38rpx; border-radius: 24rpx; background: var(--paper); white-space: pre-wrap; }

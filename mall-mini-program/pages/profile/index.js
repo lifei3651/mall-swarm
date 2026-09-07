@@ -11,15 +11,22 @@ Page({
     ...theme.pageData(),
     capabilities: capabilities.empty(), shareReady: false, shareError: '',
     loggedIn: false, member: null, loginVisible: false, avatarSrc: avatar.fallback, unreadCount: 0, unreadText: '', payoutCount: 0,
-    orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, afterSale: 0 }
+    orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, pendingReview: 0, afterSale: 0 }
   },
-  onShow() { if (typeof wx.setNavigationBarTitle === 'function') wx.setNavigationBarTitle({ title: '我的' }); theme.apply(this); this.setLoginVisible(this.data.loginVisible); this.refresh() },
-  onHide() { share.hide(this); this.refreshVersion = (this.refreshVersion || 0) + 1; avatar.release(this.data.avatarSrc); feedback.update(this, { avatarSrc: avatar.fallback, capabilities: capabilities.empty() }) },
-  onUnload() { this.onHide() },
+  onShow() { this.hidden = false; if (typeof wx.setNavigationBarTitle === 'function') wx.setNavigationBarTitle({ title: '我的' }); theme.apply(this); this.setLoginVisible(this.data.loginVisible); return this.refresh() },
+  onHide() { this.hidden = true; share.hide(this); this.refreshVersion = (this.refreshVersion || 0) + 1; this.setData({ shareReady: false }) },
+  onUnload() { this.onHide(); avatar.release(this.data.avatarSrc) },
+  currentRefresh(version, token) { return !this.hidden && version === this.refreshVersion && token === session.getToken() },
   async refresh() {
     const version = this.refreshVersion = (this.refreshVersion || 0) + 1
     const token = session.getToken()
-    feedback.update(this, { capabilities: capabilities.empty() })
+    const sameOwner = Boolean(token) && token === this.displayToken
+    this.displayToken = token
+    if (!sameOwner) {
+      avatar.release(this.data.avatarSrc)
+      feedback.update(this, { capabilities: capabilities.empty(), shareReady: false, avatarSrc: avatar.fallback, unreadCount: 0, unreadText: '', payoutCount: 0,
+        orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, pendingReview: 0, afterSale: 0 } })
+    }
     const rights = this.loadCapabilities(version, token)
     feedback.update(this, { loggedIn: Boolean(token), member: session.getMember() })
     if (!token) {
@@ -29,63 +36,71 @@ Page({
         unreadCount: 0,
         unreadText: '',
         payoutCount: 0,
-        orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, afterSale: 0 }
+        orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, pendingReview: 0, afterSale: 0 }
       })
       return
     }
     try {
       const member = await request({ url: '/shop/auth/me' })
-      if (version !== this.refreshVersion || session.getToken() !== token) return
+      if (!this.currentRefresh(version, token)) return
       wx.setStorageSync('mall_mini_member', member)
       feedback.update(this, { member })
       const avatarSrc = await avatar.load(member.avatarUrl)
-      if (version !== this.refreshVersion || session.getToken() !== token) { avatar.release(avatarSrc); return }
+      if (!this.currentRefresh(version, token)) { avatar.release(avatarSrc); return }
       avatar.release(this.data.avatarSrc)
       feedback.update(this, { avatarSrc })
-      await Promise.all([this.loadUnread(), this.loadPayoutCount(), this.loadOrderSummary()])
+      await Promise.all([this.loadUnread(version, token), this.loadPayoutCount(version, token), this.loadOrderSummary(version, token)])
       await rights
     } catch (_) {
-      if (version !== this.refreshVersion || session.getToken() !== token) return
+      if (!this.currentRefresh(version, token)) return
       share.hide(this)
       avatar.release(this.data.avatarSrc)
       feedback.update(this, {
         capabilities: capabilities.empty(), shareReady: false,
         loggedIn: false, member: null, avatarSrc: avatar.fallback, unreadCount: 0, unreadText: '', payoutCount: 0,
-        orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, afterSale: 0 }
+        orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, pendingReview: 0, afterSale: 0 }
       })
     }
   },
   async loadCapabilities(version = this.refreshVersion, token = session.getToken()) {
     const result = await share.prepare(this)
-    if (result && version === this.refreshVersion && token === session.getToken()) feedback.update(this, { capabilities: result })
+    if (this.currentRefresh(version, token)) {
+      // Preserve same-owner presentation while checking, but revoke stale rights on failure.
+      feedback.update(this, { capabilities: result || capabilities.empty() })
+    }
   },
   retryShare() { return this.loadCapabilities() },
   onShareAppMessage() { return share.message(this, '/pages/home/index', this.data.brandName) },
-  async loadUnread() {
+  async loadUnread(version = this.refreshVersion, token = session.getToken()) {
     try {
       const unread = await request({ url: '/shop/messages/unread' })
+      if (!this.currentRefresh(version, token)) return
       const count = Number(unread && unread.total ? unread.total : 0)
       feedback.update(this, { unreadCount: count, unreadText: count > 99 ? '99+' : String(count || '') })
-    } catch (_) { feedback.update(this, { unreadCount: 0, unreadText: '' }) }
+    } catch (_) { if (this.currentRefresh(version, token)) feedback.update(this, { unreadCount: 0, unreadText: '' }) }
   },
-  async loadPayoutCount() {
+  async loadPayoutCount(version = this.refreshVersion, token = session.getToken()) {
     try {
       const records = await request({ url: '/shop/wallet/withdrawals' })
+      if (!this.currentRefresh(version, token)) return
       const payoutCount = (records || []).filter((item) => Number(item.withdrawType) === 2 && Number(item.status) === 2).length
       feedback.update(this, { payoutCount })
-    } catch (_) { feedback.update(this, { payoutCount: 0 }) }
+    } catch (_) { if (this.currentRefresh(version, token)) feedback.update(this, { payoutCount: 0 }) }
   },
-  async loadOrderSummary() {
+  async loadOrderSummary(version = this.refreshVersion, token = session.getToken()) {
     try {
       const summary = await request({ url: '/shop/profile/order-summary' })
+      if (!this.currentRefresh(version, token)) return
       feedback.update(this, { orderSummary: {
         pendingPayment: Number(summary && summary.pendingPayment || 0),
         pendingShipment: Number(summary && summary.pendingShipment || 0),
         pendingReceipt: Number(summary && summary.pendingReceipt || 0),
+        pendingReview: Number(summary && summary.pendingReview || 0),
         afterSale: Number(summary && summary.afterSale || 0)
       } })
     } catch (_) {
-      feedback.update(this, { orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, afterSale: 0 } })
+      if (!this.currentRefresh(version, token)) return
+      feedback.update(this, { orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, pendingReview: 0, afterSale: 0 } })
     }
   },
   accountEntry() {
@@ -106,14 +121,19 @@ Page({
   },
   loginClosed() { this.setLoginVisible(false); this.loadCapabilities() },
   authorized(event) {
-    this.loginClosed()
+    this.setLoginVisible(false)
     if (!session.getToken()) return
+    const token = session.getToken()
     this.refresh()
     const redirect = event && event.detail && event.detail.redirect
-    if (redirect === '/pages/home/index') { wx.switchTab({ url: redirect }); return }
+    const message = event && event.detail && event.detail.message
+    const success = () => { if (message && token === session.getToken()) feedback.notice(message, '操作完成') }
+    const fail = () => { if (token === session.getToken()) feedback.notice('账号已登录，但目标页面未能打开，请重新点击入口。') }
+    if (redirect === '/pages/home/index') { wx.switchTab({ url: redirect, success, fail }); return }
     const allowed = new Set(['/pages/account-security/index', '/pages/messages/index', '/pages/orders/index',
-      '/pages/address/index', '/pages/payout/index', '/pages/wallet/index'])
-    if (typeof redirect === 'string' && allowed.has(redirect.split('?')[0])) wx.navigateTo({ url: redirect })
+      '/pages/address/index', '/pages/payout/index', '/pages/wallet/index', '/pages/support/index'])
+    if (typeof redirect === 'string' && allowed.has(redirect.split('?')[0])) wx.navigateTo({ url: redirect, success, fail })
+    else success()
   },
   legal() { wx.navigateTo({ url: '/pages/legal/index' }) },
   openMemberPage(url) { if (this.requireLogin(url)) wx.navigateTo({ url }) },
@@ -122,29 +142,32 @@ Page({
   orders() { this.openMemberPage('/pages/orders/index') },
   orderTab(event) {
     const value = event && event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.tab
-    const tab = ['pending-payment', 'pending-shipment', 'pending-receipt', 'after-sale'].includes(value) ? value : 'all'
+    const tab = ['pending-payment', 'pending-shipment', 'pending-receipt', 'pending-review', 'after-sale'].includes(value) ? value : 'all'
     this.openMemberPage(`/pages/orders/index?tab=${tab}`)
   },
   addresses() { this.openMemberPage('/pages/address/index') },
   payout() { this.openMemberPage('/pages/payout/index') },
   wallet() { this.openMemberPage('/pages/wallet/index') },
   service() { this.openMemberPage('/pages/orders/index?tab=after-sale') },
+  support() { this.openMemberPage('/pages/support/index') },
   requireLogin(redirect = '/pages/profile/index') {
     if (this.data.loggedIn && session.getToken()) return true
     this.login(redirect)
     return false
   },
   logout() {
+    const token = session.getToken()
     wx.showModal({
       title: '退出登录',
       content: '确定退出当前商城账号吗？',
       success: async (result) => {
-        if (!result.confirm) return
+        if (!result.confirm || token !== session.getToken()) return
         try { await request({ url: '/shop/auth/logout', method: 'POST' }) } catch (_) {}
-        session.clearSession()
+        if (token !== session.getToken()) return
+        session.clearSession({ clearCart: true })
         feedback.update(this, {
           unreadCount: 0, unreadText: '', payoutCount: 0,
-          orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, afterSale: 0 }
+          orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, pendingReview: 0, afterSale: 0 }
         })
         this.refresh()
       }

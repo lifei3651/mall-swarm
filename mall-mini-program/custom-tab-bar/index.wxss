@@ -3,5 +3,7 @@
 .nav-item::after { border: 0; }
 .nav-icon, .orders-icon { display: block; width: 40rpx; height: 40rpx; margin: 0 auto 5rpx; }
 .orders-icon { box-sizing: border-box; width: 30rpx; border: 2rpx solid currentColor; border-radius: 4rpx; line-height: 30rpx; font-size: 32rpx; }
-.selected { color: var(--accent); background: var(--brand-soft); font-weight: 650; }
+.selected { color: var(--accent); background: transparent; font-weight: 650; }
+.nav-item { position: relative; }
+.cart-badge { position: absolute; left: calc(50% + 6rpx); top: 0; min-width: 30rpx; padding: 0 6rpx; border: 2rpx solid var(--paper); border-radius: 999rpx; color: #fff; background: var(--brand); font-size: 20rpx; line-height: 28rpx; }
 .nav-label { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

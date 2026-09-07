@@ -48,5 +48,6 @@ Page({
     feedback.notice(issued ? '已发放：已完成结算并记入余额的奖金，已取消、已退回的记录不计入。不是当前可提现余额，也不是微信已经收款的金额。' : '待发放：尚未结算入账的奖金。订单须满足售后期及结算规则，实际结算成功后才转为已发放；期间退款可能调整金额。', issued ? '已发放奖金' : '待发放奖金')
   },
   withdraw() { wx.navigateTo({ url: '/pages/withdraw/index' }) },
+  security() { wx.navigateTo({ url: '/pages/account-settings/index?section=security' }) },
   help() { wx.navigateTo({ url: '/pages/legal/index?type=contact' }) }
 })

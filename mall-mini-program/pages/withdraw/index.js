@@ -7,8 +7,8 @@ const feedback = require('../../utils/feedback')
 const emptyForm = () => ({ withdrawAmount: '', accountName: '', paymentPassword: '', smsCode: '' })
 function blockReason(summary) {
   if (!summary.distributionActivated) return '当前账号尚未开通余额提现资格，请联系商城客服核对会员状态。'
-  if (!summary.realNameVerified || !summary.adultVerified) return '提现需要完成实名及成年校验。请先在商城H5的账号安全中完成实名认证，或联系客服协助；小程序不能跳过此校验。'
-  if (!summary.hasPaymentPassword) return '请先在商城H5的账号安全中设置6位支付密码，再返回刷新。支付密码不是登录密码。'
+  if (!summary.realNameVerified || !summary.adultVerified) return '提现需要完成实名及成年校验。请在“支付安全”完成实名认证，再返回刷新；小程序不能跳过此校验。'
+  if (!summary.hasPaymentPassword) return '请先在“支付安全”设置6位支付密码，再返回刷新。支付密码不是登录密码。'
   if (summary.paymentPasswordLocked) return '支付密码已锁定，请稍后重试；请勿反复尝试密码。'
   return ''
 }
@@ -90,5 +90,6 @@ Page({
       }
     } finally { if (!this.disposed) this.setData({ submitting: false }) }
   },
+  security() { wx.navigateTo({ url: '/pages/account-settings/index?section=security' }) },
   history() { wx.redirectTo({ url: '/pages/payout/index?history=1' }) }
 })

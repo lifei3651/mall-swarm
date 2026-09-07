@@ -6,6 +6,8 @@ const auth = require('../../utils/auth')
 const payment = require('../../utils/payment')
 const theme = require('../../utils/theme')
 const catalog = require('../../utils/catalog')
+const quantityRules = require('../../utils/quantity')
+const session = require('../../utils/session')
 
 function idempotencyKey() {
   return `MINI-CHECKOUT-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`
@@ -28,6 +30,7 @@ Page({
     freight: '--',
     payTotal: '--',
     wechatPayEnabled: false,
+    balanceAvailable: false, balanceSummary: null, balanceError: '', payType: 'WECHAT',
     needSmsVerify: false,
     smsCode: '',
     smsCooldown: 0,
@@ -46,6 +49,7 @@ Page({
     this.submitKey = idempotencyKey()
   },
   onShow() {
+    this.inactive = false
     theme.apply(this)
     if (this.data.submitting || this.createdPaymentId) return
     if (auth.requireLogin(this.route || '/pages/checkout/index')) {
@@ -63,6 +67,7 @@ Page({
   async load() {
     if (this.data.submitting || this.createdPaymentId) return
     const generation = this.loadGeneration = (this.loadGeneration || 0) + 1
+    const token = session.getToken()
     this.invalidateQuote()
     feedback.update(this, { loading: true, loadError: '', wechatPayEnabled: false })
     try {
@@ -77,7 +82,7 @@ Page({
       const rows = source.rows.map((row) => {
         const productId = format.identifier(row.productId)
         const skuId = row.skuId === null || row.skuId === undefined || row.skuId === '' ? '' : format.identifier(row.skuId)
-        if (!productId || (row.skuId && !skuId) || !Number.isInteger(row.quantity) || row.quantity < 1 || row.quantity > 99) {
+        if (!productId || (row.skuId && !skuId) || !quantityRules.valid(row.quantity)) {
           throw new Error('待结算商品信息无效，请返回重新选择')
         }
         return { ...row, productId, skuId, coverUrl: format.mediaUrl(row.coverUrl), priceText: format.money(row.salePrice) }
@@ -86,16 +91,19 @@ Page({
         count: rows.reduce((sum, row) => sum + row.quantity, 0),
         total: format.money(rows.reduce((sum, row) => sum + Number(row.salePrice) * row.quantity, 0)) })
       if (!rows.length) throw new Error('没有待结算商品，请返回购物车选择')
-      const [rawAddresses, config] = await Promise.all([
-        request({ url: '/shop/addresses' }), request({ url: '/shop/pay/config' })
+      const [rawAddresses, config, wallet] = await Promise.all([
+        request({ url: '/shop/addresses' }), request({ url: '/shop/pay/config' }), request({ url: '/shop/wallet/summary' }).catch(() => null)
       ])
-      if (generation !== this.loadGeneration) return
+      if (token !== session.getToken() || generation !== this.loadGeneration) return
       const addresses = (rawAddresses || []).filter((item) => format.identifier(item.id))
       const currentId = this.selectedAddressId || (this.data.address && String(this.data.address.id))
       const address = (addresses || []).find((item) => String(item.id) === currentId)
         || (addresses || []).find((item) => Number(item.isDefault) === 1) || (addresses || [])[0] || null
       this.selectedAddressId = address ? String(address.id) : ''
-      feedback.update(this, { address, wechatPayEnabled: Boolean(config && config.wechatPayEnabled === true) })
+      const wechatPayEnabled = Boolean(config && config.wechatPayEnabled === true)
+      const balanceAvailable = Boolean(wallet && typeof wallet.hasPaymentPassword === 'boolean' && wallet.balance != null && Number.isFinite(Number(wallet.balance)) && Number(wallet.balance) >= 0)
+      const payType = this.data.payType === 'BALANCE' && balanceAvailable || !wechatPayEnabled && balanceAvailable ? 'BALANCE' : 'WECHAT'
+      feedback.update(this, { address, wechatPayEnabled, balanceAvailable, balanceSummary: balanceAvailable ? { ...wallet, balanceText: format.money(wallet.balance) } : null, balanceError: balanceAvailable ? '' : '余额状态暂不可用，可刷新后重试', payType })
       if (address) await this.quoteFreight(address)
     } catch (error) {
       if (generation !== this.loadGeneration) return
@@ -205,6 +213,8 @@ Page({
     } finally { feedback.update(this, { smsSending: false }) }
   },
   onHide() {
+    this.inactive = true
+    this.setData({ smsCode: '' })
     this.loadGeneration = (this.loadGeneration || 0) + 1
     this.invalidateQuote()
   },
@@ -212,7 +222,7 @@ Page({
   orderPayload(address, includeRemark = true) {
     return {
       addressId: format.identifier(address.id),
-      payType: 'WECHAT',
+      payType: this.data.payType,
       businessType: this.flashSaleMode ? 'FLASH_SALE' : 'NORMAL',
       ...(this.flashSaleMode ? { businessSourceId: this.activityId } : {}),
       remark: includeRemark && this.data.remark ? this.data.remark : undefined,
@@ -221,6 +231,11 @@ Page({
     }
   },
   remarkInput(event) { feedback.update(this, { remark: String(event.detail.value || '').slice(0, 500) }) },
+  selectPayType(event) {
+    const payType = event.currentTarget.dataset.type
+    if (this.data.submitting || this.createdPaymentId || this.data.loading || !['WECHAT','BALANCE'].includes(payType) || (payType === 'WECHAT' ? !this.data.wechatPayEnabled : !this.data.balanceAvailable)) return
+    this.setData({ payType }); this.invalidateQuote(); if (this.data.address) return this.quoteFreight(this.data.address)
+  },
   async submit() {
     if (this.data.submitting || this.createdPaymentId) return
     if (!auth.requireLogin(this.route || '/pages/checkout/index')) return
@@ -230,7 +245,7 @@ Page({
       feedback.toast({ title: this.data.quoteLoading ? '结算金额正在计算，请稍候' : '请先完成结算金额计算', icon: 'none' })
       return
     }
-    if (!this.data.wechatPayEnabled) {
+    if (this.data.payType === 'WECHAT' && !this.data.wechatPayEnabled) {
       wx.showModal({ title: '微信支付暂未开放', content: '当前客户尚未完成微信支付商户资料配置与真实联调，因此不会创建无法支付的新订单。', showCancel: false })
       return
     }
@@ -238,7 +253,14 @@ Page({
       feedback.toast({ title: '请输入6位支付验证码', icon: 'none' })
       return
     }
+    if (this.data.payType === 'BALANCE') {
+      if (!this.data.balanceAvailable || !this.data.balanceSummary) return feedback.notice('余额状态暂不可用，请重新加载')
+      if (this.data.balanceSummary.paymentPasswordLocked) return feedback.notice('支付密码已锁定，请稍后刷新安全状态')
+      if (Number(this.data.balanceSummary.balance) < Number(this.data.payTotal)) return feedback.notice('账户可用余额不足，请选择其他支付方式')
+    }
     feedback.update(this, { submitting: true })
+    const token = session.getToken(), payType = this.data.payType
+    const current = () => token === session.getToken()
     wx.showLoading({ title: '正在提交订单', mask: true })
     let paymentId = null
     try {
@@ -246,17 +268,27 @@ Page({
         url: this.flashSaleMode ? `/shop/flash-sales/${this.activityId}/orders` : '/shop/orders', method: 'POST', idempotencyKey: this.submitKey,
         data: this.orderPayload(this.data.address)
       })
+      if (!current()) return
       paymentId = format.identifier(order && (order.checkoutId || (order.order && order.order.id)))
       this.createdPaymentId = paymentId || 'CREATED_WITH_UNKNOWN_ID'
       if (!paymentId) throw new Error('订单已提交，但订单标识异常，请到“我的订单”核对状态后再操作')
       if (this.directMode) cart.clearDirectCheckout()
       else if (!this.flashSaleMode) cart.clearSelected()
       wx.hideLoading()
-      const confirmed = await payment.payOrder(paymentId)
+      if (payType === 'BALANCE') {
+        if (this.inactive) return
+        const detailId = format.identifier(order && order.order && order.order.id)
+        wx.redirectTo({ url: detailId ? `/pages/order-detail/index?id=${detailId}&autoPay=1` : '/pages/orders/index' })
+        return
+      }
+      if (this.inactive) { await feedback.notice('订单已保留，请返回我的订单继续支付'); return }
+      const confirmed = await payment.payOrder(paymentId, current)
+      if (!current()) return
       await feedback.toast({ title: confirmed ? '支付成功' : '支付结果确认中', icon: confirmed ? 'success' : 'none' })
       wx.redirectTo({ url: '/pages/orders/index' })
     } catch (error) {
       wx.hideLoading()
+      if (!current()) return
       if (this.createdPaymentId) {
         wx.showModal({
           title: '订单已保留',
@@ -264,11 +296,11 @@ Page({
             ? '你已取消微信支付，可在“我的订单 → 待支付”继续付款。'
             : `微信支付暂未完成：${error.message || '请稍后重试'}。订单已保留在待支付。`,
           showCancel: false,
-          success: () => wx.redirectTo({ url: '/pages/orders/index' })
+          success: () => { if (current() && !this.inactive) wx.redirectTo({ url: '/pages/orders/index' }) }
         })
       } else {
         feedback.toast({ title: error.message || '订单提交失败', icon: 'none', duration: 2600 })
       }
-    } finally { feedback.update(this, { submitting: false }) }
+    } finally { wx.hideLoading(); feedback.update(this, { submitting: false, smsCode: '' }) }
   }
 })

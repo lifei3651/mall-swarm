@@ -8,9 +8,11 @@ const purchaseLimit = require('../../utils/purchase-limit')
 const session = require('../../utils/session')
 
 Page({
-  data: { ...theme.pageData(), rows: [], total: '0.00', count: 0, allSelected: false, checking: false, checkError: '', quantityChecking: '', checkoutChecking: false },
+  data: { ...theme.pageData(), rows: [], total: '0.00', count: 0, totalCount: 0, selectedKinds: 0, manageMode: false, allSelected: false, checking: false, checkError: '', quantityChecking: '', checkoutChecking: false },
   onShow() {
-    this.inactive = false; theme.apply(this); this.refresh()
+    this.inactive = false; theme.apply(this)
+    if (!this.data.manageMode && session.getToken()) cart.selectAll(true)
+    this.refresh()
     if (cart.needsLegacyReview()) {
       const token = session.getToken()
       feedback.notice('为区分不同账号，旧版购物车商品需要重新添加。已有订单不受影响。', '购物车已按账号分开保存')
@@ -19,13 +21,14 @@ Page({
   },
   async refresh() {
     const generation = this.generation = (this.generation || 0) + 1
+    const token = session.getToken()
     const snapshot = JSON.stringify(cart.list())
     this.renderRows(cart.list())
     feedback.update(this, { checking: true, checkError: '' })
     try {
       const rows = await catalog.refresh(cart.list())
-      if (generation !== this.generation || snapshot !== JSON.stringify(cart.list())) return
-      for (const row of rows) cart.update(row.key, { salePrice: row.salePrice, productName: row.productName, skuName: row.skuName, coverUrl: row.coverUrl })
+      if (this.inactive || token !== session.getToken() || generation !== this.generation || snapshot !== JSON.stringify(cart.list())) return
+      for (const row of rows) cart.update(row.key, { salePrice: row.salePrice, productName: row.productName, skuName: row.skuName, skuAttrs: row.skuAttrs, merchantName: row.merchantName, stock: row.stock, purchaseLimit: row.purchaseLimit, coverUrl: row.coverUrl })
       this.renderRows(rows)
     } catch (error) { if (generation === this.generation) feedback.update(this, { checkError: error.message || '商品信息校验失败，请重试' }) }
     finally { if (generation === this.generation) feedback.update(this, { checking: false }) }
@@ -42,9 +45,40 @@ Page({
     const selected = rows.filter((row) => row.selected)
     feedback.update(this, {
       rows,
+      totalCount: rows.reduce((sum, row) => sum + row.quantity, 0),
+      selectedKinds: selected.length,
       count: selected.reduce((sum, row) => sum + row.quantity, 0),
       total: format.money(selected.reduce((sum, row) => sum + Number(row.salePrice) * row.quantity, 0)),
       allSelected: rows.length > 0 && selected.length === rows.length
+    })
+    const tab = this.getTabBar && this.getTabBar()
+    if (tab && tab.refresh) tab.refresh()
+  },
+  toggleManage() {
+    if (this.data.quantityChecking || this.data.checkoutChecking || this.inactive) return
+    const manageMode = !this.data.manageMode
+    // H5 enters management with no selection; ordinary checkout uses all rows.
+    cart.selectAll(!manageMode)
+    this.setData({ manageMode })
+    this.refresh()
+  },
+  removeSelected() { return this.confirmRemoval(false) },
+  clearCart() { return this.confirmRemoval(true) },
+  confirmRemoval(all) {
+    if (!this.data.manageMode || this.data.quantityChecking || this.data.checkoutChecking || this.inactive) return
+    const targets = all ? cart.list() : cart.selected()
+    if (!targets.length) return
+    const token = session.getToken(), snapshot = JSON.stringify(cart.list())
+    wx.showModal({ title: all ? '确认清空购物车？' : '确认删除选中商品？',
+      content: `将删除${all ? '全部' : '选中的'} ${targets.length} 种商品，共 ${targets.reduce((sum, row) => sum + row.quantity, 0)} 件。删除后无法撤销。`,
+      confirmText: all ? '确认清空' : '确认删除', cancelText: '保留商品',
+      success: ({ confirm }) => {
+        if (!confirm || this.inactive || token !== session.getToken()) return
+        if (snapshot !== JSON.stringify(cart.list())) { feedback.notice('购物车已变化，请重新确认'); return }
+        cart.removeMany(targets.map(row => row.key))
+        if (all) this.setData({ manageMode: false })
+        this.refresh()
+      }
     })
   },
   toggle(event) {
@@ -59,7 +93,8 @@ Page({
     if (!row || ![1, -1].includes(delta) || this.data.quantityChecking || this.data.checkoutChecking || this.inactive) return
     if (delta < 0) { cart.update(key, { quantity: Math.max(1, row.quantity - 1) }); return this.refresh() }
     const sequence = this.actionSequence = (this.actionSequence || 0) + 1
-    const current = () => !this.inactive && sequence === this.actionSequence
+    const token = session.getToken()
+    const current = () => !this.inactive && sequence === this.actionSequence && token === session.getToken()
     this.generation = (this.generation || 0) + 1
     this.setData({ quantityChecking: key })
     try {

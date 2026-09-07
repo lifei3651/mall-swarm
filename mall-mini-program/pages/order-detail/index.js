@@ -3,6 +3,7 @@ const request = require('../../utils/request')
 const auth = require('../../utils/auth')
 const session = require('../../utils/session')
 const payment = require('../../utils/payment')
+const balancePayment = require('../../utils/balance-order')
 const format = require('../../utils/format')
 const orderCenter = require('../../utils/order-center')
 const theme = require('../../utils/theme')
@@ -23,9 +24,10 @@ function addressText(order) {
 }
 
 Page({
+  ...balancePayment.methods,
   data: { ...theme.pageData(), ...paymentSummary(), loading: true, error: '', rows: [], paymentNo: '', actingId: null, paying: false, cancellingAfterSaleId: null,
     editingSaleId: '', deliveryCompany: '', deliveryNo: '', shipmentError: '', submittingShipment: false,
-    carriers: CARRIERS, trackingOrderId: '', trackingLoading: false, trackingError: '', trackingRows: [] },
+    carriers: CARRIERS, trackingOrderId: '', trackingLoading: false, trackingError: '', trackingRows: [], ...balancePayment.data },
   onLoad(options = {}) {
     theme.apply(this)
     const orderId = identifier(options.id)
@@ -35,18 +37,21 @@ Page({
       return
     }
     this.orderId = orderId || null
+    this.autoPay = options.autoPay === '1'
     this.paymentNo = paymentNo
     this.redirect = this.orderId ? `/pages/order-detail/index?id=${this.orderId}` : orderCenter.detailPath(paymentNo)
     feedback.update(this, { paymentNo })
   },
   onShow() {
+    this.hidden = false
     theme.apply(this)
     if (this.data.paying) return
-    if (this.redirect && auth.requireLogin(this.redirect)) return this.load()
+    if (this.redirect && auth.requireLogin(this.redirect)) return this.load().then(() => { if (this.autoPay && this.data.paymentChannel === 'BALANCE') { this.autoPay = false; return this.openBalancePayment() } })
     this.requestVersion = (this.requestVersion || 0) + 1
     if (this.redirect) feedback.update(this, { loading: false, rows: [], ...paymentSummary() })
   },
-  onUnload() { this.disposed = true; this.requestVersion = (this.requestVersion || 0) + 1 },
+  onHide() { this.hidden = true; this.setData({ balancePassword: '', balanceDialog: false, ...(this.data.actingId === 'balance' && !this.data.balanceBusy ? { actingId: null } : {}) }) },
+  onUnload() { this.onHide(); this.disposed = true; this.requestVersion = (this.requestVersion || 0) + 1 },
   onPullDownRefresh() {
     if (this.data.paying || (!this.orderId && !this.paymentNo)) {
       wx.stopPullDownRefresh()
@@ -136,6 +141,7 @@ Page({
     }
   },
   async pay() {
+    if (this.data.paymentChannel === 'BALANCE') return this.openBalancePayment()
     if (this.data.paying || this.data.actingId || this.data.loading || !this.data.payOrderId) return
     if (!auth.requireLogin(this.redirect)) return
     const token = session.getToken()
@@ -205,31 +211,46 @@ Page({
     const number = String(event.currentTarget.dataset.number || '')
     if (number && number.length <= 64) wx.setClipboardData({ data: number })
   },
+  operationCurrent() { const token = session.getToken(); return () => !!token && token === session.getToken() && !this.disposed && !this.hidden },
   receive(event) {
     const orderId = identifier(event.currentTarget.dataset.id)
-    if (!orderId || this.data.actingId) return
+    const current = this.operationCurrent()
+    if (!current() || !orderId || this.data.actingId) return
     wx.showModal({
       title: '确认收到商品',
       content: '确认后订单将完成；如商品未收到或存在问题，请暂时不要确认。',
       confirmText: '确认收货',
       success: async ({ confirm }) => {
-        if (!confirm || this.data.actingId) return
+        if (!confirm || !current() || this.data.actingId) return
         feedback.update(this, { actingId: orderId })
         try {
           await request({ url: `/shop/orders/${orderId}/receive`, method: 'PUT' })
+          if (!current()) return
           feedback.toast({ title: '已确认收货', icon: 'success' })
           await this.load()
         } catch (error) {
-          feedback.toast({ title: error.message || '确认失败', icon: 'none', duration: 2600 })
+          if (current()) feedback.toast({ title: error.message || '确认失败', icon: 'none', duration: 2600 })
         } finally {
           feedback.update(this, { actingId: null })
         }
       }
     })
   },
+  copyOrderNo(event) { const id = identifier(event.currentTarget.dataset.id), row = this.data.rows.find(item => item.order.id === id); if (row?.order?.orderNo) wx.setClipboardData({ data: String(row.order.orderNo) }) },
+  review(event) {
+    const row = this.data.rows.find(item => item.order.id === identifier(event.currentTarget.dataset.id))
+    const productId = row && identifier(row.pendingReviewProductId), orderItemId = row && identifier(row.pendingReviewOrderItemId)
+    if (productId && orderItemId) wx.navigateTo({ url: `/pages/product/index?id=${productId}&orderItemId=${orderItemId}` })
+    else feedback.notice('评价入口已变化，请刷新订单后重试')
+  },
+  support(event) {
+    const id = identifier(event.currentTarget.dataset.id)
+    if (this.data.rows.some(item => item.order.id === id)) wx.navigateTo({ url: `/pages/support/index?create=1&orderId=${id}` })
+  },
   cancelOrder(event) {
     const orderId = identifier(event.currentTarget.dataset.id)
-    if (!orderId || this.data.actingId) return
+    const current = this.operationCurrent()
+    if (!current() || !orderId || this.data.actingId) return
     wx.showModal({
       title: '取消订单',
       content: this.data.rows.some((row) => row.order.id === orderId && row.order.tradeId)
@@ -238,33 +259,36 @@ Page({
       confirmText: '确认取消',
       confirmColor: this.data.themeColor,
       success: async ({ confirm }) => {
-        if (!confirm || this.data.actingId) return
+        if (!confirm || !current() || this.data.actingId) return
         feedback.update(this, { actingId: orderId })
         try {
           await request({ url: `/shop/orders/${orderId}/cancel`, method: 'PUT' })
+          if (!current()) return
           feedback.toast({ title: '订单已取消', icon: 'success' })
           await this.load()
-        } catch (error) { feedback.toast({ title: error.message || '取消失败', icon: 'none' }) }
+        } catch (error) { if (current()) feedback.toast({ title: error.message || '取消失败', icon: 'none' }) }
         finally { feedback.update(this, { actingId: null }) }
       }
     })
   },
   cancelAfterSale(event) {
     const id = identifier(event.currentTarget.dataset.id)
-    if (!id || this.data.cancellingAfterSaleId) return
+    const current = this.operationCurrent()
+    if (!current() || !id || this.data.cancellingAfterSaleId) return
     wx.showModal({
       title: '取消售后申请',
       content: '取消后不会产生退款；如仍在售后期限内，可以重新申请。',
       confirmText: '确认取消',
       confirmColor: this.data.themeColor,
       success: async ({ confirm }) => {
-        if (!confirm || this.data.cancellingAfterSaleId) return
+        if (!confirm || !current() || this.data.cancellingAfterSaleId) return
         feedback.update(this, { cancellingAfterSaleId: id })
         try {
           await request({ url: `/shop/after-sales/${id}/cancel`, method: 'PUT' })
+          if (!current()) return
           feedback.toast({ title: '售后申请已取消', icon: 'success' })
           await this.load()
-        } catch (error) { feedback.toast({ title: error.message || '取消失败', icon: 'none' }) }
+        } catch (error) { if (current()) feedback.toast({ title: error.message || '取消失败', icon: 'none' }) }
         finally { feedback.update(this, { cancellingAfterSaleId: null }) }
       }
     })
@@ -295,7 +319,8 @@ Page({
   async submitShipment() {
     const id = this.data.editingSaleId
     const sale = this.findSale(id)
-    if (!sale || !sale.canReturn || this.data.submittingShipment) return
+    const current = this.operationCurrent()
+    if (!current() || !sale || !sale.canReturn || this.data.submittingShipment) return
     const deliveryCompany = this.data.deliveryCompany.trim()
     const deliveryNo = this.data.deliveryNo.trim()
     if (!deliveryCompany || deliveryCompany.length > 50) { feedback.update(this, { shipmentError: '请填写1至50字的快递公司名称' }); return }
@@ -303,25 +328,28 @@ Page({
     feedback.update(this, { submittingShipment: true, shipmentError: '' })
     try {
       await request({ url: `/shop/after-sales/${id}/return-shipment`, method: 'PUT', data: { deliveryCompany, deliveryNo } })
+      if (!current()) return
       feedback.update(this, { editingSaleId: '', deliveryCompany: '', deliveryNo: '' })
       feedback.toast({ title: '退货物流已提交', icon: 'success' })
       await this.load()
-    } catch (error) { feedback.update(this, { shipmentError: error.message || '物流提交失败，请重试' }) }
+    } catch (error) { if (current()) feedback.update(this, { shipmentError: error.message || '物流提交失败，请重试' }) }
     finally { feedback.update(this, { submittingShipment: false }) }
   },
   receiveExchange(event) {
     const id = identifier(event.currentTarget.dataset.id)
     const sale = this.findSale(id)
-    if (!sale || !sale.canReceiveExchange || this.data.cancellingAfterSaleId) return
+    const current = this.operationCurrent()
+    if (!current() || !sale || !sale.canReceiveExchange || this.data.cancellingAfterSaleId) return
     wx.showModal({ title: '确认收到换货商品', content: '请确认换货商品已收到且无误，确认后本次换货将完成。', confirmText: '确认收货',
       success: async ({ confirm }) => {
-        if (!confirm || this.data.cancellingAfterSaleId) return
+        if (!confirm || !current() || this.data.cancellingAfterSaleId) return
         feedback.update(this, { cancellingAfterSaleId: id })
         try {
           await request({ url: `/shop/after-sales/${id}/exchange-received`, method: 'PUT' })
+          if (!current()) return
           feedback.toast({ title: '已确认换货收货', icon: 'success' })
           await this.load()
-        } catch (error) { feedback.toast({ title: error.message || '确认失败', icon: 'none' }) }
+        } catch (error) { if (current()) feedback.toast({ title: error.message || '确认失败', icon: 'none' }) }
         finally { feedback.update(this, { cancellingAfterSaleId: null }) }
       }
     })

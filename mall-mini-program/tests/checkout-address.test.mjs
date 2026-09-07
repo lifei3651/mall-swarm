@@ -3,6 +3,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
+import { createRequire } from 'node:module'
+const require = createRequire(import.meta.url)
 
 const plain = (value) => JSON.parse(JSON.stringify(value))
 const address = (id = '9223372036854775701', isDefault = 1) => ({ id, isDefault, receiverName: '测试收货人', receiverPhone: '13800000000', province: '湖南省', city: '长沙市', district: '岳麓区', detailAddress: '测试路 1 号' })
@@ -24,6 +26,8 @@ function harness(name, { respond, loggedIn = true, selected = goods, stack = [] 
     showLoading() {}, hideLoading() {}
   }
   const mocks = {
+    '../../utils/quantity': require('../utils/quantity'),
+    '../../utils/address-parser': require('../utils/address-parser'),
     '../../utils/request': async (options) => { calls.push(plain(options)); return respond ? respond(options) : undefined },
     '../../utils/cart': { selected: () => selected, directItems: () => selected, clearDirectCheckout() {}, clearSelected: () => { cleared++ } },
     '../../utils/session': { getToken: () => loggedIn ? 'test-session' : '' },

@@ -24,3 +24,7 @@
 .result-panel { padding: 48rpx 28rpx; text-align: center; }
 .result-panel > text { display: block; font-size: 30rpx; line-height: 46rpx; overflow-wrap: anywhere; }
 .result-panel > button { margin-top: 32rpx; }
+.reason-picker { margin-bottom:20rpx; padding:24rpx; min-height:90rpx; border:1rpx solid var(--line); border-radius:18rpx; color:var(--ink); font-size:27rpx; }
+.refund-estimate { margin-top:24rpx; padding:28rpx; border:1rpx solid var(--brand-soft); border-radius:24rpx; background:var(--brand-soft); }
+.refund-estimate > view { display:flex; justify-content:space-between; gap:20rpx; align-items:baseline; margin-bottom:12rpx; }
+.estimate-total { color:var(--brand); font-size:40rpx; font-weight:600; }

@@ -43,8 +43,8 @@ test('订单金额标签区分待付款、实付、关闭及混合状态，保�
   assert.equal(paymentSummary([row(), row({ status: 1 })]).summaryLabel, '订单金额')
 })
 
-test('非微信、非待付款、重复ID、非法金额或不相关订单均不提供继续支付', () => {
-  for (const rows of [[], [row({ payType: 'BALANCE' })], [row({ payType: 'ALIPAY' })], [row({ status: 1 })], [row({ status: 4 })], [row({ id: Number(ID) })], [row({ payAmount: 'bad' })], [row({ payAmount: 0 })], [row(), row()], [row(), row({ id: CHILD })]]) {
+test('未支持渠道、非待付款、重复ID、非法金额或不相关订单均不提供继续支付', () => {
+  for (const rows of [[], [row({ payType: 'ALIPAY' })], [row({ status: 1 })], [row({ status: 4 })], [row({ id: Number(ID) })], [row({ payAmount: 'bad' })], [row({ payAmount: 0 })], [row(), row()], [row(), row({ id: CHILD })]]) {
     assert.equal(paymentSummary(rows).payOrderId, '')
   }
 })

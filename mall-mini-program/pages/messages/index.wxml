@@ -1,11 +1,13 @@
 <view class="message-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
   <view class="message-head">
-    <view><view>消息与提醒</view><text>集中查看订单、退款和到账进度</text></view>
-    <button wx:if="{{unread.total}}" bindtap="readAll">全部已读</button>
+    <view><view>消息中心</view><text>商城公告不计入这里的未读数</text></view>
+    <view class="message-head-actions"><button bindtap="support">客服工单</button><button wx:if="{{unread.total}}" bindtap="readAll" disabled="{{reading}}">全部已读</button></view>
   </view>
   <view wx:if="{{subscriptionAvailable}}" class="subscribe-card" bindtap="subscriptions">
     <view><text>微信服务提醒</text><text>按需订阅发货、退款和到账提醒</text></view><text>›</text>
   </view>
+  <view class="sms-card"><view><text class="sms-label">可选提醒</text><view>重要进度短信</view><text>仅用于订单发货、售后退款和账号安全变化，不含营销内容。</text><text>{{smsPreference.statusText}}{{smsPreference.maskedPhone ? ' · ' + smsPreference.maskedPhone : ''}}</text></view><button class="sms-toggle" bindtap="changeSmsPreference" disabled="{{smsBusy || (!smsPreference.available && !smsPreference.enabled)}}" aria-label="{{smsPreference.enabled ? '关闭重要进度短信' : '开启重要进度短信'}}">{{smsBusy ? '保存中' : smsPreference.enabled ? '已开启' : '未开启'}}</button></view>
+  <button wx:if="{{smsError}}" class="more" bindtap="loadSmsPreference">重新读取短信设置</button>
   <scroll-view class="category-list" scroll-x enhanced show-scrollbar="{{false}}">
     <view class="category-row">
       <button wx:for="{{categories}}" wx:key="key" data-key="{{item.key}}" class="{{category === item.key ? 'active' : ''}}" bindtap="selectCategory">
@@ -14,6 +16,7 @@
       </button>
     </view>
   </scroll-view>
+  <view wx:if="{{category}}" class="category-action"><button bindtap="readCategory" disabled="{{reading}}">本分类全部已读</button></view>
   <view wx:if="{{loading && !rows.length}}" class="empty">正在加载消息…</view>
   <view wx:elif="{{error && !rows.length}}" class="empty message-empty"><text>消息加载失败</text><text>{{error}}</text><button class="secondary-button" bindtap="retry">重新加载</button></view>
   <view wx:elif="{{!rows.length}}" class="empty message-empty"><text>暂时没有新消息</text><text>订单、退款和到账进度会在这里更新</text><button wx:if="{{subscriptionAvailable}}" class="secondary-button" bindtap="subscriptions">设置微信提醒</button></view>

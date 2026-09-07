@@ -27,11 +27,13 @@
         </view>
       </block>
       <block wx:if="{{browsingAll || !guideEnabled || !guideHasContent || searchedKeyword || active || (guideTemplate === 'directory' && guide.hotProducts) || (guideTemplate === 'showcase' && guide.recommendedProducts) || (guideTemplate === 'scenario' && guide.popularProducts)}}">
-      <view class="result-head"><text>{{searchedKeyword ? '搜索结果' : active || (guideEnabled && guideHasContent && !browsingAll ? (guideTemplate === 'showcase' ? '推荐商品' : '人气好物') : '全部商品')}}</text><text>共 {{total}} 件</text></view>
+      <view class="result-toolbar">
+      <view class="result-head"><text class="result-label">{{searchedKeyword ? '搜索结果' : active || (guideEnabled && guideHasContent && !browsingAll ? (guideTemplate === 'showcase' ? '推荐商品' : '人气好物') : '全部')}}</text></view>
       <view class="sort-tabs" aria-label="商品排序">
         <button class="sort-tab {{sortMode === 'default' ? 'selected' : ''}}" data-mode="default" bindtap="changeSort">综合</button>
         <button class="sort-tab {{sortMode === 'sales' ? 'selected' : ''}}" data-mode="sales" bindtap="changeSort">销量</button>
-        <button class="sort-tab {{sortMode === 'priceAsc' || sortMode === 'priceDesc' ? 'selected' : ''}}" data-mode="price" bindtap="changeSort">{{sortMode === 'priceAsc' ? '价格从低到高' : sortMode === 'priceDesc' ? '价格从高到低' : '价格'}}</button>
+        <button class="sort-tab {{sortMode === 'priceAsc' || sortMode === 'priceDesc' ? 'selected' : ''}}" data-mode="price" bindtap="changeSort" aria-label="{{sortMode === 'priceAsc' ? '价格从低到高，点击反转' : sortMode === 'priceDesc' ? '价格从高到低，点击反转' : '按价格排序'}}">价格<image class="price-sort-icon {{sortMode === 'priceAsc' ? 'ascending' : ''}}" src="/assets/profile/chevron-right.png" /></button>
+      </view>
       </view>
       <button wx:if="{{guideEnabled && (active || searchedKeyword || browsingAll)}}" class="guide-back secondary-button" bindtap="clearFilter">返回分类导购</button>
       <view wx:if="{{loading}}" class="empty">正在加载…</view>
@@ -46,7 +48,7 @@
           <view class="product-copy">
             <view class="product-description" data-id="{{item.id}}" bindtap="openProduct" aria-role="button" aria-label="查看{{item.productName}}详情">
               <view class="product-title">{{item.productName}}</view>
-              <view wx:if="{{item.subtitle}}" class="product-subtitle">{{item.subtitle}}</view>
+              <view class="product-subtitle">{{item.subtitle || '精选商城好物，品质保障，售后无忧'}}</view>
             </view>
             <view wx:if="{{item.salesText}}" class="product-sales">{{item.salesText}}</view>
             <view class="purchase-row">
@@ -68,7 +70,7 @@
         <view wx:if="{{loadingMore}}" class="empty">正在加载更多…</view>
         <button wx:elif="{{moreError}}" class="secondary-button guide-back" bindtap="loadMore">加载失败，点击重试</button>
         <button wx:elif="{{hasMore}}" class="secondary-button guide-back" bindtap="loadMore">加载更多商品</button>
-        <view wx:elif="{{products.length}}" class="empty">已显示全部商品</view>
+        <view wx:elif="{{products.length}}" class="empty">已显示全部商品 · 共 {{total}} 件</view>
       </block>
       </block>
       <view wx:elif="{{loading}}" class="empty">正在加载…</view>
@@ -76,5 +78,4 @@
       <button wx:if="{{guideEnabled && !active && !searchedKeyword && !browsingAll}}" class="secondary-button guide-back" bindtap="showAll">查看全部商品</button>
     </scroll-view>
   </view>
-  <include src="/templates/quick-cart.wxml" />
 </view>

@@ -16,6 +16,7 @@ export function commerceEnv(respond = () => ({}), token = 'member') {
     navigateTo: item => routes.push(item.url), switchTab: item => routes.push(item.url), setNavigationBarTitle() {}, stopPullDownRefresh() {}
   }
   function load(name, parent = root) {
+    if (name.endsWith('.json')) return JSON.parse(readFileSync(resolve(parent, name), 'utf8'))
     const file = resolve(parent, name.endsWith('.js') ? name : name + '.js')
     if (file === resolve(root, 'utils/request.js')) return async options => { calls.push(clone(options)); return respond(options) }
     if (file === resolve(root, 'utils/share.js')) return { prepare() {}, hide() {} }

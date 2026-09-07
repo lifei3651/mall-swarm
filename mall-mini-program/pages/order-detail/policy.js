@@ -53,17 +53,33 @@ function paymentSummary(rows = []) {
   const sameTrade = orders.every((order) => String(order.tradeId || '') === String(first.tradeId || ''))
   const validGroup = sameTrade && (orders.length === 1 || Boolean(identifier(first.tradeId)))
   const totalFen = orders.reduce((sum, order) => sum + Math.round(Number(order.payAmount == null ? order.totalAmount : order.payAmount) * 100), 0)
+  const channel = String(first.payType || '').toUpperCase()
   const canPay = pending && validGroup && ids.every(Boolean) && new Set(ids).size === ids.length
     && orders.every((order) => Number(order.payAmount == null ? order.totalAmount : order.payAmount) >= 0)
-    && orders.every((order) => String(order.payType || '').toUpperCase() === 'WECHAT')
+    && ['WECHAT', 'BALANCE'].includes(channel) && orders.every((order) => String(order.payType || '').toUpperCase() === channel)
     && Number.isSafeInteger(totalFen) && totalFen > 0
   return {
     summaryLabel: pending ? '待付金额' : paid ? '实付金额' : '订单金额',
     summaryMeta: orders.length > 1 ? `合并交易 · ${orders.length} 个订单，分别发货和售后` : first.tradeId ? '合并交易中的当前子订单' : '商品及运费金额以订单明细为准',
     totalText: Number.isFinite(totalFen) ? (totalFen / 100).toFixed(2) : '--',
     payOrderId: canPay ? ids[0] : '',
+    paymentChannel: canPay ? channel : '',
     paymentHint: pending && !canPay ? '当前订单暂不能在此付款，请核对原支付方式或联系商城客服。' : ''
   }
 }
 
-module.exports = { identifier, remainingItems, afterSaleEligibility, amountLabel, paymentSummary }
+// Display-only estimate, matching H5 OrderDetailView. Actual refund is server-calculated.
+function refundEstimate(detail, selectedItems, applyType) {
+  if (Number(applyType) === 3) return { product: 0, freight: 0, total: 0 }
+  const order = detail.order || {}, items = detail.items || [], remaining = remainingItems(detail)
+  const selected = selectedItems.reduce((sum,item)=>sum+Number(item.selectedQuantity || 0),0)
+  const all = selected > 0 && selected === remaining.reduce((sum,item)=>sum+item.remaining,0)
+  const base = Math.max(0,Number(order.totalAmount || 0)-Number(order.discountAmount || 0))
+  const approved = (detail.afterSales || []).filter(sale=>[1,2].includes(Number(sale.applyType)) && Number(sale.status)===1).reduce((sum,sale)=>sum+Number(sale.productRefundAmount || 0),0)
+  const available = Math.max(0,base-approved), gross = items.reduce((sum,item)=>sum+Number(item.totalAmount || 0),0)
+  const portion = selectedItems.reduce((sum,line)=> { const item = items.find(item=>String(item.id)===String(line.id)); return sum + (item && item.quantity ? Number(item.totalAmount || 0)*Number(line.selectedQuantity || 0)/Number(item.quantity) : 0) },0)
+  const product = all ? available : gross ? Math.min(available,portion*base/gross) : 0
+  const freight = Number(order.status)===1 && !order.deliveryTime && all ? Number(order.freightAmount || 0) : 0
+  return { product, freight, total: product + freight }
+}
+module.exports = { identifier, remainingItems, afterSaleEligibility, amountLabel, paymentSummary, refundEstimate }

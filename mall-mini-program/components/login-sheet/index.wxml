@@ -11,7 +11,7 @@
       <view wx:if="{{loading}}" class="login-loading">正在检查商城配置…</view>
       <block wx:else>
         <block wx:if="{{phoneEnabled}}">
-          <button wx:if="{{agreed && inviteReady && !inviteBusy && !inviteConflict}}" class="login-button {{submitting || !enabled ? 'is-disabled' : ''}}" open-type="getPhoneNumber" loading="{{submitting}}" disabled="{{submitting || !enabled}}" bindgetphonenumber="phoneLogin">手机号快捷登录</button>
+          <button wx:if="{{agreed && inviteReady && !inviteBusy && !inviteConflict}}" class="login-button {{submitting || !enabled ? 'is-disabled' : ''}}" open-type="getPhoneNumber" loading="{{submitting}}" disabled="{{submitting || !enabled}}" bindtap="beginPhoneAuthorization" bindgetphonenumber="phoneLogin">手机号快捷登录</button>
           <button wx:else class="login-button {{submitting || !enabled ? 'is-disabled' : ''}}" disabled="{{submitting || !enabled}}" bindtap="requireAgreement">手机号快捷登录</button>
         </block>
         <button wx:else class="login-button {{submitting || !enabled ? 'is-disabled' : ''}}" loading="{{submitting}}" disabled="{{submitting || !enabled}}" bindtap="returningLogin">商城账号登录</button>

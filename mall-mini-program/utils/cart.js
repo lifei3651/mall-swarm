@@ -2,6 +2,7 @@ const LEGACY_KEY = 'mall_mini_cart'
 const LEGACY_NOTICE_KEY = 'mall_mini_cart_v2_legacy_notice'
 const session = require('./session')
 const { identifier } = require('./format')
+const quantities = require('./quantity')
 let direct = null
 
 function ownerKey() {
@@ -27,19 +28,24 @@ function needsLegacyReview() {
 }
 function acknowledgeLegacyReview() { if (ownerKey()) wx.setStorageSync(LEGACY_NOTICE_KEY, true) }
 function add(item) {
+  if (!quantities.valid(item.quantity || 1)) throw new Error('购买数量无效')
   const rows = list()
   const key = `${item.productId}:${item.skuId || 0}`
   const existing = rows.find((row) => row.key === key)
   if (existing) {
-    const quantity = Math.min(99, existing.quantity + (item.quantity || 1))
+    const quantity = existing.quantity + (item.quantity || 1)
+    if (!quantities.valid(quantity)) throw new Error('购买数量超出支持范围')
     // The caller has just checked current details: do not retain a stale unit price or name.
     Object.assign(existing, item, { key, quantity, selected: existing.selected })
   }
-  else rows.unshift({ ...item, key, quantity: item.quantity || 1, selected: true })
+  else rows.push({ ...item, key, quantity: item.quantity || 1, selected: true })
   return save(rows)
 }
 function update(key, patch) { return save(list().map((row) => row.key === key ? { ...row, ...patch } : row)) }
 function remove(key) { return save(list().filter((row) => row.key !== key)) }
+function removeMany(keys) { const targets = new Set(keys); return save(list().filter(row => !targets.has(row.key))) }
+function clear() { direct = null; return save([]) }
+function count() { return list().reduce((sum, row) => sum + (quantities.valid(row.quantity) ? row.quantity : 0), 0) }
 function selectAll(selected) { return save(list().map((row) => ({ ...row, selected: Boolean(selected) }))) }
 function selectOnly(key) { return save(list().map((row) => ({ ...row, selected: row.key === key }))) }
 function clearSelected() { return save(list().filter((row) => !row.selected)) }
@@ -57,4 +63,4 @@ function directItems() {
 }
 function clearDirectCheckout() { direct = null }
 
-module.exports = { list, add, update, remove, selectAll, selectOnly, clearSelected, selected, beginDirectCheckout, directItems, clearDirectCheckout, needsLegacyReview, acknowledgeLegacyReview }
+module.exports = { list, add, update, remove, removeMany, clear, count, selectAll, selectOnly, clearSelected, selected, beginDirectCheckout, directItems, clearDirectCheckout, needsLegacyReview, acknowledgeLegacyReview }

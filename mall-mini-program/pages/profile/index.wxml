@@ -27,6 +27,10 @@
         <view class="shortcut-icon"><image src="/assets/profile/truck.png" mode="aspectFit" aria-hidden="true" /><text wx:if="{{loggedIn && orderSummary.pendingReceipt}}" class="shortcut-count">{{orderSummary.pendingReceipt > 99 ? '99+' : orderSummary.pendingReceipt}}</text></view>
         <text class="shortcut-name">待收货</text>
       </button>
+      <button data-tab="pending-review" bindtap="orderTab" aria-label="查看待评价订单" hover-class="row-pressed">
+        <view class="shortcut-icon"><image src="/assets/profile/message-square-text.png" mode="aspectFit" aria-hidden="true" /><text wx:if="{{loggedIn && orderSummary.pendingReview}}" class="shortcut-count">{{orderSummary.pendingReview > 99 ? '99+' : orderSummary.pendingReview}}</text></view>
+        <text class="shortcut-name">待评价</text>
+      </button>
       <button data-tab="after-sale" bindtap="orderTab" aria-label="查看退款和售后订单" hover-class="row-pressed">
         <view class="shortcut-icon"><image src="/assets/profile/rotate-ccw.png" mode="aspectFit" aria-hidden="true" /><text wx:if="{{loggedIn && orderSummary.afterSale}}" class="shortcut-count">{{orderSummary.afterSale > 99 ? '99+' : orderSummary.afterSale}}</text></view>
         <text class="shortcut-name">退款售后</text>
@@ -40,8 +44,9 @@
       <button class="service-tile" bindtap="messages" aria-label="查看消息与提醒" hover-class="row-pressed"><view class="tile-icon tone-orange"><image src="/assets/profile/bell-white.png" mode="aspectFit" /><text wx:if="{{loggedIn && unreadCount}}" class="tile-badge">{{unreadText}}</text></view><text>消息提醒</text></button>
       <button class="service-tile" bindtap="addresses" aria-label="管理收货地址" hover-class="row-pressed"><view class="tile-icon tone-blue"><image src="/assets/profile/map-pin-white.png" mode="aspectFit" /></view><text>收货地址</text></button>
       <button class="service-tile" open-type="contact" show-message-card aria-label="联系在线客服" hover-class="row-pressed"><view class="tile-icon tone-green"><image src="/assets/profile/headset-white.png" mode="aspectFit" /></view><text>在线客服</text></button>
+      <button class="service-tile" bindtap="support" aria-label="查看和提交客服工单" hover-class="row-pressed"><view class="tile-icon tone-blue"><image src="/assets/profile/headset-white.png" mode="aspectFit" /></view><text>客服工单</text></button>
       <button wx:if="{{loggedIn}}" class="service-tile" bindtap="security" hover-class="row-pressed"><view class="tile-icon tone-blue"><image src="/assets/profile/user-round-white.png" mode="aspectFit" /></view><text>账号安全</text></button>
-      <button wx:if="{{loggedIn && capabilities.canInvite && shareReady}}" class="service-tile" open-type="share" aria-label="分享商城邀请好友" hover-class="row-pressed"><view class="tile-icon tone-orange"><image src="/assets/profile/user-round-plus-white.png" mode="aspectFit" /></view><text>邀请好友</text></button>
+      <button wx:if="{{loggedIn && capabilities.canInvite}}" class="service-tile invite-tile" open-type="{{shareReady ? 'share' : ''}}" disabled="{{!shareReady || loginVisible}}" aria-label="{{shareReady ? '分享商城邀请好友' : '正在核对邀请资格'}}" hover-class="row-pressed"><view class="tile-icon tone-orange"><image src="/assets/profile/user-round-plus-white.png" mode="aspectFit" /></view><text>邀请好友</text></button>
       <button wx:if="{{loggedIn && payoutCount}}" class="service-tile" bindtap="payout" aria-label="确认微信提现收款" hover-class="row-pressed"><view class="tile-icon tone-purple"><image src="/assets/profile/credit-card-white.png" mode="aspectFit" /><text class="tile-badge">{{payoutCount > 99 ? '99+' : payoutCount}}</text></view><text>收款确认</text></button>
     </view>
     <button wx:if="{{loggedIn && shareError}}" class="share-retry" bindtap="retryShare">邀请服务暂不可用，点击重试</button>

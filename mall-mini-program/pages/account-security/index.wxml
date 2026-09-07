@@ -2,12 +2,12 @@
   <view wx:if="{{loading}}" class="empty">正在读取账号信息…</view>
   <view wx:elif="{{!member}}" class="empty"><text>{{error || '请先登录后管理账号'}}</text><button class="secondary-button" bindtap="onShow">重新加载</button></view>
   <block wx:else>
-    <view class="panel">
+    <view wx:if="{{mode === 'profile'}}" class="panel">
       <view class="section-title">账号资料</view>
       <button class="avatar-picker" open-type="chooseAvatar" bindchooseavatar="chooseAvatar" disabled="{{action !== ''}}" aria-label="选择并更新账号头像"><text class="avatar-label">头像</text><image src="{{avatarSrc}}" mode="aspectFill" /><text class="avatar-action">{{action === 'avatar' ? '更新中' : '更换'}}</text><image class="avatar-arrow" src="/assets/profile/chevron-right.png" mode="aspectFit" /></button>
       <text class="hint avatar-hint">选择微信头像或相册图片，仅用于账号展示。支持2MB以内JPG/PNG。</text>
       <view class="account-row"><text>商城账号</text><text>{{canSetupAccount ? '尚未设置' : member.username}}</text></view>
-      <view class="account-row"><text>绑定手机号</text><text>{{maskedPhone}}</text></view>
+      <button class="account-row account-link" bindtap="changePhone"><text>绑定手机号</text><text>{{maskedPhone}} · 更换</text></button>
       <text class="field-label">昵称</text>
       <form bindsubmit="saveNickname">
         <input class="field" type="{{useWechatNickname ? 'nickname' : 'text'}}" name="nickname" value="{{nickname}}" data-field="nickname" bindinput="fieldInput" maxlength="20" disabled="{{action !== ''}}" placeholder="请输入2至20个字符，也可手动填写" aria-label="商城昵称" />
@@ -17,7 +17,8 @@
         </view>
       </form>
     </view>
-    <view wx:if="{{canSetupAccount}}" class="panel">
+    <view wx:if="{{mode === 'profile'}}" class="panel"><button class="account-row account-link" bindtap="loginPassword"><text>{{canSetupAccount ? '设置商城登录账号' : '修改登录密码'}}</text><image class="entry-arrow" src="/assets/profile/chevron-right.png"/></button><button class="account-row account-link" bindtap="paymentSecurity"><text>支付安全与实名认证</text><image class="entry-arrow" src="/assets/profile/chevron-right.png"/></button></view>
+    <view wx:if="{{mode === 'password' && canSetupAccount}}" class="panel">
       <view class="section-title">设置商城账号</view>
       <text class="hint">首次微信注册尚未设置独立账号。设置后可用于商城密码登录，账号不可自行修改。</text>
       <text class="field-label">登录账号</text>
@@ -28,7 +29,7 @@
       <input class="field" value="{{confirmPassword}}" password data-field="confirmPassword" bindinput="fieldInput" maxlength="32" disabled="{{action !== ''}}" placeholder="请再次输入密码" aria-label="确认商城登录密码" />
       <button class="primary-button" bindtap="setupAccount" loading="{{action === 'account'}}" disabled="{{action !== ''}}">保存账号并重新登录</button>
     </view>
-    <view wx:else class="panel">
+    <view wx:elif="{{mode === 'password'}}" class="panel">
       <view class="section-title">修改登录密码</view>
       <text class="hint">修改后所有旧会话失效，需要重新登录。请勿将密码或验证码提供给他人。</text>
       <text class="field-label">当前密码</text>
@@ -45,7 +46,7 @@
       <input class="field" value="{{confirmPassword}}" password data-field="confirmPassword" bindinput="fieldInput" maxlength="32" disabled="{{action !== ''}}" placeholder="请再次输入新密码" aria-label="确认新登录密码" />
       <button class="primary-button" bindtap="changePassword" loading="{{action === 'password'}}" disabled="{{action !== ''}}">修改密码并重新登录</button>
     </view>
-    <view class="help-panel"><text class="hint">忘记当前密码或需要更换手机号？</text><button class="support-link" open-type="contact" show-message-card="{{true}}">联系商城客服</button></view>
+    <view class="help-panel"><text class="hint">需要帮助或旧手机号已停用？</text><button class="support-link" open-type="contact" show-message-card="{{true}}">联系商城客服</button></view>
   </block>
 </view>
 <privacy-consent id="privacy-consent" />

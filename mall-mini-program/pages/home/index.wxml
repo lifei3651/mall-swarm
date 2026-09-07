@@ -11,18 +11,14 @@
         <image wx:if="{{home.logoUrl && !logoFailed}}" class="brand-logo" src="{{home.logoUrl}}" mode="aspectFit" binderror="logoError" />
         <image wx:else class="brand-logo brand-logo-fallback" src="/assets/lingqi-logo-mark.png" mode="aspectFit" />
       </view>
-      <view class="brand-copy">
-        <view class="brand-name">{{home.brandName || '商城'}}</view>
-        <view class="brand-note">好商品，放心选</view>
-      </view>
-      <button wx:if="{{brandCultureEnabled}}" class="culture-link" data-type="culture" bindtap="openContent">品牌文化 ›</button>
-    </view>
-
-    <view class="search-box">
+      <view class="search-box">
       <image class="search-icon" src="/assets/icons/search.png" mode="aspectFit" />
-      <input value="{{keyword}}" bindinput="onKeywordInput" bindconfirm="search" confirm-type="search" placeholder="搜索商品" />
-      <button bindtap="search">搜索</button>
+      <input value="{{keyword}}" bindinput="onKeywordInput" bindfocus="focusSearch" bindblur="blurSearch" bindconfirm="search" confirm-type="search" placeholder="搜索商品" />
+      <button bindtap="search" aria-label="搜索商品"><image src="/assets/icons/search.png" mode="aspectFit" /></button>
+      </view>
+      <button wx:if="{{brandCultureEnabled}}" class="culture-link" data-type="culture" bindtap="openContent">品牌文化</button>
     </view>
+    <view wx:if="{{searchFocused && (recentSearches.length || !keyword)}}" class="search-suggestions"><view wx:if="{{recentSearches.length}}" class="suggestion-group"><text>最近搜索</text><button wx:for="{{recentSearches}}" wx:key="*this" data-keyword="{{item}}" bindtap="applySearch">{{item}}</button></view><view wx:if="{{!keyword}}" class="suggestion-group"><text>热门搜索</text><button wx:for="{{hotSearches}}" wx:key="*this" data-keyword="{{item}}" bindtap="applySearch">{{item}}</button></view></view>
 
     <block wx:for="{{homeModules}}" wx:key="type" wx:for-item="module">
     <swiper wx:if="{{module.type === 'banner' && home.banners && home.banners.length}}" class="banner" indicator-dots autoplay circular interval="4500">
@@ -32,9 +28,9 @@
       </swiper-item>
     </swiper>
 
-    <scroll-view wx:if="{{module.type === 'category' && home.categoryList && home.categoryList.length}}" class="categories" scroll-x enhanced show-scrollbar="{{false}}">
+    <view wx:if="{{module.type === 'category' && home.categoryList && home.categoryList.length}}" class="categories">
       <view class="category-row">
-        <view class="category-item" wx:for="{{home.categoryList}}" wx:key="id" data-name="{{item.categoryName}}" bindtap="openCategory" aria-role="button" aria-label="查看{{item.categoryName}}分类">
+        <view class="category-item {{activeCategory === item.categoryName ? 'active' : ''}}" wx:for="{{home.categoryList}}" wx:key="id" data-name="{{item.categoryName}}" bindtap="openCategory" aria-role="button" aria-label="查看{{item.categoryName}}分类">
           <view class="category-icon">
             <view class="category-placeholder">{{item.initial}}</view>
             <image wx:if="{{item.iconUrl && !item.iconFailed}}" src="{{item.iconUrl}}" mode="aspectFill" data-index="{{index}}" binderror="categoryIconError" />
@@ -42,11 +38,12 @@
           <text>{{item.categoryName}}</text>
         </view>
       </view>
-    </scroll-view>
+    </view>
 
-    <view wx:if="{{module.type === 'notice' && home.notices && home.notices.length}}" class="notice card" bindtap="notices" aria-role="button" aria-label="查看商城全部公告">
+    <view wx:if="{{module.type === 'notice' && home.notices && home.notices.length}}" class="notice card">
       <text class="notice-label">公告</text>
-      <text class="notice-text">{{home.notices[0].title}}</text>
+      <swiper class="notice-swiper" vertical autoplay circular interval="5000"><swiper-item wx:for="{{home.notices}}" wx:key="id"><text class="notice-text" data-id="{{item.id}}" bindtap="openNotice">{{item.title}}</text></swiper-item></swiper>
+      <button bindtap="notices" aria-label="查看全部公告">全部</button>
     </view>
 
     <view wx:if="{{module.type === 'newArrivals' && home.newArrivals.length}}">
@@ -73,29 +70,31 @@
     </view>
     <block wx:if="{{module.type === 'products'}}">
     <button wx:if="{{layoutTemplate === 'campaign-feed' && campaignError}}" class="secondary-button campaign-retry" bindtap="retryCampaigns">{{campaignError}}</button>
-    <view class="section-head"><text>精选好物</text><text class="muted">为你推荐 · {{products.length}}件</text></view>
-    <view wx:if="{{products.length}}" class="product-grid">
+    <view class="section-head" id="home-product-section"><text>{{activeCategory || (searchedKeyword ? '搜索结果' : '精选商品')}}</text><text class="muted">商城好物，为你精选</text><button wx:if="{{activeCategory || searchedKeyword}}" class="clear-filter" bindtap="clearFilter">查看全部</button></view>
+    <view wx:if="{{productsLoading}}" class="empty">正在查找商品…</view><view wx:elif="{{productError}}" class="empty"><text>{{productError}}</text><button class="secondary-button" bindtap="retryProducts">重新加载</button></view>
+    <view wx:elif="{{products.length}}" class="product-grid">
       <view class="product-card" wx:for="{{products}}" wx:key="id" data-id="{{item.id}}" bindtap="openProduct" aria-role="button" aria-label="{{item.productName}}，价格{{item.priceText}}元">
         <view class="product-media">
           <view wx:if="{{!item.coverUrl || item.imageFailed}}" class="product-cover media-fallback"><image src="/assets/lingqi-logo-mark.png" mode="aspectFit" /></view>
           <image wx:else class="product-cover" src="{{item.coverUrl}}" mode="aspectFill" lazy-load data-index="{{index}}" binderror="productImageError" />
+          <view wx:if="{{item.soldOut}}" class="sold-out-mask">已售罄</view>
         </view>
         <view wx:if="{{item.campaign}}" class="campaign-activity-band"><text class="campaign-label">{{item.campaign.label}}</text><text class="campaign-countdown">{{item.campaign.countdown}}</text></view>
         <view class="product-copy">
           <view class="product-title">{{item.productName}}</view>
           <view wx:if="{{item.subtitle}}" class="product-subtitle">{{item.subtitle}}</view>
+          <view wx:if="{{item.salesText}}" class="product-sales">{{item.salesText}}</view>
           <view class="home-purchase-row">
-            <view class="product-price"><text>¥</text>{{item.priceText}}</view>
+            <view class="product-price"><text>¥</text><text class="price-number">{{item.priceInteger}}</text><text>.{{item.priceDecimal}}</text></view>
             <button wx:if="{{item.campaign}}" class="campaign-buy-button" data-id="{{item.campaign.id}}" catchtap="campaign" aria-label="{{item.campaign.actionLabel + '：' + item.productName}}">{{item.campaign.actionLabel}}</button>
-            <button wx:else class="home-quick-cart {{item.soldOut || !!addingId ? 'is-disabled' : ''}}" data-id="{{item.id}}" catchtap="quickAdd" disabled="{{item.soldOut || !!addingId}}" loading="{{addingId === '' + item.id}}" aria-label="{{item.soldOut ? '已售罄' : '加入购物车：' + item.productName}}"><text wx:if="{{item.soldOut}}">售罄</text><image wx:else src="/assets/tabbar/cart.png" mode="aspectFit" /></button>
+            <button wx:else class="home-quick-cart {{item.soldOut || !!addingId ? 'is-disabled' : ''}}" data-id="{{item.id}}" catchtap="quickAdd" disabled="{{item.soldOut || !!addingId}}" loading="{{addingId === '' + item.id}}" aria-label="{{item.soldOut ? '已售罄' : '立即加购' + item.productName}}">{{item.soldOut ? '已售罄' : addingId === '' + item.id ? '加购中' : '立即加购'}}</button>
           </view>
         </view>
       </view>
     </view>
-    <view wx:else class="empty">当前还没有上架商品</view>
+    <view wx:else class="empty">{{activeCategory || searchedKeyword ? '没有找到相关商品，试试其他关键词或查看全部' : '当前还没有上架商品'}}</view>
     <button wx:if="{{products.length}}" class="secondary-button all-products-button" bindtap="allProducts">查看全部商品</button>
     </block>
     </block>
   </block>
-  <include src="/templates/quick-cart.wxml" />
 </view>

@@ -1,0 +1,35 @@
+<view class="security-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
+  <view wx:if="{{loading}}" class="empty">正在读取安全状态…</view>
+  <view wx:elif="{{error || !member}}" class="empty"><text>{{error || '请先登录后管理账号'}}</text><button class="secondary-button" bindtap="onShow">重新加载</button></view>
+  <block wx:elif="{{section === 'security'}}">
+    <view class="security-status {{wallet.hasPaymentPassword ? 'ready' : ''}}"><view>{{wallet.hasPaymentPassword ? '支付密码已设置' : '请先设置支付密码'}}</view><text>{{wallet.hasPaymentPassword ? '余额支付和资金操作均受独立密码保护' : '首次交易前必须完成设置'}}</text></view>
+    <button class="security-entry" bindtap="loginPassword"><text>修改登录密码</text><image src="/assets/profile/chevron-right.png" /></button>
+    <button class="security-entry" data-section="payment" bindtap="open"><text>{{wallet.hasPaymentPassword ? '修改支付密码' : '设置支付密码'}}</text><text wx:if="{{!wallet.hasPaymentPassword}}" class="status-tag">待设置</text><image src="/assets/profile/chevron-right.png" /></button>
+    <button class="security-entry" data-section="identity" bindtap="open"><text>实名认证</text><text class="status-tag">{{wallet.realNameVerified ? wallet.maskedRealName || '已认证' : '待认证'}}</text><image src="/assets/profile/chevron-right.png" /></button>
+  </block>
+  <view wx:elif="{{section === 'payment'}}" class="panel">
+    <view class="section-title">{{wallet.hasPaymentPassword ? '修改支付密码' : '设置支付密码'}}</view><text class="hint">支付密码为6位数字，用于余额支付和敏感资金操作验证。</text>
+    <text wx:if="{{wallet.paymentPasswordLocked}}" class="warning">支付密码因连续输入错误已临时锁定，请稍后重新加载。</text>
+    <block wx:if="{{wallet.hasPaymentPassword}}"><text class="field-label">当前支付密码</text><input class="field" password maxlength="6" value="{{form.oldPassword}}" data-field="oldPassword" bindinput="input" disabled="{{busy}}" placeholder="请输入原6位支付密码" /></block>
+    <block wx:else><text class="field-label">当前登录密码</text><input class="field" password maxlength="32" value="{{form.loginPassword}}" data-field="loginPassword" bindinput="input" disabled="{{busy}}" placeholder="请再次输入商城登录密码" /><button class="support-link" bindtap="loginPassword">尚未设置商城登录账号？前往设置</button></block>
+    <text class="field-label">短信验证码</text><view class="sms-row"><input class="field code-input" type="number" maxlength="6" value="{{form.smsCode}}" data-field="smsCode" bindinput="input" disabled="{{busy}}" placeholder="发送到绑定手机号"/><button class="secondary-button sms-button" data-type="payment" bindtap="sendCode" disabled="{{busy || sending || countdowns.payment}}">{{countdowns.payment ? countdowns.payment + '秒' : sending ? '发送中' : '获取验证码'}}</button></view><text class="hint">验证码将发送至 {{maskedPhone}}</text>
+    <text class="field-label">新支付密码</text><input class="field" password maxlength="6" value="{{form.newPassword}}" data-field="newPassword" bindinput="input" disabled="{{busy}}" placeholder="请输入6位数字"/>
+    <text class="field-label">确认新支付密码</text><input class="field" password maxlength="6" value="{{form.confirmPassword}}" data-field="confirmPassword" bindinput="input" disabled="{{busy}}" placeholder="请再次输入"/>
+    <button class="primary-button" bindtap="savePayment" loading="{{busy}}" disabled="{{busy || sending || wallet.paymentPasswordLocked}}">保存支付密码</button>
+  </view>
+  <view wx:elif="{{section === 'phone'}}" class="panel"><view class="section-title">更换绑定手机号</view><text class="hint">当前手机号 {{maskedPhone}}。需要同时验证新旧手机号，更换后请重新登录。</text>
+    <text class="field-label">当前手机号验证码</text><view class="sms-row"><input class="field code-input" type="number" maxlength="6" value="{{form.currentPhoneSmsCode}}" data-field="currentPhoneSmsCode" bindinput="input" disabled="{{busy}}" placeholder="当前号码收到的6位验证码"/><button class="secondary-button sms-button" data-type="current" bindtap="sendCode" disabled="{{busy || sending || countdowns.current}}">{{countdowns.current ? countdowns.current + '秒' : sending ? '发送中' : '获取验证码'}}</button></view>
+    <text class="field-label">新手机号</text><input class="field" type="number" maxlength="11" value="{{form.newPhone}}" data-field="newPhone" bindinput="input" disabled="{{busy || sending}}" placeholder="请输入新的11位手机号"/>
+    <text class="field-label">新手机号验证码</text><view class="sms-row"><input class="field code-input" type="number" maxlength="6" value="{{form.newPhoneSmsCode}}" data-field="newPhoneSmsCode" bindinput="input" disabled="{{busy}}" placeholder="新号码收到的6位验证码"/><button class="secondary-button sms-button" data-type="new" bindtap="sendCode" disabled="{{busy || sending || countdowns.new}}">{{countdowns.new ? countdowns.new + '秒' : sending ? '发送中' : '获取验证码'}}</button></view>
+    <button class="primary-button" bindtap="savePhone" loading="{{busy}}" disabled="{{busy || sending}}">更换手机号并重新登录</button><button class="support-link" bindtap="support">原手机号已停用？联系商城客服核验</button>
+  </view>
+  <block wx:elif="{{section === 'identity'}}">
+    <view wx:if="{{identity.verified}}" class="security-status ready"><view>当前账号已完成实名认证</view><text>{{identity.maskedRealName}} · {{identity.maskedIdCard}}</text><text class="hint">每个账号只能绑定一份实名信息；如需变更，请联系客服核验处理。</text><button class="primary-button" bindtap="back">返回继续</button></view>
+    <view wx:else class="panel"><view class="section-title">核验本人身份</view><text class="hint">同一身份证可以认证多个账号，但每个账号只能绑定一份实名信息。</text>
+      <text class="field-label">真实姓名</text><input class="field" maxlength="64" value="{{form.realName}}" data-field="realName" bindinput="input" disabled="{{busy}}" placeholder="请输入身份证上的姓名"/>
+      <text class="field-label">身份证号</text><input class="field" maxlength="18" value="{{form.idCard}}" data-field="idCard" bindinput="input" disabled="{{busy}}" placeholder="请输入18位身份证号"/>
+      <checkbox-group bindchange="consent"><label class="identity-consent"><checkbox value="agree" checked="{{form.sensitiveInfoConsent}}" disabled="{{busy}}" color="{{themeColor}}"/><text>我已阅读并同意<text class="privacy-link" catchtap="privacy">《隐私政策》</text>，授权将姓名和身份证号发送给权威实名认证服务进行一次核验。</text></label></checkbox-group>
+      <button class="primary-button" bindtap="verifyIdentity" loading="{{busy}}" disabled="{{busy || !identity.verificationAvailable}}">提交认证</button><text wx:if="{{!identity.verificationAvailable}}" class="warning">实名认证通道尚未启用，请联系客服。</text><text class="hint identity-note">身份证号不会完整回显。姓名、身份证号仅用于实名认证，通过HTTPS及商城敏感字段加密传输。</text>
+    </view>
+  </block>
+</view>
