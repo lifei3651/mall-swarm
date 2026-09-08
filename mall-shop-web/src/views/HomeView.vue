@@ -7,13 +7,16 @@
           <span v-else class="home-brand-mark">灵启</span>
           <strong>{{ home.brandName || '灵启商城' }}</strong>
         </RouterLink>
-        <form class="home-search" role="search" @submit.prevent="submitSearch" @focusin="searchFocused = true" @focusout="scheduleHideSuggestions">
+        <form class="home-search" role="search" @submit.prevent="submitSearch" @focusin="focusSearch" @focusout="scheduleHideSuggestions">
           <Search :size="19" />
-          <input ref="searchInput" v-model="query.keyword" type="search" placeholder="搜索商品" aria-label="搜索商品" autocomplete="off" />
+          <div class="home-search-input">
+            <input ref="searchInput" v-model="query.keyword" type="search" placeholder="搜索商品" aria-label="搜索商品" autocomplete="off" />
+            <button v-if="query.keyword" type="button" class="clear-keyword" aria-label="清除搜索内容" @click="clearKeyword"><X :size="16" /></button>
+          </div>
           <button type="submit" aria-label="搜索"><span>搜索</span><Search :size="18" /></button>
-          <div v-if="searchFocused && (recentSearches.length || !query.keyword)" class="search-suggestions" @mousedown.prevent>
+          <div v-if="searchFocused && (recentSearches.length || !query.keyword)" class="search-suggestions" @pointerdown.prevent>
             <div v-if="recentSearches.length" class="suggestion-group">
-              <span>最近搜索</span>
+              <div class="suggestion-head"><span>最近搜索</span><button type="button" class="clear-history" @click="requestClearHistory">清空历史</button></div>
               <button v-for="item in recentSearches" :key="`recent-${item}`" type="button" @click="applySearch(item)">{{ item }}</button>
             </div>
             <div v-if="!query.keyword" class="suggestion-group">
@@ -129,16 +132,20 @@
 
       <!-- 商品列表 -->
       <section v-else-if="mod.type === 'products' && mod.enabled" ref="productSection" class="home-product-section">
-      <div v-if="layoutTemplate !== 'campaign-feed' || query.categoryName || query.keyword" class="home-product-heading">
+      <div v-if="layoutTemplate !== 'campaign-feed' || query.categoryName || searchedKeyword" class="home-product-heading">
         <div>
-          <h1>{{ query.categoryName || (query.keyword ? '搜索结果' : '精选商品') }}</h1>
-          <p v-if="query.keyword">关键词：{{ query.keyword }}</p>
+          <h1>{{ searchedKeyword ? '搜索结果' : query.categoryName || '精选商品' }}</h1>
+          <p v-if="searchedKeyword">关键词：{{ searchedKeyword }}</p>
           <p v-else>商城好物，为你精选</p>
         </div>
-        <button v-if="query.categoryName || query.keyword" type="button" class="clear-filter" @click="clearFilter">查看全部</button>
+        <button v-if="query.categoryName || searchedKeyword" type="button" class="clear-filter" @click="clearFilter">查看全部</button>
       </div>
 
       <ProductListSkeleton v-if="loading" :count="4" variant="grid" />
+      <div v-else-if="productError" class="home-empty" role="alert">
+        <strong>{{ productError }}</strong>
+        <button type="button" @click="retryProducts">重新搜索</button>
+      </div>
 
       <div v-else-if="products.length" class="home-product-grid">
         <article v-for="product in products" :key="product.id" class="home-product-card">
@@ -192,6 +199,8 @@
     </section>
     </template>
 
+    <ConfirmDialog :visible="historyConfirmVisible" title="清空搜索历史？" message="将删除本机保存的全部搜索记录，清空后无法恢复。不会影响购物车或账号信息。" icon-type="delete" confirm-text="清空" cancel-text="取消" @confirm="confirmClearHistory" @cancel="cancelClearHistory" />
+    <ConfirmDialog :visible="!!searchNotice" title="请留意" :message="searchNotice" :show-cancel="false" confirm-text="知道了" @confirm="searchNotice = ''" @cancel="searchNotice = ''" />
     <div v-if="toast" class="toast">{{ toast }}</div>
   </div>
 </template>
@@ -199,7 +208,7 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ChevronRight, Flame, Megaphone, PackageOpen, Radio, Search, ShoppingCart, Sparkles } from 'lucide-vue-next'
+import { ChevronRight, Flame, Megaphone, PackageOpen, Radio, Search, ShoppingCart, Sparkles, X } from 'lucide-vue-next'
 import { getHome, getProduct, listFlashSales, listProducts } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { money } from '@/utils/format'
@@ -210,6 +219,7 @@ import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
 import { cartItemKey, stockAdditionViolation } from '@/utils/stockRules'
 import { requireShopSession } from '@/utils/authNavigation'
 import ProductListSkeleton from '@/components/ProductListSkeleton.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { applyImageFallback } from '@/utils/imageFallback'
 import { resolveBusinessEntries } from '@surface-commerce-policy'
 
@@ -231,6 +241,10 @@ const searchInput = ref(null)
 const query = ref({ keyword: '', categoryName: '' })
 const searchFocused = ref(false)
 const recentSearches = ref([])
+const historyConfirmVisible = ref(false)
+const searchNotice = ref('')
+const productError = ref('')
+const searchedKeyword = ref('')
 const hotSearches = ['护理套装', '健康生活', '品质好物']
 const businessEntries = computed(() => resolveBusinessEntries(home.value.businessConfig || {}))
 
@@ -300,6 +314,8 @@ const trustItems = computed(() => {
 })
 let suggestionsHideTimer
 let productRequestId = 0
+let disposed = false
+let pendingSearch = null
 
 const allHomeProducts = computed(() => home.value.featuredProducts || [])
 const liveRooms = computed(() => home.value.liveRooms || [])
@@ -413,9 +429,12 @@ const fetchHome = async () => {
   }
 }
 
-const fetchProducts = async (scrollToResults = false) => {
+const fetchProducts = async (scrollToResults = false, propagateError = false) => {
+  if (disposed) return
   const requestId = ++productRequestId
   loading.value = true
+  productError.value = ''
+  searchedKeyword.value = query.value.keyword.trim()
   try {
     const res = await listProducts({
       keyword: query.value.keyword.trim(),
@@ -428,8 +447,15 @@ const fetchProducts = async (scrollToResults = false) => {
     products.value = (res.data?.list || []).map(normalizeProduct)
     if (scrollToResults) {
       await nextTick()
-      productSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      if (disposed || requestId !== productRequestId) return
+      const section = Array.isArray(productSection.value) ? productSection.value[0] : productSection.value
+      section?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
     }
+  } catch (error) {
+    if (disposed || requestId !== productRequestId) return
+    if (propagateError) throw error
+    productError.value = error?.message || '商品搜索失败，请重试'
+    searchNotice.value = productError.value
   } finally {
     if (requestId === productRequestId) loading.value = false
   }
@@ -440,7 +466,7 @@ const reloadHome = async () => {
   homeLoadError.value = ''
   try {
     await fetchHome()
-    await fetchProducts()
+    await fetchProducts(false, true)
   } catch (e) {
     products.value = []
     homeLoadError.value = e?.message || '网络暂时不可用，请点击重新加载'
@@ -449,28 +475,75 @@ const reloadHome = async () => {
   }
 }
 
-const submitSearch = async () => {
+const submitSearch = () => {
+  if (disposed) return
+  query.value.keyword = query.value.keyword.trim()
+  const key = JSON.stringify([query.value.keyword, query.value.categoryName])
+  if (pendingSearch?.key === key) return pendingSearch.task
+  window.clearTimeout(suggestionsHideTimer)
   searchInput.value?.blur()
   recordSearch(query.value.keyword)
   searchFocused.value = false
-  await fetchProducts(true)
+  const pending = { key }
+  pendingSearch = pending
+  pending.task = fetchProducts(true).finally(() => { if (pendingSearch === pending) pendingSearch = null })
+  return pending.task
 }
 
 const applySearch = (keyword) => {
   query.value.keyword = keyword
   query.value.categoryName = ''
-  submitSearch()
+  return submitSearch()
 }
 
 const recordSearch = (keyword) => {
-  const normalized = String(keyword || '').trim()
+  const normalized = String(keyword || '').trim().slice(0, 100)
   if (!normalized) return
   recentSearches.value = [normalized, ...recentSearches.value.filter((item) => item !== normalized)].slice(0, 5)
-  localStorage.setItem('shop_recent_searches', JSON.stringify(recentSearches.value))
+  // History persistence is optional; quota/private mode must not block product search.
+  try { localStorage.setItem('shop_recent_searches', JSON.stringify(recentSearches.value)) } catch (_) {}
 }
 
-const scheduleHideSuggestions = () => {
+const readRecentSearches = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem('shop_recent_searches') || '[]')
+    recentSearches.value = Array.isArray(saved) ? [...new Set(saved.filter(item => typeof item === 'string' && item.trim()).map(item => item.trim().slice(0, 100)))].slice(0, 5) : []
+  } catch (_) { /* Preserve this session's history if browser storage is unavailable. */ }
+}
+const focusSearch = () => {
+  if (disposed || historyConfirmVisible.value) return
   window.clearTimeout(suggestionsHideTimer)
+  readRecentSearches()
+  searchFocused.value = true
+}
+const clearKeyword = () => {
+  if (disposed) return
+  query.value.keyword = ''
+  focusSearch()
+  searchInput.value?.focus()
+}
+const requestClearHistory = () => {
+  if (disposed || historyConfirmVisible.value || !recentSearches.value.length) return
+  window.clearTimeout(suggestionsHideTimer)
+  historyConfirmVisible.value = true
+  searchFocused.value = false
+}
+const cancelClearHistory = () => {
+  historyConfirmVisible.value = false
+  if (!disposed) { focusSearch(); nextTick(() => { if (!disposed) searchInput.value?.focus() }) }
+}
+const confirmClearHistory = () => {
+  if (disposed || !historyConfirmVisible.value) return
+  historyConfirmVisible.value = false
+  try {
+    localStorage.removeItem('shop_recent_searches')
+    recentSearches.value = []
+  } catch (_) { searchNotice.value = '搜索历史清空失败，本机记录仍然保留，请重试。' }
+}
+const retryProducts = () => { query.value.keyword = searchedKeyword.value; return fetchProducts(true) }
+const scheduleHideSuggestions = (event) => {
+  window.clearTimeout(suggestionsHideTimer)
+  if (historyConfirmVisible.value || event?.currentTarget?.contains(event.relatedTarget)) return
   suggestionsHideTimer = window.setTimeout(() => { searchFocused.value = false }, 140)
 }
 
@@ -511,14 +584,11 @@ const addProduct = async (product) => {
 
 onMounted(async () => {
   campaignTimer = window.setInterval(() => { campaignClock.value = Date.now() }, 1000)
-  try {
-    const saved = JSON.parse(localStorage.getItem('shop_recent_searches') || '[]')
-    recentSearches.value = Array.isArray(saved) ? saved.filter((item) => typeof item === 'string').slice(0, 5) : []
-  } catch (_) { recentSearches.value = [] }
+  readRecentSearches()
   await reloadHome()
 })
 let campaignTimer = null
-onUnmounted(() => { stopBannerAutoplay(); stopNoticeRotation(); window.clearTimeout(toastTimer); window.clearInterval(campaignTimer) })
+onUnmounted(() => { disposed = true; productRequestId++; pendingSearch = null; historyConfirmVisible.value = false; window.clearTimeout(suggestionsHideTimer); stopBannerAutoplay(); stopNoticeRotation(); window.clearTimeout(toastTimer); window.clearInterval(campaignTimer) })
 </script>
 
 <style scoped>
@@ -556,7 +626,11 @@ onUnmounted(() => { stopBannerAutoplay(); stopNoticeRotation(); window.clearTime
 .home-search { position: relative; height: 48px; display: grid; grid-template-columns: 42px minmax(0,1fr) 90px; align-items: center; overflow: visible; color: #969ca4; background: #fff; border: 2px solid var(--brand-primary); border-radius: 999px; }
 .home-search > svg { justify-self: center; }
 .home-search input { min-width: 0; height: 100%; padding: 0 4px; color: #272c32; background: transparent; border: 0; outline: 0; }
-.home-search input::-webkit-search-cancel-button { cursor: pointer; }
+.home-search-input { position: relative; min-width: 0; height: 100%; }
+.home-search-input input { width: 100%; padding-right: 34px; }
+.home-search input::-webkit-search-cancel-button { display: none; }
+.home-search .clear-keyword { position: absolute; right: 0; top: 0; width: 34px; padding: 0; border-radius: 50%; color: #667085; background: transparent; }
+.home-search .clear-keyword > svg { display: block; }
 .home-search button { height: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 5px; color: #fff; background: var(--brand-primary); border: 0; border-radius: 0 999px 999px 0; font-size: 16px; font-weight: 800; }
 .home-search button > svg { display: none; }
 .search-suggestions { position:absolute; z-index:40; top:calc(100% + 8px); left:0; right:0; padding:12px 14px; background:#fff; border:1px solid #e7ebf0; border-radius:14px; box-shadow:0 12px 30px rgba(25,42,70,.14); }
@@ -564,6 +638,10 @@ onUnmounted(() => { stopBannerAutoplay(); stopNoticeRotation(); window.clearTime
 .suggestion-group + .suggestion-group { margin-top:10px; padding-top:10px; border-top:1px solid #f0f2f5; }
 .suggestion-group > span { flex:0 0 100%; color:#98a2b3; font-size:11px; }
 .suggestion-group button { height:auto; padding:6px 10px; color:#475467; background:#f5f7fa; border:0; border-radius:999px; font-size:12px; font-weight:500; }
+.suggestion-group button { max-width: 100%; overflow-wrap: anywhere; }
+.suggestion-head { flex: 0 0 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #667085; font-size: 12px; }
+.suggestion-head .clear-history { padding: 9px 4px; flex: none; background: transparent; color: #667085; border-radius: 8px; }
+.home-product-heading p { overflow-wrap: anywhere; }
 .home-share { height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #3f454c; border-radius: 10px; font-size: 12px; font-weight: 700; }
 .home-share:hover { color: var(--brand-primary); background: var(--brand-primary-soft); }
 @media (max-width: 760px) {
