@@ -27,7 +27,7 @@ Page({
   },
   onLoad() { this.setData({ recentSearches: searchHistory.list() }); this.loadHome() },
   onShow() { this.campaignClockActive = true; quickCart.show(this); share.prepare(this); theme.sync(this); this.startCampaignClock(); if (this.loadedOnce || this.reloadNeeded) { this.reloadNeeded = false; return this.loadHome(this.loadedOnce === true) } },
-  onHide() { this.reloadNeeded = true; this.refreshing = null; this.campaignClockActive = false; this.productSequence = (this.productSequence || 0) + 1; clearTimeout(this.suggestionsTimer); this.setData({ searchFocused: false, productsLoading: false }); clearTimeout(this.campaignTimer); quickCart.hide(this); share.hide(this) },
+  onHide() { this.reloadNeeded = true; this.refreshing = null; this.pendingSearch = null; this.historyClearSequence = (this.historyClearSequence || 0) + 1; this.clearingHistory = false; this.campaignClockActive = false; this.productSequence = (this.productSequence || 0) + 1; clearTimeout(this.suggestionsTimer); this.setData({ searchFocused: false, productsLoading: false }); clearTimeout(this.campaignTimer); quickCart.hide(this); share.hide(this) },
   onUnload() { this.onHide() },
   onShareAppMessage() { return share.message(this, '/pages/home/index', this.data.home.brandName || this.data.brandName) },
   retryShare() { return share.prepare(this) },
@@ -145,28 +145,49 @@ Page({
     } })
   },
   search() {
-    if (this.searchNavigating || this.purchaseInactive) return
+    if (this._inactive) return
     const keyword = String(this.data.keyword || '').trim()
+    const key = JSON.stringify([keyword, this.data.activeCategory])
+    if (this.pendingSearch && this.pendingSearch.key === key) return this.pendingSearch.task
     clearTimeout(this.suggestionsTimer)
-    this.setData({ keyword, searchFocused: false, recentSearches: searchHistory.remember(keyword) })
+    this.setData({ keyword, searchedKeyword: keyword, searchFocused: false, recentSearches: searchHistory.remember(keyword) })
     if (wx.hideKeyboard) wx.hideKeyboard()
-    this.searchNavigating = true
-    // A native tab cannot receive query parameters in switchTab's URL.
-    // Apply the keyword after WeChat has created/shown the category page.
-    wx.switchTab({
-      url: '/pages/category/index',
-      success: () => {
-        const page = getCurrentPages().slice(-1)[0]
-        if (page && typeof page.applyKeyword === 'function') page.applyKeyword(keyword)
-        else feedback.notice('分类页暂未就绪，请重新搜索。搜索内容已保留。')
-      },
-      fail: () => feedback.notice('未能打开商品分类，请重试。搜索内容已保留。'),
-      complete: () => { this.searchNavigating = false }
+    // Match H5 HomeView: submit filters this page; only "all products" changes tabs.
+    const pending = { key }
+    this.pendingSearch = pending
+    pending.task = this.filterProducts(true).finally(() => {
+      if (this.pendingSearch === pending) this.pendingSearch = null
     })
+    return pending.task
   },
   focusSearch() { clearTimeout(this.suggestionsTimer); this.setData({ searchFocused: true, recentSearches: searchHistory.list() }) },
-  blurSearch() { this.suggestionsTimer = setTimeout(() => this.setData({ searchFocused: false }), 150) },
-  applySearch(event) { this.setData({ keyword: String(event.currentTarget.dataset.keyword || '') }); return this.search() },
+  blurSearch() { if (!this.clearingHistory) this.suggestionsTimer = setTimeout(() => this.setData({ searchFocused: false }), 150) },
+  clearKeyword() { if (this._inactive) return; this.setData({ keyword: '' }); this.focusSearch() },
+  clearSearchHistory() {
+    if (this._inactive || this.clearingHistory || !this.data.recentSearches.length) return
+    clearTimeout(this.suggestionsTimer)
+    this.clearingHistory = true
+    const sequence = this.historyClearSequence = (this.historyClearSequence || 0) + 1
+    const current = () => !this._inactive && sequence === this.historyClearSequence
+    wx.showModal({
+      title: '清空搜索历史？', content: '将删除本机保存的全部搜索记录，清空后无法恢复。不会影响购物车或账号信息。',
+      showCancel: true, confirmText: '清空', cancelText: '取消',
+      success: result => {
+        if (!current()) return
+        try {
+          if (result.confirm) this.setData({ recentSearches: searchHistory.clear() })
+        } catch (_) { feedback.notice('搜索历史清空失败，本机记录仍然保留，请重试。') }
+        finally { this.clearingHistory = false; this.focusSearch() }
+      },
+      fail: () => {
+        if (!current()) return
+        this.clearingHistory = false
+        this.focusSearch()
+        feedback.notice('未能打开清空确认窗口，搜索历史尚未删除，请重试。')
+      }
+    })
+  },
+  applySearch(event) { if (this._inactive) return; this.setData({ keyword: String(event.currentTarget.dataset.keyword || ''), activeCategory: '' }); return this.search() },
   clearFilter() { this.setData({ keyword: '', searchedKeyword: '', activeCategory: '' }); return this.filterProducts() },
   async filterProducts(scroll = false) {
     const sequence = this.productSequence = (this.productSequence || 0) + 1
