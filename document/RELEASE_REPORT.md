@@ -2,7 +2,7 @@
 
 更新时间：2026-09-08（Asia/Shanghai）
 当前线上版本：后端`1.0.134`（2026-09-08 16:53–16:54部署）；腾讯小程序`1.0.134`开发/体验版已于16:59上传成功并覆盖原体验版，未提审、未正式发布。管理后台静态仍`1.0.132`，公开商城/团队H5静态仍`1.0.115`。
-当前本地版本：`1.0.134`（`codex/security-membership-payout`；已发布源码516c81f2，业务基线0bceacc8）。134上传后新增小程序及H5首页搜索/历史修复，仅在源码，尚未重新上传或部署H5；固定正式目录`/Users/minmatemp/Documents/mall-swarm-app-h5/dist/wechat-mini-program`保持已上传134清单。历史假数据QA副本仍严禁上传，真机授权/头像/资金验收仍待。
+当前本地版本：`1.0.135`候选（`codex/security-membership-payout`；业务基线c34a3e02）。用户要求发布两端搜索修复，正在准备公开H5部署和小程序体验版上传，实际结果待补；固定正式目录`/Users/minmatemp/Documents/mall-swarm-app-h5/dist/wechat-mini-program`尚保持已上传134清单，待从不可变135提交更新。历史假数据QA副本仍严禁上传，真机授权/头像/资金验收仍待。
 线上环境：公开商城 https://lingqimall.com ；团队 H5 https://www.lingqimall.com ；管理后台 https://lingqimall.com/admin/
 
 ### 134体验版后：H5同步修复搜索历史（2026-09-08，本地未部署）
