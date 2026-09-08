@@ -1,0 +1,137 @@
+{
+  "capturedAt": "2026-09-08T00:13:30.784Z",
+  "systemInfo": {
+    "batteryLevel": 65,
+    "benchmarkLevel": -1,
+    "brand": "devtools",
+    "memorySize": 2048,
+    "model": "iPhone 12/13 (Pro)",
+    "system": "iOS 10.0.1",
+    "platform": "devtools",
+    "pixelRatio": 3,
+    "safeArea": {
+      "top": 47,
+      "left": 0,
+      "right": 390,
+      "bottom": 810,
+      "width": 390,
+      "height": 763
+    },
+    "screenWidth": 390,
+    "screenHeight": 844,
+    "screenTop": 91,
+    "windowWidth": 390,
+    "windowHeight": 753,
+    "statusBarHeight": 47,
+    "version": "8.0.5",
+    "language": "zh_CN",
+    "SDKVersion": "3.7.12",
+    "enableDebug": false,
+    "fontSizeScaleFactor": 0.68,
+    "fontSizeSetting": 16,
+    "mode": "default",
+    "host": {
+      "env": "WeChat"
+    },
+    "bluetoothEnabled": true,
+    "locationEnabled": true,
+    "wifiEnabled": true,
+    "locationReducedAccuracy": true,
+    "albumAuthorized": true,
+    "bluetoothAuthorized": true,
+    "cameraAuthorized": true,
+    "locationAuthorized": true,
+    "microphoneAuthorized": true,
+    "notificationAuthorized": true,
+    "notificationAlertAuthorized": true,
+    "notificationBadgeAuthorized": true,
+    "notificationSoundAuthorized": true,
+    "phoneCalendarAuthorized": true,
+    "deviceOrientation": "portrait",
+    "devicePixelRatio": 3
+  },
+  "kind": "isolated native simulator; synthetic read-only fixtures; not real channels",
+  "records": [
+    {
+      "name": "account-login",
+      "route": "account-login?mode=password",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "account-login.png"
+    },
+    {
+      "name": "sms-login",
+      "route": "account-login?mode=sms",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "screenshot": "sms-login.png"
+    },
+    {
+      "name": "register",
+      "route": "account-login?mode=register",
+      "settings": {},
+      "error": "本地验收不生成可用验证码；只检查表单与失败恢复",
+      "title": "",
+      "screenshot": "register.png"
+    },
+    {
+      "name": "reset",
+      "route": "account-login?mode=reset",
+      "settings": {},
+      "error": "本地验收不生成可用验证码；只检查表单与失败恢复",
+      "title": "",
+      "screenshot": "reset.png"
+    },
+    {
+      "name": "guide-directory",
+      "route": "category",
+      "settings": {
+        "layout": "category-focus",
+        "guide": "directory"
+      },
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "guide-directory.png"
+    },
+    {
+      "name": "guide-showcase",
+      "route": "category",
+      "settings": {
+        "layout": "category-focus",
+        "guide": "showcase"
+      },
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "guide-showcase.png"
+    },
+    {
+      "name": "guide-scenario",
+      "route": "category",
+      "settings": {
+        "layout": "category-focus",
+        "guide": "scenario"
+      },
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "guide-scenario.png"
+    },
+    {
+      "name": "order-return",
+      "route": "order-detail?id=13201",
+      "settings": {
+        "saleStatus": 4
+      },
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "order-return.png"
+    }
+  ],
+  "events": []
+}

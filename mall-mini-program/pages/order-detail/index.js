@@ -28,7 +28,7 @@ Page({
   ...balancePayment.methods,
   data: { ...theme.pageData(), ...paymentSummary(), loading: true, error: '', rows: [], paymentNo: '', actingId: null, paying: false, cancellingAfterSaleId: null,
     editingSaleId: '', deliveryCompany: '', deliveryNo: '', shipmentError: '', submittingShipment: false,
-    carriers: CARRIERS, trackingOrderId: '', trackingLoading: false, trackingError: '', trackingRows: [], ...balancePayment.data },
+    carriers: CARRIERS, expandedOrders: {}, trackingOrderId: '', trackingLoading: false, trackingError: '', trackingRows: [], ...balancePayment.data },
   onLoad(options = {}) {
     theme.apply(this)
     const orderId = identifier(options.id)
@@ -110,8 +110,11 @@ Page({
             productCover: format.mediaUrl(item.productCover),
             priceText: format.money(item.price)
           })),
-          shipments: (row.shipments || []).map((shipment) => ({
+          shipments: (row.shipments?.length ? row.shipments : order.deliveryNo ? [{ deliveryCompany: order.deliveryCompany, deliveryNo: order.deliveryNo,
+            deliveryTime: order.deliveryTime, shipmentQuantity: (row.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0) }] : []).map((shipment, index) => ({
             ...shipment,
+            key: `${shipment.id || shipment.deliveryNo || 'package'}:${index}`,
+            packageLabel: `包裹 ${index + 1}${shipment.shipmentQuantity ? ' · ' + shipment.shipmentQuantity + '件商品' : ''}`,
             deliveryTimeText: formatTime(shipment.deliveryTime)
           })),
           afterSales: (row.afterSales || []).map((sale) => ({
@@ -125,7 +128,9 @@ Page({
             createTimeText: formatTime(sale.createTime),
             cancellable: [0, 4].includes(Number(sale.status)),
             canReturn: [2, 3].includes(Number(sale.applyType)) && [4, 5].includes(Number(sale.status)),
-            canReceiveExchange: Number(sale.applyType) === 3 && Number(sale.status) === 8
+            canReceiveExchange: Number(sale.applyType) === 3 && Number(sale.status) === 8,
+            canReapply: Number(sale.status) === 2 && afterSaleEligibility(row).allowed,
+            orderId: identifier(order.id)
           }))
         }
       })
@@ -203,18 +208,19 @@ Page({
   },
   async loadTracking(event) {
     const id = identifier(event.currentTarget.dataset.id)
-    if (!id || this.data.trackingLoading || !this.data.rows.some((row) => row.order.id === id)) return
+    const current = this.operationCurrent()
+    if (!current() || !id || this.data.trackingLoading || !this.data.rows.some((row) => row.order.id === id)) return
     const version = this.requestVersion
     feedback.update(this, { trackingOrderId: id, trackingLoading: true, trackingError: '', trackingRows: [] })
     try {
       const records = await request({ url: `/shop/orders/${id}/tracking` })
-      if (this.disposed || version !== this.requestVersion) return
+      if (!current() || version !== this.requestVersion) return
       feedback.update(this, { trackingRows: (Array.isArray(records) ? records : []).map((record) => ({
         deliveryNo: String(record.deliveryNo || ''), deliveryCompany: record.deliveryCompany || '',
         statusText: record.statusText || (record.configured ? '暂无新物流轨迹' : '商城尚未配置物流轨迹服务，可复制单号向承运商查询'),
         events: (record.events || []).map((item) => ({ description: item.description || '', location: item.location || '', time: formatTime(item.eventTime) }))
       })) })
-    } catch (error) { if (!this.disposed && version === this.requestVersion) feedback.update(this, { trackingError: error.message || '物流查询失败，请重试' }) }
+    } catch (error) { if (current() && version === this.requestVersion) feedback.update(this, { trackingError: error.message || '物流查询失败，请重试' }) }
     finally { if (!this.disposed) feedback.update(this, { trackingLoading: false }) }
   },
   copyDeliveryNo(event) {
@@ -304,9 +310,14 @@ Page({
     })
   },
   applyAfterSale(event) {
+    if (!this.operationCurrent()() || this.data.paying || this.data.actingId || this.data.submittingShipment) return
     const id = identifier(event.currentTarget.dataset.id)
     const row = this.data.rows.find((item) => item.order.id === id)
     if (row && row.canApplyAfterSale) wx.navigateTo({ url: `/pages/after-sale/index?orderId=${id}` })
+  },
+  toggleOrderInfo(event) {
+    const id = identifier(event.currentTarget.dataset.id)
+    if (id && this.data.rows.some(row => row.order.id === id)) this.setData({ [`expandedOrders.${id}`]: !this.data.expandedOrders[id] })
   },
   findSale(id) {
     for (const row of this.data.rows) {

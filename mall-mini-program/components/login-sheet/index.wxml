@@ -40,6 +40,7 @@
           <button class="help-button" disabled="{{submitting}}" open-type="contact">联系商城客服</button>
         </view>
       </block>
+      <button wx:if="{{!loading}}" class="help-button" bindtap="openAccountLogin" disabled="{{submitting || authorizingPhone}}">其他方式登录 / 注册</button>
     </view>
   </view>
 </view>

@@ -7,7 +7,7 @@ const root = fileURLToPath(new URL('../..', import.meta.url))
 const clone = value => JSON.parse(JSON.stringify(value))
 export function commerceEnv(respond = () => ({}), token = 'member') {
   const storage = new Map([['mall_mini_access_token', token], ['mall_mini_member', { id: '1' }]]), cache = new Map()
-  const calls = [], notices = [], routes = []
+  const calls = [], notices = [], routes = [], rememberedThemes = []
   let definition, tabHidden = false, currentPages = []
   const wx = {
     getStorageSync: key => storage.has(key) ? clone(storage.get(key)) : undefined,
@@ -20,7 +20,7 @@ export function commerceEnv(respond = () => ({}), token = 'member') {
     const file = resolve(parent, name.endsWith('.js') ? name : name + '.js')
     if (file === resolve(root, 'utils/request.js')) return async options => { calls.push(clone(options)); return respond(options) }
     if (file === resolve(root, 'utils/share.js')) return { prepare() {}, hide() {} }
-    if (file === resolve(root, 'utils/theme.js')) return { pageData: () => ({}), apply() {}, sync() {}, remember: () => ({}) }
+    if (file === resolve(root, 'utils/theme.js')) return { pageData: () => ({}), apply() {}, sync() {}, remember: value => { rememberedThemes.push(clone(value)); return {} } }
     if (cache.has(file)) return cache.get(file).exports
     const module = { exports: {} }; cache.set(file, module)
     runMiniScript(readFileSync(file, 'utf8'), { module, exports: module.exports,
@@ -38,5 +38,5 @@ export function commerceEnv(respond = () => ({}), token = 'member') {
       done?.()
     } }
   }
-  return { load, page, calls, notices, routes, storage, wx, pages: value => { currentPages = value }, token: value => storage.set('mall_mini_access_token', value), get tabHidden() { return tabHidden } }
+  return { load, page, calls, notices, routes, rememberedThemes, storage, wx, pages: value => { currentPages = value }, token: value => storage.set('mall_mini_access_token', value), get tabHidden() { return tabHidden } }
 }

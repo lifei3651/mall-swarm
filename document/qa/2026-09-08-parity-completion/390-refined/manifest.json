@@ -1,0 +1,246 @@
+{
+  "capturedAt": "2026-09-08T00:05:33.007Z",
+  "systemInfo": {
+    "batteryLevel": 66,
+    "benchmarkLevel": -1,
+    "brand": "devtools",
+    "memorySize": 2048,
+    "model": "iPhone 12/13 (Pro)",
+    "system": "iOS 10.0.1",
+    "platform": "devtools",
+    "pixelRatio": 3,
+    "safeArea": {
+      "top": 47,
+      "left": 0,
+      "right": 390,
+      "bottom": 810,
+      "width": 390,
+      "height": 763
+    },
+    "screenWidth": 390,
+    "screenHeight": 844,
+    "screenTop": 91,
+    "windowWidth": 390,
+    "windowHeight": 753,
+    "statusBarHeight": 47,
+    "version": "8.0.5",
+    "language": "zh_CN",
+    "SDKVersion": "3.7.12",
+    "enableDebug": false,
+    "fontSizeScaleFactor": 0.68,
+    "fontSizeSetting": 16,
+    "mode": "default",
+    "host": {
+      "env": "WeChat"
+    },
+    "bluetoothEnabled": true,
+    "locationEnabled": true,
+    "wifiEnabled": true,
+    "locationReducedAccuracy": true,
+    "albumAuthorized": true,
+    "bluetoothAuthorized": true,
+    "cameraAuthorized": true,
+    "locationAuthorized": true,
+    "microphoneAuthorized": true,
+    "notificationAuthorized": true,
+    "notificationAlertAuthorized": true,
+    "notificationBadgeAuthorized": true,
+    "notificationSoundAuthorized": true,
+    "phoneCalendarAuthorized": true,
+    "deviceOrientation": "portrait",
+    "devicePixelRatio": 3
+  },
+  "kind": "isolated native simulator; synthetic read-only fixtures; not real channels",
+  "records": [
+    {
+      "name": "home",
+      "route": "home",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "home.png"
+    },
+    {
+      "name": "product",
+      "route": "product?id=27",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "product.png"
+    },
+    {
+      "name": "order-detail",
+      "route": "order-detail?id=13201",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "order-detail.png"
+    },
+    {
+      "name": "after-sale",
+      "route": "after-sale?orderId=13201",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "after-sale.png"
+    },
+    {
+      "name": "checkout",
+      "route": "checkout",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "checkout.png"
+    },
+    {
+      "name": "account-login",
+      "route": "account-login?mode=password",
+      "settings": {},
+      "error": "本地验收不生成可用验证码；只检查表单与失败恢复",
+      "title": "",
+      "screenshot": "account-login.png"
+    },
+    {
+      "name": "sms-login",
+      "route": "account-login?mode=sms",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "screenshot": "sms-login.png"
+    },
+    {
+      "name": "register",
+      "route": "account-login?mode=register",
+      "settings": {},
+      "error": "本地验收不生成可用验证码；只检查表单与失败恢复",
+      "title": "",
+      "screenshot": "register.png"
+    },
+    {
+      "name": "reset",
+      "route": "account-login?mode=reset",
+      "settings": {},
+      "error": "本地验收不生成可用验证码；只检查表单与失败恢复",
+      "title": "",
+      "screenshot": "reset.png"
+    },
+    {
+      "name": "login",
+      "route": "login",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "screenshot": "login.png"
+    },
+    {
+      "name": "guide-directory",
+      "route": "category",
+      "settings": {
+        "layout": "category-focus",
+        "guide": "directory"
+      },
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "guide-directory.png"
+    },
+    {
+      "name": "guide-showcase",
+      "route": "category",
+      "settings": {
+        "layout": "category-focus",
+        "guide": "showcase"
+      },
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "guide-showcase.png"
+    },
+    {
+      "name": "guide-scenario",
+      "route": "category",
+      "settings": {
+        "layout": "category-focus",
+        "guide": "scenario"
+      },
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "guide-scenario.png"
+    },
+    {
+      "name": "order-rejected",
+      "route": "order-detail?id=13201",
+      "settings": {
+        "saleStatus": 2
+      },
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "order-rejected.png"
+    },
+    {
+      "name": "order-return",
+      "route": "order-detail?id=13201",
+      "settings": {
+        "saleStatus": 1
+      },
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "order-return.png"
+    },
+    {
+      "name": "profile-guest",
+      "route": "profile",
+      "settings": {
+        "guest": true
+      },
+      "error": "",
+      "title": "",
+      "screenshot": "profile-guest.png"
+    },
+    {
+      "name": "change-phone",
+      "route": "account-settings?section=phone",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "change-phone.png"
+    },
+    {
+      "name": "change-password",
+      "route": "account-security?section=password",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "change-password.png"
+    },
+    {
+      "name": "payment-password",
+      "route": "account-settings?section=payment",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "payment-password.png"
+    },
+    {
+      "name": "real-name",
+      "route": "account-settings?section=identity",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "real-name.png"
+    }
+  ],
+  "events": []
+}

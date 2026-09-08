@@ -10,7 +10,7 @@ Page({
   data: {
     ...theme.pageData(),
     capabilities: capabilities.empty(), shareReady: false, shareError: '',
-    loggedIn: false, member: null, loginVisible: false, avatarSrc: avatar.fallback, unreadCount: 0, unreadText: '', payoutCount: 0,
+    loggedIn: false, member: null, loginVisible: false, canOpenStudio: false, avatarSrc: avatar.fallback, unreadCount: 0, unreadText: '', payoutCount: 0,
     orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, pendingReview: 0, afterSale: 0 }
   },
   onShow() { this.hidden = false; if (typeof wx.setNavigationBarTitle === 'function') wx.setNavigationBarTitle({ title: '我的' }); theme.apply(this); this.setLoginVisible(this.data.loginVisible); return this.refresh() },
@@ -24,7 +24,7 @@ Page({
     this.displayToken = token
     if (!sameOwner) {
       avatar.release(this.data.avatarSrc)
-      feedback.update(this, { capabilities: capabilities.empty(), shareReady: false, avatarSrc: avatar.fallback, unreadCount: 0, unreadText: '', payoutCount: 0,
+      feedback.update(this, { capabilities: capabilities.empty(), canOpenStudio: false, shareReady: false, avatarSrc: avatar.fallback, unreadCount: 0, unreadText: '', payoutCount: 0,
         orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, pendingReview: 0, afterSale: 0 } })
     }
     const rights = this.loadCapabilities(version, token)
@@ -49,14 +49,14 @@ Page({
       if (!this.currentRefresh(version, token)) { avatar.release(avatarSrc); return }
       avatar.release(this.data.avatarSrc)
       feedback.update(this, { avatarSrc })
-      await Promise.all([this.loadUnread(version, token), this.loadPayoutCount(version, token), this.loadOrderSummary(version, token)])
+      await Promise.all([this.loadUnread(version, token), this.loadPayoutCount(version, token), this.loadOrderSummary(version, token), this.loadStudio(version, token)])
       await rights
     } catch (_) {
       if (!this.currentRefresh(version, token)) return
       share.hide(this)
       avatar.release(this.data.avatarSrc)
       feedback.update(this, {
-        capabilities: capabilities.empty(), shareReady: false,
+        capabilities: capabilities.empty(), canOpenStudio: false, shareReady: false,
         loggedIn: false, member: null, avatarSrc: avatar.fallback, unreadCount: 0, unreadText: '', payoutCount: 0,
         orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, pendingReview: 0, afterSale: 0 }
       })
@@ -70,6 +70,12 @@ Page({
     }
   },
   retryShare() { return this.loadCapabilities() },
+  checkUpdate() { return require('../../utils/app-update').check() },
+  async loadStudio(version, token) {
+    try { const studio = await request({ url: '/shop/live-studio/me' }); if (this.currentRefresh(version, token)) this.setData({ canOpenStudio: !!studio?.anchor?.anchor }) }
+    catch (_) { if (this.currentRefresh(version, token)) this.setData({ canOpenStudio: false }) }
+  },
+  studio() { if (this.data.loggedIn && this.data.canOpenStudio && session.getToken()) wx.navigateTo({ url: '/pages/live-studio/index' }) },
   onShareAppMessage() { return share.message(this, '/pages/home/index', this.data.brandName) },
   async loadUnread(version = this.refreshVersion, token = session.getToken()) {
     try {

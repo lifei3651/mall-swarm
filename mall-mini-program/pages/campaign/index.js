@@ -7,21 +7,26 @@ const labels = { UPCOMING: '即将开始', ACTIVE: '立即抢购', SOLD_OUT: '�
 Page({
   data: { ...theme.pageData(), loading: true, error: '', rows: [] },
   onLoad(options = {}) { theme.apply(this); this.activityId = format.identifier(options.id); this.load() },
-  onShow() { if (this.loadedOnce && !this.fetching) this.load() },
+  onShow() { this.hidden = false; if ((this.loadedOnce || this.reloadNeeded) && !this.fetching) { this.reloadNeeded = false; return this.load() } },
+  onHide() { this.hidden = true; this.reloadNeeded = true; this.fetching = false; this.version = (this.version || 0) + 1 },
+  onUnload() { this.onHide() },
   onPullDownRefresh() { this.load().finally(() => wx.stopPullDownRefresh()) },
   async load() {
     if (this.fetching) return
     this.fetching = true
+    const version = this.version = (this.version || 0) + 1
+    const current = () => !this.hidden && version === this.version
     feedback.update(this, { loading: true, error: '' })
     try {
       const result = await request({ url: '/shop/flash-sales' })
+      if (!current()) return
       const rows = (result || []).filter((row) => row && row.activity && row.product && (!this.activityId || String(row.activity.id) === this.activityId)).map((row) => {
         const maximum = Math.max(0, Math.min(99, Number(row.activity.perUserLimit || 0), Number(row.activity.availableStock || 0)))
         return { ...row, id: String(row.activity.id), product: format.product(row.product), priceText: format.money(row.activity.flashPrice), quantity: 1, quantities: Array.from({ length: maximum }, (_, index) => index + 1), canBuy: row.activityState === 'ACTIVE' && maximum > 0, label: labels[row.activityState] || '暂不可用' }
       })
       feedback.update(this, { rows }); this.loadedOnce = true
-    } catch (error) { feedback.update(this, { error: error.message || '活动加载失败' }) }
-    finally { this.fetching = false; feedback.update(this, { loading: false }) }
+    } catch (error) { if (current()) feedback.update(this, { error: error.message || '活动加载失败' }) }
+    finally { if (current()) { this.fetching = false; feedback.update(this, { loading: false }) } }
   },
   quantityChange(event) {
     const index = this.data.rows.findIndex((row) => String(row.activity.id) === String(event.currentTarget.dataset.id))
@@ -30,6 +35,7 @@ Page({
   },
   imageError(event) { const index = Number(event.currentTarget.dataset.index); if (Number.isInteger(index) && this.data.rows[index]) feedback.update(this, { [`rows[${index}].product.imageFailed`]: true }) },
   buy(event) {
+    if (this.hidden) return
     const row = this.data.rows.find((item) => String(item.activity.id) === String(event.currentTarget.dataset.id))
     if (!row || !row.canBuy || this.data.loading || this.data.error) return
     const id = format.identifier(row.activity.id)

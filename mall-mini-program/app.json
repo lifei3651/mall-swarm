@@ -9,6 +9,8 @@
     "pages/product/index",
     "pages/cart/index",
     "pages/login/index",
+    "pages/account-login/index",
+    "pages/live-studio/index",
     "pages/profile/index",
     "pages/account-security/index",
     "pages/account-settings/index",

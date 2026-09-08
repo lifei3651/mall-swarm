@@ -1,0 +1,493 @@
+{
+  "capturedAt": "2026-09-08T00:01:53.773Z",
+  "systemInfo": {
+    "batteryLevel": 69,
+    "benchmarkLevel": -1,
+    "brand": "devtools",
+    "memorySize": 2048,
+    "model": "iPhone 12/13 (Pro)",
+    "system": "iOS 10.0.1",
+    "platform": "devtools",
+    "pixelRatio": 3,
+    "safeArea": {
+      "top": 47,
+      "left": 0,
+      "right": 390,
+      "bottom": 810,
+      "width": 390,
+      "height": 763
+    },
+    "screenWidth": 390,
+    "screenHeight": 844,
+    "screenTop": 91,
+    "windowWidth": 390,
+    "windowHeight": 753,
+    "statusBarHeight": 47,
+    "version": "8.0.5",
+    "language": "zh_CN",
+    "SDKVersion": "3.7.12",
+    "enableDebug": false,
+    "fontSizeScaleFactor": 0.68,
+    "fontSizeSetting": 16,
+    "mode": "default",
+    "host": {
+      "env": "WeChat"
+    },
+    "bluetoothEnabled": true,
+    "locationEnabled": true,
+    "wifiEnabled": true,
+    "locationReducedAccuracy": true,
+    "albumAuthorized": true,
+    "bluetoothAuthorized": true,
+    "cameraAuthorized": true,
+    "locationAuthorized": true,
+    "microphoneAuthorized": true,
+    "notificationAuthorized": true,
+    "notificationAlertAuthorized": true,
+    "notificationBadgeAuthorized": true,
+    "notificationSoundAuthorized": true,
+    "phoneCalendarAuthorized": true,
+    "deviceOrientation": "portrait",
+    "devicePixelRatio": 3
+  },
+  "kind": "isolated native simulator; synthetic read-only fixtures; not real channels",
+  "records": [
+    {
+      "name": "home",
+      "route": "home",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "home.png"
+    },
+    {
+      "name": "category",
+      "route": "category",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "category.png"
+    },
+    {
+      "name": "product",
+      "route": "product?id=27",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "product.png"
+    },
+    {
+      "name": "cart",
+      "route": "cart",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "screenshot": "cart.png"
+    },
+    {
+      "name": "profile",
+      "route": "profile",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "screenshot": "profile.png"
+    },
+    {
+      "name": "account-security",
+      "route": "account-security",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "account-security.png"
+    },
+    {
+      "name": "account-settings",
+      "route": "account-settings",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "account-settings.png"
+    },
+    {
+      "name": "messages",
+      "route": "messages",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "messages.png"
+    },
+    {
+      "name": "message-detail",
+      "route": "message-detail?id=81",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "message-detail.png"
+    },
+    {
+      "name": "support",
+      "route": "support",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "support.png"
+    },
+    {
+      "name": "support-detail",
+      "route": "support-detail?id=91",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "support-detail.png"
+    },
+    {
+      "name": "subscriptions",
+      "route": "subscriptions",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "subscriptions.png"
+    },
+    {
+      "name": "payout",
+      "route": "payout",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "payout.png"
+    },
+    {
+      "name": "wallet",
+      "route": "wallet",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "wallet.png"
+    },
+    {
+      "name": "withdraw",
+      "route": "withdraw",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "withdraw.png"
+    },
+    {
+      "name": "orders",
+      "route": "orders",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "orders.png"
+    },
+    {
+      "name": "order-detail",
+      "route": "order-detail?id=13201",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "order-detail.png"
+    },
+    {
+      "name": "after-sale",
+      "route": "after-sale?orderId=13201",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "after-sale.png"
+    },
+    {
+      "name": "checkout",
+      "route": "checkout",
+      "settings": {},
+      "error": "本地验收禁止写入，未发送真实请求",
+      "title": "",
+      "loading": false,
+      "screenshot": "checkout.png"
+    },
+    {
+      "name": "address",
+      "route": "address",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "address.png"
+    },
+    {
+      "name": "notices",
+      "route": "notices",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "notices.png"
+    },
+    {
+      "name": "campaign",
+      "route": "campaign",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "campaign.png"
+    },
+    {
+      "name": "live",
+      "route": "store-content?type=live&id=71",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "live.png"
+    },
+    {
+      "name": "live-square",
+      "route": "store-content?type=live",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "live-square.png"
+    },
+    {
+      "name": "new-arrivals",
+      "route": "store-content?type=newArrivals",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "new-arrivals.png"
+    },
+    {
+      "name": "brand",
+      "route": "store-content?type=culture",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "brand.png"
+    },
+    {
+      "name": "legal",
+      "route": "legal?type=privacy",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "legal.png"
+    },
+    {
+      "name": "live-studio",
+      "route": "live-studio",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "live-studio.png"
+    },
+    {
+      "name": "account-login",
+      "route": "account-login?mode=password",
+      "settings": {},
+      "error": "本地验收不生成可用验证码；只检查表单与失败恢复",
+      "title": "",
+      "screenshot": "account-login.png"
+    },
+    {
+      "name": "sms-login",
+      "route": "account-login?mode=sms",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "screenshot": "sms-login.png"
+    },
+    {
+      "name": "register",
+      "route": "account-login?mode=register",
+      "settings": {},
+      "error": "本地验收不生成可用验证码；只检查表单与失败恢复",
+      "title": "",
+      "screenshot": "register.png"
+    },
+    {
+      "name": "reset",
+      "route": "account-login?mode=reset",
+      "settings": {},
+      "error": "本地验收不生成可用验证码；只检查表单与失败恢复",
+      "title": "",
+      "screenshot": "reset.png"
+    },
+    {
+      "name": "login",
+      "route": "login",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "screenshot": "login.png"
+    },
+    {
+      "name": "layout-standard",
+      "route": "home",
+      "settings": {
+        "layout": "standard"
+      },
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "layout-standard.png"
+    },
+    {
+      "name": "layout-product-focus",
+      "route": "home",
+      "settings": {
+        "layout": "product-focus"
+      },
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "layout-product-focus.png"
+    },
+    {
+      "name": "layout-category-focus",
+      "route": "home",
+      "settings": {
+        "layout": "category-focus"
+      },
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "layout-category-focus.png"
+    },
+    {
+      "name": "layout-campaign-feed",
+      "route": "home",
+      "settings": {
+        "layout": "campaign-feed"
+      },
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "layout-campaign-feed.png"
+    },
+    {
+      "name": "guide-directory",
+      "route": "home",
+      "settings": {
+        "layout": "category-focus",
+        "guide": "directory"
+      },
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "guide-directory.png"
+    },
+    {
+      "name": "guide-showcase",
+      "route": "home",
+      "settings": {
+        "layout": "category-focus",
+        "guide": "showcase"
+      },
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "guide-showcase.png"
+    },
+    {
+      "name": "guide-scenario",
+      "route": "home",
+      "settings": {
+        "layout": "category-focus",
+        "guide": "scenario"
+      },
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "guide-scenario.png"
+    },
+    {
+      "name": "category-empty",
+      "route": "category",
+      "settings": {
+        "empty": true
+      },
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "category-empty.png"
+    },
+    {
+      "name": "orders-empty",
+      "route": "orders",
+      "settings": {
+        "empty": true
+      },
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "orders-empty.png"
+    },
+    {
+      "name": "home-error",
+      "route": "home",
+      "settings": {
+        "failure": "/shop/home"
+      },
+      "error": "本地故障演练：加载失败，请重新加载",
+      "title": "",
+      "loading": false,
+      "screenshot": "home-error.png"
+    },
+    {
+      "name": "order-rejected",
+      "route": "order-detail?id=13201",
+      "settings": {
+        "saleStatus": 2
+      },
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "order-rejected.png"
+    },
+    {
+      "name": "order-return",
+      "route": "order-detail?id=13201",
+      "settings": {
+        "saleStatus": 1
+      },
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "order-return.png"
+    },
+    {
+      "name": "studio-no-role",
+      "route": "live-studio",
+      "settings": {
+        "noAnchor": true
+      },
+      "error": "当前账号尚未开通直播权限",
+      "title": "",
+      "loading": false,
+      "screenshot": "studio-no-role.png"
+    }
+  ],
+  "events": []
+}

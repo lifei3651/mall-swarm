@@ -171,6 +171,7 @@ test('个人中心加载本人信息、真实订单角标、未读消息和待�
   const summary = { pendingPayment: 2, pendingShipment: 3, pendingReceipt: 4, pendingReview: 6, afterSale: 5 }
   const results = {
     '/shop/auth/me': member,
+    '/shop/live-studio/me': { anchor: null },
     '/shop/messages/unread': { total: 108 },
     '/shop/profile/order-summary': summary,
     '/shop/wallet/withdrawals': [

@@ -10,17 +10,20 @@ Page({
   data: { ...theme.pageData(), categories: [], active: '', keyword: '', searchedKeyword: '', products: [], hotProducts: [], loading: true, error: '', pageNum: 0, total: 0, hasMore: false, loadingMore: false, moreError: '', browsingAll: false,
     sortMode: 'default', ...quickCart.data },
   onLoad() { theme.apply(this); this.loadCategories() },
-  onShow() { quickCart.show(this); theme.apply(this) },
-  onHide() { quickCart.hide(this) },
+  onShow() { quickCart.show(this); theme.apply(this); if (this.reloadNeeded) { this.reloadNeeded = false; return this.loadCategories() } },
+  onHide() { this.reloadNeeded = true; this.categorySequence = (this.categorySequence || 0) + 1; this.productSequence = (this.productSequence || 0) + 1; quickCart.hide(this) },
   onUnload() { this.onHide(); this.productSequence = (this.productSequence || 0) + 1 },
   onPullDownRefresh() { Promise.all([theme.apply(this), this.loadCategories()]).finally(() => wx.stopPullDownRefresh()) },
   async loadCategories() {
+    const version = this.categorySequence = (this.categorySequence || 0) + 1
+    const current = () => !this._inactive && version === this.categorySequence
     feedback.update(this, { loading: true, error: '' })
     try {
       const categories = await request({ url: '/shop/categories' })
+      if (!current()) return
       feedback.update(this, { categories: (categories || []).map((item) => ({ ...item, iconUrl: format.mediaUrl(item.iconUrl), iconFailed: false })) })
       await this.loadProducts()
-    } catch (error) { feedback.update(this, { error: error.message, loading: false }) }
+    } catch (error) { if (current()) feedback.update(this, { error: error.message, loading: false }) }
   },
   async loadProducts(reset = true) {
     if (!reset && (this.data.loading || this.data.loadingMore || !this.data.hasMore)) return

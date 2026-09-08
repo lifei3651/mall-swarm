@@ -179,5 +179,14 @@ module.exports = {
     } else fallback()
   },
   openPrivacy() { wx.navigateTo({ url: '/pages/legal/index?type=privacy' }) },
+  openAccountLogin() {
+    if (this.data.submitting || this.data.authorizingPhone) return
+    const redirect = this.redirect || ''
+    const isPage = this.properties && this.properties.presentation === 'page'
+    if (!isPage && typeof this.close === 'function') this.close()
+    const navigate = isPage ? wx.redirectTo : wx.navigateTo
+    navigate({ url: `/pages/account-login/index?redirect=${encodeURIComponent(redirect)}`,
+      fail: () => feedback.notice('账号登录页面未能打开，请重试') })
+  },
   openAgreement() { wx.navigateTo({ url: '/pages/legal/index?type=agreement' }) }
 }

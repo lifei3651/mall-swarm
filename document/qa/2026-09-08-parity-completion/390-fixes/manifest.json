@@ -1,0 +1,102 @@
+{
+  "capturedAt": "2026-09-08T00:07:20.537Z",
+  "systemInfo": {
+    "batteryLevel": 65,
+    "benchmarkLevel": -1,
+    "brand": "devtools",
+    "memorySize": 2048,
+    "model": "iPhone 12/13 (Pro)",
+    "system": "iOS 10.0.1",
+    "platform": "devtools",
+    "pixelRatio": 3,
+    "safeArea": {
+      "top": 47,
+      "left": 0,
+      "right": 390,
+      "bottom": 810,
+      "width": 390,
+      "height": 763
+    },
+    "screenWidth": 390,
+    "screenHeight": 844,
+    "screenTop": 91,
+    "windowWidth": 390,
+    "windowHeight": 753,
+    "statusBarHeight": 47,
+    "version": "8.0.5",
+    "language": "zh_CN",
+    "SDKVersion": "3.7.12",
+    "enableDebug": false,
+    "fontSizeScaleFactor": 0.68,
+    "fontSizeSetting": 16,
+    "mode": "default",
+    "host": {
+      "env": "WeChat"
+    },
+    "bluetoothEnabled": true,
+    "locationEnabled": true,
+    "wifiEnabled": true,
+    "locationReducedAccuracy": true,
+    "albumAuthorized": true,
+    "bluetoothAuthorized": true,
+    "cameraAuthorized": true,
+    "locationAuthorized": true,
+    "microphoneAuthorized": true,
+    "notificationAuthorized": true,
+    "notificationAlertAuthorized": true,
+    "notificationBadgeAuthorized": true,
+    "notificationSoundAuthorized": true,
+    "phoneCalendarAuthorized": true,
+    "deviceOrientation": "portrait",
+    "devicePixelRatio": 3
+  },
+  "kind": "isolated native simulator; synthetic read-only fixtures; not real channels",
+  "records": [
+    {
+      "name": "messages",
+      "route": "messages",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "messages.png"
+    },
+    {
+      "name": "subscriptions",
+      "route": "subscriptions",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "subscriptions.png"
+    },
+    {
+      "name": "notices",
+      "route": "notices",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "notices.png"
+    },
+    {
+      "name": "live",
+      "route": "store-content?type=live&id=71",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "live.png"
+    },
+    {
+      "name": "change-password",
+      "route": "account-security?mode=password",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "change-password.png"
+    }
+  ],
+  "events": []
+}

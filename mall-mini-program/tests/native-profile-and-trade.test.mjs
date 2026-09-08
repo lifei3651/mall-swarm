@@ -145,6 +145,7 @@ test('已到账提现通知能定位历史单据，不错误调用确认收款',
   await page.confirm({ currentTarget: { dataset: { id: '9007199254740995' } } })
   assert.equal(e.calls.length, 1); assert.equal(e.calls[0].method, undefined)
   const message = e.page('message-detail')
+  message.owner = 'owner-session'
   message.setData({ message: { targetType: 'WITHDRAWAL', targetId: '9007199254740995' } }); message.openTarget()
   assert.equal(e.routes.at(-1), '/pages/payout/index?history=1&id=9007199254740995')
   message.setData({ message: { targetType: 'WALLET' } }); message.openTarget()

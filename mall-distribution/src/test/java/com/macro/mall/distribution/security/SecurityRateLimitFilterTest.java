@@ -16,6 +16,14 @@ import static org.mockito.Mockito.when;
 
 class SecurityRateLimitFilterTest {
 
+    @Test void nativeAccountLoginAndRegistrationShareH5RateBucket() {
+        var filter = new SecurityRateLimitFilter(mock(SecurityRateLimitService.class));
+        var expected = filter.resolveRule(new MockHttpServletRequest("POST", "/shop/auth/login"));
+        for (String path : new String[]{"/shop/wechat-mini-program/auth/account-login", "/shop/wechat-mini-program/auth/account-register", "/shop/public/auth/register"}) {
+            assertEquals(expected, filter.resolveRule(new MockHttpServletRequest("POST", path)));
+        }
+    }
+
     @Test
     void blocksExcessiveShopLoginBeforeControllerExecution() throws Exception {
         SecurityRateLimitService limiter = mock(SecurityRateLimitService.class);

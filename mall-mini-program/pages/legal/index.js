@@ -12,17 +12,23 @@ Page({
     wx.setNavigationBarTitle({ title: legal.titles[type] || '商城说明' })
     this.load()
   },
+  onShow() { this.hidden = false; if (this.reloadNeeded) { this.reloadNeeded = false; return this.load() } },
+  onHide() { this.hidden = true; this.reloadNeeded = true; this.version = (this.version || 0) + 1 },
+  onUnload() { this.onHide() },
   async load() {
+    const version = this.version = (this.version || 0) + 1
+    const current = () => !this.hidden && version === this.version
     feedback.update(this, { loading: true, error: '' })
     try {
       const config = await request({ url: '/shop/legal-config' }) || {}
+      if (!current()) return
       config.servicePhone = legal.contactValue(config.servicePhone)
       config.serviceEmail = legal.contactValue(config.serviceEmail)
       const url = format.mediaUrl(config.businessLicenseUrl)
       config.businessLicenseUrl = /^https:\/\//i.test(url) ? url : ''
       feedback.update(this, { config, content: legal.content(this.data.type, config), faqs: legal.faqs(config) })
-    } catch (error) { feedback.update(this, { error: error.message || '商城说明加载失败' }) }
-    finally { feedback.update(this, { loading: false }) }
+    } catch (error) { if (current()) feedback.update(this, { error: error.message || '商城说明加载失败' }) }
+    finally { if (current()) feedback.update(this, { loading: false }) }
   },
   open(event) { const type = event.currentTarget.dataset.type; if (Object.hasOwnProperty.call(legal.titles, type)) wx.navigateTo({ url: `/pages/legal/index?type=${type}` }) }
 })

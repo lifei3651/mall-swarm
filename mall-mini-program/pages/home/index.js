@@ -26,15 +26,16 @@ Page({
     logoFailed: false
   },
   onLoad() { this.setData({ recentSearches: searchHistory.list() }); this.loadHome() },
-  onShow() { this.campaignClockActive = true; quickCart.show(this); share.prepare(this); theme.sync(this); this.startCampaignClock(); if (this.loadedOnce) this.loadHome(true) },
-  onHide() { this.campaignClockActive = false; this.productSequence = (this.productSequence || 0) + 1; clearTimeout(this.suggestionsTimer); this.setData({ searchFocused: false, productsLoading: false }); clearTimeout(this.campaignTimer); quickCart.hide(this); share.hide(this) },
+  onShow() { this.campaignClockActive = true; quickCart.show(this); share.prepare(this); theme.sync(this); this.startCampaignClock(); if (this.loadedOnce || this.reloadNeeded) { this.reloadNeeded = false; return this.loadHome(this.loadedOnce === true) } },
+  onHide() { this.reloadNeeded = true; this.refreshing = null; this.campaignClockActive = false; this.productSequence = (this.productSequence || 0) + 1; clearTimeout(this.suggestionsTimer); this.setData({ searchFocused: false, productsLoading: false }); clearTimeout(this.campaignTimer); quickCart.hide(this); share.hide(this) },
   onUnload() { this.onHide() },
   onShareAppMessage() { return share.message(this, '/pages/home/index', this.data.home.brandName || this.data.brandName) },
   retryShare() { return share.prepare(this) },
   onPullDownRefresh() { this.loadHome().finally(() => wx.stopPullDownRefresh()) },
   async loadHome(silent = false) {
     if (this.refreshing) return this.refreshing
-    this.refreshing = this.fetchHome(silent).finally(() => { this.refreshing = null })
+    const task = this.fetchHome(silent).finally(() => { if (this.refreshing === task) this.refreshing = null })
+    this.refreshing = task
     return this.refreshing
   },
   async fetchHome(silent) {
@@ -45,6 +46,7 @@ Page({
         request({ url: '/shop/home' }),
         request({ url: '/shop/products', params: { status: 1, pageNum: 1, pageSize: 60, keyword: this.data.searchedKeyword, categoryName: this.data.activeCategory } })
       ])
+      if (sequence !== this.productSequence) return
       const products = (productPage && productPage.list ? productPage.list : []).map(categoryProduct.card)
       home.logoUrl = format.mediaUrl(home.logoUrl)
       home.banners = (home.banners || []).map((item) => ({
@@ -58,9 +60,8 @@ Page({
         iconFailed: false,
         initial: String(item.categoryName || '商').slice(0, 1)
       }))
-      const palette = theme.remember(home)
       home.newArrivals = (home.newArrivals || []).map(format.product)
-      home.liveRooms = (home.liveRooms || []).filter((item) => item && item.room).map((item) => ({ ...item, room: { ...item.room, coverUrl: format.mediaUrl(item.room.coverUrl) } }))
+      home.liveRooms = (home.liveRooms || []).filter((item) => item && item.room && format.identifier(item.room.id)).map((item) => ({ ...item, key: format.identifier(item.room.id), room: { ...item.room, coverUrl: format.mediaUrl(item.room.coverUrl) } }))
       const decoration = display.home(home.displayConfig)
       let campaigns = [], campaignError = ''
       if (decoration.layoutTemplate === 'campaign-feed') {
@@ -71,6 +72,7 @@ Page({
       }
       const brandCultureEnabled = display.toggle(home.brandCultureEnabled, false)
       if (sequence !== this.productSequence) return
+      const palette = theme.remember(home)
       this.baseProducts = products
       feedback.update(this, { home, products: displayPrices(decorateCampaignProducts(products, campaigns, decoration.layoutTemplate)), campaigns, campaignError, ...palette, ...decoration, brandCultureEnabled, logoFailed: false, error: '' })
       this.startCampaignClock()

@@ -54,3 +54,4 @@
 .order-head .copy-order { width:auto; margin:8rpx 0 0; padding:8rpx 12rpx; color:var(--brand); background:var(--brand-soft); border-radius:10rpx; font-size:22rpx; line-height:32rpx; }
 .detail-actions { flex-wrap:wrap; }
 .balance-sheet { color: var(--ink); }
+.order-info-toggle{display:flex;justify-content:space-between;width:100%;min-height:88rpx;padding:0;background:transparent;font-size:27rpx;color:#667085;align-items:center;line-height:1.5;margin:0}.order-info-toggle::after{border:0}.package-label{display:block;font-size:27rpx;font-weight:600;margin-bottom:14rpx}.sale-item{display:flex;justify-content:space-between;gap:18rpx;margin:12rpx 0;font-size:24rpx;color:#667085}.sale-item text:first-child{min-width:0;overflow-wrap:anywhere}

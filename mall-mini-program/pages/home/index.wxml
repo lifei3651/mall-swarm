@@ -60,7 +60,7 @@
     </view>
     <view wx:if="{{module.type === 'live' && home.liveRooms.length}}">
       <view class="section-head" data-type="live" bindtap="openContent"><text>直播广场</text><text class="muted">查看全部 ›</text></view>
-      <view class="live-card card" wx:for="{{home.liveRooms}}" wx:key="room.id" data-id="{{item.room.id}}" bindtap="openLive">
+      <view class="live-card card" wx:for="{{home.liveRooms}}" wx:key="key" data-id="{{item.room.id}}" bindtap="openLive">
         <image wx:if="{{item.room.coverUrl}}" src="{{item.room.coverUrl}}" mode="aspectFill" />
         <view><text class="live-label">{{item.roomState === 'LIVE' ? '直播中' : item.roomState === 'ENDED' ? '已结束' : '直播预告'}}</text><view>{{item.room.title}}</view><text class="muted">{{item.room.anchorName}}</text></view>
       </view>

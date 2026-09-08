@@ -22,7 +22,7 @@ Page({
   onShow() {
     theme.apply(this)
     const token = session.getToken()
-    if (this.owner && this.owner !== token) { this.initialized = false; this.detail = null; this.setData({ items: [], proofs: [], reason: '', reasonDetail: '', allowed: false, submitted: false }) }
+    if (this.owner && this.owner !== token) { this.initialized = false; this.loadingRequest = false; this.loadVersion = (this.loadVersion || 0) + 1; this.detail = null; this.setData({ items: [], proofs: [], reason: '', reasonDetail: '', allowed: false, submitted: false, submitting: false, selectingProof: false }) }
     this.owner = token
     if (!this.data.orderId) return
     if (!auth.requireLogin(`/pages/after-sale/index?orderId=${this.data.orderId}`)) return
@@ -34,10 +34,12 @@ Page({
     if (!this.data.orderId || this.loadingRequest) return
     this.loadingRequest = true
     const token = session.getToken()
+    const version = this.loadVersion = (this.loadVersion || 0) + 1
+    const current = () => !this.disposed && token === session.getToken() && version === this.loadVersion
     feedback.update(this, { loading: true, error: '' })
     try {
       const detail = await request({ url: `/shop/orders/${this.data.orderId}` })
-      if (this.disposed || token !== session.getToken()) return
+      if (!current()) return
       const eligibility = afterSaleEligibility(detail)
       this.owner = token; this.detail = detail
       this.initialized = true
@@ -46,8 +48,8 @@ Page({
         items: remainingItems(detail).map((item) => ({ ...item, selectedQuantity: item.remaining,
           productCover: format.mediaUrl(item.productCover) })) })
       this.updateEstimate()
-    } catch (error) { if (!this.disposed) feedback.update(this, { error: error.message || '售后信息加载失败' }) }
-    finally { this.loadingRequest = false; if (!this.disposed) feedback.update(this, { loading: false }) }
+    } catch (error) { if (current()) feedback.update(this, { error: error.message || '售后信息加载失败' }) }
+    finally { if (version === this.loadVersion) this.loadingRequest = false; if (current()) feedback.update(this, { loading: false }) }
   },
   selectType(event) {
     const applyType = Number(event.currentTarget.dataset.type)
@@ -86,8 +88,8 @@ Page({
         feedback.update(this, { proofs: this.data.proofs.concat(valid.map((file) => ({ path: file.tempFilePath, filename: '' }))),
           submitError: valid.length !== files.length ? '单张图片不能超过5MB，重复、过大或无效图片未添加' : '' })
       },
-      fail: (error) => { if (!this.disposed && !/cancel/i.test(error.errMsg || '')) feedback.update(this, { submitError: '未能选取图片，请检查微信权限；也可以不上传凭证直接申请' }) },
-      complete: () => { if (!this.disposed) feedback.update(this, { selectingProof: false }) }
+      fail: (error) => { if (!this.disposed && token === session.getToken() && !/cancel/i.test(error.errMsg || '')) feedback.update(this, { submitError: '未能选取图片，请检查微信权限；也可以不上传凭证直接申请' }) },
+      complete: () => { if (!this.disposed && token === session.getToken()) feedback.update(this, { selectingProof: false }) }
     })
   },
   removeProof(event) {
@@ -147,7 +149,7 @@ Page({
       await feedback.toast({ title: '售后申请已提交', icon: 'success' })
       if (current()) this.openOrder()
     } catch (error) { if (current()) feedback.update(this, { submitError: error.message || '申请未确认成功，请查看订单售后进度后再重试' }) }
-    finally { feedback.update(this, { submitting: false }) }
+    finally { if (!this.disposed && (token === session.getToken() || !session.getToken())) feedback.update(this, { submitting: false }) }
   },
   openOrder() { wx.redirectTo({ url: `/pages/order-detail/index?id=${this.data.orderId}` }) }
 })

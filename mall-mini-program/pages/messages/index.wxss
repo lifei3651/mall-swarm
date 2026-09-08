@@ -30,6 +30,9 @@
 .arrow { color: #adb3be; font-size: 38rpx; }
 .more { width: 220rpx; margin: 28rpx auto; border-radius: 999rpx; background: var(--paper); font-size: 24rpx; }
 .message-head { background:linear-gradient(135deg,#18243d,var(--brand)); color:#fff; border-radius:36rpx; padding:36rpx; align-items:flex-start; }
+.message-head > view > text { color:rgba(255,255,255,.88); }
+.message-head > .message-head-actions { flex:none; }
+.message-page .category-row button { width:auto; min-width:0; }
 .message-head-actions { display:flex; flex-direction:column; gap:12rpx; flex:none; }.message-head-actions button { margin:0; font-size:23rpx; padding:12rpx 18rpx; background:rgba(255,255,255,.18); color:white; border-radius:16rpx; }
 .sms-card { display:flex; align-items:center; gap:24rpx; margin-top:24rpx; padding:30rpx; border:1rpx solid var(--line); border-radius:28rpx; background:var(--paper); }.sms-card > view { flex:1; min-width:0; }.sms-card text { display:block; margin-top:8rpx; font-size:23rpx; color:var(--muted); line-height:1.6; }.sms-card .sms-label { color:var(--brand); font-size:21rpx; }.sms-card > view > view { font-size:30rpx; font-weight:600; margin-top:6rpx; }.sms-card .sms-toggle { flex:none; width:auto; padding:14rpx 18rpx; margin:0; background:var(--brand-soft); color:var(--brand); font-size:23rpx; border-radius:18rpx; }
 .category-action { display:flex; justify-content:flex-end; margin-bottom:20rpx; }.category-action button { margin:0; padding:12rpx 20rpx; font-size:24rpx; background:var(--paper); color:var(--muted); }

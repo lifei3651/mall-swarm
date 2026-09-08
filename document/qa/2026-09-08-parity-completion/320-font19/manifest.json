@@ -1,0 +1,104 @@
+{
+  "capturedAt": "2026-09-08T00:32:07.885Z",
+  "systemInfo": {
+    "batteryLevel": 52,
+    "benchmarkLevel": -1,
+    "brand": "devtools",
+    "memorySize": 2048,
+    "model": "iPhone 5",
+    "system": "iOS 10.0.1",
+    "platform": "devtools",
+    "pixelRatio": 2,
+    "safeArea": {
+      "top": 20,
+      "left": 0,
+      "right": 320,
+      "bottom": 568,
+      "width": 320,
+      "height": 548
+    },
+    "screenWidth": 320,
+    "screenHeight": 568,
+    "screenTop": 64,
+    "windowWidth": 320,
+    "windowHeight": 504,
+    "statusBarHeight": 20,
+    "version": "8.0.5",
+    "language": "zh_CN",
+    "SDKVersion": "3.7.12",
+    "enableDebug": false,
+    "fontSizeScaleFactor": 0.73,
+    "fontSizeSetting": 19,
+    "mode": "default",
+    "host": {
+      "env": "WeChat"
+    },
+    "bluetoothEnabled": true,
+    "locationEnabled": true,
+    "wifiEnabled": true,
+    "locationReducedAccuracy": true,
+    "albumAuthorized": true,
+    "bluetoothAuthorized": true,
+    "cameraAuthorized": true,
+    "locationAuthorized": true,
+    "microphoneAuthorized": true,
+    "notificationAuthorized": true,
+    "notificationAlertAuthorized": true,
+    "notificationBadgeAuthorized": true,
+    "notificationSoundAuthorized": true,
+    "phoneCalendarAuthorized": true,
+    "deviceOrientation": "portrait",
+    "devicePixelRatio": 2
+  },
+  "kind": "isolated native simulator; synthetic read-only fixtures; not real channels",
+  "records": [
+    {
+      "name": "category",
+      "route": "category",
+      "actualPath": "pages/category/index",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "category.png"
+    },
+    {
+      "name": "profile",
+      "route": "profile",
+      "actualPath": "pages/profile/index",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "screenshot": "profile.png"
+    },
+    {
+      "name": "checkout",
+      "route": "checkout",
+      "actualPath": "pages/checkout/index",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "loading": false,
+      "screenshot": "checkout.png"
+    },
+    {
+      "name": "account-login",
+      "route": "account-login?mode=password",
+      "actualPath": "pages/account-login/index",
+      "settings": {},
+      "error": "本地验收不生成可用验证码；只检查表单与失败恢复",
+      "title": "",
+      "screenshot": "account-login.png"
+    },
+    {
+      "name": "login",
+      "route": "login",
+      "actualPath": "pages/login/index",
+      "settings": {},
+      "error": "",
+      "title": "",
+      "screenshot": "login.png"
+    }
+  ],
+  "events": []
+}

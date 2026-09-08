@@ -39,10 +39,18 @@ function subscriptionGroups(templates) {
 Page({
   data: { ...theme.pageData(), loading: true, requesting: false, templates: [], groups: [], pendingGrant: false, error: '' },
   onLoad() { theme.apply(this) },
-  onShow() { theme.apply(this); if (!this.data.requesting) return this.load() },
+  onShow() {
+    this.hidden = false; theme.apply(this)
+    if (this.owner !== session.getToken()) this.setData({ templates: [], groups: [], requesting: false, error: '' })
+    if (this.pendingGrant && this.pendingGrantToken === session.getToken()) return this.syncGrant()
+    if (!this.data.requesting) return this.load()
+  },
+  onHide() { this.hidden = true; this.loadVersion = (this.loadVersion || 0) + 1; this.setData({ templates: [], groups: [] }) },
   onUnload() { this.disposed = true; this.loadVersion = (this.loadVersion || 0) + 1; this.pendingGrant = null; this.pendingGrantToken = null },
   async load() {
     const version = this.loadVersion = (this.loadVersion || 0) + 1
+    const token = this.owner = session.getToken()
+    const current = () => !this.hidden && !this.disposed && token && session.getToken() === token && version === this.loadVersion
     if (!auth.requireLogin('/pages/subscriptions/index')) {
       this.pendingGrant = null; this.pendingGrantToken = null
       feedback.update(this, { loading: false, templates: [], groups: [], pendingGrant: false })
@@ -54,16 +62,16 @@ Page({
     feedback.update(this, { loading: true, error: '' })
     try {
       const templates = await request({ url: '/shop/wechat-mini-program/subscriptions' })
-      if (this.disposed || version !== this.loadVersion) return
+      if (!current()) return
       feedback.update(this, { templates: normalizeTemplates(templates), groups: subscriptionGroups(templates) })
-    } catch (error) { if (!this.disposed && version === this.loadVersion) feedback.update(this, { templates: [], groups: [], error: error.message || '提醒设置加载失败' }) }
-    finally { if (!this.disposed && version === this.loadVersion) feedback.update(this, { loading: false }) }
+    } catch (error) { if (current()) feedback.update(this, { templates: [], groups: [], error: error.message || '提醒设置加载失败' }) }
+    finally { if (current()) feedback.update(this, { loading: false }) }
   },
   async subscribe(event) {
-    if (this.disposed || this.data.loading || this.data.requesting || !this.data.templates.length) return
+    if (this.hidden || this.disposed || this.data.loading || this.data.requesting || !this.data.templates.length) return
     if (this.pendingGrant) { await this.syncGrant(); return }
     const token = session.getToken()
-    if (!token) { await this.load(); return }
+    if (!token || this.owner !== token) { await this.load(); return }
     if (!wx.requestSubscribeMessage) {
       wx.showModal({ title: '当前微信版本暂不支持', content: '请升级微信后再设置提醒。', showCancel: false })
       return
@@ -77,21 +85,28 @@ Page({
       if (this.disposed || session.getToken() !== token) return
       const acceptedTemplateIds = templateIds.filter((id) => result[id] === 'accept')
       if (!acceptedTemplateIds.length) {
-        feedback.toast({ title: '本次未开启提醒', icon: 'none' })
+        if (!this.hidden) feedback.toast({ title: '本次未开启提醒', icon: 'none' })
         return
       }
       this.pendingGrant = { requestId: requestId(), acceptedTemplateIds }
       this.pendingGrantToken = token
       feedback.update(this, { pendingGrant: true })
-      await this.syncGrant()
+      if (!this.hidden) await this.syncGrant()
     } catch (error) {
-      if (this.disposed) return
+      if (this.disposed || this.hidden || session.getToken() !== token) return
       const cancelled = /cancel/i.test(String(error && (error.errMsg || error.message || error)))
       feedback.toast({ title: cancelled ? '已取消设置' : (error.message || '提醒设置失败'), icon: 'none' })
-    } finally { if (!this.disposed) feedback.update(this, { requesting: false }) }
+    } finally {
+      if (!this.disposed && session.getToken() === token) {
+        this.setData({ requesting: false })
+        // Native authorization may hide/show the page before returning a rejection.
+        // Restore the cleared choices without opening another authorization prompt.
+        if (!this.hidden && !this.pendingGrant && !this.data.templates.length) await this.load()
+      }
+    }
   },
   async syncGrant() {
-    if (this.disposed || !this.pendingGrant || this.syncingGrant) return
+    if (this.hidden || this.disposed || !this.pendingGrant || this.syncingGrant) return
     if (session.getToken() !== this.pendingGrantToken) {
       this.pendingGrant = null; this.pendingGrantToken = null
       feedback.update(this, { pendingGrant: false })
@@ -99,15 +114,17 @@ Page({
       await this.load(); return
     }
     this.syncingGrant = true
+    const token = this.pendingGrantToken, grant = this.pendingGrant
+    const current = () => !this.disposed && token === session.getToken() && this.pendingGrant === grant
     feedback.update(this, { requesting: true })
     try {
-      const templates = await request({ url: '/shop/wechat-mini-program/subscriptions/grants', method: 'POST', data: this.pendingGrant })
-      if (this.disposed) return
+      const templates = await request({ url: '/shop/wechat-mini-program/subscriptions/grants', method: 'POST', data: grant })
+      if (!current() || this.hidden) return
       this.pendingGrant = null; this.pendingGrantToken = null
       feedback.update(this, { pendingGrant: false, templates: normalizeTemplates(templates), groups: subscriptionGroups(templates) })
       feedback.toast({ title: '本组提醒已开启', icon: 'success' })
     } catch (_) {
-      if (!this.disposed) feedback.toast({ title: '授权结果尚未同步，请点击重试', icon: 'none' })
-    } finally { this.syncingGrant = false; if (!this.disposed) feedback.update(this, { requesting: false }) }
+      if (current() && !this.hidden) feedback.toast({ title: '授权结果尚未同步，请点击重试', icon: 'none' })
+    } finally { this.syncingGrant = false; if (!this.disposed && token === session.getToken()) this.setData({ requesting: false, loading: false }) }
   }
 })

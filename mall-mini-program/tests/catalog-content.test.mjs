@@ -251,6 +251,7 @@ for (const name of ['messages', 'payout', 'message-detail']) {
 
 test('消息按服务端受控类型直达原订单或账号页，不执行消息URL', () => {
   const h = pageHarness('message-detail'), id = '9223372036854775766'
+  h.page.owner = 'test-token'
   h.page.setData({ message: { targetType: 'ORDER', targetId: id } }); h.page.openTarget()
   h.page.setData({ message: { targetType: 'AFTER_SALE', targetId: '111', targetParentId: id } }); h.page.openTarget()
   h.page.setData({ message: { targetType: 'ORDER', targetId: '../other' } }); h.page.openTarget()

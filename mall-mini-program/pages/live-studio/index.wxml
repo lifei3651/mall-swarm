@@ -1,0 +1,15 @@
+<view class="studio-page" style="{{themeStyle}}; --brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}">
+  <view wx:if="{{loading}}" class="state">正在核对直播权限…</view>
+  <view wx:elif="{{error}}" class="state"><text>{{error}}</text><text class="hint">直播账号由商城平台开通，普通购物账号不具备开播权限。</text><button bindtap="load">重新核对</button><button bindtap="back">返回我的</button></view>
+  <block wx:elif="{{studio}}">
+    <view class="anchor"><text class="title">{{studio.anchor.anchor.displayName}}</text><text>{{studio.anchor.anchor.companyName || '平台授权账号'}}</text><text>{{studio.statusMessage}}</text></view>
+    <view class="safety"><text>仅管理本人直播间</text><text>使用外部直播工具推流；此处不会自动开启摄像头或麦克风。离开此页不会结束直播，请使用“结束直播”。</text></view>
+    <view class="card"><view class="heading"><text class="title">我的直播间</text><button bindtap="load" disabled="{{busyId}}">刷新</button></view>
+      <view wx:if="{{!rooms.length}}" class="state">平台还没有给你分配直播间</view>
+      <view wx:for="{{rooms}}" wx:key="key" class="room"><image src="{{item.room.coverUrl}}" mode="aspectFill" /><view class="room-copy"><text class="hint">{{item.stateLabel}}</text><text class="room-title">{{item.room.title}}</text><text class="hint">{{item.products.length || 0}} 件商品 · {{item.scheduledText}}</text></view>
+        <view class="actions"><button wx:if="{{item.room.status !== 2}}" class="primary" data-id="{{item.room.id}}" data-action="start" bindtap="control" disabled="{{!studio.canStart || busyId || item.roomState === 'DISABLED'}}" loading="{{busyId === item.room.id}}">开始直播</button><button wx:else class="danger" data-id="{{item.room.id}}" data-action="stop" bindtap="control" disabled="{{busyId}}" loading="{{busyId === item.room.id}}">结束直播</button><button data-id="{{item.room.id}}" bindtap="watch">查看观众页</button></view>
+      </view>
+    </view>
+    <view wx:if="{{credential}}" class="card credential"><text class="title">本场推流信息</text><text class="hint">{{credential.instructions}}</text><text wx:if="{{credential.expireText}}" class="hint">有效至 {{credential.expireText}}</text><text class="hint">只在当前页面临时显示，切后台或离开即清除。</text><button wx:if="{{credential.pushUrl}}" class="primary" bindtap="copyPushUrl">复制短时推流地址</button><button bindtap="closeCredential">关闭推流信息</button></view>
+  </block>
+</view>

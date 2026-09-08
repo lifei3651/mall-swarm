@@ -4,6 +4,7 @@ const auth = require('../../utils/auth')
 const theme = require('../../utils/theme')
 const format = require('../../utils/format')
 const capabilities = require('../../utils/member-capabilities')
+const session = require('../../utils/session')
 const validMoney = (value) => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value)) && Number(value) >= 0
 Page({
   data: { ...theme.pageData(), loading: true, error: '', balance: '--', flows: [], membershipLabel: '', membershipError: '', issuedBonus: '--', pendingBonus: '--', bonusLoading: false, bonusError: '' },
@@ -12,15 +13,16 @@ Page({
   onUnload() { this.onHide() },
   async load() {
     const version = this.version = (this.version || 0) + 1
+    const token = session.getToken(), current = () => version === this.version && token === session.getToken()
     feedback.update(this, { loading: true, error: '', membershipLabel: '', membershipError: '' })
     this.loadBonus(version)
     // A rights lookup failure cannot hide legitimate personal funds or manufacture team eligibility.
     capabilities.load().then((value) => {
-      if (version === this.version && value.ready) feedback.update(this, { membershipLabel: value.membershipActive ? '会员服务已开通' : '购物账号' })
-    }).catch(() => { if (version === this.version) feedback.update(this, { membershipError: '会员身份暂未核对，请稍后重试；本人资金记录不受影响' }) })
+      if (current() && value.ready) feedback.update(this, { membershipLabel: value.membershipActive ? '会员服务已开通' : '购物账号' })
+    }).catch(() => { if (current()) feedback.update(this, { membershipError: '会员身份暂未核对，请稍后重试；本人资金记录不受影响' }) })
     try {
       const [summary, records] = await Promise.all([request({ url: '/shop/wallet/summary' }), request({ url: '/shop/wallet/flows' })])
-      if (version !== this.version) return
+      if (!current()) return
       if (!summary || !validMoney(summary.balance) || !Array.isArray(records)
         || records.some((row) => !row || ![row.amount, row.balanceBefore, row.balanceAfter].every(validMoney) || ![1, 2, 3, 4, 5].includes(Number(row.changeType)))) throw new Error('钱包信息不完整，请重试')
       feedback.update(this, { balance: format.money(summary.balance), flows: records.map((row) => ({
@@ -29,18 +31,19 @@ Page({
         amount: `${[1, 4].includes(Number(row.changeType)) ? '+' : '-'}${format.money(row.amount)}`,
         before: format.money(row.balanceBefore), after: format.money(row.balanceAfter)
       })) })
-    } catch (error) { if (version === this.version) feedback.update(this, { error: error.message || '钱包加载失败', balance: '--', flows: [] }) }
-    finally { if (version === this.version) feedback.update(this, { loading: false }) }
+    } catch (error) { if (current()) feedback.update(this, { error: error.message || '钱包加载失败', balance: '--', flows: [] }) }
+    finally { if (current()) feedback.update(this, { loading: false }) }
   },
   history() { wx.navigateTo({ url: '/pages/payout/index?history=1' }) },
   async loadBonus(version = this.version) {
+    const token = session.getToken(), current = () => version === this.version && token === session.getToken()
     feedback.update(this, { bonusLoading: true, bonusError: '', issuedBonus: '--', pendingBonus: '--' })
     try {
       const result = await request({ url: '/shop/wechat-mini-program/bonus-summary' })
       if (!result || !validMoney(result.issuedBonus) || !validMoney(result.pendingBonus)) throw new Error('奖金统计暂不可用，请稍后重试')
-      if (version === this.version) feedback.update(this, { issuedBonus: format.money(result.issuedBonus), pendingBonus: format.money(result.pendingBonus) })
-    } catch (_) { if (version === this.version) feedback.update(this, { bonusError: '奖金统计暂不可用，点击重试；余额记录不受影响' }) }
-    finally { if (version === this.version) feedback.update(this, { bonusLoading: false }) }
+      if (current()) feedback.update(this, { issuedBonus: format.money(result.issuedBonus), pendingBonus: format.money(result.pendingBonus) })
+    } catch (_) { if (current()) feedback.update(this, { bonusError: '奖金统计暂不可用，点击重试；余额记录不受影响' }) }
+    finally { if (current()) feedback.update(this, { bonusLoading: false }) }
   },
   retryBonus() { if (!this.data.bonusLoading) this.loadBonus() },
   bonusInfo(event) {

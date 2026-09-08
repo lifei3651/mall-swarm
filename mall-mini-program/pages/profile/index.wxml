@@ -49,9 +49,11 @@
       <button wx:if="{{loggedIn && capabilities.canInvite}}" class="service-tile invite-tile" open-type="{{shareReady ? 'share' : ''}}" disabled="{{!shareReady || loginVisible}}" aria-label="{{shareReady ? '分享商城邀请好友' : '正在核对邀请资格'}}" hover-class="row-pressed"><view class="tile-icon tone-orange"><image src="/assets/profile/user-round-plus-white.png" mode="aspectFit" /></view><text>邀请好友</text></button>
       <button wx:if="{{loggedIn && payoutCount}}" class="service-tile" bindtap="payout" aria-label="确认微信提现收款" hover-class="row-pressed"><view class="tile-icon tone-purple"><image src="/assets/profile/credit-card-white.png" mode="aspectFit" /><text class="tile-badge">{{payoutCount > 99 ? '99+' : payoutCount}}</text></view><text>收款确认</text></button>
     </view>
+    <button wx:if="{{loggedIn && canOpenStudio}}" class="share-retry" bindtap="studio">主播工作台</button>
     <button wx:if="{{loggedIn && shareError}}" class="share-retry" bindtap="retryShare">邀请服务暂不可用，点击重试</button>
   </view>
   <button class="legal-link" bindtap="legal">用户协议 · 隐私政策 · 商城资质</button>
+  <button class="legal-link" bindtap="checkUpdate">检查版本更新</button>
   <button wx:if="{{loggedIn}}" class="logout" bindtap="logout" hover-class="row-pressed">退出登录</button>
 </view>
 <login-sheet id="login-sheet" bindsuccess="authorized" bindclose="loginClosed" />

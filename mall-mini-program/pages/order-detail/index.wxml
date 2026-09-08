@@ -39,7 +39,8 @@
         <text>{{item.order.addressText}}</text>
       </view>
       <block wx:if="{{item.shipments.length}}">
-        <view class="shipment" wx:for="{{item.shipments}}" wx:key="id" wx:for-item="shipment">
+        <view class="shipment" wx:for="{{item.shipments}}" wx:key="key" wx:for-item="shipment">
+          <text class="package-label">{{shipment.packageLabel}}</text>
           <view><text>物流</text><text>{{shipment.deliveryCompany || '物流公司待更新'}}</text></view>
           <view><text>运单号</text><text>{{shipment.deliveryNo || '-'}}</text></view>
           <button wx:if="{{shipment.deliveryNo}}" class="secondary-button" data-number="{{shipment.deliveryNo}}" bindtap="copyDeliveryNo">复制运单号</button>
@@ -65,6 +66,9 @@
             <button class="secondary-button sale-action" data-id="{{sale.id}}" bindtap="editShipment">{{sale.status === 5 ? '修改退货物流' : '填写退货物流'}}</button>
           </view>
           <text wx:if="{{sale.exchangeDeliveryNo}}" class="next-action">换货物流：{{sale.exchangeDeliveryCompany}} {{sale.exchangeDeliveryNo}}</text>
+          <button wx:if="{{sale.exchangeDeliveryNo}}" class="secondary-button sale-action" data-number="{{sale.exchangeDeliveryNo}}" bindtap="copyDeliveryNo">复制换货运单号</button>
+          <view wx:for="{{sale.items}}" wx:key="id" wx:for-item="saleLine" class="sale-item"><text>{{saleLine.productName}} {{saleLine.skuName}}</text><text>× {{saleLine.refundQuantity}}</text></view>
+          <button wx:if="{{sale.canReapply}}" class="secondary-button sale-action" data-id="{{sale.orderId}}" bindtap="applyAfterSale">补充凭证重新申请</button>
           <button wx:if="{{sale.canReceiveExchange}}" class="primary-button sale-action" data-id="{{sale.id}}" loading="{{cancellingAfterSaleId === sale.id}}"
             disabled="{{cancellingAfterSaleId !== null}}" bindtap="receiveExchange">确认收到换货商品</button>
           <view wx:if="{{editingSaleId === sale.id}}" class="shipment-form">
@@ -82,9 +86,13 @@
         </view>
       </view>
       <view class="order-info">
+        <button class="order-info-toggle" data-id="{{item.order.id}}" bindtap="toggleOrderInfo" aria-expanded="{{!!expandedOrders[item.order.id]}}"><text>订单信息</text><text>{{expandedOrders[item.order.id] ? '收起' : '展开'}}</text></button>
+        <block wx:if="{{expandedOrders[item.order.id]}}">
         <view><text>下单时间</text><text>{{item.order.createTimeText || '-'}}</text></view>
         <view><text>付款时间</text><text>{{item.order.payTimeText || '-'}}</text></view>
+        <view><text>支付方式</text><text>{{item.order.payType === 'BALANCE' ? '余额支付' : item.order.payType === 'WECHAT' ? '微信支付' : item.order.payType === 'ALIPAY' ? '支付宝' : '商城支付'}}</text></view>
         <view wx:if="{{item.order.freightAmount !== null && item.order.freightAmount !== undefined}}"><text>运费（已含）</text><text>¥{{item.order.freightText}}</text></view>
+        </block>
         <view><text>{{item.order.amountLabel}}</text><text class="paid-amount">¥{{item.order.amountText}}</text></view>
       </view>
       <view class="detail-actions">

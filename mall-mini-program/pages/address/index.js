@@ -25,6 +25,13 @@ Page({
   },
   onShow() {
     theme.apply(this)
+    const token = session.getToken()
+    if (this.owner !== undefined && this.owner !== token) {
+      this.loadGeneration = (this.loadGeneration || 0) + 1
+      this.setData({ rows: [], saving: false, importing: false, pastedAddress: '', importMessage: '' })
+      this.resetForm(false); this.returning = false
+    }
+    this.owner = token
     if (this.data.saving || this.data.importing || this.returning) return
     if (auth.requireLogin(`/pages/address/index${this.selectMode ? '?select=1' : ''}`)) return this.load()
     feedback.update(this, { loading: false, rows: [] })
@@ -40,11 +47,11 @@ Page({
       feedback.update(this, { rows, showForm: this.data.showForm || !rows.length })
     }
     catch (error) {
-      if (generation !== this.loadGeneration) return
+      if (generation !== this.loadGeneration || this.disposed || token !== session.getToken()) return
       feedback.update(this, { loadError: error.message || '地址加载失败' })
       feedback.toast({ title: error.message || '地址加载失败', icon: 'none' })
     }
-    finally { if (generation === this.loadGeneration) feedback.update(this, { loading: false }) }
+    finally { if (generation === this.loadGeneration && !this.disposed && token === session.getToken()) feedback.update(this, { loading: false }) }
   },
   onUnload() { this.disposed = true; this.loadGeneration = (this.loadGeneration || 0) + 1 },
   async importWechatAddress() {
@@ -62,7 +69,7 @@ Page({
       if (this.disposed || token !== session.getToken() || snapshot !== JSON.stringify(this.data.form)) return
       feedback.update(this, { form, showForm: true, importMessage: '已回填微信地址，请核对后保存。尚未提交或修改默认地址。' })
     } catch (error) { if (!this.disposed && token === session.getToken()) feedback.update(this, { importMessage: error.message }) }
-    finally { if (!this.disposed) feedback.update(this, { importing: false }) }
+    finally { if (!this.disposed && token === session.getToken()) feedback.update(this, { importing: false }) }
   },
   input(event) {
     const field = event.currentTarget.dataset.field
@@ -139,8 +146,8 @@ Page({
       if (this.disposed || token !== session.getToken()) return
       if (this.selectMode) this.returnSelectedAddress(saved)
       else { this.resetForm(false); await this.load() }
-    } catch (error) { feedback.toast({ title: error.message || '保存失败', icon: 'none' }) }
-    finally { feedback.update(this, { saving: false }) }
+    } catch (error) { if (!this.disposed && token === session.getToken()) feedback.toast({ title: error.message || '保存失败', icon: 'none' }) }
+    finally { if (!this.disposed && (token === session.getToken() || !session.getToken())) feedback.update(this, { saving: false }) }
   },
   returnSelectedAddress(address) {
     const id = address && format.identifier(address.id)
@@ -184,7 +191,7 @@ Page({
       if (this.disposed || token !== session.getToken()) return
       await this.load()
     } catch (error) { if (!this.disposed && token === session.getToken()) feedback.toast({ title: error.message || '设置默认地址失败', icon: 'none' }) }
-    finally { feedback.update(this, { saving: false }) }
+    finally { if (!this.disposed && (token === session.getToken() || !session.getToken())) feedback.update(this, { saving: false }) }
   },
   async remove(event) {
     if (this.data.saving || this.data.loading || this.returning) return
@@ -206,8 +213,8 @@ Page({
           if (this.disposed || token !== session.getToken()) return
           if (String(this.data.form.id) === String(id)) this.resetForm(false)
           await this.load()
-        } catch (error) { feedback.toast({ title: error.message || '删除失败', icon: 'none' }) }
-        finally { feedback.update(this, { saving: false }) }
+        } catch (error) { if (!this.disposed && token === session.getToken()) feedback.toast({ title: error.message || '删除失败', icon: 'none' }) }
+        finally { if (!this.disposed && (token === session.getToken() || !session.getToken())) feedback.update(this, { saving: false }) }
       }
     })
   }

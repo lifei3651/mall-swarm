@@ -1,0 +1,51 @@
+{
+  "at": "2026-09-08T00:29:17.435Z",
+  "kind": "Native UI taps with local fixtures; no real authorization/SMS/payments or saved addresses",
+  "records": [
+    {
+      "name": "search-carried-to-category",
+      "screenshot": "search-carried-to-category.png",
+      "passed": true
+    },
+    {
+      "name": "price-sort-toggle",
+      "screenshot": "price-sort-toggle.png",
+      "passed": true
+    },
+    {
+      "name": "limit-rejection-cart-unchanged",
+      "screenshot": "limit-rejection-cart-unchanged.png",
+      "passed": true
+    },
+    {
+      "name": "order-information-expanded",
+      "screenshot": "order-information-expanded.png",
+      "passed": true
+    },
+    {
+      "name": "local-tracking-loaded",
+      "screenshot": "local-tracking-loaded.png",
+      "passed": true
+    },
+    {
+      "name": "address-parsed-not-saved",
+      "screenshot": "address-parsed-not-saved.png",
+      "passed": true
+    },
+    {
+      "name": "guest-login-sheet-unchecked",
+      "screenshot": "guest-login-sheet-unchecked.png",
+      "passed": true
+    },
+    {
+      "name": "secondary-account-login",
+      "screenshot": "secondary-account-login.png",
+      "passed": true
+    },
+    {
+      "name": "cancel-account-login-back-to-profile",
+      "screenshot": "cancel-account-login-back-to-profile.png",
+      "passed": true
+    }
+  ]
+}

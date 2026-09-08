@@ -220,6 +220,30 @@ class PayloadEncryptionServiceImplTest {
         NestedBody(Object nested) { this.nested = nested; }
     }
 
+    @Test
+    void nativeAccountWrapperDecryptsNestedCredentialsBeforeValidation() throws Exception {
+        var challenge = service.issueChallenge();
+        var key = aesKey();
+        when(valueOperations.setIfAbsent(anyString(), eq("1"), eq(PayloadEncryptionServiceImpl.CHALLENGE_TTL))).thenReturn(true);
+        var credentials = new com.macro.mall.distribution.dto.ShopRegisterDTO();
+        credentials.setPhone("13800000000"); credentials.setUsername("FixtureAccount");
+        credentials.setCaptchaId("fixture"); credentials.setInviteCode("ABCD1234");
+        credentials.setPassword(encryptValue("FixtureOnlyPassword", "password", challenge.getChallengeId(), key));
+        credentials.setSmsCode(encryptValue("000000", "smsCode", challenge.getChallengeId(), key));
+        credentials.setCaptchaCode(encryptValue("ABCD", "captchaCode", challenge.getChallengeId(), key));
+        var body = new com.macro.mall.distribution.controller.MiniProgramAccountAuthController.Registration(credentials, true, "fixture-version");
+        assertTrue(service.hasSensitiveValue(body));
+        service.decryptSensitiveValues(challenge.getChallengeId(), encryptAesKey(key, challenge.getPublicKey()), body);
+        assertEquals("FixtureOnlyPassword", body.credentials().getPassword());
+        assertEquals("000000", body.credentials().getSmsCode());
+        assertEquals("ABCD1234", body.credentials().getInviteCode());
+        try (var factory = jakarta.validation.Validation.buildDefaultValidatorFactory()) {
+            assertTrue(factory.getValidator().validate(body).isEmpty());
+            credentials.setUsername("非法账号");
+            assertFalse(factory.getValidator().validate(body).isEmpty());
+        }
+    }
+
     private SecretKey aesKey() throws Exception {
         KeyGenerator generator = KeyGenerator.getInstance("AES");
         generator.init(256);
