@@ -39,6 +39,11 @@ fs.writeFileSync(path.join(stage, 'RELEASE_MANIFEST.json'), JSON.stringify(manif
 const files = fs.readdirSync(stage).sort()
 fs.writeFileSync(path.join(stage, 'SHA256SUMS'), files.map(name => `${sha(path.join(stage, name))}  ${name}`).join('\n') + '\n', { mode: 0o600 })
 const archive = stage + '.tar.gz'
-cp.execFileSync('tar', ['-czf', archive, '-C', stage, ...fs.readdirSync(stage).sort()])
+const expectedFiles = fs.readdirSync(stage).sort()
+cp.execFileSync('tar', ['--format=ustar', '--no-xattrs', '--no-mac-metadata', '-czf', archive, '-C', stage, ...expectedFiles], {
+  env: { ...process.env, COPYFILE_DISABLE: '1' },
+})
+const archiveFiles = cp.execFileSync('tar', ['-tzf', archive], { encoding: 'utf8' }).trim().split('\n').sort()
+if (JSON.stringify(archiveFiles) !== JSON.stringify(expectedFiles)) throw new Error('Unexpected archive entry; do not upload')
 fs.chmodSync(archive, 0o600)
 console.log(JSON.stringify({ stage, archive, archiveSha256: sha(archive), ...manifest }, null, 2))
