@@ -36,7 +36,7 @@ Page({
     if (auth.requireLogin(`/pages/address/index${this.selectMode ? '?select=1' : ''}`)) return this.load()
     feedback.update(this, { loading: false, rows: [] })
   },
-  async load() {
+  async load(options = {}) {
     const generation = this.loadGeneration = (this.loadGeneration || 0) + 1
     const token = session.getToken()
     feedback.update(this, { loading: true, loadError: '' })
@@ -48,27 +48,35 @@ Page({
     }
     catch (error) {
       if (generation !== this.loadGeneration || this.disposed || token !== session.getToken()) return
-      feedback.update(this, { loadError: error.message || '地址加载失败' })
-      feedback.toast({ title: error.message || '地址加载失败', icon: 'none' })
+      const message = options.savedImport ? '微信地址已保存，但列表刷新失败。请重新加载地址列表，不要重复导入。' : error.message || '地址加载失败'
+      feedback.update(this, { loadError: message })
+      feedback.toast({ title: message, icon: 'none' })
     }
     finally { if (generation === this.loadGeneration && !this.disposed && token === session.getToken()) feedback.update(this, { loading: false }) }
   },
   onUnload() { this.disposed = true; this.loadGeneration = (this.loadGeneration || 0) + 1 },
   async importWechatAddress() {
-    if (this.data.saving || this.data.loading || this.data.importing || this.returning) return
-    if (!auth.requireLogin('/pages/address/index')) return
+    if (this.data.saving || this.data.loading || this.data.loadError || this.data.importing || this.returning) return
+    if (!auth.requireLogin(`/pages/address/index${this.selectMode ? '?select=1' : ''}`)) return
     const token = session.getToken()
     const snapshot = JSON.stringify(this.data.form)
     feedback.update(this, { importing: true, importMessage: '' })
     try {
       if (this.data.showForm && (this.data.form.receiverName || this.data.form.detailAddress)) {
-        const confirmed = await new Promise((resolve) => wx.showModal({ title: '导入为新地址', content: '当前未保存的编辑将被替换，已保存的地址和默认设置不会改变。是否继续？', success: (r) => resolve(r.confirm), fail: () => resolve(false) }))
+        const confirmed = await new Promise((resolve) => wx.showModal({ title: '导入为新地址', content: '选择微信地址后会自动保存为新地址，当前未保存的编辑将被替换。已保存的地址和默认设置不会改变。是否继续？', success: (r) => resolve(r.confirm), fail: () => resolve(false) }))
         if (!confirmed) return
       }
+      if (this.disposed || token !== session.getToken()) return
       const form = await wechatAddress.choose()
       if (this.disposed || token !== session.getToken() || snapshot !== JSON.stringify(this.data.form)) return
-      feedback.update(this, { form, showForm: true, importMessage: '已回填微信地址，请核对后保存。尚未提交或修改默认地址。' })
-    } catch (error) { if (!this.disposed && token === session.getToken()) feedback.update(this, { importMessage: error.message }) }
+      this.setData({ form, showForm: false, pastedAddress: '' })
+      await this.save({ fromWechat: true })
+    } catch (error) {
+      if (!this.disposed && token === session.getToken()) {
+        this.setData({ importMessage: error.message })
+        if (!/已取消导入/.test(error.message || '')) await feedback.notice(error.message || '微信地址导入失败，请重试')
+      }
+    }
     finally { if (!this.disposed && token === session.getToken()) feedback.update(this, { importing: false }) }
   },
   input(event) {
@@ -87,19 +95,20 @@ Page({
     await feedback.notice('已识别并回填，请核对姓名、电话、省市区和详细地址后保存。未识别完整的字段请手动补充。', '请核对收货信息')
   },
   region(event) {
+    if (this.data.saving || this.data.importing) return
     const region = event.detail.value || []
     feedback.update(this, { 'form.region': region, 'form.regionText': region.join(' ') })
   },
-  defaultChange(event) { feedback.update(this, { 'form.isDefault': Boolean(event.detail.value) }) },
+  defaultChange(event) { if (!this.data.saving && !this.data.importing) feedback.update(this, { 'form.isDefault': Boolean(event.detail.value) }) },
   startAdd() {
-    if (this.data.saving || this.data.loading) return
+    if (this.data.saving || this.data.loading || this.data.importing) return
     feedback.update(this, {
       showForm: true,
       form: { id: null, receiverName: '', receiverPhone: '', region: [], regionText: '', detailAddress: '', isDefault: !this.data.rows.length }
     })
   },
   edit(event) {
-    if (this.data.saving) return
+    if (this.data.saving || this.data.importing) return
     const id = format.identifier(event.currentTarget.dataset.id)
     const row = id && this.data.rows.find((item) => format.identifier(item.id) === id)
     if (!row) return
@@ -115,7 +124,7 @@ Page({
     } })
   },
   cancelEdit() {
-    if (this.data.saving || !this.data.rows.length) return
+    if (this.data.saving || this.data.importing || !this.data.rows.length) return
     this.resetForm(false)
   },
   resetForm(showForm = false) {
@@ -124,14 +133,19 @@ Page({
       form: { id: null, receiverName: '', receiverPhone: '', region: [], regionText: '', detailAddress: '', isDefault: false }
     })
   },
-  async save() {
-    if (this.data.saving || this.data.loading || this.data.loadError || this.returning) return
+  async save(options = {}) {
+    const fromWechat = options.fromWechat === true
+    if (this.data.saving || this.data.loading || this.data.loadError || this.returning || (this.data.importing && !fromWechat)) return
     const form = this.data.form
-    if (form.id !== null && form.id !== undefined && !format.identifier(form.id)) { feedback.toast({ title: '地址信息无效，请重新选择', icon: 'none' }); return }
-    if (!form.receiverName.trim()) { feedback.toast({ title: '请输入收货人', icon: 'none' }); return }
-    if (!/^1[3-9]\d{9}$/.test(form.receiverPhone.trim())) { feedback.toast({ title: '请输入正确手机号', icon: 'none' }); return }
-    if (!form.region || form.region.length !== 3) { feedback.toast({ title: '请选择省市区', icon: 'none' }); return }
-    if (!form.detailAddress.trim()) { feedback.toast({ title: '请输入详细地址', icon: 'none' }); return }
+    const invalid = message => {
+      if (fromWechat) this.setData({ showForm: true })
+      return feedback.toast({ title: fromWechat ? `微信地址未保存：${message}，请补充后保存` : message, icon: 'none' })
+    }
+    if (form.id !== null && form.id !== undefined && !format.identifier(form.id)) { await invalid('地址信息无效，请重新选择'); return }
+    if (!form.receiverName.trim()) { await invalid('请输入收货人'); return }
+    if (!/^1[3-9]\d{9}$/.test(form.receiverPhone.trim())) { await invalid('请输入正确手机号'); return }
+    if (!form.region || form.region.length !== 3 || form.region.some(value => !String(value || '').trim())) { await invalid('请选择完整省市区'); return }
+    if (!form.detailAddress.trim()) { await invalid('请输入详细地址'); return }
     const token = session.getToken()
     feedback.update(this, { saving: true })
     try {
@@ -142,11 +156,27 @@ Page({
         detailAddress: form.detailAddress.trim(), isDefault: form.isDefault || !this.data.rows.length ? 1 : 0
       } })
       if (this.disposed || token !== session.getToken()) return
+      if (fromWechat) {
+        if (!saved || !format.identifier(saved.id)) throw new Error('地址保存结果未确认，请先返回地址列表核对，勿重复导入')
+        if (this.selectMode) this.returnSelectedAddress(saved)
+        else {
+          this.resetForm(false)
+          await this.load({ savedImport: true })
+          if (this.disposed || token !== session.getToken() || this.data.loadError) return
+        }
+        await feedback.toast({ title: '微信地址已导入', icon: 'success' })
+        return
+      }
       await feedback.toast({ title: form.id ? '地址已更新' : '地址已保存', icon: 'success' })
       if (this.disposed || token !== session.getToken()) return
       if (this.selectMode) this.returnSelectedAddress(saved)
       else { this.resetForm(false); await this.load() }
-    } catch (error) { if (!this.disposed && token === session.getToken()) feedback.toast({ title: error.message || '保存失败', icon: 'none' }) }
+    } catch (error) {
+      if (!this.disposed && token === session.getToken()) {
+        if (fromWechat) this.setData({ showForm: true })
+        await feedback.toast({ title: error.message || (fromWechat ? '微信地址保存失败，请稍后重试' : '保存失败'), icon: 'none' })
+      }
+    }
     finally { if (!this.disposed && (token === session.getToken() || !session.getToken())) feedback.update(this, { saving: false }) }
   },
   returnSelectedAddress(address) {
@@ -169,14 +199,14 @@ Page({
       fail: () => { this.returning = false; feedback.toast({ title: '请返回结算页重新选择地址', icon: 'none' }) } })
   },
   async choose(event) {
-    if (this.data.saving || this.data.loading || this.returning || this.data.loadError) return
+    if (this.data.saving || this.data.loading || this.data.importing || this.returning || this.data.loadError) return
     const id = format.identifier(event.currentTarget.dataset.id)
     const row = id && this.data.rows.find((item) => format.identifier(item.id) === id)
     if (!row) return
     if (this.selectMode) { this.returnSelectedAddress(row); return }
   },
   async makeDefault(event) {
-    if (this.data.saving || this.data.loading || this.returning || this.data.loadError) return
+    if (this.data.saving || this.data.loading || this.data.importing || this.returning || this.data.loadError) return
     const id = format.identifier(event.currentTarget.dataset.id)
     const row = id && this.data.rows.find(item => format.identifier(item.id) === id)
     if (!row || Number(row.isDefault) === 1) return
@@ -194,7 +224,7 @@ Page({
     finally { if (!this.disposed && (token === session.getToken() || !session.getToken())) feedback.update(this, { saving: false }) }
   },
   async remove(event) {
-    if (this.data.saving || this.data.loading || this.returning) return
+    if (this.data.saving || this.data.loading || this.data.importing || this.returning) return
     const candidateId = format.identifier(event.currentTarget.dataset.id)
     const row = candidateId && this.data.rows.find((item) => format.identifier(item.id) === candidateId)
     if (!row) return
@@ -206,7 +236,7 @@ Page({
       confirmText: '删除',
       confirmColor: this.data.themeColor,
       success: async ({ confirm }) => {
-        if (!confirm || this.data.saving || this.disposed || token !== session.getToken()) return
+        if (!confirm || this.data.saving || this.data.importing || this.disposed || token !== session.getToken()) return
         feedback.update(this, { saving: true })
         try {
           await request({ url: `/shop/addresses/${id}`, method: 'DELETE' })

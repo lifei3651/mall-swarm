@@ -205,15 +205,60 @@ test('拒绝隐私授权不调用微信地址接口，更不提交商城接口',
   assert.equal(page.data.form.receiverName, '')
 })
 
-test('微信地址仅回填新表单，不写服务器、不覆盖现有/默认地址', async () => {
-  const e = environment(), page = e.page('address')
+test('微信地址选择后自动新增并返回列表，不覆盖现有/默认地址', async () => {
+  const saved={id:'3',receiverName:'测试收货人',receiverPhone:'13800000000',province:'湖南省',city:'长沙市',district:'岳麓区',detailAddress:'测试街1号',isDefault:0}
+  const e = environment({respond:({method})=>method==='POST'?saved:[{id:'2',isDefault:1},saved]}), page = e.page('address')
   page.setData({ loading: false, rows: [{ id: '2', isDefault: 1 }] })
   await page.importWechatAddress()
-  assert.equal(page.data.form.receiverName, '测试收货人')
-  assert.equal(page.data.form.id, null); assert.equal(page.data.form.isDefault, false)
-  assert.equal(page.data.form.detailAddress, '测试街1号')
-  assert.equal(page.data.rows[0].isDefault, 1); assert.equal(e.calls.length, 0)
-  assert.match(page.data.importMessage, /核对后保存/)
+  assert.equal(page.data.showForm,false); assert.equal(page.data.importing,false); assert.equal(page.data.saving,false)
+  assert.equal(page.data.rows[0].isDefault, 1); assert.equal(page.data.rows[1].id,'3')
+  const writes=e.calls.filter(x=>x.method==='POST'); assert.equal(writes.length,1)
+  assert.deepEqual(writes[0].data,{receiverName:'测试收货人',receiverPhone:'13800000000',province:'湖南省',city:'长沙市',district:'岳麓区',detailAddress:'测试街1号',isDefault:0})
+})
+
+test('首次微信导入沿用首地址默认规则，结算模式直接使用服务端地址ID', async () => {
+  const saved={id:'4'}, e=environment({respond:()=>saved}),page=e.page('address'); let selected
+  page.setData({loading:false}); page.selectMode=true; page.returnSelectedAddress=address=>{selected=address}
+  await page.importWechatAddress()
+  assert.equal(e.calls.length,1); assert.equal(e.calls[0].data.isDefault,1); assert.equal(selected.id,'4')
+  assert.equal(page.data.showForm,false)
+})
+
+test('微信省市区或手机号不完整不自动提交，弹窗并保留待补充地址', async () => {
+  for(const partial of [{countyName:''},{telNumber:'+85212345678'}]) {
+    const modals=[],e=environment({wx:{chooseAddress:({success})=>success({userName:'测试',telNumber:'13800000000',provinceName:'湖南省',cityName:'长沙市',countyName:'岳麓区',detailInfo:'测试街',...partial}),showToast:opts=>modals.push(opts)}}),page=e.page('address')
+    page.setData({loading:false}); await page.importWechatAddress()
+    assert.equal(e.calls.length,0); assert.equal(page.data.showForm,true); assert.equal(page.data.form.receiverName,'测试')
+    assert.ok(modals.some(x=>x.title.includes('微信地址未保存')))
+  }
+})
+
+test('微信导入保存失败或缺失服务端ID不报告成功，也不自动重试', async () => {
+  for(const respond of [()=>{throw new Error('保存失败测试')},()=>({})]) {
+    const modals=[],e=environment({respond,wx:{showToast:opts=>modals.push(opts)}}),page=e.page('address')
+    page.setData({loading:false}); await page.importWechatAddress()
+    assert.equal(e.calls.length,1); assert.equal(page.data.showForm,true); assert.equal(page.data.form.receiverName,'测试收货人')
+    assert.equal(page.data.importing,false); assert.equal(page.data.saving,false)
+    assert.ok(modals.length); assert.ok(!modals.some(x=>x.title==='微信地址已导入'))
+  }
+})
+
+test('微信地址保存中重复点击和编辑均被阻止，换账号晚响应不更新列表', async () => {
+  let resolve; const waiting=new Promise(done=>{resolve=done})
+  const e=environment({respond:()=>waiting}),page=e.page('address');page.setData({loading:false})
+  const pending=page.importWechatAddress();await new Promise(done=>setImmediate(done))
+  await page.importWechatAddress();await page.save();page.startAdd();page.cancelEdit()
+  assert.equal(e.calls.length,1);assert.equal(page.data.form.receiverName,'测试收货人')
+  e.storage.set('mall_mini_access_token','new-owner');resolve({id:'7'});await pending
+  assert.equal(page.data.rows.length,0);assert.equal(e.calls.length,1)
+})
+
+test('微信地址已保存但列表刷新失败时明确提示核对，不重复提交', async () => {
+  const notices=[],e=environment({respond:({method})=>{if(method==='POST')return{id:'9'};throw new Error('网络不可用')},wx:{showToast:options=>notices.push(options.title)}}),page=e.page('address')
+  page.setData({loading:false});await page.importWechatAddress()
+  assert.equal(e.calls.filter(x=>x.method==='POST').length,1)
+  assert.match(page.data.loadError,/已保存.*列表刷新失败/);assert.equal(page.data.showForm,false)
+  assert.ok(notices.some(x=>x.includes('不要重复导入')));assert.ok(!notices.includes('微信地址已导入'))
 })
 
 test('取消导入保留已有未保存表单；跨账号晚到导入被丢弃', async () => {
