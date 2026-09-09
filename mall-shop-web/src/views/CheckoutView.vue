@@ -82,8 +82,7 @@
             <textarea v-model="form.receiverDetailAddress" class="textarea" maxlength="200" placeholder="街道、小区、楼栋、门牌号" @input="form.addressId = null" style="min-height:58px"></textarea>
           </div>
           <div class="form-item full checkout-remark-item">
-            <label>订单备注</label>
-            <input v-model="form.remark" class="field" maxlength="500" placeholder="选填，给商家留言" />
+            <button ref="remarkTrigger" type="button" class="remark-row" :disabled="submitting" @click="openRemark"><span class="remark-label">订单备注</span><span class="remark-value">{{ form.remark || '无备注' }}</span><span class="remark-arrow" aria-hidden="true">›</span></button>
           </div>
         </div>
 
@@ -162,6 +161,15 @@
         </button>
         <div v-if="error" class="checkout-toast" role="alert" aria-live="assertive">{{ error }}</div>
       </aside>
+    </div>
+
+    <div v-if="remarkEditorVisible" class="remark-overlay" @click.self="cancelRemark" @keydown="remarkKeydown">
+      <section class="remark-dialog" role="dialog" aria-modal="true" aria-labelledby="remark-dialog-title">
+        <h3 id="remark-dialog-title">订单备注</h3>
+        <textarea ref="remarkInputRef" v-model="remarkDraft" maxlength="500" placeholder="填写给商家的说明，选填" aria-label="订单备注，选填" />
+        <p class="remark-count">{{ remarkDraft.length }}/500</p>
+        <div class="remark-actions"><button type="button" @click="cancelRemark">取消</button><button type="button" class="primary" @click="saveRemark">确定</button></div>
+      </section>
     </div>
 
     <!-- 地址切换面板：结算页只保留紧凑摘要，新增/管理进入地址页 -->
@@ -445,6 +453,35 @@ const form = ref({
   payType: 'BALANCE',
   remark: '',
 })
+
+const remarkEditorVisible = ref(false), remarkDraft = ref('')
+const remarkTrigger = ref(null), remarkInputRef = ref(null)
+let remarkOwner = ''
+const openRemark = async () => {
+  if (submitting.value || pendingCheckoutId.value) return
+  remarkOwner = localStorage.getItem('shop_member') || ''
+  remarkDraft.value = form.value.remark || ''
+  remarkEditorVisible.value = true
+  await nextTick(); remarkInputRef.value?.focus()
+}
+const cancelRemark = () => {
+  remarkEditorVisible.value = false; remarkDraft.value = ''
+  nextTick(() => remarkTrigger.value?.focus())
+}
+const saveRemark = () => {
+  if (!remarkEditorVisible.value || submitting.value || pendingCheckoutId.value) return
+  if (remarkOwner !== (localStorage.getItem('shop_member') || '')) { cancelRemark(); return }
+  form.value.remark = remarkDraft.value.slice(0, 500).trim()
+  cancelRemark()
+}
+const remarkKeydown = event => {
+  if (event.key === 'Escape') { event.preventDefault(); cancelRemark(); return }
+  if (event.key !== 'Tab') return
+  const fields = event.currentTarget.querySelectorAll('textarea, button')
+  const first = fields[0], last = fields[fields.length - 1]
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+}
 
 const openAddressPage = (mode) => {
   sessionStorage.setItem('checkout_draft', JSON.stringify({
@@ -797,6 +834,7 @@ const continueAfterPasswordSaved = async () => {
 }
 
 const submit = async () => {
+  if (remarkEditorVisible.value) return
   if (submitting.value || payPasswordSubmitting.value) return
   clearCheckoutError()
   if (form.value.payType === 'BALANCE' && paymentPasswordLocked.value) {
@@ -1029,6 +1067,18 @@ onBeforeUnmount(() => {
 .checkout-address-empty > div { display:grid; gap:4px; }
 .checkout-address-empty span { color:var(--muted); font-size:12px; }
 .checkout-remark-item { margin-top:2px; }
+.remark-row { display:flex; align-items:center; width:100%; min-height:48px; padding:12px 0; border:0; background:transparent; text-align:left; cursor:pointer; }
+.remark-label { flex:none; font-size:14px; color:#20242b; }
+.remark-value { flex:1; min-width:0; margin-left:16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:right; font-size:13px; color:#7c8490; }
+.remark-arrow { flex:none; margin-left:10px; font-size:24px; color:#7c8490; }
+.remark-overlay { position:fixed; inset:0; z-index:100; display:flex; align-items:center; justify-content:center; padding:20px; background:#0006; }
+.remark-dialog { box-sizing:border-box; width:100%; max-width:360px; max-height:85dvh; overflow:auto; padding:20px; border-radius:16px; background:#fff; }
+.remark-dialog h3 { margin:0 0 16px; color:#20242b; font-size:17px; }
+.remark-dialog textarea { box-sizing:border-box; display:block; width:100%; height:112px; padding:12px; resize:none; border:0; border-radius:8px; background:#f5f6f7; color:#20242b; font:inherit; line-height:1.6; }
+.remark-count { text-align:right; margin:8px 0 16px; font-size:12px; color:#7c8490; }
+.remark-actions { display:flex; gap:12px; }
+.remark-actions button { flex:1; min-width:0; min-height:44px; border:0; border-radius:8px; background:#f5f6f7; font-size:14px; cursor:pointer; }
+.remark-actions .primary { background:var(--brand-primary,#e7193f); color:#fff; }
 .checkout-form-grid { gap: 10px 12px; }
 .checkout-form-grid :deep(.china-region-select) { gap: 8px; }
 .payment-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }

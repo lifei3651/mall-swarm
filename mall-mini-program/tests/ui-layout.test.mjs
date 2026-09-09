@@ -21,7 +21,7 @@ test('地址字段有常驻标签，长地址和订单备注用多行输入且�
     assert.ok(address.includes(`<text class="field-label">${label}</text>`))
   }
   assert.match(address, /<textarea[^>]*data-field="detailAddress"[^>]*maxlength="200"[^>]*bindinput="input"/)
-  assert.match(source('pages/checkout/index.wxml'), /<textarea[^>]*maxlength="500"[^>]*value="\{\{remark\}\}"[^>]*bindinput="remarkInput"/)
+  assert.match(source('pages/checkout/index.wxml'), /<textarea[^>]*maxlength="500"[^>]*value="\{\{remarkDraft\}\}"[^>]*bindinput="remarkInput"/)
 })
 
 test('关键详情和表单页为安全区留白，订单多按钮允许换行', () => {

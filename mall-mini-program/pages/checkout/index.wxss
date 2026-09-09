@@ -30,6 +30,17 @@
 .remark-card > view { display: flex; justify-content: space-between; align-items: center; }
 .remark-card > view text:last-child { margin-top: 0; font-size: 24rpx; }
 .remark-input { width: 100%; min-height: 120rpx; margin-top: 18rpx; padding: 20rpx; border-radius: 14rpx; background: var(--canvas); font-size: 26rpx; line-height: 40rpx; }
+.remark-row { display: flex; align-items: center; width: 100%; min-height: 96rpx; margin: 20rpx 0 0; padding: 24rpx 28rpx; border: 1rpx solid var(--line); border-radius: 24rpx; background: var(--paper); line-height: 40rpx; text-align: left; }
+.remark-label { flex: none; font-size: 28rpx; color: var(--ink); }
+.remark-value { flex: 1; min-width: 0; margin-left: 28rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; color: var(--muted); font-size: 26rpx; }
+.remark-arrow { flex: none; margin-left: 16rpx; font-size: 38rpx; color: var(--muted); }
+.remark-overlay { position: fixed; inset: 0; z-index: 100; display: flex; justify-content: center; align-items: center; padding: 32rpx; background: rgba(0,0,0,.4); }
+.remark-dialog { width: 100%; max-width: 650rpx; padding: 32rpx; background: var(--paper); border-radius: 24rpx; }
+.remark-dialog-title { font-size: 32rpx; font-weight: 600; color: var(--ink); }
+.remark-dialog .remark-input { height: 180rpx; min-height: 180rpx; color: var(--ink); }
+.remark-count { display: block; margin: 12rpx 0 24rpx; text-align: right; color: var(--muted); font-size: 24rpx; }
+.remark-actions { display: flex; gap: 20rpx; }
+.remark-actions button { flex: 1; width: 0; margin: 0; }
 .pay-card { justify-content: space-between; flex-wrap: wrap; gap: 20rpx; }
 .pay-choice { display: flex; align-items: center; gap: 12rpx; color: #303844; font-weight: 650; }
 .sms-card { margin-top: 20rpx; padding: 28rpx; border: 1rpx solid var(--line); border-radius: 24rpx; background: var(--paper); box-shadow: var(--shadow); }

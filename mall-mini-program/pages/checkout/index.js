@@ -35,7 +35,7 @@ Page({
     smsCode: '',
     smsCooldown: 0,
     smsSending: false,
-    remark: ''
+    remark: '', remarkEditorVisible: false, remarkDraft: ''
   },
   onLoad(options = {}) {
     theme.apply(this)
@@ -214,7 +214,7 @@ Page({
   },
   onHide() {
     this.inactive = true
-    this.setData({ smsCode: '' })
+    this.setData({ smsCode: '', remarkEditorVisible: false, remarkDraft: '' })
     this.loadGeneration = (this.loadGeneration || 0) + 1
     this.invalidateQuote()
   },
@@ -230,13 +230,26 @@ Page({
       items: this.data.rows.map((row) => ({ productId: row.productId, skuId: row.skuId || undefined, quantity: row.quantity }))
     }
   },
-  remarkInput(event) { feedback.update(this, { remark: String(event.detail.value || '').slice(0, 500) }) },
+  openRemark() {
+    if (this.inactive || this.data.submitting || this.createdPaymentId) return
+    this.remarkOwner = session.getToken()
+    this.setData({ remarkDraft: this.data.remark, remarkEditorVisible: true })
+  },
+  remarkInput(event) { if (this.data.remarkEditorVisible && !this.data.submitting) this.setData({ remarkDraft: String(event.detail.value || '').slice(0, 500) }) },
+  cancelRemark() { this.setData({ remarkEditorVisible: false, remarkDraft: '' }) },
+  saveRemark() {
+    if (!this.data.remarkEditorVisible || this.inactive || this.data.submitting || this.createdPaymentId) return
+    if (this.remarkOwner !== session.getToken()) { this.cancelRemark(); return }
+    this.setData({ remark: this.data.remarkDraft.trim(), remarkEditorVisible: false, remarkDraft: '' })
+  },
+  stopRemarkTap() {},
   selectPayType(event) {
     const payType = event.currentTarget.dataset.type
     if (this.data.submitting || this.createdPaymentId || this.data.loading || !['WECHAT','BALANCE'].includes(payType) || (payType === 'WECHAT' ? !this.data.wechatPayEnabled : !this.data.balanceAvailable)) return
     this.setData({ payType }); this.invalidateQuote(); if (this.data.address) return this.quoteFreight(this.data.address)
   },
   async submit() {
+    if (this.data.remarkEditorVisible) return
     if (this.data.submitting || this.createdPaymentId) return
     if (!auth.requireLogin(this.route || '/pages/checkout/index')) return
     if (!this.data.address) { feedback.toast({ title: '请先添加收货地址', icon: 'none' }); return }
