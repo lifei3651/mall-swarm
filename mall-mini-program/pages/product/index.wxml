@@ -10,7 +10,6 @@
     </view>
     <view class="detail-card">
       <view class="price-row"><view class="detail-price"><text>¥</text>{{priceText}}</view><text wx:if="{{marketPrice > (selectedSku.salePrice == null ? product.salePrice : selectedSku.salePrice)}}" class="market-price">¥{{marketPriceText}}</text><text class="sales-count">已售 {{product.salesCount || 0}}+</text></view>
-      <text class="seller-badge">{{product.merchantName || '平台自营'}}</text>
       <view class="detail-title">{{product.productName}}</view>
       <button wx:if="{{shareReady}}" class="secondary-button" open-type="share">分享商品</button>
       <button wx:elif="{{shareError}}" class="secondary-button" bindtap="retryShare">{{shareError}}</button>

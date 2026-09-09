@@ -1089,7 +1089,7 @@ test('cart deletion requires confirmation and checkout navigates after limit val
   assert.match(source, /confirmPendingAction/)
 })
 
-test('merchant products show their seller and mixed merchants use one parent checkout', async () => {
+test('cart retains sellers and mixed checkout while product detail omits seller badges', async () => {
   const store = await readFile(new URL('../src/store/cart.js', import.meta.url), 'utf8')
   const cart = await readView('CartView.vue')
   const checkout = await readView('CheckoutView.vue')
@@ -1099,7 +1099,7 @@ test('merchant products show their seller and mixed merchants use one parent che
   assert.match(cart, /item\.merchantName \|\| '平台自营'/)
   assert.match(checkout, /一次支付/)
   assert.match(checkout, /res\.data\.checkoutId \|\| res\.data\.order\.id/)
-  assert.match(detail, /product\.merchantName \|\| '平台自营'/)
+  assert.doesNotMatch(detail, /平台自营|seller-badge|product\.merchantName/)
 })
 
 test('category view includes search bar for keyword filtering', async () => {

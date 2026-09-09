@@ -61,7 +61,6 @@
 .detail-price { font-size: 64rpx; }
 .market-price { color: var(--muted); text-decoration: line-through; font-size: 24rpx; }
 .sales-count { margin-left: auto; color: var(--muted); font-size: 24rpx; }
-.seller-badge { display: inline-block; margin-top: 24rpx; padding: 4rpx 16rpx; color: #8a5a20; background: #fff7e8; border-radius: 999rpx; font-size: 22rpx; }
 .delivery-panel > view { display: flex; gap: 24rpx; padding: 24rpx 0; border-bottom: 1rpx solid var(--line); }
 .delivery-panel > view > text { flex: none; width: 64rpx; color: var(--muted); }
 .delivery-panel > view > view { flex: 1; min-width: 0; }

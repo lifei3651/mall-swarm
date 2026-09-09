@@ -9,6 +9,13 @@ const wxml = readFileSync(new URL('../pages/product/index.wxml', import.meta.url
 const css = readFileSync(new URL('../pages/product/index.wxss', import.meta.url), 'utf8')
 const rules = selector => css.match(new RegExp('\\.' + selector + '\\s*\\{([^}]+)\\}'))?.[1] || ''
 
+test('商品详情移除平台自营和商家身份标签，不留空占位', () => {
+  assert.doesNotMatch(wxml, /平台自营|seller-badge|product\.merchantName/)
+  assert.doesNotMatch(css, /seller-badge/)
+  assert.match(wxml, /product\.productName/)
+  assert.match(wxml, /product\.afterSalePolicy/)
+})
+
 test('服务保障为逐项图文列表，不再将标题和整段说明套成胶囊', () => {
   for (const name of ['service-heading', 'service-caption', 'service-list', 'service-item', 'service-symbol', 'service-title', 'service-description']) assert.ok(wxml.includes(name))
   assert.ok(wxml.includes('具体服务以本商品说明和商城规则为准'))
