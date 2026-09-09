@@ -1,0 +1,14 @@
+<view class="page review-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
+  <view wx:if="{{invalid}}" class="empty">评价入口不完整，请从我的订单重新进入。</view>
+  <view wx:elif="{{completed}}" class="empty">评价已提交，感谢你的真实反馈。</view>
+  <view wx:elif="{{reviewLoading}}" class="empty">正在核对订单评价资格…</view>
+  <view wx:elif="{{reviewFormVisible}}" class="review-card">
+    <view class="review-title">商品评分</view>
+    <view class="rating-options"><button wx:for="{{ratingOptions}}" wx:key="*this" data-rating="{{item}}" bindtap="chooseRating" class="{{reviewRating === item ? 'selected' : ''}}" disabled="{{reviewSubmitting}}" aria-label="{{item}}星">{{item}}星</button></view>
+    <textarea value="{{reviewContent}}" bindinput="reviewInput" maxlength="1000" disabled="{{reviewSubmitting}}" placeholder="说说商品质量、使用体验和物流服务吧" aria-label="评价内容" />
+    <text class="count">{{reviewContent.length}}/1000</text>
+    <button class="primary-button" bindtap="submitReview" disabled="{{reviewSubmitting}}" loading="{{reviewSubmitting}}">提交评价</button>
+  </view>
+  <view wx:else class="empty"><text>{{reviewError || reviewSummary.reviewHint || '该订单暂不可评价，请返回订单核对。'}}</text><button wx:if="{{reviewError}}" class="secondary-button" bindtap="openReviewForm">重新核对</button></view>
+  <button class="secondary-button back-button" bindtap="backToOrders" disabled="{{reviewSubmitting}}">返回我的订单</button>
+</view>

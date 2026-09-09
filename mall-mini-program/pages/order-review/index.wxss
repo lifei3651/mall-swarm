@@ -1,0 +1,9 @@
+.review-page { min-height: 100vh; background: var(--canvas); padding: 28rpx; }
+.review-card { padding: 32rpx; background: var(--paper); border-radius: 20rpx; }
+.review-title { color: var(--ink); font-size: 32rpx; font-weight: 600; }
+.rating-options { display: flex; gap: 12rpx; margin: 28rpx 0; }
+.rating-options button { flex: 1; min-width: 0; margin: 0; padding: 0; line-height: 76rpx; font-size: 26rpx; color: var(--muted); background: var(--canvas); }
+.rating-options .selected { color: var(--brand); background: var(--brand-soft); }
+textarea { width: 100%; min-height: 260rpx; padding: 24rpx; font-size: 28rpx; line-height: 1.6; background: var(--canvas); color: var(--ink); border-radius: 12rpx; }
+.count { display: block; margin: 16rpx 0 28rpx; text-align: right; font-size: 24rpx; color: var(--muted); }
+.back-button { margin-top: 28rpx; }

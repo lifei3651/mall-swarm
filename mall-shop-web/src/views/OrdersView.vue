@@ -220,7 +220,7 @@ const setRealtimeConnected = (connected) => {
 
 const totalQuantity = (item) => (item.items || []).reduce((sum, line) => sum + Number(line.quantity || 0), 0)
 const reviewLink = (item) => ({
-  path: `/product/${item.pendingReviewProductId || item.items?.[0]?.productId}`,
+  path: `/order-review/${item.pendingReviewProductId}`,
   query: item.pendingReviewOrderItemId ? { orderItemId: item.pendingReviewOrderItemId } : {},
 })
 const afterSaleStatus = (status, applyType) => {

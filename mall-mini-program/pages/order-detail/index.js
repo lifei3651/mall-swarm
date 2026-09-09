@@ -256,7 +256,7 @@ Page({
   review(event) {
     const row = this.data.rows.find(item => item.order.id === identifier(event.currentTarget.dataset.id))
     const productId = row && identifier(row.pendingReviewProductId), orderItemId = row && identifier(row.pendingReviewOrderItemId)
-    if (productId && orderItemId) wx.navigateTo({ url: `/pages/product/index?id=${productId}&orderItemId=${orderItemId}` })
+    if (productId && orderItemId) wx.navigateTo({ url: `/pages/order-review/index?id=${productId}&orderItemId=${orderItemId}` })
     else feedback.notice('评价入口已变化，请刷新订单后重试')
   },
   support(event) {

@@ -24,6 +24,7 @@
     "pages/withdraw/index",
     "pages/orders/index",
     "pages/order-detail/index",
+    "pages/order-review/index",
     "pages/after-sale/index",
     "pages/checkout/index",
     "pages/address/index"

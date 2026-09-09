@@ -135,7 +135,7 @@ test('评价翻页失败不跳页，离开或切号的评价响应不回写', as
 test('订单待评价目标含商品ID与订单项ID，客服消息直达真实工单而非联系说明', () => {
   const env = commerceEnv(), page = env.page('orders')
   page.setData({ rows: [{ order: { id: '9' }, pendingReviewProductId: '7', pendingReviewOrderItemId: '700' }] }); page.review(event('id', '9'))
-  assert.equal(env.routes[0], '/pages/product/index?id=7&orderItemId=700')
+  assert.equal(env.routes[0], '/pages/order-review/index?id=7&orderItemId=700')
   const message = env.page('message-detail'); message.owner = 'member'; message.setData({ message: { targetType: 'SERVICE_TICKET', targetId: '99' } }); message.openTarget()
   assert.equal(env.routes[1], '/pages/support-detail/index?id=99')
 })

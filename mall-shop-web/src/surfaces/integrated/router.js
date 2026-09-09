@@ -41,6 +41,7 @@ const routes = [
   { path: '/profile/security/change-payment-password', name: 'ChangePaymentPassword', component: () => import('@/views/ChangePaymentPasswordView.vue'), meta: protectedRoute },
   { path: '/profile/addresses', name: 'ProfileAddresses', component: () => import('@/views/AddressView.vue'), meta: protectedRoute },
   { path: '/orders', name: 'Orders', component: () => import('@/views/OrdersView.vue'), meta: protectedRoute },
+  { path: '/order-review/:id', name: 'OrderReview', component: () => import('@/views/OrderReviewView.vue'), meta: { requiresAuth: true } },
   { path: '/orders/:id', name: 'OrderDetail', component: () => import('@/views/OrderDetailView.vue'), meta: protectedRoute },
   { path: '/:pathMatch(.*)*', name: 'NotFound', redirect: '/' },
 ]

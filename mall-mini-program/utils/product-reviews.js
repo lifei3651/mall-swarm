@@ -6,7 +6,7 @@ const format = require('./format')
 const data = { reviews: [], reviewSummary: {}, reviewPage: 0, reviewTotal: 0, reviewLoading: false, reviewError: '', reviewFormVisible: false, reviewSubmitting: false, reviewContent: '', reviewRating: 5, ratingOptions: [1, 2, 3, 4, 5], ratingDistribution: [] }
 function hide(page) { page.reviewGeneration = (page.reviewGeneration || 0) + 1; page.setData({ reviewLoading: false }) }
 const methods = {
-  reviewRoute() { return `/pages/product/index?id=${this.productId}${this.reviewOrderItemId ? '&orderItemId=' + this.reviewOrderItemId : ''}` },
+  reviewRoute() { return `/pages/order-review/index?id=${this.productId}${this.reviewOrderItemId ? '&orderItemId=' + this.reviewOrderItemId : ''}` },
   async loadReviews(reset = true) {
     reset = reset !== false
     if (!this.productId || this.purchaseInactive || (!reset && this.data.reviewLoading)) return false
@@ -28,6 +28,7 @@ const methods = {
   },
   loadMoreReviews() { if (this.data.reviews.length < this.data.reviewTotal) return this.loadReviews(false) },
   async openReviewForm() {
+    if (!this.reviewOrderItemId) { await feedback.notice('请从我的订单中选择已完成的商品进行评价'); return }
     if (this.data.reviewSubmitting || !auth.requireLogin(this.reviewRoute())) return
     if (this.data.reviewFormVisible) { this.setData({ reviewFormVisible: false }); return }
     // Refresh eligibility for the exact order item; never infer it from paid status.
@@ -38,6 +39,8 @@ const methods = {
   reviewInput(event) { if (!this.data.reviewSubmitting) this.setData({ reviewContent: String(event.detail.value || '').slice(0,1000) }) },
   chooseRating(event) { const rating = Number(event.currentTarget.dataset.rating); if (!this.data.reviewSubmitting && [1,2,3,4,5].includes(rating)) this.setData({ reviewRating: rating }) },
   async submitReview() {
+    if (this.data.completed) return
+    if (!this.reviewOrderItemId) { await feedback.notice('请从我的订单中选择已完成的商品进行评价'); return }
     if (this.data.reviewSubmitting || this.purchaseInactive || !auth.requireLogin(this.reviewRoute())) return
     const content = this.data.reviewContent.trim(), rating = this.data.reviewRating
     if (!content || ![1,2,3,4,5].includes(rating)) { await feedback.notice(!content ? '请填写评价内容' : '请选择1至5星评分'); return }
@@ -48,6 +51,7 @@ const methods = {
       await request({ url: `/shop/products/${this.productId}/reviews`, method: 'POST', data: { rating, content, ...(this.reviewOrderItemId ? { orderItemId: this.reviewOrderItemId } : {}) } })
       if (!current()) return
       this.setData({ reviewContent: '', reviewRating: 5, reviewFormVisible: false, reviewSubmitting: false })
+      if (this.onReviewSubmitted) this.onReviewSubmitted()
       await feedback.notice('评价提交成功', '操作完成')
       if (current()) await this.loadReviews()
     } catch (error) { if (current()) await feedback.notice(error.message || '评价提交失败，请检查后重试', '未能提交评价') }

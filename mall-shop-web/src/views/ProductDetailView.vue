@@ -118,9 +118,8 @@
           <div>
             <h2>商品评价 <small>({{ reviewData.reviewCount || 0 }})</small></h2>
             <p v-if="reviewData.reviewCount">综合评分 <strong>{{ reviewData.averageRating }}</strong> / 5</p>
-            <p v-else>暂无评价，真实确认收货后可评价</p>
+            <p v-else>暂无评价</p>
           </div>
-          <button class="write-review-button" type="button" @click="openReviewForm">写评价</button>
         </div>
 
         <div v-if="reviewData.reviewCount" class="rating-distribution">
@@ -140,17 +139,6 @@
               <small>{{ countForStar(6 - star) }}</small>
             </div>
           </div>
-        </div>
-
-        <div v-if="reviewFormVisible" class="review-form">
-          <div class="rating-picker">
-            <span>商品评分</span>
-            <button v-for="star in 5" :key="star" type="button" :aria-label="`${star}星`" @click="reviewForm.rating = star">
-              <Star :size="27" :fill="star <= reviewForm.rating ? '#ef4444' : 'transparent'" :color="star <= reviewForm.rating ? '#ef4444' : '#cbd5e1'" />
-            </button>
-          </div>
-          <textarea v-model="reviewForm.content" maxlength="1000" placeholder="分享商品质量、使用体验和物流服务吧" />
-          <div class="review-form-footer"><span>{{ reviewForm.content.length }}/1000</span><button type="button" :disabled="reviewSubmitting" @click="submitReviewForm">{{ reviewSubmitting ? '提交中...' : '提交评价' }}</button></div>
         </div>
 
         <div v-if="reviews.length" class="review-list">
@@ -222,10 +210,9 @@ import {
   UserRound,
   Zap,
 } from 'lucide-vue-next'
-import { getProduct, getProductReviews, submitProductReview } from '@/api/shop'
+import { getProduct, getProductReviews } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
-import { hasShopSession } from '@/utils/shopSession'
 import { requireShopSession } from '@/utils/authNavigation'
 import { cartItemKey, resolveCurrentStock, stockAdditionViolation, stockQuantityViolation } from '@/utils/stockRules'
 import { resolvePositiveIntegerQuantity, sanitizePositiveIntegerInput } from '@/utils/quantityInput'
@@ -270,13 +257,6 @@ const reviewData = ref({ reviewCount: 0, averageRating: 0, canReview: false, rev
 const reviews = ref([])
 const reviewPage = ref(1)
 const reviewLoading = ref(false)
-const reviewSubmitting = ref(false)
-const reviewFormVisible = ref(false)
-const reviewForm = ref({ rating: 5, content: '' })
-const reviewOrderItemId = computed(() => {
-  const value = Number(route.query.orderItemId)
-  return Number.isInteger(value) && value > 0 ? value : null
-})
 
 const parseArray = (value) => {
   if (Array.isArray(value)) return value.filter(Boolean)
@@ -377,7 +357,6 @@ const fetchReviews = async (reset = true) => {
     const res = await getProductReviews(product.value.id, {
       pageNum,
       pageSize: 5,
-      ...(reviewOrderItemId.value ? { orderItemId: reviewOrderItemId.value } : {}),
     })
     reviewData.value = res.data || reviewData.value
     const list = res.data?.page?.list || []
@@ -470,30 +449,6 @@ const buyNow = async () => {
   }
 }
 
-const openReviewForm = () => {
-  if (!hasShopSession()) {
-    router.push({ name: 'Login', query: { redirect: route.fullPath } })
-    return
-  }
-  if (!reviewData.value.canReview) return showToast(reviewData.value.reviewHint || '购买并确认收货后可以评价')
-  reviewFormVisible.value = !reviewFormVisible.value
-}
-const submitReviewForm = async () => {
-  if (!reviewForm.value.content.trim()) return showToast('请填写评价内容')
-  reviewSubmitting.value = true
-  try {
-    await submitProductReview(product.value.id, {
-      rating: reviewForm.value.rating,
-      content: reviewForm.value.content.trim(),
-      ...(reviewOrderItemId.value ? { orderItemId: reviewOrderItemId.value } : {}),
-    })
-    reviewForm.value = { rating: 5, content: '' }
-    reviewFormVisible.value = false
-    await fetchReviews(true)
-    showToast('评价提交成功')
-  } catch (error) { showToast(error?.message || '评价提交失败') }
-  finally { reviewSubmitting.value = false }
-}
 const loadMoreReviews = async () => { reviewPage.value += 1; await fetchReviews(false) }
 const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 10) : ''
 

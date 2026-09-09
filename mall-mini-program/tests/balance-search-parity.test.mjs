@@ -27,7 +27,7 @@ test('售后上传旧账号的401不清除新会话，也不接纳旧文件结�
   await assert.rejects(task,/登录状态/);assert.equal(env.storage.get('mall_mini_access_token'),'another')
 })
 test('评价正在提交时切后台不解除互斥锁，回来连点仍只有一次请求', async () => {
-  const pending=deferred(),env=commerceEnv(()=>pending.promise),page=env.page('product');page.productId='10';page.setData({reviewContent:'测试评价',reviewRating:5})
+  const pending=deferred(),env=commerceEnv(()=>pending.promise),page=env.page('order-review');page.productId='10';page.reviewOrderItemId='100';page.setData({reviewContent:'测试评价',reviewRating:5})
   const task=page.submitReview();page.onHide();page.purchaseInactive=false;await page.submitReview();assert.equal(env.calls.length,1);pending.resolve({});await task;assert.equal(page.data.reviewSubmitting,false)
 })
 const rows = [{ order: { id: '11', tradeId: '70', payType: 'BALANCE', status: 0, payAmount: '20.00' } }, { order: { id: '12', tradeId: '70', payType: 'BALANCE', status: 0, payAmount: '30.00' } }]

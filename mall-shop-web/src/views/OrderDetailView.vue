@@ -506,7 +506,7 @@ const autoReceiveNotice = computed(() => detail.value.autoReceiveDeadline
   ? `预计 ${dateTime(detail.value.autoReceiveDeadline)} 自动确认收货`
   : `发货满 ${Number(detail.value.autoReceiveDays || 15)} 天自动确认收货`)
 const pendingReviewLink = computed(() => ({
-  path: `/product/${detail.value.pendingReviewProductId || items.value[0]?.productId}`,
+  path: `/order-review/${detail.value.pendingReviewProductId}`,
   query: detail.value.pendingReviewOrderItemId ? { orderItemId: detail.value.pendingReviewOrderItemId } : {},
 }))
 const afterSales = computed(() => detail.value.afterSales || [])
