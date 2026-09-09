@@ -3,7 +3,7 @@
   <view wx:elif="{{error || !member}}" class="empty"><text>{{error || '请先登录后管理账号'}}</text><button class="secondary-button" bindtap="onShow">重新加载</button></view>
   <block wx:elif="{{section === 'security'}}">
     <view class="security-status {{wallet.hasPaymentPassword ? 'ready' : ''}}"><view>{{wallet.hasPaymentPassword ? '支付密码已设置' : '请先设置支付密码'}}</view><text>{{wallet.hasPaymentPassword ? '余额支付和资金操作均受独立密码保护' : '首次交易前必须完成设置'}}</text></view>
-    <button class="security-entry" bindtap="loginPassword"><text>修改登录密码</text><image src="/assets/profile/chevron-right.png" /></button>
+    <button class="security-entry" bindtap="loginPassword"><text>{{!member.username || member.username === member.phone ? '设置商城登录账号' : '修改登录密码'}}</text><image src="/assets/profile/chevron-right.png" /></button>
     <button class="security-entry" data-section="payment" bindtap="open"><text>{{wallet.hasPaymentPassword ? '修改支付密码' : '设置支付密码'}}</text><text wx:if="{{!wallet.hasPaymentPassword}}" class="status-tag">待设置</text><image src="/assets/profile/chevron-right.png" /></button>
     <button class="security-entry" data-section="identity" bindtap="open"><text>实名认证</text><text class="status-tag">{{wallet.realNameVerified ? wallet.maskedRealName || '已认证' : '待认证'}}</text><image src="/assets/profile/chevron-right.png" /></button>
   </block>

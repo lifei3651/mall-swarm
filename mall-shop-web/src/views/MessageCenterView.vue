@@ -1,7 +1,7 @@
 <template>
   <main class="message-page">
-    <header><div><span>个人消息</span><h1>消息中心</h1><p>商城公告不计入这里的未读数</p></div><div class="header-actions"><RouterLink to="/support">客服工单</RouterLink><button v-if="unread.total" @click="readAll">全部已读</button></div></header>
-    <section class="sms-preference" aria-labelledby="service-sms-title">
+    <header class="plain-header"><h1>{{ settingsVisible ? '提醒设置' : '消息中心' }}</h1><button :disabled="smsPreferenceBusy" @click="settingsVisible=!settingsVisible">{{ settingsVisible ? '返回消息' : '提醒设置' }}</button></header>
+    <section v-if="settingsVisible" class="sms-preference" aria-labelledby="service-sms-title">
       <div>
         <span>可选提醒</span>
         <h2 id="service-sms-title">重要进度短信</h2>
@@ -19,13 +19,14 @@
         @click="requestSmsPreferenceChange"
       ><i></i></button>
     </section>
-    <p v-if="smsPreferenceNotice" class="preference-notice" role="status">{{ smsPreferenceNotice }}</p>
+    <p v-if="settingsVisible && smsPreferenceNotice" class="preference-notice" role="status">{{ smsPreferenceNotice }}</p>
+    <template v-if="!settingsVisible">
     <nav aria-label="消息分类">
       <button v-for="item in categories" :key="item.key" :class="{active:category===item.key}" @click="selectCategory(item.key)">
         {{ item.label }}<em v-if="count(item.key)">{{ showCount(count(item.key)) }}</em>
       </button>
     </nav>
-    <div class="category-action"><button v-if="category && count(category)" @click="readCategory">本分类全部已读</button></div>
+    <div class="category-action"><button v-if="category && count(category)" @click="readCategory">本类已读</button><button v-else-if="!category && unread.total" @click="readAll">全部已读</button></div>
     <section :aria-busy="loading">
       <RouterLink v-for="message in messages" :key="message.id" :to="`/messages/${message.id}`" :class="['message-card',{unread:message.isRead!==1}]">
         <i></i><div><strong>{{ message.title }}</strong><p>{{ message.summary }}</p><time>{{ formatTime(message.occurredTime||message.createTime) }}</time></div><span>›</span>
@@ -34,6 +35,7 @@
       <button v-if="pageNum<totalPage" class="more" @click="load(false)">加载更多</button>
     </section>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
+    </template>
     <ConfirmDialog
       :visible="smsConfirmVisible"
       title="开启重要进度短信？"
@@ -50,7 +52,8 @@ import { computed,onBeforeUnmount,onMounted,ref } from 'vue'
 import { getMessageUnread,getServiceSmsPreference,listMemberMessages,markAllMessagesRead,markMessageCategoryRead,updateServiceSmsPreference } from '@/api/shop'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { connectOrderRealtime } from '@/utils/orderRealtime'
-const categories=[{key:null,label:'全部'},{key:'ORDER_LOGISTICS',label:'订单物流'},{key:'AFTER_SALE_REFUND',label:'售后退款'},{key:'WALLET_FUNDS',label:'钱包资金'},{key:'ACCOUNT_SECURITY',label:'账户安全'},{key:'SERVICE',label:'服务通知'}]
+const categories=[{key:null,label:'全部'},{key:'ORDER_LOGISTICS',label:'订单'},{key:'AFTER_SALE_REFUND',label:'售后'},{key:'WALLET_FUNDS',label:'资金'},{key:'SERVICE',label:'服务'}]
+const settingsVisible=ref(false)
 const category=ref(null),messages=ref([]),unread=ref({total:0,categories:{}}),pageNum=ref(0),totalPage=ref(1),loading=ref(false),error=ref('');let stop;let poll
 const smsPreference=ref({available:false,enabled:false,maskedPhone:'',statusText:'正在确认服务状态'})
 const smsPreferenceBusy=ref(false),smsPreferenceNotice=ref(''),smsConfirmVisible=ref(false)
@@ -70,6 +73,34 @@ onMounted(()=>{load();loadSmsPreference();poll=setInterval(()=>load(true),30000)
 onBeforeUnmount(()=>{stop?.();clearInterval(poll)})
 </script>
 <style scoped>
-.message-page{width:min(760px,calc(100% - 24px));margin:0 auto;padding:22px 0 90px}.message-page>header{display:flex;justify-content:space-between;align-items:flex-end;padding:22px;color:#fff;background:linear-gradient(135deg,#18243d,var(--brand-primary,#e7193f));border-radius:20px}.message-page header span{font-size:12px;opacity:.72}.message-page h1{margin:5px 0;font-size:25px}.message-page header p{margin:0;font-size:12px;opacity:.75}.message-page button{border:0;border-radius:10px;cursor:pointer}.message-page button:disabled{cursor:not-allowed;opacity:.55}.message-page header button{padding:9px 12px;color:#fff;background:rgba(255,255,255,.18)}.sms-preference{display:flex;gap:16px;justify-content:space-between;align-items:center;margin-top:12px;padding:17px 18px;background:#fff;border:1px solid #edf0f3;border-radius:16px}.sms-preference span{color:var(--brand-primary,#e7193f);font-size:11px;font-weight:700}.sms-preference h2{margin:3px 0 4px;color:#1d2939;font-size:17px}.sms-preference p{margin:0;color:#667085;font-size:12px;line-height:1.6}.sms-preference small{display:block;margin-top:6px;color:#98a2b3;font-size:11px}.preference-switch{position:relative;flex:0 0 48px;width:48px;height:28px;padding:0;background:#d0d5dd;border-radius:999px!important;transition:.2s}.preference-switch i{position:absolute;top:3px;left:3px;width:22px;height:22px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(16,24,40,.2);transition:.2s}.preference-switch.enabled{background:var(--brand-primary,#e7193f)}.preference-switch.enabled i{transform:translateX(20px)}.preference-notice{margin:7px 3px 0;color:#475467;font-size:12px}nav{display:flex;gap:8px;overflow:auto;padding:15px 0 7px}nav button{position:relative;flex:0 0 auto;padding:9px 13px;color:#667085;background:#fff}nav button.active{color:#fff;background:var(--brand-primary,#e7193f)}nav em{margin-left:5px;font-style:normal}.category-action{min-height:34px;text-align:right}.category-action button{padding:7px 10px;color:#475467;background:#fff}.message-card{display:grid;grid-template-columns:8px 1fr auto;gap:11px;align-items:start;margin-bottom:10px;padding:17px;color:#344054;background:#fff;border:1px solid #edf0f3;border-radius:15px}.message-card>i{width:7px;height:7px;margin-top:7px;background:transparent;border-radius:50%}.message-card.unread>i{background:#e5484d}.message-card strong{font-size:15px}.message-card p{margin:7px 0;color:#667085;font-size:13px;line-height:1.55}.message-card time{color:#98a2b3;font-size:11px}.message-card>span{color:#98a2b3;font-size:22px}.empty{padding:50px;text-align:center;color:#98a2b3}.more{display:block;margin:16px auto;padding:10px 18px}.error{color:#b42318}
-.header-actions{display:flex;gap:8px;align-items:center}.header-actions a{padding:9px 12px;color:#fff;background:rgba(255,255,255,.18);border-radius:10px;font-size:13px}
+.message-page{width:min(760px,calc(100% - 24px));margin:0 auto;padding:12px 0 90px;color:var(--ink,#1d2939)}
+.message-page>header{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:54px}
+.message-page h1{margin:0;font-size:20px;font-weight:600}
+.message-page button{min-height:44px;border:0;cursor:pointer;font:inherit;font-size:13px}
+.message-page button:disabled{opacity:.55;cursor:not-allowed}
+.plain-header button,.category-action button{padding:10px 8px;color:#667085;background:transparent}
+nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));background:#fff;border-radius:6px;margin-top:12px}
+nav button{position:relative;padding:14px 0;color:#667085;background:transparent}
+nav button.active{color:var(--brand-primary,#e7193f);box-shadow:inset 0 -2px var(--brand-primary,#e7193f);font-weight:600}
+nav em{position:absolute;top:0;right:2px;min-width:12px;padding:1px 3px;border-radius:6px;background:#f2f4f7;color:#475467;font-size:10px;font-style:normal}
+.category-action{min-height:20px;text-align:right}
+.message-card{display:grid;grid-template-columns:6px minmax(0,1fr) auto;gap:10px;padding:18px 14px;color:#344054;background:#fff;border-bottom:1px solid #edf0f3}
+.message-card>i{width:6px;height:6px;margin-top:7px;border-radius:50%;background:transparent}
+.message-card.unread>i{background:var(--brand-primary,#e7193f)}
+.message-card strong{font-size:15px;font-weight:500;overflow-wrap:anywhere}
+.message-card p{margin:7px 0;color:#667085;font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+.message-card time{color:#667085;font-size:11px}
+.message-card>span{color:#98a2b3;font-size:22px}
+.empty{padding:60px 16px;text-align:center;color:#667085}
+.more{display:block;margin:16px auto;padding:10px 18px;border-radius:6px;background:#fff}
+.error{color:#b42318}
+.sms-preference{display:flex;gap:16px;align-items:center;margin-top:12px;padding:18px;background:#fff;border-radius:6px}
+.sms-preference>div{flex:1;min-width:0}.sms-preference span{display:none}
+.sms-preference h2{margin:0 0 8px;font-size:16px;font-weight:500}
+.sms-preference p,.sms-preference small{color:#667085;font-size:12px;line-height:1.6}
+.sms-preference p{margin:0 0 8px}
+.message-page .preference-switch{position:relative;flex:0 0 48px;width:48px;height:28px;min-height:28px;background:#d0d5dd;border-radius:99px}
+.preference-switch i{position:absolute;top:3px;left:3px;width:22px;height:22px;background:white;border-radius:50%}
+.preference-switch.enabled{background:var(--brand-primary,#e7193f)}.preference-switch.enabled i{transform:translateX(20px)}
+.preference-notice{color:#475467;font-size:13px}
 </style>

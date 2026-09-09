@@ -121,7 +121,8 @@ test('登录完成后可以正确返回购物车等 tab 页面', async () => {
   const fs = await import('node:fs/promises')
   const page = await fs.readFile(new URL('../utils/login-flow.js', import.meta.url), 'utf8')
   assert.match(page, /tabPages\.has\(pagePath\)/)
-  assert.match(page, /wx\.switchTab\(\{ url: pagePath, success, fail: fallback \}\)/)
+  assert.match(page, /wx\.switchTab\(\{ url: pagePath, fail: fallback \}\)/)
+  assert.doesNotMatch(page, /feedback\.notice\(this\._loginSuccessMessage/)
 })
 
 test('商品详情按规格展示价格库存并提供立即购买', async () => {

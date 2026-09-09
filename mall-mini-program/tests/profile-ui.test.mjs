@@ -9,6 +9,26 @@ const zeroSummary = { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, 
 const plain = (value) => JSON.parse(JSON.stringify(value))
 const deferred = () => { let resolve; const promise = new Promise(ok => { resolve = ok }); return { promise, resolve } }
 
+test('资料和安全入口分离，登录成功只更新页面，不弹成功确认', () => {
+  const h=loadProfile({token:'member'}); h.page.setData({loggedIn:true});
+  h.page.accountEntry(); h.page.security();
+  assert.deepEqual(h.navigations,['/pages/account-security/index','/pages/account-settings/index?section=security']);
+  let refreshed=0; h.page.refresh=()=>{refreshed++};
+  h.page.authorized({detail:{message:'登录成功',redirect:'/pages/address/index'}});
+  assert.equal(refreshed,1); assert.equal(h.page.data.loginVisible,false);
+  assert.equal(h.modals.length,0); assert.equal(h.navigations.at(-1),'/pages/address/index');
+})
+
+test('资料页只展示基本资料，昵称单独编辑；真实会员等级仍保留', () => {
+  const view=readFileSync(new URL('../pages/account-security/index.wxml',import.meta.url),'utf8');
+  const profile=view.split('mode === \'profile\'')[2]?.split('mode === \'nickname\'')[0] || '';
+  assert.match(profile,/bindtap="editNickname"/); assert.match(profile,/bindtap="changePhone"/);
+  assert.doesNotMatch(profile,/bindtap="loginPassword"|bindtap="paymentSecurity"|form bindsubmit/);
+  assert.match(view,/mode === 'nickname'/);
+  const top=readFileSync(new URL('../pages/profile/index.wxml',import.meta.url),'utf8');
+  assert.match(top,/商城账号：/); assert.match(top,/capabilities.ready && capabilities.membershipActive/);
+})
+
 test('录屏回归：分享返回期间同一账号的会员标识和邀请按钮保留位置，核验完成前不允许分享', async () => {
   const wait = deferred(), rights = { ready: true, canInvite: true, membershipLevel: 1, membershipLabel: '会员' }
   const h = loadProfile({ token:'same-owner', member:{nickname:'本地会员'}, respond:({url})=>url==='/shop/auth/me'?{nickname:'本地会员'}:url.endsWith('/withdrawals')?[]:{}, prepare: async page => { page.setData({shareReady:false}); await wait.promise; page.setData({shareReady:true}); return rights } })
@@ -131,7 +151,7 @@ test('个人中心游客点击受保护入口只开登录弹窗，并保留原�
   for (const tab of tabs) {
     page.orderTab({ currentTarget: { dataset: { tab } } })
   }
-  const targets = ['/pages/account-security/index', '/pages/messages/index', '/pages/orders/index',
+  const targets = ['/pages/account-settings/index?section=security', '/pages/messages/index', '/pages/orders/index',
     '/pages/address/index', '/pages/payout/index', '/pages/wallet/index', '/pages/orders/index?tab=after-sale',
     ...tabs.map((tab) => `/pages/orders/index?tab=${tab}`)]
   assert.deepEqual(panels, targets)

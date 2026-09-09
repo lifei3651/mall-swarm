@@ -83,7 +83,7 @@ test('未同意不发请求，授权成功只通知原任务且不暴露会话�
   assert.equal(h.calls.length, 1)
   assert.equal(h.calls[0].privacyConsentVersion, ready.privacyConsentVersion)
   assert.equal(h.panel.data.visible, false)
-  assert.deepEqual(JSON.parse(JSON.stringify(h.events)), [{ name: 'success', detail: { redirect: '/pages/address/index', message: '登录成功' } }])
+  assert.deepEqual(JSON.parse(JSON.stringify(h.events)), [{ name: 'success', detail: { redirect: '/pages/address/index' } }])
   await h.panel.open('')
   assert.equal(h.panel.data.agreed, false)
 })

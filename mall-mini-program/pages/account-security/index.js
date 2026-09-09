@@ -18,13 +18,13 @@ function passwordError(value, username, phone) {
 Page({
   data: { ...theme.pageData(), ...EMPTY_SECRETS, loading: true, error: '', message: '', member: null,
     username: '', nickname: '', mode: 'profile', useWechatNickname: false, avatarSrc: avatar.fallback, maskedPhone: '', canSetupAccount: false, action: '', sendingCode: false, countdown: 0 },
-  onLoad(options = {}) { theme.apply(this); this.setData({ mode: options.mode === 'password' ? 'password' : 'profile' }); if (wx.setNavigationBarTitle) wx.setNavigationBarTitle({ title: options.mode === 'password' ? '登录密码' : '账号资料' }) },
+  onLoad(options = {}) { theme.apply(this); const mode = ['password', 'nickname'].includes(options.mode) ? options.mode : 'profile'; this.setData({ mode }); if (wx.setNavigationBarTitle) wx.setNavigationBarTitle({ title: { password: '登录密码', nickname: '修改昵称', profile: '个人资料' }[mode] }) },
   onShow() {
     this.hidden = false
     theme.apply(this)
     this.updateCountdown()
     if (this.data.action) return
-    if (auth.requireLogin(`/pages/account-security/index${this.data.mode === 'password' ? '?mode=password' : ''}`)) return this.load()
+    if (auth.requireLogin(`/pages/account-security/index${this.data.mode === 'profile' ? '' : '?mode=' + this.data.mode}`)) return this.load()
     this.requestVersion = (this.requestVersion || 0) + 1
     feedback.update(this, { ...EMPTY_SECRETS, loading: false, member: null, nickname: '', username: '', maskedPhone: '', canSetupAccount: false })
   },
@@ -63,6 +63,7 @@ Page({
     if (field === 'smsCode') value = value.replace(/\D/g, '').slice(0, 6)
     feedback.update(this, { [field]: value, error: '', message: '' })
   },
+  editNickname() { if (!this.data.action) wx.navigateTo({ url: '/pages/account-security/index?mode=nickname' }) },
   async enableWechatNickname() {
     if (this.data.action) return
     try { await privacy.requireConsent(); if (!this.disposed) feedback.update(this, { useWechatNickname: true, error: '' }) }

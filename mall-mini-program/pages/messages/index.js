@@ -8,11 +8,10 @@ const foreground = require('../../utils/foreground-refresh')
 
 const CATEGORIES = [
   { key: '', label: '全部' },
-  { key: 'ORDER_LOGISTICS', label: '订单物流' },
-  { key: 'AFTER_SALE_REFUND', label: '售后退款' },
-  { key: 'WALLET_FUNDS', label: '钱包资金' },
-  { key: 'ACCOUNT_SECURITY', label: '账户安全' },
-  { key: 'SERVICE', label: '服务通知' }
+  { key: 'ORDER_LOGISTICS', label: '订单' },
+  { key: 'AFTER_SALE_REFUND', label: '售后' },
+  { key: 'WALLET_FUNDS', label: '资金' },
+  { key: 'SERVICE', label: '服务' }
 ]
 
 function formatTime(value) {
@@ -23,7 +22,7 @@ Page({
   data: {
     ...theme.pageData(),
     categories: CATEGORIES.map((item) => ({ ...item, count: 0 })),
-    category: '',
+    category: '', settingsVisible: false,
     rows: [],
     unread: { total: 0, categories: {} },
     pageNum: 0,
@@ -109,6 +108,12 @@ Page({
     if (id) wx.navigateTo({ url: `/pages/message-detail/index?id=${id}` })
   },
   subscriptions() { wx.navigateTo({ url: '/pages/subscriptions/index' }) },
+  toggleSettings() {
+    if (this.data.smsBusy) return
+    const settingsVisible = !this.data.settingsVisible
+    this.setData({ settingsVisible })
+    if (wx.setNavigationBarTitle) wx.setNavigationBarTitle({ title: settingsVisible ? '提醒设置' : '消息中心' })
+  },
   support() { wx.navigateTo({ url: '/pages/support/index' }) },
   async loadSmsPreference() {
     if (!session.getToken()) return

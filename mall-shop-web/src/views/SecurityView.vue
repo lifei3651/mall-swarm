@@ -2,7 +2,7 @@
   <div class="page sub-page security-page">
     <header class="sub-page-head">
       <button type="button" aria-label="返回" @click="router.back()"><ArrowLeft :size="22" /></button>
-      <h2>支付安全</h2><span></span>
+      <h2>账号与安全</h2><span></span>
     </header>
 
     <section class="security-status" :class="{ ready: wallet.hasPaymentPassword }">
@@ -14,6 +14,7 @@
     </section>
 
     <section class="security-actions">
+      <RouterLink to="/profile/settings?mode=account" class="security-action-btn"><span class="action-icon login-icon"><LockKeyhole :size="24" /></span><span class="action-label">商城登录账号</span><ChevronRight :size="18" /></RouterLink>
       <RouterLink to="/profile/security/change-login-password" class="security-action-btn">
         <span class="action-icon login-icon"><LockKeyhole :size="24" /></span>
         <span class="action-label">修改登录密码</span>

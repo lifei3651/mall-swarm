@@ -241,11 +241,11 @@ onBeforeUnmount(() => window.clearTimeout(messageTimer.value))
 .sub-page-head { display:grid; grid-template-columns:40px 1fr 40px; align-items:center; margin-bottom:14px; }
 .sub-page-head h2 { margin:0; text-align:center; font-size:19px; }
 .sub-page-head button { width:40px; height:40px; display:grid; place-items:center; padding:0; background:#fff; border:0; border-radius:50%; }
-.address-list { display:grid; gap:10px; }
+.address-list { display:grid; gap:0; overflow:hidden; border-radius:6px; }
 .address-mode-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
 .address-mode-actions button { min-height:40px; display:inline-flex; align-items:center; justify-content:center; gap:6px; color:#475467; background:#fff; border:1px solid #e4e7ec; border-radius:10px; font-size:13px; font-weight:700; }
 .address-mode-actions .address-mode-primary { color:var(--brand-primary); background:var(--brand-primary-soft); border-color:var(--brand-primary); }
-.address-card { padding:16px; background:#fff; border-radius:15px; box-shadow:0 4px 15px rgba(31,41,55,.05); }
+.address-card { padding:16px; background:#fff; border-bottom:1px solid #edf0f3; }
 .address-person { display:flex; align-items:center; gap:10px; }.address-person strong{font-size:16px}.address-person span{color:var(--muted);font-size:13px}.address-person em{padding:2px 6px;color:var(--brand-primary);background:var(--brand-primary-soft);border-radius:4px;font-size:10px;font-style:normal;font-weight:700}
 .address-card p { margin:11px 0 13px; color:#4b5563; font-size:13px; line-height:1.65; }
 .address-actions { display:flex; align-items:center; gap:14px; padding-top:11px; border-top:1px solid #f0f1f2; }

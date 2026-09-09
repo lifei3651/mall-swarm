@@ -155,9 +155,7 @@ module.exports = {
       if (!result || typeof result.accessToken !== 'string' || !result.accessToken || session.getToken() !== result.accessToken) {
         throw new Error('登录未完成，请重试或联系商城客服')
       }
-      // Do not open a second native modal while WeChat's phone sheet is closing.
-      // The destination shows this notice after the login UI has been removed.
-      this._loginSuccessMessage = result.newMember ? '注册成功' : '登录成功'
+      // Successful authentication is reflected by the destination, without a modal.
       if (result.newMember) this.redirect = '/pages/home/index'
       this.finish()
     } catch (error) {
@@ -168,14 +166,12 @@ module.exports = {
   },
   finish() {
     if (!session.getToken()) return
-    const token = session.getToken()
-    const success = () => { if (this._loginSuccessMessage && session.getToken() === token) feedback.notice(this._loginSuccessMessage, '操作完成') }
-    const fallback = () => wx.switchTab({ url: '/pages/profile/index', success, fail: () => feedback.notice('账号已登录，但页面未能打开。请返回“我的”继续操作。') })
+    const fallback = () => wx.switchTab({ url: '/pages/profile/index', fail: () => feedback.notice('账号已登录，但页面未能打开。请返回“我的”继续操作。') })
     if (this.redirect && this.redirect.startsWith('/pages/')) {
       const pagePath = this.redirect.split('?')[0]
       const tabPages = new Set(['/pages/home/index', '/pages/category/index', '/pages/cart/index', '/pages/profile/index'])
-      if (tabPages.has(pagePath)) wx.switchTab({ url: pagePath, success, fail: fallback })
-      else wx.redirectTo({ url: this.redirect, success, fail: fallback })
+      if (tabPages.has(pagePath)) wx.switchTab({ url: pagePath, fail: fallback })
+      else wx.redirectTo({ url: this.redirect, fail: fallback })
     } else fallback()
   },
   openPrivacy() { wx.navigateTo({ url: '/pages/legal/index?type=privacy' }) },

@@ -4,6 +4,17 @@ import { readFileSync } from 'node:fs'
 
 const read=(path)=>readFileSync(new URL(`../${path}`,import.meta.url),'utf8')
 
+test('message UI keeps five short tabs and moves optional SMS settings off the default list',()=>{
+  const view=read('src/views/MessageCenterView.vue');
+  const categories=view.match(/const categories=(.*)/)[1];
+  for(const label of ['全部','订单','售后','资金','服务'])assert.ok(categories.includes(`label:'${label}'`));
+  assert.ok(!categories.includes('ACCOUNT_SECURITY'));
+  assert.match(view,/v-if="settingsVisible" class="sms-preference"/);
+  assert.match(view,/grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
+  assert.doesNotMatch(view,/linear-gradient|overflow:auto/);
+  assert.match(view,/markAllMessagesRead/);
+})
+
 test('all three H5 surfaces expose the same authenticated personal message center',()=>{
   for(const file of ['src/router/index.js','src/surfaces/team/router.js','src/surfaces/integrated/router.js']){
     const source=read(file);assert.match(source,/path: '\/messages'/);assert.match(source,/MessageCenterView/);assert.match(source,/MessageDetailView/);assert.match(source,/path: '\/support'/);assert.match(source,/ServiceTicketsView/);assert.match(source,/ServiceTicketDetailView/)

@@ -54,6 +54,17 @@ function environment({ respond = () => ({}), consent = true, wx: overrides = {} 
     privacyListener: () => privacyListener, component: () => component }
 }
 
+test('消息首页五项分类不横滚，提醒设置保留关闭短信的入口', () => {
+  const e=environment(), page=e.page('messages');
+  assert.deepEqual(plain(page.data.categories).map(x=>x.label),['全部','订单','售后','资金','服务']);
+  assert.equal(page.data.settingsVisible,false); page.toggleSettings(); assert.equal(page.data.settingsVisible,true);
+  page.setData({smsBusy:true}); page.toggleSettings(); assert.equal(page.data.settingsVisible,true);
+  page.setData({smsBusy:false}); page.toggleSettings(); assert.equal(page.data.settingsVisible,false);
+  const view=readFileSync(resolve(root,'pages/messages/index.wxml'),'utf8');
+  assert.doesNotMatch(view,/scroll-x|class="message-head"/); assert.match(view,/wx:if="\{\{settingsVisible\}\}"/);
+  assert.match(view,/!smsPreference.available && !smsPreference.enabled/);
+})
+
 test('钱包记录按真实收支方向展示，空余额不能伪装为0元', async () => {
   const e = environment({ respond: ({ url }) => url.endsWith('/summary') ? { balance: '8.00' } : [
     { id: '1', changeType: 1, amount: '10', balanceBefore: '0', balanceAfter: '10' },

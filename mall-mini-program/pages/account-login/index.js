@@ -125,7 +125,7 @@ Page({
       if (!current()) return
       if (!result || typeof result.accessToken !== 'string' || !result.accessToken || !result.member?.id) throw new Error('登录结果不完整，请重新登录')
       session.saveSession(result); invite.clearPendingInvite(); this._owner = session.getToken()
-      this.setData({ form: empty(), submitting: false }); this._loginSuccessMessage = mode === 'register' ? '注册成功' : '登录成功'
+      this.setData({ form: empty(), submitting: false })
       if (mode === 'register') this.redirect = '/pages/home/index'
       flow.finish.call(this)
     } catch (error) {

@@ -110,7 +110,7 @@ Page({
     }
   },
   accountEntry() {
-    if (this.data.loggedIn && session.getToken()) this.security()
+    if (this.data.loggedIn && session.getToken()) this.openMemberPage('/pages/account-security/index')
     else this.login()
   },
   login(redirect = '') {
@@ -132,18 +132,15 @@ Page({
     const token = session.getToken()
     this.refresh()
     const redirect = event && event.detail && event.detail.redirect
-    const message = event && event.detail && event.detail.message
-    const success = () => { if (message && token === session.getToken()) feedback.notice(message, '操作完成') }
     const fail = () => { if (token === session.getToken()) feedback.notice('账号已登录，但目标页面未能打开，请重新点击入口。') }
-    if (redirect === '/pages/home/index') { wx.switchTab({ url: redirect, success, fail }); return }
-    const allowed = new Set(['/pages/account-security/index', '/pages/messages/index', '/pages/orders/index',
+    if (redirect === '/pages/home/index') { wx.switchTab({ url: redirect, fail }); return }
+    const allowed = new Set(['/pages/account-security/index', '/pages/account-settings/index', '/pages/messages/index', '/pages/orders/index',
       '/pages/address/index', '/pages/payout/index', '/pages/wallet/index', '/pages/support/index'])
-    if (typeof redirect === 'string' && allowed.has(redirect.split('?')[0])) wx.navigateTo({ url: redirect, success, fail })
-    else success()
+    if (typeof redirect === 'string' && allowed.has(redirect.split('?')[0])) wx.navigateTo({ url: redirect, fail })
   },
   legal() { wx.navigateTo({ url: '/pages/legal/index' }) },
   openMemberPage(url) { if (this.requireLogin(url)) wx.navigateTo({ url }) },
-  security() { this.openMemberPage('/pages/account-security/index') },
+  security() { this.openMemberPage('/pages/account-settings/index?section=security') },
   messages() { this.openMemberPage('/pages/messages/index') },
   orders() { this.openMemberPage('/pages/orders/index') },
   orderTab(event) {

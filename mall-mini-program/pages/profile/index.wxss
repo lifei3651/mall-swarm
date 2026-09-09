@@ -1,6 +1,6 @@
 .profile-page { min-height: 100vh; padding: 12rpx 32rpx calc(144rpx + env(safe-area-inset-bottom)); }
 .profile-page .profile-header { display: flex; align-items: center; width: 100%; min-height: 176rpx; margin: 0; padding: 24rpx 0 32rpx; gap: 24rpx; border-radius: 16rpx; background: transparent; text-align: left; }
-.avatar { display: flex; flex: none; align-items: center; justify-content: center; width: 96rpx; height: 96rpx; border-radius: 50%; background: var(--paper); }
+.avatar { display:flex; flex:none; align-items:center; justify-content:center; width:104rpx; height:104rpx; border-radius:16rpx; background:var(--paper); }
 .avatar image { display: block; width: 52rpx; height: 52rpx; opacity: .7; }
 .avatar-loaded { overflow: hidden; }
 .avatar-loaded image { width: 100%; height: 100%; opacity: 1; }

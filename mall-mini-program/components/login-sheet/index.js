@@ -34,7 +34,7 @@ Component({
       const token = session.getToken(), sequence = this._loginSequence
       this.setData({ visible: false, agreed: false, submitting: false, authorizingPhone: false }, () => {
         if (token !== session.getToken() || sequence !== this._loginSequence) return
-        this.triggerEvent('success', { redirect: this.redirect || '', message: this._loginSuccessMessage || '' })
+        this.triggerEvent('success', { redirect: this.redirect || '' })
       })
     },
     stop() {}

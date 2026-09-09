@@ -2,29 +2,25 @@
   <div class="page sub-page settings-page">
     <header class="sub-page-head">
       <button type="button" aria-label="返回" @click="router.back()"><ArrowLeft :size="22" /></button>
-      <h2>账号设置</h2><span></span>
+      <h2>{{ accountMode ? '商城登录账号' : '个人资料' }}</h2><span></span>
     </header>
 
-    <section class="settings-card" aria-label="账号资料">
+    <section v-if="!accountMode" class="settings-card" aria-label="账号资料">
       <div class="settings-row static-row">
-        <div><strong>登录账号</strong><small>用于登录，设置后不可自行修改</small></div>
+        <div><strong>商城账号</strong></div>
         <span>{{ canSetupAccount ? '未设置' : member.username }}</span>
       </div>
       <button type="button" class="settings-row" @click="openNickname">
-        <div><strong>昵称</strong><small>用于个人中心、订单和售后服务</small></div>
+        <div><strong>昵称</strong></div>
         <span>{{ member.nickname || '去设置' }}</span><ChevronRight :size="18" />
       </button>
       <button type="button" class="settings-row" @click="openPhone">
-        <div><strong>绑定手机号</strong><small>用于登录、验证和安全通知</small></div>
+        <div><strong>手机号</strong></div>
         <span>{{ maskedPhone }}</span><ChevronRight :size="18" />
       </button>
-      <RouterLink to="/profile/security/change-login-password" class="settings-row">
-        <div><strong>登录密码</strong><small>建议定期更换并妥善保管</small></div>
-        <span>修改</span><ChevronRight :size="18" />
-      </RouterLink>
     </section>
 
-    <section v-if="!loading && canSetupAccount" class="settings-card legacy-account">
+    <section v-if="accountMode && !loading && canSetupAccount" class="settings-card legacy-account">
       <h3>设置登录账号</h3>
       <p>该账号用于密码登录，保存后不能自行修改。</p>
       <input v-model="accountForm.username" class="field" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="4至20位，以英文字母开头" @input="handleAccountInput" />
@@ -32,6 +28,7 @@
       <button type="button" class="btn primary" :disabled="savingAccount" @click="saveAccount">{{ savingAccount ? '保存中' : '保存登录账号' }}</button>
     </section>
 
+    <section v-if="accountMode && !loading && !canSetupAccount" class="settings-card"><div class="settings-row static-row"><strong>商城账号</strong><span>{{ member.username || '暂不可用' }}</span></div><RouterLink to="/profile/security/change-login-password" class="settings-row"><strong>修改登录密码</strong><ChevronRight :size="18" /></RouterLink></section>
     <div v-if="message" class="form-toast" :class="{ error: messageType === 'error' }" role="status" aria-live="polite">{{ message }}</div>
 
     <Teleport to="body">
@@ -73,7 +70,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, ChevronRight, X } from 'lucide-vue-next'
 import { getMe, sendSmsCode, setupAccount, updateNickname, updatePhone } from '@/api/shop'
 import { normalizeLoginAccountInput, validateLoginAccount } from '@/utils/loginAccount'
@@ -82,6 +79,8 @@ import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
 import { clearShopSession } from '@/utils/shopSession'
 
 const router = useRouter()
+const route = useRoute()
+const accountMode = computed(() => route.query.mode === 'account')
 const member = ref({})
 const loading = ref(true)
 const message = ref('')

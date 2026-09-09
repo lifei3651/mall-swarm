@@ -3,7 +3,7 @@ const session = require('../../utils/session')
 const auth = require('../../utils/auth')
 const theme = require('../../utils/theme')
 const feedback = require('../../utils/feedback')
-const sections = { security: '支付安全', payment: '支付密码', phone: '更换手机号', identity: '实名认证' }
+const sections = { security: '账号与安全', payment: '支付密码', phone: '更换手机号', identity: '实名认证' }
 const empty = () => ({ oldPassword: '', loginPassword: '', newPassword: '', confirmPassword: '', smsCode: '', currentPhoneSmsCode: '', newPhone: '', newPhoneSmsCode: '', realName: '', idCard: '', sensitiveInfoConsent: false })
 const phoneValid = value => /^1[3-9]\d{9}$/.test(String(value || ''))
 Page({

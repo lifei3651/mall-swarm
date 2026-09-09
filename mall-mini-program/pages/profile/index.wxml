@@ -4,8 +4,8 @@
     <view class="avatar {{loggedIn && avatarSrc !== '/assets/profile/user-round.png' ? 'avatar-loaded' : ''}}"><image src="{{avatarSrc}}" mode="aspectFill" aria-hidden="true" /></view>
     <view class="profile-copy">
       <text class="profile-name">{{loggedIn ? (member.nickname || '商城账号') : '商城账号登录'}}</text>
-      <text wx:if="{{loggedIn}}" class="profile-subtitle">个人资料</text>
-      <text wx:if="{{loggedIn && capabilities.ready}}" class="membership-badge level-{{capabilities.membershipLevel}}">{{capabilities.membershipLabel}}</text>
+      <text wx:if="{{loggedIn}}" class="profile-subtitle">商城账号：{{member.username && member.username !== member.phone ? member.username : '尚未设置'}}</text>
+      <text wx:if="{{loggedIn && capabilities.ready && capabilities.membershipActive}}" class="membership-badge level-{{capabilities.membershipLevel}}">{{capabilities.membershipLabel}}</text>
     </view>
     <image class="account-arrow" src="/assets/profile/chevron-right.png" mode="aspectFit" aria-hidden="true" />
   </button>

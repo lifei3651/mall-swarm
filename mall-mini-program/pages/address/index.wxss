@@ -1,21 +1,21 @@
-.address-page { min-height: 100vh; padding: 24rpx 24rpx calc(48rpx + env(safe-area-inset-bottom)); }
+.address-page { min-height:100vh; padding:24rpx 0 calc(164rpx + env(safe-area-inset-bottom)); background:var(--canvas); }
 .address-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 8rpx 6rpx 22rpx; }
 .address-toolbar view text { display: block; }
 .address-toolbar view text:first-child { font-size: 34rpx; font-weight: 750; }
 .address-toolbar view text:last-child { margin-top: 6rpx; color: var(--muted); font-size: 22rpx; }
 .address-toolbar button { flex: none; width: 168rpx; min-height: 68rpx; margin: 0; padding: 0; border: 1rpx solid var(--line); border-radius: 999rpx; background: var(--brand-soft); color: var(--accent); font-size: 24rpx; line-height: 68rpx; }
-.address-row { position: relative; margin-bottom: 18rpx; padding: 26rpx; border: 1rpx solid var(--line); border-radius: 22rpx; background: var(--paper); box-shadow: var(--shadow); }
+.address-row { position:relative; margin:0; padding:26rpx 32rpx 8rpx; border-bottom:1rpx solid var(--line); background:var(--paper); }
 .address-row > view { display: flex; flex-wrap: wrap; align-items: center; gap: 12rpx 20rpx; font-weight: 600; overflow-wrap: anywhere; }
 .address-row > text { display: block; margin-top: 12rpx; color: var(--muted); line-height: 40rpx; overflow-wrap: anywhere; }
 .default-tag { padding: 3rpx 10rpx; border-radius: 8rpx; background: var(--brand-soft); color: var(--accent); font-size: 20rpx; }
 .address-actions { display: flex; justify-content: flex-end; gap: 10rpx; margin-top: 16rpx; }
-.address-actions button { width: 100rpx; min-height: 58rpx; margin: 0; padding: 0; background: transparent; color: #697180; font-size: 23rpx; line-height: 58rpx; }
+.address-actions button { width:auto; min-width:100rpx; min-height:88rpx; margin:0; padding:0 12rpx; background:transparent; color:var(--muted); font-size:24rpx; font-weight:400; line-height:88rpx; }
 .address-actions button:last-child { color: #a94a5b; }
 .address-empty-state { padding: 90rpx 30rpx 34rpx; color: var(--muted); text-align: center; }
 .address-empty-state text { display: block; }
 .address-empty-state text:first-child { color: var(--ink); font-size: 30rpx; font-weight: 700; }
 .address-empty-state text:last-child { margin-top: 10rpx; font-size: 23rpx; }
-.address-form { margin-top: 22rpx; padding: 28rpx; border: 1rpx solid var(--line); border-radius: 24rpx; background: var(--paper); box-shadow: var(--shadow); }
+.address-form { margin-top:20rpx; padding:28rpx 32rpx; background:var(--paper); }
 .form-title { font-size: 32rpx; font-weight: 700; }
 .form-head { display: flex; align-items: center; justify-content: space-between; }
 .form-head > view > text { display: block; margin-top: 6rpx; color: var(--muted); font-size: 22rpx; }
@@ -32,7 +32,12 @@
 .default-setting view text { display: block; }
 .default-setting view text:last-child { margin-top: 6rpx; color: #8a92a0; font-size: 22rpx; }
 .address-form > .primary-button { margin-top: 28rpx; }
-.wechat-import{margin:0 0 24rpx}.import-message{font-size:25rpx;line-height:1.6;color:var(--ink-muted,#64748b);margin:0 0 24rpx}
+.address-page .wechat-import { display:flex; align-items:center; justify-content:space-between; width:100%; min-height:108rpx; margin:0 0 20rpx; padding:24rpx 32rpx; border-radius:0; background:var(--paper); color:var(--ink); font-size:29rpx; font-weight:400; line-height:48rpx; text-align:left; }
+.wechat-import image { width:28rpx; height:28rpx; opacity:.5; }
+.import-message,.selection-hint { display:block; margin:16rpx 32rpx; color:var(--muted); font-size:24rpx; line-height:38rpx; }
+.address-bottom { position:fixed; left:0; right:0; bottom:0; z-index:5; padding:20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom)); background:var(--paper); border-top:1rpx solid var(--line); }
+.address-bottom .primary-button { width:100%; margin:0; border-radius:12rpx; }
+.address-row > view > text:nth-child(2) { color:var(--muted); font-weight:400; }
 .paste-address { margin: 24rpx 0; padding: 22rpx; border-radius: 16rpx; background: var(--canvas); }
 .paste-address textarea { width: 100%; min-height: 140rpx; padding: 20rpx; background: var(--paper); border: 1rpx solid var(--line); border-radius: 12rpx; }
 .paste-address > text:last-child { display: block; margin-top: 14rpx; font-size: 23rpx; color: var(--muted); line-height: 1.7; }
