@@ -175,7 +175,7 @@
                 v-if="!campaignActivity(product)"
                 type="button"
                 class="home-cart-button"
-                :disabled="product.status !== 1 || product.stock <= 0 || isAddingProduct(product.id)"
+                :disabled="product.status !== 1 || product.stock <= 0 || isAddingProduct(product.id)" :aria-busy="isAddingProduct(product.id)"
                 :aria-label="`立即加购${product.productName}`"
                 @click="addProduct(product)"
               >
@@ -730,7 +730,7 @@ onUnmounted(() => { disposed = true; productRequestId++; pendingSearch = null; h
 .home-price strong { font-size: 27px; line-height: 1; letter-spacing: -1px; }
 .home-price small { font-size: 14px; font-weight: 800; }
 .home-cart-button { min-width: 96px; height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 12px; color: #fff; background: var(--shop-button-bg, linear-gradient(135deg,var(--brand-primary),var(--brand-primary-dark))); border: 0; border-radius: 999px; font-size: 13px; font-weight: 800; white-space: nowrap; }
-.home-cart-button:disabled { background: #b7bbc0; cursor: not-allowed; }
+.home-cart-button:disabled:not([aria-busy="true"]) { background: #b7bbc0; cursor: not-allowed; }
 .home-empty { min-height: 340px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; color: #989ea6; background: #fff; border-radius: 14px; }
 .home-empty strong { color: #59616a; }
 .home-empty button { padding: 8px 15px; color: var(--brand-primary); background: #fff; border: 1px solid var(--brand-primary-soft); border-radius: 999px; }

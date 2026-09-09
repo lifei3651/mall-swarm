@@ -6,6 +6,11 @@ Component({
   lifetimes: { attached() { this.refresh() } },
   pageLifetimes: { show() { this.refresh() } },
   methods: {
+    // A purchase changes only the badge, not the navigation/theme/image bindings.
+    refreshCartCount() {
+      const cartCount = cart.count()
+      if (cartCount !== this.data.cartCount) this.setData({ cartCount })
+    },
     refresh(palette = theme.pageData()) {
       const pages = getCurrentPages()
       const page = pages[pages.length - 1]

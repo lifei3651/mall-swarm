@@ -41,7 +41,7 @@ const methods = {
       if (!selection || !current()) return
       cart.add(selection.item)
       const tab = this.getTabBar && this.getTabBar()
-      if (tab && tab.refresh) tab.refresh()
+      if (tab && tab.refreshCartCount) tab.refreshCartCount()
     } catch (error) { if (current()) await feedback.notice(error.message || '加购失败，请稍后重试', '未能加入购物车') }
     finally { if (sequence === this.addSequence) this.setData({ addingId: '' }) }
   }

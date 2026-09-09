@@ -43,7 +43,7 @@
                 <article v-for="product in hotGuideProducts" :key="product.id" class="guide-product-card">
                   <RouterLink :to="`/product/${product.id}`"><img :src="product.coverUrl" :alt="product.productName" /></RouterLink>
                   <strong>{{ product.productName }}</strong><small>{{ product.subtitle || '品质好物，售后无忧' }}</small>
-                  <div><b>¥{{ money(product.salePrice) }}</b><button type="button" :disabled="product.status !== 1 || product.stock <= 0 || isAddingProduct(product.id)" :aria-label="`加入购物车：${product.productName}`" @click="addProduct(product)"><ShoppingCart :size="16" /></button></div>
+                  <div><b>¥{{ money(product.salePrice) }}</b><button type="button" :disabled="product.status !== 1 || product.stock <= 0 || isAddingProduct(product.id)" :aria-busy="isAddingProduct(product.id)" :aria-label="`加入购物车：${product.productName}`" @click="addProduct(product)"><ShoppingCart :size="16" /></button></div>
                 </article>
               </div>
             </section>
@@ -69,7 +69,7 @@
             <article v-for="product in guideProducts" :key="product.id" class="guide-product-card">
               <RouterLink :to="`/product/${product.id}`"><img :src="product.coverUrl" :alt="product.productName" /></RouterLink>
               <strong>{{ product.productName }}</strong><small>{{ product.subtitle || '精选推荐，品质保障' }}</small>
-              <div><b>¥{{ money(product.salePrice) }}</b><button type="button" :disabled="product.status !== 1 || product.stock <= 0 || isAddingProduct(product.id)" :aria-label="`加入购物车：${product.productName}`" @click="addProduct(product)"><ShoppingCart :size="16" /></button></div>
+              <div><b>¥{{ money(product.salePrice) }}</b><button type="button" :disabled="product.status !== 1 || product.stock <= 0 || isAddingProduct(product.id)" :aria-busy="isAddingProduct(product.id)" :aria-label="`加入购物车：${product.productName}`" @click="addProduct(product)"><ShoppingCart :size="16" /></button></div>
             </article>
           </div>
         </section>
@@ -94,7 +94,7 @@
             <article v-for="product in hotGuideProducts" :key="product.id" class="guide-product-card">
               <RouterLink :to="`/product/${product.id}`"><img :src="product.coverUrl" :alt="product.productName" /></RouterLink>
               <strong>{{ product.productName }}</strong><small>{{ product.subtitle || '人气精选，放心选购' }}</small>
-              <div><b>¥{{ money(product.salePrice) }}</b><button type="button" :disabled="product.status !== 1 || product.stock <= 0 || isAddingProduct(product.id)" :aria-label="`加入购物车：${product.productName}`" @click="addProduct(product)"><ShoppingCart :size="16" /></button></div>
+              <div><b>¥{{ money(product.salePrice) }}</b><button type="button" :disabled="product.status !== 1 || product.stock <= 0 || isAddingProduct(product.id)" :aria-busy="isAddingProduct(product.id)" :aria-label="`加入购物车：${product.productName}`" @click="addProduct(product)"><ShoppingCart :size="16" /></button></div>
             </article>
           </div>
         </section>
@@ -177,7 +177,7 @@
                 <button
                   type="button"
                   class="quick-cart-button"
-                  :disabled="product.status !== 1 || product.stock <= 0 || isAddingProduct(product.id)"
+                  :disabled="product.status !== 1 || product.stock <= 0 || isAddingProduct(product.id)" :aria-busy="isAddingProduct(product.id)"
                   :aria-label="`立即加购${product.productName}`"
                   @click="addProduct(product)"
                 >
@@ -578,8 +578,8 @@ onBeforeUnmount(() => {
 .category-price strong { font-size: 34px; line-height: 1; letter-spacing: -1px; }
 .category-price small { font-size: 19px; font-weight: 800; }
 .quick-cart-button { min-width: 132px; height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 20px; color: #fff; background: linear-gradient(135deg,var(--brand-primary),var(--brand-primary-dark)); border: 0; border-radius: 999px; box-shadow: var(--shop-card-shadow); font-size: 16px; font-weight: 800; white-space: nowrap; }
-.quick-cart-button:hover:not(:disabled) { background: linear-gradient(135deg,#e91f3d,#d8092c); transform: translateY(-1px); }
-.quick-cart-button:disabled { color: #fff; background: #b9bdc2; box-shadow: none; cursor: not-allowed; }
+.quick-cart-button:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 3px; }
+.quick-cart-button:disabled:not([aria-busy="true"]) { color: #fff; background: #b9bdc2; box-shadow: none; cursor: not-allowed; }
 .cart-label-short { display: none; }
 
 .empty-state { min-height: 420px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #9ba1a8; }
@@ -632,7 +632,7 @@ onBeforeUnmount(() => {
 .guide-product-card > div { display: flex; align-items: center; justify-content: space-between; gap: 7px; margin: 12px 12px 0; }
 .guide-product-card b { color: var(--guide-red); font-size: 21px; }
 .guide-product-card > div button { width: 36px; height: 36px; display: grid; place-items: center; color: #fff; background: var(--guide-blue); border: 0; border-radius: 50%; }
-.guide-product-card > div button:disabled { background: #aeb5bf; }
+.guide-product-card > div button:disabled:not([aria-busy="true"]) { background: #aeb5bf; }
 .guide-title { display: flex; align-items: center; gap: 10px; margin: 8px 0 14px; }
 .guide-title > span { width: 5px; height: 32px; background: var(--guide-blue); border-radius: 999px; }
 .guide-title h1 { margin: 0; font-size: 28px; }
