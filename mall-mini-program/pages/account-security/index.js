@@ -8,7 +8,7 @@ const avatar = require('../../utils/member-avatar')
 
 const EMPTY_SECRETS = { password: '', currentPassword: '', newPassword: '', confirmPassword: '', smsCode: '' }
 function passwordError(value, username, phone) {
-  if (value.length < 10 || value.length > 32) return '登录密码需为10至32位'
+  if (value.length < 6 || value.length > 32) return '登录密码需为6至32位'
   if (/\s/.test(value)) return '登录密码不能包含空格'
   const normalized = value.toLowerCase()
   if ((username && normalized.includes(username.toLowerCase())) || (phone && (normalized.includes(phone) || normalized.endsWith(phone.slice(-6))))) return '登录密码不能包含登录账号或手机号'

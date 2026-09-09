@@ -95,7 +95,7 @@ Page({
     if (mode === 'password' && !form.password) return ['请输入登录密码', 'password']
     if (mode === 'register') { const error = validateLoginAccount(form.username); if (error) return [error, 'username'] }
     if ((mode === 'register' || (mode === 'reset' && this.data.resetStep === 2))) {
-      if (form.password.length < 10 || form.password.length > 32) return ['登录密码需为10至32位', 'password']
+      if (form.password.length < 6 || form.password.length > 32) return ['登录密码需为6至32位', 'password']
       if (form.password !== form.confirmPassword) return ['两次输入的登录密码不一致', 'confirmPassword']
     }
     if (mode !== 'password' && !/^\d{6}$/.test(form.smsCode)) return ['请输入6位短信验证码', 'smsCode']

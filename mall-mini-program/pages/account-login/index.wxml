@@ -9,7 +9,7 @@
       <view wx:if="{{mode === 'register'}}"><text class="label">登录账号</text><input class="field {{errorField === 'username' ? 'invalid' : ''}}" value="{{form.username}}" data-field="username" bindinput="input" disabled="{{submitting}}" maxlength="20" placeholder="4至20位，以英文字母开头" aria-label="登录账号" /></view>
     </block>
     <block wx:if="{{mode === 'password' || mode === 'register' || (mode === 'reset' && resetStep === 2)}}">
-      <text class="label">{{mode === 'reset' ? '新登录密码' : '登录密码'}}</text><input class="field {{errorField === 'password' ? 'invalid' : ''}}" password value="{{form.password}}" data-field="password" bindinput="input" disabled="{{submitting}}" maxlength="{{mode === 'password' ? 128 : 32}}" placeholder="{{mode === 'password' ? '请输入登录密码' : '请输入10至32位密码'}}" aria-label="登录密码" />
+      <text class="label">{{mode === 'reset' ? '新登录密码' : '登录密码'}}</text><input class="field {{errorField === 'password' ? 'invalid' : ''}}" password value="{{form.password}}" data-field="password" bindinput="input" disabled="{{submitting}}" maxlength="{{mode === 'password' ? 128 : 32}}" placeholder="{{mode === 'password' ? '请输入登录密码' : '请输入6至32位密码'}}" aria-label="登录密码" />
       <view wx:if="{{mode !== 'password'}}"><text class="label">确认登录密码</text><input class="field {{errorField === 'confirmPassword' ? 'invalid' : ''}}" password value="{{form.confirmPassword}}" data-field="confirmPassword" bindinput="input" disabled="{{submitting}}" maxlength="32" placeholder="请再次输入登录密码" aria-label="确认登录密码" /></view>
     </block>
     <block wx:if="{{mode === 'register'}}">

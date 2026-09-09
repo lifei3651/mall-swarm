@@ -90,6 +90,13 @@ test('首次设置校验账号/密码/确认密码，成功后清理全部秘密
   assert.equal(h.routes.at(-1), '/pages/login/index')
 })
 
+test('首次设置商城账号接受6位数字密码，仍拒绝少于6位', async () => {
+  const h=harness({respond:()=>({...member,username:member.phone})});await h.page.onShow();
+  h.page.setData({username:'FreshMember',password:'49382',confirmPassword:'49382'});await h.page.setupAccount();assert.equal(h.requests.length,1);
+  h.page.setData({password:'493827',confirmPassword:'493827'});await h.page.setupAccount();
+  assert.equal(h.requests[1].data.password,'493827');assert.equal(h.cleared(),1);
+})
+
 test('修改密码必须当前密码、绑定手机验证码、合格新密码及两次一致', async () => {
   const h = harness()
   await h.page.onShow()

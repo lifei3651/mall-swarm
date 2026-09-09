@@ -149,8 +149,8 @@
               class="field"
               :class="{ 'has-error': fieldErrors.password }"
               type="password"
-              placeholder="请输入10至32位密码"
-              minlength="10"
+              placeholder="请输入6至32位密码"
+              minlength="6"
               maxlength="32"
               autocomplete="new-password"
               aria-required="true"
@@ -465,7 +465,7 @@ const validateRegisterField = (field) => {
     fieldErrors.value.captchaCode = '请输入4位图形验证码'
   } else if (field === 'password') {
     const length = form.password?.length || 0
-    if (length < 10 || length > 32) fieldErrors.value.password = '登录密码需为10至32位'
+    if (length < 6 || length > 32) fieldErrors.value.password = '登录密码需为6至32位'
   }
   if (fieldErrors.value[field]) scheduleRegisterErrorsClear()
   return !fieldErrors.value[field]

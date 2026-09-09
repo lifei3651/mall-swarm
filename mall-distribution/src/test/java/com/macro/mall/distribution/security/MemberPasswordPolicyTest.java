@@ -11,13 +11,21 @@ class MemberPasswordPolicyTest {
     @Test
     void acceptsAReasonableNewLoginPassword() {
         assertDoesNotThrow(() -> MemberPasswordPolicy.validate(
+                "493827", "member_1001", "13900001001"));
+        assertDoesNotThrow(() -> MemberPasswordPolicy.validate(
+                "Ab9!x2", "member_1001", "13900001001"));
+        assertDoesNotThrow(() -> MemberPasswordPolicy.validate(
                 "Safer!Pass9", "member_1001", "13900001001"));
     }
 
     @Test
     void rejectsShortCommonRepeatedSequentialAndAccountDerivedPasswords() {
         assertThrows(ApiException.class,
-                () -> MemberPasswordPolicy.validate("short888", "member_1001", "13900001001"));
+                () -> MemberPasswordPolicy.validate("A9!x2", "member_1001", "13900001001"));
+        for (String weak : new String[]{"123456", "654321", "111111", "121212", "001001"}) {
+            assertThrows(ApiException.class,
+                    () -> MemberPasswordPolicy.validate(weak, "member_1001", "13900001001"));
+        }
         assertThrows(ApiException.class,
                 () -> MemberPasswordPolicy.validate("password123", "member_1001", "13900001001"));
         assertThrows(ApiException.class,

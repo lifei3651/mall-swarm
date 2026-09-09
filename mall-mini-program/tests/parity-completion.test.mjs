@@ -11,6 +11,19 @@ const account = async (respond = () => captcha, mode = 'password') => {
   env.wx.redirectTo = options => env.routes.push(options.url)
   await page.onLoad({ mode }); page.setData({ agreed: true, form: { ...credentials } }); return { env, page }
 }
+test('会员注册和找回支持6至32位密码，5位拒绝，已有长密码登录不受影响', async () => {
+  for (const mode of ['register','reset']) {
+    const {page}=await account(()=>captcha,mode);page.setData({resetStep:2});
+    for (const password of ['493827','Safer!Pass9','A'.repeat(32)]) {
+      page.setData({'form.password':password,'form.confirmPassword':password});assert.equal(page.validate(),null);
+    }
+    for (const password of ['49382','A'.repeat(33)]) {
+      page.setData({'form.password':password,'form.confirmPassword':password});assert.match(page.validate()[0],/6至32/);
+    }
+    page.onUnload();
+  }
+  const {page}=await account(()=>captcha,'password');page.setData({'form.password':'ExistingLongPassword!123'});assert.equal(page.validate(),null);page.onUnload();
+})
 test('R06: 首次图形验证码快速失败只请求一次，离页返回可重试', async () => {
   const { env, page } = await account(() => { throw Error('图形验证码暂不可用') })
   await page.onShow(); assert.equal(env.calls.filter(call => call.url === '/captcha').length, 1)
