@@ -20,7 +20,7 @@ test('缩短列表缩略图不拉伸图片，也不删除详情入口及详情�
   assert.match(home, /class="product-card"[^>]*bindtap="openProduct"/)
   assert.match(home, /class="product-cover"[^>]*mode="aspectFill"/)
   const detail = read('../pages/product/index.wxml')
-  assert.match(detail, /class="hero"[^>]*mode="aspectFit"/)
+  assert.match(detail, /class="gallery-image"[^>]*mode="aspectFit"/)
   assert.match(detail, /class="detail-image"[^>]*mode="widthFix"/)
 })
 test('首页查看全部商品与商品列表保留独立间距，不改变入口行为', () => {

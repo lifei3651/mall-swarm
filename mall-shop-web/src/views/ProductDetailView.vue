@@ -16,12 +16,12 @@
     </div>
 
     <template v-else>
-      <section class="gallery-section">
+      <section class="gallery-section" :style="{ aspectRatio: galleryAspectRatio }">
         <button class="floating-back" type="button" aria-label="返回" @click="goBack"><ArrowLeft :size="24" /></button>
         <button class="floating-share" type="button" aria-label="分享" @click="shareProduct"><Share2 :size="22" /></button>
         <div ref="galleryScroller" class="gallery-scroller" @scroll.passive="onGalleryScroll">
           <div v-for="(image, index) in mainImages" :key="image + index" class="gallery-slide">
-            <img :src="image" :alt="`${product.productName} 主图${index + 1}`" @error="applyImageFallback" />
+            <img :src="image" :alt="`${product.productName} 主图${index + 1}`" @load="galleryImageLoaded(image, $event)" @error="applyImageFallback" />
           </div>
         </div>
         <span class="image-count">{{ activeImageIndex + 1 }}/{{ mainImages.length }}</span>
@@ -260,6 +260,13 @@ const errorMessage = ref('')
 const toast = ref('')
 const purchaseActionPending = ref(false)
 const activeImageIndex = ref(0)
+const galleryRatios = ref({})
+const galleryAspectRatio = computed(() => galleryRatios.value[mainImages.value[activeImageIndex.value]] || 1)
+const galleryImageLoaded = (image, event) => {
+  const { naturalWidth: width, naturalHeight: height } = event.target
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return
+  galleryRatios.value[image] = Math.max(1, width / height)
+}
 const reviewData = ref({ reviewCount: 0, averageRating: 0, canReview: false, reviewHint: '', page: { list: [], total: 0 } })
 const reviews = ref([])
 const reviewPage = ref(1)

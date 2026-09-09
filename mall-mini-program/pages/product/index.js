@@ -15,7 +15,7 @@ Page({
   data: {
     ...theme.pageData(),
     ...reviews.data,
-    loading: true, error: '', product: {}, skus: [], skuIndex: 0, quantity: 1,
+    loading: true, error: '', product: {}, skus: [], skuIndex: 0, quantity: 1, galleryHeight: 750,
     priceText: '0.00', stock: 0, soldOut: false, selectedSku: {}, purchasePending: false, quantityInput: '1', maxQuantity: 1, galleryIndex: 0, cartCount: 0
   },
   onLoad(options = {}) { theme.apply(this); this.productId = format.identifier(options.id); this.reviewOrderItemId = format.identifier(options.orderItemId); this.load() },
@@ -41,7 +41,7 @@ Page({
       const selected = skus[skuIndex]
       const stock = Math.max(0, Number(selected ? selected.stock : product.stock || 0))
       feedback.update(this, {
-        product,
+        product, galleryIndex: 0, galleryHeight: this.galleryHeights?.[product.gallery?.[0]] || 750,
         skus,
         skuIndex, selectedSku: selected || {},
         priceText: selected ? selected.priceText : product.priceText,
@@ -76,7 +76,19 @@ Page({
     this.setQuantity(value); return this.data.quantityInput
   },
   commitQuantity() { if (!this.data.purchasePending) this.setQuantity(this.data.quantityInput) },
-  galleryChanged(event) { this.setData({ galleryIndex: Number(event.detail.current) || 0 }) },
+  galleryImageLoaded(event) {
+    const { width, height } = event.detail || {}
+    const src = event.currentTarget.dataset.src
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0 || !this.data.product.gallery?.includes(src)) return
+    this.galleryHeights = this.galleryHeights || {}
+    this.galleryHeights[src] = Math.min(750, 750 * height / width)
+    if (this.data.product.gallery[this.data.galleryIndex] === src) this.setData({ galleryHeight: this.galleryHeights[src] })
+  },
+  galleryChanged(event) {
+    const galleryIndex = Number(event.detail.current) || 0
+    const src = this.data.product.gallery?.[galleryIndex]
+    this.setData({ galleryIndex, galleryHeight: this.galleryHeights?.[src] || 750 })
+  },
   freightLabel(product) {
     return ({ 1: `统一运费 ¥${format.money(product.freightAmount)}`, 2: `满 ¥${format.money(product.freeShippingAmount)} 包邮，未满 ¥${format.money(product.freightAmount)}`, 3: '按配送地区计算，部分地区暂不配送' })[Number(product.freightType)] || '全国包邮'
   },

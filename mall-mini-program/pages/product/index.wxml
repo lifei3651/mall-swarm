@@ -4,7 +4,7 @@
   <block wx:else>
     <view class="hero-shell">
       <view wx:if="{{!product.gallery.length || product.imageFailed}}" class="hero media-fallback"><image src="/assets/lingqi-logo-mark.png" mode="aspectFit" /></view>
-      <swiper wx:else class="hero" bindchange="galleryChanged"><swiper-item wx:for="{{product.gallery}}" wx:key="*this"><image class="hero" src="{{item}}" mode="aspectFit" binderror="productImageError" /></swiper-item></swiper>
+      <swiper wx:else class="hero" style="height: {{galleryHeight}}rpx" bindchange="galleryChanged"><swiper-item wx:for="{{product.gallery}}" wx:key="*this"><image class="gallery-image" src="{{item}}" data-src="{{item}}" mode="aspectFit" bindload="galleryImageLoaded" binderror="productImageError" /></swiper-item></swiper>
       <text class="image-count">{{galleryIndex + 1}}/{{product.gallery.length || 1}}</text>
       <text wx:if="{{soldOut}}" class="sold-out-badge">暂时缺货</text>
     </view>
