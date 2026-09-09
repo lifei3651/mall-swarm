@@ -43,16 +43,29 @@ Page({
       lineTotal: format.money(Number(row.salePrice) * row.quantity)
     }))
     const selected = rows.filter((row) => row.selected)
-    feedback.update(this, {
-      rows,
+    const patch = {}
+    const previous = this.data.rows
+    const sameOrder = previous.length === rows.length && rows.every((row, index) => row.key === previous[index].key)
+    if (!sameOrder) patch.rows = rows
+    else rows.forEach((row, index) => {
+      // Preserve list/image bindings when only quantity, selection or price changed.
+      for (const field of new Set([...Object.keys(previous[index]), ...Object.keys(row)])) {
+        if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(field)) continue
+        const value = row[field] === undefined ? null : row[field]
+        if (JSON.stringify(previous[index][field] ?? null) !== JSON.stringify(value)) patch[`rows[${index}].${field}`] = value
+      }
+    })
+    const totals = {
       totalCount: rows.reduce((sum, row) => sum + row.quantity, 0),
       selectedKinds: selected.length,
       count: selected.reduce((sum, row) => sum + row.quantity, 0),
       total: format.money(selected.reduce((sum, row) => sum + Number(row.salePrice) * row.quantity, 0)),
       allSelected: rows.length > 0 && selected.length === rows.length
-    })
+    }
+    for (const key of Object.keys(totals)) if (this.data[key] !== totals[key]) patch[key] = totals[key]
+    if (Object.keys(patch).length) feedback.update(this, patch)
     const tab = this.getTabBar && this.getTabBar()
-    if (tab && tab.refresh) tab.refresh()
+    if (tab && tab.refreshCartCount) tab.refreshCartCount()
   },
   toggleManage() {
     if (this.data.quantityChecking || this.data.checkoutChecking || this.inactive) return

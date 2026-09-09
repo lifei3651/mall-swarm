@@ -10,7 +10,7 @@
 .cart-line { display: flex; flex-wrap: wrap; gap: 12rpx; align-items: center; justify-content: space-between; margin-top: 18rpx; color: var(--price); font-weight: 700; }
 .counter { display: flex; align-items: center; color: #303846; }
 .counter button { flex: none; width: 72rpx; height: 72rpx; min-height: 72rpx; line-height: 72rpx; margin: 0; padding: 0; border-radius: 12rpx; background: var(--canvas); color: var(--ink); }
-.counter button[disabled] { opacity: .4; }
+.counter button.is-minimum { opacity: .4; }
 .counter text { width: 62rpx; text-align: center; }
 .cart-item-actions { display: flex; justify-content: flex-end; margin-top: 16rpx; }
 .cart-item-actions .remove { flex: none; width: auto; min-width: 112rpx; min-height: 72rpx; margin: 0; padding: 0 24rpx; border: 1rpx solid var(--line); border-radius: 999rpx; background: var(--paper); color: var(--muted); font-size: 24rpx; line-height: 70rpx; }
@@ -41,5 +41,6 @@
 .cart-footer .cart-total { margin: 0; }
 .cart-footer button { width: auto; min-width: 156rpx; padding: 20rpx 16rpx; border-radius: 999rpx; font-size: 26rpx; }
 .cart-footer .delete-selected { color: var(--brand); border: 1rpx solid var(--brand); background: var(--paper); }
+.cart-footer .primary-button.has-items[disabled] { color: #fff; background: var(--button); border-color: transparent; opacity: 1; }
 .counter button { width: 56rpx; height: 64rpx; min-height: 64rpx; line-height: 64rpx; }
 .counter text { width: auto; min-width: 56rpx; max-width: 168rpx; overflow-wrap: anywhere; }

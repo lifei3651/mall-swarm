@@ -47,7 +47,7 @@
             <div class="quantity">
               <button aria-label="减少数量" @click="changeQuantity(item, -1)">-</button>
               <span>{{ item.quantity }}</span>
-              <button :disabled="isQuantityChecking(item)" aria-label="增加数量" @click="changeQuantity(item, 1)">+</button>
+              <button :disabled="isQuantityChecking(item)" :aria-busy="isQuantityChecking(item)" aria-label="增加数量" @click="changeQuantity(item, 1)">+</button>
             </div>
           </div>
         </div>
@@ -371,7 +371,8 @@ onBeforeUnmount(() => window.clearTimeout(toastTimer))
 .item-actions { display: grid; justify-items: end; gap: 10px; }
 .quantity { display: flex; align-items: center; gap: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .quantity button { width: 32px; height: 32px; display: grid; place-items: center; background: #f8faf9; border: 0; font-size: 16px; cursor: pointer; }
-.quantity button:disabled { opacity:.45; cursor:wait; }
+.quantity button { color: inherit; -webkit-tap-highlight-color: transparent; }
+.quantity button:disabled { cursor:wait; }
 .quantity span { width: 36px; text-align: center; font-size: 14px; font-weight: 600; }
 
 .cart-summary-panel { border: 0; border-radius: 16px; }

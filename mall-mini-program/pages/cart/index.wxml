@@ -1,7 +1,7 @@
 <view class="cart-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
-  <view class="cart-header"><view class="cart-heading"><view class="cart-heading-title">购物车</view><text class="cart-heading-count">{{totalCount}} 件</text></view><view wx:if="{{rows.length}}" class="cart-header-actions"><button wx:if="{{manageMode}}" bindtap="clearCart" disabled="{{quantityChecking || checkoutChecking}}">清空</button><button bindtap="toggleManage" disabled="{{quantityChecking || checkoutChecking}}">{{manageMode ? '完成' : '管理'}}</button></view></view>
-  <view wx:if="{{checkError}}"><text>{{checkError}}</text><button bindtap="refresh">重新校验</button></view>
-  <view wx:if="{{!rows.length}}" class="empty cart-empty"><view>购物车还是空的</view><button class="primary-button" bindtap="goShopping">去逛逛</button></view>
+  <view class="cart-header"><view class="cart-heading"><view class="cart-heading-title">购物车</view><text class="cart-heading-count">{{totalCount}} 件</text></view><view wx:if="{{rows.length}}" class="cart-header-actions"><button hover-class="none" wx:if="{{manageMode}}" bindtap="clearCart" disabled="{{quantityChecking || checkoutChecking}}">清空</button><button hover-class="none" bindtap="toggleManage" disabled="{{quantityChecking || checkoutChecking}}">{{manageMode ? '完成' : '管理'}}</button></view></view>
+  <view wx:if="{{checkError}}"><text>{{checkError}}</text><button hover-class="none" bindtap="refresh">重新校验</button></view>
+  <view wx:if="{{!rows.length}}" class="empty cart-empty"><view>购物车还是空的</view><button hover-class="none" class="primary-button" bindtap="goShopping">去逛逛</button></view>
   <block wx:else>
     <view class="cart-list">
       <view class="cart-row" wx:for="{{rows}}" wx:key="key">
@@ -16,7 +16,7 @@
           <view wx:if="{{item.unavailable}}" class="cart-warning">{{item.unavailable}}</view>
           <view class="cart-line">
             <text>¥{{item.priceText}}</text>
-            <view class="counter"><button data-key="{{item.key}}" data-delta="-1" bindtap="quantity" disabled="{{item.quantity <= 1 || quantityChecking || checkoutChecking}}" aria-label="减少商品数量">−</button><text>{{item.quantity}}</text><button data-key="{{item.key}}" data-delta="1" bindtap="quantity" disabled="{{quantityChecking || checkoutChecking}}" aria-label="增加商品数量">＋</button></view>
+            <view class="counter"><button hover-class="none" data-key="{{item.key}}" data-delta="-1" class="{{item.quantity <= 1 ? 'is-minimum' : ''}}" bindtap="quantity" disabled="{{item.quantity <= 1 || quantityChecking || checkoutChecking}}" aria-label="减少商品数量">−</button><text>{{item.quantity}}</text><button hover-class="none" data-key="{{item.key}}" data-delta="1" bindtap="quantity" disabled="{{quantityChecking || checkoutChecking}}" aria-label="增加商品数量">＋</button></view>
           </view>
         </view>
       </view>
@@ -27,8 +27,8 @@
         <label><checkbox value="selected" checked="{{allSelected}}" disabled="{{quantityChecking || checkoutChecking}}" color="{{themeColor}}" aria-label="全选商品" /><text>全选</text></label>
       </checkbox-group>
       <view class="cart-total"><text class="muted">已选 {{count}} 件</text><view>合计 <text>¥{{total}}</text></view></view>
-      <button wx:if="{{manageMode}}" class="delete-selected" disabled="{{!selectedKinds || quantityChecking || checkoutChecking}}" bindtap="removeSelected">删除({{selectedKinds}})</button>
-      <button class="primary-button" disabled="{{!count || checking || checkError || quantityChecking || checkoutChecking}}" loading="{{checkoutChecking}}" bindtap="checkout">{{checkoutChecking ? '正在核对' : manageMode ? '结算(' + selectedKinds + ')' : '去结算'}}</button>
+      <button hover-class="none" wx:if="{{manageMode}}" class="delete-selected" disabled="{{!selectedKinds || quantityChecking || checkoutChecking}}" bindtap="removeSelected">删除({{selectedKinds}})</button>
+      <button hover-class="none" class="primary-button {{count && !checkError ? 'has-items' : ''}}" disabled="{{!count || checking || checkError || quantityChecking || checkoutChecking}}" loading="{{checkoutChecking}}" bindtap="checkout">{{checkoutChecking ? '正在核对' : manageMode ? '结算(' + selectedKinds + ')' : '去结算'}}</button>
     </view>
   </block>
 </view>
