@@ -124,7 +124,7 @@ Page({
   openProduct(event) { wx.navigateTo({ url: `/pages/product/index?id=${event.currentTarget.dataset.id}` }) },
   async checkout() {
     if (this.data.quantityChecking || this.data.checkoutChecking || this.inactive) return
-    if (this.data.checking) { feedback.toast({ title: '正在核对最新价格与库存', icon: 'none' }); return }
+    if (this.data.checking) return
     if (!this.data.count) { feedback.toast({ title: '请先选择商品', icon: 'none' }); return }
     if (!auth.requireLogin('/pages/cart/index')) return
     const token = session.getToken(), snapshot = JSON.stringify(cart.selected())

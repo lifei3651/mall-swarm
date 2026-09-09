@@ -54,7 +54,7 @@
       </section>
 
       <aside class="panel cart-summary-panel">
-        <p class="server-price-note">{{ cartRefreshing ? '正在核对最新价格与库存…' : '商品价格和库存以结算页服务端确认为准' }}</p>
+        <p class="server-price-note">商品价格和库存以结算页服务端确认为准</p>
         <div class="summary-row">
           <span>商品金额</span>
           <strong>¥{{ money(manageMode ? selectedTotal : total) }}</strong>
@@ -343,11 +343,12 @@ onBeforeUnmount(() => window.clearTimeout(toastTimer))
 
 <style scoped>
 .cart-page { width: min(760px, calc(100% - 28px)); padding-top: 10px; }
-.cart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.cart-header-left { display: flex; align-items: baseline; gap: 8px; }
-.cart-header h2 { margin: 0; font-size: 22px; }
-.cart-count { color: var(--muted); font-size: 13px; }
-.cart-header-actions { display:flex; align-items:center; gap:8px; }
+.cart-header { display: flex; align-items: center; justify-content: space-between; gap:12px; min-height:50px; margin-bottom: 14px; }
+.cart-header-left { flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:3px; text-align:left; }
+.cart-header h2 { margin: 0; font-size: 22px; line-height:28px; white-space:nowrap; }
+.cart-count { color: var(--muted); font-size: 13px; line-height:18px; overflow-wrap:anywhere; }
+.cart-header-actions { flex:none; display:flex; align-items:center; gap:8px; }
+.cart-header-actions button { flex:none; min-width:50px; white-space:nowrap; }
 .clear-btn { padding:6px 10px; color:#b42318; background:#fff5f4; border:0; border-radius:999px; font-size:13px; font-weight:600; }
 .manage-btn { padding: 6px 16px; color: var(--accent, #e7193f); background: none; border: 1px solid var(--accent, #e7193f); border-radius: 999px; font-size: 13px; font-weight: 600; }
 
