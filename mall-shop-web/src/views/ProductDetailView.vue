@@ -421,7 +421,6 @@ const addToCart = async () => {
     if (stockError) throw new Error(stockError)
     await checkCartPurchaseLimit(latestProduct, quantity.value, getProductQuantity(latestProduct.id))
     add(latestProduct, quantity.value)
-    showToast(`已加入购物车，数量 +${quantity.value}`)
   } catch (error) {
     showToast(error?.message || '当前商品暂时无法加入购物车')
   } finally {

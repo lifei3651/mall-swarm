@@ -10,6 +10,22 @@ const event = data => ({ currentTarget: { dataset: data } })
 const detail = () => ({ product: { id: '1', productName: '测试商品', status: 1, salePrice: 19, stock: 20, purchaseLimit: 3 }, skus: [] })
 const tick = () => new Promise(resolve => setImmediate(resolve))
 
+for (const name of ['home', 'category', 'product']) {
+  test(`${name}加购成功直接更新购物车，无弹窗且解除按钮加载状态`, async () => {
+    const e = commerceEnv(({ method }) => method === 'POST' ? { allowed: true } : detail())
+    const page = e.page(name)
+    if (name === 'product') {
+      page.productId = '1'; page.setData({ loading: false, product: detail().product, quantity: 1 })
+      await page.addToCart()
+      assert.equal(page.data.cartCount, 1); assert.equal(page.data.purchasePending, false)
+    } else {
+      await page.quickAdd(event({ id: '1' })); assert.equal(page.data.addingId, '')
+    }
+    assert.equal(e.load('utils/cart').count(), 1)
+    assert.equal(e.notices.length, 0)
+  })
+}
+
 test('本地限购提示与H5同规则：不同规格合并，不按单次点击重置', () => {
   for (const [existing, added] of [[3,1],[2,2],[0,4]]) {
     const d=detail(), rows=[{productId:'1',skuId:'other',quantity:existing}]

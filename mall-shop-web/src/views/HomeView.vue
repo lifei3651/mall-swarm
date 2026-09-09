@@ -574,7 +574,6 @@ const addProduct = async (product) => {
     if (stockError) throw new Error(stockError)
     await checkCartPurchaseLimit(cartItem, 1, getProductQuantity(cartItem.id))
     add(cartItem, 1)
-    showToast('已加入购物车，数量 +1')
   } catch (error) {
     showToast(error?.message || '商品信息更新失败，请稍后重试')
   } finally {

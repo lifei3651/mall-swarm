@@ -33,10 +33,10 @@ test('同规格库存、跨规格限购拦截，不添加H5不存在的99件限�
   d.product.stock = 500
   assert.equal(product.purchase(d, null, [{productId: '1',quantity: 99}]).productQuantity, 100)
 })
-test('无规格商品核对详情后直接加购并显眼提示', async () => {
+test('无规格商品核对详情后直接加购，不弹成功提示', async () => {
   const h = harness(); await h.page.quickAdd(event('1'))
   assert.equal(h.rows.length, 1); assert.equal(h.rows[0].salePrice, 9)
-  assert.ok(h.notices.some(text => text.includes('已加入购物车')))
+  assert.equal(h.notices.length, 0, '加购成功只更新购物车，不弹确认框')
 })
 test('多规格列表加购与H5一致：直接加入首个有库存规格，零价不回退', async () => {
   const d = detail(); d.skus = [{id:'8',skuName:'赠品',salePrice:0,stock:1},{id:'9',salePrice:19,stock:0}]

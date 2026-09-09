@@ -130,7 +130,6 @@ Page({
       } else {
         cart.add(selection.item)
         this.setData({ cartCount: cart.count() })
-        await feedback.notice(`已加入购物车，数量 +${selection.item.quantity}`, '操作完成')
       }
     } catch (error) { if (current()) await feedback.notice(error.message || '商品信息更新失败，请稍后重试', direct ? '暂时无法购买' : '未能加入购物车') }
     finally { if (sequence === this.purchaseSequence) this.setData({ purchasePending: false }) }
