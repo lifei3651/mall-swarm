@@ -5,6 +5,9 @@ const DEFAULT_THEME_COLOR = '#e7193f'
 const BRAND_LOGO_STORAGE_KEY = 'shop_logo_url'
 
 export const themePresets = {
+  'lingqi-green': {
+    radius: '8px', pageBackground: '#f5f6f7', headerBackground: '#ffffff', shadow: 'none',
+  },
   'retail-red': {
     radius: '13px',
     pageBackground: '#f5f6f7',
@@ -81,14 +84,15 @@ const colorEquals = (left, right) => String(left || '').trim().toLowerCase() ===
 const isLegacyCategoryPalette = (colors) => DISPLAY_COLOR_KEYS.every((key) => colorEquals(colors?.[key], LEGACY_CATEGORY_COLORS[key]))
 
 export const resolveBrandCssVariables = (config = {}) => {
-  const themeColor = normalizeColor(config.themeColor)
+  const themeColor = normalizeColor(config.themeColor || (config.productTemplate === 'lingqi-green' ? '#16734b' : DEFAULT_THEME_COLOR))
   const productTemplate = normalizeThemeKey(config.productTemplate)
   const preset = themePresets[productTemplate]
   const storedColors = resolveDisplayColors(config.displayConfig || config)
   // 旧分类导购版会强制保存一套蓝色。只对完整旧指纹做兼容，其他自定义色保持原样。
-  const colors = isLegacyCategoryPalette(storedColors) && !colorEquals(themeColor, LEGACY_CATEGORY_COLORS.accentColor)
+  const resolvedColors = isLegacyCategoryPalette(storedColors) && !colorEquals(themeColor, LEGACY_CATEGORY_COLORS.accentColor)
     ? {}
     : storedColors
+  const colors = { ...(productTemplate === 'lingqi-green' ? { textColor: '#202823', mutedColor: '#647168' } : {}), ...resolvedColors }
   return {
     '--brand-primary': themeColor,
     '--brand-primary-dark': mixHex(themeColor, [0, 0, 0], 0.18),
@@ -99,7 +103,7 @@ export const resolveBrandCssVariables = (config = {}) => {
     '--shop-page-bg': colors.pageBg || preset.pageBackground,
     '--shop-header-bg': colors.headerBg || preset.headerBackground,
     '--shop-card-shadow': preset.shadow,
-    '--price-color': colors.priceColor || themeColor,
+    '--price-color': colors.priceColor || (productTemplate === 'lingqi-green' ? '#c43d32' : themeColor),
     '--card-bg': colors.cardBg || '#ffffff',
     '--card': colors.cardBg || '#ffffff',
     '--text-color': colors.textColor || '#202735',
@@ -148,7 +152,7 @@ const updateBrowserLogo = (logoUrl) => {
 export const applyBrandConfig = (config = {}) => {
   const brandName = config.brandName?.trim() || DEFAULT_BRAND_NAME
   const logoUrl = config.logoUrl || ''
-  const themeColor = normalizeColor(config.themeColor)
+  const themeColor = normalizeColor(config.themeColor || (config.productTemplate === 'lingqi-green' ? '#16734b' : DEFAULT_THEME_COLOR))
   const productTemplate = normalizeThemeKey(config.productTemplate)
   const root = document.documentElement
 

@@ -4,6 +4,7 @@ const cart = require('../../utils/cart')
 const format = require('../../utils/format')
 const auth = require('../../utils/auth')
 const theme = require('../../utils/theme')
+const display = require('../../utils/display-config')
 const share = require('../../utils/share')
 const purchaseLimit = require('../../utils/purchase-limit')
 const quantityRules = require('../../utils/quantity')
@@ -44,6 +45,7 @@ Page({
       const selected = skus[skuIndex]
       const stock = Math.max(0, Number(selected ? selected.stock : product.stock || 0))
       feedback.update(this, {
+        productLayout: display.productLayout(detail.displayConfig || {}),
         product, galleryIndex: 0, galleryHeight: this.galleryHeights?.[product.gallery?.[0]] || 750,
         skus,
         skuIndex, selectedSku: selected || {},

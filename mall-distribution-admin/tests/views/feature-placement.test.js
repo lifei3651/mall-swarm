@@ -20,8 +20,8 @@ describe('直播/新品单一展示位置配置', () => {
   })
   it('分类选项自动预览分类页，手机紧凑版保留两列可读商品', () => {
     const source=readFileSync(resolve(process.cwd(),'src/views/tenant/list.vue'),'utf8')
-    expect(source).toContain("template?.value === 'category-focus' ? 'category' : 'home'")
-    expect(source).toContain('@click="selectCategoryGuide(template.value)"')
+    expect(source).toContain('previewPage.value = page')
+    expect(source).toContain('@preview="selectLayoutPreview"')
     expect(source).toContain('grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px;')
     expect(source).not.toContain('v-model="displayForm.liveSquareEnabled"')
     expect(source).not.toContain('v-model="displayForm.newArrivalsEnabled"')

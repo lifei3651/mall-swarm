@@ -33,7 +33,7 @@ test('横图按真实比例收起上下留白，方图和竖图不超过一屏�
   assert.equal(p.data.galleryHeight, 750)
 })
 test('主图容器按加载比例调整，内部图片完整展示且填满容器尺寸', () => {
-  assert.match(read('pages/product/index.wxml'), /height: \{\{galleryHeight\}\}rpx/)
+  assert.ok(read('pages/product/index.wxml').includes("galleryHeight * (productLayout === 'inset' ? 686 / 750 : 1)"))
   assert.match(read('pages/product/index.wxml'), /class="gallery-image"[^>]*mode="aspectFit"[^>]*bindload="galleryImageLoaded"/)
   assert.match(read('pages/product/index.wxss'), /\.gallery-image\s*\{[^}]*width: 100%;[^}]*height: 100%/)
 })

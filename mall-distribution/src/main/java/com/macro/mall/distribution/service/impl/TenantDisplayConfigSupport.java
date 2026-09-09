@@ -72,7 +72,8 @@ public class TenantDisplayConfigSupport {
         }
 
         normalizeLayoutFields(config);
-        validateActiveCategoryGuide(config);
+        validatePageLayouts(extra);
+        validateActiveCategoryGuide(config, extra);
 
         config.setShowBottomCategoryNav(normalizeBottomNav(
                 extra, config.getShowBottomCategoryNav(), restoreLegacyTemplateCoupledCategory));
@@ -206,10 +207,16 @@ public class TenantDisplayConfigSupport {
         forceRequiredCapabilities(config);
     }
 
-    /** A 目录版启用时至少保留一个真实模块；其他父版型只保留子值，不触发校验。 */
-    private void validateActiveCategoryGuide(DmsTenantDisplayConfig config) {
-        if (!"category-focus".equals(config.getLayoutTemplate())
-                || !"directory".equals(config.getCategoryGuideTemplate())) {
+    /** 任一端或共用分类页采用目录版时，至少保留一个真实模块。 */
+    private void validateActiveCategoryGuide(DmsTenantDisplayConfig config, ObjectNode extra) {
+        String legacy = "category-focus".equals(config.getLayoutTemplate()) ? config.getCategoryGuideTemplate() : "list";
+        JsonNode layouts = extra.path("pageLayouts");
+        String shared = layouts.path("shared").path("category").asText(legacy);
+        boolean directory = "directory".equals(shared);
+        for (String platform : List.of("h5", "mini", "app")) {
+            directory |= "directory".equals(layouts.path("platforms").path(platform).path("category").asText(shared));
+        }
+        if (!directory) {
             return;
         }
         boolean allDisabled = config.getCategoryGuidePrimaryCategoriesEnabled() == 0
@@ -218,6 +225,39 @@ public class TenantDisplayConfigSupport {
         if (allDisabled) {
             Asserts.fail("请至少开启一个分类导购模块");
         }
+    }
+
+    /** Layouts are allowlisted presentation choices, not arbitrary CSS or business switches. */
+    private void validatePageLayouts(ObjectNode extra) {
+        if (!extra.has("pageLayouts")) return; // old clients/configurations retain their behavior
+        JsonNode layouts = extra.get("pageLayouts");
+        if (!layouts.isObject() || !layouts.path("version").isIntegralNumber() || layouts.path("version").asInt() != 1) {
+            Asserts.fail("页面版型版本不支持，请更新管理后台后重试");
+        }
+        validatePageLayoutChoices(layouts.get("shared"));
+        JsonNode platforms = layouts.get("platforms");
+        if (platforms != null) {
+            if (!platforms.isObject()) Asserts.fail("平台版型配置格式不正确");
+            platforms.fields().forEachRemaining(entry -> {
+                if (!Set.of("h5", "mini", "app").contains(entry.getKey())) Asserts.fail("不支持的版型平台");
+                validatePageLayoutChoices(entry.getValue());
+            });
+        }
+    }
+
+    private void validatePageLayoutChoices(JsonNode choices) {
+        if (choices == null) return; // omitted fields inherit the shared or legacy value
+        if (!choices.isObject()) Asserts.fail("页面版型配置格式不正确");
+        Map<String, Set<String>> options = Map.of(
+                "home", LAYOUT_TEMPLATES,
+                "category", Set.of("list", "directory", "showcase", "scenario"),
+                "product", Set.of("standard", "inset"));
+        choices.fields().forEachRemaining(entry -> {
+            Set<String> allowed = options.get(entry.getKey());
+            if (allowed == null || !entry.getValue().isTextual() || !allowed.contains(entry.getValue().asText())) {
+                Asserts.fail("页面版型选项不支持，请刷新后重新选择");
+            }
+        });
     }
 
     private void fillDefaults(DmsTenantDisplayConfig config) {

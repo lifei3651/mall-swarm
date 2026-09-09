@@ -1,4 +1,5 @@
 // 与商城后台的 extraConfigJson 协议保持一致；装修不能改变交易权限或价格。
+const { resolvePageLayouts } = require('./h5-rules/pageLayouts')
 const object = (value) => value && typeof value === 'object' && !Array.isArray(value) ? value : {}
 function extra(config = {}) {
   config = object(config)
@@ -17,6 +18,7 @@ function color(value, fallback) {
   return fallback
 }
 const presets = {
+  'lingqi-green': ['#16734b', '#f5f6f7', '#ffffff', '16rpx'],
   'retail-red': ['#e7193f', '#f5f6f7', '#ffffff', '24rpx'],
   'fresh-green': ['#0f766e', '#f1f7f5', '#f8fffc', '36rpx'],
   'premium-gold': ['#9a6a22', '#f7f4ef', '#fffcf6', '12rpx'],
@@ -29,6 +31,7 @@ function palette(brand = {}) {
   const config = object(brand.displayConfig)
   const saved = object(config.colors || extra(config).colors)
   const base = { priceColor: primary, pageBg: preset[1], headerBg: preset[2], cardBg: '#ffffff', textColor: '#202735', mutedColor: '#6b7280', accentColor: primary, lineColor: '#e8ecf1', buttonBg: primary }
+  if (brand.productTemplate === 'lingqi-green') Object.assign(base, { priceColor: '#c43d32', textColor: '#202823', mutedColor: '#647168' })
   return { ...Object.fromEntries(Object.entries(base).map(([key, value]) => [key, color(saved[key], value)])), primary, radius: preset[3] }
 }
 const moduleTypes = ['banner', 'notice', 'category', 'live', 'newArrivals', 'trust', 'products']
@@ -47,8 +50,7 @@ function home(config = {}) {
     const item = saved.get(type) || {}
     return { type, enabled: toggle(item.enabled) && gates[type] !== false, sort: Number.isFinite(Number(item.sort)) && Number(item.sort) > 0 ? Number(item.sort) : i + 1 }
   }).sort((a, b) => a.sort - b.sort).filter((item) => item.enabled)
-  const layout = config.layoutTemplate || ext.layoutTemplate
-  return { homeModules: modules, layoutTemplate: ['standard', 'product-focus', 'category-focus', 'campaign-feed'].includes(layout) ? layout : 'standard' }
+  return { homeModules: modules, layoutTemplate: resolvePageLayouts(config, 'mini').home }
 }
 const navDefaults = [['home', '首页', true], ['category', '分类', true], ['cart', '购物车', true], ['orders', '订单', false], ['profile', '我的', true]]
 function navigation(config = {}) {
@@ -67,7 +69,7 @@ function navigation(config = {}) {
 function category(config = {}) {
   config = object(config)
   const ext = extra(config)
-  const type = config.categoryGuideTemplate || ext.categoryGuideTemplate
+  const type = resolvePageLayouts(config, 'mini').category
   const guideTemplate = ['directory', 'showcase', 'scenario'].includes(type) ? type : 'directory'
   const switches = {}
   for (const name of ['primaryCategories', 'subcategories', 'hotProducts', 'heroCategories', 'shelves', 'recommendedProducts', 'scenarios', 'quickEntries', 'popularProducts']) {
@@ -75,6 +77,7 @@ function category(config = {}) {
     switches[name] = toggle(config[field] ?? object(ext.categoryGuideModules)[name])
   }
   const keys = { directory: ['primaryCategories', 'subcategories', 'hotProducts'], showcase: ['heroCategories', 'shelves', 'recommendedProducts'], scenario: ['scenarios', 'quickEntries', 'popularProducts'] }
-  return { guideEnabled: home(config).layoutTemplate === 'category-focus', guideTemplate, guide: switches, guideHasContent: keys[guideTemplate].some((key) => switches[key]) }
+  return { guideEnabled: type !== 'list', guideTemplate, guide: switches, guideHasContent: keys[guideTemplate].some((key) => switches[key]) }
 }
-module.exports = { extra, toggle, color, palette, home, navigation, category }
+function productLayout(config = {}) { return resolvePageLayouts(config, 'mini').product }
+module.exports = { extra, toggle, color, palette, home, navigation, category, productLayout }

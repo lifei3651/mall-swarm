@@ -3,7 +3,7 @@
     <div class="toolbar">
       <div>
         <h2>商城视觉与页面</h2>
-        <p>先选择整体版型，再配置品牌、模块和独立页面，最后预览发布。</p>
+        <p>分别设置页面版型，再配置品牌、模块和独立页面，最后预览发布。</p>
       </div>
     </div>
 
@@ -44,7 +44,8 @@
     </section>
 
     <el-dialog v-model="displayDialogVisible" title="商城视觉装修工作台" width="min(1100px, calc(100vw - 56px))" top="12px" class="display-workbench-dialog" :before-close="confirmCloseDisplayDialog">
-      <el-alert title="先选择整体版型，再逐步配置其他内容。修改会实时预览，点击“保存发布”后才会影响客户前台。" type="info" :closable="false" class="display-alert" />
+      <el-alert title="分别设置页面版型，再逐步配置其他内容。修改会实时预览，点击“保存发布”后才会影响客户前台。" type="info" :closable="false" class="display-alert" />
+      <el-alert v-if="directoryGuideInvalid" title="有端正在使用双栏目录，但三个目录模块均已关闭。请先在「页面版型」选中该端，再到「模块与内容」开启目录模块；也可将该端分类页改成其他版型。" type="warning" :closable="false" />
       <div class="workbench-heading">
         <div><span>当前编辑</span><strong>{{ editSectionLabel }}</strong></div>
         <div class="workbench-heading-meta"><span class="draft-dot"></span>右侧预览实时更新</div>
@@ -114,23 +115,8 @@
               </div>
             </div>
           </section>
-          <section v-if="activeEditSection === 'layout'" class="control-section">
-            <div class="control-section-heading"><div><strong>先选择商城大框架</strong><small>只改变排版，不改变模块开关、排序、品牌、独立页面或底部导航</small></div><el-tag size="small" type="info">第一步</el-tag></div>
-            <div class="layout-template-grid">
-              <button v-for="template in layoutTemplateOptions" :key="template.value" type="button" class="layout-template-card" :class="{ active: displayForm.layoutTemplate === template.value }" @click="applyLayoutTemplate(template)">
-                <span class="layout-template-preview" :class="`preview-${template.value}`"><i></i><b></b><em></em><small></small></span>
-                <strong>{{ template.label }}</strong>
-                <small>{{ template.description }}</small>
-              </button>
-            </div>
-            <div v-if="displayForm.layoutTemplate === 'category-focus'" class="category-guide-config">
-              <div class="control-section-heading"><div><strong>再选择分类页结构</strong><small>A、B、C 作用于“分类”页面，右侧已自动切到分类预览；首页内容保持原配置</small></div><el-tag size="small" type="success">分类页预览</el-tag></div>
-              <div class="category-guide-template-grid">
-                <button v-for="template in categoryGuideTemplateOptions" :key="template.value" type="button" :class="{ active: displayForm.categoryGuideTemplate === template.value }" @click="selectCategoryGuide(template.value)"><strong>{{ template.label }}</strong><small>{{ template.description }}</small></button>
-              </div>
-            </div>
-          </section>
-          <section v-if="displayForm.layoutTemplate === 'campaign-feed' && ['layout', 'home'].includes(activeEditSection)" class="control-section campaign-source-panel">
+          <PageLayoutSettings v-if="activeEditSection === 'layout' && displayForm.pageLayouts" :key="currentTenant?.id" :platform="previewPlatform" :model-value="displayForm.pageLayouts" @update:model-value="setPageLayouts" @preview="selectLayoutPreview" />
+          <section v-if="previewLayouts.home === 'campaign-feed' && ['layout', 'home'].includes(activeEditSection)" class="control-section campaign-source-panel">
             <div class="control-section-heading"><div><strong>限时活动 · 商品卡内容</strong><small>来源：秒杀活动管理，与H5和小程序读取同一份已公开活动</small></div><el-tag size="small" type="info">当前版型</el-tag></div>
             <p>活动绑定到对应商品卡，显示真实活动价、开始/结束倒计时和抢购入口；普通商品不添加活动标签。切换版型不会创建或启用活动。</p>
             <p v-if="previewCampaignLoading" role="status">正在读取活动…</p>
@@ -188,12 +174,12 @@
                 <el-switch v-else v-model="module.enabled" active-text="展示" inactive-text="隐藏" />
               </div>
             </div>
-            <div v-if="displayForm.layoutTemplate === 'category-focus'" class="home-template-modules">
-              <div class="control-section-heading"><div><strong>{{ selectedCategoryGuideLabel }}专属模块</strong><small>只显示当前子版型可用的模块；切换版型不会清空原值</small></div><el-tag size="small" type="success">当前版型</el-tag></div>
+            <div v-if="previewLayouts.category !== 'list'" class="home-template-modules">
+              <div class="control-section-heading"><div><strong>{{ selectedCategoryGuideLabel }}专属模块</strong><small>模块开关各端共用；这里只显示当前版型适用的模块，切换版型不会清空原值</small></div><el-tag size="small" type="success">当前版型</el-tag></div>
               <div class="guide-module-switches">
                 <div v-for="module in selectedCategoryGuideModules" :key="module[0]"><span>{{ module[1] }}</span><el-switch v-model="displayForm[module[0]]" :active-value="1" :inactive-value="0" /></div>
               </div>
-              <p v-if="directoryGuideInvalid" class="guide-module-error" role="alert">请至少开启一个模块，或切换其他首页版型</p>
+              <p v-if="directoryGuideInvalid" class="guide-module-error" role="alert">请至少开启一个模块，或将使用双栏目录的分类页切换为其他版型</p>
             </div>
             <div class="home-category-settings">
               <div class="control-section-heading"><div><strong>首页分类内容</strong><small>控制分类模块整体与单个分类是否展示</small></div></div>
@@ -223,8 +209,8 @@
         </aside>
 
         <section class="preview-stage">
-          <div class="preview-stage-heading"><div><strong>客户手机版预览</strong><span>{{ isCulturePreview ? '品牌文化独立页面' : '首页模块与前台保持同一套配置' }}</span></div><el-tag type="success">草稿预览</el-tag></div>
-          <div class="mobile-preview-shell live-mobile-preview" :class="`layout-preview-${displayForm.layoutTemplate || 'standard'}`" :style="previewStyle">
+          <div class="preview-stage-heading"><div><strong>客户手机版预览</strong><span>{{ { shared: '三端共用', h5: 'H5', mini: '小程序', app: 'App' }[previewPlatform] }} · {{ isCulturePreview ? '品牌文化独立页面' : { home: '首页', category: '分类页', product: '商品详情' }[previewPage] }}</span></div><el-tag type="success">草稿预览</el-tag></div>
+          <div class="mobile-preview-shell live-mobile-preview" :class="`layout-preview-${previewLayouts.home || 'standard'}`" :style="previewStyle">
             <div class="mobile-preview-status"><span>9:41</span><span>● ● ●</span></div>
             <div v-if="!isCulturePreview" class="mobile-preview-brand"><span class="mobile-preview-logo"><img v-if="displayForm.logoUrl && !displayLogoLoadFailed" :src="normalizeMediaUrl(displayForm.logoUrl)" alt="" @error="displayLogoLoadFailed = true" /><span v-else>{{ (displayForm.brandName || '灵启').slice(0, 1) }}</span></span><strong>{{ displayForm.brandName || '灵启商城' }}</strong><span class="mobile-preview-share">分享</span></div>
             <div v-else class="mobile-preview-page-header"><span>‹</span><strong>{{ displayForm.brandCultureTitle || '品牌文化' }}</strong><span>⌂</span></div>
@@ -238,9 +224,16 @@
                 <p>{{ safePreviewBrandCultureContent || '品牌内容正在准备中' }}</p>
               </template>
             </div>
-            <div v-else-if="displayForm.layoutTemplate === 'category-focus' && previewPage === 'category'" class="mobile-category-guide-preview" :class="`guide-preview-${displayForm.categoryGuideTemplate || 'directory'}`">
+            <div v-else-if="previewPage === 'product'" class="preview-detail" :class="{ 'is-inset': previewLayouts.product === 'inset' }">
+              <template v-if="previewProducts[0]"><img :src="normalizeMediaUrl(previewProducts[0].coverUrl)" :alt="previewProducts[0].productName" /><div><strong>{{ previewProducts[0].productName }}</strong><p>{{ previewProducts[0].subtitle || '商品详情' }}</p><b>¥{{ Number(previewProducts[0].salePrice || 0).toFixed(2) }}</b></div></template><p v-else>暂无商品可预览</p>
+              <small>主图版型预览；不改变规格、评价与购买流程</small>
+            </div>
+            <div v-else-if="previewPage === 'category' && previewLayouts.category === 'list'" class="preview-category-list">
+              <div class="mobile-preview-search">搜索商品</div><h4>全部商品</h4><article v-for="product in previewProducts.slice(0, 4)" :key="product.id"><img :src="normalizeMediaUrl(product.coverUrl)" :alt="product.productName" /><div><strong>{{ product.productName }}</strong><p>¥{{ Number(product.salePrice || 0).toFixed(2) }}</p></div></article>
+            </div>
+            <div v-else-if="previewLayouts.category !== 'list' && previewPage === 'category'" class="mobile-category-guide-preview" :class="`guide-preview-${previewGuideTemplate || 'directory'}`">
               <div class="mobile-preview-search"><span>⌕</span><span>搜索商品</span><b>⌕</b></div>
-              <template v-if="displayForm.categoryGuideTemplate === 'directory'">
+              <template v-if="previewGuideTemplate === 'directory'">
                 <p v-if="directoryGuidePreviewMode === 'empty'" class="preview-guide-invalid">请至少开启一个分类导购模块</p>
                 <div v-else class="guide-preview-directory-body" :class="`is-${directoryGuidePreviewMode}`">
                   <aside v-if="directoryGuidePreviewMode === 'split'"><span v-for="category in visiblePreviewCategories.slice(0, 5)" :key="category.id">{{ category.categoryName }}</span></aside>
@@ -248,7 +241,7 @@
                   <main v-if="displayForm.categoryGuideSubcategoriesEnabled === 1 || displayForm.categoryGuideHotProductsEnabled === 1"><section v-if="displayForm.categoryGuideSubcategoriesEnabled === 1"><b>精选子分类</b><div><span v-for="category in visiblePreviewCategories.slice(0, 4)" :key="category.id">{{ category.categoryName }}</span></div></section><section v-if="displayForm.categoryGuideHotProductsEnabled === 1"><b>热销好物</b><div class="preview-guide-products"><article v-for="product in previewProducts.slice(0, 4)" :key="product.id"><img v-if="product.coverUrl" :src="product.coverUrl" alt="" /><span>{{ product.productName }}</span><strong>¥{{ Number(product.salePrice || 0).toFixed(2) }}</strong></article></div></section></main>
                 </div>
               </template>
-              <template v-else-if="displayForm.categoryGuideTemplate === 'showcase'">
+              <template v-else-if="previewGuideTemplate === 'showcase'">
                 <h3>全部品类</h3><div v-if="displayForm.categoryGuideHeroCategoriesEnabled === 1" class="preview-guide-showcase"><article v-for="(category, index) in visiblePreviewCategories.slice(0, 4)" :key="category.id"><img v-if="previewProducts[index]?.coverUrl" :src="previewProducts[index].coverUrl" alt="" /><strong>{{ category.categoryName }}</strong></article></div><div v-if="displayForm.categoryGuideShelvesEnabled === 1" class="preview-guide-tabs"><span>全部</span><span v-for="category in visiblePreviewCategories.slice(0, 3)" :key="category.id">{{ category.categoryName }}</span></div><div v-if="displayForm.categoryGuideRecommendedProductsEnabled === 1" class="preview-guide-products"><article v-for="product in previewProducts.slice(0, 4)" :key="product.id"><img v-if="product.coverUrl" :src="product.coverUrl" alt="" /><span>{{ product.productName }}</span><strong>¥{{ Number(product.salePrice || 0).toFixed(2) }}</strong></article></div>
               </template>
               <template v-else>
@@ -280,8 +273,8 @@
                 <div v-else-if="module.type === 'trust' && module.enabled && displayForm.showTrustStrip === 1" class="mobile-preview-trust"><span>安全支付</span><span>订单可查</span><span>售后无忧</span></div>
                 <div v-else-if="module.type === 'products' && module.enabled" class="mobile-preview-product-section">
                   <div class="mobile-preview-heading"><strong>精选商品</strong><span>商城好物，为你精选</span></div>
-                  <div v-if="displayForm.layoutTemplate === 'campaign-feed' && previewCampaignError" class="preview-empty-module">活动读取失败，暂按普通售价展示</div>
-                  <div class="mobile-preview-products" :class="{ 'campaign-preview-products': displayForm.layoutTemplate === 'campaign-feed' }">
+                  <div v-if="previewLayouts.home === 'campaign-feed' && previewCampaignError" class="preview-empty-module">活动读取失败，暂按普通售价展示</div>
+                  <div class="mobile-preview-products" :class="{ 'campaign-preview-products': previewLayouts.home === 'campaign-feed' }">
                     <div v-for="product in campaignPreviewProducts" :key="product.id" class="mobile-preview-product">
                       <img v-if="product.coverUrl" :src="product.coverUrl" :alt="product.productName" /><i v-else></i>
                       <div v-if="product.campaign" class="campaign-preview-band"><strong class="campaign-preview-label">{{ product.campaign.label }}</strong><span>{{ product.campaign.countdown }}</span></div>
@@ -341,7 +334,8 @@ import { useRoute } from 'vue-router'
 import { formatDateTime } from '@/utils/dateTime'
 import { resolveDirectoryGuideLayout } from '@/utils/categoryGuideLayout'
 import { isEditableBottomNav, normalizeBottomNav } from '@/utils/bottomNav'
-import { applyVisualLayoutTemplate } from '@/utils/layoutTemplate'
+import PageLayoutSettings from '@/components/PageLayoutSettings.vue'
+import { normalizePageLayouts, resolvePageLayouts, hasEmptyDirectoryLayout } from '../../../../mall-shop-web/src/utils/pageLayouts.js'
 import { campaignIndex, decorateCampaignProducts } from '@/utils/campaignDisplay'
 import { featurePlacement, setFeaturePlacement, placementLabels } from '@/utils/featurePlacement'
 import {
@@ -384,12 +378,21 @@ const previewCampaignError = ref('')
 const previewCampaignClock = ref(Date.now())
 let previewCampaignVersion = 0
 let previewCampaignTimer
-const campaignPreviewProducts = computed(() => decorateCampaignProducts(previewProducts.value, previewCampaignRows.value, displayForm.value.layoutTemplate, previewCampaignClock.value))
+const campaignPreviewProducts = computed(() => decorateCampaignProducts(previewProducts.value, previewCampaignRows.value, previewLayouts.value.home, previewCampaignClock.value))
 const previewCampaignCount = computed(() => campaignIndex(previewCampaignRows.value, previewCampaignClock.value).size)
 const previewCampaignProductCount = computed(() => campaignPreviewProducts.value.filter(product => product.campaign).length)
 const previewBanners = ref([])
 const categoryDraft = ref({})
 const previewPage = ref('home')
+const previewPlatform = ref('shared')
+const previewLayouts = computed(() => resolvePageLayouts(displayForm.value, previewPlatform.value))
+const previewGuideTemplate = computed(() => previewLayouts.value.category === 'list' ? displayForm.value.categoryGuideTemplate || 'directory' : previewLayouts.value.category)
+const setPageLayouts = value => {
+  displayForm.value.pageLayouts = value
+  displayForm.value.layoutTemplate = value.shared.home
+  if (value.shared.category !== 'list') displayForm.value.categoryGuideTemplate = value.shared.category
+}
+const selectLayoutPreview = ({ platform, page }) => { previewPlatform.value = platform; previewPage.value = page }
 const activeEditSection = ref('layout')
 const independentPageTab = ref('culture')
 const draggingModuleIndex = ref(null)
@@ -413,9 +416,9 @@ const brandCultureContentWarning = computed(() => safePreviewBrandCultureContent
 const moduleNames = { banner: '首页轮播图', notice: '商城公告', category: '商品分类', live: '直播广场', newArrivals: '新品速递', trust: '服务保障', products: '精选商品' }
 const navNames = { home: '首页', category: '分类', cart: '购物车', orders: '订单', profile: '我的' }
 const workbenchGroups = [
-  { key: 'layout', label: '整体版型', description: '先确定首页大框架' },
+  { key: 'layout', label: '页面版型', description: '首页、分类、详情分别设置' },
   { key: 'brand', label: '品牌与主题', description: '统一维护名称、Logo 和颜色' },
-  { key: 'home', label: '首页模块', description: '配置内容、顺序和当前版型模块' },
+  { key: 'home', label: '模块与内容', description: '首页排序与分类导购内容' },
   { key: 'pages', label: '独立页面', description: '管理直播、新品与品牌文化' },
   { key: 'nav', label: '底部导航', description: '只管理可编辑入口' },
 ]
@@ -460,21 +463,19 @@ const categoryGuideTemplateOptions = [
   { value: 'showcase', label: 'B 视觉品类橱窗', description: '大图品类卡、横向货架与推荐商品，适合强调视觉陈列' },
   { value: 'scenario', label: 'C 需求场景导购', description: '购物场景、快捷品类与人气商品，适合按需求启发选购' },
 ]
-const selectedCategoryGuideLabel = computed(() => categoryGuideTemplateOptions.find((item) => item.value === displayForm.value.categoryGuideTemplate)?.label || 'A 双栏目录导航')
+const selectedCategoryGuideLabel = computed(() => categoryGuideTemplateOptions.find((item) => item.value === previewGuideTemplate.value)?.label || 'A 双栏目录导航')
 const categoryGuideModuleGroups = [
   { template: 'directory', modules: [['categoryGuidePrimaryCategoriesEnabled', '一级分类'], ['categoryGuideSubcategoriesEnabled', '子分类'], ['categoryGuideHotProductsEnabled', '热销商品']] },
   { template: 'showcase', modules: [['categoryGuideHeroCategoriesEnabled', '大型视觉品类'], ['categoryGuideShelvesEnabled', '品类货架'], ['categoryGuideRecommendedProductsEnabled', '推荐商品']] },
   { template: 'scenario', modules: [['categoryGuideScenariosEnabled', '购物场景'], ['categoryGuideQuickEntriesEnabled', '分类快捷入口'], ['categoryGuidePopularProductsEnabled', '人气商品']] },
 ]
-const selectedCategoryGuideModules = computed(() => categoryGuideModuleGroups.find((group) => group.template === displayForm.value.categoryGuideTemplate)?.modules || [])
+const selectedCategoryGuideModules = computed(() => categoryGuideModuleGroups.find((group) => group.template === previewGuideTemplate.value)?.modules || [])
 const directoryGuidePreviewMode = computed(() => resolveDirectoryGuideLayout({
   primaryCategories: displayForm.value.categoryGuidePrimaryCategoriesEnabled,
   subcategories: displayForm.value.categoryGuideSubcategoriesEnabled,
   hotProducts: displayForm.value.categoryGuideHotProductsEnabled,
 }))
-const directoryGuideInvalid = computed(() => displayForm.value.layoutTemplate === 'category-focus'
-  && displayForm.value.categoryGuideTemplate === 'directory'
-  && directoryGuidePreviewMode.value === 'empty')
+const directoryGuideInvalid = computed(() => hasEmptyDirectoryLayout(displayForm.value))
 const colorFields = [
   { key: 'priceColor', label: '价格色' },
   { key: 'pageBg', label: '页面背景' },
@@ -510,10 +511,10 @@ const layoutTemplateOptions = [
   },
 ]
 const currentLayoutSummary = computed(() => {
-  const layout = layoutTemplateOptions.find((item) => item.value === currentDisplayConfig.value?.layoutTemplate)?.label || '标准零售版'
-  if (currentDisplayConfig.value?.layoutTemplate !== 'category-focus') return layout
-  const guide = categoryGuideTemplateOptions.find((item) => item.value === currentDisplayConfig.value?.categoryGuideTemplate)?.label || 'A 双栏目录导航'
-  return `${layout} · ${guide}`
+  const pages = resolvePageLayouts(currentDisplayConfig.value, 'shared')
+  const home = layoutTemplateOptions.find(item => item.value === pages.home)?.label || '标准零售版'
+  const category = pages.category === 'list' ? '商品列表' : categoryGuideTemplateOptions.find(item => item.value === pages.category)?.label
+  return home + ' / 分类：' + category + ' / 详情：' + (pages.product === 'inset' ? '留白主图' : '通栏主图')
 })
 const legacyThemeMap = { standard: 'retail-red', beauty: 'soft-purple', food: 'fresh-green', health: 'fresh-green', course: 'premium-gold' }
 const normalizeTheme = (value) => themeOptions.some((item) => item.value === value) ? value : (legacyThemeMap[value] || 'retail-red')
@@ -651,6 +652,12 @@ const openDisplayDialog = async (row, section = 'layout') => {
   let extra = {}
   try { extra = JSON.parse(raw) || {} } catch { extra = {} }
   displayExtraBase.value = extra && typeof extra === 'object' && !Array.isArray(extra) ? extra : {}
+  if (extra.pageLayouts && extra.pageLayouts.version !== 1) {
+    initializingDisplay.value = false
+    await ElMessageBox.alert('当前页面版型配置来自更新版本，请先更新管理后台再编辑，避免覆盖已有配置。', '暂时无法编辑')
+    return
+  }
+  previewPlatform.value = 'shared'
   const legacyBottomCategoryEnabled = Number(res.data?.showBottomCategoryNav ?? 1) === 1
   const hasConfiguredBottomNav = Array.isArray(extra.bottomNav) && extra.bottomNav.length > 0
   const legacyTemplateCoupledCategory = !Object.prototype.hasOwnProperty.call(extra, 'bottomNavIndependent')
@@ -691,6 +698,7 @@ const openDisplayDialog = async (row, section = 'layout') => {
     showHomeCategories: 1,
     showBottomCategoryNav: 1,
     ...(res.data || {}),
+    pageLayouts: normalizePageLayouts(res.data || {}),
     showHomeCategories: Number(res.data?.showHomeCategories ?? 1) === 0 ? 0 : 1,
     homeModules,
     colors: hydrateThemeColors(selectedTheme, themeColor, extra.colors),
@@ -793,11 +801,6 @@ const configurableBottomNav = computed(() => (displayForm.value.bottomNav || [])
   .filter((nav) => isEditableBottomNav(nav.type)))
 const previewStyle = computed(() => themePreviewVariables(displayForm.value, currentTenant.value?.themeColor || '#e7193f'))
 
-const applyLayoutTemplate = (template) => {
-  applyVisualLayoutTemplate(displayForm.value, template?.value)
-  previewPage.value = template?.value === 'category-focus' ? 'category' : 'home'
-}
-const selectCategoryGuide = (template) => { displayForm.value.categoryGuideTemplate = template; previewPage.value = 'category' }
 const loadPreviewCampaigns = async () => {
   const version = ++previewCampaignVersion
   const tenantId = currentTenant.value?.id
@@ -817,7 +820,7 @@ const loadPreviewCampaigns = async () => {
     ElMessageBox.alert(previewCampaignError.value, '活动预览未就绪', { confirmButtonText: '知道了', type: 'warning' }).catch(() => {})
   } finally { if (version === previewCampaignVersion) previewCampaignLoading.value = false }
 }
-watch([displayDialogVisible, () => displayForm.value.layoutTemplate], ([visible, layout]) => {
+watch([displayDialogVisible, () => previewLayouts.value.home], ([visible, layout]) => {
   clearInterval(previewCampaignTimer)
   if (visible && layout === 'campaign-feed') {
     loadPreviewCampaigns()
@@ -828,7 +831,7 @@ onUnmounted(() => { previewCampaignVersion++; clearInterval(previewCampaignTimer
 const editFeaturePlacement = (type) => { activeEditSection.value = 'pages'; independentPageTab.value = type }
 
 const openPreviewNav = (type) => {
-  if (type === 'home' || (type === 'category' && displayForm.value.layoutTemplate === 'category-focus')) {
+  if (type === 'home' || type === 'category') {
     previewPage.value = type
   }
 }
@@ -859,7 +862,7 @@ const setCategoryDraft = (category, value) => {
 }
 
 watch(activeEditSection, (section) => {
-  previewPage.value = section === 'layout' && displayForm.value.layoutTemplate === 'category-focus' ? 'category' : 'home'
+  previewPage.value = 'home'
 })
 watch(displayForm, () => {
   if (!initializingDisplay.value && displayDialogVisible.value) displayDraftDirty.value = true
@@ -964,6 +967,7 @@ const submitDisplayConfig = async () => {
       customerServiceEnabled: 1,
       extraConfigJson: JSON.stringify({
         ...displayExtraBase.value,
+        pageLayouts: normalizePageLayouts(form),
         homeModules: form.homeModules,
         colors: form.colors,
         bottomNav,
@@ -1020,7 +1024,7 @@ const submitDisplayConfig = async () => {
     if (categoryResults.some((result) => result.status === 'rejected')) {
       ElMessage.warning('页面配置已保存，但部分分类显示状态保存失败，请重试')
     } else {
-      ElMessage.success('商城首页装修已发布，网页和 APP 刷新后生效')
+      ElMessage.success('商城页面配置已保存，支持该配置的 H5、小程序和 App 重新加载后生效')
     }
     displayDraftDirty.value = false
     displayDialogVisible.value = false
@@ -1038,6 +1042,7 @@ const getLayoutTemplateName = (value) => {
 
 const getTemplateName = (value) => {
   const map = {
+    'lingqi-green': '灵启深绿',
     'retail-red': '热卖红',
     'fresh-green': '清新绿',
     'premium-gold': '轻奢金',
@@ -1826,4 +1831,10 @@ onMounted(async () => {
 @media (max-width: 680px) {
   .category-list.category-list-draft { grid-template-columns: 1fr; }
 }
+
+.preview-detail>img{display:block;width:100%;height:auto;max-height:340px;object-fit:contain;background:var(--preview-card-bg)}
+.preview-detail.is-inset>img{width:calc(100% - 32px);margin:16px;border-radius:8px}
+.preview-detail>div,.preview-detail>small{display:block;padding:12px 16px}.preview-detail b,.preview-category-list p{color:var(--preview-price)}
+.preview-category-list{padding:12px}.preview-category-list article{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--preview-line);align-items:center}
+.preview-category-list article>img{width:64px;height:64px;object-fit:cover;border-radius:6px}.preview-category-list strong{font-size:13px;font-weight:500}
 </style>

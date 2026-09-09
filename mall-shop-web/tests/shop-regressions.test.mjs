@@ -817,7 +817,7 @@ test('all four home layouts keep one module order and only apply distinct visual
 
   assert.match(source, /v-for="mod in homeModules"/)
   assert.match(source, /mod\.type === 'category' && mod\.enabled && showHomeCategories/)
-  assert.match(source, /\['standard', 'product-focus', 'category-focus', 'campaign-feed'\]\.includes/)
+  assert.match(source, /resolvePageLayouts\(displayConfig.value, layoutPlatform\)\.home/)
   assert.match(source, /\.home-page\.layout-product-focus \.home-product-grid/)
   assert.match(source, /\.home-page\.layout-category-focus \.home-category-section/)
   assert.match(source, /\.home-page\.layout-campaign-feed \.home-product-card/)

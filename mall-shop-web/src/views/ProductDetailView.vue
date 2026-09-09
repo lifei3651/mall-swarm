@@ -1,5 +1,5 @@
 <template>
-  <div class="product-detail-page">
+  <div class="product-detail-page" :class="`product-layout-${productLayout}`">
     <div v-if="loading" class="detail-state">
       <div class="loading-ring"></div>
       <span>正在加载商品详情...</span>
@@ -211,6 +211,8 @@ import {
   Zap,
 } from 'lucide-vue-next'
 import { getProduct, getProductReviews } from '@/api/shop'
+import { resolvePageLayouts } from '@/utils/pageLayouts'
+import { layoutPlatform } from '@/utils/layoutPlatform'
 import { useCart } from '@/store/cart'
 import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
 import { requireShopSession } from '@/utils/authNavigation'
@@ -237,6 +239,7 @@ const goBack = () => {
 const galleryScroller = ref(null)
 const product = ref(null)
 const displayConfig = ref({})
+const productLayout = computed(() => resolvePageLayouts(displayConfig.value, layoutPlatform).product)
 const skus = ref([])
 const selectedSkuId = ref(null)
 const quantity = ref(1)
@@ -479,6 +482,7 @@ onBeforeUnmount(() => window.clearTimeout(toastTimer))
 @keyframes spin { to { transform:rotate(360deg); } }
 
 .gallery-section { position:relative; overflow:hidden; aspect-ratio:1/1; background:#fff; }
+.product-layout-inset .gallery-section { margin:16px; border-radius:8px; }
 .gallery-scroller { width:100%; height:100%; display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scroll-behavior:smooth; scrollbar-width:none; overscroll-behavior-x:contain; }
 .gallery-scroller::-webkit-scrollbar { display:none; }
 .gallery-slide { width:100%; height:100%; flex:0 0 100%; scroll-snap-align:start; scroll-snap-stop:always; }

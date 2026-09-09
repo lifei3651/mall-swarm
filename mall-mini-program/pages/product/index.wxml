@@ -1,10 +1,10 @@
-<view class="product-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
+<view class="product-page product-layout-{{productLayout}}" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
   <view wx:if="{{loading}}" class="empty">正在加载商品…</view>
   <view wx:elif="{{error}}" class="empty product-empty"><text>商品加载失败</text><text>{{error}}</text><button class="secondary-button" bindtap="retry">重新加载</button></view>
   <block wx:else>
     <view class="hero-shell">
       <view wx:if="{{!product.gallery.length || product.imageFailed}}" class="hero media-fallback"><image src="/assets/lingqi-logo-mark.png" mode="aspectFit" /></view>
-      <swiper wx:else class="hero" style="height: {{galleryHeight}}rpx" bindchange="galleryChanged"><swiper-item wx:for="{{product.gallery}}" wx:key="*this"><image class="gallery-image" src="{{item}}" data-src="{{item}}" mode="aspectFit" bindload="galleryImageLoaded" binderror="productImageError" /></swiper-item></swiper>
+      <swiper wx:else class="hero" style="height: {{galleryHeight * (productLayout === 'inset' ? 686 / 750 : 1)}}rpx" bindchange="galleryChanged"><swiper-item wx:for="{{product.gallery}}" wx:key="*this"><image class="gallery-image" src="{{item}}" data-src="{{item}}" mode="aspectFit" bindload="galleryImageLoaded" binderror="productImageError" /></swiper-item></swiper>
       <text class="image-count">{{galleryIndex + 1}}/{{product.gallery.length || 1}}</text>
       <button wx:if="{{shareReady}}" class="product-share-button" open-type="share" aria-label="分享商品" hover-class="product-share-pressed"><view class="product-share-icon" aria-hidden="true" /></button>
       <button wx:else class="product-share-button" bindtap="retryShare" disabled="{{!shareError}}" aria-label="{{shareError ? '分享暂不可用，点击重试' : '正在准备分享'}}" hover-class="product-share-pressed"><view class="product-share-icon" aria-hidden="true" /><text wx:if="{{shareError}}" class="product-share-error">!</text></button>

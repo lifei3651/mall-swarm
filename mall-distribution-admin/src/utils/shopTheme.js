@@ -12,6 +12,11 @@ export const DISPLAY_COLOR_KEYS = [
 
 export const SHOP_THEME_OPTIONS = [
   {
+    value: 'lingqi-green', label: '灵启深绿', color: '#16734b', radius: '8px',
+    description: '统一规范、简洁有序；金额与品牌色分开',
+    surfaces: { pageBg: '#f5f6f7', headerBg: '#ffffff' },
+  },
+  {
     value: 'retail-red',
     label: '热卖红',
     color: '#e7193f',
@@ -63,12 +68,12 @@ const validColorValue = (value) => typeof value === 'string' && value.trim().len
 export const themePalette = (theme, mainColor = theme?.color) => {
   const primary = validColorValue(mainColor) ? mainColor.trim() : '#e7193f'
   return {
-    priceColor: primary,
+    priceColor: theme?.value === 'lingqi-green' ? '#c43d32' : primary,
     pageBg: theme?.surfaces?.pageBg || '#f5f6f7',
     headerBg: theme?.surfaces?.headerBg || '#ffffff',
     cardBg: '#ffffff',
-    textColor: '#202735',
-    mutedColor: '#6b7280',
+    textColor: theme?.value === 'lingqi-green' ? '#202823' : '#202735',
+    mutedColor: theme?.value === 'lingqi-green' ? '#647168' : '#6b7280',
     accentColor: primary,
     lineColor: '#e8ecf1',
     buttonBg: primary,

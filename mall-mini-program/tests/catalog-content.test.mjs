@@ -23,6 +23,7 @@ function pageHarness(name, response = () => ({})) {
     '../../utils/request': async (options) => { calls.push(plain(options)); return options.url.endsWith('/purchase-limit/check') ? { allowed: true } : response(options) },
     '../../utils/format': format, '../../utils/legal': legal,
     '../../utils/category-product': require('../utils/category-product'),
+    '../../utils/display-config': require('../utils/display-config'),
     '../../utils/search-history': { list: () => [], remember: value => [value] },
     '../../utils/campaign-display': require('../utils/campaign-display'),
     '../../utils/quantity': require('../utils/quantity'),

@@ -83,6 +83,8 @@
 </template>
 
 <script setup>
+import { resolvePageLayouts } from '@/utils/pageLayouts'
+import { layoutPlatform } from '@/utils/layoutPlatform'
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Home, ShoppingBag, UserRound, Grid3x3, ClipboardList } from 'lucide-vue-next'
@@ -153,9 +155,7 @@ const loginLocation = computed(() => ({
   name: 'Login',
   query: route.fullPath && route.fullPath !== '/login' ? { redirect: route.fullPath } : {},
 }))
-const layoutTemplate = computed(() => ['standard', 'product-focus', 'category-focus'].includes(displayConfig.value.layoutTemplate)
-  ? displayConfig.value.layoutTemplate
-  : 'standard')
+const layoutTemplate = computed(() => resolvePageLayouts(displayConfig.value, layoutPlatform).home)
 const safePoliceUrl = computed(() => /^https?:\/\//i.test(legal.value.policeRecordUrl || '') ? legal.value.policeRecordUrl : '')
 const navigateTo = (path) => {
   if (route.path !== path) router.push(path)

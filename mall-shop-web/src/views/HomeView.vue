@@ -214,6 +214,8 @@ import { useCart } from '@/store/cart'
 import { money } from '@/utils/format'
 import { applyBrandConfig } from '@/utils/brand'
 import { readDisplayExtraConfig, resolveHomeModules } from '@/utils/displayConfig'
+import { resolvePageLayouts } from '@/utils/pageLayouts'
+import { layoutPlatform } from '@/utils/layoutPlatform'
 import { resolveQuickCartItem } from '@/utils/quickCart'
 import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
 import { cartItemKey, stockAdditionViolation } from '@/utils/stockRules'
@@ -342,9 +344,7 @@ const displayExtraConfig = computed(() => readDisplayExtraConfig(displayConfig.v
 const showHomeCategories = computed(() => Number(displayConfig.value.showHomeCategories ?? 1) === 1)
 // 服务保障是说明性内容，不是首页操作入口。默认关闭，只有商家在商城视觉与页面中主动开启时展示。
 const showTrustStrip = computed(() => Number(displayExtraConfig.value.showTrustStrip ?? 0) === 1)
-const layoutTemplate = computed(() => ['standard', 'product-focus', 'category-focus', 'campaign-feed'].includes(displayConfig.value.layoutTemplate)
-  ? displayConfig.value.layoutTemplate
-  : 'standard')
+const layoutTemplate = computed(() => resolvePageLayouts(displayConfig.value, layoutPlatform).home)
 const campaignActivities = computed(() => {
   const activities = new Map()
   flashSales.value

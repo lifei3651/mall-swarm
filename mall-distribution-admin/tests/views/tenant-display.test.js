@@ -17,7 +17,7 @@ const sourcePath = resolve(process.cwd(), 'src/views/tenant/list.vue')
 const layoutPath = resolve(process.cwd(), 'src/components/Layout.vue')
 
 describe('商城视觉与页面工作台', () => {
-  it('四套主题点击后同步主色和颜色细节，保存重载后保持一致', () => {
+  it('品牌主题点击后同步主色和颜色细节，保存重载后保持一致', () => {
     for (const theme of SHOP_THEME_OPTIONS) {
       const form = {
         productTemplate: 'retail-red',
@@ -62,10 +62,12 @@ describe('商城视觉与页面工作台', () => {
     expect(DISPLAY_COLOR_KEYS.every((key) => Boolean(missingFields[key]))).toBe(true)
   })
 
-  it('仅提供首页预览入口，分类、我的和购物车不作为装修模板', async () => {
+  it('首页、分类和商品详情可预览，购物车和个人页不提供自由装修', async () => {
     const source = await readFile(sourcePath, 'utf8')
     expect(source).toContain("const previewPage = ref('home')")
-    expect(source).not.toContain("{ value: 'category'")
+    expect(source).toContain('PageLayoutSettings')
+    expect(source).toContain("previewPage === 'category'")
+    expect(source).toContain("previewPage === 'product'")
     expect(source).not.toContain("{ value: 'profile'")
     expect(source).not.toContain("{ value: 'cart'")
     expect(source).not.toContain("previewPage === 'cart'")
@@ -170,7 +172,7 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('workbench-heading')
     expect(source).not.toContain('preview-page-tabs')
     expect(source).not.toContain('v-for="section in displaySections"')
-    expect(source).toContain('先选择整体版型，再逐步配置其他内容')
+    expect(source).toContain('分别设置页面版型，再逐步配置其他内容')
   })
 
   it('品牌文化改用多图详情并保留旧文字作为不可编辑兜底', async () => {
@@ -250,8 +252,8 @@ describe('商城视觉与页面工作台', () => {
     for (const label of ['一级分类', '子分类', '热销商品', '大型视觉品类', '品类货架', '推荐商品', '购物场景', '分类快捷入口', '人气商品']) {
       expect(source).toContain(label)
     }
-    expect(source).toContain("v-if=\"displayForm.layoutTemplate === 'category-focus'\" class=\"category-guide-config\"")
-    expect(source).toContain('首页内容保持原配置')
+    expect(source).toContain('<PageLayoutSettings')
+    expect(source).toContain('pageLayouts: normalizePageLayouts(form)')
     expect(source).toContain("featurePlacement(displayForm, 'live')")
     expect(source).toContain("featurePlacement(displayForm, 'newArrivals')")
     expect(source).toContain('isRequiredNav(nav.type)')
@@ -279,10 +281,10 @@ describe('商城视觉与页面工作台', () => {
     expect(source).toContain('directoryGuidePreviewMode === \'split\'')
     expect(source).toContain('directoryGuidePreviewMode === \'primary-only\'')
     expect(source).toContain('directoryGuidePreviewMode === \'empty\'')
-    expect(source).toContain('v-if="directoryGuideInvalid" class="guide-module-error" role="alert">请至少开启一个模块，或切换其他首页版型</p>')
+    expect(source).toContain('v-if="directoryGuideInvalid" class="guide-module-error" role="alert">请至少开启一个模块，或将使用双栏目录的分类页切换为其他版型</p>')
     expect(source).toContain(':disabled="savingDisplay || directoryGuideInvalid"')
-    expect(source).toContain("displayForm.value.layoutTemplate === 'category-focus'")
-    expect(source).toContain("displayForm.value.categoryGuideTemplate === 'directory'")
+    expect(source).toContain('hasEmptyDirectoryLayout(displayForm.value)')
+    expect(source).toContain('previewGuideTemplate')
     expect(source).toContain('if (directoryGuideInvalid.value)')
     expect(source).toContain("ElMessage.warning('请至少开启一个分类导购模块')")
     expect(source).toContain('class="guide-preview-directory-body"')
@@ -310,7 +312,7 @@ describe('商城视觉与页面工作台', () => {
 
   it('四个首页版型不得改写独立底栏，历史缺失项按安全默认补齐', async () => {
     const source = await readFile(sourcePath, 'utf8')
-    const applyLayout = source.slice(source.indexOf('const applyLayoutTemplate'), source.indexOf('const moveModule'))
+    const applyLayout = source.slice(source.indexOf('const setPageLayouts'), source.indexOf('const selectLayoutPreview'))
     expect(applyLayout).not.toContain('bottomNav')
     expect(applyLayout).not.toContain('showBottomCategoryNav')
 
@@ -405,14 +407,14 @@ describe('商城视觉与页面工作台', () => {
 
   it('工作台明确整体版型边界且四版型首页共用同一模块预览', async () => {
     const source = await readFile(sourcePath, 'utf8')
-    const applyLayout = source.slice(source.indexOf('const applyLayoutTemplate'), source.indexOf('const selectCategoryGuide'))
+    const applyLayout = source.slice(source.indexOf('const setPageLayouts'), source.indexOf('const selectLayoutPreview'))
 
-    expect(source).toContain('只改变排版，不改变模块开关、排序、品牌、独立页面或底部导航')
-    expect(applyLayout).toContain('applyVisualLayoutTemplate(displayForm.value, template?.value)')
-    for (const forbidden of ['showHomeCategories', 'homeModules', 'bottomNav', 'brandName', 'logoUrl', 'campaign-feed', 'categoryGuideTemplate']) {
+    expect(source).toContain('pageLayouts: normalizePageLayouts(form)')
+    expect(applyLayout).toContain('displayForm.value.layoutTemplate = value.shared.home')
+    for (const forbidden of ['showHomeCategories', 'homeModules', 'bottomNav', 'brandName', 'logoUrl', 'campaign-feed']) {
       expect(applyLayout).not.toContain(forbidden)
     }
-    expect(source).toContain("displayForm.layoutTemplate === 'category-focus' && previewPage === 'category'")
+    expect(source).toContain("previewLayouts.category !== 'list' && previewPage === 'category'")
     expect(source).toContain("v-else-if=\"previewPage === 'home'\"")
     expect(source).toContain('v-for="module in orderedPreviewModules"')
     expect(source).toContain("module.type === 'category' && module.enabled && displayForm.showHomeCategories === 1")

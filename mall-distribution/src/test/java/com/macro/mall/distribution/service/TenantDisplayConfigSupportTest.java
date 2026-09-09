@@ -19,6 +19,45 @@ class TenantDisplayConfigSupportTest {
     private final TenantDisplayConfigSupport support = new TenantDisplayConfigSupport(objectMapper);
 
     @Test
+    void independentPageLayoutsRoundTripWithoutLosingOtherExtensions() throws Exception {
+        DmsTenantDisplayConfig config = new DmsTenantDisplayConfig();
+        config.setExtraConfigJson("{\"opaqueExtension\":{\"keep\":true},\"pageLayouts\":{\"version\":1,\"shared\":{\"home\":\"standard\",\"category\":\"showcase\",\"product\":\"inset\"},\"platforms\":{\"mini\":{\"category\":\"list\"}}}}");
+        support.prepareForSave(config);
+        JsonNode saved = objectMapper.readTree(config.getExtraConfigJson());
+        assertTrue(saved.path("opaqueExtension").path("keep").asBoolean());
+        assertEquals("list", saved.path("pageLayouts").path("platforms").path("mini").path("category").asText());
+        assertEquals("showcase", saved.path("pageLayouts").path("shared").path("category").asText());
+        support.prepareForRead(config, 1L);
+        assertEquals(saved, objectMapper.readTree(config.getExtraConfigJson()));
+    }
+
+    @Test
+    void layoutSaveRejectsUnknownChoicesVersionsAndBusinessSwitches() {
+        for (String value : List.of(
+                "{\"version\":2}", "{\"version\":\"1\"}",
+                "{\"version\":1,\"shared\":{\"product\":\"arbitrary-css\"}}",
+                "{\"version\":1,\"platforms\":{\"unknown\":{}}}",
+                "{\"version\":1,\"shared\":{\"checkout\":\"off\"}}")) {
+            DmsTenantDisplayConfig config = new DmsTenantDisplayConfig();
+            config.setExtraConfigJson("{\"pageLayouts\":" + value + "}");
+            assertThrows(ApiException.class, () -> support.prepareForSave(config));
+        }
+    }
+
+    @Test
+    void nativeDirectoryOverrideCannotHideEveryDirectoryModule() {
+        DmsTenantDisplayConfig config = new DmsTenantDisplayConfig();
+        config.setLayoutTemplate("standard");
+        config.setCategoryGuidePrimaryCategoriesEnabled(0);
+        config.setCategoryGuideSubcategoriesEnabled(0);
+        config.setCategoryGuideHotProductsEnabled(0);
+        config.setExtraConfigJson("{\"pageLayouts\":{\"version\":1,\"shared\":{\"category\":\"list\"},\"platforms\":{\"mini\":{\"category\":\"directory\"}}}}");
+        assertThrows(ApiException.class, () -> support.prepareForSave(config));
+        config.setCategoryGuideHotProductsEnabled(1);
+        support.prepareForSave(config);
+    }
+
+    @Test
     void legacyTenantKeepsCurrentCategoryLayoutByDefault() {
         DmsTenantDisplayConfig config = support.prepareForRead(null, 1L);
 

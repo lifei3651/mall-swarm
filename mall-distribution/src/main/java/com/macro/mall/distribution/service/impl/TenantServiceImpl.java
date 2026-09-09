@@ -89,7 +89,7 @@ public class TenantServiceImpl implements TenantService {
         }
         if (tenant.getProductTemplate() == null || tenant.getProductTemplate().isBlank()) {
             tenant.setProductTemplate("retail-red");
-        } else if (!List.of("retail-red", "fresh-green", "premium-gold", "soft-purple",
+        } else if (!List.of("lingqi-green", "retail-red", "fresh-green", "premium-gold", "soft-purple",
                 "standard", "beauty", "food", "course", "health").contains(tenant.getProductTemplate())) {
             Asserts.fail("不支持的前台样式");
         }

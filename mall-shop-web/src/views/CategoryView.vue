@@ -216,6 +216,7 @@ import { currentBrandLogo, currentBrandName } from '@/utils/brand'
 import ProductListSkeleton from '@/components/ProductListSkeleton.vue'
 import { requireShopSession } from '@/utils/authNavigation'
 import { resolveCategoryGuideConfig, resolveDirectoryGuideLayout } from '@/utils/displayConfig'
+import { layoutPlatform } from '@/utils/layoutPlatform'
 
 const route = useRoute()
 const router = useRouter()
@@ -234,8 +235,8 @@ const query = ref({ keyword: '' })
 const brand = ref({ brandName: currentBrandName(), logoUrl: currentBrandLogo() })
 let productRequestId = 0
 
-const categoryGuide = computed(() => resolveCategoryGuideConfig(displayConfig.value))
-const categoryGuideActive = computed(() => displayConfig.value.layoutTemplate === 'category-focus')
+const categoryGuide = computed(() => resolveCategoryGuideConfig(displayConfig.value, layoutPlatform))
+const categoryGuideActive = computed(() => categoryGuide.value.enabled)
 const guideProducts = computed(() => displayedProducts.value.slice(0, 8))
 const hotGuideProducts = computed(() => [...displayedProducts.value]
   .sort((a, b) => Number(b.salesCount || 0) - Number(a.salesCount || 0))

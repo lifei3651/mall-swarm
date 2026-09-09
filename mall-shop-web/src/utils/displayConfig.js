@@ -1,3 +1,4 @@
+import { resolvePageLayouts } from './pageLayouts.js'
 const disabledValues = new Set([false, 0, '0', 'false'])
 const enabledValues = new Set([true, 1, '1', 'true'])
 
@@ -75,15 +76,17 @@ export const resolveDirectoryGuideLayout = (modules = {}) => {
   return 'content-only'
 }
 
-export const resolveCategoryGuideConfig = (config = {}) => {
+export const resolveCategoryGuideConfig = (config = {}, platform = 'h5') => {
   const extra = readDisplayExtraConfig(config)
   const modules = extra.categoryGuideModules && typeof extra.categoryGuideModules === 'object'
     ? extra.categoryGuideModules
     : {}
-  const templateCandidate = config.categoryGuideTemplate || extra.categoryGuideTemplate
+  const resolvedCategory = resolvePageLayouts(config, platform).category
+  const templateCandidate = resolvedCategory === 'list' ? config.categoryGuideTemplate || extra.categoryGuideTemplate : resolvedCategory
   const template = CATEGORY_GUIDE_TEMPLATES.includes(templateCandidate) ? templateCandidate : 'directory'
   const readModule = (field, key) => normalizeDisplayToggle(config[field] ?? modules[key], true)
   return {
+    enabled: resolvedCategory !== 'list',
     template,
     modules: {
       primaryCategories: readModule('categoryGuidePrimaryCategoriesEnabled', 'primaryCategories'),
