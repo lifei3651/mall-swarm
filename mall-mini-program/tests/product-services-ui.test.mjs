@@ -16,6 +16,18 @@ test('商品详情移除平台自营和商家身份标签，不留空占位', ()
   assert.match(wxml, /product\.afterSalePolicy/)
 })
 
+test('商品分享为主图右上角小图标，保留原生分享与失败重试，不再占一整行', () => {
+  const hero = wxml.slice(wxml.indexOf('class="hero-shell"'), wxml.indexOf('class="detail-card"'))
+  assert.match(hero, /class="product-share-button" open-type="share" aria-label="分享商品"/)
+  assert.match(hero, /bindtap="retryShare" disabled="\{\{!shareError\}\}"/)
+  assert.match(hero, /wx:if="\{\{shareError\}\}" class="product-share-error"/)
+  assert.match(readFileSync(new URL('../pages/product/index.js', import.meta.url), 'utf8'), /feedback\.notice\(this\.data\.shareError, '暂时无法分享'\)/)
+  assert.doesNotMatch(wxml, />分享商品<|class="secondary-button" open-type="share"/)
+  assert.match(rules('product-share-button'), /position: absolute/)
+  assert.match(rules('product-share-button'), /width: 88rpx; height: 88rpx/)
+  assert.match(rules('product-share-icon'), /width: 40rpx; height: 40rpx/)
+})
+
 test('服务保障为逐项图文列表，不再将标题和整段说明套成胶囊', () => {
   for (const name of ['service-heading', 'service-caption', 'service-list', 'service-item', 'service-symbol', 'service-title', 'service-description']) assert.ok(wxml.includes(name))
   assert.ok(wxml.includes('具体服务以本商品说明和商城规则为准'))

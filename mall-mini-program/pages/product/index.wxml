@@ -6,13 +6,13 @@
       <view wx:if="{{!product.gallery.length || product.imageFailed}}" class="hero media-fallback"><image src="/assets/lingqi-logo-mark.png" mode="aspectFit" /></view>
       <swiper wx:else class="hero" style="height: {{galleryHeight}}rpx" bindchange="galleryChanged"><swiper-item wx:for="{{product.gallery}}" wx:key="*this"><image class="gallery-image" src="{{item}}" data-src="{{item}}" mode="aspectFit" bindload="galleryImageLoaded" binderror="productImageError" /></swiper-item></swiper>
       <text class="image-count">{{galleryIndex + 1}}/{{product.gallery.length || 1}}</text>
+      <button wx:if="{{shareReady}}" class="product-share-button" open-type="share" aria-label="分享商品" hover-class="product-share-pressed"><view class="product-share-icon" aria-hidden="true" /></button>
+      <button wx:else class="product-share-button" bindtap="retryShare" disabled="{{!shareError}}" aria-label="{{shareError ? '分享暂不可用，点击重试' : '正在准备分享'}}" hover-class="product-share-pressed"><view class="product-share-icon" aria-hidden="true" /><text wx:if="{{shareError}}" class="product-share-error">!</text></button>
       <text wx:if="{{soldOut}}" class="sold-out-badge">暂时缺货</text>
     </view>
     <view class="detail-card">
       <view class="price-row"><view class="detail-price"><text>¥</text>{{priceText}}</view><text wx:if="{{marketPrice > (selectedSku.salePrice == null ? product.salePrice : selectedSku.salePrice)}}" class="market-price">¥{{marketPriceText}}</text><text class="sales-count">已售 {{product.salesCount || 0}}+</text></view>
       <view class="detail-title">{{product.productName}}</view>
-      <button wx:if="{{shareReady}}" class="secondary-button" open-type="share">分享商品</button>
-      <button wx:elif="{{shareError}}" class="secondary-button" bindtap="retryShare">{{shareError}}</button>
       <view wx:if="{{product.subtitle}}" class="detail-subtitle">{{product.subtitle}}</view>
       <view wx:if="{{product.purchaseLimit > 0}}" class="detail-subtitle">每位会员限购 {{product.purchaseLimit}} 件，不同规格合并计算；加购及结算时核对剩余额度</view>
     </view>

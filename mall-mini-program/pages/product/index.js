@@ -28,7 +28,10 @@ Page({
   onHide() { this.purchaseInactive = true; this.purchaseSequence = (this.purchaseSequence || 0) + 1; this.setData({ purchasePending: false }); reviews.hide(this); share.hide(this) },
   onUnload() { this.onHide() },
   onShareAppMessage() { return share.message(this, this.productId ? `/pages/product/index?id=${encodeURIComponent(this.productId)}` : '/pages/home/index', this.data.product.productName || this.data.brandName) },
-  retryShare() { return share.prepare(this) },
+  async retryShare() {
+    await share.prepare(this)
+    if (this.data.shareError && !this.purchaseInactive) await feedback.notice(this.data.shareError, '暂时无法分享')
+  },
   async load() {
     if (!this.productId) { feedback.update(this, { loading: false, error: '商品编号不正确' }); return }
     feedback.update(this, { loading: true, error: '' })
