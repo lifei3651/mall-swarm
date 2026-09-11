@@ -54,7 +54,7 @@ test('登录用户历史限购不允许时不加入购物车', async () => {
 test('失败、错商品响应不会静默成功', async () => {
   const h = harness(() => ({product: {id: '2'}})); await h.page.quickAdd(event('1'))
   assert.equal(h.rows.length, 0); assert.ok(h.notices[0].includes('不一致'))
-  assert.equal(h.page.data.addingId, '')
+  assert.equal(h.page.addingId, '')
 })
 test('重复点击只请求一次，离开页面或换号后晚到响应不加购', async () => {
   for (const leave of [h => h.page.onHide(), h => h.token('changed')]) {

@@ -19,7 +19,7 @@ for (const name of ['home', 'category', 'product']) {
       await page.addToCart()
       assert.equal(page.data.cartCount, 1); assert.equal(page.data.purchasePending, false)
     } else {
-      await page.quickAdd(event({ id: '1' })); assert.equal(page.data.addingId, '')
+      await page.quickAdd(event({ id: '1' })); assert.equal(page.addingId, '')
     }
     assert.equal(e.load('utils/cart').count(), 1)
     assert.equal(e.notices.length, 0)

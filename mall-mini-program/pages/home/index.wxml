@@ -94,7 +94,7 @@
           <view class="home-purchase-row">
             <view class="product-price"><text>¥</text><text class="price-number">{{item.priceInteger}}</text><text>.{{item.priceDecimal}}</text></view>
             <button wx:if="{{item.campaign}}" class="campaign-buy-button" data-id="{{item.campaign.id}}" catchtap="campaign" aria-label="{{item.campaign.actionLabel + '：' + item.productName}}">{{item.campaign.actionLabel}}</button>
-            <button wx:else class="home-quick-cart {{item.soldOut ? 'is-disabled' : ''}}" data-id="{{item.id}}" catchtap="quickAdd" disabled="{{item.soldOut || !!addingId}}" hover-class="none" aria-label="{{item.soldOut ? '已售罄' : '立即加购' + item.productName}}">{{item.soldOut ? '已售罄' : '立即加购'}}</button>
+            <button wx:else class="home-quick-cart {{item.soldOut ? 'is-disabled' : ''}}" data-id="{{item.id}}" catchtap="quickAdd" disabled="{{item.soldOut}}" hover-class="none" aria-label="{{item.soldOut ? '已售罄' : '立即加购' + item.productName}}">{{item.soldOut ? '已售罄' : '立即加购'}}</button>
           </view>
         </view>
       </view>

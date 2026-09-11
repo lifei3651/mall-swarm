@@ -175,7 +175,7 @@
                 v-if="!campaignActivity(product)"
                 type="button"
                 class="home-cart-button"
-                :disabled="product.status !== 1 || product.stock <= 0 || isAddingProduct(product.id)" :aria-busy="isAddingProduct(product.id)"
+                :disabled="product.status !== 1 || product.stock <= 0" :aria-busy="isAddingProduct(product.id)"
                 :aria-label="`立即加购${product.productName}`"
                 @click="addProduct(product)"
               >

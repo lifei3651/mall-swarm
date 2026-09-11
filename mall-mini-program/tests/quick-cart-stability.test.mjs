@@ -7,14 +7,14 @@ const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8'
 const event = { currentTarget: { dataset: { id: '1' } } }
 const tick = () => new Promise(resolve => setImmediate(resolve))
 
-test('首页和分类加购不切换灰色/文字/转圈，保留禁用锁并关闭默认点击灰闪', () => {
+test('首页和分类仅售罄禁用，临时请求锁不传入任何按钮状态', () => {
   for (const name of ['home', 'category']) {
     const button = read('pages/' + name + '/index.wxml').split('\n').find(line => line.includes('catchtap="quickAdd"'))
     assert.ok(button)
-    assert.match(button, /disabled="\{\{item.soldOut \|\| !!addingId\}\}"/)
+    assert.match(button, /disabled="\{\{item.soldOut\}\}"/)
     assert.match(button, /hover-class="none"/)
     assert.match(button, /item.soldOut \? 'is-disabled' : ''/)
-    assert.doesNotMatch(button, /loading=|加购中|addingId \? 'is-disabled'/)
+    assert.doesNotMatch(button, /loading=|加购中|addingId/)
   }
 })
 
@@ -39,11 +39,11 @@ for (const name of ['home', 'category']) test(name + '：慢请求和连续加�
     assert.equal(env.calls.filter(c => c.method === 'POST').length, count, '在途重复点击不重复加购')
     approve({ allowed: true }); await pending
     assert.equal(cart.count(), count)
-    assert.equal(page.data.addingId, '')
+    assert.equal(page.addingId, '')
     assert.equal(page.data.products, products)
   }
   assert.deepEqual(badges, [1, 2])
-  assert.ok(patches.every(patch => Object.keys(patch).every(key => key === 'addingId')))
+  assert.equal(patches.length, 0, '加购前后不向商品页发送任何渲染补丁')
   assert.equal(env.notices.length, 0)
 })
 

@@ -8,7 +8,7 @@ const purchaseLimit = require('../../utils/purchase-limit')
 const session = require('../../utils/session')
 
 Page({
-  data: { ...theme.pageData(), rows: [], total: '0.00', count: 0, totalCount: 0, selectedKinds: 0, manageMode: false, allSelected: false, checking: false, checkError: '', quantityChecking: '', checkoutChecking: false },
+  data: { ...theme.pageData(), rows: [], total: '0.00', count: 0, totalCount: 0, selectedKinds: 0, manageMode: false, allSelected: false, checking: false, checkError: '', checkoutChecking: false },
   onShow() {
     this.inactive = false; theme.apply(this)
     if (!this.data.manageMode && session.getToken()) cart.selectAll(true)
@@ -19,25 +19,31 @@ Page({
         .then(({ confirm }) => { if (confirm && token === session.getToken()) cart.acknowledgeLegacyReview() })
     }
   },
-  async refresh() {
+  async refresh(options = {}) {
     const generation = this.generation = (this.generation || 0) + 1
     const token = session.getToken()
     const snapshot = JSON.stringify(cart.list())
     this.renderRows(cart.list())
     feedback.update(this, { checking: true, checkError: '' })
     try {
-      const rows = await catalog.refresh(cart.list())
+      const source = cart.list()
+      const target = options.productId ? source.filter(row => String(row.productId) === String(options.productId)) : source
+      const refreshed = await catalog.refresh(target)
       if (this.inactive || token !== session.getToken() || generation !== this.generation || snapshot !== JSON.stringify(cart.list())) return
-      for (const row of rows) cart.update(row.key, { salePrice: row.salePrice, productName: row.productName, skuName: row.skuName, skuAttrs: row.skuAttrs, merchantName: row.merchantName, stock: row.stock, purchaseLimit: row.purchaseLimit, coverUrl: row.coverUrl })
+      for (const row of refreshed) cart.update(row.key, { salePrice: row.salePrice, productName: row.productName, skuName: row.skuName, skuAttrs: row.skuAttrs, merchantName: row.merchantName, stock: row.stock, purchaseLimit: row.purchaseLimit, coverUrl: row.coverUrl })
+      const byKey = new Map(refreshed.map(row => [row.key, row]))
+      const rows = source.map(row => byKey.get(row.key) || row)
       this.renderRows(rows)
     } catch (error) { if (generation === this.generation) feedback.update(this, { checkError: error.message || '商品信息校验失败，请重试' }) }
     finally { if (generation === this.generation) feedback.update(this, { checking: false }) }
   },
-  onHide() { this.inactive = true; this.generation = (this.generation || 0) + 1; this.actionSequence = (this.actionSequence || 0) + 1; this.setData({ quantityChecking: '', checkoutChecking: false }) },
+  onHide() { this.inactive = true; this.generation = (this.generation || 0) + 1; this.actionSequence = (this.actionSequence || 0) + 1; this.quantityChecking = ''; this.setData({ checking: false, checkoutChecking: false }) },
   onUnload() { this.onHide() },
   renderRows(source) {
     const rows = source.map((row) => ({
       ...row,
+      // Cache-only rendering must not briefly remove an existing server warning.
+      unavailable: row.unavailable === undefined ? (this.data.rows.find(item => item.key === row.key)?.unavailable || '') : row.unavailable,
       coverUrl: format.mediaUrl(row.coverUrl),
       priceText: format.money(row.salePrice),
       lineTotal: format.money(Number(row.salePrice) * row.quantity)
@@ -68,17 +74,17 @@ Page({
     if (tab && tab.refreshCartCount) tab.refreshCartCount()
   },
   toggleManage() {
-    if (this.data.quantityChecking || this.data.checkoutChecking || this.inactive) return
+    if (this.quantityChecking || this.data.checkoutChecking || this.inactive) return
     const manageMode = !this.data.manageMode
     // H5 enters management with no selection; ordinary checkout uses all rows.
     cart.selectAll(!manageMode)
     this.setData({ manageMode })
-    this.refresh()
+    this.renderLocalRows()
   },
   removeSelected() { return this.confirmRemoval(false) },
   clearCart() { return this.confirmRemoval(true) },
   confirmRemoval(all) {
-    if (!this.data.manageMode || this.data.quantityChecking || this.data.checkoutChecking || this.inactive) return
+    if (!this.data.manageMode || this.quantityChecking || this.data.checkoutChecking || this.inactive) return
     const targets = all ? cart.list() : cart.selected()
     if (!targets.length) return
     const token = session.getToken(), snapshot = JSON.stringify(cart.list())
@@ -90,36 +96,49 @@ Page({
         if (snapshot !== JSON.stringify(cart.list())) { feedback.notice('购物车已变化，请重新确认'); return }
         cart.removeMany(targets.map(row => row.key))
         if (all) this.setData({ manageMode: false })
-        this.refresh()
+        this.renderLocalRows()
       }
     })
   },
   toggle(event) {
-    if (this.data.quantityChecking || this.data.checkoutChecking) return
-    cart.update(event.currentTarget.dataset.key, { selected: (event.detail.value || []).includes('selected') })
-    this.refresh()
+    if (this.quantityChecking || this.data.checkoutChecking || this.inactive) return
+    const row = cart.list().find(item => item.key === event.currentTarget.dataset.key)
+    if (!row) return
+    cart.update(row.key, { selected: Array.isArray(event.detail?.value) ? event.detail.value.includes('selected') : !row.selected })
+    this.renderLocalRows()
+  },
+  renderLocalRows() {
+    // Selection/management/removal does not change price or stock. Checkout still
+    // validates selected items; don't re-fetch the entire cart for these actions.
+    this.generation = (this.generation || 0) + 1
+    if (this.data.checking) this.setData({ checking: false })
+    this.renderRows(cart.list())
   },
   async quantity(event) {
     const key = event.currentTarget.dataset.key
     const row = this.data.rows.find((item) => item.key === key)
     const delta = Number(event.currentTarget.dataset.delta)
-    if (!row || ![1, -1].includes(delta) || this.data.quantityChecking || this.data.checkoutChecking || this.inactive) return
-    if (delta < 0) { cart.update(key, { quantity: Math.max(1, row.quantity - 1) }); return this.refresh() }
+    if (!row || ![1, -1].includes(delta) || this.quantityChecking || this.data.checkoutChecking || this.inactive) return
+    if (delta < 0) { if (row.quantity <= 1) return; cart.update(key, { quantity: row.quantity - 1 }); return this.refresh({ productId: row.productId }) }
     const sequence = this.actionSequence = (this.actionSequence || 0) + 1
     const token = session.getToken()
     const current = () => !this.inactive && sequence === this.actionSequence && token === session.getToken()
     this.generation = (this.generation || 0) + 1
-    this.setData({ quantityChecking: key })
+    this.quantityChecking = key
+    if (this.data.checking) this.setData({ checking: false })
     try {
       const selection = await purchaseLimit.checkAddition(row.productId, row.skuId, 1, { isCurrent: current })
       if (!selection || !current()) return
       cart.update(key, { ...selection.item, quantity: row.quantity + 1 })
+      // checkAddition already returned current price/stock and checked cumulative
+      // limits. Commit one patch; no second cache/server round-trip after success.
+      this.renderRows(cart.list().map(item => item.key === key ? { ...item, unavailable: '' } : item))
     } catch (error) { if (current()) await feedback.notice(error.message || '当前商品已达到可购买数量上限', '无法增加数量') }
-    finally { if (sequence === this.actionSequence) { this.setData({ quantityChecking: '' }); if (current()) await this.refresh() } }
+    finally { if (sequence === this.actionSequence) this.quantityChecking = '' }
   },
-  toggleAll(event) { if (this.data.quantityChecking || this.data.checkoutChecking) return; cart.selectAll((event.detail.value || []).includes('selected')); this.refresh() },
+  toggleAll(event) { if (this.quantityChecking || this.data.checkoutChecking || this.inactive) return; cart.selectAll(Array.isArray(event.detail?.value) ? event.detail.value.includes('selected') : !this.data.allSelected); this.renderLocalRows() },
   remove(event) {
-    if (this.data.quantityChecking || this.data.checkoutChecking) return
+    if (this.quantityChecking || this.data.checkoutChecking || this.inactive) return
     const key = event.currentTarget.dataset.key
     const token = session.getToken()
     wx.showModal({
@@ -130,13 +149,13 @@ Page({
       success: ({ confirm }) => {
         if (!confirm || this.inactive || token !== session.getToken()) return
         cart.remove(key)
-        this.refresh()
+        this.renderLocalRows()
       }
     })
   },
   openProduct(event) { wx.navigateTo({ url: `/pages/product/index?id=${event.currentTarget.dataset.id}` }) },
   async checkout() {
-    if (this.data.quantityChecking || this.data.checkoutChecking || this.inactive) return
+    if (this.quantityChecking || this.data.checkoutChecking || this.inactive) return
     if (this.data.checking) return
     if (!this.data.count) { feedback.toast({ title: '请先选择商品', icon: 'none' }); return }
     if (!auth.requireLogin('/pages/cart/index')) return

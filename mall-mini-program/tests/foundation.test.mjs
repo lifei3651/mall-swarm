@@ -250,7 +250,7 @@ test('分类页使用适合侧边栏宽度的单列商品卡片', async () => {
   assert.match(categoryStyle, /\.category-product-card\s*\{[^}]*display:\s*flex;/s)
 })
 
-test('小程序第三轮交互优化提供原生选择、图片兜底和失败重试', async () => {
+test('小程序交互提供受控可访问选择、图片兜底和失败重试', async () => {
   const fs = await import('node:fs/promises')
   const homePage = await fs.readFile(new URL('../pages/home/index.js', import.meta.url), 'utf8')
   const homeView = await fs.readFile(new URL('../pages/home/index.wxml', import.meta.url), 'utf8')
@@ -263,8 +263,8 @@ test('小程序第三轮交互优化提供原生选择、图片兜底和失败�
   assert.match(homePage, /categoryIconError\(event\)/)
   assert.match(homeView, /bindtap="openBanner"/)
   assert.match(homeView, /binderror="categoryIconError"/)
-  assert.match(cartView, /checkbox-group[^>]+class="row-selector"/)
-  assert.match(cartView, /checkbox-group[^>]+class="select-all"/)
+  assert.match(cartView, /class="row-selector"[^>]+aria-role="checkbox" aria-checked="\{\{item.selected\}\}"/)
+  assert.match(cartView, /class="select-all"[^>]+aria-role="checkbox" aria-checked="\{\{allSelected\}\}"/)
   assert.doesNotMatch(cartView, /\? '✓' : ''/)
   assert.match(cartPage, /event\.detail\.value/)
   for (const view of [categoryView, productView, messageView]) {
@@ -290,7 +290,9 @@ test('小程序第四轮视觉收口让全部页面跟随后台品牌主题', as
 
   const cartView = await fs.readFile(new URL('../pages/cart/index.wxml', import.meta.url), 'utf8')
   const loginView = await fs.readFile(new URL('../components/login-sheet/index.wxml', import.meta.url), 'utf8')
-  assert.match(cartView, /color="\{\{themeColor\}\}"/)
+  const cartStyle = await fs.readFile(new URL('../pages/cart/index.wxss', import.meta.url), 'utf8')
+  assert.match(cartView, /--brand: \{\{themeColor\}\}/)
+  assert.match(cartStyle, /\.cart-check\.is-checked\s*\{[^}]*background: var\(--brand\)/)
   assert.match(loginView, /color="\{\{themeColor\}\}"/)
 })
 

@@ -45,9 +45,9 @@
           </div>
           <div class="item-actions">
             <div class="quantity">
-              <button aria-label="减少数量" @click="changeQuantity(item, -1)">-</button>
+              <button :disabled="item.quantity <= 1" :aria-busy="isQuantityChecking(item)" aria-label="减少数量" @click="changeQuantity(item, -1)">-</button>
               <span>{{ item.quantity }}</span>
-              <button :disabled="isQuantityChecking(item)" :aria-busy="isQuantityChecking(item)" aria-label="增加数量" @click="changeQuantity(item, 1)">+</button>
+              <button :aria-busy="isQuantityChecking(item)" aria-label="增加数量" @click="changeQuantity(item, 1)">+</button>
             </div>
           </div>
         </div>
@@ -140,11 +140,11 @@ const showToast = (message) => {
 
 const changeQuantity = async (item, delta) => {
   const key = item.cartKey || item.id
+  if (isQuantityChecking(item)) return
   if (delta < 0) {
     update(key, item.quantity - 1)
     return
   }
-  if (isQuantityChecking(item)) return
   setQuantityChecking(item, true)
   try {
     const detail = (await getProduct(item.id)).data || {}
@@ -372,7 +372,7 @@ onBeforeUnmount(() => window.clearTimeout(toastTimer))
 .quantity { display: flex; align-items: center; gap: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .quantity button { width: 32px; height: 32px; display: grid; place-items: center; background: #f8faf9; border: 0; font-size: 16px; cursor: pointer; }
 .quantity button { color: inherit; -webkit-tap-highlight-color: transparent; }
-.quantity button:disabled { cursor:wait; }
+.quantity button:disabled { cursor:not-allowed; opacity:.4; }
 .quantity span { width: 36px; text-align: center; font-size: 14px; font-weight: 600; }
 
 .cart-summary-panel { border: 0; border-radius: 16px; }

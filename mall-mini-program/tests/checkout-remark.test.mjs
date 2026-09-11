@@ -32,4 +32,8 @@ test('单行入口右侧箭头和无备注占位，只有弹框内有多行编�
   assert.match(view, /class="remark-arrow"/)
   assert.doesNotMatch(view.split('class="remark-overlay"')[0], /<textarea/)
   assert.match(view, /bindtap="cancelRemark"/); assert.match(view, /bindtap="saveRemark"/)
+  assert.match(view, /<view class="remark-row"[^>]*aria-role="button"/)
+  assert.doesNotMatch(view, /<button class="remark-row"/, '普通信息行不受微信原生按钮默认宽度影响')
+  const css = readFileSync(new URL('../pages/checkout/index.wxss', import.meta.url), 'utf8')
+  assert.match(css, /\.remark-row\s*\{[^}]*width: 100%;[^}]*margin: 20rpx 0 0;/)
 })

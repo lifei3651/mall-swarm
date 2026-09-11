@@ -43,7 +43,7 @@
                 <article v-for="product in hotGuideProducts" :key="product.id" class="guide-product-card">
                   <RouterLink :to="`/product/${product.id}`"><img :src="product.coverUrl" :alt="product.productName" /></RouterLink>
                   <strong>{{ product.productName }}</strong><small>{{ product.subtitle || '品质好物，售后无忧' }}</small>
-                  <div><b>¥{{ money(product.salePrice) }}</b><button type="button" :disabled="product.status !== 1 || product.stock <= 0 || isAddingProduct(product.id)" :aria-busy="isAddingProduct(product.id)" :aria-label="`加入购物车：${product.productName}`" @click="addProduct(product)"><ShoppingCart :size="16" /></button></div>
+                  <div><b>¥{{ money(product.salePrice) }}</b><button type="button" :disabled="product.status !== 1 || product.stock <= 0" :aria-busy="isAddingProduct(product.id)" :aria-label="`加入购物车：${product.productName}`" @click="addProduct(product)"><ShoppingCart :size="16" /></button></div>
                 </article>
               </div>
             </section>
@@ -69,7 +69,7 @@
             <article v-for="product in guideProducts" :key="product.id" class="guide-product-card">
               <RouterLink :to="`/product/${product.id}`"><img :src="product.coverUrl" :alt="product.productName" /></RouterLink>
               <strong>{{ product.productName }}</strong><small>{{ product.subtitle || '精选推荐，品质保障' }}</small>
-              <div><b>¥{{ money(product.salePrice) }}</b><button type="button" :disabled="product.status !== 1 || product.stock <= 0 || isAddingProduct(product.id)" :aria-busy="isAddingProduct(product.id)" :aria-label="`加入购物车：${product.productName}`" @click="addProduct(product)"><ShoppingCart :size="16" /></button></div>
+              <div><b>¥{{ money(product.salePrice) }}</b><button type="button" :disabled="product.status !== 1 || product.stock <= 0" :aria-busy="isAddingProduct(product.id)" :aria-label="`加入购物车：${product.productName}`" @click="addProduct(product)"><ShoppingCart :size="16" /></button></div>
             </article>
           </div>
         </section>
@@ -94,7 +94,7 @@
             <article v-for="product in hotGuideProducts" :key="product.id" class="guide-product-card">
               <RouterLink :to="`/product/${product.id}`"><img :src="product.coverUrl" :alt="product.productName" /></RouterLink>
               <strong>{{ product.productName }}</strong><small>{{ product.subtitle || '人气精选，放心选购' }}</small>
-              <div><b>¥{{ money(product.salePrice) }}</b><button type="button" :disabled="product.status !== 1 || product.stock <= 0 || isAddingProduct(product.id)" :aria-busy="isAddingProduct(product.id)" :aria-label="`加入购物车：${product.productName}`" @click="addProduct(product)"><ShoppingCart :size="16" /></button></div>
+              <div><b>¥{{ money(product.salePrice) }}</b><button type="button" :disabled="product.status !== 1 || product.stock <= 0" :aria-busy="isAddingProduct(product.id)" :aria-label="`加入购物车：${product.productName}`" @click="addProduct(product)"><ShoppingCart :size="16" /></button></div>
             </article>
           </div>
         </section>
@@ -177,7 +177,7 @@
                 <button
                   type="button"
                   class="quick-cart-button"
-                  :disabled="product.status !== 1 || product.stock <= 0 || isAddingProduct(product.id)" :aria-busy="isAddingProduct(product.id)"
+                  :disabled="product.status !== 1 || product.stock <= 0" :aria-busy="isAddingProduct(product.id)"
                   :aria-label="`立即加购${product.productName}`"
                   @click="addProduct(product)"
                 >

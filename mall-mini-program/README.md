@@ -16,7 +16,7 @@
 
 1. 在微信公众平台注册客户自己的小程序并取得 AppID。
 2. 将 `project.config.json` 的测试 AppID 替换为客户 AppID；本机调试设置放在不提交的 `project.private.config.json`。
-3. 把 `config/runtime.js` 的 API 地址替换为客户 HTTPS 域名，并在微信公众平台加入 request 合法域名。
+3. 把 `config/runtime.js` 的 API 地址替换为客户 HTTPS 域名，并在微信公众平台分别加入 request、uploadFile、downloadFile 合法域名。三类配置相互独立；只填 request 会使商品浏览正常但头像上传/预览失败。当前基座三类均需 `https://lingqimall.com`，域名配置不带 `/api` 路径，不通过关闭域名校验绕过。
 4. 服务器私有环境配置客户 AppID、AppSecret、隐私版本和功能开关；AppSecret 只能保存在服务器。
 5. 小程序的 `PRIVACY_CONSENT_VERSION` 必须与服务器一致，否则登录会安全停止。
 6. 启用微信支付前绑定客户AppID与商户号，配置客户商户API私钥、微信支付公钥、API v3密钥及支付/退款HTTPS回调，完成小程序支付权限和发货信息管理要求。

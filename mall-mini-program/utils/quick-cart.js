@@ -18,21 +18,22 @@ function firstAvailableSku(detail) {
   if (!selection) throw new Error('该商品暂时缺货')
   return selection.skuId
 }
-const data = { addingId: '' }
+// An in-flight request is a logic lock, not a visual disabled state.
+const data = {}
 function show(page) { page._inactive = false }
 function hide(page) {
   page._inactive = true; page.addSequence = (page.addSequence || 0) + 1
-  page.setData({ addingId: '' })
+  page.addingId = ''
 }
 const methods = {
   async quickAdd(event) {
     const id = format.identifier(event.currentTarget.dataset.id)
-    if (!id || this.data.addingId || this._inactive) return
+    if (!id || this.addingId || this._inactive) return
     if (!auth.requireLogin(this.quickCartRoute || '/pages/category/index')) return
     const sequence = this.addSequence = (this.addSequence || 0) + 1
     const token = session.getToken()
     const current = () => !this._inactive && sequence === this.addSequence && token === session.getToken()
-    this.setData({ addingId: id })
+    this.addingId = id
     try {
       const detail = await request({ url: `/shop/products/${id}` })
       if (!current()) return
@@ -43,7 +44,7 @@ const methods = {
       const tab = this.getTabBar && this.getTabBar()
       if (tab && tab.refreshCartCount) tab.refreshCartCount()
     } catch (error) { if (current()) await feedback.notice(error.message || '加购失败，请稍后重试', '未能加入购物车') }
-    finally { if (sequence === this.addSequence) this.setData({ addingId: '' }) }
+    finally { if (sequence === this.addSequence) this.addingId = '' }
   }
 }
 module.exports = { data, methods, show, hide, firstAvailableSku }

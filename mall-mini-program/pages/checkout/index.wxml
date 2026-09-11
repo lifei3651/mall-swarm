@@ -20,7 +20,7 @@
         <text class="item-price">¥{{item.priceText}}</text>
       </view>
     </view>
-    <button class="remark-row" bindtap="openRemark" disabled="{{submitting}}" aria-label="编辑订单备注"><text class="remark-label">订单备注</text><text class="remark-value">{{remark || '无备注'}}</text><text class="remark-arrow" aria-hidden="true">›</text></button>
+    <view class="remark-row" bindtap="openRemark" aria-role="button" aria-disabled="{{submitting}}" aria-label="编辑订单备注"><text class="remark-label">订单备注</text><text class="remark-value">{{remark || '无备注'}}</text><text class="remark-arrow" aria-hidden="true">›</text></view>
     <view class="pay-card"><view><text>支付方式</text><text>支付结果以订单状态为准</text></view><button wx:if="{{wechatPayEnabled}}" class="pay-choice pay-choice-button" data-type="WECHAT" bindtap="selectPayType"><radio checked="{{payType === 'WECHAT'}}" color="#07c160" /><text>微信支付</text></button><button wx:if="{{balanceAvailable}}" class="pay-choice pay-choice-button" data-type="BALANCE" bindtap="selectPayType"><radio checked="{{payType === 'BALANCE'}}" color="{{themeColor}}" /><view><text>余额支付</text><text class="muted">可用余额 ¥{{balanceSummary.balanceText}}</text></view></button><text wx:if="{{payType === 'BALANCE' && !balanceSummary.hasPaymentPassword}}" class="muted">首次支付需设置独立6位支付密码，待支付订单会保留。</text><text wx:if="{{payType === 'BALANCE' && balanceSummary.paymentPasswordLocked}}" class="checkout-error">支付密码已临时锁定，请稍后刷新。</text><button wx:if="{{balanceError}}" class="payment-retry" bindtap="load">{{balanceError}}</button></view>
     <view wx:if="{{needSmsVerify}}" class="sms-card">
       <view><text class="sms-title">大额支付验证</text><text class="muted">验证码只发送到当前账号绑定手机号</text></view>

@@ -9,7 +9,8 @@ for (const name of ['HomeView', 'CategoryView']) test(name + '：仅售罄置灰
   assert.equal(buttons.length, name === 'HomeView' ? 1 : 4)
   for (const button of buttons) {
     assert.match(button, /:aria-busy="isAddingProduct\(product.id\)"/)
-    assert.match(button, /:disabled="[^"]*isAddingProduct\(product.id\)"/)
+    assert.match(button, /:disabled="product.status !== 1 \|\| product.stock <= 0"/)
+    assert.doesNotMatch(button, /:disabled="[^"]*isAddingProduct/)
   }
   assert.match(source, /:disabled:not\(\[aria-busy="true"\]\)/)
   assert.doesNotMatch(source, /(?:home-cart-button|quick-cart-button|guide-product-card > div button):disabled\s*\{/)

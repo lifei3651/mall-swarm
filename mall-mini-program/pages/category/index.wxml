@@ -53,7 +53,7 @@
             <view wx:if="{{item.salesText}}" class="product-sales">{{item.salesText}}</view>
             <view class="purchase-row">
               <view class="product-price" aria-label="价格{{item.priceText}}元"><text class="currency">¥</text><text class="price-integer">{{item.priceInteger}}</text><text class="price-decimal">.{{item.priceDecimal}}</text></view>
-              <button class="quick-cart-button {{item.soldOut ? 'is-disabled' : ''}}" data-id="{{item.id}}" catchtap="quickAdd" disabled="{{item.soldOut || !!addingId}}" hover-class="none" aria-label="{{item.soldOut ? '已售罄' : '加入购物车：' + item.productName}}">{{item.soldOut ? '已售罄' : '立即加购'}}</button>
+              <button class="quick-cart-button {{item.soldOut ? 'is-disabled' : ''}}" data-id="{{item.id}}" catchtap="quickAdd" disabled="{{item.soldOut}}" hover-class="none" aria-label="{{item.soldOut ? '已售罄' : '加入购物车：' + item.productName}}">{{item.soldOut ? '已售罄' : '立即加购'}}</button>
             </view>
           </view>
         </view>
