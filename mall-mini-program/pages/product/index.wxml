@@ -1,3 +1,4 @@
+<page-meta page-style="{{servicesVisible ? 'overflow:hidden' : ''}}" />
 <view class="product-page product-layout-{{productLayout}}" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
   <view wx:if="{{loading}}" class="empty">正在加载商品…</view>
   <view wx:elif="{{error}}" class="empty product-empty"><text>商品加载失败</text><text>{{error}}</text><button class="secondary-button" bindtap="retry">重新加载</button></view>
@@ -32,16 +33,8 @@
     </view>
     <view class="detail-card quantity-panel"><text>购买数量</text><view><button data-delta="-1" bindtap="changeQuantity" disabled="{{quantity <= 1 || purchasePending || soldOut}}" aria-label="减少购买数量">−</button><input value="{{quantityInput}}" type="number" maxlength="10" bindinput="quantityChanged" bindblur="commitQuantity" disabled="{{purchasePending || soldOut}}" aria-label="手动输入购买数量" /><button data-delta="1" bindtap="changeQuantity" disabled="{{quantity >= maxQuantity || purchasePending || soldOut}}" aria-label="增加购买数量">＋</button></view><text class="quantity-stock">库存 {{stock}} 件</text></view>
     <view wx:if="{{product.serviceTags.length}}" class="detail-card service-panel">
-      <view class="service-heading">服务保障</view>
-      <text class="service-caption">具体服务以本商品说明和商城规则为准</text>
-      <view class="service-list">
-        <view wx:for="{{product.serviceTags}}" wx:key="title" class="service-item {{index > 0 ? 'service-item-separated' : ''}}">
-          <view class="service-symbol" aria-hidden="true"><view class="service-check"></view></view>
-          <view class="service-content">
-            <text class="service-title">{{item.title}}</text>
-            <text wx:if="{{item.description}}" class="service-description">{{item.description}}</text>
-          </view>
-        </view>
+      <view class="service-summary-row" bindtap="openServices" aria-role="button" aria-expanded="{{servicesVisible}}" aria-label="查看全部服务保障：{{serviceSummary}}">
+        <text class="service-label">服务保障</text><text class="service-summary">{{serviceSummary}}</text><text class="service-arrow" aria-hidden="true">›</text>
       </view>
     </view>
     <view class="detail-card review-panel">
@@ -61,4 +54,21 @@
       <button class="primary-button" disabled="{{soldOut || purchasePending}}" bindtap="buyNow">{{soldOut ? '暂时缺货' : purchasePending ? '正在核对' : '立即购买'}}</button>
     </view>
   </block>
+  <view wx:if="{{servicesVisible || servicesOpening}}" class="service-overlay {{servicesVisible ? '' : 'service-measuring'}}">
+    <view class="service-backdrop" bindtap="closeServices" catchtouchmove="stopServiceEvent" />
+    <view class="service-sheet" role="dialog" aria-modal="true" aria-label="服务保障" catchtap="stopServiceEvent">
+      <view class="service-sheet-header" catchtouchmove="stopServiceEvent"><text class="service-heading">服务保障</text><button class="service-close" bindtap="closeServices" aria-label="关闭服务保障" hover-class="none">×</button></view>
+      <scroll-view class="service-scroll" style="height: {{serviceScrollHeight}}" scroll-y enhanced show-scrollbar="{{false}}">
+        <view class="service-scroll-body">
+          <text class="service-caption">具体服务以本商品说明和商城规则为准</text>
+          <view class="service-list">
+            <view wx:for="{{product.serviceTags}}" wx:key="index" class="service-item {{index > 0 ? 'service-item-separated' : ''}}">
+              <view class="service-symbol" aria-hidden="true"><view class="service-check"></view></view>
+              <view class="service-content"><text class="service-title">{{item.title}}</text><text wx:if="{{item.description}}" class="service-description">{{item.description}}</text></view>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
 </view>

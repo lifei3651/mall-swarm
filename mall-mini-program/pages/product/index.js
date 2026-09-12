@@ -17,6 +17,7 @@ Page({
     ...theme.pageData(),
     ...reviews.data,
     loading: true, error: '', product: {}, skus: [], skuIndex: 0, quantity: 1, galleryHeight: 750,
+    servicesVisible: false, servicesOpening: false, serviceScrollHeight: '56vh', serviceSummary: '',
     priceText: '0.00', stock: 0, soldOut: false, selectedSku: {}, purchasePending: false, quantityInput: '1', maxQuantity: 1, galleryIndex: 0, cartCount: 0
   },
   onLoad(options = {}) { theme.apply(this); this.productId = format.identifier(options.id); this.reviewOrderItemId = format.identifier(options.orderItemId); this.load() },
@@ -26,7 +27,7 @@ Page({
     if (!this.data.loading && this.productId) this.loadReviews()
     return share.prepare(this)
   },
-  onHide() { this.purchaseInactive = true; this.purchaseSequence = (this.purchaseSequence || 0) + 1; this.setData({ purchasePending: false }); reviews.hide(this); share.hide(this) },
+  onHide() { this.closeServices(); this.purchaseInactive = true; this.purchaseSequence = (this.purchaseSequence || 0) + 1; this.setData({ purchasePending: false }); reviews.hide(this); share.hide(this) },
   onUnload() { this.onHide() },
   onShareAppMessage() { return share.message(this, this.productId ? `/pages/product/index?id=${encodeURIComponent(this.productId)}` : '/pages/home/index', this.data.product.productName || this.data.brandName) },
   async retryShare() {
@@ -34,6 +35,7 @@ Page({
     if (this.data.shareError && !this.purchaseInactive) await feedback.notice(this.data.shareError, '暂时无法分享')
   },
   async load() {
+    this.closeServices()
     if (!this.productId) { feedback.update(this, { loading: false, error: '商品编号不正确' }); return }
     feedback.update(this, { loading: true, error: '' })
     try {
@@ -46,7 +48,8 @@ Page({
       const stock = Math.max(0, Number(selected ? selected.stock : product.stock || 0))
       feedback.update(this, {
         productLayout: display.productLayout(detail.displayConfig || {}),
-        product, galleryIndex: 0, galleryHeight: this.galleryHeights?.[product.gallery?.[0]] || 750,
+        product, serviceSummary: product.serviceTags.map(item => item.title).join(' · '),
+        galleryIndex: 0, galleryHeight: this.galleryHeights?.[product.gallery?.[0]] || 750,
         skus,
         skuIndex, selectedSku: selected || {},
         priceText: selected ? selected.priceText : product.priceText,
@@ -61,6 +64,28 @@ Page({
     finally { feedback.update(this, { loading: false }) }
   },
   retry() { this.load() },
+  openServices() {
+    if (this.data.loading || this.data.error || this.purchaseInactive || this.data.servicesOpening || this.data.servicesVisible || !this.data.product.serviceTags?.length) return
+    const sequence = this.serviceOpenSequence = (this.serviceOpenSequence || 0) + 1
+    const reveal = rect => {
+      if (sequence !== this.serviceOpenSequence || this.purchaseInactive) return
+      const info = wx.getWindowInfo?.() || {}
+      const measured = Number(rect?.height), windowHeight = Number(info.windowHeight)
+      const serviceScrollHeight = measured > 0 && Number.isFinite(measured) && windowHeight > 0 && Number.isFinite(windowHeight)
+        ? `${Math.min(Math.ceil(measured), windowHeight * .56)}px` : '56vh'
+      this.setData({ servicesOpening: false, servicesVisible: true, serviceScrollHeight })
+    }
+    // Measure invisibly first: short content fits naturally, long content gets an explicit scroll height.
+    this.setData({ servicesOpening: true, serviceScrollHeight: '56vh' }, () => {
+      if (!this.createSelectorQuery) { reveal(); return }
+      this.createSelectorQuery().select('.service-scroll-body').boundingClientRect(reveal).exec()
+    })
+  },
+  closeServices() {
+    this.serviceOpenSequence = (this.serviceOpenSequence || 0) + 1
+    if (this.data.servicesVisible || this.data.servicesOpening) this.setData({ servicesVisible: false, servicesOpening: false })
+  },
+  stopServiceEvent() {},
   productImageError() { feedback.update(this, { 'product.imageFailed': true }) },
   selectSku(event) {
     if (this.data.purchasePending) return

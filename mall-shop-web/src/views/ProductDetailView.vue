@@ -101,16 +101,19 @@
       </section>
 
       <section v-if="serviceGuarantees.length" class="content-section guarantee-section">
-        <div class="section-heading-row">
-          <div><h2>服务保障</h2><p>具体服务以本商品说明和商城规则为准</p></div>
-          <ShieldCheck :size="24" />
-        </div>
-        <div class="guarantee-list">
-          <div v-for="item in serviceGuarantees" :key="`${item.title}-${item.icon}`" class="guarantee-item">
-            <div class="guarantee-icon"><component :is="guaranteeIcon(item.icon)" :size="23" /></div>
-            <div><h3>{{ item.title }}</h3><p>{{ item.description }}</p></div>
+        <button ref="guaranteesTrigger" class="guarantee-summary-row" type="button" :aria-expanded="guaranteesOpen" aria-haspopup="dialog" :aria-label="`查看全部服务保障：${guaranteeSummary}`" @click="openGuarantees">
+          <span class="guarantee-label">服务保障</span><span class="guarantee-summary">{{ guaranteeSummary }}</span><ChevronRight :size="18" aria-hidden="true" />
+        </button>
+        <dialog ref="guaranteesDialog" class="guarantee-sheet" aria-label="服务保障" @cancel.prevent="closeGuarantees" @close="finishGuarantees" @click="dismissGuaranteesBackdrop">
+          <div class="guarantee-sheet-header"><h2>服务保障</h2><button class="guarantee-close" type="button" aria-label="关闭服务保障" autofocus @click="closeGuarantees"><X :size="22" aria-hidden="true" /></button></div>
+          <div class="guarantee-list" tabindex="0" aria-label="完整服务保障说明">
+            <p class="guarantee-caption">具体服务以本商品说明和商城规则为准</p>
+            <div v-for="(item, index) in serviceGuarantees" :key="index" class="guarantee-item">
+              <div class="guarantee-icon" aria-hidden="true"><component :is="guaranteeIcon(item.icon)" :size="18" /></div>
+              <div class="guarantee-content"><h3>{{ item.title }}</h3><p v-if="item.description">{{ item.description }}</p></div>
+            </div>
           </div>
-        </div>
+        </dialog>
       </section>
 
       <section class="content-section review-section">
@@ -195,6 +198,7 @@ import {
   ArrowLeft,
   Share2,
   BadgeCheck,
+  ChevronRight,
   Ban,
   HeartHandshake,
   Minus,
@@ -208,6 +212,7 @@ import {
   Store,
   Truck,
   UserRound,
+  X,
   Zap,
 } from 'lucide-vue-next'
 import { getProduct, getProductReviews } from '@/api/shop'
@@ -304,6 +309,27 @@ const serviceGuarantees = computed(() => parseArray(product.value?.serviceTags).
   }
   return { enabled: item?.enabled !== false, icon: item?.icon || 'shield', title: item?.title || '', description: item?.description || '' }
 }).filter((item) => item.enabled && item.title))
+const guaranteeSummary = computed(() => serviceGuarantees.value.map(item => item.title).join(' · '))
+const guaranteesDialog = ref(null), guaranteesTrigger = ref(null), guaranteesOpen = ref(false)
+let guaranteesPreviousOverflow = ''
+const openGuarantees = () => {
+  if (loading.value || !serviceGuarantees.value.length || guaranteesOpen.value || !guaranteesDialog.value) return
+  guaranteesDialog.value.showModal()
+  guaranteesPreviousOverflow = document.body.style.overflow
+  document.body.style.overflow = 'hidden'
+  guaranteesOpen.value = true
+}
+const finishGuarantees = () => {
+  // A previous close event can arrive after a quick reopen; keep the new dialog locked.
+  if (!guaranteesOpen.value || guaranteesDialog.value?.open) return
+  guaranteesOpen.value = false
+  document.body.style.overflow = guaranteesPreviousOverflow
+  if (guaranteesTrigger.value?.isConnected) guaranteesTrigger.value.focus()
+}
+const closeGuarantees = () => { guaranteesDialog.value?.close(); finishGuarantees() }
+const dismissGuaranteesBackdrop = event => {
+  if (event.target === guaranteesDialog.value) closeGuarantees()
+}
 const selectedSkuAttributeEntries = computed(() => Object.entries(parseObject(selectedSku.value?.attrsJson)))
 const selectedSkuAttrs = computed(() => selectedSkuAttributeEntries.value.map(([key, value]) => `${key}：${value}`))
 const displayProduct = computed(() => selectedSku.value ? {
@@ -369,6 +395,7 @@ const fetchReviews = async (reset = true) => {
 }
 
 const fetchProduct = async () => {
+  closeGuarantees()
   loading.value = true
   errorMessage.value = ''
   product.value = null
@@ -468,7 +495,7 @@ const barPercent = (star) => {
 }
 
 watch(() => [route.params.id, route.query.orderItemId], fetchProduct, { immediate: true })
-onBeforeUnmount(() => window.clearTimeout(toastTimer))
+onBeforeUnmount(() => { closeGuarantees(); window.clearTimeout(toastTimer) })
 </script>
 
 <style scoped>
@@ -537,16 +564,25 @@ onBeforeUnmount(() => window.clearTimeout(toastTimer))
 .detail-images img { display:block; width:100%; height:auto; }
 .empty-copy { padding:28px 18px; color:#9ca3af; text-align:center; }
 
-.guarantee-section { padding:0 18px 22px; }
-.section-heading-row { min-height:76px; display:flex; align-items:center; justify-content:space-between; gap:16px; border-bottom:1px solid #f0f1f2; }
-.section-heading-row h2 { margin:0; font-size:19px; }
-.section-heading-row p { margin:6px 0 0; color:#9ca3af; font-size:12px; }
-.section-heading-row > svg { color:var(--brand-primary); }
-.guarantee-list { padding-top:4px; }
-.guarantee-item { display:grid; grid-template-columns:42px minmax(0,1fr); gap:12px; padding:16px 0; border-bottom:1px solid #f2f3f4; }
-.guarantee-icon { width:38px; height:38px; display:grid; place-items:center; color:var(--brand-primary); background:var(--brand-primary-soft); border-radius:50%; }
-.guarantee-item h3 { margin:0 0 7px; font-size:16px; }
-.guarantee-item p { margin:0; color:#8a9099; font-size:13px; line-height:1.7; }
+.guarantee-section { padding:0 18px; }
+.guarantee-summary-row { box-sizing:border-box; display:flex; align-items:center; gap:12px; width:100%; min-height:52px; padding:0; border:0; background:transparent; text-align:left; cursor:pointer; font:inherit; }
+.guarantee-label { flex:none; color:#6b7280; font-size:13px; }
+.guarantee-summary { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#20242b; font-size:13px; line-height:20px; }
+.guarantee-summary-row > svg { flex:none; color:#6b7280; }
+.guarantee-sheet { position:fixed; inset:auto 0 0; box-sizing:border-box; width:min(760px,100%); max-width:100%; max-height:80vh; margin:0 auto; padding:0 16px calc(12px + env(safe-area-inset-bottom)); border:0; border-radius:16px 16px 0 0; background:#fff; color:#20242b; overflow:hidden; }
+.guarantee-sheet::backdrop { background:#0006; }
+.guarantee-sheet-header { display:flex; align-items:center; justify-content:space-between; min-height:56px; border-bottom:1px solid #edeef0; }
+.guarantee-sheet-header h2 { margin:0; font-size:17px; font-weight:600; }
+.guarantee-close { display:grid; place-items:center; flex:none; width:48px; height:48px; margin-right:-8px; padding:0; border:0; border-radius:8px; background:transparent; color:#6b7280; cursor:pointer; }
+.guarantee-list { max-height:56vh; overflow-y:auto; overscroll-behavior:contain; }
+.guarantee-caption { margin:12px 0 4px; color:#6b7280; font-size:12px; line-height:1.6; }
+.guarantee-item { display:grid; grid-template-columns:20px minmax(0,1fr); gap:10px; padding:12px 0; }
+.guarantee-item + .guarantee-item { border-top:1px solid #edeef0; }
+.guarantee-icon { display:grid; place-items:center; height:24px; color:var(--brand-primary); }
+.guarantee-content { min-width:0; }
+.guarantee-item h3 { margin:0 0 4px; font-size:15px; line-height:1.6; overflow-wrap:anywhere; }
+.guarantee-item p { margin:0; color:#6b7280; font-size:13px; line-height:1.7; white-space:pre-wrap; overflow-wrap:anywhere; }
+.guarantee-summary-row:focus-visible,.guarantee-close:focus-visible,.guarantee-list:focus-visible { outline:2px solid var(--brand-primary); outline-offset:-2px; }
 .after-sale-section { padding:0 18px 24px; }
 .after-sale-card { padding:16px; background:#fafafa; border-radius:10px; }
 .after-sale-lead { margin:0 0 12px; color:#525866; font-size:13px; line-height:1.7; }

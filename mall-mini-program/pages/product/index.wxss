@@ -22,10 +22,10 @@
 .quantity-panel view text { width: 78rpx; text-align: center; }
 .service-heading { color: var(--ink); font-size: 30rpx; font-weight: 600; line-height: 1.5; }
 .service-caption { display: block; margin-top: 6rpx; color: var(--muted); font-size: 24rpx; line-height: 1.6; }
-.service-list { margin-top: 22rpx; }
+.service-list { margin-top: 8rpx; }
 .service-item { display: flex; align-items: flex-start; gap: 20rpx; padding: 24rpx 0; }
 .service-item-separated { border-top: 1rpx solid var(--line); }
-.service-symbol { display: flex; align-items: center; justify-content: center; flex: none; width: 44rpx; height: 44rpx; border-radius: 50%; background: var(--brand-soft); color: var(--accent); }
+.service-symbol { display: flex; align-items: center; justify-content: center; flex: none; width: 32rpx; height: 44rpx; color: var(--accent); }
 .service-check { width: 13rpx; height: 21rpx; margin-top: -5rpx; border-right: 3rpx solid currentColor; border-bottom: 3rpx solid currentColor; transform: rotate(45deg); }
 .service-content { flex: 1; min-width: 0; }
 .service-title { display: block; color: var(--ink); font-size: 28rpx; font-weight: 600; line-height: 1.55; overflow-wrap: anywhere; word-break: break-all; }
@@ -104,3 +104,18 @@
 .review-content { display: block; padding-top: 20rpx; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }
 .review-state { display: block; text-align: center; padding: 40rpx 0; color: var(--muted); font-size: 26rpx; }
 .review-error { padding: 20rpx 0; color: #b42318; }
+.detail-card.service-panel { padding: 0 28rpx; }
+.service-summary-row { box-sizing: border-box; display: flex; align-items: center; gap: 24rpx; width: 100%; min-height: 104rpx; }
+.service-label { flex: none; color: var(--muted); font-size: 26rpx; line-height: 40rpx; }
+.service-summary { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-size: 26rpx; line-height: 40rpx; }
+.service-arrow { flex: none; color: var(--muted); font-size: 36rpx; }
+.service-overlay { position: fixed; inset: 0; z-index: 80; }
+.service-measuring { visibility: hidden; pointer-events: none; }
+.service-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.4); }
+.service-sheet { position: absolute; bottom: 0; left: 0; right: 0; box-sizing: border-box; padding: 0 32rpx calc(24rpx + env(safe-area-inset-bottom)); border-radius: 28rpx 28rpx 0 0; background: var(--paper); }
+.service-sheet-header { display: flex; align-items: center; justify-content: space-between; min-height: 112rpx; border-bottom: 1rpx solid var(--line); }
+.service-close { display: flex; align-items: center; justify-content: center; flex: none; width: 104rpx; height: 104rpx; margin: 0 -24rpx 0 0; padding: 0; border-radius: 0; color: var(--muted); background: transparent; font-size: 44rpx; line-height: 1; }
+.service-close::after { border: 0; }
+.service-scroll { max-height: 56vh; }
+.service-scroll-body { display: block; padding-top: 20rpx; }
+.service-sheet .service-caption { margin-top: 0; }
