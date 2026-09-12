@@ -56,7 +56,7 @@ Page({
       await request({ url: '/sms/send', method: 'POST', data: { phone: this.member.phone, bizType: 5 } })
       if (version !== this.version || token !== session.getToken()) return
       this.resendAt = Date.now() + 60000; this.updateCountdown()
-      feedback.notice('提现验证码已发送至绑定手机号，5分钟内有效。请勿提供给他人。', '验证码已发送')
+      feedback.success('验证码已发送至绑定手机号，请勿提供给他人')
     } catch (error) { if (version === this.version) feedback.notice(error.message, '验证码未发送') }
     finally { if (!this.disposed) this.setData({ sendingCode: false }) }
   },

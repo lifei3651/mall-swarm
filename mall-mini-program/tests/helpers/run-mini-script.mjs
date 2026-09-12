@@ -1,7 +1,7 @@
 import vm from 'node:vm'
 import { readFileSync } from 'node:fs'
 
-// Page unit tests acknowledge informational dialogs immediately. Destructive
+// Page unit tests acknowledge error/risk dialogs immediately. Destructive
 // confirmations still go through each test's own wx.showModal mock unchanged.
 // feedback.test.mjs exercises the real modal queue without this adapter.
 export function runMiniScript(source, sandbox, options) {
@@ -13,7 +13,7 @@ export function runMiniScript(source, sandbox, options) {
     if (!cache.has(name)) {
       const module = { exports: {} }
       vm.runInNewContext(readFileSync(new URL(`../../utils/${name}.js`, import.meta.url), 'utf8'), {
-        module, wx: { showModal(dialog) {
+        module, wx: { showToast(tip) { sandbox.wx?.showToast?.(tip) }, showModal(dialog) {
           sandbox.wx?.showToast?.({ title: dialog.content, icon: dialog.title === '操作完成' ? 'success' : 'none' })
           dialog.success?.({ confirm: true })
         } }

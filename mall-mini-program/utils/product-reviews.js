@@ -52,7 +52,7 @@ const methods = {
       if (!current()) return
       this.setData({ reviewContent: '', reviewRating: 5, reviewFormVisible: false, reviewSubmitting: false })
       if (this.onReviewSubmitted) this.onReviewSubmitted()
-      await feedback.notice('评价提交成功', '操作完成')
+      await feedback.success('评价提交成功')
       if (current()) await this.loadReviews()
     } catch (error) { if (current()) await feedback.notice(error.message || '评价提交失败，请检查后重试', '未能提交评价') }
     finally { this.setData({ reviewSubmitting: false }) }

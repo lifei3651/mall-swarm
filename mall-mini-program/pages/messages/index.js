@@ -139,7 +139,7 @@ Page({
       if (!current()) return
       if (!result || typeof result.enabled !== 'boolean') throw new Error('设置结果待确认，请重新读取短信设置')
       this.setData({ smsPreference: result, smsError: '' })
-      await feedback.notice(result.enabled ? '已开启重要进度短信' : '已关闭重要进度短信', '设置完成')
+      await feedback.success(result.enabled ? '已开启重要进度短信' : '已关闭重要进度短信')
     } catch (error) { if (current()) await feedback.notice(error.message || '短信设置保存失败，请重试') }
     finally { this.setData({ smsBusy: false }) }
   },

@@ -37,7 +37,7 @@ async function toggleReservation(page, id) {
     await request({ url: `/shop/live-rooms/${id}/reservation`, method: reserved ? 'DELETE' : 'POST' })
     if (!current(page, token, sequence)) return
     page.setData({ reservedIds: reserved ? page.data.reservedIds.filter(value => value !== id) : page.data.reservedIds.concat(id) }); renderRooms(page)
-    await feedback.notice(reserved ? '已取消直播预约' : '预约成功，可随时回来查看', '预约结果')
+    await feedback.success(reserved ? '已取消直播预约' : '预约成功，可随时回来查看')
   } catch (error) { if (current(page, token, sequence)) { page.setData({ reservationReady: false }); await feedback.notice(error.message || '预约结果暂未确认，请重新加载查看') } }
   finally { if (!page.disposed) page.setData({ reservingId: '' }) }
 }

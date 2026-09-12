@@ -45,7 +45,7 @@ Page({
       const result = await request({ url: `/shop/service-tickets/${this.ticketId}/replies`, method: 'POST', data: { content }, idempotencyKey })
       if (!current()) return
       this.applyDetail(result); this.requestIdentity = null; this.setData({ content: '' })
-      await feedback.notice('回复已发送', '操作完成')
+      await feedback.success('回复已发送')
     } catch (error) { if (current()) await feedback.notice(error.message || '回复未能发送，内容已保留，请重试') }
     finally { this.setData({ submitting: false }) }
   },
@@ -59,7 +59,7 @@ Page({
       this.generation = (this.generation || 0) + 1
       const result = await request({ url: `/shop/service-tickets/${this.ticketId}/close`, method: 'PUT' })
       if (!current()) return
-      this.applyDetail(result); clearTimeout(this.poll); await feedback.notice('工单已关闭', '操作完成')
+      this.applyDetail(result); clearTimeout(this.poll); await feedback.success('工单已关闭')
     } catch (error) { if (current()) await feedback.notice(error.message || '工单关闭失败，请重试') }
     finally { this.setData({ closing: false }) }
   }

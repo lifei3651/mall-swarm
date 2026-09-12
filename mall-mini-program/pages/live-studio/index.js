@@ -50,7 +50,7 @@ Page({
         if (!credential || identifier(credential.roomId) !== id) throw new Error('未取得本场推流信息，请先刷新直播状态，不要重复开播')
         this.setData({ credential: { ...credential, roomId: id, expireText: String(credential.expireTime || '').replace('T', ' ').slice(0, 16) } })
         await feedback.notice('直播间已开启，请连接推流工具，并到观众页确认画面。', '开播准备')
-      } else { this.setData({ credential: null }); await feedback.notice('直播已结束', '操作完成') }
+      } else { this.setData({ credential: null }); await feedback.success('直播已结束') }
     } catch (error) { if (current()) await feedback.notice(error.message || '操作结果暂未确认，请刷新房间状态后再操作') }
     finally { if (current()) { this.setData({ busyId: '' }); if (confirmed) await this.load(true) } }
   },

@@ -62,7 +62,7 @@ Page({
       await request(type === 'payment' ? { url: '/sms/send/payment-password', method: 'POST' } : { url: '/sms/send', method: 'POST', data: { phone, bizType: type === 'current' ? 9 : 10 } })
       if (!current()) return
       this.deadlines = { ...this.deadlines, [type]: Date.now() + 60000 }; this.tick()
-      await feedback.notice('验证码已发送，5分钟内有效。请勿提供给他人。', '验证码已发送')
+      await feedback.success('验证码已发送，请勿提供给他人')
     } catch (error) { if (current()) await feedback.notice(error.message || '验证码发送失败') }
     finally { this.setData({ sending: '' }) }
   },
@@ -78,7 +78,7 @@ Page({
     const current = this.guard(); this.setData({ busy: true })
     try {
       await request({ url: '/shop/wallet/payment-password', method: 'PUT', data: { oldPassword: wallet.hasPaymentPassword ? form.oldPassword : '', loginPassword: wallet.hasPaymentPassword ? '' : form.loginPassword, newPassword: form.newPassword, smsCode: form.smsCode } })
-      if (current()) { this.setData({ form: empty(), 'wallet.hasPaymentPassword': true }); await feedback.notice('支付密码已保存', '操作完成') }
+      if (current()) { this.setData({ form: empty(), 'wallet.hasPaymentPassword': true }); await feedback.success('支付密码已保存') }
     } catch (error) { if (current()) await feedback.notice(error.message || '支付密码保存失败') }
     finally { this.setData({ busy: false, form: empty() }) }
   },
@@ -93,7 +93,7 @@ Page({
       await request({ url: '/shop/auth/phone', method: 'PUT', data: { currentPhoneSmsCode: form.currentPhoneSmsCode, newPhone: form.newPhone, newPhoneSmsCode: form.newPhoneSmsCode } })
       if (!current()) return
       session.clearSession(); this.setData({ form: empty(), member: null })
-      await feedback.notice('手机号已更新，请重新登录', '操作完成')
+      await feedback.success('手机号已更新，请重新登录')
       if (!this.inactive && !session.getToken()) wx.redirectTo({ url: '/pages/login/index' })
     } catch (error) { if (current()) await feedback.notice(error.message || '手机号更换失败') }
     finally { this.setData({ busy: false, form: empty() }) }
@@ -110,7 +110,7 @@ Page({
       const identity = await request({ url: '/shop/real-name/verify', method: 'POST', data: { realName, idCard, sensitiveInfoConsent: true } })
       if (!current()) return
       if (!identity || identity.verified !== true) throw new Error('暂未确认认证成功，请刷新认证状态后再试')
-      this.setData({ identity, form: empty() }); await feedback.notice('实名认证已完成', '操作完成')
+      this.setData({ identity, form: empty() }); await feedback.success('实名认证已完成')
     } catch (error) { if (current()) await feedback.notice(error.message || '实名认证失败，请稍后重试') }
     finally { this.setData({ busy: false, form: empty() }) }
   },

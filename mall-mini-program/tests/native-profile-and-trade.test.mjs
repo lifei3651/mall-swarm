@@ -9,7 +9,7 @@ import { dirname, resolve } from 'node:path'
 const root = fileURLToPath(new URL('..', import.meta.url))
 const plain = (value) => JSON.parse(JSON.stringify(value))
 const eligibleWallet = { balance: '18.21', distributionActivated: true, realNameVerified: true, adultVerified: true, hasPaymentPassword: true, paymentPasswordLocked: false }
-function environment({ respond = () => ({}), consent = true, wx: overrides = {} } = {}) {
+function environment({ respond = () => ({}), consent = true, realFeedback = false, wx: overrides = {} } = {}) {
   const storage = new Map([['mall_mini_access_token', 'owner-session'], ['mall_mini_member', { id: '1' }]])
   const calls = [], uploads = [], downloads = [], routes = [], removed = [], cache = new Map()
   let definition, component, currentPage, privacyListener
@@ -32,7 +32,8 @@ function environment({ respond = () => ({}), consent = true, wx: overrides = {} 
     if (file === resolve(root, 'utils/theme.js')) return { pageData: () => ({}), apply() {}, sync() {} }
     if (cache.has(file)) return cache.get(file).exports
     const module = { exports: {} }; cache.set(file, module)
-    runMiniScript(readFileSync(file, 'utf8'), {
+    const run = realFeedback ? vm.runInNewContext : runMiniScript
+    run(readFileSync(file, 'utf8'), {
       module, exports: module.exports, require: (id) => load(id, dirname(file)), wx,
       Page: (value) => { definition = value }, Component: (value) => { component = value },
       getCurrentPages: () => currentPage ? [currentPage] : [], setTimeout, clearTimeout
@@ -207,21 +208,49 @@ test('拒绝隐私授权不调用微信地址接口，更不提交商城接口',
 
 test('微信地址选择后自动新增并返回列表，不覆盖现有/默认地址', async () => {
   const saved={id:'3',receiverName:'测试收货人',receiverPhone:'13800000000',province:'湖南省',city:'长沙市',district:'岳麓区',detailAddress:'测试街1号',isDefault:0}
-  const e = environment({respond:({method})=>method==='POST'?saved:[{id:'2',isDefault:1},saved]}), page = e.page('address')
+  const dialogs = [], tips = []
+  const e = environment({realFeedback:true,respond:({method})=>method==='POST'?saved:[{id:'2',isDefault:1},saved],wx:{showModal:options=>{dialogs.push(options);options.success({confirm:true})},showToast:options=>tips.push(options)}}), page = e.page('address')
   page.setData({ loading: false, rows: [{ id: '2', isDefault: 1 }] })
   await page.importWechatAddress()
   assert.equal(page.data.showForm,false); assert.equal(page.data.importing,false); assert.equal(page.data.saving,false)
   assert.equal(page.data.rows[0].isDefault, 1); assert.equal(page.data.rows[1].id,'3')
   const writes=e.calls.filter(x=>x.method==='POST'); assert.equal(writes.length,1)
   assert.deepEqual(writes[0].data,{receiverName:'测试收货人',receiverPhone:'13800000000',province:'湖南省',city:'长沙市',district:'岳麓区',detailAddress:'测试街1号',isDefault:0})
+  assert.equal(dialogs.length,0);assert.equal(tips.length,0)
 })
 
 test('首次微信导入沿用首地址默认规则，结算模式直接使用服务端地址ID', async () => {
-  const saved={id:'4'}, e=environment({respond:()=>saved}),page=e.page('address'); let selected
+  const dialogs=[],tips=[]
+  const saved={id:'4'}, e=environment({realFeedback:true,respond:()=>saved,wx:{showModal:options=>{dialogs.push(options);options.success({confirm:true})},showToast:options=>tips.push(options)}}),page=e.page('address'); let selected
   page.setData({loading:false}); page.selectMode=true; page.returnSelectedAddress=address=>{selected=address}
   await page.importWechatAddress()
   assert.equal(e.calls.length,1); assert.equal(e.calls[0].data.isDefault,1); assert.equal(selected.id,'4')
   assert.equal(page.data.showForm,false)
+  assert.equal(dialogs.length,0);assert.equal(tips.length,0)
+})
+
+test('真实提示适配下微信导入失败仍有错误弹窗，没有成功提示或回跳', async () => {
+  const dialogs=[],tips=[]
+  const e=environment({realFeedback:true,respond:()=>{throw new Error('地址保存失败测试')},wx:{showModal:options=>{dialogs.push(options);options.success({confirm:true})},showToast:options=>tips.push(options)}}),page=e.page('address')
+  page.setData({loading:false});page.selectMode=true
+  page.returnSelectedAddress=()=>assert.fail('失败不得回跳结算')
+  await page.importWechatAddress()
+  assert.equal(dialogs.length,1);assert.match(dialogs[0].content,/地址保存失败测试/)
+  assert.equal(tips.length,0);assert.equal(page.data.showForm,true);assert.equal(e.calls.length,1)
+})
+
+test('手动新增或编辑地址成功直接刷新或回跳，不弹成功提示', async () => {
+  for (const selectMode of [false,true]) {
+    const dialogs=[],tips=[],saved={id:'8',isDefault:0}
+    const e=environment({realFeedback:true,respond:({method})=>method==='POST'?saved:[saved],wx:{showModal:options=>{dialogs.push(options);options.success({confirm:true})},showToast:options=>tips.push(options)}}),page=e.page('address')
+    page.setData({loading:false,form:{id:selectMode?'8':null,receiverName:'测试',receiverPhone:'13800000000',region:['湖南省','长沙市','岳麓区'],detailAddress:'测试街1号',isDefault:false}})
+    page.selectMode=selectMode;let selected
+    page.returnSelectedAddress=address=>{selected=address.id}
+    await page.save()
+    assert.equal(e.calls.filter(item=>item.method==='POST').length,1)
+    if(selectMode) assert.equal(selected,'8');else assert.equal(page.data.rows[0].id,'8')
+    assert.equal(dialogs.length,0);assert.equal(tips.length,0);assert.equal(page.data.saving,false)
+  }
 })
 
 test('微信省市区或手机号不完整不自动提交，弹窗并保留待补充地址', async () => {

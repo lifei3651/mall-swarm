@@ -164,7 +164,7 @@ Page({
       if (identifier(latest?.order?.id) !== id || (action === 'cancel' ? Number(latest.order.status) !== 0 : Number(latest.order.status) !== 2 || (latest.afterSales || []).some(sale => [0,4,5,6,7,8].includes(Number(sale.status))))) throw new Error('订单状态已变化，请刷新后操作')
       await request({ url: `/shop/orders/${id}/${action}`, method: 'PUT' })
       if (!current()) return
-      await feedback.notice(action === 'cancel' ? '订单已取消' : '已确认收货', '操作完成')
+      await feedback.success(action === 'cancel' ? '订单已取消' : '已确认收货')
       if (current()) await Promise.all([this.load(true), this.loadSummary()])
     } catch (error) { if (current()) await feedback.notice(error.message || '操作结果待确认，请刷新订单核对后再试') }
     finally { if (!this.disposed) this.setData({ actingId: '' }) }

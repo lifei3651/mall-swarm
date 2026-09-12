@@ -50,7 +50,6 @@ Page({
       if (generation !== this.loadGeneration || this.disposed || token !== session.getToken()) return
       const message = options.savedImport ? '微信地址已保存，但列表刷新失败。请重新加载地址列表，不要重复导入。' : error.message || '地址加载失败'
       feedback.update(this, { loadError: message })
-      feedback.toast({ title: message, icon: 'none' })
     }
     finally { if (generation === this.loadGeneration && !this.disposed && token === session.getToken()) feedback.update(this, { loading: false }) }
   },
@@ -164,11 +163,8 @@ Page({
           await this.load({ savedImport: true })
           if (this.disposed || token !== session.getToken() || this.data.loadError) return
         }
-        await feedback.toast({ title: '微信地址已导入', icon: 'success' })
         return
       }
-      await feedback.toast({ title: form.id ? '地址已更新' : '地址已保存', icon: 'success' })
-      if (this.disposed || token !== session.getToken()) return
       if (this.selectMode) this.returnSelectedAddress(saved)
       else { this.resetForm(false); await this.load() }
     } catch (error) {

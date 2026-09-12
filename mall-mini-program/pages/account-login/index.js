@@ -82,7 +82,7 @@ Page({
       await request(mode === 'sms' ? { url: '/sms/send/login', method: 'POST', data: { phone: this.data.form.phone } }
         : { url: '/sms/send', method: 'POST', data: { phone: this.data.form.phone, bizType: mode === 'register' ? 1 : 3 } })
       this._deadlines[key] = Date.now() + 60000
-      if (current()) { this.tick(); await feedback.notice('验证码已发送，5分钟内有效。请勿提供给他人。', '验证码已发送') }
+      if (current()) { this.tick(); await feedback.success('验证码已发送，请勿提供给他人') }
     } catch (error) { if (current()) this.showError(error.message || '验证码发送失败', 'smsCode') }
     finally { if (current()) this.setData({ sending: false }) }
   },
@@ -115,7 +115,7 @@ Page({
         await request({ url: '/shop/auth/resetPassword', method: 'POST', data: { phone: form.phone, smsCode: form.smsCode, newPassword: form.password, ...captcha } })
         if (!current()) return
         session.clearSession(); this.setData({ submitting: false }); await this.setMode('password')
-        await feedback.notice('登录密码已重置，请使用新密码登录。', '操作完成'); return
+        await feedback.success('密码已重置，请使用新密码登录'); return
       }
       const credentials = mode === 'register' ? { phone: form.phone, username: form.username, password: form.password, smsCode: form.smsCode, inviteCode: this._verifiedInviteCode || undefined, ...captcha }
         : mode === 'sms' ? { account: form.phone, smsCode: form.smsCode, loginType: 'sms' }

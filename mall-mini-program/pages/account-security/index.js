@@ -133,7 +133,7 @@ Page({
       session.clearSession()
       feedback.update(this, { ...EMPTY_SECRETS, member: null })
       if (!this.disposed && !this.hidden) {
-        await feedback.toast({ title: '已保存，请重新登录', icon: 'none' })
+        await feedback.success('已保存，请重新登录')
         if (!session.getToken()) wx.redirectTo({ url: '/pages/login/index' })
       }
     } catch (error) {

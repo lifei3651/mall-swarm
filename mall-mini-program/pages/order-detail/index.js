@@ -184,9 +184,9 @@ Page({
       const refreshed = await this.load()
       if (!current()) return
       if (refreshed && this.data.rows.length && this.data.rows.every((row) => [1, 2, 3, 5].includes(row.order.status))) {
-        feedback.notice('支付已确认，可在订单中查看发货进度。', '支付成功')
+        feedback.success('支付已确认，可在订单中查看发货进度')
       } else if (failure && payment.isUserCancel(failure)) {
-        feedback.notice('已取消本次支付。订单状态已重新查询；如仍待付款，可稍后继续支付。', '已取消支付')
+        feedback.success('已取消本次支付，请在订单中核对状态')
       } else if (failure) {
         feedback.notice(`${failure.message || '微信支付未完成，请检查网络后重试'}。如已扣款，请先刷新订单确认结果，勿重复付款。`, '支付未完成')
       } else {
