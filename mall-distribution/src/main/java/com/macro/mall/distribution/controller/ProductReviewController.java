@@ -2,6 +2,7 @@ package com.macro.mall.distribution.controller;
 
 import com.macro.mall.common.api.CommonPage;
 import com.macro.mall.common.api.CommonResult;
+import com.macro.mall.distribution.dto.ProductReviewReplyDTO;
 import com.macro.mall.distribution.dto.ProductReviewStatusDTO;
 import com.macro.mall.distribution.dto.ProductReviewSubmitDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
@@ -63,5 +64,12 @@ public class ProductReviewController {
     public CommonResult<Boolean> updateReviewStatus(@PathVariable Long id,
                                                     @Valid @RequestBody ProductReviewStatusDTO dto) {
         return CommonResult.success(productReviewService.updateReviewStatus(id, dto));
+    }
+
+    @Operation(summary = "商家或平台回复商品评价，各自维护自己的回复")
+    @PutMapping("/admin/reviews/{id}/reply")
+    public CommonResult<Boolean> replyReview(@PathVariable Long id,
+                                             @Valid @RequestBody ProductReviewReplyDTO dto) {
+        return CommonResult.success(productReviewService.replyReview(id, dto));
     }
 }

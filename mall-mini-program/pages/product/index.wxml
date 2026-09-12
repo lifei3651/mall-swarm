@@ -41,7 +41,20 @@
       <view class="review-heading"><view><view class="panel-title">商品评价 <text>({{reviewSummary.reviewCount || 0}})</text></view><text class="muted">{{reviewSummary.reviewCount ? '综合评分 ' + reviewSummary.averageRating + ' / 5' : '暂无评价'}}</text></view></view>
       <view wx:if="{{reviewSummary.reviewCount}}" class="rating-distribution"><view wx:for="{{ratingDistribution}}" wx:key="star" class="rating-bar"><text>{{item.star}}星</text><view class="rating-track"><view style="width:{{item.percent}}%"></view></view><text>{{item.count}}</text></view></view>
       <view wx:if="{{reviewError}}" class="review-error"><text>{{reviewError}}</text><button bindtap="loadReviews">重新加载评价</button></view>
-      <view wx:for="{{reviews}}" wx:key="id" class="review-item"><view class="review-user"><image src="{{item.reviewerAvatar || '/assets/profile/user-round.png'}}" mode="aspectFill" /><view>{{item.reviewerName}}<text>{{item.rating}}星</text></view><text>{{item.dateText}}</text></view><text class="review-content">{{item.content}}</text></view>
+      <view wx:for="{{reviews}}" wx:key="id" class="review-item">
+        <view class="review-user"><image src="{{item.reviewerAvatar || '/assets/profile/user-round.png'}}" mode="aspectFill" /><view>{{item.reviewerName}}<text>{{item.rating}}星</text></view><text>{{item.dateText}}</text></view>
+        <text class="review-content">{{item.content}}</text>
+        <view wx:if="{{item.merchantReply || item.platformReply}}" class="review-replies">
+          <view wx:if="{{item.merchantReply}}" class="review-reply">
+            <view class="reply-heading"><text>商家回复</text><text class="reply-date">{{item.merchantReplyDate}}</text></view>
+            <text class="reply-content">{{item.merchantReply}}</text>
+          </view>
+          <view wx:if="{{item.platformReply}}" class="review-reply">
+            <view class="reply-heading"><text>平台回复</text><text class="reply-date">{{item.platformReplyDate}}</text></view>
+            <text class="reply-content">{{item.platformReply}}</text>
+          </view>
+        </view>
+      </view>
       <text wx:if="{{reviewLoading}}" class="review-state">正在加载评价…</text><text wx:elif="{{!reviews.length && !reviewError}}" class="review-state">暂时还没有商品评价</text>
       <button wx:if="{{reviews.length < reviewTotal}}" class="secondary-button" bindtap="loadMoreReviews" disabled="{{reviewLoading}}">查看更多评价</button>
     </view>

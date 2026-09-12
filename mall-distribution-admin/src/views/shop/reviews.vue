@@ -3,7 +3,7 @@
     <div class="page-heading">
       <div>
         <h2>商品评价</h2>
-        <p>只会产生真实确认收货评价；隐藏不会删除记录，操作会进入后台操作日志。</p>
+        <p>{{ isMerchant ? '查看并回复本商家订单的真实购买评价。' : '回复本商城的真实购买评价；隐藏不会删除记录。' }} 商家和平台分别回复，操作留痕。</p>
       </div>
       <el-button :icon="Refresh" @click="fetchData">刷新</el-button>
     </div>
@@ -55,13 +55,23 @@
         <template #default="{ row }"><el-rate :model-value="row.rating" disabled show-score text-color="#ef4444" /></template>
       </el-table-column>
       <el-table-column label="评价内容" min-width="300">
-        <template #default="{ row }"><div class="review-content">{{ row.content }}</div></template>
+        <template #default="{ row }">
+          <div class="review-content">{{ row.content }}</div>
+          <div v-if="row.merchantReply" class="review-reply">
+            <strong>商家回复</strong><span class="subtle"> · {{ formatTime(row.merchantReplyTime) }}</span>
+            <div class="review-content">{{ row.merchantReply }}</div>
+          </div>
+          <div v-if="row.platformReply" class="review-reply">
+            <strong>平台回复</strong><span class="subtle"> · {{ formatTime(row.platformReplyTime) }}</span>
+            <div class="review-content">{{ row.platformReply }}</div>
+          </div>
+        </template>
       </el-table-column>
       <el-table-column label="展示状态" width="100" align="center">
         <template #default="{ row }"><el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '展示中' : '已隐藏' }}</el-tag></template>
       </el-table-column>
       <el-table-column label="评价时间" width="170"><template #default="{ row }">{{ formatTime(row.createTime) }}</template></el-table-column>
-      <el-table-column label="隐藏记录" min-width="230">
+      <el-table-column v-if="!isMerchant" label="隐藏记录" min-width="230">
         <template #default="{ row }">
           <template v-if="row.hiddenTime">
             <div>{{ row.hiddenReason || '-' }}</div>
@@ -70,13 +80,32 @@
           <span v-else class="subtle">无</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="110" fixed="right" align="center">
+      <el-table-column label="操作" width="140" fixed="right" align="center">
         <template #default="{ row }">
-          <el-button v-if="row.status === 1" type="danger" link @click="hideReview(row)">隐藏</el-button>
-          <el-button v-else type="success" link @click="restoreReview(row)">恢复展示</el-button>
+          <div class="review-actions">
+            <el-button v-if="row.status === 1" type="primary" link @click="openReply(row)">{{ ownReply(row) ? '修改回复' : '回复评价' }}</el-button>
+            <template v-if="!isMerchant">
+              <el-button v-if="row.status === 1" type="danger" link @click="hideReview(row)">隐藏</el-button>
+              <el-button v-else type="success" link @click="restoreReview(row)">恢复展示</el-button>
+            </template>
+            <span v-else-if="row.status !== 1" class="subtle">已隐藏，暂不可回复</span>
+          </div>
         </template>
       </el-table-column>
     </el-table>
+
+    <el-dialog v-model="replyVisible" :title="isMerchant ? '商家回复' : '平台回复'" width="min(560px, 92vw)"
+      :close-on-click-modal="false" :close-on-press-escape="!replySaving" :show-close="!replySaving">
+      <div class="reply-original">{{ replyTarget?.content }}</div>
+      <p class="reply-help">回复将公开展示在这条评价下。请勿填写手机号、地址等个人信息。</p>
+      <el-input v-model="replyContent" type="textarea" :rows="5" maxlength="500" show-word-limit
+        :disabled="replySaving" placeholder="针对买家的评价作出回复" aria-label="回复内容" />
+      <p v-if="replyError" role="alert" class="reply-error">{{ replyError }}</p>
+      <template #footer>
+        <el-button :disabled="replySaving" @click="replyVisible = false">取消</el-button>
+        <el-button type="primary" :loading="replySaving" :disabled="!replyContent.trim()" @click="saveReply">保存回复</el-button>
+      </template>
+    </el-dialog>
 
     <el-pagination
       class="pagination-container"
@@ -92,15 +121,52 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Search } from '@element-plus/icons-vue'
-import { listProductReviews, listShopProducts, updateProductReviewStatus } from '@/api/shop'
+import { listProductReviews, listShopProducts, updateProductReviewStatus, replyProductReview } from '@/api/shop'
+import { useAppStore } from '@/store'
 import { validateSearchKeyword } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
 import { formatDateTime as formatTime } from '@/utils/dateTime'
 
 const loading = ref(false)
+const store = useAppStore()
+const isMerchant = computed(() => Boolean(store.userInfo?.merchantId))
+const ownReply = (row) => (isMerchant.value ? row.merchantReply : row.platformReply) || ''
+const replyVisible = ref(false)
+const replySaving = ref(false)
+const replyTarget = ref(null)
+const replyContent = ref('')
+const replyExpectedVersion = ref(0)
+const replyError = ref('')
+
+const openReply = (row) => {
+  if (row.status !== 1 || replySaving.value) return
+  replyTarget.value = row
+  replyExpectedVersion.value = Number((isMerchant.value ? row.merchantReplyVersion : row.platformReplyVersion) || 0)
+  replyContent.value = ownReply(row)
+  replyError.value = ''
+  replyVisible.value = true
+}
+
+const saveReply = async () => {
+  if (replySaving.value || !replyTarget.value) return
+  const content = replyContent.value.trim()
+  if (!content || content.length > 500) {
+    replyError.value = '请填写 1～500 字的回复内容'
+    return
+  }
+  replySaving.value = true
+  replyError.value = ''
+  try {
+    await replyProductReview(replyTarget.value.id, { content, expectedVersion: replyExpectedVersion.value })
+    replyVisible.value = false
+    await fetchData()
+  } catch (error) {
+    replyError.value = error?.message || '回复未保存，请重试'
+  } finally { replySaving.value = false }
+}
 const tableData = ref([])
 const products = ref([])
 const query = ref({ keyword: '', productId: null, rating: null, status: null })
@@ -132,7 +198,7 @@ const fetchProducts = async () => {
 }
 
 const fetchData = async () => {
-  const validation = validateSearchKeyword(query.value.keyword, { label: '评价关键词', maxLength: 200 })
+  const validation = validateSearchKeyword(query.value.keyword, { label: '评价关键词', maxLength: 100 })
   if (!validation.valid) {
     tableData.value = []
     pagination.value.total = 0
@@ -192,5 +258,12 @@ onMounted(async () => { await Promise.all([fetchProducts(), fetchData()]) })
 .product-name { color:#1f2937; font-weight:700; }
 .subtle { margin-top:4px; color:#909399; font-size:12px; }
 .review-content { white-space:pre-wrap; line-height:1.65; word-break:break-word; }
+.review-reply { margin-top:12px; padding:10px 12px; background:#f6f7f8; border-radius:6px; }
+.review-reply strong { font-size:13px; color:#525866; }
+.review-actions { display:flex; align-items:center; flex-direction:column; gap:8px; }
+.review-actions .el-button { margin-left:0; }
+.reply-original { padding:12px; background:#f6f7f8; max-height:120px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; }
+.reply-help { color:#6b7280; font-size:13px; line-height:1.6; }
+.reply-error { color:#dc2626; font-size:13px; }
 @media (max-width: 900px) { .page-heading { flex-direction:column; } }
 </style>

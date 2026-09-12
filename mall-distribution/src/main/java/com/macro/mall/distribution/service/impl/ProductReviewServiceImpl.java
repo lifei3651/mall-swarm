@@ -4,6 +4,8 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.macro.mall.common.api.CommonPage;
 import com.macro.mall.common.exception.Asserts;
+import com.macro.mall.common.tenant.TenantContext;
+import com.macro.mall.distribution.dto.ProductReviewReplyDTO;
 import com.macro.mall.distribution.dao.DmsShopProductDao;
 import com.macro.mall.distribution.dao.DmsShopProductReviewDao;
 import com.macro.mall.distribution.dto.ProductReviewStatusDTO;
@@ -16,6 +18,7 @@ import com.macro.mall.distribution.entity.DmsShopProductReview;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.ProductReviewService;
 import com.macro.mall.distribution.service.ContentModerationService;
+import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.vo.ProductReviewPageVO;
 import com.macro.mall.distribution.vo.ProductReviewSummaryVO;
 import com.macro.mall.distribution.vo.ProductReviewVO;
@@ -36,6 +39,7 @@ public class ProductReviewServiceImpl implements ProductReviewService {
     private final DmsShopProductReviewDao reviewDao;
     private final DmsShopProductDao productDao;
     private final ContentModerationService contentModerationService;
+    private final OperationLogService operationLogService;
 
     @Override
     public ProductReviewPageVO listProductReviews(Long productId, DmsShopMember member, Long orderItemId,
@@ -132,6 +136,7 @@ public class ProductReviewServiceImpl implements ProductReviewService {
     @Override
     public CommonPage<DmsShopProductReview> listAdminReviews(String keyword, Long productId, Integer rating,
                                                              Integer status, Integer pageNum, Integer pageSize) {
+        DmsAdminUser admin = requireAdmin();
         if (rating != null && (rating < 1 || rating > 5)) {
             Asserts.fail("评分筛选必须是1到5星");
         }
@@ -144,13 +149,16 @@ public class ProductReviewServiceImpl implements ProductReviewService {
         int safePageNum = pageNum == null || pageNum < 1 ? 1 : pageNum;
         int safePageSize = pageSize == null ? 10 : Math.max(1, Math.min(pageSize, 100));
         PageHelper.startPage(safePageNum, safePageSize);
-        return CommonPage.restPage(reviewDao.selectAdminList(normalize(keyword), productId, rating, status));
+        return CommonPage.restPage(reviewDao.selectAdminList(normalize(keyword), productId, rating, status,
+                TenantContext.getTenantId(), admin.getMerchantId()));
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean updateReviewStatus(Long id, ProductReviewStatusDTO dto) {
-        DmsShopProductReview existing = reviewDao.selectById(id);
+        DmsAdminUser admin = requireAdmin();
+        if (admin.getMerchantId() != null) Asserts.fail("仅平台可以隐藏或恢复评价");
+        DmsShopProductReview existing = reviewDao.selectAdminById(id, TenantContext.getTenantId(), null);
         if (existing == null) {
             Asserts.fail("评价不存在");
         }
@@ -165,14 +173,45 @@ public class ProductReviewServiceImpl implements ProductReviewService {
         if (reason.length() > 255) {
             Asserts.fail("原因不能超过255字");
         }
-        DmsAdminUser admin = AdminContext.get();
-        Long adminId = admin == null ? null : admin.getId();
-        String adminName = admin == null ? "系统管理员" : firstNotBlank(admin.getNickname(), admin.getUsername());
+        Long adminId = admin.getId();
+        String adminName = firstNotBlank(admin.getNickname(), admin.getUsername());
         return reviewDao.updateStatus(id, status,
                 status == 0 ? reason : null,
                 status == 0 ? adminId : null,
                 status == 0 ? adminName : null,
                 status == 0 ? LocalDateTime.now() : null) > 0;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean replyReview(Long id, ProductReviewReplyDTO dto) {
+        DmsAdminUser admin = requireAdmin();
+        Long tenantId = TenantContext.getTenantId();
+        DmsShopProductReview review = reviewDao.selectAdminById(id, tenantId, admin.getMerchantId());
+        if (review == null) Asserts.fail("评价不存在或无权回复");
+        if (!Integer.valueOf(1).equals(review.getStatus())) Asserts.fail("已隐藏的评价不能回复，请由平台先恢复展示");
+        String content = dto == null ? null : normalize(dto.getContent());
+        if (content == null) Asserts.fail("请填写回复内容");
+        if (content.length() > 500) Asserts.fail("回复内容不能超过500字");
+        contentModerationService.assertAllowed("评价回复", content);
+        String current = admin.getMerchantId() == null ? review.getPlatformReply() : review.getMerchantReply();
+        if (content.equals(current)) return true; // 网络重试不重复写入，也不改变回复时间。
+        int expected = dto.getExpectedVersion() == null ? 0 : dto.getExpectedVersion();
+        if (expected < 0) Asserts.fail("回复版本不正确，请刷新后重试");
+        if (reviewDao.updateReply(id, tenantId, admin.getMerchantId(), admin.getId(), content,
+                expected) != 1) {
+            Asserts.fail("评价或回复已变化，请刷新后再回复");
+        }
+        operationLogService.log("PRODUCT_REVIEW", "REPLY", "PRODUCT_REVIEW", String.valueOf(id), current, content,
+                admin.getMerchantId() == null ? "平台保存评价回复" : "商家保存评价回复");
+        return true;
+    }
+
+    private DmsAdminUser requireAdmin() {
+        DmsAdminUser admin = AdminContext.get();
+        if (admin == null || admin.getId() == null) Asserts.unauthorized("请先登录管理后台");
+        if (!Integer.valueOf(1).equals(admin.getStatus())) Asserts.fail("后台账号不可用");
+        return admin;
     }
 
     private DmsShopProduct requireProduct(Long productId) {
@@ -193,6 +232,10 @@ public class ProductReviewServiceImpl implements ProductReviewService {
         vo.setReviewerAvatar(publicAvatar(review.getReviewerAvatar()));
         vo.setRating(review.getRating());
         vo.setContent(review.getContent());
+        vo.setMerchantReply(review.getMerchantReply());
+        vo.setMerchantReplyTime(review.getMerchantReplyTime());
+        vo.setPlatformReply(review.getPlatformReply());
+        vo.setPlatformReplyTime(review.getPlatformReplyTime());
         vo.setCreateTime(review.getCreateTime());
         return vo;
     }

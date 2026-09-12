@@ -19,7 +19,16 @@ public interface DmsShopProductReviewDao {
     List<DmsShopProductReview> selectAdminList(@Param("keyword") String keyword,
                                                @Param("productId") Long productId,
                                                @Param("rating") Integer rating,
-                                               @Param("status") Integer status);
+                                               @Param("status") Integer status,
+                                               @Param("tenantId") Long tenantId,
+                                               @Param("merchantId") Long merchantId);
+
+    DmsShopProductReview selectAdminById(@Param("id") Long id, @Param("tenantId") Long tenantId,
+                                         @Param("merchantId") Long merchantId);
+
+    int updateReply(@Param("id") Long id, @Param("tenantId") Long tenantId,
+                    @Param("merchantId") Long merchantId, @Param("adminId") Long adminId,
+                    @Param("content") String content, @Param("expectedVersion") Integer expectedVersion);
 
     ProductReviewSummaryVO selectSummary(@Param("productId") Long productId);
 

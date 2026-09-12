@@ -20,6 +20,8 @@ describe('admin workspace routing', () => {
     expect(isMerchantWorkspacePath('/shop/orders?state=WAIT_SHIP')).toBe(true)
     expect(resolveAdminRedirect('/shop/orders?state=WAIT_SHIP', merchant)).toBe('/shop/orders?state=WAIT_SHIP')
     expect(isMerchantWorkspacePath('/merchant/staff')).toBe(true)
+    expect(isMerchantWorkspacePath('/shop/reviews')).toBe(true)
+    expect(resolveAdminRedirect('/shop/reviews', merchant)).toBe('/shop/reviews')
     expect(resolveAdminRedirect('/merchant/staff', merchant)).toBe('/merchant/staff')
   })
 

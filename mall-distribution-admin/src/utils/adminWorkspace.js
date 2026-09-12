@@ -12,6 +12,7 @@ export const MERCHANT_WORKSPACE_PATHS = Object.freeze([
   '/shop/service-addresses',
   '/shop/orders',
   '/shop/service-tickets',
+  '/shop/reviews',
   '/audit/merchant-finance',
 ])
 

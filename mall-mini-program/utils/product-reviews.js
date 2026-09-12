@@ -19,7 +19,8 @@ const methods = {
       if (!current()) return false
       if (!result || !result.page || !Array.isArray(result.page.list)) throw new Error('评价数据暂不可用，请重试')
       const maximum = Math.max(1, ...[1,2,3,4,5].map(star => Number(result[`star${star}Count`] || 0)))
-      const rows = result.page.list.map(item => ({ ...item, reviewerAvatar: format.mediaUrl(item.reviewerAvatar), dateText: String(item.createTime || '').slice(0,10) }))
+      const rows = result.page.list.map(item => ({ ...item, reviewerAvatar: format.mediaUrl(item.reviewerAvatar), dateText: String(item.createTime || '').slice(0,10),
+        merchantReplyDate: String(item.merchantReplyTime || '').slice(0,10), platformReplyDate: String(item.platformReplyTime || '').slice(0,10) }))
       this.setData({ reviewSummary: result, reviews: reset ? rows : this.data.reviews.concat(rows), reviewPage: pageNum, reviewTotal: Number(result.page.total || 0),
         ratingDistribution: [5,4,3,2,1].map(star => ({ star, count: Number(result[`star${star}Count`] || 0), percent: Math.round(Number(result[`star${star}Count`] || 0) / maximum * 100) })) })
       return true

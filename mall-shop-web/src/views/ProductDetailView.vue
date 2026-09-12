@@ -152,6 +152,16 @@
               <time>{{ formatDate(review.createTime) }}</time>
             </div>
             <p>{{ review.content }}</p>
+            <div v-if="review.merchantReply || review.platformReply" class="review-replies">
+              <div v-if="review.merchantReply" class="review-reply">
+                <div class="reply-heading"><strong>商家回复</strong><time>{{ formatDate(review.merchantReplyTime) }}</time></div>
+                <p>{{ review.merchantReply }}</p>
+              </div>
+              <div v-if="review.platformReply" class="review-reply">
+                <div class="reply-heading"><strong>平台回复</strong><time>{{ formatDate(review.platformReplyTime) }}</time></div>
+                <p>{{ review.platformReply }}</p>
+              </div>
+            </div>
           </article>
           <button v-if="reviews.length < Number(reviewData.page?.total || 0)" class="load-more" type="button" :disabled="reviewLoading" @click="loadMoreReviews">{{ reviewLoading ? '加载中...' : '查看更多评价' }}</button>
         </div>
@@ -625,6 +635,11 @@ onBeforeUnmount(() => { closeGuarantees(); window.clearTimeout(toastTimer) })
 .review-stars { display:flex; gap:1px; margin-top:4px; }
 .review-user time { align-self:start; padding-top:3px; color:#9ca3af; font-size:12px; }
 .review-item > p { margin:13px 0 0; color:#383d46; line-height:1.75; white-space:pre-wrap; }
+.review-replies { margin-top:12px; padding:12px; background:#f6f7f8; border-radius:8px; }
+.review-reply + .review-reply { margin-top:12px; padding-top:12px; border-top:1px solid #e9ebee; }
+.reply-heading { display:flex; align-items:center; flex-wrap:wrap; gap:8px; font-size:13px; color:#555e6d; }
+.reply-heading time { color:#9299a5; font-size:11px; }
+.review-reply p { margin:6px 0 0; font-size:13px; line-height:1.65; color:#555e6d; white-space:pre-wrap; overflow-wrap:anywhere; }
 .load-more { width:100%; height:42px; margin-top:14px; color:#6b7280; background:#fff; border:0; }
 
 .mobile-buy-bar { position:fixed; z-index:36; left:50%; bottom:0; width:min(760px,100%); height:70px; display:grid; grid-template-columns:58px 58px minmax(100px,1fr) minmax(100px,1fr); gap:7px; padding:8px 10px; transform:translateX(-50%); background:#fff; border-top:1px solid #e5e7eb; box-shadow:0 -4px 18px rgba(0,0,0,.07); }

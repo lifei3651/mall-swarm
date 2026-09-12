@@ -16,5 +16,9 @@ public class ProductReviewVO implements Serializable {
     private String reviewerAvatar;
     private Integer rating;
     private String content;
+    private String merchantReply;
+    private LocalDateTime merchantReplyTime;
+    private String platformReply;
+    private LocalDateTime platformReplyTime;
     private LocalDateTime createTime;
 }

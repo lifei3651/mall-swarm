@@ -1,6 +1,13 @@
 package com.macro.mall.distribution.service;
 
 import com.macro.mall.common.exception.ApiException;
+import com.macro.mall.common.tenant.TenantContext;
+import com.macro.mall.distribution.dto.ProductReviewReplyDTO;
+import com.macro.mall.distribution.entity.DmsAdminUser;
+import com.macro.mall.distribution.security.AdminContext;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import com.macro.mall.distribution.config.RedisConfig;
 import com.macro.mall.distribution.config.ScheduleTask;
 import com.macro.mall.distribution.dao.DmsShopProductReviewDao;
@@ -43,6 +50,133 @@ class ProductReviewServiceTest {
     @Autowired private ProductReviewService productReviewService;
     @Autowired private DmsShopProductReviewDao productReviewDao;
     @Autowired private JdbcTemplate jdbcTemplate;
+    @Autowired private ObjectMapper objectMapper;
+
+    @BeforeEach
+    void loginPlatform() {
+        TenantContext.setTenantId(1L);
+        loginAdmin(null);
+    }
+
+    @AfterEach
+    void clearContexts() {
+        AdminContext.clear();
+        TenantContext.clear();
+    }
+
+    private void loginAdmin(Long merchantId) {
+        DmsAdminUser admin = new DmsAdminUser();
+        admin.setId(9900L);
+        admin.setNickname("系统管理员");
+        admin.setStatus(1);
+        admin.setMerchantId(merchantId);
+        AdminContext.set(admin);
+    }
+
+    private ProductReviewReplyDTO reply(String content, Integer expected) {
+        ProductReviewReplyDTO dto = new ProductReviewReplyDTO();
+        dto.setContent(content);
+        dto.setExpectedVersion(expected);
+        return dto;
+    }
+
+    private DmsShopProductReview merchantReview(Long orderId, Long merchantId) {
+        DmsShopMember member = member(orderId, "真实买家", "13900001999");
+        insertOrderItem(orderId, "REPLY-" + orderId, member.getUserId(), 3, 1L);
+        jdbcTemplate.update("UPDATE dms_shop_order SET merchant_id=? WHERE id=?", merchantId, orderId);
+        return productReviewService.submitReview(1L, member, review(4, "商品使用体验评价"));
+    }
+
+    @Test
+    void merchantAndPlatformRepliesAreIndependentPublicAndAudited() throws Exception {
+        DmsShopProductReview review = merchantReview(99501L, 81L);
+        loginAdmin(81L);
+        assertTrue(productReviewService.replyReview(review.getId(), reply("  感谢反馈，我们会继续改进。  ", null)));
+        loginAdmin(null);
+        assertTrue(productReviewService.replyReview(review.getId(), reply("平台已关注您的反馈。", null)));
+        assertTrue(productReviewService.replyReview(review.getId(), reply("平台会持续跟进。", 1)));
+        DmsShopProductReview saved = productReviewDao.selectById(review.getId());
+        assertEquals("感谢反馈，我们会继续改进。", saved.getMerchantReply());
+        assertEquals("平台会持续跟进。", saved.getPlatformReply());
+        assertNotNull(saved.getMerchantReplyTime());
+        assertNotNull(saved.getPlatformReplyTime());
+        assertEquals(4, saved.getRating());
+        assertEquals("商品使用体验评价", saved.getContent());
+        var visible = productReviewService.listProductReviews(1L, null, 1, 10).getPage().getList().get(0);
+        assertEquals(saved.getMerchantReply(), visible.getMerchantReply());
+        assertEquals(saved.getPlatformReply(), visible.getPlatformReply());
+        String json = objectMapper.writeValueAsString(visible);
+        assertFalse(json.contains("ReplyBy"));
+        assertFalse(json.contains("orderNo"));
+        assertFalse(json.contains("userId"));
+        assertEquals(3, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM dms_operation_log WHERE module_name='PRODUCT_REVIEW' AND target_id=?", Integer.class, String.valueOf(review.getId())));
+    }
+
+    @Test
+    void merchantCannotReadOrReplyToOtherMerchantsAndCannotHideReviews() {
+        DmsShopProductReview own = merchantReview(99502L, 81L);
+        DmsShopProductReview other = merchantReview(99503L, 82L);
+        loginAdmin(81L);
+        var list = productReviewService.listAdminReviews(null, null, null, null, 1, 10);
+        assertEquals(1L, list.getTotal());
+        assertEquals(own.getId(), list.getList().get(0).getId());
+        assertThrows(ApiException.class, () -> productReviewService.replyReview(other.getId(), reply("越权回复", null)));
+        ProductReviewStatusDTO hide = new ProductReviewStatusDTO();
+        hide.setStatus(0); hide.setReason("不允许商家隐藏");
+        assertThrows(ApiException.class, () -> productReviewService.updateReviewStatus(own.getId(), hide));
+        assertEquals(1, productReviewDao.selectById(own.getId()).getStatus());
+    }
+
+    @Test
+    void orderMerchantSnapshotControlsAccessEvenAfterProductReassignment() {
+        DmsShopProductReview review = merchantReview(99504L, 81L);
+        jdbcTemplate.update("UPDATE dms_shop_product SET merchant_id=82 WHERE id=1");
+        loginAdmin(82L);
+        assertTrue(productReviewService.listAdminReviews(null, null, null, null, 1, 10).getList().isEmpty());
+        assertThrows(ApiException.class, () -> productReviewService.replyReview(review.getId(), reply("不能夺取历史评价", null)));
+        loginAdmin(81L);
+        assertTrue(productReviewService.replyReview(review.getId(), reply("仍由原成交商家负责", null)));
+    }
+
+    @Test
+    void bothActorsAreTenantScopedAndHiddenRepliesDisappearWithReview() {
+        DmsShopProductReview review = merchantReview(99505L, 81L);
+        assertTrue(productReviewService.replyReview(review.getId(), reply("平台回复", null)));
+        TenantContext.setTenantId(2L);
+        assertTrue(productReviewService.listAdminReviews(null, null, null, null, 1, 10).getList().isEmpty());
+        assertThrows(ApiException.class, () -> productReviewService.replyReview(review.getId(), reply("跨商城回复", null)));
+        loginAdmin(81L);
+        assertThrows(ApiException.class, () -> productReviewService.replyReview(review.getId(), reply("跨商城商家回复", null)));
+        TenantContext.setTenantId(1L); loginAdmin(null);
+        ProductReviewStatusDTO hide = new ProductReviewStatusDTO(); hide.setStatus(0); hide.setReason("回归检查");
+        productReviewService.updateReviewStatus(review.getId(), hide);
+        assertTrue(productReviewService.listProductReviews(1L, null, 1, 10).getPage().getList().isEmpty());
+        assertThrows(ApiException.class, () -> productReviewService.replyReview(review.getId(), reply("已隐藏不能回复", 1)));
+        assertEquals("平台回复", productReviewDao.selectById(review.getId()).getPlatformReply());
+        hide.setStatus(1); productReviewService.updateReviewStatus(review.getId(), hide);
+        assertEquals("平台回复", productReviewService.listProductReviews(1L, null, 1, 10).getPage().getList().get(0).getPlatformReply());
+    }
+
+    @Test
+    void repliesRejectBlankOversizedAnonymousDisabledAndStaleEdits() {
+        DmsShopProductReview review = merchantReview(99506L, 81L);
+        assertThrows(ApiException.class, () -> productReviewService.replyReview(review.getId(), reply("  ", null)));
+        assertThrows(ApiException.class, () -> productReviewService.replyReview(review.getId(), reply("字".repeat(501), null)));
+        AdminContext.clear();
+        assertThrows(ApiException.class, () -> productReviewService.replyReview(review.getId(), reply("未登录", null)));
+        loginAdmin(null); AdminContext.get().setStatus(0);
+        assertThrows(ApiException.class, () -> productReviewService.replyReview(review.getId(), reply("已停用", null)));
+        loginAdmin(null);
+        assertTrue(productReviewService.replyReview(review.getId(), reply("第一条回复", null)));
+        var before = productReviewDao.selectById(review.getId()).getPlatformReplyTime();
+        assertTrue(productReviewService.replyReview(review.getId(), reply("第一条回复", null)));
+        assertEquals(before, productReviewDao.selectById(review.getId()).getPlatformReplyTime());
+        assertThrows(ApiException.class, () -> productReviewService.replyReview(review.getId(), reply("不能用旧版本覆盖", null)));
+        assertTrue(productReviewService.replyReview(review.getId(), reply("更新回复", 1)));
+        assertEquals("更新回复", productReviewDao.selectById(review.getId()).getPlatformReply());
+        assertEquals(2, productReviewDao.selectById(review.getId()).getPlatformReplyVersion());
+        assertThrows(ApiException.class, () -> productReviewService.replyReview(review.getId(), reply("同一旧版本不能再次覆盖", 1)));
+    }
 
     @Test
     void receivedOrderCanReviewAndRepeatPurchaseCanReviewAgain() {

@@ -229,6 +229,10 @@ export function updateProductReviewStatus(id, data) {
   return request({ url: `/shop/admin/reviews/${id}/status`, method: 'put', data })
 }
 
+export function replyProductReview(id, data) {
+  return request({ url: `/shop/admin/reviews/${id}/reply`, method: 'put', data })
+}
+
 export function listShopSkus(productId, params) {
   return request({
     url: `/shop/admin/products/${productId}/skus`,

@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.service;
 
 import com.macro.mall.common.api.CommonPage;
+import com.macro.mall.distribution.dto.ProductReviewReplyDTO;
 import com.macro.mall.distribution.dto.ProductReviewStatusDTO;
 import com.macro.mall.distribution.dto.ProductReviewSubmitDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
@@ -23,4 +24,6 @@ public interface ProductReviewService {
                                                        Integer status, Integer pageNum, Integer pageSize);
 
     boolean updateReviewStatus(Long id, ProductReviewStatusDTO dto);
+
+    boolean replyReview(Long id, ProductReviewReplyDTO dto);
 }

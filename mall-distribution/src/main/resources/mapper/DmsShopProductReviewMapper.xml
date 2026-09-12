@@ -15,6 +15,14 @@
         <result column="reviewer_avatar" property="reviewerAvatar"/>
         <result column="rating" property="rating"/>
         <result column="content" property="content"/>
+        <result column="merchant_reply" property="merchantReply"/>
+        <result column="merchant_reply_version" property="merchantReplyVersion"/>
+        <result column="merchant_reply_by" property="merchantReplyBy"/>
+        <result column="merchant_reply_time" property="merchantReplyTime"/>
+        <result column="platform_reply" property="platformReply"/>
+        <result column="platform_reply_version" property="platformReplyVersion"/>
+        <result column="platform_reply_by" property="platformReplyBy"/>
+        <result column="platform_reply_time" property="platformReplyTime"/>
         <result column="status" property="status"/>
         <result column="hidden_reason" property="hiddenReason"/>
         <result column="hidden_by" property="hiddenBy"/>
@@ -26,7 +34,8 @@
 
     <sql id="BaseColumns">
         id, tenant_id, product_id, product_name, order_id, order_no, order_item_id, user_id,
-        reviewer_name, reviewer_avatar, rating, content, status, hidden_reason, hidden_by,
+        reviewer_name, reviewer_avatar, rating, content, merchant_reply, merchant_reply_by, merchant_reply_time,
+        platform_reply, platform_reply_by, platform_reply_time, merchant_reply_version, platform_reply_version, status, hidden_reason, hidden_by,
         hidden_by_name, hidden_time, create_time, update_time
     </sql>
 
@@ -47,6 +56,7 @@
         SELECT <include refid="BaseColumns"/>
         FROM dms_shop_product_review
         <where>
+            <include refid="AdminScope"/>
             <if test="productId != null">AND product_id = #{productId}</if>
             <if test="rating != null">AND rating = #{rating}</if>
             <if test="status != null">AND status = #{status}</if>
@@ -59,6 +69,41 @@
         </where>
         ORDER BY create_time DESC, id DESC
     </select>
+
+    <!-- 以成交订单的商家快照归属为准，商品转给其他商家也不能夺取历史评价。 -->
+    <sql id="AdminScope">
+        dms_shop_product_review.tenant_id = #{tenantId}
+        <if test="merchantId != null">
+            AND EXISTS (SELECT 1 FROM dms_shop_order o
+                        WHERE o.id = dms_shop_product_review.order_id
+                          AND o.tenant_id = #{tenantId} AND o.merchant_id = #{merchantId})
+        </if>
+    </sql>
+
+    <select id="selectAdminById" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM dms_shop_product_review
+        WHERE id = #{id} AND <include refid="AdminScope"/>
+    </select>
+
+    <update id="updateReply">
+        UPDATE dms_shop_product_review
+        <choose>
+            <when test="merchantId != null">
+                SET merchant_reply = #{content}, merchant_reply_by = #{adminId}, merchant_reply_time = CURRENT_TIMESTAMP,
+                    merchant_reply_version = merchant_reply_version + 1
+            </when>
+            <otherwise>
+                SET platform_reply = #{content}, platform_reply_by = #{adminId}, platform_reply_time = CURRENT_TIMESTAMP,
+                    platform_reply_version = platform_reply_version + 1
+            </otherwise>
+        </choose>
+        , update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND status = 1 AND <include refid="AdminScope"/>
+        <choose>
+            <when test="merchantId != null">AND merchant_reply_version = #{expectedVersion}</when>
+            <otherwise>AND platform_reply_version = #{expectedVersion}</otherwise>
+        </choose>
+    </update>
 
     <select id="selectSummary" resultType="com.macro.mall.distribution.vo.ProductReviewSummaryVO">
         SELECT COUNT(*) AS review_count, COALESCE(AVG(rating), 0) AS average_rating,

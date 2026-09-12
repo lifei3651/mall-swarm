@@ -10,6 +10,16 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class AdminPermissionPolicyTest {
 
     @Test
+    void merchantMayListAndReplyButNotModerateOrSpoofPlatformReviewActions() {
+        assertEquals("shop:product", AdminPermissionPolicy.requiredPermission("PUT", "/shop/admin/reviews/18/reply"));
+        assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest("GET", "/shop/admin/reviews"));
+        assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest("PUT", "/shop/admin/reviews/18/reply"));
+        assertFalse(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest("PUT", "/shop/admin/reviews/18/status"));
+        assertFalse(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest("DELETE", "/shop/admin/reviews/18/reply"));
+        assertFalse(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest("POST", "/shop/admin/reviews"));
+    }
+
+    @Test
     void mapsEveryPreviouslyOmittedShopAdminAreaToItsBusinessPermission() {
         assertEquals("shop:product", AdminPermissionPolicy.requiredPermission("GET", "/shop/admin/categories"));
         assertEquals("shop:product", AdminPermissionPolicy.requiredPermission("POST", "/shop/admin/service-addresses"));

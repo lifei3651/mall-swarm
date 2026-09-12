@@ -25,6 +25,14 @@ public class DmsShopProductReview implements Serializable {
     private String content;
     /** 0-隐藏，1-展示。 */
     private Integer status;
+    private String merchantReply;
+    private Integer merchantReplyVersion;
+    private Long merchantReplyBy;
+    private LocalDateTime merchantReplyTime;
+    private String platformReply;
+    private Integer platformReplyVersion;
+    private Long platformReplyBy;
+    private LocalDateTime platformReplyTime;
     private String hiddenReason;
     private Long hiddenBy;
     private String hiddenByName;

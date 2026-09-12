@@ -96,6 +96,8 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
 
         static boolean isMerchantWorkspaceRequest(String method, String path) {
             if (path == null) return false;
+            if (path.equals("/shop/admin/reviews")) return HttpMethod.GET.matches(method);
+            if (path.matches("/shop/admin/reviews/[0-9]+/reply")) return HttpMethod.PUT.matches(method);
             if (path.equals("/distribution/admin-auth/me")
                     || path.equals("/distribution/admin-auth/logout")
                     || path.equals("/distribution/admin-auth/password")
@@ -203,6 +205,7 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             if (path.matches("/shop/admin/after-sales/[^/]+/audit")) return "审核商城售后";
             if (path.matches("/shop/admin/service-tickets/[^/]+/replies")) return "回复会员客服工单";
             if (path.matches("/shop/admin/reviews/[^/]+/status")) return "显示或隐藏商品评价";
+            if (path.matches("/shop/admin/reviews/[^/]+/reply")) return "保存商品评价回复";
             if (path.startsWith("/distribution/withdraw")) return "处理会员提现";
             if (path.startsWith("/distribution/tenant")) return "修改商城品牌或界面设置";
             if (path.matches("/distribution/admin-users/[^/]+/unlock")) return "解除后台管理员登录锁定";
