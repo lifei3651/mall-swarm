@@ -644,7 +644,8 @@ onBeforeUnmount(() => {
 .guide-showcase-grid strong,.guide-showcase-grid small { display: block; }
 .guide-showcase-grid strong { font-size: 24px; }
 .guide-showcase-grid small { margin-top: 6px; font-size: 14px; }
-.guide-shelf-tabs { display: flex; gap: 9px; overflow-x: auto; padding-bottom: 4px; }
+.guide-shelf-tabs { display: flex; gap: 9px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.guide-shelf-tabs::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .guide-shelf-tabs button { flex: 0 0 auto; padding: 8px 18px; color: var(--guide-ink); background: #fff; border: 1px solid var(--guide-line); border-radius: 999px; }
 .guide-shelf-tabs button.active { color: #fff; background: var(--guide-blue); border-color: var(--guide-blue); }
 .scenario-title { margin-top: 10px; }

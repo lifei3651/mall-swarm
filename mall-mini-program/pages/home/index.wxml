@@ -62,7 +62,7 @@
 
     <view wx:if="{{module.type === 'newArrivals' && home.newArrivals.length}}">
       <view class="section-head" data-type="newArrivals" bindtap="openContent"><text>新品速递</text><text class="muted">查看全部 ›</text></view>
-      <scroll-view class="arrival-scroll" scroll-x>
+      <scroll-view class="arrival-scroll" scroll-x enhanced show-scrollbar="{{false}}">
         <view class="arrival-row">
           <view class="arrival-card card" wx:for="{{home.newArrivals}}" wx:key="id" data-id="{{item.id}}" bindtap="openProduct">
             <image wx:if="{{item.coverUrl && !item.imageFailed}}" src="{{item.coverUrl}}" mode="aspectFill" data-index="{{index}}" binderror="arrivalImageError" />

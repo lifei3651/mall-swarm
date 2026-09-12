@@ -45,6 +45,7 @@
 .search-box { border-color: var(--line); background: var(--paper); }
 .search-box button { background: var(--button); }
 .arrival-row { display: flex; gap: 18rpx; }
+.arrival-scroll::-webkit-scrollbar { display:none; width:0; height:0; }
 .arrival-card { flex: none; width: 280rpx; overflow: hidden; }
 .arrival-card > image, .arrival-placeholder { width: 280rpx; height: 240rpx; }
 .live-card { display: flex; align-items: center; gap: 22rpx; padding: 20rpx; margin-bottom: 18rpx; }
