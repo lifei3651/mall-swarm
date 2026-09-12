@@ -1,0 +1,19 @@
+/* Account settings share one form grid; keep these rules out of checkout and shop decoration. */
+.page.account-settings-page { width: min(620px, calc(100% - 28px)); }
+.account-form { min-width: 0; max-width: 100%; }
+.account-form .form-item { min-width: 0; margin-top: 18px; gap: 8px; }
+.account-form .form-item > label,
+.account-form > .field-label { display: block; color: var(--ink); font-size: 14px; font-weight: 500; line-height: 1.5; }
+.account-form > .field-label { margin: 18px 0 8px; }
+.account-form .field { box-sizing: border-box; min-width: 0; max-width: 100%; width: 100%; height: 44px; padding: 0 12px; font-size: 14px; border-radius: 8px; }
+.account-form .sms-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; min-width: 0; gap: 8px; }
+.account-form .sms-row > button { min-width: 96px; min-height: 44px; margin: 0; padding: 0 10px; font-size: 12px; line-height: 1.5; white-space: nowrap; }
+.account-form .btn.primary { width: 100%; min-width: 0; min-height: 44px; padding: 12px; margin-top: 18px; font-size: 14px; line-height: 1.5; }
+.account-form .form-hint,
+.account-form .phone-hint { color: var(--muted); font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
+.account-form .account-help-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; min-height: 44px; margin: 0; padding: 10px 0; color: var(--muted); font-size: 12px; line-height: 1.6; text-align: left; text-decoration: none; }
+.account-help-copy { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.account-help-action { display: inline-flex; flex: none; align-items: center; gap: 3px; color: var(--brand-primary); white-space: nowrap; }
+.account-help-action svg { flex: none; color: var(--muted); }
+.account-form .consent-row > input { flex: none; }
+.account-form .consent-row > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }

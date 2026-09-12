@@ -20,11 +20,11 @@
       </button>
     </section>
 
-    <section v-if="accountMode && !loading && canSetupAccount" class="settings-card legacy-account">
+    <section v-if="accountMode && !loading && canSetupAccount" class="settings-card legacy-account account-form">
       <h3>设置登录账号</h3>
       <p>该账号用于密码登录，保存后不能自行修改。</p>
-      <input v-model="accountForm.username" class="field" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="4至20位，以英文字母开头" @input="handleAccountInput" />
-      <input v-model="accountForm.password" class="field" type="password" minlength="6" maxlength="32" autocomplete="new-password" placeholder="设置6至32位登录密码" />
+      <div class="form-item"><label for="setup-username">登录账号</label><input id="setup-username" v-model="accountForm.username" class="field" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="4至20位，以英文字母开头" @input="handleAccountInput" /></div>
+      <div class="form-item"><label for="setup-password">登录密码</label><input id="setup-password" v-model="accountForm.password" class="field" type="password" minlength="6" maxlength="32" autocomplete="new-password" placeholder="设置6至32位登录密码" /></div>
       <button type="button" class="btn primary" :disabled="savingAccount" @click="saveAccount">{{ savingAccount ? '保存中' : '保存登录账号' }}</button>
     </section>
 
@@ -33,7 +33,7 @@
 
     <Teleport to="body">
       <div v-if="dialog === 'nickname'" class="dialog-mask" @click.self="closeDialog">
-        <section class="dialog-card" role="dialog" aria-modal="true" aria-labelledby="nickname-title">
+        <section class="dialog-card account-form" role="dialog" aria-modal="true" aria-labelledby="nickname-title">
           <header><h3 id="nickname-title">修改昵称</h3><button type="button" aria-label="关闭" @click="closeDialog"><X :size="20" /></button></header>
           <p class="dialog-hint">2至20个字符，支持中文、字母、数字、空格、·、-和_。</p>
           <input ref="nicknameInput" v-model="nicknameForm" class="field" :class="{ invalid: !!nicknameError }" maxlength="20" placeholder="请输入昵称" @input="handleNicknameInput" />
@@ -43,20 +43,20 @@
       </div>
 
       <div v-if="dialog === 'phone'" class="dialog-mask" @click.self="closeDialog">
-        <section class="dialog-card phone-dialog" role="dialog" aria-modal="true" aria-labelledby="phone-title">
+        <section class="dialog-card phone-dialog account-form" role="dialog" aria-modal="true" aria-labelledby="phone-title">
           <header><h3 id="phone-title">更换绑定手机号</h3><button type="button" aria-label="关闭" @click="closeDialog"><X :size="20" /></button></header>
           <p class="dialog-hint">为保护账号安全，需要分别验证当前手机号和新手机号。更换成功后需重新登录。</p>
-          <label>当前手机号</label>
+          <label class="field-label">当前手机号</label>
           <div class="sms-row">
             <input :value="maskedPhone" class="field" disabled />
             <button type="button" :disabled="sendingCurrent || currentCountdown > 0" @click="sendCurrentCode">{{ currentCountdown > 0 ? `${currentCountdown}秒` : (sendingCurrent ? '发送中' : '获取验证码') }}</button>
           </div>
-          <input v-model="phoneForm.currentPhoneSmsCode" class="field code-field" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="当前手机号验证码" @input="phoneForm.currentPhoneSmsCode = digits(phoneForm.currentPhoneSmsCode, 6)" />
+          <input v-model="phoneForm.currentPhoneSmsCode" class="field code-field" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6位验证码" aria-label="当前手机号验证码" @input="phoneForm.currentPhoneSmsCode = digits(phoneForm.currentPhoneSmsCode, 6)" />
 
-          <label>新手机号</label>
+          <label class="field-label">新手机号</label>
           <input v-model="phoneForm.newPhone" class="field" inputmode="tel" maxlength="11" placeholder="请输入新的11位手机号" @input="phoneForm.newPhone = normalizeMainlandPhone(phoneForm.newPhone)" />
           <div class="sms-row new-code-row">
-            <input v-model="phoneForm.newPhoneSmsCode" class="field" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="新手机号验证码" @input="phoneForm.newPhoneSmsCode = digits(phoneForm.newPhoneSmsCode, 6)" />
+            <input v-model="phoneForm.newPhoneSmsCode" class="field" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6位验证码" aria-label="新手机号验证码" @input="phoneForm.newPhoneSmsCode = digits(phoneForm.newPhoneSmsCode, 6)" />
             <button type="button" :disabled="sendingNew || newCountdown > 0" @click="sendNewCode">{{ newCountdown > 0 ? `${newCountdown}秒` : (sendingNew ? '发送中' : '获取验证码') }}</button>
           </div>
           <p v-if="phoneError" class="field-error">{{ phoneError }}</p>
@@ -210,6 +210,7 @@ onBeforeUnmount(() => {
 })
 </script>
 
+<style src="../assets/account-forms.css"></style>
 <style scoped>
 .settings-page { width:min(620px,calc(100% - 28px)); }
 .sub-page-head { display:grid; grid-template-columns:40px 1fr 40px; align-items:center; margin-bottom:14px; }
@@ -224,25 +225,22 @@ onBeforeUnmount(() => {
 .settings-row small { margin-top:5px; color:var(--muted); font-size:11px; }
 .settings-row > span { max-width:130px; overflow:hidden; color:#596273; text-overflow:ellipsis; white-space:nowrap; font-size:13px; }
 .static-row { grid-template-columns:minmax(0,1fr) auto; }
-.legacy-account { margin-top:12px; padding:16px; }
+.legacy-account { margin-top:12px; padding:18px; border:0; }
 .legacy-account h3 { margin:0; font-size:16px; }
 .legacy-account p { color:var(--muted); font-size:12px; }
-.legacy-account .field { margin-top:10px; }
 .legacy-account .btn { width:100%; margin-top:12px; }
 .form-toast { position:fixed; top:calc(18px + env(safe-area-inset-top)); left:50%; z-index:1200; max-width:min(88vw,420px); padding:11px 16px; color:#fff; background:rgba(8,114,79,.96); border-radius:10px; box-shadow:0 8px 24px rgba(15,23,42,.18); transform:translateX(-50%); font-size:13px; text-align:center; pointer-events:none; }
 .form-toast.error { background:rgba(180,35,24,.96); }
 .dialog-mask { position:fixed; inset:0; z-index:1000; display:grid; place-items:end center; background:rgba(15,23,42,.46); }
-.dialog-card { width:min(620px,100%); padding:20px 18px calc(18px + env(safe-area-inset-bottom)); background:#fff; border-radius:20px 20px 0 0; box-shadow:0 -16px 44px rgba(15,23,42,.16); }
+.dialog-card { width:min(620px,100%); max-height:calc(100dvh - 24px); overflow-y:auto; padding:20px 18px calc(18px + env(safe-area-inset-bottom)); background:#fff; border-radius:20px 20px 0 0; box-shadow:0 -16px 44px rgba(15,23,42,.16); }
 .dialog-card header { display:flex; align-items:center; justify-content:space-between; }
 .dialog-card header h3 { margin:0; font-size:18px; }
 .dialog-card header button { width:36px; height:36px; display:grid; place-items:center; padding:0; color:#6b7280; background:#f3f5f7; border:0; border-radius:50%; }
 .dialog-hint { margin:8px 0 14px; color:var(--muted); font-size:12px; line-height:1.6; }
-.dialog-card label { display:block; margin:13px 0 7px; font-size:13px; font-weight:700; }
 .dialog-submit { width:100%; margin-top:15px; }
 .field.invalid { border-color:#dc2626; }
 .field-error { margin:7px 0 0; color:#b42318; font-size:12px; }
-.sms-row { display:grid; grid-template-columns:minmax(0,1fr) 106px; gap:8px; }
-.sms-row button { padding:0 8px; color:var(--brand-primary); background:var(--brand-primary-soft); border:0; border-radius:10px; font-size:12px; font-weight:700; }
+.sms-row button { color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:8px; font-weight:500; }
 .sms-row button:disabled { color:#9ca3af; background:#f3f4f6; }
 .code-field,.new-code-row { margin-top:8px; }
 .admin-hint { margin:10px 0 0; color:var(--muted); text-align:center; font-size:11px; }

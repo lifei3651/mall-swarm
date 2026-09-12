@@ -13,7 +13,7 @@
       <button class="btn primary" type="button" @click="continueAfterVerified">返回继续</button>
     </section>
 
-    <form v-else class="panel identity-form" @submit.prevent="submit">
+    <form v-else class="panel identity-form account-form" @submit.prevent="submit">
       <h3>核验本人身份</h3>
       <p class="line-sub">同一身份证可以认证多个账号，但每个账号只能绑定一份实名信息。</p>
       <div class="form-item"><label for="real-name">真实姓名</label><input id="real-name" v-model.trim="form.realName" class="field" maxlength="64" autocomplete="name" placeholder="请输入身份证上的姓名" /></div>
@@ -66,6 +66,23 @@ const submit = async () => {
 onMounted(load)
 </script>
 
+<style src="../assets/account-forms.css"></style>
 <style scoped>
-.real-name-page{width:min(620px,calc(100% - 28px))}.sub-page-head{display:grid;grid-template-columns:40px 1fr 40px;align-items:center;margin-bottom:14px}.sub-page-head h2{margin:0;text-align:center;font-size:19px}.sub-page-head button{width:40px;height:40px;display:grid;place-items:center;padding:0;background:#fff;border:0;border-radius:50%}.verified-card{padding:30px;color:#0f6e50;background:#ecf9f4;border:1px solid #bce9d7;border-radius:18px;text-align:center}.verified-card h3{margin:12px 0 8px}.verified-card p{font-weight:700}.verified-card small{display:block;color:#54776c;line-height:1.6}.verified-card button{margin-top:20px}.identity-form{border:0;border-radius:17px}.identity-form>.form-item{margin-top:14px}.consent-row{display:flex;align-items:flex-start;gap:9px;margin-top:17px;color:#667085;font-size:12px;line-height:1.65}.consent-row input{margin-top:4px}.consent-row a{color:var(--brand-primary)}.submit-button{width:100%;margin-top:18px}.service-note{color:#b45309;text-align:center;font-size:12px}.privacy-note{margin:14px 0 0;color:#98a2b3;font-size:11px;line-height:1.65}.form-error{padding:11px 14px;color:#b42318;background:#fff1f0;border-radius:10px}
+.real-name-page { width:min(620px,calc(100% - 28px)); }
+.sub-page-head { display:grid; grid-template-columns:40px 1fr 40px; align-items:center; margin-bottom:14px; }
+.sub-page-head h2 { margin:0; text-align:center; font-size:19px; }
+.sub-page-head button { width:40px; height:40px; display:grid; place-items:center; padding:0; background:#fff; border:0; border-radius:50%; }
+.verified-card { padding:30px; color:#0f6e50; background:#ecf9f4; border:1px solid #bce9d7; border-radius:18px; text-align:center; }
+.verified-card h3 { margin:12px 0 8px; }
+.verified-card p { font-weight:700; }
+.verified-card small { display:block; color:#54776c; line-height:1.6; }
+.verified-card button { margin-top:20px; }
+.identity-form { border:0; border-radius:16px; }
+.consent-row { display:flex; align-items:flex-start; gap:9px; margin-top:17px; color:#667085; font-size:12px; line-height:1.65; }
+.consent-row input { margin-top:4px; }
+.consent-row a { color:var(--brand-primary); }
+.submit-button { width:100%; margin-top:18px; }
+.service-note { color:#b45309; text-align:center; font-size:12px; }
+.privacy-note { margin:14px 0 0; color:#98a2b3; font-size:11px; line-height:1.65; }
+.form-error { padding:11px 14px; color:#b42318; background:#fff1f0; border-radius:10px; }
 </style>

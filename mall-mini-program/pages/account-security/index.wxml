@@ -46,7 +46,7 @@
       <input class="field" value="{{confirmPassword}}" password data-field="confirmPassword" bindinput="fieldInput" maxlength="32" disabled="{{action !== ''}}" placeholder="请再次输入新密码" aria-label="确认新登录密码" />
       <button class="primary-button" bindtap="changePassword" loading="{{action === 'password'}}" disabled="{{action !== ''}}">修改密码并重新登录</button>
     </view>
-    <view wx:if="{{mode === 'password'}}" class="help-panel"><text class="hint">需要帮助或旧手机号已停用？</text><button class="support-link" open-type="contact" show-message-card="{{true}}">联系商城客服</button></view>
+    <view wx:if="{{mode === 'password'}}" class="panel help-panel"><button class="support-link" open-type="contact" show-message-card="{{true}}" aria-label="需要帮助或旧手机号已停用，联系商城客服"><text class="support-copy">需要帮助或旧手机号已停用？</text><view class="support-action"><text>联系客服</text><image src="/assets/profile/chevron-right.png" mode="aspectFit" /></view></button></view>
   </block>
 </view>
 <privacy-consent id="privacy-consent" />

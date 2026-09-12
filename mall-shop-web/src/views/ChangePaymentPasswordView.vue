@@ -1,18 +1,19 @@
 <template>
-  <div class="page sub-page">
+  <div class="page sub-page account-settings-page">
     <header class="sub-page-head">
       <button type="button" aria-label="返回" @click="router.back()"><ArrowLeft :size="22" /></button>
       <h2>{{ hasPassword ? '修改支付密码' : '设置支付密码' }}</h2><span></span>
     </header>
 
-    <section class="panel form-panel">
+    <section class="panel form-panel account-form">
       <p class="form-hint">支付密码为6位数字，用于余额支付和敏感资金操作验证</p>
       <p v-if="locked" class="warning">支付密码因连续输入错误已临时锁定，请30分钟后再试。</p>
       <div v-if="hasPassword" class="form-item"><label>当前支付密码</label><input v-model="form.oldPassword" class="field" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="请输入原6位支付密码" /></div>
       <template v-else>
         <div class="form-item"><label>当前登录密码</label><input v-model="form.loginPassword" class="field" type="password" maxlength="32" autocomplete="current-password" placeholder="请再次输入商城登录密码" /></div>
+        <RouterLink v-if="canSetupAccount" class="account-help-row" to="/profile/settings?mode=account"><span class="account-help-copy">尚未设置商城账号</span><span class="account-help-action">去设置<ChevronRight :size="14" /></span></RouterLink>
       </template>
-      <div class="form-item"><label>短信验证码</label><div class="sms-row"><input v-model="form.smsCode" class="field" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="发送到绑定手机号" /><button type="button" class="sms-btn" :disabled="sendingCode || countdown > 0" @click="sendCode">{{ countdown > 0 ? `${countdown}秒` : (sendingCode ? '发送中' : '获取验证码') }}</button></div></div>
+      <div class="form-item"><label>短信验证码</label><div class="sms-row"><input v-model="form.smsCode" class="field" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6位验证码" /><button type="button" class="sms-btn" :disabled="sendingCode || countdown > 0" @click="sendCode">{{ countdown > 0 ? `${countdown}秒` : (sendingCode ? '发送中' : '获取验证码') }}</button></div></div>
       <p v-if="maskedPhone" class="phone-hint">验证码将发送至 {{ maskedPhone }}</p>
       <div class="form-item"><label>新支付密码</label><input v-model="form.newPassword" class="field" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="请输入6位数字" /></div>
       <div class="form-item"><label>确认新支付密码</label><input v-model="confirmPwd" class="field" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="请再次输入" /></div>
@@ -27,13 +28,14 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { safeShopRedirect } from '@/utils/safeRedirect'
-import { ArrowLeft } from 'lucide-vue-next'
+import { ArrowLeft, ChevronRight } from 'lucide-vue-next'
 import { getMe, getWalletSummary, sendPaymentPasswordSmsCode, setPaymentPassword } from '@/api/shop'
 import { isValidMainlandPhone } from '@/utils/phone'
 
 const route = useRoute()
 const router = useRouter()
 const hasPassword = ref(false)
+const canSetupAccount = ref(false)
 const locked = ref(false)
 const form = ref({ oldPassword: '', newPassword: '', loginPassword: '', smsCode: '' })
 const confirmPwd = ref('')
@@ -61,6 +63,7 @@ onMounted(async () => {
     locked.value = res.data?.paymentPasswordLocked || false
     const memberRes = await getMe()
     phone.value = memberRes.data?.phone || ''
+    canSetupAccount.value = !!memberRes.data && (!memberRes.data.username || memberRes.data.username === memberRes.data.phone)
     maskedPhone.value = phone.value.replace(/^(\d{3})\d{4}(\d{4})$/, '$1****$2')
   } catch {}
 })
@@ -107,6 +110,7 @@ const save = async () => {
 }
 </script>
 
+<style src="../assets/account-forms.css"></style>
 <style scoped>
 .sub-page-head { display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; margin-bottom: 14px; }
 .sub-page-head h2 { margin: 0; text-align: center; font-size: 19px; }
@@ -114,9 +118,7 @@ const save = async () => {
 .form-panel { border: 0; border-radius: 16px; }
 .form-hint { color: var(--muted); font-size: 12px; margin: 0 0 14px; }
 .warning { padding: 10px 12px; color: #b45309; background: #fff8e8; border-radius: 9px; font-size: 12px; margin-bottom: 12px; }
-.form-panel .form-item { margin-top: 12px; }
-.sms-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
-.sms-btn { min-width: 104px; padding: 0 12px; border: 1px solid #d8e0e8; border-radius: 10px; background: #fff; color: var(--primary); }
+.sms-btn { border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); }
 .sms-btn:disabled { color: var(--muted); background: #f5f7f9; }
 .phone-hint { margin: 7px 0 0; color: var(--muted); font-size: 12px; }
 .save-btn { width: 100%; margin-top: 16px; }
