@@ -17,11 +17,15 @@
           <div v-if="searchFocused && (recentSearches.length || !query.keyword)" class="search-suggestions" @pointerdown.prevent>
             <div v-if="recentSearches.length" class="suggestion-group">
               <div class="suggestion-head"><span>最近搜索</span><button type="button" class="clear-history" @click="requestClearHistory">清空历史</button></div>
-              <button v-for="item in recentSearches" :key="`recent-${item}`" type="button" @click="applySearch(item)">{{ item }}</button>
+              <div class="search-tags">
+                <button v-for="item in recentSearches" :key="`recent-${item}`" class="search-tag" type="button" :title="item" :aria-label="`搜索${item}`" @click="applySearch(item)"><span class="search-tag-label">{{ item }}</span></button>
+              </div>
             </div>
             <div v-if="!query.keyword" class="suggestion-group">
-              <span>热门搜索</span>
-              <button v-for="item in hotSearches" :key="`hot-${item}`" type="button" @click="applySearch(item)">{{ item }}</button>
+              <div class="suggestion-head"><span>热门搜索</span></div>
+              <div class="search-tags">
+                <button v-for="item in hotSearches" :key="`hot-${item}`" class="search-tag" type="button" :title="item" :aria-label="`搜索${item}`" @click="applySearch(item)"><span class="search-tag-label">{{ item }}</span></button>
+              </div>
             </div>
           </div>
         </form>
@@ -631,15 +635,16 @@ onUnmounted(() => { disposed = true; productRequestId++; pendingSearch = null; h
 .home-search .clear-keyword { position: absolute; right: 0; top: 0; width: 34px; padding: 0; border-radius: 50%; color: #667085; background: transparent; }
 .home-search .clear-keyword > svg { display: block; }
 .home-search button { height: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 5px; color: #fff; background: var(--brand-primary); border: 0; border-radius: 0 999px 999px 0; font-size: 16px; font-weight: 800; }
-.home-search button > svg { display: none; }
+.home-search > button > svg { display: none; }
 .search-suggestions { position:absolute; z-index:40; top:calc(100% + 8px); left:0; right:0; padding:12px 14px; background:#fff; border:1px solid #e7ebf0; border-radius:14px; box-shadow:0 12px 30px rgba(25,42,70,.14); }
-.suggestion-group { display:flex; align-items:center; flex-wrap:wrap; gap:7px; }
-.suggestion-group + .suggestion-group { margin-top:10px; padding-top:10px; border-top:1px solid #f0f2f5; }
-.suggestion-group > span { flex:0 0 100%; color:#98a2b3; font-size:11px; }
-.suggestion-group button { height:auto; padding:6px 10px; color:#475467; background:#f5f7fa; border:0; border-radius:999px; font-size:12px; font-weight:500; }
-.suggestion-group button { max-width: 100%; overflow-wrap: anywhere; }
-.suggestion-head { flex: 0 0 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #667085; font-size: 12px; }
-.suggestion-head .clear-history { padding: 9px 4px; flex: none; background: transparent; color: #667085; border-radius: 8px; }
+.suggestion-group { min-width:0; }
+.suggestion-group + .suggestion-group { margin-top:12px; padding-top:12px; border-top:1px solid #f0f2f5; }
+.suggestion-head { display:flex; align-items:center; justify-content:space-between; gap:8px; min-width:0; min-height:32px; margin-bottom:4px; color:#667085; font-size:12px; font-weight:400; }
+.suggestion-head .clear-history { flex:none; width:auto; min-width:0; height:auto; min-height:32px; margin:0; padding:6px 0 6px 8px; line-height:18px; border-radius:0; background:transparent; color:#667085; font-size:12px; font-weight:400; }
+.search-tags { display:flex; flex-direction:row; flex-wrap:wrap; align-items:flex-start; gap:8px; min-width:0; }
+.search-tags .search-tag { box-sizing:border-box; display:inline-flex; flex:0 1 auto; align-items:center; justify-content:center; width:auto; min-width:0; max-width:100%; height:32px; min-height:32px; margin:0; padding:0 12px; color:#475467; background:#f5f7fa; border:0; border-radius:999px; font-size:12px; font-weight:400; line-height:18px; }
+.search-tag-label { display:block; min-width:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.search-tag:focus-visible, .clear-history:focus-visible { outline:2px solid var(--brand-primary); outline-offset:2px; }
 .home-product-heading p { overflow-wrap: anywhere; }
 .home-share { height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #3f454c; border-radius: 10px; font-size: 12px; font-weight: 700; }
 .home-share:hover { color: var(--brand-primary); background: var(--brand-primary-soft); }
@@ -649,8 +654,8 @@ onUnmounted(() => { disposed = true; productRequestId++; pendingSearch = null; h
   .home-brand img,.home-brand-mark { width: 34px; height: 34px; flex-basis: 34px; border-radius: 10px; }
   .home-search { height: 44px; grid-template-columns: 34px minmax(0,1fr) 64px; }
   .home-search button { font-size: 14px; }
-  .home-search button span { display: none; }
-  .home-search button > svg { display: block; }
+  .home-search > button > span { display: none; }
+  .home-search > button > svg { display: block; }
   .home-banner-section { width: calc(100% - 16px); margin-top: 10px; }
   .banner-slide { aspect-ratio: 2; }
   .home-notice-section { width: calc(100% - 16px); margin-top: 8px; }
@@ -739,8 +744,8 @@ onUnmounted(() => { disposed = true; productRequestId++; pendingSearch = null; h
   .home-topbar-inner { width: 100%; min-height: 62px; grid-template-columns: 34px minmax(0,1fr) 46px; gap: 5px; padding: 7px 7px 7px 5px; }
   .home-search { height: 42px; grid-template-columns: 34px minmax(0,1fr) 42px; border-width: 1.5px; }
   .home-search input { font-size: 16px; touch-action: manipulation; }
-  .home-search button > span { display: none; }
-  .home-search button > svg { display: block; }
+  .home-search > button > span { display: none; }
+  .home-search > button > svg { display: block; }
   .search-suggestions { top:calc(100% + 6px); left:-5px; right:-5px; }
   .home-share { height: 48px; font-size: 10px; }
   .home-category-section { width: calc(100% - 16px); margin: 9px auto 10px; padding: 14px 7px 12px; border-radius: var(--shop-card-radius); }

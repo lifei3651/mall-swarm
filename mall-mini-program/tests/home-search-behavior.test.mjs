@@ -113,3 +113,24 @@ test('查看全部商品仍是明确切换分类的入口，不随首页搜索�
   home.allProducts()
   assert.deepEqual(env.routes, ['/pages/category/index']); assert.equal(shown, true)
 })
+
+test('搜索词标题与词条分层，原生按钮显式收宽，长词仅视觉省略', async () => {
+  const template = readFileSync(new URL('../pages/home/index.wxml', import.meta.url), 'utf8')
+  const css = readFileSync(new URL('../pages/home/index.wxss', import.meta.url), 'utf8')
+  assert.equal((template.match(/class="search-tags"/g) || []).length, 2)
+  assert.equal((template.match(/class="search-tag" size="mini"/g) || []).length, 2)
+  assert.equal((template.match(/aria-label="搜索{{item}}"/g) || []).length, 2)
+  const tags = css.match(/\.search-tags \{([^}]+)\}/)[1]
+  const button = css.match(/\.search-tags \.search-tag \{([^}]+)\}/)[1]
+  assert.match(tags, /flex-direction:row/); assert.match(tags, /flex-wrap:wrap/)
+  assert.match(button, /width:auto/); assert.match(button, /min-width:0/)
+  assert.match(button, /flex:0 1 auto/); assert.match(button, /margin:0/)
+  assert.match(button, /height:64rpx/); assert.match(button, /font-weight:400/)
+  assert.match(css, /\.search-tag-label[^}]+text-overflow:ellipsis; white-space:nowrap/)
+  const keyword = '护理礼盒'.repeat(20)
+  const env = commerceEnv(() => ({ list: [] })), page = env.page('home')
+  await page.applySearch(event(keyword))
+  assert.equal(env.calls[0].params.keyword, keyword)
+  assert.equal(page.data.keyword, keyword)
+  assert.equal(env.load('utils/search-history').list()[0], keyword)
+})

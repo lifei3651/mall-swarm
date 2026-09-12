@@ -22,9 +22,16 @@
     <view wx:if="{{searchFocused && (recentSearches.length || !keyword)}}" class="search-suggestions">
       <view wx:if="{{recentSearches.length}}" class="suggestion-group">
         <view class="suggestion-head"><text>最近搜索</text><button class="clear-history" catchtap="clearSearchHistory" aria-label="清空全部搜索历史">清空历史</button></view>
-        <button wx:for="{{recentSearches}}" wx:key="*this" data-keyword="{{item}}" bindtap="applySearch">{{item}}</button>
+        <view class="search-tags">
+          <button wx:for="{{recentSearches}}" wx:key="*this" class="search-tag" size="mini" data-keyword="{{item}}" bindtap="applySearch" aria-label="搜索{{item}}"><text class="search-tag-label">{{item}}</text></button>
+        </view>
       </view>
-      <view wx:if="{{!keyword}}" class="suggestion-group"><text>热门搜索</text><button wx:for="{{hotSearches}}" wx:key="*this" data-keyword="{{item}}" bindtap="applySearch">{{item}}</button></view>
+      <view wx:if="{{!keyword}}" class="suggestion-group">
+        <view class="suggestion-head"><text>热门搜索</text></view>
+        <view class="search-tags">
+          <button wx:for="{{hotSearches}}" wx:key="*this" class="search-tag" size="mini" data-keyword="{{item}}" bindtap="applySearch" aria-label="搜索{{item}}"><text class="search-tag-label">{{item}}</text></button>
+        </view>
+      </view>
     </view>
 
     <block wx:for="{{homeModules}}" wx:key="type" wx:for-item="module">
