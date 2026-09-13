@@ -10,7 +10,7 @@ if (path.basename(root) !== 'mall-swarm-app-h5') throw new Error('Wrong product 
 process.chdir(root)
 if (git('status', '--porcelain')) throw new Error('Commit the reviewed release changes before packaging')
 const commit = git('rev-parse', 'HEAD')
-cp.execFileSync('git', ['merge-base', '--is-ancestor', '2139c4aa', commit])
+cp.execFileSync('git', ['merge-base', '--is-ancestor', 'ba1a819d', commit])
 const version = fs.readFileSync('VERSION', 'utf8').trim()
 if (version !== '1.0.139') throw new Error('This assembler is for version 1.0.139 only')
 const jar = path.join(root, 'mall-distribution/target/mall-distribution-1.0-SNAPSHOT.jar')
