@@ -90,7 +90,7 @@ function instance(definition) {
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no }); return { promise, resolve, reject } }
 
 test('首页再次显示会重新取装修；失败保留旧数据，不清空正在浏览的商城', async () => {
-  let home = { brandName: '商城', displayConfig: wrap({ homeModules: [{ type: 'banner', enabled: false }] }) }
+  let home = { brandName: '商城', featuredProducts: [{ id: 1, salePrice: 2, stock: 1 }], displayConfig: wrap({ homeModules: [{ type: 'banner', enabled: false }] }) }
   let fail = false, calls = 0, notice = ''
   const page = instance(load('../pages/home/index.js', {
     '../../utils/share': { prepare: async () => null, hide() {} },
@@ -103,7 +103,7 @@ test('首页再次显示会重新取装修；失败保留旧数据，不清空�
   home.displayConfig = wrap({ homeModules: [{ type: 'banner', enabled: true }] })
   page.onShow(); await page.refreshing
   assert.ok(types(page.data.homeModules).includes('banner'))
-  assert.equal(calls, 4)
+  assert.equal(calls, 2)
   fail = true
   page.onShow(); await page.refreshing
   assert.equal(page.data.products.length, 1)
@@ -117,9 +117,9 @@ test('首页并发刷新合并，不让旧请求覆盖新装修', async () => {
     '../../utils/theme': { pageData: () => ({}), remember: () => ({}), sync: () => {} }, globals: { wx: { setNavigationBarTitle() {} } }
   }))
   const first = page.loadHome(), second = page.loadHome()
-  pending.resolve({ brandName: '最新商城' })
+  pending.resolve({ brandName: '最新商城', featuredProducts: [] })
   await Promise.all([first, second])
-  assert.equal(calls, 2)
+  assert.equal(calls, 1)
   assert.equal(page.data.home.brandName, '最新商城')
 })
 test('主题缓存会过期重取，直接打开其他页面也获取完整装修', async () => {

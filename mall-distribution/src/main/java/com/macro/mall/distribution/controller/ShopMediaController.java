@@ -53,11 +53,15 @@ public class ShopMediaController {
 
     @Operation(summary = "读取商品图片")
     @GetMapping("/media/images/{filename:.+}")
-    public ResponseEntity<Resource> image(@PathVariable String filename) throws IOException {
-        ShopMediaStorageService.StoredImage stored = mediaStorageService.load(filename);
+    public ResponseEntity<Resource> image(@PathVariable String filename,
+                                          @RequestParam(value = "variant", required = false) String variant) throws IOException {
+        ShopMediaStorageService.StoredImage stored = "card".equals(variant)
+                ? mediaStorageService.loadCardThumbnail(filename)
+                : mediaStorageService.load(filename);
         if (stored == null) return ResponseEntity.notFound().build();
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(Duration.ofDays(1)).cachePublic().mustRevalidate())
+                .header("X-Content-Type-Options", "nosniff")
                 .contentType(MediaType.parseMediaType(stored.contentType()))
                 .contentLength(stored.size())
                 .body(new FileSystemResource(stored.path()));

@@ -76,12 +76,19 @@ export function logout() {
   })
 }
 
+let pendingHomeRequest = null
+
 export function getHome(params) {
-  return request({
+  if (params && Object.keys(params).length) return request({
     url: '/shop/home',
     method: 'get',
     params,
   })
+  if (!pendingHomeRequest) {
+    pendingHomeRequest = request({ url: '/shop/home', method: 'get' })
+      .finally(() => { pendingHomeRequest = null })
+  }
+  return pendingHomeRequest
 }
 
 export function getLegalConfig() {

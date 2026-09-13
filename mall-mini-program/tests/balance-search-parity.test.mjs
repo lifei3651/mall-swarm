@@ -74,8 +74,8 @@ test('首页分类筛选仍留原页、60条查询、最近5条去重，不读�
   const history=env.load('utils/search-history'); for(const word of ['1','2','3','4','5','6','3'])history.remember(word); assert.deepEqual(Array.from(history.list()),['3','6','5','4','2']); await page.clearFilter(); assert.equal(page.data.searchedKeyword,'')
 })
 test('首页慢分类筛选/慢刷新不能覆盖新筛选；离开后不回写商品', async () => {
-  const first=deferred(),second=deferred();let count=0
-  const env=commerceEnv(({url})=>url==='/shop/home'?{categoryList:[],displayConfig:{}}:++count===1?first.promise:second.promise),page=env.page('home')
-  const refresh=page.fetchHome(true);const search=page.openCategory({currentTarget:{dataset:{name:'新分类'}}});second.resolve({list:[{id:'2',name:'新结果'}]}); await search;first.resolve({list:[{id:'1',name:'旧结果'}]});await refresh;assert.equal(page.data.products[0].id,'2')
+  const oldHome=deferred(),newProducts=deferred()
+  const env=commerceEnv(({url})=>url==='/shop/home'?oldHome.promise:newProducts.promise),page=env.page('home')
+  const refresh=page.fetchHome(true);const search=page.openCategory({currentTarget:{dataset:{name:'新分类'}}});newProducts.resolve({list:[{id:'2',name:'新结果'}]}); await search;oldHome.resolve({categoryList:[],displayConfig:{},featuredProducts:[{id:'1',name:'旧结果'}]});await refresh;assert.equal(page.data.products[0].id,'2')
   const delayed=deferred(),env2=commerceEnv(()=>delayed.promise),page2=env2.page('home');const work=page2.filterProducts();page2.onHide();delayed.resolve({list:[{id:'3'}]});await work;assert.equal(page2.data.products.length,0)
 })

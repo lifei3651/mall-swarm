@@ -5,7 +5,7 @@ function card(raw) {
   const product = format.product(raw)
   const [priceInteger, priceDecimal] = product.priceText.split('.')
   const sales = raw.salesCount == null ? NaN : Number(raw.salesCount)
-  return { ...product, priceInteger, priceDecimal,
+  return { ...product, coverUrl: format.thumbnailUrl(product.coverUrl), priceInteger, priceDecimal,
     salesText: Number.isSafeInteger(sales) && sales >= 0 ? `已售 ${sales} 件` : '',
     soldOut: Number(product.status ?? 1) !== 1 || product.stock <= 0 }
 }

@@ -57,6 +57,19 @@ class ShopMediaControllerTenantTest {
         verify(mediaStorageService).storeBrandCultureImage(1L, true, file);
     }
 
+    @Test
+    void cardVariantReadsCachedThumbnailWhileDefaultReadsOriginal() throws Exception {
+        var original = new ShopMediaStorageService.StoredImage("source.jpg", Path.of("source.jpg"), "image/jpeg", 20L);
+        var thumbnail = new ShopMediaStorageService.StoredImage("thumb.jpg", Path.of("thumb.jpg"), "image/jpeg", 10L);
+        when(mediaStorageService.load("source.jpg")).thenReturn(original);
+        when(mediaStorageService.loadCardThumbnail("source.jpg")).thenReturn(thumbnail);
+
+        assertEquals(20L, controller.image("source.jpg", null).getHeaders().getContentLength());
+        assertEquals(10L, controller.image("source.jpg", "card").getHeaders().getContentLength());
+        verify(mediaStorageService).load("source.jpg");
+        verify(mediaStorageService).loadCardThumbnail("source.jpg");
+    }
+
     private MockMultipartFile image() {
         return new MockMultipartFile("file", "banner.jpg", "image/jpeg", new byte[]{1, 2, 3});
     }

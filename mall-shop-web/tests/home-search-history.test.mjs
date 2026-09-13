@@ -14,7 +14,7 @@ function setup(respond = () => ({ data: { list: [] } })) {
     onMounted() {}, onUnmounted: fn => { cleanup = fn }, useRoute: () => ({ fullPath: '/' }), useRouter: () => ({ push: value => routes.push(value) }),
     useCart: () => ({}), localStorage: storage,
     window: { setTimeout: fn => { timers.set(++timerId, fn); return timerId }, clearTimeout: id => timers.delete(id), clearInterval() {} },
-    listProducts: async query => { calls.push(query); return respond(query) }, getHome: async () => ({ data: {} }), applyBrandConfig() {},
+    listProducts: async query => { calls.push(query); return respond(query) }, getHome: async () => ({ data: {} }), applyBrandConfig() {}, productCardImage: value => value,
   }
   const page = new Function(...Object.keys(context), `${script}\nreturn { query, products, searchFocused, recentSearches, searchInput, productSection, loading, submitSearch, applySearch, clearKeyword, onKeywordInput, requestClearHistory, cancelClearHistory, confirmClearHistory, historyConfirmVisible, searchNotice, productError, searchedKeyword, retryProducts, focusSearch, scheduleHideSuggestions, clearFilter }`)(...Object.values(context))
   page.searchInput.value = { blur() {}, focus: () => page.focusSearch() }

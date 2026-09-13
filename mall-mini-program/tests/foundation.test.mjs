@@ -38,6 +38,12 @@ test('站内媒体相对地址转换为当前商城的完整HTTPS地址', () => 
   assert.equal(format.mediaUrl('/assets/local.png'), '/assets/local.png')
 })
 
+test('商品卡片只为商城自有商品图请求缩略图，不改变外部图片地址', () => {
+  assert.equal(format.thumbnailUrl('/api/shop/media/images/abc.png'), 'https://lingqimall.com/api/shop/media/images/abc.png?variant=card')
+  assert.equal(format.thumbnailUrl('https://lingqimall.com/api/shop/media/images/abc.png?variant=card'), 'https://lingqimall.com/api/shop/media/images/abc.png?variant=card')
+  assert.equal(format.thumbnailUrl('https://images.example.com/abc.png'), 'https://images.example.com/abc.png')
+})
+
 test('微信支付参数只接受服务端签发的完整字段并映射package', () => {
   assert.deepEqual(payment.normalizeParameters({
     timeStamp: '1788060000', nonceStr: 'nonce', packageValue: 'prepay_id=wx123',

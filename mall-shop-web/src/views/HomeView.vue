@@ -227,6 +227,7 @@ import { requireShopSession } from '@/utils/authNavigation'
 import ProductListSkeleton from '@/components/ProductListSkeleton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { applyImageFallback } from '@/utils/imageFallback'
+import { productCardImage } from '@/utils/productMedia'
 import { resolveBusinessEntries } from '@surface-commerce-policy'
 
 const router = useRouter()
@@ -320,6 +321,7 @@ const trustItems = computed(() => {
 })
 let suggestionsHideTimer
 let productRequestId = 0
+let campaignRequestId = 0
 let disposed = false
 let pendingSearch = null
 
@@ -415,7 +417,7 @@ const normalizeProduct = (product) => ({
   id: product.id,
   productName: product.productName || product.name || '商城商品',
   subtitle: product.subtitle || '',
-  coverUrl: product.coverUrl || product.picUrl || '',
+  coverUrl: productCardImage(product.coverUrl || product.picUrl || ''),
   salePrice: Number(product.salePrice || product.price || 0),
   salesCount: Math.max(0, Number(product.salesCount || 0)),
   stock: Math.max(0, Number(product.stock || 0)),
@@ -426,10 +428,17 @@ const fetchHome = async () => {
   const res = await getHome()
   home.value = res.data || {}
   applyBrandConfig(home.value)
-  if (layoutTemplate.value === 'campaign-feed') {
-    try { flashSales.value = (await listFlashSales()).data || [] } catch { flashSales.value = [] }
-  } else {
-    flashSales.value = []
+  return home.value
+}
+
+const refreshCampaigns = async () => {
+  const requestId = ++campaignRequestId
+  if (layoutTemplate.value !== 'campaign-feed') { flashSales.value = []; return }
+  try {
+    const rows = (await listFlashSales()).data || []
+    if (!disposed && requestId === campaignRequestId) flashSales.value = rows
+  } catch {
+    if (!disposed && requestId === campaignRequestId) flashSales.value = []
   }
 }
 
@@ -468,12 +477,26 @@ const fetchProducts = async (scrollToResults = false, propagateError = false) =>
 const reloadHome = async () => {
   homeLoading.value = true
   homeLoadError.value = ''
+  loading.value = true
+  productError.value = ''
   try {
-    await fetchHome()
-    await fetchProducts(false, true)
+    const loadedHome = await fetchHome()
+    // 先让品牌、搜索、轮播和分类完成一帧渲染，再挂载商品卡片。
+    await nextTick()
+    if (disposed) return
+    const filtered = Boolean(query.value.keyword.trim() || query.value.categoryName)
+    if (!filtered && Array.isArray(loadedHome.featuredProducts)) {
+      searchedKeyword.value = ''
+      products.value = loadedHome.featuredProducts.map(normalizeProduct)
+      loading.value = false
+    } else {
+      await fetchProducts(false, true)
+    }
+    void refreshCampaigns()
   } catch (e) {
     products.value = []
     homeLoadError.value = e?.message || '网络暂时不可用，请点击重新加载'
+    loading.value = false
   } finally {
     homeLoading.value = false
   }
@@ -601,7 +624,7 @@ onMounted(async () => {
   await reloadHome()
 })
 let campaignTimer = null
-onUnmounted(() => { disposed = true; productRequestId++; pendingSearch = null; historyConfirmVisible.value = false; window.clearTimeout(suggestionsHideTimer); stopBannerAutoplay(); stopNoticeRotation(); window.clearTimeout(toastTimer); window.clearInterval(campaignTimer) })
+onUnmounted(() => { disposed = true; productRequestId++; campaignRequestId++; pendingSearch = null; historyConfirmVisible.value = false; window.clearTimeout(suggestionsHideTimer); stopBannerAutoplay(); stopNoticeRotation(); window.clearTimeout(toastTimer); window.clearInterval(campaignTimer) })
 </script>
 
 <style scoped>

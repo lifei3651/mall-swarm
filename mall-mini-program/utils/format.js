@@ -19,6 +19,16 @@ function mediaUrl(value) {
   return `${originMatch[1]}${raw.startsWith('/api/') ? raw : `/api${raw}`}`
 }
 
+function thumbnailUrl(value) {
+  const url = mediaUrl(value)
+  if (!url || /[?&]variant=card(?:&|$)/.test(url)) return url
+  const apiOrigin = String(runtime.API_BASE_URL || '').match(/^(https:\/\/[^/]+)/i)?.[1] || ''
+  const internal = url.startsWith('/api/shop/media/images/')
+    || url.startsWith('/shop/media/images/')
+    || (apiOrigin && url.startsWith(`${apiOrigin}/api/shop/media/images/`))
+  return internal ? `${url}${url.includes('?') ? '&' : '?'}variant=card` : url
+}
+
 function product(raw = {}) {
   const guarantees = {
     '七天无理由': '符合平台规则且商品完好的，可在商城当前配置的售后期限内申请无理由退货。',
@@ -53,4 +63,4 @@ function sku(raw = {}) {
   return { ...raw, imageUrl: mediaUrl(raw.imageUrl), priceText: money(raw.salePrice),
     attributes: Object.entries(attrs).filter(([, value]) => ['string', 'number'].includes(typeof value)).map(([name, value]) => ({ name, value: String(value) })) }
 }
-module.exports = { money, mediaUrl, product, identifier, sku }
+module.exports = { money, mediaUrl, thumbnailUrl, product, identifier, sku }

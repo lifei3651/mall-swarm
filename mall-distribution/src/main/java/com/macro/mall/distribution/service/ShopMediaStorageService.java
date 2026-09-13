@@ -57,6 +57,7 @@ public class ShopMediaStorageService {
     public static final int MAX_BRAND_CULTURE_DETAIL_COUNT = 10;
     static final int MAX_TEMP_PROOFS_PER_MEMBER = 12;
     static final long MAX_TEMP_PROOF_BYTES_PER_MEMBER = 30L * 1024 * 1024;
+    static final int CARD_THUMBNAIL_DIMENSION = 640;
     private static final String FILE_NAME_PATTERN = "[a-fA-F0-9]{32}\\.(jpg|jpeg|png|webp|gif)";
     private static final AtomicBoolean POSIX_PERMISSION_WARNING_LOGGED = new AtomicBoolean(false);
 
@@ -280,6 +281,36 @@ public class ShopMediaStorageService {
         Path target = storageDirectory.resolve(filename.toLowerCase(Locale.ROOT)).normalize();
         if (!target.startsWith(storageDirectory) || !Files.isRegularFile(target)) return null;
         return new StoredImage(filename, target, contentType(filename), Files.size(target));
+    }
+
+    /**
+     * 商品列表缩略图。原图文件名是内容摘要且不会被覆盖，因此缩略图可以长期复用；
+     * GIF/WebP 在当前 JDK 未必具备安全解码器，遇到这两类格式时保守返回原图。
+     */
+    public synchronized StoredImage loadCardThumbnail(String filename) throws IOException {
+        StoredImage original = load(filename);
+        if (original == null) return null;
+        if (!"image/jpeg".equals(original.contentType()) && !"image/png".equals(original.contentType())) return original;
+
+        String stem = original.filename().substring(0, original.filename().lastIndexOf('.')).toLowerCase(Locale.ROOT);
+        Path thumbnailDirectory = storageDirectory.resolve(".thumbnails").resolve("card").normalize();
+        if (!thumbnailDirectory.startsWith(storageDirectory)) Asserts.fail("缩略图存储路径无效");
+        for (String extension : List.of("jpg", "png")) {
+            Path existing = thumbnailDirectory.resolve(stem + "." + extension).normalize();
+            if (existing.startsWith(thumbnailDirectory) && Files.isRegularFile(existing)) {
+                return new StoredImage(existing.getFileName().toString(), existing,
+                        contentType(existing.getFileName().toString()), Files.size(existing));
+            }
+        }
+
+        ProcessedImage processed = processRaster(Files.readAllBytes(original.path()), CARD_THUMBNAIL_DIMENSION);
+        Files.createDirectories(thumbnailDirectory);
+        ensureWebReadableDirectory(storageDirectory.resolve(".thumbnails"));
+        ensureWebReadableDirectory(thumbnailDirectory);
+        Path target = thumbnailDirectory.resolve(stem + "." + processed.extension()).normalize();
+        if (!target.startsWith(thumbnailDirectory)) Asserts.fail("缩略图存储路径无效");
+        writeOnce(target, processed.bytes());
+        return new StoredImage(target.getFileName().toString(), target, processed.contentType(), Files.size(target));
     }
 
     private ProcessedImage processRaster(byte[] source) throws IOException {

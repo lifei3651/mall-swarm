@@ -40,14 +40,11 @@ Page({
   },
   async fetchHome(silent) {
     const sequence = this.productSequence = (this.productSequence || 0) + 1
+    const firstLoad = !this.loadedOnce
     if (!silent) feedback.update(this, { loading: true, error: '' })
     try {
-      const [home, productPage] = await Promise.all([
-        request({ url: '/shop/home' }),
-        request({ url: '/shop/products', params: { status: 1, pageNum: 1, pageSize: 60, keyword: this.data.searchedKeyword, categoryName: this.data.activeCategory } })
-      ])
+      const home = await request({ url: '/shop/home' })
       if (sequence !== this.productSequence) return
-      const products = (productPage && productPage.list ? productPage.list : []).map(categoryProduct.card)
       home.logoUrl = format.mediaUrl(home.logoUrl)
       home.banners = (home.banners || []).map((item) => ({
         ...item,
@@ -60,31 +57,51 @@ Page({
         iconFailed: false,
         initial: String(item.categoryName || '商').slice(0, 1)
       }))
-      home.newArrivals = (home.newArrivals || []).map(format.product)
+      home.newArrivals = (home.newArrivals || []).map(categoryProduct.card)
       home.liveRooms = (home.liveRooms || []).filter((item) => item && item.room && format.identifier(item.room.id)).map((item) => ({ ...item, key: format.identifier(item.room.id), room: { ...item.room, coverUrl: format.mediaUrl(item.room.coverUrl) } }))
       const decoration = display.home(home.displayConfig)
-      let campaigns = [], campaignError = ''
-      if (decoration.layoutTemplate === 'campaign-feed') {
-        try {
-          campaigns = await request({ url: '/shop/flash-sales' })
-          if (!Array.isArray(campaigns)) throw new Error('活动数据不完整')
-        } catch (_) { campaigns = []; campaignError = '活动信息暂不可用，以下按普通售价展示。点击重试' }
-      }
       const brandCultureEnabled = display.toggle(home.brandCultureEnabled, false)
       if (sequence !== this.productSequence) return
       const palette = theme.remember(home)
-      this.baseProducts = products
-      feedback.update(this, { home, products: displayPrices(decorateCampaignProducts(products, campaigns, decoration.layoutTemplate)), campaigns, campaignError, ...palette, ...decoration, brandCultureEnabled, logoFailed: false, error: '' })
-      this.startCampaignClock()
+      // 先展示搜索、轮播、分类等首页框架；商品卡片在下一帧挂载，避免大列表阻塞首屏。
+      feedback.update(this, { home, ...palette, ...decoration, brandCultureEnabled, logoFailed: false, error: '', loading: false, productsLoading: firstLoad })
       this.loadedOnce = true
       // A slow homepage response must not rename the page the user has since opened.
       if (typeof getCurrentPages === 'function' && getCurrentPages().slice(-1)[0] === this) wx.setNavigationBarTitle({ title: home.brandName || '商城首页' })
+      if (firstLoad) await new Promise(resolve => typeof wx.nextTick === 'function' ? wx.nextTick(resolve) : setTimeout(resolve, 0))
+      if (sequence !== this.productSequence) return
+
+      let productRows = Array.isArray(home.featuredProducts) ? home.featuredProducts : null
+      if (this.data.searchedKeyword || this.data.activeCategory || productRows === null) {
+        const productPage = await request({ url: '/shop/products', params: { status: 1, pageNum: 1, pageSize: 60, keyword: this.data.searchedKeyword, categoryName: this.data.activeCategory } })
+        if (sequence !== this.productSequence) return
+        if (!productPage || !Array.isArray(productPage.list)) throw new Error('商品列表暂不可用，请重试')
+        productRows = productPage.list
+      }
+      const products = productRows.map(categoryProduct.card)
+      this.baseProducts = products
+      feedback.update(this, { products: displayPrices(decorateCampaignProducts(products, [], decoration.layoutTemplate)), productsLoading: false, productError: '' })
+      this.startCampaignClock()
+
+      if (decoration.layoutTemplate === 'campaign-feed') {
+        try {
+          const campaigns = await request({ url: '/shop/flash-sales' })
+          if (!Array.isArray(campaigns)) throw new Error('活动数据不完整')
+          if (sequence !== this.productSequence) return
+          feedback.update(this, { campaigns, campaignError: '', products: displayPrices(decorateCampaignProducts(products, campaigns, decoration.layoutTemplate)) })
+          this.startCampaignClock()
+        } catch (_) {
+          if (sequence === this.productSequence) feedback.update(this, { campaigns: [], campaignError: '活动信息暂不可用，以下按普通售价展示。点击重试' })
+        }
+      } else {
+        feedback.update(this, { campaigns: [], campaignError: '' })
+      }
     } catch (error) {
       if (sequence !== this.productSequence) return
       if (!silent) feedback.update(this, { error: error.message || '加载失败' })
       else feedback.toast({ title: '装修更新失败，暂保留原页面', icon: 'none' })
     } finally {
-      if (sequence === this.productSequence) feedback.update(this, { loading: false })
+      if (sequence === this.productSequence) feedback.update(this, { loading: false, productsLoading: false })
     }
   },
   startCampaignClock() {

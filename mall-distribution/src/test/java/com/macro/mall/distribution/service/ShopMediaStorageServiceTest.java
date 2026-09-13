@@ -71,6 +71,27 @@ class ShopMediaStorageServiceTest {
     }
 
     @Test
+    void cardThumbnailKeepsOriginalAndReusesBoundedDerivative() throws Exception {
+        byte[] jpeg = imageBytes("jpg", 1600, 1200, false);
+        ShopMediaStorageService service = new ShopMediaStorageService(tempDir.toString(), 1920, 25_000_000, 0.82f);
+        ShopMediaStorageService.StoredImage original = service.store(
+                new MockMultipartFile("file", "product.jpg", "image/jpeg", jpeg));
+
+        ShopMediaStorageService.StoredImage first = service.loadCardThumbnail(original.filename());
+        ShopMediaStorageService.StoredImage second = service.loadCardThumbnail(original.filename());
+        BufferedImage originalImage = ImageIO.read(original.path().toFile());
+        BufferedImage thumbnail = ImageIO.read(first.path().toFile());
+
+        assertEquals(1600, originalImage.getWidth());
+        assertEquals(1200, originalImage.getHeight());
+        assertEquals(640, thumbnail.getWidth());
+        assertEquals(480, thumbnail.getHeight());
+        assertEquals(first.path(), second.path());
+        assertTrue(first.size() < original.size());
+        assertTrue(first.path().startsWith(tempDir.resolve(".thumbnails").resolve("card")));
+    }
+
+    @Test
     void brandCultureImagesUseRandomTenantScopedNamesAndStrictMetadata() throws Exception {
         byte[] jpeg = imageBytes("jpg", 750, 420, false);
         ShopMediaStorageService service = new ShopMediaStorageService(tempDir.toString(), 1920, 25_000_000, 0.82f);

@@ -217,6 +217,7 @@ import ProductListSkeleton from '@/components/ProductListSkeleton.vue'
 import { requireShopSession } from '@/utils/authNavigation'
 import { resolveCategoryGuideConfig, resolveDirectoryGuideLayout } from '@/utils/displayConfig'
 import { layoutPlatform } from '@/utils/layoutPlatform'
+import { productCardImage } from '@/utils/productMedia'
 
 const route = useRoute()
 const router = useRouter()
@@ -336,7 +337,7 @@ const fetchProducts = async (categoryName = '', keyword = '') => {
       id: product.id,
       productName: product.productName || product.name || '商城商品',
       subtitle: product.subtitle || '',
-      coverUrl: product.coverUrl || product.picUrl || '',
+      coverUrl: productCardImage(product.coverUrl || product.picUrl || ''),
       salePrice: Number(product.salePrice || product.price || 0),
       marketPrice: Number(product.marketPrice || 0),
       salesCount: Math.max(0, Number(product.salesCount || 0)),
