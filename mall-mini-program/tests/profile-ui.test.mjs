@@ -65,6 +65,18 @@ test('等级长名称允许换行，不撑开个人信息区', () => {
   assert.match(css,/\.membership-badge \{[^}]*max-width: 100%;[^}]*white-space: normal;[^}]*overflow-wrap: anywhere;/);
 })
 
+test('协议入口收拢为商城说明二级菜单，游客仍可查看且保留六类说明', () => {
+  const view=readFileSync(new URL('../pages/profile/index.wxml',import.meta.url),'utf8');
+  assert.match(view,/<button class="legal-entry" bindtap="legal"[^>]*><text>商城说明<\/text>/);
+  assert.doesNotMatch(view,/用户协议 · 隐私政策 · 商城资质/);
+  const h=loadProfile({token:''}); h.page.legal();
+  assert.deepEqual(h.navigations,['/pages/legal/index']);
+  const legal=readFileSync(new URL('../utils/legal.js',import.meta.url),'utf8');
+  for (const title of ['用户服务协议','隐私政策','交易与售后规则','常见问题','经营资质','联系客服']) assert.ok(legal.includes(title));
+  const page=readFileSync(new URL('../pages/legal/index.wxml',import.meta.url),'utf8');
+  assert.match(page,/wx:for="\{\{entries\}\}"[^>]*bindtap="open"/);
+})
+
 test('录屏回归：分享返回期间同一账号的会员标识和邀请按钮保留位置，核验完成前不允许分享', async () => {
   const wait = deferred(), rights = { ready: true, canInvite: true, membershipLevel: 1, membershipLabel: '会员' }
   const h = loadProfile({ token:'same-owner', member:{nickname:'本地会员'}, respond:({url})=>url==='/shop/auth/me'?{nickname:'本地会员'}:url.endsWith('/withdrawals')?[]:{}, prepare: async page => { page.setData({shareReady:false}); await wait.promise; page.setData({shareReady:true}); return rights } })

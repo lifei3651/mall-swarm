@@ -52,7 +52,7 @@
     <button wx:if="{{loggedIn && canOpenStudio}}" class="share-retry" bindtap="studio">主播工作台</button>
     <button wx:if="{{loggedIn && shareError}}" class="share-retry" bindtap="retryShare">邀请服务暂不可用，点击重试</button>
   </view>
-  <button class="legal-link" bindtap="legal">用户协议 · 隐私政策 · 商城资质</button>
+  <button class="legal-entry" bindtap="legal" hover-class="row-pressed" aria-label="商城说明：查看用户协议、隐私政策、商城资质等"><text>商城说明</text><image src="/assets/profile/chevron-right.png" mode="aspectFit" aria-hidden="true" /></button>
   <button class="legal-link" bindtap="checkUpdate">检查版本更新</button>
   <button wx:if="{{loggedIn}}" class="logout" bindtap="logout" hover-class="row-pressed">退出登录</button>
 </view>
