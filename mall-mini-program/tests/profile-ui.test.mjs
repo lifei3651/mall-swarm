@@ -13,15 +13,28 @@ test('常用服务使用统一票券/工单/安全图标，不以文字或重复
   const view = readFileSync(new URL('../pages/profile/index.wxml', import.meta.url), 'utf8')
   const service = view.split('<view class="service-grid">')[1].split('</view>\n    <button')[0]
   const buttons = service.match(/<button\b[\s\S]*?<\/button>/g)
-  assert.equal(buttons.length, 9, '七个常用入口与两个条件入口仍保留')
+  assert.equal(buttons.length, 8, '客服统一入口后保留六个常用入口与两个条件入口')
   for (const button of buttons) assert.match(button, /<image[^>]*src="\/assets\/profile\/[^" ]+-white\.png"/)
-  for (const [action, icon] of [['coupons', 'ticket-percent'], ['support', 'clipboard-list'], ['security', 'shield-check'], ['contact', 'headset']]) {
+  for (const [action, icon] of [['coupons', 'ticket-percent'], ['security', 'shield-check'], ['contact', 'headset']]) {
     const button = buttons.find(item => item.includes(`bindtap="${action}"`))
     assert.match(button, new RegExp(`/assets/profile/${icon}-white\\.png`))
   }
   assert.doesNotMatch(service, /<text>券<\/text>/)
   const css = readFileSync(new URL('../pages/profile/index.wxss', import.meta.url), 'utf8')
   assert.match(css, /\.tile-icon\s*\{[^}]*width: 68rpx;[^}]*height: 68rpx;[^}]*border-radius: 18rpx;/)
+})
+
+test('常用服务只保留统一客服入口，联系页仍可咨询和进入工单', () => {
+  const view=readFileSync(new URL('../pages/profile/index.wxml',import.meta.url),'utf8');
+  assert.equal((view.match(/bindtap="contact"/g)||[]).length,1);
+  assert.doesNotMatch(view,/bindtap="support"/);
+  const contact=readFileSync(new URL('../pages/legal/index.wxml',import.meta.url),'utf8');
+  assert.match(contact,/open-type="contact"/);
+  assert.match(contact,/bindtap="tickets"/);
+  assert.match(contact,/提交问题，查看处理进度/);
+  const h=loadProfile({token:'member'});
+  h.page.contact();
+  assert.deepEqual(h.navigations,['/pages/legal/index?type=contact']);
 })
 
 test('资料和安全入口分离，登录成功只更新页面，不弹成功确认', () => {
