@@ -9,6 +9,14 @@ const zeroSummary = { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, 
 const plain = (value) => JSON.parse(JSON.stringify(value))
 const deferred = () => { let resolve; const promise = new Promise(ok => { resolve = ok }); return { promise, resolve } }
 
+test('退出登录使用浅红底深红字及独立按下态，仍保留原退出事件', () => {
+  const css=readFileSync(new URL('../pages/profile/index.wxss',import.meta.url),'utf8');
+  const view=readFileSync(new URL('../pages/profile/index.wxml',import.meta.url),'utf8');
+  assert.match(css,/\.profile-page \.logout \{[^}]*background: #fde8ed; color: #a7163a;/);
+  assert.match(css,/\.profile-page \.logout\.logout-pressed \{ background: #fad3dc; \}/);
+  assert.match(view,/class="logout" bindtap="logout" hover-class="logout-pressed"/);
+})
+
 test('常用服务使用统一票券/工单/安全图标，不以文字或重复耳机代替', () => {
   const view = readFileSync(new URL('../pages/profile/index.wxml', import.meta.url), 'utf8')
   const service = view.split('<view class="service-grid">')[1].split('</view>\n    <button')[0]

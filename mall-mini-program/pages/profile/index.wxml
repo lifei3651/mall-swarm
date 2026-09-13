@@ -54,7 +54,7 @@
   </view>
   <button class="legal-entry" bindtap="legal" hover-class="row-pressed" aria-label="商城说明：查看用户协议、隐私政策、商城资质等"><text>商城说明</text><image src="/assets/profile/chevron-right.png" mode="aspectFit" aria-hidden="true" /></button>
   <button class="legal-link" bindtap="checkUpdate">检查版本更新</button>
-  <button wx:if="{{loggedIn}}" class="logout" bindtap="logout" hover-class="row-pressed">退出登录</button>
+  <button wx:if="{{loggedIn}}" class="logout" bindtap="logout" hover-class="logout-pressed">退出登录</button>
 </view>
 <login-sheet id="login-sheet" bindsuccess="authorized" bindclose="loginClosed" />
 <privacy-consent id="privacy-consent" />
