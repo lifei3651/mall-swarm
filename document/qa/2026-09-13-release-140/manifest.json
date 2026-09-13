@@ -1,0 +1,104 @@
+{
+  "kind": "isolated native simulator, synthetic fixtures, not real account/channel acceptance",
+  "records": [
+    {
+      "name": "product",
+      "path": "pages/product/index?id=27",
+      "actual": "pages/product/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "product.png"
+      ],
+      "shareSize": {
+        "width": 45,
+        "height": 45
+      }
+    },
+    {
+      "name": "coupons",
+      "path": "pages/coupons/index",
+      "actual": "pages/coupons/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "coupons.png"
+      ]
+    },
+    {
+      "name": "live-studio",
+      "path": "pages/live-studio/index",
+      "actual": "pages/live-studio/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "live-studio.png"
+      ]
+    },
+    {
+      "name": "profile",
+      "path": "pages/profile/index",
+      "actual": "pages/profile/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "profile.png",
+        "profile-bottom.png"
+      ]
+    },
+    {
+      "name": "support-detail",
+      "path": "pages/support-detail/index?id=91",
+      "actual": "pages/support-detail/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "support-detail.png"
+      ]
+    },
+    {
+      "name": "order-detail",
+      "path": "pages/order-detail/index?id=13201",
+      "actual": "pages/order-detail/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "order-detail.png",
+        "order-detail-bottom.png"
+      ]
+    },
+    {
+      "name": "order-review",
+      "path": "pages/order-review/index?id=1&orderItemId=13202",
+      "actual": "pages/order-review/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "order-review.png",
+        "order-review-bottom.png"
+      ]
+    },
+    {
+      "name": "support-create",
+      "path": "pages/support/index?create=1",
+      "actual": "pages/support/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "support-create.png",
+        "support-create-bottom.png"
+      ]
+    },
+    {
+      "name": "address-edit",
+      "path": "pages/address/index",
+      "actual": "pages/address/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "address-edit.png",
+        "address-edit-bottom.png"
+      ]
+    }
+  ]
+}
