@@ -74,6 +74,8 @@ import java.util.Objects;
 @Slf4j
 @RequiredArgsConstructor
 public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.macro.mall.distribution.service.ShopCouponService couponService;
 
     private final DmsAgentDao agentDao;
     private final AgentService agentService;
@@ -211,6 +213,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
                     .divide(BigDecimal.valueOf(source.getQuantity()), 8, java.math.RoundingMode.HALF_UP);
             item.setRefundAmount(grossRefund.multiply(productBase)
                     .divide(grossOrderAmount, 2, java.math.RoundingMode.HALF_UP));
+            if (order.getCouponClaimId() != null) snapshotCouponRefund(source, item);
             refundItems.add(item);
             refundQuantity = ShopQuantityChecks.add(refundQuantity, entry.getValue());
         }
@@ -220,10 +223,11 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         BigDecimal productRefund = refundItems.stream().map(DmsShopAfterSaleItem::getRefundAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add).min(remainingProductRefund);
         boolean refundAllRemaining = refundQuantity == totalRemainingQuantity;
-        if (refundAllRemaining) productRefund = remainingProductRefund;
+        if (refundAllRemaining && order.getCouponClaimId() == null) productRefund = remainingProductRefund;
         BigDecimal allocated = refundItems.stream().map(DmsShopAfterSaleItem::getRefundAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal allocationDifference = productRefund.subtract(allocated);
+        if (order.getCouponClaimId() != null && allocationDifference.signum() != 0) Asserts.fail("优惠订单历史退款金额不一致，请核查");
         DmsShopAfterSaleItem lastItem = refundItems.get(refundItems.size() - 1);
         lastItem.setRefundAmount(lastItem.getRefundAmount().add(allocationDifference));
 
@@ -413,6 +417,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
                     .multiply(BigDecimal.valueOf(entry.getValue()))
                     .divide(BigDecimal.valueOf(Math.max(1, nullToZero(source.getQuantity()))), 8, java.math.RoundingMode.HALF_UP);
             item.setRefundAmount(grossRefund);
+            if (order.getCouponClaimId() != null) snapshotCouponRefund(source, item);
             refundItems.add(item);
             selectedGross = selectedGross.add(grossRefund);
             refundQuantity = ShopQuantityChecks.add(refundQuantity, entry.getValue());
@@ -424,7 +429,11 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         BigDecimal remainingProductRefund = productBase.subtract(approvedProductRefund).max(BigDecimal.ZERO);
         String mode = dto.getRefundMode() == null ? "QUANTITY" : dto.getRefundMode().trim().toUpperCase(java.util.Locale.ROOT);
         BigDecimal productRefund;
-        if ("AMOUNT".equals(mode)) {
+        if (order.getCouponClaimId() != null) {
+            if (!"QUANTITY".equals(mode)) Asserts.fail("优惠券订单请按商品数量退款，金额由实付快照计算");
+            productRefund = refundItems.stream().map(DmsShopAfterSaleItem::getRefundAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+            if (productRefund.compareTo(remainingProductRefund) > 0) Asserts.fail("优惠订单历史退款金额不一致，请核查");
+        } else if ("AMOUNT".equals(mode)) {
             productRefund = nullToZero(dto.getProductRefundAmount()).setScale(2, java.math.RoundingMode.HALF_UP);
             if (productRefund.compareTo(BigDecimal.ZERO) <= 0) Asserts.fail("请输入大于0的商品退款金额");
             if (productRefund.compareTo(remainingProductRefund) > 0) {
@@ -445,6 +454,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         BigDecimal allocated = BigDecimal.ZERO;
         for (int i = 0; i < refundItems.size(); i++) {
             DmsShopAfterSaleItem item = refundItems.get(i);
+            if (order.getCouponClaimId() != null) continue;
             BigDecimal allocation;
             if (i == refundItems.size() - 1) {
                 allocation = productRefund.subtract(allocated).setScale(2, java.math.RoundingMode.HALF_UP);
@@ -804,7 +814,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             for (DmsShopOrderItem orderItem : orderItems) orderItemsById.put(orderItem.getId(), orderItem);
             BigDecimal bonusRefundAmount = items.stream()
                     .filter(item -> isBonusEligibleOrderItem(orderItemsById.get(item.getOrderItemId())))
-                    .map(DmsShopAfterSaleItem::getRefundAmount).filter(Objects::nonNull)
+                    .map(item -> item.getCouponBonusRefundAmount() == null ? item.getRefundAmount() : item.getCouponBonusRefundAmount()).filter(Objects::nonNull)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             int bonusRefundQuantity = items.stream()
                     .filter(item -> isBonusEligibleOrderItem(orderItemsById.get(item.getOrderItemId())))
@@ -864,6 +874,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         ShopQuantityChecks.remaining(originalQuantity, refundedQuantity);
         if (refundedQuantity >= originalQuantity) {
             orderDao.closeAfterSale(order.getId());
+            if (order.getCouponClaimId() != null) couponService.releaseFullyRefunded(order);
             order.setStatus(4);
             return;
         }
@@ -887,6 +898,10 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     }
 
     private BigDecimal calculateBonusBase(DmsShopOrder order, List<DmsShopOrderItem> items) {
+        if (order.getCouponClaimId() != null) {
+            if (items == null || items.isEmpty() || items.stream().anyMatch(i -> i.getCouponBonusBaseAmount() == null)) Asserts.fail("优惠订单奖金快照缺失");
+            return items.stream().filter(this::isBonusEligibleOrderItem).map(DmsShopOrderItem::getCouponBonusBaseAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
         if (items == null || items.isEmpty()) {
             BigDecimal productAmount = order.getTotalAmount() == null
                     ? nullToZero(order.getPayAmount()).subtract(nullToZero(order.getFreightAmount()))
@@ -912,6 +927,16 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         String mode = item == null ? null : item.getTeamBonusMode();
         return mode == null || mode.isBlank() || "INHERIT".equalsIgnoreCase(mode)
                 || "STANDARD".equalsIgnoreCase(mode);
+    }
+
+    private void snapshotCouponRefund(DmsShopOrderItem source, DmsShopAfterSaleItem refund) {
+        if (source.getCouponDiscountAmount() == null || source.getCouponBonusBaseAmount() == null || source.getTotalCost() == null)
+            Asserts.fail("优惠订单快照缺失，请联系平台核查");
+        int returned = afterSaleItemDao.sumRefundedQuantityByOrderItemId(source.getId());
+        int qty = source.getQuantity(), current = refund.getRefundQuantity();
+        refund.setRefundAmount(com.macro.mall.distribution.util.CouponAmounts.refundDelta(source.getTotalAmount().subtract(source.getCouponDiscountAmount()), qty, returned, current));
+        refund.setCouponBonusRefundAmount(com.macro.mall.distribution.util.CouponAmounts.refundDelta(source.getCouponBonusBaseAmount(), qty, returned, current));
+        refund.setCouponCostRefundAmount(com.macro.mall.distribution.util.CouponAmounts.refundDelta(source.getTotalCost(), qty, returned, current));
     }
 
     private boolean requiresExternalRefund(DmsShopOrder order, DmsShopAfterSale afterSale) {

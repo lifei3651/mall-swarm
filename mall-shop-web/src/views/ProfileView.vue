@@ -40,6 +40,7 @@
 
       <section class="profile-menu" :class="{ 'without-team-performance': !showTeamPerformance }">
         <MessageCenterEntry class="menu-tile" />
+        <RouterLink to="/profile/coupons" class="menu-tile"><span aria-hidden="true">券</span><span>优惠券</span></RouterLink>
         <RouterLink to="/profile/wallet" class="menu-tile">
           <span class="tile-icon wallet-icon"><WalletCards :size="26" /></span>
           <span class="tile-label">余额</span>

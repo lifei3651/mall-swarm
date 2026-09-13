@@ -12,12 +12,14 @@
         <result column="sku_name" property="skuName"/>
         <result column="refund_quantity" property="refundQuantity"/>
         <result column="refund_amount" property="refundAmount"/>
+        <result column="coupon_bonus_refund_amount" property="couponBonusRefundAmount"/>
+        <result column="coupon_cost_refund_amount" property="couponCostRefundAmount"/>
         <result column="create_time" property="createTime"/>
     </resultMap>
 
     <sql id="Base_Column_List">
         id, after_sale_id, order_id, order_item_id, product_id, sku_id, product_name, sku_name,
-        refund_quantity, refund_amount, create_time
+        refund_quantity, refund_amount, coupon_bonus_refund_amount, coupon_cost_refund_amount, create_time
     </sql>
 
     <select id="selectByAfterSaleId" resultMap="BaseResultMap">
@@ -72,7 +74,7 @@
     </select>
 
     <select id="sumApprovedBonusRefundByOrderId" resultType="java.math.BigDecimal">
-        SELECT COALESCE(SUM(item.refund_amount), 0)
+        SELECT COALESCE(SUM(COALESCE(item.coupon_bonus_refund_amount, item.refund_amount)), 0)
         FROM dms_shop_after_sale_item item
         INNER JOIN dms_shop_after_sale sale ON sale.id = item.after_sale_id
         INNER JOIN dms_shop_order_item order_item ON order_item.id = item.order_item_id
@@ -83,7 +85,7 @@
     </select>
 
     <select id="sumApprovedCostByOrderId" resultType="java.math.BigDecimal">
-        SELECT COALESCE(SUM(COALESCE(order_item.cost_amount, 0) * item.refund_quantity), 0)
+        SELECT COALESCE(SUM(COALESCE(item.coupon_cost_refund_amount, COALESCE(order_item.cost_amount, 0) * item.refund_quantity)), 0)
         FROM dms_shop_after_sale_item item
         INNER JOIN dms_shop_after_sale sale ON sale.id = item.after_sale_id
         INNER JOIN dms_shop_order_item order_item ON order_item.id = item.order_item_id
@@ -93,11 +95,11 @@
     <insert id="insertBatch">
         INSERT INTO dms_shop_after_sale_item
         (after_sale_id, order_id, order_item_id, product_id, sku_id, product_name, sku_name,
-         refund_quantity, refund_amount)
+         refund_quantity, refund_amount, coupon_bonus_refund_amount, coupon_cost_refund_amount)
         VALUES
         <foreach collection="items" item="item" separator=",">
             (#{item.afterSaleId}, #{item.orderId}, #{item.orderItemId}, #{item.productId}, #{item.skuId},
-             #{item.productName}, #{item.skuName}, #{item.refundQuantity}, #{item.refundAmount})
+             #{item.productName}, #{item.skuName}, #{item.refundQuantity}, #{item.refundAmount}, #{item.couponBonusRefundAmount}, #{item.couponCostRefundAmount})
         </foreach>
     </insert>
 </mapper>

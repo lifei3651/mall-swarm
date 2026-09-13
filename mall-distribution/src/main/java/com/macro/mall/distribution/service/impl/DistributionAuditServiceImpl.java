@@ -375,7 +375,7 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         BigDecimal productRefund = nullToZero(dto.getProductRefundAmount());
         BigDecimal freightRefund = nullToZero(dto.getFreightRefundAmount());
         int refundQuantity = dto.getRefundQuantity() == null ? 0 : dto.getRefundQuantity();
-        if (productRefund.compareTo(BigDecimal.ZERO) <= 0 || refundQuantity <= 0) {
+        if (productRefund.compareTo(BigDecimal.ZERO) < 0 || refundQuantity <= 0) {
             Asserts.fail("退款必须包含实际退回的商品及数量");
         }
         if (freightRefund.compareTo(BigDecimal.ZERO) < 0) Asserts.fail("运费退款不能小于0");
@@ -388,6 +388,7 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         // 所有退款登记统一锁定订单，避免并发冲销重复扣减业绩、件数和奖金。
         DmsShopOrder shopOrder = shopOrderDao.selectByIdForUpdate(dto.getOrderId());
         if (shopOrder == null) Asserts.fail("商城订单不存在，不能登记无商品明细退款");
+        if (productRefund.signum() == 0 && shopOrder.getCouponClaimId() == null) Asserts.fail("退款必须包含实际退回的商品及数量");
         BigDecimal productAmount = shopOrder.getTotalAmount() == null
                 ? payAmount.subtract(nullToZero(shopOrder.getFreightAmount()))
                 : nullToZero(shopOrder.getTotalAmount());
@@ -405,7 +406,7 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         BigDecimal bonusBase = preciseBonusScope ? nullToZero(dto.getBonusBaseAmount()) : productBase;
         BigDecimal cumulativeBonusRefund = preciseBonusScope
                 ? nullToZero(dto.getCumulativeBonusRefundAmount()) : null;
-        if (bonusRefund.compareTo(BigDecimal.ZERO) < 0 || bonusRefund.compareTo(productRefund) > 0) {
+        if (bonusRefund.compareTo(BigDecimal.ZERO) < 0 || (shopOrder.getCouponClaimId() == null && bonusRefund.compareTo(productRefund) > 0)) {
             Asserts.fail("奖金商品退款金额不正确");
         }
         if (bonusRefundQuantity < 0 || bonusRefundQuantity > refundQuantity) {

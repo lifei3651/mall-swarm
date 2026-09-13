@@ -1,4 +1,6 @@
 -- H2数据库测试数据
+DELETE FROM dms_shop_coupon_claim;
+DELETE FROM dms_shop_coupon;
 
 DELETE FROM dms_erp_sync_task;
 DELETE FROM dms_erp_integration;

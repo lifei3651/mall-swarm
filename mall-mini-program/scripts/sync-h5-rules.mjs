@@ -1,6 +1,6 @@
 // Only pure, dependency-free modules are allowed. --check fails on source drift.
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
-export const modules = ['quantityInput', 'quickCart', 'orderListRules', 'transportRetry', 'loginAccount', 'pageLayouts']
+export const modules = ['quantityInput', 'quickCart', 'orderListRules', 'transportRetry', 'loginAccount', 'pageLayouts', 'couponAmounts']
 export function compileRule(source, name) {
   if (/^\s*(?:import\s|export\s+(?:default|\{))/m.test(source)) throw new Error(`规则必须是无平台依赖的命名导出：${name}`)
   const names = [...source.matchAll(/^export (?:const|function) (\w+)/gm)].map(match => match[1])

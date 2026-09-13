@@ -345,7 +345,7 @@ onBeforeUnmount(() => window.clearTimeout(toastTimer))
 .cart-page { width: min(760px, calc(100% - 28px)); padding-top: 10px; }
 .cart-header { display: flex; align-items: center; justify-content: space-between; gap:12px; min-height:50px; margin-bottom: 14px; }
 .cart-header-left { flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:3px; text-align:left; }
-.cart-header h2 { margin: 0; font-size: 22px; line-height:28px; white-space:nowrap; }
+.cart-header h2 { margin: 0; font-size: 17px; font-weight:600; line-height:24px; white-space:nowrap; color:#000; font-family:-apple-system,BlinkMacSystemFont,sans-serif; }
 .cart-count { color: var(--muted); font-size: 13px; line-height:18px; overflow-wrap:anywhere; }
 .cart-header-actions { flex:none; display:flex; align-items:center; gap:8px; }
 .cart-header-actions button { flex:none; min-width:50px; white-space:nowrap; }

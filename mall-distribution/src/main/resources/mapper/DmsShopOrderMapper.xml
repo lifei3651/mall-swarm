@@ -24,6 +24,9 @@
         <result column="total_amount" property="totalAmount"/>
         <result column="freight_amount" property="freightAmount"/>
         <result column="discount_amount" property="discountAmount"/>
+        <result column="coupon_claim_id" property="couponClaimId"/>
+        <result column="coupon_title" property="couponTitle"/>
+        <result column="coupon_refund_rule" property="couponRefundRule"/>
         <result column="pay_amount" property="payAmount"/>
         <result column="total_pv" property="totalPv"/>
         <result column="total_cost" property="totalCost"/>
@@ -58,7 +61,7 @@
     <sql id="Base_Column_List">
         id, order_no, trade_id, trade_no, payment_order_no, tenant_id, merchant_id, merchant_name, user_id, agent_id, invite_code, receiver_name, receiver_phone,
         receiver_address, receiver_province, receiver_city, receiver_district, receiver_detail_address,
-        total_amount, freight_amount, discount_amount, pay_amount, total_pv,
+        total_amount, freight_amount, discount_amount, coupon_claim_id, coupon_title, coupon_refund_rule, pay_amount, total_pv,
         total_cost, business_type, business_source_id, source_live_room_id, status, pay_type, late_refund_flag, remark, service_remark, pay_time, delivery_company, delivery_no,
         delivery_time, receive_time, cancel_time, close_time, create_time, update_time
     </sql>
@@ -317,13 +320,13 @@
         INSERT INTO dms_shop_order
         (id, order_no, trade_id, trade_no, payment_order_no, tenant_id, merchant_id, merchant_name, user_id, agent_id, invite_code, receiver_name, receiver_phone,
          receiver_address, receiver_province, receiver_city, receiver_district, receiver_detail_address,
-         total_amount, freight_amount, discount_amount, pay_amount, total_pv,
+         total_amount, freight_amount, discount_amount, coupon_claim_id, coupon_title, coupon_refund_rule, pay_amount, total_pv,
          total_cost, business_type, business_source_id, source_live_room_id, status, pay_type, remark, pay_time, delivery_company, delivery_no,
          delivery_time, receive_time, cancel_time, close_time)
         VALUES
         (#{order.id}, #{order.orderNo}, #{order.tradeId}, #{order.tradeNo}, #{order.paymentOrderNo}, #{tenantId}, #{order.merchantId}, #{order.merchantName}, #{order.userId}, #{order.agentId}, #{order.inviteCode}, #{order.receiverName}, #{order.receiverPhone},
          #{order.receiverAddress}, #{order.receiverProvince}, #{order.receiverCity}, #{order.receiverDistrict}, #{order.receiverDetailAddress},
-         #{order.totalAmount}, #{order.freightAmount}, #{order.discountAmount}, #{order.payAmount}, #{order.totalPv},
+         #{order.totalAmount}, #{order.freightAmount}, #{order.discountAmount}, #{order.couponClaimId}, #{order.couponTitle}, #{order.couponRefundRule}, #{order.payAmount}, #{order.totalPv},
          #{order.totalCost}, #{order.businessType}, #{order.businessSourceId}, #{order.sourceLiveRoomId}, #{order.status}, #{order.payType}, #{order.remark}, #{order.payTime}, #{order.deliveryCompany}, #{order.deliveryNo},
          #{order.deliveryTime}, #{order.receiveTime}, #{order.cancelTime}, #{order.closeTime})
     </insert>

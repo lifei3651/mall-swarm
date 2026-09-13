@@ -22,6 +22,9 @@ public class ShopOrderSubmitDTO implements Serializable {
 
     private Long addressId;
 
+    @jakarta.validation.constraints.Positive
+    private Long couponClaimId;
+
     @Size(max = 30, message = "收货人不能超过30个字")
     private String receiverName;
 

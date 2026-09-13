@@ -26,6 +26,7 @@ function harness(name, { respond, loggedIn = true, selected = goods, stack = [] 
     showLoading() {}, hideLoading() {}
   }
   const mocks = {
+    '../../utils/h5-rules/couponAmounts': require('../utils/h5-rules/couponAmounts'),
     '../../utils/quantity': require('../utils/quantity'),
     '../../utils/address-parser': require('../utils/address-parser'),
     '../../utils/request': async (options) => { calls.push(plain(options)); return respond ? respond(options) : undefined },

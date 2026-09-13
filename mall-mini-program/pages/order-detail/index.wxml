@@ -94,6 +94,7 @@
         <view wx:if="{{item.order.freightAmount !== null && item.order.freightAmount !== undefined}}"><text>运费（已含）</text><text>¥{{item.order.freightText}}</text></view>
         </block>
         <view><text>{{item.order.amountLabel}}</text><text class="paid-amount">¥{{item.order.amountText}}</text></view>
+        <view wx:if="{{item.order.couponClaimId}}"><text>优惠券 · {{item.order.couponTitle}}</text><text>−¥{{item.order.discountAmount}}</text></view>
       </view>
       <view class="detail-actions">
         <button class="secondary-button" data-id="{{item.order.id}}" bindtap="support">客服工单</button>

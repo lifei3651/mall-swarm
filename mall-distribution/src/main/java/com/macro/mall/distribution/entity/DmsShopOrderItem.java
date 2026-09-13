@@ -40,6 +40,13 @@ public class DmsShopOrderItem implements Serializable {
 
     private BigDecimal totalAmount;
 
+    /** 优惠按商品项锁定；历史订单为空，不改变历史退款口径。 */
+    private BigDecimal couponDiscountAmount;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private BigDecimal couponMerchantAmount;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private BigDecimal couponBonusBaseAmount;
+
     private BigDecimal pvValue;
 
     private BigDecimal totalPv;

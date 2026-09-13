@@ -75,7 +75,9 @@ function refundEstimate(detail, selectedItems, applyType) {
   const approved = (detail.afterSales || []).filter(sale=>[1,2].includes(Number(sale.applyType)) && Number(sale.status)===1).reduce((sum,sale)=>sum+Number(sale.productRefundAmount || 0),0)
   const available = Math.max(0,base-approved), gross = items.reduce((sum,item)=>sum+Number(item.totalAmount || 0),0)
   const portion = selectedItems.reduce((sum,line)=> { const item = items.find(item=>String(item.id)===String(line.id)); return sum + (item && item.quantity ? Number(item.totalAmount || 0)*Number(line.selectedQuantity || 0)/Number(item.quantity) : 0) },0)
-  const product = all ? available : gross ? Math.min(available,portion*base/gross) : 0
+  const product = order.couponClaimId
+    ? require('../../utils/h5-rules/couponAmounts').couponRefundPreview(items, selectedItems.map(i=>({orderItemId:i.id,quantity:i.selectedQuantity})), detail.afterSales || [])
+    : all ? available : gross ? Math.min(available,portion*base/gross) : 0
   const freight = Number(order.status)===1 && !order.deliveryTime && all ? Number(order.freightAmount || 0) : 0
   return { product, freight, total: product + freight }
 }

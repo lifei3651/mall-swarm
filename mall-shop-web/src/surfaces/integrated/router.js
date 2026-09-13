@@ -6,6 +6,7 @@ import { hasShopSession, restoreShopSession } from '@/utils/shopSession'
 
 const protectedRoute = { requiresAuth: true }
 const routes = [
+  { path: '/profile/coupons', name: 'Coupons', component: () => import('@/views/CouponsView.vue'), meta: protectedRoute },
   { path: '/', name: 'Home', component: () => import('@/views/HomeView.vue') },
   { path: '/category', name: 'Category', component: () => import('@/views/CategoryView.vue') },
   { path: '/notices', name: 'NoticeList', component: () => import('@/views/NoticeListPage.vue') },

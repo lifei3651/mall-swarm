@@ -56,6 +56,10 @@ public class DmsShopOrder implements Serializable {
 
     private BigDecimal discountAmount;
 
+    private Long couponClaimId;
+    private String couponTitle;
+    private String couponRefundRule;
+
     private BigDecimal payAmount;
 
     private BigDecimal totalPv;

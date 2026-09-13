@@ -212,6 +212,7 @@ const businessMenus = [
       { title: '发货与退货地址', path: '/shop/service-addresses', permission: 'shop:product' },
       { title: '分类与规格', path: '/shop/categories', permission: 'shop:product' },
       { title: '商品评价', path: '/shop/reviews', permission: 'shop:product' },
+      { title: '优惠券', path: '/shop/coupons', permission: 'config:shop' },
       { title: '秒杀活动', path: '/tenant/flash-sales', permission: 'shop:product' },
     ],
   },

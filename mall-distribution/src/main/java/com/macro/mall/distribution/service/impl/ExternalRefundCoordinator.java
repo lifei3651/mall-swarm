@@ -40,6 +40,8 @@ import java.math.BigDecimal;
 @Service
 @Slf4j
 public class ExternalRefundCoordinator {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.macro.mall.distribution.service.ShopCouponService couponService;
     private final DmsShopAfterSaleDao afterSaleDao;
     private final DmsShopAfterSaleItemDao afterSaleItemDao;
     private final DmsShopOrderDao orderDao;
@@ -233,6 +235,7 @@ public class ExternalRefundCoordinator {
             return;
         }
         orderDao.closeAfterSale(order.getId());
+        if (order.getCouponClaimId() != null) couponService.releaseFullyRefunded(order);
         DmsAgent agent = agentDao.selectByUserId(order.getUserId());
         if (agent == null || !AgentSourceTypeEnum.SELF_REGISTER.getValue().equals(agent.getSourceType())
                 || orderDao.countValidPaidOrdersByUserId(order.getUserId()) > 0) return;

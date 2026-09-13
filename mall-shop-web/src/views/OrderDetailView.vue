@@ -282,6 +282,9 @@
           <span>商品金额</span>
           <strong>¥{{ money(order.totalAmount) }}</strong>
         </div>
+        <div v-if="order.couponClaimId" class="summary-row">
+          <span>优惠券 · {{order.couponTitle}}</span><strong>−¥{{money(order.discountAmount)}}</strong>
+        </div>
         <div class="summary-row">
           <span>实付金额</span>
           <strong>¥{{ money(order.payAmount) }}</strong>
@@ -385,6 +388,7 @@
 </template>
 
 <script setup>
+import { couponRefundPreview } from '@/utils/couponAmounts'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ChevronDown, ChevronRight, CircleCheck, ImagePlus, MapPin, PackageCheck, RefreshCw, RotateCcw, Truck, UserRound } from 'lucide-vue-next'
@@ -582,6 +586,7 @@ const approvedProductRefund = computed(() => afterSales.value
   .reduce((sum, sale) => sum + Number(sale.productRefundAmount || 0), 0))
 const productBase = computed(() => Math.max(0, Number(order.value?.totalAmount || 0) - Number(order.value?.discountAmount || 0)))
 const estimatedProductRefund = computed(() => {
+  if (order.value?.couponClaimId) return couponRefundPreview(detail.value.items, selectedRefundItems.value, afterSales.value)
   const remainingAmount = Math.max(0, productBase.value - approvedProductRefund.value)
   if (refundAllRemaining.value) return remainingAmount
   const grossTotal = (detail.value.items || []).reduce((sum, item) => sum + Number(item.totalAmount || 0), 0)

@@ -95,6 +95,8 @@ import static com.macro.mall.distribution.util.ShopPublicViewSanitizer.sku;
 @RequiredArgsConstructor
 @Slf4j
 public class ShopServiceImpl implements ShopService {
+    @Autowired
+    private com.macro.mall.distribution.service.ShopCouponService couponService;
 
     private static final Pattern BRAND_CULTURE_IMAGE_REFERENCE = Pattern.compile(
             "(?i)^[^\\r\\n。！？；]{1,240}\\.(?:jpe?g|png|webp|gif)(?:\\?[^\\r\\n]*)?$");
@@ -991,6 +993,7 @@ public class ShopServiceImpl implements ShopService {
         Map<Long, Integer> requestedPurchaseQuantities = new HashMap<>();
         Map<Long, Integer> existingPurchaseQuantities = new HashMap<>();
         BigDecimal productAmount = ZERO;
+        List<DmsShopOrderItem> couponLines = new ArrayList<>();
         for (ShopOrderItemDTO item : dto.getItems()) {
             if (item.getProductId() == null) Asserts.fail("商品ID不能为空");
             int quantity = item.getQuantity() == null || item.getQuantity() <= 0 ? 1 : item.getQuantity();
@@ -1012,6 +1015,11 @@ public class ShopServiceImpl implements ShopService {
             requirePurchasablePrice(price);
             BigDecimal lineAmount = price.multiply(BigDecimal.valueOf(quantity));
             productAmount = productAmount.add(lineAmount);
+            DmsShopOrderItem couponLine = new DmsShopOrderItem();
+            couponLine.setProductId(product.getId()); couponLine.setMerchantId(product.getMerchantId());
+            couponLine.setTotalAmount(lineAmount);
+            couponLine.setTotalCost(money(sku == null ? product.getCostAmount() : sku.getCostAmount()).multiply(BigDecimal.valueOf(quantity)));
+            couponLines.add(couponLine);
             String merchantKey = product.getMerchantId() == null ? "PLATFORM" : "MERCHANT:" + product.getMerchantId();
             Map<Long, ProductShippingContext> merchantProducts = shippingByMerchant.computeIfAbsent(
                     merchantKey, ignored -> new LinkedHashMap<>());
@@ -1020,7 +1028,14 @@ public class ShopServiceImpl implements ShopService {
         BigDecimal freight = shippingByMerchant.values().stream()
                 .map(group -> calculateFreight(group, dto))
                 .reduce(ZERO, BigDecimal::add);
-        return new FreightQuoteVO(productAmount, freight, productAmount.add(freight));
+        FreightQuoteVO quote = new FreightQuoteVO(productAmount, freight, productAmount.add(freight));
+        if (couponService != null) {
+            BigDecimal discount = couponService.preview(member, dto.getCouponClaimId(), couponLines, businessType);
+            quote.setDiscountAmount(discount); quote.setSelectedCouponClaimId(dto.getCouponClaimId());
+            quote.setPayAmount(productAmount.add(freight).subtract(discount));
+            quote.setCoupons(couponService.options(member, couponLines, businessType));
+        }
+        return quote;
     }
 
     @Override
@@ -1076,6 +1091,7 @@ public class ShopServiceImpl implements ShopService {
         com.macro.mall.distribution.util.ShopQuantityChecks.order(dto);
         String businessType = businessModeService.normalizeType(dto == null ? null : dto.getBusinessType());
         if (!ShopBusinessType.FLASH_SALE.equals(businessType)) Asserts.fail("秒杀订单业务类型不正确");
+        if (dto.getCouponClaimId() != null) Asserts.fail("优惠券不与秒杀活动叠加");
         member = prepareOrderSubmit(dto, member);
         return createOrder(dto, member, businessType, null, null, true);
     }
@@ -1113,8 +1129,16 @@ public class ShopServiceImpl implements ShopService {
         BigDecimal freightAmount = ZERO;
         BigDecimal discountAmount = ZERO;
         BigDecimal payAmount = ZERO;
-        for (List<ShopOrderItemDTO> group : merchantGroups.values()) {
-            ShopOrderVO child = createOrder(copySubmit(dto, group), member, businessType, tradeId, tradeNo, false);
+        String couponGroup = null;
+        if (dto.getCouponClaimId() != null) {
+            Long merchant = couponService.merchantForClaim(member, dto.getCouponClaimId());
+            couponGroup = merchant == null ? "PLATFORM" : "MERCHANT:" + merchant;
+            if (!merchantGroups.containsKey(couponGroup)) Asserts.fail("当前商品不在优惠券适用范围");
+        }
+        for (Map.Entry<String, List<ShopOrderItemDTO>> group : merchantGroups.entrySet()) {
+            ShopOrderSubmitDTO childDto = copySubmit(dto, group.getValue());
+            childDto.setCouponClaimId(group.getKey().equals(couponGroup) ? dto.getCouponClaimId() : null);
+            ShopOrderVO child = createOrder(childDto, member, businessType, tradeId, tradeNo, false);
             children.add(child);
             totalAmount = totalAmount.add(money(child.getOrder().getTotalAmount()));
             freightAmount = freightAmount.add(money(child.getOrder().getFreightAmount()));
@@ -1253,7 +1277,11 @@ public class ShopServiceImpl implements ShopService {
         }
 
         BigDecimal freightAmount = calculateFreight(shippingProducts, dto);
-        BigDecimal payAmount = totalAmount.add(freightAmount);
+        DmsShopCoupon coupon = dto.getCouponClaimId() == null ? null : couponService.reserve(member,
+                dto.getCouponClaimId(), orderId, orderItems, businessType);
+        BigDecimal discount = coupon == null ? ZERO : money(coupon.getAmount());
+        totalCost = orderItems.stream().map(DmsShopOrderItem::getTotalCost).reduce(ZERO, BigDecimal::add);
+        BigDecimal payAmount = totalAmount.add(freightAmount).subtract(discount);
         if (verifyPayment) paymentVerificationService.verifyIfRequired(member, payAmount, dto.getSmsCode());
 
         DmsShopOrder order = new DmsShopOrder();
@@ -1277,7 +1305,11 @@ public class ShopServiceImpl implements ShopService {
         order.setReceiverDetailAddress(dto.getReceiverDetailAddress());
         order.setTotalAmount(totalAmount);
         order.setFreightAmount(freightAmount);
-        order.setDiscountAmount(ZERO);
+        order.setDiscountAmount(discount);
+        if (coupon != null) {
+            order.setCouponClaimId(dto.getCouponClaimId()); order.setCouponTitle(coupon.getTitle());
+            order.setCouponRefundRule(coupon.getRefundRule());
+        }
         order.setPayAmount(payAmount);
         order.setTotalPv(totalPv);
         order.setTotalCost(totalCost);
@@ -1306,7 +1338,7 @@ public class ShopServiceImpl implements ShopService {
             pvDetail.setSkuId(item.getSkuId());
             pvDetail.setProductName(item.getProductName());
             pvDetail.setQuantity(item.getQuantity());
-            pvDetail.setPayAmount(item.getTotalAmount());
+            pvDetail.setPayAmount(item.getTotalAmount().subtract(money(item.getCouponDiscountAmount())));
             pvDetail.setPvValue(item.getPvValue());
             pvDetail.setTotalPv(item.getTotalPv());
             pvDetail.setBvValue(ZERO);
@@ -1591,6 +1623,7 @@ public class ShopServiceImpl implements ShopService {
         merchantService.assertOrderCanBePaid(orderId);
 
         int updated = orderDao.markPaid(orderId, payType);
+        if (updated > 0 && order.getCouponClaimId() != null) couponService.consume(order);
         DmsTenant tenant = tenantDao.selectById(order.getTenantId());
         // 兼容少量只构造旧依赖集合的单元测试；生产环境由Spring完整注入。
         List<DmsShopOrderItem> paidItems = orderItemDao.selectByOrderId(order.getId());
@@ -1729,6 +1762,7 @@ public class ShopServiceImpl implements ShopService {
         }
         for (DmsShopOrder child : children) {
             if (orderDao.cancel(child.getId()) != 1) Asserts.fail("子订单取消失败");
+            if (child.getCouponClaimId() != null) couponService.releaseCancelled(child);
             restockOrder(child.getId());
             notifyOrderChanged(child, "ORDER_CANCELLED");
         }
@@ -1758,6 +1792,7 @@ public class ShopServiceImpl implements ShopService {
         }
         int updated = orderDao.cancel(orderId);
         if (updated > 0) {
+            if (order.getCouponClaimId() != null) couponService.releaseCancelled(order);
             restockOrder(orderId);
             notifyOrderChanged(order, "ORDER_CANCELLED");
             publishWechatClose(order.getPayType(), paymentNo(order));
@@ -1826,6 +1861,7 @@ public class ShopServiceImpl implements ShopService {
         if (order != null && Integer.valueOf(0).equals(order.getStatus())
                 && order.getCreateTime() != null && !order.getCreateTime().isAfter(cutoff)
                 && orderDao.closePending(orderId) > 0) {
+            if (order.getCouponClaimId() != null) couponService.releaseCancelled(order);
             restockOrder(orderId);
             notifyOrderChanged(order, "ORDER_TIMEOUT_CLOSED");
             publishWechatClose(order.getPayType(), paymentNo(order));
@@ -1843,6 +1879,7 @@ public class ShopServiceImpl implements ShopService {
         int closed = 0;
         for (DmsShopOrder child : children) {
             if (orderDao.closePending(child.getId()) != 1) Asserts.fail("超时子订单关闭失败");
+            if (child.getCouponClaimId() != null) couponService.releaseCancelled(child);
             restockOrder(child.getId());
             notifyOrderChanged(child, "ORDER_TIMEOUT_CLOSED");
             closed++;
@@ -2701,6 +2738,11 @@ public class ShopServiceImpl implements ShopService {
      * 历史订单缺少商品快照时继续使用原“商品金额减优惠”口径。
      */
     private BigDecimal productBonusBase(DmsShopOrder order, List<DmsShopOrderItem> items) {
+        if (order.getCouponClaimId() != null) {
+            if (items == null || items.isEmpty() || items.stream().anyMatch(i -> i.getCouponBonusBaseAmount() == null))
+                Asserts.fail("优惠券订单奖金快照缺失");
+            return items.stream().filter(this::isBonusEligibleItem).map(DmsShopOrderItem::getCouponBonusBaseAmount).reduce(ZERO, BigDecimal::add);
+        }
         if (items == null || items.isEmpty()) {
             BigDecimal productAmount = order.getTotalAmount() == null
                     ? money(order.getPayAmount()).subtract(money(order.getFreightAmount()))

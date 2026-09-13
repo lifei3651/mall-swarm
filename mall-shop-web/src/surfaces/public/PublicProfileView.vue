@@ -25,6 +25,7 @@
 
     <section class="service-grid">
       <MessageCenterEntry />
+      <RouterLink to="/profile/coupons"><span class="coupon-icon" aria-hidden="true">券</span><strong>优惠券</strong><span>领取与查看优惠</span></RouterLink>
       <RouterLink to="/profile/addresses"><MapPinned :size="25" /><strong>收货地址</strong><span>管理常用地址</span></RouterLink>
       <RouterLink to="/profile/security/change-login-password"><KeyRound :size="25" /><strong>登录密码</strong><span>保护账号安全</span></RouterLink>
       <RouterLink to="/profile/security"><ShieldCheck :size="25" /><strong>支付安全</strong><span>{{ wallet.hasPaymentPassword ? '修改支付密码' : '设置支付密码' }}</span></RouterLink>

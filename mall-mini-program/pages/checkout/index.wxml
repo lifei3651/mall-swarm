@@ -21,6 +21,7 @@
       </view>
     </view>
     <view class="remark-row" bindtap="openRemark" aria-role="button" aria-disabled="{{submitting}}" aria-label="编辑订单备注"><text class="remark-label">订单备注</text><text class="remark-value">{{remark || '无备注'}}</text><text class="remark-arrow" aria-hidden="true">›</text></view>
+    <view wx:if="{{couponEnabled}}" class="remark-row" bindtap="openCoupons" aria-role="button" aria-label="选择优惠券"><text class="remark-label">优惠券</text><text class="remark-value">{{couponClaimId ? '已选 · 减 ¥' + discount : '选择优惠券'}}</text><text class="remark-arrow" aria-hidden="true">›</text></view>
     <view class="pay-card"><view><text>支付方式</text><text>支付结果以订单状态为准</text></view><button wx:if="{{wechatPayEnabled}}" class="pay-choice pay-choice-button" data-type="WECHAT" bindtap="selectPayType"><radio checked="{{payType === 'WECHAT'}}" color="#07c160" /><text>微信支付</text></button><button wx:if="{{balanceAvailable}}" class="pay-choice pay-choice-button" data-type="BALANCE" bindtap="selectPayType"><radio checked="{{payType === 'BALANCE'}}" color="{{themeColor}}" /><view><text>余额支付</text><text class="muted">可用余额 ¥{{balanceSummary.balanceText}}</text></view></button><text wx:if="{{payType === 'BALANCE' && !balanceSummary.hasPaymentPassword}}" class="muted">首次支付需设置独立6位支付密码，待支付订单会保留。</text><text wx:if="{{payType === 'BALANCE' && balanceSummary.paymentPasswordLocked}}" class="checkout-error">支付密码已临时锁定，请稍后刷新。</text><button wx:if="{{balanceError}}" class="payment-retry" bindtap="load">{{balanceError}}</button></view>
     <view wx:if="{{needSmsVerify}}" class="sms-card">
       <view><text class="sms-title">大额支付验证</text><text class="muted">验证码只发送到当前账号绑定手机号</text></view>
@@ -30,7 +31,7 @@
       </view>
     </view>
     <view wx:if="{{quoteError}}" class="checkout-error"><text>{{quoteError}}</text><button bindtap="retryQuote">重新计算</button></view>
-    <view class="amount-card"><view><text>商品金额</text><text>¥{{total}}</text></view><view><text>运费</text><text>{{freight === '--' ? '待确认' : '¥' + freight}}</text></view><view class="amount-total"><text>应付金额</text><text>{{quoteReady ? '¥' + payTotal : quoteLoading ? '正在计算…' : '待确认'}}</text></view></view>
+    <view class="amount-card"><view><text>商品金额</text><text>¥{{total}}</text></view><view wx:if="{{couponEnabled}}"><text>优惠券抵扣</text><text>−¥{{discount}}</text></view><view><text>运费</text><text>{{freight === '--' ? '待确认' : '¥' + freight}}</text></view><view class="amount-total"><text>应付金额</text><text>{{quoteReady ? '¥' + payTotal : quoteLoading ? '正在计算…' : '待确认'}}</text></view></view>
     <view class="checkout-footer">
       <view><text class="muted">应付</text><text>{{quoteReady ? '¥' + payTotal : '待确认'}}</text></view>
       <button class="primary-button" loading="{{submitting || quoteLoading}}" disabled="{{submitting || loading || quoteLoading || !quoteReady}}" bindtap="submit">{{quoteLoading ? '金额计算中' : '提交并支付'}}</button>
@@ -42,6 +43,18 @@
       <textarea class="remark-input" fixed focus maxlength="500" placeholder="填写给商家的说明，选填" aria-label="订单备注，选填" value="{{remarkDraft}}" bindinput="remarkInput" cursor-spacing="100" />
       <text class="remark-count">{{remarkDraft.length}}/500</text>
       <view class="remark-actions"><button class="secondary-button" bindtap="cancelRemark">取消</button><button class="primary-button" bindtap="saveRemark">确定</button></view>
+    </view>
+  </view>
+  <view wx:if="{{couponPickerVisible}}" class="coupon-mask" catchtap="closeCoupons" catchtouchmove="stopRemarkTap">
+    <view class="coupon-sheet" catchtap="stopRemarkTap" aria-role="dialog" aria-label="选择优惠券">
+      <view class="coupon-sheet-head"><text>选择优惠券</text><view bindtap="closeCoupons" aria-role="button">关闭</view></view>
+      <text class="coupon-hint">每次结算限用一张，优惠按适用商品计算</text>
+      <scroll-view scroll-y class="coupon-options" show-scrollbar="{{false}}" enhanced="{{true}}">
+        <view class="coupon-option {{!couponClaimId ? 'chosen' : ''}}" data-id="" bindtap="chooseCoupon" aria-role="button"><text>不使用优惠券</text><text>{{!couponClaimId ? '✓' : '○'}}</text></view>
+        <view wx:for="{{couponOptions}}" wx:key="claimId" class="coupon-option {{item.claimId === couponClaimId ? 'chosen' : ''}} {{!item.usable ? 'unusable' : ''}}" data-id="{{item.claimId}}" bindtap="chooseCoupon" aria-role="button" aria-disabled="{{!item.usable}}"><view><text class="coupon-name">{{item.title}} · 减 ¥{{item.amountText}}</text><text class="coupon-hint">{{item.scopeLabel}} · 满 ¥{{item.minimumText}} 可用</text><text wx:if="{{item.reason}}" class="coupon-hint">{{item.reason}}</text></view><text>{{item.claimId === couponClaimId ? '✓' : '○'}}</text></view>
+        <view wx:if="{{!couponOptions.length}}" class="coupon-hint">暂无已领取的优惠券</view>
+      </scroll-view>
+      <view class="coupon-claim-link" bindtap="claimCoupons" aria-role="button">去领券中心 ›</view>
     </view>
   </view>
 </view>

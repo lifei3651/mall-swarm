@@ -69,7 +69,9 @@ service.interceptors.response.use(
         }
       }
     }
-    return Promise.reject(new Error(resolveRequestErrorMessage(error)))
+    const failure = new Error(resolveRequestErrorMessage(error))
+    failure.httpStatus = error.response?.status
+    return Promise.reject(failure)
   }
 )
 

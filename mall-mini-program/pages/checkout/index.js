@@ -8,6 +8,7 @@ const theme = require('../../utils/theme')
 const catalog = require('../../utils/catalog')
 const quantityRules = require('../../utils/quantity')
 const session = require('../../utils/session')
+const { couponQuoteValid, canReviseRejectedOrder } = require('../../utils/h5-rules/couponAmounts')
 
 function idempotencyKey() {
   return `MINI-CHECKOUT-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`
@@ -22,6 +23,7 @@ Page({
     quoteLoading: false,
     quoteReady: false,
     quoteError: '',
+    couponClaimId: '', couponOptions: [], couponPickerVisible: false, couponEnabled: true, discount: '0.00',
     activityName: '',
     rows: [],
     address: null,
@@ -40,6 +42,7 @@ Page({
   onLoad(options = {}) {
     theme.apply(this)
     this.flashSaleMode = Object.prototype.hasOwnProperty.call(options, 'activityId')
+    this.setData({ couponEnabled: !this.flashSaleMode })
     this.directMode = options.direct === '1'
     this.activityId = this.flashSaleMode ? format.identifier(options.activityId) : ''
     this.activityQuantity = options.quantity === undefined ? 1 : Number(options.quantity)
@@ -163,9 +166,7 @@ Page({
         data: payload
       })
       if (generation !== this.quoteGeneration) return
-      if (!quote || ['productAmount', 'freightAmount', 'payAmount'].some((key) =>
-        quote[key] === null || quote[key] === undefined || String(quote[key]).trim() === ''
-        || !Number.isFinite(Number(quote[key])) || Number(quote[key]) < 0)) {
+      if (!couponQuoteValid(quote, payload.couponClaimId)) {
         throw new Error('结算金额返回异常，请重新计算')
       }
       const needSmsVerify = await this.checkPaymentVerify(quote.payAmount)
@@ -175,6 +176,8 @@ Page({
         total: format.money(quote.productAmount),
         freight: format.money(quote.freightAmount),
         payTotal: format.money(quote.payAmount),
+        discount: format.money(quote.discountAmount || 0),
+        couponOptions: (Array.isArray(quote.coupons) ? quote.coupons : []).map(c => ({...c, claimId: format.identifier(c.claimId), amountText:format.money(c.amount), minimumText:format.money(c.minimumAmount)})),
         needSmsVerify, quoteReady: true, quoteError: ''
       })
     } catch (error) {
@@ -187,6 +190,22 @@ Page({
     if (this.data.loadError) return this.load()
     if (this.data.address) return this.quoteFreight(this.data.address)
   },
+  openCoupons() {
+    if (this.data.submitting || this.createdPaymentId || !this.data.couponEnabled) return
+    this.couponOwner=session.getToken()
+    this.setData({couponPickerVisible:true})
+  },
+  closeCoupons() { this.setData({couponPickerVisible:false}) },
+  async chooseCoupon(event) {
+    if (this.data.submitting || this.createdPaymentId || this.couponOwner!==session.getToken()) return this.closeCoupons()
+    if (this.orderAttempted) return feedback.notice('订单提交结果待确认，请先到待支付订单查看，避免重复创建订单')
+    const id=format.identifier(event.currentTarget.dataset.id) || ''
+    if(id && !this.data.couponOptions.some(c=>c.claimId===id && c.usable))return
+    this.setData({couponClaimId:id,couponPickerVisible:false})
+    this.submitKey=idempotencyKey()
+    if(this.data.address)await this.quoteFreight(this.data.address)
+  },
+  claimCoupons() { this.closeCoupons(); wx.navigateTo({url:'/pages/coupons/index?tab=catalog'}) },
   async checkPaymentVerify(amount) {
     const config = await request({ url: '/payment/checkVerify', params: { amount } })
     if (!config || typeof config.needVerify !== 'boolean') throw new Error('支付验证配置加载失败，请重新计算')
@@ -214,7 +233,7 @@ Page({
   },
   onHide() {
     this.inactive = true
-    this.setData({ smsCode: '', remarkEditorVisible: false, remarkDraft: '' })
+    this.setData({ smsCode: '', remarkEditorVisible: false, remarkDraft: '', couponPickerVisible: false })
     this.loadGeneration = (this.loadGeneration || 0) + 1
     this.invalidateQuote()
   },
@@ -222,6 +241,7 @@ Page({
   orderPayload(address, includeRemark = true) {
     return {
       addressId: format.identifier(address.id),
+      ...(this.data.couponClaimId ? {couponClaimId:this.data.couponClaimId} : {}),
       payType: this.data.payType,
       businessType: this.flashSaleMode ? 'FLASH_SALE' : 'NORMAL',
       ...(this.flashSaleMode ? { businessSourceId: this.activityId } : {}),
@@ -276,7 +296,9 @@ Page({
     const current = () => token === session.getToken()
     wx.showLoading({ title: '正在提交订单', mask: true })
     let paymentId = null
+    const previousAttempt=this.orderAttempted
     try {
+      this.orderAttempted=true
       const order = await request({
         url: this.flashSaleMode ? `/shop/flash-sales/${this.activityId}/orders` : '/shop/orders', method: 'POST', idempotencyKey: this.submitKey,
         data: this.orderPayload(this.data.address)
@@ -312,6 +334,7 @@ Page({
           success: () => { if (current() && !this.inactive) wx.redirectTo({ url: '/pages/orders/index' }) }
         })
       } else {
+        if(canReviseRejectedOrder(error,previousAttempt)){this.orderAttempted=false;this.submitKey=idempotencyKey()}
         feedback.toast({ title: error.message || '订单提交失败', icon: 'none', duration: 2600 })
       }
     } finally { wx.hideLoading(); feedback.update(this, { submitting: false, smsCode: '' }) }

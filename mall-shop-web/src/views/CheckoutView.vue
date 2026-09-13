@@ -86,6 +86,8 @@
           </div>
         </div>
 
+        <button v-if="businessType !== 'FLASH_SALE'" type="button" class="remark-row coupon-row" :disabled="submitting || Boolean(pendingCheckoutId)" @click="couponPickerVisible=true"><span class="remark-label">优惠券</span><span class="remark-value">{{selectedCouponClaimId ? `已选 · 减 ¥${money(discountAmount)}` : '选择优惠券'}}</span><span class="remark-arrow" aria-hidden="true">›</span></button>
+        <CouponPicker v-if="couponPickerVisible" :options="couponOptions" :selected="selectedCouponClaimId" @close="couponPickerVisible=false" @choose="chooseCoupon" />
         <div class="payment-section">
           <div class="payment-title"><strong>支付方式</strong><span>请选择一种</span></div>
           <div class="payment-options">
@@ -132,11 +134,14 @@
         </div>
         <div class="summary-row">
           <span>商品金额</span>
-          <strong>¥{{ money(total) }}</strong>
+          <strong>¥{{ money(quotedProductAmount ?? total) }}</strong>
         </div>
         <div class="summary-row">
           <span>运费</span>
           <strong>{{ freightLoading ? '计算中' : `¥${money(freightAmount)}` }}</strong>
+        </div>
+        <div class="summary-row">
+          <span>优惠券抵扣</span><strong>−¥{{money(discountAmount)}}</strong>
         </div>
         <div class="summary-row">
           <span>实付金额</span>
@@ -156,7 +161,8 @@
           </div>
         </div>
 
-        <button class="btn primary submit-order-btn" :disabled="submitting || (form.payType === 'BALANCE' && paymentPasswordLocked)" @click="submit">
+        <button v-if="!quoteReady && !freightLoading" type="button" class="btn" @click="refreshFreight">重新计算金额</button>
+        <button class="btn primary submit-order-btn" :disabled="submitting || freightLoading || !quoteReady || (form.payType === 'BALANCE' && paymentPasswordLocked)" @click="submit">
           {{ submitting ? '提交中...' : (form.payType === 'BALANCE' && paymentPasswordLocked ? '支付密码已锁定' : `提交订单 ¥${money(payAmount)}`) }}
         </button>
         <div v-if="error" class="checkout-toast" role="alert" aria-live="assertive">{{ error }}</div>
@@ -294,10 +300,11 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, ClipboardPaste, Plus, Settings2, ShieldCheck, X } from 'lucide-vue-next'
 import { getHome, getMe, getWalletSummary, listAddresses, submitOrder, submitFlashSaleOrder, quoteFreight, checkPaymentVerify, sendPaymentSmsCode, sendPaymentPasswordSmsCode, setPaymentPassword, payOrderWithBalance, createAlipayOrder, getPayConfig } from '@/api/shop'
+import { couponQuoteValid, canReviseRejectedOrder } from '@/utils/couponAmounts'
 import { mixedBusinessError, validateCheckoutBusinessType } from '@surface-commerce-policy'
 import { useCart } from '@/store/cart'
 import { money, joinAddress } from '@/utils/format'
@@ -306,6 +313,7 @@ import { parseChineseAddress } from '@/utils/addressParser'
 import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
 import { createIdempotencyKey } from '@/utils/idempotency'
 import ChinaRegionSelect from '@/components/ChinaRegionSelect.vue'
+import CouponPicker from '@/components/CouponPicker.vue'
 import { hasShopSession } from '@/utils/shopSession'
 import { submitTrustedAlipayForm } from '@/utils/alipay'
 import { applyImageFallback } from '@/utils/imageFallback'
@@ -320,6 +328,7 @@ const businessSourceId = items[0]?.businessSourceId || null
 const checkoutSellers = [...new Set(items.map((item) => item.merchantName || '平台自营'))]
 const submitting = ref(false)
 const orderRequestKey = ref('')
+const orderAttempted = ref(false)
 const balancePaymentRequestKey = ref('')
 const error = ref('')
 let errorTimer
@@ -344,10 +353,12 @@ const hasToken = ref(hasShopSession())
 const receiverRegion = ref([])
 const freightAmount = ref(0)
 const freightLoading = ref(false)
+const selectedCouponClaimId=ref(null),couponOptions=ref([]),couponPickerVisible=ref(false),discountAmount=ref(0),quotedProductAmount=ref(null),quoteReady=ref(false)
+let quoteVersion=0,quotedPayload=''
 const showAddressPaste = ref(false)
 const addressPasteText = ref('')
 const addressParseHint = ref('')
-const payAmount = computed(() => Number(total.value || 0) + Number(freightAmount.value || 0))
+const payAmount = computed(() => Number(quotedProductAmount.value ?? total.value ?? 0) + Number(freightAmount.value || 0) - Number(discountAmount.value || 0))
 const walletSummary = ref({
   balance: 0,
   hasPaymentPassword: false,
@@ -657,6 +668,7 @@ const validate = () => {
 }
 
 const freightRequestData = () => ({
+  ...(selectedCouponClaimId.value ? { couponClaimId:selectedCouponClaimId.value } : {}),
   businessType,
   businessSourceId,
   addressId: form.value.addressId,
@@ -668,18 +680,33 @@ const freightRequestData = () => ({
 })
 
 const refreshFreight = async () => {
+  const version=++quoteVersion
+  quoteReady.value=false;quotedPayload=''
   if (!hasToken.value || !items.length || receiverRegion.value.length !== 3) return
   freightLoading.value = true
   clearCheckoutError()
   try {
-    const res = await quoteFreight(freightRequestData())
+    const payload=freightRequestData()
+    const res = await quoteFreight(payload)
+    if(version!==quoteVersion)return
+    if(!couponQuoteValid(res.data,payload.couponClaimId))throw new Error('结算优惠或金额异常，请重新计算')
     freightAmount.value = Number(res.data?.freightAmount || 0)
-    await checkVerify()
+    quotedProductAmount.value=Number(res.data.productAmount)
+    discountAmount.value=Number(res.data.discountAmount||0)
+    couponOptions.value=Array.isArray(res.data.coupons)?res.data.coupons:[]
+    const verification=await checkPaymentVerify(Number(res.data.payAmount))
+    if(version!==quoteVersion)return
+    if(typeof verification.data?.needVerify!=='boolean')throw new Error('支付验证配置暂不可用')
+    verifyConfig.value=verification.data;needSmsVerify.value=verification.data.needVerify
+    quotedPayload=JSON.stringify(payload);quoteReady.value=true
   } catch (e) {
+    if(version!==quoteVersion)return
     freightAmount.value = 0
     showCheckoutError(e.message || '运费计算失败')
-  } finally { freightLoading.value = false }
+  } finally { if(version===quoteVersion)freightLoading.value = false }
 }
+const chooseCoupon=async(id)=>{if(submitting.value||pendingCheckoutId.value)return;if(orderAttempted.value){showCheckoutError('订单提交结果待确认，请先到待支付订单查看');return}couponPickerVisible.value=false;selectedCouponClaimId.value=id;orderRequestKey.value='';await refreshFreight()}
+watch(()=>JSON.stringify(freightRequestData()),()=>{quoteVersion++;quoteReady.value=false;quotedPayload='';freightLoading.value=false},{flush:'sync'})
 
 // 检查是否需要短信验证
 const checkVerify = async () => {
@@ -913,9 +940,11 @@ const ensurePendingOrder = async () => {
     }
   }
   if (!orderRequestKey.value) orderRequestKey.value = createIdempotencyKey('order')
+  if(!quoteReady.value || quotedPayload!==JSON.stringify(freightRequestData()))throw new Error('请先重新计算结算金额')
   if (businessType === 'MIXED') throw new Error(mixedBusinessError)
   const orderData = {
     ...form.value,
+    ...(selectedCouponClaimId.value ? { couponClaimId:selectedCouponClaimId.value } : {}),
     businessType,
     businessSourceId,
     items: items.map((item) => ({
@@ -925,11 +954,23 @@ const ensurePendingOrder = async () => {
     })),
   }
   if (needSmsVerify.value) orderData.smsCode = smsCode.value
-  const res = businessType === 'FLASH_SALE'
-    ? await submitFlashSaleOrder(businessSourceId, orderData, orderRequestKey.value)
-    : await submitOrder(orderData, orderRequestKey.value)
+  const previousAttempt=orderAttempted.value
+  orderAttempted.value=true
+  let res
+  try {
+    res = businessType === 'FLASH_SALE'
+      ? await submitFlashSaleOrder(businessSourceId, orderData, orderRequestKey.value)
+      : await submitOrder(orderData, orderRequestKey.value)
+  } catch(error) {
+    if(canReviseRejectedOrder(error,previousAttempt)){orderAttempted.value=false;orderRequestKey.value=''}
+    throw error
+  }
   const checkoutId = res.data.checkoutId || res.data.order.id
   const detailOrderId = res.data.order.id
+  const createdRows=res.data.childOrders?.length ? res.data.childOrders : [res.data]
+  quotedProductAmount.value=createdRows.reduce((sum,r)=>sum+Number(r.order.totalAmount||0),0)
+  freightAmount.value=createdRows.reduce((sum,r)=>sum+Number(r.order.freightAmount||0),0)
+  discountAmount.value=createdRows.reduce((sum,r)=>sum+Number(r.order.discountAmount||0),0)
   orderRequestKey.value = ''
   // “提交订单”先落成待支付订单；关闭、返回或支付失败后只能继续支付原订单，不能重复下单。
   removeCheckedOutItems()
@@ -1003,6 +1044,7 @@ onBeforeRouteLeave((to) => {
   return { path: '/orders', query: { tab: 'pending-payment' } }
 })
 onBeforeUnmount(() => {
+  quoteVersion++
   window.clearInterval(setupSmsTimer)
   window.clearInterval(paymentSmsTimer)
   window.clearInterval(paymentLockTimer)

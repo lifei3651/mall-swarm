@@ -1,4 +1,5 @@
 const checkoutBusinessTypes = new Set(['NORMAL', 'FLASH_SALE'])
+export const couponBusinessLabel = (types = []) => types.includes('NORMAL') ? '普通商城' : '其他专区专用（当前商城不可用）'
 
 export const validateCheckoutBusinessType = (businessType) => checkoutBusinessTypes.has(businessType)
   ? ''

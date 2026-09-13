@@ -658,6 +658,7 @@ public class MerchantServiceImpl implements MerchantService {
             if (item.getMerchantId() == null || !merchant.getId().equals(item.getMerchantId())) continue;
             if (settlementDao.selectByOrderItemIdForUpdate(item.getId()) != null) continue;
             BigDecimal amount = money(item.getCostAmount()).multiply(BigDecimal.valueOf(item.getQuantity())).setScale(2, RoundingMode.HALF_UP);
+            if (item.getCouponMerchantAmount() != null) amount = money(item.getTotalCost());
             if (amount.compareTo(ZERO) <= 0) continue;
             DmsMerchantSettlement settlement = new DmsMerchantSettlement();
             settlement.setTenantId(order.getTenantId());
@@ -755,6 +756,10 @@ public class MerchantServiceImpl implements MerchantService {
                 Asserts.fail("商户货款退款数量异常");
             }
             BigDecimal amount = money(settlement.getCostAmount()).multiply(BigDecimal.valueOf(quantity)).setScale(2, RoundingMode.HALF_UP);
+            if (item.getCouponCostRefundAmount() != null) {
+                amount = com.macro.mall.distribution.util.CouponAmounts.refundDelta(settlement.getSettlementAmount(), settlement.getQuantity(), settlement.getRefundedQuantity(), quantity);
+                if (amount.compareTo(item.getCouponCostRefundAmount()) != 0) Asserts.fail("优惠订单货款退款快照不一致");
+            }
             DmsMerchantAccount before = accountDao.selectByMerchantIdForUpdate(settlement.getMerchantId());
             if ("PENDING".equals(settlement.getStatus())) {
                 if (accountDao.reversePending(settlement.getMerchantId(), amount) != 1) Asserts.fail("商户待结算货款冲回失败");

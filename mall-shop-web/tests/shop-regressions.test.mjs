@@ -679,7 +679,7 @@ test('checkout shows payment-password lock state before opening the balance paym
   assert.match(checkout, /paymentPasswordLockRemainingSeconds/)
   assert.match(checkout, /支付密码已锁定，请\$\{remaining\}后再试；如需立即处理，请联系客服/)
   assert.match(checkout, /form\.payType === 'BALANCE' && paymentPasswordLocked/)
-  assert.match(checkout, /:disabled="submitting \|\| \(form\.payType === 'BALANCE' && paymentPasswordLocked\)"/)
+  assert.match(checkout, /:disabled="submitting \|\| freightLoading \|\| !quoteReady \|\| \(form\.payType === 'BALANCE' && paymentPasswordLocked\)"/)
   assert.match(checkout, /if \(String\(e\.message \|\| ''\)\.includes\('锁定30分钟'\)\) await fetchWallet\(\)/)
 })
 

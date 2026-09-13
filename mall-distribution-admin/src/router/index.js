@@ -136,6 +136,7 @@ const routes = [
             redirect: '/tenant/banners',
             meta: { title: '首页Banner', hidden: true, permission: 'config:shop' },
           },
+          { path: 'coupons', name: 'ShopCoupons', component: () => import('@/views/shop/coupons.vue'), meta: { title: '优惠券', permission: 'config:shop' } },
         ],
       },
       // 会员统一管理：同一列表同时管理未进入和已进入奖金体系的账号

@@ -1716,3 +1716,29 @@ MERGE INTO dms_message_cost_budget (tenant_id,scope_type,scope_key,daily_limit,m
 VALUES (1,'TENANT','*',0,0,'CNY',0),(1,'CHANNEL','SMS',0,0,'CNY',0),(1,'CHANNEL','APP_PUSH',0,0,'CNY',0),(1,'CHANNEL','MINI_PROGRAM',0,0,'CNY',0);
 MERGE INTO dms_message_cost_budget (tenant_id,scope_type,scope_key,daily_limit,monthly_limit,currency,enabled) KEY(tenant_id,scope_type,scope_key)
 SELECT 1,'EVENT',event_type,0,0,'CNY',0 FROM dms_message_template WHERE tenant_id=1;
+
+CREATE TABLE IF NOT EXISTS dms_shop_coupon (
+ id BIGINT AUTO_INCREMENT PRIMARY KEY, tenant_id BIGINT NOT NULL, title VARCHAR(60) NOT NULL,
+ merchant_id BIGINT, merchant_name VARCHAR(200) NOT NULL, scope_type VARCHAR(16) NOT NULL,
+ product_ids_json TEXT NOT NULL, business_types_json VARCHAR(100) NOT NULL,
+ amount DECIMAL(12,2) NOT NULL, minimum_amount DECIMAL(12,2) NOT NULL,
+ merchant_percent INT NOT NULL, bonus_basis VARCHAR(8) NOT NULL, refund_rule VARCHAR(20) NOT NULL,
+ starts_at TIMESTAMP NOT NULL, ends_at TIMESTAMP NOT NULL, total_count INT NOT NULL,
+ per_member_limit INT NOT NULL, issued_count INT NOT NULL DEFAULT 0, status VARCHAR(16) NOT NULL DEFAULT 'DRAFT',
+ version INT NOT NULL DEFAULT 0, create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS dms_shop_coupon_claim (
+ id BIGINT AUTO_INCREMENT PRIMARY KEY, tenant_id BIGINT NOT NULL, coupon_id BIGINT NOT NULL,
+ member_id BIGINT NOT NULL, user_id BIGINT NOT NULL, request_id VARCHAR(80) NOT NULL,
+ status VARCHAR(16) NOT NULL DEFAULT 'AVAILABLE', order_id BIGINT,
+ create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ CONSTRAINT uk_coupon_claim_request UNIQUE (tenant_id,member_id,request_id)
+);
+ALTER TABLE dms_shop_order ADD COLUMN IF NOT EXISTS coupon_claim_id BIGINT;
+ALTER TABLE dms_shop_order ADD COLUMN IF NOT EXISTS coupon_title VARCHAR(60);
+ALTER TABLE dms_shop_order ADD COLUMN IF NOT EXISTS coupon_refund_rule VARCHAR(20);
+ALTER TABLE dms_shop_order_item ADD COLUMN IF NOT EXISTS coupon_discount_amount DECIMAL(12,2);
+ALTER TABLE dms_shop_order_item ADD COLUMN IF NOT EXISTS coupon_merchant_amount DECIMAL(12,2);
+ALTER TABLE dms_shop_order_item ADD COLUMN IF NOT EXISTS coupon_bonus_base_amount DECIMAL(12,2);
+ALTER TABLE dms_shop_after_sale_item ADD COLUMN IF NOT EXISTS coupon_bonus_refund_amount DECIMAL(12,2);
+ALTER TABLE dms_shop_after_sale_item ADD COLUMN IF NOT EXISTS coupon_cost_refund_amount DECIMAL(12,2);

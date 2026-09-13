@@ -149,6 +149,7 @@ Page({
     this.openMemberPage(`/pages/orders/index?tab=${tab}`)
   },
   addresses() { this.openMemberPage('/pages/address/index') },
+  coupons() { this.openMemberPage('/pages/coupons/index') },
   payout() { this.openMemberPage('/pages/payout/index') },
   wallet() { this.openMemberPage('/pages/wallet/index') },
   service() { this.openMemberPage('/pages/orders/index?tab=after-sale') },

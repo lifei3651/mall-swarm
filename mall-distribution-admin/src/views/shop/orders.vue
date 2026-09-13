@@ -479,7 +479,7 @@
       </el-descriptions>
       <el-form :model="manualRefundForm" label-width="110px" class="manual-refund-form">
         <el-form-item label="退款方式">
-          <el-radio-group v-model="manualRefundForm.refundMode">
+          <el-radio-group v-model="manualRefundForm.refundMode" :disabled="Boolean(currentOrder?.order?.couponClaimId)">
             <el-radio value="QUANTITY">按盒数比例退款</el-radio>
             <el-radio value="AMOUNT">按后台填写金额退款</el-radio>
           </el-radio-group>
@@ -513,7 +513,7 @@
         </el-form-item>
         <el-form-item v-if="manualRefundForm.refundMode === 'QUANTITY'" label="按盒数预计退款">
           <span class="manual-refund-amount">¥{{ money(manualRefundEstimate) }}</span>
-          <div class="field-help">按本次选择的盒数占商品实付金额的比例计算，整单退完时补齐尾差。</div>
+          <div class="field-help">{{ currentOrder?.order?.couponClaimId ? '用券订单按各商品优惠后的实付快照和数量退款；不能改为任意金额退款。' : '按本次选择的盒数占商品实付金额的比例计算，整单退完时补齐尾差。' }}</div>
         </el-form-item>
         <el-form-item v-else label="商品退款金额" required>
           <el-input-number v-model="manualRefundForm.productRefundAmount" :min="0.01" :max="Math.max(0.01, manualRefundRemainingAmount)" :precision="2" :step="0.01" controls-position="right" />
@@ -697,6 +697,7 @@
 </template>
 
 <script setup>
+import { couponRefundPreview } from '@/utils/couponAmounts'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -924,6 +925,8 @@ const manualRefundRemainingAmount = computed(() => {
 })
 const manualRefundEstimate = computed(() => {
   if (!currentOrder.value || manualRefundForm.value.refundMode !== 'QUANTITY') return 0
+  if (currentOrder.value.order?.couponClaimId) return couponRefundPreview(currentOrder.value.items,
+    (currentOrder.value.items || []).map(i=>({orderItemId:i.id,quantity:Math.min(remainingRefundQuantity(currentOrder.value,i),Number(manualRefundForm.value.items?.[i.id]||0))})),currentOrder.value.afterSales)
   const productBase = Math.max(0, Number(currentOrder.value.order?.totalAmount || 0) - Number(currentOrder.value.order?.discountAmount || 0))
   const grossTotal = (currentOrder.value.items || []).reduce((sum, item) => sum + Number(item.totalAmount || 0), 0)
   if (!productBase || !grossTotal || !selectedRefundQuantity.value) return 0

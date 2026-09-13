@@ -21,5 +21,9 @@ public class DmsShopAfterSaleItem implements Serializable {
     private String skuName;
     private Integer refundQuantity;
     private BigDecimal refundAmount;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private BigDecimal couponBonusRefundAmount;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private BigDecimal couponCostRefundAmount;
     private LocalDateTime createTime;
 }

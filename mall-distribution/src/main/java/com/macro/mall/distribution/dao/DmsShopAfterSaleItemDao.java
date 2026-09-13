@@ -9,6 +9,8 @@ import java.util.List;
 
 @Mapper
 public interface DmsShopAfterSaleItemDao {
+    @org.apache.ibatis.annotations.Select("SELECT COALESCE(SUM(i.refund_quantity),0) FROM dms_shop_after_sale_item i JOIN dms_shop_after_sale s ON s.id=i.after_sale_id WHERE i.order_item_id=#{orderItemId} AND s.apply_type IN (1,2) AND s.status IN (1,6)")
+    int sumRefundedQuantityByOrderItemId(@org.apache.ibatis.annotations.Param("orderItemId") Long orderItemId);
     List<DmsShopAfterSaleItem> selectByAfterSaleId(@Param("afterSaleId") Long afterSaleId);
 
     /** Validate reserved history before refund or stock mutation. */
