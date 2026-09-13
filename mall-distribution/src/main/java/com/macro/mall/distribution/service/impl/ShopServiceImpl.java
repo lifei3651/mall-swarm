@@ -319,7 +319,7 @@ public class ShopServiceImpl implements ShopService {
     }
 
     static String normalizeProductSort(String sortMode) {
-        return java.util.Set.of("sales", "priceAsc", "priceDesc").contains(sortMode == null ? "" : sortMode)
+        return java.util.Set.of("sales", "salesAsc", "priceAsc", "priceDesc").contains(sortMode == null ? "" : sortMode)
                 ? sortMode : "default";
     }
 

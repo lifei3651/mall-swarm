@@ -8,7 +8,7 @@ const quickCart = require('../../utils/quick-cart')
 Page({
   ...quickCart.methods,
   data: { ...theme.pageData(), categories: [], active: '', keyword: '', searchedKeyword: '', products: [], hotProducts: [], loading: true, error: '', pageNum: 0, total: 0, hasMore: false, loadingMore: false, moreError: '', browsingAll: false,
-    sortMode: 'default', ...quickCart.data },
+    sortMode: 'default', productScrollTop: 0, ...quickCart.data },
   onLoad() { theme.apply(this); this.loadCategories() },
   onShow() { quickCart.show(this); theme.apply(this); if (this.reloadNeeded) { this.reloadNeeded = false; return this.loadCategories() } },
   onHide() { this.reloadNeeded = true; this.categorySequence = (this.categorySequence || 0) + 1; this.productSequence = (this.productSequence || 0) + 1; quickCart.hide(this) },
@@ -27,7 +27,10 @@ Page({
   },
   async loadProducts(reset = true) {
     if (!reset && (this.data.loading || this.data.loadingMore || !this.data.hasMore)) return
-    if (reset) this.productQuery = { categoryName: this.data.active, keyword: String(this.data.keyword || '').trim(), sortMode: this.data.sortMode }
+    if (reset) {
+      this.productQuery = { categoryName: this.data.active, keyword: String(this.data.keyword || '').trim(), sortMode: this.data.sortMode }
+      this.resetProductScroll()
+    }
     const sequence = this.productSequence = (this.productSequence || 0) + 1
     const next = reset ? 1 : this.data.pageNum + 1
     const params = { ...this.productQuery, status: 1, pageNum: next, pageSize: 20 }
@@ -44,10 +47,21 @@ Page({
     finally { if (sequence === this.productSequence) feedback.update(this, { loading: false, loadingMore: false }) }
   },
   selectCategory(event) { feedback.update(this, { active: event.currentTarget.dataset.name || '', keyword: '', browsingAll: false, sortMode: 'default' }, () => this.loadProducts()) },
+  onProductScroll(event) { this.lastProductScrollTop = Math.max(0, Number(event.detail.scrollTop) || 0) },
+  resetProductScroll() {
+    // Sync the actual native scroll position first: repeatedly assigning 0 alone
+    // does not move a scroll-view after the user has scrolled again.
+    this.setData({ productScrollTop: this.lastProductScrollTop || 0 }, () => {
+      this.lastProductScrollTop = 0
+      this.setData({ productScrollTop: 0 })
+    })
+  },
   changeSort(event) {
     const mode = event.currentTarget.dataset.mode
     if (!['default', 'sales', 'price'].includes(mode)) return
-    const sortMode = mode === 'price' ? (this.data.sortMode === 'priceAsc' ? 'priceDesc' : 'priceAsc') : mode
+    const sortMode = mode === 'price' ? (this.data.sortMode === 'priceAsc' ? 'priceDesc' : 'priceAsc')
+      : mode === 'sales' ? (this.data.sortMode === 'sales' ? 'salesAsc' : 'sales') : mode
+    if (sortMode === this.data.sortMode && this.data.browsingAll && !this.data.error) return
     // Sorting covers the whole filtered catalogue, not a hot-products preview.
     this.setData({ sortMode, keyword: this.data.searchedKeyword, browsingAll: true }, () => this.loadProducts())
   },

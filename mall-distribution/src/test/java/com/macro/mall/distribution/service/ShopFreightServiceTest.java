@@ -530,6 +530,22 @@ class ShopFreightServiceTest {
     }
 
     @Test
+    void salesAscendingUsesWholeCatalogueAndSeparateCacheWithStableTies() {
+        jdbcTemplate.update("UPDATE dms_shop_product SET sales_count=0 WHERE id=1");
+        jdbcTemplate.update("UPDATE dms_shop_product SET sales_count=8 WHERE id=2");
+        assertEquals(1L, shopService.listProductPage(null, null, null, 1, null, 1, 1, "salesAsc").getList().get(0).getId());
+        assertEquals(2L, shopService.listProductPage(null, null, null, 1, null, 2, 1, "salesAsc").getList().get(0).getId());
+        assertEquals(2L, shopService.listProductPage(null, null, null, 1, null, 1, 1, "sales").getList().get(0).getId());
+        assertEquals(1L, shopService.listProductPage(null, null, null, 1, null, 1, 1, "salesAsc").getList().get(0).getId());
+        assertEquals(List.of(1L), shopService.listProductPage(null, "焕活", "护理套装", 1, null, 1, 20, "salesAsc").getList().stream().map(DmsShopProduct::getId).toList());
+        assertTrue(productDao.selectFrontSortedList(2L, null, null, 1, null, "salesAsc").isEmpty());
+        jdbcTemplate.update("UPDATE dms_shop_product SET sales_count=0 WHERE id=2");
+        assertEquals(List.of(2L, 1L), productDao.selectFrontSortedList(1L, null, null, 1, null, "salesAsc").stream().map(DmsShopProduct::getId).toList());
+        jdbcTemplate.update("UPDATE dms_shop_product SET normal_sale_enabled=0 WHERE id=2");
+        assertEquals(List.of(1L), productDao.selectFrontSortedList(1L, null, null, 1, null, "salesAsc").stream().map(DmsShopProduct::getId).toList());
+    }
+
+    @Test
     void sortedCatalogueStillHidesInactiveAndRepurchaseOnlyProducts() {
         jdbcTemplate.update("UPDATE dms_shop_product SET normal_sale_enabled=0 WHERE id=2");
         assertEquals(List.of(1L), productDao.selectFrontSortedList(1L, null, null, 1, null, "sales").stream().map(DmsShopProduct::getId).toList());

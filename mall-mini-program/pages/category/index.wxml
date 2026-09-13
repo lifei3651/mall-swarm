@@ -9,7 +9,7 @@
       <view class="side-item {{active === '' ? 'active' : ''}}" data-name="" bindtap="selectCategory">全部商品</view>
       <view class="side-item {{active === item.categoryName ? 'active' : ''}}" wx:for="{{categories}}" wx:key="id" data-name="{{item.categoryName}}" bindtap="selectCategory">{{item.categoryName}}</view>
     </scroll-view>
-    <scroll-view class="category-products" scroll-y bindscrolltolower="loadMore" lower-threshold="120">
+    <scroll-view class="category-products" scroll-y scroll-top="{{productScrollTop}}" bindscroll="onProductScroll" bindscrolltolower="loadMore" lower-threshold="120">
       <block wx:if="{{guideEnabled && !searchedKeyword && !active && !browsingAll}}">
         <view wx:if="{{(guideTemplate === 'directory' && (guide.subcategories || (guide.primaryCategories && !guide.hotProducts))) || (guideTemplate === 'showcase' && guide.heroCategories) || (guideTemplate === 'scenario' && guide.scenarios)}}" class="guide-categories">
           <view class="section-head"><text>{{guideTemplate === 'scenario' ? '今天想买什么？' : guideTemplate === 'showcase' ? '全部品类' : guide.subcategories ? '精选分类' : '商品分类'}}</text></view>
@@ -30,9 +30,9 @@
       <view class="result-toolbar">
       <view class="result-head"><text class="result-label">{{searchedKeyword ? '搜索结果' : active || (guideEnabled && guideHasContent && !browsingAll ? (guideTemplate === 'showcase' ? '推荐商品' : '人气好物') : '全部')}}</text></view>
       <view class="sort-tabs" aria-label="商品排序">
-        <button class="sort-tab {{sortMode === 'default' ? 'selected' : ''}}" data-mode="default" bindtap="changeSort">综合</button>
-        <button class="sort-tab {{sortMode === 'sales' ? 'selected' : ''}}" data-mode="sales" bindtap="changeSort">销量</button>
-        <button class="sort-tab {{sortMode === 'priceAsc' || sortMode === 'priceDesc' ? 'selected' : ''}}" data-mode="price" bindtap="changeSort" aria-label="{{sortMode === 'priceAsc' ? '价格从低到高，点击反转' : sortMode === 'priceDesc' ? '价格从高到低，点击反转' : '按价格排序'}}">价格<image class="price-sort-icon {{sortMode === 'priceAsc' ? 'ascending' : ''}}" src="/assets/profile/chevron-right.png" /></button>
+        <button class="sort-tab {{sortMode === 'default' ? 'selected' : ''}}" data-mode="default" bindtap="changeSort" hover-class="none" aria-label="综合排序，按商城推荐顺序">综合</button>
+        <button class="sort-tab {{sortMode === 'sales' || sortMode === 'salesAsc' ? 'selected' : ''}}" data-mode="sales" bindtap="changeSort" hover-class="none" aria-label="{{sortMode === 'salesAsc' ? '销量从低到高，点击反转' : sortMode === 'sales' ? '销量从高到低，点击反转' : '按销量排序'}}">销量<view class="sort-arrows" aria-hidden="true"><view class="sort-up {{sortMode === 'salesAsc' ? 'direction-active' : ''}}" /><view class="sort-down {{sortMode === 'sales' ? 'direction-active' : ''}}" /></view></button>
+        <button class="sort-tab {{sortMode === 'priceAsc' || sortMode === 'priceDesc' ? 'selected' : ''}}" data-mode="price" bindtap="changeSort" hover-class="none" aria-label="{{sortMode === 'priceAsc' ? '价格从低到高，点击反转' : sortMode === 'priceDesc' ? '价格从高到低，点击反转' : '按价格排序'}}">价格<view class="sort-arrows" aria-hidden="true"><view class="sort-up {{sortMode === 'priceAsc' ? 'direction-active' : ''}}" /><view class="sort-down {{sortMode === 'priceDesc' ? 'direction-active' : ''}}" /></view></button>
       </view>
       </view>
       <button wx:if="{{guideEnabled && (active || searchedKeyword || browsingAll)}}" class="guide-back secondary-button" bindtap="clearFilter">返回分类导购</button>

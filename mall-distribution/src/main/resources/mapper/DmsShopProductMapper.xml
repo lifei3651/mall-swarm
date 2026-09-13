@@ -122,6 +122,7 @@
         <include refid="Front_Product_Query"/>
         <choose>
             <when test="sortMode == 'sales'">ORDER BY sales_count DESC, id DESC</when>
+            <when test="sortMode == 'salesAsc'">ORDER BY sales_count ASC, id DESC</when>
             <when test="sortMode == 'priceAsc'">ORDER BY sale_price ASC, id DESC</when>
             <when test="sortMode == 'priceDesc'">ORDER BY sale_price DESC, id DESC</when>
             <otherwise>ORDER BY status DESC, sort_order DESC, id DESC</otherwise>

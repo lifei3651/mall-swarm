@@ -76,6 +76,74 @@ test('排序参数跟随完整分页，未提交输入不混入后续页', async
 test('已选规格从详情中消失时不改为默认无规格商品', () => {
   assert.throws(() => product.purchase(detail(), '8', []), /规格已失效/)
 })
+
+const sortEvent = mode => ({ currentTarget: { dataset: { mode } } })
+test('综合、销量及价格两方向沿用服务端全目录顺序，不在当前页再次重排', async () => {
+  const orders = { default: ['3', '1', '2'], sales: ['2', '1', '3'], salesAsc: ['3', '1', '2'], priceAsc: ['3', '2', '1'], priceDesc: ['1', '2', '3'] }
+  const h = harness(({ params }) => ({ list: orders[params.sortMode].map(id => ({ id, salePrice: 100 })), total: 3 }))
+  for (const [mode, expected] of [['price', 'priceAsc'], ['price', 'priceDesc'], ['sales', 'sales'], ['sales', 'salesAsc'], ['sales', 'sales'], ['default', 'default']]) {
+    h.page.changeSort(sortEvent(mode)); await tick()
+    assert.equal(h.calls.at(-1).params.sortMode, expected)
+    assert.equal(h.calls.at(-1).params.pageNum, 1)
+    assert.deepEqual(h.page.data.products.map(p => p.id), orders[expected])
+  }
+  const count = h.calls.length
+  h.page.changeSort(sortEvent('default')); await tick()
+  assert.equal(h.calls.length, count, '重复综合点击不清空列表或重新加载')
+})
+
+test('换排序两次均回到顶部，加载下一页不重置滚动位置', async () => {
+  const h = harness(({ params }) => ({ list: [{ id: String(params.pageNum) }], totalPage: 3, total: 3 }))
+  const patches = [], originalSetData = h.page.setData
+  h.page.setData = function (patch, done) { patches.push(patch); originalSetData.call(this, patch, done) }
+  for (const top of [580, 920]) {
+    h.page.onProductScroll({ detail: { scrollTop: top } })
+    h.page.changeSort(sortEvent('price')); await tick()
+    assert.equal(h.page.data.productScrollTop, 0)
+    assert.ok(patches.some(p => p.productScrollTop === top))
+  }
+  patches.length = 0
+  h.page.onProductScroll({ detail: { scrollTop: 600 } })
+  await h.page.loadProducts(false)
+  assert.equal(patches.some(p => 'productScrollTop' in p), false)
+})
+
+test('旧排序下一页及快速切换的晚到响应不覆盖当前综合列表', async () => {
+  const pending = []
+  const h = harness(options => new Promise(resolve => pending.push({ options, resolve })))
+  h.page.changeSort(sortEvent('price'))
+  pending[0].resolve({ list: [{ id: '1' }], total: 2, totalPage: 2 }); await tick()
+  const oldPage = h.page.loadProducts(false)
+  h.page.changeSort(sortEvent('sales'))
+  h.page.changeSort(sortEvent('default'))
+  pending[3].resolve({ list: [{ id: '9' }], total: 1 }); await tick()
+  pending[2].resolve({ list: [{ id: '8' }], total: 1 }); await tick()
+  pending[1].resolve({ list: [{ id: '2' }], total: 2, totalPage: 2 }); await oldPage
+  assert.deepEqual(h.page.data.products.map(p => p.id), ['9'])
+  assert.equal(h.page.data.sortMode, 'default'); assert.equal(h.page.data.loading, false)
+  assert.equal(h.page.data.hasMore, false)
+})
+
+test('排序失败显示失败态，再点同一排序允许重试', async () => {
+  let fail = true
+  const h = harness(() => { if (fail) throw new Error('网络暂不可用'); return { list: [{ id: '1' }], total: 1 } })
+  h.page.changeSort(sortEvent('default')); await tick()
+  assert.equal(h.page.data.error, '网络暂不可用')
+  fail = false; h.page.changeSort(sortEvent('default')); await tick()
+  assert.equal(h.calls.length, 2); assert.equal(h.page.data.error, '')
+  assert.deepEqual(h.page.data.products.map(p => p.id), ['1'])
+})
+
+test('排序按钮至少44px宽，销量和价格双箭头仅高亮当前方向，滚动位置绑定原生组件', () => {
+  const view = readFileSync(new URL('../pages/category/index.wxml', import.meta.url), 'utf8')
+  const styles = readFileSync(new URL('../pages/category/index.wxss', import.meta.url), 'utf8')
+  assert.match(styles, /\.result-toolbar \.sort-tabs \.sort-tab \{[^}]*min-width:44px/)
+  for (const mode of ['sales', 'salesAsc', 'priceAsc', 'priceDesc']) {
+    assert.ok(view.includes(`sortMode === '${mode}' ? 'direction-active' : ''`))
+  }
+  assert.equal((view.match(/class="sort-arrows"/g) || []).length, 2)
+  assert.match(view, /scroll-top="\{\{productScrollTop\}\}" bindscroll="onProductScroll"/)
+})
 test('列表文字加购与详情分开点击，不再挂额外规格弹层', () => {
   const view = readFileSync(new URL('../pages/category/index.wxml', import.meta.url), 'utf8')
   const styles = readFileSync(new URL('../pages/category/index.wxss', import.meta.url), 'utf8')
