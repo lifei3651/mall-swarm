@@ -8,7 +8,7 @@
       <view class="campaign-copy"><view class="campaign-title">{{item.activity.activityName}}</view><view>{{item.product.productName}} {{item.sku.skuName || ''}}</view>
         <view class="product-price">¥{{item.priceText}}</view><view class="muted">剩余 {{item.activity.availableStock}} 件 · 每人限购 {{item.activity.perUserLimit}} 件</view>
         <view class="muted">{{item.activity.startTime}} 至 {{item.activity.endTime}}</view>
-        <picker wx:if="{{item.canBuy}}" range="{{item.quantities}}" value="{{item.quantity - 1}}" data-id="{{item.activity.id}}" bindchange="quantityChange"><view class="quantity">购买数量：{{item.quantity}} 件 · 点击选择</view></picker>
+        <picker wx:if="{{item.canBuy}}" range="{{item.quantities}}" value="{{item.quantity - 1}}" data-id="{{item.activity.id}}" bindchange="quantityChange" aria-label="选择购买数量"><view class="quantity ui-select-row"><text class="ui-select-label">购买数量</text><text class="ui-select-value">{{item.quantity}} 件</text><image class="ui-select-arrow" src="/assets/profile/chevron-right.png" aria-hidden="true" /></view></picker>
         <button class="primary-button" disabled="{{!item.canBuy}}" data-id="{{item.activity.id}}" bindtap="buy">{{item.label}}</button>
       </view>
     </view>

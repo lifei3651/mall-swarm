@@ -27,6 +27,8 @@ module.exports = async ({url,method='GET',params={},data={}}) => {
     categoryList:categories,banners:[],notices:[{id:'61',title:'本地界面验收，不发送真实交易'}],newArrivals:[products[0]],liveRooms:[room]}
   if (url === '/shop/products') { const list = qa.empty ? [] : products.filter(p=>(!params.keyword || p.productName.includes(params.keyword))&&(!params.categoryName||p.categoryName===params.categoryName)); return {list,total:list.length,totalPage:1,pageNum:1} }
   if (url === '/shop/categories') return categories
+  if (url === '/shop/coupons' || url === '/shop/coupons/mine') return {list:qa.empty?[]:[{id:'71',claimId:'72',title:'本地商品优惠券',amount:10,minimumAmount:100,status:'AVAILABLE',usable:true,scopeLabel:'指定商品可用',businessTypes:['NORMAL'],startsAt:'2026-09-01',endsAt:'2099-01-01'}],totalPage:1}
+  if (/^\/shop\/coupons\/\d+\/products$/.test(url)) return {list:products,totalPage:1}
   if (url.endsWith('/purchase-limit/check')) return {allowed:Number(params.quantity)<=1,purchaseLimit:3,remainingQuantity:1,message:'本地限购样例：最多还可购买1件'}
   if (/^\/shop\/products\/\d+\/reviews$/.test(url)) return {page:{list:[{id:'51',reviewerName:'本地样例',rating:5,content:'评价长文字排版，仅本地验收。',createTime:'2026-09-07'}],total:1,totalPage:1},reviewCount:1,averageRating:5,star5Count:1,canReview:true,reviewableOrderItems:[{orderItemId:'13202',orderId:'13201'}]}
   if (/^\/shop\/products\/\d+$/.test(url)) {const product = products.find(p=>p.id===url.split('/').pop())||products[0];return {product:{...product,gallery:[cover],description:'本地商品图文介绍',serviceTags:[{title:'七天无理由',description:'符合商城规则且商品完好时，可在规定期限内申请。'}]},skus:[{id:'11',skuName:'标准装',salePrice:product.salePrice,stock:product.stock,status:1,skuCode:'LOCAL-11'}]} }

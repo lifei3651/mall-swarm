@@ -2,33 +2,36 @@
   <main class="support-page" :aria-busy="loading">
     <header class="page-head">
       <button type="button" aria-label="返回" @click="router.back()"><ChevronLeft :size="23" /></button>
-      <div><span>服务中心</span><h1>客服工单</h1></div>
-      <button type="button" class="create-button" @click="openCreate">提交问题</button>
+      <div><h1>客服工单</h1></div>
+      <button v-if="!creating" type="button" class="create-button" @click="openCreate">提交问题</button>
     </header>
 
-    <section class="contact-card">
-      <div><strong>需要帮助？</strong><p>咨询、投诉、售后争议和账号问题都可以在这里提交，并查看处理进度。</p></div>
+    <section v-if="!creating" class="contact-card">
       <div class="contact-lines">
         <a v-if="legal.servicePhone" :href="`tel:${legal.servicePhone}`"><Phone :size="16" />{{ legal.servicePhone }}</a>
         <a v-if="legal.serviceEmail" :href="`mailto:${legal.serviceEmail}`"><Mail :size="16" />{{ legal.serviceEmail }}</a>
         <span><Clock3 :size="16" />{{ legal.serviceHours || '客服将按工单顺序处理' }}</span>
+        <RouterLink to="/legal/contact">查看商城联系方式<ChevronRight :size="16" /></RouterLink>
       </div>
     </section>
 
     <section v-if="creating" class="create-card">
-      <div class="section-head"><div><span>新工单</span><h2>告诉我们遇到的问题</h2></div><button type="button" @click="creating=false">取消</button></div>
-      <label>问题类型<select v-model="form.type"><option v-for="item in types" :key="item.key" :value="item.key">{{ item.label }}</option></select></label>
-      <label>问题标题<input v-model.trim="form.subject" maxlength="100" placeholder="例如：订单售后处理进度咨询" /></label>
-      <label v-if="form.type!=='ACCOUNT'">关联订单（选填）
-        <select v-model="form.orderId"><option value="">不关联订单</option><option v-for="item in orders" :key="item.order.id" :value="String(item.order.id)">{{ item.order.orderNo }} · {{ orderName(item) }}</option></select>
+      <div class="section-head"><h2>提交问题</h2><button type="button" class="cancel-button" :disabled="submitting" @click="creating=false">取消</button></div>
+      <label class="choice-row"><span>问题类型</span><select v-model="form.type" :disabled="submitting"><option v-for="item in types" :key="item.key" :value="item.key">{{ item.label }}</option></select><ChevronRight :size="16" aria-hidden="true" /></label>
+      <label>问题标题<input v-model.trim="form.subject" :disabled="submitting" maxlength="100" placeholder="例如：订单售后处理进度咨询" /></label>
+      <label v-if="form.type!=='ACCOUNT'" class="choice-row"><span>关联订单<small>（选填）</small></span>
+        <template v-if="orders.length && !contextLoading"><select v-model="form.orderId" :disabled="submitting"><option value="">不关联订单</option><option v-for="item in orders" :key="item.order.id" :value="String(item.order.id)">{{ item.order.orderNo }} · {{ orderName(item) }}</option></select><ChevronRight :size="16" aria-hidden="true" /></template>
+        <span v-else class="choice-empty">{{ contextLoading ? '正在加载' : contextError ? '暂不可用' : '暂无可关联订单' }}</span>
       </label>
-      <label v-if="selectedOrder?.afterSales?.length">关联售后（售后争议必选）
-        <select v-model="form.afterSaleId"><option value="">不关联售后</option><option v-for="sale in selectedOrder.afterSales" :key="sale.id" :value="String(sale.id)">{{ sale.afterSaleNo }} · {{ afterSaleStatus(sale.status, sale.applyType) }}</option></select>
+      <label v-if="selectedOrder?.afterSales?.length" class="choice-row"><span>关联售后</span>
+        <select v-model="form.afterSaleId" :disabled="submitting"><option value="">不关联售后</option><option v-for="sale in selectedOrder.afterSales" :key="sale.id" :value="String(sale.id)">{{ sale.afterSaleNo }} · {{ afterSaleStatus(sale.status, sale.applyType) }}</option></select><ChevronRight :size="16" aria-hidden="true" />
       </label>
-      <label>问题说明<textarea v-model.trim="form.content" maxlength="1000" rows="6" placeholder="请说明发生了什么、希望如何协助处理。涉及售后图片请先在订单售后中提交凭证。"></textarea><small>{{ form.content.length }}/1000</small></label>
-      <p class="safe-hint">请勿填写登录密码、支付密码、短信验证码或银行卡号。</p>
+      <p v-else-if="form.type==='AFTER_SALE_DISPUTE'" class="safe-hint">请先关联有售后记录的订单。</p>
+      <p v-if="contextError" class="error" role="alert">{{ contextError }}<button type="button" :disabled="contextLoading" @click="loadContext">重新加载关联订单</button></p>
+      <label>问题说明<textarea v-model.trim="form.content" :disabled="submitting" maxlength="1000" rows="5" placeholder="请说明发生了什么、希望如何协助处理。涉及售后图片请先在订单售后中提交凭证。"></textarea><small>{{ form.content.length }}/1000</small></label>
+      <p class="safe-hint">请勿填写密码、验证码或银行卡号。</p>
       <p v-if="formError" class="error" role="alert">{{ formError }}</p>
-      <button type="button" class="submit-button" :disabled="submitting" @click="submit">{{ submitting ? '正在提交…' : '提交客服工单' }}</button>
+      <button type="button" class="submit-button" :disabled="submitting" @click="submit">{{ submitting ? '正在提交…' : '提交工单' }}</button>
     </section>
 
     <nav class="status-tabs" aria-label="工单状态">
@@ -51,7 +54,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ChevronLeft, Clock3, Mail, Phone } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, Clock3, Mail, Phone } from 'lucide-vue-next'
 import { createServiceTicket, getLegalConfig, listMyOrders, listServiceTickets } from '@/api/shop'
 import { createIdempotencyKey } from '@/utils/idempotency'
 
@@ -68,6 +71,8 @@ const submitting = ref(false)
 const creating = ref(false)
 const error = ref('')
 const formError = ref('')
+const contextLoading = ref(false)
+const contextError = ref('')
 const pageNum = ref(0)
 const totalPage = ref(1)
 const form = reactive({ type: 'CONSULTATION', subject: '', content: '', orderId: '', afterSaleId: '' })
@@ -108,9 +113,14 @@ const changeStatus = (value) => {
 }
 
 const loadContext = async () => {
+  if (contextLoading.value) return
+  contextLoading.value = true
+  contextError.value = ''
   const [legalResult, orderResult] = await Promise.allSettled([getLegalConfig(), listMyOrders({ pageNum: 1, pageSize: 50 })])
   if (legalResult.status === 'fulfilled') legal.value = legalResult.value.data || {}
   if (orderResult.status === 'fulfilled') orders.value = orderResult.value.data?.list || []
+  else contextError.value = '关联订单加载失败，可重试；咨询和账号问题仍可提交。'
+  contextLoading.value = false
 }
 
 const openCreate = () => {
@@ -124,6 +134,7 @@ const openCreate = () => {
 }
 
 const submit = async () => {
+  if (submitting.value) return
   formError.value = ''
   if (!form.subject) { formError.value = '请填写问题标题'; return }
   if (!form.content) { formError.value = '请填写问题说明'; return }
@@ -151,4 +162,23 @@ onMounted(async () => {
 /* All six states stay visible; no native scroll track or clipped final item. */
 .status-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; min-width:0; max-width:100%; padding:15px 0; overflow:visible; }
 .status-tabs button { width:100%; min-width:0; min-height:44px; margin:0; padding:8px 4px; border:0; background:#fff; color:#667085; border-radius:8px; font-size:13px; line-height:20px; overflow-wrap:anywhere; }
+.support-page .page-head { grid-template-columns:40px minmax(0,1fr) auto; }
+.support-page .page-head h1 { font-size:20px; }
+.support-page .create-button { grid-column:auto; min-height:44px; font-size:14px; }
+.support-page .section-head { display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:12px; margin:0; padding:0; }
+.support-page .section-head h2 { min-width:0; margin:0; font-size:18px; line-height:1.5; }
+.support-page .cancel-button { flex:none; width:auto; min-width:44px; min-height:44px; margin:0; padding:0 6px; border:0; background:transparent; color:#667085; font-size:14px; }
+.support-page .create-card { padding:12px 16px 16px; gap:14px; border-radius:12px; }
+.support-page .create-card label { min-width:0; font-size:14px; }
+.support-page .create-card input,.support-page .create-card textarea { min-width:0; min-height:44px; border:0; border-radius:6px; background:#f5f6f8; font-size:14px; }
+.support-page .create-card .choice-row { display:flex; align-items:center; gap:8px; min-width:0; min-height:52px; padding:8px 0; border-bottom:1px solid #edf0f3; }
+.choice-row > span:first-child { flex:none; color:#1d2939; }
+.choice-row small { font-size:12px; color:#667085; }
+.support-page .choice-row select { flex:1; min-width:0; width:0; min-height:44px; margin:0; padding:8px 0; border:0; border-radius:0; background:transparent; appearance:none; text-align:right; text-overflow:ellipsis; color:#667085; font-size:14px; }
+.choice-row svg { flex:none; color:#98a2b3; pointer-events:none; }
+.choice-empty { flex:1; min-width:0; text-align:right; color:#667085; font-size:13px; overflow-wrap:anywhere; }
+.support-page .submit-button { min-height:44px; border-radius:6px; font-size:15px; }
+.support-page .contact-lines { align-items:flex-start; }
+.support-page .error button { display:block; margin:8px auto; min-height:44px; border:0; background:transparent; color:var(--brand-primary); }
+.support-page button:focus-visible,.support-page select:focus-visible { outline:2px solid var(--brand-primary); outline-offset:2px; }
 </style>

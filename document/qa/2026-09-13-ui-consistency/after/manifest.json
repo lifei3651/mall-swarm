@@ -1,0 +1,422 @@
+{
+  "kind": "isolated native simulator, synthetic fixtures, not real account/channel acceptance",
+  "records": [
+    {
+      "name": "home",
+      "path": "pages/home/index",
+      "actual": "pages/home/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "home.png"
+      ]
+    },
+    {
+      "name": "store-content",
+      "path": "pages/store-content/index",
+      "actual": "pages/store-content/index",
+      "error": "页面不存在",
+      "loading": false,
+      "images": [
+        "store-content.png",
+        "store-content-notice-dismissed.png"
+      ]
+    },
+    {
+      "name": "legal",
+      "path": "pages/legal/index?type=contact",
+      "actual": "pages/legal/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "legal.png"
+      ]
+    },
+    {
+      "name": "notices",
+      "path": "pages/notices/index",
+      "actual": "pages/notices/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "notices.png"
+      ]
+    },
+    {
+      "name": "campaign",
+      "path": "pages/campaign/index",
+      "actual": "pages/campaign/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "campaign.png"
+      ]
+    },
+    {
+      "name": "category",
+      "path": "pages/category/index",
+      "actual": "pages/category/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "category.png"
+      ]
+    },
+    {
+      "name": "product",
+      "path": "pages/product/index?id=27",
+      "actual": "pages/product/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "product.png"
+      ],
+      "shareSize": {
+        "width": 45,
+        "height": 45
+      }
+    },
+    {
+      "name": "cart",
+      "path": "pages/cart/index",
+      "actual": "pages/cart/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "cart.png"
+      ]
+    },
+    {
+      "name": "coupons",
+      "path": "pages/coupons/index",
+      "actual": "pages/coupons/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "coupons.png"
+      ]
+    },
+    {
+      "name": "login",
+      "path": "pages/login/index",
+      "actual": "pages/login/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "login.png"
+      ]
+    },
+    {
+      "name": "account-login",
+      "path": "pages/account-login/index",
+      "actual": "pages/account-login/index",
+      "error": "本地验收不生成可用验证码；只检查表单与失败恢复",
+      "loading": false,
+      "images": [
+        "account-login.png",
+        "account-login-notice-dismissed.png",
+        "account-login-bottom.png"
+      ]
+    },
+    {
+      "name": "live-studio",
+      "path": "pages/live-studio/index",
+      "actual": "pages/live-studio/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "live-studio.png"
+      ]
+    },
+    {
+      "name": "profile",
+      "path": "pages/profile/index",
+      "actual": "pages/profile/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "profile.png",
+        "profile-bottom.png"
+      ]
+    },
+    {
+      "name": "account-security",
+      "path": "pages/account-security/index",
+      "actual": "pages/account-security/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "account-security.png"
+      ]
+    },
+    {
+      "name": "account-settings",
+      "path": "pages/account-settings/index",
+      "actual": "pages/account-settings/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "account-settings.png"
+      ]
+    },
+    {
+      "name": "messages",
+      "path": "pages/messages/index",
+      "actual": "pages/messages/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "messages.png"
+      ]
+    },
+    {
+      "name": "message-detail",
+      "path": "pages/message-detail/index?id=81",
+      "actual": "pages/message-detail/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "message-detail.png"
+      ]
+    },
+    {
+      "name": "support",
+      "path": "pages/support/index",
+      "actual": "pages/support/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "support.png"
+      ]
+    },
+    {
+      "name": "support-detail",
+      "path": "pages/support-detail/index?id=91",
+      "actual": "pages/support-detail/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "support-detail.png"
+      ]
+    },
+    {
+      "name": "subscriptions",
+      "path": "pages/subscriptions/index",
+      "actual": "pages/subscriptions/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "subscriptions.png"
+      ]
+    },
+    {
+      "name": "payout",
+      "path": "pages/payout/index",
+      "actual": "pages/payout/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "payout.png"
+      ]
+    },
+    {
+      "name": "wallet",
+      "path": "pages/wallet/index",
+      "actual": "pages/wallet/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "wallet.png"
+      ]
+    },
+    {
+      "name": "withdraw",
+      "path": "pages/withdraw/index",
+      "actual": "pages/withdraw/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "withdraw.png"
+      ]
+    },
+    {
+      "name": "orders",
+      "path": "pages/orders/index",
+      "actual": "pages/orders/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "orders.png"
+      ]
+    },
+    {
+      "name": "order-detail",
+      "path": "pages/order-detail/index?id=13201",
+      "actual": "pages/order-detail/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "order-detail.png",
+        "order-detail-bottom.png"
+      ]
+    },
+    {
+      "name": "order-review",
+      "path": "pages/order-review/index?id=1&orderItemId=13202",
+      "actual": "pages/order-review/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "order-review.png",
+        "order-review-bottom.png"
+      ]
+    },
+    {
+      "name": "after-sale",
+      "path": "pages/after-sale/index?orderId=13201",
+      "actual": "pages/after-sale/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "after-sale.png",
+        "after-sale-bottom.png"
+      ]
+    },
+    {
+      "name": "checkout",
+      "path": "pages/checkout/index",
+      "actual": "/pages/checkout/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "checkout.png",
+        "checkout-bottom.png"
+      ]
+    },
+    {
+      "name": "address",
+      "path": "pages/address/index",
+      "actual": "pages/address/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "address.png"
+      ]
+    },
+    {
+      "name": "support-create",
+      "path": "pages/support/index?create=1",
+      "actual": "pages/support/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "support-create.png",
+        "support-create-bottom.png"
+      ]
+    },
+    {
+      "name": "support-empty",
+      "path": "pages/support/index?create=1",
+      "actual": "pages/support/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "support-empty.png",
+        "support-empty-bottom.png"
+      ]
+    },
+    {
+      "name": "support-error",
+      "path": "pages/support/index?create=1",
+      "actual": "pages/support/index",
+      "error": "关联订单加载失败，可重试；咨询和账号问题仍可提交。",
+      "loading": false,
+      "images": [
+        "support-error.png",
+        "support-error-bottom.png"
+      ]
+    },
+    {
+      "name": "address-edit",
+      "path": "pages/address/index",
+      "actual": "pages/address/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "address-edit.png",
+        "address-edit-bottom.png"
+      ]
+    },
+    {
+      "name": "payment-password",
+      "path": "pages/account-settings/index?section=payment",
+      "actual": "pages/account-settings/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "payment-password.png"
+      ]
+    },
+    {
+      "name": "real-name",
+      "path": "pages/account-settings/index?section=identity",
+      "actual": "pages/account-settings/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "real-name.png"
+      ]
+    },
+    {
+      "name": "change-password",
+      "path": "pages/account-security/index?mode=password",
+      "actual": "pages/account-security/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "change-password.png"
+      ]
+    },
+    {
+      "name": "change-phone",
+      "path": "pages/account-settings/index?section=phone",
+      "actual": "pages/account-settings/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "change-phone.png"
+      ]
+    },
+    {
+      "name": "checkout-remark",
+      "path": "pages/checkout/index",
+      "actual": "/pages/checkout/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "checkout-remark.png"
+      ]
+    },
+    {
+      "name": "order-return",
+      "path": "pages/order-detail/index?id=13201",
+      "actual": "pages/order-detail/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "order-return.png",
+        "order-return-bottom.png"
+      ]
+    },
+    {
+      "name": "product-services",
+      "path": "pages/product/index?id=1",
+      "actual": "pages/product/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "product-services.png"
+      ]
+    }
+  ]
+}

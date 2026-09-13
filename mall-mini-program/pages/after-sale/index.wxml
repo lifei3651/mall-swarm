@@ -31,7 +31,7 @@
     </view>
     <view class="panel">
       <view class="section-title">申请原因</view>
-      <picker range="{{reasons}}" bindchange="selectReason" disabled="{{submitting}}" aria-label="选择售后申请原因"><view class="reason-picker">{{reason || '请选择申请原因（必填）'}}</view></picker>
+      <picker range="{{reasons}}" bindchange="selectReason" disabled="{{submitting}}" aria-label="选择售后申请原因"><view class="reason-picker ui-select-row"><text>{{reason || '请选择申请原因（必填）'}}</text><image class="ui-select-arrow" src="/assets/profile/chevron-right.png" aria-hidden="true" /></view></picker>
       <textarea class="reason-input" value="{{reasonDetail}}" maxlength="170" bindinput="reasonDetailInput" disabled="{{submitting}}" placeholder="补充说明（选填），帮助平台更快处理" aria-label="售后申请补充说明" />
       <text class="counter">{{reasonDetail.length}}/170</text>
       <view class="section-title proof-title">图片凭证（选填）</view>

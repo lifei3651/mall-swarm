@@ -1,0 +1,29 @@
+{
+  "kind": "isolated native simulator, synthetic fixtures, not real account/channel acceptance",
+  "records": [
+    {
+      "name": "store-content",
+      "path": "pages/store-content/index?type=culture",
+      "actual": "pages/store-content/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "store-content.png"
+      ]
+    },
+    {
+      "name": "product",
+      "path": "pages/product/index?id=27",
+      "actual": "pages/product/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "product.png"
+      ],
+      "shareSize": {
+        "width": 37,
+        "height": 37
+      }
+    }
+  ]
+}

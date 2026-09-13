@@ -69,6 +69,7 @@
 .category-product-card { min-height: 254rpx; gap: 16rpx; margin: 0; padding: 22rpx 0; border: 0; border-bottom: 1rpx solid var(--line); border-radius: 0; }
 .category-product-media { position: relative; align-self: flex-start; width: 214rpx; height: 214rpx; margin: 0; border: 1rpx solid var(--line); border-radius: 16rpx; }
 .category-product-card .product-copy { padding: 0; }
+.category-product-card .product-copy,.category-product-card .product-description { min-width:0; max-width:100%; }
 .category-product-card .product-title { line-height: 38rpx; font-size: 29rpx; font-weight: 650; }
 .category-product-card .product-subtitle { margin-top: 8rpx; line-height: 32rpx; font-size: 23rpx; }
 .product-sales { margin-top: 8rpx; color: var(--muted); font-size: 22rpx; line-height: 32rpx; }

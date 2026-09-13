@@ -24,7 +24,9 @@ test('商品分享为主图右上角小图标，保留原生分享与失败重�
   assert.match(readFileSync(new URL('../pages/product/index.js', import.meta.url), 'utf8'), /feedback\.notice\(this\.data\.shareError, '暂时无法分享'\)/)
   assert.doesNotMatch(wxml, />分享商品<|class="secondary-button" open-type="share"/)
   assert.match(rules('product-share-button'), /position: absolute/)
-  assert.match(rules('product-share-button'), /width: 88rpx; height: 88rpx/)
+  assert.match(rules('product-share-button'), /width: 88rpx;/)
+  assert.match(rules('product-share-button'), /height: 88rpx;/)
+  assert.match(rules('product-share-button'), /max-width:88rpx/)
   assert.match(rules('product-share-icon'), /width: 40rpx; height: 40rpx/)
 })
 

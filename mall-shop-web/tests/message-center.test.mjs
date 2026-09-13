@@ -35,7 +35,7 @@ test('business navigation is an enum map and never executes a message supplied U
 test('customer service tickets are authenticated, idempotent and never become a visual-workbench switch',()=>{
   const api=read('src/api/shop.js');const list=read('src/views/ServiceTicketsView.vue');const detail=read('src/views/ServiceTicketDetailView.vue')
   assert.match(api,/\/shop\/service-tickets/);assert.match(api,/X-Idempotency-Key/)
-  assert.match(list,/AFTER_SALE_DISPUTE/);assert.match(list,/请勿填写登录密码、支付密码、短信验证码或银行卡号/)
+  assert.match(list,/AFTER_SALE_DISPUTE/);assert.match(list,/请勿填写密码、验证码或银行卡号/)
   assert.match(detail,/closeServiceTicket/);assert.match(detail,/setInterval\(\(\) => load\(true\), 30000\)/)
 })
 

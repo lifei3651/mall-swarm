@@ -38,6 +38,7 @@ Page({
   loadMore() { if (this.data.pageNum < this.data.totalPage) return this.load(false) },
   selectStatus(event) { const status = event.currentTarget.dataset.key; if (!support.filters.some(item => item.key === status)) return; this.setData({ status, rows: [] }); this.load(true) },
   async loadContext() {
+    this.setData({ contextLoading: true })
     const token = session.getToken(), generation = this.contextGeneration = (this.contextGeneration || 0) + 1
     const current = () => !this.inactive && token === session.getToken() && generation === this.contextGeneration
     const results = await Promise.allSettled([request({ url: '/shop/legal-config' }), request({ url: '/shop/orders', params: { pageNum: 1, pageSize: 50 } })])
@@ -50,6 +51,7 @@ Page({
     if (!current()) return
     this.setData({ legal: results[0].status === 'fulfilled' ? results[0].value || {} : {}, orders, contextError: results[1].status === 'rejected' ? '关联订单加载失败，可重试；咨询和账号问题仍可提交。' : '', orderChoices: [{ label: '不关联订单', id: '' }, ...orders.map(item => ({ id: String(item.order.id), label: `${item.order.orderNo} · ${item.items?.[0]?.productName || '商城订单'}` }))] })
     this.syncSelections()
+    this.setData({ contextLoading: false })
   },
   syncSelections() {
     const form = { ...this.data.form }, orderIndex = this.data.orderChoices.findIndex(item => item.id === form.orderId)
