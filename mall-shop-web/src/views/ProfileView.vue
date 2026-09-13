@@ -40,7 +40,7 @@
 
       <section class="profile-menu" :class="{ 'without-team-performance': !showTeamPerformance }">
         <MessageCenterEntry class="menu-tile" />
-        <RouterLink to="/profile/coupons" class="menu-tile"><span aria-hidden="true">券</span><span>优惠券</span></RouterLink>
+        <RouterLink to="/profile/coupons" class="menu-tile"><span class="tile-icon coupon-icon"><TicketPercent :size="26" :stroke-width="1.9" aria-hidden="true" /></span><span class="tile-label">优惠券</span></RouterLink>
         <RouterLink to="/profile/wallet" class="menu-tile">
           <span class="tile-icon wallet-icon"><WalletCards :size="26" /></span>
           <span class="tile-label">余额</span>
@@ -59,7 +59,7 @@
           <span class="tile-label">收货地址</span>
         </RouterLink>
         <RouterLink to="/support" class="menu-tile">
-          <span class="tile-icon service-icon"><Headphones :size="26" /></span>
+          <span class="tile-icon service-icon"><ClipboardList :size="26" :stroke-width="1.9" aria-hidden="true" /></span>
           <span class="tile-label">客服工单</span>
         </RouterLink>
       </section>
@@ -96,7 +96,8 @@ import {
   Crown,
   Gem,
   Gift,
-  Headphones,
+  ClipboardList,
+  TicketPercent,
   MapPinned,
   Medal,
   MessageSquareText,
@@ -282,6 +283,8 @@ onBeforeUnmount(() => {
 .team-icon { color:#3867d6; background:#eef3ff; }
 .security-icon { color:#0f8a62; background:#eaf8f3; }
 .address-icon { color:#b26b13; background:#fff6e8; }
+.coupon-icon { color:#c55432; background:#fff1e9; }
+.service-icon { color:#3867d6; background:#eef3ff; }
 .profile-error { margin:14px 0 0; padding:12px 14px; color:#b42318; background:#fff1f0; border-radius:10px; }
 .logout-button { width:100%; min-height:46px; color:#b42318; background:#fff; border:0; border-radius:14px; }
 @media (max-width:560px) {

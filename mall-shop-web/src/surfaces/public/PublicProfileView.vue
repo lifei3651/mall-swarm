@@ -25,13 +25,13 @@
 
     <section class="service-grid">
       <MessageCenterEntry />
-      <RouterLink to="/profile/coupons"><span class="coupon-icon" aria-hidden="true">券</span><strong>优惠券</strong><span>领取与查看优惠</span></RouterLink>
+      <RouterLink to="/profile/coupons"><TicketPercent :size="25" :stroke-width="1.9" aria-hidden="true" /><strong>优惠券</strong><span>领取与查看优惠</span></RouterLink>
       <RouterLink to="/profile/addresses"><MapPinned :size="25" /><strong>收货地址</strong><span>管理常用地址</span></RouterLink>
       <RouterLink to="/profile/security/change-login-password"><KeyRound :size="25" /><strong>登录密码</strong><span>保护账号安全</span></RouterLink>
       <RouterLink to="/profile/security"><ShieldCheck :size="25" /><strong>支付安全</strong><span>{{ wallet.hasPaymentPassword ? '修改支付密码' : '设置支付密码' }}</span></RouterLink>
       <RouterLink to="/profile/real-name"><BadgeCheck :size="25" /><strong>实名认证</strong><span>{{ wallet.realNameVerified ? '当前账号已认证' : '身份信息加密核验' }}</span></RouterLink>
       <RouterLink to="/legal/after-sale"><ShieldCheck :size="25" /><strong>售后规则</strong><span>查看服务说明</span></RouterLink>
-      <RouterLink to="/support"><Headphones :size="25" /><strong>客服工单</strong><span>咨询、投诉与处理进度</span></RouterLink>
+      <RouterLink to="/support"><ClipboardList :size="25" :stroke-width="1.9" aria-hidden="true" /><strong>客服工单</strong><span>咨询、投诉与处理进度</span></RouterLink>
     </section>
 
     <p v-if="error" class="profile-error" role="alert">{{ error }}</p>
@@ -56,7 +56,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { BadgeCheck, Headphones, KeyRound, MapPinned, MessageSquareText, PackageCheck, RotateCcw, Settings, ShieldCheck, Truck, UserRound, WalletCards } from 'lucide-vue-next'
+import { BadgeCheck, ClipboardList, TicketPercent, KeyRound, MapPinned, MessageSquareText, PackageCheck, RotateCcw, Settings, ShieldCheck, Truck, UserRound, WalletCards } from 'lucide-vue-next'
 import { getPublicProfile, getWalletSummary, logout } from '@/api/shop'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import MessageCenterEntry from '@/components/MessageCenterEntry.vue'

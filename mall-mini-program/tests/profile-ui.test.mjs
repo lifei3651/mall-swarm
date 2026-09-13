@@ -9,6 +9,21 @@ const zeroSummary = { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, 
 const plain = (value) => JSON.parse(JSON.stringify(value))
 const deferred = () => { let resolve; const promise = new Promise(ok => { resolve = ok }); return { promise, resolve } }
 
+test('常用服务使用统一票券/工单/安全图标，不以文字或重复耳机代替', () => {
+  const view = readFileSync(new URL('../pages/profile/index.wxml', import.meta.url), 'utf8')
+  const service = view.split('<view class="service-grid">')[1].split('</view>\n    <button')[0]
+  const buttons = service.match(/<button\b[\s\S]*?<\/button>/g)
+  assert.equal(buttons.length, 9, '七个常用入口与两个条件入口仍保留')
+  for (const button of buttons) assert.match(button, /<image[^>]*src="\/assets\/profile\/[^" ]+-white\.png"/)
+  for (const [action, icon] of [['coupons', 'ticket-percent'], ['support', 'clipboard-list'], ['security', 'shield-check'], ['contact', 'headset']]) {
+    const button = buttons.find(item => item.includes(`bindtap="${action}"`))
+    assert.match(button, new RegExp(`/assets/profile/${icon}-white\\.png`))
+  }
+  assert.doesNotMatch(service, /<text>券<\/text>/)
+  const css = readFileSync(new URL('../pages/profile/index.wxss', import.meta.url), 'utf8')
+  assert.match(css, /\.tile-icon\s*\{[^}]*width: 68rpx;[^}]*height: 68rpx;[^}]*border-radius: 18rpx;/)
+})
+
 test('资料和安全入口分离，登录成功只更新页面，不弹成功确认', () => {
   const h=loadProfile({token:'member'}); h.page.setData({loggedIn:true});
   h.page.accountEntry(); h.page.security();
