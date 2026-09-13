@@ -1,27 +1,31 @@
 const flow = require('../../utils/login-flow')
 const session = require('../../utils/session')
+const profile = require('../../utils/registration-profile')
 const { data, ...methods } = flow
 
 Component({
   properties: { presentation: { type: String, value: 'sheet' } },
-  data: { ...data, visible: false },
-  lifetimes: { detached() { this.onUnload() } },
+  data: { ...data, ...profile.data, visible: false },
+  lifetimes: { detached() { this.clearProfile(); this.onUnload() } },
   pageLifetimes: {
     hide() { this._hostHidden = true },
-    show() { this._hostHidden = false; if (this._pendingFinish) this.finish(); else if (this.data.visible) this.onShow() }
+    show() { this._hostHidden = false; if (this._pendingFinish) this.finish(); else if (this.data.visible && !this.data.profileStep) this.onShow() }
   },
   methods: {
     ...methods,
+    ...profile.methods,
     open(redirect = '') {
       if (this.data.visible || this.data.submitting) return
       this._runtimeChecked = false
       this._pendingFinish = false
       this._hostHidden = false
+      this.clearProfile()
       this.setData({ ...data, visible: true, logoFailed: false })
       return this.onLoad({ redirect: encodeURIComponent(redirect) })
     },
     close() {
-      if (this.data.submitting) return
+      if (this.data.submitting || this.data.profileSaving) return
+      if (this.data.profileStep) { this.skipProfile(); return }
       this.onUnload()
       this.setData({ visible: false, agreed: false, enabled: false, phoneEnabled: false })
       this.triggerEvent('close')

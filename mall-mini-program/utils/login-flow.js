@@ -157,6 +157,7 @@ module.exports = {
       }
       // Successful authentication is reflected by the destination, without a modal.
       if (result.newMember) this.redirect = '/pages/home/index'
+      if (result.newMember && typeof this.beginProfile === 'function') { this.beginProfile(); return }
       this.finish()
     } catch (error) {
       if (sequence === this._loginSequence && !this._inactive) feedback.update(this, { error: error && error.message || '登录失败，请重试或联系商城客服', showLoginHelp: true })

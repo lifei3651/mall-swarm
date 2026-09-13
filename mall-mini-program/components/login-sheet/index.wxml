@@ -3,10 +3,25 @@
   <view class="login-panel" role="dialog" aria-label="商城账号登录" aria-modal="true">
     <view class="login-heading">
       <image class="login-logo" src="{{brandLogo && !logoFailed ? brandLogo : '/assets/lingqi-logo-mark.png'}}" binderror="logoError" mode="aspectFit" aria-hidden="true" />
-      <text class="login-title">{{presentation === 'page' ? brandName : '商城账号登录'}}</text>
-      <button class="close-button" bindtap="close" disabled="{{submitting}}" aria-label="关闭登录，返回商城">关闭</button>
+      <text class="login-title">{{profileStep ? '完善个人资料' : presentation === 'page' ? brandName : '欢迎登录'}}</text>
+      <button wx:if="{{presentation !== 'page'}}" class="close-button" bindtap="close" disabled="{{submitting || profileSaving}}" aria-label="{{profileStep ? '跳过资料填写，继续进入商城' : '关闭登录，返回商城'}}">×</button>
     </view>
-    <view class="login-content">
+    <view wx:if="{{profileStep}}" class="login-content registration-profile">
+      <view class="profile-intro">账号已创建，设置头像和昵称，方便识别</view>
+      <form bindsubmit="saveProfile">
+        <button class="registration-avatar" open-type="chooseAvatar" bindchooseavatar="chooseProfileAvatar" disabled="{{profileSaving}}" aria-label="选择微信头像，也可拍照或从相册选择">
+          <image src="{{profileAvatar || '/assets/profile/user-round.png'}}" mode="aspectFill" />
+          <text>选择头像</text>
+        </button>
+        <view class="registration-field"><text>昵称</text><input name="nickname" type="nickname" value="{{profileNickname}}" bindinput="profileNicknameInput" disabled="{{profileSaving}}" maxlength="20" placeholder="点击填写微信昵称" aria-label="昵称，可使用微信昵称或手动填写" /></view>
+        <text class="profile-optional">头像和昵称均为选填，可使用微信资料，也可稍后设置。</text>
+        <view wx:if="{{profileError}}" class="login-error" role="alert">{{profileError}}</view>
+        <button class="login-button" form-type="submit" disabled="{{profileSaving}}" loading="{{profileSaving}}">保存并进入商城</button>
+      </form>
+      <button class="help-button profile-skip" bindtap="skipProfile" disabled="{{profileSaving}}">暂不设置，直接进入</button>
+    </view>
+    <view wx:else class="login-content">
+      <view class="login-intro">好物与服务，从这里开始</view>
       <view wx:if="{{contextHint}}" class="login-context">登录后{{contextHint}}</view>
       <view wx:if="{{loading}}" class="login-loading">正在检查商城配置…</view>
       <block wx:else>
@@ -40,7 +55,7 @@
           <button class="help-button" disabled="{{submitting}}" open-type="contact">联系商城客服</button>
         </view>
       </block>
-      <button wx:if="{{!loading}}" class="help-button" bindtap="openAccountLogin" disabled="{{submitting || authorizingPhone}}">其他方式登录 / 注册</button>
+      <view class="login-alternatives"><button wx:if="{{!loading}}" class="help-button" bindtap="openAccountLogin" disabled="{{submitting || authorizingPhone}}">其他方式登录 / 注册</button></view>
     </view>
   </view>
 </view>
