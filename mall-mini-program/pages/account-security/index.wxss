@@ -35,3 +35,7 @@
 .personal-profile .row-value { display:flex; align-items:center; justify-content:flex-end; gap:14rpx; flex:1; min-width:0; color:var(--muted); }
 .personal-profile .row-value text { max-width:100%; min-width:0; word-break:break-all; font-size:27rpx; }
 .personal-profile .entry-arrow { opacity:.5; }
+.password-page .panel { padding: 24rpx 28rpx; }
+.password-page .field-label { margin: 22rpx 0 10rpx; }
+.password-page .hint { font-size: 23rpx; line-height: 34rpx; }
+.password-page .help-panel { margin-top: 0; padding-top: 0; padding-bottom: 0; }

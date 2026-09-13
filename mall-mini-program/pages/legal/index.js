@@ -4,7 +4,23 @@ const theme = require('../../utils/theme')
 const legal = require('../../utils/legal')
 const format = require('../../utils/format')
 Page({
-  data: { ...theme.pageData(), type: '', loading: true, error: '', config: {}, content: '', miniPrivacy: legal.miniPrivacy, faqs: [], entries: Object.entries(legal.titles).map(([type, title]) => ({ type, title })) },
+  data: { ...theme.pageData(), type: '', loading: true, error: '', contactError: '', config: {}, content: '', miniPrivacy: legal.miniPrivacy, faqs: [], entries: Object.entries(legal.titles).map(([type, title]) => ({ type, title })) },
+  contactError(event) {
+    if (this.hidden || /cancel/i.test(event?.detail?.errMsg || '')) return
+    this.setData({ contactError: '微信客服暂时无法打开，可提交客服工单，或使用下方联系方式。' })
+    return feedback.notice('微信客服暂时无法打开，可提交客服工单，或使用页面上的其他联系方式。')
+  },
+  contactStart() { this.setData({ contactError: '' }) },
+  tickets() { wx.navigateTo({ url: '/pages/support/index', fail: () => feedback.notice('客服工单暂时无法打开，请稍后重试') }) },
+  callPhone() {
+    const phoneNumber = legal.contactValue(this.data.config.servicePhone)
+    if (!phoneNumber) return
+    wx.makePhoneCall({ phoneNumber, fail: error => { if (!/cancel/i.test(error?.errMsg || '')) feedback.notice('电话暂时无法拨出，请长按号码复制后拨打') } })
+  },
+  copyEmail() {
+    const data = legal.contactValue(this.data.config.serviceEmail)
+    if (data) wx.setClipboardData({ data, fail: () => feedback.notice('邮箱复制失败，请长按邮箱复制') })
+  },
   onLoad(options = {}) {
     theme.apply(this)
     const type = Object.hasOwnProperty.call(legal.titles, options.type) ? options.type : ''

@@ -6,7 +6,7 @@
     </header>
 
     <section class="panel form-panel account-form">
-      <p class="form-hint">用于手机号或商城账号的密码登录</p>
+      <p class="form-hint">修改后需在所有设备重新登录</p>
       <div class="form-item"><label>当前登录密码</label><input v-model="form.currentPassword" class="field" type="password" autocomplete="current-password" placeholder="请输入当前密码" /></div>
       <div class="form-item">
         <label>短信验证码</label>
@@ -16,12 +16,13 @@
             {{ countdown > 0 ? `${countdown}秒` : (sendingCode ? '发送中' : '获取验证码') }}
           </button>
         </div>
-        <p v-if="maskedPhone" class="phone-hint">验证码将发送至 {{ maskedPhone }}</p>
+        <p v-if="maskedPhone" class="phone-hint">发送至 {{ maskedPhone }}</p>
       </div>
       <div class="form-item"><label>新登录密码</label><input v-model="form.newPassword" class="field" type="password" minlength="6" maxlength="32" autocomplete="new-password" placeholder="6至32位" /></div>
       <div class="form-item"><label>确认新登录密码</label><input v-model="confirmPwd" class="field" type="password" autocomplete="new-password" placeholder="请再次输入" /></div>
-      <button class="btn primary save-btn" :disabled="saving" @click="save">{{ saving ? '保存中' : '修改登录密码' }}</button>
+      <button class="btn primary save-btn" :disabled="saving" @click="save">{{ saving ? '保存中' : '保存新密码' }}</button>
       <RouterLink class="account-help-row" to="/forgot-password"><span class="account-help-copy">忘记当前密码？</span><span class="account-help-action">短信找回<ChevronRight :size="14" /></span></RouterLink>
+      <RouterLink class="account-help-row" to="/legal/contact"><span class="account-help-copy">旧手机号已停用？</span><span class="account-help-action">联系客服<ChevronRight :size="14" /></span></RouterLink>
     </section>
 
     <div v-if="message" class="form-toast" :class="{ error: messageType === 'error' }" role="status" aria-live="polite">{{ message }}</div>

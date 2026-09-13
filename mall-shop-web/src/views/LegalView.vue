@@ -19,13 +19,15 @@
     </section>
 
     <section v-else-if="type === 'contact'" class="info-card">
+      <RouterLink class="support-entry" to="/support"><span>客服工单</span><span>提交问题 / 查看进度 ›</span></RouterLink>
+      <p v-if="loading" class="empty-copy">正在加载联系方式…</p>
+      <p v-else-if="loadError" class="empty-copy" role="alert">{{ loadError }} <button type="button" @click="load">重试</button></p>
       <dl>
-        <div><dt>运营主体</dt><dd>{{ config.companyName || '暂未配置' }}</dd></div>
-        <div><dt>客服电话</dt><dd><a v-if="config.servicePhone" :href="`tel:${config.servicePhone}`">{{ config.servicePhone }}</a><span v-else>暂未配置</span></dd></div>
-        <div><dt>客服邮箱</dt><dd><a v-if="config.serviceEmail" :href="`mailto:${config.serviceEmail}`">{{ config.serviceEmail }}</a><span v-else>暂未配置</span></dd></div>
-        <div><dt>客服时间</dt><dd>{{ config.serviceHours || '以客服实际在线时间为准' }}</dd></div>
-        <div><dt>联系地址</dt><dd>{{ config.companyAddress || '暂未配置' }}</dd></div>
+        <div v-if="config.servicePhone"><dt>客服电话</dt><dd><a :href="`tel:${config.servicePhone}`">{{ config.servicePhone }}</a></dd></div>
+        <div v-if="config.serviceEmail"><dt>客服邮箱</dt><dd><a :href="`mailto:${config.serviceEmail}`">{{ config.serviceEmail }}</a></dd></div>
+        <div v-if="config.serviceHours"><dt>客服时间</dt><dd>{{ config.serviceHours }}</dd></div>
       </dl>
+      <p v-if="!loading && !loadError && !config.servicePhone && !config.serviceEmail" class="empty-copy">暂未公布电话和邮箱，可通过客服工单咨询。</p>
     </section>
 
     <section v-else-if="type === 'faq'" class="faq-card">
@@ -51,6 +53,8 @@ import { getLegalConfig } from '@/api/shop'
 const route = useRoute()
 const router = useRouter()
 const config = ref({})
+const loading = ref(false)
+const loadError = ref('')
 const type = computed(() => route.params.type)
 const titles = { agreement: '用户服务协议', privacy: '隐私政策', 'after-sale': '交易与售后规则', faq: '常见问题', license: '经营资质', contact: '联系客服' }
 const title = computed(() => titles[type.value] || '商城说明')
@@ -90,12 +94,20 @@ const goBack = () => {
   router.back()
 }
 
-const load = async () => { config.value = (await getLegalConfig()).data || {} }
+const load = async () => {
+  if (loading.value) return
+  loading.value = true; loadError.value = ''
+  try { config.value = (await getLegalConfig()).data || {} }
+  catch (_) { loadError.value = '联系方式加载失败，可先通过客服工单咨询。' }
+  finally { loading.value = false }
+}
 watch(() => route.params.type, () => window.scrollTo({ top: 0 }))
 onMounted(load)
 </script>
 
 <style scoped>
+.support-entry { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 10px 0; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+.support-entry span:last-child { color: var(--muted); font-size: 13px; }
 .legal-page { min-height: 100vh; max-width: 820px; margin: 0 auto; padding: 0 16px 120px; color: #222; }
 .legal-header { height: 58px; display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; border-bottom: 1px solid #eee; background: #fff; position: sticky; top: 0; z-index: 5; }
 .legal-header button { border: 0; background: transparent; display: grid; place-items: center; padding: 8px; }

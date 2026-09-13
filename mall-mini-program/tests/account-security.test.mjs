@@ -173,6 +173,7 @@ test('密码控件隐藏显示，验证码与密码不置于路由/存储，不�
     assert.ok(tags.length)
     assert.ok(tags.every((tag) => /\spassword(?:\s|=)/.test(tag)))
   }
-  assert.match(view, /open-type="contact"/)
+  assert.match(view, /bindtap="contact"/)
+  assert.match(code, /\/pages\/legal\/index\?type=contact/)
   assert.match(view, /需要帮助或旧手机号已停用/)
 })

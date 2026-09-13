@@ -172,7 +172,7 @@ test('个人中心只在待确认提现存在时显示收款入口并提供微�
   const view = await fs.readFile(new URL('../pages/profile/index.wxml', import.meta.url), 'utf8')
   assert.match(page, /payoutCount/)
   assert.match(view, /wx:if="\{\{loggedIn && payoutCount\}\}"/)
-  assert.match(view, /open-type="contact"/)
+  assert.match(view, /bindtap="contact"/)
 })
 
 test('地址支持编辑且删除前需要二次确认', async () => {
@@ -207,7 +207,7 @@ test('个人中心使用紧凑图标入口并保留可访问标签和后台主�
   const style = await fs.readFile(new URL('../pages/profile/index.wxss', import.meta.url), 'utf8')
   assert.match(view, /aria-label="查看退款和售后订单"/)
   assert.match(view, /aria-label="管理收货地址"/)
-  assert.match(view, /open-type="contact"/)
+  assert.match(view, /bindtap="contact"/)
   assert.match(style, /grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/)
   assert.match(style, /background:\s*var\(--paper\)/)
   assert.match(style, /white-space:\s*nowrap/)

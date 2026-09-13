@@ -272,8 +272,9 @@ test('个人中心视觉布局保留五个可读订单入口、登录、常用�
   for (const handler of ['accountEntry', 'orders', 'messages', 'addresses', 'payout', 'logout']) {
     assert.ok(tags.some((tag) => attribute(tag, 'bindtap') === handler), `保留 ${handler} 点击绑定`)
   }
-  const contact = tags.find((tag) => attribute(tag, 'open-type') === 'contact')
-  assert.ok(contact, '在线客服继续调用微信原生客服，不替换成无响应的装饰项')
+  const contact = tags.find((tag) => attribute(tag, 'bindtap') === 'contact')
+  assert.ok(contact, '客服入口进入具备微信客服和工单的联系页，不替换成装饰项')
+  assert.match(readFileSync(new URL('../pages/legal/index.wxml', import.meta.url), 'utf8'), /open-type="contact"[^>]*binderror="contactError"/)
   assert.ok(attribute(contact, 'aria-label'))
 })
 

@@ -154,6 +154,7 @@ Page({
   wallet() { this.openMemberPage('/pages/wallet/index') },
   service() { this.openMemberPage('/pages/orders/index?tab=after-sale') },
   support() { this.openMemberPage('/pages/support/index') },
+  contact() { wx.navigateTo({ url: '/pages/legal/index?type=contact', fail: () => feedback.notice('客服页面暂时无法打开，请稍后重试') }) },
   requireLogin(redirect = '/pages/profile/index') {
     if (this.data.loggedIn && session.getToken()) return true
     this.login(redirect)

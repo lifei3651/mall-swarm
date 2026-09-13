@@ -16,6 +16,7 @@ function passwordError(value, username, phone) {
 }
 
 Page({
+  contact() { wx.navigateTo({ url: '/pages/legal/index?type=contact', fail: () => feedback.notice('客服页面暂时无法打开，请返回“我的”重试') }) },
   data: { ...theme.pageData(), ...EMPTY_SECRETS, loading: true, error: '', message: '', member: null,
     username: '', nickname: '', mode: 'profile', useWechatNickname: false, avatarSrc: avatar.fallback, maskedPhone: '', canSetupAccount: false, action: '', sendingCode: false, countdown: 0 },
   onLoad(options = {}) { theme.apply(this); const mode = ['password', 'nickname'].includes(options.mode) ? options.mode : 'profile'; this.setData({ mode }); if (wx.setNavigationBarTitle) wx.setNavigationBarTitle({ title: { password: '登录密码', nickname: '修改昵称', profile: '个人资料' }[mode] }) },
