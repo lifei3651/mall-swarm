@@ -29,6 +29,16 @@ test('新品仅对横滑容器提供滚动条样式回退，不全局裁剪页�
   }
 })
 
+test('订单页锁定主体宽度，状态栏固定且只有内层可横向滑动', () => {
+  const view = read('../pages/orders/index.wxml'), css = read('../pages/orders/index.wxss')
+  assert.match(view, /<view class="order-tabs-shell">\s*<scroll-view class="order-tabs"[^>]*scroll-x[^>]*scroll-into-view="order-tab-\{\{activeTab\}\}"/)
+  assert.match(view, /id="order-tab-\{\{item\.key\}\}"[^>]*aria-pressed="\{\{activeTab === item\.key\}\}"/)
+  assert.match(css, /\.orders-page\s*\{[^}]*max-width:\s*100vw;[^}]*overflow-x:\s*hidden;/)
+  assert.match(css, /\.order-tabs-shell\s*\{[^}]*position:\s*sticky;[^}]*max-width:\s*100vw;[^}]*overflow:\s*hidden;/)
+  assert.match(css, /\.order-tabs-track\s*\{[^}]*display:\s*inline-flex;[^}]*min-width:\s*100%;/)
+  assert.doesNotMatch(css.match(/\.order-tabs\s*\{([^}]+)\}/)[1], /position:\s*sticky/)
+})
+
 test('工单六种状态全部显示在三列网格，不再使用原生横滑容器', () => {
   const view = read('../pages/support/index.wxml'), css = read('../styles/support.wxss')
   assert.doesNotMatch(view, /<scroll-view/)

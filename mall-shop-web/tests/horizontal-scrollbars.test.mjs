@@ -26,6 +26,19 @@ test('H5工单状态使用三列网格覆盖横滑样式，所有筛选项直接
   assert.match(source, /:aria-pressed="status===item.key"/)
 })
 
+test('H5订单主体不横移，固定状态外壳内单独横滑并定位当前项', () => {
+  const source = read('OrdersView.vue')
+  assert.match(source, /<div class="order-tabs-shell">\s*<nav ref="orderTabs" class="order-tabs"/)
+  assert.match(source, /:data-order-tab="tab\.key"/)
+  assert.match(source, /\.orders-page\s*\{[^}]*min-width:\s*0;[^}]*overflow-x:\s*hidden;/)
+  assert.match(source, /\.order-tabs-shell\s*\{[^}]*position:\s*sticky;[^}]*overflow:\s*hidden;/)
+  const tabs = source.match(/\.order-tabs\s*\{([^}]+)\}/)[1]
+  assert.match(tabs, /overflow-x:\s*auto/)
+  assert.match(tabs, /overflow-y:\s*hidden/)
+  assert.doesNotMatch(tabs, /position:\s*sticky/)
+  assert.match(source, /orderTabs\.value\.scrollTo\(\{ left:\s*Math\.max\(0, left\), behavior:\s*'smooth' \}\)/)
+})
+
 test('工单末项筛选绑定不变，选择已关闭仍查询已关闭工单', async () => {
   const source = read('ServiceTicketsView.vue'), calls = []
   assert.match(source, /@click="changeStatus\(item.key\)"/)

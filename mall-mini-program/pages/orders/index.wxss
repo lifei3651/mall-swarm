@@ -1,6 +1,10 @@
-.orders-page { min-height: 100vh; padding: 0 22rpx calc(160rpx + env(safe-area-inset-bottom)); }
-.order-tabs { position: sticky; top: 0; z-index: 3; width: calc(100% + 44rpx); margin-left: -22rpx; padding: 14rpx 22rpx; white-space: nowrap; background: var(--canvas); }
+.orders-page { width: 100%; max-width: 100vw; min-height: 100vh; overflow-x: hidden; padding: 0 22rpx calc(160rpx + env(safe-area-inset-bottom)); }
+.order-tabs-shell { position: sticky; top: 0; z-index: 3; box-sizing: border-box; width: calc(100% + 44rpx); max-width: 100vw; margin-left: -22rpx; overflow: hidden; background: var(--canvas); }
+.order-tabs { box-sizing: border-box; display: block; width: 100%; max-width: 100%; white-space: nowrap; }
+.order-tabs-track { box-sizing: border-box; display: inline-flex; align-items: center; min-width: 100%; padding: 14rpx 22rpx; }
+.order-tabs::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .tab { position: relative; display: inline-flex; align-items: center; height: 72rpx; margin-right: 12rpx; padding: 0 26rpx; border: 1rpx solid var(--line); border-radius: 999rpx; color: #5f697a; background: var(--paper); font-size: 24rpx; }
+.tab:last-child { margin-right: 0; }
 .tab.active { color: #fff; background: var(--brand); font-weight: 700; }
 .tab-count { min-width: 30rpx; height: 30rpx; margin-left: 8rpx; padding: 0 7rpx; border-radius: 999rpx; color: var(--accent); background: var(--paper); font-size: 19rpx; line-height: 30rpx; text-align: center; }
 .empty text { display: block; }

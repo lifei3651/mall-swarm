@@ -6,17 +6,20 @@
       <button class="refresh-btn" :class="{ spinning: refreshing }" :disabled="refreshing" @click="refreshOrders" aria-label="刷新"><RefreshCw :size="18" /></button>
     </div>
 
-    <nav class="order-tabs" aria-label="订单状态">
-      <RouterLink
-        v-for="tab in tabs"
-        :key="tab.key"
-        :to="tab.key === 'all' ? '/orders' : `/orders?tab=${tab.key}`"
-        :class="{ active: activeTab === tab.key }"
-      >
-        {{ tab.label }}
-        <em v-if="tab.count">{{ tab.count > 99 ? '99+' : tab.count }}</em>
-      </RouterLink>
-    </nav>
+    <div class="order-tabs-shell">
+      <nav ref="orderTabs" class="order-tabs" aria-label="订单状态">
+        <RouterLink
+          v-for="tab in tabs"
+          :key="tab.key"
+          :data-order-tab="tab.key"
+          :to="tab.key === 'all' ? '/orders' : `/orders?tab=${tab.key}`"
+          :class="{ active: activeTab === tab.key }"
+        >
+          {{ tab.label }}
+          <em v-if="tab.count">{{ tab.count > 99 ? '99+' : tab.count }}</em>
+        </RouterLink>
+      </nav>
+    </div>
 
     <div v-if="loading" class="empty compact-empty">订单加载中</div>
     <div v-else-if="error" class="empty compact-empty">
@@ -84,7 +87,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ChevronLeft, ChevronRight, PackageOpen, RefreshCw } from 'lucide-vue-next'
 import { cancelOrder, confirmReceive, getProfileOrderSummary, listMyOrders } from '@/api/shop'
@@ -107,6 +110,7 @@ const pageSize = 10
 const total = ref(0)
 const actingId = ref(null)
 const pendingOrderAction = ref({ type: '', id: null })
+const orderTabs = ref(null)
 let requestSequence = 0
 let stopOrderRealtime = null
 let fallbackPollTimer = null
@@ -270,8 +274,17 @@ const receive = async (id) => {
   finally { actingId.value = null; pendingOrderAction.value = { type: '', id: null } }
 }
 
-watch(activeTab, () => fetchOrders())
+const revealActiveTab = () => nextTick(() => {
+  if (disposed || !orderTabs.value) return
+  const target = orderTabs.value.querySelector(`[data-order-tab="${activeTab.value}"]`)
+  if (!target) return
+  const left = target.offsetLeft - (orderTabs.value.clientWidth - target.offsetWidth) / 2
+  orderTabs.value.scrollTo({ left: Math.max(0, left), behavior: 'smooth' })
+})
+
+watch(activeTab, () => { revealActiveTab(); fetchOrders() })
 onMounted(() => {
+  revealActiveTab()
   fetchOrderSummary()
   fetchOrders()
   stopOrderRealtime = connectOrderRealtime({
@@ -288,7 +301,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.orders-page { max-width: 760px; }
+.orders-page { width: min(760px, calc(100% - 40px)); max-width: 760px; min-width: 0; overflow-x: hidden; }
 .orders-head { display: grid; grid-template-columns: 34px 1fr 34px; align-items: center; margin-bottom: 10px; }
 .orders-head h2 { margin: 0; text-align: center; font-size: 21px; }
 .back-link { display: grid; place-items: center; width: 34px; height: 34px; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 50%; }
@@ -296,7 +309,8 @@ onBeforeUnmount(() => {
 .refresh-btn:disabled { opacity: .5; cursor: not-allowed; }
 .refresh-btn.spinning svg { animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.order-tabs { position: sticky; top: 0; z-index: 5; display: flex; gap: 3px; padding: 0 6px; overflow-x: auto; background: #fff; border: 1px solid var(--line); border-radius: 10px; scrollbar-width: none; }
+.order-tabs-shell { position: sticky; top: 0; z-index: 5; width: 100%; min-width: 0; max-width: 100%; overflow: hidden; background: #fff; border: 1px solid var(--line); border-radius: 10px; }
+.order-tabs { display: flex; width: 100%; max-width: 100%; gap: 3px; padding: 0 6px; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; background: #fff; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .order-tabs::-webkit-scrollbar { display: none; }
 .order-tabs a { position: relative; flex: 1 0 auto; min-width: 62px; padding: 13px 7px 11px; color: var(--muted); text-align: center; font-size: 13px; white-space: nowrap; border-bottom: 2px solid transparent; }
 .order-tabs a.active { color: var(--accent, #e7193f); border-bottom-color: var(--accent, #e7193f); font-weight: 800; }
@@ -326,9 +340,9 @@ onBeforeUnmount(() => {
 .compact-empty svg { color: #aab2ae; }
 
 @media (max-width: 920px) {
-  .orders-page { width: 100%; padding-top: 10px; }
+  .orders-page { width: 100%; max-width: 100%; padding-top: 10px; }
   .orders-head { padding: 0 12px; }
-  .order-tabs { top: 0; border-width: 1px 0; border-radius: 0; }
+  .order-tabs-shell { border-width: 1px 0; border-radius: 0; }
   .order-card-list { padding: 0 9px; }
   .order-card { border-radius: 10px; }
 }
