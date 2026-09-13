@@ -43,7 +43,7 @@
 .tone-green { background: #23a981; }
 .tile-badge { position: absolute; top: -8rpx; right: -12rpx; min-width: 28rpx; padding: 0 6rpx; border: 2rpx solid var(--paper); border-radius: 16rpx; background: #c73135; color: white; font-size: 18rpx; line-height: 28rpx; }
 .profile-page .share-retry { margin: 0; padding: 14rpx; background: transparent; color: var(--muted); font-size: 23rpx; line-height: 36rpx; }
-.membership-badge { display: inline-block; margin-top: 8rpx; padding: 2rpx 14rpx; border-radius: 8rpx; background: #eceef2; color: #535f72; font-size: 21rpx; line-height: 32rpx; }
+.membership-badge { display: inline-block; max-width: 100%; box-sizing: border-box; white-space: normal; overflow-wrap: anywhere; margin-top: 8rpx; padding: 2rpx 14rpx; border-radius: 8rpx; background: #eceef2; color: #535f72; font-size: 21rpx; font-weight: 500; line-height: 32rpx; }
 .level-1 { background: #e8f1ff; color: #285597; }.level-2 { background: #f1e9ff; color: #6535a5; }.level-3 { background: #e5f6ee; color: #196747; }.level-4 { background: #e4f2f8; color: #175777; }.level-5 { background: #fff0dd; color: #87551c; }.level-6 { background: #fde8d6; color: #89441d; }.level-7 { background: #f5dba9; color: #704817; }.level-8 { background: #292c38; color: #f3d39b; }
 @media (max-width: 350px) {
   .profile-page { padding-left: 24rpx; padding-right: 24rpx; }

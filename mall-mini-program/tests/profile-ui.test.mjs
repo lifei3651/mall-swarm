@@ -41,7 +41,15 @@ test('资料页只展示基本资料，昵称单独编辑；真实会员等级�
   assert.doesNotMatch(profile,/bindtap="loginPassword"|bindtap="paymentSecurity"|form bindsubmit/);
   assert.match(view,/mode === 'nickname'/);
   const top=readFileSync(new URL('../pages/profile/index.wxml',import.meta.url),'utf8');
-  assert.match(top,/商城账号：/); assert.match(top,/capabilities.ready && capabilities.membershipActive/);
+  assert.match(top,/商城账号：/);
+  assert.match(top,/<text wx:if="\{\{loggedIn\}\}" class="membership-badge/);
+  assert.match(top,/capabilities.ready \? capabilities.membershipLabel : shareError \? '等级暂未获取' : '等级加载中'/);
+  assert.doesNotMatch(top,/loggedIn && capabilities.ready && capabilities.membershipActive/);
+})
+
+test('等级长名称允许换行，不撑开个人信息区', () => {
+  const css=readFileSync(new URL('../pages/profile/index.wxss',import.meta.url),'utf8');
+  assert.match(css,/\.membership-badge \{[^}]*max-width: 100%;[^}]*white-space: normal;[^}]*overflow-wrap: anywhere;/);
 })
 
 test('录屏回归：分享返回期间同一账号的会员标识和邀请按钮保留位置，核验完成前不允许分享', async () => {

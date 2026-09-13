@@ -5,7 +5,7 @@
     <view class="profile-copy">
       <text class="profile-name">{{loggedIn ? (member.nickname || '商城账号') : '商城账号登录'}}</text>
       <text wx:if="{{loggedIn}}" class="profile-subtitle">商城账号：{{member.username && member.username !== member.phone ? member.username : '尚未设置'}}</text>
-      <text wx:if="{{loggedIn && capabilities.ready && capabilities.membershipActive}}" class="membership-badge level-{{capabilities.membershipLevel}}">{{capabilities.membershipLabel}}</text>
+      <text wx:if="{{loggedIn}}" class="membership-badge level-{{capabilities.ready ? capabilities.membershipLevel : 0}}" aria-label="{{capabilities.ready ? '会员身份：' + capabilities.membershipLabel : shareError ? '会员等级暂未获取，请重试' : '正在获取会员等级'}}">{{capabilities.ready ? capabilities.membershipLabel : shareError ? '等级暂未获取' : '等级加载中'}}</text>
     </view>
     <image class="account-arrow" src="/assets/profile/chevron-right.png" mode="aspectFit" aria-hidden="true" />
   </button>

@@ -95,6 +95,19 @@ test('本人会员等级只接受已激活且1至8的服务端等级，不从余
   }
 })
 
+test('有效等级优先展示服务端名称，普通账号不能因标签或余额冒认为高级会员', async () => {
+  for (const [active, level, label, expected] of [
+    [true, 2, '尊享会员', '尊享会员'], [true, 2, '  ', 'VIP会员'],
+    [false, 8, '合伙人', '购物账号'], [true, 99, '合伙人', '会员服务已开通']
+  ]) {
+    const e=environment({respond:()=>({membershipActive:active,membershipLevel:level,membershipLabel:label,
+      balance:100000,canInvite:false,canViewWallet:true,canViewPayoutRecords:true})})
+    const result=await e.load('utils/member-capabilities').load();
+    assert.equal(result.membershipLabel,expected);
+    assert.equal(result.canInvite,false);
+  }
+})
+
 test('上传域名错误可定位，已上传但下载失败必须说明已保存而非再次上传', async () => {
   const e=environment({wx:{uploadFile:({fail})=>fail({errMsg:'uploadFile:fail url not in domain list'}),downloadFile:({fail})=>fail({errMsg:'downloadFile:fail url not in domain list'})}})
   const avatar=e.load('utils/member-avatar')
