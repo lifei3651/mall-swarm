@@ -1,30 +1,31 @@
 <template>
   <div class="layout-container" :class="{ 'dashboard-mode': isDashboard }">
     <!-- 侧边栏 -->
-    <div class="layout-sidebar" :class="{ collapsed: isCollapsed }">
+    <div class="layout-sidebar" :class="{ collapsed: menuCollapsed }">
       <div class="logo">
         <img :src="sidebarLogoSrc" :alt="`${brand.brandName} Logo`" @error="handleSidebarLogoError" />
-        <span v-if="!isCollapsed">{{ brand.brandName }}</span>
+        <span v-if="!menuCollapsed">{{ brand.brandName }}</span>
       </div>
       <el-menu
         :default-active="activeMenu"
         :default-openeds="isDashboard ? ['products'] : []"
-        :collapse="isCollapsed"
-        background-color="#111c36"
-        text-color="#aeb9cf"
-        active-text-color="#ffffff"
+        :collapse="menuCollapsed"
+        background-color="#ffffff"
+        text-color="#4b5563"
+        active-text-color="#5669e8"
         router
       >
         <template v-for="menu in visibleBusinessMenus" :key="menu.key || menu.path">
           <el-menu-item
             v-if="menu.path"
             :index="menu.path"
+            :aria-label="menu.title"
           >
             <el-icon><component :is="menuIcon(menu.icon)" /></el-icon>
             <template #title>{{ menu.title }}</template>
           </el-menu-item>
 
-          <el-sub-menu v-else :index="menu.key">
+          <el-sub-menu v-else :index="menu.key" :aria-label="menu.title">
             <template #title>
               <el-icon><component :is="menuIcon(menu.icon)" /></el-icon>
               <span>{{ menu.title }}</span>
@@ -33,6 +34,7 @@
               v-for="item in menu.items"
               :key="item.path"
               :index="item.path"
+              :aria-label="item.title"
             >
               {{ item.title }}
             </el-menu-item>
@@ -55,13 +57,9 @@
       <!-- 头部 -->
       <div v-if="!isDashboard" class="layout-header">
         <div class="header-left">
-          <el-icon
-            class="collapse-btn"
-            @click="isCollapsed = !isCollapsed"
-          >
-            <Fold v-if="!isCollapsed" />
-            <Expand v-else />
-          </el-icon>
+          <button v-if="!isNarrow" type="button" class="collapse-btn" :aria-label="isCollapsed ? '展开导航' : '收起导航'" @click="isCollapsed = !isCollapsed">
+            <el-icon><Fold v-if="!isCollapsed" /><Expand v-else /></el-icon>
+          </button>
           <el-breadcrumb separator="/">
             <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
             <el-breadcrumb-item v-for="item in breadcrumbs" :key="item.path">
@@ -82,9 +80,8 @@
               <p v-if="!todoItems.length">当前没有需要处理的认证、商品、订单、售后或财务事项。</p>
             </div>
           </el-popover>
-          <div class="system-status"><i></i><span>系统运行正常</span></div>
           <el-dropdown @command="handleCommand">
-            <span class="user-info">
+            <span class="user-info" :aria-label="`${store.userInfo.nickname || store.userInfo.username || '管理员'}账号菜单`">
               <el-avatar :size="30"><el-icon><UserFilled /></el-icon></el-avatar>
               <span class="username">{{ store.userInfo.nickname || store.userInfo.username || '管理员' }}</span>
             </span>
@@ -100,7 +97,10 @@
 
       <!-- 内容区 -->
       <div class="layout-content">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <SettingsShell v-if="showSettingsShell"><component :is="Component" /></SettingsShell>
+          <component :is="Component" v-else />
+        </router-view>
       </div>
     </div>
   </div>
@@ -145,12 +145,19 @@ import {
 import { updateAdminBrowserLogo } from '@/utils/adminBrand'
 import { adminPortalForAccount, adminPortalLoginPath, saveAdminPortal } from '@/utils/adminPortal'
 import { MERCHANT_HOME_PATH, isMerchantWorkspacePath } from '@/utils/adminWorkspace'
+import SettingsShell from '@/components/SettingsShell.vue'
+import { canAccessSettings, isSettingsEditor } from '@/utils/settingsCatalog'
 
 const route = useRoute()
 const router = useRouter()
 const store = useAppStore()
 const isCollapsed = ref(false)
+const narrowViewport = window.matchMedia('(max-width: 640px)')
+const isNarrow = ref(narrowViewport.matches)
+const menuCollapsed = computed(() => isCollapsed.value || isNarrow.value)
+const updateNarrowViewport = () => { isNarrow.value = narrowViewport.matches }
 const isDashboard = computed(() => route.path === '/dashboard')
+const showSettingsShell = computed(() => !store.userInfo?.merchantId && (route.path === '/settings' || isSettingsEditor(route.path)))
 const brand = reactive({ brandName: localStorage.getItem('admin_brand_name') || '灵启商城', logoUrl: '' })
 const brandLogoLoadFailed = ref(false)
 const todoSummary = reactive({ pendingShipment: 0, afterSale: 0, merchantCertification: 0, productReview: 0, finance: 0 })
@@ -212,8 +219,6 @@ const businessMenus = [
       { title: '发货与退货地址', path: '/shop/service-addresses', permission: 'shop:product' },
       { title: '分类与规格', path: '/shop/categories', permission: 'shop:product' },
       { title: '商品评价', path: '/shop/reviews', permission: 'shop:product' },
-      { title: '优惠券', path: '/shop/coupons', permission: 'config:shop' },
-      { title: '秒杀活动', path: '/tenant/flash-sales', permission: 'shop:product' },
     ],
   },
   {
@@ -247,17 +252,14 @@ const businessMenus = [
     ],
   },
   {
-    key: 'operations', title: '商城设置', icon: 'OfficeBuilding', items: [
-      { title: '商城视觉与页面', path: '/tenant/list', permission: 'config:shop' },
+    key: 'operations', title: '营销运营', icon: 'OfficeBuilding', items: [
+      { title: '优惠券', path: '/shop/coupons', permission: 'config:shop' },
+      { title: '秒杀活动', path: '/tenant/flash-sales', permission: 'shop:product' },
       { title: '直播运营中心', path: '/tenant/live-rooms', permission: 'shop:product' },
-      { title: '商城资料与客服', path: '/tenant/profile', permission: 'config:shop' },
       { title: '消息运营', path: '/tenant/message-operations', permission: 'config:shop' },
-      { title: '秒杀与复购模式', path: '/tenant/business-modes', permission: 'config:bonus' },
-      { title: '协议与规则', path: '/tenant/legal', permission: 'config:shop' },
-      { title: '客户奖金接入', path: '/tenant/bonus-config', permission: 'config:bonus' },
-      { title: '会员端业绩查看权限', path: '/audit/settings', permission: 'config:bonus' },
     ],
   },
+  { key: 'settings', title: '设置中心', icon: 'Setting', path: '/settings' },
   {
     key: 'risk', title: '风控与审计', icon: 'DataAnalysis', items: [
       { title: '会员资金与订单全景', path: '/audit/person-profile', permission: 'finance:read' },
@@ -408,6 +410,7 @@ const handleSessionExpired = () => {
 }
 
 onMounted(() => {
+  narrowViewport.addEventListener('change', updateNarrowViewport)
   loadBrand()
   checkServerSession(true)
   loadAllTodos()
@@ -424,6 +427,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  narrowViewport.removeEventListener('change', updateNarrowViewport)
   window.clearInterval(sessionCheckTimer)
   window.clearInterval(orderWorkTimer)
   window.clearInterval(operationalTodoTimer)
@@ -437,6 +441,7 @@ onBeforeUnmount(() => {
 
 // 当前激活的菜单
 const activeMenu = computed(() => {
+  if (showSettingsShell.value) return '/settings'
   if (route.path.startsWith('/members/detail/')) return '/members/list'
   if (route.path.startsWith('/account/detail/')) return '/account/list'
   if (route.path.startsWith('/import/result/')) return '/import/agents'
@@ -445,6 +450,10 @@ const activeMenu = computed(() => {
 
 // 面包屑
 const breadcrumbs = computed(() => {
+  if (showSettingsShell.value) return [
+    { path: '/settings', title: '设置中心' },
+    ...(route.path !== '/settings' ? [{ path: route.path, title: route.meta.title || '配置' }] : []),
+  ]
   for (const menu of visibleBusinessMenus.value) {
     const item = menu.items?.find((entry) => entry.path === activeMenu.value)
     if (item) {
@@ -470,6 +479,7 @@ const hasMenuPermission = (item) => {
   return !item.permission || store.hasPermission(item.permission)
 }
 const visibleBusinessMenus = computed(() => businessMenus
+  .filter((menu) => menu.path !== '/settings' || canAccessSettings(store))
   .map((menu) => menu.items
     ? { ...menu, items: menu.items.filter(hasMenuPermission) }
     : (store.userInfo?.merchantId && menu.path === '/dashboard'
@@ -504,14 +514,15 @@ const handleCommand = async (command) => {
 }
 
 .layout-container.dashboard-mode {
-  color: #edf4ff;
-  background: #020b18;
+  color: var(--admin-text);
+  background: var(--admin-bg);
 }
 
 .layout-sidebar {
   width: 220px;
-  background: #071326;
-  box-shadow: 8px 0 28px rgba(0, 7, 19, .18);
+  flex-shrink: 0;
+  background: #fff;
+  border-right: 1px solid var(--admin-border);
   transition: width 0.24s ease;
   overflow: hidden;
   display: flex;
@@ -522,31 +533,28 @@ const handleCommand = async (command) => {
   }
 
   .logo {
-    flex: 0 0 76px;
-    height: 76px;
+    flex: 0 0 64px;
+    height: 64px;
     display: flex;
     align-items: center;
     padding: 0 22px;
-    background: rgba(9, 17, 37, .26);
-    border-bottom: 1px solid rgba(255, 255, 255, .08);
+    border-bottom: 1px solid var(--admin-border);
 
     img {
       width: 38px;
       height: 38px;
       object-fit: contain;
       flex: 0 0 auto;
-      border-radius: 11px;
-      box-shadow: 0 6px 16px rgba(34, 53, 104, .35);
+      border-radius: 6px;
     }
 
     span {
       margin-left: 11px;
       max-width: 145px;
       overflow: hidden;
-      color: #fff;
-      color: #f5f7ff;
+      color: var(--admin-text);
       font-size: 17px;
-      font-weight: 750;
+      font-weight: 600;
       letter-spacing: .3px;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -560,42 +568,45 @@ const handleCommand = async (command) => {
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: thin;
-    scrollbar-color: #405379 #111c36;
+    scrollbar-color: #d3d8e0 transparent;
 
     &::-webkit-scrollbar { width: 7px; }
-    &::-webkit-scrollbar-thumb { background: #405379; border-radius: 4px; }
-    &::-webkit-scrollbar-track { background: #111c36; }
+    &::-webkit-scrollbar-thumb { background: #d3d8e0; border-radius: 4px; }
+    &::-webkit-scrollbar-track { background: transparent; }
 
     :deep(.el-menu-item), :deep(.el-sub-menu__title) {
       height: 46px;
       margin: 4px 12px;
       padding: 0 15px !important;
-      border-radius: 10px;
+      border-radius: 6px;
       font-size: 14px;
       transition: background .2s ease, color .2s ease;
     }
 
     :deep(.el-sub-menu .el-menu-item) {
       min-width: 0;
+      white-space: normal;
+      line-height: 20px;
+      height: auto;
+      min-height: 44px;
       margin: 2px 12px 2px 42px;
-      padding-left: 14px !important;
-      color: #9eabc2;
+      padding: 10px 14px !important;
+      color: #647084;
       font-size: 13px;
     }
 
     :deep(.el-menu-item:hover), :deep(.el-sub-menu__title:hover) {
-      color: #fff !important;
-      background: rgba(255, 255, 255, .09) !important;
+      color: var(--admin-primary) !important;
+      background: #f6f7f9 !important;
     }
 
     :deep(.el-menu-item.is-active) {
-      color: #fff !important;
-      background: #153d7d !important;
-      border: 1px solid rgba(82, 145, 255, .78);
-      box-shadow: 0 8px 18px rgba(25, 79, 173, .28);
+      color: var(--admin-primary) !important;
+      background: var(--admin-primary-soft) !important;
+      font-weight: 600;
     }
 
-    :deep(.el-sub-menu.is-opened > .el-sub-menu__title) { color: #fff; }
+    :deep(.el-sub-menu.is-opened > .el-sub-menu__title) { color: var(--admin-text); }
 
   }
 
@@ -606,18 +617,18 @@ const handleCommand = async (command) => {
     justify-content: center;
     gap: 9px;
     margin: 8px 12px 12px;
-    color: #8ea0bc;
+    color: #647084;
     font-size: 12px;
-    border: 1px solid rgba(91, 119, 160, .24);
-    border-radius: 9px;
-    background: rgba(7, 21, 45, .76);
+    border: 1px solid var(--admin-border);
+    border-radius: 6px;
+    background: #fff;
     cursor: pointer;
     transition: color .18s ease, background .18s ease, border-color .18s ease;
 
     &:hover {
-      color: #fff;
-      border-color: rgba(87, 145, 247, .48);
-      background: rgba(20, 52, 103, .62);
+      color: var(--admin-primary);
+      border-color: var(--admin-primary);
+      background: var(--admin-primary-soft);
     }
 
     &:focus-visible {
@@ -636,10 +647,10 @@ const handleCommand = async (command) => {
 }
 
 .layout-header {
-  height: 72px;
+  min-height: 64px;
+  flex-shrink: 0;
   background: rgba(255, 255, 255, .92);
   border-bottom: 1px solid #e8edf5;
-  box-shadow: 0 4px 18px rgba(32, 55, 93, .04);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -657,6 +668,8 @@ const handleCommand = async (command) => {
       line-height: 34px;
       text-align: center;
       border-radius: 9px;
+      border: 0;
+      background: transparent;
       cursor: pointer;
       margin-right: 16px;
       transition: color .2s ease, background .2s ease;
@@ -716,23 +729,32 @@ const handleCommand = async (command) => {
 
 .layout-content {
   flex: 1;
-  padding: 26px 30px 34px;
-  background: #f4f7fb;
+  min-height: 0;
+  padding: 24px;
+  background: var(--admin-bg);
   overflow-y: auto;
 }
 
 .dashboard-mode .layout-content {
   padding: 16px 18px 24px;
-  background-color: #020b18;
-  background-image: url('@/assets/dashboard-command-bg.png');
-  background-repeat: repeat-y;
-  background-position: center top;
-  background-size: 100% auto;
+  background: var(--admin-bg);
 }
 
 @media (max-width: 960px) {
-  .layout-sidebar { width: 208px; }
+  .layout-sidebar { width: 184px; }
   .layout-sidebar.collapsed { width: 64px; }
+  .layout-content { padding: 16px; }
   .dashboard-mode .layout-content { padding: 14px; }
 }
+@media (max-width: 640px) {
+  .layout-sidebar { width: 64px; }
+  .layout-sidebar .logo { padding:0 12px; }
+  .layout-sidebar .logo span,.layout-sidebar .sidebar-collapse { display:none; }
+  .layout-header { padding:0 12px; }.layout-header .header-right { gap:8px; }.layout-header .username { display:none; }
+  .layout-content { padding:10px; }
+}
+.layout-sidebar.collapsed .logo { padding:0 12px; }
+.layout-sidebar.collapsed .el-menu :deep(.el-menu-item),.layout-sidebar.collapsed .el-menu :deep(.el-sub-menu__title) { width:48px; margin:4px 8px; padding:0 12px!important; }
+.layout-sidebar.collapsed .el-menu :deep(.el-icon) { margin-right:0; }
+@media (prefers-reduced-motion: reduce) { .layout-sidebar { transition:none; } }
 </style>

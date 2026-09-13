@@ -1,0 +1,44 @@
+import { describe, expect, it } from 'vitest'
+import { SETTINGS_ENTRIES, SETTINGS_GROUPS, settingsEntriesFor, settingsGroupFor, canAccessSettings, isSettingsEditor } from '../../src/utils/settingsCatalog'
+import { businessModeChanges } from '../../src/utils/businessModeChanges'
+const account = (permissions, merchantId) => ({ userInfo: { merchantId }, hasPermission: (permission) => permissions.includes('*') || permissions.includes(permission) })
+describe('集中设置入口权限与搜索', () => {
+  it('未授权账号没有入口，商家即使带通配符也不进入平台设置', () => {
+    expect(canAccessSettings(account([]))).toBe(false)
+    expect(settingsEntriesFor(account(['*'], 1))).toEqual([])
+  })
+  it('搜索不会展示无权限的入口', () => {
+    const store = account(['config:shop'])
+    expect(settingsEntriesFor(store, '提现')).toEqual([])
+    expect(settingsEntriesFor(store, '优惠券')[0].path).toBe('/shop/coupons')
+    expect(settingsEntriesFor(store, '平台 指定商品')).toHaveLength(1)
+    expect(settingsEntriesFor(store, '<script>')).toEqual([])
+  })
+  it('所有入口都有现存页面权限和合法分类，虚构资金开关不进入配置索引', () => {
+    for (const item of SETTINGS_ENTRIES) {
+      expect(item.path.startsWith('/')).toBe(true)
+      expect(item.permission).toBeTruthy()
+      expect(SETTINGS_GROUPS.some(group => group.key === item.group)).toBe(true)
+    }
+    expect(isSettingsEditor('/withdraw/audit')).toBe(false)
+    expect(isSettingsEditor('/tenant/profile')).toBe(true)
+    expect(SETTINGS_ENTRIES.some(item => item.path.includes('bank-card'))).toBe(false)
+  })
+  it('旧编辑地址与客服锚点正确定位，未知或无权限分类回退', () => {
+    const entries = settingsEntriesFor(account(['config:shop']))
+    expect(settingsGroupFor({ path:'/tenant/profile', hash:'#customer-service', query:{} }, entries)).toBe('service')
+    expect(settingsGroupFor({ path:'/settings', query:{ group:'finance' } }, entries)).toBe('base')
+    expect(settingsGroupFor({ path:'/settings', query:{ group:'appearance' } }, entries)).toBe('appearance')
+  })
+})
+describe('业务模式影响摘要', () => {
+  it('只对实际业务字段生成逐项原值与新值，忽略完整租户的其他字段', () => {
+    expect(businessModeChanges({ id:1, tenantName:'甲', flashSaleEnabled:0 }, { id:1, tenantName:'乙', flashSaleEnabled:1 })).toEqual([
+      { key:'flashSaleEnabled', title:'秒杀专区', before:'关闭', after:'开启' },
+    ])
+  })
+  it('兼容数字字符串，清楚标注未接入不能下单', () => {
+    expect(businessModeChanges({ flashSaleEnabled:0 }, { flashSaleEnabled:'0' })).toEqual([])
+    expect(businessModeChanges({ repurchaseBonusMode:'NONE' }, { repurchaseBonusMode:'CUSTOM' })[0].after).toContain('未接入禁下单')
+  })
+})

@@ -18,17 +18,18 @@
 
     <el-card v-if="tenantForm.id" v-loading="readinessLoading" shadow="never" class="readiness-card">
       <div class="readiness-head">
-        <h3>客户资料填写</h3>
-        <el-tag :type="readiness.ready ? 'success' : 'warning'" effect="dark">
+        <h3>资料完整度</h3>
+        <el-tag :type="readiness.ready ? 'success' : 'warning'" effect="plain">
           {{ readiness.ready ? '资料已完善' : `待完善 ${Math.max(0, readiness.totalRequired - readiness.passedRequired)} 项` }}
         </el-tag>
+        <el-button link type="primary" :aria-expanded="readinessExpanded" @click="readinessExpanded = !readinessExpanded">{{ readinessExpanded ? '收起明细' : '查看待完善项' }}</el-button>
       </div>
       <el-progress
         :percentage="readinessPercent"
         :status="readiness.ready ? 'success' : undefined"
         :stroke-width="10"
       />
-      <div class="readiness-grid">
+      <div v-if="readinessExpanded" class="readiness-grid">
         <div v-for="item in readiness.items || []" :key="item.code" class="readiness-item" :class="{ passed: item.passed }">
           <span class="readiness-state">{{ item.passed ? '✓' : '!' }}</span>
           <div>
@@ -52,7 +53,7 @@
 
     <el-card v-loading="loading" shadow="never" class="profile-card">
       <el-empty v-if="!tenantForm.id && !loading" description="暂未找到商城资料" />
-      <el-form v-else :model="tenantForm" label-width="130px" class="profile-form">
+      <el-form v-else :model="tenantForm" label-position="top" class="profile-form">
         <section id="business-profile" class="form-section">
           <h3>经营主体</h3>
           <el-form-item label="经营主体名称" required>
@@ -76,10 +77,10 @@
         <section id="customer-service" class="form-section">
           <h3>客服渠道</h3>
           <el-row :gutter="20">
-            <el-col :span="12">
+            <el-col :xs="24" :sm="12">
               <el-form-item label="客服电话"><el-input v-model="tenantForm.servicePhone" maxlength="32" placeholder="手机号或座机，例如 400-xxx-xxxx" /></el-form-item>
             </el-col>
-            <el-col :span="12">
+            <el-col :xs="24" :sm="12">
               <el-form-item label="客服邮箱"><el-input v-model="tenantForm.serviceEmail" maxlength="128" placeholder="用于售后咨询和隐私问题联系" /></el-form-item>
             </el-col>
           </el-row>
@@ -121,8 +122,8 @@
             </div>
           </el-form-item>
           <el-row :gutter="20">
-            <el-col :span="12"><el-form-item label="ICP备案号"><el-input v-model="tenantForm.icpNumber" maxlength="128" placeholder="例如：粤ICP备XXXXXXXX号" /></el-form-item></el-col>
-            <el-col :span="12"><el-form-item label="公安备案号"><el-input v-model="tenantForm.policeRecordNumber" maxlength="128" placeholder="完成公安备案后填写" /></el-form-item></el-col>
+            <el-col :xs="24" :sm="12"><el-form-item label="ICP备案号"><el-input v-model="tenantForm.icpNumber" maxlength="128" placeholder="例如：粤ICP备XXXXXXXX号" /></el-form-item></el-col>
+            <el-col :xs="24" :sm="12"><el-form-item label="公安备案号"><el-input v-model="tenantForm.policeRecordNumber" maxlength="128" placeholder="完成公安备案后填写" /></el-form-item></el-col>
           </el-row>
           <el-form-item label="公安备案链接"><el-input v-model="tenantForm.policeRecordUrl" maxlength="512" placeholder="仅填写 https:// 开头的安全链接" /></el-form-item>
         </section>
@@ -153,6 +154,7 @@ const router = useRouter()
 const saving = ref(false)
 const tenantForm = ref({})
 const readinessLoading = ref(false)
+const readinessExpanded = ref(false)
 const readiness = ref({ ready: false, passedRequired: 0, totalRequired: 0, items: [] })
 const savedSnapshot = ref('')
 const hasUnsavedChanges = computed(() => Boolean(tenantForm.value.id)
@@ -278,12 +280,12 @@ onMounted(async () => {
 
 <style scoped>
 .toolbar { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-bottom:16px; }
-.toolbar h2 { margin:0; color:#303133; font-size:20px; }
-.toolbar p { margin:6px 0 0; color:#909399; font-size:13px; }
+.toolbar h2 { margin:0; color:var(--admin-text); font-size:22px; }
+.toolbar p { margin:10px 0 0; color:var(--admin-muted); font-size:13px; line-height:1.8; }
 .page-alert { margin-bottom:16px; }
 .readiness-card { margin-bottom:16px; border:1px solid #ebeef5; }
 .readiness-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:14px; }
-.readiness-head h3 { margin:0; color:#303133; font-size:17px; }
+.readiness-head h3 { margin:0; color:var(--admin-text); font-size:15px; font-weight:600; }
 .readiness-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:16px; }
 .readiness-item { display:flex; align-items:flex-start; gap:10px; padding:12px; background:#fff8ed; border:1px solid #f7d9a8; border-radius:9px; }
 .readiness-item.passed { background:#f1f9f4; border-color:#c9ead5; }
@@ -294,10 +296,12 @@ onMounted(async () => {
 .readiness-item p { margin:5px 0 0; color:#7a828c; font-size:12px; line-height:1.55; }
 .readiness-action { margin-top:5px; padding:0; font-size:12px; }
 .deployment-action { display:inline-block; margin-top:7px; color:#909399; font-size:12px; }
-.profile-card { border:1px solid #ebeef5; }
+.profile-card { border:0; }
+.profile-card :deep(.el-card__body) { padding:16px 0 0; }
+.profile-card :deep(.el-card__footer) { padding:20px 0; }
 .form-section { padding:4px 0 8px; scroll-margin-top:90px; }
 .form-section + .form-section { margin-top:14px; padding-top:20px; border-top:1px solid #ebeef5; }
-.form-section h3 { margin:0 0 18px; padding-left:10px; color:#303133; font-size:16px; line-height:1.4; border-left:4px solid var(--el-color-primary); }
+.form-section h3 { margin:0 0 20px; color:var(--admin-text); font-size:16px; font-weight:600; line-height:1.4; }
 .field-help { width:100%; margin-top:6px; color:#909399; font-size:12px; line-height:20px; }
 .upload-row { display:flex; align-items:flex-start; gap:16px; }
 .license-uploader { display:grid; width:220px; height:138px; place-items:center; overflow:hidden; background:#fafafa; border:1px dashed #c0ccda; border-radius:8px; cursor:pointer; }

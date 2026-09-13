@@ -14,65 +14,25 @@ html, body, #app {
   --admin-primary: #5669e8;
   --admin-primary-soft: #eef1ff;
   --admin-text: #1f2937;
-  --admin-muted: #718096;
-  --admin-border: #e7ecf4;
+  --admin-muted: #667085;
+  --admin-border: #e9ecf0;
   --admin-surface: #ffffff;
-  --admin-bg: #f4f7fb;
+  --admin-bg: #f5f6f8;
+  --el-color-primary: #5669e8;
 }
 
 body {
   color: var(--admin-text);
   background: var(--admin-bg);
-  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
   -webkit-font-smoothing: antialiased;
-}
-
-// 布局样式
-.layout-container {
-  height: 100vh;
-  display: flex;
-}
-
-.layout-sidebar {
-  width: 220px;
-  background-color: #304156;
-  transition: width 0.3s;
-  overflow: hidden;
-
-  &.collapsed {
-    width: 64px;
-  }
-}
-
-.layout-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.layout-header {
-  height: 60px;
-  background-color: #fff;
-  border-bottom: 1px solid #e6e6e6;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-}
-
-.layout-content {
-  flex: 1;
-  padding: 20px;
-  background-color: #f0f2f5;
-  overflow-y: auto;
 }
 
 // 统一管理后台控件层级与圆角，让不同页面保持同一套视觉语言。
 .el-card {
   border-color: var(--admin-border) !important;
-  border-radius: 14px !important;
-  box-shadow: 0 8px 26px rgba(31, 51, 86, .045) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
 }
 
 .el-card__header {
@@ -80,8 +40,8 @@ body {
 }
 
 .el-button {
-  border-radius: 9px;
-  font-weight: 600;
+  border-radius: 6px;
+  font-weight: 500;
 }
 
 .el-button--primary {
@@ -92,7 +52,7 @@ body {
 }
 
 .el-input__wrapper, .el-select__wrapper, .el-textarea__inner {
-  border-radius: 9px !important;
+  border-radius: 6px !important;
   box-shadow: 0 0 0 1px #dfe6f0 inset !important;
 }
 
@@ -109,8 +69,10 @@ body {
 // 页面容器
 .page-container {
   background-color: #fff;
-  border-radius: 4px;
-  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid var(--admin-border);
+  padding: 24px;
+  min-width: 0;
   min-height: calc(100vh - 160px);
 }
 
@@ -157,7 +119,8 @@ body {
   background-color: #fff;
   border-radius: 4px;
   padding: 20px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--admin-border);
+  box-shadow: none;
 
   .stat-title {
     font-size: 14px;
@@ -198,7 +161,25 @@ body {
 
     .value {
       flex: 1;
+      min-width: 0;
+      overflow-wrap: anywhere;
       color: #303133;
     }
   }
 }
+
+// 共享排版规范：正文可换行、表格只在自身范围滚动，不裁掉操作。
+button, input, textarea, select { font: inherit; }
+.el-dialog { max-width:calc(100vw - 32px); border-radius:8px; }
+.el-dialog__header { padding-bottom:16px; border-bottom:1px solid var(--admin-border); }
+.el-dialog__footer { padding-top:16px; }
+.el-form-item__label { color:#344054; }
+.el-form-item__content { min-width:0; }
+.el-table .cell { line-height:1.6; }
+.el-table__cell { padding-top:12px!important; padding-bottom:12px!important; }
+.el-table .el-button.is-link { font-weight:400; }
+.el-pagination { flex-wrap:wrap; row-gap:10px; }
+.page-container h2 { font-size:22px; font-weight:600; line-height:1.4; }
+:focus-visible { outline:2px solid var(--admin-primary); outline-offset:3px; }
+@media(max-width:1100px) { .stat-cards { grid-template-columns:repeat(2,minmax(0,1fr)); }.el-form--inline .el-form-item { margin-right:16px; } }
+@media(max-width:640px) { .page-container { padding:16px; }.stat-cards { grid-template-columns:1fr; }.search-container { padding:12px; }.el-form--inline .el-form-item { display:flex; margin-right:0; } }

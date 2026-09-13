@@ -4,6 +4,7 @@ import { expireAdminSession, isAdminSessionExpired } from '@/utils/adminSession'
 import { getMe } from '@/api/auth'
 import { ElMessage } from 'element-plus'
 import { adminPortalLoginPath, readAdminPortal } from '@/utils/adminPortal'
+import { canAccessSettings } from '@/utils/settingsCatalog'
 import {
   MERCHANT_HOME_PATH,
   PLATFORM_HOME_PATH,
@@ -51,6 +52,12 @@ const routes = [
     component: Layout,
     redirect: '/dashboard',
     children: [
+      {
+        path: 'settings',
+        name: 'SettingsCenter',
+        component: () => import('@/views/settings/index.vue'),
+        meta: { title: '设置中心', settingsCenter: true },
+      },
       {
         path: 'merchant/home',
         name: 'MerchantHome',
@@ -564,6 +571,11 @@ router.beforeEach(async (to, from, next) => {
   if (isMerchant && !isMerchantWorkspacePath(to.path)) {
     ElMessage.warning({ message: '当前页面仅供平台管理人员使用', grouping: true })
     next(MERCHANT_HOME_PATH)
+    return
+  }
+  if (to.meta.settingsCenter && !canAccessSettings(store)) {
+    ElMessage.warning({ message: '当前账号没有可访问的设置', grouping: true })
+    next(adminHomePath(store.userInfo))
     return
   }
   const requiredPermissions = to.matched
