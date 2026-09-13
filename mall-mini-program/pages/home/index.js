@@ -134,7 +134,12 @@ Page({
     if (this.baseProducts && this.baseProducts[index]) this.baseProducts[index].imageFailed = true
     feedback.update(this, { [`products[${index}].imageFailed`]: true })
   },
-  onKeywordInput(event) { feedback.update(this, { keyword: event.detail.value }) },
+  onKeywordInput(event) {
+    if (this._inactive) return
+    const keyword = event.detail.value
+    if (!String(keyword || '').trim()) return this.clearKeyword()
+    feedback.update(this, { keyword })
+  },
   notices() { wx.navigateTo({ url: '/pages/notices/index' }) },
   openNotice(event) { const id = format.identifier(event.currentTarget.dataset.id); wx.navigateTo({ url: id ? `/pages/notices/index?id=${id}` : '/pages/notices/index' }) },
   campaign(event) { const id = format.identifier(event.currentTarget.dataset.id); wx.navigateTo({ url: `/pages/campaign/index${id ? '?id=' + id : ''}` }) },
@@ -162,7 +167,13 @@ Page({
   },
   focusSearch() { clearTimeout(this.suggestionsTimer); this.setData({ searchFocused: true, recentSearches: searchHistory.list() }) },
   blurSearch() { if (!this.clearingHistory) this.suggestionsTimer = setTimeout(() => this.setData({ searchFocused: false }), 150) },
-  clearKeyword() { if (this._inactive) return; this.setData({ keyword: '' }); this.focusSearch() },
+  clearKeyword() {
+    if (this._inactive) return
+    const filtered = this.data.searchedKeyword || this.data.activeCategory
+    this.setData({ keyword: '' })
+    this.focusSearch()
+    if (filtered) return this.clearFilter()
+  },
   clearSearchHistory() {
     if (this._inactive || this.clearingHistory || !this.data.recentSearches.length) return
     clearTimeout(this.suggestionsTimer)
@@ -188,7 +199,13 @@ Page({
     })
   },
   applySearch(event) { if (this._inactive) return; this.setData({ keyword: String(event.currentTarget.dataset.keyword || ''), activeCategory: '' }); return this.search() },
-  clearFilter() { this.setData({ keyword: '', searchedKeyword: '', activeCategory: '' }); return this.filterProducts() },
+  clearFilter() {
+    if (this._inactive) return
+    this.pendingSearch = null
+    this.baseProducts = []
+    this.setData({ keyword: '', searchedKeyword: '', activeCategory: '', products: [], productError: '' })
+    return this.filterProducts()
+  },
   async filterProducts(scroll = false) {
     const sequence = this.productSequence = (this.productSequence || 0) + 1
     this.setData({ productsLoading: true, loading: false, productError: '' })

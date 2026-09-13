@@ -10,7 +10,7 @@
         <form class="home-search" role="search" @submit.prevent="submitSearch" @focusin="focusSearch" @focusout="scheduleHideSuggestions">
           <Search :size="19" />
           <div class="home-search-input">
-            <input ref="searchInput" v-model="query.keyword" type="search" placeholder="搜索商品" aria-label="搜索商品" autocomplete="off" />
+            <input ref="searchInput" v-model="query.keyword" type="search" placeholder="搜索商品" aria-label="搜索商品" autocomplete="off" @input="onKeywordInput" />
             <button v-if="query.keyword" type="button" class="clear-keyword" aria-label="清除搜索内容" @click="clearKeyword"><X :size="16" /></button>
           </div>
           <button type="submit" aria-label="搜索"><span>搜索</span><Search :size="18" /></button>
@@ -522,9 +522,15 @@ const focusSearch = () => {
 }
 const clearKeyword = () => {
   if (disposed) return
+  const filtered = searchedKeyword.value || query.value.categoryName
   query.value.keyword = ''
   focusSearch()
   searchInput.value?.focus()
+  if (filtered) return clearFilter()
+}
+const onKeywordInput = (event) => {
+  if (disposed || event.isComposing) return
+  if (!String(event.target.value || '').trim()) return clearKeyword()
 }
 const requestClearHistory = () => {
   if (disposed || historyConfirmVisible.value || !recentSearches.value.length) return
@@ -557,9 +563,13 @@ const setCategory = (categoryName) => {
 }
 
 const clearFilter = () => {
+  if (disposed) return
+  pendingSearch = null
   query.value.keyword = ''
   query.value.categoryName = ''
-  fetchProducts()
+  products.value = []
+  searchNotice.value = ''
+  return fetchProducts()
 }
 
 const addProduct = async (product) => {

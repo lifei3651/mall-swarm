@@ -16,7 +16,7 @@ function setup(respond = () => ({ data: { list: [] } })) {
     window: { setTimeout: fn => { timers.set(++timerId, fn); return timerId }, clearTimeout: id => timers.delete(id), clearInterval() {} },
     listProducts: async query => { calls.push(query); return respond(query) }, getHome: async () => ({ data: {} }), applyBrandConfig() {},
   }
-  const page = new Function(...Object.keys(context), `${script}\nreturn { query, products, searchFocused, recentSearches, searchInput, productSection, loading, submitSearch, applySearch, clearKeyword, requestClearHistory, cancelClearHistory, confirmClearHistory, historyConfirmVisible, searchNotice, productError, searchedKeyword, retryProducts, focusSearch, scheduleHideSuggestions, clearFilter }`)(...Object.values(context))
+  const page = new Function(...Object.keys(context), `${script}\nreturn { query, products, searchFocused, recentSearches, searchInput, productSection, loading, submitSearch, applySearch, clearKeyword, onKeywordInput, requestClearHistory, cancelClearHistory, confirmClearHistory, historyConfirmVisible, searchNotice, productError, searchedKeyword, retryProducts, focusSearch, scheduleHideSuggestions, clearFilter }`)(...Object.values(context))
   page.searchInput.value = { blur() {}, focus: () => page.focusSearch() }
   page.productSection.value = { scrollIntoView: value => scrolls.push(value) }
   return { page, store, calls, routes, scrolls, storage, timers, cleanup: () => cleanup() }
@@ -30,8 +30,39 @@ test('H5首页原页搜索/历史热词/输入清除与原生约定一致', asyn
   assert.equal(page.query.value.keyword, '礼盒'); assert.equal(page.searchedKeyword.value, '礼盒')
   assert.equal(page.products.value[0].id, 7); assert.equal(scrolls.length, 1); assert.deepEqual(routes, [])
   await page.applySearch('健康生活'); assert.equal(calls[1].categoryName, '')
-  page.clearKeyword(); assert.equal(page.query.value.keyword, ''); assert.equal(calls.length, 2)
-  assert.equal(page.searchedKeyword.value, '健康生活'); assert.equal(page.searchFocused.value, true)
+  await page.clearKeyword(); assert.equal(page.query.value.keyword, ''); assert.equal(calls.length, 3)
+  assert.equal(page.searchedKeyword.value, ''); assert.equal(page.searchFocused.value, true)
+  assert.equal(calls[2].keyword, ''); assert.equal(calls[2].categoryName, '')
+})
+
+test('H5按钮清空与手动删空均恢复默认列表，阻断旧请求且不删历史', async () => {
+  for (const clear of [page => page.clearKeyword(), page => page.onKeywordInput({ target: { value: '' } })]) {
+    const old = deferred(), fresh = deferred(); let count = 0
+    const { page, calls, scrolls, store } = setup(() => ++count === 1 ? old.promise : fresh.promise)
+    page.query.value = { keyword: '礼盒', categoryName: '原分类' }
+    const pending = page.submitSearch(); const reset = clear(page)
+    assert.equal(page.searchedKeyword.value, ''); assert.equal(page.query.value.categoryName, '')
+    assert.equal(page.products.value.length, 0); assert.equal(page.loading.value, true)
+    page.clearKeyword(); assert.equal(calls.length, 2)
+    fresh.resolve({ data: { list: [{ id: 2 }] } }); await reset
+    old.reject(Error('旧搜索错误')); await pending
+    assert.equal(page.products.value[0].id, 2); assert.equal(page.searchNotice.value, '')
+    assert.equal(scrolls.length, 0); assert.deepEqual(JSON.parse(store.get('shop_recent_searches')), ['礼盒'])
+  }
+  assert.match(source, /@input="onKeywordInput"/)
+})
+
+test('H5输入法编辑和未提交草稿不触发恢复，清空失败可重试默认列表', async () => {
+  let fail = true
+  const { page, calls, cleanup } = setup(() => { if (fail) throw Error('网络错误'); return { data: { list: [{ id: 3 }] } } })
+  page.query.value.keyword = '草稿'; await page.onKeywordInput({ target: { value: '' } })
+  assert.equal(calls.length, 0)
+  page.query.value.keyword = '礼盒'; page.searchedKeyword.value = '礼盒'
+  page.onKeywordInput({ isComposing: true, target: { value: '' } }); assert.equal(calls.length, 0)
+  await page.clearKeyword(); assert.equal(page.products.value.length, 0); assert.match(page.productError.value, /网络/)
+  fail = false; await page.retryProducts(); assert.equal(calls[1].keyword, '')
+  assert.equal(page.products.value[0].id, 3)
+  cleanup(); await page.clearKeyword(); assert.equal(calls.length, 2)
 })
 
 test('H5清空历史需确认，取消保留，确认只删历史键且重开仍为空', async () => {

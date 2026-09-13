@@ -20,15 +20,46 @@ test('首页搜索按H5原页展示，保留当前分类，不切换底部标签
   assert.deepEqual(Array.from(home.data.recentSearches), ['护理 & 礼盒'])
 })
 
-test('只点输入框显示历史，不查询、不跳分类；输入清除不删历史或立即提交', () => {
-  const env = commerceEnv(), home = env.page('home'), history = env.load('utils/search-history')
+test('只点输入框不查询；清空已搜索关键词恢复初始列表但保留历史', async () => {
+  const env = commerceEnv(() => ({ list: [{ id: '8' }] })), home = env.page('home'), history = env.load('utils/search-history')
   history.remember('礼盒'); home.setData({ keyword: '礼盒', searchedKeyword: '已提交词' })
   home.focusSearch()
   assert.equal(home.data.searchFocused, true); assert.deepEqual(Array.from(home.data.recentSearches), ['礼盒'])
-  home.clearKeyword()
-  assert.equal(home.data.keyword, ''); assert.equal(home.data.searchedKeyword, '已提交词')
+  assert.equal(env.calls.length, 0)
+  await home.clearKeyword()
+  assert.equal(home.data.keyword, ''); assert.equal(home.data.searchedKeyword, '')
   assert.equal(home.data.searchFocused, true); assert.deepEqual(Array.from(history.list()), ['礼盒'])
-  assert.equal(env.calls.length, 0); assert.equal(env.routes.length, 0)
+  assert.equal(env.calls.length, 1); assert.equal(env.calls[0].params.keyword, '')
+  assert.equal(home.data.products[0].id, '8'); assert.equal(env.routes.length, 0)
+})
+
+test('手动删空和清除按钮均清除分类；旧搜索晚到不能恢复旧列表或滚动', async () => {
+  for (const clear of [page => page.clearKeyword(), page => page.onKeywordInput({ detail: { value: '' } })]) {
+    const old = deferred(), fresh = deferred(); let count = 0
+    const env = commerceEnv(() => ++count === 1 ? old.promise : fresh.promise), home = env.page('home')
+    const scrolls = []; env.wx.pageScrollTo = options => scrolls.push(options)
+    home.setData({ keyword: '旧词', activeCategory: '原分类', products: [{ id: '1' }] })
+    const pending = home.search(); const reset = clear(home)
+    assert.equal(home.data.searchedKeyword, ''); assert.equal(home.data.activeCategory, '')
+    assert.equal(home.data.products.length, 0); assert.equal(home.data.productsLoading, true)
+    home.clearKeyword(); assert.equal(env.calls.length, 2, '重复清空不能重复查询')
+    assert.equal(env.calls[1].params.keyword, ''); assert.equal(env.calls[1].params.categoryName, '')
+    fresh.resolve({ list: [{ id: '2' }] }); await reset
+    old.resolve({ list: [{ id: '1' }] }); await pending
+    assert.equal(home.data.products[0].id, '2'); assert.equal(scrolls.length, 0)
+  }
+})
+
+test('未提交的输入删空不查询；恢复失败不展示旧筛选，可重试默认列表', async () => {
+  let fail = true
+  const env = commerceEnv(() => { if (fail) throw Error('网络暂不可用'); return { list: [{ id: '9' }] } }), home = env.page('home')
+  home.onKeywordInput({ detail: { value: '草稿' } }); await home.onKeywordInput({ detail: { value: '' } })
+  assert.equal(env.calls.length, 0)
+  home.setData({ keyword: '礼盒', searchedKeyword: '礼盒', products: [{ id: '1' }] })
+  await home.clearKeyword(); assert.equal(home.data.products.length, 0); assert.match(home.data.productError, /网络/)
+  fail = false; await home.retryProducts(); assert.equal(env.calls[1].params.keyword, '')
+  assert.equal(home.data.products[0].id, '9')
+  home.onHide(); await home.clearKeyword(); assert.equal(env.calls.length, 2)
 })
 
 test('历史/热门词按H5清掉分类后原页搜索，空搜索也不跳分类或保存空历史', async () => {
