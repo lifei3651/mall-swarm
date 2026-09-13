@@ -10,7 +10,8 @@
 .field-label { display:block; margin:28rpx 0 14rpx; font-size:26rpx; }.field-control,.create-card input,.create-card textarea { width:100%; min-height:84rpx; padding:20rpx 24rpx; border:1rpx solid var(--line); border-radius:20rpx; background:var(--paper); font-size:26rpx; line-height:1.6; }
 .create-card textarea { height:230rpx; }.char-count { display:block; text-align:right; margin-top:12rpx; color:var(--muted); font-size:23rpx; }
 .create-card .primary-button { margin-top:24rpx; width:100%; border-radius:22rpx; }
-.support-tabs { margin:24rpx 0 8rpx; white-space:nowrap; }.support-tabs button { display:inline-block; width:auto; margin:0 12rpx 0 0; padding:14rpx 24rpx; background:var(--paper); border-radius:999rpx; font-size:25rpx; color:var(--muted); font-weight:400; }.support-tabs .active { color:#fff; background:var(--brand); }
-.support-tabs::-webkit-scrollbar { display:none; width:0; height:0; }
+.support-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12rpx; margin:24rpx 0 8rpx; }
+.support-tabs button { display:flex; align-items:center; justify-content:center; width:100%; min-width:0; min-height:80rpx; margin:0; padding:12rpx 8rpx; background:var(--paper); border-radius:16rpx; font-size:25rpx; line-height:36rpx; color:var(--muted); font-weight:400; overflow-wrap:anywhere; }
+.support-tabs .active { color:#fff; background:var(--brand); }
 .status-badge { font-size:23rpx; padding:6rpx 16rpx; background:var(--canvas); border-radius:999rpx; color:var(--muted); }.ticket-card .section-title { margin-top:18rpx; }.ticket-meta { display:flex; justify-content:space-between; gap:14rpx; margin-top:24rpx; font-size:21rpx; color:var(--muted); overflow-wrap:anywhere; }
 .support-empty { display:block; padding:60rpx 20rpx; color:var(--muted); text-align:center; font-size:26rpx; }.support-error { padding:24rpx; color:#b42318; font-size:26rpx; line-height:1.6; }.support-error button { background:var(--paper); color:var(--brand); margin-top:16rpx; font-size:26rpx; }

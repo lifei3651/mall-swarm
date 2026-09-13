@@ -5,8 +5,8 @@ import vm from 'node:vm'
 
 const read = file => readFileSync(new URL(`../src/views/${file}`, import.meta.url), 'utf8')
 
-test('H5工单及分类标签保留横滑，标准与WebKit滚动条均隐藏', () => {
-  for (const [file, selector] of [['ServiceTicketsView.vue', 'status-tabs'], ['CategoryView.vue', 'guide-shelf-tabs']]) {
+test('H5分类标签保留横滑，标准与WebKit滚动条均隐藏', () => {
+  for (const [file, selector] of [['CategoryView.vue', 'guide-shelf-tabs']]) {
     const source = read(file)
     const rules = [...source.matchAll(new RegExp(`\\.${selector}\\s*\\{([^}]+)\\}`, 'g'))].map(match => match[1]).join(';')
     assert.match(rules, /overflow(?:-x)?:\s*auto/)
@@ -15,6 +15,15 @@ test('H5工单及分类标签保留横滑，标准与WebKit滚动条均隐藏', 
     assert.match(source, new RegExp(`\\.${selector}::-webkit-scrollbar\\s*\\{[^}]*display:\\s*none;[^}]*height:\\s*0;`))
     assert.match(source, new RegExp(`\\.${selector} button\\s*\\{[^}]*flex:\\s*0 0 auto`))
   }
+})
+
+test('H5工单状态使用三列网格覆盖横滑样式，所有筛选项直接可见', () => {
+  const source = read('ServiceTicketsView.vue')
+  const rule = [...source.matchAll(/\.status-tabs\s*\{([^}]+)\}/g)].at(-1)[1]
+  assert.match(rule, /display:grid/)
+  assert.match(rule, /grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/)
+  assert.match(rule, /overflow:visible/)
+  assert.match(source, /:aria-pressed="status===item.key"/)
 })
 
 test('工单末项筛选绑定不变，选择已关闭仍查询已关闭工单', async () => {
