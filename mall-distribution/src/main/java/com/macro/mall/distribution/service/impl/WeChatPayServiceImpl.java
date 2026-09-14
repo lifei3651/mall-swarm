@@ -2,7 +2,6 @@ package com.macro.mall.distribution.service.impl;
 
 import cn.hutool.crypto.SecureUtil;
 import com.macro.mall.common.exception.Asserts;
-import com.macro.mall.common.log.SensitiveLogSanitizer;
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.config.WeChatMiniProgramProperties;
 import com.macro.mall.distribution.config.WeChatPayProperties;
@@ -59,8 +58,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
             result = gateway.prepay(new WeChatPayGateway.PrepayCommand(target.paymentNo(),
                     fenInt(target.payAmount()), paymentDescription(target), openId));
         } catch (Exception ex) {
-            log.error("微信支付预下单失败: paymentNo={}, error={}", target.paymentNo(),
-                    SensitiveLogSanitizer.sanitizeText(ex.getMessage()));
+            log.error("微信支付预下单失败: paymentNo={}, errorType={}", target.paymentNo(), errorType(ex));
             Asserts.fail("微信支付下单失败，请稍后重试");
             return null;
         }
@@ -98,8 +96,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
             validatePaymentResult(result, target);
             return applyConfirmedPayment(target);
         } catch (Exception ex) {
-            log.error("微信支付查单失败: paymentNo={}, error={}", target.paymentNo(),
-                    SensitiveLogSanitizer.sanitizeText(ex.getMessage()));
+            log.error("微信支付查单失败: paymentNo={}, errorType={}", target.paymentNo(), errorType(ex));
             return false;
         }
     }
@@ -113,8 +110,8 @@ public class WeChatPayServiceImpl implements WeChatPayService {
             log.info("微信支付订单已随本地待支付订单关闭: paymentNo={}", paymentNo);
             return;
         } catch (Exception closeError) {
-            log.warn("微信支付关单未直接完成，开始查单确认: paymentNo={}, error={}", paymentNo,
-                    SensitiveLogSanitizer.sanitizeText(closeError.getMessage()));
+            log.warn("微信支付关单未直接完成，开始查单确认: paymentNo={}, errorType={}", paymentNo,
+                    errorType(closeError));
         }
         try {
             WeChatPayGateway.PaymentResult result = gateway.query(paymentNo);
@@ -127,8 +124,8 @@ public class WeChatPayServiceImpl implements WeChatPayService {
             log.error("微信支付关单失败且当前未查到成功支付，等待后续回调兜底: paymentNo={}, state={}",
                     paymentNo, result == null ? null : result.state());
         } catch (Exception queryError) {
-            log.error("微信支付关单失败后的查单也未完成，等待后续回调兜底: paymentNo={}, error={}", paymentNo,
-                    SensitiveLogSanitizer.sanitizeText(queryError.getMessage()));
+            log.error("微信支付关单失败后的查单也未完成，等待后续回调兜底: paymentNo={}, errorType={}", paymentNo,
+                    errorType(queryError));
         }
     }
 
@@ -140,7 +137,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
         try {
             result = gateway.parsePaymentNotification(request);
         } catch (Exception ex) {
-            log.warn("微信支付回调验签或解密失败: {}", SensitiveLogSanitizer.sanitizeText(ex.getMessage()));
+            log.warn("微信支付回调验签或解密失败: errorType={}", errorType(ex));
             throw ex;
         }
         if (result == null || !"SUCCESS".equals(result.state())) Asserts.fail("微信支付通知状态不正确");
@@ -162,8 +159,8 @@ public class WeChatPayServiceImpl implements WeChatPayService {
             log.error("微信退款被渠道拒绝: paymentNo={}, refundNo={}, state={}", paymentNo, refundNo, result.state());
             return RefundState.FAILED;
         } catch (Exception ex) {
-            log.error("微信退款申请失败: paymentNo={}, refundNo={}, error={}", paymentNo, refundNo,
-                    SensitiveLogSanitizer.sanitizeText(ex.getMessage()));
+            log.error("微信退款申请失败: paymentNo={}, refundNo={}, errorType={}", paymentNo, refundNo,
+                    errorType(ex));
             return RefundState.FAILED;
         }
     }
@@ -174,9 +171,13 @@ public class WeChatPayServiceImpl implements WeChatPayService {
         try {
             return gateway.parseRefundNotification(request);
         } catch (Exception ex) {
-            log.warn("微信退款回调验签或解密失败: {}", SensitiveLogSanitizer.sanitizeText(ex.getMessage()));
+            log.warn("微信退款回调验签或解密失败: errorType={}", errorType(ex));
             throw ex;
         }
+    }
+
+    private static String errorType(Exception error) {
+        return error == null ? "Unknown" : error.getClass().getSimpleName();
     }
 
     private boolean applyConfirmedPayment(PaymentTarget initialTarget) {
