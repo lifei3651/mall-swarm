@@ -192,8 +192,8 @@
           <span class="detail-cart-icon"><ShoppingCart :size="21" /><i v-if="count">{{ count > 99 ? '99+' : count }}</i></span>
           <span>购物车</span>
         </RouterLink>
-        <button class="main-action cart-action" :disabled="soldOut || purchaseActionPending" @click="addToCart">加入购物车</button>
-        <button class="main-action buy-action" :disabled="soldOut || purchaseActionPending" @click="buyNow">{{ soldOut ? '暂时缺货' : '立即购买' }}</button>
+        <button class="main-action cart-action" :disabled="soldOut" :aria-busy="activePurchaseAction === 'cart'" @click="addToCart">加入购物车</button>
+        <button class="main-action buy-action" :disabled="soldOut" :aria-busy="activePurchaseAction === 'buy'" @click="buyNow">{{ soldOut ? '暂时缺货' : '立即购买' }}</button>
       </div>
     </template>
 
@@ -263,6 +263,7 @@ const loading = ref(false)
 const errorMessage = ref('')
 const toast = ref('')
 const purchaseActionPending = ref(false)
+const activePurchaseAction = ref('')
 const activeImageIndex = ref(0)
 const galleryRatios = ref({})
 const galleryAspectRatio = computed(() => galleryRatios.value[mainImages.value[activeImageIndex.value]] || 1)
@@ -454,6 +455,7 @@ const addToCart = async () => {
   if (purchaseActionPending.value) return
   commitQuantityInput()
   purchaseActionPending.value = true
+  activePurchaseAction.value = 'cart'
   try {
     const detail = (await getProduct(displayProduct.value.id)).data || {}
     const latestProduct = { ...displayProduct.value, stock: resolveCurrentStock(displayProduct.value, detail) }
@@ -465,6 +467,7 @@ const addToCart = async () => {
     showToast(error?.message || '当前商品暂时无法加入购物车')
   } finally {
     purchaseActionPending.value = false
+    activePurchaseAction.value = ''
   }
 }
 const buyNow = async () => {
@@ -473,6 +476,7 @@ const buyNow = async () => {
   if (purchaseActionPending.value) return
   commitQuantityInput()
   purchaseActionPending.value = true
+  activePurchaseAction.value = 'buy'
   try {
     const detail = (await getProduct(displayProduct.value.id)).data || {}
     const latestProduct = { ...displayProduct.value, stock: resolveCurrentStock(displayProduct.value, detail) }
@@ -485,6 +489,7 @@ const buyNow = async () => {
     showToast(error?.message || '当前商品暂时无法购买')
   } finally {
     purchaseActionPending.value = false
+    activePurchaseAction.value = ''
   }
 }
 

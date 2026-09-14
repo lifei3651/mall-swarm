@@ -31,7 +31,7 @@
         <text class="selected-spec-stock">{{soldOut ? '暂时缺货' : '库存 ' + stock + ' 件'}}</text>
       </view>
     </view>
-    <view class="detail-card quantity-panel"><text>购买数量</text><view><button data-delta="-1" bindtap="changeQuantity" disabled="{{quantity <= 1 || purchasePending || soldOut}}" aria-label="减少购买数量">−</button><input value="{{quantityInput}}" type="number" maxlength="10" bindinput="quantityChanged" bindblur="commitQuantity" disabled="{{purchasePending || soldOut}}" aria-label="手动输入购买数量" /><button data-delta="1" bindtap="changeQuantity" disabled="{{quantity >= maxQuantity || purchasePending || soldOut}}" aria-label="增加购买数量">＋</button></view><text class="quantity-stock">库存 {{stock}} 件</text></view>
+    <view class="detail-card quantity-panel"><text>购买数量</text><view><button data-delta="-1" bindtap="changeQuantity" disabled="{{quantity <= 1 || soldOut}}" aria-label="减少购买数量">−</button><input value="{{quantityInput}}" type="number" maxlength="10" bindinput="quantityChanged" bindblur="commitQuantity" disabled="{{soldOut}}" aria-label="手动输入购买数量" /><button data-delta="1" bindtap="changeQuantity" disabled="{{quantity >= maxQuantity || soldOut}}" aria-label="增加购买数量">＋</button></view><text class="quantity-stock">库存 {{stock}} 件</text></view>
     <view wx:if="{{product.serviceTags.length}}" class="detail-card service-panel">
       <view class="service-summary-row" bindtap="openServices" aria-role="button" aria-expanded="{{servicesVisible}}" aria-label="查看全部服务保障：{{serviceSummary}}">
         <text class="service-label">服务保障</text><text class="service-summary">{{serviceSummary}}</text><text class="service-arrow" aria-hidden="true">›</text>
@@ -63,8 +63,8 @@
     <view class="product-actions">
       <button class="cart-shortcut" bindtap="goHome" aria-label="返回首页"><image src="/assets/tabbar/home.png" mode="aspectFit" /><text>首页</text></button>
       <button class="cart-shortcut" bindtap="goCart" aria-label="查看购物车，{{cartCount}}件"><image src="/assets/tabbar/cart.png" mode="aspectFit" /><text wx:if="{{cartCount}}" class="cart-count">{{cartCount > 99 ? '99+' : cartCount}}</text><text>购物车</text></button>
-      <button class="add-cart-button" disabled="{{soldOut || purchasePending}}" loading="{{purchasePending}}" bindtap="addToCart">加入购物车</button>
-      <button class="primary-button" disabled="{{soldOut || purchasePending}}" bindtap="buyNow">{{soldOut ? '暂时缺货' : purchasePending ? '正在核对' : '立即购买'}}</button>
+      <button class="add-cart-button" disabled="{{soldOut}}" aria-busy="{{purchaseAction === 'cart'}}" bindtap="addToCart">加入购物车</button>
+      <button class="primary-button" disabled="{{soldOut}}" aria-busy="{{purchaseAction === 'buy'}}" bindtap="buyNow">{{soldOut ? '暂时缺货' : '立即购买'}}</button>
     </view>
   </block>
   <view wx:if="{{servicesVisible || servicesOpening}}" class="service-overlay {{servicesVisible ? '' : 'service-measuring'}}">

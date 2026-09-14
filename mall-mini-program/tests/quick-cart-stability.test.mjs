@@ -18,6 +18,19 @@ test('首页和分类仅售罄禁用，临时请求锁不传入任何按钮状�
   }
 })
 
+test('商品详情加购与立即购买保留互斥锁，但不再互相改变按钮外观', () => {
+  const source = read('pages/product/index.wxml')
+  const addButton = source.match(/<button class="add-cart-button"[^>]*>/)?.[0] || ''
+  const buyButton = source.match(/<button class="primary-button"[^>]*bindtap="buyNow"[^>]*>/)?.[0] || ''
+  assert.match(addButton, /disabled="\{\{soldOut\}\}"/)
+  assert.match(addButton, /aria-busy="\{\{purchaseAction === 'cart'\}\}"/)
+  assert.doesNotMatch(addButton, /purchasePending|loading=/)
+  assert.match(buyButton, /disabled="\{\{soldOut\}\}"/)
+  assert.match(buyButton, /aria-busy="\{\{purchaseAction === 'buy'\}\}"/)
+  assert.doesNotMatch(buyButton, /purchasePending|正在核对/)
+  assert.match(read('pages/product/index.js'), /if \(this\.data\.purchasePending \|\| this\.purchaseInactive\) return/)
+})
+
 for (const name of ['home', 'category']) test(name + '：慢请求和连续加购只更新数量，不重刷列表/整套导航', async () => {
   let approve
   const detail = { product: { id: '1', status: 1, productName: '商品', stock: 20, salePrice: 12 }, skus: [] }

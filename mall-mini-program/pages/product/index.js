@@ -18,7 +18,7 @@ Page({
     ...reviews.data,
     loading: true, error: '', product: {}, skus: [], skuIndex: 0, quantity: 1, galleryHeight: 750,
     servicesVisible: false, servicesOpening: false, serviceScrollHeight: '56vh', serviceSummary: '',
-    priceText: '0.00', stock: 0, soldOut: false, selectedSku: {}, purchasePending: false, quantityInput: '1', maxQuantity: 1, galleryIndex: 0, cartCount: 0
+    priceText: '0.00', stock: 0, soldOut: false, selectedSku: {}, purchasePending: false, purchaseAction: '', quantityInput: '1', maxQuantity: 1, galleryIndex: 0, cartCount: 0
   },
   onLoad(options = {}) { theme.apply(this); this.productId = format.identifier(options.id); this.reviewOrderItemId = format.identifier(options.orderItemId); this.load() },
   onShow() {
@@ -27,7 +27,7 @@ Page({
     if (!this.data.loading && this.productId) this.loadReviews()
     return share.prepare(this)
   },
-  onHide() { this.closeServices(); this.purchaseInactive = true; this.purchaseSequence = (this.purchaseSequence || 0) + 1; this.setData({ purchasePending: false }); reviews.hide(this); share.hide(this) },
+  onHide() { this.closeServices(); this.purchaseInactive = true; this.purchaseSequence = (this.purchaseSequence || 0) + 1; this.setData({ purchasePending: false, purchaseAction: '' }); reviews.hide(this); share.hide(this) },
   onUnload() { this.onHide() },
   onShareAppMessage() { return share.message(this, this.productId ? `/pages/product/index?id=${encodeURIComponent(this.productId)}` : '/pages/home/index', this.data.product.productName || this.data.brandName) },
   async retryShare() {
@@ -145,7 +145,7 @@ Page({
     if (!item) return
     const sequence = this.purchaseSequence = (this.purchaseSequence || 0) + 1
     const current = () => !this.purchaseInactive && sequence === this.purchaseSequence
-    this.setData({ purchasePending: true })
+    this.setData({ purchasePending: true, purchaseAction: direct ? 'buy' : 'cart' })
     try {
       const selection = await purchaseLimit.checkAddition(item.productId, item.skuId, item.quantity, {
         isCurrent: current, getRows: direct ? () => [] : () => cart.list()
@@ -159,7 +159,7 @@ Page({
         this.setData({ cartCount: cart.count() })
       }
     } catch (error) { if (current()) await feedback.notice(error.message || '商品信息更新失败，请稍后重试', direct ? '暂时无法购买' : '未能加入购物车') }
-    finally { if (sequence === this.purchaseSequence) this.setData({ purchasePending: false }) }
+    finally { if (sequence === this.purchaseSequence) this.setData({ purchasePending: false, purchaseAction: '' }) }
   },
   goCart() { wx.switchTab({ url: '/pages/cart/index' }) },
   goHome() { wx.switchTab({ url: '/pages/home/index' }) }
