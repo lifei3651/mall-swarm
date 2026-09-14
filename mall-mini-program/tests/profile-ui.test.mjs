@@ -21,7 +21,7 @@ test('常用服务使用统一票券/工单/安全图标，不以文字或重复
   const view = readFileSync(new URL('../pages/profile/index.wxml', import.meta.url), 'utf8')
   const service = view.split('<view class="service-grid">')[1].split('</view>\n    <button')[0]
   const buttons = service.match(/<button\b[\s\S]*?<\/button>/g)
-  assert.equal(buttons.length, 8, '客服统一入口后保留六个常用入口与两个条件入口')
+  assert.equal(buttons.length, 9, '商城说明并入后保留七个常用入口与两个条件入口')
   for (const button of buttons) assert.match(button, /<image[^>]*src="\/assets\/profile\/[^" ]+-white\.png"/)
   for (const [action, icon] of [['coupons', 'ticket-percent'], ['security', 'shield-check'], ['contact', 'headset']]) {
     const button = buttons.find(item => item.includes(`bindtap="${action}"`))
@@ -76,9 +76,11 @@ test('等级长名称允许换行，不撑开个人信息区', () => {
   assert.match(css,/\.profile-page \.profile-header\.level-8 \{ background:linear-gradient/);
 })
 
-test('协议入口收拢为商城说明二级菜单，游客仍可查看且保留六类说明', () => {
+test('商城说明并入常用服务，游客仍可查看且保留六类二级说明', () => {
   const view=readFileSync(new URL('../pages/profile/index.wxml',import.meta.url),'utf8');
-  assert.match(view,/<button class="legal-entry" bindtap="legal"[^>]*><text>商城说明<\/text>/);
+  const service=view.split('<view class="service-grid">')[1].split('</view>\n    <button')[0];
+  assert.match(service,/<button class="service-tile" bindtap="legal"[^>]*>[\s\S]*?<text>商城说明<\/text><\/button>/);
+  assert.doesNotMatch(view,/class="legal-entry"/);
   assert.doesNotMatch(view,/用户协议 · 隐私政策 · 商城资质/);
   const h=loadProfile({token:''}); h.page.legal();
   assert.deepEqual(h.navigations,['/pages/legal/index']);

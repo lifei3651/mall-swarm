@@ -53,6 +53,7 @@
       <button class="service-tile" bindtap="messages" aria-label="查看消息与提醒" hover-class="row-pressed"><view class="tile-icon tone-orange"><image src="/assets/profile/bell-white.png" mode="aspectFit" /><text wx:if="{{loggedIn && unreadCount}}" class="tile-badge">{{unreadText}}</text></view><text>消息提醒</text></button>
       <button class="service-tile" bindtap="addresses" aria-label="管理收货地址" hover-class="row-pressed"><view class="tile-icon tone-blue"><image src="/assets/profile/map-pin-white.png" mode="aspectFit" /></view><text>收货地址</text></button>
       <button class="service-tile" bindtap="coupons" aria-label="查看与领取优惠券" hover-class="row-pressed"><view class="tile-icon tone-orange"><image src="/assets/profile/ticket-percent-white.png" mode="aspectFit" aria-hidden="true" /></view><text>优惠券</text></button>
+      <button class="service-tile" bindtap="legal" aria-label="商城说明：查看用户协议、隐私政策、商城资质等" hover-class="row-pressed"><view class="tile-icon tone-blue"><image src="/assets/profile/clipboard-list-white.png" mode="aspectFit" aria-hidden="true" /></view><text>商城说明</text></button>
       <button class="service-tile" bindtap="contact" aria-label="联系客服、提交问题和查看客服工单" hover-class="row-pressed"><view class="tile-icon tone-green"><image src="/assets/profile/headset-white.png" mode="aspectFit" /></view><text>联系客服</text></button>
       <button wx:if="{{loggedIn}}" class="service-tile" bindtap="security" hover-class="row-pressed"><view class="tile-icon tone-blue"><image src="/assets/profile/shield-check-white.png" mode="aspectFit" aria-hidden="true" /></view><text>账号安全</text></button>
       <button wx:if="{{loggedIn && capabilities.canInvite}}" class="service-tile invite-tile" open-type="{{shareReady ? 'share' : ''}}" disabled="{{!shareReady || loginVisible}}" aria-label="{{shareReady ? '分享商城邀请好友' : '正在核对邀请资格'}}" hover-class="row-pressed"><view class="tile-icon tone-orange"><image src="/assets/profile/user-round-plus-white.png" mode="aspectFit" /></view><text>邀请好友</text></button>
@@ -61,7 +62,6 @@
     <button wx:if="{{loggedIn && canOpenStudio}}" class="share-retry" bindtap="studio">主播工作台</button>
     <button wx:if="{{loggedIn && shareError}}" class="share-retry" bindtap="retryShare">邀请服务暂不可用，点击重试</button>
   </view>
-  <button class="legal-entry" bindtap="legal" hover-class="row-pressed" aria-label="商城说明：查看用户协议、隐私政策、商城资质等"><text>商城说明</text><image src="/assets/profile/chevron-right.png" mode="aspectFit" aria-hidden="true" /></button>
   <button class="legal-link" bindtap="checkUpdate">检查版本更新</button>
   <button wx:if="{{loggedIn}}" class="logout" bindtap="logout" hover-class="logout-pressed">退出登录</button>
 </view>

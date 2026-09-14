@@ -1,0 +1,16 @@
+{
+  "kind": "isolated native simulator, synthetic fixtures, not real account/channel acceptance",
+  "records": [
+    {
+      "name": "profile",
+      "path": "pages/profile/index",
+      "actual": "pages/profile/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "profile.png",
+        "profile-bottom.png"
+      ]
+    }
+  ]
+}
