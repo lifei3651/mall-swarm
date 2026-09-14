@@ -41,6 +41,14 @@ test('提现金额用原生 text 组件，账号昵称主次操作位于输入�
   assert.match(account, /form-type="submit"[^>]*>保存昵称/)
 })
 
+test('提现资格提示只保留统一主操作，不显示无效客服或手动刷新按钮', () => {
+  const withdraw = source('pages/withdraw/index.wxml')
+  const requirement = withdraw.match(/<view wx:if="\{\{blockReason\}\}" class="card requirement">([\s\S]*?)<\/view>/)?.[1] || ''
+  assert.match(requirement, /class="primary-button" bindtap="security">前往支付安全<\/button>/)
+  assert.doesNotMatch(requirement, /已完成，刷新状态|open-type="contact"|联系商城客服|secondary-button/)
+  assert.equal((requirement.match(/<button\b/g) || []).length, 1)
+})
+
 test('首页和分类已售罄提示覆盖图片居中显示并提高字号', () => {
   const home = source('pages/home/index.wxss')
   const category = source('pages/category/index.wxss')

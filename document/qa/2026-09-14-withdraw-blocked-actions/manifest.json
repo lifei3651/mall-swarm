@@ -1,0 +1,15 @@
+{
+  "kind": "isolated native simulator, synthetic fixtures, not real account/channel acceptance",
+  "records": [
+    {
+      "name": "withdraw-blocked",
+      "path": "pages/withdraw/index",
+      "actual": "pages/withdraw/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "withdraw-blocked.png"
+      ]
+    }
+  ]
+}
