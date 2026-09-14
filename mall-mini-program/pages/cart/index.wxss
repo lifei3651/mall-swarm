@@ -15,7 +15,7 @@
 .counter button.is-minimum { opacity: .4; }
 .counter text { width: 62rpx; text-align: center; }
 .cart-item-actions { display: flex; justify-content: flex-end; margin-top: 16rpx; }
-.cart-item-actions .remove { flex: none; width: auto; min-width: 112rpx; min-height: 72rpx; margin: 0; padding: 0 24rpx; border: 1rpx solid var(--line); border-radius: 999rpx; background: var(--paper); color: var(--muted); font-size: 24rpx; line-height: 70rpx; }
+.cart-item-actions .remove { flex: none; width: auto; min-width: 112rpx; min-height: 72rpx; margin: 0; padding: 0 24rpx; border: 1rpx solid #e3e7ed; border-radius: 999rpx; background: #f1f3f6; color: var(--muted); font-size: 24rpx; line-height: 70rpx; }
 .cart-footer { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; display: flex; align-items: center; justify-content: space-between; padding: 18rpx 24rpx calc(18rpx + env(safe-area-inset-bottom)); background: var(--paper); box-shadow: 0 -8rpx 30rpx rgba(20,30,50,.08); }
 .select-all, .select-all label { display: flex; align-items: center; min-height: 72rpx; color: #4f5866; font-size: 25rpx; }
 .select-all > text { margin-left: 10rpx; }
@@ -30,7 +30,7 @@
 .cart-heading-title { font-size: 17px; font-weight: 600; line-height: 24px; white-space: nowrap; color: #000; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
 .cart-heading-count { display: block; margin: 6rpx 0 0; font-size: 24rpx; line-height: 34rpx; color: var(--muted); overflow-wrap: anywhere; }
 .cart-header-actions { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: 12rpx; }
-.cart-header-actions button { flex: none; width: 100rpx; min-width: 100rpx; margin: 0; padding: 0 12rpx; min-height: 72rpx; line-height: 72rpx; font-size: 26rpx; white-space: nowrap; color: var(--ink); background: var(--paper); border: 1rpx solid var(--line); border-radius: 999rpx; }
+.cart-header-actions button { flex: none; width: 100rpx; min-width: 100rpx; margin: 0; padding: 0 12rpx; min-height: 72rpx; line-height: 72rpx; font-size: 26rpx; white-space: nowrap; color: var(--ink); background: #f1f3f6; border: 1rpx solid #e3e7ed; border-radius: 999rpx; }
 .cart-list { background: var(--paper); border-radius: 24rpx; overflow: hidden; }
 .cart-row { margin: 0; padding: 24rpx 18rpx; border: 0; border-bottom: 1rpx solid var(--line); border-radius: 0; box-shadow: none; }
 .merchant-line { color: var(--muted); font-size: 22rpx; }
@@ -42,6 +42,6 @@
 .cart-footer { gap: 12rpx; flex-wrap: wrap; }
 .cart-footer .cart-total { margin: 0; }
 .cart-footer button { width: auto; min-width: 156rpx; padding: 20rpx 16rpx; border-radius: 999rpx; font-size: 26rpx; }
-.cart-footer .delete-selected { color: var(--brand); border: 1rpx solid var(--brand); background: var(--paper); }
+.cart-footer .delete-selected { color: var(--brand); border: 1rpx solid var(--brand); background: var(--brand-soft); }
 .counter button { width: 56rpx; height: 64rpx; min-height: 64rpx; line-height: 64rpx; }
 .counter text { width: auto; min-width: 56rpx; max-width: 168rpx; overflow-wrap: anywhere; }

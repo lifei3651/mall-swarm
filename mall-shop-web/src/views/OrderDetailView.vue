@@ -339,7 +339,6 @@
           <button v-if="canApplyAfterSale" type="button" @click="startLogisticsAfterSale">物流异常 / 拒收</button>
         </div>
         <div class="inline-actions">
-          <RouterLink class="btn secondary" :to="serviceTicketLink">联系客服</RouterLink>
           <button v-if="canApplyAfterSale && !applyingAfterSale" class="btn secondary" @click="startAfterSale">申请售后</button>
           <RouterLink v-if="Number(detail.pendingReviewCount || 0) > 0" class="btn secondary" :to="pendingReviewLink">去评价</RouterLink>
           <button v-if="order.status === 0" class="btn secondary" :disabled="acting" @click="requestOrderConfirmation('cancel-order')">取消订单</button>
@@ -516,17 +515,6 @@ const pendingReviewLink = computed(() => ({
 const afterSales = computed(() => detail.value.afterSales || [])
 const hasActiveAfterSale = computed(() => afterSales.value
   .some((item) => [0, 4, 5, 6, 7, 8].includes(Number(item.status))))
-const serviceTicketLink = computed(() => {
-  const sale = afterSales.value[0]
-  return {
-    path: '/support',
-    query: {
-      create: '1',
-      orderId: order.value?.id,
-      ...(sale ? { type: 'AFTER_SALE_DISPUTE', afterSaleId: sale.id, subject: '订单售后处理咨询' } : { type: 'CONSULTATION', subject: '订单问题咨询' }),
-    },
-  }
-})
 const proofFilenames = (sale) => {
   try {
     const parsed = JSON.parse(sale?.proofImages || '[]')
@@ -1155,12 +1143,12 @@ onBeforeUnmount(() => {
 .delivery-address-row div { display: grid; gap: 5px; min-width: 0; }
 .delivery-address-row strong { color: var(--ink); font-size: 13px; }
 .delivery-address-row span { color: #7a838d; font-size: 12px; line-height: 1.55; }
-.copy-btn { padding: 4px 9px; color: var(--brand-primary, #e7193f); background: #fff; border: 1px solid var(--brand-primary-soft, #f8ccd5); border-radius: 999px; font-size: 11px; cursor: pointer; }
+.copy-btn { padding: 4px 9px; color: var(--brand-primary, #e7193f); background: var(--brand-primary-soft, #fff1f4); border: 1px solid var(--brand-primary-soft, #f8ccd5); border-radius: 999px; font-size: 11px; cursor: pointer; }
 .auto-receive-tip { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 12px; color: #6d4b12; background: #fff9e9; border: 1px solid #f2dfb2; border-radius: 12px; }
 .auto-receive-tip > div { display: grid; gap: 4px; min-width: 0; }
 .auto-receive-tip strong { color: #6a4308; font-size: 13px; }
 .auto-receive-tip span { color: #8b6a34; font-size: 11px; line-height: 1.5; }
-.auto-receive-tip button { flex: 0 0 auto; padding: 6px 10px; color: #9a4d0b; background: #fff; border: 1px solid #e8c98e; border-radius: 999px; font-size: 11px; font-weight: 800; cursor: pointer; }
+.auto-receive-tip button { flex: 0 0 auto; padding: 6px 10px; color: #9a4d0b; background: #fff3d8; border: 1px solid #e8c98e; border-radius: 999px; font-size: 11px; font-weight: 800; cursor: pointer; }
 
 .order-info-card { margin-top: 14px; border-top: 1px solid #edf0f2; border-bottom: 1px solid #edf0f2; }
 .order-info-toggle { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 9px; width: 100%; min-height: 52px; padding: 0; color: var(--ink); background: transparent; border: 0; text-align: left; }

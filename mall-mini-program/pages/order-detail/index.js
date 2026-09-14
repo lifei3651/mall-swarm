@@ -259,10 +259,6 @@ Page({
     if (productId && orderItemId) wx.navigateTo({ url: `/pages/order-review/index?id=${productId}&orderItemId=${orderItemId}` })
     else feedback.notice('评价入口已变化，请刷新订单后重试')
   },
-  support(event) {
-    const id = identifier(event.currentTarget.dataset.id)
-    if (this.data.rows.some(item => item.order.id === id)) wx.navigateTo({ url: `/pages/support/index?create=1&orderId=${id}` })
-  },
   cancelOrder(event) {
     const orderId = identifier(event.currentTarget.dataset.id)
     const current = this.operationCurrent()

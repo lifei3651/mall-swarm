@@ -417,8 +417,8 @@ main {
 }
 
 .btn.secondary {
-  background: white;
-  border-color: var(--line);
+  background: #f1f3f6;
+  border-color: #e3e7ed;
   color: var(--ink);
 }
 

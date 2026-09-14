@@ -513,7 +513,7 @@ onBeforeUnmount(() => { closeGuarantees(); window.clearTimeout(toastTimer) })
 .detail-state { min-height:70vh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:30px; text-align:center; background:#fff; color:#6b7280; }
 .detail-state h2,.detail-state p { margin:0; }
 .state-actions { display:flex; gap:10px; margin-top:8px; }
-.plain-button,.primary-button { min-height:42px; padding:0 18px; border-radius:22px; border:1px solid #d1d5db; background:#fff; }
+.plain-button,.primary-button { min-height:42px; padding:0 18px; border-radius:22px; border:1px solid #e3e7ed; background:#f1f3f6; }
 .primary-button { color:#fff; background:var(--brand-primary); border-color:var(--brand-primary); }
 .loading-ring { width:36px; height:36px; border:3px solid #e5e7eb; border-top-color:var(--brand-primary); border-radius:50%; animation:spin .8s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
@@ -605,7 +605,7 @@ onBeforeUnmount(() => { closeGuarantees(); window.clearTimeout(toastTimer) })
 .review-heading h2 small { color:#8a9099; font-size:13px; font-weight:500; }
 .review-heading p { margin:7px 0 0; color:#8a9099; font-size:12px; }
 .review-heading p strong { color:var(--brand-primary); }
-.write-review-button { min-width:82px; height:36px; color:var(--brand-primary); background:#fff; border:1px solid var(--brand-primary); border-radius:18px; }
+.write-review-button { min-width:82px; height:36px; color:var(--brand-primary); background:var(--brand-primary-soft,#fff1f4); border:1px solid var(--brand-primary); border-radius:18px; }
 
 .rating-distribution { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 20px; padding: 18px 0 10px; border-bottom: 1px solid #f0f1f2; }
 .dist-score-block { display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -640,7 +640,7 @@ onBeforeUnmount(() => { closeGuarantees(); window.clearTimeout(toastTimer) })
 .reply-heading { display:flex; align-items:center; flex-wrap:wrap; gap:8px; font-size:13px; color:#555e6d; }
 .reply-heading time { color:#9299a5; font-size:11px; }
 .review-reply p { margin:6px 0 0; font-size:13px; line-height:1.65; color:#555e6d; white-space:pre-wrap; overflow-wrap:anywhere; }
-.load-more { width:100%; height:42px; margin-top:14px; color:#6b7280; background:#fff; border:0; }
+.load-more { width:100%; height:42px; margin-top:14px; color:#6b7280; background:#f1f3f6; border:0; border-radius:10px; }
 
 .mobile-buy-bar { position:fixed; z-index:36; left:50%; bottom:0; width:min(760px,100%); height:70px; display:grid; grid-template-columns:58px 58px minmax(100px,1fr) minmax(100px,1fr); gap:7px; padding:8px 10px; transform:translateX(-50%); background:#fff; border-top:1px solid #e5e7eb; box-shadow:0 -4px 18px rgba(0,0,0,.07); }
 .mini-action { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; color:#555; font-size:11px; }

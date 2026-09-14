@@ -97,7 +97,6 @@
         <view wx:if="{{item.order.couponClaimId}}"><text>优惠券 · {{item.order.couponTitle}}</text><text>−¥{{item.order.discountAmount}}</text></view>
       </view>
       <view class="detail-actions">
-        <button class="secondary-button" data-id="{{item.order.id}}" bindtap="support">客服工单</button>
         <button wx:if="{{item.pendingReviewProductId && item.pendingReviewOrderItemId}}" class="primary-button" data-id="{{item.order.id}}" bindtap="review">去评价</button>
         <button wx:if="{{item.order.status === 0}}" class="secondary-button cancel-order"
           data-id="{{item.order.id}}" disabled="{{actingId !== null}}" bindtap="cancelOrder">取消订单</button>
@@ -107,7 +106,6 @@
           bindtap="receive">确认收货</button>
       </view>
     </view>
-    <button class="secondary-button all-orders" bindtap="openOrders">查看全部订单</button>
   </block>
   <include src="../../templates/balance-payment.wxml" />
 </view>

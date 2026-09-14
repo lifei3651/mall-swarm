@@ -44,7 +44,6 @@
 .cancel-after-sale { width: 190rpx; margin: 18rpx 0 0 auto; font-size: 23rpx; }
 .detail-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 14rpx; margin-top: 24rpx; }
 .detail-actions button { width: 220rpx; margin: 0; font-size: 25rpx; }
-.all-orders { margin-top: 24rpx; font-size: 26rpx; }
 .detail-page .sale-action { width: 100%; margin-top: 16rpx; font-size: 25rpx; }
 .shipment-form { margin-top: 18rpx; padding: 20rpx; background: var(--paper); border-radius: 18rpx; }
 .form-label { display: block; margin: 18rpx 0 12rpx; color: var(--ink); font-size: 24rpx; }
@@ -59,7 +58,6 @@
 .detail-page .copy-tracking { width:100%; justify-content:flex-end; }
 .detail-page .order-info-toggle { width:100%; margin-left:0; margin-right:0; }
 .detail-page .cancel-after-sale { width:100%; margin:18rpx 0 0; }
-.detail-page .all-orders { width:100%; margin:24rpx 0 0; border-radius:12rpx; }
 .detail-page .tracking-action { width:100%; margin:20rpx 0 0; border-radius:12rpx; }
 .detail-page .shipment-input.ui-select-row { margin-bottom:16rpx; }
 .order-info-toggle{display:flex;justify-content:space-between;width:100%;min-height:88rpx;padding:0;background:transparent;font-size:27rpx;color:#667085;align-items:center;line-height:1.5;margin:0}.order-info-toggle::after{border:0}.package-label{display:block;font-size:27rpx;font-weight:600;margin-bottom:14rpx}.sale-item{display:flex;justify-content:space-between;gap:18rpx;margin:12rpx 0;font-size:24rpx;color:#667085}.sale-item text:first-child{min-width:0;overflow-wrap:anywhere}
