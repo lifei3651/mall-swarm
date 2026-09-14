@@ -62,7 +62,8 @@
 .sort-up.direction-active { border-bottom-color:var(--accent); }
 .sort-down.direction-active { border-top-color:var(--accent); }
 .category-side { width: 142rpx; }
-.side-item { min-height: 112rpx; padding: 34rpx 12rpx; white-space: normal; line-height: 40rpx; font-size: 26rpx; }
+.side-item { height: 112rpx; padding: 0 10rpx; display: flex; align-items: center; justify-content: center; overflow: hidden; white-space: normal; line-height: 34rpx; font-size: 26rpx; }
+.side-item-label { display: -webkit-box; max-width: 100%; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; text-overflow: ellipsis; }
 .category-products { padding: 0 18rpx; background: var(--paper); }
 .result-head { gap: 16rpx; padding: 20rpx 0 4rpx; }
 .result-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

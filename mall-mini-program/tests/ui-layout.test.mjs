@@ -58,3 +58,13 @@ test('分类列表结束提示紧跟商品收口，不复用大间距空状态',
   const rule = category.match(/\.category-list-end\s*\{([^}]*)\}/)?.[1] || ''
   assert.doesNotMatch(rule, /(?:^|;)\s*(?:min-height|height|flex)\s*:/)
 })
+
+test('首页和分类左栏的长分类名称最多显示两行且不撑乱布局', () => {
+  const home = source('pages/home/index.wxss')
+  const categoryView = source('pages/category/index.wxml')
+  const category = source('pages/category/index.wxss')
+  assert.match(home, /\.category-item > text\s*\{[^}]*min-height: 64rpx;[^}]*-webkit-line-clamp: 2;/)
+  assert.match(categoryView, /class="side-item-label">\{\{item\.categoryName\}\}<\/text>/)
+  assert.match(category, /\.side-item\s*\{[^}]*height: 112rpx;[^}]*align-items: center;[^}]*justify-content: center;/)
+  assert.match(category, /\.side-item-label\s*\{[^}]*-webkit-line-clamp: 2;[^}]*overflow-wrap: anywhere;/)
+})

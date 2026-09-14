@@ -395,7 +395,12 @@
 
     <el-dialog v-model="quickCategoryVisible" title="新增商品分类" width="520px" append-to-body destroy-on-close>
       <el-form :model="quickCategoryForm" label-width="86px">
-        <el-form-item label="分类名称" required><el-input v-model="quickCategoryForm.categoryName" maxlength="64" show-word-limit placeholder="例如：护理套装" /></el-form-item>
+        <el-form-item label="分类名称" required>
+          <div class="quick-category-name-field">
+            <el-input v-model="quickCategoryForm.categoryName" maxlength="64" show-word-limit placeholder="例如：护理套装" />
+            <span class="quick-help">建议使用 2–6 个字；前台最多显示两行，名称过长会自动省略。</span>
+          </div>
+        </el-form-item>
         <el-form-item label="排序"><el-input-number v-model="quickCategoryForm.sort" :min="0" :max="999999" /><span class="quick-help">数值越大越靠前</span></el-form-item>
         <el-form-item label="备注"><el-input v-model="quickCategoryForm.remark" type="textarea" :rows="3" maxlength="256" show-word-limit /></el-form-item>
       </el-form>
@@ -1133,6 +1138,8 @@ onMounted(async () => {
 .freight-region-cascader :deep(.el-tag) { max-width:100%; height:auto; min-height:24px; white-space:normal; line-height:18px; }
 .category-picker { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; width:100%; }
 .quick-help { margin-left:10px; color:#909399; font-size:12px; }
+.quick-category-name-field { width:100%; }
+.quick-category-name-field .quick-help { display:block; margin:6px 0 0; line-height:1.7; }
 .guarantee-tags { width:100%; }
 .guarantee-tags-list { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
 .guarantee-tag { cursor:pointer; transition:all .2s; display:inline-flex; align-items:center; gap:6px; }

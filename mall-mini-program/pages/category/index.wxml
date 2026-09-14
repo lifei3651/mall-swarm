@@ -6,8 +6,8 @@
   </view>
   <view class="category-body">
     <scroll-view wx:if="{{!guideEnabled || (guideTemplate === 'directory' && guide.primaryCategories && (guide.subcategories || guide.hotProducts))}}" class="category-side" scroll-y>
-      <view class="side-item {{active === '' ? 'active' : ''}}" data-name="" bindtap="selectCategory">全部商品</view>
-      <view class="side-item {{active === item.categoryName ? 'active' : ''}}" wx:for="{{categories}}" wx:key="id" data-name="{{item.categoryName}}" bindtap="selectCategory">{{item.categoryName}}</view>
+      <view class="side-item {{active === '' ? 'active' : ''}}" data-name="" bindtap="selectCategory"><text class="side-item-label">全部商品</text></view>
+      <view class="side-item {{active === item.categoryName ? 'active' : ''}}" wx:for="{{categories}}" wx:key="id" data-name="{{item.categoryName}}" bindtap="selectCategory"><text class="side-item-label">{{item.categoryName}}</text></view>
     </scroll-view>
     <scroll-view class="category-products" scroll-y scroll-top="{{productScrollTop}}" bindscroll="onProductScroll" bindscrolltolower="loadMore" lower-threshold="120">
       <block wx:if="{{guideEnabled && !searchedKeyword && !active && !browsingAll}}">

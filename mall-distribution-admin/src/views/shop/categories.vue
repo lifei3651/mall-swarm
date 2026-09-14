@@ -53,7 +53,12 @@
 
     <el-dialog v-model="dialogVisible" :title="form.id ? '编辑商品分类' : '新增商品分类'" width="560px" destroy-on-close>
       <el-form :model="form" label-width="92px">
-        <el-form-item label="分类名称" required><el-input v-model="form.categoryName" maxlength="64" show-word-limit placeholder="例如：护理套装" /></el-form-item>
+        <el-form-item label="分类名称" required>
+          <div class="category-name-field">
+            <el-input v-model="form.categoryName" maxlength="64" show-word-limit placeholder="例如：护理套装" />
+            <span class="field-help">建议使用 2–6 个字；首页和分类左栏最多显示两行，名称过长会自动省略。</span>
+          </div>
+        </el-form-item>
         <el-form-item label="分类图标">
           <div class="icon-uploader-wrap">
             <el-upload action="#" :show-file-list="false" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" :http-request="uploadIcon">
@@ -242,6 +247,8 @@ onMounted(loadCategories)
 .icon-load-error small { color:#909399; font-size:11px; }
 .icon-uploader { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:#909399; border:1px dashed #c0ccda; cursor:pointer; font-size:12px; }
 .field-help { max-width:260px; color:#909399; font-size:12px; line-height:1.7; }
+.category-name-field { width:100%; }
+.category-name-field .field-help { display:block; max-width:none; margin-top:6px; }
 .inline-help { margin-left:10px; color:#909399; font-size:12px; }
 .order-actions { display:flex; align-items:center; justify-content:center; gap:8px; white-space:nowrap; }.order-actions .el-button+.el-button { margin-left:0; }.order-actions>span { min-width:48px; color:#606266; font-size:12px; }
 @media(max-width:760px){.page-head,.filter-card{align-items:flex-start;flex-direction:column}.category-count{margin-left:0}}

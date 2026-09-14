@@ -730,7 +730,7 @@ onUnmounted(() => { disposed = true; productRequestId++; campaignRequestId++; pe
 .category-circle { width: 72px; height: 72px; display: grid; place-items: center; overflow: hidden; color: #667085; background: #f3f4f6; border: 2px solid transparent; border-radius: 50%; box-shadow: 0 4px 14px rgba(38,45,51,.07); font-size: 24px; font-weight: 800; transition: transform .2s ease,border-color .2s ease; }
 .category-circle img { width: 100%; height: 100%; display: block; object-fit: cover; }
 .home-category-item:hover .category-circle,.home-category-item.active .category-circle { border-color: var(--brand-primary); transform: translateY(-2px); }
-.home-category-item strong { max-width: 100%; overflow: hidden; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.home-category-item strong { min-height: 38px; max-width: 100%; display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 13px; font-weight: 600; line-height: 19px; overflow-wrap: anywhere; text-overflow: ellipsis; }
 .home-category-item.active strong { color: var(--brand-primary); font-weight: 800; }
 .home-page.layout-product-focus .home-product-section { margin-top: 16px; }
 .home-page.layout-product-focus .home-product-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px; }
@@ -802,7 +802,7 @@ onUnmounted(() => { disposed = true; productRequestId++; campaignRequestId++; pe
   .home-category-item { flex-basis:25%; }
   .home-category-item { gap: 6px; padding: 0 1px; }
   .category-circle { width: 58px; height: 58px; border-width: 1.5px; font-size: 19px; }
-  .home-category-item strong { font-size: 11px; }
+  .home-category-item strong { min-height: 32px; font-size: 11px; line-height: 16px; }
   .home-product-section { width: calc(100% - 16px); scroll-margin-top: 70px; }
   .home-product-heading { min-height: 55px; padding: 5px 2px 9px; }
   .home-product-heading h1 { font-size: 18px; }
@@ -822,7 +822,7 @@ onUnmounted(() => { disposed = true; productRequestId++; campaignRequestId++; pe
   .home-page.layout-campaign-feed .category-grid::-webkit-scrollbar { display:none; }
   .home-page.layout-campaign-feed .home-category-item { flex:0 0 auto; padding:6px 0 5px; }
   .home-page.layout-campaign-feed .category-circle { display:none; }
-  .home-page.layout-campaign-feed .home-category-item strong { overflow:visible; font-size:14px; }
+  .home-page.layout-campaign-feed .home-category-item strong { min-height: 0; max-width: 96px; display: block; overflow: hidden; font-size:14px; line-height: 20px; text-overflow: ellipsis; white-space: nowrap; }
   .home-page.layout-campaign-feed .home-category-item.active strong { color:var(--brand-primary); }
   .home-page.layout-campaign-feed .home-banner-section { width:calc(100% - 16px); }
   .home-page.layout-campaign-feed .banner-carousel { border-radius:16px; }

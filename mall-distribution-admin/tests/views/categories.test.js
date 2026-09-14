@@ -39,4 +39,12 @@ describe('商品分类删除', () => {
     expect(source).toContain('normalizeMediaUrl')
     expect(source).toContain('分类图标仅支持 JPG、PNG、WEBP 或 GIF 格式')
   })
+
+  it('明确分类名称的数据上限与前台长名称展示规则', async () => {
+    const source = await readFile(viewPath, 'utf8')
+
+    expect(source).toContain('maxlength="64"')
+    expect(source).toContain('建议使用 2–6 个字')
+    expect(source).toContain('首页和分类左栏最多显示两行')
+  })
 })

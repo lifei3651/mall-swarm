@@ -1317,3 +1317,13 @@ test('verified SMS login for an unregistered phone gives a direct registration p
   assert.match(login, /registerForm\.value\.phone = normalizeMainlandPhone\(phone\)/)
   assert.match(login, /手机号\.\*\(\?:尚未注册\|未注册\)/)
 })
+
+test('home and category rails clamp long category names without changing the stored value', async () => {
+  const [home, category] = await Promise.all([
+    readView('HomeView.vue'),
+    readView('CategoryView.vue'),
+  ])
+  assert.match(home, /\.home-category-item strong \{[^}]*-webkit-line-clamp: 2;[^}]*overflow-wrap: anywhere;/)
+  assert.match(home, /\.layout-campaign-feed \.home-category-item strong \{[^}]*max-width: 96px;[^}]*text-overflow: ellipsis;[^}]*white-space: nowrap;/)
+  assert.match(category, /\.category-item > span \{[^}]*-webkit-line-clamp: 2;[^}]*overflow-wrap: anywhere;/)
+})

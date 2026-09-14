@@ -510,6 +510,16 @@ onBeforeUnmount(() => {
   transition: color .18s ease, background .18s ease;
 }
 
+.category-item > span {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+}
+
 .category-item::before {
   content: '';
   position: absolute;

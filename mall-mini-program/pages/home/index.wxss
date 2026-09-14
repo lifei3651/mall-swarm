@@ -20,7 +20,7 @@
 .category-icon image, .category-placeholder { width: 100%; height: 100%; }
 .category-placeholder { display: flex; align-items: center; justify-content: center; color: var(--accent); font-size: 30rpx; font-weight: 750; }
 .category-icon image { position: absolute; inset: 0; }
-.category-item > text { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.category-item > text { min-height: 64rpx; display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 32rpx; overflow-wrap: anywhere; text-overflow: ellipsis; }
 .notice { display: flex; align-items: center; margin-top: 22rpx; padding: 22rpx 24rpx; }
 .notice-label { padding-right: 18rpx; color: var(--accent); font-weight: 700; }
 .notice-text { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
