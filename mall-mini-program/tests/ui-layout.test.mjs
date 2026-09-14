@@ -48,3 +48,13 @@ test('首页和分类已售罄提示覆盖图片居中显示并提高字号', ()
   assert.match(category, /\.sold-out-label\s*\{[^}]*inset: 0;[^}]*align-items: center;[^}]*justify-content: center;[^}]*font-size: 28rpx;/)
   assert.doesNotMatch(category, /\.sold-out-label\s*\{[^}]*bottom: 0;/)
 })
+
+test('分类列表结束提示紧跟商品收口，不复用大间距空状态', () => {
+  const view = source('pages/category/index.wxml')
+  const category = source('pages/category/index.wxss')
+  assert.match(view, /class="category-list-end">已显示全部商品 · 共 \{\{total\}\} 件/)
+  assert.doesNotMatch(view, /class="empty">已显示全部商品/)
+  assert.match(category, /\.category-list-end\s*\{[^}]*padding: 24rpx 18rpx 32rpx;[^}]*text-align: center;/)
+  const rule = category.match(/\.category-list-end\s*\{([^}]*)\}/)?.[1] || ''
+  assert.doesNotMatch(rule, /(?:^|;)\s*(?:min-height|height|flex)\s*:/)
+})

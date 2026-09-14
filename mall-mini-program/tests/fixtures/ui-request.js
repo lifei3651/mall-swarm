@@ -25,7 +25,7 @@ module.exports = async ({url,method='GET',params={},data={}}) => {
   if (url === '/shop/home') return {brandName:'灵启商城 · 本地验收',logoUrl:'/assets/lingqi-logo-mark.png',themeColor:'#e7193f',productTemplate:'retail-red',brandCultureEnabled:true,
     displayConfig:{layoutTemplate:qa.layout || 'standard',categoryGuideTemplate:qa.guide || 'directory',liveSquareEnabled:true,newArrivalsEnabled:true,homeModules:['notice','category','products'].map((type,index)=>({type,sort:index+1,enabled:true})),extraConfigJson:qa.modules?JSON.stringify({categoryGuideModules:qa.modules}):'{}'},
     categoryList:categories,banners:[],notices:[{id:'61',title:'本地界面验收，不发送真实交易'}],newArrivals:[products[0]],liveRooms:[room]}
-  if (url === '/shop/products') { const list = qa.empty ? [] : products.filter(p=>(!params.keyword || p.productName.includes(params.keyword))&&(!params.categoryName||p.categoryName===params.categoryName)); return {list,total:list.length,totalPage:1,pageNum:1} }
+  if (url === '/shop/products') { const filtered = qa.empty ? [] : products.filter(p=>(!params.keyword || p.productName.includes(params.keyword))&&(!params.categoryName||p.categoryName===params.categoryName)); const list = qa.limit ? filtered.slice(0, Number(qa.limit)) : filtered; return {list,total:list.length,totalPage:1,pageNum:1} }
   if (url === '/shop/categories') return categories
   if (url === '/shop/coupons' || url === '/shop/coupons/mine') return {list:qa.empty?[]:[{id:'71',claimId:'72',title:'本地商品优惠券',amount:10,minimumAmount:100,status:'AVAILABLE',usable:true,scopeLabel:'指定商品可用',businessTypes:['NORMAL'],startsAt:'2026-09-01',endsAt:'2099-01-01'}],totalPage:1}
   if (/^\/shop\/coupons\/\d+\/products$/.test(url)) return {list:products,totalPage:1}

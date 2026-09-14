@@ -24,7 +24,7 @@ const cases = [
   ['account-login','account-login?mode=password'], ['sms-login','account-login?mode=sms'], ['register','account-login?mode=register'], ['reset','account-login?mode=reset'], ['login','login'],
   ...['standard','product-focus','category-focus','campaign-feed'].map(layout=>['layout-'+layout,'home',{layout}]),
   ...['directory','showcase','scenario'].map(guide=>['guide-'+guide,'category',{layout:'category-focus',guide}]),
-  ['category-empty','category',{empty:true}], ['orders-empty','orders',{empty:true}], ['home-error','home',{failure:'/shop/home'}],
+  ['category-compact','category',{limit:3}], ['category-empty','category',{empty:true}], ['orders-empty','orders',{empty:true}], ['home-error','home',{failure:'/shop/home'}],
   ['order-rejected','order-detail?id=13201',{saleStatus:2}], ['order-return','order-detail?id=13201',{saleStatus:4}],
   ['studio-no-role','live-studio',{noAnchor:true}], ['profile-guest','profile',{guest:true}],
   ['change-phone','account-settings?section=phone'], ['change-password','account-security?mode=password'],
@@ -61,8 +61,8 @@ try {
       await page.waitFor(300)
       await mini.screenshot({path:resolve(output,name+'-after-notice.png')})
     }
-    if (['product','order-detail','order-rejected','order-return','after-sale','register','reset','checkout','home','guide-directory','guide-showcase','guide-scenario'].includes(name)) {
-      if (name.startsWith('guide-')) await (await page.$('.category-products')).scrollTo(0,99999)
+    if (['product','order-detail','order-rejected','order-return','after-sale','register','reset','checkout','home','category','category-compact','guide-directory','guide-showcase','guide-scenario'].includes(name)) {
+      if (name === 'category' || name === 'category-compact' || name.startsWith('guide-')) await (await page.$('.category-products')).scrollTo(0,99999)
       else await mini.pageScrollTo(99999)
       await page.waitFor(200)
       await mini.screenshot({path:resolve(output,name+'-bottom.png')})

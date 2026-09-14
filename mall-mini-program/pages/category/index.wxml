@@ -70,7 +70,7 @@
         <view wx:if="{{loadingMore}}" class="empty">正在加载更多…</view>
         <button wx:elif="{{moreError}}" class="secondary-button guide-back" bindtap="loadMore">加载失败，点击重试</button>
         <button wx:elif="{{hasMore}}" class="secondary-button guide-back" bindtap="loadMore">加载更多商品</button>
-        <view wx:elif="{{products.length}}" class="empty">已显示全部商品 · 共 {{total}} 件</view>
+        <view wx:elif="{{products.length}}" class="category-list-end">已显示全部商品 · 共 {{total}} 件</view>
       </block>
       </block>
       <view wx:elif="{{loading}}" class="empty">正在加载…</view>

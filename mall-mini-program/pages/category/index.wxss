@@ -70,6 +70,7 @@
 .sort-tabs .sort-tab { flex: 1; width: 0; min-width: 0; margin: 0; padding: 22rpx 2rpx; line-height: 42rpx; border-radius: 0; background: transparent; color: var(--muted); font-size: 24rpx; white-space: nowrap; }
 .sort-tabs .selected { color: var(--accent); font-weight: 650; }
 .category-product-list { padding-bottom: 16rpx; }
+.category-list-end { padding: 24rpx 18rpx 32rpx; color: var(--muted); font-size: 24rpx; line-height: 36rpx; text-align: center; }
 .category-product-card { min-height: 254rpx; gap: 16rpx; margin: 0; padding: 22rpx 0; border: 0; border-bottom: 1rpx solid var(--line); border-radius: 0; }
 .category-product-media { position: relative; align-self: flex-start; width: 214rpx; height: 214rpx; margin: 0; border: 1rpx solid var(--line); border-radius: 16rpx; }
 .category-product-card .product-copy { padding: 0; }
