@@ -31,3 +31,10 @@ test('高频商城页的独立次级操作不再使用白色卡片底', () => {
     assert.match(sources, new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^}]*background:(?:\\s*)?(?:#f1f3f6|var\\(--brand-soft\\))`))
   }
 })
+
+test('消息加载更多与退出登录遵循统一操作层级', () => {
+  const messages = read('pages/messages/index.wxss')
+  const profile = read('pages/profile/index.wxss')
+  assert.match(messages, /\.message-page \.more[^}]*background:#f1f3f6/)
+  assert.match(profile, /\.profile-page \.logout[^}]*background:\s*#fde8ed/)
+})

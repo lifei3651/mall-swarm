@@ -92,7 +92,7 @@ nav em{position:absolute;top:0;right:2px;min-width:12px;padding:1px 3px;border-r
 .message-card time{color:#667085;font-size:11px}
 .message-card>span{color:#98a2b3;font-size:22px}
 .empty{padding:60px 16px;text-align:center;color:#667085}
-.more{display:block;margin:16px auto;padding:10px 18px;border-radius:6px;background:#fff}
+.more{display:block;margin:16px auto;padding:10px 18px;color:var(--ink);background:#f1f3f6;border:1px solid #e3e7ed;border-radius:8px}
 .error{color:#b42318}
 .sms-preference{display:flex;gap:16px;align-items:center;margin-top:12px;padding:18px;background:#fff;border-radius:6px}
 .sms-preference>div{flex:1;min-width:0}.sms-preference span{display:none}

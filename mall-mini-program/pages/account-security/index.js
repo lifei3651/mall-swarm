@@ -14,6 +14,23 @@ function passwordError(value, username, phone) {
   if ((username && normalized.includes(username.toLowerCase())) || (phone && (normalized.includes(phone) || normalized.endsWith(phone.slice(-6))))) return '登录密码不能包含登录账号或手机号'
   return ''
 }
+function cancelled(error) { return /cancel/i.test(String(error && error.errMsg || error && error.message || '')) }
+function chooseAlbumAvatar() {
+  if (typeof wx.chooseMedia !== 'function') return Promise.reject(new Error('当前微信版本不支持头像选择，请升级微信后重试'))
+  return new Promise((resolve, reject) => wx.chooseMedia({ count: 1, mediaType: ['image'], sourceType: ['album'], sizeType: ['compressed'],
+    success(result) {
+      const path = result && result.tempFiles && result.tempFiles[0] && result.tempFiles[0].tempFilePath
+      if (path) resolve(path)
+      else reject(new Error('没有读取到所选图片，请重新选择'))
+    }, fail: reject
+  }))
+}
+function cropAvatar(path) {
+  if (typeof wx.cropImage !== 'function') return Promise.reject(new Error('当前微信版本不支持头像裁剪，请升级微信后重试'))
+  return new Promise((resolve, reject) => wx.cropImage({ src: path, cropScale: '1:1',
+    success(result) { result && result.tempFilePath ? resolve(result.tempFilePath) : reject(new Error('头像裁剪未完成，请重新选择')) }, fail: reject
+  }))
+}
 
 Page({
   contact() { wx.navigateTo({ url: '/pages/legal/index?type=contact', fail: () => feedback.notice('客服页面暂时无法打开，请返回“我的”重试') }) },
@@ -70,26 +87,33 @@ Page({
     try { await privacy.requireConsent(); if (!this.disposed) feedback.update(this, { useWechatNickname: true, error: '' }) }
     catch (error) { if (!this.disposed) feedback.update(this, { error: error.message, useWechatNickname: false }) }
   },
-  async chooseAvatar(event) {
-    if (this.data.action || !this.data.member || !event.detail.avatarUrl) return
+  async chooseAvatar() {
+    if (this.data.action || !this.data.member) return
     const token = session.getToken()
-    const path = event.detail.avatarUrl
+    let selectedPath = ''
+    let croppedPath = ''
     this.requestVersion = (this.requestVersion || 0) + 1
     feedback.update(this, { action: 'avatar', loading: false, error: '', message: '' })
     try {
       await privacy.requireConsent()
       if (this.disposed || token !== session.getToken()) return
-      const avatarUrl = await avatar.upload(path)
+      selectedPath = await chooseAlbumAvatar()
+      if (this.disposed || this.hidden || token !== session.getToken()) return
+      croppedPath = await cropAvatar(selectedPath)
+      if (this.disposed || this.hidden || token !== session.getToken()) return
+      const avatarUrl = await avatar.upload(croppedPath)
       if (this.disposed || token !== session.getToken()) return
       const member = { ...this.data.member, avatarUrl }
       wx.setStorageSync('mall_mini_member', member)
-      feedback.update(this, { member })
-      const avatarSrc = await avatar.load(avatarUrl, true)
-      if (this.disposed || this.hidden || token !== session.getToken()) { avatar.release(avatarSrc); return }
-      avatar.release(this.data.avatarSrc)
-      feedback.update(this, { member, avatarSrc, message: '头像已更新' })
-    } catch (error) { if (!this.disposed && token === session.getToken()) feedback.update(this, { error: error.message || '头像更新失败' }) }
-    finally { avatar.release(path); if (!this.disposed) feedback.update(this, { action: '' }) }
+      feedback.update(this, { member, action: '' })
+      if (!this.disposed && !this.hidden && token === session.getToken()) wx.navigateBack({ delta: 1 })
+    } catch (error) {
+      if (!cancelled(error) && !this.disposed && token === session.getToken()) feedback.update(this, { error: error.message || '头像更新失败' })
+    } finally {
+      avatar.release(selectedPath)
+      if (croppedPath !== selectedPath) avatar.release(croppedPath)
+      if (!this.disposed) feedback.update(this, { action: '' })
+    }
   },
   async saveNickname(event) {
     if (this.data.action || this.data.loading || !this.data.member) return

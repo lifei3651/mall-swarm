@@ -289,7 +289,7 @@ onBeforeUnmount(() => {
 .coupon-icon { color:#c55432; background:#fff1e9; }
 .service-icon { color:#3867d6; background:#eef3ff; }
 .profile-error { margin:14px 0 0; padding:12px 14px; color:#b42318; background:#fff1f0; border-radius:10px; }
-.logout-button { width:100%; min-height:46px; color:#b42318; background:#fff; border:0; border-radius:14px; }
+.logout-button { width:100%; min-height:46px; color:#fff; background:#c92d45; border:1px solid #b72339; border-radius:14px; font-weight:700; }
 @media (max-width:560px) {
   .profile-page { min-height:100vh; min-height:100dvh; display:flex; flex-direction:column; padding-top:12px; }
   .profile-actions { margin-top:auto; }

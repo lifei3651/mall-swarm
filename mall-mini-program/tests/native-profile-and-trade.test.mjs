@@ -18,10 +18,12 @@ function environment({ respond = () => ({}), consent = true, realFeedback = fals
     requirePrivacyAuthorize: ({ success, fail }) => consent ? success({}) : fail({ errMsg: 'deny' }),
     onNeedPrivacyAuthorization: (callback) => { privacyListener = callback },
     chooseAddress: ({ success }) => success({ userName: '测试收货人', telNumber: '13800000000', provinceName: '湖南省', cityName: '长沙市', countyName: '岳麓区', detailInfo: '测试街1号' }),
+    chooseMedia: ({ success }) => success({ tempFiles: [{ tempFilePath: 'wxfile://chosen-avatar' }] }),
+    cropImage: ({ success }) => success({ tempFilePath: 'wxfile://cropped-avatar' }),
     uploadFile: (options) => { uploads.push(options); options.success({ statusCode: 200, data: JSON.stringify({ code: 200, data: '/api/shop/media/member-avatar/12/avatar.jpg' }) }) },
     downloadFile: (options) => { downloads.push(options); options.success({ statusCode: 200, tempFilePath: 'wxfile://tmp-avatar' }) },
     getFileSystemManager: () => ({ unlink: ({ filePath }) => removed.push(filePath) }),
-    navigateTo: ({ url }) => routes.push(url), showToast() {}, showModal: ({ success }) => success({ confirm: true }), setNavigationBarTitle() {},
+    navigateTo: ({ url }) => routes.push(url), navigateBack: ({ delta }) => routes.push(`back:${delta}`), showToast() {}, showModal: ({ success }) => success({ confirm: true }), setNavigationBarTitle() {},
     ...overrides
   }
   function load(relative, parent = root) {
@@ -337,21 +339,38 @@ test('拒绝便捷昵称授权保持普通输入；拒绝头像授权不上传',
   const e = environment({ consent: false }), page = e.page('account-security')
   page.setData({ loading: false, member: { id: '12' } })
   await page.enableWechatNickname(); assert.equal(page.data.useWechatNickname, false)
-  await page.chooseAvatar({ detail: { avatarUrl: 'wxfile://chosen' } })
+  await page.chooseAvatar()
   assert.equal(e.uploads.length, 0)
 })
 
-test('头像走同源HTTPS认证上传和私有读取，无凭据URL或密码存储', async () => {
+test('取消相册或裁剪安静停留，不上传、不返回、不显示错误', async () => {
+  for (const wx of [
+    { chooseMedia: ({ fail }) => fail({ errMsg: 'chooseMedia:fail cancel' }) },
+    { cropImage: ({ fail }) => fail({ errMsg: 'cropImage:fail cancel' }) }
+  ]) {
+    const e = environment({ wx }), page = e.page('account-security')
+    page.setData({ loading: false, member: { id: '12', nickname: '测试用户' } })
+    await page.chooseAvatar()
+    assert.equal(e.uploads.length, 0)
+    assert.equal(e.routes.length, 0)
+    assert.equal(page.data.error, '')
+    assert.equal(page.data.action, '')
+  }
+})
+
+test('头像从相册裁剪后走同源HTTPS上传，成功直接返回且不重复下载', async () => {
   const e = environment(), page = e.page('account-security')
   page.setData({ loading: false, member: { id: '12', nickname: '测试用户' } })
-  await page.chooseAvatar({ detail: { avatarUrl: 'wxfile://chosen' } })
-  assert.equal(e.uploads.length, 1); assert.equal(e.downloads.length, 1)
+  await page.chooseAvatar()
+  assert.equal(e.uploads.length, 1); assert.equal(e.downloads.length, 0)
+  assert.equal(e.uploads[0].filePath, 'wxfile://cropped-avatar')
   assert.equal(e.uploads[0].header.Authorization, 'Bearer owner-session')
-  assert.equal(e.downloads[0].header.Authorization, 'Bearer owner-session')
-  for (const request of [...e.uploads, ...e.downloads]) { assert.match(request.url, /^https:\/\/lingqimall.com\/api\/shop\/media\/member-avatar/); assert.doesNotMatch(request.url, /owner-session|token=/) }
-  assert.equal(page.data.avatarSrc, 'wxfile://tmp-avatar')
+  assert.match(e.uploads[0].url, /^https:\/\/lingqimall.com\/api\/shop\/media\/member-avatar/)
+  assert.doesNotMatch(e.uploads[0].url, /owner-session|token=/)
+  assert.equal(e.routes.at(-1), 'back:1')
   assert.deepEqual(Object.keys(e.storage.get('mall_mini_member')).sort(), ['avatarUrl', 'id', 'nickname'])
-  page.onHide(); assert.ok(e.removed.includes('wxfile://tmp-avatar')); assert.equal(page.data.avatarSrc, '/assets/profile/user-round.png')
+  assert.ok(e.removed.includes('wxfile://chosen-avatar'))
+  assert.ok(e.removed.includes('wxfile://cropped-avatar'))
 })
 
 test('私有头像拒绝外域地址，下载期间换号丢弃并清理临时文件', async () => {

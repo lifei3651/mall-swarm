@@ -177,3 +177,16 @@ test('密码控件隐藏显示，验证码与密码不置于路由/存储，不�
   assert.match(code, /\/pages\/legal\/index\?type=contact/)
   assert.match(view, /需要帮助或旧手机号已停用/)
 })
+
+test('资料页头像只从相册进入裁剪，上传后直接返回且不弹成功提示', () => {
+  const code = readFileSync(new URL('../pages/account-security/index.js', import.meta.url), 'utf8')
+  const view = readFileSync(new URL('../pages/account-security/index.wxml', import.meta.url), 'utf8')
+  assert.match(view, /bindtap="chooseAvatar"/)
+  assert.match(view, /从相册选择/)
+  assert.doesNotMatch(view, /open-type="chooseAvatar"|bindchooseavatar/)
+  assert.match(code, /sourceType:\s*\['album'\]/)
+  assert.doesNotMatch(code, /sourceType:\s*\[[^\]]*camera/)
+  assert.match(code, /wx\.cropImage\(\{ src: path, cropScale: '1:1'/)
+  assert.match(code, /wx\.navigateBack\(\{ delta: 1 \}\)/)
+  assert.doesNotMatch(code, /头像已更新|feedback\.success\([^)]*头像/)
+})

@@ -23,3 +23,12 @@ test('H5商品与优惠券的独立次级操作不再使用纯白按钮底', () 
   assert.match(product, /\.load-more[^}]*background:#f1f3f6/)
   assert.match(coupons, /\.coupons-page \.coupon-pager button[^}]*background:#f1f3f6/)
 })
+
+test('H5消息加载更多与退出登录不再使用白色操作按钮', () => {
+  const messages = read('src/views/MessageCenterView.vue')
+  const profile = read('src/views/ProfileView.vue')
+  const publicProfile = read('src/surfaces/public/PublicProfileView.vue')
+  assert.match(messages, /\.more\{[^}]*background:#f1f3f6/)
+  assert.match(profile, /\.logout-button[^}]*color:#fff;[^}]*background:#c92d45/)
+  assert.match(publicProfile, /\.logout-button[^}]*color:#fff;[^}]*background:#c92d45/)
+})

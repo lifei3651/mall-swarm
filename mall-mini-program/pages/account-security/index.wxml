@@ -3,7 +3,7 @@
   <view wx:elif="{{!member}}" class="empty"><text>{{error || '请先登录后管理账号'}}</text><button class="secondary-button" bindtap="onShow">重新加载</button></view>
   <block wx:else>
     <view wx:if="{{mode === 'profile'}}" class="panel">
-      <button class="avatar-picker" open-type="chooseAvatar" bindchooseavatar="chooseAvatar" disabled="{{action !== ''}}" aria-label="选择并更新账号头像"><text class="avatar-label">头像</text><image src="{{avatarSrc}}" mode="aspectFill" /><text class="avatar-action">{{action === 'avatar' ? '更新中' : '更换'}}</text><image class="avatar-arrow" src="/assets/profile/chevron-right.png" mode="aspectFit" /></button>
+      <button class="avatar-picker" bindtap="chooseAvatar" disabled="{{action !== ''}}" aria-label="从相册选择、裁剪并更新账号头像"><text class="avatar-label">头像</text><image src="{{avatarSrc}}" mode="aspectFill" /><text class="avatar-action">{{action === 'avatar' ? '上传中' : '从相册选择'}}</text><image class="avatar-arrow" src="/assets/profile/chevron-right.png" mode="aspectFit" /></button>
       <button class="account-row account-link" bindtap="editNickname" disabled="{{action !== ''}}"><text>昵称</text><view class="row-value"><text>{{member.nickname || '去设置'}}</text><image class="entry-arrow" src="/assets/profile/chevron-right.png" /></view></button>
       <view class="account-row"><text>商城账号</text><text>{{canSetupAccount ? '尚未设置' : member.username}}</text></view>
       <button class="account-row account-link" bindtap="changePhone" disabled="{{action !== ''}}"><text>手机号</text><view class="row-value"><text>{{maskedPhone}}</text><image class="entry-arrow" src="/assets/profile/chevron-right.png" /></view></button>
