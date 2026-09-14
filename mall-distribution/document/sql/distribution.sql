@@ -383,7 +383,7 @@ DROP TABLE IF EXISTS `dms_withdraw_record`;
 CREATE TABLE `dms_withdraw_record` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '记录ID',
   `withdraw_no` varchar(64) NOT NULL COMMENT '提现单号',
-  `agent_id` bigint NOT NULL COMMENT '代理ID',
+  `agent_id` bigint DEFAULT NULL COMMENT '推广身份ID；普通商城余额持有人提现时为空',
   `user_id` bigint NOT NULL COMMENT '用户ID',
   `withdraw_amount` decimal(10,2) NOT NULL COMMENT '提现金额',
   `withdraw_type` tinyint NOT NULL DEFAULT 1 COMMENT '提现方式：1-银行卡 2-微信 3-支付宝',
@@ -401,6 +401,7 @@ CREATE TABLE `dms_withdraw_record` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_withdraw_no` (`withdraw_no`),
   KEY `idx_agent_id` (`agent_id`),
+  KEY `idx_withdraw_user_time` (`user_id`,`create_time`),
   KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='提现记录表';
 
@@ -711,6 +712,7 @@ CREATE TABLE `dms_member_asset_account` (
   `asset_code` varchar(64) NOT NULL COMMENT '资产编码',
   `asset_name` varchar(128) NOT NULL COMMENT '资产名称',
   `balance` decimal(14,2) NOT NULL DEFAULT 0 COMMENT '可用余额',
+  `withdrawable_balance` decimal(14,2) NOT NULL DEFAULT 0 COMMENT '可提现余额',
   `frozen_balance` decimal(14,2) NOT NULL DEFAULT 0 COMMENT '冻结余额',
   `total_in` decimal(14,2) NOT NULL DEFAULT 0 COMMENT '累计收入',
   `total_out` decimal(14,2) NOT NULL DEFAULT 0 COMMENT '累计支出',

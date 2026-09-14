@@ -51,12 +51,13 @@ Page({
         imageUrl: format.mediaUrl(item.imageUrl),
         imageFailed: false
       }))
-      home.categoryList = (home.categoryList || []).map((item) => ({
+      home.categoryList = (home.categoryList || []).slice(0, 8).map((item) => ({
         ...item,
         iconUrl: format.mediaUrl(item.iconUrl),
         iconFailed: false,
         initial: String(item.categoryName || '商').slice(0, 1)
       }))
+      home.categoryCount = home.categoryList.length
       home.newArrivals = (home.newArrivals || []).map(categoryProduct.card)
       home.liveRooms = (home.liveRooms || []).filter((item) => item && item.room && format.identifier(item.room.id)).map((item) => ({ ...item, key: format.identifier(item.room.id), room: { ...item.room, coverUrl: format.mediaUrl(item.room.coverUrl) } }))
       const decoration = display.home(home.displayConfig)

@@ -31,6 +31,8 @@ public interface DmsWithdrawRecordDao {
      */
     List<DmsWithdrawRecord> selectByAgentId(@Param("agentId") Long agentId);
 
+    List<DmsWithdrawRecord> selectByUserId(@Param("userId") Long userId);
+
     /**
      * 根据状态查询提现记录
      */
@@ -53,9 +55,16 @@ public interface DmsWithdrawRecordDao {
                                              @Param("dayStart") LocalDateTime dayStart,
                                              @Param("monthStart") LocalDateTime monthStart);
 
+    WithdrawalLimitUsageVO selectLimitUsageByUserId(@Param("userId") Long userId,
+                                                      @Param("dayStart") LocalDateTime dayStart,
+                                                      @Param("monthStart") LocalDateTime monthStart);
+
     /** 最近一次已由官方渠道核验成功的同渠道收款快照，用于识别首次提现和支付宝换号。 */
     DmsWithdrawRecord selectLatestSuccessfulByAgentAndType(@Param("agentId") Long agentId,
                                                             @Param("withdrawType") Integer withdrawType);
+
+    DmsWithdrawRecord selectLatestSuccessfulByUserAndType(@Param("userId") Long userId,
+                                                           @Param("withdrawType") Integer withdrawType);
 
     /**
      * 插入记录

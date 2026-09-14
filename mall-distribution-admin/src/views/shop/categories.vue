@@ -19,6 +19,7 @@
     </div>
 
     <el-alert v-if="!keywordValidation.valid" :title="keywordValidation.message" type="warning" :closable="false" show-icon class="search-feedback" />
+    <el-alert v-else title="首页最多展示8个分类，推荐配置4个或8个；5至7个会自动换行并居中。首页顺序与下表一致，可直接上移或下移。" type="info" :closable="false" show-icon class="search-feedback" />
 
     <el-table :data="filteredRows" v-loading="loading" :empty-text="categoryEmptyText" border>
       <el-table-column label="分类信息" min-width="260">
@@ -30,7 +31,12 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column prop="sort" label="展示排序" width="100" align="center" />
+      <el-table-column label="首页展示" width="120" align="center">
+        <template #default="{ row }"><el-switch :model-value="Number(row.showOnHome ?? 1)" :active-value="1" :inactive-value="0" active-text="展示" inactive-text="隐藏" @change="(value) => toggleHome(row, value)" /></template>
+      </el-table-column>
+      <el-table-column label="首页顺序" width="178" align="center">
+        <template #default="{ row }"><div class="order-actions"><span>{{ homeRank(row) }}</span><el-button link type="primary" :disabled="!canMove(row, -1)" @click="moveHome(row, -1)">上移</el-button><el-button link type="primary" :disabled="!canMove(row, 1)" @click="moveHome(row, 1)">下移</el-button></div></template>
+      </el-table-column>
       <el-table-column label="启用状态" width="110" align="center">
         <template #default="{ row }"><el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '已启用' : '已停用' }}</el-tag></template>
       </el-table-column>
@@ -59,7 +65,8 @@
             <div class="field-help">支持 JPG、PNG、WEBP、GIF，单张不超过5MB；会显示在商城分类页。</div>
           </div>
         </el-form-item>
-        <el-form-item label="排序"><el-input-number v-model="form.sort" :min="0" :max="999999" /><span class="inline-help">数值越大越靠前</span></el-form-item>
+        <el-form-item label="首页展示"><el-switch v-model="form.showOnHome" :active-value="1" :inactive-value="0" active-text="展示" inactive-text="隐藏" /></el-form-item>
+        <el-form-item label="排序"><el-input-number v-model="form.sort" :min="0" :max="999999" /><span class="inline-help">数值越大越靠前，也可保存后在列表中移动</span></el-form-item>
         <el-form-item label="状态"><el-switch v-model="form.status" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="停用" /></el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark" type="textarea" :rows="3" maxlength="256" show-word-limit /></el-form-item>
       </el-form>
@@ -73,7 +80,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Picture, Plus, Search } from '@element-plus/icons-vue'
-import { createShopCategory, deleteShopCategory, listShopCategories, updateShopCategory, updateShopCategoryStatus, uploadShopImage } from '@/api/shop'
+import { createShopCategory, deleteShopCategory, listShopCategories, updateCategoryShowOnHome, updateShopCategory, updateShopCategoryStatus, uploadShopImage } from '@/api/shop'
 import { validateSearchKeyword } from '@/utils/searchFeedback'
 import { formatDateTimeCell } from '@/utils/dateTime'
 
@@ -83,7 +90,7 @@ const rows = ref([])
 const keyword = ref('')
 const statusFilter = ref('all')
 const dialogVisible = ref(false)
-const defaultForm = () => ({ id: null, tenantId: 1, categoryName: '', iconUrl: '', sort: 0, status: 1, remark: '' })
+const defaultForm = () => ({ id: null, tenantId: 1, categoryName: '', iconUrl: '', sort: 0, status: 1, showOnHome: 1, remark: '' })
 const form = ref(defaultForm())
 const keywordValidation = computed(() => validateSearchKeyword(keyword.value, { label: '分类关键词' }))
 const categoryEmptyText = computed(() => {
@@ -168,6 +175,36 @@ const toggleStatus = async (row) => {
   await loadCategories()
 }
 
+const homeRows = computed(() => rows.value.filter((row) => Number(row.status) === 1 && Number(row.showOnHome ?? 1) === 1))
+const homeRank = (row) => {
+  const index = homeRows.value.findIndex((item) => item.id === row.id)
+  if (index < 0) return '—'
+  return index < 8 ? `第${index + 1}位` : '超出首页'
+}
+const canMove = (row, offset) => {
+  const index = homeRows.value.findIndex((item) => item.id === row.id)
+  return index >= 0 && index + offset >= 0 && index + offset < homeRows.value.length
+}
+const toggleHome = async (row, value) => {
+  await updateCategoryShowOnHome(row.id, value)
+  ElMessage.success(value === 1 ? '已加入首页分类' : '已从首页隐藏')
+  await loadCategories()
+}
+const moveHome = async (row, offset) => {
+  const current = homeRows.value.findIndex((item) => item.id === row.id)
+  const target = current + offset
+  if (current < 0 || target < 0 || target >= homeRows.value.length) return
+  const reordered = [...homeRows.value]
+  const [moved] = reordered.splice(current, 1)
+  reordered.splice(target, 0, moved)
+  await Promise.all(reordered.map((item, index) => updateShopCategory(item.id, {
+    ...item,
+    sort: (reordered.length - index) * 10,
+  })))
+  ElMessage.success(`“${row.categoryName}”已${offset < 0 ? '上' : '下'}移`)
+  await loadCategories()
+}
+
 const removeCategory = async (row) => {
   try {
     await ElMessageBox.confirm(
@@ -206,5 +243,6 @@ onMounted(loadCategories)
 .icon-uploader { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:#909399; border:1px dashed #c0ccda; cursor:pointer; font-size:12px; }
 .field-help { max-width:260px; color:#909399; font-size:12px; line-height:1.7; }
 .inline-help { margin-left:10px; color:#909399; font-size:12px; }
+.order-actions { display:flex; align-items:center; justify-content:center; gap:8px; white-space:nowrap; }.order-actions .el-button+.el-button { margin-left:0; }.order-actions>span { min-width:48px; color:#606266; font-size:12px; }
 @media(max-width:760px){.page-head,.filter-card{align-items:flex-start;flex-direction:column}.category-count{margin-left:0}}
 </style>

@@ -247,6 +247,7 @@ const businessMenus = [
       { title: '余额流水', path: '/account/flows', permission: 'finance:read' },
       { title: '提现审核', path: '/withdraw/audit', permission: 'finance:manage' },
       { title: '提现记录', path: '/withdraw/list', permission: 'finance:read' },
+      { title: '余额与提现规则', path: '/withdraw/settings', permission: 'finance:manage' },
       { title: '财务总览', path: '/audit/finance', permission: 'finance:read' },
       { title: '商户货款与总账', path: '/audit/merchant-finance', permission: 'finance:read' },
     ],

@@ -46,6 +46,7 @@
           AND status = 1
           AND (show_on_home IS NULL OR show_on_home = 1)
         ORDER BY sort_order DESC, id DESC
+        LIMIT 8
     </select>
 
     <select id="countByTenantId" resultType="int">

@@ -54,6 +54,13 @@
         ORDER BY create_time DESC
     </select>
 
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_withdraw_record
+        WHERE user_id = #{userId}
+        ORDER BY create_time DESC
+    </select>
+
     <select id="selectByStatus" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_withdraw_record
@@ -95,10 +102,28 @@
           AND create_time &gt;= #{monthStart}
     </select>
 
+    <select id="selectLimitUsageByUserId" resultType="com.macro.mall.distribution.vo.WithdrawalLimitUsageVO">
+        SELECT COALESCE(SUM(CASE WHEN create_time &gt;= #{dayStart} THEN 1 ELSE 0 END), 0) AS dailyCount,
+               COUNT(*) AS monthlyCount
+        FROM dms_withdraw_record
+        WHERE user_id = #{userId}
+          AND create_time &gt;= #{monthStart}
+    </select>
+
     <select id="selectLatestSuccessfulByAgentAndType" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_withdraw_record
         WHERE agent_id = #{agentId}
+          AND withdraw_type = #{withdrawType}
+          AND status = 3
+        ORDER BY pay_time DESC, id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectLatestSuccessfulByUserAndType" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_withdraw_record
+        WHERE user_id = #{userId}
           AND withdraw_type = #{withdrawType}
           AND status = 3
         ORDER BY pay_time DESC, id DESC

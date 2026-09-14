@@ -14,8 +14,8 @@
 .banner-fallback { width: 100%; height: 100%; }
 .banner-fallback image { width: 104rpx; height: 104rpx; }
 .categories { margin: 24rpx -24rpx 0; width: auto; }
-.category-row { display: flex; padding: 4rpx 24rpx 10rpx; }
-.category-item { flex: none; width: 136rpx; margin-right: 10rpx; text-align: center; font-size: 24rpx; color: #3d4655; }
+.category-row { display: flex; flex-wrap: wrap; justify-content: center; row-gap: 24rpx; padding: 4rpx 12rpx 18rpx; }
+.category-item { flex: 0 0 25%; width: 25%; min-width: 0; margin: 0; padding: 0 6rpx; text-align: center; font-size: 24rpx; color: #3d4655; }
 .category-icon { position: relative; display: flex; align-items: center; justify-content: center; width: 96rpx; height: 96rpx; margin: 0 auto 12rpx; border-radius: 30rpx; background: var(--brand-soft); overflow: hidden; }
 .category-icon image, .category-placeholder { width: 100%; height: 100%; }
 .category-placeholder { display: flex; align-items: center; justify-content: center; color: var(--accent); font-size: 30rpx; font-weight: 750; }
@@ -54,8 +54,8 @@
 .trust-strip { display: flex; flex-wrap: wrap; justify-content: space-around; gap: 14rpx; margin-top: 24rpx; padding: 24rpx; color: var(--muted); font-size: 22rpx; }
 .layout-product-focus .banner { height: 240rpx; }
 .layout-product-focus .product-grid { gap: 12rpx; }
-.layout-category-focus .category-row { display: flex; flex-wrap: wrap; row-gap: 24rpx; }
-.layout-category-focus .category-item { width: calc(25% - 10rpx); }
+.layout-category-focus .category-row { display: flex; flex-wrap: wrap; justify-content: center; row-gap: 24rpx; }
+.layout-category-focus .category-item { width: 25%; }
 .layout-campaign-feed .banner { height: 400rpx; }
 .layout-campaign-feed .product-grid { grid-template-columns: minmax(0, 1fr); gap: 20rpx; }
 .layout-campaign-feed .product-card { min-height: 0; }
@@ -78,8 +78,8 @@
 .brand-head .search-box .clear-keyword { width: 64rpx; margin: 0; background: transparent; color: var(--muted); font-size: 38rpx; font-weight: 400; }
 .home-page .culture-link { flex: none; width: auto; padding: 0 8rpx; white-space: nowrap; font-size: 22rpx; line-height: 1.4; }
 .categories { width: 100%; margin: 20rpx 0 0; background: var(--paper); border-radius: 20rpx; }
-.category-row, .layout-category-focus .category-row { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 20rpx 8rpx; padding: 24rpx 12rpx; }
-.category-item, .layout-category-focus .category-item { width: auto; margin: 0; font-size: 24rpx; }
+.category-row, .layout-category-focus .category-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 20rpx 0; padding: 24rpx 12rpx; }
+.category-item, .layout-category-focus .category-item { flex: 0 0 25%; width: 25%; min-width: 0; margin: 0; padding: 0 4rpx; font-size: 24rpx; }
 .category-icon { width: 58px; height: 58px; border-radius: 50%; }
 .notice { padding: 12rpx 20rpx; border: 0; border-radius: 18rpx; background: #fffbea; box-shadow: none; }
 .notice-swiper { flex: 1; min-width: 0; height: 56rpx; }

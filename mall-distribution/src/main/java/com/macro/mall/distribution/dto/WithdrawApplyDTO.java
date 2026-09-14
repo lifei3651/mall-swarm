@@ -15,6 +15,9 @@ public class WithdrawApplyDTO implements Serializable {
     /** 代理ID */
     private Long agentId;
 
+    /** 商城用户ID；没有推广身份但规则允许余额持有人提现时使用。 */
+    private Long userId;
+
     /** 提现金额 */
     private BigDecimal withdrawAmount;
 

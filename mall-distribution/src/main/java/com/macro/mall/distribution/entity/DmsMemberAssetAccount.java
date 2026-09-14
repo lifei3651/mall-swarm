@@ -26,6 +26,9 @@ public class DmsMemberAssetAccount implements Serializable {
 
     private BigDecimal balance;
 
+    /** 余额中允许申请提现的部分。 */
+    private BigDecimal withdrawableBalance;
+
     private BigDecimal frozenBalance;
 
     private BigDecimal totalIn;

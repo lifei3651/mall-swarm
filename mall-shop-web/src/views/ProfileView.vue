@@ -3,11 +3,12 @@
       <div class="profile-content">
         <section class="identity-card" :class="identityInfo.className">
         <div class="identity-top">
-          <div class="identity-avatar"><component :is="identityInfo.icon" :size="34" /></div>
+          <div class="identity-avatar"><img v-if="profile.member?.avatarUrl" :src="profile.member.avatarUrl" alt="" @error="profile.member.avatarUrl = ''" /><component v-else :is="identityInfo.icon" :size="34" /></div>
           <div class="identity-main">
+            <span class="identity-eyebrow">我的会员身份</span>
             <div class="identity-name-row">
               <h2>{{ profileLoading ? '正在加载...' : memberName }}</h2>
-              <span v-if="activeAgent" class="rank-badge"><component :is="identityInfo.icon" :size="15" />{{ identityInfo.name }}</span>
+              <span class="rank-badge"><component :is="identityInfo.icon" :size="15" />{{ profileLoading ? '身份核对中' : identityInfo.name }}</span>
             </div>
             <p>账号：{{ profileLoading ? '-' : accountName }}</p>
           </div>
@@ -136,7 +137,7 @@ let realtimeRefreshTimer = null
 let disposed = false
 
 const rankMap = {
-  0: { name: '', icon: UserRound, className: 'rank-0' },
+  0: { name: '购物账号', icon: UserRound, className: 'rank-0' },
   1: { name: '会员', icon: BadgeCheck, className: 'rank-1' },
   2: { name: 'VIP会员', icon: Gem, className: 'rank-2' },
   3: { name: '店铺', icon: Store, className: 'rank-3' },
@@ -251,7 +252,9 @@ onBeforeUnmount(() => {
 .rank-8 { background:linear-gradient(135deg,#202734,#090c12); }
 .identity-top { position:relative; z-index:1; display:grid; grid-template-columns:54px minmax(0,1fr) auto; align-items:center; gap:13px; }
 .identity-avatar { width:54px; height:54px; display:grid; place-items:center; border:1px solid rgba(255,255,255,.38); border-radius:50%; background:rgba(255,255,255,.16); backdrop-filter:blur(8px); }
+.identity-avatar img { width:100%; height:100%; object-fit:cover; border-radius:inherit; }
 .identity-main { min-width:0; }
+.identity-eyebrow { display:block; margin-bottom:3px; color:rgba(255,255,255,.63); font-size:9px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; }
 .identity-name-row { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
 .identity-name-row h2 { margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:20px; }
 .rank-badge { display:inline-flex; align-items:center; gap:4px; padding:4px 8px; color:#fff; background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.24); border-radius:999px; font-size:11px; font-weight:800; }

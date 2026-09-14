@@ -12,6 +12,8 @@ public class ShopWalletSummaryVO implements Serializable {
 
     private BigDecimal balance;
 
+    private BigDecimal withdrawableBalance;
+
     private Boolean hasPaymentPassword;
 
     private Boolean paymentPasswordLocked;
@@ -29,4 +31,10 @@ public class ShopWalletSummaryVO implements Serializable {
 
     /** 单笔超过该金额时进入一次人工审核；首次提现和支付宝换号也会人工审核。 */
     private BigDecimal withdrawalManualReviewThreshold;
+
+    private Boolean withdrawalServiceEnabled;
+    private String withdrawalDisabledReason;
+    private Boolean balanceHolderWithdrawalEnabled;
+    private Boolean bankCardWithdrawalEnabled;
+    private Boolean offlinePayoutEnabled;
 }

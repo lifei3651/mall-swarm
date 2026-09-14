@@ -18,6 +18,7 @@ import com.macro.mall.distribution.service.MemberAssetService;
 import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.MemberMessageService;
 import com.macro.mall.distribution.service.MemberMessageEvent;
+import com.macro.mall.distribution.service.WithdrawalSettingsService;
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.vo.BalanceFlowVO;
 import com.macro.mall.distribution.vo.BalanceFlowSummaryVO;
@@ -25,6 +26,7 @@ import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.util.MemberAccountUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -42,6 +44,9 @@ public class MemberAssetServiceImpl implements MemberAssetService {
     private final DmsShopMemberDao shopMemberDao;
     private final OperationLogService operationLogService;
     private final MemberMessageService memberMessageService;
+
+    @Autowired(required = false)
+    private WithdrawalSettingsService withdrawalSettingsService;
 
     @Override
     public List<DmsMemberAssetAccount> listAccounts(Long agentId, Long userId) {
@@ -124,7 +129,7 @@ public class MemberAssetServiceImpl implements MemberAssetService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsMemberAssetFlow withdraw(AssetChangeDTO dto) {
-        DmsMemberAssetFlow flow = changeOut(dto, 5);
+        DmsMemberAssetFlow flow = changeWithdrawableOut(dto);
         operationLogService.log("ASSET", "WITHDRAW", "MEMBER_ASSET", String.valueOf(flow.getAgentId()),
                 null, flow.toString(), assetDescription("提现扣减", flow, dto.getRemark()));
         return flow;
@@ -197,12 +202,36 @@ public class MemberAssetServiceImpl implements MemberAssetService {
         ensureAccount(owner);
         if (owner.agent != null) {
             accountDao.addBalance(owner.agent.getId(), BalanceAsset.CODE, dto.getAmount());
+            if (isWithdrawableIncome(dto)) accountDao.addWithdrawableBalance(owner.agent.getId(), BalanceAsset.CODE, dto.getAmount());
         } else {
             accountDao.addBalanceByUserId(owner.member.getUserId(), BalanceAsset.CODE, dto.getAmount());
+            if (isWithdrawableIncome(dto)) accountDao.addWithdrawableBalanceByUserId(owner.member.getUserId(), BalanceAsset.CODE, dto.getAmount());
         }
         DmsMemberAssetAccount account = currentAccount(owner);
         return insertFlow(owner, changeType, dto.getAmount(), account.getBalance().subtract(dto.getAmount()), account.getBalance(),
                 dto.getBizType(), dto.getBizId(), dto.getRequestId(), dto.getRemark(), null);
+    }
+
+    private DmsMemberAssetFlow changeWithdrawableOut(AssetChangeDTO dto) {
+        if (dto.getAmount() == null || dto.getAmount().compareTo(BigDecimal.ZERO) <= 0) Asserts.fail("资产数量必须大于0");
+        WalletOwner owner = resolveWalletOwner(dto.getAgentId(), dto.getUserId());
+        DmsMemberAssetFlow existing = findExistingFlow(dto, 5, owner);
+        if (existing != null) return existing;
+        ensureAccount(owner);
+        int updated = accountDao.subtractWithdrawableBalance(owner.agent == null ? null : owner.agent.getId(),
+                owner.agent == null ? owner.member.getUserId() : owner.agent.getUserId(), BalanceAsset.CODE, dto.getAmount());
+        if (updated <= 0) Asserts.fail("可提现余额不足");
+        DmsMemberAssetAccount account = currentAccount(owner);
+        return insertFlow(owner, 5, dto.getAmount(), account.getBalance().add(dto.getAmount()), account.getBalance(),
+                dto.getBizType(), dto.getBizId(), dto.getRequestId(), dto.getRemark(), null);
+    }
+
+    private boolean isWithdrawableIncome(AssetChangeDTO dto) {
+        String bizType = dto == null || dto.getBizType() == null ? "" : dto.getBizType().trim().toUpperCase();
+        if ("COMMISSION_SETTLE".equals(bizType) || "WITHDRAW_REJECT_REFUND".equals(bizType)) return true;
+        return "MANUAL_MEMBER_ADJUST".equals(bizType)
+                && withdrawalSettingsService != null
+                && withdrawalSettingsService.manualBalanceWithdrawable();
     }
 
     private DmsMemberAssetFlow changeOut(AssetChangeDTO dto, Integer changeType) {
@@ -304,6 +333,7 @@ public class MemberAssetServiceImpl implements MemberAssetService {
         account.setAssetCode(BalanceAsset.CODE);
         account.setAssetName(BalanceAsset.NAME);
         account.setBalance(BigDecimal.ZERO);
+        account.setWithdrawableBalance(BigDecimal.ZERO);
         account.setFrozenBalance(BigDecimal.ZERO);
         account.setTotalIn(BigDecimal.ZERO);
         account.setTotalOut(BigDecimal.ZERO);

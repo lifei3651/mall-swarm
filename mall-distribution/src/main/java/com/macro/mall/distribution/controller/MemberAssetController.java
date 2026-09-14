@@ -82,6 +82,7 @@ public class MemberAssetController {
     public CommonResult<DmsMemberAssetFlow> issue(@Valid @RequestBody AdminAssetChangeDTO dto) {
         validateManualChange(dto);
         adminAuthService.verifyPassword(AdminContext.get(), dto.getAdminPassword());
+        dto.setBizType("MANUAL_MEMBER_ADJUST");
         return CommonResult.success(assetService.issue(dto), "余额已增加");
     }
 

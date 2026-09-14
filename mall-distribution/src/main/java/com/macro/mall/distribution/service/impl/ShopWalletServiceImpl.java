@@ -32,6 +32,7 @@ import com.macro.mall.distribution.service.WithdrawService;
 import com.macro.mall.distribution.service.MemberMessageService;
 import com.macro.mall.distribution.service.RealNameVerificationService;
 import com.macro.mall.distribution.service.WithdrawalRiskPolicyService;
+import com.macro.mall.distribution.service.WithdrawalSettingsService;
 import com.macro.mall.distribution.service.MemberMessageEvent;
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.vo.BalanceRecipientVO;
@@ -44,6 +45,7 @@ import com.macro.mall.distribution.enums.ShopOrderStatusEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -76,6 +78,9 @@ public class ShopWalletServiceImpl implements ShopWalletService {
     private final RealNameVerificationService realNameVerificationService;
     private final WithdrawalRiskPolicyService withdrawalRiskPolicyService;
 
+    @Autowired(required = false)
+    private WithdrawalSettingsService withdrawalSettingsService;
+
     @Override
     public ShopWalletSummaryVO getSummary(DmsShopMember member) {
         DmsShopMember current = requireCurrentMember(member);
@@ -87,6 +92,8 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         }
         ShopWalletSummaryVO summary = new ShopWalletSummaryVO();
         summary.setBalance(account == null || account.getBalance() == null ? BigDecimal.ZERO : account.getBalance());
+        summary.setWithdrawableBalance(account == null ? BigDecimal.ZERO
+                : account.getWithdrawableBalance() == null ? summary.getBalance() : account.getWithdrawableBalance());
         summary.setHasPaymentPassword(hasText(current.getPayPasswordHash()));
         boolean paymentPasswordLocked = isPaymentPasswordLocked(current);
         summary.setPaymentPasswordLocked(paymentPasswordLocked);
@@ -98,6 +105,12 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         summary.setAdultVerified(realNameStatus.getAdult());
         summary.setMaskedRealName(realNameStatus.getMaskedRealName());
         summary.setWithdrawalManualReviewThreshold(withdrawalRiskPolicyService.manualReviewThreshold());
+        var withdrawalSettings = withdrawalSettingsService == null ? null : withdrawalSettingsService.current();
+        summary.setWithdrawalServiceEnabled(withdrawalSettings == null || Boolean.TRUE.equals(withdrawalSettings.getServiceEnabled()));
+        summary.setWithdrawalDisabledReason(withdrawalSettings == null ? "" : withdrawalSettings.getDisabledReason());
+        summary.setBalanceHolderWithdrawalEnabled(withdrawalSettings != null && Boolean.TRUE.equals(withdrawalSettings.getBalanceHolderEnabled()));
+        summary.setBankCardWithdrawalEnabled(withdrawalSettings != null && Boolean.TRUE.equals(withdrawalSettings.getBankCardEnabled()));
+        summary.setOfflinePayoutEnabled(withdrawalSettings != null && Boolean.TRUE.equals(withdrawalSettings.getOfflinePayoutEnabled()));
         return summary;
     }
 
@@ -264,31 +277,44 @@ public class ShopWalletServiceImpl implements ShopWalletService {
     public WithdrawRecordVO applyWithdrawal(DmsShopMember member, ShopWithdrawalApplyDTO dto) {
         DmsShopMember current = requireCurrentMember(member);
         if (dto == null) Asserts.fail("提现信息不能为空");
+        if (withdrawalSettingsService != null && !withdrawalSettingsService.serviceEnabled()) {
+            String reason = withdrawalSettingsService.current().getDisabledReason();
+            Asserts.fail(reason == null || reason.isBlank() ? "商城提现服务暂时关闭" : reason);
+        }
         var realName = realNameVerificationService.requireEligible(current, "提现");
         DmsAgent agent = agentDao.selectByUserId(current.getUserId());
-        if (agent == null || !Integer.valueOf(1).equals(agent.getStatus())) Asserts.fail("该账号尚未开通推广资格，暂不能提现");
+        boolean activeAgent = agent != null && Integer.valueOf(1).equals(agent.getStatus());
+        boolean balanceHolderAllowed = withdrawalSettingsService != null && withdrawalSettingsService.balanceHolderEnabled();
+        if (!activeAgent && !balanceHolderAllowed) Asserts.fail("当前提现规则仅支持已开通推广身份的会员");
 
         BigDecimal amount = MoneyValidationUtils.requirePositiveAmount(
                 dto.getWithdrawAmount(), "提现金额", MAX_WITHDRAW_AMOUNT);
-        withdrawService.validateWithdrawalLimits(agent.getId(), amount);
-        DmsMemberAssetAccount balanceAccount = assetAccountDao.selectByAgentIdAndAssetCode(agent.getId(), BalanceAsset.CODE);
-        BigDecimal balance = balanceAccount == null || balanceAccount.getBalance() == null ? BigDecimal.ZERO : balanceAccount.getBalance();
-        if (balance.compareTo(amount) < 0) Asserts.fail("余额不足");
-        if (dto.getWithdrawType() == null || !List.of(2, 3).contains(dto.getWithdrawType())) {
-            Asserts.fail("银行卡提现尚未接入可核验通道，请选择微信或支付宝");
-        }
+        if (activeAgent) withdrawService.validateWithdrawalLimits(agent.getId(), amount);
+        else withdrawService.validateWithdrawalLimitsForUser(current.getUserId(), amount);
+        DmsMemberAssetAccount balanceAccount = activeAgent
+                ? assetAccountDao.selectByAgentIdAndAssetCode(agent.getId(), BalanceAsset.CODE)
+                : assetAccountDao.selectByUserIdAndAssetCode(current.getUserId(), BalanceAsset.CODE);
+        BigDecimal withdrawableBalance = balanceAccount == null ? BigDecimal.ZERO
+                : balanceAccount.getWithdrawableBalance() == null
+                ? (balanceAccount.getBalance() == null ? BigDecimal.ZERO : balanceAccount.getBalance())
+                : balanceAccount.getWithdrawableBalance();
+        if (withdrawableBalance.compareTo(amount) < 0) Asserts.fail("可提现余额不足");
+        boolean bankEnabled = withdrawalSettingsService != null && withdrawalSettingsService.bankCardEnabled();
+        if (dto.getWithdrawType() == null || !List.of(1, 2, 3).contains(dto.getWithdrawType())) Asserts.fail("提现方式不正确");
+        if (Integer.valueOf(1).equals(dto.getWithdrawType()) && !bankEnabled) Asserts.fail("银行卡提现尚未在后台启用");
         String accountName = requiredText(dto.getAccountName(), "请填写收款人姓名");
         if (!accountName.equals(realName.getRealName())) Asserts.fail("收款人姓名必须与实名认证姓名一致");
-        String account = dto.getWithdrawType() == 2
-                ? "当前绑定微信账户"
-                : requiredText(dto.getBankAccount(), "请填写支付宝账号");
-        String channelName = dto.getWithdrawType() == 2 ? "微信" : "支付宝";
+        String account = dto.getWithdrawType() == 2 ? "当前绑定微信账户"
+                : requiredText(dto.getBankAccount(), Integer.valueOf(1).equals(dto.getWithdrawType()) ? "请填写银行卡号" : "请填写支付宝账号");
+        String channelName = dto.getWithdrawType() == 2 ? "微信"
+                : Integer.valueOf(1).equals(dto.getWithdrawType()) ? requiredText(dto.getBankName(), "请填写开户银行") : "支付宝";
 
         verifyPaymentPassword(current, dto.getPaymentPassword());
         smsVerificationService.verifyAndConsume(current.getPhone(), dto.getSmsCode(), 5);
 
         WithdrawApplyDTO apply = new WithdrawApplyDTO();
-        apply.setAgentId(agent.getId());
+        apply.setAgentId(activeAgent ? agent.getId() : null);
+        apply.setUserId(current.getUserId());
         apply.setWithdrawAmount(amount);
         apply.setWithdrawType(dto.getWithdrawType());
         apply.setBankName(channelName);
@@ -300,8 +326,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
     @Override
     public List<WithdrawRecordVO> listWithdrawals(DmsShopMember member) {
         DmsShopMember current = requireCurrentMember(member);
-        DmsAgent agent = agentDao.selectByUserId(current.getUserId());
-        return agent == null ? List.of() : withdrawService.getWithdrawsByAgentId(agent.getId());
+        return withdrawService.getWithdrawsByUserId(current.getUserId());
     }
 
     @Override

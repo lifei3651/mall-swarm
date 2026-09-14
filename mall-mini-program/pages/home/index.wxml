@@ -42,7 +42,7 @@
     </swiper>
 
     <view wx:if="{{module.type === 'category' && home.categoryList && home.categoryList.length}}" class="categories">
-      <view class="category-row">
+      <view class="category-row category-count-{{home.categoryCount}}">
         <view class="category-item {{activeCategory === item.categoryName ? 'active' : ''}}" wx:for="{{home.categoryList}}" wx:key="id" data-name="{{item.categoryName}}" bindtap="openCategory" aria-role="button" aria-label="查看{{item.categoryName}}分类">
           <view class="category-icon">
             <view class="category-placeholder">{{item.initial}}</view>

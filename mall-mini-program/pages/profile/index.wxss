@@ -1,13 +1,21 @@
 .profile-page { min-height: 100vh; padding: 12rpx 32rpx calc(144rpx + env(safe-area-inset-bottom)); }
-.profile-page .profile-header { display: flex; align-items: center; width: 100%; min-height: 176rpx; margin: 0; padding: 24rpx 0 32rpx; gap: 24rpx; border-radius: 16rpx; background: transparent; text-align: left; }
-.avatar { display:flex; flex:none; align-items:center; justify-content:center; width:104rpx; height:104rpx; border-radius:16rpx; background:var(--paper); }
-.avatar image { display: block; width: 52rpx; height: 52rpx; opacity: .7; }
+.profile-page .profile-header { position:relative; display:block; overflow:hidden; width:100%; min-height:272rpx; margin:8rpx 0 24rpx; padding:30rpx 28rpx 0; border-radius:28rpx; background:linear-gradient(135deg,#65758a,#344154); box-shadow:0 18rpx 42rpx rgba(31,41,55,.16); color:#fff; text-align:left; }
+.profile-page .profile-header.level-1 { background:linear-gradient(135deg,#c68a4f,#6f431f); }.profile-page .profile-header.level-2 { background:linear-gradient(135deg,#21a8ba,#155976); }.profile-page .profile-header.level-3 { background:linear-gradient(135deg,#22a773,#086149); }.profile-page .profile-header.level-4 { background:linear-gradient(135deg,#6678e7,#2d3d97); }.profile-page .profile-header.level-5 { background:linear-gradient(135deg,#dca72f,#8b5a08); }.profile-page .profile-header.level-6 { background:linear-gradient(135deg,#9567ee,#5030a5); }.profile-page .profile-header.level-7 { background:linear-gradient(135deg,#e86687,#962044); }.profile-page .profile-header.level-8 { background:linear-gradient(135deg,#303846,#090c12); }
+.profile-header-pressed { opacity:.94; transform:scale(.995); }
+.identity-orbit { position:absolute; border:28rpx solid rgba(255,255,255,.08); border-radius:50%; pointer-events:none; }.orbit-one { width:260rpx; height:260rpx; right:-104rpx; top:-138rpx; }.orbit-two { width:110rpx; height:110rpx; right:42rpx; top:18rpx; border-width:16rpx; opacity:.55; }
+.profile-main { position:relative; z-index:1; display:flex; align-items:center; gap:22rpx; }
+.avatar { display:flex; flex:none; align-items:center; justify-content:center; width:100rpx; height:100rpx; overflow:hidden; border:3rpx solid rgba(255,255,255,.5); border-radius:50%; background:rgba(255,255,255,.18); }
+.avatar image { display:block; width:52rpx; height:52rpx; opacity:.86; filter:brightness(0) invert(1); }
 .avatar-loaded { overflow: hidden; }
-.avatar-loaded image { width: 100%; height: 100%; opacity: 1; }
-.account-arrow { flex: none; width: 30rpx; height: 30rpx; margin-left: 12rpx; opacity: .5; }
+.avatar-loaded image { width:100%; height:100%; opacity:1; filter:none; }
+.account-arrow { flex:none; width:28rpx; height:28rpx; margin-left:8rpx; opacity:.82; filter:brightness(0) invert(1); }
 .profile-copy { flex: 1; min-width: 0; }
-.profile-name { display: block; overflow: hidden; color: var(--ink); font-size: 36rpx; font-weight: 600; line-height: 52rpx; white-space: nowrap; text-overflow: ellipsis; }
-.profile-subtitle { display: block; margin-top: 4rpx; overflow: hidden; color: var(--muted); font-size: 23rpx; line-height: 34rpx; white-space: nowrap; text-overflow: ellipsis; }
+.profile-kicker { display:block; margin-bottom:3rpx; color:rgba(255,255,255,.68); font-size:19rpx; font-weight:600; letter-spacing:2rpx; line-height:30rpx; }
+.profile-name { display:block; overflow:hidden; color:#fff; font-size:35rpx; font-weight:700; line-height:48rpx; white-space:nowrap; text-overflow:ellipsis; }
+.profile-subtitle { display:block; margin-top:3rpx; overflow:hidden; color:rgba(255,255,255,.74); font-size:21rpx; line-height:32rpx; white-space:nowrap; text-overflow:ellipsis; }
+.membership-panel { position:relative; z-index:1; display:grid; grid-template-columns:56rpx minmax(0,1fr) auto; align-items:center; gap:14rpx; min-height:94rpx; margin-top:25rpx; padding:16rpx 2rpx 18rpx; border-top:1rpx solid rgba(255,255,255,.22); }
+.membership-emblem { display:flex; align-items:center; justify-content:center; width:52rpx; height:52rpx; border:1rpx solid rgba(255,255,255,.32); border-radius:16rpx; background:rgba(255,255,255,.16); box-shadow:inset 0 1rpx 0 rgba(255,255,255,.2); }.membership-emblem text { color:#fff1bd; font-size:28rpx; line-height:1; }
+.membership-copy { min-width:0; }.membership-caption,.membership-title { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.membership-caption { color:rgba(255,255,255,.58); font-size:16rpx; font-weight:700; letter-spacing:2rpx; line-height:24rpx; }.membership-title { margin-top:2rpx; color:#fff; font-size:25rpx; font-weight:700; line-height:34rpx; }.membership-action { flex:none; color:rgba(255,255,255,.78); font-size:21rpx; line-height:32rpx; }.guest-panel .membership-emblem text { color:#fff; }
 .profile-page .card { overflow: hidden; border: 0; border-radius: var(--radius); box-shadow: none; }
 .panel-head { display: flex; align-items: center; justify-content: space-between; min-height: 90rpx; padding: 12rpx 28rpx; }
 .panel-title { color: var(--ink); font-size: 30rpx; font-weight: 600; line-height: 44rpx; }
@@ -47,11 +55,10 @@
 .tone-green { background: #23a981; }
 .tile-badge { position: absolute; top: -8rpx; right: -12rpx; min-width: 28rpx; padding: 0 6rpx; border: 2rpx solid var(--paper); border-radius: 16rpx; background: #c73135; color: white; font-size: 18rpx; line-height: 28rpx; }
 .profile-page .share-retry { margin: 0; padding: 14rpx; background: transparent; color: var(--muted); font-size: 23rpx; line-height: 36rpx; }
-.membership-badge { display: inline-block; max-width: 100%; box-sizing: border-box; white-space: normal; overflow-wrap: anywhere; margin-top: 8rpx; padding: 2rpx 14rpx; border-radius: 8rpx; background: #eceef2; color: #535f72; font-size: 21rpx; font-weight: 500; line-height: 32rpx; }
-.level-1 { background: #e8f1ff; color: #285597; }.level-2 { background: #f1e9ff; color: #6535a5; }.level-3 { background: #e5f6ee; color: #196747; }.level-4 { background: #e4f2f8; color: #175777; }.level-5 { background: #fff0dd; color: #87551c; }.level-6 { background: #fde8d6; color: #89441d; }.level-7 { background: #f5dba9; color: #704817; }.level-8 { background: #292c38; color: #f3d39b; }
 @media (max-width: 350px) {
   .profile-page { padding-left: 24rpx; padding-right: 24rpx; }
-  .profile-header { gap: 16rpx; }
+  .profile-page .profile-header { padding-left:22rpx; padding-right:22rpx; }
+  .profile-main { gap:16rpx; }
   .avatar { width: 84rpx; height: 84rpx; }
   .profile-name { font-size: 34rpx; }
 }

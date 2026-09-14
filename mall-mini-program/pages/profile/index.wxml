@@ -1,13 +1,22 @@
 <page-meta page-style="{{loginVisible ? 'overflow:hidden' : ''}}" />
 <view class="profile-page" aria-hidden="{{loginVisible}}" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
-  <button class="profile-header" bindtap="accountEntry" hover-class="row-pressed" aria-label="{{loggedIn ? '编辑头像、昵称和个人资料' : '商城账号登录'}}">
-    <view class="avatar {{loggedIn && avatarSrc !== '/assets/profile/user-round.png' ? 'avatar-loaded' : ''}}"><image src="{{avatarSrc}}" mode="aspectFill" aria-hidden="true" /></view>
-    <view class="profile-copy">
-      <text class="profile-name">{{loggedIn ? (member.nickname || '商城账号') : '商城账号登录'}}</text>
-      <text wx:if="{{loggedIn}}" class="profile-subtitle">商城账号：{{member.username && member.username !== member.phone ? member.username : '尚未设置'}}</text>
-      <text wx:if="{{loggedIn}}" class="membership-badge level-{{capabilities.ready ? capabilities.membershipLevel : 0}}" aria-label="{{capabilities.ready ? '会员身份：' + capabilities.membershipLabel : shareError ? '会员等级暂未获取，请重试' : '正在获取会员等级'}}">{{capabilities.ready ? capabilities.membershipLabel : shareError ? '等级暂未获取' : '等级加载中'}}</text>
+  <button class="profile-header level-{{loggedIn && capabilities.ready ? capabilities.membershipLevel : 0}}" bindtap="accountEntry" hover-class="profile-header-pressed" aria-label="{{loggedIn ? '编辑头像、昵称和个人资料' : '商城账号登录'}}">
+    <view class="identity-orbit orbit-one" aria-hidden="true"></view><view class="identity-orbit orbit-two" aria-hidden="true"></view>
+    <view class="profile-main">
+      <view class="avatar {{loggedIn && avatarSrc !== '/assets/profile/user-round.png' ? 'avatar-loaded' : ''}}"><image src="{{avatarSrc}}" mode="aspectFill" aria-hidden="true" /></view>
+      <view class="profile-copy">
+        <text class="profile-kicker">{{loggedIn ? '我的会员身份' : '欢迎来到商城'}}</text>
+        <text class="profile-name">{{loggedIn ? (member.nickname || '商城账号') : '登录商城账号'}}</text>
+        <text class="profile-subtitle">{{loggedIn ? '账号：' + (member.username && member.username !== member.phone ? member.username : '尚未设置') : '登录后查看订单、优惠券和会员权益'}}</text>
+      </view>
+      <image class="account-arrow" src="/assets/profile/chevron-right.png" mode="aspectFit" aria-hidden="true" />
     </view>
-    <image class="account-arrow" src="/assets/profile/chevron-right.png" mode="aspectFit" aria-hidden="true" />
+    <view wx:if="{{loggedIn}}" class="membership-panel membership-badge" aria-label="{{capabilities.ready ? '会员身份：' + capabilities.membershipLabel : shareError ? '会员等级暂未获取，请重试' : '正在获取会员等级'}}">
+      <view class="membership-emblem"><text>{{capabilities.ready && capabilities.membershipLevel ? '★' : '◇'}}</text></view>
+      <view class="membership-copy"><text class="membership-caption">MEMBER LEVEL</text><text class="membership-title">{{capabilities.ready ? capabilities.membershipLabel : shareError ? '等级暂未获取' : '正在核对会员身份'}}</text></view>
+      <text class="membership-action">查看资料</text>
+    </view>
+    <view wx:else class="membership-panel guest-panel"><view class="membership-emblem"><text>→</text></view><view class="membership-copy"><text class="membership-caption">ACCOUNT</text><text class="membership-title">立即登录</text></view><text class="membership-action">继续</text></view>
   </button>
   <view class="order-panel card">
     <view class="panel-head">

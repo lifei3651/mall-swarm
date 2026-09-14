@@ -11,11 +11,6 @@
       </router-link>
     </div>
     <el-empty v-else-if="!matchedPlanned.length" :description="query ? '没有匹配的设置，请换一个关键词' : '当前账号没有可访问的设置'" :image-size="64" />
-    <section v-if="(!query && group?.key === 'finance') || matchedPlanned.length" class="planned-settings">
-      <h3>待接入的提现能力</h3>
-      <p>以下尚未实现，暂不能配置。现有提现资格、余额与打款规则保持不变。</p>
-      <div v-for="item in query ? matchedPlanned : planned" :key="item.title" class="planned-row"><div><strong>{{ item.title }}</strong><p>{{ item.description }}</p></div><el-tag type="info" effect="plain">待接入</el-tag></div>
-    </section>
     <p v-if="!query && group?.key === 'marketing'" class="settings-footnote">优惠券发行前需确认承担方、商品范围、商家结算和团队奖金影响；进入设置中心不会自动发券。</p>
     <p v-if="!query && group?.key === 'integration'" class="settings-footnote">此处不表示支付、短信或实名认证通道已开通；相关凭据应由技术人员在服务端安全配置，不在页面公开展示。</p>
   </section>
@@ -31,13 +26,7 @@ const query = computed(() => String(route.query.q || '').trim())
 const allEntries = computed(() => settingsEntriesFor(store))
 const group = computed(() => SETTINGS_GROUPS.find((item) => item.key === settingsGroupFor(route, allEntries.value)))
 const entries = computed(() => query.value ? settingsEntriesFor(store, query.value) : allEntries.value.filter((item) => item.group === group.value?.key))
-const planned = [
-  { title: '按余额来源设置提现范围', description: '包括后台人工增加余额是否允许提现；需先接通余额来源与服务端校验。' },
-  { title: '银行卡提现', description: '银行卡绑定、收款信息保护与提现申请流程。' },
-  { title: '财务线下转账与标记已打款', description: '需配套审核、转账凭证、重复打款防护与操作记录。' },
-]
-const matchedPlanned = computed(() => query.value && allEntries.value.some(item => item.group === 'finance')
-  ? planned.filter(item => query.value.split(/\s+/).every(term => `${item.title} ${item.description}`.includes(term))) : [])
+const matchedPlanned = computed(() => [])
 </script>
 <style scoped>
 .settings-heading { padding-bottom:24px; border-bottom:1px solid var(--admin-border); }

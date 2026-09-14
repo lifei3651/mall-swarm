@@ -29,15 +29,16 @@ describe('后台安全与只读查询', () => {
     }
   })
 
-  it('会员提现只使用官方渠道核对，商户人工打款仍使用准确业务确认且不重复提交登录密码', async () => {
+  it('会员提现保留官方渠道核对，并仅在后台开关允许时登记线下打款', async () => {
     const withdrawApi = await source('src/api/withdraw.js')
     const withdrawView = await source('src/views/withdraw/list.vue')
     const merchantFinance = await source('src/views/audit/merchant-finance.vue')
 
     expect(withdrawApi).toContain('/payout/start')
     expect(withdrawApi).toContain('/payout/reconcile')
-    expect(withdrawApi).not.toContain('confirm-pay')
-    expect(withdrawApi).not.toContain('payNo')
+    expect(withdrawApi).toContain('confirmManualWithdrawalPay')
+    expect(withdrawView).toContain('offlinePayoutEnabled')
+    expect(withdrawView).toContain('登记线下打款')
     expect(withdrawView).toContain('异常重试打款')
     expect(withdrawView).toContain('系统只在官方结果核对通过后记为成功')
     expect(withdrawView).not.toContain('payForm')

@@ -155,6 +155,7 @@ CREATE TABLE IF NOT EXISTS dms_member_asset_account (
   asset_code VARCHAR(64) NOT NULL,
   asset_name VARCHAR(128) NOT NULL,
   balance DECIMAL(14,2) NOT NULL DEFAULT 0,
+  withdrawable_balance DECIMAL(14,2) NOT NULL DEFAULT 0,
   frozen_balance DECIMAL(14,2) NOT NULL DEFAULT 0,
   total_in DECIMAL(14,2) NOT NULL DEFAULT 0,
   total_out DECIMAL(14,2) NOT NULL DEFAULT 0,
@@ -421,7 +422,7 @@ CREATE TABLE IF NOT EXISTS dms_agent_account (
 CREATE TABLE IF NOT EXISTS dms_withdraw_record (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   withdraw_no VARCHAR(64) NOT NULL,
-  agent_id BIGINT NOT NULL,
+  agent_id BIGINT,
   user_id BIGINT NOT NULL,
   withdraw_amount DECIMAL(10,2) NOT NULL,
   withdraw_type INT NOT NULL DEFAULT 1,
@@ -437,6 +438,7 @@ CREATE TABLE IF NOT EXISTS dms_withdraw_record (
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX IF NOT EXISTS idx_withdraw_user_time ON dms_withdraw_record(user_id, create_time);
 
 CREATE TABLE IF NOT EXISTS dms_withdrawal_payout (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,

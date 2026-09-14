@@ -24,6 +24,8 @@ public interface WithdrawService {
     /** 在消费支付密码和短信验证码前预检；实际落单时仍会在行锁内再次校验。 */
     void validateWithdrawalLimits(Long agentId, BigDecimal amount);
 
+    void validateWithdrawalLimitsForUser(Long userId, BigDecimal amount);
+
     /**
      * 审核提现
      * @param auditDTO 审核信息
@@ -31,8 +33,10 @@ public interface WithdrawService {
      */
     boolean auditWithdraw(WithdrawAuditDTO auditDTO);
 
-    /** 旧人工确认入口已停用；仅为兼容旧调用保留并始终安全拒绝。 */
+    /** 财务线下转账后登记流水号；仅在后台开关启用且没有未决官方打款时生效。 */
     boolean confirmPay(Long id, String payNo);
+
+    List<WithdrawRecordVO> getWithdrawsByUserId(Long userId);
 
     /**
      * 查询提现记录

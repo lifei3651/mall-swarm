@@ -8,6 +8,7 @@ import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsWithdrawRecord;
 import com.macro.mall.distribution.service.WithdrawalPayoutGateway;
 import com.macro.mall.distribution.service.WithdrawalPayoutService;
+import com.macro.mall.distribution.service.WithdrawalSettingsService;
 import com.macro.mall.distribution.vo.WithdrawalPayoutVO;
 import com.macro.mall.distribution.vo.WechatTransferConfirmationVO;
 import lombok.RequiredArgsConstructor;
@@ -23,11 +24,19 @@ public class WithdrawalPayoutServiceImpl implements WithdrawalPayoutService {
     private final DmsWithdrawRecordDao withdrawDao;
     private final WeChatPayProperties weChatPayProperties;
     private final WeChatMiniProgramProperties miniProgramProperties;
+    private final WithdrawalSettingsService withdrawalSettingsService;
 
     @Override
     public boolean isReady(Integer withdrawType) {
         if (!Integer.valueOf(2).equals(withdrawType) && !Integer.valueOf(3).equals(withdrawType)) return false;
         return gateway(withdrawType).configured();
+    }
+
+    @Override
+    public boolean requiresManualPayout(Long withdrawId) {
+        DmsWithdrawRecord withdraw = withdrawDao.selectById(withdrawId);
+        if (withdraw == null || !withdrawalSettingsService.offlinePayoutEnabled()) return false;
+        return Integer.valueOf(1).equals(withdraw.getWithdrawType()) || !isReady(withdraw.getWithdrawType());
     }
 
     @Override

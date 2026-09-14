@@ -33,4 +33,10 @@
         SET setting_value = #{settingValue}, remark = #{remark}, update_time = NOW()
         WHERE setting_key = #{settingKey}
     </update>
+
+    <update id="updateByKeyIfValue">
+        UPDATE dms_distribution_setting
+        SET setting_value = #{settingValue}, remark = #{remark}, update_time = NOW()
+        WHERE setting_key = #{settingKey} AND setting_value = #{oldValue}
+    </update>
 </mapper>

@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { commerceEnv } from './helpers/commerce-env.mjs'
 const deferred = () => { let resolve; const promise = new Promise(ok => { resolve = ok }); return { promise, resolve } }
 const clone = value => JSON.parse(JSON.stringify(value))
@@ -72,6 +73,12 @@ test('首页分类筛选仍留原页、60条查询、最近5条去重，不读�
   const env=commerceEnv(()=>({list:[]})),page=env.page('home'); await page.filterProducts(); assert.equal(env.routes.length,0); assert.deepEqual(env.calls.at(-1).params,{status:1,pageNum:1,pageSize:60,keyword:'',categoryName:''})
   await page.openCategory({currentTarget:{dataset:{name:'健康'}}}); assert.equal(env.calls.at(-1).params.categoryName,'健康'); await page.openCategory({currentTarget:{dataset:{name:'健康'}}}); assert.equal(env.calls.at(-1).params.categoryName,'')
   const history=env.load('utils/search-history'); for(const word of ['1','2','3','4','5','6','3'])history.remember(word); assert.deepEqual(Array.from(history.list()),['3','6','5','4','2']); await page.clearFilter(); assert.equal(page.data.searchedKeyword,'')
+})
+test('首页分类最多展示8个，4列自动换行并将不足一行的分类居中', async () => {
+  const env=commerceEnv(({url})=>url==='/shop/home'?{categoryList:Array.from({length:10},(_,i)=>({id:String(i+1),categoryName:`分类${i+1}`})),displayConfig:{},featuredProducts:[]}:[]),page=env.page('home')
+  await page.fetchHome(); assert.equal(page.data.home.categoryList.length,8); assert.equal(page.data.home.categoryCount,8)
+  const view=readFileSync(new URL('../pages/home/index.wxml',import.meta.url),'utf8'),css=readFileSync(new URL('../pages/home/index.wxss',import.meta.url),'utf8')
+  assert.match(view,/category-count-\{\{home.categoryCount\}\}/); assert.match(css,/flex-wrap:\s*wrap/); assert.match(css,/justify-content:\s*center/)
 })
 test('首页慢分类筛选/慢刷新不能覆盖新筛选；离开后不回写商品', async () => {
   const oldHome=deferred(),newProducts=deferred()

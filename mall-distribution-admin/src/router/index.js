@@ -404,6 +404,12 @@ const routes = [
             component: () => import('@/views/withdraw/audit.vue'),
             meta: { title: '提现审核', permission: 'finance:manage' },
           },
+          {
+            path: 'settings',
+            name: 'WithdrawSettings',
+            component: () => import('@/views/withdraw/settings.vue'),
+            meta: { title: '余额与提现规则', permission: 'finance:manage' },
+          },
         ],
       },
       // 批量导入

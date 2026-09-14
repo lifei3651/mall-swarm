@@ -73,7 +73,7 @@
 
       <!-- 分类 -->
       <section v-else-if="mod.type === 'category' && mod.enabled && showHomeCategories && categoryEntries.length" class="home-category-section" aria-label="商品品类">
-        <div class="category-grid">
+        <div class="category-grid" :class="`category-count-${categoryEntries.length}`">
           <button
             v-for="category in categoryEntries"
             :key="category.id || category.name"
@@ -386,7 +386,7 @@ const categoryEntries = computed(() => {
     ? configured.map((category) => ({ id: category.id, name: category.categoryName, image: category.iconUrl }))
     : (home.value.categories || []).map((name) => ({ id: name, name, image: '' }))
 
-  return rows.map((category) => ({
+  return rows.slice(0, 8).map((category) => ({
     ...category,
     image: category.image || allHomeProducts.value.find((product) => product.categoryName === category.name)?.coverUrl || '',
   }))
@@ -725,8 +725,8 @@ onUnmounted(() => { disposed = true; productRequestId++; campaignRequestId++; pe
 .trust-item strong,.trust-item span { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .trust-item strong { color:#344054; font-size:13px; }
 .trust-item span { margin-top:4px; color:#98a2b3; font-size:11px; }
-.category-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(86px,1fr)); gap: 18px 12px; }
-.home-category-item { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0 3px; color: #49515a; background: transparent; border: 0; }
+.category-grid { display:flex; flex-wrap:wrap; justify-content:center; gap:18px 0; }
+.home-category-item { flex:0 0 25%; min-width:0; display:flex; flex-direction:column; align-items:center; gap:8px; padding:0 6px; color:#49515a; background:transparent; border:0; }
 .category-circle { width: 72px; height: 72px; display: grid; place-items: center; overflow: hidden; color: #667085; background: #f3f4f6; border: 2px solid transparent; border-radius: 50%; box-shadow: 0 4px 14px rgba(38,45,51,.07); font-size: 24px; font-weight: 800; transition: transform .2s ease,border-color .2s ease; }
 .category-circle img { width: 100%; height: 100%; display: block; object-fit: cover; }
 .home-category-item:hover .category-circle,.home-category-item.active .category-circle { border-color: var(--brand-primary); transform: translateY(-2px); }
@@ -798,7 +798,8 @@ onUnmounted(() => { disposed = true; productRequestId++; campaignRequestId++; pe
   .trust-item { padding:7px 9px; border-right:0; }
   .trust-item:nth-child(-n+2) { border-bottom:1px solid #e8eef5; }
   .trust-item:nth-child(odd) { border-right:1px solid #e8eef5; }
-  .category-grid { grid-template-columns: repeat(5,minmax(0,1fr)); gap: 13px 3px; }
+  .category-grid { display:flex; flex-wrap:wrap; justify-content:center; gap:13px 0; }
+  .home-category-item { flex-basis:25%; }
   .home-category-item { gap: 6px; padding: 0 1px; }
   .category-circle { width: 58px; height: 58px; border-width: 1.5px; font-size: 19px; }
   .home-category-item strong { font-size: 11px; }

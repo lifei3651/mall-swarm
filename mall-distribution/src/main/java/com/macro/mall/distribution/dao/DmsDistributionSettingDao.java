@@ -16,4 +16,7 @@ public interface DmsDistributionSettingDao {
     int insert(DmsDistributionSetting setting);
 
     int updateByKey(DmsDistributionSetting setting);
+
+    int updateByKeyIfValue(@Param("settingKey") String settingKey, @Param("oldValue") String oldValue,
+                           @Param("settingValue") String settingValue, @Param("remark") String remark);
 }

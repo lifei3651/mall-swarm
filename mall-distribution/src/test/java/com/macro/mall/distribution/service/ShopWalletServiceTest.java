@@ -159,7 +159,7 @@ class ShopWalletServiceTest {
         AssetChangeDTO issue = new AssetChangeDTO();
         issue.setAgentId(4L);
         issue.setAmount(new BigDecimal("300.00"));
-        issue.setBizType("WITHDRAW_TEST");
+        issue.setBizType("COMMISSION_SETTLE");
         memberAssetService.issue(issue);
 
         ShopWithdrawalApplyDTO apply = new ShopWithdrawalApplyDTO();
@@ -304,7 +304,7 @@ class ShopWalletServiceTest {
         AssetChangeDTO issue = new AssetChangeDTO();
         issue.setAgentId(3L);
         issue.setAmount(new BigDecimal("150.00"));
-        issue.setBizType("CONCURRENT_WITHDRAW_TEST");
+        issue.setBizType("COMMISSION_SETTLE");
         issue.setBizId("CONCURRENT_WITHDRAW_TEST_1");
         memberAssetService.issue(issue);
 

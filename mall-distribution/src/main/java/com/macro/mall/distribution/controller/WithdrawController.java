@@ -46,10 +46,12 @@ public class WithdrawController {
             auditDTO.setAuditUserName(AdminContext.get().getNickname());
         }
         boolean approved = Integer.valueOf(1).equals(auditDTO.getStatus());
-        if (approved) withdrawalPayoutService.requireReady(auditDTO.getId());
+        boolean manualPayout = approved && withdrawalPayoutService.requiresManualPayout(auditDTO.getId());
+        if (approved && !manualPayout) withdrawalPayoutService.requireReady(auditDTO.getId());
         boolean result = withdrawService.auditWithdraw(auditDTO);
         if (!result) return CommonResult.failed("审核失败");
         if (!approved) return CommonResult.success(true, "已驳回，冻结金额已退回会员余额");
+        if (manualPayout) return CommonResult.success(true, "审核已通过，等待财务线下转账并登记流水号");
         try {
             WithdrawalPayoutVO payout = withdrawalPayoutService.start(auditDTO.getId());
             if (payout != null && "SUCCESS".equals(payout.getState())) {
@@ -67,8 +69,7 @@ public class WithdrawController {
         }
     }
 
-    @Deprecated
-    @Operation(summary = "旧人工确认打款入口（已安全停用）")
+    @Operation(summary = "财务线下转账后登记已打款")
     @PostMapping("/confirm-pay/{id}")
     public CommonResult<Boolean> confirmPay(@PathVariable Long id,
                                             @Valid @RequestBody WithdrawConfirmPayDTO dto) {

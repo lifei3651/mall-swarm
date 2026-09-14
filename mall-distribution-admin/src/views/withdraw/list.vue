@@ -74,7 +74,7 @@
       </el-table-column>
       <el-table-column prop="createTime" label="申请时间" width="160" :formatter="formatDateTimeCell" />
       <el-table-column prop="auditRemark" label="审核备注" />
-      <el-table-column label="操作" fixed="right" width="150">
+      <el-table-column label="操作" fixed="right" width="220">
         <template #default="{ row }">
           <el-button type="primary" link @click="handleDetail(row)">详情</el-button>
           <el-button
@@ -95,6 +95,7 @@
           >
             核对渠道结果
           </el-button>
+          <el-button v-if="row.status === 1 && offlinePayoutEnabled && store.hasPermission('finance:manage')" type="primary" link :loading="payoutLoadingId === row.id" @click="handleManualPayout(row)">登记线下打款</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -137,7 +138,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getWithdrawById, getWithdrawStats, listWithdraws, reconcileWithdrawalPayout, startWithdrawalPayout } from '@/api/withdraw'
+import { confirmManualWithdrawalPay, getWithdrawalSettings, getWithdrawById, getWithdrawStats, listWithdraws, reconcileWithdrawalPayout, startWithdrawalPayout } from '@/api/withdraw'
 import { useAppStore } from '@/store'
 import { memberSearchFailureMessage, memberSearchEmptyText, validateMemberSearch } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
@@ -147,6 +148,7 @@ const loading = ref(false)
 const store = useAppStore()
 const route = useRoute()
 const payoutLoadingId = ref(null)
+const offlinePayoutEnabled = ref(false)
 const detailVisible = ref(false)
 const detail = ref({})
 const searchFeedback = ref('')
@@ -252,6 +254,24 @@ const handleReconcilePayout = async (row) => {
   }
 }
 
+const handleManualPayout = async (row) => {
+  let payNo = ''
+  try {
+    const result = await ElMessageBox.prompt(
+      `请确认财务已经向该会员线下转账 ¥${row.withdrawAmount}。登记后即视为已打款，不能用普通状态编辑撤回。`,
+      '登记线下已打款',
+      { confirmButtonText: '确认已转账', cancelButtonText: '尚未转账', inputPlaceholder: '填写银行/支付平台流水号', inputPattern: /^\S{4,128}$/, inputErrorMessage: '请输入4至128位有效流水号', type: 'warning' },
+    )
+    payNo = result.value.trim()
+  } catch { return }
+  payoutLoadingId.value = row.id
+  try {
+    await confirmManualWithdrawalPay(row.id, payNo)
+    ElMessage.success('已登记线下打款，会员端状态已更新')
+    await fetchData()
+  } finally { payoutLoadingId.value = null }
+}
+
 // 分页大小变化
 const handleSizeChange = (size) => {
   pagination.value.size = size
@@ -318,7 +338,12 @@ const formatDate = (date) => {
 
 const formatAmount = (value) => Number(value || 0).toFixed(2)
 
-onMounted(handleSearch)
+onMounted(async () => {
+  if (store.hasPermission('finance:manage')) {
+    try { offlinePayoutEnabled.value = Boolean((await getWithdrawalSettings()).data?.offlinePayoutEnabled) } catch { offlinePayoutEnabled.value = false }
+  }
+  handleSearch()
+})
 </script>
 
 <style lang="scss" scoped>

@@ -31,6 +31,14 @@ public interface DmsMemberAssetAccountDao {
                            @Param("assetCode") String assetCode,
                            @Param("amount") BigDecimal amount);
 
+    int addWithdrawableBalance(@Param("agentId") Long agentId,
+                               @Param("assetCode") String assetCode,
+                               @Param("amount") BigDecimal amount);
+
+    int addWithdrawableBalanceByUserId(@Param("userId") Long userId,
+                                       @Param("assetCode") String assetCode,
+                                       @Param("amount") BigDecimal amount);
+
     int subtractBalance(@Param("agentId") Long agentId,
                         @Param("assetCode") String assetCode,
                         @Param("amount") BigDecimal amount,
@@ -40,4 +48,9 @@ public interface DmsMemberAssetAccountDao {
                                 @Param("assetCode") String assetCode,
                                 @Param("amount") BigDecimal amount,
                                 @Param("allowNegative") Integer allowNegative);
+
+    int subtractWithdrawableBalance(@Param("agentId") Long agentId,
+                                    @Param("userId") Long userId,
+                                    @Param("assetCode") String assetCode,
+                                    @Param("amount") BigDecimal amount);
 }

@@ -62,15 +62,18 @@ test('资料页只展示基本资料，昵称单独编辑；真实会员等级�
   assert.doesNotMatch(profile,/bindtap="loginPassword"|bindtap="paymentSecurity"|form bindsubmit/);
   assert.match(view,/mode === 'nickname'/);
   const top=readFileSync(new URL('../pages/profile/index.wxml',import.meta.url),'utf8');
-  assert.match(top,/商城账号：/);
-  assert.match(top,/<text wx:if="\{\{loggedIn\}\}" class="membership-badge/);
-  assert.match(top,/capabilities.ready \? capabilities.membershipLabel : shareError \? '等级暂未获取' : '等级加载中'/);
+  assert.match(top,/账号：/);
+  assert.match(top,/class="membership-panel membership-badge"/);
+  assert.match(top,/MEMBER LEVEL/);
+  assert.match(top,/capabilities.ready \? capabilities.membershipLabel : shareError \? '等级暂未获取' : '正在核对会员身份'/);
   assert.doesNotMatch(top,/loggedIn && capabilities.ready && capabilities.membershipActive/);
 })
 
 test('等级长名称允许换行，不撑开个人信息区', () => {
   const css=readFileSync(new URL('../pages/profile/index.wxss',import.meta.url),'utf8');
-  assert.match(css,/\.membership-badge \{[^}]*max-width: 100%;[^}]*white-space: normal;[^}]*overflow-wrap: anywhere;/);
+  assert.match(css,/\.membership-copy \{ min-width:0;/);
+  assert.match(css,/\.membership-caption,\.membership-title \{[^}]*text-overflow:ellipsis;[^}]*white-space:nowrap;/);
+  assert.match(css,/\.profile-page \.profile-header\.level-8 \{ background:linear-gradient/);
 })
 
 test('协议入口收拢为商城说明二级菜单，游客仍可查看且保留六类说明', () => {

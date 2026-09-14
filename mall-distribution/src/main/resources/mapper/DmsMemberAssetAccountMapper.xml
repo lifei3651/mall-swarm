@@ -9,6 +9,7 @@
         <result column="asset_code" property="assetCode"/>
         <result column="asset_name" property="assetName"/>
         <result column="balance" property="balance"/>
+        <result column="withdrawable_balance" property="withdrawableBalance"/>
         <result column="frozen_balance" property="frozenBalance"/>
         <result column="total_in" property="totalIn"/>
         <result column="total_out" property="totalOut"/>
@@ -17,7 +18,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id, agent_id, user_id, asset_code, asset_name, balance, frozen_balance,
+        id, agent_id, user_id, asset_code, asset_name, balance, withdrawable_balance, frozen_balance,
         total_in, total_out, create_time, update_time
     </sql>
 
@@ -42,9 +43,9 @@
 
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsMemberAssetAccount" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_member_asset_account
-        (agent_id, user_id, asset_code, asset_name, balance, frozen_balance, total_in, total_out)
+        (agent_id, user_id, asset_code, asset_name, balance, withdrawable_balance, frozen_balance, total_in, total_out)
         VALUES
-        (#{agentId}, #{userId}, #{assetCode}, #{assetName}, #{balance}, #{frozenBalance}, #{totalIn}, #{totalOut})
+        (#{agentId}, #{userId}, #{assetCode}, #{assetName}, #{balance}, #{withdrawableBalance}, #{frozenBalance}, #{totalIn}, #{totalOut})
     </insert>
 
     <update id="bindAgentIfMissing">
@@ -71,9 +72,22 @@
         WHERE user_id = #{userId} AND asset_code = #{assetCode}
     </update>
 
+    <update id="addWithdrawableBalance">
+        UPDATE dms_member_asset_account
+        SET withdrawable_balance = withdrawable_balance + #{amount}, update_time = NOW()
+        WHERE agent_id = #{agentId} AND asset_code = #{assetCode}
+    </update>
+
+    <update id="addWithdrawableBalanceByUserId">
+        UPDATE dms_member_asset_account
+        SET withdrawable_balance = withdrawable_balance + #{amount}, update_time = NOW()
+        WHERE user_id = #{userId} AND asset_code = #{assetCode}
+    </update>
+
     <update id="subtractBalance">
         UPDATE dms_member_asset_account
-        SET balance = balance - #{amount},
+        SET withdrawable_balance = GREATEST(0, withdrawable_balance - GREATEST(0, #{amount} - GREATEST(0, balance - withdrawable_balance))),
+            balance = balance - #{amount},
             total_out = total_out + #{amount},
             update_time = NOW()
         WHERE agent_id = #{agentId}
@@ -83,11 +97,25 @@
 
     <update id="subtractBalanceByUserId">
         UPDATE dms_member_asset_account
-        SET balance = balance - #{amount},
+        SET withdrawable_balance = GREATEST(0, withdrawable_balance - GREATEST(0, #{amount} - GREATEST(0, balance - withdrawable_balance))),
+            balance = balance - #{amount},
             total_out = total_out + #{amount},
             update_time = NOW()
         WHERE user_id = #{userId}
           AND asset_code = #{assetCode}
           AND (#{allowNegative} = 1 OR balance &gt;= #{amount})
+    </update>
+
+
+    <update id="subtractWithdrawableBalance">
+        UPDATE dms_member_asset_account
+        SET balance = balance - #{amount},
+            withdrawable_balance = withdrawable_balance - #{amount},
+            total_out = total_out + #{amount},
+            update_time = NOW()
+        WHERE asset_code = #{assetCode}
+          AND ((#{agentId} IS NOT NULL AND agent_id = #{agentId}) OR (#{agentId} IS NULL AND user_id = #{userId}))
+          AND balance &gt;= #{amount}
+          AND withdrawable_balance &gt;= #{amount}
     </update>
 </mapper>

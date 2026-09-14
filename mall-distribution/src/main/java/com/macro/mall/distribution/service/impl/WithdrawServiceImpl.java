@@ -11,6 +11,7 @@ import com.macro.mall.distribution.dto.WithdrawApplyDTO;
 import com.macro.mall.distribution.dto.WithdrawAuditDTO;
 import com.macro.mall.distribution.dto.WithdrawQueryDTO;
 import com.macro.mall.distribution.entity.DmsAgent;
+import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.entity.DmsWithdrawRecord;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.enums.WithdrawStatusEnum;
@@ -22,7 +23,10 @@ import com.macro.mall.distribution.service.MemberMessageService;
 import com.macro.mall.distribution.service.MemberMessageEvent;
 import com.macro.mall.distribution.service.WithdrawalPayoutService;
 import com.macro.mall.distribution.service.WithdrawalRiskPolicyService;
+import com.macro.mall.distribution.service.WithdrawalSettingsService;
+import com.macro.mall.distribution.vo.WithdrawalPayoutVO;
 import com.macro.mall.common.tenant.TenantContext;
+import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.vo.WithdrawRecordVO;
 import com.macro.mall.distribution.vo.WithdrawStatsVO;
 import com.macro.mall.distribution.vo.WithdrawalLimitUsageVO;
@@ -32,6 +36,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -62,12 +67,13 @@ public class WithdrawServiceImpl implements WithdrawService {
     private final WithdrawalPayoutService withdrawalPayoutService;
     private final WithdrawalRiskPolicyService withdrawalRiskPolicyService;
 
+    @Autowired(required = false)
+    private WithdrawalSettingsService withdrawalSettingsService;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public WithdrawRecordVO applyWithdraw(WithdrawApplyDTO applyDTO) {
-        if (applyDTO.getAgentId() == null) {
-            Asserts.fail("代理ID不能为空");
-        }
+        if (applyDTO.getAgentId() == null && applyDTO.getUserId() == null) Asserts.fail("提现账户不能为空");
         BigDecimal withdrawAmount = MoneyValidationUtils.requirePositiveAmount(
                 applyDTO.getWithdrawAmount(), "提现金额", MAX_WITHDRAW_AMOUNT);
         if (applyDTO.getWithdrawType() == null) {
@@ -76,18 +82,22 @@ public class WithdrawServiceImpl implements WithdrawService {
         if (!List.of(1, 2, 3).contains(applyDTO.getWithdrawType())) {
             Asserts.fail("提现方式不正确");
         }
-        DmsAgent agent = agentDao.selectByIdForUpdate(applyDTO.getAgentId());
+        DmsAgent agent = applyDTO.getAgentId() == null ? null : agentDao.selectByIdForUpdate(applyDTO.getAgentId());
+        if (applyDTO.getAgentId() != null && agent == null) Asserts.fail("代理不存在");
+        Long ownerUserId = agent == null ? applyDTO.getUserId() : agent.getUserId();
         if (agent == null) {
-            Asserts.fail("代理不存在");
+            DmsShopMember member = memberDao.selectByUserId(ownerUserId);
+            if (member == null || !Integer.valueOf(1).equals(member.getStatus())) Asserts.fail("商城账号不可用");
+            if (!balanceHolderEnabled()) Asserts.fail("当前提现规则仅支持已开通推广身份的会员");
         }
-        validateWithdrawalLimitsLocked(agent.getId(), withdrawAmount);
-        ReviewDecision review = reviewDecision(agent.getId(), applyDTO, withdrawAmount);
+        validateWithdrawalLimitsLocked(agent == null ? null : agent.getId(), ownerUserId, withdrawAmount);
+        ReviewDecision review = reviewDecision(agent == null ? null : agent.getId(), ownerUserId, applyDTO, withdrawAmount);
 
         // 创建提现记录
         DmsWithdrawRecord record = new DmsWithdrawRecord();
         record.setWithdrawNo(generateWithdrawNo());
-        record.setAgentId(applyDTO.getAgentId());
-        record.setUserId(agent.getUserId());
+        record.setAgentId(agent == null ? null : agent.getId());
+        record.setUserId(ownerUserId);
         record.setWithdrawAmount(withdrawAmount);
         record.setWithdrawType(applyDTO.getWithdrawType());
         record.setBankName(applyDTO.getBankName());
@@ -103,7 +113,8 @@ public class WithdrawServiceImpl implements WithdrawService {
 
         // 支付、转账、提现共用 CASH_BONUS 余额，申请时立即扣减并写入资产流水。
         AssetChangeDTO withdraw = new AssetChangeDTO();
-        withdraw.setAgentId(applyDTO.getAgentId());
+        withdraw.setAgentId(agent == null ? null : agent.getId());
+        withdraw.setUserId(ownerUserId);
         withdraw.setAmount(withdrawAmount);
         withdraw.setBizType("WITHDRAW_APPLY");
         withdraw.setBizId(record.getWithdrawNo());
@@ -116,7 +127,7 @@ public class WithdrawServiceImpl implements WithdrawService {
         if (!review.manualRequired()) publishWithdrawal(record, "WITHDRAW_AUDITED");
 
         log.info("申请提现成功: agentId={}, amount={}, withdrawNo={}, reviewMode={}",
-                applyDTO.getAgentId(), withdrawAmount, record.getWithdrawNo(),
+                record.getAgentId(), withdrawAmount, record.getWithdrawNo(),
                 review.manualRequired() ? "MANUAL" : "AUTO");
 
         return convertToVO(record);
@@ -147,6 +158,7 @@ public class WithdrawServiceImpl implements WithdrawService {
         if (WithdrawStatusEnum.AUDIT_REJECTED.getValue().equals(auditDTO.getStatus())) {
             AssetChangeDTO refund = new AssetChangeDTO();
             refund.setAgentId(record.getAgentId());
+            refund.setUserId(record.getUserId());
             refund.setAmount(record.getWithdrawAmount());
             refund.setBizType("WITHDRAW_REJECT_REFUND");
             refund.setBizId(String.valueOf(record.getId()));
@@ -175,14 +187,25 @@ public class WithdrawServiceImpl implements WithdrawService {
     public void validateWithdrawalLimits(Long agentId, BigDecimal amount) {
         if (agentId == null) Asserts.fail("代理ID不能为空");
         BigDecimal requested = MoneyValidationUtils.requirePositiveAmount(amount, "提现金额", MAX_WITHDRAW_AMOUNT);
-        if (agentDao.selectByIdForUpdate(agentId) == null) Asserts.fail("代理不存在");
-        validateWithdrawalLimitsLocked(agentId, requested);
+        DmsAgent agent = agentDao.selectByIdForUpdate(agentId);
+        if (agent == null) Asserts.fail("代理不存在");
+        validateWithdrawalLimitsLocked(agentId, agent.getUserId(), requested);
     }
 
-    private void validateWithdrawalLimitsLocked(Long agentId, BigDecimal amount) {
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void validateWithdrawalLimitsForUser(Long userId, BigDecimal amount) {
+        if (userId == null) Asserts.fail("用户ID不能为空");
+        BigDecimal requested = MoneyValidationUtils.requirePositiveAmount(amount, "提现金额", MAX_WITHDRAW_AMOUNT);
+        if (memberDao.selectByUserId(userId) == null) Asserts.fail("商城账号不存在");
+        validateWithdrawalLimitsLocked(null, userId, requested);
+    }
+
+    private void validateWithdrawalLimitsLocked(Long agentId, Long userId, BigDecimal amount) {
         LocalDate today = LocalDate.now();
-        WithdrawalLimitUsageVO usage = withdrawDao.selectLimitUsage(
-                agentId, today.atStartOfDay(), today.withDayOfMonth(1).atStartOfDay());
+        WithdrawalLimitUsageVO usage = agentId == null
+                ? withdrawDao.selectLimitUsageByUserId(userId, today.atStartOfDay(), today.withDayOfMonth(1).atStartOfDay())
+                : withdrawDao.selectLimitUsage(agentId, today.atStartOfDay(), today.withDayOfMonth(1).atStartOfDay());
         long dailyCount = usage == null || usage.getDailyCount() == null ? 0L : usage.getDailyCount();
         long monthlyCount = usage == null || usage.getMonthlyCount() == null ? 0L : usage.getMonthlyCount();
         if (dailyCount >= withdrawalLimits.getDailyMaxCount()) {
@@ -193,7 +216,7 @@ public class WithdrawServiceImpl implements WithdrawService {
         }
     }
 
-    private ReviewDecision reviewDecision(Long agentId, WithdrawApplyDTO applyDTO, BigDecimal amount) {
+    private ReviewDecision reviewDecision(Long agentId, Long userId, WithdrawApplyDTO applyDTO, BigDecimal amount) {
         List<String> reasons = new ArrayList<>();
         Integer withdrawType = applyDTO.getWithdrawType();
         BigDecimal manualReviewThreshold = withdrawalRiskPolicyService.manualReviewThreshold();
@@ -206,7 +229,9 @@ public class WithdrawServiceImpl implements WithdrawService {
             reasons.add("单笔金额超过"
                     + manualReviewThreshold.stripTrailingZeros().toPlainString() + "元");
         }
-        DmsWithdrawRecord previous = withdrawDao.selectLatestSuccessfulByAgentAndType(agentId, withdrawType);
+        DmsWithdrawRecord previous = agentId == null
+                ? withdrawDao.selectLatestSuccessfulByUserAndType(userId, withdrawType)
+                : withdrawDao.selectLatestSuccessfulByAgentAndType(agentId, withdrawType);
         if (previous == null) {
             reasons.add("该渠道首次提现");
         } else if (Integer.valueOf(3).equals(withdrawType)
@@ -238,9 +263,34 @@ public class WithdrawServiceImpl implements WithdrawService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean confirmPay(Long id, String payNo) {
-        Asserts.fail("人工填写流水号确认打款的入口已停用，请使用微信或支付宝官方渠道打款并核对结果");
-        return false;
+        if (!offlinePayoutEnabled()) Asserts.fail("财务线下打款尚未在提现规则中启用");
+        if (payNo == null || payNo.trim().isEmpty()) Asserts.fail("请输入线下转账流水号");
+        DmsWithdrawRecord record = withdrawDao.selectByIdForUpdate(id);
+        if (record == null) Asserts.fail("提现记录不存在");
+        if (WithdrawStatusEnum.PAY_SUCCESS.getValue().equals(record.getStatus())) {
+            if (payNo.trim().equals(record.getPayNo())) return true;
+            Asserts.fail("该提现已登记其他打款流水，不可重复修改");
+        }
+        if (!WithdrawStatusEnum.AUDIT_PASSED.getValue().equals(record.getStatus())) {
+            Asserts.fail("只有审核通过且待打款的申请可以登记线下转账");
+        }
+        WithdrawalPayoutVO official = withdrawalPayoutService.get(id);
+        if (official != null && !"FAILED".equals(official.getState())) {
+            Asserts.fail("官方渠道存在处理中、未知或成功记录，禁止改为线下已打款");
+        }
+        record.setStatus(WithdrawStatusEnum.PAY_SUCCESS.getValue());
+        record.setPayTime(LocalDateTime.now());
+        record.setPayNo(payNo.trim());
+        withdrawDao.update(record);
+        publishWithdrawal(record, "WITHDRAW_PAID");
+        DmsAdminUser admin = AdminContext.get();
+        operationLogService.log("WITHDRAW", "MANUAL_PAY", "WITHDRAW_RECORD", String.valueOf(record.getId()),
+                "status=" + WithdrawStatusEnum.AUDIT_PASSED.getValue(),
+                "status=" + WithdrawStatusEnum.PAY_SUCCESS.getValue() + ";payNo=" + record.getPayNo(),
+                "财务线下转账后登记已打款" + (admin == null ? "" : "，操作人：" + admin.getUsername()));
+        return true;
     }
 
     private void publishWithdrawal(DmsWithdrawRecord record, String eventType) {
@@ -260,6 +310,11 @@ public class WithdrawServiceImpl implements WithdrawService {
     public List<WithdrawRecordVO> getWithdrawsByAgentId(Long agentId) {
         List<DmsWithdrawRecord> records = withdrawDao.selectByAgentId(agentId);
         return convertToVOList(records);
+    }
+
+    @Override
+    public List<WithdrawRecordVO> getWithdrawsByUserId(Long userId) {
+        return convertToVOList(withdrawDao.selectByUserId(userId));
     }
 
     @Override
@@ -335,7 +390,7 @@ public class WithdrawServiceImpl implements WithdrawService {
         WithdrawRecordVO vo = new WithdrawRecordVO();
         BeanUtils.copyProperties(record, vo);
 
-        DmsAgent agent = agentDao.selectById(record.getAgentId());
+        DmsAgent agent = record.getAgentId() == null ? null : agentDao.selectById(record.getAgentId());
         DmsShopMember member = memberDao.selectByUserId(record.getUserId());
         if (agent != null) vo.setAgentName(agent.getAgentName());
         if (member != null) {
@@ -389,4 +444,7 @@ public class WithdrawServiceImpl implements WithdrawService {
                 return "未知";
         }
     }
+
+    private boolean balanceHolderEnabled() { return withdrawalSettingsService != null && withdrawalSettingsService.balanceHolderEnabled(); }
+    private boolean offlinePayoutEnabled() { return withdrawalSettingsService != null && withdrawalSettingsService.offlinePayoutEnabled(); }
 }

@@ -29,6 +29,18 @@ export function getWithdrawalPayout(id) {
   return request({ url: `/distribution/withdraw/${id}/payout`, method: 'get', silentError: true })
 }
 
+export function getWithdrawalSettings() {
+  return request({ url: '/distribution/withdraw/settings', method: 'get' })
+}
+
+export function updateWithdrawalSettings(data) {
+  return request({ url: '/distribution/withdraw/settings', method: 'put', data })
+}
+
+export function confirmManualWithdrawalPay(id, payNo) {
+  return request({ url: `/distribution/withdraw/confirm-pay/${id}`, method: 'post', data: { payNo } })
+}
+
 // 查询提现记录
 export function getWithdrawById(id) {
   return request({

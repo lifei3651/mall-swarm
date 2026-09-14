@@ -223,8 +223,9 @@ test('弹窗卸载后迟到登录不发成功事件，协议页返回也不擅�
 
 test('个人中心采用整行账号入口和独立隐私组件，弹窗的单一主动作在协议上方', () => {
   const view = source('pages/profile/index.wxml')
-  assert.match(view, /<button[^>]*class="profile-header"[^>]*bindtap="accountEntry"/)
-  assert.doesNotMatch(view, /login-small|还未登录|欢迎来到商城/)
+  assert.match(view, /<button[^>]*class="profile-header[^"]*"[^>]*bindtap="accountEntry"/)
+  assert.doesNotMatch(view, /login-small|还未登录/)
+  assert.match(view, /MEMBER LEVEL/)
   assert.match(view, /商城账号登录/)
   assert.match(view, /<login-sheet id="login-sheet"/)
   assert.match(view, /<privacy-consent id="privacy-consent"/)

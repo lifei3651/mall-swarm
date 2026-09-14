@@ -4,16 +4,17 @@ const session = require('../../utils/session')
 const theme = require('../../utils/theme')
 const format = require('../../utils/format')
 const feedback = require('../../utils/feedback')
-const emptyForm = () => ({ withdrawAmount: '', accountName: '', paymentPassword: '', smsCode: '' })
+const emptyForm = () => ({ withdrawType: 2, withdrawAmount: '', accountName: '', bankName: '', bankAccount: '', paymentPassword: '', smsCode: '' })
 function blockReason(summary) {
-  if (!summary.distributionActivated) return '当前账号尚未开通余额提现资格，请联系商城客服核对会员状态。'
+  if (summary.withdrawalServiceEnabled === false) return summary.withdrawalDisabledReason || '商城提现服务暂时关闭。'
+  if (!summary.distributionActivated && !summary.balanceHolderWithdrawalEnabled) return '当前提现规则仅支持已开通推广身份的会员。'
   if (!summary.realNameVerified || !summary.adultVerified) return '提现需要完成实名及成年校验。请在“支付安全”完成实名认证，再返回刷新；小程序不能跳过此校验。'
   if (!summary.hasPaymentPassword) return '请先在“支付安全”设置6位支付密码，再返回刷新。支付密码不是登录密码。'
   if (summary.paymentPasswordLocked) return '支付密码已锁定，请稍后重试；请勿反复尝试密码。'
   return ''
 }
 Page({
-  data: { ...theme.pageData(), loading: true, submitting: false, sendingCode: false, countdown: 0, error: '', balance: '--', blockReason: '', maskedPhone: '', form: emptyForm() },
+  data: { ...theme.pageData(), loading: true, submitting: false, sendingCode: false, countdown: 0, error: '', balance: '--', blockReason: '', maskedPhone: '', bankCardEnabled: false, form: emptyForm() },
   onShow() { this.hidden = false; theme.apply(this); if (auth.requireLogin('/pages/withdraw/index')) return this.load() },
   onHide() { this.hidden = true; this.version = (this.version || 0) + 1; clearTimeout(this.timer); this.setData({ form: emptyForm(), maskedPhone: '', balance: '--' }); this.member = null },
   onUnload() { this.disposed = true; this.onHide() },
@@ -25,9 +26,10 @@ Page({
       const [summary, member] = await Promise.all([request({ url: '/shop/wallet/summary' }), request({ url: '/shop/auth/me' })])
       if (version !== this.version || this.hidden) return
       if (!summary || summary.balance === null || summary.balance === undefined || !Number.isFinite(Number(summary.balance)) || Number(summary.balance) < 0 || !member) throw new Error('提现资料不完整，请刷新后重试')
-      this.member = member; this.available = Number(summary.balance)
+      const withdrawable = summary.withdrawableBalance === null || summary.withdrawableBalance === undefined ? Number(summary.balance) : Number(summary.withdrawableBalance)
+      this.member = member; this.available = withdrawable
       const phone = String(member.phone || '')
-      feedback.update(this, { balance: format.money(summary.balance), maskedPhone: /^1[3-9]\d{9}$/.test(phone) ? `${phone.slice(0,3)}****${phone.slice(-4)}` : '手机号不可用', blockReason: blockReason(summary) })
+      feedback.update(this, { balance: format.money(withdrawable), bankCardEnabled: summary.bankCardWithdrawalEnabled === true, maskedPhone: /^1[3-9]\d{9}$/.test(phone) ? `${phone.slice(0,3)}****${phone.slice(-4)}` : '手机号不可用', blockReason: blockReason(summary) })
       this.updateCountdown()
     } catch (error) { if (version === this.version) feedback.update(this, { error: error.message || '提现资料加载失败' }) }
     finally { if (version === this.version) this.setData({ loading: false }) }
@@ -39,6 +41,13 @@ Page({
     let value = String(event.detail.value || '')
     if (field === 'smsCode' || field === 'paymentPassword') value = value.replace(/\D/g, '').slice(0,6)
     this.setData({ [`form.${field}`]: value })
+  },
+  channel(event) {
+    if (this.data.submitting || this.data.loading) return
+    const withdrawType = Number(event.currentTarget.dataset.type)
+    if (withdrawType === 1 && !this.data.bankCardEnabled) return
+    if (![1, 2].includes(withdrawType)) return
+    this.setData({ 'form.withdrawType': withdrawType })
   },
   updateCountdown() {
     clearTimeout(this.timer)
@@ -63,20 +72,26 @@ Page({
   async submit() {
     if (this.data.loading || this.data.submitting || !this.member) return
     if (this.data.blockReason) return feedback.notice(this.data.blockReason, '提现条件未满足')
-    const form = this.data.form, amount = String(form.withdrawAmount).trim()
+    const form = this.data.form, withdrawType = Number(form.withdrawType || 2), amount = String(form.withdrawAmount).trim()
     if (!/^(?:0|[1-9]\d{0,7})(?:\.\d{1,2})?$/.test(amount) || Number(amount) <= 0) return feedback.notice('请输入大于0、最多两位小数的提现金额。')
     if (Number(amount) > this.available) return feedback.notice('提现金额不能超过可提现余额。')
     if (!form.accountName.trim() || form.accountName.trim().length > 64) return feedback.notice('请输入与实名认证一致的收款人姓名。')
+    if (withdrawType === 1) {
+      if (!this.data.bankCardEnabled) return feedback.notice('银行卡提现尚未在后台启用。')
+      if (!form.bankName.trim()) return feedback.notice('请输入开户银行。')
+      if (!/^\d{10,30}$/.test(form.bankAccount.replace(/\s/g, ''))) return feedback.notice('请输入正确的银行卡号。')
+    }
     if (!/^\d{6}$/.test(form.paymentPassword)) return feedback.notice('请输入6位支付密码，不是商城登录密码。')
     if (!/^\d{6}$/.test(form.smsCode)) return feedback.notice('请输入绑定手机号收到的6位提现验证码。')
     // Lock before confirmation, including rapid repeated taps.
     const token = session.getToken(), version = this.version
     this.setData({ submitting: true })
-    const confirm = await new Promise((resolve) => wx.showModal({ title: '确认提现', content: `申请提现 ¥${format.money(amount)} 至当前账号绑定的微信。实际到账以审核及打款结果为准。`, success: resolve, fail: () => resolve({ confirm: false }) }))
+    const destination = withdrawType === 1 ? `${form.bankName.trim()}（尾号${form.bankAccount.replace(/\s/g, '').slice(-4)}）` : '当前账号绑定的微信'
+    const confirm = await new Promise((resolve) => wx.showModal({ title: '确认提现', content: `申请提现 ¥${format.money(amount)} 至${destination}。实际到账以审核及打款结果为准。`, success: resolve, fail: () => resolve({ confirm: false }) }))
     if (!confirm.confirm || token !== session.getToken() || version !== this.version) { if (!this.disposed) this.setData({ submitting: false }); return }
     try {
       await request({ url: '/shop/wallet/withdrawals', method: 'POST', idempotencyKey: `MINI-WITHDRAW-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        data: { withdrawType: 2, withdrawAmount: amount, accountName: form.accountName.trim(), paymentPassword: form.paymentPassword, smsCode: form.smsCode } })
+        data: { withdrawType, withdrawAmount: amount, accountName: form.accountName.trim(), bankName: withdrawType === 1 ? form.bankName.trim() : '', bankAccount: withdrawType === 1 ? form.bankAccount.replace(/\s/g, '') : '', paymentPassword: form.paymentPassword, smsCode: form.smsCode } })
       this.setData({ form: emptyForm() })
       if (version === this.version && token === session.getToken()) {
         await feedback.notice('提现申请已提交，不代表已经到账。请在提现记录查看审核、打款进度及微信收款确认。', '申请已提交')

@@ -19,7 +19,7 @@
     <section class="balance-card">
       <span>可用余额（元）</span>
       <strong>{{ money(wallet.balance) }}</strong>
-      <p>奖金及其他明确入账进入余额后，可用于商城支付和按规则申请资金服务。</p>
+      <p>其中可提现 ¥{{ money(effectiveWithdrawableBalance) }}；其余余额仍可用于商城支付。</p>
     </section>
 
     <nav class="wallet-actions" :class="{ 'has-extra': $slots['primary-action'] }">
@@ -31,8 +31,9 @@
 
     <section v-if="activeTool === 'withdraw'" class="panel wallet-form-panel">
       <h3>申请提现</h3>
-      <div class="form-item"><label>提现方式</label><select v-model.number="withdrawForm.withdrawType" class="field"><option :value="2">微信</option><option :value="3">支付宝</option></select></div>
+      <div class="form-item"><label>提现方式</label><select v-model.number="withdrawForm.withdrawType" class="field"><option :value="2">微信</option><option v-if="wallet.bankCardWithdrawalEnabled" :value="1">银行卡</option><option :value="3">支付宝</option></select></div>
       <div v-if="withdrawForm.withdrawType === 2" class="withdraw-channel-note">款项将转至当前会员绑定的小程序微信账户，不需要填写微信号。</div>
+      <template v-else-if="withdrawForm.withdrawType === 1"><div class="form-item"><label>开户银行</label><input v-model="withdrawForm.bankName" class="field" maxlength="64" placeholder="例如：中国工商银行" /></div><div class="form-item"><label>银行卡号</label><input v-model="withdrawForm.bankAccount" class="field" inputmode="numeric" maxlength="30" placeholder="请输入本人银行卡号" /></div></template>
       <div v-else class="form-item"><label>支付宝账号</label><input v-model="withdrawForm.bankAccount" class="field" placeholder="请输入支付宝账号" /></div>
       <div class="form-item"><label>收款人姓名</label><input v-model="withdrawForm.accountName" class="field" placeholder="必须与收款账户实名一致" /></div>
       <div class="form-item"><label>提现金额</label><input v-model="withdrawForm.withdrawAmount" class="field" type="text" inputmode="decimal" maxlength="11" autocomplete="off" placeholder="0.00" /></div>
@@ -85,7 +86,7 @@ import { isValidMainlandPhone } from '@/utils/phone'
 const router = useRouter()
 const route = useRoute()
 const activeTool = ref(['withdraw', 'records', 'flows'].includes(route.query.action) ? route.query.action : 'withdraw')
-const wallet = ref({ balance: 0, hasPaymentPassword: false, distributionActivated: false, realNameVerified: false, adultVerified: false, withdrawalManualReviewThreshold: 1000 })
+const wallet = ref({ balance: 0, hasPaymentPassword: false, distributionActivated: false, realNameVerified: false, adultVerified: false, withdrawalServiceEnabled: true, balanceHolderWithdrawalEnabled: false, bankCardWithdrawalEnabled: false, withdrawalManualReviewThreshold: 1000 })
 const profile = ref({})
 const withdrawals = ref([])
 const error = ref('')
@@ -102,7 +103,8 @@ const withdrawSmsCooldown = ref(0)
 const withdrawForm = ref({ withdrawType: 2, withdrawAmount: '', bankName: '', bankAccount: '', accountName: '', paymentPassword: '', smsCode: '' })
 const balanceFlows = ref([])
 const flowsError = ref('')
-const canUseBalance = computed(() => wallet.value.hasPaymentPassword && wallet.value.distributionActivated && wallet.value.realNameVerified && wallet.value.adultVerified)
+const effectiveWithdrawableBalance = computed(() => wallet.value.withdrawableBalance == null ? wallet.value.balance : wallet.value.withdrawableBalance)
+const canUseBalance = computed(() => wallet.value.withdrawalServiceEnabled !== false && wallet.value.hasPaymentPassword && (wallet.value.distributionActivated || wallet.value.balanceHolderWithdrawalEnabled) && wallet.value.realNameVerified && wallet.value.adultVerified)
 const withdrawalPolicyText = computed(() => {
   const threshold = Number(wallet.value.withdrawalManualReviewThreshold ?? 1000)
   if (threshold <= 0) return '当前所有提现均只需后台审核一次，审核通过后系统自动打款。'
@@ -154,17 +156,22 @@ const submitWithdrawal = async () => {
   if (!wallet.value.realNameVerified) return router.push({ name: 'RealNameVerification', query: { redirect: '/profile/wallet' } })
   if (!wallet.value.adultVerified) return showWalletError('未满18周岁暂不能申请提现')
   if (!requirePaymentPassword()) return
-  if (!wallet.value.distributionActivated) return showWalletError('该账号尚未按商城规则开通推广资格，暂不能提现')
+  if (wallet.value.withdrawalServiceEnabled === false) return showWalletError(wallet.value.withdrawalDisabledReason || '商城提现服务暂时关闭')
+  if (!wallet.value.distributionActivated && !wallet.value.balanceHolderWithdrawalEnabled) return showWalletError('当前提现规则仅支持已开通推广身份的会员')
+  if (withdrawForm.value.withdrawType === 1 && !wallet.value.bankCardWithdrawalEnabled) return showWalletError('银行卡提现尚未在后台启用')
+  if (withdrawForm.value.withdrawType === 1 && !withdrawForm.value.bankName.trim()) return showWalletError('请输入开户银行')
+  if (withdrawForm.value.withdrawType === 1 && !/^\d{10,30}$/.test(withdrawForm.value.bankAccount.replace(/\s/g, ''))) return showWalletError('请输入正确的银行卡号')
   if (withdrawForm.value.withdrawType === 3 && !withdrawForm.value.bankAccount.trim()) return showWalletError('请输入支付宝账号')
   if (!withdrawForm.value.accountName.trim()) return showWalletError('请输入收款人姓名')
   const withdrawAmount = String(withdrawForm.value.withdrawAmount || '').trim()
   if (!/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(withdrawAmount) || Number(withdrawAmount) <= 0) {
     return showWalletError('提现金额只能填写普通数字，最多保留2位小数')
   }
-  if (Number(withdrawAmount) > Number(wallet.value.balance || 0)) return showWalletError('提现金额不能超过可用余额')
+  if (Number(withdrawAmount) > Number(effectiveWithdrawableBalance.value || 0)) return showWalletError('提现金额不能超过可提现余额')
   withdrawForm.value.withdrawAmount = withdrawAmount
   if (!/^\d{6}$/.test(withdrawForm.value.paymentPassword)) return showWalletError('请输入6位支付密码')
   if (!/^\d{6}$/.test(withdrawForm.value.smsCode)) return showWalletError('请输入6位短信验证码')
+  if (withdrawForm.value.withdrawType === 1) withdrawForm.value.bankAccount = withdrawForm.value.bankAccount.replace(/\s/g, '')
   withdrawSaving.value = true
   try {
     if (!withdrawalRequestKey.value) withdrawalRequestKey.value = createIdempotencyKey('withdrawal')
