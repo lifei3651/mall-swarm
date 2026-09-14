@@ -84,7 +84,7 @@
 .category-product-card .product-price .price-decimal { margin: 0; font-size: 24rpx; }
 .purchase-row .quick-cart-button { display: flex; align-items: center; justify-content: center; flex: none; min-width: 132rpx; width: auto; min-height: 68rpx; margin: 0 0 0 auto; padding: 12rpx 16rpx; border-radius: 999rpx; color: #fff; background: var(--button); font-size: 24rpx; font-weight: 600; line-height: 36rpx; white-space: nowrap; }
 .purchase-row .quick-cart-button.is-disabled { background: #e8ebef; color: #6b7280; }
-.sold-out-label { position: absolute; bottom: 0; left: 0; right: 0; padding: 8rpx; text-align: center; color: #fff; background: rgba(30,37,50,.65); font-size: 24rpx; }
+.sold-out-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0; text-align: center; color: #fff; background: rgba(30,37,50,.45); font-size: 28rpx; font-weight: 650; }
 .purchase-row .quick-cart-button, .sort-tabs .sort-tab { min-height: 44px; }
 @media (max-width: 360px) {
   .category-product-card .product-title { font-size: 14px; line-height: 20px; }

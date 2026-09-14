@@ -567,7 +567,7 @@ onBeforeUnmount(() => {
 .product-image-link { position: relative; display: block; align-self: center; overflow: hidden; aspect-ratio: 1; background: #f7f7f7; border: 1px solid #eceeef; border-radius: 12px; }
 .product-image-link img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .28s ease; }
 .category-product-card:hover .product-image-link img { transform: scale(1.025); }
-.sold-out-mask { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; background: rgba(0,0,0,.45); font-size: 16px; font-weight: 800; }
+.sold-out-mask { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; background: rgba(0,0,0,.45); font-size: 18px; font-weight: 800; }
 
 .category-product-info { min-width: 0; display: flex; flex-direction: column; padding: 7px 0 3px; }
 .product-copy-link { display: block; min-width: 0; }

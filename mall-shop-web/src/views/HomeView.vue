@@ -757,7 +757,7 @@ onUnmounted(() => { disposed = true; productRequestId++; campaignRequestId++; pe
 .home-product-image { position: relative; display: block; aspect-ratio: 1; overflow: hidden; background: #f7f7f7; }
 .home-product-image img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .25s ease; }
 .home-product-card:hover .home-product-image img { transform: scale(1.025); }
-.home-sold-out { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; background: rgba(0,0,0,.43); font-weight: 800; }
+.home-sold-out { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; background: rgba(0,0,0,.43); font-size: 17px; font-weight: 800; }
 .home-product-info { flex: 1; display: flex; flex-direction: column; padding: 13px; }
 .home-product-copy h2 { min-height: 44px; margin: 0; color: #262b31; font-size: 16px; line-height: 1.42; display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .home-product-copy p { min-height: 36px; margin: 7px 0 0; color: #8a9098; font-size: 12px; line-height: 1.5; display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }

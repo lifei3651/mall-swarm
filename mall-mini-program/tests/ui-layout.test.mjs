@@ -40,3 +40,11 @@ test('提现金额用原生 text 组件，账号昵称主次操作位于输入�
   assert.ok(account.indexOf('name="nickname"') < account.indexOf('bindtap="enableWechatNickname"'))
   assert.match(account, /form-type="submit"[^>]*>保存昵称/)
 })
+
+test('首页和分类已售罄提示覆盖图片居中显示并提高字号', () => {
+  const home = source('pages/home/index.wxss')
+  const category = source('pages/category/index.wxss')
+  assert.match(home, /\.sold-out-mask\s*\{[^}]*inset: 0;[^}]*align-items: center;[^}]*justify-content: center;[^}]*font-size: 28rpx;/)
+  assert.match(category, /\.sold-out-label\s*\{[^}]*inset: 0;[^}]*align-items: center;[^}]*justify-content: center;[^}]*font-size: 28rpx;/)
+  assert.doesNotMatch(category, /\.sold-out-label\s*\{[^}]*bottom: 0;/)
+})

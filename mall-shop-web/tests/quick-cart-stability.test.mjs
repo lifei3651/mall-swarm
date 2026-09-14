@@ -31,3 +31,10 @@ test('商品详情加购与立即购买共用防重复锁，但不会互相置�
   assert.doesNotMatch(buyButton, /purchaseActionPending|正在核对/)
   assert.match(source, /if \(purchaseActionPending\.value\) return/)
 })
+
+test('首页和分类售罄提示覆盖商品图片居中显示并提高字号', () => {
+  const home = read('HomeView')
+  const category = read('CategoryView')
+  assert.match(home, /\.home-sold-out\s*\{[^}]*inset: 0;[^}]*place-items: center;[^}]*font-size: 17px;/)
+  assert.match(category, /\.sold-out-mask\s*\{[^}]*inset: 0;[^}]*place-items: center;[^}]*font-size: 18px;/)
+})
