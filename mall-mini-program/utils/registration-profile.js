@@ -3,7 +3,7 @@ const request = require('./request')
 const avatar = require('./member-avatar')
 const privacy = require('./privacy')
 
-const data = { profileStep: false, profileSaving: false, profileNickname: '', profileAvatar: '', profileError: '' }
+const data = { profileStep: false, profileStarted: false, profileSaving: false, profileNickname: '', profileNicknameFocus: false, profileAvatar: '', profileError: '' }
 const methods = {
   beginProfile() {
     this._profileSequence = (this._profileSequence || 0) + 1
@@ -23,11 +23,12 @@ const methods = {
     const path = event && event.detail && event.detail.avatarUrl
     if (!this.profileCurrent() || this.data.profileSaving || !path) return
     avatar.release(this.data.profileAvatar)
-    this.setData({ profileAvatar: path, profileError: '' })
+    this.setData({ profileStarted: true, profileAvatar: path, profileNicknameFocus: true, profileError: '' })
   },
   profileNicknameInput(event) {
     if (this.profileCurrent() && !this.data.profileSaving) this.setData({ profileNickname: event.detail.value, profileError: '' })
   },
+  profileNicknameBlur() { if (this.profileCurrent()) this.setData({ profileNicknameFocus: false }) },
   skipProfile() {
     if (this.data.profileSaving) return
     const current = this.profileCurrent()

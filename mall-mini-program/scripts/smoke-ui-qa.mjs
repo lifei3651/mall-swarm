@@ -56,7 +56,7 @@ try {
   await tap(page,'.profile-header')
   const sheet = await page.$('#login-sheet'); assert.equal(await sheet.data('visible'),true); assert.equal(await sheet.data('agreed'),false)
   await capture('guest-login-sheet-unchecked')
-  await tapText(sheet,'其他方式登录 / 注册')
+  await tapText(sheet,'账号登录')
   page = await waitRoute('pages/account-login/index')
   assert.equal(await page.data('agreed'),false); await capture('secondary-account-login')
   await mini.native().confirmModal().catch(()=>{})

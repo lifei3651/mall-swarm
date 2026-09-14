@@ -59,7 +59,7 @@ async function newRegistration(h) {
 const newLogin=async()=>({accessToken:'new-session',newMember:true})
 test('首次手机号注册先展示可选资料；跳过不上传、不改资料，老用户不弹填写',async()=>{
   const h=harness({login:newLogin});await newRegistration(h)
-  assert.equal(h.panel.data.profileStep,true);assert.equal(h.events.length,0)
+  assert.equal(h.panel.data.profileStep,true);assert.equal(h.panel.data.profileStarted,false);assert.equal(h.events.length,0)
   h.panel.skipProfile();assert.equal(h.writes.length,0);assert.equal(h.events.length,1)
   assert.equal(h.events[0].detail.redirect,'/pages/home/index')
   const old=harness();await newRegistration(old);assert.equal(old.panel.data.profileStep,false);assert.equal(old.events.length,1)
@@ -67,6 +67,7 @@ test('首次手机号注册先展示可选资料；跳过不上传、不改资�
 test('原生头像和昵称仅主动选择后保存一次，完成后直接进入且不弹成功框',async()=>{
   const h=harness({login:newLogin});await newRegistration(h)
   h.panel.chooseProfileAvatar({detail:{avatarUrl:'wxfile://selected'}})
+  assert.equal(h.panel.data.profileStarted,true);assert.equal(h.panel.data.profileNicknameFocus,true)
   h.component.pageLifetimes.hide.call(h.panel);h.component.pageLifetimes.show.call(h.panel)
   assert.equal(h.panel.data.profileStep,true);assert.equal(h.writes.length,0)
   await h.panel.saveProfile({detail:{value:{nickname:'微信昵称'}}})
@@ -100,7 +101,7 @@ test('昵称原生表单清空后不保存旧输入，资料选择保持可选',
   assert.equal(h.writes.length,0);assert.equal(h.events.length,1)
   const view=source('components/login-sheet/index.wxml')
   assert.match(view,/open-type="chooseAvatar"/);assert.match(view,/name="nickname" type="nickname"/)
-  assert.match(view,/暂不设置，直接进入/)
+  assert.match(view,/使用微信头像和昵称/);assert.match(view,/暂不设置/)
 })
 
 test('登录弹窗只在主动打开时读取配置，默认未同意且带上原始目标和扫码邀请', async () => {
@@ -240,4 +241,8 @@ test('个人中心采用整行账号入口和独立隐私组件，弹窗的单�
   assert.match(source('components/login-sheet/index.wxss'), /\.login-panel \.login-button\.is-disabled\s*\{[^}]*background: #eef0f3/)
   assert.doesNotMatch(source('components/login-sheet/index.wxss'), /\[disabled\]/)
   assert.match(source('components/login-sheet/index.wxml'), /class="login-button[^"\n]*is-disabled/)
+  assert.match(panel, /微信手机号一键登录/)
+  assert.match(panel, /账号登录/)
+  assert.match(panel, /使用邀请码/)
+  assert.doesNotMatch(panel, /好物与服务，从这里开始|其他方式登录 \/ 注册/)
 })

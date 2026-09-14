@@ -149,7 +149,7 @@ test('协议移到操作区下方，未同意时统一入口只提示而不登�
   assert.equal(page.data.agreementRequired, true)
   assert.ok(notices.every((item) => /请先阅读/.test(item.title)))
   const view = source('components/login-sheet/index.wxml')
-  assert.ok(view.indexOf('class="agreement ') > view.lastIndexOf('手机号快捷登录</button>'))
+  assert.ok(view.indexOf('class="agreement ') > view.lastIndexOf('微信手机号一键登录</button>'))
   assert.match(view, /<button wx:if="\{\{agreed && inviteReady && !inviteBusy && !inviteConflict\}\}"[^>]*open-type="getPhoneNumber"/)
   assert.match(view, /<button wx:else[^>]*bindtap="requireAgreement"/)
   assert.match(view, /checked="\{\{agreed\}\}"/)

@@ -2,32 +2,40 @@
   <view wx:if="{{presentation !== 'page'}}" class="login-backdrop" bindtap="close" catchtouchmove="stop" aria-hidden="true" />
   <view class="login-panel" role="dialog" aria-label="商城账号登录" aria-modal="true">
     <view class="login-heading">
-      <image class="login-logo" src="{{brandLogo && !logoFailed ? brandLogo : '/assets/lingqi-logo-mark.png'}}" binderror="logoError" mode="aspectFit" aria-hidden="true" />
-      <text class="login-title">{{profileStep ? '完善个人资料' : presentation === 'page' ? brandName : '欢迎登录'}}</text>
+      <image wx:if="{{presentation === 'page'}}" class="login-logo" src="{{brandLogo && !logoFailed ? brandLogo : '/assets/lingqi-logo-mark.png'}}" binderror="logoError" mode="aspectFit" aria-hidden="true" />
+      <text class="login-title">{{profileStep ? '完善头像昵称' : presentation === 'page' ? brandName : '登录后继续'}}</text>
       <button wx:if="{{presentation !== 'page'}}" class="close-button" bindtap="close" disabled="{{submitting || profileSaving}}" aria-label="{{profileStep ? '跳过资料填写，继续进入商城' : '关闭登录，返回商城'}}">×</button>
     </view>
     <view wx:if="{{profileStep}}" class="login-content registration-profile">
-      <view class="profile-intro">账号已创建，设置头像和昵称，方便识别</view>
+      <view class="profile-intro">账号已创建，可直接使用微信资料，也可以稍后设置</view>
       <form bindsubmit="saveProfile">
-        <button class="registration-avatar" open-type="chooseAvatar" bindchooseavatar="chooseProfileAvatar" disabled="{{profileSaving}}" aria-label="选择微信头像，也可拍照或从相册选择">
-          <image src="{{profileAvatar || '/assets/profile/user-round.png'}}" mode="aspectFill" />
-          <text>选择头像</text>
+        <button wx:if="{{!profileStarted}}" class="profile-wechat-entry" open-type="chooseAvatar" bindchooseavatar="chooseProfileAvatar" disabled="{{profileSaving}}" aria-label="使用微信资料，先选择头像再确认昵称">
+          <text class="profile-wechat-title">使用微信头像和昵称</text>
+          <text class="profile-wechat-caption">先选择头像，再确认昵称</text>
         </button>
-        <view class="registration-field"><text>昵称</text><input name="nickname" type="nickname" value="{{profileNickname}}" bindinput="profileNicknameInput" disabled="{{profileSaving}}" maxlength="20" placeholder="点击填写微信昵称" aria-label="昵称，可使用微信昵称或手动填写" /></view>
-        <text class="profile-optional">头像和昵称均为选填，可使用微信资料，也可稍后设置。</text>
-        <view wx:if="{{profileError}}" class="login-error" role="alert">{{profileError}}</view>
-        <button class="login-button" form-type="submit" disabled="{{profileSaving}}" loading="{{profileSaving}}">保存并进入商城</button>
+        <block wx:else>
+          <view class="registration-identity-row">
+            <button class="registration-avatar" open-type="chooseAvatar" bindchooseavatar="chooseProfileAvatar" disabled="{{profileSaving}}" aria-label="重新选择微信头像">
+              <image src="{{profileAvatar || '/assets/profile/user-round.png'}}" mode="aspectFill" />
+              <text>更换头像</text>
+            </button>
+            <view class="registration-field"><text>昵称</text><input name="nickname" type="nickname" value="{{profileNickname}}" focus="{{profileNicknameFocus}}" bindinput="profileNicknameInput" bindblur="profileNicknameBlur" disabled="{{profileSaving}}" maxlength="20" placeholder="点击使用微信昵称" aria-label="昵称，可使用微信昵称或手动填写" /></view>
+          </view>
+          <view wx:if="{{profileError}}" class="login-error" role="alert">{{profileError}}</view>
+          <button class="login-button profile-complete" form-type="submit" disabled="{{profileSaving}}" loading="{{profileSaving}}">完成</button>
+        </block>
       </form>
-      <button class="help-button profile-skip" bindtap="skipProfile" disabled="{{profileSaving}}">暂不设置，直接进入</button>
+      <text class="profile-optional">根据微信规则，头像与昵称需要分别由你确认，商城不会静默读取。</text>
+      <button class="help-button profile-skip" bindtap="skipProfile" disabled="{{profileSaving}}">暂不设置</button>
     </view>
     <view wx:else class="login-content">
-      <view class="login-intro">好物与服务，从这里开始</view>
+      <view class="login-intro">使用微信手机号，安全快捷登录商城</view>
       <view wx:if="{{contextHint}}" class="login-context">登录后{{contextHint}}</view>
       <view wx:if="{{loading}}" class="login-loading">正在检查商城配置…</view>
       <block wx:else>
         <block wx:if="{{phoneEnabled}}">
-          <button wx:if="{{agreed && inviteReady && !inviteBusy && !inviteConflict}}" class="login-button {{submitting || !enabled ? 'is-disabled' : ''}}" open-type="getPhoneNumber" loading="{{submitting}}" disabled="{{submitting || !enabled}}" bindtap="beginPhoneAuthorization" bindgetphonenumber="phoneLogin">手机号快捷登录</button>
-          <button wx:else class="login-button {{submitting || !enabled ? 'is-disabled' : ''}}" disabled="{{submitting || !enabled}}" bindtap="requireAgreement">手机号快捷登录</button>
+          <button wx:if="{{agreed && inviteReady && !inviteBusy && !inviteConflict}}" class="login-button {{submitting || !enabled ? 'is-disabled' : ''}}" open-type="getPhoneNumber" loading="{{submitting}}" disabled="{{submitting || !enabled}}" bindtap="beginPhoneAuthorization" bindgetphonenumber="phoneLogin">微信手机号一键登录</button>
+          <button wx:else class="login-button {{submitting || !enabled ? 'is-disabled' : ''}}" disabled="{{submitting || !enabled}}" bindtap="requireAgreement">微信手机号一键登录</button>
         </block>
         <button wx:else class="login-button {{submitting || !enabled ? 'is-disabled' : ''}}" loading="{{submitting}}" disabled="{{submitting || !enabled}}" bindtap="returningLogin">商城账号登录</button>
         <view class="agreement {{agreementRequired ? 'agreement-required' : ''}}">
@@ -35,7 +43,6 @@
           <view class="agreement-copy"><text>我已阅读并同意</text><text class="privacy-link" bindtap="openAgreement" role="link">《用户服务协议》</text><text>和</text><text class="privacy-link" bindtap="openPrivacy" role="link">《隐私政策》</text></view>
         </view>
         <view wx:if="{{agreementRequired && !agreed}}" class="agreement-hint">请先阅读并勾选同意以上协议</view>
-        <button wx:if="{{!inviteExpanded}}" class="help-button" bindtap="toggleInvitation" disabled="{{submitting}}">有邀请码？（选填）</button>
         <view wx:if="{{inviteExpanded}}" class="invite-tip">
           <text class="invite-caption">{{inviteFromLink ? '来自分享或扫码的邀请' : '邀请码（选填）'}} · 仅首次注册绑定，已有账号不换上级</text>
           <view wx:if="{{!inviteFromLink}}" class="invite-input-row"><input class="invite-input" value="{{inviteCode}}" maxlength="8" placeholder="输入8位邀请码" bindinput="invitationInput" disabled="{{submitting}}" aria-label="邀请码，选填" /><button class="help-button" bindtap="checkInvitation" disabled="{{submitting || inviteBusy}}">核对</button></view>
@@ -55,7 +62,11 @@
           <button class="help-button" disabled="{{submitting}}" open-type="contact">联系商城客服</button>
         </view>
       </block>
-      <view class="login-alternatives"><button wx:if="{{!loading}}" class="help-button" bindtap="openAccountLogin" disabled="{{submitting || authorizingPhone}}">其他方式登录 / 注册</button></view>
+      <view wx:if="{{!loading}}" class="login-alternatives">
+        <button class="help-button" bindtap="openAccountLogin" disabled="{{submitting || authorizingPhone}}">账号登录</button>
+        <text class="alternative-divider" aria-hidden="true">·</text>
+        <button class="help-button" bindtap="toggleInvitation" disabled="{{submitting}}">{{inviteExpanded ? '收起邀请码' : '使用邀请码'}}</button>
+      </view>
     </view>
   </view>
 </view>
