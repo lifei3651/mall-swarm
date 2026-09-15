@@ -71,7 +71,7 @@ public class DmsShopProduct implements Serializable {
     /** 每位会员累计限购数量，0 表示不限购。 */
     private Integer purchaseLimit;
 
-    /** 普通商城和复购商城使用独立商品池；同一商品可同时进入两个商品池。 */
+    /** 报单区和复购区使用独立商品池；同一商品可同时进入两个商品池。 */
     private Integer normalSaleEnabled;
 
     private Integer repurchaseSaleEnabled;

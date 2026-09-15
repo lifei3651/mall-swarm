@@ -40,7 +40,7 @@ public class ShopBusinessModeService {
             if (!enabled(tenant == null ? null : tenant.getFlashSaleEnabled())) Asserts.fail("秒杀专区尚未开启");
             rejectUnconfiguredCustom(tenant == null ? null : tenant.getFlashSaleBonusMode(), "秒杀");
         } else if (ShopBusinessType.REPURCHASE.equals(type)) {
-            if (!enabled(tenant == null ? null : tenant.getRepurchaseMallEnabled())) Asserts.fail("复购商城尚未开启");
+            if (!enabled(tenant == null ? null : tenant.getRepurchaseMallEnabled())) Asserts.fail("复购区尚未开启");
             if (!isRepurchaseEligible(tenant, member)) Asserts.fail(repurchaseHint(tenant, false));
             rejectUnconfiguredCustom(tenant == null ? null : tenant.getRepurchaseBonusMode(), "复购");
         }
@@ -75,10 +75,10 @@ public class ShopBusinessModeService {
     }
 
     private String repurchaseHint(DmsTenant tenant, boolean eligible) {
-        if (eligible) return "您可以进入复购商城";
-        if (!enabled(tenant == null ? null : tenant.getRepurchaseMallEnabled())) return "复购商城尚未开启";
+        if (eligible) return "您可以进入复购区";
+        if (!enabled(tenant == null ? null : tenant.getRepurchaseMallEnabled())) return "复购区尚未开启";
         return "AGENT".equals(mode(tenant.getRepurchaseEligibilityMode(), "PAID_MEMBER"))
-                ? "复购商城仅向达到代理级别的会员开放" : "按本商城规则开通推广资格后可进入复购商城";
+                ? "复购区仅向达到代理级别的会员开放" : "按本商城规则开通推广资格后可进入复购区";
     }
 
     private void rejectUnconfiguredCustom(String value, String label) {

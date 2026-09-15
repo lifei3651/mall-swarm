@@ -229,7 +229,7 @@ public class ShopController {
         return CommonResult.success(ShopPublicViewSanitizer.order(flashSaleService.submit(activityId, dto, member)));
     }
 
-    @Operation(summary = "复购商城商品列表")
+    @Operation(summary = "复购区商品列表")
     @GetMapping("/repurchase/products")
     public CommonResult<List<DmsShopProduct>> repurchaseProducts(
             @RequestHeader(value = "Authorization", required = false) String authorization,

@@ -844,7 +844,7 @@ public class ShopServiceImpl implements ShopService {
         if (enabled == 1) {
             if (!Integer.valueOf(1).equals(product.getStatus())
                     || !Integer.valueOf(1).equals(product.getNormalSaleEnabled())) {
-                Asserts.fail("只有普通商城中已上架的商品才能额外加入新品");
+                Asserts.fail("只有报单区中已上架的商品才能额外加入新品");
             }
             Integer durationDays = dto.getDurationDays();
             if (durationDays == null || (durationDays != 0 && (durationDays < 30 || durationDays > 365))) {
@@ -1203,9 +1203,6 @@ public class ShopServiceImpl implements ShopService {
             int requestedQuantity = requestedPurchaseQuantities.merge(product.getId(), quantity, Integer::sum);
             validateBusinessProduct(businessType, product, dto.getUserId(), requestedQuantity,
                     existingPurchaseQuantities, flashActivity, itemDTO);
-            if ("CUSTOM".equals(normalizeTeamBonusMode(product))) {
-                Asserts.fail("该商品使用客户定制奖金制度，制度未配置完成前不能下单");
-            }
             if (!merchantResolved) {
                 merchantResolved = true;
                 orderMerchantId = product.getMerchantId();
@@ -1355,7 +1352,7 @@ public class ShopServiceImpl implements ShopService {
         financeDTO.setProductCost(totalCost);
         financeDTO.setRemark(switch (businessType) {
             case ShopBusinessType.FLASH_SALE -> "秒杀订单";
-            case ShopBusinessType.REPURCHASE -> "复购商城订单";
+            case ShopBusinessType.REPURCHASE -> "复购区订单";
             default -> "商城前台订单";
         });
         OrderFinanceVO finance = auditService.upsertOrderFinance(financeDTO);
@@ -2214,14 +2211,14 @@ public class ShopServiceImpl implements ShopService {
                                          ShopOrderItemDTO item) {
         requireActiveProductMerchant(product);
         if (ShopBusinessType.NORMAL.equals(businessType)) {
-            if (Integer.valueOf(0).equals(product.getNormalSaleEnabled())) Asserts.fail("该商品不在普通商城销售");
+            if (Integer.valueOf(0).equals(product.getNormalSaleEnabled())) Asserts.fail("该商品不在报单区销售");
             validatePurchaseLimit(product, userId, requestedQuantity, existingPurchaseQuantities);
             return;
         }
         if (ShopBusinessType.REPURCHASE.equals(businessType)) {
             if (!Integer.valueOf(1).equals(product.getRepurchaseSaleEnabled())
                     || money(product.getRepurchasePrice()).compareTo(ZERO) <= 0) {
-                Asserts.fail("该商品不在复购商城销售");
+                Asserts.fail("该商品不在复购区销售");
             }
             int limit = product.getRepurchasePurchaseLimit() == null ? 0 : product.getRepurchasePurchaseLimit();
             if (limit > 0 && userId != null) {
@@ -2313,7 +2310,8 @@ public class ShopServiceImpl implements ShopService {
         product.setPurchaseLimit(product.getPurchaseLimit() == null ? 0 : Math.max(0, product.getPurchaseLimit()));
         product.setNormalSaleEnabled(Integer.valueOf(0).equals(product.getNormalSaleEnabled()) ? 0 : 1);
         product.setRepurchaseSaleEnabled(Integer.valueOf(1).equals(product.getRepurchaseSaleEnabled()) ? 1 : 0);
-        product.setEnrollmentSaleEnabled(Integer.valueOf(1).equals(product.getEnrollmentSaleEnabled()) ? 1 : 0);
+        // 第三个“报单区”字段是历史预留且没有独立下单入口；保留数据库字段但停止开放。
+        product.setEnrollmentSaleEnabled(0);
         product.setRepurchasePrice(money(product.getRepurchasePrice()));
         product.setRepurchasePv(money(product.getRepurchasePv()));
         requireNonNegativeMoney(product.getRepurchasePrice(), "商品复购价");
@@ -2324,11 +2322,10 @@ public class ShopServiceImpl implements ShopService {
             if (product.getRepurchasePrice().compareTo(ZERO) <= 0) Asserts.fail("启用复购销售时复购价必须大于0");
             validatePv(product.getRepurchasePv(), product.getRepurchasePrice(), "复购PV");
         }
-        if (product.getNormalSaleEnabled() == 0 && product.getRepurchaseSaleEnabled() == 0
-                && product.getEnrollmentSaleEnabled() == 0) {
-            Asserts.fail("普通商城、复购区、报单区至少启用一个");
+        if (product.getNormalSaleEnabled() == 0 && product.getRepurchaseSaleEnabled() == 0) {
+            Asserts.fail("报单区、复购区至少启用一个");
         }
-        String bonusMode = normalizeTeamBonusMode(product);
+        String bonusMode = product.getMerchantId() == null ? "INHERIT" : "NONE";
         product.setTeamBonusMode(bonusMode);
         if (product.getMerchantId() == null) {
             product.setMerchantName(null);
@@ -2346,16 +2343,11 @@ public class ShopServiceImpl implements ShopService {
             if (product.getCostAmount().compareTo(ZERO) <= 0) Asserts.fail("商户商品必须填写大于0的结算价");
             if (Integer.valueOf(1).equals(product.getNormalSaleEnabled())
                     && product.getCostAmount().compareTo(product.getSalePrice()) > 0) {
-                Asserts.fail("商户商品结算价不能高于普通售价");
+                Asserts.fail("商户商品结算价不能高于报单区售价");
             }
             if (Integer.valueOf(1).equals(product.getRepurchaseSaleEnabled())
                     && product.getCostAmount().compareTo(product.getRepurchasePrice()) > 0) {
                 Asserts.fail("商户商品结算价不能高于复购价");
-            }
-            if ("INHERIT".equals(bonusMode)) Asserts.fail("商户商品必须明确选择是否参与团队奖金");
-            if (("STANDARD".equals(bonusMode) || "CUSTOM".equals(bonusMode))
-                    && Integer.valueOf(1).equals(product.getNormalSaleEnabled())) {
-                Asserts.fail("交给客户奖金程序处理的商户商品只能进入复购区或报单区，不能同时在普通商城销售");
             }
         }
         product.setSalesCount(product.getSalesCount() == null ? 0 : product.getSalesCount());
@@ -2873,11 +2865,8 @@ public class ShopServiceImpl implements ShopService {
     }
 
     private String normalizeTeamBonusMode(DmsShopProduct product) {
-        String mode = product.getTeamBonusMode();
-        if (mode == null || mode.isBlank()) return product.getMerchantId() == null ? "INHERIT" : "NONE";
-        mode = mode.trim().toUpperCase(Locale.ROOT);
-        if (!Set.of("INHERIT", "NONE", "STANDARD", "CUSTOM").contains(mode)) Asserts.fail("团队奖金模式不正确");
-        return mode;
+        // 商品不再单独选择奖金模式：平台自营继承订单渠道，未开放的商家商品不参与。
+        return product.getMerchantId() == null ? "INHERIT" : "NONE";
     }
 
     private int resolveSettlementDelayDays(DmsShopProduct product) {

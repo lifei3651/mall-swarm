@@ -37,8 +37,8 @@ describe('业务模式影响摘要', () => {
       { key:'flashSaleEnabled', title:'秒杀专区', before:'关闭', after:'开启' },
     ])
   })
-  it('兼容数字字符串，清楚标注未接入不能下单', () => {
+  it('兼容数字字符串并按渠道展示奖金规则', () => {
     expect(businessModeChanges({ flashSaleEnabled:0 }, { flashSaleEnabled:'0' })).toEqual([])
-    expect(businessModeChanges({ repurchaseBonusMode:'NONE' }, { repurchaseBonusMode:'CUSTOM' })[0].after).toContain('未接入禁下单')
+    expect(businessModeChanges({ repurchaseBonusMode:'NONE' }, { repurchaseBonusMode:'STANDARD' })[0].after).toBe('按渠道奖金规则')
   })
 })

@@ -21,7 +21,7 @@
       <el-alert v-if="isLegacySample" type="error" :closable="false" show-icon
         title="当前仍登记为历史演示制度，只用于兼容既有测试数据。正式客户交付前必须替换为该客户独立奖金程序。" />
       <el-alert v-else-if="isDisabled" type="info" :closable="false" show-icon
-        title="安全关闭状态下，普通商城仍可注册、下单、支付和售后，但不会产生客户奖金。" />
+        title="安全关闭状态下，报单区仍可注册、下单、支付和售后，但不会产生客户奖金。" />
     </el-card>
 
     <div class="boundary-grid">

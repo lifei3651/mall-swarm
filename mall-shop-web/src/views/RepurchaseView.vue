@@ -2,7 +2,7 @@
   <main class="repurchase-page">
     <header>
       <button type="button" aria-label="返回" @click="$router.back()">‹</button>
-      <div><h1>会员复购商城</h1><p>复购商品、复购价格与普通商城订单独立结算</p></div>
+      <div><h1>会员复购区</h1><p>复购商品、复购价格与报单区订单独立结算</p></div>
     </header>
     <form role="search" @submit.prevent="load"><input v-model="keyword" aria-label="搜索复购商品" placeholder="搜索复购商品" /><button>搜索</button></form>
     <p v-if="error" class="state error" role="alert">{{ error }}</p>
@@ -40,7 +40,7 @@ const keyword=ref(''); const products=ref([]); const loading=ref(false); const e
 const dialogProduct=ref(null); const skus=ref([]); const selectedSkuId=ref(null); const quantity=ref(1)
 const selectedSku=computed(()=>skus.value.find(s=>String(s.id)===String(selectedSkuId.value)))
 const maxQuantity=computed(()=>Math.max(0,Math.min(Number(selectedSku.value?.stock ?? dialogProduct.value?.stock ?? 0),Number(dialogProduct.value?.repurchasePurchaseLimit || 999999))))
-const load=async()=>{loading.value=true;error.value='';try{const res=await listRepurchaseProducts({keyword:keyword.value});products.value=res.data||[]}catch(e){error.value=e.message||'复购商城加载失败'}finally{loading.value=false}}
+const load=async()=>{loading.value=true;error.value='';try{const res=await listRepurchaseProducts({keyword:keyword.value});products.value=res.data||[]}catch(e){error.value=e.message||'复购区加载失败'}finally{loading.value=false}}
 const choose=async(product)=>{try{const res=await getRepurchaseProduct(product.id);dialogProduct.value=res.data.product;skus.value=res.data.skus||[];selectedSkuId.value=skus.value.find(s=>s.stock>0)?.id||null;quantity.value=1}catch(e){error.value=e.message||'商品加载失败'}}
 const buy=()=>{const sku=selectedSku.value;beginDirectCheckout({...dialogProduct.value,skuId:sku?.id||null,skuName:sku?.skuName||'',salePrice:Number(sku?.repurchasePrice||dialogProduct.value.repurchasePrice),pvValue:Number(sku?.repurchasePv||dialogProduct.value.repurchasePv||0),stock:Number(sku?.stock??dialogProduct.value.stock),purchaseLimit:Number(dialogProduct.value.repurchasePurchaseLimit||0),businessType:'REPURCHASE'},Math.min(Math.max(1,quantity.value),maxQuantity.value));router.push('/checkout')}
 load()

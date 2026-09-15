@@ -20,13 +20,13 @@
         </section>
         <section><h3>限时秒杀</h3>
           <el-form-item label="秒杀专区" class="toggle-row"><span class="toggle-state">{{ Number(form.flashSaleEnabled) === 1 ? '已开启' : '已关闭' }}</span><el-switch v-model="form.flashSaleEnabled" aria-label="启用秒杀专区" :active-value="1" :inactive-value="0" /></el-form-item>
-          <el-form-item label="秒杀奖金处理"><el-radio-group v-model="form.flashSaleBonusMode"><el-radio-button value="NONE">不计奖</el-radio-button><el-radio-button v-if="form.flashSaleBonusMode === 'STANDARD'" value="STANDARD" disabled>历史兼容状态</el-radio-button><el-radio-button value="CUSTOM">客户奖金程序（未接入禁下单）</el-radio-button></el-radio-group></el-form-item>
+          <el-form-item label="秒杀奖金处理"><el-radio-group v-model="form.flashSaleBonusMode"><el-radio-button value="NONE">不计奖</el-radio-button><el-radio-button value="STANDARD">按报单区奖金规则</el-radio-button></el-radio-group></el-form-item>
           <p>活动价格、库存、开始结束时间和每人限购在“营销运营 → 秒杀活动”中维护。</p>
         </section>
-        <section><h3>会员复购商城</h3>
-          <el-form-item label="复购商城" class="toggle-row"><span class="toggle-state">{{ Number(form.repurchaseMallEnabled) === 1 ? '已开启' : '已关闭' }}</span><el-switch v-model="form.repurchaseMallEnabled" aria-label="启用复购商城" :active-value="1" :inactive-value="0" /></el-form-item>
+        <section><h3>会员复购区</h3>
+          <el-form-item label="复购区" class="toggle-row"><span class="toggle-state">{{ Number(form.repurchaseMallEnabled) === 1 ? '已开启' : '已关闭' }}</span><el-switch v-model="form.repurchaseMallEnabled" aria-label="启用复购区" :active-value="1" :inactive-value="0" /></el-form-item>
           <el-form-item label="进入资格"><el-radio-group v-model="form.repurchaseEligibilityMode"><el-radio-button value="PAID_MEMBER">已开通推广资格</el-radio-button><el-radio-button value="AGENT">代理及以上</el-radio-button><el-radio-button value="ALL_MEMBER">全部注册会员</el-radio-button></el-radio-group></el-form-item>
-          <el-form-item label="复购奖金处理"><el-radio-group v-model="form.repurchaseBonusMode"><el-radio-button value="NONE">不计奖</el-radio-button><el-radio-button v-if="form.repurchaseBonusMode === 'STANDARD'" value="STANDARD" disabled>历史兼容状态</el-radio-button><el-radio-button value="CUSTOM">客户奖金程序（未接入禁下单）</el-radio-button></el-radio-group></el-form-item>
+          <el-form-item label="复购奖金处理"><el-radio-group v-model="form.repurchaseBonusMode"><el-radio-button value="NONE">不计奖</el-radio-button><el-radio-button value="STANDARD">按复购奖金规则</el-radio-button></el-radio-group></el-form-item>
           <p>复购商品池、复购价、复购PV和复购限购在商品编辑页的“销售渠道”中维护。</p>
         </section>
       </el-form>
@@ -42,6 +42,7 @@ import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { businessModeChanges } from '@/utils/businessModeChanges'
 const loading=ref(false);const saving=ref(false);const form=ref({promotionJoinMode:'DISABLED',flashSaleEnabled:0,flashSaleBonusMode:'NONE',repurchaseMallEnabled:0,repurchaseEligibilityMode:'PAID_MEMBER',repurchaseBonusMode:'NONE'})
 const snapshot = ref(null)
+const visibleBonusMode = (value) => ['STANDARD', 'CUSTOM'].includes(String(value || '').toUpperCase()) ? 'STANDARD' : 'NONE'
 const changes = computed(() => snapshot.value ? businessModeChanges(snapshot.value, form.value) : [])
 useUnsavedChanges(computed(() => changes.value.length > 0))
 const reset = () => { if (snapshot.value) form.value = JSON.parse(JSON.stringify(snapshot.value)) }
@@ -50,7 +51,10 @@ const load = async () => {
   try {
     const res = await listTenants({ pageNum:1, pageSize:100 })
     const row = (res.data?.list || []).find(item => Number(item.id) === 1) || (res.data?.list || [])[0]
-    if (row) { form.value = { ...form.value, ...row }; snapshot.value = JSON.parse(JSON.stringify(form.value)) }
+    if (row) {
+      form.value = { ...form.value, ...row, flashSaleBonusMode: visibleBonusMode(row.flashSaleBonusMode), repurchaseBonusMode: visibleBonusMode(row.repurchaseBonusMode) }
+      snapshot.value = JSON.parse(JSON.stringify(form.value))
+    }
   } finally { loading.value = false }
 }
 const save = async () => {
@@ -61,7 +65,7 @@ const save = async () => {
   try {
     try {
       await ElMessageBox.confirm(
-        summary.map(item => `${item.title}：${item.before} → ${item.after}`).join('\n') + '\n\n可能影响会员资格、商品可购买范围及团队奖金处理。客户奖金程序未接入时，相关商品会禁止下单。请核对后保存。',
+        summary.map(item => `${item.title}：${item.before} → ${item.after}`).join('\n') + '\n\n可能影响会员资格、商品可购买范围及奖金处理。请核对后保存。',
         '确认业务规则变更', { type:'warning', confirmButtonText:'确认并保存', cancelButtonText:'返回修改', customClass:'settings-impact-confirm' },
       )
     } catch { return }

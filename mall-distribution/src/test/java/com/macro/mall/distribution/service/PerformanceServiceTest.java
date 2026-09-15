@@ -1756,10 +1756,10 @@ public class PerformanceServiceTest {
         assertEquals(received.getReceiveTime().plusDays(7), completed.getAfterSaleDeadline());
     }
 
-    /** 混合订单退普通商品不能误扣团队业绩和奖金；退奖金商品时才按对应金额、数量冲销。 */
+    /** 同一报单区订单统一按渠道奖金规则；任一商品退款都按对应金额、数量冲销。 */
     @Test
-    void mixedOrderRefundOnlyClawsBackBonusEligibleItems() {
-        newRetailVersion("MIXED_ORDER_REFUND_SCOPE");
+    void reportAreaChannelRuleAppliesToEveryItemAndRefund() {
+        newRetailVersion("REPORT_AREA_REFUND_SCOPE");
         jdbcTemplate.update("UPDATE dms_shop_product SET team_bonus_mode='STANDARD' WHERE id=1");
         jdbcTemplate.update("UPDATE dms_shop_product SET team_bonus_mode='NONE' WHERE id=2");
 
@@ -1785,19 +1785,22 @@ public class PerformanceServiceTest {
                 shopService.submitOrder(submit, buyer).getOrder().getId(), "ALIPAY");
 
         DmsAgent buyerAgent = agentDao.selectByUserId(buyer.getUserId());
-        assertEquals(2, accountDao.selectByAgentId(buyerAgent.getId()).getTotalOrders());
+        assertEquals(3, accountDao.selectByAgentId(buyerAgent.getId()).getTotalOrders());
         DmsCommissionRecord direct = commissionRecordDao.selectByOrderId(paid.getOrder().getId()).stream()
                 .filter(item -> "DIRECT_REWARD".equals(item.getBonusType())).findFirst().orElseThrow();
         BigDecimal originalCommission = direct.getCommissionAmount();
+        BigDecimal originalEligibleAmount = paid.getItems().stream()
+                .map(DmsShopOrderItem::getTotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        DmsShopOrderItem ordinaryOrderItem = paid.getItems().stream()
+                .filter(item -> Long.valueOf(2L).equals(item.getProductId())).findFirst().orElseThrow();
 
         ShopAfterSaleItemDTO ordinaryRefundItem = new ShopAfterSaleItemDTO();
-        ordinaryRefundItem.setOrderItemId(paid.getItems().stream()
-                .filter(item -> Long.valueOf(2L).equals(item.getProductId())).findFirst().orElseThrow().getId());
+        ordinaryRefundItem.setOrderItemId(ordinaryOrderItem.getId());
         ordinaryRefundItem.setQuantity(1);
         ShopAfterSaleApplyDTO ordinaryApply = new ShopAfterSaleApplyDTO();
         ordinaryApply.setOrderId(paid.getOrder().getId());
         ordinaryApply.setItems(List.of(ordinaryRefundItem));
-        ordinaryApply.setReason("只退普通商品");
+        ordinaryApply.setReason("先退其中一件商品");
         DmsShopAfterSale ordinaryAfterSale = shopAfterSaleService.apply(buyer, ordinaryApply);
         ShopAfterSaleAuditDTO audit = new ShopAfterSaleAuditDTO();
         audit.setStatus(1);
@@ -1806,9 +1809,13 @@ public class PerformanceServiceTest {
         shopAfterSaleService.audit(ordinaryAfterSale.getId(), audit);
 
         assertEquals(2, accountDao.selectByAgentId(buyerAgent.getId()).getTotalOrders());
-        assertAmountEquals(originalCommission.toPlainString(),
+        BigDecimal afterOrdinaryRefund = originalCommission
+                .multiply(originalEligibleAmount.subtract(ordinaryOrderItem.getTotalAmount()))
+                .divide(originalEligibleAmount, 2, java.math.RoundingMode.HALF_UP);
+        assertAmountEquals(afterOrdinaryRefund.toPlainString(),
                 commissionRecordDao.selectById(direct.getId()).getCommissionAmount());
-        assertAmountEquals("0.00", clawbackDao.sumByCommissionRecordId(direct.getId()));
+        assertAmountEquals(originalCommission.subtract(afterOrdinaryRefund).toPlainString(),
+                clawbackDao.sumByCommissionRecordId(direct.getId()));
 
         ShopAfterSaleItemDTO bonusRefundItem = new ShopAfterSaleItemDTO();
         bonusRefundItem.setOrderItemId(paid.getItems().stream()
@@ -1817,13 +1824,18 @@ public class PerformanceServiceTest {
         ShopAfterSaleApplyDTO bonusApply = new ShopAfterSaleApplyDTO();
         bonusApply.setOrderId(paid.getOrder().getId());
         bonusApply.setItems(List.of(bonusRefundItem));
-        bonusApply.setReason("再退一件奖金商品");
+        bonusApply.setReason("再退一件同渠道商品");
         DmsShopAfterSale bonusAfterSale = shopAfterSaleService.apply(buyer, bonusApply);
         shopAfterSaleService.audit(bonusAfterSale.getId(), audit);
 
         assertEquals(1, accountDao.selectByAgentId(buyerAgent.getId()).getTotalOrders());
-        assertAmountEquals(originalCommission.divide(new BigDecimal("2"), 2, java.math.RoundingMode.HALF_UP)
-                        .toPlainString(),
+        DmsShopOrderItem bonusOrderItem = paid.getItems().stream()
+                .filter(item -> Long.valueOf(1L).equals(item.getProductId())).findFirst().orElseThrow();
+        BigDecimal remainingEligibleAmount = originalEligibleAmount
+                .subtract(ordinaryOrderItem.getTotalAmount())
+                .subtract(bonusOrderItem.getPrice());
+        assertAmountEquals(originalCommission.multiply(remainingEligibleAmount)
+                        .divide(originalEligibleAmount, 2, java.math.RoundingMode.HALF_UP).toPlainString(),
                 commissionRecordDao.selectById(direct.getId()).getCommissionAmount());
     }
 

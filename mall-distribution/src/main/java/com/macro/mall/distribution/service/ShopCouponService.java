@@ -177,7 +177,7 @@ public class ShopCouponService {
         if (c.getScopeType()==null || !Set.of("ALL","PRODUCTS").contains(c.getScopeType()) || ("PRODUCTS".equals(c.getScopeType()) && productIds(c).isEmpty())) Asserts.fail("请选择适用商品，空列表不能表示全部");
         if ("ALL".equals(c.getScopeType()) && !productIds(c).isEmpty()) Asserts.fail("全部商品范围不能残留指定商品");
         for (Long id:productIds(c)) { DmsShopProduct p=products.selectById(id); if (p==null || !tenant().equals(p.getTenantId()) || !Objects.equals(c.getMerchantId(),p.getMerchantId())) Asserts.fail("指定商品不属于所选商城或商家"); }
-        if (businessTypes(c).isEmpty() || businessTypes(c).stream().anyMatch(t->!Set.of("NORMAL","REPURCHASE").contains(t))) Asserts.fail("请选择普通商城或复购业务");
+        if (businessTypes(c).isEmpty() || businessTypes(c).stream().anyMatch(t->!Set.of("NORMAL","REPURCHASE").contains(t))) Asserts.fail("请选择报单区或复购区");
     }
     private ShopCouponVO view(DmsShopCoupon c,DmsShopCouponClaim claim) {
         ShopCouponVO v=new ShopCouponVO(); v.setId(c.getId()); v.setTitle(c.getTitle()); v.setMerchantId(c.getMerchantId()); v.setProductIds(productIds(c)); v.setBusinessTypes(businessTypes(c));

@@ -106,7 +106,7 @@ public class DmsTenant implements Serializable {
     @Pattern(regexp = "DISABLED|AUTO_ON_INVITE|MANUAL_REVIEW|FIRST_PAID_ORDER", message = "推广资格开通方式不正确")
     private String promotionJoinMode;
 
-    /** 秒杀模块和复购商城均为客户级可选能力，默认关闭。 */
+    /** 秒杀模块和复购区均为客户级可选能力，默认关闭。 */
     private Integer flashSaleEnabled;
 
     @Pattern(regexp = "NONE|STANDARD|CUSTOM", message = "秒杀奖金模式不正确")
@@ -114,7 +114,7 @@ public class DmsTenant implements Serializable {
 
     private Integer repurchaseMallEnabled;
 
-    @Pattern(regexp = "PAID_MEMBER|AGENT|ALL_MEMBER", message = "复购商城准入模式不正确")
+    @Pattern(regexp = "PAID_MEMBER|AGENT|ALL_MEMBER", message = "复购区准入模式不正确")
     private String repurchaseEligibilityMode;
 
     @Pattern(regexp = "NONE|STANDARD|CUSTOM", message = "复购奖金模式不正确")

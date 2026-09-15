@@ -5,7 +5,7 @@ const theme=require('../../utils/theme')
 const format=require('../../utils/format')
 const feedback=require('../../utils/feedback')
 const statusLabels={AVAILABLE:'未使用',RESERVED:'待支付占用',USED:'已使用',EXPIRED:'已过期'}
-function card(c){return {...c,id:format.identifier(c.id),claimId:format.identifier(c.claimId),key:format.identifier(c.claimId)||format.identifier(c.id),amountText:format.money(c.amount),minimumText:format.money(c.minimumAmount),startsText:String(c.startsAt||'').replace('T',' ').slice(0,16),endsText:String(c.endsAt||'').replace('T',' ').slice(0,16),statusText:statusLabels[c.status]||'',businessText:(c.businessTypes||[]).map(t=>t==='NORMAL'?'普通商城':'其他专区专用（当前商城不可用）').join(' / ')}}
+function card(c){return {...c,id:format.identifier(c.id),claimId:format.identifier(c.claimId),key:format.identifier(c.claimId)||format.identifier(c.id),amountText:format.money(c.amount),minimumText:format.money(c.minimumAmount),startsText:String(c.startsAt||'').replace('T',' ').slice(0,16),endsText:String(c.endsAt||'').replace('T',' ').slice(0,16),statusText:statusLabels[c.status]||'',businessText:(c.businessTypes||[]).map(t=>t==='NORMAL'?'报单区':'其他专区专用（当前商城不可用）').join(' / ')}}
 Page({
   data:{...theme.pageData(),tab:'mine',rows:[],page:1,pages:1,loading:false,error:'',claiming:'',productTarget:null,products:[],productsLoading:false,productPage:0,productPages:1,productError:''},
   onLoad(options={}){this.keys={};if(options.tab==='catalog')this.setData({tab:'catalog'})},
