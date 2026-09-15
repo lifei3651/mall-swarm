@@ -48,8 +48,7 @@ public class OfficialWeChatPayGateway implements WeChatPayGateway {
         request.setMchid(payProperties.getMchId().trim());
         request.setDescription(command.description());
         request.setOutTradeNo(command.paymentNo());
-        request.setTimeExpire(OffsetDateTime.now(ZoneOffset.ofHours(8)).plusMinutes(30)
-                .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+        request.setTimeExpire(paymentExpireAt(OffsetDateTime.now(ZoneOffset.ofHours(8))));
         request.setNotifyUrl(payProperties.getNotifyUrl().trim());
         request.setAmount(amount);
         request.setPayer(payer);
@@ -131,6 +130,10 @@ public class OfficialWeChatPayGateway implements WeChatPayGateway {
                 .signType(request.signatureType())
                 .body(request.body())
                 .build();
+    }
+
+    static String paymentExpireAt(OffsetDateTime now) {
+        return now.plusMinutes(30).withNano(0).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
     }
 
     private ClientBundle bundle() {
