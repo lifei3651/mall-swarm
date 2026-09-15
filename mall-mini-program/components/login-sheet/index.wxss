@@ -1,17 +1,21 @@
 .login-shell { color: var(--ink); font-size: 28rpx; line-height: 1.5; }
 .login-modal { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: flex-end; }
 .login-backdrop { position: absolute; inset: 0; background: rgba(16,24,40,.38); }
-.login-panel { position: relative; box-sizing: border-box; width: 100%; max-height: 78vh; padding: 32rpx 36rpx calc(28rpx + env(safe-area-inset-bottom)); border-radius: 32rpx 32rpx 0 0; background: var(--paper); }
-.login-heading { display: flex; align-items: center; gap: 16rpx; margin-bottom: 16rpx; }
-.login-logo { flex: none; width: 64rpx; height: 64rpx; }
-.login-title { flex: 1; min-width: 0; font-size: 34rpx; font-weight: 600; line-height: 48rpx; }
-.login-panel .close-button { flex: none; display: flex; align-items: center; justify-content: center; width: 72rpx; min-width: 72rpx; min-height: 72rpx; margin: -8rpx -8rpx -8rpx 0; padding: 0; color: var(--muted); background: var(--canvas); border-radius: 50%; font-size: 26rpx; line-height: 72rpx; }
+.login-panel { position: relative; box-sizing: border-box; width: 100%; max-height: 78vh; padding: 36rpx 40rpx calc(28rpx + env(safe-area-inset-bottom)); border-radius: 32rpx 32rpx 0 0; background: var(--paper); }
+.login-brand { display: flex; flex-direction: column; align-items: center; gap: 16rpx; margin-bottom: 48rpx; }
+.login-logo { flex: none; width: 96rpx; height: 96rpx; }
+.login-brand-name { max-width: 100%; color: var(--ink); font-size: 30rpx; font-weight: 600; line-height: 44rpx; text-align: center; overflow-wrap: anywhere; }
+.login-heading { display: flex; align-items: flex-start; gap: 16rpx; margin-bottom: 36rpx; }
+.login-heading-copy { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.login-title { color: var(--ink); font-size: 36rpx; font-weight: 600; line-height: 50rpx; }
+.login-subtitle { margin-top: 12rpx; color: var(--muted); font-size: 25rpx; line-height: 38rpx; }
+.login-panel .close-button { flex: none; display: flex; align-items: center; justify-content: center; width: 64rpx; min-width: 64rpx; min-height: 64rpx; margin: -8rpx -12rpx 0 0; padding: 0; color: var(--muted); background: transparent; border-radius: 0; font-size: 30rpx; line-height: 64rpx; }
 .close-button::after, .login-button::after, .help-button::after { border: 0; }
 .login-content { max-height: calc(78vh - 152rpx - env(safe-area-inset-bottom)); overflow-y: auto; }
 .login-content::-webkit-scrollbar { display: none; width: 0; height: 0; }
-.login-context { margin-bottom: 24rpx; color: var(--muted); font-size: 26rpx; line-height: 40rpx; }
+.login-context { margin: -16rpx 0 24rpx; color: var(--muted); font-size: 24rpx; line-height: 38rpx; }
 .login-loading { padding: 24rpx 0 40rpx; color: var(--muted); text-align: center; font-size: 26rpx; }
-.login-panel .login-button { box-sizing: border-box; display: flex; align-items: center; justify-content: center; width: 100%; max-width: 100%; min-height: 96rpx; height: auto; margin: 0; padding: 24rpx; border-radius: 16rpx; line-height: 40rpx; font-size: 30rpx; font-weight: 600; background: var(--button); color: #fff; white-space: normal; }
+.login-panel .login-button { box-sizing: border-box; display: flex; align-items: center; justify-content: center; width: 100%; max-width: 100%; min-height: 92rpx; height: auto; margin: 0; padding: 22rpx 24rpx; border-radius: 18rpx; line-height: 40rpx; font-size: 30rpx; font-weight: 600; background: var(--button); color: #fff; white-space: normal; }
 .login-panel .login-button.is-disabled { color: #788292; background: #eef0f3; }
 .agreement { display: flex; align-items: flex-start; margin-top: 16rpx; padding: 8rpx 0; border-radius: 12rpx; color: var(--muted); font-size: 23rpx; line-height: 36rpx; }
 .agreement-control { display: flex; flex: none; align-items: center; justify-content: center; min-width: 76rpx; min-height: 76rpx; margin: -19rpx 0 -19rpx -12rpx; }
@@ -28,19 +32,18 @@
 .login-notice { margin-top: 24rpx; color: var(--muted); font-size: 24rpx; line-height: 38rpx; overflow-wrap: anywhere; }
 .login-help { display: flex; flex-wrap: wrap; justify-content: center; gap: 8rpx 20rpx; margin-top: 16rpx; }
 .login-panel .help-button { width: auto; margin: 0; padding: 16rpx 4rpx; min-height: 80rpx; background: transparent; color: var(--muted); font-size: 24rpx; line-height: 40rpx; }
-.login-intro { color:var(--muted); font-size:25rpx; line-height:38rpx; margin-bottom:24rpx; }
-.login-context { font-size:24rpx; margin-bottom:32rpx; }
-.login-alternatives { display:flex; align-items:center; justify-content:center; gap:12rpx; margin-top:8rpx; text-align:center; }
+.login-alternatives { display:flex; align-items:center; justify-content:center; gap:16rpx; margin-top:10rpx; text-align:center; }
 .alternative-divider { color:var(--muted); font-size:24rpx; }
-.login-full-page { min-height:100vh; box-sizing:border-box; background:var(--paper); padding:0; }
-.login-full-page .login-panel { min-height:100vh; max-height:none; padding:64rpx 48rpx calc(40rpx + env(safe-area-inset-bottom)); border-radius:0; }
-.login-full-page .login-heading { flex-direction:column; gap:24rpx; margin-bottom:20rpx; }
+.login-full-page { min-height:100vh; box-sizing:border-box; background:var(--canvas); padding:0; }
+.login-full-page .login-panel { min-height:100vh; max-height:none; padding:72rpx 56rpx calc(40rpx + env(safe-area-inset-bottom)); border-radius:0; background:var(--paper); }
+.login-full-page .login-brand { margin-bottom:64rpx; }
 .login-full-page .login-logo { width:112rpx; height:112rpx; }
-.login-full-page .login-title { font-size:42rpx; line-height:58rpx; text-align:center; overflow-wrap:anywhere; }
+.login-full-page .login-heading { justify-content:center; margin-bottom:48rpx; text-align:center; }
+.login-full-page .login-heading-copy { align-items:center; }
+.login-full-page .login-title { font-size:40rpx; line-height:56rpx; text-align:center; overflow-wrap:anywhere; }
+.login-full-page .login-subtitle { max-width:560rpx; text-align:center; }
 .login-full-page .login-content { max-height:none; overflow:visible; }
-.login-full-page .login-intro, .login-full-page .login-context { text-align:center; }
-.login-full-page .login-intro { margin-bottom:12rpx; }
-.login-full-page .login-context { margin-bottom:56rpx; }
+.login-full-page .login-context { margin:-24rpx 0 40rpx; text-align:center; }
 .login-full-page .login-loading { margin-top:40rpx; }
 .profile-intro { font-size:25rpx; color:var(--muted); margin:0 0 24rpx; }
 .login-panel .profile-wechat-entry { box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; min-height:116rpx; margin:0; padding:20rpx 24rpx; border-radius:16rpx; background:var(--button); color:#fff; line-height:1.4; }

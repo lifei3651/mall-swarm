@@ -1,9 +1,15 @@
 <view wx:if="{{visible}}" class="login-shell {{presentation === 'page' ? 'login-full-page' : 'login-modal'}}" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}};{{presentation !== 'page' ? 'background:transparent' : ''}}">
   <view wx:if="{{presentation !== 'page'}}" class="login-backdrop" bindtap="close" catchtouchmove="stop" aria-hidden="true" />
   <view class="login-panel" role="dialog" aria-label="商城账号登录" aria-modal="true">
+    <view wx:if="{{presentation === 'page'}}" class="login-brand" aria-label="{{brandName}}">
+      <image class="login-logo" src="{{brandLogo && !logoFailed ? brandLogo : '/assets/lingqi-logo-mark.png'}}" binderror="logoError" mode="aspectFit" aria-hidden="true" />
+      <text class="login-brand-name">{{brandName}}</text>
+    </view>
     <view class="login-heading">
-      <image wx:if="{{presentation === 'page'}}" class="login-logo" src="{{brandLogo && !logoFailed ? brandLogo : '/assets/lingqi-logo-mark.png'}}" binderror="logoError" mode="aspectFit" aria-hidden="true" />
-      <text class="login-title">{{profileStep ? '完善头像昵称' : presentation === 'page' ? brandName : '登录后继续'}}</text>
+      <view class="login-heading-copy">
+        <text class="login-title">{{profileStep ? '完善头像昵称' : '微信快捷登录'}}</text>
+        <text wx:if="{{!profileStep}}" class="login-subtitle">授权手机号即可登录，首次使用将自动创建商城账号</text>
+      </view>
       <button wx:if="{{presentation !== 'page'}}" class="close-button" bindtap="close" disabled="{{submitting || profileSaving}}" aria-label="{{profileStep ? '跳过资料填写，继续进入商城' : '关闭登录，返回商城'}}">×</button>
     </view>
     <view wx:if="{{profileStep}}" class="login-content registration-profile">
@@ -29,7 +35,6 @@
       <button class="help-button profile-skip" bindtap="skipProfile" disabled="{{profileSaving}}">暂不设置</button>
     </view>
     <view wx:else class="login-content">
-      <view class="login-intro">使用微信手机号，安全快捷登录商城</view>
       <view wx:if="{{contextHint}}" class="login-context">登录后{{contextHint}}</view>
       <view wx:if="{{loading}}" class="login-loading">正在检查商城配置…</view>
       <block wx:else>
