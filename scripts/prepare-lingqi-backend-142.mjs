@@ -6,7 +6,9 @@ import crypto from 'node:crypto'
 
 const git = (...args) => cp.execFileSync('git', args, { encoding: 'utf8' }).trim()
 const root = git('rev-parse', '--show-toplevel')
-if (path.basename(root) !== 'mall-swarm-app-h5') throw new Error('Wrong product repository')
+if (!/^git@github\.com:lifei3651\/mall-swarm(?:\.git)?$/.test(git('remote', 'get-url', 'origin'))) {
+  throw new Error('Wrong product repository')
+}
 process.chdir(root)
 if (git('status', '--porcelain')) throw new Error('Commit the reviewed release changes before packaging')
 const commit = git('rev-parse', 'HEAD')

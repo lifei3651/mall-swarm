@@ -5,7 +5,8 @@ import path from 'node:path'
 
 const [archive, expectedSha, commit, mode] = process.argv.slice(2)
 const root = cp.execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim()
-if (path.basename(root) !== 'mall-swarm-app-h5') throw new Error('Wrong product repository')
+const origin = cp.execFileSync('git', ['remote', 'get-url', 'origin'], { encoding: 'utf8' }).trim()
+if (!/^git@github\.com:lifei3651\/mall-swarm(?:\.git)?$/.test(origin)) throw new Error('Wrong product repository')
 process.chdir(root)
 if (mode !== '--authorize-release') throw new Error('Explicit release mode is required')
 if (!/^[a-f0-9]{64}$/.test(expectedSha || '') || !/^[a-f0-9]{40}$/.test(commit || '')) throw new Error('Invalid immutable identity')
