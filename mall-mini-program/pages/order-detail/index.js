@@ -15,6 +15,15 @@ const AFTER_SALE_STATUS = { 0: '待审核', 1: '退款完成', 2: '已拒绝', 3
 const AFTER_SALE_TYPE = { 1: '仅退款', 2: '退货退款', 3: '同规格换货' }
 const CARRIERS = ['顺丰速运', '京东物流', '中通快递', '圆通速递', '申通快递', '韵达快递', '极兔速递', '中国邮政', 'EMS', '德邦快递', '跨越速运', '安能物流', '壹米滴答', 'DHL', 'FedEx', 'UPS']
 
+const STATUS_COPY = {
+  0: ['等待付款', '请核对商品和收货信息后完成支付'],
+  1: ['商家正在备货', '付款已完成，商家会尽快为您发货'],
+  2: ['包裹已发出', '可在下方查看承运商、运单号和物流进度'],
+  3: ['订单已完成', '感谢您的购买，如有问题可在售后期内申请处理'],
+  4: ['订单已关闭', '该订单已关闭，无需继续付款'],
+  5: ['售后处理中', '售后进度有更新时会在订单和消息中心同步显示']
+}
+
 function formatTime(value) {
   return value ? String(value).replace('T', ' ').slice(0, 16) : ''
 }
@@ -24,9 +33,34 @@ function addressText(order) {
     .filter(Boolean).join('') || order.receiverAddress || ''
 }
 
+function statusCopy(order, shipments) {
+  const copy = STATUS_COPY[Number(order.status)] || ['订单处理中', '订单状态更新后会在这里显示']
+  if (Number(order.status) === 2 && shipments.length) {
+    const first = shipments[0]
+    const packageText = shipments.length > 1 ? `共 ${shipments.length} 个包裹，` : ''
+    return [copy[0], `${packageText}${first.deliveryCompany || '承运商'}已接收发货信息`]
+  }
+  return copy
+}
+
+function pageStatus(rows) {
+  if (rows.length > 1) {
+    const pending = rows.filter((row) => row.order.status === 0).length
+    return {
+      pageStatusTitle: pending ? '合并订单待付款' : '合并订单',
+      pageStatusDescription: pending ? `本次付款包含 ${rows.length} 个订单，请核对后统一支付` : `本次交易包含 ${rows.length} 个商城订单`
+    }
+  }
+  const row = rows[0]
+  return {
+    pageStatusTitle: row?.order?.statusTitle || '订单详情',
+    pageStatusDescription: row?.order?.statusDescription || '订单状态更新后会在这里显示'
+  }
+}
+
 Page({
   ...balancePayment.methods,
-  data: { ...theme.pageData(), ...paymentSummary(), loading: true, error: '', rows: [], paymentNo: '', actingId: null, paying: false, cancellingAfterSaleId: null,
+  data: { ...theme.pageData(), ...paymentSummary(), pageStatusTitle: '', pageStatusDescription: '', loading: true, error: '', rows: [], paymentNo: '', actingId: null, paying: false, cancellingAfterSaleId: null,
     editingSaleId: '', deliveryCompany: '', deliveryNo: '', shipmentError: '', submittingShipment: false,
     carriers: CARRIERS, expandedOrders: {}, trackingOrderId: '', trackingLoading: false, trackingError: '', trackingRows: [], ...balancePayment.data },
   onLoad(options = {}) {
@@ -88,9 +122,19 @@ Page({
       }
       const rows = source.map((row) => {
         const order = row.order || {}
+        const shipments = (row.shipments?.length ? row.shipments : order.deliveryNo ? [{ deliveryCompany: order.deliveryCompany, deliveryNo: order.deliveryNo,
+          deliveryTime: order.deliveryTime, shipmentQuantity: (row.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0) }] : []).map((shipment, index) => ({
+          ...shipment,
+          key: `${shipment.id || shipment.deliveryNo || 'package'}:${index}`,
+          packageLabel: `包裹 ${index + 1}${shipment.shipmentQuantity ? ' · ' + shipment.shipmentQuantity + '件商品' : ''}`,
+          deliveryTimeText: formatTime(shipment.deliveryTime)
+        }))
+        const [statusTitle, statusDescription] = statusCopy(order, shipments)
+        const itemQuantity = (row.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)
         return {
           ...row,
           key: identifier(order.id),
+          itemQuantity,
           canApplyAfterSale: afterSaleEligibility(row).allowed,
           canReceive: Number(order.status) === 2 && !(row.afterSales || []).some((sale) => [0, 4, 5, 6, 7, 8].includes(Number(sale.status))),
           order: {
@@ -98,7 +142,10 @@ Page({
             id: identifier(order.id),
             status: Number(order.status),
             statusText: STATUS[Number(order.status)] || '处理中',
+            statusTitle,
+            statusDescription,
             amountText: format.money(order.payAmount == null ? order.totalAmount : order.payAmount),
+            totalText: format.money(order.totalAmount == null ? order.payAmount : order.totalAmount),
             amountLabel: amountLabel(order),
             freightText: format.money(order.freightAmount),
             createTimeText: formatTime(order.createTime),
@@ -110,13 +157,7 @@ Page({
             productCover: format.mediaUrl(item.productCover),
             priceText: format.money(item.price)
           })),
-          shipments: (row.shipments?.length ? row.shipments : order.deliveryNo ? [{ deliveryCompany: order.deliveryCompany, deliveryNo: order.deliveryNo,
-            deliveryTime: order.deliveryTime, shipmentQuantity: (row.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0) }] : []).map((shipment, index) => ({
-            ...shipment,
-            key: `${shipment.id || shipment.deliveryNo || 'package'}:${index}`,
-            packageLabel: `包裹 ${index + 1}${shipment.shipmentQuantity ? ' · ' + shipment.shipmentQuantity + '件商品' : ''}`,
-            deliveryTimeText: formatTime(shipment.deliveryTime)
-          })),
+          shipments,
           afterSales: (row.afterSales || []).map((sale) => ({
             ...sale,
             id: identifier(sale.id),
@@ -139,6 +180,7 @@ Page({
         rows,
         error: '',
         paymentNo: this.paymentNo || (rows[0] && (rows[0].order.paymentOrderNo || rows[0].order.orderNo)) || '',
+        ...pageStatus(rows),
         ...paymentSummary(rows)
       })
       this.quietErrorShown = false
@@ -217,7 +259,12 @@ Page({
       if (!current() || version !== this.requestVersion) return
       feedback.update(this, { trackingRows: (Array.isArray(records) ? records : []).map((record) => ({
         deliveryNo: String(record.deliveryNo || ''), deliveryCompany: record.deliveryCompany || '',
-        statusText: record.statusText || (record.configured ? '暂无新物流轨迹' : '商城尚未配置物流轨迹服务，可复制单号向承运商查询'),
+        configured: record.configured === true,
+        statusCode: record.status || '',
+        statusText: record.configured ? (record.statusText || '暂无新物流轨迹') : '轨迹查询服务待开通',
+        statusHint: record.configured
+          ? '物流数据来自已接入的查询服务'
+          : '当前已保存承运商和运单号。微信官方查询组件开通并完成联调后，可在这里查看实时轨迹。',
         events: (record.events || []).map((item) => ({ description: item.description || '', location: item.location || '', time: formatTime(item.eventTime) }))
       })) })
     } catch (error) { if (current() && version === this.requestVersion) feedback.update(this, { trackingError: error.message || '物流查询失败，请重试' }) }

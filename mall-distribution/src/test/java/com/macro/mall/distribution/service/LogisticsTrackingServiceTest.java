@@ -22,6 +22,7 @@ class LogisticsTrackingServiceTest {
 
         assertFalse(result.isConfigured());
         assertEquals("NOT_CONFIGURED", result.getStatus());
+        assertEquals("轨迹查询服务待开通", result.getStatusText());
         assertTrue(result.getEvents().isEmpty());
     }
 

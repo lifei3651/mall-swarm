@@ -180,12 +180,14 @@ test('已到账提现通知能定位历史单据，不错误调用确认收款',
 })
 
 test('物流查询只接受当前订单，未配置服务不伪造运输进度', async () => {
-  const e = environment({ respond: () => [{ deliveryNo: 'TEST-001', configured: false, events: [] }] }), page = e.page('order-detail')
+  const e = environment({ respond: () => [{ deliveryNo: 'TEST-001', configured: false, statusText: '暂未接入真实物流轨迹', events: [] }] }), page = e.page('order-detail')
   page.setData({ rows: [{ order: { id: '12' } }] })
   await page.loadTracking({ currentTarget: { dataset: { id: '99' } } }); assert.equal(e.calls.length, 0)
   await page.loadTracking({ currentTarget: { dataset: { id: '12' } } })
   assert.equal(e.calls[0].url, '/shop/orders/12/tracking'); assert.equal(e.calls[0].method, undefined)
-  assert.match(page.data.trackingRows[0].statusText, /尚未配置/)
+  assert.match(page.data.trackingRows[0].statusText, /待开通/)
+  assert.doesNotMatch(page.data.trackingRows[0].statusText, /暂未接入真实物流轨迹/)
+  assert.match(page.data.trackingRows[0].statusHint, /微信官方查询组件开通并完成联调/)
   page.selectCarrier({ detail: { value: '0' } }); assert.equal(page.data.deliveryCompany, '顺丰速运')
 })
 

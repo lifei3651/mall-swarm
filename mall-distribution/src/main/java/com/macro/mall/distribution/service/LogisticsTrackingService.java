@@ -34,7 +34,7 @@ public class LogisticsTrackingService {
         if (provider == null || shipment.getDeliveryNo() == null || shipment.getDeliveryNo().isBlank()
                 || !provider.supports(shipment.getDeliveryCompany())) {
             return new ShopLogisticsTrackingVO(shipment.getId(), shipment.getDeliveryCompany(), shipment.getDeliveryNo(),
-                    false, null, "NOT_CONFIGURED", "暂未接入真实物流轨迹", null, List.of());
+                    false, null, "NOT_CONFIGURED", "轨迹查询服务待开通", null, List.of());
         }
         try {
             LogisticsTrackingProvider.TrackingResult result = provider.query(
