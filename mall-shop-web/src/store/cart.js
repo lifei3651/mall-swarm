@@ -141,6 +141,18 @@ export function useCart() {
     0,
   )
 
+  const decrementProduct = (productId) => {
+    assertAuthenticatedCartAction()
+    let index = -1
+    for (let i = state.items.length - 1; i >= 0; i--) {
+      if (Number(state.items[i].id) === Number(productId)) { index = i; break }
+    }
+    if (index < 0) return false
+    if (Number(state.items[index].quantity || 0) <= 1) state.items.splice(index, 1)
+    else state.items[index].quantity -= 1
+    return true
+  }
+
   const update = (cartKey, quantity) => {
     const item = state.items.find((row) => (row.cartKey || `${row.id}`) === `${cartKey}`)
     if (!item) return
@@ -207,6 +219,7 @@ export function useCart() {
     add,
     getQuantity,
     getProductQuantity,
+    decrementProduct,
     update,
     remove,
     clear,

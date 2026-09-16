@@ -81,7 +81,7 @@ Page({
       }
       const products = productRows.map(categoryProduct.card)
       this.baseProducts = products
-      feedback.update(this, { products: displayPrices(decorateCampaignProducts(products, [], decoration.layoutTemplate)), productsLoading: false, productError: '' })
+      feedback.update(this, { products: quickCart.decorate(displayPrices(decorateCampaignProducts(products, [], decoration.layoutTemplate))), productsLoading: false, productError: '' })
       this.startCampaignClock()
 
       if (decoration.layoutTemplate === 'campaign-feed') {
@@ -89,7 +89,7 @@ Page({
           const campaigns = await request({ url: '/shop/flash-sales' })
           if (!Array.isArray(campaigns)) throw new Error('活动数据不完整')
           if (sequence !== this.productSequence) return
-          feedback.update(this, { campaigns, campaignError: '', products: displayPrices(decorateCampaignProducts(products, campaigns, decoration.layoutTemplate)) })
+          feedback.update(this, { campaigns, campaignError: '', products: quickCart.decorate(displayPrices(decorateCampaignProducts(products, campaigns, decoration.layoutTemplate))) })
           this.startCampaignClock()
         } catch (_) {
           if (sequence === this.productSequence) feedback.update(this, { campaigns: [], campaignError: '活动信息暂不可用，以下按普通售价展示。点击重试' })

@@ -174,7 +174,13 @@
                   <strong>{{ priceParts(product.salePrice).integer }}</strong>
                   <small>.{{ priceParts(product.salePrice).decimal }}</small>
                 </div>
+                <div v-if="getProductQuantity(product.id) > 0" class="category-quantity-stepper" :aria-label="`购物车中已有${getProductQuantity(product.id)}件${product.productName}`">
+                  <button type="button" :aria-label="`减少一件${product.productName}`" @click="decreaseProduct(product)"><Minus :size="19" /></button>
+                  <strong>{{ getProductQuantity(product.id) }}</strong>
+                  <button type="button" :disabled="product.status !== 1 || product.stock <= 0" :aria-label="product.status !== 1 || product.stock <= 0 ? '商品已售罄，暂不能增加' : `增加一件${product.productName}`" @click="addProduct(product)"><Plus :size="19" /></button>
+                </div>
                 <button
+                  v-else
                   type="button"
                   class="quick-cart-button"
                   :disabled="product.status !== 1 || product.stock <= 0" :aria-busy="isAddingProduct(product.id)"
@@ -205,7 +211,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ChevronDown, ChevronUp, PackageOpen, Search, ShoppingCart } from 'lucide-vue-next'
+import { ChevronDown, ChevronUp, Minus, PackageOpen, Plus, Search, ShoppingCart } from 'lucide-vue-next'
 import { getHome, getProduct, listCategories, listCategoryProducts } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { money } from '@/utils/format'
@@ -221,7 +227,7 @@ import { productCardImage } from '@/utils/productMedia'
 
 const route = useRoute()
 const router = useRouter()
-const { add, getQuantity, getProductQuantity } = useCart()
+const { add, decrementProduct, getQuantity, getProductQuantity } = useCart()
 const loading = ref(false)
 const categoryLoading = ref(false)
 const categories = ref([])
@@ -388,6 +394,11 @@ const addProduct = async (product) => {
   } finally {
     setAddingProduct(product.id, false)
   }
+}
+
+const decreaseProduct = (product) => {
+  if (!requireShopSession(router, route.fullPath, '请先登录后再调整购物车')) return
+  decrementProduct(product.id)
 }
 
 onMounted(async () => {
@@ -592,6 +603,11 @@ onBeforeUnmount(() => {
 .quick-cart-button { min-width: 132px; height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 20px; color: #fff; background: linear-gradient(135deg,var(--brand-primary),var(--brand-primary-dark)); border: 0; border-radius: 999px; box-shadow: var(--shop-card-shadow); font-size: 16px; font-weight: 800; white-space: nowrap; }
 .quick-cart-button:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 3px; }
 .quick-cart-button:disabled:not([aria-busy="true"]) { color: #fff; background: #b9bdc2; box-shadow: none; cursor: not-allowed; }
+.category-quantity-stepper { box-sizing: border-box; width: 132px; height: 46px; flex: 0 0 132px; display: grid; grid-template-columns: 46px 40px 46px; align-items: center; overflow: hidden; color: var(--brand-primary); background: #fff; border: 1px solid var(--brand-primary); border-radius: 999px; }
+.category-quantity-stepper button { width: 46px; height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--brand-primary); background: transparent; border: 0; cursor: pointer; }
+.category-quantity-stepper button:disabled { color: #b9bdc2; cursor: not-allowed; }
+.category-quantity-stepper button:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: -3px; }
+.category-quantity-stepper strong { text-align: center; color: #202630; font-size: 15px; font-variant-numeric: tabular-nums; }
 .cart-label-short { display: none; }
 
 .empty-state { min-height: 420px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #9ba1a8; }
@@ -702,6 +718,8 @@ onBeforeUnmount(() => {
   .category-price strong { font-size: 25px; }
   .category-price small { font-size: 14px; }
   .quick-cart-button { min-width: 88px; height: 36px; gap: 4px; padding: 0 11px; font-size: 13px; box-shadow: none; }
+  .category-quantity-stepper { width: 104px; height: 40px; flex-basis: 104px; grid-template-columns: 40px 24px 40px; }
+  .category-quantity-stepper button { width: 40px; height: 38px; }
   .empty-state { min-height: 330px; }
   .category-guide { padding: 0 8px 18px; }
   .guide-directory-shell.is-split { grid-template-columns: 82px minmax(0,1fr); gap: 8px; }
@@ -747,6 +765,8 @@ onBeforeUnmount(() => {
   .category-price small { font-size: 12px; }
   .purchase-row { gap: 4px; }
   .quick-cart-button { min-width: 50px; height: 34px; padding: 0 4px; font-size: 12px; }
+  .category-quantity-stepper { width: 92px; height: 36px; flex-basis: 92px; grid-template-columns: 34px 24px 34px; }
+  .category-quantity-stepper button { width: 34px; height: 34px; }
   .quick-cart-button svg { display: none; }
   .cart-label-full { display: none; }
   .cart-label-short { display: inline; }

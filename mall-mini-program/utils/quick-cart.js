@@ -20,12 +20,48 @@ function firstAvailableSku(detail) {
 }
 // An in-flight request is a logic lock, not a visual disabled state.
 const data = {}
-function show(page) { page._inactive = false }
+function quantity(productId) {
+  try {
+    if (typeof cart.productQuantity === 'function') return cart.productQuantity(productId)
+    const id = format.identifier(productId)
+    return (typeof cart.list === 'function' ? cart.list() : []).reduce((sum, row) => format.identifier(row.productId) === id ? sum + Number(row.quantity || 0) : sum, 0)
+  } catch (_) { return 0 }
+}
+function decorate(rows) { return (rows || []).map(row => ({ ...row, cartQuantity: quantity(row.id) })) }
+function sync(page, productId) {
+  const id = format.identifier(productId)
+  if (!id || !page || !page.data || typeof page.setData !== 'function') return
+  const next = quantity(id)
+  const patch = {}
+  for (const name of ['products', 'hotProducts']) {
+    const rows = page.data[name]
+    if (!Array.isArray(rows)) continue
+    rows.forEach((row, index) => {
+      if (format.identifier(row.id) === id && Number(row.cartQuantity || 0) !== next) patch[`${name}[${index}].cartQuantity`] = next
+    })
+  }
+  if (Object.keys(patch).length) page.setData(patch)
+}
+function syncAll(page) {
+  if (!page || !page.data || typeof page.setData !== 'function') return
+  const patch = {}
+  for (const name of ['products', 'hotProducts']) {
+    const rows = page.data[name]
+    if (!Array.isArray(rows)) continue
+    rows.forEach((row, index) => {
+      const next = quantity(row.id)
+      if (Number(row.cartQuantity || 0) !== next) patch[`${name}[${index}].cartQuantity`] = next
+    })
+  }
+  if (Object.keys(patch).length) page.setData(patch)
+}
+function show(page) { page._inactive = false; syncAll(page) }
 function hide(page) {
   page._inactive = true; page.addSequence = (page.addSequence || 0) + 1
   page.addingId = ''
 }
 const methods = {
+  noop() {},
   async quickAdd(event) {
     const id = format.identifier(event.currentTarget.dataset.id)
     if (!id || this.addingId || this._inactive) return
@@ -41,10 +77,20 @@ const methods = {
       const selection = await purchaseLimit.checkAddition(id, firstAvailableSku(detail), 1, { detail, isCurrent: current })
       if (!selection || !current()) return
       cart.add(selection.item)
+      sync(this, id)
       const tab = this.getTabBar && this.getTabBar()
       if (tab && tab.refreshCartCount) tab.refreshCartCount()
     } catch (error) { if (current()) await feedback.notice(error.message || '加购失败，请稍后重试', '未能加入购物车') }
     finally { if (sequence === this.addSequence) this.addingId = '' }
+  },
+  quickDecrease(event) {
+    const id = format.identifier(event.currentTarget.dataset.id)
+    if (!id || this.addingId || this._inactive) return
+    if (!auth.requireLogin(this.quickCartRoute || '/pages/category/index')) return
+    cart.decrementProduct(id)
+    sync(this, id)
+    const tab = this.getTabBar && this.getTabBar()
+    if (tab && tab.refreshCartCount) tab.refreshCartCount()
   }
 }
-module.exports = { data, methods, show, hide, firstAvailableSku }
+module.exports = { data, methods, show, hide, firstAvailableSku, decorate, sync, syncAll }

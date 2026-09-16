@@ -43,6 +43,23 @@ function add(item) {
 }
 function update(key, patch) { return save(list().map((row) => row.key === key ? { ...row, ...patch } : row)) }
 function remove(key) { return save(list().filter((row) => row.key !== key)) }
+function productQuantity(productId) {
+  const id = identifier(productId)
+  return id ? list().reduce((sum, row) => identifier(row.productId) === id && quantities.valid(row.quantity) ? sum + row.quantity : sum, 0) : 0
+}
+function decrementProduct(productId) {
+  const id = identifier(productId)
+  if (!id) return list()
+  const rows = list()
+  let index = -1
+  for (let i = rows.length - 1; i >= 0; i--) {
+    if (identifier(rows[i].productId) === id) { index = i; break }
+  }
+  if (index < 0) return rows
+  if (rows[index].quantity <= 1) rows.splice(index, 1)
+  else rows[index] = { ...rows[index], quantity: rows[index].quantity - 1 }
+  return save(rows)
+}
 function removeMany(keys) { const targets = new Set(keys); return save(list().filter(row => !targets.has(row.key))) }
 function clear() { direct = null; return save([]) }
 function count() { return list().reduce((sum, row) => sum + (quantities.valid(row.quantity) ? row.quantity : 0), 0) }
@@ -63,4 +80,4 @@ function directItems() {
 }
 function clearDirectCheckout() { direct = null }
 
-module.exports = { list, add, update, remove, removeMany, clear, count, selectAll, selectOnly, clearSelected, selected, beginDirectCheckout, directItems, clearDirectCheckout, needsLegacyReview, acknowledgeLegacyReview }
+module.exports = { list, add, update, remove, removeMany, clear, count, productQuantity, decrementProduct, selectAll, selectOnly, clearSelected, selected, beginDirectCheckout, directItems, clearDirectCheckout, needsLegacyReview, acknowledgeLegacyReview }

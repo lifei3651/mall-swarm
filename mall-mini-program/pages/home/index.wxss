@@ -99,11 +99,16 @@
 .product-price .price-number { font-size: 22px; }
 .home-purchase-row .home-quick-cart { flex: none; width: auto; min-width: 76px; height: 34px; min-height: 34px; border-radius: 999rpx; margin: 0 0 0 auto; padding: 0 9px; font-size: 12px; font-weight: 600; color: #fff; background: var(--button); }
 .home-purchase-row .home-quick-cart.is-disabled { color: #fff; background: #b7bbc2; }
+.home-quantity-stepper { box-sizing: border-box; flex: none; width: 92px; height: 34px; display: grid; grid-template-columns: 34px 24px 34px; align-items: center; margin-left: auto; overflow: hidden; border: 1px solid var(--brand); border-radius: 999rpx; background: var(--paper); color: var(--brand); }
+.home-quantity-stepper button { width: 34px; height: 32px; min-height: 32px; margin: 0; padding: 0; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 0; background: transparent; color: var(--brand); font-size: 22px; font-weight: 600; line-height: 1; }
+.home-quantity-stepper button[disabled] { color: #b7bbc2; background: transparent; opacity: 1; }
+.home-quantity-stepper text { min-width: 0; text-align: center; color: var(--ink); font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.home-quantity-stepper .quantity-stepper-hover { background: var(--brand-soft); }
 .sold-out-mask { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; background: rgba(0,0,0,.36); font-size: 28rpx; font-weight: 650; }
 .layout-campaign-feed .product-media { height: 320rpx; padding-top: 0; }
 .layout-campaign-feed .product-cover { height: 100%; }
 .layout-category-focus .category-icon { width: 62px; height: 62px; }
-@media (max-width: 370px) { .category-icon, .layout-category-focus .category-icon { width:52px; height:52px; } .home-purchase-row .home-quick-cart { min-width:70px; padding:0 7px; font-size:11px; } .product-price .price-number { font-size:20px; } }
+@media (max-width: 370px) { .category-icon, .layout-category-focus .category-icon { width:52px; height:52px; } .home-purchase-row .home-quick-cart { min-width:70px; padding:0 7px; font-size:11px; } .home-quantity-stepper { width:86px; grid-template-columns:32px 22px 32px; } .home-quantity-stepper button { width:32px; } .product-price .price-number { font-size:20px; } }
 @media (max-width: 340px) { .home-purchase-row .home-quick-cart { min-width: 116rpx; padding: 0 12rpx; font-size: 22rpx; } .product-price .price-number { font-size: 32rpx; } }
 .search-suggestions { margin-top:-10rpx; margin-bottom:20rpx; padding:24rpx; border:1rpx solid var(--line); border-radius:24rpx; background:var(--paper); }
 .suggestion-group { min-width:0; }

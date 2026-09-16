@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 const read = name => readFileSync(new URL('../src/views/' + name + '.vue', import.meta.url), 'utf8')
+const readSource = path => readFileSync(new URL('../src/' + path, import.meta.url), 'utf8')
 
 for (const name of ['HomeView', 'CategoryView']) test(name + '：仅售罄置灰，短时加购锁不改变按钮视觉', () => {
   const source = read(name)
@@ -37,4 +38,17 @@ test('首页和分类售罄提示覆盖商品图片居中显示并提高字号',
   const category = read('CategoryView')
   assert.match(home, /\.home-sold-out\s*\{[^}]*inset: 0;[^}]*place-items: center;[^}]*font-size: 17px;/)
   assert.match(category, /\.sold-out-mask\s*\{[^}]*inset: 0;[^}]*place-items: center;[^}]*font-size: 18px;/)
+})
+
+test('首页与分类商品卡加购后显示原位数量器，并支持减到零', () => {
+  for (const name of ['HomeView', 'CategoryView']) {
+    const source = read(name)
+    assert.match(source, /getProductQuantity\(product\.id\) > 0/)
+    assert.match(source, /class="(?:home|category)-quantity-stepper"/)
+    assert.match(source, /@click="decreaseProduct\(product\)"/)
+    assert.match(source, /decrementProduct\(product\.id\)/)
+  }
+  const cart = readSource('store/cart.js')
+  assert.match(cart, /const decrementProduct = \(productId\)/)
+  assert.match(cart, /state\.items\.splice\(index, 1\)/)
 })

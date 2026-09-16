@@ -175,8 +175,13 @@
                 <strong>{{ priceParts(campaignPrice(product)).integer }}</strong>
                 <small>.{{ priceParts(campaignPrice(product)).decimal }}</small>
               </div>
+              <div v-if="!campaignActivity(product) && getProductQuantity(product.id) > 0" class="home-quantity-stepper" :aria-label="`购物车中已有${getProductQuantity(product.id)}件${product.productName}`">
+                <button type="button" :aria-label="`减少一件${product.productName}`" @click="decreaseProduct(product)"><Minus :size="18" /></button>
+                <strong>{{ getProductQuantity(product.id) }}</strong>
+                <button type="button" :disabled="product.status !== 1 || product.stock <= 0" :aria-label="product.status !== 1 || product.stock <= 0 ? '商品已售罄，暂不能增加' : `增加一件${product.productName}`" @click="addProduct(product)"><Plus :size="18" /></button>
+              </div>
               <button
-                v-if="!campaignActivity(product)"
+                v-else-if="!campaignActivity(product)"
                 type="button"
                 class="home-cart-button"
                 :disabled="product.status !== 1 || product.stock <= 0" :aria-busy="isAddingProduct(product.id)"
@@ -212,7 +217,7 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ChevronRight, Flame, Megaphone, PackageOpen, Radio, Search, ShoppingCart, Sparkles, X } from 'lucide-vue-next'
+import { ChevronRight, Flame, Megaphone, Minus, PackageOpen, Plus, Radio, Search, ShoppingCart, Sparkles, X } from 'lucide-vue-next'
 import { getHome, getProduct, listFlashSales, listProducts } from '@/api/shop'
 import { useCart } from '@/store/cart'
 import { money } from '@/utils/format'
@@ -232,7 +237,7 @@ import { resolveBusinessEntries } from '@surface-commerce-policy'
 
 const router = useRouter()
 const route = useRoute()
-const { add, getQuantity, getProductQuantity } = useCart()
+const { add, decrementProduct, getQuantity, getProductQuantity } = useCart()
 const home = ref({})
 const products = ref([])
 // 首屏第一次请求开始前也保持加载态，避免 Vue 首次渲染时把“尚未请求”误判为“没有商品”。
@@ -618,6 +623,11 @@ const addProduct = async (product) => {
   }
 }
 
+const decreaseProduct = (product) => {
+  if (!requireShopSession(router, route.fullPath, '请先登录后再调整购物车')) return
+  decrementProduct(product.id)
+}
+
 onMounted(async () => {
   campaignTimer = window.setInterval(() => { campaignClock.value = Date.now() }, 1000)
   readRecentSearches()
@@ -769,6 +779,11 @@ onUnmounted(() => { disposed = true; productRequestId++; campaignRequestId++; pe
 .home-price small { font-size: 14px; font-weight: 800; }
 .home-cart-button { min-width: 96px; height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 12px; color: #fff; background: var(--shop-button-bg, linear-gradient(135deg,var(--brand-primary),var(--brand-primary-dark))); border: 0; border-radius: 999px; font-size: 13px; font-weight: 800; white-space: nowrap; }
 .home-cart-button:disabled:not([aria-busy="true"]) { background: #b7bbc0; cursor: not-allowed; }
+.home-quantity-stepper { box-sizing: border-box; width: 112px; height: 38px; flex: 0 0 112px; display: grid; grid-template-columns: 38px 36px 38px; align-items: center; overflow: hidden; color: var(--brand-primary); background: #fff; border: 1px solid var(--brand-primary); border-radius: 999px; }
+.home-quantity-stepper button { width: 38px; height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--brand-primary); background: transparent; border: 0; cursor: pointer; }
+.home-quantity-stepper button:disabled { color: #b7bbc0; cursor: not-allowed; }
+.home-quantity-stepper button:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: -3px; }
+.home-quantity-stepper strong { text-align: center; color: #202630; font-size: 14px; font-variant-numeric: tabular-nums; }
 .home-empty { min-height: 340px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; color: #989ea6; background: #fff; border-radius: 14px; }
 .home-empty strong { color: #59616a; }
 .home-empty button { padding: 8px 15px; color: var(--brand-primary); background: #fff; border: 1px solid var(--brand-primary-soft); border-radius: 999px; }
@@ -848,6 +863,8 @@ onUnmounted(() => { disposed = true; productRequestId++; campaignRequestId++; pe
   .home-price small { font-size: 12px; }
   .home-cart-button { min-width: 76px; height: 34px; gap: 3px; padding: 0 9px; font-size: 12px; }
   .home-cart-button svg { display: none; }
+  .home-quantity-stepper { width: 92px; height: 34px; flex-basis: 92px; grid-template-columns: 34px 24px 34px; }
+  .home-quantity-stepper button { width: 34px; height: 32px; }
 }
 
 @media (max-width: 370px) {

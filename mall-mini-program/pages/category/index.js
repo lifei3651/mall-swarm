@@ -38,7 +38,7 @@ Page({
     try {
       const result = await request({ url: '/shop/products', params })
       if (sequence !== this.productSequence) return
-      const incoming = (result.list || []).map(categoryProduct.card)
+      const incoming = quickCart.decorate((result.list || []).map(categoryProduct.card))
       const products = [...new Map((reset ? incoming : this.data.products.concat(incoming)).map((item) => [String(item.id), item])).values()]
       const total = Number.isFinite(Number(result.total)) ? Number(result.total) : products.length
       const hasMore = result.totalPage != null ? next < Number(result.totalPage) : result.total != null ? products.length < total : incoming.length === 20

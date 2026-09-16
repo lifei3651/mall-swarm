@@ -7,14 +7,18 @@ const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8'
 const event = { currentTarget: { dataset: { id: '1' } } }
 const tick = () => new Promise(resolve => setImmediate(resolve))
 
-test('首页和分类仅售罄禁用，临时请求锁不传入任何按钮状态', () => {
+test('首页和分类加购后原位显示数量器，临时请求锁不传入按钮状态', () => {
   for (const name of ['home', 'category']) {
-    const button = read('pages/' + name + '/index.wxml').split('\n').find(line => line.includes('catchtap="quickAdd"'))
+    const source = read('pages/' + name + '/index.wxml')
+    const button = source.split('\n').find(line => line.includes('class="' + (name === 'home' ? 'home-quick-cart' : 'quick-cart-button')))
     assert.ok(button)
     assert.match(button, /disabled="\{\{item.soldOut\}\}"/)
     assert.match(button, /hover-class="none"/)
     assert.match(button, /item.soldOut \? 'is-disabled' : ''/)
     assert.doesNotMatch(button, /loading=|加购中|addingId/)
+    assert.match(source, /item\.cartQuantity > 0/)
+    assert.match(source, /catchtap="quickDecrease"/)
+    assert.match(source, /\{\{item\.cartQuantity\}\}/)
   }
 })
 
@@ -56,8 +60,25 @@ for (const name of ['home', 'category']) test(name + '：慢请求和连续加�
     assert.equal(page.data.products, products)
   }
   assert.deepEqual(badges, [1, 2])
-  assert.equal(patches.length, 0, '加购前后不向商品页发送任何渲染补丁')
+  assert.deepEqual(JSON.parse(JSON.stringify(patches)), [
+    {'products[0].cartQuantity': 1},
+    {'products[0].cartQuantity': 2},
+  ], '只局部更新对应商品数量，不重刷商品列表')
   assert.equal(env.notices.length, 0)
+})
+
+for (const name of ['home', 'category']) test(name + '：数量减到零后恢复立即加购，购物车角标同步', async () => {
+  const detail = { product: { id: '1', status: 1, productName: '商品', stock: 20, salePrice: 12 }, skus: [] }
+  const env = commerceEnv(({method}) => method === 'POST' ? { allowed: true } : detail)
+  const page = env.page(name), cart = env.load('utils/cart'), badges = []
+  page.setData({ products: [{ id: '1', productName: '商品', cartQuantity: 0 }] })
+  page.getTabBar = () => ({ refreshCartCount: () => badges.push(cart.count()) })
+  await page.quickAdd(event)
+  assert.equal(page.data.products[0].cartQuantity, 1)
+  page.quickDecrease(event)
+  assert.equal(page.data.products[0].cartQuantity, 0)
+  assert.equal(cart.list().length, 0)
+  assert.deepEqual(badges, [1, 0])
 })
 
 test('导航数量更新仅提交cartCount，数量未变不重复setData', () => {
