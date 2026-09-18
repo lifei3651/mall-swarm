@@ -296,7 +296,7 @@ class ExternalRefundCoordinatorTest {
                 inventoryRestockService,
                 mock(DmsShopTradeDao.class), mock(AlipayService.class), mock(WeChatPayService.class), manager)
                 .completeWechatRefund(new WeChatPayGateway.RefundNotification(
-                        "SUCCESS", "ORDER-2", "AS-1", 9900L, 9900L, "CNY"));
+                        "SUCCESS", "ORDER-2", "AS-1", 9900L, 9900L, null));
 
         verify(saleDao).markRefundCompleted(1L);
         verify(orderDao).closeAfterSale(2L);
@@ -360,6 +360,15 @@ class ExternalRefundCoordinatorTest {
         PartialWechatRefund fixture = partialWechatRefund();
         assertThrows(ApiException.class, () -> fixture.coordinator.completeWechatRefund(
                 new WeChatPayGateway.RefundNotification("SUCCESS", "ORDER-2", "AS-1", 1L, 9900L, "CNY")));
+        verifyNoInteractions(fixture.shipping);
+        verify(fixture.saleDao, never()).markRefundCompleted(1L);
+    }
+
+    @Test
+    void unexpectedWechatRefundCurrencyNeverCompletesSale() {
+        PartialWechatRefund fixture = partialWechatRefund();
+        assertThrows(ApiException.class, () -> fixture.coordinator.completeWechatRefund(
+                new WeChatPayGateway.RefundNotification("SUCCESS", "ORDER-2", "AS-1", 9900L, 9900L, "USD")));
         verifyNoInteractions(fixture.shipping);
         verify(fixture.saleDao, never()).markRefundCompleted(1L);
     }

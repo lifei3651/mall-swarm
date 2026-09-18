@@ -45,6 +45,13 @@ public interface DmsShopAfterSaleDao {
         return selectList(TenantContext.getTenantId(), keyword, status, null);
     }
 
+    List<Long> selectProcessingWechatRefundIdsScoped(@Param("tenantId") Long tenantId,
+                                                      @Param("cutoff") LocalDateTime cutoff,
+                                                      @Param("limit") int limit);
+    default List<Long> selectProcessingWechatRefundIds(LocalDateTime cutoff, int limit) {
+        return selectProcessingWechatRefundIdsScoped(TenantContext.getTenantId(), cutoff, limit);
+    }
+
     int insertScoped(@Param("tenantId") Long tenantId, @Param("afterSale") DmsShopAfterSale afterSale);
     default int insert(DmsShopAfterSale afterSale) { return insertScoped(TenantContext.getTenantId(), afterSale); }
 

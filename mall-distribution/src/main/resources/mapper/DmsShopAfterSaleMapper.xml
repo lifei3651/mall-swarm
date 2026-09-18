@@ -134,6 +134,18 @@
         ORDER BY id DESC
     </select>
 
+    <select id="selectProcessingWechatRefundIdsScoped" resultType="java.lang.Long">
+        SELECT sale.id
+        FROM dms_shop_after_sale sale
+        INNER JOIN dms_shop_order shop_order ON shop_order.id = sale.order_id
+        WHERE COALESCE(shop_order.tenant_id, 1) = #{tenantId}
+          AND sale.status = 6
+          AND UPPER(shop_order.pay_type) = 'WECHAT'
+          AND sale.update_time &lt;= #{cutoff}
+        ORDER BY sale.id ASC
+        LIMIT #{limit}
+    </select>
+
     <insert id="insertScoped" useGeneratedKeys="true" keyProperty="afterSale.id">
         INSERT INTO dms_shop_after_sale
         (after_sale_no, order_id, order_no, member_id, user_id, apply_type, refund_amount,

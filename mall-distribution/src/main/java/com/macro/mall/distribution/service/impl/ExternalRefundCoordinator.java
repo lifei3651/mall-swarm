@@ -203,7 +203,11 @@ public class ExternalRefundCoordinator {
                                             BigDecimal refundAmount, BigDecimal paymentTotal) {
         long expectedRefund = refundAmount.setScale(2, RoundingMode.UNNECESSARY).movePointRight(2).longValueExact();
         long expectedTotal = paymentTotal.setScale(2, RoundingMode.UNNECESSARY).movePointRight(2).longValueExact();
-        if (!"CNY".equalsIgnoreCase(notification.currency()) || notification.refundFen() == null
+        // 微信退款成功通知的 amount 按官方协议不包含 currency；申请/查询响应才携带该字段。
+        // 回调仍严格核对退款金额和原订单金额，若未来通知携带币种则只接受 CNY。
+        boolean unexpectedCurrency = notification.currency() != null && !notification.currency().isBlank()
+                && !"CNY".equalsIgnoreCase(notification.currency());
+        if (unexpectedCurrency || notification.refundFen() == null
                 || notification.totalFen() == null || notification.refundFen() != expectedRefund
                 || notification.totalFen() != expectedTotal) {
             Asserts.fail("微信退款金额或币种不匹配");

@@ -87,4 +87,21 @@ class ScheduleTaskIsolationTest {
 
         verify(shopAfterSaleService).autoCompleteExpiredExchangeReceipts(200);
     }
+
+    @Test
+    void refundReconciliationUsesDedicatedDistributedTaskAndInvokesTheBoundedBatch() {
+        ScheduleTask task = new ScheduleTask(performanceService, bonusCalculationTaskService,
+                erpIntegrationService, commissionSettlementService, shopService,
+                orderBalanceAllocationService, operationLogService, merchantService,
+                shopAfterSaleService, scheduledTaskRunner);
+        doAnswer(invocation -> {
+            invocation.<Runnable>getArgument(2).run();
+            return true;
+        }).when(scheduledTaskRunner).run(eq("reconcile-processing-wechat-refunds"), any(), any());
+        when(shopAfterSaleService.reconcileProcessingWechatRefunds(50)).thenReturn(1);
+
+        task.reconcileProcessingWechatRefunds();
+
+        verify(shopAfterSaleService).reconcileProcessingWechatRefunds(50);
+    }
 }
