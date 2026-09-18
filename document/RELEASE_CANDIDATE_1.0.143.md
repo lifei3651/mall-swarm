@@ -1,4 +1,4 @@
-# 1.0.143 微信小程序体验版上传（2026-09-16）
+# 1.0.143 微信小程序开发版上传（2026-09-16准备，2026-09-18完成）
 
 用户在确认手机仍显示旧体验版后明确要求“发版”。本轮仅生成并上传微信小程序开发代码，供设置/刷新体验版后验证；不部署后端、H5或管理后台，不提交审核、不正式发布。
 
@@ -17,4 +17,9 @@
 
 ## 实际回执
 
-待上传完成后补录冻结提交、正式目录、旧版备份、文件数量、包大小、官方CLI结果及上传边界。
+- 冻结提交：`edca01f21775eeb90c1c1c5dd43adeebc1b602b6`，已先推送至远程分支`codex/security-membership-payout`。
+- 正式上传目录：`/Users/minmatemp/Documents/mall-swarm-app-h5/dist/wechat-mini-program`；旧目录保留为`/Users/minmatemp/Documents/mall-swarm-app-h5/dist/wechat-mini-program.previous-1789551561130`。
+- 导出共290个文件；逐文件SHA-256核对结果为缺失0、额外0、不一致0。AppID、项目配置AppID均为`wxd26e0a4e41df392b`，生产接口为`https://lingqimall.com/api`。
+- 2026-09-18通过微信开发者工具Stable 2.02.2608060官方CLI上传成功，输出`✔ upload`；总包大小`1,009,335`字节（985.7 KB），回执保存在`/private/tmp/lingqi143-upload-result.json`。
+- 服务端口32227仅在上传期间临时开启，完成后已关闭，并复核无监听。
+- 本次只覆盖微信后台开发版代码；没有提交审核、没有正式发布，也未把上传成功记录为体验版已切换。体验者如仍看到旧界面，需要在微信公众平台将1.0.143设为体验版后重新打开小程序。
