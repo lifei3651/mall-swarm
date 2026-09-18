@@ -60,6 +60,22 @@ function decrementProduct(productId) {
   else rows[index] = { ...rows[index], quantity: rows[index].quantity - 1 }
   return save(rows)
 }
+function setProductQuantity(productId, target) {
+  const id = identifier(productId)
+  const next = Number(target)
+  if (!id || !quantities.valid(next)) throw new Error('购买数量无效')
+  const rows = list()
+  const current = rows.reduce((sum, row) => identifier(row.productId) === id ? sum + Number(row.quantity || 0) : sum, 0)
+  if (next >= current) return rows
+  let excess = current - next
+  for (let index = rows.length - 1; index >= 0 && excess > 0; index--) {
+    if (identifier(rows[index].productId) !== id) continue
+    const amount = Number(rows[index].quantity || 0)
+    if (amount <= excess) { rows.splice(index, 1); excess -= amount }
+    else { rows[index] = { ...rows[index], quantity: amount - excess }; excess = 0 }
+  }
+  return save(rows)
+}
 function removeMany(keys) { const targets = new Set(keys); return save(list().filter(row => !targets.has(row.key))) }
 function clear() { direct = null; return save([]) }
 function count() { return list().reduce((sum, row) => sum + (quantities.valid(row.quantity) ? row.quantity : 0), 0) }
@@ -80,4 +96,4 @@ function directItems() {
 }
 function clearDirectCheckout() { direct = null }
 
-module.exports = { list, add, update, remove, removeMany, clear, count, productQuantity, decrementProduct, selectAll, selectOnly, clearSelected, selected, beginDirectCheckout, directItems, clearDirectCheckout, needsLegacyReview, acknowledgeLegacyReview }
+module.exports = { list, add, update, remove, removeMany, clear, count, productQuantity, decrementProduct, setProductQuantity, selectAll, selectOnly, clearSelected, selected, beginDirectCheckout, directItems, clearDirectCheckout, needsLegacyReview, acknowledgeLegacyReview }

@@ -16,7 +16,7 @@
           <view wx:if="{{item.unavailable}}" class="cart-warning">{{item.unavailable}}</view>
           <view class="cart-line">
             <text>¥{{item.priceText}}</text>
-            <view class="counter"><button hover-class="none" data-key="{{item.key}}" data-delta="-1" class="{{item.quantity <= 1 ? 'is-minimum' : ''}}" bindtap="quantity" disabled="{{item.quantity <= 1 || checkoutChecking}}" aria-label="减少商品数量">−</button><text>{{item.quantity}}</text><button hover-class="none" data-key="{{item.key}}" data-delta="1" bindtap="quantity" disabled="{{checkoutChecking}}" aria-label="增加商品数量">＋</button></view>
+            <view class="counter"><button hover-class="none" data-key="{{item.key}}" data-delta="-1" class="{{item.quantity <= 1 ? 'is-minimum' : ''}}" bindtap="quantity" disabled="{{item.quantity <= 1 || checkoutChecking}}" aria-label="减少商品数量">−</button><input type="number" maxlength="10" value="{{item.quantityInput}}" data-key="{{item.key}}" bindinput="quantityChanged" bindblur="quantityCommit" bindconfirm="quantityCommit" confirm-type="done" disabled="{{checkoutChecking}}" aria-label="手动输入商品数量" /><button hover-class="none" data-key="{{item.key}}" data-delta="1" bindtap="quantity" disabled="{{checkoutChecking}}" aria-label="增加商品数量">＋</button></view>
           </view>
         </view>
       </view>

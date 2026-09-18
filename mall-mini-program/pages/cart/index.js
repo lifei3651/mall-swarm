@@ -6,6 +6,7 @@ const theme = require('../../utils/theme')
 const catalog = require('../../utils/catalog')
 const purchaseLimit = require('../../utils/purchase-limit')
 const session = require('../../utils/session')
+const quantities = require('../../utils/quantity')
 
 Page({
   data: { ...theme.pageData(), rows: [], total: '0.00', count: 0, totalCount: 0, selectedKinds: 0, manageMode: false, allSelected: false, checking: false, checkError: '', checkoutChecking: false },
@@ -45,6 +46,7 @@ Page({
       // Cache-only rendering must not briefly remove an existing server warning.
       unavailable: row.unavailable === undefined ? (this.data.rows.find(item => item.key === row.key)?.unavailable || '') : row.unavailable,
       coverUrl: format.mediaUrl(row.coverUrl),
+      quantityInput: String(row.quantity),
       priceText: format.money(row.salePrice),
       lineTotal: format.money(Number(row.salePrice) * row.quantity)
     }))
@@ -135,6 +137,40 @@ Page({
       this.renderRows(cart.list().map(item => item.key === key ? { ...item, unavailable: '' } : item))
     } catch (error) { if (current()) await feedback.notice(error.message || '当前商品已达到可购买数量上限', '无法增加数量') }
     finally { if (sequence === this.actionSequence) this.quantityChecking = '' }
+  },
+  quantityChanged(event) {
+    const key = event.currentTarget.dataset.key
+    const index = this.data.rows.findIndex(item => item.key === key)
+    const value = quantities.sanitize(event.detail.value)
+    if (index >= 0) this.setData({ [`rows[${index}].quantityInput`]: value })
+    return value
+  },
+  async quantityCommit(event) {
+    const key = event.currentTarget.dataset.key
+    const row = cart.list().find(item => item.key === key)
+    if (!row || this.quantityChecking || this.data.checkoutChecking || this.inactive) return
+    const sanitized = quantities.sanitize(event.detail.value)
+    if (!sanitized) { this.renderRows(cart.list()); return }
+    const target = quantities.resolve(sanitized, quantities.MAX_QUANTITY)
+    if (target === row.quantity) { this.renderRows(cart.list()); return }
+    if (target < row.quantity) {
+      cart.update(key, { quantity: target })
+      return this.refresh({ productId: row.productId })
+    }
+    const sequence = this.actionSequence = (this.actionSequence || 0) + 1
+    const token = session.getToken()
+    const current = () => !this.inactive && sequence === this.actionSequence && token === session.getToken()
+    this.generation = (this.generation || 0) + 1
+    this.quantityChecking = key
+    if (this.data.checking) this.setData({ checking: false })
+    try {
+      const selection = await purchaseLimit.checkAddition(row.productId, row.skuId, target - row.quantity, { isCurrent: current })
+      if (!selection || !current()) return
+      cart.update(key, { ...selection.item, quantity: target })
+      this.renderRows(cart.list().map(item => item.key === key ? { ...item, unavailable: '' } : item))
+    } catch (error) {
+      if (current()) { this.renderRows(cart.list()); await feedback.notice(error.message || '当前商品已达到可购买数量上限', '无法修改数量') }
+    } finally { if (sequence === this.actionSequence) this.quantityChecking = '' }
   },
   toggleAll(event) { if (this.quantityChecking || this.data.checkoutChecking || this.inactive) return; cart.selectAll(Array.isArray(event.detail?.value) ? event.detail.value.includes('selected') : !this.data.allSelected); this.renderLocalRows() },
   remove(event) {

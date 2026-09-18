@@ -20,6 +20,28 @@ test('数量校验不插入文字、不替换加号，保留互斥和结算门�
   assert.match(view, /!count \|\| checkError/)
   assert.doesNotMatch(view, /quantityChecking|\|\| checking/)
   assert.match(view, /wx:if="\{\{checkError\}\}"/)
+  assert.match(view, /value="\{\{item\.quantityInput\}\}"/)
+  assert.match(view, /bindinput="quantityChanged"/)
+  assert.match(view, /bindblur="quantityCommit"/)
+})
+test('购物车数量可直接输入，增加时仍校验库存限购，减少时保留至少一件', async () => {
+  const detail = { product: { id: '1', status: 1, productName: '商品', salePrice: 12, stock: 20, purchaseLimit: 10 }, skus: [] }
+  const env = commerceEnv(({ method }) => method === 'POST' ? { allowed: true } : detail)
+  const cart = env.load('utils/cart'), page = env.page('cart')
+  cart.add({ productId: '1', quantity: 2, salePrice: 12 })
+  page.renderRows(cart.list())
+  const input = value => ({ currentTarget: { dataset: { key: '1:0' } }, detail: { value } })
+  assert.equal(page.quantityChanged(input('4个')), '4')
+  assert.equal(cart.list()[0].quantity, 2, '编辑过程中不提前影响合计')
+  await page.quantityCommit(input('4'))
+  assert.equal(cart.list()[0].quantity, 4)
+  assert.equal(page.data.rows[0].quantityInput, '4')
+  assert.deepEqual(env.calls.filter(call => call.method === 'POST').map(call => call.params.quantity), [4])
+  await page.quantityCommit(input('1'))
+  assert.equal(cart.list()[0].quantity, 1)
+  await page.quantityCommit(input(''))
+  assert.equal(cart.list()[0].quantity, 1)
+  assert.equal(page.data.rows[0].quantityInput, '1')
 })
 test('加减数量期间保留商品列表及管理状态，服务端限购校验继续执行', async () => {
   let finish

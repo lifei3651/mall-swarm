@@ -19,6 +19,9 @@ test('首页和分类加购后原位显示数量器，临时请求锁不传入�
     assert.match(source, /item\.cartQuantity > 0/)
     assert.match(source, /catchtap="quickDecrease"/)
     assert.match(source, /\{\{item\.cartQuantity\}\}/)
+    assert.match(source, /value="\{\{item\.cartQuantityInput\}\}"/)
+    assert.match(source, /bindinput="quickQuantityChanged"/)
+    assert.match(source, /bindblur="quickQuantityCommit"/)
   }
 })
 
@@ -61,10 +64,30 @@ for (const name of ['home', 'category']) test(name + '：慢请求和连续加�
   }
   assert.deepEqual(badges, [1, 2])
   assert.deepEqual(JSON.parse(JSON.stringify(patches)), [
-    {'products[0].cartQuantity': 1},
-    {'products[0].cartQuantity': 2},
+    {'products[0].cartQuantity': 1, 'products[0].cartQuantityInput': '1'},
+    {'products[0].cartQuantity': 2, 'products[0].cartQuantityInput': '2'},
   ], '只局部更新对应商品数量，不重刷商品列表')
   assert.equal(env.notices.length, 0)
+})
+
+for (const name of ['home', 'category']) test(name + '：可直接输入数量，并继续执行库存和限购校验', async () => {
+  const detail = { product: { id: '1', status: 1, productName: '商品', stock: 20, salePrice: 12 }, skus: [] }
+  const env = commerceEnv(({ method }) => method === 'POST' ? { allowed: true } : detail)
+  const page = env.page(name), cart = env.load('utils/cart')
+  cart.add({ productId: '1', quantity: 2, salePrice: 12 })
+  page.setData({ products: [{ id: '1', productName: '商品', cartQuantity: 2, cartQuantityInput: '2' }] })
+  const input = value => ({ currentTarget: { dataset: { id: '1' } }, detail: { value } })
+  assert.equal(page.quickQuantityChanged(input('4件')), '4')
+  assert.equal(page.data.products[0].cartQuantity, 2, '输入过程中不提前修改购物车')
+  await page.quickQuantityCommit(input('4'))
+  assert.equal(cart.productQuantity('1'), 4)
+  assert.equal(page.data.products[0].cartQuantityInput, '4')
+  assert.deepEqual(env.calls.filter(call => call.method === 'POST').map(call => call.params.quantity), [4])
+  await page.quickQuantityCommit(input(''))
+  assert.equal(cart.productQuantity('1'), 4, '空值恢复原数量，不删除商品')
+  assert.equal(page.data.products[0].cartQuantityInput, '4')
+  await page.quickQuantityCommit(input('1'))
+  assert.equal(cart.productQuantity('1'), 1)
 })
 
 for (const name of ['home', 'category']) test(name + '：数量减到零后恢复立即加购，购物车角标同步', async () => {

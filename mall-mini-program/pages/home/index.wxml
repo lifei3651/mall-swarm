@@ -102,7 +102,7 @@
             <button wx:if="{{item.campaign}}" class="campaign-buy-button" data-id="{{item.campaign.id}}" catchtap="campaign" aria-label="{{item.campaign.actionLabel + '：' + item.productName}}">{{item.campaign.actionLabel}}</button>
             <view wx:elif="{{item.cartQuantity > 0}}" class="home-quantity-stepper" catchtap="noop" aria-label="购物车中已有{{item.cartQuantity}}件{{item.productName}}">
               <button data-id="{{item.id}}" catchtap="quickDecrease" hover-class="quantity-stepper-hover" aria-label="减少一件{{item.productName}}">−</button>
-              <text>{{item.cartQuantity}}</text>
+              <input type="number" maxlength="10" value="{{item.cartQuantityInput}}" data-id="{{item.id}}" catchtap="noop" bindinput="quickQuantityChanged" bindblur="quickQuantityCommit" bindconfirm="quickQuantityCommit" confirm-type="done" aria-label="手动输入{{item.productName}}的购买数量" />
               <button data-id="{{item.id}}" catchtap="quickAdd" hover-class="quantity-stepper-hover" disabled="{{item.soldOut}}" aria-label="{{item.soldOut ? '商品已售罄，暂不能增加' : '增加一件' + item.productName}}">＋</button>
             </view>
             <button wx:else class="home-quick-cart {{item.soldOut ? 'is-disabled' : ''}}" data-id="{{item.id}}" catchtap="quickAdd" disabled="{{item.soldOut}}" hover-class="none" aria-label="{{item.soldOut ? '已售罄' : '立即加购' + item.productName}}">{{item.soldOut ? '已售罄' : '立即加购'}}</button>
