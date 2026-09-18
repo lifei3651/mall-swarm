@@ -589,6 +589,24 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     }
 
     @Override
+    public int reconcileProcessingWechatRefunds(int limit) {
+        int bounded = Math.max(1, Math.min(limit, 100));
+        List<Long> ids = afterSaleDao.selectProcessingWechatRefundIds(LocalDateTime.now().minusMinutes(2), bounded);
+        int completed = 0;
+        for (Long id : ids) {
+            try {
+                externalRefundCoordinator.process(id);
+                DmsShopAfterSale refreshed = afterSaleDao.selectById(id);
+                if (refreshed != null && Integer.valueOf(1).equals(refreshed.getStatus())) completed++;
+            } catch (Exception error) {
+                log.warn("微信退款自动核对未完成: afterSaleId={}, errorType={}", id,
+                        error == null ? "Unknown" : error.getClass().getSimpleName());
+            }
+        }
+        return completed;
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsShopAfterSale audit(Long id, ShopAfterSaleAuditDTO dto) {
         applyAuthenticatedAdmin(dto);

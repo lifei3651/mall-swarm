@@ -77,6 +77,20 @@ public class ScheduleTask {
         });
     }
 
+    /** 每5分钟幂等核对渠道已受理、但本地仍停在处理中的微信退款。 */
+    @Scheduled(fixedDelayString = "${shop.after-sale.refund-reconcile-interval-ms:300000}",
+            initialDelayString = "${shop.after-sale.refund-reconcile-initial-delay-ms:15000}")
+    public void reconcileProcessingWechatRefunds() {
+        scheduledTaskRunner.run("reconcile-processing-wechat-refunds", Duration.ofMinutes(4), () -> {
+            try {
+                int count = shopAfterSaleService.reconcileProcessingWechatRefunds(50);
+                if (count > 0) log.info("微信退款状态自动恢复完成: count={}", count);
+            } catch (Exception e) {
+                log.error("微信退款状态自动核对失败", e);
+            }
+        });
+    }
+
     /** 到期自动确认替换商品收货，避免会员未操作导致换货与结算永久悬挂。 */
     @Scheduled(fixedDelayString = "${shop.after-sale.exchange-receipt-scan-interval-ms:600000}")
     public void autoCompleteExpiredExchangeReceipts() {
