@@ -272,7 +272,11 @@ Page({
         statusText: record.configured ? (record.statusText || '暂无新物流轨迹') : '',
         events: (record.events || []).map((item) => ({ description: item.description || '', location: item.location || '', time: formatTime(item.eventTime) }))
       })) })
-    } catch (error) { if (current() && version === this.requestVersion) feedback.update(this, { trackingError: error.message || '物流查询失败，请重试' }) }
+    } catch (error) {
+      // 站内轨迹属于增强信息；供应商超时或尚未配置时保留包裹信息，
+      // 由用户主动使用微信官方查询组件，不能让订单详情被轨迹错误打断。
+      if (current() && version === this.requestVersion) feedback.update(this, { trackingError: '', trackingRows: [] })
+    }
     finally { if (!this.disposed) feedback.update(this, { trackingLoading: false }) }
   },
   copyDeliveryNo(event) {

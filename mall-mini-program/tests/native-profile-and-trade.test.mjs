@@ -206,6 +206,24 @@ test('订单详情隐藏收货姓名电话，地址折叠且无本地轨迹时�
   assert.equal(page.data.wechatTrackingId, '')
 })
 
+test('站内物流接口失败不打断订单详情，仍可继续打开微信官方物流', async () => {
+  const e = environment({ respond: ({ url }) => {
+    if (url.endsWith('/tracking')) throw new Error('站内物流暂时不可用')
+    if (url.includes('wechat-logistics-token')) return { waybillToken: 'token-after-local-failure' }
+    return []
+  } }), page = e.page('order-detail')
+  page.setData({ rows: [{ order: { id: '12' }, shipments: [{ id: '31', key: '31:0', deliveryNo: 'YT123' }] }] })
+
+  await page.loadTracking({ currentTarget: { dataset: { id: '12' } } })
+  assert.equal(page.data.trackingError, '')
+  assert.deepEqual(page.data.trackingRows, [])
+  await page.openWeChatTracking({ currentTarget: { dataset: { id: '12', shipmentId: '31' } } })
+
+  assert.equal(e.calls[0].url, '/shop/orders/12/tracking')
+  assert.equal(e.calls[1].url, '/shop/orders/12/wechat-logistics-token')
+  assert.equal(page.data.wechatTrackingId, '')
+})
+
 test('直接购买独立于原购物车：原有2件，直接买1件仍为1件且不改变勾选', async () => {
   const e = environment({ respond: ({ method }) => method === 'POST' ? { allowed: true } : { product: { id: '10', status: 1, salePrice: 9, stock: 5 }, skus: [] } }), cart = e.load('utils/cart'), session = e.load('utils/session')
   cart.add({ productId: '10', quantity: 2, salePrice: 9 }); const before = JSON.stringify(cart.list())

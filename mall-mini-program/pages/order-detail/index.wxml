@@ -58,7 +58,6 @@
           </view>
         </view>
         <view wx:if="{{trackingOrderId === item.order.id}}" class="tracking-panel">
-          <text wx:if="{{trackingError}}" class="shipment-error">{{trackingError}}</text>
           <block wx:for="{{trackingRows}}" wx:key="deliveryNo" wx:for-item="tracking">
             <view wx:if="{{tracking.configured && tracking.events.length}}" class="tracking-record">
               <view class="tracking-state is-live"><text>{{tracking.statusText}}</text></view>
