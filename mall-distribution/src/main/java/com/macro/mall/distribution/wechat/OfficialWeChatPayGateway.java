@@ -110,7 +110,8 @@ public class OfficialWeChatPayGateway implements WeChatPayGateway {
                 transaction.getAppid(), transaction.getMchid(), transaction.getOutTradeNo(),
                 transaction.getAmount() == null ? null : transaction.getAmount().getTotal(),
                 transaction.getAmount() == null ? null : transaction.getAmount().getCurrency(),
-                transaction.getPayer() == null ? null : transaction.getPayer().getOpenid());
+                transaction.getPayer() == null ? null : transaction.getPayer().getOpenid(),
+                transaction.getTransactionId());
     }
 
     private RefundResult refund(Refund refund) {

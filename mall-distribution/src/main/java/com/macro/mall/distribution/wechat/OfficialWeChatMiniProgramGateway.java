@@ -136,6 +136,38 @@ public class OfficialWeChatMiniProgramGateway implements WeChatMiniProgramGatewa
         return List.copyOf(rows);
     }
 
+    @Override
+    public WaybillTrackingResult followWaybill(WaybillTrackingCommand command) {
+        requireLoginReady();
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("openid", command.openId());
+        if (command.senderPhone() != null && !command.senderPhone().isBlank()) {
+            body.put("sender_phone", command.senderPhone());
+        }
+        body.put("receiver_phone", command.receiverPhone());
+        body.put("delivery_id", command.deliveryId());
+        body.put("waybill_id", command.waybillId());
+        body.put("trans_id", command.transactionId());
+        body.put("order_detail_path", command.orderDetailPath());
+        var details = body.putObject("goods_info").putArray("detail_list");
+        for (WaybillGoods item : command.goods()) {
+            ObjectNode detail = details.addObject();
+            detail.put("goods_name", item.name());
+            detail.put("goods_img_url", item.imageUrl());
+            if (item.description() != null && !item.description().isBlank()) {
+                detail.put("goods_desc", item.description());
+            }
+        }
+        JsonNode response = postWithAccessToken("/cgi-bin/express/delivery/open_msg/follow_waybill",
+                body, false, "微信物流查询暂时不可用");
+        failOnWeChatError(response, "微信物流查询暂时不可用，请稍后重试");
+        String token = text(response, "waybill_token");
+        if (token == null || token.isBlank()) {
+            throw new ApiException("微信物流查询暂时不可用，请稍后重试");
+        }
+        return new WaybillTrackingResult(token);
+    }
+
     private PhoneNumber exchangePhoneCode(String code, boolean retried) {
         String token = accessToken();
         ObjectNode body = objectMapper.createObjectNode();

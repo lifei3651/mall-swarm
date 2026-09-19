@@ -156,7 +156,7 @@ class WeChatPayServiceImplTest {
 
     private WeChatPayGateway.PaymentResult paymentResult(int totalFen) {
         return new WeChatPayGateway.PaymentResult("SUCCESS", "wx1234567890abcdef", "1900000001",
-                "L202608300001", totalFen, "CNY", "openid-user-8");
+                "L202608300001", totalFen, "CNY", "openid-user-8", "4200000000000000000000000000");
     }
 
     private WeChatPayGateway.NotificationRequest notification() {

@@ -52,6 +52,12 @@
   },
   "requiredPrivateInfos": ["chooseAddress"],
   "usingComponents": { "privacy-consent": "/components/privacy-consent/index" },
+  "plugins": {
+    "logisticsPlugin": {
+      "version": "2.1.12",
+      "provider": "wx9ad912bf20548d92"
+    }
+  },
   "style": "v2",
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents"

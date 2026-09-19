@@ -15,6 +15,8 @@ public interface WeChatMiniProgramGateway {
 
     List<DeliveryCompany> deliveryCompanies();
 
+    WaybillTrackingResult followWaybill(WaybillTrackingCommand command);
+
     record LoginIdentity(String openId, String unionId) {
     }
 
@@ -42,5 +44,16 @@ public interface WeChatMiniProgramGateway {
     }
 
     record DeliveryCompany(String id, String name) {
+    }
+
+    record WaybillGoods(String name, String imageUrl, String description) {
+    }
+
+    record WaybillTrackingCommand(String openId, String senderPhone, String receiverPhone,
+                                  String deliveryId, String waybillId, String transactionId,
+                                  String orderDetailPath, List<WaybillGoods> goods) {
+    }
+
+    record WaybillTrackingResult(String waybillToken) {
     }
 }

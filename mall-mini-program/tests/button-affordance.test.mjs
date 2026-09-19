@@ -14,7 +14,7 @@ test('原生次级操作使用可辨认底色，订单详情不再放重复返�
   assert.doesNotMatch(detail, /客服工单|查看全部订单|bindtap="support"/)
   assert.doesNotMatch(detailScript, /support\(event\)/)
   assert.match(detail, />申请售后<|>去评价</)
-  assert.match(detail, /查看轨迹/)
+  assert.match(detail, /bindtap="openWeChatTracking"[^>]*>查看物流</)
 })
 
 test('高频商城页的独立次级操作不再使用白色卡片底', () => {

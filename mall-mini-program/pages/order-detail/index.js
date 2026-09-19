@@ -62,7 +62,7 @@ Page({
   ...balancePayment.methods,
   data: { ...theme.pageData(), ...paymentSummary(), pageStatusTitle: '', pageStatusDescription: '', loading: true, error: '', rows: [], paymentNo: '', actingId: null, paying: false, cancellingAfterSaleId: null,
     editingSaleId: '', deliveryCompany: '', deliveryNo: '', shipmentError: '', submittingShipment: false,
-    carriers: CARRIERS, expandedOrders: {}, trackingOrderId: '', trackingLoading: false, trackingError: '', trackingRows: [], ...balancePayment.data },
+    carriers: CARRIERS, expandedAddresses: {}, expandedOrders: {}, trackingOrderId: '', trackingLoading: false, trackingError: '', trackingRows: [], wechatTrackingId: '', ...balancePayment.data },
   onLoad(options = {}) {
     theme.apply(this)
     const orderId = identifier(options.id)
@@ -125,6 +125,7 @@ Page({
         const shipments = (row.shipments?.length ? row.shipments : order.deliveryNo ? [{ deliveryCompany: order.deliveryCompany, deliveryNo: order.deliveryNo,
           deliveryTime: order.deliveryTime, shipmentQuantity: (row.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0) }] : []).map((shipment, index) => ({
           ...shipment,
+          id: identifier(shipment.id),
           key: `${shipment.id || shipment.deliveryNo || 'package'}:${index}`,
           packageLabel: `包裹 ${index + 1}${shipment.shipmentQuantity ? ' · ' + shipment.shipmentQuantity + '件商品' : ''}`,
           deliveryTimeText: formatTime(shipment.deliveryTime)
@@ -184,6 +185,10 @@ Page({
         ...paymentSummary(rows)
       })
       this.quietErrorShown = false
+      const logisticsRow = rows.find((row) => row.shipments.length)
+      if (logisticsRow && !this.data.trackingLoading && this.data.trackingOrderId !== logisticsRow.order.id) {
+        Promise.resolve().then(() => this.loadTrackingForOrder(logisticsRow.order.id))
+      }
       return true
     } catch (error) {
       if (current()) {
@@ -250,6 +255,9 @@ Page({
   },
   async loadTracking(event) {
     const id = identifier(event.currentTarget.dataset.id)
+    return this.loadTrackingForOrder(id)
+  },
+  async loadTrackingForOrder(id) {
     const current = this.operationCurrent()
     if (!current() || !id || this.data.trackingLoading || !this.data.rows.some((row) => row.order.id === id)) return
     const version = this.requestVersion
@@ -261,10 +269,7 @@ Page({
         deliveryNo: String(record.deliveryNo || ''), deliveryCompany: record.deliveryCompany || '',
         configured: record.configured === true,
         statusCode: record.status || '',
-        statusText: record.configured ? (record.statusText || '暂无新物流轨迹') : '轨迹查询服务待开通',
-        statusHint: record.configured
-          ? '物流数据来自已接入的查询服务'
-          : '当前已保存承运商和运单号。微信官方查询组件开通并完成联调后，可在这里查看实时轨迹。',
+        statusText: record.configured ? (record.statusText || '暂无新物流轨迹') : '',
         events: (record.events || []).map((item) => ({ description: item.description || '', location: item.location || '', time: formatTime(item.eventTime) }))
       })) })
     } catch (error) { if (current() && version === this.requestVersion) feedback.update(this, { trackingError: error.message || '物流查询失败，请重试' }) }
@@ -273,6 +278,28 @@ Page({
   copyDeliveryNo(event) {
     const number = String(event.currentTarget.dataset.number || '')
     if (number && number.length <= 64) wx.setClipboardData({ data: number })
+  },
+  async openWeChatTracking(event) {
+    const orderId = identifier(event.currentTarget.dataset.id)
+    const shipmentId = identifier(event.currentTarget.dataset.shipmentId)
+    const row = this.data.rows.find((item) => item.order.id === orderId)
+    const shipment = row && row.shipments.find((item) => !shipmentId || item.id === shipmentId)
+    const current = this.operationCurrent()
+    if (!current() || !orderId || !shipment || this.data.wechatTrackingId) return
+    feedback.update(this, { wechatTrackingId: shipment.key })
+    try {
+      const result = await request({ url: `/shop/orders/${orderId}/wechat-logistics-token`, method: 'POST', params: { shipmentId: shipment.id } })
+      if (!current()) return
+      if (!result || !result.waybillToken) throw new Error('微信物流查询凭证无效')
+      if (typeof requirePlugin !== 'function') throw new Error('请在微信真机中查看物流轨迹')
+      const plugin = requirePlugin('logisticsPlugin')
+      if (!plugin || typeof plugin.openWaybillTracking !== 'function') throw new Error('微信物流查询组件尚未开通')
+      plugin.openWaybillTracking({ waybillToken: result.waybillToken })
+    } catch (error) {
+      if (current()) feedback.notice(error.message || '暂时无法打开微信物流，请稍后重试', '物流查询未打开')
+    } finally {
+      if (!this.disposed) feedback.update(this, { wechatTrackingId: '' })
+    }
   },
   operationCurrent() { const token = session.getToken(); return () => !!token && token === session.getToken() && !this.disposed && !this.hidden },
   receive(event) {
@@ -361,6 +388,14 @@ Page({
   toggleOrderInfo(event) {
     const id = identifier(event.currentTarget.dataset.id)
     if (id && this.data.rows.some(row => row.order.id === id)) this.setData({ [`expandedOrders.${id}`]: !this.data.expandedOrders[id] })
+  },
+  toggleAddress(event) {
+    const id = identifier(event.currentTarget.dataset.id)
+    if (id && this.data.rows.some(row => row.order.id === id)) this.setData({ [`expandedAddresses.${id}`]: !this.data.expandedAddresses[id] })
+  },
+  copyPaymentNo() {
+    const number = String(this.data.paymentNo || '')
+    if (number && number.length <= 64) wx.setClipboardData({ data: number })
   },
   findSale(id) {
     for (const row of this.data.rows) {

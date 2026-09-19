@@ -31,6 +31,7 @@ import com.macro.mall.distribution.service.OrderSpreadsheetService;
 import com.macro.mall.distribution.service.OrderRealtimeService;
 import com.macro.mall.distribution.service.FlashSaleService;
 import com.macro.mall.distribution.service.LogisticsTrackingService;
+import com.macro.mall.distribution.service.WeChatLogisticsQueryService;
 import com.macro.mall.distribution.service.MerchantProductReviewService;
 import com.macro.mall.distribution.service.LiveRoomService;
 import com.macro.mall.distribution.security.AdminContext;
@@ -52,6 +53,7 @@ import com.macro.mall.distribution.vo.OrderShipmentImportResultVO;
 import com.macro.mall.distribution.vo.FlashSaleActivityVO;
 import com.macro.mall.distribution.vo.ShopBusinessConfigVO;
 import com.macro.mall.distribution.vo.ShopLogisticsTrackingVO;
+import com.macro.mall.distribution.vo.WeChatWaybillTokenVO;
 import com.macro.mall.distribution.vo.LiveRoomVO;
 import com.macro.mall.distribution.vo.LiveAnchorVO;
 import com.macro.mall.distribution.vo.LiveAnalyticsVO;
@@ -102,6 +104,7 @@ public class ShopController {
     private final OrderRealtimeService orderRealtimeService;
     private final FlashSaleService flashSaleService;
     private final LogisticsTrackingService logisticsTrackingService;
+    private final WeChatLogisticsQueryService weChatLogisticsQueryService;
     private final MerchantProductReviewService merchantProductReviewService;
     private final LiveRoomService liveRoomService;
 
@@ -924,6 +927,20 @@ public class ShopController {
             Asserts.fail("不能查看他人的订单物流");
         }
         return CommonResult.success(logisticsTrackingService.query(vo.getShipments()));
+    }
+
+    @Operation(summary = "获取微信官方物流查询组件凭证")
+    @PostMapping("/orders/{orderId}/wechat-logistics-token")
+    public CommonResult<WeChatWaybillTokenVO> weChatLogisticsToken(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long orderId,
+            @RequestParam(required = false) Long shipmentId) {
+        DmsShopMember member = authService.requireMember(authorization);
+        ShopOrderVO vo = shopService.getOrder(orderId);
+        if (vo == null || vo.getOrder() == null || !member.getUserId().equals(vo.getOrder().getUserId())) {
+            Asserts.fail("不能查看他人的订单物流");
+        }
+        return CommonResult.success(weChatLogisticsQueryService.token(vo, shipmentId));
     }
 
     @Operation(summary = "取消订单")

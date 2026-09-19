@@ -22,7 +22,7 @@ public interface WeChatPayGateway {
     }
 
     record PaymentResult(String state, String appId, String mchId, String paymentNo,
-                         Integer totalFen, String currency, String openId) {
+                         Integer totalFen, String currency, String openId, String transactionId) {
     }
 
     record RefundCommand(String paymentNo, String refundNo, long refundFen, long totalFen, String reason) {

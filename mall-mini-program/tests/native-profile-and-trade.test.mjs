@@ -179,16 +179,31 @@ test('已到账提现通知能定位历史单据，不错误调用确认收款',
   assert.equal(e.routes.at(-1), '/pages/wallet/index')
 })
 
-test('物流查询只接受当前订单，未配置服务不伪造运输进度', async () => {
+test('物流查询只接受当前订单，未配置本地服务不伪造运输进度', async () => {
   const e = environment({ respond: () => [{ deliveryNo: 'TEST-001', configured: false, statusText: '暂未接入真实物流轨迹', events: [] }] }), page = e.page('order-detail')
   page.setData({ rows: [{ order: { id: '12' } }] })
   await page.loadTracking({ currentTarget: { dataset: { id: '99' } } }); assert.equal(e.calls.length, 0)
   await page.loadTracking({ currentTarget: { dataset: { id: '12' } } })
   assert.equal(e.calls[0].url, '/shop/orders/12/tracking'); assert.equal(e.calls[0].method, undefined)
-  assert.match(page.data.trackingRows[0].statusText, /待开通/)
-  assert.doesNotMatch(page.data.trackingRows[0].statusText, /暂未接入真实物流轨迹/)
-  assert.match(page.data.trackingRows[0].statusHint, /微信官方查询组件开通并完成联调/)
+  assert.equal(page.data.trackingRows[0].statusText, '')
+  assert.equal(page.data.trackingRows[0].events.length, 0)
   page.selectCarrier({ detail: { value: '0' } }); assert.equal(page.data.deliveryCompany, '顺丰速运')
+})
+
+test('订单详情隐藏收货姓名电话，地址折叠且无本地轨迹时调用微信官方物流组件接口', async () => {
+  const view = readFileSync(new URL('../pages/order-detail/index.wxml', import.meta.url), 'utf8')
+  assert.doesNotMatch(view, /receiverName|receiverPhone|recipient-name/)
+  assert.match(view, /bindtap="toggleAddress"/)
+  assert.match(view, /wx:if="{{expandedAddresses\[item.order.id\]}}" class="recipient-address"/)
+  assert.match(view, /bindtap="openWeChatTracking"/)
+
+  const e = environment({ respond: ({ url }) => url.includes('wechat-logistics-token') ? { waybillToken: 'token-1' } : [] }), page = e.page('order-detail')
+  page.setData({ rows: [{ order: { id: '12' }, shipments: [{ id: '31', key: '31:0', deliveryNo: 'YT123' }] }] })
+  await page.openWeChatTracking({ currentTarget: { dataset: { id: '12', shipmentId: '31' } } })
+  assert.equal(e.calls[0].url, '/shop/orders/12/wechat-logistics-token')
+  assert.equal(e.calls[0].method, 'POST')
+  assert.deepEqual(e.calls[0].params, { shipmentId: '31' })
+  assert.equal(page.data.wechatTrackingId, '')
 })
 
 test('直接购买独立于原购物车：原有2件，直接买1件仍为1件且不改变勾选', async () => {
