@@ -19,6 +19,7 @@ import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.OrderShipmentService;
 import com.macro.mall.distribution.service.OrderRealtimeService;
 import com.macro.mall.distribution.service.WeChatShippingInfoService;
+import com.macro.mall.distribution.service.WeChatLogisticsFollowService;
 import com.macro.mall.distribution.vo.OrderShipmentImportResultVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -64,6 +65,8 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
     private OrderRealtimeService orderRealtimeService;
     @Autowired(required = false)
     private WeChatShippingInfoService weChatShippingInfoService;
+    @Autowired(required = false)
+    private WeChatLogisticsFollowService weChatLogisticsFollowService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -262,6 +265,7 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
         }
         logShipment(order, shipment, source);
         if (weChatShippingInfoService != null) weChatShippingInfoService.enqueue(order);
+        if (weChatLogisticsFollowService != null) weChatLogisticsFollowService.enqueue(order, record);
         if (orderRealtimeService != null) orderRealtimeService.orderChanged(order, "ORDER_SHIPPED");
         return true;
     }

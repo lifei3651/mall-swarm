@@ -3,6 +3,7 @@ package com.macro.mall.distribution.service;
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.config.WeChatMiniProgramProperties;
 import com.macro.mall.distribution.dao.DmsShopOrderItemDao;
+import com.macro.mall.distribution.dao.DmsWechatLogisticsFollowTaskDao;
 import com.macro.mall.distribution.dao.DmsWechatMiniProgramIdentityDao;
 import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.entity.DmsShopOrderItem;
@@ -45,8 +46,9 @@ class WeChatLogisticsQueryServiceTest {
         WeChatPayGateway payGateway = mock(WeChatPayGateway.class);
         DmsWechatMiniProgramIdentityDao identityDao = mock(DmsWechatMiniProgramIdentityDao.class);
         DmsShopOrderItemDao itemDao = mock(DmsShopOrderItemDao.class);
+        DmsWechatLogisticsFollowTaskDao followTaskDao = mock(DmsWechatLogisticsFollowTaskDao.class);
         WeChatLogisticsQueryService service = new WeChatLogisticsQueryService(
-                properties, miniGateway, payGateway, identityDao, itemDao);
+                properties, miniGateway, payGateway, identityDao, itemDao, followTaskDao);
         ReflectionTestUtils.setField(service, "fallbackImageUrl", "https://lingqimall.com/favicon.ico");
         ReflectionTestUtils.setField(service, "publicOrigin", "https://lingqimall.com");
 
@@ -90,6 +92,8 @@ class WeChatLogisticsQueryServiceTest {
         ArgumentCaptor<WeChatMiniProgramGateway.WaybillTrackingCommand> command =
                 ArgumentCaptor.forClass(WeChatMiniProgramGateway.WaybillTrackingCommand.class);
         verify(miniGateway).followWaybill(command.capture());
+        verify(followTaskDao).completeInteractive(eq(7L), eq(99L), eq(66L), eq(12L),
+                any(), any());
         assertThat(command.getValue().deliveryId()).isEqualTo("YTO");
         assertThat(command.getValue().waybillId()).isEqualTo("YT1234567890");
         assertThat(command.getValue().transactionId()).isEqualTo("4200000000000000000");
@@ -100,4 +104,5 @@ class WeChatLogisticsQueryServiceTest {
             assertThat(goods.imageUrl()).isEqualTo("https://lingqimall.com/api/upload/product.png");
         });
     }
+
 }

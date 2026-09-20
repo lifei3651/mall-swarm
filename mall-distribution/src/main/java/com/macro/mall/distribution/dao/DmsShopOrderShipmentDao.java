@@ -11,6 +11,10 @@ public interface DmsShopOrderShipmentDao {
 
     List<DmsShopOrderShipment> selectByOrderId(@Param("orderId") Long orderId);
 
+    DmsShopOrderShipment selectByIdScoped(@Param("tenantId") Long tenantId,
+                                           @Param("orderId") Long orderId,
+                                           @Param("id") Long id);
+
     DmsShopOrderShipment selectByOrderAndTracking(@Param("orderId") Long orderId,
                                                    @Param("deliveryCompany") String deliveryCompany,
                                                    @Param("deliveryNo") String deliveryNo);

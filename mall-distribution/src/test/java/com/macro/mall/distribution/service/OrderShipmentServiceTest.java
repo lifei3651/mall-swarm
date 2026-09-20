@@ -34,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -48,6 +49,7 @@ class OrderShipmentServiceTest {
     @Mock private DmsShopOrderShipmentDao shipmentDao;
     @Mock private DmsMerchantDao merchantDao;
     @Mock private OperationLogService operationLogService;
+    @Mock private WeChatLogisticsFollowService weChatLogisticsFollowService;
 
     private OrderShipmentServiceImpl service;
 
@@ -57,6 +59,7 @@ class OrderShipmentServiceTest {
         service = new OrderShipmentServiceImpl(orderDao, orderItemDao, afterSaleDao, afterSaleItemDao,
                 shipmentDao, operationLogService);
         ReflectionTestUtils.setField(service, "merchantDao", merchantDao);
+        ReflectionTestUtils.setField(service, "weChatLogisticsFollowService", weChatLogisticsFollowService);
     }
 
     @AfterEach
@@ -80,6 +83,32 @@ class OrderShipmentServiceTest {
         assertEquals(1, result.getShippedCount());
         assertEquals(0, result.getFailedCount());
         verify(orderDao).ship(11L, "顺丰速运", "SF1234567890");
+    }
+
+    @Test
+    void successfulShipmentEnqueuesWechatLogisticsMessageAfterPackageIsSaved() {
+        DmsShopOrder order = pendingOrder(11L, "SO10001");
+        order.setPayType("WECHAT");
+        order.setPayTime(java.time.LocalDateTime.now());
+        when(orderDao.selectByIdForUpdate(11L)).thenReturn(order);
+        when(orderItemDao.sumQuantityByOrderId(11L)).thenReturn(1);
+        when(shipmentDao.insert(any(DmsShopOrderShipment.class))).thenAnswer(invocation -> {
+            DmsShopOrderShipment shipment = invocation.getArgument(0);
+            shipment.setId(66L);
+            return 1;
+        });
+        when(orderDao.ship(11L, "圆通速递", "YT1234567890")).thenReturn(1);
+        var dto = new com.macro.mall.distribution.dto.ShopOrderShipDTO();
+        dto.setDeliveryCompany("圆通速递");
+        dto.setDeliveryNo("YT1234567890");
+        dto.setShipmentQuantity(1);
+
+        assertTrue(service.shipOrder(11L, dto));
+
+        org.mockito.ArgumentCaptor<DmsShopOrderShipment> shipmentCaptor =
+                org.mockito.ArgumentCaptor.forClass(DmsShopOrderShipment.class);
+        verify(weChatLogisticsFollowService).enqueue(eq(order), shipmentCaptor.capture());
+        assertEquals(66L, shipmentCaptor.getValue().getId());
     }
 
     @Test

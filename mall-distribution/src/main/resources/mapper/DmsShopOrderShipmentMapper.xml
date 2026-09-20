@@ -28,6 +28,12 @@
         ORDER BY delivery_time ASC, id ASC
     </select>
 
+    <select id="selectByIdScoped" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM dms_shop_order_shipment
+        WHERE id = #{id} AND order_id = #{orderId} AND tenant_id = #{tenantId}
+    </select>
+
     <select id="selectByOrderAndTracking" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_shop_order_shipment

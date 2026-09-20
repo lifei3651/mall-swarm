@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsWechatLogisticsFollowTaskDao">
+    <sql id="Columns">id,tenant_id,order_id,shipment_id,user_id,status,attempt_count,next_retry_time,lease_owner,lease_until,payload_digest,error_code,registered_time,create_time,update_time</sql>
+
+    <insert id="enqueue">
+        INSERT INTO dms_wechat_logistics_follow_task
+          (tenant_id,order_id,shipment_id,user_id,status,attempt_count)
+        VALUES (#{tenantId},#{orderId},#{shipmentId},#{userId},'PENDING',0)
+        ON DUPLICATE KEY UPDATE user_id=VALUES(user_id),
+          status=CASE WHEN status IN ('SUCCESS','SENDING') THEN status ELSE 'PENDING' END,
+          attempt_count=CASE WHEN status IN ('SUCCESS','SENDING') THEN attempt_count ELSE 0 END,
+          next_retry_time=NULL,error_code=NULL,update_time=CURRENT_TIMESTAMP
+    </insert>
+
+    <select id="selectDueIds" resultType="long">
+        SELECT id FROM dms_wechat_logistics_follow_task
+        WHERE ((status IN ('PENDING','RETRYABLE') AND (next_retry_time IS NULL OR next_retry_time &lt;= #{now}))
+          OR (status='SENDING' AND (lease_until IS NULL OR lease_until &lt; #{now})))
+        ORDER BY id LIMIT #{limit}
+    </select>
+
+    <update id="claim">
+        UPDATE dms_wechat_logistics_follow_task
+        SET status='SENDING',lease_owner=#{owner},lease_until=#{leaseUntil},
+          attempt_count=attempt_count+1,update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id} AND ((status IN ('PENDING','RETRYABLE') AND (next_retry_time IS NULL OR next_retry_time &lt;= #{now}))
+          OR (status='SENDING' AND (lease_until IS NULL OR lease_until &lt; #{now})))
+    </update>
+
+    <select id="selectById" resultType="com.macro.mall.distribution.entity.DmsWechatLogisticsFollowTask">
+        SELECT <include refid="Columns"/> FROM dms_wechat_logistics_follow_task WHERE id=#{id}
+    </select>
+
+    <update id="markSuccess">
+        UPDATE dms_wechat_logistics_follow_task
+        SET status='SUCCESS',payload_digest=#{payloadDigest},
+          error_code=NULL,registered_time=#{now},lease_owner=NULL,lease_until=NULL,next_retry_time=NULL,
+          update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id} AND lease_owner=#{owner} AND status='SENDING'
+    </update>
+
+    <update id="markRetry">
+        UPDATE dms_wechat_logistics_follow_task
+        SET status='RETRYABLE',next_retry_time=#{nextRetryTime},error_code=#{errorCode},
+          lease_owner=NULL,lease_until=NULL,update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id} AND lease_owner=#{owner} AND status='SENDING'
+    </update>
+
+    <update id="markTerminal">
+        UPDATE dms_wechat_logistics_follow_task
+        SET status=#{status},error_code=#{errorCode},registered_time=#{now},
+          lease_owner=NULL,lease_until=NULL,next_retry_time=NULL,update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id} AND lease_owner=#{owner} AND status='SENDING'
+    </update>
+
+    <insert id="completeInteractive">
+        INSERT INTO dms_wechat_logistics_follow_task
+          (tenant_id,order_id,shipment_id,user_id,status,attempt_count,payload_digest,registered_time)
+        VALUES (#{tenantId},#{orderId},#{shipmentId},#{userId},'SUCCESS',0,#{payloadDigest},#{now})
+        ON DUPLICATE KEY UPDATE user_id=VALUES(user_id),status='SUCCESS',payload_digest=VALUES(payload_digest),
+          error_code=NULL,registered_time=VALUES(registered_time),next_retry_time=NULL,
+          lease_owner=NULL,lease_until=NULL,update_time=CURRENT_TIMESTAMP
+    </insert>
+</mapper>

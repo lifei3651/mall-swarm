@@ -1688,6 +1688,16 @@ CREATE TABLE IF NOT EXISTS dms_wechat_shipping_sync_task (
     CONSTRAINT uk_wechat_shipping_payment UNIQUE (tenant_id,payment_order_no)
 );
 CREATE INDEX IF NOT EXISTS idx_wechat_shipping_due ON dms_wechat_shipping_sync_task(status,next_retry_time,lease_until,id);
+CREATE TABLE IF NOT EXISTS dms_wechat_logistics_follow_task (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY, tenant_id BIGINT NOT NULL, order_id BIGINT NOT NULL,
+    shipment_id BIGINT NOT NULL, user_id BIGINT NOT NULL, status VARCHAR(16) NOT NULL DEFAULT 'PENDING',
+    attempt_count INT NOT NULL DEFAULT 0, next_retry_time TIMESTAMP, lease_owner VARCHAR(96),
+    lease_until TIMESTAMP, payload_digest CHAR(64), error_code VARCHAR(64),
+    registered_time TIMESTAMP, create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_wechat_logistics_shipment UNIQUE (tenant_id,order_id,shipment_id)
+);
+CREATE INDEX IF NOT EXISTS idx_wechat_logistics_due ON dms_wechat_logistics_follow_task(status,next_retry_time,lease_until,id);
 CREATE TABLE IF NOT EXISTS dms_message_delivery_receipt (
     id BIGINT AUTO_INCREMENT PRIMARY KEY, tenant_id BIGINT NOT NULL, channel VARCHAR(24) NOT NULL,
     provider_code VARCHAR(32) NOT NULL, receipt_id VARCHAR(128) NOT NULL, task_id BIGINT,

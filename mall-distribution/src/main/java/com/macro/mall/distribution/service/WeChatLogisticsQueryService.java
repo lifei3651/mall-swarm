@@ -5,6 +5,7 @@ import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.config.WeChatMiniProgramProperties;
 import com.macro.mall.distribution.dao.DmsShopOrderItemDao;
+import com.macro.mall.distribution.dao.DmsWechatLogisticsFollowTaskDao;
 import com.macro.mall.distribution.dao.DmsWechatMiniProgramIdentityDao;
 import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.entity.DmsShopOrderItem;
@@ -19,6 +20,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,6 +36,7 @@ public class WeChatLogisticsQueryService {
     private final WeChatPayGateway payGateway;
     private final DmsWechatMiniProgramIdentityDao identityDao;
     private final DmsShopOrderItemDao itemDao;
+    private final DmsWechatLogisticsFollowTaskDao followTaskDao;
 
     @Value("${shop.logistics.fallback-image-url:https://lingqimall.com/favicon.ico}")
     private String fallbackImageUrl;
@@ -51,12 +54,29 @@ public class WeChatLogisticsQueryService {
             Asserts.fail("该订单不是微信支付订单，无法使用微信物流查询");
         }
         DmsShopOrderShipment shipment = selectShipment(detail.getShipments(), shipmentId);
-        if (shipment == null || blank(shipment.getDeliveryNo())) Asserts.fail("订单尚未录入有效运单号");
+        if (shipment == null || shipment.getId() == null || blank(shipment.getDeliveryNo())) {
+            Asserts.fail("订单尚未录入有效运单号");
+        }
+        Long tenantId = TenantContext.getTenantId();
+        String token = register(tenantId, order, shipment);
+        followTaskDao.completeInteractive(tenantId, order.getId(), shipment.getId(), order.getUserId(),
+                digest(tenantId, order, shipment), LocalDateTime.now());
+        return new WeChatWaybillTokenVO(shipment.getId(), token);
+    }
+
+    /** 后台自动任务与用户主动查询共用同一套身份、支付、承运商和商品核验。 */
+    String register(Long tenantId, DmsShopOrder order, DmsShopOrderShipment shipment) {
+        if (!miniProgramProperties.loginReady()) Asserts.fail("微信物流查询组件尚未配置");
+        if (tenantId == null || order == null || shipment == null) Asserts.fail("订单不存在");
+        if (!"WECHAT".equalsIgnoreCase(order.getPayType()) || order.getPayTime() == null) {
+            Asserts.fail("该订单不是微信支付订单，无法使用微信物流查询");
+        }
+        if (blank(shipment.getDeliveryNo())) Asserts.fail("订单尚未录入有效运单号");
         String deliveryId = resolveCompany(shipment.getDeliveryCompany());
         if (deliveryId == null) Asserts.fail("该承运商暂不支持微信物流查询");
         if (blank(order.getReceiverPhone())) Asserts.fail("订单收货手机号不完整，无法查询物流");
 
-        DmsWechatMiniProgramIdentity identity = identityDao.selectByUser(TenantContext.getTenantId(),
+        DmsWechatMiniProgramIdentity identity = identityDao.selectByUser(tenantId,
                 SecureUtil.sha256(miniProgramProperties.getAppId().trim()), order.getUserId());
         if (identity == null || blank(identity.getOpenId())) Asserts.fail("请先使用微信快捷登录后再查看物流");
 
@@ -72,7 +92,7 @@ public class WeChatLogisticsQueryService {
                         order.getReceiverPhone(), deliveryId, shipment.getDeliveryNo(), payment.transactionId(),
                         "pages/order-detail/index?id=" + order.getId(), goods(order.getId())));
         if (result == null || blank(result.waybillToken())) Asserts.fail("微信物流查询暂时不可用，请稍后重试");
-        return new WeChatWaybillTokenVO(shipment.getId(), result.waybillToken());
+        return result.waybillToken();
     }
 
     private DmsShopOrderShipment selectShipment(List<DmsShopOrderShipment> shipments, Long shipmentId) {
@@ -143,6 +163,11 @@ public class WeChatLogisticsQueryService {
 
     private boolean blank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private String digest(Long tenantId, DmsShopOrder order, DmsShopOrderShipment shipment) {
+        return SecureUtil.sha256(tenantId + "|" + order.getId() + "|" + shipment.getId()
+                + "|" + shipment.getDeliveryCompany() + "|" + shipment.getDeliveryNo());
     }
 
     private record CompanyCache(Map<String, String> companies, Instant expiresAt) {

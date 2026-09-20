@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.service;
 
 import com.macro.mall.distribution.dao.DmsMiniProgramSubscriptionGrantDao;
+import com.macro.mall.distribution.dao.DmsWechatLogisticsFollowTaskDao;
 import com.macro.mall.distribution.dao.DmsWechatShippingSyncTaskDao;
 import com.macro.mall.distribution.entity.DmsMiniProgramSubscriptionGrant;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Transactional
 class WeChatNotificationPersistenceIntegrationTest {
     @Autowired private DmsMiniProgramSubscriptionGrantDao grantDao;
+    @Autowired private DmsWechatLogisticsFollowTaskDao logisticsFollowTaskDao;
     @Autowired private DmsWechatShippingSyncTaskDao shippingTaskDao;
 
     @Test
@@ -54,6 +56,28 @@ class WeChatNotificationPersistenceIntegrationTest {
         assertEquals(2, task.getRevision());
         assertEquals(1, shippingTaskDao.claim(taskId, "integration-worker", LocalDateTime.now(),
                 LocalDateTime.now().plusMinutes(1)));
+    }
+
+    @Test
+    void logisticsFollowTaskIsIdempotentAndCompletesWithoutStoringWechatToken() {
+        assertEquals(1, logisticsFollowTaskDao.enqueue(1L, 91001L, 92001L, 93001L));
+        logisticsFollowTaskDao.enqueue(1L, 91001L, 92001L, 93001L);
+        Long taskId = logisticsFollowTaskDao.selectDueIds(LocalDateTime.now(), 100).stream()
+                .filter(id -> {
+                    var task = logisticsFollowTaskDao.selectById(id);
+                    return task != null && Long.valueOf(91001L).equals(task.getOrderId())
+                            && Long.valueOf(92001L).equals(task.getShipmentId());
+                })
+                .findFirst()
+                .orElseThrow();
+        assertEquals(1, logisticsFollowTaskDao.claim(taskId, "logistics-integration-worker",
+                LocalDateTime.now(), LocalDateTime.now().plusMinutes(1)));
+        assertEquals(1, logisticsFollowTaskDao.markSuccess(taskId, "logistics-integration-worker",
+                "b".repeat(64), LocalDateTime.now()));
+        var completed = logisticsFollowTaskDao.selectById(taskId);
+        assertEquals("SUCCESS", completed.getStatus());
+        assertEquals("b".repeat(64), completed.getPayloadDigest());
+        assertNotNull(completed.getRegisteredTime());
     }
 
     @Test
