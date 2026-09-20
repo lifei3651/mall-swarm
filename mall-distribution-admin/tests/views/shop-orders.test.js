@@ -11,6 +11,9 @@ describe('商城订单取消入口', () => {
     expect(source).toContain('[0, 1].includes(Number(row?.order?.status))')
     expect(source).toContain("'取消并退款'")
     expect(source).toContain('系统会原路全额退款、关闭订单并恢复库存')
+    expect(source).toContain('cancelUnavailableLabel(row)')
+    expect(source).toContain('已发货，请通过售后处理')
+    expect(source).toContain('订单已关闭，无需再次取消')
   })
 
   it('全部订单不展示已取消或已拒绝的售后卡片，履约状态与有效退款结果分栏', async () => {
@@ -165,7 +168,9 @@ describe('商城订单取消入口', () => {
 
     expect(source).toContain('联合支付单号')
     expect(source).toContain('row.order?.tradeNo')
-    expect(source).toContain('联合支付 {{ row.order.tradeNo }}')
+    expect(source).toContain('<span class="order-no-label">订单号</span>')
+    expect(source).toContain("row.order?.orderNo || '-'")
+    expect(source).toContain('联合支付单号 {{ row.order.tradeNo }}')
     expect(source).toContain('商户子订单')
     expect(source).toContain('查看联合单')
     expect(source).toContain('getShopTradeDetail')

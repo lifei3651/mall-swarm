@@ -102,8 +102,13 @@
           </el-table-column>
           <el-table-column label="订单编号" min-width="175">
             <template #default="{ row }">
-              <div class="order-no">{{ row.order?.orderNo }}</div>
-              <div v-if="row.order?.tradeNo" class="sub trade-no">联合支付 {{ row.order.tradeNo }}</div>
+              <div class="order-no">
+                <span class="order-no-label">订单号</span>
+                {{ row.order?.orderNo || '-' }}
+              </div>
+              <div v-if="row.order?.tradeNo" class="sub trade-no">
+                联合支付单号 {{ row.order.tradeNo }}
+              </div>
               <el-tag v-if="row.order?.tradeId" size="small" effect="plain" type="info">商户子订单</el-tag>
               <el-button v-if="row.order?.tradeId && !isMerchantUser" type="primary" link size="small" @click.stop="openTradeDetail(row.order.tradeId)">查看联合单</el-button>
               <el-tag v-if="row.order?.businessType && row.order.businessType !== 'NORMAL'" size="small" effect="plain" :type="row.order.businessType === 'FLASH_SALE' ? 'danger' : 'warning'">{{ row.order.businessType === 'FLASH_SALE' ? '秒杀订单' : '复购订单' }}</el-tag>
@@ -241,6 +246,7 @@
                       <el-dropdown-item v-if="canCancelAdminOrder(row)" command="CANCEL" divided>
                         {{ Number(row.order?.status) === 1 ? '取消并退款' : '取消订单' }}
                       </el-dropdown-item>
+                      <el-dropdown-item v-else disabled divided>{{ cancelUnavailableLabel(row) }}</el-dropdown-item>
                       <el-dropdown-item v-if="canManualRefund(row)" command="REFUND" divided>后台退款</el-dropdown-item>
                     </el-dropdown-menu>
                   </template>
@@ -995,6 +1001,14 @@ const canShipOrder = (row) => canMerchantFulfill(row) && !hasPendingAfterSale(ro
   && remainingShipmentQuantity(row) > 0
 const canCancelAdminOrder = (row) => !isMerchantUser.value && !hasPendingAfterSale(row)
   && [0, 1].includes(Number(row?.order?.status))
+const cancelUnavailableLabel = (row) => {
+  if (hasPendingAfterSale(row)) return '售后处理中，不可重复取消'
+  return ({
+    2: '已发货，请通过售后处理',
+    3: '已完成，请通过售后或退款处理',
+    4: '订单已关闭，无需再次取消',
+  }[Number(row?.order?.status)] || '当前状态不可取消')
+}
 const afterSaleDeadline = (row) => {
   const configured = Date.parse(String(row?.afterSaleDeadline || '').replace(' ', 'T'))
   return Number.isFinite(configured) ? configured : Number.NaN
@@ -1728,6 +1742,13 @@ onBeforeUnmount(() => {
 .order-no {
   font-weight: 600;
   color: #303133;
+}
+
+.order-no-label {
+  margin-right: 4px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .sub {
