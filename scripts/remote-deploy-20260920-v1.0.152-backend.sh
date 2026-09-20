@@ -153,8 +153,8 @@ BEFORE_FILES=$(protected_hashes)
 BEFORE_CUSTOMERS=$(customer_snapshot "$DB_NAME")
 BACKUP_BEFORE=$(backup_and_verify)
 
-VERIFY_DB=mall_distribution_financial_verify_152_$(date +%Y%m%d%H%M%S)
-[[ "$VERIFY_DB" =~ ^mall_distribution_financial_verify_152_[0-9]{14}$ ]] || fail "invalid verification database"
+VERIFY_DB=m152v_$(date +%Y%m%d%H%M%S)
+[[ "$VERIFY_DB" =~ ^m152v_[0-9]{14}$ ]] || fail "invalid verification database"
 DB_CHARSET=$(mysql_db information_schema -NBe "SELECT CONCAT(default_character_set_name,' ',default_collation_name) FROM schemata WHERE schema_name='$DB_NAME'")
 mysql --protocol=socket -uroot -e "CREATE DATABASE \`$VERIFY_DB\` CHARACTER SET ${DB_CHARSET%% *} COLLATE ${DB_CHARSET##* };"
 gzip -dc "$BACKUP_BEFORE/database.sql.gz" | mysql --protocol=socket -uroot "$VERIFY_DB"
