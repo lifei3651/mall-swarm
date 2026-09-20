@@ -999,16 +999,14 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
     }
 
     private void saveDefaultRiskRule(String code, String name, BigDecimal threshold, String remark) {
-        if (riskRuleDao.selectByCode(code) != null) {
-            return;
-        }
         DmsFinanceRiskRule rule = new DmsFinanceRiskRule();
         rule.setRuleCode(code);
         rule.setRuleName(name);
         rule.setThresholdValue(threshold);
         rule.setEnabled(1);
         rule.setRemark(remark);
-        riskRuleDao.insert(rule);
+        // 数据库唯一键承担并发仲裁：首个请求创建，其他请求安全跳过，避免“先查再插”竞态。
+        riskRuleDao.insertIgnore(rule);
     }
 
     private FinanceRiskAlertVO toAlert(DmsFinanceRiskRule rule, BigDecimal currentValue, String message) {

@@ -30,6 +30,11 @@
         VALUES (#{ruleCode}, #{ruleName}, #{thresholdValue}, #{enabled}, #{remark})
     </insert>
 
+    <insert id="insertIgnore" parameterType="com.macro.mall.distribution.entity.DmsFinanceRiskRule">
+        INSERT IGNORE INTO dms_finance_risk_rule (rule_code, rule_name, threshold_value, enabled, remark)
+        VALUES (#{ruleCode}, #{ruleName}, #{thresholdValue}, #{enabled}, #{remark})
+    </insert>
+
     <update id="update" parameterType="com.macro.mall.distribution.entity.DmsFinanceRiskRule">
         UPDATE dms_finance_risk_rule
         SET rule_name = #{ruleName}, threshold_value = #{thresholdValue}, enabled = #{enabled},

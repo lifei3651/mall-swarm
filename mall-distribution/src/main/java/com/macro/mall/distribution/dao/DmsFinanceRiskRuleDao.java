@@ -15,5 +15,10 @@ public interface DmsFinanceRiskRuleDao {
 
     int insert(DmsFinanceRiskRule rule);
 
+    /**
+     * 并发初始化默认规则时只允许首个请求写入，后续请求安全跳过。
+     */
+    int insertIgnore(DmsFinanceRiskRule rule);
+
     int update(DmsFinanceRiskRule rule);
 }

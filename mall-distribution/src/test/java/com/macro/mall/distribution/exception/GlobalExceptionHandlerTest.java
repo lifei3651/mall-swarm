@@ -9,9 +9,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 class GlobalExceptionHandlerTest {
 
@@ -47,5 +50,13 @@ class GlobalExceptionHandlerTest {
 
         assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getStatusCode());
         assertEquals("请求过于频繁，请稍后重试", response.getBody().getMessage());
+    }
+
+    @Test
+    void asyncDisconnectAndTimeoutDoNotAttemptJsonErrorResponse() {
+        assertDoesNotThrow(() -> handler.handleAsyncRequestEnded(
+                new AsyncRequestNotUsableException("client disconnected")));
+        assertDoesNotThrow(() -> handler.handleAsyncRequestEnded(
+                new AsyncRequestTimeoutException()));
     }
 }

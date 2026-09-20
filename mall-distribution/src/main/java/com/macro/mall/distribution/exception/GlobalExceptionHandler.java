@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 
 /**
  * 分销模块全局异常处理器
@@ -27,6 +29,15 @@ import org.springframework.web.server.ResponseStatusException;
 public class GlobalExceptionHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    /**
+     * SSE/长连接由客户端主动断开或自然超时属于正常生命周期。
+     * 返回 void，避免在已经是 text/event-stream 的响应上再次写 JSON 错误体。
+     */
+    @ExceptionHandler({AsyncRequestNotUsableException.class, AsyncRequestTimeoutException.class})
+    public void handleAsyncRequestEnded(Exception e) {
+        LOGGER.debug("异步连接已结束: type={}", e.getClass().getSimpleName());
+    }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<CommonResult<Void>> handleMaxUploadSize(MaxUploadSizeExceededException e) {

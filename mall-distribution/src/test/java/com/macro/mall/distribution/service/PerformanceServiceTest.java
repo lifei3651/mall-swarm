@@ -657,6 +657,14 @@ public class PerformanceServiceTest {
     }
 
     @Test
+    void testDefaultFinanceRiskRulesInitializationIsIdempotent() {
+        assertEquals(4, auditService.listRiskRules().size());
+        assertEquals(4, auditService.listRiskRules().size());
+        assertEquals(4, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM dms_finance_risk_rule", Integer.class));
+    }
+
+    @Test
     void testOrderFinanceFlagsPayoutRateRiskImmediatelyAfterCommissionGenerated() {
         newRetailVersion("PAYOUT_RISK_MONITOR");
         DmsFinanceRiskRule payoutRule = new DmsFinanceRiskRule();
