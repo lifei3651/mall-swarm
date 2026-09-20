@@ -25,12 +25,32 @@ test('地址字段有常驻标签，长地址和订单备注用多行输入且�
   assert.match(source('pages/checkout/index.wxml'), /<textarea[^>]*maxlength="500"[^>]*value="\{\{remarkDraft\}\}"[^>]*bindinput="remarkInput"/)
 })
 
-test('关键详情和表单页为安全区留白，订单多按钮允许换行', () => {
+test('关键详情和表单页为安全区留白，订单操作固定单行且主操作最右', () => {
   for (const page of ['login', 'address', 'checkout', 'product', 'order-detail', 'payout', 'messages', 'subscriptions', 'account-security']) {
     const stylesheet = page === 'login' ? 'components/login-sheet/index.wxss' : `pages/${page}/index.wxss`
     assert.match(source(stylesheet), /env\(safe-area-inset-bottom\)/, page)
   }
-  assert.match(source('pages/orders/index.wxss'), /\.order-actions\s*\{[^}]*flex-wrap: wrap;/)
+  const view = source('pages/orders/index.wxml')
+  const styles = source('app.wxss')
+  assert.match(view, /class="order-actions ui-action-bar ui-order-actions"/)
+  assert.match(styles, /\.ui-order-actions\s*\{[^}]*flex-wrap:\s*nowrap;[^}]*justify-content:\s*flex-end;/)
+  assert.match(styles, /\.ui-order-action--primary\s*\{[^}]*order:\s*2;/)
+})
+
+test('订单列表共用五行卡片且取消态、进行态和物流次操作不再各自撑高', () => {
+  const view = source('pages/orders/index.wxml')
+  const logic = source('utils/order-list.js')
+  const styles = source('app.wxss')
+  for (const row of ['ui-order-header', 'ui-order-product', 'ui-order-logistics', 'ui-order-summary', 'ui-order-actions']) {
+    assert.match(view, new RegExp(`class="[^"]*${row}`), row)
+    assert.match(styles, new RegExp(`\\.${row}`), row)
+  }
+  assert.doesNotMatch(view, /class="ui-order-product"[^>]*wx:for=/)
+  assert.match(view, /class="ui-order-logistics"[\s\S]*未收到 \/ 拒收[\s\S]*class="ui-order-summary"/)
+  assert.match(view, /ui-order-status is-\{\{item\.statusTone\}\}/)
+  assert.match(logic, /statusTone:\s*row\.order\.status === 4 \? 'cancelled'/)
+  assert.match(styles, /\.ui-order-status\.is-cancelled\s*\{[^}]*#7b8492[^}]*#f0f2f4/)
+  assert.match(styles, /\.ui-order-status\.is-active\s*\{[^}]*var\(--brand\)[^}]*var\(--brand-soft\)/)
 })
 
 test('提现金额用原生 text 组件，账号昵称主次操作位于输入框之后', () => {

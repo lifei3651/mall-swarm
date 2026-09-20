@@ -65,6 +65,34 @@ button { font-size: 28rpx; font-family: inherit; }
 .ui-price { color: var(--price) !important; font-weight: 750; }
 .ui-status-pill { display: inline-flex; align-items: center; flex: none; padding: 7rpx 13rpx; border-radius: var(--radius-pill) !important; background: var(--brand-soft) !important; color: var(--brand) !important; font-size: 22rpx; font-weight: 650; }
 .ui-action-bar { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 14rpx; }
+/*
+ * 订单列表共用卡片：标题、商品、物流、金额、操作固定为五行。
+ * 页面只提供数据与事件，禁止再按订单状态单独放大按钮或增加信息块。
+ */
+.ui-order-card { padding: 20rpx 22rpx; }
+.ui-order-header, .ui-order-product, .ui-order-logistics, .ui-order-summary, .ui-order-actions { display: flex; align-items: center; width: 100%; min-width: 0; }
+.ui-order-header { justify-content: space-between; gap: 18rpx; padding-bottom: 16rpx; border-bottom: 1rpx solid var(--line); }
+.ui-order-title { display: flex; align-items: baseline; min-width: 0; flex: 1; gap: 10rpx; overflow: hidden; white-space: nowrap; }
+.ui-order-title > text:first-child { flex: none; color: var(--ink); font-size: 27rpx; font-weight: 750; }
+.ui-order-title > text:last-child { min-width: 0; overflow: hidden; color: #9299a5; font-size: 21rpx; text-overflow: ellipsis; }
+.ui-order-status.is-active { color: var(--brand) !important; background: var(--brand-soft) !important; }
+.ui-order-status.is-cancelled { color: #7b8492 !important; background: #f0f2f4 !important; }
+.ui-order-status.is-completed { color: #596562 !important; background: #eef3f1 !important; }
+.ui-order-product { gap: 14rpx; min-height: 96rpx; padding: 14rpx 0; color: var(--ink); border-bottom: 1rpx solid var(--line); }
+.ui-order-product > image { flex: none; width: 78rpx; height: 78rpx; border-radius: 12rpx; background: #eef0f3; }
+.ui-order-product-copy { min-width: 0; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 25rpx; font-weight: 650; }
+.ui-order-product-meta { display: flex; align-items: center; flex: none; gap: 8rpx; color: var(--muted); font-size: 22rpx; white-space: nowrap; }
+.ui-order-product-more { padding: 3rpx 8rpx; border-radius: var(--radius-pill); background: var(--canvas); font-size: 19rpx; }
+.ui-order-logistics { justify-content: space-between; gap: 14rpx; min-height: 58rpx; color: var(--muted); border-bottom: 1rpx solid var(--line); font-size: 22rpx; }
+.ui-order-logistics > text:first-child { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ui-order-logistics-action { flex: none; margin: 0; padding: 0; color: var(--brand); background: transparent; border: 0; font-size: 21rpx; font-weight: 650; line-height: 40rpx; white-space: nowrap; }
+.ui-order-logistics-action::after { border: 0; }
+.ui-order-summary { justify-content: space-between; gap: 18rpx; min-height: 66rpx; color: var(--muted); border-bottom: 1rpx solid var(--line); font-size: 22rpx; }
+.ui-order-summary > view { display: flex; align-items: baseline; gap: 8rpx; color: #687180; white-space: nowrap; }
+.ui-order-summary .ui-price { font-size: 30rpx; }
+.ui-order-actions { flex-wrap: nowrap; justify-content: flex-end; gap: 12rpx; padding-top: 16rpx; overflow: hidden; }
+.ui-order-action { display: inline-flex; align-items: center; justify-content: center; flex: 0 1 188rpx; width: auto !important; min-width: 0; min-height: 64rpx !important; height: 64rpx !important; margin: 0; padding: 0 14rpx !important; border-radius: var(--radius-pill) !important; font-size: 22rpx !important; line-height: 32rpx !important; white-space: nowrap !important; }
+.ui-order-action--primary { order: 2; }
 .product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18rpx; }
 .product-card { overflow: hidden; background: var(--paper); border: 1rpx solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
 .product-cover { width: 100%; height: 296rpx; background: #eef0f3; display: block; }

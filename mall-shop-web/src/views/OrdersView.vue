@@ -30,40 +30,31 @@
     </div>
 
     <section v-else class="order-card-list">
-      <article v-for="item in filteredOrders" :key="item.order.id" class="order-card ui-card">
-        <RouterLink :to="`/orders/${item.order.id}`" class="order-card-head">
-          <span>{{ item.order.tradeNo ? `联合支付 ${item.order.tradeNo} · 子订单 ${item.order.orderNo}` : item.order.orderNo }}</span>
-          <em v-if="item.order.businessType && item.order.businessType !== 'NORMAL'">{{ item.order.businessType === 'FLASH_SALE' ? '秒杀' : '活动' }}</em>
-          <strong class="ui-status-pill">{{ orderDisplayStatus(item) }} <ChevronRight :size="15" /></strong>
+      <article v-for="item in filteredOrders" :key="item.order.id" class="order-card ui-card ui-order-card">
+        <RouterLink :to="`/orders/${item.order.id}`" class="ui-order-header">
+          <span class="ui-order-title"><strong>{{ item.order.merchantName || '商城订单' }}</strong><span>{{ item.order.orderNo }}</span></span>
+          <strong class="ui-status-pill ui-order-status" :class="orderStateClass(item)">{{ orderDisplayStatus(item) }}</strong>
         </RouterLink>
-        <RouterLink :to="`/orders/${item.order.id}`" class="order-products">
-          <div v-for="line in item.items || []" :key="line.id" class="order-product">
-            <img :src="line.productCover" :alt="line.productName" @error="applyImageFallback" />
-            <div>
-              <h3>{{ line.productName }}</h3>
-              <p>{{ formatProductSpec(line) }}</p>
-            </div>
-            <span>×{{ line.quantity }}</span>
-          </div>
+        <RouterLink :to="`/orders/${item.order.id}`" class="ui-order-product">
+          <img :src="firstOrderItem(item).productCover" :alt="firstOrderItem(item).productName" @error="applyImageFallback" />
+          <span class="ui-order-product-copy">{{ firstOrderItem(item).productName }}<template v-if="formatProductSpec(firstOrderItem(item))"> · {{ formatProductSpec(firstOrderItem(item)) }}</template></span>
+          <span class="ui-order-product-meta"><em v-if="remainingProductKinds(item)" class="ui-order-product-more">等{{ item.items.length }}种</em><span>×{{ firstOrderItem(item).quantity || 0 }}</span></span>
         </RouterLink>
-        <div class="order-total">
+        <div class="ui-order-logistics">
+          <span>{{ orderLogisticsText(item) }}</span>
+          <RouterLink v-if="item.order.status === 2 && item.autoReceiveEnabled && !isAfterSale(item) && canApplyAfterSale(item)" class="ui-order-logistics-action" :to="`/orders/${item.order.id}?applyAfterSale=1`">未收到 / 拒收</RouterLink>
+        </div>
+        <div class="ui-order-summary">
           <span>共 {{ totalQuantity(item) }} 件</span>
           <span>实付 <strong class="ui-price">¥{{ money(item.order.payAmount) }}</strong></span>
         </div>
-        <div v-if="item.order.status === 2 && item.autoReceiveEnabled && !isAfterSale(item)" class="auto-receive-summary">
-          <span>预计 {{ dateTime(item.autoReceiveDeadline) }} 自动确认收货</span>
-          <RouterLink v-if="canApplyAfterSale(item)" :to="`/orders/${item.order.id}?applyAfterSale=1`">未收到 / 拒收</RouterLink>
-        </div>
-        <div v-if="item.afterSales?.length" class="after-sale-summary">
-          售后申请 {{ item.afterSales.length }} 条 · {{ afterSaleStatus(item.afterSales[0]?.status, item.afterSales[0]?.applyType) }}
-        </div>
-        <div class="order-actions ui-action-bar">
-          <RouterLink class="order-action btn secondary" :to="`/orders/${item.order.id}`">查看详情</RouterLink>
-          <button v-if="item.order.status === 0 && isTradeActionOwner(item)" class="order-action btn secondary" :disabled="actingId === item.order.id" @click="requestOrderAction('cancel', item.order.id)">{{ item.order.tradeId ? '取消联合订单' : '取消订单' }}</button>
-          <RouterLink v-if="item.order.status === 0 && isTradeActionOwner(item)" class="order-action btn primary" :to="`/orders/${item.order.id}`">{{ item.order.tradeId ? '支付全部子单' : '立即支付' }}</RouterLink>
-          <button v-if="item.order.status === 2 && !isAfterSale(item)" class="order-action btn primary" :disabled="actingId === item.order.id" @click="requestOrderAction('receive', item.order.id)">确认收货</button>
-          <RouterLink v-if="Number(item.pendingReviewCount || 0) > 0" class="order-action btn primary" :to="reviewLink(item)">去评价</RouterLink>
-          <RouterLink v-if="canApplyAfterSale(item)" class="order-action btn secondary" :to="`/orders/${item.order.id}?applyAfterSale=1`">申请售后</RouterLink>
+        <div class="order-actions ui-action-bar ui-order-actions">
+          <RouterLink class="order-action btn secondary" :class="['ui-order-action']" :to="`/orders/${item.order.id}`">查看详情</RouterLink>
+          <button v-if="item.order.status === 0 && isTradeActionOwner(item)" class="order-action btn secondary" :class="['ui-order-action']" :disabled="actingId === item.order.id" @click="requestOrderAction('cancel', item.order.id)">{{ item.order.tradeId ? '取消联合订单' : '取消订单' }}</button>
+          <RouterLink v-if="canApplyAfterSale(item)" class="order-action btn secondary" :class="['ui-order-action']" :to="`/orders/${item.order.id}?applyAfterSale=1`">申请售后</RouterLink>
+          <RouterLink v-if="item.order.status === 0 && isTradeActionOwner(item)" class="order-action btn primary" :class="['ui-order-action', 'ui-order-action--primary']" :to="`/orders/${item.order.id}`">{{ item.order.tradeId ? '支付全部子单' : '立即支付' }}</RouterLink>
+          <button v-if="item.order.status === 2 && !isAfterSale(item)" class="order-action btn primary" :class="['ui-order-action', 'ui-order-action--primary']" :disabled="actingId === item.order.id" @click="requestOrderAction('receive', item.order.id)">确认收货</button>
+          <RouterLink v-if="Number(item.pendingReviewCount || 0) > 0" class="order-action btn primary" :class="['ui-order-action', 'ui-order-action--primary']" :to="reviewLink(item)">去评价</RouterLink>
         </div>
       </article>
       <button v-if="hasMore" class="load-more-orders" :disabled="loadingMore" @click="loadMore">
@@ -89,7 +80,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { ChevronLeft, ChevronRight, PackageOpen, RefreshCw } from 'lucide-vue-next'
+import { ChevronLeft, PackageOpen, RefreshCw } from 'lucide-vue-next'
 import { cancelOrder, confirmReceive, getProfileOrderSummary, listMyOrders } from '@/api/shop'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { dateTime, money, statusName } from '@/utils/format'
@@ -223,6 +214,8 @@ const setRealtimeConnected = (connected) => {
 }
 
 const totalQuantity = (item) => (item.items || []).reduce((sum, line) => sum + Number(line.quantity || 0), 0)
+const firstOrderItem = (item) => item.items?.[0] || { productCover: '', productName: '订单商品', skuName: '', quantity: 0 }
+const remainingProductKinds = (item) => Math.max(0, Number(item.items?.length || 0) - 1)
 const reviewLink = (item) => ({
   path: `/order-review/${item.pendingReviewProductId}`,
   query: item.pendingReviewOrderItemId ? { orderItemId: item.pendingReviewOrderItemId } : {},
@@ -234,10 +227,20 @@ const afterSaleStatus = (status, applyType) => {
 const orderDisplayStatus = (item) => {
   if (isAfterSale(item)) {
     const sale = activeAfterSales(item)[0]
-    return `退款/售后 · ${afterSaleStatus(sale?.status, sale?.applyType)}`
+    return `售后 · ${afterSaleStatus(sale?.status, sale?.applyType)}`
   }
   if (Number(item.pendingReviewCount || 0) > 0) return '待评价'
   return statusName(item.order?.status)
+}
+const orderStateClass = (item) => {
+  if (Number(item.order?.status) === 4) return 'is-cancelled'
+  if (Number(item.order?.status) === 3 && !isAfterSale(item) && Number(item.pendingReviewCount || 0) === 0) return 'is-completed'
+  return 'is-active'
+}
+const orderLogisticsText = (item) => {
+  if (item.afterSales?.length) return `售后进度：${afterSaleStatus(item.afterSales[0]?.status, item.afterSales[0]?.applyType)}`
+  if (Number(item.order?.status) === 2 && item.autoReceiveEnabled) return item.autoReceiveDeadline ? `预计 ${dateTime(item.autoReceiveDeadline)} 自动确认收货` : `发货满 ${Number(item.autoReceiveDays || 15)} 天自动确认收货`
+  return ({ 0: '付款后将安排发货', 1: '商家正在准备商品', 2: '包裹已发出，可查看物流进度', 3: '订单已完成', 4: '订单已取消' }[Number(item.order?.status)] || '订单处理中')
 }
 const requestOrderAction = (type, id) => {
   if (actingId.value) return
@@ -315,25 +318,9 @@ onBeforeUnmount(() => {
 .order-tabs a { position: relative; flex: 1 0 auto; min-width: 62px; padding: 13px 7px 11px; color: var(--muted); text-align: center; font-size: 13px; white-space: nowrap; border-bottom: 2px solid transparent; }
 .order-tabs a.active { color: var(--accent, #e7193f); border-bottom-color: var(--accent, #e7193f); font-weight: 800; }
 .order-tabs em { position: absolute; top: 4px; margin-left: 1px; color: var(--accent, #e7193f); font-size: 9px; font-style: normal; }
-.order-card-list { display: grid; gap: 11px; margin-top: 11px; }
-.order-card { overflow: hidden; background: #fff; border: 1px solid var(--line); border-radius: 12px; }
-.order-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; color: var(--muted); font-size: 12px; border-bottom: 1px solid #f0f2f1; }
-.order-card-head strong { display: inline-flex; align-items: center; color: var(--accent, #e7193f); }
-.order-products { display: block; padding: 2px 14px; color: inherit; }
-.order-product { display: grid; grid-template-columns: 68px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 10px 0; }
-.order-product + .order-product { border-top: 1px solid #f1f2f2; }
-.order-product img { width: 68px; height: 68px; object-fit: cover; background: #f3f5f4; border-radius: 8px; }
-.order-product h3 { display: -webkit-box; margin: 2px 0 7px; overflow: hidden; font-size: 14px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.order-product p, .order-product > span { margin: 0; color: var(--muted); font-size: 12px; }
-.order-total { display: flex; justify-content: flex-end; gap: 12px; padding: 4px 14px 10px; color: var(--muted); font-size: 12px; }
-.order-total strong { color: var(--ink); font-size: 16px; }
-.auto-receive-summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 14px 9px; padding: 8px 10px; color: #80601f; background: #fff9e9; border-radius: 7px; font-size: 11px; }
-.auto-receive-summary a { flex: 0 0 auto; color: #a14f0b; font-weight: 800; }
-.after-sale-summary { margin: 0 14px 9px; padding: 8px 10px; color: #a65a16; background: #fff7ed; border-radius: 7px; font-size: 12px; }
-.order-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 14px 12px; border-top: 1px solid #f0f2f1; }
-.order-action { min-width: 76px; padding: 7px 11px; color: var(--ink); background: #f1f3f6; border: 1px solid #e3e7ed; border-radius: 999px; text-align: center; font-size: 12px; }
-.order-action.primary-action { color: var(--accent, #e7193f); background: var(--brand-primary-soft, #fff1f4); border-color: var(--accent, #e7193f); font-weight: 700; }
-.order-action:disabled { opacity: .55; }
+.order-card-list { display: grid; gap: 8px; margin-top: 10px; }
+.order-card { overflow: hidden; }
+.order-actions :disabled { opacity: .55; }
 .load-more-orders { width:100%; padding:12px; color:var(--accent,#e7193f); background:var(--brand-primary-soft,#fff1f4); border:1px solid var(--brand-primary-soft,#f8ccd5); border-radius:10px; font-weight:700; cursor:pointer; }
 .load-more-orders:disabled { opacity:.55; cursor:not-allowed; }
 .compact-empty { min-height: 280px; margin-top: 11px; }
@@ -344,6 +331,5 @@ onBeforeUnmount(() => {
   .orders-head { padding: 0 12px; }
   .order-tabs-shell { border-width: 1px 0; border-radius: 0; }
   .order-card-list { padding: 0 9px; }
-  .order-card { border-radius: 10px; }
 }
 </style>

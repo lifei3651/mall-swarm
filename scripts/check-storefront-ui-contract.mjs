@@ -22,6 +22,12 @@ for (const selector of ['.ui-card', '.ui-service-entry', '.ui-utility-button', '
   if (!webCore.includes(selector)) failures.push(`mall-shop-web/src/assets/styles.css: 缺少共用组件 ${selector}`)
 }
 
+const sharedOrderSelectors = ['.ui-order-card', '.ui-order-header', '.ui-order-product', '.ui-order-logistics', '.ui-order-summary', '.ui-order-actions', '.ui-order-action']
+for (const selector of sharedOrderSelectors) {
+  if (!miniCore.includes(selector)) failures.push(`mall-mini-program/app.wxss: 缺少订单共用组件 ${selector}`)
+  if (!webCore.includes(selector)) failures.push(`mall-shop-web/src/assets/styles.css: 缺少订单共用组件 ${selector}`)
+}
+
 const sharedServiceSurfaces = [
   'mall-mini-program/pages/legal/index.wxml',
   'mall-mini-program/pages/support/index.wxml',
@@ -61,6 +67,13 @@ for (const path of ['mall-mini-program/pages/orders/index.wxml', 'mall-mini-prog
   const source = read(path)
   for (const selector of ['ui-card', 'ui-status-pill', 'ui-action-bar']) {
     if (!source.includes(selector)) failures.push(`${path}: 订单页面缺少 ${selector} 共用组件`)
+  }
+}
+
+for (const path of ['mall-mini-program/pages/orders/index.wxml', 'mall-shop-web/src/views/OrdersView.vue']) {
+  const source = read(path)
+  for (const selector of sharedOrderSelectors) {
+    if (!source.includes(selector.slice(1))) failures.push(`${path}: 订单列表缺少 ${selector} 共用组件`)
   }
 }
 

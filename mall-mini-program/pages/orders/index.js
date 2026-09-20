@@ -20,18 +20,23 @@ const TABS = [
 ]
 
 function displayRows(source) {
-  return source.map(row => ({
-    ...row,
-    order: { ...row.order, id: identifier(row.order.id), status: Number(row.order.status) },
-    items: (row.items || []).map(item => ({ ...item, productCover: format.mediaUrl(item.productCover) })),
-    key: identifier(row.order.id),
-    canReceive: Number(row.order.status) === 2 && !(row.afterSales || []).some(sale => [0,4,5,6,7,8].includes(Number(sale.status))),
-    statusText: (row.afterSales || []).some(sale => [0,4,5,6,7,8].includes(Number(sale.status))) ? '售后处理中' : STATUS[row.order.status] || '处理中',
-    afterSaleText: row.afterSales?.length ? AFTER_SALE_STATUS[Number(row.afterSales[0].status)] || '处理中' : '',
-    amountText: format.money(row.order.payAmount == null ? row.order.totalAmount : row.order.payAmount),
-    amountLabel: amountLabel(row.order),
-    quantity: (row.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)
-  }))
+  return source.map(row => {
+    const items = (row.items || []).map(item => ({ ...item, productCover: format.mediaUrl(item.productCover) }))
+    return {
+      ...row,
+      order: { ...row.order, id: identifier(row.order.id), status: Number(row.order.status) },
+      items,
+      primaryItem: items[0] || { productCover: '', productName: '订单商品', skuName: '', quantity: 0 },
+      additionalProductKinds: Math.max(0, items.length - 1),
+      key: identifier(row.order.id),
+      canReceive: Number(row.order.status) === 2 && !(row.afterSales || []).some(sale => [0,4,5,6,7,8].includes(Number(sale.status))),
+      statusText: (row.afterSales || []).some(sale => [0,4,5,6,7,8].includes(Number(sale.status))) ? '售后处理中' : STATUS[row.order.status] || '处理中',
+      afterSaleText: row.afterSales?.length ? AFTER_SALE_STATUS[Number(row.afterSales[0].status)] || '处理中' : '',
+      amountText: format.money(row.order.payAmount == null ? row.order.totalAmount : row.order.payAmount),
+      amountLabel: amountLabel(row.order),
+      quantity: items.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
+    }
+  })
 }
 
 Page({
