@@ -13,6 +13,10 @@ public interface DmsWechatExpressOrderDao {
     DmsWechatExpressOrder selectByShipmentId(@Param("tenantId") Long tenantId,
                                              @Param("shipmentId") Long shipmentId);
 
+    DmsWechatExpressOrder selectByShipmentIdForUpdate(@Param("tenantId") Long tenantId,
+                                                      @Param("orderId") Long orderId,
+                                                      @Param("shipmentId") Long shipmentId);
+
     int insertIgnore(DmsWechatExpressOrder order);
 
     int markWaybill(@Param("tenantId") Long tenantId, @Param("id") Long id,
@@ -23,4 +27,13 @@ public interface DmsWechatExpressOrderDao {
 
     int markFailed(@Param("tenantId") Long tenantId, @Param("id") Long id,
                    @Param("errorCode") String errorCode);
+
+    int markCancelling(@Param("tenantId") Long tenantId, @Param("id") Long id);
+
+    int markCancelConfirmed(@Param("tenantId") Long tenantId, @Param("id") Long id);
+
+    int markCancelled(@Param("tenantId") Long tenantId, @Param("id") Long id);
+
+    int restoreCancelFailure(@Param("tenantId") Long tenantId, @Param("id") Long id,
+                             @Param("errorCode") String errorCode);
 }

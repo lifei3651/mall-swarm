@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.service;
 
+import com.macro.mall.common.exception.ApiException;
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.config.WeChatMiniProgramProperties;
 import com.macro.mall.distribution.dao.*;
@@ -17,6 +18,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -46,9 +48,11 @@ class WeChatExpressDeliveryServiceTest {
         DmsWechatExpressOrderDao expressDao = mock(DmsWechatExpressOrderDao.class);
         DmsMerchantDao merchantDao = mock(DmsMerchantDao.class);
         OrderShipmentService shipmentService = mock(OrderShipmentService.class);
+        WeChatExpressCancellationStateService cancellationStateService =
+                mock(WeChatExpressCancellationStateService.class);
         WeChatExpressDeliveryService service = new WeChatExpressDeliveryService(properties, gateway, orderDao,
                 itemDao, afterSaleDao, afterSaleItemDao, shipmentDao, addressDao, identityDao, expressDao,
-                merchantDao, shipmentService);
+                merchantDao, shipmentService, cancellationStateService);
         ReflectionTestUtils.setField(service, "fallbackImageUrl", "https://lingqimall.com/favicon.ico");
         ReflectionTestUtils.setField(service, "publicOrigin", "https://lingqimall.com");
 
@@ -98,7 +102,7 @@ class WeChatExpressDeliveryServiceTest {
         shipment.setId(77L); shipment.setOrderId(99L); shipment.setDeliveryCompany("圆通速递");
         shipment.setDeliveryNo("YT123456789");
         when(shipmentDao.selectByOrderAndTracking(99L, "圆通速递", "YT123456789")).thenReturn(shipment);
-        when(shipmentService.shipOrder(eq(99L), any())).thenReturn(true);
+        when(shipmentService.shipWechatExpressOrder(eq(99L), any())).thenReturn(true);
 
         WechatExpressOrderDTO dto = dto();
         WechatExpressShipmentVO result = service.create(99L, dto);
@@ -114,6 +118,37 @@ class WeChatExpressDeliveryServiceTest {
                 assertThat(goods.imageUrl()).isEqualTo("https://lingqimall.com/api/upload/product.png"));
         verify(expressDao).markWaybill(7L, 88L, "YT123456789");
         verify(expressDao).markSuccess(7L, 88L, 77L);
+    }
+
+    @Test
+    void doesNotRestoreActiveWaybillAfterWechatConfirmedCancellation() {
+        TenantContext.setTenantId(7L);
+        WeChatMiniProgramProperties properties = new WeChatMiniProgramProperties();
+        properties.setAppId("wx1234567890abcdef");
+        WeChatMiniProgramGateway gateway = mock(WeChatMiniProgramGateway.class);
+        DmsWechatMiniProgramIdentityDao identityDao = mock(DmsWechatMiniProgramIdentityDao.class);
+        WeChatExpressCancellationStateService cancellationStateService =
+                mock(WeChatExpressCancellationStateService.class);
+        WeChatExpressDeliveryService service = new WeChatExpressDeliveryService(properties, gateway,
+                mock(DmsShopOrderDao.class), mock(DmsShopOrderItemDao.class), mock(DmsShopAfterSaleDao.class),
+                mock(DmsShopAfterSaleItemDao.class), mock(DmsShopOrderShipmentDao.class),
+                mock(DmsShopServiceAddressDao.class), identityDao, mock(DmsWechatExpressOrderDao.class),
+                mock(DmsMerchantDao.class), mock(OrderShipmentService.class), cancellationStateService);
+        var context = new WeChatExpressCancellationStateService.CancellationContext(
+                7L, 99L, 77L, 88L, 12L, "PAY-99", "LQ-99", "YTO", "YT123", false, false);
+        when(cancellationStateService.prepare(99L, 77L)).thenReturn(context);
+        DmsWechatMiniProgramIdentity identity = new DmsWechatMiniProgramIdentity();
+        identity.setOpenId("openid-12");
+        when(identityDao.selectByUser(eq(7L), anyString(), eq(12L))).thenReturn(identity);
+        doThrow(new ApiException("local confirm failed")).when(cancellationStateService).confirm(context);
+
+        assertThatThrownBy(() -> service.cancel(99L, 77L))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("local confirm failed");
+
+        verify(gateway).cancelExpressOrder(any());
+        verify(cancellationStateService, never()).restore(any(), anyString());
+        verify(cancellationStateService, never()).finish(any());
     }
 
     private WechatExpressOrderDTO dto() {

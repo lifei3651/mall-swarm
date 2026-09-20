@@ -22,4 +22,8 @@ public interface DmsShopOrderShipmentDao {
     int sumQuantityByOrderId(@Param("orderId") Long orderId);
 
     int insert(DmsShopOrderShipment shipment);
+
+    int deleteScoped(@Param("tenantId") Long tenantId,
+                     @Param("orderId") Long orderId,
+                     @Param("id") Long id);
 }

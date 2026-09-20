@@ -55,6 +55,7 @@ public class WeChatExpressDeliveryService {
     private final DmsWechatExpressOrderDao expressOrderDao;
     private final DmsMerchantDao merchantDao;
     private final OrderShipmentService orderShipmentService;
+    private final WeChatExpressCancellationStateService cancellationStateService;
 
     @Value("${shop.logistics.fallback-image-url:https://lingqimall.com/favicon.ico}")
     private String fallbackImageUrl;
@@ -142,7 +143,7 @@ public class WeChatExpressDeliveryService {
             ship.setDeliveryCompany(record.getDeliveryName());
             ship.setDeliveryNo(record.getWaybillId());
             ship.setShipmentQuantity(record.getShipmentQuantity());
-            orderShipmentService.shipOrder(orderId, ship);
+            orderShipmentService.shipWechatExpressOrder(orderId, ship);
             DmsShopOrderShipment shipment = shipmentDao.selectByOrderAndTracking(orderId,
                     record.getDeliveryName(), record.getWaybillId());
             if (shipment == null) throw new ApiException("运单已生成，但商城包裹保存失败，请使用同一窗口重试");
@@ -163,6 +164,31 @@ public class WeChatExpressDeliveryService {
             expressOrderDao.markFailed(tenantId, record.getId(), exception.getClass().getSimpleName());
             throw exception;
         }
+    }
+
+    public boolean cancel(Long orderId, Long shipmentId) {
+        WeChatExpressCancellationStateService.CancellationContext context =
+                cancellationStateService.prepare(orderId, shipmentId);
+        if (context.alreadyCancelled()) return true;
+        if (!context.cancelConfirmed()) {
+            DmsWechatMiniProgramIdentity identity = identityDao.selectByUser(context.tenantId(),
+                    SecureUtil.sha256(miniProgramProperties.getAppId().trim()), context.userId());
+            if (identity == null || blank(identity.getOpenId())) {
+                cancellationStateService.restore(context, "WECHAT_IDENTITY_MISSING");
+                Asserts.fail("下单会员未绑定当前微信小程序账号，无法撤销微信运单");
+            }
+            try {
+                gateway.cancelExpressOrder(new WeChatMiniProgramGateway.ExpressOrderLookup(
+                        context.expressOrderNo(), identity.getOpenId(), context.deliveryId(),
+                        context.waybillId(), 1));
+            } catch (RuntimeException exception) {
+                cancellationStateService.restore(context, exception.getClass().getSimpleName());
+                throw exception;
+            }
+            // 微信已经确认撤单后，即使本地确认暂时失败也不能恢复成 SUCCESS，否则会把已取消的真实运单误报为有效。
+            cancellationStateService.confirm(context);
+        }
+        return cancellationStateService.finish(context);
     }
 
     private AccountChoice accountChoice(WechatExpressOrderDTO dto) {

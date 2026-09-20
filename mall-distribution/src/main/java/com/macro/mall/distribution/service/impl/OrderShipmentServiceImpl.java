@@ -71,6 +71,16 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean shipOrder(Long orderId, ShopOrderShipDTO dto) {
+        return shipOrder(orderId, dto, "MANUAL");
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean shipWechatExpressOrder(Long orderId, ShopOrderShipDTO dto) {
+        return shipOrder(orderId, dto, "WECHAT_EXPRESS");
+    }
+
+    private boolean shipOrder(Long orderId, ShopOrderShipDTO dto, String source) {
         if (orderId == null) Asserts.fail("订单ID不能为空");
         DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
         if (order == null) Asserts.fail("订单不存在");
@@ -82,7 +92,7 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
         Integer quantity = dto == null ? null : dto.getShipmentQuantity();
         ShipmentValues shipment = normalize(probe.company(), probe.deliveryNo(),
                 quantity == null ? remainingQuantity(order) : quantity);
-        return applyShipment(order, shipment, "MANUAL", true);
+        return applyShipment(order, shipment, source, true);
     }
 
     @Override

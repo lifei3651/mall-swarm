@@ -39,6 +39,12 @@
         SELECT <include refid="Columns"/> FROM dms_wechat_express_order
         WHERE tenant_id=#{tenantId} AND shipment_id=#{shipmentId} AND status='SUCCESS' LIMIT 1
     </select>
+    <select id="selectByShipmentIdForUpdate" resultMap="BaseResultMap">
+        SELECT <include refid="Columns"/> FROM dms_wechat_express_order
+        WHERE tenant_id=#{tenantId} AND order_id=#{orderId} AND shipment_id=#{shipmentId}
+          AND status IN ('SUCCESS','CANCELLING','CANCEL_CONFIRMED','CANCELLED')
+        LIMIT 1 FOR UPDATE
+    </select>
     <insert id="insertIgnore" parameterType="com.macro.mall.distribution.entity.DmsWechatExpressOrder"
             useGeneratedKeys="true" keyProperty="id">
         INSERT IGNORE INTO dms_wechat_express_order
@@ -60,5 +66,21 @@
     <update id="markFailed">
         UPDATE dms_wechat_express_order SET status='FAILED',error_code=#{errorCode},update_time=CURRENT_TIMESTAMP
         WHERE tenant_id=#{tenantId} AND id=#{id} AND status &lt;&gt; 'SUCCESS'
+    </update>
+    <update id="markCancelling">
+        UPDATE dms_wechat_express_order SET status='CANCELLING',error_code=NULL,update_time=CURRENT_TIMESTAMP
+        WHERE tenant_id=#{tenantId} AND id=#{id} AND status='SUCCESS'
+    </update>
+    <update id="markCancelConfirmed">
+        UPDATE dms_wechat_express_order SET status='CANCEL_CONFIRMED',error_code=NULL,update_time=CURRENT_TIMESTAMP
+        WHERE tenant_id=#{tenantId} AND id=#{id} AND status='CANCELLING'
+    </update>
+    <update id="markCancelled">
+        UPDATE dms_wechat_express_order SET status='CANCELLED',error_code=NULL,update_time=CURRENT_TIMESTAMP
+        WHERE tenant_id=#{tenantId} AND id=#{id} AND status='CANCEL_CONFIRMED'
+    </update>
+    <update id="restoreCancelFailure">
+        UPDATE dms_wechat_express_order SET status='SUCCESS',error_code=#{errorCode},update_time=CURRENT_TIMESTAMP
+        WHERE tenant_id=#{tenantId} AND id=#{id} AND status='CANCELLING'
     </update>
 </mapper>

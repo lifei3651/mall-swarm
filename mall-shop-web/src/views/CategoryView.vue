@@ -176,7 +176,16 @@
                 </div>
                 <div v-if="getProductQuantity(product.id) > 0" class="category-quantity-stepper" :aria-label="`购物车中已有${getProductQuantity(product.id)}件${product.productName}`">
                   <button type="button" :aria-label="`减少一件${product.productName}`" @click="decreaseProduct(product)"><Minus :size="19" /></button>
-                  <strong>{{ getProductQuantity(product.id) }}</strong>
+                  <input
+                    :value="getProductQuantity(product.id)"
+                    type="text"
+                    inputmode="numeric"
+                    pattern="[0-9]*"
+                    aria-label="手动输入购物车商品数量"
+                    @input="sanitizeQuantityField"
+                    @blur="commitProductQuantity(product, $event)"
+                    @keydown.enter="$event.currentTarget.blur()"
+                  />
                   <button type="button" :disabled="product.status !== 1 || product.stock <= 0" :aria-label="product.status !== 1 || product.stock <= 0 ? '商品已售罄，暂不能增加' : `增加一件${product.productName}`" @click="addProduct(product)"><Plus :size="19" /></button>
                 </div>
                 <button
@@ -224,6 +233,7 @@ import { requireShopSession } from '@/utils/authNavigation'
 import { resolveCategoryGuideConfig, resolveDirectoryGuideLayout } from '@/utils/displayConfig'
 import { layoutPlatform } from '@/utils/layoutPlatform'
 import { productCardImage } from '@/utils/productMedia'
+import { sanitizePositiveIntegerInput } from '@/utils/quantityInput'
 
 const route = useRoute()
 const router = useRouter()
@@ -399,6 +409,46 @@ const addProduct = async (product) => {
 const decreaseProduct = (product) => {
   if (!requireShopSession(router, route.fullPath, '请先登录后再调整购物车')) return
   decrementProduct(product.id)
+}
+
+const sanitizeQuantityField = (event) => {
+  event.currentTarget.value = sanitizePositiveIntegerInput(event.currentTarget.value)
+}
+
+const commitProductQuantity = async (product, event) => {
+  const input = event.currentTarget
+  const current = getProductQuantity(product.id)
+  const raw = sanitizePositiveIntegerInput(input.value)
+  const desired = Number(raw)
+  if (!Number.isSafeInteger(desired) || desired <= 0 || desired === current) {
+    input.value = String(current)
+    return
+  }
+  if (desired < current) {
+    for (let quantity = current; quantity > desired; quantity -= 1) decrementProduct(product.id)
+    input.value = String(getProductQuantity(product.id))
+    return
+  }
+  if (isAddingProduct(product.id)) {
+    input.value = String(current)
+    return
+  }
+  setAddingProduct(product.id, true)
+  try {
+    const detail = (await getProduct(product.id)).data || {}
+    const cartItem = resolveQuickCartItem(product, detail)
+    if (!cartItem) throw new Error('该商品暂时缺货')
+    const addition = desired - current
+    const stockError = stockAdditionViolation(cartItem.stock, addition, getQuantity(cartItemKey(cartItem)))
+    if (stockError) throw new Error(stockError)
+    await checkCartPurchaseLimit(cartItem, addition, current)
+    add(cartItem, addition)
+  } catch (error) {
+    showToast(error?.message || '当前商品数量调整失败')
+  } finally {
+    setAddingProduct(product.id, false)
+    input.value = String(getProductQuantity(product.id))
+  }
 }
 
 onMounted(async () => {
@@ -607,7 +657,8 @@ onBeforeUnmount(() => {
 .category-quantity-stepper button { width: 46px; height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--brand-primary); background: transparent; border: 0; cursor: pointer; }
 .category-quantity-stepper button:disabled { color: #b9bdc2; cursor: not-allowed; }
 .category-quantity-stepper button:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: -3px; }
-.category-quantity-stepper strong { text-align: center; color: #202630; font-size: 15px; font-variant-numeric: tabular-nums; }
+.category-quantity-stepper input { width:100%; min-width:0; height:42px; padding:0; color:#202630; background:transparent; border:0; outline:0; text-align:center; font:700 15px/42px inherit; font-variant-numeric:tabular-nums; appearance:textfield; }
+.category-quantity-stepper input::-webkit-outer-spin-button,.category-quantity-stepper input::-webkit-inner-spin-button { margin:0; appearance:none; }
 .cart-label-short { display: none; }
 
 .empty-state { min-height: 420px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #9ba1a8; }

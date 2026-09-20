@@ -161,6 +161,13 @@
                   <span>{{ shipment.deliveryCompany || '-' }}</span>
                   <div class="sub">{{ shipment.deliveryNo || '-' }}</div>
                   <div class="sub">发货 {{ shipment.shipmentQuantity || 0 }} 件</div>
+                  <el-button
+                    v-if="shipment.source === 'WECHAT_EXPRESS' && canMerchantFulfill(row) && !hasPendingAfterSale(row) && [1, 2].includes(Number(row.order?.status))"
+                    type="danger"
+                    link
+                    size="small"
+                    @click.stop="cancelWechatShipment(row, shipment)"
+                  >撤销微信运单</el-button>
                 </div>
                 <div v-if="row.autoReceiveEnabled" class="sub auto-receive-deadline">
                   {{ formatDateTime(row.autoReceiveDeadline) }} 自动收货
@@ -779,6 +786,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Download, Refresh, Search, Upload } from '@element-plus/icons-vue'
 import {
   auditShopAfterSale,
+  cancelWechatExpressOrder,
   cancelShopOrder,
   createWechatExpressOrder,
   confirmShopAfterSaleReturnReceived,
@@ -1311,6 +1319,23 @@ const cancelAdminOrder = async (row) => {
   }
   await cancelShopOrder(row.order.id)
   ElMessage.success(paid ? '订单已取消并完成退款，库存已回库' : '订单已取消，库存已回库')
+  await Promise.all([fetchOrders(), fetchWorkSummary()])
+}
+
+const cancelWechatShipment = async (row, shipment) => {
+  const orderNo = row?.order?.orderNo || '-'
+  const deliveryNo = shipment?.deliveryNo || '-'
+  try {
+    await ElMessageBox.confirm(
+      `确认撤销订单“${orderNo}”的微信运单“${deliveryNo}”吗？系统只会在微信发货信息尚未同步、订单未完成且没有售后时执行，并同步移除商城包裹、恢复待发货状态。`,
+      '撤销微信运单',
+      { type: 'warning', confirmButtonText: '确认撤销', cancelButtonText: '暂不撤销' },
+    )
+  } catch {
+    return
+  }
+  await cancelWechatExpressOrder(row.order.id, shipment.id)
+  ElMessage.success('微信运单已撤销，商城包裹与订单履约状态已同步恢复')
   await Promise.all([fetchOrders(), fetchWorkSummary()])
 }
 

@@ -469,6 +469,13 @@ export function createWechatExpressOrder(id, data) {
   })
 }
 
+export function cancelWechatExpressOrder(id, shipmentId) {
+  return request({
+    url: `/shop/admin/orders/${id}/wechat-express/${shipmentId}`,
+    method: 'delete',
+  })
+}
+
 export function cancelShopOrder(id) {
   return request({
     url: `/shop/admin/orders/${id}/cancel`,

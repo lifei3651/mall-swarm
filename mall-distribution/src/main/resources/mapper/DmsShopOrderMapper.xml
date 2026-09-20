@@ -379,6 +379,18 @@
         WHERE id = #{id} AND status = 1 AND COALESCE(tenant_id, 1) = #{tenantId}
     </update>
 
+    <update id="reconcileShipmentStateScoped">
+        UPDATE dms_shop_order
+        SET status = #{status},
+            delivery_company = #{deliveryCompany},
+            delivery_no = #{deliveryNo},
+            delivery_time = #{deliveryTime},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND status IN (1, 2)
+          AND COALESCE(tenant_id, 1) = #{tenantId}
+    </update>
+
     <update id="confirmReceiveScoped">
         UPDATE dms_shop_order
         SET status = 3,

@@ -20,6 +20,10 @@ public interface DmsWechatLogisticsFollowTaskDao {
 
     DmsWechatLogisticsFollowTask selectById(@Param("id") Long id);
 
+    DmsWechatLogisticsFollowTask selectByShipment(@Param("tenantId") Long tenantId,
+                                                  @Param("orderId") Long orderId,
+                                                  @Param("shipmentId") Long shipmentId);
+
     int markSuccess(@Param("id") Long id, @Param("owner") String owner,
                     @Param("payloadDigest") String payloadDigest,
                     @Param("now") LocalDateTime now);
@@ -36,4 +40,16 @@ public interface DmsWechatLogisticsFollowTaskDao {
                             @Param("shipmentId") Long shipmentId, @Param("userId") Long userId,
                             @Param("payloadDigest") String payloadDigest,
                             @Param("now") LocalDateTime now);
+
+    int markShipmentCancelled(@Param("tenantId") Long tenantId,
+                              @Param("orderId") Long orderId,
+                              @Param("shipmentId") Long shipmentId);
+
+    int suspendForShipmentCancellation(@Param("tenantId") Long tenantId,
+                                       @Param("orderId") Long orderId,
+                                       @Param("shipmentId") Long shipmentId);
+
+    int resumeAfterShipmentCancellationFailure(@Param("tenantId") Long tenantId,
+                                               @Param("orderId") Long orderId,
+                                               @Param("shipmentId") Long shipmentId);
 }

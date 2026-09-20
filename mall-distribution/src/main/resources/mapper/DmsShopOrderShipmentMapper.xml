@@ -57,4 +57,9 @@
         (#{tenantId}, #{orderId}, #{orderNo}, #{deliveryCompany}, #{deliveryNo}, #{shipmentQuantity}, #{source},
          COALESCE(#{deliveryTime}, CURRENT_TIMESTAMP))
     </insert>
+
+    <delete id="deleteScoped">
+        DELETE FROM dms_shop_order_shipment
+        WHERE tenant_id = #{tenantId} AND order_id = #{orderId} AND id = #{id}
+    </delete>
 </mapper>

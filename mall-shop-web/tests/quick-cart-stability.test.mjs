@@ -52,3 +52,14 @@ test('首页与分类商品卡加购后显示原位数量器，并支持减到�
   assert.match(cart, /const decrementProduct = \(productId\)/)
   assert.match(cart, /state\.items\.splice\(index, 1\)/)
 })
+
+test('首页与分类商品卡数量器支持手动输入并继续执行库存与限购校验', () => {
+  for (const name of ['HomeView', 'CategoryView']) {
+    const source = read(name)
+    assert.match(source, /aria-label="手动输入购物车商品数量"/)
+    assert.match(source, /@input="sanitizeQuantityField"/)
+    assert.match(source, /@blur="commitProductQuantity\(product, \$event\)"/)
+    assert.match(source, /stockAdditionViolation\(cartItem\.stock, addition, getQuantity\(cartItemKey\(cartItem\)\)\)/)
+    assert.match(source, /await checkCartPurchaseLimit\(cartItem, addition, current\)/)
+  }
+})

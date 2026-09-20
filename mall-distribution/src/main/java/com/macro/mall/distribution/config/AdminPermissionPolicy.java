@@ -42,6 +42,8 @@ final class AdminPermissionPolicy {
         if (path.startsWith("/distribution/merchants")) return "shop:product";
         if (HttpMethod.POST.matches(method) && path.matches("/shop/admin/orders/[^/]+/refund")) return "shop:aftersale";
         if (HttpMethod.PUT.matches(method) && path.matches("/shop/admin/orders/[^/]+/cancel")) return "shop:aftersale";
+        if (HttpMethod.DELETE.matches(method)
+                && path.matches("/shop/admin/orders/[^/]+/wechat-express/[^/]+")) return "shop:order";
         if (path.startsWith("/shop/admin/trades")) return "shop:order";
         if (path.startsWith("/shop/admin/service-tickets")) return "shop:order";
         if (path.startsWith("/shop/admin/coupons")) return "config:shop";

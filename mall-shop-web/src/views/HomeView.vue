@@ -177,7 +177,16 @@
               </div>
               <div v-if="!campaignActivity(product) && getProductQuantity(product.id) > 0" class="home-quantity-stepper" :aria-label="`购物车中已有${getProductQuantity(product.id)}件${product.productName}`">
                 <button type="button" :aria-label="`减少一件${product.productName}`" @click="decreaseProduct(product)"><Minus :size="18" /></button>
-                <strong>{{ getProductQuantity(product.id) }}</strong>
+                <input
+                  :value="getProductQuantity(product.id)"
+                  type="text"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  aria-label="手动输入购物车商品数量"
+                  @input="sanitizeQuantityField"
+                  @blur="commitProductQuantity(product, $event)"
+                  @keydown.enter="$event.currentTarget.blur()"
+                />
                 <button type="button" :disabled="product.status !== 1 || product.stock <= 0" :aria-label="product.status !== 1 || product.stock <= 0 ? '商品已售罄，暂不能增加' : `增加一件${product.productName}`" @click="addProduct(product)"><Plus :size="18" /></button>
               </div>
               <button
@@ -234,6 +243,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { applyImageFallback } from '@/utils/imageFallback'
 import { productCardImage } from '@/utils/productMedia'
 import { resolveBusinessEntries } from '@surface-commerce-policy'
+import { sanitizePositiveIntegerInput } from '@/utils/quantityInput'
 
 const router = useRouter()
 const route = useRoute()
@@ -628,6 +638,46 @@ const decreaseProduct = (product) => {
   decrementProduct(product.id)
 }
 
+const sanitizeQuantityField = (event) => {
+  event.currentTarget.value = sanitizePositiveIntegerInput(event.currentTarget.value)
+}
+
+const commitProductQuantity = async (product, event) => {
+  const input = event.currentTarget
+  const current = getProductQuantity(product.id)
+  const raw = sanitizePositiveIntegerInput(input.value)
+  const desired = Number(raw)
+  if (!Number.isSafeInteger(desired) || desired <= 0 || desired === current) {
+    input.value = String(current)
+    return
+  }
+  if (desired < current) {
+    for (let quantity = current; quantity > desired; quantity -= 1) decrementProduct(product.id)
+    input.value = String(getProductQuantity(product.id))
+    return
+  }
+  if (isAddingProduct(product.id)) {
+    input.value = String(current)
+    return
+  }
+  setAddingProduct(product.id, true)
+  try {
+    const detail = (await getProduct(product.id)).data || {}
+    const cartItem = resolveQuickCartItem(product, detail)
+    if (!cartItem) throw new Error('该商品暂时缺货')
+    const addition = desired - current
+    const stockError = stockAdditionViolation(cartItem.stock, addition, getQuantity(cartItemKey(cartItem)))
+    if (stockError) throw new Error(stockError)
+    await checkCartPurchaseLimit(cartItem, addition, current)
+    add(cartItem, addition)
+  } catch (error) {
+    showToast(error?.message || '当前商品数量调整失败')
+  } finally {
+    setAddingProduct(product.id, false)
+    input.value = String(getProductQuantity(product.id))
+  }
+}
+
 onMounted(async () => {
   campaignTimer = window.setInterval(() => { campaignClock.value = Date.now() }, 1000)
   readRecentSearches()
@@ -783,7 +833,8 @@ onUnmounted(() => { disposed = true; productRequestId++; campaignRequestId++; pe
 .home-quantity-stepper button { width: 38px; height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--brand-primary); background: transparent; border: 0; cursor: pointer; }
 .home-quantity-stepper button:disabled { color: #b7bbc0; cursor: not-allowed; }
 .home-quantity-stepper button:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: -3px; }
-.home-quantity-stepper strong { text-align: center; color: #202630; font-size: 14px; font-variant-numeric: tabular-nums; }
+.home-quantity-stepper input { width:100%; min-width:0; height:34px; padding:0; color:#202630; background:transparent; border:0; outline:0; text-align:center; font:700 14px/34px inherit; font-variant-numeric:tabular-nums; appearance:textfield; }
+.home-quantity-stepper input::-webkit-outer-spin-button,.home-quantity-stepper input::-webkit-inner-spin-button { margin:0; appearance:none; }
 .home-empty { min-height: 340px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; color: #989ea6; background: #fff; border-radius: 14px; }
 .home-empty strong { color: #59616a; }
 .home-empty button { padding: 8px 15px; color: var(--brand-primary); background: #fff; border: 1px solid var(--brand-primary-soft); border-radius: 999px; }

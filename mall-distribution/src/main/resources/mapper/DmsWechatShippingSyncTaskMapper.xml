@@ -27,6 +27,10 @@
     <select id="selectScoped" resultType="com.macro.mall.distribution.entity.DmsWechatShippingSyncTask">
         SELECT <include refid="Columns"/> FROM dms_wechat_shipping_sync_task WHERE tenant_id=#{tenantId} AND id=#{id}
     </select>
+    <select id="selectByPaymentOrderNo" resultType="com.macro.mall.distribution.entity.DmsWechatShippingSyncTask">
+        SELECT <include refid="Columns"/> FROM dms_wechat_shipping_sync_task
+        WHERE tenant_id=#{tenantId} AND payment_order_no=#{paymentOrderNo} LIMIT 1 FOR UPDATE
+    </select>
     <sql id="ScopedFilter">
         tenant_id=#{tenantId}<if test="status != null and status != ''"> AND status=#{status}</if>
     </sql>
@@ -60,5 +64,25 @@
           status=CASE WHEN revision=#{revision} THEN 'PERMANENT' ELSE 'PENDING' END,
           error_code=#{errorCode},synced_time=#{now},lease_owner=NULL,lease_until=NULL,next_retry_time=NULL,update_time=CURRENT_TIMESTAMP
         WHERE id=#{id} AND lease_owner=#{owner} AND status='SENDING'
+    </update>
+    <update id="markLocalShipmentCancelled">
+        UPDATE dms_wechat_shipping_sync_task
+        SET status='PERMANENT',synced_revision=revision,error_code=#{errorCode},synced_time=CURRENT_TIMESTAMP,
+          lease_owner=NULL,lease_until=NULL,next_retry_time=NULL,update_time=CURRENT_TIMESTAMP
+        WHERE tenant_id=#{tenantId} AND payment_order_no=#{paymentOrderNo}
+          AND status NOT IN ('SUCCESS','SENDING')
+    </update>
+    <update id="suspendForShipmentCancellation">
+        UPDATE dms_wechat_shipping_sync_task
+        SET status='SUSPENDED',next_retry_time=NULL,lease_owner=NULL,lease_until=NULL,
+          error_code='WAYBILL_CANCELLATION_PENDING',update_time=CURRENT_TIMESTAMP
+        WHERE tenant_id=#{tenantId} AND payment_order_no=#{paymentOrderNo}
+          AND status NOT IN ('SUCCESS','SENDING')
+          AND COALESCE(synced_revision,0) &lt; revision
+    </update>
+    <update id="resumeAfterShipmentCancellationFailure">
+        UPDATE dms_wechat_shipping_sync_task
+        SET status='PENDING',next_retry_time=NULL,error_code=NULL,update_time=CURRENT_TIMESTAMP
+        WHERE tenant_id=#{tenantId} AND payment_order_no=#{paymentOrderNo} AND status='SUSPENDED'
     </update>
 </mapper>

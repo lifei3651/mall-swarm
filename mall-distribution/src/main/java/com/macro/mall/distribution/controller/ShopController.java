@@ -1101,6 +1101,13 @@ public class ShopController {
         return CommonResult.success(weChatExpressDeliveryService.create(orderId, dto));
     }
 
+    @Operation(summary = "撤销微信快递运单并回滚商城包裹")
+    @DeleteMapping("/admin/orders/{orderId}/wechat-express/{shipmentId}")
+    public CommonResult<Boolean> cancelWechatExpressOrder(@PathVariable Long orderId,
+                                                           @PathVariable Long shipmentId) {
+        return CommonResult.success(weChatExpressDeliveryService.cancel(orderId, shipmentId));
+    }
+
     @Operation(summary = "后台查询订单真实物流轨迹")
     @GetMapping("/admin/orders/{orderId}/tracking")
     public CommonResult<List<ShopLogisticsTrackingVO>> adminOrderTracking(@PathVariable Long orderId) {

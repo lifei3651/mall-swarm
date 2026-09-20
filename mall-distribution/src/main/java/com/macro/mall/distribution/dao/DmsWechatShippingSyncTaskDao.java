@@ -16,6 +16,8 @@ public interface DmsWechatShippingSyncTaskDao {
               @Param("now") LocalDateTime now, @Param("leaseUntil") LocalDateTime leaseUntil);
     DmsWechatShippingSyncTask selectById(@Param("id") Long id);
     DmsWechatShippingSyncTask selectScoped(@Param("tenantId") Long tenantId, @Param("id") Long id);
+    DmsWechatShippingSyncTask selectByPaymentOrderNo(@Param("tenantId") Long tenantId,
+                                                     @Param("paymentOrderNo") String paymentOrderNo);
     List<DmsWechatShippingSyncTask> listScoped(@Param("tenantId") Long tenantId, @Param("status") String status,
                                              @Param("offset") int offset, @Param("limit") int limit);
     long countScoped(@Param("tenantId") Long tenantId, @Param("status") String status);
@@ -30,4 +32,11 @@ public interface DmsWechatShippingSyncTaskDao {
     int markPermanent(@Param("id") Long id, @Param("owner") String owner,
                       @Param("revision") Integer revision, @Param("errorCode") String errorCode,
                       @Param("now") LocalDateTime now);
+    int markLocalShipmentCancelled(@Param("tenantId") Long tenantId,
+                                   @Param("paymentOrderNo") String paymentOrderNo,
+                                   @Param("errorCode") String errorCode);
+    int suspendForShipmentCancellation(@Param("tenantId") Long tenantId,
+                                       @Param("paymentOrderNo") String paymentOrderNo);
+    int resumeAfterShipmentCancellationFailure(@Param("tenantId") Long tenantId,
+                                               @Param("paymentOrderNo") String paymentOrderNo);
 }

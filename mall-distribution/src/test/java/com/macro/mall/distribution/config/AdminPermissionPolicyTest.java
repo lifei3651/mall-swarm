@@ -55,6 +55,7 @@ class AdminPermissionPolicyTest {
     @Test
     void separatesOrderShipmentFromRefundAuthority() {
         assertEquals("shop:order", AdminPermissionPolicy.requiredPermission("PUT", "/shop/admin/orders/99/ship"));
+        assertEquals("shop:order", AdminPermissionPolicy.requiredPermission("DELETE", "/shop/admin/orders/99/wechat-express/77"));
         assertEquals("shop:order", AdminPermissionPolicy.requiredPermission("GET", "/shop/admin/trades/88"));
         assertEquals("shop:order", AdminPermissionPolicy.requiredPermission("POST", "/shop/admin/service-tickets/18/replies"));
         assertEquals("shop:aftersale", AdminPermissionPolicy.requiredPermission("POST", "/shop/admin/orders/99/refund"));
@@ -96,6 +97,10 @@ class AdminPermissionPolicyTest {
                 "POST", "/shop/admin/service-tickets/18/replies"));
         assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
                 "PUT", "/shop/admin/orders/99/ship"));
+        assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "POST", "/shop/admin/orders/99/wechat-express"));
+        assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "DELETE", "/shop/admin/orders/99/wechat-express/77"));
         assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
                 "PUT", "/shop/admin/orders/99/service-remark"));
         assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(

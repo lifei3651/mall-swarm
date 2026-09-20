@@ -126,6 +126,18 @@ public interface DmsShopOrderDao {
         return shipScoped(TenantContext.getTenantId(), id, deliveryCompany, deliveryNo);
     }
 
+    int reconcileShipmentStateScoped(@Param("tenantId") Long tenantId, @Param("id") Long id,
+                                     @Param("status") Integer status,
+                                     @Param("deliveryCompany") String deliveryCompany,
+                                     @Param("deliveryNo") String deliveryNo,
+                                     @Param("deliveryTime") LocalDateTime deliveryTime);
+
+    default int reconcileShipmentState(Long id, Integer status, String deliveryCompany,
+                                       String deliveryNo, LocalDateTime deliveryTime) {
+        return reconcileShipmentStateScoped(TenantContext.getTenantId(), id, status,
+                deliveryCompany, deliveryNo, deliveryTime);
+    }
+
     int confirmReceiveScoped(@Param("tenantId") Long tenantId, @Param("id") Long id);
     default int confirmReceive(Long id) { return confirmReceiveScoped(TenantContext.getTenantId(), id); }
 

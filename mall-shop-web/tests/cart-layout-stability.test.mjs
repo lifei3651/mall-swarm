@@ -22,6 +22,12 @@ test('H5购物车增加按钮忙碌不变淡，仍禁重复提交', () => {
   assert.match(source, /if \(isQuantityChecking\(item\)\) return\s+if \(delta < 0\)/)
   assert.match(source, /:disabled="item.quantity <= 1"/)
 })
+test('H5购物车数量可手动输入，增加时重新核对库存与会员限购', () => {
+  assert.match(source, /aria-label="手动输入购物车商品数量"/)
+  assert.match(source, /@blur="commitCartQuantity\(item, \$event\)"/)
+  assert.match(source, /stockQuantityViolation\(latestStock, desired\)/)
+  assert.match(source, /await checkCartPurchaseLimit\(item, desired - current, getProductQuantity\(item\.id\)\)/)
+})
 
 for (const approved of [true, false]) test('H5慢数量校验：加减互斥，' + (approved ? '批准后更新一次' : '拒绝后数量不变'), async () => {
   let finish, requests = 0

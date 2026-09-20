@@ -46,7 +46,16 @@
           <div class="item-actions">
             <div class="quantity">
               <button :disabled="item.quantity <= 1" :aria-busy="isQuantityChecking(item)" aria-label="减少数量" @click="changeQuantity(item, -1)">-</button>
-              <span>{{ item.quantity }}</span>
+              <input
+                :value="item.quantity"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                aria-label="手动输入购物车商品数量"
+                @input="sanitizeQuantityField"
+                @blur="commitCartQuantity(item, $event)"
+                @keydown.enter="$event.currentTarget.blur()"
+              />
               <button :aria-busy="isQuantityChecking(item)" aria-label="增加数量" @click="changeQuantity(item, 1)">+</button>
             </div>
           </div>
@@ -118,6 +127,7 @@ import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
 import { resolveCurrentStock, stockAdditionViolation, stockQuantityViolation } from '@/utils/stockRules'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { applyImageFallback } from '@/utils/imageFallback'
+import { sanitizePositiveIntegerInput } from '@/utils/quantityInput'
 
 const router = useRouter()
 const { items, count, total, getProductQuantity, update, remove, clear: clearCart, beginCheckout } = useCart()
@@ -158,6 +168,46 @@ const changeQuantity = async (item, delta) => {
     showToast(error?.message || '当前商品已达到可购买数量上限')
   } finally {
     setQuantityChecking(item, false)
+  }
+}
+
+const sanitizeQuantityField = (event) => {
+  event.currentTarget.value = sanitizePositiveIntegerInput(event.currentTarget.value)
+}
+
+const commitCartQuantity = async (item, event) => {
+  const input = event.currentTarget
+  const current = Number(item.quantity || 1)
+  const raw = sanitizePositiveIntegerInput(input.value)
+  const desired = Number(raw)
+  if (!Number.isSafeInteger(desired) || desired <= 0 || desired === current) {
+    input.value = String(current)
+    return
+  }
+  const key = item.cartKey || item.id
+  if (desired < current) {
+    update(key, desired)
+    input.value = String(item.quantity)
+    return
+  }
+  if (isQuantityChecking(item)) {
+    input.value = String(current)
+    return
+  }
+  setQuantityChecking(item, true)
+  try {
+    const detail = (await getProduct(item.id)).data || {}
+    const latestStock = resolveCurrentStock(item, detail)
+    item.stock = latestStock
+    const stockError = stockQuantityViolation(latestStock, desired)
+    if (stockError) throw new Error(stockError)
+    await checkCartPurchaseLimit(item, desired - current, getProductQuantity(item.id))
+    update(key, desired)
+  } catch (error) {
+    showToast(error?.message || '当前商品已达到可购买数量上限')
+  } finally {
+    setQuantityChecking(item, false)
+    input.value = String(item.quantity)
   }
 }
 
@@ -373,7 +423,8 @@ onBeforeUnmount(() => window.clearTimeout(toastTimer))
 .quantity button { width: 32px; height: 32px; display: grid; place-items: center; background: #f8faf9; border: 0; font-size: 16px; cursor: pointer; }
 .quantity button { color: inherit; -webkit-tap-highlight-color: transparent; }
 .quantity button:disabled { cursor:not-allowed; opacity:.4; }
-.quantity span { width: 36px; text-align: center; font-size: 14px; font-weight: 600; }
+.quantity input { width:36px; height:32px; padding:0; color:inherit; background:#fff; border:0; outline:0; text-align:center; font:600 14px/32px inherit; font-variant-numeric:tabular-nums; appearance:textfield; }
+.quantity input::-webkit-outer-spin-button,.quantity input::-webkit-inner-spin-button { margin:0; appearance:none; }
 
 .cart-summary-panel { border: 0; border-radius: 16px; }
 .server-price-note { margin:0 0 7px; color:var(--muted); font-size:12px; line-height:1.5; }

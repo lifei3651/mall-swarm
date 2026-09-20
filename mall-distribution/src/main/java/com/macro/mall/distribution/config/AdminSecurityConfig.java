@@ -119,6 +119,10 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             }
             if (path.startsWith("/shop/admin/orders")) {
                 if (HttpMethod.GET.matches(method)) return true;
+                if (HttpMethod.POST.matches(method)
+                        && path.matches("/shop/admin/orders/[^/]+/wechat-express")) return true;
+                if (HttpMethod.DELETE.matches(method)
+                        && path.matches("/shop/admin/orders/[^/]+/wechat-express/[^/]+")) return true;
                 return HttpMethod.PUT.matches(method) && (path.matches("/shop/admin/orders/[^/]+/ship")
                         || path.matches("/shop/admin/orders/[^/]+/service-remark")
                         || path.equals("/shop/admin/orders/logistics-preference"));
@@ -201,6 +205,7 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             if (path.matches("/shop/admin/orders/[^/]+/ship")) return "商城订单发货";
             if (path.matches("/shop/admin/orders/[^/]+/service-remark")) return "修改订单客服备注";
             if (path.matches("/shop/admin/orders/[^/]+/cancel")) return "后台取消或退款商城订单";
+            if (path.matches("/shop/admin/orders/[^/]+/wechat-express/[^/]+")) return "撤销微信快递运单并回滚商城发货";
             if (path.equals("/shop/admin/orders/shipments/import")) return "Excel批量导入订单物流并发货";
             if (path.matches("/shop/admin/after-sales/[^/]+/audit")) return "审核商城售后";
             if (path.matches("/shop/admin/service-tickets/[^/]+/replies")) return "回复会员客服工单";
