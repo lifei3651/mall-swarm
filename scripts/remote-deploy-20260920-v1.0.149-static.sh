@@ -113,7 +113,7 @@ PY
 case "$SITE" in
   admin) grep -R -Fq '撤销微信运单' "$TARGET/assets" ;;
   shop) grep -R -Fq '手动输入购物车商品数量' "$TARGET/assets" ;;
-  team) grep -R -Fq '团队中心' "$TARGET/assets" ;;
+  team) find "$TARGET/assets" -maxdepth 1 -type f -name 'TeamHomeView-*.js' -print -quit | grep -q . ;;
 esac
 [[ "$(protected_hashes)" == "$BEFORE_FILES" ]]
 BACKUP_AFTER=$(backup_verify)
