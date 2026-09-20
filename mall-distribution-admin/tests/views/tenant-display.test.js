@@ -10,6 +10,7 @@ import {
   applyThemePresetToForm,
   hydrateThemeColors,
   isThemePresetActive,
+  normalizeColorModes,
   themePreviewVariables,
 } from '../../src/utils/shopTheme.js'
 
@@ -60,6 +61,27 @@ describe('商城视觉与页面工作台', () => {
     expect(migrated.buttonBg).toBe('#e7193f')
     const missingFields = hydrateThemeColors(retailRed, '#e7193f', {})
     expect(DISPLAY_COLOR_KEYS.every((key) => Boolean(missingFields[key]))).toBe(true)
+  })
+
+  it('按钮和价格既可统一跟随主题色，也可分别覆盖', async () => {
+    const form = {
+      themeColor: '#123456',
+      colors: { buttonBg: '#654321', priceColor: '#aa2200' },
+      colorModes: normalizeColorModes({ buttonBg: 'theme', priceColor: 'custom' }),
+    }
+    let preview = themePreviewVariables(form)
+    expect(preview['--preview-button']).toBe('#123456')
+    expect(preview['--preview-price']).toBe('#aa2200')
+    form.colorModes.priceColor = 'theme'
+    preview = themePreviewVariables(form)
+    expect(preview['--preview-price']).toBe('#123456')
+
+    const source = await readFile(sourcePath, 'utf8')
+    expect(source).toContain('一键统一为主题色')
+    expect(source).toContain('主按钮颜色')
+    expect(source).toContain('价格强调色')
+    expect(source).toContain('setColorFollowsTheme')
+    expect(source).toContain('colorModes: normalizeColorModes(form.colorModes)')
   })
 
   it('首页、分类和商品详情可预览，购物车和个人页不提供自由装修', async () => {

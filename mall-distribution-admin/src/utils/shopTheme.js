@@ -10,6 +10,10 @@ export const DISPLAY_COLOR_KEYS = [
   'buttonBg',
 ]
 
+export const COMMERCE_COLOR_KEYS = ['buttonBg', 'priceColor']
+export const COLOR_MODE_THEME = 'theme'
+export const COLOR_MODE_CUSTOM = 'custom'
+
 export const SHOP_THEME_OPTIONS = [
   {
     value: 'lingqi-green', label: '灵启深绿', color: '#16734b', radius: '8px',
@@ -65,6 +69,11 @@ const LEGACY_CATEGORY_COLORS = {
 const colorEquals = (left, right) => String(left || '').trim().toLowerCase() === String(right || '').trim().toLowerCase()
 const validColorValue = (value) => typeof value === 'string' && value.trim().length > 0
 
+export const normalizeColorModes = (storedModes = {}) => Object.fromEntries(COMMERCE_COLOR_KEYS.map((key) => [
+  key,
+  storedModes?.[key] === COLOR_MODE_THEME ? COLOR_MODE_THEME : COLOR_MODE_CUSTOM,
+]))
+
 export const themePalette = (theme, mainColor = theme?.color) => {
   const primary = validColorValue(mainColor) ? mainColor.trim() : '#e7193f'
   return {
@@ -97,6 +106,7 @@ export const applyThemePresetToForm = (form, theme) => {
   form.productTemplate = theme.value
   form.themeColor = theme.color
   form.colors = themePalette(theme)
+  form.colorModes = normalizeColorModes(form.colorModes)
   return form
 }
 
@@ -109,6 +119,8 @@ export const isThemePresetActive = (form, theme) => {
 export const themePreviewVariables = (form = {}, fallbackColor = '#e7193f') => {
   const primary = validColorValue(form.themeColor) ? form.themeColor : fallbackColor
   const colors = form.colors || {}
+  const modes = normalizeColorModes(form.colorModes)
+  const commerceColor = (key, fallback) => modes[key] === COLOR_MODE_THEME ? primary : (colors[key] || fallback)
   return {
     '--preview-color': primary,
     '--preview-page-bg': colors.pageBg || '#f5f6f8',
@@ -116,9 +128,9 @@ export const themePreviewVariables = (form = {}, fallbackColor = '#e7193f') => {
     '--preview-card-bg': colors.cardBg || '#ffffff',
     '--preview-text': colors.textColor || '#202735',
     '--preview-muted': colors.mutedColor || '#98a2b3',
-    '--preview-price': colors.priceColor || primary,
+    '--preview-price': commerceColor('priceColor', primary),
     '--preview-accent': colors.accentColor || primary,
     '--preview-line': colors.lineColor || '#e5e7eb',
-    '--preview-button': colors.buttonBg || primary,
+    '--preview-button': commerceColor('buttonBg', primary),
   }
 }

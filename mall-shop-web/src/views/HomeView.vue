@@ -693,7 +693,7 @@ onUnmounted(() => { disposed = true; productRequestId++; campaignRequestId++; pe
 .home-init-error { width: min(560px, calc(100% - 28px)); margin: 28px auto; padding: 30px 20px; color: var(--ink); background: var(--card-bg, #fff); border: 1px solid #f1d6dc; border-radius: 18px; box-shadow: 0 10px 26px rgba(31, 41, 55, .06); text-align: center; }
 .home-init-error strong { display: block; font-size: 18px; }
 .home-init-error p { margin: 9px 0 18px; color: var(--muted); font-size: 13px; line-height: 1.6; }
-.home-init-error button { min-width: 116px; min-height: 40px; padding: 0 18px; color: #fff; background: var(--accent, #e7193f); border: 0; border-radius: 999px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.home-init-error button { min-width: 116px; min-height: 40px; padding: 0 18px; color: #fff; background: var(--shop-button-bg, var(--accent, #e7193f)); border: 0; border-radius: 999px; font-size: 14px; font-weight: 700; cursor: pointer; }
 .home-init-error button:disabled { opacity: .6; cursor: wait; }
 .home-topbar { position: sticky; top: 0; z-index: 24; background: var(--shop-header-bg); border-bottom: 1px solid #eceff1; backdrop-filter: blur(12px); }
 
@@ -727,7 +727,7 @@ onUnmounted(() => { disposed = true; productRequestId++; campaignRequestId++; pe
 .home-search input::-webkit-search-cancel-button { display: none; }
 .home-search .clear-keyword { position: absolute; right: 0; top: 0; width: 34px; padding: 0; border-radius: 50%; color: #667085; background: transparent; }
 .home-search .clear-keyword > svg { display: block; }
-.home-search button { height: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 5px; color: #fff; background: var(--brand-primary); border: 0; border-radius: 0 999px 999px 0; font-size: 16px; font-weight: 800; }
+.home-search button { height: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 5px; color: #fff; background: var(--shop-button-bg,var(--brand-primary)); border: 0; border-radius: 0 999px 999px 0; font-size: 16px; font-weight: 800; }
 .home-search > button > svg { display: none; }
 .search-suggestions { position:absolute; z-index:40; top:calc(100% + 8px); left:0; right:0; padding:12px 14px; background:#fff; border:1px solid #e7ebf0; border-radius:14px; box-shadow:0 12px 30px rgba(25,42,70,.14); }
 .suggestion-group { min-width:0; }

@@ -1,4 +1,4 @@
-import { resolveDisplayColors } from './displayConfig.js'
+import { resolveDisplayColorModes, resolveDisplayColors } from './displayConfig.js'
 
 const DEFAULT_BRAND_NAME = '商城'
 const DEFAULT_THEME_COLOR = '#e7193f'
@@ -88,11 +88,13 @@ export const resolveBrandCssVariables = (config = {}) => {
   const productTemplate = normalizeThemeKey(config.productTemplate)
   const preset = themePresets[productTemplate]
   const storedColors = resolveDisplayColors(config.displayConfig || config)
+  const colorModes = resolveDisplayColorModes(config.displayConfig || config)
   // 旧分类导购版会强制保存一套蓝色。只对完整旧指纹做兼容，其他自定义色保持原样。
   const resolvedColors = isLegacyCategoryPalette(storedColors) && !colorEquals(themeColor, LEGACY_CATEGORY_COLORS.accentColor)
     ? {}
     : storedColors
   const colors = { ...(productTemplate === 'lingqi-green' ? { textColor: '#202823', mutedColor: '#647168' } : {}), ...resolvedColors }
+  const commerceColor = (key, fallback) => colorModes[key] === 'theme' ? themeColor : (colors[key] || fallback)
   return {
     '--brand-primary': themeColor,
     '--brand-primary-dark': mixHex(themeColor, [0, 0, 0], 0.18),
@@ -103,7 +105,7 @@ export const resolveBrandCssVariables = (config = {}) => {
     '--shop-page-bg': colors.pageBg || preset.pageBackground,
     '--shop-header-bg': colors.headerBg || preset.headerBackground,
     '--shop-card-shadow': preset.shadow,
-    '--price-color': colors.priceColor || (productTemplate === 'lingqi-green' ? '#c43d32' : themeColor),
+    '--price-color': commerceColor('priceColor', productTemplate === 'lingqi-green' ? '#c43d32' : themeColor),
     '--card-bg': colors.cardBg || '#ffffff',
     '--card': colors.cardBg || '#ffffff',
     '--text-color': colors.textColor || '#202735',
@@ -112,7 +114,7 @@ export const resolveBrandCssVariables = (config = {}) => {
     '--muted-color': colors.mutedColor || '#6b7280',
     '--muted': colors.mutedColor || '#6b7280',
     '--line': colors.lineColor || '#e8ecf1',
-    '--shop-button-bg': colors.buttonBg || themeColor,
+    '--shop-button-bg': commerceColor('buttonBg', themeColor),
   }
 }
 

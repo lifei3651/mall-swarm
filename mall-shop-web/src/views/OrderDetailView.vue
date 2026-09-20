@@ -991,7 +991,7 @@ onBeforeUnmount(() => {
 .order-line { align-items: start; }
 .order-line-info { min-width: 0; }
 .order-line-trailing { display: grid; justify-items: end; gap: 10px; }
-.order-line-amount { color: var(--brand-primary, #e7193f); font-size: 18px; font-weight: 900; white-space: nowrap; }
+.order-line-amount { color: var(--price-color, var(--brand-primary, #e7193f)); font-size: 18px; font-weight: 900; white-space: nowrap; }
 .refunded-label { color: #9aa3ad; font-size: 11px; white-space: nowrap; }
 .checkout-layout.after-sale-mode { grid-template-columns: minmax(0, 760px); justify-content: center; }
 .trade-parent-tip { grid-column: 1 / -1; display: grid; gap: 5px; padding: 13px 16px; color: #70470f; background: #fff8e8; border-color: #f1ddb6; }

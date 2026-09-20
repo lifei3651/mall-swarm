@@ -69,4 +69,9 @@ test('opt-in green theme uses consistent color roles and preserves old defaults/
   const customized = { ...brand, themeColor: '#123456', displayConfig: { extraConfigJson: JSON.stringify({ colors: { priceColor: '#654321' } }) } }
   assert.equal(resolveBrandCssVariables(customized)['--price-color'], '#654321')
   assert.equal(native.palette(customized).priceColor, '#654321')
+  const unified = { ...customized, displayConfig: { extraConfigJson: JSON.stringify({ colors: { priceColor: '#654321', buttonBg: '#abcdef' }, colorModes: { priceColor: 'theme', buttonBg: 'theme' } }) } }
+  assert.equal(resolveBrandCssVariables(unified)['--price-color'], '#123456')
+  assert.equal(resolveBrandCssVariables(unified)['--shop-button-bg'], '#123456')
+  assert.equal(native.palette(unified).priceColor, '#123456')
+  assert.equal(native.palette(unified).buttonBg, '#123456')
 })

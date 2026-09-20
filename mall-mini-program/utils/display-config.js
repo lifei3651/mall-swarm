@@ -29,10 +29,14 @@ function palette(brand = {}) {
   const preset = presets[brand.productTemplate] || presets[legacy[brand.productTemplate]] || presets['retail-red']
   const primary = color(brand.themeColor, preset[0])
   const config = object(brand.displayConfig)
-  const saved = object(config.colors || extra(config).colors)
+  const extended = extra(config)
+  const saved = object(config.colors || extended.colors)
+  const colorModes = object(config.colorModes || extended.colorModes)
   const base = { priceColor: primary, pageBg: preset[1], headerBg: preset[2], cardBg: '#ffffff', textColor: '#202735', mutedColor: '#6b7280', accentColor: primary, lineColor: '#e8ecf1', buttonBg: primary }
   if (brand.productTemplate === 'lingqi-green') Object.assign(base, { priceColor: '#c43d32', textColor: '#202823', mutedColor: '#647168' })
-  return { ...Object.fromEntries(Object.entries(base).map(([key, value]) => [key, color(saved[key], value)])), primary, radius: preset[3] }
+  const resolved = Object.fromEntries(Object.entries(base).map(([key, value]) => [key, color(saved[key], value)]))
+  for (const key of ['priceColor', 'buttonBg']) if (colorModes[key] === 'theme') resolved[key] = primary
+  return { ...resolved, primary, radius: preset[3] }
 }
 const moduleTypes = ['banner', 'notice', 'category', 'live', 'newArrivals', 'trust', 'products']
 function home(config = {}) {

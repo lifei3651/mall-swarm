@@ -529,7 +529,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   gap: 5px;
   color: #fff;
-  background: var(--brand-primary);
+  background: var(--shop-button-bg, var(--brand-primary));
   border: 0;
   font-size: 16px;
   font-weight: 800;
@@ -650,7 +650,7 @@ onBeforeUnmount(() => {
 .category-price > span { margin-right: 3px; font-size: 18px; font-weight: 800; }
 .category-price strong { font-size: 34px; line-height: 1; letter-spacing: -1px; }
 .category-price small { font-size: 19px; font-weight: 800; }
-.quick-cart-button { min-width: 132px; height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 20px; color: #fff; background: linear-gradient(135deg,var(--brand-primary),var(--brand-primary-dark)); border: 0; border-radius: 999px; box-shadow: var(--shop-card-shadow); font-size: 16px; font-weight: 800; white-space: nowrap; }
+.quick-cart-button { min-width: 132px; height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 20px; color: #fff; background: var(--shop-button-bg, var(--brand-primary)); border: 0; border-radius: 999px; box-shadow: var(--shop-card-shadow); font-size: 16px; font-weight: 800; white-space: nowrap; }
 .quick-cart-button:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 3px; }
 .quick-cart-button:disabled:not([aria-busy="true"]) { color: #fff; background: #b9bdc2; box-shadow: none; cursor: not-allowed; }
 .category-quantity-stepper { box-sizing: border-box; width: 132px; height: 46px; flex: 0 0 132px; display: grid; grid-template-columns: 46px 40px 46px; align-items: center; overflow: hidden; color: var(--brand-primary); background: #fff; border: 1px solid var(--brand-primary); border-radius: 999px; }

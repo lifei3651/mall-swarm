@@ -63,6 +63,12 @@ export const resolveDisplayColors = (config = {}) => {
   return extra.colors && typeof extra.colors === 'object' ? extra.colors : {}
 }
 
+export const resolveDisplayColorModes = (config = {}) => {
+  if (config.colorModes && typeof config.colorModes === 'object') return config.colorModes
+  const extra = readDisplayExtraConfig(config)
+  return extra.colorModes && typeof extra.colorModes === 'object' ? extra.colorModes : {}
+}
+
 export const CATEGORY_GUIDE_TEMPLATES = ['directory', 'showcase', 'scenario']
 
 export const resolveDirectoryGuideLayout = (modules = {}) => {

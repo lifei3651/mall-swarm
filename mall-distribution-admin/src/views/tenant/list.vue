@@ -79,7 +79,15 @@
               <div class="visual-design-field"><span>主题色</span><div class="color-editor"><el-color-picker v-model="displayForm.themeColor" /><el-input v-model="displayForm.themeColor" maxlength="7" placeholder="#e7193f" /></div></div>
             </div>
             <div class="brand-color-detail">
-              <div class="control-section-heading"><div><strong>颜色细节</strong><small>按需微调；留空时沿用当前主题</small></div><el-button type="primary" link @click="resetColors">恢复默认</el-button></div>
+              <div class="control-section-heading"><div><strong>按钮与价格</strong><small>可统一跟随主题色，也可分别设置；危险、警告、成功等状态色不受影响</small></div><el-button v-if="!unifiedCommerceColors" type="primary" link @click="unifyCommerceColors">一键统一为主题色</el-button><el-tag v-else size="small" type="success">已统一</el-tag></div>
+              <div class="commerce-color-grid">
+                <div v-for="color in commerceColorFields" :key="color.key" class="commerce-color-card">
+                  <div><strong>{{ color.label }}</strong><small>{{ color.description }}</small></div>
+                  <el-switch :model-value="colorFollowsTheme(color.key)" active-text="跟随主题色" inactive-text="单独设置" @change="(value) => setColorFollowsTheme(color.key, value)" />
+                  <div class="commerce-color-picker" :class="{ disabled: colorFollowsTheme(color.key) }"><el-color-picker v-model="displayForm.colors[color.key]" show-alpha :disabled="colorFollowsTheme(color.key)" /><span>{{ colorFollowsTheme(color.key) ? displayForm.themeColor : displayForm.colors[color.key] }}</span></div>
+                </div>
+              </div>
+              <div class="control-section-heading color-detail-heading"><div><strong>其他颜色细节</strong><small>页面、文字和分割线仍可按需微调</small></div><el-button type="primary" link @click="resetColors">恢复默认</el-button></div>
               <div class="color-grid">
                 <label v-for="color in colorFields" :key="color.key"><span>{{ color.label }}</span><el-color-picker v-model="displayForm.colors[color.key]" show-alpha /></label>
               </div>
@@ -343,6 +351,7 @@ import {
   applyThemePresetToForm,
   hydrateThemeColors,
   isThemePresetActive,
+  normalizeColorModes,
   themePalette,
   themePreviewVariables,
 } from '@/utils/shopTheme'
@@ -477,7 +486,6 @@ const directoryGuidePreviewMode = computed(() => resolveDirectoryGuideLayout({
 }))
 const directoryGuideInvalid = computed(() => hasEmptyDirectoryLayout(displayForm.value))
 const colorFields = [
-  { key: 'priceColor', label: '价格色' },
   { key: 'pageBg', label: '页面背景' },
   { key: 'headerBg', label: '顶部背景' },
   { key: 'cardBg', label: '卡片背景' },
@@ -485,7 +493,10 @@ const colorFields = [
   { key: 'mutedColor', label: '辅助文字色' },
   { key: 'accentColor', label: '强调色' },
   { key: 'lineColor', label: '分割线色' },
-  { key: 'buttonBg', label: '按钮背景' },
+]
+const commerceColorFields = [
+  { key: 'buttonBg', label: '主按钮颜色', description: '购买、提交、确认等主要操作按钮' },
+  { key: 'priceColor', label: '价格强调色', description: '商品价格、订单实付等金额信息' },
 ]
 const themeOptions = SHOP_THEME_OPTIONS
 const layoutTemplateOptions = [
@@ -702,6 +713,7 @@ const openDisplayDialog = async (row, section = 'layout') => {
     showHomeCategories: Number(res.data?.showHomeCategories ?? 1) === 0 ? 0 : 1,
     homeModules,
     colors: hydrateThemeColors(selectedTheme, themeColor, extra.colors),
+    colorModes: normalizeColorModes(extra.colorModes),
     bottomNav,
     showTrustStrip: trustEnabled ? 1 : 0,
     liveSquareEnabled: Number(res.data?.liveSquareEnabled ?? extra.liveSquareEnabled ?? 1) === 0 ? 0 : 1,
@@ -769,6 +781,21 @@ const restoreVersion = async (row) => {
 
 const applyDisplayTheme = (theme) => {
   applyThemePresetToForm(displayForm.value, theme)
+}
+
+const colorFollowsTheme = (key) => displayForm.value.colorModes?.[key] === 'theme'
+
+const setColorFollowsTheme = (key, enabled) => {
+  if (!displayForm.value.colorModes) displayForm.value.colorModes = normalizeColorModes()
+  displayForm.value.colorModes[key] = enabled ? 'theme' : 'custom'
+  if (!enabled && !displayForm.value.colors?.[key]) displayForm.value.colors[key] = displayForm.value.themeColor
+}
+
+const unifiedCommerceColors = computed(() => commerceColorFields.every((color) => colorFollowsTheme(color.key)))
+
+const unifyCommerceColors = () => {
+  commerceColorFields.forEach((color) => setColorFollowsTheme(color.key, true))
+  ElMessage.success('主按钮和价格已统一跟随主题色，点击“保存发布”后客户前台生效')
 }
 
 const setTrustEnabled = (value) => {
@@ -970,6 +997,7 @@ const submitDisplayConfig = async () => {
         pageLayouts: normalizePageLayouts(form),
         homeModules: form.homeModules,
         colors: form.colors,
+        colorModes: normalizeColorModes(form.colorModes),
         bottomNav,
         bottomNavIndependent: 1,
         showTrustStrip: form.showTrustStrip,
@@ -1373,6 +1401,16 @@ onMounted(async () => {
 .display-section-brand-only strong { color: var(--el-color-primary); font-size: 14px; }
 .display-section-brand-only small { margin-left: auto; color: #98a2b3; font-size: 11px; }
 .brand-color-detail,.home-template-modules,.home-category-settings { margin-top:14px; padding-top:14px; border-top:1px solid #e8ecf1; }
+.commerce-color-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.commerce-color-card { display:grid; gap:8px; min-width:0; padding:10px; background:#f7f9fc; border:1px solid #e4e9f1; border-radius:9px; }
+.commerce-color-card>div:first-child { display:grid; gap:3px; }
+.commerce-color-card strong { color:#344054; font-size:12px; }
+.commerce-color-card small { color:#8a94a4; font-size:10px; line-height:1.45; }
+.commerce-color-card :deep(.el-switch) { justify-self:start; }
+.commerce-color-picker { display:flex; align-items:center; gap:8px; min-width:0; color:#667085; font-size:11px; }
+.commerce-color-picker span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.commerce-color-picker.disabled { opacity:.72; }
+.color-detail-heading { margin-top:12px; padding-top:12px; border-top:1px solid #edf0f4; }
 .independent-page-hub { margin-bottom:8px; }
 .independent-page-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
 .independent-page-tabs button { display:grid; grid-template-columns:34px minmax(0,1fr); align-items:center; gap:9px; min-width:0; padding:10px; text-align:left; background:#f7f9fc; border:1px solid #e4e9f1; border-radius:10px; cursor:pointer; }
@@ -1823,6 +1861,7 @@ onMounted(async () => {
   .visual-design-fields { grid-template-columns: 1fr; }
   .visual-design-fields .visual-design-field:first-child { grid-column: auto; }
   .compact-theme-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .commerce-color-grid { grid-template-columns:1fr; }
   .independent-page-tabs { grid-template-columns:1fr; }
   .category-guide-template-grid,.guide-module-switches { grid-template-columns:1fr; }
   .feature-toggle-card { align-items:flex-start; flex-direction:column; gap:12px; }

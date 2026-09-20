@@ -54,6 +54,16 @@ test('九项详细配色和主题圆角全部映射，非法CSS不能注入页�
   assert.equal(palette.radius, '40rpx')
   for (const invalid of ['rgba(256,0,0,1)', 'rgb(0,0,0,1)', 'rgba(0,0,0)', '#fff;background:red', 'expression(foo)']) assert.equal(display.color(invalid, 'fallback'), 'fallback')
 })
+test('主按钮和价格可分别设置，也可统一跟随主题色', () => {
+  const brand = { productTemplate: 'retail-red', themeColor: '#123456', displayConfig: wrap({ colors: { priceColor: '#aa2200', buttonBg: '#654321' }, colorModes: { priceColor: 'theme', buttonBg: 'custom' } }) }
+  let palette = display.palette(brand)
+  assert.equal(palette.priceColor, '#123456')
+  assert.equal(palette.buttonBg, '#654321')
+  brand.displayConfig = wrap({ colors: { priceColor: '#aa2200', buttonBg: '#654321' }, colorModes: { priceColor: 'theme', buttonBg: 'theme' } })
+  palette = display.palette(brand)
+  assert.equal(palette.priceColor, '#123456')
+  assert.equal(palette.buttonBg, '#123456')
+})
 test('底部导航改名、分类隐藏和订单开启生效，必要交易入口和固定路径不可覆盖', () => {
   const nav = display.navigation(wrap({ bottomNavIndependent: 1, bottomNav: [{ type: 'home', label: '逛商城', enabled: false, path: 'https://bad.test' }, { type: 'category', enabled: '0' }, { type: 'orders', enabled: '1' }, { type: 'cart', enabled: false }, { type: 'profile', enabled: false }] }))
   assert.deepEqual(types(nav), ['home', 'cart', 'orders', 'profile'])

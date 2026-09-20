@@ -192,8 +192,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
   justify-content: center;
   gap: 7px;
   color: #fff;
-  background: var(--brand-primary, #e7193f);
-  border: 1px solid var(--brand-primary, #e7193f);
+  background: var(--shop-button-bg, var(--brand-primary, #e7193f));
+  border: 1px solid var(--shop-button-bg, var(--brand-primary, #e7193f));
 }
 
 .confirm-button.primary.danger {

@@ -417,7 +417,7 @@ onBeforeUnmount(() => window.clearTimeout(toastTimer))
 .item-info .line-title { display:-webkit-box; min-height:40px; margin:0 0 4px; overflow:hidden; color:#222934; font-size:14px; font-weight:700; line-height:20px; overflow-wrap:anywhere; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
 .item-info .line-sub { margin:0 0 6px; overflow:hidden; color:var(--muted); font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
 .price-row { display: flex; align-items: baseline; gap: 8px; }
-.price { font-size: 16px; font-weight: 700; color: var(--accent, #e7193f); }
+.price { font-size: 16px; font-weight: 700; color: var(--price-color, var(--accent, #e7193f)); }
 .item-actions { display: grid; justify-items: end; gap: 10px; }
 .quantity { display: flex; align-items: center; gap: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .quantity button { width: 32px; height: 32px; display: grid; place-items: center; background: #f8faf9; border: 0; font-size: 16px; cursor: pointer; }

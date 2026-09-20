@@ -368,7 +368,7 @@ main {
 }
 
 .price {
-  color: var(--coral);
+  color: var(--price-color, var(--coral));
   font-size: 20px;
   font-weight: 800;
 }
@@ -408,12 +408,12 @@ main {
 }
 
 .btn.primary {
-  background: var(--teal);
+  background: var(--shop-button-bg, var(--teal));
   color: white;
 }
 
 .btn.primary:hover {
-  background: var(--teal-dark);
+  background: color-mix(in srgb, var(--shop-button-bg, var(--teal)) 84%, #000 16%);
 }
 
 .btn.secondary {
