@@ -112,15 +112,23 @@ PY
 [[ "$(tr -d '[:space:]' < "$APP_ROOT/VERSION")" == "$EXPECTED_PREVIOUS_VERSION" ]] || fail "server version mismatch"
 [[ "$(sha256sum "$APP_ROOT/app/mall-distribution.jar" | awk '{print $1}')" == "$EXPECTED_PREVIOUS_JAR_SHA" ]] || fail "server jar mismatch"
 [[ "$(find "$RELEASE_DIR/document/db/migrations" -maxdepth 1 -type f -name 'V*.sql' | wc -l | tr -d ' ')" == "$EXPECTED_MIGRATIONS_AFTER" ]] || fail "candidate migration inventory mismatch"
-[[ "$(mysql_db "$DB_NAME" -NBe 'SELECT CONCAT(COUNT(*),":",SUM(success=1)) FROM dms_schema_migration_history')" == "$EXPECTED_MIGRATIONS_BEFORE:$EXPECTED_MIGRATIONS_BEFORE" ]] || fail "production migration state mismatch"
+MIGRATION_STATE=$(mysql_db "$DB_NAME" -NBe 'SELECT CONCAT(COUNT(*),":",SUM(success=1)) FROM dms_schema_migration_history')
+[[ "$MIGRATION_STATE" == "$EXPECTED_MIGRATIONS_BEFORE:$EXPECTED_MIGRATIONS_BEFORE" || "$MIGRATION_STATE" == "$EXPECTED_MIGRATIONS_AFTER:$EXPECTED_MIGRATIONS_AFTER" ]] || fail "production migration state mismatch"
 [[ "$(mysql_db "$DB_NAME" -NBe "SELECT COUNT(*) FROM dms_shop_member WHERE (login_account='SYSTEM_REMAINDER' AND user_id<>-900000000000000001) OR (login_account='SYSTEM_PRODUCT_COST' AND user_id<>-900000000000000005) OR (phone='SYS-REMAINDER-0001' AND user_id<>-900000000000000001) OR (phone='SYS-COST-0005' AND user_id<>-900000000000000005)")" == 0 ]] || fail "reserved member identity conflict"
 [[ "$(mysql_db "$DB_NAME" -NBe "SELECT COUNT(*) FROM dms_agent WHERE (agent_code='SYS_REMAINDER' AND user_id<>-900000000000000001) OR (agent_code='SYS_PRODUCT_COST' AND user_id<>-900000000000000005) OR (invite_code='SYSREM01' AND user_id<>-900000000000000001) OR (invite_code='SYSCOST1' AND user_id<>-900000000000000005)")" == 0 ]] || fail "reserved agent identity conflict"
-[[ "$(system_account_state "$DB_NAME")" == 0:0:0:0:0.00:0.00 ]] || fail "system accounts already exist unexpectedly"
-[[ "$(mysql_db "$DB_NAME" -NBe "SELECT CONCAT(status,':',pay_amount,':',(SELECT COUNT(*) FROM dms_order_balance_allocation a WHERE a.order_id=o.id)) FROM dms_shop_order o WHERE order_no='L0FYBGR54XLRLS'")" == 2:0.01:0 ]] || fail "target order state changed"
+TARGET_ORDER_STATE=$(mysql_db "$DB_NAME" -NBe "SELECT CONCAT(status,':',pay_amount,':',(SELECT COUNT(*) FROM dms_order_balance_allocation a WHERE a.order_id=o.id)) FROM dms_shop_order o WHERE order_no='L0FYBGR54XLRLS'")
+if [[ "$MIGRATION_STATE" == "$EXPECTED_MIGRATIONS_BEFORE:$EXPECTED_MIGRATIONS_BEFORE" ]]; then
+  [[ "$(system_account_state "$DB_NAME")" == 0:0:0:0:0.00:0.00 ]] || fail "pre-migration system account state changed"
+  [[ "$TARGET_ORDER_STATE" == 2:0.01:0 ]] || fail "pre-migration target order state changed"
+else
+  [[ "$(system_account_state "$DB_NAME")" == 2:2:2:2:0.00:0.00 ]] || fail "resumed system account state changed"
+  [[ "$TARGET_ORDER_STATE" == 2:0.01:2 ]] || fail "resumed target order state changed"
+  [[ "$(mysql_db "$DB_NAME" -NBe "SELECT CONCAT(COUNT(*),':',COUNT(DISTINCT allocation_type),':',COALESCE(SUM(current_amount),0),':',COALESCE(SUM(settled_amount),0),':',COALESCE(SUM(status),0)) FROM dms_order_balance_allocation WHERE order_id=(SELECT id FROM dms_shop_order WHERE order_no='L0FYBGR54XLRLS' LIMIT 1)")" == 2:2:0.01:0.00:2 ]] || fail "resumed target allocations changed"
+fi
 for svc in "$SERVICE" nginx mysqld redis; do systemctl is-active --quiet "$svc" || fail "$svc inactive"; done
 redis-cli ping | grep -qx PONG || fail "redis unavailable"
 wait_health || fail "backend unhealthy"
-echo "release-preflight=passed previous=$EXPECTED_PREVIOUS_VERSION target=$EXPECTED_VERSION migrations=$EXPECTED_MIGRATIONS_BEFORE:$EXPECTED_MIGRATIONS_BEFORE"
+echo "release-preflight=passed previous=$EXPECTED_PREVIOUS_VERSION target=$EXPECTED_VERSION migrations=$MIGRATION_STATE"
 [[ "$MODE" == --authorize-release ]] || exit 0
 
 ROLLBACK_DIR=$(mktemp -d /opt/lingqimall/backups/financial-hotfix-152.XXXXXX)
@@ -184,10 +192,10 @@ wait_health || fail "new backend unhealthy"
 
 for _ in $(seq 1 45); do
   allocation_state=$(mysql_db "$DB_NAME" -NBe "SELECT CONCAT(COUNT(*),':',COUNT(DISTINCT allocation_type),':',COALESCE(SUM(current_amount),0),':',COALESCE(SUM(settled_amount),0),':',COALESCE(SUM(status),0)) FROM dms_order_balance_allocation WHERE order_id=(SELECT id FROM dms_shop_order WHERE order_no='L0FYBGR54XLRLS' LIMIT 1)")
-  [[ "$allocation_state" == 2:2:0.01:0.00:0 ]] && break
+  [[ "$allocation_state" == 2:2:0.01:0.00:2 ]] && break
   sleep 2
 done
-[[ "${allocation_state:-}" == 2:2:0.01:0.00:0 ]] || fail "target order allocation was not backfilled"
+[[ "${allocation_state:-}" == 2:2:0.01:0.00:2 ]] || fail "target order allocation was not backfilled"
 [[ "$(mysql_db "$DB_NAME" -NBe "SELECT COUNT(*) FROM dms_member_asset_flow WHERE user_id IN (-900000000000000001,-900000000000000005)")" == 0 ]] || fail "system balance was credited before settlement"
 [[ "$(system_account_state "$DB_NAME")" == 2:2:2:2:0.00:0.00 ]] || fail "system balances changed unexpectedly"
 [[ "$(protected_hashes)" == "$BEFORE_FILES" ]] || fail "protected files changed"
@@ -202,4 +210,4 @@ BACKUP_AFTER=$(backup_and_verify)
 install -m 0600 "$RELEASE_DIR/RELEASE_MANIFEST.json" "$ROLLBACK_DIR/RELEASE_MANIFEST.json"
 MUTATED=0
 trap - EXIT
-echo "release-success version=$EXPECTED_VERSION backup-before=$BACKUP_BEFORE backup-after=$BACKUP_AFTER rollback=$ROLLBACK_DIR migrations=40:40 allocations=2:2:0.01:0.00:0"
+echo "release-success version=$EXPECTED_VERSION backup-before=$BACKUP_BEFORE backup-after=$BACKUP_AFTER rollback=$ROLLBACK_DIR migrations=40:40 allocations=2:2:0.01:0.00:2"
