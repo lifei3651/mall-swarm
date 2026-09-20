@@ -14,7 +14,7 @@
         <text class="order-number-label">订单编号</text>
         <text class="order-number-value">{{paymentNo}}</text>
       </view>
-      <button size="mini" class="copy-order-number ui-utility-button" bindtap="copyPaymentNo">复制</button>
+      <button size="mini" class="copy-order-number ui-copy-action" bindtap="copyPaymentNo">复制</button>
       <text class="compact-status ui-status-pill">{{pageStatusTitle}}</text>
       <text wx:if="{{paymentHint}}" class="payment-hint">{{paymentHint}}</text>
       <button wx:if="{{payOrderId}}" class="primary-button continue-payment" bindtap="pay" loading="{{paying}}" disabled="{{actingId !== null}}">{{paying ? '正在确认支付…' : rows.length > 1 ? '合并支付' : '继续支付'}}</button>
@@ -41,9 +41,9 @@
                 <text class="shipment-number">运单号 {{shipment.deliveryNo || '-'}}</text>
                 <text wx:if="{{shipment.deliveryTimeText}}" class="shipment-time">发货时间 {{shipment.deliveryTimeText}}</text>
               </view>
-              <view class="shipment-actions">
-                <button wx:if="{{shipment.deliveryNo}}" size="mini" class="wechat-track-button ui-utility-button ui-utility-button--wide ui-utility-button--primary" data-id="{{item.order.id}}" data-shipment-id="{{shipment.id}}" bindtap="openWeChatTracking" loading="{{wechatTrackingId === shipment.key}}" disabled="{{!!wechatTrackingId}}">查看物流</button>
-                <button wx:if="{{shipment.deliveryNo}}" size="mini" class="copy-inline ui-utility-button ui-utility-button--wide" data-number="{{shipment.deliveryNo}}" bindtap="copyDeliveryNo">复制单号</button>
+              <view class="shipment-actions ui-action-group">
+                <button wx:if="{{shipment.deliveryNo}}" size="mini" class="wechat-track-button secondary-button ui-action-button" data-id="{{item.order.id}}" data-shipment-id="{{shipment.id}}" bindtap="openWeChatTracking" loading="{{wechatTrackingId === shipment.key}}" disabled="{{!!wechatTrackingId}}">查看物流</button>
+                <button wx:if="{{shipment.deliveryNo}}" size="mini" class="copy-inline ui-copy-action" data-number="{{shipment.deliveryNo}}" bindtap="copyDeliveryNo">复制单号</button>
               </view>
             </view>
           </view>
@@ -102,13 +102,16 @@
           <view wx:if="{{sale.canReturn}}" class="return-info">
             <text class="next-action">退货地址：{{sale.returnAddress || '等待商家提供退货地址，请勿自行寄回'}}</text>
             <text wx:if="{{sale.returnDeliveryNo}}" class="next-action">已寄回：{{sale.returnDeliveryCompany}} {{sale.returnDeliveryNo}}</text>
-            <button class="secondary-button sale-action" data-id="{{sale.id}}" bindtap="editShipment">{{sale.status === 5 ? '修改退货物流' : '填写退货物流'}}</button>
           </view>
           <text wx:if="{{sale.exchangeDeliveryNo}}" class="next-action">换货物流：{{sale.exchangeDeliveryCompany}} {{sale.exchangeDeliveryNo}}</text>
-          <button wx:if="{{sale.exchangeDeliveryNo}}" class="secondary-button sale-action" data-number="{{sale.exchangeDeliveryNo}}" bindtap="copyDeliveryNo">复制换货运单号</button>
           <view wx:for="{{sale.items}}" wx:key="id" wx:for-item="saleLine" class="sale-item"><text>{{saleLine.productName}} {{saleLine.skuName}}</text><text>× {{saleLine.refundQuantity}}</text></view>
-          <button wx:if="{{sale.canReapply}}" class="secondary-button sale-action" data-id="{{sale.orderId}}" bindtap="applyAfterSale">补充凭证重新申请</button>
-          <button wx:if="{{sale.canReceiveExchange}}" class="primary-button sale-action" data-id="{{sale.id}}" loading="{{cancellingAfterSaleId === sale.id}}" disabled="{{cancellingAfterSaleId !== null}}" bindtap="receiveExchange">确认收到换货商品</button>
+          <view class="sale-actions ui-action-bar">
+            <button wx:if="{{sale.exchangeDeliveryNo}}" class="ui-copy-action" data-number="{{sale.exchangeDeliveryNo}}" bindtap="copyDeliveryNo">复制运单号</button>
+            <button wx:if="{{sale.canReturn}}" class="secondary-button ui-action-button" data-id="{{sale.id}}" bindtap="editShipment">{{sale.status === 5 ? '修改退货物流' : '填写退货物流'}}</button>
+            <button wx:if="{{sale.canReapply}}" class="secondary-button ui-action-button" data-id="{{sale.orderId}}" bindtap="applyAfterSale">补充凭证重新申请</button>
+            <button wx:if="{{sale.cancellable}}" class="secondary-button ui-action-button" data-id="{{sale.id}}" loading="{{cancellingAfterSaleId === sale.id}}" disabled="{{cancellingAfterSaleId !== null}}" bindtap="cancelAfterSale">取消申请</button>
+            <button wx:if="{{sale.canReceiveExchange}}" class="primary-button ui-action-button ui-action-button--primary" data-id="{{sale.id}}" loading="{{cancellingAfterSaleId === sale.id}}" disabled="{{cancellingAfterSaleId !== null}}" bindtap="receiveExchange">确认收到换货商品</button>
+          </view>
           <view wx:if="{{editingSaleId === sale.id}}" class="shipment-form">
             <text class="form-label">快递公司</text>
             <picker range="{{carriers}}" bindchange="selectCarrier" disabled="{{submittingShipment}}" aria-label="选择退货快递"><view class="shipment-input ui-select-row"><text>{{deliveryCompany || '从常用快递中选择'}}</text><image class="ui-select-arrow" src="/assets/profile/chevron-right.png" aria-hidden="true" /></view></picker>
@@ -116,18 +119,19 @@
             <text class="form-label">快递单号</text>
             <input class="shipment-input" value="{{deliveryNo}}" data-field="deliveryNo" bindinput="shipmentInput" maxlength="64" placeholder="请输入4至64位快递单号" disabled="{{submittingShipment}}" aria-label="退货快递单号" />
             <text wx:if="{{shipmentError}}" class="shipment-error">{{shipmentError}}</text>
-            <button class="primary-button sale-action" bindtap="submitShipment" loading="{{submittingShipment}}" disabled="{{submittingShipment}}">保存退货物流</button>
-            <button class="secondary-button sale-action" bindtap="closeShipment" disabled="{{submittingShipment}}">暂不填写</button>
+            <view class="shipment-form-actions ui-action-bar">
+              <button class="secondary-button ui-action-button" bindtap="closeShipment" disabled="{{submittingShipment}}">暂不填写</button>
+              <button class="primary-button ui-action-button ui-action-button--primary" bindtap="submitShipment" loading="{{submittingShipment}}" disabled="{{submittingShipment}}">保存退货物流</button>
+            </view>
           </view>
-          <button wx:if="{{sale.cancellable}}" class="secondary-button cancel-after-sale" data-id="{{sale.id}}" loading="{{cancellingAfterSaleId === sale.id}}" disabled="{{cancellingAfterSaleId !== null}}" bindtap="cancelAfterSale">取消申请</button>
         </view>
       </view>
 
       <view class="detail-actions ui-action-bar">
-        <button wx:if="{{item.order.status === 0}}" class="secondary-button cancel-order" data-id="{{item.order.id}}" disabled="{{actingId !== null}}" bindtap="cancelOrder">取消订单</button>
-        <button wx:if="{{item.pendingReviewProductId && item.pendingReviewOrderItemId}}" class="primary-button" data-id="{{item.order.id}}" bindtap="review">去评价</button>
-        <button wx:if="{{item.canApplyAfterSale}}" class="secondary-button" data-id="{{item.order.id}}" bindtap="applyAfterSale">申请售后</button>
-        <button wx:if="{{item.canReceive}}" class="primary-button receive-button" data-id="{{item.order.id}}" loading="{{actingId === item.order.id}}" disabled="{{actingId !== null}}" bindtap="receive">确认收货</button>
+        <button wx:if="{{item.order.status === 0}}" class="secondary-button ui-action-button cancel-order" data-id="{{item.order.id}}" disabled="{{actingId !== null}}" bindtap="cancelOrder">取消订单</button>
+        <button wx:if="{{item.pendingReviewProductId && item.pendingReviewOrderItemId}}" class="secondary-button ui-action-button" data-id="{{item.order.id}}" bindtap="review">去评价</button>
+        <button wx:if="{{item.canApplyAfterSale}}" class="secondary-button ui-action-button" data-id="{{item.order.id}}" bindtap="applyAfterSale">申请售后</button>
+        <button wx:if="{{item.canReceive}}" class="primary-button ui-action-button ui-action-button--primary receive-button" data-id="{{item.order.id}}" loading="{{actingId === item.order.id}}" disabled="{{actingId !== null}}" bindtap="receive">确认收货</button>
       </view>
     </block>
   </block>

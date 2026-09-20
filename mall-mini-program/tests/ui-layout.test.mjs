@@ -37,6 +37,21 @@ test('关键详情和表单页为安全区留白，订单操作固定单行且�
   assert.match(styles, /\.ui-order-action--primary\s*\{[^}]*order:\s*2;/)
 })
 
+test('普通操作按钮由共用层固定为秀气自适应尺寸，复制为文字按钮', () => {
+  const styles = source('app.wxss')
+  const list = source('pages/orders/index.wxml')
+  const detail = source('pages/order-detail/index.wxml')
+  assert.match(styles, /--action-height:\s*56rpx;/)
+  assert.match(styles, /--action-font-size:\s*26rpx;/)
+  assert.match(styles, /--action-padding-x:\s*24rpx;/)
+  assert.match(styles, /\.ui-action-button, \.ui-order-action\s*\{[^}]*flex:\s*none;[^}]*width:\s*auto\s*!important;/)
+  assert.match(styles, /\.ui-action-bar, \.ui-action-group\s*\{[^}]*flex-wrap:\s*nowrap;[^}]*justify-content:\s*flex-end;/)
+  assert.doesNotMatch(styles, /\.ui-utility-button--wide/)
+  assert.match(detail, /class="copy-order-number ui-copy-action"[^>]*>复制<\/button>/)
+  assert.match(detail, /class="copy-inline ui-copy-action"[^>]*>复制单号<\/button>/)
+  assert.doesNotMatch(list, /class="[^"]*primary-button[^"]*"[^>]*>去评价<\/button>/)
+})
+
 test('订单列表共用五行卡片且取消态、进行态和物流次操作不再各自撑高', () => {
   const view = source('pages/orders/index.wxml')
   const logic = source('utils/order-list.js')

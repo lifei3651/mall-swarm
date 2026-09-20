@@ -40,9 +40,9 @@
               <strong>{{ shipment.deliveryCompany || '快递公司' }}</strong>
               <p>包裹 {{ index + 1 }} · {{ Number(shipment.shipmentQuantity || 0) }} 件商品 · 运单号 {{ shipment.deliveryNo || '-' }}</p>
             </div>
-            <div v-if="shipment.deliveryNo" class="package-actions">
-              <a :href="trackingUrl(shipment)" target="_blank" rel="noopener" class="copy-btn ui-utility-button">查询</a>
-              <button type="button" class="copy-btn ui-utility-button" @click="copyText(shipment.deliveryNo)">复制</button>
+            <div v-if="shipment.deliveryNo" class="package-actions ui-action-group">
+              <a :href="trackingUrl(shipment)" target="_blank" rel="noopener" class="btn secondary ui-action-button">查看物流</a>
+              <button type="button" class="ui-copy-action" @click="copyText(shipment.deliveryNo)">复制单号</button>
             </div>
           </div>
           <ol v-if="trackingFor(shipment).events?.length" class="tracking-timeline" aria-label="真实物流轨迹">
@@ -192,7 +192,7 @@
               <small v-if="sale.exchangeDeliveryNo" class="return-logistics-line">
                 <a :href="trackingUrl({ deliveryNo: sale.exchangeDeliveryNo })" target="_blank" rel="noopener" class="tracking-link">查询换货物流</a>
               </small>
-              <button v-if="sale.status === 8" type="button" class="btn primary exchange-received-button" :disabled="confirmingExchangeId === sale.id" @click="requestExchangeReceived(sale.id)">
+              <button v-if="sale.status === 8" type="button" class="btn primary ui-action-button ui-action-button--primary exchange-received-button" :disabled="confirmingExchangeId === sale.id" @click="requestExchangeReceived(sale.id)">
                 {{ confirmingExchangeId === sale.id ? '确认中…' : '确认收到换货商品' }}
               </button>
             </div>
@@ -200,11 +200,11 @@
               <span>{{ line.productName }} {{ formatProductSpec(line) }}</span>
               <strong>× {{ line.refundQuantity }}</strong>
             </div>
-            <div v-if="[0, 2, 4].includes(sale.status)" class="after-sale-record-actions">
-              <button v-if="[0, 4].includes(sale.status)" type="button" class="btn secondary after-sale-cancel" :disabled="cancellingAfterSaleId === sale.id" @click="requestCancelAfterSale(sale.id)">
+            <div v-if="[0, 2, 4].includes(sale.status)" class="after-sale-record-actions ui-action-bar">
+              <button v-if="[0, 4].includes(sale.status)" type="button" class="btn secondary ui-action-button after-sale-cancel" :disabled="cancellingAfterSaleId === sale.id" @click="requestCancelAfterSale(sale.id)">
                 {{ cancellingAfterSaleId === sale.id ? '取消中…' : '取消申请' }}
               </button>
-              <button v-if="sale.status === 2 && canApplyAfterSale" type="button" class="btn secondary after-sale-cancel" @click="startAfterSale">
+              <button v-if="sale.status === 2 && canApplyAfterSale" type="button" class="btn secondary ui-action-button after-sale-cancel" @click="startAfterSale">
                 补充凭证重新申请
               </button>
             </div>
@@ -302,7 +302,7 @@
             <div class="order-info-row">
               <span>订单号</span>
               <strong>{{ order.orderNo }}</strong>
-              <button type="button" @click="copyText(order.orderNo)">复制</button>
+              <button type="button" class="ui-copy-action" @click="copyText(order.orderNo)">复制</button>
             </div>
             <div v-if="order.businessType && order.businessType !== 'NORMAL'" class="order-info-row"><span>订单类型</span><strong>{{ order.businessType === 'FLASH_SALE' ? '限时秒杀订单' : '活动订单' }}</strong></div>
             <div class="order-info-row"><span>创建时间</span><strong>{{ dateTime(order.createTime) }}</strong></div>
@@ -338,11 +338,11 @@
           <button v-if="canApplyAfterSale" type="button" @click="startLogisticsAfterSale">物流异常 / 拒收</button>
         </div>
         <div class="inline-actions ui-action-bar">
-          <button v-if="canApplyAfterSale && !applyingAfterSale" class="btn secondary" @click="startAfterSale">申请售后</button>
-          <RouterLink v-if="Number(detail.pendingReviewCount || 0) > 0" class="btn secondary" :to="pendingReviewLink">去评价</RouterLink>
-          <button v-if="order.status === 0" class="btn secondary" :disabled="acting" @click="requestOrderConfirmation('cancel-order')">取消订单</button>
-          <button v-if="order.status === 0" class="btn primary" :disabled="acting" @click="pay">立即支付</button>
-          <button v-if="order.status === 2 && !hasActiveAfterSale" class="btn primary" :disabled="acting" @click="requestOrderConfirmation('receive-order')">确认收货</button>
+          <button v-if="canApplyAfterSale && !applyingAfterSale" class="btn secondary ui-action-button" @click="startAfterSale">申请售后</button>
+          <RouterLink v-if="Number(detail.pendingReviewCount || 0) > 0" class="btn secondary ui-action-button" :to="pendingReviewLink">去评价</RouterLink>
+          <button v-if="order.status === 0" class="btn secondary ui-action-button" :disabled="acting" @click="requestOrderConfirmation('cancel-order')">取消订单</button>
+          <button v-if="order.status === 0" class="btn primary ui-action-button ui-action-button--primary" :disabled="acting" @click="pay">立即支付</button>
+          <button v-if="order.status === 2 && !hasActiveAfterSale" class="btn primary ui-action-button ui-action-button--primary" :disabled="acting" @click="requestOrderConfirmation('receive-order')">确认收货</button>
         </div>
         <p v-if="error" style="color: var(--coral); line-height: 1.6">{{ error }}</p>
       </aside>
@@ -1040,7 +1040,7 @@ onBeforeUnmount(() => {
 .return-logistics-line .text-action { margin-left: 8px; padding: 0; color: var(--brand-primary); background: transparent; border: 0; font: inherit; font-weight: 700; }
 .after-sale-item-line { display: flex; justify-content: space-between; gap: 12px; padding-top: 7px; color: #69737e; font-size: 12px; }
 .after-sale-item-line strong { color: #3d4650; font-size: 12px; }
-.after-sale-record-actions { display: flex; justify-content: flex-end; margin-top: 12px; padding-top: 11px; border-top: 1px solid #f1e3e6; }
+.after-sale-record-actions { margin-top: 12px; padding-top: 11px; border-top: 1px solid #f1e3e6; }
 .after-sale-cancel { min-height: 32px; padding: 0 13px; border-radius: 8px; font-size: 12px; }
 .after-sale-block { padding: 17px 0; border-top: 1px solid #edf0f2; }
 .block-label { margin-bottom: 10px; color: var(--ink); font-size: 14px; font-weight: 800; }
@@ -1080,7 +1080,7 @@ onBeforeUnmount(() => {
 .refund-estimate { margin-top: 4px; padding: 15px; background: #fff7f8; border: 1px solid #f4dbe0; border-radius: 12px; }
 .exchange-estimate small { display: block; margin-top: 7px; color: #7b858f; font-size: 11px; line-height: 1.55; }
 .exchange-shipment-card { border-color: #b9ddd7; background: #f2fbf9; }
-.exchange-received-button { align-self: flex-start; min-height: 34px; margin-top: 8px; padding: 0 12px; font-size: 12px; }
+.exchange-received-button { align-self: flex-start; margin-top: 8px; }
 .exchange-progress { grid-template-columns: auto 1fr auto 1fr auto 1fr auto; }
 .estimate-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .estimate-head span { color: #7b858f; font-size: 13px; }
@@ -1144,7 +1144,6 @@ onBeforeUnmount(() => {
 .delivery-address-toggle strong { color: var(--ink); font-size: 13px; }
 .delivery-address-toggle div span { color: #7a838d; font-size: 12px; line-height: 1.55; }
 .delivery-address-content { margin: 0; padding: 0 18px 16px 48px; color: #68737d; font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
-.copy-btn { flex: 0 0 auto; }
 .auto-receive-tip { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 12px; color: #6d4b12; background: #fff9e9; border: 1px solid #f2dfb2; border-radius: 12px; }
 .auto-receive-tip > div { display: grid; gap: 4px; min-width: 0; }
 .auto-receive-tip strong { color: #6a4308; font-size: 13px; }
@@ -1161,7 +1160,6 @@ onBeforeUnmount(() => {
 .order-info-details { padding: 4px 0 12px; border-top: 1px solid #f1f3f4; }
 .order-info-row { display: grid; grid-template-columns: 70px minmax(0, 1fr) auto; align-items: start; gap: 8px; padding: 7px 0; color: #8a939e; font-size: 12px; }
 .order-info-row strong { overflow-wrap: anywhere; color: #59636e; font-weight: 600; text-align: right; }
-.order-info-row button { padding: 0; color: var(--brand-primary, #e7193f); background: transparent; border: 0; font-size: 12px; }
 
 .balance-pay-box label { display: block; margin-bottom: 8px; font-weight: 700; }
 .balance-pay-box .line-sub, .channel-tip { line-height: 1.6; }

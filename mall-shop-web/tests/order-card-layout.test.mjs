@@ -27,3 +27,22 @@ test('H5订单操作不换行、主按钮固定最右，取消和进行状态使
   const pay = view.indexOf('ui-order-action--primary')
   assert.ok(detail >= 0 && pay > detail)
 })
+
+test('H5普通操作按钮与小程序等比自适应，复制不再显示为胶囊大按钮', async () => {
+  const [list, detail, styles] = await Promise.all([
+    read('src/views/OrdersView.vue'),
+    read('src/views/OrderDetailView.vue'),
+    read('src/assets/styles.css'),
+  ])
+  assert.match(styles, /--shop-action-height:\s*28px;/)
+  assert.match(styles, /--shop-action-font-size:\s*13px;/)
+  assert.match(styles, /--shop-action-padding-x:\s*12px;/)
+  assert.match(styles, /\.ui-action-button, \.ui-order-action\s*\{[^}]*flex:\s*none;[^}]*width:\s*auto\s*!important;/)
+  assert.match(styles, /\.ui-copy-action\s*\{[^}]*background:\s*transparent\s*!important;/)
+  assert.match(detail, /class="ui-copy-action"[^>]*>复制单号<\/button>/)
+  assert.match(detail, /class="ui-copy-action"[^>]*>复制<\/button>/)
+  assert.match(detail, /class="after-sale-record-actions ui-action-bar"/)
+  assert.match(detail, /class="btn secondary ui-action-button after-sale-cancel"/)
+  assert.match(detail, /class="btn primary ui-action-button ui-action-button--primary exchange-received-button"/)
+  assert.doesNotMatch(list, /class="[^"]*btn primary[^"]*"[^>]*>去评价<\/RouterLink>/)
+})

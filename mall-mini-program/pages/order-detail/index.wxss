@@ -11,7 +11,7 @@
 .order-number-label,.order-number-value { display:block; }
 .order-number-label { color:#8a9492; font-size:20rpx; }
 .order-number-value { margin-top:3rpx; overflow:hidden; color:#303a38; font-size:23rpx; font-weight:650; text-overflow:ellipsis; white-space:nowrap; }
-.copy-order-number { flex:none; padding-right:0; padding-left:0; }
+.copy-order-number { flex:none; }
 .compact-status { flex:none; padding:7rpx 12rpx; border-radius:999rpx; background:var(--brand-soft); color:var(--brand); font-size:20rpx; font-weight:650; }
 .payment-hint { display:block; width:100%; margin-top:12rpx; color:#7d8786; font-size:23rpx; line-height:36rpx; word-break:break-all; }
 .order-number-card .continue-payment { width:100%; margin-top:4rpx; font-size:27rpx; }
@@ -34,7 +34,7 @@
 .package-label { color:#798381; font-size:21rpx; }
 .shipment-company { margin-top:7rpx; color:var(--ink); font-size:25rpx; font-weight:650; }
 .shipment-number,.shipment-time { margin-top:6rpx; color:#737e7c; font-size:21rpx; line-height:31rpx; word-break:break-all; }
-.shipment-actions { display:flex; flex:none; flex-direction:column; width:204rpx; gap:8rpx; }
+.shipment-actions { flex:none; align-self:center; }
 .wechat-track-button,.copy-inline { flex:none; }
 
 .tracking-panel { margin-top:10rpx; padding-top:18rpx; border-top:1rpx solid #edf1f0; }
@@ -80,9 +80,9 @@
 .audit-remark { padding-top:12rpx; border-top:1rpx solid #f2dfc3; }
 .sale-item { display:flex; justify-content:space-between; gap:18rpx; margin:12rpx 0; color:#667085; font-size:24rpx; }
 .sale-item text:first-child { min-width:0; overflow-wrap:anywhere; }
-.cancel-after-sale { width:100%; margin:18rpx 0 0; font-size:23rpx; }
-.sale-action { width:100%; margin-top:16rpx; font-size:25rpx; }
+.sale-actions { margin-top:16rpx; }
 .shipment-form { margin-top:18rpx; padding:20rpx; border-radius:18rpx; background:var(--paper); }
+.shipment-form-actions { margin-top:18rpx; }
 .form-label { display:block; margin:18rpx 0 12rpx; color:var(--ink); font-size:24rpx; }
 .shipment-input { min-height:84rpx; padding:0 16rpx; border:1rpx solid var(--line); border-radius:12rpx; color:var(--ink); font-size:26rpx; }
 .shipment-input.ui-select-row { margin-bottom:16rpx; }
@@ -98,6 +98,5 @@
 .order-info-inline > view { display:flex; justify-content:space-between; gap:22rpx; margin-top:10rpx; color:#75807e; font-size:22rpx; line-height:34rpx; }
 .order-info-inline > view text:last-child { min-width:0; color:#303a38; text-align:right; word-break:break-all; }
 
-.detail-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:13rpx; margin:18rpx 0 8rpx; padding:8rpx 0; }
-.detail-actions button { min-width:190rpx; flex:1; margin:0; font-size:25rpx; }
+.detail-actions { margin:18rpx 0 8rpx; padding:8rpx 0; }
 .balance-sheet { color:var(--ink); }
