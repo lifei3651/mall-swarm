@@ -103,6 +103,24 @@
         ORDER BY create_time DESC
     </select>
 
+    <select id="selectFinanceAuditScoped" resultMap="BaseResultMap">
+        SELECT record.*
+        FROM dms_commission_record record
+        INNER JOIN dms_shop_order finance_order ON finance_order.id = record.order_id
+        WHERE record.tenant_id = #{tenantId}
+          AND COALESCE(finance_order.tenant_id, 1) = #{tenantId}
+          AND finance_order.pay_time IS NOT NULL
+          AND finance_order.status IN (1, 2, 3)
+          AND NOT EXISTS (
+              SELECT 1
+              FROM dms_shop_after_sale finance_sale
+              WHERE finance_sale.order_id = finance_order.id
+          )
+        <if test="agentId != null">AND record.agent_id = #{agentId}</if>
+        <if test="orderNo != null and orderNo != ''">AND record.order_no = #{orderNo}</if>
+        ORDER BY record.create_time DESC, record.id DESC
+    </select>
+
     <select id="selectByAgentIdAndStatusScoped" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM dms_commission_record

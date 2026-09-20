@@ -34,7 +34,7 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column prop="orderAmount" label="支付金额" width="120">
+      <el-table-column prop="orderAmount" label="实付金额" width="120">
         <template #default="{ row }">¥{{ row.orderAmount || 0 }}</template>
       </el-table-column>
       <el-table-column prop="productCost" label="产品成本" width="120">
@@ -43,7 +43,14 @@
       <el-table-column prop="bonusAmount" label="奖金拨出" width="120">
         <template #default="{ row }">¥{{ row.bonusAmount || 0 }}</template>
       </el-table-column>
-      <el-table-column prop="companyProfit" label="公司利润" width="120">
+      <el-table-column prop="profitStageName" label="利润状态" width="120">
+        <template #default="{ row }">
+          <el-tag :type="row.profitStage === 'REALIZED' ? 'success' : 'warning'">
+            {{ row.profitStageName || '预计利润' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="companyProfit" label="利润金额" width="120">
         <template #default="{ row }">
           <span :class="{ danger: Number(row.companyProfit || 0) < 0 }">¥{{ row.companyProfit || 0 }}</span>
         </template>
@@ -111,7 +118,7 @@
     </el-card>
 
     <el-dialog v-model="financeVisible" title="订单账务详情" width="900px">
-      <el-alert title="订单支付金额和产品成本在下单时冻结；支付后不可人工修改，退款统一通过售后流程冲账。" type="warning" :closable="false" show-icon />
+      <el-alert title="本页只展示无售后记录的有效已支付订单；售后期结束前为预计利润，售后期结束后才转为已实现利润。关闭、取消、退款及已进入售后的订单保留审计记录，但不在本页展示。" type="warning" :closable="false" show-icon />
       <el-descriptions :column="2" border style="margin-top: 12px">
         <el-descriptions-item label="订单支付金额">¥{{ financeDetail.finance?.payAmount || 0 }}</el-descriptions-item>
         <el-descriptions-item label="冻结产品成本">¥{{ financeDetail.finance?.productCost || 0 }}</el-descriptions-item>

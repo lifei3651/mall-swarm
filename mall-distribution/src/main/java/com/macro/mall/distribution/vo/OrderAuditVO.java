@@ -35,5 +35,10 @@ public class OrderAuditVO implements Serializable {
 
     private BigDecimal companyProfit;
 
+    /** ESTIMATED=售后期结束前的预计利润；REALIZED=售后期结束后的已实现利润。 */
+    private String profitStage;
+
+    private String profitStageName;
+
     private Integer riskStatus;
 }

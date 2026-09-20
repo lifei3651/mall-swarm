@@ -167,7 +167,7 @@ public class PerformanceServiceTest {
     private JdbcTemplate jdbcTemplate;
 
     @Test
-    void testAuditDefaultsToAllOrdersAndIncludesOrdinaryMemberIdentity() {
+    void testAuditOnlyShowsActivePaidOrdersAndLabelsProfitStage() {
         DmsShopMember member = createShopMember("13999000040", "账务默认列表会员", null);
         ShopOrderItemDTO item = new ShopOrderItemDTO();
         item.setProductId(1L);
@@ -183,12 +183,22 @@ public class PerformanceServiceTest {
         ShopOrderVO second = shopService.submitOrder(submit, member);
 
         String memberAccount = member.getUsername();
+        assertTrue(auditService.getAllOrders().stream()
+                .noneMatch(row -> created.getOrder().getId().equals(row.getOrderId())
+                        || second.getOrder().getId().equals(row.getOrderId())),
+                "待支付订单不得进入利润追溯页");
+        assertTrue(auditService.getOrdersByOrderNo(created.getOrder().getOrderNo()).isEmpty());
+
+        ShopOrderVO paid = shopService.markOrderPaid(created.getOrder().getId(), "ALIPAY");
+        shopService.markOrderPaid(second.getOrder().getId(), "ALIPAY");
         OrderAuditVO defaultRow = auditService.getAllOrders().stream()
                 .filter(row -> created.getOrder().getId().equals(row.getOrderId()))
                 .findFirst()
                 .orElseThrow();
         assertEquals(memberAccount, defaultRow.getOwnerMemberAccount());
         assertEquals(member.getNickname(), defaultRow.getOwnerMemberName());
+        assertEquals("ESTIMATED", defaultRow.getProfitStage());
+        assertEquals("预计利润", defaultRow.getProfitStageName());
 
         List<OrderAuditVO> memberOrders = auditService.getOrdersByMemberKey(memberAccount);
         assertTrue(memberOrders.stream().anyMatch(row -> created.getOrder().getId().equals(row.getOrderId())));
@@ -199,10 +209,27 @@ public class PerformanceServiceTest {
         assertTrue(auditService.getOrdersByOrderNo("SO-NOT-FOUND").isEmpty());
         assertTrue(auditService.getBonusSourcesByOrderNo(created.getOrder().getOrderNo()).isEmpty());
 
+        ShopAfterSaleItemDTO afterSaleItem = new ShopAfterSaleItemDTO();
+        afterSaleItem.setOrderItemId(paid.getItems().get(0).getId());
+        afterSaleItem.setQuantity(1);
+        ShopAfterSaleApplyDTO afterSaleApply = new ShopAfterSaleApplyDTO();
+        afterSaleApply.setOrderId(paid.getOrder().getId());
+        afterSaleApply.setItems(List.of(afterSaleItem));
+        afterSaleApply.setReason("验证售后订单不进入利润追溯页");
+        shopAfterSaleService.apply(member, afterSaleApply);
+        assertTrue(auditService.getOrdersByOrderNo(created.getOrder().getOrderNo()).isEmpty(),
+                "已有售后记录的订单必须退出活动利润视图");
+
+        jdbcTemplate.update("UPDATE dms_shop_order SET status=3, receive_time=? WHERE id=?",
+                LocalDateTime.now().minusDays(8), second.getOrder().getId());
+        OrderAuditVO realized = auditService.getOrdersByOrderNo(second.getOrder().getOrderNo()).get(0);
+        assertEquals("REALIZED", realized.getProfitStage());
+        assertEquals("已实现利润", realized.getProfitStageName());
+
         PageHelper.startPage(1, 1);
         PageInfo<OrderAuditVO> page = new PageInfo<>(auditService.getAllOrders());
         assertEquals(1, page.getList().size());
-        assertTrue(page.getTotal() >= 2, "转换为账务列表后必须保留数据库分页总条数");
+        assertTrue(page.getTotal() >= 1, "转换为账务列表后必须保留数据库分页总条数");
     }
 
     @Test

@@ -30,6 +30,7 @@ public class OfficialWeChatMiniProgramGateway implements WeChatMiniProgramGatewa
 
     private static final String API_ORIGIN = "https://api.weixin.qq.com";
     private static final int MAX_RESPONSE_CHARS = 65_536;
+    private static final int MAX_DELIVERY_LIST_RESPONSE_CHARS = 1_048_576;
 
     private final WeChatMiniProgramProperties properties;
     private final ObjectMapper objectMapper;
@@ -120,10 +121,18 @@ public class OfficialWeChatMiniProgramGateway implements WeChatMiniProgramGatewa
     public List<DeliveryCompany> deliveryCompanies() {
         requireLoginReady();
         JsonNode response = postWithAccessToken("/cgi-bin/express/delivery/open_msg/get_delivery_list",
-                objectMapper.createObjectNode(), false, "微信物流公司列表获取失败");
+                objectMapper.createObjectNode(), false, "微信物流公司列表获取失败",
+                MAX_DELIVERY_LIST_RESPONSE_CHARS);
         failOnWeChatError(response, "微信物流公司列表获取失败");
+        return parseDeliveryCompanies(response);
+    }
+
+    static List<DeliveryCompany> parseDeliveryCompanies(JsonNode response) {
         List<DeliveryCompany> rows = new ArrayList<>();
-        JsonNode data = response.path("data");
+        // 微信正式接口返回字段为 delivery_list；兼容早期联调响应中的 data，
+        // 避免合法物流公司列表被误读为空后导致发货信息无法同步。
+        JsonNode data = response.path("delivery_list");
+        if (!data.isArray()) data = response.path("data");
         if (data.isArray()) {
             for (JsonNode row : data) {
                 String id = text(row, "delivery_id");
@@ -215,13 +224,18 @@ public class OfficialWeChatMiniProgramGateway implements WeChatMiniProgramGatewa
     }
 
     private JsonNode postWithAccessToken(String path, JsonNode body, boolean retried, String failureMessage) {
+        return postWithAccessToken(path, body, retried, failureMessage, MAX_RESPONSE_CHARS);
+    }
+
+    private JsonNode postWithAccessToken(String path, JsonNode body, boolean retried, String failureMessage,
+                                         int maxResponseChars) {
         String separator = path.contains("?") ? "&" : "?";
         JsonNode response = postJson(API_ORIGIN + path + separator + "access_token=" + encode(accessToken()),
-                body, failureMessage);
+                body, failureMessage, maxResponseChars);
         int errorCode = response.path("errcode").asInt(0);
         if (!retried && (errorCode == 40001 || errorCode == 40014 || errorCode == 42001)) {
             cachedAccessToken = null;
-            return postWithAccessToken(path, body, true, failureMessage);
+            return postWithAccessToken(path, body, true, failureMessage, maxResponseChars);
         }
         return response;
     }
@@ -232,25 +246,29 @@ public class OfficialWeChatMiniProgramGateway implements WeChatMiniProgramGatewa
                 .header("Accept", "application/json")
                 .GET()
                 .build();
-        return send(request, failureMessage);
+        return send(request, failureMessage, MAX_RESPONSE_CHARS);
     }
 
     private JsonNode postJson(String url, JsonNode body, String failureMessage) {
+        return postJson(url, body, failureMessage, MAX_RESPONSE_CHARS);
+    }
+
+    private JsonNode postJson(String url, JsonNode body, String failureMessage, int maxResponseChars) {
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofMillis(bounded(properties.getReadTimeoutMs(), 10000)))
                 .header("Accept", "application/json")
                 .header("Content-Type", "application/json;charset=UTF-8")
                 .POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
                 .build();
-        return send(request, failureMessage);
+        return send(request, failureMessage, maxResponseChars);
     }
 
-    private JsonNode send(HttpRequest request, String failureMessage) {
+    private JsonNode send(HttpRequest request, String failureMessage, int maxResponseChars) {
         try {
             HttpResponse<String> response = httpClient.send(request,
                     HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() < 200 || response.statusCode() >= 300
-                    || response.body() == null || response.body().length() > MAX_RESPONSE_CHARS) {
+                    || response.body() == null || response.body().length() > maxResponseChars) {
                 log.warn("微信小程序接口异常: status={}", response.statusCode());
                 throw new ApiException(failureMessage);
             }
@@ -277,7 +295,7 @@ public class OfficialWeChatMiniProgramGateway implements WeChatMiniProgramGatewa
         }
     }
 
-    private String text(JsonNode node, String field) {
+    private static String text(JsonNode node, String field) {
         JsonNode value = node == null ? null : node.get(field);
         return value == null || value.isNull() ? null : value.asText();
     }

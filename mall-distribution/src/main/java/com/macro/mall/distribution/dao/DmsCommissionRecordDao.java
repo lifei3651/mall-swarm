@@ -81,6 +81,14 @@ public interface DmsCommissionRecordDao {
         return selectByAgentIdScoped(TenantContext.getTenantId(), agentId);
     }
 
+    /** 利润追溯页中的奖金来源，使用与活动利润订单相同的可见范围。 */
+    List<DmsCommissionRecord> selectFinanceAuditScoped(@Param("tenantId") Long tenantId,
+                                                        @Param("agentId") Long agentId,
+                                                        @Param("orderNo") String orderNo);
+    default List<DmsCommissionRecord> selectFinanceAudit(Long agentId, String orderNo) {
+        return selectFinanceAuditScoped(TenantContext.getTenantId(), agentId, orderNo);
+    }
+
     /**
      * 根据代理ID和状态查询佣金记录
      */

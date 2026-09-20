@@ -61,6 +61,7 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
     private final DmsMemberAssetAccountDao memberAssetAccountDao;
     private final DmsMemberAssetFlowDao memberAssetFlowDao;
     private final DmsOrderBalanceAllocationDao orderBalanceAllocationDao;
+    private final ShopAfterSaleWindowPolicy afterSaleWindowPolicy;
     private final PerformanceService performanceService;
     private final MemberAssetService memberAssetService;
     private final CustomerBonusPolicyRegistry bonusPolicyRegistry;
@@ -135,7 +136,7 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
 
     @Override
     public List<OrderAuditVO> getAllOrders() {
-        return buildShopOrderAuditList(shopOrderDao.selectList(null, null, null));
+        return buildShopOrderAuditList(shopOrderDao.selectFinanceAuditOrders(null, null, null));
     }
 
     @Override
@@ -144,39 +145,29 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         if (member == null) {
             Asserts.fail("未找到对应会员，请使用登录账号或手机号查询");
         }
-        return buildShopOrderAuditList(shopOrderDao.selectByUserId(member.getUserId()));
+        return buildShopOrderAuditList(shopOrderDao.selectFinanceAuditOrders(member.getUserId(), null, null));
     }
 
     @Override
     public List<OrderAuditVO> getOrdersByOrderNo(String orderNo) {
         if (orderNo == null || orderNo.isBlank()) return Collections.emptyList();
-        DmsShopOrder order = shopOrderDao.selectByOrderNo(orderNo.trim());
-        return order == null ? Collections.emptyList() : buildShopOrderAuditList(List.of(order));
+        return buildShopOrderAuditList(shopOrderDao.selectFinanceAuditOrders(null, null, orderNo.trim()));
     }
 
     @Override
     public List<OrderAuditVO> getOrdersByAgentId(Long agentId) {
-        List<DmsShopOrder> orders = shopOrderDao.selectByAgentId(agentId);
-        long orderTotal = orders instanceof Page<?> page ? page.getTotal() : orders.size();
-        return orderTotal == 0
-                ? buildOrderAuditList(performanceDetailDao.selectPersonalPerformanceDetails(agentId, null, null))
-                : buildShopOrderAuditList(orders);
+        return buildShopOrderAuditList(shopOrderDao.selectFinanceAuditOrders(null, agentId, null));
     }
 
     @Override
     public List<OrderAuditVO> getOrdersByUserId(Long userId) {
         if (userId == null) return Collections.emptyList();
-        List<DmsShopOrder> orders = shopOrderDao.selectByUserId(userId);
-        long orderTotal = orders instanceof Page<?> page ? page.getTotal() : orders.size();
-        if (orderTotal > 0) return buildShopOrderAuditList(orders);
-        DmsAgent agent = agentDao.selectByUserId(userId);
-        return agent == null ? Collections.emptyList()
-                : buildOrderAuditList(performanceDetailDao.selectPersonalPerformanceDetails(agent.getId(), null, null));
+        return buildShopOrderAuditList(shopOrderDao.selectFinanceAuditOrders(userId, null, null));
     }
 
     @Override
     public List<CommissionRecordVO> getBonusSourcesByAgentId(Long agentId) {
-        return mapCommissionRecords(commissionRecordDao.selectByAgentId(agentId));
+        return mapCommissionRecords(commissionRecordDao.selectFinanceAudit(agentId, null));
     }
 
     @Override
@@ -187,7 +178,7 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
 
     @Override
     public List<CommissionRecordVO> getAllBonusSources() {
-        return mapCommissionRecords(commissionRecordDao.selectAll());
+        return mapCommissionRecords(commissionRecordDao.selectFinanceAudit(null, null));
     }
 
     @Override
@@ -202,7 +193,7 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
     @Override
     public List<CommissionRecordVO> getBonusSourcesByOrderNo(String orderNo) {
         if (orderNo == null || orderNo.isBlank()) return Collections.emptyList();
-        return mapCommissionRecords(commissionRecordDao.selectByOrderNo(orderNo.trim()));
+        return mapCommissionRecords(commissionRecordDao.selectFinanceAudit(null, orderNo.trim()));
     }
 
     @Override
@@ -821,6 +812,8 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
             vo.setProductCost(finance.getProductCost());
             vo.setBonusAmount(finance.getBonusAmount());
             vo.setCompanyProfit(finance.getCompanyProfit());
+            vo.setProfitStage("ESTIMATED");
+            vo.setProfitStageName("预计利润");
             vo.setRiskStatus(finance.getRiskStatus());
             result.add(vo);
         }
@@ -848,6 +841,10 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
             vo.setProductCost(finance.getProductCost());
             vo.setBonusAmount(finance.getBonusAmount());
             vo.setCompanyProfit(finance.getCompanyProfit());
+            boolean realized = Integer.valueOf(3).equals(order.getStatus())
+                    && afterSaleWindowPolicy.isExpired(order, LocalDateTime.now());
+            vo.setProfitStage(realized ? "REALIZED" : "ESTIMATED");
+            vo.setProfitStageName(realized ? "已实现利润" : "预计利润");
             vo.setRiskStatus(finance.getRiskStatus());
             result.add(vo);
         }

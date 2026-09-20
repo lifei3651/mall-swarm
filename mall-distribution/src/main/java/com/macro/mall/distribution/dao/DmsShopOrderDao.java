@@ -76,6 +76,18 @@ public interface DmsShopOrderDao {
         return selectPaidProfileOrdersByUserIdScoped(TenantContext.getTenantId(), userId);
     }
 
+    /**
+     * 利润追溯页只展示仍属于有效交易的已支付订单。
+     * 关闭订单及任何已经进入售后流程的订单保留底层审计数据，但不进入活动利润视图。
+     */
+    List<DmsShopOrder> selectFinanceAuditOrdersScoped(@Param("tenantId") Long tenantId,
+                                                       @Param("userId") Long userId,
+                                                       @Param("agentId") Long agentId,
+                                                       @Param("orderNo") String orderNo);
+    default List<DmsShopOrder> selectFinanceAuditOrders(Long userId, Long agentId, String orderNo) {
+        return selectFinanceAuditOrdersScoped(TenantContext.getTenantId(), userId, agentId, orderNo);
+    }
+
     List<DmsShopOrder> selectList(@Param("tenantId") Long tenantId,
                                   @Param("keyword") String keyword,
                                   @Param("status") Integer status,
