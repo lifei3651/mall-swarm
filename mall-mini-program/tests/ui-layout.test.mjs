@@ -11,8 +11,9 @@ test('全部已注册页面保留后台主题绑定，统一按钮支持换行�
     assert.match(source(view), /\{\{themeStyle\}\}/, page)
   }
   const css = source('app.wxss')
-  assert.match(css, /\.primary-button, \.secondary-button\s*\{[^}]*min-height: 88rpx;[^}]*white-space: normal;/)
-  assert.match(css, /\.primary-button\[disabled\], \.secondary-button\[disabled\]/)
+  assert.match(css, /--control-height:\s*88rpx;/)
+  assert.match(css, /\.primary-button, \.secondary-button, \.danger-button, \.ui-button\s*\{[^}]*min-height: var\(--control-height\);[^}]*white-space: normal;/)
+  assert.match(css, /\.primary-button\[disabled\], \.secondary-button\[disabled\], \.danger-button\[disabled\], \.ui-button\[disabled\]/)
 })
 
 test('地址字段有常驻标签，长地址和订单备注用多行输入且保留原提交绑定', () => {

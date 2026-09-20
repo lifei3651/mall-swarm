@@ -9,72 +9,71 @@
     <button class="secondary-button" bindtap="openOrders">查看我的订单</button>
   </view>
   <block wx:else>
-    <view class="order-number-card">
+    <view class="order-number-card ui-card">
       <view class="order-number-copy">
         <text class="order-number-label">订单编号</text>
         <text class="order-number-value">{{paymentNo}}</text>
       </view>
-      <button class="copy-order-number" bindtap="copyPaymentNo">复制</button>
-      <text class="compact-status">{{pageStatusTitle}}</text>
+      <button size="mini" class="copy-order-number ui-utility-button" bindtap="copyPaymentNo">复制</button>
+      <text class="compact-status ui-status-pill">{{pageStatusTitle}}</text>
       <text wx:if="{{paymentHint}}" class="payment-hint">{{paymentHint}}</text>
       <button wx:if="{{payOrderId}}" class="primary-button continue-payment" bindtap="pay" loading="{{paying}}" disabled="{{actingId !== null}}">{{paying ? '正在确认支付…' : rows.length > 1 ? '合并支付' : '继续支付'}}</button>
     </view>
 
     <block wx:for="{{rows}}" wx:key="key">
-      <view wx:if="{{item.order.addressText}}" class="section-card address-card">
-        <button class="address-toggle" data-id="{{item.order.id}}" bindtap="toggleAddress" aria-expanded="{{!!expandedAddresses[item.order.id]}}">
+      <view wx:if="{{item.shipments.length || item.order.addressText}}" class="section-card ui-card fulfillment-card {{item.shipments.length ? 'with-shipments' : ''}}">
+        <block wx:if="{{item.shipments.length}}">
+          <view class="section-heading">
+            <view class="section-heading-main">
+              <image class="section-icon" src="/assets/profile/truck.png" mode="aspectFit" />
+              <view>
+                <text class="section-title">{{item.order.status === 3 ? '已签收' : '物流配送中'}}</text>
+                <text class="section-subtitle">{{item.shipments.length > 1 ? '本订单分为 ' + item.shipments.length + ' 个包裹' : '商品已交由承运商配送'}}</text>
+              </view>
+            </view>
+            <button wx:if="{{trackingRows.length && trackingOrderId === item.order.id}}" class="text-action" data-id="{{item.order.id}}" bindtap="loadTracking" loading="{{trackingLoading}}" disabled="{{trackingLoading}}">刷新</button>
+          </view>
+          <view class="shipment-list">
+            <view class="shipment-row" wx:for="{{item.shipments}}" wx:key="key" wx:for-item="shipment">
+              <view class="shipment-main">
+                <text class="package-label">{{shipment.packageLabel}}</text>
+                <text class="shipment-company">{{shipment.deliveryCompany || '物流公司待更新'}}</text>
+                <text class="shipment-number">运单号 {{shipment.deliveryNo || '-'}}</text>
+                <text wx:if="{{shipment.deliveryTimeText}}" class="shipment-time">发货时间 {{shipment.deliveryTimeText}}</text>
+              </view>
+              <view class="shipment-actions">
+                <button wx:if="{{shipment.deliveryNo}}" size="mini" class="wechat-track-button ui-utility-button ui-utility-button--wide ui-utility-button--primary" data-id="{{item.order.id}}" data-shipment-id="{{shipment.id}}" bindtap="openWeChatTracking" loading="{{wechatTrackingId === shipment.key}}" disabled="{{!!wechatTrackingId}}">查看物流</button>
+                <button wx:if="{{shipment.deliveryNo}}" size="mini" class="copy-inline ui-utility-button ui-utility-button--wide" data-number="{{shipment.deliveryNo}}" bindtap="copyDeliveryNo">复制单号</button>
+              </view>
+            </view>
+          </view>
+          <view wx:if="{{trackingOrderId === item.order.id}}" class="tracking-panel">
+            <block wx:for="{{trackingRows}}" wx:key="deliveryNo" wx:for-item="tracking">
+              <view wx:if="{{tracking.configured && tracking.events.length}}" class="tracking-record">
+                <view class="tracking-state is-live"><text>{{tracking.statusText}}</text></view>
+                <view wx:for="{{tracking.events}}" wx:key="index" wx:for-item="progress" class="tracking-event"><text>{{progress.description}}{{progress.location ? ' · ' + progress.location : ''}}</text><text>{{progress.time}}</text></view>
+              </view>
+            </block>
+          </view>
+        </block>
+        <button wx:if="{{item.order.addressText}}" class="address-toggle ui-list-row" data-id="{{item.order.id}}" bindtap="toggleAddress" aria-expanded="{{!!expandedAddresses[item.order.id]}}">
           <view class="section-heading-main">
             <image class="section-icon" src="/assets/profile/map-pin.png" mode="aspectFit" />
-            <text class="section-title">收货地址</text>
+            <view><text class="section-title">收货地址</text><text class="section-subtitle">为保护隐私，展开后查看完整地址</text></view>
           </view>
           <text class="fold-label">{{expandedAddresses[item.order.id] ? '收起' : '展开'}}</text>
         </button>
-        <text wx:if="{{expandedAddresses[item.order.id]}}" class="recipient-address">{{item.order.addressText}}</text>
+        <text wx:if="{{item.order.addressText && expandedAddresses[item.order.id]}}" class="recipient-address">{{item.order.addressText}}</text>
       </view>
 
-      <view wx:if="{{item.shipments.length}}" class="section-card logistics-card">
-        <view class="section-heading">
-          <view class="section-heading-main">
-            <image class="section-icon" src="/assets/profile/truck.png" mode="aspectFit" />
-            <view>
-              <text class="section-title">物流信息</text>
-              <text class="section-subtitle">{{item.shipments.length > 1 ? '本订单分为 ' + item.shipments.length + ' 个包裹' : item.order.status === 3 ? '订单已签收' : '商品已交由承运商配送'}}</text>
-            </view>
-          </view>
-          <button wx:if="{{trackingRows.length && trackingOrderId === item.order.id}}" class="text-action" data-id="{{item.order.id}}" bindtap="loadTracking" loading="{{trackingLoading}}" disabled="{{trackingLoading}}">刷新</button>
-        </view>
-        <view class="shipment-list">
-          <view class="shipment-row" wx:for="{{item.shipments}}" wx:key="key" wx:for-item="shipment">
-            <view class="shipment-main">
-              <text class="package-label">{{shipment.packageLabel}}</text>
-              <text class="shipment-company">{{shipment.deliveryCompany || '物流公司待更新'}}</text>
-              <text class="shipment-number">运单号 {{shipment.deliveryNo || '-'}}</text>
-              <text wx:if="{{shipment.deliveryTimeText}}" class="shipment-time">发货时间 {{shipment.deliveryTimeText}}</text>
-            </view>
-            <view class="shipment-actions">
-              <button wx:if="{{shipment.deliveryNo}}" class="wechat-track-button" data-id="{{item.order.id}}" data-shipment-id="{{shipment.id}}" bindtap="openWeChatTracking" loading="{{wechatTrackingId === shipment.key}}" disabled="{{!!wechatTrackingId}}">查看物流</button>
-              <button wx:if="{{shipment.deliveryNo}}" class="copy-inline" data-number="{{shipment.deliveryNo}}" bindtap="copyDeliveryNo">复制单号</button>
-            </view>
-          </view>
-        </view>
-        <view wx:if="{{trackingOrderId === item.order.id}}" class="tracking-panel">
-          <block wx:for="{{trackingRows}}" wx:key="deliveryNo" wx:for-item="tracking">
-            <view wx:if="{{tracking.configured && tracking.events.length}}" class="tracking-record">
-              <view class="tracking-state is-live"><text>{{tracking.statusText}}</text></view>
-              <view wx:for="{{tracking.events}}" wx:key="index" wx:for-item="progress" class="tracking-event"><text>{{progress.description}}{{progress.location ? ' · ' + progress.location : ''}}</text><text>{{progress.time}}</text></view>
-            </view>
-          </block>
-        </view>
-      </view>
-
-      <view class="section-card product-card">
-        <view class="order-head"><text class="merchant-name">{{item.order.merchantName || '商城订单'}}</text><text class="order-status">{{item.order.statusText}}</text></view>
+      <view class="section-card ui-card product-card">
+        <view class="order-head"><text class="merchant-name">{{item.order.merchantName || '商城订单'}}</text><text class="order-status ui-status-pill">{{item.order.statusText}}</text></view>
         <view class="order-item" wx:for="{{item.items}}" wx:key="id" wx:for-item="line">
           <image src="{{line.productCover}}" mode="aspectFill" />
           <view class="item-copy"><text class="item-name">{{line.productName}}</text><text class="item-spec">{{line.skuName || '默认规格'}} × {{line.quantity}}</text></view>
-          <text class="item-price">¥{{line.priceText}}</text>
+          <text class="item-price ui-price">¥{{line.priceText}}</text>
         </view>
-        <view class="product-footer"><text>{{item.itemQuantity}} 件商品</text><view><text>{{item.order.amountLabel}} </text><text class="paid-amount">¥{{item.order.amountText}}</text></view></view>
+        <view class="product-footer"><text>{{item.itemQuantity}} 件商品</text><view><text>{{item.order.amountLabel}} </text><text class="paid-amount ui-price">¥{{item.order.amountText}}</text></view></view>
 
         <view class="amount-summary">
           <view class="amount-row"><text>商品金额</text><text>¥{{item.order.totalText}}</text></view>
@@ -93,7 +92,7 @@
         </view>
       </view>
 
-      <view wx:if="{{item.afterSales.length}}" class="section-card after-sale-list">
+      <view wx:if="{{item.afterSales.length}}" class="section-card ui-card after-sale-list">
         <view class="section-title">退款 / 售后进度</view>
         <view class="after-sale-record" wx:for="{{item.afterSales}}" wx:key="id" wx:for-item="sale">
           <view class="after-sale-head"><view><text>{{sale.typeText}}</text><text>{{sale.afterSaleNo}}</text></view><text>{{sale.statusText}}</text></view>
@@ -124,7 +123,7 @@
         </view>
       </view>
 
-      <view class="detail-actions">
+      <view class="detail-actions ui-action-bar">
         <button wx:if="{{item.order.status === 0}}" class="secondary-button cancel-order" data-id="{{item.order.id}}" disabled="{{actingId !== null}}" bindtap="cancelOrder">取消订单</button>
         <button wx:if="{{item.pendingReviewProductId && item.pendingReviewOrderItemId}}" class="primary-button" data-id="{{item.order.id}}" bindtap="review">去评价</button>
         <button wx:if="{{item.canApplyAfterSale}}" class="secondary-button" data-id="{{item.order.id}}" bindtap="applyAfterSale">申请售后</button>

@@ -174,7 +174,7 @@ test('规格单价摘要复用真实选中价格，零价和缺货保护不受�
   await h.page.addToCart()
   assert.equal(h.cart[0].salePrice, 0)
   const view = readFileSync(new URL('../pages/product/index.wxml', import.meta.url), 'utf8')
-  assert.match(view, /class="sku-unit-price">¥\{\{priceText\}\}/)
+  assert.match(view, /class="[^"]*sku-unit-price[^"]*">¥\{\{priceText\}\}/)
   assert.match(view, /已选：\{\{selectedSku\.skuName/)
 })
 

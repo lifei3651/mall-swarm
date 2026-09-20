@@ -1,5 +1,5 @@
 <template>
-  <div class="page">
+  <div class="page order-detail-page">
     <div class="section-head">
       <h2>订单详情</h2>
       <RouterLink v-if="!applyingAfterSale" class="btn secondary" to="/orders">
@@ -17,12 +17,12 @@
     </div>
     <div v-else-if="!order" class="empty">订单不存在</div>
     <div v-else class="checkout-layout" :class="{ 'after-sale-mode': applyingAfterSale }">
-      <section v-if="!applyingAfterSale && order.tradeNo" class="panel trade-parent-tip">
+      <section v-if="!applyingAfterSale && order.tradeNo" class="panel ui-card trade-parent-tip">
         <strong>联合支付交易 {{ order.tradeNo }}</strong>
         <span>当前是 {{ order.merchantName || '平台自营' }} 的履约子订单 {{ order.orderNo }}；其他销售方将分别发货和处理售后。</span>
       </section>
-      <section v-if="!applyingAfterSale && shipments.length" class="panel logistics-overview-panel">
-        <div class="logistics-overview-head">
+      <section v-if="!applyingAfterSale && (shipments.length || order.receiverAddress)" class="panel ui-card logistics-overview-panel">
+        <div v-if="shipments.length" class="logistics-overview-head">
           <span class="logistics-overview-icon"><Truck :size="22" /></span>
           <div class="logistics-overview-status">
             <strong>{{ logisticsStatus }}</strong>
@@ -41,8 +41,8 @@
               <p>包裹 {{ index + 1 }} · {{ Number(shipment.shipmentQuantity || 0) }} 件商品 · 运单号 {{ shipment.deliveryNo || '-' }}</p>
             </div>
             <div v-if="shipment.deliveryNo" class="package-actions">
-              <a :href="trackingUrl(shipment)" target="_blank" rel="noopener" class="copy-btn">查询</a>
-              <button type="button" class="copy-btn" @click="copyText(shipment.deliveryNo)">复制</button>
+              <a :href="trackingUrl(shipment)" target="_blank" rel="noopener" class="copy-btn ui-utility-button">查询</a>
+              <button type="button" class="copy-btn ui-utility-button" @click="copyText(shipment.deliveryNo)">复制</button>
             </div>
           </div>
           <ol v-if="trackingFor(shipment).events?.length" class="tracking-timeline" aria-label="真实物流轨迹">
@@ -52,15 +52,14 @@
             </li>
           </ol>
         </div>
-        <div class="delivery-address-row">
+        <button v-if="order.receiverAddress" type="button" class="delivery-address-toggle ui-list-row" :aria-expanded="addressExpanded" @click="addressExpanded = !addressExpanded">
           <MapPin :size="20" />
-          <div>
-            <strong>{{ order.receiverName }} {{ order.receiverPhone }}</strong>
-            <span>{{ order.receiverAddress }}</span>
-          </div>
-        </div>
+          <div><strong>收货地址</strong><span>为保护隐私，展开后查看完整地址</span></div>
+          <span class="ui-list-action">{{ addressExpanded ? '收起' : '展开' }}</span>
+        </button>
+        <p v-if="addressExpanded" class="delivery-address-content">{{ order.receiverAddress }}</p>
       </section>
-      <section class="panel">
+      <section class="panel ui-card">
         <div ref="refundItemsSection" class="product-detail-head" :class="{ 'has-validation-error': applyingAfterSale && afterSaleErrors.items }">
           <h3>{{ applyingAfterSale ? '选择商品和数量' : '商品明细' }}<span v-if="applyingAfterSale" class="required-star">*</span></h3>
           <span v-if="applyingAfterSale">已默认全选</span>
@@ -75,7 +74,7 @@
             </p>
           </div>
           <div class="order-line-trailing">
-            <strong class="order-line-amount">¥{{ money(item.totalAmount) }}</strong>
+            <strong class="order-line-amount ui-price">¥{{ money(item.totalAmount) }}</strong>
             <div v-if="applyingAfterSale && remainingQuantity(item) > 0" class="quantity-stepper" :aria-label="`${item.productName}售后数量`">
               <button type="button" :disabled="refundQuantities[item.id] <= 0" @click="setRefundQuantity(item, -1)">−</button>
               <output>{{ refundQuantities[item.id] || 0 }}</output>
@@ -273,10 +272,10 @@
           </button>
         </div>
       </section>
-      <aside v-if="!applyingAfterSale" class="panel">
+      <aside v-if="!applyingAfterSale" class="panel ui-card">
         <div class="summary-row">
           <span>订单状态</span>
-          <strong>{{ statusName(order.status) }}</strong>
+          <strong class="ui-status-pill">{{ statusName(order.status) }}</strong>
         </div>
         <div class="summary-row">
           <span>商品金额</span>
@@ -287,7 +286,7 @@
         </div>
         <div class="summary-row">
           <span>实付金额</span>
-          <strong>¥{{ money(order.payAmount) }}</strong>
+          <strong class="ui-price">¥{{ money(order.payAmount) }}</strong>
         </div>
         <div class="summary-row">
           <span>支付方式</span>
@@ -338,7 +337,7 @@
           </div>
           <button v-if="canApplyAfterSale" type="button" @click="startLogisticsAfterSale">物流异常 / 拒收</button>
         </div>
-        <div class="inline-actions">
+        <div class="inline-actions ui-action-bar">
           <button v-if="canApplyAfterSale && !applyingAfterSale" class="btn secondary" @click="startAfterSale">申请售后</button>
           <RouterLink v-if="Number(detail.pendingReviewCount || 0) > 0" class="btn secondary" :to="pendingReviewLink">去评价</RouterLink>
           <button v-if="order.status === 0" class="btn secondary" :disabled="acting" @click="requestOrderConfirmation('cancel-order')">取消订单</button>
@@ -421,6 +420,7 @@ const submittingAfterSale = ref(false)
 const reasonSheetVisible = ref(false)
 const selectedReason = ref('')
 const orderInfoExpanded = ref(false)
+const addressExpanded = ref(false)
 const refundItemsSection = ref(null)
 const reasonSection = ref(null)
 const proofInput = ref(null)
@@ -1138,12 +1138,13 @@ onBeforeUnmount(() => {
 .tracking-timeline li:first-child .tracking-dot { background: var(--brand-primary, #e7193f); box-shadow: 0 0 0 1px var(--brand-primary, #e7193f); }
 .tracking-timeline strong { display: block; color: #4c5661; font-size: 12px; font-weight: 600; line-height: 1.5; }
 .tracking-timeline small { display: block; margin-top: 3px; color: #98a1aa; font-size: 10px; }
-.delivery-address-row { display: flex; align-items: flex-start; gap: 10px; padding: 14px 18px 16px; }
-.delivery-address-row > svg { flex: 0 0 auto; margin-top: 2px; color: #5e6873; }
-.delivery-address-row div { display: grid; gap: 5px; min-width: 0; }
-.delivery-address-row strong { color: var(--ink); font-size: 13px; }
-.delivery-address-row span { color: #7a838d; font-size: 12px; line-height: 1.55; }
-.copy-btn { padding: 4px 9px; color: var(--brand-primary, #e7193f); background: var(--brand-primary-soft, #fff1f4); border: 1px solid var(--brand-primary-soft, #f8ccd5); border-radius: 999px; font-size: 11px; cursor: pointer; }
+.delivery-address-toggle { padding: 14px 18px; }
+.delivery-address-toggle > svg { flex: 0 0 auto; color: #5e6873; }
+.delivery-address-toggle div { display: grid; flex: 1; gap: 3px; min-width: 0; }
+.delivery-address-toggle strong { color: var(--ink); font-size: 13px; }
+.delivery-address-toggle div span { color: #7a838d; font-size: 12px; line-height: 1.55; }
+.delivery-address-content { margin: 0; padding: 0 18px 16px 48px; color: #68737d; font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
+.copy-btn { flex: 0 0 auto; }
 .auto-receive-tip { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 12px; color: #6d4b12; background: #fff9e9; border: 1px solid #f2dfb2; border-radius: 12px; }
 .auto-receive-tip > div { display: grid; gap: 4px; min-width: 0; }
 .auto-receive-tip strong { color: #6a4308; font-size: 13px; }

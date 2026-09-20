@@ -39,7 +39,7 @@
             <p class="line-title" :title="item.productName">{{ item.productName }}</p>
             <p class="line-sub">{{ formatProductSpec(item) }}</p>
             <div class="price-row">
-              <span class="price">¥{{ money(item.salePrice) }}</span>
+              <span class="price ui-price">¥{{ money(item.salePrice) }}</span>
               <span v-if="showPv" class="line-sub">合计PV {{ money(item.pvValue * item.quantity) }}</span>
             </div>
           </div>
@@ -66,7 +66,7 @@
         <p class="server-price-note">商品价格和库存以结算页服务端确认为准</p>
         <div class="summary-row">
           <span>商品金额</span>
-          <strong>¥{{ money(manageMode ? selectedTotal : total) }}</strong>
+          <strong class="ui-price">¥{{ money(manageMode ? selectedTotal : total) }}</strong>
         </div>
         <div class="summary-row">
           <span>运费</span>
@@ -74,7 +74,7 @@
         </div>
         <div class="summary-row">
           <span>应付</span>
-          <strong>¥{{ money(manageMode ? selectedTotal : total) }}</strong>
+          <strong class="ui-price">¥{{ money(manageMode ? selectedTotal : total) }}</strong>
         </div>
         <template v-if="manageMode">
           <div class="manage-actions">

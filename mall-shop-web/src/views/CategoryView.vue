@@ -169,7 +169,7 @@
               </div>
 
               <div class="purchase-row">
-                <div class="category-price">
+                <div class="category-price ui-price">
                   <span>¥</span>
                   <strong>{{ priceParts(product.salePrice).integer }}</strong>
                   <small>.{{ priceParts(product.salePrice).decimal }}</small>

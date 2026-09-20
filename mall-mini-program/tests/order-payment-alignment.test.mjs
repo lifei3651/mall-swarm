@@ -176,7 +176,7 @@ test('页面只提供一个主要付款按钮，金额标签动态绑定且订�
   const markup = readFileSync(new URL('../pages/order-detail/index.wxml', import.meta.url), 'utf8')
   assert.equal((markup.match(/bindtap="pay"/g) || []).length, 1)
   assert.match(markup, /item.order.amountLabel/)
-  assert.match(markup, /class="order-number-card"/)
+  assert.match(markup, /class="[^"]*order-number-card[^"]*"/)
   assert.doesNotMatch(markup, /class="status-hero"/)
   assert.doesNotMatch(markup, /本次付款包含|<text>实付金额<\/text>/)
 })

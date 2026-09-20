@@ -28,7 +28,7 @@
       </section>
 
       <section class="price-section">
-        <div class="price-main"><span>¥</span><strong>{{ money(displayProduct.salePrice) }}</strong></div>
+        <div class="price-main ui-price"><span>¥</span><strong>{{ money(displayProduct.salePrice) }}</strong></div>
         <del v-if="Number(displayProduct.marketPrice || 0) > Number(displayProduct.salePrice || 0)">¥{{ money(displayProduct.marketPrice) }}</del>
         <span v-if="showPv && Number(displayProduct.pvValue || 0) > 0" class="pv-badge">PV {{ money(displayProduct.pvValue) }}</span>
         <span class="sales-count">已售 {{ product.salesCount || 0 }}+</span>

@@ -11,6 +11,16 @@ page {
   --accent: #e7193f;
   --header: #ffffff;
   --radius: 24rpx;
+  --radius-card: 22rpx;
+  --radius-control: 18rpx;
+  --radius-pill: 999rpx;
+  --space-page: 24rpx;
+  --space-section: 20rpx;
+  --control-height: 88rpx;
+  --danger: #b42318;
+  --danger-soft: #fff1f0;
+  --warning: #9a5a16;
+  --warning-soft: #fff7e8;
   --shadow: 0 10rpx 34rpx rgba(31, 38, 52, .06);
   background: var(--canvas);
   color: var(--ink);
@@ -28,13 +38,33 @@ button { font-size: 28rpx; font-family: inherit; }
 .ui-select-row > text:only-of-type { flex:1; min-width:0; overflow-wrap:anywhere; }
 .ui-select-arrow { flex:none; width:28rpx; height:28rpx; opacity:.55; }
 .page { min-height: 100vh; padding: 24rpx 24rpx calc(48rpx + env(safe-area-inset-bottom)); }
-.card { background: var(--paper); border: 1rpx solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+.card, .ui-card { background: var(--paper); border: 1rpx solid var(--line); border-radius: var(--radius-card); box-shadow: var(--shadow); }
 .muted { color: var(--muted); }
 .empty { padding: 120rpx 36rpx; text-align: center; color: var(--muted); line-height: 44rpx; }
-.primary-button, .secondary-button { display: flex; align-items: center; justify-content: center; width: 100%; max-width: 100%; min-width: 0; min-height: 88rpx; height: auto; padding: 22rpx 24rpx; border-radius: 20rpx; line-height: 40rpx; text-align: center; white-space: normal; box-shadow: none; }
-.primary-button { background: var(--button); color: #fff; font-weight: 600; }
-.secondary-button { background: #f1f3f6; color: var(--ink); border: 1rpx solid #e3e7ed; font-weight: 500; }
-.primary-button[disabled], .secondary-button[disabled] { background: #eef0f3; color: #788292; border-color: #e5e8ed; box-shadow: none; opacity: 1; }
+.primary-button, .secondary-button, .danger-button, .ui-button { display: flex; align-items: center; justify-content: center; width: 100%; max-width: 100%; min-width: 0; min-height: var(--control-height); height: auto; padding: 22rpx 24rpx; border-radius: var(--radius-control) !important; line-height: 40rpx; text-align: center; white-space: normal; box-shadow: none !important; }
+.primary-button, .ui-button--primary { background: var(--button) !important; color: #fff !important; border: 1rpx solid var(--button) !important; font-weight: 600; }
+.secondary-button, .ui-button--secondary { background: #f1f3f6 !important; color: var(--ink) !important; border: 1rpx solid #e3e7ed !important; font-weight: 500; }
+.danger-button, .ui-button--danger { background: var(--danger-soft) !important; color: var(--danger) !important; border: 1rpx solid #fecaca !important; font-weight: 600; }
+.primary-button[disabled], .secondary-button[disabled], .danger-button[disabled], .ui-button[disabled] { background: #eef0f3 !important; color: #788292 !important; border-color: #e5e8ed !important; box-shadow: none !important; opacity: 1; }
+.ui-utility-button { box-sizing:border-box; display:inline-flex; align-items:center; justify-content:center; width:auto !important; min-width:104rpx !important; min-height:58rpx; margin:0; padding:0 18rpx; border:1rpx solid #dce5e3 !important; border-radius:var(--radius-pill) !important; background:#f7f9f8 !important; color:#596562 !important; font-size:21rpx; font-weight:600; line-height:56rpx; white-space:nowrap; box-shadow:none !important; }
+.ui-utility-button--wide { width:204rpx !important; min-width:204rpx !important; }
+.ui-utility-button--primary { border-color:var(--button) !important; background:var(--button) !important; color:#fff !important; }
+
+/*
+ * 商城共用组件契约：页面只能控制位置与宽度，颜色、圆角和状态由这里统一。
+ * 客服、帮助、设置等入口统一使用同一行结构；宫格场景仅增加 --tile 变体。
+ */
+.ui-list-row, .ui-service-entry { box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 18rpx; width: 100%; min-width: 0; min-height: 96rpx; margin: 0; padding: 22rpx 0; border: 0; border-bottom: 1rpx solid var(--line); border-radius: 0 !important; background: transparent !important; color: var(--ink) !important; font-size: 27rpx; font-weight: 400; line-height: 40rpx; text-align: left; white-space: normal; box-shadow: none !important; }
+.ui-list-row:last-child, .ui-service-entry:last-child { border-bottom-color: transparent; }
+.ui-list-row > view, .ui-service-entry > view { min-width: 0; flex: 1; }
+.ui-list-caption { display: block; margin-top: 3rpx; color: var(--muted); font-size: 22rpx; line-height: 34rpx; overflow-wrap: anywhere; }
+.ui-list-action { display: flex; align-items: center; flex: none; gap: 6rpx; color: var(--brand); font-size: 24rpx; white-space: nowrap; }
+.ui-list-arrow { flex: none; width: 26rpx; height: 26rpx; opacity: .48; }
+.ui-service-entry--tile { flex-direction: column; justify-content: center; min-height: 142rpx; padding: 14rpx 0; border-bottom: 0; text-align: center; }
+.ui-service-entry--compact { min-height: 80rpx; padding: 16rpx 0; font-size: 24rpx; }
+.ui-price { color: var(--price) !important; font-weight: 750; }
+.ui-status-pill { display: inline-flex; align-items: center; flex: none; padding: 7rpx 13rpx; border-radius: var(--radius-pill) !important; background: var(--brand-soft) !important; color: var(--brand) !important; font-size: 22rpx; font-weight: 650; }
+.ui-action-bar { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 14rpx; }
 .product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18rpx; }
 .product-card { overflow: hidden; background: var(--paper); border: 1rpx solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
 .product-cover { width: 100%; height: 296rpx; background: #eef0f3; display: block; }

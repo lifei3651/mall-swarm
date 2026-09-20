@@ -11,11 +11,11 @@ test('账户辅助入口使用通栏、可收缩说明和不拆行操作，避�
   assert.match(styles, /\.support-copy \{[^}]*flex:1;[^}]*min-width:0;/)
   assert.match(styles, /\.support-action \{[^}]*flex:none;[^}]*white-space:nowrap;/)
   for (const file of ['account-settings', 'account-security']) {
-    const buttons = read(`pages/${file}/index.wxml`).match(/<button\b[^>]*class="support-link"[^>]*>[\s\S]*?<\/button>/g)
+    const buttons = read(`pages/${file}/index.wxml`).match(/<button\b[^>]*class="[^"]*support-link[^"]*"[^>]*>[\s\S]*?<\/button>/g)
     assert.ok(buttons.length)
     for (const button of buttons) {
       assert.match(button, /class="support-copy"/)
-      assert.match(button, /class="support-action"/)
+      assert.match(button, /class="[^"]*support-action[^"]*"/)
       assert.match(button, /chevron-right\.png/)
     }
   }
@@ -23,7 +23,7 @@ test('账户辅助入口使用通栏、可收缩说明和不拆行操作，避�
 
 test('支付密码仅在未设商城账号时显示设置入口，已有账号不重复引导', () => {
   const view = read('pages/account-settings/index.wxml')
-  const condition = view.match(/<button wx:if="\{\{([^}]+)\}\}" class="support-link" bindtap="loginPassword"/)[1]
+  const condition = view.match(/<button wx:if="\{\{([^}]+)\}\}" class="[^"]*support-link[^"]*" bindtap="loginPassword"/)[1]
   for (const [member, expected] of [[{},true],[{username:'',phone:'13800008000'},true],[{username:'13800008000',phone:'13800008000'},true],[{username:'PreviewOnly',phone:'13800008000'},false]]) {
     assert.equal(vm.runInNewContext(condition,{member}),expected)
   }

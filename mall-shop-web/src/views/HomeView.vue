@@ -170,7 +170,7 @@
             </RouterLink>
             <div class="home-sales">已售 {{ product.salesCount }}{{ product.salesCount >= 10000 ? '+' : ' 件' }}</div>
             <div class="home-purchase-row">
-              <div class="home-price">
+              <div class="home-price ui-price">
                 <span>¥</span>
                 <strong>{{ priceParts(campaignPrice(product)).integer }}</strong>
                 <small>.{{ priceParts(campaignPrice(product)).decimal }}</small>

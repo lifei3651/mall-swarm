@@ -12,7 +12,7 @@
       <text wx:if="{{soldOut}}" class="sold-out-badge">暂时缺货</text>
     </view>
     <view class="detail-card">
-      <view class="price-row"><view class="detail-price"><text>¥</text>{{priceText}}</view><text wx:if="{{marketPrice > (selectedSku.salePrice == null ? product.salePrice : selectedSku.salePrice)}}" class="market-price">¥{{marketPriceText}}</text><text class="sales-count">已售 {{product.salesCount || 0}}+</text></view>
+      <view class="price-row"><view class="detail-price ui-price"><text>¥</text>{{priceText}}</view><text wx:if="{{marketPrice > (selectedSku.salePrice == null ? product.salePrice : selectedSku.salePrice)}}" class="market-price">¥{{marketPriceText}}</text><text class="sales-count">已售 {{product.salesCount || 0}}+</text></view>
       <view class="detail-title">{{product.productName}}</view>
       <view wx:if="{{product.subtitle}}" class="detail-subtitle">{{product.subtitle}}</view>
       <view wx:if="{{product.purchaseLimit > 0}}" class="detail-subtitle">每位会员限购 {{product.purchaseLimit}} 件，不同规格合并计算；加购及结算时核对剩余额度</view>
@@ -27,7 +27,7 @@
       </view>
       <view class="sku-selection-summary">
         <text class="selected-spec-name">已选：{{selectedSku.skuName || selectedSku.specName || '默认规格'}}</text>
-        <view class="selected-spec-price"><text>单价</text><text class="sku-unit-price">¥{{priceText}}</text></view>
+        <view class="selected-spec-price"><text>单价</text><text class="sku-unit-price ui-price">¥{{priceText}}</text></view>
         <text class="selected-spec-stock">{{soldOut ? '暂时缺货' : '库存 ' + stock + ' 件'}}</text>
       </view>
     </view>

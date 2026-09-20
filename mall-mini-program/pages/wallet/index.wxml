@@ -18,6 +18,6 @@
       <view wx:if="{{!flows.length}}" class="empty">暂无余额记录</view>
       <view class="wallet-flow" wx:for="{{flows}}" wx:key="id"><view class="flow-top"><text>{{item.title}}</text><text>{{item.amount}}</text></view><text class="muted">{{item.time}}</text><text class="muted flow-balance">变动前 ¥{{item.before}} · 变动后 ¥{{item.after}}</text></view>
     </view>
-    <view class="wallet-support"><text>对记录有疑问？</text><button open-type="contact" show-message-card>联系商城客服</button></view>
+    <view class="card wallet-support-card"><button class="ui-service-entry" open-type="contact" show-message-card><view><text>联系商城客服</text><text class="ui-list-caption">对余额明细或提现记录有疑问</text></view><image class="ui-list-arrow" src="/assets/profile/chevron-right.png" mode="aspectFit" /></button></view>
   </block>
 </view>

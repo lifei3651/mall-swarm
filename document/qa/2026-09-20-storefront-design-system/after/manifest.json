@@ -1,0 +1,57 @@
+{
+  "kind": "isolated native simulator, synthetic fixtures, not real account/channel acceptance",
+  "records": [
+    {
+      "name": "legal",
+      "path": "pages/legal/index?type=contact",
+      "actual": "pages/legal/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "legal.png"
+      ]
+    },
+    {
+      "name": "profile",
+      "path": "pages/profile/index",
+      "actual": "pages/profile/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "profile.png",
+        "profile-bottom.png"
+      ]
+    },
+    {
+      "name": "wallet",
+      "path": "pages/wallet/index",
+      "actual": "pages/wallet/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "wallet.png"
+      ]
+    },
+    {
+      "name": "orders",
+      "path": "pages/orders/index",
+      "actual": "pages/orders/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "orders.png"
+      ]
+    },
+    {
+      "name": "order-detail",
+      "path": "pages/order-detail/index?id=13201",
+      "actual": "pages/order-detail/index",
+      "error": "",
+      "loading": false,
+      "images": [
+        "order-detail.png",
+        "order-detail-bottom.png"
+      ]
+    }
+  ]
+}

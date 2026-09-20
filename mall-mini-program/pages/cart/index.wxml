@@ -15,18 +15,18 @@
           <view class="muted spec">{{item.skuName || '默认规格'}}</view>
           <view wx:if="{{item.unavailable}}" class="cart-warning">{{item.unavailable}}</view>
           <view class="cart-line">
-            <text>¥{{item.priceText}}</text>
+            <text class="ui-price">¥{{item.priceText}}</text>
             <view class="counter"><button hover-class="none" data-key="{{item.key}}" data-delta="-1" class="{{item.quantity <= 1 ? 'is-minimum' : ''}}" bindtap="quantity" disabled="{{item.quantity <= 1 || checkoutChecking}}" aria-label="减少商品数量">−</button><input type="number" maxlength="10" value="{{item.quantityInput}}" data-key="{{item.key}}" bindinput="quantityChanged" bindblur="quantityCommit" bindconfirm="quantityCommit" confirm-type="done" disabled="{{checkoutChecking}}" aria-label="手动输入商品数量" /><button hover-class="none" data-key="{{item.key}}" data-delta="1" bindtap="quantity" disabled="{{checkoutChecking}}" aria-label="增加商品数量">＋</button></view>
           </view>
         </view>
       </view>
     </view>
-    <view class="cart-summary"><text>商品价格和库存以结算页服务端确认为准</text><view>商品金额 <text>¥{{total}}</text></view><view>运费 <text>结算时计算</text></view><view>应付 <text>¥{{total}}</text></view></view>
+    <view class="cart-summary"><text>商品价格和库存以结算页服务端确认为准</text><view>商品金额 <text class="ui-price">¥{{total}}</text></view><view>运费 <text>结算时计算</text></view><view>应付 <text class="ui-price">¥{{total}}</text></view></view>
     <view class="cart-footer">
       <view wx:if="{{manageMode}}" class="select-all" bindtap="toggleAll" aria-role="checkbox" aria-checked="{{allSelected}}" aria-label="全选商品">
         <view class="cart-check {{allSelected ? 'is-checked' : ''}}"><text wx:if="{{allSelected}}">✓</text></view><text>全选</text>
       </view>
-      <view class="cart-total"><text class="muted">已选 {{count}} 件</text><view>合计 <text>¥{{total}}</text></view></view>
+      <view class="cart-total"><text class="muted">已选 {{count}} 件</text><view>合计 <text class="ui-price">¥{{total}}</text></view></view>
       <button hover-class="none" wx:if="{{manageMode}}" class="delete-selected" disabled="{{!selectedKinds || checkoutChecking}}" bindtap="removeSelected">删除({{selectedKinds}})</button>
       <button hover-class="none" class="primary-button" disabled="{{!count || checkError || checkoutChecking}}" loading="{{checkoutChecking}}" bindtap="checkout">{{checkoutChecking ? '正在核对' : manageMode ? '结算(' + selectedKinds + ')' : '去结算'}}</button>
     </view>

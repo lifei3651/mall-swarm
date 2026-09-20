@@ -194,7 +194,7 @@ test('订单详情隐藏收货姓名电话，地址折叠且无本地轨迹时�
   const view = readFileSync(new URL('../pages/order-detail/index.wxml', import.meta.url), 'utf8')
   assert.doesNotMatch(view, /receiverName|receiverPhone|recipient-name/)
   assert.match(view, /bindtap="toggleAddress"/)
-  assert.match(view, /wx:if="{{expandedAddresses\[item.order.id\]}}" class="recipient-address"/)
+  assert.match(view, /wx:if="{{item.order.addressText && expandedAddresses\[item.order.id\]}}" class="recipient-address"/)
   assert.match(view, /bindtap="openWeChatTracking"/)
 
   const e = environment({ respond: ({ url }) => url.includes('wechat-logistics-token') ? { waybillToken: 'token-1' } : [] }), page = e.page('order-detail')

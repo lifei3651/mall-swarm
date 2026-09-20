@@ -59,7 +59,7 @@
           <span class="tile-icon address-icon"><MapPinned :size="26" /></span>
           <span class="tile-label">收货地址</span>
         </RouterLink>
-        <RouterLink to="/support" class="menu-tile">
+        <RouterLink to="/support" class="menu-tile ui-service-entry ui-service-entry--tile">
           <span class="tile-icon service-icon"><ClipboardList :size="26" :stroke-width="1.9" aria-hidden="true" /></span>
           <span class="tile-label">客服工单</span>
         </RouterLink>

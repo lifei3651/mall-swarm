@@ -1,7 +1,7 @@
 <view class="page legal-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
   <view wx:if="{{type === 'contact'}}" class="card contact-actions">
-    <button class="contact-row" open-type="contact" bindtap="contactStart" binderror="contactError"><text>微信客服</text><image src="/assets/profile/chevron-right.png" /></button>
-    <button class="contact-row" bindtap="tickets"><view><text>客服工单</text><text class="contact-caption">提交问题，查看处理进度</text></view><image src="/assets/profile/chevron-right.png" /></button>
+    <button class="contact-row ui-service-entry" open-type="contact" bindtap="contactStart" binderror="contactError"><text>微信客服</text><image class="ui-list-arrow" src="/assets/profile/chevron-right.png" /></button>
+    <button class="contact-row ui-service-entry" bindtap="tickets"><view><text>客服工单</text><text class="contact-caption ui-list-caption">提交问题，查看处理进度</text></view><image class="ui-list-arrow" src="/assets/profile/chevron-right.png" /></button>
     <text wx:if="{{contactError}}" class="contact-error">{{contactError}}</text>
   </view>
   <view wx:if="{{loading}}" class="empty">正在加载…</view>
@@ -26,9 +26,9 @@
       <image wx:if="{{config.businessLicenseUrl && config.showBusinessLicense !== false}}" class="license-image" src="{{config.businessLicenseUrl}}" mode="widthFix" />
     </view>
     <view wx:elif="{{type === 'contact'}}" class="card contact-actions">
-      <view wx:if="{{config.servicePhone}}" class="contact-row"><view><text>客服电话</text><text class="contact-caption" user-select>{{config.servicePhone}}</text></view><button class="contact-action" bindtap="callPhone">拨打</button></view>
-      <view wx:if="{{config.serviceEmail}}" class="contact-row"><view><text>客服邮箱</text><text class="contact-caption" user-select>{{config.serviceEmail}}</text></view><button class="contact-action" bindtap="copyEmail">复制</button></view>
-      <view wx:if="{{config.serviceHours}}" class="contact-row"><text class="contact-caption">服务时间：{{config.serviceHours}}</text></view>
+      <view wx:if="{{config.servicePhone}}" class="contact-row ui-list-row"><view><text>客服电话</text><text class="contact-caption ui-list-caption" user-select>{{config.servicePhone}}</text></view><button class="contact-action ui-list-action" bindtap="callPhone">拨打</button></view>
+      <view wx:if="{{config.serviceEmail}}" class="contact-row ui-list-row"><view><text>客服邮箱</text><text class="contact-caption ui-list-caption" user-select>{{config.serviceEmail}}</text></view><button class="contact-action ui-list-action" bindtap="copyEmail">复制</button></view>
+      <view wx:if="{{config.serviceHours}}" class="contact-row ui-list-row"><text class="contact-caption ui-list-caption">服务时间：{{config.serviceHours}}</text></view>
       <text wx:if="{{!config.servicePhone && !config.serviceEmail}}" class="contact-caption contact-note">暂未公布电话和邮箱，可通过上方客服入口咨询。</text>
     </view>
     <view wx:elif="{{type === 'faq'}}" class="card legal-content"><view wx:for="{{faqs}}" wx:key="index" class="faq"><view class="question">{{item.question}}</view><text user-select>{{item.answer}}</text></view><view wx:if="{{!faqs.length}}" class="empty">暂未配置常见问题，请联系客服。</view></view>

@@ -66,7 +66,7 @@
           <view class="arrival-card card" wx:for="{{home.newArrivals}}" wx:key="id" data-id="{{item.id}}" bindtap="openProduct">
             <image wx:if="{{item.coverUrl && !item.imageFailed}}" src="{{item.coverUrl}}" mode="aspectFill" data-index="{{index}}" binderror="arrivalImageError" />
             <view wx:else class="arrival-placeholder media-fallback">新品</view>
-            <view class="product-copy"><view class="product-title">{{item.productName}}</view><view class="product-price">¥{{item.priceText}}</view></view>
+            <view class="product-copy"><view class="product-title">{{item.productName}}</view><view class="product-price ui-price">¥{{item.priceText}}</view></view>
           </view>
         </view>
       </scroll-view>
@@ -98,7 +98,7 @@
           <view wx:if="{{item.subtitle}}" class="product-subtitle">{{item.subtitle}}</view>
           <view wx:if="{{item.salesText}}" class="product-sales">{{item.salesText}}</view>
           <view class="home-purchase-row">
-            <view class="product-price"><text>¥</text><text class="price-number">{{item.priceInteger}}</text><text>.{{item.priceDecimal}}</text></view>
+            <view class="product-price ui-price"><text>¥</text><text class="price-number">{{item.priceInteger}}</text><text>.{{item.priceDecimal}}</text></view>
             <button wx:if="{{item.campaign}}" class="campaign-buy-button" data-id="{{item.campaign.id}}" catchtap="campaign" aria-label="{{item.campaign.actionLabel + '：' + item.productName}}">{{item.campaign.actionLabel}}</button>
             <view wx:elif="{{item.cartQuantity > 0}}" class="home-quantity-stepper" catchtap="noop" aria-label="购物车中已有{{item.cartQuantity}}件{{item.productName}}">
               <button data-id="{{item.id}}" catchtap="quickDecrease" hover-class="quantity-stepper-hover" aria-label="减少一件{{item.productName}}">−</button>

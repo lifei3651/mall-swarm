@@ -11,7 +11,7 @@ test('登录密码精简说明，保留验证字段、找回密码及客服联�
 })
 test('联系页工单不依赖联系方式请求成功，空配置不虚构联系方式', () => {
   const view = read('LegalView.vue')
-  assert.match(view, /class="support-entry" to="\/support"/)
+  assert.match(view, /class="[^"]*support-entry[^"]*" to="\/support"/)
   assert.match(view, /v-else-if="loadError"/)
   assert.match(view, /@click="load"/)
   assert.match(view, /暂未公布电话和邮箱/)

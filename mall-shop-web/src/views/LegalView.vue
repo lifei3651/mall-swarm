@@ -6,7 +6,7 @@
       <span></span>
     </header>
 
-    <section v-if="type === 'license'" class="info-card">
+    <section v-if="type === 'license'" class="info-card ui-card">
       <dl>
         <div><dt>运营主体</dt><dd>{{ config.companyName || '暂未配置' }}</dd></div>
         <div><dt>信用代码</dt><dd>{{ config.unifiedSocialCreditCode || '以营业执照公示信息为准' }}</dd></div>
@@ -18,8 +18,8 @@
       <img v-if="config.businessLicenseUrl && config.showBusinessLicense !== false" class="license-image" :src="config.businessLicenseUrl" alt="营业执照" />
     </section>
 
-    <section v-else-if="type === 'contact'" class="info-card">
-      <RouterLink class="support-entry" to="/support"><span>客服工单</span><span>提交问题 / 查看进度 ›</span></RouterLink>
+    <section v-else-if="type === 'contact'" class="info-card ui-card">
+      <RouterLink class="support-entry ui-service-entry" to="/support"><span>客服工单</span><span class="ui-list-action">提交问题 / 查看进度 ›</span></RouterLink>
       <p v-if="loading" class="empty-copy">正在加载联系方式…</p>
       <p v-else-if="loadError" class="empty-copy" role="alert">{{ loadError }} <button type="button" @click="load">重试</button></p>
       <dl>
@@ -30,7 +30,7 @@
       <p v-if="!loading && !loadError && !config.servicePhone && !config.serviceEmail" class="empty-copy">暂未公布电话和邮箱，可通过客服工单咨询。</p>
     </section>
 
-    <section v-else-if="type === 'faq'" class="faq-card">
+    <section v-else-if="type === 'faq'" class="faq-card ui-card">
       <div v-if="faqs.length" class="faq-list">
         <details v-for="(faq, index) in faqs" :key="`${index}-${faq.question}`" class="faq-item">
           <summary><span class="faq-index">Q{{ index + 1 }}</span>{{ faq.question }}</summary>
@@ -106,14 +106,13 @@ onMounted(load)
 </script>
 
 <style scoped>
-.support-entry { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 10px 0; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; }
 .support-entry span:last-child { color: var(--muted); font-size: 13px; }
 .legal-page { min-height: 100vh; max-width: 820px; margin: 0 auto; padding: 0 16px 120px; color: #222; }
 .legal-header { height: 58px; display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; border-bottom: 1px solid #eee; background: #fff; position: sticky; top: 0; z-index: 5; }
 .legal-header button { border: 0; background: transparent; display: grid; place-items: center; padding: 8px; }
 .legal-header h1 { margin: 0; text-align: center; font-size: 18px; }
 .legal-content { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.85; font-size: 15px; padding: 22px 4px; }
-.info-card { margin-top: 18px; padding: 18px; border-radius: 14px; background: #fff; box-shadow: 0 4px 18px rgba(0,0,0,.06); }
+.info-card { margin-top: 18px; padding: 18px; }
 .info-card dl { margin: 0; }
 .info-card dl div { display: grid; grid-template-columns: 96px 1fr; gap: 14px; padding: 13px 0; border-bottom: 1px solid #f0f0f0; }
 .info-card dl div:last-child { border-bottom: 0; }
@@ -121,7 +120,7 @@ onMounted(load)
 .info-card dd { margin: 0; overflow-wrap: anywhere; }
 .info-card a { color: var(--theme-color, #e7193f); text-decoration: none; }
 .license-image { display: block; width: 100%; max-width: 560px; margin: 20px auto 0; border-radius: 8px; }
-.faq-card { margin-top: 18px; padding: 8px 18px; border-radius: 14px; background: #fff; box-shadow: 0 4px 18px rgba(0,0,0,.06); }
+.faq-card { margin-top: 18px; padding: 8px 18px; }
 .faq-item { border-bottom: 1px solid #f0f0f0; }
 .faq-item:last-child { border-bottom: 0; }
 .faq-item summary { display:flex; align-items:flex-start; gap:10px; padding:16px 0; color:#222; font-size:15px; font-weight:600; line-height:1.55; cursor:pointer; list-style:none; }

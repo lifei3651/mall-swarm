@@ -64,7 +64,7 @@
         <view wx:if="{{!enabled || !phoneEnabled || showLoginHelp}}" class="login-help">
           <button wx:if="{{enabled && phoneEnabled && showLoginHelp}}" class="help-button" disabled="{{submitting}}" bindtap="returningLogin">使用已关联微信登录</button>
           <button class="help-button" disabled="{{submitting}}" bindtap="loadRuntime">重新检查服务</button>
-          <button class="help-button" disabled="{{submitting}}" open-type="contact">联系商城客服</button>
+          <button class="help-button ui-service-entry ui-service-entry--compact" disabled="{{submitting}}" open-type="contact"><text>联系商城客服</text><image class="ui-list-arrow" src="/assets/profile/chevron-right.png" mode="aspectFit" /></button>
         </view>
       </block>
       <view wx:if="{{!loading}}" class="login-alternatives">

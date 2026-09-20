@@ -13,7 +13,7 @@
     <block wx:if="{{wallet.hasPaymentPassword}}"><text class="field-label">当前支付密码</text><input class="field" password maxlength="6" value="{{form.oldPassword}}" data-field="oldPassword" bindinput="input" disabled="{{busy}}" placeholder="请输入原6位支付密码" /></block>
     <block wx:else>
       <text class="field-label">当前登录密码</text><input class="field" password maxlength="32" value="{{form.loginPassword}}" data-field="loginPassword" bindinput="input" disabled="{{busy}}" placeholder="请再次输入商城登录密码" />
-      <button wx:if="{{!member.username || member.username === member.phone}}" class="support-link" bindtap="loginPassword" disabled="{{busy || sending}}" aria-label="尚未设置商城账号，前往设置">
+      <button wx:if="{{!member.username || member.username === member.phone}}" class="support-link ui-list-row" bindtap="loginPassword" disabled="{{busy || sending}}" aria-label="尚未设置商城账号，前往设置">
         <text class="support-copy">尚未设置商城账号</text><view class="support-action"><text>去设置</text><image src="/assets/profile/chevron-right.png" mode="aspectFit" /></view>
       </button>
     </block>
@@ -27,7 +27,7 @@
     <text class="field-label">新手机号</text><input class="field" type="number" maxlength="11" value="{{form.newPhone}}" data-field="newPhone" bindinput="input" disabled="{{busy || sending}}" placeholder="请输入新的11位手机号"/>
     <text class="field-label">新手机号验证码</text><view class="sms-row"><input class="field code-input" type="number" maxlength="6" value="{{form.newPhoneSmsCode}}" data-field="newPhoneSmsCode" bindinput="input" disabled="{{busy}}" placeholder="6位验证码"/><button class="secondary-button sms-button" data-type="new" bindtap="sendCode" disabled="{{busy || sending || countdowns.new}}">{{countdowns.new ? countdowns.new + '秒' : sending ? '发送中' : '获取验证码'}}</button></view>
     <button class="primary-button" bindtap="savePhone" loading="{{busy}}" disabled="{{busy || sending}}">更换手机号并重新登录</button>
-    <button class="support-link" bindtap="support" disabled="{{busy || sending}}" aria-label="原手机号已停用，联系商城客服核验"><text class="support-copy">原手机号已停用？</text><view class="support-action"><text>联系客服</text><image src="/assets/profile/chevron-right.png" mode="aspectFit" /></view></button>
+    <button class="support-link ui-service-entry" bindtap="support" disabled="{{busy || sending}}" aria-label="原手机号已停用，联系商城客服核验"><text class="support-copy">原手机号已停用？</text><view class="support-action ui-list-action"><text>联系客服</text><image class="ui-list-arrow" src="/assets/profile/chevron-right.png" mode="aspectFit" /></view></button>
   </view>
   <block wx:elif="{{section === 'identity'}}">
     <view wx:if="{{identity.verified}}" class="security-status ready"><view>当前账号已完成实名认证</view><text>{{identity.maskedRealName}} · {{identity.maskedIdCard}}</text><text class="hint">每个账号只能绑定一份实名信息；如需变更，请联系客服核验处理。</text><button class="primary-button" bindtap="back">返回继续</button></view>

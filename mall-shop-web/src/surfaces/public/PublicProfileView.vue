@@ -31,7 +31,7 @@
       <RouterLink to="/profile/security"><ShieldCheck :size="25" /><strong>支付安全</strong><span>{{ wallet.hasPaymentPassword ? '修改支付密码' : '设置支付密码' }}</span></RouterLink>
       <RouterLink to="/profile/real-name"><BadgeCheck :size="25" /><strong>实名认证</strong><span>{{ wallet.realNameVerified ? '当前账号已认证' : '身份信息加密核验' }}</span></RouterLink>
       <RouterLink to="/legal/after-sale"><ShieldCheck :size="25" /><strong>售后规则</strong><span>查看服务说明</span></RouterLink>
-      <RouterLink to="/support"><ClipboardList :size="25" :stroke-width="1.9" aria-hidden="true" /><strong>客服工单</strong><span>咨询、投诉与处理进度</span></RouterLink>
+      <RouterLink class="ui-service-entry ui-service-entry--tile" to="/support"><ClipboardList :size="25" :stroke-width="1.9" aria-hidden="true" /><strong>客服工单</strong><span>咨询、投诉与处理进度</span></RouterLink>
     </section>
 
     <p v-if="error" class="profile-error" role="alert">{{ error }}</p>

@@ -52,7 +52,7 @@
             </view>
             <view wx:if="{{item.salesText}}" class="product-sales">{{item.salesText}}</view>
             <view class="purchase-row">
-              <view class="product-price" aria-label="价格{{item.priceText}}元"><text class="currency">¥</text><text class="price-integer">{{item.priceInteger}}</text><text class="price-decimal">.{{item.priceDecimal}}</text></view>
+              <view class="product-price ui-price" aria-label="价格{{item.priceText}}元"><text class="currency">¥</text><text class="price-integer">{{item.priceInteger}}</text><text class="price-decimal">.{{item.priceDecimal}}</text></view>
               <view wx:if="{{item.cartQuantity > 0}}" class="category-quantity-stepper" aria-label="购物车中已有{{item.cartQuantity}}件{{item.productName}}">
                 <button data-id="{{item.id}}" catchtap="quickDecrease" hover-class="quantity-stepper-hover" aria-label="减少一件{{item.productName}}">−</button>
                 <input type="number" maxlength="10" value="{{item.cartQuantityInput}}" data-id="{{item.id}}" catchtap="noop" bindinput="quickQuantityChanged" bindblur="quickQuantityCommit" bindconfirm="quickQuantityCommit" confirm-type="done" aria-label="手动输入{{item.productName}}的购买数量" />

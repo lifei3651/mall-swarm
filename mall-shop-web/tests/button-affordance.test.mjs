@@ -9,9 +9,9 @@ test('H5次级操作使用浅色底，订单详情只保留订单状态相关动
   const orders = read('src/views/OrdersView.vue')
   const detail = read('src/views/OrderDetailView.vue')
 
-  assert.match(globalCss, /\.btn\.secondary\s*\{[^}]*background:\s*#f1f3f6;/)
-  assert.match(orders, /\.order-action\s*\{[^}]*background:\s*#f1f3f6;/)
-  assert.match(orders, /\.order-action\.primary-action\s*\{[^}]*background:\s*var\(--brand-primary-soft/)
+  assert.match(globalCss, /\.btn\.secondary\s*\{[^}]*background:\s*#f1f3f6/)
+  assert.match(orders, /class="order-action btn secondary"/)
+  assert.match(orders, /class="order-action btn primary"/)
   assert.doesNotMatch(detail, /serviceTicketLink|>联系客服<|>客服工单</)
   assert.match(detail, />申请售后</)
 })

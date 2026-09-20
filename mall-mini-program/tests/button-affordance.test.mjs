@@ -9,7 +9,7 @@ test('原生次级操作使用可辨认底色，订单详情不再放重复返�
   const detail = read('pages/order-detail/index.wxml')
   const detailScript = read('pages/order-detail/index.js')
 
-  assert.match(appCss, /\.secondary-button\s*\{[^}]*background:\s*#f1f3f6;/)
+  assert.match(appCss, /\.secondary-button, \.ui-button--secondary\s*\{[^}]*background:\s*#f1f3f6/)
   assert.doesNotMatch(appCss, /\.secondary-button\s*\{[^}]*background:\s*var\(--paper\)/)
   assert.doesNotMatch(detail, /客服工单|查看全部订单|bindtap="support"/)
   assert.doesNotMatch(detailScript, /support\(event\)/)

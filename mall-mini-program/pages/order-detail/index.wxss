@@ -11,11 +11,9 @@
 .order-number-label,.order-number-value { display:block; }
 .order-number-label { color:#8a9492; font-size:20rpx; }
 .order-number-value { margin-top:3rpx; overflow:hidden; color:#303a38; font-size:23rpx; font-weight:650; text-overflow:ellipsis; white-space:nowrap; }
-.copy-order-number { flex:none; min-height:58rpx; margin:0; padding:0 17rpx; border:1rpx solid #dce5e3; border-radius:999rpx; background:#f7f9f8; color:#596562; font-size:21rpx; line-height:56rpx; }
-.copy-order-number::after { border:0; }
+.copy-order-number { flex:none; padding-right:0; padding-left:0; }
 .compact-status { flex:none; padding:7rpx 12rpx; border-radius:999rpx; background:var(--brand-soft); color:var(--brand); font-size:20rpx; font-weight:650; }
-.payment-hint { display:block; width:100%; margin-top:12rpx; color:#7d8786; font-size:21rpx; line-height:32rpx; word-break:break-all; }
-.payment-hint { font-size:23rpx; line-height:36rpx; }
+.payment-hint { display:block; width:100%; margin-top:12rpx; color:#7d8786; font-size:23rpx; line-height:36rpx; word-break:break-all; }
 .order-number-card .continue-payment { width:100%; margin-top:4rpx; font-size:27rpx; }
 
 .section-card { margin-top:18rpx; padding:25rpx; }
@@ -26,8 +24,8 @@
 .section-icon { flex:none; width:39rpx; height:39rpx; opacity:.78; }
 .section-title { display:block; color:var(--ink); font-size:28rpx; font-weight:720; }
 .section-subtitle { display:block; margin-top:6rpx; color:#7a8583; font-size:21rpx; line-height:31rpx; }
-.text-action,.copy-inline { min-height:62rpx; margin:0; padding:0 10rpx; border:0; background:transparent; color:var(--brand); font-size:22rpx; font-weight:600; line-height:62rpx; }
-.text-action::after,.copy-inline::after { border:0; }
+.text-action { min-height:62rpx; margin:0; padding:0 10rpx; border:0; background:transparent; color:var(--brand); font-size:22rpx; font-weight:600; line-height:62rpx; }
+.text-action::after { border:0; }
 
 .shipment-list { margin-top:18rpx; }
 .shipment-row { display:flex; align-items:flex-start; justify-content:space-between; gap:20rpx; padding:20rpx 0; border-top:1rpx solid #edf1f0; }
@@ -36,11 +34,8 @@
 .package-label { color:#798381; font-size:21rpx; }
 .shipment-company { margin-top:7rpx; color:var(--ink); font-size:25rpx; font-weight:650; }
 .shipment-number,.shipment-time { margin-top:6rpx; color:#737e7c; font-size:21rpx; line-height:31rpx; word-break:break-all; }
-.shipment-actions { display:flex; flex:none; flex-direction:column; gap:8rpx; }
-.wechat-track-button,.copy-inline { min-width:136rpx; min-height:58rpx; margin:0; padding:0 16rpx; border-radius:999rpx; font-size:21rpx; line-height:56rpx; }
-.wechat-track-button { border:0; background:var(--brand); color:#fff; font-weight:650; }
-.wechat-track-button::after { border:0; }
-.copy-inline { border:1rpx solid #dce5e3; background:#f6f8f8; color:#52605d; }
+.shipment-actions { display:flex; flex:none; flex-direction:column; width:204rpx; gap:8rpx; }
+.wechat-track-button,.copy-inline { flex:none; }
 
 .tracking-panel { margin-top:10rpx; padding-top:18rpx; border-top:1rpx solid #edf1f0; }
 .shipment-error { display:block; padding:18rpx; border-radius:16rpx; background:#fff1f1; color:#b42318; font-size:22rpx; line-height:35rpx; }
@@ -53,11 +48,12 @@
 .tracking-event text { display:block; color:#46514f; font-size:23rpx; line-height:34rpx; }
 .tracking-event text:last-child { margin-top:5rpx; color:#89918f; font-size:20rpx; }
 
-.address-card { padding:0 25rpx; }
+.fulfillment-card .address-toggle { padding-top: 18rpx; padding-bottom: 2rpx; }
+.fulfillment-card.with-shipments .address-toggle { margin-top: 8rpx; border-top: 1rpx solid #edf1f0; }
 .address-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; min-height:88rpx; margin:0; padding:0; background:transparent; color:var(--ink); line-height:1.5; }
 .address-toggle::after { border:0; }
 .fold-label { color:#7a8583; font-size:22rpx; font-weight:500; }
-.recipient-address { display:block; padding:0 0 23rpx 56rpx; color:#65706e; font-size:23rpx; line-height:36rpx; overflow-wrap:anywhere; }
+.recipient-address { display:block; padding:12rpx 0 4rpx 56rpx; color:#65706e; font-size:23rpx; line-height:36rpx; overflow-wrap:anywhere; }
 
 .order-head { display:flex; align-items:flex-start; justify-content:space-between; gap:20rpx; padding-bottom:19rpx; border-bottom:1rpx solid #edf1f0; }
 .merchant-name { display:block; color:var(--ink); font-size:28rpx; font-weight:720; }

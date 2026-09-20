@@ -22,7 +22,7 @@
       <div class="form-item"><label>确认新登录密码</label><input v-model="confirmPwd" class="field" type="password" autocomplete="new-password" placeholder="请再次输入" /></div>
       <button class="btn primary save-btn" :disabled="saving" @click="save">{{ saving ? '保存中' : '保存新密码' }}</button>
       <RouterLink class="account-help-row" to="/forgot-password"><span class="account-help-copy">忘记当前密码？</span><span class="account-help-action">短信找回<ChevronRight :size="14" /></span></RouterLink>
-      <RouterLink class="account-help-row" to="/legal/contact"><span class="account-help-copy">旧手机号已停用？</span><span class="account-help-action">联系客服<ChevronRight :size="14" /></span></RouterLink>
+      <RouterLink class="account-help-row ui-service-entry" to="/legal/contact"><span class="account-help-copy">旧手机号已停用？</span><span class="account-help-action ui-list-action">联系客服<ChevronRight :size="14" /></span></RouterLink>
     </section>
 
     <div v-if="message" class="form-toast" :class="{ error: messageType === 'error' }" role="status" aria-live="polite">{{ message }}</div>
