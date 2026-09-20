@@ -45,8 +45,8 @@ if [[ "$COMMAND" == "plan" ]]; then
   exit 0
 fi
 
-if [[ "$COMMAND" != "status" && "$COMMAND" != "apply" ]]; then
-  echo "用法：scripts/db-migrate.sh plan|status|apply" >&2
+if [[ "$COMMAND" != "status" && "$COMMAND" != "verify" && "$COMMAND" != "apply" ]]; then
+  echo "用法：scripts/db-migrate.sh plan|status|verify|apply" >&2
   exit 2
 fi
 
@@ -99,6 +99,29 @@ if [[ "$COMMAND" == "status" ]]; then
   table_exists="$(mysql_cmd --batch --skip-column-names -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}' AND table_name='dms_schema_migration_history';")"
   if [[ "$table_exists" != "1" ]]; then echo "迁移记录尚未初始化。"; exit 0; fi
   mysql_cmd --batch --skip-column-names -e 'SELECT version,script,checksum,success,installed_at FROM dms_schema_migration_history ORDER BY version;'
+  exit 0
+fi
+
+if [[ "$COMMAND" == "verify" ]]; then
+  table_exists="$(mysql_cmd --batch --skip-column-names -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}' AND table_name='dms_schema_migration_history';")"
+  [[ "$table_exists" == "1" ]] || { echo "迁移记录尚未初始化。" >&2; exit 6; }
+  history_count="$(mysql_cmd --batch --skip-column-names -e 'SELECT COUNT(*) FROM dms_schema_migration_history;')"
+  success_count="$(mysql_cmd --batch --skip-column-names -e 'SELECT COUNT(*) FROM dms_schema_migration_history WHERE success=1;')"
+  [[ "$history_count" == "${#MIGRATIONS[@]}" && "$success_count" == "${#MIGRATIONS[@]}" ]] || {
+    echo "迁移清单数量不一致：本地=${#MIGRATIONS[@]}，数据库记录=${history_count}，成功=${success_count}" >&2
+    exit 6
+  }
+  for file in "${MIGRATIONS[@]}"; do
+    base="$(basename "$file")"
+    version="${base:1:12}"
+    hash="$(checksum "$file")"
+    existing="$(mysql_cmd --batch --skip-column-names -e "SELECT CONCAT(script,':',checksum,':',success) FROM dms_schema_migration_history WHERE version='${version}' LIMIT 1;")"
+    [[ "$existing" == "${base}:${hash}:1" ]] || {
+      echo "迁移缺失、名称不符、校验和冲突或执行失败：$base" >&2
+      exit 6
+    }
+  done
+  echo "迁移清单一致：本地=${#MIGRATIONS[@]}，数据库成功=${success_count}。"
   exit 0
 fi
 
