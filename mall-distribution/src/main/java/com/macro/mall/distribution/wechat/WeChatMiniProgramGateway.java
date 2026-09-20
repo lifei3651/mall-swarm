@@ -17,6 +17,24 @@ public interface WeChatMiniProgramGateway {
 
     WaybillTrackingResult followWaybill(WaybillTrackingCommand command);
 
+    /** 微信物流助手中已经绑定并可用于电子面单下单的快递账号。 */
+    List<ExpressAccount> expressAccounts();
+
+    List<ExpressDeliveryCompany> expressDeliveryCompanies();
+
+    /** 通过微信物流助手生成真实运单。 */
+    ExpressOrderResult createExpressOrder(ExpressOrderCommand command);
+
+    /** 获取微信物流助手中的运单，供幂等恢复和电子面单打印使用。 */
+    ExpressOrderResult getExpressOrder(ExpressOrderLookup command);
+
+    long getExpressQuota(String deliveryId, String bizId);
+
+    void cancelExpressOrder(ExpressOrderLookup command);
+
+    /** 查询由微信物流助手生成的运单轨迹。 */
+    ExpressPathResult getExpressPath(String openId, String deliveryId, String waybillId);
+
     record LoginIdentity(String openId, String unionId) {
     }
 
@@ -55,5 +73,48 @@ public interface WeChatMiniProgramGateway {
     }
 
     record WaybillTrackingResult(String waybillToken) {
+    }
+
+    record ExpressServiceType(int serviceType, String serviceName) {
+    }
+
+    record ExpressAccount(String bizId, String deliveryId, String alias, int statusCode,
+                          long quota, List<ExpressServiceType> serviceTypes) {
+    }
+
+    record ExpressDeliveryCompany(String deliveryId, String deliveryName, boolean cashAvailable,
+                                  String cashBizId, List<ExpressServiceType> serviceTypes) {
+    }
+
+    record ExpressAddress(String name, String phone, String company, String province,
+                          String city, String area, String address) {
+    }
+
+    record ExpressCargoItem(String name, int count) {
+    }
+
+    record ExpressShopItem(String name, String imageUrl, String description) {
+    }
+
+    record ExpressOrderCommand(String orderId, String openId, String deliveryId, String bizId,
+                               String remark, ExpressAddress sender, ExpressAddress receiver,
+                               int packageCount, double weight, double length, double width,
+                               double height, List<ExpressCargoItem> cargoItems, String orderDetailPath,
+                               List<ExpressShopItem> shopItems, int serviceType, String serviceName,
+                               Long expectedPickupTime) {
+    }
+
+    record ExpressOrderLookup(String orderId, String openId, String deliveryId, String waybillId,
+                              Integer printType) {
+    }
+
+    record ExpressOrderResult(String orderId, String deliveryId, String waybillId,
+                              Integer orderStatus, String printHtml) {
+    }
+
+    record ExpressPathItem(long actionTime, int actionType, String actionMessage) {
+    }
+
+    record ExpressPathResult(List<ExpressPathItem> items) {
     }
 }

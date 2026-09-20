@@ -31,6 +31,7 @@ public class OfficialWeChatMiniProgramGateway implements WeChatMiniProgramGatewa
     private static final String API_ORIGIN = "https://api.weixin.qq.com";
     private static final int MAX_RESPONSE_CHARS = 65_536;
     private static final int MAX_DELIVERY_LIST_RESPONSE_CHARS = 1_048_576;
+    private static final int MAX_EXPRESS_PRINT_RESPONSE_CHARS = 4_194_304;
 
     private final WeChatMiniProgramProperties properties;
     private final ObjectMapper objectMapper;
@@ -177,6 +178,199 @@ public class OfficialWeChatMiniProgramGateway implements WeChatMiniProgramGatewa
         return new WaybillTrackingResult(token);
     }
 
+    @Override
+    public List<ExpressAccount> expressAccounts() {
+        requireLoginReady();
+        JsonNode response = getWithAccessToken("/cgi-bin/express/business/account/getall", false,
+                "微信快递账号获取失败", MAX_DELIVERY_LIST_RESPONSE_CHARS);
+        failOnWeChatError(response, "微信快递账号获取失败，请稍后重试");
+        List<ExpressAccount> accounts = new ArrayList<>();
+        JsonNode rows = response.path("list");
+        if (rows.isArray()) {
+            for (JsonNode row : rows) {
+                String bizId = text(row, "biz_id");
+                String deliveryId = text(row, "delivery_id");
+                if (bizId == null || bizId.isBlank() || deliveryId == null || deliveryId.isBlank()) continue;
+                List<ExpressServiceType> services = new ArrayList<>();
+                JsonNode serviceRows = row.path("service_type");
+                if (serviceRows.isArray()) {
+                    for (JsonNode service : serviceRows) {
+                        String serviceName = text(service, "service_name");
+                        if (serviceName != null && !serviceName.isBlank()) {
+                            services.add(new ExpressServiceType(service.path("service_type").asInt(0), serviceName));
+                        }
+                    }
+                }
+                accounts.add(new ExpressAccount(bizId, deliveryId, text(row, "alias"),
+                        row.path("status_code").asInt(-1), row.path("quota_num").asLong(0),
+                        List.copyOf(services)));
+            }
+        }
+        return List.copyOf(accounts);
+    }
+
+    @Override
+    public List<ExpressDeliveryCompany> expressDeliveryCompanies() {
+        requireLoginReady();
+        JsonNode response = getWithAccessToken("/cgi-bin/express/business/delivery/getall", false,
+                "微信快递公司列表获取失败", MAX_DELIVERY_LIST_RESPONSE_CHARS);
+        failOnWeChatError(response, "微信快递公司列表获取失败，请稍后重试");
+        List<ExpressDeliveryCompany> rows = new ArrayList<>();
+        JsonNode data = response.path("data");
+        if (data.isArray()) {
+            for (JsonNode row : data) {
+                String id = text(row, "delivery_id");
+                String name = text(row, "delivery_name");
+                if (id != null && !id.isBlank() && name != null && !name.isBlank()) {
+                    List<ExpressServiceType> services = new ArrayList<>();
+                    JsonNode serviceRows = row.path("service_type");
+                    if (serviceRows.isArray()) {
+                        for (JsonNode service : serviceRows) {
+                            String serviceName = text(service, "service_name");
+                            if (serviceName != null && !serviceName.isBlank()) {
+                                services.add(new ExpressServiceType(service.path("service_type").asInt(0), serviceName));
+                            }
+                        }
+                    }
+                    rows.add(new ExpressDeliveryCompany(id, name, row.path("can_use_cash").asInt(0) == 1,
+                            text(row, "cash_biz_id"), List.copyOf(services)));
+                }
+            }
+        }
+        return List.copyOf(rows);
+    }
+
+    @Override
+    public ExpressOrderResult createExpressOrder(ExpressOrderCommand command) {
+        requireLoginReady();
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("add_source", 0);
+        body.put("order_id", command.orderId());
+        body.put("openid", command.openId());
+        body.put("delivery_id", command.deliveryId());
+        body.put("biz_id", command.bizId());
+        if (command.remark() != null && !command.remark().isBlank()) body.put("custom_remark", command.remark());
+        writeExpressAddress(body.putObject("sender"), command.sender());
+        writeExpressAddress(body.putObject("receiver"), command.receiver());
+        ObjectNode cargo = body.putObject("cargo");
+        cargo.put("count", command.packageCount());
+        cargo.put("weight", command.weight());
+        cargo.put("space_x", command.length());
+        cargo.put("space_y", command.width());
+        cargo.put("space_z", command.height());
+        var cargoDetails = cargo.putArray("detail_list");
+        for (ExpressCargoItem item : command.cargoItems()) {
+            ObjectNode detail = cargoDetails.addObject();
+            detail.put("name", item.name());
+            detail.put("count", item.count());
+        }
+        ObjectNode shop = body.putObject("shop");
+        shop.put("wxa_path", command.orderDetailPath());
+        var shopDetails = shop.putArray("detail_list");
+        for (ExpressShopItem item : command.shopItems()) {
+            ObjectNode detail = shopDetails.addObject();
+            detail.put("goods_name", item.name());
+            detail.put("goods_img_url", item.imageUrl());
+            detail.put("goods_desc", item.description());
+        }
+        body.putObject("insured").put("use_insured", 0).put("insured_value", 0);
+        ObjectNode service = body.putObject("service");
+        service.put("service_type", command.serviceType());
+        service.put("service_name", command.serviceName());
+        if (command.expectedPickupTime() != null) body.put("expect_time", command.expectedPickupTime());
+        JsonNode response = postWithAccessToken("/cgi-bin/express/business/order/add", body, false,
+                "微信快递下单失败");
+        failOnWeChatError(response, expressFailureMessage(response, "微信快递下单失败，请检查绑定账号与电子面单余额"));
+        String waybillId = text(response, "waybill_id");
+        if (waybillId == null || waybillId.isBlank()) throw new ApiException("微信快递未返回运单号，请稍后重试");
+        return new ExpressOrderResult(text(response, "order_id"), command.deliveryId(), waybillId, null, null);
+    }
+
+    @Override
+    public ExpressOrderResult getExpressOrder(ExpressOrderLookup command) {
+        requireLoginReady();
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("order_id", command.orderId());
+        if (command.openId() != null && !command.openId().isBlank()) body.put("openid", command.openId());
+        body.put("delivery_id", command.deliveryId());
+        if (command.waybillId() != null && !command.waybillId().isBlank()) body.put("waybill_id", command.waybillId());
+        if (command.printType() != null) body.put("print_type", command.printType());
+        JsonNode response = postWithAccessToken("/cgi-bin/express/business/order/get", body, false,
+                "微信运单获取失败", MAX_EXPRESS_PRINT_RESPONSE_CHARS);
+        failOnWeChatError(response, "微信运单获取失败，请稍后重试");
+        return new ExpressOrderResult(text(response, "order_id"), text(response, "delivery_id"),
+                text(response, "waybill_id"), response.has("order_status") ? response.path("order_status").asInt() : null,
+                text(response, "print_html"));
+    }
+
+    @Override
+    public long getExpressQuota(String deliveryId, String bizId) {
+        requireLoginReady();
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("delivery_id", deliveryId);
+        body.put("biz_id", bizId);
+        JsonNode response = postWithAccessToken("/cgi-bin/express/business/quota/get", body, false,
+                "微信电子面单余额获取失败");
+        failOnWeChatError(response, "微信电子面单余额获取失败，请稍后重试");
+        return response.path("quota_num").asLong(0);
+    }
+
+    @Override
+    public void cancelExpressOrder(ExpressOrderLookup command) {
+        requireLoginReady();
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("order_id", command.orderId());
+        if (command.openId() != null && !command.openId().isBlank()) body.put("openid", command.openId());
+        body.put("delivery_id", command.deliveryId());
+        body.put("waybill_id", command.waybillId());
+        JsonNode response = postWithAccessToken("/cgi-bin/express/business/order/cancel", body, false,
+                "微信快递运单取消失败");
+        failOnWeChatError(response, "微信快递运单取消失败，请稍后重试");
+    }
+
+    @Override
+    public ExpressPathResult getExpressPath(String openId, String deliveryId, String waybillId) {
+        requireLoginReady();
+        ObjectNode body = objectMapper.createObjectNode();
+        if (openId != null && !openId.isBlank()) body.put("openid", openId);
+        body.put("delivery_id", deliveryId);
+        body.put("waybill_id", waybillId);
+        JsonNode response = postWithAccessToken("/cgi-bin/express/business/path/get", body, false,
+                "微信物流轨迹获取失败");
+        failOnWeChatError(response, "微信物流轨迹获取失败，请稍后重试");
+        List<ExpressPathItem> items = new ArrayList<>();
+        JsonNode rows = response.path("path_item_list");
+        if (rows.isArray()) {
+            for (JsonNode row : rows) {
+                items.add(new ExpressPathItem(row.path("action_time").asLong(0),
+                        row.path("action_type").asInt(0), text(row, "action_msg")));
+            }
+        }
+        return new ExpressPathResult(List.copyOf(items));
+    }
+
+    private void writeExpressAddress(ObjectNode target, ExpressAddress address) {
+        target.put("name", address.name());
+        if (address.phone() != null && address.phone().contains("-")) target.put("tel", address.phone());
+        else target.put("mobile", address.phone());
+        if (address.company() != null && !address.company().isBlank()) target.put("company", address.company());
+        target.put("country", "中国");
+        target.put("province", address.province());
+        target.put("city", address.city());
+        target.put("area", address.area());
+        target.put("address", address.address());
+    }
+
+    private String expressFailureMessage(JsonNode response, String fallback) {
+        int code = response.path("errcode").asInt(0);
+        if (code == 9300525 || code == 9300531) return "微信快递账号尚未正确绑定，请先到小程序后台完成快递账号配置";
+        if (code == 9300510) return "所选快递服务类型不可用，请刷新后重试";
+        if (code == 9300503) return "所选快递公司暂不可用，请刷新后重试";
+        if (code == 9300535) return "订单商品信息不完整，暂时无法生成微信运单";
+        if (code == 9300501 || code == 9300502) return "快递公司下单失败，请稍后重试";
+        return fallback;
+    }
+
     private PhoneNumber exchangePhoneCode(String code, boolean retried) {
         String token = accessToken();
         ObjectNode body = objectMapper.createObjectNode();
@@ -240,13 +434,30 @@ public class OfficialWeChatMiniProgramGateway implements WeChatMiniProgramGatewa
         return response;
     }
 
+    private JsonNode getWithAccessToken(String path, boolean retried, String failureMessage,
+                                        int maxResponseChars) {
+        String separator = path.contains("?") ? "&" : "?";
+        JsonNode response = getJson(API_ORIGIN + path + separator + "access_token=" + encode(accessToken()),
+                failureMessage, maxResponseChars);
+        int errorCode = response.path("errcode").asInt(0);
+        if (!retried && (errorCode == 40001 || errorCode == 40014 || errorCode == 42001)) {
+            cachedAccessToken = null;
+            return getWithAccessToken(path, true, failureMessage, maxResponseChars);
+        }
+        return response;
+    }
+
     private JsonNode getJson(String url, String failureMessage) {
+        return getJson(url, failureMessage, MAX_RESPONSE_CHARS);
+    }
+
+    private JsonNode getJson(String url, String failureMessage, int maxResponseChars) {
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofMillis(bounded(properties.getReadTimeoutMs(), 10000)))
                 .header("Accept", "application/json")
                 .GET()
                 .build();
-        return send(request, failureMessage, MAX_RESPONSE_CHARS);
+        return send(request, failureMessage, maxResponseChars);
     }
 
     private JsonNode postJson(String url, JsonNode body, String failureMessage) {

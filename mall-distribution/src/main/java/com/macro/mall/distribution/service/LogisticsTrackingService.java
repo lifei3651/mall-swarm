@@ -1,13 +1,21 @@
 package com.macro.mall.distribution.service;
 
+import com.macro.mall.common.tenant.TenantContext;
+import com.macro.mall.distribution.dao.DmsWechatExpressOrderDao;
 import com.macro.mall.distribution.entity.DmsShopOrderShipment;
+import com.macro.mall.distribution.entity.DmsWechatExpressOrder;
 import com.macro.mall.distribution.logistics.LogisticsTrackingProvider;
 import com.macro.mall.distribution.vo.ShopLogisticsTrackingVO;
+import com.macro.mall.distribution.wechat.WeChatMiniProgramGateway;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Service
 @Slf4j
@@ -15,6 +23,10 @@ public class LogisticsTrackingService {
 
     private final List<LogisticsTrackingProvider> providers;
     private final String configuredProviderCode;
+    @Autowired(required = false)
+    private DmsWechatExpressOrderDao weChatExpressOrderDao;
+    @Autowired(required = false)
+    private WeChatMiniProgramGateway weChatMiniProgramGateway;
 
     public LogisticsTrackingService(List<LogisticsTrackingProvider> providers,
                                     @Value("${shop.logistics.tracking-provider:NONE}") String configuredProviderCode) {
@@ -31,6 +43,8 @@ public class LogisticsTrackingService {
     }
 
     private ShopLogisticsTrackingVO queryOne(DmsShopOrderShipment shipment, LogisticsTrackingProvider provider) {
+        ShopLogisticsTrackingVO wechat = queryWechatExpress(shipment);
+        if (wechat != null) return wechat;
         if (provider == null || shipment.getDeliveryNo() == null || shipment.getDeliveryNo().isBlank()
                 || !provider.supports(shipment.getDeliveryCompany())) {
             return new ShopLogisticsTrackingVO(shipment.getId(), shipment.getDeliveryCompany(), shipment.getDeliveryNo(),
@@ -52,6 +66,33 @@ public class LogisticsTrackingService {
                     exception.getClass().getSimpleName());
             return new ShopLogisticsTrackingVO(shipment.getId(), shipment.getDeliveryCompany(), shipment.getDeliveryNo(),
                     true, provider.providerCode(), "QUERY_FAILED", "物流轨迹暂时不可用，请稍后重试", null, List.of());
+        }
+    }
+
+    private ShopLogisticsTrackingVO queryWechatExpress(DmsShopOrderShipment shipment) {
+        if (weChatExpressOrderDao == null || weChatMiniProgramGateway == null || shipment.getId() == null) return null;
+        DmsWechatExpressOrder express = weChatExpressOrderDao.selectByShipmentId(
+                TenantContext.getTenantId(), shipment.getId());
+        if (express == null || express.getWaybillId() == null || express.getWaybillId().isBlank()) return null;
+        try {
+            WeChatMiniProgramGateway.ExpressPathResult result = weChatMiniProgramGateway.getExpressPath(
+                    null, express.getDeliveryId(), express.getWaybillId());
+            List<ShopLogisticsTrackingVO.Event> events = result == null || result.items() == null ? List.of()
+                    : result.items().stream().map(item -> new ShopLogisticsTrackingVO.Event(
+                    item.actionTime() <= 0 ? null : LocalDateTime.ofInstant(
+                            Instant.ofEpochSecond(item.actionTime()), ZoneId.systemDefault()),
+                    "WECHAT_" + item.actionType(), item.actionMessage(), null)).toList();
+            LocalDateTime updatedAt = events.isEmpty() ? null : events.get(events.size() - 1).getEventTime();
+            String statusText = events.isEmpty() ? "微信物流助手暂未返回轨迹"
+                    : events.get(events.size() - 1).getDescription();
+            return new ShopLogisticsTrackingVO(shipment.getId(), shipment.getDeliveryCompany(),
+                    shipment.getDeliveryNo(), true, "WECHAT_EXPRESS", events.isEmpty() ? "PENDING" : "TRACKING",
+                    statusText, updatedAt, events);
+        } catch (RuntimeException exception) {
+            log.warn("微信快递配送轨迹查询失败 error={}", exception.getClass().getSimpleName());
+            return new ShopLogisticsTrackingVO(shipment.getId(), shipment.getDeliveryCompany(),
+                    shipment.getDeliveryNo(), true, "WECHAT_EXPRESS", "QUERY_FAILED",
+                    "微信物流轨迹暂时不可用，请稍后重试", null, List.of());
         }
     }
 }

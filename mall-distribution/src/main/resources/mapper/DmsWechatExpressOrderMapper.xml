@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsWechatExpressOrderDao">
+    <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsWechatExpressOrder">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="order_id" property="orderId"/>
+        <result column="user_id" property="userId"/>
+        <result column="request_key" property="requestKey"/>
+        <result column="express_order_no" property="expressOrderNo"/>
+        <result column="delivery_id" property="deliveryId"/>
+        <result column="delivery_name" property="deliveryName"/>
+        <result column="biz_id" property="bizId"/>
+        <result column="service_type" property="serviceType"/>
+        <result column="service_name" property="serviceName"/>
+        <result column="shipment_quantity" property="shipmentQuantity"/>
+        <result column="package_count" property="packageCount"/>
+        <result column="weight" property="weight"/>
+        <result column="package_length" property="packageLength"/>
+        <result column="package_width" property="packageWidth"/>
+        <result column="package_height" property="packageHeight"/>
+        <result column="remark" property="remark"/>
+        <result column="status" property="status"/>
+        <result column="waybill_id" property="waybillId"/>
+        <result column="shipment_id" property="shipmentId"/>
+        <result column="error_code" property="errorCode"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+    <sql id="Columns">id,tenant_id,order_id,user_id,request_key,express_order_no,delivery_id,delivery_name,
+        biz_id,service_type,service_name,shipment_quantity,package_count,weight,package_length,package_width,
+        package_height,remark,status,waybill_id,shipment_id,error_code,create_time,update_time</sql>
+
+    <select id="selectByRequest" resultMap="BaseResultMap">
+        SELECT <include refid="Columns"/> FROM dms_wechat_express_order
+        WHERE tenant_id=#{tenantId} AND order_id=#{orderId} AND request_key=#{requestKey} LIMIT 1
+    </select>
+    <select id="selectByShipmentId" resultMap="BaseResultMap">
+        SELECT <include refid="Columns"/> FROM dms_wechat_express_order
+        WHERE tenant_id=#{tenantId} AND shipment_id=#{shipmentId} AND status='SUCCESS' LIMIT 1
+    </select>
+    <insert id="insertIgnore" parameterType="com.macro.mall.distribution.entity.DmsWechatExpressOrder"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT IGNORE INTO dms_wechat_express_order
+        (tenant_id,order_id,user_id,request_key,express_order_no,delivery_id,delivery_name,biz_id,service_type,
+         service_name,shipment_quantity,package_count,weight,package_length,package_width,package_height,remark,status)
+        VALUES
+        (#{tenantId},#{orderId},#{userId},#{requestKey},#{expressOrderNo},#{deliveryId},#{deliveryName},#{bizId},
+         #{serviceType},#{serviceName},#{shipmentQuantity},#{packageCount},#{weight},#{packageLength},#{packageWidth},
+         #{packageHeight},#{remark},#{status})
+    </insert>
+    <update id="markWaybill">
+        UPDATE dms_wechat_express_order SET waybill_id=#{waybillId},status='WAYBILL_CREATED',error_code=NULL,
+        update_time=CURRENT_TIMESTAMP WHERE tenant_id=#{tenantId} AND id=#{id}
+    </update>
+    <update id="markSuccess">
+        UPDATE dms_wechat_express_order SET shipment_id=#{shipmentId},status='SUCCESS',error_code=NULL,
+        update_time=CURRENT_TIMESTAMP WHERE tenant_id=#{tenantId} AND id=#{id}
+    </update>
+    <update id="markFailed">
+        UPDATE dms_wechat_express_order SET status='FAILED',error_code=#{errorCode},update_time=CURRENT_TIMESTAMP
+        WHERE tenant_id=#{tenantId} AND id=#{id} AND status &lt;&gt; 'SUCCESS'
+    </update>
+</mapper>

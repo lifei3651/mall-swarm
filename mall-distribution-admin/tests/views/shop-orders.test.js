@@ -80,6 +80,21 @@ describe('商城订单取消入口', () => {
     expect(source).not.toContain('<el-input v-model="shipForm.deliveryCompany"')
   })
 
+  it('发货弹窗可读取微信绑定快递账号并生成真实运单', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+    const shopApi = await readFile(resolve(process.cwd(), 'src/api/shop.js'), 'utf8')
+
+    expect(source).toContain('微信快递配送')
+    expect(source).toContain('微信生成运单并发货')
+    expect(source).toContain('getWechatExpressOptions')
+    expect(source).toContain('createWechatExpressOrder')
+    expect(source).toContain('面单余量')
+    expect(source).toContain('downloadWechatExpressLabel')
+    expect(source).toContain('顺丰下单必须选择上门揽件时间')
+    expect(shopApi).toContain('/shop/admin/wechat-express/options')
+    expect(shopApi).toContain('/wechat-express`')
+  })
+
   it('订单列表显示每个包裹件数和预计自动收货时间', async () => {
     const source = await readFile(sourcePath, 'utf8')
 

@@ -32,6 +32,7 @@ import com.macro.mall.distribution.service.OrderRealtimeService;
 import com.macro.mall.distribution.service.FlashSaleService;
 import com.macro.mall.distribution.service.LogisticsTrackingService;
 import com.macro.mall.distribution.service.WeChatLogisticsQueryService;
+import com.macro.mall.distribution.service.WeChatExpressDeliveryService;
 import com.macro.mall.distribution.service.MerchantProductReviewService;
 import com.macro.mall.distribution.service.LiveRoomService;
 import com.macro.mall.distribution.security.AdminContext;
@@ -54,6 +55,8 @@ import com.macro.mall.distribution.vo.FlashSaleActivityVO;
 import com.macro.mall.distribution.vo.ShopBusinessConfigVO;
 import com.macro.mall.distribution.vo.ShopLogisticsTrackingVO;
 import com.macro.mall.distribution.vo.WeChatWaybillTokenVO;
+import com.macro.mall.distribution.vo.WechatExpressOptionsVO;
+import com.macro.mall.distribution.vo.WechatExpressShipmentVO;
 import com.macro.mall.distribution.vo.LiveRoomVO;
 import com.macro.mall.distribution.vo.LiveAnchorVO;
 import com.macro.mall.distribution.vo.LiveAnalyticsVO;
@@ -105,6 +108,7 @@ public class ShopController {
     private final FlashSaleService flashSaleService;
     private final LogisticsTrackingService logisticsTrackingService;
     private final WeChatLogisticsQueryService weChatLogisticsQueryService;
+    private final WeChatExpressDeliveryService weChatExpressDeliveryService;
     private final MerchantProductReviewService merchantProductReviewService;
     private final LiveRoomService liveRoomService;
 
@@ -1082,6 +1086,19 @@ public class ShopController {
     @PutMapping("/admin/orders/{orderId}/ship")
     public CommonResult<Boolean> shipOrder(@PathVariable Long orderId, @Valid @RequestBody ShopOrderShipDTO dto) {
         return CommonResult.success(shopService.shipOrder(orderId, dto));
+    }
+
+    @Operation(summary = "查询微信快递配送可用账号与服务")
+    @GetMapping("/admin/wechat-express/options")
+    public CommonResult<WechatExpressOptionsVO> wechatExpressOptions() {
+        return CommonResult.success(weChatExpressDeliveryService.options());
+    }
+
+    @Operation(summary = "通过微信快递配送生成运单并发货")
+    @PostMapping("/admin/orders/{orderId}/wechat-express")
+    public CommonResult<WechatExpressShipmentVO> createWechatExpressOrder(
+            @PathVariable Long orderId, @Valid @RequestBody WechatExpressOrderDTO dto) {
+        return CommonResult.success(weChatExpressDeliveryService.create(orderId, dto));
     }
 
     @Operation(summary = "后台查询订单真实物流轨迹")

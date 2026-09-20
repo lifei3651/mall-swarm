@@ -1364,6 +1364,42 @@ CREATE TABLE `dms_shop_order_shipment` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商城订单物流包裹关联表';
 
 -- ============================================================
+-- 28.2 微信物流助手快递配送订单 (dms_wechat_express_order)
+-- ============================================================
+DROP TABLE IF EXISTS `dms_wechat_express_order`;
+CREATE TABLE `dms_wechat_express_order` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `tenant_id` bigint NOT NULL,
+  `order_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  `request_key` varchar(64) NOT NULL,
+  `express_order_no` varchar(128) NOT NULL,
+  `delivery_id` varchar(64) NOT NULL,
+  `delivery_name` varchar(50) NOT NULL,
+  `biz_id` varchar(128) NOT NULL,
+  `service_type` int NOT NULL,
+  `service_name` varchar(80) NOT NULL,
+  `shipment_quantity` int NOT NULL,
+  `package_count` int NOT NULL DEFAULT '1',
+  `weight` decimal(10,3) NOT NULL,
+  `package_length` decimal(10,2) NOT NULL,
+  `package_width` decimal(10,2) NOT NULL,
+  `package_height` decimal(10,2) NOT NULL,
+  `remark` varchar(300) DEFAULT NULL,
+  `status` varchar(24) NOT NULL DEFAULT 'PENDING',
+  `waybill_id` varchar(64) DEFAULT NULL,
+  `shipment_id` bigint DEFAULT NULL,
+  `error_code` varchar(64) DEFAULT NULL,
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_wechat_express_request` (`tenant_id`,`order_id`,`request_key`),
+  UNIQUE KEY `uk_wechat_express_order_no` (`tenant_id`,`express_order_no`),
+  KEY `idx_wechat_express_shipment` (`tenant_id`,`shipment_id`),
+  KEY `idx_wechat_express_status` (`status`,`update_time`,`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='微信物流助手快递配送订单';
+
+-- ============================================================
 -- 29. 商城前台订单明细表 (dms_shop_order_item)
 -- ============================================================
 DROP TABLE IF EXISTS `dms_shop_order_item`;

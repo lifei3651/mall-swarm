@@ -321,7 +321,7 @@
       </div>
     </el-dialog>
 
-    <el-dialog v-model="shipDialogVisible" :title="currentOrder?.order?.status === 2 ? '添加物流包裹' : '订单发货'" width="520px">
+    <el-dialog v-model="shipDialogVisible" :title="currentOrder?.order?.status === 2 ? '添加物流包裹' : '订单发货'" width="680px">
       <el-form :model="shipForm" label-width="92px">
         <el-form-item label="订单号">
           <el-input :model-value="currentOrder?.order?.orderNo" disabled />
@@ -334,6 +334,13 @@
             </div>
           </div>
         </el-form-item>
+        <el-form-item label="发货方式">
+          <el-radio-group v-model="shipMode">
+            <el-radio-button value="MANUAL">手工录入运单</el-radio-button>
+            <el-radio-button value="WECHAT_EXPRESS">微信快递配送</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+        <template v-if="shipMode === 'MANUAL'">
         <el-form-item label="物流公司" required>
           <el-select
             v-model="shipForm.deliveryCompany"
@@ -353,6 +360,72 @@
         <el-form-item label="物流单号" required>
           <el-input v-model="shipForm.deliveryNo" />
         </el-form-item>
+        </template>
+        <template v-else>
+          <el-alert
+            :title="wechatExpressOptions.message || '正在读取微信快递账号'"
+            :type="wechatExpressOptions.configured ? 'success' : 'warning'"
+            :closable="false"
+            show-icon
+            class="wechat-express-alert"
+          />
+          <el-form-item label="快递账号" required>
+            <el-select
+              v-model="wechatExpressForm.accountIndex"
+              :loading="wechatExpressLoading"
+              placeholder="请选择微信后台已绑定账号"
+              style="width: 100%"
+              @change="handleWechatExpressAccountChange"
+            >
+              <el-option
+                v-for="(account, index) in wechatExpressOptions.accounts || []"
+                :key="`${account.deliveryId}-${account.bizId}`"
+                :label="`${account.deliveryName}${account.alias ? ` · ${account.alias}` : ''}（面单余量 ${account.quota || 0}）`"
+                :value="index"
+                :disabled="Number(account.statusCode) !== 0 || !account.serviceTypes?.length"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="快递服务" required>
+            <el-select v-model="wechatExpressForm.serviceType" placeholder="请选择服务类型" style="width: 100%">
+              <el-option
+                v-for="service in selectedWechatExpressAccount?.serviceTypes || []"
+                :key="service.serviceType"
+                :label="service.serviceName"
+                :value="service.serviceType"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="包裹重量" required>
+            <el-input-number v-model="wechatExpressForm.weight" :min="0.01" :max="1000" :precision="2" :step="0.1" />
+            <span class="remaining-tip">千克</span>
+          </el-form-item>
+          <el-form-item label="包裹尺寸" required>
+            <div class="wechat-express-dimensions">
+              <el-input-number v-model="wechatExpressForm.packageLength" :min="0.1" :max="500" :precision="1" controls-position="right" />
+              <span>×</span>
+              <el-input-number v-model="wechatExpressForm.packageWidth" :min="0.1" :max="500" :precision="1" controls-position="right" />
+              <span>×</span>
+              <el-input-number v-model="wechatExpressForm.packageHeight" :min="0.1" :max="500" :precision="1" controls-position="right" />
+              <span>厘米</span>
+            </div>
+          </el-form-item>
+          <el-form-item label="包裹件数" required>
+            <el-input-number v-model="wechatExpressForm.packageCount" :min="1" :max="20" :step="1" step-strictly />
+          </el-form-item>
+          <el-form-item v-if="selectedWechatExpressAccount?.deliveryId === 'SF'" label="上门揽件" required>
+            <el-date-picker
+              v-model="wechatExpressForm.expectedPickupTime"
+              type="datetime"
+              value-format="YYYY-MM-DDTHH:mm:ss"
+              placeholder="请选择顺丰上门揽件时间"
+              style="width: 100%"
+            />
+          </el-form-item>
+          <el-form-item label="快递备注">
+            <el-input v-model.trim="wechatExpressForm.remark" maxlength="300" show-word-limit placeholder="选填，如易碎、勿压" />
+          </el-form-item>
+        </template>
         <el-form-item label="发货数量" required>
           <el-input-number v-model="shipForm.shipmentQuantity" :min="1" :max="Math.max(1, remainingShipmentQuantity(currentOrder))" :step="1" step-strictly />
           <span class="remaining-tip">剩余可发 {{ remainingShipmentQuantity(currentOrder) }} 件</span>
@@ -360,7 +433,9 @@
       </el-form>
       <template #footer>
         <el-button @click="shipDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitShip">{{ currentOrder?.order?.status === 2 ? '确认添加' : '确认发货' }}</el-button>
+        <el-button type="primary" :loading="shipSubmitting" @click="submitShip">
+          {{ shipMode === 'WECHAT_EXPRESS' ? '微信生成运单并发货' : (currentOrder?.order?.status === 2 ? '确认添加' : '确认发货') }}
+        </el-button>
       </template>
     </el-dialog>
 
@@ -705,6 +780,7 @@ import { Download, Refresh, Search, Upload } from '@element-plus/icons-vue'
 import {
   auditShopAfterSale,
   cancelShopOrder,
+  createWechatExpressOrder,
   confirmShopAfterSaleReturnReceived,
   downloadOrderShipmentImportTemplate,
   downloadOrderShipmentTemplate,
@@ -712,6 +788,7 @@ import {
   getAdminOrderWorkSummary,
   getAdminOrderTracking,
   getOrderLogisticsPreference,
+  getWechatExpressOptions,
   getShopTradeDetail,
   importOrderShipments,
   listShopOrders,
@@ -763,6 +840,7 @@ const initialOrderState = orderStateOptions.some((item) => item.value === route.
 const query = ref({ keyword: '', orderState: initialOrderState })
 const pagination = ref({ page: 1, size: 10, total: 0 })
 const shipDialogVisible = ref(false)
+const shipSubmitting = ref(false)
 const shipmentResultVisible = ref(false)
 const shipmentResult = ref({ success: false, totalRows: 0, shippedCount: 0, skippedCount: 0, failedCount: 0, errors: [] })
 const auditDialogVisible = ref(false)
@@ -801,6 +879,19 @@ const trackingLoading = ref(false)
 const trackingRows = ref([])
 const currentAfterSale = ref(null)
 const shipForm = ref({ deliveryCompany: '', deliveryNo: '', shipmentQuantity: 1 })
+const shipMode = ref('MANUAL')
+const wechatExpressLoading = ref(false)
+const wechatExpressOptions = ref({ configured: false, message: '', accounts: [] })
+const wechatExpressForm = ref({
+  requestKey: '', accountIndex: null, serviceType: null, shipmentQuantity: 1,
+  packageCount: 1, weight: 1, packageLength: 20, packageWidth: 15, packageHeight: 10,
+  expectedPickupTime: '', remark: '',
+})
+const selectedWechatExpressAccount = computed(() => {
+  if (wechatExpressForm.value.accountIndex === null || wechatExpressForm.value.accountIndex === undefined) return null
+  const index = Number(wechatExpressForm.value.accountIndex)
+  return Number.isInteger(index) && index >= 0 ? wechatExpressOptions.value.accounts?.[index] : null
+})
 const exchangeShipmentForm = ref({ deliveryCompany: '', deliveryNo: '' })
 const auditForm = ref({ status: 1, auditRemark: '', auditUserId: 1, auditUserName: 'admin' })
 const manualRefundForm = ref({ refundMode: 'QUANTITY', productRefundAmount: 0, items: {}, reason: '' })
@@ -1104,14 +1195,67 @@ const handleShipmentImport = async ({ file }) => {
   }
 }
 
+const newExpressRequestKey = () => {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID().replaceAll('-', '')
+  return `${Date.now()}_${Math.random().toString(36).slice(2, 18)}`
+}
+
+const loadWechatExpressOptions = async () => {
+  wechatExpressLoading.value = true
+  try {
+    const response = await getWechatExpressOptions()
+    wechatExpressOptions.value = response.data || { configured: false, message: '', accounts: [] }
+    const first = (wechatExpressOptions.value.accounts || [])
+      .findIndex((item) => Number(item.statusCode) === 0 && item.serviceTypes?.length)
+    if (first >= 0 && wechatExpressForm.value.accountIndex === null) {
+      wechatExpressForm.value.accountIndex = first
+      handleWechatExpressAccountChange(first)
+    }
+  } catch {
+    wechatExpressOptions.value = { configured: false, message: '暂时无法读取微信快递账号，请稍后重试', accounts: [] }
+  } finally {
+    wechatExpressLoading.value = false
+  }
+}
+
+const handleWechatExpressAccountChange = (index) => {
+  const account = wechatExpressOptions.value.accounts?.[Number(index)]
+  wechatExpressForm.value.serviceType = account?.serviceTypes?.[0]?.serviceType ?? null
+  if (account?.deliveryId !== 'SF') wechatExpressForm.value.expectedPickupTime = ''
+}
+
+const downloadWechatExpressLabel = (base64, deliveryNo) => {
+  if (!base64) return
+  try {
+    const binary = globalThis.atob(base64)
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
+    const url = URL.createObjectURL(new Blob([bytes], { type: 'text/html;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `电子面单-${deliveryNo || Date.now()}.html`
+    link.click()
+    globalThis.setTimeout(() => URL.revokeObjectURL(url), 1000)
+  } catch {
+    ElMessage.warning('运单已生成，但电子面单下载失败，可到微信物流服务后台打印')
+  }
+}
+
 const openShip = (row) => {
   currentOrder.value = row
+  shipMode.value = 'MANUAL'
   shipForm.value = {
     deliveryCompany: defaultLogisticsCompany.value,
     deliveryNo: '',
     shipmentQuantity: remainingShipmentQuantity(row),
   }
+  wechatExpressForm.value = {
+    requestKey: newExpressRequestKey(), accountIndex: null, serviceType: null,
+    shipmentQuantity: remainingShipmentQuantity(row), packageCount: 1,
+    weight: 1, packageLength: 20, packageWidth: 15, packageHeight: 10,
+    expectedPickupTime: '', remark: '',
+  }
   shipDialogVisible.value = true
+  loadWechatExpressOptions()
 }
 
 const openServiceRemark = (row) => {
@@ -1201,14 +1345,47 @@ const handleOrderMoreCommand = (command, row) => {
 }
 
 const submitShip = async () => {
-  if (!shipForm.value.deliveryCompany || !shipForm.value.deliveryNo || !Number.isInteger(shipForm.value.shipmentQuantity) || shipForm.value.shipmentQuantity <= 0) {
-    ElMessage.warning('请填写物流公司、物流单号和正确的发货数量')
-    return
+  if (!Number.isInteger(shipForm.value.shipmentQuantity) || shipForm.value.shipmentQuantity <= 0) {
+    return ElMessage.warning('请填写正确的发货数量')
   }
-  await shipShopOrder(currentOrder.value.order.id, shipForm.value)
-  ElMessage.success(currentOrder.value.order.status === 2 ? '物流包裹已添加' : '发货成功')
-  shipDialogVisible.value = false
-  await Promise.all([fetchOrders(), fetchWorkSummary()])
+  shipSubmitting.value = true
+  try {
+    if (shipMode.value === 'MANUAL') {
+      if (!shipForm.value.deliveryCompany || !shipForm.value.deliveryNo) {
+        return ElMessage.warning('请填写物流公司和物流单号')
+      }
+      await shipShopOrder(currentOrder.value.order.id, shipForm.value)
+      ElMessage.success(currentOrder.value.order.status === 2 ? '物流包裹已添加' : '发货成功')
+    } else {
+      const account = selectedWechatExpressAccount.value
+      if (!wechatExpressOptions.value.configured || !account || wechatExpressForm.value.serviceType === null) {
+        return ElMessage.warning('请先选择可用的微信快递账号和服务类型')
+      }
+      if (account.deliveryId === 'SF' && !wechatExpressForm.value.expectedPickupTime) {
+        return ElMessage.warning('顺丰下单必须选择上门揽件时间')
+      }
+      const response = await createWechatExpressOrder(currentOrder.value.order.id, {
+        requestKey: wechatExpressForm.value.requestKey,
+        deliveryId: account.deliveryId,
+        bizId: account.bizId,
+        serviceType: wechatExpressForm.value.serviceType,
+        shipmentQuantity: shipForm.value.shipmentQuantity,
+        packageCount: wechatExpressForm.value.packageCount,
+        weight: wechatExpressForm.value.weight,
+        packageLength: wechatExpressForm.value.packageLength,
+        packageWidth: wechatExpressForm.value.packageWidth,
+        packageHeight: wechatExpressForm.value.packageHeight,
+        expectedPickupTime: wechatExpressForm.value.expectedPickupTime || null,
+        remark: wechatExpressForm.value.remark || null,
+      })
+      downloadWechatExpressLabel(response.data?.printHtmlBase64, response.data?.deliveryNo)
+      ElMessage.success('微信运单已生成，并已进入商城发货链路')
+    }
+    shipDialogVisible.value = false
+    await Promise.all([fetchOrders(), fetchWorkSummary()])
+  } finally {
+    shipSubmitting.value = false
+  }
 }
 
 const openManualRefund = (row) => {
@@ -1718,6 +1895,9 @@ onBeforeUnmount(() => {
   color: #606266;
   line-height: 1.8;
 }
+.wechat-express-alert { margin-bottom: 16px; }
+.wechat-express-dimensions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.wechat-express-dimensions :deep(.el-input-number) { width: 120px; }
 .auto-receive-deadline { margin-top: 4px; color: #b26a00; font-weight: 600; }
 .after-sale-action-deadline { display: grid; gap: 2px; margin-top: 5px; color: #8a650f; font-size: 11px; line-height: 1.4; }
 .after-sale-action-deadline.overdue { color: #d92d20; font-weight: 700; }

@@ -150,6 +150,7 @@ class AdminSensitiveOperationControllerTest {
                 mock(OrderSpreadsheetService.class), mock(ShopSessionCookieService.class),
                 mock(OrderRealtimeService.class), mock(FlashSaleService.class), mock(LogisticsTrackingService.class),
                 mock(com.macro.mall.distribution.service.WeChatLogisticsQueryService.class),
+                mock(com.macro.mall.distribution.service.WeChatExpressDeliveryService.class),
                 mock(com.macro.mall.distribution.service.MerchantProductReviewService.class),
                 mock(com.macro.mall.distribution.service.LiveRoomService.class));
     }

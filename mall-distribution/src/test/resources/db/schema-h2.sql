@@ -1698,6 +1698,21 @@ CREATE TABLE IF NOT EXISTS dms_wechat_logistics_follow_task (
     CONSTRAINT uk_wechat_logistics_shipment UNIQUE (tenant_id,order_id,shipment_id)
 );
 CREATE INDEX IF NOT EXISTS idx_wechat_logistics_due ON dms_wechat_logistics_follow_task(status,next_retry_time,lease_until,id);
+CREATE TABLE IF NOT EXISTS dms_wechat_express_order (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY, tenant_id BIGINT NOT NULL, order_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL, request_key VARCHAR(64) NOT NULL, express_order_no VARCHAR(128) NOT NULL,
+    delivery_id VARCHAR(64) NOT NULL, delivery_name VARCHAR(50) NOT NULL, biz_id VARCHAR(128) NOT NULL,
+    service_type INT NOT NULL, service_name VARCHAR(80) NOT NULL, shipment_quantity INT NOT NULL,
+    package_count INT NOT NULL DEFAULT 1, weight DECIMAL(10,3) NOT NULL,
+    package_length DECIMAL(10,2) NOT NULL, package_width DECIMAL(10,2) NOT NULL,
+    package_height DECIMAL(10,2) NOT NULL, remark VARCHAR(300), status VARCHAR(24) NOT NULL DEFAULT 'PENDING',
+    waybill_id VARCHAR(64), shipment_id BIGINT, error_code VARCHAR(64),
+    create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, update_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_wechat_express_request UNIQUE (tenant_id,order_id,request_key),
+    CONSTRAINT uk_wechat_express_order_no UNIQUE (tenant_id,express_order_no)
+);
+CREATE INDEX IF NOT EXISTS idx_wechat_express_shipment ON dms_wechat_express_order(tenant_id,shipment_id);
+CREATE INDEX IF NOT EXISTS idx_wechat_express_status ON dms_wechat_express_order(status,update_time,id);
 CREATE TABLE IF NOT EXISTS dms_message_delivery_receipt (
     id BIGINT AUTO_INCREMENT PRIMARY KEY, tenant_id BIGINT NOT NULL, channel VARCHAR(24) NOT NULL,
     provider_code VARCHAR(32) NOT NULL, receipt_id VARCHAR(128) NOT NULL, task_id BIGINT,
