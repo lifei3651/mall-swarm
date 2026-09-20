@@ -224,8 +224,12 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         } else {
             vo.setAccount(accountDao.selectByAgentId(agent.getId()));
             vo.setPendingDebtAmount(nullToZero(clawbackDao.sumDebtByAgentId(agent.getId())));
-            vo.setOrders(getOrdersByAgentId(agent.getId()));
-            vo.setCommissions(getBonusSourcesByAgentId(agent.getId()));
+            List<DmsShopOrder> profileOrders = shopOrderDao.selectByAgentId(agent.getId());
+            long profileOrderTotal = profileOrders instanceof Page<?> page ? page.getTotal() : profileOrders.size();
+            vo.setOrders(profileOrderTotal == 0
+                    ? buildOrderAuditList(performanceDetailDao.selectPersonalPerformanceDetails(agent.getId(), null, null))
+                    : buildShopOrderAuditList(profileOrders));
+            vo.setCommissions(mapCommissionRecords(commissionRecordDao.selectByAgentId(agent.getId())));
             vo.setClawbacks(clawbackDao.selectByAgentId(agent.getId()));
             vo.setAssetAccounts(memberAssetAccountDao.selectByAgentId(agent.getId()));
             vo.setAssetFlows(memberAssetFlowDao.selectByAgentId(agent.getId(), null));
