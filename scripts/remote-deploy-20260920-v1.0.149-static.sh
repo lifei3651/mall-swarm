@@ -110,7 +110,11 @@ for entry in entries:
     with urllib.request.urlopen(origin + entry, timeout=12) as response: assert response.status == 200
 print('static-version-html-entry-assets=passed')
 PY
-if [[ "$SITE" == admin ]]; then grep -R -Fq '撤销微信运单' "$TARGET/assets"; else grep -R -Fq '手动输入购物车商品数量' "$TARGET/assets"; fi
+case "$SITE" in
+  admin) grep -R -Fq '撤销微信运单' "$TARGET/assets" ;;
+  shop) grep -R -Fq '手动输入购物车商品数量' "$TARGET/assets" ;;
+  team) grep -R -Fq '团队中心' "$TARGET/assets" ;;
+esac
 [[ "$(protected_hashes)" == "$BEFORE_FILES" ]]
 BACKUP_AFTER=$(backup_verify)
 [[ "$BACKUP_AFTER" != "$BACKUP_BEFORE" ]]
