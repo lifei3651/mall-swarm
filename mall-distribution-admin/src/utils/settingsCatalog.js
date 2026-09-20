@@ -41,7 +41,13 @@ export function settingsEntriesFor(store, query = '') {
     && terms.every((term) => `${entry.title} ${entry.description} ${SETTINGS_GROUPS.find((group) => group.key === entry.group)?.title}`.toLowerCase().includes(term)))
 }
 export const canAccessSettings = (store) => settingsEntriesFor(store).length > 0
-export const isSettingsEditor = (path) => SETTINGS_ENTRIES.some((entry) => entry.editor && entry.path === path)
+export function isSettingsEditor(path) {
+  return SETTINGS_ENTRIES.some((entry) => entry.editor && entry.path === path)
+}
+// 配置编辑页只有“设置中心”一个导航归属，禁止再挂到订单、财务等业务菜单下。
+export const withoutSettingsEditors = (items = []) => items.filter((item) => !isSettingsEditor(item.path))
+export const isSettingsContext = (path, merchantId) => !merchantId && (path === '/settings' || isSettingsEditor(path))
+export const settingsAwareMenuPath = (path, merchantId) => isSettingsContext(path, merchantId) ? '/settings' : path
 export function settingsGroupFor(route, entries) {
   const allowed = new Set(entries.map((entry) => entry.group))
   if (route.path === '/settings') return allowed.has(route.query.group) ? route.query.group : entries[0]?.group

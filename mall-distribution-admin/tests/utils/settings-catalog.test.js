@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { SETTINGS_ENTRIES, SETTINGS_GROUPS, settingsEntriesFor, settingsGroupFor, canAccessSettings, isSettingsEditor } from '../../src/utils/settingsCatalog'
+import {
+  SETTINGS_ENTRIES,
+  SETTINGS_GROUPS,
+  settingsEntriesFor,
+  settingsGroupFor,
+  canAccessSettings,
+  isSettingsEditor,
+  isSettingsContext,
+  settingsAwareMenuPath,
+  withoutSettingsEditors,
+} from '../../src/utils/settingsCatalog'
 import { businessModeChanges } from '../../src/utils/businessModeChanges'
 const account = (permissions, merchantId) => ({ userInfo: { merchantId }, hasPermission: (permission) => permissions.includes('*') || permissions.includes(permission) })
 describe('集中设置入口权限与搜索', () => {
@@ -23,6 +33,20 @@ describe('集中设置入口权限与搜索', () => {
     expect(isSettingsEditor('/withdraw/audit')).toBe(false)
     expect(isSettingsEditor('/tenant/profile')).toBe(true)
     expect(SETTINGS_ENTRIES.some(item => item.path.includes('bank-card'))).toBe(false)
+  })
+  it('设置编辑页只有设置中心一个导航归属，旧地址也统一高亮设置中心', () => {
+    const businessItems = [
+      { title: '订单管理', path: '/shop/orders' },
+      { title: 'ERP订单对接', path: '/tenant/erp' },
+      { title: '余额与提现规则', path: '/withdraw/settings' },
+    ]
+    expect(withoutSettingsEditors(businessItems)).toEqual([{ title: '订单管理', path: '/shop/orders' }])
+    expect(isSettingsContext('/settings')).toBe(true)
+    expect(isSettingsContext('/tenant/erp')).toBe(true)
+    expect(settingsAwareMenuPath('/tenant/erp')).toBe('/settings')
+    expect(settingsAwareMenuPath('/withdraw/settings')).toBe('/settings')
+    expect(settingsAwareMenuPath('/shop/orders')).toBe('/shop/orders')
+    expect(settingsAwareMenuPath('/tenant/erp', 9)).toBe('/tenant/erp')
   })
   it('旧编辑地址与客服锚点正确定位，未知或无权限分类回退', () => {
     const entries = settingsEntriesFor(account(['config:shop']))

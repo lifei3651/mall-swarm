@@ -14,4 +14,11 @@ describe('后台订单待办提醒', () => {
     expect(source).toContain('window.setInterval(loadOrderWorkSummary, 30000)')
     expect(source).toContain("new CustomEvent('admin-order-work-summary'")
   })
+
+  it('工作台不预展开任何业务菜单，子页由当前路由自动展开', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).not.toContain(':default-openeds="isDashboard')
+    expect(source).toContain(':default-active="activeMenu"')
+  })
 })

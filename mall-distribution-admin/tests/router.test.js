@@ -3,6 +3,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import { useAppStore } from '@/store/index'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import { SETTINGS_ENTRIES } from '@/utils/settingsCatalog'
 
 vi.mock('@/utils/adminSession', () => ({
   isAdminSessionExpired: vi.fn(() => false),
@@ -65,6 +66,17 @@ describe('router guards', () => {
     store.permissions = ['*']
     expect(store.hasPermission('anything.any.action')).toBe(true)
     expect(store.hasPermission('system:manage')).toBe(true)
+  })
+
+  it('设置中心索引的每个入口都对应真实路由和一致权限', async () => {
+    const { default: router } = await import('@/router/index')
+    const routeByPath = new Map(router.getRoutes().map((route) => [route.path, route]))
+
+    for (const entry of SETTINGS_ENTRIES) {
+      const route = routeByPath.get(entry.path)
+      expect(route, `${entry.title} 缺少路由 ${entry.path}`).toBeTruthy()
+      expect(route.meta.permission, `${entry.title} 的路由权限不一致`).toBe(entry.permission)
+    }
   })
 
   it('merchant routes are limited to the dedicated merchant workspace', async () => {

@@ -8,7 +8,6 @@
       </div>
       <el-menu
         :default-active="activeMenu"
-        :default-openeds="isDashboard ? ['products'] : []"
         :collapse="menuCollapsed"
         background-color="#ffffff"
         text-color="#4b5563"
@@ -146,7 +145,12 @@ import { updateAdminBrowserLogo } from '@/utils/adminBrand'
 import { adminPortalForAccount, adminPortalLoginPath, saveAdminPortal } from '@/utils/adminPortal'
 import { MERCHANT_HOME_PATH, isMerchantWorkspacePath } from '@/utils/adminWorkspace'
 import SettingsShell from '@/components/SettingsShell.vue'
-import { canAccessSettings, isSettingsEditor } from '@/utils/settingsCatalog'
+import {
+  canAccessSettings,
+  isSettingsContext,
+  settingsAwareMenuPath,
+  withoutSettingsEditors,
+} from '@/utils/settingsCatalog'
 
 const route = useRoute()
 const router = useRouter()
@@ -157,7 +161,7 @@ const isNarrow = ref(narrowViewport.matches)
 const menuCollapsed = computed(() => isCollapsed.value || isNarrow.value)
 const updateNarrowViewport = () => { isNarrow.value = narrowViewport.matches }
 const isDashboard = computed(() => route.path === '/dashboard')
-const showSettingsShell = computed(() => !store.userInfo?.merchantId && (route.path === '/settings' || isSettingsEditor(route.path)))
+const showSettingsShell = computed(() => isSettingsContext(route.path, store.userInfo?.merchantId))
 const brand = reactive({ brandName: localStorage.getItem('admin_brand_name') || '灵启商城', logoUrl: '' })
 const brandLogoLoadFailed = ref(false)
 const todoSummary = reactive({ pendingShipment: 0, afterSale: 0, merchantCertification: 0, productReview: 0, finance: 0 })
@@ -442,7 +446,8 @@ onBeforeUnmount(() => {
 
 // 当前激活的菜单
 const activeMenu = computed(() => {
-  if (showSettingsShell.value) return '/settings'
+  const settingsAwarePath = settingsAwareMenuPath(route.path, store.userInfo?.merchantId)
+  if (settingsAwarePath !== route.path) return settingsAwarePath
   if (route.path.startsWith('/members/detail/')) return '/members/list'
   if (route.path.startsWith('/account/detail/')) return '/account/list'
   if (route.path.startsWith('/import/result/')) return '/import/agents'
@@ -482,7 +487,7 @@ const hasMenuPermission = (item) => {
 const visibleBusinessMenus = computed(() => businessMenus
   .filter((menu) => menu.path !== '/settings' || canAccessSettings(store))
   .map((menu) => menu.items
-    ? { ...menu, items: menu.items.filter(hasMenuPermission) }
+    ? { ...menu, items: withoutSettingsEditors(menu.items).filter(hasMenuPermission) }
     : (store.userInfo?.merchantId && menu.path === '/dashboard'
       ? { ...menu, title: '商户工作台', path: MERCHANT_HOME_PATH }
       : menu))
