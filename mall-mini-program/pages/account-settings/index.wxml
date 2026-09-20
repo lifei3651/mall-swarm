@@ -3,7 +3,7 @@
   <view wx:elif="{{error || !member}}" class="empty"><text>{{error || '请先登录后管理账号'}}</text><button class="secondary-button" bindtap="onShow">重新加载</button></view>
   <block wx:elif="{{section === 'security'}}">
     <view class="security-status {{wallet.hasPaymentPassword ? 'ready' : ''}}"><view>{{wallet.hasPaymentPassword ? '支付密码已设置' : '请先设置支付密码'}}</view><text>{{wallet.hasPaymentPassword ? '余额支付和资金操作均受独立密码保护' : '首次交易前必须完成设置'}}</text></view>
-    <button class="security-entry" bindtap="loginPassword"><text>{{!member.username || member.username === member.phone ? '设置商城登录账号' : '修改登录密码'}}</text><image src="/assets/profile/chevron-right.png" /></button>
+    <button class="security-entry" bindtap="loginPassword"><text>{{!member.username || member.username === member.phone ? '设置独立登录账号' : '修改登录密码'}}</text><image src="/assets/profile/chevron-right.png" /></button>
     <button class="security-entry" data-section="payment" bindtap="open"><text>{{wallet.hasPaymentPassword ? '修改支付密码' : '设置支付密码'}}</text><text wx:if="{{!wallet.hasPaymentPassword}}" class="status-tag">待设置</text><image src="/assets/profile/chevron-right.png" /></button>
     <button class="security-entry" data-section="identity" bindtap="open"><text>实名认证</text><text class="status-tag">{{wallet.realNameVerified ? wallet.maskedRealName || '已认证' : '待认证'}}</text><image src="/assets/profile/chevron-right.png" /></button>
   </block>
@@ -13,8 +13,8 @@
     <block wx:if="{{wallet.hasPaymentPassword}}"><text class="field-label">当前支付密码</text><input class="field" password maxlength="6" value="{{form.oldPassword}}" data-field="oldPassword" bindinput="input" disabled="{{busy}}" placeholder="请输入原6位支付密码" /></block>
     <block wx:else>
       <text class="field-label">当前登录密码</text><input class="field" password maxlength="32" value="{{form.loginPassword}}" data-field="loginPassword" bindinput="input" disabled="{{busy}}" placeholder="请再次输入商城登录密码" />
-      <button wx:if="{{!member.username || member.username === member.phone}}" class="support-link ui-list-row" bindtap="loginPassword" disabled="{{busy || sending}}" aria-label="尚未设置商城账号，前往设置">
-        <text class="support-copy">尚未设置商城账号</text><view class="support-action"><text>去设置</text><image src="/assets/profile/chevron-right.png" mode="aspectFit" /></view>
+      <button wx:if="{{!member.username || member.username === member.phone}}" class="support-link ui-list-row" bindtap="loginPassword" disabled="{{busy || sending}}" aria-label="尚未设置独立登录账号，前往设置">
+        <text class="support-copy">尚未设置独立登录账号</text><view class="support-action"><text>去设置</text><image src="/assets/profile/chevron-right.png" mode="aspectFit" /></view>
       </button>
     </block>
     <text class="field-label">短信验证码</text><view class="sms-row"><input class="field code-input" type="number" maxlength="6" value="{{form.smsCode}}" data-field="smsCode" bindinput="input" disabled="{{busy}}" placeholder="6位验证码"/><button class="secondary-button sms-button" data-type="payment" bindtap="sendCode" disabled="{{busy || sending || countdowns.payment}}">{{countdowns.payment ? countdowns.payment + '秒' : sending ? '发送中' : '获取验证码'}}</button></view><text class="hint">验证码将发送至 {{maskedPhone}}</text>

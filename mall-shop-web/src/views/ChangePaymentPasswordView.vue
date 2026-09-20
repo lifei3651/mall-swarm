@@ -11,7 +11,7 @@
       <div v-if="hasPassword" class="form-item"><label>当前支付密码</label><input v-model="form.oldPassword" class="field" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="请输入原6位支付密码" /></div>
       <template v-else>
         <div class="form-item"><label>当前登录密码</label><input v-model="form.loginPassword" class="field" type="password" maxlength="32" autocomplete="current-password" placeholder="请再次输入商城登录密码" /></div>
-        <RouterLink v-if="canSetupAccount" class="account-help-row" to="/profile/settings?mode=account"><span class="account-help-copy">尚未设置商城账号</span><span class="account-help-action">去设置<ChevronRight :size="14" /></span></RouterLink>
+        <RouterLink v-if="canSetupAccount" class="account-help-row" to="/profile/settings?mode=account"><span class="account-help-copy">尚未设置独立登录账号</span><span class="account-help-action">去设置<ChevronRight :size="14" /></span></RouterLink>
       </template>
       <div class="form-item"><label>短信验证码</label><div class="sms-row"><input v-model="form.smsCode" class="field" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6位验证码" /><button type="button" class="sms-btn" :disabled="sendingCode || countdown > 0" @click="sendCode">{{ countdown > 0 ? `${countdown}秒` : (sendingCode ? '发送中' : '获取验证码') }}</button></div></div>
       <p v-if="maskedPhone" class="phone-hint">验证码将发送至 {{ maskedPhone }}</p>

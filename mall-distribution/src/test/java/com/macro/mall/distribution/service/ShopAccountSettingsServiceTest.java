@@ -9,6 +9,7 @@ import com.macro.mall.distribution.dto.ShopNicknameUpdateDTO;
 import com.macro.mall.distribution.dto.ShopPhoneUpdateDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.service.impl.ShopAuthServiceImpl;
+import com.macro.mall.distribution.vo.ShopAccountIdentityVO;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -16,7 +17,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -31,6 +34,60 @@ class ShopAccountSettingsServiceTest {
     @Mock private SmsVerificationService smsVerificationService;
     @Mock private DmsTenantDao tenantDao;
     @Mock private MemberMessageService memberMessageService;
+
+    @Test
+    void phoneLoginIsAnExistingShopAccountAndOrdinaryRegistrationHasNoInviter() {
+        DmsShopMember member = member();
+        member.setUsername(member.getPhone());
+        when(memberDao.selectById(12L)).thenReturn(member);
+
+        ShopAccountIdentityVO identity = service().accountIdentity(member);
+
+        assertEquals("PHONE", identity.getAccountMode());
+        assertEquals("手机号账号", identity.getAccountDisplay());
+        assertTrue(identity.getCanSetupLoginAccount());
+        assertEquals("NONE", identity.getInviterStatus());
+        verify(memberDao, never()).selectByUserId(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void identityReturnsOnlyInviterPublicNicknameWithoutRebindingRelationship() {
+        DmsShopMember member = member();
+        member.setInviterId(3300L);
+        DmsShopMember inviter = new DmsShopMember();
+        inviter.setId(33L);
+        inviter.setUserId(3300L);
+        inviter.setPhone("13899998888");
+        inviter.setUsername("private_login");
+        inviter.setNickname("直属推荐人");
+        inviter.setStatus(1);
+        inviter.setSystemAccount(0);
+        when(memberDao.selectById(12L)).thenReturn(member);
+        when(memberDao.selectByUserId(3300L)).thenReturn(inviter);
+
+        ShopAccountIdentityVO identity = service().accountIdentity(member);
+
+        assertEquals("CUSTOM", identity.getAccountMode());
+        assertEquals("member_12", identity.getAccountDisplay());
+        assertFalse(identity.getCanSetupLoginAccount());
+        assertEquals("BOUND", identity.getInviterStatus());
+        assertEquals("直属推荐人", identity.getInviterName());
+        verify(memberDao, never()).updateInviterId(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void danglingInviterRelationshipIsReportedForManualVerification() {
+        DmsShopMember member = member();
+        member.setInviterId(9900L);
+        when(memberDao.selectById(12L)).thenReturn(member);
+        when(memberDao.selectByUserId(9900L)).thenReturn(null);
+
+        ShopAccountIdentityVO identity = service().accountIdentity(member);
+
+        assertEquals("INVALID", identity.getInviterStatus());
+        assertEquals(null, identity.getInviterName());
+        verify(memberDao, never()).updateInviterId(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
 
     @Test
     void nicknameSupportsCommonChineseDisplayNamesAndRejectsEmoji() {

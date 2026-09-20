@@ -6,10 +6,7 @@
     </header>
 
     <section v-if="!accountMode" class="settings-card" aria-label="账号资料">
-      <div class="settings-row static-row">
-        <div><strong>商城账号</strong></div>
-        <span>{{ canSetupAccount ? '未设置' : member.username }}</span>
-      </div>
+      <div class="settings-row static-row"><div><strong>商城账号</strong></div><span>{{ accountDisplay }}</span></div>
       <button type="button" class="settings-row" @click="openNickname">
         <div><strong>昵称</strong></div>
         <span>{{ member.nickname || '去设置' }}</span><ChevronRight :size="18" />
@@ -18,6 +15,8 @@
         <div><strong>手机号</strong></div>
         <span>{{ maskedPhone }}</span><ChevronRight :size="18" />
       </button>
+      <div class="settings-row static-row"><div><strong>直属邀请人</strong></div><span :class="{ 'needs-check': accountIdentity.inviterStatus === 'INVALID' }">{{ inviterDisplay }}</span></div>
+      <p class="relationship-note">普通入口注册可以没有邀请人；受邀注册若显示未绑定，请联系客服核验。邀请关系不能在个人资料中自行更换。</p>
     </section>
 
     <section v-if="accountMode && !loading && canSetupAccount" class="settings-card legacy-account account-form">
@@ -28,7 +27,7 @@
       <button type="button" class="btn primary" :disabled="savingAccount" @click="saveAccount">{{ savingAccount ? '保存中' : '保存登录账号' }}</button>
     </section>
 
-    <section v-if="accountMode && !loading && !canSetupAccount" class="settings-card"><div class="settings-row static-row"><strong>商城账号</strong><span>{{ member.username || '暂不可用' }}</span></div><RouterLink to="/profile/security/change-login-password" class="settings-row"><strong>修改登录密码</strong><ChevronRight :size="18" /></RouterLink></section>
+    <section v-if="accountMode && !loading && !canSetupAccount" class="settings-card"><div class="settings-row static-row"><strong>商城账号</strong><span>{{ accountDisplay }}</span></div><RouterLink to="/profile/security/change-login-password" class="settings-row"><strong>修改登录密码</strong><ChevronRight :size="18" /></RouterLink></section>
     <div v-if="message" class="form-toast" :class="{ error: messageType === 'error' }" role="status" aria-live="polite">{{ message }}</div>
 
     <Teleport to="body">
@@ -72,7 +71,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, ChevronRight, X } from 'lucide-vue-next'
-import { getMe, sendSmsCode, setupAccount, updateNickname, updatePhone } from '@/api/shop'
+import { getAccountIdentity, getMe, sendSmsCode, setupAccount, updateNickname, updatePhone } from '@/api/shop'
 import { normalizeLoginAccountInput, validateLoginAccount } from '@/utils/loginAccount'
 import { normalizeNicknameInput, validateNickname } from '@/utils/nickname'
 import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
@@ -82,6 +81,7 @@ const router = useRouter()
 const route = useRoute()
 const accountMode = computed(() => route.query.mode === 'account')
 const member = ref({})
+const accountIdentity = ref({ inviterStatus: 'UNKNOWN', inviterName: '' })
 const loading = ref(true)
 const message = ref('')
 const messageType = ref('success')
@@ -103,7 +103,15 @@ const timers = []
 let messageTimer = null
 
 const maskedPhone = computed(() => String(member.value.phone || '').replace(/^(\d{3})\d{4}(\d{4})$/, '$1****$2') || '-')
-const canSetupAccount = computed(() => !member.value.username || member.value.username === member.value.phone)
+const phoneAccount = computed(() => !member.value.username || member.value.username === member.value.phone)
+const canSetupAccount = computed(() => typeof accountIdentity.value.canSetupLoginAccount === 'boolean' ? accountIdentity.value.canSetupLoginAccount : phoneAccount.value)
+const accountDisplay = computed(() => accountIdentity.value.accountDisplay || (phoneAccount.value ? '手机号账号' : member.value.username || '暂不可用'))
+const inviterDisplay = computed(() => {
+  if (accountIdentity.value.inviterStatus === 'BOUND') return accountIdentity.value.inviterName || '商城会员'
+  if (accountIdentity.value.inviterStatus === 'NONE') return '未绑定'
+  if (accountIdentity.value.inviterStatus === 'INVALID') return '关系待核验'
+  return '暂不可查询'
+})
 const digits = (value, max) => String(value ?? '').replace(/\D/g, '').slice(0, max)
 const showMessage = (text, type = 'error') => {
   window.clearTimeout(messageTimer)
@@ -114,7 +122,11 @@ const showMessage = (text, type = 'error') => {
 
 const loadMember = async () => {
   loading.value = true
-  try { member.value = (await getMe()).data || {} }
+  try {
+    member.value = (await getMe()).data || {}
+    try { accountIdentity.value = (await getAccountIdentity()).data || accountIdentity.value }
+    catch (_) { accountIdentity.value = { inviterStatus: 'UNKNOWN', inviterName: '' } }
+  }
   catch (e) { showMessage(e.message || '账号信息加载失败') }
   finally { loading.value = false }
 }
@@ -225,6 +237,8 @@ onBeforeUnmount(() => {
 .settings-row small { margin-top:5px; color:var(--muted); font-size:11px; }
 .settings-row > span { max-width:130px; overflow:hidden; color:#596273; text-overflow:ellipsis; white-space:nowrap; font-size:13px; }
 .static-row { grid-template-columns:minmax(0,1fr) auto; }
+.settings-row > span.needs-check { color:#b45309; }
+.relationship-note { margin:0; padding:12px 16px 15px; color:var(--muted); background:#fff; font-size:11px; line-height:1.6; }
 .legacy-account { margin-top:12px; padding:18px; border:0; }
 .legacy-account h3 { margin:0; font-size:16px; }
 .legacy-account p { color:var(--muted); font-size:12px; }

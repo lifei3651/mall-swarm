@@ -35,6 +35,8 @@
 .personal-profile .row-value { display:flex; align-items:center; justify-content:flex-end; gap:14rpx; flex:1; min-width:0; color:var(--muted); }
 .personal-profile .row-value text { max-width:100%; min-width:0; word-break:break-all; font-size:27rpx; }
 .personal-profile .entry-arrow { opacity:.5; }
+.personal-profile .inviter-value.needs-check { color:#b45309; }
+.personal-profile .profile-note { display:block; padding:18rpx 0 24rpx; color:var(--muted); font-size:22rpx; line-height:34rpx; }
 .password-page .panel { padding: 24rpx 28rpx; }
 .password-page .field-label { margin: 22rpx 0 10rpx; }
 .password-page .hint { font-size: 23rpx; line-height: 34rpx; }

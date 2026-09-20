@@ -9,7 +9,9 @@ const member = { id: '9212345678901234567', username: 'MallTester', phone: '1380
 const input = (field, value) => ({ currentTarget: { dataset: { field } }, detail: { value } })
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no }); return { promise, resolve, reject } }
 
-function harness({ respond = () => member, loggedIn = true } = {}) {
+function harness({ respond = ({ url }) => url === '/shop/auth/account-identity'
+  ? { accountMode: 'CUSTOM', accountDisplay: member.username, canSetupLoginAccount: false, inviterStatus: 'BOUND', inviterName: '邀请人' }
+  : member, loggedIn = true } = {}) {
   let definition, cleared = 0, now = 100000
   const requests = [], routes = [], timers = new Map()
   const DateMock = class extends Date { static now() { return now } }
@@ -42,6 +44,8 @@ test('账号安全必须登录，登录返回可加载本人资料并掩码手�
   h.setLogin(true); await h.page.onShow()
   assert.equal(h.page.data.maskedPhone, '138****8000')
   assert.equal(h.page.data.canSetupAccount, false)
+  assert.equal(h.page.data.accountDisplay, 'MallTester')
+  assert.equal(h.page.data.inviterDisplay, '邀请人')
 })
 
 test('仅未设置或username等于手机号可首次设置，已命名账号不可再次重设', async () => {
@@ -62,14 +66,27 @@ test('资料加载失败清空账号对象，旧页面不能继续变更密码',
   assert.equal(h.requests.length, 1)
 })
 
+test('手机号本身就是商城账号，直属邀请关系按服务端只读状态展示', async () => {
+  const h = harness({ respond: ({ url }) => url === '/shop/auth/account-identity'
+    ? { accountMode: 'PHONE', accountDisplay: '手机号账号', canSetupLoginAccount: true, inviterStatus: 'NONE', inviterName: '' }
+    : { ...member, username: member.phone } })
+  await h.page.onShow()
+  assert.equal(h.page.data.canSetupAccount, true)
+  assert.equal(h.page.data.accountDisplay, '手机号账号')
+  assert.equal(h.page.data.inviterDisplay, '未绑定')
+  const view = readFileSync(new URL('../pages/account-security/index.wxml', import.meta.url), 'utf8')
+  assert.match(view, /直属邀请人/)
+  assert.doesNotMatch(view, /商城账号[^\n]*尚未设置/)
+})
+
 test('昵称合法性校验且只更新昵称字段，不混入其他账号属性', async () => {
   const h = harness()
   await h.page.onShow()
   h.page.fieldInput(input('nickname', '坏<script>'))
-  await h.page.saveNickname(); assert.equal(h.requests.length, 1)
+  await h.page.saveNickname(); assert.equal(h.requests.length, 2)
   h.page.fieldInput(input('nickname', '  测试   用户  '))
   await h.page.saveNickname()
-  assert.deepEqual(h.requests[1], { url: '/shop/auth/nickname', method: 'PUT', data: { nickname: '测试 用户' } })
+  assert.deepEqual(h.requests[2], { url: '/shop/auth/nickname', method: 'PUT', data: { nickname: '测试 用户' } })
   assert.equal(h.cleared(), 0)
 })
 
@@ -77,13 +94,13 @@ test('首次设置校验账号/密码/确认密码，成功后清理全部秘密
   const h = harness({ respond: () => ({ ...member, username: member.phone }) })
   await h.page.onShow()
   h.page.setData({ username: '1234', password: 'AValidSecret#9', confirmPassword: 'AValidSecret#9' })
-  await h.page.setupAccount(); assert.equal(h.requests.length, 1)
+  await h.page.setupAccount(); assert.equal(h.requests.length, 2)
   h.page.setData({ username: 'FreshMember', password: 'short', confirmPassword: 'short' })
-  await h.page.setupAccount(); assert.equal(h.requests.length, 1)
+  await h.page.setupAccount(); assert.equal(h.requests.length, 2)
   h.page.setData({ password: 'AValidSecret#9', confirmPassword: 'different' })
-  await h.page.setupAccount(); assert.equal(h.requests.length, 1)
+  await h.page.setupAccount(); assert.equal(h.requests.length, 2)
   h.page.setData({ confirmPassword: 'AValidSecret#9' }); await h.page.setupAccount()
-  assert.deepEqual(h.requests[1], { url: '/shop/auth/account', method: 'PUT', data: { username: 'FreshMember', password: 'AValidSecret#9' } })
+  assert.deepEqual(h.requests[2], { url: '/shop/auth/account', method: 'PUT', data: { username: 'FreshMember', password: 'AValidSecret#9' } })
   assert.equal(h.cleared(), 1)
   assert.equal(h.page.data.password, '')
   assert.equal(h.page.data.confirmPassword, '')
@@ -92,22 +109,22 @@ test('首次设置校验账号/密码/确认密码，成功后清理全部秘密
 
 test('首次设置商城账号接受6位数字密码，仍拒绝少于6位', async () => {
   const h=harness({respond:()=>({...member,username:member.phone})});await h.page.onShow();
-  h.page.setData({username:'FreshMember',password:'49382',confirmPassword:'49382'});await h.page.setupAccount();assert.equal(h.requests.length,1);
+  h.page.setData({username:'FreshMember',password:'49382',confirmPassword:'49382'});await h.page.setupAccount();assert.equal(h.requests.length,2);
   h.page.setData({password:'493827',confirmPassword:'493827'});await h.page.setupAccount();
-  assert.equal(h.requests[1].data.password,'493827');assert.equal(h.cleared(),1);
+  assert.equal(h.requests[2].data.password,'493827');assert.equal(h.cleared(),1);
 })
 
 test('修改密码必须当前密码、绑定手机验证码、合格新密码及两次一致', async () => {
   const h = harness()
   await h.page.onShow()
   h.page.setData({ newPassword: 'AValidSecret#9', confirmPassword: 'AValidSecret#9', smsCode: '123456' })
-  await h.page.changePassword(); assert.equal(h.requests.length, 1)
+  await h.page.changePassword(); assert.equal(h.requests.length, 2)
   h.page.setData({ currentPassword: 'OldCredential#1', smsCode: '123' })
-  await h.page.changePassword(); assert.equal(h.requests.length, 1)
+  await h.page.changePassword(); assert.equal(h.requests.length, 2)
   h.page.setData({ smsCode: '123456', newPassword: 'MallTester1234', confirmPassword: 'MallTester1234' })
-  await h.page.changePassword(); assert.equal(h.requests.length, 1)
+  await h.page.changePassword(); assert.equal(h.requests.length, 2)
   h.page.setData({ newPassword: 'AValidSecret#9', confirmPassword: 'AValidSecret#9' }); await h.page.changePassword()
-  assert.deepEqual(h.requests[1], { url: '/shop/auth/password', method: 'PUT', data: { currentPassword: 'OldCredential#1', newPassword: 'AValidSecret#9', smsCode: '123456' } })
+  assert.deepEqual(h.requests[2], { url: '/shop/auth/password', method: 'PUT', data: { currentPassword: 'OldCredential#1', newPassword: 'AValidSecret#9', smsCode: '123456' } })
   assert.equal(h.cleared(), 1)
   for (const key of ['currentPassword', 'newPassword', 'confirmPassword', 'smsCode']) assert.equal(h.page.data[key], '')
 })
@@ -131,7 +148,7 @@ test('重复点击账号保存不产生双请求，正在保存时不能改表�
   h.page.setData({ username: 'FreshMember', password: 'AValidSecret#9', confirmPassword: 'AValidSecret#9' })
   const first = h.page.setupAccount(); await h.page.setupAccount()
   h.page.fieldInput(input('password', 'NotAllowed#9'))
-  assert.equal(h.requests.length, 2)
+  assert.equal(h.requests.length, 3)
   assert.equal(h.page.data.password, 'AValidSecret#9')
   pending.resolve({}); await first
 })
@@ -141,11 +158,11 @@ test('短信固定用途8与本人手机号，倒计时/重复点击不重复发
   const h = harness({ respond: ({ url }) => url === '/sms/send' ? pending.promise : member })
   await h.page.onShow()
   const first = h.page.sendCode(); await h.page.sendCode()
-  assert.deepEqual(h.requests[1], { url: '/sms/send', method: 'POST', data: { phone: member.phone, bizType: 8 } })
+  assert.deepEqual(h.requests[2], { url: '/sms/send', method: 'POST', data: { phone: member.phone, bizType: 8 } })
   pending.resolve('123456'); await first
   assert.equal(h.page.data.countdown, 60)
   assert.ok(!h.page.data.message.includes('123456'))
-  await h.page.sendCode(); assert.equal(h.requests.length, 2)
+  await h.page.sendCode(); assert.equal(h.requests.length, 3)
   h.advance(61000); h.page.updateCountdown()
   assert.equal(h.page.data.countdown, 0)
   assert.equal(h.timers.size, 0)

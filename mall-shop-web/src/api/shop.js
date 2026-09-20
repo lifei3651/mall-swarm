@@ -37,6 +37,13 @@ export function getMe() {
   })
 }
 
+export function getAccountIdentity() {
+  return request({
+    url: '/shop/auth/account-identity',
+    method: 'get',
+  })
+}
+
 export function setupAccount(data) {
   return request({
     url: '/shop/auth/account',

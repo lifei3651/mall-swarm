@@ -73,7 +73,7 @@ Page({
     if (!/^\d{6}$/.test(form.newPassword)) return feedback.notice('支付密码必须是6位数字')
     if (form.newPassword !== form.confirmPassword) return feedback.notice('两次输入的支付密码不一致')
     if (wallet.hasPaymentPassword && !/^\d{6}$/.test(form.oldPassword)) return feedback.notice('请输入当前6位支付密码')
-    if (!wallet.hasPaymentPassword && !form.loginPassword) return feedback.notice('请输入当前商城登录密码；尚未设置商城账号时，请先设置账号')
+    if (!wallet.hasPaymentPassword && !form.loginPassword) return feedback.notice('请输入当前商城登录密码；尚未设置独立登录账号时，请先完成设置')
     if (!/^\d{6}$/.test(form.smsCode)) return feedback.notice('请输入6位短信验证码')
     const current = this.guard(); this.setData({ busy: true })
     try {

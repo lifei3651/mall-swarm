@@ -63,6 +63,8 @@ test('资料页只展示基本资料，昵称单独编辑；真实会员等级�
   assert.match(view,/mode === 'nickname'/);
   const top=readFileSync(new URL('../pages/profile/index.wxml',import.meta.url),'utf8');
   assert.match(top,/账号：/);
+  assert.match(top,/手机号账号/);
+  assert.doesNotMatch(top,/账号：[^\n]*尚未设置/);
   assert.match(top,/class="membership-panel membership-badge"/);
   assert.match(top,/MEMBER LEVEL/);
   assert.match(top,/capabilities.ready \? capabilities.membershipLabel : shareError \? '等级暂未获取' : '正在核对会员身份'/);

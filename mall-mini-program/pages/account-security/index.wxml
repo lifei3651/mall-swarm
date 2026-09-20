@@ -5,8 +5,10 @@
     <view wx:if="{{mode === 'profile'}}" class="panel">
       <button class="avatar-picker" bindtap="chooseAvatar" disabled="{{action !== ''}}" aria-label="从相册选择、裁剪并更新账号头像"><text class="avatar-label">头像</text><image src="{{avatarSrc}}" mode="aspectFill" /><text class="avatar-action">{{action === 'avatar' ? '上传中' : '从相册选择'}}</text><image class="avatar-arrow" src="/assets/profile/chevron-right.png" mode="aspectFit" /></button>
       <button class="account-row account-link" bindtap="editNickname" disabled="{{action !== ''}}"><text>昵称</text><view class="row-value"><text>{{member.nickname || '去设置'}}</text><image class="entry-arrow" src="/assets/profile/chevron-right.png" /></view></button>
-      <view class="account-row"><text>商城账号</text><text>{{canSetupAccount ? '尚未设置' : member.username}}</text></view>
+      <view class="account-row"><text>商城账号</text><text>{{accountDisplay}}</text></view>
       <button class="account-row account-link" bindtap="changePhone" disabled="{{action !== ''}}"><text>手机号</text><view class="row-value"><text>{{maskedPhone}}</text><image class="entry-arrow" src="/assets/profile/chevron-right.png" /></view></button>
+      <view class="account-row"><text>直属邀请人</text><text class="inviter-value {{inviterStatus === 'INVALID' ? 'needs-check' : ''}}">{{inviterDisplay}}</text></view>
+      <text class="profile-note">普通入口注册可以没有邀请人；受邀注册若显示未绑定，请联系客服核验。邀请关系不能在个人资料中自行更换。</text>
     </view>
     <view wx:if="{{mode === 'nickname'}}" class="panel">
       <text class="field-label">昵称</text>
@@ -19,8 +21,8 @@
       </form>
     </view>
     <view wx:if="{{mode === 'password' && canSetupAccount}}" class="panel">
-      <view class="section-title">设置商城账号</view>
-      <text class="hint">首次微信注册尚未设置独立账号。设置后可用于商城密码登录，账号不可自行修改。</text>
+      <view class="section-title">设置独立登录账号</view>
+      <text class="hint">当前已使用手机号账号。可另设独立登录账号和密码，保存后账号不可自行修改。</text>
       <text class="field-label">登录账号</text>
       <input class="field" value="{{username}}" data-field="username" bindinput="fieldInput" maxlength="20" disabled="{{action !== ''}}" placeholder="4至20位，以英文字母开头" aria-label="设置商城登录账号" />
       <text class="field-label">登录密码</text>

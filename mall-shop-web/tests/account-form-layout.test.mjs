@@ -44,3 +44,13 @@ test('账号设置有常驻标签，手机号弹层可纵向滚动，隐私同�
   assert.match(profile,/\.dialog-card \{[^}]*max-height:calc\(100dvh - 24px\);[^}]*overflow-y:auto;/)
   assert.match(read('src/assets/account-forms.css'),/\.account-form \.consent-row > span \{[^}]*min-width: 0;/)
 })
+
+test('个人资料明确手机号也是商城账号，并只读展示直属邀请关系', () => {
+  const profile = read('src/views/ProfileSettingsView.vue')
+  const api = read('src/api/shop.js')
+  assert.match(api, /url: '\/shop\/auth\/account-identity'/)
+  assert.match(profile, /手机号账号/)
+  assert.match(profile, /直属邀请人/)
+  assert.match(profile, /受邀注册若显示未绑定/)
+  assert.doesNotMatch(profile, /商城账号[\s\S]{0,120}\? '未设置'/)
+})

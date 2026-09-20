@@ -29,6 +29,7 @@ import com.macro.mall.distribution.service.SmsVerificationService;
 import com.macro.mall.distribution.vo.AgentInfoVO;
 import com.macro.mall.distribution.vo.AdminMemberVO;
 import com.macro.mall.distribution.vo.ShopAuthVO;
+import com.macro.mall.distribution.vo.ShopAccountIdentityVO;
 import com.macro.mall.distribution.enums.AgentLevelEnum;
 import com.macro.mall.distribution.enums.AgentSourceTypeEnum;
 import com.macro.mall.distribution.enums.PromotionJoinModeEnum;
@@ -584,6 +585,41 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             Asserts.unauthorized("请先登录");
         }
         return member;
+    }
+
+    @Override
+    public ShopAccountIdentityVO accountIdentity(DmsShopMember member) {
+        if (member == null || member.getId() == null) {
+            Asserts.unauthorized("请先登录");
+        }
+        DmsShopMember current = memberDao.selectById(member.getId());
+        if (current == null || !Integer.valueOf(1).equals(current.getStatus())
+                || Integer.valueOf(1).equals(current.getSystemAccount())) {
+            Asserts.unauthorized("商城账号不可用，请重新登录");
+        }
+
+        String phone = current.getPhone() == null ? "" : current.getPhone().trim();
+        String username = current.getUsername() == null ? "" : current.getUsername().trim();
+        boolean phoneAccount = username.isBlank() || username.equals(phone);
+
+        ShopAccountIdentityVO identity = new ShopAccountIdentityVO();
+        identity.setAccountMode(phoneAccount ? "PHONE" : "CUSTOM");
+        identity.setAccountDisplay(phoneAccount ? "手机号账号" : username);
+        identity.setCanSetupLoginAccount(phoneAccount);
+
+        if (current.getInviterId() == null) {
+            identity.setInviterStatus("NONE");
+            return identity;
+        }
+        DmsShopMember inviter = memberDao.selectByUserId(current.getInviterId());
+        if (inviter == null || Integer.valueOf(1).equals(inviter.getSystemAccount())) {
+            identity.setInviterStatus("INVALID");
+            return identity;
+        }
+        identity.setInviterStatus("BOUND");
+        String inviterName = inviter.getNickname() == null ? "" : inviter.getNickname().trim();
+        identity.setInviterName(inviterName.isBlank() ? "商城会员" : inviterName);
+        return identity;
     }
 
     @Override

@@ -9,6 +9,7 @@ import com.macro.mall.distribution.dto.ShopNicknameUpdateDTO;
 import com.macro.mall.distribution.dto.ShopPhoneUpdateDTO;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.vo.ShopAuthVO;
+import com.macro.mall.distribution.vo.ShopAccountIdentityVO;
 import com.macro.mall.distribution.vo.AgentInfoVO;
 import com.macro.mall.distribution.vo.AdminMemberVO;
 
@@ -41,6 +42,9 @@ public interface ShopAuthService {
     DmsShopMember resolveMember(String authorization);
 
     DmsShopMember requireMember(String authorization);
+
+    /** 返回本人账号形态及只读直属邀请关系，不暴露邀请人的敏感身份字段。 */
+    ShopAccountIdentityVO accountIdentity(DmsShopMember member);
 
     /** 敏感能力必须校验服务端会话签发来源，不能信任客户端临时请求头。 */
     void requireSurface(String authorization, String requiredSurface);

@@ -7,7 +7,7 @@
       <view class="profile-copy">
         <text class="profile-kicker">{{loggedIn ? '我的会员身份' : '欢迎来到商城'}}</text>
         <text class="profile-name">{{loggedIn ? (member.nickname || '商城账号') : '登录商城账号'}}</text>
-        <text class="profile-subtitle">{{loggedIn ? '账号：' + (member.username && member.username !== member.phone ? member.username : '尚未设置') : '登录后查看订单、优惠券和会员权益'}}</text>
+        <text class="profile-subtitle">{{loggedIn ? '账号：' + (member.username && member.username !== member.phone ? member.username : '手机号账号') : '登录后查看订单、优惠券和会员权益'}}</text>
       </view>
       <image class="account-arrow" src="/assets/profile/chevron-right.png" mode="aspectFit" aria-hidden="true" />
     </view>

@@ -39,6 +39,7 @@ import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.security.ShopSessionCookieService;
 import com.macro.mall.distribution.vo.ShopAuthVO;
+import com.macro.mall.distribution.vo.ShopAccountIdentityVO;
 import com.macro.mall.distribution.vo.ShopHomeVO;
 import com.macro.mall.distribution.vo.ShopOrderVO;
 import com.macro.mall.distribution.util.ShopPublicViewSanitizer;
@@ -405,6 +406,13 @@ public class ShopController {
     public CommonResult<DmsShopMember> me(@RequestHeader(value = "Authorization", required = false) String authorization,
                                            HttpServletRequest request) {
         return CommonResult.success(authService.me(authorization, request.getHeader("X-Shop-Surface")));
+    }
+
+    @Operation(summary = "当前会员账号形态与直属邀请关系")
+    @GetMapping("/auth/account-identity")
+    public CommonResult<ShopAccountIdentityVO> accountIdentity(
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return CommonResult.success(authService.accountIdentity(authService.requireMember(authorization)));
     }
 
     @Operation(summary = "退出登录")

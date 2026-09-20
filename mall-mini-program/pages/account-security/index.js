@@ -15,6 +15,19 @@ function passwordError(value, username, phone) {
   return ''
 }
 function cancelled(error) { return /cancel/i.test(String(error && error.errMsg || error && error.message || '')) }
+function accountIdentityFallback(member) {
+  const username = String(member && member.username || '').trim()
+  const phone = String(member && member.phone || '').trim()
+  const canSetupLoginAccount = !username || username === phone
+  return { accountMode: canSetupLoginAccount ? 'PHONE' : 'CUSTOM', accountDisplay: canSetupLoginAccount ? '手机号账号' : username,
+    canSetupLoginAccount, inviterStatus: 'UNKNOWN', inviterName: '' }
+}
+function inviterDisplay(identity) {
+  if (identity.inviterStatus === 'BOUND') return identity.inviterName || '商城会员'
+  if (identity.inviterStatus === 'NONE') return '未绑定'
+  if (identity.inviterStatus === 'INVALID') return '关系待核验'
+  return '暂不可查询'
+}
 function chooseAlbumAvatar() {
   if (typeof wx.chooseMedia !== 'function') return Promise.reject(new Error('当前微信版本不支持头像选择，请升级微信后重试'))
   return new Promise((resolve, reject) => wx.chooseMedia({ count: 1, mediaType: ['image'], sourceType: ['album'], sizeType: ['compressed'],
@@ -35,7 +48,8 @@ function cropAvatar(path) {
 Page({
   contact() { wx.navigateTo({ url: '/pages/legal/index?type=contact', fail: () => feedback.notice('客服页面暂时无法打开，请返回“我的”重试') }) },
   data: { ...theme.pageData(), ...EMPTY_SECRETS, loading: true, error: '', message: '', member: null,
-    username: '', nickname: '', mode: 'profile', useWechatNickname: false, avatarSrc: avatar.fallback, maskedPhone: '', canSetupAccount: false, action: '', sendingCode: false, countdown: 0 },
+    username: '', nickname: '', mode: 'profile', useWechatNickname: false, avatarSrc: avatar.fallback, maskedPhone: '', canSetupAccount: false,
+    accountDisplay: '', inviterStatus: 'UNKNOWN', inviterDisplay: '暂不可查询', action: '', sendingCode: false, countdown: 0 },
   onLoad(options = {}) { theme.apply(this); const mode = ['password', 'nickname'].includes(options.mode) ? options.mode : 'profile'; this.setData({ mode }); if (wx.setNavigationBarTitle) wx.setNavigationBarTitle({ title: { password: '登录密码', nickname: '修改昵称', profile: '个人资料' }[mode] }) },
   onShow() {
     this.hidden = false
@@ -44,7 +58,8 @@ Page({
     if (this.data.action) return
     if (auth.requireLogin(`/pages/account-security/index${this.data.mode === 'profile' ? '' : '?mode=' + this.data.mode}`)) return this.load()
     this.requestVersion = (this.requestVersion || 0) + 1
-    feedback.update(this, { ...EMPTY_SECRETS, loading: false, member: null, nickname: '', username: '', maskedPhone: '', canSetupAccount: false })
+    feedback.update(this, { ...EMPTY_SECRETS, loading: false, member: null, nickname: '', username: '', maskedPhone: '', canSetupAccount: false,
+      accountDisplay: '', inviterStatus: 'UNKNOWN', inviterDisplay: '暂不可查询' })
   },
   onHide() {
     avatar.release(this.data.avatarSrc)
@@ -62,15 +77,23 @@ Page({
       const member = await request({ url: '/shop/auth/me' })
       if (this.disposed || this.hidden || token !== session.getToken() || version !== this.requestVersion) return
       if (!member || !member.id) throw new Error('账号信息加载失败，请重新登录')
-      const username = String(member.username || '')
       const phone = String(member.phone || '')
-      feedback.update(this, { member, nickname: member.nickname || '', username: '', canSetupAccount: !username.trim() || username === phone,
+      let identity = accountIdentityFallback(member)
+      try {
+        const response = await request({ url: '/shop/auth/account-identity' })
+        if (response && ['PHONE', 'CUSTOM'].includes(response.accountMode)) identity = { ...identity, ...response }
+      } catch (_) {}
+      if (this.disposed || this.hidden || token !== session.getToken() || version !== this.requestVersion) return
+      feedback.update(this, { member, nickname: member.nickname || '', username: '', canSetupAccount: !!identity.canSetupLoginAccount,
+        accountDisplay: identity.accountDisplay || accountIdentityFallback(member).accountDisplay,
+        inviterStatus: identity.inviterStatus || 'UNKNOWN', inviterDisplay: inviterDisplay(identity),
         maskedPhone: /^1[3-9]\d{9}$/.test(phone) ? `${phone.slice(0, 3)}****${phone.slice(-4)}` : '尚未绑定有效手机号' })
       const avatarSrc = await avatar.load(member.avatarUrl)
       if (this.disposed || this.hidden || token !== session.getToken() || version !== this.requestVersion) avatar.release(avatarSrc)
       else { avatar.release(this.data.avatarSrc); feedback.update(this, { avatarSrc }) }
     } catch (error) {
-      if (!this.disposed && !this.hidden && version === this.requestVersion) feedback.update(this, { ...EMPTY_SECRETS, member: null, canSetupAccount: false, error: error.message || '账号信息加载失败' })
+      if (!this.disposed && !this.hidden && version === this.requestVersion) feedback.update(this, { ...EMPTY_SECRETS, member: null, canSetupAccount: false,
+        accountDisplay: '', inviterStatus: 'UNKNOWN', inviterDisplay: '暂不可查询', error: error.message || '账号信息加载失败' })
     } finally { if (!this.disposed && !this.hidden && version === this.requestVersion) feedback.update(this, { loading: false }) }
   },
   fieldInput(event) {
