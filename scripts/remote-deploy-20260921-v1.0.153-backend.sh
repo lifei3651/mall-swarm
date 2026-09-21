@@ -94,10 +94,12 @@ protected_hashes() {
 }
 
 runtime_snapshot() {
+  # The runtime endpoint deliberately does not certify payment readiness; the
+  # independent /shop/pay/config snapshot below is the payment source of truth.
   curl -fsS --max-time 12 \
     -H 'X-Shop-Client: wechat-mini-program' -H 'X-Shop-Surface: mini-program' \
     http://127.0.0.1:8086/shop/wechat-mini-program/runtime \
-    | python3 -c 'import json,sys; d=json.load(sys.stdin); v=d["data"]; assert d["code"]==200 and v["enabled"] is True and v["phoneAuthorizationEnabled"] is True and v["shippingInfoEnabled"] is True and v["paymentEnabled"] is True; print(json.dumps(v,sort_keys=True,separators=(",",":")))'
+    | python3 -c 'import json,sys; d=json.load(sys.stdin); v=d["data"]; assert d["code"]==200 and v["enabled"] is True and v["phoneAuthorizationEnabled"] is True and v["shippingInfoEnabled"] is True and v["paymentEnabled"] is False; print(json.dumps(v,sort_keys=True,separators=(",",":")))'
 }
 
 payment_snapshot() {

@@ -82,6 +82,13 @@ bash -n scripts/production-backup.sh scripts/db-migrate.sh \
 node --check scripts/release-lingqi-153.mjs
 node --check scripts/prepare-lingqi-mini-release.mjs
 node --check scripts/upload-lingqi-mini-153.mjs
+python3 - <<'PY'
+from pathlib import Path
+
+release = Path('scripts/remote-deploy-20260921-v1.0.153-backend.sh').read_text()
+assert 'v["paymentEnabled"] is False' in release
+assert 'd["data"]["wechatPayEnabled"] is True' in release
+PY
 
 echo "[10/10] 版本身份与敏感文件名门禁"
 for allowed in .env.example mall-shop-web/.env.android mall-shop-web/.env.integrated \
