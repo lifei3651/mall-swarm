@@ -25,6 +25,22 @@ test('购物车按会员隔离，退出不展示，重新登录恢复本人商�
   assert.equal(cart.list()[0].quantity, 2)
 })
 
+test('再次购买可以一次写入多件商品，同规格合并且不会产生半笔购物车', () => {
+  const env = commerceEnv(), cart = env.load('utils/cart')
+  cart.add({ ...item, skuId: '11', quantity: 1 })
+  cart.addMany([
+    { ...item, skuId: '11', quantity: 2, salePrice: 18 },
+    { productId: '2', skuId: '21', quantity: 1, salePrice: 29 },
+  ])
+  assert.deepEqual(cart.list().map(row => [row.key, row.quantity, row.salePrice]), [
+    ['1:11', 3, 18],
+    ['2:21', 1, 29],
+  ])
+  const before = JSON.stringify(cart.list())
+  assert.throws(() => cart.addMany([{ productId: '3', quantity: 1 }, { productId: '4', quantity: 1.5 }]), /购买数量无效/)
+  assert.equal(JSON.stringify(cart.list()), before)
+})
+
 test('旧共享购物车不自动认领、不删除，通过明确弹窗说明重新添加', async () => {
   const env = commerceEnv(), cart = env.load('utils/cart')
   const legacy = [{ ...item, productName: '归属不明的商品' }]

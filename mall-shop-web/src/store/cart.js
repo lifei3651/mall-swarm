@@ -131,6 +131,32 @@ export function useCart() {
     return cartKey
   }
 
+  const addMany = (products) => {
+    assertAuthenticatedCartAction()
+    if (!Array.isArray(products) || !products.length) throw new Error('没有可加入购物车的商品')
+    const next = state.items.map((item) => ({ ...item }))
+    let addedQuantity = 0
+    for (const product of products) {
+      const cartKey = cartItemKey(product)
+      const existing = next.find((item) => (item.cartKey || `${item.id}`) === cartKey)
+      const requestedQuantity = Math.max(1, Math.floor(Number(product.quantity || 1)))
+      const stockError = stockAdditionViolation(product.stock, requestedQuantity, existing?.quantity || 0)
+      if (stockError) throw new Error(stockError)
+      if (existing) {
+        Object.assign(existing, normalizeCartItem(product), {
+          cartKey,
+          quantity: Number(existing.quantity || 0) + requestedQuantity,
+        })
+      } else {
+        next.push(normalizeCartItem({ ...product, cartKey, quantity: requestedQuantity }))
+      }
+      addedQuantity += requestedQuantity
+    }
+    state.items.splice(0, state.items.length, ...next)
+    state.lastAddedQuantity = addedQuantity
+    state.addSequence += 1
+  }
+
   const getQuantity = (cartKey) => {
     const item = state.items.find((row) => (row.cartKey || `${row.id}`) === `${cartKey}`)
     return Number(item?.quantity || 0)
@@ -217,6 +243,7 @@ export function useCart() {
     lastAddedQuantity: computed(() => state.lastAddedQuantity),
     total,
     add,
+    addMany,
     getQuantity,
     getProductQuantity,
     decrementProduct,

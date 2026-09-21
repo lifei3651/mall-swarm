@@ -506,26 +506,35 @@ main {
 .ui-action-button--primary, .ui-order-action--primary { order: 2; }
 .ui-copy-action { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; flex: none; width: auto !important; min-width: 0 !important; min-height: 26px !important; height: 26px !important; margin: 0; padding: 0 3px !important; color: var(--brand-primary); background: transparent !important; border: 0 !important; border-radius: 0 !important; font-size: 11px !important; font-weight: 700; line-height: 26px !important; text-decoration: none; white-space: nowrap !important; box-shadow: none !important; cursor: pointer; }
 
-/* Shared five-row order card: header, product, logistics, amount and actions. */
+/* Shared order card: one hierarchy for header, real item snapshots, logistics, amount and actions. */
 .ui-order-card { padding: 10px 12px; }
 .ui-order-header,
+.ui-order-heading,
 .ui-order-product,
 .ui-order-logistics,
 .ui-order-summary,
 .ui-order-actions { display: flex; align-items: center; width: 100%; min-width: 0; }
 .ui-order-header { justify-content: space-between; gap: 9px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
-.ui-order-title { display: flex; align-items: baseline; min-width: 0; flex: 1; gap: 6px; overflow: hidden; white-space: nowrap; }
-.ui-order-title > :first-child { flex: none; color: var(--ink); font-size: 14px; font-weight: 750; }
-.ui-order-title > :last-child { min-width: 0; overflow: hidden; color: #9299a5; font-size: 11px; text-overflow: ellipsis; }
+.ui-order-heading { flex: 1; gap: 6px; overflow: hidden; }
+.ui-order-merchant { min-width: 0; overflow: hidden; color: var(--ink); font-size: 14px; font-weight: 750; white-space: nowrap; text-overflow: ellipsis; }
+.ui-order-copy { color: #697383 !important; }
 .ui-order-status { max-width: 42%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .ui-order-status.is-active { color: var(--brand-primary) !important; background: var(--brand-primary-soft) !important; }
 .ui-order-status.is-cancelled { color: #7b8492 !important; background: #f0f2f4 !important; }
 .ui-order-status.is-completed { color: #596562 !important; background: #eef3f1 !important; }
-.ui-order-product { gap: 8px; min-height: 52px; padding: 7px 0; color: var(--ink); border-bottom: 1px solid var(--line); }
-.ui-order-product > img { flex: none; width: 42px; height: 42px; object-fit: cover; border-radius: 7px; background: #eef0f3; }
-.ui-order-product-copy { min-width: 0; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; font-weight: 650; }
-.ui-order-product-meta { display: flex; align-items: center; flex: none; gap: 4px; color: var(--muted); font-size: 11px; white-space: nowrap; }
-.ui-order-product-more { padding: 2px 5px; border-radius: 999px; background: var(--shop-page-bg); font-size: 10px; }
+.ui-order-products { border-bottom: 1px solid var(--line); }
+.ui-order-product { align-items: stretch; gap: 9px; min-height: 99px; padding: 9px 0; color: var(--ink); border-bottom: 1px solid var(--line); }
+.ui-order-product:last-child { border-bottom: 0; }
+.ui-order-product > img { flex: none; width: 84px; height: 84px; object-fit: cover; border-radius: 7px; background: #eef0f3; }
+.ui-order-product-copy { display: flex; flex: 1; flex-direction: column; justify-content: space-between; min-width: 0; overflow: hidden; }
+.ui-order-product-name { display: -webkit-box; overflow: hidden; color: var(--ink); font-size: 15px; font-weight: 700; line-height: 19px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.ui-order-product-spec, .ui-order-product-prices { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; min-width: 0; color: #8a929f; font-size: 12px; line-height: 16px; }
+.ui-order-product-spec > :first-child { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ui-order-product-spec > :last-child, .ui-order-product-prices > :last-child { flex: none; white-space: nowrap; }
+.ui-order-service-tags { display: flex; gap: 4px; min-height: 16px; overflow: hidden; }
+.ui-order-service-tags > span { flex: none; padding: 1px 5px; border-radius: 3px; color: var(--shop-danger); background: var(--shop-danger-soft); font-size: 11px; line-height: 15px; white-space: nowrap; }
+.ui-order-product-prices { color: #6e7683; }
+.ui-order-product-prices .ui-price { font-size: 14px; }
 .ui-order-logistics { justify-content: space-between; gap: 8px; min-height: 32px; color: var(--muted); border-bottom: 1px solid var(--line); font-size: 11px; }
 .ui-order-logistics > :first-child { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .ui-order-logistics-action { flex: none; color: var(--brand-primary); font-size: 11px; font-weight: 750; white-space: nowrap; }
@@ -533,6 +542,11 @@ main {
 .ui-order-summary > span:last-child { display: inline-flex; align-items: baseline; gap: 5px; color: #687180; white-space: nowrap; }
 .ui-order-summary .ui-price { font-size: 16px; }
 .ui-order-actions { flex-wrap: nowrap; justify-content: flex-end; gap: 6px; padding-top: 8px; overflow: hidden; }
+.ui-order-action.secondary { color: var(--ink) !important; background: transparent !important; border-color: #d9dee5 !important; }
+@media (max-width: 340px) {
+  .ui-order-actions { gap: 4px; }
+  .ui-order-actions .ui-order-action { min-height: 26px !important; height: 26px !important; padding: 0 6px !important; font-size: 12px !important; }
+}
 
 .btn.accent {
   background: var(--coral);

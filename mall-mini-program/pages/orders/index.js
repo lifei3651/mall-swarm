@@ -4,6 +4,8 @@ const auth = require('../../utils/auth')
 const format = require('../../utils/format')
 const theme = require('../../utils/theme')
 const session = require('../../utils/session')
+const cart = require('../../utils/cart')
+const purchaseLimit = require('../../utils/purchase-limit')
 const { identifier, amountLabel } = require('../order-detail/policy')
 const orderList = require('../../utils/order-list')
 const foreground = require('../../utils/foreground-refresh')
@@ -21,11 +23,29 @@ const TABS = [
 
 function displayRows(source) {
   return source.map(row => {
-    const items = (row.items || []).map(item => ({ ...item, productCover: format.mediaUrl(item.productCover) }))
+    const status = Number(row.order.status)
+    const paid = ![0, 4].includes(status)
+    const items = (row.items || []).map(item => {
+      const quantity = Math.max(1, Number(item.quantity || 1))
+      const totalAmount = Number(item.totalAmount == null ? Number(item.price || 0) * quantity : item.totalAmount)
+      const paidAmount = paid ? Math.max(0, totalAmount - Number(item.couponDiscountAmount || 0)) : totalAmount
+      return {
+        ...item,
+        productCover: format.mediaUrl(item.productCover),
+        skuDisplay: item.skuName || '默认规格',
+        retailPriceText: format.money(item.price),
+        paidAmountText: format.money(paidAmount),
+        paidAmountLabel: paid ? '实付款' : '商品小计',
+        serviceTags: format.serviceTags(item.serviceTags).slice(0, 2)
+      }
+    })
+    const shipments = (row.shipments?.length ? row.shipments : row.order.deliveryNo ? [{ deliveryCompany: row.order.deliveryCompany, deliveryNo: row.order.deliveryNo, deliveryTime: row.order.deliveryTime }] : [])
+      .map((shipment, index) => ({ ...shipment, id: identifier(shipment.id), key: `${shipment.id || shipment.deliveryNo || 'package'}:${index}` }))
     return {
       ...row,
-      order: { ...row.order, id: identifier(row.order.id), status: Number(row.order.status) },
+      order: { ...row.order, id: identifier(row.order.id), status },
       items,
+      shipments,
       primaryItem: items[0] || { productCover: '', productName: '订单商品', skuName: '', quantity: 0 },
       additionalProductKinds: Math.max(0, items.length - 1),
       key: identifier(row.order.id),
@@ -43,7 +63,7 @@ Page({
   data: {
     ...theme.pageData(),
     loading: true, loadingMore: false, error: '', rows: [], total: 0, pageNum: 0, pageSize: 10,
-    tabs: TABS, activeTab: 'all', actingId: ''
+    tabs: TABS, activeTab: 'all', actingId: '', rebuyId: '', wechatTrackingId: ''
   },
   onLoad(options = {}) {
     theme.apply(this)
@@ -52,7 +72,7 @@ Page({
   },
   onShow() {
     this.inactive = false
-    foreground.start(this, () => this.refreshQuietly(), () => this.data.loading || this.data.loadingMore || this.data.actingId || this.openingPayment)
+    foreground.start(this, () => this.refreshQuietly(), () => this.data.loading || this.data.loadingMore || this.data.actingId || this.data.rebuyId || this.data.wechatTrackingId || this.openingPayment)
     theme.apply(this)
     const redirect = `/pages/orders/index${this.data.activeTab === 'all' ? '' : `?tab=${this.data.activeTab}`}`
     if (auth.requireLogin(redirect)) return Promise.all([this.loadSummary(), this.load(true)])
@@ -145,6 +165,61 @@ Page({
   openDetail(event) {
     const id = identifier(event.currentTarget.dataset.id)
     if (id) wx.navigateTo({ url: `/pages/order-detail/index?id=${id}` })
+  },
+  copyOrderNo(event) {
+    const row = this.data.rows.find((item) => item.order.id === identifier(event.currentTarget.dataset.id))
+    if (row?.order?.orderNo) wx.setClipboardData({ data: String(row.order.orderNo) })
+  },
+  async viewLogistics(event) {
+    const orderId = identifier(event.currentTarget.dataset.id)
+    const row = this.data.rows.find((item) => item.order.id === orderId)
+    const shipment = row?.shipments?.find((item) => item.deliveryNo)
+    const token = session.getToken()
+    const current = () => !this.disposed && !this.inactive && token === session.getToken()
+    if (!current() || !orderId || !shipment || this.data.wechatTrackingId) return
+    feedback.update(this, { wechatTrackingId: shipment.key })
+    try {
+      const result = await request({ url: `/shop/orders/${orderId}/wechat-logistics-token`, method: 'POST', params: { shipmentId: shipment.id } })
+      if (!current()) return
+      if (!result?.waybillToken) throw new Error('微信物流查询凭证无效')
+      if (typeof requirePlugin !== 'function') throw new Error('请在微信真机中查看物流轨迹')
+      const plugin = requirePlugin('logisticsPlugin')
+      if (!plugin || typeof plugin.openWaybillTracking !== 'function') throw new Error('微信物流查询组件尚未开通')
+      plugin.openWaybillTracking({ waybillToken: result.waybillToken })
+    } catch (error) {
+      if (current()) feedback.notice(error.message || '暂时无法打开微信物流，请稍后重试', '物流查询未打开')
+    } finally {
+      if (!this.disposed) feedback.update(this, { wechatTrackingId: '' })
+    }
+  },
+  async buyAgain(event) {
+    const orderId = identifier(event.currentTarget.dataset.id)
+    const row = this.data.rows.find((item) => item.order.id === orderId)
+    if (!row?.canRebuy || this.data.rebuyId || !auth.requireLogin('/pages/orders/index')) return
+    const token = session.getToken()
+    const current = () => !this.disposed && !this.inactive && token === session.getToken()
+    feedback.update(this, { rebuyId: orderId })
+    try {
+      let planned = cart.list().map((item) => ({ ...item }))
+      const selections = []
+      for (const line of row.items) {
+        const selection = await purchaseLimit.checkAddition(line.productId, line.skuId, Number(line.quantity || 1), { isCurrent: current, getRows: () => planned })
+        if (!selection || !current()) return
+        selections.push(selection.item)
+        const key = `${selection.item.productId}:${selection.item.skuId || 0}`
+        const existing = planned.find((item) => item.key === key)
+        if (existing) existing.quantity = Number(existing.quantity || 0) + Number(selection.item.quantity || 1)
+        else planned.push({ ...selection.item, key, selected: true })
+      }
+      if (!current()) return
+      cart.addMany(selections)
+      feedback.toast({ title: '已加入购物车', icon: 'success' })
+      wx.switchTab({ url: '/pages/cart/index' })
+    } catch (error) {
+      if (current()) feedback.notice(error.message || '商品信息已变化，请重新选择', '暂时无法再次购买')
+    } finally {
+      if (!this.disposed) feedback.update(this, { rebuyId: '' })
+    }
   },
   review(event) {
     const row = this.data.rows.find(item => item.order.id === identifier(event.currentTarget.dataset.id))

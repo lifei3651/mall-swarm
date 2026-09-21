@@ -21,6 +21,18 @@ function save(rows) {
   wx.setStorageSync(key, rows)
   return rows
 }
+function mergeItem(rows, item) {
+  if (!quantities.valid(item.quantity || 1)) throw new Error('购买数量无效')
+  const next = rows.map((row) => ({ ...row }))
+  const key = `${item.productId}:${item.skuId || 0}`
+  const existing = next.find((row) => row.key === key)
+  if (existing) {
+    const quantity = existing.quantity + (item.quantity || 1)
+    if (!quantities.valid(quantity)) throw new Error('购买数量超出支持范围')
+    Object.assign(existing, item, { key, quantity, selected: existing.selected })
+  } else next.push({ ...item, key, quantity: item.quantity || 1, selected: true })
+  return next
+}
 // The old shared cache has no trustworthy owner. Preserve it, but never assign it to a member.
 function needsLegacyReview() {
   const rows = wx.getStorageSync(LEGACY_KEY)
@@ -28,18 +40,11 @@ function needsLegacyReview() {
 }
 function acknowledgeLegacyReview() { if (ownerKey()) wx.setStorageSync(LEGACY_NOTICE_KEY, true) }
 function add(item) {
-  if (!quantities.valid(item.quantity || 1)) throw new Error('购买数量无效')
-  const rows = list()
-  const key = `${item.productId}:${item.skuId || 0}`
-  const existing = rows.find((row) => row.key === key)
-  if (existing) {
-    const quantity = existing.quantity + (item.quantity || 1)
-    if (!quantities.valid(quantity)) throw new Error('购买数量超出支持范围')
-    // The caller has just checked current details: do not retain a stale unit price or name.
-    Object.assign(existing, item, { key, quantity, selected: existing.selected })
-  }
-  else rows.push({ ...item, key, quantity: item.quantity || 1, selected: true })
-  return save(rows)
+  return save(mergeItem(list(), item))
+}
+function addMany(items) {
+  if (!Array.isArray(items) || !items.length) throw new Error('没有可加入购物车的商品')
+  return save(items.reduce((rows, item) => mergeItem(rows, item), list()))
 }
 function update(key, patch) { return save(list().map((row) => row.key === key ? { ...row, ...patch } : row)) }
 function remove(key) { return save(list().filter((row) => row.key !== key)) }
@@ -96,4 +101,4 @@ function directItems() {
 }
 function clearDirectCheckout() { direct = null }
 
-module.exports = { list, add, update, remove, removeMany, clear, count, productQuantity, decrementProduct, setProductQuantity, selectAll, selectOnly, clearSelected, selected, beginDirectCheckout, directItems, clearDirectCheckout, needsLegacyReview, acknowledgeLegacyReview }
+module.exports = { list, add, addMany, update, remove, removeMany, clear, count, productQuantity, decrementProduct, setProductQuantity, selectAll, selectOnly, clearSelected, selected, beginDirectCheckout, directItems, clearDirectCheckout, needsLegacyReview, acknowledgeLegacyReview }

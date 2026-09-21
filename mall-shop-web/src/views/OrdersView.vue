@@ -30,16 +30,25 @@
     </div>
 
     <section v-else class="order-card-list">
-      <article v-for="item in filteredOrders" :key="item.order.id" class="order-card ui-card ui-order-card">
-        <RouterLink :to="`/orders/${item.order.id}`" class="ui-order-header">
-          <span class="ui-order-title"><strong>{{ item.order.merchantName || '商城订单' }}</strong><span>{{ item.order.orderNo }}</span></span>
-          <strong class="ui-status-pill ui-order-status" :class="orderStateClass(item)">{{ orderDisplayStatus(item) }}</strong>
-        </RouterLink>
-        <RouterLink :to="`/orders/${item.order.id}`" class="ui-order-product">
-          <img :src="firstOrderItem(item).productCover" :alt="firstOrderItem(item).productName" @error="applyImageFallback" />
-          <span class="ui-order-product-copy">{{ firstOrderItem(item).productName }}<template v-if="formatProductSpec(firstOrderItem(item))"> · {{ formatProductSpec(firstOrderItem(item)) }}</template></span>
-          <span class="ui-order-product-meta"><em v-if="remainingProductKinds(item)" class="ui-order-product-more">等{{ item.items.length }}种</em><span>×{{ firstOrderItem(item).quantity || 0 }}</span></span>
-        </RouterLink>
+      <article v-for="item in filteredOrders" :key="item.order.id" class="order-card ui-card ui-order-card" :data-order-no="item.order.orderNo">
+        <div class="ui-order-header">
+          <RouterLink :to="`/orders/${item.order.id}`" class="ui-order-heading">
+            <strong class="ui-order-merchant">{{ item.order.merchantName || '商城订单' }}</strong>
+            <strong class="ui-status-pill ui-order-status" :class="orderStateClass(item)">{{ orderDisplayStatus(item) }}</strong>
+          </RouterLink>
+          <button type="button" class="ui-copy-action ui-order-copy" @click="copyOrderNumber(item)">{{ copiedOrderId === item.order.id ? '已复制' : '复制订单号' }}</button>
+        </div>
+        <div class="ui-order-products">
+          <RouterLink v-for="line in item.items" :key="line.id" :to="`/orders/${item.order.id}`" class="ui-order-product">
+            <img :src="line.productCover" :alt="line.productName" @error="applyImageFallback" />
+            <span class="ui-order-product-copy">
+              <strong class="ui-order-product-name">{{ line.productName }}</strong>
+              <span class="ui-order-product-spec"><span>{{ formatProductSpec(line) || '默认规格' }}</span><span>× {{ line.quantity || 0 }}</span></span>
+              <span v-if="serviceTags(line).length" class="ui-order-service-tags"><span v-for="tag in serviceTags(line)" :key="tag">{{ tag }}</span></span>
+              <span class="ui-order-product-prices"><span>零售价 ¥{{ money(line.price) }}</span><span>{{ lineAmountLabel(item) }} <strong class="ui-price">¥{{ linePaidAmount(item, line) }}</strong></span></span>
+            </span>
+          </RouterLink>
+        </div>
         <div class="ui-order-logistics">
           <span>{{ orderLogisticsText(item) }}</span>
           <RouterLink v-if="item.order.status === 2 && item.autoReceiveEnabled && !isAfterSale(item) && canApplyAfterSale(item)" class="ui-order-logistics-action" :to="`/orders/${item.order.id}?applyAfterSale=1`">未收到 / 拒收</RouterLink>
@@ -49,9 +58,10 @@
           <span>实付 <strong class="ui-price">¥{{ money(item.order.payAmount) }}</strong></span>
         </div>
         <div class="order-actions ui-action-bar ui-order-actions">
-          <RouterLink class="order-action btn secondary ui-action-button ui-order-action" :to="`/orders/${item.order.id}`">查看详情</RouterLink>
+          <a v-if="firstTrackingUrl(item)" class="order-action btn secondary ui-action-button ui-order-action" :href="firstTrackingUrl(item)" target="_blank" rel="noopener">查看物流</a>
           <button v-if="item.order.status === 0 && isTradeActionOwner(item)" class="order-action btn secondary ui-action-button ui-order-action" :disabled="actingId === item.order.id" @click="requestOrderAction('cancel', item.order.id)">取消订单</button>
-          <RouterLink v-if="canApplyAfterSale(item)" class="order-action btn secondary ui-action-button ui-order-action" :to="`/orders/${item.order.id}?applyAfterSale=1`">申请售后</RouterLink>
+          <RouterLink v-if="canApplyAfterSale(item)" class="order-action btn secondary ui-action-button ui-order-action" :to="`/orders/${item.order.id}?applyAfterSale=1`">退换/售后</RouterLink>
+          <button v-if="canRebuy(item)" class="order-action btn secondary ui-action-button ui-order-action" :disabled="Boolean(rebuyId)" @click="buyAgain(item)">{{ rebuyId === item.order.id ? '处理中…' : '再买一单' }}</button>
           <RouterLink v-if="Number(item.pendingReviewCount || 0) > 0" class="order-action btn secondary ui-action-button ui-order-action" :to="reviewLink(item)">去评价</RouterLink>
           <RouterLink v-if="item.order.status === 0 && isTradeActionOwner(item)" class="order-action btn primary ui-action-button ui-action-button--primary ui-order-action ui-order-action--primary" :to="`/orders/${item.order.id}`">立即支付</RouterLink>
           <button v-if="item.order.status === 2 && !isAfterSale(item)" class="order-action btn primary ui-action-button ui-action-button--primary ui-order-action ui-order-action--primary" :disabled="actingId === item.order.id" @click="requestOrderAction('receive', item.order.id)">确认收货</button>
@@ -61,6 +71,7 @@
         {{ loadingMore ? '正在加载...' : '加载更多订单' }}
       </button>
     </section>
+    <div v-if="orderActionNotice" class="order-action-toast" role="status">{{ orderActionNotice }}</div>
     <ConfirmDialog
       :visible="Boolean(pendingOrderAction.type)"
       :title="orderActionDialog.title"
@@ -79,17 +90,23 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ChevronLeft, PackageOpen, RefreshCw } from 'lucide-vue-next'
-import { cancelOrder, confirmReceive, getProfileOrderSummary, listMyOrders } from '@/api/shop'
+import { cancelOrder, confirmReceive, getProduct, getProfileOrderSummary, listMyOrders } from '@/api/shop'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { dateTime, money, statusName } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
 import { connectOrderRealtime } from '@/utils/orderRealtime'
 import { applyImageFallback } from '@/utils/imageFallback'
 import { isTradeActionOwner as ownsTradeAction, canApplyAfterSale } from '@/utils/orderListRules'
+import { useCart } from '@/store/cart'
+import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
+import { requireShopSession } from '@/utils/authNavigation'
+import { cartItemKey, stockAdditionViolation } from '@/utils/stockRules'
 
 const route = useRoute()
+const router = useRouter()
+const { items: cartItems, addMany } = useCart()
 const loading = ref(false)
 const loadingMore = ref(false)
 const refreshing = ref(false)
@@ -100,6 +117,9 @@ const pageNum = ref(1)
 const pageSize = 10
 const total = ref(0)
 const actingId = ref(null)
+const rebuyId = ref(null)
+const copiedOrderId = ref(null)
+const orderActionNotice = ref('')
 const pendingOrderAction = ref({ type: '', id: null })
 const orderTabs = ref(null)
 let requestSequence = 0
@@ -107,6 +127,8 @@ let stopOrderRealtime = null
 let fallbackPollTimer = null
 let realtimeRefreshTimer = null
 let disposed = false
+let copyTimer = null
+let noticeTimer = null
 const validTabs = new Set(['all', 'pending-payment', 'pending-shipment', 'pending-receipt', 'pending-review', 'after-sale'])
 const activeTab = computed(() => validTabs.has(route.query.tab) ? route.query.tab : 'all')
 
@@ -214,8 +236,22 @@ const setRealtimeConnected = (connected) => {
 }
 
 const totalQuantity = (item) => (item.items || []).reduce((sum, line) => sum + Number(line.quantity || 0), 0)
-const firstOrderItem = (item) => item.items?.[0] || { productCover: '', productName: '订单商品', skuName: '', quantity: 0 }
-const remainingProductKinds = (item) => Math.max(0, Number(item.items?.length || 0) - 1)
+const parseArray = (value) => {
+  if (Array.isArray(value)) return value
+  try { const parsed = JSON.parse(value || '[]'); return Array.isArray(parsed) ? parsed : [] } catch { return [] }
+}
+const serviceTags = (line) => parseArray(line?.serviceTags)
+  .map((tag) => typeof tag === 'string' ? { title: tag, enabled: true } : tag)
+  .filter((tag) => tag?.enabled !== false && String(tag?.title || '').trim())
+  .slice(0, 2)
+  .map((tag) => String(tag.title).trim())
+const lineAmountLabel = (item) => [0, 4].includes(Number(item.order?.status)) ? '商品小计' : '实付款'
+const linePaidAmount = (item, line) => {
+  const quantity = Math.max(1, Number(line?.quantity || 1))
+  const total = Number(line?.totalAmount ?? Number(line?.price || 0) * quantity)
+  return money([0, 4].includes(Number(item.order?.status)) ? total : Math.max(0, total - Number(line?.couponDiscountAmount || 0)))
+}
+const canRebuy = (item) => Number(item.order?.status) !== 0 && (item.items || []).some((line) => line.productId)
 const reviewLink = (item) => ({
   path: `/order-review/${item.pendingReviewProductId}`,
   query: item.pendingReviewOrderItemId ? { orderItemId: item.pendingReviewOrderItemId } : {},
@@ -241,6 +277,68 @@ const orderLogisticsText = (item) => {
   if (item.afterSales?.length) return `售后进度：${afterSaleStatus(item.afterSales[0]?.status, item.afterSales[0]?.applyType)}`
   if (Number(item.order?.status) === 2 && item.autoReceiveEnabled) return item.autoReceiveDeadline ? `预计 ${dateTime(item.autoReceiveDeadline)} 自动确认收货` : `发货满 ${Number(item.autoReceiveDays || 15)} 天自动确认收货`
   return ({ 0: '付款后将安排发货', 1: '商家正在准备商品', 2: '包裹已发出，可查看物流进度', 3: '订单已完成', 4: '订单已取消' }[Number(item.order?.status)] || '订单处理中')
+}
+const trackingUrl = (shipment) => shipment?.deliveryNo ? `https://m.kuaidi100.com/result.jsp?nu=${encodeURIComponent(shipment.deliveryNo)}` : ''
+const firstTrackingUrl = (item) => trackingUrl((item.shipments || []).find((shipment) => shipment.deliveryNo))
+const notifyAction = (message) => {
+  orderActionNotice.value = message
+  window.clearTimeout(noticeTimer)
+  noticeTimer = window.setTimeout(() => { orderActionNotice.value = '' }, 2200)
+}
+const copyOrderNumber = async (item) => {
+  try {
+    await navigator.clipboard.writeText(String(item.order?.orderNo || ''))
+    copiedOrderId.value = item.order.id
+    notifyAction('订单号已复制')
+    window.clearTimeout(copyTimer)
+    copyTimer = window.setTimeout(() => { copiedOrderId.value = null }, 1600)
+  } catch { notifyAction('复制失败，请打开订单详情后重试') }
+}
+const buyAgain = async (item) => {
+  if (rebuyId.value || !canRebuy(item) || !requireShopSession(router, route.fullPath, '请先登录后再购买')) return
+  rebuyId.value = item.order.id
+  try {
+    const planned = cartItems.map((line) => ({ ...line }))
+    const selections = []
+    for (const line of item.items || []) {
+      const response = await getProduct(line.productId)
+      const detail = response.data || {}
+      const product = detail.product || detail
+      if (!product?.id || Number(product.status ?? 1) !== 1) throw new Error(`${line.productName || '商品'}已下架`)
+      const skus = Array.isArray(detail.skus) ? detail.skus : []
+      const sku = line.skuId ? skus.find((row) => String(row.id) === String(line.skuId)) : null
+      if (skus.length && (!sku || Number(sku.status ?? 1) !== 1)) throw new Error(`${line.productName || '商品'}的原规格已失效`)
+      const quantity = Math.max(1, Number(line.quantity || 1))
+      const selection = {
+        id: product.id,
+        skuId: sku?.id || null,
+        productName: product.productName,
+        skuName: sku?.skuName || '',
+        skuAttrs: sku?.attrsJson || '',
+        subtitle: product.subtitle || '',
+        merchantName: product.merchantName || '',
+        coverUrl: sku?.imageUrl || product.coverUrl,
+        salePrice: Number(sku ? sku.salePrice : product.salePrice),
+        marketPrice: Number(sku ? sku.marketPrice || 0 : product.marketPrice || 0),
+        pvValue: Number(sku?.pvValue || product.pvValue || 0),
+        stock: Number(sku ? sku.stock : product.stock),
+        purchaseLimit: Number(product.purchaseLimit || 0),
+        quantity,
+      }
+      const key = cartItemKey(selection)
+      const existingSku = planned.find((row) => (row.cartKey || cartItemKey(row)) === key)
+      const stockError = stockAdditionViolation(selection.stock, quantity, existingSku?.quantity || 0)
+      if (stockError) throw new Error(stockError)
+      const existingProductQuantity = planned.reduce((sum, row) => String(row.id) === String(product.id) ? sum + Number(row.quantity || 0) : sum, 0)
+      await checkCartPurchaseLimit(product, quantity, existingProductQuantity)
+      if (existingSku) existingSku.quantity = Number(existingSku.quantity || 0) + quantity
+      else planned.push({ ...selection, cartKey: key })
+      selections.push(selection)
+    }
+    addMany(selections)
+    router.push('/cart')
+  } catch (error) { notifyAction(error?.message || '商品信息已变化，请重新选择') }
+  finally { rebuyId.value = null }
 }
 const requestOrderAction = (type, id) => {
   if (actingId.value) return
@@ -300,6 +398,8 @@ onBeforeUnmount(() => {
   stopOrderRealtime?.()
   window.clearInterval(fallbackPollTimer)
   window.clearTimeout(realtimeRefreshTimer)
+  window.clearTimeout(copyTimer)
+  window.clearTimeout(noticeTimer)
 })
 </script>
 
@@ -321,6 +421,7 @@ onBeforeUnmount(() => {
 .order-card-list { display: grid; gap: 8px; margin-top: 10px; }
 .order-card { overflow: hidden; }
 .order-actions :disabled { opacity: .55; }
+.order-action-toast { position: fixed; left: 50%; bottom: calc(78px + env(safe-area-inset-bottom)); z-index: 30; transform: translateX(-50%); padding: 9px 14px; border-radius: 999px; color: #fff; background: rgba(24, 31, 42, .88); font-size: 12px; white-space: nowrap; }
 .load-more-orders { width:100%; padding:12px; color:var(--accent,#e7193f); background:var(--brand-primary-soft,#fff1f4); border:1px solid var(--brand-primary-soft,#f8ccd5); border-radius:10px; font-weight:700; cursor:pointer; }
 .load-more-orders:disabled { opacity:.55; cursor:not-allowed; }
 .compact-empty { min-height: 280px; margin-top: 11px; }

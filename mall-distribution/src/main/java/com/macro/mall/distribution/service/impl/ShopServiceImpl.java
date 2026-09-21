@@ -1261,6 +1261,7 @@ public class ShopServiceImpl implements ShopService {
             orderItem.setSkuName(sku == null ? null : sku.getSkuName());
             orderItem.setSkuAttrs(sku == null ? null : sku.getAttrsJson());
             orderItem.setProductCover(product.getCoverUrl());
+            orderItem.setServiceTags(product.getServiceTags());
             orderItem.setPrice(price);
             orderItem.setQuantity(quantity);
             orderItem.setTotalAmount(itemAmount);

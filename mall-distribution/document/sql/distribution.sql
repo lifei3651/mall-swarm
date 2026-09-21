@@ -1413,6 +1413,7 @@ CREATE TABLE `dms_shop_order_item` (
   `sku_name` varchar(128) DEFAULT NULL COMMENT 'SKU名称',
   `sku_attrs` json DEFAULT NULL COMMENT '规格属性快照',
   `product_cover` varchar(512) DEFAULT NULL COMMENT '商品主图',
+  `service_tags` json DEFAULT NULL COMMENT '下单时商品服务保障标签快照',
   `price` decimal(12,2) NOT NULL DEFAULT 0 COMMENT '成交单价',
   `quantity` int NOT NULL DEFAULT 1 COMMENT '数量',
   `total_amount` decimal(12,2) NOT NULL DEFAULT 0 COMMENT '成交小计',

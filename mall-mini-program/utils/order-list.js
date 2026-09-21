@@ -23,6 +23,8 @@ function decorate(rows) {
       autoReceiveText,
       logisticsText,
       showMissingAction: Boolean(autoReceiveText) && rules.canApplyAfterSale(row) && afterSaleEligibility(row).allowed,
+      canViewLogistics: [2, 3].includes(row.order.status) && (row.shipments || []).some((shipment) => shipment.deliveryNo),
+      canRebuy: row.order.status !== 0 && (row.items || []).some((item) => identifier(item.productId)),
       statusTone: row.order.status === 4 ? 'cancelled' : (row.order.status === 3 && !active && !Number(row.pendingReviewCount || 0) ? 'completed' : 'active')
     }
   })

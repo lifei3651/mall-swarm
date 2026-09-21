@@ -15,20 +15,27 @@
   <block wx:else>
     <view class="order-card ui-card ui-order-card" wx:for="{{rows}}" wx:key="key" data-id="{{item.order.id}}" bindtap="openDetail">
       <view class="ui-order-header">
-        <view class="ui-order-title"><text>{{item.order.merchantName || '商城订单'}}</text><text>{{item.order.orderNo}}</text></view>
-        <text class="ui-status-pill ui-order-status is-{{item.statusTone}}">{{item.statusText}}</text>
+        <view class="ui-order-heading"><text class="ui-order-merchant">{{item.order.merchantName || '商城订单'}}</text><text class="ui-status-pill ui-order-status is-{{item.statusTone}}">{{item.statusText}}</text></view>
+        <button class="ui-copy-action ui-order-copy" data-id="{{item.order.id}}" catchtap="copyOrderNo">复制订单号</button>
       </view>
-      <view class="ui-order-product">
-        <image src="{{item.primaryItem.productCover}}" mode="aspectFill" />
-        <text class="ui-order-product-copy">{{item.primaryItem.productName}}{{item.primaryItem.skuName ? ' · ' + item.primaryItem.skuName : ''}}</text>
-        <view class="ui-order-product-meta"><text wx:if="{{item.additionalProductKinds}}" class="ui-order-product-more">等{{item.items.length}}种</text><text>×{{item.primaryItem.quantity}}</text></view>
+      <view class="ui-order-products">
+        <view class="ui-order-product" wx:for="{{item.items}}" wx:key="id" wx:for-item="line">
+          <image src="{{line.productCover}}" mode="aspectFill" />
+          <view class="ui-order-product-copy">
+            <text class="ui-order-product-name">{{line.productName}}</text>
+            <view class="ui-order-product-spec"><text>{{line.skuDisplay}}</text><text>× {{line.quantity}}</text></view>
+            <view wx:if="{{line.serviceTags.length}}" class="ui-order-service-tags"><text wx:for="{{line.serviceTags}}" wx:key="title" wx:for-item="tag">{{tag.title}}</text></view>
+            <view class="ui-order-product-prices"><text>零售价 ¥{{line.retailPriceText}}</text><text>{{line.paidAmountLabel}} <text class="ui-price">¥{{line.paidAmountText}}</text></text></view>
+          </view>
+        </view>
       </view>
       <view class="ui-order-logistics"><text>{{item.logisticsText}}</text><button wx:if="{{item.showMissingAction}}" class="ui-order-logistics-action" data-id="{{item.order.id}}" catchtap="applyAfterSale">未收到 / 拒收</button></view>
       <view class="ui-order-summary"><text>共 {{item.quantity}} 件商品</text><view><text>{{item.amountLabel}}</text><text class="ui-price">¥{{item.amountText}}</text></view></view>
       <view class="order-actions ui-action-bar ui-order-actions">
-        <button class="secondary-button ui-action-button ui-order-action" data-id="{{item.order.id}}" catchtap="openDetail">查看详情</button>
+        <button wx:if="{{item.canViewLogistics}}" class="secondary-button ui-action-button ui-order-action" data-id="{{item.order.id}}" catchtap="viewLogistics" loading="{{wechatTrackingId && item.shipments[0].key === wechatTrackingId}}" disabled="{{!!wechatTrackingId}}">查看物流</button>
         <button wx:if="{{item.canCancel}}" class="secondary-button ui-action-button ui-order-action" data-id="{{item.order.id}}" catchtap="cancelOrder" disabled="{{actingId}}">{{item.cancelLabel}}</button>
-        <button wx:if="{{item.canApplyAfterSale}}" class="secondary-button ui-action-button ui-order-action" data-id="{{item.order.id}}" catchtap="applyAfterSale">申请售后</button>
+        <button wx:if="{{item.canApplyAfterSale}}" class="secondary-button ui-action-button ui-order-action" data-id="{{item.order.id}}" catchtap="applyAfterSale">退换/售后</button>
+        <button wx:if="{{item.canRebuy}}" class="secondary-button ui-action-button ui-order-action" data-id="{{item.order.id}}" catchtap="buyAgain" loading="{{rebuyId === item.order.id}}" disabled="{{!!rebuyId}}">再买一单</button>
         <button wx:if="{{item.pendingReviewProductId && item.pendingReviewOrderItemId}}" class="secondary-button ui-action-button ui-order-action" data-id="{{item.order.id}}" catchtap="review">去评价</button>
         <button wx:if="{{item.canReceive}}" class="primary-button ui-action-button ui-action-button--primary ui-order-action ui-order-action--primary" data-id="{{item.order.id}}" catchtap="receive" disabled="{{actingId}}">确认收货</button>
         <button wx:if="{{item.canPay}}" class="primary-button ui-action-button ui-action-button--primary ui-order-action ui-order-action--primary" data-id="{{item.order.id}}" catchtap="pay">{{item.payLabel}}</button>

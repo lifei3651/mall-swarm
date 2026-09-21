@@ -52,7 +52,7 @@ test('普通操作按钮由共用层固定为秀气自适应尺寸，复制为�
   assert.doesNotMatch(list, /class="[^"]*primary-button[^"]*"[^>]*>去评价<\/button>/)
 })
 
-test('订单列表共用五行卡片且取消态、进行态和物流次操作不再各自撑高', () => {
+test('订单列表共用清晰商品快照卡片且操作集中在同一行', () => {
   const view = source('pages/orders/index.wxml')
   const logic = source('utils/order-list.js')
   assert.match(logic, /payLabel:\s*'立即支付'/)
@@ -63,7 +63,16 @@ test('订单列表共用五行卡片且取消态、进行态和物流次操作�
     assert.match(view, new RegExp(`class="[^"]*${row}`), row)
     assert.match(styles, new RegExp(`\\.${row}`), row)
   }
-  assert.doesNotMatch(view, /class="ui-order-product"[^>]*wx:for=/)
+  assert.match(view, /class="ui-order-product" wx:for="\{\{item\.items\}\}"/)
+  assert.match(view, /class="ui-order-product-name"/)
+  assert.match(view, /class="ui-order-product-spec"/)
+  assert.match(view, /class="ui-order-service-tags"/)
+  assert.match(view, /零售价 ¥\{\{line\.retailPriceText\}\}/)
+  assert.match(view, /class="ui-copy-action ui-order-copy"/)
+  assert.match(styles, /\.ui-order-product > image\s*\{[^}]*width:\s*168rpx;[^}]*height:\s*168rpx;/)
+  assert.match(view, />查看物流<\/button>/)
+  assert.match(view, />退换\/售后<\/button>/)
+  assert.match(view, />再买一单<\/button>/)
   assert.match(view, /class="ui-order-logistics"[\s\S]*未收到 \/ 拒收[\s\S]*class="ui-order-summary"/)
   assert.match(view, /ui-order-status is-\{\{item\.statusTone\}\}/)
   assert.match(logic, /statusTone:\s*row\.order\.status === 4 \? 'cancelled'/)

@@ -34,6 +34,10 @@ public class DmsShopOrderItem implements Serializable {
 
     private String productCover;
 
+    /** 下单时锁定的商品服务保障标签，避免订单页随商品后续修改而漂移。 */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String serviceTags;
+
     private BigDecimal price;
 
     private Integer quantity;

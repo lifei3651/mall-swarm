@@ -38,7 +38,7 @@ requireText('mall-shop-web/src/assets/styles.css', /\.ui-copy-action\s*\{[^}]*ba
 
 if (miniCore.includes('.ui-utility-button--wide')) failures.push('mall-mini-program/app.wxss: 禁止恢复固定宽度的辅助按钮')
 
-const sharedOrderSelectors = ['.ui-order-card', '.ui-order-header', '.ui-order-product', '.ui-order-logistics', '.ui-order-summary', '.ui-order-actions', '.ui-order-action']
+const sharedOrderSelectors = ['.ui-order-card', '.ui-order-header', '.ui-order-products', '.ui-order-product', '.ui-order-product-name', '.ui-order-product-spec', '.ui-order-service-tags', '.ui-order-product-prices', '.ui-order-logistics', '.ui-order-summary', '.ui-order-actions', '.ui-order-action']
 for (const selector of sharedOrderSelectors) {
   if (!miniCore.includes(selector)) failures.push(`mall-mini-program/app.wxss: 缺少订单共用组件 ${selector}`)
   if (!webCore.includes(selector)) failures.push(`mall-shop-web/src/assets/styles.css: 缺少订单共用组件 ${selector}`)
@@ -91,6 +91,9 @@ for (const path of ['mall-mini-program/pages/orders/index.wxml', 'mall-shop-web/
   for (const selector of sharedOrderSelectors) {
     if (!source.includes(selector.slice(1))) failures.push(`${path}: 订单列表缺少 ${selector} 共用组件`)
   }
+  requireText(path, /ui-order-copy/, '订单列表右上角必须提供小型复制订单号操作')
+  requireText(path, /退换\/售后/, '订单列表售后操作统一命名为“退换/售后”')
+  requireText(path, /再买一单/, '订单列表再次购买操作必须与其他操作保持同一组')
 }
 
 for (const path of ['mall-mini-program/pages/order-detail/index.wxml', 'mall-shop-web/src/views/OrderDetailView.vue']) {

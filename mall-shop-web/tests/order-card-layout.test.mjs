@@ -4,14 +4,21 @@ import { readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
 
-test('H5订单列表与小程序共用五行信息结构且商品只占一行', async () => {
+test('H5订单列表与小程序共用清晰商品快照结构', async () => {
   const view = await read('src/views/OrdersView.vue')
   const styles = await read('src/assets/styles.css')
   for (const row of ['ui-order-header', 'ui-order-product', 'ui-order-logistics', 'ui-order-summary', 'ui-order-actions']) {
     assert.match(view, new RegExp(`class="[^"]*${row}`), row)
     assert.match(styles, new RegExp(`\\.${row}`), row)
   }
-  assert.doesNotMatch(view, /v-for="line in item\.items/)
+  assert.match(view, /v-for="line in item\.items/)
+  assert.match(view, /class="ui-order-product-name"/)
+  assert.match(view, /class="ui-order-product-spec"/)
+  assert.match(view, /class="ui-order-service-tags"/)
+  assert.match(view, /零售价 ¥\{\{ money\(line\.price\) \}\}/)
+  assert.match(view, /lineAmountLabel\(item\)/)
+  assert.match(view, /class="ui-copy-action ui-order-copy"/)
+  assert.match(styles, /\.ui-order-product > img\s*\{[^}]*width:\s*84px;[^}]*height:\s*84px;/)
   assert.match(view, /class="ui-order-logistics"[\s\S]*未收到 \/ 拒收[\s\S]*class="ui-order-summary"/)
 })
 
@@ -23,9 +30,12 @@ test('H5订单操作不换行、主按钮固定最右，取消和进行状态使
   assert.match(view, /status\) === 4\) return 'is-cancelled'/)
   assert.match(styles, /\.ui-order-status\.is-cancelled\s*\{[^}]*#7b8492[^}]*#f0f2f4/)
   assert.match(styles, /\.ui-order-status\.is-active\s*\{[^}]*var\(--brand-primary\)[^}]*var\(--brand-primary-soft\)/)
-  const detail = view.indexOf('>查看详情</RouterLink>')
-  const pay = view.indexOf('ui-order-action--primary')
-  assert.ok(detail >= 0 && pay > detail)
+  assert.match(view, />查看物流<\/a>/)
+  assert.match(view, />退换\/售后<\/RouterLink>/)
+  assert.match(view, /再买一单/)
+  const rebuy = view.indexOf('再买一单')
+  const receive = view.indexOf('>确认收货</button>')
+  assert.ok(rebuy >= 0 && receive > rebuy)
 })
 
 test('H5普通操作按钮与小程序等比自适应，复制不再显示为胶囊大按钮', async () => {
@@ -39,6 +49,7 @@ test('H5普通操作按钮与小程序等比自适应，复制不再显示为胶
   assert.match(styles, /--shop-action-padding-x:\s*12px;/)
   assert.match(styles, /\.ui-action-button, \.ui-order-action\s*\{[^}]*flex:\s*none;[^}]*width:\s*auto\s*!important;/)
   assert.match(styles, /\.ui-copy-action\s*\{[^}]*background:\s*transparent\s*!important;/)
+  assert.match(list, /class="ui-copy-action ui-order-copy"/)
   assert.match(detail, /class="ui-copy-action"[^>]*>复制单号<\/button>/)
   assert.match(detail, /class="ui-copy-action"[^>]*>复制<\/button>/)
   assert.match(detail, /class="after-sale-record-actions ui-action-bar"/)

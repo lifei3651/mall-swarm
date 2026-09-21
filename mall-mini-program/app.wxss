@@ -72,23 +72,31 @@ button { font-size: 28rpx; font-family: inherit; }
 .ui-copy-action { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; flex: none; width: auto !important; min-width: 0 !important; min-height: 52rpx !important; height: 52rpx !important; margin: 0; padding: 0 6rpx !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; color: var(--brand) !important; font-size: 22rpx !important; font-weight: 600; line-height: 52rpx !important; white-space: nowrap !important; box-shadow: none !important; }
 .ui-copy-action::after { border: 0 !important; }
 /*
- * 订单列表共用卡片：标题、商品、物流、金额、操作固定为五行。
- * 页面只提供数据与事件，禁止再按订单状态单独放大按钮或增加信息块。
+ * 订单列表共用卡片：标题状态、真实商品快照、物流、金额、操作使用同一信息层级。
+ * 页面只提供数据与事件，禁止再按订单状态单独放大按钮或拆散操作区。
  */
 .ui-order-card { padding: 20rpx 22rpx; }
-.ui-order-header, .ui-order-product, .ui-order-logistics, .ui-order-summary, .ui-order-actions { display: flex; align-items: center; width: 100%; min-width: 0; }
+.ui-order-header, .ui-order-heading, .ui-order-product, .ui-order-logistics, .ui-order-summary, .ui-order-actions { display: flex; align-items: center; width: 100%; min-width: 0; }
 .ui-order-header { justify-content: space-between; gap: 18rpx; padding-bottom: 16rpx; border-bottom: 1rpx solid var(--line); }
-.ui-order-title { display: flex; align-items: baseline; min-width: 0; flex: 1; gap: 10rpx; overflow: hidden; white-space: nowrap; }
-.ui-order-title > text:first-child { flex: none; color: var(--ink); font-size: 27rpx; font-weight: 750; }
-.ui-order-title > text:last-child { min-width: 0; overflow: hidden; color: #9299a5; font-size: 21rpx; text-overflow: ellipsis; }
+.ui-order-heading { flex: 1; gap: 12rpx; overflow: hidden; }
+.ui-order-merchant { min-width: 0; overflow: hidden; color: var(--ink); font-size: 27rpx; font-weight: 750; white-space: nowrap; text-overflow: ellipsis; }
+.ui-order-copy { color: #697383 !important; }
 .ui-order-status.is-active { color: var(--brand) !important; background: var(--brand-soft) !important; }
 .ui-order-status.is-cancelled { color: #7b8492 !important; background: #f0f2f4 !important; }
 .ui-order-status.is-completed { color: #596562 !important; background: #eef3f1 !important; }
-.ui-order-product { gap: 14rpx; min-height: 96rpx; padding: 14rpx 0; color: var(--ink); border-bottom: 1rpx solid var(--line); }
-.ui-order-product > image { flex: none; width: 78rpx; height: 78rpx; border-radius: 12rpx; background: #eef0f3; }
-.ui-order-product-copy { min-width: 0; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 25rpx; font-weight: 650; }
-.ui-order-product-meta { display: flex; align-items: center; flex: none; gap: 8rpx; color: var(--muted); font-size: 22rpx; white-space: nowrap; }
-.ui-order-product-more { padding: 3rpx 8rpx; border-radius: var(--radius-pill); background: var(--canvas); font-size: 19rpx; }
+.ui-order-products { border-bottom: 1rpx solid var(--line); }
+.ui-order-product { align-items: stretch; gap: 18rpx; min-height: 198rpx; padding: 18rpx 0; color: var(--ink); border-bottom: 1rpx solid var(--line); }
+.ui-order-product:last-child { border-bottom: 0; }
+.ui-order-product > image { flex: none; width: 168rpx; height: 168rpx; border-radius: 12rpx; background: #eef0f3; }
+.ui-order-product-copy { display: flex; flex: 1; flex-direction: column; justify-content: space-between; min-width: 0; overflow: hidden; }
+.ui-order-product-name { display: -webkit-box; overflow: hidden; color: var(--ink); font-size: 29rpx; font-weight: 700; line-height: 38rpx; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.ui-order-product-spec, .ui-order-product-prices { display: flex; align-items: baseline; justify-content: space-between; gap: 12rpx; min-width: 0; color: #8a929f; font-size: 24rpx; line-height: 32rpx; }
+.ui-order-product-spec > text:first-child { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ui-order-product-spec > text:last-child, .ui-order-product-prices > text:last-child { flex: none; white-space: nowrap; }
+.ui-order-service-tags { display: flex; gap: 8rpx; min-height: 32rpx; overflow: hidden; }
+.ui-order-service-tags > text { flex: none; padding: 2rpx 10rpx; border-radius: 5rpx; color: var(--danger); background: var(--danger-soft); font-size: 22rpx; line-height: 30rpx; white-space: nowrap; }
+.ui-order-product-prices { color: #6e7683; }
+.ui-order-product-prices .ui-price { font-size: 27rpx; }
 .ui-order-logistics { justify-content: space-between; gap: 14rpx; min-height: 58rpx; color: var(--muted); border-bottom: 1rpx solid var(--line); font-size: 22rpx; }
 .ui-order-logistics > text:first-child { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .ui-order-logistics-action { flex: none; margin: 0; padding: 0; color: var(--brand); background: transparent; border: 0; font-size: 21rpx; font-weight: 650; line-height: 40rpx; white-space: nowrap; }
@@ -97,6 +105,11 @@ button { font-size: 28rpx; font-family: inherit; }
 .ui-order-summary > view { display: flex; align-items: baseline; gap: 8rpx; color: #687180; white-space: nowrap; }
 .ui-order-summary .ui-price { font-size: 30rpx; }
 .ui-order-actions { flex-wrap: nowrap; justify-content: flex-end; gap: 12rpx; padding-top: 16rpx; overflow: hidden; }
+.ui-order-action.secondary-button { color: var(--ink) !important; background: transparent !important; border-color: #d9dee5 !important; }
+@media (max-width: 340px) {
+  .ui-order-actions { gap: 8rpx; }
+  .ui-order-actions .ui-order-action { min-height: 52rpx !important; height: 52rpx !important; padding: 0 12rpx !important; font-size: 24rpx !important; }
+}
 .product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18rpx; }
 .product-card { overflow: hidden; background: var(--paper); border: 1rpx solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
 .product-cover { width: 100%; height: 296rpx; background: #eef0f3; display: block; }

@@ -29,6 +29,15 @@ function thumbnailUrl(value) {
   return internal ? `${url}${url.includes('?') ? '&' : '?'}variant=card` : url
 }
 
+function serviceTags(value) {
+  let rows = value
+  try { if (typeof value === 'string') rows = JSON.parse(value || '[]') } catch (_) { rows = [] }
+  if (!Array.isArray(rows)) return []
+  return rows.map((item) => typeof item === 'string' ? { title: item, enabled: true } : item)
+    .filter((item) => item && item.enabled !== false && typeof item.title === 'string' && item.title.trim())
+    .map((item) => ({ ...item, title: item.title.trim() }))
+}
+
 function product(raw = {}) {
   const guarantees = {
     '七天无理由': '符合平台规则且商品完好的，可在商城当前配置的售后期限内申请无理由退货。',
@@ -49,8 +58,7 @@ function product(raw = {}) {
     imageFailed: false,
     gallery: [...new Set(gallery)],
     detailImages: parse(raw.detailImages).map(mediaUrl).filter(Boolean),
-    serviceTags: parse(raw.serviceTags).map((item) => typeof item === 'string' ? { title: item, description: guarantees[item] || '以商城售后规则及商品实际情况为准。', enabled: true } : item)
-      .filter((item) => item && item.enabled !== false && typeof item.title === 'string' && item.title.trim()),
+    serviceTags: serviceTags(raw.serviceTags).map((item) => ({ ...item, description: item.description || guarantees[item.title] || '以商城售后规则及商品实际情况为准。' })),
     salePrice: Number(raw.salePrice ?? raw.price ?? 0),
     stock: Math.max(0, Number(raw.stock || 0)),
     priceText: money(raw.salePrice ?? raw.price)
@@ -63,4 +71,4 @@ function sku(raw = {}) {
   return { ...raw, imageUrl: mediaUrl(raw.imageUrl), priceText: money(raw.salePrice),
     attributes: Object.entries(attrs).filter(([, value]) => ['string', 'number'].includes(typeof value)).map(([name, value]) => ({ name, value: String(value) })) }
 }
-module.exports = { money, mediaUrl, thumbnailUrl, product, identifier, sku }
+module.exports = { money, mediaUrl, thumbnailUrl, product, identifier, sku, serviceTags }

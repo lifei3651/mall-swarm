@@ -1,0 +1,234 @@
+{
+  "passed": true,
+  "scope": "isolated rendered H5 order cards with intercepted APIs",
+  "results": [
+    {
+      "width": 320,
+      "bodyOverflow": false,
+      "cards": [
+        {
+          "id": "LQ-RENDER-101-LONG-ORDER-NUMBER",
+          "height": 284,
+          "itemCount": 1,
+          "headerOneLine": true,
+          "statusVisible": true,
+          "copyVisible": true,
+          "productImagesLarge": true,
+          "productDetailsVisible": true,
+          "serviceTagsVisible": true,
+          "logisticsOneLine": true,
+          "summaryOneLine": true,
+          "actionsOneLine": true,
+          "actionsNoOverflow": true,
+          "actionHeights": [
+            26,
+            26
+          ],
+          "primaryRightmost": true,
+          "rowsOrdered": true
+        },
+        {
+          "id": "LQ-RENDER-102-LONG-ORDER-NUMBER",
+          "height": 268,
+          "itemCount": 1,
+          "headerOneLine": true,
+          "statusVisible": true,
+          "copyVisible": true,
+          "productImagesLarge": true,
+          "productDetailsVisible": true,
+          "serviceTagsVisible": true,
+          "logisticsOneLine": true,
+          "summaryOneLine": true,
+          "actionsOneLine": true,
+          "actionsNoOverflow": true,
+          "actionHeights": [
+            26,
+            26
+          ],
+          "primaryRightmost": true,
+          "rowsOrdered": true
+        },
+        {
+          "id": "LQ-RENDER-103-LONG-ORDER-NUMBER",
+          "height": 268,
+          "itemCount": 1,
+          "headerOneLine": true,
+          "statusVisible": true,
+          "copyVisible": true,
+          "productImagesLarge": true,
+          "productDetailsVisible": true,
+          "serviceTagsVisible": true,
+          "logisticsOneLine": true,
+          "summaryOneLine": true,
+          "actionsOneLine": true,
+          "actionsNoOverflow": true,
+          "actionHeights": [
+            26,
+            26,
+            26,
+            26
+          ],
+          "primaryRightmost": true,
+          "rowsOrdered": true
+        },
+        {
+          "id": "LQ-RENDER-104-LONG-ORDER-NUMBER",
+          "height": 375,
+          "itemCount": 2,
+          "headerOneLine": true,
+          "statusVisible": true,
+          "copyVisible": true,
+          "productImagesLarge": true,
+          "productDetailsVisible": true,
+          "serviceTagsVisible": true,
+          "logisticsOneLine": true,
+          "summaryOneLine": true,
+          "actionsOneLine": true,
+          "actionsNoOverflow": true,
+          "actionHeights": [
+            26,
+            26,
+            26,
+            26
+          ],
+          "primaryRightmost": true,
+          "rowsOrdered": true
+        },
+        {
+          "id": "LQ-RENDER-105-LONG-ORDER-NUMBER",
+          "height": 284,
+          "itemCount": 1,
+          "headerOneLine": true,
+          "statusVisible": true,
+          "copyVisible": true,
+          "productImagesLarge": true,
+          "productDetailsVisible": true,
+          "serviceTagsVisible": true,
+          "logisticsOneLine": true,
+          "summaryOneLine": true,
+          "actionsOneLine": true,
+          "actionsNoOverflow": true,
+          "actionHeights": [
+            26
+          ],
+          "primaryRightmost": true,
+          "rowsOrdered": true
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "bodyOverflow": false,
+      "cards": [
+        {
+          "id": "LQ-RENDER-101-LONG-ORDER-NUMBER",
+          "height": 270,
+          "itemCount": 1,
+          "headerOneLine": true,
+          "statusVisible": true,
+          "copyVisible": true,
+          "productImagesLarge": true,
+          "productDetailsVisible": true,
+          "serviceTagsVisible": true,
+          "logisticsOneLine": true,
+          "summaryOneLine": true,
+          "actionsOneLine": true,
+          "actionsNoOverflow": true,
+          "actionHeights": [
+            28,
+            28
+          ],
+          "primaryRightmost": true,
+          "rowsOrdered": true
+        },
+        {
+          "id": "LQ-RENDER-102-LONG-ORDER-NUMBER",
+          "height": 270,
+          "itemCount": 1,
+          "headerOneLine": true,
+          "statusVisible": true,
+          "copyVisible": true,
+          "productImagesLarge": true,
+          "productDetailsVisible": true,
+          "serviceTagsVisible": true,
+          "logisticsOneLine": true,
+          "summaryOneLine": true,
+          "actionsOneLine": true,
+          "actionsNoOverflow": true,
+          "actionHeights": [
+            28,
+            28
+          ],
+          "primaryRightmost": true,
+          "rowsOrdered": true
+        },
+        {
+          "id": "LQ-RENDER-103-LONG-ORDER-NUMBER",
+          "height": 270,
+          "itemCount": 1,
+          "headerOneLine": true,
+          "statusVisible": true,
+          "copyVisible": true,
+          "productImagesLarge": true,
+          "productDetailsVisible": true,
+          "serviceTagsVisible": true,
+          "logisticsOneLine": true,
+          "summaryOneLine": true,
+          "actionsOneLine": true,
+          "actionsNoOverflow": true,
+          "actionHeights": [
+            28,
+            28,
+            28,
+            28
+          ],
+          "primaryRightmost": true,
+          "rowsOrdered": true
+        },
+        {
+          "id": "LQ-RENDER-104-LONG-ORDER-NUMBER",
+          "height": 377,
+          "itemCount": 2,
+          "headerOneLine": true,
+          "statusVisible": true,
+          "copyVisible": true,
+          "productImagesLarge": true,
+          "productDetailsVisible": true,
+          "serviceTagsVisible": true,
+          "logisticsOneLine": true,
+          "summaryOneLine": true,
+          "actionsOneLine": true,
+          "actionsNoOverflow": true,
+          "actionHeights": [
+            28,
+            28,
+            28,
+            28
+          ],
+          "primaryRightmost": true,
+          "rowsOrdered": true
+        },
+        {
+          "id": "LQ-RENDER-105-LONG-ORDER-NUMBER",
+          "height": 270,
+          "itemCount": 1,
+          "headerOneLine": true,
+          "statusVisible": true,
+          "copyVisible": true,
+          "productImagesLarge": true,
+          "productDetailsVisible": true,
+          "serviceTagsVisible": true,
+          "logisticsOneLine": true,
+          "summaryOneLine": true,
+          "actionsOneLine": true,
+          "actionsNoOverflow": true,
+          "actionHeights": [
+            28
+          ],
+          "primaryRightmost": true,
+          "rowsOrdered": true
+        }
+      ]
+    }
+  ]
+}

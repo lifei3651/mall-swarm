@@ -1246,6 +1246,7 @@ CREATE TABLE IF NOT EXISTS dms_shop_order_item (
   sku_name VARCHAR(128),
   sku_attrs VARCHAR(1000),
   product_cover VARCHAR(512),
+  service_tags CLOB,
   price DECIMAL(12,2) NOT NULL DEFAULT 0,
   quantity INT NOT NULL DEFAULT 1,
   total_amount DECIMAL(12,2) NOT NULL DEFAULT 0,

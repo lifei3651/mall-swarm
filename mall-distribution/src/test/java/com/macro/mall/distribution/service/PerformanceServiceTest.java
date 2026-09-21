@@ -233,6 +233,32 @@ public class PerformanceServiceTest {
     }
 
     @Test
+    void testOrderItemSnapshotsServiceGuaranteesForOrderPresentation() {
+        String originalTags = "[{\"title\":\"七天无理由\",\"enabled\":true},{\"title\":\"晚发赔\",\"enabled\":true}]";
+        jdbcTemplate.update("UPDATE dms_shop_product SET service_tags=? WHERE id=1", originalTags);
+        DmsShopMember member = createShopMember("13999000044", "订单保障快照会员", null);
+
+        ShopOrderItemDTO item = new ShopOrderItemDTO();
+        item.setProductId(1L);
+        item.setSkuId(1L);
+        item.setQuantity(1);
+        ShopOrderSubmitDTO submit = new ShopOrderSubmitDTO();
+        submit.setReceiverName(member.getNickname());
+        submit.setReceiverPhone(member.getPhone());
+        submit.setReceiverAddress("湖南省长沙市订单保障快照测试地址");
+        submit.setPayType("ALIPAY");
+        submit.setItems(List.of(item));
+
+        ShopOrderVO created = shopService.submitOrder(submit, member);
+        assertEquals(originalTags, created.getItems().get(0).getServiceTags());
+
+        jdbcTemplate.update("UPDATE dms_shop_product SET service_tags='[]' WHERE id=1");
+        ShopOrderVO reloaded = shopService.getOrder(created.getOrder().getId());
+        assertEquals(originalTags, reloaded.getItems().get(0).getServiceTags(),
+                "订单保障标签必须保持下单快照，不能随商品后续修改而漂移");
+    }
+
+    @Test
     void testPerformanceLookupAcceptsLoginAccountAndPhone() {
         AdminMemberCreateDTO create = new AdminMemberCreateDTO();
         create.setPhone("13999000041");
