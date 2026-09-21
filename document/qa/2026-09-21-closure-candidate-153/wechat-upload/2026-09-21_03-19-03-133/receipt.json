@@ -1,0 +1,79 @@
+{
+  "policy": "development-upload-only",
+  "experienceVersionChanged": false,
+  "reviewSubmitted": false,
+  "formalVersionPublished": false,
+  "version": "1.0.153",
+  "scope": "mall-closure-candidate",
+  "gitCommit": "8d94be83088f3ed8aab8664a7a13eccdffc4cb41",
+  "sourceTree": "074af98000489d09a30cae6ba5f12d7aa4371eed",
+  "buildId": "20260921-closure-1.0.153",
+  "buildMethod": "clean-build-in-release-process",
+  "previousBackendVersion": "1.0.152",
+  "previousBackendJarSha256": "5acbcd7b43c2b41a6aa6db685fbdbffa0fb39d17a01ae694fa3d5c29b4273893",
+  "previousStaticVersion": "1.0.151",
+  "previousStaticCommit": "e25c760c4428fcc65956847adbf8bbb252f76db3",
+  "project": "/Users/minmatemp/Documents/mall-swarm-app-h5/dist/wechat-mini-program",
+  "projectManifest": "/Users/minmatemp/Documents/mall-swarm-app-h5/dist/wechat-mini-program.release.json",
+  "projectManifestSha256": "ff1952aedb7ca7759bef8d4efdea7df41745f41f5e1b857b857296ccaa3625c2",
+  "candidateManifestSha256": "39bb8aaf905af42e58c17bb0f7411dd74de2ac953a89f97d86f13d3fd881b436",
+  "miniProgramManifestSha256": "e05468e2c73c67cde300f4207b728b0c58b6aebdfa32ff1bb50e844ae8952371",
+  "sourceArchiveSha256": "4b2d789a092a34792f26bb00b54364ff7724382293a8fa62a436c1ee13c4c208",
+  "aggregateSha256": "37dfd70cbbfacbd0ad669274effc756aa8470bd68200e7dcef6d6022167942be",
+  "fileCount": 228,
+  "appid": "wxd26e0a4e41df392b",
+  "api": "https://lingqimall.com/api",
+  "urlCheck": true,
+  "plugins": {
+    "logisticsPlugin": {
+      "provider": "wx9ad912bf20548d92",
+      "version": "2.1.12"
+    }
+  },
+  "cli": {
+    "version": "2.02.2608060",
+    "cliPath": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli",
+    "cliSha256": "d15485d9eae6ad078cc583433e97bdbe4ace2c1c77dd2a4f1c29226787c65410",
+    "ideBinaryPath": "/Applications/wechatwebdevtools.app/Contents/MacOS/wechatwebdevtools",
+    "ideBinarySha256": "f5ff98e90a38bf1f73d5a0974a07da0f8aee186b9bd44b90f0c9a54bb67357f0"
+  },
+  "temporaryPort": 32227,
+  "startedAt": "2026-09-21T03:19:03.135Z",
+  "finishedAt": "2026-09-21T03:20:21.107Z",
+  "description": "商城收口统一候选版：界面规范、账号关系与交易链路回归",
+  "command": {
+    "executable": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli",
+    "operation": "upload development version",
+    "arguments": [
+      "upload",
+      "--project",
+      "/Users/minmatemp/Documents/mall-swarm-app-h5/dist/wechat-mini-program",
+      "--version",
+      "1.0.153",
+      "--desc",
+      "商城收口统一候选版：界面规范、账号关系与交易链路回归",
+      "--info-output",
+      "/Users/minmatemp/.codex/worktrees/4868/mall-swarm-app-h5/document/qa/2026-09-21-closure-candidate-153/wechat-upload/2026-09-21_03-19-03-133/upload-info.json",
+      "--port",
+      "32227",
+      "--lang",
+      "zh"
+    ],
+    "tokenArgumentUsed": false
+  },
+  "exitCode": 0,
+  "signal": null,
+  "processError": null,
+  "stdout": "\n┌─────────┬──────────┬─────────────┐\n│ (index) │ size     │ size (Byte) │\n├─────────┼──────────┼─────────────┤\n│ TOTAL   │ '1.5 MB' │ 1542324     │\n└─────────┴──────────┴─────────────┘\n\n",
+  "stderr": "- 初始化\n\n(node:30365) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n(Use `Electron --trace-deprecation ...` to show where the warning was created)\n✖ IDE may already started at port 32227, trying to connect\n\n✔ IDE 启动成功，HTTP 服务地址 http://127.0.0.1:32227\n- 准备中\n- 获取 AppID () 权限信息\n✔ 使用 AppID: wxd26e0a4e41df392b\n- 上传\n✔ upload\n",
+  "packageSizeBytes": 1542324,
+  "uploadInfoSha256": "7069f6e5df23f832525b54b990c687b9ef99b132a1b19a0a47b13472e599052f",
+  "cleanup": {
+    "status": 0,
+    "stdout": "",
+    "stderr": "- 初始化\n\n(node:30529) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n(Use `Electron --trace-deprecation ...` to show where the warning was created)\n✔ IDE 已启动，HTTP 服务地址 http://127.0.0.1:32227\n- 准备中\n✔ quit\n",
+    "error": null,
+    "portClosed": true
+  },
+  "success": false
+}

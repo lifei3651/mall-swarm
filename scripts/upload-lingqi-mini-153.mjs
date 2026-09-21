@@ -3,6 +3,8 @@ import path from 'node:path'
 import cp from 'node:child_process'
 import crypto from 'node:crypto'
 
+import { hasSuccessfulUploadMarker } from './lib/wechat-cli-output.mjs'
+
 const VERSION = '1.0.153'
 const EXPECTED_SCOPE = 'mall-closure-candidate'
 const EXPECTED_BUILD_ID = '20260921-closure-1.0.153'
@@ -310,7 +312,8 @@ const receipt = {
   packageSizeBytes: packageSize,
   uploadInfoSha256,
   cleanup: cleanupResult,
-  success: uploadResult?.status === 0 && stdout.includes('✔ upload') && Number.isSafeInteger(packageSize) && cleanupResult.portClosed,
+  success: uploadResult?.status === 0 && hasSuccessfulUploadMarker(stdout, stderr)
+    && Number.isSafeInteger(packageSize) && cleanupResult.portClosed,
 }
 fs.writeFileSync(path.join(receiptDirectory, 'receipt.json'), `${JSON.stringify(receipt, null, 2)}\n`)
 console.log(JSON.stringify({

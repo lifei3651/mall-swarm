@@ -82,6 +82,7 @@ bash -n scripts/production-backup.sh scripts/db-migrate.sh \
 node --check scripts/release-lingqi-153.mjs
 node --check scripts/prepare-lingqi-mini-release.mjs
 node --check scripts/upload-lingqi-mini-153.mjs
+node --test scripts/tests/*.test.mjs
 python3 - <<'PY'
 from pathlib import Path
 
