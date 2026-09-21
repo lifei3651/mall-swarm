@@ -49,7 +49,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
     @Override
     public WeChatPayParametersVO createPayOrder(Long checkoutOrOrderId, DmsShopMember member) {
         requireConfigured();
-        if (member == null) Asserts.fail("请先登录");
+        if (member == null) Asserts.unauthorized("请先登录");
         PaymentTarget target = paymentTarget(checkoutOrOrderId, false);
         assertOwnerAndPayable(target, member);
         String openId = requireOpenId(member);
@@ -84,7 +84,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
     @Transactional(rollbackFor = Exception.class)
     public boolean reconcileOrder(Long checkoutOrOrderId, DmsShopMember member) {
         requireConfigured();
-        if (member == null) Asserts.fail("请先登录");
+        if (member == null) Asserts.unauthorized("请先登录");
         PaymentTarget target = paymentTarget(checkoutOrOrderId, false);
         if (target == null || !member.getUserId().equals(target.userId())) Asserts.fail("无权查询此订单");
         if (!"WECHAT".equalsIgnoreCase(target.payType())) Asserts.fail("该订单不是微信支付");

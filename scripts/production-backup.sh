@@ -20,6 +20,14 @@ install -d -m 0700 "$BACKUP_ROOT"
 exec 9>"$BACKUP_ROOT/.backup.lock"
 flock -n 9 || { echo "another backup is running"; exit 0; }
 
+# 同一秒内连续触发备份时不能复用既有目录。GNU mv 会把源目录嵌入已存在
+# 的目标目录，表面成功却让调用方把旧备份误认为本次新备份，因此碰撞必须
+# 明确失败，由发布门禁重新生成新的时间戳后再执行。
+if [[ -e "$FINAL_DIR" || -e "$WORK_DIR" ]]; then
+  echo "backup aborted: timestamp collision at $STAMP" >&2
+  exit 1
+fi
+
 available_mb="$(df -Pm "$BACKUP_ROOT" | awk 'NR==2 {print $4}')"
 if [[ "$available_mb" -lt "$MIN_FREE_MB" ]]; then
   echo "backup aborted: only ${available_mb}MB free, require ${MIN_FREE_MB}MB" >&2
@@ -79,6 +87,11 @@ backup_items=(
   usr/local/sbin/lingqimall-backup
 )
 
+# 新版部署使用 APP_ROOT/VERSION 绑定后端与静态站点身份；将它与 JAR 一起
+# 纳入完整备份。历史部署可能尚未创建该文件，因此仅在实际存在时收集，
+# 保持旧环境、恢复演练和自定义 APP_ROOT 的兼容性。
+[[ -f "$APP_ROOT/VERSION" ]] && backup_items+=("${APP_ROOT#/}/VERSION")
+
 # App/H5 拆分部署新增独立团队站点；旧的一体化部署可能没有该目录，按实际存在纳入备份。
 [[ -d "$APP_ROOT/nginx/team" ]] && backup_items+=("${APP_ROOT#/}/nginx/team")
 
@@ -121,7 +134,10 @@ if [[ -n "$OFFSITE_BACKUP_DIR" ]]; then
   install -d -m 0700 "$OFFSITE_BACKUP_DIR"
   offsite_final="$OFFSITE_BACKUP_DIR/$STAMP"
   offsite_work="$OFFSITE_BACKUP_DIR/.${STAMP}.tmp"
-  rm -rf "$offsite_work"
+  if [[ -e "$offsite_final" || -e "$offsite_work" ]]; then
+    echo "offsite backup aborted: timestamp collision at $STAMP" >&2
+    exit 1
+  fi
   cp -a "$FINAL_DIR" "$offsite_work"
   (cd "$offsite_work" && sha256sum -c SHA256SUMS >/dev/null)
   mv "$offsite_work" "$offsite_final"

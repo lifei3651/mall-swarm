@@ -89,7 +89,7 @@ public class GlobalExceptionHandler {
         // 未登录相关异常返回 401
         if (e.getErrorCode() != null && e.getErrorCode().getCode() == ResultCode.UNAUTHORIZED.getCode()) {
             LOGGER.warn("未登录访问: {}", message);
-            CommonResult<Void> result = CommonResult.failed("请先登录");
+            CommonResult<Void> result = CommonResult.failed(ResultCode.UNAUTHORIZED, "请先登录");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(result);
         }
         // 其他业务异常返回 400

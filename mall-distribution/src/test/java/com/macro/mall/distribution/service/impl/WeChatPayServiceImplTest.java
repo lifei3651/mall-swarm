@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.service.impl;
 
 import com.macro.mall.common.exception.ApiException;
+import com.macro.mall.common.api.ResultCode;
 import com.macro.mall.distribution.config.WeChatMiniProgramProperties;
 import com.macro.mall.distribution.config.WeChatPayProperties;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
@@ -25,6 +26,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doThrow;
 
@@ -96,6 +98,16 @@ class WeChatPayServiceImplTest {
 
         assertEquals("prepay_id=wx123", result.getPackageValue());
         assertEquals("L202608300001", result.getPaymentNo());
+    }
+
+    @Test
+    void anonymousPaymentOperationsUseUnauthorizedSemanticCode() {
+        ApiException prepay = assertThrows(ApiException.class, () -> service.createPayOrder(9L, null));
+        ApiException reconcile = assertThrows(ApiException.class, () -> service.reconcileOrder(9L, null));
+
+        assertEquals(ResultCode.UNAUTHORIZED.getCode(), prepay.getErrorCode().getCode());
+        assertEquals(ResultCode.UNAUTHORIZED.getCode(), reconcile.getErrorCode().getCode());
+        verifyNoInteractions(gateway, orderDao, tradeDao, memberDao, identityDao, shopService);
     }
 
     @Test

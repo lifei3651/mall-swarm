@@ -26,6 +26,7 @@ class GlobalExceptionHandlerTest {
                 new ApiException(ResultCode.UNAUTHORIZED, "会话已失效"));
 
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        assertEquals(ResultCode.UNAUTHORIZED.getCode(), response.getBody().getCode());
         assertEquals("请先登录", response.getBody().getMessage());
     }
 

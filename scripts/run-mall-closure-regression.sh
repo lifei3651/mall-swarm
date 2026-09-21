@@ -9,46 +9,92 @@ fi
 
 cd "$closure_root"
 
-echo "[1/8] 后端全量测试"
+expected_commit="$(git rev-parse HEAD)"
+[[ -z "$(git status --porcelain)" ]] || { echo "收口回归要求干净工作区" >&2; exit 1; }
+[[ "${RELEASE_GIT_COMMIT:-}" == "$expected_commit" ]] || {
+  echo "RELEASE_GIT_COMMIT 必须等于当前不可变提交 $expected_commit" >&2
+  exit 1
+}
+[[ -n "${RELEASE_BUILD_ID:-}" ]] || { echo "缺少 RELEASE_BUILD_ID" >&2; exit 1; }
+if git rev-parse --abbrev-ref '@{upstream}' >/dev/null 2>&1; then
+  [[ "$(git rev-list --left-right --count 'HEAD...@{upstream}')" == $'0\t0' ]] \
+    || { echo "收口回归前必须完成远程备份同步" >&2; exit 1; }
+fi
+node <<'NODE'
+const fs = require('fs')
+const version = fs.readFileSync('VERSION', 'utf8').trim()
+const pkg = require('./mall-mini-program/package.json')
+const lock = require('./mall-mini-program/package-lock.json')
+if (version !== pkg.version || version !== lock.version || version !== lock.packages?.['']?.version) {
+  throw new Error('根版本、小程序包版本和锁文件不一致')
+}
+NODE
+[[ "$(find document/db/migrations -maxdepth 1 -type f -name 'V*.sql' | wc -l | tr -d ' ')" == 40 ]] \
+  || { echo "迁移清单不是预期40条" >&2; exit 1; }
+bash scripts/db-migrate.sh plan >/dev/null
+
+echo "[1/10] 后端全量测试"
 ./mvnw test
 
-echo "[2/8] 后端生产打包"
+echo "[2/10] 后端生产打包"
 ./mvnw -DskipTests package
 
-echo "[3/8] 管理后台全量测试"
+echo "[3/10] 管理后台全量测试"
 (
   cd mall-distribution-admin
   npm test -- --run
 )
 
-echo "[4/8] 管理后台生产构建"
+echo "[4/10] 管理后台生产构建"
 (
   cd mall-distribution-admin
   npm run build
 )
 
-echo "[5/8] 微信小程序全量测试"
+echo "[5/10] 微信小程序全量测试"
 (
   cd mall-mini-program
   npm test
 )
 
-echo "[6/8] 微信小程序工程检查"
+echo "[6/10] 微信小程序工程检查"
 (
   cd mall-mini-program
   npm run check
 )
 
-echo "[7/8] 商城 H5 全量测试"
+echo "[7/10] 商城 H5 全量测试"
 (
   cd mall-shop-web
   npm test
 )
 
-echo "[8/8] 商城 H5 三种生产构建"
+echo "[8/10] 商城 H5 三种生产构建"
 (
   cd mall-shop-web
   npm run build
 )
+
+echo "[9/10] 发布脚本与候选构建器语法门禁"
+bash -n scripts/production-backup.sh scripts/db-migrate.sh \
+  scripts/remote-deploy-20260921-v1.0.153-backend.sh \
+  scripts/remote-deploy-20260921-v1.0.153-static.sh
+node --check scripts/release-lingqi-153.mjs
+node --check scripts/prepare-lingqi-mini-release.mjs
+node --check scripts/upload-lingqi-mini-153.mjs
+
+echo "[10/10] 版本身份与敏感文件名门禁"
+for allowed in .env.example mall-shop-web/.env.android mall-shop-web/.env.integrated \
+  mall-shop-web/.env.public mall-shop-web/.env.team; do
+  git ls-files --error-unmatch "$allowed" >/dev/null
+done
+unexpected_sensitive="$(git ls-files | grep -E '(^|/)(\.env($|\.)|[^/]+\.(pem|key|p12|pfx)$|project\.private\.config\.json$)' \
+  | grep -Ev '^(\.env\.example|mall-shop-web/\.env\.(android|integrated|public|team))$' || true)"
+[[ -z "$unexpected_sensitive" ]] || {
+  echo "发现未登记敏感文件名：" >&2
+  printf '%s\n' "$unexpected_sensitive" >&2
+  exit 1
+}
+git diff --check
 
 echo "商城本地收口回归通过。该结果只代表代码、自动测试和本地产物，不代表服务器、微信平台或真机验收完成。"

@@ -117,13 +117,17 @@ if [[ -n "$CANDIDATE" ]]; then
   fi
 
   for required in mall-distribution.jar admin.tar.gz shop.tar.gz team.tar.gz integrated.tar.gz \
-    VERSION RELEASE_MANIFEST.json SHA256SUMS production-backup.sh db-migrate.sh lingqimall.conf \
-    lingqimall-security.conf release.sh; do
+    ADMIN_SHA256SUMS SHOP_SHA256SUMS TEAM_SHA256SUMS INTEGRATED_SHA256SUMS \
+    mini-program-source.tar.gz VERSION RELEASE_MANIFEST.json MINI_PROGRAM_MANIFEST.json SHA256SUMS \
+    production-backup.sh db-migrate.sh lingqimall.conf lingqimall-security.conf \
+    release-backend.sh release-static.sh; do
     [[ -s "$CANDIDATE_ROOT/$required" ]] || fail "候选缺少 $required"
   done
+  [[ -d "$CANDIDATE_ROOT/document/db/migrations" ]] || fail "候选缺少数据库迁移集合"
   [[ -x "$CANDIDATE_ROOT/production-backup.sh" ]] || fail "候选备份脚本不可执行"
   [[ -x "$CANDIDATE_ROOT/db-migrate.sh" ]] || fail "候选迁移脚本不可执行"
-  [[ -x "$CANDIDATE_ROOT/release.sh" ]] || fail "候选发布脚本不可执行"
+  [[ -x "$CANDIDATE_ROOT/release-backend.sh" ]] || fail "候选后端发布脚本不可执行"
+  [[ -x "$CANDIDATE_ROOT/release-static.sh" ]] || fail "候选静态发布脚本不可执行"
   grep -Fq 'etc/lingqimall' "$CANDIDATE_ROOT/production-backup.sh" \
     || fail "候选备份脚本未覆盖 /etc/lingqimall 客户短信等外部服务配置"
   for inner in admin shop team integrated; do
@@ -135,22 +139,282 @@ if [[ -n "$CANDIDATE" ]]; then
     if find "$INNER_ROOT" -type f \( -name '*.map' -o -name '.env' -o -name '*.pem' -o -name '*.key' \) -print -quit | grep -q .; then
       fail "$inner 内包含 source map 或敏感配置文件"
     fi
+    INNER_SUMS="$CANDIDATE_ROOT/$(printf '%s' "$inner" | tr '[:lower:]' '[:upper:]')_SHA256SUMS"
+    python3 - "$INNER_ROOT" "$INNER_SUMS" <<'PY' || fail "$inner 内包逐文件哈希不一致"
+import hashlib
+import pathlib
+import re
+import sys
+
+root = pathlib.Path(sys.argv[1])
+sums_file = pathlib.Path(sys.argv[2])
+sums = {}
+for number, line in enumerate(sums_file.read_text().splitlines(), 1):
+    if not line:
+        continue
+    match = re.fullmatch(r"([0-9a-f]{64})  \./([^\0]+)", line)
+    if not match or match.group(2).startswith("/") or ".." in pathlib.PurePosixPath(match.group(2)).parts:
+        raise SystemExit(f"invalid checksum line {number}")
+    if match.group(2) in sums:
+        raise SystemExit(f"duplicate checksum path {match.group(2)}")
+    sums[match.group(2)] = match.group(1)
+actual = {}
+for file in root.rglob("*"):
+    if file.is_file():
+        actual[file.relative_to(root).as_posix()] = hashlib.sha256(file.read_bytes()).hexdigest()
+if sums != actual:
+    raise SystemExit("checksum inventory differs from extracted archive")
+PY
   done
-  if command -v sha256sum >/dev/null 2>&1; then
-    (cd "$CANDIDATE_ROOT" && sha256sum -c SHA256SUMS >/dev/null) || fail "候选 SHA256SUMS 不一致"
-  else
-    (cd "$CANDIDATE_ROOT" && shasum -a 256 -c SHA256SUMS >/dev/null) || fail "候选 SHA256SUMS 不一致"
-  fi
-  [[ "$(grep -Fc 'SET SESSION group_concat_max_len=16777216;' "$CANDIDATE_ROOT/release.sh")" -ge 2 ]] \
-    || fail "候选缺少完整装修哈希防截断门禁"
-  grep -Fq -- '--preflight-only' "$CANDIDATE_ROOT/release.sh" \
-    || fail "候选缺少只读预检模式"
+
+  audit_archive "$CANDIDATE_ROOT/mini-program-source.tar.gz" mini-program-source
+  python3 - "$CANDIDATE_ROOT" "$ROOT_DIR" <<'PY' || fail "统一候选清单、小程序源码或逐文件哈希门禁失败"
+import hashlib
+import io
+import json
+import pathlib
+import re
+import subprocess
+import sys
+import tarfile
+
+candidate = pathlib.Path(sys.argv[1]).resolve()
+root = pathlib.Path(sys.argv[2]).resolve()
+expected_appid = "wxd26e0a4e41df392b"
+expected_api = "https://lingqimall.com/api"
+expected_plugins = {"logisticsPlugin": {"provider": "wx9ad912bf20548d92", "version": "2.1.12"}}
+expected_version = "1.0.153"
+expected_scope = "mall-closure-candidate"
+expected_build_id = "20260921-closure-1.0.153"
+expected_build_method = "clean-build-in-release-process"
+expected_previous_backend_version = "1.0.152"
+expected_previous_backend_jar = "5acbcd7b43c2b41a6aa6db685fbdbffa0fb39d17a01ae694fa3d5c29b4273893"
+expected_previous_static_version = "1.0.151"
+expected_previous_static_commit = "e25c760c4428fcc65956847adbf8bbb252f76db3"
+
+def fail(message):
+    raise SystemExit(message)
+
+def sha_bytes(value):
+    return hashlib.sha256(value).hexdigest()
+
+def sha_file(file):
+    return sha_bytes(file.read_bytes())
+
+def load_json(file):
+    try:
+        return json.loads(file.read_text())
+    except Exception as error:
+        fail(f"invalid JSON {file.name}: {error}")
+
+def normalized(name):
+    name = name.replace("\\", "/")
+    while name.startswith("./"):
+        name = name[2:]
+    parts = pathlib.PurePosixPath(name).parts
+    if not name or name.startswith("/") or ".." in parts:
+        fail(f"unsafe path: {name}")
+    return name
+
+def aggregate(files):
+    ledger = "".join(f"{files[name]}  {name}\n" for name in sorted(files))
+    return sha_bytes(ledger.encode())
+
+release = load_json(candidate / "RELEASE_MANIFEST.json")
+mini = load_json(candidate / "MINI_PROGRAM_MANIFEST.json")
+version = (candidate / "VERSION").read_text().strip()
+commit = release.get("gitCommit")
+if not re.fullmatch(r"[0-9a-f]{40}", commit or ""):
+    fail("release manifest does not bind an immutable commit")
+if version != expected_version or release.get("version") != version:
+    fail("VERSION and release manifest disagree")
+if release.get("scope") != expected_scope or release.get("buildId") != expected_build_id \
+        or release.get("buildMethod") != expected_build_method:
+    fail("release candidate scope, buildId, or buildMethod is incorrect")
+source_tree = release.get("sourceTree")
+if not re.fullmatch(r"[0-9a-f]{40}", source_tree or ""):
+    fail("release manifest does not bind a source tree")
+if release.get("previousVersion") != expected_previous_backend_version \
+        or release.get("previousJarSha256") != expected_previous_backend_jar \
+        or release.get("previousStaticVersion") != expected_previous_static_version \
+        or release.get("previousStaticCommit") != expected_previous_static_commit:
+    fail("release candidate production baseline is incorrect")
+artifacts = release.get("artifacts") or {}
+for label in ("admin", "shop", "team", "integrated"):
+    artifact = artifacts.get(label) or {}
+    archive_name = f"{label}.tar.gz"
+    checksums_name = f"{label.upper()}_SHA256SUMS"
+    if artifact.get("archive") != archive_name or artifact.get("checksums") != checksums_name:
+        fail(f"static artifact binding mismatch: {label}")
+    if artifact.get("sha256") != sha_file(candidate / archive_name):
+        fail(f"static archive checksum mismatch: {label}")
+    if artifact.get("checksumsSha256") != sha_file(candidate / checksums_name):
+        fail(f"static checksum manifest mismatch: {label}")
+    checksum_count = sum(1 for line in (candidate / checksums_name).read_text().splitlines() if line)
+    if artifact.get("fileCount") != checksum_count or checksum_count <= 0:
+        fail(f"static artifact fileCount invalid: {label}")
+if mini.get("schemaVersion") != 1 or mini.get("version") != version or mini.get("gitCommit") != commit:
+    fail("mini-program and release manifest identity disagree")
+if mini.get("sourceArchive") != "mini-program-source.tar.gz" or mini.get("sourceRoot") != "mall-mini-program":
+    fail("unexpected mini-program source binding")
+if mini.get("appid") != expected_appid or mini.get("api") != expected_api or mini.get("urlCheck") is not True:
+    fail("mini-program production identity is incorrect")
+if mini.get("plugins") != expected_plugins:
+    fail("mini-program plugin inventory is incorrect")
+
+source_archive = candidate / "mini-program-source.tar.gz"
+source_sha = sha_file(source_archive)
+if mini.get("sourceArchiveSha256") != source_sha:
+    fail("mini-program source archive checksum mismatch")
+mini_bytes = (candidate / "MINI_PROGRAM_MANIFEST.json").read_bytes()
+release_mini = release.get("miniProgram") or {}
+expected_release_mini = {
+    "sourceArchive": "mini-program-source.tar.gz",
+    "sourceArchiveSha256": source_sha,
+    "manifest": "MINI_PROGRAM_MANIFEST.json",
+    "manifestSha256": sha_bytes(mini_bytes),
+    "fileCount": mini.get("fileCount"),
+}
+for key, expected in expected_release_mini.items():
+    if release_mini.get(key) != expected:
+        fail(f"release miniProgram binding mismatch: {key}")
+
+manifest_files = mini.get("files")
+if not isinstance(manifest_files, dict) or mini.get("fileCount") != len(manifest_files):
+    fail("mini-program file manifest count mismatch")
+for name, checksum in manifest_files.items():
+    if normalized(name) != name or not name.startswith("mall-mini-program/"):
+        fail(f"mini-program manifest path is invalid: {name}")
+    if not re.fullmatch(r"[0-9a-f]{64}", checksum or ""):
+        fail(f"mini-program manifest checksum is invalid: {name}")
+if mini.get("aggregateSha256") != aggregate(manifest_files):
+    fail("mini-program manifest aggregate checksum mismatch")
+
+def tar_files_from_handle(handle):
+    files = {}
+    for member in handle.getmembers():
+        name = normalized(member.name)
+        if member.isdir():
+            continue
+        if not member.isfile():
+            fail(f"mini-program archive contains a link or special file: {name}")
+        if not name.startswith("mall-mini-program/"):
+            fail(f"mini-program archive contains an extra root: {name}")
+        if name in files:
+            fail(f"mini-program archive contains duplicate path: {name}")
+        stream = handle.extractfile(member)
+        if stream is None:
+            fail(f"unable to read mini-program archive entry: {name}")
+        files[name] = sha_bytes(stream.read())
+    return files
+
+with tarfile.open(source_archive, "r:gz") as handle:
+    source_files = tar_files_from_handle(handle)
+if source_files != manifest_files:
+    fail("mini-program source archive and file manifest differ")
+
+try:
+    resolved = subprocess.check_output(["git", "-C", str(root), "rev-parse", f"{commit}^{{commit}}"], text=True).strip()
+    git_version = subprocess.check_output(["git", "-C", str(root), "show", f"{commit}:VERSION"], text=True).strip()
+    git_archive = subprocess.check_output(["git", "-C", str(root), "archive", "--format=tar", commit, "mall-mini-program"])
+except subprocess.CalledProcessError as error:
+    fail(f"candidate commit is unavailable: {error}")
+if resolved != commit or git_version != version:
+    fail("candidate commit or root VERSION mismatch")
+resolved_tree = subprocess.check_output(["git", "-C", str(root), "rev-parse", f"{commit}^{{tree}}"], text=True).strip()
+if resolved_tree != source_tree:
+    fail("candidate sourceTree does not match gitCommit")
+with tarfile.open(fileobj=io.BytesIO(git_archive), mode="r:") as handle:
+    git_files = tar_files_from_handle(handle)
+if source_files != git_files:
+    fail("mini-program source archive does not equal the immutable git tree")
+
+def source_json(name):
+    data = subprocess.check_output(["git", "-C", str(root), "show", f"{commit}:mall-mini-program/{name}"])
+    return json.loads(data)
+
+package = source_json("package.json")
+lock = source_json("package-lock.json")
+project = source_json("project.config.json")
+app = source_json("app.json")
+runtime = subprocess.check_output(["git", "-C", str(root), "show", f"{commit}:mall-mini-program/config/runtime.js"], text=True)
+if package.get("version") != version or lock.get("version") != version or (lock.get("packages") or {}).get("", {}).get("version") != version:
+    fail("root, mini package, and lock versions disagree")
+if (project.get("setting") or {}).get("urlCheck") is not True:
+    fail("mini-program source disables legal-domain validation")
+if f"API_BASE_URL: '{expected_api}'" not in runtime:
+    fail("mini-program source points at the wrong API")
+if app.get("plugins") != expected_plugins:
+    fail("mini-program source plugin inventory is incorrect")
+
+sums_file = candidate / "SHA256SUMS"
+sums = {}
+for line_number, line in enumerate(sums_file.read_text().splitlines(), 1):
+    if not line:
+        continue
+    match = re.fullmatch(r"([0-9a-f]{64})  ([^\0]+)", line)
+    if not match:
+        fail(f"invalid SHA256SUMS line {line_number}")
+    name = normalized(match.group(2))
+    if name in sums:
+        fail(f"duplicate SHA256SUMS entry: {name}")
+    sums[name] = match.group(1)
+actual = {}
+for file in candidate.rglob("*"):
+    if not file.is_file():
+        continue
+    relative = file.relative_to(candidate).as_posix()
+    if relative != "SHA256SUMS":
+        actual[relative] = sha_file(file)
+if sums != actual:
+    fail("SHA256SUMS does not cover every candidate file exactly once")
+
+repo_migrations = sorted(file.name for file in (root / "document/db/migrations").glob("V*.sql"))
+candidate_migrations = sorted(file.name for file in (candidate / "document/db/migrations").glob("V*.sql"))
+if repo_migrations != candidate_migrations:
+    fail("candidate migration inventory differs from the repository")
+for name in repo_migrations:
+    if sha_file(root / "document/db/migrations" / name) != sha_file(candidate / "document/db/migrations" / name):
+        fail(f"candidate migration differs from repository: {name}")
+
+fixed_files = {
+    "mall-distribution.jar", "admin.tar.gz", "shop.tar.gz", "team.tar.gz", "integrated.tar.gz",
+    "ADMIN_SHA256SUMS", "SHOP_SHA256SUMS", "TEAM_SHA256SUMS", "INTEGRATED_SHA256SUMS",
+    "mini-program-source.tar.gz", "VERSION", "RELEASE_MANIFEST.json", "MINI_PROGRAM_MANIFEST.json",
+    "SHA256SUMS", "production-backup.sh", "db-migrate.sh", "lingqimall.conf",
+    "lingqimall-security.conf", "release-backend.sh", "release-static.sh",
+}
+expected_inventory = fixed_files | {f"document/db/migrations/{name}" for name in repo_migrations}
+candidate_inventory = {file.relative_to(candidate).as_posix() for file in candidate.rglob("*") if file.is_file()}
+if candidate_inventory != expected_inventory:
+    missing = sorted(expected_inventory - candidate_inventory)
+    extra = sorted(candidate_inventory - expected_inventory)
+    fail(f"candidate inventory mismatch; missing={missing}, extra={extra}")
+PY
+
+  for marker in 'business_snapshot' 'protected_hashes' 'verify_unauthorized_contract' 'no-new-migration'; do
+    grep -Fq -- "$marker" "$CANDIDATE_ROOT/release-backend.sh" \
+      || fail "候选后端发布脚本缺少收口保护：$marker"
+  done
+  CANDIDATE_VERSION=$(tr -d '[:space:]' < "$CANDIDATE_ROOT/VERSION")
+  grep -Fxq "EXPECTED_VERSION=$CANDIDATE_VERSION" "$CANDIDATE_ROOT/release-backend.sh" \
+    || fail "候选后端发布脚本版本与统一候选不一致"
+  grep -Fxq "EXPECTED_VERSION=$CANDIDATE_VERSION" "$CANDIDATE_ROOT/release-static.sh" \
+    || fail "候选静态发布脚本版本与统一候选不一致"
+  bash -n "$CANDIDATE_ROOT/release-backend.sh" || fail "候选后端发布脚本语法错误"
+  bash -n "$CANDIDATE_ROOT/release-static.sh" || fail "候选静态发布脚本语法错误"
+  grep -Fq -- '--preflight-only' "$CANDIDATE_ROOT/release-backend.sh" \
+    || fail "候选后端发布脚本缺少只读预检模式"
+  grep -Fq -- '--preflight-only' "$CANDIDATE_ROOT/release-static.sh" \
+    || fail "候选静态发布脚本缺少只读预检模式"
   [[ "$(sha256_file "$ROOT_DIR/scripts/nginx/lingqimall.conf")" == "$(sha256_file "$CANDIDATE_ROOT/lingqimall.conf")" ]] \
     || fail "候选 Nginx 配置与仓库模板不一致"
+  [[ "$(sha256_file "$ROOT_DIR/scripts/nginx/lingqimall-security.conf")" == "$(sha256_file "$CANDIDATE_ROOT/lingqimall-security.conf")" ]] \
+    || fail "候选 Nginx 安全配置与仓库模板不一致"
   if find "$CANDIDATE_ROOT" -type f \( -name '*.map' -o -name '.env' -o -name '*.pem' -o -name '*.key' \) -print -quit | grep -q .; then
     fail "候选含 source map 或敏感配置文件"
   fi
-  pass "外层候选、四个内包、哈希、数据库哈希门禁与 Nginx 模板"
+  pass "统一候选、四个静态内包、小程序不可变源码、逐文件哈希、迁移集合与 Nginx 模板"
 fi
 
 if [[ "$LOCAL_ONLY" == 1 ]]; then
