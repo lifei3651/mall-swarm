@@ -34,8 +34,8 @@ import java.math.RoundingMode;
 import java.math.BigDecimal;
 
 /**
- * 第三方退款恢复器。调用发生在本地账务事务提交之后；渠道成功后再用独立事务标记完成。
- * 如果渠道成功但最终标记提交失败，售后仍停在状态6，同一售后号可安全重试并恢复。
+ * 第三方退款恢复器。售后先持久化为退款处理中，渠道确认成功后再在独立事务中
+ * 原子完成退款账务、库存和订单状态；任何本地步骤失败都保留状态6，使用同一售后号安全恢复。
  */
 @Service
 @Slf4j
@@ -53,6 +53,7 @@ public class ExternalRefundCoordinator {
     private final RefundInventoryRestockService refundInventoryRestockService;
     private final AlipayService alipayService;
     private final WeChatPayService weChatPayService;
+    private final RefundCompletionAccountingService refundCompletionAccountingService;
     private final TransactionTemplate transactionTemplate;
     @Autowired private WeChatShippingInfoService weChatShippingInfoService;
 
@@ -62,7 +63,9 @@ public class ExternalRefundCoordinator {
                                      DmsAgentDao agentDao, AgentService agentService,
                                      RefundInventoryRestockService refundInventoryRestockService,
                                      DmsShopTradeDao tradeDao, AlipayService alipayService,
-                                     WeChatPayService weChatPayService, PlatformTransactionManager transactionManager) {
+                                     WeChatPayService weChatPayService,
+                                     RefundCompletionAccountingService refundCompletionAccountingService,
+                                     PlatformTransactionManager transactionManager) {
         this.afterSaleDao = afterSaleDao;
         this.afterSaleItemDao = afterSaleItemDao;
         this.orderDao = orderDao;
@@ -74,6 +77,7 @@ public class ExternalRefundCoordinator {
         this.refundInventoryRestockService = refundInventoryRestockService;
         this.alipayService = alipayService;
         this.weChatPayService = weChatPayService;
+        this.refundCompletionAccountingService = refundCompletionAccountingService;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -144,11 +148,14 @@ public class ExternalRefundCoordinator {
             // 重复回调看到状态 1 直接返回，不得再加库存。
             if (locked == null || !Integer.valueOf(6).equals(locked.getStatus())) return;
             validateRefundState(locked);
+            DmsShopOrder lockedOrder = orderDao.selectByIdForUpdate(locked.getOrderId());
+            if (lockedOrder == null) throw new IllegalStateException(channelName + "已退款，但本地订单不存在，请人工核对");
+            // 渠道成功是所有本地退款账务的唯一完成门禁。先在本事务中迁移到完成态，
+            // 使累计奖金/成本只读取 status=1；后续任一步失败都会回滚为状态 6。
             if (afterSaleDao.markRefundCompleted(afterSaleId) != 1) {
                 throw new IllegalStateException(channelName + "已退款，但本地完成状态保存失败，请使用同一售后单重试恢复");
             }
-            DmsShopOrder lockedOrder = orderDao.selectByIdForUpdate(locked.getOrderId());
-            if (lockedOrder == null) throw new IllegalStateException(channelName + "已退款，但本地订单不存在，请人工核对");
+            refundCompletionAccountingService.complete(locked, lockedOrder);
             refundInventoryRestockService.restoreAfterRefundCompleted(locked, lockedOrder);
             finalizeOrderAfterChannelSuccess(lockedOrder);
         });
@@ -232,7 +239,7 @@ public class ExternalRefundCoordinator {
         int originalQuantity = orderItemDao.selectByOrderId(order.getId()).stream()
                 .map(item -> com.macro.mall.distribution.util.ShopQuantityChecks.positive(item.getQuantity()))
                 .reduce(0, com.macro.mall.distribution.util.ShopQuantityChecks::add);
-        int refundedQuantity = afterSaleItemDao.sumApprovedQuantityByOrderId(order.getId());
+        int refundedQuantity = afterSaleItemDao.sumCompletedQuantityByOrderId(order.getId());
         ShopQuantityChecks.remaining(originalQuantity, refundedQuantity);
         if (refundedQuantity < originalQuantity) {
             reconcilePartiallyShippedOrder(order, originalQuantity - refundedQuantity);

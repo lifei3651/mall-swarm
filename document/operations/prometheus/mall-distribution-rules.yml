@@ -71,3 +71,86 @@ groups:
         annotations:
           summary: "商城商品缓存命中率低于 60%"
           description: "请检查缓存 TTL、频繁失效、Redis 容量及商品读取模式。"
+
+  - name: mall-distribution-business-operations
+    rules:
+      - alert: MallBusinessMetricsMissing
+        expr: absent(mall_business_monitor_available)
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "商城业务聚合指标缺失"
+          description: "Prometheus 连续未采集到商城业务聚合指标，请检查 Actuator 暴露范围、采集目标和应用版本。"
+
+      - alert: MallBusinessMonitorUnavailable
+        expr: mall_business_monitor_available != 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "商城业务聚合监控采样失败"
+          description: "业务监控源 {{ $labels.type }}/{{ $labels.source }} 连续不可用；指标值已置为 -1，不能将其解释为零积压。"
+
+      - alert: MallBusinessTaskTerminalFailures
+        expr: mall_business_task_failures > 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "商城异步任务存在终态失败"
+          description: "任务 {{ $labels.task }} 有 {{ $value }} 条终态失败，请按运行手册只读核对后再使用既有恢复入口。"
+
+      - alert: MallWechatTaskBacklogOld
+        expr: mall_business_task_oldest_age_seconds{task=~"wechat_shipping_sync|wechat_logistics_follow"} > 900
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "微信发货或物流任务积压超过 15 分钟"
+          description: "任务 {{ $labels.task }} 最老积压年龄为 {{ $value }} 秒。"
+
+      - alert: MallBonusTaskBacklogOld
+        expr: mall_business_task_oldest_age_seconds{task="bonus_calculation"} > 600
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "奖金计算任务积压超过 10 分钟"
+          description: "奖金计算最老积压年龄为 {{ $value }} 秒，请检查奖金任务调度与失败终态。"
+
+      - alert: MallErpTaskBacklogOld
+        expr: mall_business_task_oldest_age_seconds{task="erp_sync"} > 1800
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ERP 同步任务积压超过 30 分钟"
+          description: "ERP 同步最老积压年龄为 {{ $value }} 秒，请检查已启用集成的授权和重试状态。"
+
+      - alert: MallRefundProcessingTimedOut
+        expr: mall_business_operation_timed_out{operation="refund"} > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "外部渠道退款处理超时"
+          description: "有 {{ $value }} 笔微信/支付宝退款超过处理阈值；只读核对渠道结果后使用既有退款恢复流程。"
+
+      - alert: MallWithdrawalPayoutTimedOut
+        expr: mall_business_operation_timed_out{operation="withdrawal_payout"} > 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "提现打款处理超时"
+          description: "有 {{ $value }} 笔提现打款超过处理阈值；先核对渠道结果，禁止直接重复打款。"
+
+      - alert: MallMerchantLedgerMismatch
+        expr: mall_business_ledger_mismatches{ledger="merchant_balance"} > 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "商户账户余额与账本不一致"
+          description: "有 {{ $value }} 个商户账户与最新账本六项结余不一致或尚未初始化账本，请冻结相关人工资金操作并执行只读对账。"

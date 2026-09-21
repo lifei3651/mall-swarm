@@ -32,7 +32,22 @@ class AdminPermissionPolicyTest {
         assertEquals("config:shop", AdminPermissionPolicy.requiredPermission("POST", "/shop/admin/media/brand-culture"));
         assertEquals("config:bonus", AdminPermissionPolicy.requiredPermission("PUT", "/shop/admin/product-settings/pv"));
         assertEquals("config:bonus", AdminPermissionPolicy.requiredPermission("PUT", "/distribution/bonus-config/display/1"));
-        assertEquals("config:integration", AdminPermissionPolicy.requiredPermission("POST", "/distribution/erp/configs"));
+        assertEquals("config:integration", AdminPermissionPolicy.requiredPermission("POST", "/distribution/erp/integrations"));
+        assertEquals("config:integration", AdminPermissionPolicy.requiredPermission("POST", "/distribution/erp/tasks"));
+    }
+
+    @Test
+    void businessModesUseDedicatedBonusPermissionWithoutBroadeningTenantProfileApis() {
+        assertEquals("config:bonus", AdminPermissionPolicy.requiredPermission(
+                "GET", "/distribution/tenant/1/business-modes"));
+        assertEquals("config:bonus", AdminPermissionPolicy.requiredPermission(
+                "PUT", "/distribution/tenant/1/business-modes"));
+        assertEquals("config:shop", AdminPermissionPolicy.requiredPermission(
+                "GET", "/distribution/tenant/list"));
+        assertEquals("config:shop", AdminPermissionPolicy.requiredPermission(
+                "POST", "/distribution/tenant"));
+        assertEquals("config:shop", AdminPermissionPolicy.requiredPermission(
+                "PUT", "/distribution/tenant/1/status"));
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.macro.mall.distribution.dao;
 
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.entity.DmsBonusCalculationTask;
+import com.macro.mall.distribution.vo.BusinessTaskMetricSnapshot;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -34,6 +35,8 @@ public interface DmsBonusCalculationTaskDao {
 
     List<DmsBonusCalculationTask> selectExecutableScoped(@Param("tenantId") Long tenantId,
                                                          @Param("limit") Integer limit);
+
+    BusinessTaskMetricSnapshot selectMonitoringMetrics();
 
     default List<DmsBonusCalculationTask> selectExecutable(Integer limit) {
         return selectExecutableScoped(TenantContext.getTenantId(), limit);

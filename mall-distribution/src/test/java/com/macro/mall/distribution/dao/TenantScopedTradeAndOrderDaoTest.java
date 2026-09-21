@@ -117,21 +117,32 @@ class TenantScopedTradeAndOrderDaoTest {
     }
 
     @Test
-    void latePaymentRefundMarkersAreTenantScopedAndWriteOnlyOnce() {
+    void latePaymentRefundMarkersAreTenantScopedAndRecoverable() {
         jdbcTemplate.update("""
                 INSERT INTO dms_shop_trade
                 (id, trade_no, tenant_id, user_id, pay_type, pay_amount, status)
-                VALUES (940004, 'TENANT-LATE-TRADE-1', 1, 101, 'ALIPAY', 10, 4),
-                       (940005, 'TENANT-LATE-TRADE-2', 2, 202, 'ALIPAY', 20, 4)
+                VALUES (940004, 'TENANT-LATE-TRADE-1', 1, 101, 'WECHAT', 10, 4),
+                       (940005, 'TENANT-LATE-TRADE-2', 2, 202, 'WECHAT', 20, 4)
                 """);
         insertOrder(940015L, "TENANT-LATE-ORDER-1", 1L, 4);
         insertOrder(940016L, "TENANT-LATE-ORDER-2", 2L, 4);
+        jdbcTemplate.update("UPDATE dms_shop_order SET pay_type='WECHAT' WHERE id IN (940015,940016)");
 
         TenantContext.setTenantId(1L);
+        assertEquals(1, tradeDao.markLateRefundProcessing(940004L));
+        assertEquals(0, tradeDao.markLateRefundProcessing(940004L));
+        assertEquals(0, tradeDao.markLateRefundProcessing(940005L));
+        assertEquals(List.of(940004L), tradeDao.selectLateRefundProcessingIds(10));
+        assertEquals(2, tradeDao.selectById(940004L).getLateRefundFlag());
         assertEquals(1, tradeDao.markLateRefunded(940004L));
         assertEquals(0, tradeDao.markLateRefunded(940004L));
         assertEquals(0, tradeDao.markLateRefunded(940005L));
         assertEquals(1, tradeDao.selectById(940004L).getLateRefundFlag());
+        assertEquals(1, orderDao.markLateRefundProcessing(940015L));
+        assertEquals(0, orderDao.markLateRefundProcessing(940015L));
+        assertEquals(0, orderDao.markLateRefundProcessing(940016L));
+        assertEquals(List.of(940015L), orderDao.selectLateRefundProcessingIds(10));
+        assertEquals(2, orderDao.selectById(940015L).getLateRefundFlag());
         assertEquals(1, orderDao.markLateRefunded(940015L));
         assertEquals(0, orderDao.markLateRefunded(940015L));
         assertEquals(0, orderDao.markLateRefunded(940016L));

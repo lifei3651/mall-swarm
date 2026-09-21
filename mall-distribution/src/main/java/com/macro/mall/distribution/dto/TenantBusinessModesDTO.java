@@ -1,0 +1,50 @@
+package com.macro.mall.distribution.dto;
+
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import lombok.Data;
+
+import java.io.Serializable;
+
+/**
+ * 商城业务模式的最小读写合同。
+ *
+ * <p>该对象故意不包含品牌、主体、状态等租户资料，避免仅拥有奖金配置权限的账号
+ * 通过业务模式页面批量修改整个租户。</p>
+ */
+@Data
+public class TenantBusinessModesDTO implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    /** 仅用于读取响应；更新时以路径中的 tenantId 为准。 */
+    private Long id;
+
+    @NotNull(message = "请选择推广资格开通方式")
+    @Pattern(regexp = "DISABLED|AUTO_ON_INVITE|MANUAL_REVIEW|FIRST_PAID_ORDER", message = "推广资格开通方式不正确")
+    private String promotionJoinMode;
+
+    @NotNull(message = "请选择是否开启秒杀专区")
+    @Min(value = 0, message = "秒杀专区状态不正确")
+    @Max(value = 1, message = "秒杀专区状态不正确")
+    private Integer flashSaleEnabled;
+
+    @NotNull(message = "请选择秒杀奖金处理方式")
+    @Pattern(regexp = "NONE|STANDARD", message = "秒杀奖金模式不正确")
+    private String flashSaleBonusMode;
+
+    @NotNull(message = "请选择是否开启复购区")
+    @Min(value = 0, message = "复购区状态不正确")
+    @Max(value = 1, message = "复购区状态不正确")
+    private Integer repurchaseMallEnabled;
+
+    @NotNull(message = "请选择复购区进入资格")
+    @Pattern(regexp = "PAID_MEMBER|AGENT|ALL_MEMBER", message = "复购区准入模式不正确")
+    private String repurchaseEligibilityMode;
+
+    @NotNull(message = "请选择复购奖金处理方式")
+    @Pattern(regexp = "NONE|STANDARD", message = "复购奖金模式不正确")
+    private String repurchaseBonusMode;
+}

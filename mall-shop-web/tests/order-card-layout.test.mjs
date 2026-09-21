@@ -45,4 +45,7 @@ test('H5普通操作按钮与小程序等比自适应，复制不再显示为胶
   assert.match(detail, /class="btn secondary ui-action-button after-sale-cancel"/)
   assert.match(detail, /class="btn primary ui-action-button ui-action-button--primary exchange-received-button"/)
   assert.doesNotMatch(list, /class="[^"]*btn primary[^"]*"[^>]*>去评价<\/RouterLink>/)
+  assert.doesNotMatch(list, /取消联合订单|支付全部子单/)
+  assert.match(list, />取消订单<\/button>/)
+  assert.match(list, />立即支付<\/RouterLink>/)
 })

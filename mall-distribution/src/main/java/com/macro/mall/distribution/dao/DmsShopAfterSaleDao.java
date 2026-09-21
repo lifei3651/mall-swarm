@@ -2,6 +2,7 @@ package com.macro.mall.distribution.dao;
 
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.entity.DmsShopAfterSale;
+import com.macro.mall.distribution.vo.BusinessTimeoutMetricSnapshot;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -48,6 +49,7 @@ public interface DmsShopAfterSaleDao {
     List<Long> selectProcessingWechatRefundIdsScoped(@Param("tenantId") Long tenantId,
                                                       @Param("cutoff") LocalDateTime cutoff,
                                                       @Param("limit") int limit);
+    BusinessTimeoutMetricSnapshot selectTimedOutRefundMetrics(@Param("cutoff") LocalDateTime cutoff);
     default List<Long> selectProcessingWechatRefundIds(LocalDateTime cutoff, int limit) {
         return selectProcessingWechatRefundIdsScoped(TenantContext.getTenantId(), cutoff, limit);
     }

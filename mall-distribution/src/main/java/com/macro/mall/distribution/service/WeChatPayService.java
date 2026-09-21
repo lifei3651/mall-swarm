@@ -24,6 +24,9 @@ public interface WeChatPayService {
 
     WeChatPayGateway.RefundNotification parseRefundNotification(WeChatPayGateway.NotificationRequest request);
 
+    /** 使用稳定退款单号恢复本地已持久化为处理中的迟到支付退款。 */
+    int reconcileProcessingLatePaymentRefunds(int limit);
+
     enum RefundState {
         COMPLETED,
         PROCESSING,

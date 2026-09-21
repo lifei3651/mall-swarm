@@ -350,6 +350,13 @@ cache:
     sample-ms: ${CACHE_MONITOR_SAMPLE_MS:15000}
     initial-delay-ms: ${CACHE_MONITOR_INITIAL_DELAY_MS:60000}
 
+business:
+  monitor:
+    sample-ms: ${BUSINESS_MONITOR_SAMPLE_MS:60000}
+    initial-delay-ms: ${BUSINESS_MONITOR_INITIAL_DELAY_MS:30000}
+    refund-timeout-seconds: ${BUSINESS_MONITOR_REFUND_TIMEOUT_SECONDS:1800}
+    withdrawal-payout-timeout-seconds: ${BUSINESS_MONITOR_WITHDRAWAL_PAYOUT_TIMEOUT_SECONDS:86400}
+
 # 支付宝支付配置
 # 正式使用时请替换为真实的支付宝应用配置
 alipay:

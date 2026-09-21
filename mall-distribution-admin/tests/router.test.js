@@ -79,6 +79,19 @@ describe('router guards', () => {
     }
   })
 
+  it('首页Banner旧书签只重定向到当前视觉装修入口', async () => {
+    const { default: router } = await import('@/router/index')
+    for (const oldPath of ['/shop/banners', '/tenant/banners']) {
+      const target = router.resolve(`${oldPath}?from=bookmark#legacy`)
+      const redirect = target.matched.at(-1)?.redirect(target)
+      expect(redirect).toEqual({
+        path: '/tenant/list',
+        query: { from: 'bookmark', editSection: 'banner' },
+        hash: '#legacy',
+      })
+    }
+  })
+
   it('merchant routes are limited to the dedicated merchant workspace', async () => {
     const source = await readFile(resolve(process.cwd(), 'src/router/index.js'), 'utf8')
     expect(source).toContain("path: 'merchant/home'")

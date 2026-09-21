@@ -77,16 +77,16 @@ echo "[8/10] 商城 H5 三种生产构建"
 
 echo "[9/10] 发布脚本与候选构建器语法门禁"
 bash -n scripts/production-backup.sh scripts/db-migrate.sh \
-  scripts/remote-deploy-20260921-v1.0.153-backend.sh \
-  scripts/remote-deploy-20260921-v1.0.153-static.sh
-node --check scripts/release-lingqi-153.mjs
+  scripts/remote-deploy-20260921-v1.0.154-backend.sh \
+  scripts/remote-deploy-20260921-v1.0.154-static.sh
+node --check scripts/release-lingqi-154.mjs
 node --check scripts/prepare-lingqi-mini-release.mjs
-node --check scripts/upload-lingqi-mini-153.mjs
+node --check scripts/upload-lingqi-mini-154.mjs
 node --test scripts/tests/*.test.mjs
 python3 - <<'PY'
 from pathlib import Path
 
-release = Path('scripts/remote-deploy-20260921-v1.0.153-backend.sh').read_text()
+release = Path('scripts/remote-deploy-20260921-v1.0.154-backend.sh').read_text()
 assert 'v["paymentEnabled"] is False' in release
 assert 'd["data"]["wechatPayEnabled"] is True' in release
 PY

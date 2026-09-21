@@ -5,6 +5,8 @@ import com.macro.mall.distribution.entity.DmsShopTrade;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
+
 @Mapper
 public interface DmsShopTradeDao {
     DmsShopTrade selectByIdScoped(@Param("tenantId") Long tenantId, @Param("id") Long id);
@@ -38,4 +40,15 @@ public interface DmsShopTradeDao {
 
     int markLateRefundedScoped(@Param("tenantId") Long tenantId, @Param("id") Long id);
     default int markLateRefunded(Long id) { return markLateRefundedScoped(TenantContext.getTenantId(), id); }
+
+    int markLateRefundProcessingScoped(@Param("tenantId") Long tenantId, @Param("id") Long id);
+    default int markLateRefundProcessing(Long id) {
+        return markLateRefundProcessingScoped(TenantContext.getTenantId(), id);
+    }
+
+    List<Long> selectLateRefundProcessingIdsScoped(@Param("tenantId") Long tenantId,
+                                                    @Param("limit") Integer limit);
+    default List<Long> selectLateRefundProcessingIds(Integer limit) {
+        return selectLateRefundProcessingIdsScoped(TenantContext.getTenantId(), limit);
+    }
 }

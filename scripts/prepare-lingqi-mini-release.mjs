@@ -4,26 +4,29 @@ import path from 'node:path'
 import cp from 'node:child_process'
 import crypto from 'node:crypto'
 
+const root = cp.execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim()
+if (path.basename(root) !== 'mall-swarm-app-h5') throw new Error('Wrong product repository')
+
 const EXPECTED_APPID = 'wxd26e0a4e41df392b'
 const EXPECTED_API = 'https://lingqimall.com/api'
-const EXPECTED_VERSION = '1.0.153'
+const EXPECTED_VERSION = '1.0.154'
 const EXPECTED_SCOPE = 'mall-closure-candidate'
-const EXPECTED_BUILD_ID = '20260921-closure-1.0.153'
+const EXPECTED_BUILD_ID = '20260921-closure-1.0.154'
 const EXPECTED_BUILD_METHOD = 'clean-build-in-release-process'
-const EXPECTED_PREVIOUS_BACKEND_VERSION = '1.0.152'
-const EXPECTED_PREVIOUS_BACKEND_JAR_SHA256 = '5acbcd7b43c2b41a6aa6db685fbdbffa0fb39d17a01ae694fa3d5c29b4273893'
-const EXPECTED_PREVIOUS_STATIC_VERSION = '1.0.151'
-const EXPECTED_PREVIOUS_STATIC_COMMIT = 'e25c760c4428fcc65956847adbf8bbb252f76db3'
-const REGISTERED_MINI_BASELINE_VERSION = '1.0.151'
-const REGISTERED_MINI_BASELINE_COMMIT = '6e3dd1800c8c839fe3894e3a22294133a27a1cba'
-const REGISTERED_MINI_BASELINE_FILE_COUNT = 290
+const EXPECTED_PREVIOUS_BACKEND_VERSION = '1.0.153'
+const EXPECTED_PREVIOUS_BACKEND_JAR_SHA256 = 'bb2ef6a1c3c8fe908f088b16ac86fbce193334645e83c343adbd4392d2b93009'
+const EXPECTED_PREVIOUS_STATIC_VERSION = '1.0.153'
+const EXPECTED_PREVIOUS_STATIC_COMMIT = '8d94be83088f3ed8aab8664a7a13eccdffc4cb41'
+const REGISTERED_MINI_BASELINE_VERSION = '1.0.153'
+const REGISTERED_MINI_BASELINE_COMMIT = '8d94be83088f3ed8aab8664a7a13eccdffc4cb41'
+const REGISTERED_MINI_BASELINE_FILE_COUNT = 228
 const EXPECTED_PLUGIN = Object.freeze({
   logisticsPlugin: Object.freeze({ provider: 'wx9ad912bf20548d92', version: '2.1.12' }),
 })
 const SOURCE_ARCHIVE = 'mini-program-source.tar.gz'
 const MINI_MANIFEST = 'MINI_PROGRAM_MANIFEST.json'
 const RELEASE_MANIFEST = 'RELEASE_MANIFEST.json'
-const TARGET = '/Users/minmatemp/Documents/mall-swarm-app-h5/dist/wechat-mini-program'
+const TARGET = path.join(root, 'dist', 'wechat-mini-program')
 const TARGET_MANIFEST = `${TARGET}.release.json`
 const SOURCE_ONLY_PATHS = [
   /^README\.md$/,
@@ -273,14 +276,10 @@ function verifyRegisteredBaseline(root, actual) {
     const archive = path.join(temporary, 'source.tar')
     cp.execFileSync('git', ['-C', root, 'archive', '--format=tar', '-o', archive, REGISTERED_MINI_BASELINE_COMMIT, 'mall-mini-program'])
     cp.execFileSync('tar', ['-xf', archive, '-C', temporary])
-    const expectedRoot = path.join(temporary, 'mall-mini-program')
-    const projectFile = path.join(expectedRoot, 'project.config.json')
-    const project = readJson(projectFile)
-    project.appid = EXPECTED_APPID
-    project.projectname = '灵启商城-正式上传工程'
-    project.setting = { ...project.setting, urlCheck: true }
-    fs.writeFileSync(projectFile, `${JSON.stringify(project, null, 2)}\n`)
-    const expected = listFiles(expectedRoot)
+    const sourceRoot = path.join(temporary, 'mall-mini-program')
+    const expectedRoot = path.join(temporary, 'upload-project')
+    createRuntimeStage(sourceRoot, expectedRoot)
+    const expected = validateRuntimeStage(expectedRoot, REGISTERED_MINI_BASELINE_VERSION)
     if (Object.keys(expected).length !== REGISTERED_MINI_BASELINE_FILE_COUNT) throw new Error('Registered mini-program baseline inventory changed')
     assertExactObject(actual, expected, 'Existing registered mini-program baseline')
   } finally {
@@ -313,14 +312,11 @@ function verifyExistingTarget(root, release, desiredFiles, desiredAggregateSha25
     && previous.previousStaticVersion === release.previousStaticVersion
     && previous.previousStaticCommit === release.previousStaticCommit
     && previous.aggregateSha256 === desiredAggregateSha256
-  if (!isSameCandidate) throw new Error('Existing upload target is not the registered 1.0.151 baseline or the same 1.0.153 candidate')
+  if (!isSameCandidate) throw new Error('Existing upload target is not the registered 1.0.153 baseline or the same 1.0.154 candidate')
   assertExactObject(actual, desiredFiles, 'Existing idempotent mini-program candidate')
 }
 
 const args = parseArgs(process.argv.slice(2))
-const root = cp.execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim()
-if (path.basename(root) !== 'mall-swarm-app-h5') throw new Error('Wrong product repository')
-
 const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'lingqi-mini-release.'))
 let stage = ''
 let stagedManifest = ''

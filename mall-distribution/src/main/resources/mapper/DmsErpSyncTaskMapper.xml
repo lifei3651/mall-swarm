@@ -12,6 +12,13 @@
     ORDER BY id DESC
   </select>
   <select id="selectRetryable" resultMap="base">SELECT <include refid="columns"/> FROM dms_erp_sync_task WHERE status IN (0,2) AND retry_count &lt; #{maxRetryCount} AND (next_retry_time IS NULL OR next_retry_time &lt;= #{now}) ORDER BY id ASC LIMIT #{limit}</select>
+  <select id="selectMonitoringMetrics" resultType="com.macro.mall.distribution.vo.BusinessTaskMetricSnapshot">
+    SELECT
+      COALESCE(SUM(CASE WHEN status IN (0,2) THEN 1 ELSE 0 END),0) backlog_count,
+      MIN(CASE WHEN status IN (0,2) THEN create_time END) oldest_time,
+      COALESCE(SUM(CASE WHEN status=3 THEN 1 ELSE 0 END),0) failure_count
+    FROM dms_erp_sync_task
+  </select>
   <insert id="insert" useGeneratedKeys="true" keyProperty="id">INSERT INTO dms_erp_sync_task(task_no,integration_id,tenant_id,provider_code,biz_type,biz_id,status,retry_count,request_summary) VALUES(#{taskNo},#{integrationId},#{tenantId},#{providerCode},#{bizType},#{bizId},#{status},#{retryCount},#{requestSummary})</insert>
   <update id="markSuccess">UPDATE dms_erp_sync_task SET status=1,response_summary=#{response},last_error=NULL,next_retry_time=NULL,update_time=NOW() WHERE id=#{id}</update>
   <update id="stopExceededRetries">UPDATE dms_erp_sync_task SET status=3,next_retry_time=NULL,last_error=CONCAT('已达到自动重试上限（',#{maxRetryCount},'次）：',COALESCE(last_error,'ERP推送失败')),update_time=NOW() WHERE status=2 AND retry_count &gt;= #{maxRetryCount}</update>

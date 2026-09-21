@@ -62,6 +62,7 @@ class OrderBonusE2ETest {
 
     @Test
     void fullOrderLifecycleActivatesMemberAndGeneratesBonus() {
+        prepareSystemFundAccounts();
         // Agent A (userId=1001, inviteCode=INV001) as direct inviter
         DmsShopMember member = createMemberWithInviter(80001L, "测试买家", "13900000001", "INV001", 1001L);
         Long productId = 1L;
@@ -99,9 +100,9 @@ class OrderBonusE2ETest {
         assertNotNull(commissions);
         assertFalse(commissions.isEmpty(), "commission should be generated after payment and receipt");
 
-        // 8. Verify balance allocations exist (may be empty if system accounts not fully set up)
+        // 8. Verify both fixed company fund allocations are prepared at payment time.
         List<?> allocations = allocationDao.selectByOrderId(orderId);
-        assertNotNull(allocations, "allocations query should return a list");
+        assertEquals(2, allocations.size(), "产品成本和剩余商品款必须各生成一条归集记录");
     }
 
     @Test
@@ -143,6 +144,7 @@ class OrderBonusE2ETest {
 
     @Test
     void settlementRequiresCoolingOff() {
+        prepareSystemFundAccounts();
         DmsShopMember member = createMemberWithInviter(80004L, "冷却测试", "13900000004", "INV001", 1001L);
         Long productId = 1L;
 
@@ -150,7 +152,10 @@ class OrderBonusE2ETest {
         ShopOrderVO orderVO = shopService.submitOrder(dto, member);
         Long orderId = orderVO.getOrder().getId();
         shopService.markOrderPaid(orderId, "BALANCE");
-        shopService.confirmReceive(orderId, member);
+        jdbcTemplate.update("UPDATE dms_shop_order SET status = 2, delivery_company = '测试快递', "
+                + "delivery_no = 'SF-COOLING-001', delivery_time = CURRENT_TIMESTAMP WHERE id = ?", orderId);
+        sqlSessionTemplate.clearCache();
+        assertTrue(shopService.confirmReceive(orderId, member), "订单必须真实进入已收货状态后才能结算");
 
         // 使用真实租户规则关闭客户自助售后等待期，不再修改已废弃的固定T+7字段。
         jdbcTemplate.update("UPDATE dms_tenant SET after_sale_window_mode = 'RECEIVED', after_sale_window_days = 0 WHERE id = 1");
@@ -160,8 +165,10 @@ class OrderBonusE2ETest {
         int allocated = allocationService.settleEligibleAfterCoolingOff(10);
         int settled = settlementService.settleEligibleAfterCoolingOff(10);
 
-        assertTrue(allocated >= 0);
-        assertTrue(settled >= 0);
+        assertEquals(2, allocated, "售后期结束后两条公司资金归集都必须落账");
+        assertTrue(settled > 0, "售后期结束后至少一条客户奖金必须结算");
+        assertEquals(2, allocationDao.selectByOrderId(orderId).stream()
+                .filter(allocation -> Integer.valueOf(1).equals(allocation.getStatus())).count());
     }
 
     @Test
@@ -203,6 +210,25 @@ class OrderBonusE2ETest {
 
     private DmsShopMember createMember(Long userId, String nickname, String phone) {
         return createMemberWithInvite(userId, nickname, phone, "INV" + userId);
+    }
+
+    private void prepareSystemFundAccounts() {
+        insertSystemFundAccount(9001L, -9001L, "SYSTEM_REMAINDER", "SYSR0001", "剩余商品款账户");
+        insertSystemFundAccount(9002L, -9002L, "SYSTEM_PRODUCT_COST", "SYSC0001", "产品成本账户");
+    }
+
+    private void insertSystemFundAccount(long id, long userId, String account,
+                                         String inviteCode, String nickname) {
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_member
+                  (id,user_id,phone,login_account,password_hash,nickname,invite_code,status,system_account,team_opt_in)
+                VALUES (?,?,?,?,'disabled-system-account',?,?,0,1,0)
+                """, id, userId, "SYS" + Math.abs(userId), account, nickname, inviteCode);
+        jdbcTemplate.update("""
+                INSERT INTO dms_agent
+                  (id,user_id,agent_code,agent_name,agent_level,level_depth,invite_code,status,source_type)
+                VALUES (?,?,?,?,1,1,?,2,3)
+                """, id, userId, account, nickname, inviteCode);
     }
 
     private DmsShopMember createMemberWithInvite(Long userId, String nickname, String phone, String inviteCode) {

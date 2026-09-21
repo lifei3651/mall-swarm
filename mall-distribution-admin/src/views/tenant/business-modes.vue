@@ -37,7 +37,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { listTenants, saveTenant } from '@/api/tenant'
+import { getTenantBusinessModes, saveTenantBusinessModes } from '@/api/tenant'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { businessModeChanges } from '@/utils/businessModeChanges'
 const loading=ref(false);const saving=ref(false);const form=ref({promotionJoinMode:'DISABLED',flashSaleEnabled:0,flashSaleBonusMode:'NONE',repurchaseMallEnabled:0,repurchaseEligibilityMode:'PAID_MEMBER',repurchaseBonusMode:'NONE'})
@@ -49,8 +49,8 @@ const reset = () => { if (snapshot.value) form.value = JSON.parse(JSON.stringify
 const load = async () => {
   loading.value = true
   try {
-    const res = await listTenants({ pageNum:1, pageSize:100 })
-    const row = (res.data?.list || []).find(item => Number(item.id) === 1) || (res.data?.list || [])[0]
+    const res = await getTenantBusinessModes(1)
+    const row = res.data
     if (row) {
       form.value = { ...form.value, ...row, flashSaleBonusMode: visibleBonusMode(row.flashSaleBonusMode), repurchaseBonusMode: visibleBonusMode(row.repurchaseBonusMode) }
       snapshot.value = JSON.parse(JSON.stringify(form.value))
@@ -69,7 +69,7 @@ const save = async () => {
         '确认业务规则变更', { type:'warning', confirmButtonText:'确认并保存', cancelButtonText:'返回修改', customClass:'settings-impact-confirm' },
       )
     } catch { return }
-    await saveTenant(payload)
+    await saveTenantBusinessModes(payload.id, payload)
     snapshot.value = payload
     ElMessage.success('业务模式已保存')
   } finally { saving.value = false }

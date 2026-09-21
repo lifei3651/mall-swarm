@@ -9,6 +9,7 @@ import com.macro.mall.distribution.service.OrderBalanceAllocationService;
 import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.MerchantService;
 import com.macro.mall.distribution.service.ShopAfterSaleService;
+import com.macro.mall.distribution.service.WeChatPayService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -36,6 +37,7 @@ public class ScheduleTask {
     private final OperationLogService operationLogService;
     private final MerchantService merchantService;
     private final ShopAfterSaleService shopAfterSaleService;
+    private final WeChatPayService weChatPayService;
     private final DistributedScheduledTaskRunner scheduledTaskRunner;
 
     /** 每分钟关闭超时待支付订单并原子返还商品及SKU库存。 */
@@ -87,6 +89,20 @@ public class ScheduleTask {
                 if (count > 0) log.info("微信退款状态自动恢复完成: count={}", count);
             } catch (Exception e) {
                 log.error("微信退款状态自动核对失败", e);
+            }
+        });
+    }
+
+    /** 持久化恢复超时关单后才到账、但退款回调丢失或渠道仍处理中的微信支付。 */
+    @Scheduled(fixedDelayString = "${shop.order.late-payment-refund-reconcile-interval-ms:300000}",
+            initialDelayString = "${shop.order.late-payment-refund-reconcile-initial-delay-ms:30000}")
+    public void reconcileProcessingLatePaymentRefunds() {
+        scheduledTaskRunner.run("reconcile-late-payment-refunds", Duration.ofMinutes(4), () -> {
+            try {
+                int count = weChatPayService.reconcileProcessingLatePaymentRefunds(50);
+                if (count > 0) log.info("微信迟到支付退款自动恢复完成: count={}", count);
+            } catch (Exception e) {
+                log.error("微信迟到支付退款自动核对失败", e);
             }
         });
     }

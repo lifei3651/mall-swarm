@@ -17,8 +17,6 @@ import com.macro.mall.distribution.dao.DmsShopServiceAddressDao;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsShopSkuDao;
 import com.macro.mall.distribution.dao.DmsMerchantDao;
-import com.macro.mall.distribution.dto.FinanceRefundDTO;
-import com.macro.mall.distribution.dto.AssetChangeDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleApplyDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleAuditDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleExchangeShipmentDTO;
@@ -37,13 +35,9 @@ import com.macro.mall.distribution.entity.DmsShopServiceAddress;
 import com.macro.mall.distribution.entity.DmsMerchant;
 import com.macro.mall.distribution.enums.AgentSourceTypeEnum;
 import com.macro.mall.distribution.service.AgentService;
-import com.macro.mall.distribution.service.DistributionAuditService;
-import com.macro.mall.distribution.service.MemberAssetService;
 import com.macro.mall.distribution.service.ShopAfterSaleService;
 import com.macro.mall.distribution.service.ShopMediaStorageService;
 import com.macro.mall.distribution.service.OrderRealtimeService;
-import com.macro.mall.distribution.service.OrderBalanceAllocationService;
-import com.macro.mall.distribution.service.MerchantService;
 import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.RefundInventoryRestockService;
 import com.macro.mall.distribution.service.WeChatShippingInfoService;
@@ -88,15 +82,12 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     private final DmsShopServiceAddressDao serviceAddressDao;
     private final DmsShopSkuDao skuDao;
     private final DmsShopMemberDao memberDao;
-    private final DistributionAuditService auditService;
-    private final MemberAssetService memberAssetService;
-    private final OrderBalanceAllocationService orderBalanceAllocationService;
+    private final RefundCompletionAccountingService refundCompletionAccountingService;
     private final ExternalRefundCoordinator externalRefundCoordinator;
     private final ShopAfterSaleWindowPolicy afterSaleWindowPolicy;
     private final ShopAfterSaleTimelinePolicy afterSaleTimelinePolicy;
     private final RefundInventoryRestockService refundInventoryRestockService;
     private final ShopMediaStorageService mediaStorageService;
-    private final MerchantService merchantService;
     private final OperationLogService operationLogService;
     private final ObjectMapper objectMapper;
     @Autowired(required = false)
@@ -705,12 +696,15 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             notifyOrderChanged(order, "AFTER_SALE_EXCHANGE_RETURN_RECEIVED", afterSale.getId());
             return hydrate(afterSaleDao.selectById(id));
         }
-        completeRefund(afterSale, order);
         if (requiresExternalRefund(order, afterSale)) {
+            completeRefund(afterSale, order);
             scheduleExternalRefund(afterSale.getId());
         } else {
+            // 本地/余额退款也先在当前事务迁移为完成态，之后的奖金、成本和订单关闭
+            // 累计只读取 status=1；任一账务步骤失败时两次状态更新会一起回滚。
             afterSale.setStatus(1);
             if (afterSaleDao.updateAudit(afterSale) != 1) Asserts.fail("售后完成状态保存失败，请刷新后重试");
+            completeRefund(afterSale, order);
         }
         notifyOrderChanged(order, "AFTER_SALE_COMPLETED", afterSale.getId());
         return hydrate(afterSaleDao.selectById(id));
@@ -824,63 +818,22 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     }
 
     private void completeRefund(DmsShopAfterSale afterSale, DmsShopOrder order) {
-            List<DmsShopAfterSaleItem> items = afterSaleItemDao.selectByAfterSaleId(afterSale.getId());
-            ShopQuantityChecks.refundLines(items);
-            validateRefundHistory(order.getId());
-            List<DmsShopOrderItem> orderItems = orderItemDao.selectByOrderId(order.getId());
-            Map<Long, DmsShopOrderItem> orderItemsById = new LinkedHashMap<>();
-            for (DmsShopOrderItem orderItem : orderItems) orderItemsById.put(orderItem.getId(), orderItem);
-            BigDecimal bonusRefundAmount = items.stream()
-                    .filter(item -> isBonusEligibleOrderItem(orderItemsById.get(item.getOrderItemId())))
-                    .map(item -> item.getCouponBonusRefundAmount() == null ? item.getRefundAmount() : item.getCouponBonusRefundAmount()).filter(Objects::nonNull)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-            int bonusRefundQuantity = items.stream()
-                    .filter(item -> isBonusEligibleOrderItem(orderItemsById.get(item.getOrderItemId())))
-                    .map(DmsShopAfterSaleItem::getRefundQuantity).filter(Objects::nonNull)
-                    .reduce(0, ShopQuantityChecks::add);
-            FinanceRefundDTO refundDTO = new FinanceRefundDTO();
-            refundDTO.setOrderId(afterSale.getOrderId());
-            refundDTO.setOrderNo(afterSale.getOrderNo());
-            refundDTO.setRefundNo(afterSale.getAfterSaleNo());
-            refundDTO.setRefundAmount(afterSale.getRefundAmount());
-            refundDTO.setProductRefundAmount(afterSale.getProductRefundAmount());
-            refundDTO.setFreightRefundAmount(afterSale.getFreightRefundAmount());
-            refundDTO.setRefundQuantity(afterSale.getRefundQuantity());
-            refundDTO.setBonusBaseAmount(calculateBonusBase(order, orderItems));
-            refundDTO.setBonusRefundAmount(bonusRefundAmount);
-            refundDTO.setBonusRefundQuantity(bonusRefundQuantity);
-            refundDTO.setCumulativeBonusRefundAmount(
-                    nullToZero(afterSaleItemDao.sumApprovedBonusRefundByOrderId(order.getId())));
-            refundDTO.setClawbackBonus(1);
-            refundDTO.setReason("售后退款：" + afterSale.getReason());
-            refundDTO.setOperatorId(afterSale.getAuditUserId());
-            refundDTO.setOperatorName(afterSale.getAuditUserName());
-            auditService.saveRefund(refundDTO);
-            // 奖金冲减和账务重算完成后，再按新的净商品款/净成本冲回公司资金归集。
-            orderBalanceAllocationService.recalculateAfterRefund(afterSale.getOrderId(), afterSale.getId());
-            // 余额支付的退款原路退回商城余额；支付宝在本事务内完成原路退款，微信按接入配置处理。
-            if ("BALANCE".equalsIgnoreCase(order.getPayType())
-                    && afterSale.getRefundAmount() != null
-                    && afterSale.getRefundAmount().compareTo(BigDecimal.ZERO) > 0) {
-                AssetChangeDTO balanceRefund = new AssetChangeDTO();
-                balanceRefund.setUserId(order.getUserId());
-                balanceRefund.setAmount(afterSale.getRefundAmount());
-                balanceRefund.setBizType("BALANCE_PAYMENT_REFUND");
-                balanceRefund.setBizId(String.valueOf(afterSale.getId()));
-                balanceRefund.setRequestId("BALANCE_PAYMENT_REFUND-" + afterSale.getId());
-                balanceRefund.setRemark("余额支付售后退款：" + afterSale.getAfterSaleNo());
-                memberAssetService.issue(balanceRefund);
-            }
-            merchantService.reverseAfterSaleItems(items);
-            boolean externalRefundPending = requiresExternalRefund(order, afterSale);
-            // 余额及模拟支付在当前事务内已完成退款，可立即回补。
-            // 支付宝/微信必须等渠道确认成功，再由 ExternalRefundCoordinator 在完成事务中回补。
-            if (!externalRefundPending) refundInventoryRestockService.restoreAfterRefundCompleted(afterSale, order);
-            int originalQuantity = orderItems.stream()
-                    .map(item -> ShopQuantityChecks.positive(item.getQuantity())).reduce(0, ShopQuantityChecks::add);
-            if (!externalRefundPending) reconcileOrderStateAfterRefund(order, originalQuantity);
-            // 退款后退回非会员：名下已无有效支付订单时自动取消推广资格（含其下级团队自动移交）。
-            if (!externalRefundPending) autoDemoteMemberAfterFullRefund(order);
+        List<DmsShopAfterSaleItem> items = afterSaleItemDao.selectByAfterSaleId(afterSale.getId());
+        ShopQuantityChecks.refundLines(items);
+        validateRefundHistory(order.getId());
+
+        // 支付宝/微信退款只有渠道确认成功后才允许冲减净支付、奖金、资金归集和商户结算。
+        // 售后状态 6 是可恢复的持久“退款处理中”门禁，定时核对会使用同一退款号重试。
+        if (requiresExternalRefund(order, afterSale)) return;
+
+        refundCompletionAccountingService.complete(afterSale, order);
+        refundInventoryRestockService.restoreAfterRefundCompleted(afterSale, order);
+        List<DmsShopOrderItem> orderItems = orderItemDao.selectByOrderId(order.getId());
+        int originalQuantity = orderItems.stream()
+                .map(item -> ShopQuantityChecks.positive(item.getQuantity())).reduce(0, ShopQuantityChecks::add);
+        reconcileOrderStateAfterRefund(order, originalQuantity);
+        // 退款后退回非会员：名下已无有效支付订单时自动取消推广资格（含其下级团队自动移交）。
+        autoDemoteMemberAfterFullRefund(order);
     }
 
     /**
@@ -888,7 +841,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
      * 此时订单应进入“已发货”，否则会永久停在待发货且会员无法确认收货。
      */
     private void reconcileOrderStateAfterRefund(DmsShopOrder order, int originalQuantity) {
-        int refundedQuantity = afterSaleItemDao.sumApprovedQuantityByOrderId(order.getId());
+        int refundedQuantity = afterSaleItemDao.sumCompletedQuantityByOrderId(order.getId());
         ShopQuantityChecks.remaining(originalQuantity, refundedQuantity);
         if (refundedQuantity >= originalQuantity) {
             orderDao.closeAfterSale(order.getId());
@@ -913,38 +866,6 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         if (!simulationPaymentEnabled && "WECHAT".equalsIgnoreCase(order.getPayType())) {
             weChatShippingInfoService.enqueue(order);
         }
-    }
-
-    private BigDecimal calculateBonusBase(DmsShopOrder order, List<DmsShopOrderItem> items) {
-        if (order.getCouponClaimId() != null) {
-            if (items == null || items.isEmpty() || items.stream().anyMatch(i -> i.getCouponBonusBaseAmount() == null)) Asserts.fail("优惠订单奖金快照缺失");
-            return items.stream().filter(this::isBonusEligibleOrderItem).map(DmsShopOrderItem::getCouponBonusBaseAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-        }
-        if (items == null || items.isEmpty()) {
-            BigDecimal productAmount = order.getTotalAmount() == null
-                    ? nullToZero(order.getPayAmount()).subtract(nullToZero(order.getFreightAmount()))
-                    : nullToZero(order.getTotalAmount());
-            return productAmount.subtract(nullToZero(order.getDiscountAmount())).max(BigDecimal.ZERO)
-                    .setScale(2, java.math.RoundingMode.HALF_UP);
-        }
-        BigDecimal gross = items.stream().map(DmsShopOrderItem::getTotalAmount)
-                .filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal eligible = items.stream().filter(this::isBonusEligibleOrderItem)
-                .map(DmsShopOrderItem::getTotalAmount).filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        if (gross.compareTo(BigDecimal.ZERO) <= 0 || eligible.compareTo(BigDecimal.ZERO) <= 0) {
-            return BigDecimal.ZERO.setScale(2);
-        }
-        BigDecimal eligibleDiscount = nullToZero(order.getDiscountAmount()).multiply(eligible)
-                .divide(gross, 2, java.math.RoundingMode.HALF_UP);
-        return eligible.subtract(eligibleDiscount).max(BigDecimal.ZERO)
-                .setScale(2, java.math.RoundingMode.HALF_UP);
-    }
-
-    private boolean isBonusEligibleOrderItem(DmsShopOrderItem item) {
-        String mode = item == null ? null : item.getTeamBonusMode();
-        return mode == null || mode.isBlank() || "INHERIT".equalsIgnoreCase(mode)
-                || "STANDARD".equalsIgnoreCase(mode);
     }
 
     private void snapshotCouponRefund(DmsShopOrderItem source, DmsShopAfterSaleItem refund) {

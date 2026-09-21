@@ -5,6 +5,7 @@ import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.distribution.entity.DmsCommissionRuleVersion;
 import com.macro.mall.distribution.entity.DmsTenant;
 import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
+import com.macro.mall.distribution.dto.TenantBusinessModesDTO;
 import com.macro.mall.distribution.service.TenantService;
 import com.macro.mall.distribution.service.CustomerDeliveryReadinessService;
 import com.macro.mall.distribution.vo.CustomerDeliveryReadinessVO;
@@ -40,6 +41,19 @@ public class TenantController {
     @PostMapping
     public CommonResult<DmsTenant> saveTenant(@Valid @RequestBody DmsTenant tenant) {
         return CommonResult.success(tenantService.saveTenant(tenant));
+    }
+
+    @Operation(summary = "查询商城业务模式")
+    @GetMapping("/{tenantId}/business-modes")
+    public CommonResult<TenantBusinessModesDTO> getBusinessModes(@PathVariable Long tenantId) {
+        return CommonResult.success(tenantService.getBusinessModes(tenantId));
+    }
+
+    @Operation(summary = "保存商城业务模式")
+    @PutMapping("/{tenantId}/business-modes")
+    public CommonResult<TenantBusinessModesDTO> saveBusinessModes(@PathVariable Long tenantId,
+                                                                  @Valid @RequestBody TenantBusinessModesDTO modes) {
+        return CommonResult.success(tenantService.saveBusinessModes(tenantId, modes));
     }
 
     @Operation(summary = "获取商城协议默认模板")

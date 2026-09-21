@@ -148,6 +148,7 @@ import SettingsShell from '@/components/SettingsShell.vue'
 import {
   canAccessSettings,
   isSettingsContext,
+  normalizeSettingsPath,
   settingsAwareMenuPath,
   withoutSettingsEditors,
 } from '@/utils/settingsCatalog'
@@ -458,7 +459,7 @@ const activeMenu = computed(() => {
 const breadcrumbs = computed(() => {
   if (showSettingsShell.value) return [
     { path: '/settings', title: '设置中心' },
-    ...(route.path !== '/settings' ? [{ path: route.path, title: route.meta.title || '配置' }] : []),
+    ...(normalizeSettingsPath(route.path) !== '/settings' ? [{ path: route.path, title: route.meta.title || '配置' }] : []),
   ]
   for (const menu of visibleBusinessMenus.value) {
     const item = menu.items?.find((entry) => entry.path === activeMenu.value)

@@ -9,6 +9,7 @@ import com.macro.mall.distribution.service.OrderBalanceAllocationService;
 import com.macro.mall.distribution.service.PerformanceService;
 import com.macro.mall.distribution.service.ShopAfterSaleService;
 import com.macro.mall.distribution.service.ShopService;
+import com.macro.mall.distribution.service.WeChatPayService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -33,6 +34,7 @@ class ScheduleTaskIsolationTest {
     @Mock private OperationLogService operationLogService;
     @Mock private MerchantService merchantService;
     @Mock private ShopAfterSaleService shopAfterSaleService;
+    @Mock private WeChatPayService weChatPayService;
     @Mock private DistributedScheduledTaskRunner scheduledTaskRunner;
 
     @Test
@@ -40,7 +42,7 @@ class ScheduleTaskIsolationTest {
         ScheduleTask task = new ScheduleTask(performanceService, bonusCalculationTaskService,
                 erpIntegrationService, commissionSettlementService, shopService,
                 orderBalanceAllocationService, operationLogService, merchantService,
-                shopAfterSaleService, scheduledTaskRunner);
+                shopAfterSaleService, weChatPayService, scheduledTaskRunner);
         doAnswer(invocation -> {
             invocation.<Runnable>getArgument(2).run();
             return true;
@@ -59,7 +61,7 @@ class ScheduleTaskIsolationTest {
         ScheduleTask task = new ScheduleTask(performanceService, bonusCalculationTaskService,
                 erpIntegrationService, commissionSettlementService, shopService,
                 orderBalanceAllocationService, operationLogService, merchantService,
-                shopAfterSaleService, scheduledTaskRunner);
+                shopAfterSaleService, weChatPayService, scheduledTaskRunner);
         doAnswer(invocation -> {
             invocation.<Runnable>getArgument(2).run();
             return true;
@@ -76,7 +78,7 @@ class ScheduleTaskIsolationTest {
         ScheduleTask task = new ScheduleTask(performanceService, bonusCalculationTaskService,
                 erpIntegrationService, commissionSettlementService, shopService,
                 orderBalanceAllocationService, operationLogService, merchantService,
-                shopAfterSaleService, scheduledTaskRunner);
+                shopAfterSaleService, weChatPayService, scheduledTaskRunner);
         doAnswer(invocation -> {
             invocation.<Runnable>getArgument(2).run();
             return true;
@@ -93,7 +95,7 @@ class ScheduleTaskIsolationTest {
         ScheduleTask task = new ScheduleTask(performanceService, bonusCalculationTaskService,
                 erpIntegrationService, commissionSettlementService, shopService,
                 orderBalanceAllocationService, operationLogService, merchantService,
-                shopAfterSaleService, scheduledTaskRunner);
+                shopAfterSaleService, weChatPayService, scheduledTaskRunner);
         doAnswer(invocation -> {
             invocation.<Runnable>getArgument(2).run();
             return true;
@@ -103,5 +105,22 @@ class ScheduleTaskIsolationTest {
         task.reconcileProcessingWechatRefunds();
 
         verify(shopAfterSaleService).reconcileProcessingWechatRefunds(50);
+    }
+
+    @Test
+    void latePaymentRefundRecoveryUsesDedicatedDistributedTaskAndBoundedBatch() {
+        ScheduleTask task = new ScheduleTask(performanceService, bonusCalculationTaskService,
+                erpIntegrationService, commissionSettlementService, shopService,
+                orderBalanceAllocationService, operationLogService, merchantService,
+                shopAfterSaleService, weChatPayService, scheduledTaskRunner);
+        doAnswer(invocation -> {
+            invocation.<Runnable>getArgument(2).run();
+            return true;
+        }).when(scheduledTaskRunner).run(eq("reconcile-late-payment-refunds"), any(), any());
+        when(weChatPayService.reconcileProcessingLatePaymentRefunds(50)).thenReturn(1);
+
+        task.reconcileProcessingLatePaymentRefunds();
+
+        verify(weChatPayService).reconcileProcessingLatePaymentRefunds(50);
     }
 }

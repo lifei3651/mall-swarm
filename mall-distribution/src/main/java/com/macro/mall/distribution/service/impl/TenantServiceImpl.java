@@ -2,11 +2,14 @@ package com.macro.mall.distribution.service.impl;
 
 import cn.hutool.core.util.IdUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.macro.mall.common.api.ResultCode;
+import com.macro.mall.common.exception.ApiException;
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.distribution.dao.DmsCommissionRuleVersionDao;
 import com.macro.mall.distribution.dao.DmsTenantConfigVersionDao;
 import com.macro.mall.distribution.dao.DmsTenantDao;
 import com.macro.mall.distribution.dao.DmsTenantDisplayConfigDao;
+import com.macro.mall.distribution.dto.TenantBusinessModesDTO;
 import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.entity.DmsCommissionRuleVersion;
 import com.macro.mall.distribution.entity.DmsTenant;
@@ -151,6 +154,95 @@ public class TenantServiceImpl implements TenantService {
                 String.valueOf(tenant.getId()), tenantSummary(before), tenantSummary(saved),
                 before == null ? "创建商城客户配置" : "更新商城品牌、经营资料或业务模式");
         return saved;
+    }
+
+    @Override
+    public TenantBusinessModesDTO getBusinessModes(Long tenantId) {
+        requireBusinessModeAdmin();
+        Long resolvedTenantId = tenantId == null ? 1L : tenantId;
+        DmsTenant tenant = tenantDao.selectById(resolvedTenantId);
+        if (tenant == null) {
+            Asserts.fail("商城客户不存在");
+        }
+        return businessModesOf(tenant);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public TenantBusinessModesDTO saveBusinessModes(Long tenantId, TenantBusinessModesDTO modes) {
+        requireBusinessModeAdmin();
+        if (tenantId == null || modes == null) {
+            Asserts.fail("商城业务模式不能为空");
+        }
+        DmsTenant before = tenantDao.selectByIdForUpdate(tenantId);
+        if (before == null) {
+            Asserts.fail("商城客户不存在");
+        }
+
+        DmsTenant normalized = new DmsTenant();
+        normalized.setId(tenantId);
+        normalized.setPromotionJoinMode(modes.getPromotionJoinMode());
+        normalized.setFlashSaleEnabled(modes.getFlashSaleEnabled());
+        normalized.setFlashSaleBonusMode(modes.getFlashSaleBonusMode());
+        normalized.setRepurchaseMallEnabled(modes.getRepurchaseMallEnabled());
+        normalized.setRepurchaseEligibilityMode(modes.getRepurchaseEligibilityMode());
+        normalized.setRepurchaseBonusMode(modes.getRepurchaseBonusMode());
+        normalizeBusinessModes(normalized, false);
+        TenantBusinessModesDTO safeUpdate = businessModesOf(normalized);
+
+        ensureBaselineVersion(tenantId);
+        if (tenantDao.updateBusinessModes(tenantId, safeUpdate) != 1) {
+            Asserts.fail("商城业务模式保存失败");
+        }
+        recordConfigVersion(tenantId, "BUSINESS_MODE_UPDATE", null);
+        catalogCache.invalidateAfterCommit(tenantId);
+        DmsTenant saved = tenantDao.selectById(tenantId);
+        if (saved == null) {
+            Asserts.fail("商城客户不存在");
+        }
+        operationLogService.log("TENANT_CONFIG", "BUSINESS_MODE_UPDATE", "TENANT", String.valueOf(tenantId),
+                businessModesSummary(businessModesOf(before)), businessModesSummary(businessModesOf(saved)),
+                "更新推广资格、秒杀与复购业务模式");
+        return businessModesOf(saved);
+    }
+
+    private void requireBusinessModeAdmin() {
+        DmsAdminUser admin = AdminContext.get();
+        if (admin == null || admin.getMerchantId() != null) {
+            throw new ApiException(ResultCode.FORBIDDEN, "仅平台管理员可配置商城业务模式");
+        }
+        adminAuthService.requirePermission(admin, "config:bonus");
+    }
+
+    private TenantBusinessModesDTO businessModesOf(DmsTenant tenant) {
+        TenantBusinessModesDTO modes = new TenantBusinessModesDTO();
+        modes.setId(tenant.getId());
+        try {
+            modes.setPromotionJoinMode(PromotionJoinModeEnum.forExisting(tenant.getPromotionJoinMode()).name());
+        } catch (IllegalArgumentException ex) {
+            Asserts.fail(ex.getMessage());
+        }
+        modes.setFlashSaleEnabled(normalizedFlag(tenant.getFlashSaleEnabled()));
+        modes.setFlashSaleBonusMode(visibleBusinessBonusMode(tenant.getFlashSaleBonusMode()));
+        modes.setRepurchaseMallEnabled(normalizedFlag(tenant.getRepurchaseMallEnabled()));
+        modes.setRepurchaseEligibilityMode(normalizeMode(tenant.getRepurchaseEligibilityMode(),
+                List.of("PAID_MEMBER", "AGENT", "ALL_MEMBER"), "PAID_MEMBER", "复购准入模式"));
+        modes.setRepurchaseBonusMode(visibleBusinessBonusMode(tenant.getRepurchaseBonusMode()));
+        return modes;
+    }
+
+    private String visibleBusinessBonusMode(String value) {
+        String normalized = normalizeMode(value, List.of("NONE", "STANDARD", "CUSTOM"), "NONE", "奖金模式");
+        return "CUSTOM".equals(normalized) ? "STANDARD" : normalized;
+    }
+
+    private String businessModesSummary(TenantBusinessModesDTO modes) {
+        return "promotionJoinMode=" + modes.getPromotionJoinMode()
+                + ";flashSale=" + modes.getFlashSaleEnabled()
+                + ";flashBonusMode=" + modes.getFlashSaleBonusMode()
+                + ";repurchase=" + modes.getRepurchaseMallEnabled()
+                + ";repurchaseEligibility=" + modes.getRepurchaseEligibilityMode()
+                + ";repurchaseBonusMode=" + modes.getRepurchaseBonusMode();
     }
 
     private void normalizeBusinessModes(DmsTenant tenant, boolean newTenant) {

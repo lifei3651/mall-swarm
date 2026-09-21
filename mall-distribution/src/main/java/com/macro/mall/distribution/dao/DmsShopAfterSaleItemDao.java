@@ -20,12 +20,15 @@ public interface DmsShopAfterSaleItemDao {
 
     int sumApprovedQuantityByOrderId(@Param("orderId") Long orderId);
 
+    /** 只累计渠道及本地账务均已完成的退款数量；处理中退款仅用于占用可退/可发额度。 */
+    int sumCompletedQuantityByOrderId(@Param("orderId") Long orderId);
+
     BigDecimal sumApprovedProductRefundByOrderId(@Param("orderId") Long orderId);
 
-    /** 只累计下单快照中参与团队奖金的商品退款金额。 */
+    /** 只累计已完成退款中、下单快照参与团队奖金的商品退款金额。 */
     BigDecimal sumApprovedBonusRefundByOrderId(@Param("orderId") Long orderId);
 
-    /** 按订单SKU/商品下单时冻结的单位成本，计算已审批退货对应成本。 */
+    /** 按订单SKU/商品下单时冻结的单位成本，只计算已完成退款对应成本。 */
     BigDecimal sumApprovedCostByOrderId(@Param("orderId") Long orderId);
 
     int insertBatch(@Param("items") List<DmsShopAfterSaleItem> items);

@@ -31,4 +31,21 @@
       AND l.biz_type=#{bizType} AND l.biz_id=#{bizId}
     LIMIT 1
   </select>
+  <select id="countBalanceMismatches" resultType="long">
+    SELECT COUNT(*)
+    FROM dms_merchant_account account_row
+    LEFT JOIN (
+      SELECT tenant_id,merchant_id,MAX(id) latest_id
+      FROM dms_merchant_ledger
+      GROUP BY tenant_id,merchant_id
+    ) latest ON latest.tenant_id=account_row.tenant_id AND latest.merchant_id=account_row.merchant_id
+    LEFT JOIN dms_merchant_ledger ledger_row ON ledger_row.id=latest.latest_id
+    WHERE ledger_row.id IS NULL
+       OR account_row.pending_amount &lt;&gt; ledger_row.pending_after
+       OR account_row.available_amount &lt;&gt; ledger_row.available_after
+       OR account_row.frozen_amount &lt;&gt; ledger_row.frozen_after
+       OR account_row.deposit_frozen_amount &lt;&gt; ledger_row.deposit_after
+       OR account_row.debt_amount &lt;&gt; ledger_row.debt_after
+       OR account_row.total_paid_amount &lt;&gt; ledger_row.paid_after
+  </select>
 </mapper>

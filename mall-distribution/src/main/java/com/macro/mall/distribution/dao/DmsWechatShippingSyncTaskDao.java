@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.dao;
 
 import com.macro.mall.distribution.entity.DmsWechatShippingSyncTask;
+import com.macro.mall.distribution.vo.BusinessTaskMetricSnapshot;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -21,6 +22,7 @@ public interface DmsWechatShippingSyncTaskDao {
     List<DmsWechatShippingSyncTask> listScoped(@Param("tenantId") Long tenantId, @Param("status") String status,
                                              @Param("offset") int offset, @Param("limit") int limit);
     long countScoped(@Param("tenantId") Long tenantId, @Param("status") String status);
+    BusinessTaskMetricSnapshot selectMonitoringMetrics();
     int retryPermanent(@Param("tenantId") Long tenantId, @Param("id") Long id,
                        @Param("revision") Integer revision);
     int markSuccess(@Param("id") Long id, @Param("owner") String owner,

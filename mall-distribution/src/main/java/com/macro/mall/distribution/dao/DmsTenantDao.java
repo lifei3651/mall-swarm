@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.dao;
 
 import com.macro.mall.distribution.entity.DmsTenant;
+import com.macro.mall.distribution.dto.TenantBusinessModesDTO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -23,6 +24,8 @@ public interface DmsTenantDao {
     int insert(DmsTenant tenant);
 
     int update(DmsTenant tenant);
+
+    int updateBusinessModes(@Param("id") Long id, @Param("modes") TenantBusinessModesDTO modes);
 
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
 }

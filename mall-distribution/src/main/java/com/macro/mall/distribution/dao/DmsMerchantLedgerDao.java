@@ -17,4 +17,5 @@ public interface DmsMerchantLedgerDao {
                                        @Param("merchantId") Long merchantId,
                                        @Param("bizType") String bizType,
                                        @Param("bizId") String bizId);
+    long countBalanceMismatches();
 }

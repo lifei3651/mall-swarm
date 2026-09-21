@@ -7,6 +7,7 @@ import {
   canAccessSettings,
   isSettingsEditor,
   isSettingsContext,
+  normalizeSettingsPath,
   settingsAwareMenuPath,
   withoutSettingsEditors,
 } from '../../src/utils/settingsCatalog'
@@ -47,12 +48,17 @@ describe('集中设置入口权限与搜索', () => {
     expect(settingsAwareMenuPath('/withdraw/settings')).toBe('/settings')
     expect(settingsAwareMenuPath('/shop/orders')).toBe('/shop/orders')
     expect(settingsAwareMenuPath('/tenant/erp', 9)).toBe('/tenant/erp')
+    expect(normalizeSettingsPath('/tenant/erp///')).toBe('/tenant/erp')
+    expect(isSettingsContext('/settings/')).toBe(true)
+    expect(isSettingsContext('/tenant/erp/')).toBe(true)
+    expect(settingsAwareMenuPath('/withdraw/settings/')).toBe('/settings')
   })
   it('旧编辑地址与客服锚点正确定位，未知或无权限分类回退', () => {
     const entries = settingsEntriesFor(account(['config:shop']))
     expect(settingsGroupFor({ path:'/tenant/profile', hash:'#customer-service', query:{} }, entries)).toBe('service')
     expect(settingsGroupFor({ path:'/settings', query:{ group:'finance' } }, entries)).toBe('base')
     expect(settingsGroupFor({ path:'/settings', query:{ group:'appearance' } }, entries)).toBe('appearance')
+    expect(settingsGroupFor({ path:'/tenant/profile/', hash:'#customer-service', query:{} }, entries)).toBe('service')
   })
 })
 describe('业务模式影响摘要', () => {

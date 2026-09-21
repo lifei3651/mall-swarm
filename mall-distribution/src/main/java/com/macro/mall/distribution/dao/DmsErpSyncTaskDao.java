@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.dao;
 
 import com.macro.mall.distribution.entity.DmsErpSyncTask;
+import com.macro.mall.distribution.vo.BusinessTaskMetricSnapshot;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import java.time.LocalDateTime;
@@ -14,6 +15,7 @@ public interface DmsErpSyncTaskDao {
     List<DmsErpSyncTask> selectRetryable(@Param("now") LocalDateTime now,
                                          @Param("limit") Integer limit,
                                          @Param("maxRetryCount") Integer maxRetryCount);
+    BusinessTaskMetricSnapshot selectMonitoringMetrics();
     int insert(DmsErpSyncTask entity);
     int markSuccess(@Param("id") Long id, @Param("response") String response);
     int stopExceededRetries(@Param("maxRetryCount") Integer maxRetryCount);

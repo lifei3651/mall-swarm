@@ -183,14 +183,14 @@ root = pathlib.Path(sys.argv[2]).resolve()
 expected_appid = "wxd26e0a4e41df392b"
 expected_api = "https://lingqimall.com/api"
 expected_plugins = {"logisticsPlugin": {"provider": "wx9ad912bf20548d92", "version": "2.1.12"}}
-expected_version = "1.0.153"
+expected_version = "1.0.154"
 expected_scope = "mall-closure-candidate"
-expected_build_id = "20260921-closure-1.0.153"
+expected_build_id = "20260921-closure-1.0.154"
 expected_build_method = "clean-build-in-release-process"
-expected_previous_backend_version = "1.0.152"
-expected_previous_backend_jar = "5acbcd7b43c2b41a6aa6db685fbdbffa0fb39d17a01ae694fa3d5c29b4273893"
-expected_previous_static_version = "1.0.151"
-expected_previous_static_commit = "e25c760c4428fcc65956847adbf8bbb252f76db3"
+expected_previous_backend_version = "1.0.153"
+expected_previous_backend_jar = "bb2ef6a1c3c8fe908f088b16ac86fbce193334645e83c343adbd4392d2b93009"
+expected_previous_static_version = "1.0.153"
+expected_previous_static_commit = "8d94be83088f3ed8aab8664a7a13eccdffc4cb41"
 
 def fail(message):
     raise SystemExit(message)

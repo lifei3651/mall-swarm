@@ -33,6 +33,16 @@
         SELECT <include refid="Columns"/> FROM dms_withdrawal_payout WHERE withdraw_id=#{withdrawId} FOR UPDATE
     </select>
 
+    <select id="selectTimedOutMetrics"
+            resultType="com.macro.mall.distribution.vo.BusinessTimeoutMetricSnapshot">
+        SELECT COUNT(*) timed_out_count, MIN(payout.update_time) oldest_time
+        FROM dms_withdrawal_payout payout
+        INNER JOIN dms_withdraw_record withdraw_record ON withdraw_record.id = payout.withdraw_id
+        WHERE payout.state IN ('PROCESSING','WAIT_USER_CONFIRM','UNKNOWN')
+          AND withdraw_record.status = 2
+          AND payout.update_time &lt;= #{cutoff}
+    </select>
+
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsWithdrawalPayout"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_withdrawal_payout

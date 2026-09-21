@@ -55,6 +55,9 @@ test('普通操作按钮由共用层固定为秀气自适应尺寸，复制为�
 test('订单列表共用五行卡片且取消态、进行态和物流次操作不再各自撑高', () => {
   const view = source('pages/orders/index.wxml')
   const logic = source('utils/order-list.js')
+  assert.match(logic, /payLabel:\s*'立即支付'/)
+  assert.match(logic, /cancelLabel:\s*'取消订单'/)
+  assert.doesNotMatch(logic, /支付全部子单|取消联合订单/)
   const styles = source('app.wxss')
   for (const row of ['ui-order-header', 'ui-order-product', 'ui-order-logistics', 'ui-order-summary', 'ui-order-actions']) {
     assert.match(view, new RegExp(`class="[^"]*${row}`), row)

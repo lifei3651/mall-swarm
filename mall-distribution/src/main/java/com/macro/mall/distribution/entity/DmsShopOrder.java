@@ -80,7 +80,7 @@ public class DmsShopOrder implements Serializable {
 
     private String payType;
 
-    /** 0未处理、1超时关单后的迟到支付已原路退款。 */
+    /** 0未处理、2迟到支付退款处理中、1已确认原路退款完成。 */
     private Integer lateRefundFlag;
 
     private String remark;

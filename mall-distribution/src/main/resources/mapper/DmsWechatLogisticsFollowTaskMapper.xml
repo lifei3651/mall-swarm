@@ -37,6 +37,15 @@
         WHERE tenant_id=#{tenantId} AND order_id=#{orderId} AND shipment_id=#{shipmentId} LIMIT 1 FOR UPDATE
     </select>
 
+    <select id="selectMonitoringMetrics"
+            resultType="com.macro.mall.distribution.vo.BusinessTaskMetricSnapshot">
+        SELECT
+          COALESCE(SUM(CASE WHEN status IN ('PENDING','RETRYABLE','SENDING') THEN 1 ELSE 0 END),0) backlog_count,
+          MIN(CASE WHEN status IN ('PENDING','RETRYABLE','SENDING') THEN create_time END) oldest_time,
+          COALESCE(SUM(CASE WHEN status='PERMANENT' THEN 1 ELSE 0 END),0) failure_count
+        FROM dms_wechat_logistics_follow_task
+    </select>
+
     <update id="markSuccess">
         UPDATE dms_wechat_logistics_follow_task
         SET status='SUCCESS',payload_digest=#{payloadDigest},

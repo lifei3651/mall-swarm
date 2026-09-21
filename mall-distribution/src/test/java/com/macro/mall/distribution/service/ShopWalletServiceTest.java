@@ -19,6 +19,7 @@ import com.macro.mall.distribution.dto.WithdrawAuditDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleApplyDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleItemDTO;
 import com.macro.mall.distribution.entity.DmsMemberAssetAccount;
+import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsMemberRealName;
 import com.macro.mall.distribution.vo.BalanceRecipientVO;
@@ -416,6 +417,47 @@ class ShopWalletServiceTest {
         assertEquals(1, shopService.listOrders(member.getUserId(), null, null).size());
     }
 
+    @Test
+    @Order(12)
+    void insufficientBalanceLeavesOrderAndAssetFlowsUnchanged() {
+        DmsShopMember payer = createMember(1008L, "13988220008", "余额不足会员");
+        PaymentPasswordDTO password = new PaymentPasswordDTO();
+        password.setNewPassword("864209");
+        password.setLoginPassword("login123");
+        password.setSmsCode("123456");
+        assertTrue(walletService.setPaymentPassword(payer, password));
+
+        ShopOrderVO pending = shopService.submitOrder(orderRequest(), payer);
+        Long orderId = pending.getOrder().getId();
+        BalancePayDTO payment = new BalancePayDTO();
+        payment.setPaymentPassword("864209");
+        long flowsBefore = balancePaymentFlowCount(payer.getUserId(), orderId);
+        BigDecimal balanceBefore = balanceForUser(payer.getUserId());
+
+        assertThrows(ApiException.class, () -> walletService.payOrder(payer, orderId, payment));
+
+        DmsShopOrder persisted = jdbcTemplate.queryForObject("""
+                SELECT id, status, pay_type, pay_time
+                FROM dms_shop_order WHERE id = ?
+                """, (rs, rowNum) -> {
+                    DmsShopOrder order = new DmsShopOrder();
+                    order.setId(rs.getLong("id"));
+                    order.setStatus(rs.getInt("status"));
+                    order.setPayType(rs.getString("pay_type"));
+                    order.setPayTime(rs.getTimestamp("pay_time") == null
+                            ? null : rs.getTimestamp("pay_time").toLocalDateTime());
+                    return order;
+                }, orderId);
+        assertNotNull(persisted);
+        assertEquals(0, persisted.getStatus(), "余额不足不能把订单推进到已支付");
+        assertEquals("BALANCE", persisted.getPayType());
+        assertNull(persisted.getPayTime(), "余额不足不能写入支付时间");
+        assertEquals(flowsBefore, balancePaymentFlowCount(payer.getUserId(), orderId),
+                "余额不足不能留下任何支付流水");
+        assertEquals(0, balanceBefore.compareTo(balanceForUser(payer.getUserId())),
+                "余额不足不能改变账户余额");
+    }
+
     private ShopWithdrawalApplyDTO withdrawal(String paymentPassword, String amount) {
         ShopWithdrawalApplyDTO apply = new ShopWithdrawalApplyDTO();
         apply.setWithdrawAmount(new BigDecimal(amount));
@@ -510,6 +552,22 @@ class ShopWalletServiceTest {
     private BigDecimal balance(Long agentId) {
         DmsMemberAssetAccount account = assetAccountDao.selectByAgentIdAndAssetCode(agentId, "CASH_BONUS");
         return account == null ? BigDecimal.ZERO : account.getBalance();
+    }
+
+    private long balancePaymentFlowCount(Long userId, Long orderId) {
+        Long count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM dms_member_asset_flow
+                WHERE user_id = ? AND biz_type = 'ORDER_BALANCE_PAYMENT' AND biz_id = ?
+                """, Long.class, userId, String.valueOf(orderId));
+        return count == null ? 0L : count;
+    }
+
+    private BigDecimal balanceForUser(Long userId) {
+        BigDecimal value = jdbcTemplate.queryForObject("""
+                SELECT COALESCE((SELECT balance FROM dms_member_asset_account
+                    WHERE user_id = ? AND asset_code = 'CASH_BONUS'), 0)
+                """, BigDecimal.class, userId);
+        return value == null ? BigDecimal.ZERO : value;
     }
 
     private void assertMoney(String expected, BigDecimal actual) {

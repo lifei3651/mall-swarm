@@ -8,28 +8,34 @@ import com.macro.mall.distribution.config.WeChatPayProperties;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsShopOrderDao;
 import com.macro.mall.distribution.dao.DmsShopTradeDao;
+import com.macro.mall.distribution.dao.DmsTenantDao;
 import com.macro.mall.distribution.dao.DmsWechatMiniProgramIdentityDao;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.entity.DmsShopTrade;
+import com.macro.mall.distribution.entity.DmsTenant;
 import com.macro.mall.distribution.entity.DmsWechatMiniProgramIdentity;
 import com.macro.mall.distribution.service.ShopService;
 import com.macro.mall.distribution.service.WeChatPayService;
 import com.macro.mall.distribution.vo.WeChatPayParametersVO;
 import com.macro.mall.distribution.wechat.WeChatPayGateway;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.List;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class WeChatPayServiceImpl implements WeChatPayService {
 
     private final WeChatPayProperties payProperties;
@@ -39,7 +45,32 @@ public class WeChatPayServiceImpl implements WeChatPayService {
     private final DmsShopTradeDao tradeDao;
     private final DmsShopMemberDao memberDao;
     private final DmsWechatMiniProgramIdentityDao identityDao;
+    private final DmsTenantDao tenantDao;
     private final ShopService shopService;
+    private final TransactionTemplate requiresNewTransaction;
+
+    public WeChatPayServiceImpl(WeChatPayProperties payProperties,
+                                WeChatMiniProgramProperties miniProgramProperties,
+                                WeChatPayGateway gateway,
+                                DmsShopOrderDao orderDao,
+                                DmsShopTradeDao tradeDao,
+                                DmsShopMemberDao memberDao,
+                                DmsWechatMiniProgramIdentityDao identityDao,
+                                DmsTenantDao tenantDao,
+                                ShopService shopService,
+                                PlatformTransactionManager transactionManager) {
+        this.payProperties = payProperties;
+        this.miniProgramProperties = miniProgramProperties;
+        this.gateway = gateway;
+        this.orderDao = orderDao;
+        this.tradeDao = tradeDao;
+        this.memberDao = memberDao;
+        this.identityDao = identityDao;
+        this.tenantDao = tenantDao;
+        this.shopService = shopService;
+        this.requiresNewTransaction = new TransactionTemplate(transactionManager);
+        this.requiresNewTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    }
 
     @Override
     public boolean isConfigured() {
@@ -176,6 +207,50 @@ public class WeChatPayServiceImpl implements WeChatPayService {
         }
     }
 
+    @Override
+    public int reconcileProcessingLatePaymentRefunds(int limit) {
+        if (!isConfigured() || limit <= 0) return 0;
+        int boundedLimit = Math.min(limit, 200);
+        Long previousTenantId = TenantContext.getCurrentTenantId();
+        List<DmsTenant> tenants = tenantDao.selectAll();
+        List<Long> tenantIds = (tenants == null ? List.<DmsTenant>of() : tenants).stream()
+                .map(DmsTenant::getId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+        if (tenantIds.isEmpty()) tenantIds = List.of(TenantContext.getTenantId());
+        int completed = 0;
+        try {
+            // The scheduler has no request tenant context. Scan every configured tenant with
+            // an independent bounded batch so a permanently retryable row in tenant 1 cannot
+            // starve another tenant's completed refund.
+            for (Long tenantId : tenantIds) {
+                TenantContext.setTenantId(tenantId);
+                completed += reconcileCurrentTenantLatePaymentRefunds(boundedLimit);
+            }
+            return completed;
+        } finally {
+            if (previousTenantId == null) TenantContext.clear();
+            else TenantContext.setTenantId(previousTenantId);
+        }
+    }
+
+    private int reconcileCurrentTenantLatePaymentRefunds(int boundedLimit) {
+        int completed = 0;
+        List<Long> tradeIds = tradeDao.selectLateRefundProcessingIds(boundedLimit);
+        for (Long tradeId : tradeIds) {
+            DmsShopTrade trade = tradeDao.selectById(tradeId);
+            if (trade != null && recoverLatePaymentRefund(tradeTarget(trade))) completed++;
+        }
+        int remaining = boundedLimit - tradeIds.size();
+        if (remaining <= 0) return completed;
+        for (Long orderId : orderDao.selectLateRefundProcessingIds(remaining)) {
+            DmsShopOrder order = orderDao.selectById(orderId);
+            if (order != null && recoverLatePaymentRefund(orderTarget(order))) completed++;
+        }
+        return completed;
+    }
+
     private static String errorType(Exception error) {
         return error == null ? "Unknown" : error.getClass().getSimpleName();
     }
@@ -185,6 +260,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
         if (target == null) Asserts.fail("微信支付订单不存在");
         if (isPaid(target.status())) return true;
         if (isLatePaymentRefunded(target)) return true;
+        if (isLatePaymentRefundProcessing(target)) return true;
         if (isUnpaidClosed(target)) return refundLatePayment(target);
         if (!Integer.valueOf(0).equals(target.status())) return false;
         if (target.grouped()) shopService.markCheckoutPaid(target.id(), "WECHAT");
@@ -194,21 +270,78 @@ public class WeChatPayServiceImpl implements WeChatPayService {
     }
 
     private boolean refundLatePayment(PaymentTarget target) {
-        String refundNo = "LATEPAY-" + SecureUtil.sha256(target.paymentNo()).substring(0, 32);
-        RefundState state = requestRefund(target.paymentNo(), refundNo, target.payAmount(), target.payAmount(),
-                "订单超时关闭后的支付自动退回");
-        if (state == RefundState.FAILED) return false;
-        if (state == RefundState.COMPLETED) markLateRefunded(target);
-        log.warn("微信支付在本地关单后到账，已发起自动退款: paymentNo={}, refundState={}",
-                target.paymentNo(), state);
+        markLateRefundProcessing(target);
+        runAfterCommitOrNow(() -> {
+            try {
+                RefundState state = requestPersistedLatePaymentRefund(target);
+                log.warn("微信支付在本地关单后到账，已发起自动退款: paymentNo={}, refundState={}",
+                        target.paymentNo(), state);
+            } catch (Exception error) {
+                // 状态 2 已持久化；失败留给定时任务用同一退款单号恢复。
+                log.error("微信迟到支付退款执行中断，已保留待恢复状态: paymentNo={}, errorType={}",
+                        target.paymentNo(), errorType(error));
+            }
+        });
         return true;
     }
 
-    private void markLateRefunded(PaymentTarget target) {
-        int marked = target.grouped() ? tradeDao.markLateRefunded(target.id()) : orderDao.markLateRefunded(target.id());
-        if (marked != 1 && !isLatePaymentRefunded(paymentTargetByPaymentNo(target.paymentNo(), false))) {
-            throw new IllegalStateException("微信迟到支付已退款，但本地幂等标记保存失败");
+    private boolean recoverLatePaymentRefund(PaymentTarget target) {
+        if (!isLatePaymentRefundProcessing(target) || !isUnpaidClosed(target)
+                || !"WECHAT".equalsIgnoreCase(target.payType())) return false;
+        try {
+            return requestPersistedLatePaymentRefund(target) == RefundState.COMPLETED;
+        } catch (Exception error) {
+            log.error("微信迟到支付退款主动恢复失败，保留处理中状态: paymentNo={}, errorType={}",
+                    target.paymentNo(), errorType(error));
+            return false;
         }
+    }
+
+    private RefundState requestPersistedLatePaymentRefund(PaymentTarget target) {
+        String refundNo = lateRefundNo(target.paymentNo());
+        RefundState state = requestRefund(target.paymentNo(), refundNo, target.payAmount(), target.payAmount(),
+                "订单超时关闭后的支付自动退回");
+        if (state == RefundState.COMPLETED) markLateRefunded(target);
+        return state;
+    }
+
+    private String lateRefundNo(String paymentNo) {
+        return "LATEPAY-" + SecureUtil.sha256(paymentNo).substring(0, 32);
+    }
+
+    private void markLateRefundProcessing(PaymentTarget target) {
+        int marked = target.grouped()
+                ? tradeDao.markLateRefundProcessing(target.id())
+                : orderDao.markLateRefundProcessing(target.id());
+        if (marked == 1) return;
+        PaymentTarget refreshed = paymentTargetByPaymentNo(target.paymentNo(), false);
+        if (isLatePaymentRefundProcessing(refreshed) || isLatePaymentRefunded(refreshed)) return;
+        throw new IllegalStateException("微信迟到支付退款处理中状态保存失败");
+    }
+
+    private void markLateRefunded(PaymentTarget target) {
+        requiresNewTransaction.executeWithoutResult(status -> {
+            int marked = target.grouped()
+                    ? tradeDao.markLateRefunded(target.id())
+                    : orderDao.markLateRefunded(target.id());
+            if (marked != 1 && !isLatePaymentRefunded(paymentTargetByPaymentNo(target.paymentNo(), false))) {
+                throw new IllegalStateException("微信迟到支付已退款，但本地幂等标记保存失败");
+            }
+        });
+    }
+
+    private void runAfterCommitOrNow(Runnable action) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()
+                && TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    action.run();
+                }
+            });
+            return;
+        }
+        action.run();
     }
 
     private void validatePaymentResult(WeChatPayGateway.PaymentResult result, PaymentTarget target) {
@@ -294,6 +427,10 @@ public class WeChatPayServiceImpl implements WeChatPayService {
     private boolean isUnpaidClosed(PaymentTarget target) {
         return target != null && Integer.valueOf(4).equals(target.status()) && target.payTimeMissing()
                 && !Integer.valueOf(1).equals(target.lateRefundFlag());
+    }
+
+    private boolean isLatePaymentRefundProcessing(PaymentTarget target) {
+        return target != null && Integer.valueOf(2).equals(target.lateRefundFlag());
     }
 
     private boolean isLatePaymentRefunded(PaymentTarget target) {

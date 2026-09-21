@@ -257,4 +257,14 @@
         ORDER BY sale.id
         LIMIT #{limit}
     </select>
+
+    <select id="selectTimedOutRefundMetrics"
+            resultType="com.macro.mall.distribution.vo.BusinessTimeoutMetricSnapshot">
+        SELECT COUNT(*) timed_out_count, MIN(sale.update_time) oldest_time
+        FROM dms_shop_after_sale sale
+        INNER JOIN dms_shop_order shop_order ON shop_order.id = sale.order_id
+        WHERE sale.status = 6
+          AND UPPER(shop_order.pay_type) IN ('WECHAT','ALIPAY')
+          AND sale.update_time &lt;= #{cutoff}
+    </select>
 </mapper>

@@ -3,6 +3,7 @@ package com.macro.mall.distribution.service;
 import com.macro.mall.distribution.entity.DmsCommissionRuleVersion;
 import com.macro.mall.distribution.entity.DmsTenant;
 import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
+import com.macro.mall.distribution.dto.TenantBusinessModesDTO;
 import com.macro.mall.distribution.vo.TenantLegalTemplatesVO;
 import com.macro.mall.distribution.vo.TenantConfigVersionVO;
 
@@ -15,6 +16,10 @@ public interface TenantService {
     DmsTenant getTenant(Long id);
 
     DmsTenant saveTenant(DmsTenant tenant);
+
+    TenantBusinessModesDTO getBusinessModes(Long tenantId);
+
+    TenantBusinessModesDTO saveBusinessModes(Long tenantId, TenantBusinessModesDTO modes);
 
     TenantLegalTemplatesVO getLegalTemplates();
 

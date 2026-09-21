@@ -46,6 +46,21 @@ class ShopAfterSaleWechatShippingTest {
         verifyNoInteractions(f.shipping);
     }
 
+    @Test
+    void externalRefundProcessingDoesNotTouchAccountingInventoryOrOrderState() {
+        Fixture f = fixture("WECHAT", false);
+        f.sale.setRefundAmount(BigDecimal.ONE);
+        f.sale.setProductRefundAmount(BigDecimal.ONE);
+
+        assertTrue(ReflectionTestUtils.<Boolean>invokeMethod(
+                f.service, "requiresExternalRefund", f.order, f.sale));
+        ReflectionTestUtils.invokeMethod(f.service, "completeRefund", f.sale, f.order);
+
+        verifyNoInteractions(f.accounting, f.restock, f.shipping);
+        verify(f.orderDao, never()).ship(anyLong(), anyString(), anyString());
+        assertEquals(1, f.order.getStatus(), "渠道未确认成功前订单必须保持原状态");
+    }
+
     private Fixture fixture(String payType, boolean simulation) {
         DmsShopAfterSaleItemDao saleItems = mock(DmsShopAfterSaleItemDao.class);
         DmsShopOrderDao orderDao = mock(DmsShopOrderDao.class);
@@ -53,13 +68,15 @@ class ShopAfterSaleWechatShippingTest {
         DmsShopOrderShipmentDao shipmentDao = mock(DmsShopOrderShipmentDao.class);
         ExternalRefundCoordinator external = mock(ExternalRefundCoordinator.class);
         WeChatShippingInfoService shipping = mock(WeChatShippingInfoService.class);
+        RefundCompletionAccountingService accounting = mock(RefundCompletionAccountingService.class);
+        RefundInventoryRestockService restock = mock(RefundInventoryRestockService.class);
         ShopAfterSaleServiceImpl service = new ShopAfterSaleServiceImpl(mock(DmsAgentDao.class), mock(AgentService.class),
                 mock(DmsShopAfterSaleDao.class), saleItems, orderDao, orderItems, shipmentDao,
                 mock(DmsShopProductDao.class), mock(DmsShopServiceAddressDao.class), mock(DmsShopSkuDao.class),
-                mock(DmsShopMemberDao.class), mock(DistributionAuditService.class), mock(MemberAssetService.class),
-                mock(OrderBalanceAllocationService.class), external, mock(ShopAfterSaleWindowPolicy.class),
-                mock(ShopAfterSaleTimelinePolicy.class), mock(RefundInventoryRestockService.class),
-                mock(ShopMediaStorageService.class), mock(MerchantService.class), mock(OperationLogService.class), new ObjectMapper());
+                mock(DmsShopMemberDao.class), accounting,
+                external, mock(ShopAfterSaleWindowPolicy.class),
+                mock(ShopAfterSaleTimelinePolicy.class), restock,
+                mock(ShopMediaStorageService.class), mock(OperationLogService.class), new ObjectMapper());
         ReflectionTestUtils.setField(service, "weChatShippingInfoService", shipping);
         ReflectionTestUtils.setField(service, "simulationPaymentEnabled", simulation);
         DmsShopAfterSale sale = new DmsShopAfterSale();
@@ -75,14 +92,16 @@ class ShopAfterSaleWechatShippingTest {
         returnedGift.setOrderItemId(4L); returnedGift.setProductId(1L);
         returnedGift.setRefundQuantity(1); returnedGift.setRefundAmount(BigDecimal.ZERO);
         when(saleItems.selectByAfterSaleId(1L)).thenReturn(List.of(returnedGift));
-        when(saleItems.sumApprovedQuantityByOrderId(2L)).thenReturn(1);
+        when(saleItems.sumCompletedQuantityByOrderId(2L)).thenReturn(1);
         DmsShopOrderShipment shipment = new DmsShopOrderShipment();
         shipment.setDeliveryCompany("顺丰速运"); shipment.setDeliveryNo("SF-PARTIAL-001");
         when(shipmentDao.sumQuantityByOrderId(2L)).thenReturn(1);
         when(shipmentDao.selectByOrderId(2L)).thenReturn(List.of(shipment));
         when(orderDao.ship(2L, "顺丰速运", "SF-PARTIAL-001")).thenReturn(1);
-        return new Fixture(service, orderDao, shipmentDao, external, shipping, sale, order);
+        return new Fixture(service, orderDao, shipmentDao, external, shipping, accounting, restock, sale, order);
     }
     private record Fixture(ShopAfterSaleServiceImpl service, DmsShopOrderDao orderDao, DmsShopOrderShipmentDao shipmentDao,
-            ExternalRefundCoordinator external, WeChatShippingInfoService shipping, DmsShopAfterSale sale, DmsShopOrder order) { }
+            ExternalRefundCoordinator external, WeChatShippingInfoService shipping,
+            RefundCompletionAccountingService accounting, RefundInventoryRestockService restock,
+            DmsShopAfterSale sale, DmsShopOrder order) { }
 }

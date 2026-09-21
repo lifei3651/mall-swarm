@@ -79,6 +79,31 @@ test('手机号本身就是商城账号，直属邀请关系按服务端只读�
   assert.doesNotMatch(view, /商城账号[^\n]*尚未设置/)
 })
 
+test('直属邀请关系完整覆盖已绑定、未绑定、待核验与查询失败', async () => {
+  const cases = [
+    [{ inviterStatus: 'BOUND', inviterName: '邀请人甲' }, 'BOUND', '邀请人甲'],
+    [{ inviterStatus: 'NONE', inviterName: '' }, 'NONE', '未绑定'],
+    [{ inviterStatus: 'INVALID', inviterName: '' }, 'INVALID', '关系待核验']
+  ]
+  for (const [identity, status, display] of cases) {
+    const h = harness({ respond: ({ url }) => url === '/shop/auth/account-identity'
+      ? { accountMode: 'CUSTOM', accountDisplay: member.username, canSetupLoginAccount: false, ...identity }
+      : member })
+    await h.page.onShow()
+    assert.equal(h.page.data.inviterStatus, status)
+    assert.equal(h.page.data.inviterDisplay, display)
+  }
+
+  const failed = harness({ respond: ({ url }) => {
+    if (url === '/shop/auth/account-identity') throw new Error('邀请关系查询失败')
+    return member
+  } })
+  await failed.page.onShow()
+  assert.equal(failed.page.data.member.id, member.id)
+  assert.equal(failed.page.data.inviterStatus, 'UNKNOWN')
+  assert.equal(failed.page.data.inviterDisplay, '暂不可查询')
+})
+
 test('昵称合法性校验且只更新昵称字段，不混入其他账号属性', async () => {
   const h = harness()
   await h.page.onShow()

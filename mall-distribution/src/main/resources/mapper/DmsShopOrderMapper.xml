@@ -470,7 +470,31 @@
         WHERE id = #{id}
           AND status = 4
           AND pay_time IS NULL
+          AND COALESCE(late_refund_flag, 0) IN (0, 2)
+          AND COALESCE(tenant_id, 1) = #{tenantId}
+    </update>
+
+    <update id="markLateRefundProcessingScoped">
+        UPDATE dms_shop_order
+        SET late_refund_flag = 2,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND status = 4
+          AND pay_time IS NULL
           AND COALESCE(late_refund_flag, 0) = 0
           AND COALESCE(tenant_id, 1) = #{tenantId}
     </update>
+
+    <select id="selectLateRefundProcessingIdsScoped" resultType="long">
+        SELECT id
+        FROM dms_shop_order
+        WHERE status = 4
+          AND pay_time IS NULL
+          AND late_refund_flag = 2
+          AND UPPER(COALESCE(pay_type, '')) = 'WECHAT'
+          AND trade_id IS NULL
+          AND COALESCE(tenant_id, 1) = #{tenantId}
+        ORDER BY update_time ASC, id ASC
+        LIMIT #{limit}
+    </select>
 </mapper>

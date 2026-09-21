@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.dao;
 
 import com.macro.mall.distribution.entity.DmsWechatLogisticsFollowTask;
+import com.macro.mall.distribution.vo.BusinessTaskMetricSnapshot;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -23,6 +24,8 @@ public interface DmsWechatLogisticsFollowTaskDao {
     DmsWechatLogisticsFollowTask selectByShipment(@Param("tenantId") Long tenantId,
                                                   @Param("orderId") Long orderId,
                                                   @Param("shipmentId") Long shipmentId);
+
+    BusinessTaskMetricSnapshot selectMonitoringMetrics();
 
     int markSuccess(@Param("id") Long id, @Param("owner") String owner,
                     @Param("payloadDigest") String payloadDigest,

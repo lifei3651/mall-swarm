@@ -50,10 +50,10 @@
         </div>
         <div class="order-actions ui-action-bar ui-order-actions">
           <RouterLink class="order-action btn secondary ui-action-button ui-order-action" :to="`/orders/${item.order.id}`">查看详情</RouterLink>
-          <button v-if="item.order.status === 0 && isTradeActionOwner(item)" class="order-action btn secondary ui-action-button ui-order-action" :disabled="actingId === item.order.id" @click="requestOrderAction('cancel', item.order.id)">{{ item.order.tradeId ? '取消联合订单' : '取消订单' }}</button>
+          <button v-if="item.order.status === 0 && isTradeActionOwner(item)" class="order-action btn secondary ui-action-button ui-order-action" :disabled="actingId === item.order.id" @click="requestOrderAction('cancel', item.order.id)">取消订单</button>
           <RouterLink v-if="canApplyAfterSale(item)" class="order-action btn secondary ui-action-button ui-order-action" :to="`/orders/${item.order.id}?applyAfterSale=1`">申请售后</RouterLink>
           <RouterLink v-if="Number(item.pendingReviewCount || 0) > 0" class="order-action btn secondary ui-action-button ui-order-action" :to="reviewLink(item)">去评价</RouterLink>
-          <RouterLink v-if="item.order.status === 0 && isTradeActionOwner(item)" class="order-action btn primary ui-action-button ui-action-button--primary ui-order-action ui-order-action--primary" :to="`/orders/${item.order.id}`">{{ item.order.tradeId ? '支付全部子单' : '立即支付' }}</RouterLink>
+          <RouterLink v-if="item.order.status === 0 && isTradeActionOwner(item)" class="order-action btn primary ui-action-button ui-action-button--primary ui-order-action ui-order-action--primary" :to="`/orders/${item.order.id}`">立即支付</RouterLink>
           <button v-if="item.order.status === 2 && !isAfterSale(item)" class="order-action btn primary ui-action-button ui-action-button--primary ui-order-action ui-order-action--primary" :disabled="actingId === item.order.id" @click="requestOrderAction('receive', item.order.id)">确认收货</button>
         </div>
       </article>

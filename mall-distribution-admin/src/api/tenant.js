@@ -17,6 +17,21 @@ export function saveTenant(data, options = {}) {
   })
 }
 
+export function getTenantBusinessModes(tenantId = 1) {
+  return request({
+    url: `/distribution/tenant/${tenantId}/business-modes`,
+    method: 'get',
+  })
+}
+
+export function saveTenantBusinessModes(tenantId, data) {
+  return request({
+    url: `/distribution/tenant/${tenantId}/business-modes`,
+    method: 'put',
+    data,
+  })
+}
+
 export function getLegalTemplates() {
   return request({
     url: '/distribution/tenant/legal-templates',

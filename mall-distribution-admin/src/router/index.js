@@ -140,7 +140,7 @@ const routes = [
           {
             path: 'banners',
             name: 'ShopBannersLegacy',
-            redirect: '/tenant/banners',
+            redirect: (to) => ({ path: '/tenant/list', query: { ...to.query, editSection: 'banner' }, hash: to.hash }),
             meta: { title: '首页Banner', hidden: true, permission: 'config:shop' },
           },
           { path: 'coupons', name: 'ShopCoupons', component: () => import('@/views/shop/coupons.vue'), meta: { title: '优惠券', permission: 'config:shop' } },
@@ -319,7 +319,7 @@ const routes = [
           {
             path: 'banners',
             name: 'TenantBanners',
-            component: () => import('@/views/shop/banners.vue'),
+            redirect: (to) => ({ path: '/tenant/list', query: { ...to.query, editSection: 'banner' }, hash: to.hash }),
             // Banner 已并入“商城视觉与页面”，保留 URL 兼容旧书签但不再单独显示菜单。
             meta: { title: '首页Banner', hidden: true, permission: 'config:shop' },
           },

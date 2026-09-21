@@ -66,6 +66,17 @@
         LIMIT #{limit}
     </select>
 
+    <select id="selectMonitoringMetrics"
+            resultType="com.macro.mall.distribution.vo.BusinessTaskMetricSnapshot">
+        SELECT
+          COALESCE(SUM(CASE WHEN status IN (0,1)
+            OR (status=3 AND retry_count &lt; max_retry_count) THEN 1 ELSE 0 END),0) backlog_count,
+          MIN(CASE WHEN status IN (0,1)
+            OR (status=3 AND retry_count &lt; max_retry_count) THEN create_time END) oldest_time,
+          COALESCE(SUM(CASE WHEN status=3 AND retry_count &gt;= max_retry_count THEN 1 ELSE 0 END),0) failure_count
+        FROM dms_bonus_calculation_task
+    </select>
+
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsBonusCalculationTask" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_bonus_calculation_task
         (tenant_id, rule_version_id, order_id, order_no, order_amount, order_user_id, order_user_name,

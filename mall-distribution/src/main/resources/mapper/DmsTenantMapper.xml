@@ -135,6 +135,19 @@
         WHERE id = #{id}
     </update>
 
+    <!-- 业务模式页面只能写入这六个字段，不能复用整租户更新以免发生越权批量赋值。 -->
+    <update id="updateBusinessModes">
+        UPDATE dms_tenant
+        SET promotion_join_mode = #{modes.promotionJoinMode},
+            flash_sale_enabled = #{modes.flashSaleEnabled},
+            flash_sale_bonus_mode = #{modes.flashSaleBonusMode},
+            repurchase_mall_enabled = #{modes.repurchaseMallEnabled},
+            repurchase_eligibility_mode = #{modes.repurchaseEligibilityMode},
+            repurchase_bonus_mode = #{modes.repurchaseBonusMode},
+            update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
     <update id="updateStatus">
         UPDATE dms_tenant SET status = #{status}, update_time = NOW() WHERE id = #{id}
     </update>

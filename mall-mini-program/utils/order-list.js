@@ -15,8 +15,10 @@ function decorate(rows) {
     return { ...row,
       canCancel: Boolean(identifier(row.order.id) && row.order.status === 0 && owner),
       canPay: Boolean(identifier(row.order.id) && row.order.status === 0 && owner && ['WECHAT', 'BALANCE'].includes(row.order.payType)),
-      payLabel: row.order.tradeId ? '支付全部子单' : '立即支付',
-      cancelLabel: row.order.tradeId ? '取消联合订单' : '取消订单',
+      // 列表页只保留紧凑动作名；联合订单范围在详情页和二次确认中说明，
+      // 避免 320px/rpx 小屏把三个操作按钮裁切。
+      payLabel: '立即支付',
+      cancelLabel: '取消订单',
       canApplyAfterSale: rules.canApplyAfterSale(row) && afterSaleEligibility(row).allowed,
       autoReceiveText,
       logisticsText,

@@ -20,6 +20,13 @@ scrape_configs:
 
 标准告警规则位于 `document/operations/prometheus/mall-distribution-rules.yml`。如果监控程序运行在另一台服务器，应通过内网或 SSH 隧道采集，不要把 Actuator 直接暴露到公网。
 
+支付、发货、物流、奖金、ERP、退款、打款与账本的聚合指标及值守流程见
+`document/operations/BUSINESS_OPERATIONS_MONITORING.md`。可在服务器本机运行只读检查：
+
+```bash
+scripts/production-business-watch.sh
+```
+
 ## SQL 性能指标
 
 | 指标 | 含义 |
@@ -67,5 +74,9 @@ sum(rate(mall_cache_requests_total{cache="shop_catalog",result=~"hit|miss"}[10m]
 | `DB_POOL_WARNING_PERCENT` | `80` | 连接池日志预警比例 |
 | `DB_POOL_SAMPLE_MS` | `15000` | 连接池指标采集间隔 |
 | `CACHE_MONITOR_SAMPLE_MS` | `15000` | Redis 指标采集间隔 |
+| `BUSINESS_MONITOR_SAMPLE_MS` | `60000` | 业务聚合指标采集间隔 |
+| `BUSINESS_MONITOR_INITIAL_DELAY_MS` | `30000` | 应用启动后首次业务聚合采集延迟 |
+| `BUSINESS_MONITOR_REFUND_TIMEOUT_SECONDS` | `1800` | 外部退款处理中超时阈值 |
+| `BUSINESS_MONITOR_WITHDRAWAL_PAYOUT_TIMEOUT_SECONDS` | `86400` | 提现打款处理中超时阈值 |
 
 调整阈值后必须结合一段时间的真实流量观察，不以单次峰值直接扩容或修改数据库参数。
