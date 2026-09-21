@@ -20,7 +20,7 @@
         </section>
         <section><h3>限时秒杀</h3>
           <el-form-item label="秒杀专区" class="toggle-row"><span class="toggle-state">{{ Number(form.flashSaleEnabled) === 1 ? '已开启' : '已关闭' }}</span><el-switch v-model="form.flashSaleEnabled" aria-label="启用秒杀专区" :active-value="1" :inactive-value="0" /></el-form-item>
-          <el-form-item label="秒杀奖金处理"><el-radio-group v-model="form.flashSaleBonusMode"><el-radio-button value="NONE">不计奖</el-radio-button><el-radio-button value="STANDARD">按报单区奖金规则</el-radio-button></el-radio-group></el-form-item>
+          <el-form-item label="秒杀奖金处理"><el-radio-group v-model="form.flashSaleBonusMode"><el-radio-button value="NONE">不计奖</el-radio-button><el-radio-button value="STANDARD">按普通商城奖金规则</el-radio-button></el-radio-group></el-form-item>
           <p>活动价格、库存、开始结束时间和每人限购在“营销运营 → 秒杀活动”中维护。</p>
         </section>
         <section><h3>会员复购区</h3>

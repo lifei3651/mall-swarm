@@ -844,7 +844,7 @@ public class ShopServiceImpl implements ShopService {
         if (enabled == 1) {
             if (!Integer.valueOf(1).equals(product.getStatus())
                     || !Integer.valueOf(1).equals(product.getNormalSaleEnabled())) {
-                Asserts.fail("只有报单区中已上架的商品才能额外加入新品");
+                Asserts.fail("只有普通商城中已上架的商品才能额外加入新品");
             }
             Integer durationDays = dto.getDurationDays();
             if (durationDays == null || (durationDays != 0 && (durationDays < 30 || durationDays > 365))) {
@@ -2211,7 +2211,7 @@ public class ShopServiceImpl implements ShopService {
                                          ShopOrderItemDTO item) {
         requireActiveProductMerchant(product);
         if (ShopBusinessType.NORMAL.equals(businessType)) {
-            if (Integer.valueOf(0).equals(product.getNormalSaleEnabled())) Asserts.fail("该商品不在报单区销售");
+            if (Integer.valueOf(0).equals(product.getNormalSaleEnabled())) Asserts.fail("该商品不在普通商城销售");
             validatePurchaseLimit(product, userId, requestedQuantity, existingPurchaseQuantities);
             return;
         }
@@ -2310,7 +2310,7 @@ public class ShopServiceImpl implements ShopService {
         product.setPurchaseLimit(product.getPurchaseLimit() == null ? 0 : Math.max(0, product.getPurchaseLimit()));
         product.setNormalSaleEnabled(Integer.valueOf(0).equals(product.getNormalSaleEnabled()) ? 0 : 1);
         product.setRepurchaseSaleEnabled(Integer.valueOf(1).equals(product.getRepurchaseSaleEnabled()) ? 1 : 0);
-        // 第三个“报单区”字段是历史预留且没有独立下单入口；保留数据库字段但停止开放。
+        // 第三个销售渠道字段是历史预留且没有独立下单入口；保留数据库字段但停止开放。
         product.setEnrollmentSaleEnabled(0);
         product.setRepurchasePrice(money(product.getRepurchasePrice()));
         product.setRepurchasePv(money(product.getRepurchasePv()));
@@ -2323,7 +2323,7 @@ public class ShopServiceImpl implements ShopService {
             validatePv(product.getRepurchasePv(), product.getRepurchasePrice(), "复购PV");
         }
         if (product.getNormalSaleEnabled() == 0 && product.getRepurchaseSaleEnabled() == 0) {
-            Asserts.fail("报单区、复购区至少启用一个");
+            Asserts.fail("普通商城、复购区至少启用一个");
         }
         String bonusMode = product.getMerchantId() == null ? "INHERIT" : "NONE";
         product.setTeamBonusMode(bonusMode);
@@ -2343,7 +2343,7 @@ public class ShopServiceImpl implements ShopService {
             if (product.getCostAmount().compareTo(ZERO) <= 0) Asserts.fail("商户商品必须填写大于0的结算价");
             if (Integer.valueOf(1).equals(product.getNormalSaleEnabled())
                     && product.getCostAmount().compareTo(product.getSalePrice()) > 0) {
-                Asserts.fail("商户商品结算价不能高于报单区售价");
+                Asserts.fail("商户商品结算价不能高于普通商城售价");
             }
             if (Integer.valueOf(1).equals(product.getRepurchaseSaleEnabled())
                     && product.getCostAmount().compareTo(product.getRepurchasePrice()) > 0) {

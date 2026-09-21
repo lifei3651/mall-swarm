@@ -227,9 +227,9 @@
 
           <section id="product-business" class="form-section">
             <h3>4. 销售渠道</h3>
-            <el-alert title="报单区与复购区是两个业务渠道。报单区商品按报单区奖金规则处理，复购区商品按复购奖金规则处理。" type="info" :closable="false" show-icon style="margin-bottom:18px" />
+            <el-alert title="普通商城与复购区是两个业务渠道。普通商城商品按普通商城奖金规则处理，复购区商品按复购奖金规则处理。" type="info" :closable="false" show-icon style="margin-bottom:18px" />
             <el-row :gutter="20">
-              <el-col :span="12"><el-form-item label="报单区"><el-switch v-model="form.normalSaleEnabled" :active-value="1" :inactive-value="0" active-text="销售" inactive-text="不销售" /></el-form-item></el-col>
+              <el-col :span="12"><el-form-item label="普通商城"><el-switch v-model="form.normalSaleEnabled" :active-value="1" :inactive-value="0" active-text="销售" inactive-text="不销售" /></el-form-item></el-col>
               <el-col :span="12"><el-form-item label="复购区"><el-switch v-model="form.repurchaseSaleEnabled" :active-value="1" :inactive-value="0" active-text="销售" inactive-text="不销售" /></el-form-item></el-col>
             </el-row>
             <el-row v-if="form.repurchaseSaleEnabled === 1" :gutter="20">
@@ -1005,12 +1005,12 @@ const submitForm = async () => {
   if (skuRows.value.some((item) => Number(item.costAmount || 0) < 0)) return ElMessage.warning('SKU成本价不能小于0')
   if (skuRows.value.some((item) => Number(item.repurchasePrice || 0) < 0)) return ElMessage.warning('SKU复购价不能小于0')
   if (skuRows.value.some((item) => Number(item.repurchasePv || 0) < 0)) return ElMessage.warning('SKU复购PV不能小于0')
-  if (Number(form.value.normalSaleEnabled) === 1 && !hasSku.value && Number(form.value.salePrice || 0) <= 0) return ElMessage.warning('启用报单区销售时商品销售价必须大于0')
-  if (Number(form.value.normalSaleEnabled) === 1 && skuRows.value.some((item) => Number(item.status) === 1 && Number(item.salePrice || 0) <= 0)) return ElMessage.warning('启用报单区销售时有效SKU销售价必须大于0')
+  if (Number(form.value.normalSaleEnabled) === 1 && !hasSku.value && Number(form.value.salePrice || 0) <= 0) return ElMessage.warning('启用普通商城销售时商品销售价必须大于0')
+  if (Number(form.value.normalSaleEnabled) === 1 && skuRows.value.some((item) => Number(item.status) === 1 && Number(item.salePrice || 0) <= 0)) return ElMessage.warning('启用普通商城销售时有效SKU销售价必须大于0')
   if (form.value.freightType === 1 && Number(form.value.freightAmount || 0) <= 0) return ElMessage.warning('固定运费必须大于0')
   if (form.value.freightType === 2 && Number(form.value.freeShippingAmount || 0) <= 0) return ElMessage.warning('请填写满额包邮门槛')
   if (Number(form.value.purchaseLimit || 0) < 0 || !Number.isInteger(Number(form.value.purchaseLimit || 0))) return ElMessage.warning('会员限购数量必须是大于等于0的整数')
-  if (Number(form.value.normalSaleEnabled) !== 1 && Number(form.value.repurchaseSaleEnabled) !== 1) return ElMessage.warning('报单区、复购区至少启用一个')
+  if (Number(form.value.normalSaleEnabled) !== 1 && Number(form.value.repurchaseSaleEnabled) !== 1) return ElMessage.warning('普通商城、复购区至少启用一个')
   if (form.value.merchantId && Number(form.value.costAmount || 0) <= 0) return ElMessage.warning('商户商品必须填写大于0的结算价')
   if (form.value.settlementDelayMode === 'OVERRIDE' && (!Number.isInteger(Number(form.value.settlementDelayDaysOverride)) || Number(form.value.settlementDelayDaysOverride) < 0 || Number(form.value.settlementDelayDaysOverride) > 365)) return ElMessage.warning('商品结算等待天数必须是0到365之间的整数')
   if (Number(form.value.repurchaseSaleEnabled) === 1 && Number(form.value.repurchasePrice || 0) <= 0) return ElMessage.warning('启用复购区后请填写复购价')

@@ -59,7 +59,7 @@ describe('商品中心筛选', () => {
     expect(source).toContain('期限结束后只退出新品页，不会下架商品')
   })
 
-  it('商品和SKU价格在保存前禁止负数且报单区销售必须有正售价', async () => {
+  it('商品和SKU价格在保存前禁止负数且普通商城销售必须有正售价', async () => {
     const source = await readFile(sourcePath, 'utf8')
 
     expect(source).toContain('商品销售价不能小于0')
@@ -68,7 +68,7 @@ describe('商品中心筛选', () => {
     expect(source).toContain('SKU销售价不能小于0')
     expect(source).toContain('SKU划线价不能小于0')
     expect(source).toContain('SKU成本价不能小于0')
-    expect(source).toContain('启用报单区销售时商品销售价必须大于0')
-    expect(source).toContain('启用报单区销售时有效SKU销售价必须大于0')
+    expect(source).toContain('启用普通商城销售时商品销售价必须大于0')
+    expect(source).toContain('启用普通商城销售时有效SKU销售价必须大于0')
   })
 })

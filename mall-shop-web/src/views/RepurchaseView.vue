@@ -2,7 +2,7 @@
   <main class="repurchase-page">
     <header>
       <button type="button" aria-label="返回" @click="$router.back()">‹</button>
-      <div><h1>会员复购区</h1><p>复购商品、复购价格与报单区订单独立结算</p></div>
+      <div><h1>会员复购区</h1><p>复购商品、复购价格与普通商城订单独立结算</p></div>
     </header>
     <form role="search" @submit.prevent="load"><input v-model="keyword" aria-label="搜索复购商品" placeholder="搜索复购商品" /><button>搜索</button></form>
     <p v-if="error" class="state error" role="alert">{{ error }}</p>

@@ -83,7 +83,7 @@ public class ShopBusinessModeService {
 
     private void rejectUnconfiguredCustom(String value, String label) {
         if ("CUSTOM".equals(mode(value, "NONE"))) {
-            Asserts.fail(label + "客户定制奖金规则尚未配置，当前禁止创建订单");
+            Asserts.fail(label + "对应奖金规则尚未配置，当前禁止创建订单");
         }
     }
 

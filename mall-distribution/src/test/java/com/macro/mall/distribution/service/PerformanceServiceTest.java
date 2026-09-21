@@ -1791,7 +1791,7 @@ public class PerformanceServiceTest {
         assertEquals(received.getReceiveTime().plusDays(7), completed.getAfterSaleDeadline());
     }
 
-    /** 同一报单区订单统一按渠道奖金规则；任一商品退款都按对应金额、数量冲销。 */
+    /** 同一普通商城订单统一按渠道奖金规则；任一商品退款都按对应金额、数量冲销。 */
     @Test
     void reportAreaChannelRuleAppliesToEveryItemAndRefund() {
         newRetailVersion("REPORT_AREA_REFUND_SCOPE");

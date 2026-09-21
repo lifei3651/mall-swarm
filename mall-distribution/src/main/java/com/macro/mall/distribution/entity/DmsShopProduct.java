@@ -71,7 +71,7 @@ public class DmsShopProduct implements Serializable {
     /** 每位会员累计限购数量，0 表示不限购。 */
     private Integer purchaseLimit;
 
-    /** 报单区和复购区使用独立商品池；同一商品可同时进入两个商品池。 */
+    /** 普通商城和复购区使用独立商品池；同一商品可同时进入两个商品池。 */
     private Integer normalSaleEnabled;
 
     private Integer repurchaseSaleEnabled;
@@ -85,7 +85,7 @@ public class DmsShopProduct implements Serializable {
     @PositiveOrZero(message = "复购限购数量不能小于0")
     private Integer repurchasePurchaseLimit;
 
-    /** 预留的报单区渠道，客户制度确认前不开放前台下单。 */
+    /** 预留的历史销售渠道，客户制度确认前不开放前台下单。 */
     private Integer enrollmentSaleEnabled;
 
     /** INHERIT沿用渠道、NONE不进入客户奖金程序、STANDARD仅兼容历史示例、CUSTOM交给客户项目实现。 */

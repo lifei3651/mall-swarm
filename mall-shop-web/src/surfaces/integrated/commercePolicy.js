@@ -1,5 +1,5 @@
 const checkoutBusinessTypes = new Set(['NORMAL', 'FLASH_SALE', 'REPURCHASE'])
-export const couponBusinessLabel = (types = []) => types.map(t => t === 'NORMAL' ? '报单区' : '复购区').join(' / ')
+export const couponBusinessLabel = (types = []) => types.map(t => t === 'NORMAL' ? '普通商城' : '复购区').join(' / ')
 
 export const validateCheckoutBusinessType = (businessType) => checkoutBusinessTypes.has(businessType)
   ? ''

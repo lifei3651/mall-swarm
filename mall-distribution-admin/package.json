@@ -7,9 +7,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run check:vocabulary && vite build",
     "preview": "vite preview",
-    "test": "vitest run",
+    "check:vocabulary": "node ../scripts/check-commerce-vocabulary.mjs",
+    "test": "npm run check:vocabulary && vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
