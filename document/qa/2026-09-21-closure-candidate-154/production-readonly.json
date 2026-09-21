@@ -1,0 +1,73 @@
+{
+  "recordedAt": "2026-09-21",
+  "timezone": "Asia/Shanghai",
+  "mode": "production-readonly-post-deploy",
+  "version": "1.0.154",
+  "gitCommit": "a8f86f2ed3123c21082e7404d372812e11dae790",
+  "sourceTree": "8aa89734c78fa86abc5eee51428fa7d43217e717",
+  "buildId": "20260921-closure-1.0.154",
+  "backendJarSha256": "786aec477acb1deaf71c058bfbd55e9d57a9953c31bafa859ae2c9b43695dd96",
+  "host": {
+    "hostnameMatched": true,
+    "servicesActive": 4,
+    "redis": "PONG",
+    "health": "UP",
+    "criticalLogMatches": 0
+  },
+  "database": {
+    "migrationsLocal": 40,
+    "migrationsRemote": 40,
+    "lastMigration": "V202609202100__system_fund_accounts.sql",
+    "systemFundAccounts": 2,
+    "missingFundAllocations": 0,
+    "shippingSyncBacklog": 0,
+    "shippingSyncFailures": 0,
+    "logisticsMessageBacklog": 0,
+    "logisticsMessageFailures": 0,
+    "bonusBacklog": 0,
+    "bonusFailures": 0,
+    "erpBacklog": 0,
+    "erpFailures": 0,
+    "refundTimeoutOver30Minutes": 0,
+    "lateRefundProcessing": 0,
+    "withdrawalTimeoutOver30Minutes": 0,
+    "merchantLedgerMismatches": 0
+  },
+  "runtime": {
+    "enabled": true,
+    "phoneEnabled": true,
+    "shippingEnabled": true,
+    "runtimePaymentContract": false,
+    "wechatPayConfigured": true,
+    "alipayConfigured": false,
+    "prometheusEndpointHttpStatus": 404
+  },
+  "staticSites": {
+    "admin": "1.0.154/a8f86f2ed3123c21082e7404d372812e11dae790/20260921-closure-1.0.154",
+    "publicH5": "1.0.154/a8f86f2ed3123c21082e7404d372812e11dae790/20260921-closure-1.0.154",
+    "teamH5": "1.0.154/a8f86f2ed3123c21082e7404d372812e11dae790/20260921-closure-1.0.154"
+  },
+  "protectedOrderEndpoint": {
+    "httpStatus": 401,
+    "jsonCode": 401
+  },
+  "feedbackAccount": {
+    "maskedPhone": "155****6491",
+    "members": 1,
+    "enabledMembers": 1,
+    "phoneIsLoginAccount": true,
+    "inviterRelation": "NONE",
+    "teamOptIn": 0,
+    "enabledAgentProfiles": 0,
+    "validTeamRelations": 0,
+    "directInvitedMembers": 0,
+    "directTeamMembers": 0,
+    "mutated": false
+  },
+  "evidenceBoundary": {
+    "productionWritePerformedByThisCheck": false,
+    "classifiedAs": "S",
+    "realDeviceOrTransactionR": false,
+    "monitoringCollectorsAndAlertmanagerVerified": false
+  }
+}
