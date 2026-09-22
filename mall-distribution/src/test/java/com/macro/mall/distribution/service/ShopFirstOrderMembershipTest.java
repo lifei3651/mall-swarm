@@ -5,7 +5,6 @@ import com.macro.mall.distribution.entity.*;
 import com.macro.mall.distribution.service.impl.ShopServiceImpl;
 import com.macro.mall.distribution.service.impl.ShopAfterSaleWindowPolicy;
 import com.macro.mall.distribution.vo.AgentInfoVO;
-import com.macro.mall.distribution.vo.OrderFinanceDetailVO;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -80,7 +79,6 @@ class ShopFirstOrderMembershipTest {
         when(orderItemDao.selectByOrderId(90001L)).thenReturn(List.of());
         when(authService.activateMember(eq(80001L), eq(1), contains("完成首笔有效支付订单"))).thenReturn(activated);
         when(agentDao.selectByUserId(80001L)).thenReturn(null, agent);
-        when(auditService.getOrderFinanceDetail(90001L)).thenReturn(new OrderFinanceDetailVO());
         when(afterSaleDao.selectByOrderId(90001L)).thenReturn(List.of());
         when(afterSaleWindowPolicy.resolve(1L))
                 .thenReturn(new ShopAfterSaleWindowPolicy.Window(ShopAfterSaleWindowPolicy.MODE_RECEIVED, 7));
@@ -134,7 +132,6 @@ class ShopFirstOrderMembershipTest {
         when(memberDao.selectByUserId(80003L)).thenReturn(member);
         when(authService.activateMember(eq(80003L), eq(1), anyString())).thenReturn(activated);
         when(agentDao.selectByUserId(80003L)).thenReturn(null, agent);
-        when(auditService.getOrderFinanceDetail(90003L)).thenReturn(new OrderFinanceDetailVO());
         when(afterSaleDao.selectByOrderId(90003L)).thenReturn(List.of());
         when(afterSaleWindowPolicy.resolve(1L))
                 .thenReturn(new ShopAfterSaleWindowPolicy.Window(ShopAfterSaleWindowPolicy.MODE_RECEIVED, 7));
@@ -164,7 +161,6 @@ class ShopFirstOrderMembershipTest {
         when(orderDao.selectById(90002L)).thenReturn(order);
         when(orderDao.markPaid(90002L, "ALIPAY")).thenReturn(1);
         when(memberDao.selectByUserId(80002L)).thenReturn(member);
-        when(auditService.getOrderFinanceDetail(90002L)).thenReturn(new OrderFinanceDetailVO());
         when(afterSaleDao.selectByOrderId(90002L)).thenReturn(List.of());
         when(afterSaleWindowPolicy.resolve(1L))
                 .thenReturn(new ShopAfterSaleWindowPolicy.Window(ShopAfterSaleWindowPolicy.MODE_RECEIVED, 7));
@@ -201,7 +197,6 @@ class ShopFirstOrderMembershipTest {
         when(orderDao.markPaid(90004L, "ALIPAY")).thenReturn(1);
         when(tenantDao.selectById(1L)).thenReturn(tenant);
         when(memberDao.selectByUserId(80004L)).thenReturn(member);
-        when(auditService.getOrderFinanceDetail(90004L)).thenReturn(new OrderFinanceDetailVO());
         when(afterSaleDao.selectByOrderId(90004L)).thenReturn(List.of());
         when(afterSaleWindowPolicy.resolve(1L))
                 .thenReturn(new ShopAfterSaleWindowPolicy.Window(ShopAfterSaleWindowPolicy.MODE_RECEIVED, 7));
@@ -240,7 +235,6 @@ class ShopFirstOrderMembershipTest {
         when(tenantDao.selectById(1L)).thenReturn(tenant);
         when(memberDao.selectByUserId(80005L)).thenReturn(member);
         when(agentDao.selectByUserId(80005L)).thenReturn(agent);
-        when(auditService.getOrderFinanceDetail(90005L)).thenReturn(new OrderFinanceDetailVO());
         when(afterSaleDao.selectByOrderId(90005L)).thenReturn(List.of());
         when(afterSaleWindowPolicy.resolve(1L))
                 .thenReturn(new ShopAfterSaleWindowPolicy.Window(ShopAfterSaleWindowPolicy.MODE_RECEIVED, 7));
