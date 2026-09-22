@@ -1,6 +1,8 @@
 package com.macro.mall.distribution.dao;
 
 import com.macro.mall.distribution.entity.DmsShopOrder;
+import com.macro.mall.distribution.service.ShopService;
+import com.macro.mall.distribution.vo.ShopOrderVO;
 import com.macro.mall.distribution.vo.ShopOrderStatusSummaryVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -21,6 +24,7 @@ class ShopOrderStateFilterTest {
 
     @Autowired private DmsShopOrderDao orderDao;
     @Autowired private JdbcTemplate jdbcTemplate;
+    @Autowired private ShopService shopService;
 
     @BeforeEach
     void seedOrders() {
@@ -131,6 +135,39 @@ class ShopOrderStateFilterTest {
     }
 
     @Test
+    void pendingReviewListBadgeAndActionExcludeEveryOpenAfterSaleButRestoreTerminalOnes() {
+        int[] openStatuses = {0, 4, 5, 6, 7, 8};
+        for (int index = 0; index < openStatuses.length; index++) {
+            long orderId = 930300L + index;
+            String orderNo = "FILTER-REVIEW-OPEN-" + openStatuses[index];
+            insertOrder(orderId, orderNo, 3);
+            insertOrderItem(orderId, orderNo, 940300L + index);
+            insertAfterSale("AS-" + orderNo, orderId, orderNo, openStatuses[index]);
+        }
+        int[] terminalStatuses = {1, 2, 3};
+        for (int index = 0; index < terminalStatuses.length; index++) {
+            long orderId = 930400L + index;
+            String orderNo = "FILTER-REVIEW-CLOSED-" + terminalStatuses[index];
+            insertOrder(orderId, orderNo, 3);
+            insertOrderItem(orderId, orderNo, 940400L + index);
+            insertAfterSale("AS-" + orderNo, orderId, orderNo, terminalStatuses[index]);
+        }
+
+        assertUserOrderNosWithoutPrefix("PENDING_REVIEW", "FILTER-REVIEW-OPEN-");
+        assertUserOrderNosWithPrefix("PENDING_REVIEW", "FILTER-REVIEW-CLOSED-",
+                "FILTER-REVIEW-CLOSED-1", "FILTER-REVIEW-CLOSED-2", "FILTER-REVIEW-CLOSED-3");
+        ShopOrderStatusSummaryVO summary = orderDao.selectStatusSummary(1L);
+        assertEquals(3L, summary.getPendingReview());
+
+        ShopOrderVO openAfterSale = shopService.getOrder(930300L);
+        assertEquals(0, openAfterSale.getPendingReviewCount());
+        assertNull(openAfterSale.getPendingReviewOrderItemId());
+        ShopOrderVO terminalAfterSale = shopService.getOrder(930400L);
+        assertEquals(1, terminalAfterSale.getPendingReviewCount());
+        assertEquals(940400L, terminalAfterSale.getPendingReviewProductId());
+    }
+
+    @Test
     void adminWorkSummarySeparatesShipmentAndAfterSaleQueuesByTenant() {
         insertOrder(930011L, "FILTER-OTHER-TENANT", 1, 2L);
 
@@ -166,6 +203,15 @@ class ShopOrderStateFilterTest {
                  product_refund_amount, freight_refund_amount, refund_quantity, status)
                 VALUES (?, ?, ?, 1, 1, 10, 10, 0, 1, ?)
                 """, afterSaleNo, orderId, orderNo, status);
+    }
+
+    private void insertOrderItem(long orderId, String orderNo, long productId) {
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_order_item
+                (order_id, order_no, product_id, product_name, price, quantity, total_amount,
+                 pv_value, total_pv, cost_amount, total_cost)
+                VALUES (?, ?, ?, '待评价测试商品', 10, 1, 10, 0, 0, 5, 5)
+                """, orderId, orderNo, productId);
     }
 
     private void assertOrderNos(String state, String... expectedOrderNos) {

@@ -183,14 +183,17 @@ root = pathlib.Path(sys.argv[2]).resolve()
 expected_appid = "wxd26e0a4e41df392b"
 expected_api = "https://lingqimall.com/api"
 expected_plugins = {"logisticsPlugin": {"provider": "wx9ad912bf20548d92", "version": "2.1.12"}}
-expected_version = "1.0.154"
+expected_version = "1.0.155"
 expected_scope = "mall-closure-candidate"
-expected_build_id = "20260921-closure-1.0.154"
+expected_build_id = "20260922-closure-1.0.155"
 expected_build_method = "clean-build-in-release-process"
-expected_previous_backend_version = "1.0.153"
-expected_previous_backend_jar = "bb2ef6a1c3c8fe908f088b16ac86fbce193334645e83c343adbd4392d2b93009"
-expected_previous_static_version = "1.0.153"
-expected_previous_static_commit = "8d94be83088f3ed8aab8664a7a13eccdffc4cb41"
+expected_previous_backend_version = "1.0.154"
+expected_previous_backend_jar = "786aec477acb1deaf71c058bfbd55e9d57a9953c31bafa859ae2c9b43695dd96"
+expected_previous_static_version = "1.0.154"
+expected_previous_static_commit = "a8f86f2ed3123c21082e7404d372812e11dae790"
+expected_migration_count = 41
+expected_last_migration = "V202609211530__order_item_service_tag_snapshot.sql"
+expected_last_migration_sha = "bb5f0dbf8942db2f2c56c28bd1c6c16fa185b1087690a750affd8ac523962526"
 
 def fail(message):
     raise SystemExit(message)
@@ -371,11 +374,15 @@ if sums != actual:
 
 repo_migrations = sorted(file.name for file in (root / "document/db/migrations").glob("V*.sql"))
 candidate_migrations = sorted(file.name for file in (candidate / "document/db/migrations").glob("V*.sql"))
+if len(repo_migrations) != expected_migration_count or repo_migrations[-1] != expected_last_migration:
+    fail("repository migration inventory is not the fixed 1.0.155 set")
 if repo_migrations != candidate_migrations:
     fail("candidate migration inventory differs from the repository")
 for name in repo_migrations:
     if sha_file(root / "document/db/migrations" / name) != sha_file(candidate / "document/db/migrations" / name):
         fail(f"candidate migration differs from repository: {name}")
+if sha_file(candidate / "document/db/migrations" / expected_last_migration) != expected_last_migration_sha:
+    fail("1.0.155 service-tag migration checksum mismatch")
 
 fixed_files = {
     "mall-distribution.jar", "admin.tar.gz", "shop.tar.gz", "team.tar.gz", "integrated.tar.gz",
@@ -392,7 +399,9 @@ if candidate_inventory != expected_inventory:
     fail(f"candidate inventory mismatch; missing={missing}, extra={extra}")
 PY
 
-  for marker in 'business_snapshot' 'protected_hashes' 'verify_unauthorized_contract' 'no-new-migration'; do
+  for marker in 'business_snapshot' 'protected_hashes' 'verify_unauthorized_contract' \
+    'NEW_MIGRATION=V202609211530__order_item_service_tag_snapshot.sql' \
+    'additive-service-tag-migration-retained=yes'; do
     grep -Fq -- "$marker" "$CANDIDATE_ROOT/release-backend.sh" \
       || fail "候选后端发布脚本缺少收口保护：$marker"
   done

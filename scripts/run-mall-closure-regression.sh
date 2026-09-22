@@ -29,8 +29,14 @@ if (version !== pkg.version || version !== lock.version || version !== lock.pack
   throw new Error('根版本、小程序包版本和锁文件不一致')
 }
 NODE
-[[ "$(find document/db/migrations -maxdepth 1 -type f -name 'V*.sql' | wc -l | tr -d ' ')" == 40 ]] \
-  || { echo "迁移清单不是预期40条" >&2; exit 1; }
+[[ "$(find document/db/migrations -maxdepth 1 -type f -name 'V*.sql' | wc -l | tr -d ' ')" == 41 ]] \
+  || { echo "迁移清单不是预期41条" >&2; exit 1; }
+[[ "$(find document/db/migrations -maxdepth 1 -type f -name 'V*.sql' -print | LC_ALL=C sort | tail -1 | xargs basename)" \
+  == V202609211530__order_item_service_tag_snapshot.sql ]] \
+  || { echo "第41条迁移不是订单服务标签快照" >&2; exit 1; }
+[[ "$(shasum -a 256 document/db/migrations/V202609211530__order_item_service_tag_snapshot.sql | awk '{print $1}')" \
+  == bb5f0dbf8942db2f2c56c28bd1c6c16fa185b1087690a750affd8ac523962526 ]] \
+  || { echo "第41条迁移哈希不一致" >&2; exit 1; }
 bash scripts/db-migrate.sh plan >/dev/null
 
 echo "[1/10] 后端全量测试"
@@ -77,16 +83,17 @@ echo "[8/10] 商城 H5 三种生产构建"
 
 echo "[9/10] 发布脚本与候选构建器语法门禁"
 bash -n scripts/production-backup.sh scripts/db-migrate.sh \
-  scripts/remote-deploy-20260921-v1.0.154-backend.sh \
-  scripts/remote-deploy-20260921-v1.0.154-static.sh
-node --check scripts/release-lingqi-154.mjs
+  scripts/release-readiness.sh \
+  scripts/remote-deploy-20260922-v1.0.155-backend.sh \
+  scripts/remote-deploy-20260922-v1.0.155-static.sh
+node --check scripts/release-lingqi-155.mjs
 node --check scripts/prepare-lingqi-mini-release.mjs
-node --check scripts/upload-lingqi-mini-154.mjs
+node --check scripts/upload-lingqi-mini-155.mjs
 node --test scripts/tests/*.test.mjs
 python3 - <<'PY'
 from pathlib import Path
 
-release = Path('scripts/remote-deploy-20260921-v1.0.154-backend.sh').read_text()
+release = Path('scripts/remote-deploy-20260922-v1.0.155-backend.sh').read_text()
 assert 'v["paymentEnabled"] is False' in release
 assert 'd["data"]["wechatPayEnabled"] is True' in release
 PY

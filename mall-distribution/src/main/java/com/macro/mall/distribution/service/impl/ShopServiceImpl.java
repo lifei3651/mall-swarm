@@ -22,6 +22,7 @@ import com.macro.mall.distribution.dto.FreightTemplateSaveDTO;
 import com.macro.mall.distribution.entity.*;
 import com.macro.mall.distribution.event.WeChatPayCloseEvent;
 import com.macro.mall.distribution.enums.AgentStatusEnum;
+import com.macro.mall.distribution.enums.CommissionStatusEnum;
 import com.macro.mall.distribution.enums.PromotionJoinModeEnum;
 import com.macro.mall.distribution.service.CommissionService;
 import com.macro.mall.distribution.service.DistributionAuditService;
@@ -104,6 +105,7 @@ public class ShopServiceImpl implements ShopService {
 
     private static final Long DEFAULT_TENANT_ID = 1L;
     private static final BigDecimal ZERO = BigDecimal.ZERO;
+    private static final Set<Integer> TERMINAL_AFTER_SALE_STATUSES = Set.of(1, 2, 3);
 
     @Value("${shop.catalog.max-categories:500}")
     private int maxCategories;
@@ -125,6 +127,7 @@ public class ShopServiceImpl implements ShopService {
     private final DmsShopProductReviewDao productReviewDao;
     private final DmsOrderPvDetailDao orderPvDetailDao;
     private final DmsCommissionRecordDao commissionRecordDao;
+    private final DmsCommissionClawbackDao commissionClawbackDao;
     private final DmsAgentDao agentDao;
     private final DmsShopMemberDao memberDao;
     private final DmsAgentAccountDao accountDao;
@@ -1413,13 +1416,23 @@ public class ShopServiceImpl implements ShopService {
         if (ownRecords.isEmpty()) return;
 
         ShopOrderIncomeVO income = new ShopOrderIncomeVO();
+        Map<Long, BigDecimal> clawbackAmounts = new HashMap<>();
+        for (DmsCommissionClawback clawback : commissionClawbackDao.selectByOrderId(vo.getOrder().getId())) {
+            if (clawback.getCommissionRecordId() != null) {
+                clawbackAmounts.merge(clawback.getCommissionRecordId(), money(clawback.getClawbackAmount()), BigDecimal::add);
+            }
+        }
+        Map<Long, BigDecimal> effectiveAmounts = new HashMap<>();
+        for (DmsCommissionRecord record : ownRecords) {
+            effectiveAmounts.put(record.getId(), effectiveMemberIncomeAmount(record, clawbackAmounts));
+        }
         BigDecimal pending = ownRecords.stream()
                 .filter(record -> Integer.valueOf(0).equals(record.getStatus()))
-                .map(DmsCommissionRecord::getCommissionAmount).filter(Objects::nonNull)
+                .map(record -> effectiveAmounts.getOrDefault(record.getId(), ZERO))
                 .reduce(ZERO, BigDecimal::add);
         BigDecimal settled = ownRecords.stream()
                 .filter(record -> Integer.valueOf(1).equals(record.getStatus()))
-                .map(DmsCommissionRecord::getCommissionAmount).filter(Objects::nonNull)
+                .map(record -> effectiveAmounts.getOrDefault(record.getId(), ZERO))
                 .reduce(ZERO, BigDecimal::add);
         income.setPendingAmount(money(pending));
         income.setSettledAmount(money(settled));
@@ -1429,11 +1442,13 @@ public class ShopServiceImpl implements ShopService {
             line.setBonusType(record.getBonusType());
             line.setCommissionLevel(record.getCommissionLevel());
             line.setCommissionRate(record.getCommissionRate());
-            line.setCommissionAmount(money(record.getCommissionAmount()));
+            BigDecimal effectiveAmount = effectiveAmounts.getOrDefault(record.getId(), ZERO);
+            line.setCommissionAmount(money(effectiveAmount));
             line.setStatus(record.getStatus());
             line.setStatusName(switch (record.getStatus() == null ? -1 : record.getStatus()) {
                 case 0 -> "待结算";
-                case 1 -> "已结算";
+                case 1 -> effectiveAmount.compareTo(money(record.getCommissionAmount())) < 0
+                        ? "已结算（已冲减）" : "已结算";
                 case 2 -> "已取消";
                 case 3 -> "已退款冲销";
                 default -> "状态待确认";
@@ -1442,6 +1457,21 @@ public class ShopServiceImpl implements ShopService {
             return line;
         }).toList());
         vo.setMemberIncome(income);
+    }
+
+    private BigDecimal effectiveMemberIncomeAmount(DmsCommissionRecord record,
+                                                    Map<Long, BigDecimal> clawbackAmounts) {
+        CommissionStatusEnum status = CommissionStatusEnum.getByValue(record == null ? null : record.getStatus());
+        if (status == null || status == CommissionStatusEnum.CANCELLED || status == CommissionStatusEnum.REFUNDED) {
+            return ZERO;
+        }
+        BigDecimal amount = money(record.getCommissionAmount());
+        if (status == CommissionStatusEnum.SETTLED) {
+            return amount.subtract(clawbackAmounts.getOrDefault(record.getId(), ZERO))
+                    .max(ZERO);
+        }
+        // 待结算记录在退款时已经直接减记 commission_amount，不能再次扣除追回流水。
+        return amount;
     }
 
     @Override
@@ -1594,9 +1624,7 @@ public class ShopServiceImpl implements ShopService {
         vo.setAfterSaleDeadline(afterSaleWindowPolicy.deadline(order, window));
         vo.setAfterSaleSelfServiceEnabled(window.days() > 0);
         int safeAutoReceiveDays = Math.max(1, Math.min(autoReceiveDays, 365));
-        boolean hasOpenAfterSale = vo.getAfterSales() != null && vo.getAfterSales().stream()
-                .anyMatch(sale -> sale != null && sale.getStatus() != null
-                        && java.util.Set.of(0, 4, 5, 6, 7, 8).contains(sale.getStatus()));
+        boolean hasOpenAfterSale = hasOpenAfterSale(vo);
         boolean waitingForAutoReceive = Integer.valueOf(2).equals(order.getStatus())
                 && order.getDeliveryTime() != null
                 && !hasOpenAfterSale;
@@ -1638,7 +1666,8 @@ public class ShopServiceImpl implements ShopService {
         vo.setPendingReviewCount(0);
         vo.setPendingReviewOrderItemId(null);
         vo.setPendingReviewProductId(null);
-        if (order == null || !Integer.valueOf(3).equals(order.getStatus()) || order.getUserId() == null) return;
+        if (order == null || !Integer.valueOf(3).equals(order.getStatus()) || order.getUserId() == null
+                || hasOpenAfterSale(vo)) return;
         Long tenantId = order.getTenantId() == null ? 1L : order.getTenantId();
         List<DmsShopOrderItem> pending = productReviewDao.selectUnreviewedByOrderId(
                 order.getUserId(), order.getId(), tenantId);
@@ -1647,6 +1676,12 @@ public class ShopServiceImpl implements ShopService {
             vo.setPendingReviewOrderItemId(pending.get(0).getId());
             vo.setPendingReviewProductId(pending.get(0).getProductId());
         }
+    }
+
+    private boolean hasOpenAfterSale(ShopOrderVO vo) {
+        return vo != null && vo.getAfterSales() != null && vo.getAfterSales().stream()
+                .anyMatch(sale -> sale != null && (sale.getStatus() == null
+                        || !TERMINAL_AFTER_SALE_STATUSES.contains(sale.getStatus())));
     }
 
     @Override

@@ -9,16 +9,16 @@ if (path.basename(root) !== 'mall-swarm-app-h5') throw new Error('Wrong product 
 
 const EXPECTED_APPID = 'wxd26e0a4e41df392b'
 const EXPECTED_API = 'https://lingqimall.com/api'
-const EXPECTED_VERSION = '1.0.154'
+const EXPECTED_VERSION = '1.0.155'
 const EXPECTED_SCOPE = 'mall-closure-candidate'
-const EXPECTED_BUILD_ID = '20260921-closure-1.0.154'
+const EXPECTED_BUILD_ID = '20260922-closure-1.0.155'
 const EXPECTED_BUILD_METHOD = 'clean-build-in-release-process'
-const EXPECTED_PREVIOUS_BACKEND_VERSION = '1.0.153'
-const EXPECTED_PREVIOUS_BACKEND_JAR_SHA256 = 'bb2ef6a1c3c8fe908f088b16ac86fbce193334645e83c343adbd4392d2b93009'
-const EXPECTED_PREVIOUS_STATIC_VERSION = '1.0.153'
-const EXPECTED_PREVIOUS_STATIC_COMMIT = '8d94be83088f3ed8aab8664a7a13eccdffc4cb41'
-const REGISTERED_MINI_BASELINE_VERSION = '1.0.153'
-const REGISTERED_MINI_BASELINE_COMMIT = '8d94be83088f3ed8aab8664a7a13eccdffc4cb41'
+const EXPECTED_PREVIOUS_BACKEND_VERSION = '1.0.154'
+const EXPECTED_PREVIOUS_BACKEND_JAR_SHA256 = '786aec477acb1deaf71c058bfbd55e9d57a9953c31bafa859ae2c9b43695dd96'
+const EXPECTED_PREVIOUS_STATIC_VERSION = '1.0.154'
+const EXPECTED_PREVIOUS_STATIC_COMMIT = 'a8f86f2ed3123c21082e7404d372812e11dae790'
+const REGISTERED_MINI_BASELINE_VERSION = '1.0.154'
+const REGISTERED_MINI_BASELINE_COMMIT = 'a8f86f2ed3123c21082e7404d372812e11dae790'
 const REGISTERED_MINI_BASELINE_FILE_COUNT = 228
 const EXPECTED_PLUGIN = Object.freeze({
   logisticsPlugin: Object.freeze({ provider: 'wx9ad912bf20548d92', version: '2.1.12' }),
@@ -312,7 +312,7 @@ function verifyExistingTarget(root, release, desiredFiles, desiredAggregateSha25
     && previous.previousStaticVersion === release.previousStaticVersion
     && previous.previousStaticCommit === release.previousStaticCommit
     && previous.aggregateSha256 === desiredAggregateSha256
-  if (!isSameCandidate) throw new Error('Existing upload target is not the registered 1.0.153 baseline or the same 1.0.154 candidate')
+  if (!isSameCandidate) throw new Error('Existing upload target is not the registered 1.0.154 baseline or the same 1.0.155 candidate')
   assertExactObject(actual, desiredFiles, 'Existing idempotent mini-program candidate')
 }
 

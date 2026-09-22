@@ -26,6 +26,7 @@ import com.macro.mall.distribution.vo.PersonProfileVO;
 import com.macro.mall.distribution.vo.AgentInfoVO;
 import com.macro.mall.distribution.vo.CommissionRecordVO;
 import com.macro.mall.distribution.vo.OrderAuditVO;
+import com.macro.mall.distribution.vo.ShopOrderIncomeVO;
 import com.macro.mall.distribution.vo.ShopOrderVO;
 import lombok.extern.slf4j.Slf4j;
 import com.github.pagehelper.PageHelper;
@@ -1943,6 +1944,63 @@ public class PerformanceServiceTest {
                 .getFinance().getBonusAmount());
     }
 
+    /** 订单本人收入必须展示当前净额：已结算记录发生部分/全额追回后不能继续显示原奖金。 */
+    @Test
+    void memberOrderIncomeSubtractsSettledCommissionClawbacks() {
+        newRetailVersion("MEMBER_INCOME_NET_CLAWBACK");
+        DmsShopMember member = createShopMember("13999000059", "本人收入冲减会员", null);
+        ShopOrderVO paid = submitAndPay(member, 1);
+        DmsAgent agent = agentDao.selectByUserId(member.getUserId());
+        assertNotNull(agent);
+        assertTrue(commissionRecordDao.selectByOrderId(paid.getOrder().getId()).stream()
+                .noneMatch(record -> agent.getId().equals(record.getAgentId())),
+                "无邀请人的购买订单不应预先产生本人奖金记录");
+
+        DmsCommissionRecord settled = new DmsCommissionRecord();
+        settled.setRecordNo("MEMBER-INCOME-" + paid.getOrder().getOrderNo());
+        settled.setOrderId(paid.getOrder().getId());
+        settled.setOrderNo(paid.getOrder().getOrderNo());
+        settled.setOrderAmount(paid.getOrder().getPayAmount());
+        settled.setOrderUserId(member.getUserId());
+        settled.setOrderUserName(member.getNickname());
+        settled.setAgentId(agent.getId());
+        settled.setAgentUserId(agent.getUserId());
+        settled.setAgentName(agent.getAgentName());
+        settled.setAgentLevel(agent.getAgentLevel());
+        settled.setCommissionLevel(1);
+        settled.setCommissionRate(new BigDecimal("0.1000"));
+        settled.setCommissionAmount(new BigDecimal("10.00"));
+        settled.setBonusType("MEMBER_INCOME_TEST");
+        settled.setStatus(CommissionStatusEnum.SETTLED.getValue());
+        commissionRecordDao.insert(settled);
+
+        ShopOrderIncomeVO initial = memberIncome(paid, member);
+        assertAmountEquals("10.00", initial.getTotalAmount());
+        assertAmountEquals("10.00", initial.getSettledAmount());
+        assertAmountEquals("10.00", initial.getDetails().get(0).getCommissionAmount());
+        assertEquals("已结算", initial.getDetails().get(0).getStatusName());
+
+        DmsCommissionClawback partial = commissionClawback(
+                settled, paid.getOrder(), new BigDecimal("3.00"), 990001L);
+        clawbackDao.insert(partial);
+        sqlSessionTemplate.clearCache();
+        ShopOrderIncomeVO afterPartial = memberIncome(paid, member);
+        assertAmountEquals("7.00", afterPartial.getTotalAmount());
+        assertAmountEquals("7.00", afterPartial.getSettledAmount());
+        assertAmountEquals("7.00", afterPartial.getDetails().get(0).getCommissionAmount());
+        assertEquals("已结算（已冲减）", afterPartial.getDetails().get(0).getStatusName());
+
+        DmsCommissionClawback remaining = commissionClawback(
+                settled, paid.getOrder(), new BigDecimal("7.00"), 990002L);
+        clawbackDao.insert(remaining);
+        sqlSessionTemplate.clearCache();
+        ShopOrderIncomeVO afterFull = memberIncome(paid, member);
+        assertAmountEquals("0.00", afterFull.getTotalAmount());
+        assertAmountEquals("0.00", afterFull.getSettledAmount());
+        assertAmountEquals("0.00", afterFull.getDetails().get(0).getCommissionAmount());
+        assertEquals("已结算（已冲减）", afterFull.getDetails().get(0).getStatusName());
+    }
+
     /** 真实三笔订单：触发单按会员25%，升级完成后的下一单按VIP 30%。 */
     @Test
     void testRealShopNewRankTakesEffectAfterTriggerOrder() {
@@ -2037,6 +2095,33 @@ public class PerformanceServiceTest {
 
     private void assertAmountEquals(String expected, BigDecimal actual) {
         assertEquals(0, new BigDecimal(expected).compareTo(actual));
+    }
+
+    private ShopOrderIncomeVO memberIncome(ShopOrderVO paid, DmsShopMember member) {
+        ShopOrderVO view = shopService.getOrder(paid.getOrder().getId());
+        shopService.fillMemberOrderIncome(view, member);
+        assertNotNull(view.getMemberIncome());
+        return view.getMemberIncome();
+    }
+
+    private DmsCommissionClawback commissionClawback(DmsCommissionRecord record, DmsShopOrder order,
+                                                       BigDecimal amount, Long refundId) {
+        DmsCommissionClawback clawback = new DmsCommissionClawback();
+        clawback.setRefundId(refundId);
+        clawback.setCommissionRecordId(record.getId());
+        clawback.setOrderId(order.getId());
+        clawback.setOrderNo(order.getOrderNo());
+        clawback.setAgentId(record.getAgentId());
+        clawback.setAgentUserId(record.getAgentUserId());
+        clawback.setAgentName(record.getAgentName());
+        clawback.setOriginalCommissionAmount(record.getCommissionAmount());
+        clawback.setClawbackAmount(amount);
+        clawback.setDeductedAmount(amount);
+        clawback.setDebtAmount(BigDecimal.ZERO);
+        clawback.setClawbackType(2);
+        clawback.setStatus(1);
+        clawback.setReason("本人订单收入净额回归测试");
+        return clawback;
     }
 
     private void insertPerformanceDetail(Long orderId, String orderNo, Long targetAgentId,
