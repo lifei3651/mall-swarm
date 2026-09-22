@@ -1,0 +1,38 @@
+{
+  "passed": true,
+  "scope": "isolated rendered H5 order detail with intercepted APIs",
+  "viewport": [
+    390,
+    844
+  ],
+  "measurement": {
+    "bodyOverflow": false,
+    "moduleTops": [
+      153,
+      267.75,
+      347.75,
+      590.75,
+      1094.5
+    ],
+    "productImageSizes": [
+      [
+        112,
+        112
+      ],
+      [
+        112,
+        112
+      ]
+    ],
+    "actionHeights": [
+      28,
+      28,
+      28
+    ],
+    "actionsOneLine": true,
+    "actionOverflow": false,
+    "serviceTagCount": 4,
+    "incomeText": "¥我的结算收入",
+    "recipientText": "测** 138****0000示例省 演示市 测试区 样例路***复制展开"
+  }
+}

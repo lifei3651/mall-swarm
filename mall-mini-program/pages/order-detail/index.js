@@ -8,6 +8,8 @@ const format = require('../../utils/format')
 const orderCenter = require('../../utils/order-center')
 const theme = require('../../utils/theme')
 const foreground = require('../../utils/foreground-refresh')
+const cart = require('../../utils/cart')
+const purchaseLimit = require('../../utils/purchase-limit')
 const { identifier, afterSaleEligibility, amountLabel, paymentSummary } = require('./policy')
 
 const STATUS = { 0: '待付款', 1: '待发货', 2: '已发货', 3: '已完成', 4: '已关闭', 5: '售后中' }
@@ -16,11 +18,11 @@ const AFTER_SALE_TYPE = { 1: '仅退款', 2: '退货退款', 3: '同规格换货
 const CARRIERS = ['顺丰速运', '京东物流', '中通快递', '圆通速递', '申通快递', '韵达快递', '极兔速递', '中国邮政', 'EMS', '德邦快递', '跨越速运', '安能物流', '壹米滴答', 'DHL', 'FedEx', 'UPS']
 
 const STATUS_COPY = {
-  0: ['等待付款', '请核对商品和收货信息后完成支付'],
-  1: ['商家正在备货', '付款已完成，商家会尽快为您发货'],
-  2: ['包裹已发出', '可在下方查看承运商、运单号和物流进度'],
-  3: ['订单已完成', '感谢您的购买，如有问题可在售后期内申请处理'],
-  4: ['订单已关闭', '该订单已关闭，无需继续付款'],
+  0: ['待付款', '请核对商品和收货信息后完成支付'],
+  1: ['待发货', '付款已完成，商家会尽快为您发货'],
+  2: ['待收货', '可在下方查看承运商、运单号和物流进度'],
+  3: ['已完成', '感谢您的购买，如有问题可在售后期内申请处理'],
+  4: ['已取消', '该订单已关闭，无需继续付款'],
   5: ['售后处理中', '售后进度有更新时会在订单和消息中心同步显示']
 }
 
@@ -31,6 +33,32 @@ function formatTime(value) {
 function addressText(order) {
   return [order.receiverProvince, order.receiverCity, order.receiverDistrict, order.receiverDetailAddress]
     .filter(Boolean).join('') || order.receiverAddress || ''
+}
+
+function maskPhone(value) {
+  const phone = String(value || '').trim()
+  if (phone.length < 7) return phone ? `${phone.slice(0, 2)}***` : ''
+  return `${phone.slice(0, 3)}****${phone.slice(-4)}`
+}
+
+function maskName(value) {
+  const name = String(value || '').trim()
+  if (!name) return ''
+  return `${name.slice(0, 1)}${name.length > 1 ? '**' : '*'}`
+}
+
+function maskedAddress(order) {
+  const region = [order.receiverProvince, order.receiverCity, order.receiverDistrict].filter(Boolean).join(' ')
+  const detail = String(order.receiverDetailAddress || '').trim()
+  return [region, detail ? `${detail.slice(0, 3)}***` : ''].filter(Boolean).join(' ')
+}
+
+function deliverySummary(order) {
+  const status = Number(order.status)
+  if (order.receiveTime) return `商品已于 ${formatTime(order.receiveTime)} 送达`
+  if (status === 3) return '商品已完成签收'
+  if (order.deliveryTime) return `商品已于 ${formatTime(order.deliveryTime)} 发出`
+  return (STATUS_COPY[status] || ['', '订单状态更新后会在这里显示'])[1]
 }
 
 function statusCopy(order, shipments) {
@@ -54,7 +82,7 @@ function pageStatus(rows) {
   const row = rows[0]
   return {
     pageStatusTitle: row?.order?.statusTitle || '订单详情',
-    pageStatusDescription: row?.order?.statusDescription || '订单状态更新后会在这里显示'
+    pageStatusDescription: row?.order?.deliverySummary || row?.order?.statusDescription || '订单状态更新后会在这里显示'
   }
 }
 
@@ -62,7 +90,7 @@ Page({
   ...balancePayment.methods,
   data: { ...theme.pageData(), ...paymentSummary(), pageStatusTitle: '', pageStatusDescription: '', loading: true, error: '', rows: [], paymentNo: '', actingId: null, paying: false, cancellingAfterSaleId: null,
     editingSaleId: '', deliveryCompany: '', deliveryNo: '', shipmentError: '', submittingShipment: false,
-    carriers: CARRIERS, expandedAddresses: {}, expandedOrders: {}, trackingOrderId: '', trackingLoading: false, trackingError: '', trackingRows: [], wechatTrackingId: '', ...balancePayment.data },
+    carriers: CARRIERS, expandedIncome: {}, expandedAddresses: {}, expandedOrders: {}, trackingOrderId: '', trackingLoading: false, trackingError: '', trackingRows: [], wechatTrackingId: '', rebuyId: '', ...balancePayment.data },
   onLoad(options = {}) {
     theme.apply(this)
     const orderId = identifier(options.id)
@@ -132,12 +160,27 @@ Page({
         }))
         const [statusTitle, statusDescription] = statusCopy(order, shipments)
         const itemQuantity = (row.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)
+        const paid = ![0, 4].includes(Number(order.status))
         return {
           ...row,
           key: identifier(order.id),
           itemQuantity,
           canApplyAfterSale: afterSaleEligibility(row).allowed,
           canReceive: Number(order.status) === 2 && !(row.afterSales || []).some((sale) => [0, 4, 5, 6, 7, 8].includes(Number(sale.status))),
+          canRebuy: Number(order.status) !== 0 && (row.items || []).some((item) => item.productId),
+          afterSaleDeadlineText: formatTime(row.afterSaleDeadline),
+          memberIncome: row.memberIncome ? {
+            ...row.memberIncome,
+            totalText: format.money(row.memberIncome.totalAmount),
+            pendingText: format.money(row.memberIncome.pendingAmount),
+            settledText: format.money(row.memberIncome.settledAmount),
+            details: (row.memberIncome.details || []).map((line) => ({
+              ...line,
+              amountText: format.money(line.commissionAmount),
+              rateText: line.commissionRate == null ? '' : `${Number(line.commissionRate).toFixed(2)}%`,
+              settleTimeText: formatTime(line.settleTime)
+            }))
+          } : null,
           order: {
             ...order,
             id: identifier(order.id),
@@ -151,12 +194,23 @@ Page({
             freightText: format.money(order.freightAmount),
             createTimeText: formatTime(order.createTime),
             payTimeText: formatTime(order.payTime),
-            addressText: addressText(order)
+            deliveryTimeText: formatTime(order.deliveryTime),
+            receiveTimeText: formatTime(order.receiveTime),
+            addressText: addressText(order),
+            maskedRecipient: [maskName(order.receiverName), maskPhone(order.receiverPhone)].filter(Boolean).join(' '),
+            maskedAddress: maskedAddress(order),
+            deliverySummary: deliverySummary(order),
+            logisticsUpdateText: statusDescription
           },
           items: (row.items || []).map((item) => ({
             ...item,
             productCover: format.mediaUrl(item.productCover),
-            priceText: format.money(item.price)
+            priceText: format.money(item.price),
+            retailTotalText: format.money(item.totalAmount == null ? Number(item.price || 0) * Number(item.quantity || 1) : item.totalAmount),
+            paidAmountText: format.money(paid
+              ? Math.max(0, Number(item.totalAmount == null ? Number(item.price || 0) * Number(item.quantity || 1) : item.totalAmount) - Number(item.couponDiscountAmount || 0))
+              : Number(item.totalAmount == null ? Number(item.price || 0) * Number(item.quantity || 1) : item.totalAmount)),
+            serviceTags: format.serviceTags(item.serviceTags).slice(0, 2)
           })),
           shipments,
           afterSales: (row.afterSales || []).map((sale) => ({
@@ -265,13 +319,20 @@ Page({
     try {
       const records = await request({ url: `/shop/orders/${id}/tracking` })
       if (!current() || version !== this.requestVersion) return
-      feedback.update(this, { trackingRows: (Array.isArray(records) ? records : []).map((record) => ({
+      const trackingRows = (Array.isArray(records) ? records : []).map((record) => ({
         deliveryNo: String(record.deliveryNo || ''), deliveryCompany: record.deliveryCompany || '',
         configured: record.configured === true,
         statusCode: record.status || '',
         statusText: record.configured ? (record.statusText || '暂无新物流轨迹') : '',
         events: (record.events || []).map((item) => ({ description: item.description || '', location: item.location || '', time: formatTime(item.eventTime) }))
-      })) })
+      }))
+      const latest = trackingRows.flatMap((record) => record.events || [])[0]
+      const rows = this.data.rows.map((row) => row.order.id === id
+        ? { ...row, order: { ...row.order, logisticsUpdateText: latest
+          ? `${latest.description}${latest.location ? ' · ' + latest.location : ''}${latest.time ? ' · ' + latest.time : ''}`
+          : row.order.statusDescription } }
+        : row)
+      feedback.update(this, { trackingRows, rows })
     } catch (error) {
       // 站内轨迹属于增强信息；供应商超时或尚未配置时保留包裹信息，
       // 由用户主动使用微信官方查询组件，不能让订单详情被轨迹错误打断。
@@ -331,6 +392,47 @@ Page({
     })
   },
   copyOrderNo(event) { const id = identifier(event.currentTarget.dataset.id), row = this.data.rows.find(item => item.order.id === id); if (row?.order?.orderNo) wx.setClipboardData({ data: String(row.order.orderNo) }) },
+  copyRecipient(event) {
+    const id = identifier(event.currentTarget.dataset.id)
+    const row = this.data.rows.find(item => item.order.id === id)
+    if (!row) return
+    const content = [row.order.receiverName, row.order.receiverPhone, row.order.addressText].filter(Boolean).join(' ')
+    if (content) wx.setClipboardData({ data: content })
+  },
+  openProduct(event) {
+    const row = this.data.rows.find(item => item.order.id === identifier(event.currentTarget.dataset.id))
+    const productId = row && identifier(row.items?.[0]?.productId)
+    if (productId) wx.navigateTo({ url: `/pages/product/index?id=${productId}` })
+    else wx.switchTab({ url: '/pages/home/index' })
+  },
+  async buyAgain(event) {
+    const orderId = identifier(event.currentTarget.dataset.id)
+    const row = this.data.rows.find(item => item.order.id === orderId)
+    if (!row?.canRebuy || this.data.rebuyId || !auth.requireLogin(this.redirect)) return
+    const current = this.operationCurrent()
+    feedback.update(this, { rebuyId: orderId })
+    try {
+      let planned = cart.list().map((item) => ({ ...item }))
+      const selections = []
+      for (const line of row.items) {
+        const selection = await purchaseLimit.checkAddition(line.productId, line.skuId, Number(line.quantity || 1), { isCurrent: current, getRows: () => planned })
+        if (!selection || !current()) return
+        selections.push(selection.item)
+        const key = `${selection.item.productId}:${selection.item.skuId || 0}`
+        const existing = planned.find((item) => item.key === key)
+        if (existing) existing.quantity = Number(existing.quantity || 0) + Number(selection.item.quantity || 1)
+        else planned.push({ ...selection.item, key, selected: true })
+      }
+      if (!current()) return
+      cart.addMany(selections)
+      feedback.toast({ title: '已加入购物车', icon: 'success' })
+      wx.switchTab({ url: '/pages/cart/index' })
+    } catch (error) {
+      if (current()) feedback.notice(error.message || '商品信息已变化，请重新选择', '暂时无法再次购买')
+    } finally {
+      if (!this.disposed) feedback.update(this, { rebuyId: '' })
+    }
+  },
   review(event) {
     const row = this.data.rows.find(item => item.order.id === identifier(event.currentTarget.dataset.id))
     const productId = row && identifier(row.pendingReviewProductId), orderItemId = row && identifier(row.pendingReviewOrderItemId)
@@ -392,6 +494,10 @@ Page({
   toggleOrderInfo(event) {
     const id = identifier(event.currentTarget.dataset.id)
     if (id && this.data.rows.some(row => row.order.id === id)) this.setData({ [`expandedOrders.${id}`]: !this.data.expandedOrders[id] })
+  },
+  toggleIncome(event) {
+    const id = identifier(event.currentTarget.dataset.id)
+    if (id && this.data.rows.some(row => row.order.id === id)) this.setData({ [`expandedIncome.${id}`]: !this.data.expandedIncome[id] })
   },
   toggleAddress(event) {
     const id = identifier(event.currentTarget.dataset.id)

@@ -49,7 +49,13 @@ public class ShopOrderVO implements Serializable {
     /** 物流包裹；支持一个订单多包裹，以及同一包裹关联多张订单。 */
     private List<DmsShopOrderShipment> shipments;
 
+    /** 后台账务明细；会员端净化后为空并从响应中省略。 */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private OrderFinanceVO finance;
+
+    /** 仅会员本人订单详情填充；只包含当前登录会员自己的真实奖金记录。 */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private ShopOrderIncomeVO memberIncome;
 
     private List<DmsShopAfterSale> afterSales;
 

@@ -47,9 +47,31 @@ test('普通操作按钮由共用层固定为秀气自适应尺寸，复制为�
   assert.match(styles, /\.ui-action-button, \.ui-order-action\s*\{[^}]*flex:\s*none;[^}]*width:\s*auto\s*!important;/)
   assert.match(styles, /\.ui-action-bar, \.ui-action-group\s*\{[^}]*flex-wrap:\s*nowrap;[^}]*justify-content:\s*flex-end;/)
   assert.doesNotMatch(styles, /\.ui-utility-button--wide/)
-  assert.match(detail, /class="copy-order-number ui-copy-action"[^>]*>复制<\/button>/)
+  assert.match(detail, /class="ui-copy-action"[^>]*data-id="\{\{item\.order\.id\}\}"[^>]*bindtap="copyOrderNo"[^>]*>复制<\/button>/)
   assert.match(detail, /class="copy-inline ui-copy-action"[^>]*>复制单号<\/button>/)
   assert.doesNotMatch(list, /class="[^"]*primary-button[^"]*"[^>]*>去评价<\/button>/)
+})
+
+test('小程序订单详情按状态、本人收入、物流收货人、商品和全部信息顺序收口', () => {
+  const detail = source('pages/order-detail/index.wxml')
+  const positions = [
+    'class="status-hero"',
+    'class="income-card ui-card"',
+    'class="section-card ui-card fulfillment-card',
+    'class="section-card ui-card product-card"',
+    'class="section-card ui-card amount-card"',
+    'class="section-card ui-card all-order-info"',
+  ].map((needle) => detail.indexOf(needle))
+  assert.ok(positions.every((position) => position >= 0))
+  assert.deepEqual([...positions].sort((a, b) => a - b), positions)
+  assert.match(detail, /item\.memberIncome/)
+  assert.match(detail, /class="recipient-summary"/)
+  assert.match(detail, /class="item-service-tags"/)
+  assert.match(detail, /售后期截止时间/)
+  assert.match(detail, />查看物流<\/button>/)
+  assert.match(detail, />还想买<\/button>/)
+  assert.match(detail, />再买一单<\/button>/)
+  assert.doesNotMatch(detail, /运费险/)
 })
 
 test('订单列表共用清晰商品快照卡片且操作集中在同一行', () => {

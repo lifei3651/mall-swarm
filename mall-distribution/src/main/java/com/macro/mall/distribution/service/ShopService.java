@@ -137,6 +137,9 @@ public interface ShopService {
 
     ShopOrderVO getOrder(Long orderId);
 
+    /** 为本人订单补充当前会员自己的真实结算收入；没有记录时保持为空。 */
+    void fillMemberOrderIncome(ShopOrderVO order, DmsShopMember member);
+
     List<ShopOrderVO> listOrders(Long userId, Long agentId);
 
     List<ShopOrderVO> listOrders(Long userId, Long agentId, String orderState);

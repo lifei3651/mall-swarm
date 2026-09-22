@@ -60,3 +60,25 @@ test('H5普通操作按钮与小程序等比自适应，复制不再显示为胶
   assert.match(list, />取消订单<\/button>/)
   assert.match(list, />立即支付<\/RouterLink>/)
 })
+
+test('H5订单详情按状态、本人收入、物流收货人、商品和全部信息顺序收口', async () => {
+  const view = await read('src/views/OrderDetailView.vue')
+  const positions = [
+    'class="consumer-status-hero"',
+    'class="consumer-card income-card ui-card"',
+    'class="consumer-card fulfillment-card ui-card"',
+    'class="consumer-card products-card ui-card"',
+    'class="consumer-card consumer-amount-card ui-card"',
+    'class="consumer-card consumer-all-info ui-card"',
+  ].map((needle) => view.indexOf(needle))
+  assert.ok(positions.every((position) => position >= 0))
+  assert.deepEqual([...positions].sort((a, b) => a - b), positions)
+  assert.match(view, /detail\.memberIncome/)
+  assert.match(view, /class="consumer-recipient-row"/)
+  assert.match(view, /class="consumer-service-tags"/)
+  assert.match(view, /售后期截止时间/)
+  assert.match(view, />查看物流<\/a>/)
+  assert.match(view, />还想买<\/RouterLink>/)
+  assert.match(view, /再买一单/)
+  assert.doesNotMatch(view, /运费险/)
+})

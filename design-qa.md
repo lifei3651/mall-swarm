@@ -1,3 +1,28 @@
+# 订单详情参考图收口 · Design QA
+
+日期：2026-09-22。最终结果：**passed（隔离 H5 实渲染 + 小程序/H5/后端自动回归）**。
+
+final result: passed
+
+## 来源与实现证据
+
+- 用户参考：`/var/folders/nk/gpz82vss0513h6pd0tkfgs6h0000gn/T/codex-clipboard-1d46095a-5b0e-439b-be83-542f1ad041e0.png`，`828×1560` 像素。参考含个人订单内容，只在本轮本机并排查看，没有复制进仓库。
+- 最终完整内容：`document/qa/2026-09-22-order-detail-reference-match/order-detail-content.png`，CSS 视口 `390×844`、DPR 1，图片 `390×1697` 像素；截图时仅临时解除滚动容器锁定以输出长图，页面宽度和组件样式未改。
+- 首屏证据：`document/qa/2026-09-22-order-detail-reference-match/order-detail-full.png`，`390×844` 像素。
+- 商品聚焦：`document/qa/2026-09-22-order-detail-reference-match/order-detail-products.png`，`362×493` 像素。
+- 全部订单信息聚焦：`document/qa/2026-09-22-order-detail-reference-match/order-detail-all-info.png`，`362×279` 像素。
+- 测量原始结果：`document/qa/2026-09-22-order-detail-reference-match/result.json`。
+
+## 对照结论与比较历史
+
+第一轮同屏比较确认原详情存在模块顺序、商品信息密度和操作归组差异；实现按“状态/送达时间 → 本人结算收入 → 物流及脱敏收货人 → 大图商品明细 → 金额 → 全部订单信息”重排。最终轮再次在同一工具输入中并排查看用户参考图和实际 Vue 渲染长图；颜色保留商城主题，未复制对方品牌、运费险或不存在的收入/服务标签。
+
+390px 实渲染无横向溢出；两张商品图均为 `112×112px`；真实服务标签共4枚；三枚普通操作均为 `28px` 高、同一行、无裁切。验收样例使用完全虚构的收货人、手机号和地址，页面显示脱敏收货人且地址折叠；收入只在接口返回当前会员本人结算记录时出现，公司账务继续从会员响应移除。小程序同步采用 `174rpx` 商品图和 `54rpx` 紧凑操作。
+
+本项当前达到代码/自动测试/隔离 H5 视觉验证（C/T），没有部署服务器、上传微信、提审或完成微信真机验证（R）；不得据此写成线上已生效。
+
+---
+
 # 订单列表真机反馈修复 · Design QA
 
 日期：2026-09-21。最终结果：**passed（隔离 H5 实渲染 + 两端自动回归）**。

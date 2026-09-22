@@ -9,28 +9,32 @@
     <button class="secondary-button" bindtap="openOrders">查看我的订单</button>
   </view>
   <block wx:else>
-    <view class="order-number-card ui-card">
-      <view class="order-number-copy">
-        <text class="order-number-label">订单编号</text>
-        <text class="order-number-value">{{paymentNo}}</text>
-      </view>
-      <button size="mini" class="copy-order-number ui-copy-action" bindtap="copyPaymentNo">复制</button>
-      <text class="compact-status ui-status-pill">{{pageStatusTitle}}</text>
+    <view class="status-hero">
+      <text class="status-hero-title">{{pageStatusTitle}}</text>
+      <text class="status-hero-description">{{pageStatusDescription}}</text>
       <text wx:if="{{paymentHint}}" class="payment-hint">{{paymentHint}}</text>
       <button wx:if="{{payOrderId}}" class="primary-button continue-payment" bindtap="pay" loading="{{paying}}" disabled="{{actingId !== null}}">{{paying ? '正在确认支付…' : rows.length > 1 ? '合并支付' : '继续支付'}}</button>
     </view>
 
     <block wx:for="{{rows}}" wx:key="key">
+      <view wx:if="{{item.memberIncome}}" class="income-card ui-card">
+        <button class="income-toggle" data-id="{{item.order.id}}" bindtap="toggleIncome" aria-expanded="{{!!expandedIncome[item.order.id]}}">
+          <view class="income-title"><text class="income-coin">¥</text><text>我的结算收入</text></view>
+          <view class="income-value"><text class="ui-price">¥{{item.memberIncome.totalText}}</text><text class="income-chevron">{{expandedIncome[item.order.id] ? '⌃' : '›'}}</text></view>
+        </button>
+        <view wx:if="{{expandedIncome[item.order.id]}}" class="income-details">
+          <view class="income-summary"><text>待结算 ¥{{item.memberIncome.pendingText}}</text><text>已结算 ¥{{item.memberIncome.settledText}}</text></view>
+          <view wx:for="{{item.memberIncome.details}}" wx:key="index" wx:for-item="incomeLine" class="income-line">
+            <view><text>{{incomeLine.bonusType || '结算收入'}}</text><text>{{incomeLine.commissionLevel ? incomeLine.commissionLevel + '级' : ''}} {{incomeLine.statusName}}</text></view>
+            <text>¥{{incomeLine.amountText}}</text>
+          </view>
+        </view>
+      </view>
+
       <view wx:if="{{item.shipments.length || item.order.addressText}}" class="section-card ui-card fulfillment-card {{item.shipments.length ? 'with-shipments' : ''}}">
         <block wx:if="{{item.shipments.length}}">
-          <view class="section-heading">
-            <view class="section-heading-main">
-              <image class="section-icon" src="/assets/profile/truck.png" mode="aspectFit" />
-              <view>
-                <text class="section-title">{{item.order.status === 3 ? '已签收' : '物流配送中'}}</text>
-                <text class="section-subtitle">{{item.shipments.length > 1 ? '本订单分为 ' + item.shipments.length + ' 个包裹' : '商品已交由承运商配送'}}</text>
-              </view>
-            </view>
+          <view class="logistics-update">
+            <view class="logistics-update-copy"><text class="logistics-state">{{item.order.status === 3 ? '已签收' : '物流配送中'}}</text><text class="logistics-latest">{{item.order.logisticsUpdateText}}</text></view>
             <button wx:if="{{trackingRows.length && trackingOrderId === item.order.id}}" class="text-action" data-id="{{item.order.id}}" bindtap="loadTracking" loading="{{trackingLoading}}" disabled="{{trackingLoading}}">刷新</button>
           </view>
           <view class="shipment-list">
@@ -41,10 +45,7 @@
                 <text class="shipment-number">运单号 {{shipment.deliveryNo || '-'}}</text>
                 <text wx:if="{{shipment.deliveryTimeText}}" class="shipment-time">发货时间 {{shipment.deliveryTimeText}}</text>
               </view>
-              <view class="shipment-actions ui-action-group">
-                <button wx:if="{{shipment.deliveryNo}}" size="mini" class="wechat-track-button secondary-button ui-action-button" data-id="{{item.order.id}}" data-shipment-id="{{shipment.id}}" bindtap="openWeChatTracking" loading="{{wechatTrackingId === shipment.key}}" disabled="{{!!wechatTrackingId}}">查看物流</button>
-                <button wx:if="{{shipment.deliveryNo}}" size="mini" class="copy-inline ui-copy-action" data-number="{{shipment.deliveryNo}}" bindtap="copyDeliveryNo">复制单号</button>
-              </view>
+              <button wx:if="{{shipment.deliveryNo}}" size="mini" class="copy-inline ui-copy-action" data-number="{{shipment.deliveryNo}}" bindtap="copyDeliveryNo">复制单号</button>
             </view>
           </view>
           <view wx:if="{{trackingOrderId === item.order.id}}" class="tracking-panel">
@@ -56,40 +57,56 @@
             </block>
           </view>
         </block>
-        <button wx:if="{{item.order.addressText}}" class="address-toggle ui-list-row" data-id="{{item.order.id}}" bindtap="toggleAddress" aria-expanded="{{!!expandedAddresses[item.order.id]}}">
-          <view class="section-heading-main">
-            <image class="section-icon" src="/assets/profile/map-pin.png" mode="aspectFit" />
-            <view><text class="section-title">收货地址</text><text class="section-subtitle">为保护隐私，展开后查看完整地址</text></view>
+        <view wx:if="{{item.order.addressText}}" class="recipient-summary">
+          <image class="recipient-pin" src="/assets/profile/map-pin.png" mode="aspectFit" />
+          <view class="recipient-copy">
+            <view class="recipient-head"><text>{{item.order.maskedRecipient || '收货人信息已隐藏'}}</text><button class="ui-copy-action" data-id="{{item.order.id}}" bindtap="copyRecipient">复制</button></view>
+            <text>{{expandedAddresses[item.order.id] ? item.order.addressText : item.order.maskedAddress}}</text>
           </view>
-          <text class="fold-label">{{expandedAddresses[item.order.id] ? '收起' : '展开'}}</text>
-        </button>
-        <text wx:if="{{item.order.addressText && expandedAddresses[item.order.id]}}" class="recipient-address">{{item.order.addressText}}</text>
+          <button class="recipient-expand" data-id="{{item.order.id}}" bindtap="toggleAddress">{{expandedAddresses[item.order.id] ? '收起' : '展开'}}</button>
+        </view>
       </view>
 
       <view class="section-card ui-card product-card">
         <view class="order-head"><text class="merchant-name">{{item.order.merchantName || '商城订单'}}</text><text class="order-status ui-status-pill">{{item.order.statusText}}</text></view>
         <view class="order-item" wx:for="{{item.items}}" wx:key="id" wx:for-item="line">
           <image src="{{line.productCover}}" mode="aspectFill" />
-          <view class="item-copy"><text class="item-name">{{line.productName}}</text><text class="item-spec">{{line.skuName || '默认规格'}} × {{line.quantity}}</text></view>
-          <text class="item-price ui-price">¥{{line.priceText}}</text>
+          <view class="item-copy">
+            <text class="item-name">{{line.productName}}</text>
+            <view class="item-spec"><text>{{line.skuName || '默认规格'}}</text><text>× {{line.quantity}}</text></view>
+            <view wx:if="{{line.serviceTags.length}}" class="item-service-tags"><text wx:for="{{line.serviceTags}}" wx:key="title" wx:for-item="tag">{{tag.title}}</text></view>
+            <view class="item-prices"><text>零售价 ¥{{line.retailTotalText}}</text><text>实付款 <text class="ui-price">¥{{line.paidAmountText}}</text></text></view>
+          </view>
         </view>
-        <view class="product-footer"><text>{{item.itemQuantity}} 件商品</text><view><text>{{item.order.amountLabel}} </text><text class="paid-amount ui-price">¥{{item.order.amountText}}</text></view></view>
+        <view wx:if="{{item.afterSaleDeadlineText}}" class="after-sale-deadline">售后期截止时间 {{item.afterSaleDeadlineText}}</view>
+        <view class="product-actions ui-action-bar">
+          <button wx:if="{{item.shipments.length}}" class="secondary-button ui-action-button compact-action" data-id="{{item.order.id}}" data-shipment-id="{{item.shipments[0].id}}" bindtap="openWeChatTracking" loading="{{wechatTrackingId === item.shipments[0].key}}" disabled="{{!!wechatTrackingId}}">查看物流</button>
+          <button wx:if="{{item.items.length}}" class="secondary-button ui-action-button compact-action" data-id="{{item.order.id}}" bindtap="openProduct">还想买</button>
+          <button wx:if="{{item.canRebuy}}" class="secondary-button ui-action-button compact-action" data-id="{{item.order.id}}" bindtap="buyAgain" loading="{{rebuyId === item.order.id}}" disabled="{{!!rebuyId}}">再买一单</button>
+          <button wx:if="{{item.canApplyAfterSale}}" class="secondary-button ui-action-button compact-action" data-id="{{item.order.id}}" bindtap="applyAfterSale">退换/售后</button>
+          <button wx:if="{{item.pendingReviewProductId && item.pendingReviewOrderItemId}}" class="secondary-button ui-action-button compact-action" data-id="{{item.order.id}}" bindtap="review">去评价</button>
+          <button wx:if="{{item.order.status === 0}}" class="secondary-button ui-action-button compact-action" data-id="{{item.order.id}}" disabled="{{actingId !== null}}" bindtap="cancelOrder">取消订单</button>
+          <button wx:if="{{item.canReceive}}" class="primary-button ui-action-button ui-action-button--primary compact-action" data-id="{{item.order.id}}" loading="{{actingId === item.order.id}}" disabled="{{actingId !== null}}" bindtap="receive">确认收货</button>
+        </view>
+      </view>
 
-        <view class="amount-summary">
-          <view class="amount-row"><text>商品金额</text><text>¥{{item.order.totalText}}</text></view>
-          <view wx:if="{{item.order.freightAmount !== null && item.order.freightAmount !== undefined}}" class="amount-row"><text>运费</text><text>¥{{item.order.freightText}}</text></view>
-          <view wx:if="{{item.order.couponClaimId}}" class="amount-row discount"><text>优惠券 · {{item.order.couponTitle}}</text><text>−¥{{item.order.discountAmount}}</text></view>
-        </view>
+      <view class="section-card ui-card amount-card">
+        <view class="amount-row"><text>商品总售价</text><text>¥{{item.order.totalText}}</text></view>
+        <view wx:if="{{item.order.freightAmount !== null && item.order.freightAmount !== undefined}}" class="amount-row"><text>运费</text><text>¥{{item.order.freightText}}</text></view>
+        <view wx:if="{{item.order.couponClaimId}}" class="amount-row discount"><text>优惠金额</text><text>−¥{{item.order.discountAmount}}</text></view>
+        <view class="amount-row amount-paid"><text>{{item.order.amountLabel}}</text><text class="ui-price">¥{{item.order.amountText}}</text></view>
+        <button class="all-info-toggle" data-id="{{item.order.id}}" bindtap="toggleOrderInfo" aria-expanded="{{!!expandedOrders[item.order.id]}}"><text>全部订单信息</text><text>{{expandedOrders[item.order.id] ? '⌃' : '⌄'}}</text></button>
+      </view>
 
-        <view class="order-info-inline">
-          <button class="order-info-toggle" data-id="{{item.order.id}}" bindtap="toggleOrderInfo" aria-expanded="{{!!expandedOrders[item.order.id]}}"><text>订单时间与支付信息</text><text>{{expandedOrders[item.order.id] ? '收起' : '展开'}}</text></button>
-          <block wx:if="{{expandedOrders[item.order.id]}}">
-            <view><text>订单编号</text><text>{{item.order.orderNo}}</text></view>
-            <view><text>下单时间</text><text>{{item.order.createTimeText || '-'}}</text></view>
-            <view><text>付款时间</text><text>{{item.order.payTimeText || '-'}}</text></view>
-            <view><text>支付方式</text><text>{{item.order.payType === 'BALANCE' ? '余额支付' : item.order.payType === 'WECHAT' ? '微信支付' : item.order.payType === 'ALIPAY' ? '支付宝' : '商城支付'}}</text></view>
-          </block>
-        </view>
+      <view wx:if="{{expandedOrders[item.order.id]}}" class="section-card ui-card all-order-info">
+        <view><text>订单编号</text><view><text>{{item.order.orderNo}}</text><button class="ui-copy-action" data-id="{{item.order.id}}" bindtap="copyOrderNo">复制</button></view></view>
+        <view><text>下单时间</text><text>{{item.order.createTimeText || '-'}}</text></view>
+        <view><text>付款时间</text><text>{{item.order.payTimeText || '-'}}</text></view>
+        <view wx:if="{{item.order.deliveryTimeText}}"><text>发货时间</text><text>{{item.order.deliveryTimeText}}</text></view>
+        <view wx:if="{{item.order.receiveTimeText}}"><text>签收时间</text><text>{{item.order.receiveTimeText}}</text></view>
+        <view><text>支付方式</text><text>{{item.order.payType === 'BALANCE' ? '余额支付' : item.order.payType === 'WECHAT' ? '微信支付' : item.order.payType === 'ALIPAY' ? '支付宝' : '商城支付'}}</text></view>
+        <view><text>商品数量</text><text>{{item.itemQuantity}} 件</text></view>
+        <view><text>售后状态</text><text>{{item.canApplyAfterSale ? '售后期内' : '以订单售后记录为准'}}</text></view>
       </view>
 
       <view wx:if="{{item.afterSales.length}}" class="section-card ui-card after-sale-list">
@@ -127,12 +144,6 @@
         </view>
       </view>
 
-      <view class="detail-actions ui-action-bar">
-        <button wx:if="{{item.order.status === 0}}" class="secondary-button ui-action-button cancel-order" data-id="{{item.order.id}}" disabled="{{actingId !== null}}" bindtap="cancelOrder">取消订单</button>
-        <button wx:if="{{item.pendingReviewProductId && item.pendingReviewOrderItemId}}" class="secondary-button ui-action-button" data-id="{{item.order.id}}" bindtap="review">去评价</button>
-        <button wx:if="{{item.canApplyAfterSale}}" class="secondary-button ui-action-button" data-id="{{item.order.id}}" bindtap="applyAfterSale">申请售后</button>
-        <button wx:if="{{item.canReceive}}" class="primary-button ui-action-button ui-action-button--primary receive-button" data-id="{{item.order.id}}" loading="{{actingId === item.order.id}}" disabled="{{actingId !== null}}" bindtap="receive">确认收货</button>
-      </view>
     </block>
   </block>
   <include src="../../templates/balance-payment.wxml" />

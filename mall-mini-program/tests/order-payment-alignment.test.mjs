@@ -172,11 +172,12 @@ test('收银台已返回但查询失败时只保留待确认提示，五次未�
   assert.ok(h.notices.some(message => /支付结果还在确认中/.test(message)))
 })
 
-test('页面只提供一个主要付款按钮，金额标签动态绑定且订单号保持紧凑', () => {
+test('页面只提供一个主要付款按钮，金额标签动态绑定且订单号收入口保持紧凑', () => {
   const markup = readFileSync(new URL('../pages/order-detail/index.wxml', import.meta.url), 'utf8')
   assert.equal((markup.match(/bindtap="pay"/g) || []).length, 1)
   assert.match(markup, /item.order.amountLabel/)
-  assert.match(markup, /class="[^"]*order-number-card[^"]*"/)
-  assert.doesNotMatch(markup, /class="status-hero"/)
-  assert.doesNotMatch(markup, /本次付款包含|<text>实付金额<\/text>/)
+  assert.match(markup, /class="status-hero"/)
+  assert.match(markup, /class="section-card ui-card all-order-info"/)
+  assert.match(markup, /class="ui-copy-action"[^>]*bindtap="copyOrderNo"/)
+  assert.doesNotMatch(markup, /本次付款包含/)
 })

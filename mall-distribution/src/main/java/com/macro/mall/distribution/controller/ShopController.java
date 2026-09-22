@@ -910,7 +910,10 @@ public class ShopController {
             @RequestParam String paymentNo) {
         DmsShopMember member = authService.requireMember(authorization);
         List<ShopOrderVO> orders = shopService.listOrdersByPaymentNo(member.getUserId(), paymentNo);
-        orders.forEach(this::applyFrontOrderVisibility);
+        orders.forEach(order -> {
+            shopService.fillMemberOrderIncome(order, member);
+            applyFrontOrderVisibility(order);
+        });
         return CommonResult.success(orders);
     }
 
@@ -924,6 +927,7 @@ public class ShopController {
         if (!member.getUserId().equals(vo.getOrder().getUserId())) {
             Asserts.fail("不能查看他人的订单");
         }
+        shopService.fillMemberOrderIncome(vo, member);
         applyFrontOrderVisibility(vo);
         return CommonResult.success(vo);
     }

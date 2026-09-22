@@ -193,8 +193,11 @@ test('物流查询只接受当前订单，未配置本地服务不伪造运输�
 test('订单详情隐藏收货姓名电话，地址折叠且无本地轨迹时调用微信官方物流组件接口', async () => {
   const view = readFileSync(new URL('../pages/order-detail/index.wxml', import.meta.url), 'utf8')
   assert.doesNotMatch(view, /receiverName|receiverPhone|recipient-name/)
+  assert.match(view, /class="recipient-summary"/)
+  assert.match(view, /item\.order\.maskedRecipient/)
+  assert.match(view, /item\.order\.maskedAddress/)
+  assert.match(view, /bindtap="copyRecipient"/)
   assert.match(view, /bindtap="toggleAddress"/)
-  assert.match(view, /wx:if="{{item.order.addressText && expandedAddresses\[item.order.id\]}}" class="recipient-address"/)
   assert.match(view, /bindtap="openWeChatTracking"/)
 
   const e = environment({ respond: ({ url }) => url.includes('wechat-logistics-token') ? { waybillToken: 'token-1' } : [] }), page = e.page('order-detail')

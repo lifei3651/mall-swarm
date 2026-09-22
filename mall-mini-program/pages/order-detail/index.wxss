@@ -1,11 +1,31 @@
 @import '../../styles/balance-payment.wxss';
 
-.detail-page { min-height:100vh; padding:20rpx 22rpx calc(44rpx + env(safe-area-inset-bottom)); background:#f5f8f7; }
+.detail-page { min-height:100vh; padding:0 22rpx calc(48rpx + env(safe-area-inset-bottom)); background:#f4f6f7; }
 .empty-state { padding:140rpx 40rpx; text-align:center; color:var(--muted); }
 .empty-state text { display:block; line-height:44rpx; }
 .empty-state button { width:300rpx; margin-top:34rpx; font-size:25rpx; }
 
-.order-number-card,.section-card { border:1rpx solid rgba(216,224,222,.9); border-radius:24rpx; background:var(--paper); box-shadow:0 8rpx 24rpx rgba(31,45,42,.045); }
+.order-number-card,.section-card,.income-card { border:1rpx solid rgba(223,228,227,.84); border-radius:30rpx; background:var(--paper); box-shadow:0 5rpx 18rpx rgba(31,45,42,.035); }
+.status-hero { margin:0 -22rpx; padding:30rpx 22rpx 34rpx; text-align:center; background:linear-gradient(140deg,#fff8f7 0%,#fff 56%,var(--brand-soft) 100%); }
+.status-hero-title,.status-hero-description { display:block; }
+.status-hero-title { color:#171b1a; font-size:38rpx; font-weight:780; line-height:54rpx; }
+.status-hero-description { margin-top:10rpx; color:#727b79; font-size:24rpx; line-height:36rpx; }
+.status-hero .payment-hint { margin-top:12rpx; }
+.status-hero .continue-payment { width:250rpx; min-height:64rpx; margin:20rpx auto 0; font-size:25rpx; }
+.income-card { margin-top:18rpx; overflow:hidden; }
+.income-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; min-height:92rpx; margin:0; padding:0 24rpx; background:#fff; color:#252b2a; line-height:1.4; }
+.income-toggle::after { border:0; }
+.income-title,.income-value { display:flex; align-items:center; gap:12rpx; }
+.income-title { font-size:27rpx; font-weight:720; }
+.income-coin { display:grid; place-items:center; width:42rpx; height:42rpx; border-radius:50%; color:#fff; background:#f6bd2f; font-size:23rpx; font-weight:800; }
+.income-value { color:var(--brand); font-size:28rpx; font-weight:750; }
+.income-chevron { color:#b3bab8; font-size:38rpx; font-weight:400; }
+.income-details { padding:0 24rpx 20rpx; border-top:1rpx solid #eef1f0; }
+.income-summary { display:flex; justify-content:space-between; gap:16rpx; padding:16rpx 0; color:#727b79; font-size:21rpx; }
+.income-line { display:flex; align-items:center; justify-content:space-between; gap:18rpx; padding:12rpx 0; border-top:1rpx solid #f1f3f2; }
+.income-line > view text { display:block; color:#333b39; font-size:23rpx; }
+.income-line > view text:last-child { margin-top:4rpx; color:#929a98; font-size:20rpx; }
+.income-line > text { color:var(--brand); font-size:24rpx; font-weight:700; }
 .order-number-card { position:relative; display:flex; flex-wrap:wrap; align-items:center; gap:14rpx; min-height:88rpx; padding:17rpx 22rpx; }
 .order-number-copy { min-width:0; flex:1; }
 .order-number-label,.order-number-value { display:block; }
@@ -27,8 +47,14 @@
 .text-action { min-height:62rpx; margin:0; padding:0 10rpx; border:0; background:transparent; color:var(--brand); font-size:22rpx; font-weight:600; line-height:62rpx; }
 .text-action::after { border:0; }
 
+.logistics-update { display:flex; align-items:center; justify-content:space-between; gap:18rpx; padding-bottom:17rpx; border-bottom:1rpx solid #edf1f0; }
+.logistics-update-copy { min-width:0; flex:1; }
+.logistics-state,.logistics-latest { display:block; }
+.logistics-state { color:#242b29; font-size:30rpx; font-weight:720; }
+.logistics-latest { margin-top:7rpx; overflow:hidden; color:#7d8684; font-size:22rpx; line-height:34rpx; text-overflow:ellipsis; white-space:nowrap; }
+
 .shipment-list { margin-top:18rpx; }
-.shipment-row { display:flex; align-items:flex-start; justify-content:space-between; gap:20rpx; padding:20rpx 0; border-top:1rpx solid #edf1f0; }
+.shipment-row { display:flex; align-items:center; justify-content:space-between; gap:20rpx; padding:18rpx 0; border-bottom:1rpx solid #edf1f0; }
 .shipment-main { min-width:0; flex:1; }
 .package-label,.shipment-company,.shipment-number,.shipment-time { display:block; }
 .package-label { color:#798381; font-size:21rpx; }
@@ -48,6 +74,14 @@
 .tracking-event text { display:block; color:#46514f; font-size:23rpx; line-height:34rpx; }
 .tracking-event text:last-child { margin-top:5rpx; color:#89918f; font-size:20rpx; }
 
+.recipient-summary { display:flex; align-items:center; gap:15rpx; padding-top:18rpx; }
+.recipient-pin { flex:none; width:37rpx; height:37rpx; opacity:.82; }
+.recipient-copy { min-width:0; flex:1; }
+.recipient-head { display:flex; align-items:center; gap:8rpx; }
+.recipient-head > text { overflow:hidden; color:#2f3634; font-size:25rpx; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
+.recipient-copy > text { display:block; margin-top:5rpx; overflow:hidden; color:#7d8684; font-size:21rpx; line-height:32rpx; text-overflow:ellipsis; white-space:nowrap; }
+.recipient-expand { flex:none; min-height:54rpx; margin:0; padding:0 8rpx; border:0; background:transparent; color:#808986; font-size:21rpx; line-height:54rpx; }
+.recipient-expand::after { border:0; }
 .fulfillment-card .address-toggle { padding-top: 18rpx; padding-bottom: 2rpx; }
 .fulfillment-card.with-shipments .address-toggle { margin-top: 8rpx; border-top: 1rpx solid #edf1f0; }
 .address-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; min-height:88rpx; margin:0; padding:0; background:transparent; color:var(--ink); line-height:1.5; }
@@ -58,11 +92,16 @@
 .order-head { display:flex; align-items:flex-start; justify-content:space-between; gap:20rpx; padding-bottom:19rpx; border-bottom:1rpx solid #edf1f0; }
 .merchant-name { display:block; color:var(--ink); font-size:28rpx; font-weight:720; }
 .order-status { flex:none; padding:7rpx 13rpx; border-radius:999rpx; background:var(--brand-soft); color:var(--brand); font-size:22rpx; font-weight:650; }
-.order-item { display:flex; align-items:flex-start; gap:17rpx; padding:22rpx 0; border-bottom:1rpx solid #edf1f0; }
-.order-item image { flex:none; width:128rpx; height:128rpx; border-radius:18rpx; background:#eef1f0; }
+.order-item { display:flex; align-items:flex-start; gap:20rpx; padding:24rpx 0; border-bottom:1rpx solid #edf1f0; }
+.order-item image { flex:none; width:174rpx; height:174rpx; border-radius:14rpx; background:#eef1f0; }
 .item-copy { min-width:0; flex:1; }
-.item-name { display:-webkit-box; overflow:hidden; color:var(--ink); font-size:26rpx; font-weight:650; line-height:37rpx; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
-.item-spec { display:block; margin-top:9rpx; color:#7b8583; font-size:22rpx; }
+.item-name { display:-webkit-box; overflow:hidden; color:var(--ink); font-size:27rpx; font-weight:650; line-height:38rpx; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
+.item-spec { display:flex; align-items:center; justify-content:space-between; gap:12rpx; margin-top:8rpx; color:#858e8c; font-size:22rpx; }
+.item-service-tags { display:flex; flex-wrap:wrap; gap:8rpx; margin-top:10rpx; }
+.item-service-tags text { padding:3rpx 8rpx; border-radius:5rpx; background:#fff0f0; color:#ee4242; font-size:19rpx; line-height:28rpx; }
+.item-prices { display:flex; align-items:center; justify-content:space-between; gap:12rpx; margin-top:12rpx; color:#757e7c; font-size:21rpx; }
+.item-prices > text:last-child { color:#2e3433; white-space:nowrap; }
+.item-prices > text:last-child text { color:#1f2524; font-size:25rpx; }
 .item-price { flex:none; color:#303a38; font-size:23rpx; }
 .product-footer { display:flex; align-items:center; justify-content:space-between; gap:16rpx; padding:17rpx 0; color:#7a8583; font-size:21rpx; }
 .product-footer > view { min-width:0; text-align:right; }
@@ -87,10 +126,22 @@
 .shipment-input { min-height:84rpx; padding:0 16rpx; border:1rpx solid var(--line); border-radius:12rpx; color:var(--ink); font-size:26rpx; }
 .shipment-input.ui-select-row { margin-bottom:16rpx; }
 
+.after-sale-deadline { margin-top:16rpx; padding:13rpx 16rpx; border-radius:12rpx; background:#fff2e8; color:#e85d12; font-size:21rpx; line-height:32rpx; }
+.product-actions { justify-content:flex-end; flex-wrap:nowrap; gap:10rpx; margin-top:18rpx; overflow-x:auto; }
+.product-actions .compact-action { min-width:0; min-height:54rpx; flex:none; margin:0; padding:0 22rpx; border-radius:999rpx; font-size:24rpx; line-height:52rpx; white-space:nowrap; }
 .amount-summary { padding:11rpx 0; border-top:1rpx solid #e9eeed; }
 .amount-row { display:flex; justify-content:space-between; gap:22rpx; padding:10rpx 0; color:#606b69; font-size:23rpx; line-height:34rpx; }
 .amount-row text:last-child { color:#26312f; text-align:right; }
 .amount-row.discount text:last-child { color:#c94b4b; }
+.amount-card { padding:22rpx 25rpx 0; }
+.amount-card .amount-row { padding:12rpx 0; font-size:24rpx; }
+.amount-card .amount-paid { margin-top:7rpx; padding-top:17rpx; border-top:1rpx solid #e8eceb; }
+.amount-card .amount-paid text:last-child { color:#ed3030; font-size:29rpx; font-weight:750; }
+.all-info-toggle { display:flex; align-items:center; justify-content:center; gap:12rpx; width:100%; min-height:70rpx; margin:5rpx 0 0; padding:0; border:0; background:transparent; color:#9aa19f; font-size:23rpx; line-height:70rpx; }
+.all-info-toggle::after { border:0; }
+.all-order-info > view { display:flex; align-items:flex-start; justify-content:space-between; gap:20rpx; padding:10rpx 0; color:#737c7a; font-size:23rpx; line-height:34rpx; }
+.all-order-info > view > text:last-child,.all-order-info > view > view { min-width:0; color:#333b39; text-align:right; overflow-wrap:anywhere; }
+.all-order-info > view > view { display:flex; align-items:center; justify-content:flex-end; gap:7rpx; }
 .order-info-inline { margin-top:8rpx; border-top:1rpx solid #e9eeed; }
 .order-info-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; min-height:76rpx; margin:0; padding:0; background:transparent; color:var(--ink); font-size:26rpx; font-weight:700; line-height:1.5; }
 .order-info-toggle::after { border:0; }

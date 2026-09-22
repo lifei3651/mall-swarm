@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.macro.mall.distribution.entity.DmsShopProduct;
 import com.macro.mall.distribution.entity.DmsShopSku;
 import com.macro.mall.distribution.entity.DmsShopOrderItem;
+import com.macro.mall.distribution.vo.OrderFinanceVO;
+import com.macro.mall.distribution.vo.ShopOrderIncomeVO;
 import com.macro.mall.distribution.vo.ShopOrderVO;
 import org.junit.jupiter.api.Test;
 
@@ -97,5 +99,29 @@ class ShopPublicViewSanitizerTest {
 
         assertFalse(json.path("items").get(0).has("settlementDelayDays"));
         assertEquals("公开订单商品", json.path("items").get(0).path("productName").asText());
+    }
+
+    @Test
+    void memberOrderResponseKeepsOnlyOwnIncomeViewAndRemovesCompanyFinance() {
+        ShopOrderIncomeVO income = new ShopOrderIncomeVO();
+        income.setTotalAmount(new BigDecimal("18.40"));
+        income.setPendingAmount(BigDecimal.ZERO);
+        income.setSettledAmount(new BigDecimal("18.40"));
+        ShopOrderIncomeVO.IncomeLine line = new ShopOrderIncomeVO.IncomeLine();
+        line.setCommissionAmount(new BigDecimal("18.40"));
+        line.setStatus(1);
+        line.setStatusName("已结算");
+        income.setDetails(List.of(line));
+
+        ShopOrderVO order = new ShopOrderVO();
+        order.setFinance(new OrderFinanceVO());
+        order.setMemberIncome(income);
+
+        JsonNode json = objectMapper.valueToTree(ShopPublicViewSanitizer.order(order));
+
+        assertFalse(json.has("finance"));
+        assertEquals(0, json.path("memberIncome").path("totalAmount").decimalValue()
+                .compareTo(new BigDecimal("18.40")));
+        assertEquals("已结算", json.path("memberIncome").path("details").get(0).path("statusName").asText());
     }
 }

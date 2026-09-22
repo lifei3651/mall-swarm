@@ -16,7 +16,103 @@
       </div>
     </div>
     <div v-else-if="!order" class="empty">订单不存在</div>
-    <div v-else class="checkout-layout" :class="{ 'after-sale-mode': applyingAfterSale }">
+    <template v-else>
+      <main v-if="!applyingAfterSale" class="consumer-order-detail">
+        <header class="consumer-status-hero">
+          <h1>{{ orderStatusTitle }}</h1>
+          <p>{{ deliverySummary }}</p>
+        </header>
+
+        <section v-if="detail.memberIncome" class="consumer-card income-card ui-card">
+          <button type="button" class="income-toggle" :aria-expanded="incomeExpanded" @click="incomeExpanded = !incomeExpanded">
+            <span class="income-heading"><b>¥</b>我的结算收入</span>
+            <span class="income-amount ui-price">¥{{ money(detail.memberIncome.totalAmount) }} <i>{{ incomeExpanded ? '⌃' : '›' }}</i></span>
+          </button>
+          <div v-if="incomeExpanded" class="income-detail-list">
+            <p><span>待结算 ¥{{ money(detail.memberIncome.pendingAmount) }}</span><span>已结算 ¥{{ money(detail.memberIncome.settledAmount) }}</span></p>
+            <div v-for="(line, index) in detail.memberIncome.details || []" :key="`${line.bonusType}-${index}`" class="income-detail-line">
+              <span><strong>{{ line.bonusType || '结算收入' }}</strong><small>{{ line.commissionLevel ? `${line.commissionLevel}级 · ` : '' }}{{ line.statusName }}</small></span>
+              <b>¥{{ money(line.commissionAmount) }}</b>
+            </div>
+          </div>
+        </section>
+
+        <section v-if="shipments.length || order.receiverAddress" class="consumer-card fulfillment-card ui-card">
+          <div v-if="shipments.length" class="consumer-logistics-head">
+            <div><strong>{{ logisticsStatus }}</strong><span>{{ latestLogisticsText }}</span></div>
+            <a v-if="trackingUrl(shipments[0])" :href="trackingUrl(shipments[0])" target="_blank" rel="noopener">查看物流</a>
+          </div>
+          <div v-for="(shipment, index) in shipments" :key="`${shipment.deliveryNo}-${index}`" class="consumer-package-row">
+            <span><strong>{{ shipment.deliveryCompany || '快递公司待更新' }}</strong><small>运单号 {{ shipment.deliveryNo || '-' }}<template v-if="shipment.deliveryTime"> · {{ dateTime(shipment.deliveryTime) }}</template></small></span>
+            <button v-if="shipment.deliveryNo" type="button" class="ui-copy-action" @click="copyText(shipment.deliveryNo)">复制单号</button>
+          </div>
+          <div v-if="order.receiverAddress" class="consumer-recipient-row">
+            <MapPin :size="20" />
+            <span><strong>{{ maskedRecipient || '收货人信息已隐藏' }}</strong><small>{{ addressExpanded ? order.receiverAddress : maskedRecipientAddress }}</small></span>
+            <button type="button" class="ui-copy-action" @click="copyRecipient">复制</button>
+            <button type="button" class="recipient-expand" @click="addressExpanded = !addressExpanded">{{ addressExpanded ? '收起' : '展开' }}</button>
+          </div>
+        </section>
+
+        <section class="consumer-card products-card ui-card">
+          <div class="consumer-merchant-head"><strong>{{ order.merchantName || '商城订单' }}</strong><span class="ui-status-pill">{{ statusName(order.status) }}</span></div>
+          <article v-for="item in detail.items || []" :key="item.id" class="consumer-product-line">
+            <img :src="item.productCover" :alt="item.productName" />
+            <div class="consumer-product-copy">
+              <h3>{{ item.productName }}</h3>
+              <p class="product-spec"><span>{{ formatProductSpec(item) }}</span><span>× {{ item.quantity }}</span></p>
+              <div v-if="serviceTags(item).length" class="consumer-service-tags"><span v-for="tag in serviceTags(item)" :key="tag">{{ tag }}</span></div>
+              <p class="consumer-product-prices"><span>零售价 ¥{{ money(item.totalAmount) }}</span><strong class="ui-price">实付款 ¥{{ linePaidAmount(item) }}</strong></p>
+            </div>
+          </article>
+          <p v-if="detail.afterSaleDeadline" class="consumer-after-sale-deadline">售后期截止时间 {{ dateTime(detail.afterSaleDeadline) }}</p>
+          <div class="consumer-product-actions ui-action-bar">
+            <a v-if="trackingUrl(shipments[0])" :href="trackingUrl(shipments[0])" target="_blank" rel="noopener" class="consumer-action btn secondary ui-action-button">查看物流</a>
+            <RouterLink v-if="firstProductId" class="consumer-action btn secondary ui-action-button" :to="`/product/${firstProductId}`">还想买</RouterLink>
+            <button v-if="canRebuy" type="button" class="consumer-action btn secondary ui-action-button" :disabled="Boolean(rebuyId)" @click="buyAgain">{{ rebuyId ? '处理中…' : '再买一单' }}</button>
+            <button v-if="canApplyAfterSale" type="button" class="consumer-action btn secondary ui-action-button" @click="startAfterSale">退换/售后</button>
+            <RouterLink v-if="Number(detail.pendingReviewCount || 0) > 0" class="consumer-action btn secondary ui-action-button" :to="pendingReviewLink">去评价</RouterLink>
+            <button v-if="order.status === 2 && !hasActiveAfterSale" type="button" class="consumer-action btn primary ui-action-button ui-action-button--primary" :disabled="acting" @click="requestOrderConfirmation('receive-order')">确认收货</button>
+          </div>
+        </section>
+
+        <section class="consumer-card consumer-amount-card ui-card">
+          <p><span>商品总售价</span><strong>¥{{ money(order.totalAmount) }}</strong></p>
+          <p><span>运费</span><strong>¥{{ money(order.freightAmount) }}</strong></p>
+          <p v-if="order.couponClaimId"><span>优惠金额</span><strong>−¥{{ money(order.discountAmount) }}</strong></p>
+          <p class="consumer-paid-row"><span>实付总金额</span><strong class="ui-price">¥{{ money(order.payAmount) }}</strong></p>
+          <button type="button" class="all-order-toggle" :aria-expanded="orderInfoExpanded" @click="orderInfoExpanded = !orderInfoExpanded">全部订单信息 <span>{{ orderInfoExpanded ? '⌃' : '⌄' }}</span></button>
+        </section>
+
+        <section v-if="orderInfoExpanded" class="consumer-card consumer-all-info ui-card">
+          <p><span>订单编号</span><strong>{{ order.orderNo }} <button type="button" class="ui-copy-action" @click="copyText(order.orderNo)">复制</button></strong></p>
+          <p v-if="order.tradeNo"><span>交易编号</span><strong>{{ order.tradeNo }}</strong></p>
+          <p><span>下单时间</span><strong>{{ dateTime(order.createTime) }}</strong></p>
+          <p><span>付款时间</span><strong>{{ dateTime(order.payTime) }}</strong></p>
+          <p v-if="order.deliveryTime"><span>发货时间</span><strong>{{ dateTime(order.deliveryTime) }}</strong></p>
+          <p v-if="order.receiveTime"><span>签收时间</span><strong>{{ dateTime(order.receiveTime) }}</strong></p>
+          <p><span>支付方式</span><strong>{{ payTypeName(order.payType) }}</strong></p>
+          <p><span>商品数量</span><strong>{{ totalOrderQuantity }} 件</strong></p>
+        </section>
+
+        <section v-if="afterSales.length" class="consumer-card compact-after-sales ui-card">
+          <h3>退款 / 售后进度</h3>
+          <p v-for="sale in afterSales" :key="sale.id"><span>{{ afterSaleStatus(sale.status, sale.applyType) }}</span><strong>{{ sale.applyType === 3 ? '同规格换货' : `¥${money(sale.refundAmount)}` }}</strong></p>
+        </section>
+
+        <section v-if="order.status === 0" class="consumer-card pending-payment-card ui-card">
+          <div v-if="order.payType === 'BALANCE'" class="balance-pay-box">
+            <label>支付密码</label><input v-model="paymentPassword" class="field" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="请输入6位支付密码" />
+          </div>
+          <p v-if="error" class="consumer-error">{{ error }}</p>
+          <div class="consumer-product-actions ui-action-bar">
+            <button type="button" class="consumer-action btn secondary ui-action-button" :disabled="acting" @click="requestOrderConfirmation('cancel-order')">取消订单</button>
+            <button type="button" class="consumer-action btn primary ui-action-button ui-action-button--primary" :disabled="acting" @click="pay">立即支付</button>
+          </div>
+        </section>
+      </main>
+
+      <div v-else class="checkout-layout after-sale-mode">
       <section v-if="!applyingAfterSale && order.tradeNo" class="panel ui-card trade-parent-tip">
         <strong>联合支付交易 {{ order.tradeNo }}</strong>
         <span>当前是 {{ order.merchantName || '平台自营' }} 的履约子订单 {{ order.orderNo }}；其他销售方将分别发货和处理售后。</span>
@@ -346,7 +442,8 @@
         </div>
         <p v-if="error" style="color: var(--coral); line-height: 1.6">{{ error }}</p>
       </aside>
-    </div>
+      </div>
+    </template>
     <div v-if="reasonSheetVisible" class="reason-sheet-backdrop" @click.self="reasonSheetVisible = false">
       <section class="reason-sheet" role="dialog" aria-modal="true" aria-labelledby="reason-sheet-title">
         <div class="reason-sheet-head">
@@ -388,9 +485,9 @@
 <script setup>
 import { couponRefundPreview } from '@/utils/couponAmounts'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ChevronDown, ChevronRight, CircleCheck, ImagePlus, MapPin, PackageCheck, RefreshCw, RotateCcw, Truck, UserRound } from 'lucide-vue-next'
-import { applyAfterSale, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmAfterSaleExchangeReceived, confirmReceive, createAlipayOrder, getOrder, getOrderTracking, payOrderWithBalance, submitAfterSaleReturnShipment, uploadAfterSaleProof } from '@/api/shop'
+import { applyAfterSale, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmAfterSaleExchangeReceived, confirmReceive, createAlipayOrder, getOrder, getOrderTracking, getProduct, payOrderWithBalance, submitAfterSaleReturnShipment, uploadAfterSaleProof } from '@/api/shop'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { dateTime, money, statusName } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
@@ -400,8 +497,13 @@ import { hasShopSession } from '@/utils/shopSession'
 import { submitTrustedAlipayForm } from '@/utils/alipay'
 import { createIdempotencyKey } from '@/utils/idempotency'
 import { STANDARD_LOGISTICS_COMPANIES } from '@/utils/logisticsCompanies'
+import { useCart } from '@/store/cart'
+import { checkCartPurchaseLimit } from '@/utils/purchaseLimit'
+import { cartItemKey, stockAdditionViolation } from '@/utils/stockRules'
 
 const route = useRoute()
+const router = useRouter()
+const { items: cartItems, addMany } = useCart()
 const detail = ref({})
 const logisticsTracking = ref([])
 const loading = ref(false)
@@ -420,7 +522,9 @@ const submittingAfterSale = ref(false)
 const reasonSheetVisible = ref(false)
 const selectedReason = ref('')
 const orderInfoExpanded = ref(false)
+const incomeExpanded = ref(false)
 const addressExpanded = ref(false)
+const rebuyId = ref(null)
 const refundItemsSection = ref(null)
 const reasonSection = ref(null)
 const proofInput = ref(null)
@@ -505,6 +609,51 @@ const logisticsStatusDescription = computed(() => {
     ? `发货时间 ${dateTime(order.value.deliveryTime)}，实际轨迹以承运商查询为准`
     : '商家已发货，实际轨迹以承运商查询为准'
 })
+const orderStatusTitle = computed(() => ({ 0: '待付款', 1: '待发货', 2: '待收货', 3: '已完成', 4: '已取消', 5: '售后处理中' }[Number(order.value?.status)] || '订单处理中'))
+const deliverySummary = computed(() => {
+  if (order.value?.receiveTime) return `商品已于 ${dateTime(order.value.receiveTime)} 送达`
+  if (Number(order.value?.status) === 3) return '商品已完成签收'
+  if (order.value?.deliveryTime) return `商品已于 ${dateTime(order.value.deliveryTime)} 发出`
+  return ({ 0: '请核对商品和收货信息后完成支付', 1: '付款已完成，商家会尽快为您发货', 4: '该订单已关闭' }[Number(order.value?.status)] || '订单状态更新后会在这里显示')
+})
+const latestLogisticsText = computed(() => {
+  const events = logisticsTracking.value.flatMap((record) => record.events || [])
+    .sort((left, right) => Date.parse(right.eventTime || '') - Date.parse(left.eventTime || ''))
+  const latest = events[0]
+  return latest
+    ? `${latest.description || '物流状态已更新'}${latest.location ? ` · ${latest.location}` : ''}${latest.eventTime ? ` · ${dateTime(latest.eventTime)}` : ''}`
+    : logisticsStatusDescription.value
+})
+const maskName = (value) => {
+  const name = String(value || '').trim()
+  return name ? `${name.slice(0, 1)}${name.length > 1 ? '**' : '*'}` : ''
+}
+const maskPhone = (value) => {
+  const phone = String(value || '').trim()
+  if (!phone) return ''
+  return phone.length >= 7 ? `${phone.slice(0, 3)}****${phone.slice(-4)}` : `${phone.slice(0, 2)}***`
+}
+const maskedRecipient = computed(() => [maskName(order.value?.receiverName), maskPhone(order.value?.receiverPhone)].filter(Boolean).join(' '))
+const maskedRecipientAddress = computed(() => {
+  const region = [order.value?.receiverProvince, order.value?.receiverCity, order.value?.receiverDistrict].filter(Boolean).join(' ')
+  const detailAddress = String(order.value?.receiverDetailAddress || '').trim()
+  return [region, detailAddress ? `${detailAddress.slice(0, 3)}***` : ''].filter(Boolean).join(' ')
+})
+const parseArray = (value) => {
+  if (Array.isArray(value)) return value
+  try { const parsed = JSON.parse(value || '[]'); return Array.isArray(parsed) ? parsed : [] } catch { return [] }
+}
+const serviceTags = (item) => parseArray(item?.serviceTags)
+  .map((tag) => typeof tag === 'string' ? { title: tag, enabled: true } : tag)
+  .filter((tag) => tag?.enabled !== false && String(tag?.title || '').trim())
+  .slice(0, 2)
+  .map((tag) => String(tag.title).trim())
+const linePaidAmount = (item) => money([0, 4].includes(Number(order.value?.status))
+  ? Number(item?.totalAmount || 0)
+  : Math.max(0, Number(item?.totalAmount || 0) - Number(item?.couponDiscountAmount || 0)))
+const totalOrderQuantity = computed(() => (detail.value.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0))
+const firstProductId = computed(() => detail.value.items?.find((item) => item.productId)?.productId || null)
+const canRebuy = computed(() => Number(order.value?.status) !== 0 && Boolean(firstProductId.value))
 const autoReceiveNotice = computed(() => detail.value.autoReceiveDeadline
   ? `预计 ${dateTime(detail.value.autoReceiveDeadline)} 自动确认收货`
   : `发货满 ${Number(detail.value.autoReceiveDays || 15)} 天自动确认收货`)
@@ -668,6 +817,58 @@ const afterSaleStatus = (status, applyType) => {
 }
 const payTypeName = (value) => ({ WECHAT: '微信支付', ALIPAY: '支付宝', BALANCE: '余额' }[value] || value || '未选择')
 const copyText = async (text) => { try { await navigator.clipboard.writeText(text) } catch {} }
+const copyRecipient = () => copyText([order.value?.receiverName, order.value?.receiverPhone, order.value?.receiverAddress].filter(Boolean).join(' '))
+
+const buyAgain = async () => {
+  if (rebuyId.value || !canRebuy.value) return
+  rebuyId.value = order.value.id
+  error.value = ''
+  try {
+    const planned = cartItems.map((line) => ({ ...line }))
+    const selections = []
+    for (const line of detail.value.items || []) {
+      const response = await getProduct(line.productId)
+      const productDetail = response.data || {}
+      const product = productDetail.product || productDetail
+      if (!product?.id || Number(product.status ?? 1) !== 1) throw new Error(`${line.productName || '商品'}已下架`)
+      const skus = Array.isArray(productDetail.skus) ? productDetail.skus : []
+      const sku = line.skuId ? skus.find((row) => String(row.id) === String(line.skuId)) : null
+      if (skus.length && (!sku || Number(sku.status ?? 1) !== 1)) throw new Error(`${line.productName || '商品'}的原规格已失效`)
+      const quantity = Math.max(1, Number(line.quantity || 1))
+      const selection = {
+        id: product.id,
+        skuId: sku?.id || null,
+        productName: product.productName,
+        skuName: sku?.skuName || '',
+        skuAttrs: sku?.attrsJson || '',
+        subtitle: product.subtitle || '',
+        merchantName: product.merchantName || '',
+        coverUrl: sku?.imageUrl || product.coverUrl,
+        salePrice: Number(sku ? sku.salePrice : product.salePrice),
+        marketPrice: Number(sku ? sku.marketPrice || 0 : product.marketPrice || 0),
+        pvValue: Number(sku?.pvValue || product.pvValue || 0),
+        stock: Number(sku ? sku.stock : product.stock),
+        purchaseLimit: Number(product.purchaseLimit || 0),
+        quantity,
+      }
+      const key = cartItemKey(selection)
+      const existingSku = planned.find((row) => (row.cartKey || cartItemKey(row)) === key)
+      const stockError = stockAdditionViolation(selection.stock, quantity, existingSku?.quantity || 0)
+      if (stockError) throw new Error(stockError)
+      const existingProductQuantity = planned.reduce((sum, row) => String(row.id) === String(product.id) ? sum + Number(row.quantity || 0) : sum, 0)
+      await checkCartPurchaseLimit(product, quantity, existingProductQuantity)
+      if (existingSku) existingSku.quantity = Number(existingSku.quantity || 0) + quantity
+      else planned.push({ ...selection, cartKey: key })
+      selections.push(selection)
+    }
+    addMany(selections)
+    router.push('/cart')
+  } catch (failure) {
+    error.value = failure?.message || '商品信息已变化，请重新选择'
+  } finally {
+    rebuyId.value = null
+  }
+}
 
 const requestOrderConfirmation = (action) => {
   if (acting.value || cancellingAfterSaleId.value) return
@@ -814,7 +1015,7 @@ const courierInitial = (company) => {
 }
 
 const trackingUrl = (shipment) => {
-  const no = shipment.deliveryNo
+  const no = shipment?.deliveryNo
   if (!no) return null
   // Kuaidi100 auto-detects the carrier from the waybill number. The carrier
   // name is shown in our UI, while the external query stays compatible with
@@ -982,6 +1183,71 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.consumer-order-detail { width: min(100%, 760px); margin: 0 auto; padding-bottom: 28px; }
+.consumer-status-hero { margin: 0 -8px 14px; padding: 18px 20px 22px; text-align: center; background: linear-gradient(140deg, #fff8f7 0%, #fff 55%, var(--brand-primary-soft, #eff8f6) 100%); border-radius: 22px; }
+.consumer-status-hero h1 { margin: 0; color: #151918; font-size: 25px; line-height: 1.35; }
+.consumer-status-hero p { margin: 7px 0 0; color: #747d7b; font-size: 14px; }
+.consumer-card { margin-top: 12px; overflow: hidden; background: #fff; border: 1px solid #e2e7e6; border-radius: 21px; box-shadow: 0 5px 18px rgba(31, 45, 42, .04); }
+.income-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 66px; padding: 0 19px; color: #252b2a; background: #fff; border: 0; }
+.income-heading, .income-amount { display: flex; align-items: center; gap: 9px; font-size: 16px; font-weight: 800; }
+.income-heading b { width: 31px; height: 31px; display: grid; place-items: center; color: #fff; background: #f6bd2f; border-radius: 50%; }
+.income-amount { color: var(--brand-primary); font-size: 17px; }
+.income-amount i { color: #b2bab8; font-size: 27px; font-style: normal; font-weight: 400; }
+.income-detail-list { padding: 0 19px 14px; border-top: 1px solid #eef1f0; }
+.income-detail-list > p { display: flex; justify-content: space-between; margin: 0; padding: 12px 0; color: #707a77; font-size: 12px; }
+.income-detail-line { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-top: 1px solid #f1f3f2; }
+.income-detail-line > span { display: grid; gap: 3px; }
+.income-detail-line strong { color: #303735; font-size: 13px; }
+.income-detail-line small { color: #929a98; font-size: 11px; }
+.income-detail-line > b { color: var(--brand-primary); font-size: 14px; }
+.fulfillment-card { padding: 0 19px 17px; }
+.consumer-logistics-head { display: flex; align-items: center; gap: 14px; padding: 17px 0 14px; border-bottom: 1px solid #edf1f0; }
+.consumer-logistics-head > div { display: grid; gap: 5px; min-width: 0; flex: 1; }
+.consumer-logistics-head strong { color: #232a28; font-size: 17px; }
+.consumer-logistics-head span { overflow: hidden; color: #7d8684; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.consumer-logistics-head a { color: var(--brand-primary); font-size: 12px; font-weight: 750; text-decoration: none; white-space: nowrap; }
+.consumer-package-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 0; border-bottom: 1px solid #edf1f0; }
+.consumer-package-row > span { display: grid; gap: 4px; min-width: 0; }
+.consumer-package-row strong { color: #313836; font-size: 13px; }
+.consumer-package-row small { color: #7f8886; font-size: 11px; }
+.consumer-recipient-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding-top: 15px; }
+.consumer-recipient-row > svg { color: #68716f; }
+.consumer-recipient-row > span { display: grid; gap: 4px; min-width: 0; }
+.consumer-recipient-row strong { color: #303735; font-size: 13px; }
+.consumer-recipient-row small { overflow: hidden; color: #7e8785; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.recipient-expand { padding: 4px; color: #7e8785; background: transparent; border: 0; font-size: 11px; }
+.products-card { padding: 0 19px 17px; }
+.consumer-merchant-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 0 13px; border-bottom: 1px solid #edf1f0; }
+.consumer-merchant-head strong { color: #202624; font-size: 17px; }
+.consumer-merchant-head span { padding: 4px 8px; color: var(--brand-primary); background: var(--brand-primary-soft, #eef7f5); border-radius: 999px; font-size: 11px; font-weight: 700; }
+.consumer-product-line { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 14px; padding: 17px 0; border-bottom: 1px solid #edf1f0; }
+.consumer-product-line img { width: 112px; height: 112px; object-fit: cover; background: #f1f3f2; border-radius: 10px; }
+.consumer-product-copy { min-width: 0; }
+.consumer-product-copy h3 { display: -webkit-box; margin: 0; overflow: hidden; color: #222826; font-size: 16px; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.product-spec { display: flex; justify-content: space-between; gap: 10px; margin: 6px 0 0; color: #858e8c; font-size: 12px; }
+.consumer-service-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.consumer-service-tags span { padding: 2px 5px; color: #eb4040; background: #fff0f0; border-radius: 3px; font-size: 11px; }
+.consumer-product-prices { display: flex; align-items: center; justify-content: space-between; gap: 9px; margin: 10px 0 0; color: #737c7a; font-size: 12px; }
+.consumer-product-prices strong { color: #242a28; font-size: 14px; }
+.consumer-after-sale-deadline { margin: 13px 0 0; padding: 9px 11px; color: #e85d12; background: #fff2e8; border-radius: 8px; font-size: 12px; }
+.consumer-product-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 14px; overflow-x: auto; }
+.consumer-action { min-height: 30px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; padding: 0 13px; color: #303735; text-decoration: none; background: #fff; border: 1px solid #d6dcda; border-radius: 999px; font-size: 13px; font-weight: 650; white-space: nowrap; }
+.consumer-action.primary { color: #fff; background: var(--brand-primary); border-color: var(--brand-primary); }
+.consumer-action:disabled { opacity: .55; }
+.consumer-amount-card { padding: 17px 19px 0; }
+.consumer-amount-card > p, .consumer-all-info > p, .compact-after-sales > p { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin: 0; padding: 7px 0; color: #69726f; font-size: 14px; }
+.consumer-amount-card strong, .consumer-all-info strong { color: #292f2d; font-weight: 650; text-align: right; overflow-wrap: anywhere; }
+.consumer-paid-row { margin-top: 6px !important; padding-top: 12px !important; border-top: 1px solid #e8eceb; }
+.consumer-paid-row strong { color: #ef3030 !important; font-size: 17px; }
+.all-order-toggle { width: 100%; min-height: 50px; color: #9aa19f; background: transparent; border: 0; font-size: 13px; }
+.consumer-all-info { padding: 16px 19px; }
+.consumer-all-info > p strong { max-width: 72%; }
+.compact-after-sales { padding: 16px 19px; }
+.compact-after-sales h3 { margin: 0 0 8px; font-size: 16px; }
+.compact-after-sales > p { border-top: 1px solid #eef1f0; }
+.pending-payment-card { padding: 4px 19px 17px; }
+.consumer-error { color: #b42318; font-size: 12px; line-height: 1.55; }
+
 .product-detail-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .product-detail-head h3 { margin-bottom: 14px; }
 .product-detail-head span { margin-bottom: 14px; color: var(--brand-primary, #e7193f); font-size: 11px; }

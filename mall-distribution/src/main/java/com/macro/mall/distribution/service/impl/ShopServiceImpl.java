@@ -50,6 +50,7 @@ import com.macro.mall.distribution.vo.OrderFinanceVO;
 import com.macro.mall.distribution.vo.ShopHomeVO;
 import com.macro.mall.distribution.vo.ShopLegalConfigVO;
 import com.macro.mall.distribution.vo.ShopOrderVO;
+import com.macro.mall.distribution.vo.ShopOrderIncomeVO;
 import com.macro.mall.distribution.vo.ShopOrderStatusSummaryVO;
 import com.macro.mall.distribution.vo.ShopTradeDetailVO;
 import com.macro.mall.distribution.vo.ShopProductDetailVO;
@@ -123,6 +124,7 @@ public class ShopServiceImpl implements ShopService {
     private final DmsShopAfterSaleItemDao afterSaleItemDao;
     private final DmsShopProductReviewDao productReviewDao;
     private final DmsOrderPvDetailDao orderPvDetailDao;
+    private final DmsCommissionRecordDao commissionRecordDao;
     private final DmsAgentDao agentDao;
     private final DmsShopMemberDao memberDao;
     private final DmsAgentAccountDao accountDao;
@@ -1395,6 +1397,51 @@ public class ShopServiceImpl implements ShopService {
         fillAfterSaleWindow(vo, order);
         vo.setDisplayConfig(getDisplayConfig(order.getTenantId()));
         return vo;
+    }
+
+    @Override
+    public void fillMemberOrderIncome(ShopOrderVO vo, DmsShopMember member) {
+        if (vo == null || vo.getOrder() == null || member == null
+                || member.getUserId() == null || !member.getUserId().equals(vo.getOrder().getUserId())) {
+            return;
+        }
+        DmsAgent agent = agentDao.selectByUserId(member.getUserId());
+        if (agent == null) return;
+        List<DmsCommissionRecord> ownRecords = commissionRecordDao.selectByOrderId(vo.getOrder().getId()).stream()
+                .filter(record -> agent.getId().equals(record.getAgentId()))
+                .toList();
+        if (ownRecords.isEmpty()) return;
+
+        ShopOrderIncomeVO income = new ShopOrderIncomeVO();
+        BigDecimal pending = ownRecords.stream()
+                .filter(record -> Integer.valueOf(0).equals(record.getStatus()))
+                .map(DmsCommissionRecord::getCommissionAmount).filter(Objects::nonNull)
+                .reduce(ZERO, BigDecimal::add);
+        BigDecimal settled = ownRecords.stream()
+                .filter(record -> Integer.valueOf(1).equals(record.getStatus()))
+                .map(DmsCommissionRecord::getCommissionAmount).filter(Objects::nonNull)
+                .reduce(ZERO, BigDecimal::add);
+        income.setPendingAmount(money(pending));
+        income.setSettledAmount(money(settled));
+        income.setTotalAmount(money(pending.add(settled)));
+        income.setDetails(ownRecords.stream().map(record -> {
+            ShopOrderIncomeVO.IncomeLine line = new ShopOrderIncomeVO.IncomeLine();
+            line.setBonusType(record.getBonusType());
+            line.setCommissionLevel(record.getCommissionLevel());
+            line.setCommissionRate(record.getCommissionRate());
+            line.setCommissionAmount(money(record.getCommissionAmount()));
+            line.setStatus(record.getStatus());
+            line.setStatusName(switch (record.getStatus() == null ? -1 : record.getStatus()) {
+                case 0 -> "待结算";
+                case 1 -> "已结算";
+                case 2 -> "已取消";
+                case 3 -> "已退款冲销";
+                default -> "状态待确认";
+            });
+            line.setSettleTime(record.getSettleTime());
+            return line;
+        }).toList());
+        vo.setMemberIncome(income);
     }
 
     @Override
