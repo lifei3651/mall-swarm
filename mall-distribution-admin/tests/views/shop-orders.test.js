@@ -40,6 +40,17 @@ describe('商城订单取消入口', () => {
     expect(source).toContain('handleOrderMoreCommand')
     expect(source).toContain('canCancelAdminOrder')
     expect(source).toContain('command="BONUS"')
+    expect(source).toContain('canHandleAfterSale && canMerchantFulfill(row)')
+    expect(source).toContain('v-if="canReadOrderFinance" command="BONUS"')
+    expect(source).toContain('canHandleAfterSale && canCancelAdminOrder(row)')
+    expect(source).toContain('canHandleAfterSale && canManualRefund(row)')
+  })
+
+  it('待售后和已退款筛选只向具有售后权限的账号展示', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain("!['AFTER_SALE', 'REFUNDED'].includes(item.value)")
+    expect(source).toContain('orderStateOptions.value.some')
   })
 
   it('订单奖金默认展示真实去向，并将技术追溯证据收进审计详情', async () => {
@@ -183,14 +194,15 @@ describe('商城订单取消入口', () => {
 
     expect(source).toContain('v-if="isMerchantUser"')
     expect(source).toContain('这里只显示本商户的履约子订单')
-    expect(source).toContain('v-if="!isMerchantUser" label="奖金总拨出"')
-    expect(source).toContain('v-if="!isMerchantUser" trigger="click"')
+    expect(source).toContain('v-if="!isMerchantUser && canReadOrderFinance" label="奖金总拨出"')
+    expect(source).toContain('v-if="!isMerchantUser && (canReadOrderFinance || canHandleAfterSale)"')
     expect(source).toContain('!isMerchantUser.value && !hasPendingAfterSale(row)')
     expect(source).toContain('v-if="canShipOrder(row)"')
     expect(source).toContain('处理售后')
     expect(source).toContain('row.merchantFulfillmentAllowed === false')
     expect(source).toContain('canMerchantFulfill(row)')
     expect(source).toContain('当前履约已由平台接管或冻结')
+    expect(source).toContain('售后处理需由负责人另行授权')
   })
 
   it('后台退款遵循服务端售后配置，不再自行写死下单后7天', async () => {

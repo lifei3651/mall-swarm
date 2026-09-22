@@ -13,6 +13,7 @@ describe('工作台订单待办', () => {
     expect(source.indexOf("title: '待售后'")).toBeLessThan(source.indexOf("title: '待审核提现'"))
     expect(source).toContain('/shop/orders?orderState=PENDING_SHIPMENT')
     expect(source).toContain('/shop/orders?orderState=AFTER_SALE')
+    expect(source).toContain("permission: 'shop:aftersale'")
     expect(source).toContain("window.addEventListener('admin-order-work-summary'")
   })
 
@@ -23,5 +24,18 @@ describe('工作台订单待办', () => {
     expect(source).toContain('导出报表')
     expect(source).toContain('商城经营报表-')
     expect(source).toContain('URL.createObjectURL')
+  })
+
+  it('按财务、会员和商品权限隐藏未授权经营模块', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain("const canReadFinance = computed(() => store.hasPermission('finance:read'))")
+    expect(source).toContain("const canReadMembers = computed(() => store.hasPermission('shop:member'))")
+    expect(source).toContain("const canReadProducts = computed(() => store.hasPermission('shop:product'))")
+    expect(source).toContain('v-if="canReadFinance" class="metric-strip"')
+    expect(source).toContain('v-if="canReadFinance" class="command-panel finance-panel"')
+    expect(source).toContain('v-if="canReadMembers" class="command-panel member-panel"')
+    expect(source).toContain('v-if="canReadProducts" class="command-panel ranking-panel"')
+    expect(source).toContain('当前账号未授权查看经营数据')
   })
 })

@@ -172,9 +172,12 @@ class ShopOrderStateFilterTest {
         insertOrder(930011L, "FILTER-OTHER-TENANT", 1, 2L);
 
         ShopOrderStatusSummaryVO summary = orderDao.selectAdminWorkSummary(1L);
+        ShopOrderStatusSummaryVO orderOnlySummary = orderDao.selectAdminWorkSummary(1L, null, false);
 
         assertEquals(3L, summary.getPendingShipment());
         assertEquals(3L, summary.getAfterSale());
+        assertEquals(3L, orderOnlySummary.getPendingShipment());
+        assertEquals(0L, orderOnlySummary.getAfterSale());
     }
 
     @Test

@@ -38,7 +38,7 @@ class SystemFundAccountIsolationTest {
         assertThat(dashboardDao.countPromotionMembers()).isEqualTo(promotionMembersBefore);
         assertThat(memberDao.selectByAccount("SYS-FUND-TEST")).isNull();
         assertThat(memberDao.selectByInviteCode("SYSFUND1")).isNull();
-        assertThat(memberDao.selectAdminList(null, null, null, null))
+        assertThat(memberDao.selectAdminList(null, null, null, null, true, true, true))
                 .noneMatch(member -> Long.valueOf(9901L).equals(member.getId()));
         assertThat(agentDao.selectByInviteCode("SYSFUND1")).isNull();
         assertThat(agentDao.selectAll())

@@ -22,7 +22,7 @@
       </div>
     </header>
 
-    <section class="metric-strip" aria-label="核心经营指标">
+    <section v-if="canReadFinance" class="metric-strip" aria-label="核心经营指标">
       <article v-for="(item, index) in coreMetrics" :key="item.title" class="core-metric" :class="`tone-${item.tone}`">
         <div class="metric-copy">
           <span class="metric-icon"><el-icon><component :is="item.icon" /></el-icon></span>
@@ -36,8 +36,8 @@
       </article>
     </section>
 
-    <div class="dashboard-main-grid">
-      <section class="command-panel trend-panel">
+    <div v-if="canReadFinance || visibleTasks.length || riskAlerts.length" class="dashboard-main-grid">
+      <section v-if="canReadFinance" class="command-panel trend-panel">
         <div class="panel-heading">
           <div>
             <div class="heading-title"><el-icon><Histogram /></el-icon><h2>经营脉搏</h2></div>
@@ -49,7 +49,7 @@
       </section>
 
       <aside class="decision-rail">
-        <section class="command-panel task-panel">
+        <section v-if="visibleTasks.length" class="command-panel task-panel">
           <div class="panel-heading compact">
             <div class="heading-title"><el-icon><Tickets /></el-icon><h2>待处理事项</h2></div>
             <span>{{ totalTaskCount }} 项</span>
@@ -64,7 +64,7 @@
           </div>
         </section>
 
-        <section class="command-panel risk-panel">
+        <section v-if="riskAlerts.length" class="command-panel risk-panel">
           <div class="panel-heading compact">
             <div class="heading-title"><el-icon><WarningFilled /></el-icon><h2>风险预警</h2></div>
             <span>实时</span>
@@ -87,7 +87,7 @@
     </div>
 
     <div class="insight-grid">
-      <section class="command-panel finance-panel">
+      <section v-if="canReadFinance" class="command-panel finance-panel">
         <div class="panel-heading compact">
           <div>
             <div class="heading-title"><el-icon><Wallet /></el-icon><h2>财务构成</h2></div>
@@ -127,7 +127,7 @@
         </div>
       </section>
 
-      <section class="command-panel member-panel">
+      <section v-if="canReadMembers" class="command-panel member-panel">
         <div class="panel-heading compact">
           <div>
             <div class="heading-title"><el-icon><User /></el-icon><h2>会员与区域订单量排行</h2></div>
@@ -152,7 +152,7 @@
         </div>
       </section>
 
-      <section class="command-panel ranking-panel">
+      <section v-if="canReadProducts" class="command-panel ranking-panel">
         <div class="panel-heading compact">
           <div>
             <div class="heading-title"><el-icon><Goods /></el-icon><h2>商品价值榜</h2></div>
@@ -177,6 +177,7 @@
         <div v-else class="ranking-empty"><el-icon><Goods /></el-icon><span>暂无已支付商品销售数据</span></div>
       </section>
     </div>
+    <el-empty v-if="!hasDashboardContent" description="当前账号未授权查看经营数据" />
   </div>
 </template>
 
@@ -229,6 +230,9 @@ const money = (value) => Number(value || 0).toLocaleString('zh-CN', { minimumFra
 const count = (value) => Number(value || 0).toLocaleString('zh-CN')
 const percent = (value) => `${(Number(value || 0) * 100).toFixed(2)}%`
 const setMetricChartRef = (element, index) => { metricChartRefs[index] = element }
+const canReadFinance = computed(() => store.hasPermission('finance:read'))
+const canReadMembers = computed(() => store.hasPermission('shop:member'))
+const canReadProducts = computed(() => store.hasPermission('shop:product'))
 
 const todayComparison = computed(() => {
   const today = Number(dashboard.value.todayPerformance || 0)
@@ -247,13 +251,15 @@ const coreMetrics = computed(() => [
 
 const taskItems = computed(() => [
   { title: '待发货', description: '已支付订单等待仓库发货', count: orderWorkSummary.value.pendingShipment, unit: '单', path: '/shop/orders?orderState=PENDING_SHIPMENT', permission: 'shop:order', tone: 'cyan', icon: Van },
-  { title: '待售后', description: '客户售后申请等待处理', count: orderWorkSummary.value.afterSale, unit: '单', path: '/shop/orders?orderState=AFTER_SALE', permission: 'shop:order', tone: 'amber', icon: RefreshLeft },
+  { title: '待售后', description: '客户售后申请等待处理', count: orderWorkSummary.value.afterSale, unit: '单', path: '/shop/orders?orderState=AFTER_SALE', permission: 'shop:aftersale', tone: 'amber', icon: RefreshLeft },
   { title: '待审核提现', description: `待审核金额 ¥${money(dashboard.value.pendingWithdrawAmount)}`, count: dashboard.value.pendingWithdrawCount, unit: '笔', path: '/withdraw/audit', permission: 'finance:manage', tone: 'violet', icon: Money },
   { title: '待结算奖金', description: `待结算金额 ¥${money(dashboard.value.unsettledCommission)}`, count: dashboard.value.unsettledCommissionCount, unit: '笔', path: '/commission/settle', permission: 'commission:manage', tone: 'amber', icon: Coin },
   { title: '待转化会员', description: '已注册但尚未成为正式会员', count: dashboard.value.pendingMemberCount, unit: '人', path: '/members/list', permission: 'shop:member', tone: 'cyan', icon: User },
 ])
 const visibleTasks = computed(() => taskItems.value.filter((item) => store.hasPermission(item.permission)))
 const totalTaskCount = computed(() => visibleTasks.value.reduce((total, item) => total + Number(item.count || 0), 0))
+const hasDashboardContent = computed(() => canReadFinance.value || canReadMembers.value
+  || canReadProducts.value || visibleTasks.value.length > 0)
 
 const riskAlerts = computed(() => {
   const profitRisk = Number(dashboard.value.totalProfitAmount || 0) < 0
@@ -261,10 +267,12 @@ const riskAlerts = computed(() => {
   const hasProducts = (dashboard.value.productRanking || []).length > 0
   const lowStockCount = Number(dashboard.value.lowStockCount || 0)
   return [
-    { title: '经营利润', description: profitRisk ? '累计利润为负，请核对成本与拨出' : '资金收入与拨出状态正常', status: profitRisk ? '需关注' : '正常', state: profitRisk ? 'warning' : 'healthy', icon: Wallet },
-    { title: '区域排行', description: hasRegionOrders ? '区域有效订单量已同步' : '暂无有效区域订单数据', status: hasRegionOrders ? '正常' : '待沉淀', state: hasRegionOrders ? 'healthy' : 'notice', icon: MapLocation },
-    { title: '库存预警', description: lowStockCount > 0 ? `${count(lowStockCount)} 个商品或SKU低于安全库存` : '商品库存状态正常', status: lowStockCount > 0 ? '需处理' : '正常', state: lowStockCount > 0 ? 'warning' : 'healthy', icon: WarningFilled },
-    { title: '商品数据', description: hasProducts ? '商品成交价值数据已同步' : '暂无已支付商品成交数据', status: hasProducts ? '正常' : '待沉淀', state: hasProducts ? 'healthy' : 'notice', icon: Goods },
+    ...(canReadFinance.value ? [{ title: '经营利润', description: profitRisk ? '累计利润为负，请核对成本与拨出' : '资金收入与拨出状态正常', status: profitRisk ? '需关注' : '正常', state: profitRisk ? 'warning' : 'healthy', icon: Wallet }] : []),
+    ...(canReadMembers.value ? [{ title: '区域排行', description: hasRegionOrders ? '区域有效订单量已同步' : '暂无有效区域订单数据', status: hasRegionOrders ? '正常' : '待沉淀', state: hasRegionOrders ? 'healthy' : 'notice', icon: MapLocation }] : []),
+    ...(canReadProducts.value ? [
+      { title: '库存预警', description: lowStockCount > 0 ? `${count(lowStockCount)} 个商品或SKU低于安全库存` : '商品库存状态正常', status: lowStockCount > 0 ? '需处理' : '正常', state: lowStockCount > 0 ? 'warning' : 'healthy', icon: WarningFilled },
+      { title: '商品数据', description: hasProducts ? '商品成交价值数据已同步' : '暂无已支付商品成交数据', status: hasProducts ? '正常' : '待沉淀', state: hasProducts ? 'healthy' : 'notice', icon: Goods },
+    ] : []),
   ]
 })
 

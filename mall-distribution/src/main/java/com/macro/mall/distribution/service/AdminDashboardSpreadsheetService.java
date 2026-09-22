@@ -32,12 +32,18 @@ public class AdminDashboardSpreadsheetService {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             CellStyle headerStyle = headerStyle(workbook);
             writeSummary(workbook, headerStyle, data);
-            writeTrend(workbook, headerStyle, data.getPerformanceTrend(), "近30天销售趋势");
-            writeTrend(workbook, headerStyle, data.getMonthlyPerformanceTrend(), "月度销售趋势");
-            writeProducts(workbook, headerStyle, data.getProductRanking());
-            writeRegions(workbook, headerStyle, data.getMemberRegionDistribution());
-            writeLevels(workbook, headerStyle, data.getLevelDistribution());
-            writeLowStock(workbook, headerStyle, data.getLowStockProducts());
+            // null 表示当前管理员未获授权；空列表表示已授权但当前没有数据。导出不得用空表或 0 值
+            // 伪装未授权字段，否则会扩大 dashboard JSON 已执行的数据最小披露边界。
+            if (data.getPerformanceTrend() != null) {
+                writeTrend(workbook, headerStyle, data.getPerformanceTrend(), "近30天销售趋势");
+            }
+            if (data.getMonthlyPerformanceTrend() != null) {
+                writeTrend(workbook, headerStyle, data.getMonthlyPerformanceTrend(), "月度销售趋势");
+            }
+            if (data.getProductRanking() != null) writeProducts(workbook, headerStyle, data.getProductRanking());
+            if (data.getMemberRegionDistribution() != null) writeRegions(workbook, headerStyle, data.getMemberRegionDistribution());
+            if (data.getLevelDistribution() != null) writeLevels(workbook, headerStyle, data.getLevelDistribution());
+            if (data.getLowStockProducts() != null) writeLowStock(workbook, headerStyle, data.getLowStockProducts());
             workbook.write(outputStream);
         }
     }
@@ -47,18 +53,24 @@ public class AdminDashboardSpreadsheetService {
         writeHeader(sheet, headerStyle, "指标", "数值", "说明");
         int row = 1;
         row = summaryRow(sheet, row, "报表生成时间", DATE_TIME.format(LocalDateTime.now()), "导出时的实时经营快照");
-        row = summaryRow(sheet, row, "累计销售额", money(data.getTotalSalesAmount()), "历史有效成交");
-        row = summaryRow(sheet, row, "本月销售额", money(data.getMonthSalesAmount()), "本自然月累计");
-        row = summaryRow(sheet, row, "今日销售额", money(data.getTodaySalesAmount()), "当日有效成交");
-        row = summaryRow(sheet, row, "累计收款", money(data.getTotalReceiptAmount()), "有效资金收入");
-        row = summaryRow(sheet, row, "累计支出", money(data.getTotalPayoutAmount()), "成本、奖金及其他有效支出");
-        row = summaryRow(sheet, row, "累计利润", money(data.getTotalProfitAmount()), "累计收款减累计支出");
-        row = summaryRow(sheet, row, "利润率", percent(data.getProfitRate()), "累计利润 / 累计收款");
-        row = summaryRow(sheet, row, "注册会员", value(data.getRegisteredMemberCount()), "商城注册账号数");
-        row = summaryRow(sheet, row, "有效会员", value(data.getValidMemberCount()), "已满足当前会员有效条件");
-        row = summaryRow(sheet, row, "本月新增会员", value(data.getMonthNewMemberCount()), "本自然月新增");
-        row = summaryRow(sheet, row, "待发放奖金", money(data.getUnsettledCommission()), value(data.getUnsettledCommissionCount()) + " 笔");
-        summaryRow(sheet, row, "待审核提现", money(data.getPendingWithdrawAmount()), value(data.getPendingWithdrawCount()) + " 笔");
+        if (data.getTotalSalesAmount() != null) {
+            row = summaryRow(sheet, row, "累计销售额", money(data.getTotalSalesAmount()), "历史有效成交");
+            row = summaryRow(sheet, row, "本月销售额", money(data.getMonthSalesAmount()), "本自然月累计");
+            row = summaryRow(sheet, row, "今日销售额", money(data.getTodaySalesAmount()), "当日有效成交");
+            row = summaryRow(sheet, row, "累计收款", money(data.getTotalReceiptAmount()), "有效资金收入");
+            row = summaryRow(sheet, row, "累计支出", money(data.getTotalPayoutAmount()), "成本、奖金及其他有效支出");
+            row = summaryRow(sheet, row, "累计利润", money(data.getTotalProfitAmount()), "累计收款减累计支出");
+            row = summaryRow(sheet, row, "利润率", percent(data.getProfitRate()), "累计利润 / 累计收款");
+            row = summaryRow(sheet, row, "待审核提现", money(data.getPendingWithdrawAmount()), value(data.getPendingWithdrawCount()) + " 笔");
+        }
+        if (data.getRegisteredMemberCount() != null) {
+            row = summaryRow(sheet, row, "注册会员", value(data.getRegisteredMemberCount()), "商城注册账号数");
+            row = summaryRow(sheet, row, "有效会员", value(data.getValidMemberCount()), "已满足当前会员有效条件");
+            row = summaryRow(sheet, row, "本月新增会员", value(data.getMonthNewMemberCount()), "本自然月新增");
+        }
+        if (data.getUnsettledCommission() != null) {
+            summaryRow(sheet, row, "待发放奖金", money(data.getUnsettledCommission()), value(data.getUnsettledCommissionCount()) + " 笔");
+        }
         setWidths(sheet, 24, 22, 42);
     }
 

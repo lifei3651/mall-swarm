@@ -18,13 +18,13 @@
             <el-option label="账号禁用" :value="0" />
           </el-select>
         </el-form-item>
-        <el-form-item label="会员身份">
+        <el-form-item v-if="canManageDistribution" label="会员身份">
           <el-select v-model="query.promotionActivated" clearable placeholder="全部" style="width: 140px" @change="handleSearch">
             <el-option label="已进入奖金体系" :value="1" />
             <el-option label="未进入奖金体系" :value="0" />
           </el-select>
         </el-form-item>
-        <el-form-item label="卡级">
+        <el-form-item v-if="canManageDistribution" label="卡级">
           <el-select v-model="query.agentLevel" clearable placeholder="全部" style="width: 130px" @change="handleSearch">
             <el-option v-for="item in levels" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
@@ -57,7 +57,7 @@
           <span v-else class="sub">创始会员 / 无邀请人</span>
         </template>
       </el-table-column>
-      <el-table-column label="会员卡级" width="105">
+      <el-table-column v-if="canManageDistribution" label="会员卡级" width="105">
         <template #default="{ row }">
           <template v-if="row.promotionActivated">
             <el-tag :type="row.agentStatus === 1 ? 'primary' : 'danger'">{{ row.agentLevelName || levelName(row.agentLevel) }}</el-tag>
@@ -66,13 +66,13 @@
           <el-tag v-else type="info">未进入体系</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="当前余额" width="120" align="right">
+      <el-table-column v-if="canReadFinance" label="当前余额" width="120" align="right">
         <template #default="{ row }">¥{{ money(row.availableBalance) }}</template>
       </el-table-column>
-      <el-table-column label="待结算奖金" width="120" align="right">
+      <el-table-column v-if="canManageCommission" label="待结算奖金" width="120" align="right">
         <template #default="{ row }">¥{{ money(row.unsettledCommission) }}</template>
       </el-table-column>
-      <el-table-column label="团队总业绩" width="125" align="right">
+      <el-table-column v-if="canManageDistribution" label="团队总业绩" width="125" align="right">
         <template #default="{ row }">¥{{ money(row.teamPerformance) }}</template>
       </el-table-column>
       <el-table-column label="账号状态" width="105">
@@ -166,16 +166,16 @@
               <el-descriptions-item label="邀请人会员名称">{{ currentMember.inviterUserId ? inviterDisplayName(currentMember) : '无' }}</el-descriptions-item>
               <el-descriptions-item label="邀请人手机号">{{ currentMember.inviterPhone || '-' }}</el-descriptions-item>
               <el-descriptions-item label="账号状态">{{ accountStatusName(currentMember) }}</el-descriptions-item>
-              <el-descriptions-item label="推广资格">{{ currentMember.promotionActivated ? '已进入奖金体系' : '尚未进入奖金体系' }}</el-descriptions-item>
-              <el-descriptions-item label="当前卡级">{{ currentMember.promotionActivated ? levelName(currentMember.agentLevel) : '-' }}</el-descriptions-item>
-              <el-descriptions-item label="推广线上级">{{ currentMember.parentName || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="余额">¥{{ money(balanceOf(profile.assetAccounts)) }}</el-descriptions-item>
-              <el-descriptions-item label="待结算奖金">¥{{ money(profile.account?.unsettledCommission) }}</el-descriptions-item>
-              <el-descriptions-item label="累计有效件数">{{ currentMember.totalOrders || 0 }}</el-descriptions-item>
-              <el-descriptions-item label="团队业绩">{{ money(profile.performance?.teamPerformance) }}</el-descriptions-item>
+              <el-descriptions-item v-if="canManageDistribution" label="推广资格">{{ currentMember.promotionActivated ? '已进入奖金体系' : '尚未进入奖金体系' }}</el-descriptions-item>
+              <el-descriptions-item v-if="canManageDistribution" label="当前卡级">{{ currentMember.promotionActivated ? levelName(currentMember.agentLevel) : '-' }}</el-descriptions-item>
+              <el-descriptions-item v-if="canManageDistribution" label="推广线上级">{{ currentMember.parentName || '-' }}</el-descriptions-item>
+              <el-descriptions-item v-if="canReadFinance" label="余额">¥{{ money(balanceOf(profile.assetAccounts)) }}</el-descriptions-item>
+              <el-descriptions-item v-if="canManageCommission" label="待结算奖金">¥{{ money(profile.account?.unsettledCommission) }}</el-descriptions-item>
+              <el-descriptions-item v-if="canManageDistribution" label="累计有效件数">{{ currentMember.totalOrders || 0 }}</el-descriptions-item>
+              <el-descriptions-item v-if="canManageDistribution" label="团队业绩">{{ money(profile.performance?.teamPerformance) }}</el-descriptions-item>
             </el-descriptions>
 
-            <el-card v-if="profile.migrationBaseline" class="block migration-card" shadow="never">
+            <el-card v-if="canManageDistribution && profile.migrationBaseline" class="block migration-card" shadow="never">
               <template #header>外部团队平移期初数据</template>
               <el-descriptions :column="3" border>
                 <el-descriptions-item label="原平台会员编号">{{ profile.migrationBaseline.externalMemberCode }}</el-descriptions-item>
@@ -189,7 +189,7 @@
               <el-alert class="baseline-note" title="以上是原平台带入的期初基线，不补发历史奖金；切换后的新订单按当前规则计算。" type="info" :closable="false" />
             </el-card>
 
-            <el-card class="block" shadow="never">
+            <el-card v-if="canViewOrders" class="block" shadow="never">
               <template #header>收货地址</template>
               <el-table :data="profile.addresses || []" size="small" style="width: 100%" empty-text="该会员暂未添加收货地址">
                 <el-table-column prop="receiverName" label="收货人" width="120" />
@@ -206,7 +206,7 @@
                 <el-table-column label="订单实付金额" width="125"><template #default="{ row }">¥{{ money(row.order?.payAmount) }}</template></el-table-column>
                 <el-table-column label="订单状态" width="100"><template #default="{ row }"><el-tag :type="orderTag(row)">{{ orderStatus(row) }}</el-tag></template></el-table-column>
                 <el-table-column label="商品明细" min-width="220"><template #default="{ row }">{{ (row.items || []).map((item) => `${item.productName} x${item.quantity}`).join('，') || '—' }}</template></el-table-column>
-                <el-table-column label="售后申请数" width="110"><template #default="{ row }">{{ row.afterSales?.length || 0 }}</template></el-table-column>
+                <el-table-column v-if="canHandleAfterSale" label="售后申请数" width="110"><template #default="{ row }">{{ row.afterSales?.length || 0 }}</template></el-table-column>
               </el-table>
             </el-card>
           </el-tab-pane>
@@ -446,6 +446,9 @@ const canManageDistribution = store.hasPermission('distribution:manage')
 const canApplyLineChange = store.hasPermission('line-change:apply')
 const canManageAssets = store.hasPermission('finance:manage')
 const canReadFinance = store.hasPermission('finance:read')
+const canManageCommission = store.hasPermission('commission:manage')
+const canViewOrders = store.hasPermission('shop:order')
+const canHandleAfterSale = store.hasPermission('shop:aftersale')
 const profileLoading = ref(false)
 const profileVisible = ref(false)
 const profileMode = ref('view')

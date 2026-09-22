@@ -531,7 +531,7 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 | `GET /shop/admin/merchant-product-reviews` | `status/keyword/pageNum/pageSize` | 分页审核记录 | `shop:product-review`；待审核优先，返回提交版本、销售价和结算价 |
 | `PUT /shop/admin/merchant-product-reviews/{id}/decision` | `approved`、`remark` | 审核记录 | `shop:product-review`；通过时原子校验版本并自动上架，驳回保持下架且原因必填，终态不可重复处理 |
 
-后台账号新增可选 `merchantId`。绑定商户的账号只允许 `admin:read,shop:product,finance:read,finance:manage`；最后两个权限只用于本商户货款读取和发起提现，安全拦截器仅放行对应 GET 与精确的提现申请 POST，服务层再以会话 `merchantId` 覆盖请求参数。商户账号不能审核/打款、冻结保证金或访问其他商户。商品列表自动追加 `merchant_id` 条件，详情和写操作再次校验归属。商户商品状态为 `DRAFT/PENDING/APPROVED/REJECTED`，只有 `APPROVED` 可上架。上架商品先下架才能修改；保存修改后回到 `DRAFT`。字段名 `costAmount` 为兼容历史数据库和订单快照继续保留，对商户业务统一解释和展示为“结算价”。
+后台账号新增可选 `merchantId`。绑定商户的员工账号只允许 `admin:read,shop:product,shop:order,shop:aftersale,finance:read,finance:manage`，商户负责人可额外拥有 `merchant:staff-manage`；财务权限只用于本商户货款读取和发起提现，订单/售后权限只用于本商户履约与正常售后。安全拦截器只放行精确工作台路由，服务层再以会话 `merchantId` 覆盖或校验请求参数。商户账号不能执行平台审核/打款、冻结保证金、平台取消/人工退款、查看团队奖金，不能上传平台品牌文化素材或访问其他商户。商品、订单、售后和资金查询自动追加商户范围，详情和写操作再次校验归属。商户商品状态为 `DRAFT/PENDING/APPROVED/REJECTED`，只有 `APPROVED` 可上架。上架商品先下架才能修改；保存修改后回到 `DRAFT`。字段名 `costAmount` 为兼容历史数据库和订单快照继续保留，对商户业务统一解释和展示为“结算价”。
 
 商户货款在订单支付成功后按订单项 `costAmount × quantity` 创建且只创建一次。下单时把商户默认或商品覆盖的等待天数锁入订单项，支付入账时复制到结算明细；确认收货事务内将 `eligibleTime=max(receiveTime, afterSaleDeadline)+settlementDelayDays` 固化。定时任务只选择真正到期、订单已完成且无进行中售后的记录释放为 `AVAILABLE`，不会被队列前方的长期等待或在途售后记录阻塞；迁移前历史待结算记录在任务运行时自动补齐。售后按退款数量和原成本快照冲回：待结算直接减少，已可用先扣可用余额，不足部分记入 `debtAmount`，后续新货款释放时优先抵扣欠款。
 
@@ -605,17 +605,17 @@ OpenAPI JSON: http://127.0.0.1:8086/v3/api-docs
 - 复购商品使用独立渠道、价格、PV、限购和 SKU 覆盖配置。
 - 复购只支持独立直接结算，不进入普通购物车，不允许混单。
 - 准入策略支持完成首单会员、代理及以上、全部注册会员。
-- `NONE` 不产生奖金；`STANDARD` 沿用普通奖金；`CUSTOM` 进入客户定制扩展点。
+- `NONE` 不产生奖金；`STANDARD` 沿用已启用的标准奖金；`CUSTOM` 仅为历史兼容预留，当前界面不开放配置，未完成独立规则和验收前不得启用。
 - 新增客户结算模式时，应实现独立策略标识、配置版本、订单快照、计算服务、冲销逻辑、审计视图和模拟/回归用例，禁止直接改写历史普通订单规则。
 
-### 25.1 多商户、报单区与团队奖金边界
+### 25.1 多商户、销售渠道与团队奖金边界
 
 - 一个商品最多绑定一个商户；购物车允许同时结算平台自营和多个商户商品，但服务端必须按 `merchant_id` 拆成独立履约子订单，并通过同一支付父交易完成一次付款。活动订单仍按各自业务规则限制混单。
-- 销售渠道由 `normal_sale_enabled`、`repurchase_sale_enabled`、`enrollment_sale_enabled` 三个开关表达，分别对应普通商城、复购区和报单区。
-- `team_bonus_mode=INHERIT` 沿用历史业务模式判断；`NONE` 明确不发团队奖；`STANDARD` 使用标准团队奖金；`CUSTOM` 只预留扩展标记，策略未配置前必须失败关闭。
-- 商户商品使用 `STANDARD` 时不能开启普通商城渠道，只能放在复购区或报单区，避免面向公众的普通购物意外进入团队奖金链路。
+- 当前公开产品只展示并允许“普通商城”和“复购区”。`normal_sale_enabled` 与 `repurchase_sale_enabled` 继续表达这两个渠道；历史字段 `enrollment_sale_enabled` 仅为数据库兼容保留，服务端保存时强制关闭，界面、错误提示和运营说明不得再展示“报单区”。
+- `team_bonus_mode` 的历史取值继续用于兼容已有快照；当前平台自营商品按订单渠道规则处理，商户商品固定不参与团队奖，未开放的 `CUSTOM` 不得作为可配置能力或发布完成项。
+- 普通商城和复购区的资格、价格、PV、奖金及冲销分别按各自已启用规则执行，不能通过历史字段绕过前台入口和服务端校验。
 - 奖金计算只汇总允许发团队奖的订单项金额；商户应结成本与团队奖金分别建账，退款时分别冲回，不能用商户货款代替奖金资金池。
-- 当前商户通过绑定 `merchant_id` 的受限后台账号维护本商户商品和私有服务地址、查看货款并申请提现；已实现服务端归属隔离、平台地址显式共享和跨商户越权回归。自助订单发货仍未开放，继续由平台后台处理。
+- 当前商户通过绑定 `merchant_id` 的受限后台账号维护本商户商品和私有服务地址、查看本商户订单、执行发货与正常售后、查看货款并申请提现；服务端继续校验归属并拒绝跨商户 ID。父交易汇总、平台取消、后台人工退款、团队奖金和平台财务处理仍只允许平台账号。具体可用动作同时受 `shop:order`、`shop:aftersale`、`finance:read`、`finance:manage` 授权约束。
 
 ### 26. 奖金、业绩和资金
 

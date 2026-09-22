@@ -105,7 +105,7 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
                     || path.equals("/distribution/merchants/current-profile")
                     || path.startsWith("/shop/admin/products")
                     || path.startsWith("/shop/admin/skus")
-                    || path.startsWith("/shop/admin/media")) return true;
+                    || path.equals("/shop/admin/media/images")) return true;
             if (path.startsWith("/distribution/merchant-finance")) {
                 return HttpMethod.GET.matches(method)
                         || (HttpMethod.POST.matches(method)
@@ -117,6 +117,7 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             if (path.startsWith("/shop/admin/service-tickets")) {
                 return HttpMethod.GET.matches(method) || HttpMethod.POST.matches(method);
             }
+            if (path.equals("/shop/admin/wechat-express/options")) return HttpMethod.GET.matches(method);
             if (path.startsWith("/shop/admin/orders")) {
                 if (HttpMethod.GET.matches(method)) return true;
                 if (HttpMethod.POST.matches(method)
@@ -130,7 +131,8 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             if (path.startsWith("/shop/admin/after-sales")) {
                 return HttpMethod.GET.matches(method) || (HttpMethod.PUT.matches(method)
                         && (path.matches("/shop/admin/after-sales/[^/]+/audit")
-                        || path.matches("/shop/admin/after-sales/[^/]+/return-received")));
+                        || path.matches("/shop/admin/after-sales/[^/]+/return-received")
+                        || path.matches("/shop/admin/after-sales/[^/]+/exchange-shipment")));
             }
             return HttpMethod.GET.matches(method) && (path.startsWith("/shop/admin/categories")
                     || path.startsWith("/shop/admin/product-settings")

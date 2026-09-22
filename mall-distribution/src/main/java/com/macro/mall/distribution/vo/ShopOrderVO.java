@@ -57,6 +57,7 @@ public class ShopOrderVO implements Serializable {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private ShopOrderIncomeVO memberIncome;
 
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<DmsShopAfterSale> afterSales;
 
     /** 已完成订单中尚未评价的商品明细数量。 */

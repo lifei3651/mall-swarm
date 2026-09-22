@@ -214,10 +214,15 @@
                ) THEN 1 ELSE 0 END), 0) AS pending_shipment,
                0 AS pending_receipt,
                0 AS pending_review,
+               <choose>
+                 <when test="includeAfterSales">
                COALESCE(SUM(CASE WHEN EXISTS (
                    SELECT 1 FROM dms_shop_after_sale sale
                    WHERE sale.order_id = o.id AND sale.status NOT IN (1, 2, 3)
                ) THEN 1 ELSE 0 END), 0) AS after_sale
+                 </when>
+                 <otherwise>0 AS after_sale</otherwise>
+               </choose>
         FROM dms_shop_order o
         WHERE COALESCE(o.tenant_id, 1) = #{tenantId}
         <if test="merchantId != null">AND o.merchant_id=#{merchantId}</if>
@@ -245,11 +250,13 @@
           AND profile_order.pay_time IS NOT NULL
           AND (
               profile_order.status IN (1, 2, 3)
+              <if test="includeAfterSales">
               OR EXISTS (
                   SELECT 1
                   FROM dms_shop_after_sale profile_sale
                   WHERE profile_sale.order_id = profile_order.id
               )
+              </if>
           )
         ORDER BY profile_order.create_time DESC
     </select>

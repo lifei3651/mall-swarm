@@ -13,6 +13,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class AdminDashboardSpreadsheetServiceTest {
 
@@ -25,6 +26,11 @@ class AdminDashboardSpreadsheetServiceTest {
         dashboard.setRegisteredMemberCount(32L);
         dashboard.setPerformanceTrend(List.of(
                 new DashboardTrendVO(LocalDate.of(2026, 8, 11), new BigDecimal("88.00"))));
+        dashboard.setMonthlyPerformanceTrend(List.of());
+        dashboard.setProductRanking(List.of());
+        dashboard.setMemberRegionDistribution(List.of());
+        dashboard.setLevelDistribution(List.of());
+        dashboard.setLowStockProducts(List.of());
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         service.write(dashboard, output);
@@ -40,6 +46,21 @@ class AdminDashboardSpreadsheetServiceTest {
             assertNotNull(workbook.getSheet("库存预警"));
             assertEquals("1234.56", workbook.getSheet("经营概览").getRow(2).getCell(1).getStringCellValue());
             assertEquals(88D, workbook.getSheet("近30天销售趋势").getRow(1).getCell(1).getNumericCellValue());
+        }
+    }
+
+    @Test
+    void exportOmitsUnauthorizedGroupsInsteadOfWritingZeroFilledSheets() throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        service.write(new AdminDashboardVO(), output);
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(output.toByteArray()))) {
+            assertEquals(1, workbook.getNumberOfSheets());
+            assertNotNull(workbook.getSheet("经营概览"));
+            assertEquals(1, workbook.getSheet("经营概览").getLastRowNum());
+            assertNull(workbook.getSheet("近30天销售趋势"));
+            assertNull(workbook.getSheet("商品销售排行"));
+            assertNull(workbook.getSheet("区域订单分布"));
         }
     }
 }

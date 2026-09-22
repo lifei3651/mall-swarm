@@ -649,11 +649,32 @@ public class ShopAuthServiceImpl implements ShopAuthService {
 
     @Override
     public List<AdminMemberVO> listAdminMembers(String keyword, Integer status,
-                                                 Integer promotionActivated, Integer agentLevel) {
-        List<AdminMemberVO> members = memberDao.selectAdminList(keyword, status, promotionActivated, agentLevel);
+                                                 Integer promotionActivated, Integer agentLevel,
+                                                 boolean includeFinance, boolean includeCommission,
+                                                 boolean includeDistribution) {
+        List<AdminMemberVO> members = memberDao.selectAdminList(keyword, status,
+                includeDistribution ? promotionActivated : null,
+                includeDistribution ? agentLevel : null,
+                includeFinance, includeCommission, includeDistribution);
         members.forEach(member -> {
-            AgentLevelEnum level = AgentLevelEnum.getByValue(member.getAgentLevel());
-            member.setAgentLevelName(level == null ? null : level.getName());
+            if (includeDistribution) {
+                AgentLevelEnum level = AgentLevelEnum.getByValue(member.getAgentLevel());
+                member.setAgentLevelName(level == null ? null : level.getName());
+            } else {
+                member.setPromotionActivated(null);
+                member.setInviteCode(null);
+                member.setAgentId(null);
+                member.setAgentCode(null);
+                member.setAgentLevel(null);
+                member.setAgentLevelName(null);
+                member.setAgentStatus(null);
+                member.setParentName(null);
+                member.setHasPendingLineChange(null);
+                member.setTeamPerformance(null);
+                member.setTotalOrders(null);
+            }
+            if (!includeFinance) member.setAvailableBalance(null);
+            if (!includeCommission) member.setUnsettledCommission(null);
             member.setPaymentPasswordLocked(member.getPaymentPasswordLockTime() != null
                     && member.getPaymentPasswordLockTime().plusMinutes(30).isAfter(LocalDateTime.now()));
         });

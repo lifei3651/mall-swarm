@@ -34,7 +34,10 @@ public interface DmsShopMemberDao {
     List<AdminMemberVO> selectAdminList(@Param("keyword") String keyword,
                                         @Param("status") Integer status,
                                         @Param("promotionActivated") Integer promotionActivated,
-                                        @Param("agentLevel") Integer agentLevel);
+                                        @Param("agentLevel") Integer agentLevel,
+                                        @Param("includeFinance") boolean includeFinance,
+                                        @Param("includeCommission") boolean includeCommission,
+                                        @Param("includeDistribution") boolean includeDistribution);
 
     List<DmsShopMember> selectByInviterId(@Param("inviterId") Long inviterId);
 

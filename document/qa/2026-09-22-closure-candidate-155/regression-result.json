@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-09-22T10:36:28+08:00",
+  "version": "1.0.155",
+  "buildId": "20260922-closure-1.0.155",
+  "gitCommit": "930598092daa1ef5dd18d415af8d0364cb46b7c1",
+  "sourceTree": "603da87084289512b2db569fed413d2ef934587f",
+  "evidenceStages": {
+    "code": "verified",
+    "test": "verified",
+    "server": "not-run",
+    "wechat": "preflight-only-not-uploaded",
+    "realAcceptance": "not-complete"
+  },
+  "tests": {
+    "backendCommon": { "tests": 17, "failures": 0, "errors": 0, "skipped": 0 },
+    "backendDistribution": { "tests": 765, "failures": 0, "errors": 0, "skipped": 0 },
+    "admin": { "files": 45, "tests": 208, "failures": 0 },
+    "miniProgram": { "files": 44, "tests": 516, "failures": 0 },
+    "storefrontH5": { "files": 26, "tests": 179, "failures": 0 },
+    "releaseContracts": { "tests": 7, "failures": 0 },
+    "businessIndependentReview": { "tests": 58, "failures": 0 },
+    "targetedRegression": { "tests": 8, "failures": 0 }
+  },
+  "builds": {
+    "backend": "passed",
+    "admin": "passed",
+    "publicH5": "passed",
+    "teamH5": "passed",
+    "integratedH5": "passed"
+  },
+  "candidate": {
+    "path": "target/releases/lingqi-mall-1.0.155-93059809.tar.gz",
+    "bytes": 146843119,
+    "sha256": "406ffc1549e29ba5ed048a1573cc8b4fbdb89e504bb5d49f2d00964e7a1ae1a7",
+    "jarSha256": "2fe3a19b4970d4354350b295f5cec5abe0e5f07639096ae1c7ff609e362dc9ef",
+    "migrationCount": 41,
+    "localReadiness": "passed"
+  }
+}
+

@@ -60,6 +60,7 @@ import com.macro.mall.distribution.vo.ShopBrandCultureVO;
 import com.macro.mall.distribution.vo.FreightQuoteVO;
 import com.macro.mall.distribution.vo.PurchaseLimitCheckVO;
 import com.macro.mall.distribution.vo.DistributionSettingsVO;
+import com.macro.mall.distribution.vo.AdminMemberProfileVO;
 import com.macro.mall.distribution.util.MemberAccountUtils;
 import com.macro.mall.distribution.util.PhoneNumberUtils;
 import lombok.RequiredArgsConstructor;
@@ -1390,15 +1391,21 @@ public class ShopServiceImpl implements ShopService {
         fillMemberAccount(vo, order);
         vo.setItems(orderItemDao.selectByOrderId(orderId));
         fillShipments(vo, order);
-        if (currentAdminMerchantId() == null) {
+        if (currentAdminCanReadFinance()) {
             vo.setFinance(auditService.getOrderFinanceDetail(orderId).getFinance());
-        } else {
+        }
+        if (currentAdminMerchantId() != null) {
             vo.setMerchantFulfillmentAllowed(currentMerchantFulfillmentAllowed());
         }
-        vo.setAfterSales(hydrateAfterSales(afterSaleDao.selectByOrderId(orderId)));
+        if (AdminContext.get() == null || currentAdminCanHandleAfterSales()) {
+            vo.setAfterSales(hydrateAfterSales(afterSaleDao.selectByOrderId(orderId)));
+        } else {
+            vo.setAfterSales(Collections.emptyList());
+        }
         fillPendingReview(vo, order);
         fillAfterSaleWindow(vo, order);
         vo.setDisplayConfig(getDisplayConfig(order.getTenantId()));
+        sanitizeAdminOrder(vo, currentAdminCanReadFinance(), currentAdminCanViewIncentives());
         return vo;
     }
 
@@ -1495,7 +1502,6 @@ public class ShopServiceImpl implements ShopService {
             fillMemberAccount(vo, order);
             vo.setItems(orderItemDao.selectByOrderId(order.getId()));
             fillShipments(vo, order);
-            vo.setFinance(auditService.getOrderFinanceDetail(order.getId()).getFinance());
             vo.setAfterSales(hydrateAfterSales(afterSaleDao.selectByOrderId(order.getId())));
             fillPendingReview(vo, order);
             fillAfterSaleWindow(vo, order);
@@ -1540,20 +1546,31 @@ public class ShopServiceImpl implements ShopService {
             fillMemberAccount(vo, order);
             vo.setItems(orderItemDao.selectByOrderId(order.getId()));
             fillShipments(vo, order);
-            if (!merchantWorkspace) vo.setFinance(auditService.getOrderFinanceDetail(order.getId()).getFinance());
+            if (currentAdminCanReadFinance()) {
+                vo.setFinance(auditService.getOrderFinanceDetail(order.getId()).getFinance());
+            }
             if (merchantWorkspace) vo.setMerchantFulfillmentAllowed(merchantFulfillmentAllowed);
-            vo.setAfterSales(hydrateAfterSales(afterSaleDao.selectByOrderId(order.getId())));
+            if (currentAdminCanHandleAfterSales()) {
+                vo.setAfterSales(hydrateAfterSales(afterSaleDao.selectByOrderId(order.getId())));
+            } else {
+                vo.setAfterSales(Collections.emptyList());
+            }
             fillPendingReview(vo, order);
             fillAfterSaleWindow(vo, order);
             vo.setDisplayConfig(getDisplayConfig(order.getTenantId()));
+            sanitizeAdminOrder(vo, currentAdminCanReadFinance(), currentAdminCanViewIncentives());
             return vo;
         }).toList();
     }
 
     @Override
     public ShopOrderStatusSummaryVO getAdminOrderWorkSummary() {
-        ShopOrderStatusSummaryVO summary = orderDao.selectAdminWorkSummary(resolveTenantId(null), currentAdminMerchantId());
-        return summary == null ? new ShopOrderStatusSummaryVO() : summary;
+        boolean includeAfterSales = currentAdminCanHandleAfterSales();
+        ShopOrderStatusSummaryVO summary = orderDao.selectAdminWorkSummary(
+                resolveTenantId(null), currentAdminMerchantId(), includeAfterSales);
+        if (summary == null) summary = new ShopOrderStatusSummaryVO();
+        if (!includeAfterSales) summary.setAfterSale(0L);
+        return summary;
     }
 
     @Override
@@ -1580,12 +1597,14 @@ public class ShopServiceImpl implements ShopService {
                 .map(DmsShopOrder::getPayAmount)
                 .map(this::money)
                 .reduce(ZERO, BigDecimal::add));
-        detail.setRefundedAmount(children.stream()
-                .flatMap(child -> child.getAfterSales() == null ? java.util.stream.Stream.empty() : child.getAfterSales().stream())
-                .filter(sale -> Integer.valueOf(1).equals(sale.getStatus()))
-                .map(DmsShopAfterSale::getRefundAmount)
-                .map(this::money)
-                .reduce(ZERO, BigDecimal::add));
+        if (currentAdminCanHandleAfterSales()) {
+            detail.setRefundedAmount(children.stream()
+                    .flatMap(child -> child.getAfterSales() == null ? java.util.stream.Stream.empty() : child.getAfterSales().stream())
+                    .filter(sale -> Integer.valueOf(1).equals(sale.getStatus()))
+                    .map(DmsShopAfterSale::getRefundAmount)
+                    .map(this::money)
+                    .reduce(ZERO, BigDecimal::add));
+        }
         return detail;
     }
 
@@ -1595,6 +1614,10 @@ public class ShopServiceImpl implements ShopService {
         if (!java.util.Set.of("PENDING_PAYMENT", "PENDING_SHIPMENT", "SHIPPED", "AFTER_SALE", "COMPLETED", "REFUNDED")
                 .contains(normalized)) {
             Asserts.fail("订单状态筛选条件不正确");
+        }
+        if (java.util.Set.of("AFTER_SALE", "REFUNDED").contains(normalized)
+                && !currentAdminCanHandleAfterSales()) {
+            Asserts.fail("没有售后查看权限");
         }
         return normalized;
     }
@@ -2100,41 +2123,176 @@ public class ShopServiceImpl implements ShopService {
     }
 
     @Override
-    public ShopProfileVO getAdminProfile(DmsShopMember member) {
+    public AdminMemberProfileVO getAdminProfile(DmsShopMember member,
+                                                boolean includeOrders,
+                                                boolean includeAfterSales,
+                                                boolean includeFinance,
+                                                boolean includeCommission,
+                                                boolean includeDistribution) {
         if (member == null || member.getId() == null) {
             Asserts.fail("会员不存在");
         }
-        DmsAgent agent = agentDao.selectByUserId(member.getUserId());
-        LocalDate now = LocalDate.now();
-        ShopProfileVO vo = new ShopProfileVO();
-        vo.setMember(member);
-        vo.setAgent(agent);
-        vo.setAddresses(addressDao.selectByMemberId(member.getId()));
-        vo.setOrders(orderDao.selectPaidProfileOrdersByUserId(member.getUserId()).stream().map(order -> {
-            ShopOrderVO orderVO = new ShopOrderVO();
-            orderVO.setOrder(order);
-            fillMemberAccount(orderVO, order);
-            orderVO.setItems(orderItemDao.selectByOrderId(order.getId()));
-            fillShipments(orderVO, order);
-            orderVO.setFinance(auditService.getOrderFinanceDetail(order.getId()).getFinance());
-            orderVO.setAfterSales(hydrateAfterSales(afterSaleDao.selectByOrderId(order.getId())));
-            fillPendingReview(orderVO, order);
-            fillAfterSaleWindow(orderVO, order);
-            orderVO.setDisplayConfig(getDisplayConfig(order.getTenantId()));
-            return orderVO;
-        }).toList());
-        vo.setDisplayConfig(getDisplayConfig(resolveTenantId(null)));
-        if (agent == null) {
+        AdminMemberProfileVO vo = new AdminMemberProfileVO();
+        vo.setMember(adminMember(member));
+        List<DmsShopAddress> addresses = addressDao.selectByMemberId(member.getId());
+        vo.setAddresses((addresses == null ? List.<DmsShopAddress>of() : addresses).stream()
+                .map(this::adminAddress)
+                .toList());
+
+        DmsAgent agent = (includeDistribution || includeCommission || includeFinance)
+                ? agentDao.selectByUserId(member.getUserId()) : null;
+        if (includeDistribution && agent != null) {
+            LocalDate now = LocalDate.now();
+            vo.setAgent(adminAgent(agent));
+            vo.setCanViewTeamPerformance(true);
+            vo.setPerformance(performanceService.getPerformanceOverview(
+                    agent.getId(), now.withDayOfMonth(1), now));
+            vo.setMigrationBaseline(adminMigrationBaseline(
+                    migrationBaselineDao.selectByAgentId(agent.getId())));
+        } else if (includeDistribution) {
             vo.setCanViewTeamPerformance(false);
-            vo.setAssetAccounts(memberAssetService.listAccounts(null, member.getUserId()));
-            return vo;
         }
-        vo.setAccount(accountDao.selectByAgentId(agent.getId()));
-        vo.setMigrationBaseline(migrationBaselineDao.selectByAgentId(agent.getId()));
-        vo.setCanViewTeamPerformance(true);
-        vo.setPerformance(performanceService.getPerformanceOverview(agent.getId(), now.withDayOfMonth(1), now));
-        vo.setAssetAccounts(memberAssetService.listAccounts(agent.getId(), agent.getUserId()));
+        if (includeCommission && agent != null) {
+            vo.setAccount(adminCommission(accountDao.selectByAgentId(agent.getId())));
+        }
+        if (includeFinance) {
+            List<DmsMemberAssetAccount> accounts = memberAssetService.listAccounts(
+                    agent == null ? null : agent.getId(), member.getUserId());
+            vo.setAssetAccounts((accounts == null ? List.<DmsMemberAssetAccount>of() : accounts).stream()
+                    .map(this::adminAssetAccount)
+                    .toList());
+        }
+        if (includeOrders) {
+            List<DmsShopOrder> orders = orderDao.selectPaidProfileOrdersByUserId(
+                    member.getUserId(), includeAfterSales);
+            vo.setOrders((orders == null ? List.<DmsShopOrder>of() : orders).stream().map(order -> {
+                ShopOrderVO orderVO = new ShopOrderVO();
+                orderVO.setOrder(order);
+                fillMemberAccount(orderVO, order);
+                orderVO.setItems(orderItemDao.selectByOrderId(order.getId()));
+                fillShipments(orderVO, order);
+                if (includeFinance) {
+                    orderVO.setFinance(auditService.getOrderFinanceDetail(order.getId()).getFinance());
+                }
+                if (includeAfterSales) {
+                    orderVO.setAfterSales(hydrateAfterSales(afterSaleDao.selectByOrderId(order.getId())));
+                } else {
+                    orderVO.setAfterSales(Collections.emptyList());
+                }
+                sanitizeOrderFields(orderVO, includeFinance, includeCommission || includeDistribution);
+                return orderVO;
+            }).toList());
+        }
         return vo;
+    }
+
+    private AdminMemberProfileVO.Member adminMember(DmsShopMember source) {
+        AdminMemberProfileVO.Member target = new AdminMemberProfileVO.Member();
+        target.setId(source.getId());
+        target.setUserId(source.getUserId());
+        target.setPhone(source.getPhone());
+        target.setUsername(source.getUsername());
+        target.setNickname(source.getNickname());
+        target.setAvatarUrl(source.getAvatarUrl());
+        target.setInviterId(source.getInviterId());
+        target.setStatus(source.getStatus());
+        target.setLockTime(source.getLockTime());
+        target.setLastLoginTime(source.getLastLoginTime());
+        target.setCreateTime(source.getCreateTime());
+        return target;
+    }
+
+    private AdminMemberProfileVO.Address adminAddress(DmsShopAddress source) {
+        AdminMemberProfileVO.Address target = new AdminMemberProfileVO.Address();
+        target.setId(source.getId());
+        target.setReceiverName(source.getReceiverName());
+        target.setReceiverPhone(source.getReceiverPhone());
+        target.setProvince(source.getProvince());
+        target.setCity(source.getCity());
+        target.setDistrict(source.getDistrict());
+        target.setDetailAddress(source.getDetailAddress());
+        target.setIsDefault(source.getIsDefault());
+        return target;
+    }
+
+    private AdminMemberProfileVO.Agent adminAgent(DmsAgent source) {
+        AdminMemberProfileVO.Agent target = new AdminMemberProfileVO.Agent();
+        target.setId(source.getId());
+        target.setAgentCode(source.getAgentCode());
+        target.setAgentName(source.getAgentName());
+        target.setAgentLevel(source.getAgentLevel());
+        target.setParentId(source.getParentId());
+        target.setStatus(source.getStatus());
+        return target;
+    }
+
+    private AdminMemberProfileVO.Commission adminCommission(DmsAgentAccount source) {
+        if (source == null) return null;
+        AdminMemberProfileVO.Commission target = new AdminMemberProfileVO.Commission();
+        target.setTotalCommission(source.getTotalCommission());
+        target.setSettledCommission(source.getSettledCommission());
+        target.setUnsettledCommission(source.getUnsettledCommission());
+        target.setFrozenCommission(source.getFrozenCommission());
+        target.setTotalOrders(source.getTotalOrders());
+        target.setTotalTeamMembers(source.getTotalTeamMembers());
+        return target;
+    }
+
+    private AdminMemberProfileVO.AssetAccount adminAssetAccount(DmsMemberAssetAccount source) {
+        AdminMemberProfileVO.AssetAccount target = new AdminMemberProfileVO.AssetAccount();
+        target.setAssetCode(source.getAssetCode());
+        target.setAssetName(source.getAssetName());
+        target.setBalance(source.getBalance());
+        target.setWithdrawableBalance(source.getWithdrawableBalance());
+        target.setFrozenBalance(source.getFrozenBalance());
+        target.setTotalIn(source.getTotalIn());
+        target.setTotalOut(source.getTotalOut());
+        return target;
+    }
+
+    private AdminMemberProfileVO.MigrationBaseline adminMigrationBaseline(DmsMigrationBaseline source) {
+        if (source == null) return null;
+        AdminMemberProfileVO.MigrationBaseline target = new AdminMemberProfileVO.MigrationBaseline();
+        target.setBatchNo(source.getBatchNo());
+        target.setExternalMemberCode(source.getExternalMemberCode());
+        target.setHistoricalOrderCount(source.getHistoricalOrderCount());
+        target.setHistoricalPersonalPerformance(source.getHistoricalPersonalPerformance());
+        target.setHistoricalTeamPerformance(source.getHistoricalTeamPerformance());
+        target.setInitialLevel(source.getInitialLevel());
+        target.setCutoverTime(source.getCutoverTime());
+        return target;
+    }
+
+    private void sanitizeAdminOrder(ShopOrderVO vo, boolean includeFinance, boolean includeIncentives) {
+        if (AdminContext.get() == null) return;
+        sanitizeOrderFields(vo, includeFinance, includeIncentives);
+    }
+
+    private void sanitizeOrderFields(ShopOrderVO vo, boolean includeFinance, boolean includeIncentives) {
+        if (vo == null) return;
+        DmsShopOrder order = vo.getOrder();
+        if (order != null) {
+            if (!includeFinance) order.setTotalCost(null);
+            if (!includeIncentives) {
+                order.setAgentId(null);
+                order.setInviteCode(null);
+                order.setTotalPv(null);
+            }
+        }
+        if (vo.getItems() == null) return;
+        for (DmsShopOrderItem item : vo.getItems()) {
+            if (item == null) continue;
+            if (!includeFinance) {
+                item.setCostAmount(null);
+                item.setTotalCost(null);
+                item.setSettlementDelayDays(null);
+            }
+            if (!includeIncentives) {
+                item.setPvValue(null);
+                item.setTotalPv(null);
+                item.setTeamBonusMode(null);
+            }
+        }
     }
 
     private void validateSubmit(ShopOrderSubmitDTO dto) {
@@ -3081,6 +3239,22 @@ public class ShopServiceImpl implements ShopService {
 
     private Long currentAdminMerchantId() {
         return AdminContext.get() == null ? null : AdminContext.get().getMerchantId();
+    }
+
+    private boolean currentAdminCanReadFinance() {
+        DmsAdminUser current = AdminContext.get();
+        return current != null && adminAuthService.hasPermission(current, "finance:read");
+    }
+
+    private boolean currentAdminCanHandleAfterSales() {
+        DmsAdminUser current = AdminContext.get();
+        return current != null && adminAuthService.hasPermission(current, "shop:aftersale");
+    }
+
+    private boolean currentAdminCanViewIncentives() {
+        DmsAdminUser current = AdminContext.get();
+        return current != null && (adminAuthService.hasPermission(current, "commission:manage")
+                || adminAuthService.hasPermission(current, "distribution:manage"));
     }
 
     private boolean currentMerchantFulfillmentAllowed() {

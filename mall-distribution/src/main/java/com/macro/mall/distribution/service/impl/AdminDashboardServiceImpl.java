@@ -3,6 +3,8 @@ package com.macro.mall.distribution.service.impl;
 import com.macro.mall.distribution.dao.AdminDashboardDao;
 import com.macro.mall.distribution.enums.AgentLevelEnum;
 import com.macro.mall.distribution.service.AdminDashboardService;
+import com.macro.mall.distribution.service.AdminAuthService;
+import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.vo.AdminDashboardVO;
 import com.macro.mall.distribution.vo.DashboardFinanceSummaryVO;
 import com.macro.mall.distribution.vo.DashboardLevelCountVO;
@@ -27,6 +29,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AdminDashboardServiceImpl implements AdminDashboardService {
     private final AdminDashboardDao dashboardDao;
+    private final AdminAuthService adminAuthService;
 
     @Override
     public AdminDashboardVO getDashboard() {
@@ -41,6 +44,26 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         LocalDate monthlyTrendStart = today.withDayOfMonth(1).minusMonths(11);
 
         AdminDashboardVO vo = new AdminDashboardVO();
+        if (canReadMembers()) {
+            fillMemberData(vo, tenantId, monthStart, tomorrowStart);
+        }
+        if (canReadFinance()) {
+            fillFinanceData(vo, tenantId, today, todayStart, tomorrowStart, yesterdayStart, monthStart,
+                    last7DaysStart, trendStart, monthlyTrendStart);
+        }
+        if (canReadProducts()) {
+            fillProductData(vo, tenantId);
+        }
+        if (canManageCommissions()) {
+            vo.setUnsettledCommission(zero(dashboardDao.sumUnsettledCommission(tenantId)));
+            vo.setUnsettledCommissionCount(dashboardDao.countUnsettledCommission(tenantId));
+            vo.setLatestCommissions(dashboardDao.selectLatestCommissions(tenantId, 5));
+        }
+        return vo;
+    }
+
+    private void fillMemberData(AdminDashboardVO vo, Long tenantId, LocalDateTime monthStart,
+                                LocalDateTime tomorrowStart) {
         long registeredMembers = dashboardDao.countMembers();
         long validMembers = dashboardDao.countPromotionMembers();
         vo.setMemberCount(registeredMembers);
@@ -50,6 +73,30 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         vo.setPendingMemberCount(Math.max(registeredMembers - validMembers, 0));
         vo.setMonthNewMemberCount(dashboardDao.countNewMembers(monthStart, tomorrowStart));
 
+        List<DashboardRegionVO> regions = dashboardDao.selectMemberRegionDistribution(tenantId);
+        long addressedMembers = regions.stream()
+                .map(DashboardRegionVO::getMemberCount)
+                .filter(java.util.Objects::nonNull)
+                .mapToLong(Long::longValue)
+                .sum();
+        for (DashboardRegionVO region : regions) {
+            long regionMembers = region.getMemberCount() == null ? 0L : region.getMemberCount();
+            region.setPercentage(addressedMembers > 0
+                    ? BigDecimal.valueOf(regionMembers).multiply(BigDecimal.valueOf(100))
+                    .divide(BigDecimal.valueOf(addressedMembers), 2, RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO);
+        }
+        vo.setAddressedMemberCount(addressedMembers);
+        vo.setUnaddressedMemberCount(Math.max(registeredMembers - addressedMembers, 0));
+        vo.setMemberRegionDistribution(regions);
+        vo.setLevelDistribution(fillLevels(dashboardDao.selectLevelDistribution()));
+    }
+
+    private void fillFinanceData(AdminDashboardVO vo, Long tenantId, LocalDate today,
+                                 LocalDateTime todayStart, LocalDateTime tomorrowStart,
+                                 LocalDateTime yesterdayStart, LocalDateTime monthStart,
+                                 LocalDateTime last7DaysStart, LocalDate trendStart,
+                                 LocalDate monthlyTrendStart) {
         BigDecimal todaySales = zero(dashboardDao.sumSales(tenantId, todayStart, tomorrowStart));
         vo.setTotalSalesAmount(zero(dashboardDao.sumSales(tenantId, null, null)));
         vo.setMonthSalesAmount(zero(dashboardDao.sumSales(tenantId, monthStart, tomorrowStart)));
@@ -58,8 +105,6 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         vo.setTodayPerformance(todaySales);
         vo.setYesterdayPerformance(zero(dashboardDao.sumPerformance(tenantId, yesterdayStart, todayStart)));
 
-        vo.setUnsettledCommission(zero(dashboardDao.sumUnsettledCommission(tenantId)));
-        vo.setUnsettledCommissionCount(dashboardDao.countUnsettledCommission(tenantId));
         vo.setPendingWithdrawAmount(zero(dashboardDao.sumPendingWithdraw()));
         vo.setPendingWithdrawCount(dashboardDao.countPendingWithdraw());
         vo.setTotalWithdrawAmount(zero(dashboardDao.sumSuccessfulWithdraw(null, null)));
@@ -78,7 +123,16 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         vo.setProfitRate(receipts.compareTo(BigDecimal.ZERO) > 0
                 ? profit.divide(receipts, 4, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO);
+        vo.setPerformanceTrend(fillTrend(trendStart, today,
+                dashboardDao.selectPerformanceTrend(tenantId, trendStart.atStartOfDay(), tomorrowStart)));
+        vo.setMonthlyPerformanceTrend(fillMonthlyTrend(monthlyTrendStart, today.withDayOfMonth(1),
+                dashboardDao.selectMonthlyPerformanceTrend(tenantId, monthlyTrendStart.atStartOfDay(), tomorrowStart)));
+        var pendingWithdraws = dashboardDao.selectPendingWithdraws(5);
+        pendingWithdraws.forEach(row -> row.setAccountName(MemberAccountUtils.maskPersonName(row.getAccountName())));
+        vo.setPendingWithdraws(pendingWithdraws);
+    }
 
+    private void fillProductData(AdminDashboardVO vo, Long tenantId) {
         List<DashboardProductRankingVO> productRanking = dashboardDao.selectProductRanking(tenantId, 10);
         for (int index = 0; index < productRanking.size(); index++) {
             DashboardProductRankingVO row = productRanking.get(index);
@@ -88,34 +142,22 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         vo.setProductRanking(productRanking);
         vo.setLowStockCount(dashboardDao.countLowStockProducts(tenantId));
         vo.setLowStockProducts(dashboardDao.selectLowStockProducts(tenantId, 6));
+    }
 
-        List<DashboardRegionVO> regions = dashboardDao.selectMemberRegionDistribution(tenantId);
-        long addressedMembers = regions.stream()
-                .map(DashboardRegionVO::getMemberCount)
-                .filter(java.util.Objects::nonNull)
-                .mapToLong(Long::longValue)
-                .sum();
-        for (DashboardRegionVO region : regions) {
-            long regionMembers = region.getMemberCount() == null ? 0L : region.getMemberCount();
-            region.setPercentage(addressedMembers > 0
-                    ? BigDecimal.valueOf(regionMembers).multiply(BigDecimal.valueOf(100))
-                    .divide(BigDecimal.valueOf(addressedMembers), 2, RoundingMode.HALF_UP)
-                    : BigDecimal.ZERO);
-        }
-        vo.setAddressedMemberCount(addressedMembers);
-        vo.setUnaddressedMemberCount(Math.max(registeredMembers - addressedMembers, 0));
-        vo.setMemberRegionDistribution(regions);
+    private boolean canReadFinance() {
+        return adminAuthService.hasPermission(AdminContext.get(), "finance:read");
+    }
 
-        vo.setPerformanceTrend(fillTrend(trendStart, today,
-                dashboardDao.selectPerformanceTrend(tenantId, trendStart.atStartOfDay(), tomorrowStart)));
-        vo.setMonthlyPerformanceTrend(fillMonthlyTrend(monthlyTrendStart, today.withDayOfMonth(1),
-                dashboardDao.selectMonthlyPerformanceTrend(tenantId, monthlyTrendStart.atStartOfDay(), tomorrowStart)));
-        vo.setLevelDistribution(fillLevels(dashboardDao.selectLevelDistribution()));
-        var pendingWithdraws = dashboardDao.selectPendingWithdraws(5);
-        pendingWithdraws.forEach(row -> row.setAccountName(MemberAccountUtils.maskPersonName(row.getAccountName())));
-        vo.setPendingWithdraws(pendingWithdraws);
-        vo.setLatestCommissions(dashboardDao.selectLatestCommissions(tenantId, 5));
-        return vo;
+    private boolean canReadMembers() {
+        return adminAuthService.hasPermission(AdminContext.get(), "shop:member");
+    }
+
+    private boolean canReadProducts() {
+        return adminAuthService.hasPermission(AdminContext.get(), "shop:product");
+    }
+
+    private boolean canManageCommissions() {
+        return adminAuthService.hasPermission(AdminContext.get(), "commission:manage");
     }
 
     private List<DashboardTrendVO> fillTrend(LocalDate start, LocalDate end, List<DashboardTrendVO> rows) {

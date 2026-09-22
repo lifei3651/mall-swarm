@@ -50,6 +50,7 @@ import com.macro.mall.distribution.vo.ShopLegalConfigVO;
 import com.macro.mall.distribution.vo.FreightQuoteVO;
 import com.macro.mall.distribution.vo.PurchaseLimitCheckVO;
 import com.macro.mall.distribution.vo.AdminMemberVO;
+import com.macro.mall.distribution.vo.AdminMemberProfileVO;
 import com.macro.mall.distribution.vo.AgentInfoVO;
 import com.macro.mall.distribution.vo.OrderShipmentImportResultVO;
 import com.macro.mall.distribution.vo.FlashSaleActivityVO;
@@ -753,14 +754,26 @@ public class ShopController {
                                                                 @RequestParam(defaultValue = "1") Integer pageNum,
                                                                 @RequestParam(defaultValue = "10") Integer pageSize) {
         PageHelper.startPage(pageNum, pageSize);
+        boolean includeFinance = adminAuthService.hasPermission(AdminContext.get(), "finance:read");
+        boolean includeCommission = adminAuthService.hasPermission(AdminContext.get(), "commission:manage");
+        boolean includeDistribution = adminAuthService.hasPermission(AdminContext.get(), "distribution:manage");
         return CommonResult.success(CommonPage.restPage(
-                authService.listAdminMembers(keyword, status, promotionActivated, agentLevel)));
+                authService.listAdminMembers(keyword, status,
+                        includeDistribution ? promotionActivated : null,
+                        includeDistribution ? agentLevel : null,
+                        includeFinance, includeCommission, includeDistribution)));
     }
 
     @Operation(summary = "后台会员全景详情")
     @GetMapping("/admin/members/{id}/profile")
-    public CommonResult<ShopProfileVO> adminMemberProfile(@PathVariable Long id) {
-        return CommonResult.success(shopService.getAdminProfile(authService.getAdminMember(id)));
+    public CommonResult<AdminMemberProfileVO> adminMemberProfile(@PathVariable Long id) {
+        return CommonResult.success(shopService.getAdminProfile(
+                authService.getAdminMember(id),
+                adminAuthService.hasPermission(AdminContext.get(), "shop:order"),
+                adminAuthService.hasPermission(AdminContext.get(), "shop:aftersale"),
+                adminAuthService.hasPermission(AdminContext.get(), "finance:read"),
+                adminAuthService.hasPermission(AdminContext.get(), "commission:manage"),
+                adminAuthService.hasPermission(AdminContext.get(), "distribution:manage")));
     }
 
     @Operation(summary = "后台启用/禁用会员")

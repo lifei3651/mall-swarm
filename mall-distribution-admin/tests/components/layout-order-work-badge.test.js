@@ -13,6 +13,8 @@ describe('后台订单待办提醒', () => {
     expect(source).not.toContain('menu-work-badge')
     expect(source).toContain('window.setInterval(loadOrderWorkSummary, 30000)')
     expect(source).toContain("new CustomEvent('admin-order-work-summary'")
+    expect(source).toContain("orderAdminAccess.value.canHandleAfterSale && { key: 'afterSale'")
+    expect(source).toContain('afterSale: orderAdminAccess.value.canHandleAfterSale ? Number(res.data?.afterSale || 0) : 0')
   })
 
   it('工作台不预展开任何业务菜单，子页由当前路由自动展开', async () => {

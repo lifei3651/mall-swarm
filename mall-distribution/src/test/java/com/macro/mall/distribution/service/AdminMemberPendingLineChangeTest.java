@@ -38,13 +38,15 @@ class AdminMemberPendingLineChangeTest {
         jdbcTemplate.update("INSERT INTO dms_line_change_application(apply_no,agent_id,new_parent_agent_id,reason,status,applicant_id,applicant_name,effective_time,before_snapshot) VALUES(?,?,?,?,0,?,?,CURRENT_TIMESTAMP,?)",
                 "LINE-PENDING-9001", agentId, 1L, "测试待处理状态", 1L, "admin", "{}");
 
-        AdminMemberVO pending = memberDao.selectAdminList("13900009001", null, null, null).get(0);
+        AdminMemberVO pending = memberDao.selectAdminList(
+                "13900009001", null, null, null, true, true, true).get(0);
         assertTrue(pending.getHasPendingLineChange());
         assertTrue(lineChangeApplicationDao.selectPendingAgentIds(List.of(agentId)).contains(agentId));
 
         jdbcTemplate.update("UPDATE dms_line_change_application SET status=3 WHERE agent_id=?", agentId);
         sqlSessionTemplate.clearCache();
-        AdminMemberVO processed = memberDao.selectAdminList("13900009001", null, null, null).get(0);
+        AdminMemberVO processed = memberDao.selectAdminList(
+                "13900009001", null, null, null, true, true, true).get(0);
         assertFalse(processed.getHasPendingLineChange());
         assertTrue(lineChangeApplicationDao.selectPendingAgentIds(List.of(agentId)).isEmpty());
     }

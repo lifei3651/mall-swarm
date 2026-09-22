@@ -107,13 +107,14 @@
     </select>
 
     <select id="selectAdminList" resultType="com.macro.mall.distribution.vo.AdminMemberVO">
-        SELECT m.id,
+        SELECT
+        <trim suffixOverrides=",">
+               m.id,
                m.user_id AS userId,
                COALESCE(NULLIF(m.login_account, ''), m.phone) AS memberAccount,
                m.phone,
                m.login_account AS username,
                m.nickname,
-               m.invite_code AS inviteCode,
                m.status,
                CASE WHEN m.lock_time IS NULL THEN 0 ELSE 1 END AS loginLocked,
                m.pay_password_lock_time AS paymentPasswordLockTime,
@@ -124,6 +125,8 @@
                CASE WHEN inviter.id IS NULL THEN NULL ELSE COALESCE(NULLIF(inviter.login_account, ''), inviter.phone) END AS inviterMemberAccount,
                COALESCE(inviter.nickname, inviter.login_account, inviter.phone) AS inviterName,
                inviter.phone AS inviterPhone,
+               <if test="includeDistribution">
+               m.invite_code AS inviteCode,
                CASE WHEN agent.id IS NULL THEN 0 ELSE 1 END AS promotionActivated,
                agent.id AS agentId,
                agent.agent_code AS agentCode,
@@ -136,18 +139,35 @@
                    WHERE line_change.agent_id = agent.id
                      AND line_change.status IN (0, 1)
                ) THEN 1 ELSE 0 END AS hasPendingLineChange,
+               </if>
+               <if test="includeFinance">
                COALESCE(cash_balance.balance, 0) AS availableBalance,
+               </if>
+               <if test="includeCommission">
                COALESCE(agent_account.unsettled_commission, 0) AS unsettledCommission,
+               </if>
+               <if test="includeDistribution">
                COALESCE(performance.team_performance, 0)
                    + COALESCE(baseline.historical_team_performance, 0) AS teamPerformance,
-               COALESCE(agent_account.total_orders, 0) AS totalOrders
+               COALESCE(agent_account.total_orders, 0) AS totalOrders,
+               </if>
+        </trim>
         FROM dms_shop_member m
         LEFT JOIN dms_shop_member inviter ON inviter.user_id = m.inviter_id
+        <if test="includeDistribution or includeCommission">
         LEFT JOIN dms_agent agent ON agent.user_id = m.user_id
+        </if>
+        <if test="includeDistribution">
         LEFT JOIN dms_agent parent ON parent.id = agent.parent_id
+        </if>
+        <if test="includeDistribution or includeCommission">
         LEFT JOIN dms_agent_account agent_account ON agent_account.agent_id = agent.id
+        </if>
+        <if test="includeFinance">
         LEFT JOIN dms_member_asset_account cash_balance
                ON cash_balance.user_id = m.user_id AND cash_balance.asset_code = 'CASH_BONUS'
+        </if>
+        <if test="includeDistribution">
         LEFT JOIN (
             SELECT target_agent_id, COALESCE(SUM(performance_amount), 0) AS team_performance
             FROM dms_order_performance_detail
@@ -155,12 +175,13 @@
             GROUP BY target_agent_id
         ) performance ON performance.target_agent_id = agent.id
         LEFT JOIN dms_migration_baseline baseline ON baseline.agent_id = agent.id
+        </if>
         <where>
             AND m.system_account = 0
             <if test="status != null">AND m.status = #{status}</if>
-            <if test="promotionActivated != null and promotionActivated == 1">AND agent.id IS NOT NULL</if>
-            <if test="promotionActivated != null and promotionActivated == 0">AND agent.id IS NULL</if>
-            <if test="agentLevel != null">AND agent.agent_level = #{agentLevel}</if>
+            <if test="includeDistribution and promotionActivated != null and promotionActivated == 1">AND agent.id IS NOT NULL</if>
+            <if test="includeDistribution and promotionActivated != null and promotionActivated == 0">AND agent.id IS NULL</if>
+            <if test="includeDistribution and agentLevel != null">AND agent.agent_level = #{agentLevel}</if>
             <if test="keyword != null and keyword != ''">
                 AND (
                     m.phone LIKE CONCAT('%', #{keyword}, '%')

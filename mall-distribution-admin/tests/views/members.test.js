@@ -73,3 +73,20 @@ describe('会员账号锁定解除', () => {
     expect(source).toContain("confirmButtonText: '确认解除'")
   })
 })
+
+describe('会员全景最小权限展示', () => {
+  it('余额、奖金、团队、订单和售后信息分别受对应权限控制', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('v-if="canReadFinance" label="当前余额"')
+    expect(source).toContain('v-if="canManageCommission" label="待结算奖金"')
+    expect(source).toContain('v-if="canManageDistribution" label="团队总业绩"')
+    expect(source).toContain('v-if="canViewOrders" class="block"')
+    expect(source).toContain('v-if="canHandleAfterSale" label="售后申请数"')
+    expect(source).toContain("store.hasPermission('finance:read')")
+    expect(source).toContain("store.hasPermission('commission:manage')")
+    expect(source).toContain("store.hasPermission('distribution:manage')")
+    expect(source).toContain("store.hasPermission('shop:order')")
+    expect(source).toContain("store.hasPermission('shop:aftersale')")
+  })
+})

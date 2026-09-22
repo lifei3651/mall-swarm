@@ -55,10 +55,11 @@ public interface DmsShopOrderDao {
     }
 
     ShopOrderStatusSummaryVO selectAdminWorkSummary(@Param("tenantId") Long tenantId,
-                                                     @Param("merchantId") Long merchantId);
+                                                     @Param("merchantId") Long merchantId,
+                                                     @Param("includeAfterSales") boolean includeAfterSales);
 
     default ShopOrderStatusSummaryVO selectAdminWorkSummary(Long tenantId) {
-        return selectAdminWorkSummary(tenantId, null);
+        return selectAdminWorkSummary(tenantId, null, true);
     }
 
     List<DmsShopOrder> selectByAgentIdScoped(@Param("tenantId") Long tenantId, @Param("agentId") Long agentId);
@@ -71,9 +72,10 @@ public interface DmsShopOrderDao {
 
     /** 会员全景仅展示已支付且仍属于有效交易或已进入售后的订单。 */
     List<DmsShopOrder> selectPaidProfileOrdersByUserIdScoped(@Param("tenantId") Long tenantId,
-                                                              @Param("userId") Long userId);
-    default List<DmsShopOrder> selectPaidProfileOrdersByUserId(Long userId) {
-        return selectPaidProfileOrdersByUserIdScoped(TenantContext.getTenantId(), userId);
+                                                              @Param("userId") Long userId,
+                                                              @Param("includeAfterSales") boolean includeAfterSales);
+    default List<DmsShopOrder> selectPaidProfileOrdersByUserId(Long userId, boolean includeAfterSales) {
+        return selectPaidProfileOrdersByUserIdScoped(TenantContext.getTenantId(), userId, includeAfterSales);
     }
 
     /**

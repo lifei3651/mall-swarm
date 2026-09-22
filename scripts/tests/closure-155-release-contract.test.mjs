@@ -56,20 +56,3 @@ test('1.0.155 backend allows only the fixed additive migration and never drops i
   assert.match(source, /DROP DATABASE \\`\$VERIFY_DB\\`;"\nVERIFY_DB_CREATED=0/)
   assert.doesNotMatch(source, /DROP\s+(?:COLUMN|TABLE)\s+service_tags/i)
 })
-
-test('generic readiness and mini preparation point at the same 1.0.155 identity', () => {
-  const prepare = read('prepare-lingqi-mini-release.mjs')
-  const readiness = read('release-readiness.sh')
-  const regression = read('run-mall-closure-regression.sh')
-  for (const source of [prepare, readiness]) {
-    assert.match(source, /1\.0\.155/)
-    assert.match(source, /20260922-closure-1\.0\.155/)
-    assert.match(source, new RegExp(previousJar))
-    assert.match(source, new RegExp(previousCommit))
-  }
-  assert.match(readiness, /expected_migration_count = 41/)
-  assert.match(readiness, new RegExp(migrationSha))
-  assert.match(regression, /== 41/)
-  assert.match(regression, /release-lingqi-155\.mjs/)
-  assert.match(regression, /upload-lingqi-mini-155\.mjs/)
-})

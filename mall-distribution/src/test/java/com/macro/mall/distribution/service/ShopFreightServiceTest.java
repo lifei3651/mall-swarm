@@ -661,13 +661,14 @@ class ShopFreightServiceTest {
         DmsShopMember member = createMember("13999110110", "会员全景订单口径", null);
         ShopOrderVO pending = shopService.submitOrder(pendingOrder(1, 1L), member);
 
-        assertTrue(shopService.getAdminProfile(member).getOrders().isEmpty());
+        assertTrue(shopService.getAdminProfile(member, true, true, true, true, true).getOrders().isEmpty());
 
         assertTrue(shopService.cancelOrder(pending.getOrder().getId(), member));
-        assertTrue(shopService.getAdminProfile(member).getOrders().isEmpty());
+        assertTrue(shopService.getAdminProfile(member, true, true, true, true, true).getOrders().isEmpty());
 
         ShopOrderVO paid = submitAndPay(member, 1);
-        ShopProfileVO profile = shopService.getAdminProfile(member);
+        com.macro.mall.distribution.vo.AdminMemberProfileVO profile =
+                shopService.getAdminProfile(member, true, true, true, true, true);
         assertEquals(1, profile.getOrders().size());
         assertEquals(paid.getOrder().getId(), profile.getOrders().get(0).getOrder().getId());
         assertNotNull(profile.getOrders().get(0).getOrder().getPayTime());
@@ -771,7 +772,8 @@ class ShopFreightServiceTest {
             memberDao.increaseFailedPayPassword(member.getId(), 5);
         }
 
-        List<AdminMemberVO> rows = shopAuthService.listAdminMembers(member.getPhone(), 1, null, null);
+        List<AdminMemberVO> rows = shopAuthService.listAdminMembers(
+                member.getPhone(), 1, null, null, true, true, true);
 
         assertEquals(1, rows.size());
         AdminMemberVO row = rows.get(0);
@@ -789,12 +791,33 @@ class ShopFreightServiceTest {
     }
 
     @Test
+    void adminMemberListWithMemberPermissionOnlyDoesNotJoinOrExposeCrossDomainData() {
+        DmsShopMember member = createMember("13999110113", "最小权限会员", null);
+
+        List<AdminMemberVO> rows = shopAuthService.listAdminMembers(
+                member.getPhone(), 1, 1, 8, false, false, false);
+
+        assertEquals(1, rows.size());
+        AdminMemberVO row = rows.get(0);
+        assertEquals(member.getUsername(), row.getMemberAccount());
+        assertNull(row.getInviteCode());
+        assertNull(row.getPromotionActivated());
+        assertNull(row.getAgentId());
+        assertNull(row.getAgentLevel());
+        assertNull(row.getAvailableBalance());
+        assertNull(row.getUnsettledCommission());
+        assertNull(row.getTeamPerformance());
+        assertNull(row.getTotalOrders());
+    }
+
+    @Test
     void unifiedMemberLevelActionActivatesThenSupportsDirectDowngrade() {
         DmsShopMember member = createMember("13999110104", "统一调级会员", null);
 
         AgentInfoVO activated = shopAuthService.adjustMemberLevel(member.getId(), 6, "后台直接设为二星董事");
         assertEquals(6, activated.getAgentLevel());
-        List<AdminMemberVO> activeRows = shopAuthService.listAdminMembers(member.getPhone(), 1, 1, 6);
+        List<AdminMemberVO> activeRows = shopAuthService.listAdminMembers(
+                member.getPhone(), 1, 1, 6, true, true, true);
         assertEquals(1, activeRows.size());
         assertTrue(activeRows.get(0).getPromotionActivated());
         assertEquals(6, activeRows.get(0).getAgentLevel());
@@ -828,7 +851,7 @@ class ShopFreightServiceTest {
                 """, "WD-DASHBOARD-PENDING", 1L, member.getUserId(), new BigDecimal("12.00"), 1,
                 member.getNickname(), 0);
 
-        AdminDashboardVO dashboard = adminDashboardService.getDashboard();
+        AdminDashboardVO dashboard = getFullAdminDashboard();
 
         assertTrue(dashboard.getMemberCount() >= 1);
         assertTrue(dashboard.getPromotionMemberCount() >= 1);
@@ -871,7 +894,7 @@ class ShopFreightServiceTest {
         jdbcTemplate.update("UPDATE dms_shop_order SET pay_time=? WHERE id=?",
                 LocalDateTime.now().minusMonths(1), paid.getOrder().getId());
 
-        AdminDashboardVO dashboard = adminDashboardService.getDashboard();
+        AdminDashboardVO dashboard = getFullAdminDashboard();
 
         assertEquals(12, dashboard.getMonthlyPerformanceTrend().size());
         LocalDate previousMonth = LocalDate.now().minusMonths(1).withDayOfMonth(1);
@@ -891,6 +914,18 @@ class ShopFreightServiceTest {
         product.setFreeShippingAmount(freeShippingAmount);
         product.setFreightTemplateId(templateId);
         return shopService.updateProduct(product.getId(), product);
+    }
+
+    private AdminDashboardVO getFullAdminDashboard() {
+        DmsAdminUser admin = new DmsAdminUser();
+        admin.setId(1L);
+        admin.setPermissions("*");
+        AdminContext.set(admin);
+        try {
+            return adminDashboardService.getDashboard();
+        } finally {
+            AdminContext.clear();
+        }
     }
 
     private DmsShopProduct editableProduct(Long id) {

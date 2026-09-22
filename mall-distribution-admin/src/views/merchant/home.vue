@@ -114,12 +114,19 @@ const quickActions = computed(() => [
     icon: ShoppingCart,
     value: orderSummary.value.pendingShipment,
   },
-  store.hasPermission('shop:order') && {
-    title: '售后与客服',
-    description: '处理售后订单和客户工单',
-    path: '/shop/service-tickets',
+  store.hasPermission('shop:aftersale') && {
+    title: '待处理售后',
+    description: '审核并跟进客户售后申请',
+    path: '/shop/orders?orderState=AFTER_SALE',
     icon: Service,
     value: orderSummary.value.afterSale,
+  },
+  store.hasPermission('shop:order') && {
+    title: '客服工单',
+    description: '回复咨询、投诉与账号问题',
+    path: '/shop/service-tickets',
+    icon: Service,
+    value: null,
   },
   store.hasPermission('finance:read') && {
     title: '货款账户',

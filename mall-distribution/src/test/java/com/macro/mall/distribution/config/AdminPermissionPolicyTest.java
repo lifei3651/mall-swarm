@@ -71,10 +71,14 @@ class AdminPermissionPolicyTest {
     void separatesOrderShipmentFromRefundAuthority() {
         assertEquals("shop:order", AdminPermissionPolicy.requiredPermission("PUT", "/shop/admin/orders/99/ship"));
         assertEquals("shop:order", AdminPermissionPolicy.requiredPermission("DELETE", "/shop/admin/orders/99/wechat-express/77"));
+        assertEquals("shop:order", AdminPermissionPolicy.requiredPermission("GET", "/shop/admin/wechat-express/options"));
         assertEquals("shop:order", AdminPermissionPolicy.requiredPermission("GET", "/shop/admin/trades/88"));
         assertEquals("shop:order", AdminPermissionPolicy.requiredPermission("POST", "/shop/admin/service-tickets/18/replies"));
         assertEquals("shop:aftersale", AdminPermissionPolicy.requiredPermission("POST", "/shop/admin/orders/99/refund"));
         assertEquals("shop:aftersale", AdminPermissionPolicy.requiredPermission("PUT", "/shop/admin/orders/99/cancel"));
+        assertEquals("shop:aftersale", AdminPermissionPolicy.requiredPermission(
+                "PUT", "/shop/admin/after-sales/88/exchange-shipment"));
+        assertNull(AdminPermissionPolicy.requiredPermission("POST", "/shop/admin/wechat-express/options"));
     }
 
     @Test
@@ -115,6 +119,8 @@ class AdminPermissionPolicyTest {
         assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
                 "POST", "/shop/admin/orders/99/wechat-express"));
         assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "GET", "/shop/admin/wechat-express/options"));
+        assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
                 "DELETE", "/shop/admin/orders/99/wechat-express/77"));
         assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
                 "PUT", "/shop/admin/orders/99/service-remark"));
@@ -124,6 +130,8 @@ class AdminPermissionPolicyTest {
                 "PUT", "/shop/admin/after-sales/88/audit"));
         assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
                 "PUT", "/shop/admin/after-sales/88/return-received"));
+        assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "PUT", "/shop/admin/after-sales/88/exchange-shipment"));
 
         assertFalse(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
                 "PUT", "/shop/admin/orders/99/cancel"));
@@ -133,5 +141,9 @@ class AdminPermissionPolicyTest {
                 "GET", "/shop/admin/trades/88"));
         assertFalse(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
                 "POST", "/shop/admin/orders/shipments/import"));
+        assertFalse(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "POST", "/shop/admin/wechat-express/options"));
+        assertFalse(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "POST", "/shop/admin/after-sales/88/exchange-shipment"));
     }
 }

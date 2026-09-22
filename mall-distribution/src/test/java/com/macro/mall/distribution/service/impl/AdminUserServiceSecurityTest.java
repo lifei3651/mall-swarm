@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -53,6 +54,41 @@ class AdminUserServiceSecurityTest {
         assertThrows(ApiException.class, () -> service.saveUser(dto));
         verify(authService).verifyPassword(actor, "Current-123");
         verify(userDao, never()).insert(any());
+    }
+
+    @Test
+    void permissionOptionsDoNotOfferLegacyAdminWriteThatProtectsNoEndpoint() {
+        DmsAdminUser actor = admin(1L, "*");
+        AdminContext.set(actor);
+        when(authService.permissions(actor)).thenReturn(List.of("*"));
+
+        List<java.util.Map<String, String>> options = service.permissionOptions();
+
+        assertFalse(options.stream().anyMatch(item -> "admin:write".equals(item.get("value"))));
+        assertTrue(options.stream().anyMatch(item -> "admin:read".equals(item.get("value"))));
+    }
+
+    @Test
+    void savingAnOldAccountSilentlyRemovesLegacyNoopAdminWritePermission() {
+        DmsAdminUser actor = admin(1L, "*");
+        DmsAdminUser target = admin(20L, "admin:read,admin:write");
+        target.setRoleCode("OPERATOR");
+        AdminContext.set(actor);
+        when(authService.permissions(actor)).thenReturn(List.of("*"));
+        when(authService.permissions(target)).thenReturn(List.of("admin:read", "admin:write"));
+        when(userDao.selectById(20L)).thenReturn(target);
+        AdminUserSaveDTO dto = new AdminUserSaveDTO();
+        dto.setId(20L);
+        dto.setUsername("legacy-operator");
+        dto.setNickname("旧管理员");
+        dto.setStatus(1);
+        dto.setCurrentAdminPassword("Current-123");
+        dto.setPermissions(List.of("admin:read", "admin:write"));
+
+        DmsAdminUser saved = service.saveUser(dto);
+
+        assertEquals("admin:read", saved.getPermissions());
+        verify(userDao).update(argThat(user -> "admin:read".equals(user.getPermissions())));
     }
 
     @Test

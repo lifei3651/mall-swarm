@@ -135,6 +135,7 @@ import { listMerchants, listMerchantWithdrawals } from '@/api/merchant'
 import { connectAdminOrderRealtime } from '@/utils/orderRealtime'
 import { getShopBrand } from '@/api/shopBrand'
 import { useAppStore } from '@/store'
+import { resolveOrderAdminAccess } from '@/utils/orderAdminPermissions'
 import defaultLogo from '@/assets/lingqi-logo-mark.png'
 import {
   ADMIN_SESSION_EXPIRED_EVENT,
@@ -156,6 +157,7 @@ import {
 const route = useRoute()
 const router = useRouter()
 const store = useAppStore()
+const orderAdminAccess = computed(() => resolveOrderAdminAccess(store.hasPermission))
 const isCollapsed = ref(false)
 const narrowViewport = window.matchMedia('(max-width: 640px)')
 const isNarrow = ref(narrowViewport.matches)
@@ -167,8 +169,8 @@ const brand = reactive({ brandName: localStorage.getItem('admin_brand_name') || 
 const brandLogoLoadFailed = ref(false)
 const todoSummary = reactive({ pendingShipment: 0, afterSale: 0, merchantCertification: 0, productReview: 0, finance: 0 })
 const todoItems = computed(() => [
-  store.hasPermission('shop:order') && { key: 'pendingShipment', title: '待发货订单', count: todoSummary.pendingShipment, path: '/shop/orders?orderState=PENDING_SHIPMENT' },
-  store.hasPermission('shop:order') && { key: 'afterSale', title: '待处理售后', count: todoSummary.afterSale, path: '/shop/orders?orderState=AFTER_SALE' },
+  orderAdminAccess.value.canViewOrders && { key: 'pendingShipment', title: '待发货订单', count: todoSummary.pendingShipment, path: '/shop/orders?orderState=PENDING_SHIPMENT' },
+  orderAdminAccess.value.canHandleAfterSale && { key: 'afterSale', title: '待处理售后', count: todoSummary.afterSale, path: '/shop/orders?orderState=AFTER_SALE' },
   store.userInfo?.merchantId && { key: 'merchantCertification', title: '入驻资料待完善', count: todoSummary.merchantCertification, path: '/merchant/profile' },
   !store.userInfo?.merchantId && store.hasPermission('system:manage') && store.hasPermission('shop:product') && { key: 'merchantCertification', title: '待认证商户', count: todoSummary.merchantCertification, path: '/shop/merchants' },
   store.hasPermission('shop:product-review') && { key: 'productReview', title: '待审核商户商品', count: todoSummary.productReview, path: '/shop/merchant-product-reviews' },
@@ -354,12 +356,12 @@ const checkSessionOnVisibility = () => {
 }
 
 const loadOrderWorkSummary = async () => {
-  if (!store.token || !store.hasPermission('shop:order')) return
+  if (!store.token || !orderAdminAccess.value.canViewOrders) return
   try {
     const res = await getAdminOrderWorkSummary()
     const summary = {
       pendingShipment: Number(res.data?.pendingShipment || 0),
-      afterSale: Number(res.data?.afterSale || 0),
+      afterSale: orderAdminAccess.value.canHandleAfterSale ? Number(res.data?.afterSale || 0) : 0,
     }
     updateTodoValues(summary)
     window.dispatchEvent(new CustomEvent('admin-order-work-summary', { detail: summary }))

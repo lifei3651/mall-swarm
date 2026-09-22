@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.vo;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -8,6 +9,7 @@ import java.util.List;
 
 /** 后台控制台实时数据。 */
 @Data
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class AdminDashboardVO implements Serializable {
     private static final long serialVersionUID = 1L;
 

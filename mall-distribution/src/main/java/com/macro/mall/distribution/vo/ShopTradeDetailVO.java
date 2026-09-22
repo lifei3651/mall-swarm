@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.vo;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.macro.mall.distribution.entity.DmsShopTrade;
 import lombok.Data;
 
@@ -16,5 +17,6 @@ public class ShopTradeDetailVO implements Serializable {
     private List<ShopOrderVO> childOrders;
     private Integer childCount;
     private BigDecimal childPayAmount;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private BigDecimal refundedAmount;
 }

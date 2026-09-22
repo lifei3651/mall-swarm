@@ -152,7 +152,7 @@
               <span>¥{{ money(row.order?.payAmount) }}</span>
             </template>
           </el-table-column>
-          <el-table-column v-if="!isMerchantUser" label="奖金总拨出" width="110">
+          <el-table-column v-if="!isMerchantUser && canReadOrderFinance" label="奖金总拨出" width="110">
             <template #default="{ row }">
               <span :class="{ danger: payoutExceeded(row.order?.payAmount, row.finance?.bonusAmount) }">
                 ¥{{ money(row.finance?.bonusAmount) }}
@@ -208,7 +208,7 @@
             <template #default="{ row }">
               <div class="order-actions">
                 <el-dropdown
-                  v-if="canMerchantFulfill(row) && Number(activeAfterSale(row)?.status) === 0"
+                  v-if="canHandleAfterSale && canMerchantFulfill(row) && Number(activeAfterSale(row)?.status) === 0"
                   trigger="click"
                   @command="handleAfterSaleCommand($event, activeAfterSale(row))"
                 >
@@ -223,13 +223,13 @@
                 </el-dropdown>
                 <template v-else-if="activeAfterSale(row)">
                   <el-tag v-if="Number(activeAfterSale(row).status) === 4" type="warning">等待客户寄回</el-tag>
-                  <el-button v-else-if="canMerchantFulfill(row) && Number(activeAfterSale(row).status) === 5" type="success" link @click.stop="confirmReturnReceived(activeAfterSale(row))">
+                  <el-button v-else-if="canHandleAfterSale && canMerchantFulfill(row) && Number(activeAfterSale(row).status) === 5" type="success" link @click.stop="confirmReturnReceived(activeAfterSale(row))">
                     {{ Number(activeAfterSale(row).applyType) === 3 ? '确认收到换货退件' : '确认退货并退款' }}
                   </el-button>
-                  <el-button v-else-if="canMerchantFulfill(row) && Number(activeAfterSale(row).status) === 6" type="warning" link @click.stop="confirmReturnReceived(activeAfterSale(row))">
+                  <el-button v-else-if="canHandleAfterSale && canMerchantFulfill(row) && Number(activeAfterSale(row).status) === 6" type="warning" link @click.stop="confirmReturnReceived(activeAfterSale(row))">
                     重试渠道退款
                   </el-button>
-                  <el-button v-else-if="canMerchantFulfill(row) && Number(activeAfterSale(row).status) === 7" type="primary" link @click.stop="openExchangeShipment(activeAfterSale(row))">
+                  <el-button v-else-if="canHandleAfterSale && canMerchantFulfill(row) && Number(activeAfterSale(row).status) === 7" type="primary" link @click.stop="openExchangeShipment(activeAfterSale(row))">
                     发出换货商品
                   </el-button>
                   <el-tag v-else-if="Number(activeAfterSale(row).status) === 8" type="primary">换货商品已发出</el-tag>
@@ -238,16 +238,16 @@
                 <el-button v-if="canShipOrder(row)" type="primary" link @click="openShip(row)">
                   {{ shipmentRows(row).length ? '继续发货' : '发货' }}
                 </el-button>
-                <el-dropdown v-if="!isMerchantUser" trigger="click" @command="handleOrderMoreCommand($event, row)">
+                <el-dropdown v-if="!isMerchantUser && (canReadOrderFinance || canHandleAfterSale)" trigger="click" @command="handleOrderMoreCommand($event, row)">
                   <el-button link>更多操作</el-button>
                   <template #dropdown>
                     <el-dropdown-menu>
-                      <el-dropdown-item command="BONUS">奖金去向</el-dropdown-item>
-                      <el-dropdown-item v-if="canCancelAdminOrder(row)" command="CANCEL" divided>
+                      <el-dropdown-item v-if="canReadOrderFinance" command="BONUS">奖金去向</el-dropdown-item>
+                      <el-dropdown-item v-if="canHandleAfterSale && canCancelAdminOrder(row)" command="CANCEL" divided>
                         {{ Number(row.order?.status) === 1 ? '取消并退款' : '取消订单' }}
                       </el-dropdown-item>
-                      <el-dropdown-item v-else disabled divided>{{ cancelUnavailableLabel(row) }}</el-dropdown-item>
-                      <el-dropdown-item v-if="canManualRefund(row)" command="REFUND" divided>后台退款</el-dropdown-item>
+                      <el-dropdown-item v-else-if="canHandleAfterSale" disabled divided>{{ cancelUnavailableLabel(row) }}</el-dropdown-item>
+                      <el-dropdown-item v-if="canHandleAfterSale && canManualRefund(row)" command="REFUND" divided>后台退款</el-dropdown-item>
                     </el-dropdown-menu>
                   </template>
                 </el-dropdown>
@@ -820,10 +820,14 @@ import { useAppStore } from '@/store'
 import { formatDateTime } from '@/utils/dateTime'
 import { logisticsCompanyOptions } from '@/utils/logisticsCompanies'
 import { customerBonusName } from '@/utils/customerBonus'
+import { resolveOrderAdminAccess } from '@/utils/orderAdminPermissions'
 
 const appStore = useAppStore()
 const route = useRoute()
 const isMerchantUser = computed(() => Boolean(appStore.userInfo?.merchantId))
+const orderAdminAccess = computed(() => resolveOrderAdminAccess(appStore.hasPermission))
+const canHandleAfterSale = computed(() => orderAdminAccess.value.canHandleAfterSale)
+const canReadOrderFinance = computed(() => orderAdminAccess.value.canReadFinance)
 const orderLoading = ref(false)
 const exportLoading = ref(false)
 const templateLoading = ref(false)
@@ -835,11 +839,16 @@ const orders = ref([])
 const merchantFulfillmentAllowed = computed(() => !isMerchantUser.value
   || !orders.value.length
   || orders.value.some((row) => row.merchantFulfillmentAllowed !== false))
-const merchantScopeTip = computed(() => merchantFulfillmentAllowed.value
-  ? '这里只显示本商户的履约子订单。您可以发货、填写客服备注并处理正常客户售后；联合支付汇总、平台取消、人工退款和团队奖金由平台管理。'
-  : '这里只显示本商户的履约子订单。当前履约已由平台接管或冻结，您仍可查看历史订单和填写客服备注，但不能发货或处理售后。')
+const merchantScopeTip = computed(() => {
+  if (!merchantFulfillmentAllowed.value) {
+    return '这里只显示本商户的履约子订单。当前履约已由平台接管或冻结，您仍可查看历史订单和填写客服备注，但不能发货或处理售后。'
+  }
+  return canHandleAfterSale.value
+    ? '这里只显示本商户的履约子订单。您可以发货、填写客服备注并处理正常客户售后；联合支付汇总、平台取消、人工退款和团队奖金由平台管理。'
+    : '这里只显示本商户的履约子订单。您可以发货和填写客服备注；售后处理需由负责人另行授权。'
+})
 const orderWorkSummary = ref({ pendingShipment: 0, afterSale: 0 })
-const orderStateOptions = [
+const allOrderStateOptions = [
   { label: '全部', value: '' },
   { label: '待付款', value: 'PENDING_PAYMENT' },
   { label: '待发货', value: 'PENDING_SHIPMENT' },
@@ -848,7 +857,9 @@ const orderStateOptions = [
   { label: '已完成', value: 'COMPLETED' },
   { label: '已退款', value: 'REFUNDED' },
 ]
-const initialOrderState = orderStateOptions.some((item) => item.value === route.query.orderState)
+const orderStateOptions = computed(() => allOrderStateOptions.filter((item) => canHandleAfterSale.value
+  || !['AFTER_SALE', 'REFUNDED'].includes(item.value)))
+const initialOrderState = orderStateOptions.value.some((item) => item.value === route.query.orderState)
   ? String(route.query.orderState)
   : ''
 const query = ref({ keyword: '', orderState: initialOrderState })
@@ -1087,7 +1098,7 @@ const applyWorkSummary = (summary, refreshQueue = false) => {
   const previous = orderStateCount(query.value.orderState)
   orderWorkSummary.value = {
     pendingShipment: Number(summary?.pendingShipment || 0),
-    afterSale: Number(summary?.afterSale || 0),
+    afterSale: canHandleAfterSale.value ? Number(summary?.afterSale || 0) : 0,
   }
   if (refreshQueue && ['PENDING_SHIPMENT', 'AFTER_SALE'].includes(query.value.orderState)
     && previous !== orderStateCount(query.value.orderState)) {
@@ -1120,7 +1131,7 @@ const changeOrderState = (orderState) => {
 }
 
 watch(() => route.query.orderState, (value) => {
-  const next = orderStateOptions.some((item) => item.value === value) ? String(value) : ''
+  const next = orderStateOptions.value.some((item) => item.value === value) ? String(value) : ''
   if (next === query.value.orderState) return
   query.value.orderState = next
   pagination.value.page = 1
@@ -1354,6 +1365,7 @@ const cancelWechatShipment = async (row, shipment) => {
 }
 
 const openBonusFlows = async (orderId, orderNo, memberAccount) => {
+  if (!canReadOrderFinance.value) return
   if (!orderId) return ElMessage.warning('订单信息不完整，无法查询奖金去向')
   bonusOrder.value = { orderNo, memberAccount }
   bonusFinance.value = {}
@@ -1369,16 +1381,16 @@ const openBonusFlows = async (orderId, orderNo, memberAccount) => {
 }
 
 const handleAfterSaleCommand = (status, sale) => {
-  if (!sale || ![1, 2, 3].includes(Number(status))) return
+  if (!canHandleAfterSale.value || !sale || ![1, 2, 3].includes(Number(status))) return
   openAudit(sale, Number(status))
 }
 
 const handleOrderMoreCommand = (command, row) => {
-  if (command === 'BONUS') {
+  if (command === 'BONUS' && canReadOrderFinance.value) {
     openBonusFlows(row.order?.id, row.order?.orderNo, row.memberAccount)
-  } else if (command === 'CANCEL') {
+  } else if (command === 'CANCEL' && canHandleAfterSale.value) {
     cancelAdminOrder(row)
-  } else if (command === 'REFUND') {
+  } else if (command === 'REFUND' && canHandleAfterSale.value) {
     openManualRefund(row)
   }
 }

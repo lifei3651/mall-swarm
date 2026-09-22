@@ -12,6 +12,8 @@ IDENTITY_FILE="${LINGQIMALL_SSH_IDENTITY:-$HOME/.ssh/lingqi_server_ed25519}"
 CANDIDATE=""
 LOCAL_ONLY=0
 ALLOW_DIRTY=0
+PREFLIGHT_ONLY=0
+RETENTION_RECEIPT=""
 
 usage() {
   cat <<'EOF'
@@ -20,6 +22,8 @@ usage() {
   --identity <私钥路径>       指定生产只读检查使用的 SSH 私钥
   --local-only                只执行本地门禁
   --allow-dirty               仅供开发阶段验证脚本；正式发版禁止使用
+  --preflight-only            只读预检；允许耐久留存回执尚未形成
+  --retention-receipt <文件>  正式准入使用的独立耐久留存回执
 EOF
 }
 
@@ -29,13 +33,21 @@ while [[ "$#" -gt 0 ]]; do
     --identity) IDENTITY_FILE=${2:-}; shift 2 ;;
     --local-only) LOCAL_ONLY=1; shift ;;
     --allow-dirty) ALLOW_DIRTY=1; shift ;;
+    --preflight-only) PREFLIGHT_ONLY=1; shift ;;
+    --retention-receipt) RETENTION_RECEIPT=${2:-}; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "未知参数：$1" >&2; usage >&2; exit 2 ;;
   esac
 done
 
 fail() { echo "release-readiness-failed: $*" >&2; exit 1; }
-pass() { echo "release-readiness-ok: $*"; }
+pass() {
+  if [[ "$ALLOW_DIRTY" == 1 ]]; then
+    echo "release-readiness-development-only-non-releasable: $*"
+  else
+    echo "release-readiness-ok: $*"
+  fi
+}
 sha256_file() {
   if command -v sha256sum >/dev/null 2>&1; then
     sha256sum "$1" | awk '{print $1}'
@@ -46,12 +58,19 @@ sha256_file() {
 
 [[ "$(basename "$ROOT_DIR")" == "mall-swarm-app-h5" ]] || fail "不是唯一产品仓库"
 [[ -f "$ROOT_DIR/VERSION" ]] || fail "缺少 VERSION"
+if [[ "$ALLOW_DIRTY" == 1 ]]; then
+  [[ "$LOCAL_ONLY" == 1 ]] || fail "--allow-dirty 只能与 --local-only 共用"
+  [[ -z "$CANDIDATE" ]] || fail "--allow-dirty 禁止检查或准入候选包"
+  [[ -z "$RETENTION_RECEIPT" ]] || fail "--allow-dirty 禁止使用耐久留存回执"
+fi
+UPSTREAM_REF=$(git -C "$ROOT_DIR" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null) \
+  || fail "当前分支没有可读取的 upstream"
+[[ -n "$UPSTREAM_REF" ]] || fail "当前分支没有可读取的 upstream"
+UPSTREAM_DIVERGENCE=$(git -C "$ROOT_DIR" rev-list --left-right --count 'HEAD...@{upstream}' 2>/dev/null) \
+  || fail "无法读取 upstream 同步状态"
 if [[ "$ALLOW_DIRTY" != 1 ]]; then
   [[ -z "$(git -C "$ROOT_DIR" status --porcelain)" ]] || fail "工作区不干净"
-  if git -C "$ROOT_DIR" rev-parse --abbrev-ref '@{upstream}' >/dev/null 2>&1; then
-    [[ "$(git -C "$ROOT_DIR" rev-list --left-right --count 'HEAD...@{upstream}')" == $'0\t0' ]] \
-      || fail "本地与远程未同步"
-  fi
+  [[ "$UPSTREAM_DIVERGENCE" == $'0\t0' ]] || fail "本地与远程未同步"
 fi
 
 for non_mall_host in "${LINGQIMALL_FORBIDDEN_DEPLOY_HOSTS[@]}"; do
@@ -120,7 +139,7 @@ if [[ -n "$CANDIDATE" ]]; then
     ADMIN_SHA256SUMS SHOP_SHA256SUMS TEAM_SHA256SUMS INTEGRATED_SHA256SUMS \
     mini-program-source.tar.gz VERSION RELEASE_MANIFEST.json MINI_PROGRAM_MANIFEST.json SHA256SUMS \
     production-backup.sh db-migrate.sh lingqimall.conf lingqimall-security.conf \
-    release-backend.sh release-static.sh; do
+    release-backend.sh release-static.sh verify-artifact-retention.mjs; do
     [[ -s "$CANDIDATE_ROOT/$required" ]] || fail "候选缺少 $required"
   done
   [[ -d "$CANDIDATE_ROOT/document/db/migrations" ]] || fail "候选缺少数据库迁移集合"
@@ -128,6 +147,7 @@ if [[ -n "$CANDIDATE" ]]; then
   [[ -x "$CANDIDATE_ROOT/db-migrate.sh" ]] || fail "候选迁移脚本不可执行"
   [[ -x "$CANDIDATE_ROOT/release-backend.sh" ]] || fail "候选后端发布脚本不可执行"
   [[ -x "$CANDIDATE_ROOT/release-static.sh" ]] || fail "候选静态发布脚本不可执行"
+  [[ -x "$CANDIDATE_ROOT/verify-artifact-retention.mjs" ]] || fail "候选耐久留存校验器不可执行"
   grep -Fq 'etc/lingqimall' "$CANDIDATE_ROOT/production-backup.sh" \
     || fail "候选备份脚本未覆盖 /etc/lingqimall 客户短信等外部服务配置"
   for inner in admin shop team integrated; do
@@ -183,9 +203,9 @@ root = pathlib.Path(sys.argv[2]).resolve()
 expected_appid = "wxd26e0a4e41df392b"
 expected_api = "https://lingqimall.com/api"
 expected_plugins = {"logisticsPlugin": {"provider": "wx9ad912bf20548d92", "version": "2.1.12"}}
-expected_version = "1.0.155"
+expected_version = "1.0.156"
 expected_scope = "mall-closure-candidate"
-expected_build_id = "20260922-closure-1.0.155"
+expected_build_id = "20260922-closure-1.0.156"
 expected_build_method = "clean-build-in-release-process"
 expected_previous_backend_version = "1.0.154"
 expected_previous_backend_jar = "786aec477acb1deaf71c058bfbd55e9d57a9953c31bafa859ae2c9b43695dd96"
@@ -375,14 +395,14 @@ if sums != actual:
 repo_migrations = sorted(file.name for file in (root / "document/db/migrations").glob("V*.sql"))
 candidate_migrations = sorted(file.name for file in (candidate / "document/db/migrations").glob("V*.sql"))
 if len(repo_migrations) != expected_migration_count or repo_migrations[-1] != expected_last_migration:
-    fail("repository migration inventory is not the fixed 1.0.155 set")
+    fail("repository migration inventory is not the fixed 1.0.156 set")
 if repo_migrations != candidate_migrations:
     fail("candidate migration inventory differs from the repository")
 for name in repo_migrations:
     if sha_file(root / "document/db/migrations" / name) != sha_file(candidate / "document/db/migrations" / name):
         fail(f"candidate migration differs from repository: {name}")
 if sha_file(candidate / "document/db/migrations" / expected_last_migration) != expected_last_migration_sha:
-    fail("1.0.155 service-tag migration checksum mismatch")
+    fail("1.0.156 service-tag migration checksum mismatch")
 
 fixed_files = {
     "mall-distribution.jar", "admin.tar.gz", "shop.tar.gz", "team.tar.gz", "integrated.tar.gz",
@@ -390,6 +410,7 @@ fixed_files = {
     "mini-program-source.tar.gz", "VERSION", "RELEASE_MANIFEST.json", "MINI_PROGRAM_MANIFEST.json",
     "SHA256SUMS", "production-backup.sh", "db-migrate.sh", "lingqimall.conf",
     "lingqimall-security.conf", "release-backend.sh", "release-static.sh",
+    "verify-artifact-retention.mjs",
 }
 expected_inventory = fixed_files | {f"document/db/migrations/{name}" for name in repo_migrations}
 candidate_inventory = {file.relative_to(candidate).as_posix() for file in candidate.rglob("*") if file.is_file()}
@@ -424,6 +445,28 @@ PY
     fail "候选含 source map 或敏感配置文件"
   fi
   pass "统一候选、四个静态内包、小程序不可变源码、逐文件哈希、迁移集合与 Nginx 模板"
+
+  if [[ "$PREFLIGHT_ONLY" == 1 ]]; then
+    pass "只读预检跳过独立耐久留存回执（正式准入仍会强制校验）"
+  else
+    [[ -f "$CANDIDATE" ]] || fail "正式准入必须传入精确候选 tar.gz，不能只传解压目录"
+    [[ -n "$RETENTION_RECEIPT" && -f "$RETENTION_RECEIPT" ]] \
+      || fail "正式准入缺少 --retention-receipt"
+    RETENTION_RECEIPT=$(cd "$(dirname "$RETENTION_RECEIPT")" && pwd -P)/$(basename "$RETENTION_RECEIPT")
+    case "$RETENTION_RECEIPT" in
+      "$ROOT_DIR"/document/qa/*) ;;
+      *) fail "耐久留存回执必须位于仓库 document/qa 下" ;;
+    esac
+    RETENTION_RECEIPT_RELATIVE=${RETENTION_RECEIPT#"$ROOT_DIR"/}
+    git -C "$ROOT_DIR" ls-files --error-unmatch "$RETENTION_RECEIPT_RELATIVE" >/dev/null 2>&1 \
+      || fail "耐久留存回执尚未提交 Git"
+    [[ "$(git -C "$ROOT_DIR" show "HEAD:$RETENTION_RECEIPT_RELATIVE" | sha256_file /dev/stdin)" \
+      == "$(sha256_file "$RETENTION_RECEIPT")" ]] || fail "耐久留存回执与当前证据提交不一致"
+    node "$ROOT_DIR/scripts/verify-release-artifact-retention.mjs" \
+      --candidate "$CANDIDATE" --receipt "$RETENTION_RECEIPT" >/dev/null \
+      || fail "P0-10 独立耐久留存回执校验失败"
+    pass "P0-10 独立耐久副本与远端回读验签"
+  fi
 fi
 
 if [[ "$LOCAL_ONLY" == 1 ]]; then

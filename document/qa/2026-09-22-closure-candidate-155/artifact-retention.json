@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "version": "1.0.155",
+  "buildId": "20260922-closure-1.0.155",
+  "gitCommit": "930598092daa1ef5dd18d415af8d0364cb46b7c1",
+  "sourceTree": "603da87084289512b2db569fed413d2ef934587f",
+  "candidateStatus": "SUPERSEDED_BEFORE_SW",
+  "supersededAt": "2026-09-22",
+  "supersededBy": "1.0.156",
+  "supersededReason": "Permission contract gaps were discovered before server deployment and WeChat upload; product code changed and requires a new candidate",
+  "localArtifact": {
+    "path": "target/releases/lingqi-mall-1.0.155-93059809.tar.gz",
+    "bytes": 146843119,
+    "sha256": "406ffc1549e29ba5ed048a1573cc8b4fbdb89e504bb5d49f2d00964e7a1ae1a7",
+    "verified": true
+  },
+  "localAuditArchive": {
+    "path": "/Users/minmatemp/Documents/mall-swarm-app-h5-release-artifacts/1.0.155/lingqi-mall-1.0.155-93059809.tar.gz",
+    "bytes": 146843119,
+    "sha256": "406ffc1549e29ba5ed048a1573cc8b4fbdb89e504bb5d49f2d00964e7a1ae1a7",
+    "verified": true,
+    "classification": "same-host audit copy; not independent durable storage"
+  },
+  "durableArtifact": {
+    "status": "NOT_COMPLETED",
+    "provider": null,
+    "objectId": null,
+    "uploadedAt": null,
+    "retentionUntil": null,
+    "readBackAt": null,
+    "readBackBytes": null,
+    "readBackSha256": null
+  },
+  "gates": {
+    "serverDeploymentAllowed": false,
+    "wechatDevelopmentUploadAllowed": false,
+    "reason": "Candidate superseded before S/W; it must never be deployed or uploaded"
+  }
+}

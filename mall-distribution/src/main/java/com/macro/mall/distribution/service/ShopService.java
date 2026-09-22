@@ -24,6 +24,7 @@ import com.macro.mall.distribution.vo.FreightQuoteVO;
 import com.macro.mall.distribution.vo.PurchaseLimitCheckVO;
 import com.macro.mall.distribution.vo.ShopBusinessConfigVO;
 import com.macro.mall.distribution.vo.ShopBrandCultureVO;
+import com.macro.mall.distribution.vo.AdminMemberProfileVO;
 
 import java.util.List;
 import java.util.Map;
@@ -183,7 +184,12 @@ public interface ShopService {
 
     ShopOrderStatusSummaryVO getOrderStatusSummary(DmsShopMember member);
 
-    ShopProfileVO getAdminProfile(DmsShopMember member);
+    AdminMemberProfileVO getAdminProfile(DmsShopMember member,
+                                         boolean includeOrders,
+                                         boolean includeAfterSales,
+                                         boolean includeFinance,
+                                         boolean includeCommission,
+                                         boolean includeDistribution);
 
     /**
      * 根据用户ID查询代理ID（如果该用户是代理人）

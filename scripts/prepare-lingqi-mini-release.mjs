@@ -9,9 +9,9 @@ if (path.basename(root) !== 'mall-swarm-app-h5') throw new Error('Wrong product 
 
 const EXPECTED_APPID = 'wxd26e0a4e41df392b'
 const EXPECTED_API = 'https://lingqimall.com/api'
-const EXPECTED_VERSION = '1.0.155'
+const EXPECTED_VERSION = '1.0.156'
 const EXPECTED_SCOPE = 'mall-closure-candidate'
-const EXPECTED_BUILD_ID = '20260922-closure-1.0.155'
+const EXPECTED_BUILD_ID = '20260922-closure-1.0.156'
 const EXPECTED_BUILD_METHOD = 'clean-build-in-release-process'
 const EXPECTED_PREVIOUS_BACKEND_VERSION = '1.0.154'
 const EXPECTED_PREVIOUS_BACKEND_JAR_SHA256 = '786aec477acb1deaf71c058bfbd55e9d57a9953c31bafa859ae2c9b43695dd96'
@@ -312,7 +312,7 @@ function verifyExistingTarget(root, release, desiredFiles, desiredAggregateSha25
     && previous.previousStaticVersion === release.previousStaticVersion
     && previous.previousStaticCommit === release.previousStaticCommit
     && previous.aggregateSha256 === desiredAggregateSha256
-  if (!isSameCandidate) throw new Error('Existing upload target is not the registered 1.0.154 baseline or the same 1.0.155 candidate')
+  if (!isSameCandidate) throw new Error('Existing upload target is not the registered 1.0.154 baseline or the same 1.0.156 candidate')
   assertExactObject(actual, desiredFiles, 'Existing idempotent mini-program candidate')
 }
 

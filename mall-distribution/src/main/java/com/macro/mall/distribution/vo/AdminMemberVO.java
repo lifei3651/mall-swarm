@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.vo;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -9,6 +10,7 @@ import java.time.LocalDateTime;
 
 /** 后台会员列表聚合信息；不包含密码等敏感字段。 */
 @Data
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class AdminMemberVO implements Serializable {
     private static final long serialVersionUID = 1L;
 

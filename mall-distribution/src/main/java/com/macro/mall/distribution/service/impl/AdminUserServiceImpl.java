@@ -33,9 +33,11 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     private static final String BCRYPT_MARKER = "BCRYPT";
     private static final String SUPER_PERMISSION = "*";
+    /** 旧版曾展示但从未保护任何接口的空权限；保存账号时只做兼容清理，不再继续授予。 */
+    private static final Set<String> LEGACY_NOOP_PERMISSIONS = Set.of("admin:write");
     private static final List<Map.Entry<String, String>> PERMISSION_DEFINITIONS = List.of(
             Map.entry("*", "超级管理员"), Map.entry("admin:read", "基础查看"),
-            Map.entry("admin:write", "基础维护"), Map.entry("system:manage", "系统账号"),
+            Map.entry("system:manage", "系统账号"),
             Map.entry("config:manage", "全部商城配置（兼容权限）"),
             Map.entry("config:shop", "品牌、页面、公告与协议"),
             Map.entry("config:bonus", "奖金、业绩与经营模式规则"),
@@ -297,7 +299,9 @@ public class AdminUserServiceImpl implements AdminUserService {
         LinkedHashSet<String> normalized = new LinkedHashSet<>();
         if (permissions != null) permissions.stream()
                 .filter(item -> item != null && !item.isBlank())
-                .map(String::trim).forEach(normalized::add);
+                .map(String::trim)
+                .filter(item -> !LEGACY_NOOP_PERMISSIONS.contains(item))
+                .forEach(normalized::add);
         if (normalized.isEmpty()) normalized.add("admin:read");
         if (!normalized.contains(SUPER_PERMISSION)) {
             // 售后必须读取所属订单，财务处理必须读取台账；依赖权限由前后端同时明确补齐。

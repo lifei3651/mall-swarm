@@ -52,7 +52,9 @@ public interface ShopAuthService {
     boolean logout(String authorization);
 
     List<AdminMemberVO> listAdminMembers(String keyword, Integer status,
-                                         Integer promotionActivated, Integer agentLevel);
+                                         Integer promotionActivated, Integer agentLevel,
+                                         boolean includeFinance, boolean includeCommission,
+                                         boolean includeDistribution);
 
     DmsShopMember getAdminMember(Long id);
 

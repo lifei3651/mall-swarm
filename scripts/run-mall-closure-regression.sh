@@ -9,24 +9,34 @@ fi
 
 cd "$closure_root"
 
+EXPECTED_VERSION=1.0.156
+EXPECTED_BUILD_ID=20260922-closure-1.0.156
 expected_commit="$(git rev-parse HEAD)"
 [[ -z "$(git status --porcelain)" ]] || { echo "收口回归要求干净工作区" >&2; exit 1; }
 [[ "${RELEASE_GIT_COMMIT:-}" == "$expected_commit" ]] || {
   echo "RELEASE_GIT_COMMIT 必须等于当前不可变提交 $expected_commit" >&2
   exit 1
 }
-[[ -n "${RELEASE_BUILD_ID:-}" ]] || { echo "缺少 RELEASE_BUILD_ID" >&2; exit 1; }
-if git rev-parse --abbrev-ref '@{upstream}' >/dev/null 2>&1; then
-  [[ "$(git rev-list --left-right --count 'HEAD...@{upstream}')" == $'0\t0' ]] \
-    || { echo "收口回归前必须完成远程备份同步" >&2; exit 1; }
-fi
+[[ "${RELEASE_BUILD_ID:-}" == "$EXPECTED_BUILD_ID" ]] || {
+  echo "RELEASE_BUILD_ID 必须精确等于 $EXPECTED_BUILD_ID" >&2
+  exit 1
+}
+upstream_ref="$(git rev-parse --abbrev-ref '@{upstream}' 2>/dev/null)" \
+  || { echo "收口回归要求当前分支配置可读取的 upstream" >&2; exit 1; }
+[[ -n "$upstream_ref" ]] || { echo "收口回归要求当前分支配置可读取的 upstream" >&2; exit 1; }
+upstream_divergence="$(git rev-list --left-right --count 'HEAD...@{upstream}' 2>/dev/null)" \
+  || { echo "无法读取 upstream 同步状态" >&2; exit 1; }
+[[ "$upstream_divergence" == $'0\t0' ]] \
+  || { echo "收口回归前必须完成远程备份同步" >&2; exit 1; }
 node <<'NODE'
 const fs = require('fs')
+const expectedVersion = '1.0.156'
 const version = fs.readFileSync('VERSION', 'utf8').trim()
 const pkg = require('./mall-mini-program/package.json')
 const lock = require('./mall-mini-program/package-lock.json')
-if (version !== pkg.version || version !== lock.version || version !== lock.packages?.['']?.version) {
-  throw new Error('根版本、小程序包版本和锁文件不一致')
+if (version !== expectedVersion || pkg.version !== expectedVersion || lock.version !== expectedVersion
+    || lock.packages?.['']?.version !== expectedVersion) {
+  throw new Error('根版本、小程序包版本和锁文件必须全部精确等于 1.0.156')
 }
 NODE
 [[ "$(find document/db/migrations -maxdepth 1 -type f -name 'V*.sql' | wc -l | tr -d ' ')" == 41 ]] \
@@ -84,16 +94,16 @@ echo "[8/10] 商城 H5 三种生产构建"
 echo "[9/10] 发布脚本与候选构建器语法门禁"
 bash -n scripts/production-backup.sh scripts/db-migrate.sh \
   scripts/release-readiness.sh \
-  scripts/remote-deploy-20260922-v1.0.155-backend.sh \
-  scripts/remote-deploy-20260922-v1.0.155-static.sh
-node --check scripts/release-lingqi-155.mjs
+  scripts/remote-deploy-20260922-v1.0.156-backend.sh \
+  scripts/remote-deploy-20260922-v1.0.156-static.sh
+node --check scripts/release-lingqi-156.mjs
 node --check scripts/prepare-lingqi-mini-release.mjs
-node --check scripts/upload-lingqi-mini-155.mjs
+node --check scripts/upload-lingqi-mini-156.mjs
 node --test scripts/tests/*.test.mjs
 python3 - <<'PY'
 from pathlib import Path
 
-release = Path('scripts/remote-deploy-20260922-v1.0.155-backend.sh').read_text()
+release = Path('scripts/remote-deploy-20260922-v1.0.156-backend.sh').read_text()
 assert 'v["paymentEnabled"] is False' in release
 assert 'd["data"]["wechatPayEnabled"] is True' in release
 PY
