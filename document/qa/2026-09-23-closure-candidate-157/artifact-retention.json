@@ -1,10 +1,12 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "receiptStatus": "COMPLETED",
   "version": "1.0.157",
   "buildId": "20260923-closure-1.0.157",
   "gitCommit": "ef9da4bdfbe7bbce1d2903fe54e1edf28d119911",
   "sourceTree": "4acd081690e1fc83ad494add8ed0fd5abeffd854",
-  "candidateStatus": "FROZEN_CT_DURABLE_UPLOAD_PENDING_READBACK",
+  "candidateStatus": "FROZEN_CT_DURABLE_READBACK_VERIFIED",
+  "candidateManifestSha256": "6db880e11557568d04a5f92a6d19af357c03c524b3c804c2f82a6e874b66f110",
   "localArtifact": {
     "path": "target/releases/lingqi-mall-1.0.157-ef9da4bd.tar.gz",
     "bytes": 146870042,
@@ -19,23 +21,26 @@
     "classification": "same-host audit copy; not independent durable storage"
   },
   "durableArtifact": {
-    "status": "UPLOADED_PENDING_READBACK",
+    "status": "COMPLETED",
     "provider": "github-release",
     "private": true,
     "immutable": true,
     "objectId": "lifei3651/mall-swarm-release-archive/releases/tag/candidate-1.0.157-ef9da4bd#lingqi-mall-1.0.157-ef9da4bd.tar.gz",
     "assetDigest": "sha256:b065fe36c1a4c9a2fc4bc71a2c1a058687cca6e46da88322fee070210a75ed9a",
     "uploadObservedDate": "2026-09-23",
-    "uploadedAt": null,
+    "uploadedAt": "2026-09-23T10:21:00+08:00",
+    "uploadedAtPrecision": "GitHub UI minute precision; seconds normalized to 00",
     "retentionCommitmentUntil": "2027-09-23",
-    "retentionUntil": null,
-    "readBackAt": null,
-    "readBackBytes": null,
-    "readBackSha256": null
+    "retentionUntil": "2027-09-23T23:59:59+08:00",
+    "readBackAt": "2026-09-23T02:47:41Z",
+    "readBackLocalPath": "/Users/minmatemp/Downloads/lingqi-mall-1.0.157-ef9da4bd.tar.gz",
+    "readBackOriginHost": "release-assets.githubusercontent.com",
+    "readBackBytes": 146870042,
+    "readBackSha256": "b065fe36c1a4c9a2fc4bc71a2c1a058687cca6e46da88322fee070210a75ed9a"
   },
   "gates": {
     "serverDeploymentAllowed": false,
     "wechatDevelopmentUploadAllowed": false,
-    "reason": "P0-10 requires an independent durable copy and byte-for-byte read-back receipt before S/W"
+    "reason": "P0-10 retention is verified; S/W still require separate release authorization and formal preflight"
   }
 }
