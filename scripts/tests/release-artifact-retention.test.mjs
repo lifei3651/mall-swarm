@@ -17,17 +17,17 @@ function fixture() {
   const candidateRoot = path.join(root, 'candidate')
   fs.mkdirSync(candidateRoot)
   const manifest = {
-    version: '1.0.157',
+    version: '1.0.158',
     scope: 'mall-closure-candidate',
     gitCommit: '1'.repeat(40),
     sourceTree: '2'.repeat(40),
-    buildId: '20260923-closure-1.0.157',
+    buildId: '20260923-closure-1.0.158',
     buildMethod: 'clean-build-in-release-process',
   }
   const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`)
   fs.writeFileSync(path.join(candidateRoot, 'RELEASE_MANIFEST.json'), manifestBytes)
-  fs.writeFileSync(path.join(candidateRoot, 'VERSION'), '1.0.157\n')
-  const archive = path.join(root, 'lingqi-mall-1.0.157-11111111.tar.gz')
+  fs.writeFileSync(path.join(candidateRoot, 'VERSION'), '1.0.158\n')
+  const archive = path.join(root, 'lingqi-mall-1.0.158-11111111.tar.gz')
   cp.execFileSync('tar', ['-czf', archive, '-C', candidateRoot, '.'])
   const bytes = fs.statSync(archive).size
   const archiveSha256 = sha256(fs.readFileSync(archive))
@@ -89,7 +89,7 @@ test('complete private immutable GitHub receipt verifies without consulting curr
     assert.equal(result.status, 0, result.stderr)
     const output = JSON.parse(result.stdout)
     assert.equal(output.result, 'retention-verified')
-    assert.equal(output.version, '1.0.157')
+    assert.equal(output.version, '1.0.158')
     assert.equal(output.candidateSha256, item.receipt.localArtifact.sha256)
     assert.equal(output.candidateManifestSha256, item.receipt.candidateManifestSha256)
     assert.equal(output.private, true)
@@ -141,10 +141,10 @@ test('rejects a receipt whose matching candidate hash does not match the actual 
 
 test('release entry points enforce retention only after their read-only preflight exits', () => {
   const readiness = read('release-readiness.sh')
-  const backend = read('remote-deploy-20260923-v1.0.157-backend.sh')
-  const staticRelease = read('remote-deploy-20260923-v1.0.157-static.sh')
-  const wechat = read('upload-lingqi-mini-157.mjs')
-  const builder = read('release-lingqi-157.mjs')
+  const backend = read('remote-deploy-20260923-v1.0.158-backend.sh')
+  const staticRelease = read('remote-deploy-20260923-v1.0.158-static.sh')
+  const wechat = read('upload-lingqi-mini-158.mjs')
+  const builder = read('release-lingqi-158.mjs')
 
   assert.match(builder, /verify-release-artifact-retention\.mjs'.*verify-artifact-retention\.mjs/s)
   assert.match(readiness, /--preflight-only/)
