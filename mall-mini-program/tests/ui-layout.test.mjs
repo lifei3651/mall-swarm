@@ -37,6 +37,19 @@ test('关键详情和表单页为安全区留白，订单操作固定单行且�
   assert.match(styles, /\.ui-order-action--primary\s*\{[^}]*order:\s*2;/)
 })
 
+test('订单操作按钮覆盖小程序原生自动外边距，单个和多个按钮都靠右相邻', () => {
+  const styles = source('app.wxss')
+  const list = source('pages/orders/index.wxml')
+  const detail = source('pages/order-detail/index.wxml')
+  const buttonRule = styles.match(/\.ui-action-button, \.ui-order-action\s*\{([^}]*)\}/)?.[1] || ''
+  assert.match(buttonRule, /margin-left:\s*0\s*!important;/)
+  assert.match(buttonRule, /margin-right:\s*0\s*!important;/)
+  assert.match(styles, /\.ui-order-actions\s*\{[^}]*justify-content:\s*flex-end;[^}]*gap:\s*12rpx;/)
+  assert.match(list, /class="order-actions ui-action-bar ui-order-actions"/)
+  assert.match(detail, /class="product-actions ui-action-bar"/)
+  assert.ok(list.indexOf('>再买一单</button>') < list.indexOf('>确认收货</button>'))
+})
+
 test('普通操作按钮由共用层固定为秀气自适应尺寸，复制为文字按钮', () => {
   const styles = source('app.wxss')
   const list = source('pages/orders/index.wxml')

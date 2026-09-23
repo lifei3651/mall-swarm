@@ -26,6 +26,7 @@ requireText('mall-mini-program/app.wxss', /--action-height:\s*56rpx;/, '普通�
 requireText('mall-mini-program/app.wxss', /--action-font-size:\s*26rpx;/, '普通操作按钮字号必须固定为26rpx')
 requireText('mall-mini-program/app.wxss', /--action-padding-x:\s*24rpx;/, '普通操作按钮左右内边距必须固定为24rpx')
 requireText('mall-mini-program/app.wxss', /\.ui-action-button, \.ui-order-action\s*\{[^}]*flex:\s*none;[^}]*width:\s*auto\s*!important;[^}]*height:\s*var\(--action-height\)\s*!important;/, '普通操作按钮必须按文字收宽，禁止均分或固定大宽度')
+requireText('mall-mini-program/app.wxss', /\.ui-action-button, \.ui-order-action\s*\{[^}]*margin-left:\s*0\s*!important;[^}]*margin-right:\s*0\s*!important;/, '小程序普通操作按钮必须覆盖原生自动左右外边距，避免单按钮居中或多按钮分散')
 requireText('mall-mini-program/app.wxss', /\.ui-action-bar, \.ui-action-group\s*\{[^}]*flex-wrap:\s*nowrap;[^}]*justify-content:\s*flex-end;/, '普通操作组必须单行右对齐')
 requireText('mall-mini-program/app.wxss', /\.ui-copy-action\s*\{[^}]*background:\s*transparent\s*!important;[^}]*font-size:\s*22rpx\s*!important;/, '复制必须使用小型文字按钮')
 
@@ -33,6 +34,7 @@ requireText('mall-shop-web/src/assets/styles.css', /--shop-action-height:\s*28px
 requireText('mall-shop-web/src/assets/styles.css', /--shop-action-font-size:\s*13px;/, 'H5普通操作按钮字号必须与小程序26rpx等比')
 requireText('mall-shop-web/src/assets/styles.css', /--shop-action-padding-x:\s*12px;/, 'H5普通操作按钮内边距必须与小程序24rpx等比')
 requireText('mall-shop-web/src/assets/styles.css', /\.ui-action-button, \.ui-order-action\s*\{[^}]*flex:\s*none;[^}]*width:\s*auto\s*!important;[^}]*height:\s*var\(--shop-action-height\)\s*!important;/, 'H5普通操作按钮必须按文字收宽，禁止均分或固定大宽度')
+requireText('mall-shop-web/src/assets/styles.css', /\.ui-action-button, \.ui-order-action\s*\{[^}]*margin-left:\s*0\s*!important;[^}]*margin-right:\s*0\s*!important;/, 'H5普通操作按钮必须与小程序共用零左右外边距规范')
 requireText('mall-shop-web/src/assets/styles.css', /\.ui-action-bar, \.ui-action-group\s*\{[^}]*flex-wrap:\s*nowrap;[^}]*justify-content:\s*flex-end;/, 'H5普通操作组必须单行右对齐')
 requireText('mall-shop-web/src/assets/styles.css', /\.ui-copy-action\s*\{[^}]*background:\s*transparent\s*!important;[^}]*font-size:\s*11px\s*!important;/, 'H5复制必须使用小型文字按钮')
 

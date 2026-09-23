@@ -38,6 +38,20 @@ test('H5订单操作不换行、主按钮固定最右，取消和进行状态使
   assert.ok(rebuy >= 0 && receive > rebuy)
 })
 
+test('H5订单列表和详情的操作组共用右对齐且按钮没有自动左右外边距', async () => {
+  const [list, detail, styles] = await Promise.all([
+    read('src/views/OrdersView.vue'),
+    read('src/views/OrderDetailView.vue'),
+    read('src/assets/styles.css'),
+  ])
+  const buttonRule = styles.match(/\.ui-action-button, \.ui-order-action\s*\{([^}]*)\}/)?.[1] || ''
+  assert.match(buttonRule, /margin-left:\s*0\s*!important;/)
+  assert.match(buttonRule, /margin-right:\s*0\s*!important;/)
+  assert.match(styles, /\.ui-action-bar, \.ui-action-group\s*\{[^}]*justify-content:\s*flex-end;/)
+  assert.match(list, /class="order-actions ui-action-bar ui-order-actions"/)
+  assert.match(detail, /class="consumer-product-actions ui-action-bar"/)
+})
+
 test('H5普通操作按钮与小程序等比自适应，复制不再显示为胶囊大按钮', async () => {
   const [list, detail, styles] = await Promise.all([
     read('src/views/OrdersView.vue'),
