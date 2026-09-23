@@ -4,7 +4,7 @@
   "buildId": "20260923-closure-1.0.157",
   "gitCommit": "ef9da4bdfbe7bbce1d2903fe54e1edf28d119911",
   "sourceTree": "4acd081690e1fc83ad494add8ed0fd5abeffd854",
-  "candidateStatus": "FROZEN_CT_PENDING_RETENTION",
+  "candidateStatus": "FROZEN_CT_DURABLE_UPLOAD_PENDING_READBACK",
   "localArtifact": {
     "path": "target/releases/lingqi-mall-1.0.157-ef9da4bd.tar.gz",
     "bytes": 146870042,
@@ -19,10 +19,15 @@
     "classification": "same-host audit copy; not independent durable storage"
   },
   "durableArtifact": {
-    "status": "NOT_COMPLETED",
-    "provider": null,
-    "objectId": null,
+    "status": "UPLOADED_PENDING_READBACK",
+    "provider": "github-release",
+    "private": true,
+    "immutable": true,
+    "objectId": "lifei3651/mall-swarm-release-archive/releases/tag/candidate-1.0.157-ef9da4bd#lingqi-mall-1.0.157-ef9da4bd.tar.gz",
+    "assetDigest": "sha256:b065fe36c1a4c9a2fc4bc71a2c1a058687cca6e46da88322fee070210a75ed9a",
+    "uploadObservedDate": "2026-09-23",
     "uploadedAt": null,
+    "retentionCommitmentUntil": "2027-09-23",
     "retentionUntil": null,
     "readBackAt": null,
     "readBackBytes": null,
