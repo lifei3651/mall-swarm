@@ -52,6 +52,15 @@ test('H5订单列表和详情的操作组共用右对齐且按钮没有自动左
   assert.match(detail, /class="consumer-product-actions ui-action-bar"/)
 })
 
+test('H5订单列表只在有自动收货期限时显示提示行，不复述订单或售后状态', async () => {
+  const view = await read('src/views/OrdersView.vue')
+  assert.match(view, /<div v-if="orderAutoReceiveText\(item\)" class="ui-order-logistics">/)
+  assert.match(view, /const orderAutoReceiveText = \(item\) => Number\(item\.order\?\.status\) === 2 && item\.autoReceiveEnabled && !isAfterSale\(item\)/)
+  for (const repeated of ['付款后将安排发货', '商家正在准备商品', '包裹已发出，可查看物流进度', '售后进度：', '订单已完成', '订单已取消']) {
+    assert.ok(!view.includes(repeated), `订单列表不应重复显示：${repeated}`)
+  }
+})
+
 test('H5普通操作按钮与小程序等比自适应，复制不再显示为胶囊大按钮', async () => {
   const [list, detail, styles] = await Promise.all([
     read('src/views/OrdersView.vue'),

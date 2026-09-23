@@ -97,6 +97,9 @@ for (const path of ['mall-mini-program/pages/orders/index.wxml', 'mall-shop-web/
   requireText(path, /退换\/售后/, '订单列表售后操作统一命名为“退换/售后”')
   requireText(path, /再买一单/, '订单列表再次购买操作必须与其他操作保持同一组')
 }
+requireText('mall-mini-program/pages/orders/index.wxml', /<view wx:if="\{\{item\.logisticsText\}\}" class="ui-order-logistics">/, '小程序订单列表只有真实提醒时才显示物流提示行')
+requireText('mall-mini-program/utils/order-list.js', /logisticsText:\s*autoReceiveText/, '小程序订单列表不得重复显示顶部状态')
+requireText('mall-shop-web/src/views/OrdersView.vue', /<div v-if="orderAutoReceiveText\(item\)" class="ui-order-logistics">/, 'H5订单列表只有真实提醒时才显示物流提示行')
 
 for (const path of ['mall-mini-program/pages/order-detail/index.wxml', 'mall-shop-web/src/views/OrderDetailView.vue']) {
   requireText(path, /ui-action-button/, '订单详情的普通操作必须使用 ui-action-button')

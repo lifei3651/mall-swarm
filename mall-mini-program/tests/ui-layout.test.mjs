@@ -1,8 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 
 const source = (file) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
+const { decorate: decorateOrders } = createRequire(import.meta.url)('../utils/order-list.js')
 
 test('全部已注册页面保留后台主题绑定，统一按钮支持换行和禁用态', () => {
   const app = JSON.parse(source('app.json'))
@@ -113,6 +115,22 @@ test('订单列表共用清晰商品快照卡片且操作集中在同一行', ()
   assert.match(logic, /statusTone:\s*row\.order\.status === 4 \? 'cancelled'/)
   assert.match(styles, /\.ui-order-status\.is-cancelled\s*\{[^}]*#7b8492[^}]*#f0f2f4/)
   assert.match(styles, /\.ui-order-status\.is-active\s*\{[^}]*var\(--brand\)[^}]*var\(--brand-soft\)/)
+})
+
+test('订单列表不为重复状态占一行，仅自动收货期限显示提醒', () => {
+  const view = source('pages/orders/index.wxml')
+  assert.match(view, /<view wx:if="\{\{item\.logisticsText\}\}" class="ui-order-logistics">/)
+  const row = (status, patch = {}) => ({
+    order: { id: '1', status, createTime: '2026-09-23 12:00:00' },
+    items: [{ id: '2', productId: '3', quantity: 1 }],
+    shipments: [], afterSales: [], ...patch,
+  })
+  const ordinary = decorateOrders([0, 1, 2, 3, 4, 5].map((status) => row(status)))
+  assert.deepEqual(ordinary.map((item) => item.logisticsText), ['', '', '', '', '', ''])
+  const afterSale = decorateOrders([row(2, { afterSaleText: '待审核', afterSales: [{ status: 0 }], autoReceiveEnabled: true, autoReceiveDeadline: '2026-10-01 12:00:00' })])[0]
+  assert.equal(afterSale.logisticsText, '')
+  const auto = decorateOrders([row(2, { autoReceiveEnabled: true, autoReceiveDeadline: '2026-10-01 12:00:00' })])[0]
+  assert.match(auto.logisticsText, /2026-10-01 12:00 自动确认收货/)
 })
 
 test('提现金额用原生 text 组件，账号昵称主次操作位于输入框之后', () => {

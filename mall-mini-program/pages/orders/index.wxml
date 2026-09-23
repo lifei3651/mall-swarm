@@ -29,7 +29,7 @@
           </view>
         </view>
       </view>
-      <view class="ui-order-logistics"><text>{{item.logisticsText}}</text><button wx:if="{{item.showMissingAction}}" class="ui-order-logistics-action" data-id="{{item.order.id}}" catchtap="applyAfterSale">未收到 / 拒收</button></view>
+      <view wx:if="{{item.logisticsText}}" class="ui-order-logistics"><text>{{item.logisticsText}}</text><button wx:if="{{item.showMissingAction}}" class="ui-order-logistics-action" data-id="{{item.order.id}}" catchtap="applyAfterSale">未收到 / 拒收</button></view>
       <view class="ui-order-summary"><text>共 {{item.quantity}} 件商品</text><view><text>{{item.amountLabel}}</text><text class="ui-price">¥{{item.amountText}}</text></view></view>
       <view class="order-actions ui-action-bar ui-order-actions">
         <button wx:if="{{item.canViewLogistics}}" class="secondary-button ui-action-button ui-order-action" data-id="{{item.order.id}}" catchtap="viewLogistics" loading="{{wechatTrackingId && item.shipments[0].key === wechatTrackingId}}" disabled="{{!!wechatTrackingId}}">查看物流</button>

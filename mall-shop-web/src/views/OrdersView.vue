@@ -49,8 +49,8 @@
             </span>
           </RouterLink>
         </div>
-        <div class="ui-order-logistics">
-          <span>{{ orderLogisticsText(item) }}</span>
+        <div v-if="orderAutoReceiveText(item)" class="ui-order-logistics">
+          <span>{{ orderAutoReceiveText(item) }}</span>
           <RouterLink v-if="item.order.status === 2 && item.autoReceiveEnabled && !isAfterSale(item) && canApplyAfterSale(item)" class="ui-order-logistics-action" :to="`/orders/${item.order.id}?applyAfterSale=1`">未收到 / 拒收</RouterLink>
         </div>
         <div class="ui-order-summary">
@@ -273,11 +273,9 @@ const orderStateClass = (item) => {
   if (Number(item.order?.status) === 3 && !isAfterSale(item) && Number(item.pendingReviewCount || 0) === 0) return 'is-completed'
   return 'is-active'
 }
-const orderLogisticsText = (item) => {
-  if (item.afterSales?.length) return `售后进度：${afterSaleStatus(item.afterSales[0]?.status, item.afterSales[0]?.applyType)}`
-  if (Number(item.order?.status) === 2 && item.autoReceiveEnabled) return item.autoReceiveDeadline ? `预计 ${dateTime(item.autoReceiveDeadline)} 自动确认收货` : `发货满 ${Number(item.autoReceiveDays || 15)} 天自动确认收货`
-  return ({ 0: '付款后将安排发货', 1: '商家正在准备商品', 2: '包裹已发出，可查看物流进度', 3: '订单已完成', 4: '订单已取消' }[Number(item.order?.status)] || '订单处理中')
-}
+const orderAutoReceiveText = (item) => Number(item.order?.status) === 2 && item.autoReceiveEnabled && !isAfterSale(item)
+  ? (item.autoReceiveDeadline ? `预计 ${dateTime(item.autoReceiveDeadline)} 自动确认收货` : `发货满 ${Number(item.autoReceiveDays || 15)} 天自动确认收货`)
+  : ''
 const trackingUrl = (shipment) => shipment?.deliveryNo ? `https://m.kuaidi100.com/result.jsp?nu=${encodeURIComponent(shipment.deliveryNo)}` : ''
 const firstTrackingUrl = (item) => trackingUrl((item.shipments || []).find((shipment) => shipment.deliveryNo))
 const notifyAction = (message) => {
