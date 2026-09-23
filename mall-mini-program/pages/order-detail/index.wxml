@@ -33,28 +33,17 @@
 
       <view wx:if="{{item.shipments.length || item.order.addressText}}" class="section-card ui-card fulfillment-card {{item.shipments.length ? 'with-shipments' : ''}}">
         <block wx:if="{{item.shipments.length}}">
-          <view class="logistics-update">
-            <view class="logistics-update-copy"><text class="logistics-state">{{item.order.status === 3 ? '已签收' : '物流配送中'}}</text><text class="logistics-latest">{{item.order.logisticsUpdateText}}</text></view>
-            <button wx:if="{{trackingRows.length && trackingOrderId === item.order.id}}" class="text-action" data-id="{{item.order.id}}" bindtap="loadTracking" loading="{{trackingLoading}}" disabled="{{trackingLoading}}">刷新</button>
-          </view>
           <view class="shipment-list">
             <view class="shipment-row" wx:for="{{item.shipments}}" wx:key="key" wx:for-item="shipment">
               <view class="shipment-main">
-                <text class="package-label">{{shipment.packageLabel}}</text>
-                <text class="shipment-company">{{shipment.deliveryCompany || '物流公司待更新'}}</text>
+                <text wx:if="{{item.shipments.length > 1}}" class="package-label">{{shipment.packageLabel}}</text>
+                <button wx:if="{{shipment.deliveryNo}}" class="shipment-company-action" data-id="{{item.order.id}}" data-shipment-id="{{shipment.id}}" bindtap="openWeChatTracking" loading="{{wechatTrackingId === shipment.key}}" disabled="{{!!wechatTrackingId}}" aria-label="查看{{shipment.deliveryCompany || '承运商'}}物流">{{shipment.deliveryCompany || '物流公司待更新'}}<image class="shipment-chevron" src="/assets/profile/chevron-right.png" mode="aspectFit" /></button>
+                <text wx:else class="shipment-company">{{shipment.deliveryCompany || '物流公司待更新'}}</text>
                 <text class="shipment-number">运单号 {{shipment.deliveryNo || '-'}}</text>
                 <text wx:if="{{shipment.deliveryTimeText}}" class="shipment-time">发货时间 {{shipment.deliveryTimeText}}</text>
               </view>
               <button wx:if="{{shipment.deliveryNo}}" size="mini" class="copy-inline ui-copy-action" data-number="{{shipment.deliveryNo}}" bindtap="copyDeliveryNo">复制单号</button>
             </view>
-          </view>
-          <view wx:if="{{trackingOrderId === item.order.id}}" class="tracking-panel">
-            <block wx:for="{{trackingRows}}" wx:key="deliveryNo" wx:for-item="tracking">
-              <view wx:if="{{tracking.configured && tracking.events.length}}" class="tracking-record">
-                <view class="tracking-state is-live"><text>{{tracking.statusText}}</text></view>
-                <view wx:for="{{tracking.events}}" wx:key="index" wx:for-item="progress" class="tracking-event"><text>{{progress.description}}{{progress.location ? ' · ' + progress.location : ''}}</text><text>{{progress.time}}</text></view>
-              </view>
-            </block>
           </view>
         </block>
         <view wx:if="{{item.order.addressText}}" class="recipient-summary">
@@ -79,10 +68,7 @@
           </view>
         </view>
         <view wx:if="{{item.afterSaleDeadlineText}}" class="after-sale-deadline">售后期截止时间 {{item.afterSaleDeadlineText}}</view>
-        <view class="product-actions ui-action-bar">
-          <button wx:if="{{item.shipments.length}}" class="secondary-button ui-action-button compact-action" data-id="{{item.order.id}}" data-shipment-id="{{item.shipments[0].id}}" bindtap="openWeChatTracking" loading="{{wechatTrackingId === item.shipments[0].key}}" disabled="{{!!wechatTrackingId}}">查看物流</button>
-          <button wx:if="{{item.items.length}}" class="secondary-button ui-action-button compact-action" data-id="{{item.order.id}}" bindtap="openProduct">还想买</button>
-          <button wx:if="{{item.canRebuy}}" class="secondary-button ui-action-button compact-action" data-id="{{item.order.id}}" bindtap="buyAgain" loading="{{rebuyId === item.order.id}}" disabled="{{!!rebuyId}}">再买一单</button>
+        <view wx:if="{{item.canApplyAfterSale || item.pendingReviewProductId && item.pendingReviewOrderItemId || item.order.status === 0 || item.canReceive}}" class="product-actions ui-action-bar">
           <button wx:if="{{item.canApplyAfterSale}}" class="secondary-button ui-action-button compact-action" data-id="{{item.order.id}}" bindtap="applyAfterSale">退换/售后</button>
           <button wx:if="{{item.pendingReviewProductId && item.pendingReviewOrderItemId}}" class="secondary-button ui-action-button compact-action" data-id="{{item.order.id}}" bindtap="review">去评价</button>
           <button wx:if="{{item.order.status === 0}}" class="secondary-button ui-action-button compact-action" data-id="{{item.order.id}}" disabled="{{actingId !== null}}" bindtap="cancelOrder">取消订单</button>

@@ -86,6 +86,7 @@ test('H5普通操作按钮与小程序等比自适应，复制不再显示为胶
 
 test('H5订单详情按状态、本人收入、物流收货人、商品和全部信息顺序收口', async () => {
   const view = await read('src/views/OrderDetailView.vue')
+  const consumerDetail = view.split('<main v-if="!applyingAfterSale" class="consumer-order-detail">')[1]?.split('</main>')[0] || ''
   const positions = [
     'class="consumer-status-hero"',
     'class="consumer-card income-card ui-card"',
@@ -100,8 +101,8 @@ test('H5订单详情按状态、本人收入、物流收货人、商品和全部
   assert.match(view, /class="consumer-recipient-row"/)
   assert.match(view, /class="consumer-service-tags"/)
   assert.match(view, /售后期截止时间/)
-  assert.match(view, />查看物流<\/a>/)
-  assert.match(view, />还想买<\/RouterLink>/)
-  assert.match(view, /再买一单/)
+  assert.match(consumerDetail, /class="consumer-carrier-link"[^>]*:href="trackingUrl\(shipment\)"/)
+  assert.doesNotMatch(consumerDetail, /consumer-logistics-head|>查看物流<\/a>|>还想买<\/RouterLink>|再买一单/)
+  assert.doesNotMatch(view, /getOrderTracking/)
   assert.doesNotMatch(view, /运费险/)
 })

@@ -239,10 +239,6 @@ Page({
         ...paymentSummary(rows)
       })
       this.quietErrorShown = false
-      const logisticsRow = rows.find((row) => row.shipments.length)
-      if (logisticsRow && !this.data.trackingLoading && this.data.trackingOrderId !== logisticsRow.order.id) {
-        Promise.resolve().then(() => this.loadTrackingForOrder(logisticsRow.order.id))
-      }
       return true
     } catch (error) {
       if (current()) {

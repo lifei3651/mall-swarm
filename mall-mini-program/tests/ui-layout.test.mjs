@@ -83,9 +83,9 @@ test('小程序订单详情按状态、本人收入、物流收货人、商品�
   assert.match(detail, /class="recipient-summary"/)
   assert.match(detail, /class="item-service-tags"/)
   assert.match(detail, /售后期截止时间/)
-  assert.match(detail, />查看物流<\/button>/)
-  assert.match(detail, />还想买<\/button>/)
-  assert.match(detail, />再买一单<\/button>/)
+  assert.match(detail, /class="shipment-company-action"[^>]*data-shipment-id="\{\{shipment\.id\}\}"[^>]*bindtap="openWeChatTracking"/)
+  assert.doesNotMatch(detail, /物流配送中|>查看物流<\/button>|>还想买<\/button>|>再买一单<\/button>/)
+  assert.match(detail, /<text wx:if="\{\{item\.shipments\.length > 1\}\}" class="package-label">/)
   assert.doesNotMatch(detail, /运费险/)
 })
 

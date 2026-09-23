@@ -152,6 +152,7 @@ test('C04/C07: 历史单号回退为包裹、驳回可重申、折叠不隐藏�
   const detail = { order: { id: '9', status: 2, deliveryNo: 'FIXTURE-NO', deliveryCompany: '本地物流', payAmount: 99 }, items: [{ id: '71', quantity: 2 }], afterSaleWindowMode: 'RECEIVED', afterSales: [{ id: '81', status: 2, applyType: 1 }] }
   const env = commerceEnv(() => detail), page = env.page('order-detail'); page.onLoad({ id: '9' }); await page.load()
   assert.equal(page.data.rows[0].shipments[0].packageLabel, '包裹 1 · 2件商品')
+  assert.equal(env.calls.filter((call) => call.url.endsWith('/tracking')).length, 0)
   assert.equal(page.data.rows[0].afterSales[0].canReapply, true)
   page.toggleOrderInfo(event('9')); assert.equal(page.data.expandedOrders['9'], true)
   page.applyAfterSale(event('9')); assert.deepEqual(env.routes, ['/pages/after-sale/index?orderId=9'])

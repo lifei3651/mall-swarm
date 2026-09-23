@@ -38,12 +38,8 @@
         </section>
 
         <section v-if="shipments.length || order.receiverAddress" class="consumer-card fulfillment-card ui-card">
-          <div v-if="shipments.length" class="consumer-logistics-head">
-            <div><strong>{{ logisticsStatus }}</strong><span>{{ latestLogisticsText }}</span></div>
-            <a v-if="trackingUrl(shipments[0])" :href="trackingUrl(shipments[0])" target="_blank" rel="noopener">查看物流</a>
-          </div>
           <div v-for="(shipment, index) in shipments" :key="`${shipment.deliveryNo}-${index}`" class="consumer-package-row">
-            <span><strong>{{ shipment.deliveryCompany || '快递公司待更新' }}</strong><small>运单号 {{ shipment.deliveryNo || '-' }}<template v-if="shipment.deliveryTime"> · {{ dateTime(shipment.deliveryTime) }}</template></small></span>
+            <span><small v-if="shipments.length > 1">包裹 {{ index + 1 }}</small><a v-if="trackingUrl(shipment)" class="consumer-carrier-link" :href="trackingUrl(shipment)" target="_blank" rel="noopener" :aria-label="`查看${shipment.deliveryCompany || '承运商'}物流`">{{ shipment.deliveryCompany || '快递公司待更新' }}</a><strong v-else>{{ shipment.deliveryCompany || '快递公司待更新' }}</strong><small>运单号 {{ shipment.deliveryNo || '-' }}<template v-if="shipment.deliveryTime"> · {{ dateTime(shipment.deliveryTime) }}</template></small></span>
             <button v-if="shipment.deliveryNo" type="button" class="ui-copy-action" @click="copyText(shipment.deliveryNo)">复制单号</button>
           </div>
           <div v-if="order.receiverAddress" class="consumer-recipient-row">
@@ -66,10 +62,7 @@
             </div>
           </article>
           <p v-if="detail.afterSaleDeadline" class="consumer-after-sale-deadline">售后期截止时间 {{ dateTime(detail.afterSaleDeadline) }}</p>
-          <div class="consumer-product-actions ui-action-bar">
-            <a v-if="trackingUrl(shipments[0])" :href="trackingUrl(shipments[0])" target="_blank" rel="noopener" class="consumer-action btn secondary ui-action-button">查看物流</a>
-            <RouterLink v-if="firstProductId" class="consumer-action btn secondary ui-action-button" :to="`/product/${firstProductId}`">还想买</RouterLink>
-            <button v-if="canRebuy" type="button" class="consumer-action btn secondary ui-action-button" :disabled="Boolean(rebuyId)" @click="buyAgain">{{ rebuyId ? '处理中…' : '再买一单' }}</button>
+          <div v-if="canApplyAfterSale || Number(detail.pendingReviewCount || 0) > 0 || order.status === 2 && !hasActiveAfterSale" class="consumer-product-actions ui-action-bar">
             <button v-if="canApplyAfterSale" type="button" class="consumer-action btn secondary ui-action-button" @click="startAfterSale">退换/售后</button>
             <RouterLink v-if="Number(detail.pendingReviewCount || 0) > 0" class="consumer-action btn secondary ui-action-button" :to="pendingReviewLink">去评价</RouterLink>
             <button v-if="order.status === 2 && !hasActiveAfterSale" type="button" class="consumer-action btn primary ui-action-button ui-action-button--primary" :disabled="acting" @click="requestOrderConfirmation('receive-order')">确认收货</button>
@@ -487,7 +480,7 @@ import { couponRefundPreview } from '@/utils/couponAmounts'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ChevronDown, ChevronRight, CircleCheck, ImagePlus, MapPin, PackageCheck, RefreshCw, RotateCcw, Truck, UserRound } from 'lucide-vue-next'
-import { applyAfterSale, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmAfterSaleExchangeReceived, confirmReceive, createAlipayOrder, getOrder, getOrderTracking, getProduct, payOrderWithBalance, submitAfterSaleReturnShipment, uploadAfterSaleProof } from '@/api/shop'
+import { applyAfterSale, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmAfterSaleExchangeReceived, confirmReceive, createAlipayOrder, getOrder, getProduct, payOrderWithBalance, submitAfterSaleReturnShipment, uploadAfterSaleProof } from '@/api/shop'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { dateTime, money, statusName } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
@@ -1031,11 +1024,6 @@ const fetchOrder = async () => {
     const res = await getOrder(route.params.id)
     detail.value = res.data || {}
     logisticsTracking.value = []
-    if (shipments.value.length) {
-      getOrderTracking(route.params.id)
-        .then((trackingResponse) => { logisticsTracking.value = trackingResponse.data || [] })
-        .catch(() => { logisticsTracking.value = [] })
-    }
     selectAllRefundableItems()
     if (!canApplyAfterSale.value) applyingAfterSale.value = false
     selectedReason.value = ''
@@ -1201,14 +1189,11 @@ onBeforeUnmount(() => {
 .income-detail-line small { color: #929a98; font-size: 11px; }
 .income-detail-line > b { color: var(--brand-primary); font-size: 14px; }
 .fulfillment-card { padding: 0 19px 17px; }
-.consumer-logistics-head { display: flex; align-items: center; gap: 14px; padding: 17px 0 14px; border-bottom: 1px solid #edf1f0; }
-.consumer-logistics-head > div { display: grid; gap: 5px; min-width: 0; flex: 1; }
-.consumer-logistics-head strong { color: #232a28; font-size: 17px; }
-.consumer-logistics-head span { overflow: hidden; color: #7d8684; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.consumer-logistics-head a { color: var(--brand-primary); font-size: 12px; font-weight: 750; text-decoration: none; white-space: nowrap; }
 .consumer-package-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 0; border-bottom: 1px solid #edf1f0; }
 .consumer-package-row > span { display: grid; gap: 4px; min-width: 0; }
 .consumer-package-row strong { color: #313836; font-size: 13px; }
+.consumer-carrier-link { color: var(--brand-primary); font-size: 13px; font-weight: 700; text-decoration: none; }
+.consumer-carrier-link:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 3px; }
 .consumer-package-row small { color: #7f8886; font-size: 11px; }
 .consumer-recipient-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding-top: 15px; }
 .consumer-recipient-row > svg { color: #68716f; }

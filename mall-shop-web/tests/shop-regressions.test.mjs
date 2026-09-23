@@ -1139,20 +1139,13 @@ test('product detail shows the configured member purchase limit', async () => {
   assert.match(source, /每位会员限购/)
 })
 
-test('order detail describes only locally known delivery facts without inventing carrier progress', async () => {
+test('order detail uses the carrier as its only tracking entry without inventing progress', async () => {
   const source = await readView('OrderDetailView.vue')
-  assert.match(source, /logistics-overview-panel/)
-  assert.match(source, /courierInitial/)
-  assert.match(source, /logisticsStatus/)
-  assert.match(source, /已确认收货/)
-  assert.match(source, /实际轨迹以承运商查询为准/)
-  assert.match(source, /查询承运商/)
-  assert.doesNotMatch(source, /运输中/)
-  assert.doesNotMatch(source, /包裹正在运输/)
-  assert.ok(source.indexOf('logistics-overview-panel') < source.indexOf('product-detail-head'))
-  assert.match(source, /getOrderTracking/)
-  assert.match(source, /trackingFor\(shipment\)\.events/)
-  assert.match(source, /aria-label="真实物流轨迹"/)
+  const current = source.split('<main v-if="!applyingAfterSale" class="consumer-order-detail">')[1]?.split('</main>')[0] || ''
+  assert.match(current, /class="consumer-carrier-link"[^>]*:href="trackingUrl\(shipment\)"/)
+  assert.match(source, /商品已于/)
+  assert.doesNotMatch(current, /consumer-logistics-head|>查看物流<\/a>|运输中|包裹正在运输/)
+  assert.doesNotMatch(source, /getOrderTracking/)
 })
 
 test('fulfilled orders show auto-receipt protection, logistics after-sale reasons and per-package actions', async () => {

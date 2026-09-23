@@ -44,35 +44,19 @@
 .section-icon { flex:none; width:39rpx; height:39rpx; opacity:.78; }
 .section-title { display:block; color:var(--ink); font-size:28rpx; font-weight:720; }
 .section-subtitle { display:block; margin-top:6rpx; color:#7a8583; font-size:21rpx; line-height:31rpx; }
-.text-action { min-height:62rpx; margin:0; padding:0 10rpx; border:0; background:transparent; color:var(--brand); font-size:22rpx; font-weight:600; line-height:62rpx; }
-.text-action::after { border:0; }
-
-.logistics-update { display:flex; align-items:center; justify-content:space-between; gap:18rpx; padding-bottom:17rpx; border-bottom:1rpx solid #edf1f0; }
-.logistics-update-copy { min-width:0; flex:1; }
-.logistics-state,.logistics-latest { display:block; }
-.logistics-state { color:#242b29; font-size:30rpx; font-weight:720; }
-.logistics-latest { margin-top:7rpx; overflow:hidden; color:#7d8684; font-size:22rpx; line-height:34rpx; text-overflow:ellipsis; white-space:nowrap; }
-
-.shipment-list { margin-top:18rpx; }
+.shipment-list { margin-top:0; }
 .shipment-row { display:flex; align-items:center; justify-content:space-between; gap:20rpx; padding:18rpx 0; border-bottom:1rpx solid #edf1f0; }
 .shipment-main { min-width:0; flex:1; }
 .package-label,.shipment-company,.shipment-number,.shipment-time { display:block; }
 .package-label { color:#798381; font-size:21rpx; }
 .shipment-company { margin-top:7rpx; color:var(--ink); font-size:25rpx; font-weight:650; }
+.shipment-company-action { display:inline-flex; align-items:center; min-height:54rpx; width:auto; max-width:100%; margin:0; padding:0; border:0; background:transparent; color:var(--brand); font-size:25rpx; font-weight:650; line-height:1.4; text-align:left; }
+.shipment-company-action::after { border:0; }
+.shipment-chevron { flex:none; width:18rpx; height:18rpx; margin-left:10rpx; }
 .shipment-number,.shipment-time { margin-top:6rpx; color:#737e7c; font-size:21rpx; line-height:31rpx; word-break:break-all; }
-.shipment-actions { flex:none; align-self:center; }
-.wechat-track-button,.copy-inline { flex:none; }
+.copy-inline { flex:none; }
 
-.tracking-panel { margin-top:10rpx; padding-top:18rpx; border-top:1rpx solid #edf1f0; }
 .shipment-error { display:block; padding:18rpx; border-radius:16rpx; background:#fff1f1; color:#b42318; font-size:22rpx; line-height:35rpx; }
-.tracking-record + .tracking-record { margin-top:18rpx; }
-.tracking-state { padding:18rpx; border-radius:16rpx; background:#f0f7f5; }
-.tracking-state text { display:block; color:#45514f; font-size:22rpx; line-height:35rpx; }
-.tracking-state text:first-child { color:var(--brand); font-size:24rpx; font-weight:700; }
-.tracking-event { position:relative; margin-left:17rpx; padding:20rpx 0 10rpx 28rpx; border-left:2rpx solid #d9e4e1; }
-.tracking-event::before { position:absolute; top:28rpx; left:-7rpx; width:12rpx; height:12rpx; border-radius:50%; background:var(--brand); content:''; }
-.tracking-event text { display:block; color:#46514f; font-size:23rpx; line-height:34rpx; }
-.tracking-event text:last-child { margin-top:5rpx; color:#89918f; font-size:20rpx; }
 
 .recipient-summary { display:flex; align-items:center; gap:15rpx; padding-top:18rpx; }
 .recipient-pin { flex:none; width:37rpx; height:37rpx; opacity:.82; }
