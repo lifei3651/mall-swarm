@@ -34,4 +34,4 @@
 
 机器可读留存状态见 `artifact-retention.json`：本机包已验签，并只追加复制到 `/Users/minmatemp/Documents/mall-swarm-app-h5-release-artifacts/1.0.157/`；同主机副本回读为 `146870042` 字节，SHA-256 仍为 `b065fe36c1a4c9a2fc4bc71a2c1a058687cca6e46da88322fee070210a75ed9a`。它只保护本机审计，不是独立耐久存储。独立私有附件随后由用户从 GitHub 实际下载至本机 `Downloads`；Codex 对该下载文件重算得到相同的 `146870042` 字节和 SHA-256，并通过留存校验程序。具体见 [`RETENTION_RECEIPT.md`](RETENTION_RECEIPT.md)。
 
-当前已取得符合 [`../../RELEASE_ARTIFACT_RETENTION.md`](../../RELEASE_ARTIFACT_RETENTION.md) 的实际下载回读回执。下一步仍须另行取得发布授权，使用同一字节包通过正式准入、受控备份/迁移/发布与独立复核，并单独记录微信开发版/体验版及真机 R；P0 未清零前禁止提审和正式发布。
+当前已取得符合 [`../../RELEASE_ARTIFACT_RETENTION.md`](../../RELEASE_ARTIFACT_RETENTION.md) 的实际下载回读回执；随后同一包的正式环境只读准入通过，范围见 [`PRODUCTION_READONLY_20260923.md`](PRODUCTION_READONLY_20260923.md)。下一步仍须另行取得发布授权，完成备份、隔离迁移演练、受控 S 与发布后独立复核，并单独记录微信开发版/体验版及真机 R；P0 未清零前禁止提审和正式发布。
