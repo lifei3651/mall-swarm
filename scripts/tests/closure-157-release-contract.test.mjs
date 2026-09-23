@@ -14,7 +14,7 @@ const previousJar = '786aec477acb1deaf71c058bfbd55e9d57a9953c31bafa859ae2c9b4369
 const previousCommit = 'a8f86f2ed3123c21082e7404d372812e11dae790'
 const migration = 'V202609211530__order_item_service_tag_snapshot.sql'
 const migrationSha = 'bb5f0dbf8942db2f2c56c28bd1c6c16fa185b1087690a750affd8ac523962526'
-const buildId = '20260922-closure-1.0.156'
+const buildId = '20260923-closure-1.0.157'
 const buildMethod = 'clean-build-in-release-process'
 
 function git(cwd, ...args) {
@@ -22,7 +22,7 @@ function git(cwd, ...args) {
 }
 
 function temporaryRepository(files) {
-  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'closure-156-contract.'))
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'closure-157-contract.'))
   const root = path.join(parent, 'mall-swarm-app-h5')
   fs.mkdirSync(root)
   for (const [relative, contents] of Object.entries(files)) {
@@ -50,25 +50,25 @@ function fileInventory(directory, prefix = '', result = {}) {
   return result
 }
 
-test('1.0.156 unified candidate is package-only and binds the 1.0.154 baseline', () => {
-  const source = read('release-lingqi-156.mjs')
-  assert.match(source, /const VERSION = '1\.0\.156'/)
-  assert.match(source, /const BUILD_ID = '20260922-closure-1\.0\.156'/)
+test('1.0.157 unified candidate is package-only and binds the 1.0.154 baseline', () => {
+  const source = read('release-lingqi-157.mjs')
+  assert.match(source, /const VERSION = '1\.0\.157'/)
+  assert.match(source, /const BUILD_ID = '20260923-closure-1\.0\.157'/)
   assert.match(source, /process\.argv\.length !== 3 \|\| process\.argv\[2\] !== '--package-only'/)
   assert.match(source, new RegExp(previousJar))
   assert.match(source, new RegExp(previousCommit))
   assert.match(source, /migrations\.length !== 41/)
   assert.match(source, new RegExp(migration))
-  assert.match(source, /remote-deploy-20260922-v1\.0\.156-backend\.sh/)
-  assert.match(source, /remote-deploy-20260922-v1\.0\.156-static\.sh/)
+  assert.match(source, /remote-deploy-20260923-v1\.0\.157-backend\.sh/)
+  assert.match(source, /remote-deploy-20260923-v1\.0\.157-static\.sh/)
   assert.match(source, /Object\.entries\(process\.env\)\.filter\(\(\[key\]\) => !key\.startsWith\('VITE_'\)\)/)
   assert.match(source, /const buildEnvironment = \{\n  \.\.\.sanitizedProcessEnvironment,/)
   assert.doesNotMatch(source, /const buildEnvironment = \{\n  \.\.\.process\.env,/)
 })
 
-test('1.0.156 WeChat wrapper can only preflight or upload a development version', () => {
-  const source = read('upload-lingqi-mini-156.mjs')
-  assert.match(source, /const VERSION = '1\.0\.156'/)
+test('1.0.157 WeChat wrapper can only preflight or upload a development version', () => {
+  const source = read('upload-lingqi-mini-157.mjs')
+  assert.match(source, /const VERSION = '1\.0\.157'/)
   assert.match(source, /policy: 'development-upload-only'/)
   assert.match(source, /experienceVersionChanged: false/)
   assert.match(source, /reviewSubmitted: false/)
@@ -84,19 +84,19 @@ test('1.0.156 WeChat wrapper can only preflight or upload a development version'
 })
 
 test('WeChat preflight executes only harmless CLI capability probes and never upload', () => {
-  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'closure-156-wechat-preflight.'))
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'closure-157-wechat-preflight.'))
   const root = path.join(parent, 'mall-swarm-app-h5')
   const fakeCli = path.join(parent, 'fake-wechat-cli')
   const fakeIde = path.join(parent, 'fake-wechat-ide')
   const fakePackage = path.join(parent, 'fake-wechat-package.json')
   const commandLog = path.join(parent, 'cli-commands.log')
-  const transformed = read('upload-lingqi-mini-156.mjs')
+  const transformed = read('upload-lingqi-mini-157.mjs')
     .replace("const CLI = '/Applications/wechatwebdevtools.app/Contents/MacOS/cli'", `const CLI = ${JSON.stringify(fakeCli)}`)
     .replace("const IDE_BINARY = '/Applications/wechatwebdevtools.app/Contents/MacOS/wechatwebdevtools'", `const IDE_BINARY = ${JSON.stringify(fakeIde)}`)
     .replace("const IDE_PACKAGE = '/Applications/wechatwebdevtools.app/Contents/Resources/app.asar.unpacked/package.json'", `const IDE_PACKAGE = ${JSON.stringify(fakePackage)}`)
   fs.mkdirSync(path.join(root, 'scripts/lib'), { recursive: true })
-  fs.writeFileSync(path.join(root, 'VERSION'), '1.0.156\n')
-  fs.writeFileSync(path.join(root, 'scripts/upload-lingqi-mini-156.mjs'), transformed)
+  fs.writeFileSync(path.join(root, 'VERSION'), '1.0.157\n')
+  fs.writeFileSync(path.join(root, 'scripts/upload-lingqi-mini-157.mjs'), transformed)
   fs.writeFileSync(path.join(root, 'scripts/lib/wechat-cli-output.mjs'), read('lib/wechat-cli-output.mjs'))
   git(root, 'init', '-q')
   git(root, 'config', 'user.name', 'Closure Contract Test')
@@ -109,9 +109,9 @@ test('WeChat preflight executes only harmless CLI capability probes and never up
 
   const project = path.join(resolvedRoot, 'dist/wechat-mini-program')
   fs.mkdirSync(path.join(project, 'config'), { recursive: true })
-  fs.writeFileSync(path.join(project, 'package.json'), JSON.stringify({ version: '1.0.156' }))
+  fs.writeFileSync(path.join(project, 'package.json'), JSON.stringify({ version: '1.0.157' }))
   fs.writeFileSync(path.join(project, 'package-lock.json'), JSON.stringify({
-    version: '1.0.156', packages: { '': { version: '1.0.156' } },
+    version: '1.0.157', packages: { '': { version: '1.0.157' } },
   }))
   fs.writeFileSync(path.join(project, 'project.config.json'), JSON.stringify({
     appid: 'wxd26e0a4e41df392b', setting: { urlCheck: true },
@@ -126,7 +126,7 @@ test('WeChat preflight executes only harmless CLI capability probes and never up
   fs.writeFileSync(`${project}.release.json`, JSON.stringify({
     schemaVersion: 2,
     target: project,
-    version: '1.0.156',
+    version: '1.0.157',
     gitCommit: commit,
     sourceTree,
     scope: 'mall-closure-candidate',
@@ -160,7 +160,7 @@ exit 99
   fs.writeFileSync(fakePackage, JSON.stringify({ version: '9.9.9' }))
 
   try {
-    const result = cp.spawnSync(process.execPath, ['scripts/upload-lingqi-mini-156.mjs', '--preflight-only', '--port', '47777'], {
+    const result = cp.spawnSync(process.execPath, ['scripts/upload-lingqi-mini-157.mjs', '--preflight-only', '--port', '47777'], {
       cwd: root,
       encoding: 'utf8',
     })
@@ -172,8 +172,8 @@ exit 99
   }
 })
 
-test('1.0.156 backend allows only the fixed additive migration and never drops it on recovery', () => {
-  const source = read('remote-deploy-20260922-v1.0.156-backend.sh')
+test('1.0.157 backend allows only the fixed additive migration and never drops it on recovery', () => {
+  const source = read('remote-deploy-20260923-v1.0.157-backend.sh')
   assert.match(source, /EXPECTED_MIGRATIONS_BEFORE=40/)
   assert.match(source, /EXPECTED_MIGRATIONS_AFTER=41/)
   assert.match(source, new RegExp(`NEW_MIGRATION=${migration}`))
@@ -191,30 +191,30 @@ test('1.0.156 backend allows only the fixed additive migration and never drops i
   assert.match(source, /EXPECTED_SOURCE_TREE=\$\{LINGQIMALL_RELEASE_SOURCE_TREE:-\}/)
   assert.match(source, /\[\[ "\$EXPECTED_SOURCE_TREE" =~ \^\[a-f0-9\]\{40\}\$ \]\]/)
   assert.match(source, /manifest\['sourceTree'\] == source_tree/)
-  assert.match(source, /manifest\.get\('buildId'\) == build_id == '20260922-closure-1\.0\.156'/)
+  assert.match(source, /manifest\.get\('buildId'\) == build_id == '20260923-closure-1\.0\.157'/)
   assert.match(source, /manifest\.get\('buildMethod'\) == build_method == 'clean-build-in-release-process'/)
   assert.doesNotMatch(source, /DROP\s+(?:COLUMN|TABLE)\s+service_tags/i)
 })
 
-test('1.0.156 static release binds the exact build method and independently supplied source tree', () => {
-  const source = read('remote-deploy-20260922-v1.0.156-static.sh')
-  assert.match(source, /EXPECTED_BUILD_ID=20260922-closure-1\.0\.156/)
+test('1.0.157 static release binds the exact build method and independently supplied source tree', () => {
+  const source = read('remote-deploy-20260923-v1.0.157-static.sh')
+  assert.match(source, /EXPECTED_BUILD_ID=20260923-closure-1\.0\.157/)
   assert.match(source, /EXPECTED_BUILD_METHOD=clean-build-in-release-process/)
   assert.match(source, /EXPECTED_SOURCE_TREE=\$\{LINGQIMALL_RELEASE_SOURCE_TREE:-\}/)
   assert.match(source, /\[\[ "\$EXPECTED_SOURCE_TREE" =~ \^\[a-f0-9\]\{40\}\$ \]\]/)
   assert.match(source, /manifest\['sourceTree'\] == source_tree/)
-  assert.match(source, /manifest\.get\('buildId'\) == build_id == '20260922-closure-1\.0\.156'/)
+  assert.match(source, /manifest\.get\('buildId'\) == build_id == '20260923-closure-1\.0\.157'/)
   assert.match(source, /manifest\.get\('buildMethod'\) == build_method == 'clean-build-in-release-process'/)
   assert.doesNotMatch(source, /EXPECTED_BUILD_ID=\$\{IDENTITY\[1\]\}/)
 })
 
-test('generic readiness and mini preparation point at the same 1.0.156 identity', () => {
+test('generic readiness and mini preparation point at the same 1.0.157 identity', () => {
   const prepare = read('prepare-lingqi-mini-release.mjs')
   const readiness = read('release-readiness.sh')
   const regression = read('run-mall-closure-regression.sh')
   for (const source of [prepare, readiness]) {
-    assert.match(source, /1\.0\.156/)
-    assert.match(source, /20260922-closure-1\.0\.156/)
+    assert.match(source, /1\.0\.157/)
+    assert.match(source, /20260923-closure-1\.0\.157/)
     assert.match(source, new RegExp(previousJar))
     assert.match(source, new RegExp(previousCommit))
   }
@@ -224,19 +224,19 @@ test('generic readiness and mini preparation point at the same 1.0.156 identity'
   assert.match(readiness, /\|\| fail "当前分支没有可读取的 upstream"/)
   assert.match(readiness, /UPSTREAM_DIVERGENCE=\$\(git -C "\$ROOT_DIR" rev-list --left-right --count 'HEAD\.\.\.@\{upstream\}'/)
   assert.match(readiness, /\|\| fail "无法读取 upstream 同步状态"/)
-  assert.match(regression, /EXPECTED_VERSION=1\.0\.156/)
-  assert.match(regression, /EXPECTED_BUILD_ID=20260922-closure-1\.0\.156/)
+  assert.match(regression, /EXPECTED_VERSION=1\.0\.157/)
+  assert.match(regression, /EXPECTED_BUILD_ID=20260923-closure-1\.0\.157/)
   assert.match(regression, /"\$\{RELEASE_BUILD_ID:-\}" == "\$EXPECTED_BUILD_ID"/)
   assert.match(regression, /version !== expectedVersion/)
   assert.match(regression, /收口回归要求当前分支配置可读取的 upstream/)
   assert.match(regression, /== 41/)
-  assert.match(regression, /release-lingqi-156\.mjs/)
-  assert.match(regression, /upload-lingqi-mini-156\.mjs/)
+  assert.match(regression, /release-lingqi-157\.mjs/)
+  assert.match(regression, /upload-lingqi-mini-157\.mjs/)
 })
 
 test('regression gate rejects a wrong build id before running any build command', () => {
   const fixture = temporaryRepository({
-    'VERSION': '1.0.156\n',
+    'VERSION': '1.0.157\n',
     'scripts/run-mall-closure-regression.sh': read('run-mall-closure-regression.sh'),
   })
   try {
@@ -250,7 +250,7 @@ test('regression gate rejects a wrong build id before running any build command'
       },
     })
     assert.notEqual(result.status, 0)
-    assert.match(result.stderr, /RELEASE_BUILD_ID 必须精确等于 20260922-closure-1\.0\.156/)
+    assert.match(result.stderr, /RELEASE_BUILD_ID 必须精确等于 20260923-closure-1\.0\.157/)
     assert.doesNotMatch(`${result.stdout}${result.stderr}`, /\[1\/10\]/)
   } finally {
     fs.rmSync(fixture.parent, { recursive: true, force: true })
@@ -259,7 +259,7 @@ test('regression gate rejects a wrong build id before running any build command'
 
 test('regression and readiness gates both reject a branch without a readable upstream', () => {
   const fixture = temporaryRepository({
-    'VERSION': '1.0.156\n',
+    'VERSION': '1.0.157\n',
     'scripts/run-mall-closure-regression.sh': read('run-mall-closure-regression.sh'),
     'scripts/release-readiness.sh': read('release-readiness.sh'),
     'scripts/production-targets.sh': read('production-targets.sh'),

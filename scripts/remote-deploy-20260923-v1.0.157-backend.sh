@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# 1.0.156 closure backend release. Exactly one additive service-tag snapshot migration is allowed.
+# 1.0.157 closure backend release. Exactly one additive service-tag snapshot migration is allowed.
 set -Eeuo pipefail
 shopt -s inherit_errexit
 umask 077
 
-EXPECTED_VERSION=1.0.156
-EXPECTED_BUILD_ID=20260922-closure-1.0.156
+EXPECTED_VERSION=1.0.157
+EXPECTED_BUILD_ID=20260923-closure-1.0.157
 EXPECTED_BUILD_METHOD=clean-build-in-release-process
 EXPECTED_PREVIOUS_VERSION=1.0.154
 EXPECTED_PREVIOUS_JAR_SHA=786aec477acb1deaf71c058bfbd55e9d57a9953c31bafa859ae2c9b43695dd96
@@ -28,7 +28,7 @@ fail() { echo "closure-backend-release-aborted: $*" >&2; exit 1; }
 [[ "${LINGQIMALL_RELEASE_AUTHORIZATION:-}" == "$EXPECTED_VERSION" ]] || fail "authorization missing"
 [[ "$EXPECTED_COMMIT" =~ ^[a-f0-9]{40}$ ]] || fail "invalid commit"
 [[ "$EXPECTED_SOURCE_TREE" =~ ^[a-f0-9]{40}$ ]] || fail "invalid source tree"
-[[ "$RELEASE_DIR" =~ ^/tmp/lingqimall-closure-156\.[A-Za-z0-9]+$ ]] || fail "invalid release directory"
+[[ "$RELEASE_DIR" =~ ^/tmp/lingqimall-closure-157\.[A-Za-z0-9]+$ ]] || fail "invalid release directory"
 
 exec 8>"$APP_ROOT/.mini-backend-release.lock"
 flock -n 8 || fail "another backend release is running"
@@ -174,7 +174,7 @@ probe_public() {
 
 verify_unauthorized_contract() {
   local body status
-  body=$(mktemp /tmp/lingqimall-closure-156-unauthorized.XXXXXX)
+  body=$(mktemp /tmp/lingqimall-closure-157-unauthorized.XXXXXX)
   status=$(curl --http1.1 -sS --max-time 12 -o "$body" -w '%{http_code}' \
     https://lingqimall.com/api/shop/orders)
   [[ "$status" == 401 ]] || { rm -f "$body"; fail "protected route HTTP status is not 401"; }
@@ -263,12 +263,12 @@ import hashlib, json, os, re, sys, zipfile
 root, commit, source_tree, build_id, build_method = sys.argv[1:]
 with open(os.path.join(root, 'RELEASE_MANIFEST.json')) as stream:
     manifest = json.load(stream)
-assert manifest['version'] == '1.0.156'
+assert manifest['version'] == '1.0.157'
 assert manifest['scope'] == 'mall-closure-candidate'
 assert manifest['gitCommit'] == commit
 assert re.fullmatch(r'[a-f0-9]{40}', manifest.get('sourceTree', ''))
 assert manifest['sourceTree'] == source_tree
-assert manifest.get('buildId') == build_id == '20260922-closure-1.0.156'
+assert manifest.get('buildId') == build_id == '20260923-closure-1.0.157'
 assert manifest.get('buildMethod') == build_method == 'clean-build-in-release-process'
 assert manifest['previousVersion'] == '1.0.154'
 assert manifest['previousJarSha256'] == '786aec477acb1deaf71c058bfbd55e9d57a9953c31bafa859ae2c9b43695dd96'

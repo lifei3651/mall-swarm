@@ -12,7 +12,7 @@ const reasons = ['不想要了', '与商品描述不符', '质量问题', '收�
 Page({
   data: { ...theme.pageData(), loading: true, error: '', submitError: '', submitting: false,
     orderId: '', orderNo: '', items: [], allowed: false, unavailableReason: '', canExchange: false,
-    applyType: 1, reason: '', reasons, reasonDetail: '', proofs: [], selectingProof: false, submitted: false, estimateText: '0.00', estimateProduct: '0.00', estimateFreight: '0.00' },
+    applyType: 1, reason: '', reasonIndex: -1, reasons, reasonDetail: '', proofs: [], selectingProof: false, submitted: false, estimateText: '0.00', estimateProduct: '0.00', estimateFreight: '0.00' },
   onLoad(options = {}) {
     theme.apply(this)
     const orderId = identifier(options.orderId)
@@ -22,7 +22,7 @@ Page({
   onShow() {
     theme.apply(this)
     const token = session.getToken()
-    if (this.owner && this.owner !== token) { this.initialized = false; this.loadingRequest = false; this.loadVersion = (this.loadVersion || 0) + 1; this.detail = null; this.setData({ items: [], proofs: [], reason: '', reasonDetail: '', allowed: false, submitted: false, submitting: false, selectingProof: false }) }
+    if (this.owner && this.owner !== token) { this.initialized = false; this.loadingRequest = false; this.loadVersion = (this.loadVersion || 0) + 1; this.detail = null; this.setData({ items: [], proofs: [], reason: '', reasonIndex: -1, reasonDetail: '', allowed: false, submitted: false, submitting: false, selectingProof: false }) }
     this.owner = token
     if (!this.data.orderId) return
     if (!auth.requireLogin(`/pages/after-sale/index?orderId=${this.data.orderId}`)) return
@@ -67,8 +67,8 @@ Page({
     this.updateEstimate()
   },
   updateEstimate() { const value = refundEstimate(this.detail || {},this.data.items,this.data.applyType); this.setData({ estimateText: format.money(value.total), estimateProduct: format.money(value.product), estimateFreight: format.money(value.freight) }) },
-  reasonInput(event) { if (!this.data.submitting) feedback.update(this, { reason: event.detail.value, submitError: '' }) },
-  selectReason(event) { const reason = reasons[Number(event.detail.value)]; if (!this.data.submitting && reason) { this.setData({ reason, ...(logisticsReasons.includes(reason) ? { applyType: 1 } : {}), submitError: '' }); this.updateEstimate() } },
+  reasonInput(event) { if (!this.data.submitting) { const reason = event.detail.value; feedback.update(this, { reason, reasonIndex: reasons.indexOf(reason), submitError: '' }) } },
+  selectReason(event) { const index = Number(event.detail.value), reason = reasons[index]; if (!this.data.submitting && reason) { this.setData({ reason, reasonIndex: index, ...(logisticsReasons.includes(reason) ? { applyType: 1 } : {}), submitError: '' }); this.updateEstimate() } },
   reasonDetailInput(event) { if (!this.data.submitting) this.setData({ reasonDetail: String(event.detail.value || '').slice(0,170), submitError: '' }) },
   chooseProof() {
     if (this.data.submitting || this.data.selectingProof || this.data.proofs.length >= 6) return

@@ -8,9 +8,9 @@ import { hasSuccessfulUploadMarker } from './lib/wechat-cli-output.mjs'
 const root = cp.execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim()
 if (path.basename(root) !== 'mall-swarm-app-h5') throw new Error('Wrong product repository')
 
-const VERSION = '1.0.156'
+const VERSION = '1.0.157'
 const EXPECTED_SCOPE = 'mall-closure-candidate'
-const EXPECTED_BUILD_ID = '20260922-closure-1.0.156'
+const EXPECTED_BUILD_ID = '20260923-closure-1.0.157'
 const EXPECTED_BUILD_METHOD = 'clean-build-in-release-process'
 const EXPECTED_PREVIOUS_BACKEND_VERSION = '1.0.154'
 const EXPECTED_PREVIOUS_BACKEND_JAR_SHA256 = '786aec477acb1deaf71c058bfbd55e9d57a9953c31bafa859ae2c9b43695dd96'
@@ -36,8 +36,8 @@ const SENSITIVE_PATH = /(^|\/)(?:\.env(?:\..*)?|project\.private\.config\.json|L
 
 function usage() {
   console.error(`Usage:
-  node scripts/upload-lingqi-mini-156.mjs --preflight-only [--port ${DEFAULT_PORT}]
-  node scripts/upload-lingqi-mini-156.mjs --authorize-development-upload \
+  node scripts/upload-lingqi-mini-157.mjs --preflight-only [--port ${DEFAULT_PORT}]
+  node scripts/upload-lingqi-mini-157.mjs --authorize-development-upload \
     --candidate <exact-candidate.tar.gz> --retention-receipt <artifact-retention.json> \
     [--description <text>] [--port ${DEFAULT_PORT}] [--qa-root <repo/document/qa/path>]
 
@@ -205,7 +205,7 @@ function verifyProject(root) {
 
 function resolveQaRoot(root, requested) {
   const base = path.join(root, 'document', 'qa')
-  const resolved = requested ? path.resolve(requested) : path.join(base, '2026-09-22-mini-156-upload')
+  const resolved = requested ? path.resolve(requested) : path.join(base, '2026-09-23-mini-157-upload')
   const relative = path.relative(base, resolved)
   if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('QA receipt directory must stay under document/qa')
   return resolved

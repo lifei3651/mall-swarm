@@ -203,9 +203,9 @@ root = pathlib.Path(sys.argv[2]).resolve()
 expected_appid = "wxd26e0a4e41df392b"
 expected_api = "https://lingqimall.com/api"
 expected_plugins = {"logisticsPlugin": {"provider": "wx9ad912bf20548d92", "version": "2.1.12"}}
-expected_version = "1.0.156"
+expected_version = "1.0.157"
 expected_scope = "mall-closure-candidate"
-expected_build_id = "20260922-closure-1.0.156"
+expected_build_id = "20260923-closure-1.0.157"
 expected_build_method = "clean-build-in-release-process"
 expected_previous_backend_version = "1.0.154"
 expected_previous_backend_jar = "786aec477acb1deaf71c058bfbd55e9d57a9953c31bafa859ae2c9b43695dd96"
@@ -395,14 +395,14 @@ if sums != actual:
 repo_migrations = sorted(file.name for file in (root / "document/db/migrations").glob("V*.sql"))
 candidate_migrations = sorted(file.name for file in (candidate / "document/db/migrations").glob("V*.sql"))
 if len(repo_migrations) != expected_migration_count or repo_migrations[-1] != expected_last_migration:
-    fail("repository migration inventory is not the fixed 1.0.156 set")
+    fail("repository migration inventory is not the fixed 1.0.157 set")
 if repo_migrations != candidate_migrations:
     fail("candidate migration inventory differs from the repository")
 for name in repo_migrations:
     if sha_file(root / "document/db/migrations" / name) != sha_file(candidate / "document/db/migrations" / name):
         fail(f"candidate migration differs from repository: {name}")
 if sha_file(candidate / "document/db/migrations" / expected_last_migration) != expected_last_migration_sha:
-    fail("1.0.156 service-tag migration checksum mismatch")
+    fail("1.0.157 service-tag migration checksum mismatch")
 
 fixed_files = {
     "mall-distribution.jar", "admin.tar.gz", "shop.tar.gz", "team.tar.gz", "integrated.tar.gz",

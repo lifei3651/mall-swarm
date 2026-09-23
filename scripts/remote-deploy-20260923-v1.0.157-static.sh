@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Deploy exactly one immutable 1.0.156 static surface from the unified closure candidate.
+# Deploy exactly one immutable 1.0.157 static surface from the unified closure candidate.
 set -Eeuo pipefail
 shopt -s inherit_errexit
 umask 077
 
-EXPECTED_VERSION=1.0.156
-EXPECTED_BUILD_ID=20260922-closure-1.0.156
+EXPECTED_VERSION=1.0.157
+EXPECTED_BUILD_ID=20260923-closure-1.0.157
 EXPECTED_BUILD_METHOD=clean-build-in-release-process
 EXPECTED_PREVIOUS_VERSION=1.0.154
 EXPECTED_PREVIOUS_COMMIT=a8f86f2ed3123c21082e7404d372812e11dae790
@@ -24,7 +24,7 @@ fail() { echo "static release aborted: $*" >&2; exit 1; }
 [[ "$EXPECTED_COMMIT" =~ ^[a-f0-9]{40}$ ]] || fail "invalid source commit"
 [[ "$EXPECTED_SOURCE_TREE" =~ ^[a-f0-9]{40}$ ]] || fail "invalid source tree"
 [[ "${LINGQIMALL_RELEASE_AUTHORIZATION:-}" == "$EXPECTED_VERSION" ]] || fail "authorization missing"
-[[ "$RELEASE_DIR" =~ ^/tmp/lingqimall-closure-156\.[A-Za-z0-9]+$ ]] || fail "invalid candidate directory"
+[[ "$RELEASE_DIR" =~ ^/tmp/lingqimall-closure-157\.[A-Za-z0-9]+$ ]] || fail "invalid candidate directory"
 
 case "$SITE" in
   admin)
@@ -333,12 +333,12 @@ import hashlib, json, re, sys
 manifest_path, commit, source_tree, build_id, build_method, site, archive, checksums = sys.argv[1:]
 with open(manifest_path, encoding='utf-8') as stream:
     manifest = json.load(stream)
-assert manifest['version'] == '1.0.156'
+assert manifest['version'] == '1.0.157'
 assert manifest['scope'] == 'mall-closure-candidate'
 assert manifest['gitCommit'] == commit
 assert re.fullmatch(r'[a-f0-9]{40}', manifest.get('sourceTree', ''))
 assert manifest['sourceTree'] == source_tree
-assert manifest.get('buildId') == build_id == '20260922-closure-1.0.156'
+assert manifest.get('buildId') == build_id == '20260923-closure-1.0.157'
 assert manifest.get('buildMethod') == build_method == 'clean-build-in-release-process'
 assert re.fullmatch(r'[a-f0-9]{64}', manifest['jarSha256'])
 assert manifest['previousVersion'] == '1.0.154'
@@ -374,14 +374,14 @@ with tarfile.open(archive_path, 'r:gz') as archive:
     with archive.extractfile(member) as stream:
         candidate = json.load(stream)
 assert candidate == {
-    'version':'1.0.156', 'edition':'app-h5-split', 'application':application,
+    'version':'1.0.157', 'edition':'app-h5-split', 'application':application,
     'gitCommit':commit, 'buildId':build_id,
 }
 print('static-old-and-candidate-identity=passed')
 PY
 verify_candidate_and_tree ''
 
-[[ "$(tr -d '[:space:]' < "$APP_ROOT/VERSION")" == "$EXPECTED_VERSION" ]] || fail "backend version is not 1.0.156"
+[[ "$(tr -d '[:space:]' < "$APP_ROOT/VERSION")" == "$EXPECTED_VERSION" ]] || fail "backend version is not 1.0.157"
 [[ "$(sha256sum "$APP_ROOT/app/mall-distribution.jar" | awk '{print $1}')" == "$EXPECTED_BACKEND_JAR_SHA" ]] || fail "backend JAR does not match candidate manifest"
 for svc in lingqimall-distribution nginx mysqld redis; do
   systemctl is-active --quiet "$svc" || fail "$svc inactive"
@@ -433,11 +433,11 @@ import sys
 import urllib.request
 
 commit, base, application, build_id, target = sys.argv[1:]
-query = '?release=1.0.156-' + commit[:12]
+query = '?release=1.0.157-' + commit[:12]
 with urllib.request.urlopen(base + '/version.json' + query, timeout=12) as response:
     version = json.load(response)
 assert version == {
-    'version':'1.0.156', 'edition':'app-h5-split', 'application':application,
+    'version':'1.0.157', 'edition':'app-h5-split', 'application':application,
     'gitCommit':commit, 'buildId':build_id,
 }
 with urllib.request.urlopen(base + '/' + query, timeout=12) as response:

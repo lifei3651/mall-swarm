@@ -294,3 +294,17 @@ test('原生售后表单及详情提供完整实际绑定，不只显示进度�
   const view = readFileSync(new URL('../pages/order-detail/index.wxml', import.meta.url), 'utf8')
   for (const handler of ['applyAfterSale', 'cancelAfterSale', 'editShipment', 'submitShipment', 'receiveExchange']) assert.ok(view.includes(`bindtap="${handler}"`))
 })
+
+test('售后原因共用面板选择后保留草稿，物流异常原因只允许仅退款', async () => {
+  const h = harness('after-sale', { respond: () => detail() })
+  h.page.onLoad({ orderId: ID }); await h.page.onShow()
+  h.page.reasonDetailInput({ detail: { value: '已联系商家' } })
+  h.page.selectType(event({ type: 3 }))
+  h.page.selectReason({ detail: { value: '6' } })
+  assert.equal(h.page.data.reason, '物流停滞 / 未收到货')
+  assert.equal(h.page.data.reasonIndex, 6)
+  assert.equal(h.page.data.applyType, 1)
+  assert.equal(h.page.data.reasonDetail, '已联系商家')
+  h.page.selectReason({ detail: { value: '99' } })
+  assert.equal(h.page.data.reasonIndex, 6)
+})

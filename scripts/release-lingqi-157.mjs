@@ -4,8 +4,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-const VERSION = '1.0.156'
-const BUILD_ID = '20260922-closure-1.0.156'
+const VERSION = '1.0.157'
+const BUILD_ID = '20260923-closure-1.0.157'
 const PREVIOUS_BACKEND_VERSION = '1.0.154'
 const PREVIOUS_BACKEND_JAR_SHA256 = '786aec477acb1deaf71c058bfbd55e9d57a9953c31bafa859ae2c9b43695dd96'
 const PREVIOUS_STATIC_VERSION = '1.0.154'
@@ -14,7 +14,7 @@ const NEW_MIGRATION = 'V202609211530__order_item_service_tag_snapshot.sql'
 const NEW_MIGRATION_SHA256 = 'bb5f0dbf8942db2f2c56c28bd1c6c16fa185b1087690a750affd8ac523962526'
 
 if (process.argv.length !== 3 || process.argv[2] !== '--package-only') {
-  throw new Error('Usage: node scripts/release-lingqi-156.mjs --package-only')
+  throw new Error('Usage: node scripts/release-lingqi-157.mjs --package-only')
 }
 
 const git = (...args) => cp.execFileSync('git', args, { encoding: 'utf8' }).trim()
@@ -45,7 +45,7 @@ const miniPackage = JSON.parse(fs.readFileSync('mall-mini-program/package.json',
 const miniLock = JSON.parse(fs.readFileSync('mall-mini-program/package-lock.json', 'utf8'))
 if (version !== VERSION || miniPackage.version !== VERSION || miniLock.version !== VERSION
   || miniLock.packages?.['']?.version !== VERSION) {
-  throw new Error('Root and mini-program versions must all equal 1.0.156')
+  throw new Error('Root and mini-program versions must all equal 1.0.157')
 }
 
 // 候选包不能信任工作区里可能遗留的 ignored 构建产物。打包器在已经确认
@@ -123,7 +123,7 @@ if (migrations.length !== 41 || migrations[0] !== 'V202608111205__tenant_config_
   throw new Error('Unexpected migration inventory')
 }
 
-const stage = fs.mkdtempSync(path.join(os.tmpdir(), 'lingqi-156-unified-candidate.'))
+const stage = fs.mkdtempSync(path.join(os.tmpdir(), 'lingqi-157-unified-candidate.'))
 const releaseDir = path.join(root, 'target/releases')
 fs.mkdirSync(releaseDir, { recursive: true })
 
@@ -133,8 +133,8 @@ copy('scripts/production-backup.sh', path.join(stage, 'production-backup.sh'), 0
 copy('scripts/db-migrate.sh', path.join(stage, 'db-migrate.sh'), 0o755)
 copy('scripts/nginx/lingqimall.conf', path.join(stage, 'lingqimall.conf'))
 copy('scripts/nginx/lingqimall-security.conf', path.join(stage, 'lingqimall-security.conf'))
-copy('scripts/remote-deploy-20260922-v1.0.156-backend.sh', path.join(stage, 'release-backend.sh'), 0o755)
-copy('scripts/remote-deploy-20260922-v1.0.156-static.sh', path.join(stage, 'release-static.sh'), 0o755)
+copy('scripts/remote-deploy-20260923-v1.0.157-backend.sh', path.join(stage, 'release-backend.sh'), 0o755)
+copy('scripts/remote-deploy-20260923-v1.0.157-static.sh', path.join(stage, 'release-static.sh'), 0o755)
 copy('scripts/verify-release-artifact-retention.mjs', path.join(stage, 'verify-artifact-retention.mjs'), 0o755)
 for (const name of migrations) {
   copy(`document/db/migrations/${name}`, path.join(stage, 'document/db/migrations', name))
@@ -176,7 +176,7 @@ for (const [label, [, directory]] of Object.entries(staticIdentity)) {
   }
 }
 
-const miniStage = fs.mkdtempSync(path.join(os.tmpdir(), 'lingqi-156-mini-source.'))
+const miniStage = fs.mkdtempSync(path.join(os.tmpdir(), 'lingqi-157-mini-source.'))
 const miniTarGz = cp.execFileSync(
   'git',
   ['archive', '--format=tar.gz', commit, 'mall-mini-program'],

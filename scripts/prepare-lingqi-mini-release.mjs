@@ -9,9 +9,9 @@ if (path.basename(root) !== 'mall-swarm-app-h5') throw new Error('Wrong product 
 
 const EXPECTED_APPID = 'wxd26e0a4e41df392b'
 const EXPECTED_API = 'https://lingqimall.com/api'
-const EXPECTED_VERSION = '1.0.156'
+const EXPECTED_VERSION = '1.0.157'
 const EXPECTED_SCOPE = 'mall-closure-candidate'
-const EXPECTED_BUILD_ID = '20260922-closure-1.0.156'
+const EXPECTED_BUILD_ID = '20260923-closure-1.0.157'
 const EXPECTED_BUILD_METHOD = 'clean-build-in-release-process'
 const EXPECTED_PREVIOUS_BACKEND_VERSION = '1.0.154'
 const EXPECTED_PREVIOUS_BACKEND_JAR_SHA256 = '786aec477acb1deaf71c058bfbd55e9d57a9953c31bafa859ae2c9b43695dd96'
@@ -20,6 +20,14 @@ const EXPECTED_PREVIOUS_STATIC_COMMIT = 'a8f86f2ed3123c21082e7404d372812e11dae79
 const REGISTERED_MINI_BASELINE_VERSION = '1.0.154'
 const REGISTERED_MINI_BASELINE_COMMIT = 'a8f86f2ed3123c21082e7404d372812e11dae790'
 const REGISTERED_MINI_BASELINE_FILE_COUNT = 228
+const SUPERSEDED_MINI_TARGET = Object.freeze({
+  version: '1.0.155',
+  gitCommit: '930598092daa1ef5dd18d415af8d0364cb46b7c1',
+  sourceTree: '603da87084289512b2db569fed413d2ef934587f',
+  buildId: '20260922-closure-1.0.155',
+  aggregateSha256: 'f2890663bdd3f1f22388892a8e6fea7ecf5c013a9c35d0e5bb3a3ee40fd33fd5',
+  fileCount: 228,
+})
 const EXPECTED_PLUGIN = Object.freeze({
   logisticsPlugin: Object.freeze({ provider: 'wx9ad912bf20548d92', version: '2.1.12' }),
 })
@@ -303,6 +311,26 @@ function verifyExistingTarget(root, release, desiredFiles, desiredAggregateSha25
     verifyRegisteredBaseline(root, actual)
     return
   }
+  const isSupersededTarget = previous.schemaVersion === 2
+    && previous.version === SUPERSEDED_MINI_TARGET.version
+    && previous.scope === EXPECTED_SCOPE
+    && previous.gitCommit === SUPERSEDED_MINI_TARGET.gitCommit
+    && previous.sourceTree === SUPERSEDED_MINI_TARGET.sourceTree
+    && previous.buildId === SUPERSEDED_MINI_TARGET.buildId
+    && previous.buildMethod === EXPECTED_BUILD_METHOD
+    && previous.aggregateSha256 === SUPERSEDED_MINI_TARGET.aggregateSha256
+    && Object.keys(actual).length === SUPERSEDED_MINI_TARGET.fileCount
+    && previous.previousBackendVersion === EXPECTED_PREVIOUS_BACKEND_VERSION
+    && previous.previousBackendJarSha256 === EXPECTED_PREVIOUS_BACKEND_JAR_SHA256
+    && previous.previousStaticVersion === EXPECTED_PREVIOUS_STATIC_VERSION
+    && previous.previousStaticCommit === EXPECTED_PREVIOUS_STATIC_COMMIT
+  if (isSupersededTarget) {
+    if (git(root, 'rev-parse', `${previous.gitCommit}^{tree}`) !== previous.sourceTree
+      || git(root, 'show', `${previous.gitCommit}:VERSION`) !== previous.version) {
+      throw new Error('Superseded upload target does not match its immutable source commit')
+    }
+    return
+  }
   const isSameCandidate = previous.schemaVersion === 2 && previous.version === release.version
     && previous.scope === release.scope && previous.gitCommit === release.gitCommit
     && previous.sourceTree === release.sourceTree && previous.buildId === release.buildId
@@ -312,7 +340,7 @@ function verifyExistingTarget(root, release, desiredFiles, desiredAggregateSha25
     && previous.previousStaticVersion === release.previousStaticVersion
     && previous.previousStaticCommit === release.previousStaticCommit
     && previous.aggregateSha256 === desiredAggregateSha256
-  if (!isSameCandidate) throw new Error('Existing upload target is not the registered 1.0.154 baseline or the same 1.0.156 candidate')
+  if (!isSameCandidate) throw new Error('Existing upload target is not the registered 1.0.154 baseline, superseded 1.0.155 target, or the same 1.0.157 candidate')
   assertExactObject(actual, desiredFiles, 'Existing idempotent mini-program candidate')
 }
 

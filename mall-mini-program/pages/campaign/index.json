@@ -1,1 +1,1 @@
-{ "navigationBarTitleText": "限时活动", "enablePullDownRefresh": true }
+{ "navigationBarTitleText": "限时活动", "enablePullDownRefresh": true, "usingComponents": { "choice-sheet": "/components/choice-sheet/index" } }

@@ -1,0 +1,16 @@
+<view class="choice-trigger choice-trigger--{{variant}} {{disabled ? 'choice-trigger--disabled' : ''}}" bindtap="open" aria-role="button" aria-label="{{title}}" aria-expanded="{{visible}}" aria-disabled="{{disabled}}">
+  <text wx:if="{{label}}" class="choice-label">{{label}}</text>
+  <text class="choice-value {{!value ? 'choice-placeholder' : ''}}">{{value || placeholder}}</text>
+  <image class="choice-arrow" src="/assets/profile/chevron-right.png" aria-hidden="true" />
+</view>
+<view wx:if="{{visible}}" class="choice-overlay">
+  <view class="choice-backdrop" bindtap="close" catchtouchmove="stopTouch" />
+  <view class="choice-panel" role="dialog" aria-modal="true" aria-label="{{title}}" catchtap="stopTap">
+    <view class="choice-head"><text>{{title}}</text><button class="choice-cancel" bindtap="close" hover-class="none">取消</button></view>
+    <scroll-view class="choice-options" scroll-y enhanced show-scrollbar="{{false}}" style="height: {{listHeight}}rpx">
+      <view wx:for="{{options}}" wx:key="index" class="choice-option {{selectedIndex === index ? 'choice-option--selected' : ''}}" data-index="{{index}}" bindtap="choose" aria-role="button" aria-selected="{{selectedIndex === index}}">
+        <text>{{item.label || item}}</text><text wx:if="{{selectedIndex === index}}" class="choice-check" aria-hidden="true">✓</text>
+      </view>
+    </scroll-view>
+  </view>
+</view>

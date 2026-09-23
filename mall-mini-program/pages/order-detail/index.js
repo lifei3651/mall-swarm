@@ -89,7 +89,7 @@ function pageStatus(rows) {
 Page({
   ...balancePayment.methods,
   data: { ...theme.pageData(), ...paymentSummary(), pageStatusTitle: '', pageStatusDescription: '', loading: true, error: '', rows: [], paymentNo: '', actingId: null, paying: false, cancellingAfterSaleId: null,
-    editingSaleId: '', deliveryCompany: '', deliveryNo: '', shipmentError: '', submittingShipment: false,
+    editingSaleId: '', deliveryCompany: '', carrierIndex: -1, deliveryNo: '', shipmentError: '', submittingShipment: false,
     carriers: CARRIERS, expandedIncome: {}, expandedAddresses: {}, expandedOrders: {}, trackingOrderId: '', trackingLoading: false, trackingError: '', trackingRows: [], wechatTrackingId: '', rebuyId: '', ...balancePayment.data },
   onLoad(options = {}) {
     theme.apply(this)
@@ -305,7 +305,7 @@ Page({
   },
   selectCarrier(event) {
     const company = CARRIERS[Number(event.detail.value)]
-    if (company && !this.data.submittingShipment) feedback.update(this, { deliveryCompany: company, shipmentError: '' })
+    if (company && !this.data.submittingShipment) feedback.update(this, { deliveryCompany: company, carrierIndex: CARRIERS.indexOf(company), shipmentError: '' })
   },
   async loadTracking(event) {
     const id = identifier(event.currentTarget.dataset.id)
@@ -518,11 +518,12 @@ Page({
     const id = identifier(event.currentTarget.dataset.id)
     const sale = this.findSale(id)
     if (!sale || !sale.canReturn || this.data.submittingShipment) return
-    feedback.update(this, { editingSaleId: id, deliveryCompany: sale.returnDeliveryCompany || '', deliveryNo: sale.returnDeliveryNo || '', shipmentError: '' })
+    const deliveryCompany = sale.returnDeliveryCompany || ''
+    feedback.update(this, { editingSaleId: id, deliveryCompany, carrierIndex: CARRIERS.indexOf(deliveryCompany), deliveryNo: sale.returnDeliveryNo || '', shipmentError: '' })
   },
   shipmentInput(event) {
     const field = event.currentTarget.dataset.field
-    if (!this.data.submittingShipment && ['deliveryCompany', 'deliveryNo'].includes(field)) feedback.update(this, { [field]: event.detail.value, shipmentError: '' })
+    if (!this.data.submittingShipment && ['deliveryCompany', 'deliveryNo'].includes(field)) feedback.update(this, { [field]: event.detail.value, ...(field === 'deliveryCompany' ? { carrierIndex: CARRIERS.indexOf(event.detail.value) } : {}), shipmentError: '' })
   },
   closeShipment() { if (!this.data.submittingShipment) feedback.update(this, { editingSaleId: '', shipmentError: '' }) },
   async submitShipment() {

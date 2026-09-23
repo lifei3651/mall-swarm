@@ -131,7 +131,7 @@
           </view>
           <view wx:if="{{editingSaleId === sale.id}}" class="shipment-form">
             <text class="form-label">快递公司</text>
-            <picker range="{{carriers}}" bindchange="selectCarrier" disabled="{{submittingShipment}}" aria-label="选择退货快递"><view class="shipment-input ui-select-row"><text>{{deliveryCompany || '从常用快递中选择'}}</text><image class="ui-select-arrow" src="/assets/profile/chevron-right.png" aria-hidden="true" /></view></picker>
+            <choice-sheet title="选择退货快递" value="{{deliveryCompany}}" placeholder="从常用快递中选择" options="{{carriers}}" selected-index="{{carrierIndex}}" disabled="{{submittingShipment}}" bindchange="selectCarrier" />
             <input class="shipment-input" value="{{deliveryCompany}}" data-field="deliveryCompany" bindinput="shipmentInput" maxlength="50" placeholder="例如：顺丰速运" disabled="{{submittingShipment}}" aria-label="退货快递公司" />
             <text class="form-label">快递单号</text>
             <input class="shipment-input" value="{{deliveryNo}}" data-field="deliveryNo" bindinput="shipmentInput" maxlength="64" placeholder="请输入4至64位快递单号" disabled="{{submittingShipment}}" aria-label="退货快递单号" />

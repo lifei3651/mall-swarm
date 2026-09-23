@@ -4,6 +4,6 @@
 .campaign-title { font-size: 34rpx; font-weight: 600; margin-bottom: 12rpx; }
 .campaign-copy .product-price { margin: 16rpx 0; }
 .campaign-copy .muted { margin-bottom: 12rpx; font-size: 23rpx; overflow-wrap: anywhere; }
-.quantity { margin: 20rpx 0; padding: 20rpx; border: 1rpx solid var(--line); border-radius: 16rpx; }
+.campaign-copy choice-sheet { margin: 20rpx 0; }
 .campaign-copy button { width: 100%; }
 .campaign-footnote { padding: 12rpx 20rpx 24rpx; color: var(--muted); text-align: center; font-size: 24rpx; line-height: 40rpx; }
