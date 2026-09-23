@@ -7,7 +7,7 @@ const parseAttributes = (value) => {
     if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') return []
     return Object.entries(parsed)
       .map(([name, content]) => ({ name: String(name || '').trim(), value: String(content ?? '').trim() }))
-      .filter((item) => item.name && item.value)
+      .filter((item) => item.name && item.value && !['null', 'undefined'].includes(item.value.toLowerCase()))
   } catch {
     return []
   }
@@ -17,6 +17,6 @@ export const formatProductSpec = (item = {}) => {
   const attributes = parseAttributes(item.skuAttrs ?? item.attrsJson)
   if (attributes.length) return attributes.map(({ name, value }) => `${name}：${value}`).join(' / ')
   const skuName = String(item.skuName || '').trim()
-  if (skuName && !GENERIC_SPEC_NAMES.has(skuName)) return skuName
+  if (skuName && !['null', 'undefined'].includes(skuName.toLowerCase()) && !GENERIC_SPEC_NAMES.has(skuName)) return skuName
   return '单规格'
 }

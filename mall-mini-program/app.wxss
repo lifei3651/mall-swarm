@@ -66,6 +66,7 @@ button { font-size: 28rpx; font-family: inherit; }
 .ui-service-entry--compact { min-height: 80rpx; padding: 16rpx 0; font-size: 24rpx; }
 .ui-price { color: var(--price) !important; font-weight: 750; }
 .ui-status-pill { display: inline-flex; align-items: center; flex: none; padding: 7rpx 13rpx; border-radius: var(--radius-pill) !important; background: var(--brand-soft) !important; color: var(--brand) !important; font-size: 22rpx; font-weight: 650; }
+.ui-status-pill.is-closed { background: #f0f2f3 !important; color: #737d82 !important; }
 .ui-action-bar, .ui-action-group { display: flex; align-items: center; flex-wrap: nowrap; justify-content: flex-end; gap: 12rpx; min-width: 0; }
 .ui-action-button, .ui-order-action { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; flex: none; width: auto !important; min-width: 0 !important; min-height: var(--action-height) !important; height: var(--action-height) !important; margin: 0; margin-left: 0 !important; margin-right: 0 !important; padding: 0 var(--action-padding-x) !important; border-radius: var(--radius-pill) !important; font-size: var(--action-font-size) !important; line-height: 1 !important; white-space: nowrap !important; }
 .ui-action-button--primary, .ui-order-action--primary { order: 2; }

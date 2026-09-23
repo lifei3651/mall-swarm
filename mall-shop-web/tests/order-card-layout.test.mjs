@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import { formatProductSpec } from '../src/utils/productSpec.js'
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
 
@@ -105,4 +106,16 @@ test('H5订单详情按状态、本人收入、物流收货人、商品和全部
   assert.doesNotMatch(consumerDetail, /consumer-logistics-head|>查看物流<\/a>|>还想买<\/RouterLink>|再买一单/)
   assert.doesNotMatch(view, /getOrderTracking/)
   assert.doesNotMatch(view, /运费险/)
+})
+
+test('H5退款关闭订单与取消订单分开展示，缺失规格不显示null', async () => {
+  const [detail, list] = await Promise.all([read('src/views/OrderDetailView.vue'), read('src/views/OrdersView.vue')])
+  assert.match(detail, /const isRefundedOrder = computed\(\(\) => Number\(order\.value\?\.status\) === 4/)
+  assert.match(detail, /isRefundedOrder\.value \? '已退款'/)
+  assert.match(detail, /if \(Number\(order\.value\?\.status\) === 4\) return '该订单已关闭，无需继续付款'/)
+  assert.match(list, /if \(isRefundedOrder\(item\)\) return '已退款'/)
+  assert.match(list, /if \(Number\(item\.order\?\.status\) === 4\) return '已取消'/)
+  assert.equal(formatProductSpec({ skuName: null }), '单规格')
+  assert.equal(formatProductSpec({ skuName: 'null' }), '单规格')
+  assert.equal(formatProductSpec({ skuName: 'M' }), 'M')
 })

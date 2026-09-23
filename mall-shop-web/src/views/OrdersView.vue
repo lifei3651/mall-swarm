@@ -260,12 +260,16 @@ const afterSaleStatus = (status, applyType) => {
   if (Number(applyType) === 3 && Number(status) === 1) return '换货完成'
   return ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待客户寄回', 5: '待商家收货', 6: '退款处理中', 7: '待商家换货发出', 8: '换货已发出' }[status] || '处理中')
 }
+const isRefundedOrder = (item) => Number(item.order?.status) === 4 && (item.afterSales || [])
+  .some((sale) => [1, 2].includes(Number(sale.applyType)) && Number(sale.status) === 1)
 const orderDisplayStatus = (item) => {
   if (isAfterSale(item)) {
     const sale = activeAfterSales(item)[0]
     return `售后 · ${afterSaleStatus(sale?.status, sale?.applyType)}`
   }
   if (Number(item.pendingReviewCount || 0) > 0) return '待评价'
+  if (isRefundedOrder(item)) return '已退款'
+  if (Number(item.order?.status) === 4) return '已取消'
   return statusName(item.order?.status)
 }
 const orderStateClass = (item) => {

@@ -7,6 +7,7 @@
 
 .order-number-card,.section-card,.income-card { border:1rpx solid rgba(223,228,227,.84); border-radius:30rpx; background:var(--paper); box-shadow:0 5rpx 18rpx rgba(31,45,42,.035); }
 .status-hero { margin:0 -22rpx; padding:30rpx 22rpx 34rpx; text-align:center; background:linear-gradient(140deg,#fff8f7 0%,#fff 56%,var(--brand-soft) 100%); }
+.status-hero--closed { background:linear-gradient(140deg,#f7f8f8 0%,#fff 62%,#f2f5f5 100%); }
 .status-hero-title,.status-hero-description { display:block; }
 .status-hero-title { color:#171b1a; font-size:38rpx; font-weight:780; line-height:54rpx; }
 .status-hero-description { margin-top:10rpx; color:#727b79; font-size:24rpx; line-height:36rpx; }
@@ -92,15 +93,18 @@
 .paid-amount { color:var(--brand); font-size:27rpx; font-weight:750; }
 
 .after-sale-list .section-title { margin-bottom:14rpx; }
-.after-sale-record { margin-top:14rpx; padding:20rpx; border-radius:18rpx; background:#fff8ed; }
+.after-sale-record { margin-top:14rpx; padding:20rpx; border-radius:18rpx; background:var(--brand-soft); }
+.after-sale-record--complete { background:#f4f7f7; }
+.after-sale-record--closed { background:#f4f5f6; }
 .after-sale-head,.after-sale-meta { display:flex; align-items:flex-start; justify-content:space-between; gap:20rpx; }
 .after-sale-head > view text { display:block; }
 .after-sale-head > view text:first-child { font-weight:700; }
 .after-sale-head > view text:last-child { margin-top:6rpx; color:#8a92a0; font-size:21rpx; }
-.after-sale-head > text { flex:none; color:#a25b15; font-size:24rpx; font-weight:700; }
+.after-sale-head > text { flex:none; color:var(--brand); font-size:24rpx; font-weight:700; }
+.after-sale-record--closed .after-sale-head > text { color:#737d82; }
 .after-sale-meta { margin-top:14rpx; color:#737c8b; font-size:22rpx; }
-.next-action,.audit-remark { display:block; margin-top:14rpx; color:#6c5630; font-size:23rpx; line-height:36rpx; }
-.audit-remark { padding-top:12rpx; border-top:1rpx solid #f2dfc3; }
+.next-action,.audit-remark { display:block; margin-top:14rpx; color:#53615f; font-size:23rpx; line-height:36rpx; }
+.audit-remark { padding-top:12rpx; border-top:1rpx solid #dfe8e6; }
 .sale-item { display:flex; justify-content:space-between; gap:18rpx; margin:12rpx 0; color:#667085; font-size:24rpx; }
 .sale-item text:first-child { min-width:0; overflow-wrap:anywhere; }
 .sale-actions { margin-top:16rpx; }

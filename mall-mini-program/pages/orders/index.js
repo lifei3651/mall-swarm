@@ -6,7 +6,7 @@ const theme = require('../../utils/theme')
 const session = require('../../utils/session')
 const cart = require('../../utils/cart')
 const purchaseLimit = require('../../utils/purchase-limit')
-const { identifier, amountLabel } = require('../order-detail/policy')
+const { identifier, amountLabel, isRefundedOrder } = require('../order-detail/policy')
 const orderList = require('../../utils/order-list')
 const foreground = require('../../utils/foreground-refresh')
 
@@ -24,6 +24,7 @@ const TABS = [
 function displayRows(source) {
   return source.map(row => {
     const status = Number(row.order.status)
+    const refunded = isRefundedOrder(row)
     const paid = ![0, 4].includes(status)
     const items = (row.items || []).map(item => {
       const quantity = Math.max(1, Number(item.quantity || 1))
@@ -50,7 +51,7 @@ function displayRows(source) {
       additionalProductKinds: Math.max(0, items.length - 1),
       key: identifier(row.order.id),
       canReceive: Number(row.order.status) === 2 && !(row.afterSales || []).some(sale => [0,4,5,6,7,8].includes(Number(sale.status))),
-      statusText: (row.afterSales || []).some(sale => [0,4,5,6,7,8].includes(Number(sale.status))) ? '售后处理中' : STATUS[row.order.status] || '处理中',
+      statusText: (row.afterSales || []).some(sale => [0,4,5,6,7,8].includes(Number(sale.status))) ? '售后处理中' : refunded ? '已退款' : STATUS[row.order.status] || '处理中',
       afterSaleText: row.afterSales?.length ? AFTER_SALE_STATUS[Number(row.afterSales[0].status)] || '处理中' : '',
       amountText: format.money(row.order.payAmount == null ? row.order.totalAmount : row.order.payAmount),
       amountLabel: amountLabel(row.order),

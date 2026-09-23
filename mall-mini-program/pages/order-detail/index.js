@@ -10,9 +10,9 @@ const theme = require('../../utils/theme')
 const foreground = require('../../utils/foreground-refresh')
 const cart = require('../../utils/cart')
 const purchaseLimit = require('../../utils/purchase-limit')
-const { identifier, afterSaleEligibility, amountLabel, paymentSummary } = require('./policy')
+const { identifier, afterSaleEligibility, amountLabel, isRefundedOrder, paymentSummary } = require('./policy')
 
-const STATUS = { 0: '待付款', 1: '待发货', 2: '已发货', 3: '已完成', 4: '已关闭', 5: '售后中' }
+const STATUS = { 0: '待付款', 1: '待发货', 2: '已发货', 3: '已完成', 4: '已取消', 5: '售后中' }
 const AFTER_SALE_STATUS = { 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待寄回', 5: '待商家收货', 6: '退款处理中', 7: '待商家换货发出', 8: '换货已发出' }
 const AFTER_SALE_TYPE = { 1: '仅退款', 2: '退货退款', 3: '同规格换货' }
 const CARRIERS = ['顺丰速运', '京东物流', '中通快递', '圆通速递', '申通快递', '韵达快递', '极兔速递', '中国邮政', 'EMS', '德邦快递', '跨越速运', '安能物流', '壹米滴答', 'DHL', 'FedEx', 'UPS']
@@ -28,6 +28,11 @@ const STATUS_COPY = {
 
 function formatTime(value) {
   return value ? String(value).replace('T', ' ').slice(0, 16) : ''
+}
+
+function displayText(value) {
+  const text = String(value == null ? '' : value).trim()
+  return ['null', 'undefined'].includes(text.toLowerCase()) ? '' : text
 }
 
 function addressText(order) {
@@ -53,15 +58,18 @@ function maskedAddress(order) {
   return [region, detail ? `${detail.slice(0, 3)}***` : ''].filter(Boolean).join(' ')
 }
 
-function deliverySummary(order) {
+function deliverySummary(order, refunded) {
   const status = Number(order.status)
+  if (refunded) return '退款已完成，详情见下方售后记录'
+  if (status === 4) return STATUS_COPY[4][1]
   if (order.receiveTime) return `商品已于 ${formatTime(order.receiveTime)} 送达`
   if (status === 3) return '商品已完成签收'
   if (order.deliveryTime) return `商品已于 ${formatTime(order.deliveryTime)} 发出`
   return (STATUS_COPY[status] || ['', '订单状态更新后会在这里显示'])[1]
 }
 
-function statusCopy(order, shipments) {
+function statusCopy(order, shipments, refunded) {
+  if (refunded) return ['已退款', '退款已完成，详情见下方售后记录']
   const copy = STATUS_COPY[Number(order.status)] || ['订单处理中', '订单状态更新后会在这里显示']
   if (Number(order.status) === 2 && shipments.length) {
     const first = shipments[0]
@@ -76,19 +84,21 @@ function pageStatus(rows) {
     const pending = rows.filter((row) => row.order.status === 0).length
     return {
       pageStatusTitle: pending ? '合并订单待付款' : '合并订单',
-      pageStatusDescription: pending ? `本次付款包含 ${rows.length} 个订单，请核对后统一支付` : `本次交易包含 ${rows.length} 个商城订单`
+      pageStatusDescription: pending ? `本次付款包含 ${rows.length} 个订单，请核对后统一支付` : `本次交易包含 ${rows.length} 个商城订单`,
+      pageStatusTone: rows.every((row) => row.order.status === 4) ? 'closed' : 'active'
     }
   }
   const row = rows[0]
   return {
     pageStatusTitle: row?.order?.statusTitle || '订单详情',
-    pageStatusDescription: row?.order?.deliverySummary || row?.order?.statusDescription || '订单状态更新后会在这里显示'
+    pageStatusDescription: row?.order?.deliverySummary || row?.order?.statusDescription || '订单状态更新后会在这里显示',
+    pageStatusTone: row?.order?.status === 4 ? 'closed' : 'active'
   }
 }
 
 Page({
   ...balancePayment.methods,
-  data: { ...theme.pageData(), ...paymentSummary(), pageStatusTitle: '', pageStatusDescription: '', loading: true, error: '', rows: [], paymentNo: '', actingId: null, paying: false, cancellingAfterSaleId: null,
+  data: { ...theme.pageData(), ...paymentSummary(), pageStatusTitle: '', pageStatusDescription: '', pageStatusTone: 'active', loading: true, error: '', rows: [], paymentNo: '', actingId: null, paying: false, cancellingAfterSaleId: null,
     editingSaleId: '', deliveryCompany: '', carrierIndex: -1, deliveryNo: '', shipmentError: '', submittingShipment: false,
     carriers: CARRIERS, expandedIncome: {}, expandedAddresses: {}, expandedOrders: {}, trackingOrderId: '', trackingLoading: false, trackingError: '', trackingRows: [], wechatTrackingId: '', rebuyId: '', ...balancePayment.data },
   onLoad(options = {}) {
@@ -150,6 +160,7 @@ Page({
       }
       const rows = source.map((row) => {
         const order = row.order || {}
+        const refunded = isRefundedOrder(row)
         const shipments = (row.shipments?.length ? row.shipments : order.deliveryNo ? [{ deliveryCompany: order.deliveryCompany, deliveryNo: order.deliveryNo,
           deliveryTime: order.deliveryTime, shipmentQuantity: (row.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0) }] : []).map((shipment, index) => ({
           ...shipment,
@@ -158,12 +169,13 @@ Page({
           packageLabel: `包裹 ${index + 1}${shipment.shipmentQuantity ? ' · ' + shipment.shipmentQuantity + '件商品' : ''}`,
           deliveryTimeText: formatTime(shipment.deliveryTime)
         }))
-        const [statusTitle, statusDescription] = statusCopy(order, shipments)
+        const [statusTitle, statusDescription] = statusCopy(order, shipments, refunded)
         const itemQuantity = (row.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)
         const paid = ![0, 4].includes(Number(order.status))
         return {
           ...row,
           key: identifier(order.id),
+          refunded,
           itemQuantity,
           canApplyAfterSale: afterSaleEligibility(row).allowed,
           canReceive: Number(order.status) === 2 && !(row.afterSales || []).some((sale) => [0, 4, 5, 6, 7, 8].includes(Number(sale.status))),
@@ -185,7 +197,8 @@ Page({
             ...order,
             id: identifier(order.id),
             status: Number(order.status),
-            statusText: STATUS[Number(order.status)] || '处理中',
+            statusText: refunded ? '已退款' : STATUS[Number(order.status)] || '处理中',
+            statusTone: Number(order.status) === 4 ? 'closed' : 'active',
             statusTitle,
             statusDescription,
             amountText: format.money(order.payAmount == null ? order.totalAmount : order.payAmount),
@@ -199,7 +212,7 @@ Page({
             addressText: addressText(order),
             maskedRecipient: [maskName(order.receiverName), maskPhone(order.receiverPhone)].filter(Boolean).join(' '),
             maskedAddress: maskedAddress(order),
-            deliverySummary: deliverySummary(order),
+            deliverySummary: deliverySummary(order, refunded),
             logisticsUpdateText: statusDescription
           },
           items: (row.items || []).map((item) => ({
@@ -220,8 +233,13 @@ Page({
             applyType: Number(sale.applyType),
             statusText: Number(sale.applyType) === 3 && Number(sale.status) === 1 ? '换货完成' : AFTER_SALE_STATUS[Number(sale.status)] || '处理中',
             typeText: AFTER_SALE_TYPE[Number(sale.applyType)] || '售后申请',
+            statusTone: Number(sale.status) === 1 ? 'complete' : [2, 3].includes(Number(sale.status)) ? 'closed' : 'active',
             amountText: format.money(sale.refundAmount),
             createTimeText: formatTime(sale.createTime),
+            items: (sale.items || []).map((line) => ({
+              ...line,
+              displayName: [displayText(line.productName) || '订单商品', displayText(line.skuName)].filter(Boolean).join(' · ')
+            })),
             cancellable: [0, 4].includes(Number(sale.status)),
             canReturn: [2, 3].includes(Number(sale.applyType)) && [4, 5].includes(Number(sale.status)),
             canReceiveExchange: Number(sale.applyType) === 3 && Number(sale.status) === 8,

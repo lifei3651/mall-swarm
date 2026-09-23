@@ -18,7 +18,7 @@
     <div v-else-if="!order" class="empty">订单不存在</div>
     <template v-else>
       <main v-if="!applyingAfterSale" class="consumer-order-detail">
-        <header class="consumer-status-hero">
+        <header class="consumer-status-hero" :class="{ 'is-closed': Number(order.status) === 4 }">
           <h1>{{ orderStatusTitle }}</h1>
           <p>{{ deliverySummary }}</p>
         </header>
@@ -51,7 +51,7 @@
         </section>
 
         <section class="consumer-card products-card ui-card">
-          <div class="consumer-merchant-head"><strong>{{ order.merchantName || '商城订单' }}</strong><span class="ui-status-pill">{{ statusName(order.status) }}</span></div>
+          <div class="consumer-merchant-head"><strong>{{ order.merchantName || '商城订单' }}</strong><span class="ui-status-pill" :class="{ 'is-closed': Number(order.status) === 4 }">{{ orderDisplayStatus }}</span></div>
           <article v-for="item in detail.items || []" :key="item.id" class="consumer-product-line">
             <img :src="item.productCover" :alt="item.productName" />
             <div class="consumer-product-copy">
@@ -364,7 +364,7 @@
       <aside v-if="!applyingAfterSale" class="panel ui-card">
         <div class="summary-row">
           <span>订单状态</span>
-          <strong class="ui-status-pill">{{ statusName(order.status) }}</strong>
+          <strong class="ui-status-pill" :class="{ 'is-closed': Number(order.status) === 4 }">{{ orderDisplayStatus }}</strong>
         </div>
         <div class="summary-row">
           <span>商品金额</span>
@@ -602,12 +602,19 @@ const logisticsStatusDescription = computed(() => {
     ? `发货时间 ${dateTime(order.value.deliveryTime)}，实际轨迹以承运商查询为准`
     : '商家已发货，实际轨迹以承运商查询为准'
 })
-const orderStatusTitle = computed(() => ({ 0: '待付款', 1: '待发货', 2: '待收货', 3: '已完成', 4: '已取消', 5: '售后处理中' }[Number(order.value?.status)] || '订单处理中'))
+const isRefundedOrder = computed(() => Number(order.value?.status) === 4 && (detail.value.afterSales || [])
+  .some((sale) => [1, 2].includes(Number(sale.applyType)) && Number(sale.status) === 1))
+const orderStatusTitle = computed(() => isRefundedOrder.value ? '已退款'
+  : ({ 0: '待付款', 1: '待发货', 2: '待收货', 3: '已完成', 4: '已取消', 5: '售后处理中' }[Number(order.value?.status)] || '订单处理中'))
+const orderDisplayStatus = computed(() => isRefundedOrder.value ? '已退款'
+  : Number(order.value?.status) === 4 ? '已取消' : statusName(order.value?.status))
 const deliverySummary = computed(() => {
+  if (isRefundedOrder.value) return '退款已完成，详情见下方售后记录'
+  if (Number(order.value?.status) === 4) return '该订单已关闭，无需继续付款'
   if (order.value?.receiveTime) return `商品已于 ${dateTime(order.value.receiveTime)} 送达`
   if (Number(order.value?.status) === 3) return '商品已完成签收'
   if (order.value?.deliveryTime) return `商品已于 ${dateTime(order.value.deliveryTime)} 发出`
-  return ({ 0: '请核对商品和收货信息后完成支付', 1: '付款已完成，商家会尽快为您发货', 4: '该订单已关闭' }[Number(order.value?.status)] || '订单状态更新后会在这里显示')
+  return ({ 0: '请核对商品和收货信息后完成支付', 1: '付款已完成，商家会尽快为您发货' }[Number(order.value?.status)] || '订单状态更新后会在这里显示')
 })
 const latestLogisticsText = computed(() => {
   const events = logisticsTracking.value.flatMap((record) => record.events || [])
@@ -1173,6 +1180,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .consumer-order-detail { width: min(100%, 760px); margin: 0 auto; padding-bottom: 28px; }
 .consumer-status-hero { margin: 0 -8px 14px; padding: 18px 20px 22px; text-align: center; background: linear-gradient(140deg, #fff8f7 0%, #fff 55%, var(--brand-primary-soft, #eff8f6) 100%); border-radius: 22px; }
+.consumer-status-hero.is-closed { background: linear-gradient(140deg, #f7f8f8 0%, #fff 62%, #f2f5f5 100%); }
 .consumer-status-hero h1 { margin: 0; color: #151918; font-size: 25px; line-height: 1.35; }
 .consumer-status-hero p { margin: 7px 0 0; color: #747d7b; font-size: 14px; }
 .consumer-card { margin-top: 12px; overflow: hidden; background: #fff; border: 1px solid #e2e7e6; border-radius: 21px; box-shadow: 0 5px 18px rgba(31, 45, 42, .04); }

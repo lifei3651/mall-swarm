@@ -9,7 +9,7 @@
     <button class="secondary-button" bindtap="openOrders">查看我的订单</button>
   </view>
   <block wx:else>
-    <view class="status-hero">
+    <view class="status-hero {{pageStatusTone === 'closed' ? 'status-hero--closed' : ''}}">
       <text class="status-hero-title">{{pageStatusTitle}}</text>
       <text class="status-hero-description">{{pageStatusDescription}}</text>
       <text wx:if="{{paymentHint}}" class="payment-hint">{{paymentHint}}</text>
@@ -57,7 +57,7 @@
       </view>
 
       <view class="section-card ui-card product-card">
-        <view class="order-head"><text class="merchant-name">{{item.order.merchantName || '商城订单'}}</text><text class="order-status ui-status-pill">{{item.order.statusText}}</text></view>
+        <view class="order-head"><text class="merchant-name">{{item.order.merchantName || '商城订单'}}</text><text class="order-status ui-status-pill {{item.order.statusTone === 'closed' ? 'is-closed' : ''}}">{{item.order.statusText}}</text></view>
         <view class="order-item" wx:for="{{item.items}}" wx:key="id" wx:for-item="line">
           <image src="{{line.productCover}}" mode="aspectFill" />
           <view class="item-copy">
@@ -97,7 +97,7 @@
 
       <view wx:if="{{item.afterSales.length}}" class="section-card ui-card after-sale-list">
         <view class="section-title">退款 / 售后进度</view>
-        <view class="after-sale-record" wx:for="{{item.afterSales}}" wx:key="id" wx:for-item="sale">
+        <view class="after-sale-record after-sale-record--{{sale.statusTone}}" wx:for="{{item.afterSales}}" wx:key="id" wx:for-item="sale">
           <view class="after-sale-head"><view><text>{{sale.typeText}}</text><text>{{sale.afterSaleNo}}</text></view><text>{{sale.statusText}}</text></view>
           <view class="after-sale-meta"><text>{{sale.createTimeText}}</text><text wx:if="{{sale.applyType !== 3}}">¥{{sale.amountText}}</text></view>
           <text wx:if="{{sale.nextActionHint}}" class="next-action">{{sale.nextActionHint}}</text>
@@ -107,7 +107,7 @@
             <text wx:if="{{sale.returnDeliveryNo}}" class="next-action">已寄回：{{sale.returnDeliveryCompany}} {{sale.returnDeliveryNo}}</text>
           </view>
           <text wx:if="{{sale.exchangeDeliveryNo}}" class="next-action">换货物流：{{sale.exchangeDeliveryCompany}} {{sale.exchangeDeliveryNo}}</text>
-          <view wx:for="{{sale.items}}" wx:key="id" wx:for-item="saleLine" class="sale-item"><text>{{saleLine.productName}} {{saleLine.skuName}}</text><text>× {{saleLine.refundQuantity}}</text></view>
+          <view wx:for="{{sale.items}}" wx:key="id" wx:for-item="saleLine" class="sale-item"><text>{{saleLine.displayName}}</text><text>× {{saleLine.refundQuantity}}</text></view>
           <view class="sale-actions ui-action-bar">
             <button wx:if="{{sale.exchangeDeliveryNo}}" class="ui-copy-action" data-number="{{sale.exchangeDeliveryNo}}" bindtap="copyDeliveryNo">复制运单号</button>
             <button wx:if="{{sale.canReturn}}" class="secondary-button ui-action-button" data-id="{{sale.id}}" bindtap="editShipment">{{sale.status === 5 ? '修改退货物流' : '填写退货物流'}}</button>

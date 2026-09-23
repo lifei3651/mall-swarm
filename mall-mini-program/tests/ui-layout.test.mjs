@@ -70,7 +70,7 @@ test('普通操作按钮由共用层固定为秀气自适应尺寸，复制为�
 test('小程序订单详情按状态、本人收入、物流收货人、商品和全部信息顺序收口', () => {
   const detail = source('pages/order-detail/index.wxml')
   const positions = [
-    'class="status-hero"',
+    'class="status-hero ',
     'class="income-card ui-card"',
     'class="section-card ui-card fulfillment-card',
     'class="section-card ui-card product-card"',

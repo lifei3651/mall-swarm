@@ -39,6 +39,12 @@ function amountLabel(order = {}) {
   return '订单金额'
 }
 
+// A fully refunded order is closed in storage, but must not be presented as an unpaid cancellation.
+function isRefundedOrder(detail = {}) {
+  return Number(detail.order?.status) === 4 && (detail.afterSales || [])
+    .some((sale) => [1, 2].includes(Number(sale.applyType)) && Number(sale.status) === 1)
+}
+
 // A child ID is resolved to its original parent trade by the payment service.
 // Only offer payment after the complete group has been loaded from the server.
 function paymentSummary(rows = []) {
@@ -81,4 +87,4 @@ function refundEstimate(detail, selectedItems, applyType) {
   const freight = Number(order.status)===1 && !order.deliveryTime && all ? Number(order.freightAmount || 0) : 0
   return { product, freight, total: product + freight }
 }
-module.exports = { identifier, remainingItems, afterSaleEligibility, amountLabel, paymentSummary, refundEstimate }
+module.exports = { identifier, remainingItems, afterSaleEligibility, amountLabel, isRefundedOrder, paymentSummary, refundEstimate }

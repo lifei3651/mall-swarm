@@ -184,6 +184,43 @@ test('售后详情展示并提供寄回物流、换货确认和申请入口', as
   assert.ok(h.calls.some((call) => call.url === `/shop/after-sales/${SALE}/exchange-received` && call.method === 'PUT'))
 })
 
+test('全额退款后的关闭订单显示已退款，售后缺失规格不出现null，终态卡不使用警示色', async () => {
+  const refunded = detail({
+    order: { id: ID, orderNo: 'SO-refunded', status: 4, payTime: '2026-09-16 08:00:00', deliveryTime: '2026-09-16 08:32:00', payAmount: '0.01' },
+    afterSales: [{ id: SALE, applyType: 1, status: 1, refundAmount: '0.01', items: [{ id: ITEM, productName: 'test', skuName: null, refundQuantity: 1 }] }]
+  })
+  assert.equal(policy.isRefundedOrder(refunded), true)
+  assert.equal(policy.isRefundedOrder(detail({ order: { id: ID, status: 3 }, afterSales: refunded.afterSales })), false, '部分退款不能覆盖仍在履约的订单状态')
+  assert.equal(policy.isRefundedOrder(detail({ order: { id: ID, status: 4 }, afterSales: [{ applyType: 1, status: 3 }] })), false, '已取消售后不是退款完成')
+  const h = harness('order-detail', { respond: () => refunded })
+  h.page.onLoad({ id: ID }); await h.page.load()
+  assert.equal(h.page.data.pageStatusTitle, '已退款')
+  assert.match(h.page.data.pageStatusDescription, /退款已完成/)
+  assert.equal(h.page.data.rows[0].order.statusText, '已退款')
+  assert.equal(h.page.data.rows[0].order.statusTone, 'closed')
+  assert.equal(h.page.data.rows[0].afterSales[0].statusTone, 'complete')
+  assert.equal(h.page.data.rows[0].afterSales[0].items[0].displayName, 'test')
+  const listPage = harness('orders', { respond: () => ({ list: [refunded], total: 1, pageNum: 1 }) })
+  await listPage.page.load(true)
+  assert.equal(listPage.page.data.rows[0].statusText, '已退款')
+  const wxml = readFileSync(new URL('../pages/order-detail/index.wxml', import.meta.url), 'utf8')
+  const wxss = readFileSync(new URL('../pages/order-detail/index.wxss', import.meta.url), 'utf8')
+  assert.match(wxml, /after-sale-record--\{\{sale\.statusTone\}\}/)
+  assert.match(wxml, /saleLine\.displayName/)
+  assert.match(wxss, /\.after-sale-record--complete\s*\{[^}]*#f4f7f7/)
+  assert.doesNotMatch(wxss, /\.after-sale-record\s*\{[^}]*#fff8ed/)
+})
+
+test('未退款的关闭订单仍显示已取消，不能拿旧发货时间充当当前状态', async () => {
+  const cancelled = detail({ order: { id: ID, status: 4, deliveryTime: '2026-09-16 08:32:00' }, afterSales: [] })
+  assert.equal(policy.isRefundedOrder(cancelled), false)
+  const h = harness('order-detail', { respond: () => cancelled })
+  h.page.onLoad({ id: ID }); await h.page.load()
+  assert.equal(h.page.data.pageStatusTitle, '已取消')
+  assert.equal(h.page.data.rows[0].order.statusText, '已取消')
+  assert.equal(h.page.data.pageStatusDescription, '该订单已关闭，无需继续付款')
+})
+
 test('退货物流校验与提交失败保留草稿，成功后刷新详情', async () => {
   let fail = true
   const h = harness('order-detail', { respond: ({ method }) => {
