@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "version": "1.0.157",
+  "buildId": "20260923-closure-1.0.157",
+  "gitCommit": "ef9da4bdfbe7bbce1d2903fe54e1edf28d119911",
+  "sourceTree": "4acd081690e1fc83ad494add8ed0fd5abeffd854",
+  "candidateStatus": "FROZEN_CT_PENDING_RETENTION",
+  "localArtifact": {
+    "path": "target/releases/lingqi-mall-1.0.157-ef9da4bd.tar.gz",
+    "bytes": 146870042,
+    "sha256": "b065fe36c1a4c9a2fc4bc71a2c1a058687cca6e46da88322fee070210a75ed9a",
+    "verified": true
+  },
+  "localAuditArchive": {
+    "path": "/Users/minmatemp/Documents/mall-swarm-app-h5-release-artifacts/1.0.157/lingqi-mall-1.0.157-ef9da4bd.tar.gz",
+    "bytes": 146870042,
+    "sha256": "b065fe36c1a4c9a2fc4bc71a2c1a058687cca6e46da88322fee070210a75ed9a",
+    "verified": true,
+    "classification": "same-host audit copy; not independent durable storage"
+  },
+  "durableArtifact": {
+    "status": "NOT_COMPLETED",
+    "provider": null,
+    "objectId": null,
+    "uploadedAt": null,
+    "retentionUntil": null,
+    "readBackAt": null,
+    "readBackBytes": null,
+    "readBackSha256": null
+  },
+  "gates": {
+    "serverDeploymentAllowed": false,
+    "wechatDevelopmentUploadAllowed": false,
+    "reason": "P0-10 requires an independent durable copy and byte-for-byte read-back receipt before S/W"
+  }
+}
