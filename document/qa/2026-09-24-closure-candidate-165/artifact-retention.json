@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 2,
+  "receiptStatus": "COMPLETED",
+  "version": "1.0.165",
+  "buildId": "20260924-closure-1.0.165",
+  "gitCommit": "60a6e5e3fe1255bace2156f0f59089c9a341db0f",
+  "sourceTree": "7e4df7d0dd8c0dd242db073f8cb21ec203a44baf",
+  "candidateStatus": "FROZEN_CT_DURABLE_READBACK_VERIFIED",
+  "candidateManifestSha256": "f3106b835fa671fa525bc0280b9a137d8039623531ec56fc8fc8d855b9cb685f",
+  "localArtifact": {
+    "path": "target/releases/lingqi-mall-1.0.165-60a6e5e3.tar.gz",
+    "bytes": 146871320,
+    "sha256": "66b528b8df81ac30fee3b15d6a09647015dc8ba62ac2f0e3a41d662b23300652",
+    "verified": true
+  },
+  "durableArtifact": {
+    "status": "COMPLETED",
+    "provider": "github-release",
+    "private": true,
+    "immutable": true,
+    "objectId": "lifei3651/mall-swarm-release-archive/releases/tag/candidate-1.0.165-60a6e5e3#lingqi-mall-1.0.165-60a6e5e3.tar.gz",
+    "assetDigest": "sha256:66b528b8df81ac30fee3b15d6a09647015dc8ba62ac2f0e3a41d662b23300652",
+    "uploadObservedDate": "2026-09-24",
+    "uploadedAt": "2026-09-24T03:31:21Z",
+    "retentionCommitmentUntil": "2027-09-24",
+    "retentionUntil": "2027-09-24T23:59:59+08:00",
+    "readBackAt": "2026-09-24T03:37:44Z",
+    "readBackLocalPath": "/Users/minmatemp/Downloads/lingqi-mall-1.0.165-60a6e5e3.tar.gz",
+    "readBackOriginHost": "release-assets.githubusercontent.com",
+    "readBackBytes": 146871320,
+    "readBackSha256": "66b528b8df81ac30fee3b15d6a09647015dc8ba62ac2f0e3a41d662b23300652"
+  },
+  "gates": {
+    "serverDeploymentAllowed": false,
+    "wechatDevelopmentUploadAllowed": false,
+    "reason": "This receipt proves durable retention only; controlled server and WeChat actions are independently gated"
+  }
+}
