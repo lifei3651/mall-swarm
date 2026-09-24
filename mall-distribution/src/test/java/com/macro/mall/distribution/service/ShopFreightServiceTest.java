@@ -8,6 +8,7 @@ import com.macro.mall.distribution.dao.DmsCommissionRecordDao;
 import com.macro.mall.distribution.dao.DmsAgentChangeLogDao;
 import com.macro.mall.distribution.dao.DmsOrderPerformanceDetailDao;
 import com.macro.mall.distribution.dao.DmsShopProductDao;
+import com.macro.mall.distribution.dao.DmsShopAfterSaleDao;
 import com.macro.mall.distribution.dao.DmsShopSkuDao;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsShopOrderDao;
@@ -20,6 +21,7 @@ import com.macro.mall.distribution.dto.ShopOrderSubmitDTO;
 import com.macro.mall.distribution.dto.ShopSkuDTO;
 import com.macro.mall.distribution.dto.ShopAddressDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleApplyDTO;
+import com.macro.mall.distribution.dto.ShopAfterSaleAuditDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleItemDTO;
 import com.macro.mall.distribution.dto.ShopPasswordChangeDTO;
 import com.macro.mall.distribution.entity.DmsCommissionRecord;
@@ -27,6 +29,7 @@ import com.macro.mall.distribution.entity.DmsFreightTemplate;
 import com.macro.mall.distribution.entity.DmsOrderPerformanceDetail;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsShopAddress;
+import com.macro.mall.distribution.entity.DmsShopAfterSale;
 import com.macro.mall.distribution.entity.DmsShopCategory;
 import com.macro.mall.distribution.entity.DmsShopProduct;
 import com.macro.mall.distribution.entity.DmsShopSku;
@@ -86,6 +89,7 @@ class ShopFreightServiceTest {
     @Autowired private AgentService agentService;
     @Autowired private AdminDashboardService adminDashboardService;
     @Autowired private DmsShopProductDao productDao;
+    @Autowired private DmsShopAfterSaleDao afterSaleDao;
     @Autowired private DmsShopSkuDao skuDao;
     @Autowired private DmsShopMemberDao memberDao;
     @Autowired private DmsShopOrderDao orderDao;
@@ -285,6 +289,61 @@ class ShopFreightServiceTest {
     }
 
     @Test
+    void pendingReturnCanBeApprovedAfterProductAddressIsConfigured() {
+        DmsShopMember member = createMember("13999110109", "补配退货地址会员", null);
+        jdbcTemplate.update("UPDATE dms_shop_product SET return_address_id=NULL WHERE id=1");
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_order
+                (id,order_no,tenant_id,user_id,receiver_name,receiver_phone,receiver_address,total_amount,
+                 freight_amount,discount_amount,pay_amount,total_pv,total_cost,business_type,status,pay_type,pay_time,receive_time)
+                VALUES (990030,'LATE-RETURN-ADDRESS',1,?,'测试会员',?,'湖南省长沙市测试地址',
+                        10,0,0,10,0,5,'NORMAL',3,'ALIPAY',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+                """, member.getUserId(), member.getPhone());
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_order_item
+                (id,order_id,order_no,product_id,product_name,price,quantity,total_amount,pv_value,total_pv,cost_amount,total_cost)
+                VALUES (990031,990030,'LATE-RETURN-ADDRESS',1,'商品A',10,1,10,0,0,5,5)
+                """);
+        ShopAfterSaleItemDTO line = new ShopAfterSaleItemDTO();
+        line.setOrderItemId(990031L);
+        line.setQuantity(1);
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
+        apply.setOrderId(990030L);
+        apply.setApplyType(2);
+        apply.setItems(List.of(line));
+        apply.setReason("测试申请后补退货地址");
+        DmsShopAfterSale pending = shopAfterSaleService.apply(member, apply);
+        assertNull(pending.getReturnAddress());
+        ShopAfterSaleAuditDTO audit = new ShopAfterSaleAuditDTO();
+        audit.setStatus(1);
+        assertTrue(assertThrows(ApiException.class,
+                () -> shopAfterSaleService.audit(pending.getId(), audit)).getMessage().contains("退货地址"));
+
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_service_address
+                (id,tenant_id,address_type,address_label,contact_name,contact_phone,province,city,district,
+                 detail_address,is_default,status)
+                VALUES (990030,2,2,'其他租户仓库','其他租户','13900000000','湖南省','长沙市','岳麓区','不得泄露的地址',0,1)
+                """);
+        jdbcTemplate.update("UPDATE dms_shop_product SET return_address_id=990030 WHERE id=1");
+        assertTrue(assertThrows(ApiException.class,
+                () -> shopAfterSaleService.audit(pending.getId(), audit)).getMessage().contains("退货地址"));
+
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_service_address
+                (id,tenant_id,address_type,address_label,contact_name,contact_phone,province,city,district,
+                 detail_address,is_default,status)
+                VALUES (990031,1,2,'补配仓库','售后专员','13900000003','湖南省','长沙市','岳麓区','补配仓库地址',0,1)
+                """);
+        jdbcTemplate.update("UPDATE dms_shop_product SET return_address_id=990031 WHERE id=1");
+        DmsShopAfterSale approved = shopAfterSaleService.audit(pending.getId(), audit);
+        assertEquals(4, approved.getStatus());
+        assertEquals(990031L, approved.getReturnAddressId());
+        assertTrue(approved.getReturnAddress().contains("补配仓库地址"));
+        assertEquals(approved.getReturnAddress(), afterSaleDao.selectById(pending.getId()).getReturnAddress());
+    }
+
+    @Test
     void aggregatePublishAcceptsBlankSkuAttributesAndSavesCompleteProduct() {
         DmsShopProduct product = new DmsShopProduct();
         product.setProductName("事务发布回归商品");
@@ -298,6 +357,12 @@ class ShopFreightServiceTest {
         product.setDeliveryCity("长沙市");
         product.setDeliveryDistrict("岳麓区");
         product.setFreightType(0);
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_service_address
+                (id,tenant_id,address_type,address_label,contact_name,contact_phone,province,city,district,
+                 detail_address,is_default,status)
+                VALUES (990032,1,2,'新商品仓库','售后专员','13900000004','湖南省','长沙市','岳麓区','新商品退货地址',0,1)
+                """);
 
         ShopSkuDTO sku = new ShopSkuDTO();
         sku.setSkuName("默认规格");
@@ -311,14 +376,34 @@ class ShopFreightServiceTest {
         publish.setProduct(product);
         publish.setSkus(List.of(sku));
 
+        assertTrue(assertThrows(ApiException.class,
+                () -> shopService.publishProduct(null, publish)).getMessage().contains("退货地址"));
+        product.setReturnAddressId(990032L);
+
         DmsShopProduct saved = shopService.publishProduct(null, publish);
 
         assertNotNull(saved.getId());
+        assertEquals(990032L, saved.getReturnAddressId());
         assertEquals("湖南省 长沙市 岳麓区", saved.getDeliveryAddress());
         List<DmsShopSku> skus = skuDao.selectByProductId(saved.getId(), null);
         assertEquals(1, skus.size());
         assertEquals("{}", skus.get(0).getAttrsJson());
         assertNotNull(productDao.selectById(saved.getId()));
+    }
+
+    @Test
+    void legacyProductCannotBeRelistedWithoutValidReturnAddress() {
+        jdbcTemplate.update("UPDATE dms_shop_product SET status=0, return_address_id=NULL WHERE id=1");
+        assertTrue(assertThrows(ApiException.class,
+                () -> shopService.updateProductStatus(1L, 1)).getMessage().contains("退货地址"));
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_service_address
+                (id,tenant_id,address_type,address_label,contact_name,contact_phone,province,city,district,
+                 detail_address,is_default,status)
+                VALUES (990033,1,2,'重新上架仓库','售后专员','13900000005','湖南省','长沙市','岳麓区','重新上架退货地址',0,1)
+                """);
+        jdbcTemplate.update("UPDATE dms_shop_product SET return_address_id=990033 WHERE id=1");
+        assertTrue(shopService.updateProductStatus(1L, 1));
     }
 
     @Test

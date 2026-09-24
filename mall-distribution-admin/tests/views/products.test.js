@@ -71,4 +71,12 @@ describe('商品中心筛选', () => {
     expect(source).toContain('启用普通商城销售时商品销售价必须大于0')
     expect(source).toContain('启用普通商城销售时有效SKU销售价必须大于0')
   })
+
+  it('创建商品必须从有效退货地址中选择，失效地址不能通过保存', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('label="售后退货地址" required')
+    expect(source).toContain("Number(item.addressType) === 2 && Number(item.status) === 1")
+    expect(source).toContain('returnAddresses.value.some((item) => Number(item.id) === Number(form.value.returnAddressId))')
+  })
 })

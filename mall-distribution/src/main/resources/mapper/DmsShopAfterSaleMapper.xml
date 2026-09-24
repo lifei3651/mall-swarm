@@ -164,7 +164,11 @@
 
     <update id="updateAuditScoped">
         UPDATE dms_shop_after_sale
-        SET status = #{afterSale.status},
+        SET return_address_id = CASE WHEN return_address IS NULL OR TRIM(return_address) = ''
+                THEN #{afterSale.returnAddressId} ELSE return_address_id END,
+            return_address = CASE WHEN return_address IS NULL OR TRIM(return_address) = ''
+                THEN #{afterSale.returnAddress} ELSE return_address END,
+            status = #{afterSale.status},
             audit_remark = #{afterSale.auditRemark},
             audit_user_id = #{afterSale.auditUserId},
             audit_user_name = #{afterSale.auditUserName},

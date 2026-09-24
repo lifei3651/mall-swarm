@@ -253,7 +253,7 @@
             </el-row>
             <el-row :gutter="20" class="service-address-row">
               <el-col :span="8"><el-form-item label="商城发货地址"><el-select v-model="form.shippingAddressId" clearable filterable placeholder="选择仓库发货地址" style="width:100%" @change="applyShippingAddress"><el-option v-for="item in shippingAddresses" :key="item.id" :label="addressOptionLabel(item)" :value="item.id" /></el-select><div class="field-help"><router-link to="/shop/service-addresses">管理地址簿</router-link></div></el-form-item></el-col>
-              <el-col :span="8"><el-form-item label="售后退货地址"><el-select v-model="form.returnAddressId" clearable filterable placeholder="默认退货地址" style="width:100%"><el-option v-for="item in returnAddresses" :key="item.id" :label="addressOptionLabel(item)" :value="item.id" /></el-select><div class="field-help">审核通过后展示给客户</div></el-form-item></el-col>
+              <el-col :span="8"><el-form-item label="售后退货地址" required><el-select v-model="form.returnAddressId" filterable placeholder="请选择可用退货地址" style="width:100%"><el-option v-for="item in returnAddresses" :key="item.id" :label="addressOptionLabel(item)" :value="item.id" /></el-select><div class="field-help">创建商品时必选，售后审核通过后展示给客户</div></el-form-item></el-col>
             </el-row>
             <el-row :gutter="20">
               <el-col v-if="form.freightType === 1" :span="8"><el-form-item label="统一运费"><el-input-number v-model="form.freightAmount" :min="0" :precision="2" class="money-input" /></el-form-item></el-col>
@@ -716,7 +716,7 @@ const fetchServiceAddresses = async () => {
   const res = await listShopServiceAddresses({ tenantId: 1 })
   const list = res.data || []
   shippingAddresses.value = list.filter((item) => Number(item.addressType) === 1)
-  returnAddresses.value = list.filter((item) => Number(item.addressType) === 2)
+  returnAddresses.value = list.filter((item) => Number(item.addressType) === 2 && Number(item.status) === 1)
 }
 const applyShippingAddress = (id) => {
   const address = shippingAddresses.value.find((item) => String(item.id) === String(id))
@@ -993,6 +993,7 @@ const saveFreightTemplateForm = async () => {
 
 const submitForm = async () => {
   if (!form.value.productName?.trim()) return ElMessage.warning('请输入商品名称')
+  if (!returnAddresses.value.some((item) => Number(item.id) === Number(form.value.returnAddressId))) return ElMessage.warning('请先配置并选择可用退货地址')
   if (!form.value.mainImages.length) return ElMessage.warning('请至少上传一张商品主图')
   if (deliveryRegion.value.length !== 3) return ElMessage.warning('请选择完整的发货省、市、区/县')
   if (Number(form.value.salePrice || 0) < 0) return ElMessage.warning('商品销售价不能小于0')

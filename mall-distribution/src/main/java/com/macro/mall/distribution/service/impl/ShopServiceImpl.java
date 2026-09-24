@@ -794,6 +794,9 @@ public class ShopServiceImpl implements ShopService {
             requireAddressAccess(returnAddress, tenantId, product.getMerchantId(), 2, "退货");
             product.setReturnAddressId(returnAddress.getId());
         }
+        if (returnAddress == null && (useDefaultWhenMissing || product.getReturnAddressId() != null)) {
+            Asserts.fail("请先配置可用退货地址，再创建或保存商品");
+        }
     }
 
     private void requireAddressAccess(DmsShopServiceAddress address, Long tenantId, Long merchantId,
@@ -828,8 +831,16 @@ public class ShopServiceImpl implements ShopService {
                 && !"APPROVED".equals(product.getMerchantReviewStatus())) {
             Asserts.fail("商户商品必须审核通过后才能上架");
         }
-        if (target == 1) requireActiveProductMerchant(product);
         if (Integer.valueOf(target).equals(product.getStatus())) return true;
+        if (target == 1) {
+            requireActiveProductMerchant(product);
+            if (product.getReturnAddressId() == null) Asserts.fail("请先配置可用退货地址，再上架商品");
+            DmsShopServiceAddress returnAddress = serviceAddressDao.selectById(product.getReturnAddressId());
+            if (returnAddress == null) Asserts.fail("请先配置可用退货地址，再上架商品");
+            requireAddressAccess(returnAddress,
+                    product.getTenantId() == null ? DEFAULT_TENANT_ID : product.getTenantId(),
+                    product.getMerchantId(), 2, "退货");
+        }
         boolean updated = productDao.updateStatus(id, target) > 0;
         if (updated) catalogCache.invalidateAfterCommit(product.getTenantId());
         return updated;

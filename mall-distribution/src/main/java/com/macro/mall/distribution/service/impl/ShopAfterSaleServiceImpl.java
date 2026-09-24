@@ -652,10 +652,16 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
             ShopQuantityChecks.refundLines(afterSaleItemDao.selectByAfterSaleId(afterSale.getId()));
             validateRefundHistory(order.getId());
         }
-        boolean returnAddressConfigured = afterSale.getReturnAddress() != null
-                && !afterSale.getReturnAddress().isBlank();
         boolean physicalReturn = Integer.valueOf(2).equals(afterSale.getApplyType())
                 || Integer.valueOf(3).equals(afterSale.getApplyType());
+        // 旧申请可能在商品尚未配置退货地址时创建。仅在通过审核时补齐空快照；
+        // 已保存的地址属于该申请的历史约定，不能被商品后续修改覆盖。
+        if (Integer.valueOf(1).equals(status) && physicalReturn
+                && (afterSale.getReturnAddress() == null || afterSale.getReturnAddress().isBlank())) {
+            populateReturnAddress(afterSale, order, afterSaleItemDao.selectByAfterSaleId(afterSale.getId()));
+        }
+        boolean returnAddressConfigured = afterSale.getReturnAddress() != null
+                && !afterSale.getReturnAddress().isBlank();
         if (Integer.valueOf(1).equals(status) && physicalReturn && !returnAddressConfigured) {
             Asserts.fail("请先为该订单商品配置可用退货地址，再通过售后");
         }
@@ -956,7 +962,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         boolean hasMissingAddress = false;
         for (Long productId : (refundItems == null ? List.<DmsShopAfterSaleItem>of() : refundItems).stream()
                 .map(DmsShopAfterSaleItem::getProductId).filter(Objects::nonNull).distinct().toList()) {
-            DmsShopServiceAddress address = resolveProductReturnAddress(productId, defaultAddress);
+            DmsShopServiceAddress address = resolveProductReturnAddress(productId, order, defaultAddress);
             if (address == null) hasMissingAddress = true;
             else addressesById.putIfAbsent(address.getId(), address);
         }
@@ -970,13 +976,19 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         afterSale.setReturnAddress(joinServiceAddress(address));
     }
 
-    private DmsShopServiceAddress resolveProductReturnAddress(Long productId,
+    private DmsShopServiceAddress resolveProductReturnAddress(Long productId, DmsShopOrder order,
                                                                DmsShopServiceAddress defaultAddress) {
         DmsShopProduct product = productDao.selectById(productId);
-        if (product == null || product.getReturnAddressId() == null) return defaultAddress;
+        if (product == null || !Objects.equals(product.getTenantId(), order.getTenantId())
+                || !Objects.equals(product.getMerchantId(), order.getMerchantId())
+                || product.getReturnAddressId() == null) return defaultAddress;
         DmsShopServiceAddress address = serviceAddressDao.selectById(product.getReturnAddressId());
         if (address == null || !Integer.valueOf(2).equals(address.getAddressType())
-                || !Integer.valueOf(1).equals(address.getStatus())) return defaultAddress;
+                || !Integer.valueOf(1).equals(address.getStatus())
+                || !Objects.equals(address.getTenantId(), order.getTenantId())
+                || !(Objects.equals(address.getMerchantId(), order.getMerchantId())
+                     || (order.getMerchantId() != null && address.getMerchantId() == null
+                         && Integer.valueOf(1).equals(address.getSharedToMerchants())))) return defaultAddress;
         return address;
     }
 
