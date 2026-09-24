@@ -53,7 +53,7 @@ public class RefundInventoryRestockService {
         boolean beforeAnyShipment = Integer.valueOf(1).equals(order.getStatus())
                 && order.getDeliveryTime() == null
                 && orderShipmentDao.sumQuantityByOrderId(order.getId()) == 0;
-        // 已发货的“仅退款”没有商品退回，不能增加可售库存。
+        // 已发货的历史仅退款和异常退款没有商品退回，不能增加可售库存。
         if (!physicalReturn && !beforeAnyShipment) return 0;
 
         int restoredQuantity = 0;

@@ -325,7 +325,7 @@
                         AND EXISTS (
                             SELECT 1 FROM dms_shop_after_sale sale
                             WHERE sale.order_id = dms_shop_order.id
-                              AND sale.apply_type IN (1, 2)
+                              AND sale.apply_type IN (1, 2, 4)
                               AND sale.status = 1
                         )
                         AND NOT EXISTS (

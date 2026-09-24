@@ -13,7 +13,8 @@ test('H5次级操作使用浅色底，订单详情只保留订单状态相关动
   assert.match(orders, /class="order-action btn secondary ui-action-button ui-order-action"/)
   assert.match(orders, /class="order-action btn primary ui-action-button ui-action-button--primary ui-order-action ui-order-action--primary"/)
   assert.doesNotMatch(detail, /serviceTicketLink|>联系客服<|>客服工单</)
-  assert.match(detail, />申请售后</)
+  assert.match(detail, /'申请售后'/)
+  assert.match(detail, /'取消并退款'/)
 })
 
 test('H5商品与优惠券的独立次级操作不再使用纯白按钮底', () => {

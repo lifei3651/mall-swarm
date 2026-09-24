@@ -132,6 +132,7 @@
                   {{ afterSaleStatus(activeAfterSale(row).status, activeAfterSale(row).applyType) }}
                 </el-tag>
                 <div v-if="Number(activeAfterSale(row).applyType) === 3" class="sub">同规格换货 {{ Number(activeAfterSale(row).refundQuantity || 0) }} 件 · 不退款</div>
+                <div v-else-if="Number(activeAfterSale(row).applyType) === 4" class="sub">取消/异常退款 {{ Number(activeAfterSale(row).refundQuantity || 0) }} 件 · ¥{{ money(activeAfterSale(row).refundAmount) }}</div>
                 <div v-else class="sub">申请 {{ Number(activeAfterSale(row).refundQuantity || 0) }} 件 · ¥{{ money(activeAfterSale(row).refundAmount) }}</div>
                 <div v-if="activeAfterSale(row).nextActionHint" class="after-sale-action-deadline" :class="{ overdue: activeAfterSale(row).nextActionOverdue }">
                   {{ activeAfterSale(row).nextActionHint }}
@@ -247,7 +248,7 @@
                         {{ Number(row.order?.status) === 1 ? '取消并退款' : '取消订单' }}
                       </el-dropdown-item>
                       <el-dropdown-item v-else-if="canHandleAfterSale" disabled divided>{{ cancelUnavailableLabel(row) }}</el-dropdown-item>
-                      <el-dropdown-item v-if="canHandleAfterSale && canManualRefund(row)" command="REFUND" divided>后台退款</el-dropdown-item>
+                      <el-dropdown-item v-if="canHandleAfterSale && canManualRefund(row)" command="REFUND" divided>特殊退款</el-dropdown-item>
                     </el-dropdown-menu>
                   </template>
                 </el-dropdown>
@@ -554,7 +555,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="manualRefundDialogVisible" title="后台退款" width="720px" destroy-on-close>
+    <el-dialog v-model="manualRefundDialogVisible" title="特殊退款" width="720px" destroy-on-close>
       <el-alert
         title="前台售后期限已结束，后台退款会写入售后、财务和奖金冲销记录。"
         type="warning"
@@ -959,7 +960,7 @@ const afterSaleProofUrls = (sale) => {
 }
 const hasPendingAfterSale = (row) => (row?.afterSales || []).some((item) => [0, 4, 5, 6, 7, 8].includes(Number(item.status)))
 const activeAfterSale = (row) => (row?.afterSales || []).find((item) => [0, 4, 5, 6, 7, 8].includes(Number(item.status)))
-const approvedAfterSales = (row) => (row?.afterSales || []).filter((item) => [1, 2].includes(Number(item.applyType)) && Number(item.status) === 1)
+const approvedAfterSales = (row) => (row?.afterSales || []).filter((item) => [1, 2, 4].includes(Number(item.applyType)) && Number(item.status) === 1)
 const hasApprovedRefund = (row) => approvedAfterSales(row).length > 0
 const approvedRefundAmount = (row) => approvedAfterSales(row)
   .reduce((sum, item) => sum + Number(item.refundAmount || 0), 0)
@@ -1043,7 +1044,7 @@ const manualRefundRemainingAmount = computed(() => {
   if (!currentOrder.value) return 0
   const productBase = Math.max(0, Number(currentOrder.value.order?.totalAmount || 0) - Number(currentOrder.value.order?.discountAmount || 0))
   const approved = (currentOrder.value.afterSales || [])
-    .filter((sale) => [1, 2].includes(Number(sale.applyType)) && [1, 6].includes(Number(sale.status)))
+    .filter((sale) => [1, 2, 4].includes(Number(sale.applyType)) && [1, 6].includes(Number(sale.status)))
     .reduce((sum, sale) => sum + Number(sale.productRefundAmount || 0), 0)
   return Math.max(0, productBase - approved)
 })
@@ -1477,7 +1478,7 @@ const submitManualRefund = async () => {
         : null,
       items,
       reason: manualRefundForm.value.reason?.trim() || '后台超期退款',
-      applyType: 1,
+      applyType: 4,
       operatorId: currentOperator.value.id,
       operatorName: currentOperator.value.name,
     })

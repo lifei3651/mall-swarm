@@ -21,6 +21,7 @@ for (const [surface, rules] of [['H5', {couponRefundPreview,couponQuoteValid}], 
     assert.equal(rules.couponRefundPreview(items,[{orderItemId:'2',quantity:1}]),198)
     assert.equal(rules.couponRefundPreview(items,[{orderItemId:'1',quantity:1}]),298.99)
     assert.equal(rules.couponRefundPreview(items,[{orderItemId:'1',quantity:1}],[sale(1)]),299)
+    assert.equal(rules.couponRefundPreview(items,[{orderItemId:'1',quantity:1}],[{...sale(1),applyType:4}]),299)
     assert.equal(rules.couponRefundPreview(items,[{orderItemId:'1',quantity:1}],[sale(2)]),299)
     assert.equal(rules.couponRefundPreview(items,[{orderItemId:'1',quantity:-1}]),0)
     assert.equal(rules.couponRefundPreview(items,[{orderItemId:'1',quantity:4}]),0)

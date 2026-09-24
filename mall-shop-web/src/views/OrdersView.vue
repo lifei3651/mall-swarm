@@ -51,7 +51,7 @@
         </div>
         <div v-if="orderAutoReceiveText(item)" class="ui-order-logistics">
           <span>{{ orderAutoReceiveText(item) }}</span>
-          <RouterLink v-if="item.order.status === 2 && item.autoReceiveEnabled && !isAfterSale(item) && canApplyAfterSale(item)" class="ui-order-logistics-action" :to="`/orders/${item.order.id}?applyAfterSale=1`">未收到 / 拒收</RouterLink>
+          <RouterLink v-if="item.order.status === 2 && item.autoReceiveEnabled && !isAfterSale(item) && canApplyAfterSale(item)" class="ui-order-logistics-action" :to="`/orders/${item.order.id}?refundException=1`">未收到 / 拒收</RouterLink>
         </div>
         <div class="ui-order-summary">
           <span>共 {{ totalQuantity(item) }} 件</span>
@@ -60,7 +60,7 @@
         <div class="order-actions ui-action-bar ui-order-actions">
           <a v-if="firstTrackingUrl(item)" class="order-action btn secondary ui-action-button ui-order-action" :href="firstTrackingUrl(item)" target="_blank" rel="noopener">查看物流</a>
           <button v-if="item.order.status === 0 && isTradeActionOwner(item)" class="order-action btn secondary ui-action-button ui-order-action" :disabled="actingId === item.order.id" @click="requestOrderAction('cancel', item.order.id)">取消订单</button>
-          <RouterLink v-if="canApplyAfterSale(item)" class="order-action btn secondary ui-action-button ui-order-action" :to="`/orders/${item.order.id}?applyAfterSale=1`">退换/售后</RouterLink>
+          <RouterLink v-if="canApplyAfterSale(item)" class="order-action btn secondary ui-action-button ui-order-action" :to="`/orders/${item.order.id}?applyAfterSale=1`">{{ item.order.status === 1 && !(item.shipments || []).length && !item.order.deliveryNo && !item.order.deliveryTime ? '取消并退款' : '退换/售后' }}</RouterLink>
           <button v-if="canRebuy(item)" class="order-action btn secondary ui-action-button ui-order-action" :disabled="Boolean(rebuyId)" @click="buyAgain(item)">{{ rebuyId === item.order.id ? '处理中…' : '再买一单' }}</button>
           <RouterLink v-if="Number(item.pendingReviewCount || 0) > 0" class="order-action btn secondary ui-action-button ui-order-action" :to="reviewLink(item)">去评价</RouterLink>
           <RouterLink v-if="item.order.status === 0 && isTradeActionOwner(item)" class="order-action btn primary ui-action-button ui-action-button--primary ui-order-action ui-order-action--primary" :to="`/orders/${item.order.id}`">立即支付</RouterLink>
@@ -261,7 +261,7 @@ const afterSaleStatus = (status, applyType) => {
   return ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待客户寄回', 5: '待商家收货', 6: '退款处理中', 7: '待商家换货发出', 8: '换货已发出' }[status] || '处理中')
 }
 const isRefundedOrder = (item) => Number(item.order?.status) === 4 && (item.afterSales || [])
-  .some((sale) => [1, 2].includes(Number(sale.applyType)) && Number(sale.status) === 1)
+  .some((sale) => [1, 2, 4].includes(Number(sale.applyType)) && Number(sale.status) === 1)
 const orderDisplayStatus = (item) => {
   if (isAfterSale(item)) {
     const sale = activeAfterSales(item)[0]

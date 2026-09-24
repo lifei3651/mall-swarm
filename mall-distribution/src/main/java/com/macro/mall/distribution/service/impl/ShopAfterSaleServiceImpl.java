@@ -155,8 +155,9 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         if (Integer.valueOf(0).equals(order.getStatus()) || Integer.valueOf(4).equals(order.getStatus())) {
             Asserts.fail("当前订单状态不能申请售后");
         }
+        // HTTP DTO 校验已禁用类型1；保留服务层旧类型入口用于历史回归和在途兼容。
         int applyType = dto.getApplyType() == null ? 1 : dto.getApplyType();
-        if (applyType < 1 || applyType > 3) Asserts.fail("售后类型不正确");
+        if (applyType < 1 || applyType > 4) Asserts.fail("售后类型不正确");
         if (applyType == 3 && !Integer.valueOf(2).equals(order.getStatus())
                 && !Integer.valueOf(3).equals(order.getStatus())) {
             Asserts.fail("商品完整发货后才能申请换货");
@@ -172,6 +173,25 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         Map<Long, DmsShopOrderItem> byId = new LinkedHashMap<>();
         for (DmsShopOrderItem item : orderItems) byId.put(item.getId(), item);
         Map<Long, Integer> selected = ShopQuantityChecks.refundSelection(dto.getItems());
+
+        int shippedQuantity = orderShipmentDao.sumQuantityByOrderId(order.getId());
+        boolean shippingStarted = Integer.valueOf(2).equals(order.getStatus())
+                || Integer.valueOf(3).equals(order.getStatus())
+                || shippedQuantity > 0 || order.getDeliveryTime() != null
+                || (order.getDeliveryNo() != null && !order.getDeliveryNo().isBlank());
+        if (applyType == 2 && !shippingStarted) {
+            Asserts.fail("商品尚未发货，请使用取消并退款申请");
+        }
+        boolean unshippedCancellation = applyType == 4 && Integer.valueOf(1).equals(order.getStatus())
+                && !shippingStarted;
+        String requestedReason = dto.getReason() == null ? "" : dto.getReason().trim();
+        boolean logisticsException = requestedReason.startsWith("物流停滞 / 未收到货")
+                || requestedReason.startsWith("拒收 / 退回商家")
+                || requestedReason.startsWith("收到商品少件 / 漏发");
+        if (applyType == 4 && ((unshippedCancellation && !requestedReason.startsWith("取消未发货订单"))
+                || (!unshippedCancellation && (!shippingStarted || !logisticsException)))) {
+            Asserts.fail("异常退款仅适用于未发货取消或物流异常，请选择退货退款");
+        }
 
         validateRefundHistory(order.getId());
 
@@ -214,6 +234,9 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         BigDecimal productRefund = refundItems.stream().map(DmsShopAfterSaleItem::getRefundAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add).min(remainingProductRefund);
         boolean refundAllRemaining = refundQuantity == totalRemainingQuantity;
+        if (unshippedCancellation && !refundAllRemaining) {
+            Asserts.fail("取消未发货订单需要选择全部剩余商品");
+        }
         if (refundAllRemaining && order.getCouponClaimId() == null) productRefund = remainingProductRefund;
         BigDecimal allocated = refundItems.stream().map(DmsShopAfterSaleItem::getRefundAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -468,7 +491,8 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         afterSale.setOrderNo(order.getOrderNo());
         afterSale.setMemberId(member == null ? null : member.getId());
         afterSale.setUserId(order.getUserId());
-        afterSale.setApplyType(dto.getApplyType() == null ? 1 : dto.getApplyType());
+        // 后台特殊退款同样独立归类，忽略旧客户端传来的仅退款类型。
+        afterSale.setApplyType(4);
         afterSale.setProductRefundAmount(productRefund);
         afterSale.setFreightRefundAmount(BigDecimal.ZERO);
         afterSale.setRefundAmount(productRefund);
@@ -510,7 +534,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         if (items.isEmpty()) Asserts.fail("订单商品为空，不能取消");
         ShopManualRefundDTO refund = new ShopManualRefundDTO();
         refund.setRefundMode("QUANTITY");
-        refund.setApplyType(1);
+        refund.setApplyType(4);
         refund.setItems(items);
         refund.setReason("后台取消待发货订单");
         refund.setOperatorId(operatorId);

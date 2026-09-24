@@ -140,9 +140,10 @@ test('订单待评价目标含商品ID与订单项ID，客服消息直达真实�
   assert.equal(env.routes[1], '/pages/support-detail/index?id=99')
 })
 
-test('售后原因与H5相同，物流原因切仅退款，补充说明拼入原字段', async () => {
+test('物流异常进入独立退款类型，补充说明拼入原字段', async () => {
   const env = commerceEnv(() => ({})), page = env.page('after-sale')
-  page.selectReason({ detail: { value: 6 } }); assert.equal(page.data.reason, '物流停滞 / 未收到货'); assert.equal(page.data.applyType, 1)
+  page.setData({ isException: true, applyType: 4, reasons: ['物流停滞 / 未收到货'] })
+  page.selectReason({ detail: { value: 0 } }); assert.equal(page.data.reason, '物流停滞 / 未收到货'); assert.equal(page.data.applyType, 4)
   page.reasonDetailInput({ detail: { value: '十天没有物流更新' } }); page.setData({ allowed: true, orderId: '9', items: [{ id: '90', selectedQuantity: 1 }] })
   await page.submit(); assert.equal(env.calls[0].data.reason, '物流停滞 / 未收到货：十天没有物流更新')
 })

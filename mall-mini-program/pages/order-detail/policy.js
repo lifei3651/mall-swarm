@@ -42,7 +42,7 @@ function amountLabel(order = {}) {
 // A fully refunded order is closed in storage, but must not be presented as an unpaid cancellation.
 function isRefundedOrder(detail = {}) {
   return Number(detail.order?.status) === 4 && (detail.afterSales || [])
-    .some((sale) => [1, 2].includes(Number(sale.applyType)) && Number(sale.status) === 1)
+    .some((sale) => [1, 2, 4].includes(Number(sale.applyType)) && Number(sale.status) === 1)
 }
 
 // A child ID is resolved to its original parent trade by the payment service.
@@ -78,7 +78,7 @@ function refundEstimate(detail, selectedItems, applyType) {
   const selected = selectedItems.reduce((sum,item)=>sum+Number(item.selectedQuantity || 0),0)
   const all = selected > 0 && selected === remaining.reduce((sum,item)=>sum+item.remaining,0)
   const base = Math.max(0,Number(order.totalAmount || 0)-Number(order.discountAmount || 0))
-  const approved = (detail.afterSales || []).filter(sale=>[1,2].includes(Number(sale.applyType)) && Number(sale.status)===1).reduce((sum,sale)=>sum+Number(sale.productRefundAmount || 0),0)
+  const approved = (detail.afterSales || []).filter(sale=>[1,2,4].includes(Number(sale.applyType)) && Number(sale.status)===1).reduce((sum,sale)=>sum+Number(sale.productRefundAmount || 0),0)
   const available = Math.max(0,base-approved), gross = items.reduce((sum,item)=>sum+Number(item.totalAmount || 0),0)
   const portion = selectedItems.reduce((sum,line)=> { const item = items.find(item=>String(item.id)===String(line.id)); return sum + (item && item.quantity ? Number(item.totalAmount || 0)*Number(line.selectedQuantity || 0)/Number(item.quantity) : 0) },0)
   const product = order.couponClaimId

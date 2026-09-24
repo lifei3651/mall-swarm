@@ -14,7 +14,7 @@ const { identifier, afterSaleEligibility, amountLabel, isRefundedOrder, paymentS
 
 const STATUS = { 0: '待付款', 1: '待发货', 2: '已发货', 3: '已完成', 4: '已取消', 5: '售后中' }
 const AFTER_SALE_STATUS = { 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待寄回', 5: '待商家收货', 6: '退款处理中', 7: '待商家换货发出', 8: '换货已发出' }
-const AFTER_SALE_TYPE = { 1: '仅退款', 2: '退货退款', 3: '同规格换货' }
+const AFTER_SALE_TYPE = { 1: '仅退款', 2: '退货退款', 3: '同规格换货', 4: '取消/异常退款' }
 const CARRIERS = ['顺丰速运', '京东物流', '中通快递', '圆通速递', '申通快递', '韵达快递', '极兔速递', '中国邮政', 'EMS', '德邦快递', '跨越速运', '安能物流', '壹米滴答', 'DHL', 'FedEx', 'UPS']
 
 const STATUS_COPY = {
@@ -503,7 +503,12 @@ Page({
     if (!this.operationCurrent()() || this.data.paying || this.data.actingId || this.data.submittingShipment) return
     const id = identifier(event.currentTarget.dataset.id)
     const row = this.data.rows.find((item) => item.order.id === id)
-    if (row && row.canApplyAfterSale) wx.navigateTo({ url: `/pages/after-sale/index?orderId=${id}` })
+    if (row && row.canApplyAfterSale) {
+      const exception = event.currentTarget.dataset.mode === 'exception'
+        || (Number(row.order.status) === 1 && !(row.shipments || []).length
+          && !row.order.deliveryNo && !row.order.deliveryTime)
+      wx.navigateTo({ url: `/pages/after-sale/index?orderId=${id}${exception ? '&mode=exception' : ''}` })
+    }
   },
   toggleOrderInfo(event) {
     const id = identifier(event.currentTarget.dataset.id)

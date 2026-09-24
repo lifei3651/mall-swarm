@@ -1241,6 +1241,22 @@ public class ShopController {
     public CommonResult<DmsShopAfterSale> applyAfterSale(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @Valid @RequestBody ShopAfterSaleApplyDTO dto) {
+        if (dto.getApplyType() == null || (dto.getApplyType() != 2 && dto.getApplyType() != 3)) {
+            Asserts.fail("售后类型仅支持退货退款和同规格换货；异常退款请走独立申请入口");
+        }
+        return CommonResult.success(afterSaleService.apply(authService.requireMember(authorization), dto));
+    }
+
+    @Operation(summary = "申请取消未发货订单或物流异常退款")
+    @PostMapping("/orders/{orderId}/exception-refund")
+    public CommonResult<DmsShopAfterSale> applyExceptionRefund(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long orderId,
+            @Valid @RequestBody ShopAfterSaleApplyDTO dto) {
+        if (dto.getOrderId() == null || !dto.getOrderId().equals(orderId)
+                || !Integer.valueOf(4).equals(dto.getApplyType())) {
+            Asserts.fail("异常退款申请与订单不匹配");
+        }
         return CommonResult.success(afterSaleService.apply(authService.requireMember(authorization), dto));
     }
 

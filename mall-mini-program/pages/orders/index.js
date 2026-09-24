@@ -137,7 +137,11 @@ Page({
     const id = identifier(event.currentTarget.dataset.id)
     if (this.inactive || this.openingAfterSale || !orderList.decorate(this.data.rows).find(item => item.order.id === id)?.canApplyAfterSale) return
     this.openingAfterSale = true
-    wx.navigateTo({ url: `/pages/after-sale/index?orderId=${id}`, fail: () => feedback.notice('暂时无法打开售后申请，请重试'), complete: () => { this.openingAfterSale = false } })
+    const row = this.data.rows.find(item => item.order.id === id)
+    const exception = event.currentTarget.dataset.mode === 'exception'
+      || (Number(row?.order?.status) === 1 && !(row?.shipments || []).length
+        && !row?.order?.deliveryNo && !row?.order?.deliveryTime)
+    wx.navigateTo({ url: `/pages/after-sale/index?orderId=${id}${exception ? '&mode=exception' : ''}`, fail: () => feedback.notice('暂时无法打开申请页面，请重试'), complete: () => { this.openingAfterSale = false } })
   },
   async refreshQuietly() {
     if (this.inactive || this.data.loading || this.data.loadingMore || this.data.actingId || this.quietRefreshing) return

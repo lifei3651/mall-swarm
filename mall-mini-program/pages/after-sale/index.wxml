@@ -5,33 +5,34 @@
   <view wx:elif="{{!allowed}}" class="panel result-panel"><text>{{unavailableReason}}</text><button class="secondary-button" bindtap="openOrder">返回订单</button></view>
   <block wx:else>
     <view class="panel">
-      <view class="section-title">选择售后商品</view><text class="muted">订单号 {{orderNo}} · 不申请的商品请将数量调为0</text>
+      <view class="section-title">{{isException ? '选择异常退款商品' : '选择售后商品'}}</view><text class="muted">订单号 {{orderNo}} · {{exceptionUnshipped ? '未发货取消须包含全部剩余商品' : '不申请的商品请将数量调为0'}}</text>
       <view class="product" wx:for="{{items}}" wx:key="id">
         <image class="product-cover" src="{{item.productCover}}" mode="aspectFill" />
         <view class="product-copy"><text class="product-name">{{item.productName}}</text><text class="muted">{{item.skuName || '默认规格'}}</text>
-          <view wx:if="{{item.remaining > 0}}" class="quantity">
+          <view wx:if="{{item.remaining > 0 && !exceptionUnshipped}}" class="quantity">
             <button class="quantity-button" data-id="{{item.id}}" data-delta="-1" bindtap="changeQuantity" disabled="{{submitting || item.selectedQuantity <= 0}}" aria-label="减少售后数量">−</button>
             <text>{{item.selectedQuantity}}</text>
             <button class="quantity-button" data-id="{{item.id}}" data-delta="1" bindtap="changeQuantity" disabled="{{submitting || item.selectedQuantity >= item.remaining}}" aria-label="增加售后数量">＋</button>
             <text class="muted">最多{{item.remaining}}件</text>
           </view>
+          <text wx:elif="{{exceptionUnshipped}}" class="muted">取消申请包含本单全部剩余商品</text>
           <text wx:else class="muted">已无可售后数量</text>
         </view>
       </view>
     </view>
-    <view class="panel">
+    <view wx:if="{{!isException}}" class="panel">
       <view class="section-title">售后类型</view>
       <view class="type-options">
-        <button class="type-button {{applyType === 1 ? 'selected' : ''}}" data-type="1" bindtap="selectType" disabled="{{submitting}}">仅退款</button>
         <button class="type-button {{applyType === 2 ? 'selected' : ''}}" data-type="2" bindtap="selectType" disabled="{{submitting}}">退货退款</button>
         <button class="type-button {{applyType === 3 ? 'selected' : ''}}" data-type="3" bindtap="selectType" disabled="{{submitting || !canExchange}}">同规格换货</button>
       </view>
       <text class="muted">{{applyType === 3 ? '换货不退款，审核通过后按商家提供的地址寄回商品。' : '退款金额由服务器根据实际商品、优惠及运费规则计算，以审核结果为准。'}}</text>
       <view class="refund-estimate"><view><text>{{applyType === 3 ? '换货金额' : '预计退款'}}</text><text class="estimate-total">¥{{estimateText}}</text></view><text wx:if="{{applyType !== 3}}" class="muted">商品款 ¥{{estimateProduct}} · 运费 ¥{{estimateFreight}}，实际以审核结果为准</text><text wx:else class="muted">同规格换货不退款，原订单金额与结算记录保持不变</text></view>
     </view>
+    <view wx:else class="panel"><view class="section-title">{{exceptionUnshipped ? '取消并退款' : '物流异常退款'}}</view><text class="muted">此申请由商家核实，不属于退货退款；款项以审核及原支付渠道结果为准。</text><view class="refund-estimate"><view><text>预计退款</text><text class="estimate-total">¥{{estimateText}}</text></view><text class="muted">商品款 ¥{{estimateProduct}} · 运费 ¥{{estimateFreight}}</text></view></view>
     <view class="panel">
       <view class="section-title">申请原因</view>
-      <choice-sheet title="选择申请原因" value="{{reason}}" placeholder="请选择申请原因（必填）" options="{{reasons}}" selected-index="{{reasonIndex}}" disabled="{{submitting}}" bindchange="selectReason" />
+      <choice-sheet title="选择申请原因" value="{{reason}}" placeholder="请选择申请原因（必填）" options="{{reasons}}" selected-index="{{reasonIndex}}" disabled="{{submitting || exceptionUnshipped}}" bindchange="selectReason" />
       <textarea class="reason-input" value="{{reasonDetail}}" maxlength="170" bindinput="reasonDetailInput" disabled="{{submitting}}" placeholder="补充说明（选填），帮助平台更快处理" aria-label="售后申请补充说明" />
       <text class="counter">{{reasonDetail.length}}/170</text>
       <view class="section-title proof-title">图片凭证（选填）</view>
@@ -42,7 +43,7 @@
       <button wx:if="{{proofs.length < 6}}" class="secondary-button" bindtap="chooseProof" disabled="{{submitting || selectingProof}}">选择图片</button>
     </view>
     <text wx:if="{{submitError}}" class="form-error">{{submitError}}</text>
-    <button class="primary-button submit-button" bindtap="submit" loading="{{submitting}}" disabled="{{submitting || selectingProof}}">{{submitting ? '正在提交，请稍候' : '提交售后申请'}}</button>
+    <button class="primary-button submit-button" bindtap="submit" loading="{{submitting}}" disabled="{{submitting || selectingProof}}">{{submitting ? '正在提交，请稍候' : isException ? '提交退款申请' : '提交售后申请'}}</button>
   </block>
 </view>
 <privacy-consent id="privacy-consent" />

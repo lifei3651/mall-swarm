@@ -36,7 +36,7 @@
             INNER JOIN dms_shop_after_sale sale ON sale.id = item.after_sale_id
             LEFT JOIN dms_shop_order_item original ON original.id = item.order_item_id
             WHERE sale.order_id = #{orderId}
-              AND ((sale.apply_type IN (1, 2) AND sale.status IN (0, 1, 4, 5, 6))
+              AND ((sale.apply_type IN (1, 2, 4) AND sale.status IN (0, 1, 4, 5, 6))
                 OR (sale.apply_type = 3 AND sale.status IN (0, 4, 5, 7, 8)))
             GROUP BY item.order_item_id
             HAVING MIN(item.refund_quantity) &lt;= 0
@@ -55,7 +55,7 @@
         FROM dms_shop_after_sale_item item
         INNER JOIN dms_shop_after_sale sale ON sale.id = item.after_sale_id
         WHERE item.order_item_id = #{orderItemId}
-          AND ((sale.apply_type IN (1, 2) AND sale.status IN (0, 1, 4, 5, 6))
+          AND ((sale.apply_type IN (1, 2, 4) AND sale.status IN (0, 1, 4, 5, 6))
             OR (sale.apply_type = 3 AND sale.status IN (0, 4, 5, 7, 8)))
     </select>
 
@@ -63,21 +63,21 @@
         SELECT COALESCE(SUM(item.refund_quantity), 0)
         FROM dms_shop_after_sale_item item
         INNER JOIN dms_shop_after_sale sale ON sale.id = item.after_sale_id
-        WHERE item.order_id = #{orderId} AND sale.apply_type IN (1, 2) AND sale.status IN (1, 6)
+        WHERE item.order_id = #{orderId} AND sale.apply_type IN (1, 2, 4) AND sale.status IN (1, 6)
     </select>
 
     <select id="sumCompletedQuantityByOrderId" resultType="int">
         SELECT COALESCE(SUM(item.refund_quantity), 0)
         FROM dms_shop_after_sale_item item
         INNER JOIN dms_shop_after_sale sale ON sale.id = item.after_sale_id
-        WHERE item.order_id = #{orderId} AND sale.apply_type IN (1, 2) AND sale.status = 1
+        WHERE item.order_id = #{orderId} AND sale.apply_type IN (1, 2, 4) AND sale.status = 1
     </select>
 
     <select id="sumApprovedProductRefundByOrderId" resultType="java.math.BigDecimal">
         SELECT COALESCE(SUM(item.refund_amount), 0)
         FROM dms_shop_after_sale_item item
         INNER JOIN dms_shop_after_sale sale ON sale.id = item.after_sale_id
-        WHERE item.order_id = #{orderId} AND sale.apply_type IN (1, 2) AND sale.status IN (1, 6)
+        WHERE item.order_id = #{orderId} AND sale.apply_type IN (1, 2, 4) AND sale.status IN (1, 6)
     </select>
 
     <select id="sumApprovedBonusRefundByOrderId" resultType="java.math.BigDecimal">
@@ -86,7 +86,7 @@
         INNER JOIN dms_shop_after_sale sale ON sale.id = item.after_sale_id
         INNER JOIN dms_shop_order_item order_item ON order_item.id = item.order_item_id
         WHERE item.order_id = #{orderId}
-          AND sale.apply_type IN (1, 2)
+          AND sale.apply_type IN (1, 2, 4)
           AND sale.status = 1
           AND UPPER(TRIM(COALESCE(order_item.team_bonus_mode, 'INHERIT'))) IN ('INHERIT', 'STANDARD', '')
     </select>
@@ -96,7 +96,7 @@
         FROM dms_shop_after_sale_item item
         INNER JOIN dms_shop_after_sale sale ON sale.id = item.after_sale_id
         INNER JOIN dms_shop_order_item order_item ON order_item.id = item.order_item_id
-        WHERE item.order_id = #{orderId} AND sale.apply_type IN (1, 2) AND sale.status = 1
+        WHERE item.order_id = #{orderId} AND sale.apply_type IN (1, 2, 4) AND sale.status = 1
     </select>
 
     <insert id="insertBatch">

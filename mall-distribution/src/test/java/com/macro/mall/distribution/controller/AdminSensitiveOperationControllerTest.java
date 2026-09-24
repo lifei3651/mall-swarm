@@ -1,11 +1,13 @@
 package com.macro.mall.distribution.controller;
 
 import com.macro.mall.distribution.dto.AdminMemberCreateDTO;
+import com.macro.mall.distribution.dto.ShopAfterSaleApplyDTO;
 import com.macro.mall.distribution.dto.ImportAgentDTO;
 import com.macro.mall.distribution.dto.MerchantWithdrawalPayDTO;
 import com.macro.mall.distribution.dto.WithdrawConfirmPayDTO;
 import com.macro.mall.distribution.dto.WithdrawAuditDTO;
 import com.macro.mall.distribution.entity.DmsAdminUser;
+import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.AdminAuthService;
 import com.macro.mall.distribution.service.AdminMemberSecurityService;
@@ -39,6 +41,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class AdminSensitiveOperationControllerTest {
 
@@ -77,6 +80,30 @@ class AdminSensitiveOperationControllerTest {
 
         verify(adminAuthService, never()).requirePermission(any(), any());
         verify(shopAuthService).createAdminMember(dto);
+    }
+
+    @Test
+    void customerAfterSaleAndExceptionalRefundUseSeparateEntryTypes() {
+        ShopAuthService authService = mock(ShopAuthService.class);
+        ShopAfterSaleService afterSaleService = mock(ShopAfterSaleService.class);
+        ShopController controller = controller(authService, mock(AdminAuthService.class), afterSaleService);
+        DmsShopMember member = new DmsShopMember();
+        when(authService.requireMember("member-token")).thenReturn(member);
+        ShopAfterSaleApplyDTO dto = new ShopAfterSaleApplyDTO();
+        dto.setOrderId(77L);
+
+        dto.setApplyType(1);
+        assertThrows(RuntimeException.class, () -> controller.applyAfterSale("member-token", dto));
+        dto.setApplyType(4);
+        assertThrows(RuntimeException.class, () -> controller.applyAfterSale("member-token", dto));
+        dto.setApplyType(2);
+        controller.applyAfterSale("member-token", dto);
+        verify(afterSaleService).apply(member, dto);
+
+        dto.setApplyType(4);
+        assertThrows(RuntimeException.class, () -> controller.applyExceptionRefund("member-token", 78L, dto));
+        controller.applyExceptionRefund("member-token", 77L, dto);
+        verify(afterSaleService, org.mockito.Mockito.times(2)).apply(member, dto);
     }
 
     @Test
@@ -143,9 +170,14 @@ class AdminSensitiveOperationControllerTest {
     }
 
     private ShopController controller(ShopAuthService shopAuthService, AdminAuthService adminAuthService) {
+        return controller(shopAuthService, adminAuthService, mock(ShopAfterSaleService.class));
+    }
+
+    private ShopController controller(ShopAuthService shopAuthService, AdminAuthService adminAuthService,
+                                      ShopAfterSaleService afterSaleService) {
         return new ShopController(
                 mock(ShopService.class), shopAuthService, mock(ShopAddressService.class),
-                mock(ShopServiceAddressService.class), mock(ShopAfterSaleService.class), mock(TenantService.class),
+                mock(ShopServiceAddressService.class), afterSaleService, mock(TenantService.class),
                 adminAuthService, mock(AdminUserService.class), mock(AdminMemberSecurityService.class), mock(OrderShipmentService.class),
                 mock(OrderSpreadsheetService.class), mock(ShopSessionCookieService.class),
                 mock(OrderRealtimeService.class), mock(FlashSaleService.class), mock(LogisticsTrackingService.class),

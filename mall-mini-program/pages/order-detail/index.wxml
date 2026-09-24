@@ -45,6 +45,7 @@
               <button wx:if="{{shipment.deliveryNo}}" size="mini" class="copy-inline ui-copy-action" data-number="{{shipment.deliveryNo}}" bindtap="copyDeliveryNo">复制单号</button>
             </view>
           </view>
+          <button wx:if="{{item.canApplyAfterSale}}" class="ui-copy-action" data-id="{{item.order.id}}" data-mode="exception" bindtap="applyAfterSale">未收到 / 拒收</button>
         </block>
         <view wx:if="{{item.order.addressText}}" class="recipient-summary">
           <image class="recipient-pin" src="/assets/profile/map-pin.png" mode="aspectFit" />
@@ -69,7 +70,7 @@
         </view>
         <view wx:if="{{item.afterSaleDeadlineText}}" class="after-sale-deadline">售后期截止时间 {{item.afterSaleDeadlineText}}</view>
         <view wx:if="{{item.canApplyAfterSale || item.pendingReviewProductId && item.pendingReviewOrderItemId || item.order.status === 0 || item.canReceive}}" class="product-actions ui-action-bar">
-          <button wx:if="{{item.canApplyAfterSale}}" class="secondary-button ui-action-button compact-action" data-id="{{item.order.id}}" bindtap="applyAfterSale">退换/售后</button>
+          <button wx:if="{{item.canApplyAfterSale}}" class="secondary-button ui-action-button compact-action" data-id="{{item.order.id}}" bindtap="applyAfterSale">{{item.order.status === 1 && !item.shipments.length && !item.order.deliveryNo && !item.order.deliveryTime ? '取消并退款' : '退换/售后'}}</button>
           <button wx:if="{{item.pendingReviewProductId && item.pendingReviewOrderItemId}}" class="secondary-button ui-action-button compact-action" data-id="{{item.order.id}}" bindtap="review">去评价</button>
           <button wx:if="{{item.order.status === 0}}" class="secondary-button ui-action-button compact-action" data-id="{{item.order.id}}" disabled="{{actingId !== null}}" bindtap="cancelOrder">取消订单</button>
           <button wx:if="{{item.canReceive}}" class="primary-button ui-action-button ui-action-button--primary compact-action" data-id="{{item.order.id}}" loading="{{actingId === item.order.id}}" disabled="{{actingId !== null}}" bindtap="receive">确认收货</button>

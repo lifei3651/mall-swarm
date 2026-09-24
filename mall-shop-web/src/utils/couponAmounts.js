@@ -5,7 +5,7 @@ export function couponRefundPreview(items = [], selected = [], sales = []) {
     const item = items.find(i => String(i.id) === String(choice.orderItemId))
     if (!item || !choice.quantity) continue
     const quantity = Number(item.quantity), current = Number(choice.quantity)
-    const returned = sales.filter(s => [1, 2].includes(Number(s.applyType)) && [1, 6].includes(Number(s.status)))
+    const returned = sales.filter(s => [1, 2, 4].includes(Number(s.applyType)) && [1, 6].includes(Number(s.status)))
       .flatMap(s => s.items || []).filter(i => String(i.orderItemId) === String(item.id))
       .reduce((sum, i) => sum + Number(i.refundQuantity || 0), 0)
     const cents = Math.round(Number(item.totalAmount) * 100) - Math.round(Number(item.couponDiscountAmount) * 100)

@@ -53,6 +53,16 @@ describe('商城订单取消入口', () => {
     expect(source).toContain('orderStateOptions.value.some')
   })
 
+  it('后台新退款只登记为独立特殊退款，保留历史仅退款记录只读', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+
+    expect(source).toContain('command="REFUND" divided>特殊退款')
+    expect(source).toContain('title="特殊退款"')
+    expect(source).toContain('applyType: 4')
+    expect(source).not.toContain('applyType: 1,')
+    expect(source).toContain('[1, 2, 4].includes(Number(item.applyType))')
+  })
+
   it('订单奖金默认展示真实去向，并将技术追溯证据收进审计详情', async () => {
     const source = await readFile(sourcePath, 'utf8')
 

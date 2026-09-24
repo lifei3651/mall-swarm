@@ -1660,6 +1660,71 @@ public class PerformanceServiceTest {
                 "SELECT stock FROM dms_shop_product WHERE id=1", Integer.class));
     }
 
+    @Test
+    void paidUnshippedCancellationUsesIndependentRefundTypeAndRestoresInventory() {
+        newRetailVersion("UNSHIPPED_EXCEPTION_REFUND");
+        DmsShopMember member = createShopMember("13999000086", "未发货取消退款会员", null);
+        ShopOrderVO paid = submitAndPay(member, 2);
+        int stockAfterOrder = jdbcTemplate.queryForObject(
+                "SELECT stock FROM dms_shop_product WHERE id=1", Integer.class);
+        ShopAfterSaleItemDTO item = new ShopAfterSaleItemDTO();
+        item.setOrderItemId(paid.getItems().get(0).getId());
+        item.setQuantity(1);
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
+        apply.setOrderId(paid.getOrder().getId());
+        apply.setApplyType(4);
+        apply.setReason("取消未发货订单");
+        apply.setItems(List.of(item));
+        assertThrows(RuntimeException.class, () -> shopAfterSaleService.apply(member, apply),
+                "未发货取消不得只选择部分商品");
+        item.setQuantity(2);
+        apply.setReason("物流停滞 / 未收到货");
+        assertThrows(RuntimeException.class, () -> shopAfterSaleService.apply(member, apply),
+                "未发货订单不能借物流异常入口绕过取消流程");
+        apply.setReason("取消未发货订单");
+        DmsShopAfterSale refund = shopAfterSaleService.apply(member, apply);
+        assertEquals(4, refund.getApplyType());
+        ShopAfterSaleAuditDTO audit = new ShopAfterSaleAuditDTO();
+        audit.setStatus(1);
+        audit.setAuditUserId(1L);
+        audit.setAuditUserName("test-admin");
+        shopAfterSaleService.audit(refund.getId(), audit);
+        assertEquals(stockAfterOrder + 2, jdbcTemplate.queryForObject(
+                "SELECT stock FROM dms_shop_product WHERE id=1", Integer.class));
+        assertEquals(4, shopService.getOrder(paid.getOrder().getId()).getOrder().getStatus());
+    }
+
+    @Test
+    void shippedLogisticsExceptionRefundDoesNotRestockGoodsNotReturned() {
+        newRetailVersion("SHIPPED_EXCEPTION_REFUND");
+        DmsShopMember member = createShopMember("13999000087", "物流异常退款会员", null);
+        ShopOrderVO paid = submitAndPay(member, 1);
+        jdbcTemplate.update("UPDATE dms_shop_order SET status=2, delivery_time=CURRENT_TIMESTAMP WHERE id=?",
+                paid.getOrder().getId());
+        int stockAfterOrder = jdbcTemplate.queryForObject(
+                "SELECT stock FROM dms_shop_product WHERE id=1", Integer.class);
+        ShopAfterSaleItemDTO item = new ShopAfterSaleItemDTO();
+        item.setOrderItemId(paid.getItems().get(0).getId());
+        item.setQuantity(1);
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
+        apply.setOrderId(paid.getOrder().getId());
+        apply.setApplyType(4);
+        apply.setItems(List.of(item));
+        apply.setReason("不想要了");
+        assertThrows(RuntimeException.class, () -> shopAfterSaleService.apply(member, apply),
+                "已发货普通退货不能伪装成物流异常退款");
+        apply.setReason("物流停滞 / 未收到货：核实运单后处理");
+        DmsShopAfterSale refund = shopAfterSaleService.apply(member, apply);
+        assertEquals(4, refund.getApplyType());
+        ShopAfterSaleAuditDTO audit = new ShopAfterSaleAuditDTO();
+        audit.setStatus(1);
+        audit.setAuditUserId(1L);
+        audit.setAuditUserName("test-admin");
+        shopAfterSaleService.audit(refund.getId(), audit);
+        assertEquals(stockAfterOrder, jdbcTemplate.queryForObject(
+                "SELECT stock FROM dms_shop_product WHERE id=1", Integer.class));
+    }
+
     /** 同规格换货不动原订单资金和奖金，只在换货发出时扣一次可售库存。 */
     @Test
     void sameSkuExchangeKeepsFinanceAndBonusStableAndDeductsReplacementStockOnce() {

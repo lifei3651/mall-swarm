@@ -6,17 +6,17 @@ const runtime = require('../../config/runtime')
 const format = require('../../utils/format')
 const theme = require('../../utils/theme')
 const { identifier, remainingItems, afterSaleEligibility, refundEstimate } = require('../order-detail/policy')
-const logisticsReasons = ['物流停滞 / 未收到货', '拒收 / 退回商家']
-const reasons = ['不想要了', '与商品描述不符', '质量问题', '收到商品少件 / 漏发', '商品破损或污渍', '商家发错货', ...logisticsReasons, '其他原因']
+const exceptionReasons = ['物流停滞 / 未收到货', '拒收 / 退回商家', '收到商品少件 / 漏发']
+const reasons = ['不想要了', '与商品描述不符', '质量问题', '商品破损或污渍', '商家发错货', '其他原因']
 
 Page({
   data: { ...theme.pageData(), loading: true, error: '', submitError: '', submitting: false,
     orderId: '', orderNo: '', items: [], allowed: false, unavailableReason: '', canExchange: false,
-    applyType: 1, reason: '', reasonIndex: -1, reasons, reasonDetail: '', proofs: [], selectingProof: false, submitted: false, estimateText: '0.00', estimateProduct: '0.00', estimateFreight: '0.00' },
+    isException: false, exceptionUnshipped: false, applyType: 2, reason: '', reasonIndex: -1, reasons, reasonDetail: '', proofs: [], selectingProof: false, submitted: false, estimateText: '0.00', estimateProduct: '0.00', estimateFreight: '0.00' },
   onLoad(options = {}) {
     theme.apply(this)
     const orderId = identifier(options.orderId)
-    feedback.update(this, { orderId })
+    feedback.update(this, { orderId, isException: options.mode === 'exception', applyType: options.mode === 'exception' ? 4 : 2 })
     if (!orderId) feedback.update(this, { loading: false, error: '订单编号不正确' })
   },
   onShow() {
@@ -25,7 +25,7 @@ Page({
     if (this.owner && this.owner !== token) { this.initialized = false; this.loadingRequest = false; this.loadVersion = (this.loadVersion || 0) + 1; this.detail = null; this.setData({ items: [], proofs: [], reason: '', reasonIndex: -1, reasonDetail: '', allowed: false, submitted: false, submitting: false, selectingProof: false }) }
     this.owner = token
     if (!this.data.orderId) return
-    if (!auth.requireLogin(`/pages/after-sale/index?orderId=${this.data.orderId}`)) return
+    if (!auth.requireLogin(`/pages/after-sale/index?orderId=${this.data.orderId}${this.data.isException ? '&mode=exception' : ''}`)) return
     // Choosing an image also triggers onShow; do not wipe the user's draft.
     if (!this.initialized && !this.loadingRequest) return this.load()
   },
@@ -41,10 +41,15 @@ Page({
       const detail = await request({ url: `/shop/orders/${this.data.orderId}` })
       if (!current()) return
       const eligibility = afterSaleEligibility(detail)
+      const exceptionUnshipped = this.data.isException && Number(detail.order?.status) === 1
+        && !detail.order?.deliveryTime && !(detail.shipments || []).length && !detail.order?.deliveryNo
+      const activeReasons = this.data.isException
+        ? exceptionUnshipped ? ['取消未发货订单'] : exceptionReasons : reasons
       this.owner = token; this.detail = detail
       this.initialized = true
       feedback.update(this, { orderNo: detail.order.orderNo || '', allowed: eligibility.allowed,
         unavailableReason: eligibility.reason, canExchange: eligibility.canExchange,
+        exceptionUnshipped, reasons: activeReasons, reason: exceptionUnshipped ? activeReasons[0] : '', reasonIndex: exceptionUnshipped ? 0 : -1,
         items: remainingItems(detail).map((item) => ({ ...item, selectedQuantity: item.remaining,
           productCover: format.mediaUrl(item.productCover) })) })
       this.updateEstimate()
@@ -53,12 +58,12 @@ Page({
   },
   selectType(event) {
     const applyType = Number(event.currentTarget.dataset.type)
-    if (this.data.submitting || ![1, 2, 3].includes(applyType) || (applyType === 3 && !this.data.canExchange)) return
+    if (this.data.submitting || this.data.isException || ![2, 3].includes(applyType) || (applyType === 3 && !this.data.canExchange)) return
     feedback.update(this, { applyType, submitError: '' })
     this.updateEstimate()
   },
   changeQuantity(event) {
-    if (this.data.submitting) return
+    if (this.data.submitting || this.data.exceptionUnshipped) return
     const id = identifier(event.currentTarget.dataset.id)
     const delta = Number(event.currentTarget.dataset.delta)
     if (![1, -1].includes(delta)) return
@@ -67,8 +72,8 @@ Page({
     this.updateEstimate()
   },
   updateEstimate() { const value = refundEstimate(this.detail || {},this.data.items,this.data.applyType); this.setData({ estimateText: format.money(value.total), estimateProduct: format.money(value.product), estimateFreight: format.money(value.freight) }) },
-  reasonInput(event) { if (!this.data.submitting) { const reason = event.detail.value; feedback.update(this, { reason, reasonIndex: reasons.indexOf(reason), submitError: '' }) } },
-  selectReason(event) { const index = Number(event.detail.value), reason = reasons[index]; if (!this.data.submitting && reason) { this.setData({ reason, reasonIndex: index, ...(logisticsReasons.includes(reason) ? { applyType: 1 } : {}), submitError: '' }); this.updateEstimate() } },
+  reasonInput(event) { if (!this.data.submitting) { const reason = event.detail.value; feedback.update(this, { reason, reasonIndex: this.data.reasons.indexOf(reason), submitError: '' }) } },
+  selectReason(event) { const index = Number(event.detail.value), reason = this.data.reasons[index]; if (!this.data.submitting && reason) { this.setData({ reason, reasonIndex: index, submitError: '' }); this.updateEstimate() } },
   reasonDetailInput(event) { if (!this.data.submitting) this.setData({ reasonDetail: String(event.detail.value || '').slice(0,170), submitError: '' }) },
   chooseProof() {
     if (this.data.submitting || this.data.selectingProof || this.data.proofs.length >= 6) return
@@ -126,6 +131,7 @@ Page({
     if (!items.length) { feedback.update(this, { submitError: '请至少选择1件需要售后的商品' }); return }
     if (!this.data.reason.trim() || reason.length > 200) { feedback.update(this, { submitError: '请选择申请原因，补充说明不超过170字' }); return }
     if (this.data.applyType === 3 && !this.data.canExchange) return
+    if (this.data.isException !== (this.data.applyType === 4)) return
     const token = session.getToken(), current = () => !this.disposed && !!token && token === session.getToken()
     if (!current() || (this.owner && this.owner !== token)) return
     feedback.update(this, { submitting: true, submitError: '' })
@@ -140,7 +146,7 @@ Page({
       }
       const filenames = this.data.proofs.map((proof) => proof.filename)
       if (!current()) return
-      await request({ url: '/shop/after-sales', method: 'POST', data: {
+      await request({ url: this.data.isException ? `/shop/orders/${this.data.orderId}/exception-refund` : '/shop/after-sales', method: 'POST', data: {
         orderId: this.data.orderId, applyType: this.data.applyType, reason, items,
         proofImages: filenames.length ? JSON.stringify(filenames) : null
       } })

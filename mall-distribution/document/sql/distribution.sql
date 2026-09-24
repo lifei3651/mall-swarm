@@ -1469,7 +1469,7 @@ CREATE TABLE `dms_shop_after_sale` (
   `order_no` varchar(64) NOT NULL COMMENT '订单编号',
   `member_id` bigint NOT NULL COMMENT '会员ID',
   `user_id` bigint NOT NULL COMMENT '业务用户ID',
-  `apply_type` tinyint NOT NULL DEFAULT 1 COMMENT '申请类型：1-退款 2-退货退款',
+  `apply_type` tinyint NOT NULL DEFAULT 1 COMMENT '申请类型：1-历史仅退款 2-退货退款 3-同规格换货 4-取消/异常退款',
   `refund_amount` decimal(12,2) NOT NULL DEFAULT 0 COMMENT '退款金额',
   `product_refund_amount` decimal(12,2) NOT NULL DEFAULT 0 COMMENT '商品退款金额',
   `freight_refund_amount` decimal(12,2) NOT NULL DEFAULT 0 COMMENT '运费退款金额',

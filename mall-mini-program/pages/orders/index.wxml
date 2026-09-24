@@ -29,12 +29,12 @@
           </view>
         </view>
       </view>
-      <view wx:if="{{item.logisticsText}}" class="ui-order-logistics"><text>{{item.logisticsText}}</text><button wx:if="{{item.showMissingAction}}" class="ui-order-logistics-action" data-id="{{item.order.id}}" catchtap="applyAfterSale">未收到 / 拒收</button></view>
+      <view wx:if="{{item.logisticsText}}" class="ui-order-logistics"><text>{{item.logisticsText}}</text><button wx:if="{{item.showMissingAction}}" class="ui-order-logistics-action" data-id="{{item.order.id}}" data-mode="exception" catchtap="applyAfterSale">未收到 / 拒收</button></view>
       <view class="ui-order-summary"><text>共 {{item.quantity}} 件商品</text><view><text>{{item.amountLabel}}</text><text class="ui-price">¥{{item.amountText}}</text></view></view>
       <view class="order-actions ui-action-bar ui-order-actions">
         <button wx:if="{{item.canViewLogistics}}" class="secondary-button ui-action-button ui-order-action" data-id="{{item.order.id}}" catchtap="viewLogistics" loading="{{wechatTrackingId && item.shipments[0].key === wechatTrackingId}}" disabled="{{!!wechatTrackingId}}">查看物流</button>
         <button wx:if="{{item.canCancel}}" class="secondary-button ui-action-button ui-order-action" data-id="{{item.order.id}}" catchtap="cancelOrder" disabled="{{actingId}}">{{item.cancelLabel}}</button>
-        <button wx:if="{{item.canApplyAfterSale}}" class="secondary-button ui-action-button ui-order-action" data-id="{{item.order.id}}" catchtap="applyAfterSale">退换/售后</button>
+        <button wx:if="{{item.canApplyAfterSale}}" class="secondary-button ui-action-button ui-order-action" data-id="{{item.order.id}}" catchtap="applyAfterSale">{{item.order.status === 1 && !item.shipments.length && !item.order.deliveryNo && !item.order.deliveryTime ? '取消并退款' : '退换/售后'}}</button>
         <button wx:if="{{item.canRebuy}}" class="secondary-button ui-action-button ui-order-action" data-id="{{item.order.id}}" catchtap="buyAgain" loading="{{rebuyId === item.order.id}}" disabled="{{!!rebuyId}}">再买一单</button>
         <button wx:if="{{item.pendingReviewProductId && item.pendingReviewOrderItemId}}" class="secondary-button ui-action-button ui-order-action" data-id="{{item.order.id}}" catchtap="review">去评价</button>
         <button wx:if="{{item.canReceive}}" class="primary-button ui-action-button ui-action-button--primary ui-order-action ui-order-action--primary" data-id="{{item.order.id}}" catchtap="receive" disabled="{{actingId}}">确认收货</button>

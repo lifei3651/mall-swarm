@@ -384,6 +384,10 @@ export function applyAfterSale(data) {
   })
 }
 
+export function applyExceptionRefund(orderId, data) {
+  return request({ url: `/shop/orders/${orderId}/exception-refund`, method: 'post', data })
+}
+
 export function uploadAfterSaleProof(orderId, file) {
   const data = new FormData()
   data.append('file', file)

@@ -42,6 +42,7 @@
             <span><small v-if="shipments.length > 1">包裹 {{ index + 1 }}</small><a v-if="trackingUrl(shipment)" class="consumer-carrier-link" :href="trackingUrl(shipment)" target="_blank" rel="noopener" :aria-label="`查看${shipment.deliveryCompany || '承运商'}物流`">{{ shipment.deliveryCompany || '快递公司待更新' }}</a><strong v-else>{{ shipment.deliveryCompany || '快递公司待更新' }}</strong><small>运单号 {{ shipment.deliveryNo || '-' }}<template v-if="shipment.deliveryTime"> · {{ dateTime(shipment.deliveryTime) }}</template></small></span>
             <button v-if="shipment.deliveryNo" type="button" class="ui-copy-action" @click="copyText(shipment.deliveryNo)">复制单号</button>
           </div>
+          <button v-if="shipments.length && canApplyAfterSale" type="button" class="ui-copy-action" @click="startExceptionRefund">未收到 / 拒收</button>
           <div v-if="order.receiverAddress" class="consumer-recipient-row">
             <MapPin :size="20" />
             <span><strong>{{ maskedRecipient || '收货人信息已隐藏' }}</strong><small>{{ addressExpanded ? order.receiverAddress : maskedRecipientAddress }}</small></span>
@@ -63,7 +64,7 @@
           </article>
           <p v-if="detail.afterSaleDeadline" class="consumer-after-sale-deadline">售后期截止时间 {{ dateTime(detail.afterSaleDeadline) }}</p>
           <div v-if="canApplyAfterSale || Number(detail.pendingReviewCount || 0) > 0 || order.status === 2 && !hasActiveAfterSale" class="consumer-product-actions ui-action-bar">
-            <button v-if="canApplyAfterSale" type="button" class="consumer-action btn secondary ui-action-button" @click="startAfterSale">退换/售后</button>
+            <button v-if="canApplyAfterSale" type="button" class="consumer-action btn secondary ui-action-button" @click="notShipped ? startExceptionRefund() : startAfterSale()">{{ notShipped ? '取消并退款' : '退换/售后' }}</button>
             <RouterLink v-if="Number(detail.pendingReviewCount || 0) > 0" class="consumer-action btn secondary ui-action-button" :to="pendingReviewLink">去评价</RouterLink>
             <button v-if="order.status === 2 && !hasActiveAfterSale" type="button" class="consumer-action btn primary ui-action-button ui-action-button--primary" :disabled="acting" @click="requestOrderConfirmation('receive-order')">确认收货</button>
           </div>
@@ -164,11 +165,12 @@
           </div>
           <div class="order-line-trailing">
             <strong class="order-line-amount ui-price">¥{{ money(item.totalAmount) }}</strong>
-            <div v-if="applyingAfterSale && remainingQuantity(item) > 0" class="quantity-stepper" :aria-label="`${item.productName}售后数量`">
+            <div v-if="applyingAfterSale && remainingQuantity(item) > 0 && !(exceptionRefund && notShipped)" class="quantity-stepper" :aria-label="`${item.productName}售后数量`">
               <button type="button" :disabled="refundQuantities[item.id] <= 0" @click="setRefundQuantity(item, -1)">−</button>
               <output>{{ refundQuantities[item.id] || 0 }}</output>
               <button type="button" :disabled="remainingQuantity(item) <= (refundQuantities[item.id] || 0)" @click="setRefundQuantity(item, 1)">＋</button>
             </div>
+            <small v-else-if="applyingAfterSale && exceptionRefund && notShipped" class="refunded-label">包含全部剩余商品</small>
             <small v-else-if="applyingAfterSale" class="refunded-label">已无可售后数量</small>
           </div>
         </div>
@@ -301,14 +303,9 @@
         </div>
 
         <div v-if="canApplyAfterSale && applyingAfterSale" class="after-sale-box">
-          <div class="after-sale-block">
+          <div v-if="!exceptionRefund" class="after-sale-block">
             <div class="block-label">售后类型</div>
             <div class="after-sale-type-grid">
-              <button type="button" class="after-sale-type" :class="{ selected: afterSaleForm.applyType === 1 }" @click="afterSaleForm.applyType = 1">
-                <RotateCcw :size="21" />
-                <span><strong>仅退款</strong><small>无需寄回商品</small></span>
-                <CircleCheck v-if="afterSaleForm.applyType === 1" :size="18" class="type-check" />
-              </button>
               <button type="button" class="after-sale-type" :class="{ selected: afterSaleForm.applyType === 2 }" @click="afterSaleForm.applyType = 2">
                 <PackageCheck :size="21" />
                 <span><strong>退货退款</strong><small>需要寄回商品</small></span>
@@ -321,6 +318,7 @@
               </button>
             </div>
           </div>
+          <div v-else class="after-sale-block"><div class="block-label">{{ notShipped ? '取消并退款' : '物流异常退款' }}</div><p class="line-sub">商家核实后按原支付渠道处理，此申请不属于退货退款。</p></div>
 
           <div ref="reasonSection" class="after-sale-block" :class="{ 'has-validation-error': afterSaleErrors.reason }">
             <div class="block-label">申请原因<span class="required-star">*</span></div>
@@ -424,10 +422,10 @@
             <strong>{{ autoReceiveNotice }}</strong>
             <span>如尚未收到、物流停滞或已经拒收，请先提交售后，处理中不会自动确认收货。</span>
           </div>
-          <button v-if="canApplyAfterSale" type="button" @click="startLogisticsAfterSale">物流异常 / 拒收</button>
+          <button v-if="canApplyAfterSale" type="button" @click="startExceptionRefund">物流异常 / 拒收</button>
         </div>
         <div class="inline-actions ui-action-bar">
-          <button v-if="canApplyAfterSale && !applyingAfterSale" class="btn secondary ui-action-button" @click="startAfterSale">申请售后</button>
+          <button v-if="canApplyAfterSale && !applyingAfterSale" class="btn secondary ui-action-button" @click="notShipped ? startExceptionRefund() : startAfterSale()">{{ notShipped ? '取消并退款' : '申请售后' }}</button>
           <RouterLink v-if="Number(detail.pendingReviewCount || 0) > 0" class="btn secondary ui-action-button" :to="pendingReviewLink">去评价</RouterLink>
           <button v-if="order.status === 0" class="btn secondary ui-action-button" :disabled="acting" @click="requestOrderConfirmation('cancel-order')">取消订单</button>
           <button v-if="order.status === 0" class="btn primary ui-action-button ui-action-button--primary" :disabled="acting" @click="pay">立即支付</button>
@@ -479,8 +477,8 @@
 import { couponRefundPreview } from '@/utils/couponAmounts'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ChevronDown, ChevronRight, CircleCheck, ImagePlus, MapPin, PackageCheck, RefreshCw, RotateCcw, Truck, UserRound } from 'lucide-vue-next'
-import { applyAfterSale, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmAfterSaleExchangeReceived, confirmReceive, createAlipayOrder, getOrder, getProduct, payOrderWithBalance, submitAfterSaleReturnShipment, uploadAfterSaleProof } from '@/api/shop'
+import { ChevronDown, ChevronRight, CircleCheck, ImagePlus, MapPin, PackageCheck, RefreshCw, Truck, UserRound } from 'lucide-vue-next'
+import { applyAfterSale, applyExceptionRefund, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmAfterSaleExchangeReceived, confirmReceive, createAlipayOrder, getOrder, getProduct, payOrderWithBalance, submitAfterSaleReturnShipment, uploadAfterSaleProof } from '@/api/shop'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { dateTime, money, statusName } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
@@ -524,13 +522,16 @@ const proofInput = ref(null)
 const proofUploads = ref([])
 const uploadingProofs = ref(false)
 const afterSaleErrors = ref({ items: '', reason: '', server: '' })
-const logisticsAfterSaleReasons = ['物流停滞 / 未收到货', '拒收 / 退回商家']
-const afterSaleReasons = ['不想要了', '与商品描述不符', '质量问题', '收到商品少件 / 漏发', '商品破损或污渍', '商家发错货', ...logisticsAfterSaleReasons, '其他原因']
+const logisticsAfterSaleReasons = ['物流停滞 / 未收到货', '拒收 / 退回商家', '收到商品少件 / 漏发']
+const standardAfterSaleReasons = ['不想要了', '与商品描述不符', '质量问题', '商品破损或污渍', '商家发错货', '其他原因']
 const error = ref('')
 const hasToken = ref(hasShopSession())
 const paymentPassword = ref('')
 const balancePaymentRequestKey = ref('')
-const applyingAfterSale = ref(route.query.applyAfterSale === '1')
+const applyingAfterSale = ref(route.query.applyAfterSale === '1' || route.query.refundException === '1')
+const exceptionRefund = ref(false)
+const afterSaleReasons = computed(() => exceptionRefund.value
+  ? notShipped.value ? ['取消未发货订单'] : logisticsAfterSaleReasons : standardAfterSaleReasons)
 let stopOrderRealtime = null
 let fallbackPollTimer = null
 let realtimeRefreshTimer = null
@@ -603,7 +604,7 @@ const logisticsStatusDescription = computed(() => {
     : '商家已发货，实际轨迹以承运商查询为准'
 })
 const isRefundedOrder = computed(() => Number(order.value?.status) === 4 && (detail.value.afterSales || [])
-  .some((sale) => [1, 2].includes(Number(sale.applyType)) && Number(sale.status) === 1))
+  .some((sale) => [1, 2, 4].includes(Number(sale.applyType)) && Number(sale.status) === 1))
 const orderStatusTitle = computed(() => isRefundedOrder.value ? '已退款'
   : ({ 0: '待付款', 1: '待发货', 2: '待收货', 3: '已完成', 4: '已取消', 5: '售后处理中' }[Number(order.value?.status)] || '订单处理中'))
 const orderDisplayStatus = computed(() => isRefundedOrder.value ? '已退款'
@@ -697,7 +698,7 @@ const canApplyAfterSale = computed(() => {
 })
 const canApplyExchange = computed(() => [2, 3].includes(Number(order.value?.status)))
 const afterSaleForm = ref({
-  applyType: 1,
+  applyType: 2,
   reason: '',
   reasonDetail: '',
 })
@@ -719,7 +720,7 @@ const selectedRefundQuantity = computed(() => selectedRefundItems.value.reduce((
 const totalRemainingQuantity = computed(() => (detail.value.items || []).reduce((sum, item) => sum + remainingQuantity(item), 0))
 const refundAllRemaining = computed(() => selectedRefundQuantity.value > 0 && selectedRefundQuantity.value === totalRemainingQuantity.value)
 const approvedProductRefund = computed(() => afterSales.value
-  .filter((sale) => [1, 2].includes(Number(sale.applyType)) && sale.status === 1)
+  .filter((sale) => [1, 2, 4].includes(Number(sale.applyType)) && sale.status === 1)
   .reduce((sum, sale) => sum + Number(sale.productRefundAmount || 0), 0))
 const productBase = computed(() => Math.max(0, Number(order.value?.totalAmount || 0) - Number(order.value?.discountAmount || 0)))
 const estimatedProductRefund = computed(() => {
@@ -735,7 +736,8 @@ const estimatedProductRefund = computed(() => {
   }, 0) * productBase.value / grossTotal
   return Math.min(remainingAmount, amount)
 })
-const notShipped = computed(() => order.value?.status === 1 && !order.value?.deliveryTime)
+const notShipped = computed(() => order.value?.status === 1 && !order.value?.deliveryTime
+  && !order.value?.deliveryNo && !shipments.value.length)
 const estimatedFreightRefund = computed(() => notShipped.value && refundAllRemaining.value ? Number(order.value?.freightAmount || 0) : 0)
 const setRefundQuantity = (item, delta) => {
   const current = Number(refundQuantities.value[item.id] || 0)
@@ -751,20 +753,25 @@ const selectAllRefundableItems = () => {
 const startAfterSale = () => {
   selectAllRefundableItems()
   afterSaleErrors.value = { items: '', reason: '', server: '' }
+  exceptionRefund.value = false
+  afterSaleForm.value.applyType = 2
+  selectedReason.value = ''
   applyingAfterSale.value = true
 }
 
-const startLogisticsAfterSale = () => {
-  startAfterSale()
-  afterSaleForm.value.applyType = 1
-  selectedReason.value = logisticsAfterSaleReasons[0]
-  afterSaleForm.value.reason = logisticsAfterSaleReasons[0]
+const startExceptionRefund = () => {
+  selectAllRefundableItems()
+  afterSaleErrors.value = { items: '', reason: '', server: '' }
+  exceptionRefund.value = true
+  afterSaleForm.value.applyType = 4
+  selectedReason.value = notShipped.value ? '取消未发货订单' : ''
+  afterSaleForm.value.reason = selectedReason.value
+  applyingAfterSale.value = true
 }
 
 const selectAfterSaleReason = (reason) => {
   selectedReason.value = reason
   afterSaleForm.value.reason = reason
-  if (logisticsAfterSaleReasons.includes(reason)) afterSaleForm.value.applyType = 1
   afterSaleErrors.value.reason = ''
   reasonSheetVisible.value = false
 }
@@ -1033,7 +1040,9 @@ const fetchOrder = async () => {
     logisticsTracking.value = []
     selectAllRefundableItems()
     if (!canApplyAfterSale.value) applyingAfterSale.value = false
-    selectedReason.value = ''
+    exceptionRefund.value = applyingAfterSale.value && (notShipped.value || route.query.refundException === '1')
+    afterSaleForm.value.applyType = exceptionRefund.value ? 4 : 2
+    selectedReason.value = exceptionRefund.value && notShipped.value ? '取消未发货订单' : ''
     afterSaleForm.value.reason = ''
     afterSaleForm.value.reasonDetail = ''
   } catch (e) {
@@ -1129,13 +1138,15 @@ const submitAfterSale = async () => {
       }
       proofFilenames.push(proof.filename)
     }
-    await applyAfterSale({
+    const payload = {
       ...afterSaleForm.value,
       reason: [selectedReason.value, afterSaleForm.value.reasonDetail.trim()].filter(Boolean).join('：'),
       proofImages: proofFilenames.length ? JSON.stringify(proofFilenames) : null,
       orderId: order.value.id,
       items: selectedRefundItems.value,
-    })
+    }
+    if (exceptionRefund.value) await applyExceptionRefund(order.value.id, payload)
+    else await applyAfterSale(payload)
     afterSaleForm.value.reason = ''
     afterSaleForm.value.reasonDetail = ''
     selectedReason.value = ''

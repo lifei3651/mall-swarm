@@ -2,8 +2,6 @@ package com.macro.mall.distribution.dto;
 
 import lombok.Data;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -36,9 +34,7 @@ public class ShopManualRefundDTO implements Serializable {
     @Size(max = 200, message = "退款原因不能超过200个字")
     private String reason;
 
-    /** 1 仅退款；2 退货退款。后台超期退款默认仅退款。 */
-    @Min(value = 1, message = "售后类型不正确")
-    @Max(value = 2, message = "售后类型不正确")
+    /** 兼容旧管理端字段；后台特殊退款一律由服务端归类为4，不信任客户端类型。 */
     private Integer applyType;
 
     private Long operatorId;

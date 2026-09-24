@@ -165,6 +165,7 @@ test('售后可申请范围考虑开关、窗口、进行中记录与剩余数�
   assert.equal(policy.afterSaleEligibility(detail({ order: { id: ID, status: 0 } })).allowed, false)
   const refund = { applyType: 1, status: 1, items: [{ orderItemId: ITEM, refundQuantity: 1 }] }
   assert.equal(policy.remainingItems(detail({ afterSales: [refund] }))[0].remaining, 1)
+  assert.equal(policy.remainingItems(detail({ afterSales: [{ ...refund, applyType: 4 }] }))[0].remaining, 1, '异常退款占用实际退款数量')
   assert.equal(policy.remainingItems(detail({ afterSales: [{ ...refund, applyType: 3 }] }))[0].remaining, 2, '已完成换货不会重复扣减原商品可售后数')
 })
 
@@ -246,7 +247,7 @@ test('售后申请无凭证也可提交，ID不转Number且不提交客户端退
   h.page.reasonInput({ detail: { value: '商品不合适' } })
   await h.page.submit()
   const payload = h.calls.find((call) => call.method === 'POST').data
-  assert.deepEqual(payload, { orderId: ID, applyType: 1, reason: '商品不合适', items: [{ orderItemId: ITEM, quantity: 2 }], proofImages: null })
+  assert.deepEqual(payload, { orderId: ID, applyType: 2, reason: '商品不合适', items: [{ orderItemId: ITEM, quantity: 2 }], proofImages: null })
   assert.equal(h.uploads.length, 0)
   assert.equal(h.routes.at(-1), `/pages/order-detail/index?id=${ID}`)
   await h.page.submit()
@@ -260,7 +261,7 @@ test('选择图片返回页面不覆盖申请草稿；未发货不能选择换�
   h.page.changeQuantity(event({ id: ITEM, delta: -1 }))
   h.page.selectType(event({ type: 3 }))
   await h.page.onShow()
-  assert.equal(h.page.data.applyType, 1)
+  assert.equal(h.page.data.applyType, 2)
   assert.equal(h.page.data.reason, '保留原因')
   assert.equal(h.page.data.items[0].selectedQuantity, 1)
   assert.equal(h.calls.length, 1)
@@ -332,16 +333,31 @@ test('原生售后表单及详情提供完整实际绑定，不只显示进度�
   for (const handler of ['applyAfterSale', 'cancelAfterSale', 'editShipment', 'submitShipment', 'receiveExchange']) assert.ok(view.includes(`bindtap="${handler}"`))
 })
 
-test('售后原因共用面板选择后保留草稿，物流异常原因只允许仅退款', async () => {
+test('普通售后不再提供仅退款，物流异常通过独立退款模式申请', async () => {
   const h = harness('after-sale', { respond: () => detail() })
-  h.page.onLoad({ orderId: ID }); await h.page.onShow()
+  h.page.onLoad({ orderId: ID, mode: 'exception' }); await h.page.onShow()
   h.page.reasonDetailInput({ detail: { value: '已联系商家' } })
   h.page.selectType(event({ type: 3 }))
-  h.page.selectReason({ detail: { value: '6' } })
+  h.page.selectReason({ detail: { value: '0' } })
   assert.equal(h.page.data.reason, '物流停滞 / 未收到货')
-  assert.equal(h.page.data.reasonIndex, 6)
-  assert.equal(h.page.data.applyType, 1)
+  assert.equal(h.page.data.reasonIndex, 0)
+  assert.equal(h.page.data.applyType, 4)
   assert.equal(h.page.data.reasonDetail, '已联系商家')
   h.page.selectReason({ detail: { value: '99' } })
-  assert.equal(h.page.data.reasonIndex, 6)
+  assert.equal(h.page.data.reasonIndex, 0)
+  const form = readFileSync(new URL('../pages/after-sale/index.wxml', import.meta.url), 'utf8')
+  assert.doesNotMatch(form, />仅退款<\/button>/)
+})
+
+test('未发货取消退款默认全选，单独提交到异常退款接口', async () => {
+  const h = harness('after-sale', { respond: ({ method }) => method === 'POST' ? {} : detail({ order: { id: ID, status: 1 } }) })
+  h.page.onLoad({ orderId: ID, mode: 'exception' }); await h.page.onShow()
+  assert.equal(h.page.data.applyType, 4)
+  assert.equal(h.page.data.reason, '取消未发货订单')
+  h.page.changeQuantity(event({ id: ITEM, delta: -1 }))
+  assert.equal(h.page.data.items[0].selectedQuantity, 2)
+  await h.page.submit()
+  const posted = h.calls.find((call) => call.method === 'POST')
+  assert.equal(posted.url, `/shop/orders/${ID}/exception-refund`)
+  assert.equal(posted.data.applyType, 4)
 })

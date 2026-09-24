@@ -22,8 +22,8 @@ public class ShopAfterSaleApplyDTO implements Serializable {
     private Long orderId;
 
     @NotNull(message = "请选择售后类型")
-    @Min(value = 1, message = "售后类型不正确")
-    @Max(value = 3, message = "售后类型不正确")
+    @Min(value = 2, message = "仅退款类型已停用，请选择退货退款或异常退款")
+    @Max(value = 4, message = "售后类型不正确")
     private Integer applyType;
 
     private BigDecimal refundAmount;
