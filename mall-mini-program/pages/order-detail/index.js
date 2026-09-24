@@ -111,7 +111,7 @@ Page({
   ...balancePayment.methods,
   data: { ...theme.pageData(), ...paymentSummary(), pageStatusTitle: '', pageStatusDescription: '', pageStatusTone: 'active', loading: true, error: '', rows: [], paymentNo: '', actingId: null, paying: false, cancellingAfterSaleId: null,
     editingSaleId: '', deliveryCompany: '', carrierIndex: -1, deliveryNo: '', shipmentError: '', submittingShipment: false,
-    carriers: CARRIERS, expandedIncome: {}, expandedAddresses: {}, expandedOrders: {}, trackingOrderId: '', trackingLoading: false, trackingError: '', trackingRows: [], wechatTrackingId: '', rebuyId: '', ...balancePayment.data },
+    carriers: CARRIERS, expandedIncome: {}, expandedOrders: {}, trackingOrderId: '', trackingLoading: false, trackingError: '', trackingRows: [], wechatTrackingId: '', rebuyId: '', ...balancePayment.data },
   onLoad(options = {}) {
     theme.apply(this)
     const orderId = identifier(options.id)
@@ -169,6 +169,7 @@ Page({
           throw new Error('合并订单信息发生变化，请刷新后重试')
         }
       }
+      const expandedAddressIds = new Set(this.data.rows.filter((row) => row.addressExpanded).map((row) => row.order.id))
       const rows = source.map((row) => {
         const order = row.order || {}
         const refunded = isRefundedOrder(row)
@@ -188,6 +189,7 @@ Page({
         return {
           ...row,
           key: identifier(order.id),
+          addressExpanded: expandedAddressIds.has(identifier(order.id)),
           refunded,
           itemQuantity,
           canApplyAfterSale: afterSaleEligibility(row).allowed,
@@ -223,6 +225,7 @@ Page({
             deliveryTimeText: formatTime(order.deliveryTime),
             receiveTimeText: formatTime(order.receiveTime),
             addressText: addressText(order),
+            fullRecipient: [displayText(order.receiverName), displayText(order.receiverPhone)].filter(Boolean).join(' '),
             maskedRecipient: [maskName(order.receiverName), maskPhone(order.receiverPhone)].filter(Boolean).join(' '),
             maskedAddress: maskedAddress(order),
             deliverySummary: activeSale && !refunded && Number(order.status) !== 4 ? statusDescription : deliverySummary(order, refunded),
@@ -423,10 +426,10 @@ Page({
   },
   copyOrderNo(event) { const id = identifier(event.currentTarget.dataset.id), row = this.data.rows.find(item => item.order.id === id); if (row?.order?.orderNo) wx.setClipboardData({ data: String(row.order.orderNo) }) },
   copyRecipient(event) {
-    const id = identifier(event.currentTarget.dataset.id)
-    const row = this.data.rows.find(item => item.order.id === id)
+    const index = Number(event.currentTarget.dataset.index)
+    const row = Number.isInteger(index) && index >= 0 ? this.data.rows[index] : null
     if (!row) return
-    const content = [row.order.receiverName, row.order.receiverPhone, row.order.addressText].filter(Boolean).join(' ')
+    const content = [row.order.fullRecipient, row.order.addressText].filter(Boolean).join(' ')
     if (content) wx.setClipboardData({ data: content })
   },
   openProduct(event) {
@@ -535,8 +538,9 @@ Page({
     if (id && this.data.rows.some(row => row.order.id === id)) this.setData({ [`expandedIncome.${id}`]: !this.data.expandedIncome[id] })
   },
   toggleAddress(event) {
-    const id = identifier(event.currentTarget.dataset.id)
-    if (id && this.data.rows.some(row => row.order.id === id)) this.setData({ [`expandedAddresses.${id}`]: !this.data.expandedAddresses[id] })
+    const index = Number(event.currentTarget.dataset.index)
+    if (!Number.isInteger(index) || index < 0 || index >= this.data.rows.length) return
+    this.setData({ rows: this.data.rows.map((row, rowIndex) => rowIndex === index ? { ...row, addressExpanded: !row.addressExpanded } : row) })
   },
   copyPaymentNo() {
     const number = String(this.data.paymentNo || '')

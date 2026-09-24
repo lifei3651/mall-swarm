@@ -192,10 +192,14 @@ test('物流查询只接受当前订单，未配置本地服务不伪造运输�
 
 test('订单详情隐藏收货姓名电话，地址折叠且无本地轨迹时调用微信官方物流组件接口', async () => {
   const view = readFileSync(new URL('../pages/order-detail/index.wxml', import.meta.url), 'utf8')
-  assert.doesNotMatch(view, /receiverName|receiverPhone|recipient-name/)
+  const styles = readFileSync(new URL('../pages/order-detail/index.wxss', import.meta.url), 'utf8')
+  assert.doesNotMatch(view, /item\.order\.receiverName|item\.order\.receiverPhone/)
   assert.match(view, /class="recipient-summary"/)
   assert.match(view, /item\.order\.maskedRecipient/)
   assert.match(view, /item\.order\.maskedAddress/)
+  assert.match(view, /item\.addressExpanded \? \(item\.order\.fullRecipient/)
+  assert.match(view, /item\.addressExpanded \? item\.order\.addressText/)
+  assert.match(styles, /\.recipient-copy > \.recipient-address--expanded \{[^}]*white-space:normal/)
   assert.match(view, /bindtap="copyRecipient"/)
   assert.match(view, /bindtap="toggleAddress"/)
   assert.match(view, /bindtap="openWeChatTracking"/)
@@ -207,6 +211,33 @@ test('订单详情隐藏收货姓名电话，地址折叠且无本地轨迹时�
   assert.equal(e.calls[0].method, 'POST')
   assert.deepEqual(e.calls[0].params, { shipmentId: '31' })
   assert.equal(page.data.wechatTrackingId, '')
+})
+
+test('订单详情展开显示完整收货信息，长订单号不会使点击失效，刷新仍保持展开', async () => {
+  const orderId = '9007199254740993'
+  const clipboard = []
+  const e = environment({
+    wx: { setClipboardData: ({ data }) => clipboard.push(data) },
+    respond: () => ({ order: { id: orderId, status: 1, receiverName: '张三', receiverPhone: '13800138000',
+      receiverProvince: '湖南省', receiverCity: '长沙市', receiverDistrict: '长沙县', receiverDetailAddress: '湘龙街道开发区东十一段55号701' }, items: [], shipments: [], afterSales: [] })
+  })
+  const page = e.page('order-detail')
+  page.onLoad({ id: orderId })
+  await page.load()
+  assert.equal(page.data.rows[0].addressExpanded, false)
+  assert.equal(page.data.rows[0].order.maskedRecipient, '张** 138****8000')
+  assert.equal(page.data.rows[0].order.fullRecipient, '张三 13800138000')
+  assert.equal(page.data.rows[0].order.addressText, '湖南省长沙市长沙县湘龙街道开发区东十一段55号701')
+  page.toggleAddress({ currentTarget: { dataset: { index: 0 } } })
+  assert.equal(page.data.rows[0].addressExpanded, true)
+  page.copyRecipient({ currentTarget: { dataset: { index: 0 } } })
+  assert.equal(clipboard[0], '张三 13800138000 湖南省长沙市长沙县湘龙街道开发区东十一段55号701')
+  await page.load()
+  assert.equal(page.data.rows[0].addressExpanded, true)
+  page.toggleAddress({ currentTarget: { dataset: { index: 9 } } })
+  assert.equal(page.data.rows[0].addressExpanded, true)
+  page.toggleAddress({ currentTarget: { dataset: { index: 0 } } })
+  assert.equal(page.data.rows[0].addressExpanded, false)
 })
 
 test('站内物流接口失败不打断订单详情，仍可继续打开微信官方物流', async () => {

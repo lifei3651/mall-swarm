@@ -51,7 +51,7 @@
           <button v-if="shipments.length && canApplyAfterSale" type="button" class="ui-copy-action" @click="startExceptionRefund">未收到 / 拒收</button>
           <div v-if="order.receiverAddress" class="consumer-recipient-row">
             <MapPin :size="20" />
-            <span><strong>{{ maskedRecipient || '收货人信息已隐藏' }}</strong><small>{{ addressExpanded ? order.receiverAddress : maskedRecipientAddress }}</small></span>
+            <span><strong :class="{ 'is-expanded': addressExpanded }">{{ addressExpanded ? (fullRecipient || '收货人信息未填写') : (maskedRecipient || '收货人信息已隐藏') }}</strong><small :class="{ 'is-expanded': addressExpanded }">{{ addressExpanded ? order.receiverAddress : maskedRecipientAddress }}</small></span>
             <button type="button" class="ui-copy-action" @click="copyRecipient">复制</button>
             <button type="button" class="recipient-expand" @click="addressExpanded = !addressExpanded">{{ addressExpanded ? '收起' : '展开' }}</button>
           </div>
@@ -148,7 +148,7 @@
           <div><strong>收货地址</strong><span>为保护隐私，展开后查看完整地址</span></div>
           <span class="ui-list-action">{{ addressExpanded ? '收起' : '展开' }}</span>
         </button>
-        <p v-if="addressExpanded" class="delivery-address-content">{{ order.receiverAddress }}</p>
+        <p v-if="addressExpanded" class="delivery-address-content">{{ fullRecipient }} {{ order.receiverAddress }}</p>
       </section>
       <section class="panel ui-card">
         <div ref="refundItemsSection" class="product-detail-head" :class="{ 'has-validation-error': applyingAfterSale && afterSaleErrors.items }">
@@ -640,6 +640,7 @@ const maskPhone = (value) => {
   return phone.length >= 7 ? `${phone.slice(0, 3)}****${phone.slice(-4)}` : `${phone.slice(0, 2)}***`
 }
 const maskedRecipient = computed(() => [maskName(order.value?.receiverName), maskPhone(order.value?.receiverPhone)].filter(Boolean).join(' '))
+const fullRecipient = computed(() => [order.value?.receiverName, order.value?.receiverPhone].filter(Boolean).join(' '))
 const maskedRecipientAddress = computed(() => {
   const region = [order.value?.receiverProvince, order.value?.receiverCity, order.value?.receiverDistrict].filter(Boolean).join(' ')
   const detailAddress = String(order.value?.receiverDetailAddress || '').trim()
@@ -1231,6 +1232,7 @@ onBeforeUnmount(() => {
 .consumer-recipient-row > span { display: grid; gap: 4px; min-width: 0; }
 .consumer-recipient-row strong { color: #303735; font-size: 13px; }
 .consumer-recipient-row small { overflow: hidden; color: #7e8785; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.consumer-recipient-row .is-expanded { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
 .recipient-expand { padding: 4px; color: #7e8785; background: transparent; border: 0; font-size: 11px; }
 .products-card { padding: 0 19px 17px; }
 .consumer-merchant-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 0 13px; border-bottom: 1px solid #edf1f0; }

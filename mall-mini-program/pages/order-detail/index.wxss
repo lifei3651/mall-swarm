@@ -63,8 +63,9 @@
 .recipient-pin { flex:none; width:37rpx; height:37rpx; opacity:.82; }
 .recipient-copy { min-width:0; flex:1; }
 .recipient-head { display:flex; align-items:center; gap:8rpx; }
-.recipient-head > text { overflow:hidden; color:#2f3634; font-size:25rpx; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
+.recipient-head > text { min-width:0; flex:1; overflow:hidden; color:#2f3634; font-size:25rpx; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
 .recipient-copy > text { display:block; margin-top:5rpx; overflow:hidden; color:#7d8684; font-size:21rpx; line-height:32rpx; text-overflow:ellipsis; white-space:nowrap; }
+.recipient-head > .recipient-name--expanded, .recipient-copy > .recipient-address--expanded { overflow:visible; text-overflow:clip; white-space:normal; overflow-wrap:anywhere; }
 .recipient-expand { flex:none; min-height:54rpx; margin:0; padding:0 8rpx; border:0; background:transparent; color:#808986; font-size:21rpx; line-height:54rpx; }
 .recipient-expand::after { border:0; }
 .fulfillment-card .address-toggle { padding-top: 18rpx; padding-bottom: 2rpx; }

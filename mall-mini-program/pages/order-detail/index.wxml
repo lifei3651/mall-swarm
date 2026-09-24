@@ -16,7 +16,7 @@
       <button wx:if="{{payOrderId}}" class="primary-button continue-payment" bindtap="pay" loading="{{paying}}" disabled="{{actingId !== null}}">{{paying ? '正在确认支付…' : rows.length > 1 ? '合并支付' : '继续支付'}}</button>
     </view>
 
-    <block wx:for="{{rows}}" wx:key="key">
+    <block wx:for="{{rows}}" wx:for-index="orderIndex" wx:key="key">
       <view wx:if="{{item.afterSales.length}}" class="section-card ui-card after-sale-list">
         <view class="section-title">退款 / 售后进度</view>
         <view class="after-sale-record after-sale-record--{{sale.statusTone}}" wx:for="{{item.afterSales}}" wx:key="id" wx:for-item="sale">
@@ -84,10 +84,10 @@
         <view wx:if="{{item.order.addressText}}" class="recipient-summary">
           <image class="recipient-pin" src="/assets/profile/map-pin.png" mode="aspectFit" />
           <view class="recipient-copy">
-            <view class="recipient-head"><text>{{item.order.maskedRecipient || '收货人信息已隐藏'}}</text><button class="ui-copy-action" data-id="{{item.order.id}}" bindtap="copyRecipient">复制</button></view>
-            <text>{{expandedAddresses[item.order.id] ? item.order.addressText : item.order.maskedAddress}}</text>
+            <view class="recipient-head"><text class="{{item.addressExpanded ? 'recipient-name--expanded' : ''}}">{{item.addressExpanded ? (item.order.fullRecipient || '收货人信息未填写') : (item.order.maskedRecipient || '收货人信息已隐藏')}}</text><button class="ui-copy-action" data-index="{{orderIndex}}" bindtap="copyRecipient">复制</button></view>
+            <text class="{{item.addressExpanded ? 'recipient-address--expanded' : ''}}">{{item.addressExpanded ? item.order.addressText : item.order.maskedAddress}}</text>
           </view>
-          <button class="recipient-expand" data-id="{{item.order.id}}" bindtap="toggleAddress">{{expandedAddresses[item.order.id] ? '收起' : '展开'}}</button>
+          <button class="recipient-expand" data-index="{{orderIndex}}" bindtap="toggleAddress">{{item.addressExpanded ? '收起' : '展开'}}</button>
         </view>
       </view>
 
