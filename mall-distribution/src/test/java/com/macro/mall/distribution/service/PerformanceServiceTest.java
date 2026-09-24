@@ -570,6 +570,85 @@ public class PerformanceServiceTest {
     }
 
     @Test
+    void platformCanRefundLegacyUnshippedReturnWithoutFakeShipmentOrSecondRefund() {
+        jdbcTemplate.update("INSERT INTO dms_shop_service_address "
+                + "(id,tenant_id,address_type,address_label,contact_name,contact_phone,province,city,district,detail_address,is_default,status) "
+                + "VALUES (99002,1,2,'纠错退货地址','售后','13900000000','湖南省','长沙市','岳麓区','测试路2号',1,1)");
+        jdbcTemplate.update("UPDATE dms_shop_product SET return_address_id=99002 WHERE id=1");
+        DmsShopMember buyer = createShopMember("13999000061", "未发货误进寄回测试", null);
+        ShopOrderVO paid = submitAndPay(buyer, 1);
+        Long orderId = paid.getOrder().getId();
+        // 模拟旧版先允许退货申请、审核通过，随后发现订单其实从未发货。
+        jdbcTemplate.update("UPDATE dms_shop_order SET status=2, delivery_time=CURRENT_TIMESTAMP WHERE id=?", orderId);
+        sqlSessionTemplate.clearCache();
+        ShopAfterSaleItemDTO line = new ShopAfterSaleItemDTO();
+        line.setOrderItemId(paid.getItems().get(0).getId()); line.setQuantity(1);
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
+        apply.setOrderId(orderId); apply.setApplyType(2); apply.setItems(List.of(line));
+        apply.setReason("旧版误按退货退款申请");
+        DmsShopAfterSale sale = shopAfterSaleService.apply(buyer, apply);
+        ShopAfterSaleAuditDTO approve = new ShopAfterSaleAuditDTO();
+        approve.setStatus(1);
+        assertEquals(4, shopAfterSaleService.audit(sale.getId(), approve).getStatus());
+
+        ShopAfterSaleAuditDTO direct = new ShopAfterSaleAuditDTO();
+        direct.setAuditRemark("核实仓库未发货");
+        assertThrows(RuntimeException.class, () -> shopAfterSaleService.refundUnshippedWithoutReturn(sale.getId(), direct),
+                "已发货订单不得跳过寄回");
+        jdbcTemplate.update("UPDATE dms_shop_order SET status=1, delivery_time=NULL WHERE id=?", orderId);
+        sqlSessionTemplate.clearCache();
+        DmsShopAfterSale refunded = shopAfterSaleService.refundUnshippedWithoutReturn(sale.getId(), direct);
+        assertEquals(1, refunded.getStatus());
+        assertEquals(sale.getAfterSaleNo(), refunded.getAfterSaleNo(), "不能再造第二张退款售后单");
+        assertNull(refunded.getReturnReceivedAt(), "不能伪造收货");
+        assertTrue(refunded.getAuditRemark().contains("无需寄回商品"));
+        assertEquals(4, shopOrderDao.selectById(orderId).getStatus());
+        assertEquals(1, auditService.getRefundsByOrderId(orderId).size());
+        assertThrows(RuntimeException.class, () -> shopAfterSaleService.refundUnshippedWithoutReturn(sale.getId(), direct),
+                "重复提交不能二次退款");
+        assertEquals(1, auditService.getRefundsByOrderId(orderId).size());
+    }
+
+    @Test
+    void externalUnshippedNoReturnRefundWaitsForChannelBeforeAccounting() {
+        jdbcTemplate.update("INSERT INTO dms_shop_service_address "
+                + "(id,tenant_id,address_type,address_label,contact_name,contact_phone,province,city,district,detail_address,is_default,status) "
+                + "VALUES (99003,1,2,'渠道等待退货地址','售后','13900000000','湖南省','长沙市','岳麓区','测试路3号',1,1)");
+        jdbcTemplate.update("UPDATE dms_shop_product SET return_address_id=99003 WHERE id=1");
+        DmsShopMember buyer = createShopMember("13999000062", "未发货渠道退款测试", null);
+        ShopOrderVO paid = submitAndPay(buyer, 1);
+        Long orderId = paid.getOrder().getId();
+        jdbcTemplate.update("UPDATE dms_shop_order SET status=2, delivery_time=CURRENT_TIMESTAMP WHERE id=?", orderId);
+        sqlSessionTemplate.clearCache();
+        ShopAfterSaleItemDTO line = new ShopAfterSaleItemDTO();
+        line.setOrderItemId(paid.getItems().get(0).getId()); line.setQuantity(1);
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
+        apply.setOrderId(orderId); apply.setApplyType(2); apply.setItems(List.of(line));
+        apply.setReason("旧版误按退货退款申请");
+        DmsShopAfterSale sale = shopAfterSaleService.apply(buyer, apply);
+        ShopAfterSaleAuditDTO approve = new ShopAfterSaleAuditDTO();
+        approve.setStatus(1);
+        assertEquals(4, shopAfterSaleService.audit(sale.getId(), approve).getStatus());
+        jdbcTemplate.update("UPDATE dms_shop_order SET status=1, delivery_time=NULL WHERE id=?", orderId);
+        sqlSessionTemplate.clearCache();
+
+        ShopAfterSaleAuditDTO direct = new ShopAfterSaleAuditDTO();
+        direct.setAuditRemark("核实仓库未发货，等待支付渠道退款");
+        ReflectionTestUtils.setField(shopAfterSaleService, "simulationPaymentEnabled", false);
+        try {
+            DmsShopAfterSale processing = shopAfterSaleService.refundUnshippedWithoutReturn(sale.getId(), direct);
+            assertEquals(6, processing.getStatus(), "渠道未确认前只可显示退款处理中");
+            assertEquals(1, shopOrderDao.selectById(orderId).getStatus(), "渠道未确认前不可关闭订单");
+            assertTrue(auditService.getRefundsByOrderId(orderId).isEmpty(), "渠道未确认前不可写成功退款账本");
+            assertThrows(RuntimeException.class,
+                    () -> shopAfterSaleService.refundUnshippedWithoutReturn(sale.getId(), direct),
+                    "退款处理中不可再次发起新退款");
+        } finally {
+            ReflectionTestUtils.setField(shopAfterSaleService, "simulationPaymentEnabled", true);
+        }
+    }
+
+    @Test
     void legacyOrderCreatedWindowClosesAfterSevenDaysButAdminCanRefundByQuantity() {
         jdbcTemplate.update("UPDATE dms_tenant SET after_sale_window_mode='ORDER_CREATED', after_sale_window_days=7 WHERE id=1");
         sqlSessionTemplate.clearCache();

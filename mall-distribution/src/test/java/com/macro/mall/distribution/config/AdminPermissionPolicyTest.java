@@ -78,6 +78,8 @@ class AdminPermissionPolicyTest {
         assertEquals("shop:aftersale", AdminPermissionPolicy.requiredPermission("PUT", "/shop/admin/orders/99/cancel"));
         assertEquals("shop:aftersale", AdminPermissionPolicy.requiredPermission(
                 "PUT", "/shop/admin/after-sales/88/exchange-shipment"));
+        assertEquals("shop:aftersale", AdminPermissionPolicy.requiredPermission(
+                "PUT", "/shop/admin/after-sales/88/unshipped-refund"));
         assertNull(AdminPermissionPolicy.requiredPermission("POST", "/shop/admin/wechat-express/options"));
     }
 
@@ -132,6 +134,8 @@ class AdminPermissionPolicyTest {
                 "PUT", "/shop/admin/after-sales/88/return-received"));
         assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
                 "PUT", "/shop/admin/after-sales/88/exchange-shipment"));
+        assertFalse(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
+                "PUT", "/shop/admin/after-sales/88/unshipped-refund"));
 
         assertFalse(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest(
                 "PUT", "/shop/admin/orders/99/cancel"));

@@ -742,6 +742,56 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public DmsShopAfterSale refundUnshippedWithoutReturn(Long id, ShopAfterSaleAuditDTO dto) {
+        assertPlatformExceptionalOperation("未发货免寄回退款");
+        if (id == null || dto == null || dto.getAuditRemark() == null || dto.getAuditRemark().isBlank()) {
+            Asserts.fail("请填写无需寄回、直接退款的核实原因");
+        }
+        if (dto.getAuditRemark().trim().length() > 450) Asserts.fail("核实原因不能超过450个字");
+        // 与人工退款及发货链路共用订单锁，再锁售后，防止核实后订单被并发发货。
+        DmsShopAfterSale snapshot = afterSaleDao.selectById(id);
+        if (snapshot == null) Asserts.fail("售后单不存在");
+        DmsShopOrder order = orderDao.selectByIdForUpdate(snapshot.getOrderId());
+        if (order == null) Asserts.fail("订单不存在");
+        assertTenantAccess(order.getTenantId());
+        DmsShopAfterSale sale = afterSaleDao.selectByIdForUpdate(id);
+        if (sale == null || !order.getId().equals(sale.getOrderId())
+                || !Integer.valueOf(2).equals(sale.getApplyType()) || !Integer.valueOf(4).equals(sale.getStatus())) {
+            Asserts.fail("该售后已变化，请刷新后核对退款状态");
+        }
+        List<DmsShopOrderShipment> shipments = orderShipmentDao.selectByOrderId(order.getId());
+        if (!Integer.valueOf(1).equals(order.getStatus()) || order.getDeliveryTime() != null
+                || (order.getDeliveryNo() != null && !order.getDeliveryNo().isBlank())
+                || orderShipmentDao.sumQuantityByOrderId(order.getId()) > 0
+                || (shipments != null && !shipments.isEmpty())
+                || sale.getReturnShippedAt() != null
+                || (sale.getReturnDeliveryNo() != null && !sale.getReturnDeliveryNo().isBlank())) {
+            Asserts.fail("订单或退货已有物流记录，不能按未发货免寄回退款");
+        }
+        ShopQuantityChecks.refundLines(afterSaleItemDao.selectByAfterSaleId(id));
+        validateRefundHistory(order.getId());
+        applyAuthenticatedAdmin(dto);
+        sale.setStatus(6);
+        sale.setAuditRemark("平台核实未发货，无需寄回商品，直接退款：" + dto.getAuditRemark().trim());
+        sale.setAuditUserId(dto.getAuditUserId());
+        sale.setAuditUserName(dto.getAuditUserName());
+        if (afterSaleDao.startUnshippedNoReturnRefund(sale) != 1) Asserts.fail("售后或订单状态已变化，请刷新后重试");
+        if (requiresExternalRefund(order, sale)) {
+            scheduleExternalRefund(id);
+        } else {
+            if (afterSaleDao.markRefundCompleted(id) != 1) Asserts.fail("退款完成状态保存失败，请刷新后重试");
+            sale.setStatus(1);
+            completeRefund(sale, order);
+        }
+        notifyOrderChanged(order, requiresExternalRefund(order, sale)
+                ? "AFTER_SALE_REFUND_PROCESSING" : "AFTER_SALE_COMPLETED", id);
+        operationLogService.log("SHOP_AFTER_SALE", "PLATFORM_NO_RETURN_REFUND", "SHOP_AFTER_SALE", String.valueOf(id),
+                "status=4", "status=" + sale.getStatus(), dto.getAuditRemark().trim());
+        return hydrate(afterSaleDao.selectById(id));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public DmsShopAfterSale shipExchangeReplacement(Long id, ShopAfterSaleExchangeShipmentDTO dto) {
         if (id == null || dto == null) Asserts.fail("换货物流信息不能为空");
         DmsShopAfterSale afterSale = afterSaleDao.selectByIdForUpdate(id);

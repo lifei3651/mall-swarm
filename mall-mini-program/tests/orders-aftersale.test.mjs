@@ -209,7 +209,43 @@ test('全额退款后的关闭订单显示已退款，售后缺失规格不出�
   assert.match(wxml, /after-sale-record--\{\{sale\.statusTone\}\}/)
   assert.match(wxml, /saleLine\.displayName/)
   assert.match(wxss, /\.after-sale-record--complete\s*\{[^}]*#f4f7f7/)
+  assert.match(wxss, /\.after-sale-record--complete\s*\{[^}]*border-left-color:#cbd6d4/)
   assert.doesNotMatch(wxss, /\.after-sale-record\s*\{[^}]*#fff8ed/)
+})
+
+test('未发货历史退货单不误导寄回，售后进度放在订单详情顶部', async () => {
+  const legacy = detail({
+    order: { id: ID, status: 1, payAmount: '0.01', totalAmount: '0.01', deliveryTime: null },
+    shipments: [],
+    afterSales: [{ id: SALE, applyType: 2, status: 4, refundAmount: '0.01',
+      nextActionHint: '请按审核结果寄回商品', returnAddress: '历史退货地址',
+      items: [{ id: ITEM, productName: 'test', skuName: null, refundQuantity: 1 }] }]
+  })
+  const h = harness('order-detail', { respond: () => legacy })
+  h.page.onLoad({ id: ID }); await h.page.load()
+  const sale = h.page.data.rows[0].afterSales[0]
+  assert.equal(h.page.data.pageStatusTitle, '售后处理中')
+  assert.match(h.page.data.pageStatusDescription, /无需寄回/)
+  assert.equal(h.page.data.rows[0].order.statusText, '售后处理中')
+  assert.equal(sale.statusText, '待平台核实')
+  assert.equal(sale.typeText, '未发货退款申请')
+  assert.equal(sale.canReturn, false)
+  assert.doesNotMatch(sale.nextActionText, /请按审核结果寄回/)
+  assert.equal(sale.items[0].displayName, 'test')
+  const markup = readFileSync(new URL('../pages/order-detail/index.wxml', import.meta.url), 'utf8')
+  const css = readFileSync(new URL('../pages/order-detail/index.wxss', import.meta.url), 'utf8')
+  assert.ok(markup.indexOf('class="section-card ui-card after-sale-list"') < markup.indexOf('class="income-card ui-card"'))
+  assert.match(markup, /sale\.nextActionText/)
+  assert.match(markup, /sale\.canReturn && editingSaleId === sale\.id/)
+  assert.match(css, /\.after-sale-record\s*\{[^}]*background:#f7f9f9/)
+
+  const shipped = harness('order-detail', { respond: () => detail({
+    order: { id: ID, status: 2, deliveryTime: '2026-09-24 08:00:00' },
+    afterSales: legacy.afterSales
+  }) })
+  shipped.page.onLoad({ id: ID }); await shipped.page.load()
+  assert.equal(shipped.page.data.rows[0].afterSales[0].canReturn, true)
+  assert.equal(shipped.page.data.rows[0].afterSales[0].statusText, '待寄回')
 })
 
 test('未退款的关闭订单仍显示已取消，不能拿旧发货时间充当当前状态', async () => {

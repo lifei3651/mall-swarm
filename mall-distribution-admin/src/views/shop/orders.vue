@@ -223,7 +223,8 @@
                   </template>
                 </el-dropdown>
                 <template v-else-if="activeAfterSale(row)">
-                  <el-tag v-if="Number(activeAfterSale(row).status) === 4" type="warning">等待客户寄回</el-tag>
+                  <el-button v-if="canRefundUnshippedWithoutReturn(row)" type="primary" link @click.stop="refundUnshippedWithoutReturn(row)">平台直接退款</el-button>
+                  <el-tag v-else-if="Number(activeAfterSale(row).status) === 4" type="warning">等待客户寄回</el-tag>
                   <el-button v-else-if="canHandleAfterSale && canMerchantFulfill(row) && Number(activeAfterSale(row).status) === 5" type="success" link @click.stop="confirmReturnReceived(activeAfterSale(row))">
                     {{ Number(activeAfterSale(row).applyType) === 3 ? '确认收到换货退件' : '确认退货并退款' }}
                   </el-button>
@@ -808,6 +809,7 @@ import {
   importOrderShipments,
   listShopOrders,
   manualRefundShopOrder,
+  refundUnshippedShopAfterSale,
   shipShopOrder,
   shipShopAfterSaleExchangeReplacement,
   updateShopOrderServiceRemark,
@@ -1030,6 +1032,11 @@ const isCustomerAfterSaleClosed = (row) => row?.afterSaleSelfServiceEnabled === 
 const canManualRefund = (row) => !isMerchantUser.value && !hasPendingAfterSale(row)
   && [1, 2, 3].includes(Number(row?.order?.status))
   && isCustomerAfterSaleClosed(row)
+const canRefundUnshippedWithoutReturn = (row) => !isMerchantUser.value && canHandleAfterSale.value
+  && Number(row?.order?.status) === 1 && !row?.order?.deliveryTime && !row?.order?.deliveryNo
+  && !shipmentRows(row).length
+  && Number(activeAfterSale(row)?.applyType) === 2 && Number(activeAfterSale(row)?.status) === 4
+  && !activeAfterSale(row)?.returnDeliveryNo && !activeAfterSale(row)?.returnShippedAt
 const refundedQuantity = (row, itemId) => (row?.afterSales || [])
   .filter((sale) => Number(sale.applyType) === 3
     ? [0, 4, 5, 7, 8].includes(Number(sale.status))
@@ -1551,6 +1558,25 @@ const confirmReturnReceived = async (sale) => {
     auditUserName: currentOperator.value.name,
   })
   ElMessage.success(retrying ? '渠道退款已恢复完成' : exchange ? '已确认退件，等待发出换货商品' : '已确认收货并完成退款处理')
+  await Promise.all([fetchOrders(), fetchWorkSummary()])
+}
+
+const refundUnshippedWithoutReturn = async (row) => {
+  if (!canRefundUnshippedWithoutReturn(row)) return
+  const sale = activeAfterSale(row)
+  const { value: reason } = await ElMessageBox.prompt(
+    `订单 ${row.order.orderNo} 尚未发货，售后 ${sale.afterSaleNo} 被错误推进到待寄回。平台可沿用原售后单号直接原路退款，无需顾客寄回。请核实订单和金额，并填写原因；微信退款可能进入“退款处理中”，以渠道确认为准。`,
+    '平台免寄回直接退款',
+    {
+      type: 'warning',
+      inputPlaceholder: '例如：未发货订单误进入退货寄回流程',
+      inputValidator: (value) => Boolean(value?.trim()) && value.trim().length <= 450 || '请填写不超过450字的核实原因',
+      confirmButtonText: '确认发起原路退款',
+      cancelButtonText: '暂不退款',
+    },
+  )
+  const result = await refundUnshippedShopAfterSale(sale.id, { auditRemark: reason.trim() })
+  ElMessage.success(Number(result?.data?.status) === 1 ? '退款已完成，请核对账务记录' : '退款已受理，等待渠道确认；请勿重复发起')
   await Promise.all([fetchOrders(), fetchWorkSummary()])
 }
 

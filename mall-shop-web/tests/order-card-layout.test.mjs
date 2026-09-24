@@ -63,6 +63,16 @@ test('H5订单列表只在有自动收货期限时显示提示行，不复述订
   }
 })
 
+test('H5历史未发货待寄回单将售后提示置顶并隐藏虚假的寄回引导', async () => {
+  const detail = await read('src/views/OrderDetailView.vue')
+  assert.ok(detail.indexOf('class="consumer-card compact-after-sales ui-card"') < detail.indexOf('class="consumer-card fulfillment-card ui-card"'))
+  assert.match(detail, /isUnshippedReturnConflict = \(sale\)/)
+  assert.match(detail, /订单尚未发货，无需寄回商品/)
+  assert.match(detail, /&& !isUnshippedReturnConflict\(sale\)" class="after-sale-return-address"/)
+  assert.match(detail, /6: '退款处理中'/)
+  assert.match(detail, /\.after-sale-record--active\s*\{[^}]*var\(--brand-primary\)/)
+})
+
 test('H5普通操作按钮与小程序等比自适应，复制不再显示为胶囊大按钮', async () => {
   const [list, detail, styles] = await Promise.all([
     read('src/views/OrdersView.vue'),

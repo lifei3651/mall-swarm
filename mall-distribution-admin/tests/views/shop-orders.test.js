@@ -63,6 +63,17 @@ describe('商城订单取消入口', () => {
     expect(source).toContain('[1, 2, 4].includes(Number(item.applyType))')
   })
 
+  it('仅平台对历史未发货待寄回单提供原单号直接退款并提示渠道异步状态', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+    const api = await readFile(resolve(process.cwd(), 'src/api/shop.js'), 'utf8')
+    expect(source).toContain('canRefundUnshippedWithoutReturn(row)')
+    expect(source).toContain('!isMerchantUser.value && canHandleAfterSale.value')
+    expect(source).toContain('Number(activeAfterSale(row)?.applyType) === 2 && Number(activeAfterSale(row)?.status) === 4')
+    expect(source).toContain('平台直接退款')
+    expect(source).toContain('请勿重复发起')
+    expect(api).toContain('/unshipped-refund`')
+  })
+
   it('订单奖金默认展示真实去向，并将技术追溯证据收进审计详情', async () => {
     const source = await readFile(sourcePath, 'utf8')
 

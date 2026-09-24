@@ -1316,6 +1316,13 @@ public class ShopController {
         return CommonResult.success(afterSaleService.confirmReturnReceived(id, dto));
     }
 
+    @Operation(summary = "平台纠正历史未发货待寄回售后，按原售后号免寄回直接退款")
+    @PutMapping("/admin/after-sales/{id}/unshipped-refund")
+    public CommonResult<DmsShopAfterSale> refundUnshippedWithoutReturn(@PathVariable Long id,
+                                                                        @Valid @RequestBody ShopAfterSaleAuditDTO dto) {
+        return CommonResult.success(afterSaleService.refundUnshippedWithoutReturn(id, dto));
+    }
+
 
     @Operation(summary = "后台发出同规格换货替换商品")
     @PutMapping("/admin/after-sales/{id}/exchange-shipment")

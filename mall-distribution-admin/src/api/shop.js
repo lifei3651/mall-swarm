@@ -515,6 +515,14 @@ export function confirmShopAfterSaleReturnReceived(id, data) {
   })
 }
 
+export function refundUnshippedShopAfterSale(id, data) {
+  return request({
+    url: `/shop/admin/after-sales/${id}/unshipped-refund`,
+    method: 'put',
+    data,
+  })
+}
+
 export function shipShopAfterSaleExchangeReplacement(id, data) {
   return request({
     url: `/shop/admin/after-sales/${id}/exchange-shipment`,

@@ -68,8 +68,19 @@ function deliverySummary(order, refunded) {
   return (STATUS_COPY[status] || ['', '订单状态更新后会在这里显示'])[1]
 }
 
-function statusCopy(order, shipments, refunded) {
+function unshippedReturnConflict(order, shipments, sale) {
+  return Number(order.status) === 1 && !shipments.length && !order.deliveryTime && !order.deliveryNo
+    && Number(sale?.applyType) === 2 && [4, 5].includes(Number(sale?.status))
+    && !sale?.returnShippedAt && !sale?.returnDeliveryNo
+}
+
+function statusCopy(order, shipments, refunded, activeSale, returnConflict) {
   if (refunded) return ['已退款', '退款已完成，详情见下方售后记录']
+  if (activeSale && Number(order.status) !== 4) {
+    return ['售后处理中', returnConflict
+      ? '订单尚未发货，无需寄回商品；请联系平台处理退款'
+      : `${AFTER_SALE_TYPE[Number(activeSale.applyType)] || '售后申请'} · ${AFTER_SALE_STATUS[Number(activeSale.status)] || '处理中'}`]
+  }
   const copy = STATUS_COPY[Number(order.status)] || ['订单处理中', '订单状态更新后会在这里显示']
   if (Number(order.status) === 2 && shipments.length) {
     const first = shipments[0]
@@ -169,7 +180,9 @@ Page({
           packageLabel: `包裹 ${index + 1}${shipment.shipmentQuantity ? ' · ' + shipment.shipmentQuantity + '件商品' : ''}`,
           deliveryTimeText: formatTime(shipment.deliveryTime)
         }))
-        const [statusTitle, statusDescription] = statusCopy(order, shipments, refunded)
+        const activeSale = (row.afterSales || []).find((sale) => [0, 4, 5, 6, 7, 8].includes(Number(sale.status)))
+        const returnConflict = activeSale && unshippedReturnConflict(order, shipments, activeSale)
+        const [statusTitle, statusDescription] = statusCopy(order, shipments, refunded, activeSale, returnConflict)
         const itemQuantity = (row.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)
         const paid = ![0, 4].includes(Number(order.status))
         return {
@@ -197,7 +210,7 @@ Page({
             ...order,
             id: identifier(order.id),
             status: Number(order.status),
-            statusText: refunded ? '已退款' : STATUS[Number(order.status)] || '处理中',
+            statusText: refunded ? '已退款' : activeSale && Number(order.status) !== 4 ? '售后处理中' : STATUS[Number(order.status)] || '处理中',
             statusTone: Number(order.status) === 4 ? 'closed' : 'active',
             statusTitle,
             statusDescription,
@@ -212,7 +225,7 @@ Page({
             addressText: addressText(order),
             maskedRecipient: [maskName(order.receiverName), maskPhone(order.receiverPhone)].filter(Boolean).join(' '),
             maskedAddress: maskedAddress(order),
-            deliverySummary: deliverySummary(order, refunded),
+            deliverySummary: activeSale && !refunded && Number(order.status) !== 4 ? statusDescription : deliverySummary(order, refunded),
             logisticsUpdateText: statusDescription
           },
           items: (row.items || []).map((item) => ({
@@ -231,9 +244,12 @@ Page({
             id: identifier(sale.id),
             status: Number(sale.status),
             applyType: Number(sale.applyType),
-            statusText: Number(sale.applyType) === 3 && Number(sale.status) === 1 ? '换货完成' : AFTER_SALE_STATUS[Number(sale.status)] || '处理中',
-            typeText: AFTER_SALE_TYPE[Number(sale.applyType)] || '售后申请',
+            statusText: unshippedReturnConflict(order, shipments, sale) ? '待平台核实' : Number(sale.applyType) === 3 && Number(sale.status) === 1 ? '换货完成' : AFTER_SALE_STATUS[Number(sale.status)] || '处理中',
+            typeText: unshippedReturnConflict(order, shipments, sale) ? '未发货退款申请' : AFTER_SALE_TYPE[Number(sale.applyType)] || '售后申请',
             statusTone: Number(sale.status) === 1 ? 'complete' : [2, 3].includes(Number(sale.status)) ? 'closed' : 'active',
+            nextActionText: unshippedReturnConflict(order, shipments, sale)
+              ? '订单尚未发货，无需寄回商品。请联系平台客服核实并按原支付方式退款。'
+              : displayText(sale.nextActionHint),
             amountText: format.money(sale.refundAmount),
             createTimeText: formatTime(sale.createTime),
             items: (sale.items || []).map((line) => ({
@@ -241,7 +257,7 @@ Page({
               displayName: [displayText(line.productName) || '订单商品', displayText(line.skuName)].filter(Boolean).join(' · ')
             })),
             cancellable: [0, 4].includes(Number(sale.status)),
-            canReturn: [2, 3].includes(Number(sale.applyType)) && [4, 5].includes(Number(sale.status)),
+            canReturn: !unshippedReturnConflict(order, shipments, sale) && [2, 3].includes(Number(sale.applyType)) && [4, 5].includes(Number(sale.status)),
             canReceiveExchange: Number(sale.applyType) === 3 && Number(sale.status) === 8,
             canReapply: Number(sale.status) === 2 && afterSaleEligibility(row).allowed,
             orderId: identifier(order.id)

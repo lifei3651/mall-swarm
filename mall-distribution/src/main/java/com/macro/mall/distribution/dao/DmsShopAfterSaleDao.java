@@ -60,6 +60,11 @@ public interface DmsShopAfterSaleDao {
     int updateAuditScoped(@Param("tenantId") Long tenantId, @Param("afterSale") DmsShopAfterSale afterSale);
     default int updateAudit(DmsShopAfterSale afterSale) { return updateAuditScoped(TenantContext.getTenantId(), afterSale); }
 
+    int startUnshippedNoReturnRefundScoped(@Param("tenantId") Long tenantId, @Param("afterSale") DmsShopAfterSale afterSale);
+    default int startUnshippedNoReturnRefund(DmsShopAfterSale afterSale) {
+        return startUnshippedNoReturnRefundScoped(TenantContext.getTenantId(), afterSale);
+    }
+
     int updateReturnShipmentScoped(@Param("tenantId") Long tenantId, @Param("afterSale") DmsShopAfterSale afterSale);
     default int updateReturnShipment(DmsShopAfterSale afterSale) { return updateReturnShipmentScoped(TenantContext.getTenantId(), afterSale); }
 

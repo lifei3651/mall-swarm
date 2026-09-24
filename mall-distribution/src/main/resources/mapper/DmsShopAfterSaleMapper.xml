@@ -186,6 +186,22 @@
                       AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
     </update>
 
+    <update id="startUnshippedNoReturnRefundScoped">
+        UPDATE dms_shop_after_sale
+        SET status = 6, audit_remark = #{afterSale.auditRemark},
+            audit_user_id = #{afterSale.auditUserId}, audit_user_name = #{afterSale.auditUserName},
+            audit_time = CURRENT_TIMESTAMP, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{afterSale.id} AND apply_type = 2 AND status = 4
+          AND return_shipped_at IS NULL AND return_delivery_no IS NULL
+          AND EXISTS (SELECT 1 FROM dms_shop_order scoped_order
+                      WHERE scoped_order.id = dms_shop_after_sale.order_id
+                        AND scoped_order.status = 1 AND scoped_order.delivery_time IS NULL
+                        AND (scoped_order.delivery_no IS NULL OR scoped_order.delivery_no = '')
+                        AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
+          AND NOT EXISTS (SELECT 1 FROM dms_shop_order_shipment shipment
+                          WHERE shipment.order_id = dms_shop_after_sale.order_id)
+    </update>
+
     <update id="updateReturnShipmentScoped">
         UPDATE dms_shop_after_sale
         SET status = #{afterSale.status}, return_delivery_company = #{afterSale.returnDeliveryCompany},

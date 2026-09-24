@@ -210,6 +210,7 @@ public class AdminSecurityConfig implements WebMvcConfigurer {
             if (path.matches("/shop/admin/orders/[^/]+/wechat-express/[^/]+")) return "撤销微信快递运单并回滚商城发货";
             if (path.equals("/shop/admin/orders/shipments/import")) return "Excel批量导入订单物流并发货";
             if (path.matches("/shop/admin/after-sales/[^/]+/audit")) return "审核商城售后";
+            if (path.matches("/shop/admin/after-sales/[^/]+/unshipped-refund")) return "平台免寄回直接退款";
             if (path.matches("/shop/admin/service-tickets/[^/]+/replies")) return "回复会员客服工单";
             if (path.matches("/shop/admin/reviews/[^/]+/status")) return "显示或隐藏商品评价";
             if (path.matches("/shop/admin/reviews/[^/]+/reply")) return "保存商品评价回复";

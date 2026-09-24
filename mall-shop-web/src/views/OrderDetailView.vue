@@ -23,6 +23,12 @@
           <p>{{ deliverySummary }}</p>
         </header>
 
+        <section v-if="afterSales.length" class="consumer-card compact-after-sales ui-card">
+          <h3>退款 / 售后进度</h3>
+          <p v-for="sale in afterSales" :key="sale.id" :class="{ 'is-active': [0, 4, 5, 6, 7, 8].includes(Number(sale.status)) }"><span>{{ afterSaleStatus(sale.status, sale.applyType, isUnshippedReturnConflict(sale)) }}</span><strong>{{ Number(sale.applyType) === 3 ? '同规格换货' : `¥${money(sale.refundAmount)}` }}</strong></p>
+          <p v-if="legacyUnshippedReturn" class="after-sale-no-return-notice">订单尚未发货，无需寄回商品。请联系平台客服核实并按原支付方式退款。</p>
+        </section>
+
         <section v-if="detail.memberIncome" class="consumer-card income-card ui-card">
           <button type="button" class="income-toggle" :aria-expanded="incomeExpanded" @click="incomeExpanded = !incomeExpanded">
             <span class="income-heading"><b>¥</b>我的结算收入</span>
@@ -87,11 +93,6 @@
           <p v-if="order.receiveTime"><span>签收时间</span><strong>{{ dateTime(order.receiveTime) }}</strong></p>
           <p><span>支付方式</span><strong>{{ payTypeName(order.payType) }}</strong></p>
           <p><span>商品数量</span><strong>{{ totalOrderQuantity }} 件</strong></p>
-        </section>
-
-        <section v-if="afterSales.length" class="consumer-card compact-after-sales ui-card">
-          <h3>退款 / 售后进度</h3>
-          <p v-for="sale in afterSales" :key="sale.id"><span>{{ afterSaleStatus(sale.status, sale.applyType) }}</span><strong>{{ sale.applyType === 3 ? '同规格换货' : `¥${money(sale.refundAmount)}` }}</strong></p>
         </section>
 
         <section v-if="order.status === 0" class="consumer-card pending-payment-card ui-card">
@@ -184,11 +185,11 @@
             </div>
             <span class="section-helper">进度实时更新</span>
           </div>
-          <div v-for="sale in afterSales" :key="sale.id" class="after-sale-record">
+          <div v-for="sale in afterSales" :key="sale.id" class="after-sale-record" :class="{ 'after-sale-record--active': [0, 4, 5, 6, 7, 8].includes(Number(sale.status)), 'after-sale-record--closed': [2, 3].includes(Number(sale.status)) }">
             <div class="after-sale-record-head">
               <span class="after-sale-status-dot" :class="`status-${sale.status}`"></span>
               <div class="after-sale-record-title">
-                <strong>{{ afterSaleStatus(sale.status, sale.applyType) }}</strong>
+                <strong>{{ afterSaleStatus(sale.status, sale.applyType, isUnshippedReturnConflict(sale)) }}</strong>
                 <span>申请单号 {{ sale.afterSaleNo }}</span>
               </div>
               <strong class="refund-total">{{ sale.applyType === 3 ? '同规格换货' : `¥${money(sale.refundAmount)}` }}</strong>
@@ -209,9 +210,9 @@
               <span class="progress-track"></span>
               <span class="progress-step" :class="{ complete: sale.status === 1 }">处理完成</span>
             </div>
-            <div v-if="sale.nextActionHint" class="after-sale-next-action" :class="{ overdue: sale.nextActionOverdue }">
-              <strong>{{ sale.nextActionHint }}</strong>
-              <span v-if="sale.nextActionDeadline">处理截止：{{ dateTime(sale.nextActionDeadline) }}</span>
+            <div v-if="sale.nextActionHint || isUnshippedReturnConflict(sale)" class="after-sale-next-action" :class="{ overdue: sale.nextActionOverdue && !isUnshippedReturnConflict(sale) }">
+              <strong>{{ isUnshippedReturnConflict(sale) ? '订单尚未发货，无需寄回商品。请联系平台客服处理退款。' : sale.nextActionHint }}</strong>
+              <span v-if="sale.nextActionDeadline && !isUnshippedReturnConflict(sale)">处理截止：{{ dateTime(sale.nextActionDeadline) }}</span>
             </div>
             <p v-if="sale.auditRemark" class="line-sub after-sale-audit-remark">处理说明：{{ sale.auditRemark }}</p>
             <p v-if="sale.applyType === 3" class="line-sub after-sale-amounts">同规格换货 {{ sale.refundQuantity || 0 }} 件 · 不退款 · 原订单金额与结算记录保持不变</p>
@@ -221,7 +222,7 @@
                 <img :src="memberProofUrl(filename)" alt="售后凭证图片" />
               </a>
             </div>
-            <div v-if="[2, 3].includes(sale.applyType) && [4, 5].includes(sale.status)" class="after-sale-return-address">
+            <div v-if="[2, 3].includes(Number(sale.applyType)) && [4, 5].includes(Number(sale.status)) && !isUnshippedReturnConflict(sale)" class="after-sale-return-address">
               <strong>{{ sale.status === 4 ? '请寄回商品' : '退货物流已提交' }}</strong>
               <span>{{ sale.returnAddress || '退货地址将在审核结果中显示，请留意订单更新' }}</span>
               <div
@@ -606,12 +607,16 @@ const logisticsStatusDescription = computed(() => {
 const isRefundedOrder = computed(() => Number(order.value?.status) === 4 && (detail.value.afterSales || [])
   .some((sale) => [1, 2, 4].includes(Number(sale.applyType)) && Number(sale.status) === 1))
 const orderStatusTitle = computed(() => isRefundedOrder.value ? '已退款'
+  : activeAfterSale.value && Number(order.value?.status) !== 4 ? '售后处理中'
   : ({ 0: '待付款', 1: '待发货', 2: '待收货', 3: '已完成', 4: '已取消', 5: '售后处理中' }[Number(order.value?.status)] || '订单处理中'))
 const orderDisplayStatus = computed(() => isRefundedOrder.value ? '已退款'
+  : activeAfterSale.value && Number(order.value?.status) !== 4 ? '售后处理中'
   : Number(order.value?.status) === 4 ? '已取消' : statusName(order.value?.status))
 const deliverySummary = computed(() => {
   if (isRefundedOrder.value) return '退款已完成，详情见下方售后记录'
   if (Number(order.value?.status) === 4) return '该订单已关闭，无需继续付款'
+  if (legacyUnshippedReturn.value) return '订单尚未发货，无需寄回商品；请联系平台处理退款'
+  if (activeAfterSale.value) return `${afterSaleStatus(activeAfterSale.value.status, activeAfterSale.value.applyType)} · 售后进度见下方`
   if (order.value?.receiveTime) return `商品已于 ${dateTime(order.value.receiveTime)} 送达`
   if (Number(order.value?.status) === 3) return '商品已完成签收'
   if (order.value?.deliveryTime) return `商品已于 ${dateTime(order.value.deliveryTime)} 发出`
@@ -663,6 +668,12 @@ const pendingReviewLink = computed(() => ({
   query: detail.value.pendingReviewOrderItemId ? { orderItemId: detail.value.pendingReviewOrderItemId } : {},
 }))
 const afterSales = computed(() => detail.value.afterSales || [])
+const activeAfterSale = computed(() => afterSales.value.find((sale) => [0, 4, 5, 6, 7, 8].includes(Number(sale.status))))
+const isUnshippedReturnConflict = (sale) => Number(order.value?.status) === 1
+  && !order.value?.deliveryTime && !order.value?.deliveryNo && !shipments.value.length
+  && Number(sale?.applyType) === 2 && [4, 5].includes(Number(sale?.status))
+  && !sale?.returnShippedAt && !sale?.returnDeliveryNo
+const legacyUnshippedReturn = computed(() => afterSales.value.some(isUnshippedReturnConflict))
 const hasActiveAfterSale = computed(() => afterSales.value
   .some((item) => [0, 4, 5, 6, 7, 8].includes(Number(item.status))))
 const proofFilenames = (sale) => {
@@ -818,9 +829,10 @@ const scrollToAfterSaleError = async (target) => {
   target?.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
 
-const afterSaleStatus = (status, applyType) => {
+const afterSaleStatus = (status, applyType, returnConflict = false) => {
+  if (returnConflict) return '未发货退款申请 · 待平台核实'
   if (Number(applyType) === 3 && Number(status) === 1) return '换货完成'
-  return ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '审核通过，待寄回', 5: '已寄回，待收货', 6: '已收货，退款中', 7: '退件已收，待换货发出', 8: '换货已发出，待收货' }[status] || '处理中')
+  return ({ 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '审核通过，待寄回', 5: '已寄回，待收货', 6: '退款处理中', 7: '退件已收，待换货发出', 8: '换货已发出，待收货' }[status] || '处理中')
 }
 const payTypeName = (value) => ({ WECHAT: '微信支付', ALIPAY: '支付宝', BALANCE: '余额' }[value] || value || '未选择')
 const copyText = async (text) => { try { await navigator.clipboard.writeText(text) } catch {} }
@@ -1249,6 +1261,8 @@ onBeforeUnmount(() => {
 .compact-after-sales { padding: 16px 19px; }
 .compact-after-sales h3 { margin: 0 0 8px; font-size: 16px; }
 .compact-after-sales > p { border-top: 1px solid #eef1f0; }
+.compact-after-sales > p.is-active { color: var(--brand-primary); }
+.compact-after-sales > p.after-sale-no-return-notice { display: block; color: #596564; line-height: 1.6; }
 .pending-payment-card { padding: 4px 19px 17px; }
 .consumer-error { color: #b42318; font-size: 12px; line-height: 1.55; }
 
@@ -1272,7 +1286,9 @@ onBeforeUnmount(() => {
 .after-sale-section-head h3 { margin: 3px 0 0; font-size: 18px; }
 .section-eyebrow { color: var(--brand-primary, #e7193f); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
 .section-helper { color: #9aa3ad; font-size: 12px; }
-.after-sale-record { padding: 16px; background: linear-gradient(145deg, #fff, #fff8f8); border: 1px solid #f3dce1; border-radius: 16px; box-shadow: 0 8px 20px rgba(231, 25, 63, .06); }
+.after-sale-record { padding: 16px; background: #f7f9f9; border: 1px solid #e4eceb; border-radius: 16px; box-shadow: 0 8px 20px rgba(24, 67, 62, .04); }
+.after-sale-record--active { border-left: 3px solid var(--brand-primary); }
+.after-sale-record--closed { background: #f4f5f6; border-color: #e6e9eb; }
 .after-sale-record + .after-sale-record { margin-top: 10px; }
 .after-sale-record-head { display: flex; align-items: center; gap: 10px; }
 .after-sale-status-dot { width: 10px; height: 10px; flex: 0 0 10px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 0 4px #fff3d6; }

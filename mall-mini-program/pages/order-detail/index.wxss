@@ -93,9 +93,9 @@
 .paid-amount { color:var(--brand); font-size:27rpx; font-weight:750; }
 
 .after-sale-list .section-title { margin-bottom:14rpx; }
-.after-sale-record { margin-top:14rpx; padding:20rpx; border-radius:18rpx; background:var(--brand-soft); }
-.after-sale-record--complete { background:#f4f7f7; }
-.after-sale-record--closed { background:#f4f5f6; }
+.after-sale-record { margin-top:14rpx; padding:20rpx; border-radius:18rpx; background:#f7f9f9; border-left:4rpx solid var(--brand); }
+.after-sale-record--complete { background:#f4f7f7; border-left-color:#cbd6d4; }
+.after-sale-record--closed { background:#f4f5f6; border-left-color:#a5aeac; }
 .after-sale-head,.after-sale-meta { display:flex; align-items:flex-start; justify-content:space-between; gap:20rpx; }
 .after-sale-head > view text { display:block; }
 .after-sale-head > view text:first-child { font-weight:700; }

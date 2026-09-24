@@ -35,6 +35,9 @@ public interface ShopAfterSaleService {
     /** 商家确认收到退货后，执行退款及库存、财务、奖金冲销。 */
     DmsShopAfterSale confirmReturnReceived(Long id, ShopAfterSaleAuditDTO dto);
 
+    /** 平台纠正历史未发货却进入待寄回的退款单；沿用原售后号直接走退款状态机。 */
+    DmsShopAfterSale refundUnshippedWithoutReturn(Long id, ShopAfterSaleAuditDTO dto);
+
     /** 商家收到换货退件后，发出同一订单规格的替换商品。 */
     DmsShopAfterSale shipExchangeReplacement(Long id, ShopAfterSaleExchangeShipmentDTO dto);
 
