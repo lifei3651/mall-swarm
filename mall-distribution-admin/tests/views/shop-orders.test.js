@@ -95,6 +95,11 @@ describe('商城订单取消入口', () => {
   it('物流批量发货同时提供预填发货表和独立空白导入模板', async () => {
     const source = await readFile(sourcePath, 'utf8')
 
+    expect(source).toContain("const showShipmentImportTools = computed(() => ['', 'PENDING_SHIPMENT'].includes(query.value.orderState) && merchantFulfillmentAllowed.value)")
+    expect(source.match(/v-if="showShipmentImportTools"/g)).toHaveLength(3)
+    expect(source).toContain('仅为现有且可发货的订单导入物流，不会新建订单')
+    expect(source).toContain('不可发货的行会跳过并列出原因')
+    expect(source).toMatch(/\.order-batch-actions :deep\(\.el-form-item__content\)\s*\{[^}]*flex-wrap: wrap;/)
     expect(source).toContain('下载发货表')
     expect(source).toContain('下载导入模板')
     expect(source).toContain('downloadOrderShipmentImportTemplate')
@@ -163,7 +168,7 @@ describe('商城订单取消入口', () => {
     expect(source).toContain('审核通过')
     expect(source).toContain('等待客户寄回')
     expect(source).toContain('确认退货并退款')
-    expect(source).toContain("query.orderState === 'PENDING_SHIPMENT'")
+    expect(source).toContain("['', 'PENDING_SHIPMENT'].includes(query.value.orderState)")
   })
 
   it('订单状态筛选包含独立的已发货入口', async () => {

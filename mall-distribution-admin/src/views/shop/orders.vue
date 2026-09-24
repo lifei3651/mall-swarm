@@ -34,7 +34,7 @@
         </el-form-item>
         <el-form-item class="order-batch-actions">
           <el-button :icon="Download" :loading="exportLoading" @click="handleExportOrders">导出订单</el-button>
-          <template v-if="query.orderState === 'PENDING_SHIPMENT' && merchantFulfillmentAllowed">
+          <template v-if="showShipmentImportTools">
           <el-tooltip content="表格只处理订单号、物流公司、物流单号和发货数量" placement="top">
             <el-button type="success" plain :icon="Download" :loading="templateLoading" @click="handleDownloadShipmentTemplate">下载发货表</el-button>
           </el-tooltip>
@@ -53,14 +53,14 @@
         </el-form-item>
       </el-form>
       <el-alert
-        v-if="query.orderState === 'PENDING_SHIPMENT'"
-        title="系统只读取订单号、物流公司、物流单号和发货数量。错误行会单独跳过，不影响其他正确行发货；拆成多个包裹时复制订单行，多个订单合箱时可填写相同物流信息。"
+        v-if="showShipmentImportTools"
+        title="仅为现有且可发货的订单导入物流，不会新建订单。系统只读取订单号、物流公司、物流单号和发货数量；不可发货的行会跳过并列出原因，其他正确行继续处理。拆成多个包裹时复制订单行，多个订单合箱时可填写相同物流信息。"
         type="info"
         :closable="false"
         show-icon
         class="shipping-workflow-tip"
       />
-      <div v-if="query.orderState === 'PENDING_SHIPMENT' && merchantFulfillmentAllowed" class="default-logistics-row">
+      <div v-if="showShipmentImportTools" class="default-logistics-row">
         <strong>导单默认物流商</strong>
         <el-select v-model="defaultLogisticsCompany" filterable placeholder="请选择默认物流公司" style="width:220px">
           <el-option v-for="company in logisticsCompanyOptions" :key="company" :label="company" :value="company" />
@@ -866,6 +866,7 @@ const initialOrderState = orderStateOptions.value.some((item) => item.value === 
   ? String(route.query.orderState)
   : ''
 const query = ref({ keyword: '', orderState: initialOrderState })
+const showShipmentImportTools = computed(() => ['', 'PENDING_SHIPMENT'].includes(query.value.orderState) && merchantFulfillmentAllowed.value)
 const pagination = ref({ page: 1, size: 10, total: 0 })
 const shipDialogVisible = ref(false)
 const shipSubmitting = ref(false)
@@ -1216,7 +1217,7 @@ const saveLogisticsPreference = async () => {
 const handleShipmentImport = async ({ file }) => {
   try {
     await ElMessageBox.confirm(
-      `确认导入“${file.name}”吗？系统只读取订单号、物流公司、物流单号和发货数量。`,
+      `确认导入“${file.name}”吗？此操作只为现有且可发货的订单录入物流，不会新建订单；不可发货的行会跳过并列出原因。`,
       '导入物流并发货',
       { type: 'warning', confirmButtonText: '确认导入', cancelButtonText: '取消' },
     )
@@ -1939,6 +1940,7 @@ onBeforeUnmount(() => {
 
 .order-batch-actions :deep(.el-form-item__content) {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
