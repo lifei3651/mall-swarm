@@ -13,6 +13,7 @@ import com.macro.mall.distribution.entity.DmsFlashSaleReservation;
 import com.macro.mall.distribution.entity.DmsShopAfterSale;
 import com.macro.mall.distribution.entity.DmsShopAfterSaleItem;
 import com.macro.mall.distribution.entity.DmsShopOrder;
+import com.macro.mall.distribution.entity.DmsShopOrderShipment;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -52,7 +53,9 @@ public class RefundInventoryRestockService {
         boolean physicalReturn = Integer.valueOf(2).equals(afterSale.getApplyType());
         boolean beforeAnyShipment = Integer.valueOf(1).equals(order.getStatus())
                 && order.getDeliveryTime() == null
-                && orderShipmentDao.sumQuantityByOrderId(order.getId()) == 0;
+                && (order.getDeliveryNo() == null || order.getDeliveryNo().isBlank())
+                && orderShipmentDao.sumQuantityByOrderId(order.getId()) == 0
+                && noShipmentRecord(order.getId());
         // 已发货的历史仅退款和异常退款没有商品退回，不能增加可售库存。
         if (!physicalReturn && !beforeAnyShipment) return 0;
 
@@ -76,6 +79,11 @@ public class RefundInventoryRestockService {
                 "退款完成后回补可售库存；售后单=" + afterSale.getAfterSaleNo()
                         + "；订单号=" + order.getOrderNo());
         return restoredQuantity;
+    }
+
+    private boolean noShipmentRecord(Long orderId) {
+        List<DmsShopOrderShipment> shipments = orderShipmentDao.selectByOrderId(orderId);
+        return shipments == null || shipments.isEmpty();
     }
 
     private void releaseFlashSaleAfterRefund(DmsShopOrder order, int restoredQuantity) {

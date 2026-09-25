@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 import java.math.BigDecimal;
 import java.util.List;
+import org.mockito.ArgumentCaptor;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -70,6 +71,37 @@ class RefundQuantityBoundaryTest {
         assertThrows(ApiException.class, () -> fixture.service.cancelPendingShipment(1L, 7L, "测试管理员"));
         verify(fixture.orderDao).selectByIdForUpdate(1L);
         verifyNoInteractions(fixture.itemDao, fixture.saleDao);
+    }
+
+    @Test void legacyWaybillDoesNotRefundFreightForLogisticsException() {
+        Fixture fixture = new Fixture();
+        DmsShopOrder order = fixture.orderDao.selectByIdForUpdate(1L);
+        order.setDeliveryNo("YT-LEGACY");
+        order.setFreightAmount(new BigDecimal("2.00"));
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
+        apply.setOrderId(1L);
+        apply.setApplyType(4);
+        apply.setReason("物流停滞 / 未收到货");
+        apply.setItems(List.of(line(1L, 1)));
+
+        assertThrows(ApiException.class, () -> fixture.service.apply(fixture.member, apply));
+        ArgumentCaptor<DmsShopAfterSale> inserted = ArgumentCaptor.forClass(DmsShopAfterSale.class);
+        verify(fixture.saleDao).insert(inserted.capture());
+        assertEquals(0, inserted.getValue().getFreightRefundAmount().compareTo(BigDecimal.ZERO));
+    }
+
+    @Test void zeroQuantityShipmentRecordCannotBeTreatedAsUnshippedCancellation() {
+        Fixture fixture = new Fixture();
+        when(fixture.shipmentDao.selectByOrderId(1L))
+                .thenReturn(List.of(new DmsShopOrderShipment()));
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
+        apply.setOrderId(1L);
+        apply.setApplyType(4);
+        apply.setReason("取消未发货订单");
+        apply.setItems(List.of(line(1L, 1)));
+
+        assertThrows(ApiException.class, () -> fixture.service.apply(fixture.member, apply));
+        verify(fixture.saleDao, never()).insert(any());
     }
 
     static ShopAfterSaleItemDTO line(Long id, int quantity) {

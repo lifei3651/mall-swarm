@@ -175,10 +175,12 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         Map<Long, Integer> selected = ShopQuantityChecks.refundSelection(dto.getItems());
 
         int shippedQuantity = orderShipmentDao.sumQuantityByOrderId(order.getId());
+        List<DmsShopOrderShipment> shipments = orderShipmentDao.selectByOrderId(order.getId());
         boolean shippingStarted = Integer.valueOf(2).equals(order.getStatus())
                 || Integer.valueOf(3).equals(order.getStatus())
                 || shippedQuantity > 0 || order.getDeliveryTime() != null
-                || (order.getDeliveryNo() != null && !order.getDeliveryNo().isBlank());
+                || (order.getDeliveryNo() != null && !order.getDeliveryNo().isBlank())
+                || (shipments != null && !shipments.isEmpty());
         if (applyType == 2 && !shippingStarted) {
             Asserts.fail("商品尚未发货，请使用取消并退款申请");
         }
@@ -246,9 +248,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         lastItem.setRefundAmount(lastItem.getRefundAmount().add(allocationDifference));
 
         // 未发货且退完剩余全部商品时自动退还运费；一旦发货，原发货运费锁定为不可退。
-        boolean notShipped = Integer.valueOf(1).equals(order.getStatus())
-                && order.getDeliveryTime() == null
-                && orderShipmentDao.sumQuantityByOrderId(order.getId()) == 0;
+        boolean notShipped = Integer.valueOf(1).equals(order.getStatus()) && !shippingStarted;
         BigDecimal freightRefund = notShipped && refundAllRemaining ? nullToZero(order.getFreightAmount()) : BigDecimal.ZERO;
         BigDecimal amount = productRefund.add(freightRefund).setScale(2, java.math.RoundingMode.HALF_UP);
         if (applyType == 3) {

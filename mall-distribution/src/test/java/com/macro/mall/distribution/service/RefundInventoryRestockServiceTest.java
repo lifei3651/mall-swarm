@@ -13,6 +13,7 @@ import com.macro.mall.distribution.entity.DmsFlashSaleReservation;
 import com.macro.mall.distribution.entity.DmsShopAfterSale;
 import com.macro.mall.distribution.entity.DmsShopAfterSaleItem;
 import com.macro.mall.distribution.entity.DmsShopOrder;
+import com.macro.mall.distribution.entity.DmsShopOrderShipment;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -84,6 +85,37 @@ class RefundInventoryRestockServiceTest {
         when(fixture.afterSaleItemDao.selectByAfterSaleId(1L)).thenReturn(List.of(item(10L, null, 1)));
 
         assertEquals(0, fixture.service.restoreAfterRefundCompleted(afterSale, order));
+
+        verifyNoInteractions(fixture.productDao, fixture.skuDao,
+                fixture.flashSaleActivityDao, fixture.flashSaleReservationDao,
+                fixture.flashSaleStockGate, fixture.operationLogService);
+    }
+
+    @Test
+    void legacyWaybillPreventsAbnormalRefundFromRestocking() {
+        Fixture fixture = new Fixture();
+        DmsShopOrder order = order(1);
+        order.setDeliveryNo("YT-LEGACY");
+        when(fixture.afterSaleItemDao.selectByAfterSaleId(1L))
+                .thenReturn(List.of(item(10L, null, 1)));
+
+        assertEquals(0, fixture.service.restoreAfterRefundCompleted(afterSale(4), order));
+
+        verifyNoInteractions(fixture.productDao, fixture.skuDao,
+                fixture.flashSaleActivityDao, fixture.flashSaleReservationDao,
+                fixture.flashSaleStockGate, fixture.operationLogService);
+    }
+
+    @Test
+    void shipmentRecordWithZeroSummedQuantityPreventsAbnormalRefundRestock() {
+        Fixture fixture = new Fixture();
+        when(fixture.afterSaleItemDao.selectByAfterSaleId(1L))
+                .thenReturn(List.of(item(10L, null, 1)));
+        when(fixture.orderShipmentDao.sumQuantityByOrderId(2L)).thenReturn(0);
+        when(fixture.orderShipmentDao.selectByOrderId(2L))
+                .thenReturn(List.of(new DmsShopOrderShipment()));
+
+        assertEquals(0, fixture.service.restoreAfterRefundCompleted(afterSale(4), order(1)));
 
         verifyNoInteractions(fixture.productDao, fixture.skuDao,
                 fixture.flashSaleActivityDao, fixture.flashSaleReservationDao,
