@@ -68,7 +68,7 @@ public class OrderBalanceAllocationServiceImpl implements OrderBalanceAllocation
     @Override
     @Transactional(rollbackFor = Exception.class)
     public List<DmsOrderBalanceAllocation> prepareForOrder(Long orderId) {
-        DmsShopOrder order = orderDao.selectById(orderId);
+        DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
         if (order == null || order.getPayTime() == null || order.getStatus() == null
                 || order.getStatus() < 1 || order.getStatus() > 3) {
             return List.of();
@@ -126,14 +126,20 @@ public class OrderBalanceAllocationServiceImpl implements OrderBalanceAllocation
     }
 
     private boolean settleOne(Long allocationId) {
+        // 退款会先锁订单再锁归集明细；结算必须同序，避免冷静期边界并发死锁。
+        Long orderId = allocationDao.selectOrderIdById(TenantContext.getTenantId(), allocationId);
+        if (orderId == null) return false;
+        DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
+        if (order == null) return false;
         DmsOrderBalanceAllocation allocation = allocationDao.selectByIdForUpdate(allocationId);
         if (allocation == null || !Integer.valueOf(0).equals(allocation.getStatus())
+                || !orderId.equals(allocation.getOrderId())
+                || !TenantContext.getTenantId().equals(allocation.getTenantId() == null ? 1L : allocation.getTenantId())
                 || nullToZero(allocation.getCurrentAmount()).compareTo(BigDecimal.ZERO) <= 0) {
             return false;
         }
-        DmsShopOrder order = orderDao.selectByIdForUpdate(allocation.getOrderId());
         LocalDateTime now = LocalDateTime.now();
-        if (order == null || !Integer.valueOf(3).equals(order.getStatus()) || order.getReceiveTime() == null) return false;
+        if (!Integer.valueOf(3).equals(order.getStatus()) || order.getReceiveTime() == null) return false;
         LocalDateTime afterSaleDeadline = afterSaleWindowPolicy.deadline(order);
         if (afterSaleDeadline != null && now.isBefore(afterSaleDeadline)) return false;
         if (afterSaleDao.selectOpenByOrderId(order.getId()) != null) return false;
@@ -151,13 +157,14 @@ public class OrderBalanceAllocationServiceImpl implements OrderBalanceAllocation
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void recalculateAfterRefund(Long orderId, Long refundId) {
+        DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
+        if (order == null) return;
         List<DmsOrderBalanceAllocation> rows = allocationDao.selectByOrderId(orderId);
         if (rows.isEmpty()) rows = prepareForOrder(orderId);
         if (rows.isEmpty()) return;
 
-        DmsShopOrder order = orderDao.selectById(orderId);
         DmsOrderFinance finance = financeDao.selectByOrderId(orderId);
-        if (order == null || finance == null) return;
+        if (finance == null) return;
         AllocationAmounts amounts = calculateAmounts(order, finance);
 
         for (DmsOrderBalanceAllocation summary : rows) {

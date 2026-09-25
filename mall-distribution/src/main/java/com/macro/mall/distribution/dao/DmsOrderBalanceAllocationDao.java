@@ -18,6 +18,8 @@ public interface DmsOrderBalanceAllocationDao {
 
     DmsOrderBalanceAllocation selectByIdForUpdate(@Param("id") Long id);
 
+    Long selectOrderIdById(@Param("tenantId") Long tenantId, @Param("id") Long id);
+
     List<Long> selectMissingOrderIds(@Param("tenantId") Long tenantId,
                                      @Param("limit") int limit);
 

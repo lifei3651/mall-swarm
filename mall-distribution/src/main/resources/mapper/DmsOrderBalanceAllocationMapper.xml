@@ -48,6 +48,12 @@
         FOR UPDATE
     </select>
 
+    <select id="selectOrderIdById" resultType="java.lang.Long">
+        SELECT order_id
+        FROM dms_order_balance_allocation
+        WHERE id = #{id} AND COALESCE(tenant_id, 1) = #{tenantId}
+    </select>
+
     <select id="selectMissingOrderIds" resultType="long">
         SELECT o.id
         FROM dms_shop_order o
