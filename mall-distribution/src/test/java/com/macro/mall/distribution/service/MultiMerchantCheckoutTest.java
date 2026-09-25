@@ -97,6 +97,33 @@ class MultiMerchantCheckoutTest {
     }
 
     @Test
+    void paymentChannelCannotAcknowledgeAlreadyPaidParentTradeFromAnotherChannel() {
+        when(tradeDao.selectByIdForUpdate(10L)).thenReturn(trade(1, "150.00"));
+        when(orderDao.selectByTradeIdForUpdate(10L)).thenReturn(List.of(
+                child(11L, "60.00"), child(12L, "90.00")));
+
+        assertThrows(ApiException.class, () -> shopService.markCheckoutPaid(10L, "WECHAT"));
+
+        verify(shopService, never()).getOrder(anyLong());
+        verify(tradeDao, never()).markPaid(anyLong(), anyString());
+    }
+
+    @Test
+    void paymentChannelCannotOverrideOrAcknowledgeSingleOrderFromAnotherChannel() {
+        DmsShopOrder order = child(11L, "60.00");
+        order.setTradeId(null);
+        order.setPayType("WECHAT");
+        when(orderDao.selectByIdForUpdate(11L)).thenReturn(order);
+
+        assertThrows(ApiException.class, () -> shopService.markOrderPaid(11L, "ALIPAY"));
+        order.setStatus(1);
+        assertThrows(ApiException.class, () -> shopService.markOrderPaid(11L, "ALIPAY"));
+
+        verify(shopService, never()).getOrder(anyLong());
+        verify(orderDao, never()).markPaid(anyLong(), anyString());
+    }
+
+    @Test
     void changedChildPaymentNumberStopsWholeCheckout() {
         DmsShopOrder first = child(11L, "60.00");
         DmsShopOrder second = child(12L, "90.00");

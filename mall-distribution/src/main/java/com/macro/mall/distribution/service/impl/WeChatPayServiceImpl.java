@@ -346,6 +346,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
 
     private void validatePaymentResult(WeChatPayGateway.PaymentResult result, PaymentTarget target) {
         if (target == null) Asserts.fail("微信支付订单不存在");
+        if (!"WECHAT".equalsIgnoreCase(target.payType())) Asserts.fail("该订单不是微信支付");
         if (!target.paymentNo().equals(result.paymentNo())) Asserts.fail("微信支付单号不匹配");
         if (!miniProgramProperties.getAppId().trim().equals(result.appId())) Asserts.fail("微信支付AppID不匹配");
         if (!payProperties.getMchId().trim().equals(result.mchId())) Asserts.fail("微信支付商户号不匹配");

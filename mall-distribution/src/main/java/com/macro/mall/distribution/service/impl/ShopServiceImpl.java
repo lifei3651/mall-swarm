@@ -1726,6 +1726,7 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("订单不存在");
         }
         assertTenantAccess(order.getTenantId());
+        assertSelectedPaymentChannel(order.getPayType(), payType);
         if (Integer.valueOf(1).equals(order.getStatus())
                 || Integer.valueOf(2).equals(order.getStatus())
                 || Integer.valueOf(3).equals(order.getStatus())) {
@@ -1817,12 +1818,10 @@ public class ShopServiceImpl implements ShopService {
         assertTenantAccess(trade.getTenantId());
         List<DmsShopOrder> children = orderDao.selectByTradeIdForUpdate(checkoutId);
         if (children.isEmpty()) Asserts.fail("支付交易没有履约子订单");
+        String normalizedPayType = payType == null ? "" : payType.trim().toUpperCase(Locale.ROOT);
+        assertSelectedPaymentChannel(trade.getPayType(), normalizedPayType);
         if (Integer.valueOf(1).equals(trade.getStatus())) return checkoutResult(trade);
         if (!Integer.valueOf(0).equals(trade.getStatus())) Asserts.fail("当前交易状态不能支付");
-        String normalizedPayType = payType == null ? "" : payType.trim().toUpperCase(Locale.ROOT);
-        if (!normalizedPayType.equalsIgnoreCase(trade.getPayType())) {
-            Asserts.fail("支付方式与交易父单不一致，已停止支付");
-        }
 
         BigDecimal childPayTotal = children.stream().map(DmsShopOrder::getPayAmount)
                 .map(this::money).reduce(ZERO, BigDecimal::add);
@@ -1843,6 +1842,16 @@ public class ShopServiceImpl implements ShopService {
         }
         if (tradeDao.markPaid(checkoutId, normalizedPayType) != 1) Asserts.fail("交易父单支付状态更新失败");
         return checkoutResult(tradeDao.selectById(checkoutId));
+    }
+
+    private void assertSelectedPaymentChannel(String selectedPayType, String actualPayType) {
+        if (actualPayType == null || actualPayType.isBlank()) Asserts.fail("支付方式不能为空");
+        // 开发环境的模拟支付入口允许覆盖提交订单时选择的支付方式，正式环境已禁用该入口。
+        if ("SIMULATED".equalsIgnoreCase(actualPayType)) return;
+        if (selectedPayType != null && !selectedPayType.isBlank()
+                && !selectedPayType.equalsIgnoreCase(actualPayType)) {
+            Asserts.fail("支付方式与订单选择的不一致，已停止支付");
+        }
     }
 
     private ShopOrderVO checkoutResult(DmsShopTrade trade) {

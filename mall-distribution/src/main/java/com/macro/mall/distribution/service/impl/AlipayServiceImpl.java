@@ -169,6 +169,10 @@ public class AlipayServiceImpl implements AlipayService {
                 log.error("支付宝回调订单不存在: outTradeNo={}", outTradeNo);
                 return "failure";
             }
+            if (!isSelectedAlipay(trade, order)) {
+                log.error("支付宝回调支付方式与订单不一致: outTradeNo={}", outTradeNo);
+                return "failure";
+            }
 
             // 5. 验证金额
             BigDecimal notifyAmount = new BigDecimal(totalAmount);
@@ -279,6 +283,10 @@ public class AlipayServiceImpl implements AlipayService {
                 log.warn("支付宝同步回跳查询订单不存在: orderNo={}", orderNo);
                 return false;
             }
+            if (!isSelectedAlipay(trade, order)) {
+                log.warn("支付宝同步回跳查询支付方式与订单不一致: orderNo={}", orderNo);
+                return false;
+            }
             Integer localStatus = trade == null ? order.getStatus() : trade.getStatus();
             if (Integer.valueOf(0).equals(localStatus)) {
                 if (trade == null) shopService.markOrderPaid(order.getId(), "ALIPAY");
@@ -300,6 +308,11 @@ public class AlipayServiceImpl implements AlipayService {
             log.error("支付宝同步回跳查询异常: orderNo={}", orderNo, e);
             return false;
         }
+    }
+
+    private boolean isSelectedAlipay(DmsShopTrade trade, DmsShopOrder order) {
+        String selectedPayType = trade != null ? trade.getPayType() : order == null ? null : order.getPayType();
+        return "ALIPAY".equalsIgnoreCase(selectedPayType);
     }
 
     private boolean isUnpaidClosed(DmsShopTrade trade, DmsShopOrder order) {

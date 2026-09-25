@@ -220,12 +220,12 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
         if (order == null) return payCheckout(current, orderId, dto);
         if (!current.getUserId().equals(order.getUserId())) Asserts.fail("不能支付他人的订单");
+        if (!"BALANCE".equalsIgnoreCase(order.getPayType())) {
+            Asserts.fail("该订单选择的不是余额支付");
+        }
         if (!ShopOrderStatusEnum.PENDING_PAYMENT.matches(order.getStatus())) {
             if (ShopOrderStatusEnum.isPaidLifecycle(order.getStatus())) return shopService.getOrder(orderId);
             Asserts.fail("当前订单状态不能支付");
-        }
-        if (!"BALANCE".equalsIgnoreCase(order.getPayType())) {
-            Asserts.fail("该订单选择的不是余额支付");
         }
 
         verifyPaymentPassword(current, dto.getPaymentPassword());
@@ -249,11 +249,11 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         DmsShopTrade trade = tradeDao.selectByIdForUpdate(checkoutId);
         if (trade == null) Asserts.fail("订单或支付交易不存在");
         if (!current.getUserId().equals(trade.getUserId())) Asserts.fail("不能支付他人的订单");
+        if (!"BALANCE".equalsIgnoreCase(trade.getPayType())) Asserts.fail("该交易选择的不是余额支付");
         if (!Integer.valueOf(0).equals(trade.getStatus())) {
             if (Integer.valueOf(1).equals(trade.getStatus())) return shopService.markCheckoutPaid(checkoutId, "BALANCE");
             Asserts.fail("当前交易状态不能支付");
         }
-        if (!"BALANCE".equalsIgnoreCase(trade.getPayType())) Asserts.fail("该交易选择的不是余额支付");
 
         verifyPaymentPassword(current, dto.getPaymentPassword());
         BigDecimal amount = MoneyValidationUtils.requirePositiveAmount(

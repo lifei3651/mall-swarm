@@ -107,6 +107,17 @@ class AlipayNotifyFailureTest {
     }
 
     @Test
+    void callbackForAnotherSelectedPaymentChannelIsRejected() {
+        AlipayServiceImpl service = service(true);
+        DmsShopOrder order = pendingOrder();
+        order.setPayType("WECHAT");
+        when(orderDao.selectByOrderNoForUpdate("ORDER-1")).thenReturn(order);
+
+        assertEquals("failure", service.handleNotify(validParams()));
+        verify(shopService, never()).markOrderPaid(anyLong(), anyString());
+    }
+
+    @Test
     void duplicateSuccessfulNotificationReturnsSuccessWithoutProcessingAgain() {
         AlipayServiceImpl service = service(true);
         DmsShopOrder paidOrder = pendingOrder();
@@ -241,6 +252,21 @@ class AlipayNotifyFailureTest {
         verify(orderDao, times(1)).markLateRefunded(101L);
     }
 
+    @Test
+    void synchronousReconciliationRejectsAnotherSelectedPaymentChannel() throws Exception {
+        AlipayServiceImpl service = spy(service(true));
+        AlipayTradeQueryResponse response = mock(AlipayTradeQueryResponse.class);
+        when(response.isSuccess()).thenReturn(true);
+        when(response.getTradeStatus()).thenReturn("TRADE_SUCCESS");
+        doReturn(response).when(service).executeTradeQuery("ORDER-1");
+        DmsShopTrade trade = pendingTrade();
+        trade.setPayType("WECHAT");
+        when(tradeDao.selectByTradeNoForUpdate("ORDER-1")).thenReturn(trade);
+
+        assertEquals(false, service.reconcileOrderFromQuery("ORDER-1"));
+        verify(shopService, never()).markCheckoutPaid(anyLong(), anyString());
+    }
+
     private AlipayServiceImpl service(boolean signatureValid) {
         return new AlipayServiceImpl(config, orderDao, tradeDao, shopService, new ObjectMapper()) {
             @Override
@@ -266,6 +292,7 @@ class AlipayNotifyFailureTest {
         order.setId(101L);
         order.setOrderNo("ORDER-1");
         order.setStatus(0);
+        order.setPayType("ALIPAY");
         order.setPayAmount(new BigDecimal("99.00"));
         return order;
     }
@@ -275,6 +302,7 @@ class AlipayNotifyFailureTest {
         trade.setId(201L);
         trade.setTradeNo("ORDER-1");
         trade.setStatus(0);
+        trade.setPayType("ALIPAY");
         trade.setPayAmount(new BigDecimal("99.00"));
         return trade;
     }

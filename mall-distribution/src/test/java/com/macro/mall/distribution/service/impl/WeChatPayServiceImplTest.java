@@ -146,6 +146,17 @@ class WeChatPayServiceImplTest {
     }
 
     @Test
+    void signedNotificationForAnotherSelectedChannelNeverMarksOrderPaid() {
+        order.setPayType("ALIPAY");
+        when(gateway.parsePaymentNotification(any())).thenReturn(paymentResult(1990));
+        when(tradeDao.selectByTradeNoForUpdate("L202608300001")).thenReturn(null);
+        when(orderDao.selectByOrderNoForUpdate("L202608300001")).thenReturn(order);
+
+        assertThrows(ApiException.class, () -> service.handlePaymentNotification(notification()));
+        verify(shopService, never()).markOrderPaid(any(), any());
+    }
+
+    @Test
     void amountMismatchNeverMarksOrderPaid() {
         when(gateway.parsePaymentNotification(any())).thenReturn(paymentResult(1));
         when(tradeDao.selectByTradeNoForUpdate("L202608300001")).thenReturn(null);
