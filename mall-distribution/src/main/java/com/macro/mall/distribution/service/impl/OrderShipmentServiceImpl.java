@@ -37,12 +37,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -86,10 +84,10 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
         if (order == null) Asserts.fail("订单不存在");
         assertTenant(order);
         assertMerchantFulfillment(order);
-        ShipmentValues probe = normalize(dto == null ? null : dto.getDeliveryCompany(),
-                dto == null ? null : dto.getDeliveryNo(), 1);
-        if (shipmentExists(order, probe)) return true;
         Integer quantity = dto == null ? null : dto.getShipmentQuantity();
+        ShipmentValues probe = normalize(dto == null ? null : dto.getDeliveryCompany(),
+                dto == null ? null : dto.getDeliveryNo(), quantity == null ? 1 : quantity);
+        if (shipmentExists(order, probe, quantity)) return true;
         ShipmentValues shipment = normalize(probe.company(), probe.deliveryNo(),
                 quantity == null ? remainingQuantity(order) : quantity);
         return applyShipment(order, shipment, source, true);
@@ -104,8 +102,9 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
         DmsShopOrder order = orderDao.selectByOrderNoForUpdate(normalizedOrderNo);
         if (order == null) Asserts.fail("商城订单不存在");
         assertTenant(order);
-        ShipmentValues probe = normalize(deliveryCompany, deliveryNo, 1);
-        if (shipmentExists(order, probe)) return true;
+        ShipmentValues probe = normalize(deliveryCompany, deliveryNo,
+                shipmentQuantity == null ? 1 : shipmentQuantity);
+        if (shipmentExists(order, probe, shipmentQuantity)) return true;
         ShipmentValues shipment = normalize(probe.company(), probe.deliveryNo(),
                 shipmentQuantity == null ? remainingQuantity(order) : shipmentQuantity);
         return applyShipment(order, shipment, "ERP:" + safeSource(providerCode), true);
@@ -123,7 +122,7 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
             return finishFailure(result);
         }
 
-        Set<String> shipmentRows = new HashSet<>();
+        Map<String, Integer> shipmentRows = new HashMap<>();
         Map<String, DmsShopOrder> ordersByNo = new HashMap<>();
         Map<String, Integer> orderedQuantities = new HashMap<>();
         Map<String, Integer> shippedQuantities = new HashMap<>();
@@ -146,14 +145,6 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
                 continue;
             }
 
-            String shipmentRowKey = orderNo.toLowerCase(Locale.ROOT) + "\n"
-                    + shipment.company().toLowerCase(Locale.ROOT) + "\n"
-                    + shipment.deliveryNo().toLowerCase(Locale.ROOT);
-            if (!shipmentRows.add(shipmentRowKey)) {
-                result.setSkippedCount(result.getSkippedCount() + 1);
-                continue;
-            }
-
             DmsShopOrder order = ordersByNo.get(orderNo);
             if (order == null) {
                 order = orderDao.selectByOrderNoForUpdate(orderNo);
@@ -173,8 +164,13 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
                 addError(result, row, ex.getMessage());
                 continue;
             }
-            if (shipmentExists(order, shipment)) {
-                result.setSkippedCount(result.getSkippedCount() + 1);
+            try {
+                if (shipmentExists(order, shipment, shipment.quantity())) {
+                    result.setSkippedCount(result.getSkippedCount() + 1);
+                    continue;
+                }
+            } catch (ApiException ex) {
+                addError(result, row, ex.getMessage());
                 continue;
             }
             if (hasOpenAfterSale(order)) {
@@ -184,6 +180,15 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
             if (!canAddShipment(order)) {
                 addError(result, row, Integer.valueOf(3).equals(order.getStatus())
                         ? "订单已经完成，不能再添加物流包裹" : "当前订单状态不能发货");
+                continue;
+            }
+            String shipmentRowKey = orderNo.toLowerCase(Locale.ROOT) + "\n"
+                    + shipment.company().toLowerCase(Locale.ROOT) + "\n"
+                    + shipment.deliveryNo().toLowerCase(Locale.ROOT);
+            Integer firstQuantity = shipmentRows.get(shipmentRowKey);
+            if (firstQuantity != null) {
+                if (firstQuantity == shipment.quantity()) result.setSkippedCount(result.getSkippedCount() + 1);
+                else addError(result, row, "同一物流单号的发货数量不一致，请核对后重新导入");
                 continue;
             }
             if (!orderedQuantities.containsKey(orderNo)) {
@@ -202,6 +207,7 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
                         + Math.max(0, orderedQuantity - shippedQuantity - batchQuantity) + " 件）");
                 continue;
             }
+            shipmentRows.put(shipmentRowKey, shipment.quantity());
             batchQuantities.put(orderNo, batchQuantity + shipment.quantity());
             prepared.add(new PreparedShipment(row, order, shipment));
         }
@@ -228,7 +234,7 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
     }
 
     private boolean applyShipment(DmsShopOrder order, ShipmentValues shipment, String source, boolean failOnConflict) {
-        if (shipmentExists(order, shipment)) return true;
+        if (shipmentExists(order, shipment, shipment.quantity())) return true;
         if (hasOpenAfterSale(order)) {
             if (failOnConflict) Asserts.fail(openAfterSaleShipmentMessage());
             return false;
@@ -397,12 +403,24 @@ public class OrderShipmentServiceImpl implements OrderShipmentService {
         return "订单正在售后处理中，暂不能发货；售后取消或驳回后可继续发货";
     }
 
-    private boolean shipmentExists(DmsShopOrder order, ShipmentValues shipment) {
-        if (shipment.company().equalsIgnoreCase(trim(order.getDeliveryCompany()))
-                && shipment.deliveryNo().equalsIgnoreCase(trim(order.getDeliveryNo()))) {
+    private boolean shipmentExists(DmsShopOrder order, ShipmentValues shipment, Integer requestedQuantity) {
+        DmsShopOrderShipment existing = shipmentDao.selectByOrderAndTracking(
+                order.getId(), shipment.company(), shipment.deliveryNo());
+        if (existing != null) {
+            if (requestedQuantity != null && !requestedQuantity.equals(existing.getShipmentQuantity())) {
+                Asserts.fail("同一物流单号已有不同发货数量，请核对后更正，不得重复发货");
+            }
             return true;
         }
-        return shipmentDao.selectByOrderAndTracking(order.getId(), shipment.company(), shipment.deliveryNo()) != null;
+        if (shipment.company().equalsIgnoreCase(trim(order.getDeliveryCompany()))
+                && shipment.deliveryNo().equalsIgnoreCase(trim(order.getDeliveryNo()))) {
+            // 旧订单只有主表运单字段，没有包裹数量快照；仅当显式数量等于当前整单可发数量时接受重试。
+            if (requestedQuantity != null && requestedQuantity != shippableQuantity(order)) {
+                Asserts.fail("历史运单没有包裹数量记录，本次发货数量与整单数量不符，请人工核对");
+            }
+            return true;
+        }
+        return false;
     }
 
     private void assertTenant(DmsShopOrder order) {

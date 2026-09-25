@@ -158,6 +158,8 @@ class OrderShipmentServiceTest {
         order.setDeliveryCompany("顺丰速运");
         order.setDeliveryNo("SF1234567890");
         when(orderDao.selectByOrderNoForUpdate("SO10001")).thenReturn(order);
+        when(shipmentDao.selectByOrderAndTracking(11L, "顺丰速运", "SF1234567890"))
+                .thenReturn(existingShipment(1));
 
         OrderShipmentImportResultVO result = service.importShipments(workbook(
                 new String[]{"SO10001", "顺丰速运", "SF1234567890", "1"}));
@@ -166,6 +168,129 @@ class OrderShipmentServiceTest {
         assertEquals(0, result.getShippedCount());
         assertEquals(1, result.getSkippedCount());
         verify(orderDao, never()).ship(anyLong(), anyString(), anyString());
+        verify(shipmentDao, never()).insert(any(DmsShopOrderShipment.class));
+    }
+
+    @Test
+    void repeatedManualShipmentWithDifferentQuantityIsRejected() {
+        DmsShopOrder order = pendingOrder(11L, "SO10001");
+        order.setStatus(2);
+        order.setDeliveryCompany("顺丰速运");
+        order.setDeliveryNo("SF1234567890");
+        when(orderDao.selectByIdForUpdate(11L)).thenReturn(order);
+        when(shipmentDao.selectByOrderAndTracking(11L, "顺丰速运", "SF1234567890"))
+                .thenReturn(existingShipment(1));
+        var dto = new com.macro.mall.distribution.dto.ShopOrderShipDTO();
+        dto.setDeliveryCompany("顺丰速运");
+        dto.setDeliveryNo("SF1234567890");
+        dto.setShipmentQuantity(2);
+
+        var error = assertThrows(com.macro.mall.common.exception.ApiException.class,
+                () -> service.shipOrder(11L, dto));
+
+        assertTrue(error.getMessage().contains("不同发货数量"));
+        verify(shipmentDao, never()).insert(any(DmsShopOrderShipment.class));
+    }
+
+    @Test
+    void repeatedErpShipmentWithSameQuantityRemainsIdempotent() {
+        DmsShopOrder order = pendingOrder(11L, "SO10001");
+        order.setStatus(2);
+        when(orderDao.selectByOrderNoForUpdate("SO10001")).thenReturn(order);
+        when(shipmentDao.selectByOrderAndTracking(11L, "顺丰速运", "SF1234567890"))
+                .thenReturn(existingShipment(1));
+
+        assertTrue(service.shipErpOrder("SO10001", "顺丰速运", "SF1234567890", 1, "JUSHUITAN"));
+        verify(shipmentDao, never()).insert(any(DmsShopOrderShipment.class));
+    }
+
+    @Test
+    void repeatedErpShipmentWithDifferentQuantityIsRejected() {
+        DmsShopOrder order = pendingOrder(11L, "SO10001");
+        order.setStatus(2);
+        when(orderDao.selectByOrderNoForUpdate("SO10001")).thenReturn(order);
+        when(shipmentDao.selectByOrderAndTracking(11L, "顺丰速运", "SF1234567890"))
+                .thenReturn(existingShipment(1));
+
+        var error = assertThrows(com.macro.mall.common.exception.ApiException.class,
+                () -> service.shipErpOrder("SO10001", "顺丰速运", "SF1234567890", 2, "JUSHUITAN"));
+
+        assertTrue(error.getMessage().contains("不同发货数量"));
+        verify(shipmentDao, never()).insert(any(DmsShopOrderShipment.class));
+    }
+
+    @Test
+    void repeatedImportWithDifferentSavedQuantityReportsRowError() throws Exception {
+        DmsShopOrder order = pendingOrder(11L, "SO10001");
+        order.setStatus(2);
+        when(orderDao.selectByOrderNoForUpdate("SO10001")).thenReturn(order);
+        when(shipmentDao.selectByOrderAndTracking(11L, "顺丰速运", "SF1234567890"))
+                .thenReturn(existingShipment(1));
+
+        OrderShipmentImportResultVO result = service.importShipments(workbook(
+                new String[]{"SO10001", "顺丰速运", "SF1234567890", "2"}));
+
+        assertFalse(result.isSuccess());
+        assertEquals(1, result.getFailedCount());
+        assertEquals(0, result.getSkippedCount());
+        assertTrue(result.getErrors().get(0).getMessage().contains("不同发货数量"));
+        verify(shipmentDao, never()).insert(any(DmsShopOrderShipment.class));
+    }
+
+    @Test
+    void duplicateWorkbookWaybillWithDifferentQuantityIsNotSilentlySkipped() throws Exception {
+        DmsShopOrder order = pendingOrder(11L, "SO10001");
+        when(orderDao.selectByOrderNoForUpdate("SO10001")).thenReturn(order);
+        when(orderItemDao.sumQuantityByOrderId(11L)).thenReturn(2);
+        when(shipmentDao.insert(any(DmsShopOrderShipment.class))).thenReturn(1);
+
+        OrderShipmentImportResultVO result = service.importShipments(workbook(
+                new String[]{"SO10001", "顺丰速运", "SF1234567890", "1"},
+                new String[]{"SO10001", "顺丰速运", "SF1234567890", "2"}));
+
+        assertFalse(result.isSuccess());
+        assertEquals(1, result.getShippedCount());
+        assertEquals(1, result.getFailedCount());
+        assertEquals(0, result.getSkippedCount());
+        assertTrue(result.getErrors().get(0).getMessage().contains("发货数量不一致"));
+        verify(shipmentDao).insert(any(DmsShopOrderShipment.class));
+    }
+
+    @Test
+    void identicalWorkbookWaybillIsSkippedWithoutDoubleShipping() throws Exception {
+        DmsShopOrder order = pendingOrder(11L, "SO10001");
+        when(orderDao.selectByOrderNoForUpdate("SO10001")).thenReturn(order);
+        when(orderItemDao.sumQuantityByOrderId(11L)).thenReturn(1);
+        when(shipmentDao.insert(any(DmsShopOrderShipment.class))).thenReturn(1);
+        when(orderDao.ship(11L, "顺丰速运", "SF1234567890")).thenReturn(1);
+
+        OrderShipmentImportResultVO result = service.importShipments(workbook(
+                new String[]{"SO10001", "顺丰速运", "SF1234567890", "1"},
+                new String[]{"SO10001", "顺丰速运", "SF1234567890", "1"}));
+
+        assertTrue(result.isSuccess());
+        assertEquals(1, result.getShippedCount());
+        assertEquals(1, result.getSkippedCount());
+        verify(shipmentDao).insert(any(DmsShopOrderShipment.class));
+    }
+
+    @Test
+    void legacyWaybillWithoutPackageRowRejectsMismatchedQuantity() {
+        DmsShopOrder order = pendingOrder(11L, "SO10001");
+        order.setStatus(2);
+        order.setDeliveryCompany("顺丰速运");
+        order.setDeliveryNo("SF1234567890");
+        when(orderDao.selectByIdForUpdate(11L)).thenReturn(order);
+        when(orderItemDao.sumQuantityByOrderId(11L)).thenReturn(1);
+        var dto = new com.macro.mall.distribution.dto.ShopOrderShipDTO();
+        dto.setDeliveryCompany("顺丰速运");
+        dto.setDeliveryNo("SF1234567890");
+        dto.setShipmentQuantity(2);
+
+        var error = assertThrows(com.macro.mall.common.exception.ApiException.class,
+                () -> service.shipOrder(11L, dto));
+
+        assertTrue(error.getMessage().contains("历史运单没有包裹数量记录"));
         verify(shipmentDao, never()).insert(any(DmsShopOrderShipment.class));
     }
 
@@ -298,6 +423,13 @@ class OrderShipmentServiceTest {
         order.setTenantId(1L);
         order.setStatus(1);
         return order;
+    }
+
+    private DmsShopOrderShipment existingShipment(int quantity) {
+        DmsShopOrderShipment shipment = new DmsShopOrderShipment();
+        shipment.setOrderId(11L);
+        shipment.setShipmentQuantity(quantity);
+        return shipment;
     }
 
     private DmsAdminUser merchantAdmin(Long merchantId) {
