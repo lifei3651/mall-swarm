@@ -2,6 +2,7 @@ package com.macro.mall.distribution.service;
 
 import com.macro.mall.distribution.dao.DmsFlashSaleActivityDao;
 import com.macro.mall.distribution.dao.DmsFlashSaleReservationDao;
+import com.macro.mall.distribution.dao.DmsShopAfterSaleDao;
 import com.macro.mall.distribution.entity.DmsFlashSaleActivity;
 import com.macro.mall.distribution.entity.DmsFlashSaleReservation;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -24,6 +26,7 @@ class FlashSaleFoundationTest {
     @Autowired private JdbcTemplate jdbcTemplate;
     @Autowired private DmsFlashSaleActivityDao activityDao;
     @Autowired private DmsFlashSaleReservationDao reservationDao;
+    @Autowired private DmsShopAfterSaleDao afterSaleDao;
     @Autowired private ShopAfterSaleService shopAfterSaleService;
 
     @Test
@@ -87,7 +90,7 @@ class FlashSaleFoundationTest {
                  freight_amount,discount_amount,pay_amount,total_pv,total_cost,business_type,business_source_id,
                  status,pay_type,pay_time)
                 VALUES (990010,'FLASH-CANCEL-ORDER',1,990010,'测试会员','13900009010','湖南省长沙市测试地址',
-                        10,0,0,10,0,5,'FLASH_SALE',990010,1,'SIMULATION',CURRENT_TIMESTAMP)
+                        10,2,0,12,0,5,'FLASH_SALE',990010,1,'SIMULATION',CURRENT_TIMESTAMP)
                 """);
         jdbcTemplate.update("""
                 INSERT INTO dms_shop_order_item
@@ -98,7 +101,7 @@ class FlashSaleFoundationTest {
                 INSERT INTO dms_order_finance
                 (order_id,order_no,pay_amount,refund_amount,net_pay_amount,product_cost,bonus_amount,
                  company_share_amount,company_profit,risk_status)
-                VALUES (990010,'FLASH-CANCEL-ORDER',10,0,10,5,0,0,5,0)
+                VALUES (990010,'FLASH-CANCEL-ORDER',12,0,12,5,0,0,7,0)
                 """);
         jdbcTemplate.update("""
                 INSERT INTO dms_flash_sale_activity
@@ -114,6 +117,13 @@ class FlashSaleFoundationTest {
 
         shopAfterSaleService.cancelPendingShipment(990010L, 1L, "测试财务");
 
+        assertEquals(0, new BigDecimal("12.00").compareTo(
+                afterSaleDao.selectByOrderId(990010L).get(0).getRefundAmount()));
+        assertEquals(0, new BigDecimal("2.00").compareTo(
+                afterSaleDao.selectByOrderId(990010L).get(0).getFreightRefundAmount()));
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "SELECT net_pay_amount FROM dms_order_finance WHERE order_id = 990010",
+                BigDecimal.class).compareTo(BigDecimal.ZERO));
         assertEquals(2, activityDao.selectById(990010L).getAvailableStock());
         assertEquals(1, reservationDao.selectByOrderId(990010L).getReleasedQuantity());
         assertEquals("REFUNDED", reservationDao.selectByOrderId(990010L).getStatus());

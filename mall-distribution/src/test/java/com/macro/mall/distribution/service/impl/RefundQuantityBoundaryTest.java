@@ -50,6 +50,28 @@ class RefundQuantityBoundaryTest {
         assertEquals(Integer.MAX_VALUE, dto.getItems().get(0).getQuantity());
     }
 
+    @Test void cancelPendingShipmentRechecksStatusUnderTheShipmentOrderLock() {
+        Fixture fixture = new Fixture();
+        DmsShopOrder stale = new DmsShopOrder(); stale.setId(1L); stale.setTenantId(1L); stale.setStatus(1);
+        DmsShopOrder shipped = new DmsShopOrder(); shipped.setId(1L); shipped.setTenantId(1L); shipped.setStatus(2);
+        when(fixture.orderDao.selectById(1L)).thenReturn(stale);
+        when(fixture.orderDao.selectByIdForUpdate(1L)).thenReturn(shipped);
+
+        assertThrows(ApiException.class, () -> fixture.service.cancelPendingShipment(1L, 7L, "测试管理员"));
+        verify(fixture.orderDao).selectByIdForUpdate(1L);
+        verify(fixture.orderDao, never()).selectById(1L);
+        verifyNoInteractions(fixture.itemDao, fixture.saleDao);
+    }
+
+    @Test void cancelPendingShipmentRejectsPartiallyShippedOrderStillMarkedPending() {
+        Fixture fixture = new Fixture();
+        when(fixture.shipmentDao.sumQuantityByOrderId(1L)).thenReturn(1);
+
+        assertThrows(ApiException.class, () -> fixture.service.cancelPendingShipment(1L, 7L, "测试管理员"));
+        verify(fixture.orderDao).selectByIdForUpdate(1L);
+        verifyNoInteractions(fixture.itemDao, fixture.saleDao);
+    }
+
     static ShopAfterSaleItemDTO line(Long id, int quantity) {
         ShopAfterSaleItemDTO item = new ShopAfterSaleItemDTO(); item.setOrderItemId(id); item.setQuantity(quantity); return item;
     }
@@ -57,12 +79,13 @@ class RefundQuantityBoundaryTest {
         final ShopAfterSaleServiceImpl service = mock(ShopAfterSaleServiceImpl.class, CALLS_REAL_METHODS);
         final DmsShopAfterSaleDao saleDao = mock(DmsShopAfterSaleDao.class);
         final DmsShopAfterSaleItemDao saleItemDao = mock(DmsShopAfterSaleItemDao.class);
+        final DmsShopOrderDao orderDao = mock(DmsShopOrderDao.class);
+        final DmsShopOrderItemDao itemDao = mock(DmsShopOrderItemDao.class);
+        final DmsShopOrderShipmentDao shipmentDao = mock(DmsShopOrderShipmentDao.class);
         final DmsShopMember member = new DmsShopMember();
         Fixture() {
             TenantContext.setTenantId(1L);
             member.setId(1L); member.setUserId(1L);
-            DmsShopOrderDao orderDao = mock(DmsShopOrderDao.class);
-            DmsShopOrderItemDao itemDao = mock(DmsShopOrderItemDao.class);
             ShopAfterSaleWindowPolicy policy = mock(ShopAfterSaleWindowPolicy.class);
             when(policy.resolve(1L)).thenReturn(new ShopAfterSaleWindowPolicy.Window("RECEIVED", 7));
             DmsShopOrder order = new DmsShopOrder(); order.setId(1L); order.setUserId(1L); order.setTenantId(1L); order.setStatus(1);
@@ -72,6 +95,7 @@ class RefundQuantityBoundaryTest {
             when(itemDao.selectByOrderId(1L)).thenReturn(List.of(item));
             ReflectionTestUtils.setField(service, "orderDao", orderDao);
             ReflectionTestUtils.setField(service, "orderItemDao", itemDao);
+            ReflectionTestUtils.setField(service, "orderShipmentDao", shipmentDao);
             ReflectionTestUtils.setField(service, "afterSaleDao", saleDao);
             ReflectionTestUtils.setField(service, "afterSaleItemDao", saleItemDao);
             ReflectionTestUtils.setField(service, "afterSaleWindowPolicy", policy);

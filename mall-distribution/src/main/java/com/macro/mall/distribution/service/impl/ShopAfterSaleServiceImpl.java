@@ -375,6 +375,10 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsShopAfterSale manualRefund(Long orderId, ShopManualRefundDTO dto) {
+        return manualRefund(orderId, dto, false);
+    }
+
+    private DmsShopAfterSale manualRefund(Long orderId, ShopManualRefundDTO dto, boolean cancelUnshippedOrder) {
         assertPlatformExceptionalOperation("人工退款");
         if (orderId == null) Asserts.fail("订单ID不能为空");
         // 后台退款与客户售后共用订单锁，确保剩余可退数量和金额只计算一次。
@@ -438,6 +442,9 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         }
         if (refundQuantity <= 0) Asserts.fail("请选择本次退款涉及的商品盒数");
         if (selectedGross.compareTo(BigDecimal.ZERO) <= 0) Asserts.fail("所选商品金额异常，不能退款");
+        if (cancelUnshippedOrder && refundQuantity != totalRemainingQuantity) {
+            Asserts.fail("取消待发货订单必须退回全部剩余商品");
+        }
 
         BigDecimal approvedProductRefund = nullToZero(afterSaleItemDao.sumApprovedProductRefundByOrderId(orderId));
         BigDecimal remainingProductRefund = productBase.subtract(approvedProductRefund).max(BigDecimal.ZERO);
@@ -494,8 +501,17 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         // 后台特殊退款同样独立归类，忽略旧客户端传来的仅退款类型。
         afterSale.setApplyType(4);
         afterSale.setProductRefundAmount(productRefund);
-        afterSale.setFreightRefundAmount(BigDecimal.ZERO);
-        afterSale.setRefundAmount(productRefund);
+        BigDecimal freightRefund = BigDecimal.ZERO;
+        if (cancelUnshippedOrder) {
+            List<DmsShopAfterSale> history = afterSaleDao.selectByOrderId(orderId);
+            BigDecimal refundedFreight = history == null ? BigDecimal.ZERO : history.stream()
+                    .filter(sale -> Integer.valueOf(1).equals(sale.getStatus()))
+                    .map(DmsShopAfterSale::getFreightRefundAmount)
+                    .filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
+            freightRefund = nullToZero(order.getFreightAmount()).subtract(refundedFreight).max(BigDecimal.ZERO);
+        }
+        afterSale.setFreightRefundAmount(freightRefund);
+        afterSale.setRefundAmount(productRefund.add(freightRefund));
         afterSale.setRefundQuantity(refundQuantity);
         afterSale.setReason(dto.getReason() == null || dto.getReason().isBlank() ? "后台超期退款" : dto.getReason().trim());
         afterSale.setStatus(0);
@@ -519,11 +535,19 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     public boolean cancelPendingShipment(Long orderId, Long operatorId, String operatorName) {
         assertPlatformExceptionalOperation("取消待发货订单");
         if (orderId == null) Asserts.fail("订单ID不能为空");
-        DmsShopOrder order = orderDao.selectById(orderId);
+        // 与发货、人工退款共用订单行锁；不能用锁外的旧状态判断“待发货”。
+        DmsShopOrder order = orderDao.selectByIdForUpdate(orderId);
         if (order == null) Asserts.fail("订单不存在");
         assertTenantAccess(order.getTenantId());
         if (!Integer.valueOf(1).equals(order.getStatus())) {
             Asserts.fail("只有待发货订单可以取消");
+        }
+        // 部分发货时订单仍可能是“待发货”，不能按未发货整单取消并回补库存。
+        if (order.getDeliveryTime() != null
+                || (order.getDeliveryNo() != null && !order.getDeliveryNo().isBlank())
+                || orderShipmentDao.sumQuantityByOrderId(orderId) > 0
+                || !orderShipmentDao.selectByOrderId(orderId).isEmpty()) {
+            Asserts.fail("订单已有发货记录，不能按未发货订单取消；请核实物流后走售后流程");
         }
         List<ShopAfterSaleItemDTO> items = orderItemDao.selectByOrderId(orderId).stream().map(item -> {
             ShopAfterSaleItemDTO dto = new ShopAfterSaleItemDTO();
@@ -539,7 +563,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         refund.setReason("后台取消待发货订单");
         refund.setOperatorId(operatorId);
         refund.setOperatorName(operatorName);
-        manualRefund(orderId, refund);
+        manualRefund(orderId, refund, true);
         return true;
     }
 
