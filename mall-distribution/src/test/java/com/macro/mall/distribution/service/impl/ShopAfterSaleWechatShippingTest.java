@@ -61,6 +61,16 @@ class ShopAfterSaleWechatShippingTest {
         assertEquals(1, f.order.getStatus(), "渠道未确认成功前订单必须保持原状态");
     }
 
+    @Test
+    void localFullRefundCannotCommitWhenOrderCloseDidNotPersist() {
+        Fixture f = fixture("BALANCE", false);
+        when(f.saleItems.sumCompletedQuantityByOrderId(2L)).thenReturn(2);
+        assertThrows(ApiException.class,
+                () -> ReflectionTestUtils.invokeMethod(f.service, "reconcileOrderStateAfterRefund", f.order, 2));
+        assertEquals(1, f.order.getStatus());
+        verify(f.orderDao).closeAfterSale(2L);
+    }
+
     private Fixture fixture(String payType, boolean simulation) {
         DmsShopAfterSaleItemDao saleItems = mock(DmsShopAfterSaleItemDao.class);
         DmsShopOrderDao orderDao = mock(DmsShopOrderDao.class);
@@ -98,9 +108,10 @@ class ShopAfterSaleWechatShippingTest {
         when(shipmentDao.sumQuantityByOrderId(2L)).thenReturn(1);
         when(shipmentDao.selectByOrderId(2L)).thenReturn(List.of(shipment));
         when(orderDao.ship(2L, "顺丰速运", "SF-PARTIAL-001")).thenReturn(1);
-        return new Fixture(service, orderDao, shipmentDao, external, shipping, accounting, restock, sale, order);
+        return new Fixture(service, orderDao, shipmentDao, saleItems, external, shipping, accounting, restock, sale, order);
     }
     private record Fixture(ShopAfterSaleServiceImpl service, DmsShopOrderDao orderDao, DmsShopOrderShipmentDao shipmentDao,
+            DmsShopAfterSaleItemDao saleItems,
             ExternalRefundCoordinator external, WeChatShippingInfoService shipping,
             RefundCompletionAccountingService accounting, RefundInventoryRestockService restock,
             DmsShopAfterSale sale, DmsShopOrder order) { }

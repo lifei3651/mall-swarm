@@ -113,6 +113,7 @@ class ExternalRefundCoordinatorTest {
         when(orderDao.selectByIdForUpdate(2L)).thenReturn(groupedChild);
         when(orderItemDao.selectByOrderId(2L)).thenReturn(List.of(orderItem(2)));
         when(saleItemDao.sumCompletedQuantityByOrderId(2L)).thenReturn(2);
+        when(orderDao.closeAfterSale(2L)).thenReturn(1);
         when(alipay.isConfigured()).thenReturn(true);
         when(alipay.refund("TRADE-100", "AS-1", "99.00", "商城售后退款：测试退款")).thenReturn(true);
 
@@ -231,6 +232,45 @@ class ExternalRefundCoordinatorTest {
     }
 
     @Test
+    void channelSucceededButOrderCloseFailedRollsBackLocalCompletion() {
+        DmsShopAfterSaleDao saleDao = mock(DmsShopAfterSaleDao.class);
+        DmsShopAfterSaleItemDao saleItemDao = validSaleItems();
+        DmsShopOrderDao orderDao = mock(DmsShopOrderDao.class);
+        DmsShopOrderItemDao orderItemDao = mock(DmsShopOrderItemDao.class);
+        RefundCompletionAccountingService completionAccounting = mock(RefundCompletionAccountingService.class);
+        RefundInventoryRestockService inventoryRestockService = mock(RefundInventoryRestockService.class);
+        AlipayService alipay = mock(AlipayService.class);
+        PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
+        TransactionStatus transaction = mock(TransactionStatus.class);
+        when(manager.getTransaction(any())).thenReturn(transaction);
+        DmsShopAfterSale sale = pendingSale();
+        DmsShopOrder order = alipayOrder();
+        when(saleDao.selectById(1L)).thenReturn(sale);
+        when(saleDao.selectByIdForUpdate(1L)).thenReturn(sale);
+        when(saleDao.markRefundCompleted(1L)).thenReturn(1);
+        when(orderDao.selectById(2L)).thenReturn(order);
+        when(orderDao.selectByIdForUpdate(2L)).thenReturn(order);
+        when(orderItemDao.selectByOrderId(2L)).thenReturn(List.of(orderItem(2)));
+        when(saleItemDao.sumCompletedQuantityByOrderId(2L)).thenReturn(2);
+        when(alipay.isConfigured()).thenReturn(true);
+        when(alipay.refund("ORDER-2", "AS-1", "99.00", "商城售后退款：测试退款")).thenReturn(true);
+
+        assertThrows(IllegalStateException.class,
+                () -> new ExternalRefundCoordinator(saleDao, saleItemDao, orderDao, orderItemDao,
+                        mock(DmsShopOrderShipmentDao.class), mock(DmsAgentDao.class),
+                        mock(AgentService.class), inventoryRestockService,
+                        mock(DmsShopTradeDao.class), alipay, mock(WeChatPayService.class),
+                        completionAccounting, manager).process(1L));
+
+        verify(saleDao).markRefundCompleted(1L);
+        verify(completionAccounting).complete(sale, order);
+        verify(inventoryRestockService).restoreAfterRefundCompleted(sale, order);
+        verify(orderDao).closeAfterSale(2L);
+        verify(manager).rollback(transaction);
+        verify(manager, never()).commit(transaction);
+    }
+
+    @Test
     void inventoryRestockFailureRollsBackCompletionAndKeepsSameAfterSaleRecoverable() {
         DmsShopAfterSaleDao saleDao = mock(DmsShopAfterSaleDao.class);
         DmsShopAfterSaleItemDao saleItemDao = validSaleItems();
@@ -310,6 +350,7 @@ class ExternalRefundCoordinatorTest {
         when(orderDao.selectByIdForUpdate(2L)).thenReturn(order);
         when(orderItemDao.selectByOrderId(2L)).thenReturn(List.of(orderItem(2)));
         when(saleItemDao.sumCompletedQuantityByOrderId(2L)).thenReturn(2);
+        when(orderDao.closeAfterSale(2L)).thenReturn(1);
         when(wechat.isConfigured()).thenReturn(true);
         when(wechat.requestRefund("ORDER-2", "AS-1", new BigDecimal("99.00"),
                 new BigDecimal("99.00"), "商城售后退款：测试退款"))
@@ -351,6 +392,7 @@ class ExternalRefundCoordinatorTest {
         when(orderDao.selectByIdForUpdate(2L)).thenReturn(order);
         when(orderItemDao.selectByOrderId(2L)).thenReturn(List.of(orderItem(2)));
         when(saleItemDao.sumCompletedQuantityByOrderId(2L)).thenReturn(2);
+        when(orderDao.closeAfterSale(2L)).thenReturn(1);
 
         new ExternalRefundCoordinator(saleDao, saleItemDao, orderDao, orderItemDao,
                 mock(DmsShopOrderShipmentDao.class), mock(DmsAgentDao.class), mock(AgentService.class),

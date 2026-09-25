@@ -245,7 +245,9 @@ public class ExternalRefundCoordinator {
             reconcilePartiallyShippedOrder(order, originalQuantity - refundedQuantity);
             return;
         }
-        orderDao.closeAfterSale(order.getId());
+        if (orderDao.closeAfterSale(order.getId()) != 1) {
+            throw new IllegalStateException("外部渠道已退款，但订单关闭状态保存失败，请使用同一售后单重试恢复");
+        }
         if (order.getCouponClaimId() != null) couponService.releaseFullyRefunded(order);
         DmsAgent agent = agentDao.selectByUserId(order.getUserId());
         if (agent == null || !AgentSourceTypeEnum.SELF_REGISTER.getValue().equals(agent.getSourceType())

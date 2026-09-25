@@ -948,7 +948,9 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         int refundedQuantity = afterSaleItemDao.sumCompletedQuantityByOrderId(order.getId());
         ShopQuantityChecks.remaining(originalQuantity, refundedQuantity);
         if (refundedQuantity >= originalQuantity) {
-            orderDao.closeAfterSale(order.getId());
+            if (orderDao.closeAfterSale(order.getId()) != 1) {
+                Asserts.fail("订单关闭状态保存失败，请刷新后重试");
+            }
             if (order.getCouponClaimId() != null) couponService.releaseFullyRefunded(order);
             order.setStatus(4);
             return;
