@@ -862,6 +862,10 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         List<OrderAuditVO> result = new ArrayList<>();
         for (DmsShopOrder order : orders) {
             DmsOrderFinance finance = ensureFinance(order.getId(), order.getOrderNo(), order.getPayAmount());
+            // Historical finance rows may still contain an older profit formula.
+            // Correct the audit view in memory; a separate, controlled backfill is
+            // required before persisted daily and period summaries are accurate.
+            recalculate(finance);
             DmsShopMember owner = shopMemberDao.selectByUserId(order.getUserId());
             DmsAgent ownerAgent = order.getAgentId() == null
                     ? agentDao.selectByUserId(order.getUserId())

@@ -63,16 +63,41 @@ if [[ "$DB_AUTH_MODE" == password && -z "$DB_PASSWORD" ]]; then echo "缺少环�
 if [[ ! "$DB_NAME" =~ ^[A-Za-z0-9_]+$ ]]; then echo "DB_NAME 格式不合法" >&2; exit 2; fi
 if [[ "$DB_AUTH_MODE" == password && ( "$DB_PASSWORD" == *$'\n'* || "$DB_PASSWORD" == *$'\r'* ) ]]; then echo "DB_PASSWORD 不能包含换行符" >&2; exit 2; fi
 DB_PORT="${DB_PORT:-3306}"
+MIGRATION_STEP_TIMEOUT_SECONDS="${MIGRATION_STEP_TIMEOUT_SECONDS:-3600}"
+if [[ ! "$MIGRATION_STEP_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]]; then
+  echo "MIGRATION_STEP_TIMEOUT_SECONDS 必须为正整数秒数" >&2
+  exit 2
+fi
 
 CLIENT_FILE=""
 LOCK_KEY="$(printf '%s_%s' "$DB_HOST" "$DB_NAME" | tr -cd 'A-Za-z0-9_.-')"
-LOCK_DIR="${TMPDIR:-/tmp}/mall-db-migrate-${LOCK_KEY}.lock"
+LOCK_NAME="mall_schema:${DB_NAME}"
+if ((${#LOCK_NAME} > 64)); then
+  if command -v shasum >/dev/null 2>&1; then
+    lock_hash="$(printf '%s' "$DB_NAME" | shasum -a 256 | awk '{print substr($1,1,52)}')"
+  else
+    lock_hash="$(printf '%s' "$DB_NAME" | sha256sum | awk '{print substr($1,1,52)}')"
+  fi
+  LOCK_NAME="mall_schema:${lock_hash}"
+fi
+LOCK_STATE_DIR=""
+LOCK_HOLDER_PID=""
+LOCK_STDIN_OPEN=0
 cleanup() {
-  if [[ "${DB_LOCK_HELD:-0}" == 1 ]]; then mysql_cmd --batch --skip-column-names -e "SELECT RELEASE_LOCK('mall_schema:${DB_NAME}');" >/dev/null 2>&1 || true; fi
+  if [[ "$LOCK_STDIN_OPEN" == 1 ]]; then exec 3>&-; fi
+  if [[ -n "$LOCK_HOLDER_PID" ]]; then
+    kill "$LOCK_HOLDER_PID" 2>/dev/null || true
+    wait "$LOCK_HOLDER_PID" 2>/dev/null || true
+  fi
   [[ -n "$CLIENT_FILE" ]] && rm -f "$CLIENT_FILE"
-  if [[ "${LOCK_HELD:-0}" == 1 ]]; then rmdir "$LOCK_DIR" 2>/dev/null || true; fi
+  if [[ -n "$LOCK_STATE_DIR" ]]; then
+    rm -f "$LOCK_STATE_DIR/lock.stdin" "$LOCK_STATE_DIR/lock.stdout" "$LOCK_STATE_DIR/lock.stderr"
+    rmdir "$LOCK_STATE_DIR" 2>/dev/null || true
+  fi
 }
 trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 escape_option_value() {
   local value="$1"
   value="${value//\\/\\\\}"
@@ -92,6 +117,14 @@ mysql_cmd() {
     mysql --protocol=socket -u"$DB_USER" "$DB_NAME" "$@"
   else
     mysql --defaults-extra-file="$CLIENT_FILE" "$DB_NAME" "$@"
+  fi
+}
+
+mysql_lock_holder() {
+  if [[ "$DB_AUTH_MODE" == socket ]]; then
+    exec mysql --protocol=socket -u"$DB_USER" "$DB_NAME" "$@"
+  else
+    exec mysql --defaults-extra-file="$CLIENT_FILE" "$DB_NAME" "$@"
   fi
 }
 
@@ -125,24 +158,104 @@ if [[ "$COMMAND" == "verify" ]]; then
   exit 0
 fi
 
-mysql_cmd <<'SQL'
-CREATE TABLE IF NOT EXISTS dms_schema_migration_history (
+assert_db_lock_held() {
+  local owner
+  if ! kill -0 "$LOCK_HOLDER_PID" 2>/dev/null; then
+    echo "迁移锁连接已断开，停止执行；数据库 DDL 可能已部分生效。" >&2
+    exit 7
+  fi
+  if ! owner="$(mysql_cmd --batch --skip-column-names -e "SELECT IS_USED_LOCK('${LOCK_NAME}');")" || [[ "$owner" != "$LOCK_OWNER_ID" ]]; then
+    echo "迁移锁已丢失，停止执行；数据库 DDL 可能已部分生效。" >&2
+    exit 7
+  fi
+}
+
+# All migration SQL and its history writes use the connection holding GET_LOCK.
+# MySQL must not reconnect after an error: a new session would silently lose it.
+LOCK_STATE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/mall-db-migrate-${LOCK_KEY}.XXXXXX")"
+mkfifo "$LOCK_STATE_DIR/lock.stdin"
+mysql_lock_holder --skip-reconnect --unbuffered --batch --skip-column-names < "$LOCK_STATE_DIR/lock.stdin" \
+  > "$LOCK_STATE_DIR/lock.stdout" 2> "$LOCK_STATE_DIR/lock.stderr" &
+LOCK_HOLDER_PID=$!
+exec 3> "$LOCK_STATE_DIR/lock.stdin"
+LOCK_STDIN_OPEN=1
+printf "SELECT CONCAT('MIGRATE_LOCK:', GET_LOCK('%s', 0), ':', CONNECTION_ID());\n" "$LOCK_NAME" >&3
+lock_line=""
+LOCK_OWNER_ID=""
+for ((attempt=0; attempt<100; attempt++)); do
+  lock_line="$(grep -m1 '^MIGRATE_LOCK:' "$LOCK_STATE_DIR/lock.stdout" || true)"
+  if [[ -n "$lock_line" ]]; then break; fi
+  if ! kill -0 "$LOCK_HOLDER_PID" 2>/dev/null; then break; fi
+  sleep 0.1
+done
+IFS=: read -r _ db_lock LOCK_OWNER_ID <<< "$lock_line"
+if [[ "$db_lock" != 1 || ! "$LOCK_OWNER_ID" =~ ^[0-9]+$ ]]; then
+  if [[ "$db_lock" == 0 ]]; then
+    echo "另一台主机正在对该数据库执行迁移" >&2
+  else
+    echo "无法建立持久迁移锁连接，停止执行。" >&2
+  fi
+  exit 3
+fi
+assert_db_lock_held
+
+ACK_PREFIX="MIGRATE_ACK_$(basename "$LOCK_STATE_DIR" | tr -cd 'A-Za-z0-9_')"
+ACK_SEQUENCE=0
+holder_running() {
+  local state
+  kill -0 "$LOCK_HOLDER_PID" 2>/dev/null || return 1
+  if [[ -r "/proc/${LOCK_HOLDER_PID}/stat" ]]; then
+    state="$(awk '{print $3}' "/proc/${LOCK_HOLDER_PID}/stat")"
+  elif command -v ps >/dev/null 2>&1; then
+    state="$(ps -o stat= -p "$LOCK_HOLDER_PID" 2>/dev/null | tr -d '[:space:]')"
+  else
+    # The bounded ACK timeout still prevents an infinite wait on a minimal OS.
+    return 0
+  fi
+  [[ -n "$state" && "$state" != Z* && "$state" != X* ]]
+}
+wait_for_ack() {
+  local marker="$1" timeout="$2" deadline=$((SECONDS + $2))
+  while true; do
+    if grep -Fqx "$marker" "$LOCK_STATE_DIR/lock.stdout"; then return 0; fi
+    if ! holder_running; then return 1; fi
+    if ((SECONDS >= deadline)); then
+      echo "等待迁移数据库会话响应超时（${timeout} 秒）。" >&2
+      return 1
+    fi
+    sleep 0.1
+  done
+}
+holder_query() {
+  local marker
+  ACK_SEQUENCE=$((ACK_SEQUENCE + 1))
+  marker="${ACK_PREFIX}_${ACK_SEQUENCE}"
+  if ! printf '%s\n' "$1" "SELECT '${marker}';" >&3 || ! wait_for_ack "$marker" 300; then
+    tail -n 8 "$LOCK_STATE_DIR/lock.stderr" >&2 || true
+    echo "持锁数据库会话已中断，停止执行；数据库 DDL 可能已部分生效。" >&2
+    exit 7
+  fi
+  assert_db_lock_held
+}
+holder_migration() {
+  local marker
+  ACK_SEQUENCE=$((ACK_SEQUENCE + 1))
+  marker="${ACK_PREFIX}_${ACK_SEQUENCE}"
+  if ! cat "$1" >&3 || ! printf '\n%s\n' "SELECT '${marker}';" >&3; then return 1; fi
+  wait_for_ack "$marker" "$MIGRATION_STEP_TIMEOUT_SECONDS"
+}
+
+holder_query 'CREATE TABLE IF NOT EXISTS dms_schema_migration_history (
   version VARCHAR(32) PRIMARY KEY,
   script VARCHAR(255) NOT NULL,
   checksum CHAR(64) NOT NULL,
   success TINYINT NOT NULL,
   execution_time_ms BIGINT NOT NULL DEFAULT 0,
   installed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-SQL
-
-if ! mkdir "$LOCK_DIR" 2>/dev/null; then echo "已有迁移任务正在执行：$LOCK_DIR" >&2; exit 3; fi
-LOCK_HELD=1
-db_lock="$(mysql_cmd --batch --skip-column-names -e "SELECT GET_LOCK('mall_schema:${DB_NAME}', 0);")"
-if [[ "$db_lock" != "1" ]]; then echo "另一台主机正在对该数据库执行迁移" >&2; exit 3; fi
-DB_LOCK_HELD=1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;'
 
 for file in "${MIGRATIONS[@]}"; do
+  assert_db_lock_held
   base="$(basename "$file")"
   version="${base:1:12}"
   hash="$(checksum "$file")"
@@ -154,13 +267,16 @@ for file in "${MIGRATIONS[@]}"; do
   fi
   started="$(date +%s)"
   echo "正在执行 $base"
-  if mysql_cmd < "$file"; then
+  holder_query "INSERT INTO dms_schema_migration_history(version,script,checksum,success,execution_time_ms) VALUES('${version}','${base}','${hash}',0,0);"
+  if holder_migration "$file"; then
+    assert_db_lock_held
     elapsed="$(( ($(date +%s) - started) * 1000 ))"
-    mysql_cmd -e "INSERT INTO dms_schema_migration_history(version,script,checksum,success,execution_time_ms) VALUES('${version}','${base}','${hash}',1,${elapsed});"
+    holder_query "UPDATE dms_schema_migration_history SET success=1, execution_time_ms=${elapsed} WHERE version='${version}' AND success=0;"
   else
-    mysql_cmd -e "INSERT INTO dms_schema_migration_history(version,script,checksum,success,execution_time_ms) VALUES('${version}','${base}','${hash}',0,0);" || true
+    tail -n 8 "$LOCK_STATE_DIR/lock.stderr" >&2 || true
     echo "迁移失败：$base。数据库 DDL 可能已部分生效，必须人工核对后再处理。" >&2
     exit 5
   fi
 done
+assert_db_lock_held
 echo "数据库迁移执行完成。"

@@ -276,6 +276,24 @@ public class PerformanceServiceTest {
     }
 
     @Test
+    void auditListRecalculatesStaleProfitWithoutRewritingHistoricalFinance() {
+        DmsShopMember member = createShopMember("13999000982", "历史利润列表会员", null);
+        ShopOrderVO paid = submitAndPay(member, 1);
+        Long orderId = paid.getOrder().getId();
+        BigDecimal expected = orderFinanceDao.selectByOrderId(orderId).getCompanyProfit();
+        BigDecimal stale = expected.add(new BigDecimal("20.00"));
+        assertEquals(1, jdbcTemplate.update(
+                "UPDATE dms_order_finance SET company_profit=? WHERE order_id=?", stale, orderId));
+
+        OrderAuditVO row = auditService.getOrdersByOrderNo(paid.getOrder().getOrderNo()).get(0);
+
+        assertEquals(0, expected.compareTo(row.getCompanyProfit()),
+                "列表应按当前规则展示利润，不能直接展示旧持久值");
+        assertEquals(0, stale.compareTo(orderFinanceDao.selectByOrderId(orderId).getCompanyProfit()),
+                "查看列表不得顺手回填历史财务记录");
+    }
+
+    @Test
     void testOrderItemSnapshotsServiceGuaranteesForOrderPresentation() {
         String originalTags = "[{\"title\":\"七天无理由\",\"enabled\":true},{\"title\":\"晚发赔\",\"enabled\":true}]";
         jdbcTemplate.update("UPDATE dms_shop_product SET service_tags=? WHERE id=1", originalTags);

@@ -69,6 +69,7 @@ echo "[8/9] 商城 H5 三种生产构建"
 
 echo "[9/9] 发布脚本合同与语法回归"
 bash -n scripts/production-backup.sh scripts/db-migrate.sh \
+  scripts/tests/db-migrate-lock-integration.sh \
   scripts/run-mall-functional-regression.sh
 node --test scripts/tests/*.test.mjs
 
