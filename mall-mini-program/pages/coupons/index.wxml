@@ -1,8 +1,9 @@
 <view class="coupons-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
-  <view class="coupon-tabs"><view class="{{tab === 'mine' ? 'active' : ''}}" data-tab="mine" bindtap="switchTab" aria-role="tab" aria-selected="{{tab === 'mine'}}">我的优惠券</view><view class="{{tab === 'catalog' ? 'active' : ''}}" data-tab="catalog" bindtap="switchTab" aria-role="tab" aria-selected="{{tab === 'catalog'}}">领券中心</view></view>
+  <view class="coupon-tabs"><view class="{{tab === 'mine' ? 'active' : ''}}" data-tab="mine" bindtap="switchTab" aria-role="tab" aria-selected="{{tab === 'mine'}}">我的优惠券</view><view wx:if="{{couponEnabled}}" class="{{tab === 'catalog' ? 'active' : ''}}" data-tab="catalog" bindtap="switchTab" aria-role="tab" aria-selected="{{tab === 'catalog'}}">领券中心</view></view>
+  <view wx:if="{{!couponEnabled}}" class="empty">优惠券模块已关闭，历史记录仍可查看</view>
   <view wx:if="{{error}}" class="error"><text>{{error}}</text><view bindtap="load" aria-role="button">重新加载</view></view>
   <view wx:if="{{loading}}" class="empty">正在读取优惠券…</view>
-  <view wx:elif="{{!rows.length && !error}}" class="empty">{{tab === 'mine' ? '还没有优惠券，去领券中心看看' : '暂无可领取优惠券'}}</view>
+  <view wx:elif="{{!rows.length && !error}}" class="empty">{{tab === 'mine' ? '暂无历史优惠券' : '暂无可领取优惠券'}}</view>
   <view class="coupon-card" wx:for="{{rows}}" wx:key="key">
     <view class="coupon-main"><view class="coupon-price"><text>¥{{item.amountText}}</text><text>{{item.minimumAmount > 0 ? '满 ¥' + item.minimumText + ' 可用' : '无门槛'}}</text></view><view class="coupon-copy"><text class="coupon-title">{{item.title}}</text><text>{{item.scopeLabel}}</text></view></view>
     <view class="coupon-meta"><text>{{item.startsText}} — {{item.endsText}}</text><text>{{item.businessText}} · 不与秒杀叠加</text></view>

@@ -27,6 +27,7 @@ public class ShopBusinessModeService {
                 enabled(tenant == null ? null : tenant.getFlashSaleEnabled()) ? 1 : 0,
                 mode(tenant == null ? null : tenant.getFlashSaleBonusMode(), "NONE"),
                 enabled(tenant == null ? null : tenant.getRepurchaseMallEnabled()) ? 1 : 0,
+                enabled(tenant == null ? null : tenant.getCouponEnabled()) ? 1 : 0,
                 mode(tenant == null ? null : tenant.getRepurchaseEligibilityMode(), "PAID_MEMBER"),
                 mode(tenant == null ? null : tenant.getRepurchaseBonusMode(), "NONE"),
                 eligible,

@@ -81,7 +81,7 @@ class TenantBusinessModesSettingsTest {
     }
 
     @Test
-    void updatesOnlySixBusinessModeColumnsAndNeverUsesWholeTenantUpdate() {
+    void updatesOnlyBusinessModeColumnsAndNeverUsesWholeTenantUpdate() {
         DmsTenant before = tenant(1L, "不可被业务模式页面修改的主体", "NONE");
         DmsTenant saved = tenant(1L, "不可被业务模式页面修改的主体", "STANDARD");
         saved.setFlashSaleEnabled(1);
@@ -102,12 +102,40 @@ class TenantBusinessModesSettingsTest {
         assertEquals(1L, update.getValue().getId());
         assertEquals(1, update.getValue().getFlashSaleEnabled());
         assertEquals("STANDARD", update.getValue().getFlashSaleBonusMode());
+        assertEquals(1, update.getValue().getCouponEnabled());
         verify(tenantDao, never()).update(any(DmsTenant.class));
         verify(catalogCache).invalidateAfterCommit(1L);
         verify(operationLogService).log(eq("TENANT_CONFIG"), eq("BUSINESS_MODE_UPDATE"), eq("TENANT"),
                 eq("1"), any(), any(), any());
         assertEquals("不可被业务模式页面修改的主体", saved.getTenantName());
         assertEquals(1, result.getFlashSaleEnabled());
+    }
+
+    @Test
+    void changingCouponModuleRequiresShopAndFinancePermissions() {
+        DmsTenant before = tenant(1L, "商城", "NONE");
+        DmsTenant saved = tenant(1L, "商城", "NONE");
+        saved.setCouponEnabled(0);
+        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(before);
+        when(tenantDao.selectById(1L)).thenReturn(saved);
+        when(configVersionDao.countByTenantId(1L)).thenReturn(1);
+        when(tenantDao.updateBusinessModes(eq(1L), any(TenantBusinessModesDTO.class))).thenReturn(1);
+        TenantBusinessModesDTO request=modes(); request.setCouponEnabled(0);
+
+        assertEquals(0, service.saveBusinessModes(1L,request).getCouponEnabled());
+        verify(adminAuthService).requirePermission(admin,"config:shop");
+        verify(adminAuthService).requirePermission(admin,"finance:manage");
+        ArgumentCaptor<TenantBusinessModesDTO> update=ArgumentCaptor.forClass(TenantBusinessModesDTO.class);
+        verify(tenantDao).updateBusinessModes(eq(1L),update.capture());
+        assertEquals(0,update.getValue().getCouponEnabled());
+    }
+
+    @Test
+    void rejectsInvalidCouponFlagBeforeWritingTenant() {
+        TenantBusinessModesDTO request=modes(); request.setCouponEnabled(2);
+
+        assertThrows(ApiException.class, () -> service.saveBusinessModes(1L, request));
+        verify(tenantDao, never()).updateBusinessModes(eq(1L), any(TenantBusinessModesDTO.class));
     }
 
     @Test
@@ -133,6 +161,7 @@ class TenantBusinessModesSettingsTest {
         modes.setRepurchaseMallEnabled(1);
         modes.setRepurchaseEligibilityMode("PAID_MEMBER");
         modes.setRepurchaseBonusMode("STANDARD");
+        modes.setCouponEnabled(1);
         return modes;
     }
 
@@ -148,6 +177,7 @@ class TenantBusinessModesSettingsTest {
         tenant.setRepurchaseMallEnabled(1);
         tenant.setRepurchaseEligibilityMode("PAID_MEMBER");
         tenant.setRepurchaseBonusMode(bonusMode);
+        tenant.setCouponEnabled(1);
         tenant.setStatus(1);
         return tenant;
     }

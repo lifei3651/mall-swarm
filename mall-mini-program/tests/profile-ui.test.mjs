@@ -253,6 +253,7 @@ test('个人中心加载本人信息、真实订单角标、未读消息和待�
   const member = { nickname: '测试会员', phone: '13800000000' }
   const summary = { pendingPayment: 2, pendingShipment: 3, pendingReceipt: 4, pendingReview: 6, afterSale: 5 }
   const results = {
+    '/shop/business-config': { couponEnabled: 1 },
     '/shop/auth/me': member,
     '/shop/live-studio/me': { anchor: null },
     '/shop/messages/unread': { total: 108 },
@@ -273,6 +274,7 @@ test('个人中心加载本人信息、真实订单角标、未读消息和待�
   assert.equal(page.data.unreadCount, 108)
   assert.equal(page.data.unreadText, '99+')
   assert.equal(page.data.payoutCount, 2)
+  assert.equal(page.data.couponEnabled, true)
   assert.deepEqual(stored, [['mall_mini_member', member]])
   assert.equal(calls[0].url, '/shop/auth/me')
   assert.deepEqual(calls.map(({ url }) => url).sort(), Object.keys(results).sort())

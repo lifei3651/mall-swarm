@@ -1,6 +1,7 @@
 <template>
   <div class="page-container coupon-admin">
-    <div class="page-heading"><div><h2>优惠券</h2><p>平台统一发行，按商品范围抵扣；已发行规则不能修改。</p></div><el-button type="primary" :disabled="!canWrite || busy" @click="edit()">新建优惠券</el-button></div>
+    <div class="page-heading"><div><h2>优惠券</h2><p>平台统一发行，按商品范围抵扣；已发行规则不能修改。</p></div><el-button type="primary" :disabled="!canWrite || !couponEnabled || busy" @click="edit()">新建优惠券</el-button></div>
+    <el-alert v-if="!couponEnabled && modeLoaded" title="本商城已关闭优惠券模块；可查询历史券、暂停发行中的券，但不能新建或重新发行。" type="info" :closable="false" show-icon />
     <el-alert title="优惠券会影响商家结算与团队奖金。每次保存和发行前需确认承担比例、奖金及退款规则。" type="warning" :closable="false" show-icon />
     <p v-if="!canWrite" class="hint">配置需要商城配置、财务管理和奖金配置三项权限；商家账号不能发行平台优惠券。</p>
     <p v-if="error" role="alert">{{ error }} <el-button link @click="load">重试</el-button></p>
@@ -11,7 +12,7 @@
       <el-table-column label="已领 / 总量" width="120"><template #default="{row}">{{row.issuedCount}} / {{row.totalCount}}</template></el-table-column>
       <el-table-column label="使用期限" min-width="190"><template #default="{row}">{{time(row.startsAt)}}<div class="hint">至 {{time(row.endsAt)}}</div></template></el-table-column>
       <el-table-column label="状态" width="90"><template #default="{row}">{{stateLabel[row.status] || row.status}}</template></el-table-column>
-      <el-table-column label="操作" width="160" fixed="right"><template #default="{row}"><el-button link @click="edit(row)">{{row.status === 'DRAFT' && canWrite ? '编辑' : '详情'}}</el-button><el-button v-if="canWrite" link type="primary" :disabled="busy" @click="status(row)">{{row.status === 'PUBLISHED' ? '暂停领取' : '发行'}}</el-button></template></el-table-column>
+      <el-table-column label="操作" width="160" fixed="right"><template #default="{row}"><el-button link @click="edit(row)">{{row.status === 'DRAFT' && canWrite && couponEnabled ? '编辑' : '详情'}}</el-button><el-button v-if="canWrite && (couponEnabled || row.status === 'PUBLISHED')" link type="primary" :disabled="busy" @click="status(row)">{{row.status === 'PUBLISHED' ? '暂停领取' : '发行'}}</el-button></template></el-table-column>
     </el-table>
     <el-pagination class="pagination-container" layout="total, prev, pager, next" :total="total" :page-size="20" v-model:current-page="page" @current-change="load" />
     <el-dialog v-model="visible" title="优惠券配置" width="min(720px, 94vw)" :close-on-click-modal="false" :show-close="!busy" :close-on-press-escape="!busy">
@@ -42,8 +43,10 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessageBox } from 'element-plus'
 import { useAppStore } from '@/store'
 import { listCoupons, couponProducts, couponMerchants, saveCoupon, changeCouponStatus } from '@/api/coupons'
+import { getTenantBusinessModes } from '@/api/tenant'
 const store=useAppStore()
 const canWrite=computed(()=>!store.userInfo?.merchantId && ['config:shop','finance:manage','config:bonus'].every(p=>store.hasPermission(p)))
+const couponEnabled=ref(false),modeLoaded=ref(false)
 const rows=ref([]),total=ref(0),page=ref(1),loading=ref(false),busy=ref(false),error=ref(''),formError=ref('')
 const visible=ref(false),readonly=ref(false),form=ref({}),owner=ref('PLATFORM'),funding=ref(''),merchants=ref([]),products=ref([]),productsLoading=ref(false)
 const stateLabel={DRAFT:'草稿',PUBLISHED:'领取中',PAUSED:'已暂停'}
@@ -53,7 +56,7 @@ let searchVersion=0,loadVersion=0
 async function load(){const v=++loadVersion;loading.value=true;error.value='';try{const r=await listCoupons({pageNum:page.value,pageSize:20});if(v===loadVersion){rows.value=r.data?.list||[];total.value=r.data?.total||0}}catch(e){if(v===loadVersion)error.value=e.message||'优惠券读取失败'}finally{if(v===loadVersion)loading.value=false}}
 function edit(row){
   if(busy.value)return
-  formError.value='';readonly.value=!canWrite.value || Boolean(row && row.status!=='DRAFT')
+  formError.value='';readonly.value=!canWrite.value || !couponEnabled.value || Boolean(row && row.status!=='DRAFT')
   form.value=row?{...row,productIds:parse(row.productIdsJson).map(String),businessTypes:parse(row.businessTypesJson)}:{title:'',scopeType:'ALL',productIds:[],businessTypes:[],amount:undefined,minimumAmount:0,merchantPercent:undefined,bonusBasis:'',refundRule:'',startsAt:'',endsAt:'',totalCount:undefined,perMemberLimit:1,version:0}
   owner.value=row?.merchantId ? String(row.merchantId):'PLATFORM'
   funding.value=row?(row.merchantPercent===0?'PLATFORM':row.merchantPercent===100?'MERCHANT':'SHARED'):''
@@ -74,7 +77,7 @@ async function save(){
   try{await ElMessageBox.confirm(impact(payload),'核对结算与团队奖金影响',{confirmButtonText:'确认并保存',cancelButtonText:'返回修改',type:'warning',customClass:'coupon-impact-confirm'});await saveCoupon(payload.id,payload);visible.value=false;await load()}catch(e){if(e!=='cancel'&&e!=='close')formError.value=e.message||'保存失败，请刷新后重试'}finally{busy.value=false}
 }
 async function status(row){if(busy.value||!canWrite.value)return;busy.value=true;const snapshot=JSON.parse(JSON.stringify(row));try{const next=snapshot.status==='PUBLISHED'?'PAUSED':'PUBLISHED';await ElMessageBox.confirm(`${impact(snapshot)}\n${next==='PAUSED'?'本次暂停新领取，已领取的优惠券保持原规则。':'本次将开放领取。'}`,'确认优惠券状态变更',{type:'warning',confirmButtonText:'确认',cancelButtonText:'取消',customClass:'coupon-impact-confirm'});await changeCouponStatus(snapshot.id,{status:next,version:snapshot.version,impactConfirmed:true});await load()}catch(e){if(e!=='cancel'&&e!=='close')error.value=e.message||'状态修改失败'}finally{busy.value=false}}
-onMounted(async()=>{load();try{let p=1;do{const r=await couponMerchants({pageNum:p,pageSize:100});merchants.value.push(...(r.data?.list||[]));if(p>=Number(r.data?.totalPage||1))break;p++}while(p<=20)}catch(e){error.value=e.message||'商家列表读取失败'}})
+onMounted(async()=>{load();if(canWrite.value){try{const r=await getTenantBusinessModes(1);couponEnabled.value=Number(r.data?.couponEnabled)===1;modeLoaded.value=true}catch(e){error.value=e.message||'优惠券模块状态读取失败'}}try{let p=1;do{const r=await couponMerchants({pageNum:p,pageSize:100});merchants.value.push(...(r.data?.list||[]));if(p>=Number(r.data?.totalPage||1))break;p++}while(p<=20)}catch(e){error.value=e.message||'商家列表读取失败'}})
 </script>
 <style scoped>
 .coupon-table{margin-top:20px}.hint{font-size:13px;line-height:1.7;color:var(--el-text-color-secondary)}.form-error{color:var(--el-color-danger)}.form-pair{display:grid;grid-template-columns:1fr 1fr;gap:20px}.coupon-form :deep(.el-select),.coupon-form :deep(.el-input-number),.coupon-form :deep(.el-date-editor){width:100%}.coupon-form{margin-top:10px}@media(max-width:600px){.form-pair{grid-template-columns:1fr;gap:0}}

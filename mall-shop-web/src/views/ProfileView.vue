@@ -41,7 +41,7 @@
 
       <section class="profile-menu" :class="{ 'without-team-performance': !showTeamPerformance }">
         <MessageCenterEntry class="menu-tile" />
-        <RouterLink to="/profile/coupons" class="menu-tile"><span class="tile-icon coupon-icon"><TicketPercent :size="26" :stroke-width="1.9" aria-hidden="true" /></span><span class="tile-label">优惠券</span></RouterLink>
+        <RouterLink v-if="couponEnabled" to="/profile/coupons" class="menu-tile"><span class="tile-icon coupon-icon"><TicketPercent :size="26" :stroke-width="1.9" aria-hidden="true" /></span><span class="tile-label">优惠券</span></RouterLink>
         <RouterLink to="/profile/wallet" class="menu-tile">
           <span class="tile-icon wallet-icon"><WalletCards :size="26" /></span>
           <span class="tile-label">余额</span>
@@ -112,7 +112,7 @@ import {
   UserRound,
   WalletCards,
 } from 'lucide-vue-next'
-import { getProfile, getProfilePerformance, getWalletSummary, logout } from '@/api/shop'
+import { getProfile, getProfilePerformance, getWalletSummary, getBusinessConfig, logout } from '@/api/shop'
 import InviteDialog from '@/components/InviteDialog.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import MessageCenterEntry from '@/components/MessageCenterEntry.vue'
@@ -157,6 +157,7 @@ const memberName = computed(() => profile.value.member?.nickname || profile.valu
 const accountName = computed(() => profile.value.member?.username || profile.value.member?.phone || '-')
 const orderSummary = computed(() => profile.value.orderSummary || {})
 const showTeamPerformance = computed(() => performanceProfile.value.canViewTeamPerformance === true)
+const couponEnabled = ref(false)
 const teamPerformanceText = computed(() => {
   if (performanceLoading.value) return '加载中'
   return `¥${money(performanceProfile.value.performance?.currentMonthTeamPerformance)}`
@@ -215,6 +216,7 @@ onMounted(() => {
   fetchProfile()
   fetchWallet()
   fetchPerformance()
+  getBusinessConfig().then(res => { if (!disposed) couponEnabled.value = Number(res.data?.couponEnabled) === 1 }).catch(() => {})
   stopOrderRealtime = connectOrderRealtime({
     onEvent: () => {
       window.clearTimeout(realtimeRefreshTimer)

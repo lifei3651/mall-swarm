@@ -7,13 +7,21 @@ const feedback=require('../../utils/feedback')
 const statusLabels={AVAILABLE:'未使用',RESERVED:'待支付占用',USED:'已使用',EXPIRED:'已过期'}
 function card(c){return {...c,id:format.identifier(c.id),claimId:format.identifier(c.claimId),key:format.identifier(c.claimId)||format.identifier(c.id),amountText:format.money(c.amount),minimumText:format.money(c.minimumAmount),startsText:String(c.startsAt||'').replace('T',' ').slice(0,16),endsText:String(c.endsAt||'').replace('T',' ').slice(0,16),statusText:statusLabels[c.status]||'',businessText:(c.businessTypes||[]).map(t=>t==='NORMAL'?'普通商城':'其他专区专用（当前商城不可用）').join(' / ')}}
 Page({
-  data:{...theme.pageData(),tab:'mine',rows:[],page:1,pages:1,loading:false,error:'',claiming:'',productTarget:null,products:[],productsLoading:false,productPage:0,productPages:1,productError:''},
+  data:{...theme.pageData(),tab:'mine',couponEnabled:false,rows:[],page:1,pages:1,loading:false,error:'',claiming:'',productTarget:null,products:[],productsLoading:false,productPage:0,productPages:1,productError:''},
   onLoad(options={}){this.keys={};if(options.tab==='catalog')this.setData({tab:'catalog'})},
-  onShow(){this.inactive=false;const owner=session.getToken();if(this.owner!==owner){this.owner=owner;this.keys={};this.setData({rows:[],page:1,products:[],productTarget:null,productsLoading:false})}theme.apply(this);if(auth.requireLogin('/pages/coupons/index'))this.load()},
-  onHide(){this.inactive=true;this.generation=(this.generation||0)+1;this.productGeneration=(this.productGeneration||0)+1;this.setData({productTarget:null})},
+  onShow(){this.inactive=false;const owner=session.getToken();if(this.owner!==owner){this.owner=owner;this.keys={};this.setData({rows:[],page:1,products:[],productTarget:null,productsLoading:false})}theme.apply(this);if(auth.requireLogin('/pages/coupons/index'))this.loadMode()},
+  onHide(){this.inactive=true;this.generation=(this.generation||0)+1;this.productGeneration=(this.productGeneration||0)+1;this.modeGeneration=(this.modeGeneration||0)+1;this.setData({productTarget:null})},
   onUnload(){this.onHide()},
   onPullDownRefresh(){this.setData({page:1});Promise.resolve(this.load()).finally(()=>wx.stopPullDownRefresh())},
-  switchTab(e){const tab=e.currentTarget.dataset.tab;if(!['mine','catalog'].includes(tab)||tab===this.data.tab)return;this.setData({tab,page:1,rows:[]});this.load()},
+  switchTab(e){const tab=e.currentTarget.dataset.tab;if(!['mine','catalog'].includes(tab)||tab===this.data.tab||(tab==='catalog'&&!this.data.couponEnabled))return;this.setData({tab,page:1,rows:[]});this.load()},
+  async loadMode(){
+    const generation=this.modeGeneration=(this.modeGeneration||0)+1,owner=session.getToken()
+    this.setData({couponEnabled:false})
+    try{const config=await request({url:'/shop/business-config'});if(this.inactive||generation!==this.modeGeneration||owner!==session.getToken())return;this.setData({couponEnabled:Number(config&&config.couponEnabled)===1})}
+    catch(_){if(this.inactive||generation!==this.modeGeneration||owner!==session.getToken())return}
+    if(!this.data.couponEnabled&&this.data.tab==='catalog')this.setData({tab:'mine',page:1,rows:[]})
+    this.load()
+  },
   async load(){
     const generation=this.generation=(this.generation||0)+1,owner=session.getToken()
     this.setData({loading:true,error:''})
@@ -24,7 +32,7 @@ Page({
   turn(e){if(this.data.loading)return;const page=this.data.page+Number(e.currentTarget.dataset.delta);if(page<1||page>this.data.pages)return;this.setData({page});this.load()},
   async claim(e){
     const id=format.identifier(e.currentTarget.dataset.id),c=this.data.rows.find(r=>r.id===id)
-    if(this.data.claiming||!c||!c.usable)return
+    if(this.data.claiming||!this.data.couponEnabled||!c||!c.usable)return
     const owner=session.getToken();this.setData({claiming:id,error:''});this.keys=this.keys||{}
     const key=owner+':'+id
     if(!this.keys[key])this.keys[key]=`MINI-COUPON-${Date.now()}-${Math.random().toString(36).slice(2,12)}`

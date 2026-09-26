@@ -27,5 +27,7 @@ public interface DmsTenantDao {
 
     int updateBusinessModes(@Param("id") Long id, @Param("modes") TenantBusinessModesDTO modes);
 
+    int updateCouponMode(@Param("id") Long id, @Param("enabled") Integer enabled);
+
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
 }

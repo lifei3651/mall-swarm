@@ -23,7 +23,7 @@ Page({
     quoteLoading: false,
     quoteReady: false,
     quoteError: '',
-    couponClaimId: '', couponOptions: [], couponPickerVisible: false, couponEnabled: true, discount: '0.00',
+    couponClaimId: '', couponOptions: [], couponPickerVisible: false, couponEnabled: false, discount: '0.00',
     activityName: '',
     rows: [],
     address: null,
@@ -42,7 +42,7 @@ Page({
   onLoad(options = {}) {
     theme.apply(this)
     this.flashSaleMode = Object.prototype.hasOwnProperty.call(options, 'activityId')
-    this.setData({ couponEnabled: !this.flashSaleMode })
+    this.setData({ couponEnabled: false })
     this.directMode = options.direct === '1'
     this.activityId = this.flashSaleMode ? format.identifier(options.activityId) : ''
     this.activityQuantity = options.quantity === undefined ? 1 : Number(options.quantity)
@@ -94,10 +94,14 @@ Page({
         count: rows.reduce((sum, row) => sum + row.quantity, 0),
         total: format.money(rows.reduce((sum, row) => sum + Number(row.salePrice) * row.quantity, 0)) })
       if (!rows.length) throw new Error('没有待结算商品，请返回购物车选择')
-      const [rawAddresses, config, wallet] = await Promise.all([
-        request({ url: '/shop/addresses' }), request({ url: '/shop/pay/config' }), request({ url: '/shop/wallet/summary' }).catch(() => null)
+      const [rawAddresses, config, wallet, businessConfig] = await Promise.all([
+        request({ url: '/shop/addresses' }), request({ url: '/shop/pay/config' }), request({ url: '/shop/wallet/summary' }).catch(() => null),
+        request({ url: '/shop/business-config' }).catch(() => null)
       ])
       if (token !== session.getToken() || generation !== this.loadGeneration) return
+      const couponEnabled = !this.flashSaleMode && Number(businessConfig && businessConfig.couponEnabled) === 1
+      feedback.update(this, { couponEnabled, couponClaimId: couponEnabled ? this.data.couponClaimId : '',
+        couponOptions: couponEnabled ? this.data.couponOptions : [], couponPickerVisible: false })
       const addresses = (rawAddresses || []).filter((item) => format.identifier(item.id))
       const currentId = this.selectedAddressId || (this.data.address && String(this.data.address.id))
       const address = (addresses || []).find((item) => String(item.id) === currentId)
@@ -173,6 +177,7 @@ Page({
       if (generation !== this.quoteGeneration) return
       this.quotedPayload = JSON.stringify(payload)
       feedback.update(this, {
+        couponEnabled: !this.flashSaleMode && quote.couponEnabled === true,
         total: format.money(quote.productAmount),
         freight: format.money(quote.freightAmount),
         payTotal: format.money(quote.payAmount),
@@ -182,6 +187,11 @@ Page({
       })
     } catch (error) {
       if (generation !== this.quoteGeneration) return
+      if (this.data.couponClaimId && String(error.message || '').includes('已关闭优惠券')) {
+        feedback.update(this, { couponEnabled: false, couponClaimId: '', couponOptions: [], couponPickerVisible: false })
+        await this.quoteFreight(address)
+        return
+      }
       feedback.update(this, { quoteReady: false, freight: '--', payTotal: '--', quoteError: error.message || '结算金额计算失败，请重试' })
     } finally { if (generation === this.quoteGeneration) feedback.update(this, { quoteLoading: false }) }
   },

@@ -86,7 +86,7 @@
           </div>
         </div>
 
-        <button v-if="businessType !== 'FLASH_SALE'" type="button" class="remark-row coupon-row" :disabled="submitting || Boolean(pendingCheckoutId)" @click="couponPickerVisible=true"><span class="remark-label">优惠券</span><span class="remark-value">{{selectedCouponClaimId ? `已选 · 减 ¥${money(discountAmount)}` : '选择优惠券'}}</span><span class="remark-arrow" aria-hidden="true">›</span></button>
+        <button v-if="businessType !== 'FLASH_SALE' && couponEnabled" type="button" class="remark-row coupon-row" :disabled="submitting || Boolean(pendingCheckoutId)" @click="couponPickerVisible=true"><span class="remark-label">优惠券</span><span class="remark-value">{{selectedCouponClaimId ? `已选 · 减 ¥${money(discountAmount)}` : '选择优惠券'}}</span><span class="remark-arrow" aria-hidden="true">›</span></button>
         <CouponPicker v-if="couponPickerVisible" :options="couponOptions" :selected="selectedCouponClaimId" @close="couponPickerVisible=false" @choose="chooseCoupon" />
         <div class="payment-section">
           <div class="payment-title"><strong>支付方式</strong><span>请选择一种</span></div>
@@ -303,7 +303,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, ClipboardPaste, Plus, Settings2, ShieldCheck, X } from 'lucide-vue-next'
-import { getHome, getMe, getWalletSummary, listAddresses, submitOrder, submitFlashSaleOrder, quoteFreight, checkPaymentVerify, sendPaymentSmsCode, sendPaymentPasswordSmsCode, setPaymentPassword, payOrderWithBalance, createAlipayOrder, getPayConfig } from '@/api/shop'
+import { getHome, getMe, getWalletSummary, getBusinessConfig, listAddresses, submitOrder, submitFlashSaleOrder, quoteFreight, checkPaymentVerify, sendPaymentSmsCode, sendPaymentPasswordSmsCode, setPaymentPassword, payOrderWithBalance, createAlipayOrder, getPayConfig } from '@/api/shop'
 import { couponQuoteValid, canReviseRejectedOrder } from '@/utils/couponAmounts'
 import { mixedBusinessError, validateCheckoutBusinessType } from '@surface-commerce-policy'
 import { useCart } from '@/store/cart'
@@ -353,8 +353,8 @@ const hasToken = ref(hasShopSession())
 const receiverRegion = ref([])
 const freightAmount = ref(0)
 const freightLoading = ref(false)
-const selectedCouponClaimId=ref(null),couponOptions=ref([]),couponPickerVisible=ref(false),discountAmount=ref(0),quotedProductAmount=ref(null),quoteReady=ref(false)
-let quoteVersion=0,quotedPayload=''
+const selectedCouponClaimId=ref(null),couponOptions=ref([]),couponPickerVisible=ref(false),couponEnabled=ref(false),discountAmount=ref(0),quotedProductAmount=ref(null),quoteReady=ref(false)
+let quoteVersion=0,quotedPayload='',couponModeFromQuote=false
 const showAddressPaste = ref(false)
 const addressPasteText = ref('')
 const addressParseHint = ref('')
@@ -690,6 +690,9 @@ const refreshFreight = async () => {
     const res = await quoteFreight(payload)
     if(version!==quoteVersion)return
     if(!couponQuoteValid(res.data,payload.couponClaimId))throw new Error('结算优惠或金额异常，请重新计算')
+    couponModeFromQuote=true
+    couponEnabled.value = businessType !== 'FLASH_SALE' && res.data?.couponEnabled === true
+    if (!couponEnabled.value) couponPickerVisible.value = false
     freightAmount.value = Number(res.data?.freightAmount || 0)
     quotedProductAmount.value=Number(res.data.productAmount)
     discountAmount.value=Number(res.data.discountAmount||0)
@@ -701,6 +704,12 @@ const refreshFreight = async () => {
     quotedPayload=JSON.stringify(payload);quoteReady.value=true
   } catch (e) {
     if(version!==quoteVersion)return
+    if(selectedCouponClaimId.value && String(e.message || '').includes('已关闭优惠券')){
+      couponModeFromQuote=true
+      selectedCouponClaimId.value=null;couponEnabled.value=false;couponOptions.value=[];couponPickerVisible.value=false
+      await refreshFreight()
+      return
+    }
     freightAmount.value = 0
     showCheckoutError(e.message || '运费计算失败')
   } finally { if(version===quoteVersion)freightLoading.value = false }
@@ -1027,6 +1036,7 @@ onMounted(() => {
   fetchMemberPhone()
   checkVerify()
   fetchPayConfig()
+  getBusinessConfig().then(res => { if (!disposed && !couponModeFromQuote) couponEnabled.value = businessType !== 'FLASH_SALE' && Number(res.data?.couponEnabled) === 1 }).catch(() => {})
 })
 
 const fetchPayConfig = async () => {

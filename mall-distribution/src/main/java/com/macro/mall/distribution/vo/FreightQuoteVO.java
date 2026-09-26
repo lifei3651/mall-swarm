@@ -20,6 +20,7 @@ public class FreightQuoteVO implements Serializable {
     private BigDecimal discountAmount = BigDecimal.ZERO;
     private Long selectedCouponClaimId;
     private java.util.List<ShopCouponVO> coupons = java.util.List.of();
+    private Boolean couponEnabled = false;
 
     public FreightQuoteVO(BigDecimal productAmount, BigDecimal freightAmount, BigDecimal payAmount) {
         this.productAmount=productAmount; this.freightAmount=freightAmount; this.payAmount=payAmount;

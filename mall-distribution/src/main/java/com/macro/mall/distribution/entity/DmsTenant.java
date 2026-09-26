@@ -114,6 +114,9 @@ public class DmsTenant implements Serializable {
 
     private Integer repurchaseMallEnabled;
 
+    /** 独立优惠券模块开关；旧客户迁移默认开启，关闭不删除历史券和订单。 */
+    private Integer couponEnabled;
+
     @Pattern(regexp = "PAID_MEMBER|AGENT|ALL_MEMBER", message = "复购区准入模式不正确")
     private String repurchaseEligibilityMode;
 

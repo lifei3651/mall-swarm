@@ -40,6 +40,11 @@ public class TenantBusinessModesDTO implements Serializable {
     @Max(value = 1, message = "复购区状态不正确")
     private Integer repurchaseMallEnabled;
 
+    /** 缺省时沿用已有状态，兼容升级前的后台客户端。 */
+    @Min(value = 0, message = "优惠券状态不正确")
+    @Max(value = 1, message = "优惠券状态不正确")
+    private Integer couponEnabled;
+
     @NotNull(message = "请选择复购区进入资格")
     @Pattern(regexp = "PAID_MEMBER|AGENT|ALL_MEMBER", message = "复购区准入模式不正确")
     private String repurchaseEligibilityMode;

@@ -121,6 +121,32 @@ class ShopCouponIntegrationTest {
         assertEquals(1,coupons.usableProducts(member,c.getId(),1,20).getList().size());
         assertEquals("轻奢焕活礼盒",coupons.usableProducts(member,c.getId(),1,20).getList().get(0).getProductName());
     }
+    @Test void disablingCouponModuleBlocksIssuanceAndNewUseButAllowsPlainOrders(){
+        DmsShopCoupon coupon=publish(input()); ShopCouponVO owned=claim(coupon);
+        db.update("UPDATE dms_tenant SET coupon_enabled=0 WHERE id=1");
+        assertTrue(coupons.catalog(member,1,20).getList().isEmpty());
+        ShopCouponVO history=coupons.mine(member,1,20).getList().get(0);
+        assertEquals(owned.getClaimId(),history.getClaimId()); assertFalse(history.isUsable());
+        assertThrows(ApiException.class,()->coupons.claim(member,coupon.getId(),"coupon-test-request-000002"));
+        assertThrows(ApiException.class,()->coupons.save(null,input()));
+        assertThrows(ApiException.class,()->coupons.status(coupon.getId(),coupon.getVersion(),"PUBLISHED",true));
+        assertThrows(ApiException.class,()->shop.quoteFreight(order(owned.getClaimId(),item(1,1,1)),member));
+        assertThrows(ApiException.class,()->shop.submitOrder(order(owned.getClaimId(),item(1,1,1)),member));
+        FreightQuoteVO plain=shop.quoteFreight(order(null,item(1,1,1)),member);
+        money("0",plain.getDiscountAmount()); assertTrue(plain.getCoupons().isEmpty()); assertEquals(false,plain.getCouponEnabled());
+        ShopOrderVO created=shop.submitOrder(order(null,item(1,1,1)),member);
+        assertNull(created.getOrder().getCouponClaimId());
+    }
+    @Test void disablingModulePreservesPendingPaymentAndRefundReversal(){
+        DmsShopCoupon coupon=publish(input()); ShopCouponVO owned=claim(coupon);
+        ShopOrderVO order=shop.submitOrder(order(owned.getClaimId(),item(1,1,1)),member);
+        db.update("UPDATE dms_tenant SET coupon_enabled=0 WHERE id=1");
+        shop.markOrderPaid(order.getOrder().getId(),"BALANCE");
+        assertEquals("USED",dao.owned(1L,member.getId(),owned.getClaimId()).getStatus());
+        refund(order,order.getItems().get(0),1);
+        assertEquals("AVAILABLE",dao.owned(1L,member.getId(),owned.getClaimId()).getStatus());
+        assertFalse(coupons.mine(member,1,20).getList().get(0).isUsable());
+    }
     @Test void merchantFundingAndThreeRefundsReverseExactlyTheNetSettlement(){
         DmsMerchant m=new DmsMerchant();m.setMerchantNo("COUPON-REFUND-SELLER");m.setMerchantName("优惠分担测试商家");
         m.setLegalEntityName(m.getMerchantName());m.setUnifiedSocialCreditCode("91430100TEST000001");m.setBankAccountName(m.getMerchantName());m.setBankName("测试银行长沙支行");m.setBankAccountNo("6222000000000000001");m.setInvoiceTitle(m.getMerchantName());m.setTaxpayerIdentificationNo("91430100TEST000001");m.setContractStatus("SIGNED");m=merchants.saveMerchant(m);

@@ -46,6 +46,7 @@ class TenantConfigVersionServiceTest {
                 brandCultureImagePolicy);
 
         DmsTenant current = tenant(1L, "当前商城");
+        current.setCouponEnabled(1);
         DmsTenantDisplayConfig currentDisplay = display(1L, 0);
         DmsTenant restored = tenant(1L, "历史商城");
         DmsTenantDisplayConfig restoredDisplay = display(1L, 1);
@@ -60,10 +61,12 @@ class TenantConfigVersionServiceTest {
         target.setDisplaySnapshot(objectMapper.writeValueAsString(restoredDisplay));
 
         when(tenantDao.selectById(1L)).thenReturn(current);
+        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(current);
         when(displayDao.selectByTenantId(1L)).thenReturn(currentDisplay);
         when(versionDao.countByTenantId(1L)).thenReturn(0, 1);
         when(versionDao.selectByIdAndTenantId(9L, 1L)).thenReturn(target);
         when(tenantDao.update(any(DmsTenant.class))).thenReturn(1);
+        when(tenantDao.updateCouponMode(1L, 1)).thenReturn(1);
         when(displayDao.update(any(DmsTenantDisplayConfig.class))).thenReturn(1);
         when(brandCultureImagePolicy.validate(eq(1L), any())).thenAnswer(invocation -> invocation.getArgument(1));
 
@@ -72,6 +75,8 @@ class TenantConfigVersionServiceTest {
         ArgumentCaptor<DmsTenant> tenantUpdate = ArgumentCaptor.forClass(DmsTenant.class);
         verify(tenantDao).update(tenantUpdate.capture());
         assertEquals("历史商城", tenantUpdate.getValue().getBrandName());
+        assertEquals(1, tenantUpdate.getValue().getCouponEnabled(), "旧快照缺少优惠券字段时必须保留现有开关");
+        verify(tenantDao).updateCouponMode(1L, 1);
         ArgumentCaptor<DmsTenantDisplayConfig> displayUpdate = ArgumentCaptor.forClass(DmsTenantDisplayConfig.class);
         verify(displayDao).update(displayUpdate.capture());
         assertEquals(1, displayUpdate.getValue().getShowPv());

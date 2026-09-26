@@ -71,4 +71,9 @@ describe('业务模式影响摘要', () => {
     expect(businessModeChanges({ flashSaleEnabled:0 }, { flashSaleEnabled:'0' })).toEqual([])
     expect(businessModeChanges({ repurchaseBonusMode:'NONE' }, { repurchaseBonusMode:'STANDARD' })[0].after).toBe('按渠道奖金规则')
   })
+  it('优惠券开关进入变更确认摘要', () => {
+    expect(businessModeChanges({ couponEnabled:1 }, { couponEnabled:0 })).toEqual([
+      { key:'couponEnabled', title:'优惠券模块', before:'开启', after:'关闭' },
+    ])
+  })
 })

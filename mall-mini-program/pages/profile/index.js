@@ -10,7 +10,7 @@ Page({
   data: {
     ...theme.pageData(),
     capabilities: capabilities.empty(), shareReady: false, shareError: '',
-    loggedIn: false, member: null, loginVisible: false, canOpenStudio: false, avatarSrc: avatar.fallback, unreadCount: 0, unreadText: '', payoutCount: 0,
+    loggedIn: false, member: null, loginVisible: false, canOpenStudio: false, couponEnabled: false, avatarSrc: avatar.fallback, unreadCount: 0, unreadText: '', payoutCount: 0,
     orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, pendingReview: 0, afterSale: 0 }
   },
   onShow() { this.hidden = false; if (typeof wx.setNavigationBarTitle === 'function') wx.setNavigationBarTitle({ title: '我的' }); theme.apply(this); this.setLoginVisible(this.data.loginVisible); return this.refresh() },
@@ -20,6 +20,7 @@ Page({
   async refresh() {
     const version = this.refreshVersion = (this.refreshVersion || 0) + 1
     const token = session.getToken()
+    feedback.update(this, { couponEnabled: false })
     const sameOwner = Boolean(token) && token === this.displayToken
     this.displayToken = token
     if (!sameOwner) {
@@ -45,6 +46,7 @@ Page({
       if (!this.currentRefresh(version, token)) return
       wx.setStorageSync('mall_mini_member', member)
       feedback.update(this, { member })
+      this.loadCouponMode(version, token)
       const avatarSrc = await avatar.load(member.avatarUrl)
       if (!this.currentRefresh(version, token)) { avatar.release(avatarSrc); return }
       avatar.release(this.data.avatarSrc)
@@ -61,6 +63,12 @@ Page({
         orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, pendingReview: 0, afterSale: 0 }
       })
     }
+  },
+  async loadCouponMode(version, token) {
+    try {
+      const config = await request({ url: '/shop/business-config' })
+      if (this.currentRefresh(version, token)) feedback.update(this, { couponEnabled: Number(config && config.couponEnabled) === 1 })
+    } catch (_) { /* 状态未知时不展示入口，服务端仍负责最终拦截。 */ }
   },
   async loadCapabilities(version = this.refreshVersion, token = session.getToken()) {
     const result = await share.prepare(this)

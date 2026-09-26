@@ -1047,6 +1047,7 @@ public class ShopServiceImpl implements ShopService {
                 .reduce(ZERO, BigDecimal::add);
         FreightQuoteVO quote = new FreightQuoteVO(productAmount, freight, productAmount.add(freight));
         if (couponService != null) {
+            quote.setCouponEnabled(couponService.isEnabled());
             BigDecimal discount = couponService.preview(member, dto.getCouponClaimId(), couponLines, businessType);
             quote.setDiscountAmount(discount); quote.setSelectedCouponClaimId(dto.getCouponClaimId());
             quote.setPayAmount(productAmount.add(freight).subtract(discount));

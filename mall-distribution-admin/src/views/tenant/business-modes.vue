@@ -1,6 +1,6 @@
 <template>
   <div class="page-container business-mode-page">
-    <div class="heading"><div><h2>团队、秒杀与复购模式</h2><p>设置业务开通方式。奖金比例与计算公式在客户奖金接入中维护。</p></div></div>
+    <div class="heading"><div><h2>商城业务模块</h2><p>设置推广资格、秒杀、复购与优惠券。奖金比例与计算公式在客户奖金接入中维护。</p></div></div>
     <el-alert title="邀请关系只记录谁邀请了谁，推广资格决定该账号是否进入客户团队制度，两者已经分开。公开商城不会展示奖金制度。" type="warning" :closable="false" show-icon />
     <el-card v-loading="loading" shadow="never">
       <el-form :model="form" label-position="left" label-width="132px" :disabled="loading || saving || !form.id">
@@ -29,6 +29,10 @@
           <el-form-item label="复购奖金处理"><el-radio-group v-model="form.repurchaseBonusMode"><el-radio-button value="NONE">不计奖</el-radio-button><el-radio-button value="STANDARD">按复购奖金规则</el-radio-button></el-radio-group></el-form-item>
           <p>复购商品池、复购价、复购PV和复购限购在商品编辑页的“销售渠道”中维护。</p>
         </section>
+        <section><h3>优惠券</h3>
+          <el-form-item label="优惠券模块" class="toggle-row"><span class="toggle-state">{{ Number(form.couponEnabled) === 1 ? '已开启' : '已关闭' }}</span><el-switch v-model="form.couponEnabled" aria-label="启用优惠券模块" :active-value="1" :inactive-value="0" /></el-form-item>
+          <p>关闭后停止新建、发行、领券及新订单用券；已发券和历史用券订单保留查询，支付核销、取消与退款逆流程仍照原订单规则处理。重新开启不会延长旧券有效期。</p>
+        </section>
       </el-form>
       <template #footer><div class="footer"><span>{{ changes.length ? `有 ${changes.length} 项未保存` : '暂无未保存的修改' }}</span><div><el-button :disabled="!changes.length || saving" @click="reset">撤销修改</el-button><el-button type="primary" :disabled="!form.id || !changes.length || loading" :loading="saving" @click="save">保存设置</el-button></div></div></template>
     </el-card>
@@ -40,7 +44,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { getTenantBusinessModes, saveTenantBusinessModes } from '@/api/tenant'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { businessModeChanges } from '@/utils/businessModeChanges'
-const loading=ref(false);const saving=ref(false);const form=ref({promotionJoinMode:'DISABLED',flashSaleEnabled:0,flashSaleBonusMode:'NONE',repurchaseMallEnabled:0,repurchaseEligibilityMode:'PAID_MEMBER',repurchaseBonusMode:'NONE'})
+const loading=ref(false);const saving=ref(false);const form=ref({promotionJoinMode:'DISABLED',flashSaleEnabled:0,flashSaleBonusMode:'NONE',repurchaseMallEnabled:0,repurchaseEligibilityMode:'PAID_MEMBER',repurchaseBonusMode:'NONE',couponEnabled:1})
 const snapshot = ref(null)
 const visibleBonusMode = (value) => ['STANDARD', 'CUSTOM'].includes(String(value || '').toUpperCase()) ? 'STANDARD' : 'NONE'
 const changes = computed(() => snapshot.value ? businessModeChanges(snapshot.value, form.value) : [])
@@ -65,7 +69,7 @@ const save = async () => {
   try {
     try {
       await ElMessageBox.confirm(
-        summary.map(item => `${item.title}：${item.before} → ${item.after}`).join('\n') + '\n\n可能影响会员资格、商品可购买范围及奖金处理。请核对后保存。',
+        summary.map(item => `${item.title}：${item.before} → ${item.after}`).join('\n') + '\n\n可能影响会员资格、商品可购买范围、优惠券领取使用及奖金处理。请核对后保存。',
         '确认业务规则变更', { type:'warning', confirmButtonText:'确认并保存', cancelButtonText:'返回修改', customClass:'settings-impact-confirm' },
       )
     } catch { return }

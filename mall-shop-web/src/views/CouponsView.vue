@@ -1,10 +1,11 @@
 <template>
   <div class="page coupons-page">
     <header class="coupon-head"><button type="button" aria-label="返回" @click="router.back()"><ArrowLeft :size="22" /></button><h2>优惠券</h2><span></span></header>
-    <div class="coupon-tabs" role="tablist"><button v-for="t in tabs" :key="t.key" type="button" role="tab" :aria-selected="tab === t.key" :class="{active:tab===t.key}" @click="switchTab(t.key)">{{t.label}}</button></div>
+    <div class="coupon-tabs" role="tablist" :style="{ gridTemplateColumns: couponEnabled ? '1fr 1fr' : '1fr' }"><button v-for="t in availableTabs" :key="t.key" type="button" role="tab" :aria-selected="tab === t.key" :class="{active:tab===t.key}" @click="switchTab(t.key)">{{t.label}}</button></div>
+    <p v-if="modeLoaded && !couponEnabled" class="coupon-empty">优惠券模块已关闭，历史记录仍可查看</p>
     <p v-if="error" role="alert" class="coupon-error">{{error}} <button type="button" @click="load">重试</button></p>
     <p v-if="loading" role="status" class="coupon-empty">正在读取优惠券…</p>
-    <p v-else-if="!rows.length && !error" class="coupon-empty">{{tab==='mine'?'还没有优惠券，去领券中心看看':'暂无可领取优惠券'}}</p>
+    <p v-else-if="!rows.length && !error" class="coupon-empty">{{tab==='mine'?'暂无历史优惠券':'暂无可领取优惠券'}}</p>
     <article v-for="c in rows" :key="c.claimId || c.id" class="coupon-card">
       <div class="coupon-price"><strong><small>¥</small>{{money(c.amount)}}</strong><span>{{Number(c.minimumAmount)>0?`满 ¥${money(c.minimumAmount)} 可用`:'无门槛'}}</span></div>
       <div class="coupon-copy"><h3>{{c.title}}</h3><p>{{c.scopeLabel}}</p></div>
@@ -17,26 +18,28 @@
   </div>
 </template>
 <script setup>
-import { onMounted, onBeforeUnmount, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeft } from 'lucide-vue-next'
 import { listCoupons, claimCoupon, couponProducts } from '@/api/coupons'
 import { createIdempotencyKey } from '@/utils/idempotency'
 import { money } from '@/utils/format'
 import { couponBusinessLabel } from '@surface-commerce-policy'
+import { getBusinessConfig } from '@/api/shop'
 const router=useRouter(),route=useRoute(),tab=ref(route.query.tab==='catalog'?'catalog':'mine'),tabs=[{key:'mine',label:'我的优惠券'},{key:'catalog',label:'领券中心'}]
+const couponEnabled=ref(false),modeLoaded=ref(false),availableTabs=computed(()=>couponEnabled.value?tabs:tabs.slice(0,1))
 const rows=ref([]),page=ref(1),pages=ref(1),loading=ref(false),error=ref(''),claiming=ref(''),claimed=ref(new Set())
 const statusLabels={AVAILABLE:'未使用',RESERVED:'待支付占用',USED:'已使用',EXPIRED:'已过期'}
 const productTarget=ref(null),products=ref([]),productsLoading=ref(false),productError=ref(''),productPage=ref(1),productPages=ref(1)
 const keys=new Map();let version=0,productVersion=0,disposed=false
 const date=v=>String(v||'').replace('T',' ').slice(0,16)
 async function load(){const v=++version;loading.value=true;error.value='';try{const r=await listCoupons(tab.value==='mine',{pageNum:page.value,pageSize:20});if(!disposed&&v===version){rows.value=r.data?.list||[];pages.value=Number(r.data?.totalPage||1)}}catch(e){if(!disposed&&v===version)error.value=e.message||'读取失败'}finally{if(v===version)loading.value=false}}
-function switchTab(value){if(value===tab.value)return;tab.value=value;page.value=1;rows.value=[];load()}
+function switchTab(value){if(value===tab.value||(value==='catalog'&&!couponEnabled.value))return;tab.value=value;page.value=1;rows.value=[];load()}
 function turn(delta){page.value+=delta;load()}
-async function claim(c){if(claiming.value||!c.usable)return;const id=String(c.id);claiming.value=id;error.value='';if(!keys.has(id))keys.set(id,createIdempotencyKey('coupon').replace(/[^A-Za-z0-9_-]/g,'_').slice(0,80));try{await claimCoupon(id,keys.get(id));if(disposed)return;claimed.value.add(id);keys.delete(id);await load()}catch(e){if(!disposed)error.value=e.message||'领取失败，请重试'}finally{claiming.value=''}}
+async function claim(c){if(claiming.value||!couponEnabled.value||!c.usable)return;const id=String(c.id);claiming.value=id;error.value='';if(!keys.has(id))keys.set(id,createIdempotencyKey('coupon').replace(/[^A-Za-z0-9_-]/g,'_').slice(0,80));try{await claimCoupon(id,keys.get(id));if(disposed)return;claimed.value.add(id);keys.delete(id);await load()}catch(e){if(!disposed)error.value=e.message||'领取失败，请重试'}finally{claiming.value=''}}
 function showProducts(c){productTarget.value=c;productPage.value=0;products.value=[];loadProducts(true)}
 async function loadProducts(){const target=productTarget.value;if(!target)return;const v=++productVersion;productsLoading.value=true;productError.value='';try{const r=await couponProducts(target.id,{pageNum:productPage.value+1,pageSize:20});if(disposed||v!==productVersion||productTarget.value!==target)return;products.value.push(...(r.data?.list||[]));productPages.value=Number(r.data?.totalPage||1);productPage.value++}catch(e){if(v===productVersion)productError.value=e.message||'商品读取失败'}finally{if(v===productVersion)productsLoading.value=false}}
-onMounted(load);onBeforeUnmount(()=>{disposed=true;version++;productVersion++})
+onMounted(async()=>{try{const r=await getBusinessConfig();if(disposed)return;couponEnabled.value=Number(r.data?.couponEnabled)===1}catch{}finally{modeLoaded.value=true;if(!disposed){if(!couponEnabled.value)tab.value='mine';load()}}});onBeforeUnmount(()=>{disposed=true;version++;productVersion++})
 </script>
 <style scoped>
 .page.coupons-page { --brand: var(--brand-primary, #e7193f); width:100%; padding:16px 14px 90px; }

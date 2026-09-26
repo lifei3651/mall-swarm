@@ -25,7 +25,7 @@
 
     <section class="service-grid">
       <MessageCenterEntry />
-      <RouterLink to="/profile/coupons"><TicketPercent :size="25" :stroke-width="1.9" aria-hidden="true" /><strong>优惠券</strong><span>领取与查看优惠</span></RouterLink>
+      <RouterLink v-if="couponEnabled" to="/profile/coupons"><TicketPercent :size="25" :stroke-width="1.9" aria-hidden="true" /><strong>优惠券</strong><span>领取与查看优惠</span></RouterLink>
       <RouterLink to="/profile/addresses"><MapPinned :size="25" /><strong>收货地址</strong><span>管理常用地址</span></RouterLink>
       <RouterLink to="/profile/security/change-login-password"><KeyRound :size="25" /><strong>登录密码</strong><span>保护账号安全</span></RouterLink>
       <RouterLink to="/profile/security"><ShieldCheck :size="25" /><strong>支付安全</strong><span>{{ wallet.hasPaymentPassword ? '修改支付密码' : '设置支付密码' }}</span></RouterLink>
@@ -57,7 +57,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { BadgeCheck, ClipboardList, TicketPercent, KeyRound, MapPinned, MessageSquareText, PackageCheck, RotateCcw, Settings, ShieldCheck, Truck, UserRound, WalletCards } from 'lucide-vue-next'
-import { getPublicProfile, getWalletSummary, logout } from '@/api/shop'
+import { getPublicProfile, getWalletSummary, getBusinessConfig, logout } from '@/api/shop'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import MessageCenterEntry from '@/components/MessageCenterEntry.vue'
 import { clearShopSession } from '@/utils/shopSession'
@@ -69,6 +69,7 @@ const loading = ref(true)
 const loggingOut = ref(false)
 const confirmVisible = ref(false)
 const error = ref('')
+const couponEnabled = ref(false)
 const profile = ref({})
 const wallet = ref({ balance: 0, hasPaymentPassword: false, realNameVerified: false })
 let stopRealtime
@@ -102,6 +103,7 @@ const confirmLogout = async () => {
 
 onMounted(() => {
   loadProfile()
+  getBusinessConfig().then(res => { couponEnabled.value = Number(res.data?.couponEnabled) === 1 }).catch(() => {})
   stopRealtime = connectOrderRealtime({ onEvent: loadProfile })
 })
 onBeforeUnmount(() => stopRealtime?.())
