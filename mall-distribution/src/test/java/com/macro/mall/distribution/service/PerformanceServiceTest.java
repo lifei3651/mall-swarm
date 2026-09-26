@@ -142,6 +142,9 @@ public class PerformanceServiceTest {
     private DmsOrderFinanceDao orderFinanceDao;
 
     @Autowired
+    private AdminDashboardDao dashboardDao;
+
+    @Autowired
     private DmsFinanceRefundDao financeRefundDao;
 
     @Autowired
@@ -892,6 +895,74 @@ public class PerformanceServiceTest {
                 .findFirst().orElseThrow();
         assertEquals(BigDecimal.ONE, alert.getCurrentValue());
         assertEquals(0, BigDecimal.ZERO.compareTo(alert.getThresholdValue()));
+    }
+
+    @Test
+    void financeSummariesRebuildStaleValuesFromLedgersWithoutWritingHistory() {
+        auditService.listRiskRules();
+        jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Void>) connection -> {
+            org.springframework.jdbc.datasource.init.ScriptUtils.executeSqlScript(connection,
+                    new org.springframework.core.io.ClassPathResource("db/finance-current-summary-fixture.sql"));
+            return null;
+        });
+        Long previousTenant = TenantContext.getTenantId();
+        TenantContext.setTenantId(9944L);
+        try {
+            var summary = auditService.getFinanceSummary("total", null, null);
+            assertEquals(5L, summary.getOrderCount(), "未付、未付关闭和支付状态无效不能进入实收汇总");
+            assertEquals(1L, summary.getRiskOrderCount(), "旧风险标记不应污染结果；全退未冲奖金仍应报警");
+            assertAmountEquals("520", summary.getPayAmount());
+            assertAmountEquals("240", summary.getRefundAmount());
+            assertAmountEquals("280", summary.getNetPayAmount());
+            assertAmountEquals("300", summary.getProductCost()); // 审计保留原始成本快照。
+            assertAmountEquals("35", summary.getBonusAmount());
+            assertAmountEquals("4", summary.getCompanyShareAmount());
+            assertAmountEquals("95", summary.getCompanyProfit());
+
+            BigDecimal detailProfit = BigDecimal.ZERO;
+            BigDecimal detailBonus = BigDecimal.ZERO;
+            for (Long orderId : List.of(994401L, 994402L, 994403L, 994407L, 994408L)) {
+                var detail = auditService.getOrderFinanceDetail(orderId).getFinance();
+                detailProfit = detailProfit.add(detail.getCompanyProfit());
+                detailBonus = detailBonus.add(detail.getBonusAmount());
+            }
+            assertEquals(0, detailProfit.compareTo(summary.getCompanyProfit()), "逐单与汇总公式必须一致");
+            assertEquals(0, detailBonus.compareTo(summary.getBonusAmount()));
+            var daily = auditService.getFinanceDailySummary("total", null, null);
+            assertEquals(2, daily.size());
+            assertEquals(LocalDate.of(2026, 9, 1), daily.get(0).getStatDate());
+            assertEquals(2L, daily.get(0).getOrderCount());
+            assertAmountEquals("15", daily.get(0).getCompanyProfit());
+            assertAmountEquals("80", daily.get(1).getCompanyProfit());
+            var ranged = auditService.getFinanceSummary("custom", LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 1));
+            assertEquals(2L, ranged.getOrderCount());
+            assertAmountEquals("15", ranged.getCompanyProfit());
+            var empty = auditService.getFinanceSummary("custom", LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 2));
+            assertEquals(0L, empty.getOrderCount());
+            assertAmountEquals("0", empty.getCompanyProfit());
+
+            var dashboard = dashboardDao.selectFinanceSummary(9944L);
+            assertAmountEquals("280", dashboard.getTotalReceiptAmount());
+            assertAmountEquals("156", dashboard.getTotalProductCostAmount()); // 工作台只计未退商品成本。
+            assertAmountEquals("35", dashboard.getTotalBonusPayoutAmount());
+            assertAmountEquals("4", dashboard.getTotalCompanyShareAmount());
+            assertAmountEquals("195", dashboard.getTotalPayoutAmount());
+            assertAmountEquals("95", dashboard.getTotalProfitAmount());
+            assertAmountEquals("40", dashboardDao.selectFinanceSummary(9945L).getTotalProfitAmount());
+
+            // Every cached field was deliberately wrong; reads must not repair stored history as a side effect.
+            assertEquals(9, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM dms_order_finance "
+                    + "WHERE order_id BETWEEN 994401 AND 994409 AND refund_amount=999 AND net_pay_amount=999 "
+                    + "AND bonus_amount=999 AND company_share_amount=999 AND company_profit=999 AND product_cost=60",
+                    Integer.class));
+
+            assertEquals(1, jdbcTemplate.update("UPDATE dms_finance_risk_rule SET enabled=1,threshold_value=0.2 WHERE rule_code='BONUS_PAYOUT_RATE_MAX'"));
+            assertEquals(2L, auditService.getFinanceSummary("total", null, null).getRiskOrderCount());
+            assertEquals(1, jdbcTemplate.update("UPDATE dms_finance_risk_rule SET enabled=1,threshold_value=0.5 WHERE rule_code='PROFIT_RATE_MIN'"));
+            assertEquals(4L, auditService.getFinanceSummary("total", null, null).getRiskOrderCount());
+        } finally {
+            TenantContext.setTenantId(previousTenant);
+        }
     }
 
     @Test

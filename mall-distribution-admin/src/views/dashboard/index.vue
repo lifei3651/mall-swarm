@@ -106,7 +106,7 @@
           <div class="finance-total-card payout">
             <span>累计总拨出</span>
             <strong>¥{{ money(dashboard.totalPayoutAmount) }}</strong>
-            <small>产品成本＋奖金＋公司分账</small>
+            <small>未退商品成本＋净奖金＋公司分账</small>
           </div>
         </div>
         <div class="finance-body">
@@ -121,8 +121,8 @@
           </div>
         </div>
         <div class="finance-summary">
-          <span>利润 = 净收款 − 总拨出</span>
-          <span>累计利润 <b :class="{ negative: Number(dashboard.totalProfitAmount || 0) < 0 }">¥{{ money(dashboard.totalProfitAmount) }}</b></span>
+          <span>逐单利润汇总；全额退款归零，未冲销拨出另记风险</span>
+          <span>账面利润（含预计） <b :class="{ negative: Number(dashboard.totalProfitAmount || 0) < 0 }">¥{{ money(dashboard.totalProfitAmount) }}</b></span>
           <span>利润率 <b :class="{ negative: Number(dashboard.profitRate || 0) < 0 }">{{ percent(dashboard.profitRate) }}</b></span>
         </div>
       </section>
@@ -277,10 +277,10 @@ const riskAlerts = computed(() => {
 })
 
 const financeComposition = computed(() => [
-  { name: '产品成本', value: Number(dashboard.value.totalProductCostAmount || 0), color: '#3f7cff' },
+  { name: '未退商品成本', value: Number(dashboard.value.totalProductCostAmount || 0), color: '#3f7cff' },
   { name: '奖金拨出', value: Number(dashboard.value.totalBonusPayoutAmount || 0), color: '#805cff' },
   { name: '公司分账', value: Number(dashboard.value.totalCompanyShareAmount || 0), color: '#0bb8d4' },
-  { name: '累计利润', value: Math.max(Number(dashboard.value.totalProfitAmount || 0), 0), color: '#f59e0b' },
+  { name: '账面利润（含预计）', value: Math.max(Number(dashboard.value.totalProfitAmount || 0), 0), color: '#f59e0b' },
 ])
 const hasFinanceComposition = computed(() => financeComposition.value.some((item) => item.value > 0))
 const topRegions = computed(() => (dashboard.value.memberRegionDistribution || []).slice(0, 4))

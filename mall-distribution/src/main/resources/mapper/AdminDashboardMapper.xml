@@ -95,16 +95,15 @@
     <!-- 财务只统计确实产生过支付的订单；净收款已经扣除全部退款。 -->
     <select id="selectFinanceSummary" resultType="com.macro.mall.distribution.vo.DashboardFinanceSummaryVO">
         SELECT COALESCE(SUM(finance.net_pay_amount), 0) AS totalReceiptAmount,
-               COALESCE(SUM(finance.product_cost + finance.bonus_amount + finance.company_share_amount), 0)
+               COALESCE(SUM(finance.net_product_cost + finance.bonus_amount + finance.company_share_amount), 0)
                    AS totalPayoutAmount,
-               COALESCE(SUM(finance.product_cost), 0) AS totalProductCostAmount,
+               COALESCE(SUM(finance.net_product_cost), 0) AS totalProductCostAmount,
                COALESCE(SUM(finance.bonus_amount), 0) AS totalBonusPayoutAmount,
                COALESCE(SUM(finance.company_share_amount), 0) AS totalCompanyShareAmount,
                COALESCE(SUM(finance.company_profit), 0) AS totalProfitAmount
-        FROM dms_order_finance finance
-        INNER JOIN dms_shop_order shop_order ON shop_order.id = finance.order_id
-        WHERE shop_order.tenant_id = #{tenantId}
-          AND shop_order.pay_time IS NOT NULL
+        FROM (<include refid="com.macro.mall.distribution.dao.DmsOrderFinanceDao.CurrentFinanceProjection">
+            <property name="dateFilter" value="com.macro.mall.distribution.dao.DmsOrderFinanceDao.NoDateFilter"/>
+        </include>) finance
     </select>
 
     <!-- 排行榜按有效订单商品成交金额排序，整单关闭/整单退款不计入。 -->

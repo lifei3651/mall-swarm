@@ -13,7 +13,7 @@ public class DashboardFinanceSummaryVO implements Serializable {
     /** 已支付订单实付金额扣除退款后的累计净收款。 */
     private BigDecimal totalReceiptAmount;
 
-    /** 产品成本、有效奖金和公司分账之和。 */
+    /** 未退商品成本、有效奖金和公司分账之和（不含已冲销部分）。 */
     private BigDecimal totalPayoutAmount;
 
     private BigDecimal totalProductCostAmount;
@@ -22,6 +22,6 @@ public class DashboardFinanceSummaryVO implements Serializable {
 
     private BigDecimal totalCompanyShareAmount;
 
-    /** 累计净收款减去累计总拨出。 */
+    /** 逐单账面利润（含预计）之和；全额退款订单利润归零，未冲销拨出另标风险。 */
     private BigDecimal totalProfitAmount;
 }

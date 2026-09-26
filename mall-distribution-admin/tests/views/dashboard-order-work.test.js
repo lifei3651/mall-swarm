@@ -5,6 +5,14 @@ import { resolve } from 'node:path'
 const sourcePath = resolve(process.cwd(), 'src/views/dashboard/index.vue')
 
 describe('工作台订单待办', () => {
+  it('财务汇总说明使用退款后净成本并区分账面与已实现利润', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+    expect(source).toContain('未退商品成本＋净奖金＋公司分账')
+    expect(source).toContain('账面利润（含预计）')
+    expect(source).toContain('全额退款归零，未冲销拨出另记风险')
+    expect(source).not.toContain('利润 = 净收款 − 总拨出')
+  })
+
   it('待处理事项优先展示待发货和待售后并跳转到对应队列', async () => {
     const source = await readFile(sourcePath, 'utf8')
 

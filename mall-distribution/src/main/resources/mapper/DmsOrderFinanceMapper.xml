@@ -88,6 +88,91 @@
                         AND COALESCE(scoped_order.tenant_id, 1) = #{tenantId})
     </update>
 
+    <sql id="NoDateFilter"/>
+
+    <sql id="PaymentDateFilter">
+        <if test="startTime != null">
+            AND shop_order.pay_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND shop_order.pay_time &lt; #{endTime}
+        </if>
+    </sql>
+
+    <!-- Read-side projection shared by interval, daily and dashboard totals.
+         Historical finance columns are snapshots, not authoritative refund/bonus totals.
+         Keep each child ledger scalar to avoid multiplying money through one-to-many joins.
+         Formula parity with DistributionAuditServiceImpl.recalculate is regression tested. -->
+    <sql id="CurrentFinanceProjection">
+        SELECT profit.*,
+               CASE WHEN (profit.fully_refunded = 1 AND
+                              (profit.bonus_amount &gt; 0 OR profit.company_share_amount &gt; 0))
+                          OR profit.company_profit &lt; 0
+                          OR EXISTS (SELECT 1 FROM dms_finance_risk_rule rule
+                                     WHERE rule.rule_code = 'BONUS_PAYOUT_RATE_MAX' AND rule.enabled = 1
+                                       AND profit.merchandise_revenue &gt; 0
+                                       AND ROUND(profit.bonus_amount / NULLIF(profit.merchandise_revenue, 0), 8)
+                                           &gt; rule.threshold_value)
+                          OR EXISTS (SELECT 1 FROM dms_finance_risk_rule rule
+                                     WHERE rule.rule_code = 'PROFIT_RATE_MIN' AND rule.enabled = 1
+                                       AND profit.net_pay_amount &gt; 0
+                                       AND ROUND(profit.company_profit / NULLIF(profit.net_pay_amount, 0), 8)
+                                           &lt; rule.threshold_value)
+                    THEN 1 ELSE 0 END AS risk_status
+        FROM (
+            SELECT net.*,
+                   CASE WHEN net.fully_refunded = 1 THEN 0
+                        ELSE net.net_pay_amount - net.net_product_cost - net.bonus_amount - net.company_share_amount
+                        END AS company_profit
+            FROM (
+                SELECT ledger.*,
+                       ledger.pay_amount - ledger.refund_amount AS net_pay_amount,
+                       CASE WHEN ledger.pay_amount &gt; 0 AND ledger.refund_amount &gt;= ledger.pay_amount
+                            THEN 1 ELSE 0 END AS fully_refunded,
+                       GREATEST(ledger.product_base - ledger.product_refund_amount, 0) AS merchandise_revenue,
+                       CASE WHEN ledger.product_base &gt; 0 AND ledger.product_refund_amount &gt;= ledger.product_base
+                            THEN 0 ELSE GREATEST(ledger.product_cost - ledger.reversed_cost, 0)
+                            END AS net_product_cost
+                FROM (
+                    SELECT finance.order_id, shop_order.pay_time,
+                           COALESCE(finance.pay_amount, 0) AS pay_amount,
+                           COALESCE(finance.product_cost, 0) AS product_cost,
+                           GREATEST(COALESCE(shop_order.total_amount, 0) - COALESCE(shop_order.discount_amount, 0), 0)
+                               AS product_base,
+                           COALESCE((SELECT SUM(refund.refund_amount) FROM dms_finance_refund refund
+                                     WHERE refund.order_id = finance.order_id), 0) AS refund_amount,
+                           COALESCE((SELECT SUM(refund.product_refund_amount) FROM dms_finance_refund refund
+                                     WHERE refund.order_id = finance.order_id), 0) AS product_refund_amount,
+                           COALESCE((SELECT SUM(CASE
+                                        WHEN commission.status IN (2, 3) THEN 0
+                                        WHEN commission.status = 1 THEN GREATEST(COALESCE(commission.commission_amount, 0)
+                                            - COALESCE((SELECT SUM(clawback.clawback_amount)
+                                                        FROM dms_commission_clawback clawback
+                                                        WHERE clawback.commission_record_id = commission.id
+                                                          AND clawback.tenant_id = #{tenantId}), 0), 0)
+                                        ELSE COALESCE(commission.commission_amount, 0) END)
+                                     FROM dms_commission_record commission
+                                     WHERE commission.order_id = finance.order_id
+                                       AND commission.tenant_id = #{tenantId}), 0) AS bonus_amount,
+                           COALESCE((SELECT SUM(share.share_amount) FROM dms_order_company_share share
+                                     WHERE share.order_id = finance.order_id), 0) AS company_share_amount,
+                           COALESCE((SELECT SUM(COALESCE(item.coupon_cost_refund_amount,
+                                                         COALESCE(order_item.cost_amount, 0) * item.refund_quantity))
+                                     FROM dms_shop_after_sale_item item
+                                     INNER JOIN dms_shop_after_sale sale ON sale.id = item.after_sale_id
+                                     INNER JOIN dms_shop_order_item order_item ON order_item.id = item.order_item_id
+                                     WHERE item.order_id = finance.order_id
+                                       AND sale.apply_type IN (1, 2, 4) AND sale.status = 1), 0) AS reversed_cost
+                    FROM dms_order_finance finance
+                    INNER JOIN dms_shop_order shop_order ON shop_order.id = finance.order_id
+                    WHERE COALESCE(shop_order.tenant_id, 1) = #{tenantId}
+                      AND shop_order.pay_time IS NOT NULL AND shop_order.status IN (1, 2, 3, 4)
+                    <include refid="${dateFilter}"/>
+                ) ledger
+            ) net
+        ) profit
+    </sql>
+
     <select id="selectSummaryScoped" resultMap="SummaryResultMap">
         SELECT
             COUNT(1) AS order_count,
@@ -99,21 +184,14 @@
             IFNULL(SUM(finance.bonus_amount), 0) AS bonus_amount,
             IFNULL(SUM(finance.company_share_amount), 0) AS company_share_amount,
             IFNULL(SUM(finance.company_profit), 0) AS company_profit
-        FROM dms_order_finance finance
-        INNER JOIN dms_shop_order shop_order ON shop_order.id = finance.order_id
-        WHERE shop_order.pay_time IS NOT NULL
-          AND COALESCE(shop_order.tenant_id, 1) = #{tenantId}
-        <if test="startTime != null">
-            AND shop_order.pay_time &gt;= #{startTime}
-        </if>
-        <if test="endTime != null">
-            AND shop_order.pay_time &lt; #{endTime}
-        </if>
+        FROM (<include refid="CurrentFinanceProjection">
+            <property name="dateFilter" value="PaymentDateFilter"/>
+        </include>) finance
     </select>
 
     <select id="selectDailySummaryScoped" resultMap="DailySummaryResultMap">
         SELECT
-            DATE(shop_order.pay_time) AS stat_date,
+            DATE(finance.pay_time) AS stat_date,
             COUNT(1) AS order_count,
             SUM(CASE WHEN finance.risk_status = 1 THEN 1 ELSE 0 END) AS risk_order_count,
             IFNULL(SUM(finance.pay_amount), 0) AS pay_amount,
@@ -123,17 +201,10 @@
             IFNULL(SUM(finance.bonus_amount), 0) AS bonus_amount,
             IFNULL(SUM(finance.company_share_amount), 0) AS company_share_amount,
             IFNULL(SUM(finance.company_profit), 0) AS company_profit
-        FROM dms_order_finance finance
-        INNER JOIN dms_shop_order shop_order ON shop_order.id = finance.order_id
-        WHERE shop_order.pay_time IS NOT NULL
-          AND COALESCE(shop_order.tenant_id, 1) = #{tenantId}
-        <if test="startTime != null">
-            AND shop_order.pay_time &gt;= #{startTime}
-        </if>
-        <if test="endTime != null">
-            AND shop_order.pay_time &lt; #{endTime}
-        </if>
-        GROUP BY DATE(shop_order.pay_time)
+        FROM (<include refid="CurrentFinanceProjection">
+            <property name="dateFilter" value="PaymentDateFilter"/>
+        </include>) finance
+        GROUP BY DATE(finance.pay_time)
         ORDER BY stat_date ASC
     </select>
 </mapper>

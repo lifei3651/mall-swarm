@@ -45,6 +45,10 @@ class AdminDashboardSpreadsheetServiceTest {
             assertNotNull(workbook.getSheet("会员等级分布"));
             assertNotNull(workbook.getSheet("库存预警"));
             assertEquals("1234.56", workbook.getSheet("经营概览").getRow(2).getCell(1).getStringCellValue());
+            assertEquals("累计净收款", workbook.getSheet("经营概览").getRow(5).getCell(0).getStringCellValue());
+            assertEquals("未退商品成本、净奖金及公司分账", workbook.getSheet("经营概览").getRow(6).getCell(2).getStringCellValue());
+            assertEquals("账面利润（含预计）", workbook.getSheet("经营概览").getRow(7).getCell(0).getStringCellValue());
+            assertEquals("逐单利润汇总；全额退款归零，未冲销拨出另记风险", workbook.getSheet("经营概览").getRow(7).getCell(2).getStringCellValue());
             assertEquals(88D, workbook.getSheet("近30天销售趋势").getRow(1).getCell(1).getNumericCellValue());
         }
     }
