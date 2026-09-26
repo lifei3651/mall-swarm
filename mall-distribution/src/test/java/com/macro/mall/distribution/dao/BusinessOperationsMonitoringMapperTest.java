@@ -35,6 +35,7 @@ class BusinessOperationsMonitoringMapperTest {
         jdbc.update("DELETE FROM dms_wechat_logistics_follow_task");
         jdbc.update("DELETE FROM dms_bonus_calculation_task");
         jdbc.update("DELETE FROM dms_erp_sync_task");
+        jdbc.update("DELETE FROM dms_erp_integration");
         jdbc.update("DELETE FROM dms_shop_after_sale");
         jdbc.update("DELETE FROM dms_shop_order");
         jdbc.update("DELETE FROM dms_withdrawal_payout");
@@ -73,6 +74,19 @@ class BusinessOperationsMonitoringMapperTest {
         assertTask(logisticsDao.selectMonitoringMetrics(), 2, NOW.minusMinutes(30), 1);
         assertTask(bonusDao.selectMonitoringMetrics(), 3, NOW.minusMinutes(15), 1);
         assertTask(erpDao.selectMonitoringMetrics(), 2, NOW.minusMinutes(45), 1);
+    }
+
+    @Test
+    void disabledErpIntegrationDoesNotRaiseExecutableBacklogAlarm() {
+        insertErp(401, 0, NOW.minusHours(2));
+        insertErp(402, 0, NOW.minusMinutes(15));
+        jdbc.update("""
+                INSERT INTO dms_erp_integration
+                  (id,tenant_id,provider_code,integration_name,enabled)
+                VALUES (401,1,'MONITOR-DISABLED','停用集成',0)
+                """);
+
+        assertTask(erpDao.selectMonitoringMetrics(), 1, NOW.minusMinutes(15), 0);
     }
 
     @Test

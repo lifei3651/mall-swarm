@@ -60,7 +60,9 @@ class ErpRetryLimitTest {
         DmsErpIntegration firstIntegration = integration("TEST_ERP");
         DmsErpIntegration secondIntegration = integration("TEST_ERP");
         DmsShopOrder firstOrder = new DmsShopOrder();
+        firstOrder.setTenantId(1L);
         DmsShopOrder secondOrder = new DmsShopOrder();
+        secondOrder.setTenantId(1L);
         when(taskDao.selectRetryable(any(LocalDateTime.class), eq(20), eq(3))).thenReturn(List.of(first, second));
         when(integrationDao.selectById(101L)).thenReturn(firstIntegration);
         when(integrationDao.selectById(102L)).thenReturn(secondIntegration);
@@ -81,11 +83,15 @@ class ErpRetryLimitTest {
         DmsErpSyncTask task = new DmsErpSyncTask();
         task.setId(11L);
         task.setIntegrationId(22L);
+        task.setTenantId(1L);
         task.setBizId("33");
         task.setRetryCount(2);
         DmsErpIntegration integration = new DmsErpIntegration();
         integration.setProviderCode("TEST_ERP");
+        integration.setEnabled(1);
+        integration.setTenantId(1L);
         DmsShopOrder order = new DmsShopOrder();
+        order.setTenantId(1L);
         when(taskDao.selectById(11L)).thenReturn(task);
         when(integrationDao.selectById(22L)).thenReturn(integration);
         when(orderDao.selectById(33L)).thenReturn(order);
@@ -156,10 +162,58 @@ class ErpRetryLimitTest {
         verify(integrationDao, never()).update(any());
     }
 
+    @Test
+    void disabledIntegrationDoesNotPushPreviouslyQueuedTaskOrConsumeRetry() {
+        DmsErpSyncTask task = retryTask(11L, 22L, "33");
+        DmsErpIntegration integration = integration("TEST_ERP");
+        integration.setEnabled(0);
+        when(taskDao.selectById(11L)).thenReturn(task);
+        when(integrationDao.selectById(22L)).thenReturn(integration);
+
+        assertFalse(service.retryTask(11L));
+
+        verifyNoInteractions(orderDao, adapter, operationLogService);
+        verify(taskDao, never()).markFailure(anyLong(), anyInt(), anyInt(), any(), anyString());
+        verify(taskDao, never()).markSuccess(anyLong(), anyString());
+    }
+
+    @Test
+    void automaticRetryAlsoChecksDisabledStateAfterQueueSelection() {
+        DmsErpSyncTask task = retryTask(11L, 22L, "33");
+        DmsErpIntegration integration = integration("TEST_ERP");
+        integration.setEnabled(0);
+        when(taskDao.selectRetryable(any(LocalDateTime.class), eq(1), eq(3))).thenReturn(List.of(task));
+        when(integrationDao.selectById(22L)).thenReturn(integration);
+
+        assertEquals(1, service.retryPendingTasks(1));
+
+        verifyNoInteractions(orderDao, adapter, operationLogService);
+        verify(taskDao, never()).markFailure(anyLong(), anyInt(), anyInt(), any(), anyString());
+        verify(taskDao, never()).markSuccess(anyLong(), anyString());
+    }
+
+    @Test
+    void taskFromAnotherTenantNeverReachesTheExternalAdapter() {
+        DmsErpSyncTask task = retryTask(11L, 22L, "33");
+        DmsErpIntegration integration = integration("TEST_ERP");
+        integration.setTenantId(2L);
+        DmsShopOrder order = new DmsShopOrder();
+        order.setTenantId(1L);
+        when(taskDao.selectById(11L)).thenReturn(task);
+        when(integrationDao.selectById(22L)).thenReturn(integration);
+        when(orderDao.selectById(33L)).thenReturn(order);
+
+        assertFalse(service.retryTask(11L));
+
+        verifyNoInteractions(adapter);
+        verify(taskDao).markFailure(eq(11L), eq(2), eq(1), any(LocalDateTime.class), contains("租户不一致"));
+    }
+
     private DmsErpSyncTask retryTask(Long id, Long integrationId, String orderId) {
         DmsErpSyncTask task = new DmsErpSyncTask();
         task.setId(id);
         task.setIntegrationId(integrationId);
+        task.setTenantId(1L);
         task.setBizId(orderId);
         task.setRetryCount(0);
         return task;
@@ -168,6 +222,8 @@ class ErpRetryLimitTest {
     private DmsErpIntegration integration(String providerCode) {
         DmsErpIntegration integration = new DmsErpIntegration();
         integration.setProviderCode(providerCode);
+        integration.setEnabled(1);
+        integration.setTenantId(1L);
         return integration;
     }
 

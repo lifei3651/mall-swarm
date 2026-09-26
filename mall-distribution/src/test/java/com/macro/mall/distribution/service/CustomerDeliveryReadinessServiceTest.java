@@ -2,6 +2,7 @@ package com.macro.mall.distribution.service;
 
 import com.macro.mall.common.sms.AliyunSmsProperties;
 import com.macro.mall.distribution.config.AlipayConfig;
+import com.macro.mall.distribution.config.WeChatPayProperties;
 import com.macro.mall.distribution.dao.DmsErpIntegrationDao;
 import com.macro.mall.distribution.dao.DmsShopCategoryDao;
 import com.macro.mall.distribution.dao.DmsShopNoticeDao;
@@ -45,10 +46,12 @@ class CustomerDeliveryReadinessServiceTest {
 
     private CustomerDeliveryReadinessService service;
     private DmsShopProduct product;
+    private AlipayConfig alipay;
+    private WeChatPayProperties weChatPay;
 
     @BeforeEach
     void setUp() {
-        AlipayConfig alipay = new AlipayConfig();
+        alipay = new AlipayConfig();
         alipay.setEnabled(true);
         alipay.setAppId("app");
         alipay.setSellerId("2088123456789012");
@@ -56,13 +59,14 @@ class CustomerDeliveryReadinessServiceTest {
         alipay.setAlipayPublicKey("public");
         alipay.setNotifyUrl("https://mall.example/api/pay/alipay/notify");
         alipay.setReturnUrl("https://mall.example/api/pay/alipay/return");
+        weChatPay = new WeChatPayProperties();
         AliyunSmsProperties sms = new AliyunSmsProperties();
         sms.setAccessKeyId("id");
         sms.setAccessKeySecret("secret");
         sms.setSignName("客户商城");
         sms.setTemplates(Map.of("REGISTER", "SMS_1"));
         service = new CustomerDeliveryReadinessService(tenantDao, categoryDao, productDao, noticeDao,
-                serviceAddressDao, erpIntegrationDao, alipay, sms, environment, serviceSmsReadinessService);
+                serviceAddressDao, erpIntegrationDao, alipay, weChatPay, sms, environment, serviceSmsReadinessService);
 
         when(tenantDao.selectById(1L)).thenReturn(completeTenant());
         DmsShopCategory category = new DmsShopCategory();
@@ -98,6 +102,56 @@ class CustomerDeliveryReadinessServiceTest {
 
         assertFalse(result.isReady());
         assertFalse(result.getItems().stream().filter(item -> "CLEAN_DATA".equals(item.getCode()))
+                .findFirst().orElseThrow().isPassed());
+    }
+
+    @Test
+    void acceptsWechatAsTheOnlyConfiguredPaymentChannel() {
+        alipay.setEnabled(false);
+        weChatPay.setEnabled(true);
+        weChatPay.setMchId("merchant");
+        weChatPay.setMerchantSerialNumber("serial");
+        weChatPay.setPrivateKeyPath("/protected/merchant-key.pem");
+        weChatPay.setPublicKeyId("public-id");
+        weChatPay.setPublicKeyPath("/protected/wechat-public.pem");
+        weChatPay.setApiV3Key("test-api-v3-key");
+        weChatPay.setNotifyUrl("https://mall.example/api/pay/wechat/notify");
+        weChatPay.setRefundNotifyUrl("https://mall.example/api/pay/wechat/refund-notify");
+
+        CustomerDeliveryReadinessVO result = service.evaluate(1L);
+
+        assertTrue(result.isReady());
+        assertTrue(result.getItems().stream().filter(item -> "PAYMENT".equals(item.getCode()))
+                .findFirst().orElseThrow().isPassed());
+    }
+
+    @Test
+    void reportsPaymentNotReadyWhenNeitherChannelIsConfigured() {
+        alipay.setEnabled(false);
+
+        CustomerDeliveryReadinessVO result = service.evaluate(1L);
+
+        assertFalse(result.isReady());
+        assertFalse(result.getItems().stream().filter(item -> "PAYMENT".equals(item.getCode()))
+                .findFirst().orElseThrow().isPassed());
+    }
+
+    @Test
+    void rejectsWechatWithoutSecureRefundCallback() {
+        alipay.setEnabled(false);
+        weChatPay.setEnabled(true);
+        weChatPay.setMchId("merchant");
+        weChatPay.setMerchantSerialNumber("serial");
+        weChatPay.setPrivateKeyPath("/protected/merchant-key.pem");
+        weChatPay.setPublicKeyId("public-id");
+        weChatPay.setPublicKeyPath("/protected/wechat-public.pem");
+        weChatPay.setApiV3Key("test-api-v3-key");
+        weChatPay.setNotifyUrl("https://mall.example/api/pay/wechat/notify");
+        weChatPay.setRefundNotifyUrl("http://mall.example/api/pay/wechat/refund-notify");
+
+        CustomerDeliveryReadinessVO result = service.evaluate(1L);
+
+        assertFalse(result.getItems().stream().filter(item -> "PAYMENT".equals(item.getCode()))
                 .findFirst().orElseThrow().isPassed());
     }
 

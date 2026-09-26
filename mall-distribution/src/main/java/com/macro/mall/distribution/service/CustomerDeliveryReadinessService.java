@@ -2,6 +2,7 @@ package com.macro.mall.distribution.service;
 
 import com.macro.mall.common.sms.AliyunSmsProperties;
 import com.macro.mall.distribution.config.AlipayConfig;
+import com.macro.mall.distribution.config.WeChatPayProperties;
 import com.macro.mall.distribution.dao.DmsErpIntegrationDao;
 import com.macro.mall.distribution.dao.DmsShopCategoryDao;
 import com.macro.mall.distribution.dao.DmsShopNoticeDao;
@@ -37,6 +38,7 @@ public class CustomerDeliveryReadinessService {
     private final DmsShopServiceAddressDao serviceAddressDao;
     private final DmsErpIntegrationDao erpIntegrationDao;
     private final AlipayConfig alipayConfig;
+    private final WeChatPayProperties weChatPayProperties;
     private final AliyunSmsProperties smsProperties;
     private final Environment environment;
     private final ServiceSmsReadinessService serviceSmsReadinessService;
@@ -135,10 +137,16 @@ public class CustomerDeliveryReadinessService {
 
     private void addChannelItems(List<CustomerDeliveryReadinessVO.Item> items, long tenantId) {
         boolean simulationEnabled = Boolean.parseBoolean(environment.getProperty("shop.payment.simulation-enabled", "false"));
-        add(items, "PAYMENT", "外部服务", "正式支付通道", true,
-                !simulationEnabled && alipayConfig.isConfigured()
-                        && secureUrl(alipayConfig.getNotifyUrl()) && secureUrl(alipayConfig.getReturnUrl()),
-                "关闭模拟支付，并配置同一支付宝应用的APPID、商户PID、密钥、HTTPS通知与回跳地址", "/tenant/profile");
+        boolean alipayReady = alipayConfig.isConfigured()
+                && secureUrl(alipayConfig.getNotifyUrl()) && secureUrl(alipayConfig.getReturnUrl());
+        boolean weChatReady = weChatPayProperties.isConfigured()
+                && secureUrl(weChatPayProperties.getNotifyUrl())
+                && secureUrl(weChatPayProperties.getRefundNotifyUrl());
+        boolean paymentReady = !simulationEnabled && (alipayReady || weChatReady);
+        add(items, "PAYMENT", "外部服务", "支付通道配置", true, paymentReady,
+                paymentReady ? "至少一条支付通道的必要参数已填写；证书可用性、支付、回调和退款仍须在客户项目独立联调"
+                        : "关闭模拟支付，并按所选微信或支付宝通道配置商户身份、密钥与HTTPS回调地址",
+                "/tenant/profile");
 
         boolean smsEnabled = Boolean.parseBoolean(environment.getProperty("sms.provider-enabled", "false"));
         boolean smsConfigured = smsEnabled && present(smsProperties.getAccessKeyId())

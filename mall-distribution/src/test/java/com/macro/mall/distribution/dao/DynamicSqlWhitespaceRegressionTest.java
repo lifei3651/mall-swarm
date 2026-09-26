@@ -10,6 +10,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -47,6 +48,36 @@ class DynamicSqlWhitespaceRegressionTest {
     @Test
     void erpTaskListCanCombineIntegrationAndStatusConditions() {
         List<DmsErpSyncTask> rows = erpSyncTaskDao.selectList(990003L, 0);
+
+        assertEquals(List.of("SQL-SPACE-ERP"), rows.stream().map(DmsErpSyncTask::getTaskNo).toList());
+    }
+
+    @Test
+    void automaticErpRetrySkipsDisabledIntegrationsBeforeApplyingLimit() {
+        jdbcTemplate.update("""
+                INSERT INTO dms_erp_integration
+                  (id, tenant_id, provider_code, integration_name, enabled)
+                VALUES (990003, 1, 'TEST', '停用集成', 0)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO dms_erp_integration
+                  (id, tenant_id, provider_code, integration_name, enabled)
+                VALUES (990005, 1, 'ACTIVE', '启用集成', 1)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO dms_erp_sync_task
+                  (id, task_no, integration_id, tenant_id, provider_code, biz_type, biz_id, status, retry_count)
+                VALUES (990006, 'SQL-SPACE-ERP-ACTIVE', 990005, 1, 'ACTIVE', 'ORDER', '990007', 0, 0)
+                """);
+
+        List<DmsErpSyncTask> rows = erpSyncTaskDao.selectRetryable(LocalDateTime.now(), 1, 3);
+
+        assertEquals(List.of("SQL-SPACE-ERP-ACTIVE"), rows.stream().map(DmsErpSyncTask::getTaskNo).toList());
+    }
+
+    @Test
+    void automaticErpRetryStillHandlesTasksWhoseConfigurationIsMissing() {
+        List<DmsErpSyncTask> rows = erpSyncTaskDao.selectRetryable(LocalDateTime.now(), 1, 3);
 
         assertEquals(List.of("SQL-SPACE-ERP"), rows.stream().map(DmsErpSyncTask::getTaskNo).toList());
     }

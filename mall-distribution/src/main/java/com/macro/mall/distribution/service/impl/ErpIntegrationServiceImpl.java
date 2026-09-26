@@ -25,6 +25,7 @@ import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -104,8 +105,15 @@ public class ErpIntegrationServiceImpl implements ErpIntegrationService {
 
     private boolean executeTask(DmsErpSyncTask task) {
         DmsErpIntegration integration = integrationDao.selectById(task.getIntegrationId());
-        DmsShopOrder order = orderDao.selectById(Long.valueOf(task.getBizId()));
+        // 配置停用后，已排队的旧任务也不能继续向第三方推单；保留任务原状态供重新启用后处理。
+        if (integration != null && !Integer.valueOf(1).equals(integration.getEnabled())) return false;
+        DmsShopOrder order = integration == null ? null : orderDao.selectById(Long.valueOf(task.getBizId()));
         if (integration == null || order == null) { fail(task, "ERP配置或商城订单不存在"); return false; }
+        if (task.getTenantId() == null || !Objects.equals(task.getTenantId(), integration.getTenantId())
+                || !Objects.equals(task.getTenantId(), order.getTenantId())) {
+            fail(task, "ERP任务与配置或订单的租户不一致");
+            return false;
+        }
         Map<String, ErpAdapter> adapterMap = adapters.stream().collect(Collectors.toMap(ErpAdapter::providerCode, item -> item));
         ErpAdapter adapter = adapterMap.get(integration.getProviderCode());
         if (adapter == null) { fail(task, "未找到ERP适配器：" + integration.getProviderCode()); return false; }
