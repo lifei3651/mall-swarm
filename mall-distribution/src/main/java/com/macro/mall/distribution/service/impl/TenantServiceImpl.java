@@ -121,8 +121,10 @@ public class TenantServiceImpl implements TenantService {
             tenant.setPromotionJoinMode(before.getPromotionJoinMode());
         }
         normalizeBusinessModes(tenant, before == null);
-        // 资料编辑接口不能顺带更改优惠券经营开关。
+        // 资料编辑接口不能顺带更改独立模块的经营开关。新客户先以平台自营开局。
         tenant.setCouponEnabled(before == null ? 1 : normalizedFlag(before.getCouponEnabled()));
+        tenant.setBalanceTransactionsEnabled(before == null ? 1 : enabledUnlessOff(before.getBalanceTransactionsEnabled()));
+        tenant.setMultiMerchantEnabled(before == null ? 0 : enabledUnlessOff(before.getMultiMerchantEnabled()));
         requireBusinessModeAuthority(tenant);
         if (tenant.getPoliceRecordUrl() != null && !tenant.getPoliceRecordUrl().isBlank()) {
             String policeRecordUrl = tenant.getPoliceRecordUrl().trim();
@@ -179,6 +181,14 @@ public class TenantServiceImpl implements TenantService {
         if (modes.getCouponEnabled() != null && modes.getCouponEnabled() != 0 && modes.getCouponEnabled() != 1) {
             Asserts.fail("优惠券状态不正确");
         }
+        if (modes.getBalanceTransactionsEnabled() != null
+                && modes.getBalanceTransactionsEnabled() != 0 && modes.getBalanceTransactionsEnabled() != 1) {
+            Asserts.fail("余额交易状态不正确");
+        }
+        if (modes.getMultiMerchantEnabled() != null
+                && modes.getMultiMerchantEnabled() != 0 && modes.getMultiMerchantEnabled() != 1) {
+            Asserts.fail("多商户状态不正确");
+        }
         DmsTenant before = tenantDao.selectByIdForUpdate(tenantId);
         if (before == null) {
             Asserts.fail("商城客户不存在");
@@ -194,7 +204,13 @@ public class TenantServiceImpl implements TenantService {
         normalized.setRepurchaseBonusMode(modes.getRepurchaseBonusMode());
         normalized.setCouponEnabled(modes.getCouponEnabled() == null
                 ? normalizedFlag(before.getCouponEnabled()) : modes.getCouponEnabled());
-        if (!java.util.Objects.equals(normalizedFlag(before.getCouponEnabled()), normalized.getCouponEnabled())) {
+        normalized.setBalanceTransactionsEnabled(modes.getBalanceTransactionsEnabled() == null
+                ? enabledUnlessOff(before.getBalanceTransactionsEnabled()) : modes.getBalanceTransactionsEnabled());
+        normalized.setMultiMerchantEnabled(modes.getMultiMerchantEnabled() == null
+                ? enabledUnlessOff(before.getMultiMerchantEnabled()) : modes.getMultiMerchantEnabled());
+        if (!java.util.Objects.equals(normalizedFlag(before.getCouponEnabled()), normalized.getCouponEnabled())
+                || !java.util.Objects.equals(enabledUnlessOff(before.getBalanceTransactionsEnabled()), normalized.getBalanceTransactionsEnabled())
+                || !java.util.Objects.equals(enabledUnlessOff(before.getMultiMerchantEnabled()), normalized.getMultiMerchantEnabled())) {
             DmsAdminUser admin = AdminContext.get();
             adminAuthService.requirePermission(admin, "config:shop");
             adminAuthService.requirePermission(admin, "finance:manage");
@@ -214,7 +230,7 @@ public class TenantServiceImpl implements TenantService {
         }
         operationLogService.log("TENANT_CONFIG", "BUSINESS_MODE_UPDATE", "TENANT", String.valueOf(tenantId),
                 businessModesSummary(businessModesOf(before)), businessModesSummary(businessModesOf(saved)),
-                "更新推广资格、秒杀、复购与优惠券业务模式");
+                "更新推广资格、秒杀、复购、优惠券、余额与多商户业务模式");
         return businessModesOf(saved);
     }
 
@@ -238,6 +254,8 @@ public class TenantServiceImpl implements TenantService {
         modes.setFlashSaleBonusMode(visibleBusinessBonusMode(tenant.getFlashSaleBonusMode()));
         modes.setRepurchaseMallEnabled(normalizedFlag(tenant.getRepurchaseMallEnabled()));
         modes.setCouponEnabled(normalizedFlag(tenant.getCouponEnabled()));
+        modes.setBalanceTransactionsEnabled(enabledUnlessOff(tenant.getBalanceTransactionsEnabled()));
+        modes.setMultiMerchantEnabled(enabledUnlessOff(tenant.getMultiMerchantEnabled()));
         modes.setRepurchaseEligibilityMode(normalizeMode(tenant.getRepurchaseEligibilityMode(),
                 List.of("PAID_MEMBER", "AGENT", "ALL_MEMBER"), "PAID_MEMBER", "复购准入模式"));
         modes.setRepurchaseBonusMode(visibleBusinessBonusMode(tenant.getRepurchaseBonusMode()));
@@ -255,6 +273,8 @@ public class TenantServiceImpl implements TenantService {
                 + ";flashBonusMode=" + modes.getFlashSaleBonusMode()
                 + ";repurchase=" + modes.getRepurchaseMallEnabled()
                 + ";coupon=" + modes.getCouponEnabled()
+                + ";balanceTransactions=" + modes.getBalanceTransactionsEnabled()
+                + ";multiMerchant=" + modes.getMultiMerchantEnabled()
                 + ";repurchaseEligibility=" + modes.getRepurchaseEligibilityMode()
                 + ";repurchaseBonusMode=" + modes.getRepurchaseBonusMode();
     }
@@ -305,6 +325,11 @@ public class TenantServiceImpl implements TenantService {
         return Integer.valueOf(1).equals(value) ? 1 : 0;
     }
 
+    /** Upgrade/snapshot compatibility: an absent historical field keeps the existing capability open. */
+    private Integer enabledUnlessOff(Integer value) {
+        return Integer.valueOf(0).equals(value) ? 0 : 1;
+    }
+
     private String tenantSummary(DmsTenant tenant) {
         if (tenant == null) return null;
         return "name=" + tenant.getTenantName() + ";brand=" + tenant.getBrandName()
@@ -312,6 +337,8 @@ public class TenantServiceImpl implements TenantService {
                 + ";promotionJoinMode=" + tenant.getPromotionJoinMode()
                 + ";repurchase=" + tenant.getRepurchaseMallEnabled()
                 + ";coupon=" + tenant.getCouponEnabled()
+                + ";balanceTransactions=" + tenant.getBalanceTransactionsEnabled()
+                + ";multiMerchant=" + tenant.getMultiMerchantEnabled()
                 + ";flashBonusMode=" + tenant.getFlashSaleBonusMode()
                 + ";repurchaseBonusMode=" + tenant.getRepurchaseBonusMode()
                 + ";afterSaleMode=" + tenant.getAfterSaleWindowMode()
@@ -437,9 +464,17 @@ public class TenantServiceImpl implements TenantService {
         // 旧配置快照不含此字段，不能在回滚其他资料时意外重开或关闭优惠券。
         restoredTenant.setCouponEnabled(restoredTenant.getCouponEnabled() == null
                 ? normalizedFlag(current.getCouponEnabled()) : normalizedFlag(restoredTenant.getCouponEnabled()));
-        if (!java.util.Objects.equals(normalizedFlag(current.getCouponEnabled()), restoredTenant.getCouponEnabled())) {
+        restoredTenant.setBalanceTransactionsEnabled(restoredTenant.getBalanceTransactionsEnabled() == null
+                ? enabledUnlessOff(current.getBalanceTransactionsEnabled())
+                : enabledUnlessOff(restoredTenant.getBalanceTransactionsEnabled()));
+        restoredTenant.setMultiMerchantEnabled(restoredTenant.getMultiMerchantEnabled() == null
+                ? enabledUnlessOff(current.getMultiMerchantEnabled())
+                : enabledUnlessOff(restoredTenant.getMultiMerchantEnabled()));
+        if (!java.util.Objects.equals(normalizedFlag(current.getCouponEnabled()), restoredTenant.getCouponEnabled())
+                || !java.util.Objects.equals(enabledUnlessOff(current.getBalanceTransactionsEnabled()), restoredTenant.getBalanceTransactionsEnabled())
+                || !java.util.Objects.equals(enabledUnlessOff(current.getMultiMerchantEnabled()), restoredTenant.getMultiMerchantEnabled())) {
             DmsAdminUser admin = AdminContext.get();
-            if (admin == null || admin.getMerchantId() != null) Asserts.fail("仅平台管理员可恢复优惠券开关");
+            if (admin == null || admin.getMerchantId() != null) Asserts.fail("仅平台管理员可恢复模块开关");
             adminAuthService.requirePermission(admin, "config:shop");
             adminAuthService.requirePermission(admin, "finance:manage");
             adminAuthService.requirePermission(admin, "config:bonus");
@@ -457,6 +492,12 @@ public class TenantServiceImpl implements TenantService {
         }
         if (tenantDao.updateCouponMode(tenantId, restoredTenant.getCouponEnabled()) != 1) {
             Asserts.fail("恢复优惠券模块状态失败");
+        }
+        if (tenantDao.updateBalanceTransactionsMode(tenantId, restoredTenant.getBalanceTransactionsEnabled()) != 1) {
+            Asserts.fail("恢复余额交易模块状态失败");
+        }
+        if (tenantDao.updateMultiMerchantMode(tenantId, restoredTenant.getMultiMerchantEnabled()) != 1) {
+            Asserts.fail("恢复多商户模块状态失败");
         }
 
         restoredDisplay.setTenantId(tenantId);

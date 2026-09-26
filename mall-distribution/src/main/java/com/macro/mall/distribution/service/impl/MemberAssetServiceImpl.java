@@ -15,6 +15,7 @@ import com.macro.mall.distribution.entity.DmsMemberAssetFlow;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsAdminUser;
 import com.macro.mall.distribution.service.MemberAssetService;
+import com.macro.mall.distribution.service.BalanceTransactionModeService;
 import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.MemberMessageService;
 import com.macro.mall.distribution.service.MemberMessageEvent;
@@ -44,6 +45,7 @@ public class MemberAssetServiceImpl implements MemberAssetService {
     private final DmsShopMemberDao shopMemberDao;
     private final OperationLogService operationLogService;
     private final MemberMessageService memberMessageService;
+    private final BalanceTransactionModeService balanceTransactionModeService;
 
     @Autowired(required = false)
     private WithdrawalSettingsService withdrawalSettingsService;
@@ -102,6 +104,7 @@ public class MemberAssetServiceImpl implements MemberAssetService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsMemberAssetFlow issue(AssetChangeDTO dto) {
+        requireNewManualTransaction(dto);
         DmsMemberAssetFlow flow = changeIn(dto, 1);
         operationLogService.log("ASSET", "ISSUE", "MEMBER_ASSET", String.valueOf(flow.getAgentId()),
                 null, flow.toString(), assetDescription("增加", flow, dto.getRemark()));
@@ -111,6 +114,10 @@ public class MemberAssetServiceImpl implements MemberAssetService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsMemberAssetFlow consume(AssetChangeDTO dto) {
+        if (dto != null && ("ORDER_BALANCE_PAYMENT".equals(dto.getBizType())
+                || "SHOP_TRADE_BALANCE_PAYMENT".equals(dto.getBizType()))) {
+            balanceTransactionModeService.requireEnabledForNewTransaction(TenantContext.getTenantId());
+        }
         DmsMemberAssetFlow flow = changeOut(dto, 2);
         operationLogService.log("ASSET", "CONSUME", "MEMBER_ASSET", String.valueOf(flow.getAgentId()),
                 null, flow.toString(), assetDescription("消费", flow, dto.getRemark()));
@@ -120,6 +127,7 @@ public class MemberAssetServiceImpl implements MemberAssetService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsMemberAssetFlow deduct(AssetChangeDTO dto) {
+        requireNewManualTransaction(dto);
         DmsMemberAssetFlow flow = changeOut(dto, 5);
         operationLogService.log("ASSET", "DEDUCT", "MEMBER_ASSET", String.valueOf(flow.getAgentId()),
                 null, flow.toString(), assetDescription("扣减", flow, dto.getRemark()));
@@ -165,6 +173,7 @@ public class MemberAssetServiceImpl implements MemberAssetService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean transfer(AssetTransferDTO dto) {
+        balanceTransactionModeService.requireEnabledForNewTransaction(TenantContext.getTenantId());
         if (dto.getAmount() == null || dto.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             Asserts.fail("转赠数量必须大于0");
         }
@@ -190,6 +199,12 @@ public class MemberAssetServiceImpl implements MemberAssetService {
                         + "转账" + dto.getAmount() + BalanceAsset.UNIT + BalanceAsset.NAME
                         + appendReason(dto.getRemark()));
         return true;
+    }
+
+    private void requireNewManualTransaction(AssetChangeDTO dto) {
+        if (dto != null && "MANUAL_MEMBER_ADJUST".equals(dto.getBizType())) {
+            balanceTransactionModeService.requireEnabledForNewTransaction(TenantContext.getTenantId());
+        }
     }
 
     private DmsMemberAssetFlow changeIn(AssetChangeDTO dto, Integer changeType) {

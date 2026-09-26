@@ -78,6 +78,8 @@ class TenantBusinessModesSettingsTest {
         assertEquals("MANUAL_REVIEW", result.getPromotionJoinMode());
         assertEquals("STANDARD", result.getFlashSaleBonusMode());
         assertEquals("STANDARD", result.getRepurchaseBonusMode());
+        assertEquals(1, result.getBalanceTransactionsEnabled());
+        assertEquals(1, result.getMultiMerchantEnabled());
     }
 
     @Test
@@ -103,6 +105,8 @@ class TenantBusinessModesSettingsTest {
         assertEquals(1, update.getValue().getFlashSaleEnabled());
         assertEquals("STANDARD", update.getValue().getFlashSaleBonusMode());
         assertEquals(1, update.getValue().getCouponEnabled());
+        assertEquals(1, update.getValue().getBalanceTransactionsEnabled());
+        assertEquals(1, update.getValue().getMultiMerchantEnabled());
         verify(tenantDao, never()).update(any(DmsTenant.class));
         verify(catalogCache).invalidateAfterCommit(1L);
         verify(operationLogService).log(eq("TENANT_CONFIG"), eq("BUSINESS_MODE_UPDATE"), eq("TENANT"),
@@ -135,6 +139,40 @@ class TenantBusinessModesSettingsTest {
         TenantBusinessModesDTO request=modes(); request.setCouponEnabled(2);
 
         assertThrows(ApiException.class, () -> service.saveBusinessModes(1L, request));
+        verify(tenantDao, never()).updateBusinessModes(eq(1L), any(TenantBusinessModesDTO.class));
+    }
+
+    @Test
+    void balanceAndMerchantModesRequireShopAndFinancePermissionAndPreserveLegacyClientOmissions() {
+        DmsTenant before = tenant(1L, "商城", "NONE");
+        before.setBalanceTransactionsEnabled(0);
+        before.setMultiMerchantEnabled(0);
+        DmsTenant saved = tenant(1L, "商城", "NONE");
+        saved.setBalanceTransactionsEnabled(1);
+        saved.setMultiMerchantEnabled(0);
+        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(before);
+        when(tenantDao.selectById(1L)).thenReturn(saved);
+        when(configVersionDao.countByTenantId(1L)).thenReturn(1);
+        when(tenantDao.updateBusinessModes(eq(1L), any(TenantBusinessModesDTO.class))).thenReturn(1);
+
+        TenantBusinessModesDTO request = modes();
+        request.setBalanceTransactionsEnabled(1);
+        service.saveBusinessModes(1L, request);
+
+        verify(adminAuthService).requirePermission(admin, "config:shop");
+        verify(adminAuthService).requirePermission(admin, "finance:manage");
+        ArgumentCaptor<TenantBusinessModesDTO> update = ArgumentCaptor.forClass(TenantBusinessModesDTO.class);
+        verify(tenantDao).updateBusinessModes(eq(1L), update.capture());
+        assertEquals(1, update.getValue().getBalanceTransactionsEnabled());
+        assertEquals(0, update.getValue().getMultiMerchantEnabled());
+    }
+
+    @Test
+    void rejectsInvalidBalanceAndMerchantFlagsBeforeWritingTenant() {
+        TenantBusinessModesDTO balanceRequest = modes(); balanceRequest.setBalanceTransactionsEnabled(2);
+        TenantBusinessModesDTO merchantRequest = modes(); merchantRequest.setMultiMerchantEnabled(-1);
+        assertThrows(ApiException.class, () -> service.saveBusinessModes(1L, balanceRequest));
+        assertThrows(ApiException.class, () -> service.saveBusinessModes(1L, merchantRequest));
         verify(tenantDao, never()).updateBusinessModes(eq(1L), any(TenantBusinessModesDTO.class));
     }
 

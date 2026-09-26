@@ -61,6 +61,8 @@ class TenantSafeDefaultsTest {
         service.saveTenant(tenant);
 
         assertEquals("DISABLED", tenant.getPromotionJoinMode());
+        assertEquals(1, tenant.getBalanceTransactionsEnabled());
+        assertEquals(0, tenant.getMultiMerchantEnabled(), "新客户默认只开平台自营");
 
         ArgumentCaptor<DmsCommissionRuleVersion> version = ArgumentCaptor.forClass(DmsCommissionRuleVersion.class);
         verify(versionDao).insert(version.capture());

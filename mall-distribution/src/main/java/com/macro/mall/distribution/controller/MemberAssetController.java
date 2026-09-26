@@ -91,6 +91,7 @@ public class MemberAssetController {
     public CommonResult<DmsMemberAssetFlow> deduct(@Valid @RequestBody AdminAssetChangeDTO dto) {
         validateManualChange(dto);
         adminAuthService.verifyPassword(AdminContext.get(), dto.getAdminPassword());
+        dto.setBizType("MANUAL_MEMBER_ADJUST");
         return CommonResult.success(assetService.deduct(dto), "余额已扣减");
     }
 

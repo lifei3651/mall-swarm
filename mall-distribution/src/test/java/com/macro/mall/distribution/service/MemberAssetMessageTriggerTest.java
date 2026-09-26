@@ -37,7 +37,7 @@ class MemberAssetMessageTriggerTest {
         doAnswer(invocation -> { DmsMemberAssetFlow flow = invocation.getArgument(0); flow.setId(501L); return 1; })
                 .when(flowDao).insert(any());
         MemberAssetServiceImpl service = new MemberAssetServiceImpl(accountDao, flowDao, agentDao, memberDao,
-                mock(OperationLogService.class), messages);
+                mock(OperationLogService.class), messages, mock(BalanceTransactionModeService.class));
         AssetChangeDTO change = new AssetChangeDTO(); change.setUserId(70L); change.setAmount(new BigDecimal("5.00"));
         change.setBizType("TEST"); change.setBizId("fact-1"); change.setRequestId("wallet-request-1");
         change.setRemark("测试钱包事实");

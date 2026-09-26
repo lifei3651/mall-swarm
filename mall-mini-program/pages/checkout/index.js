@@ -8,6 +8,7 @@ const theme = require('../../utils/theme')
 const catalog = require('../../utils/catalog')
 const quantityRules = require('../../utils/quantity')
 const session = require('../../utils/session')
+const balanceMode = require('../../utils/balance-mode')
 const { couponQuoteValid, canReviseRejectedOrder } = require('../../utils/h5-rules/couponAmounts')
 
 function idempotencyKey() {
@@ -108,9 +109,10 @@ Page({
         || (addresses || []).find((item) => Number(item.isDefault) === 1) || (addresses || [])[0] || null
       this.selectedAddressId = address ? String(address.id) : ''
       const wechatPayEnabled = Boolean(config && config.wechatPayEnabled === true)
-      const balanceAvailable = Boolean(wallet && typeof wallet.hasPaymentPassword === 'boolean' && wallet.balance != null && Number.isFinite(Number(wallet.balance)) && Number(wallet.balance) >= 0)
+      const balanceModeEnabled = balanceMode.balanceTransactionsEnabled(businessConfig)
+      const balanceAvailable = balanceModeEnabled && Boolean(wallet && typeof wallet.hasPaymentPassword === 'boolean' && wallet.balance != null && Number.isFinite(Number(wallet.balance)) && Number(wallet.balance) >= 0)
       const payType = this.data.payType === 'BALANCE' && balanceAvailable || !wechatPayEnabled && balanceAvailable ? 'BALANCE' : 'WECHAT'
-      feedback.update(this, { address, wechatPayEnabled, balanceAvailable, balanceSummary: balanceAvailable ? { ...wallet, balanceText: format.money(wallet.balance) } : null, balanceError: balanceAvailable ? '' : '余额状态暂不可用，可刷新后重试', payType })
+      feedback.update(this, { address, wechatPayEnabled, balanceAvailable, balanceSummary: balanceAvailable ? { ...wallet, balanceText: format.money(wallet.balance) } : null, balanceError: balanceModeEnabled && !balanceAvailable ? '余额状态暂不可用，可刷新后重试' : '', payType })
       if (address) await this.quoteFreight(address)
     } catch (error) {
       if (generation !== this.loadGeneration) return
@@ -282,6 +284,7 @@ Page({
     if (this.data.remarkEditorVisible) return
     if (this.data.submitting || this.createdPaymentId) return
     if (!auth.requireLogin(this.route || '/pages/checkout/index')) return
+    if (!this.data.wechatPayEnabled && !this.data.balanceAvailable) return feedback.notice('当前没有可用的在线支付方式，请联系商城客服')
     if (!this.data.address) { feedback.toast({ title: '请先添加收货地址', icon: 'none' }); return }
     if (this.data.loading || this.data.quoteLoading || !this.data.quoteReady
         || this.quotedPayload !== JSON.stringify(this.orderPayload(this.data.address, false))) {

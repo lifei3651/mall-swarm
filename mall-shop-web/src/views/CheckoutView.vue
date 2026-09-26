@@ -105,7 +105,7 @@
               <span class="payment-check">✓</span>
             </button>
           </div>
-          <p class="payment-availability-hint">当前已开通余额支付；微信支付、支付宝通道完成商户配置后会自动显示。</p>
+          <p v-if="!paymentOptions.length" class="payment-availability-hint" role="status">{{ paymentModeLoaded ? '当前没有可用的在线支付方式，请联系商城客服。' : '正在核对可用支付方式…' }}</p>
           <p v-if="form.payType === 'BALANCE'" class="line-sub balance-hint">
             当前余额 ¥{{ money(walletSummary.balance) }}；支付时需要输入独立支付密码。
           </p>
@@ -162,7 +162,7 @@
         </div>
 
         <button v-if="!quoteReady && !freightLoading" type="button" class="btn" @click="refreshFreight">重新计算金额</button>
-        <button class="btn primary submit-order-btn" :disabled="submitting || freightLoading || !quoteReady || (form.payType === 'BALANCE' && paymentPasswordLocked)" @click="submit">
+        <button class="btn primary submit-order-btn" :disabled="submitting || freightLoading || !quoteReady || !paymentOptions.length || (form.payType === 'BALANCE' && paymentPasswordLocked)" @click="submit">
           {{ submitting ? '提交中...' : (form.payType === 'BALANCE' && paymentPasswordLocked ? '支付密码已锁定' : `提交订单 ¥${money(payAmount)}`) }}
         </button>
         <div v-if="error" class="checkout-toast" role="alert" aria-live="assertive">{{ error }}</div>
@@ -312,6 +312,7 @@ import { formatProductSpec } from '@/utils/productSpec'
 import { parseChineseAddress } from '@/utils/addressParser'
 import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
 import { createIdempotencyKey } from '@/utils/idempotency'
+import { availablePaymentType, balanceTransactionsEnabled } from '@/utils/balanceMode'
 import ChinaRegionSelect from '@/components/ChinaRegionSelect.vue'
 import CouponPicker from '@/components/CouponPicker.vue'
 import { hasShopSession } from '@/utils/shopSession'
@@ -378,10 +379,12 @@ const paymentPasswordLockHint = computed(() => {
 // 正式微信/支付宝通道尚未配置商户参数时不能让客户选择，避免生成无法完成支付的订单。
 // 接入真实支付回调后，再根据后台支付配置动态追加对应选项。
 const payConfig = ref({ alipayEnabled: false })
+const balanceModeEnabled = ref(false)
+const paymentModeLoaded = ref(false)
+let disposed = false
 const paymentOptions = computed(() => {
-  const options = [
-    { value: 'BALANCE', label: '余额', icon: '余', description: '账户可用余额' },
-  ]
+  const options = []
+  if (balanceModeEnabled.value) options.push({ value: 'BALANCE', label: '余额', icon: '余', description: '账户可用余额' })
   if (payConfig.value.alipayEnabled) {
     options.push({ value: 'ALIPAY', label: '支付宝', icon: '支', description: '支付宝安全支付' })
   }
@@ -464,6 +467,10 @@ const form = ref({
   payType: 'BALANCE',
   remark: '',
 })
+watch([paymentOptions, () => form.value.payType], ([options, current]) => {
+  const available = availablePaymentType(current, options)
+  if (available !== current) form.value.payType = available
+}, { immediate: true })
 
 const remarkEditorVisible = ref(false), remarkDraft = ref('')
 const remarkTrigger = ref(null), remarkInputRef = ref(null)
@@ -654,6 +661,7 @@ const fetchMemberPhone = async () => {
 }
 
 const validate = () => {
+  if (!paymentOptions.value.some((option) => option.value === form.value.payType)) return '当前没有可用的在线支付方式，请联系商城客服'
   if (!form.value.receiverName) return '请填写收货人'
   if (form.value.receiverName.trim().length > 30) return '收货人不能超过30个字'
   if (!isValidMainlandPhone(form.value.receiverPhone)) return '请填写正确的11位手机号'
@@ -1036,7 +1044,11 @@ onMounted(() => {
   fetchMemberPhone()
   checkVerify()
   fetchPayConfig()
-  getBusinessConfig().then(res => { if (!disposed && !couponModeFromQuote) couponEnabled.value = businessType !== 'FLASH_SALE' && Number(res.data?.couponEnabled) === 1 }).catch(() => {})
+  getBusinessConfig().then(res => {
+    if (disposed) return
+    balanceModeEnabled.value = balanceTransactionsEnabled(res.data)
+    if (!couponModeFromQuote) couponEnabled.value = businessType !== 'FLASH_SALE' && Number(res.data?.couponEnabled) === 1
+  }).catch(() => { if (!disposed) balanceModeEnabled.value = false }).finally(() => { if (!disposed) paymentModeLoaded.value = true })
 })
 
 const fetchPayConfig = async () => {
@@ -1054,6 +1066,7 @@ onBeforeRouteLeave((to) => {
   return { path: '/orders', query: { tab: 'pending-payment' } }
 })
 onBeforeUnmount(() => {
+  disposed = true
   quoteVersion++
   window.clearInterval(setupSmsTimer)
   window.clearInterval(paymentSmsTimer)

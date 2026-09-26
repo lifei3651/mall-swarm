@@ -14,6 +14,9 @@ public class ShopWalletSummaryVO implements Serializable {
 
     private BigDecimal withdrawableBalance;
 
+    /** 只控制新余额交易，历史余额与提现资格仍分别按各自规则展示。 */
+    private Boolean balanceTransactionsEnabled;
+
     private Boolean hasPaymentPassword;
 
     private Boolean paymentPasswordLocked;

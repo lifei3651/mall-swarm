@@ -28,6 +28,8 @@ public class ShopBusinessModeService {
                 mode(tenant == null ? null : tenant.getFlashSaleBonusMode(), "NONE"),
                 enabled(tenant == null ? null : tenant.getRepurchaseMallEnabled()) ? 1 : 0,
                 enabled(tenant == null ? null : tenant.getCouponEnabled()) ? 1 : 0,
+                tenant == null || Integer.valueOf(0).equals(tenant.getBalanceTransactionsEnabled()) ? 0 : 1,
+                tenant == null || Integer.valueOf(0).equals(tenant.getMultiMerchantEnabled()) ? 0 : 1,
                 mode(tenant == null ? null : tenant.getRepurchaseEligibilityMode(), "PAID_MEMBER"),
                 mode(tenant == null ? null : tenant.getRepurchaseBonusMode(), "NONE"),
                 eligible,
@@ -48,6 +50,20 @@ public class ShopBusinessModeService {
         DmsTenant tenant = ShopBusinessType.NORMAL.equals(type)
                 ? tenantDao.selectById(tenantId) : tenantDao.selectByIdForUpdate(tenantId);
         return requireEnabled(tenant, type, member);
+    }
+
+    /** Legacy null means enabled; a missing tenant is never a valid storefront. */
+    public boolean isMultiMerchantEnabled(Long tenantId) {
+        DmsTenant tenant = tenantDao.selectById(tenantId);
+        return tenant != null && !Integer.valueOf(0).equals(tenant.getMultiMerchantEnabled());
+    }
+
+    /** Acquire before product/stock rows so a committed disable cannot be overtaken by a new merchant sale. */
+    public void requireMultiMerchantForNewSale(Long tenantId) {
+        DmsTenant tenant = tenantDao.selectByIdForUpdate(tenantId);
+        if (tenant == null || Integer.valueOf(0).equals(tenant.getMultiMerchantEnabled())) {
+            Asserts.fail("当前商城仅支持平台自营，商户商品不能新上架或下单");
+        }
     }
 
     private DmsTenant requireEnabled(DmsTenant tenant, String businessType, DmsShopMember member) {

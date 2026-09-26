@@ -6,7 +6,7 @@ import Modes from '../../src/views/tenant/business-modes.vue'
 const api = vi.hoisted(() => ({ getTenantBusinessModes:vi.fn(), saveTenantBusinessModes:vi.fn(), leaveGuard:vi.fn() }))
 vi.mock('@/api/tenant', () => api)
 vi.mock('@/composables/useUnsavedChanges', () => ({ useUnsavedChanges:api.leaveGuard }))
-const row = () => ({ id:1, promotionJoinMode:'MANUAL_REVIEW', flashSaleEnabled:0, flashSaleBonusMode:'NONE', repurchaseMallEnabled:0, repurchaseEligibilityMode:'PAID_MEMBER', repurchaseBonusMode:'NONE' })
+const row = () => ({ id:1, balanceTransactionsEnabled:1, multiMerchantEnabled:1, promotionJoinMode:'MANUAL_REVIEW', flashSaleEnabled:0, flashSaleBonusMode:'NONE', repurchaseMallEnabled:0, repurchaseEligibilityMode:'PAID_MEMBER', repurchaseBonusMode:'NONE' })
 const mounted = () => mount(Modes, { global:{ plugins:[ElementPlus] } })
 beforeEach(() => {
   vi.restoreAllMocks(); vi.clearAllMocks()
@@ -47,5 +47,17 @@ describe('业务模式设置保存保护', () => {
     await expect(w.vm.save()).rejects.toThrow('模拟服务端失败')
     expect(w.vm.changes).toHaveLength(1); expect(w.vm.saving).toBe(false)
     await w.vm.save(); expect(w.vm.changes).toHaveLength(0); w.unmount()
+  })
+  it('关闭新余额交易和多商户时同时展示影响并提交独立开关', async () => {
+    const w = mounted(); await flushPromises()
+    w.vm.form.balanceTransactionsEnabled = 0
+    w.vm.form.multiMerchantEnabled = 0
+    expect(w.vm.changes.map(change => change.key)).toEqual(['balanceTransactionsEnabled', 'multiMerchantEnabled'])
+    const confirm = vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm')
+    await w.vm.save()
+    expect(confirm.mock.calls[0][0]).toContain('余额新交易：开启 → 关闭')
+    expect(confirm.mock.calls[0][0]).toContain('多商户新业务：开启 → 关闭')
+    expect(api.saveTenantBusinessModes).toHaveBeenCalledWith(1, expect.objectContaining({ balanceTransactionsEnabled:0, multiMerchantEnabled:0 }))
+    w.unmount()
   })
 })

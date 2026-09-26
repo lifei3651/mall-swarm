@@ -16,4 +16,12 @@ describe('商户退出检查', () => {
     expect(source).toContain("fulfillmentStatus = 'DISABLED'")
     expect(source).toContain('尚有未完成业务或未清资金')
   })
+  it('仅平台自营时关闭新商户入口但保留历史资料与退出处理', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+    expect(source).toContain(':disabled="!modeLoaded || !multiMerchantEnabled"')
+    expect(source).toContain('仅平台自营；历史商户资料、履约和资金仍可处理')
+    expect(source).toContain('if (!row && (!modeLoaded.value || !multiMerchantEnabled.value)) return')
+    expect(source).toContain('不能开通新商户')
+    expect(source).toContain('退出检查')
+  })
 })

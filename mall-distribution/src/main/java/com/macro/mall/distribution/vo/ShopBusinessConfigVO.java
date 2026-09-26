@@ -15,6 +15,8 @@ public class ShopBusinessConfigVO implements Serializable {
     private String flashSaleBonusMode;
     private Integer repurchaseMallEnabled;
     private Integer couponEnabled;
+    private Integer balanceTransactionsEnabled;
+    private Integer multiMerchantEnabled;
     private String repurchaseEligibilityMode;
     private String repurchaseBonusMode;
     private Boolean repurchaseEligible;

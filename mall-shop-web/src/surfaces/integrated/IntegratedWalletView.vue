@@ -1,7 +1,7 @@
 <template>
   <WalletView>
-    <template #primary-action>
-      <RouterLink class="wallet-action-link" to="/profile/wallet/transfer">
+    <template #primary-action="{ balanceModeEnabled }">
+      <RouterLink v-if="balanceModeEnabled" class="wallet-action-link" to="/profile/wallet/transfer">
         <Send :size="21" /><span>余额转账</span>
       </RouterLink>
     </template>

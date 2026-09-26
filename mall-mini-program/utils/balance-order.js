@@ -1,9 +1,11 @@
 const request = require('./request')
 const feedback = require('./feedback')
 const session = require('./session')
+const balanceMode = require('./balance-mode')
 const data = { balanceDialog: false, balanceLoading: false, balanceBusy: false, balancePassword: '', balanceWallet: null }
 function snapshot(page) { return `${page.data.payOrderId}:${page.data.totalText}:${page.data.rows.map(row => row.order.id).join(',')}` }
 function validateWallet(wallet, amount) {
+  if (!balanceMode.balanceTransactionsEnabled(wallet)) throw new Error('本商城已暂停新增余额支付，可取消待付款订单并选择其他可用方式重新下单')
   if (!wallet || typeof wallet.hasPaymentPassword !== 'boolean' || wallet.balance == null || !Number.isFinite(Number(wallet.balance))) throw new Error('余额安全状态暂不可用，请重试')
   if (wallet.paymentPasswordLocked) throw new Error('支付密码已临时锁定，请稍后重新加载；不要反复尝试密码')
   if (Number(wallet.balance) < Number(amount)) throw new Error('账户可用余额不足，请核对余额或联系商城客服')

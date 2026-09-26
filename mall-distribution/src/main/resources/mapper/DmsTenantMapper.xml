@@ -36,6 +36,8 @@
         <result column="flash_sale_bonus_mode" property="flashSaleBonusMode"/>
         <result column="repurchase_mall_enabled" property="repurchaseMallEnabled"/>
         <result column="coupon_enabled" property="couponEnabled"/>
+        <result column="balance_transactions_enabled" property="balanceTransactionsEnabled"/>
+        <result column="multi_merchant_enabled" property="multiMerchantEnabled"/>
         <result column="repurchase_eligibility_mode" property="repurchaseEligibilityMode"/>
         <result column="repurchase_bonus_mode" property="repurchaseBonusMode"/>
         <result column="faqs" property="faqs"/>
@@ -52,7 +54,7 @@
                third_party_services, icp_number, police_record_number,
                police_record_url, business_license_url, show_business_license,
                user_agreement, privacy_policy, after_sale_policy, after_sale_window_mode, after_sale_window_days, promotion_join_mode,
-               flash_sale_enabled, flash_sale_bonus_mode, repurchase_mall_enabled, coupon_enabled, repurchase_eligibility_mode, repurchase_bonus_mode, faqs,
+               flash_sale_enabled, flash_sale_bonus_mode, repurchase_mall_enabled, coupon_enabled, balance_transactions_enabled, multi_merchant_enabled, repurchase_eligibility_mode, repurchase_bonus_mode, faqs,
                status, remark, create_time, update_time
         FROM dms_tenant
         WHERE id = #{id}
@@ -65,7 +67,7 @@
                third_party_services, icp_number, police_record_number,
                police_record_url, business_license_url, show_business_license,
                user_agreement, privacy_policy, after_sale_policy, after_sale_window_mode, after_sale_window_days, promotion_join_mode,
-               flash_sale_enabled, flash_sale_bonus_mode, repurchase_mall_enabled, coupon_enabled, repurchase_eligibility_mode, repurchase_bonus_mode, faqs,
+               flash_sale_enabled, flash_sale_bonus_mode, repurchase_mall_enabled, coupon_enabled, balance_transactions_enabled, multi_merchant_enabled, repurchase_eligibility_mode, repurchase_bonus_mode, faqs,
                status, remark, create_time, update_time
         FROM dms_tenant
         WHERE id = #{id}
@@ -79,7 +81,7 @@
                third_party_services, icp_number, police_record_number,
                police_record_url, business_license_url, show_business_license,
                user_agreement, privacy_policy, after_sale_policy, after_sale_window_mode, after_sale_window_days, promotion_join_mode,
-               flash_sale_enabled, flash_sale_bonus_mode, repurchase_mall_enabled, coupon_enabled, repurchase_eligibility_mode, repurchase_bonus_mode, faqs,
+               flash_sale_enabled, flash_sale_bonus_mode, repurchase_mall_enabled, coupon_enabled, balance_transactions_enabled, multi_merchant_enabled, repurchase_eligibility_mode, repurchase_bonus_mode, faqs,
                status, remark, create_time, update_time
         FROM dms_tenant
         WHERE tenant_code = #{tenantCode}
@@ -92,7 +94,7 @@
                third_party_services, icp_number, police_record_number,
                police_record_url, business_license_url, show_business_license,
                user_agreement, privacy_policy, after_sale_policy, after_sale_window_mode, after_sale_window_days, promotion_join_mode,
-               flash_sale_enabled, flash_sale_bonus_mode, repurchase_mall_enabled, coupon_enabled, repurchase_eligibility_mode, repurchase_bonus_mode, faqs,
+               flash_sale_enabled, flash_sale_bonus_mode, repurchase_mall_enabled, coupon_enabled, balance_transactions_enabled, multi_merchant_enabled, repurchase_eligibility_mode, repurchase_bonus_mode, faqs,
                status, remark, create_time, update_time
         FROM dms_tenant
         ORDER BY create_time DESC
@@ -105,14 +107,14 @@
             third_party_services, icp_number, police_record_number, police_record_url,
             business_license_url, show_business_license, user_agreement, privacy_policy, after_sale_policy,
             after_sale_window_mode, after_sale_window_days, promotion_join_mode, flash_sale_enabled, flash_sale_bonus_mode,
-            repurchase_mall_enabled, repurchase_eligibility_mode, repurchase_bonus_mode, faqs, status, remark)
+            repurchase_mall_enabled, balance_transactions_enabled, multi_merchant_enabled, repurchase_eligibility_mode, repurchase_bonus_mode, faqs, status, remark)
         VALUES (#{tenantCode}, #{tenantName}, #{brandName}, #{logoUrl}, #{themeColor}, #{productTemplate},
             #{brandCultureEnabled}, #{brandCultureTitle}, #{brandCultureSubtitle}, #{brandCultureCoverUrl}, #{brandCultureContent},
             #{companyAddress}, #{unifiedSocialCreditCode}, #{servicePhone}, #{serviceEmail}, #{serviceHours},
             #{thirdPartyServices}, #{icpNumber}, #{policeRecordNumber}, #{policeRecordUrl},
             #{businessLicenseUrl}, #{showBusinessLicense}, #{userAgreement}, #{privacyPolicy}, #{afterSalePolicy},
             #{afterSaleWindowMode}, #{afterSaleWindowDays}, #{promotionJoinMode}, #{flashSaleEnabled}, #{flashSaleBonusMode},
-            #{repurchaseMallEnabled}, #{repurchaseEligibilityMode}, #{repurchaseBonusMode}, #{faqs}, #{status}, #{remark})
+            #{repurchaseMallEnabled}, #{balanceTransactionsEnabled}, #{multiMerchantEnabled}, #{repurchaseEligibilityMode}, #{repurchaseBonusMode}, #{faqs}, #{status}, #{remark})
     </insert>
 
     <update id="update" parameterType="com.macro.mall.distribution.entity.DmsTenant">
@@ -146,12 +148,22 @@
             repurchase_eligibility_mode = #{modes.repurchaseEligibilityMode},
             repurchase_bonus_mode = #{modes.repurchaseBonusMode},
             coupon_enabled = #{modes.couponEnabled},
+            balance_transactions_enabled = #{modes.balanceTransactionsEnabled},
+            multi_merchant_enabled = #{modes.multiMerchantEnabled},
             update_time = NOW()
         WHERE id = #{id}
     </update>
 
     <update id="updateCouponMode">
         UPDATE dms_tenant SET coupon_enabled = #{enabled}, update_time = NOW() WHERE id = #{id}
+    </update>
+
+    <update id="updateBalanceTransactionsMode">
+        UPDATE dms_tenant SET balance_transactions_enabled = #{enabled}, update_time = NOW() WHERE id = #{id}
+    </update>
+
+    <update id="updateMultiMerchantMode">
+        UPDATE dms_tenant SET multi_merchant_enabled = #{enabled}, update_time = NOW() WHERE id = #{id}
     </update>
 
     <update id="updateStatus">

@@ -11,6 +11,7 @@ import com.macro.mall.distribution.dao.DmsMerchantProductReviewDao;
 import com.macro.mall.distribution.dao.DmsMerchantAccountDao;
 import com.macro.mall.distribution.dao.DmsShopProductDao;
 import com.macro.mall.distribution.dao.DmsShopSkuDao;
+import com.macro.mall.distribution.dao.DmsTenantDao;
 import com.macro.mall.distribution.dto.MerchantProductReviewDecisionDTO;
 import com.macro.mall.distribution.dto.MerchantProductReviewCheckDTO;
 import com.macro.mall.distribution.entity.DmsAdminUser;
@@ -18,6 +19,7 @@ import com.macro.mall.distribution.entity.DmsMerchant;
 import com.macro.mall.distribution.entity.DmsMerchantProductReview;
 import com.macro.mall.distribution.entity.DmsShopProduct;
 import com.macro.mall.distribution.entity.DmsShopSku;
+import com.macro.mall.distribution.entity.DmsTenant;
 import com.macro.mall.distribution.security.AdminContext;
 import com.macro.mall.distribution.service.AdminAuthService;
 import com.macro.mall.distribution.service.MerchantProductReviewService;
@@ -54,6 +56,7 @@ public class MerchantProductReviewServiceImpl implements MerchantProductReviewSe
     private final DmsShopProductDao productDao;
     private final DmsShopSkuDao skuDao;
     private final DmsMerchantDao merchantDao;
+    private final DmsTenantDao tenantDao;
     private final DmsMerchantAccountDao merchantAccountDao;
     private final AdminAuthService adminAuthService;
     private final OperationLogService operationLogService;
@@ -75,11 +78,24 @@ public class MerchantProductReviewServiceImpl implements MerchantProductReviewSe
     @Override
     public void bindMerchantForWrite(DmsShopProduct product, DmsShopProduct existing) {
         Long current = currentMerchantId();
-        if (current == null) return;
+        if (current == null) {
+            if (product.getMerchantId() != null
+                    && (existing == null || !Objects.equals(existing.getMerchantId(), product.getMerchantId()))) {
+                requireMerchantModuleOpen();
+                product.setMerchantName(requireNewMerchantTarget(product.getMerchantId()).getMerchantName());
+            }
+            return;
+        }
         if (existing != null && !Objects.equals(current, existing.getMerchantId())) Asserts.fail("不能访问其他商户的商品");
         if (product.getMerchantId() != null && !Objects.equals(current, product.getMerchantId())) Asserts.fail("不能把商品绑定到其他商户");
-        DmsMerchant merchant = merchantDao.selectById(current);
-        if (merchant == null || !Integer.valueOf(1).equals(merchant.getStatus())) Asserts.fail("绑定商户不存在或已停用");
+        DmsMerchant merchant;
+        if (existing == null) {
+            requireMerchantModuleOpen();
+            merchant = requireNewMerchantTarget(current);
+        } else {
+            merchant = merchantDao.selectById(current);
+            if (merchant == null || !Integer.valueOf(1).equals(merchant.getStatus())) Asserts.fail("绑定商户不存在或已停用");
+        }
         product.setMerchantId(current);
         product.setMerchantName(merchant.getMerchantName());
     }
@@ -144,6 +160,8 @@ public class MerchantProductReviewServiceImpl implements MerchantProductReviewSe
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DmsMerchantProductReview submit(Long productId) {
+        // 商品/审核行锁前先锁租户，避免与关闭模块及结算路径产生相反锁序。
+        requireMerchantModuleOpen();
         DmsShopProduct product = productDao.selectByIdForUpdate(productId);
         if (product == null || product.getMerchantId() == null) Asserts.fail("只有商户商品需要提交审核");
         assertProductAccess(product);
@@ -200,10 +218,12 @@ public class MerchantProductReviewServiceImpl implements MerchantProductReviewSe
         if (admin == null) Asserts.fail("后台登录已失效，请重新登录");
         adminAuthService.requirePermission(admin, "shop:product-review");
         if (admin.getMerchantId() != null) Asserts.fail("商户工作台账号不能审核商品");
+        boolean approved = dto != null && Boolean.TRUE.equals(dto.getApproved());
+        // 驳回历史待审商品始终允许；通过意味着开启一项新销售能力。
+        if (approved) requireMerchantModuleOpen();
         DmsMerchantProductReview review = reviewDao.selectByIdForUpdate(reviewId);
         if (review == null || !TenantContext.getTenantId().equals(review.getTenantId())) Asserts.fail("商品审核记录不存在");
         if (!"PENDING".equals(review.getStatus())) Asserts.fail("该商品审核已经处理，请勿重复操作");
-        boolean approved = dto != null && Boolean.TRUE.equals(dto.getApproved());
         String remark = trim(dto == null ? null : dto.getRemark());
         if (!approved && remark == null) Asserts.fail("驳回时必须填写原因");
         String checklistJson = validateAndSerializeChecklist(dto, approved);
@@ -289,6 +309,28 @@ public class MerchantProductReviewServiceImpl implements MerchantProductReviewSe
         BigDecimal required = money(merchant == null ? null : merchant.getRequiredDepositAmount());
         BigDecimal actual = money(account == null ? null : account.getDepositFrozenAmount());
         if (actual.compareTo(required) < 0) Asserts.fail("商户保证金不足，不能提交或通过商品审核");
+    }
+
+    private void requireMerchantModuleOpen() {
+        DmsTenant tenant = tenantDao.selectByIdForUpdate(TenantContext.getTenantId());
+        if (tenant == null) Asserts.fail("商城客户不存在");
+        if (Integer.valueOf(0).equals(tenant.getMultiMerchantEnabled())) {
+            Asserts.fail("当前商城仅支持平台自营，不能新增或上架商户商品");
+        }
+    }
+
+    private DmsMerchant requireNewMerchantTarget(Long merchantId) {
+        DmsMerchant merchant = merchantId == null ? null : merchantDao.selectById(merchantId);
+        if (merchant == null || !TenantContext.getTenantId().equals(merchant.getTenantId())) {
+            Asserts.fail("所选商户不存在或不属于当前商城");
+        }
+        if (!Integer.valueOf(1).equals(merchant.getStatus())
+                || !"ACTIVE".equals(merchant.getBusinessStatus())
+                || !"APPROVED".equals(merchant.getAuditStatus())
+                || !"NORMAL".equals(merchant.getExitStatus())) {
+            Asserts.fail("所选商户尚未通过认证或已暂停经营，不能绑定新商品");
+        }
+        return merchant;
     }
 
     private String snapshot(DmsShopProduct product, List<DmsShopSku> skus) {

@@ -45,6 +45,16 @@ public class TenantBusinessModesDTO implements Serializable {
     @Max(value = 1, message = "优惠券状态不正确")
     private Integer couponEnabled;
 
+    /** 缺省沿用旧值；仅控制新增余额支付、转账和人工调账，不影响存量清偿。 */
+    @Min(value = 0, message = "余额交易状态不正确")
+    @Max(value = 1, message = "余额交易状态不正确")
+    private Integer balanceTransactionsEnabled;
+
+    /** 缺省沿用旧值；关闭只阻止新多商户经营，不删除历史商户账务。 */
+    @Min(value = 0, message = "多商户状态不正确")
+    @Max(value = 1, message = "多商户状态不正确")
+    private Integer multiMerchantEnabled;
+
     @NotNull(message = "请选择复购区进入资格")
     @Pattern(regexp = "PAID_MEMBER|AGENT|ALL_MEMBER", message = "复购区准入模式不正确")
     private String repurchaseEligibilityMode;

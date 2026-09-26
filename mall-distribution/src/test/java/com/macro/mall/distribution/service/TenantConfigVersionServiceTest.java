@@ -47,6 +47,8 @@ class TenantConfigVersionServiceTest {
 
         DmsTenant current = tenant(1L, "当前商城");
         current.setCouponEnabled(1);
+        current.setBalanceTransactionsEnabled(0);
+        current.setMultiMerchantEnabled(0);
         DmsTenantDisplayConfig currentDisplay = display(1L, 0);
         DmsTenant restored = tenant(1L, "历史商城");
         DmsTenantDisplayConfig restoredDisplay = display(1L, 1);
@@ -67,6 +69,8 @@ class TenantConfigVersionServiceTest {
         when(versionDao.selectByIdAndTenantId(9L, 1L)).thenReturn(target);
         when(tenantDao.update(any(DmsTenant.class))).thenReturn(1);
         when(tenantDao.updateCouponMode(1L, 1)).thenReturn(1);
+        when(tenantDao.updateBalanceTransactionsMode(1L, 0)).thenReturn(1);
+        when(tenantDao.updateMultiMerchantMode(1L, 0)).thenReturn(1);
         when(displayDao.update(any(DmsTenantDisplayConfig.class))).thenReturn(1);
         when(brandCultureImagePolicy.validate(eq(1L), any())).thenAnswer(invocation -> invocation.getArgument(1));
 
@@ -76,7 +80,11 @@ class TenantConfigVersionServiceTest {
         verify(tenantDao).update(tenantUpdate.capture());
         assertEquals("历史商城", tenantUpdate.getValue().getBrandName());
         assertEquals(1, tenantUpdate.getValue().getCouponEnabled(), "旧快照缺少优惠券字段时必须保留现有开关");
+        assertEquals(0, tenantUpdate.getValue().getBalanceTransactionsEnabled(), "旧快照不得重新打开余额交易");
+        assertEquals(0, tenantUpdate.getValue().getMultiMerchantEnabled(), "旧快照不得重新打开多商户");
         verify(tenantDao).updateCouponMode(1L, 1);
+        verify(tenantDao).updateBalanceTransactionsMode(1L, 0);
+        verify(tenantDao).updateMultiMerchantMode(1L, 0);
         ArgumentCaptor<DmsTenantDisplayConfig> displayUpdate = ArgumentCaptor.forClass(DmsTenantDisplayConfig.class);
         verify(displayDao).update(displayUpdate.capture());
         assertEquals(1, displayUpdate.getValue().getShowPv());

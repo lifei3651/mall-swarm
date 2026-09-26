@@ -24,6 +24,7 @@ import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.entity.DmsShopTrade;
 import com.macro.mall.distribution.service.MemberAssetService;
+import com.macro.mall.distribution.service.BalanceTransactionModeService;
 import com.macro.mall.distribution.service.PaymentPasswordAttemptService;
 import com.macro.mall.distribution.service.ShopService;
 import com.macro.mall.distribution.service.ShopWalletService;
@@ -77,6 +78,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
     private final MemberMessageService memberMessageService;
     private final RealNameVerificationService realNameVerificationService;
     private final WithdrawalRiskPolicyService withdrawalRiskPolicyService;
+    private final BalanceTransactionModeService balanceTransactionModeService;
 
     @Autowired(required = false)
     private WithdrawalSettingsService withdrawalSettingsService;
@@ -94,6 +96,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
         summary.setBalance(account == null || account.getBalance() == null ? BigDecimal.ZERO : account.getBalance());
         summary.setWithdrawableBalance(account == null ? BigDecimal.ZERO
                 : account.getWithdrawableBalance() == null ? summary.getBalance() : account.getWithdrawableBalance());
+        summary.setBalanceTransactionsEnabled(balanceTransactionModeService.isEnabled(TenantContext.getTenantId()));
         summary.setHasPaymentPassword(hasText(current.getPayPasswordHash()));
         boolean paymentPasswordLocked = isPaymentPasswordLocked(current);
         summary.setPaymentPasswordLocked(paymentPasswordLocked);
@@ -178,6 +181,7 @@ public class ShopWalletServiceImpl implements ShopWalletService {
     public boolean transfer(DmsShopMember member, BalanceTransferDTO dto) {
         DmsShopMember current = requireCurrentMember(member);
         if (dto == null) Asserts.fail("转账信息不能为空");
+        balanceTransactionModeService.requireEnabledForNewTransaction(TenantContext.getTenantId());
         String recipientPhone = PhoneNumberUtils.normalize(dto.getRecipientPhone());
         BalanceRecipientVO ignored = findRecipient(current, recipientPhone);
         verifyPaymentPassword(current, dto.getPaymentPassword());
@@ -228,6 +232,8 @@ public class ShopWalletServiceImpl implements ShopWalletService {
             Asserts.fail("当前订单状态不能支付");
         }
 
+        balanceTransactionModeService.requireEnabledForNewTransaction(order.getTenantId());
+
         verifyPaymentPassword(current, dto.getPaymentPassword());
         BigDecimal amount = MoneyValidationUtils.requirePositiveAmount(
                 order.getPayAmount(), "订单实付金额", MAX_ORDER_PAYMENT_AMOUNT);
@@ -254,6 +260,8 @@ public class ShopWalletServiceImpl implements ShopWalletService {
             if (Integer.valueOf(1).equals(trade.getStatus())) return shopService.markCheckoutPaid(checkoutId, "BALANCE");
             Asserts.fail("当前交易状态不能支付");
         }
+
+        balanceTransactionModeService.requireEnabledForNewTransaction(trade.getTenantId());
 
         verifyPaymentPassword(current, dto.getPaymentPassword());
         BigDecimal amount = MoneyValidationUtils.requirePositiveAmount(

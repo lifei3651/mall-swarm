@@ -57,7 +57,10 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     public List<FlashSaleActivityVO> listFront() {
         Long tenantId = TenantContext.getTenantId();
         if (businessModeService.config(tenantId, null).getFlashSaleEnabled() != 1) return List.of();
-        return activityDao.selectFrontList(tenantId).stream().map(item -> toVo(item, true)).toList();
+        boolean multiMerchantEnabled = businessModeService.isMultiMerchantEnabled(tenantId);
+        return activityDao.selectFrontList(tenantId).stream()
+                .filter(item -> multiMerchantEnabled || isPlatformProduct(item.getProductId()))
+                .map(item -> toVo(item, true)).toList();
     }
 
     @Override
@@ -77,6 +80,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         if (product == null || !tenantId.equals(product.getTenantId()) || !Integer.valueOf(1).equals(product.getStatus())) {
             Asserts.fail("秒杀商品不存在或已下架");
         }
+        requireMerchantProductSaleEnabled(product);
         DmsShopSku sku = null;
         int physicalStock = product.getStock() == null ? 0 : product.getStock();
         BigDecimal regularPrice = product.getSalePrice();
@@ -126,6 +130,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         if (status == 1) requireFlashSaleEnabledForWrite(tenantId);
         DmsFlashSaleActivity activity = activityDao.selectById(id);
         if (activity == null || !tenantId.equals(activity.getTenantId())) Asserts.fail("秒杀活动不存在");
+        if (status == 1) requireMerchantProductSaleEnabled(productDao.selectById(activity.getProductId()));
         boolean updated = activityDao.updateStatus(id, status) > 0;
         if (updated) stockGate.reset(activity);
         return updated;
@@ -135,6 +140,18 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         DmsTenant tenant = tenantDao.selectByIdForUpdate(tenantId);
         if (tenant == null || !Integer.valueOf(1).equals(tenant.getFlashSaleEnabled())) {
             Asserts.fail("请先在商城业务模式中启用秒杀");
+        }
+    }
+
+    private boolean isPlatformProduct(Long productId) {
+        DmsShopProduct product = productDao.selectById(productId);
+        return product != null && product.getMerchantId() == null;
+    }
+
+    private void requireMerchantProductSaleEnabled(DmsShopProduct product) {
+        if (product == null) Asserts.fail("秒杀商品不存在");
+        if (product.getMerchantId() != null && !businessModeService.isMultiMerchantEnabled(product.getTenantId())) {
+            Asserts.fail("当前商城仅支持平台自营，商户秒杀活动不能开启");
         }
     }
 
@@ -155,6 +172,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         // 活动必须在租户锁之后读取，不能沿用停用/修改前的旧快照。
         DmsFlashSaleActivity activity = activityDao.selectById(activityId);
         if (activity == null || !tenantId.equals(activity.getTenantId())) Asserts.fail("秒杀活动不存在");
+        requireMerchantProductSaleEnabled(productDao.selectById(activity.getProductId()));
         LocalDateTime now = LocalDateTime.now();
         if (!Integer.valueOf(1).equals(activity.getStatus()) || now.isBefore(activity.getStartTime())) Asserts.fail("秒杀尚未开始");
         if (!now.isBefore(activity.getEndTime())) Asserts.fail("秒杀已结束");

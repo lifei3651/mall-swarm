@@ -1,4 +1,5 @@
 const fields = {
+  balanceTransactionsEnabled: '余额新交易', multiMerchantEnabled: '多商户新业务',
   promotionJoinMode: '推广资格开通方式', flashSaleEnabled: '秒杀专区', flashSaleBonusMode: '秒杀奖金处理',
   repurchaseMallEnabled: '复购区', repurchaseEligibilityMode: '复购进入资格', repurchaseBonusMode: '复购奖金处理',
   couponEnabled: '优惠券模块',

@@ -679,7 +679,7 @@ test('checkout shows payment-password lock state before opening the balance paym
   assert.match(checkout, /paymentPasswordLockRemainingSeconds/)
   assert.match(checkout, /支付密码已锁定，请\$\{remaining\}后再试；如需立即处理，请联系客服/)
   assert.match(checkout, /form\.payType === 'BALANCE' && paymentPasswordLocked/)
-  assert.match(checkout, /:disabled="submitting \|\| freightLoading \|\| !quoteReady \|\| \(form\.payType === 'BALANCE' && paymentPasswordLocked\)"/)
+  assert.match(checkout, /:disabled="submitting \|\| freightLoading \|\| !quoteReady \|\| !paymentOptions\.length \|\| \(form\.payType === 'BALANCE' && paymentPasswordLocked\)"/)
   assert.match(checkout, /if \(String\(e\.message \|\| ''\)\.includes\('锁定30分钟'\)\) await fetchWallet\(\)/)
 })
 
@@ -848,11 +848,14 @@ test('new homepage modules are merged into an existing visual-workbench configur
   assert.equal(migrated.find((item) => item.type === 'newArrivals').enabled, false)
 })
 
-test('checkout only exposes configured payment channels', async () => {
+test('checkout only exposes configured payment channels and blocks orders when none are available', async () => {
   const source = await readView('CheckoutView.vue')
-  assert.match(source, /当前已开通余额支付；微信支付、支付宝通道完成商户配置后会自动显示。/)
+  assert.match(source, /v-if="!paymentOptions\.length" class="payment-availability-hint"/)
+  assert.match(source, /当前没有可用的在线支付方式，请联系商城客服/)
   assert.match(source, /payType: 'BALANCE'/)
   assert.doesNotMatch(source, /value: 'WECHAT'/)
+  assert.match(source, /if \(balanceModeEnabled\.value\) options\.push\(\{ value: 'BALANCE'/)
+  assert.match(source, /balanceModeEnabled\.value = balanceTransactionsEnabled\(res\.data\)/)
   assert.match(source, /payConfig\.value\.alipayEnabled/)
   assert.match(source, /getPayConfig\(\)/)
 })

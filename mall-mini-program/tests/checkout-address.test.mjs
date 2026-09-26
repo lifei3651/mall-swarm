@@ -34,6 +34,7 @@ function harness(name, { respond, loggedIn = true, selected = goods, stack = [] 
     '../../utils/session': { getToken: () => loggedIn ? 'test-session' : '' },
     '../../utils/wechat-address': { choose: async () => { throw new Error('请显式配置地址导入测试') } },
     '../../utils/catalog': { refresh: async (rows) => rows },
+    '../../utils/balance-mode': require('../utils/balance-mode'),
     '../../utils/auth': { requireLogin: (route) => { loginChecks.push(route); return loggedIn } },
     '../../utils/format': { money: (value) => Number(value).toFixed(2), mediaUrl: (value) => value,
       identifier: (value) => typeof value === 'number' && (!Number.isSafeInteger(value) || value <= 0) ? '' : /^[1-9]\d{0,18}$/.test(String(value ?? '').trim()) ? String(value).trim() : '' },
@@ -62,6 +63,8 @@ function checkoutRespond({ addresses = [address()], quote = { productAmount: '24
   return ({ url }) => {
     if (url === '/shop/addresses') return addresses
     if (url === '/shop/pay/config') return { wechatPayEnabled: true }
+    if (url === '/shop/business-config') return { couponEnabled: 0, balanceTransactionsEnabled: 1 }
+    if (url === '/shop/wallet/summary') return { balance: '100.00', hasPaymentPassword: true }
     if (url === '/shop/orders/freight-quote') return quote
     if (url === '/payment/checkVerify') return { needVerify }
     throw new Error(`Unexpected request ${url}`)
@@ -304,7 +307,7 @@ test('页面离开后旧加载和报价不再恢复可支付状态', async () =>
 test('结算金额未知不伪装为商品小计，重算和提交按钮都有状态门禁', () => {
   const wxml = readFileSync(new URL('../pages/checkout/index.wxml', import.meta.url), 'utf8')
   assert.match(wxml, /bindtap="retryQuote"/)
-  assert.match(wxml, /disabled="\{\{submitting \|\| loading \|\| quoteLoading \|\| !quoteReady\}\}"/)
+  assert.match(wxml, /disabled="\{\{submitting \|\| loading \|\| quoteLoading \|\| !quoteReady \|\| \(!wechatPayEnabled && !balanceAvailable\)\}\}"/)
   assert.doesNotMatch(wxml, /payTotal \|\| total/)
 })
 

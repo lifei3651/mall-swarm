@@ -46,6 +46,7 @@ public class MerchantServiceImpl implements MerchantService {
     private static final Set<String> EXIT_STATES = Set.of("NORMAL", "EXITING", "EXITED");
 
     private final DmsMerchantDao merchantDao;
+    private final DmsTenantDao tenantDao;
     private final DmsAdminUserDao adminUserDao;
     private final DmsMerchantAccountDao accountDao;
     private final DmsMerchantSettlementDao settlementDao;
@@ -77,6 +78,7 @@ public class MerchantServiceImpl implements MerchantService {
     @Transactional(rollbackFor = Exception.class)
     public DmsMerchant saveMerchant(DmsMerchant merchant) {
         requirePlatformAdmin();
+        requireMerchantModuleOpen(lockTenantForMerchantOperation());
         normalizeMerchant(merchant);
         if (merchantDao.selectByNo(merchant.getTenantId(), merchant.getMerchantNo()) != null) {
             Asserts.fail("商户编号已存在");
@@ -95,6 +97,7 @@ public class MerchantServiceImpl implements MerchantService {
     public DmsMerchant onboardMerchant(MerchantOnboardingDTO dto) {
         DmsAdminUser actor = requirePlatformActorAndVerify(dto == null ? null : dto.getCurrentAdminPassword());
         if (dto == null) Asserts.fail("商户开通信息不能为空");
+        requireMerchantModuleOpen(lockTenantForMerchantOperation());
         String username = trim(dto.getUsername());
         if (username == null || !username.matches("^[A-Za-z][A-Za-z0-9_]{3,31}$")) {
             Asserts.fail("商家账号需为4至32位，必须以英文字母开头且仅支持字母、数字和下划线");
@@ -213,8 +216,10 @@ public class MerchantServiceImpl implements MerchantService {
     @Transactional(rollbackFor = Exception.class)
     public boolean updateMerchantStatus(Long id, Integer status) {
         requirePlatformAdmin();
+        DmsTenant tenant = lockTenantForMerchantOperation();
         DmsMerchant merchant = requireMerchantForUpdate(id, false);
         if (status == null || (status != 0 && status != 1)) Asserts.fail("商户状态不正确");
+        if (status == 1 && !canSell(merchant)) requireMerchantModuleOpen(tenant);
         MerchantControlDTO control = controlsOf(merchant);
         control.setBusinessStatus(status == 1 ? "ACTIVE" : "SUSPENDED");
         control.setWithdrawalStatus(status == 1 ? "ENABLED" : "FROZEN");
@@ -237,6 +242,9 @@ public class MerchantServiceImpl implements MerchantService {
     @Transactional(rollbackFor = Exception.class)
     public DmsMerchant updateMerchantControls(Long id, MerchantControlDTO dto) {
         requirePlatformAdmin();
+        // 始终先锁客户配置、再锁商户，和关模块/新订单的锁序一致；历史商户的停业、
+        // 清退、提现及结算控制仍可在仅平台自营模式下处理。
+        DmsTenant tenant = lockTenantForMerchantOperation();
         DmsMerchant merchant = requireMerchantForUpdate(id, false);
         normalizeControls(dto);
         if ("APPROVED".equals(dto.getAuditStatus()) && !"APPROVED".equals(merchant.getAuditStatus())) {
@@ -250,6 +258,7 @@ public class MerchantServiceImpl implements MerchantService {
         validateExitTransition(merchant, dto);
         int compatibilityStatus = "ACTIVE".equals(dto.getBusinessStatus())
                 && "APPROVED".equals(dto.getAuditStatus()) && "NORMAL".equals(dto.getExitStatus()) ? 1 : 0;
+        if (compatibilityStatus == 1 && !canSell(merchant)) requireMerchantModuleOpen(tenant);
         if (merchantDao.updateControls(id, compatibilityStatus, dto) != 1) Asserts.fail("商户控制状态更新失败");
         if (compatibilityStatus == 0) productDao.disableByMerchantId(merchant.getTenantId(), id);
         catalogCache.invalidateAfterCommit(merchant.getTenantId());
@@ -291,6 +300,25 @@ public class MerchantServiceImpl implements MerchantService {
                 || !"NORMAL".equals(merchant.getExitStatus())) {
             Asserts.fail("商品所属商户已暂停新销售，该待付款订单不能继续支付，请重新下单");
         }
+    }
+
+    private DmsTenant lockTenantForMerchantOperation() {
+        DmsTenant tenant = tenantDao.selectByIdForUpdate(tenantId());
+        if (tenant == null) Asserts.fail("商城客户不存在");
+        return tenant;
+    }
+
+    private void requireMerchantModuleOpen(DmsTenant tenant) {
+        if (Integer.valueOf(0).equals(tenant.getMultiMerchantEnabled())) {
+            Asserts.fail("当前商城仅支持平台自营，不能新增或启用商户经营");
+        }
+    }
+
+    private boolean canSell(DmsMerchant merchant) {
+        return merchant != null && Integer.valueOf(1).equals(merchant.getStatus())
+                && "ACTIVE".equals(merchant.getBusinessStatus())
+                && "APPROVED".equals(merchant.getAuditStatus())
+                && "NORMAL".equals(merchant.getExitStatus());
     }
 
     @Override public List<DmsMerchantAccount> listAccounts(String keyword) {

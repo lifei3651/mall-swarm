@@ -2,8 +2,10 @@
   <div class="page-container">
     <div class="page-heading">
       <div><h2>商户管理</h2><p>平台负责开通账号和认证；经营主体、收款与开票资料由商户自行提交。</p></div>
-      <el-button type="primary" @click="open()">开通商户</el-button>
+      <el-button type="primary" :disabled="!modeLoaded || !multiMerchantEnabled" @click="open()">开通商户</el-button>
     </div>
+    <el-alert v-if="modeError" :title="modeError" type="error" :closable="false" show-icon />
+    <el-alert v-else-if="modeLoaded && !multiMerchantEnabled" title="本商城已切换为仅平台自营；历史商户资料、履约和资金仍可处理，不能开通新商户或恢复新销售。" type="info" :closable="false" show-icon />
     <el-alert title="现有商品默认仍是平台自营。只有商品明确绑定商户后，才会生成商户货款。" type="info" :closable="false" show-icon />
     <div class="toolbar"><el-input v-model="keyword" clearable placeholder="商户名称或编号" @keyup.enter="load" /><el-button type="primary" @click="load">查询</el-button></div>
     <el-table :data="rows" v-loading="loading" stripe>
@@ -68,7 +70,7 @@
       </el-alert>
       <el-form label-width="125px" class="control-form">
         <el-form-item label="账号状态"><el-radio-group v-model="controlForm.accountStatus"><el-radio-button value="ENABLED">允许登录</el-radio-button><el-radio-button value="DISABLED">禁止登录</el-radio-button></el-radio-group></el-form-item>
-        <el-form-item label="经营状态"><el-radio-group v-model="controlForm.businessStatus"><el-radio-button value="ACTIVE">正常经营</el-radio-button><el-radio-button value="SUSPENDED">暂停新销售</el-radio-button><el-radio-button value="CLOSED">停止经营</el-radio-button></el-radio-group></el-form-item>
+        <el-form-item label="经营状态"><el-radio-group v-model="controlForm.businessStatus"><el-radio-button value="ACTIVE" :disabled="!multiMerchantEnabled && !controlOriginActive">正常经营</el-radio-button><el-radio-button value="SUSPENDED">暂停新销售</el-radio-button><el-radio-button value="CLOSED">停止经营</el-radio-button></el-radio-group></el-form-item>
         <el-form-item label="履约状态"><el-radio-group v-model="controlForm.fulfillmentStatus"><el-radio-button value="ENABLED">商户可处理</el-radio-button><el-radio-button value="PLATFORM_ONLY">平台接管</el-radio-button><el-radio-button value="DISABLED">暂停处理</el-radio-button></el-radio-group></el-form-item>
         <el-form-item label="提现状态"><el-switch v-model="withdrawalEnabled" active-text="允许申请" inactive-text="冻结提现" /></el-form-item>
         <el-form-item label="结算状态"><el-switch v-model="settlementEnabled" active-text="到期释放" inactive-text="继续留在待结算" /></el-form-item>
@@ -86,8 +88,10 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getMerchantExitReadiness, listMerchants, saveMerchant, updateMerchantControls } from '@/api/merchant'
+import { getStorefrontBusinessConfig } from '@/api/shop'
 
 const rows = ref([]); const keyword = ref(''); const loading = ref(false); const visible = ref(false); const saving = ref(false)
+const modeLoaded = ref(false); const modeError = ref(''); const multiMerchantEnabled = ref(false); const controlOriginActive = ref(false)
 const credentialVisible = ref(false)
 const credential = ref({ username: '', temporaryPassword: '', expiresAt: '' })
 const emptyForm = () => ({ id: null, merchantNo: '', merchantName: '', contactName: '', contactPhone: '', legalEntityName: '', unifiedSocialCreditCode: '', bankAccountName: '', bankName: '', bankAccountNo: '', invoiceTitle: '', taxpayerIdentificationNo: '', contractStatus: 'PENDING', requiredDepositAmount: 0, defaultSettlementDays: 0, status: 0, remark: '', username: '', currentAdminPassword: '' })
@@ -99,8 +103,10 @@ const withdrawalEnabled = computed({ get: () => controlForm.value.withdrawalStat
 const settlementEnabled = computed({ get: () => controlForm.value.settlementStatus === 'ENABLED', set: (v) => { controlForm.value.settlementStatus = v ? 'ENABLED' : 'FROZEN' } })
 const depositNormal = computed({ get: () => controlForm.value.depositStatus === 'NORMAL', set: (v) => { controlForm.value.depositStatus = v ? 'NORMAL' : 'FROZEN' } })
 const load = async () => { loading.value = true; try { rows.value = (await listMerchants({ keyword: keyword.value })).data || [] } finally { loading.value = false } }
-const open = (row) => { form.value = row ? { ...row } : emptyForm(); visible.value = true }
+const loadMode = async () => { modeLoaded.value = false; modeError.value = ''; multiMerchantEnabled.value = false; try { const result = await getStorefrontBusinessConfig(); multiMerchantEnabled.value = Number(result.data?.multiMerchantEnabled) === 1; modeLoaded.value = true } catch (error) { modeError.value = error.message || '多商户模块状态读取失败，请刷新后重试' } }
+const open = (row) => { if (!row && (!modeLoaded.value || !multiMerchantEnabled.value)) return; form.value = row ? { ...row } : emptyForm(); visible.value = true }
 const submit = async () => {
+  if (!form.value.id && (!modeLoaded.value || !multiMerchantEnabled.value)) return ElMessage.warning('仅平台自营模式不能开通新商户')
   if (!form.value.merchantName?.trim()) return ElMessage.warning('请输入商户名称')
   if (!form.value.id && !/^[A-Za-z][A-Za-z0-9_]{3,31}$/.test(form.value.username || '')) return ElMessage.warning('请输入规范的商家账号')
   if (!form.value.id && !form.value.currentAdminPassword) return ElMessage.warning('请输入当前管理员密码')
@@ -109,7 +115,7 @@ const submit = async () => {
 }
 const formatCredentialTime = (value) => value ? String(value).replace('T', ' ').slice(0, 19) : '-'
 const copyCredential = async () => { await navigator.clipboard.writeText(`商家登录账号：${credential.value.username}\n一次性临时密码：${credential.value.temporaryPassword}\n有效期至：${formatCredentialTime(credential.value.expiresAt)}\n首次登录后必须立即修改正式密码。`); ElMessage.success('商家登录凭据已复制') }
-const openControls = async (row) => { controlForm.value = { id: row.id, accountStatus: row.accountStatus || 'ENABLED', businessStatus: row.businessStatus || (row.status === 1 ? 'ACTIVE' : 'SUSPENDED'), fulfillmentStatus: row.fulfillmentStatus || 'ENABLED', withdrawalStatus: row.withdrawalStatus || 'ENABLED', settlementStatus: row.settlementStatus || 'ENABLED', depositStatus: row.depositStatus || 'NORMAL', auditStatus: row.auditStatus || 'PENDING', exitStatus: row.exitStatus || 'NORMAL', reason: '' }; exitReadiness.value = null; controlVisible.value = true; await refreshExitReadiness() }
+const openControls = async (row) => { controlOriginActive.value = (row.businessStatus || (row.status === 1 ? 'ACTIVE' : 'SUSPENDED')) === 'ACTIVE'; controlForm.value = { id: row.id, accountStatus: row.accountStatus || 'ENABLED', businessStatus: row.businessStatus || (row.status === 1 ? 'ACTIVE' : 'SUSPENDED'), fulfillmentStatus: row.fulfillmentStatus || 'ENABLED', withdrawalStatus: row.withdrawalStatus || 'ENABLED', settlementStatus: row.settlementStatus || 'ENABLED', depositStatus: row.depositStatus || 'NORMAL', auditStatus: row.auditStatus || 'PENDING', exitStatus: row.exitStatus || 'NORMAL', reason: '' }; exitReadiness.value = null; controlVisible.value = true; await refreshExitReadiness() }
 const refreshExitReadiness = async () => { if (!controlForm.value.id) return; exitReadiness.value = (await getMerchantExitReadiness(controlForm.value.id)).data || null }
 const checkExit = async (row) => { await openControls(row) }
 const onExitStatusChange = (status) => { if (status === 'EXITING') { controlForm.value.businessStatus = 'SUSPENDED'; controlForm.value.withdrawalStatus = 'FROZEN' } else if (status === 'EXITED') { controlForm.value.accountStatus = 'DISABLED'; controlForm.value.businessStatus = 'CLOSED'; controlForm.value.fulfillmentStatus = 'DISABLED'; controlForm.value.withdrawalStatus = 'FROZEN'; controlForm.value.settlementStatus = 'FROZEN' } }
@@ -117,7 +123,7 @@ const submitControls = async () => { if (!controlForm.value.reason?.trim()) retu
 const freezeAll = async (row) => { await ElMessageBox.confirm('将禁止新销售、商品修改、提现和货款释放，但保留账号登录及历史订单履约。是否继续？', '全面冻结商户', { type: 'warning' }); await openControls(row); controlForm.value.businessStatus = 'SUSPENDED'; controlForm.value.fulfillmentStatus = 'ENABLED'; controlForm.value.withdrawalStatus = 'FROZEN'; controlForm.value.settlementStatus = 'FROZEN'; controlForm.value.reason = '平台全面冻结：保留历史订单与售后履约'; await submitControls() }
 const controlLabel = (field, value) => ({ accountStatus: { ENABLED: '可登录', DISABLED: '禁登录' }, businessStatus: { ACTIVE: '正常经营', SUSPENDED: '暂停销售', CLOSED: '停止经营' }, fulfillmentStatus: { ENABLED: '商户处理', PLATFORM_ONLY: '平台接管', DISABLED: '暂停处理' }, withdrawalStatus: { ENABLED: '可提现', FROZEN: '冻结提现' }, settlementStatus: { ENABLED: '正常结算', FROZEN: '冻结结算' }, depositStatus: { NORMAL: '保证金正常', FROZEN: '保证金冻结' }, auditStatus: { PENDING: '待审核', APPROVED: '已通过', REJECTED: '已驳回' }, exitStatus: { NORMAL: '正常', EXITING: '清退中', EXITED: '已退出' } }[field]?.[value] || value || '-')
 const contractLabel = (status) => ({ PENDING: '待签约', SIGNED: '已生效', EXPIRED: '已终止' }[status] || '待签约')
-onMounted(load)
+onMounted(() => { load(); loadMode() })
 </script>
 
 <style scoped>

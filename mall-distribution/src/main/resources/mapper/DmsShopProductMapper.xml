@@ -94,7 +94,7 @@
         FROM dms_shop_product
         <where>
             normal_sale_enabled = 1
-            AND (merchant_id IS NULL OR EXISTS (SELECT 1 FROM dms_merchant active_merchant WHERE active_merchant.id=dms_shop_product.merchant_id AND active_merchant.tenant_id=dms_shop_product.tenant_id AND active_merchant.status=1))
+            AND (merchant_id IS NULL OR (EXISTS (SELECT 1 FROM dms_tenant sale_tenant WHERE sale_tenant.id=dms_shop_product.tenant_id AND COALESCE(sale_tenant.multi_merchant_enabled, 1)=1) AND EXISTS (SELECT 1 FROM dms_merchant active_merchant WHERE active_merchant.id=dms_shop_product.merchant_id AND active_merchant.tenant_id=dms_shop_product.tenant_id AND active_merchant.status=1)))
             <if test="tenantId != null">AND tenant_id = #{tenantId}</if>
             <if test="status != null">AND status = #{status}</if>
             <if test="categoryName != null and categoryName != ''">AND category_name = #{categoryName}</if>
@@ -136,7 +136,7 @@
           AND status = 1
           AND repurchase_sale_enabled = 1
           AND repurchase_price &gt; 0
-          AND (merchant_id IS NULL OR EXISTS (SELECT 1 FROM dms_merchant active_merchant WHERE active_merchant.id=dms_shop_product.merchant_id AND active_merchant.tenant_id=dms_shop_product.tenant_id AND active_merchant.status=1))
+          AND (merchant_id IS NULL OR (EXISTS (SELECT 1 FROM dms_tenant sale_tenant WHERE sale_tenant.id=dms_shop_product.tenant_id AND COALESCE(sale_tenant.multi_merchant_enabled, 1)=1) AND EXISTS (SELECT 1 FROM dms_merchant active_merchant WHERE active_merchant.id=dms_shop_product.merchant_id AND active_merchant.tenant_id=dms_shop_product.tenant_id AND active_merchant.status=1)))
         <if test="keyword != null and keyword != ''">
           AND (product_name LIKE CONCAT('%', #{keyword}, '%') OR subtitle LIKE CONCAT('%', #{keyword}, '%'))
         </if>
@@ -161,12 +161,12 @@
               AND (manual_new_arrival_end_time IS NULL OR manual_new_arrival_end_time &gt; CURRENT_TIMESTAMP)
             )
           )
-          AND (merchant_id IS NULL OR EXISTS (
+          AND (merchant_id IS NULL OR (EXISTS (SELECT 1 FROM dms_tenant sale_tenant WHERE sale_tenant.id=dms_shop_product.tenant_id AND COALESCE(sale_tenant.multi_merchant_enabled, 1)=1) AND EXISTS (
               SELECT 1 FROM dms_merchant active_merchant
               WHERE active_merchant.id=dms_shop_product.merchant_id
                 AND active_merchant.tenant_id=dms_shop_product.tenant_id
                 AND active_merchant.status=1
-          ))
+          )))
         ORDER BY CASE WHEN manual_new_arrival_enabled=1
                            AND (manual_new_arrival_end_time IS NULL OR manual_new_arrival_end_time &gt; CURRENT_TIMESTAMP)
                       THEN 1 ELSE 0 END DESC,
@@ -230,7 +230,7 @@
         SELECT DISTINCT category_name
         FROM dms_shop_product
         WHERE status = 1 AND normal_sale_enabled = 1
-          AND (merchant_id IS NULL OR EXISTS (SELECT 1 FROM dms_merchant active_merchant WHERE active_merchant.id=dms_shop_product.merchant_id AND active_merchant.tenant_id=dms_shop_product.tenant_id AND active_merchant.status=1))
+          AND (merchant_id IS NULL OR (EXISTS (SELECT 1 FROM dms_tenant sale_tenant WHERE sale_tenant.id=dms_shop_product.tenant_id AND COALESCE(sale_tenant.multi_merchant_enabled, 1)=1) AND EXISTS (SELECT 1 FROM dms_merchant active_merchant WHERE active_merchant.id=dms_shop_product.merchant_id AND active_merchant.tenant_id=dms_shop_product.tenant_id AND active_merchant.status=1)))
         <if test="tenantId != null">
             AND tenant_id = #{tenantId}
         </if>
@@ -323,6 +323,10 @@
             first_publish_time = CASE WHEN #{status}=1 AND first_publish_time IS NULL THEN CURRENT_TIMESTAMP ELSE first_publish_time END,
             update_time = CURRENT_TIMESTAMP
         WHERE id = #{id} AND tenant_id = #{tenantId}
+          AND (#{status} != 1 OR merchant_id IS NULL OR EXISTS (
+              SELECT 1 FROM dms_tenant sale_tenant
+              WHERE sale_tenant.id=dms_shop_product.tenant_id
+                AND COALESCE(sale_tenant.multi_merchant_enabled, 1)=1))
     </update>
 
     <update id="updateManualNewArrivalScoped">
@@ -396,7 +400,7 @@
         WHERE id = #{id}
           AND tenant_id = #{tenantId}
           AND status = 1
-          AND (merchant_id IS NULL OR EXISTS (SELECT 1 FROM dms_merchant active_merchant WHERE active_merchant.id=dms_shop_product.merchant_id AND active_merchant.tenant_id=dms_shop_product.tenant_id AND active_merchant.status=1))
+          AND (merchant_id IS NULL OR (EXISTS (SELECT 1 FROM dms_tenant sale_tenant WHERE sale_tenant.id=dms_shop_product.tenant_id AND COALESCE(sale_tenant.multi_merchant_enabled, 1)=1) AND EXISTS (SELECT 1 FROM dms_merchant active_merchant WHERE active_merchant.id=dms_shop_product.merchant_id AND active_merchant.tenant_id=dms_shop_product.tenant_id AND active_merchant.status=1)))
           AND stock &gt;= #{quantity}
     </update>
 

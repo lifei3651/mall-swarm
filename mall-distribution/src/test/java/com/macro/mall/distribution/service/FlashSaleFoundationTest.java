@@ -4,8 +4,11 @@ import com.macro.mall.distribution.dao.DmsFlashSaleActivityDao;
 import com.macro.mall.distribution.dao.DmsFlashSaleReservationDao;
 import com.macro.mall.distribution.dao.DmsShopAfterSaleDao;
 import com.macro.mall.distribution.dto.FlashSaleActivitySaveDTO;
+import com.macro.mall.distribution.dto.ShopOrderItemDTO;
+import com.macro.mall.distribution.dto.ShopOrderSubmitDTO;
 import com.macro.mall.distribution.entity.DmsFlashSaleActivity;
 import com.macro.mall.distribution.entity.DmsFlashSaleReservation;
+import com.macro.mall.distribution.entity.DmsShopMember;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,9 +18,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -46,6 +51,68 @@ class FlashSaleFoundationTest {
         assertEquals(1, activityDao.selectById(990020L).getStatus());
         assertEquals(true, flashSaleService.updateStatus(990020L, 2));
         assertEquals(2, activityDao.selectById(990020L).getStatus());
+    }
+
+    @Test
+    void platformOnlyModeHidesMerchantFlashSaleAndRejectsSubmitBeforeReservingStock() {
+        jdbcTemplate.update("UPDATE dms_tenant SET flash_sale_enabled=1,multi_merchant_enabled=0 WHERE id=1");
+        jdbcTemplate.update("UPDATE dms_shop_product SET merchant_id=990031,merchant_name='历史商户' WHERE id=1");
+        insertActivity(990031L, 1L, 1);
+        insertActivity(990032L, 2L, 1);
+        jdbcTemplate.update("""
+                INSERT INTO dms_shop_member
+                (id,user_id,phone,login_account,password_hash,nickname,status)
+                VALUES (990031,990031,'13900009031','flash_platform_only_member','hash','秒杀商户关闭测试会员',1)
+                """);
+
+        assertEquals(List.of(990032L), flashSaleService.listFront().stream()
+                .map(item -> item.getActivity().getId()).toList());
+        assertTrue(flashSaleService.listAdmin(1).stream()
+                .anyMatch(item -> Long.valueOf(990031L).equals(item.getActivity().getId())));
+
+        DmsShopMember member = new DmsShopMember();
+        member.setId(990031L);
+        member.setUserId(990031L);
+        member.setStatus(1);
+        ShopOrderItemDTO item = new ShopOrderItemDTO();
+        item.setProductId(1L);
+        item.setQuantity(1);
+        ShopOrderSubmitDTO order = new ShopOrderSubmitDTO();
+        order.setItems(List.of(item));
+        RuntimeException rejected = assertThrows(RuntimeException.class,
+                () -> flashSaleService.submit(990031L, order, member));
+        assertTrue(rejected.getMessage().contains("仅支持平台自营"));
+        assertEquals(1, activityDao.selectById(990031L).getAvailableStock());
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM dms_flash_sale_reservation WHERE activity_id=990031", Integer.class));
+    }
+
+    @Test
+    void platformOnlyModeRejectsMerchantFlashSaleReactivationButAllowsPlatformActivity() {
+        jdbcTemplate.update("UPDATE dms_tenant SET flash_sale_enabled=1,multi_merchant_enabled=0 WHERE id=1");
+        jdbcTemplate.update("UPDATE dms_shop_product SET merchant_id=990033,merchant_name='历史商户' WHERE id=1");
+        insertActivity(990033L, 1L, 0);
+        insertActivity(990034L, 2L, 0);
+
+        RuntimeException rejected = assertThrows(RuntimeException.class,
+                () -> flashSaleService.updateStatus(990033L, 1));
+        assertTrue(rejected.getMessage().contains("仅支持平台自营"));
+        assertEquals(0, activityDao.selectById(990033L).getStatus());
+
+        assertTrue(flashSaleService.updateStatus(990034L, 1));
+        assertEquals(1, activityDao.selectById(990034L).getStatus());
+        assertEquals(List.of(990034L), flashSaleService.listFront().stream()
+                .map(item -> item.getActivity().getId()).toList());
+    }
+
+    private void insertActivity(Long id, Long productId, int status) {
+        jdbcTemplate.update("""
+                INSERT INTO dms_flash_sale_activity
+                (id,tenant_id,activity_name,product_id,flash_price,flash_pv,total_stock,available_stock,
+                 per_user_limit,start_time,end_time,status,version)
+                VALUES (?,1,'多商户关闭态秒杀',?,1,0,1,1,1,?,?,?,0)
+                """, id, productId, LocalDateTime.now().minusMinutes(1),
+                LocalDateTime.now().plusMinutes(10), status);
     }
 
     @Test

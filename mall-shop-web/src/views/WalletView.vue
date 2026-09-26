@@ -19,11 +19,11 @@
     <section class="balance-card">
       <span>可用余额（元）</span>
       <strong>{{ money(wallet.balance) }}</strong>
-      <p>其中可提现 ¥{{ money(effectiveWithdrawableBalance) }}；其余余额仍可用于商城支付。</p>
+      <p>{{ balanceModeEnabled ? `其中可提现 ¥${money(effectiveWithdrawableBalance)}；其余余额仍可用于商城支付。` : `新余额支付和转账已暂停；存量余额 ¥${money(effectiveWithdrawableBalance)} 仍可按提现规则处理。` }}</p>
     </section>
 
     <nav class="wallet-actions" :class="{ 'has-extra': $slots['primary-action'] }">
-      <slot name="primary-action"></slot>
+      <slot name="primary-action" :balance-mode-enabled="balanceModeEnabled"></slot>
       <button :class="{ active: activeTool === 'withdraw' }" type="button" @click="activeTool = 'withdraw'"><Landmark :size="21" /><span>余额提现</span></button>
       <button :class="{ active: activeTool === 'records' }" type="button" @click="activeTool = 'records'"><ReceiptText :size="21" /><span>提现记录</span></button>
       <button :class="{ active: activeTool === 'flows' }" type="button" @click="activeTool = 'flows'; loadFlows()"><History :size="21" /><span>余额记录</span></button>
@@ -82,11 +82,12 @@ import { applyWithdrawal, getProfile, getWalletSummary, listMyBalanceFlows, list
 import { dateTime, money } from '@/utils/format'
 import { createIdempotencyKey } from '@/utils/idempotency'
 import { isValidMainlandPhone } from '@/utils/phone'
+import { balanceTransactionsEnabled } from '@/utils/balanceMode'
 
 const router = useRouter()
 const route = useRoute()
 const activeTool = ref(['withdraw', 'records', 'flows'].includes(route.query.action) ? route.query.action : 'withdraw')
-const wallet = ref({ balance: 0, hasPaymentPassword: false, distributionActivated: false, realNameVerified: false, adultVerified: false, withdrawalServiceEnabled: true, balanceHolderWithdrawalEnabled: false, bankCardWithdrawalEnabled: false, withdrawalManualReviewThreshold: 1000 })
+const wallet = ref({ balance: 0, balanceTransactionsEnabled: 0, hasPaymentPassword: false, distributionActivated: false, realNameVerified: false, adultVerified: false, withdrawalServiceEnabled: true, balanceHolderWithdrawalEnabled: false, bankCardWithdrawalEnabled: false, withdrawalManualReviewThreshold: 1000 })
 const profile = ref({})
 const withdrawals = ref([])
 const error = ref('')
@@ -104,6 +105,7 @@ const withdrawForm = ref({ withdrawType: 2, withdrawAmount: '', bankName: '', ba
 const balanceFlows = ref([])
 const flowsError = ref('')
 const effectiveWithdrawableBalance = computed(() => wallet.value.withdrawableBalance == null ? wallet.value.balance : wallet.value.withdrawableBalance)
+const balanceModeEnabled = computed(() => balanceTransactionsEnabled(wallet.value))
 const canUseBalance = computed(() => wallet.value.withdrawalServiceEnabled !== false && wallet.value.hasPaymentPassword && (wallet.value.distributionActivated || wallet.value.balanceHolderWithdrawalEnabled) && wallet.value.realNameVerified && wallet.value.adultVerified)
 const withdrawalPolicyText = computed(() => {
   const threshold = Number(wallet.value.withdrawalManualReviewThreshold ?? 1000)

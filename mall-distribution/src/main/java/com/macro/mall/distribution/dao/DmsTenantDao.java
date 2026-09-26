@@ -29,5 +29,9 @@ public interface DmsTenantDao {
 
     int updateCouponMode(@Param("id") Long id, @Param("enabled") Integer enabled);
 
+    int updateBalanceTransactionsMode(@Param("id") Long id, @Param("enabled") Integer enabled);
+
+    int updateMultiMerchantMode(@Param("id") Long id, @Param("enabled") Integer enabled);
+
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
 }

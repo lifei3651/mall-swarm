@@ -96,13 +96,14 @@
         </section>
 
         <section v-if="order.status === 0" class="consumer-card pending-payment-card ui-card">
-          <div v-if="order.payType === 'BALANCE'" class="balance-pay-box">
+          <div v-if="order.payType === 'BALANCE' && balanceModeEnabled" class="balance-pay-box">
             <label>支付密码</label><input v-model="paymentPassword" class="field" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="请输入6位支付密码" />
           </div>
+          <p v-else-if="order.payType === 'BALANCE'" class="channel-tip">本商城已暂停新增余额支付。原待付款订单不会扣款，可取消后选择可用方式重新下单。</p>
           <p v-if="error" class="consumer-error">{{ error }}</p>
           <div class="consumer-product-actions ui-action-bar">
             <button type="button" class="consumer-action btn secondary ui-action-button" :disabled="acting" @click="requestOrderConfirmation('cancel-order')">取消订单</button>
-            <button type="button" class="consumer-action btn primary ui-action-button ui-action-button--primary" :disabled="acting" @click="pay">立即支付</button>
+            <button type="button" class="consumer-action btn primary ui-action-button ui-action-button--primary" :disabled="acting || (order.payType === 'BALANCE' && !balanceModeEnabled)" @click="pay">立即支付</button>
           </div>
         </section>
       </main>
@@ -399,7 +400,7 @@
             <div class="order-info-row"><span>运费</span><strong>¥{{ money(order.freightAmount) }}</strong></div>
           </div>
         </div>
-        <div v-if="order.status === 0 && order.payType === 'BALANCE'" class="balance-pay-box">
+        <div v-if="order.status === 0 && order.payType === 'BALANCE' && balanceModeEnabled" class="balance-pay-box">
           <label>支付密码</label>
           <input
             v-model="paymentPassword"
@@ -412,7 +413,8 @@
           />
           <p class="line-sub">将从商城余额扣除 ¥{{ money(order.payAmount) }}，运费包含在实付金额内。</p>
         </div>
-        <p v-if="order.status === 0 && order.payType === 'ALIPAY'" class="channel-tip">
+        <p v-if="order.status === 0 && order.payType === 'BALANCE' && !balanceModeEnabled" class="channel-tip">本商城已暂停新增余额支付。原待付款订单不会扣款，可取消后选择可用方式重新下单。</p>
+        <p v-else-if="order.status === 0 && order.payType === 'ALIPAY'" class="channel-tip">
           支付宝订单已保留，点击“立即支付”可继续支付；联合支付订单会一次支付全部商户子单。
         </p>
         <p v-else-if="order.status === 0 && order.payType !== 'BALANCE'" class="channel-tip">
@@ -429,7 +431,7 @@
           <button v-if="canApplyAfterSale && !applyingAfterSale" class="btn secondary ui-action-button" @click="notShipped ? startExceptionRefund() : startAfterSale()">{{ notShipped ? '取消并退款' : '申请售后' }}</button>
           <RouterLink v-if="Number(detail.pendingReviewCount || 0) > 0" class="btn secondary ui-action-button" :to="pendingReviewLink">去评价</RouterLink>
           <button v-if="order.status === 0" class="btn secondary ui-action-button" :disabled="acting" @click="requestOrderConfirmation('cancel-order')">取消订单</button>
-          <button v-if="order.status === 0" class="btn primary ui-action-button ui-action-button--primary" :disabled="acting" @click="pay">立即支付</button>
+          <button v-if="order.status === 0" class="btn primary ui-action-button ui-action-button--primary" :disabled="acting || (order.payType === 'BALANCE' && !balanceModeEnabled)" @click="pay">立即支付</button>
           <button v-if="order.status === 2 && !hasActiveAfterSale" class="btn primary ui-action-button ui-action-button--primary" :disabled="acting" @click="requestOrderConfirmation('receive-order')">确认收货</button>
         </div>
         <p v-if="error" style="color: var(--coral); line-height: 1.6">{{ error }}</p>
@@ -479,7 +481,8 @@ import { couponRefundPreview } from '@/utils/couponAmounts'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ChevronDown, ChevronRight, CircleCheck, ImagePlus, MapPin, PackageCheck, RefreshCw, Truck, UserRound } from 'lucide-vue-next'
-import { applyAfterSale, applyExceptionRefund, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmAfterSaleExchangeReceived, confirmReceive, createAlipayOrder, getOrder, getProduct, payOrderWithBalance, submitAfterSaleReturnShipment, uploadAfterSaleProof } from '@/api/shop'
+import { applyAfterSale, applyExceptionRefund, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmAfterSaleExchangeReceived, confirmReceive, createAlipayOrder, getBusinessConfig, getOrder, getProduct, payOrderWithBalance, submitAfterSaleReturnShipment, uploadAfterSaleProof } from '@/api/shop'
+import { balanceTransactionsEnabled } from '@/utils/balanceMode'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { dateTime, money, statusName } from '@/utils/format'
 import { formatProductSpec } from '@/utils/productSpec'
@@ -497,6 +500,7 @@ const route = useRoute()
 const router = useRouter()
 const { items: cartItems, addMany } = useCart()
 const detail = ref({})
+const balanceModeEnabled = ref(false)
 const logisticsTracking = ref([])
 const loading = ref(false)
 const acting = ref(false)
@@ -1080,6 +1084,10 @@ const cancel = async () => {
 
 const pay = async () => {
   if (acting.value) return
+  if (order.value.payType === 'BALANCE' && !balanceModeEnabled.value) {
+    error.value = '本商城已暂停新增余额支付，请取消待付款订单并重新选择可用方式'
+    return
+  }
   if (order.value.payType === 'ALIPAY') {
     acting.value = true
     error.value = ''
@@ -1093,7 +1101,7 @@ const pay = async () => {
     return
   }
   if (order.value.payType !== 'BALANCE') {
-    error.value = `${payTypeName(order.value.payType)}尚未配置正式商户参数；当前可选择余额支付进行完整测试`
+    error.value = `${payTypeName(order.value.payType)}尚未配置正式商户参数，请联系客服`
     return
   }
   if (!/^\d{6}$/.test(paymentPassword.value)) {
@@ -1176,6 +1184,7 @@ const submitAfterSale = async () => {
 
 onMounted(() => {
   fetchOrder()
+  getBusinessConfig().then((res) => { if (!disposed) balanceModeEnabled.value = balanceTransactionsEnabled(res.data) }).catch(() => {})
   stopOrderRealtime = connectOrderRealtime({
     onEvent: (event) => {
       if (event?.orderId && String(event.orderId) !== String(route.params.id)) return

@@ -117,6 +117,12 @@ public class DmsTenant implements Serializable {
     /** 独立优惠券模块开关；旧客户迁移默认开启，关闭不删除历史券和订单。 */
     private Integer couponEnabled;
 
+    /** 新余额交易开关；关闭后仍保留历史余额、退款、奖金入账及提现清偿。 */
+    private Integer balanceTransactionsEnabled;
+
+    /** 多商户新业务开关；旧客户迁移保持开启，新建客户默认平台自营。 */
+    private Integer multiMerchantEnabled;
+
     @Pattern(regexp = "PAID_MEMBER|AGENT|ALL_MEMBER", message = "复购区准入模式不正确")
     private String repurchaseEligibilityMode;
 

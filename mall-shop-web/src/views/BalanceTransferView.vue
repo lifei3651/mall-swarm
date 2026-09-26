@@ -10,11 +10,17 @@
       <strong>¥{{ money(wallet.balance) }}</strong>
     </section>
 
-    <RouterLink v-if="!wallet.realNameVerified" class="identity-callout" to="/profile/real-name">
+    <RouterLink v-if="balanceModeEnabled && !wallet.realNameVerified" class="identity-callout" to="/profile/real-name">
       完成实名认证后才能使用余额转账
     </RouterLink>
 
-    <section class="panel transfer-panel">
+    <section v-if="!balanceModeEnabled" class="panel transfer-panel" role="status">
+      <h3>余额转账已暂停</h3>
+      <p class="line-sub">本商城目前不接受新的余额转账。已有余额和历史记录仍可在钱包查看。</p>
+      <RouterLink to="/profile/wallet">查看余额与记录</RouterLink>
+    </section>
+
+    <section v-else class="panel transfer-panel">
       <h3>转账给会员</h3>
       <p class="line-sub">输入完整手机号后，请核对昵称、会员编号和脱敏账号。转账确认后即时到账。</p>
       <div class="form-item">
@@ -69,9 +75,10 @@ import { findBalanceRecipient, getWalletSummary, transferBalance } from '@/api/s
 import { money } from '@/utils/format'
 import { createIdempotencyKey } from '@/utils/idempotency'
 import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
+import { balanceTransactionsEnabled } from '@/utils/balanceMode'
 
 const router = useRouter()
-const wallet = ref({ balance: 0, hasPaymentPassword: false, distributionActivated: false, realNameVerified: false, adultVerified: false })
+const wallet = ref({ balance: 0, balanceTransactionsEnabled: 0, hasPaymentPassword: false, distributionActivated: false, realNameVerified: false, adultVerified: false })
 const transferForm = ref({ recipientPhone: '', amount: '', paymentPassword: '', remark: '' })
 const recipient = ref(null)
 const error = ref('')
@@ -86,7 +93,8 @@ const showTransferError = (text) => {
   error.value = text
   errorTimer = window.setTimeout(() => { error.value = '' }, 1800)
 }
-const canUseBalance = computed(() => wallet.value.hasPaymentPassword && wallet.value.distributionActivated && wallet.value.realNameVerified && wallet.value.adultVerified)
+const balanceModeEnabled = computed(() => balanceTransactionsEnabled(wallet.value))
+const canUseBalance = computed(() => balanceModeEnabled.value && wallet.value.hasPaymentPassword && wallet.value.distributionActivated && wallet.value.realNameVerified && wallet.value.adultVerified)
 
 const fetchData = async () => {
   try { wallet.value = (await getWalletSummary()).data || wallet.value }
@@ -100,6 +108,7 @@ const handleRecipientPhoneInput = () => {
 }
 
 const lookupRecipient = async () => {
+  if (!balanceModeEnabled.value) return
   if (!isValidMainlandPhone(transferForm.value.recipientPhone)) {
     recipient.value = null
     if (transferForm.value.recipientPhone) showTransferError('请输入正确的11位收款会员手机号')
@@ -124,6 +133,7 @@ const requirePaymentPassword = () => {
 }
 
 const submitTransfer = async () => {
+  if (!balanceModeEnabled.value) return showTransferError('本商城已暂停新增余额转账')
   clearTransferError()
   handleAmountInput()
   if (!wallet.value.realNameVerified) return router.push({ name: 'RealNameVerification', query: { redirect: '/profile/wallet/transfer' } })
@@ -140,6 +150,7 @@ const submitTransfer = async () => {
 }
 
 const doTransfer = async () => {
+  if (!balanceModeEnabled.value) return showTransferError('本商城已暂停新增余额转账')
   if (transferSaving.value) return
   transferSaving.value = true
   try {

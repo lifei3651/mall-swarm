@@ -37,6 +37,8 @@ import com.macro.mall.distribution.util.ShopOrderNoGenerator;
 import com.macro.mall.distribution.service.ShopAuthService;
 import com.macro.mall.distribution.service.OrderRelationSnapshotService;
 import com.macro.mall.distribution.service.OrderBalanceAllocationService;
+import com.macro.mall.distribution.service.BalanceTransactionModeService;
+import com.macro.mall.distribution.service.NewOrderPaymentChannelGate;
 import com.macro.mall.distribution.service.OrderRealtimeService;
 import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.MerchantService;
@@ -156,6 +158,8 @@ public class ShopServiceImpl implements ShopService {
     private final ShopAfterSaleWindowPolicy afterSaleWindowPolicy;
     private final ShopAfterSaleTimelinePolicy afterSaleTimelinePolicy;
     private final ShopBusinessModeService businessModeService;
+    private final BalanceTransactionModeService balanceTransactionModeService;
+    private final NewOrderPaymentChannelGate newOrderPaymentChannelGate;
     private final DmsFlashSaleActivityDao flashSaleActivityDao;
     private final DmsFlashSaleReservationDao flashSaleReservationDao;
     private final FlashSaleStockGate flashSaleStockGate;
@@ -186,7 +190,8 @@ public class ShopServiceImpl implements ShopService {
     @Override
     public ShopHomeVO getHome(Long tenantId) {
         Long resolvedTenantId = resolveTenantId(tenantId);
-        return catalogCache.get(resolvedTenantId, "home", ShopHomeVO.class, homeCacheTtlSeconds,
+        return catalogCache.get(resolvedTenantId, "home:merchant:" + businessModeService.isMultiMerchantEnabled(resolvedTenantId),
+                ShopHomeVO.class, homeCacheTtlSeconds,
                 () -> loadHome(resolvedTenantId));
     }
 
@@ -304,6 +309,7 @@ public class ShopServiceImpl implements ShopService {
         DmsShopProduct product = productDao.selectById(id);
         if (product == null || !tenantId.equals(product.getTenantId()) || !Integer.valueOf(1).equals(product.getStatus())
                 || !Integer.valueOf(1).equals(product.getRepurchaseSaleEnabled())) Asserts.fail("复购商品不存在或已下架");
+        requireActiveProductMerchant(product);
         List<DmsShopSku> skus = skuDao.selectByProductId(id, 1);
         if (!isPvEnabled(tenantId)) {
             product.setRepurchasePv(ZERO);
@@ -341,7 +347,8 @@ public class ShopServiceImpl implements ShopService {
         String parameters = String.join("|",
                 String.valueOf(keyword), String.valueOf(categoryName), "1",
                 String.valueOf(stockStatus), String.valueOf(resolvedPageNum), String.valueOf(resolvedPageSize));
-        String cacheKey = "products:" + DigestUtil.sha256Hex(parameters + ("default".equals(safeSort) ? "" : "|" + safeSort));
+        String cacheKey = "products:merchant:" + businessModeService.isMultiMerchantEnabled(resolvedTenantId)
+                + ":" + DigestUtil.sha256Hex(parameters + ("default".equals(safeSort) ? "" : "|" + safeSort));
         return catalogCache.getPage(resolvedTenantId, cacheKey, DmsShopProduct.class, productCacheTtlSeconds, () -> {
             PageHelper.startPage(resolvedPageNum, resolvedPageSize);
             List<DmsShopProduct> products = "default".equals(safeSort)
@@ -366,7 +373,9 @@ public class ShopServiceImpl implements ShopService {
     @Override
     public List<String> listCategories(Long tenantId) {
         Long resolvedTenantId = resolveTenantId(tenantId);
-        return catalogCache.getList(resolvedTenantId, "category-names", String.class, categoryCacheTtlSeconds, () -> {
+        return catalogCache.getList(resolvedTenantId,
+                "category-names:merchant:" + businessModeService.isMultiMerchantEnabled(resolvedTenantId),
+                String.class, categoryCacheTtlSeconds, () -> {
             List<DmsShopCategory> categories = categoryDao.selectList(resolvedTenantId, 1);
             return categories.isEmpty()
                     ? productDao.selectCategories(resolvedTenantId)
@@ -610,7 +619,9 @@ public class ShopServiceImpl implements ShopService {
     @Override
     public ShopProductDetailVO getProductDetail(Long id) {
         Long tenantId = resolveTenantId(null);
-        return catalogCache.get(tenantId, "product:" + id, ShopProductDetailVO.class,
+        return catalogCache.get(tenantId,
+                "product:" + id + ":merchant:" + businessModeService.isMultiMerchantEnabled(tenantId),
+                ShopProductDetailVO.class,
                 productCacheTtlSeconds, () -> loadProductDetail(id));
     }
 
@@ -820,6 +831,12 @@ public class ShopServiceImpl implements ShopService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean updateProductStatus(Long id, Integer status) {
+        // Module changes lock tenant first. Read a hint before taking the product lock to keep the same lock order.
+        DmsShopProduct preflight = productDao.selectById(id);
+        if (preflight != null && preflight.getMerchantId() != null
+                && (status == null || Integer.valueOf(1).equals(status))) {
+            businessModeService.requireMultiMerchantForNewSale(preflight.getTenantId());
+        }
         DmsShopProduct product = productDao.selectByIdForUpdate(id);
         if (product == null) {
             Asserts.fail("商品不存在");
@@ -892,6 +909,7 @@ public class ShopServiceImpl implements ShopService {
         if (!Integer.valueOf(1).equals(product.getStatus()) || !Integer.valueOf(1).equals(product.getNormalSaleEnabled())) {
             Asserts.fail("商品不存在或已下架");
         }
+        requireActiveProductMerchant(product);
         List<DmsShopSku> skus = skuDao.selectByProductId(productId, 1);
         skus.forEach(item -> sku(item, false));
         return skus;
@@ -1000,6 +1018,14 @@ public class ShopServiceImpl implements ShopService {
         if (member != null) dto.setUserId(member.getUserId());
         String businessType = businessModeService.normalizeType(dto.getBusinessType());
         Long tenantId = resolveTenantId(null);
+        if ("BALANCE".equalsIgnoreCase(dto.getPayType()) && !balanceTransactionModeService.isEnabled(tenantId)) {
+            Asserts.fail("本商城已关闭新余额交易");
+        }
+        if (dto.getPayType() != null && !dto.getPayType().isBlank()) {
+            String quotedPayType = dto.getPayType().trim().toUpperCase(Locale.ROOT);
+            if (!Set.of("WECHAT", "ALIPAY", "BALANCE").contains(quotedPayType)) Asserts.fail("支付方式不正确");
+            newOrderPaymentChannelGate.requireAvailable(quotedPayType);
+        }
         businessModeService.requireEnabled(tenantId, businessType, member);
         DmsFlashSaleActivity flashActivity = null;
         if (ShopBusinessType.FLASH_SALE.equals(businessType)) {
@@ -1070,6 +1096,7 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("商品不存在或已下架");
         }
         assertTenantAccess(product.getTenantId());
+        requireActiveProductMerchant(product);
 
         int requestedQuantity = quantity == null || quantity <= 0 ? 1 : quantity;
         int limit = product.getPurchaseLimit() == null ? 0 : product.getPurchaseLimit();
@@ -1112,7 +1139,7 @@ public class ShopServiceImpl implements ShopService {
         if (!ShopBusinessType.FLASH_SALE.equals(businessType)) Asserts.fail("秒杀订单业务类型不正确");
         if (dto.getCouponClaimId() != null) Asserts.fail("优惠券不与秒杀活动叠加");
         member = prepareOrderSubmit(dto, member);
-        return createOrder(dto, member, businessType, null, null, true);
+        return createOrder(dto, member, businessType, null, null, true, true);
     }
 
     private DmsShopMember prepareOrderSubmit(ShopOrderSubmitDTO dto, DmsShopMember member) {
@@ -1128,13 +1155,27 @@ public class ShopServiceImpl implements ShopService {
         fillAddress(dto, member);
         normalizeManualAddress(dto);
         validateSubmit(dto);
+        String payType = dto.getPayType() == null || dto.getPayType().isBlank()
+                ? "ALIPAY" : dto.getPayType().trim().toUpperCase(Locale.ROOT);
+        if (!Set.of("WECHAT", "ALIPAY", "BALANCE").contains(payType)) Asserts.fail("支付方式不正确");
+        if ("BALANCE".equals(payType)) {
+            balanceTransactionModeService.requireEnabledForNewTransaction(resolveTenantId(null));
+        } else {
+            newOrderPaymentChannelGate.requireAvailable(payType);
+        }
         return member;
     }
 
     private ShopOrderVO createCheckout(ShopOrderSubmitDTO dto, DmsShopMember member, String businessType) {
         LinkedHashMap<String, List<ShopOrderItemDTO>> merchantGroups = groupSubmitItemsByMerchant(dto.getItems());
+        boolean merchantSaleAuthorized = merchantGroups.keySet().stream().anyMatch(key -> key.startsWith("MERCHANT:"));
+        if (merchantSaleAuthorized) {
+            businessModeService.requireMultiMerchantForNewSale(resolveTenantId(null));
+            // Reload after the tenant lock so a concurrent mode or merchant change cannot use the old grouping.
+            merchantGroups = groupSubmitItemsByMerchant(dto.getItems());
+        }
         if (merchantGroups.size() <= 1) {
-            return createOrder(dto, member, businessType, null, null, true);
+            return createOrder(dto, member, businessType, null, null, true, merchantSaleAuthorized);
         }
         if (!ShopBusinessType.NORMAL.equals(businessType) && !ShopBusinessType.REPURCHASE.equals(businessType)) {
             Asserts.fail("当前活动订单不能跨商户合并支付");
@@ -1157,7 +1198,8 @@ public class ShopServiceImpl implements ShopService {
         for (Map.Entry<String, List<ShopOrderItemDTO>> group : merchantGroups.entrySet()) {
             ShopOrderSubmitDTO childDto = copySubmit(dto, group.getValue());
             childDto.setCouponClaimId(group.getKey().equals(couponGroup) ? dto.getCouponClaimId() : null);
-            ShopOrderVO child = createOrder(childDto, member, businessType, tradeId, tradeNo, false);
+            ShopOrderVO child = createOrder(childDto, member, businessType, tradeId, tradeNo, false,
+                    merchantSaleAuthorized);
             children.add(child);
             totalAmount = totalAmount.add(money(child.getOrder().getTotalAmount()));
             freightAmount = freightAmount.add(money(child.getOrder().getFreightAmount()));
@@ -1188,7 +1230,8 @@ public class ShopServiceImpl implements ShopService {
     }
 
     private ShopOrderVO createOrder(ShopOrderSubmitDTO dto, DmsShopMember member, String businessType,
-                                    Long tradeId, String tradeNo, boolean verifyPayment) {
+                                    Long tradeId, String tradeNo, boolean verifyPayment,
+                                    boolean merchantSaleAuthorized) {
         DmsAgent ownerAgent = resolveOwnerAgent(dto);
         LocalDateTime now = LocalDateTime.now();
         Long orderId = IdUtil.getSnowflakeNextId();
@@ -1201,6 +1244,13 @@ public class ShopServiceImpl implements ShopService {
         BigDecimal totalCost = ZERO;
         Long tenantId = resolveTenantId(null);
         businessModeService.requireEnabledForOrder(tenantId, businessType, member);
+        String payType = dto.getPayType() == null || dto.getPayType().isBlank()
+                ? "ALIPAY" : dto.getPayType().trim().toUpperCase(java.util.Locale.ROOT);
+        if (!java.util.Set.of("WECHAT", "ALIPAY", "BALANCE").contains(payType)) {
+            Asserts.fail("支付方式不正确");
+        }
+        if ("BALANCE".equals(payType)) balanceTransactionModeService.requireEnabledForNewTransaction(tenantId);
+        else newOrderPaymentChannelGate.requireAvailable(payType);
         DmsFlashSaleActivity flashActivity = null;
         if (ShopBusinessType.FLASH_SALE.equals(businessType)) {
             flashActivity = dto.getBusinessSourceId() == null ? null : flashSaleActivityDao.selectById(dto.getBusinessSourceId());
@@ -1219,6 +1269,9 @@ public class ShopServiceImpl implements ShopService {
                 Asserts.fail("商品不存在或已下架");
             }
             assertTenantAccess(product.getTenantId());
+            if (product.getMerchantId() != null && !merchantSaleAuthorized) {
+                Asserts.fail("商品销售方已变化，请刷新结算后重试");
+            }
             int requestedQuantity = requestedPurchaseQuantities.merge(product.getId(), quantity, Integer::sum);
             validateBusinessProduct(businessType, product, dto.getUserId(), requestedQuantity,
                     existingPurchaseQuantities, flashActivity, itemDTO);
@@ -1335,11 +1388,6 @@ public class ShopServiceImpl implements ShopService {
         order.setSourceLiveRoomId(liveRoomService.resolveRecentAttribution(tenantId, order.getUserId(),
                 orderItems.stream().map(DmsShopOrderItem::getProductId).distinct().toList()));
         order.setStatus(0); // 待支付，支付回调后改为1
-        String payType = dto.getPayType() == null || dto.getPayType().isBlank()
-                ? "ALIPAY" : dto.getPayType().trim().toUpperCase(java.util.Locale.ROOT);
-        if (!java.util.Set.of("WECHAT", "ALIPAY", "BALANCE").contains(payType)) {
-            Asserts.fail("支付方式不正确");
-        }
         order.setPayType(payType);
         order.setRemark(dto.getRemark());
         order.setPayTime(null); // 支付回调后设置
@@ -3150,6 +3198,9 @@ public class ShopServiceImpl implements ShopService {
 
     private void requireActiveProductMerchant(DmsShopProduct product) {
         if (product == null || product.getMerchantId() == null) return;
+        if (!businessModeService.isMultiMerchantEnabled(product.getTenantId())) {
+            Asserts.fail("当前商城仅支持平台自营，商户商品不能展示、上架或下单");
+        }
         DmsMerchant merchant = merchantDao.selectById(product.getMerchantId());
         if (merchant == null || !Objects.equals(product.getTenantId(), merchant.getTenantId())
                 || !Integer.valueOf(1).equals(merchant.getStatus())) {
