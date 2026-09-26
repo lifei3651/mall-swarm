@@ -6,6 +6,7 @@ import com.macro.mall.distribution.constants.ShopBusinessType;
 import com.macro.mall.distribution.dao.DmsFlashSaleActivityDao;
 import com.macro.mall.distribution.dao.DmsFlashSaleReservationDao;
 import com.macro.mall.distribution.dao.DmsShopProductDao;
+import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsShopSkuDao;
 import com.macro.mall.distribution.dao.DmsTenantDao;
 import com.macro.mall.distribution.dto.FlashSaleActivitySaveDTO;
@@ -43,6 +44,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     private final DmsFlashSaleActivityDao activityDao;
     private final DmsFlashSaleReservationDao reservationDao;
     private final DmsShopProductDao productDao;
+    private final DmsShopMemberDao memberDao;
     private final DmsShopSkuDao skuDao;
     private final DmsTenantDao tenantDao;
     private final ShopService shopService;
@@ -139,13 +141,20 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ShopOrderVO submit(Long activityId, ShopOrderSubmitDTO dto, DmsShopMember member) {
-        if (member == null || member.getUserId() == null) Asserts.unauthorized("请先登录后参与秒杀");
+        if (member == null || member.getId() == null || member.getUserId() == null) Asserts.unauthorized("请先登录后参与秒杀");
         com.macro.mall.distribution.util.ShopQuantityChecks.order(dto);
         if (dto.getItems().size() != 1) Asserts.fail("秒杀订单只能包含一个活动商品");
-        DmsFlashSaleActivity activity = activityDao.selectById(activityId);
+        // 与普通/复购下单、领券保持“会员→租户”锁序；再检查活动并预占库存。
+        // 总开关关闭事务会锁同一租户行，因而不能在关闭完成后提交新的秒杀订单。
+        DmsShopMember lockedMember = memberDao.selectByIdForUpdate(member.getId());
+        if (lockedMember == null || !member.getUserId().equals(lockedMember.getUserId())
+                || !Integer.valueOf(1).equals(lockedMember.getStatus())) Asserts.unauthorized("会员账号不可用");
+        member = lockedMember;
         Long tenantId = TenantContext.getTenantId();
+        businessModeService.requireEnabledForOrder(tenantId, ShopBusinessType.FLASH_SALE, member);
+        // 活动必须在租户锁之后读取，不能沿用停用/修改前的旧快照。
+        DmsFlashSaleActivity activity = activityDao.selectById(activityId);
         if (activity == null || !tenantId.equals(activity.getTenantId())) Asserts.fail("秒杀活动不存在");
-        businessModeService.requireEnabled(tenantId, ShopBusinessType.FLASH_SALE, member);
         LocalDateTime now = LocalDateTime.now();
         if (!Integer.valueOf(1).equals(activity.getStatus()) || now.isBefore(activity.getStartTime())) Asserts.fail("秒杀尚未开始");
         if (!now.isBefore(activity.getEndTime())) Asserts.fail("秒杀已结束");

@@ -10,7 +10,7 @@
       <div class="coupon-price"><strong><small>¥</small>{{money(c.amount)}}</strong><span>{{Number(c.minimumAmount)>0?`满 ¥${money(c.minimumAmount)} 可用`:'无门槛'}}</span></div>
       <div class="coupon-copy"><h3>{{c.title}}</h3><p>{{c.scopeLabel}}</p></div>
       <div class="coupon-meta"><p>{{date(c.startsAt)}} — {{date(c.endsAt)}}</p><p>{{couponBusinessLabel(c.businessTypes)}} · 不与秒杀叠加</p></div>
-      <div class="coupon-bottom"><button type="button" @click="showProducts(c)">适用商品 ›</button><button v-if="tab==='catalog'" type="button" class="claim-button" :disabled="!c.usable || Boolean(claiming)" @click="claim(c)">{{claiming===String(c.id)?'领取中…':c.reason||(claimed.has(String(c.id))?'继续领取':'领取')}}</button><span v-else class="coupon-status">{{statusLabels[c.status]||c.status}}</span></div>
+      <div class="coupon-bottom"><button type="button" @click="showProducts(c)">适用商品 ›</button><button v-if="tab==='catalog' && claimVisible(c)" type="button" class="claim-button" :disabled="!c.usable || Boolean(claiming)" @click="claim(c)">{{claiming===String(c.id)?'领取中…':c.reason||(claimed.has(String(c.id))?'继续领取':'领取')}}</button><span v-else-if="tab==='catalog'" class="coupon-status">当前商城不可领取</span><span v-else class="coupon-status">{{statusLabels[c.status]||c.status}}</span></div>
       <p class="coupon-rule">{{c.refundRule==='FULL_RETURN'?'用券子单全部退款成功后退券，原有效期不变':'支付后退款不退券'}}；部分退款不退券。</p>
     </article>
     <div class="coupon-pager"><button type="button" :disabled="page<=1 || loading" @click="turn(-1)">上一页</button><span>{{page}} / {{Math.max(1,pages)}}</span><button type="button" :disabled="page>=pages || loading" @click="turn(1)">下一页</button></div>
@@ -26,6 +26,8 @@ import { createIdempotencyKey } from '@/utils/idempotency'
 import { money } from '@/utils/format'
 import { couponBusinessLabel } from '@surface-commerce-policy'
 import { getBusinessConfig } from '@/api/shop'
+import { isPublicSurface } from '@/utils/appSurface'
+import { canClaimCouponOnSurface } from '@/utils/couponVisibility'
 const router=useRouter(),route=useRoute(),tab=ref(route.query.tab==='catalog'?'catalog':'mine'),tabs=[{key:'mine',label:'我的优惠券'},{key:'catalog',label:'领券中心'}]
 const couponEnabled=ref(false),modeLoaded=ref(false),availableTabs=computed(()=>couponEnabled.value?tabs:tabs.slice(0,1))
 const rows=ref([]),page=ref(1),pages=ref(1),loading=ref(false),error=ref(''),claiming=ref(''),claimed=ref(new Set())
@@ -33,10 +35,11 @@ const statusLabels={AVAILABLE:'未使用',RESERVED:'待支付占用',USED:'已�
 const productTarget=ref(null),products=ref([]),productsLoading=ref(false),productError=ref(''),productPage=ref(1),productPages=ref(1)
 const keys=new Map();let version=0,productVersion=0,disposed=false
 const date=v=>String(v||'').replace('T',' ').slice(0,16)
+const claimVisible=c=>canClaimCouponOnSurface(c,isPublicSurface)
 async function load(){const v=++version;loading.value=true;error.value='';try{const r=await listCoupons(tab.value==='mine',{pageNum:page.value,pageSize:20});if(!disposed&&v===version){rows.value=r.data?.list||[];pages.value=Number(r.data?.totalPage||1)}}catch(e){if(!disposed&&v===version)error.value=e.message||'读取失败'}finally{if(v===version)loading.value=false}}
 function switchTab(value){if(value===tab.value||(value==='catalog'&&!couponEnabled.value))return;tab.value=value;page.value=1;rows.value=[];load()}
 function turn(delta){page.value+=delta;load()}
-async function claim(c){if(claiming.value||!couponEnabled.value||!c.usable)return;const id=String(c.id);claiming.value=id;error.value='';if(!keys.has(id))keys.set(id,createIdempotencyKey('coupon').replace(/[^A-Za-z0-9_-]/g,'_').slice(0,80));try{await claimCoupon(id,keys.get(id));if(disposed)return;claimed.value.add(id);keys.delete(id);await load()}catch(e){if(!disposed)error.value=e.message||'领取失败，请重试'}finally{claiming.value=''}}
+async function claim(c){if(claiming.value||!couponEnabled.value||!c.usable||!claimVisible(c))return;const id=String(c.id);claiming.value=id;error.value='';if(!keys.has(id))keys.set(id,createIdempotencyKey('coupon').replace(/[^A-Za-z0-9_-]/g,'_').slice(0,80));try{await claimCoupon(id,keys.get(id));if(disposed)return;claimed.value.add(id);keys.delete(id);await load()}catch(e){if(!disposed)error.value=e.message||'领取失败，请重试'}finally{claiming.value=''}}
 function showProducts(c){productTarget.value=c;productPage.value=0;products.value=[];loadProducts(true)}
 async function loadProducts(){const target=productTarget.value;if(!target)return;const v=++productVersion;productsLoading.value=true;productError.value='';try{const r=await couponProducts(target.id,{pageNum:productPage.value+1,pageSize:20});if(disposed||v!==productVersion||productTarget.value!==target)return;products.value.push(...(r.data?.list||[]));productPages.value=Number(r.data?.totalPage||1);productPage.value++}catch(e){if(v===productVersion)productError.value=e.message||'商品读取失败'}finally{if(v===productVersion)productsLoading.value=false}}
 onMounted(async()=>{try{const r=await getBusinessConfig();if(disposed)return;couponEnabled.value=Number(r.data?.couponEnabled)===1}catch{}finally{modeLoaded.value=true;if(!disposed){if(!couponEnabled.value)tab.value='mine';load()}}});onBeforeUnmount(()=>{disposed=true;version++;productVersion++})

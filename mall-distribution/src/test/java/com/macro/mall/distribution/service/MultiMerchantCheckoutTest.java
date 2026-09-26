@@ -70,6 +70,31 @@ class MultiMerchantCheckoutTest {
     }
 
     @Test
+    void parentPaymentLocksMerchantsInStableIdOrderBeforePostingChildren() {
+        DmsShopOrder first = child(11L, "60.00");
+        DmsShopOrder second = child(12L, "90.00");
+        first.setMerchantId(200L);
+        second.setMerchantId(100L);
+        when(tradeDao.selectByIdForUpdate(10L)).thenReturn(trade(0, "150.00"));
+        when(orderDao.selectByTradeIdForUpdate(10L)).thenReturn(List.of(first, second));
+        when(tradeDao.markPaid(10L, "ALIPAY")).thenReturn(1);
+        when(tradeDao.selectById(10L)).thenReturn(trade(1, "150.00"));
+        when(orderDao.selectByTradeId(10L)).thenReturn(List.of(first, second));
+        doReturn(orderView(first)).when(shopService).markOrderPaid(11L, "ALIPAY");
+        doReturn(orderView(second)).when(shopService).markOrderPaid(12L, "ALIPAY");
+        doReturn(orderView(first)).when(shopService).getOrder(11L);
+        doReturn(orderView(second)).when(shopService).getOrder(12L);
+
+        shopService.markCheckoutPaid(10L, "ALIPAY");
+
+        var locks = inOrder(merchantService, shopService);
+        locks.verify(merchantService).assertOrderCanBePaid(12L);
+        locks.verify(merchantService).assertOrderCanBePaid(11L);
+        locks.verify(shopService).markOrderPaid(11L, "ALIPAY");
+        locks.verify(shopService).markOrderPaid(12L, "ALIPAY");
+    }
+
+    @Test
     void parentChildAmountMismatchStopsPaymentBeforeAnyChildIsPosted() {
         when(tradeDao.selectByIdForUpdate(10L)).thenReturn(trade(0, "149.99"));
         when(orderDao.selectByTradeIdForUpdate(10L)).thenReturn(List.of(
@@ -78,6 +103,7 @@ class MultiMerchantCheckoutTest {
         assertThrows(ApiException.class, () -> shopService.markCheckoutPaid(10L, "ALIPAY"));
 
         verify(shopService, never()).markOrderPaid(anyLong(), anyString());
+        verifyNoInteractions(merchantService);
         verify(tradeDao, never()).markPaid(anyLong(), anyString());
     }
 
@@ -127,6 +153,8 @@ class MultiMerchantCheckoutTest {
     void changedChildPaymentNumberStopsWholeCheckout() {
         DmsShopOrder first = child(11L, "60.00");
         DmsShopOrder second = child(12L, "90.00");
+        first.setMerchantId(200L);
+        second.setMerchantId(100L);
         second.setPaymentOrderNo("OTHER-PAYMENT");
         when(tradeDao.selectByIdForUpdate(10L)).thenReturn(trade(0, "150.00"));
         when(orderDao.selectByTradeIdForUpdate(10L)).thenReturn(List.of(first, second));
@@ -134,6 +162,7 @@ class MultiMerchantCheckoutTest {
         assertThrows(ApiException.class, () -> shopService.markCheckoutPaid(10L, "ALIPAY"));
 
         verify(shopService, never()).markOrderPaid(anyLong(), anyString());
+        verifyNoInteractions(merchantService);
         verify(tradeDao, never()).markPaid(anyLong(), anyString());
     }
 

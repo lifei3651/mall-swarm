@@ -27,6 +27,45 @@ class ShopBusinessModeServiceTest {
     }
 
     @Test
+    void orderGateReadsTheLockedCurrentFlagNotAnEarlierOpenSnapshot() {
+        DmsTenant earlier = new DmsTenant();
+        earlier.setRepurchaseMallEnabled(1);
+        earlier.setRepurchaseEligibilityMode("ALL_MEMBER");
+        DmsTenant closed = new DmsTenant();
+        closed.setRepurchaseMallEnabled(0);
+        when(tenantDao.selectById(1L)).thenReturn(earlier);
+        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(closed);
+
+        assertNotNull(service.requireEnabled(1L, ShopBusinessType.REPURCHASE, member()));
+        assertThrows(ApiException.class,
+                () -> service.requireEnabledForOrder(1L, ShopBusinessType.REPURCHASE, member()));
+
+        verify(tenantDao).selectByIdForUpdate(1L);
+    }
+
+    @Test
+    void normalOrdersDoNotTakeTheOptionalModuleHotRowLock() {
+        when(tenantDao.selectById(1L)).thenReturn(new DmsTenant());
+
+        assertNotNull(service.requireEnabledForOrder(1L, ShopBusinessType.NORMAL, member()));
+
+        verify(tenantDao).selectById(1L);
+        verify(tenantDao, never()).selectByIdForUpdate(1L);
+    }
+
+    @Test
+    void flashSaleOrderGateAlsoUsesTheLockedCurrentFlag() {
+        DmsTenant closed = new DmsTenant();
+        closed.setFlashSaleEnabled(0);
+        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(closed);
+
+        assertThrows(ApiException.class,
+                () -> service.requireEnabledForOrder(1L, ShopBusinessType.FLASH_SALE, member()));
+
+        verify(tenantDao).selectByIdForUpdate(1L);
+    }
+
+    @Test
     void customBonusModeBlocksOrdersUntilCustomerRuleExists() {
         DmsTenant tenant = new DmsTenant();
         tenant.setRepurchaseMallEnabled(1);

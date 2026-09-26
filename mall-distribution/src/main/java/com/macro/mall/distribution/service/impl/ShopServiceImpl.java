@@ -80,6 +80,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -1199,7 +1200,7 @@ public class ShopServiceImpl implements ShopService {
         BigDecimal totalPv = ZERO;
         BigDecimal totalCost = ZERO;
         Long tenantId = resolveTenantId(null);
-        businessModeService.requireEnabled(tenantId, businessType, member);
+        businessModeService.requireEnabledForOrder(tenantId, businessType, member);
         DmsFlashSaleActivity flashActivity = null;
         if (ShopBusinessType.FLASH_SALE.equals(businessType)) {
             flashActivity = dto.getBusinessSourceId() == null ? null : flashSaleActivityDao.selectById(dto.getBusinessSourceId());
@@ -1834,6 +1835,13 @@ public class ShopServiceImpl implements ShopService {
             if (!Objects.equals(trade.getTradeNo(), child.getPaymentOrderNo())) {
                 Asserts.fail("子订单支付单号与交易父单不一致，已停止支付");
             }
+        }
+        // 不同父交易的子单顺序可能相反；统一按商户 ID 加锁，避免 A→B 与 B→A 的支付回调互相等待。
+        List<DmsShopOrder> merchantChildren = children.stream()
+                .filter(child -> child.getMerchantId() != null)
+                .sorted(Comparator.comparing(DmsShopOrder::getMerchantId).thenComparing(DmsShopOrder::getId))
+                .toList();
+        for (DmsShopOrder child : merchantChildren) {
             merchantService.assertOrderCanBePaid(child.getId());
         }
         // 必须先验证完全部子单，再开始任何入账、奖金、结算和履约副作用。

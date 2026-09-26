@@ -35,7 +35,22 @@ public class ShopBusinessModeService {
     }
 
     public DmsTenant requireEnabled(Long tenantId, String businessType, DmsShopMember member) {
-        DmsTenant tenant = tenantDao.selectById(tenantId);
+        return requireEnabled(tenantDao.selectById(tenantId), businessType, member);
+    }
+
+    /**
+     * 下单事务与后台业务开关更新共用租户行锁，避免关闭已提交后仍生成新专区订单。
+     * 调用方须先锁会员，再调用本方法；历史订单支付和退款不经过该门禁。
+     */
+    public DmsTenant requireEnabledForOrder(Long tenantId, String businessType, DmsShopMember member) {
+        String type = normalizeType(businessType);
+        // 普通商城没有可选专区总开关，不占用租户热点行锁。
+        DmsTenant tenant = ShopBusinessType.NORMAL.equals(type)
+                ? tenantDao.selectById(tenantId) : tenantDao.selectByIdForUpdate(tenantId);
+        return requireEnabled(tenant, type, member);
+    }
+
+    private DmsTenant requireEnabled(DmsTenant tenant, String businessType, DmsShopMember member) {
         String type = normalizeType(businessType);
         if (ShopBusinessType.FLASH_SALE.equals(type)) {
             if (!enabled(tenant == null ? null : tenant.getFlashSaleEnabled())) Asserts.fail("秒杀专区尚未开启");

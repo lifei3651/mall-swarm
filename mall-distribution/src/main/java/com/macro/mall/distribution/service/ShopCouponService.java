@@ -63,11 +63,11 @@ public class ShopCouponService {
     public DmsShopCoupon status(Long id,int version,String status,boolean confirmed) {
         admin(true); if (!confirmed) Asserts.fail("请确认优惠券影响");
         // 暂停仍允许操作；重新发行必须受到总开关限制。
-        if ("PUBLISHED".equals(status)) requireEnabled(true);
+        DmsTenant lockedTenant="PUBLISHED".equals(status)?requireEnabled(true):null;
         DmsShopCoupon c=dao.lock(tenant(),id);
         if (c==null || !Objects.equals(c.getVersion(),version) || status==null || !Set.of("PUBLISHED","PAUSED").contains(status)) Asserts.fail("配置版本或状态不正确");
         if ("PAUSED".equals(status) && "DRAFT".equals(c.getStatus())) Asserts.fail("草稿尚未发行");
-        if ("PUBLISHED".equals(status)) validate(c);
+        if ("PUBLISHED".equals(status)) { validate(c); requireRepurchaseOnlyEnabled(c,lockedTenant); }
         if (dao.status(tenant(),id,version,status)!=1) Asserts.fail("优惠券状态已变化");
         logs.log("SHOP_COUPON","STATUS","SHOP_COUPON",String.valueOf(id),c.getStatus(),status,"发行只开放领取；暂停不追溯修改已领取券");
         return dao.get(tenant(),id);
@@ -79,17 +79,21 @@ public class ShopCouponService {
             CommonPage<ShopCouponVO> empty=new CommonPage<>(); empty.setList(List.of()); empty.setPageNum(Math.max(1,page));
             empty.setPageSize(Math.max(1,Math.min(100,size))); empty.setTotal(0L); empty.setTotalPage(0); return empty;
         }
+        boolean repurchaseEnabled=repurchaseEnabled();
         page(page,size); CommonPage<DmsShopCoupon> source=CommonPage.restPage(dao.catalog(tenant()));
         List<ShopCouponVO> rows=source.getList().stream().map(c->{ ShopCouponVO v=view(c,null); int owned=dao.countOwned(tenant(),member.getId(),c.getId());
-            v.setUsable(owned<c.getPerMemberLimit()); v.setReason(v.isUsable()?"":"已达到领取上限"); return v; }).toList();
+            v.setUsable(owned<c.getPerMemberLimit()); v.setReason(v.isUsable()?"":"已达到领取上限");
+            if (!repurchaseEnabled && repurchaseOnly(c)) { v.setUsable(false); v.setReason("复购区已关闭"); }
+            return v; }).toList();
         return pageOf(source,rows);
     }
     public CommonPage<ShopCouponVO> mine(DmsShopMember member,int page,int size) {
-        member(member); boolean couponEnabled=enabled(false);
+        member(member); boolean couponEnabled=enabled(false), repurchaseEnabled=repurchaseEnabled();
         page(page,size); CommonPage<DmsShopCouponClaim> source=CommonPage.restPage(dao.mine(tenant(),member.getId()));
         return pageOf(source,source.getList().stream().map(c->{
-            ShopCouponVO row=view(required(c.getCouponId()),c);
+            DmsShopCoupon coupon=required(c.getCouponId()); ShopCouponVO row=view(coupon,c);
             if (!couponEnabled && row.isUsable()) { row.setUsable(false); row.setReason("本商城已关闭优惠券使用"); }
+            else if (!repurchaseEnabled && row.isUsable() && repurchaseOnly(coupon)) { row.setUsable(false); row.setReason("复购区已关闭"); }
             return row;
         }).toList());
     }
@@ -108,11 +112,19 @@ public class ShopCouponService {
         DmsShopMember locked=members.selectByIdForUpdate(member.getId());
         if (locked==null || !Objects.equals(locked.getUserId(),member.getUserId()) || !Integer.valueOf(1).equals(locked.getStatus())) Asserts.fail("会员账号不可用");
         // 下单先锁会员再锁租户；领券保持同一顺序，避免并发领券/下单交叉死锁。
-        requireEnabled(true);
+        DmsTenant lockedTenant=requireEnabled(true);
         DmsShopCouponClaim prior=dao.byRequest(tenant(),member.getId(),requestId);
-        if (prior!=null) { if (!id.equals(prior.getCouponId())) Asserts.fail("请勿重复使用领取请求标识"); return view(required(id),prior); }
+        if (prior!=null) {
+            if (!id.equals(prior.getCouponId())) Asserts.fail("请勿重复使用领取请求标识");
+            DmsShopCoupon existing=required(id); ShopCouponVO result=view(existing,prior);
+            if (result.isUsable() && repurchaseOnly(existing) && !Integer.valueOf(1).equals(lockedTenant.getRepurchaseMallEnabled())) {
+                result.setUsable(false); result.setReason("复购区已关闭");
+            }
+            return result;
+        }
         DmsShopCoupon c=dao.lock(tenant(),id);
         if (c==null || !"PUBLISHED".equals(c.getStatus()) || !LocalDateTime.now().isBefore(c.getEndsAt())) Asserts.fail("优惠券已停止领取或已过期");
+        requireRepurchaseOnlyEnabled(c,lockedTenant);
         if (dao.countOwned(tenant(),member.getId(),id)>=c.getPerMemberLimit()) Asserts.fail("已达到该优惠券领取上限");
         if (dao.issue(tenant(),id)!=1) Asserts.fail("优惠券已领完");
         DmsShopCouponClaim claim=new DmsShopCouponClaim(); claim.setTenantId(tenant()); claim.setCouponId(id); claim.setMemberId(member.getId()); claim.setUserId(member.getUserId()); claim.setRequestId(requestId);
@@ -141,9 +153,9 @@ public class ShopCouponService {
 
     @Transactional(rollbackFor=Exception.class)
     public DmsShopCoupon reserve(DmsShopMember member,Long claimId,Long order,List<DmsShopOrderItem> lines,String businessType) {
-        requireEnabled(true);
+        DmsTenant lockedTenant=requireEnabled(true);
         DmsShopCouponClaim claim=owned(member,claimId,true); DmsShopCoupon c=required(claim.getCouponId());
-        String reason=reason(c,claim,lines,businessType); if (!reason.isEmpty()) Asserts.fail(reason);
+        String reason=reason(c,claim,lines,businessType,Integer.valueOf(1).equals(lockedTenant.getRepurchaseMallEnabled())); if (!reason.isEmpty()) Asserts.fail(reason);
         List<DmsShopOrderItem> eligible=lines.stream().filter(i->matches(c,i)).toList();
         List<BigDecimal> discounts=CouponAmounts.allocate(c.getAmount(),eligible.stream().map(DmsShopOrderItem::getTotalAmount).toList());
         List<BigDecimal> merchantParts=CouponAmounts.merchantParts(c.getAmount(),c.getMerchantPercent(),discounts);
@@ -169,8 +181,13 @@ public class ShopCouponService {
     }
 
     private String reason(DmsShopCoupon c,DmsShopCouponClaim claim,List<DmsShopOrderItem> lines,String type) {
+        return reason(c,claim,lines,type,repurchaseEnabled());
+    }
+    private String reason(DmsShopCoupon c,DmsShopCouponClaim claim,List<DmsShopOrderItem> lines,String type,boolean repurchaseEnabled) {
         if (!"AVAILABLE".equals(claim.getStatus())) return "RESERVED".equals(claim.getStatus())?"已被待支付订单占用":"已使用";
         LocalDateTime now=LocalDateTime.now(); if (now.isBefore(c.getStartsAt())) return "尚未到使用时间"; if (!now.isBefore(c.getEndsAt())) return "已过期";
+        if ("REPURCHASE".equals(type) && !repurchaseEnabled) return "复购区已关闭";
+        if (repurchaseOnly(c) && !repurchaseEnabled) return "复购区已关闭";
         if (!businessTypes(c).contains(type)) return "不适用于当前业务，优惠券不与秒杀叠加";
         List<DmsShopOrderItem> applicable=lines.stream().filter(i->matches(c,i)).toList();
         BigDecimal gross=applicable.stream().map(DmsShopOrderItem::getTotalAmount).map(CouponAmounts::money).reduce(money(null),BigDecimal::add);
@@ -208,13 +225,20 @@ public class ShopCouponService {
     }
     private List<Long> productIds(DmsShopCoupon c) { try { return json.readValue(c.getProductIdsJson(),new TypeReference<List<Long>>(){}); } catch(Exception e) { throw new IllegalStateException("优惠券商品配置损坏",e); } }
     private List<String> businessTypes(DmsShopCoupon c) { try { return json.readValue(c.getBusinessTypesJson(),new TypeReference<List<String>>(){}); } catch(Exception e) { throw new IllegalStateException("优惠券业务配置损坏",e); } }
+    private boolean repurchaseOnly(DmsShopCoupon c) { List<String> types=businessTypes(c); return types.contains("REPURCHASE") && !types.contains("NORMAL"); }
+    private boolean repurchaseEnabled() { DmsTenant tenant=tenants.selectById(tenant()); return tenant!=null && Integer.valueOf(1).equals(tenant.getRepurchaseMallEnabled()); }
+    private void requireRepurchaseOnlyEnabled(DmsShopCoupon c,DmsTenant lockedTenant) { if (repurchaseOnly(c) && !Integer.valueOf(1).equals(lockedTenant.getRepurchaseMallEnabled())) Asserts.fail("复购区已关闭，复购专用券不可发行或领取"); }
     private String write(Object v) { try { return json.writeValueAsString(v); } catch(Exception e) { throw new IllegalStateException(e); } }
     private Long tenant() { return TenantContext.getTenantId(); }
     private boolean enabled(boolean lock) {
         DmsTenant tenant=lock?tenants.selectByIdForUpdate(tenant()):tenants.selectById(tenant());
         return tenant!=null && Integer.valueOf(1).equals(tenant.getCouponEnabled());
     }
-    private void requireEnabled(boolean lock) { if (!enabled(lock)) Asserts.fail("本商城已关闭优惠券领取与使用"); }
+    private DmsTenant requireEnabled(boolean lock) {
+        DmsTenant tenant=lock?tenants.selectByIdForUpdate(tenant()):tenants.selectById(tenant());
+        if (tenant==null || !Integer.valueOf(1).equals(tenant.getCouponEnabled())) Asserts.fail("本商城已关闭优惠券领取与使用");
+        return tenant;
+    }
     private void member(DmsShopMember m) { if (m==null || m.getId()==null || m.getUserId()==null || !Integer.valueOf(1).equals(m.getStatus())) Asserts.unauthorized("请先登录"); }
     private void admin(boolean write) { DmsAdminUser a=AdminContext.get(); if (a==null || a.getMerchantId()!=null) Asserts.fail("仅平台可配置优惠券"); adminAuthService.requirePermission(a,"config:shop"); if(write){adminAuthService.requirePermission(a,"finance:manage");adminAuthService.requirePermission(a,"config:bonus");} }
     private void page(int p,int s) { PageHelper.startPage(Math.max(1,p),Math.max(1,Math.min(100,s))); }

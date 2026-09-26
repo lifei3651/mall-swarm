@@ -147,6 +147,46 @@ class ShopCouponIntegrationTest {
         assertEquals("AVAILABLE",dao.owned(1L,member.getId(),owned.getClaimId()).getStatus());
         assertFalse(coupons.mine(member,1,20).getList().get(0).isUsable());
     }
+    @Test void repurchaseOnlyCouponsCannotBeIssuedOrClaimedWhileZoneIsClosedButHistoryRestores(){
+        db.update("UPDATE dms_tenant SET repurchase_mall_enabled=1 WHERE id=1");
+        ShopCouponSaveDTO input=input();input.setBusinessTypes(List.of("REPURCHASE"));input.setPerMemberLimit(2);
+        DmsShopCoupon coupon=publish(input);ShopCouponVO owned=claim(coupon);
+        DmsShopOrderItem line=new DmsShopOrderItem();line.setMerchantId(null);line.setProductId(1L);
+        line.setTotalAmount(new BigDecimal("299"));line.setTotalCost(new BigDecimal("100"));
+        money("10",coupons.preview(member,owned.getClaimId(),List.of(line),"REPURCHASE"));
+
+        db.update("UPDATE dms_tenant SET repurchase_mall_enabled=0 WHERE id=1");
+        ShopCouponVO catalog=coupons.catalog(member,1,20).getList().stream().filter(c->coupon.getId().equals(c.getId())).findFirst().orElseThrow();
+        assertFalse(catalog.isUsable());assertEquals("复购区已关闭",catalog.getReason());
+        ShopCouponVO history=coupons.mine(member,1,20).getList().get(0);
+        assertEquals(owned.getClaimId(),history.getClaimId());assertEquals("AVAILABLE",history.getStatus());
+        assertFalse(history.isUsable());assertEquals("复购区已关闭",history.getReason());
+        ShopCouponVO retry=claim(coupon);
+        assertEquals(owned.getClaimId(),retry.getClaimId());assertFalse(retry.isUsable());assertEquals("复购区已关闭",retry.getReason());
+        assertTrue(assertThrows(ApiException.class,()->coupons.claim(member,coupon.getId(),"coupon-test-request-000002")).getMessage().contains("复购区已关闭"));
+        assertTrue(assertThrows(ApiException.class,()->coupons.preview(member,owned.getClaimId(),List.of(line),"REPURCHASE")).getMessage().contains("复购区已关闭"));
+        assertTrue(assertThrows(ApiException.class,()->coupons.reserve(member,owned.getClaimId(),99L,List.of(line),"REPURCHASE")).getMessage().contains("复购区已关闭"));
+        DmsShopCoupon paused=coupons.status(coupon.getId(),coupon.getVersion(),"PAUSED",true);
+        assertTrue(assertThrows(ApiException.class,()->coupons.status(paused.getId(),paused.getVersion(),"PUBLISHED",true)).getMessage().contains("复购区已关闭"));
+        DmsShopCoupon draft=coupons.save(null,input);
+        assertThrows(ApiException.class,()->coupons.status(draft.getId(),draft.getVersion(),"PUBLISHED",true));
+
+        db.update("UPDATE dms_tenant SET repurchase_mall_enabled=1 WHERE id=1");
+        assertTrue(coupons.mine(member,1,20).getList().get(0).isUsable());
+        money("10",coupons.preview(member,owned.getClaimId(),List.of(line),"REPURCHASE"));
+        coupons.status(paused.getId(),paused.getVersion(),"PUBLISHED",true);
+        assertNotNull(coupons.claim(member,coupon.getId(),"coupon-test-request-000002").getClaimId());
+    }
+    @Test void sharedNormalAndRepurchaseCouponCanStillBeIssuedForNormalOrdersWhenZoneIsClosed(){
+        db.update("UPDATE dms_tenant SET repurchase_mall_enabled=0 WHERE id=1");
+        ShopCouponSaveDTO input=input();input.setBusinessTypes(List.of("NORMAL","REPURCHASE"));
+        DmsShopCoupon coupon=publish(input);ShopCouponVO owned=claim(coupon);
+        money("10",shop.quoteFreight(order(owned.getClaimId(),item(1,1,1)),member).getDiscountAmount());
+        assertTrue(coupons.mine(member,1,20).getList().get(0).isUsable());
+        DmsShopOrderItem line=new DmsShopOrderItem();line.setMerchantId(null);line.setProductId(1L);
+        line.setTotalAmount(new BigDecimal("299"));line.setTotalCost(new BigDecimal("100"));
+        assertTrue(assertThrows(ApiException.class,()->coupons.preview(member,owned.getClaimId(),List.of(line),"REPURCHASE")).getMessage().contains("复购区已关闭"));
+    }
     @Test void merchantFundingAndThreeRefundsReverseExactlyTheNetSettlement(){
         DmsMerchant m=new DmsMerchant();m.setMerchantNo("COUPON-REFUND-SELLER");m.setMerchantName("优惠分担测试商家");
         m.setLegalEntityName(m.getMerchantName());m.setUnifiedSocialCreditCode("91430100TEST000001");m.setBankAccountName(m.getMerchantName());m.setBankName("测试银行长沙支行");m.setBankAccountNo("6222000000000000001");m.setInvoiceTitle(m.getMerchantName());m.setTaxpayerIdentificationNo("91430100TEST000001");m.setContractStatus("SIGNED");m=merchants.saveMerchant(m);
