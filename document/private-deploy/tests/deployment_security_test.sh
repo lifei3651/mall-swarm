@@ -4,6 +4,15 @@ set -eu
 SOURCE_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/mall-private-deploy-test.XXXXXX")
 trap 'rm -rf "$TEST_ROOT"' EXIT HUP INT TERM
+assert_template_mount() {
+  deploy_dir=$1
+  template_dir=$2
+  config_json=$(mktemp "$TEST_ROOT/compose.XXXXXX.json")
+  docker compose --env-file "$deploy_dir/.env" -f "$deploy_dir/docker-compose.private.yml" config --format json > "$config_json"
+  python3 "$deploy_dir/scripts/validate_compose.py" "$config_json" "$deploy_dir/.env" >/dev/null
+  python3 -c 'import json,os,sys; data=json.load(open(sys.argv[1])); expected=os.path.realpath(sys.argv[2]); mounts=data["services"]["nginx"]["volumes"]; assert any(os.path.realpath(m.get("source", ""))==expected and m.get("target")=="/etc/nginx/templates" for m in mounts), mounts' "$config_json" "$deploy_dir/$template_dir"
+  rm "$config_json"
+}
 
 mkdir -p "$TEST_ROOT/document" "$TEST_ROOT/mall-distribution/target"
 cp -R "$SOURCE_DIR" "$TEST_ROOT/document/private-deploy"
@@ -26,6 +35,21 @@ fi
 grep -q "connect-src 'self'" "$DEPLOY_DIR/nginx/conf.d/mall.conf.template"
 grep -q 'set \$shop_surface public;' "$DEPLOY_DIR/nginx/conf.d/mall.conf.template"
 grep -q 'set \$shop_surface team;' "$DEPLOY_DIR/nginx/conf.d/mall.conf.template"
+grep -q 'set \$shop_surface public;' "$DEPLOY_DIR/nginx/conf.d-public/mall.conf.template"
+grep -q 'listen 443 ssl default_server;' "$DEPLOY_DIR/nginx/conf.d-public/mall.conf.template"
+grep -q 'Content-Security-Policy' "$DEPLOY_DIR/nginx/conf.d-public/mall.conf.template"
+grep -q 'Permissions-Policy' "$DEPLOY_DIR/nginx/conf.d-public/mall.conf.template"
+grep -q 'Strict-Transport-Security' "$DEPLOY_DIR/nginx/conf.d-public/mall.conf.template"
+grep -q 'include /etc/nginx/includes/shop-api.conf;' "$DEPLOY_DIR/nginx/conf.d-public/mall.conf.template"
+if grep -q "connect-src 'self' https:" "$DEPLOY_DIR/nginx/conf.d-public/mall.conf.template"; then
+  echo "Public-only CSP must not allow arbitrary HTTPS origins" >&2
+  exit 1
+fi
+if grep -Eq '\$\{TEAM_DOMAIN\}|/html/(team|integrated)|\$shop_surface team' "$DEPLOY_DIR/nginx/conf.d-public/mall.conf.template"; then
+  echo "Public-only Nginx template must not expose the team surface" >&2
+  exit 1
+fi
+grep -q -- '--without-team-h5' "$DEPLOY_DIR/scripts/build-release.sh"
 [ "$(grep -c 'proxy_set_header X-Shop-Surface    \$shop_surface;' "$DEPLOY_DIR/nginx/includes/shop-api.conf")" = "4" ]
 grep -q 'bootstrap-admin' "$DEPLOY_DIR/scripts/deploy.sh"
 grep -q '^DB_SSL_MODE=REQUIRED$' "$DEPLOY_DIR/customer.env.example"
@@ -122,6 +146,9 @@ fi
   --ssh-cidr 203.0.113.10/32 \
   --evidence cloud-sg-test-001 >/dev/null
 "$DEPLOY_DIR/scripts/security-preflight.sh" --offline >/dev/null
+if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+  assert_template_mount "$DEPLOY_DIR" nginx/conf.d
+fi
 
 cp "$DEPLOY_DIR/.env" "$DEPLOY_DIR/.env.subscription-test"
 sed -i.bak 's/^WECHAT_MINI_PROGRAM_ENABLED=.*/WECHAT_MINI_PROGRAM_ENABLED=true/' "$DEPLOY_DIR/.env" && rm -f "$DEPLOY_DIR/.env.bak"
@@ -174,5 +201,70 @@ if "$DEPLOY_DIR/scripts/security-preflight.sh" --offline >/dev/null 2>&1; then
   exit 1
 fi
 rm "$DEPLOY_DIR/html/public/app.js.map"
+
+mkdir -p "$TEST_ROOT/public/document" "$TEST_ROOT/public/mall-distribution/target"
+cp -R "$SOURCE_DIR" "$TEST_ROOT/public/document/private-deploy"
+PUBLIC_DEPLOY_DIR="$TEST_ROOT/public/document/private-deploy"
+rm -f "$PUBLIC_DEPLOY_DIR/.env"
+rm -rf "$PUBLIC_DEPLOY_DIR/html"
+cp "$TEST_ROOT/mall-distribution/Dockerfile" "$TEST_ROOT/public/mall-distribution/Dockerfile"
+cp "$TEST_ROOT/mall-distribution/target/mall-distribution-test.jar" "$TEST_ROOT/public/mall-distribution/target/"
+printf '9.9.9\n' > "$TEST_ROOT/public/VERSION"
+"$PUBLIC_DEPLOY_DIR/scripts/prepare-env.sh" \
+  --domain mall.customer.test \
+  --admin-domain admin.customer.test \
+  --without-team-h5 \
+  --ssh-cidr 203.0.113.10/32 \
+  --project public_test \
+  --customer-name 测试客户公司 \
+  --brand 测试客户商城 >/dev/null
+grep -q '^TEAM_H5_ENABLED=false$' "$PUBLIC_DEPLOY_DIR/.env"
+grep -q '^TEAM_DOMAIN=$' "$PUBLIC_DEPLOY_DIR/.env"
+grep -q '^NGINX_TEMPLATE_DIR=./nginx/conf.d-public$' "$PUBLIC_DEPLOY_DIR/.env"
+grep -q '^CORS_ORIGINS=https://mall.customer.test,https://admin.customer.test$' "$PUBLIC_DEPLOY_DIR/.env"
+mkdir -p "$PUBLIC_DEPLOY_DIR/certs" "$PUBLIC_DEPLOY_DIR/html/public" "$PUBLIC_DEPLOY_DIR/html/admin"
+openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
+  -subj '/CN=mall.customer.test' \
+  -addext 'subjectAltName=DNS:mall.customer.test,DNS:admin.customer.test' \
+  -keyout "$PUBLIC_DEPLOY_DIR/certs/key.pem" \
+  -out "$PUBLIC_DEPLOY_DIR/certs/cert.pem" >/dev/null 2>&1
+chmod 600 "$PUBLIC_DEPLOY_DIR/certs/key.pem"
+printf '<html>shop</html>\n' > "$PUBLIC_DEPLOY_DIR/html/public/index.html"
+printf '<html>admin</html>\n' > "$PUBLIC_DEPLOY_DIR/html/admin/index.html"
+printf '{"version":"9.9.9"}\n' > "$PUBLIC_DEPLOY_DIR/html/public/version.json"
+printf '{"version":"9.9.9"}\n' > "$PUBLIC_DEPLOY_DIR/html/admin/version.json"
+"$PUBLIC_DEPLOY_DIR/scripts/confirm-firewall.sh" \
+  --ssh-cidr 203.0.113.10/32 --evidence cloud-sg-public-001 >/dev/null
+"$PUBLIC_DEPLOY_DIR/scripts/security-preflight.sh" --offline >/dev/null
+if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+  assert_template_mount "$PUBLIC_DEPLOY_DIR" nginx/conf.d-public
+  NGINX_TEMPLATE_DIR=./nginx/conf.d docker compose --env-file "$PUBLIC_DEPLOY_DIR/.env" \
+    -f "$PUBLIC_DEPLOY_DIR/docker-compose.private.yml" config --format json > "$TEST_ROOT/overridden-compose.json"
+  if python3 "$PUBLIC_DEPLOY_DIR/scripts/validate_compose.py" "$TEST_ROOT/overridden-compose.json" \
+    "$PUBLIC_DEPLOY_DIR/.env" >/dev/null 2>&1; then
+    echo "Environment override must not silently mount the team Nginx template" >&2
+    exit 1
+  fi
+fi
+mkdir "$PUBLIC_DEPLOY_DIR/html/team"
+if "$PUBLIC_DEPLOY_DIR/scripts/security-preflight.sh" --offline >/dev/null 2>&1; then
+  echo "Public-only package must reject stale team assets" >&2
+  exit 1
+fi
+rmdir "$PUBLIC_DEPLOY_DIR/html/team"
+cp "$PUBLIC_DEPLOY_DIR/.env" "$PUBLIC_DEPLOY_DIR/.env.clean"
+sed -i.bak 's@^NGINX_TEMPLATE_DIR=.*@NGINX_TEMPLATE_DIR=./nginx/conf.d@' "$PUBLIC_DEPLOY_DIR/.env" && rm -f "$PUBLIC_DEPLOY_DIR/.env.bak"
+if "$PUBLIC_DEPLOY_DIR/scripts/security-preflight.sh" --offline >/dev/null 2>&1; then
+  echo "Public-only mode must reject split-site Nginx template" >&2
+  exit 1
+fi
+mv "$PUBLIC_DEPLOY_DIR/.env.clean" "$PUBLIC_DEPLOY_DIR/.env"
+if "$PUBLIC_DEPLOY_DIR/scripts/prepare-env.sh" \
+  --domain mall.customer.test --team-domain team.customer.test --without-team-h5 \
+  --ssh-cidr 203.0.113.10/32 --customer-name 测试 --brand 测试 \
+  --env "$TEST_ROOT/invalid-public.env" >/dev/null 2>&1; then
+  echo "Public-only mode must reject a team domain" >&2
+  exit 1
+fi
 
 echo "private deployment security workflow tests passed"

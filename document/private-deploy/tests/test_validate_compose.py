@@ -145,6 +145,34 @@ class ComposeSecurityValidationTest(unittest.TestCase):
         self.assertTrue(any("host 网络" in error for error in errors))
         self.assertTrue(any("Docker socket" in error for error in errors))
 
+    def test_public_only_template_and_domains_must_match_protected_env(self):
+        config = safe_config()
+        nginx = config["services"]["nginx"]
+        nginx["environment"] = {
+            "CUSTOMER_DOMAIN": "mall.customer.test",
+            "TEAM_DOMAIN": "",
+            "ADMIN_DOMAIN": "admin.customer.test",
+        }
+        nginx["volumes"] = [{
+            "type": "bind",
+            "source": "/tmp/customer/nginx/conf.d-public",
+            "target": "/etc/nginx/templates",
+        }]
+        expected = {
+            "_env_path": "/tmp/customer/.env",
+            "CUSTOMER_DOMAIN": "mall.customer.test",
+            "TEAM_DOMAIN": "",
+            "ADMIN_DOMAIN": "admin.customer.test",
+            "TEAM_H5_ENABLED": "false",
+            "NGINX_TEMPLATE_DIR": "./nginx/conf.d-public",
+        }
+        self.assertEqual([], MODULE.validate(config, expected))
+        nginx["volumes"][0]["source"] = "/tmp/customer/nginx/conf.d"
+        self.assertTrue(any("实际挂载" in error for error in MODULE.validate(config, expected)))
+        nginx["volumes"][0]["source"] = "/tmp/customer/nginx/conf.d-public"
+        nginx["environment"]["TEAM_DOMAIN"] = "team.customer.test"
+        self.assertTrue(any("TEAM_DOMAIN" in error for error in MODULE.validate(config, expected)))
+
 
 if __name__ == "__main__":
     unittest.main()

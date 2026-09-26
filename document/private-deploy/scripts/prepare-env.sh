@@ -8,13 +8,14 @@ ENV_FILE="$DEPLOY_DIR/.env"
 DOMAIN=""
 ADMIN_DOMAIN=""
 TEAM_DOMAIN=""
+TEAM_H5_ENABLED=true
 PROJECT=""
 SSH_CIDR=""
 CUSTOMER_NAME=""
 BRAND_NAME=""
 
 usage() {
-  echo "用法: $0 --domain 公开商城域名 --team-domain 团队H5域名 --ssh-cidr 管理IP/掩码 [--admin-domain 后台域名] [--project 项目标识] [--customer-name 公司名] [--brand 商城名] [--env 文件]"
+  echo "用法: $0 --domain 公开商城域名 (--team-domain 团队H5域名 | --without-team-h5) --ssh-cidr 管理IP/掩码 [--admin-domain 后台域名] [--project 项目标识] [--customer-name 公司名] [--brand 商城名] [--env 文件]"
 }
 
 while [ "$#" -gt 0 ]; do
@@ -22,6 +23,7 @@ while [ "$#" -gt 0 ]; do
     --domain) DOMAIN=${2:-}; shift 2 ;;
     --admin-domain) ADMIN_DOMAIN=${2:-}; shift 2 ;;
     --team-domain) TEAM_DOMAIN=${2:-}; shift 2 ;;
+    --without-team-h5) TEAM_H5_ENABLED=false; shift ;;
     --project) PROJECT=${2:-}; shift 2 ;;
     --ssh-cidr) SSH_CIDR=${2:-}; shift 2 ;;
     --customer-name) CUSTOMER_NAME=${2:-}; shift 2 ;;
@@ -32,16 +34,27 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-[ -n "$DOMAIN" ] && [ -n "$TEAM_DOMAIN" ] && [ -n "$SSH_CIDR" ] && [ -n "$CUSTOMER_NAME" ] && [ -n "$BRAND_NAME" ] || { usage >&2; exit 2; }
+[ -n "$DOMAIN" ] && [ -n "$SSH_CIDR" ] && [ -n "$CUSTOMER_NAME" ] && [ -n "$BRAND_NAME" ] || { usage >&2; exit 2; }
+if [ "$TEAM_H5_ENABLED" = "true" ]; then
+  [ -n "$TEAM_DOMAIN" ] || { usage >&2; exit 2; }
+else
+  [ -z "$TEAM_DOMAIN" ] || { echo "仅公开商城模式不能同时指定团队H5域名" >&2; exit 2; }
+fi
 printf '%s' "$DOMAIN" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z]{2,}$' || { echo "域名格式不正确" >&2; exit 1; }
 case "$DOMAIN" in *.example.com|example.com) echo "必须填写客户真实域名" >&2; exit 1 ;; esac
-printf '%s' "$TEAM_DOMAIN" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z]{2,}$' || { echo "团队H5域名格式不正确" >&2; exit 1; }
-[ "$TEAM_DOMAIN" != "$DOMAIN" ] || { echo "公开商城域名与团队H5域名必须分开" >&2; exit 1; }
-case "$TEAM_DOMAIN" in *.example.com|example.com) echo "必须填写客户真实团队H5域名" >&2; exit 1 ;; esac
+if [ "$TEAM_H5_ENABLED" = "true" ]; then
+  printf '%s' "$TEAM_DOMAIN" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z]{2,}$' || { echo "团队H5域名格式不正确" >&2; exit 1; }
+  [ "$TEAM_DOMAIN" != "$DOMAIN" ] || { echo "公开商城域名与团队H5域名必须分开" >&2; exit 1; }
+  case "$TEAM_DOMAIN" in *.example.com|example.com) echo "必须填写客户真实团队H5域名" >&2; exit 1 ;; esac
+fi
 printf '%s' "$SSH_CIDR" | grep -Eq '^[0-9A-Fa-f:.]+/[0-9]{1,3}$' || { echo "SSH 来源必须使用单个 IP 或网段 CIDR" >&2; exit 1; }
 case "$SSH_CIDR" in 0.0.0.0/0|::/0) echo "禁止向全网开放 SSH" >&2; exit 1 ;; esac
 
 [ -n "$ADMIN_DOMAIN" ] || ADMIN_DOMAIN=$DOMAIN
+printf '%s' "$ADMIN_DOMAIN" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z]{2,}$' || { echo "后台域名格式不正确" >&2; exit 1; }
+case "$ADMIN_DOMAIN" in *.example.com|example.com) echo "必须填写客户真实后台域名" >&2; exit 1 ;; esac
+[ "$TEAM_H5_ENABLED" = "false" ] || [ "$TEAM_DOMAIN" != "$ADMIN_DOMAIN" ] \
+  || { echo "团队H5域名与后台域名必须分开" >&2; exit 1; }
 [ -n "$PROJECT" ] || PROJECT=$(printf '%s' "$DOMAIN" | tr '.-' '_' | tr '[:upper:]' '[:lower:]' | cut -c1-32)
 printf '%s' "$PROJECT" | grep -Eq '^[a-z0-9][a-z0-9_-]{2,40}$' || { echo "项目标识只能使用小写字母、数字、下划线和短横线" >&2; exit 1; }
 [ "${#CUSTOMER_NAME}" -le 64 ] && [ "${#BRAND_NAME}" -le 64 ] || { echo "客户公司名和商城名不能超过64字" >&2; exit 1; }
@@ -76,9 +89,16 @@ replace_value() {
 replace_value COMPOSE_PROJECT_NAME "$PROJECT"
 replace_value CUSTOMER_DOMAIN "$DOMAIN"
 replace_value TEAM_DOMAIN "$TEAM_DOMAIN"
+replace_value TEAM_H5_ENABLED "$TEAM_H5_ENABLED"
+if [ "$TEAM_H5_ENABLED" = "true" ]; then
+  replace_value NGINX_TEMPLATE_DIR ./nginx/conf.d
+  replace_value CORS_ORIGINS "https://$DOMAIN,https://$TEAM_DOMAIN,https://$ADMIN_DOMAIN"
+else
+  replace_value NGINX_TEMPLATE_DIR ./nginx/conf.d-public
+  replace_value CORS_ORIGINS "https://$DOMAIN,https://$ADMIN_DOMAIN"
+fi
 replace_value ADMIN_DOMAIN "$ADMIN_DOMAIN"
 replace_value API_BASE_URL "https://$DOMAIN"
-replace_value CORS_ORIGINS "https://$DOMAIN,https://$TEAM_DOMAIN,https://$ADMIN_DOMAIN"
 replace_value SSH_ALLOWED_CIDR "$SSH_CIDR"
 replace_value MYSQL_ROOT_PASSWORD "$(openssl rand -hex 32)"
 replace_value DB_PASSWORD "$(openssl rand -hex 32)"

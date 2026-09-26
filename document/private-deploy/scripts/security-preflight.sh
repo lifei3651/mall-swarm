@@ -62,7 +62,6 @@ fi
 require_value COMPOSE_PROJECT_NAME
 printf '%s' "$(value_of COMPOSE_PROJECT_NAME)" | grep -Eq '^[a-z0-9][a-z0-9_-]{2,40}$' || fail "COMPOSE_PROJECT_NAME 格式不正确"
 require_value CUSTOMER_DOMAIN
-require_value TEAM_DOMAIN
 require_value ADMIN_DOMAIN
 require_value CUSTOMER_NAME
 require_value CUSTOMER_BRAND_NAME
@@ -93,10 +92,28 @@ done
 domain=$(value_of CUSTOMER_DOMAIN)
 team_domain=$(value_of TEAM_DOMAIN)
 admin_domain=$(value_of ADMIN_DOMAIN)
+team_h5_enabled=$(value_of TEAM_H5_ENABLED)
+template_dir=$(value_of NGINX_TEMPLATE_DIR)
 case "$domain" in *.example.com|example.com) fail "必须替换示例域名" ;; esac
 printf '%s' "$domain" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z]{2,}$' || fail "客户域名格式不正确"
-printf '%s' "$team_domain" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z]{2,}$' || fail "团队H5域名格式不正确"
-[ "$team_domain" != "$domain" ] || fail "公开商城域名与团队H5域名必须分开"
+printf '%s' "$admin_domain" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z]{2,}$' || fail "后台域名格式不正确"
+case "$admin_domain" in *.example.com|example.com) fail "必须替换后台示例域名" ;; esac
+case "$team_h5_enabled" in
+  true)
+    [ "$template_dir" = ./nginx/conf.d ] || fail "团队H5模式必须使用拆分站点模板"
+    printf '%s' "$team_domain" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z]{2,}$' || fail "团队H5域名格式不正确"
+    [ "$team_domain" != "$domain" ] && [ "$team_domain" != "$admin_domain" ] || fail "团队H5域名必须与公开商城和后台分开"
+    ;;
+  false)
+    [ -z "$team_domain" ] || fail "仅公开商城模式不得配置团队H5域名"
+    [ "$template_dir" = ./nginx/conf.d-public ] || fail "仅公开商城模式必须使用独立的公开站点模板"
+    [ -f "$DEPLOY_DIR/nginx/conf.d-public/mall.conf.template" ] || fail "缺少仅公开商城 Nginx 模板"
+    if grep -Eq '\$\{TEAM_DOMAIN\}|/html/(team|integrated)|\$shop_surface team' "$DEPLOY_DIR/nginx/conf.d-public/mall.conf.template"; then
+      fail "仅公开商城 Nginx 模板仍包含团队站点"
+    fi
+    ;;
+  *) fail "TEAM_H5_ENABLED 只能是 true 或 false" ;;
+esac
 case "$(value_of CUSTOMER_NAME):$(value_of CUSTOMER_BRAND_NAME)" in *客户公司名称*|*客户商城名称*|*待后台配置*) fail "必须填写客户真实公司名和商城名" ;; esac
 printf '%s' "$(value_of CUSTOMER_THEME_COLOR)" | grep -Eq '^#[0-9A-Fa-f]{6}$' || fail "客户主题色必须是六位十六进制颜色"
 printf '%s' "$(value_of CUSTOMER_PRODUCT_TEMPLATE)" | grep -Eq '^[a-z0-9_-]{2,32}$' || fail "商品模板标识格式不正确"
@@ -110,7 +127,11 @@ done
 cors=$(value_of CORS_ORIGINS)
 case "$cors" in *\**|*http://*) fail "CORS 只能列出客户 HTTPS 来源，禁止通配符和 HTTP" ;; esac
 case ",$cors," in *,https://"$domain",*) : ;; *) fail "CORS 必须包含公开商城域名" ;; esac
-case ",$cors," in *,https://"$team_domain",*) : ;; *) fail "CORS 必须包含团队H5域名" ;; esac
+if [ "$team_h5_enabled" = "true" ]; then
+  case ",$cors," in *,https://"$team_domain",*) : ;; *) fail "CORS 必须包含团队H5域名" ;; esac
+else
+  [ "$cors" = "https://$domain,https://$admin_domain" ] || fail "仅公开商城模式 CORS 只能包含公开商城和后台域名"
+fi
 
 [ "$(value_of CLOUD_FIREWALL_CONFIRMED)" = "true" ] || fail "必须先在云控制台只放行 80/443，并限制 SSH 来源，再执行 confirm-firewall.sh"
 ssh_cidr=$(value_of SSH_ALLOWED_CIDR)
@@ -316,7 +337,9 @@ command -v python3 >/dev/null 2>&1 || fail "缺少 Python 3，无法检查证书
 [ -f "$DEPLOY_DIR/certs/key.pem" ] || fail "缺少 certs/key.pem"
 case "$(file_mode "$DEPLOY_DIR/certs/key.pem")" in 400|600) : ;; *) fail "TLS 私钥权限必须是 400 或 600" ;; esac
 openssl x509 -in "$DEPLOY_DIR/certs/cert.pem" -noout -checkend 2592000 >/dev/null 2>&1 || fail "TLS 证书无效或将在 30 天内过期"
-if ! python3 - "$DEPLOY_DIR/certs/cert.pem" "$domain" "$team_domain" "$admin_domain" >/dev/null 2>&1 <<'PY'
+set -- "$DEPLOY_DIR/certs/cert.pem" "$domain" "$admin_domain"
+[ "$team_h5_enabled" = "false" ] || set -- "$@" "$team_domain"
+if ! python3 - "$@" >/dev/null 2>&1 <<'PY'
 import ssl
 import sys
 import warnings
@@ -328,11 +351,16 @@ with warnings.catch_warnings():
         ssl.match_hostname(certificate, hostname)
 PY
 then
-  fail "TLS 证书必须同时覆盖公开商城、团队H5和后台域名"
+  fail "TLS 证书必须覆盖当前启用的公开商城、后台及团队H5域名"
 fi
 
 [ -f "$DEPLOY_DIR/html/public/index.html" ] || fail "缺少公开商城生产构建 html/public/index.html"
-[ -f "$DEPLOY_DIR/html/team/index.html" ] || fail "缺少团队H5生产构建 html/team/index.html"
+if [ "$team_h5_enabled" = "true" ]; then
+  [ -f "$DEPLOY_DIR/html/team/index.html" ] || fail "缺少团队H5生产构建 html/team/index.html"
+else
+  [ ! -e "$DEPLOY_DIR/html/team" ] && [ ! -e "$DEPLOY_DIR/html/integrated" ] \
+    || fail "仅公开商城模式不得包含团队H5或一体化H5静态资源"
+fi
 [ -f "$DEPLOY_DIR/html/admin/index.html" ] || fail "缺少后台生产构建 html/admin/index.html"
 if find "$DEPLOY_DIR/html" -type f -name '*.map' -print -quit | grep -q .; then
   fail "生产静态资源中禁止包含 source map"
@@ -342,8 +370,10 @@ find "$DEPLOY_DIR/../../mall-distribution/target" -maxdepth 1 -type f -name '*.j
 version=$(tr -d '\n' < "$DEPLOY_DIR/../../VERSION")
 grep -q "\"version\"[[:space:]]*:[[:space:]]*\"$version\"" "$DEPLOY_DIR/html/public/version.json" \
   || fail "商城构建版本与根 VERSION 不一致"
-grep -q "\"version\"[[:space:]]*:[[:space:]]*\"$version\"" "$DEPLOY_DIR/html/team/version.json" \
-  || fail "团队H5构建版本与根 VERSION 不一致"
+if [ "$team_h5_enabled" = "true" ]; then
+  grep -q "\"version\"[[:space:]]*:[[:space:]]*\"$version\"" "$DEPLOY_DIR/html/team/version.json" \
+    || fail "团队H5构建版本与根 VERSION 不一致"
+fi
 grep -q "\"version\"[[:space:]]*:[[:space:]]*\"$version\"" "$DEPLOY_DIR/html/admin/version.json" \
   || fail "后台构建版本与根 VERSION 不一致"
 
@@ -364,7 +394,7 @@ if [ "$OFFLINE" = "false" ]; then
   trap 'rm -f "$rendered"' EXIT HUP INT TERM
   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config --format json > "$rendered" \
     || fail "Docker Compose 配置无法展开"
-  python3 "$SCRIPT_DIR/validate_compose.py" "$rendered" || exit 1
+  python3 "$SCRIPT_DIR/validate_compose.py" "$rendered" "$ENV_FILE" || exit 1
 fi
 
 echo "客户配置、强密钥、云安全组确认、TLS、构建产物和部署模板预检通过"

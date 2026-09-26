@@ -25,7 +25,7 @@ def network_names(service):
     return set(value if isinstance(value, list) else value.keys())
 
 
-def validate(config):
+def validate(config, expected_env=None):
     errors = []
     services = config.get("services") or {}
     if set(services) != REQUIRED_SERVICES:
@@ -38,6 +38,24 @@ def validate(config):
     for name, image in expected_images.items():
         if services.get(name, {}).get("image") != image:
             errors.append(f"{name} 必须使用已测试的明确镜像版本，禁止 latest 或漂移标签")
+
+    if expected_env is not None:
+        nginx = services.get("nginx", {})
+        nginx_env = environment_map(nginx)
+        for key in ("CUSTOMER_DOMAIN", "TEAM_DOMAIN", "ADMIN_DOMAIN"):
+            if nginx_env.get(key) != expected_env.get(key):
+                errors.append(f"Nginx {key} 与受保护的客户配置不一致")
+        mode = expected_env.get("TEAM_H5_ENABLED")
+        template = expected_env.get("NGINX_TEMPLATE_DIR")
+        allowed = {"true": "./nginx/conf.d", "false": "./nginx/conf.d-public"}
+        if mode not in allowed or template != allowed.get(mode):
+            errors.append("团队H5模式与客户 Nginx 模板选择不一致")
+        else:
+            expected_source = (Path(expected_env["_env_path"]).parent / template).resolve()
+            mounts = [v for v in nginx.get("volumes") or [] if isinstance(v, dict)
+                      and v.get("target") == "/etc/nginx/templates"]
+            if len(mounts) != 1 or Path(mounts[0].get("source", "")).resolve() != expected_source:
+                errors.append("实际挂载的 Nginx 模板与受保护的客户配置不一致")
 
     networks = config.get("networks") or {}
     data_network = networks.get("data") or next(
@@ -136,15 +154,27 @@ def validate(config):
 
 
 def main():
-    if len(sys.argv) != 2:
-        print("usage: validate_compose.py <compose-config.json>", file=sys.stderr)
+    if len(sys.argv) not in (2, 3):
+        print("usage: validate_compose.py <compose-config.json> [customer.env]", file=sys.stderr)
         return 2
     try:
         config = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         print(f"无法读取 Compose 配置：{exc}", file=sys.stderr)
         return 2
-    errors = validate(config)
+    expected_env = None
+    if len(sys.argv) == 3:
+        try:
+            env_path = Path(sys.argv[2]).resolve()
+            expected_env = {"_env_path": str(env_path)}
+            for line in env_path.read_text(encoding="utf-8").splitlines():
+                if "=" in line and not line.lstrip().startswith("#"):
+                    key, value = line.split("=", 1)
+                    expected_env[key] = value.strip('"\'')
+        except OSError as exc:
+            print(f"无法读取客户配置：{exc}", file=sys.stderr)
+            return 2
+    errors = validate(config, expected_env)
     for error in errors:
         print(f"安全预检失败：{error}", file=sys.stderr)
     if errors:

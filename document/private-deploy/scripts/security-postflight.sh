@@ -102,7 +102,15 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T mall-distributi
 
 domain=$(unquote "$(env_get CUSTOMER_DOMAIN)")
 team_domain=$(unquote "$(env_get TEAM_DOMAIN)")
+team_h5_enabled=$(unquote "$(env_get TEAM_H5_ENABLED)")
 admin_domain=$(unquote "$(env_get ADMIN_DOMAIN)")
+case "$team_h5_enabled" in true|false) : ;; *) fail "TEAM_H5_ENABLED 必须是 true 或 false" ;; esac
+if [ "$team_h5_enabled" = "false" ]; then
+  [ -z "$team_domain" ] || fail "仅公开商城模式不得配置团队H5域名"
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T nginx \
+    sh -c 'test ! -e /usr/share/nginx/html/team && test ! -e /usr/share/nginx/html/integrated && ! grep -Eq "/html/(team|integrated)|TEAM_DOMAIN|shop_surface team" /etc/nginx/conf.d/mall.conf' \
+    || fail "仅公开商城模式的运行容器仍暴露团队H5静态资源或站点配置"
+fi
 expected_version=$(tr -d '\n' < "$ROOT_DIR/VERSION")
 expected_commit=$(git -C "$ROOT_DIR" rev-parse HEAD 2>/dev/null || true)
 validate_manifest() {
@@ -122,8 +130,10 @@ validate_manifest() {
 }
 curl --fail --silent --show-error --max-time 15 --resolve "$domain:443:127.0.0.1" "https://$domain/" >/dev/null \
   || fail "客户 HTTPS 商城入口不可用或证书不匹配"
-curl --fail --silent --show-error --max-time 15 --resolve "$team_domain:443:127.0.0.1" "https://$team_domain/" >/dev/null \
-  || fail "客户 HTTPS 团队H5入口不可用或证书不匹配"
+if [ "$team_h5_enabled" = "true" ]; then
+  curl --fail --silent --show-error --max-time 15 --resolve "$team_domain:443:127.0.0.1" "https://$team_domain/" >/dev/null \
+    || fail "客户 HTTPS 团队H5入口不可用或证书不匹配"
+fi
 curl --fail --silent --show-error --max-time 15 --resolve "$admin_domain:443:127.0.0.1" "https://$admin_domain/admin/" >/dev/null \
   || fail "客户 HTTPS 管理后台入口不可用或证书不匹配"
 security_headers=$(curl --fail --silent --show-error --head --max-time 15 \
@@ -136,12 +146,16 @@ printf '%s\n' "$security_headers" | grep -qi '^Strict-Transport-Security:' \
   || fail "商城入口缺少 Strict-Transport-Security"
 public_manifest=$(curl --fail --silent --show-error --max-time 15 --resolve "$domain:443:127.0.0.1" "https://$domain/version.json") \
   || fail "公开域名没有返回公开商城构建"
-team_manifest=$(curl --fail --silent --show-error --max-time 15 --resolve "$team_domain:443:127.0.0.1" "https://$team_domain/version.json") \
-  || fail "团队域名没有返回团队H5构建"
+if [ "$team_h5_enabled" = "true" ]; then
+  team_manifest=$(curl --fail --silent --show-error --max-time 15 --resolve "$team_domain:443:127.0.0.1" "https://$team_domain/version.json") \
+    || fail "团队域名没有返回团队H5构建"
+fi
 admin_manifest=$(curl --fail --silent --show-error --max-time 15 --resolve "$admin_domain:443:127.0.0.1" "https://$admin_domain/admin/version.json") \
   || fail "后台域名没有返回管理后台构建"
 validate_manifest "公开商城" "storefront-public" "$public_manifest"
-validate_manifest "团队H5" "team-h5" "$team_manifest"
+if [ "$team_h5_enabled" = "true" ]; then
+  validate_manifest "团队H5" "team-h5" "$team_manifest"
+fi
 validate_manifest "管理后台" "admin" "$admin_manifest"
 for path in /api/actuator/health /api/v3/api-docs /api/swagger-ui/index.html /.env /.git/config /phpmyadmin/; do
   code=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 10 --resolve "$domain:443:127.0.0.1" "https://$domain$path")
@@ -157,6 +171,7 @@ report="$DEPLOY_DIR/reports/security-postflight-$(date +%Y%m%d_%H%M%S).txt"
   echo "checked_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "customer_domain=$domain"
   echo "team_domain=$team_domain"
+  echo "team_h5_enabled=$team_h5_enabled"
   echo "admin_domain=$admin_domain"
   echo "version=$expected_version"
   echo "git_commit=$(git -C "$DEPLOY_DIR/../.." rev-parse HEAD 2>/dev/null || echo unavailable)"
@@ -168,7 +183,12 @@ report="$DEPLOY_DIR/reports/security-postflight-$(date +%Y%m%d_%H%M%S).txt"
   echo "internal_ports_not_public=6379,8086"
   echo "tls=PASS"
   echo "security_headers=PASS"
-  echo "public_team_admin_builds=PASS"
+  if [ "$team_h5_enabled" = "true" ]; then
+    echo "public_team_admin_builds=PASS"
+  else
+    echo "public_admin_builds=PASS"
+    echo "team_h5_absent=PASS"
+  fi
   echo "common_scanner_paths=404"
   echo "backend_health=UP"
   echo "database_baseline=PASS"
