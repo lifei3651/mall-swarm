@@ -26,6 +26,11 @@ public class TenantBusinessModesDTO implements Serializable {
     @Pattern(regexp = "DISABLED|AUTO_ON_INVITE|MANUAL_REVIEW|FIRST_PAID_ORDER", message = "推广资格开通方式不正确")
     private String promotionJoinMode;
 
+    /** 缺省沿用旧值，兼容升级前的管理端。 */
+    @Min(value = 0, message = "邀请功能状态不正确")
+    @Max(value = 1, message = "邀请功能状态不正确")
+    private Integer invitationEnabled;
+
     @NotNull(message = "请选择是否开启秒杀专区")
     @Min(value = 0, message = "秒杀专区状态不正确")
     @Max(value = 1, message = "秒杀专区状态不正确")

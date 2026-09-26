@@ -54,6 +54,8 @@ class ShopRegistrationInviteCompatibilityTest {
         agent.setStatus(1);
         agent.setAgentLevel(1);
         lenient().when(agentService.getAgentByUserId(880088L)).thenReturn(agent);
+        DmsTenant tenant = new DmsTenant(); tenant.setInvitationEnabled(1);
+        lenient().when(tenantDao.selectByIdForUpdate(1L)).thenReturn(tenant);
     }
 
     @Test

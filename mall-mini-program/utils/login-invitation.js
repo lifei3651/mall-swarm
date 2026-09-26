@@ -2,7 +2,7 @@ const feedback = require('./feedback')
 const invite = require('./invite')
 const request = require('./request')
 
-const data = { inviteExpanded: false, inviteCode: '', inviteFromLink: false, inviteReady: true,
+const data = { invitationEnabled: true, inviteExpanded: false, inviteCode: '', inviteFromLink: false, inviteReady: true,
   inviteBusy: false, inviterName: '', inviteError: '', inviteConflict: false, candidateName: '', candidateValid: false }
 function fingerprint() { return JSON.stringify(invite.getState()) }
 async function preview(code) {
@@ -11,7 +11,23 @@ async function preview(code) {
   return result.nickname.trim().slice(0, 40)
 }
 const methods = {
+  async loadInvitationMode() {
+    try {
+      const config = await request({ url: '/shop/business-config' })
+      if (this._inactive || Number(config && config.invitationEnabled) !== 0) return
+      invite.clearPendingInvite()
+      this._inviteFingerprint = ''
+      feedback.update(this, { invitationEnabled: false })
+      this.syncInvitation(true)
+    } catch (_) { /* The server still checks the switch at final registration. */ }
+  },
   syncInvitation(force = false) {
+    if (this.data.invitationEnabled === false) {
+      this._verifiedInviteCode = ''
+      this._inviteSequence = (this._inviteSequence || 0) + 1
+      feedback.update(this, { ...data, invitationEnabled: false })
+      return
+    }
     const state = invite.getState(), key = JSON.stringify(state)
     if (!force && key === this._inviteFingerprint) return
     this._inviteFingerprint = key
@@ -32,6 +48,7 @@ const methods = {
     feedback.update(this, { inviteCode: value, inviteReady: false, inviteBusy: false, inviterName: '', inviteError: '' })
   },
   async checkInvitation() {
+    if (this.data.invitationEnabled === false) return
     if (this._inactive || this.data.submitting) return
     const code = invite.normalizeInviteCode(this.data.inviteCode)
     if (!code) { feedback.update(this, { inviteReady: false, inviteError: '请输入8位字母或数字邀请码，或选择不使用邀请' }); return }
@@ -74,6 +91,7 @@ const methods = {
     this.syncInvitation(true)
   },
   invitationReady() {
+    if (this.data.invitationEnabled === false) return true
     if (this._inviteFingerprint !== fingerprint()) { this.syncInvitation(true); return false }
     if (this.data.inviteBusy || this.data.inviteConflict || !this.data.inviteReady) {
       feedback.toast({ title: '请先核对邀请人，或选择不使用邀请', icon: 'none' })

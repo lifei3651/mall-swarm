@@ -16,7 +16,7 @@ function harness(runtime, { token = '', response = { accessToken: 'test-session'
   const mocks = {
     './auth': { runtime, login: async (data) => { calls.push(data); if (response.accessToken) token = response.accessToken; return response } },
     './session': { getToken: () => token },
-    './login-invitation': { data: { inviteReady: true }, methods: { syncInvitation() {}, invitationReady: () => true } },
+    './login-invitation': { data: { inviteReady: true }, methods: { syncInvitation() {}, loadInvitationMode() {}, invitationReady: () => true } },
     '../config/runtime': { PRIVACY_CONSENT_VERSION: version },
     './theme': { pageData: () => ({}), apply() {} }
   }

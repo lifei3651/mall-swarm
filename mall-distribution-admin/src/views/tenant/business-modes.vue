@@ -1,6 +1,6 @@
 <template>
   <div class="page-container business-mode-page">
-    <div class="heading"><div><h2>商城业务模块</h2><p>设置余额交易、多商户、推广资格、秒杀、复购与优惠券。奖金比例与计算公式在客户奖金接入中维护。</p></div></div>
+    <div class="heading"><div><h2>商城业务模块</h2><p>设置邀请、余额交易、多商户、推广资格、秒杀、复购与优惠券。奖金比例与计算公式在客户奖金接入中维护。</p></div></div>
     <el-alert title="邀请关系只记录谁邀请了谁，推广资格决定该账号是否进入客户团队制度，两者已经分开。公开商城不会展示奖金制度。" type="warning" :closable="false" show-icon />
     <el-card v-loading="loading" shadow="never">
       <el-form :model="form" label-position="left" label-width="132px" :disabled="loading || saving || !form.id">
@@ -10,7 +10,10 @@
           <el-form-item label="多商户新业务" class="toggle-row"><span class="toggle-state">{{ Number(form.multiMerchantEnabled) === 1 ? '已开启' : '仅平台自营' }}</span><el-switch v-model="form.multiMerchantEnabled" aria-label="启用多商户新业务" :active-value="1" :inactive-value="0" /></el-form-item>
           <p>关闭后原商户商品从前台隐藏，不能新上架或下单；商品和商户记录不删除。切换前创建的订单仍可支付、退款、履约、结算与审计。</p>
         </section>
-        <section><h3>推广资格</h3>
+        <section><h3>邀请与推广资格</h3>
+          <el-form-item label="邀请功能" class="toggle-row"><span class="toggle-state">{{ Number(form.invitationEnabled) === 1 ? '已开启' : '已关闭' }}</span><el-switch v-model="form.invitationEnabled" aria-label="启用邀请功能" :active-value="1" :inactive-value="0" :disabled="!canEditInvitation" /></el-form-item>
+          <p>关闭后普通注册和购物不受影响，新分享不带邀请码，带旧邀请码的新注册也不能建立邀请关系；历史关系、订单和账务保留。推广资格开通方式是另一项设置。</p>
+          <p v-if="!canEditInvitation">调整邀请功能需要商城设置权限。</p>
           <el-form-item label="开通方式">
             <el-radio-group v-model="form.promotionJoinMode" class="mode-options">
               <el-radio-button value="DISABLED">关闭</el-radio-button>
@@ -50,7 +53,10 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { getTenantBusinessModes, saveTenantBusinessModes } from '@/api/tenant'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { businessModeChanges } from '@/utils/businessModeChanges'
-const loading=ref(false);const saving=ref(false);const form=ref({balanceTransactionsEnabled:1,multiMerchantEnabled:1,promotionJoinMode:'DISABLED',flashSaleEnabled:0,flashSaleBonusMode:'NONE',repurchaseMallEnabled:0,repurchaseEligibilityMode:'PAID_MEMBER',repurchaseBonusMode:'NONE',couponEnabled:1})
+import { useAppStore } from '@/store'
+const store=useAppStore()
+const canEditInvitation=computed(()=>store.hasPermission('config:shop'))
+const loading=ref(false);const saving=ref(false);const form=ref({invitationEnabled:1,balanceTransactionsEnabled:1,multiMerchantEnabled:1,promotionJoinMode:'DISABLED',flashSaleEnabled:0,flashSaleBonusMode:'NONE',repurchaseMallEnabled:0,repurchaseEligibilityMode:'PAID_MEMBER',repurchaseBonusMode:'NONE',couponEnabled:1})
 const snapshot = ref(null)
 const visibleBonusMode = (value) => ['STANDARD', 'CUSTOM'].includes(String(value || '').toUpperCase()) ? 'STANDARD' : 'NONE'
 const changes = computed(() => snapshot.value ? businessModeChanges(snapshot.value, form.value) : [])
@@ -75,7 +81,7 @@ const save = async () => {
   try {
     try {
       await ElMessageBox.confirm(
-        summary.map(item => `${item.title}：${item.before} → ${item.after}`).join('\n') + '\n\n可能影响新余额交易、新商户业务、会员资格、商品可购买范围、优惠券领取使用及奖金处理。旧订单和历史资金仍需按原流程处理，请核对后保存。',
+        summary.map(item => `${item.title}：${item.before} → ${item.after}`).join('\n') + '\n\n可能影响新邀请关系、新余额交易、新商户业务、会员资格、商品可购买范围、优惠券领取使用及奖金处理。旧订单和历史资金仍需按原流程处理，请核对后保存。',
         '确认业务规则变更', { type:'warning', confirmButtonText:'确认并保存', cancelButtonText:'返回修改', customClass:'settings-impact-confirm' },
       )
     } catch { return }

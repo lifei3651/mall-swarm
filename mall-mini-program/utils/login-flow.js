@@ -55,6 +55,7 @@ module.exports = {
     try { this.redirect = decodeURIComponent(options.redirect || '') } catch (_) { this.redirect = '' }
     feedback.update(this, { contextHint: loginContext(this.redirect) })
     this.syncInvitation(true)
+    this.loadInvitationMode()
     return this.loadRuntime()
   },
   async loadRuntime() {
@@ -143,7 +144,7 @@ module.exports = {
   async executeLogin(phoneCode) {
     if (this._inactive || this.data.submitting) return
     const sequence = this._loginSequence = (this._loginSequence || 0) + 1
-    const inviteCode = phoneCode ? this._verifiedInviteCode || '' : ''
+    const inviteCode = phoneCode && this.data.invitationEnabled ? this._verifiedInviteCode || '' : ''
     feedback.update(this, { submitting: true, error: '', loginNotice: '', showLoginHelp: false })
     try {
       const result = await auth.login({ phoneCode, inviteCode, privacyConsentVersion: this.data.privacyVersion })

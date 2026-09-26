@@ -476,6 +476,8 @@ test('invite content keeps QR code, invitation code and member data in one card'
   assert.match(card, /<span>邀请码<\/span>/)
   assert.match(card, /directAccountCount/)
   assert.match(card, /directMemberCount/)
+  assert.match(card, /inviteInfo\.invitationEnabled !== false/)
+  assert.match(card, /当前商城已关闭新邀请/)
   assert.match(card, /<span>注册账号<\/span>/)
   assert.match(card, /<span>正式会员<\/span>/)
   assert.match(dialog, /role="dialog" aria-modal="true"/)

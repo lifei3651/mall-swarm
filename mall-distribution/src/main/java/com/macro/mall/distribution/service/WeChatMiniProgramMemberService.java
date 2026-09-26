@@ -2,6 +2,8 @@ package com.macro.mall.distribution.service;
 
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.dao.DmsAgentDao;
+import com.macro.mall.distribution.dao.DmsTenantDao;
+import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.security.EffectiveMemberPolicy;
 import com.macro.mall.distribution.enums.AgentLevelEnum;
 import lombok.RequiredArgsConstructor;
@@ -12,13 +14,16 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class WeChatMiniProgramMemberService {
     private final DmsAgentDao agentDao;
+    private final DmsTenantDao tenantDao;
 
     public Capabilities capabilities(DmsShopMember member) {
         // Read only the member's own qualification, without computing their team tree.
         var agent = member == null ? null : agentDao.selectByUserId(member.getUserId());
         boolean active = EffectiveMemberPolicy.isActive(member, agent);
+        var tenant = tenantDao.selectById(TenantContext.getTenantId());
+        boolean invitationEnabled = tenant != null && !Integer.valueOf(0).equals(tenant.getInvitationEnabled());
         String code = null;
-        if (active) {
+        if (active && invitationEnabled) {
             String invite = agent.getInviteCode() == null || agent.getInviteCode().isBlank()
                     ? member.getInviteCode() : agent.getInviteCode();
             if (invite != null && invite.matches("[A-Za-z0-9]{8}")) {

@@ -2,8 +2,11 @@ package com.macro.mall.distribution.service;
 
 import com.macro.mall.distribution.dao.DmsAgentDao;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
+import com.macro.mall.distribution.dao.DmsTenantDao;
 import com.macro.mall.distribution.entity.DmsAgent;
 import com.macro.mall.distribution.entity.DmsShopMember;
+import com.macro.mall.distribution.entity.DmsTenant;
+import org.junit.jupiter.api.BeforeEach;
 import com.macro.mall.distribution.service.impl.ShopServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,7 +24,13 @@ class ShopInvitePreviewTest {
 
     @Mock private DmsShopMemberDao memberDao;
     @Mock private DmsAgentDao agentDao;
+    @Mock private DmsTenantDao tenantDao;
     @InjectMocks private ShopServiceImpl shopService;
+
+    @BeforeEach void invitationEnabled() {
+        DmsTenant tenant = new DmsTenant(); tenant.setInvitationEnabled(1);
+        org.mockito.Mockito.lenient().when(tenantDao.selectById(1L)).thenReturn(tenant);
+    }
 
     @Test
     void previewNormalizesCodeAndReturnsOnlyPublicNickname() {
@@ -89,6 +98,30 @@ class ShopInvitePreviewTest {
         assertEquals(true, preview.get("valid"));
         assertEquals("商城会员", preview.get("nickname"));
         assertEquals(2, preview.size());
+    }
+
+    @Test void disabledInvitationDoesNotExposeHistoricalInviter() {
+        DmsTenant tenant = new DmsTenant(); tenant.setInvitationEnabled(0);
+        when(tenantDao.selectById(1L)).thenReturn(tenant);
+        Map<String, Object> preview = shopService.getInviterPreview("ABCD1234");
+        assertEquals(false, preview.get("valid"));
+        assertEquals("当前商城未开启邀请注册", preview.get("message"));
+    }
+
+    @Test void disabledInvitationKeepsHistoricalCountsButDoesNotPublishCode() {
+        DmsTenant tenant = new DmsTenant(); tenant.setInvitationEnabled(0);
+        when(tenantDao.selectById(1L)).thenReturn(tenant);
+        DmsShopMember member = new DmsShopMember();
+        member.setUserId(99887766L);
+        member.setStatus(1);
+        member.setInviteCode("ABCD1234");
+        when(agentDao.selectByUserId(99887766L)).thenReturn(activeAgent(99887766L));
+
+        Map<String, Object> info = shopService.getInviteInfo(member);
+
+        assertEquals(false, info.get("invitationEnabled"));
+        assertEquals(false, info.containsKey("inviteCode"));
+        assertEquals(0, info.get("directAccountCount"));
     }
 
     private DmsAgent activeAgent(Long userId) {

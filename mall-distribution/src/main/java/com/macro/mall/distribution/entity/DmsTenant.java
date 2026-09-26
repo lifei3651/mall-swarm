@@ -106,6 +106,9 @@ public class DmsTenant implements Serializable {
     @Pattern(regexp = "DISABLED|AUTO_ON_INVITE|MANUAL_REVIEW|FIRST_PAID_ORDER", message = "推广资格开通方式不正确")
     private String promotionJoinMode;
 
+    /** 新邀请关系总开关；关闭不删除历史关系或既有订单账务。 */
+    private Integer invitationEnabled;
+
     /** 秒杀模块和复购区均为客户级可选能力，默认关闭。 */
     private Integer flashSaleEnabled;
 

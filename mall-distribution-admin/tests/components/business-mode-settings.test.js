@@ -4,12 +4,15 @@ import { mount, flushPromises } from '@vue/test-utils'
 import ElementPlus, { ElMessageBox } from 'element-plus'
 import Modes from '../../src/views/tenant/business-modes.vue'
 const api = vi.hoisted(() => ({ getTenantBusinessModes:vi.fn(), saveTenantBusinessModes:vi.fn(), leaveGuard:vi.fn() }))
+const permissionState = vi.hoisted(() => ({ canShop:true }))
 vi.mock('@/api/tenant', () => api)
 vi.mock('@/composables/useUnsavedChanges', () => ({ useUnsavedChanges:api.leaveGuard }))
-const row = () => ({ id:1, balanceTransactionsEnabled:1, multiMerchantEnabled:1, promotionJoinMode:'MANUAL_REVIEW', flashSaleEnabled:0, flashSaleBonusMode:'NONE', repurchaseMallEnabled:0, repurchaseEligibilityMode:'PAID_MEMBER', repurchaseBonusMode:'NONE' })
+vi.mock('@/store', () => ({ useAppStore:() => ({ hasPermission:(permission) => permission !== 'config:shop' || permissionState.canShop }) }))
+const row = () => ({ id:1, invitationEnabled:1, balanceTransactionsEnabled:1, multiMerchantEnabled:1, promotionJoinMode:'MANUAL_REVIEW', flashSaleEnabled:0, flashSaleBonusMode:'NONE', repurchaseMallEnabled:0, repurchaseEligibilityMode:'PAID_MEMBER', repurchaseBonusMode:'NONE' })
 const mounted = () => mount(Modes, { global:{ plugins:[ElementPlus] } })
 beforeEach(() => {
   vi.restoreAllMocks(); vi.clearAllMocks()
+  permissionState.canShop = true
   globalThis.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} }
   api.getTenantBusinessModes.mockResolvedValue({ data:row() })
   api.saveTenantBusinessModes.mockResolvedValue({ data:{} })
@@ -58,6 +61,13 @@ describe('业务模式设置保存保护', () => {
     expect(confirm.mock.calls[0][0]).toContain('余额新交易：开启 → 关闭')
     expect(confirm.mock.calls[0][0]).toContain('多商户新业务：开启 → 关闭')
     expect(api.saveTenantBusinessModes).toHaveBeenCalledWith(1, expect.objectContaining({ balanceTransactionsEnabled:0, multiMerchantEnabled:0 }))
+    w.unmount()
+  })
+  it('无商城设置权限时邀请开关只读，避免可点后必然被接口拒绝', async () => {
+    permissionState.canShop = false
+    const w = mounted(); await flushPromises()
+    expect(w.find('[aria-label="启用邀请功能"]').attributes('aria-disabled')).toBe('true')
+    expect(w.text()).toContain('调整邀请功能需要商城设置权限')
     w.unmount()
   })
 })

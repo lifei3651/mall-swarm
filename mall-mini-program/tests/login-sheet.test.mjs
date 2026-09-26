@@ -29,7 +29,7 @@ function harness({ runtime = async () => ready, login, token = '', saveNickname,
   const deps = {
     './auth': { runtime, login: async (data) => { calls.push(data); const result = login ? await login(data) : { accessToken: 'test-session' }; if (result.accessToken) token = result.accessToken; return result } },
     './session': session, './login-invitation': { data: { inviteReady: true }, methods: {
-      syncInvitation() { this.setData({ inviteCode: 'ABCD1234' }) }, invitationReady: () => true } },
+      syncInvitation() { this.setData({ inviteCode: 'ABCD1234' }) }, loadInvitationMode() {}, invitationReady: () => true } },
     '../config/runtime': { PRIVACY_CONSENT_VERSION: ready.privacyConsentVersion },
     './theme': { pageData: () => ({}), apply() {} }
   }

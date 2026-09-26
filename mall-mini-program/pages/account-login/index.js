@@ -19,6 +19,7 @@ Page({
     this._inactive = false; this._epoch = 0; this._deadlines = {}; this._owner = session.getToken()
     try { this.redirect = decodeURIComponent(options.redirect || '') } catch (_) { this.redirect = '' }
     this.syncInvitation(true)
+    this.loadInvitationMode()
     return this.setMode(titles[options.mode] ? options.mode : 'password')
   },
   onShow() {
@@ -117,7 +118,7 @@ Page({
         session.clearSession(); this.setData({ submitting: false }); await this.setMode('password')
         await feedback.success('密码已重置，请使用新密码登录'); return
       }
-      const credentials = mode === 'register' ? { phone: form.phone, username: form.username, password: form.password, smsCode: form.smsCode, inviteCode: this._verifiedInviteCode || undefined, ...captcha }
+      const credentials = mode === 'register' ? { phone: form.phone, username: form.username, password: form.password, smsCode: form.smsCode, inviteCode: this.data.invitationEnabled ? this._verifiedInviteCode || undefined : undefined, ...captcha }
         : mode === 'sms' ? { account: form.phone, smsCode: form.smsCode, loginType: 'sms' }
         : { account: form.account.trim(), password: form.password, loginType: 'password', ...captcha }
       const result = await request({ url: `/shop/wechat-mini-program/auth/account-${mode === 'register' ? 'register' : 'login'}`, method: 'POST',

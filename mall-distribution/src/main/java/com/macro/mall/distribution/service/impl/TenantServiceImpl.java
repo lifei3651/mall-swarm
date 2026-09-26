@@ -122,6 +122,7 @@ public class TenantServiceImpl implements TenantService {
         }
         normalizeBusinessModes(tenant, before == null);
         // 资料编辑接口不能顺带更改独立模块的经营开关。新客户先以平台自营开局。
+        tenant.setInvitationEnabled(before == null ? 0 : enabledUnlessOff(before.getInvitationEnabled()));
         tenant.setCouponEnabled(before == null ? 1 : normalizedFlag(before.getCouponEnabled()));
         tenant.setBalanceTransactionsEnabled(before == null ? 1 : enabledUnlessOff(before.getBalanceTransactionsEnabled()));
         tenant.setMultiMerchantEnabled(before == null ? 0 : enabledUnlessOff(before.getMultiMerchantEnabled()));
@@ -178,6 +179,10 @@ public class TenantServiceImpl implements TenantService {
         if (tenantId == null || modes == null) {
             Asserts.fail("商城业务模式不能为空");
         }
+        if (modes.getInvitationEnabled() != null
+                && modes.getInvitationEnabled() != 0 && modes.getInvitationEnabled() != 1) {
+            Asserts.fail("邀请功能状态不正确");
+        }
         if (modes.getCouponEnabled() != null && modes.getCouponEnabled() != 0 && modes.getCouponEnabled() != 1) {
             Asserts.fail("优惠券状态不正确");
         }
@@ -197,6 +202,8 @@ public class TenantServiceImpl implements TenantService {
         DmsTenant normalized = new DmsTenant();
         normalized.setId(tenantId);
         normalized.setPromotionJoinMode(modes.getPromotionJoinMode());
+        normalized.setInvitationEnabled(modes.getInvitationEnabled() == null
+                ? enabledUnlessOff(before.getInvitationEnabled()) : modes.getInvitationEnabled());
         normalized.setFlashSaleEnabled(modes.getFlashSaleEnabled());
         normalized.setFlashSaleBonusMode(modes.getFlashSaleBonusMode());
         normalized.setRepurchaseMallEnabled(modes.getRepurchaseMallEnabled());
@@ -215,6 +222,9 @@ public class TenantServiceImpl implements TenantService {
             adminAuthService.requirePermission(admin, "config:shop");
             adminAuthService.requirePermission(admin, "finance:manage");
         }
+        if (!java.util.Objects.equals(enabledUnlessOff(before.getInvitationEnabled()), normalized.getInvitationEnabled())) {
+            adminAuthService.requirePermission(AdminContext.get(), "config:shop");
+        }
         normalizeBusinessModes(normalized, false);
         TenantBusinessModesDTO safeUpdate = businessModesOf(normalized);
 
@@ -230,7 +240,7 @@ public class TenantServiceImpl implements TenantService {
         }
         operationLogService.log("TENANT_CONFIG", "BUSINESS_MODE_UPDATE", "TENANT", String.valueOf(tenantId),
                 businessModesSummary(businessModesOf(before)), businessModesSummary(businessModesOf(saved)),
-                "更新推广资格、秒杀、复购、优惠券、余额与多商户业务模式");
+                "更新邀请、推广资格、秒杀、复购、优惠券、余额与多商户业务模式");
         return businessModesOf(saved);
     }
 
@@ -245,6 +255,7 @@ public class TenantServiceImpl implements TenantService {
     private TenantBusinessModesDTO businessModesOf(DmsTenant tenant) {
         TenantBusinessModesDTO modes = new TenantBusinessModesDTO();
         modes.setId(tenant.getId());
+        modes.setInvitationEnabled(enabledUnlessOff(tenant.getInvitationEnabled()));
         try {
             modes.setPromotionJoinMode(PromotionJoinModeEnum.forExisting(tenant.getPromotionJoinMode()).name());
         } catch (IllegalArgumentException ex) {
@@ -269,6 +280,7 @@ public class TenantServiceImpl implements TenantService {
 
     private String businessModesSummary(TenantBusinessModesDTO modes) {
         return "promotionJoinMode=" + modes.getPromotionJoinMode()
+                + ";invitation=" + modes.getInvitationEnabled()
                 + ";flashSale=" + modes.getFlashSaleEnabled()
                 + ";flashBonusMode=" + modes.getFlashSaleBonusMode()
                 + ";repurchase=" + modes.getRepurchaseMallEnabled()
@@ -335,6 +347,7 @@ public class TenantServiceImpl implements TenantService {
         return "name=" + tenant.getTenantName() + ";brand=" + tenant.getBrandName()
                 + ";status=" + tenant.getStatus() + ";flashSale=" + tenant.getFlashSaleEnabled()
                 + ";promotionJoinMode=" + tenant.getPromotionJoinMode()
+                + ";invitation=" + tenant.getInvitationEnabled()
                 + ";repurchase=" + tenant.getRepurchaseMallEnabled()
                 + ";coupon=" + tenant.getCouponEnabled()
                 + ";balanceTransactions=" + tenant.getBalanceTransactionsEnabled()

@@ -67,6 +67,20 @@ test('游客与普通购物账号可分享商品，但不会获得邀请资格',
   }
 })
 
+test('邀请关闭时旧分享码不阻断普通微信登录，也不会进入注册请求', async () => {
+  const h = harness({ handle: ({ url }) => url === '/shop/business-config' ? { invitationEnabled: 0 } : undefined })
+  const invite = h.load('utils/invite.js')
+  invite.captureLaunchInvite({ query: { inviteCode: 'ABCD1234' } })
+  const page = h.page(); await page.onLoad(); await settle()
+  assert.equal(page.data.invitationEnabled, false)
+  assert.equal(page.data.inviteExpanded, false)
+  assert.equal(invite.getPendingInvite(), '')
+  page.data.agreed = true
+  await page.phoneLogin(phoneEvent)
+  const login = h.calls.find(({ url }) => url.endsWith('/auth/login'))
+  assert.equal(login.data.inviteCode, undefined)
+})
+
 test('换账号、页面隐藏和后台能力失败均不能复用上一人的邀请码', async () => {
   const h = harness({ token: 'sender' }), share = h.load('utils/share.js'), page = sharePage()
   await share.prepare(page)

@@ -3,13 +3,22 @@ package com.macro.mall.distribution.service;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsAgent;
 import com.macro.mall.distribution.dao.DmsAgentDao;
+import com.macro.mall.distribution.dao.DmsTenantDao;
+import com.macro.mall.distribution.entity.DmsTenant;
+import com.macro.mall.common.tenant.TenantContext;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class WeChatMiniProgramMemberServiceTest {
     private final DmsAgentDao agents = mock(DmsAgentDao.class);
-    private final WeChatMiniProgramMemberService service = new WeChatMiniProgramMemberService(agents);
+    private final DmsTenantDao tenants = mock(DmsTenantDao.class);
+    private final WeChatMiniProgramMemberService service = new WeChatMiniProgramMemberService(agents, tenants);
+    @BeforeEach void activeTenant() {
+        DmsTenant tenant = new DmsTenant(); tenant.setInvitationEnabled(1);
+        when(tenants.selectById(TenantContext.getTenantId())).thenReturn(tenant);
+    }
     private DmsShopMember member() {
         DmsShopMember m = new DmsShopMember(); m.setUserId(100L); m.setStatus(1); m.setSystemAccount(0); return m;
     }
@@ -42,5 +51,14 @@ class WeChatMiniProgramMemberServiceTest {
         var m = member(); when(agents.selectByUserId(100L)).thenReturn(agent(1, 1));
         m.setInviteCode("ABCD1234&other=1");
         assertFalse(service.capabilities(m).canInvite());
+    }
+    @Test void disabledInvitationRemovesShareCodeButPreservesHistoricalMembershipAndWallet() {
+        var m = member(); m.setInviteCode("ABCD1234");
+        when(agents.selectByUserId(100L)).thenReturn(agent(1, 1));
+        DmsTenant tenant = new DmsTenant(); tenant.setInvitationEnabled(0);
+        when(tenants.selectById(TenantContext.getTenantId())).thenReturn(tenant);
+        var result = service.capabilities(m);
+        assertTrue(result.membershipActive()); assertTrue(result.canViewWallet());
+        assertFalse(result.canInvite()); assertNull(result.inviteCode());
     }
 }

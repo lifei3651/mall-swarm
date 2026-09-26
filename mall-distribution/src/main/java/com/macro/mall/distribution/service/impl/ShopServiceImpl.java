@@ -3448,10 +3448,13 @@ public class ShopServiceImpl implements ShopService {
         if (!EffectiveMemberPolicy.isActive(member, selfAgent)) {
             Asserts.fail(EffectiveMemberPolicy.ACCESS_DENIED_MESSAGE);
         }
+        DmsTenant tenant = tenantDao.selectById(TenantContext.getTenantId());
+        boolean invitationEnabled = tenant != null && !Integer.valueOf(0).equals(tenant.getInvitationEnabled());
+        info.put("invitationEnabled", invitationEnabled);
         String publicInviteCode = selfAgent != null && selfAgent.getInviteCode() != null
                 && !selfAgent.getInviteCode().isBlank()
                 ? selfAgent.getInviteCode() : member.getInviteCode();
-        info.put("inviteCode", publicInviteCode);
+        if (invitationEnabled) info.put("inviteCode", publicInviteCode);
         info.put("userId", member.getUserId());
 
         List<DmsShopMember> directAccounts = memberDao.selectByInviterId(member.getUserId());
@@ -3472,6 +3475,12 @@ public class ShopServiceImpl implements ShopService {
     @Override
     public Map<String, Object> getInviterPreview(String inviteCode) {
         Map<String, Object> preview = new java.util.HashMap<>();
+        DmsTenant tenant = tenantDao.selectById(TenantContext.getTenantId());
+        if (tenant == null || Integer.valueOf(0).equals(tenant.getInvitationEnabled())) {
+            preview.put("valid", false);
+            preview.put("message", "当前商城未开启邀请注册");
+            return preview;
+        }
         if (inviteCode == null || inviteCode.isBlank()) {
             preview.put("valid", false);
             preview.put("message", "请输入邀请码");

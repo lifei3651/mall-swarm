@@ -105,6 +105,20 @@ class ShopDirectInviterActivationTest {
     }
 
     @Test
+    void adminCannotCreateNewInviterRelationWhenInvitationIsDisabled() {
+        DmsTenant tenant = new DmsTenant();
+        tenant.setInvitationEnabled(0);
+        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(tenant);
+        AdminMemberCreateDTO dto = new AdminMemberCreateDTO();
+        dto.setPhone("15500000007");
+        dto.setUsername("member_account_7");
+        dto.setInviterUserId(3003L);
+
+        assertThrows(RuntimeException.class, () -> authService.createAdminMember(dto));
+        verify(memberDao, never()).insert(any());
+    }
+
+    @Test
     void passwordLoginAcceptsBothPhoneAndUsername() {
         DmsShopMember member = member(66L, 6600L, null, "登录会员");
         member.setPhone("15500000066");

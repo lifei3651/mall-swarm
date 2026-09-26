@@ -32,6 +32,7 @@
         <result column="after_sale_window_mode" property="afterSaleWindowMode"/>
         <result column="after_sale_window_days" property="afterSaleWindowDays"/>
         <result column="promotion_join_mode" property="promotionJoinMode"/>
+        <result column="invitation_enabled" property="invitationEnabled"/>
         <result column="flash_sale_enabled" property="flashSaleEnabled"/>
         <result column="flash_sale_bonus_mode" property="flashSaleBonusMode"/>
         <result column="repurchase_mall_enabled" property="repurchaseMallEnabled"/>
@@ -53,7 +54,7 @@
                company_address, unified_social_credit_code, service_phone, service_email, service_hours,
                third_party_services, icp_number, police_record_number,
                police_record_url, business_license_url, show_business_license,
-               user_agreement, privacy_policy, after_sale_policy, after_sale_window_mode, after_sale_window_days, promotion_join_mode,
+               user_agreement, privacy_policy, after_sale_policy, after_sale_window_mode, after_sale_window_days, promotion_join_mode, invitation_enabled,
                flash_sale_enabled, flash_sale_bonus_mode, repurchase_mall_enabled, coupon_enabled, balance_transactions_enabled, multi_merchant_enabled, repurchase_eligibility_mode, repurchase_bonus_mode, faqs,
                status, remark, create_time, update_time
         FROM dms_tenant
@@ -66,7 +67,7 @@
                company_address, unified_social_credit_code, service_phone, service_email, service_hours,
                third_party_services, icp_number, police_record_number,
                police_record_url, business_license_url, show_business_license,
-               user_agreement, privacy_policy, after_sale_policy, after_sale_window_mode, after_sale_window_days, promotion_join_mode,
+               user_agreement, privacy_policy, after_sale_policy, after_sale_window_mode, after_sale_window_days, promotion_join_mode, invitation_enabled,
                flash_sale_enabled, flash_sale_bonus_mode, repurchase_mall_enabled, coupon_enabled, balance_transactions_enabled, multi_merchant_enabled, repurchase_eligibility_mode, repurchase_bonus_mode, faqs,
                status, remark, create_time, update_time
         FROM dms_tenant
@@ -80,7 +81,7 @@
                company_address, unified_social_credit_code, service_phone, service_email, service_hours,
                third_party_services, icp_number, police_record_number,
                police_record_url, business_license_url, show_business_license,
-               user_agreement, privacy_policy, after_sale_policy, after_sale_window_mode, after_sale_window_days, promotion_join_mode,
+               user_agreement, privacy_policy, after_sale_policy, after_sale_window_mode, after_sale_window_days, promotion_join_mode, invitation_enabled,
                flash_sale_enabled, flash_sale_bonus_mode, repurchase_mall_enabled, coupon_enabled, balance_transactions_enabled, multi_merchant_enabled, repurchase_eligibility_mode, repurchase_bonus_mode, faqs,
                status, remark, create_time, update_time
         FROM dms_tenant
@@ -93,7 +94,7 @@
                company_address, unified_social_credit_code, service_phone, service_email, service_hours,
                third_party_services, icp_number, police_record_number,
                police_record_url, business_license_url, show_business_license,
-               user_agreement, privacy_policy, after_sale_policy, after_sale_window_mode, after_sale_window_days, promotion_join_mode,
+               user_agreement, privacy_policy, after_sale_policy, after_sale_window_mode, after_sale_window_days, promotion_join_mode, invitation_enabled,
                flash_sale_enabled, flash_sale_bonus_mode, repurchase_mall_enabled, coupon_enabled, balance_transactions_enabled, multi_merchant_enabled, repurchase_eligibility_mode, repurchase_bonus_mode, faqs,
                status, remark, create_time, update_time
         FROM dms_tenant
@@ -106,14 +107,14 @@
             company_address, unified_social_credit_code, service_phone, service_email, service_hours,
             third_party_services, icp_number, police_record_number, police_record_url,
             business_license_url, show_business_license, user_agreement, privacy_policy, after_sale_policy,
-            after_sale_window_mode, after_sale_window_days, promotion_join_mode, flash_sale_enabled, flash_sale_bonus_mode,
+            after_sale_window_mode, after_sale_window_days, promotion_join_mode, invitation_enabled, flash_sale_enabled, flash_sale_bonus_mode,
             repurchase_mall_enabled, balance_transactions_enabled, multi_merchant_enabled, repurchase_eligibility_mode, repurchase_bonus_mode, faqs, status, remark)
         VALUES (#{tenantCode}, #{tenantName}, #{brandName}, #{logoUrl}, #{themeColor}, #{productTemplate},
             #{brandCultureEnabled}, #{brandCultureTitle}, #{brandCultureSubtitle}, #{brandCultureCoverUrl}, #{brandCultureContent},
             #{companyAddress}, #{unifiedSocialCreditCode}, #{servicePhone}, #{serviceEmail}, #{serviceHours},
             #{thirdPartyServices}, #{icpNumber}, #{policeRecordNumber}, #{policeRecordUrl},
             #{businessLicenseUrl}, #{showBusinessLicense}, #{userAgreement}, #{privacyPolicy}, #{afterSalePolicy},
-            #{afterSaleWindowMode}, #{afterSaleWindowDays}, #{promotionJoinMode}, #{flashSaleEnabled}, #{flashSaleBonusMode},
+            #{afterSaleWindowMode}, #{afterSaleWindowDays}, #{promotionJoinMode}, #{invitationEnabled}, #{flashSaleEnabled}, #{flashSaleBonusMode},
             #{repurchaseMallEnabled}, #{balanceTransactionsEnabled}, #{multiMerchantEnabled}, #{repurchaseEligibilityMode}, #{repurchaseBonusMode}, #{faqs}, #{status}, #{remark})
     </insert>
 
@@ -142,6 +143,7 @@
     <update id="updateBusinessModes">
         UPDATE dms_tenant
         SET promotion_join_mode = #{modes.promotionJoinMode},
+            invitation_enabled = #{modes.invitationEnabled},
             flash_sale_enabled = #{modes.flashSaleEnabled},
             flash_sale_bonus_mode = #{modes.flashSaleBonusMode},
             repurchase_mall_enabled = #{modes.repurchaseMallEnabled},

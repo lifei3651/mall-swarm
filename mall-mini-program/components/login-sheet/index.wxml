@@ -48,7 +48,7 @@
           <view class="agreement-copy"><text>我已阅读并同意</text><text class="privacy-link" bindtap="openAgreement" role="link">《用户服务协议》</text><text>和</text><text class="privacy-link" bindtap="openPrivacy" role="link">《隐私政策》</text></view>
         </view>
         <view wx:if="{{agreementRequired && !agreed}}" class="agreement-hint">请先阅读并勾选同意以上协议</view>
-        <view wx:if="{{inviteExpanded}}" class="invite-tip">
+        <view wx:if="{{invitationEnabled && inviteExpanded}}" class="invite-tip">
           <text class="invite-caption">{{inviteFromLink ? '来自分享或扫码的邀请' : '邀请码（选填）'}} · 仅首次注册绑定，已有账号不换上级</text>
           <view wx:if="{{!inviteFromLink}}" class="invite-input-row"><input class="invite-input" value="{{inviteCode}}" maxlength="8" placeholder="输入8位邀请码" bindinput="invitationInput" disabled="{{submitting}}" aria-label="邀请码，选填" /><button class="help-button" bindtap="checkInvitation" disabled="{{submitting || inviteBusy}}">核对</button></view>
           <text wx:if="{{inviteBusy}}" class="invite-caption">正在核对邀请人…</text>
@@ -70,7 +70,7 @@
       <view wx:if="{{!loading}}" class="login-alternatives">
         <button class="help-button" bindtap="openAccountLogin" disabled="{{submitting || authorizingPhone}}">账号登录</button>
         <text class="alternative-divider" aria-hidden="true">·</text>
-        <button class="help-button" bindtap="toggleInvitation" disabled="{{submitting}}">{{inviteExpanded ? '收起邀请码' : '使用邀请码'}}</button>
+        <button wx:if="{{invitationEnabled}}" class="help-button" bindtap="toggleInvitation" disabled="{{submitting}}">{{inviteExpanded ? '收起邀请码' : '使用邀请码'}}</button>
       </view>
     </view>
   </view>

@@ -89,8 +89,11 @@ class ShopWechatRegistrationServiceTest {
     }
 
     private ShopAuthServiceImpl service(DmsShopMemberDao members, DmsShopMemberSessionDao sessions, AgentService agents) {
+        DmsTenantDao tenantDao = mock(DmsTenantDao.class);
+        DmsTenant tenant = new DmsTenant(); tenant.setInvitationEnabled(1);
+        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(tenant);
         return new ShopAuthServiceImpl(members, sessions, agents, mock(LoginCaptchaService.class),
-                mock(SmsVerificationService.class), mock(DmsTenantDao.class), mock(MemberMessageService.class));
+                mock(SmsVerificationService.class), tenantDao, mock(MemberMessageService.class));
     }
 
     @Test
@@ -121,6 +124,7 @@ class ShopWechatRegistrationServiceTest {
         DmsTenant tenant = new DmsTenant();
         tenant.setPromotionJoinMode("DISABLED");
         when(tenantDao.selectById(1L)).thenReturn(tenant);
+        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(tenant);
 
         ShopAuthServiceImpl service = new ShopAuthServiceImpl(memberDao, sessionDao, agentService,
                 captchaService, smsService, tenantDao, mock(MemberMessageService.class));
@@ -139,5 +143,30 @@ class ShopWechatRegistrationServiceTest {
         assertEquals("mini-program", session.getValue().getSurface());
         verifyNoInteractions(smsService, captchaService);
         verify(agentService, never()).register(any());
+    }
+
+    @Test
+    void invitationOffRejectsNewRelationButKeepsOrdinaryRegistrationAvailable() {
+        DmsShopMemberDao members = mock(DmsShopMemberDao.class);
+        DmsShopMemberSessionDao sessions = mock(DmsShopMemberSessionDao.class);
+        AgentService agents = mock(AgentService.class);
+        DmsTenantDao tenants = mock(DmsTenantDao.class);
+        DmsTenant tenant = new DmsTenant(); tenant.setInvitationEnabled(0);
+        when(tenants.selectByIdForUpdate(1L)).thenReturn(tenant);
+        when(tenants.selectById(1L)).thenReturn(tenant);
+        ShopAuthServiceImpl service = new ShopAuthServiceImpl(members, sessions, agents,
+                mock(LoginCaptchaService.class), mock(SmsVerificationService.class), tenants,
+                mock(MemberMessageService.class));
+
+        assertThrows(RuntimeException.class,
+                () -> service.loginOrRegisterWechat("13800138000", "ABCD1234"));
+        verify(members, never()).insert(any());
+        when(members.insert(any())).thenAnswer(invocation -> {
+            ((DmsShopMember) invocation.getArgument(0)).setId(20L); return 1;
+        });
+        assertNotNull(service.loginOrRegisterWechat("13800138000", null).getToken());
+        ArgumentCaptor<DmsShopMember> created = ArgumentCaptor.forClass(DmsShopMember.class);
+        verify(members).insert(created.capture());
+        assertNull(created.getValue().getInviterId());
     }
 }

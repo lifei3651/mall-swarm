@@ -128,6 +128,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         // 团队 H5 必须携带邀请；公开商城普通入口不绑定，扫码邀请入口在本次注册中一次性绑定。
         Long inviterId = null;
         if (requireInvitation) {
+            requireInvitationEnabledForNewRelation();
             if (dto.getInviteCode() == null || dto.getInviteCode().isBlank()) {
                 Asserts.fail("请输入邀请码");
             }
@@ -190,6 +191,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
                 ? username : MemberNicknameUtils.normalize(dto.getNickname());
         DmsShopMember inviter = null;
         if (dto.getInviterUserId() != null) {
+            requireInvitationEnabledForNewRelation();
             inviter = memberDao.selectByUserId(dto.getInviterUserId());
             if (inviter == null) Asserts.fail("邀请会员不存在");
         }
@@ -485,6 +487,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         Long inviterId = null;
         boolean invitedRegistration = inviteCode != null && !inviteCode.isBlank();
         if (invitedRegistration) {
+            requireInvitationEnabledForNewRelation();
             DmsShopMember inviter = resolveActiveInviter(inviteCode);
             inviterId = inviter.getUserId();
         }
@@ -546,6 +549,14 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             Asserts.fail("邀请码无效");
         }
         return inviter;
+    }
+
+    /** 与后台切换共用租户行锁；已成立的邀请关系和老订单不走此门禁。 */
+    private void requireInvitationEnabledForNewRelation() {
+        DmsTenant tenant = tenantDao.selectByIdForUpdate(TenantContext.getTenantId());
+        if (tenant == null || Integer.valueOf(0).equals(tenant.getInvitationEnabled())) {
+            Asserts.fail("当前商城未开启邀请注册，请使用普通注册入口");
+        }
     }
 
     @Override

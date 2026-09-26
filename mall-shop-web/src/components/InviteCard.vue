@@ -3,6 +3,7 @@
     <div v-if="loading" class="invite-card-state">正在生成邀请信息...</div>
 
     <template v-else-if="inviteInfo">
+      <template v-if="inviteInfo.invitationEnabled !== false">
       <div class="invite-qr-shell">
         <img :src="qrCodeUrl" alt="邀请注册二维码" class="invite-qr" />
       </div>
@@ -13,6 +14,8 @@
         <strong>{{ inviteInfo.inviteCode }}</strong>
         <em><Copy :size="15" />复制</em>
       </button>
+      </template>
+      <p v-else class="invite-tip">当前商城已关闭新邀请，历史直属关系仍可查看。</p>
 
       <div class="invite-stats" aria-label="邀请数据">
         <div>
@@ -27,7 +30,7 @@
         </div>
       </div>
 
-      <button type="button" class="invite-share-button" @click="copyLink">
+      <button v-if="inviteInfo.invitationEnabled !== false" type="button" class="invite-share-button" @click="copyLink">
         <Link :size="18" />复制邀请链接
       </button>
     </template>

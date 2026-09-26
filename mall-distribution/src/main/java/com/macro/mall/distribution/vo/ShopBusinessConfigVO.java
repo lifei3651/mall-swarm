@@ -12,6 +12,7 @@ import java.io.Serializable;
 public class ShopBusinessConfigVO implements Serializable {
 
     private Integer flashSaleEnabled;
+    private Integer invitationEnabled;
     private String flashSaleBonusMode;
     private Integer repurchaseMallEnabled;
     private Integer couponEnabled;

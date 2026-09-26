@@ -80,6 +80,7 @@ class TenantBusinessModesSettingsTest {
         assertEquals("STANDARD", result.getRepurchaseBonusMode());
         assertEquals(1, result.getBalanceTransactionsEnabled());
         assertEquals(1, result.getMultiMerchantEnabled());
+        assertEquals(1, result.getInvitationEnabled());
     }
 
     @Test
@@ -107,6 +108,7 @@ class TenantBusinessModesSettingsTest {
         assertEquals(1, update.getValue().getCouponEnabled());
         assertEquals(1, update.getValue().getBalanceTransactionsEnabled());
         assertEquals(1, update.getValue().getMultiMerchantEnabled());
+        assertEquals(1, update.getValue().getInvitationEnabled());
         verify(tenantDao, never()).update(any(DmsTenant.class));
         verify(catalogCache).invalidateAfterCommit(1L);
         verify(operationLogService).log(eq("TENANT_CONFIG"), eq("BUSINESS_MODE_UPDATE"), eq("TENANT"),
@@ -140,6 +142,23 @@ class TenantBusinessModesSettingsTest {
 
         assertThrows(ApiException.class, () -> service.saveBusinessModes(1L, request));
         verify(tenantDao, never()).updateBusinessModes(eq(1L), any(TenantBusinessModesDTO.class));
+    }
+
+    @Test
+    void invitationSwitchRequiresShopPermissionAndKeepsLegacyOmission() {
+        DmsTenant before = tenant(1L, "商城", "NONE");
+        DmsTenant saved = tenant(1L, "商城", "NONE"); saved.setInvitationEnabled(0);
+        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(before);
+        when(tenantDao.selectById(1L)).thenReturn(saved);
+        when(configVersionDao.countByTenantId(1L)).thenReturn(1);
+        when(tenantDao.updateBusinessModes(eq(1L), any(TenantBusinessModesDTO.class))).thenReturn(1);
+        TenantBusinessModesDTO request = modes(); request.setInvitationEnabled(0);
+
+        service.saveBusinessModes(1L, request);
+        verify(adminAuthService).requirePermission(admin, "config:shop");
+        ArgumentCaptor<TenantBusinessModesDTO> update = ArgumentCaptor.forClass(TenantBusinessModesDTO.class);
+        verify(tenantDao).updateBusinessModes(eq(1L), update.capture());
+        assertEquals(0, update.getValue().getInvitationEnabled());
     }
 
     @Test
@@ -210,6 +229,7 @@ class TenantBusinessModesSettingsTest {
         tenant.setTenantName(tenantName);
         tenant.setBrandName("品牌");
         tenant.setPromotionJoinMode("MANUAL_REVIEW");
+        tenant.setInvitationEnabled(1);
         tenant.setFlashSaleEnabled(0);
         tenant.setFlashSaleBonusMode(bonusMode);
         tenant.setRepurchaseMallEnabled(1);

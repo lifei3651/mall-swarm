@@ -41,7 +41,7 @@
           <input id="public-register-password" v-model="registerForm.password" type="password" autocomplete="new-password" minlength="6" maxlength="32" placeholder="请输入6至32位密码" />
           <label for="public-register-confirm">确认登录密码</label>
           <input id="public-register-confirm" v-model="confirmPassword" type="password" autocomplete="new-password" minlength="6" maxlength="32" placeholder="请再次输入登录密码" />
-          <label for="public-register-invite">邀请码 <span class="optional-mark">选填</span></label>
+          <template v-if="invitationEnabled"><label for="public-register-invite">邀请码 <span class="optional-mark">选填</span></label>
           <div class="inline-field invite-field">
             <input
               id="public-register-invite"
@@ -71,6 +71,7 @@
             </div>
             <p v-if="inviteError">{{ inviteError }}</p>
           </section>
+          </template>
           <label for="public-register-sms">短信验证码</label>
           <div class="inline-field">
             <input id="public-register-sms" v-model.trim="registerForm.smsCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="请输入6位验证码" />
@@ -96,7 +97,7 @@
 
         <p v-if="error" class="form-message error" role="alert">{{ error }}</p>
         <p v-if="success" class="form-message success" role="status">{{ success }}</p>
-        <button class="submit-button" type="submit" :disabled="loading || inviterLoading">{{ submitButtonText }}</button>
+        <button class="submit-button" type="submit" :disabled="loading || inviterLoading || (isRegister && !invitationModeLoaded)">{{ submitButtonText }}</button>
       </form>
 
       <footer class="auth-footer">
@@ -110,7 +111,7 @@
 <script setup>
 import { computed, inject, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getInviterPreview, getLoginCaptcha, login, registerPublic, sendLoginSmsCode, sendSmsCode } from '@/api/shop'
+import { getBusinessConfig, getInviterPreview, getLoginCaptcha, login, registerPublic, sendLoginSmsCode, sendSmsCode } from '@/api/shop'
 import { currentBrandLogo, currentBrandName } from '@/utils/brand'
 import { normalizeLoginAccountInput, validateLoginAccount } from '@/utils/loginAccount'
 import { isValidMainlandPhone, normalizeMainlandPhone } from '@/utils/phone'
@@ -133,6 +134,8 @@ const success = ref('')
 const inviterLoading = ref(false)
 const inviterInfo = ref(null)
 const inviteError = ref('')
+const invitationEnabled = ref(true)
+const invitationModeLoaded = ref(false)
 const agreed = ref(false)
 const confirmPassword = ref('')
 const smsCooldown = ref(0)
@@ -149,9 +152,9 @@ const inviteCodeFromUrl = computed(() => {
   const value = route.query.inviteCode || route.query.code
   return typeof value === 'string' ? value.trim().toUpperCase() : ''
 })
-const inviteCodeLocked = computed(() => !!inviteCodeFromUrl.value)
+const inviteCodeLocked = computed(() => invitationEnabled.value && !!inviteCodeFromUrl.value)
 const normalizedInviteCode = computed(() => String(registerForm.inviteCode || '').trim().toUpperCase())
-const hasInviteCode = computed(() => !!normalizedInviteCode.value)
+const hasInviteCode = computed(() => invitationEnabled.value && !!normalizedInviteCode.value)
 const showInviterCard = computed(() => hasInviteCode.value
   && (inviteCodeLocked.value || inviterLoading.value || !!inviterInfo.value || !!inviteError.value))
 const inviteHelpText = computed(() => {
@@ -201,6 +204,7 @@ const resetFeedback = () => {
 }
 
 const loadInviter = async () => {
+  if (!invitationEnabled.value) return true
   const inviteCode = normalizedInviteCode.value
   inviterInfo.value = null
   inviteError.value = ''
@@ -295,6 +299,7 @@ const validate = () => {
 const destination = () => safeShopRedirect(route.query.redirect, '/profile')
 
 const submit = async () => {
+  if (isRegister.value && !invitationModeLoaded.value) return
   if (isRegister.value && hasInviteCode.value && !inviterInfo.value) await loadInviter()
   error.value = validate()
   success.value = ''
@@ -340,11 +345,23 @@ watch(() => route.name, () => {
   refreshCaptcha()
 })
 watch(inviteCodeFromUrl, async (inviteCode) => {
+  if (!invitationEnabled.value) return
   registerForm.inviteCode = inviteCode
   handleInviteCodeInput()
   if (inviteCode) await loadInviter()
 }, { immediate: true })
-onMounted(refreshCaptcha)
+onMounted(() => {
+  refreshCaptcha()
+  getBusinessConfig().then(res => {
+    if (Number(res.data?.invitationEnabled) === 0) {
+      invitationEnabled.value = false
+      registerForm.inviteCode = ''
+      inviteRequestSequence += 1
+      inviterInfo.value = null
+      inviteError.value = ''
+    }
+  }).catch(() => {}).finally(() => { invitationModeLoaded.value = true })
+})
 onBeforeUnmount(() => window.clearInterval(cooldownTimer))
 </script>
 

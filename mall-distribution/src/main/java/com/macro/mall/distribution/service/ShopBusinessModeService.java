@@ -25,6 +25,7 @@ public class ShopBusinessModeService {
         boolean eligible = isRepurchaseEligible(tenant, member);
         return new ShopBusinessConfigVO(
                 enabled(tenant == null ? null : tenant.getFlashSaleEnabled()) ? 1 : 0,
+                tenant == null || Integer.valueOf(0).equals(tenant.getInvitationEnabled()) ? 0 : 1,
                 mode(tenant == null ? null : tenant.getFlashSaleBonusMode(), "NONE"),
                 enabled(tenant == null ? null : tenant.getRepurchaseMallEnabled()) ? 1 : 0,
                 enabled(tenant == null ? null : tenant.getCouponEnabled()) ? 1 : 0,
