@@ -9,6 +9,10 @@ export function listStorefrontFlashSales() {
   return request({ url: '/shop/flash-sales', method: 'get' })
 }
 
+export function getStorefrontBusinessConfig() {
+  return request({ url: '/shop/business-config', method: 'get' })
+}
+
 export function listShopProducts(params) {
   return request({
     url: '/shop/admin/products',

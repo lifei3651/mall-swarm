@@ -3,6 +3,7 @@ package com.macro.mall.distribution.service;
 import com.macro.mall.distribution.dao.DmsFlashSaleActivityDao;
 import com.macro.mall.distribution.dao.DmsFlashSaleReservationDao;
 import com.macro.mall.distribution.dao.DmsShopAfterSaleDao;
+import com.macro.mall.distribution.dto.FlashSaleActivitySaveDTO;
 import com.macro.mall.distribution.entity.DmsFlashSaleActivity;
 import com.macro.mall.distribution.entity.DmsFlashSaleReservation;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,24 @@ class FlashSaleFoundationTest {
     @Autowired private DmsFlashSaleReservationDao reservationDao;
     @Autowired private DmsShopAfterSaleDao afterSaleDao;
     @Autowired private ShopAfterSaleService shopAfterSaleService;
+    @Autowired private FlashSaleService flashSaleService;
+
+    @Test
+    void closedFlashSaleModuleCannotCreateOrReactivateButCanStopHistoricalActivity() {
+        jdbcTemplate.update("""
+                INSERT INTO dms_flash_sale_activity
+                (id,tenant_id,activity_name,product_id,flash_price,flash_pv,total_stock,available_stock,
+                 per_user_limit,start_time,end_time,status,version)
+                VALUES (990020,1,'关闭态旧活动',1,1,0,1,1,1,?,?,1,0)
+                """, LocalDateTime.now().minusMinutes(1), LocalDateTime.now().plusMinutes(10));
+        jdbcTemplate.update("UPDATE dms_tenant SET flash_sale_enabled=0 WHERE id=1");
+
+        assertThrows(RuntimeException.class, () -> flashSaleService.save(null, new FlashSaleActivitySaveDTO()));
+        assertThrows(RuntimeException.class, () -> flashSaleService.updateStatus(990020L, 1));
+        assertEquals(1, activityDao.selectById(990020L).getStatus());
+        assertEquals(true, flashSaleService.updateStatus(990020L, 2));
+        assertEquals(2, activityDao.selectById(990020L).getStatus());
+    }
 
     @Test
     void databaseAtomicGuardNeverOversellsActivityStock() {
@@ -114,6 +133,9 @@ class FlashSaleFoundationTest {
                 (id,tenant_id,activity_id,user_id,order_id,order_no,quantity,released_quantity,status)
                 VALUES (990010,1,990010,990010,990010,'FLASH-CANCEL-ORDER',1,0,'PAID')
                 """);
+
+        // 模块停止新交易后，旧订单的取消/退款与资格库存回补仍必须完成。
+        jdbcTemplate.update("UPDATE dms_tenant SET flash_sale_enabled=0 WHERE id=1");
 
         shopAfterSaleService.cancelPendingShipment(990010L, 1L, "测试财务");
 

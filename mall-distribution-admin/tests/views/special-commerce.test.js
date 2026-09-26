@@ -34,5 +34,8 @@ describe('团队、秒杀与复购后台配置', () => {
     expect(source).toContain('Redis原子抢占')
     expect(source).toContain('form.totalStock')
     expect(source).toContain('form.perUserLimit')
+    expect(source).toContain('getStorefrontBusinessConfig')
+    expect(source).toContain('!modeLoaded || !flashSaleEnabled')
+    expect(source).toContain('秒杀模块已关闭')
   })
 })

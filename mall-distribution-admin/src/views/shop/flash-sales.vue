@@ -1,6 +1,8 @@
 <template>
   <div class="page-container flash-admin-page">
-    <div class="heading"><div><h2>秒杀活动</h2><p>活动库存是抢购资格库存，成交时仍会二次扣减商品实物库存，避免超卖。</p></div><el-button type="primary" @click="open()">新建活动</el-button></div>
+    <div class="heading"><div><h2>秒杀活动</h2><p>活动库存是抢购资格库存，成交时仍会二次扣减商品实物库存，避免超卖。</p></div><el-button type="primary" :disabled="!modeLoaded || !flashSaleEnabled" @click="open()">新建活动</el-button></div>
+    <el-alert v-if="modeError" :title="modeError" type="error" :closable="false" show-icon><el-button link @click="loadMode">重试读取模块状态</el-button></el-alert>
+    <el-alert v-else-if="modeLoaded && !flashSaleEnabled" title="秒杀模块已关闭；可查看历史活动并停用旧活动，不能新建或重新启用。" type="info" :closable="false" show-icon />
     <el-alert title="高并发保护已开启：同一会员防重复、入口限流、Redis原子抢占、数据库原子扣减。待付款订单取消或超时后会自动释放活动库存和商品库存。" type="success" :closable="false" show-icon />
     <el-table :data="rows" v-loading="loading" stripe>
       <el-table-column label="活动/商品" min-width="270"><template #default="{row}"><strong>{{row.activity.activityName}}</strong><div class="sub">{{row.product?.productName}}<template v-if="row.sku"> · {{row.sku.skuName}}</template></div></template></el-table-column>
@@ -9,7 +11,7 @@
       <el-table-column label="每人限购" width="100"><template #default="{row}">{{row.activity.perUserLimit}} 件</template></el-table-column>
       <el-table-column label="活动时间" min-width="260"><template #default="{row}">{{formatTime(row.activity.startTime)}}<br/>至 {{formatTime(row.activity.endTime)}}</template></el-table-column>
       <el-table-column label="状态" width="105"><template #default="{row}"><el-tag :type="stateType(row.activityState)">{{stateLabel(row.activityState)}}</el-tag></template></el-table-column>
-      <el-table-column label="操作" width="190" fixed="right"><template #default="{row}"><el-button link type="primary" :disabled="row.activity.availableStock!==row.activity.totalStock" @click="open(row)">编辑</el-button><el-button link :type="row.activity.status===1?'warning':'success'" @click="toggle(row)">{{row.activity.status===1?'停用':'启用'}}</el-button></template></el-table-column>
+      <el-table-column label="操作" width="190" fixed="right"><template #default="{row}"><el-button link type="primary" :disabled="!flashSaleEnabled || row.activity.availableStock!==row.activity.totalStock" @click="open(row)">编辑</el-button><el-button link :type="row.activity.status===1?'warning':'success'" :disabled="row.activity.status!==1 && (!modeLoaded || !flashSaleEnabled)" @click="toggle(row)">{{row.activity.status===1?'停用':'启用'}}</el-button></template></el-table-column>
     </el-table>
     <el-dialog v-model="visible" :title="form.id?'编辑秒杀活动':'新建秒杀活动'" width="720px" destroy-on-close>
       <el-form :model="form" label-width="110px">
@@ -28,16 +30,18 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { listFlashSales, listShopProducts, listShopSkus, saveFlashSale, updateFlashSaleStatus } from '@/api/shop'
+import { listFlashSales, listShopProducts, listShopSkus, saveFlashSale, updateFlashSaleStatus, getStorefrontBusinessConfig } from '@/api/shop'
 const loading=ref(false);const saving=ref(false);const rows=ref([]);const products=ref([]);const skus=ref([]);const visible=ref(false);const timeRange=ref([])
+const modeLoaded=ref(false);const modeError=ref('');const flashSaleEnabled=ref(false)
 const defaults=()=>({id:null,activityName:'',productId:null,skuId:null,flashPrice:0.01,flashPv:0,totalStock:1,perUserLimit:1,status:0})
 const form=ref(defaults());const formatTime=v=>v?String(v).replace('T',' ').slice(0,16):'-';const stateLabel=s=>({UPCOMING:'未开始',ACTIVE:'进行中',SOLD_OUT:'已抢完',ENDED:'已结束',DISABLED:'未启用'}[s]||s);const stateType=s=>({ACTIVE:'success',UPCOMING:'primary',SOLD_OUT:'danger',ENDED:'info',DISABLED:'warning'}[s]||'info')
 const load=async()=>{loading.value=true;try{const [a,p]=await Promise.all([listFlashSales(),listShopProducts({status:1,pageNum:1,pageSize:100})]);rows.value=a.data||[];products.value=p.data?.list||[]}finally{loading.value=false}}
+const loadMode=async()=>{modeLoaded.value=false;modeError.value='';flashSaleEnabled.value=false;try{const r=await getStorefrontBusinessConfig();flashSaleEnabled.value=Number(r.data?.flashSaleEnabled)===1;modeLoaded.value=true}catch(e){modeError.value=e.message||'秒杀模块状态读取失败'}}
 const productChanged=async id=>{form.value.skuId=null;skus.value=[];if(id){const res=await listShopSkus(id,{status:1});skus.value=res.data||[]}}
-const open=async row=>{form.value=row?{...row.activity}:defaults();timeRange.value=row?[row.activity.startTime,row.activity.endTime]:[];await productChanged(form.value.productId);if(row)form.value.skuId=row.activity.skuId;visible.value=true}
-const submit=async()=>{if(!form.value.activityName.trim()||!form.value.productId||timeRange.value.length!==2)return ElMessage.warning('请完整填写活动名称、商品和活动时间');saving.value=true;try{await saveFlashSale(form.value.id,{...form.value,startTime:timeRange.value[0],endTime:timeRange.value[1]});ElMessage.success('秒杀活动已保存');visible.value=false;await load()}finally{saving.value=false}}
-const toggle=async row=>{await updateFlashSaleStatus(row.activity.id,row.activity.status===1?2:1);ElMessage.success('活动状态已更新');await load()}
-onMounted(load)
+const open=async row=>{if(!modeLoaded.value||!flashSaleEnabled.value)return;form.value=row?{...row.activity}:defaults();timeRange.value=row?[row.activity.startTime,row.activity.endTime]:[];await productChanged(form.value.productId);if(row)form.value.skuId=row.activity.skuId;visible.value=true}
+const submit=async()=>{if(!modeLoaded.value||!flashSaleEnabled.value)return;if(!form.value.activityName.trim()||!form.value.productId||timeRange.value.length!==2)return ElMessage.warning('请完整填写活动名称、商品和活动时间');saving.value=true;try{await saveFlashSale(form.value.id,{...form.value,startTime:timeRange.value[0],endTime:timeRange.value[1]});ElMessage.success('秒杀活动已保存');visible.value=false;await load()}finally{saving.value=false}}
+const toggle=async row=>{if(row.activity.status!==1&&(!modeLoaded.value||!flashSaleEnabled.value))return;await updateFlashSaleStatus(row.activity.id,row.activity.status===1?2:1);ElMessage.success('活动状态已更新');await load()}
+onMounted(()=>{load();loadMode()})
 </script>
 <style scoped>
 .heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.heading h2{margin:0;font-size:22px}.heading p,.sub,.help{margin:6px 0;color:#909399;font-size:12px}.el-alert{margin-bottom:16px}.help{width:100%}
