@@ -3,10 +3,10 @@
 <mapper namespace="com.macro.mall.distribution.dao.DmsErpSyncTaskDao">
   <resultMap id="base" type="com.macro.mall.distribution.entity.DmsErpSyncTask"><id column="id" property="id"/><result column="task_no" property="taskNo"/><result column="integration_id" property="integrationId"/><result column="tenant_id" property="tenantId"/><result column="provider_code" property="providerCode"/><result column="biz_type" property="bizType"/><result column="biz_id" property="bizId"/><result column="status" property="status"/><result column="retry_count" property="retryCount"/><result column="next_retry_time" property="nextRetryTime"/><result column="request_summary" property="requestSummary"/><result column="response_summary" property="responseSummary"/><result column="last_error" property="lastError"/><result column="create_time" property="createTime"/><result column="update_time" property="updateTime"/></resultMap>
   <sql id="columns">id,task_no,integration_id,tenant_id,provider_code,biz_type,biz_id,status,retry_count,next_retry_time,request_summary,response_summary,last_error,create_time,update_time</sql>
-  <select id="selectById" resultMap="base">SELECT <include refid="columns"/> FROM dms_erp_sync_task WHERE id=#{id}</select>
+  <select id="selectById" resultMap="base">SELECT <include refid="columns"/> FROM dms_erp_sync_task WHERE tenant_id=#{tenantId} AND id=#{id}</select>
   <select id="selectByUnique" resultMap="base">SELECT <include refid="columns"/> FROM dms_erp_sync_task WHERE integration_id=#{integrationId} AND biz_type=#{bizType} AND biz_id=#{bizId}</select>
   <select id="selectList" resultMap="base">
-    SELECT <include refid="columns"/> FROM dms_erp_sync_task WHERE 1=1
+    SELECT <include refid="columns"/> FROM dms_erp_sync_task WHERE tenant_id=#{tenantId}
     <if test="integrationId != null"> AND integration_id=#{integrationId}</if>
     <if test="status != null"> AND status=#{status}</if>
     ORDER BY id DESC

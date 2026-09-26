@@ -26,6 +26,7 @@ import com.macro.mall.distribution.vo.PersonProfileVO;
 import com.macro.mall.distribution.vo.AgentInfoVO;
 import com.macro.mall.distribution.vo.CommissionRecordVO;
 import com.macro.mall.distribution.vo.OrderAuditVO;
+import com.macro.mall.distribution.vo.OrderFinanceVO;
 import com.macro.mall.distribution.vo.ShopOrderIncomeVO;
 import com.macro.mall.distribution.vo.ShopOrderVO;
 import lombok.extern.slf4j.Slf4j;
@@ -166,6 +167,47 @@ public class PerformanceServiceTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Test
+    void unpaidAndCancelledOrderFinanceKeepsAmountDueButNoActualPaymentOrProfit() {
+        DmsShopMember member = createShopMember("13999000981", "未支付财务口径会员", null);
+        ShopOrderItemDTO item = new ShopOrderItemDTO();
+        item.setProductId(1L);
+        item.setSkuId(1L);
+        item.setQuantity(1);
+        ShopOrderSubmitDTO submit = new ShopOrderSubmitDTO();
+        submit.setReceiverName(member.getNickname());
+        submit.setReceiverPhone(member.getPhone());
+        submit.setReceiverAddress("湖南省长沙市待支付财务口径测试地址");
+        submit.setPayType("ALIPAY");
+        submit.setItems(List.of(item));
+
+        ShopOrderVO created = shopService.submitOrder(submit, member);
+        Long orderId = created.getOrder().getId();
+        assertEquals(0, created.getOrder().getStatus());
+        assertNull(created.getOrder().getPayTime(), "支付渠道尚未确认时不能计为实收");
+        assertTrue(created.getOrder().getPayAmount().signum() > 0);
+        OrderFinanceVO pending = auditService.getOrderFinanceDetail(orderId).getFinance();
+        assertEquals(0, pending.getPayAmount().compareTo(created.getOrder().getPayAmount()),
+                "原始应付金额仍应保留为可追溯的下单快照");
+        assertAmountEquals("0.00", created.getFinance().getNetPayAmount());
+        assertAmountEquals("0.00", created.getFinance().getCompanyProfit());
+        assertAmountEquals("0.00", pending.getNetPayAmount());
+        assertAmountEquals("0.00", pending.getCompanyProfit());
+        assertAmountEquals("0.00", orderFinanceDao.selectByOrderId(orderId).getNetPayAmount());
+        assertAmountEquals("0.00", orderFinanceDao.selectByOrderId(orderId).getCompanyProfit());
+
+        // A failed/abandoned payment remains unpaid; closing it must not turn the
+        // frozen amount due into actual receipts merely because status becomes 4.
+        assertTrue(shopService.cancelOrder(orderId, member));
+        DmsShopOrder cancelled = shopOrderDao.selectById(orderId);
+        assertEquals(4, cancelled.getStatus());
+        assertNull(cancelled.getPayTime());
+        OrderFinanceVO closedUnpaid = auditService.getOrderFinanceDetail(orderId).getFinance();
+        assertEquals(0, closedUnpaid.getPayAmount().compareTo(created.getOrder().getPayAmount()));
+        assertAmountEquals("0.00", closedUnpaid.getNetPayAmount());
+        assertAmountEquals("0.00", closedUnpaid.getCompanyProfit());
+    }
 
     @Test
     void testAuditOnlyShowsActivePaidOrdersAndLabelsProfitStage() {
@@ -1516,6 +1558,9 @@ public class PerformanceServiceTest {
         int unrelatedLevelBeforeRefund = agentDao.selectById(4L).getAgentLevel();
         ShopOrderVO paid = shopService.markOrderPaid(created.getOrder().getId(), "ALIPAY");
         assertEquals(1, paid.getOrder().getStatus());
+        BigDecimal frozenCost = auditService.getOrderFinanceDetail(created.getOrder().getId())
+                .getFinance().getProductCost();
+        assertTrue(frozenCost.signum() > 0);
 
         DmsAgent activated = agentDao.selectByUserId(member.getUserId());
         assertNotNull(activated);
@@ -1539,6 +1584,11 @@ public class PerformanceServiceTest {
 
         assertEquals(afterSale.getAfterSaleNo(),
                 auditService.getRefundsByOrderId(created.getOrder().getId()).get(0).getRefundNo());
+        OrderFinanceVO refundedFinance = auditService.getOrderFinanceDetail(created.getOrder().getId()).getFinance();
+        assertAmountEquals("0.00", refundedFinance.getNetPayAmount());
+        assertAmountEquals("0.00", refundedFinance.getCompanyProfit());
+        assertEquals(0, frozenCost.compareTo(refundedFinance.getProductCost()),
+                "原始商品成本必须留作下单快照，退款仅冲减净成本与利润");
 
         assertEquals(4, shopOrderDao.selectById(created.getOrder().getId()).getStatus());
         assertEquals(0, performanceDetailDao.sumEffectiveTeamUnits(activated.getId()));
@@ -1628,6 +1678,16 @@ public class PerformanceServiceTest {
         assertEquals(7, accountDao.selectByAgentId(agent.getId()).getTotalOrders());
         assertEquals(3, auditService.getRefundsByOrderId(paid.getOrder().getId()).get(0).getRefundQuantity());
         assertAmountEquals("0.00", auditService.getRefundsByOrderId(paid.getOrder().getId()).get(0).getFreightRefundAmount());
+        OrderFinanceVO partialFinance = auditService.getOrderFinanceDetail(paid.getOrder().getId()).getFinance();
+        BigDecimal remainingCost = partialFinance.getProductCost()
+                .subtract(paid.getOrder().getTotalCost().multiply(BigDecimal.valueOf(3))
+                        .divide(BigDecimal.TEN, 2, java.math.RoundingMode.HALF_UP));
+        assertEquals(0, partialFinance.getNetPayAmount()
+                .subtract(remainingCost)
+                .subtract(partialFinance.getBonusAmount())
+                .subtract(partialFinance.getCompanyShareAmount())
+                .compareTo(partialFinance.getCompanyProfit()),
+                "部分退款利润应仅承担未退商品的冻结成本，运费不参与商品成本冲销");
         DmsCommissionRecord direct = commissionRecordDao.selectByOrderId(paid.getOrder().getId()).stream()
                 .filter(item -> "DIRECT_REWARD".equals(item.getBonusType())).findFirst().orElseThrow();
         assertAmountEquals("523.25", direct.getCommissionAmount());

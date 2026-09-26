@@ -9,9 +9,10 @@ import java.util.List;
 
 @Mapper
 public interface DmsErpSyncTaskDao {
-    DmsErpSyncTask selectById(@Param("id") Long id);
+    DmsErpSyncTask selectById(@Param("tenantId") Long tenantId, @Param("id") Long id);
     DmsErpSyncTask selectByUnique(@Param("integrationId") Long integrationId, @Param("bizType") String bizType, @Param("bizId") String bizId);
-    List<DmsErpSyncTask> selectList(@Param("integrationId") Long integrationId, @Param("status") Integer status);
+    List<DmsErpSyncTask> selectList(@Param("tenantId") Long tenantId,
+                                    @Param("integrationId") Long integrationId, @Param("status") Integer status);
     List<DmsErpSyncTask> selectRetryable(@Param("now") LocalDateTime now,
                                          @Param("limit") Integer limit,
                                          @Param("maxRetryCount") Integer maxRetryCount);

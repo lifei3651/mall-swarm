@@ -126,7 +126,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/store'
 import { getAdminOrderWorkSummary } from '@/api/shop'
-import { applyMerchantWithdrawal, cancelMerchantWithdrawal, completeMerchantWithdrawal, failMerchantWithdrawalPayment, freezeMerchantDeposit, freezeMerchantWithdrawal, listMerchantAccounts, listMerchantDepositFlows, listMerchantLedger, listMerchantReconciliation, listMerchantSettlements, listMerchants, listMerchantWithdrawalEvents, listMerchantWithdrawals, payMerchantWithdrawal, receiveMerchantDeposit, rejectMerchantWithdrawal, releaseMerchantDeposit, resumeMerchantWithdrawal, reviewMerchantWithdrawal, startMerchantWithdrawalPayment } from '@/api/merchant'
+import { applyMerchantWithdrawal, cancelMerchantWithdrawal, completeMerchantWithdrawal, failMerchantWithdrawalPayment, freezeMerchantDeposit, freezeMerchantWithdrawal, listMerchantAccounts, listMerchantDepositFlows, listMerchantLedger, listMerchantReconciliation, listMerchantSettlements, listMerchantWithdrawalEvents, listMerchantWithdrawals, payMerchantWithdrawal, receiveMerchantDeposit, rejectMerchantWithdrawal, releaseMerchantDeposit, resumeMerchantWithdrawal, reviewMerchantWithdrawal, startMerchantWithdrawalPayment } from '@/api/merchant'
 
 const store = useAppStore()
 const route = useRoute()
@@ -232,8 +232,11 @@ const completeWithdrawalRecord = async (row) => runAction(`complete-${row.id}`, 
 const showEvents = async (row) => { withdrawalEvents.value = (await listMerchantWithdrawalEvents(row.id)).data || []; eventsVisible.value = true }
 
 onMounted(async () => {
-  if (!isMerchantUser.value) merchants.value = (await listMerchants()).data || []
   await loadCurrent()
+  if (!isMerchantUser.value) {
+    if (tab.value !== 'accounts') accounts.value = (await listMerchantAccounts()).data || []
+    merchants.value = accounts.value.map((item) => ({ id: item.merchantId, merchantName: item.merchantName }))
+  }
   if (isMerchantUser.value && store.hasPermission('shop:order')) {
     try {
       const res = await getAdminOrderWorkSummary()

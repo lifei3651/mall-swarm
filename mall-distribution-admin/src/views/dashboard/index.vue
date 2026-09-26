@@ -246,7 +246,7 @@ const coreMetrics = computed(() => [
   { title: '累计销售额', value: `¥${money(dashboard.value.totalSalesAmount)}`, caption: '历史有效成交', state: 'neutral', tone: 'blue', icon: Coin },
   { title: '本月销售额', value: `¥${money(dashboard.value.monthSalesAmount)}`, caption: '本自然月累计', state: 'positive', tone: 'violet', icon: Wallet },
   { title: '今日销售额', value: `¥${money(dashboard.value.todaySalesAmount)}`, caption: todayComparison.value.text, state: todayComparison.value.state, tone: 'cyan', icon: Histogram },
-  { title: '累计利润', value: `¥${money(dashboard.value.totalProfitAmount)}`, caption: `利润率 ${percent(dashboard.value.profitRate)}`, state: Number(dashboard.value.totalProfitAmount || 0) < 0 ? 'negative' : 'neutral', tone: 'amber', icon: Money },
+  { title: '账面利润（含预计）', value: `¥${money(dashboard.value.totalProfitAmount)}`, caption: `利润率 ${percent(dashboard.value.profitRate)}`, state: Number(dashboard.value.totalProfitAmount || 0) < 0 ? 'negative' : 'neutral', tone: 'amber', icon: Money },
 ])
 
 const taskItems = computed(() => [

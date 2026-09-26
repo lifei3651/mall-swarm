@@ -131,7 +131,7 @@ import {
 import { getMe, logout as logoutApi } from '@/api/auth'
 import { getAdminOrderWorkSummary } from '@/api/shop'
 import { listMerchantProductReviews } from '@/api/shop'
-import { listMerchants, listMerchantWithdrawals } from '@/api/merchant'
+import { getCurrentMerchantProfile, listMerchants, listMerchantWithdrawals } from '@/api/merchant'
 import { connectAdminOrderRealtime } from '@/utils/orderRealtime'
 import { getShopBrand } from '@/api/shopBrand'
 import { useAppStore } from '@/store'
@@ -171,7 +171,7 @@ const todoSummary = reactive({ pendingShipment: 0, afterSale: 0, merchantCertifi
 const todoItems = computed(() => [
   orderAdminAccess.value.canViewOrders && { key: 'pendingShipment', title: '待发货订单', count: todoSummary.pendingShipment, path: '/shop/orders?orderState=PENDING_SHIPMENT' },
   orderAdminAccess.value.canHandleAfterSale && { key: 'afterSale', title: '待处理售后', count: todoSummary.afterSale, path: '/shop/orders?orderState=AFTER_SALE' },
-  store.userInfo?.merchantId && { key: 'merchantCertification', title: '入驻资料待完善', count: todoSummary.merchantCertification, path: '/merchant/profile' },
+  store.userInfo?.merchantId && store.hasPermission('merchant:staff-manage') && { key: 'merchantCertification', title: '入驻资料待完善', count: todoSummary.merchantCertification, path: '/merchant/profile' },
   !store.userInfo?.merchantId && store.hasPermission('system:manage') && store.hasPermission('shop:product') && { key: 'merchantCertification', title: '待认证商户', count: todoSummary.merchantCertification, path: '/shop/merchants' },
   store.hasPermission('shop:product-review') && { key: 'productReview', title: '待审核商户商品', count: todoSummary.productReview, path: '/shop/merchant-product-reviews' },
   store.hasPermission('finance:read') && { key: 'finance', title: store.userInfo?.merchantId ? '提现与发票待跟进' : '商户财务待处理', count: todoSummary.finance, path: '/audit/merchant-finance?tab=withdrawals' },
@@ -214,7 +214,7 @@ const businessMenus = [
   { key: 'dashboard', title: '工作台', icon: 'Monitor', path: '/dashboard' },
   {
     key: 'merchant-onboarding', title: '入驻与认证', icon: 'OfficeBuilding', items: [
-      { title: '经营与结算资料', path: '/merchant/profile', merchantOnly: true },
+      { title: '经营与结算资料', path: '/merchant/profile', permission: 'merchant:staff-manage', merchantOnly: true },
       { title: '子账号与权限', path: '/merchant/staff', permission: 'merchant:staff-manage', merchantOnly: true },
     ],
   },
@@ -373,12 +373,14 @@ const loadOrderWorkSummary = async () => {
 const loadOperationalTodos = async () => {
   if (!store.token) return
   const jobs = []
-  if (store.hasPermission('shop:product')) {
+  if (store.userInfo?.merchantId && store.hasPermission('merchant:staff-manage')) {
+    jobs.push(getCurrentMerchantProfile().then((res) => {
+      updateTodoValues({ merchantCertification: res.data?.auditStatus === 'APPROVED' ? 0 : 1 })
+    }))
+  } else if (!store.userInfo?.merchantId && store.hasPermission('system:manage')) {
     jobs.push(listMerchants().then((res) => {
       const rows = res.data || []
-      updateTodoValues({ merchantCertification: store.userInfo?.merchantId
-        ? (rows.some((item) => item.auditStatus !== 'APPROVED') ? 1 : 0)
-        : rows.filter((item) => item.auditStatus === 'PENDING').length })
+      updateTodoValues({ merchantCertification: rows.filter((item) => item.auditStatus === 'PENDING').length })
     }))
   }
   if (store.hasPermission('shop:product-review')) {

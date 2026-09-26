@@ -68,7 +68,7 @@ const routes = [
         path: 'merchant/profile',
         name: 'MerchantProfile',
         component: () => import('@/views/merchant/profile.vue'),
-        meta: { title: '入驻资料与认证', icon: 'OfficeBuilding', merchantOnly: true },
+        meta: { title: '入驻资料与认证', icon: 'OfficeBuilding', merchantOnly: true, permission: 'merchant:staff-manage' },
       },
       {
         path: 'merchant/staff',

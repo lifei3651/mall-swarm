@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Param;
 import java.util.List;
 import com.macro.mall.distribution.dto.MerchantControlDTO;
 import com.macro.mall.distribution.vo.MerchantExitReadinessVO;
+import com.macro.mall.distribution.vo.MerchantOptionVO;
 
 @Mapper
 public interface DmsMerchantDao {
@@ -15,6 +16,9 @@ public interface DmsMerchantDao {
     Integer selectDefaultSettlementDays(@Param("id") Long id);
     List<DmsMerchant> selectList(@Param("tenantId") Long tenantId, @Param("keyword") String keyword,
                                  @Param("status") Integer status);
+    List<MerchantOptionVO> selectOptions(@Param("tenantId") Long tenantId,
+                                         @Param("merchantId") Long merchantId,
+                                         @Param("status") Integer status);
     int insert(DmsMerchant merchant);
     int update(DmsMerchant merchant);
     int submitProfile(@Param("merchant") DmsMerchant merchant);

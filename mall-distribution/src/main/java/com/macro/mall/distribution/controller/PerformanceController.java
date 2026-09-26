@@ -2,6 +2,10 @@ package com.macro.mall.distribution.controller;
 
 import com.macro.mall.common.api.CommonPage;
 import com.macro.mall.common.api.CommonResult;
+import com.macro.mall.common.exception.Asserts;
+import com.macro.mall.common.tenant.TenantContext;
+import com.macro.mall.distribution.dao.DmsTenantDao;
+import com.macro.mall.distribution.entity.DmsTenant;
 import com.macro.mall.distribution.service.PerformanceService;
 import com.macro.mall.distribution.config.DistributedScheduledTaskRunner;
 import com.macro.mall.distribution.vo.OrderPerformanceDetailVO;
@@ -32,6 +36,20 @@ public class PerformanceController {
 
     private final PerformanceService performanceService;
     private final DistributedScheduledTaskRunner scheduledTaskRunner;
+    private final DmsTenantDao tenantDao;
+
+    /**
+     * 代理、招募关系与历史业绩尚无可靠的客户归属。只要共库存有多个客户，
+     * 包括已停用但仍留有历史数据的客户，就不能安全地展示全局业绩视图。
+     */
+    private void requireIsolatedPerformanceView() {
+        List<DmsTenant> tenants = tenantDao.selectAll();
+        if (tenants == null || tenants.size() != 1 || tenants.get(0) == null
+                || tenants.get(0).getId() == null
+                || !tenants.get(0).getId().equals(TenantContext.getTenantId())) {
+            Asserts.fail("多客户模式下业绩视图待完成客户隔离");
+        }
+    }
 
     @Operation(summary = "记录订单业绩")
     @PostMapping("/record")
@@ -51,6 +69,7 @@ public class PerformanceController {
             @PathVariable String agentKey,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate) {
+        requireIsolatedPerformanceView();
         Long agentId = performanceService.resolveAgentId(agentKey);
         PerformanceOverviewVO overview = performanceService.getPerformanceOverview(agentId, startDate, endDate);
         return CommonResult.success(overview);
@@ -62,6 +81,7 @@ public class PerformanceController {
             @PathVariable String agentKey,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate) {
+        requireIsolatedPerformanceView();
         Long agentId = performanceService.resolveAgentId(agentKey);
         List<SubordinateContributionVO> contributions = performanceService.getSubordinateContributions(agentId, startDate, endDate);
         return CommonResult.success(CommonPage.restPage(contributions));
@@ -74,6 +94,7 @@ public class PerformanceController {
             @PathVariable Long subordinateAgentId,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate) {
+        requireIsolatedPerformanceView();
         Long agentId = performanceService.resolveAgentId(agentKey);
         List<OrderPerformanceDetailVO> details = performanceService.getSubordinateOrderDetails(
                 agentId, subordinateAgentId, startDate, endDate);
@@ -86,6 +107,7 @@ public class PerformanceController {
             @PathVariable String agentKey,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate) {
+        requireIsolatedPerformanceView();
         Long agentId = performanceService.resolveAgentId(agentKey);
         List<OrderPerformanceDetailVO> details = performanceService.getPerformanceSourceDetails(agentId, startDate, endDate);
         return CommonResult.success(CommonPage.restPage(details));
@@ -99,6 +121,7 @@ public class PerformanceController {
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate statDate,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "20") Integer pageSize) {
+        requireIsolatedPerformanceView();
         int safePageNum = pageNum == null || pageNum < 1 ? 1 : pageNum;
         int safePageSize = pageSize == null || pageSize < 1 ? 20 : Math.min(pageSize, 100);
         PageHelper.startPage(safePageNum, safePageSize);

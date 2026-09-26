@@ -6,7 +6,9 @@ import com.macro.mall.distribution.dao.DmsTenantDisplayConfigDao;
 import com.macro.mall.distribution.entity.DmsLiveRoom;
 import com.macro.mall.distribution.entity.DmsTenantDisplayConfig;
 import com.macro.mall.distribution.entity.DmsTenant;
+import com.macro.mall.distribution.entity.DmsMerchant;
 import com.macro.mall.distribution.entity.DmsShopMember;
+import com.macro.mall.distribution.dto.LiveEngagementDTO;
 import com.macro.mall.distribution.dto.ProductNewArrivalDTO;
 import com.macro.mall.distribution.service.impl.TenantDisplayConfigSupport;
 import com.macro.mall.distribution.vo.LiveRoomVO;
@@ -14,6 +16,7 @@ import com.macro.mall.distribution.vo.ShopBrandCultureVO;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +40,8 @@ class LiveRoomFoundationTest {
     @Autowired private LiveRoomService liveRoomService;
     @Autowired private ShopService shopService;
     @Autowired private TenantService tenantService;
+    @Autowired private MerchantService merchantService;
+    @Autowired private JdbcTemplate jdbcTemplate;
 
     @Test
     void publicLiveRoomIsTenantScopedAndDoesNotExposeUpcomingWatchUrl() {
@@ -53,6 +58,45 @@ class LiveRoomFoundationTest {
         assertNull(publicRoom.getRoom().getVersion());
         assertEquals(List.of(1L), publicRoom.getProducts().stream().map(product -> product.getId()).toList());
         assertTrue(liveRoomDao.selectPublicList(2L, 10).isEmpty());
+    }
+
+    @Test
+    void platformOnlyModeHidesMerchantProductsButPreservesContentRooms() {
+        DmsMerchant merchant = new DmsMerchant();
+        merchant.setMerchantNo("LIVE-CLOSED-MERCHANT");
+        merchant.setMerchantName("直播历史商户");
+        merchant = merchantService.saveMerchant(merchant);
+        jdbcTemplate.update("UPDATE dms_shop_product SET merchant_id=?,merchant_name=? WHERE id=1",
+                merchant.getId(), merchant.getMerchantName());
+        DmsLiveRoom merchantOnly = room(1L, 1, "https://live.example.com/watch/merchant-only");
+        liveRoomDao.insert(merchantOnly);
+        liveRoomDao.insertProduct(1L, merchantOnly.getId(), 1L, 1);
+        DmsLiveRoom mixed = room(1L, 1, "https://live.example.com/watch/mixed");
+        liveRoomDao.insert(mixed);
+        liveRoomDao.insertProduct(1L, mixed.getId(), 1L, 1);
+        liveRoomDao.insertProduct(1L, mixed.getId(), 2L, 2);
+
+        jdbcTemplate.update("UPDATE dms_tenant SET multi_merchant_enabled=0 WHERE id=1");
+
+        LiveRoomVO merchantHistory = liveRoomService.getPublic(merchantOnly.getId());
+        assertTrue(merchantHistory.getProducts().isEmpty());
+        assertTrue(liveRoomService.listPublic(10).stream()
+                .anyMatch(item -> merchantOnly.getId().equals(item.getRoom().getId())));
+        LiveRoomVO visible = liveRoomService.listPublic(10).stream()
+                .filter(item -> mixed.getId().equals(item.getRoom().getId())).findFirst().orElseThrow();
+        assertEquals(List.of(2L), visible.getProducts().stream().map(product -> product.getId()).toList());
+        LiveEngagementDTO click = new LiveEngagementDTO();
+        click.setVisitorId("00000000-0000-0000-0000-000000000001");
+        click.setEventType("PRODUCT_CLICK");
+        click.setProductId(1L);
+        assertThrows(RuntimeException.class, () -> liveRoomService.recordEngagement(mixed.getId(), null, click));
+        click.setProductId(2L);
+        assertTrue(liveRoomService.recordEngagement(mixed.getId(), null, click));
+        assertThrows(RuntimeException.class, () -> liveRoomService.updateStatus(merchantOnly.getId(), 1));
+        assertTrue(liveRoomService.updateStatus(merchantOnly.getId(), 0));
+        assertThrows(RuntimeException.class, () -> liveRoomService.updateStatus(merchantOnly.getId(), 1));
+        assertTrue(liveRoomService.listAdmin(null).stream()
+                .anyMatch(item -> merchantOnly.getId().equals(item.getRoom().getId())));
     }
 
     @Test

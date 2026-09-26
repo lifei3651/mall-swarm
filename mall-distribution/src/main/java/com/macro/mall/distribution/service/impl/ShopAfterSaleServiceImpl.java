@@ -63,6 +63,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Slf4j
@@ -103,6 +104,11 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     private int returnShipmentTimeoutDays;
     @Value("${shop.after-sale.exchange-auto-receive-days:15}")
     private int exchangeAutoReceiveDays;
+    // Keep a cursor per tenant so permanently failing older refunds cannot fill
+    // every bounded scan. Do not change update_time: timeout alarms rely on it.
+    private final Map<Long, RefundRetryCursor> externalRefundRetryCursors = new ConcurrentHashMap<>();
+
+    private record RefundRetryCursor(LocalDateTime updateTime, Long id) { }
 
     @Override
     public void assertCanUploadProof(DmsShopMember member, Long orderId) {
@@ -628,17 +634,35 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
     }
 
     @Override
-    public int reconcileProcessingWechatRefunds(int limit) {
+    public synchronized int reconcileProcessingExternalRefunds(int limit) {
         int bounded = Math.max(1, Math.min(limit, 100));
-        List<Long> ids = afterSaleDao.selectProcessingWechatRefundIds(LocalDateTime.now().minusMinutes(2), bounded);
+        Long tenantId = TenantContext.getTenantId();
+        RefundRetryCursor cursor = externalRefundRetryCursors.get(tenantId);
+        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(2);
+        List<DmsShopAfterSale> candidates = new ArrayList<>(afterSaleDao.selectProcessingExternalRefunds(
+                cutoff, cursor == null ? null : cursor.updateTime(), cursor == null ? null : cursor.id(), bounded));
+        if (cursor != null && candidates.size() < bounded) {
+            // Wrap once to the oldest eligible refunds. Deduplicate when fewer
+            // than "bounded" rows exist, so one scan never calls a channel twice.
+            Map<Long, DmsShopAfterSale> unique = new LinkedHashMap<>();
+            candidates.forEach(sale -> unique.put(sale.getId(), sale));
+            afterSaleDao.selectProcessingExternalRefunds(cutoff, null, null, bounded - candidates.size())
+                    .forEach(sale -> unique.putIfAbsent(sale.getId(), sale));
+            candidates = new ArrayList<>(unique.values());
+        }
+        if (!candidates.isEmpty()) {
+            DmsShopAfterSale last = candidates.get(candidates.size() - 1);
+            externalRefundRetryCursors.put(tenantId, new RefundRetryCursor(last.getUpdateTime(), last.getId()));
+        }
         int completed = 0;
-        for (Long id : ids) {
+        for (DmsShopAfterSale candidate : candidates) {
+            Long id = candidate.getId();
             try {
                 externalRefundCoordinator.process(id);
                 DmsShopAfterSale refreshed = afterSaleDao.selectById(id);
                 if (refreshed != null && Integer.valueOf(1).equals(refreshed.getStatus())) completed++;
             } catch (Exception error) {
-                log.warn("微信退款自动核对未完成: afterSaleId={}, errorType={}", id,
+                log.warn("外部渠道退款自动核对未完成: afterSaleId={}, errorType={}", id,
                         error == null ? "Unknown" : error.getClass().getSimpleName());
             }
         }

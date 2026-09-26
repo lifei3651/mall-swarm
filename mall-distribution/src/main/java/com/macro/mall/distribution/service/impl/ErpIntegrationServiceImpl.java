@@ -43,13 +43,13 @@ public class ErpIntegrationServiceImpl implements ErpIntegrationService {
     @Value("${erp.sync.max-retries:8}")
     private int maxAutoRetries;
 
-    @Override public List<DmsErpIntegration> listIntegrations(Long tenantId) { return integrationDao.selectList(tenantId == null ? 1L : tenantId); }
+    @Override public List<DmsErpIntegration> listIntegrations(Long tenantId) { return integrationDao.selectList(currentTenant(tenantId)); }
 
     @Override @Transactional(rollbackFor = Exception.class)
     public DmsErpIntegration saveIntegration(DmsErpIntegration integration) {
         if (integration == null || integration.getProviderCode() == null || integration.getProviderCode().isBlank()) Asserts.fail("ERP厂商不能为空");
         if (!List.of("JUSHUITAN", "WANGDIAN", "KINGDEE").contains(integration.getProviderCode())) Asserts.fail("暂仅支持聚水潭、旺店通、金蝶");
-        integration.setTenantId(integration.getTenantId() == null ? 1L : integration.getTenantId());
+        integration.setTenantId(currentTenant(integration.getTenantId()));
         integration.setIntegrationName(integration.getIntegrationName() == null ? integration.getProviderCode() : integration.getIntegrationName());
         integration.setEnabled(integration.getEnabled() == null ? 0 : integration.getEnabled());
         integration.setEnvironment(integration.getEnvironment() == null ? "TEST" : integration.getEnvironment());
@@ -82,7 +82,9 @@ public class ErpIntegrationServiceImpl implements ErpIntegrationService {
         return result;
     }
 
-    @Override public List<DmsErpSyncTask> listTasks(Long integrationId, Integer status) { return taskDao.selectList(integrationId, status); }
+    @Override public List<DmsErpSyncTask> listTasks(Long integrationId, Integer status) {
+        return taskDao.selectList(TenantContext.getTenantId(), integrationId, status);
+    }
 
     @Override @Transactional(rollbackFor = Exception.class)
     public void queueOrderPush(DmsShopOrder order) {
@@ -99,8 +101,17 @@ public class ErpIntegrationServiceImpl implements ErpIntegrationService {
 
     @Override @Transactional(rollbackFor = Exception.class)
     public boolean retryTask(Long taskId) {
-        DmsErpSyncTask task = taskDao.selectById(taskId); if (task == null) Asserts.fail("ERP任务不存在");
+        DmsErpSyncTask task = taskDao.selectById(TenantContext.getTenantId(), taskId);
+        if (task == null) Asserts.fail("ERP任务不存在");
         return executeTask(task);
+    }
+
+    private Long currentTenant(Long requestedTenantId) {
+        Long currentTenantId = TenantContext.getTenantId();
+        if (requestedTenantId != null && !requestedTenantId.equals(currentTenantId)) {
+            Asserts.fail("不能查看或修改其他商城的ERP配置");
+        }
+        return currentTenantId;
     }
 
     private boolean executeTask(DmsErpSyncTask task) {
@@ -136,11 +147,22 @@ public class ErpIntegrationServiceImpl implements ErpIntegrationService {
         int safeLimit = Math.max(1, Math.min(limit, 100));
         taskDao.stopExceededRetries(retryLimit);
         for (DmsErpSyncTask task : taskDao.selectRetryable(LocalDateTime.now(), safeLimit, retryLimit)) {
+            Long previousTenantId = TenantContext.getCurrentTenantId();
             try {
-                executeTask(task);
+                // The retry queue is global, but order reads and operation logs are tenant-scoped.
+                // Only the scheduler may adopt the queued task's tenant; manual retry keeps its caller context.
+                if (task.getTenantId() == null || task.getTenantId() <= 0) {
+                    fail(task, "ERP任务所属商城不正确");
+                } else {
+                    TenantContext.setTenantId(task.getTenantId());
+                    executeTask(task);
+                }
             } catch (Exception ex) {
                 // 数据库或审计设施异常时不能误写第二次失败状态；记录后继续本批其他任务。
                 log.error("ERP自动推单任务处理异常，已隔离本条并继续后续任务: taskId={}", task.getId(), ex);
+            } finally {
+                if (previousTenantId == null) TenantContext.clear();
+                else TenantContext.setTenantId(previousTenantId);
             }
             count++;
         }

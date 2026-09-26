@@ -304,7 +304,7 @@
           <el-descriptions-item label="子订单">{{ tradeDetail.childCount || 0 }} 张</el-descriptions-item>
           <el-descriptions-item label="商品金额">¥{{ money(tradeDetail.trade?.totalAmount) }}</el-descriptions-item>
           <el-descriptions-item label="运费">¥{{ money(tradeDetail.trade?.freightAmount) }}</el-descriptions-item>
-          <el-descriptions-item label="一次实付">¥{{ money(tradeDetail.trade?.payAmount) }}</el-descriptions-item>
+          <el-descriptions-item label="合计应付">¥{{ money(tradeDetail.trade?.payAmount) }}</el-descriptions-item>
           <el-descriptions-item label="已完成退款">¥{{ money(tradeDetail.refundedAmount) }}</el-descriptions-item>
           <el-descriptions-item label="创建时间" :span="2">{{ formatDateTime(tradeDetail.trade?.createTime) }}</el-descriptions-item>
           <el-descriptions-item label="支付时间" :span="2">{{ formatDateTime(tradeDetail.trade?.payTime) }}</el-descriptions-item>
@@ -313,7 +313,7 @@
           <el-table-column label="销售方" min-width="150"><template #default="{ row }">{{ row.order?.merchantName || '平台自营' }}</template></el-table-column>
           <el-table-column label="子订单号" min-width="190"><template #default="{ row }">{{ row.order?.orderNo }}</template></el-table-column>
           <el-table-column label="履约状态" width="105"><template #default="{ row }"><el-tag :type="orderDisplayTag(row)">{{ orderDisplayStatus(row) }}</el-tag></template></el-table-column>
-          <el-table-column label="实付金额" width="110"><template #default="{ row }">¥{{ money(row.order?.payAmount) }}</template></el-table-column>
+          <el-table-column label="订单应付" width="110"><template #default="{ row }">¥{{ money(row.order?.payAmount) }}</template></el-table-column>
           <el-table-column label="退款金额" width="110"><template #default="{ row }">¥{{ money(approvedRefundAmount(row)) }}</template></el-table-column>
           <el-table-column label="物流包裹" width="100"><template #default="{ row }">{{ shipmentRows(row).length }} 个</template></el-table-column>
         </el-table>

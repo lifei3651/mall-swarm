@@ -45,6 +45,7 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
     private final DmsDistributionSettingDao settingDao;
     private final DmsPerformanceViewPermissionDao permissionDao;
     private final DmsOrderFinanceDao financeDao;
+    private final DmsShopAfterSaleItemDao afterSaleItemDao;
     private final DmsOrderCompanyShareDao companyShareDao;
     private final DmsFinanceRefundDao refundDao;
     private final DmsFinanceRiskRuleDao riskRuleDao;
@@ -566,7 +567,7 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
                 case "LOSS_ORDER_COUNT_MAX" -> {
                     BigDecimal current = BigDecimal.valueOf(summary.getRiskOrderCount());
                     if (current.compareTo(rule.getThresholdValue()) > 0) {
-                        alerts.add(toAlert(rule, current, "亏损风险订单数超过阈值"));
+                        alerts.add(toAlert(rule, current, "财务风险订单数超过阈值"));
                     }
                 }
                 default -> {
@@ -612,11 +613,41 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
                 .map(DmsOrderCompanyShare::getShareAmount)
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal netPay = nullToZero(finance.getPayAmount()).subtract(nullToZero(refund));
+        DmsShopOrder order = shopOrderDao.selectById(finance.getOrderId());
+        // payAmount is the frozen amount due at checkout, not proof of payment.
+        // A cancelled unpaid order has status 4 like a fully refunded paid order;
+        // pay_time is therefore required as well as a paid/closed order state.
+        boolean paymentConfirmed = order == null || (order.getPayTime() != null
+                && order.getStatus() != null && order.getStatus() >= 1 && order.getStatus() <= 4);
+        BigDecimal paid = nullToZero(finance.getPayAmount());
+        BigDecimal netPay = paymentConfirmed ? paid.subtract(nullToZero(refund)) : BigDecimal.ZERO;
+        boolean fullyRefunded = paymentConfirmed && paid.signum() > 0
+                && nullToZero(refund).compareTo(paid) >= 0;
+        // productCost is the immutable cost snapshot from checkout. Only completed
+        // refunds reverse the matching SKU cost; a processing refund must not
+        // change profit before the payment channel and local ledger both finish.
+        BigDecimal originalCost = nullToZero(finance.getProductCost());
+        BigDecimal reversedCost = nullToZero(afterSaleItemDao.sumApprovedCostByOrderId(finance.getOrderId()));
+        BigDecimal productRefunded = nullToZero(refundDao.sumProductByOrderId(finance.getOrderId()));
+        if (order != null) {
+            BigDecimal productBase = nullToZero(order.getTotalAmount())
+                    .subtract(nullToZero(order.getDiscountAmount())).max(BigDecimal.ZERO);
+            // Older refund ledgers may lack item snapshots. A fully refunded
+            // merchandise amount still unambiguously reverses the entire cost;
+            // partial legacy refunds remain for manual reconciliation.
+            if (productBase.signum() > 0 && productRefunded.compareTo(productBase) >= 0) {
+                reversedCost = originalCost;
+            }
+        }
+        BigDecimal netCost = originalCost.subtract(reversedCost.min(originalCost)).max(BigDecimal.ZERO);
         BigDecimal profit = netPay
-                .subtract(nullToZero(finance.getProductCost()))
+                .subtract(netCost)
                 .subtract(bonus)
                 .subtract(companyShare);
+        // A fully refunded order has no realized revenue or profit. Keep the
+        // original cost and any unreversed payout in their trace columns; the
+        // latter remains a separate risk, never a fictitious negative profit.
+        if (!paymentConfirmed || fullyRefunded) profit = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
 
         finance.setRefundAmount(nullToZero(refund));
         finance.setNetPayAmount(netPay);
@@ -625,12 +656,15 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         finance.setCompanyProfit(profit);
 
         List<String> riskReasons = new ArrayList<>();
+        if (fullyRefunded && (bonus.signum() > 0 || companyShare.signum() > 0)) {
+            riskReasons.add("全额退款后仍有未冲销奖金或分账");
+        }
         if (profit.compareTo(BigDecimal.ZERO) < 0) riskReasons.add("订单利润为负");
-        DmsShopOrder order = shopOrderDao.selectById(finance.getOrderId());
-        BigDecimal merchandiseRevenue = order == null ? netPay : nullToZero(order.getTotalAmount())
-                .subtract(nullToZero(order.getDiscountAmount()))
-                .subtract(nullToZero(refundDao.sumProductByOrderId(finance.getOrderId())))
-                .max(BigDecimal.ZERO);
+        BigDecimal merchandiseRevenue = !paymentConfirmed ? BigDecimal.ZERO
+                : order == null ? netPay : nullToZero(order.getTotalAmount())
+                        .subtract(nullToZero(order.getDiscountAmount()))
+                        .subtract(productRefunded)
+                        .max(BigDecimal.ZERO);
         DmsFinanceRiskRule payoutRule = riskRuleDao.selectByCode("BONUS_PAYOUT_RATE_MAX");
         if (isEnabled(payoutRule) && merchandiseRevenue.compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal payoutRate = bonus.divide(merchandiseRevenue, 8, RoundingMode.HALF_UP);
@@ -920,7 +954,7 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         recalculate(finance);
         OrderFinanceVO vo = new OrderFinanceVO();
         BeanUtils.copyProperties(finance, vo);
-        vo.setRiskStatusName(Integer.valueOf(1).equals(finance.getRiskStatus()) ? "亏损风险" : "正常");
+        vo.setRiskStatusName(Integer.valueOf(1).equals(finance.getRiskStatus()) ? "财务风险" : "正常");
         return vo;
     }
 
@@ -995,7 +1029,7 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         saveDefaultRiskRule("BONUS_PAYOUT_RATE_MAX", "奖金拨出率预警阈值", new BigDecimal("0.35"),
                 "通用运营预警阈值；客户项目应根据已确认制度和利润模型单独校准");
         saveDefaultRiskRule("PROFIT_RATE_MIN", "利润率下限", new BigDecimal("0.10"), "利润率低于该值时预警");
-        saveDefaultRiskRule("LOSS_ORDER_COUNT_MAX", "亏损订单数上限", BigDecimal.ZERO, "亏损风险订单数大于该值时预警");
+        saveDefaultRiskRule("LOSS_ORDER_COUNT_MAX", "财务风险订单数上限", BigDecimal.ZERO, "财务风险订单数大于该值时预警");
     }
 
     private void saveDefaultRiskRule(String code, String name, BigDecimal threshold, String remark) {

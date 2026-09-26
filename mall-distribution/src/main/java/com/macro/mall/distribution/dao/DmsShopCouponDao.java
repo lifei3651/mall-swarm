@@ -21,7 +21,13 @@ public interface DmsShopCouponDao {
         """) List<ShopCouponProductVO> usableProducts(@Param("tenant") Long tenant,@Param("merchant") Long merchant,@Param("ids") List<Long> ids);
     @Select("SELECT * FROM dms_shop_coupon WHERE tenant_id=#{tenant} ORDER BY id DESC")
     List<DmsShopCoupon> adminList(@Param("tenant") Long tenant);
-    @Select("SELECT * FROM dms_shop_coupon WHERE tenant_id=#{tenant} AND status='PUBLISHED' AND ends_at>NOW() AND issued_count<total_count ORDER BY id DESC")
+    @Select("""
+        SELECT * FROM dms_shop_coupon c WHERE c.tenant_id=#{tenant} AND c.status='PUBLISHED'
+        AND c.ends_at>NOW() AND c.issued_count<c.total_count
+        AND (c.merchant_id IS NULL OR EXISTS (SELECT 1 FROM dms_tenant t
+            WHERE t.id=c.tenant_id AND COALESCE(t.multi_merchant_enabled,1)=1))
+        ORDER BY c.id DESC
+        """)
     List<DmsShopCoupon> catalog(@Param("tenant") Long tenant);
     @Select("SELECT * FROM dms_shop_coupon WHERE tenant_id=#{tenant} AND id=#{id}")
     DmsShopCoupon get(@Param("tenant") Long tenant,@Param("id") Long id);

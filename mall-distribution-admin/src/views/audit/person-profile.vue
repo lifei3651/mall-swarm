@@ -68,7 +68,7 @@
           <el-table-column prop="bonusAmount" label="奖金拨出" width="120">
             <template #default="{ row }">¥{{ money(row.bonusAmount) }}</template>
           </el-table-column>
-          <el-table-column prop="companyProfit" label="公司利润" width="120">
+          <el-table-column prop="companyProfit" label="利润（含预计）" width="130">
             <template #default="{ row }">
               <span :class="{ danger: Number(row.companyProfit || 0) < 0 }">¥{{ money(row.companyProfit) }}</span>
             </template>

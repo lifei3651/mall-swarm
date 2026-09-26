@@ -32,6 +32,20 @@
     </if>
     ORDER BY status DESC,id DESC
   </select>
+  <resultMap id="MerchantOption" type="com.macro.mall.distribution.vo.MerchantOptionVO">
+    <id column="id" property="id"/>
+    <result column="merchant_name" property="merchantName"/>
+    <result column="status" property="status"/>
+    <result column="default_settlement_days" property="defaultSettlementDays"/>
+  </resultMap>
+  <select id="selectOptions" resultMap="MerchantOption">
+    SELECT id, merchant_name, status, default_settlement_days
+    FROM dms_merchant
+    WHERE tenant_id=#{tenantId}
+    <if test="merchantId != null">AND id=#{merchantId}</if>
+    <if test="status != null">AND status=#{status}</if>
+    ORDER BY status DESC,id DESC
+  </select>
   <insert id="insert" useGeneratedKeys="true" keyProperty="id">
     INSERT INTO dms_merchant(tenant_id,merchant_no,merchant_name,contact_name,contact_phone,legal_entity_name,unified_social_credit_code,bank_account_name,bank_name,bank_account_no,invoice_title,taxpayer_identification_no,contract_status,required_deposit_amount,profile_version,settlement_mode,default_settlement_days,account_status,business_status,fulfillment_status,withdrawal_status,settlement_status,deposit_status,audit_status,exit_status,status,remark)
     VALUES(#{tenantId},#{merchantNo},#{merchantName},#{contactName},#{contactPhone},#{legalEntityName},#{unifiedSocialCreditCode},#{bankAccountName},#{bankName},#{bankAccountNo,typeHandler=com.macro.mall.distribution.security.EncryptedStringTypeHandler},#{invoiceTitle},#{taxpayerIdentificationNo},#{contractStatus},#{requiredDepositAmount},#{profileVersion},#{settlementMode},#{defaultSettlementDays},#{accountStatus},#{businessStatus},#{fulfillmentStatus},#{withdrawalStatus},#{settlementStatus},#{depositStatus},#{auditStatus},#{exitStatus},#{status},#{remark})

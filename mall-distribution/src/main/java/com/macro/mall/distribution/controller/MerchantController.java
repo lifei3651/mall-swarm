@@ -20,6 +20,7 @@ import com.macro.mall.distribution.entity.DmsMerchantWithdrawalEvent;
 import com.macro.mall.distribution.service.MerchantService;
 import com.macro.mall.distribution.vo.MerchantBalanceReconciliationVO;
 import com.macro.mall.distribution.vo.MerchantExitReadinessVO;
+import com.macro.mall.distribution.vo.MerchantOptionVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -40,6 +41,12 @@ public class MerchantController {
     public CommonResult<List<DmsMerchant>> merchants(@RequestParam(required = false) String keyword,
                                                       @RequestParam(required = false) Integer status) {
         return CommonResult.success(merchantService.listMerchants(keyword, status));
+    }
+
+    @Operation(summary = "商品管理可用商户安全选项")
+    @GetMapping("/merchants/options")
+    public CommonResult<List<MerchantOptionVO>> merchantOptions(@RequestParam(required = false) Integer status) {
+        return CommonResult.success(merchantService.listMerchantOptions(status));
     }
 
     @Operation(summary = "开通商户及其工作台初始账号")

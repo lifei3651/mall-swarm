@@ -1,6 +1,7 @@
 import request from '@/utils/request'
 
 export const listMerchants = (params) => request({ url: '/distribution/merchants', method: 'get', params })
+export const listMerchantOptions = (params) => request({ url: '/distribution/merchants/options', method: 'get', params })
 export const saveMerchant = (id, data) => request({
   url: id ? `/distribution/merchants/${id}` : '/distribution/merchants',
   method: id ? 'put' : 'post',

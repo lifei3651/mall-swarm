@@ -1,5 +1,8 @@
 package com.macro.mall.distribution.config;
 
+import com.macro.mall.common.tenant.TenantContext;
+import com.macro.mall.distribution.dao.DmsTenantDao;
+import com.macro.mall.distribution.entity.DmsTenant;
 import com.macro.mall.distribution.service.PerformanceService;
 import com.macro.mall.distribution.service.BonusCalculationTaskService;
 import com.macro.mall.distribution.service.ErpIntegrationService;
@@ -18,6 +21,9 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 定时任务
@@ -39,14 +45,18 @@ public class ScheduleTask {
     private final ShopAfterSaleService shopAfterSaleService;
     private final WeChatPayService weChatPayService;
     private final DistributedScheduledTaskRunner scheduledTaskRunner;
+    private final DmsTenantDao tenantDao;
+    private final Map<String, Integer> tenantOffsets = new HashMap<>();
 
     /** 每分钟关闭超时待支付订单并原子返还商品及SKU库存。 */
     @Scheduled(fixedDelayString = "${shop.order.pending-scan-interval-ms:60000}")
     public void closeExpiredPendingOrders() {
         scheduledTaskRunner.run("close-expired-orders", Duration.ofMinutes(5), () -> {
             try {
-                int count = shopService.closeExpiredPendingOrders(200);
-                if (count > 0) log.info("超时待支付订单已关闭并返还库存: count={}", count);
+                scanTenants("close-expired-orders", 200, (tenantId, limit) -> {
+                    int count = shopService.closeExpiredPendingOrders(limit);
+                    if (count > 0) log.info("超时待支付订单已关闭并返还库存: tenantId={}, count={}", tenantId, count);
+                });
             } catch (Exception e) {
                 log.error("超时待支付订单扫描失败", e);
             }
@@ -58,8 +68,10 @@ public class ScheduleTask {
     public void autoConfirmExpiredShippedOrders() {
         scheduledTaskRunner.run("auto-confirm-receipt", Duration.ofMinutes(30), () -> {
             try {
-                int count = shopService.autoConfirmExpiredShippedOrders(200);
-                if (count > 0) log.info("到期订单已自动确认收货: count={}", count);
+                scanTenants("auto-confirm-receipt", 200, (tenantId, limit) -> {
+                    int count = shopService.autoConfirmExpiredShippedOrders(limit);
+                    if (count > 0) log.info("到期订单已自动确认收货: tenantId={}, count={}", tenantId, count);
+                });
             } catch (Exception e) {
                 log.error("到期订单自动确认收货扫描失败", e);
             }
@@ -71,26 +83,72 @@ public class ScheduleTask {
     public void closeExpiredWaitingReturns() {
         scheduledTaskRunner.run("close-expired-waiting-returns", Duration.ofMinutes(30), () -> {
             try {
-                int count = shopAfterSaleService.expireWaitingReturnShipments(200);
-                if (count > 0) log.info("超时未寄回售后已自动关闭: count={}", count);
+                scanTenants("close-expired-waiting-returns", 200, (tenantId, limit) -> {
+                    int count = shopAfterSaleService.expireWaitingReturnShipments(limit);
+                    if (count > 0) log.info("超时未寄回售后已自动关闭: tenantId={}, count={}", tenantId, count);
+                });
             } catch (Exception e) {
                 log.error("超时未寄回售后扫描失败", e);
             }
         });
     }
 
-    /** 每5分钟幂等核对渠道已受理、但本地仍停在处理中的微信退款。 */
+    /** 每5分钟以同一退款号核对支付宝/微信已受理、但本地仍停在处理中的退款。 */
     @Scheduled(fixedDelayString = "${shop.after-sale.refund-reconcile-interval-ms:300000}",
             initialDelayString = "${shop.after-sale.refund-reconcile-initial-delay-ms:15000}")
-    public void reconcileProcessingWechatRefunds() {
+    public void reconcileProcessingExternalRefunds() {
+        // Preserve the distributed lock key while rolling from the WeChat-only scanner:
+        // old and new nodes must not process the same refund in parallel.
         scheduledTaskRunner.run("reconcile-processing-wechat-refunds", Duration.ofMinutes(4), () -> {
             try {
-                int count = shopAfterSaleService.reconcileProcessingWechatRefunds(50);
-                if (count > 0) log.info("微信退款状态自动恢复完成: count={}", count);
+                scanTenants("reconcile-processing-wechat-refunds", 50, (tenantId, limit) -> {
+                    int completed = shopAfterSaleService.reconcileProcessingExternalRefunds(limit);
+                    if (completed > 0) log.info("外部渠道退款状态自动恢复完成: tenantId={}, count={}", tenantId, completed);
+                });
             } catch (Exception e) {
-                log.error("微信退款状态自动核对失败", e);
+                log.error("外部渠道退款状态自动核对失败", e);
             }
         });
+    }
+
+    @FunctionalInterface
+    private interface TenantBatch {
+        void run(Long tenantId, int limit);
+    }
+
+    /** Keep one global attempt budget per scanner and rotate when there are more tenants than slots. */
+    private void scanTenants(String scanner, int totalLimit, TenantBatch batch) {
+        if (totalLimit <= 0) return;
+        List<DmsTenant> allTenants = tenantDao.selectAll();
+        List<Long> tenantIds = (allTenants == null ? List.<DmsTenant>of() : allTenants).stream()
+                .filter(tenant -> tenant != null && tenant.getId() != null)
+                .map(DmsTenant::getId).distinct().sorted().toList();
+        if (tenantIds.isEmpty()) return;
+        int tenantCount = Math.min(tenantIds.size(), totalLimit);
+        int start;
+        synchronized (tenantOffsets) {
+            start = Math.floorMod(tenantOffsets.getOrDefault(scanner, 0), tenantIds.size());
+            tenantOffsets.put(scanner, (start + tenantCount) % tenantIds.size());
+        }
+        int baseLimit = totalLimit / tenantCount;
+        int extra = totalLimit % tenantCount;
+        Long previousTenantId = TenantContext.getCurrentTenantId();
+        try {
+            for (int i = 0; i < tenantCount; i++) {
+                Long tenantId = tenantIds.get((start + i) % tenantIds.size());
+                int tenantLimit = baseLimit + (i < extra ? 1 : 0);
+                TenantContext.setTenantId(tenantId);
+                try {
+                    batch.run(tenantId, tenantLimit);
+                } catch (Exception error) {
+                    log.warn("定时扫描未完成: scanner={}, tenantId={}, errorType={}", scanner, tenantId,
+                            error.getClass().getSimpleName());
+                }
+            }
+        } finally {
+            if (previousTenantId == null) TenantContext.clear();
+            else TenantContext.setTenantId(previousTenantId);
+        }
     }
 
     /** 持久化恢复超时关单后才到账、但退款回调丢失或渠道仍处理中的微信支付。 */
@@ -112,8 +170,10 @@ public class ScheduleTask {
     public void autoCompleteExpiredExchangeReceipts() {
         scheduledTaskRunner.run("auto-complete-exchange-receipts", Duration.ofMinutes(30), () -> {
             try {
-                int count = shopAfterSaleService.autoCompleteExpiredExchangeReceipts(200);
-                if (count > 0) log.info("到期换货已自动确认收货: count={}", count);
+                scanTenants("auto-complete-exchange-receipts", 200, (tenantId, limit) -> {
+                    int count = shopAfterSaleService.autoCompleteExpiredExchangeReceipts(limit);
+                    if (count > 0) log.info("到期换货已自动确认收货: tenantId={}, count={}", tenantId, count);
+                });
             } catch (Exception e) {
                 log.error("到期换货自动确认收货扫描失败", e);
             }
@@ -125,22 +185,28 @@ public class ScheduleTask {
     public void settleCoolingOffCommissions() {
         scheduledTaskRunner.run("cooling-off-settlement", Duration.ofMinutes(30), () -> {
             try {
-                int count = commissionSettlementService.settleEligibleAfterCoolingOff(200);
-                if (count > 0) log.info("T+7奖金自动结算完成: count={}", count);
+                scanTenants("cooling-off-settlement", 200, (tenantId, limit) -> {
+                    try {
+                        int count = commissionSettlementService.settleEligibleAfterCoolingOff(limit);
+                        if (count > 0) log.info("T+7奖金自动结算完成: tenantId={}, count={}", tenantId, count);
+                    } catch (Exception error) {
+                        log.warn("奖金自动结算未完成: tenantId={}, errorType={}", tenantId, error.getClass().getSimpleName());
+                    }
+                    try {
+                        int count = orderBalanceAllocationService.settleEligibleAfterCoolingOff(limit);
+                        if (count > 0) log.info("售后期结束后的平台资金自动进入余额: tenantId={}, count={}", tenantId, count);
+                    } catch (Exception error) {
+                        log.warn("平台资金归集未完成: tenantId={}, errorType={}", tenantId, error.getClass().getSimpleName());
+                    }
+                    try {
+                        int count = merchantService.releaseEligibleSettlements(limit);
+                        if (count > 0) log.info("售后期结束后的商户货款转为可提现: tenantId={}, count={}", tenantId, count);
+                    } catch (Exception error) {
+                        log.warn("商户货款释放未完成: tenantId={}, errorType={}", tenantId, error.getClass().getSimpleName());
+                    }
+                });
             } catch (Exception e) {
-                log.error("售后期结束后的奖金自动结算扫描失败", e);
-            }
-            try {
-                int allocationCount = orderBalanceAllocationService.settleEligibleAfterCoolingOff(200);
-                if (allocationCount > 0) log.info("售后期结束后的平台资金自动进入余额: count={}", allocationCount);
-            } catch (Exception e) {
-                log.error("售后期结束后的平台资金归集扫描失败", e);
-            }
-            try {
-                int merchantCount = merchantService.releaseEligibleSettlements(200);
-                if (merchantCount > 0) log.info("售后期结束后的商户货款转为可提现: count={}", merchantCount);
-            } catch (Exception e) {
-                log.error("售后期结束后的商户货款释放扫描失败", e);
+                log.error("售后期结束后的资金结算扫描失败", e);
             }
         });
     }
@@ -160,10 +226,10 @@ public class ScheduleTask {
     public void processBonusCalculationTasks() {
         scheduledTaskRunner.run("bonus-calculation", Duration.ofMinutes(2), () -> {
             try {
-                int count = bonusCalculationTaskService.processPendingTasks(20);
-                if (count > 0) {
-                    log.info("处理奖金异步计算任务完成: count={}", count);
-                }
+                scanTenants("bonus-calculation", 20, (tenantId, limit) -> {
+                    int count = bonusCalculationTaskService.processPendingTasks(limit);
+                    if (count > 0) log.info("处理奖金异步计算任务完成: tenantId={}, count={}", tenantId, count);
+                });
             } catch (Exception e) {
                 log.error("处理奖金异步计算任务失败", e);
             }

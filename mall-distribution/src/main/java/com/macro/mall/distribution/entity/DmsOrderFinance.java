@@ -17,6 +17,7 @@ public class DmsOrderFinance implements Serializable {
 
     private String orderNo;
 
+    /** 下单应付快照，不能单独作为渠道已支付的凭据。 */
     private BigDecimal payAmount;
 
     private BigDecimal refundAmount;

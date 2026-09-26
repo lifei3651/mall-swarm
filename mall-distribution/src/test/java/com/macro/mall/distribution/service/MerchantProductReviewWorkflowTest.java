@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.macro.mall.distribution.dto.MerchantProductReviewDecisionDTO;
 import com.macro.mall.distribution.dto.MerchantProductReviewCheckDTO;
 import com.macro.mall.distribution.dto.MerchantControlDTO;
@@ -9,6 +10,7 @@ import com.macro.mall.distribution.entity.DmsMerchant;
 import com.macro.mall.distribution.entity.DmsMerchantProductReview;
 import com.macro.mall.distribution.entity.DmsShopProduct;
 import com.macro.mall.distribution.security.AdminContext;
+import com.macro.mall.distribution.vo.MerchantOptionVO;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.BeanUtils;
@@ -128,7 +130,7 @@ class MerchantProductReviewWorkflowTest {
         jdbcTemplate.update("UPDATE dms_shop_product SET merchant_id=?,merchant_name=?,sale_price=99,cost_amount=50,status=0,team_bonus_mode='NONE',merchant_review_status='DRAFT',merchant_review_version=0 WHERE id=1",
                 merchant.getId(), merchant.getMerchantName());
 
-        AdminContext.set(admin(7021L, "onboarding_merchant", "入驻商户", "admin:read,shop:product", merchant));
+        AdminContext.set(admin(7021L, "onboarding_merchant", "入驻商户负责人", "admin:read,shop:product,merchant:staff-manage", merchant));
         MerchantProfileSubmitDTO profile = new MerchantProfileSubmitDTO();
         profile.setContactName("商户联系人"); profile.setContactPhone("13800138000");
         profile.setLegalEntityName("入驻认证测试商户有限公司"); profile.setUnifiedSocialCreditCode("91350100M000100Y43");
@@ -149,8 +151,57 @@ class MerchantProductReviewWorkflowTest {
         assertEquals("ACTIVE", approved.getBusinessStatus());
         assertEquals(1, approved.getStatus());
 
-        AdminContext.set(admin(7021L, "onboarding_merchant", "入驻商户", "admin:read,shop:product", approved));
+        AdminContext.set(admin(7021L, "onboarding_merchant", "入驻商户负责人", "admin:read,shop:product,merchant:staff-manage", approved));
         assertEquals("PENDING", reviewService.submit(1L).getStatus());
+    }
+
+    @Test
+    void merchantStaffCannotReadOrChangeSettlementProfileButOwnerCan() {
+        DmsMerchant merchant = merchant("M-PROFILE-SCOPE", "资料权限测试商户");
+        jdbcTemplate.update("UPDATE dms_shop_product SET merchant_id=?,merchant_name=?,status=1 WHERE id=1",
+                merchant.getId(), merchant.getMerchantName());
+        MerchantProfileSubmitDTO profile = new MerchantProfileSubmitDTO();
+        profile.setContactName("负责人");
+        profile.setContactPhone("13800138000");
+        profile.setLegalEntityName("资料权限测试有限公司");
+        profile.setUnifiedSocialCreditCode("91350100M000100Y43");
+        profile.setBankAccountName("资料权限测试有限公司");
+        profile.setBankName("测试银行");
+        profile.setBankAccountNo("6222021234567890123");
+        profile.setInvoiceTitle("资料权限测试有限公司");
+        profile.setTaxpayerIdentificationNo("91350100M000100Y43");
+
+        AdminContext.set(admin(7023L, "merchant_staff", "商户员工", "admin:read,shop:product", merchant));
+        assertThrows(RuntimeException.class, merchantService::currentMerchantProfile);
+        assertThrows(RuntimeException.class, () -> merchantService.submitCurrentMerchantProfile(profile));
+        assertNull(jdbcTemplate.queryForObject("SELECT bank_account_no FROM dms_merchant WHERE id=?",
+                String.class, merchant.getId()));
+        assertEquals(1, jdbcTemplate.queryForObject("SELECT status FROM dms_shop_product WHERE id=1", Integer.class));
+
+        AdminContext.set(admin(7024L, "merchant_owner", "商户负责人",
+                "admin:read,shop:product,merchant:staff-manage", merchant));
+        assertEquals(merchant.getId(), merchantService.currentMerchantProfile().getId());
+        assertEquals("PENDING", merchantService.submitCurrentMerchantProfile(profile).getAuditStatus());
+        assertEquals(0, jdbcTemplate.queryForObject("SELECT status FROM dms_shop_product WHERE id=1", Integer.class));
+    }
+
+    @Test
+    void productOperatorGetsOnlySafeMerchantOptionsNotCompleteProfiles() throws Exception {
+        DmsMerchant merchant = merchant("M-OPTION-SCOPE", "商品选项测试商户");
+        AdminContext.set(admin(7025L, "product_operator", "商品运营", "admin:read,shop:product", null));
+        assertThrows(RuntimeException.class, () -> merchantService.listMerchants(null, null));
+
+        List<MerchantOptionVO> options = merchantService.listMerchantOptions(1);
+        assertTrue(options.stream().anyMatch(item -> merchant.getId().equals(item.getId())));
+        String json = new ObjectMapper().writeValueAsString(options);
+        assertFalse(json.contains("bankAccountNo"));
+        assertFalse(json.contains("taxpayerIdentificationNo"));
+        assertFalse(json.contains("contactPhone"));
+
+        AdminContext.set(admin(7026L, "platform_admin", "平台管理员",
+                "admin:read,system:manage", null));
+        assertTrue(merchantService.listMerchants("M-OPTION-SCOPE", null).stream()
+                .anyMatch(item -> merchant.getId().equals(item.getId())));
     }
 
     private DmsMerchant merchant(String no, String name) {

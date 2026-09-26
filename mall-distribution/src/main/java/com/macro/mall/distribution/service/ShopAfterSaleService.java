@@ -50,8 +50,8 @@ public interface ShopAfterSaleService {
     /** 自动关闭超过寄回期限仍未提交物流的退货申请；配置为0时禁用。 */
     int expireWaitingReturnShipments(int limit);
 
-    /** 幂等重试已受理但尚未本地完成的微信退款，恢复遗漏或校验失败的回调。 */
-    int reconcileProcessingWechatRefunds(int limit);
+    /** 以原售后退款号幂等重试支付宝/微信处理中退款，恢复渠道或本地完成阶段的失败。 */
+    int reconcileProcessingExternalRefunds(int limit);
 
     /** 后台在前台售后期限结束后登记并执行退款。 */
     DmsShopAfterSale manualRefund(Long orderId, ShopManualRefundDTO dto);

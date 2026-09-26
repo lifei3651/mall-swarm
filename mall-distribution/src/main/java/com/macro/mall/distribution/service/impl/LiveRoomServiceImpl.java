@@ -6,6 +6,7 @@ import com.macro.mall.distribution.dao.DmsLiveRoomDao;
 import com.macro.mall.distribution.dao.DmsShopProductDao;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsTenantDisplayConfigDao;
+import com.macro.mall.distribution.dao.DmsTenantDao;
 import com.macro.mall.distribution.dto.LiveRoomSaveDTO;
 import com.macro.mall.distribution.dto.LiveAnchorSaveDTO;
 import com.macro.mall.distribution.dto.LiveCommentSubmitDTO;
@@ -21,6 +22,7 @@ import com.macro.mall.distribution.service.ContentModerationService;
 import com.macro.mall.distribution.service.MerchantProductReviewService;
 import com.macro.mall.distribution.service.OperationLogService;
 import com.macro.mall.distribution.service.ShopCatalogCacheService;
+import com.macro.mall.distribution.service.ShopBusinessModeService;
 import com.macro.mall.distribution.vo.LiveRoomVO;
 import com.macro.mall.distribution.vo.LiveAnchorVO;
 import com.macro.mall.distribution.vo.LiveAnalyticsVO;
@@ -59,7 +61,9 @@ public class LiveRoomServiceImpl implements LiveRoomService {
     private final DmsShopProductDao productDao;
     private final DmsShopMemberDao memberDao;
     private final DmsTenantDisplayConfigDao displayConfigDao;
+    private final DmsTenantDao tenantDao;
     private final TenantDisplayConfigSupport displayConfigSupport;
+    private final ShopBusinessModeService businessModeService;
     private final MerchantProductReviewService merchantProductReviewService;
     private final ShopCatalogCacheService catalogCache;
     private final OperationLogService operationLogService;
@@ -115,6 +119,9 @@ public class LiveRoomServiceImpl implements LiveRoomService {
     public LiveRoomVO save(Long id, LiveRoomSaveDTO dto) {
         assertPlatformOperator();
         Long tenantId = TenantContext.getTenantId();
+        if (dto.getStatus() != null && (dto.getStatus() == 1 || dto.getStatus() == 2)) {
+            lockTenantForPublicWrite(tenantId);
+        }
         DmsLiveRoom existing = id == null ? null : liveRoomDao.selectByIdForUpdate(tenantId, id);
         if (id != null && existing == null) Asserts.fail("直播间不存在或已被删除");
         Integer beforeStatus = existing == null ? null : existing.getStatus();
@@ -197,6 +204,7 @@ public class LiveRoomServiceImpl implements LiveRoomService {
         if (status == null || !VALID_STATUSES.contains(status)) Asserts.fail("直播状态不正确");
         if (status == 2) Asserts.fail("请由已授权主播在主播工作台开始直播");
         Long tenantId = TenantContext.getTenantId();
+        if (status == 1) lockTenantForPublicWrite(tenantId);
         DmsLiveRoom room = liveRoomDao.selectByIdForUpdate(tenantId, id);
         if (room == null) Asserts.fail("直播间不存在或已被删除");
         List<Long> productIds = liveRoomDao.selectProductIds(tenantId, id);
@@ -219,11 +227,11 @@ public class LiveRoomServiceImpl implements LiveRoomService {
         Long tenantId = room.getTenantId();
         List<Long> productIds = liveRoomDao.selectProductIds(tenantId, room.getId());
         List<DmsShopProduct> products = new ArrayList<>();
+        boolean multiMerchantEnabled = !publicView || businessModeService.isMultiMerchantEnabled(tenantId);
         for (Long productId : productIds) {
             DmsShopProduct item = productDao.selectByIdScoped(tenantId, productId);
             if (item == null) continue;
-            if (publicView && (!Integer.valueOf(1).equals(item.getStatus())
-                    || !Integer.valueOf(1).equals(item.getNormalSaleEnabled()))) continue;
+            if (publicView && !publiclySellable(item, multiMerchantEnabled)) continue;
             if (publicView) product(item, false);
             products.add(item);
         }
@@ -270,14 +278,30 @@ public class LiveRoomServiceImpl implements LiveRoomService {
     }
 
     private void validateProducts(Long tenantId, List<Long> productIds, boolean requireActive) {
+        boolean multiMerchantEnabled = businessModeService.isMultiMerchantEnabled(tenantId);
         for (Long productId : productIds) {
             DmsShopProduct product = productDao.selectByIdScoped(tenantId, productId);
             if (product == null) Asserts.fail("关联商品不存在：" + productId);
-            if (requireActive && (!Integer.valueOf(1).equals(product.getStatus())
-                    || !Integer.valueOf(1).equals(product.getNormalSaleEnabled()))) {
-                Asserts.fail("公开直播只能关联正常商城的在售商品：" + product.getProductName());
+            if (requireActive) {
+                if (product.getMerchantId() != null && !multiMerchantEnabled) {
+                    Asserts.fail("当前商城仅支持平台自营，公开直播不能关联商户商品：" + product.getProductName());
+                }
+                if (!Integer.valueOf(1).equals(product.getStatus())
+                        || !Integer.valueOf(1).equals(product.getNormalSaleEnabled())) {
+                    Asserts.fail("公开直播只能关联正常商城的在售商品：" + product.getProductName());
+                }
             }
         }
+    }
+
+    private void lockTenantForPublicWrite(Long tenantId) {
+        if (tenantDao.selectByIdForUpdate(tenantId) == null) Asserts.fail("商城客户不存在");
+    }
+
+    private boolean publiclySellable(DmsShopProduct product, boolean multiMerchantEnabled) {
+        return product != null && Integer.valueOf(1).equals(product.getStatus())
+                && Integer.valueOf(1).equals(product.getNormalSaleEnabled())
+                && (product.getMerchantId() == null || multiMerchantEnabled);
     }
 
     private List<Long> normalizeProductIds(List<Long> source) {
@@ -446,6 +470,7 @@ public class LiveRoomServiceImpl implements LiveRoomService {
         Long tenantId = TenantContext.getTenantId();
         DmsLiveAnchor anchor = liveRoomDao.selectAnchorByMember(tenantId, member.getUserId());
         if (anchor == null || !Integer.valueOf(1).equals(anchor.getStatus())) Asserts.fail("当前账号没有可用的直播权限");
+        lockTenantForPublicWrite(tenantId);
         DmsLiveRoom room = liveRoomDao.selectByIdForUpdate(tenantId, roomId);
         if (room == null || !anchor.getId().equals(room.getAnchorId())) Asserts.fail("该直播间不属于当前主播账号");
         if (Integer.valueOf(4).equals(room.getStatus())) Asserts.fail("该直播间已被平台停用");
@@ -554,7 +579,9 @@ public class LiveRoomServiceImpl implements LiveRoomService {
         Long userId = member == null ? null : member.getUserId();
         int duration = dto.getDurationSeconds() == null ? 0 : dto.getDurationSeconds();
         if ("PRODUCT_CLICK".equals(eventType)
-                && (dto.getProductId() == null || !liveRoomDao.selectProductIds(room.getTenantId(), roomId).contains(dto.getProductId()))) {
+                && (dto.getProductId() == null || !liveRoomDao.selectProductIds(room.getTenantId(), roomId).contains(dto.getProductId())
+                || !publiclySellable(productDao.selectByIdScoped(room.getTenantId(), dto.getProductId()),
+                businessModeService.isMultiMerchantEnabled(room.getTenantId())))) {
             Asserts.fail("直播商品不存在或已移除");
         }
         if ("SHARE".equals(eventType) && !Integer.valueOf(1).equals(room.getShareEnabled())) Asserts.fail("当前直播间已关闭分享");

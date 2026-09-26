@@ -85,7 +85,14 @@ class AdminPermissionPolicyTest {
 
     @Test
     void separatesMerchantCatalogFromMerchantFunds() {
-        assertEquals("shop:product", AdminPermissionPolicy.requiredPermission("POST", "/distribution/merchants"));
+        assertEquals("shop:product", AdminPermissionPolicy.requiredPermission("GET", "/distribution/merchants/options"));
+        assertEquals("system:manage", AdminPermissionPolicy.requiredPermission("GET", "/distribution/merchants"));
+        assertEquals("system:manage", AdminPermissionPolicy.requiredPermission("POST", "/distribution/merchants"));
+        assertEquals("merchant:staff-manage", AdminPermissionPolicy.requiredPermission("GET", "/distribution/merchants/current-profile"));
+        assertEquals("merchant:staff-manage", AdminPermissionPolicy.requiredPermission("PUT", "/distribution/merchants/current-profile"));
+        assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest("GET", "/distribution/merchants/options"));
+        assertTrue(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest("PUT", "/distribution/merchants/current-profile"));
+        assertFalse(AdminSecurityConfig.AdminSecurityInterceptor.isMerchantWorkspaceRequest("GET", "/distribution/merchants"));
         assertEquals("finance:read", AdminPermissionPolicy.requiredPermission("GET", "/distribution/merchant-finance/accounts"));
         assertEquals("finance:manage", AdminPermissionPolicy.requiredPermission("POST", "/distribution/merchant-finance/withdrawals/1/pay"));
     }

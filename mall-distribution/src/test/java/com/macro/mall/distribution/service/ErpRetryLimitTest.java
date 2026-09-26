@@ -12,6 +12,7 @@ import com.macro.mall.distribution.erp.ErpAdapter;
 import com.macro.mall.distribution.erp.JushuitanErpAdapter;
 import com.macro.mall.distribution.service.impl.ErpIntegrationServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -43,6 +44,9 @@ class ErpRetryLimitTest {
         ReflectionTestUtils.setField(service, "maxAutoRetries", 3);
     }
 
+    @AfterEach
+    void clearTenantContext() { TenantContext.clear(); }
+
     @Test
     void automaticScanPassesConfiguredRetryLimitToDatabase() {
         when(taskDao.selectRetryable(any(LocalDateTime.class), eq(20), eq(3))).thenReturn(List.of());
@@ -51,6 +55,65 @@ class ErpRetryLimitTest {
 
         verify(taskDao).stopExceededRetries(3);
         verify(taskDao).selectRetryable(any(LocalDateTime.class), eq(20), eq(3));
+    }
+
+    @Test
+    void adminReadsDefaultToCurrentTenantAndRejectExplicitOtherTenant() {
+        TenantContext.setTenantId(2L);
+        when(integrationDao.selectList(2L)).thenReturn(List.of());
+
+        assertTrue(service.listIntegrations(null).isEmpty());
+        assertTrue(service.listIntegrations(2L).isEmpty());
+        assertThrows(RuntimeException.class, () -> service.listIntegrations(3L));
+        assertTrue(service.listTasks(null, null).isEmpty());
+
+        verify(integrationDao, times(2)).selectList(2L);
+        verify(integrationDao, never()).selectList(3L);
+        verify(taskDao).selectList(2L, null, null);
+    }
+
+    @Test
+    void adminCannotSaveOtherTenantIntegrationButMissingTenantUsesCurrentTenant() {
+        TenantContext.setTenantId(2L);
+        DmsErpIntegration otherTenant = integration("JUSHUITAN");
+        otherTenant.setTenantId(3L);
+        assertThrows(RuntimeException.class, () -> service.saveIntegration(otherTenant));
+        verifyNoInteractions(integrationDao);
+
+        DmsErpIntegration own = integration("JUSHUITAN");
+        own.setTenantId(null);
+        own.setEnabled(0);
+        DmsErpIntegration stored = integration("JUSHUITAN");
+        stored.setTenantId(2L);
+        stored.setId(42L);
+        when(integrationDao.selectByTenantAndProvider(2L, "JUSHUITAN")).thenReturn(null, stored);
+
+        assertEquals(42L, service.saveIntegration(own).getId());
+
+        assertEquals(2L, own.getTenantId());
+        verify(integrationDao).insert(same(own));
+        verify(integrationDao, never()).update(any());
+    }
+
+    @Test
+    void adminManualRetrySucceedsForOwnTenantTask() {
+        TenantContext.setTenantId(2L);
+        DmsErpSyncTask task = retryTask(11L, 22L, "33");
+        task.setTenantId(2L);
+        DmsErpIntegration integration = integration("TEST_ERP");
+        integration.setTenantId(2L);
+        DmsShopOrder order = new DmsShopOrder();
+        order.setTenantId(2L);
+        when(taskDao.selectById(2L, 11L)).thenReturn(task);
+        when(integrationDao.selectById(22L)).thenReturn(integration);
+        when(orderDao.selectById(33L)).thenReturn(order);
+        when(adapter.providerCode()).thenReturn("TEST_ERP");
+        when(adapter.pushOrder(integration, order)).thenReturn(new ErpAdapter.ErpPushResult(true, "ok"));
+
+        assertTrue(service.retryTask(11L));
+
+        verify(taskDao).markSuccess(11L, "ok");
+        assertEquals(2L, TenantContext.getCurrentTenantId());
     }
 
     @Test
@@ -79,6 +142,78 @@ class ErpRetryLimitTest {
     }
 
     @Test
+    void automaticRetryReadsOrderInTaskTenantAndRestoresPreviousContext() {
+        DmsErpSyncTask task = retryTask(11L, 22L, "33");
+        task.setTenantId(2L);
+        DmsErpIntegration integration = integration("TEST_ERP");
+        integration.setTenantId(2L);
+        DmsShopOrder order = new DmsShopOrder();
+        order.setTenantId(2L);
+        when(taskDao.selectRetryable(any(LocalDateTime.class), eq(1), eq(3))).thenReturn(List.of(task));
+        when(integrationDao.selectById(22L)).thenReturn(integration);
+        doCallRealMethod().when(orderDao).selectById(33L);
+        when(orderDao.selectByIdScoped(2L, 33L)).thenReturn(order);
+        when(adapter.providerCode()).thenReturn("TEST_ERP");
+        when(adapter.pushOrder(integration, order)).thenAnswer(invocation -> {
+            assertEquals(2L, TenantContext.getCurrentTenantId());
+            return new ErpAdapter.ErpPushResult(true, "ok");
+        });
+        TenantContext.setTenantId(9L);
+
+        assertEquals(1, service.retryPendingTasks(1));
+
+        verify(orderDao).selectByIdScoped(2L, 33L);
+        verify(taskDao).markSuccess(11L, "ok");
+        assertEquals(9L, TenantContext.getCurrentTenantId());
+    }
+
+    @Test
+    void automaticRetryRejectsTenantMismatchAndContinuesWithNextTenant() {
+        DmsErpSyncTask mismatched = retryTask(11L, 101L, "201");
+        mismatched.setTenantId(2L);
+        DmsErpSyncTask valid = retryTask(12L, 102L, "202");
+        valid.setTenantId(3L);
+        DmsErpIntegration wrongIntegration = integration("TEST_ERP");
+        wrongIntegration.setTenantId(3L);
+        DmsErpIntegration validIntegration = integration("TEST_ERP");
+        validIntegration.setTenantId(3L);
+        DmsShopOrder firstOrder = new DmsShopOrder();
+        firstOrder.setTenantId(2L);
+        DmsShopOrder secondOrder = new DmsShopOrder();
+        secondOrder.setTenantId(3L);
+        when(taskDao.selectRetryable(any(LocalDateTime.class), eq(2), eq(3))).thenReturn(List.of(mismatched, valid));
+        when(integrationDao.selectById(101L)).thenReturn(wrongIntegration);
+        when(integrationDao.selectById(102L)).thenReturn(validIntegration);
+        doCallRealMethod().when(orderDao).selectById(anyLong());
+        when(orderDao.selectByIdScoped(2L, 201L)).thenReturn(firstOrder);
+        when(orderDao.selectByIdScoped(3L, 202L)).thenReturn(secondOrder);
+        when(adapter.providerCode()).thenReturn("TEST_ERP");
+        when(adapter.pushOrder(validIntegration, secondOrder)).thenAnswer(invocation -> {
+            assertEquals(3L, TenantContext.getCurrentTenantId());
+            return new ErpAdapter.ErpPushResult(true, "ok");
+        });
+
+        assertEquals(2, service.retryPendingTasks(2));
+
+        verify(taskDao).markFailure(eq(11L), eq(2), eq(1), any(LocalDateTime.class), contains("租户不一致"));
+        verify(taskDao).markSuccess(12L, "ok");
+        verify(adapter, times(1)).pushOrder(any(), any());
+        assertNull(TenantContext.getCurrentTenantId());
+    }
+
+    @Test
+    void manualRetryKeepsCallerTenantInsteadOfAdoptingTaskTenant() {
+        TenantContext.setTenantId(1L);
+
+        assertThrows(RuntimeException.class, () -> service.retryTask(11L));
+
+        verify(taskDao).selectById(1L, 11L);
+        verify(taskDao, never()).markFailure(anyLong(), anyInt(), anyInt(), any(), anyString());
+        verifyNoInteractions(integrationDao, orderDao, adapter, operationLogService);
+        assertEquals(1L, TenantContext.getCurrentTenantId());
+    }
+
+    @Test
     void thirdFailureStopsAutomaticRetryAndClearsNextRetryTime() {
         DmsErpSyncTask task = new DmsErpSyncTask();
         task.setId(11L);
@@ -92,7 +227,7 @@ class ErpRetryLimitTest {
         integration.setTenantId(1L);
         DmsShopOrder order = new DmsShopOrder();
         order.setTenantId(1L);
-        when(taskDao.selectById(11L)).thenReturn(task);
+        when(taskDao.selectById(1L, 11L)).thenReturn(task);
         when(integrationDao.selectById(22L)).thenReturn(integration);
         when(orderDao.selectById(33L)).thenReturn(order);
         when(adapter.providerCode()).thenReturn("TEST_ERP");
@@ -167,7 +302,7 @@ class ErpRetryLimitTest {
         DmsErpSyncTask task = retryTask(11L, 22L, "33");
         DmsErpIntegration integration = integration("TEST_ERP");
         integration.setEnabled(0);
-        when(taskDao.selectById(11L)).thenReturn(task);
+        when(taskDao.selectById(1L, 11L)).thenReturn(task);
         when(integrationDao.selectById(22L)).thenReturn(integration);
 
         assertFalse(service.retryTask(11L));
@@ -199,7 +334,7 @@ class ErpRetryLimitTest {
         integration.setTenantId(2L);
         DmsShopOrder order = new DmsShopOrder();
         order.setTenantId(1L);
-        when(taskDao.selectById(11L)).thenReturn(task);
+        when(taskDao.selectById(1L, 11L)).thenReturn(task);
         when(integrationDao.selectById(22L)).thenReturn(integration);
         when(orderDao.selectById(33L)).thenReturn(order);
 

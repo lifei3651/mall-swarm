@@ -425,7 +425,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown, Box, CircleClose, Document, Medal, Money, Plus, QuestionFilled, Refresh, RefreshLeft, Search, Star, Van, WarningFilled } from '@element-plus/icons-vue'
 import { pcaTextArr } from 'element-china-area-data'
 import { createFreightTemplate, createShopCategory, getProductSettings, listFreightTemplates, listShopCategories, listShopProducts, listShopServiceAddresses, listShopSkus, publishShopProduct, submitMerchantProductReview, updateFreightTemplate, updateProductNewArrival, updateProductPvSetting, updateShopProductStatus, uploadShopImage } from '@/api/shop'
-import { listMerchants } from '@/api/merchant'
+import { listMerchantOptions } from '@/api/merchant'
 import { validateSearchKeyword } from '@/utils/searchFeedback'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
 import { useAppStore } from '@/store'
@@ -1083,7 +1083,7 @@ const toggleStatus = async (row) => {
 }
 
 onMounted(async () => {
-  const merchantRes = await listMerchants({ status: 1 })
+  const merchantRes = await listMerchantOptions({ status: 1 })
   merchants.value = merchantRes.data || []
   await Promise.all([fetchData(), fetchCategories(), fetchProductSettings(), fetchFreightTemplates(), fetchServiceAddresses()])
 })

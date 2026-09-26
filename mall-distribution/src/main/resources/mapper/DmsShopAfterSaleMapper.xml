@@ -134,15 +134,19 @@
         ORDER BY id DESC
     </select>
 
-    <select id="selectProcessingWechatRefundIdsScoped" resultType="java.lang.Long">
-        SELECT sale.id
+    <select id="selectProcessingExternalRefundsScoped" resultMap="BaseResultMap">
+        SELECT sale.id, sale.update_time
         FROM dms_shop_after_sale sale
         INNER JOIN dms_shop_order shop_order ON shop_order.id = sale.order_id
         WHERE COALESCE(shop_order.tenant_id, 1) = #{tenantId}
           AND sale.status = 6
-          AND UPPER(shop_order.pay_type) = 'WECHAT'
+          AND UPPER(shop_order.pay_type) IN ('WECHAT', 'ALIPAY')
           AND sale.update_time &lt;= #{cutoff}
-        ORDER BY sale.id ASC
+        <if test="cursorTime != null and cursorId != null">
+            AND (sale.update_time &gt; #{cursorTime}
+              OR (sale.update_time = #{cursorTime} AND sale.id &gt; #{cursorId}))
+        </if>
+        ORDER BY sale.update_time ASC, sale.id ASC
         LIMIT #{limit}
     </select>
 

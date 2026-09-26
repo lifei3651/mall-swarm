@@ -14,6 +14,7 @@ import com.macro.mall.distribution.service.MerchantService;
 import com.macro.mall.distribution.util.MemberAccountUtils;
 import com.macro.mall.distribution.vo.MerchantBalanceReconciliationVO;
 import com.macro.mall.distribution.vo.MerchantExitReadinessVO;
+import com.macro.mall.distribution.vo.MerchantOptionVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -67,11 +68,19 @@ public class MerchantServiceImpl implements MerchantService {
 
     @Override
     public List<DmsMerchant> listMerchants(String keyword, Integer status) {
-        if (AdminContext.get() != null && AdminContext.get().getMerchantId() != null) {
-            DmsMerchant own = merchantDao.selectById(AdminContext.get().getMerchantId());
-            return own == null || (status != null && !status.equals(own.getStatus())) ? List.of() : List.of(own);
+        DmsAdminUser actor = AdminContext.get();
+        if (actor != null) {
+            requirePlatformAdmin();
+            adminAuthService.requirePermission(actor, "system:manage");
         }
         return merchantDao.selectList(tenantId(), trim(keyword), status);
+    }
+
+    @Override
+    public List<MerchantOptionVO> listMerchantOptions(Integer status) {
+        DmsAdminUser actor = AdminContext.get();
+        adminAuthService.requirePermission(actor, "shop:product");
+        return merchantDao.selectOptions(tenantId(), currentMerchantId(), status);
     }
 
     @Override
@@ -183,6 +192,7 @@ public class MerchantServiceImpl implements MerchantService {
     public DmsMerchant currentMerchantProfile() {
         Long merchantId = currentMerchantId();
         if (merchantId == null) Asserts.fail("仅商户工作台账号可以查看入驻资料");
+        adminAuthService.requirePermission(AdminContext.get(), "merchant:staff-manage");
         return requireMerchant(merchantId, false);
     }
 
@@ -191,6 +201,7 @@ public class MerchantServiceImpl implements MerchantService {
     public DmsMerchant submitCurrentMerchantProfile(MerchantProfileSubmitDTO dto) {
         Long merchantId = currentMerchantId();
         if (merchantId == null) Asserts.fail("仅商户工作台账号可以提交入驻资料");
+        adminAuthService.requirePermission(AdminContext.get(), "merchant:staff-manage");
         DmsMerchant existing = requireMerchantForUpdate(merchantId, false);
         if (dto == null) Asserts.fail("入驻资料不能为空");
         existing.setContactName(trim(dto.getContactName()));

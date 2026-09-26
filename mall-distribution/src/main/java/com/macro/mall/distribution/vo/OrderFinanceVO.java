@@ -15,6 +15,7 @@ public class OrderFinanceVO implements Serializable {
 
     private String orderNo;
 
+    /** 下单时冻结的应付快照；未支付时不是实际到账金额，实际净收款见 netPayAmount。 */
     private BigDecimal payAmount;
 
     private BigDecimal refundAmount;

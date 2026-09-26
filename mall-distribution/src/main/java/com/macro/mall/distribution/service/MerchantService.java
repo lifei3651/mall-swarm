@@ -4,10 +4,12 @@ import com.macro.mall.distribution.dto.*;
 import com.macro.mall.distribution.entity.*;
 import com.macro.mall.distribution.vo.MerchantBalanceReconciliationVO;
 import com.macro.mall.distribution.vo.MerchantExitReadinessVO;
+import com.macro.mall.distribution.vo.MerchantOptionVO;
 import java.util.List;
 
 public interface MerchantService {
     List<DmsMerchant> listMerchants(String keyword, Integer status);
+    List<MerchantOptionVO> listMerchantOptions(Integer status);
     DmsMerchant saveMerchant(DmsMerchant merchant);
     DmsMerchant onboardMerchant(MerchantOnboardingDTO dto);
     DmsMerchant updateMerchant(Long id, DmsMerchant merchant);

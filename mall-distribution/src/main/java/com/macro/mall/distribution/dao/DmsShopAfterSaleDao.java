@@ -46,12 +46,16 @@ public interface DmsShopAfterSaleDao {
         return selectList(TenantContext.getTenantId(), keyword, status, null);
     }
 
-    List<Long> selectProcessingWechatRefundIdsScoped(@Param("tenantId") Long tenantId,
-                                                      @Param("cutoff") LocalDateTime cutoff,
-                                                      @Param("limit") int limit);
+    List<DmsShopAfterSale> selectProcessingExternalRefundsScoped(@Param("tenantId") Long tenantId,
+                                                                  @Param("cutoff") LocalDateTime cutoff,
+                                                                  @Param("cursorTime") LocalDateTime cursorTime,
+                                                                  @Param("cursorId") Long cursorId,
+                                                                  @Param("limit") int limit);
     BusinessTimeoutMetricSnapshot selectTimedOutRefundMetrics(@Param("cutoff") LocalDateTime cutoff);
-    default List<Long> selectProcessingWechatRefundIds(LocalDateTime cutoff, int limit) {
-        return selectProcessingWechatRefundIdsScoped(TenantContext.getTenantId(), cutoff, limit);
+    default List<DmsShopAfterSale> selectProcessingExternalRefunds(LocalDateTime cutoff,
+                                                                    LocalDateTime cursorTime,
+                                                                    Long cursorId, int limit) {
+        return selectProcessingExternalRefundsScoped(TenantContext.getTenantId(), cutoff, cursorTime, cursorId, limit);
     }
 
     int insertScoped(@Param("tenantId") Long tenantId, @Param("afterSale") DmsShopAfterSale afterSale);

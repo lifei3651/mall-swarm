@@ -47,7 +47,7 @@ class DynamicSqlWhitespaceRegressionTest {
 
     @Test
     void erpTaskListCanCombineIntegrationAndStatusConditions() {
-        List<DmsErpSyncTask> rows = erpSyncTaskDao.selectList(990003L, 0);
+        List<DmsErpSyncTask> rows = erpSyncTaskDao.selectList(1L, 990003L, 0);
 
         assertEquals(List.of("SQL-SPACE-ERP"), rows.stream().map(DmsErpSyncTask::getTaskNo).toList());
     }

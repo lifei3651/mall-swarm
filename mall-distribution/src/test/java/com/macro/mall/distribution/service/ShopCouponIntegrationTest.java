@@ -187,6 +187,39 @@ class ShopCouponIntegrationTest {
         line.setTotalAmount(new BigDecimal("299"));line.setTotalCost(new BigDecimal("100"));
         assertTrue(assertThrows(ApiException.class,()->coupons.preview(member,owned.getClaimId(),List.of(line),"REPURCHASE")).getMessage().contains("复购区已关闭"));
     }
+    @Test void platformOnlyModeStopsNewMerchantCouponClaimsAndUseButKeepsClaimHistory(){
+        DmsMerchant merchant=new DmsMerchant();merchant.setMerchantNo("COUPON-CLOSED-MERCHANT");merchant.setMerchantName("优惠券历史商户");
+        merchant=merchants.saveMerchant(merchant);
+        db.update("UPDATE dms_shop_product SET merchant_id=?,merchant_name=? WHERE id=2",merchant.getId(),merchant.getMerchantName());
+        ShopCouponSaveDTO input=input();input.setMerchantId(merchant.getId());input.setProductIds(List.of(2L));
+        input.setPerMemberLimit(2);
+        DmsShopCoupon coupon=publish(input);ShopCouponVO owned=claim(coupon);
+        DmsShopOrderItem line=new DmsShopOrderItem();line.setMerchantId(merchant.getId());line.setProductId(2L);
+        line.setTotalAmount(new BigDecimal("198"));line.setTotalCost(new BigDecimal("80"));
+        money("10",coupons.preview(member,owned.getClaimId(),List.of(line),"NORMAL"));
+
+        db.update("UPDATE dms_tenant SET multi_merchant_enabled=0 WHERE id=1");
+
+        assertTrue(coupons.merchantChoices(1,20).getList().isEmpty());
+        assertTrue(coupons.products(merchant.getId(),null).isEmpty());
+        assertTrue(coupons.catalog(member,1,20).getList().stream().noneMatch(row->coupon.getId().equals(row.getId())));
+        ShopCouponVO history=coupons.mine(member,1,20).getList().stream()
+                .filter(row->coupon.getId().equals(row.getId())).findFirst().orElseThrow();
+        assertEquals("AVAILABLE",history.getStatus());assertFalse(history.isUsable());
+        assertEquals("当前商城仅支持平台自营",history.getReason());
+        assertTrue(coupons.usableProducts(member,coupon.getId(),1,20).getList().isEmpty());
+        ShopCouponVO retry=claim(coupon);assertEquals(owned.getClaimId(),retry.getClaimId());assertFalse(retry.isUsable());
+        assertThrows(ApiException.class,()->coupons.claim(member,coupon.getId(),"coupon-test-request-000002"));
+        assertThrows(ApiException.class,()->coupons.preview(member,owned.getClaimId(),List.of(line),"NORMAL"));
+        assertThrows(ApiException.class,()->coupons.reserve(member,owned.getClaimId(),99L,List.of(line),"NORMAL"));
+        assertEquals(1,dao.get(1L,coupon.getId()).getIssuedCount());
+        DmsShopCoupon paused=coupons.status(coupon.getId(),coupon.getVersion(),"PAUSED",true);
+        assertThrows(ApiException.class,()->coupons.status(paused.getId(),paused.getVersion(),"PUBLISHED",true));
+
+        DmsShopCoupon platform=publish(input());
+        assertTrue(coupons.catalog(member,1,20).getList().stream().anyMatch(row->platform.getId().equals(row.getId())));
+        assertNotNull(coupons.claim(member,platform.getId(),"coupon-test-request-platform-000001").getClaimId());
+    }
     @Test void merchantFundingAndThreeRefundsReverseExactlyTheNetSettlement(){
         DmsMerchant m=new DmsMerchant();m.setMerchantNo("COUPON-REFUND-SELLER");m.setMerchantName("优惠分担测试商家");
         m.setLegalEntityName(m.getMerchantName());m.setUnifiedSocialCreditCode("91430100TEST000001");m.setBankAccountName(m.getMerchantName());m.setBankName("测试银行长沙支行");m.setBankAccountNo("6222000000000000001");m.setInvoiceTitle(m.getMerchantName());m.setTaxpayerIdentificationNo("91430100TEST000001");m.setContractStatus("SIGNED");m=merchants.saveMerchant(m);

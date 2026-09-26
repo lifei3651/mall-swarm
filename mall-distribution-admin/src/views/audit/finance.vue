@@ -44,7 +44,7 @@
         <div class="value warning">¥{{ money(summary.bonusAmount) }}</div>
       </div>
       <div class="summary-item">
-        <div class="label">产品成本</div>
+        <div class="label">原始产品成本</div>
         <div class="value">¥{{ money(summary.productCost) }}</div>
       </div>
       <div class="summary-item">
@@ -52,7 +52,7 @@
         <div class="value">¥{{ money(summary.companyShareAmount) }}</div>
       </div>
       <div class="summary-item">
-        <div class="label">公司利润</div>
+        <div class="label">账面利润（含预计）</div>
         <div class="value" :class="Number(summary.companyProfit || 0) < 0 ? 'danger' : 'success'">
           ¥{{ money(summary.companyProfit) }}
         </div>
@@ -75,7 +75,7 @@
       class="hint"
       type="info"
       :closable="false"
-      title="统计口径：以订单财务审计表为准，成交额 - 退款 - 产品成本 - 奖金拨出 - 公司分账 = 公司利润。"
+      title="统计口径：原始产品成本保留作下单快照；账面利润按净收款减去退款后剩余商品成本、净奖金和分账计算。未过售后期的利润仍为预计，全额退款订单利润为零。"
     />
 
     <div v-if="riskAlerts.length" class="alert-list">
@@ -263,15 +263,15 @@ const renderChart = async () => {
   const dates = dailyRows.value.map((item) => item.statDate)
   chartInstance.setOption({
     tooltip: { trigger: 'axis' },
-    legend: { top: 0, data: ['成交额', '奖金拨出', '产品成本', '公司利润'] },
+    legend: { top: 0, data: ['成交额', '奖金拨出', '原始产品成本', '账面利润'] },
     grid: { left: 56, right: 24, top: 48, bottom: 36 },
     xAxis: { type: 'category', data: dates },
     yAxis: { type: 'value' },
     series: [
       { name: '成交额', type: 'line', smooth: true, data: dailyRows.value.map((item) => Number(item.payAmount || 0)) },
       { name: '奖金拨出', type: 'line', smooth: true, data: dailyRows.value.map((item) => Number(item.bonusAmount || 0)) },
-      { name: '产品成本', type: 'line', smooth: true, data: dailyRows.value.map((item) => Number(item.productCost || 0)) },
-      { name: '公司利润', type: 'line', smooth: true, data: dailyRows.value.map((item) => Number(item.companyProfit || 0)) },
+      { name: '原始产品成本', type: 'line', smooth: true, data: dailyRows.value.map((item) => Number(item.productCost || 0)) },
+      { name: '账面利润', type: 'line', smooth: true, data: dailyRows.value.map((item) => Number(item.companyProfit || 0)) },
     ],
   })
 }
