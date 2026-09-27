@@ -1,0 +1,14 @@
+backup-integrity=PASS 20260927_123741
+backup-integrity=PASS 20260927_123833
+backup-integrity=PASS 20260927_123925
+backup-integrity=PASS 20260927_123937
+backup-integrity=PASS 20260927_123950
+backup-integrity=PASS 20260927_124002
+backup-integrity=PASS 20260927_124015
+backup-integrity=PASS 20260927_124028
+rollback-present=closure-backend-170.2Xc9ru
+rollback-present=admin-170.LGnZuu
+rollback-present=public-h5-170.4T8E0L
+rollback-present=team-h5-170.zQzvav
+targeted-severe-log-hits-since-service-start=0
+migration-ledger=44/44 isolated-restore-database-residue=0

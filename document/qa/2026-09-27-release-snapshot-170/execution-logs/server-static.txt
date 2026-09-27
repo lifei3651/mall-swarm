@@ -1,0 +1,60 @@
+static-old-and-candidate-identity=passed
+candidate-tree-exact=passed files=226
+nginx: [warn] "ssl_stapling" ignored, no OCSP responder URL in the certificate "/etc/letsencrypt/live/lingqimall.com/fullchain.pem"
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+admin-preflight=passed previous=1.0.169 target=1.0.170 backend=1.0.170 backend-jar=161e823e2b507e17af5cbbf22bf1e8dcbd4de1dbe24a693b23aec850a134ccb3
+static-old-and-candidate-identity=passed
+candidate-tree-exact=passed files=226
+nginx: [warn] "ssl_stapling" ignored, no OCSP responder URL in the certificate "/etc/letsencrypt/live/lingqimall.com/fullchain.pem"
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+admin-preflight=passed previous=1.0.169 target=1.0.170 backend=1.0.170 backend-jar=161e823e2b507e17af5cbbf22bf1e8dcbd4de1dbe24a693b23aec850a134ccb3
+candidate-tree-exact=passed files=226
+candidate-tree-exact=passed files=226
+nginx: [warn] "ssl_stapling" ignored, no OCSP responder URL in the certificate "/etc/letsencrypt/live/lingqimall.com/fullchain.pem"
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+public-version-html-entry-assets=passed entries=14
+candidate-tree-exact=passed files=226
+admin-release-success version=1.0.170 source=e99812cf2d4025a66b30921226f04d89ce337784 build=20260927-closure-1.0.170 before=/opt/lingqimall/backups/full/20260927_123925 after=/opt/lingqimall/backups/full/20260927_123937 rollback=/opt/lingqimall/backups/admin-170.LGnZuu exact-tree=yes backend-other-sites-config-preserved=yes
+static-old-and-candidate-identity=passed
+candidate-tree-exact=passed files=126
+nginx: [warn] "ssl_stapling" ignored, no OCSP responder URL in the certificate "/etc/letsencrypt/live/lingqimall.com/fullchain.pem"
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+public-h5-preflight=passed previous=1.0.169 target=1.0.170 backend=1.0.170 backend-jar=161e823e2b507e17af5cbbf22bf1e8dcbd4de1dbe24a693b23aec850a134ccb3
+static-old-and-candidate-identity=passed
+candidate-tree-exact=passed files=126
+nginx: [warn] "ssl_stapling" ignored, no OCSP responder URL in the certificate "/etc/letsencrypt/live/lingqimall.com/fullchain.pem"
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+public-h5-preflight=passed previous=1.0.169 target=1.0.170 backend=1.0.170 backend-jar=161e823e2b507e17af5cbbf22bf1e8dcbd4de1dbe24a693b23aec850a134ccb3
+candidate-tree-exact=passed files=126
+candidate-tree-exact=passed files=126
+nginx: [warn] "ssl_stapling" ignored, no OCSP responder URL in the certificate "/etc/letsencrypt/live/lingqimall.com/fullchain.pem"
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+public-version-html-entry-assets=passed entries=3
+candidate-tree-exact=passed files=126
+public-h5-release-success version=1.0.170 source=e99812cf2d4025a66b30921226f04d89ce337784 build=20260927-closure-1.0.170 before=/opt/lingqimall/backups/full/20260927_123950 after=/opt/lingqimall/backups/full/20260927_124002 rollback=/opt/lingqimall/backups/public-h5-170.4T8E0L exact-tree=yes backend-other-sites-config-preserved=yes
+static-old-and-candidate-identity=passed
+candidate-tree-exact=passed files=60
+nginx: [warn] "ssl_stapling" ignored, no OCSP responder URL in the certificate "/etc/letsencrypt/live/lingqimall.com/fullchain.pem"
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+team-h5-preflight=passed previous=1.0.169 target=1.0.170 backend=1.0.170 backend-jar=161e823e2b507e17af5cbbf22bf1e8dcbd4de1dbe24a693b23aec850a134ccb3
+static-old-and-candidate-identity=passed
+candidate-tree-exact=passed files=60
+nginx: [warn] "ssl_stapling" ignored, no OCSP responder URL in the certificate "/etc/letsencrypt/live/lingqimall.com/fullchain.pem"
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+team-h5-preflight=passed previous=1.0.169 target=1.0.170 backend=1.0.170 backend-jar=161e823e2b507e17af5cbbf22bf1e8dcbd4de1dbe24a693b23aec850a134ccb3
+candidate-tree-exact=passed files=60
+candidate-tree-exact=passed files=60
+nginx: [warn] "ssl_stapling" ignored, no OCSP responder URL in the certificate "/etc/letsencrypt/live/lingqimall.com/fullchain.pem"
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+public-version-html-entry-assets=passed entries=3
+candidate-tree-exact=passed files=60
+team-h5-release-success version=1.0.170 source=e99812cf2d4025a66b30921226f04d89ce337784 build=20260927-closure-1.0.170 before=/opt/lingqimall/backups/full/20260927_124015 after=/opt/lingqimall/backups/full/20260927_124028 rollback=/opt/lingqimall/backups/team-h5-170.zQzvav exact-tree=yes backend-other-sites-config-preserved=yes

@@ -1,0 +1,12 @@
+{"version":"1.0.170","edition":"app-h5-split","application":"admin","gitCommit":"e99812cf2d4025a66b30921226f04d89ce337784","buildId":"20260927-closure-1.0.170"}
+{"version":"1.0.170","edition":"app-h5-split","application":"storefront-public","gitCommit":"e99812cf2d4025a66b30921226f04d89ce337784","buildId":"20260927-closure-1.0.170"}
+{"version":"1.0.170","edition":"app-h5-split","application":"team-h5","gitCommit":"e99812cf2d4025a66b30921226f04d89ce337784","buildId":"20260927-closure-1.0.170"}
+active
+active
+active
+active
+{"status":"UP"}
+44:44
+0
+global-node-entry=absent
+independent-server-identity=matched
