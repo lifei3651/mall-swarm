@@ -1,5 +1,32 @@
 # 1.0.169 发布检查最小修正
 
+## 后续：统一候选已冻结并上传私有留档
+
+从干净且已推送的产品提交 `a978bd33004589f42e79fcf341aadfabb51995fc`（源码树 `a4bbff73fa242f1e3d06aa46500d90c92ce8df61`）执行全量统一回归及一次干净封包：后端 905、公共模块 17、后台 227、小程序 533、H5 186、脚本 68，**1,936 项全过、无跳过**；本轮统一回归显式启用了合成 MySQL 实际测试。
+
+- 版本 / 构建：`1.0.169 / 20260927-closure-1.0.169`。
+- 固定包：`target/releases/lingqi-mall-1.0.169-a978bd33.tar.gz`，146907233 字节。
+- 整包 SHA-256：`f88ec4474ab913bdf843cec8ebad57fad6b1e21c2344194266cf95f77a1f784d`。
+- JAR SHA-256：`efa7def01726a667fe3c4e195833b3983f723f817c1523575f0c8828af07173d`。
+- RELEASE_MANIFEST SHA-256：`e59734d8008bb061bb05bb289424bc2247cc0c4a0121fd87a62b7ab794130c6f`。
+- 44 条原迁移及全部内包摘要见 `FROZEN_RELEASE_MANIFEST.json` 和 `FROZEN_SHA256SUMS`。
+- 与 1.0.168 固定源码对比，业务源码及迁移无差异；小程序仅 package/lock 的版本变化。包包含正常按固定提交干净生成的各端产物，不复用旧包改写。
+- 本地递归准入通过。同版小程序 233 文件已准备、官方 CLI 只读预检通过，聚合 SHA-256 `a3e29573dca875a9e14a675e66c213b60cccad364a637ad7742156c86e111f97`。原 1.0.168 工程因不是新版准备器登记的可覆盖对象而被安全拒绝；先由原版校验器逐文件验证，再将工程及清单移至 `dist/wechat-mini-program.preserved-168-2d7371a0` 和同名 `.release.json`，没有删除或改写原工程，随后在空目标生成新版。微信尚未上传。
+- 私有不可变 GitHub 预发行已创建，附件平台摘要与整包一致：[私有留档](https://github.com/lifei3651/mall-swarm-release-archive/releases/tag/candidate-1.0.169-a978bd33)。保持原私有权限，保留至至少 2027-09-28。已请用户手动下载附件完成回读；此时未生成 COMPLETED 留存回执，不绕过门禁部署。
+
+日志摘要（本机日志，不当作远端留存）：
+
+| 日志 | SHA-256 |
+|---|---|
+| /tmp/mall-169-full-regression.log | f6d023cc884c594bce0e51c2b895f271b993febbc32690f8ef399bb8137d765b |
+| /tmp/mall-169-candidate-build.log | e7e542c610c7b5992b36c1fdca4e8e77cdd53c5d89a87b7a0379dbff4c26285c |
+| /tmp/mall-169-candidate-readiness.log | 15c98cebf43d8f45b1680a5804d6ebf0f450a1a971bb2352e286e667d946f78a |
+| /tmp/mall-169-tag-mysql.log | 36a3a957a09f326846ccf2797d52a60df925d4b21a6a6357d6b219ae479c4cd4 |
+
+以下保留封包前的来源与验证范围，不等于服务器/微信/真机已完成。
+
+服务器暂存为 `/tmp/lingqimall-closure-169.SIxBMG`，传输后整包 SHA-256 一致，包内原版后端 `--preflight-only` 返回 `previous=1.0.167 target=1.0.169 migrations=41:41 migration-mode=additive-41-to-44`。尚未执行 `--authorize-release`。临时官方 Node 22.23.2 复用已按官方 SHA-256 验证的 `/tmp/lingqi168-runtime.nKJ0Vd`，不修改线上应用、配置或迁移。后续正式准入仍须实际回读成功并提交同步的 `artifact-retention.json`，不能把平台摘要直接当成下载回读。
+
 用户在 1.0.168 隔离演练中止后明确“继续”，授权最小修正发布检查、补回归、形成替代候选，并延续固定包留档、受控服务器部署和同版小程序分发；真机验收由用户随后进行，不提交审核或正式发布。
 
 ## 源码范围
