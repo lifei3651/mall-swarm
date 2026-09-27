@@ -1,0 +1,3 @@
+{"url":"https://lingqimall.com/admin/version.json","version":"1.0.169","edition":"app-h5-split","application":"admin","gitCommit":"a978bd33004589f42e79fcf341aadfabb51995fc","buildId":"20260927-closure-1.0.169"}
+{"url":"https://lingqimall.com/version.json","version":"1.0.169","edition":"app-h5-split","application":"storefront-public","gitCommit":"a978bd33004589f42e79fcf341aadfabb51995fc","buildId":"20260927-closure-1.0.169"}
+{"url":"https://www.lingqimall.com/version.json","version":"1.0.169","edition":"app-h5-split","application":"team-h5","gitCommit":"a978bd33004589f42e79fcf341aadfabb51995fc","buildId":"20260927-closure-1.0.169"}

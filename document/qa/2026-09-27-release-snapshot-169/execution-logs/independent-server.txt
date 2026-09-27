@@ -1,0 +1,24 @@
+2026-09-27T10:33:07+08:00
+VM-4-6-rockylinux
+1.0.169
+efa7def01726a667fe3c4e195833b3983f723f817c1523575f0c8828af07173d  /opt/lingqimall/app/mall-distribution.jar
+44	44	0
+0
+backup-independent-check=passed /opt/lingqimall/backups/full/20260927_102922
+backup-independent-check=passed /opt/lingqimall/backups/full/20260927_103018
+backup-independent-check=passed /opt/lingqimall/backups/full/20260927_103057
+backup-independent-check=passed /opt/lingqimall/backups/full/20260927_103110
+backup-independent-check=passed /opt/lingqimall/backups/full/20260927_103124
+backup-independent-check=passed /opt/lingqimall/backups/full/20260927_103136
+backup-independent-check=passed /opt/lingqimall/backups/full/20260927_103149
+backup-independent-check=passed /opt/lingqimall/backups/full/20260927_103202
+rollback-preserved=/opt/lingqimall/backups/closure-backend-169.IArHtZ
+rollback-preserved=/opt/lingqimall/backups/admin-169.dsycPe
+rollback-preserved=/opt/lingqimall/backups/public-h5-169.07k6so
+rollback-preserved=/opt/lingqimall/backups/team-h5-169.NIeNNE
+temporary-node-entry=removed
+active
+active
+active
+active
+{"status":"UP"}

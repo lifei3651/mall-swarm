@@ -1,0 +1,4 @@
+release-readiness-ok: 唯一仓库、远程同步与非商城主机隔离门禁
+release-readiness-ok: 统一候选、四个静态内包、小程序不可变源码、逐文件哈希、迁移集合与 Nginx 模板
+release-readiness-ok: P0-10 独立耐久副本与远端回读验签
+release-readiness-ok: 正式主机身份、四项服务、健康、公网清单与 Nginx 模板一致

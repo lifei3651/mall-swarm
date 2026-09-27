@@ -1,0 +1,7 @@
+{
+  "receiptDirectory": "/Users/minmatemp/.codex/worktrees/4868/mall-swarm-app-h5/document/qa/2026-09-27-release-snapshot-169/mini-upload/2026-09-27_02-33-01-280",
+  "success": true,
+  "exitCode": 0,
+  "packageSizeBytes": 1571567,
+  "portClosed": true
+}
