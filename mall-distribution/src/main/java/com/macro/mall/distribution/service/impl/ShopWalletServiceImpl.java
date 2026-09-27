@@ -48,6 +48,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -209,7 +210,9 @@ public class ShopWalletServiceImpl implements ShopWalletService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    // 行锁和流水幂等仍负责防重复扣款；READ_COMMITTED 让等待锁的重复请求读取
+    // 首次支付已提交的订单/财务结果，避免 MySQL RR 的旧快照返回“待支付”。
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public ShopOrderVO payOrder(DmsShopMember member, Long orderId, BalancePayDTO dto) {
         DmsShopMember current = requireCurrentMember(member);
         if (orderId == null) Asserts.fail("订单ID不能为空");

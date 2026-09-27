@@ -1,5 +1,6 @@
 package com.macro.mall.distribution.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.macro.mall.distribution.dao.*;
 import com.macro.mall.distribution.dto.AssetChangeDTO;
 import com.macro.mall.distribution.dto.AssetTransferDTO;
@@ -59,7 +60,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * 业绩服务测试类
- * 使用H2内存数据库进行测试
+ * 默认使用 H2；亦在生产结构副本的隔离 MySQL 中执行同一套交易回归。
  */
 @Slf4j
 @SpringBootTest
@@ -297,7 +298,8 @@ public class PerformanceServiceTest {
     }
 
     @Test
-    void testOrderItemSnapshotsServiceGuaranteesForOrderPresentation() {
+    void testOrderItemSnapshotsServiceGuaranteesForOrderPresentation() throws Exception {
+        ObjectMapper json = new ObjectMapper();
         String originalTags = "[{\"title\":\"七天无理由\",\"enabled\":true},{\"title\":\"晚发赔\",\"enabled\":true}]";
         jdbcTemplate.update("UPDATE dms_shop_product SET service_tags=? WHERE id=1", originalTags);
         DmsShopMember member = createShopMember("13999000044", "订单保障快照会员", null);
@@ -314,11 +316,11 @@ public class PerformanceServiceTest {
         submit.setItems(List.of(item));
 
         ShopOrderVO created = shopService.submitOrder(submit, member);
-        assertEquals(originalTags, created.getItems().get(0).getServiceTags());
+        assertEquals(json.readTree(originalTags), json.readTree(created.getItems().get(0).getServiceTags()));
 
         jdbcTemplate.update("UPDATE dms_shop_product SET service_tags='[]' WHERE id=1");
         ShopOrderVO reloaded = shopService.getOrder(created.getOrder().getId());
-        assertEquals(originalTags, reloaded.getItems().get(0).getServiceTags(),
+        assertEquals(json.readTree(originalTags), json.readTree(reloaded.getItems().get(0).getServiceTags()),
                 "订单保障标签必须保持下单快照，不能随商品后续修改而漂移");
     }
 
@@ -610,8 +612,8 @@ public class PerformanceServiceTest {
 
         DmsShopAfterSale expiring = shopAfterSaleService.apply(buyer, apply);
         assertEquals(4, shopAfterSaleService.audit(expiring.getId(), approve).getStatus());
-        jdbcTemplate.update("UPDATE dms_shop_after_sale SET audit_time=DATEADD('DAY', -8, CURRENT_TIMESTAMP) WHERE id=?",
-                expiring.getId());
+        jdbcTemplate.update("UPDATE dms_shop_after_sale SET audit_time=? WHERE id=?",
+                LocalDateTime.now().minusDays(8), expiring.getId());
         sqlSessionTemplate.clearCache();
         assertEquals(1, shopAfterSaleService.expireWaitingReturnShipments(20));
         assertEquals(3, shopAfterSaleService.listByMember(buyer).stream()
@@ -719,8 +721,8 @@ public class PerformanceServiceTest {
         ShopOrderVO paid = submitAndPay(buyer, 2);
         // 同一事务内 MyBatis 可能复用一级缓存；同步更新已加载对象，模拟已过期订单。
         paid.getOrder().setCreateTime(LocalDateTime.now().minusDays(8));
-        jdbcTemplate.update("UPDATE dms_shop_order SET create_time=DATEADD('DAY', -8, CURRENT_TIMESTAMP) WHERE id=?",
-                paid.getOrder().getId());
+        jdbcTemplate.update("UPDATE dms_shop_order SET create_time=? WHERE id=?",
+                LocalDateTime.now().minusDays(8), paid.getOrder().getId());
         sqlSessionTemplate.clearCache();
 
         ShopAfterSaleItemDTO frontItem = new ShopAfterSaleItemDTO();
@@ -2041,8 +2043,8 @@ public class PerformanceServiceTest {
         replacement.setDeliveryNo("JDEXCHANGE0002");
         autoExchange = shopAfterSaleService.shipExchangeReplacement(autoExchange.getId(), replacement);
         assertEquals(8, autoExchange.getStatus());
-        jdbcTemplate.update("UPDATE dms_shop_after_sale SET exchange_shipped_at=DATEADD('DAY', -16, CURRENT_TIMESTAMP) WHERE id=?",
-                autoExchange.getId());
+        jdbcTemplate.update("UPDATE dms_shop_after_sale SET exchange_shipped_at=? WHERE id=?",
+                LocalDateTime.now().minusDays(16), autoExchange.getId());
         sqlSessionTemplate.clearCache();
         assertEquals(1, shopAfterSaleService.autoCompleteExpiredExchangeReceipts(20));
         assertEquals(1, shopAfterSaleService.confirmExchangeReceived(member, autoExchange.getId()).getStatus(),
@@ -2079,8 +2081,8 @@ public class PerformanceServiceTest {
         assertNull(shipped.getAfterSaleDeadline(), "签收后售后期不能在确认收货前提前起算");
         assertEquals(0, shopService.autoConfirmExpiredShippedOrders(20), "未满15天不能自动确认收货");
 
-        jdbcTemplate.update("UPDATE dms_shop_order SET delivery_time=DATEADD('DAY', -16, CURRENT_TIMESTAMP) WHERE id=?",
-                paid.getOrder().getId());
+        jdbcTemplate.update("UPDATE dms_shop_order SET delivery_time=? WHERE id=?",
+                LocalDateTime.now().minusDays(16), paid.getOrder().getId());
         sqlSessionTemplate.clearCache();
         ShopAfterSaleItemDTO refundItem = new ShopAfterSaleItemDTO();
         refundItem.setOrderItemId(paid.getItems().get(0).getId());

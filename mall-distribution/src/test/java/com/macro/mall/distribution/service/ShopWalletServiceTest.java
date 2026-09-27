@@ -17,10 +17,12 @@ import com.macro.mall.distribution.dto.ShopOrderSubmitDTO;
 import com.macro.mall.distribution.dto.ShopWithdrawalApplyDTO;
 import com.macro.mall.distribution.dto.WithdrawAuditDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleApplyDTO;
+import com.macro.mall.distribution.dto.ShopAfterSaleAuditDTO;
 import com.macro.mall.distribution.dto.ShopAfterSaleItemDTO;
 import com.macro.mall.distribution.entity.DmsMemberAssetAccount;
 import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.entity.DmsShopMember;
+import com.macro.mall.distribution.entity.DmsShopAfterSale;
 import com.macro.mall.distribution.entity.DmsMemberRealName;
 import com.macro.mall.distribution.vo.BalanceRecipientVO;
 import com.macro.mall.distribution.vo.ShopOrderVO;
@@ -279,6 +281,9 @@ class ShopWalletServiceTest {
         }
 
         assertEquals(0, expected.compareTo(balance(1L)));
+        assertEquals(1, balancePaymentFlowCount(payer.getUserId(), pending.getOrder().getId()),
+                "两个成功响应必须对应同一笔扣款，不能只比较最终余额");
+        assertEquals(1, shopService.getOrder(pending.getOrder().getId()).getOrder().getStatus());
     }
 
     @Test
@@ -340,8 +345,8 @@ class ShopWalletServiceTest {
         item.setQuantity(1);
         ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
         apply.setOrderId(order.getOrder().getId());
-        apply.setApplyType(1);
-        apply.setReason("并发售后测试");
+        apply.setApplyType(4);
+        apply.setReason("取消未发货订单：并发售后测试");
         apply.setItems(List.of(item));
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
@@ -469,6 +474,85 @@ class ShopWalletServiceTest {
         return apply;
     }
 
+    @Test
+    @Order(13)
+    void concurrentCancellationRefundAuditsRestoreWalletAndStockOnlyOnce() throws Exception {
+        DmsShopMember payer = createMember(1009L, "13988220009", "并发退款会员");
+        PaymentPasswordDTO password = new PaymentPasswordDTO();
+        password.setNewPassword("246810");
+        password.setLoginPassword("login123");
+        password.setSmsCode("123456");
+        walletService.setPaymentPassword(payer, password);
+        AssetChangeDTO issue = new AssetChangeDTO();
+        issue.setUserId(payer.getUserId());
+        issue.setAmount(new BigDecimal("500.00"));
+        issue.setBizType("CONCURRENT_REFUND_TEST");
+        issue.setBizId("CONCURRENT_REFUND_TEST_1");
+        memberAssetService.issue(issue);
+        BigDecimal initialBalance = balanceForUser(payer.getUserId());
+        Integer initialStock = jdbcTemplate.queryForObject("SELECT stock FROM dms_shop_sku WHERE id=1", Integer.class);
+        ShopOrderVO pending = shopService.submitOrder(orderRequest(), payer);
+        Long orderId = pending.getOrder().getId();
+        BalancePayDTO payment = new BalancePayDTO();
+        payment.setPaymentPassword("246810");
+        walletService.payOrder(payer, orderId, payment);
+        assertEquals(0, initialBalance.subtract(pending.getOrder().getPayAmount())
+                .compareTo(balanceForUser(payer.getUserId())));
+
+        ShopAfterSaleItemDTO item = new ShopAfterSaleItemDTO();
+        item.setOrderItemId(pending.getItems().get(0).getId());
+        item.setQuantity(1);
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO();
+        apply.setOrderId(orderId);
+        apply.setApplyType(4); // 未发货取消/异常退款，不虚构退货物流。
+        apply.setReason("取消未发货订单：并发审核隔离测试");
+        apply.setItems(List.of(item));
+        DmsShopAfterSale sale = afterSaleService.apply(payer, apply);
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        java.util.concurrent.Callable<Boolean> approve = () -> {
+            ready.countDown();
+            assertTrue(start.await(5, TimeUnit.SECONDS));
+            ShopAfterSaleAuditDTO audit = new ShopAfterSaleAuditDTO();
+            audit.setStatus(1);
+            audit.setAuditUserId(1L);
+            audit.setAuditUserName("test-admin");
+            try {
+                assertEquals(1, afterSaleService.audit(sale.getId(), audit).getStatus());
+                return true;
+            } catch (ApiException rejected) {
+                assertEquals("售后单已审核", rejected.getMessage());
+                return false;
+            }
+        };
+        try {
+            Future<Boolean> first = executor.submit(approve);
+            Future<Boolean> second = executor.submit(approve);
+            assertTrue(ready.await(5, TimeUnit.SECONDS));
+            start.countDown();
+            assertEquals(1, (first.get(10, TimeUnit.SECONDS) ? 1 : 0)
+                    + (second.get(10, TimeUnit.SECONDS) ? 1 : 0));
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+        }
+        assertEquals(0, initialBalance.compareTo(balanceForUser(payer.getUserId())));
+        assertEquals(initialStock, jdbcTemplate.queryForObject("SELECT stock FROM dms_shop_sku WHERE id=1", Integer.class));
+        assertEquals(1, balancePaymentFlowCount(payer.getUserId(), orderId));
+        assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM dms_member_asset_flow "
+                + "WHERE user_id=? AND biz_type='BALANCE_PAYMENT_REFUND' AND biz_id=?",
+                Integer.class, payer.getUserId(), String.valueOf(sale.getId())));
+        assertEquals(1, auditService.getRefundsByOrderId(orderId).size());
+        ShopOrderVO closed = shopService.getOrder(orderId);
+        assertEquals(4, closed.getOrder().getStatus());
+        var finance = auditService.getOrderFinanceDetail(orderId).getFinance();
+        assertMoney("0.00", finance.getNetPayAmount());
+        assertMoney("0.00", finance.getCompanyProfit());
+        assertMoney("0.00", finance.getBonusAmount());
+    }
+
     private boolean tryWithdraw(DmsShopMember member, CountDownLatch ready, CountDownLatch start) throws Exception {
         ready.countDown();
         start.await();
@@ -477,7 +561,7 @@ class ShopWalletServiceTest {
             apply.setAccountName(member.getNickname());
             walletService.applyWithdrawal(member, apply);
             return true;
-        } catch (RuntimeException expected) {
+        } catch (ApiException expected) {
             return false;
         }
     }
@@ -489,7 +573,7 @@ class ShopWalletServiceTest {
         try {
             afterSaleService.apply(member, apply);
             return true;
-        } catch (RuntimeException expected) {
+        } catch (ApiException expected) {
             return false;
         }
     }
@@ -500,7 +584,7 @@ class ShopWalletServiceTest {
         try {
             shopService.submitOrder(orderRequest(), member);
             return true;
-        } catch (RuntimeException expected) {
+        } catch (ApiException expected) {
             return false;
         }
     }
