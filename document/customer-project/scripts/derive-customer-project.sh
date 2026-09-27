@@ -293,7 +293,11 @@ fi
 
 git -C "$PROJECT_STAGE" init -q -b main
 git -C "$PROJECT_STAGE" add .
-git -C "$PROJECT_STAGE" -c user.name='Lingqi Customer Project' -c user.email='noreply@local.invalid' \
+# This one-shot snapshot is moved immediately and upgrade snapshots are then removed.
+# Do not let commit launch detached maintenance against a directory we are moving.
+# Command-scoped only: a delivered customer's normal Git maintenance stays enabled.
+git -C "$PROJECT_STAGE" -c gc.auto=0 -c maintenance.auto=false \
+  -c user.name='Lingqi Customer Project' -c user.email='noreply@local.invalid' \
   commit -q -m '初始化客户独立项目'
 [[ -z "$(git -C "$PROJECT_STAGE" status --porcelain)" ]] || { echo "客户项目初始提交后工作区不干净" >&2; exit 1; }
 [[ -z "$(git -C "$PROJECT_STAGE" remote)" ]] || { echo "客户项目不得自动继承远程仓库" >&2; exit 1; }

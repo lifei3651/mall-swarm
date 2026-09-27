@@ -100,6 +100,11 @@ node --check scripts/release-lingqi-170.mjs
 node --check scripts/prepare-lingqi-mini-release-170.mjs
 node --check scripts/upload-lingqi-mini-170.mjs
 node --test scripts/tests/*.test.mjs
+python3 document/private-deploy/tests/test_certificate_hosts.py
+sh document/private-deploy/tests/deployment_security_test.sh
+python3 document/private-deploy/tests/test_validate_compose.py
+sh document/customer-project/tests/derive_customer_project_test.sh
+sh document/customer-project/tests/upgrade_customer_project_test.sh
 python3 - <<'PY'
 from pathlib import Path
 

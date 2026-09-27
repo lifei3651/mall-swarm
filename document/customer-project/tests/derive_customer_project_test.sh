@@ -14,7 +14,11 @@ DESTINATION="$TEST_ROOT/customer_demo"
 SOURCE_COMMIT=$(git -C "$ROOT_DIR" rev-parse HEAD)
 SOURCE_VERSION=$(git -C "$ROOT_DIR" show "${SOURCE_COMMIT}:VERSION" | tr -d '\r\n')
 
-"$DERIVE_SCRIPT" \
+# Force a low global-style GC threshold; the snapshot commit must override it
+# without persisting disabled maintenance in the delivered customer repository.
+GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=gc.auto GIT_CONFIG_VALUE_0=1 \
+GIT_CONFIG_KEY_1=maintenance.auto GIT_CONFIG_VALUE_1=true \
+GIT_TRACE="$TEST_ROOT/git.trace" "$DERIVE_SCRIPT" \
   --customer-code customer_demo \
   --customer-name 客户演示项目 \
   --destination "$DESTINATION" \
@@ -25,6 +29,12 @@ SOURCE_VERSION=$(git -C "$ROOT_DIR" show "${SOURCE_COMMIT}:VERSION" | tr -d '\r\
 [ -z "$(git -C "$DESTINATION" status --porcelain)" ]
 [ "$(git -C "$DESTINATION" rev-list --count HEAD)" = "1" ]
 [ -z "$(git -C "$DESTINATION" remote)" ]
+[ -z "$(git -C "$DESTINATION" config --local --get gc.auto || true)" ]
+[ -z "$(git -C "$DESTINATION" config --local --get maintenance.auto || true)" ]
+if grep -Eq 'run_command:.*(maintenance run.*--auto|gc --auto)' "$TEST_ROOT/git.trace"; then
+  echo "快照提交不应启动与移动/清理竞争的后台 Git 维护" >&2
+  exit 1
+fi
 [ ! -e "$DESTINATION/.deploy" ]
 [ ! -e "$DESTINATION/scripts/production-targets.sh" ]
 [ ! -e "$DESTINATION/document/RELEASE_REPORT.md" ]
