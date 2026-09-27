@@ -6,6 +6,7 @@ import com.macro.mall.distribution.dao.DmsMessageRecipientAuthorizationDao;
 import com.macro.mall.distribution.entity.DmsMessageRecipientAuthorization;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.notification.ServiceSmsReadinessService;
+import com.macro.mall.distribution.notification.NotificationTime;
 import com.macro.mall.distribution.vo.ServiceSmsPreferenceVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
@@ -38,7 +39,7 @@ public class MemberNotificationPreferenceService {
         boolean currentConsent = authorization != null && CONSENT_VERSION.equals(authorization.getConsentVersion());
         boolean active = authorization != null && Integer.valueOf(1).equals(authorization.getAuthorized())
                 && authorization.getRevokedTime() == null
-                && (authorization.getExpiresAt() == null || authorization.getExpiresAt().isAfter(LocalDateTime.now()))
+                && (authorization.getExpiresAt() == null || authorization.getExpiresAt().isAfter(NotificationTime.now()))
                 && samePhone && currentConsent;
         boolean available = readinessService.canOfferMemberOptIn(tenantId);
 
@@ -65,7 +66,7 @@ public class MemberNotificationPreferenceService {
         if (enabled) {
             if (!readinessService.canOfferMemberOptIn(tenantId)) Asserts.fail("服务短信尚未开放，请继续使用站内消息");
             if (!consent) Asserts.fail("请先确认服务短信说明");
-            DmsMessageRecipientAuthorization next = preference(tenantId, member, phone, true, surface, LocalDateTime.now());
+            DmsMessageRecipientAuthorization next = preference(tenantId, member, phone, true, surface, NotificationTime.now());
             persist(current, next);
         } else if (current != null) {
             DmsMessageRecipientAuthorization next = preference(tenantId, member, phone, false, surface, current.getAuthorizedTime());
@@ -93,7 +94,7 @@ public class MemberNotificationPreferenceService {
         value.setAuthorized(enabled ? 1 : 0);
         value.setAuthorizedTime(authorizedTime);
         value.setExpiresAt(null);
-        value.setRevokedTime(enabled ? null : LocalDateTime.now());
+        value.setRevokedTime(enabled ? null : NotificationTime.now());
         value.setConsentVersion(CONSENT_VERSION);
         value.setConsentSurface(SURFACES.contains(surface) ? surface : "legacy");
         return value;

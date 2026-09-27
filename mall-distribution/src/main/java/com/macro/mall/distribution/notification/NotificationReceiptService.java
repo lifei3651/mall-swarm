@@ -46,7 +46,7 @@ public class NotificationReceiptService {
         receipt.setReceiptId(parsed.receiptId()); receipt.setTaskId(parsed.taskId()); receipt.setPayloadDigest(digest(body));
         receipt.setSignatureValid(1); receipt.setReceiptStatus(parsed.status()); receipt.setErrorCode(safeCode(parsed.errorCode()));
         if (receiptDao.insertIgnore(receipt)==0) return true;
-        LocalDateTime now=LocalDateTime.now();
+        LocalDateTime now=NotificationTime.now();
         taskDao.applyReceipt(tenantId,task.getId(),parsed.status(),provider,safeId(parsed.providerMessageId())?parsed.providerMessageId():null,safeCode(parsed.errorCode()),now);
         DmsMessageDeliveryAttempt latest=attemptDao.selectLatest(tenantId,task.getId());
         if (latest!=null) attemptDao.updateResult(tenantId,latest.getId(),parsed.status(),

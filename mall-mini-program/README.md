@@ -34,7 +34,12 @@
 
 ## 本地检查
 
+在完整仓库的 `mall-mini-program` 目录执行。跨端一致性测试会直接调用 H5 实现，
+因此首次检查也必须安装 H5 的锁定依赖；不依赖其他终端或 CI 矩阵任务留下的安装目录。
+
 ```bash
+npm ci
+npm ci --prefix ../mall-shop-web
 npm test
 npm run build
 ```

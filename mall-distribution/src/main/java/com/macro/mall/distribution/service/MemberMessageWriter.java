@@ -11,6 +11,7 @@ import com.macro.mall.distribution.entity.DmsMessageDeliveryTask;
 import com.macro.mall.distribution.entity.DmsMessageTemplate;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.notification.ExternalNotificationProperties;
+import com.macro.mall.distribution.notification.NotificationTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -70,14 +71,14 @@ public class MemberMessageWriter {
         message.setTargetType(event.targetType());
         message.setTargetId(event.targetId());
         message.setTargetParentId(event.targetParentId());
-        message.setOccurredTime(event.occurredTime() == null ? LocalDateTime.now() : event.occurredTime());
+        message.setOccurredTime(event.occurredTime() == null ? NotificationTime.now() : event.occurredTime());
         try {
             if (messageDao.insertIgnore(message) == 0 || message.getId() == null) return;
         } catch (DuplicateKeyException duplicate) {
             return;
         }
         // 发送记录和外部适配器只是旁路；即使记录表或未来外部提供商失败，已落库的站内消息也必须保留。
-        recordDeliverySafely(message, event.eventType(), "IN_APP", "SUCCESS", null, LocalDateTime.now(), true, BigDecimal.ZERO);
+        recordDeliverySafely(message, event.eventType(), "IN_APP", "SUCCESS", null, NotificationTime.now(), true, BigDecimal.ZERO);
         recordDeliverySafely(message, event.eventType(), "SMS", externalStatus(channels.getSmsEnabled()), externalCode(channels.getSmsEnabled()), null,
                 Integer.valueOf(1).equals(channels.getSmsEnabled()), channels.getEstimatedSmsCost());
         recordDeliverySafely(message, event.eventType(), "APP_PUSH", externalStatus(channels.getAppPushEnabled()), externalCode(channels.getAppPushEnabled()), null,
@@ -113,7 +114,7 @@ public class MemberMessageWriter {
         task.setActualCost(BigDecimal.ZERO);
         task.setErrorCode(errorCode);
         task.setErrorMessage(errorCode == null ? null : (channelEnabled ? "应用启动门禁未开启" : "事件外部渠道未开启"));
-        task.setExpiresAt("IN_APP".equals(channel) ? null : LocalDateTime.now().plusHours(Math.max(1, externalProperties.getTaskTtlHours())));
+        task.setExpiresAt("IN_APP".equals(channel) ? null : NotificationTime.now().plusHours(Math.max(1, externalProperties.getTaskTtlHours())));
         task.setSentTime(sentTime);
         deliveryDao.insertIgnore(task);
     }

@@ -13,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -70,7 +69,7 @@ public class ServiceSmsReadinessService {
 
         int activeAuthorizations = includeAuthorizationCount
                 ? authorizationDao.countActiveConsent(actualTenantId, CHANNEL,
-                DmsMessageRecipientAuthorization.SERVICE_SMS_CONSENT_VERSION, LocalDateTime.now()) : 0;
+                DmsMessageRecipientAuthorization.SERVICE_SMS_CONSENT_VERSION, NotificationTime.now()) : 0;
         List<ServiceSmsReadinessVO.Item> items = new ArrayList<>();
         items.add(item("LEGAL", "隐私与第三方说明", legalReady,
                 legalReady ? "已说明服务短信用途、服务商和关闭路径" : "请先更新正式隐私政策和第三方服务说明"));

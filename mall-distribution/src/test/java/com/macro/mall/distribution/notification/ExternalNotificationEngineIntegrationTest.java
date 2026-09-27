@@ -82,7 +82,7 @@ class ExternalNotificationEngineIntegrationTest {
         authorize(); adapter.sendResults.add(DeliveryResult.retryable("TEMPORARY")); adapter.sendResults.add(DeliveryResult.accepted("provider-2",BigDecimal.ZERO));
         long taskId=createTask("PENDING",null); engine.runOnce();
         assertEquals("RETRYABLE",status(taskId)); assertNotNull(jdbc.queryForObject("SELECT next_retry_time FROM dms_message_delivery_task WHERE id=?",LocalDateTime.class,taskId));
-        jdbc.update("UPDATE dms_message_delivery_task SET next_retry_time=? WHERE id=?",Timestamp.valueOf(LocalDateTime.now().minusSeconds(1)),taskId);
+        jdbc.update("UPDATE dms_message_delivery_task SET next_retry_time=? WHERE id=?",Timestamp.valueOf(NotificationTime.now().minusSeconds(1)),taskId);
         engine.runOnce();
         assertEquals("ACCEPTED",status(taskId)); assertEquals(2,adapter.sendCount.get());
         assertEquals(2,count("SELECT COUNT(*) FROM dms_message_delivery_attempt WHERE task_id=?",taskId));
@@ -91,7 +91,7 @@ class ExternalNotificationEngineIntegrationTest {
     @Test
     void expiredLeaseQueriesUnknownResultAndNeverBlindlyResends() {
         authorize(); adapter.queryResult=DeliveryResult.delivered("provider-existing",BigDecimal.ZERO);
-        long taskId=createTask("SENDING",LocalDateTime.now().minusMinutes(1));
+        long taskId=createTask("SENDING",NotificationTime.now().minusMinutes(1));
         insertAttempt(taskId,"SUBMITTED","provider-existing",0); engine.runOnce();
         assertEquals("DELIVERED",status(taskId)); assertEquals(0,adapter.sendCount.get()); assertEquals(1,adapter.queryCount.get());
     }
@@ -99,9 +99,9 @@ class ExternalNotificationEngineIntegrationTest {
     @Test
     void unknownWithoutProviderIdRequeriesThenRequiresReviewInsteadOfResend() {
         authorize(); adapter.queryResult=DeliveryResult.unknown(null,"NO_PROVIDER_ID");
-        long taskId=createTask("SENDING",LocalDateTime.now().minusMinutes(1));
+        long taskId=createTask("SENDING",NotificationTime.now().minusMinutes(1));
         insertAttempt(taskId,"UNKNOWN",null,0); engine.runOnce();
-        jdbc.update("UPDATE dms_message_delivery_task SET lease_until=? WHERE id=?",Timestamp.valueOf(LocalDateTime.now().minusSeconds(1)),taskId);
+        jdbc.update("UPDATE dms_message_delivery_task SET lease_until=? WHERE id=?",Timestamp.valueOf(NotificationTime.now().minusSeconds(1)),taskId);
         engine.runOnce();
         assertEquals("PERMANENT",status(taskId)); assertEquals("UNKNOWN_RESULT_REVIEW_REQUIRED",errorCode(taskId));
         assertEquals(0,adapter.sendCount.get());
@@ -130,11 +130,33 @@ class ExternalNotificationEngineIntegrationTest {
         }
     }
 
+    @Test
+    void genuinelyExpiredTaskIsRejectedBeforeSending() {
+        authorize(); long taskId=createTask("PENDING",null);
+        jdbc.update("UPDATE dms_message_delivery_task SET expires_at=? WHERE id=?",
+                Timestamp.valueOf(NotificationTime.now().minusMinutes(1)),taskId);
+        engine.runOnce();
+        assertEquals("EXPIRED",status(taskId));
+        assertEquals("TASK_EXPIRED",errorCode(taskId));
+        assertEquals(0,adapter.sendCount.get());
+        assertEquals(0,count("SELECT COUNT(*) FROM dms_message_delivery_attempt WHERE task_id=?",taskId));
+    }
+
+    @Test
+    void futureRetryIsNotClaimedEarly() {
+        authorize(); long taskId=createTask("RETRYABLE",null);
+        jdbc.update("UPDATE dms_message_delivery_task SET next_retry_time=? WHERE id=?",
+                Timestamp.valueOf(NotificationTime.now().plusMinutes(1)),taskId);
+        assertEquals(0,engine.runOnce());
+        assertEquals("RETRYABLE",status(taskId));
+        assertEquals(0,adapter.sendCount.get());
+    }
+
     private void authorize() { jdbc.update("INSERT INTO dms_message_recipient_authorization(tenant_id,member_id,channel,endpoint_hash,authorized,authorized_time) VALUES(1,99001,'APP_PUSH',?,1,CURRENT_TIMESTAMP)","a".repeat(64)); }
     private long createTask(String status,LocalDateTime leaseUntil) {
         long message=insertMessage(); String key="1:"+message+":APP_PUSH";
         jdbc.update("INSERT INTO dms_message_delivery_task(tenant_id,message_id,event_type,channel,idempotency_key,status,retry_count,attempt_count,max_attempts,estimated_cost,actual_cost,lease_owner,lease_until,expires_at) VALUES(1,?,'SERVICE_NOTICE','APP_PUSH',?,?,0,0,5,0.01,0,NULL,?,?)",
-                message,key,status,leaseUntil==null?null:Timestamp.valueOf(leaseUntil),Timestamp.valueOf(LocalDateTime.now().plusHours(1)));
+                message,key,status,leaseUntil==null?null:Timestamp.valueOf(leaseUntil),Timestamp.valueOf(NotificationTime.now().plusHours(1)));
         return jdbc.queryForObject("SELECT id FROM dms_message_delivery_task WHERE idempotency_key=?",Long.class,key);
     }
     private long insertMessage() {

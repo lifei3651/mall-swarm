@@ -13,6 +13,7 @@ import com.macro.mall.distribution.entity.DmsMiniProgramSubscriptionGrant;
 import com.macro.mall.distribution.entity.DmsShopMember;
 import com.macro.mall.distribution.entity.DmsWechatMiniProgramIdentity;
 import com.macro.mall.distribution.notification.ExternalNotificationProperties;
+import com.macro.mall.distribution.notification.NotificationTime;
 import com.macro.mall.distribution.vo.WeChatSubscriptionTemplateVO;
 import com.macro.mall.distribution.vo.WeChatSubscriptionReadinessVO;
 import lombok.RequiredArgsConstructor;
@@ -92,7 +93,7 @@ public class WeChatSubscriptionService {
                 tenantId, appIdHash(), member.getId());
         if (identity == null || !member.getUserId().equals(identity.getUserId())
                 || identity.getOpenIdHash() == null) Asserts.fail("请先使用当前微信重新登录小程序");
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = NotificationTime.now();
         for (String templateId : accepted) {
             DmsMiniProgramSubscriptionGrant grant = new DmsMiniProgramSubscriptionGrant();
             grant.setTenantId(tenantId);

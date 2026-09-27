@@ -13,14 +13,12 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 
 @Service
 @Slf4j
 public class ExternalNotificationEngine {
-    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Shanghai");
     private static final Set<String> TERMINAL = Set.of("ACCEPTED","DELIVERED","PERMANENT","SUPPRESSED","EXPIRED");
     private final DmsMessageDeliveryTaskDao taskDao;
     private final DmsMessageDeliveryAttemptDao attemptDao;
@@ -49,7 +47,7 @@ public class ExternalNotificationEngine {
 
     public int runOnce() {
         if (!properties.isEnabled() || !properties.isWorkerEnabled()) return 0;
-        LocalDateTime now=LocalDateTime.now(BUSINESS_ZONE);
+        LocalDateTime now=NotificationTime.now();
         List<Long> candidates=taskDao.selectDueIds(now, Math.max(1,Math.min(properties.getBatchSize(),100)));
         int claimed=0;
         for (Long id:candidates) {
@@ -71,7 +69,7 @@ public class ExternalNotificationEngine {
         if (context==null) { finalizeWithoutAttempt(task,"SUPPRESSED","MESSAGE_CONTEXT_MISSING"); return; }
         ExternalNotificationAdapter adapter=adapters.get(task.getChannel());
         if (adapter==null) { finalizeWithoutAttempt(task,"SUPPRESSED","ADAPTER_NOT_REGISTERED"); return; }
-        LocalDateTime now=LocalDateTime.now(BUSINESS_ZONE);
+        LocalDateTime now=NotificationTime.now();
         if (task.getExpiresAt()!=null && !task.getExpiresAt().isAfter(now)) { finalizeWithoutAttempt(task,"EXPIRED","TASK_EXPIRED"); return; }
         GateDecision gate=adapter.readiness(context);
         if (!gate.allowed()) { finalizeWithoutAttempt(task,"SUPPRESSED",gate.code()); return; }
@@ -105,7 +103,7 @@ public class ExternalNotificationEngine {
             String budgetFailure=checkBudgets(task,cost);
             if (budgetFailure!=null) {
                 taskDao.markFinal(task.getId(),workerId,"SUPPRESSED",adapter.providerCode(),null,BigDecimal.ZERO,
-                        budgetFailure,"费用硬上限未配置或已用尽",LocalDateTime.now(BUSINESS_ZONE));
+                        budgetFailure,"费用硬上限未配置或已用尽",NotificationTime.now());
                 return null;
             }
             int attemptNo=(task.getAttemptCount()==null?0:task.getAttemptCount())+1;
@@ -113,7 +111,7 @@ public class ExternalNotificationEngine {
             attempt.setTenantId(task.getTenantId()); attempt.setTaskId(task.getId()); attempt.setAttemptNo(attemptNo);
             attempt.setIdempotencyKey(task.getIdempotencyKey()+":"+attemptNo); attempt.setState("PREPARED");
             attempt.setProviderCode(adapter.providerCode()); attempt.setQueryCount(0); attempt.setEstimatedCost(cost);
-            attempt.setActualCost(BigDecimal.ZERO); attempt.setSubmittedTime(LocalDateTime.now(BUSINESS_ZONE));
+            attempt.setActualCost(BigDecimal.ZERO); attempt.setSubmittedTime(NotificationTime.now());
             attemptDao.insert(attempt); taskDao.incrementAttempt(task.getId(),workerId);
             return new PreparedAttempt(attempt);
         });
@@ -129,7 +127,7 @@ public class ExternalNotificationEngine {
         // 微信订阅消息等零成本官方通道不受短信费用预算阻断，但仍受授权、模板和总开关约束。
         if (nextCost == null || nextCost.signum() == 0) return null;
         List<BudgetKey> keys=List.of(new BudgetKey("TENANT","*"),new BudgetKey("EVENT",task.getEventType()),new BudgetKey("CHANNEL",task.getChannel()));
-        LocalDate today=LocalDate.now(BUSINESS_ZONE);
+        LocalDate today=NotificationTime.today();
         LocalDateTime dayStart=today.atStartOfDay();
         LocalDateTime monthStart=today.with(TemporalAdjusters.firstDayOfMonth()).atStartOfDay();
         for (BudgetKey key:keys) {
@@ -152,9 +150,9 @@ public class ExternalNotificationEngine {
                 String finalState=wasAccepted?"ACCEPTED":"PERMANENT";
                 String finalCode=wasAccepted?"DELIVERY_CONFIRMATION_TIMEOUT":"UNKNOWN_RESULT_REVIEW_REQUIRED";
                 attemptDao.updateResult(task.getTenantId(),attempt.getId(),finalState,attempt.getProviderMessageId(),
-                        BigDecimal.ZERO,finalCode,wasAccepted?"供应商已受理但未确认送达":"未知结果达到查询上限，禁止自动重发",LocalDateTime.now(BUSINESS_ZONE));
+                        BigDecimal.ZERO,finalCode,wasAccepted?"供应商已受理但未确认送达":"未知结果达到查询上限，禁止自动重发",NotificationTime.now());
                 taskDao.markFinal(task.getId(),workerId,finalState,adapter.providerCode(),attempt.getProviderMessageId(),
-                        BigDecimal.ZERO,finalCode,wasAccepted?"供应商已受理但未确认送达":"未知结果需人工核对",LocalDateTime.now(BUSINESS_ZONE));
+                        BigDecimal.ZERO,finalCode,wasAccepted?"供应商已受理但未确认送达":"未知结果需人工核对",NotificationTime.now());
             });
             return;
         }
@@ -166,7 +164,7 @@ public class ExternalNotificationEngine {
     private void applyResult(DmsMessageDeliveryTask task, DmsMessageDeliveryAttempt attempt,
                              ExternalNotificationAdapter adapter, DeliveryResult raw, boolean query) {
         DeliveryResult result=raw==null?DeliveryResult.unknown(null,"EMPTY_ADAPTER_RESULT"):raw;
-        LocalDateTime now=LocalDateTime.now(BUSINESS_ZONE);
+        LocalDateTime now=NotificationTime.now();
         transactions.executeWithoutResult(status -> {
             String code=safeCode(result.errorCode()); String message=safeMessage(result.safeErrorMessage());
             BigDecimal cost=nonNegative(result.actualCost());
@@ -196,7 +194,7 @@ public class ExternalNotificationEngine {
     }
 
     private void finalizeWithoutAttempt(DmsMessageDeliveryTask task,String state,String code) {
-        taskDao.markFinal(task.getId(),workerId,state,null,null,BigDecimal.ZERO,safeCode(code),safeMessage(code),LocalDateTime.now(BUSINESS_ZONE));
+        taskDao.markFinal(task.getId(),workerId,state,null,null,BigDecimal.ZERO,safeCode(code),safeMessage(code),NotificationTime.now());
     }
     boolean validAuthorization(ExternalNotificationContext context,DmsMessageRecipientAuthorization authorization) {
         if (authorization==null || authorization.getEndpointHash()==null || !authorization.getEndpointHash().matches("[a-f0-9]{64}")) return false;

@@ -12,11 +12,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -60,6 +63,40 @@ class MemberMessageWriterTest {
         assertEquals("SUCCESS", tasks.getAllValues().get(0).getStatus());
         assertFalse(tasks.getAllValues().stream().filter(t -> !"IN_APP".equals(t.getChannel()))
                 .anyMatch(t -> !"SUPPRESSED".equals(t.getStatus())));
+    }
+
+    @Test
+    void taskExpiryAndGeneratedTimesUseBusinessZoneInsteadOfHostDefault() {
+        ExternalNotificationProperties properties = new ExternalNotificationProperties();
+        properties.setEnabled(true); properties.setWorkerEnabled(true); properties.setTaskTtlHours(1);
+        writer = new MemberMessageWriter(memberDao, messageDao, templateDao, channelDao, deliveryDao, eventPublisher, properties);
+        DmsShopMember member = new DmsShopMember(); member.setId(7L); member.setStatus(1);
+        DmsMessageTemplate template = new DmsMessageTemplate(); template.setEnabled(1);
+        DmsMessageChannelConfig channels = new DmsMessageChannelConfig(); channels.setInAppEnabled(1); channels.setSmsEnabled(1);
+        when(memberDao.selectByUserId(70L)).thenReturn(member);
+        when(templateDao.selectByEventType(1L, "SERVICE_NOTICE")).thenReturn(template);
+        when(channelDao.selectByEventType(1L, "SERVICE_NOTICE")).thenReturn(channels);
+        when(messageDao.insertIgnore(any())).thenAnswer(invocation -> {
+            ((DmsMemberMessage) invocation.getArgument(0)).setId(101L); return 1;
+        });
+        LocalDateTime before = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
+        writer.write(new MemberMessageEvent(1L,70L,"SERVICE_NOTICE:zone","SERVICE_NOTICE",
+                "SERVICE","NONE",null,null,null));
+        LocalDateTime after = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
+        ArgumentCaptor<DmsMemberMessage> message = ArgumentCaptor.forClass(DmsMemberMessage.class);
+        verify(messageDao).insertIgnore(message.capture());
+        assertTrue(!message.getValue().getOccurredTime().isBefore(before) && !message.getValue().getOccurredTime().isAfter(after));
+        ArgumentCaptor<DmsMessageDeliveryTask> tasks = ArgumentCaptor.forClass(DmsMessageDeliveryTask.class);
+        verify(deliveryDao, times(4)).insertIgnore(tasks.capture());
+        for (DmsMessageDeliveryTask task : tasks.getAllValues()) {
+            if ("IN_APP".equals(task.getChannel())) {
+                assertNull(task.getExpiresAt());
+                assertTrue(!task.getSentTime().isBefore(before) && !task.getSentTime().isAfter(after));
+            } else {
+                assertTrue(!task.getExpiresAt().isBefore(before.plusHours(1)) && !task.getExpiresAt().isAfter(after.plusHours(1)));
+            }
+        }
+        assertEquals("PENDING", tasks.getAllValues().get(1).getStatus());
     }
 
     @Test

@@ -13,7 +13,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -97,7 +96,7 @@ public class WeChatMiniProgramNotificationAdapter implements ExternalNotificatio
                                              ExternalNotificationContext context) {
         Map<String, String> data = new LinkedHashMap<>();
         data.put(template.getStatusKey().trim(), status(context.getEventType()));
-        data.put(template.getTimeKey().trim(), LocalDateTime.now().format(MESSAGE_TIME));
+        data.put(template.getTimeKey().trim(), NotificationTime.now().format(MESSAGE_TIME));
         data.put(template.getRemarkKey().trim(), limitCodePoints(context.getSummary(), 20));
         return data;
     }

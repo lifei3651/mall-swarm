@@ -13,6 +13,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -58,7 +60,9 @@ class MemberNotificationPreferenceServiceTest {
             return 1;
         });
 
+        LocalDateTime before = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
         var status = service.update(member, true, true, "team");
+        LocalDateTime after = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
 
         assertTrue(status.isAvailable());
         assertTrue(status.isEnabled());
@@ -68,6 +72,12 @@ class MemberNotificationPreferenceServiceTest {
         assertEquals(MemberNotificationPreferenceService.CONSENT_VERSION, stored.get().getConsentVersion());
         assertEquals("team", stored.get().getConsentSurface());
         assertEquals(1, stored.get().getAuthorized());
+        assertFalse(stored.get().getAuthorizedTime().isBefore(before));
+        assertFalse(stored.get().getAuthorizedTime().isAfter(after));
+        stored.get().setExpiresAt(before.minusMinutes(1));
+        assertFalse(service.status(member).isEnabled(), "过期判断必须与发送器使用同一业务时区");
+        stored.get().setExpiresAt(after.plusHours(1));
+        assertTrue(service.status(member).isEnabled());
     }
 
     @Test

@@ -7,6 +7,10 @@
 监控、MongoDB、RabbitMQ、Elasticsearch和Nacos不是当前仓库的可运行组件，已全部移除，避免
 交付时开放无用服务或引用不存在的 Dockerfile。
 
+预检运行环境需要 Python 3 和支持 `openssl x509 -checkhost` 的 OpenSSL 1.1.1+/3.x。
+域名匹配委托给 OpenSSL，不依赖 Python 3.12 已删除的 `ssl.match_hostname`，也不跳过证书校验。
+Mac 本机若自带 LibreSSL，运行部署脚本测试时需将已安装的 OpenSSL 3 加入 PATH；正式部署仍在客户 Linux 主机执行。
+
 ## 安全边界已经写死
 
 - 公网只发布 Nginx `80/443`。

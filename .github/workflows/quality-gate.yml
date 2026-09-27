@@ -29,7 +29,14 @@ jobs:
           cache: maven
 
       - name: 后端完整回归
+        env:
+          TZ: UTC
         run: ./mvnw --batch-mode test
+
+      - name: 北京时间通知回归
+        env:
+          TZ: Asia/Shanghai
+        run: ./mvnw --batch-mode -pl mall-distribution -am -Dtest=ExternalNotificationEngineIntegrationTest,MemberMessageWriterTest,MemberNotificationPreferenceServiceTest -Dsurefire.failIfNoSpecifiedTests=false test
 
       - name: 后端生产构建
         run: ./mvnw --batch-mode -DskipTests package
@@ -65,6 +72,11 @@ jobs:
       - name: 安装锁定依赖
         run: npm ci
 
+      # 小程序一致性测试直接导入 H5 地址解析器；独立 runner 没有其他矩阵任务的 node_modules。
+      - name: 安装小程序跨端对照依赖
+        if: matrix.directory == 'mall-mini-program'
+        run: npm ci --prefix ../mall-shop-web
+
       - name: 自动化测试
         run: npm test
 
@@ -86,6 +98,7 @@ jobs:
 
       - name: 私有部署安全测试
         run: |
+          python3 document/private-deploy/tests/test_certificate_hosts.py
           sh document/private-deploy/tests/deployment_security_test.sh
           python3 document/private-deploy/tests/test_validate_compose.py
 

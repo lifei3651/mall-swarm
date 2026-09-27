@@ -339,18 +339,7 @@ case "$(file_mode "$DEPLOY_DIR/certs/key.pem")" in 400|600) : ;; *) fail "TLS �
 openssl x509 -in "$DEPLOY_DIR/certs/cert.pem" -noout -checkend 2592000 >/dev/null 2>&1 || fail "TLS 证书无效或将在 30 天内过期"
 set -- "$DEPLOY_DIR/certs/cert.pem" "$domain" "$admin_domain"
 [ "$team_h5_enabled" = "false" ] || set -- "$@" "$team_domain"
-if ! python3 - "$@" >/dev/null 2>&1 <<'PY'
-import ssl
-import sys
-import warnings
-
-certificate = ssl._ssl._test_decode_cert(sys.argv[1])
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore", DeprecationWarning)
-    for hostname in sys.argv[2:]:
-        ssl.match_hostname(certificate, hostname)
-PY
-then
+if ! python3 "$DEPLOY_DIR/scripts/verify_certificate_hosts.py" "$@"; then
   fail "TLS 证书必须覆盖当前启用的公开商城、后台及团队H5域名"
 fi
 
