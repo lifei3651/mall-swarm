@@ -40,6 +40,13 @@ WHERE table_schema = DATABASE()
 SQL
 )
 [ "$core_tables" = "3" ] || fail "商城数据库基线不完整，核心表数量为 $core_tables/3"
+# Migration count alone cannot prove a historical baseline has all runtime columns.
+mysql_query >/dev/null <<'SQL'
+SELECT safety_stock, purchase_limit FROM dms_shop_product LIMIT 0;
+SELECT safety_stock FROM dms_shop_sku LIMIT 0;
+SELECT show_on_home FROM dms_shop_category LIMIT 0;
+SELECT return_address, return_received_at FROM dms_shop_after_sale LIMIT 0;
+SQL
 tenant_count=$(mysql_query <<'SQL'
 SELECT COUNT(*) FROM dms_tenant WHERE id = 1;
 SQL

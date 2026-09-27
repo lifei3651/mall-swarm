@@ -31,6 +31,8 @@
 
 ## 远程与交付判定
 
+- 后续实际回读：`0b3169e7535eef739545a90fe9f2856cb41e5d89` 的 [Actions #294](https://github.com/lifei3651/mall-swarm/actions/runs/36290974587) 五项作业全部 `success`，已补齐本修复的远程检查证据；它仍不等于该代码已部署。
+
 - 本机通过不是 GitHub 通过。提交推送后必须核对同一修复提交的后端、商城三端、管理后台、小程序、客户交付五个作业；查看 [当前分支 Actions](https://github.com/lifei3651/mall-swarm/actions/workflows/quality-gate.yml?query=branch%3Acodex%2Fsecurity-membership-payout) 中对应提交，不以旧运行或别的分支代替。
 - 不添加 `continue-on-error`，不删除失败用例，不把真实过期或证书不匹配改成允许。
 - 通知运行时修复和客户部署脚本修复仅在后续源码；已分发 1.0.169 固定包保持原哈希，不能宣称它已包含本补丁。

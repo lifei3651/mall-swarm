@@ -2,6 +2,7 @@
 set -eu
 
 SOURCE_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+node --test "$SOURCE_DIR/tests/fresh-install-contract.test.mjs"
 TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/mall-private-deploy-test.XXXXXX")
 trap 'rm -rf "$TEST_ROOT"' EXIT HUP INT TERM
 assert_template_mount() {
@@ -66,6 +67,7 @@ grep -q 'bonus_version_count' "$DEPLOY_DIR/scripts/run-migrations.sh"
 grep -q '客户必须且只能启用一个奖金程序' "$DEPLOY_DIR/scripts/security-postflight.sh"
 grep -q '20260714_erp_integration_upgrade.sql' "$DEPLOY_DIR/docker-compose.private.yml"
 grep -q '20260808_add_shop_service_addresses.sql' "$DEPLOY_DIR/docker-compose.private.yml"
+grep -q '20260808_add_after_sale_return_workflow.sql' "$DEPLOY_DIR/docker-compose.private.yml"
 grep -q '数据库迁移总账不完整' "$DEPLOY_DIR/scripts/security-postflight.sh"
 grep -q 'command -v lsof' "$DEPLOY_DIR/scripts/security-postflight.sh"
 grep -q "127\\\\.0\\\\.0\\\\.1" "$DEPLOY_DIR/scripts/security-postflight.sh"
