@@ -20,12 +20,11 @@ Page({
   async refresh() {
     const version = this.refreshVersion = (this.refreshVersion || 0) + 1
     const token = session.getToken()
-    feedback.update(this, { couponEnabled: false })
     const sameOwner = Boolean(token) && token === this.displayToken
     this.displayToken = token
     if (!sameOwner) {
       avatar.release(this.data.avatarSrc)
-      feedback.update(this, { capabilities: capabilities.empty(), canOpenStudio: false, shareReady: false, avatarSrc: avatar.fallback, unreadCount: 0, unreadText: '', payoutCount: 0,
+      feedback.update(this, { capabilities: capabilities.empty(), canOpenStudio: false, couponEnabled: false, shareReady: false, avatarSrc: avatar.fallback, unreadCount: 0, unreadText: '', payoutCount: 0,
         orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, pendingReview: 0, afterSale: 0 } })
     }
     const rights = this.loadCapabilities(version, token)
@@ -58,17 +57,21 @@ Page({
       share.hide(this)
       avatar.release(this.data.avatarSrc)
       feedback.update(this, {
-        capabilities: capabilities.empty(), canOpenStudio: false, shareReady: false,
+        capabilities: capabilities.empty(), canOpenStudio: false, couponEnabled: false, shareReady: false,
         loggedIn: false, member: null, avatarSrc: avatar.fallback, unreadCount: 0, unreadText: '', payoutCount: 0,
         orderSummary: { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, pendingReview: 0, afterSale: 0 }
       })
     }
   },
   async loadCouponMode(version, token) {
+    // Keep same-owner tiles in place during revalidation; clear only on a real
+    // mode change or failure. Clearing first shifts the always-visible legal tile.
     try {
       const config = await request({ url: '/shop/business-config' })
-      if (this.currentRefresh(version, token)) feedback.update(this, { couponEnabled: Number(config && config.couponEnabled) === 1 })
-    } catch (_) { /* 状态未知时不展示入口，服务端仍负责最终拦截。 */ }
+      if (this.currentRefresh(version, token) && this.data.loggedIn) feedback.update(this, { couponEnabled: Number(config && config.couponEnabled) === 1 })
+    } catch (_) {
+      if (this.currentRefresh(version, token)) feedback.update(this, { couponEnabled: false })
+    }
   },
   async loadCapabilities(version = this.refreshVersion, token = session.getToken()) {
     const result = await share.prepare(this)

@@ -7,7 +7,7 @@ import vm from 'node:vm'
 const sourceUrl = new URL('../pages/profile/index.js', import.meta.url)
 const zeroSummary = { pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, pendingReview: 0, afterSale: 0 }
 const plain = (value) => JSON.parse(JSON.stringify(value))
-const deferred = () => { let resolve; const promise = new Promise(ok => { resolve = ok }); return { promise, resolve } }
+const deferred = () => { let resolve, reject; const promise = new Promise((ok, fail) => { resolve = ok; reject = fail }); return { promise, resolve, reject } }
 
 test('退出登录使用浅红底深红字及独立按下态，仍保留原退出事件', () => {
   const css=readFileSync(new URL('../pages/profile/index.wxss',import.meta.url),'utf8');
@@ -106,6 +106,87 @@ test('会员资格核验失败或换号必须撤销旧资格，后台晚到的�
   const wait=deferred(),h=loadProfile({token:'old',respond:()=>wait.promise});h.page.refreshVersion=1;h.page.displayToken='old';h.page.setData({capabilities:{ready:true,canInvite:true}})
   const badges=Promise.all([h.page.loadUnread(1,'old'),h.page.loadPayoutCount(1,'old'),h.page.loadOrderSummary(1,'old')]);h.token('new');wait.resolve({total:88,pendingPayment:99});await badges;assert.equal(h.page.data.unreadCount,0);assert.equal(h.page.data.orderSummary.pendingPayment,0)
   await h.page.loadCapabilities(1,'new');assert.equal(h.page.data.capabilities.ready,false)
+})
+
+test('切回我的时保留同账号优惠券位置，商城说明不被异步刷新挤到另一行', async () => {
+  const mode = deferred()
+  const h = loadProfile({ token: 'same-owner', respond: ({ url }) =>
+    url === '/shop/business-config' ? mode.promise : url.endsWith('/withdrawals') ? [] : {} })
+  h.page.displayToken = 'same-owner'
+  h.page.setData({ loggedIn: true, couponEnabled: true })
+  h.page.onHide()
+  const refresh = h.page.onShow()
+  assert.equal(h.page.data.couponEnabled, true, '切回首帧不得先隐藏优惠券并移动后续入口')
+  await refresh
+  assert.equal(h.page.data.couponEnabled, true, '接口等待期间保留既有位置')
+  mode.resolve({ couponEnabled: 1 })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(h.page.data.couponEnabled, true)
+  h.page.legal()
+  assert.deepEqual(h.navigations, ['/pages/legal/index'])
+})
+
+test('首次进入不猜测优惠券开关，身份已失效时晚到配置不能恢复入口', async () => {
+  const mode = deferred()
+  const h = loadProfile({ token: 'member', respond: ({ url }) =>
+    url === '/shop/business-config' ? mode.promise : url.endsWith('/withdrawals') ? [] : {} })
+  await h.page.onShow()
+  assert.equal(h.page.data.couponEnabled, false, '尚无已核实配置时不预设开启')
+  h.page.setData({ loggedIn: false })
+  mode.resolve({ couponEnabled: 1 })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(h.page.data.couponEnabled, false, '已失效的会员展示不被晚到响应恢复')
+})
+
+test('优惠券关闭或核验失败时仍收回旧入口，不因防闪烁永久沿用旧开关', async () => {
+  for (const failure of [false, true]) {
+    const h = loadProfile({ token: 'member', respond: () => {
+      if (failure) throw new Error('offline')
+      return { couponEnabled: 0 }
+    } })
+    h.page.refreshVersion = 1
+    h.page.setData({ loggedIn: true, couponEnabled: true })
+    await h.page.loadCouponMode(1, 'member')
+    assert.equal(h.page.data.couponEnabled, false)
+  }
+})
+
+test('换号、退出及身份读取失败时立即清除旧优惠券显示状态', async () => {
+  for (const token of ['', 'new-owner']) {
+    const auth = deferred()
+    const h = loadProfile({ token, respond: () => auth.promise })
+    h.page.displayToken = 'old-owner'
+    h.page.setData({ loggedIn: true, couponEnabled: true })
+    const refresh = h.page.refresh()
+    assert.equal(h.page.data.couponEnabled, false)
+    auth.reject(new Error('unauthorized'))
+    if (!token) auth.promise.catch(() => {})
+    await refresh
+  }
+  const h = loadProfile({ token: 'same-owner', respond: () => { throw new Error('unauthorized') } })
+  h.page.displayToken = 'same-owner'
+  h.page.setData({ loggedIn: true, couponEnabled: true })
+  await h.page.refresh()
+  assert.equal(h.page.data.couponEnabled, false)
+})
+
+test('隐藏页、旧刷新和旧账号的优惠券响应不覆盖当前状态', async () => {
+  for (const stale of ['hidden', 'refresh', 'owner']) {
+    for (const failure of [false, true]) {
+      const mode = deferred()
+      const h = loadProfile({ token: 'old-owner', respond: () => mode.promise })
+      h.page.refreshVersion = 1
+      h.page.setData({ loggedIn: true, couponEnabled: true })
+      const task = h.page.loadCouponMode(1, 'old-owner')
+      if (stale === 'hidden') h.page.onHide()
+      if (stale === 'refresh') h.page.refreshVersion = 2
+      if (stale === 'owner') h.token('new-owner')
+      if (failure) mode.reject(new Error('offline'))
+      else mode.resolve({ couponEnabled: 0 })
+      await task
+      assert.equal(h.page.data.couponEnabled, true, `${stale} / failure=${failure}`)
+    }
+  }
 })
 test('旧账号退出请求晚到不清除后来登录的新账号', async () => {
   const wait=deferred(),h=loadProfile({token:'old',respond:()=>wait.promise});h.page.logout();const task=h.modals[0].success({confirm:true});h.token('new');wait.resolve({});await task;assert.equal(h.cleared(),0)
