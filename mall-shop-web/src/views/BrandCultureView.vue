@@ -6,7 +6,7 @@
       <RouterLink to="/" aria-label="返回首页"><Home :size="20" /></RouterLink>
     </header>
     <section v-if="loading" class="culture-state"><LoaderCircle class="spin" :size="28" />正在加载品牌故事…</section>
-    <section v-else-if="error" class="culture-state"><CircleAlert :size="30" /><strong>{{ error }}</strong><button type="button" @click="load">重新加载</button></section>
+    <section v-else-if="error" class="culture-state"><CircleAlert :size="30" /><strong>{{ error }}</strong><button class="ui-button--secondary" type="button" @click="load">重新加载</button></section>
     <section v-else-if="!culture.enabled" class="culture-state"><BookOpen :size="32" /><strong>品牌文化页暂未开放</strong><RouterLink to="/">返回商城首页</RouterLink></section>
     <article v-else class="culture-content" :class="{ 'detail-first': culture.detailImages?.length }">
       <div v-if="culture.detailImages?.length" class="culture-details" aria-label="品牌文化详情图">

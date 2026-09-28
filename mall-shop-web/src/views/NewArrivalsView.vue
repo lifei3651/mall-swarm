@@ -5,7 +5,7 @@
     <section class="new-content">
       <div v-if="loading" class="new-state"><LoaderCircle class="spin" :size="28" />正在整理新品…</div>
       <div v-else-if="disabled" class="new-state"><PackageOpen :size="32" /><strong>新品页面暂未开放</strong><RouterLink to="/">返回商城首页</RouterLink></div>
-      <div v-else-if="error" class="new-state"><CircleAlert :size="28" /><strong>{{ error }}</strong><button type="button" @click="load">重新加载</button></div>
+      <div v-else-if="error" class="new-state"><CircleAlert :size="28" /><strong>{{ error }}</strong><button class="ui-button--secondary" type="button" @click="load">重新加载</button></div>
       <div v-else-if="products.length" class="new-grid">
         <RouterLink v-for="product in products" :key="product.id" :to="`/product/${product.id}`" class="new-card">
           <div class="new-image"><img :src="product.coverUrl" :alt="product.productName" loading="lazy" @error="applyImageFallback" /><span><Sparkles :size="12" />新品</span></div>

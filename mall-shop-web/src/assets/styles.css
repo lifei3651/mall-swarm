@@ -427,10 +427,10 @@ main {
   background: color-mix(in srgb, var(--shop-button-bg, var(--teal)) 84%, #000 16%);
 }
 
-.btn.secondary {
-  background: #f1f3f6 !important;
-  border-color: #e3e7ed !important;
-  color: var(--ink) !important;
+.btn.secondary, .ui-button--secondary, .ui-button--assist {
+  background: var(--brand-primary-soft) !important;
+  border: 1px solid var(--brand-primary) !important;
+  color: var(--brand-primary) !important;
 }
 
 .btn.danger,
@@ -440,16 +440,11 @@ main {
   color: var(--shop-danger) !important;
 }
 
-.ui-button--assist {
-  background: var(--brand-primary-soft) !important;
-  color: var(--brand-primary) !important;
-  border-color: var(--brand-primary) !important;
-}
-
-.ui-button--assist:disabled {
+.btn.secondary:disabled, .ui-button--secondary:disabled, .ui-button--assist:disabled, .ui-utility-button:disabled {
   background: #eef0f3 !important;
   color: #788292 !important;
   border-color: #e5e8ed !important;
+  opacity: 1;
 }
 
 .ui-utility-button {
@@ -459,9 +454,9 @@ main {
   align-items: center;
   justify-content: center;
   padding: 6px 12px;
-  color: #596562;
-  background: #f7f9f8;
-  border: 1px solid #dce5e3;
+  color: var(--brand-primary);
+  background: var(--brand-primary-soft);
+  border: 1px solid var(--brand-primary);
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
@@ -555,7 +550,6 @@ main {
 .ui-order-summary > span:last-child { display: inline-flex; align-items: baseline; gap: 5px; color: #687180; white-space: nowrap; }
 .ui-order-summary .ui-price { font-size: 16px; }
 .ui-order-actions { flex-wrap: nowrap; justify-content: flex-end; gap: 6px; padding-top: 8px; overflow: hidden; }
-.ui-order-action.secondary { color: var(--ink) !important; background: transparent !important; border-color: #d9dee5 !important; }
 @media (max-width: 340px) {
   .ui-order-actions { gap: 4px; }
   .ui-order-actions .ui-order-action { min-height: 26px !important; height: 26px !important; padding: 0 6px !important; font-size: 12px !important; }

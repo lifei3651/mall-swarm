@@ -20,7 +20,7 @@
     <section class="live-square-content">
       <div v-if="loading" class="live-state-card"><LoaderCircle class="spin" :size="28" /><span>正在加载直播广场…</span></div>
       <div v-else-if="disabled" class="live-state-card"><Radio :size="34" /><strong>直播广场暂未开放</strong><span>当前公司尚未开启此独立页面</span><RouterLink to="/">返回商城首页</RouterLink></div>
-      <div v-else-if="error" class="live-state-card"><CircleAlert :size="28" /><strong>{{ error }}</strong><button type="button" @click="load">重新加载</button></div>
+      <div v-else-if="error" class="live-state-card"><CircleAlert :size="28" /><strong>{{ error }}</strong><button class="ui-button--secondary" type="button" @click="load">重新加载</button></div>
 
       <template v-else-if="activeTab === 'live'">
         <div v-if="liveRooms.length" class="live-room-list">

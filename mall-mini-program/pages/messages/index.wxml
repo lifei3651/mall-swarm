@@ -9,7 +9,7 @@
     <view><text>微信服务提醒</text><text>按需订阅发货、退款和到账提醒</text></view><text>›</text>
   </view>
   <view class="sms-card"><view><text class="sms-label">可选提醒</text><view>重要进度短信</view><text>仅用于订单发货、售后退款和账号安全变化，不含营销内容。</text><text>{{smsPreference.statusText}}{{smsPreference.maskedPhone ? ' · ' + smsPreference.maskedPhone : ''}}</text></view><button class="sms-toggle" bindtap="changeSmsPreference" disabled="{{smsBusy || (!smsPreference.available && !smsPreference.enabled)}}" aria-label="{{smsPreference.enabled ? '关闭重要进度短信' : '开启重要进度短信'}}">{{smsBusy ? '保存中' : smsPreference.enabled ? '已开启' : '未开启'}}</button></view>
-  <button wx:if="{{smsError}}" class="more" bindtap="loadSmsPreference">重新读取短信设置</button>
+  <button wx:if="{{smsError}}" class="more ui-button--secondary" bindtap="loadSmsPreference">重新读取短信设置</button>
   </block>
   <block wx:else>
   <view class="category-list">
@@ -29,7 +29,7 @@
       <view class="message-copy"><text>{{item.title}}</text><text>{{item.summary}}</text><text>{{item.displayTime}}</text></view>
       <text class="arrow">›</text>
     </view>
-    <button wx:if="{{pageNum < totalPage}}" class="more" loading="{{loading}}" bindtap="loadMore">加载更多</button>
+    <button wx:if="{{pageNum < totalPage}}" class="more ui-button--secondary" loading="{{loading}}" bindtap="loadMore">加载更多</button>
   </block>
   </block>
 </view>

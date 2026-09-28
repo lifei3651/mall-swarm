@@ -4,7 +4,7 @@
   <block wx:if="{{!showForm}}">
   <text wx:if="{{selectMode && rows.length}}" class="selection-hint">点击地址用于本次订单</text>
   <view wx:if="{{!rows.length && (loading || importing || saving)}}" class="empty">{{importing ? '正在导入地址…' : '正在加载地址…'}}</view>
-  <view wx:elif="{{loadError}}" class="address-empty-state"><text>{{loadError}}</text><button bindtap="load">重新加载</button></view>
+  <view wx:elif="{{loadError}}" class="address-empty-state"><text>{{loadError}}</text><button class="ui-button--secondary" bindtap="load">重新加载</button></view>
   <view wx:elif="{{rows.length}}" class="address-list">
     <view class="address-row" wx:for="{{rows}}" wx:key="id" data-id="{{item.id}}" bindtap="choose">
       <view><text>{{item.receiverName}}</text><text>{{item.receiverPhone}}</text><text wx:if="{{item.isDefault === 1}}" class="default-tag">默认</text></view>

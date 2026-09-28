@@ -37,7 +37,7 @@
 
     <div v-else class="invite-card-state error-state">
       <p>{{ error || '邀请信息暂时无法加载' }}</p>
-      <button type="button" @click="fetchInviteInfo">重新加载</button>
+      <button class="ui-button--secondary" type="button" @click="fetchInviteInfo">重新加载</button>
     </div>
 
     <div v-if="toast" class="invite-toast" role="status">{{ toast }}</div>

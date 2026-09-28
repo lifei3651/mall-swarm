@@ -12,7 +12,7 @@
     <section class="panel records-panel">
       <h3>余额明细</h3>
       <div v-if="loading" class="records-empty">正在加载…</div>
-      <div v-else-if="error" class="records-error">{{ error }}<button type="button" @click="load">重新加载</button></div>
+      <div v-else-if="error" class="records-error">{{ error }}<button class="ui-button--secondary" type="button" @click="load">重新加载</button></div>
       <div v-else-if="!flows.length" class="records-empty">暂无余额记录</div>
       <article v-for="item in flows" :key="item.id" class="record-item">
         <div><strong>{{ item.remark || flowTypeName(item.changeType) }}</strong><small>{{ dateTime(item.createTime) }}</small></div>

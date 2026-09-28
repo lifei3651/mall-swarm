@@ -23,7 +23,7 @@
 
     <div v-if="loading" class="empty compact-empty">订单加载中</div>
     <div v-else-if="error" class="empty compact-empty">
-      <div><p>{{ error }}</p><button class="btn primary" @click="fetchOrders">重新加载</button></div>
+      <div><p>{{ error }}</p><button class="btn secondary ui-button--secondary" @click="fetchOrders">重新加载</button></div>
     </div>
     <div v-else-if="filteredOrders.length === 0" class="empty compact-empty">
       <div><PackageOpen :size="44" /><p>这里还没有订单</p><RouterLink class="btn primary" to="/">去逛逛</RouterLink></div>
@@ -67,7 +67,7 @@
           <button v-if="item.order.status === 2 && !isAfterSale(item)" class="order-action btn primary ui-action-button ui-action-button--primary ui-order-action ui-order-action--primary" :disabled="actingId === item.order.id" @click="requestOrderAction('receive', item.order.id)">确认收货</button>
         </div>
       </article>
-      <button v-if="hasMore" class="load-more-orders" :disabled="loadingMore" @click="loadMore">
+      <button v-if="hasMore" class="load-more-orders ui-button--secondary" :disabled="loadingMore" @click="loadMore">
         {{ loadingMore ? '正在加载...' : '加载更多订单' }}
       </button>
     </section>

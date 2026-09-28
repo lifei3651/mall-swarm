@@ -1,7 +1,7 @@
 <view class="checkout-page" style="--brand: {{themeColor}}; --brand-soft: {{themeSoftColor}}; {{themeStyle}}">
   <view wx:if="{{loading}}" class="empty">正在加载结算信息…</view>
   <block wx:else>
-    <view wx:if="{{loadError}}" class="checkout-error"><text>{{loadError}}</text><button bindtap="load">重新加载</button></view>
+    <view wx:if="{{loadError}}" class="checkout-error"><text>{{loadError}}</text><button class="ui-button--secondary" bindtap="load">重新加载</button></view>
     <view wx:if="{{activityName}}" class="section-kicker"><text>限时活动</text><text>{{activityName}}</text></view>
     <view class="section-kicker"><text>收货信息</text><text>请确认地址准确无误</text></view>
     <view class="address-card" bindtap="chooseAddress">

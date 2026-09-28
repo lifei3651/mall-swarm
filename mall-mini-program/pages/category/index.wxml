@@ -68,7 +68,7 @@
         <text class="no-results-description">{{searchedKeyword ? '试试其他关键词，或查看全部商品' : active ? '可以先看看其他分类的商品' : '商品上新后会在这里展示'}}</text>
         <view wx:if="{{searchedKeyword || active}}" class="empty-actions">
           <button wx:if="{{searchedKeyword}}" class="secondary-button" bindtap="clearSearch">清空搜索</button>
-          <button class="primary-button" bindtap="showAll">查看全部商品</button>
+          <button class="secondary-button ui-button--secondary" bindtap="showAll">查看全部商品</button>
         </view>
       </view>
       <block wx:if="{{!loading && !error && (browsingAll || !guideEnabled || !guideHasContent || active || searchedKeyword || guideTemplate === 'showcase')}}">

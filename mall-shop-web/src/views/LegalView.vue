@@ -21,7 +21,7 @@
     <section v-else-if="type === 'contact'" class="info-card ui-card">
       <RouterLink class="support-entry ui-service-entry" to="/support"><span>客服工单</span><span class="ui-list-action">提交问题 / 查看进度 ›</span></RouterLink>
       <p v-if="loading" class="empty-copy">正在加载联系方式…</p>
-      <p v-else-if="loadError" class="empty-copy" role="alert">{{ loadError }} <button type="button" @click="load">重试</button></p>
+      <p v-else-if="loadError" class="empty-copy" role="alert">{{ loadError }} <button class="ui-button--secondary" type="button" @click="load">重试</button></p>
       <dl>
         <div v-if="config.servicePhone"><dt>客服电话</dt><dd><a :href="`tel:${config.servicePhone}`">{{ config.servicePhone }}</a></dd></div>
         <div v-if="config.serviceEmail"><dt>客服邮箱</dt><dd><a :href="`mailto:${config.serviceEmail}`">{{ config.serviceEmail }}</a></dd></div>

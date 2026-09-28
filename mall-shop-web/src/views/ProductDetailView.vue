@@ -10,8 +10,8 @@
       <h2>商品详情加载失败</h2>
       <p>{{ errorMessage || '商品不存在或已经下架' }}</p>
       <div class="state-actions">
-        <button class="plain-button" @click="goBack">返回上一页</button>
-        <button class="primary-button" @click="fetchProduct">重新加载</button>
+        <button class="plain-button ui-button--secondary" @click="goBack">返回上一页</button>
+        <button class="plain-button ui-button--secondary" @click="fetchProduct">重新加载</button>
       </div>
     </div>
 
@@ -163,7 +163,7 @@
               </div>
             </div>
           </article>
-          <button v-if="reviews.length < Number(reviewData.page?.total || 0)" class="load-more" type="button" :disabled="reviewLoading" @click="loadMoreReviews">{{ reviewLoading ? '加载中...' : '查看更多评价' }}</button>
+          <button v-if="reviews.length < Number(reviewData.page?.total || 0)" class="load-more ui-button--secondary" type="button" :disabled="reviewLoading" @click="loadMoreReviews">{{ reviewLoading ? '加载中...' : '查看更多评价' }}</button>
         </div>
         <div v-else-if="!reviewLoading" class="empty-copy">暂时还没有商品评价</div>
       </section>
@@ -518,7 +518,7 @@ onBeforeUnmount(() => { closeGuarantees(); window.clearTimeout(toastTimer) })
 .detail-state { min-height:70vh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:30px; text-align:center; background:#fff; color:#6b7280; }
 .detail-state h2,.detail-state p { margin:0; }
 .state-actions { display:flex; gap:10px; margin-top:8px; }
-.plain-button,.primary-button { min-height:42px; padding:0 18px; border-radius:22px; border:1px solid #e3e7ed; background:#f1f3f6; }
+.plain-button,.primary-button { min-height:42px; padding:0 18px; border-radius:22px; border:1px solid transparent; }
 .primary-button { color:#fff; background:var(--shop-button-bg,var(--brand-primary)); border-color:var(--shop-button-bg,var(--brand-primary)); }
 .loading-ring { width:36px; height:36px; border:3px solid #e5e7eb; border-top-color:var(--brand-primary); border-radius:50%; animation:spin .8s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
@@ -645,7 +645,7 @@ onBeforeUnmount(() => { closeGuarantees(); window.clearTimeout(toastTimer) })
 .reply-heading { display:flex; align-items:center; flex-wrap:wrap; gap:8px; font-size:13px; color:#555e6d; }
 .reply-heading time { color:#9299a5; font-size:11px; }
 .review-reply p { margin:6px 0 0; font-size:13px; line-height:1.65; color:#555e6d; white-space:pre-wrap; overflow-wrap:anywhere; }
-.load-more { width:100%; height:42px; margin-top:14px; color:#6b7280; background:#f1f3f6; border:0; border-radius:10px; }
+.load-more { width:100%; height:42px; margin-top:14px; border-radius:10px; }
 
 .mobile-buy-bar { position:fixed; z-index:36; left:50%; bottom:0; width:min(760px,100%); height:70px; display:grid; grid-template-columns:58px 58px minmax(100px,1fr) minmax(100px,1fr); gap:7px; padding:8px 10px; transform:translateX(-50%); background:#fff; border-top:1px solid #e5e7eb; box-shadow:0 -4px 18px rgba(0,0,0,.07); }
 .mini-action { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; color:#555; font-size:11px; }

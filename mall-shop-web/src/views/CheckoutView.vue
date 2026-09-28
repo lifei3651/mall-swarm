@@ -51,7 +51,7 @@
         <div v-if="addressesLoading" class="checkout-address-state" role="status">正在读取已保存地址…</div>
         <div v-else-if="addressesLoadError" class="checkout-address-state checkout-address-error" role="alert">
           <span>{{ addressesLoadError }}</span>
-          <button type="button" @click="fetchAddresses">重新加载地址</button>
+          <button class="ui-button--secondary" type="button" @click="fetchAddresses">重新加载地址</button>
         </div>
         <div v-else-if="addresses.length && defaultAddress" class="checkout-address-summary">
           <div class="checkout-address-copy">

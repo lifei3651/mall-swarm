@@ -46,11 +46,10 @@ button { font-size: 28rpx; font-family: inherit; }
 .empty { padding: 120rpx 36rpx; text-align: center; color: var(--muted); line-height: 44rpx; }
 .primary-button, .secondary-button, .danger-button, .ui-button { display: flex; align-items: center; justify-content: center; width: 100%; max-width: 100%; min-width: 0; min-height: var(--control-height); height: auto; padding: 22rpx 24rpx; border-radius: var(--radius-control) !important; line-height: 40rpx; text-align: center; white-space: normal; box-shadow: none !important; }
 .primary-button, .ui-button--primary { background: var(--button) !important; color: #fff !important; border: 1rpx solid var(--button) !important; font-weight: 600; }
-.secondary-button, .ui-button--secondary { background: #f1f3f6 !important; color: var(--ink) !important; border: 1rpx solid #e3e7ed !important; font-weight: 500; }
-.ui-button--assist { background: var(--brand-soft) !important; color: var(--brand) !important; border-color: var(--brand) !important; }
+.secondary-button, .ui-button--secondary, .ui-button--assist { background: var(--brand-soft) !important; color: var(--brand) !important; border: 1rpx solid var(--brand) !important; font-weight: 500; }
 .danger-button, .ui-button--danger { background: var(--danger-soft) !important; color: var(--danger) !important; border: 1rpx solid #fecaca !important; font-weight: 600; }
-.primary-button[disabled], .secondary-button[disabled], .danger-button[disabled], .ui-button[disabled] { background: #eef0f3 !important; color: #788292 !important; border-color: #e5e8ed !important; box-shadow: none !important; opacity: 1; }
-.ui-utility-button { box-sizing:border-box; display:inline-flex; align-items:center; justify-content:center; width:auto !important; min-width:104rpx !important; min-height:52rpx; margin:0; padding:0 16rpx; border:1rpx solid #dce5e3 !important; border-radius:var(--radius-pill) !important; background:#f7f9f8 !important; color:#596562 !important; font-size:22rpx; font-weight:600; line-height:50rpx; white-space:nowrap; box-shadow:none !important; }
+.primary-button[disabled], .secondary-button[disabled], .danger-button[disabled], .ui-button[disabled], .ui-button--secondary[disabled], .ui-button--assist[disabled], .ui-utility-button[disabled] { background: #eef0f3 !important; color: #788292 !important; border-color: #e5e8ed !important; box-shadow: none !important; opacity: 1; }
+.ui-utility-button { box-sizing:border-box; display:inline-flex; align-items:center; justify-content:center; width:auto !important; min-width:104rpx !important; min-height:52rpx; margin:0; padding:0 16rpx; border:1rpx solid var(--brand) !important; border-radius:var(--radius-pill) !important; background:var(--brand-soft) !important; color:var(--brand) !important; font-size:22rpx; font-weight:600; line-height:50rpx; white-space:nowrap; box-shadow:none !important; }
 .ui-utility-button--primary { border-color:var(--button) !important; background:var(--button) !important; color:#fff !important; }
 
 /*
@@ -107,7 +106,6 @@ button { font-size: 28rpx; font-family: inherit; }
 .ui-order-summary > view { display: flex; align-items: baseline; gap: 8rpx; color: #687180; white-space: nowrap; }
 .ui-order-summary .ui-price { font-size: 30rpx; }
 .ui-order-actions { flex-wrap: nowrap; justify-content: flex-end; gap: 12rpx; padding-top: 16rpx; overflow: hidden; }
-.ui-order-action.secondary-button { color: var(--ink) !important; background: transparent !important; border-color: #d9dee5 !important; }
 @media (max-width: 340px) {
   .ui-order-actions { gap: 8rpx; }
   .ui-order-actions .ui-order-action { min-height: 52rpx !important; height: 52rpx !important; padding: 0 12rpx !important; font-size: 24rpx !important; }

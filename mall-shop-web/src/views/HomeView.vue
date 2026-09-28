@@ -36,7 +36,7 @@
     <section v-if="homeLoadError" class="home-init-error" role="alert" aria-live="polite">
       <strong>商城首页暂时加载失败</strong>
       <p>{{ homeLoadError }}</p>
-      <button type="button" :disabled="homeLoading" @click="reloadHome">
+      <button class="ui-button--secondary" type="button" :disabled="homeLoading" @click="reloadHome">
         {{ homeLoading ? '重新加载中…' : '重新加载' }}
       </button>
     </section>
@@ -148,7 +148,7 @@
       <ProductListSkeleton v-if="loading" :count="4" variant="grid" />
       <div v-else-if="productError" class="home-empty" role="alert">
         <strong>{{ productError }}</strong>
-        <button type="button" @click="retryProducts">重新搜索</button>
+        <button class="ui-button--secondary" type="button" @click="retryProducts">重新搜索</button>
       </div>
 
       <div v-else-if="products.length" class="home-product-grid">
@@ -212,7 +212,7 @@
       <div v-else class="home-empty">
         <PackageOpen :size="42" />
         <strong>没有找到相关商品</strong>
-        <button type="button" @click="clearFilter">查看全部商品</button>
+        <button class="ui-button--secondary" type="button" @click="clearFilter">查看全部商品</button>
       </div>
     </section>
     </template>

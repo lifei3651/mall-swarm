@@ -27,7 +27,7 @@
         <select v-model="form.afterSaleId" :disabled="submitting"><option value="">不关联售后</option><option v-for="sale in selectedOrder.afterSales" :key="sale.id" :value="String(sale.id)">{{ sale.afterSaleNo }} · {{ afterSaleStatus(sale.status, sale.applyType) }}</option></select><ChevronRight :size="16" aria-hidden="true" />
       </label>
       <p v-else-if="form.type==='AFTER_SALE_DISPUTE'" class="safe-hint">请先关联有售后记录的订单。</p>
-      <p v-if="contextError" class="error" role="alert">{{ contextError }}<button type="button" :disabled="contextLoading" @click="loadContext">重新加载关联订单</button></p>
+      <p v-if="contextError" class="error" role="alert">{{ contextError }}<button class="ui-button--secondary" type="button" :disabled="contextLoading" @click="loadContext">重新加载关联订单</button></p>
       <label>问题说明<textarea v-model.trim="form.content" :disabled="submitting" maxlength="1000" rows="5" placeholder="请说明发生了什么、希望如何协助处理。涉及售后图片请先在订单售后中提交凭证。"></textarea><small>{{ form.content.length }}/1000</small></label>
       <p class="safe-hint">请勿填写密码、验证码或银行卡号。</p>
       <p v-if="formError" class="error" role="alert">{{ formError }}</p>
@@ -45,7 +45,7 @@
         <footer><span>{{ ticket.ticketNo }}</span><time>{{ time(ticket.lastReplyTime) }}</time></footer>
       </RouterLink>
       <p v-if="!loading&&!tickets.length" class="empty">当前没有{{ status ? '该状态的' : '' }}客服工单</p>
-      <button v-if="pageNum<totalPage" class="more" @click="load(false)">加载更多</button>
+      <button v-if="pageNum<totalPage" class="more ui-button--secondary" @click="load(false)">加载更多</button>
     </section>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
   </main>

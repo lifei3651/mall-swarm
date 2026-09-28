@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import process from 'node:process'
+import { auditSecondaryButtons } from './lib/storefront-button-contract.mjs'
 
 const root = resolve(import.meta.dirname, '..')
 const read = (path) => readFileSync(join(root, path), 'utf8')
@@ -11,6 +12,8 @@ const requireText = (path, pattern, message) => {
 
 const miniCore = read('mall-mini-program/app.wxss')
 const webCore = read('mall-shop-web/src/assets/styles.css')
+requireText('mall-mini-program/app.wxss', /\.secondary-button, \.ui-button--secondary, \.ui-button--assist\s*\{[^}]*background:\s*var\(--brand-soft\) !important;[^}]*color:\s*var\(--brand\) !important;[^}]*border:\s*1rpx solid var\(--brand\) !important;/, '所有普通次按钮必须统一浅主题底、主题文字和边框，不能只给个别页面打补丁')
+requireText('mall-shop-web/src/assets/styles.css', /\.btn\.secondary, \.ui-button--secondary, \.ui-button--assist\s*\{[^}]*background:\s*var\(--brand-primary-soft\) !important;[^}]*border:\s*1px solid var\(--brand-primary\) !important;[^}]*color:\s*var\(--brand-primary\) !important;/, 'H5普通次按钮必须与小程序共用主题颜色语义')
 for (const token of ['--radius-card', '--radius-control', '--control-height', '--action-height', '--action-font-size', '--action-padding-x', '--danger']) {
   if (!miniCore.includes(token)) failures.push(`mall-mini-program/app.wxss: 缺少共用变量 ${token}`)
 }
@@ -133,13 +136,23 @@ const pageStyleFiles = [
   ...walk(join(root, 'mall-mini-program/pages'), ['.wxss']),
   ...walk(join(root, 'mall-mini-program/components'), ['.wxss']),
   ...walk(join(root, 'mall-shop-web/src/views'), ['.vue']),
+  ...walk(join(root, 'mall-shop-web/src/components'), ['.vue']),
   ...walk(join(root, 'mall-shop-web/src/surfaces'), ['.vue']),
 ]
 for (const path of pageStyleFiles) {
   const source = readFileSync(path, 'utf8')
-  for (const match of source.matchAll(/([^{}]*(?:ui-card|ui-service-entry|ui-utility-button|ui-action-button|ui-copy-action|ui-price|ui-status-pill|ui-action-bar|ui-action-group)[^{}]*)\{([^{}]*)\}/g)) {
+  for (const match of source.matchAll(/([^{}]*(?:ui-card|ui-service-entry|ui-utility-button|ui-action-button|ui-copy-action|ui-price|ui-status-pill|ui-action-bar|ui-action-group|secondary-button|ui-button--secondary|ui-button--assist|\.btn\.secondary)[^{}]*)\{([^{}]*)\}/g)) {
     if (/!important/.test(match[2])) failures.push(`${relative(root, path)}: 共用组件页面覆盖禁止使用 !important（${match[1].trim()}）`)
   }
+}
+
+for (const path of [
+  ...walk(join(root, 'mall-mini-program/pages'), ['.wxml']),
+  ...walk(join(root, 'mall-shop-web/src/views'), ['.vue']),
+  ...walk(join(root, 'mall-shop-web/src/components'), ['.vue']),
+  ...walk(join(root, 'mall-shop-web/src/surfaces'), ['.vue']),
+]) {
+  for (const failure of auditSecondaryButtons(readFileSync(path, 'utf8'))) failures.push(`${relative(root, path)}: ${failure}`)
 }
 
 if (failures.length) {

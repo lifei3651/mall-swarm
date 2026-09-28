@@ -5,7 +5,7 @@
     <text>可订阅发货、售后退款和到账等重要进度，不发送营销内容。</text>
   </view>
   <view wx:if="{{loading}}" class="empty">正在读取提醒设置…</view>
-  <view wx:elif="{{error}}" class="empty">{{error}}<button class="retry-button" bindtap="load">重新加载</button></view>
+  <view wx:elif="{{error}}" class="empty">{{error}}<button class="retry-button ui-button--secondary" bindtap="load">重新加载</button></view>
   <view wx:elif="{{!templates.length}}" class="empty">当前商城暂未开放微信服务提醒</view>
   <block wx:else>
     <view class="template-card" wx:for="{{templates}}" wx:key="templateId">

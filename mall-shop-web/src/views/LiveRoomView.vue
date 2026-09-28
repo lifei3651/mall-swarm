@@ -7,7 +7,7 @@
       <RouterLink v-else to="/" aria-label="返回首页"><Home :size="20" /></RouterLink>
     </header>
     <div v-if="loading" class="detail-state"><LoaderCircle class="spin" :size="28" />正在加载直播间…</div>
-    <div v-else-if="error" class="detail-state"><CircleAlert :size="30" /><strong>{{ error }}</strong><button type="button" @click="load">重新加载</button></div>
+    <div v-else-if="error" class="detail-state"><CircleAlert :size="30" /><strong>{{ error }}</strong><button class="ui-button--secondary" type="button" @click="load">重新加载</button></div>
     <template v-else-if="room.room">
       <section class="watch-layout">
         <div class="live-stage">

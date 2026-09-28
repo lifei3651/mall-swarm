@@ -60,7 +60,7 @@
       <h3>余额记录</h3>
       <div v-if="flowsError" class="records-error">
         <span>{{ flowsError }}</span>
-        <button type="button" @click="loadFlows">重新加载</button>
+        <button class="ui-button--secondary" type="button" @click="loadFlows">重新加载</button>
       </div>
       <div v-if="!balanceFlows.length && !flowsError" class="records-empty">暂无余额记录</div>
       <article v-for="item in balanceFlows" :key="item.id" class="record-item">
