@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 2,
+  "receiptStatus": "COMPLETED",
+  "version": "1.0.171",
+  "buildId": "20260928-closure-1.0.171",
+  "gitCommit": "5e7f0e3178eedcf01d2b96903df902f6b6dc4190",
+  "sourceTree": "9557758c636b833e29af0d7010a84e0cfd9c850f",
+  "candidateStatus": "FROZEN_CT_DURABLE_READBACK_VERIFIED",
+  "candidateManifestSha256": "42e8791dd5b72df778a9afc12fc1ff5739a80e30f4dfd44118f3fb374474a3ba",
+  "localArtifact": {
+    "path": "target/releases/lingqi-mall-1.0.171-5e7f0e31.tar.gz",
+    "bytes": 146910781,
+    "sha256": "c8022fde35616ad8d029886a75ba190e1bbbf1b947c3c18e4e0de914b41282e6",
+    "verified": true
+  },
+  "durableArtifact": {
+    "status": "COMPLETED",
+    "provider": "github-release",
+    "private": true,
+    "immutable": true,
+    "objectId": "lifei3651/mall-swarm-release-archive/releases/tag/candidate-1.0.171-5e7f0e31#lingqi-mall-1.0.171-5e7f0e31.tar.gz",
+    "assetDigest": "sha256:c8022fde35616ad8d029886a75ba190e1bbbf1b947c3c18e4e0de914b41282e6",
+    "uploadedAt": "2026-09-28T14:34:00+08:00",
+    "uploadedAtPrecision": "Immutable prerelease page showed publication at 14:34 Asia/Shanghai; seconds are not asserted.",
+    "retentionCommitmentUntil": "2027-09-29",
+    "retentionUntil": "2027-09-29T23:59:59+08:00",
+    "readBackAt": "2026-09-28T14:35:48+08:00",
+    "readBackMethod": "Clicked the exact private GitHub release attachment in Edge. Download event wait timed out, but the named file completed in Downloads. Independently checked its byte count and SHA-256 against the fixed local package and platform asset digest. No browser security setting changed. Repository visibility independently returned private via GitHub connector.",
+    "readBackLocalPath": "/Users/minmatemp/Downloads/lingqi-mall-1.0.171-5e7f0e31.tar.gz",
+    "readBackBytes": 146910781,
+    "readBackSha256": "c8022fde35616ad8d029886a75ba190e1bbbf1b947c3c18e4e0de914b41282e6"
+  },
+  "gates": {
+    "serverDeploymentAllowed": false,
+    "wechatDevelopmentUploadAllowed": false,
+    "reason": "Retention evidence only; deployment and development upload have independent checks and receipts."
+  }
+}
