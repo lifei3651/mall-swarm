@@ -23,7 +23,7 @@ export const SETTINGS_ENTRIES = [
   { group: 'marketing', title: '优惠券规则与发行', description: '平台或指定商家、全部或指定商品；设置成本承担、奖金与退券规则', path: '/shop/coupons', permission: 'config:shop' },
   { group: 'marketing', title: '秒杀活动', description: '活动商品、价格、库存、时间与限购', path: '/tenant/flash-sales', permission: 'shop:product' },
   { group: 'marketing', title: '消息运营', description: '通知、公告与消息发送配置', path: '/tenant/message-operations', permission: 'config:shop' },
-  { group: 'team', title: '团队、秒杀与复购模式', description: '推广资格开通方式、秒杀与复购入口及奖金处理', path: '/tenant/business-modes', permission: 'config:bonus', editor: true },
+  { group: 'team', title: '商城业务模块', description: '邀请开关与普通商城模式、余额、多商户、推广资格、秒杀、复购及优惠券', path: '/tenant/business-modes', permission: 'config:bonus', editor: true },
   { group: 'team', title: '客户奖金接入', description: '客户奖金程序及制度接入配置', path: '/tenant/bonus-config', permission: 'config:bonus', editor: true },
   { group: 'team', title: '会员端业绩查看权限', description: '控制会员端业绩数据的可见范围', path: '/audit/settings', permission: 'config:bonus', editor: true },
   { group: 'service', title: '商城客服渠道', description: '联系电话、邮箱与工作时间；微信客服需另在微信后台配置', path: '/tenant/profile', hash: '#customer-service', permission: 'config:shop' },

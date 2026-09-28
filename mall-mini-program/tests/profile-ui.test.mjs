@@ -92,6 +92,20 @@ test('商城说明并入常用服务，游客仍可查看且保留六类二级�
   assert.match(page,/wx:for="\{\{entries\}\}"[^>]*bindtap="open"/);
 })
 
+test('商城说明和客服保持固定位置，不被登录、优惠券或邀请开关插入到前面', () => {
+  const view = readFileSync(new URL('../pages/profile/index.wxml', import.meta.url), 'utf8')
+  const grid = view.split('<view class="service-grid">')[1].split('</view>\n    <button')[0]
+  const buttons = grid.match(/<button\b[\s\S]*?<\/button>/g)
+  const fixed = buttons.slice(0, 4)
+  assert.deepEqual(fixed.map(button => button.match(/bindtap="([^"]+)"/)[1]),
+    ['messages', 'addresses', 'legal', 'contact'])
+  fixed.forEach(button => assert.doesNotMatch(button.split('>')[0], /wx:if=|wx:elif=|hidden=/))
+  assert.equal(buttons.filter(button => button.includes('bindtap="legal"')).length, 1)
+  // Every conditional entry follows the fixed group, including initial loading,
+  // failed revalidation, logout, and backend module switches.
+  buttons.slice(4).forEach(button => assert.match(button, /wx:if=/))
+})
+
 test('录屏回归：分享返回期间同一账号的会员标识和邀请按钮保留位置，核验完成前不允许分享', async () => {
   const wait = deferred(), rights = { ready: true, canInvite: true, membershipLevel: 1, membershipLabel: '会员' }
   const h = loadProfile({ token:'same-owner', member:{nickname:'本地会员'}, respond:({url})=>url==='/shop/auth/me'?{nickname:'本地会员'}:url.endsWith('/withdrawals')?[]:{}, prepare: async page => { page.setData({shareReady:false}); await wait.promise; page.setData({shareReady:true}); return rights } })

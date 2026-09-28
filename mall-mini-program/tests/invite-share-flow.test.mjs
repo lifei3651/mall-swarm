@@ -81,6 +81,84 @@ test('邀请关闭时旧分享码不阻断普通微信登录，也不会进入�
   assert.equal(login.data.inviteCode, undefined)
 })
 
+test('邀请开关关闭后重新开启，返回登录页可以重新填写并核对邀请人', async () => {
+  let enabled = 0
+  const h = harness({ handle: ({ url }) => url === '/shop/business-config' ? { invitationEnabled: enabled } : undefined })
+  const page = h.page()
+  await page.onLoad(); await settle()
+  assert.equal(page.data.invitationEnabled, false)
+  enabled = 1
+  page.onShow(); await settle()
+  assert.equal(page.data.invitationEnabled, true)
+  page.toggleInvitation()
+  page.invitationInput({ detail: { value: 'ABCD1234' } })
+  await page.checkInvitation()
+  assert.equal(page.data.inviterName, '原邀请人')
+  assert.equal(page._verifiedInviteCode, 'ABCD1234')
+})
+
+test('返回登录页发现邀请已关闭时清除旧邀请码，普通注册不带旧邀请', async () => {
+  let enabled = 1
+  const h = harness({ handle: ({ url }) => url === '/shop/business-config' ? { invitationEnabled: enabled } : undefined })
+  h.load('utils/invite.js').captureLaunchInvite({ query: { inviteCode: 'ABCD1234' } })
+  const page = h.page()
+  await page.onLoad(); await settle()
+  assert.equal(page._verifiedInviteCode, 'ABCD1234')
+  enabled = 0
+  page.onShow(); await settle()
+  assert.equal(page.data.invitationEnabled, false)
+  assert.equal(page._verifiedInviteCode, '')
+  assert.equal(page.data.inviteExpanded, false)
+  page.data.agreed = true
+  await page.phoneLogin(phoneEvent)
+  assert.equal(h.calls.find(({ url }) => url.endsWith('/auth/login')).data.inviteCode, undefined)
+})
+
+test('旧登录弹窗和旧请求的邀请开关响应不能覆盖新弹窗', async () => {
+  for (const closeFirst of [false, true]) {
+    const old = deferred()
+    let calls = 0
+    const h = harness({ handle: () => ++calls === 1 ? old.promise : { invitationEnabled: 1 } })
+    const page = h.page()
+    const stale = page.loadInvitationMode()
+    if (closeFirst) { page.onUnload(); page._inactive = false }
+    await page.loadInvitationMode()
+    old.resolve({ invitationEnabled: 0 }); await stale
+    assert.equal(page.data.invitationEnabled, true)
+  }
+})
+
+test('邀请模式未变化时保留手填草稿，网络失败也不能擅自重新开启关闭态', async () => {
+  let fail = false
+  const h = harness({ handle: ({ url }) => url === '/shop/business-config'
+    ? fail ? Promise.reject(new Error('offline')) : { invitationEnabled: 1 } : undefined })
+  const page = h.page()
+  await page.onLoad(); await settle()
+  page.toggleInvitation()
+  page.invitationInput({ detail: { value: 'DRAFT123' } })
+  page.onShow(); await settle()
+  assert.equal(page.data.inviteExpanded, true)
+  assert.equal(page.data.inviteCode, 'DRAFT123')
+  page.setData({ invitationEnabled: false })
+  fail = true
+  await page.loadInvitationMode()
+  assert.equal(page.data.invitationEnabled, false)
+})
+
+test('邀请模式响应不能中途改写正在授权或提交的登录快照', async () => {
+  for (const state of ['authorizingPhone', 'submitting']) {
+    const late = deferred()
+    const h = harness({ handle: () => late.promise }), page = h.page()
+    const task = page.loadInvitationMode()
+    page.setData({ [state]: true })
+    late.resolve({ invitationEnabled: 0 }); await task
+    assert.equal(page.data.invitationEnabled, true)
+    const calls = h.calls.length
+    await page.loadInvitationMode()
+    assert.equal(h.calls.length, calls)
+  }
+})
+
 test('换账号、页面隐藏和后台能力失败均不能复用上一人的邀请码', async () => {
   const h = harness({ token: 'sender' }), share = h.load('utils/share.js'), page = sharePage()
   await share.prepare(page)

@@ -99,6 +99,7 @@ module.exports = {
     if (this.data.authorizingPhone || this.data.submitting) return
     theme.apply(this)
     feedback.update(this, { logoFailed: false })
+    this.loadInvitationMode()
     if (!this.data.submitting) this.syncInvitation()
     if (this._runtimeChecked && !this.data.submitting && (!this.data.enabled || !this.data.phoneEnabled)) this.loadRuntime()
   },
@@ -107,6 +108,7 @@ module.exports = {
     this._runtimeSequence = (this._runtimeSequence || 0) + 1
     this._loginSequence = (this._loginSequence || 0) + 1
     this._inviteSequence = (this._inviteSequence || 0) + 1
+    this._invitationModeSequence = (this._invitationModeSequence || 0) + 1
     this.setData({ authorizingPhone: false })
   },
   logoError() { feedback.update(this, { logoFailed: true }) },

@@ -18,6 +18,21 @@ beforeEach(() => {
   api.saveTenantBusinessModes.mockResolvedValue({ data:{} })
 })
 describe('业务模式设置保存保护', () => {
+  it('普通商城与可选邀请模式清晰区分，切换邀请不改推广资格规则', async () => {
+    const w = mounted(); await flushPromises()
+    expect(w.text()).toContain('邀请模式（可选邀请人）')
+    expect(w.text()).toContain('不填也能注册购物')
+    expect(w.text()).toContain('推广资格开通')
+    w.vm.form.invitationEnabled = 0; await flushPromises()
+    expect(w.text()).toContain('普通商城模式（无邀请）')
+    expect(w.text()).toContain('历史关系、订单和账务保留')
+    expect(w.vm.form.promotionJoinMode).toBe('MANUAL_REVIEW')
+    vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm')
+    await w.vm.save()
+    expect(api.saveTenantBusinessModes).toHaveBeenCalledWith(1,
+      expect.objectContaining({ invitationEnabled: 0, promotionJoinMode: 'MANUAL_REVIEW' }))
+    w.unmount()
+  })
   it('未修改不提交；修改后撤销恢复原值和离页保护状态', async () => {
     const w = mounted(); await flushPromises()
     await w.vm.save(); expect(api.saveTenantBusinessModes).not.toHaveBeenCalled()

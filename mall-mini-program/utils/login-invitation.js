@@ -12,13 +12,24 @@ async function preview(code) {
 }
 const methods = {
   async loadInvitationMode() {
+    if (this._inactive || this.data.submitting || this.data.authorizingPhone) return
+    const sequence = this._invitationModeSequence = (this._invitationModeSequence || 0) + 1
     try {
       const config = await request({ url: '/shop/business-config' })
-      if (this._inactive || Number(config && config.invitationEnabled) !== 0) return
-      invite.clearPendingInvite()
-      this._inviteFingerprint = ''
-      feedback.update(this, { invitationEnabled: false })
-      this.syncInvitation(true)
+      if (this._inactive || sequence !== this._invitationModeSequence
+        || this.data.submitting || this.data.authorizingPhone) return
+      // Only a verified switch may change the mode. Reopening must work as well
+      // as closing, and unchanged modes must preserve manually entered drafts.
+      const mode = config && config.invitationEnabled
+      if (![0, 1, '0', '1'].includes(mode)) return
+      const enabled = Number(mode) === 1
+      const changed = enabled !== this.data.invitationEnabled
+      if (!enabled) {
+        invite.clearPendingInvite()
+        this._inviteFingerprint = ''
+      }
+      feedback.update(this, { invitationEnabled: enabled })
+      if (changed || !enabled) this.syncInvitation(true)
     } catch (_) { /* The server still checks the switch at final registration. */ }
   },
   syncInvitation(force = false) {

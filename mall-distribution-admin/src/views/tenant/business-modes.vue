@@ -11,10 +11,11 @@
           <p>关闭后原商户商品从前台隐藏，不能新上架或下单；商品和商户记录不删除。切换前创建的订单仍可支付、退款、履约、结算与审计。</p>
         </section>
         <section><h3>邀请与推广资格</h3>
-          <el-form-item label="邀请功能" class="toggle-row"><span class="toggle-state">{{ Number(form.invitationEnabled) === 1 ? '已开启' : '已关闭' }}</span><el-switch v-model="form.invitationEnabled" aria-label="启用邀请功能" :active-value="1" :inactive-value="0" :disabled="!canEditInvitation" /></el-form-item>
-          <p>关闭后普通注册和购物不受影响，新分享不带邀请码，带旧邀请码的新注册也不能建立邀请关系；历史关系、订单和账务保留。推广资格开通方式是另一项设置。</p>
+          <el-form-item label="邀请功能" class="toggle-row"><span class="toggle-state">{{ Number(form.invitationEnabled) === 1 ? '邀请模式（可选邀请人）' : '普通商城模式（无邀请）' }}</span><el-switch v-model="form.invitationEnabled" aria-label="启用邀请功能" :active-value="1" :inactive-value="0" :disabled="!canEditInvitation" /></el-form-item>
+          <p v-if="Number(form.invitationEnabled) === 1">邀请模式：注册可填写邀请码，也可从分享链接或二维码带入并核对邀请人；不填也能注册购物。仅首次注册绑定，已有账号不因点击其他邀请链接而更换邀请人。</p>
+          <p v-else>普通商城模式：不显示新注册的邀请入口，新分享不带邀请码，旧邀请码也不能建立新的邀请关系；普通注册和购物不受影响，历史关系、订单和账务保留。</p>
           <p v-if="!canEditInvitation">调整邀请功能需要商城设置权限。</p>
-          <el-form-item label="开通方式">
+          <el-form-item label="推广资格开通">
             <el-radio-group v-model="form.promotionJoinMode" class="mode-options">
               <el-radio-button value="DISABLED">关闭</el-radio-button>
               <el-radio-button value="AUTO_ON_INVITE">受邀即开通</el-radio-button>
@@ -22,8 +23,9 @@
               <el-radio-button value="FIRST_PAID_ORDER">首笔有效订单</el-radio-button>
             </el-radio-group>
           </el-form-item>
-          <p v-if="form.promotionJoinMode === 'DISABLED'">只保留一次性邀请关系，不自动产生推广身份；适合尚未完成客户制度开发的新项目。</p>
-          <p v-else-if="form.promotionJoinMode === 'AUTO_ON_INVITE'">用户通过邀请链接或二维码注册并绑定邀请人后，立即开通基础推广资格。</p>
+          <p>推广资格与邀请开关独立：打开邀请功能不会自动让每个普通购物账号获得推广资格或邀请权限。</p>
+          <p v-if="form.promotionJoinMode === 'DISABLED'">不自动开通推广资格；邀请功能开启时仍可保留一次性邀请关系。</p>
+          <p v-else-if="form.promotionJoinMode === 'AUTO_ON_INVITE'">邀请功能开启时，用户受邀注册并绑定邀请人后，立即开通基础推广资格；邀请功能关闭时不产生新的受邀开通。</p>
           <p v-else-if="form.promotionJoinMode === 'MANUAL_REVIEW'">系统先保存邀请关系，管理员审核客户要求的资料后，再在会员管理中开通。</p>
           <el-alert v-else title="这是老商城兼容方式。请确认客户业务及合规要求确实以购买作为资格条件，再用于新客户。" type="error" :closable="false" show-icon />
         </section>
