@@ -1,0 +1,90 @@
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import path from 'node:path'
+import crypto from 'node:crypto'
+import { execFileSync } from 'node:child_process'
+import test from 'node:test'
+
+const root = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim()
+const read = file => fs.readFileSync(path.join(root, file), 'utf8')
+const backend = read('scripts/remote-deploy-20260928-v1.0.171-backend.sh')
+const baselineJar = '161e823e2b507e17af5cbbf22bf1e8dcbd4de1dbe24a693b23aec850a134ccb3'
+const baselineCommit = 'e99812cf2d4025a66b30921226f04d89ce337784'
+
+test('1.0.171 所有候选入口固定线上 1.0.170 基线', () => {
+  for (const file of [
+    'scripts/release-lingqi-171.mjs', 'scripts/prepare-lingqi-mini-release-171.mjs',
+    'scripts/upload-lingqi-mini-171.mjs', 'scripts/release-readiness-171.sh',
+    'scripts/remote-deploy-20260928-v1.0.171-static.sh',
+  ]) {
+    const body = read(file)
+    assert.ok(body.includes('1.0.171') && body.includes('1.0.170'), file)
+    assert.ok(body.includes(baselineJar) && body.includes(baselineCommit), file)
+    assert.ok(body.includes('20260928-closure-1.0.171'), file)
+  }
+  assert.ok(backend.includes(baselineJar))
+  assert.match(backend, /EXPECTED_PREVIOUS_VERSION=1\.0\.170/)
+  assert.match(read('scripts/remote-deploy-20260928-v1.0.171-static.sh'), /PREVIOUS_BUILD_ID=20260927-closure-1\.0\.170/)
+})
+
+test('44 条历史迁移固定名称与摘要，正式库不执行新增 SQL', () => {
+  const names = fs.readdirSync(path.join(root, 'document/db/migrations')).filter(n => /^V.*\.sql$/.test(n)).sort()
+  assert.equal(names.length, 44)
+  assert.deepEqual(names.slice(41), [
+    'V202609261800__tenant_coupon_module_switch.sql',
+    'V202609262000__tenant_balance_and_merchant_mode_switches.sql',
+    'V202609262130__tenant_invitation_switch.sql',
+  ])
+  for (const name of names.slice(41)) {
+    assert.ok(backend.includes(name))
+    assert.ok(backend.includes(crypto.createHash('sha256').update(read(`document/db/migrations/${name}`)).digest('hex')))
+  }
+  assert.match(backend, /EXPECTED_MIGRATIONS_BEFORE=44/)
+  assert.match(backend, /EXPECTED_MIGRATIONS_AFTER=44/)
+  assert.match(backend, /partial\/failed migration requires review/)
+  assert.match(backend, /verify_applied_migration_prefix "\$DB_NAME" "\$EXPECTED_MIGRATIONS_BEFORE"/)
+  assert.doesNotMatch(backend, /mysql_db "\$DB_NAME" </)
+  assert.doesNotMatch(backend, /apply_module_migrations "\$DB_NAME"/)
+  assert.match(backend, /migration-mode=verify-only-44/)
+})
+
+test('正式替换必须晚于显式授权、留档验证、完整备份、隔离无变更重跑', () => {
+  const checkpoints = [
+    '[[ "$MODE" == --authorize-release ]] || exit 0',
+    'P0-10 durable retention verification failed',
+    'BACKUP_BEFORE=$(backup_and_verify',
+    'ISOLATED_BEFORE=$(business_snapshot',
+    'ISOLATED_SWITCHES=$(module_switch_snapshot',
+    'isolated migration rerun changed module switches',
+    'STOPPED_DATABASE=$(business_snapshot',
+    'STOPPED_SWITCHES=$(module_switch_snapshot "$DB_NAME")',
+    'atomic_install "$RELEASE_DIR/mall-distribution.jar"',
+  ].map(marker => { const at = backend.indexOf(marker); assert.ok(at > 0, marker); return at })
+  assert.deepEqual(checkpoints, [...checkpoints].sort((a, b) => a - b))
+  assert.match(backend, /IS_NULLABLE='NO' AND COLUMN_DEFAULT='1'/)
+  assert.match(backend, /business_snapshot "\$DB_NAME"\)" == "\$STOPPED_DATABASE"/)
+})
+
+test('回退只恢复旧应用，不假称迁移回退，不覆盖业务库', () => {
+  assert.match(backend, /additive-migrations-retained=yes database-not-restored=yes/)
+  assert.doesNotMatch(backend, /migration-ledger-unchanged=yes/)
+  assert.match(backend, /44:44\) verify_applied_migration_prefix/)
+  assert.match(backend, /verification changed module switches/)
+  const recovery = backend.slice(backend.indexOf('recover() {'), backend.indexOf('trap recover EXIT'))
+  assert.doesNotMatch(recovery, /mysql_db "\$DB_NAME"|DROP COLUMN|database\.sql\.gz/)
+})
+
+test('本地准入递归绑定候选和已验证部署脚本，缺留档不能正式准入', () => {
+  const body = read('scripts/release-readiness-171.sh')
+  assert.match(body, /expected_migration_count = 44/)
+  assert.match(body, /候选脚本与已验证源码不同/)
+  assert.match(body, /正式准入缺少 --retention-receipt/)
+  assert.match(read('scripts/release-lingqi-171.mjs'), /migrations\.length !== 44/)
+})
+
+test('小程序仍仅允许显式开发版上传，不含提审或正式发布', () => {
+  const body = read('scripts/upload-lingqi-mini-171.mjs')
+  assert.match(body, /development-upload-only/)
+  for (const marker of ['experienceVersionChanged: false', 'reviewSubmitted: false', 'formalVersionPublished: false']) assert.ok(body.includes(marker))
+  assert.doesNotMatch(body, /--authorize-review|--authorize-publish/)
+})
