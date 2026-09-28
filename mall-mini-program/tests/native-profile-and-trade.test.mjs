@@ -374,6 +374,126 @@ test('微信地址已保存但列表刷新失败时明确提示核对，不重�
   assert.ok(notices.some(x=>x.includes('不要重复导入')));assert.ok(!notices.includes('微信地址已导入'))
 })
 
+const addressImportValue = { userName: '测试收货人', telNumber: '13800000000', provinceName: '湖南省', cityName: '长沙市', countyName: '岳麓区', detailInfo: '测试街1号' }
+const settleAddress = () => new Promise(resolve => setImmediate(resolve))
+const addressLoadingCondition = () => readFileSync(resolve(root, 'pages/address/index.wxml'), 'utf8').match(/<view wx:if="\{\{([^}]+)\}\}" class="empty">/)[1]
+
+test('微信导入返回 onShow 在选择/保存/刷新前后均只读一次列表，后续正常返回仍刷新', async () => {
+  for (const timing of ['choosing', 'saving', 'refreshing', 'completed']) {
+    let chooser, saveDone, listDone
+    const e = environment({ wx: { chooseAddress(options) { chooser = options } }, respond: ({ method }) => new Promise(resolve => {
+      if (method === 'POST') saveDone = resolve
+      else listDone = resolve
+    }) }), page = e.page('address')
+    page.owner = 'owner-session'; page.setData({ loading: false, rows: [{ id: '2', isDefault: 1 }] })
+    const pending = page.importWechatAddress(); await settleAddress(); page.onHide?.()
+    if (timing === 'choosing') await page.onShow()
+    chooser.success(addressImportValue); await settleAddress()
+    if (timing === 'saving') await page.onShow()
+    saveDone({ id: '3' }); await settleAddress()
+    if (timing === 'refreshing') await page.onShow()
+    listDone([{ id: '2', isDefault: 1 }, { id: '3', isDefault: 0 }]); await pending
+    if (timing === 'completed') {
+      const resumed = page.onShow()
+      assert.equal(e.calls.length, 2, '完成后的微信返回不能再触发 GET')
+      await resumed
+    }
+    assert.equal(e.calls.filter(call => call.method === 'POST').length, 1)
+    assert.equal(e.calls.filter(call => !call.method).length, 1)
+    page.onHide?.(); const revisit = page.onShow()
+    assert.equal(e.calls.filter(call => !call.method).length, 2, '后续正常回到页面仍核对列表')
+    listDone([{ id: '3', isDefault: 1 }]); await revisit
+    assert.equal(page.data.rows.length, 1)
+  }
+})
+
+test('微信导入已有地址时列表一直显示，保存后仅一次替换新列表', async () => {
+  const e = environment({ respond: ({ method }) => method === 'POST' ? { id: '3' } : [{ id: '2', isDefault: 1 }, { id: '3', isDefault: 0 }] }), page = e.page('address')
+  page.setData({ loading: false, rows: [{ id: '2', isDefault: 1 }] })
+  const updates = [], original = page.setData
+  page.setData = function(patch) { original.call(this, patch); updates.push(plain(this.data)) }
+  await page.importWechatAddress()
+  const condition = addressLoadingCondition()
+  assert.ok(updates.every(state => !state.showForm && !vm.runInNewContext(condition, state) && state.rows.length), '已有列表不被加载占位替换')
+  assert.equal(updates.filter((state, index) => state.rows.length === 2 && (!index || updates[index - 1].rows.length !== 2)).length, 1)
+})
+
+test('首个微信地址导入等待期间不闪空列表，刷新中的旧列表不可编辑', async () => {
+  const e = environment({ respond: ({ method }) => method === 'POST' ? { id: '3' } : [{ id: '3', isDefault: 1 }] }), page = e.page('address')
+  page.setData({ loading: false, showForm: true })
+  const updates = [], original = page.setData
+  page.setData = function(patch) { original.call(this, patch); updates.push(plain(this.data)) }
+  await page.importWechatAddress()
+  const condition = addressLoadingCondition()
+  assert.ok(updates.every(state => state.showForm || state.rows.length || vm.runInNewContext(condition, state)), '导入中不能先显示没有地址再切到加载')
+  page.setData({ loading: true, showForm: false })
+  page.edit({ currentTarget: { dataset: { id: '3' } } })
+  assert.equal(page.data.showForm, false)
+})
+
+test('微信取消或保存失败后的迟到 onShow 不重载、不丢失表单', async () => {
+  for (const canceled of [true, false]) {
+    let chooser
+    const e = environment({ wx: { chooseAddress(options) { chooser = options } }, respond: () => { throw new Error('保存失败') } }), page = e.page('address')
+    page.owner = 'owner-session'; page.setData({ loading: false, showForm: true, 'form.receiverName': '原填写' })
+    const pending = page.importWechatAddress(); await settleAddress(); page.onHide?.()
+    if (canceled) chooser.fail({ errMsg: 'chooseAddress:fail cancel' })
+    else chooser.success(addressImportValue)
+    await pending; await page.onShow()
+    assert.equal(e.calls.length, canceled ? 0 : 1)
+    assert.equal(page.data.showForm, true)
+    assert.equal(page.data.form.receiverName, canceled ? '原填写' : '测试收货人')
+  }
+})
+
+test('导入已保存但刷新失败的提示不被返回刷新覆盖，显式重试仅查询', async () => {
+  let fail = true, chooser
+  const e = environment({ wx: { chooseAddress(options) { chooser = options } }, respond: ({ method }) => {
+    if (method === 'POST') return { id: '3' }
+    if (fail) throw new Error('列表不可用')
+    return [{ id: '3', isDefault: 1 }]
+  } }), page = e.page('address')
+  page.owner = 'owner-session'; page.setData({ loading: false })
+  const pending = page.importWechatAddress(); await settleAddress(); page.onHide?.()
+  chooser.success(addressImportValue); await pending; await page.onShow()
+  assert.equal(e.calls.length, 2)
+  assert.match(page.data.loadError, /已保存.*列表刷新失败/)
+  fail = false; await page.load()
+  assert.equal(e.calls.filter(call => call.method === 'POST').length, 1)
+  assert.equal(page.data.loadError, ''); assert.equal(page.data.rows[0].id, '3')
+})
+
+test('微信返回去重仅限原账号，换号正常加载且卸载后不接受导入响应', async () => {
+  for (const unload of [false, true]) {
+    let chooser
+    const e = environment({ wx: { chooseAddress(options) { chooser = options } }, respond: () => [{ id: '8' }] }), page = e.page('address')
+    page.owner = 'owner-session'; page.setData({ loading: false, rows: [{ id: '2' }] })
+    const pending = page.importWechatAddress(); await settleAddress(); page.onHide?.()
+    if (unload) page.onUnload()
+    else { e.storage.set('mall_mini_access_token', 'new-owner'); await page.onShow() }
+    chooser.success(addressImportValue); await pending
+    assert.equal(e.calls.filter(call => call.method === 'POST').length, 0)
+    assert.equal(e.calls.length, unload ? 0 : 1)
+    assert.equal(page.data.rows[0].id, unload ? '2' : '8')
+  }
+})
+
+test('列表保留刷新时登录失效清空旧地址，新账号加载不被旧响应覆盖', async () => {
+  for (const revisit of [false, true]) {
+    let resolveOld
+    const e = environment({ respond: () => e.storage.get('mall_mini_access_token') === 'owner-session'
+      ? new Promise(resolve => { resolveOld = resolve }) : [{ id: '8', isDefault: 0 }] }), page = e.page('address')
+    page.owner = 'owner-session'; page.setData({ loading: false, rows: [{ id: '2' }], 'form.receiverName': '旧账号表单' })
+    const pending = page.load()
+    if (revisit) { e.storage.set('mall_mini_access_token', 'new-owner'); await page.onShow() }
+    else e.storage.delete('mall_mini_access_token')
+    resolveOld([{ id: '2' }]); await pending
+    assert.deepEqual(plain(page.data.rows), revisit ? [{ id: '8', isDefault: 0 }] : [])
+    assert.equal(page.data.form.receiverName, '')
+    assert.equal(page.data.loading, false)
+  }
+})
+
 test('取消导入保留已有未保存表单；跨账号晚到导入被丢弃', async () => {
   let choose
   const e = environment({ wx: { chooseAddress(options) { choose = options } } }), page = e.page('address')

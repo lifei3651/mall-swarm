@@ -26,16 +26,21 @@ Page({
   onShow() {
     theme.apply(this)
     const token = session.getToken()
+    // 微信地址选择页返回可能晚于保存和列表回读。只消费对应的这一次显示，
+    // 不再刷新；普通离开再返回、换号仍需重新读取本人地址。
+    const importResume = Boolean(token) && this.importResumeToken === token
+    this.importResumeToken = null
     if (this.owner !== undefined && this.owner !== token) {
       this.loadGeneration = (this.loadGeneration || 0) + 1
       this.setData({ rows: [], saving: false, importing: false, pastedAddress: '', importMessage: '' })
       this.resetForm(false); this.returning = false
     }
     this.owner = token
-    if (this.data.saving || this.data.importing || this.returning) return
+    if (this.data.saving || this.data.importing || this.returning || importResume) return
     if (auth.requireLogin(`/pages/address/index${this.selectMode ? '?select=1' : ''}`)) return this.load()
     feedback.update(this, { loading: false, rows: [] })
   },
+  onHide() { this.importResumeToken = this.data.importing ? session.getToken() : null },
   async load(options = {}) {
     const generation = this.loadGeneration = (this.loadGeneration || 0) + 1
     const token = session.getToken()
@@ -51,7 +56,14 @@ Page({
       const message = options.savedImport ? '微信地址已保存，但列表刷新失败。请重新加载地址列表，不要重复导入。' : error.message || '地址加载失败'
       feedback.update(this, { loadError: message })
     }
-    finally { if (generation === this.loadGeneration && !this.disposed && token === session.getToken()) feedback.update(this, { loading: false }) }
+    finally {
+      if (generation === this.loadGeneration && !this.disposed) {
+        if (token !== session.getToken()) {
+          this.resetForm(false)
+          feedback.update(this, { rows: [], loadError: '', pastedAddress: '', importMessage: '', loading: false })
+        } else feedback.update(this, { loading: false })
+      }
+    }
   },
   onUnload() { this.disposed = true; this.loadGeneration = (this.loadGeneration || 0) + 1 },
   async importWechatAddress() {
@@ -107,7 +119,7 @@ Page({
     })
   },
   edit(event) {
-    if (this.data.saving || this.data.importing) return
+    if (this.data.saving || this.data.loading || this.data.loadError || this.data.importing) return
     const id = format.identifier(event.currentTarget.dataset.id)
     const row = id && this.data.rows.find((item) => format.identifier(item.id) === id)
     if (!row) return

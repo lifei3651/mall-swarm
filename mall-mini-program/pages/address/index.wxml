@@ -3,13 +3,13 @@
   <view wx:if="{{importMessage}}" class="import-message">{{importMessage}}</view>
   <block wx:if="{{!showForm}}">
   <text wx:if="{{selectMode && rows.length}}" class="selection-hint">点击地址用于本次订单</text>
-  <view wx:if="{{loading}}" class="empty">正在加载地址…</view>
+  <view wx:if="{{!rows.length && (loading || importing || saving)}}" class="empty">{{importing ? '正在导入地址…' : '正在加载地址…'}}</view>
   <view wx:elif="{{loadError}}" class="address-empty-state"><text>{{loadError}}</text><button bindtap="load">重新加载</button></view>
   <view wx:elif="{{rows.length}}" class="address-list">
     <view class="address-row" wx:for="{{rows}}" wx:key="id" data-id="{{item.id}}" bindtap="choose">
       <view><text>{{item.receiverName}}</text><text>{{item.receiverPhone}}</text><text wx:if="{{item.isDefault === 1}}" class="default-tag">默认</text></view>
       <text>{{item.province}}{{item.city}}{{item.district}}{{item.detailAddress}}</text>
-      <view class="address-actions"><button wx:if="{{item.isDefault !== 1}}" data-id="{{item.id}}" catchtap="makeDefault">设为默认</button><button data-id="{{item.id}}" catchtap="edit">编辑</button><button data-id="{{item.id}}" catchtap="remove">删除</button></view>
+      <view class="address-actions"><button wx:if="{{item.isDefault !== 1}}" data-id="{{item.id}}" catchtap="makeDefault" disabled="{{loading || saving || importing}}">设为默认</button><button data-id="{{item.id}}" catchtap="edit" disabled="{{loading || saving || importing}}">编辑</button><button data-id="{{item.id}}" catchtap="remove" disabled="{{loading || saving || importing}}">删除</button></view>
     </view>
   </view>
   <view wx:else class="address-empty-state"><text>还没有收货地址</text><text>新增后可在结算时直接选择</text></view>
