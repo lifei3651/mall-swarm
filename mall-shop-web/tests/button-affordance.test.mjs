@@ -4,6 +4,16 @@ import { readFileSync } from 'node:fs'
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
+test('H5地址识别与小程序共用浅主题色辅助按钮层级', () => {
+  const css = read('src/assets/styles.css')
+  const address = read('src/views/AddressView.vue')
+  assert.match(address, /class="ui-button--assist" type="button" @click="parseAddress"/)
+  assert.match(css, /\.ui-button--assist\s*\{[^}]*background:\s*var\(--brand-primary-soft\) !important;[^}]*color:\s*var\(--brand-primary\) !important;[^}]*border-color:\s*var\(--brand-primary\) !important;/)
+  assert.match(css, /\.ui-button--assist:disabled\s*\{[^}]*background:\s*#eef0f3 !important;[^}]*color:\s*#788292 !important;/)
+  assert.match(address, /class="btn primary save-button"/)
+  assert.doesNotMatch(address, /\.paste-box button\{[^}]*(?:color:|background:)/)
+})
+
 test('H5次级操作使用浅色底，订单详情只保留订单状态相关动作', () => {
   const globalCss = read('src/assets/styles.css')
   const orders = read('src/views/OrdersView.vue')

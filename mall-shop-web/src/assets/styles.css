@@ -440,6 +440,18 @@ main {
   color: var(--shop-danger) !important;
 }
 
+.ui-button--assist {
+  background: var(--brand-primary-soft) !important;
+  color: var(--brand-primary) !important;
+  border-color: var(--brand-primary) !important;
+}
+
+.ui-button--assist:disabled {
+  background: #eef0f3 !important;
+  color: #788292 !important;
+  border-color: #e5e8ed !important;
+}
+
 .ui-utility-button {
   min-width: 52px;
   min-height: 32px;

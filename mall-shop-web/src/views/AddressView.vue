@@ -35,7 +35,7 @@
     <section v-if="editorVisible" class="panel address-editor">
       <div class="editor-head"><h3>{{ form.id ? '编辑地址' : '新增地址' }}</h3><button type="button" @click="editorVisible = false"><X :size="20" /></button></div>
       <button class="paste-button" type="button" @click="showPaste = !showPaste"><ClipboardPaste :size="16" />{{ showPaste ? '收起智能识别' : '粘贴收货信息，自动识别' }}</button>
-      <div v-if="showPaste" class="paste-box"><textarea v-model="pasteText" rows="3" maxlength="500" placeholder="粘贴姓名、手机号、省市区和详细地址"></textarea><button type="button" @click="parseAddress">识别并填入</button></div>
+      <div v-if="showPaste" class="paste-box"><textarea v-model="pasteText" rows="3" maxlength="500" placeholder="粘贴姓名、手机号、省市区和详细地址"></textarea><button class="ui-button--assist" type="button" @click="parseAddress">识别并填入</button></div>
       <div class="form-grid">
         <div class="form-item" :class="{ invalid: !!fieldErrors.receiverName }">
           <label for="address-receiver-name">收货人 <span class="required">*</span></label>
@@ -254,7 +254,7 @@ onBeforeUnmount(() => window.clearTimeout(messageTimer.value))
 .address-editor { margin-top:13px; border:0; border-radius:16px; }
 .editor-head { display:flex; align-items:center; justify-content:space-between; }.editor-head h3{margin:0}.editor-head button{display:grid;place-items:center;padding:5px;background:none;border:0;color:#8a9099}
 .paste-button { display:flex; align-items:center; justify-content:center; gap:8px; margin:14px 0; padding:12px 16px; color:var(--brand-primary); background:var(--brand-primary-soft); border:1px solid var(--brand-primary); border-radius:12px; font-size:14px; font-weight:600; width:100%; }
-.paste-box { display:grid; gap:8px; padding:10px; margin-bottom:13px; background:#fff9f5; border:1px dashed #f0ad91; border-radius:10px; }.paste-box textarea{width:100%;padding:9px;resize:vertical;border:1px solid var(--line);border-radius:8px}.paste-box button{justify-self:end;padding:7px 11px;color:#fff;background:var(--brand-primary);border:0;border-radius:8px;font-size:12px}
+.paste-box { display:grid; gap:8px; padding:10px; margin-bottom:13px; background:#fff9f5; border:1px dashed #f0ad91; border-radius:10px; }.paste-box textarea{width:100%;padding:9px;resize:vertical;border:1px solid var(--line);border-radius:8px}.paste-box button{justify-self:end;padding:7px 11px;border:1px solid;border-radius:8px;font-size:12px}
 .default-toggle { display:flex; align-items:center; gap:8px; margin-top:14px; padding:0; color:#5f6772; background:none; border:0; font-size:13px; }.default-toggle span{width:20px;height:20px;display:grid;place-items:center;border:1px solid #c9ced4;border-radius:50%}.default-toggle.active span{color:#fff;background:var(--brand-primary);border-color:var(--brand-primary)}
 .save-button { width:100%; margin-top:16px; }
 .form-toast { position:fixed; top:calc(18px + env(safe-area-inset-top)); left:50%; z-index:1200; max-width:min(88vw,420px); padding:11px 16px; color:#fff; background:rgba(8,114,79,.96); border-radius:10px; box-shadow:0 8px 24px rgba(15,23,42,.18); transform:translateX(-50%); font-size:13px; text-align:center; pointer-events:none; }

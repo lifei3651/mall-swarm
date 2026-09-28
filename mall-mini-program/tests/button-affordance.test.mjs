@@ -4,6 +4,15 @@ import { readFileSync } from 'node:fs'
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
+test('地址识别使用浅主题色辅助按钮，保留保存主操作与忙碌禁用态', () => {
+  const css = read('app.wxss')
+  const address = read('pages/address/index.wxml')
+  assert.match(address, /class="secondary-button ui-button--assist" bindtap="recognizeAddress" disabled="\{\{saving \|\| importing\}\}"/)
+  assert.match(css, /\.ui-button--assist\s*\{[^}]*background:\s*var\(--brand-soft\) !important;[^}]*color:\s*var\(--brand\) !important;[^}]*border-color:\s*var\(--brand\) !important;/)
+  assert.match(css, /\.secondary-button\[disabled\][^{]*\{[^}]*background:\s*#eef0f3 !important;[^}]*color:\s*#788292 !important;/)
+  assert.match(address, /class="primary-button"[^>]*bindtap="save"/)
+})
+
 test('原生次级操作使用可辨认底色，订单详情不再放重复返回和客服工单', () => {
   const appCss = read('app.wxss')
   const detail = read('pages/order-detail/index.wxml')
