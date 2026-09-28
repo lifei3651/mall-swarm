@@ -1009,7 +1009,7 @@ const isFullRefund = (row) => hasApprovedRefund(row) && (
 )
 const refundResultLabel = (row) => isFullRefund(row) ? '全额退款' : '部分退款'
 const shippedQuantity = (row) => shipmentRows(row).reduce((sum, item) => sum + Number(item?.shipmentQuantity || 0), 0)
-const remainingShipmentQuantity = (row) => Math.max(0, orderedQuantity(row) - shippedQuantity(row))
+const remainingShipmentQuantity = (row) => Math.max(0, orderedQuantity(row) - approvedRefundQuantity(row) - shippedQuantity(row))
 const canMerchantFulfill = (row) => !isMerchantUser.value || row?.merchantFulfillmentAllowed !== false
 const canShipOrder = (row) => canMerchantFulfill(row) && !hasPendingAfterSale(row)
   && [1, 2].includes(Number(row?.order?.status))
@@ -1343,7 +1343,7 @@ const cancelAdminOrder = async (row) => {
   try {
     await ElMessageBox.confirm(
       paid
-        ? `确认取消待发货订单“${orderNo}”吗？系统会原路全额退款、关闭订单并恢复库存，不能恢复。`
+        ? `确认取消待发货订单“${orderNo}”吗？系统会将剩余未退金额原路退回、关闭订单并恢复剩余商品库存；已退款部分不会重复处理，不能恢复。`
         : `确认取消订单“${orderNo}”吗？取消后订单将关闭，预占库存会回库，不能恢复。`,
       paid ? '取消并退款' : '取消订单',
       { type: 'warning', confirmButtonText: paid ? '确认取消并退款' : '确认取消', cancelButtonText: '暂不取消' },

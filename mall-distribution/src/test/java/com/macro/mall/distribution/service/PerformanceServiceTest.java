@@ -1905,8 +1905,6 @@ public class PerformanceServiceTest {
         apply.setApplyType(4);
         apply.setReason("取消未发货订单");
         apply.setItems(List.of(item));
-        assertThrows(RuntimeException.class, () -> shopAfterSaleService.apply(member, apply),
-                "未发货取消不得只选择部分商品");
         item.setQuantity(2);
         apply.setReason("物流停滞 / 未收到货");
         assertThrows(RuntimeException.class, () -> shopAfterSaleService.apply(member, apply),
@@ -1922,6 +1920,69 @@ public class PerformanceServiceTest {
         assertEquals(stockAfterOrder + 2, jdbcTemplate.queryForObject(
                 "SELECT stock FROM dms_shop_product WHERE id=1", Integer.class));
         assertEquals(4, shopService.getOrder(paid.getOrder().getId()).getOrder().getStatus());
+    }
+
+    @Test
+    void unshippedPartialCancellationRefundsOnlySelectedQuantityAndFreightOnLastRefund() {
+        newRetailVersion("UNSHIPPED_PARTIAL_CANCELLATION");
+        jdbcTemplate.update("UPDATE dms_shop_product SET freight_type=1, freight_amount=12.00 WHERE id=1");
+        DmsShopMember member = createShopMember("13999000101", "未发货部分取消", null);
+        ShopOrderVO paid = submitAndPay(member, 2);
+        Long orderId = paid.getOrder().getId(), itemId = paid.getItems().get(0).getId();
+        int stock = jdbcTemplate.queryForObject("SELECT stock FROM dms_shop_product WHERE id=1", Integer.class);
+        BigDecimal unitPaid = paid.getOrder().getTotalAmount().subtract(paid.getOrder().getDiscountAmount())
+                .divide(BigDecimal.valueOf(2));
+        ShopAfterSaleAuditDTO audit = new ShopAfterSaleAuditDTO(); audit.setStatus(1);
+        DmsShopAfterSale first = requestUnshippedRefund(member, paid, itemId, 1);
+        assertEquals(4, first.getApplyType());
+        assertEquals(0, unitPaid.compareTo(first.getProductRefundAmount()));
+        assertAmountEquals("0.00", first.getFreightRefundAmount());
+        assertThrows(RuntimeException.class, () -> requestUnshippedRefund(member, paid, itemId, 1),
+                "同单已有处理中申请，不能重复提交");
+        ShopOrderShipDTO shipment = new ShopOrderShipDTO();
+        shipment.setDeliveryCompany("中通快递"); shipment.setDeliveryNo("ZT-PARTIAL-CANCEL-001"); shipment.setShipmentQuantity(1);
+        assertThrows(RuntimeException.class, () -> orderShipmentService.shipOrder(orderId, shipment),
+                "退款处理期间继续保护发货");
+        shopAfterSaleService.audit(first.getId(), audit);
+        assertEquals(1, shopService.getOrder(orderId).getOrder().getStatus());
+        assertEquals(stock + 1, jdbcTemplate.queryForObject("SELECT stock FROM dms_shop_product WHERE id=1", Integer.class));
+        assertThrows(RuntimeException.class, () -> shopAfterSaleService.audit(first.getId(), audit));
+        assertThrows(RuntimeException.class, () -> requestUnshippedRefund(member, paid, itemId, 2),
+                "已退数量不得再次退款");
+        OrderFinanceVO finance = auditService.getOrderFinanceDetail(orderId).getFinance();
+        assertEquals(0, unitPaid.add(new BigDecimal("12.00")).compareTo(finance.getNetPayAmount()));
+
+        DmsShopAfterSale last = requestUnshippedRefund(member, paid, itemId, 1);
+        assertEquals(0, unitPaid.compareTo(last.getProductRefundAmount()));
+        assertAmountEquals("12.00", last.getFreightRefundAmount());
+        shopAfterSaleService.audit(last.getId(), audit);
+        assertEquals(4, shopService.getOrder(orderId).getOrder().getStatus());
+        assertAmountEquals("0.00", auditService.getOrderFinanceDetail(orderId).getFinance().getNetPayAmount());
+        assertEquals(stock + 2, jdbcTemplate.queryForObject("SELECT stock FROM dms_shop_product WHERE id=1", Integer.class));
+        assertThrows(RuntimeException.class, () -> requestUnshippedRefund(member, paid, itemId, 1));
+    }
+
+    @Test
+    void adminCanCancelOnlyRemainingUnshippedGoodsAfterCustomerPartialRefund() {
+        newRetailVersion("ADMIN_CANCEL_REMAINING_UNSHIPPED");
+        jdbcTemplate.update("UPDATE dms_shop_product SET freight_type=1, freight_amount=12.00 WHERE id=1");
+        DmsShopMember member = createShopMember("13999000102", "部分退后后台取消", null);
+        ShopOrderVO paid = submitAndPay(member, 2);
+        int stock = jdbcTemplate.queryForObject("SELECT stock FROM dms_shop_product WHERE id=1", Integer.class);
+        DmsShopAfterSale first = requestUnshippedRefund(member, paid, paid.getItems().get(0).getId(), 1);
+        ShopAfterSaleAuditDTO audit = new ShopAfterSaleAuditDTO(); audit.setStatus(1);
+        shopAfterSaleService.audit(first.getId(), audit);
+        assertTrue(shopAfterSaleService.cancelPendingShipment(paid.getOrder().getId(), 1L, "测试管理员"));
+        assertEquals(4, shopService.getOrder(paid.getOrder().getId()).getOrder().getStatus());
+        assertAmountEquals("0.00", auditService.getOrderFinanceDetail(paid.getOrder().getId()).getFinance().getNetPayAmount());
+        assertEquals(stock + 2, jdbcTemplate.queryForObject("SELECT stock FROM dms_shop_product WHERE id=1", Integer.class));
+    }
+
+    private DmsShopAfterSale requestUnshippedRefund(DmsShopMember member, ShopOrderVO order, Long itemId, int quantity) {
+        ShopAfterSaleItemDTO item = new ShopAfterSaleItemDTO(); item.setOrderItemId(itemId); item.setQuantity(quantity);
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO(); apply.setOrderId(order.getOrder().getId());
+        apply.setApplyType(4); apply.setReason("取消未发货订单"); apply.setItems(List.of(item));
+        return shopAfterSaleService.apply(member, apply);
     }
 
     @Test

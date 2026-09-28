@@ -63,7 +63,7 @@ Page({
     this.updateEstimate()
   },
   changeQuantity(event) {
-    if (this.data.submitting || this.data.exceptionUnshipped) return
+    if (this.data.submitting) return
     const id = identifier(event.currentTarget.dataset.id)
     const delta = Number(event.currentTarget.dataset.delta)
     if (![1, -1].includes(delta)) return

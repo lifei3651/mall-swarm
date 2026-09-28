@@ -26,6 +26,7 @@ class ShopCouponIntegrationTest {
     @Autowired ShopCouponService coupons;
     @Autowired ShopService shop;
     @Autowired ShopAfterSaleService afterSales;
+    @Autowired OrderShipmentService shipments;
     @Autowired MerchantService merchants;
     @Autowired DmsShopCouponDao dao;
     @Autowired DmsShopMemberDao members;
@@ -94,6 +95,54 @@ class ShopCouponIntegrationTest {
         assertEquals("AVAILABLE",dao.owned(1L,member.getId(),owned.getClaimId()).getStatus());
         assertNull(dao.owned(1L,member.getId(),owned.getClaimId()).getOrderId());
     }
+    @Test void unshippedCouponOrderCanRefundOneProductAndShipOnlyTheOther(){
+        DmsShopCoupon c=publish(input()); ShopCouponVO owned=claim(c);
+        ShopOrderVO created=shop.submitOrder(order(owned.getClaimId(),item(1,1,1),item(2,3,1)),member);
+        shop.markOrderPaid(created.getOrder().getId(),"BALANCE");
+        ShopOrderVO paid=shop.getOrder(created.getOrder().getId());
+        DmsShopOrderItem selected=paid.getItems().stream().filter(i->i.getProductId().equals(1L)).findFirst().orElseThrow();
+        int stock1=db.queryForObject("SELECT stock FROM dms_shop_product WHERE id=1",Integer.class);
+        int stock2=db.queryForObject("SELECT stock FROM dms_shop_product WHERE id=2",Integer.class);
+        ShopAfterSaleItemDTO line=new ShopAfterSaleItemDTO(); line.setOrderItemId(selected.getId()); line.setQuantity(1);
+        ShopAfterSaleApplyDTO apply=new ShopAfterSaleApplyDTO(); apply.setOrderId(paid.getOrder().getId());
+        apply.setApplyType(4); apply.setReason("取消未发货订单"); apply.setItems(List.of(line));
+        DmsShopAfterSale sale=afterSales.apply(member,apply);
+        money("289",sale.getProductRefundAmount()); money("0",sale.getFreightRefundAmount());
+        ShopAfterSaleAuditDTO audit=new ShopAfterSaleAuditDTO(); audit.setStatus(1);
+        afterSales.audit(sale.getId(),audit);
+        assertEquals(1,shop.getOrder(paid.getOrder().getId()).getOrder().getStatus());
+        assertEquals("USED",dao.owned(1L,member.getId(),owned.getClaimId()).getStatus());
+        assertEquals(stock1+1,db.queryForObject("SELECT stock FROM dms_shop_product WHERE id=1",Integer.class));
+        assertEquals(stock2,db.queryForObject("SELECT stock FROM dms_shop_product WHERE id=2",Integer.class));
+        assertThrows(ApiException.class,()->afterSales.apply(member,apply),"不能重复退掉已退的商品");
+        ShopOrderShipDTO shipment=new ShopOrderShipDTO(); shipment.setDeliveryCompany("中通快递");
+        shipment.setDeliveryNo("ZT-COUPON-REMAINING-001"); shipment.setShipmentQuantity(2);
+        assertThrows(ApiException.class,()->shipments.shipOrder(paid.getOrder().getId(),shipment));
+        shipment.setShipmentQuantity(1);
+        assertTrue(shipments.shipOrder(paid.getOrder().getId(),shipment));
+        assertEquals(2,shop.getOrder(paid.getOrder().getId()).getOrder().getStatus());
+    }
+
+    @Test void adminCancelsRemainingCouponProductWithoutRefundingTheFirstProductAgain(){
+        DmsShopCoupon c=publish(input()); ShopCouponVO owned=claim(c);
+        ShopOrderVO created=shop.submitOrder(order(owned.getClaimId(),item(1,1,1),item(2,3,1)),member);
+        shop.markOrderPaid(created.getOrder().getId(),"BALANCE");
+        DmsShopOrderItem selected=created.getItems().stream().filter(i->i.getProductId().equals(1L)).findFirst().orElseThrow();
+        ShopAfterSaleItemDTO line=new ShopAfterSaleItemDTO(); line.setOrderItemId(selected.getId()); line.setQuantity(1);
+        ShopAfterSaleApplyDTO apply=new ShopAfterSaleApplyDTO(); apply.setOrderId(created.getOrder().getId());
+        apply.setApplyType(4); apply.setReason("取消未发货订单"); apply.setItems(List.of(line));
+        DmsShopAfterSale sale=afterSales.apply(member,apply);
+        ShopAfterSaleAuditDTO audit=new ShopAfterSaleAuditDTO(); audit.setStatus(1); afterSales.audit(sale.getId(),audit);
+        assertTrue(afterSales.cancelPendingShipment(created.getOrder().getId(),1L,"测试管理员"));
+        assertEquals(4,shop.getOrder(created.getOrder().getId()).getOrder().getStatus());
+        assertEquals("AVAILABLE",dao.owned(1L,member.getId(),owned.getClaimId()).getStatus());
+        money("487",db.queryForObject("SELECT SUM(refund_amount) FROM dms_shop_after_sale WHERE order_id=? AND status=1",
+                BigDecimal.class,created.getOrder().getId()));
+        assertEquals(2,db.queryForObject("SELECT SUM(refund_quantity) FROM dms_shop_after_sale WHERE order_id=? AND status=1",
+                Integer.class,created.getOrder().getId()));
+        assertThrows(ApiException.class,()->afterSales.cancelPendingShipment(created.getOrder().getId(),1L,"测试管理员"));
+    }
+
     @Test void grossBonusBasisAndRepeatedQuantityRefundsCloseToTheCent(){
         ShopCouponSaveDTO d=input();d.setAmount(new BigDecimal("0.01"));d.setBonusBasis("GROSS");d.setRefundRule("NEVER");
         ShopCouponVO owned=claim(publish(d));ShopOrderVO result=shop.submitOrder(order(owned.getClaimId(),item(1,1,3)),member);

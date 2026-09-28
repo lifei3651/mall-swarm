@@ -385,15 +385,52 @@ test('普通售后不再提供仅退款，物流异常通过独立退款模式�
   assert.doesNotMatch(form, />仅退款<\/button>/)
 })
 
-test('未发货取消退款默认全选，单独提交到异常退款接口', async () => {
-  const h = harness('after-sale', { respond: ({ method }) => method === 'POST' ? {} : detail({ order: { id: ID, status: 1 } }) })
+test('未发货取消退款可只选一件，同商品买两件只退一件且不退运费', async () => {
+  const h = harness('after-sale', { respond: ({ method }) => method === 'POST' ? {} : detail({
+    order: { id: ID, status: 1, totalAmount: 200, discountAmount: 20, freightAmount: 10 },
+    items: [{ id: ITEM, quantity: 2, totalAmount: 200, productName: '测试商品' }]
+  }) })
   h.page.onLoad({ orderId: ID, mode: 'exception' }); await h.page.onShow()
   assert.equal(h.page.data.applyType, 4)
   assert.equal(h.page.data.reason, '取消未发货订单')
   h.page.changeQuantity(event({ id: ITEM, delta: -1 }))
-  assert.equal(h.page.data.items[0].selectedQuantity, 2)
+  assert.equal(h.page.data.items[0].selectedQuantity, 1)
+  assert.equal(h.page.data.estimateProduct, '90.00')
+  assert.equal(h.page.data.estimateFreight, '0.00')
   await h.page.submit()
   const posted = h.calls.find((call) => call.method === 'POST')
   assert.equal(posted.url, `/shop/orders/${ID}/exception-refund`)
   assert.equal(posted.data.applyType, 4)
+  assert.deepEqual(posted.data.items, [{ orderItemId: ITEM, quantity: 1 }])
+})
+
+test('未发货两个商品可取消其中一个，零选不提交，取消的草稿返回后保留', async () => {
+  const second = '9212345678901234570'
+  const h = harness('after-sale', { respond: ({ method }) => method === 'POST' ? {} : detail({
+    order: { id: ID, status: 1, totalAmount: 300, discountAmount: 30, freightAmount: 10 },
+    items: [{ id: ITEM, quantity: 1, totalAmount: 100 }, { id: second, quantity: 1, totalAmount: 200 }]
+  }) })
+  h.page.onLoad({ orderId: ID, mode: 'exception' }); await h.page.onShow()
+  assert.equal(h.page.data.estimateText, '280.00')
+  h.page.changeQuantity(event({ id: second, delta: -1 }))
+  await h.page.onShow()
+  assert.equal(h.page.data.items[1].selectedQuantity, 0)
+  assert.equal(h.page.data.estimateText, '90.00')
+  h.page.changeQuantity(event({ id: ITEM, delta: -1 }))
+  await h.page.submit()
+  assert.equal(h.calls.filter(call => call.method === 'POST').length, 0)
+  h.page.changeQuantity(event({ id: ITEM, delta: 1 }))
+  await h.page.submit()
+  assert.deepEqual(h.calls.find(call => call.method === 'POST').data.items, [{ orderItemId: ITEM, quantity: 1 }])
+  const form = readFileSync(new URL('../pages/after-sale/index.wxml', import.meta.url), 'utf8')
+  assert.match(form, /wx:if="\{\{item.remaining > 0\}\}" class="quantity"/)
+  assert.doesNotMatch(form, /未发货取消须包含全部剩余商品|取消申请包含本单全部剩余商品/)
+})
+
+test('未发货分次退款：最后剩余商品全退才退运费', () => {
+  const order = detail({ order: { id: ID, status: 1, totalAmount: 200, discountAmount: 20, freightAmount: 10 },
+    items: [{ id: ITEM, quantity: 2, totalAmount: 200 }],
+    afterSales: [{ applyType: 4, status: 1, productRefundAmount: 90, items: [{ orderItemId: ITEM, refundQuantity: 1 }] }]
+  })
+  assert.deepEqual(policy.refundEstimate(order, [{ id: ITEM, selectedQuantity: 1 }], 4), { product: 90, freight: 10, total: 100 })
 })

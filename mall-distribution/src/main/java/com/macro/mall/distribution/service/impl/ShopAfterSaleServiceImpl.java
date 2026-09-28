@@ -242,9 +242,7 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         BigDecimal productRefund = refundItems.stream().map(DmsShopAfterSaleItem::getRefundAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add).min(remainingProductRefund);
         boolean refundAllRemaining = refundQuantity == totalRemainingQuantity;
-        if (unshippedCancellation && !refundAllRemaining) {
-            Asserts.fail("取消未发货订单需要选择全部剩余商品");
-        }
+        // 未发货取消可按商品/数量申请；仅退完剩余商品时退款尾差与运费才整单收尾。
         if (refundAllRemaining && order.getCouponClaimId() == null) productRefund = remainingProductRefund;
         BigDecimal allocated = refundItems.stream().map(DmsShopAfterSaleItem::getRefundAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -558,9 +556,10 @@ public class ShopAfterSaleServiceImpl implements ShopAfterSaleService {
         List<ShopAfterSaleItemDTO> items = orderItemDao.selectByOrderId(orderId).stream().map(item -> {
             ShopAfterSaleItemDTO dto = new ShopAfterSaleItemDTO();
             dto.setOrderItemId(item.getId());
-            dto.setQuantity(item.getQuantity());
+            dto.setQuantity(ShopQuantityChecks.remaining(item.getQuantity(),
+                    afterSaleItemDao.sumReservedQuantityByOrderItemId(item.getId())));
             return dto;
-        }).toList();
+        }).filter(item -> item.getQuantity() > 0).toList();
         if (items.isEmpty()) Asserts.fail("订单商品为空，不能取消");
         ShopManualRefundDTO refund = new ShopManualRefundDTO();
         refund.setRefundMode("QUANTITY");

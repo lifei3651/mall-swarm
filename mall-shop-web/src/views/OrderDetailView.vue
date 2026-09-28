@@ -154,7 +154,7 @@
       <section class="panel ui-card">
         <div ref="refundItemsSection" class="product-detail-head" :class="{ 'has-validation-error': applyingAfterSale && afterSaleErrors.items }">
           <h3>{{ applyingAfterSale ? '选择商品和数量' : '商品明细' }}<span v-if="applyingAfterSale" class="required-star">*</span></h3>
-          <span v-if="applyingAfterSale">已默认全选</span>
+          <span v-if="applyingAfterSale">已默认全选，不申请的商品请将数量调为0</span>
         </div>
         <div v-for="item in detail.items" :key="item.id" class="order-line">
           <img :src="item.productCover" :alt="item.productName" />
@@ -167,12 +167,11 @@
           </div>
           <div class="order-line-trailing">
             <strong class="order-line-amount ui-price">¥{{ money(item.totalAmount) }}</strong>
-            <div v-if="applyingAfterSale && remainingQuantity(item) > 0 && !(exceptionRefund && notShipped)" class="quantity-stepper" :aria-label="`${item.productName}售后数量`">
+            <div v-if="applyingAfterSale && remainingQuantity(item) > 0" class="quantity-stepper" :aria-label="`${item.productName}售后数量`">
               <button type="button" :disabled="refundQuantities[item.id] <= 0" @click="setRefundQuantity(item, -1)">−</button>
               <output>{{ refundQuantities[item.id] || 0 }}</output>
               <button type="button" :disabled="remainingQuantity(item) <= (refundQuantities[item.id] || 0)" @click="setRefundQuantity(item, 1)">＋</button>
             </div>
-            <small v-else-if="applyingAfterSale && exceptionRefund && notShipped" class="refunded-label">包含全部剩余商品</small>
             <small v-else-if="applyingAfterSale" class="refunded-label">已无可售后数量</small>
           </div>
         </div>
@@ -320,7 +319,7 @@
               </button>
             </div>
           </div>
-          <div v-else class="after-sale-block"><div class="block-label">{{ notShipped ? '取消并退款' : '物流异常退款' }}</div><p class="line-sub">商家核实后按原支付渠道处理，此申请不属于退货退款。</p></div>
+          <div v-else class="after-sale-block"><div class="block-label">{{ notShipped ? '取消并退款' : '物流异常退款' }}</div><p class="line-sub">{{ notShipped ? '仅取消所选商品，其他商品保留；部分退款不退运费，未发货的剩余商品全退时退还运费。' : '商家核实后按原支付渠道处理，此申请不属于退货退款。' }}</p></div>
 
           <div ref="reasonSection" class="after-sale-block" :class="{ 'has-validation-error': afterSaleErrors.reason }">
             <div class="block-label">申请原因<span class="required-star">*</span></div>

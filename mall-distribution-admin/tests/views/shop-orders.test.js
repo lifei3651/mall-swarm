@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import vm from 'node:vm'
 
 const sourcePath = resolve(process.cwd(), 'src/views/shop/orders.vue')
 
@@ -10,10 +11,36 @@ describe('商城订单取消入口', () => {
 
     expect(source).toContain('[0, 1].includes(Number(row?.order?.status))')
     expect(source).toContain("'取消并退款'")
-    expect(source).toContain('系统会原路全额退款、关闭订单并恢复库存')
+    expect(source).toContain('系统会将剩余未退金额原路退回、关闭订单并恢复剩余商品库存')
+    expect(source).toContain('已退款部分不会重复处理')
     expect(source).toContain('cancelUnavailableLabel(row)')
     expect(source).toContain('已发货，请通过售后处理')
     expect(source).toContain('订单已关闭，无需再次取消')
+  })
+
+  it('部分退款后默认发货数扣除已退款数量，处理中不发货，换货不扣除', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+    const start = source.indexOf('const hasPendingAfterSale =')
+    const end = source.indexOf('const canCancelAdminOrder =')
+    expect(start).toBeGreaterThan(0)
+    expect(end).toBeGreaterThan(start)
+    const context = { isMerchantUser: { value: false } }
+    vm.runInNewContext(source.slice(start, end) + '\nthis.policy = { remainingShipmentQuantity, canShipOrder }', context)
+    const row = { order: { status: 1 }, items: [{ quantity: 2 }], afterSales: [{ applyType: 4, status: 1, refundQuantity: 1 }] }
+    expect(context.policy.remainingShipmentQuantity(row)).toBe(1)
+    expect(context.policy.canShipOrder(row)).toBe(true)
+    row.shipments = [{ shipmentQuantity: 1 }]
+    expect(context.policy.remainingShipmentQuantity(row)).toBe(0)
+    expect(context.policy.canShipOrder(row)).toBe(false)
+    row.shipments = []
+    for (const status of [0, 6]) {
+      row.afterSales[0].status = status
+      expect(context.policy.canShipOrder(row)).toBe(false)
+    }
+    row.afterSales[0].status = 2
+    expect(context.policy.remainingShipmentQuantity(row)).toBe(2)
+    row.afterSales[0] = { applyType: 3, status: 1, refundQuantity: 1 }
+    expect(context.policy.remainingShipmentQuantity(row)).toBe(2)
   })
 
   it('全部订单不展示已取消或已拒绝的售后卡片，履约状态与有效退款结果分栏', async () => {
