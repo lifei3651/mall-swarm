@@ -490,8 +490,9 @@ REMOTE_SNAPSHOT=$("${SSH[@]}" 'hostname; systemctl is-active nginx; systemctl is
 [[ "$(sed -n '1p' <<<"$REMOTE_SNAPSHOT")" == "$EXPECTED_HOSTNAME" ]] || fail "正式主机身份不符"
 [[ "$(grep -cx 'active' <<<"$REMOTE_SNAPSHOT")" == 4 ]] || fail "正式主机四项服务未全部 active"
 grep -Fq '"status":"UP"' <<<"$REMOTE_SNAPSHOT" || fail "正式后端健康检查未通过"
-"${SSH[@]}" 'command -v node >/dev/null && node -e '\''if (Number(process.versions.node.split(".")[0]) < 20) process.exit(1)'\''' \
-  || fail "正式主机缺少 Node 20+ 运行时；不得把发布阶段临时补环境冒充只读准入通过"
+REMOTE_NODE=/tmp/lingqi168-runtime.nKJ0Vd/node-v22.23.2-linux-x64/bin/node
+"${SSH[@]}" "test -x '$REMOTE_NODE' && '$REMOTE_NODE' -e 'if (Number(process.versions.node.split(\".\")[0]) < 20) process.exit(1)'" \
+  || fail "正式主机缺少此前验签的隔离 Node 20+ 运行时；不得把发布阶段临时补环境冒充只读准入通过"
 
 REMOTE_NGINX_HASH=$("${SSH[@]}" "sha256sum '$LINGQIMALL_PRODUCTION_NGINX_CONFIG'" | awk '{print $1}') \
   || fail "无法读取生产 Nginx 配置哈希"
