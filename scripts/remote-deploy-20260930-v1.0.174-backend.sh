@@ -202,7 +202,7 @@ verify_direct_referral_schema() {
     ((TABLE_NAME='dms_commission_rule_version' AND COLUMN_NAME='direct_referral_config' AND DATA_TYPE='text')
     OR (TABLE_NAME='dms_commission_clawback' AND COLUMN_NAME='source_clawback_id' AND DATA_TYPE='bigint')
     OR (TABLE_NAME='dms_order_relation_snapshot' AND COLUMN_NAME IN ('owner_agent_id','target_agent_id') AND DATA_TYPE='bigint')
-    OR (TABLE_NAME='dms_order_relation_snapshot' AND COLUMN_NAME IN ('first_paid_order_eligible','target_promotion_eligible') AND DATA_TYPE='tinyint')))")" == 6 ]] \
+    OR (TABLE_NAME='dms_order_relation_snapshot' AND COLUMN_NAME IN ('first_paid_order_eligible','target_promotion_eligible') AND DATA_TYPE='tinyint'))")" == 6 ]] \
     || fail "direct referral nullable field schema mismatch"
   [[ "$(mysql_db information_schema -NBe "SELECT CONCAT(ENGINE,':',TABLE_TYPE) FROM TABLES WHERE TABLE_SCHEMA='$database' AND TABLE_NAME='dms_member_first_payment'")" == InnoDB:BASE\ TABLE ]] \
     || fail "first payment table engine mismatch"

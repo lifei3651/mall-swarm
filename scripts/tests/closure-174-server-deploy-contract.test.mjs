@@ -75,6 +75,22 @@ test('174 protects old values and accepts only precise legal first-payment incre
   assert.match(backend, /IS_NULLABLE='NO' AND COLUMN_DEFAULT='1'/)
 })
 
+test('174 schema guard SQL has balanced nested predicate groups', () => {
+  const guards = backend.slice(backend.indexOf('verify_direct_referral_schema_before() {'), backend.indexOf('verify_historical_new_fields_empty() {'))
+  const statements = [...guards.matchAll(/mysql_db information_schema -NBe "([^"]+)"/g)]
+  assert.equal(statements.length, 5)
+  for (const [, sql] of statements) {
+    const tokens = sql.replace(/'(?:[^']|'')*'/g, '')
+    let depth = 0
+    for (const token of tokens) {
+      if (token === '(') depth += 1
+      if (token === ')') depth -= 1
+      assert.ok(depth >= 0, sql)
+    }
+    assert.equal(depth, 0, sql)
+  }
+})
+
 test('174 recovery never restores or deletes production data and keeps protected-file checks', () => {
   const recovery = backend.slice(backend.indexOf('recover() {'), backend.indexOf('trap recover EXIT'))
   assert.match(recovery, /additive-migrations-retained=yes database-not-restored=yes/)
