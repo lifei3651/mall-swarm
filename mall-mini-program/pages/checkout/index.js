@@ -14,6 +14,7 @@ const { couponQuoteValid, canReviseRejectedOrder } = require('../../utils/h5-rul
 function idempotencyKey() {
   return `MINI-CHECKOUT-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`
 }
+const emptyPasswordSetup = () => ({ loginPassword: '', smsCode: '', newPassword: '', confirmPassword: '' })
 
 Page({
   data: {
@@ -38,6 +39,9 @@ Page({
     smsCode: '',
     smsCooldown: 0,
     smsSending: false,
+    passwordSetupVisible: false, passwordSetupBusy: false, passwordSetupSending: false,
+    passwordSetupSaved: false, passwordSetupError: '', passwordSetupCooldown: 0,
+    passwordSetupForm: emptyPasswordSetup(),
     remark: '', remarkEditorVisible: false, remarkDraft: ''
   },
   onLoad(options = {}) {
@@ -245,7 +249,11 @@ Page({
   },
   onHide() {
     this.inactive = true
-    this.setData({ smsCode: '', remarkEditorVisible: false, remarkDraft: '', couponPickerVisible: false })
+    this.passwordSetupGeneration = (this.passwordSetupGeneration || 0) + 1
+    clearInterval(this.passwordSetupTimer)
+    this.setData({ smsCode: '', remarkEditorVisible: false, remarkDraft: '', couponPickerVisible: false,
+      passwordSetupVisible: false, passwordSetupBusy: false, passwordSetupSending: false,
+      passwordSetupSaved: false, passwordSetupForm: emptyPasswordSetup(), passwordSetupError: '', passwordSetupCooldown: 0 })
     this.loadGeneration = (this.loadGeneration || 0) + 1
     this.invalidateQuote()
   },
@@ -280,8 +288,78 @@ Page({
     if (this.data.submitting || this.createdPaymentId || this.data.loading || !['WECHAT','BALANCE'].includes(payType) || (payType === 'WECHAT' ? !this.data.wechatPayEnabled : !this.data.balanceAvailable)) return
     this.setData({ payType }); this.invalidateQuote(); if (this.data.address) return this.quoteFreight(this.data.address)
   },
+  openPasswordSetup() {
+    this.passwordSetupOwner = session.getToken()
+    this.passwordSetupGeneration = (this.passwordSetupGeneration || 0) + 1
+    this.setData({ passwordSetupVisible: true, passwordSetupSaved: false, passwordSetupError: '', passwordSetupForm: emptyPasswordSetup() })
+  },
+  closePasswordSetup() {
+    if (this.data.passwordSetupBusy) return
+    this.passwordSetupGeneration = (this.passwordSetupGeneration || 0) + 1
+    clearInterval(this.passwordSetupTimer)
+    this.setData({ passwordSetupVisible: false, passwordSetupSaved: false, passwordSetupSending: false,
+      passwordSetupCooldown: 0, passwordSetupError: '', passwordSetupForm: emptyPasswordSetup() })
+  },
+  openLoginPasswordSetup() {
+    if (this.data.passwordSetupBusy) return
+    this.closePasswordSetup()
+    wx.navigateTo({ url: '/pages/account-security/index?mode=password' })
+  },
+  passwordSetupInput(event) {
+    if (!this.data.passwordSetupVisible || this.data.passwordSetupBusy) return
+    const field = event.currentTarget.dataset.field
+    if (!Object.hasOwnProperty.call(emptyPasswordSetup(), field)) return
+    let value = String(event.detail.value || '')
+    if (field !== 'loginPassword') value = value.replace(/\D/g, '').slice(0, 6)
+    this.setData({ [`passwordSetupForm.${field}`]: value, passwordSetupError: '' })
+  },
+  async sendPasswordSetupCode() {
+    if (!this.data.passwordSetupVisible || this.data.passwordSetupBusy || this.data.passwordSetupSending || this.data.passwordSetupCooldown || this.inactive) return
+    const token = session.getToken(), generation = this.passwordSetupGeneration
+    const current = () => !this.inactive && token === session.getToken() && this.passwordSetupOwner === token && generation === this.passwordSetupGeneration
+    this.setData({ passwordSetupSending: true, passwordSetupError: '' })
+    try {
+      await request({ url: '/sms/send/payment-password', method: 'POST' })
+      if (!current()) return
+      this.setData({ passwordSetupCooldown: 60 })
+      clearInterval(this.passwordSetupTimer)
+      this.passwordSetupTimer = setInterval(() => {
+        if (!current()) return clearInterval(this.passwordSetupTimer)
+        const next = Math.max(0, this.data.passwordSetupCooldown - 1)
+        this.setData({ passwordSetupCooldown: next })
+        if (!next) clearInterval(this.passwordSetupTimer)
+      }, 1000)
+      feedback.toast({ title: '验证码已发送', icon: 'success' })
+    } catch (error) { if (current()) this.setData({ passwordSetupError: error.message || '验证码发送失败' }) }
+    finally { if (current()) this.setData({ passwordSetupSending: false }) }
+  },
+  async savePasswordSetup() {
+    if (!this.data.passwordSetupVisible || this.data.passwordSetupBusy || this.inactive) return
+    const form = { ...this.data.passwordSetupForm }
+    if (!form.loginPassword) return this.setData({ passwordSetupError: '请输入当前商城登录密码' })
+    if (!/^\d{6}$/.test(form.smsCode)) return this.setData({ passwordSetupError: '请输入6位短信验证码' })
+    if (!/^\d{6}$/.test(form.newPassword)) return this.setData({ passwordSetupError: '支付密码必须是6位数字' })
+    if (form.newPassword !== form.confirmPassword) return this.setData({ passwordSetupError: '两次输入的支付密码不一致' })
+    const token = session.getToken(), generation = this.passwordSetupGeneration
+    const current = () => !this.inactive && token === session.getToken() && this.passwordSetupOwner === token && generation === this.passwordSetupGeneration
+    this.setData({ passwordSetupBusy: true, passwordSetupError: '' })
+    try {
+      await request({ url: '/shop/wallet/payment-password', method: 'PUT', data: {
+        loginPassword: form.loginPassword, smsCode: form.smsCode, newPassword: form.newPassword
+      } })
+      if (!current()) return
+      this.setData({ 'balanceSummary.hasPaymentPassword': true, passwordSetupSaved: true, passwordSetupForm: emptyPasswordSetup() })
+    } catch (error) { if (current()) this.setData({ passwordSetupError: error.message || '支付密码设置失败' }) }
+    finally { if (current()) this.setData({ passwordSetupBusy: false, passwordSetupForm: emptyPasswordSetup() }) }
+  },
+  async continueAfterPasswordSetup() {
+    if (!this.data.passwordSetupSaved || this.data.passwordSetupBusy || this.passwordSetupOwner !== session.getToken()) return
+    this.closePasswordSetup()
+    await this.submit()
+  },
   async submit() {
     if (this.data.remarkEditorVisible) return
+    if (this.data.passwordSetupVisible) return
     if (this.data.submitting || this.createdPaymentId) return
     if (!auth.requireLogin(this.route || '/pages/checkout/index')) return
     if (!this.data.wechatPayEnabled && !this.data.balanceAvailable) return feedback.notice('当前没有可用的在线支付方式，请联系商城客服')
@@ -303,6 +381,7 @@ Page({
       if (!this.data.balanceAvailable || !this.data.balanceSummary) return feedback.notice('余额状态暂不可用，请重新加载')
       if (this.data.balanceSummary.paymentPasswordLocked) return feedback.notice('支付密码已锁定，请稍后刷新安全状态')
       if (Number(this.data.balanceSummary.balance) < Number(this.data.payTotal)) return feedback.notice('账户可用余额不足，请选择其他支付方式')
+      if (!this.data.balanceSummary.hasPaymentPassword) return this.openPasswordSetup()
     }
     feedback.update(this, { submitting: true })
     const token = session.getToken(), payType = this.data.payType

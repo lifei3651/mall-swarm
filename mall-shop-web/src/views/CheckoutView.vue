@@ -213,13 +213,14 @@
         </template>
         <template v-else-if="!walletSummary.hasPaymentPassword">
           <h3 id="setup-pay-dialog-title">首次设置支付密码</h3>
-          <p>设置成功后将继续支付本订单。支付密码用于保护账户余额支付，请勿与登录密码相同。</p>
-          <p class="pending-payment-hint">订单已创建；关闭或返回后，可在“待支付”继续付款。</p>
+          <p>先设置独立支付密码，再创建并支付订单。请勿与登录密码相同。</p>
+          <p class="pending-payment-hint">此时还没有创建订单；关闭后仍可修改结算信息。</p>
           <div class="dialog-form">
             <label>
               <span>当前登录密码</span>
               <input v-model="setupPasswordForm.loginPassword" class="field" type="password" maxlength="32" autocomplete="current-password" placeholder="用于确认是本人操作" />
             </label>
+            <RouterLink class="dialog-account-link" to="/profile/settings?mode=account" @click="resetPayDialogState">尚未设置商城登录密码？先设置</RouterLink>
             <label>
               <span>短信验证码</span>
               <div class="dialog-sms-row">
@@ -243,7 +244,7 @@
           <div class="dialog-actions">
             <button class="btn secondary" :disabled="setupPasswordSubmitting" @click="closePayDialog">取消</button>
             <button class="btn primary" :disabled="setupPasswordSubmitting" @click="setupPasswordAndPay">
-              {{ setupPasswordSubmitting ? '设置并支付中...' : `设置并支付 ¥${money(payAmount)}` }}
+              {{ setupPasswordSubmitting ? '设置中...' : '设置支付密码' }}
             </button>
           </div>
         </template>
@@ -908,7 +909,8 @@ const submit = async () => {
   if (form.value.payType === 'BALANCE') {
     submitting.value = true
     try {
-      await ensurePendingOrder()
+      // 后端要求先设置支付密码才允许创建余额订单；首次使用不能先落单。
+      if (walletSummary.value.hasPaymentPassword) await ensurePendingOrder()
       payPasswordInput.value = ''
       paymentPasswordSaved.value = false
       payPasswordError.value = ''
@@ -1292,6 +1294,7 @@ onBeforeUnmount(() => {
 .dialog-sms-btn { min-width: 102px; padding: 0 11px; color: var(--accent, #e7193f); background: #fff; border: 1px solid #d8e0e8; border-radius: 10px; font-size: 12px; font-weight: 700; }
 .dialog-sms-btn:disabled { color: var(--muted); background: #f5f7f9; }
 .dialog-phone-hint { margin-top: -4px; color: var(--muted); font-size: 11px; }
+.dialog-account-link { width: fit-content; color: var(--accent); font-size: 12px; font-weight: 600; }
 .dialog-actions { display: flex; gap: 10px; margin-top: 16px; }
 .dialog-actions button { flex: 1; }
 

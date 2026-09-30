@@ -24,7 +24,8 @@ export function commerceEnv(respond = () => ({}), token = 'member') {
     if (cache.has(file)) return cache.get(file).exports
     const module = { exports: {} }; cache.set(file, module)
     runMiniScript(readFileSync(file, 'utf8'), { module, exports: module.exports,
-      require: id => load(id, dirname(file)), wx, Page: value => { definition = value }, getCurrentPages: () => currentPages, setTimeout, clearTimeout })
+      require: id => load(id, dirname(file)), wx, Page: value => { definition = value }, getCurrentPages: () => currentPages,
+      setTimeout, clearTimeout, setInterval: () => 1, clearInterval() {} })
     return module.exports
   }
   function page(name) {
