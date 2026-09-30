@@ -135,7 +135,7 @@ Page({
     this.requestVersion = (this.requestVersion || 0) + 1
     if (this.redirect) feedback.update(this, { loading: false, rows: [], ...paymentSummary() })
   },
-  onHide() { this.hidden = true; foreground.stop(this); this.requestVersion = (this.requestVersion || 0) + 1; this.setData({ balancePassword: '', balanceDialog: false, ...(this.data.actingId === 'balance' && !this.data.balanceBusy ? { actingId: null } : {}) }) },
+  onHide() { this.hidden = true; foreground.stop(this); this.requestVersion = (this.requestVersion || 0) + 1; this.clearBalanceSetup(); this.setData({ balancePassword: '', balanceDialog: false, ...(this.data.actingId === 'balance' && !this.data.balanceBusy ? { actingId: null } : {}) }) },
   onUnload() { this.onHide(); this.disposed = true; this.requestVersion = (this.requestVersion || 0) + 1 },
   onPullDownRefresh() {
     if (this.data.paying || (!this.orderId && !this.paymentNo)) {

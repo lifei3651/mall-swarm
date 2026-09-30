@@ -97,7 +97,9 @@
 
         <section v-if="order.status === 0" class="consumer-card pending-payment-card ui-card">
           <div v-if="order.payType === 'BALANCE' && balanceModeEnabled" class="balance-pay-box">
-            <label>支付密码</label><input v-model="paymentPassword" class="field" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="请输入6位支付密码" />
+            <template v-if="balanceWallet?.hasPaymentPassword"><label>支付密码</label><input v-model="paymentPassword" class="field" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="请输入6位支付密码" /></template>
+            <p v-else class="line-sub">{{ balanceWallet ? '首次余额支付请点“立即支付”在本页设置密码；原订单会保留。' : '点击“立即支付”核对余额安全状态。' }}</p>
+            <p v-if="balanceSetupNotice" class="balance-setup-notice">{{ balanceSetupNotice }}</p>
           </div>
           <p v-else-if="order.payType === 'BALANCE'" class="channel-tip">本商城已暂停新增余额支付。原待付款订单不会扣款，可取消后选择可用方式重新下单。</p>
           <p v-if="error" class="consumer-error">{{ error }}</p>
@@ -400,7 +402,7 @@
           </div>
         </div>
         <div v-if="order.status === 0 && order.payType === 'BALANCE' && balanceModeEnabled" class="balance-pay-box">
-          <label>支付密码</label>
+          <template v-if="balanceWallet?.hasPaymentPassword"><label>支付密码</label>
           <input
             v-model="paymentPassword"
             class="field"
@@ -409,7 +411,9 @@
             maxlength="6"
             autocomplete="off"
             placeholder="请输入6位支付密码"
-          />
+          /></template>
+          <p v-else class="line-sub">{{ balanceWallet ? '首次余额支付请点“立即支付”在本页设置密码；原订单会保留。' : '点击“立即支付”核对余额安全状态。' }}</p>
+          <p v-if="balanceSetupNotice" class="balance-setup-notice">{{ balanceSetupNotice }}</p>
           <p class="line-sub">将从商城余额扣除 ¥{{ money(order.payAmount) }}，运费包含在实付金额内。</p>
         </div>
         <p v-if="order.status === 0 && order.payType === 'BALANCE' && !balanceModeEnabled" class="channel-tip">本商城已暂停新增余额支付。原待付款订单不会扣款，可取消后选择可用方式重新下单。</p>
@@ -449,6 +453,19 @@
         </button>
       </section>
     </div>
+    <div v-if="balanceSetupVisible" class="balance-setup-overlay" @click.self="closeBalanceSetup">
+      <section class="balance-setup-dialog" role="dialog" aria-modal="true" aria-labelledby="balance-setup-title">
+        <h3 id="balance-setup-title">首次设置支付密码</h3>
+        <p>这笔待支付订单已保留。先验证登录密码与本人短信，设置后在原订单继续付款。</p>
+        <label>当前商城登录密码<input v-model="balanceSetupForm.loginPassword" class="field" type="password" maxlength="32" autocomplete="current-password" :disabled="balanceSetupBusy" placeholder="请输入登录密码" /></label>
+        <RouterLink class="balance-setup-account-link" to="/profile/settings?mode=account" @click="closeBalanceSetup">尚未设置商城登录密码？先设置</RouterLink>
+        <label>短信验证码<span class="balance-setup-sms"><input v-model="balanceSetupForm.smsCode" class="field" inputmode="numeric" maxlength="6" :disabled="balanceSetupBusy" placeholder="6位验证码" /><button type="button" class="btn secondary" :disabled="balanceSetupBusy || balanceSetupSending || balanceSetupCountdown > 0" @click="sendBalanceSetupCode">{{ balanceSetupCountdown ? `${balanceSetupCountdown}秒` : balanceSetupSending ? '发送中' : '获取验证码' }}</button></span></label>
+        <label>新支付密码<input v-model="balanceSetupForm.newPassword" class="field" type="password" inputmode="numeric" maxlength="6" :disabled="balanceSetupBusy" placeholder="6位数字" /></label>
+        <label>再次确认<input v-model="balanceSetupForm.confirmPassword" class="field" type="password" inputmode="numeric" maxlength="6" :disabled="balanceSetupBusy" placeholder="再次输入6位数字" /></label>
+        <p v-if="balanceSetupError" class="consumer-error" role="alert">{{ balanceSetupError }}</p>
+        <div class="balance-setup-actions"><button type="button" class="btn secondary" :disabled="balanceSetupBusy" @click="closeBalanceSetup">取消</button><button type="button" class="btn primary" :disabled="balanceSetupBusy || balanceSetupSending" @click="saveBalanceSetup">{{ balanceSetupBusy ? '保存中…' : '保存支付密码' }}</button></div>
+      </section>
+    </div>
     <ConfirmDialog
       :visible="returnShipmentAlert.visible"
       title="退货物流未提交"
@@ -480,7 +497,7 @@ import { couponRefundPreview } from '@/utils/couponAmounts'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ChevronDown, ChevronRight, CircleCheck, ImagePlus, MapPin, PackageCheck, RefreshCw, Truck, UserRound } from 'lucide-vue-next'
-import { applyAfterSale, applyExceptionRefund, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmAfterSaleExchangeReceived, confirmReceive, createAlipayOrder, getBusinessConfig, getOrder, getProduct, payOrderWithBalance, submitAfterSaleReturnShipment, uploadAfterSaleProof } from '@/api/shop'
+import { applyAfterSale, applyExceptionRefund, cancelAfterSale as cancelAfterSaleRequest, cancelOrder, confirmAfterSaleExchangeReceived, confirmReceive, createAlipayOrder, getBusinessConfig, getOrder, getProduct, getWalletSummary, payOrderWithBalance, sendPaymentPasswordSmsCode, setPaymentPassword, submitAfterSaleReturnShipment, uploadAfterSaleProof } from '@/api/shop'
 import { balanceTransactionsEnabled } from '@/utils/balanceMode'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { dateTime, money, statusName } from '@/utils/format'
@@ -531,6 +548,19 @@ const standardAfterSaleReasons = ['不想要了', '与商品描述不符', '质�
 const error = ref('')
 const hasToken = ref(hasShopSession())
 const paymentPassword = ref('')
+const balanceWallet = ref(null)
+const balanceSetupVisible = ref(false)
+const balanceSetupBusy = ref(false)
+const balanceSetupSending = ref(false)
+const balanceSetupCountdown = ref(0)
+const balanceSetupError = ref('')
+const balanceSetupNotice = ref('')
+const emptyBalanceSetupForm = () => ({ loginPassword: '', smsCode: '', newPassword: '', confirmPassword: '' })
+const balanceSetupForm = ref(emptyBalanceSetupForm())
+let balanceSetupTimer = null
+let balanceSetupGeneration = 0
+let balanceWalletRequestVersion = 0
+let balanceWalletOrderId = ''
 const balancePaymentRequestKey = ref('')
 const applyingAfterSale = ref(route.query.applyAfterSale === '1' || route.query.refundException === '1')
 const exceptionRefund = ref(false)
@@ -1053,6 +1083,25 @@ const fetchOrder = async () => {
   try {
     const res = await getOrder(route.params.id)
     detail.value = res.data || {}
+    const loadedOrderId = String(detail.value.order?.id || '')
+    if (loadedOrderId !== balanceWalletOrderId) {
+      balanceWalletRequestVersion += 1
+      balanceWalletOrderId = loadedOrderId
+      balanceWallet.value = null
+      paymentPassword.value = ''
+      balanceSetupNotice.value = ''
+    }
+    if (Number(detail.value.order?.status) === 0 && detail.value.order?.payType === 'BALANCE' && !balanceWallet.value) {
+      const version = ++balanceWalletRequestVersion
+      getWalletSummary().then((wallet) => {
+        if (!disposed && version === balanceWalletRequestVersion && String(detail.value.order?.id) === loadedOrderId
+          && typeof wallet.data?.hasPaymentPassword === 'boolean') balanceWallet.value = wallet.data
+      }).catch(() => {})
+    } else if (Number(detail.value.order?.status) !== 0 || detail.value.order?.payType !== 'BALANCE') {
+      balanceWalletRequestVersion += 1
+      balanceWallet.value = null
+      paymentPassword.value = ''
+    }
     logisticsTracking.value = []
     selectAllRefundableItems()
     if (!canApplyAfterSale.value) applyingAfterSale.value = false
@@ -1081,6 +1130,67 @@ const cancel = async () => {
   }
 }
 
+const closeBalanceSetup = () => {
+  if (balanceSetupBusy.value) return
+  balanceSetupGeneration += 1
+  balanceSetupVisible.value = false
+  balanceSetupSending.value = false
+  balanceSetupError.value = ''
+  balanceSetupForm.value = emptyBalanceSetupForm()
+  window.clearInterval(balanceSetupTimer)
+  balanceSetupCountdown.value = 0
+}
+
+const sendBalanceSetupCode = async () => {
+  if (!balanceSetupVisible.value || balanceSetupSending.value || balanceSetupCountdown.value || balanceSetupBusy.value) return
+  const generation = balanceSetupGeneration
+  const current = () => balanceSetupVisible.value && !disposed && generation === balanceSetupGeneration
+  balanceSetupSending.value = true
+  balanceSetupError.value = ''
+  try {
+    await sendPaymentPasswordSmsCode()
+    if (!current()) return
+    balanceSetupCountdown.value = 60
+    window.clearInterval(balanceSetupTimer)
+    balanceSetupTimer = window.setInterval(() => {
+      balanceSetupCountdown.value = Math.max(0, balanceSetupCountdown.value - 1)
+      if (!balanceSetupCountdown.value) window.clearInterval(balanceSetupTimer)
+    }, 1000)
+  } catch (e) { if (current()) balanceSetupError.value = e.message || '验证码发送失败' }
+  finally { if (current()) balanceSetupSending.value = false }
+}
+
+const saveBalanceSetup = async () => {
+  if (!balanceSetupVisible.value || balanceSetupBusy.value) return
+  const form = { ...balanceSetupForm.value }
+  if (!form.loginPassword) return balanceSetupError.value = '请输入当前商城登录密码'
+  if (!/^\d{6}$/.test(form.smsCode)) return balanceSetupError.value = '请输入6位短信验证码'
+  if (!/^\d{6}$/.test(form.newPassword)) return balanceSetupError.value = '支付密码必须是6位数字'
+  if (form.newPassword !== form.confirmPassword) return balanceSetupError.value = '两次输入的支付密码不一致'
+  const generation = balanceSetupGeneration
+  const current = () => balanceSetupVisible.value && !disposed && generation === balanceSetupGeneration
+  balanceSetupBusy.value = true
+  balanceSetupError.value = ''
+  try {
+    await setPaymentPassword({ loginPassword: form.loginPassword, smsCode: form.smsCode, newPassword: form.newPassword })
+    if (!current()) return
+    balanceWalletRequestVersion += 1
+    balanceWallet.value = { ...balanceWallet.value, hasPaymentPassword: true }
+    balanceSetupNotice.value = '支付密码已设置，请输入新密码完成付款。'
+    balanceSetupForm.value = emptyBalanceSetupForm()
+    closeBalanceSetupAfterSave()
+  } catch (e) { if (current()) balanceSetupError.value = e.message || '支付密码设置失败' }
+  finally { if (current()) { balanceSetupForm.value = emptyBalanceSetupForm(); balanceSetupBusy.value = false } }
+}
+
+const closeBalanceSetupAfterSave = () => {
+  balanceSetupGeneration += 1
+  balanceSetupVisible.value = false
+  balanceSetupBusy.value = false
+  window.clearInterval(balanceSetupTimer)
+  balanceSetupCountdown.value = 0
+}
+
 const pay = async () => {
   if (acting.value) return
   if (order.value.payType === 'BALANCE' && !balanceModeEnabled.value) {
@@ -1103,6 +1213,31 @@ const pay = async () => {
     error.value = `${payTypeName(order.value.payType)}尚未配置正式商户参数，请联系客服`
     return
   }
+  acting.value = true
+  error.value = ''
+  const pendingOrderId = String(order.value.id)
+  try {
+    balanceWalletRequestVersion += 1
+    const summary = (await getWalletSummary()).data
+    if (String(order.value?.id) !== pendingOrderId || Number(order.value?.status) !== 0 || order.value?.payType !== 'BALANCE')
+      throw new Error('订单状态已变化，请核对后重新付款')
+    if (typeof summary?.hasPaymentPassword !== 'boolean') throw new Error('余额安全状态暂不可用，请重试')
+    balanceWallet.value = summary
+    if (summary.paymentPasswordLocked) throw new Error('支付密码已临时锁定，请稍后重试')
+    if (!summary.hasPaymentPassword) {
+      balanceSetupGeneration += 1
+      balanceSetupSending.value = false
+      window.clearInterval(balanceSetupTimer)
+      balanceSetupCountdown.value = 0
+      paymentPassword.value = ''
+      balanceSetupError.value = ''
+      balanceSetupNotice.value = ''
+      balanceSetupForm.value = emptyBalanceSetupForm()
+      balanceSetupVisible.value = true
+      return
+    }
+  } catch (e) { error.value = e.message || '余额安全状态暂不可用'; return }
+  finally { acting.value = false }
   if (!/^\d{6}$/.test(paymentPassword.value)) {
     error.value = '请输入6位支付密码'
     return
@@ -1110,6 +1245,8 @@ const pay = async () => {
   acting.value = true
   error.value = ''
   try {
+    if (String(order.value?.id) !== pendingOrderId || Number(order.value?.status) !== 0 || order.value?.payType !== 'BALANCE')
+      throw new Error('订单状态已变化，请核对后重新付款')
     if (!balancePaymentRequestKey.value) balancePaymentRequestKey.value = createIdempotencyKey('balance-pay')
     await payOrderWithBalance(order.value.id, paymentPassword.value, balancePaymentRequestKey.value)
     balancePaymentRequestKey.value = ''
@@ -1203,6 +1340,11 @@ onMounted(() => {
 onBeforeUnmount(() => {
   clearProofUploads()
   disposed = true
+  balanceSetupGeneration += 1
+  balanceSetupVisible.value = false
+  balanceSetupForm.value = emptyBalanceSetupForm()
+  paymentPassword.value = ''
+  window.clearInterval(balanceSetupTimer)
   stopOrderRealtime?.()
   window.clearInterval(fallbackPollTimer)
   window.clearTimeout(realtimeRefreshTimer)
@@ -1459,6 +1601,18 @@ onBeforeUnmount(() => {
 
 .balance-pay-box label { display: block; margin-bottom: 8px; font-weight: 700; }
 .balance-pay-box .line-sub, .channel-tip { line-height: 1.6; }
+.balance-setup-notice { color:var(--brand-primary); font-size:12px; }
+.balance-setup-overlay { position:fixed; inset:0; z-index:1200; display:grid; place-items:center; padding:18px; background:rgba(15,23,42,.45); }
+.balance-setup-dialog { box-sizing:border-box; width:min(100%,440px); max-height:90vh; overflow-y:auto; padding:22px; border-radius:20px; background:var(--paper); }
+.balance-setup-dialog h3 { margin:0; font-size:18px; }
+.balance-setup-dialog > p { color:var(--muted); font-size:12px; line-height:1.6; }
+.balance-setup-dialog > p.consumer-error { color:#b42318; }
+.balance-setup-dialog label { display:grid; gap:6px; margin:13px 0; font-size:12px; font-weight:700; }
+.balance-setup-dialog .field { width:100%; }
+.balance-setup-account-link { color:var(--brand-primary); font-size:12px; }
+.balance-setup-sms { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; }
+.balance-setup-sms button { white-space:nowrap; }
+.balance-setup-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:18px; }
 
 @media (max-width: 600px) {
   .logistics-package-row { grid-template-columns: 38px minmax(0, 1fr); }

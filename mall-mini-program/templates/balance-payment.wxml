@@ -1,8 +1,17 @@
 <view wx:if="{{balanceDialog}}" class="balance-mask">
   <view class="balance-sheet" aria-role="dialog" aria-label="余额支付确认">
     <view class="balance-title">余额支付</view><text class="balance-pay-amount">¥{{totalText}}</text><text class="balance-pay-hint">{{rows.length > 1 ? '本次支付完整合并交易，包含全部子订单。' : '支付结果以服务端订单状态为准。'}}</text>
-    <block wx:if="{{balanceWallet.hasPaymentPassword}}"><text class="balance-label">支付密码</text><input class="balance-password-input" password maxlength="6" value="{{balancePassword}}" bindinput="balanceInput" disabled="{{balanceBusy}}" placeholder="请输入6位支付密码" aria-label="6位支付密码"/><button class="primary-button" bindtap="confirmBalancePayment" loading="{{balanceBusy}}" disabled="{{balanceBusy}}">确认支付 ¥{{totalText}}</button></block>
-    <block wx:else><text class="balance-pay-hint">首次使用余额支付，请先设置独立的6位支付密码。订单已经保留，设置后可继续支付。</text><button class="primary-button" bindtap="setupPaymentPassword">设置支付密码</button></block>
-    <button class="balance-close" bindtap="closeBalance" disabled="{{balanceBusy}}">暂不支付，保留订单</button>
+    <block wx:if="{{balanceWallet.hasPaymentPassword}}"><text wx:if="{{balanceSetupNotice}}" class="balance-setup-notice">{{balanceSetupNotice}}</text><text class="balance-label">支付密码</text><input class="balance-password-input" password type="number" maxlength="6" value="{{balancePassword}}" bindinput="balanceInput" disabled="{{balanceBusy}}" placeholder="请输入6位支付密码" aria-label="6位支付密码"/><button class="primary-button" bindtap="confirmBalancePayment" loading="{{balanceBusy}}" disabled="{{balanceBusy}}">确认支付 ¥{{totalText}}</button></block>
+    <block wx:else>
+      <text class="balance-pay-hint">这笔待支付订单已保留。请在此设置独立6位支付密码，设置成功后输入新密码继续付款。</text>
+      <text class="balance-setup-label">当前商城登录密码</text><input class="balance-setup-input" password maxlength="32" value="{{balanceSetupForm.loginPassword}}" data-field="loginPassword" bindinput="balanceSetupInput" disabled="{{balanceSetupBusy}}" placeholder="请输入登录密码" aria-label="当前商城登录密码" />
+      <button class="balance-setup-help ui-button--secondary" bindtap="openBalanceLoginSetup" disabled="{{balanceSetupBusy}}">尚未设置商城登录密码？先设置</button>
+      <text class="balance-setup-label">短信验证码</text><view class="balance-setup-sms"><input class="balance-setup-input" type="number" maxlength="6" value="{{balanceSetupForm.smsCode}}" data-field="smsCode" bindinput="balanceSetupInput" disabled="{{balanceSetupBusy}}" placeholder="6位验证码" aria-label="支付密码短信验证码" /><button class="ui-button--secondary" bindtap="sendBalanceSetupCode" disabled="{{balanceSetupBusy || balanceSetupSending || balanceSetupCooldown > 0}}">{{balanceSetupCooldown ? balanceSetupCooldown + '秒' : balanceSetupSending ? '发送中' : '获取验证码'}}</button></view>
+      <text class="balance-setup-label">新支付密码</text><input class="balance-setup-input" password type="number" maxlength="6" value="{{balanceSetupForm.newPassword}}" data-field="newPassword" bindinput="balanceSetupInput" disabled="{{balanceSetupBusy}}" placeholder="6位数字" aria-label="新支付密码" />
+      <text class="balance-setup-label">再次确认</text><input class="balance-setup-input" password type="number" maxlength="6" value="{{balanceSetupForm.confirmPassword}}" data-field="confirmPassword" bindinput="balanceSetupInput" disabled="{{balanceSetupBusy}}" placeholder="再次输入6位数字" aria-label="确认新支付密码" />
+      <text wx:if="{{balanceSetupError}}" class="balance-setup-error" role="alert">{{balanceSetupError}}</text>
+      <button class="primary-button" bindtap="saveBalanceSetup" loading="{{balanceSetupBusy}}" disabled="{{balanceSetupBusy || balanceSetupSending}}">保存支付密码</button>
+    </block>
+    <button class="balance-close" bindtap="closeBalance" disabled="{{balanceBusy || balanceSetupBusy}}">暂不支付，保留订单</button>
   </view>
 </view>

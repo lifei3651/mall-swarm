@@ -66,8 +66,78 @@ test('余额请求结果未知不冒充成功、不重建订单；相同订单�
   for(let i=0;i<2;i++){await page.openBalancePayment();page.balanceInput({detail:{value:'654321'}});await page.confirmBalancePayment()}
   const posts=env.calls.filter(c=>c.method==='POST'); assert.equal(posts.length,2); assert.equal(posts[0].idempotencyKey,posts[1].idempotencyKey); assert.ok(env.notices.some(n=>n.includes('如已扣款，勿重复付款'))); assert.equal(env.calls.some(c=>c.url==='/shop/orders'&&c.method==='POST'),false)
 })
-test('首次未设支付密码引导安全页，不使用登录密码直接扣款', async () => {
-  const env=commerceEnv(()=>({...wallet,hasPaymentPassword:false})),page=env.page('order-detail'); page.load=async()=>true;page.setData({rows:clone(rows),payOrderId:'11',paymentChannel:'BALANCE',totalText:'50.00'}); await page.openBalancePayment(); page.setupPaymentPassword(); assert.equal(env.routes[0],'/pages/account-settings/index?section=payment'); assert.equal(page.data.balanceDialog,false); assert.equal(env.calls.some(c=>c.method==='POST'),false)
+test('旧待支付余额单在原付款页设置密码，不跳账号设置、不直接扣款', async () => {
+  const env=commerceEnv(({url})=>url==='/shop/wallet/summary'?{...wallet,hasPaymentPassword:false}:{}),page=env.page('order-detail')
+  page.load=async()=>true;page.setData({rows:clone(rows),payOrderId:'11',paymentChannel:'BALANCE',totalText:'50.00'})
+  await page.openBalancePayment()
+  assert.equal(page.data.balanceDialog,true)
+  assert.equal(page.data.balanceWallet.hasPaymentPassword,false)
+  assert.equal(env.routes.length,0)
+  await page.confirmBalancePayment()
+  assert.equal(env.calls.some(c=>c.url==='/shop/wallet/orders/11/pay'),false)
+  const template=readFileSync(new URL('../templates/balance-payment.wxml',import.meta.url),'utf8')
+  assert.match(template,/bindtap="saveBalanceSetup"/)
+  page.closeBalance()
+  assert.equal(page.data.balanceDialog,false)
+  assert.equal(page.data.balanceSetupForm.loginPassword,'')
+})
+test('旧待支付余额单短信与首次密码成功后才能续付，不重建订单', async () => {
+  let configured=false
+  const env=commerceEnv(({url})=>{
+    if(url==='/shop/wallet/summary') return {...wallet,hasPaymentPassword:configured}
+    if(url==='/shop/wallet/payment-password'){configured=true;return {}}
+    return {}
+  }),page=env.page('order-detail')
+  page.load=async()=>true;page.setData({rows:clone(rows),payOrderId:'11',paymentChannel:'BALANCE',totalText:'50.00'})
+  await page.openBalancePayment()
+  await page.sendBalanceSetupCode()
+  for(const [field,value] of Object.entries({loginPassword:'login-secret',smsCode:'123456',newPassword:'654321',confirmPassword:'654321'}))
+    page.balanceSetupInput({currentTarget:{dataset:{field}},detail:{value}})
+  await page.saveBalanceSetup()
+  assert.equal(page.data.balanceWallet.hasPaymentPassword,true)
+  assert.equal(page.data.balanceSetupForm.loginPassword,'')
+  assert.equal(env.calls.some(c=>c.url==='/shop/wallet/orders/11/pay'),false)
+  page.balanceInput({detail:{value:'654321'}})
+  await page.confirmBalancePayment()
+  assert.equal(env.calls.filter(c=>c.url==='/shop/wallet/orders/11/pay').length,1)
+  assert.equal(env.calls.some(c=>c.url==='/shop/orders'),false)
+  assert.equal(env.routes.length,0)
+  page.onHide()
+})
+test('旧待支付单设置失败或离页晚响应不显示已设成功', async () => {
+  let resolveSetup
+  const env=commerceEnv(({url})=>url==='/shop/wallet/summary'?{...wallet,hasPaymentPassword:false}
+    :url==='/shop/wallet/payment-password'?new Promise(resolve=>{resolveSetup=resolve}):{}),page=env.page('order-detail')
+  page.load=async()=>true;page.setData({rows:clone(rows),payOrderId:'11',paymentChannel:'BALANCE',totalText:'50.00'})
+  await page.openBalancePayment()
+  await page.saveBalanceSetup()
+  assert.match(page.data.balanceSetupError,/登录密码/)
+  for(const [field,value] of Object.entries({loginPassword:'login-secret',smsCode:'123456',newPassword:'654321',confirmPassword:'654321'}))
+    page.balanceSetupInput({currentTarget:{dataset:{field}},detail:{value}})
+  const pending=page.saveBalanceSetup()
+  page.onHide()
+  resolveSetup({});await pending
+  assert.equal(page.data.balanceDialog,false)
+  assert.equal(page.data.balanceSetupForm.newPassword,'')
+  assert.equal(page.data.balanceWallet.hasPaymentPassword,false)
+  assert.equal(env.calls.some(c=>c.url==='/shop/wallet/orders/11/pay'),false)
+})
+test('旧待支付单设置接口拒绝时仍停留原订单，不产生扣款请求', async () => {
+  const env=commerceEnv(({url})=>{
+    if(url==='/shop/wallet/summary')return {...wallet,hasPaymentPassword:false}
+    if(url==='/shop/wallet/payment-password')throw new Error('验证码错误')
+    return {}
+  }),page=env.page('order-detail')
+  page.load=async()=>true;page.setData({rows:clone(rows),payOrderId:'11',paymentChannel:'BALANCE',totalText:'50.00'})
+  await page.openBalancePayment()
+  for(const [field,value] of Object.entries({loginPassword:'login-secret',smsCode:'123456',newPassword:'654321',confirmPassword:'654321'}))
+    page.balanceSetupInput({currentTarget:{dataset:{field}},detail:{value}})
+  await page.saveBalanceSetup()
+  assert.match(page.data.balanceSetupError,/验证码错误/)
+  assert.equal(page.data.balanceWallet.hasPaymentPassword,false)
+  assert.equal(page.data.balanceSetupForm.loginPassword,'')
+  assert.equal(env.calls.some(c=>c.url==='/shop/wallet/orders/11/pay'),false)
+  page.onHide()
 })
 test('首页分类筛选仍留原页、60条查询、最近5条去重，不读取剪贴板', async () => {
   const env=commerceEnv(()=>({list:[]})),page=env.page('home'); await page.filterProducts(); assert.equal(env.routes.length,0); assert.deepEqual(env.calls.at(-1).params,{status:1,pageNum:1,pageSize:60,keyword:'',categoryName:''})
