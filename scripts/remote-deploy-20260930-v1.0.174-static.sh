@@ -479,4 +479,3 @@ BACKUP_AFTER=$(backup_verify)
 MUTATED=0
 trap - EXIT
 echo "$LABEL-release-success version=$EXPECTED_VERSION source=$EXPECTED_COMMIT build=$EXPECTED_BUILD_ID before=$BACKUP_BEFORE after=$BACKUP_AFTER rollback=$ROLLBACK exact-tree=yes backend-other-sites-config-preserved=yes"
-
