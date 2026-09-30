@@ -64,8 +64,9 @@
             <div class="consumer-product-copy">
               <h3>{{ item.productName }}</h3>
               <p class="product-spec"><span>{{ formatProductSpec(item) }}</span><span>× {{ item.quantity }}</span></p>
+              <span v-if="refundedQuantity(item, afterSales)" class="consumer-item-refund-status">{{ refundedQuantity(item, afterSales) === Number(item.quantity) ? '已退款' : `已退款 ${refundedQuantity(item, afterSales)}/${item.quantity} 件` }}</span>
               <div v-if="serviceTags(item).length" class="consumer-service-tags"><span v-for="tag in serviceTags(item)" :key="tag">{{ tag }}</span></div>
-              <p class="consumer-product-prices"><span>零售价 ¥{{ money(item.totalAmount) }}</span><strong class="ui-price">实付款 ¥{{ linePaidAmount(item) }}</strong></p>
+              <p class="consumer-product-prices"><span>零售价 ¥{{ money(item.totalAmount) }}</span><strong class="ui-price">{{ refundedQuantity(item, afterSales) ? '原实付' : '实付款' }} ¥{{ linePaidAmount(item) }}</strong></p>
             </div>
           </article>
           <p v-if="detail.afterSaleDeadline" class="consumer-after-sale-deadline">售后期截止时间 {{ dateTime(detail.afterSaleDeadline) }}</p>
@@ -494,6 +495,7 @@
 
 <script setup>
 import { couponRefundPreview } from '@/utils/couponAmounts'
+import { refundedQuantity, partialRefundSummary } from '@/utils/orderItemRefunds'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ChevronDown, ChevronRight, CircleCheck, ImagePlus, MapPin, PackageCheck, RefreshCw, Truck, UserRound } from 'lucide-vue-next'
@@ -650,6 +652,8 @@ const deliverySummary = computed(() => {
   if (Number(order.value?.status) === 4) return '该订单已关闭，无需继续付款'
   if (legacyUnshippedReturn.value) return '订单尚未发货，无需寄回商品；请联系平台处理退款'
   if (activeAfterSale.value) return `${afterSaleStatus(activeAfterSale.value.status, activeAfterSale.value.applyType)} · 售后进度见下方`
+  const refundSummary = partialRefundSummary(order.value, detail.value.items, detail.value.afterSales)
+  if (refundSummary) return refundSummary
   if (order.value?.receiveTime) return `商品已于 ${dateTime(order.value.receiveTime)} 送达`
   if (Number(order.value?.status) === 3) return '商品已完成签收'
   if (order.value?.deliveryTime) return `商品已于 ${dateTime(order.value.deliveryTime)} 发出`
@@ -1393,6 +1397,7 @@ onBeforeUnmount(() => {
 .consumer-product-copy { min-width: 0; }
 .consumer-product-copy h3 { display: -webkit-box; margin: 0; overflow: hidden; color: #222826; font-size: 16px; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .product-spec { display: flex; justify-content: space-between; gap: 10px; margin: 6px 0 0; color: #858e8c; font-size: 12px; }
+.consumer-item-refund-status { display: inline-block; margin-top: 6px; padding: 2px 6px; border-radius: 4px; background: #f1f4f4; color: #56615f; font-size: 11px; line-height: 16px; }
 .consumer-service-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
 .consumer-service-tags span { padding: 2px 5px; color: #eb4040; background: #fff0f0; border-radius: 3px; font-size: 11px; }
 .consumer-product-prices { display: flex; align-items: center; justify-content: space-between; gap: 9px; margin: 10px 0 0; color: #737c7a; font-size: 12px; }

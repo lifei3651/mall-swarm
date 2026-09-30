@@ -213,6 +213,34 @@ test('全额退款后的关闭订单显示已退款，售后缺失规格不出�
   assert.doesNotMatch(wxss, /\.after-sale-record\s*\{[^}]*#fff8ed/)
 })
 
+test('部分退款按订单商品ID标出已退款的那件，未退款商品仍待发货', async () => {
+  const second = '9212345678901234570'
+  const orderDetail = detail({
+    order: { id: ID, status: 1, payAmount: '89.01', totalAmount: '89.01' },
+    items: [
+      { id: ITEM, productName: '复购补充装', skuName: '补充装', quantity: 1, totalAmount: '89.00' },
+      { id: second, productName: 'test', skuName: '默认规格', quantity: 1, totalAmount: '0.01' }
+    ],
+    afterSales: [
+      { id: SALE, applyType: 4, status: 1, refundAmount: '89.00', items: [{ orderItemId: ITEM, refundQuantity: 1 }] },
+      { id: '101', applyType: 3, status: 1, items: [{ orderItemId: second, refundQuantity: 1 }] },
+      { id: '102', applyType: 4, status: 2, items: [{ orderItemId: second, refundQuantity: 1 }] }
+    ]
+  })
+  const h = harness('order-detail', { respond: () => orderDetail })
+  h.page.onLoad({ id: ID }); await h.page.load()
+  assert.equal(h.page.data.pageStatusTitle, '待发货')
+  assert.equal(h.page.data.pageStatusDescription, '已退款 1 件，剩余 1 件待发货')
+  assert.equal(h.page.data.rows[0].items[0].refundStatusText, '已退款')
+  assert.equal(h.page.data.rows[0].items[0].paymentLabel, '原实付')
+  assert.equal(h.page.data.rows[0].items[1].refundStatusText, '')
+  assert.equal(h.page.data.rows[0].items[1].paymentLabel, '实付款')
+  assert.equal(policy.refundedQuantity({ id: ITEM, quantity: 2 }, orderDetail.afterSales), 1)
+  const wxml = readFileSync(new URL('../pages/order-detail/index.wxml', import.meta.url), 'utf8')
+  assert.match(wxml, /line\.refundStatusText/)
+  assert.match(wxml, /line\.paymentLabel/)
+})
+
 test('未发货历史退货单不误导寄回，售后进度放在订单详情顶部', async () => {
   const legacy = detail({
     order: { id: ID, status: 1, payAmount: '0.01', totalAmount: '0.01', deliveryTime: null },

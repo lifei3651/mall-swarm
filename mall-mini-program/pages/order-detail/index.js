@@ -10,7 +10,7 @@ const theme = require('../../utils/theme')
 const foreground = require('../../utils/foreground-refresh')
 const cart = require('../../utils/cart')
 const purchaseLimit = require('../../utils/purchase-limit')
-const { identifier, afterSaleEligibility, amountLabel, isRefundedOrder, paymentSummary } = require('./policy')
+const { identifier, afterSaleEligibility, amountLabel, isRefundedOrder, refundedQuantity, partialRefundSummary, paymentSummary } = require('./policy')
 
 const STATUS = { 0: '待付款', 1: '待发货', 2: '已发货', 3: '已完成', 4: '已取消', 5: '售后中' }
 const AFTER_SALE_STATUS = { 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待寄回', 5: '待商家收货', 6: '退款处理中', 7: '待商家换货发出', 8: '换货已发出' }
@@ -184,6 +184,7 @@ Page({
         const activeSale = (row.afterSales || []).find((sale) => [0, 4, 5, 6, 7, 8].includes(Number(sale.status)))
         const returnConflict = activeSale && unshippedReturnConflict(order, shipments, activeSale)
         const [statusTitle, statusDescription] = statusCopy(order, shipments, refunded, activeSale, returnConflict)
+        const refundSummary = partialRefundSummary(order, row.items, row.afterSales)
         const itemQuantity = (row.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)
         const paid = ![0, 4].includes(Number(order.status))
         return {
@@ -215,7 +216,7 @@ Page({
             statusText: refunded ? '已退款' : activeSale && Number(order.status) !== 4 ? '售后处理中' : STATUS[Number(order.status)] || '处理中',
             statusTone: Number(order.status) === 4 ? 'closed' : 'active',
             statusTitle,
-            statusDescription,
+            statusDescription: !activeSale && refundSummary ? refundSummary : statusDescription,
             amountText: format.money(order.payAmount == null ? order.totalAmount : order.payAmount),
             totalText: format.money(order.totalAmount == null ? order.payAmount : order.totalAmount),
             amountLabel: amountLabel(order),
@@ -228,19 +229,25 @@ Page({
             fullRecipient: [displayText(order.receiverName), displayText(order.receiverPhone)].filter(Boolean).join(' '),
             maskedRecipient: [maskName(order.receiverName), maskPhone(order.receiverPhone)].filter(Boolean).join(' '),
             maskedAddress: maskedAddress(order),
-            deliverySummary: activeSale && !refunded && Number(order.status) !== 4 ? statusDescription : deliverySummary(order, refunded),
+            deliverySummary: activeSale && !refunded && Number(order.status) !== 4 ? statusDescription : refundSummary || deliverySummary(order, refunded),
             logisticsUpdateText: statusDescription
           },
-          items: (row.items || []).map((item) => ({
-            ...item,
-            productCover: format.mediaUrl(item.productCover),
-            priceText: format.money(item.price),
-            retailTotalText: format.money(item.totalAmount == null ? Number(item.price || 0) * Number(item.quantity || 1) : item.totalAmount),
-            paidAmountText: format.money(paid
-              ? Math.max(0, Number(item.totalAmount == null ? Number(item.price || 0) * Number(item.quantity || 1) : item.totalAmount) - Number(item.couponDiscountAmount || 0))
-              : Number(item.totalAmount == null ? Number(item.price || 0) * Number(item.quantity || 1) : item.totalAmount)),
-            serviceTags: format.serviceTags(item.serviceTags).slice(0, 2)
-          })),
+          items: (row.items || []).map((item) => {
+            const returned = refundedQuantity(item, row.afterSales)
+            const quantity = Number(item.quantity || 0)
+            return {
+              ...item,
+              productCover: format.mediaUrl(item.productCover),
+              priceText: format.money(item.price),
+              retailTotalText: format.money(item.totalAmount == null ? Number(item.price || 0) * Number(item.quantity || 1) : item.totalAmount),
+              paidAmountText: format.money(paid
+                ? Math.max(0, Number(item.totalAmount == null ? Number(item.price || 0) * Number(item.quantity || 1) : item.totalAmount) - Number(item.couponDiscountAmount || 0))
+                : Number(item.totalAmount == null ? Number(item.price || 0) * Number(item.quantity || 1) : item.totalAmount)),
+              paymentLabel: returned ? '原实付' : '实付款',
+              refundStatusText: returned ? returned === quantity ? '已退款' : `已退款 ${returned}/${quantity} 件` : '',
+              serviceTags: format.serviceTags(item.serviceTags).slice(0, 2)
+            }
+          }),
           shipments,
           afterSales: (row.afterSales || []).map((sale) => ({
             ...sale,

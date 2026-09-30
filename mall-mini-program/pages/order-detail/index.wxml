@@ -98,8 +98,9 @@
           <view class="item-copy">
             <text class="item-name">{{line.productName}}</text>
             <view class="item-spec"><text>{{line.skuName || '默认规格'}}</text><text>× {{line.quantity}}</text></view>
+            <text wx:if="{{line.refundStatusText}}" class="item-refund-status">{{line.refundStatusText}}</text>
             <view wx:if="{{line.serviceTags.length}}" class="item-service-tags"><text wx:for="{{line.serviceTags}}" wx:key="title" wx:for-item="tag">{{tag.title}}</text></view>
-            <view class="item-prices"><text>零售价 ¥{{line.retailTotalText}}</text><text>实付款 <text class="ui-price">¥{{line.paidAmountText}}</text></text></view>
+            <view class="item-prices"><text>零售价 ¥{{line.retailTotalText}}</text><text>{{line.paymentLabel}} <text class="ui-price">¥{{line.paidAmountText}}</text></text></view>
           </view>
         </view>
         <view wx:if="{{item.afterSaleDeadlineText}}" class="after-sale-deadline">售后期截止时间 {{item.afterSaleDeadlineText}}</view>

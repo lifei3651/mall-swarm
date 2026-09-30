@@ -83,6 +83,7 @@
 .item-copy { min-width:0; flex:1; }
 .item-name { display:-webkit-box; overflow:hidden; color:var(--ink); font-size:27rpx; font-weight:650; line-height:38rpx; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
 .item-spec { display:flex; align-items:center; justify-content:space-between; gap:12rpx; margin-top:8rpx; color:#858e8c; font-size:22rpx; }
+.item-refund-status { display:inline-block; margin-top:8rpx; padding:3rpx 9rpx; border-radius:6rpx; background:#f1f4f4; color:#56615f; font-size:20rpx; line-height:28rpx; }
 .item-service-tags { display:flex; flex-wrap:wrap; gap:8rpx; margin-top:10rpx; }
 .item-service-tags text { padding:3rpx 8rpx; border-radius:5rpx; background:#fff0f0; color:#ee4242; font-size:19rpx; line-height:28rpx; }
 .item-prices { display:flex; align-items:center; justify-content:space-between; gap:12rpx; margin-top:12rpx; color:#757e7c; font-size:21rpx; }

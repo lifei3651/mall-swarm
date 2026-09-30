@@ -45,6 +45,36 @@ function isRefundedOrder(detail = {}) {
     .some((sale) => [1, 2, 4].includes(Number(sale.applyType)) && Number(sale.status) === 1)
 }
 
+// Match the original order-item ID, never the product name: one order can contain
+// the same product/spec more than once. Exchanges and pending refunds are not paid refunds.
+function refundedQuantity(item, sales = []) {
+  const itemId = identifier(item?.id)
+  const ordered = Number(item?.quantity)
+  if (!itemId || !Number.isSafeInteger(ordered) || ordered <= 0) return 0
+  let refunded = 0
+  for (const sale of sales) {
+    if (![1, 2, 4].includes(Number(sale.applyType)) || Number(sale.status) !== 1) continue
+    for (const line of sale.items || []) {
+      const quantity = Number(line.refundQuantity)
+      if (String(line.orderItemId) === itemId && Number.isSafeInteger(quantity) && quantity > 0) {
+        refunded = Math.min(ordered, refunded + quantity)
+      }
+    }
+  }
+  return refunded
+}
+
+function partialRefundSummary(order, items = [], sales = []) {
+  const status = Number(order?.status)
+  if (![1, 2, 3].includes(status)) return ''
+  const total = items.reduce((sum, item) => sum + Math.max(0, Number(item.quantity) || 0), 0)
+  const refunded = items.reduce((sum, item) => sum + refundedQuantity(item, sales), 0)
+  const remaining = total - refunded
+  if (!refunded || remaining <= 0) return ''
+  const state = { 1: '待发货', 2: '待收货', 3: '已完成' }[status]
+  return `已退款 ${refunded} 件，剩余 ${remaining} 件${state}`
+}
+
 // A child ID is resolved to its original parent trade by the payment service.
 // Only offer payment after the complete group has been loaded from the server.
 function paymentSummary(rows = []) {
@@ -87,4 +117,4 @@ function refundEstimate(detail, selectedItems, applyType) {
   const freight = Number(order.status)===1 && !order.deliveryTime && all ? Number(order.freightAmount || 0) : 0
   return { product, freight, total: product + freight }
 }
-module.exports = { identifier, remainingItems, afterSaleEligibility, amountLabel, isRefundedOrder, paymentSummary, refundEstimate }
+module.exports = { identifier, remainingItems, afterSaleEligibility, amountLabel, isRefundedOrder, refundedQuantity, partialRefundSummary, paymentSummary, refundEstimate }
