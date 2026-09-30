@@ -259,6 +259,17 @@ public class OrderBalanceAllocationServiceImpl implements OrderBalanceAllocation
         for (DmsCommissionRecord record : commissionRecordDao.selectByOrderId(orderId)) {
             CommissionStatusEnum status = CommissionStatusEnum.getByValue(record.getStatus());
             if (status == CommissionStatusEnum.CANCELLED) continue;
+            if ("DIRECT_REFERRAL".equals(record.getBonusType())) {
+                // Debt offsets and their restoration are balance transfers,
+                // not extra rewards. The payment snapshot is the original
+                // expense even after partial refunds before settlement.
+                if (record.getOrderAmount() == null || record.getCommissionRate() == null
+                        || record.getOrderAmount().signum() < 0 || record.getCommissionRate().signum() < 0) {
+                    throw new IllegalStateException("直接推荐佣金原始金额快照异常");
+                }
+                total = total.add(money(record.getOrderAmount().multiply(record.getCommissionRate())));
+                continue;
+            }
             BigDecimal amount = nullToZero(record.getCommissionAmount());
             if (status == CommissionStatusEnum.PENDING || status == CommissionStatusEnum.REFUNDED) {
                 amount = amount.add(nullToZero(clawbackDao.sumByCommissionRecordId(record.getId())));

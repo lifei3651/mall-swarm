@@ -79,4 +79,11 @@ describe('商品中心筛选', () => {
     expect(source).toContain("Number(item.addressType) === 2 && Number(item.status) === 1")
     expect(source).toContain('returnAddresses.value.some((item) => Number(item.id) === Number(form.value.returnAddressId))')
   })
+
+  it('自营商品显示佣金参与选择，编辑和保存都保留明确不计佣状态', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+    expect(source).toContain('v-if="!form.merchantId && !isMerchantUser" label="佣金参与"')
+    expect(source).toContain('label="不参与佣金" value="NONE"')
+    expect(source.match(/normalizeProductBonusMode\(form.value.merchantId, form.value.teamBonusMode\)/g)).toHaveLength(2)
+  })
 })

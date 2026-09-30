@@ -5,6 +5,7 @@ import com.macro.mall.distribution.constants.BalanceAsset;
 import com.macro.mall.distribution.bonus.CustomerBonusPolicy;
 import com.macro.mall.distribution.bonus.CustomerBonusPolicyRegistry;
 import com.macro.mall.distribution.bonus.CustomerBonusRefundContext;
+import com.macro.mall.distribution.bonus.DirectReferralAmounts;
 import com.macro.mall.distribution.config.WithdrawalLimitProperties;
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.dao.*;
@@ -46,6 +47,8 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
     private final DmsPerformanceViewPermissionDao permissionDao;
     private final DmsOrderFinanceDao financeDao;
     private final DmsShopAfterSaleItemDao afterSaleItemDao;
+    private final DmsShopAfterSaleDao afterSaleDao;
+    private final DmsShopOrderItemDao orderItemDao;
     private final DmsOrderCompanyShareDao companyShareDao;
     private final DmsFinanceRefundDao refundDao;
     private final DmsFinanceRiskRuleDao riskRuleDao;
@@ -385,6 +388,14 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         // 所有退款登记统一锁定订单，避免并发冲销重复扣减业绩、件数和奖金。
         DmsShopOrder shopOrder = shopOrderDao.selectByIdForUpdate(dto.getOrderId());
         if (shopOrder == null) Asserts.fail("商城订单不存在，不能登记无商品明细退款");
+        // Channel callbacks can be retried after a successful commit. Recheck
+        // under the order lock before any performance or account reversal.
+        if (dto.getRefundNo() != null && !dto.getRefundNo().isBlank()) {
+            DmsFinanceRefund existing = refundDao.selectByOrderId(dto.getOrderId()).stream()
+                    .filter(row -> dto.getRefundNo().equals(row.getRefundNo()))
+                    .findFirst().orElse(null);
+            if (existing != null) return existing;
+        }
         if (productRefund.signum() == 0 && shopOrder.getCouponClaimId() == null) Asserts.fail("退款必须包含实际退回的商品及数量");
         BigDecimal productAmount = shopOrder.getTotalAmount() == null
                 ? payAmount.subtract(nullToZero(shopOrder.getFreightAmount()))
@@ -698,6 +709,17 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         }
         BigDecimal amount = nullToZero(record.getCommissionAmount());
         if (status == CommissionStatusEnum.SETTLED) {
+            if ("DIRECT_REFERRAL".equals(record.getBonusType())) {
+                // Direct rewards keep their earned amount when settlement pays
+                // historical debt. Offsets/restorations are separate transfers,
+                // and pre-settlement refunds already reduced this record.
+                BigDecimal settledRefunds = directClawbacks(record).stream()
+                        .filter(row -> Integer.valueOf(2).equals(row.getClawbackType())
+                                || Integer.valueOf(3).equals(row.getClawbackType()))
+                        .map(DmsCommissionClawback::getClawbackAmount)
+                        .filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
+                return amount.subtract(settledRefunds).max(BigDecimal.ZERO);
+            }
             return amount.subtract(nullToZero(clawbackDao.sumByCommissionRecordId(record.getId())))
                     .max(BigDecimal.ZERO);
         }
@@ -707,22 +729,50 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
 
     private void clawbackCommissions(DmsOrderFinance finance, DmsFinanceRefund refund,
                                      BigDecimal cumulativeProductRefundRate) {
-        if (cumulativeProductRefundRate == null || cumulativeProductRefundRate.compareTo(BigDecimal.ZERO) <= 0) {
-            return;
-        }
         List<DmsCommissionRecord> records = commissionRecordDao.selectByOrderId(finance.getOrderId());
-        for (DmsCommissionRecord record : records) {
+        DirectReferralRefundTotals directRefunds = null;
+        for (DmsCommissionRecord candidate : records) {
+            boolean directReferral = "DIRECT_REFERRAL".equals(candidate.getBonusType());
+            if (!directReferral && (cumulativeProductRefundRate == null
+                    || cumulativeProductRefundRate.signum() <= 0)) continue;
+            // A manual settlement may have changed the record since the order
+            // list was read. The direct-referral settlement path takes the same
+            // order-then-record locks before moving account balances.
+            DmsCommissionRecord record = directReferral
+                    ? commissionRecordDao.selectByIdForUpdate(candidate.getId()) : candidate;
+            if (record == null) Asserts.fail("订单佣金记录不存在，退款冲账已停止");
             CommissionStatusEnum status = CommissionStatusEnum.getByValue(record.getStatus());
             if (status == CommissionStatusEnum.CANCELLED || status == CommissionStatusEnum.REFUNDED) {
                 continue;
             }
-            BigDecimal alreadyClawback = nullToZero(clawbackDao.sumByCommissionRecordId(record.getId()));
+            List<DmsCommissionClawback> directFlows = directReferral ? directClawbacks(record) : List.of();
+            BigDecimal alreadyClawback = directReferral
+                    ? directFlows.stream().filter(this::isRefundClawback)
+                        .map(DmsCommissionClawback::getClawbackAmount).filter(Objects::nonNull)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add)
+                    : nullToZero(clawbackDao.sumByCommissionRecordId(record.getId()));
             BigDecimal originalCommission = record.getCommissionAmount();
             if (status == CommissionStatusEnum.PENDING) {
                 originalCommission = originalCommission.add(alreadyClawback);
             }
-            BigDecimal targetClawback = originalCommission.multiply(cumulativeProductRefundRate)
-                    .setScale(2, RoundingMode.HALF_UP);
+            BigDecimal targetClawback;
+            if (directReferral) {
+                if (directRefunds == null) directRefunds = completedDirectReferralRefunds(finance.getOrderId());
+                BigDecimal base = nullToZero(record.getOrderAmount());
+                BigDecimal rate = record.getCommissionRate();
+                if (base.signum() <= 0 || rate == null || rate.signum() < 0) {
+                    Asserts.fail("直接推荐佣金冻结基数或比例异常，退款冲账已停止");
+                }
+                originalCommission = base.multiply(rate).setScale(2, RoundingMode.HALF_UP);
+                BigDecimal refundedBase = directRefunds.allEligibleGoodsReturned()
+                        ? base : directRefunds.cashAmount().min(base);
+                BigDecimal retainedCommission = base.subtract(refundedBase).max(BigDecimal.ZERO)
+                        .multiply(rate).setScale(2, RoundingMode.HALF_UP);
+                targetClawback = originalCommission.subtract(retainedCommission).max(BigDecimal.ZERO);
+            } else {
+                targetClawback = originalCommission.multiply(cumulativeProductRefundRate)
+                        .setScale(2, RoundingMode.HALF_UP);
+            }
             BigDecimal remainingClawback = originalCommission.subtract(alreadyClawback);
             // 累计比例算出“截至本次应追回总额”，本次只追差额，避免多次部分退款重复追回。
             BigDecimal clawbackAmount = targetClawback.subtract(alreadyClawback)
@@ -734,9 +784,200 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
             if (status == CommissionStatusEnum.PENDING) {
                 clawbackPendingCommission(record, refund, clawbackAmount);
             } else if (status == CommissionStatusEnum.SETTLED) {
-                clawbackSettledCommission(record, refund, clawbackAmount);
+                if (directReferral) {
+                    clawbackSettledDirectCommission(record, refund, clawbackAmount, directFlows);
+                } else {
+                    clawbackSettledCommission(record, refund, clawbackAmount);
+                }
             }
         }
+    }
+
+    /**
+     * Direct-referral rewards use buyer cash, not the legacy coupon bonus base
+     * (which can include platform-funded discounts). Only finance-ledger-backed
+     * refund lines participate; processing/refused requests never claw back a
+     * reward, and returns of NONE products cannot affect rewarded products.
+     */
+    private DirectReferralRefundTotals completedDirectReferralRefunds(Long orderId) {
+        List<DmsShopOrderItem> orderItems = orderItemDao.selectByOrderId(orderId);
+        if (orderItems == null || orderItems.isEmpty()) {
+            Asserts.fail("直接推荐佣金商品快照缺失，退款冲账已停止");
+        }
+        Map<Long, DmsShopOrderItem> originals = new LinkedHashMap<>();
+        for (DmsShopOrderItem item : orderItems) {
+            if (item.getId() == null || !Objects.equals(orderId, item.getOrderId())
+                    || item.getQuantity() == null || item.getQuantity() <= 0
+                    || originals.put(item.getId(), item) != null) {
+                Asserts.fail("直接推荐佣金商品快照异常，退款冲账已停止");
+            }
+        }
+        Map<String, DmsFinanceRefund> completed = new LinkedHashMap<>();
+        for (DmsFinanceRefund row : refundDao.selectByOrderId(orderId)) {
+            if (row.getRefundNo() == null || row.getRefundNo().isBlank()
+                    || completed.put(row.getRefundNo(), row) != null) {
+                Asserts.fail("直接推荐佣金退款登记异常，退款冲账已停止");
+            }
+        }
+        BigDecimal cashAmount = BigDecimal.ZERO;
+        Map<Long, Long> returnedQuantities = new LinkedHashMap<>();
+        for (DmsShopAfterSale sale : afterSaleDao.selectByOrderId(orderId)) {
+            DmsFinanceRefund ledger = completed.remove(sale.getAfterSaleNo());
+            if (ledger == null) continue;
+            if (!Objects.equals(orderId, sale.getOrderId()) || sale.getId() == null
+                    || sale.getApplyType() == null || !Set.of(1, 2, 4).contains(sale.getApplyType())) {
+                Asserts.fail("直接推荐佣金退款商品归属异常，退款冲账已停止");
+            }
+            List<DmsShopAfterSaleItem> lines = afterSaleItemDao.selectByAfterSaleId(sale.getId());
+            if (lines == null || lines.isEmpty()) Asserts.fail("直接推荐佣金退款商品明细缺失，退款冲账已停止");
+            BigDecimal cashInSale = BigDecimal.ZERO;
+            for (DmsShopAfterSaleItem line : lines) {
+                DmsShopOrderItem original = originals.get(line.getOrderItemId());
+                if (original == null || !Objects.equals(orderId, line.getOrderId())
+                        || !Objects.equals(original.getProductId(), line.getProductId())
+                        || !Objects.equals(original.getSkuId(), line.getSkuId())
+                        || line.getRefundQuantity() == null || line.getRefundQuantity() <= 0
+                        || line.getRefundAmount() == null || line.getRefundAmount().signum() < 0) {
+                    Asserts.fail("直接推荐佣金退款商品明细异常，退款冲账已停止");
+                }
+                cashInSale = cashInSale.add(line.getRefundAmount());
+                long returned = returnedQuantities.merge(original.getId(),
+                        line.getRefundQuantity().longValue(), Long::sum);
+                if (returned > original.getQuantity()) Asserts.fail("直接推荐佣金累计退货数量异常，退款冲账已停止");
+                if (DirectReferralAmounts.eligible(original)) cashAmount = cashAmount.add(line.getRefundAmount());
+            }
+            if (cashInSale.compareTo(nullToZero(ledger.getProductRefundAmount())) != 0) {
+                Asserts.fail("直接推荐佣金退款明细与财务登记不一致，退款冲账已停止");
+            }
+        }
+        if (!completed.isEmpty()) Asserts.fail("直接推荐佣金退款商品明细缺失，退款冲账已停止");
+        List<DmsShopOrderItem> eligible = orderItems.stream().filter(DirectReferralAmounts::eligible).toList();
+        // The final quantity reversal clears any cent allocated to another line
+        // by historical non-coupon refund rounding; no reward remains on goods
+        // that have all been returned.
+        boolean allReturned = !eligible.isEmpty() && eligible.stream().allMatch(item ->
+                returnedQuantities.getOrDefault(item.getId(), 0L) == item.getQuantity().longValue());
+        return new DirectReferralRefundTotals(cashAmount, allReturned);
+    }
+
+    private record DirectReferralRefundTotals(BigDecimal cashAmount, boolean allEligibleGoodsReturned) { }
+
+    private List<DmsCommissionClawback> directClawbacks(DmsCommissionRecord record) {
+        return clawbackDao.selectByOrderId(record.getOrderId()).stream()
+                .filter(row -> Objects.equals(record.getId(), row.getCommissionRecordId())).toList();
+    }
+
+    private boolean isRefundClawback(DmsCommissionClawback row) {
+        return Integer.valueOf(1).equals(row.getClawbackType())
+                || Integer.valueOf(2).equals(row.getClawbackType())
+                || Integer.valueOf(3).equals(row.getClawbackType());
+    }
+
+    /** Offsets were part of the earned reward, so revoked offsets reopen their original debt. */
+    private void clawbackSettledDirectCommission(DmsCommissionRecord record, DmsFinanceRefund refund,
+                                                 BigDecimal clawbackAmount,
+                                                 List<DmsCommissionClawback> flows) {
+        DmsAgentAccount account = accountDao.selectByAgentIdForUpdate(record.getAgentId());
+        if (account == null) Asserts.fail("代理资金账户不存在，退款冲账已停止");
+        BigDecimal priorSettledRefunds = flows.stream()
+                .filter(row -> Integer.valueOf(2).equals(row.getClawbackType())
+                        || Integer.valueOf(3).equals(row.getClawbackType()))
+                .map(DmsCommissionClawback::getClawbackAmount).filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal restoredOffset = restoreDirectDebtOffsets(record, refund, flows,
+                priorSettledRefunds.add(clawbackAmount));
+        BigDecimal cashToRecover = clawbackAmount.subtract(restoredOffset);
+        if (cashToRecover.signum() < 0) Asserts.fail("直接推荐佣金抵债恢复金额异常，退款冲账已停止");
+        BigDecimal walletDeducted = clawbackSettledWallets(record, refund, cashToRecover);
+        BigDecimal cashDeducted = nullToZero(account.getAvailableBalance())
+                .min(cashToRecover.subtract(walletDeducted));
+        if (cashDeducted.signum() > 0 && accountDao.subtractAvailableBalance(record.getAgentId(), cashDeducted) != 1) {
+            Asserts.fail("可提现佣金余额已变化，退款冲账已回滚，请重试");
+        }
+        BigDecimal deducted = restoredOffset.add(walletDeducted).add(cashDeducted);
+        BigDecimal debt = clawbackAmount.subtract(deducted);
+        if (accountDao.subtractSettledCommission(record.getAgentId(), clawbackAmount) != 1
+                || accountDao.subtractTotalCommission(record.getAgentId(), clawbackAmount) != 1) {
+            Asserts.fail("已结算佣金余额不足，退款冲账已回滚，请人工核对");
+        }
+        insertClawback(record, refund, clawbackAmount, deducted, debt,
+                debt.signum() > 0 ? 3 : 2, debt.signum() > 0 ? 2 : 1);
+    }
+
+    private BigDecimal restoreDirectDebtOffsets(DmsCommissionRecord record, DmsFinanceRefund refund,
+                                                 List<DmsCommissionClawback> flows,
+                                                 BigDecimal cumulativeSettledRefund) {
+        BigDecimal settledAmount = nullToZero(record.getCommissionAmount());
+        if (settledAmount.signum() <= 0) Asserts.fail("直接推荐佣金结算金额异常，退款冲账已停止");
+        List<DmsCommissionClawback> offsets = flows.stream()
+                .filter(row -> Integer.valueOf(4).equals(row.getClawbackType()))
+                .sorted(Comparator.comparing(DmsCommissionClawback::getId,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+        BigDecimal totalOffsets = offsets.stream().map(DmsCommissionClawback::getClawbackAmount)
+                .filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (totalOffsets.signum() < 0 || totalOffsets.compareTo(settledAmount) > 0) {
+            Asserts.fail("直接推荐佣金历史欠款抵扣总额异常，退款冲账已停止");
+        }
+        BigDecimal targetRestored = totalOffsets.multiply(cumulativeSettledRefund.min(settledAmount))
+                .divide(settledAmount, 2, RoundingMode.HALF_UP);
+        BigDecimal previouslyRestoredTotal = flows.stream()
+                .filter(row -> Integer.valueOf(5).equals(row.getClawbackType()))
+                .map(DmsCommissionClawback::getClawbackAmount).filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal remainingToRestore = targetRestored.subtract(previouslyRestoredTotal).max(BigDecimal.ZERO);
+        BigDecimal restored = BigDecimal.ZERO;
+        for (DmsCommissionClawback offset : offsets) {
+            if (offset.getId() == null || offset.getSourceClawbackId() == null) {
+                Asserts.fail("直接推荐佣金历史欠款抵扣来源缺失，退款冲账已停止");
+            }
+            BigDecimal originalOffset = nullToZero(offset.getClawbackAmount());
+            BigDecimal previouslyRestored = flows.stream()
+                    .filter(row -> Integer.valueOf(5).equals(row.getClawbackType())
+                            && Objects.equals(offset.getId(), row.getSourceClawbackId()))
+                    .map(DmsCommissionClawback::getClawbackAmount).filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            // Allocate a single rounded restoration total in stable FIFO order.
+            // Rounding every old debt independently can restore two cents for
+            // a one-cent refund when the reward paid multiple tiny debt rows.
+            BigDecimal amount = originalOffset.subtract(previouslyRestored).max(BigDecimal.ZERO)
+                    .min(remainingToRestore);
+            if (amount.signum() <= 0) continue;
+            DmsCommissionClawback sourceDebt = clawbackDao.selectByIdForUpdate(offset.getSourceClawbackId());
+            if (sourceDebt == null || !Objects.equals(record.getAgentId(), sourceDebt.getAgentId())
+                    || !Integer.valueOf(3).equals(sourceDebt.getClawbackType())
+                    || nullToZero(sourceDebt.getDeductedAmount()).compareTo(amount) < 0) {
+                Asserts.fail("直接推荐佣金原历史欠款记录异常，退款冲账已停止");
+            }
+            if (clawbackDao.updateDebtAfterOffset(sourceDebt.getId(),
+                    nullToZero(sourceDebt.getDeductedAmount()).subtract(amount),
+                    nullToZero(sourceDebt.getDebtAmount()).add(amount), 2) != 1) {
+                Asserts.fail("直接推荐佣金原历史欠款恢复失败，退款冲账已停止");
+            }
+            DmsCommissionClawback restoration = new DmsCommissionClawback();
+            restoration.setRefundId(refund.getId());
+            restoration.setCommissionRecordId(record.getId());
+            restoration.setSourceClawbackId(offset.getId());
+            restoration.setOrderId(record.getOrderId());
+            restoration.setOrderNo(record.getOrderNo());
+            restoration.setAgentId(record.getAgentId());
+            restoration.setAgentUserId(record.getAgentUserId());
+            restoration.setAgentName(record.getAgentName());
+            restoration.setOriginalCommissionAmount(settledAmount);
+            restoration.setClawbackAmount(amount);
+            restoration.setDeductedAmount(BigDecimal.ZERO);
+            // Debt is reopened on the source row; this audit event must never
+            // create a second outstanding balance for the same restoration.
+            restoration.setDebtAmount(BigDecimal.ZERO);
+            restoration.setClawbackType(5);
+            restoration.setStatus(1);
+            restoration.setReason("退款恢复该订单奖金抵扣的历史待追回金额");
+            if (clawbackDao.insert(restoration) != 1) Asserts.fail("直接推荐佣金历史欠款恢复流水写入失败");
+            restored = restored.add(amount);
+            remainingToRestore = remainingToRestore.subtract(amount);
+        }
+        if (remainingToRestore.signum() > 0) Asserts.fail("直接推荐佣金历史欠款恢复总额异常，退款冲账已停止");
+        return restored;
     }
 
     private void clawbackPendingCommission(DmsCommissionRecord record, DmsFinanceRefund refund, BigDecimal clawbackAmount) {

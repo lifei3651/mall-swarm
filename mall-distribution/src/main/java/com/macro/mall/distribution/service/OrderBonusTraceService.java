@@ -25,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -76,7 +77,11 @@ public class OrderBonusTraceService {
         Map<Long, BigDecimal> clawbackByRecord = new LinkedHashMap<>();
         Map<Long, BigDecimal> originalByRecord = new LinkedHashMap<>();
         for (DmsCommissionRecord record : safeRecords) {
-            originalByRecord.put(record.getId(), amount(record.getCommissionAmount()));
+            BigDecimal original = "DIRECT_REFERRAL".equals(record.getBonusType())
+                    && record.getOrderAmount() != null && record.getCommissionRate() != null
+                    ? record.getOrderAmount().multiply(record.getCommissionRate()).setScale(2, RoundingMode.HALF_UP)
+                    : amount(record.getCommissionAmount());
+            originalByRecord.put(record.getId(), original);
         }
         for (DmsCommissionClawback clawback : safeClawbacks) {
             // 待结算退款和历史欠款抵扣都会直接减记 commission_amount；只有已结算后的
@@ -278,9 +283,17 @@ public class OrderBonusTraceService {
         trace.setWalletIssuedAmount(assetFlows.stream()
                 .filter(item -> "SETTLEMENT".equals(item.getAction()))
                 .map(OrderBonusTraceVO.AssetFlow::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
-        trace.setClawbackAmount(clawbacks.stream().map(DmsCommissionClawback::getClawbackAmount)
+        Set<Long> directRecordIds = records.stream()
+                .filter(record -> "DIRECT_REFERRAL".equals(record.getBonusType()))
+                .map(DmsCommissionRecord::getId).collect(java.util.stream.Collectors.toSet());
+        List<DmsCommissionClawback> refundAmounts = clawbacks.stream()
+                .filter(row -> !directRecordIds.contains(row.getCommissionRecordId())
+                        || (!Integer.valueOf(4).equals(row.getClawbackType())
+                            && !Integer.valueOf(5).equals(row.getClawbackType())))
+                .toList();
+        trace.setClawbackAmount(refundAmounts.stream().map(DmsCommissionClawback::getClawbackAmount)
                 .map(this::amount).reduce(BigDecimal.ZERO, BigDecimal::add));
-        trace.setDeductedAmount(clawbacks.stream().map(DmsCommissionClawback::getDeductedAmount)
+        trace.setDeductedAmount(refundAmounts.stream().map(DmsCommissionClawback::getDeductedAmount)
                 .map(this::amount).reduce(BigDecimal.ZERO, BigDecimal::add));
         trace.setDebtAmount(clawbacks.stream().map(DmsCommissionClawback::getDebtAmount)
                 .map(this::amount).reduce(BigDecimal.ZERO, BigDecimal::add));
@@ -303,8 +316,11 @@ public class OrderBonusTraceService {
             setStatus(trace, "NO_PAYOUT", "未产生实际奖金", "订单已冻结关系并进入客户奖金程序，但当前关系与该客户制度没有生成有效收款记录。");
         } else if (trace.getDebtAmount().compareTo(BigDecimal.ZERO) > 0) {
             setStatus(trace, "DEBT_PENDING", "存在待追回金额", "订单退款后的奖金尚未全部追回，剩余金额会按客户项目规则继续抵扣或由后台核对。");
-        } else if (clawbacks.stream().allMatch(row -> Integer.valueOf(4).equals(row.getClawbackType()))) {
-            setStatus(trace, "DEBT_OFFSET", "已抵扣历史待追回", "本订单原始奖金的一部分已用于归还此前订单的退款待追回金额，实际奖金记录和当前净额均按抵扣后金额展示。");
+        } else if (!clawbacks.isEmpty() && clawbacks.stream().allMatch(row -> Integer.valueOf(4).equals(row.getClawbackType()))) {
+            boolean direct = records.stream().anyMatch(record -> "DIRECT_REFERRAL".equals(record.getBonusType()));
+            setStatus(trace, "DEBT_OFFSET", "已抵扣历史待追回", direct
+                    ? "本订单奖金的一部分已归还此前订单的退款待追回金额；完整奖金与抵债流水保留，钱包按抵债后的净额入账。"
+                    : "本订单原始奖金的一部分已用于归还此前订单的退款待追回金额，实际奖金记录和当前净额均按抵扣后金额展示。");
         } else if (!clawbacks.isEmpty()) {
             setStatus(trace, "REFUND_ADJUSTED", "已发生退款冲销", "实际奖金记录仍完整保留，退款追回、已扣金额和当前净额已在同一链路展示。");
         } else if (trace.getPendingAmount().compareTo(BigDecimal.ZERO) > 0
@@ -367,6 +383,12 @@ public class OrderBonusTraceService {
         }
         for (DmsCommissionClawback clawback : clawbacks) {
             boolean debtOffset = Integer.valueOf(4).equals(clawback.getClawbackType());
+            if (Integer.valueOf(5).equals(clawback.getClawbackType())) {
+                events.add(event("DEBT_RESTORED", "退款恢复原历史待追回金额", "warning",
+                        "本次恢复 ¥" + amount(clawback.getClawbackAmount()).toPlainString()
+                                + "，已更新原历史欠款记录，不重复扣减钱包。", clawback.getCreateTime()));
+                continue;
+            }
             events.add(event(debtOffset ? "DEBT_OFFSET" : "COMMISSION_CLAWBACK",
                     debtOffset ? "奖金抵扣历史待追回" : "奖金退款冲销",
                     amount(clawback.getDebtAmount()).compareTo(BigDecimal.ZERO) > 0 ? "danger" : "warning",
@@ -403,6 +425,7 @@ public class OrderBonusTraceService {
         if (Integer.valueOf(2).equals(type)) return "从可用余额扣回";
         if (Integer.valueOf(3).equals(type)) return "形成待追回金额";
         if (Integer.valueOf(4).equals(type)) return "由未来奖金抵扣";
+        if (Integer.valueOf(5).equals(type)) return "退款恢复原历史待追回";
         return "其他冲销";
     }
 

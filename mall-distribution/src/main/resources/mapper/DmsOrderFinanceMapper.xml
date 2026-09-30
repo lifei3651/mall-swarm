@@ -161,7 +161,9 @@
                                             - COALESCE((SELECT SUM(clawback.clawback_amount)
                                                         FROM dms_commission_clawback clawback
                                                         WHERE clawback.commission_record_id = commission.id
-                                                          AND clawback.tenant_id = #{tenantId}), 0), 0)
+                                                          AND clawback.tenant_id = #{tenantId}
+                                                          AND (COALESCE(commission.bonus_type, '') != 'DIRECT_REFERRAL'
+                                                               OR clawback.clawback_type IN (2, 3))), 0), 0)
                                         ELSE COALESCE(commission.commission_amount, 0) END)
                                      FROM dms_commission_record commission
                                      WHERE commission.order_id = finance.order_id

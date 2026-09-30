@@ -22,6 +22,9 @@ public class DmsCommissionClawback implements Serializable {
 
     private Long commissionRecordId;
 
+    /** Direct referral: type 4 links the original debt; type 5 links the offset being reversed. */
+    private Long sourceClawbackId;
+
     private Long orderId;
 
     private String orderNo;
@@ -41,7 +44,7 @@ public class DmsCommissionClawback implements Serializable {
     private BigDecimal debtAmount;
 
     /**
-     * 1-待结算减少 2-可提现扣回 3-欠款待抵扣 4-未来佣金抵扣
+     * 1-待结算减少 2-可提现扣回 3-欠款待抵扣 4-未来佣金抵扣 5-退款恢复原历史欠款
      */
     private Integer clawbackType;
 

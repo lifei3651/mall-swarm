@@ -28,7 +28,9 @@ test('1.0.168 所有候选入口固定线上 1.0.167 基线', () => {
 })
 
 test('41→44 只追加已验证的三条开关迁移，固定名称与摘要', () => {
-  const names = fs.readdirSync(path.join(root, 'document/db/migrations')).filter(n => /^V.*\.sql$/.test(n)).sort()
+  // 历史候选只校验当时冻结的迁移前缀，后续迁移不能改写旧包的 44 条合同。
+  const names = fs.readdirSync(path.join(root, 'document/db/migrations'))
+    .filter(n => /^V.*\.sql$/.test(n) && n <= 'V202609262130__tenant_invitation_switch.sql').sort()
   assert.equal(names.length, 44)
   assert.deepEqual(names.slice(41), [
     'V202609261800__tenant_coupon_module_switch.sql',

@@ -10,35 +10,56 @@
         <result column="status" property="status"/>
         <result column="effective_time" property="effectiveTime"/>
         <result column="remark" property="remark"/>
+        <result column="direct_referral_config" property="directReferralConfig"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
     <select id="selectByTenantId" resultMap="BaseResultMap">
-        SELECT id, tenant_id, version_no, version_name, status, effective_time, remark, create_time, update_time
+        SELECT id, tenant_id, version_no, version_name, status, effective_time, remark, direct_referral_config, create_time, update_time
         FROM dms_commission_rule_version
         WHERE tenant_id = #{tenantId}
         ORDER BY create_time DESC
     </select>
 
     <select id="selectActiveByTenantId" resultMap="BaseResultMap">
-        SELECT id, tenant_id, version_no, version_name, status, effective_time, remark, create_time, update_time
+        SELECT id, tenant_id, version_no, version_name, status, effective_time, remark, direct_referral_config, create_time, update_time
         FROM dms_commission_rule_version
         WHERE tenant_id = #{tenantId} AND status = 1
-        ORDER BY effective_time DESC, create_time DESC
+        ORDER BY effective_time DESC, create_time DESC, id DESC
         LIMIT 1
     </select>
 
+    <select id="selectActiveByTenantIdForUpdate" resultMap="BaseResultMap">
+        SELECT id, tenant_id, version_no, version_name, status, effective_time, remark, direct_referral_config, create_time, update_time
+        FROM dms_commission_rule_version
+        WHERE tenant_id = #{tenantId} AND status = 1
+        ORDER BY effective_time DESC, create_time DESC, id DESC
+        LIMIT 1 FOR UPDATE
+    </select>
+
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT id, tenant_id, version_no, version_name, status, effective_time, remark, create_time, update_time
+        SELECT id, tenant_id, version_no, version_name, status, effective_time, remark, direct_referral_config, create_time, update_time
         FROM dms_commission_rule_version
         WHERE tenant_id = #{tenantId} AND id = #{id}
         LIMIT 1
     </select>
 
+    <select id="selectByIdForUpdate" resultMap="BaseResultMap">
+        SELECT id, tenant_id, version_no, version_name, status, effective_time, remark, direct_referral_config, create_time, update_time
+        FROM dms_commission_rule_version
+        WHERE tenant_id = #{tenantId} AND id = #{id}
+        LIMIT 1 FOR UPDATE
+    </select>
+
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsCommissionRuleVersion" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO dms_commission_rule_version (tenant_id, version_no, version_name, status, effective_time, remark)
-        VALUES (#{tenantId}, #{versionNo}, #{versionName}, #{status}, #{effectiveTime}, #{remark})
+        INSERT INTO dms_commission_rule_version (tenant_id, version_no, version_name, status, effective_time, remark, direct_referral_config)
+        VALUES (#{tenantId}, #{versionNo}, #{versionName}, #{status}, #{effectiveTime}, #{remark}, #{directReferralConfig})
     </insert>
+
+    <update id="deactivateActive">
+        UPDATE dms_commission_rule_version SET status = 0, update_time = CURRENT_TIMESTAMP
+        WHERE tenant_id = #{tenantId} AND status = 1
+    </update>
 
 </mapper>

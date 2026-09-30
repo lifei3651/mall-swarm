@@ -5,9 +5,10 @@ import { fileURLToPath } from 'node:url'
 const read = (relative) => readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8')
 
 describe('团队、秒杀与复购后台配置', () => {
-  it('新客户资格和特殊渠道默认关闭，奖金处理只按现有渠道规则选择', () => {
+  it('新客户邀请默认关闭、资格后台开通，特殊渠道默认关闭', () => {
     const source = read('../../src/views/tenant/business-modes.vue')
-    expect(source).toContain("promotionJoinMode:'DISABLED'")
+    expect(source).toContain('invitationEnabled:0')
+    expect(source).toContain("promotionJoinMode:'MANUAL_REVIEW'")
     expect(source).toContain('受邀即开通')
     expect(source).toContain('后台审核')
     expect(source).toContain('老商城兼容方式')

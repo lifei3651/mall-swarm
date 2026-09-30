@@ -19,5 +19,7 @@ public class DmsOrderRelationSnapshot implements Serializable {
     private String targetAgentName;
     private Integer relationLevel;
     private String relationPath;
+    private Integer firstPaidOrderEligible;
+    private Integer targetPromotionEligible;
     private LocalDateTime snapshotTime;
 }

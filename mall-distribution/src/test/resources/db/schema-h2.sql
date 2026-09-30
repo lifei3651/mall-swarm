@@ -101,6 +101,7 @@ CREATE TABLE IF NOT EXISTS dms_commission_rule_version (
   status INT NOT NULL DEFAULT 1,
   effective_time TIMESTAMP,
   remark VARCHAR(256),
+  direct_referral_config CLOB,
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -672,6 +673,7 @@ CREATE TABLE IF NOT EXISTS dms_commission_clawback (
   deducted_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
   debt_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
   clawback_type INT NOT NULL DEFAULT 1,
+  source_clawback_id BIGINT,
   status INT NOT NULL DEFAULT 1,
   reason VARCHAR(256),
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -735,6 +737,14 @@ CREATE TABLE IF NOT EXISTS dms_shop_member_session (
   expire_time TIMESTAMP NOT NULL,
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS dms_member_first_payment (
+  tenant_id BIGINT NOT NULL,
+  user_id BIGINT NOT NULL,
+  first_order_id BIGINT NOT NULL,
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY(tenant_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS dms_wechat_mini_program_identity (
@@ -1456,12 +1466,14 @@ CREATE TABLE IF NOT EXISTS dms_order_relation_snapshot (
   order_id BIGINT NOT NULL,
   order_no VARCHAR(64) NOT NULL,
   order_user_id BIGINT NOT NULL,
-  owner_agent_id BIGINT NOT NULL,
-  target_agent_id BIGINT NOT NULL,
+  owner_agent_id BIGINT,
+  target_agent_id BIGINT,
   target_user_id BIGINT NOT NULL,
   target_agent_name VARCHAR(64),
   relation_level INT NOT NULL,
   relation_path VARCHAR(1000),
+  first_paid_order_eligible INT,
+  target_promotion_eligible INT,
   snapshot_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(order_id, target_agent_id, relation_level)
 );

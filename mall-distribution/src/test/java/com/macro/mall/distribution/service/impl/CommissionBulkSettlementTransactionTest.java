@@ -51,6 +51,7 @@ class CommissionBulkSettlementTransactionTest {
         when(recordDao.selectByAgentIdAndStatus(20L, CommissionStatusEnum.PENDING.getValue()))
                 .thenReturn(List.of(record));
         when(recordDao.selectByIdForUpdate(10L)).thenReturn(record);
+        when(recordDao.selectById(10L)).thenReturn(record);
         doThrow(new IllegalStateException("模拟账户结算失败"))
                 .when(accountService).settleCommission(20L, new BigDecimal("88.00"));
 

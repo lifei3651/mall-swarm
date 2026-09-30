@@ -13,8 +13,16 @@ public interface DmsCommissionRuleVersionDao {
 
     DmsCommissionRuleVersion selectActiveByTenantId(@Param("tenantId") Long tenantId);
 
+    DmsCommissionRuleVersion selectActiveByTenantIdForUpdate(@Param("tenantId") Long tenantId);
+
     DmsCommissionRuleVersion selectById(@Param("tenantId") Long tenantId, @Param("id") Long id);
 
+    /** 当前读冻结版本，避免支付事务的旧 RR 快照看不到刚生效的不可变规则。 */
+    DmsCommissionRuleVersion selectByIdForUpdate(@Param("tenantId") Long tenantId, @Param("id") Long id);
+
     int insert(DmsCommissionRuleVersion version);
+
+    /** 必须在持有租户配置行锁的事务内调用；不改变历史配置快照。 */
+    int deactivateActive(@Param("tenantId") Long tenantId);
 
 }

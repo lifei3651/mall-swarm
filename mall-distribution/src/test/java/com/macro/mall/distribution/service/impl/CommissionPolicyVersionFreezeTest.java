@@ -56,7 +56,7 @@ class CommissionPolicyVersionFreezeTest {
         when(orderRelationSnapshotDao.selectByOrderId(500L)).thenReturn(List.of(owner, inviter));
 
         DmsCommissionRuleVersion frozenVersion = version(12L, 7L, "CUSTOMER_ALPHA_V1");
-        when(ruleVersionDao.selectById(7L, 12L)).thenReturn(frozenVersion);
+        when(ruleVersionDao.selectByIdForUpdate(7L, 12L)).thenReturn(frozenVersion);
         when(recordDao.selectByOrderId(500L)).thenReturn(List.of());
         when(bonusPolicyRegistry.require("CUSTOMER_ALPHA_V1")).thenReturn(frozenPolicy);
         when(frozenPolicy.calculate(any(CustomerBonusOrderContext.class))).thenReturn(List.of());
@@ -68,6 +68,8 @@ class CommissionPolicyVersionFreezeTest {
         verify(frozenPolicy).calculate(context.capture());
         assertEquals(7L, context.getValue().tenantId());
         assertEquals(12L, context.getValue().ruleVersionId());
+        verify(ruleVersionDao).selectByIdForUpdate(7L, 12L);
+        verify(ruleVersionDao, never()).selectById(anyLong(), anyLong());
         verify(frozenPolicy).afterOrder(context.getValue());
         verify(ruleVersionDao, never()).selectActiveByTenantId(anyLong());
         verify(auditService).refreshOrderFinance(500L, "ORDER-500", new BigDecimal("299.00"));
@@ -87,6 +89,7 @@ class CommissionPolicyVersionFreezeTest {
 
         verify(ruleVersionDao).selectActiveByTenantId(7L);
         verify(ruleVersionDao, never()).selectById(anyLong(), anyLong());
+        verify(ruleVersionDao, never()).selectByIdForUpdate(anyLong(), anyLong());
     }
 
     @Test

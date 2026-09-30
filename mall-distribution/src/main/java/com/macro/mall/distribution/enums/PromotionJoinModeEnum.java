@@ -10,7 +10,7 @@ import java.util.Locale;
  */
 public enum PromotionJoinModeEnum {
 
-    /** 不自动开通；新客户基座的安全默认值。 */
+    /** 不自动开通；保留已有客户明确选择。 */
     DISABLED,
 
     /** 通过邀请链接或二维码注册后立即开通。 */
@@ -32,7 +32,7 @@ public enum PromotionJoinModeEnum {
     }
 
     public static PromotionJoinModeEnum forNew(String value) {
-        if (value == null || value.isBlank()) return DISABLED;
+        if (value == null || value.isBlank()) return MANUAL_REVIEW;
         return forExisting(value);
     }
 

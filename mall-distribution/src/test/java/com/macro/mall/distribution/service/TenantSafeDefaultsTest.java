@@ -60,7 +60,7 @@ class TenantSafeDefaultsTest {
                 operationLogService, new ObjectMapper(), catalogCache, adminAuthService, imagePolicy);
         service.saveTenant(tenant);
 
-        assertEquals("DISABLED", tenant.getPromotionJoinMode());
+        assertEquals("MANUAL_REVIEW", tenant.getPromotionJoinMode());
         assertEquals(1, tenant.getBalanceTransactionsEnabled());
         assertEquals(0, tenant.getMultiMerchantEnabled(), "新客户默认只开平台自营");
 

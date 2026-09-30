@@ -9,6 +9,8 @@
         <result column="target_agent_id" property="targetAgentId"/><result column="target_user_id" property="targetUserId"/>
         <result column="target_agent_name" property="targetAgentName"/><result column="relation_level" property="relationLevel"/>
         <result column="relation_path" property="relationPath"/><result column="snapshot_time" property="snapshotTime"/>
+        <result column="first_paid_order_eligible" property="firstPaidOrderEligible"/>
+        <result column="target_promotion_eligible" property="targetPromotionEligible"/>
     </resultMap>
     <select id="selectByOrderId" resultMap="BaseResultMap">
         SELECT * FROM dms_order_relation_snapshot WHERE order_id = #{orderId} ORDER BY relation_level
@@ -16,8 +18,10 @@
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsOrderRelationSnapshot" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dms_order_relation_snapshot
         (tenant_id, rule_version_id, order_id, order_no, order_user_id, owner_agent_id,
-         target_agent_id, target_user_id, target_agent_name, relation_level, relation_path, snapshot_time)
+         target_agent_id, target_user_id, target_agent_name, relation_level, relation_path, snapshot_time,
+         first_paid_order_eligible, target_promotion_eligible)
         VALUES (#{tenantId}, #{ruleVersionId}, #{orderId}, #{orderNo}, #{orderUserId}, #{ownerAgentId},
-                #{targetAgentId}, #{targetUserId}, #{targetAgentName}, #{relationLevel}, #{relationPath}, #{snapshotTime})
+                #{targetAgentId}, #{targetUserId}, #{targetAgentName}, #{relationLevel}, #{relationPath}, #{snapshotTime},
+                #{firstPaidOrderEligible}, #{targetPromotionEligible})
     </insert>
 </mapper>

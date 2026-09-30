@@ -232,6 +232,10 @@
               <el-col :span="12"><el-form-item label="普通商城"><el-switch v-model="form.normalSaleEnabled" :active-value="1" :inactive-value="0" active-text="销售" inactive-text="不销售" /></el-form-item></el-col>
               <el-col :span="12"><el-form-item label="复购区"><el-switch v-model="form.repurchaseSaleEnabled" :active-value="1" :inactive-value="0" active-text="销售" inactive-text="不销售" /></el-form-item></el-col>
             </el-row>
+            <el-form-item v-if="!form.merchantId && !isMerchantUser" label="佣金参与">
+              <el-select v-model="form.teamBonusMode" aria-label="商品佣金参与" style="max-width:320px"><el-option label="参与，按当前渠道规则" value="INHERIT" /><el-option label="不参与佣金" value="NONE" /><el-option v-if="form.teamBonusMode === 'STANDARD'" label="历史指定计佣（保留）" value="STANDARD" /></el-select>
+              <div class="field-help">仅参与商品按实际支付金额计佣，运费不参与。佣金规则关闭时不会产生佣金；订单保存商品参与快照，后续修改不重算历史订单。</div>
+            </el-form-item>
             <el-row v-if="form.repurchaseSaleEnabled === 1" :gutter="20">
               <el-col :span="8"><el-form-item label="商品复购价" required><el-input-number v-model="form.repurchasePrice" :min="0.01" :precision="2" controls-position="right" style="width:100%" /><div class="field-help">多规格可在SKU单独覆盖，未填写时继承此价格。</div></el-form-item></el-col>
               <el-col :span="8"><el-form-item label="商品复购PV"><el-input-number v-model="form.repurchasePv" :min="0" :max="Number(form.repurchasePrice || 0)" :precision="2" controls-position="right" style="width:100%" /></el-form-item></el-col>
@@ -427,6 +431,7 @@ import { pcaTextArr } from 'element-china-area-data'
 import { createFreightTemplate, createShopCategory, getProductSettings, listFreightTemplates, listShopCategories, listShopProducts, listShopServiceAddresses, listShopSkus, publishShopProduct, submitMerchantProductReview, updateFreightTemplate, updateProductNewArrival, updateProductPvSetting, updateShopProductStatus, uploadShopImage } from '@/api/shop'
 import { listMerchantOptions } from '@/api/merchant'
 import { validateSearchKeyword } from '@/utils/searchFeedback'
+import { normalizeProductBonusMode } from '@/utils/productBonusMode'
 import { useSearchAutoRestore } from '@/utils/searchAutoRestore'
 import { useAppStore } from '@/store'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
@@ -792,9 +797,9 @@ const openDialog = async (row) => {
     form.value.status = 0
     form.value.teamBonusMode = 'NONE'
   }
-  // 历史预留的第三销售渠道不再开放；商品奖金处理统一继承所属渠道规则。
+  // 历史预留的第三销售渠道不再开放；保留商品明确选择的佣金参与方式。
   form.value.enrollmentSaleEnabled = 0
-  form.value.teamBonusMode = form.value.merchantId ? 'NONE' : 'INHERIT'
+  form.value.teamBonusMode = normalizeProductBonusMode(form.value.merchantId, form.value.teamBonusMode)
   deliveryRegion.value = row?.deliveryProvince && row?.deliveryCity && row?.deliveryDistrict
     ? [row.deliveryProvince, row.deliveryCity, row.deliveryDistrict]
     : []
@@ -1046,7 +1051,7 @@ const submitForm = async () => {
     skuRows.value.forEach((item) => { item.pvValue = 0 })
   }
   form.value.enrollmentSaleEnabled = 0
-  form.value.teamBonusMode = form.value.merchantId ? 'NONE' : 'INHERIT'
+  form.value.teamBonusMode = normalizeProductBonusMode(form.value.merchantId, form.value.teamBonusMode)
   submitting.value = true
   try {
     const [deliveryProvince, deliveryCity, deliveryDistrict] = deliveryRegion.value

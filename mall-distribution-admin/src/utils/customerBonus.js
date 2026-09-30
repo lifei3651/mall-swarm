@@ -9,6 +9,7 @@ const firstRemarkSegment = (remark) => String(remark || '')
 
 export const customerBonusName = (row = {}, { includeLevel = false } = {}) => {
   const bonusType = String(row.bonusType || '').trim()
+  if (bonusType === 'DIRECT_REFERRAL') return '直接推荐佣金'
   if (bonusType === 'DIRECTOR_SHARE' && includeLevel && row.commissionLevel) {
     return `${LEGACY_BONUS_NAMES[bonusType]}（第${row.commissionLevel}层）`
   }

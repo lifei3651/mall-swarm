@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.distribution.dao.DmsMemberFirstPaymentDao">
+    <insert id="claim">
+        INSERT INTO dms_member_first_payment (tenant_id,user_id,first_order_id)
+        VALUES (#{tenantId},#{userId},#{orderId})
+        ON DUPLICATE KEY UPDATE first_order_id = first_order_id
+    </insert>
+    <select id="selectFirstOrderForUpdate" resultType="java.lang.Long">
+        SELECT first_order_id FROM dms_member_first_payment
+        WHERE tenant_id = #{tenantId} AND user_id = #{userId} FOR UPDATE
+    </select>
+</mapper>

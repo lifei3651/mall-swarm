@@ -1,5 +1,14 @@
 import request from '@/utils/request'
 
+// 当前客户由服务端会话确定，不能从页面传入其他 tenantId。
+export function getDirectReferralConfig() {
+  return request({ url: '/distribution/bonus-config/direct-referral', method: 'get', silentError: true })
+}
+
+export function saveDirectReferralConfig(data) {
+  return request({ url: '/distribution/bonus-config/direct-referral', method: 'put', data, silentError: true })
+}
+
 export function getDisplayConfig(tenantId) {
   return request({
     url: `/distribution/bonus-config/display/${tenantId}`,

@@ -11,6 +11,11 @@ import java.util.List;
 @Mapper
 public interface DmsCommissionClawbackDao {
 
+    DmsCommissionClawback selectByIdForUpdateScoped(@Param("tenantId") Long tenantId, @Param("id") Long id);
+    default DmsCommissionClawback selectByIdForUpdate(Long id) {
+        return selectByIdForUpdateScoped(TenantContext.getTenantId(), id);
+    }
+
     List<DmsCommissionClawback> selectByOrderIdScoped(@Param("tenantId") Long tenantId, @Param("orderId") Long orderId);
     default List<DmsCommissionClawback> selectByOrderId(Long orderId) {
         return selectByOrderIdScoped(TenantContext.getTenantId(), orderId);

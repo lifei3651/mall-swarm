@@ -10,6 +10,8 @@ import com.macro.mall.common.api.CommonPage;
 import com.macro.mall.common.tenant.TenantContext;
 import com.macro.mall.distribution.dao.*;
 import com.macro.mall.distribution.constants.ShopBusinessType;
+import com.macro.mall.distribution.bonus.CustomerBonusPolicyCodes;
+import com.macro.mall.distribution.bonus.DirectReferralAmounts;
 import com.macro.mall.distribution.dto.OrderFinanceDTO;
 import com.macro.mall.distribution.dto.ShopOrderItemDTO;
 import com.macro.mall.distribution.dto.ShopOrderShipDTO;
@@ -121,6 +123,8 @@ public class ShopServiceImpl implements ShopService {
     private final DmsShopSkuDao skuDao;
     private final DmsFreightTemplateDao freightTemplateDao;
     private final DmsShopOrderDao orderDao;
+    private final DmsCommissionRuleVersionDao ruleVersionDao;
+    private final DmsMemberFirstPaymentDao firstPaymentDao;
     private final DmsShopTradeDao tradeDao;
     private final DmsShopOrderItemDao orderItemDao;
     private final DmsShopOrderShipmentDao orderShipmentDao;
@@ -1484,9 +1488,15 @@ public class ShopServiceImpl implements ShopService {
         if (ownRecords.isEmpty()) return;
 
         ShopOrderIncomeVO income = new ShopOrderIncomeVO();
+        Set<Long> directRecordIds = ownRecords.stream()
+                .filter(record -> "DIRECT_REFERRAL".equals(record.getBonusType()))
+                .map(DmsCommissionRecord::getId).collect(java.util.stream.Collectors.toSet());
         Map<Long, BigDecimal> clawbackAmounts = new HashMap<>();
         for (DmsCommissionClawback clawback : commissionClawbackDao.selectByOrderId(vo.getOrder().getId())) {
             if (clawback.getCommissionRecordId() != null) {
+                if (directRecordIds.contains(clawback.getCommissionRecordId())
+                        && !Integer.valueOf(2).equals(clawback.getClawbackType())
+                        && !Integer.valueOf(3).equals(clawback.getClawbackType())) continue;
                 clawbackAmounts.merge(clawback.getCommissionRecordId(), money(clawback.getClawbackAmount()), BigDecimal::add);
             }
         }
@@ -1790,6 +1800,15 @@ public class ShopServiceImpl implements ShopService {
         int updated = orderDao.markPaid(orderId, payType);
         if (updated > 0 && order.getCouponClaimId() != null) couponService.consume(order);
         DmsTenant tenant = tenantDao.selectById(order.getTenantId());
+        if (ruleVersionDao != null) {
+            // 支付和配置保存统一按tenant -> version当前读，外部回调不使用旧RR快照规则。
+            DmsTenant lockedTenant = tenantDao.selectByIdForUpdate(order.getTenantId());
+            if (lockedTenant != null) tenant = lockedTenant;
+        }
+        DmsCommissionRuleVersion paidVersion = ruleVersionDao == null ? null
+                : ruleVersionDao.selectActiveByTenantIdForUpdate(order.getTenantId());
+        boolean directReferral = paidVersion != null
+                && CustomerBonusPolicyCodes.DIRECT_REFERRAL.equals(paidVersion.getVersionNo());
         // 兼容少量只构造旧依赖集合的单元测试；生产环境由Spring完整注入。
         List<DmsShopOrderItem> paidItems = orderItemDao.selectByOrderId(order.getId());
         boolean inheritedBonus = paidItems.isEmpty() || paidItems.stream().anyMatch(item ->
@@ -1821,12 +1840,20 @@ public class ShopServiceImpl implements ShopService {
                 order.setAgentId(existingAgent.getId());
                 orderDao.updateAgentId(orderId, existingAgent.getId());
             }
-            if (teamBonusEligible) {
+            boolean firstPayment = claimFirstPayment(order);
+            if (standardBonus && directReferral) {
+                // 邀请关系与资格是两件事；普通购买者无需先开通推广资格。
+                relationSnapshotService.captureDirectReferral(order, paidVersion, firstPayment);
+            } else if (teamBonusEligible) {
                 // 只有采用标准奖金规则且已具备推广资格的订单才冻结关系并进入客户奖金链路。
                 relationSnapshotService.capture(order);
             }
         }
-        if (updated > 0 && teamBonusEligible) {
+        if (updated > 0 && standardBonus && directReferral) {
+            BigDecimal bonusBaseAmount = DirectReferralAmounts.paidGoods(order, paidItems);
+            commissionService.calculateAndRecordCommission(order.getTenantId(), order.getId(), order.getOrderNo(),
+                    bonusBaseAmount, order.getUserId(), payingMember == null ? null : payingMember.getNickname());
+        } else if (updated > 0 && teamBonusEligible) {
             DmsAgent agent = agentDao.selectByUserId(order.getUserId());
             if (agent != null) {
                 LocalDateTime paidTime = LocalDateTime.now();
@@ -1858,6 +1885,20 @@ public class ShopServiceImpl implements ShopService {
             notifyOrderChanged(order, "ORDER_PAID");
         }
         return getOrder(orderId);
+    }
+
+    private boolean claimFirstPayment(DmsShopOrder order) {
+        // Spring生产环境必有DAO；旧兼容测试不构造它时不影响历史客户程序。
+        if (firstPaymentDao == null || order.getUserId() == null) return false;
+        firstPaymentDao.claim(order.getTenantId(), order.getUserId(), order.getId());
+        Long firstOrderId = firstPaymentDao.selectFirstOrderForUpdate(order.getTenantId(), order.getUserId());
+        if (Objects.equals(firstOrderId, order.getId())) return true;
+        if (firstOrderId == null || order.getTradeId() == null) return false;
+        DmsShopOrder firstOrder = orderDao.selectById(firstOrderId);
+        // 一次购物车支付拆成履约子单时，全部子单属于同一首笔交易。
+        return firstOrder != null && Objects.equals(firstOrder.getTenantId(), order.getTenantId())
+                && Objects.equals(firstOrder.getUserId(), order.getUserId())
+                && Objects.equals(firstOrder.getTradeId(), order.getTradeId());
     }
 
     @Override
@@ -2643,12 +2684,14 @@ public class ShopServiceImpl implements ShopService {
         if (product.getNormalSaleEnabled() == 0 && product.getRepurchaseSaleEnabled() == 0) {
             Asserts.fail("普通商城、复购区至少启用一个");
         }
-        String bonusMode = product.getMerchantId() == null ? "INHERIT" : "NONE";
+        String bonusMode = product.getMerchantId() == null
+                ? (blank(product.getTeamBonusMode()) ? "INHERIT" : product.getTeamBonusMode().trim().toUpperCase(Locale.ROOT))
+                : "NONE";
         product.setTeamBonusMode(bonusMode);
         if (product.getMerchantId() == null) {
             product.setMerchantName(null);
             product.setSettlementDelayDaysOverride(null);
-            if (!"INHERIT".equals(bonusMode) && !"NONE".equals(bonusMode)) {
+            if (!"INHERIT".equals(bonusMode) && !"NONE".equals(bonusMode) && !"STANDARD".equals(bonusMode)) {
                 Asserts.fail("平台自营商品请使用继承商城规则或不参与团队奖金");
             }
         } else {
@@ -3183,8 +3226,12 @@ public class ShopServiceImpl implements ShopService {
     }
 
     private String normalizeTeamBonusMode(DmsShopProduct product) {
-        // 商品不再单独选择奖金模式：平台自营继承订单渠道，未开放的商家商品不参与。
-        return product.getMerchantId() == null ? "INHERIT" : "NONE";
+        // 支付商品快照必须保留自营商品的参与选择，商户仍保持不参与的既有边界。
+        if (product.getMerchantId() != null) return "NONE";
+        String mode = blank(product.getTeamBonusMode()) ? "INHERIT"
+                : product.getTeamBonusMode().trim().toUpperCase(Locale.ROOT);
+        if (!Set.of("INHERIT", "NONE", "STANDARD").contains(mode)) Asserts.fail("商品佣金参与方式不正确");
+        return mode;
     }
 
     private int resolveSettlementDelayDays(DmsShopProduct product) {

@@ -8,6 +8,8 @@ import com.macro.mall.distribution.bonus.CustomerBonusPayout;
 import com.macro.mall.distribution.bonus.CustomerBonusPolicy;
 import com.macro.mall.distribution.bonus.CustomerBonusPolicyRegistry;
 import com.macro.mall.distribution.bonus.CustomerBonusPayoutValidator;
+import com.macro.mall.distribution.bonus.DirectReferralBonusPolicy;
+import com.macro.mall.distribution.service.DirectReferralConfigService;
 import com.macro.mall.distribution.dto.AssetChangeDTO;
 import com.macro.mall.distribution.dto.CommissionQueryDTO;
 import com.macro.mall.distribution.entity.*;
@@ -60,6 +62,7 @@ public class CommissionServiceImpl implements CommissionService {
     private final PerformanceService performanceService;
     private final ShopAfterSaleWindowPolicy afterSaleWindowPolicy;
     private final CustomerBonusPolicyRegistry bonusPolicyRegistry;
+    private final DirectReferralConfigService directReferralConfigService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -107,7 +110,7 @@ public class CommissionServiceImpl implements CommissionService {
             Asserts.fail("订单关系快照包含多个客户奖金程序版本，已阻止不一致计算");
         }
         if (frozenVersionIds.size() == 1) {
-            DmsCommissionRuleVersion frozenVersion = ruleVersionDao.selectById(tenantId, frozenVersionIds.get(0));
+            DmsCommissionRuleVersion frozenVersion = ruleVersionDao.selectByIdForUpdate(tenantId, frozenVersionIds.get(0));
             if (frozenVersion == null) {
                 Asserts.fail("订单冻结的客户奖金程序版本不存在，已阻止不完整计算");
             }
@@ -148,7 +151,14 @@ public class CommissionServiceImpl implements CommissionService {
         record.setCommissionAmount(amount);
         record.setStatus(CommissionStatusEnum.PENDING.getValue());
         record.setRemark(payout.remark());
-        recordDao.insert(record);
+        int inserted = recordDao.insert(record);
+        if (isDirectReferral(record)) {
+            if (inserted != 1 || accountDao.selectByAgentIdForUpdate(receiver.getId()) == null)
+                Asserts.fail("直接推荐佣金账户或记录不完整");
+            // 可退款的待结佣金不提前抵历史债；实际结算时才同时做抵债和净额入账。
+            accountService.addCommission(receiver.getId(), amount);
+            return;
+        }
         DebtOffsetResult offset = offsetAgentDebt(record, amount);
         if (offset.offsetAmount().compareTo(BigDecimal.ZERO) > 0) {
             record.setCommissionAmount(offset.payableAmount());
@@ -172,15 +182,26 @@ public class CommissionServiceImpl implements CommissionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean settleCommissionIfEligible(Long recordId) {
+        DmsCommissionRecord initial = recordDao.selectById(recordId);
+        if (initial == null) return false;
+        DmsShopOrder order = shopOrderDao.selectByIdForUpdate(initial.getOrderId());
         DmsCommissionRecord record = recordDao.selectByIdForUpdate(recordId);
         if (record == null || !CommissionStatusEnum.PENDING.getValue().equals(record.getStatus())) return false;
-        DmsShopOrder order = shopOrderDao.selectByIdForUpdate(record.getOrderId());
+        if (!eligibleForSettlement(record, order)) return false;
+        return settleLockedRecord(record) > 0;
+    }
+
+    private boolean eligibleForSettlement(DmsCommissionRecord record, DmsShopOrder order) {
         LocalDateTime now = LocalDateTime.now();
         if (order == null || !Integer.valueOf(3).equals(order.getStatus()) || order.getReceiveTime() == null) return false;
         LocalDateTime afterSaleDeadline = afterSaleWindowPolicy.deadline(order);
         if (afterSaleDeadline != null && now.isBefore(afterSaleDeadline)) return false;
         if (shopAfterSaleDao.selectOpenByOrderId(order.getId()) != null) return false;
-        return settleLockedRecord(record) > 0;
+        if (isDirectReferral(record)) {
+            int days = directReferralConfigService.frozen(record.getTenantId(), record.getRuleVersionId()).settlementDelayDays();
+            if (now.isBefore(order.getReceiveTime().plusDays(days))) return false;
+        }
+        return true;
     }
 
     @Override
@@ -198,6 +219,10 @@ public class CommissionServiceImpl implements CommissionService {
      * 佣金结算核心逻辑（提取为私有方法，供settleCommission和settleCommissionBatch共用）
      */
     private int doSettleCommission(Long recordId) {
+        DmsCommissionRecord initial = recordDao.selectById(recordId);
+        if (initial == null) return 0;
+        // 与退款统一为order -> commission -> account -> debt/wallet，避免互相倒序加锁。
+        DmsShopOrder order = initial.getOrderId() == null ? null : shopOrderDao.selectByIdForUpdate(initial.getOrderId());
         DmsCommissionRecord record = recordDao.selectByIdForUpdate(recordId);
         if (record == null) {
             log.warn("佣金记录不存在: recordId={}", recordId);
@@ -208,10 +233,18 @@ public class CommissionServiceImpl implements CommissionService {
             return 0;
         }
 
+        // 后台手工或批量结算也不能提前释放基础直推佣金，历史客户制度保持原行为。
+        if (isDirectReferral(record) && !eligibleForSettlement(record, order)) return 0;
+
         return settleLockedRecord(record);
     }
 
     private int settleLockedRecord(DmsCommissionRecord record) {
+        BigDecimal payable = record.getCommissionAmount();
+        if (isDirectReferral(record)) {
+            if (accountDao.selectByAgentIdForUpdate(record.getAgentId()) == null) Asserts.fail("佣金账户不存在");
+            payable = offsetAgentDebt(record, record.getCommissionAmount()).payableAmount();
+        }
         // 更新佣金记录状态
         record.setStatus(CommissionStatusEnum.SETTLED.getValue());
         record.setSettleTime(LocalDateTime.now());
@@ -220,7 +253,7 @@ public class CommissionServiceImpl implements CommissionService {
         // 结算佣金（从待结算转为已结算）
         accountService.settleCommission(record.getAgentId(), record.getCommissionAmount());
         // 通过钱包系统入账（issueCommissionToWallets已处理可提现余额，避免双重计数）
-        issueCommissionToWallets(record);
+        issueCommissionToWallets(record, payable);
 
         log.info("结算佣金成功: recordId={}, agentId={}, amount={}", record.getId(), record.getAgentId(), record.getCommissionAmount());
         return 1;
@@ -305,7 +338,8 @@ public class CommissionServiceImpl implements CommissionService {
             BigDecimal newDeductedAmount = nullToZero(debtRow.getDeductedAmount()).add(offsetAmount);
             BigDecimal newDebtAmount = debtAmount.subtract(offsetAmount);
             Integer status = newDebtAmount.compareTo(BigDecimal.ZERO) == 0 ? 1 : 2;
-            clawbackDao.updateDebtAfterOffset(debtRow.getId(), newDeductedAmount, newDebtAmount, status);
+            int debtUpdated = clawbackDao.updateDebtAfterOffset(debtRow.getId(), newDeductedAmount, newDebtAmount, status);
+            if (isDirectReferral(record) && debtUpdated != 1) Asserts.fail("历史佣金欠款抵扣失败");
 
             DmsCommissionClawback offsetFlow = new DmsCommissionClawback();
             offsetFlow.setRefundId(0L);
@@ -320,9 +354,11 @@ public class CommissionServiceImpl implements CommissionService {
             offsetFlow.setDeductedAmount(offsetAmount);
             offsetFlow.setDebtAmount(BigDecimal.ZERO);
             offsetFlow.setClawbackType(4);
+            if (isDirectReferral(record)) offsetFlow.setSourceClawbackId(debtRow.getId());
             offsetFlow.setStatus(1);
             offsetFlow.setReason("历史退款欠款自动抵扣，来源追回流水ID：" + debtRow.getId());
-            clawbackDao.insert(offsetFlow);
+            int flowInserted = clawbackDao.insert(offsetFlow);
+            if (isDirectReferral(record) && flowInserted != 1) Asserts.fail("历史佣金欠款抵扣流水保存失败");
 
             remainingCommission = remainingCommission.subtract(offsetAmount);
             totalOffset = totalOffset.add(offsetAmount);
@@ -337,11 +373,15 @@ public class CommissionServiceImpl implements CommissionService {
     private record DebtOffsetResult(BigDecimal offsetAmount, BigDecimal payableAmount) {
     }
 
-    private void issueCommissionToWallets(DmsCommissionRecord record) {
-        if (record.getCommissionAmount() == null || record.getCommissionAmount().compareTo(BigDecimal.ZERO) <= 0) {
+    private void issueCommissionToWallets(DmsCommissionRecord record, BigDecimal payable) {
+        if (payable == null || payable.compareTo(BigDecimal.ZERO) <= 0) {
             return;
         }
-        issueToBalance(record, record.getCommissionAmount());
+        issueToBalance(record, payable);
+    }
+
+    private boolean isDirectReferral(DmsCommissionRecord record) {
+        return DirectReferralBonusPolicy.PAYOUT_CODE.equals(record.getBonusType());
     }
 
     private void issueToBalance(DmsCommissionRecord record, BigDecimal amount) {
@@ -384,6 +424,7 @@ public class CommissionServiceImpl implements CommissionService {
      * 获取佣金层级名称
      */
     private String getCommissionLevelName(DmsCommissionRecord record) {
+        if (isDirectReferral(record)) return "直接推荐成交佣金";
         if (DIRECT_REWARD.equals(record.getBonusType())) {
             return "直推奖";
         }

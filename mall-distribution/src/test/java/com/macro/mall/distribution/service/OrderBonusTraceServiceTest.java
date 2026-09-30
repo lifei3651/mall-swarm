@@ -206,6 +206,31 @@ class OrderBonusTraceServiceTest {
         assertEquals(new BigDecimal("20.00"), trace.getClawbackAmount());
     }
 
+    @Test
+    void directPendingPartialRefundKeepsOriginalCalculatedAmountInTrace() {
+        DmsShopOrder order = order(13L, LocalDateTime.of(2026, 9, 30, 9, 0), 1);
+        DmsCommissionRecord record = new DmsCommissionRecord();
+        record.setId(32L);
+        record.setAgentId(22L);
+        record.setAgentUserId(202L);
+        record.setBonusType("DIRECT_REFERRAL");
+        record.setOrderAmount(new BigDecimal("50.00"));
+        record.setCommissionRate(new BigDecimal("0.10"));
+        record.setCommissionAmount(new BigDecimal("2.50"));
+        record.setStatus(0);
+        DmsCommissionClawback refund = new DmsCommissionClawback();
+        refund.setCommissionRecordId(32L);
+        refund.setClawbackType(1);
+        refund.setOriginalCommissionAmount(new BigDecimal("2.50"));
+        refund.setClawbackAmount(new BigDecimal("2.50"));
+
+        OrderBonusTraceVO trace = traceService.build(order, List.of(record), List.of(), List.of(), List.of(refund));
+
+        assertEquals(new BigDecimal("5.00"), trace.getCalculatedAmount());
+        assertEquals(new BigDecimal("2.50"), trace.getPendingAmount());
+        assertEquals(new BigDecimal("2.50"), trace.getCurrentNetAmount());
+    }
+
     private DmsShopOrder order(Long id, LocalDateTime payTime, Integer status) {
         DmsShopOrder order = new DmsShopOrder();
         order.setId(id);

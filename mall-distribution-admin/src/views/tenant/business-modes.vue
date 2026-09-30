@@ -1,7 +1,7 @@
 <template>
   <div class="page-container business-mode-page">
-    <div class="heading"><div><h2>商城业务模块</h2><p>设置邀请、余额交易、多商户、推广资格、秒杀、复购与优惠券。奖金比例与计算公式在客户奖金接入中维护。</p></div></div>
-    <el-alert title="邀请关系只记录谁邀请了谁，推广资格决定该账号是否进入客户团队制度，两者已经分开。公开商城不会展示奖金制度。" type="warning" :closable="false" show-icon />
+    <div class="heading"><div><h2>商城业务模块</h2><p>设置邀请、余额交易、多商户、推广资格、秒杀、复购与优惠券。直接推荐佣金比例与范围在客户奖金接入中配置。</p></div></div>
+    <el-alert title="邀请关系记录订单归属，推广资格决定谁可以获得佣金；佣金规则独立配置。普通顾客购物可给符合资格的邀请人计佣，无需自动升级。" type="info" :closable="false" show-icon />
     <el-card v-loading="loading" shadow="never">
       <el-form :model="form" label-position="left" label-width="132px" :disabled="loading || saving || !form.id">
         <section><h3>资金与商户</h3>
@@ -23,10 +23,11 @@
               <el-radio-button value="FIRST_PAID_ORDER">首笔有效订单</el-radio-button>
             </el-radio-group>
           </el-form-item>
-          <p>推广资格与邀请开关独立：邀请商城的已注册购物账号可邀请他人，但只有按客户规则取得推广资格的账号才能进入团队和奖金程序。</p>
+          <p>推广资格与邀请开关独立：邀请商城的已注册购物账号可邀请他人，只有取得推广资格的邀请人才能获得佣金；购买者可保持普通客户。</p>
+          <p>新客户基座默认关闭邀请、采用后台审核开通推广资格；需要普通商城时同时关闭推广资格和佣金，需要邀请商城时再开启邀请并配置佣金。</p>
           <p v-if="form.promotionJoinMode === 'DISABLED'">不自动开通推广资格；邀请功能开启时仍可保留一次性邀请关系。</p>
           <p v-else-if="form.promotionJoinMode === 'AUTO_ON_INVITE'">邀请功能开启时，用户受邀注册并绑定邀请人后，立即开通基础推广资格；邀请功能关闭时不产生新的受邀开通。</p>
-          <p v-else-if="form.promotionJoinMode === 'MANUAL_REVIEW'">系统先保存邀请关系，管理员审核客户要求的资料后，再在会员管理中开通。</p>
+          <p v-else-if="form.promotionJoinMode === 'MANUAL_REVIEW'">购物不会自动开通推广资格。管理员审核客户要求的资料后，在会员管理中明确开通。</p>
           <el-alert v-else title="这是老商城兼容方式。请确认客户业务及合规要求确实以购买作为资格条件，再用于新客户。" type="error" :closable="false" show-icon />
         </section>
         <section><h3>限时秒杀</h3>
@@ -58,7 +59,7 @@ import { businessModeChanges } from '@/utils/businessModeChanges'
 import { useAppStore } from '@/store'
 const store=useAppStore()
 const canEditInvitation=computed(()=>store.hasPermission('config:shop'))
-const loading=ref(false);const saving=ref(false);const form=ref({invitationEnabled:1,balanceTransactionsEnabled:1,multiMerchantEnabled:1,promotionJoinMode:'DISABLED',flashSaleEnabled:0,flashSaleBonusMode:'NONE',repurchaseMallEnabled:0,repurchaseEligibilityMode:'PAID_MEMBER',repurchaseBonusMode:'NONE',couponEnabled:1})
+const loading=ref(false);const saving=ref(false);const form=ref({invitationEnabled:0,balanceTransactionsEnabled:1,multiMerchantEnabled:1,promotionJoinMode:'MANUAL_REVIEW',flashSaleEnabled:0,flashSaleBonusMode:'NONE',repurchaseMallEnabled:0,repurchaseEligibilityMode:'PAID_MEMBER',repurchaseBonusMode:'NONE',couponEnabled:1})
 const snapshot = ref(null)
 const visibleBonusMode = (value) => ['STANDARD', 'CUSTOM'].includes(String(value || '').toUpperCase()) ? 'STANDARD' : 'NONE'
 const changes = computed(() => snapshot.value ? businessModeChanges(snapshot.value, form.value) : [])

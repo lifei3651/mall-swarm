@@ -12,6 +12,7 @@ import com.macro.mall.distribution.dao.DmsShopAfterSaleItemDao;
 import com.macro.mall.distribution.dao.DmsShopMemberDao;
 import com.macro.mall.distribution.dao.DmsShopOrderDao;
 import com.macro.mall.distribution.entity.DmsOrderBalanceAllocation;
+import com.macro.mall.distribution.entity.DmsCommissionRecord;
 import com.macro.mall.distribution.entity.DmsShopOrder;
 import com.macro.mall.distribution.service.MemberAssetService;
 import org.junit.jupiter.api.AfterEach;
@@ -137,5 +138,23 @@ class OrderBalanceAllocationLockOrderTest {
         allocation.setStatus(0);
         allocation.setCurrentAmount(new BigDecimal("1.00"));
         return allocation;
+    }
+
+    @Test
+    void directRewardExpenseUsesFrozenAmountWithoutAddingDebtOffsetOrRestorationAgain() {
+        DmsCommissionRecord record = new DmsCommissionRecord();
+        record.setId(500L);
+        record.setBonusType("DIRECT_REFERRAL");
+        record.setOrderAmount(new BigDecimal("50.00"));
+        record.setCommissionRate(new BigDecimal("0.10"));
+        record.setCommissionAmount(new BigDecimal("2.50"));
+        when(commissionRecordDao.selectByOrderId(100L)).thenReturn(List.of(record));
+
+        for (int status : List.of(0, 1, 3)) {
+            record.setStatus(status);
+            BigDecimal original = ReflectionTestUtils.invokeMethod(service, "originalBonus", 100L);
+            assertEquals(0, new BigDecimal("5.00").compareTo(original));
+        }
+        verifyNoInteractions(clawbackDao);
     }
 }

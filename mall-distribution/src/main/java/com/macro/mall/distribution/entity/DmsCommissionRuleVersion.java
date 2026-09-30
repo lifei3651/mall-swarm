@@ -27,6 +27,9 @@ public class DmsCommissionRuleVersion implements Serializable {
 
     private String remark;
 
+    /** 创建规则版本时保存，后续配置变更只创建新版本，不改此快照。 */
+    private String directReferralConfig;
+
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;

@@ -144,7 +144,7 @@ CREATE TABLE `dms_tenant` (
 
 -- ============================================================
 -- 4. 客户奖金程序版本表 (dms_commission_rule_version)
--- 商城基座只保存客户项目启用的程序版本，不在公共结构中定义奖金公式
+-- 直接推荐配置保存不可变快照；客户独立奖金程序保留原版本编码
 -- ============================================================
 DROP TABLE IF EXISTS `dms_commission_rule_version`;
 CREATE TABLE `dms_commission_rule_version` (
@@ -155,6 +155,7 @@ CREATE TABLE `dms_commission_rule_version` (
   `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态：0-停用 1-启用',
   `effective_time` datetime DEFAULT NULL COMMENT '生效时间',
   `remark` varchar(256) DEFAULT NULL COMMENT '备注',
+  `direct_referral_config` text DEFAULT NULL COMMENT '直接推荐规则不可变JSON快照',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
@@ -249,12 +250,14 @@ CREATE TABLE `dms_order_relation_snapshot` (
   `order_id` bigint NOT NULL,
   `order_no` varchar(64) NOT NULL,
   `order_user_id` bigint NOT NULL,
-  `owner_agent_id` bigint NOT NULL,
-  `target_agent_id` bigint NOT NULL,
+  `owner_agent_id` bigint DEFAULT NULL,
+  `target_agent_id` bigint DEFAULT NULL,
   `target_user_id` bigint NOT NULL,
   `target_agent_name` varchar(64) DEFAULT NULL,
   `relation_level` int NOT NULL,
   `relation_path` text DEFAULT NULL,
+  `first_paid_order_eligible` tinyint DEFAULT NULL COMMENT '支付时是否首次支付订单',
+  `target_promotion_eligible` tinyint DEFAULT NULL COMMENT '支付时目标是否有推广资格',
   `snapshot_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_order_target_level` (`order_id`,`target_agent_id`,`relation_level`),
@@ -963,7 +966,8 @@ CREATE TABLE `dms_commission_clawback` (
   `clawback_amount` decimal(10,2) NOT NULL DEFAULT 0 COMMENT '本次追回金额',
   `deducted_amount` decimal(10,2) NOT NULL DEFAULT 0 COMMENT '已扣回金额',
   `debt_amount` decimal(10,2) NOT NULL DEFAULT 0 COMMENT '欠款待抵扣金额',
-  `clawback_type` tinyint NOT NULL DEFAULT 1 COMMENT '追回方式：1-待结算减少 2-可提现扣回 3-欠款待抵扣 4-未来佣金抵扣',
+  `clawback_type` tinyint NOT NULL DEFAULT 1 COMMENT '追回方式：1-待结算减少 2-可提现扣回 3-欠款待抵扣 4-未来佣金抵扣 5-抵扣退款还原',
+  `source_clawback_id` bigint DEFAULT NULL COMMENT '原欠债或抵扣记录ID，直接推荐退款追溯使用',
   `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态：0-待处理 1-已完成 2-部分完成',
   `reason` varchar(256) DEFAULT NULL COMMENT '原因',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -1054,6 +1058,16 @@ CREATE TABLE `dms_shop_member` (
   UNIQUE KEY `uk_login_account` (`login_account`),
   UNIQUE KEY `uk_invite_code` (`invite_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商城会员表';
+
+-- 首笔支付标记按租户和购买者隔离，退款不清除；用于可选首笔成交佣金。
+DROP TABLE IF EXISTS `dms_member_first_payment`;
+CREATE TABLE `dms_member_first_payment` (
+  `tenant_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  `first_order_id` bigint NOT NULL,
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`tenant_id`, `user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='购买者首笔支付标记（退款不清除）';
 
 -- ============================================================
 -- 21. 商城会员会话表 (dms_shop_member_session)
