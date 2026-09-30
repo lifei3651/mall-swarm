@@ -7,7 +7,7 @@ import SettingsCenter from '../../src/views/settings/index.vue'
 const state = vi.hoisted(() => ({ userInfo:{}, permissions:['*'] }))
 vi.mock('@/store', () => ({ useAppStore:() => ({ get userInfo() { return state.userInfo }, hasPermission:permission => state.permissions.includes('*') || state.permissions.includes(permission) }) }))
 const open = async (path) => {
-  const router = createRouter({ history:createMemoryHistory(), routes:[{path:'/settings',component:SettingsCenter},{path:'/shop/coupons',component:{template:'<div>测试目标</div>'}},{path:'/withdraw/settings',component:{template:'<div>提现规则</div>'}}] })
+  const router = createRouter({ history:createMemoryHistory(), routes:[{path:'/settings',component:SettingsCenter},{path:'/tenant/business-modes',component:{template:'<div>业务开关</div>'}},{path:'/withdraw/settings',component:{template:'<div>提现规则</div>'}}] })
   await router.push(path); await router.isReady()
   const wrapper = mount(SettingsCenter, { global:{ plugins:[router, ElementPlus] } }); await flushPromises()
   return wrapper
@@ -19,10 +19,13 @@ describe('设置中心实际页面', () => {
     expect(w.text()).toContain('1 个可用入口'); expect(w.text()).toContain('余额与提现规则')
     expect(w.find('a').attributes('href')).toBe('/withdraw/settings'); w.unmount()
   })
-  it('搜索列出归属分类与真实优惠券地址；无权限不显示资金能力', async () => {
+  it('优惠券发行不混入设置中心，业务开关仍可搜索；无权限不显示资金规则', async () => {
     state.permissions = ['config:shop']
     const w = await open('/settings?q=优惠券')
-    expect(w.text()).toContain('优惠与营销'); expect(w.find('a').attributes('href')).toBe('/shop/coupons'); w.unmount()
+    expect(w.text()).toContain('没有匹配的设置'); expect(w.find('a').exists()).toBe(false); w.unmount()
+    state.permissions = ['config:bonus']
+    const modes = await open('/settings?q=优惠券')
+    expect(modes.text()).toContain('业务模块与奖金'); expect(modes.find('a').attributes('href')).toBe('/tenant/business-modes'); modes.unmount()
     const empty = await open('/settings?q=银行卡')
     expect(empty.text()).toContain('没有匹配的设置'); expect(empty.text()).not.toContain('银行卡提现'); empty.unmount()
   })

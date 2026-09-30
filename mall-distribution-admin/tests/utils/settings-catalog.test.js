@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import {
   SETTINGS_ENTRIES,
   SETTINGS_GROUPS,
@@ -21,9 +23,26 @@ describe('集中设置入口权限与搜索', () => {
   it('搜索不会展示无权限的入口', () => {
     const store = account(['config:shop'])
     expect(settingsEntriesFor(store, '提现')).toEqual([])
-    expect(settingsEntriesFor(store, '优惠券')[0].path).toBe('/shop/coupons')
-    expect(settingsEntriesFor(store, '平台 指定商品')).toHaveLength(1)
+    expect(settingsEntriesFor(store, '优惠券')).toEqual([])
+    expect(settingsEntriesFor(account(['config:bonus']), '优惠券')[0].path).toBe('/tenant/business-modes')
+    expect(settingsEntriesFor(store, '平台 指定商品')).toEqual([])
     expect(settingsEntriesFor(store, '<script>')).toEqual([])
+  })
+  it('设置索引只保留配置，处理、查询、发行与工单仍在业务菜单', () => {
+    const layout = readFileSync(resolve(process.cwd(), 'src/components/Layout.vue'), 'utf8')
+    const businessPaths = [
+      '/shop/orders', '/account/list', '/account/flows', '/withdraw/audit',
+      '/withdraw/list', '/audit/merchant-finance', '/shop/coupons',
+      '/tenant/flash-sales', '/tenant/message-operations',
+      '/shop/service-tickets', '/audit/operation-logs',
+    ]
+    for (const path of businessPaths) {
+      expect(SETTINGS_ENTRIES.some((entry) => entry.path === path)).toBe(false)
+      expect(layout).toContain(`path: '${path}'`)
+    }
+    expect(SETTINGS_GROUPS.some((group) => group.key === 'marketing')).toBe(false)
+    expect(SETTINGS_ENTRIES.some((entry) => entry.path === '/withdraw/settings')).toBe(true)
+    expect(SETTINGS_ENTRIES.some((entry) => entry.path === '/system/admin-users')).toBe(true)
   })
   it('所有入口都有现存页面权限和合法分类，虚构资金开关不进入配置索引', () => {
     for (const item of SETTINGS_ENTRIES) {

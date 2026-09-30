@@ -7,11 +7,10 @@
     <div v-if="entries.length" class="setting-list">
       <router-link v-for="entry in entries" :key="entry.path + (entry.hash || '')" class="setting-row" :to="{ path: entry.path, hash: entry.hash }">
         <div><span v-if="query" class="result-category">{{ SETTINGS_GROUPS.find(item => item.key === entry.group)?.title }}</span><h3>{{ entry.title }}</h3><p>{{ entry.description }}</p></div>
-        <span class="setting-action">{{ entry.editor || entry.hash ? '配置' : '进入' }}<el-icon><ArrowRight /></el-icon></span>
+        <span class="setting-action">配置<el-icon><ArrowRight /></el-icon></span>
       </router-link>
     </div>
     <el-empty v-else-if="!matchedPlanned.length" :description="query ? '没有匹配的设置，请换一个关键词' : '当前账号没有可访问的设置'" :image-size="64" />
-    <p v-if="!query && group?.key === 'marketing'" class="settings-footnote">优惠券发行前需确认承担方、商品范围、商家结算和团队奖金影响；进入设置中心不会自动发券。</p>
     <p v-if="!query && group?.key === 'integration'" class="settings-footnote">此处不表示支付、短信或实名认证通道已开通；相关凭据应由技术人员在服务端安全配置，不在页面公开展示。</p>
   </section>
 </template>
