@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 @Mapper
 public interface DmsMemberAssetFlowDao {
@@ -33,6 +34,10 @@ public interface DmsMemberAssetFlowDao {
                                                   @Param("sourceType") String sourceType,
                                                   @Param("startTime") LocalDateTime startTime,
                                                   @Param("endTime") LocalDateTime endTime);
+
+    /** Operator credits only; not an external collection or order payment. */
+    BigDecimal sumManualBalanceAdded(@Param("startTime") LocalDateTime startTime,
+                                     @Param("endTime") LocalDateTime endTime);
 
     /** Assets actually issued when a commission record was settled. */
     List<DmsMemberAssetFlow> selectCommissionSettlementFlows(@Param("agentId") Long agentId,

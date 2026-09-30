@@ -327,6 +327,7 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
             summary = new FinanceSummaryVO();
         }
         fillSummaryDefaults(summary);
+        summary.setManualBalanceAddedAmount(nullToZero(memberAssetFlowDao.sumManualBalanceAdded(startTime, endTime)));
         BigDecimal denominator = summary.getNetPayAmount().compareTo(BigDecimal.ZERO) > 0
                 ? summary.getNetPayAmount()
                 : summary.getPayAmount();
@@ -982,6 +983,18 @@ public class DistributionAuditServiceImpl implements DistributionAuditService {
         summary.setPayAmount(nullToZero(summary.getPayAmount()));
         summary.setRefundAmount(nullToZero(summary.getRefundAmount()));
         summary.setNetPayAmount(nullToZero(summary.getNetPayAmount()));
+        summary.setWechatPayAmount(nullToZero(summary.getWechatPayAmount()));
+        summary.setWechatRefundAmount(nullToZero(summary.getWechatRefundAmount()));
+        summary.setWechatNetPayAmount(nullToZero(summary.getWechatNetPayAmount()));
+        summary.setAlipayPayAmount(nullToZero(summary.getAlipayPayAmount()));
+        summary.setAlipayRefundAmount(nullToZero(summary.getAlipayRefundAmount()));
+        summary.setAlipayNetPayAmount(nullToZero(summary.getAlipayNetPayAmount()));
+        summary.setBalancePayAmount(nullToZero(summary.getBalancePayAmount()));
+        summary.setBalanceRefundAmount(nullToZero(summary.getBalanceRefundAmount()));
+        summary.setBalanceNetPayAmount(nullToZero(summary.getBalanceNetPayAmount()));
+        summary.setOtherPayAmount(nullToZero(summary.getOtherPayAmount()));
+        summary.setOtherRefundAmount(nullToZero(summary.getOtherRefundAmount()));
+        summary.setOtherNetPayAmount(nullToZero(summary.getOtherNetPayAmount()));
         summary.setProductCost(nullToZero(summary.getProductCost()));
         summary.setBonusAmount(nullToZero(summary.getBonusAmount()));
         summary.setCompanyShareAmount(nullToZero(summary.getCompanyShareAmount()));

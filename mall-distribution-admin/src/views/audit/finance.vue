@@ -71,6 +71,29 @@
       </div>
     </div>
 
+    <div class="receipt-section" v-loading="loading">
+      <div class="section-title">订单支付渠道</div>
+      <el-table :data="channelRows" style="width: 100%">
+        <el-table-column prop="name" label="渠道" min-width="150" />
+        <el-table-column label="成功支付" min-width="150">
+          <template #default="{ row }">¥{{ money(row.pay) }}</template>
+        </el-table-column>
+        <el-table-column label="成功退款" min-width="150">
+          <template #default="{ row }">¥{{ money(row.refund) }}</template>
+        </el-table-column>
+        <el-table-column label="净收" min-width="150">
+          <template #default="{ row }">¥{{ money(row.net) }}</template>
+        </el-table-column>
+      </el-table>
+      <div class="manual-balance-row">
+        <span>后台手动增加商城余额</span>
+        <strong>¥{{ money(summary.manualBalanceAddedAmount) }}</strong>
+      </div>
+      <div class="receipt-note">
+        订单按支付时间归档，退款截至当前并归回原订单；手动加余额按流水发生时间统计。余额支付是站内扣款，手动加余额不是微信/支付宝收款，均不可与外部收款重复相加。渠道实际到账以平台账单核对为准。
+      </div>
+    </div>
+
     <el-alert
       class="hint"
       type="info"
@@ -140,7 +163,7 @@
 </template>
 
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -159,6 +182,18 @@ const allowedRanges = new Set(['today', '7days', 'month', 'total', 'custom'])
 const range = ref(allowedRanges.has(route.query.range) ? route.query.range : 'today')
 const customDates = ref([])
 const summary = ref({})
+const channelRows = computed(() => {
+  const value = summary.value
+  const rows = [
+    { name: '微信支付', pay: value.wechatPayAmount, refund: value.wechatRefundAmount, net: value.wechatNetPayAmount },
+    { name: '支付宝支付', pay: value.alipayPayAmount, refund: value.alipayRefundAmount, net: value.alipayNetPayAmount },
+    { name: '商城余额支付', pay: value.balancePayAmount, refund: value.balanceRefundAmount, net: value.balanceNetPayAmount },
+  ]
+  if (Number(value.otherPayAmount || 0) !== 0 || Number(value.otherRefundAmount || 0) !== 0) {
+    rows.push({ name: '其他/未识别渠道', pay: value.otherPayAmount, refund: value.otherRefundAmount, net: value.otherNetPayAmount })
+  }
+  return rows
+})
 const dailyRows = ref([])
 const shareRows = ref([])
 const riskAlerts = ref([])
@@ -343,6 +378,29 @@ onBeforeUnmount(() => {
 
 .risk {
   border-color: #f8d7da;
+}
+
+.receipt-section {
+  margin-top: 18px;
+  padding: 18px 20px;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.manual-balance-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 12px 10px;
+  border-top: 1px solid #ebeef5;
+}
+
+.receipt-note {
+  padding: 0 12px;
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .hint {

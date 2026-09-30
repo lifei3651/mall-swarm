@@ -25,6 +25,18 @@
         <result column="pay_amount" property="payAmount"/>
         <result column="refund_amount" property="refundAmount"/>
         <result column="net_pay_amount" property="netPayAmount"/>
+        <result column="wechat_pay_amount" property="wechatPayAmount"/>
+        <result column="wechat_refund_amount" property="wechatRefundAmount"/>
+        <result column="wechat_net_pay_amount" property="wechatNetPayAmount"/>
+        <result column="alipay_pay_amount" property="alipayPayAmount"/>
+        <result column="alipay_refund_amount" property="alipayRefundAmount"/>
+        <result column="alipay_net_pay_amount" property="alipayNetPayAmount"/>
+        <result column="balance_pay_amount" property="balancePayAmount"/>
+        <result column="balance_refund_amount" property="balanceRefundAmount"/>
+        <result column="balance_net_pay_amount" property="balanceNetPayAmount"/>
+        <result column="other_pay_amount" property="otherPayAmount"/>
+        <result column="other_refund_amount" property="otherRefundAmount"/>
+        <result column="other_net_pay_amount" property="otherNetPayAmount"/>
         <result column="product_cost" property="productCost"/>
         <result column="bonus_amount" property="bonusAmount"/>
         <result column="company_share_amount" property="companyShareAmount"/>
@@ -134,7 +146,7 @@
                             THEN 0 ELSE GREATEST(ledger.product_cost - ledger.reversed_cost, 0)
                             END AS net_product_cost
                 FROM (
-                    SELECT finance.order_id, shop_order.pay_time,
+                    SELECT finance.order_id, shop_order.pay_time, UPPER(TRIM(COALESCE(shop_order.pay_type, ''))) AS pay_type,
                            COALESCE(finance.pay_amount, 0) AS pay_amount,
                            COALESCE(finance.product_cost, 0) AS product_cost,
                            GREATEST(COALESCE(shop_order.total_amount, 0) - COALESCE(shop_order.discount_amount, 0), 0)
@@ -180,6 +192,18 @@
             IFNULL(SUM(finance.pay_amount), 0) AS pay_amount,
             IFNULL(SUM(finance.refund_amount), 0) AS refund_amount,
             IFNULL(SUM(finance.net_pay_amount), 0) AS net_pay_amount,
+            IFNULL(SUM(CASE WHEN finance.pay_type = 'WECHAT' THEN finance.pay_amount ELSE 0 END), 0) AS wechat_pay_amount,
+            IFNULL(SUM(CASE WHEN finance.pay_type = 'WECHAT' THEN finance.refund_amount ELSE 0 END), 0) AS wechat_refund_amount,
+            IFNULL(SUM(CASE WHEN finance.pay_type = 'WECHAT' THEN finance.net_pay_amount ELSE 0 END), 0) AS wechat_net_pay_amount,
+            IFNULL(SUM(CASE WHEN finance.pay_type = 'ALIPAY' THEN finance.pay_amount ELSE 0 END), 0) AS alipay_pay_amount,
+            IFNULL(SUM(CASE WHEN finance.pay_type = 'ALIPAY' THEN finance.refund_amount ELSE 0 END), 0) AS alipay_refund_amount,
+            IFNULL(SUM(CASE WHEN finance.pay_type = 'ALIPAY' THEN finance.net_pay_amount ELSE 0 END), 0) AS alipay_net_pay_amount,
+            IFNULL(SUM(CASE WHEN finance.pay_type = 'BALANCE' THEN finance.pay_amount ELSE 0 END), 0) AS balance_pay_amount,
+            IFNULL(SUM(CASE WHEN finance.pay_type = 'BALANCE' THEN finance.refund_amount ELSE 0 END), 0) AS balance_refund_amount,
+            IFNULL(SUM(CASE WHEN finance.pay_type = 'BALANCE' THEN finance.net_pay_amount ELSE 0 END), 0) AS balance_net_pay_amount,
+            IFNULL(SUM(CASE WHEN finance.pay_type NOT IN ('WECHAT', 'ALIPAY', 'BALANCE') THEN finance.pay_amount ELSE 0 END), 0) AS other_pay_amount,
+            IFNULL(SUM(CASE WHEN finance.pay_type NOT IN ('WECHAT', 'ALIPAY', 'BALANCE') THEN finance.refund_amount ELSE 0 END), 0) AS other_refund_amount,
+            IFNULL(SUM(CASE WHEN finance.pay_type NOT IN ('WECHAT', 'ALIPAY', 'BALANCE') THEN finance.net_pay_amount ELSE 0 END), 0) AS other_net_pay_amount,
             IFNULL(SUM(finance.product_cost), 0) AS product_cost,
             IFNULL(SUM(finance.bonus_amount), 0) AS bonus_amount,
             IFNULL(SUM(finance.company_share_amount), 0) AS company_share_amount,

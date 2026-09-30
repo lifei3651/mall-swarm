@@ -916,6 +916,23 @@ public class PerformanceServiceTest {
             assertAmountEquals("520", summary.getPayAmount());
             assertAmountEquals("240", summary.getRefundAmount());
             assertAmountEquals("280", summary.getNetPayAmount());
+            assertAmountEquals("220", summary.getWechatPayAmount());
+            assertAmountEquals("140", summary.getWechatRefundAmount());
+            assertAmountEquals("80", summary.getWechatNetPayAmount());
+            assertAmountEquals("100", summary.getAlipayPayAmount());
+            assertAmountEquals("0", summary.getAlipayRefundAmount());
+            assertAmountEquals("100", summary.getBalancePayAmount());
+            assertAmountEquals("0", summary.getBalanceRefundAmount());
+            assertAmountEquals("100", summary.getOtherPayAmount());
+            assertAmountEquals("100", summary.getOtherRefundAmount());
+            assertAmountEquals("0", summary.getOtherNetPayAmount());
+            assertAmountEquals("22", summary.getManualBalanceAddedAmount());
+            assertEquals(0, summary.getPayAmount().compareTo(summary.getWechatPayAmount()
+                    .add(summary.getAlipayPayAmount()).add(summary.getBalancePayAmount()).add(summary.getOtherPayAmount())));
+            assertEquals(0, summary.getRefundAmount().compareTo(summary.getWechatRefundAmount()
+                    .add(summary.getAlipayRefundAmount()).add(summary.getBalanceRefundAmount()).add(summary.getOtherRefundAmount())));
+            assertEquals(0, summary.getNetPayAmount().compareTo(summary.getWechatNetPayAmount()
+                    .add(summary.getAlipayNetPayAmount()).add(summary.getBalanceNetPayAmount()).add(summary.getOtherNetPayAmount())));
             assertAmountEquals("300", summary.getProductCost()); // 审计保留原始成本快照。
             assertAmountEquals("35", summary.getBonusAmount());
             assertAmountEquals("4", summary.getCompanyShareAmount());
@@ -939,9 +956,15 @@ public class PerformanceServiceTest {
             var ranged = auditService.getFinanceSummary("custom", LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 1));
             assertEquals(2L, ranged.getOrderCount());
             assertAmountEquals("15", ranged.getCompanyProfit());
+            assertAmountEquals("15", ranged.getManualBalanceAddedAmount());
+            assertAmountEquals("220", ranged.getWechatPayAmount());
+            assertAmountEquals("140", ranged.getWechatRefundAmount());
+            assertAmountEquals("0", ranged.getAlipayPayAmount());
             var empty = auditService.getFinanceSummary("custom", LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 2));
             assertEquals(0L, empty.getOrderCount());
             assertAmountEquals("0", empty.getCompanyProfit());
+            assertAmountEquals("0", empty.getManualBalanceAddedAmount());
+            assertAmountEquals("0", empty.getWechatPayAmount());
 
             var dashboard = dashboardDao.selectFinanceSummary(9944L);
             assertAmountEquals("280", dashboard.getTotalReceiptAmount());

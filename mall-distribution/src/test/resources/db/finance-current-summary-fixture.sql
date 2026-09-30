@@ -14,6 +14,13 @@ VALUES
  (994407,'FIN-CURRENT-07',9944,9944,'fixture','13900000000','fixture',100,0,100,3,'2026-09-02 14:00:00'),
  (994408,'FIN-CURRENT-08',9944,9944,'fixture','13900000000','fixture',100,0,100,4,'2026-09-02 15:00:00'),
  (994409,'FIN-CURRENT-09',9945,9945,'fixture','13900000000','fixture',100,0,100,3,'2026-09-02 15:00:00');
+UPDATE dms_shop_order
+SET pay_type = CASE WHEN id IN (994401, 994402) THEN 'WECHAT'
+                    WHEN id = 994403 THEN 'ALIPAY'
+                    WHEN id = 994407 THEN 'BALANCE'
+                    WHEN id = 994408 THEN 'LEGACY_UNKNOWN'
+                    ELSE 'WECHAT' END
+WHERE id BETWEEN 994401 AND 994409;
 INSERT INTO dms_order_finance
  (order_id,order_no,pay_amount,product_cost,refund_amount,net_pay_amount,bonus_amount,company_share_amount,company_profit,risk_status)
 SELECT id,order_no,pay_amount,60,999,999,999,999,999,1 FROM dms_shop_order
@@ -49,3 +56,10 @@ VALUES (9944,994402,994401,994402,994401,5),
        (9945,994402,994402,994402,994402,99);
 INSERT INTO dms_order_company_share (order_id,share_amount)
 VALUES (994402,1), (994402,3);
+INSERT INTO dms_member_asset_flow
+ (flow_no,user_id,asset_code,asset_name,change_type,amount,balance_after,biz_type,create_time)
+VALUES ('FIN-MANUAL-01',9944,'CASH_BONUS','余额',1,15,15,'MANUAL_MEMBER_ADJUST','2026-09-01 12:00:00'),
+       ('FIN-MANUAL-02',9944,'CASH_BONUS','余额',1,7,22,'MANUAL_MEMBER_ADJUST','2026-09-02 12:00:00'),
+       ('FIN-MANUAL-DEDUCT',9944,'CASH_BONUS','余额',2,3,19,'MANUAL_MEMBER_ADJUST','2026-09-01 12:00:00'),
+       ('FIN-COMMISSION-CREDIT',9944,'CASH_BONUS','余额',1,40,59,'COMMISSION_SETTLE','2026-09-01 12:00:00'),
+       ('FIN-OTHER-ASSET',9944,'OTHER_ASSET','积分',1,99,99,'MANUAL_MEMBER_ADJUST','2026-09-01 12:00:00');

@@ -181,6 +181,20 @@
         </if>
     </select>
 
+    <select id="sumManualBalanceAdded" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(amount), 0)
+        FROM dms_member_asset_flow
+        WHERE asset_code = 'CASH_BONUS'
+          AND change_type = 1
+          AND biz_type = 'MANUAL_MEMBER_ADJUST'
+        <if test="startTime != null">
+            AND create_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND create_time &lt; #{endTime}
+        </if>
+    </select>
+
     <select id="selectCommissionSettlementFlows" resultMap="BaseResultMap">
         SELECT id, flow_no, agent_id, user_id, related_agent_id, related_user_id, asset_code, asset_name,
                change_type, amount, balance_before, balance_after, operator_id, operator_name, biz_type, biz_id, remark, create_time
