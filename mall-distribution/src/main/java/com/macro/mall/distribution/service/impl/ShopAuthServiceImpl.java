@@ -96,10 +96,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ShopAuthVO registerPublic(ShopRegisterDTO dto) {
-        // 普通入口继续只创建购物账号；通过邀请二维码进入时，注册提交本身即为一次性关系确认。
-        // 页面只展示脱敏邀请人和不可自行修改提示，不在公开商城展示任何奖金制度。
-        boolean invitedRegistration = dto != null && dto.getInviteCode() != null && !dto.getInviteCode().isBlank();
-        return registerInternal(dto, invitedRegistration, "public");
+        return registerInternal(dto, false, "public");
     }
 
     private ShopAuthVO registerInternal(ShopRegisterDTO dto, boolean requireInvitation, String surface) {
@@ -125,12 +122,23 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             Asserts.fail("该登录账号已被使用，请更换登录账号");
         }
 
-        // 团队 H5 必须携带邀请；公开商城普通入口不绑定，扫码邀请入口在本次注册中一次性绑定。
+        // 公开商城仅有两种客户模式：普通商城不建邀请关系，邀请商城首次注册必须有邀请。
+        // 与后台切换共用租户行锁，防止配置切换与注册并发时绕过门禁。
+        if ("public".equals(surface)) {
+            DmsTenant invitationTenant = tenantDao.selectByIdForUpdate(TenantContext.getTenantId());
+            if (invitationTenant == null || invitationTenant.getInvitationEnabled() == null) {
+                Asserts.fail("商城注册配置暂不可用，请稍后重试");
+            }
+            requireInvitation = !Integer.valueOf(0).equals(invitationTenant.getInvitationEnabled());
+            if (!requireInvitation && dto.getInviteCode() != null && !dto.getInviteCode().isBlank()) {
+                Asserts.fail("当前商城未开启邀请注册，请使用普通注册入口");
+            }
+        }
         Long inviterId = null;
         if (requireInvitation) {
-            requireInvitationEnabledForNewRelation();
+            if (!"public".equals(surface)) requireInvitationEnabledForNewRelation();
             if (dto.getInviteCode() == null || dto.getInviteCode().isBlank()) {
-                Asserts.fail("请输入邀请码");
+                Asserts.fail("邀请商城首次注册需要有效邀请码，请通过好友分享进入或填写邀请码");
             }
             String inviteCode = dto.getInviteCode().trim().toUpperCase(java.util.Locale.ROOT);
             DmsShopMember inviter = memberDao.selectByInviteCode(inviteCode);
@@ -141,10 +149,8 @@ public class ShopAuthServiceImpl implements ShopAuthService {
                     inviter = memberDao.selectByUserId(legacyInviter.getUserId());
                 }
             }
-            if (inviter == null || !Integer.valueOf(1).equals(inviter.getStatus())) {
-                Asserts.fail("邀请码无效");
-            }
-            if (!EffectiveMemberPolicy.isActive(inviter, agentService.getAgentByUserId(inviter.getUserId()))) {
+            if (inviter == null || !Integer.valueOf(1).equals(inviter.getStatus())
+                    || Integer.valueOf(1).equals(inviter.getSystemAccount())) {
                 Asserts.fail("邀请码无效");
             }
             inviterId = inviter.getUserId();
@@ -485,9 +491,19 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         }
 
         Long inviterId = null;
+        DmsTenant tenant = tenantDao.selectByIdForUpdate(TenantContext.getTenantId());
+        if (tenant == null || tenant.getInvitationEnabled() == null) {
+            Asserts.fail("商城注册配置暂不可用，请稍后重试");
+        }
+        boolean invitationEnabled = !Integer.valueOf(0).equals(tenant.getInvitationEnabled());
         boolean invitedRegistration = inviteCode != null && !inviteCode.isBlank();
+        if (invitationEnabled && !invitedRegistration) {
+            Asserts.fail("邀请商城首次注册需要有效邀请码，请通过好友分享进入或填写邀请码");
+        }
+        if (!invitationEnabled && invitedRegistration) {
+            Asserts.fail("当前商城未开启邀请注册，请使用普通注册入口");
+        }
         if (invitedRegistration) {
-            requireInvitationEnabledForNewRelation();
             DmsShopMember inviter = resolveActiveInviter(inviteCode);
             inviterId = inviter.getUserId();
         }
@@ -505,7 +521,6 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         member.setTeamOptIn(invitedRegistration ? 1 : 0);
         memberDao.insert(member);
 
-        DmsTenant tenant = tenantDao.selectById(TenantContext.getTenantId());
         PromotionJoinModeEnum joinMode = PromotionJoinModeEnum.forExisting(
                 tenant == null ? null : tenant.getPromotionJoinMode());
         if (invitedRegistration && joinMode.autoOnInvite()) {
@@ -543,9 +558,6 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         }
         if (inviter == null || !Integer.valueOf(1).equals(inviter.getStatus())
                 || Integer.valueOf(1).equals(inviter.getSystemAccount())) {
-            Asserts.fail("邀请码无效");
-        }
-        if (!EffectiveMemberPolicy.isActive(inviter, agentService.getAgentByUserId(inviter.getUserId()))) {
             Asserts.fail("邀请码无效");
         }
         return inviter;

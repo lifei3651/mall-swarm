@@ -2,14 +2,16 @@ const feedback = require('../../utils/feedback')
 const request = require('../../utils/request')
 const theme = require('../../utils/theme')
 const format = require('../../utils/format')
+const share = require('../../utils/share')
 const types = [{ id: '', label: '全部' }, { id: '1', label: '系统公告' }, { id: '2', label: '活动公告' }, { id: '3', label: '物流公告' }]
 function decorate(row) { return { ...row, typeLabel: (types.find(type => type.id === String(row.noticeType)) || types[1]).label, dateText: String(row.createTime || '').slice(0,10).replace(/-/g,'/') } }
 Page({
   data: { ...theme.pageData(), loading: true, error: '', rows: [], filteredRows: [], notice: null, types, filterType: '', detail: false },
   onLoad(options = {}) { theme.apply(this); this.id = options.id ? format.identifier(options.id) : ''; this.invalidId = Boolean(options.id && !this.id); this.setData({ detail: Boolean(options.id) }); this.load() },
-  onShow() { this.inactive = false; if (this.reloadNeeded) { this.reloadNeeded = false; this.load() } },
-  onHide() { this.inactive = true; this.generation = (this.generation || 0) + 1; this.reloadNeeded = true },
+  onShow() { this.inactive = false; share.prepare(this); if (this.reloadNeeded) { this.reloadNeeded = false; this.load() } },
+  onHide() { this.inactive = true; this.generation = (this.generation || 0) + 1; this.reloadNeeded = true; share.hide(this) },
   onUnload() { this.onHide() },
+  onShareAppMessage() { return share.message(this, this.id ? `/pages/notices/index?id=${encodeURIComponent(this.id)}` : '/pages/notices/index', this.data.notice?.title || '商城公告') },
   async load() {
     if (this.invalidId) { feedback.update(this, { loading: false, error: '公告编号不正确' }); return }
     const generation = this.generation = (this.generation || 0) + 1

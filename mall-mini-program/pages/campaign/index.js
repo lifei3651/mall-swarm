@@ -3,13 +3,15 @@ const request = require('../../utils/request')
 const auth = require('../../utils/auth')
 const format = require('../../utils/format')
 const theme = require('../../utils/theme')
+const share = require('../../utils/share')
 const labels = { UPCOMING: '即将开始', ACTIVE: '立即抢购', SOLD_OUT: '已抢完', ENDED: '已结束', DISABLED: '暂不可用' }
 Page({
   data: { ...theme.pageData(), loading: true, error: '', rows: [] },
   onLoad(options = {}) { theme.apply(this); this.activityId = format.identifier(options.id); this.load() },
-  onShow() { this.hidden = false; if ((this.loadedOnce || this.reloadNeeded) && !this.fetching) { this.reloadNeeded = false; return this.load() } },
-  onHide() { this.hidden = true; this.reloadNeeded = true; this.fetching = false; this.version = (this.version || 0) + 1 },
+  onShow() { this.hidden = false; share.prepare(this); if ((this.loadedOnce || this.reloadNeeded) && !this.fetching) { this.reloadNeeded = false; return this.load() } },
+  onHide() { this.hidden = true; this.reloadNeeded = true; this.fetching = false; this.version = (this.version || 0) + 1; share.hide(this) },
   onUnload() { this.onHide() },
+  onShareAppMessage() { return share.message(this, this.activityId ? `/pages/campaign/index?id=${encodeURIComponent(this.activityId)}` : '/pages/campaign/index', '商城限时活动') },
   onPullDownRefresh() { this.load().finally(() => wx.stopPullDownRefresh()) },
   async load() {
     if (this.fetching) return

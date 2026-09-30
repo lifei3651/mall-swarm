@@ -22,17 +22,17 @@ public class WeChatMiniProgramMemberService {
         boolean active = EffectiveMemberPolicy.isActive(member, agent);
         var tenant = tenantDao.selectById(TenantContext.getTenantId());
         boolean invitationEnabled = tenant != null && !Integer.valueOf(0).equals(tenant.getInvitationEnabled());
+        boolean accountActive = member != null && Integer.valueOf(1).equals(member.getStatus())
+                && !Integer.valueOf(1).equals(member.getSystemAccount());
         String code = null;
-        if (active && invitationEnabled) {
-            String invite = agent.getInviteCode() == null || agent.getInviteCode().isBlank()
-                    ? member.getInviteCode() : agent.getInviteCode();
+        if (accountActive && invitationEnabled) {
+            String invite = active && agent.getInviteCode() != null && !agent.getInviteCode().isBlank()
+                    ? agent.getInviteCode() : member.getInviteCode();
             if (invite != null && invite.matches("[A-Za-z0-9]{8}")) {
                 code = invite.toUpperCase(java.util.Locale.ROOT);
             }
         }
         // Wallet ownership is independent of invitation/promotion eligibility.
-        boolean accountActive = member != null && Integer.valueOf(1).equals(member.getStatus())
-                && !Integer.valueOf(1).equals(member.getSystemAccount());
         var level = active ? AgentLevelEnum.getByValue(agent.getAgentLevel()) : null;
         return new Capabilities(active, code != null, code, accountActive, accountActive,
                 level == null ? null : level.getValue(), level == null ? "购物账号" : level.getName());

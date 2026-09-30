@@ -46,6 +46,16 @@ function harness({ handle, token = '', login } = {}) {
 const sharePage = () => ({ data: {}, setData(patch) { Object.assign(this.data, patch) } })
 const phoneEvent = { detail: { errMsg: 'getPhoneNumber:ok', code: 'mock-approved-phone-code' } }
 
+test('公开可分享页面统一先核对当前账号，再分享当前页面和本人邀请码', () => {
+  for (const file of ['home', 'product', 'category', 'campaign', 'notices', 'legal', 'store-content', 'profile']) {
+    const page = source(`pages/${file}/index.js`)
+    assert.match(page, /share\.prepare\(this\)/, `${file} 必须准备分享身份`)
+    assert.match(page, /share\.hide\(this\)/, `${file} 离页必须清理分享身份`)
+    assert.match(page, /onShareAppMessage\(\)/, `${file} 必须显式分享`)
+    assert.match(page, /share\.message\(this,/, `${file} 必须使用本人邀请码`)
+  }
+})
+
 test('分享首页和商品只带后台确认的本人邀请码，不转发收到的他人归属', async () => {
   const h = harness({ token: 'sender' }), share = h.load('utils/share.js'), page = sharePage()
   // Even a pending invite left by an older version cannot become the outgoing inviter.
@@ -57,14 +67,14 @@ test('分享首页和商品只带后台确认的本人邀请码，不转发收�
   assert.deepEqual(h.menus, ['hide', 'show'])
 })
 
-test('游客与普通购物账号可分享商品，但不会获得邀请资格', async () => {
-  for (const token of ['', 'ordinary']) {
-    const h = harness({ token, handle: ({ url }) => url.endsWith('/member-capabilities') ? rights(false) : undefined })
-    const share = h.load('utils/share.js'), page = sharePage()
-    await share.prepare(page)
-    assert.equal(share.message(page, '/pages/product/index?id=42', '商品').path, '/pages/product/index?id=42')
-    assert.equal(page.data.shareReady, true)
-  }
+test('游客没有邀请码，普通账号即使没有推广资格也可分享本人邀请码', async () => {
+  const guest = harness(), guestPage = sharePage(), guestShare = guest.load('utils/share.js')
+  await guestShare.prepare(guestPage)
+  assert.equal(guestShare.message(guestPage, '/pages/product/index?id=42', '商品').path, '/pages/product/index?id=42')
+  const ordinary = harness({ token: 'ordinary', handle: ({ url }) => url.endsWith('/member-capabilities') ? { ...rights(), membershipActive: false } : undefined })
+  const page = sharePage(), share = ordinary.load('utils/share.js')
+  await share.prepare(page)
+  assert.equal(share.message(page, '/pages/product/index?id=42', '商品').path, '/pages/product/index?id=42&inviteCode=SEND1234')
 })
 
 test('邀请关闭时旧分享码不阻断普通微信登录，也不会进入注册请求', async () => {
@@ -134,7 +144,7 @@ test('邀请模式未变化时保留手填草稿，网络失败也不能擅自�
     ? fail ? Promise.reject(new Error('offline')) : { invitationEnabled: 1 } : undefined })
   const page = h.page()
   await page.onLoad(); await settle()
-  page.toggleInvitation()
+  assert.equal(page.data.inviteExpanded, true)
   page.invitationInput({ detail: { value: 'DRAFT123' } })
   page.onShow(); await settle()
   assert.equal(page.data.inviteExpanded, true)
@@ -178,10 +188,10 @@ test('换账号、页面隐藏和后台能力失败均不能复用上一人的�
   assert.match(failedPage.data.shareError, /重试/)
 })
 
-test('会员属性严格校验类型、资格和邀请码；余额和邀请关系不作为替代判断', async () => {
+test('会员属性严格校验类型和邀请码；推广资格不是分享前提', async () => {
   const broken = harness({ token: 'member', handle: () => ({ ...rights(), membershipActive: 'true' }) })
   await assert.rejects(broken.load('utils/member-capabilities.js').load(), /信息不完整/)
-  for (const data of [{ ...rights(), inviteCode: 'INVALID' }, { ...rights(), membershipActive: false, balance: 900, inviterId: 1 }]) {
+  for (const data of [{ ...rights(), inviteCode: 'INVALID' }, { ...rights(), membershipActive: false, canInvite: false, inviteCode: null, balance: 900, inviterId: 1 }]) {
     const h = harness({ token: 'member', handle: () => data })
     assert.equal((await h.load('utils/member-capabilities.js').load()).canInvite, false)
   }

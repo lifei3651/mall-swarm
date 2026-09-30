@@ -39,9 +39,7 @@ class ShopInvitePreviewTest {
         inviter.setPhone("13900001234");
         inviter.setUserId(99887766L);
         inviter.setStatus(1);
-        DmsAgent agent = activeAgent(99887766L);
         when(memberDao.selectByInviteCode("ABCD1234")).thenReturn(inviter);
-        when(agentDao.selectByUserId(99887766L)).thenReturn(agent);
 
         Map<String, Object> preview = shopService.getInviterPreview(" abcd1234 ");
 
@@ -63,7 +61,6 @@ class ShopInvitePreviewTest {
         when(memberDao.selectByInviteCode("OLDLINK1")).thenReturn(null);
         when(agentDao.selectByInviteCode("OLDLINK1")).thenReturn(legacyAgent);
         when(memberDao.selectByUserId(99887766L)).thenReturn(inviter);
-        when(agentDao.selectByUserId(99887766L)).thenReturn(legacyAgent);
 
         Map<String, Object> preview = shopService.getInviterPreview("oldlink1");
 
@@ -91,7 +88,6 @@ class ShopInvitePreviewTest {
         inviter.setUserId(99887766L);
         inviter.setStatus(1);
         when(memberDao.selectByInviteCode("NICKLESS")).thenReturn(inviter);
-        when(agentDao.selectByUserId(99887766L)).thenReturn(activeAgent(99887766L));
 
         Map<String, Object> preview = shopService.getInviterPreview("nickless");
 
@@ -122,6 +118,18 @@ class ShopInvitePreviewTest {
         assertEquals(false, info.get("invitationEnabled"));
         assertEquals(false, info.containsKey("inviteCode"));
         assertEquals(0, info.get("directAccountCount"));
+    }
+
+    @Test void ordinaryActiveAccountCanSeeOwnInvitationWithoutPromotionQualification() {
+        DmsShopMember member = new DmsShopMember();
+        member.setUserId(99887766L);
+        member.setStatus(1);
+        member.setInviteCode("ABCD1234");
+
+        Map<String, Object> info = shopService.getInviteInfo(member);
+
+        assertEquals(true, info.get("invitationEnabled"));
+        assertEquals("ABCD1234", info.get("inviteCode"));
     }
 
     private DmsAgent activeAgent(Long userId) {

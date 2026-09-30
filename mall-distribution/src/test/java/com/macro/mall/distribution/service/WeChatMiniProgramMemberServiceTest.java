@@ -25,11 +25,11 @@ class WeChatMiniProgramMemberServiceTest {
     private DmsAgent agent(int level, int status) {
         DmsAgent a = new DmsAgent(); a.setAgentLevel(level); a.setStatus(status); return a;
     }
-    @Test void ordinaryAccountKeepsOwnWalletButNeverGainsInvitationFromBalanceOrRelation() {
-        var m = member(); m.setInviterId(200L); m.setTeamOptIn(1);
+    @Test void ordinaryAccountMayInviteWithoutPromotionQualification() {
+        var m = member(); m.setInviterId(200L); m.setTeamOptIn(1); m.setInviteCode("ABCD1234");
         var result = service.capabilities(m);
         assertTrue(result.canViewWallet()); assertTrue(result.canViewPayoutRecords());
-        assertFalse(result.membershipActive()); assertFalse(result.canInvite()); assertNull(result.inviteCode());
+        assertFalse(result.membershipActive()); assertTrue(result.canInvite()); assertEquals("ABCD1234", result.inviteCode());
     }
     @Test void activeMemberUsesCanonicalHistoricalInviteCodeWithoutLeakingTeamDetails() {
         var m = member(); m.setInviteCode("NEWX1234"); var a = agent(1, 1); a.setInviteCode("abcd1234");

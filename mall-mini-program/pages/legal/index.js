@@ -3,6 +3,7 @@ const request = require('../../utils/request')
 const theme = require('../../utils/theme')
 const legal = require('../../utils/legal')
 const format = require('../../utils/format')
+const share = require('../../utils/share')
 Page({
   data: { ...theme.pageData(), type: '', loading: true, error: '', contactError: '', config: {}, content: '', miniPrivacy: legal.miniPrivacy, faqs: [], entries: Object.entries(legal.titles).map(([type, title]) => ({ type, title })) },
   contactError(event) {
@@ -28,9 +29,10 @@ Page({
     wx.setNavigationBarTitle({ title: legal.titles[type] || '商城说明' })
     this.load()
   },
-  onShow() { this.hidden = false; if (this.reloadNeeded) { this.reloadNeeded = false; return this.load() } },
-  onHide() { this.hidden = true; this.reloadNeeded = true; this.version = (this.version || 0) + 1 },
+  onShow() { this.hidden = false; share.prepare(this); if (this.reloadNeeded) { this.reloadNeeded = false; return this.load() } },
+  onHide() { this.hidden = true; this.reloadNeeded = true; this.version = (this.version || 0) + 1; share.hide(this) },
   onUnload() { this.onHide() },
+  onShareAppMessage() { return share.message(this, this.data.type ? `/pages/legal/index?type=${encodeURIComponent(this.data.type)}` : '/pages/legal/index', legal.titles[this.data.type] || '商城说明') },
   async load() {
     const version = this.version = (this.version || 0) + 1
     const current = () => !this.hidden && version === this.version

@@ -41,7 +41,7 @@
           <input id="public-register-password" v-model="registerForm.password" type="password" autocomplete="new-password" minlength="6" maxlength="32" placeholder="请输入6至32位密码" />
           <label for="public-register-confirm">确认登录密码</label>
           <input id="public-register-confirm" v-model="confirmPassword" type="password" autocomplete="new-password" minlength="6" maxlength="32" placeholder="请再次输入登录密码" />
-          <template v-if="invitationEnabled"><label for="public-register-invite">邀请码 <span class="optional-mark">选填</span></label>
+          <template v-if="invitationEnabled"><label for="public-register-invite">邀请码（首次注册必填）</label>
           <div class="inline-field invite-field">
             <input
               id="public-register-invite"
@@ -95,6 +95,7 @@
           <p v-if="isRegister" class="field-help">可与短信验证码任意顺序填写，提交注册时统一校验</p>
         </div>
 
+        <p v-if="isRegister && invitationModeError" class="form-message error" role="alert">{{ invitationModeError }} <button class="ui-button--secondary" type="button" @click="loadInvitationMode">重试</button></p>
         <p v-if="error" class="form-message error" role="alert">{{ error }}</p>
         <p v-if="success" class="form-message success" role="status">{{ success }}</p>
         <button class="submit-button" type="submit" :disabled="loading || inviterLoading || (isRegister && !invitationModeLoaded)">{{ submitButtonText }}</button>
@@ -136,6 +137,7 @@ const inviterInfo = ref(null)
 const inviteError = ref('')
 const invitationEnabled = ref(true)
 const invitationModeLoaded = ref(false)
+const invitationModeError = ref('')
 const agreed = ref(false)
 const confirmPassword = ref('')
 const smsCooldown = ref(0)
@@ -160,7 +162,7 @@ const showInviterCard = computed(() => hasInviteCode.value
 const inviteHelpText = computed(() => {
   if (inviterInfo.value) return '邀请人昵称已确认'
   if (hasInviteCode.value) return '请核对邀请人昵称后再注册'
-  return '普通购物可不填邀请码'
+  return '邀请商城首次注册必须有邀请码；已有账号可直接登录'
 })
 const submitButtonText = computed(() => {
   if (loading.value) return '正在提交…'
@@ -208,7 +210,10 @@ const loadInviter = async () => {
   const inviteCode = normalizedInviteCode.value
   inviterInfo.value = null
   inviteError.value = ''
-  if (!inviteCode) return true
+  if (!inviteCode) {
+    inviteError.value = '邀请商城首次注册需要邀请码，请通过好友分享进入或填写邀请码'
+    return false
+  }
   registerForm.inviteCode = inviteCode
   if (!/^[A-Z0-9]{8}$/.test(inviteCode)) {
     inviteError.value = inviteCodeLocked.value
@@ -282,6 +287,7 @@ const validate = () => {
     if (!/^\d{6}$/.test(registerForm.smsCode)) return '请输入6位短信验证码'
     if (!captcha.id || !/^[A-Za-z0-9]{4}$/.test(captcha.code)) return '请输入4位图形验证码'
     if (!agreed.value) return '请阅读并同意用户服务协议和隐私政策'
+    if (invitationEnabled.value && !hasInviteCode.value) return '邀请商城首次注册需要邀请码，请通过好友分享进入或填写邀请码'
     if (hasInviteCode.value && !inviterInfo.value) return inviteError.value || '请先确认邀请人信息'
     return ''
   }
@@ -350,17 +356,26 @@ watch(inviteCodeFromUrl, async (inviteCode) => {
   handleInviteCodeInput()
   if (inviteCode) await loadInviter()
 }, { immediate: true })
-onMounted(() => {
-  refreshCaptcha()
-  getBusinessConfig().then(res => {
-    if (Number(res.data?.invitationEnabled) === 0) {
-      invitationEnabled.value = false
+const loadInvitationMode = async () => {
+  invitationModeLoaded.value = false
+  invitationModeError.value = ''
+  try {
+    const res = await getBusinessConfig()
+    invitationEnabled.value = Number(res.data?.invitationEnabled) === 1
+    if (!invitationEnabled.value) {
       registerForm.inviteCode = ''
       inviteRequestSequence += 1
       inviterInfo.value = null
       inviteError.value = ''
     }
-  }).catch(() => {}).finally(() => { invitationModeLoaded.value = true })
+    invitationModeLoaded.value = true
+  } catch (e) {
+    invitationModeError.value = '商城注册规则暂时无法确认，请重试后再注册。'
+  }
+}
+onMounted(() => {
+  refreshCaptcha()
+  loadInvitationMode()
 })
 onBeforeUnmount(() => window.clearInterval(cooldownTimer))
 </script>

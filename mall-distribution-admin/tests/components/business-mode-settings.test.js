@@ -18,13 +18,13 @@ beforeEach(() => {
   api.saveTenantBusinessModes.mockResolvedValue({ data:{} })
 })
 describe('业务模式设置保存保护', () => {
-  it('普通商城与可选邀请模式清晰区分，切换邀请不改推广资格规则', async () => {
+  it('普通商城与必邀模式清晰区分，切换邀请不改推广资格规则', async () => {
     const w = mounted(); await flushPromises()
-    expect(w.text()).toContain('邀请模式（可选邀请人）')
-    expect(w.text()).toContain('不填也能注册购物')
+    expect(w.text()).toContain('邀请商城（首次注册必须有邀请）')
+    expect(w.text()).toContain('已注册购物账号可邀请他人')
     expect(w.text()).toContain('推广资格开通')
     w.vm.form.invitationEnabled = 0; await flushPromises()
-    expect(w.text()).toContain('普通商城模式（无邀请）')
+    expect(w.text()).toContain('普通商城（无邀请）')
     expect(w.text()).toContain('历史关系、订单和账务保留')
     expect(w.vm.form.promotionJoinMode).toBe('MANUAL_REVIEW')
     vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm')
@@ -81,7 +81,7 @@ describe('业务模式设置保存保护', () => {
   it('无商城设置权限时邀请开关只读，避免可点后必然被接口拒绝', async () => {
     permissionState.canShop = false
     const w = mounted(); await flushPromises()
-    expect(w.find('[aria-label="启用邀请功能"]').attributes('aria-disabled')).toBe('true')
+    expect(w.find('[aria-label="启用邀请商城，首次注册必须有邀请"]').attributes('aria-disabled')).toBe('true')
     expect(w.text()).toContain('调整邀请功能需要商城设置权限')
     w.unmount()
   })

@@ -3445,16 +3445,18 @@ public class ShopServiceImpl implements ShopService {
         // 已经进入会员关系体系的老账号曾经生成过第二套邀请码。继续展示关系体系中的
         // 历史邀请码，避免已经发出的二维码和注册链接失效；新账号激活后两处邀请码一致。
         DmsAgent selfAgent = agentDao.selectByUserId(member.getUserId());
-        if (!EffectiveMemberPolicy.isActive(member, selfAgent)) {
-            Asserts.fail(EffectiveMemberPolicy.ACCESS_DENIED_MESSAGE);
+        if (!Integer.valueOf(1).equals(member.getStatus())
+                || Integer.valueOf(1).equals(member.getSystemAccount())) {
+            Asserts.fail("当前商城账号不可邀请好友");
         }
         DmsTenant tenant = tenantDao.selectById(TenantContext.getTenantId());
         boolean invitationEnabled = tenant != null && !Integer.valueOf(0).equals(tenant.getInvitationEnabled());
         info.put("invitationEnabled", invitationEnabled);
-        String publicInviteCode = selfAgent != null && selfAgent.getInviteCode() != null
+        String publicInviteCode = EffectiveMemberPolicy.isActive(member, selfAgent) && selfAgent.getInviteCode() != null
                 && !selfAgent.getInviteCode().isBlank()
                 ? selfAgent.getInviteCode() : member.getInviteCode();
-        if (invitationEnabled) info.put("inviteCode", publicInviteCode);
+        if (invitationEnabled && publicInviteCode != null && publicInviteCode.matches("[A-Za-z0-9]{8}"))
+            info.put("inviteCode", publicInviteCode.toUpperCase(Locale.ROOT));
         info.put("userId", member.getUserId());
 
         List<DmsShopMember> directAccounts = memberDao.selectByInviterId(member.getUserId());
@@ -3495,8 +3497,8 @@ public class ShopServiceImpl implements ShopService {
                 inviter = memberDao.selectByUserId(legacyAgent.getUserId());
             }
         }
-        DmsAgent effectiveAgent = inviter == null ? null : agentDao.selectByUserId(inviter.getUserId());
-        if (!EffectiveMemberPolicy.isActive(inviter, effectiveAgent)) {
+        if (inviter == null || !Integer.valueOf(1).equals(inviter.getStatus())
+                || Integer.valueOf(1).equals(inviter.getSystemAccount())) {
             preview.put("valid", false);
             preview.put("message", "未找到该邀请码，请向邀请人核对");
             return preview;

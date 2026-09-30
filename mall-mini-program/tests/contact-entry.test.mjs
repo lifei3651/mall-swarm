@@ -15,6 +15,7 @@ function harness(respond = async () => ({})) {
       if (path.endsWith('/theme')) return { pageData: () => ({}), apply() {} }
       if (path.endsWith('/format')) return { mediaUrl: value => value || '' }
       if (path.endsWith('/legal')) return require('../utils/legal.js')
+      if (path.endsWith('/share')) return { prepare() {}, hide() {}, message() { return {} } }
       throw Error(path)
     },
     wx: { navigateTo: item => routes.push(item), showToast: item => notices.push(item.title), makePhoneCall: item => phones.push(item), setClipboardData: item => clips.push(item), setNavigationBarTitle() {} }

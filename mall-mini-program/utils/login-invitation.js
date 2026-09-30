@@ -2,12 +2,12 @@ const feedback = require('./feedback')
 const invite = require('./invite')
 const request = require('./request')
 
-const data = { invitationEnabled: true, inviteExpanded: false, inviteCode: '', inviteFromLink: false, inviteReady: true,
+const data = { invitationEnabled: true, inviteExpanded: true, inviteCode: '', inviteFromLink: false, inviteReady: true,
   inviteBusy: false, inviterName: '', inviteError: '', inviteConflict: false, candidateName: '', candidateValid: false }
 function fingerprint() { return JSON.stringify(invite.getState()) }
 async function preview(code) {
   const result = await request({ url: `/shop/public/inviter-preview/${encodeURIComponent(code)}` })
-  if (!result || result.valid !== true || typeof result.nickname !== 'string' || !result.nickname.trim()) throw new Error('未找到有效邀请人，请核对邀请码，或选择不使用邀请')
+  if (!result || result.valid !== true || typeof result.nickname !== 'string' || !result.nickname.trim()) throw new Error('未找到有效邀请人，请向邀请人核对或更换邀请码')
   return result.nickname.trim().slice(0, 40)
 }
 const methods = {
@@ -36,7 +36,7 @@ const methods = {
     if (this.data.invitationEnabled === false) {
       this._verifiedInviteCode = ''
       this._inviteSequence = (this._inviteSequence || 0) + 1
-      feedback.update(this, { ...data, invitationEnabled: false })
+      feedback.update(this, { ...data, invitationEnabled: false, inviteExpanded: false })
       return
     }
     const state = invite.getState(), key = JSON.stringify(state)
@@ -45,9 +45,9 @@ const methods = {
     this._verifiedInviteCode = ''
     this._inviteSequence = (this._inviteSequence || 0) + 1
     feedback.update(this, { ...data, inviteCode: state.selected?.code || '', inviteFromLink: state.selected?.source === 'link',
-      inviteExpanded: !!state.selected || !!state.expired || !!state.invalid, inviteReady: !state.selected && !state.expired && !state.invalid, inviteConflict: !!state.candidate,
-      inviteError: state.invalid ? '收到的邀请格式不正确，请重新扫码、填写邀请码，或明确选择不使用邀请'
-        : state.expired ? '先前邀请已过期或无法确认时间，请重新扫码、填写邀请码，或明确选择不使用邀请' : '' })
+      inviteExpanded: true, inviteReady: !state.selected && !state.expired && !state.invalid, inviteConflict: !!state.candidate,
+      inviteError: state.invalid ? '收到的邀请格式不正确，请重新打开分享或填写邀请码'
+        : state.expired ? '先前邀请已过期，请重新打开分享或填写邀请码' : '' })
     if (state.selected) return this.checkInvitation()
   },
   toggleInvitation() { if (!this.data.submitting) feedback.update(this, { inviteExpanded: !this.data.inviteExpanded }) },
@@ -62,7 +62,7 @@ const methods = {
     if (this.data.invitationEnabled === false) return
     if (this._inactive || this.data.submitting) return
     const code = invite.normalizeInviteCode(this.data.inviteCode)
-    if (!code) { feedback.update(this, { inviteReady: false, inviteError: '请输入8位字母或数字邀请码，或选择不使用邀请' }); return }
+    if (!code) { feedback.update(this, { inviteReady: false, inviteError: '请输入8位字母或数字邀请码' }); return }
     const sequence = this._inviteSequence = (this._inviteSequence || 0) + 1
     const stateKey = fingerprint(), candidate = invite.getState().candidate
     this._verifiedInviteCode = ''
@@ -105,7 +105,7 @@ const methods = {
     if (this.data.invitationEnabled === false) return true
     if (this._inviteFingerprint !== fingerprint()) { this.syncInvitation(true); return false }
     if (this.data.inviteBusy || this.data.inviteConflict || !this.data.inviteReady) {
-      feedback.toast({ title: '请先核对邀请人，或选择不使用邀请', icon: 'none' })
+      feedback.toast({ title: '请先核对邀请人；已有账号可清除失效邀请后登录', icon: 'none' })
       return false
     }
     return true

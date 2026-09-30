@@ -58,9 +58,9 @@ class ShopWechatRegistrationServiceTest {
             if (found) {
                 DmsShopMember inviter = new DmsShopMember();
                 inviter.setUserId(1000L);
-                inviter.setStatus(1);
+                inviter.setStatus(0);
                 when(members.selectByInviteCode("ABCD1234")).thenReturn(inviter);
-                // A normal shopping account is not an effective inviting member.
+                // Disabled accounts cannot invite, regardless of historical invite code.
             }
             assertThrows(RuntimeException.class,
                     () -> service(members, sessions, agents).loginOrRegisterWechat("13800138000", "ABCD1234"));
@@ -79,7 +79,7 @@ class ShopWechatRegistrationServiceTest {
             ((DmsShopMember) invocation.getArgument(0)).setId(20L);
             return 1;
         });
-        var result = service(members, sessions, agents).loginOrRegisterWechat("13800138000", null);
+        var result = service(members, sessions, agents, 0).loginOrRegisterWechat("13800138000", null);
         assertNotNull(result.getToken());
         ArgumentCaptor<DmsShopMember> created = ArgumentCaptor.forClass(DmsShopMember.class);
         verify(members).insert(created.capture());
@@ -88,9 +88,27 @@ class ShopWechatRegistrationServiceTest {
         verifyNoInteractions(agents);
     }
 
+    @Test
+    void invitationMallRejectsNewWechatAccountWithoutInvite() {
+        DmsShopMemberDao members = mock(DmsShopMemberDao.class);
+        DmsShopMemberSessionDao sessions = mock(DmsShopMemberSessionDao.class);
+        AgentService agents = mock(AgentService.class);
+
+        var error = assertThrows(RuntimeException.class,
+                () -> service(members, sessions, agents).loginOrRegisterWechat("13800138000", null));
+
+        assertEquals("邀请商城首次注册需要有效邀请码，请通过好友分享进入或填写邀请码", error.getMessage());
+        verify(members, never()).insert(any());
+        verifyNoInteractions(sessions);
+    }
+
     private ShopAuthServiceImpl service(DmsShopMemberDao members, DmsShopMemberSessionDao sessions, AgentService agents) {
+        return service(members, sessions, agents, 1);
+    }
+
+    private ShopAuthServiceImpl service(DmsShopMemberDao members, DmsShopMemberSessionDao sessions, AgentService agents, int invitationEnabled) {
         DmsTenantDao tenantDao = mock(DmsTenantDao.class);
-        DmsTenant tenant = new DmsTenant(); tenant.setInvitationEnabled(1);
+        DmsTenant tenant = new DmsTenant(); tenant.setInvitationEnabled(invitationEnabled);
         when(tenantDao.selectByIdForUpdate(1L)).thenReturn(tenant);
         return new ShopAuthServiceImpl(members, sessions, agents, mock(LoginCaptchaService.class),
                 mock(SmsVerificationService.class), tenantDao, mock(MemberMessageService.class));
@@ -122,6 +140,7 @@ class ShopWechatRegistrationServiceTest {
             return 1;
         });
         DmsTenant tenant = new DmsTenant();
+        tenant.setInvitationEnabled(1);
         tenant.setPromotionJoinMode("DISABLED");
         when(tenantDao.selectById(1L)).thenReturn(tenant);
         when(tenantDao.selectByIdForUpdate(1L)).thenReturn(tenant);

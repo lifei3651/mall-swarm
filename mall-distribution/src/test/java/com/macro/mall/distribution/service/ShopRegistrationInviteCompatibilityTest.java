@@ -182,6 +182,8 @@ class ShopRegistrationInviteCompatibilityTest {
     void publicRegistrationWithoutInviteLinkRemainsOrdinaryShoppingAccount() {
         ShopRegisterDTO dto = validRegistration("15500000125", "public_user_2");
         dto.setInviteCode(null);
+        DmsTenant ordinaryMall = new DmsTenant(); ordinaryMall.setInvitationEnabled(0);
+        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(ordinaryMall);
 
         authService.registerPublic(dto);
 
@@ -194,9 +196,22 @@ class ShopRegistrationInviteCompatibilityTest {
     }
 
     @Test
+    void invitationMallRejectsNewPublicAccountWithoutInvite() {
+        ShopRegisterDTO dto = validRegistration("15500000125", "public_user_2");
+        dto.setInviteCode(null);
+
+        ApiException error = assertThrows(ApiException.class, () -> authService.registerPublic(dto));
+
+        assertEquals("邀请商城首次注册需要有效邀请码，请通过好友分享进入或填写邀请码", error.getMessage());
+        verify(memberDao, never()).insert(any(DmsShopMember.class));
+    }
+
+    @Test
     void registrationChecksImageAndSmsCodesOnlyAtFinalSubmission() {
         ShopRegisterDTO dto = validRegistration("15500000129", "public_user_4");
         dto.setInviteCode(null);
+        DmsTenant ordinaryMall = new DmsTenant(); ordinaryMall.setInvitationEnabled(0);
+        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(ordinaryMall);
 
         authService.registerPublic(dto);
 
@@ -213,6 +228,7 @@ class ShopRegistrationInviteCompatibilityTest {
         inviter.setStatus(1);
         when(memberDao.selectByInviteCode("INVITE01")).thenReturn(inviter);
         DmsTenant tenant = new DmsTenant();
+        tenant.setInvitationEnabled(1);
         tenant.setPromotionJoinMode("AUTO_ON_INVITE");
         when(tenantDao.selectById(1L)).thenReturn(tenant);
         when(tenantDao.selectByIdForUpdate(1L)).thenReturn(tenant);

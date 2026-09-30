@@ -43,7 +43,7 @@ test('public storefront shows captcha only for registration and password login',
   assert.doesNotMatch(view, /const needsCaptcha = true/)
 })
 
-test('public registration accepts an optional manual invite code and QR registration locks the prefilled code', async () => {
+test('public registration requires invitation in invite mode and QR registration locks the prefilled code', async () => {
   const [view, api] = await Promise.all([
     readProjectFile('src/surfaces/public/PublicLoginView.vue'),
     readProjectFile('src/api/shop.js'),
@@ -51,7 +51,8 @@ test('public registration accepts an optional manual invite code and QR registra
 
   assert.match(view, /route\.query\.inviteCode \|\| route\.query\.code/)
   assert.match(view, /id="public-register-invite"/)
-  assert.match(view, /邀请码 <span class="optional-mark">选填<\/span>/)
+  assert.match(view, /邀请码（首次注册必填）/)
+  assert.match(view, /if \(invitationEnabled\.value && !hasInviteCode\.value\) return '邀请商城首次注册需要邀请码/)
   assert.match(view, /:disabled="inviteCodeLocked"/)
   assert.match(view, /@click="loadInviter"/)
   assert.match(view, /const normalizedInviteCode = computed/)

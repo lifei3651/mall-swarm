@@ -107,6 +107,7 @@ Page({
     if (this._inactive || this.data.submitting || this.data.sending || this.data.captchaBusy) return
     const invalid = this.validate(); if (invalid) return this.showError(...invalid)
     const mode = this.data.mode
+    if (mode === 'register' && this.data.invitationEnabled && !this.data.inviteCode) return this.showError('邀请商城首次注册需要邀请码，请通过好友分享进入或填写邀请码', 'inviteCode')
     if (mode === 'register' && !this.invitationReady()) return
     if (mode === 'reset' && this.data.resetStep === 1) { this.setData({ resetStep: 2, error: '', errorField: '' }); return }
     const current = this.current(), form = { ...this.data.form }, captcha = { captchaId: this.data.captchaId, captchaCode: form.captchaCode }

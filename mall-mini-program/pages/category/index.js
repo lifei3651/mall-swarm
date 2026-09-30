@@ -4,15 +4,17 @@ const format = require('../../utils/format')
 const theme = require('../../utils/theme')
 const categoryProduct = require('../../utils/category-product')
 const quickCart = require('../../utils/quick-cart')
+const share = require('../../utils/share')
 
 Page({
   ...quickCart.methods,
   data: { ...theme.pageData(), categories: [], active: '', keyword: '', searchedKeyword: '', products: [], hotProducts: [], loading: true, error: '', pageNum: 0, total: 0, hasMore: false, loadingMore: false, moreError: '', browsingAll: false,
     sortMode: 'default', productScrollTop: 0, ...quickCart.data },
-  onLoad() { theme.apply(this); this.loadCategories() },
-  onShow() { quickCart.show(this); theme.apply(this); if (this.reloadNeeded) { this.reloadNeeded = false; return this.loadCategories() } },
-  onHide() { this.reloadNeeded = true; this.categorySequence = (this.categorySequence || 0) + 1; this.productSequence = (this.productSequence || 0) + 1; quickCart.hide(this) },
+  onLoad(options = {}) { theme.apply(this); const name = String(options.categoryName || '').slice(0, 40); if (name) this.setData({ active: name }); this.loadCategories() },
+  onShow() { quickCart.show(this); share.prepare(this); theme.apply(this); if (this.reloadNeeded) { this.reloadNeeded = false; return this.loadCategories() } },
+  onHide() { this.reloadNeeded = true; this.categorySequence = (this.categorySequence || 0) + 1; this.productSequence = (this.productSequence || 0) + 1; quickCart.hide(this); share.hide(this) },
   onUnload() { this.onHide(); this.productSequence = (this.productSequence || 0) + 1 },
+  onShareAppMessage() { const name = this.data.active; return share.message(this, name ? `/pages/category/index?categoryName=${encodeURIComponent(name)}` : '/pages/category/index', name ? `${name} · 商城好物` : '商城分类') },
   onPullDownRefresh() { Promise.all([theme.apply(this), this.loadCategories()]).finally(() => wx.stopPullDownRefresh()) },
   async loadCategories() {
     const version = this.categorySequence = (this.categorySequence || 0) + 1

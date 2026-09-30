@@ -51,7 +51,7 @@ test('R06: 未同意/缺验证码不发请求，不接受缺会员的登录结�
 test('R06: 注册沿用核对后的邀请码，不能用未核对/冲突的邀请提交', async () => {
   const { env, page } = await account(options => options.url === '/captcha' ? captcha : { accessToken: 'fixture', member: { id: '71' } }, 'register')
   page.setData({ inviteReady: false }); await page.submit(); assert.equal(env.calls.some(item => item.method === 'POST'), false)
-  page.setData({ inviteReady: true }); page._verifiedInviteCode = 'ABCD1234'; await page.submit()
+  page.setData({ inviteReady: true, inviteCode: 'ABCD1234' }); page._verifiedInviteCode = 'ABCD1234'; await page.submit()
   const call = env.calls.find(item => item.method === 'POST'); assert.equal(call.url, '/shop/wechat-mini-program/auth/account-register')
   assert.equal(call.data.credentials.inviteCode, 'ABCD1234'); assert.deepEqual(env.routes, ['/pages/home/index'])
 })

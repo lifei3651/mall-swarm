@@ -247,6 +247,6 @@ test('个人中心采用整行账号入口和独立隐私组件，弹窗的单�
   assert.match(panel, /wx:if="\{\{presentation === 'page'\}\}" class="login-brand"/)
   assert.doesNotMatch(panel, /wx:if="\{\{presentation === 'page'\}\}" class="login-logo"/)
   assert.match(panel, /账号登录/)
-  assert.match(panel, /使用邀请码/)
+  assert.match(panel, /查看邀请码/)
   assert.doesNotMatch(panel, /好物与服务，从这里开始|其他方式登录 \/ 注册/)
 })

@@ -14,8 +14,8 @@ Page({
     this.roomId = format.identifier(options.id)
     this.setData({ liveTab: options.tab === 'upcoming' ? 'upcoming' : 'live' })
   },
-  onShow() { this.hidden = false; this.disposed = false; return this.load() },
-  onHide() { this.hidden = true; this.sequence = (this.sequence || 0) + 1; live.stop(this); this.setData({ comments: [], commentText: '', reservedIds: [], reservationReady: false, shareReady: false }) },
+  onShow() { this.hidden = false; this.disposed = false; share.prepare(this); return this.load() },
+  onHide() { this.hidden = true; this.sequence = (this.sequence || 0) + 1; live.stop(this); share.hide(this); this.setData({ comments: [], commentText: '', reservedIds: [], reservationReady: false, shareReady: false }) },
   onUnload() { this.onHide(); this.disposed = true },
   onPullDownRefresh() { this.load().finally(() => wx.stopPullDownRefresh()) },
   async load() {
@@ -70,7 +70,10 @@ Page({
   sendComment() { return live.sendComment(this) },
   retryComments() { return live.comments(this) },
   onShareAppMessage() {
-    if (!this.data.room || this.data.room.room.shareEnabled !== 1 || !this.data.shareReady || this.hidden) return { title: '商城', path: '/pages/home/index' }
+    if (this.hidden) return share.message(this, '/pages/home/index', '商城')
+    if (this.contentType === 'culture') return share.message(this, '/pages/store-content/index?type=culture', this.data.culture.title || '品牌文化')
+    if (this.contentType === 'newArrivals') return share.message(this, '/pages/store-content/index?type=newArrivals', '新品速递')
+    if (!this.data.room || this.data.room.room.shareEnabled !== 1 || !this.data.shareReady) return share.message(this, '/pages/home/index', '商城')
     live.event(this, 'SHARE')
     return share.message(this, `/pages/store-content/index?type=live&id=${this.roomId}`, this.data.room.room.title)
   },
