@@ -175,6 +175,36 @@ button, input, textarea, select { font: inherit; }
 .el-dialog__footer { padding-top:16px; }
 .el-form-item__label { color:#344054; }
 .el-form-item__content { min-width:0; }
+
+// 操作弹窗按内容量分档：短表单、标准表单、带表格的宽表单。
+// 仅显式接入的弹窗使用，详情表格和复杂配置页不被统一压窄。
+.el-dialog.admin-operation-dialog {
+  --el-dialog-padding-primary: 24px;
+  --el-dialog-margin-top: 6vh;
+  display: flex;
+  flex-direction: column;
+  max-height: 88vh;
+  border-radius: 10px;
+}
+.el-dialog.admin-operation-dialog--compact { --el-dialog-width: min(520px, calc(100vw - 32px)); }
+.el-dialog.admin-operation-dialog--form { --el-dialog-width: min(560px, calc(100vw - 32px)); }
+.el-dialog.admin-operation-dialog--wide { --el-dialog-width: min(720px, calc(100vw - 32px)); }
+.admin-operation-dialog .el-dialog__title { font-size: 18px; font-weight: 600; }
+.admin-operation-dialog .el-dialog__header { padding-bottom: 16px; }
+.admin-operation-dialog .el-dialog__body { min-height: 0; overflow-y: auto; padding: 18px 0 2px; }
+.admin-operation-dialog .el-dialog__footer { flex: 0 0 auto; margin-top: 14px; padding-top: 16px; border-top: 1px solid var(--admin-border); }
+.admin-operation-dialog .el-form-item { margin-bottom: 18px; }
+.admin-operation-dialog .el-form-item:last-child { margin-bottom: 0; }
+.admin-operation-dialog .el-form-item__label { font-size: 14px; }
+@media (max-width: 640px) {
+  .el-dialog.admin-operation-dialog { --el-dialog-padding-primary: 16px; --el-dialog-margin-top: 4vh; max-height: 92vh; }
+  .admin-operation-dialog--compact .el-form-item,
+  .admin-operation-dialog--form .el-form-item { display: block; }
+  .admin-operation-dialog--compact .el-form-item__label,
+  .admin-operation-dialog--form .el-form-item__label { display: block; width: auto !important; padding: 0 0 6px; line-height: 1.5; text-align: left; }
+  .admin-operation-dialog--compact .el-form-item__content,
+  .admin-operation-dialog--form .el-form-item__content { margin-left: 0 !important; }
+}
 .el-table .cell { line-height:1.6; }
 .el-table__cell { padding-top:12px!important; padding-bottom:12px!important; }
 .el-table .el-button.is-link { font-weight:400; }

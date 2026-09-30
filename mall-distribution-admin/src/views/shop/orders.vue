@@ -269,7 +269,7 @@
       @size-change="fetchOrders"
     />
 
-    <el-dialog v-model="serviceRemarkDialogVisible" title="订单客服备注" width="520px" destroy-on-close>
+    <el-dialog v-model="serviceRemarkDialogVisible" title="订单客服备注" class="admin-operation-dialog admin-operation-dialog--compact" destroy-on-close>
       <el-alert title="此备注仅供后台客服和运营人员查看，不会展示给下单客户。" type="info" :closable="false" show-icon />
       <el-form label-width="88px" class="service-remark-form">
         <el-form-item label="订单号">
@@ -336,7 +336,7 @@
       </div>
     </el-dialog>
 
-    <el-dialog v-model="shipDialogVisible" :title="currentOrder?.order?.status === 2 ? '添加物流包裹' : '订单发货'" width="680px">
+    <el-dialog v-model="shipDialogVisible" :title="currentOrder?.order?.status === 2 ? '添加物流包裹' : '订单发货'" class="admin-operation-dialog admin-operation-dialog--form">
       <el-form :model="shipForm" label-width="92px">
         <el-form-item label="订单号">
           <el-input :model-value="currentOrder?.order?.orderNo" disabled />
@@ -417,12 +417,9 @@
           </el-form-item>
           <el-form-item label="包裹尺寸" required>
             <div class="wechat-express-dimensions">
-              <el-input-number v-model="wechatExpressForm.packageLength" :min="0.1" :max="500" :precision="1" controls-position="right" />
-              <span>×</span>
-              <el-input-number v-model="wechatExpressForm.packageWidth" :min="0.1" :max="500" :precision="1" controls-position="right" />
-              <span>×</span>
-              <el-input-number v-model="wechatExpressForm.packageHeight" :min="0.1" :max="500" :precision="1" controls-position="right" />
-              <span>厘米</span>
+              <div><span>长（厘米）</span><el-input-number v-model="wechatExpressForm.packageLength" :min="0.1" :max="500" :precision="1" controls-position="right" aria-label="包裹长度（厘米）" /></div>
+              <div><span>宽（厘米）</span><el-input-number v-model="wechatExpressForm.packageWidth" :min="0.1" :max="500" :precision="1" controls-position="right" aria-label="包裹宽度（厘米）" /></div>
+              <div><span>高（厘米）</span><el-input-number v-model="wechatExpressForm.packageHeight" :min="0.1" :max="500" :precision="1" controls-position="right" aria-label="包裹高度（厘米）" /></div>
             </div>
           </el-form-item>
           <el-form-item label="包裹件数" required>
@@ -484,7 +481,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="auditDialogVisible" :title="auditDialogTitle" width="460px">
+    <el-dialog v-model="auditDialogVisible" :title="auditDialogTitle" class="admin-operation-dialog admin-operation-dialog--compact">
       <el-form :model="auditForm" label-width="92px">
         <el-form-item label="售后号">
           <el-input :model-value="currentAfterSale?.afterSaleNo" disabled />
@@ -525,7 +522,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="exchangeShipmentDialogVisible" title="发出换货商品" width="520px" destroy-on-close>
+    <el-dialog v-model="exchangeShipmentDialogVisible" title="发出换货商品" class="admin-operation-dialog admin-operation-dialog--compact" destroy-on-close>
       <el-alert
         title="仅发出原订单同规格商品"
         description="本次会扣减对应商品和规格的可售库存，但不会增加销量，也不会退款或重算原订单奖金。客户寄回的商品不会自动计入可售库存。"
@@ -556,7 +553,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="manualRefundDialogVisible" title="特殊退款" width="720px" destroy-on-close>
+    <el-dialog v-model="manualRefundDialogVisible" title="特殊退款" class="admin-operation-dialog admin-operation-dialog--wide" destroy-on-close>
       <el-alert
         title="前台售后期限已结束，后台退款会写入售后、财务和奖金冲销记录。"
         type="warning"
@@ -1983,8 +1980,10 @@ onBeforeUnmount(() => {
   line-height: 1.8;
 }
 .wechat-express-alert { margin-bottom: 16px; }
-.wechat-express-dimensions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.wechat-express-dimensions :deep(.el-input-number) { width: 120px; }
+.wechat-express-dimensions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; gap: 8px; }
+.wechat-express-dimensions > div { min-width: 0; }
+.wechat-express-dimensions > div > span { display: block; margin-bottom: 4px; color: #667085; font-size: 12px; line-height: 1.5; }
+.wechat-express-dimensions :deep(.el-input-number) { width: 100%; }
 .auto-receive-deadline { margin-top: 4px; color: #b26a00; font-weight: 600; }
 .after-sale-action-deadline { display: grid; gap: 2px; margin-top: 5px; color: #8a650f; font-size: 11px; line-height: 1.4; }
 .after-sale-action-deadline.overdue { color: #d92d20; font-weight: 700; }

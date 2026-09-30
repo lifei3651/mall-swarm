@@ -6,6 +6,24 @@ import vm from 'node:vm'
 const sourcePath = resolve(process.cwd(), 'src/views/shop/orders.vue')
 
 describe('商城订单取消入口', () => {
+  it('订单操作弹窗按内容分档，短发货表单不再沿用宽详情弹窗', async () => {
+    const source = await readFile(sourcePath, 'utf8')
+    const styles = await readFile(resolve(process.cwd(), 'src/assets/styles.scss'), 'utf8')
+
+    expect(source).toMatch(/v-model="shipDialogVisible"[^>]*class="admin-operation-dialog admin-operation-dialog--form"/)
+    for (const name of ['serviceRemarkDialogVisible', 'auditDialogVisible', 'exchangeShipmentDialogVisible']) {
+      expect(source).toMatch(new RegExp(`v-model="${name}"[^>]*class="admin-operation-dialog admin-operation-dialog--compact"`))
+    }
+    expect(source).toMatch(/v-model="manualRefundDialogVisible"[^>]*class="admin-operation-dialog admin-operation-dialog--wide"/)
+    expect(styles).toContain('--el-dialog-width: min(520px, calc(100vw - 32px))')
+    expect(styles).toContain('--el-dialog-width: min(560px, calc(100vw - 32px))')
+    expect(styles).toContain('--el-dialog-width: min(720px, calc(100vw - 32px))')
+    expect(styles).toContain('max-height: 88vh')
+    expect(styles).toContain('.admin-operation-dialog .el-dialog__body { min-height: 0; overflow-y: auto;')
+    expect(source).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))')
+    for (const dimension of ['长（厘米）', '宽（厘米）', '高（厘米）']) expect(source).toContain(dimension)
+  })
+
   it('待付款和待发货订单都显示取消操作，待发货明确提示退款', async () => {
     const source = await readFile(sourcePath, 'utf8')
 
