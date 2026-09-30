@@ -1,0 +1,49 @@
+{
+  "evidenceType": "github-actions-source-verification-not-deployment",
+  "observedDateAsiaShanghai": "2026-10-01",
+  "repository": "lifei3651/mall-swarm",
+  "branch": "codex/security-membership-payout",
+  "productCommit": "c70b67494232b599137a76109de5154978da7dcd",
+  "runId": 36762738779,
+  "runNumber": 333,
+  "url": "https://github.com/lifei3651/mall-swarm/actions/runs/36762738779",
+  "status": "completed",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "id": 110049146064,
+      "name": "管理后台测试与构建",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 110049146267,
+      "name": "后端测试与构建",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 110049146303,
+      "name": "客户交付与安全边界",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 110049146426,
+      "name": "商城三端测试与构建",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 110049146595,
+      "name": "微信小程序测试与构建",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "limitations": [
+    "This verifies the source commit, not an immutable 1.0.175 package or deployment.",
+    "The original 1.0.174 candidate and online identity remain unchanged.",
+    "No WeChat review, formal publication, phone or provider verification is implied."
+  ]
+}
