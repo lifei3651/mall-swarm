@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "productCommit": "012770fd343e666a0eef50600806cd07905ac1dd",
+  "repository": "lifei3651/mall-swarm",
+  "runId": 36786880475,
+  "runNumber": 335,
+  "url": "https://github.com/lifei3651/mall-swarm/actions/runs/36786880475",
+  "status": "completed",
+  "conclusion": "success",
+  "updatedAt": "2026-09-30T22:43:10Z",
+  "jobs": [
+    {
+      "id": 110130302233,
+      "name": "客户交付与安全边界",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 110130302389,
+      "name": "商城三端测试与构建",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 110130302423,
+      "name": "管理后台测试与构建",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 110130302496,
+      "name": "微信小程序测试与构建",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 110130302620,
+      "name": "后端测试与构建",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "evidenceMethod": "Authenticated GitHub connector GET of the fixed commit's push workflow and its five jobs; not a local test substitute."
+}

@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "status": "FROZEN_CT_PREFLIGHT_ONLY",
+  "version": "1.0.175",
+  "buildId": "20261001-closure-1.0.175",
+  "gitCommit": "012770fd343e666a0eef50600806cd07905ac1dd",
+  "sourceTree": "fc06230312541e2d4485a06c5b0df6c4a4be7716",
+  "artifact": {
+    "path": "target/releases/lingqi-mall-1.0.175-012770fd.tar.gz",
+    "bytes": 146967573,
+    "sha256": "43cf97ace7222440a41a87de4fe8367338a808b2b33a133ba78b376ec59755ca",
+    "stage": "/var/folders/nk/gpz82vss0513h6pd0tkfgs6h0000gn/T/lingqi-175-unified-candidate.zDwCiK",
+    "manifestSha256": "bc9f06d9eee29c276686afd7efb8329cc76e04ca491efc834694cb1e9038846c",
+    "jarSha256": "5b94000f22d2f5e059e654b36aeecd5436372ee394062bb497d18dbf2046df0d"
+  },
+  "migrations": {
+    "count": 45,
+    "mode": "verify-45",
+    "newMigrations": 0
+  },
+  "verification": {
+    "localFullRegression": "passed",
+    "backendTests": 968,
+    "commonTests": 17,
+    "adminTests": 245,
+    "miniProgramTests": 566,
+    "h5Tests": 202,
+    "scriptTests": {
+      "total": 155,
+      "passed": 152,
+      "failed": 0,
+      "defaultMySqlSkipped": 3
+    },
+    "candidateRecursivePreflight": "passed",
+    "serverReadOnlyPreflight": "passed",
+    "gitHubRun": 335,
+    "gitHubJobs": "5/5 success",
+    "miniProjectPreflight": "passed"
+  },
+  "miniProject": {
+    "path": "dist/wechat-mini-program-175",
+    "fileCount": 233,
+    "aggregateSha256": "20197a83704fbb6628b3eb296018609eb18fcb52d9bb93450504bd67cc14110e",
+    "manifestSha256": "8fb885d67a5410fa6d865b2bf78372e3023e2f7226934688f1214ec740f2391c",
+    "pluginVersion": "2.1.12",
+    "uploaded": false
+  },
+  "release": {
+    "privateRetention": "pending user browser login",
+    "serverDeployed": false,
+    "wechatDevelopmentUploaded": false,
+    "experienceVersionChanged": false,
+    "reviewSubmitted": false,
+    "formalPublished": false
+  },
+  "onlineBaseline": {
+    "version": "1.0.174",
+    "gitCommit": "72f4db846f0307c65bb2ea9cb75093e1968621e4",
+    "jarSha256": "d4f0a0fb6e0aa4e4902e01f97c236155bc1e52bd33885fe319738b375ffce1c6",
+    "migrations": "45/45",
+    "fourServices": "active",
+    "health": "UP"
+  }
+}
