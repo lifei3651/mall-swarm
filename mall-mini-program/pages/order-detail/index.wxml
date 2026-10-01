@@ -92,7 +92,7 @@
       </view>
 
       <view class="section-card ui-card product-card">
-        <view class="order-head"><text class="merchant-name">{{item.order.merchantName || '商城订单'}}</text><text class="order-status ui-status-pill {{item.order.statusTone === 'closed' ? 'is-closed' : ''}}">{{item.order.statusText}}</text></view>
+        <view class="order-head"><text class="merchant-name">{{item.order.merchantName || '商城订单'}}</text><text wx:if="{{rows.length > 1}}" class="order-status ui-status-pill {{item.order.statusTone === 'closed' ? 'is-closed' : ''}}">{{item.order.statusText}}</text></view>
         <view class="order-item" wx:for="{{item.items}}" wx:key="id" wx:for-item="line">
           <image src="{{line.productCover}}" mode="aspectFill" />
           <view class="item-copy">

@@ -89,6 +89,17 @@ test('小程序订单详情按状态、本人收入、物流收货人、商品�
   assert.doesNotMatch(detail, /运费险/)
 })
 
+test('单笔订单详情只在顶部显示订单状态，合并订单保留各分单状态', () => {
+  const detail = source('pages/order-detail/index.wxml')
+  const heading = detail.match(/<view class="order-head">([\s\S]*?)<\/view>/)?.[1] || ''
+  assert.match(heading, /<text wx:if="\{\{rows\.length > 1\}\}" class="order-status /)
+  assert.match(heading, /\{\{item\.order\.statusText\}\}/)
+  assert.match(detail, /class="status-hero-title">\{\{pageStatusTitle\}\}/)
+  assert.match(detail, /class="status-hero-description">\{\{pageStatusDescription\}\}/)
+  assert.match(detail, /\{\{sale\.statusText\}\}/)
+  assert.match(detail, /wx:if="\{\{line\.refundStatusText\}\}" class="item-refund-status"/)
+})
+
 test('订单列表共用清晰商品快照卡片且操作集中在同一行', () => {
   const view = source('pages/orders/index.wxml')
   const logic = source('utils/order-list.js')

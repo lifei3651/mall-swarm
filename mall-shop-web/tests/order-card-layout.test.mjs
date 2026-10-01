@@ -122,6 +122,18 @@ test('H5订单详情按状态、本人收入、物流收货人、商品和全部
   assert.doesNotMatch(view, /运费险/)
 })
 
+test('H5单个履约订单只在顶部显示整单状态，保留商品退款和售后进度', async () => {
+  const view = await read('src/views/OrderDetailView.vue')
+  const consumerDetail = view.split('<main v-if="!applyingAfterSale" class="consumer-order-detail">')[1]?.split('</main>')[0] || ''
+  const merchantHead = consumerDetail.match(/<div class="consumer-merchant-head">([\s\S]*?)<\/div>/)?.[1] || ''
+  assert.match(consumerDetail, /<h1>\{\{ orderStatusTitle \}\}<\/h1>/)
+  assert.match(consumerDetail, /<p>\{\{ deliverySummary \}\}<\/p>/)
+  assert.match(merchantHead, /order\.merchantName \|\| '商城订单'/)
+  assert.doesNotMatch(merchantHead, /orderDisplayStatus|ui-status-pill/)
+  assert.match(consumerDetail, /class="consumer-item-refund-status"/)
+  assert.match(consumerDetail, /afterSaleStatus\(sale\.status, sale\.applyType, isUnshippedReturnConflict\(sale\)\)/)
+})
+
 test('H5退款关闭订单与取消订单分开展示，缺失规格不显示null', async () => {
   const [detail, list] = await Promise.all([read('src/views/OrderDetailView.vue'), read('src/views/OrdersView.vue')])
   assert.match(detail, /const isRefundedOrder = computed\(\(\) => Number\(order\.value\?\.status\) === 4/)

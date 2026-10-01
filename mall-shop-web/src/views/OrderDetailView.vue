@@ -58,7 +58,7 @@
         </section>
 
         <section class="consumer-card products-card ui-card">
-          <div class="consumer-merchant-head"><strong>{{ order.merchantName || '商城订单' }}</strong><span class="ui-status-pill" :class="{ 'is-closed': Number(order.status) === 4 }">{{ orderDisplayStatus }}</span></div>
+          <div class="consumer-merchant-head"><strong>{{ order.merchantName || '商城订单' }}</strong></div>
           <article v-for="item in detail.items || []" :key="item.id" class="consumer-product-line">
             <img :src="item.productCover" :alt="item.productName" />
             <div class="consumer-product-copy">
