@@ -19,13 +19,13 @@
 
 从该提交一次干净构建唯一146967573字节候选`target/releases/lingqi-mall-1.0.175-012770fd.tar.gz`，SHA-256 `43cf97ace7222440a41a87de4fe8367338a808b2b33a133ba78b376ec59755ca`；全部内包/小程序源码/45条SQL/脚本逐文件与版本绑定、递归候选及正式机只读预检均通过，见[候选清单](CANDIDATE_20261001.json)。后台226、公开H5 126、团队H5 60及可选一体H5 141文件；可选一体不新增线上站点。没有覆盖174包或产物。
 
-固定微信上传工程已准备且预检退出0：233发布文件、插件仍2.1.12、临时端口32227未监听，**仅预检，没有上传**。正式机独立只读核对仍174原JAR、45/45、四服务active及health UP。
+发布前检查点：固定微信上传工程准备及预检退出0，233发布文件、插件仍2.1.12、临时端口32227未监听；当时仅预检、没有上传，正式机仍174原JAR、45/45、四服务active及health UP。下行实际分发结果已取代该阶段状态。
 
-一次私有不可变留档/元数据回读已完成，备份恢复及受控服务器部署、微信开发版实际上传尚未完成。继续**同一个固定包**；不要因交接文档新提交而重新打包或覆盖已准备微信工程。
+一次私有不可变留档/元数据回读、备份恢复及受控后端和三站部署、微信开发版实际上传均已完成。原版四阶段脚本退出0，公网独立回读三站version/index/入口资源摘要通过；09:36:53服务器独立后置复核通过：45/45、四服务健康、八份完整备份、四个回滚点及历史保护均符合固定候选，隔离演练库0。继续保留**同一个固定包**；不要因交接文档新提交而重新打包或覆盖已上传微信工程。见[服务器回执](SERVER_RELEASE_20261001.md)及[开发版上传](MINI_UPLOAD_20261001.md)，尚未确认体验版指向或手机结果。
 
-用户回复“登录了”后，Edge 已能访问现有私有留档仓库。自动文件选择被扩展的 file URL 权限拦截，交还当前页后用户手动选择固定包并回复“已上传附件”。Codex 核实附件后发布原 `candidate-1.0.175-012770fd` 私有不可变预发行；独立连接器回读 release 400573596 / asset 602156698，准确146967573字节及服务生成完整摘要与本机/服务器原包一致，draft=false、prerelease=true、immutable=true，仓库仍private。没有再下载（服务download_count=0）或修改安全设置；[留档回执](artifact-retention.json)须提交推送后才进入正式准入。留档页为 `https://github.com/lifei3651/mall-swarm-release-archive/releases/tag/candidate-1.0.175-012770fd`。
+用户回复“登录了”后，Edge 已能访问现有私有留档仓库。自动文件选择被扩展的 file URL 权限拦截，交还当前页后用户手动选择固定包并回复“已上传附件”。Codex 核实附件后发布原 `candidate-1.0.175-012770fd` 私有不可变预发行；独立连接器回读 release 400573596 / asset 602156698，准确146967573字节及服务生成完整摘要与本机/服务器原包一致，draft=false、prerelease=true、immutable=true，仓库仍private。没有再下载（服务download_count=0）或修改安全设置；[留档回执](artifact-retention.json)已随ea76695d提交推送，正式准入随后原样通过。留档页为 `https://github.com/lifei3651/mall-swarm-release-archive/releases/tag/candidate-1.0.175-012770fd`。
 
-同一固定包已暂存到唯一商城服务器 `/tmp/lingqimall-closure-175.0OtpXp/candidate.tar.gz`，146967573字节与完整SHA-256相等；解包后全部 `SHA256SUMS` 通过，原包后端 `--preflight-only` 退出0：`previous=1.0.174 target=1.0.175 migrations=45:45 migration-mode=verify-45`。北京时间09:11独立前态确认原174 JAR、45/45、四服务active、health UP和原进程用Node22.23.2可执行。未切换服务、未写正式库、未运行新版备份恢复；临时候选保留供留档完成后直接继续。预检日志 `/private/tmp/mall-175-server-preflight.log`。
+发布前历史检查点：同一固定包暂存到唯一商城服务器 `/tmp/lingqimall-closure-175.0OtpXp/candidate.tar.gz`，146967573字节与完整SHA-256相等；解包后全部 `SHA256SUMS` 通过，原包后端 `--preflight-only` 退出0：`previous=1.0.174 target=1.0.175 migrations=45:45 migration-mode=verify-45`。北京时间09:11独立前态确认原174 JAR、45/45、四服务active、health UP和原进程用Node22.23.2可执行；该检查点尚未切换服务或运行新版备份恢复。留档后已从同一暂存包完成后续受控分发，预检日志 `/private/tmp/mall-175-server-preflight.log`仅代表发布前状态。
 
 本机验证日志：`/private/tmp/mall-175-full-regression.log`、`mall-175-package.log`、`mall-175-candidate-preflight.log`、`mall-175-mini-prepare.log`及`mall-175-mini-preflight.log`。这些是当前主机日志，不将客户资料或正式备份纳入Git。
 
@@ -33,4 +33,4 @@
 
 ## 验收停止线
 
-服务器S与开发版上传W必须分别有回执，不能替代手机R。既往真实支付/退款成功记录保留，只补同版受影响页面：邀请分享双账号、首次余额密码本人真实短信与新旧单原页付款、订单/售后/部分退款商品显示及所选资金渠道对账。后台员工卡已本机实测，发布后核对新版本身份；不继续扩大功能、第三方开通或任意组合穷举。
+服务器S与开发版上传W已有各自实际回执，不能替代手机R。既往真实支付/退款成功记录保留，只补同版受影响页面：邀请分享双账号、首次余额密码本人真实短信与新旧单原页付款、订单/售后/部分退款商品显示及所选资金渠道对账。后台员工卡已本机实测并完成175分发身份核对；不继续扩大功能、第三方开通或任意组合穷举。

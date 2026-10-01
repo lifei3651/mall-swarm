@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "FROZEN_CT_DURABLE_METADATA_READBACK_VERIFIED",
+  "status": "FROZEN_CT_SW_COMPLETED_R_PENDING",
   "version": "1.0.175",
   "buildId": "20261001-closure-1.0.175",
   "gitCommit": "012770fd343e666a0eef50600806cd07905ac1dd",
@@ -44,15 +44,22 @@
     "aggregateSha256": "20197a83704fbb6628b3eb296018609eb18fcb52d9bb93450504bd67cc14110e",
     "manifestSha256": "8fb885d67a5410fa6d865b2bf78372e3023e2f7226934688f1214ec740f2391c",
     "pluginVersion": "2.1.12",
-    "uploaded": false
+    "uploaded": true,
+    "packageSizeBytes": 1592267,
+    "uploadReceipt": "mini-upload/2026-10-01_01-31-35-739/receipt.json"
   },
   "release": {
     "privateRetention": "completed; immutable private pre-release service byte count and digest independently verified; no binary download",
-    "serverDeployed": false,
-    "wechatDevelopmentUploaded": false,
+    "serverDeployed": true,
+    "wechatDevelopmentUploaded": true,
     "experienceVersionChanged": false,
     "reviewSubmitted": false,
-    "formalPublished": false
+    "formalPublished": false,
+    "publicPostflight": "passed: all three version/index/entry assets match fixed candidate",
+    "serverIndependentPostflight": "passed",
+    "serverIndependentPostflightAt": "2026-10-01T09:36:53+08:00",
+    "serverIndependentPostflightLogSha256": "93a0ef333eb5701355d84d599faf7f5c97e9fc1749f20e4b471e95fc54055afe",
+    "serverReceipt": "SERVER_RELEASE_20261001.md"
   },
   "onlineBaseline": {
     "version": "1.0.174",
