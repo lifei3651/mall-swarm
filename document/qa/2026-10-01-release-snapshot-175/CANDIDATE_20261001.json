@@ -11,7 +11,8 @@
     "sha256": "43cf97ace7222440a41a87de4fe8367338a808b2b33a133ba78b376ec59755ca",
     "stage": "/var/folders/nk/gpz82vss0513h6pd0tkfgs6h0000gn/T/lingqi-175-unified-candidate.zDwCiK",
     "manifestSha256": "bc9f06d9eee29c276686afd7efb8329cc76e04ca491efc834694cb1e9038846c",
-    "jarSha256": "5b94000f22d2f5e059e654b36aeecd5436372ee394062bb497d18dbf2046df0d"
+    "jarSha256": "5b94000f22d2f5e059e654b36aeecd5436372ee394062bb497d18dbf2046df0d",
+    "serverStage": "/tmp/lingqimall-closure-175.0OtpXp"
   },
   "migrations": {
     "count": 45,
@@ -46,7 +47,7 @@
     "uploaded": false
   },
   "release": {
-    "privateRetention": "pending user browser login",
+    "privateRetention": "browser login restored; pending manual attachment upload, private release publication and metadata read-back",
     "serverDeployed": false,
     "wechatDevelopmentUploaded": false,
     "experienceVersionChanged": false,
