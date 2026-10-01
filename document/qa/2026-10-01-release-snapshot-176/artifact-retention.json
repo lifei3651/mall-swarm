@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 2,
+  "receiptStatus": "COMPLETED",
+  "version": "1.0.176",
+  "buildId": "20261001-closure-1.0.176",
+  "gitCommit": "4d6254a6ac243d1bf19ecfd4e749eb9fadfc17f1",
+  "sourceTree": "2d005f97c13669a99d98bdb312ad01558b103455",
+  "candidateStatus": "FROZEN_CT_DURABLE_METADATA_READBACK_VERIFIED",
+  "candidateManifestSha256": "91b51d7d9e873e82f59e7e5866e501c17b49c7f240600be88efd2be4d7115121",
+  "localArtifact": {
+    "path": "target/releases/lingqi-mall-1.0.176-4d6254a6.tar.gz",
+    "bytes": 146969996,
+    "sha256": "047e99ec7e791884381f2ad66935dbf6500ceca703aaea40857556403c283ab6",
+    "verified": true
+  },
+  "durableArtifact": {
+    "status": "COMPLETED",
+    "provider": "github-release",
+    "private": true,
+    "immutable": true,
+    "objectId": "lifei3651/mall-swarm-release-archive/releases/tag/candidate-1.0.176-4d6254a6#lingqi-mall-1.0.176-4d6254a6.tar.gz",
+    "releaseId": 400619680,
+    "assetId": 602328226,
+    "assetDigest": "sha256:047e99ec7e791884381f2ad66935dbf6500ceca703aaea40857556403c283ab6",
+    "uploadedAt": "2026-10-01T03:14:54Z",
+    "publishedAt": "2026-10-01T03:16:21Z",
+    "retentionCommitmentUntil": "2027-10-02",
+    "retentionUntil": "2027-10-02T23:59:59+08:00",
+    "readBackAt": "2026-10-01T03:24:25.298Z",
+    "readBackMethod": "Authenticated GitHub connector GET independently verified the published immutable private pre-release, its uploaded asset exact size=146969996 and service-generated SHA256. Repository private=true; release draft=false, prerelease=true, immutable=true; asset state=uploaded and digest matched the fixed local and staged candidate. The user manually attached the original candidate to the prepared Edge form; Codex published this one private pre-release. Metadata read-back only, not binary download or end-to-end download test; service download_count=0. No browser security settings changed.",
+    "readBackBytes": 146969996,
+    "readBackSha256": "047e99ec7e791884381f2ad66935dbf6500ceca703aaea40857556403c283ab6"
+  },
+  "gates": {
+    "serverDeploymentAllowed": false,
+    "wechatDevelopmentUploadAllowed": false,
+    "reason": "Retention evidence only; server deployment and development upload still require independent checks and receipts."
+  }
+}

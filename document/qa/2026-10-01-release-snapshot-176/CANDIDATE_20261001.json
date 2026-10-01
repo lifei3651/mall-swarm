@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "FROZEN_CT_RETENTION_PENDING_SW_PENDING_R_PENDING",
+  "status": "FROZEN_CT_DURABLE_METADATA_VERIFIED_SW_PENDING_R_PENDING",
   "version": "1.0.176",
   "buildId": "20261001-closure-1.0.176",
   "gitCommit": "4d6254a6ac243d1bf19ecfd4e749eb9fadfc17f1",
@@ -47,7 +47,7 @@
     "uploaded": false
   },
   "release": {
-    "privateRetention": "pending manual attachment; browser automatic file selection blocked",
+    "privateRetention": "completed; immutable private pre-release service exact byte count and SHA256 independently verified; no binary download",
     "serverDeployed": false,
     "wechatDevelopmentUploaded": false,
     "experienceVersionChanged": false,
