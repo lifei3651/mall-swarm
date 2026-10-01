@@ -21,9 +21,9 @@
 
 固定微信上传工程已准备且预检退出0：233发布文件、插件仍2.1.12、临时端口32227未监听，**仅预检，没有上传**。正式机独立只读核对仍174原JAR、45/45、四服务active及health UP。
 
-一次私有不可变留档/元数据回读、备份恢复及受控服务器部署、微信开发版实际上传均尚未完成。完成留档后继续**同一个固定包**；不要因交接文档新提交而重新打包或覆盖已准备微信工程。
+一次私有不可变留档/元数据回读已完成，备份恢复及受控服务器部署、微信开发版实际上传尚未完成。继续**同一个固定包**；不要因交接文档新提交而重新打包或覆盖已准备微信工程。
 
-用户回复“登录了”后，Edge 已能访问现有私有留档仓库。已填写 `candidate-1.0.175-012770fd` 预发行表单，但文件选择被扩展的 file URL 权限拦截，尚未上传附件或发布留档。已交还当前页面请用户手动选择固定包，不要求更改安全设置；不再要求下载回读，只在上传完成后核对 GitHub 服务生成的准确大小和摘要。表单页为 `https://github.com/lifei3651/mall-swarm-release-archive/releases/new`。
+用户回复“登录了”后，Edge 已能访问现有私有留档仓库。自动文件选择被扩展的 file URL 权限拦截，交还当前页后用户手动选择固定包并回复“已上传附件”。Codex 核实附件后发布原 `candidate-1.0.175-012770fd` 私有不可变预发行；独立连接器回读 release 400573596 / asset 602156698，准确146967573字节及服务生成完整摘要与本机/服务器原包一致，draft=false、prerelease=true、immutable=true，仓库仍private。没有再下载（服务download_count=0）或修改安全设置；[留档回执](artifact-retention.json)须提交推送后才进入正式准入。留档页为 `https://github.com/lifei3651/mall-swarm-release-archive/releases/tag/candidate-1.0.175-012770fd`。
 
 同一固定包已暂存到唯一商城服务器 `/tmp/lingqimall-closure-175.0OtpXp/candidate.tar.gz`，146967573字节与完整SHA-256相等；解包后全部 `SHA256SUMS` 通过，原包后端 `--preflight-only` 退出0：`previous=1.0.174 target=1.0.175 migrations=45:45 migration-mode=verify-45`。北京时间09:11独立前态确认原174 JAR、45/45、四服务active、health UP和原进程用Node22.23.2可执行。未切换服务、未写正式库、未运行新版备份恢复；临时候选保留供留档完成后直接继续。预检日志 `/private/tmp/mall-175-server-preflight.log`。
 

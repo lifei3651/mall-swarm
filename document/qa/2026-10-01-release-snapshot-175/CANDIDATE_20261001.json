@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "FROZEN_CT_PREFLIGHT_ONLY",
+  "status": "FROZEN_CT_DURABLE_METADATA_READBACK_VERIFIED",
   "version": "1.0.175",
   "buildId": "20261001-closure-1.0.175",
   "gitCommit": "012770fd343e666a0eef50600806cd07905ac1dd",
@@ -47,7 +47,7 @@
     "uploaded": false
   },
   "release": {
-    "privateRetention": "browser login restored; pending manual attachment upload, private release publication and metadata read-back",
+    "privateRetention": "completed; immutable private pre-release service byte count and digest independently verified; no binary download",
     "serverDeployed": false,
     "wechatDevelopmentUploaded": false,
     "experienceVersionChanged": false,
