@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "status": "FROZEN_CT_RETENTION_PENDING_SW_PENDING_R_PENDING",
+  "version": "1.0.176",
+  "buildId": "20261001-closure-1.0.176",
+  "gitCommit": "4d6254a6ac243d1bf19ecfd4e749eb9fadfc17f1",
+  "sourceTree": "2d005f97c13669a99d98bdb312ad01558b103455",
+  "artifact": {
+    "path": "target/releases/lingqi-mall-1.0.176-4d6254a6.tar.gz",
+    "bytes": 146969996,
+    "sha256": "047e99ec7e791884381f2ad66935dbf6500ceca703aaea40857556403c283ab6",
+    "stage": "/var/folders/nk/gpz82vss0513h6pd0tkfgs6h0000gn/T/lingqi-176-unified-candidate.9rDKRq",
+    "manifestSha256": "91b51d7d9e873e82f59e7e5866e501c17b49c7f240600be88efd2be4d7115121",
+    "jarSha256": "6c44e3513bf54c7263cdea09471f3392251c4f5d9765d354c240f85ef841079b",
+    "serverStage": "/tmp/lingqimall-closure-176.u61PN8"
+  },
+  "migrations": {
+    "count": 45,
+    "mode": "verify-45",
+    "newMigrations": 0
+  },
+  "verification": {
+    "localFullRegression": "passed",
+    "backendTests": 968,
+    "commonTests": 17,
+    "adminTests": 245,
+    "miniProgramTests": 567,
+    "h5Tests": 203,
+    "scriptTests": {
+      "total": 177,
+      "passed": 174,
+      "failed": 0,
+      "defaultMySqlSkipped": 3
+    },
+    "candidateRecursivePreflight": "passed",
+    "serverReadOnlyPreflight": "passed: readiness and exact staged original backend preflight; 45:45 verify-45",
+    "gitHubRun": 341,
+    "gitHubJobs": "5/5 success",
+    "miniProjectPreflight": "passed"
+  },
+  "miniProject": {
+    "path": "dist/wechat-mini-program-176",
+    "fileCount": 233,
+    "aggregateSha256": "a6ee0fb60dbf691af4ae4e3692a0dd3c8e56378cfe2a4bd474b10952be7e6fec",
+    "manifestSha256": "eedcdbea5f10a3727d3e8ab3f95668ddbbd0525420fdf936e27a473c3a5e1ba2",
+    "pluginVersion": "2.1.12",
+    "uploaded": false
+  },
+  "release": {
+    "privateRetention": "pending manual attachment; browser automatic file selection blocked",
+    "serverDeployed": false,
+    "wechatDevelopmentUploaded": false,
+    "experienceVersionChanged": false,
+    "reviewSubmitted": false,
+    "formalPublished": false
+  },
+  "onlineBaseline": {
+    "collectedAt": "2026-10-01T11:03:45+08:00",
+    "version": "1.0.175",
+    "gitCommit": "012770fd343e666a0eef50600806cd07905ac1dd",
+    "jarSha256": "5b94000f22d2f5e059e654b36aeecd5436372ee394062bb497d18dbf2046df0d",
+    "migrations": "45/45",
+    "fourServices": "active",
+    "health": "UP"
+  }
+}
