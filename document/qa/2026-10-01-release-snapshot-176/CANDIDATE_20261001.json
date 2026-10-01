@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "FROZEN_CT_DURABLE_METADATA_VERIFIED_SW_PENDING_R_PENDING",
+  "status": "FROZEN_CT_DURABLE_METADATA_VERIFIED_SW_COMPLETED_R_PENDING",
   "version": "1.0.176",
   "buildId": "20261001-closure-1.0.176",
   "gitCommit": "4d6254a6ac243d1bf19ecfd4e749eb9fadfc17f1",
@@ -36,7 +36,11 @@
     "serverReadOnlyPreflight": "passed: readiness and exact staged original backend preflight; 45:45 verify-45",
     "gitHubRun": 341,
     "gitHubJobs": "5/5 success",
-    "miniProjectPreflight": "passed"
+    "miniProjectPreflight": "passed",
+    "serverDeployment": "backend/admin/shop/team exit 0; isolated first and rerun verify-45; no migration applied",
+    "serverIndependentPostflight": "passed: 176 JAR; 45/45 exact ledger; four services active/health UP; 226/126/60 exact static trees; eight backups/four previous-175 rollbacks; ten root-only baselines; historical first payment/tags/tenant/rules preserved; isolated residual 0",
+    "publicIndependentPostflight": "passed: version/index/actual entry hashes admin14/shop3/team3 matched fixed candidate",
+    "miniOfficialReceiptReadback": "passed: exit 0, upload marker, official size 1592293 and checksum, port closed; development-only"
   },
   "miniProject": {
     "path": "dist/wechat-mini-program-176",
@@ -44,15 +48,32 @@
     "aggregateSha256": "a6ee0fb60dbf691af4ae4e3692a0dd3c8e56378cfe2a4bd474b10952be7e6fec",
     "manifestSha256": "eedcdbea5f10a3727d3e8ab3f95668ddbbd0525420fdf936e27a473c3a5e1ba2",
     "pluginVersion": "2.1.12",
-    "uploaded": false
+    "uploaded": true,
+    "packageSizeBytes": 1592293,
+    "receipt": "2026-10-01_03-34-58-396/receipt.json",
+    "uploadInfoSha256": "c89697feab2b45a364778dd6d49bbd780b2fbe5ebb3ed194d4e05f867c835c03"
   },
   "release": {
     "privateRetention": "completed; immutable private pre-release service exact byte count and SHA256 independently verified; no binary download",
-    "serverDeployed": false,
-    "wechatDevelopmentUploaded": false,
+    "serverDeployed": true,
+    "wechatDevelopmentUploaded": true,
     "experienceVersionChanged": false,
     "reviewSubmitted": false,
-    "formalPublished": false
+    "formalPublished": false,
+    "serverReceipt": "SERVER_RELEASE_20261001.md",
+    "miniReceipt": "MINI_UPLOAD_20261001.md",
+    "phoneAcceptance": "pending user same-version affected-path retest; P2-10 and P1-24 not automatically closed"
+  },
+  "onlinePostflight": {
+    "collectedAt": "2026-10-01T11:39:27.156772+08:00",
+    "version": "1.0.176",
+    "gitCommit": "4d6254a6ac243d1bf19ecfd4e749eb9fadfc17f1",
+    "jarSha256": "6c44e3513bf54c7263cdea09471f3392251c4f5d9765d354c240f85ef841079b",
+    "migrations": "45/45",
+    "fourServices": "active",
+    "health": "UP",
+    "serverLogSha256": "09366b29fc715226e35276d15d18fe5e78919742cd827f35dc2b1fae1608633e",
+    "publicLogSha256": "e0a045601f63cebd0f47e3af16b3642b245c889c71b6226c8a3e2fb35ec81da6"
   },
   "onlineBaseline": {
     "collectedAt": "2026-10-01T11:03:45+08:00",
