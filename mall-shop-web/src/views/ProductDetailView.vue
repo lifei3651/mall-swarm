@@ -234,7 +234,7 @@ import { requireShopSession } from '@/utils/authNavigation'
 import { cartItemKey, resolveCurrentStock, stockAdditionViolation, stockQuantityViolation } from '@/utils/stockRules'
 import { resolvePositiveIntegerQuantity, sanitizePositiveIntegerInput } from '@/utils/quantityInput'
 import { money } from '@/utils/format'
-import { toPublicWebUrl } from '@/utils/appEnvironment'
+import { invitationShareUrl } from '@/utils/invitationShare'
 import { applyImageFallback } from '@/utils/imageFallback'
 
 const route = useRoute()
@@ -376,7 +376,7 @@ const showToast = (message) => {
   toastTimer = window.setTimeout(() => { toast.value = '' }, 2200)
 }
 const shareProduct = async () => {
-  const url = toPublicWebUrl(`/product/${route.params.id}`)
+  const url = await invitationShareUrl(`/product/${route.params.id}`)
   const title = product.value?.productName || '商品推荐'
   if (navigator.share) {
     try { await navigator.share({ title, url }) } catch {}
