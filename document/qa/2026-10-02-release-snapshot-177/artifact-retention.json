@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 2,
+  "receiptStatus": "COMPLETED",
+  "version": "1.0.177",
+  "buildId": "20261002-closure-1.0.177",
+  "gitCommit": "a4067dfc9deec999d2922bd792b72b3fbc6b5d29",
+  "sourceTree": "ac68096cfb75f9d6847ff89a644ca51356b98b52",
+  "candidateStatus": "FROZEN_CT_DURABLE_DOWNLOAD_READBACK_VERIFIED",
+  "candidateManifestSha256": "e214eda9a23fcd81804579301cb5ca8a2e08813a6a3d0191455422a49b65fcc2",
+  "localArtifact": {
+    "path": "target/releases/lingqi-mall-1.0.177-a4067dfc.tar.gz",
+    "bytes": 146972931,
+    "sha256": "76fab501c091c0dbc0a3afe19a673b52fcde8f0d8596bdedb7cc8b6e8537f7cb",
+    "verified": true
+  },
+  "durableArtifact": {
+    "status": "COMPLETED",
+    "provider": "github-release",
+    "private": true,
+    "immutable": true,
+    "objectId": "lifei3651/mall-swarm-release-archive/releases/tag/candidate-1.0.177-a4067dfc#lingqi-mall-1.0.177-a4067dfc.tar.gz",
+    "assetDigest": "sha256:76fab501c091c0dbc0a3afe19a673b52fcde8f0d8596bdedb7cc8b6e8537f7cb",
+    "uploadObservedDate": "2026-10-02",
+    "uploadedAt": "2026-10-02",
+    "uploadedAtPrecision": "GitHub UI/user evidence establishes calendar date only; YYYY-MM-DD is a day precision value, not an API upload timestamp. Exact upload/publication timestamps and IDs were not read.",
+    "retentionCommitmentUntil": "2027-10-03",
+    "retentionUntil": "2027-10-03T23:59:59+08:00",
+    "readBackAt": "2026-10-02T13:00:37.904890+00:00",
+    "readBackMethod": "User supplied the published release URL and copied complete GitHub asset digest. Parent reports observing private repository lock, pre-publication immutable-enabled banner and prerelease choice; published Assets screenshot includes original filename and release attestation link. Per GitHub official docs new releases published with immutability enabled receive an automatically generated release attestation; immutable status is based on this UI evidence/inference, not authenticated API or signature verification. User downloaded through the normal browser. Codex independently read the actual Downloads file and recomputed exact bytes and SHA256; source extended metadata contains release-assets.githubusercontent.com and github.com. Readback matches frozen original. No API release/asset IDs or exact upload/publication times asserted. Retention is a project commitment, not an automatic platform deletion lock.",
+    "readBackOriginHosts": [
+      "release-assets.githubusercontent.com",
+      "github.com"
+    ],
+    "readBackFileName": "lingqi-mall-1.0.177-a4067dfc.tar.gz",
+    "readBackBytes": 146972931,
+    "readBackSha256": "76fab501c091c0dbc0a3afe19a673b52fcde8f0d8596bdedb7cc8b6e8537f7cb",
+    "evidenceLimitations": [
+      "UI/user evidence was relayed by parent thread; this executor did not directly render the screenshots.",
+      "No authenticated GitHub API read or cryptographic verification of release attestation.",
+      "Upload date has calendar-day precision; exact upload/publication timestamps unknown."
+    ],
+    "immutableDocumentation": "https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases"
+  },
+  "gates": {
+    "serverDeploymentAllowed": false,
+    "wechatDevelopmentUploadAllowed": false,
+    "reason": "Retention only. Deployment/upload require original scripts, separate readiness, backups and independent readback."
+  }
+}
