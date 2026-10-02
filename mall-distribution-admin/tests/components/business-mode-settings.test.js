@@ -18,9 +18,9 @@ beforeEach(() => {
   api.saveTenantBusinessModes.mockResolvedValue({ data:{} })
 })
 describe('业务模式设置保存保护', () => {
-  it('普通商城与必邀模式清晰区分，切换邀请不改推广资格规则', async () => {
+  it('普通商城与邀请模式清晰区分，切换邀请不改推广资格规则', async () => {
     const w = mounted(); await flushPromises()
-    expect(w.text()).toContain('邀请商城（首次注册必须有邀请）')
+    expect(w.text()).toContain('邀请开启（邀请码选填）')
     expect(w.text()).toContain('已注册购物账号可邀请他人')
     expect(w.text()).toContain('推广资格开通')
     w.vm.form.invitationEnabled = 0; await flushPromises()
@@ -78,10 +78,22 @@ describe('业务模式设置保存保护', () => {
     expect(api.saveTenantBusinessModes).toHaveBeenCalledWith(1, expect.objectContaining({ balanceTransactionsEnabled:0, multiMerchantEnabled:0 }))
     w.unmount()
   })
+  it('默认主账号独立配置，保存列出主账号及开关而不更改推广资格', async () => {
+    const w=mounted(); await flushPromises()
+    w.vm.form.defaultInviterEnabled=1; w.vm.form.defaultInviterCode='MASTER01'; await flushPromises()
+    expect(w.text()).toContain('主账号邀请码')
+    expect(w.vm.form.promotionJoinMode).toBe('MANUAL_REVIEW')
+    const confirm=vi.spyOn(ElMessageBox,'confirm').mockResolvedValue('confirm')
+    await w.vm.save()
+    expect(confirm.mock.calls[0][0]).toContain('默认绑定主账号：关闭 → 开启')
+    expect(confirm.mock.calls[0][0]).toContain('MASTER01')
+    expect(api.saveTenantBusinessModes).toHaveBeenCalledWith(1,expect.objectContaining({defaultInviterEnabled:1,defaultInviterCode:'MASTER01'}))
+    w.unmount()
+  })
   it('无商城设置权限时邀请开关只读，避免可点后必然被接口拒绝', async () => {
     permissionState.canShop = false
     const w = mounted(); await flushPromises()
-    expect(w.find('[aria-label="启用邀请商城，首次注册必须有邀请"]').attributes('aria-disabled')).toBe('true')
+    expect(w.find('[aria-label="启用邀请关系，注册无需邀请码"]').attributes('aria-disabled')).toBe('true')
     expect(w.text()).toContain('调整邀请功能需要商城设置权限')
     w.unmount()
   })

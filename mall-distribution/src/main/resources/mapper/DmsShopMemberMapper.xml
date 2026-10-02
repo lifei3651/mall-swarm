@@ -262,6 +262,11 @@
         WHERE id=#{id}
           AND (login_account IS NULL OR login_account = '' OR login_account = phone)
     </update>
+    <update id="bindInviterOnce">
+        UPDATE dms_shop_member SET inviter_id=#{inviterId}, team_opt_in=1, update_time=CURRENT_TIMESTAMP
+        WHERE id=#{id} AND inviter_id IS NULL AND status=1 AND system_account=0
+    </update>
+
     <update id="updateInviterId">
         UPDATE dms_shop_member SET inviter_id=#{inviterId}, update_time=CURRENT_TIMESTAMP WHERE id=#{id}
     </update>

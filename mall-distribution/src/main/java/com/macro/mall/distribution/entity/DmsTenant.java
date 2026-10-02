@@ -109,6 +109,11 @@ public class DmsTenant implements Serializable {
     /** 新邀请关系总开关；关闭不删除历史关系或既有订单账务。 */
     private Integer invitationEnabled;
 
+    /** 无分享的新注册账号可选默认邀请人；旧账号不批量绑定。 */
+    private Integer defaultInviterEnabled;
+    private String defaultInviterCode;
+
+
     /** 秒杀模块和复购区均为客户级可选能力，默认关闭。 */
     private Integer flashSaleEnabled;
 

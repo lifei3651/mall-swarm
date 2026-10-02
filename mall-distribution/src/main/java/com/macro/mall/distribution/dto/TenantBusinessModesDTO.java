@@ -31,6 +31,11 @@ public class TenantBusinessModesDTO implements Serializable {
     @Max(value = 1, message = "邀请功能状态不正确")
     private Integer invitationEnabled;
 
+    @Min(0) @Max(1)
+    private Integer defaultInviterEnabled;
+    @Pattern(regexp = "^$|[A-Za-z0-9]{8}", message = "请输入主账号的8位邀请码")
+    private String defaultInviterCode;
+
     @NotNull(message = "请选择是否开启秒杀专区")
     @Min(value = 0, message = "秒杀专区状态不正确")
     @Max(value = 1, message = "秒杀专区状态不正确")

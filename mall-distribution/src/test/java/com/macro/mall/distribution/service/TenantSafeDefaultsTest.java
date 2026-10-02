@@ -57,7 +57,7 @@ class TenantSafeDefaultsTest {
 
         TenantService service = new TenantServiceImpl(
                 tenantDao, versionDao, displayDao, configVersionDao, displaySupport, legalSupport,
-                operationLogService, new ObjectMapper(), catalogCache, adminAuthService, imagePolicy);
+                operationLogService, new ObjectMapper(), catalogCache, adminAuthService, imagePolicy, mock(com.macro.mall.distribution.dao.DmsShopMemberDao.class), mock(AgentService.class));
         service.saveTenant(tenant);
 
         assertEquals("MANUAL_REVIEW", tenant.getPromotionJoinMode());

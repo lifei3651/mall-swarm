@@ -41,7 +41,7 @@
           <input id="public-register-password" v-model="registerForm.password" type="password" autocomplete="new-password" minlength="6" maxlength="32" placeholder="请输入6至32位密码" />
           <label for="public-register-confirm">确认登录密码</label>
           <input id="public-register-confirm" v-model="confirmPassword" type="password" autocomplete="new-password" minlength="6" maxlength="32" placeholder="请再次输入登录密码" />
-          <template v-if="invitationEnabled"><label for="public-register-invite">邀请码（首次注册必填）</label>
+          <template v-if="invitationEnabled"><label for="public-register-invite">邀请码（选填）</label>
           <div class="inline-field invite-field">
             <input
               id="public-register-invite"
@@ -150,9 +150,11 @@ const registerForm = reactive({ phone: '', username: '', password: '', smsCode: 
 const captcha = reactive({ id: '', code: '', image: '' })
 const needsCaptcha = computed(() => isRegister.value || loginType.value === 'password')
 const smsButtonText = computed(() => smsCooldown.value > 0 ? `${smsCooldown.value}s 后重发` : '获取验证码')
+import { pendingInvitation } from '@/utils/invitationBinding'
+
 const inviteCodeFromUrl = computed(() => {
   const value = route.query.inviteCode || route.query.code
-  return typeof value === 'string' ? value.trim().toUpperCase() : ''
+  return typeof value === 'string' ? value.trim().toUpperCase() : pendingInvitation()
 })
 const inviteCodeLocked = computed(() => invitationEnabled.value && !!inviteCodeFromUrl.value)
 const normalizedInviteCode = computed(() => String(registerForm.inviteCode || '').trim().toUpperCase())
@@ -162,7 +164,7 @@ const showInviterCard = computed(() => hasInviteCode.value
 const inviteHelpText = computed(() => {
   if (inviterInfo.value) return '邀请人昵称已确认'
   if (hasInviteCode.value) return '请核对邀请人昵称后再注册'
-  return '邀请商城首次注册必须有邀请码；已有账号可直接登录'
+  return '无需邀请码即可注册；带分享时自动绑定，未绑定账号也可稍后通过分享绑定一次'
 })
 const submitButtonText = computed(() => {
   if (loading.value) return '正在提交…'
@@ -211,8 +213,7 @@ const loadInviter = async () => {
   inviterInfo.value = null
   inviteError.value = ''
   if (!inviteCode) {
-    inviteError.value = '邀请商城首次注册需要邀请码，请通过好友分享进入或填写邀请码'
-    return false
+    return true
   }
   registerForm.inviteCode = inviteCode
   if (!/^[A-Z0-9]{8}$/.test(inviteCode)) {
@@ -287,7 +288,6 @@ const validate = () => {
     if (!/^\d{6}$/.test(registerForm.smsCode)) return '请输入6位短信验证码'
     if (!captcha.id || !/^[A-Za-z0-9]{4}$/.test(captcha.code)) return '请输入4位图形验证码'
     if (!agreed.value) return '请阅读并同意用户服务协议和隐私政策'
-    if (invitationEnabled.value && !hasInviteCode.value) return '邀请商城首次注册需要邀请码，请通过好友分享进入或填写邀请码'
     if (hasInviteCode.value && !inviterInfo.value) return inviteError.value || '请先确认邀请人信息'
     return ''
   }
@@ -363,6 +363,7 @@ const loadInvitationMode = async () => {
     const res = await getBusinessConfig()
     invitationEnabled.value = Number(res.data?.invitationEnabled) === 1
     if (!invitationEnabled.value) {
+      sessionStorage.removeItem('shop_pending_invitation_v3')
       registerForm.inviteCode = ''
       inviteRequestSequence += 1
       inviterInfo.value = null

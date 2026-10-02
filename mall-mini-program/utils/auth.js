@@ -30,7 +30,7 @@ async function login({ phoneCode = '', privacyConsentVersion, inviteCode = '' })
   if (session.getToken() !== previousToken) throw new Error('登录状态已变化，请重新操作')
   if (data && data.accessToken) {
     session.saveSession(data)
-    invite.clearPendingInvite()
+    await require('./invitation-binding').bindPendingInvite(invite.normalizeInviteCode(inviteCode))
   }
   return data
 }

@@ -196,14 +196,14 @@ class ShopRegistrationInviteCompatibilityTest {
     }
 
     @Test
-    void invitationMallRejectsNewPublicAccountWithoutInvite() {
+    void invitationMallAllowsNewPublicAccountWithoutInvite() {
         ShopRegisterDTO dto = validRegistration("15500000125", "public_user_2");
         dto.setInviteCode(null);
-
-        ApiException error = assertThrows(ApiException.class, () -> authService.registerPublic(dto));
-
-        assertEquals("邀请商城首次注册需要有效邀请码，请通过好友分享进入或填写邀请码", error.getMessage());
-        verify(memberDao, never()).insert(any(DmsShopMember.class));
+        authService.registerPublic(dto);
+        ArgumentCaptor<DmsShopMember> created = ArgumentCaptor.forClass(DmsShopMember.class);
+        verify(memberDao).insert(created.capture());
+        assertEquals(null, created.getValue().getInviterId());
+        assertEquals(0, created.getValue().getTeamOptIn());
     }
 
     @Test

@@ -5,6 +5,9 @@ import { loginRedirectLocation, notifyAuthRequired } from '@/utils/authNavigatio
 import { clearStaleChunkRecovery, recoverFromStaleChunk } from '@/utils/chunkRecovery'
 import { hasShopSession, restoreShopSession } from '@/utils/shopSession'
 
+import { captureInvitation, bindPendingInvitation } from '@/utils/invitationBinding'
+import { bindSharedInvitation } from '@/api/shop'
+
 const routes = [
   { path: '/', name: 'Home', component: () => import('@/views/HomeView.vue') },
   { path: '/category', name: 'Category', component: () => import('@/views/CategoryView.vue') },
@@ -60,6 +63,7 @@ router.onError((error, to) => {
 
 // 路由守卫只检查非敏感会话提示；真正身份始终由 HttpOnly Cookie 和服务端确认。
 router.beforeEach(async (to, from, next) => {
+  captureInvitation(to.query)
   const authenticated = !to.meta.requiresAuth
     || hasShopSession()
     || await restoreShopSession('public')
@@ -74,6 +78,8 @@ router.beforeEach(async (to, from, next) => {
 router.afterEach((to) => {
   clearStaleChunkRecovery()
   updatePageTitle(to.name)
+  void bindPendingInvitation({ hasSession: hasShopSession, restoreSession: restoreShopSession,
+    bind: bindSharedInvitation, owner: () => localStorage.getItem('shop_member') })
 })
 
 export default router

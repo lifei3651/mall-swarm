@@ -22,6 +22,7 @@ function harness({ handle, token = '', login } = {}) {
   async function request(options) {
     calls.push(options)
     if (handle) { const result = handle(options); if (result !== undefined) return result }
+    if (options.url === '/shop/invite/bind') return 'ALREADY_BOUND'
     if (options.url.endsWith('/member-capabilities')) return rights()
     if (options.url.endsWith('/runtime')) return { enabled: true, phoneAuthorizationEnabled: true, privacyConsentVersion: load('config/runtime.js').PRIVACY_CONSENT_VERSION }
     if (options.url.includes('/inviter-preview/')) return { valid: true, nickname: options.url.endsWith('ABCD1234') ? '原邀请人' : '新邀请人' }
@@ -144,7 +145,8 @@ test('邀请模式未变化时保留手填草稿，网络失败也不能擅自�
     ? fail ? Promise.reject(new Error('offline')) : { invitationEnabled: 1 } : undefined })
   const page = h.page()
   await page.onLoad(); await settle()
-  assert.equal(page.data.inviteExpanded, true)
+  assert.equal(page.data.inviteExpanded, false)
+  page.toggleInvitation()
   page.invitationInput({ detail: { value: 'DRAFT123' } })
   page.onShow(); await settle()
   assert.equal(page.data.inviteExpanded, true)

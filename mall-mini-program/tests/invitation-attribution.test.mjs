@@ -34,12 +34,12 @@ test('重复回到同一分享不续期，过期与旧版无时间缓存都清�
   advance(2 * 3600000)
   assert.equal(invite.getPendingInvite(), '')
 })
-test('登录账号进入他人分享不吸收邀请码；退出后不会遗留给另一人', () => {
+test('登录账号接收本次分享，供服务端未绑定账号绑定一次', () => {
   const { invite, storage } = harness()
   invite.captureLaunchInvite({ query: { inviteCode: 'ABCD1234' } })
   storage.set('mall_mini_access_token', 'test-session')
   invite.captureLaunchInvite({ query: { inviteCode: 'EFGH5678' } })
-  assert.equal(invite.getPendingInvite(), '')
+  assert.equal(invite.getPendingInvite(), 'EFGH5678')
 })
 test('解析分享链接与微信码仅接受完整八位码，不接受原型链值', () => {
   const { invite } = harness()

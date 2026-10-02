@@ -1,5 +1,7 @@
 import request from './request'
 
+export const bindSharedInvitation = (inviteCode) => request({ url: '/shop/invite/bind', method: 'post', data: { inviteCode } })
+
 const idempotencyHeaders = (key) => key ? { 'X-Idempotency-Key': key } : undefined
 
 export function register(data) {

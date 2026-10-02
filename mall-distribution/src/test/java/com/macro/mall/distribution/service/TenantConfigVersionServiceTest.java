@@ -43,7 +43,7 @@ class TenantConfigVersionServiceTest {
         TenantDisplayConfigSupport displaySupport = new TenantDisplayConfigSupport(objectMapper);
         TenantServiceImpl service = new TenantServiceImpl(tenantDao, ruleVersionDao, displayDao, versionDao,
                 displaySupport, legalSupport, operationLogService, objectMapper, catalogCache, adminAuthService,
-                brandCultureImagePolicy);
+                brandCultureImagePolicy, mock(com.macro.mall.distribution.dao.DmsShopMemberDao.class), mock(AgentService.class));
 
         DmsTenant current = tenant(1L, "当前商城");
         current.setCouponEnabled(1);

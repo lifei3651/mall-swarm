@@ -52,6 +52,8 @@ public class TenantServiceImpl implements TenantService {
     private final ShopCatalogCacheService catalogCache;
     private final AdminAuthService adminAuthService;
     private final BrandCultureImagePolicy brandCultureImagePolicy;
+    private final com.macro.mall.distribution.dao.DmsShopMemberDao invitationMemberDao;
+    private final com.macro.mall.distribution.service.AgentService invitationAgentService;
 
     @Override
     public List<DmsTenant> listTenants() {
@@ -123,6 +125,8 @@ public class TenantServiceImpl implements TenantService {
         normalizeBusinessModes(tenant, before == null);
         // 资料编辑接口不能顺带更改独立模块的经营开关。新客户先以平台自营开局。
         tenant.setInvitationEnabled(before == null ? 0 : enabledUnlessOff(before.getInvitationEnabled()));
+        tenant.setDefaultInviterEnabled(before == null ? 0 : normalizedFlag(before.getDefaultInviterEnabled()));
+        tenant.setDefaultInviterCode(before == null ? null : before.getDefaultInviterCode());
         tenant.setCouponEnabled(before == null ? 1 : normalizedFlag(before.getCouponEnabled()));
         tenant.setBalanceTransactionsEnabled(before == null ? 1 : enabledUnlessOff(before.getBalanceTransactionsEnabled()));
         tenant.setMultiMerchantEnabled(before == null ? 0 : enabledUnlessOff(before.getMultiMerchantEnabled()));
@@ -204,6 +208,19 @@ public class TenantServiceImpl implements TenantService {
         normalized.setPromotionJoinMode(modes.getPromotionJoinMode());
         normalized.setInvitationEnabled(modes.getInvitationEnabled() == null
                 ? enabledUnlessOff(before.getInvitationEnabled()) : modes.getInvitationEnabled());
+        if (modes.getDefaultInviterEnabled() != null && modes.getDefaultInviterEnabled() != 0 && modes.getDefaultInviterEnabled() != 1)
+            Asserts.fail("默认邀请人开关状态不正确");
+        normalized.setDefaultInviterEnabled(modes.getDefaultInviterEnabled() == null
+                ? normalizedFlag(before.getDefaultInviterEnabled()) : modes.getDefaultInviterEnabled());
+        String defaultCode = modes.getDefaultInviterCode() == null ? before.getDefaultInviterCode() : modes.getDefaultInviterCode();
+        normalized.setDefaultInviterCode(defaultCode == null || defaultCode.isBlank() ? null
+                : defaultCode.trim().toUpperCase(java.util.Locale.ROOT));
+        boolean defaultChanged = !java.util.Objects.equals(normalizedFlag(before.getDefaultInviterEnabled()), normalized.getDefaultInviterEnabled())
+                || !java.util.Objects.equals(before.getDefaultInviterCode(), normalized.getDefaultInviterCode());
+        if (defaultChanged) adminAuthService.requirePermission(AdminContext.get(), "config:shop");
+        if (Integer.valueOf(1).equals(normalized.getDefaultInviterEnabled())) {
+            InvitationMemberPolicy.resolve(invitationMemberDao, invitationAgentService, normalized.getDefaultInviterCode());
+        }
         normalized.setFlashSaleEnabled(modes.getFlashSaleEnabled());
         normalized.setFlashSaleBonusMode(modes.getFlashSaleBonusMode());
         normalized.setRepurchaseMallEnabled(modes.getRepurchaseMallEnabled());
@@ -256,6 +273,8 @@ public class TenantServiceImpl implements TenantService {
         TenantBusinessModesDTO modes = new TenantBusinessModesDTO();
         modes.setId(tenant.getId());
         modes.setInvitationEnabled(enabledUnlessOff(tenant.getInvitationEnabled()));
+        modes.setDefaultInviterEnabled(normalizedFlag(tenant.getDefaultInviterEnabled()));
+        modes.setDefaultInviterCode(tenant.getDefaultInviterCode());
         try {
             modes.setPromotionJoinMode(PromotionJoinModeEnum.forExisting(tenant.getPromotionJoinMode()).name());
         } catch (IllegalArgumentException ex) {
@@ -281,6 +300,8 @@ public class TenantServiceImpl implements TenantService {
     private String businessModesSummary(TenantBusinessModesDTO modes) {
         return "promotionJoinMode=" + modes.getPromotionJoinMode()
                 + ";invitation=" + modes.getInvitationEnabled()
+                + ";defaultInviterEnabled=" + modes.getDefaultInviterEnabled()
+                + ";defaultInviterCode=" + modes.getDefaultInviterCode()
                 + ";flashSale=" + modes.getFlashSaleEnabled()
                 + ";flashBonusMode=" + modes.getFlashSaleBonusMode()
                 + ";repurchase=" + modes.getRepurchaseMallEnabled()
@@ -474,6 +495,9 @@ public class TenantServiceImpl implements TenantService {
         DmsTenantDisplayConfig restoredDisplay = readSnapshot(
                 target.getDisplaySnapshot(), DmsTenantDisplayConfig.class, "商城视觉配置");
         restoredTenant.setId(tenantId);
+        // 独立邀请配置不随品牌/资料历史恢复，避免旧快照改变新注册归属。
+        restoredTenant.setDefaultInviterEnabled(current.getDefaultInviterEnabled());
+        restoredTenant.setDefaultInviterCode(current.getDefaultInviterCode());
         // 旧配置快照不含此字段，不能在回滚其他资料时意外重开或关闭优惠券。
         restoredTenant.setCouponEnabled(restoredTenant.getCouponEnabled() == null
                 ? normalizedFlag(current.getCouponEnabled()) : normalizedFlag(restoredTenant.getCouponEnabled()));

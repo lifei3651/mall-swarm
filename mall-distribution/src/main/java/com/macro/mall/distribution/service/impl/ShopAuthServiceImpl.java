@@ -90,16 +90,16 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         if ("team".equals(normalizedSurface)) {
             Asserts.fail("会员服务后台不提供账号注册，请使用已有商城账号登录");
         }
-        return registerInternal(dto, true, normalizedSurface);
+        return registerInternal(dto, normalizedSurface);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ShopAuthVO registerPublic(ShopRegisterDTO dto) {
-        return registerInternal(dto, false, "public");
+        return registerInternal(dto, "public");
     }
 
-    private ShopAuthVO registerInternal(ShopRegisterDTO dto, boolean requireInvitation, String surface) {
+    private ShopAuthVO registerInternal(ShopRegisterDTO dto, String surface) {
         validateRegister(dto);
         dto.setPhone(dto.getPhone().trim());
         dto.setUsername(normalizeLoginAccount(dto.getUsername()));
@@ -122,39 +122,9 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             Asserts.fail("该登录账号已被使用，请更换登录账号");
         }
 
-        // 公开商城仅有两种客户模式：普通商城不建邀请关系，邀请商城首次注册必须有邀请。
-        // 与后台切换共用租户行锁，防止配置切换与注册并发时绕过门禁。
-        if ("public".equals(surface)) {
-            DmsTenant invitationTenant = tenantDao.selectByIdForUpdate(TenantContext.getTenantId());
-            if (invitationTenant == null || invitationTenant.getInvitationEnabled() == null) {
-                Asserts.fail("商城注册配置暂不可用，请稍后重试");
-            }
-            requireInvitation = !Integer.valueOf(0).equals(invitationTenant.getInvitationEnabled());
-            if (!requireInvitation && dto.getInviteCode() != null && !dto.getInviteCode().isBlank()) {
-                Asserts.fail("当前商城未开启邀请注册，请使用普通注册入口");
-            }
-        }
-        Long inviterId = null;
-        if (requireInvitation) {
-            if (!"public".equals(surface)) requireInvitationEnabledForNewRelation();
-            if (dto.getInviteCode() == null || dto.getInviteCode().isBlank()) {
-                Asserts.fail("邀请商城首次注册需要有效邀请码，请通过好友分享进入或填写邀请码");
-            }
-            String inviteCode = dto.getInviteCode().trim().toUpperCase(java.util.Locale.ROOT);
-            DmsShopMember inviter = memberDao.selectByInviteCode(inviteCode);
-            if (inviter == null) {
-                // 兼容旧版本为正式会员另外生成的邀请码，避免历史二维码和链接失效。
-                AgentInfoVO legacyInviter = agentService.getAgentByInviteCode(inviteCode);
-                if (legacyInviter != null && Integer.valueOf(1).equals(legacyInviter.getStatus())) {
-                    inviter = memberDao.selectByUserId(legacyInviter.getUserId());
-                }
-            }
-            if (inviter == null || !Integer.valueOf(1).equals(inviter.getStatus())
-                    || Integer.valueOf(1).equals(inviter.getSystemAccount())) {
-                Asserts.fail("邀请码无效");
-            }
-            inviterId = inviter.getUserId();
-        }
+        DmsTenant registrationTenant = lockAgentMutationScope();
+        Long inviterId = registrationInviter(registrationTenant, dto.getInviteCode());
+        boolean invitedRegistration = inviterId != null;
 
         DmsShopMember member = new DmsShopMember();
         member.setUserId(IdUtil.getSnowflakeNextId());
@@ -165,14 +135,14 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         member.setInviteCode(IdUtil.fastSimpleUUID().substring(0, 8).toUpperCase());
         member.setInviterId(inviterId);
         member.setStatus(1);
-        member.setTeamOptIn(requireInvitation ? 1 : 0);
+        member.setTeamOptIn(invitedRegistration ? 1 : 0);
         memberDao.insert(member);
 
         // 邀请关系在注册交易内一次性绑定；是否同时开通推广资格，由客户业务模式独立决定。
         DmsTenant tenant = tenantDao.selectById(TenantContext.getTenantId());
         PromotionJoinModeEnum joinMode = PromotionJoinModeEnum.forExisting(
                 tenant == null ? null : tenant.getPromotionJoinMode());
-        if (requireInvitation && joinMode.autoOnInvite()) {
+        if (invitedRegistration && joinMode.autoOnInvite()) {
             activateMember(member.getUserId(), 1, "受邀注册后自动开通推广资格");
         }
         return createSession(member, surface);
@@ -490,23 +460,9 @@ public class ShopAuthServiceImpl implements ShopAuthService {
             Asserts.fail("该手机号已被其他账号占用，请联系客服处理");
         }
 
-        Long inviterId = null;
-        DmsTenant tenant = tenantDao.selectByIdForUpdate(TenantContext.getTenantId());
-        if (tenant == null || tenant.getInvitationEnabled() == null) {
-            Asserts.fail("商城注册配置暂不可用，请稍后重试");
-        }
-        boolean invitationEnabled = !Integer.valueOf(0).equals(tenant.getInvitationEnabled());
-        boolean invitedRegistration = inviteCode != null && !inviteCode.isBlank();
-        if (invitationEnabled && !invitedRegistration) {
-            Asserts.fail("邀请商城首次注册需要有效邀请码，请通过好友分享进入或填写邀请码");
-        }
-        if (!invitationEnabled && invitedRegistration) {
-            Asserts.fail("当前商城未开启邀请注册，请使用普通注册入口");
-        }
-        if (invitedRegistration) {
-            DmsShopMember inviter = resolveActiveInviter(inviteCode);
-            inviterId = inviter.getUserId();
-        }
+        DmsTenant tenant = lockAgentMutationScope();
+        Long inviterId = registrationInviter(tenant, inviteCode);
+        boolean invitedRegistration = inviterId != null;
 
         DmsShopMember member = new DmsShopMember();
         member.setUserId(IdUtil.getSnowflakeNextId());
@@ -548,19 +504,55 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     }
 
     private DmsShopMember resolveActiveInviter(String inviteCode) {
-        String normalized = inviteCode.trim().toUpperCase(java.util.Locale.ROOT);
-        DmsShopMember inviter = memberDao.selectByInviteCode(normalized);
-        if (inviter == null) {
-            AgentInfoVO legacyInviter = agentService.getAgentByInviteCode(normalized);
-            if (legacyInviter != null && Integer.valueOf(1).equals(legacyInviter.getStatus())) {
-                inviter = memberDao.selectByUserId(legacyInviter.getUserId());
-            }
+        return InvitationMemberPolicy.resolve(memberDao, agentService, inviteCode);
+    }
+
+    private Long registrationInviter(DmsTenant tenant, String code) {
+        if (!Integer.valueOf(1).equals(tenant.getInvitationEnabled())) {
+            if (code != null && !code.isBlank()) Asserts.fail("当前商城未开启邀请注册，请使用普通注册入口");
+            return null;
         }
-        if (inviter == null || !Integer.valueOf(1).equals(inviter.getStatus())
-                || Integer.valueOf(1).equals(inviter.getSystemAccount())) {
-            Asserts.fail("邀请码无效");
+        if (code != null && !code.isBlank()) return resolveActiveInviter(code).getUserId();
+        if (Integer.valueOf(1).equals(tenant.getDefaultInviterEnabled()))
+            return resolveActiveInviter(tenant.getDefaultInviterCode()).getUserId();
+        return null;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public String bindSharedInvitation(DmsShopMember member, String inviteCode) {
+        if (member == null) Asserts.unauthorized("请先登录");
+        // All relation writers take the tenant lock first, then the member row.
+        DmsTenant tenant = lockAgentMutationScope();
+        DmsShopMember current = memberDao.selectByIdForUpdate(member.getId());
+        if (current == null || !Integer.valueOf(1).equals(current.getStatus())
+                || Integer.valueOf(1).equals(current.getSystemAccount())) Asserts.fail("商城账号不可用");
+        if (current.getInviterId() != null) return "ALREADY_BOUND";
+        if (!Integer.valueOf(1).equals(tenant.getInvitationEnabled())) return "DISABLED";
+        AgentInfoVO ownAgent = agentService.getAgentByUserId(current.getUserId());
+        if (ownAgent != null && ownAgent.getParentId() != null) return "ALREADY_BOUND";
+        DmsShopMember inviter = resolveActiveInviter(inviteCode);
+        if (Objects.equals(inviter.getUserId(), current.getUserId())) return "SELF";
+        java.util.Set<Long> visited = new java.util.HashSet<>();
+        DmsShopMember ancestor = inviter;
+        while (ancestor != null) {
+            if (Objects.equals(ancestor.getUserId(), current.getUserId()) || !visited.add(ancestor.getUserId())
+                    || visited.size() > 512) Asserts.fail("不能形成循环邀请关系");
+            ancestor = ancestor.getInviterId() == null ? null : memberDao.selectByUserId(ancestor.getInviterId());
         }
-        return inviter;
+        if (memberDao.bindInviterOnce(current.getId(), inviter.getUserId()) != 1) Asserts.fail("邀请关系已变化，请刷新后重试");
+        current.setInviterId(inviter.getUserId());
+        memberDao.markTeamOptIn(current.getId());
+        AgentInfoVO parentAgent = agentService.getAgentByUserId(inviter.getUserId());
+        if (ownAgent != null && parentAgent != null && Integer.valueOf(1).equals(parentAgent.getStatus())) {
+            AgentSwitchLineDTO move = new AgentSwitchLineDTO();
+            move.setAgentId(ownAgent.getId()); move.setNewParentAgentId(parentAgent.getId());
+            move.setReason("首次绑定直属邀请关系（历史订单、业绩及奖金不变）");
+            agentService.switchLine(move);
+        } else if (ownAgent == null && PromotionJoinModeEnum.forExisting(tenant.getPromotionJoinMode()).autoOnInvite()) {
+            activateMember(current.getUserId(), 1, "首次绑定直属邀请关系后自动开通推广资格");
+        }
+        return "BOUND";
     }
 
     /** 与后台切换共用租户行锁；已成立的邀请关系和老订单不走此门禁。 */

@@ -72,5 +72,6 @@ export const clearShopSession = ({ clearCart = false } = {}) => {
   sessionVerified = false
   localStorage.removeItem(LEGACY_TOKEN_KEY)
   localStorage.removeItem(MEMBER_KEY)
+  sessionStorage.removeItem('shop_pending_invitation_v3')
   switchCartOwner(null)
 }

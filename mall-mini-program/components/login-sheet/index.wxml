@@ -49,8 +49,8 @@
         </view>
         <view wx:if="{{agreementRequired && !agreed}}" class="agreement-hint">请先阅读并勾选同意以上协议</view>
         <view wx:if="{{invitationEnabled && inviteExpanded}}" class="invite-tip">
-          <text class="invite-caption">{{inviteFromLink ? '来自好友分享的邀请' : '邀请商城首次注册须有邀请码；已有账号可直接登录'}} · 仅首次注册绑定，已有账号不换上级</text>
-          <view wx:if="{{!inviteFromLink}}" class="invite-input-row"><input class="invite-input" value="{{inviteCode}}" maxlength="8" placeholder="输入8位邀请码" bindinput="invitationInput" disabled="{{submitting}}" aria-label="首次注册邀请码" /><button class="help-button" bindtap="checkInvitation" disabled="{{submitting || inviteBusy}}">核对</button></view>
+          <text class="invite-caption">{{inviteFromLink ? '来自好友分享的邀请' : '无需邀请码即可登录或注册'}} · 无邀请人时绑定一次，已绑定不换上级</text>
+          <view wx:if="{{!inviteFromLink}}" class="invite-input-row"><input class="invite-input" value="{{inviteCode}}" maxlength="8" placeholder="输入8位邀请码" bindinput="invitationInput" disabled="{{submitting}}" aria-label="邀请码，选填" /><button class="help-button" bindtap="checkInvitation" disabled="{{submitting || inviteBusy}}">核对</button></view>
           <text wx:if="{{inviteBusy}}" class="invite-caption">正在核对邀请人…</text>
           <text wx:if="{{inviterName}}">邀请人：{{inviterName}}</text>
           <text wx:if="{{inviteConflict}}" class="invite-caption">又收到一份邀请，请明确选择。本次邀请：{{candidateName || '核对中'}}</text>

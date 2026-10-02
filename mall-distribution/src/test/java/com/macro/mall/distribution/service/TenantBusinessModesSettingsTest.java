@@ -53,7 +53,7 @@ class TenantBusinessModesSettingsTest {
         ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
         service = new TenantServiceImpl(tenantDao, ruleVersionDao, displayDao, configVersionDao,
                 new TenantDisplayConfigSupport(objectMapper), legalSupport, operationLogService, objectMapper,
-                catalogCache, adminAuthService, imagePolicy);
+                catalogCache, adminAuthService, imagePolicy, mock(com.macro.mall.distribution.dao.DmsShopMemberDao.class), mock(AgentService.class));
 
         admin = new DmsAdminUser();
         admin.setId(8L);
@@ -208,6 +208,38 @@ class TenantBusinessModesSettingsTest {
         ApiException denied = assertThrows(ApiException.class, () -> service.getBusinessModes(1L));
         assertEquals(ResultCode.FORBIDDEN, denied.getErrorCode());
         verify(tenantDao, never()).selectById(any());
+    }
+
+    @Test
+    void defaultTargetRequiresShopPermissionAndSavesWithoutChangingOldAccounts() {
+        var members=(com.macro.mall.distribution.dao.DmsShopMemberDao) org.springframework.test.util.ReflectionTestUtils.getField(service,"invitationMemberDao");
+        var target=new com.macro.mall.distribution.entity.DmsShopMember(); target.setStatus(1); target.setUserId(900L);
+        when(members.selectByInviteCode("MASTER01")).thenReturn(target);
+        DmsTenant before=tenant(1L,"商城","NONE"), saved=tenant(1L,"商城","NONE");
+        saved.setDefaultInviterEnabled(1); saved.setDefaultInviterCode("MASTER01");
+        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(before);
+        when(tenantDao.selectById(1L)).thenReturn(saved);
+        when(configVersionDao.countByTenantId(1L)).thenReturn(1);
+        when(tenantDao.updateBusinessModes(eq(1L),any())).thenReturn(1);
+        var request=modes(); request.setDefaultInviterEnabled(1); request.setDefaultInviterCode("master01");
+        var result=service.saveBusinessModes(1L,request);
+        assertEquals(1,result.getDefaultInviterEnabled()); assertEquals("MASTER01",result.getDefaultInviterCode());
+        verify(adminAuthService).requirePermission(admin,"config:shop");
+        verify(members,never()).updateInviterId(any(),any());
+    }
+
+    @Test
+    void missingSystemAndInactiveDefaultTargetsAreRejectedBeforeConfigWrite() {
+        var members=(com.macro.mall.distribution.dao.DmsShopMemberDao) org.springframework.test.util.ReflectionTestUtils.getField(service,"invitationMemberDao");
+        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(tenant(1L,"商城","NONE"));
+        var request=modes(); request.setDefaultInviterEnabled(1); request.setDefaultInviterCode("");
+        assertThrows(ApiException.class,()->service.saveBusinessModes(1L,request));
+        for (boolean system:new boolean[]{true,false}) {
+            var target=new com.macro.mall.distribution.entity.DmsShopMember();target.setStatus(system?1:0);target.setSystemAccount(system?1:0);
+            when(members.selectByInviteCode("MASTER01")).thenReturn(target); request.setDefaultInviterCode("MASTER01");
+            assertThrows(ApiException.class,()->service.saveBusinessModes(1L,request));
+        }
+        verify(tenantDao,never()).updateBusinessModes(any(),any());
     }
 
     private TenantBusinessModesDTO modes() {

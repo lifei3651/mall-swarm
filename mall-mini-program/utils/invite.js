@@ -26,12 +26,12 @@ function decodeScene(scene) {
 
 function captureLaunchInvite(options = {}) {
   if (typeof wx === 'undefined') return ''
-  if (wx.getStorageSync('mall_mini_access_token')) { clearPendingInvite(); return '' }
+  const authenticated = !!wx.getStorageSync('mall_mini_access_token')
   const query = options.query || {}
   const code = normalizeInviteCode(query.inviteCode || query.invite) || decodeScene(query.scene)
   if (code) {
     const state = getState()
-    if (!state.selected) write({ selected: { code, source: 'link' }, candidate: null, expiresAt: Date.now() + MAX_AGE })
+    if (authenticated || !state.selected) write({ selected: { code, source: 'link' }, candidate: null, expiresAt: Date.now() + MAX_AGE })
     else if (state.selected.code !== code) write({ ...state, candidate: { code, source: 'link' } })
   } else if (query.inviteCode || query.invite || query.scene) {
     const state = getState()

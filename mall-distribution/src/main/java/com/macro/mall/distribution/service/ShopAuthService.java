@@ -24,6 +24,9 @@ public interface ShopAuthService {
     /** 公开商城注册：普通入口创建购物账号；邀请链接在同一事务中创建账号并绑定邀请人。 */
     ShopAuthVO registerPublic(ShopRegisterDTO dto);
 
+    /** 仅本人未绑定时根据有效分享绑定一次，既有关系不替换。 */
+    String bindSharedInvitation(DmsShopMember member, String inviteCode);
+
     ShopAuthVO login(ShopLoginDTO dto);
 
     ShopAuthVO login(ShopLoginDTO dto, String surface);
@@ -43,7 +46,7 @@ public interface ShopAuthService {
 
     DmsShopMember requireMember(String authorization);
 
-    /** 返回本人账号形态及只读直属邀请关系，不暴露邀请人的敏感身份字段。 */
+    /** 返回本人账号形态及当前直属邀请关系，不暴露邀请人的敏感身份字段。 */
     ShopAccountIdentityVO accountIdentity(DmsShopMember member);
 
     /** 敏感能力必须校验服务端会话签发来源，不能信任客户端临时请求头。 */

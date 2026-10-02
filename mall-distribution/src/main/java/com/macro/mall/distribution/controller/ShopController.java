@@ -1222,6 +1222,14 @@ public class ShopController {
         return CommonResult.success(shopService.getProfilePerformance(authService.requireMember(authorization)));
     }
 
+    @Operation(summary = "根据分享首次绑定邀请人")
+    @PostMapping("/invite/bind")
+    public CommonResult<String> bindSharedInvitation(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @Valid @RequestBody com.macro.mall.distribution.dto.ShopInviteBindDTO dto) {
+        return CommonResult.success(authService.bindSharedInvitation(authService.requireMember(authorization), dto.getInviteCode()));
+    }
+
     @Operation(summary = "获取邀请信息")
     @GetMapping("/invite/my")
     public CommonResult<java.util.Map<String, Object>> myInvite(

@@ -11,10 +11,13 @@
           <p>关闭后原商户商品从前台隐藏，不能新上架或下单；商品和商户记录不删除。切换前创建的订单仍可支付、退款、履约、结算与审计。</p>
         </section>
         <section><h3>邀请与推广资格</h3>
-          <el-form-item label="邀请功能" class="toggle-row"><span class="toggle-state">{{ Number(form.invitationEnabled) === 1 ? '邀请商城（首次注册必须有邀请）' : '普通商城（无邀请）' }}</span><el-switch v-model="form.invitationEnabled" aria-label="启用邀请商城，首次注册必须有邀请" :active-value="1" :inactive-value="0" :disabled="!canEditInvitation" /></el-form-item>
-          <p v-if="Number(form.invitationEnabled) === 1">邀请商城：已注册顾客分享公开页面时带本人邀请码；新顾客可从分享链接自动带入，或手填有效邀请码，首次注册时必须核对邀请人。已有账号正常登录且不会因新链接更换邀请人。邀请关系不等于奖金资格。</p>
+          <el-form-item label="邀请功能" class="toggle-row"><span class="toggle-state">{{ Number(form.invitationEnabled) === 1 ? '邀请开启（邀请码选填）' : '普通商城（无邀请）' }}</span><el-switch v-model="form.invitationEnabled" aria-label="启用邀请关系，注册无需邀请码" :active-value="1" :inactive-value="0" :disabled="!canEditInvitation" /></el-form-item>
+          <p v-if="Number(form.invitationEnabled) === 1">邀请商城：已注册顾客分享公开页面时带本人邀请码；新顾客无需邀请码即可注册；分享链接自动带入邀请人。先注册后打开分享时，未绑定账号自动绑定一次；已经绑定的账号不更换邀请人。邀请关系不等于奖金资格。</p>
           <p v-else>普通商城模式：不显示新注册的邀请入口，新分享不带邀请码，旧邀请码也不能建立新的邀请关系；普通注册和购物不受影响，历史关系、订单和账务保留。</p>
           <p v-if="!canEditInvitation">调整邀请功能需要商城设置权限。</p>
+          <el-form-item label="默认绑定主账号" class="toggle-row"><el-switch v-model="form.defaultInviterEnabled" :active-value="1" :inactive-value="0" :disabled="!canEditInvitation" /></el-form-item>
+          <el-form-item v-if="Number(form.defaultInviterEnabled) === 1" label="主账号邀请码"><el-input v-model="form.defaultInviterCode" maxlength="8" placeholder="指定普通商城账号的8位本人邀请码" :disabled="!canEditInvitation" /></el-form-item>
+          <p>仅邀请功能开启时生效：有效分享优先；无分享的新注册账号默认绑定指定主账号。关闭则暂时无邀请人。默认绑定后不再换上级，不批量绑定旧账号；不能指定后台管理员或系统资金账号。</p>
           <el-form-item label="推广资格开通">
             <el-radio-group v-model="form.promotionJoinMode" class="mode-options">
               <el-radio-button value="DISABLED">关闭</el-radio-button>
@@ -59,7 +62,7 @@ import { businessModeChanges } from '@/utils/businessModeChanges'
 import { useAppStore } from '@/store'
 const store=useAppStore()
 const canEditInvitation=computed(()=>store.hasPermission('config:shop'))
-const loading=ref(false);const saving=ref(false);const form=ref({invitationEnabled:0,balanceTransactionsEnabled:1,multiMerchantEnabled:1,promotionJoinMode:'MANUAL_REVIEW',flashSaleEnabled:0,flashSaleBonusMode:'NONE',repurchaseMallEnabled:0,repurchaseEligibilityMode:'PAID_MEMBER',repurchaseBonusMode:'NONE',couponEnabled:1})
+const loading=ref(false);const saving=ref(false);const form=ref({invitationEnabled:0,defaultInviterEnabled:0,defaultInviterCode:'',balanceTransactionsEnabled:1,multiMerchantEnabled:1,promotionJoinMode:'MANUAL_REVIEW',flashSaleEnabled:0,flashSaleBonusMode:'NONE',repurchaseMallEnabled:0,repurchaseEligibilityMode:'PAID_MEMBER',repurchaseBonusMode:'NONE',couponEnabled:1})
 const snapshot = ref(null)
 const visibleBonusMode = (value) => ['STANDARD', 'CUSTOM'].includes(String(value || '').toUpperCase()) ? 'STANDARD' : 'NONE'
 const changes = computed(() => snapshot.value ? businessModeChanges(snapshot.value, form.value) : [])
@@ -79,6 +82,7 @@ const load = async () => {
 const save = async () => {
   if (!form.value.id || !changes.value.length || saving.value) return
   const payload = JSON.parse(JSON.stringify(form.value))
+  payload.defaultInviterCode = String(payload.defaultInviterCode || '').trim().toUpperCase()
   const summary = businessModeChanges(snapshot.value, payload)
   saving.value = true
   try {

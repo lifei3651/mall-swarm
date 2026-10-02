@@ -89,17 +89,17 @@ class ShopWechatRegistrationServiceTest {
     }
 
     @Test
-    void invitationMallRejectsNewWechatAccountWithoutInvite() {
+    void invitationMallAllowsNewWechatAccountWithoutInvite() {
         DmsShopMemberDao members = mock(DmsShopMemberDao.class);
         DmsShopMemberSessionDao sessions = mock(DmsShopMemberSessionDao.class);
         AgentService agents = mock(AgentService.class);
 
-        var error = assertThrows(RuntimeException.class,
-                () -> service(members, sessions, agents).loginOrRegisterWechat("13800138000", null));
-
-        assertEquals("邀请商城首次注册需要有效邀请码，请通过好友分享进入或填写邀请码", error.getMessage());
-        verify(members, never()).insert(any());
-        verifyNoInteractions(sessions);
+        var result = service(members, sessions, agents).loginOrRegisterWechat("13800138000", null);
+        assertNotNull(result.getToken());
+        ArgumentCaptor<DmsShopMember> created = ArgumentCaptor.forClass(DmsShopMember.class);
+        verify(members).insert(created.capture());
+        assertNull(created.getValue().getInviterId());
+        verify(sessions).insert(any());
     }
 
     private ShopAuthServiceImpl service(DmsShopMemberDao members, DmsShopMemberSessionDao sessions, AgentService agents) {

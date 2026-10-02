@@ -81,6 +81,8 @@ CREATE TABLE IF NOT EXISTS dms_tenant (
   repurchase_mall_enabled INT NOT NULL DEFAULT 0,
   coupon_enabled INT NOT NULL DEFAULT 1,
   invitation_enabled INT NOT NULL DEFAULT 1,
+  default_inviter_enabled INT NOT NULL DEFAULT 0,
+  default_inviter_code VARCHAR(8),
   balance_transactions_enabled INT NOT NULL DEFAULT 1,
   multi_merchant_enabled INT NOT NULL DEFAULT 1,
   repurchase_eligibility_mode VARCHAR(24) NOT NULL DEFAULT 'PAID_MEMBER',

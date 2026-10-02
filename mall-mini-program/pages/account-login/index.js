@@ -107,7 +107,6 @@ Page({
     if (this._inactive || this.data.submitting || this.data.sending || this.data.captchaBusy) return
     const invalid = this.validate(); if (invalid) return this.showError(...invalid)
     const mode = this.data.mode
-    if (mode === 'register' && this.data.invitationEnabled && !this.data.inviteCode) return this.showError('邀请商城首次注册需要邀请码，请通过好友分享进入或填写邀请码', 'inviteCode')
     if (mode === 'register' && !this.invitationReady()) return
     if (mode === 'reset' && this.data.resetStep === 1) { this.setData({ resetStep: 2, error: '', errorField: '' }); return }
     const current = this.current(), form = { ...this.data.form }, captcha = { captchaId: this.data.captchaId, captchaCode: form.captchaCode }
@@ -126,7 +125,10 @@ Page({
         data: { credentials, privacyAgreed: true, privacyConsentVersion: config.PRIVACY_CONSENT_VERSION } })
       if (!current()) return
       if (!result || typeof result.accessToken !== 'string' || !result.accessToken || !result.member?.id) throw new Error('登录结果不完整，请重新登录')
-      session.saveSession(result); invite.clearPendingInvite(); this._owner = session.getToken()
+      session.saveSession(result); this._owner = session.getToken()
+      const authenticatedCurrent = this.current()
+      await require('../../utils/invitation-binding').bindPendingInvite(credentials.inviteCode || '')
+      if (!authenticatedCurrent()) return
       this.setData({ form: empty(), submitting: false })
       if (mode === 'register') this.redirect = '/pages/home/index'
       flow.finish.call(this)
