@@ -3,7 +3,8 @@ import path from 'node:path'
 
 const root = path.resolve('dist')
 const blocked = [
-  { label: '团队关系接口', pattern: /\/shop\/(?:team|invite)(?:\/|`|"|')/i },
+  // Only authenticated first invitation binding is part of public shopping.
+  { label: '团队关系接口', pattern: /\/shop\/(?!invite\/bind(?:["'`]|$))(?:team|invite)(?:\/|`|"|')/i },
   { label: '团队资料接口', pattern: /\/shop\/profile\/performance/i },
   { label: '资金划转接口', pattern: /\/shop\/wallet\/(?:withdrawals|transfers|recipient)/i },
   // 公开注册允许显示脱敏邀请人并在注册时绑定；仍禁止团队经营、奖金和提现业务进入公开包。

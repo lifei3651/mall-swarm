@@ -71,7 +71,9 @@ const runBuild = (command, args, cwd = root) => {
   if (result.error) throw result.error
   if (result.status !== 0) throw new Error(`Build failed (${result.status}): ${command} ${args.join(' ')}`)
 }
-runBuild('./mvnw', ['-DskipTests', 'clean', 'package'])
+// The aggregator target/releases holds immutable historical candidates. Clean
+// only the three compiled modules, preserving every existing release archive.
+runBuild('./mvnw', ['-DskipTests', '-pl', 'mall-common,mall-mbg,mall-distribution', 'clean', 'package'])
 runBuild('npm', ['run', 'build'], path.join(root, 'mall-distribution-admin'))
 runBuild('npm', ['run', 'build'], path.join(root, 'mall-shop-web'))
 assertSourceUnchanged('clean build')

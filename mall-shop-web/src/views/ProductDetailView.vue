@@ -225,7 +225,7 @@ import {
   X,
   Zap,
 } from 'lucide-vue-next'
-import { getProduct, getProductReviews } from '@/api/shop'
+import { getProduct, getProductReviews, getInvitationShareCapabilities } from '@/api/shop'
 import { resolvePageLayouts } from '@/utils/pageLayouts'
 import { layoutPlatform } from '@/utils/layoutPlatform'
 import { useCart } from '@/store/cart'
@@ -234,6 +234,8 @@ import { requireShopSession } from '@/utils/authNavigation'
 import { cartItemKey, resolveCurrentStock, stockAdditionViolation, stockQuantityViolation } from '@/utils/stockRules'
 import { resolvePositiveIntegerQuantity, sanitizePositiveIntegerInput } from '@/utils/quantityInput'
 import { money } from '@/utils/format'
+import { toPublicWebUrl } from '@/utils/appEnvironment'
+import { hasShopSession, restoreShopSession } from '@/utils/shopSession'
 import { invitationShareUrl } from '@/utils/invitationShare'
 import { applyImageFallback } from '@/utils/imageFallback'
 
@@ -376,7 +378,10 @@ const showToast = (message) => {
   toastTimer = window.setTimeout(() => { toast.value = '' }, 2200)
 }
 const shareProduct = async () => {
-  const url = await invitationShareUrl(`/product/${route.params.id}`)
+  const url = await invitationShareUrl(`/product/${route.params.id}`, {
+    toUrl: toPublicWebUrl, hasSession: hasShopSession, restoreSession: restoreShopSession,
+    owner: () => localStorage.getItem('shop_member'), loadInviteInfo: getInvitationShareCapabilities,
+  })
   const title = product.value?.productName || '商品推荐'
   if (navigator.share) {
     try { await navigator.share({ title, url }) } catch {}

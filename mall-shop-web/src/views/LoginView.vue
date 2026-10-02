@@ -70,17 +70,16 @@
         <!-- 注册 -->
         <template v-if="mode === 'register'">
           <div class="form-item full">
-            <label for="register-invite-code">邀请码 <span class="required-mark" aria-hidden="true">*</span></label>
+            <label for="register-invite-code">邀请码（选填）</label>
             <input
               id="register-invite-code"
               v-model="registerForm.inviteCode"
               name="inviteCode"
               class="field"
               :class="{ 'has-error': fieldErrors.inviteCode }"
-              placeholder="请输入邀请码（必填）"
+              placeholder="分享链接自动带入，也可选填"
               maxlength="8"
               autocomplete="off"
-              aria-required="true"
               :aria-invalid="!!fieldErrors.inviteCode"
               :disabled="inviteCodeLocked"
               @input="handleInviteCodeInput"
@@ -481,8 +480,7 @@ const focusFirstRegisterError = async () => {
 const validateRegisterForm = () => {
   fieldErrors.value = {}
   const inviteCode = normalizeInviteCode(registerForm.value.inviteCode)
-  if (!inviteCode) fieldErrors.value.inviteCode = '请输入邀请码（注册必须有邀请人）'
-  else if (!/^[A-Z0-9]{8}$/.test(inviteCode)) fieldErrors.value.inviteCode = '请输入完整的8位邀请码'
+  if (inviteCode && !/^[A-Z0-9]{8}$/.test(inviteCode)) fieldErrors.value.inviteCode = '请输入完整的8位邀请码'
   validateRegisterField('phone')
   validateRegisterField('username')
   validateRegisterField('smsCode')
@@ -498,9 +496,8 @@ const loadInviter = async () => {
   if (!inviteCode) {
     inviterInfo.value = null
     inviteError.value = ''
-    fieldErrors.value.inviteCode = '请输入邀请码（注册必须有邀请人）'
-    scheduleRegisterErrorsClear()
-    return false
+    clearFieldError('inviteCode')
+    return true
   }
   registerForm.value.inviteCode = inviteCode
   if (!/^[A-Z0-9]{8}$/.test(inviteCode)) {

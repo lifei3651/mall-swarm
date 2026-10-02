@@ -16,6 +16,7 @@ test('177 fixes the read-back 176 baseline and independent upload project', () =
   }
   for (const name of ['release-readiness-177.sh', 'run-mall-closure-regression-177.sh', 'remote-deploy-20261002-v1.0.177-backend.sh', 'remote-deploy-20261002-v1.0.177-static.sh']) execFileSync('bash', ['-n', `${root}/scripts/${name}`])
   assert.match(read('scripts/upload-lingqi-mini-177.mjs'), /wechat-mini-program-177/)
+  assert.match(read('scripts/release-lingqi-177.mjs'), /'-pl', 'mall-common,mall-mbg,mall-distribution', 'clean', 'package'/)
 })
 test('only the 46th configuration migration is added; prior 45 SQL bytes remain fixed', () => {
   const names = fs.readdirSync(`${root}/document/db/migrations`).filter(n => /^V\d{12}__.*\.sql$/.test(n)).sort()

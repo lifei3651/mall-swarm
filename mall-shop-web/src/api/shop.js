@@ -1,6 +1,7 @@
 import request from './request'
 
 export const bindSharedInvitation = (inviteCode) => request({ url: '/shop/invite/bind', method: 'post', data: { inviteCode } })
+export const getInvitationShareCapabilities = () => request({ url: '/shop/wechat-mini-program/member-capabilities', method: 'get' })
 
 const idempotencyHeaders = (key) => key ? { 'X-Idempotency-Key': key } : undefined
 
