@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.macro.mall.distribution.service.CustomerBusinessModePolicy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.macro.mall.common.api.ResultCode;
 import com.macro.mall.common.exception.ApiException;
@@ -48,7 +49,9 @@ public class DirectReferralConfigServiceImpl implements DirectReferralConfigServ
         DirectReferralRuleConfig config = new DirectReferralRuleConfig(dto.getEnabled(), dto.getCommissionRate(),
                 dto.getPurchaseScope(), dto.getSettlementDelayDays()).validated();
         Long tenantId = TenantContext.getTenantId();
-        if (tenantDao.selectByIdForUpdate(tenantId) == null) Asserts.fail("商城客户不存在");
+        var tenant = tenantDao.selectByIdForUpdate(tenantId);
+        if (tenant == null) Asserts.fail("商城客户不存在");
+        if (Boolean.TRUE.equals(dto.getEnabled())) CustomerBusinessModePolicy.requireLegacyQualification(tenant);
         DmsCommissionRuleVersion before = ruleVersionDao.selectActiveByTenantIdForUpdate(tenantId);
         if (!Objects.equals(before == null ? null : before.getId(), dto.getExpectedVersionId())) {
             Asserts.fail("佣金规则已被更新，请刷新后重新确认");

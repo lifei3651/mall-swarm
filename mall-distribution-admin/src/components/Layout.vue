@@ -107,6 +107,7 @@
 
 <script setup>
 import { ref, computed, onBeforeUnmount, onMounted, reactive, watch } from 'vue'
+import { modeMenuAllowed, refreshCustomerBusinessMode } from '@/utils/customerBusinessMode'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import {
@@ -412,6 +413,8 @@ const handleRealtimeStatus = (connected) => {
   if (!connected) orderWorkTimer = window.setInterval(loadOrderWorkSummary, 30000)
 }
 
+const refreshMode = () => refreshCustomerBusinessMode(store).catch(() => {})
+
 const handleSessionExpired = () => {
   store.logout()
   ElMessage.closeAll()
@@ -422,6 +425,7 @@ const handleSessionExpired = () => {
 onMounted(() => {
   narrowViewport.addEventListener('change', updateNarrowViewport)
   loadBrand()
+  refreshCustomerBusinessMode(store).catch(() => {})
   checkServerSession(true)
   loadAllTodos()
   sessionCheckTimer = window.setInterval(() => checkServerSession(true), 60000)
@@ -430,6 +434,7 @@ onMounted(() => {
     onEvent: handleRealtimeOrderChange,
     onStatus: handleRealtimeStatus,
   })
+  window.addEventListener('customer-business-mode-changed', refreshMode)
   window.addEventListener('focus', checkSessionOnVisibility)
   window.addEventListener('pointerdown', checkSessionOnActivity, true)
   window.addEventListener(ADMIN_SESSION_EXPIRED_EVENT, handleSessionExpired)
@@ -443,6 +448,7 @@ onBeforeUnmount(() => {
   window.clearInterval(operationalTodoTimer)
   window.clearTimeout(realtimeRefreshTimer)
   stopOrderRealtime?.()
+  window.removeEventListener('customer-business-mode-changed', refreshMode)
   window.removeEventListener('focus', checkSessionOnVisibility)
   window.removeEventListener('pointerdown', checkSessionOnActivity, true)
   window.removeEventListener(ADMIN_SESSION_EXPIRED_EVENT, handleSessionExpired)
@@ -487,7 +493,7 @@ const hasMenuPermission = (item) => {
   if (store.userInfo?.merchantId) {
     return isMerchantWorkspacePath(item.path) && (!item.permission || store.hasPermission(item.permission))
   }
-  return !item.permission || store.hasPermission(item.permission)
+  return modeMenuAllowed(item.path, store.businessMode, store.businessModeReady) && (!item.permission || store.hasPermission(item.permission))
 }
 const visibleBusinessMenus = computed(() => businessMenus
   .filter((menu) => menu.path !== '/settings' || canAccessSettings(store))

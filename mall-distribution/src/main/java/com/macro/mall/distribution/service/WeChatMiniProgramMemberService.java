@@ -21,7 +21,7 @@ public class WeChatMiniProgramMemberService {
         var agent = member == null ? null : agentDao.selectByUserId(member.getUserId());
         boolean active = EffectiveMemberPolicy.isActive(member, agent);
         var tenant = tenantDao.selectById(TenantContext.getTenantId());
-        boolean invitationEnabled = tenant != null && !Integer.valueOf(0).equals(tenant.getInvitationEnabled());
+        boolean invitationEnabled = CustomerBusinessModePolicy.invitation(tenant);
         boolean accountActive = member != null && Integer.valueOf(1).equals(member.getStatus())
                 && !Integer.valueOf(1).equals(member.getSystemAccount());
         String code = null;
@@ -35,10 +35,18 @@ public class WeChatMiniProgramMemberService {
         // Wallet ownership is independent of invitation/promotion eligibility.
         var level = active ? AgentLevelEnum.getByValue(agent.getAgentLevel()) : null;
         return new Capabilities(active, code != null, code, accountActive, accountActive,
-                level == null ? null : level.getValue(), level == null ? "购物账号" : level.getName());
+                level == null ? null : level.getValue(), level == null ? "购物账号" : level.getName(),
+                tenant == null ? null : tenant.getBusinessMode(), CustomerBusinessModePolicy.legacy(tenant));
     }
 
     public record Capabilities(boolean membershipActive, boolean canInvite, String inviteCode,
                                boolean canViewWallet, boolean canViewPayoutRecords,
-                               Integer membershipLevel, String membershipLabel) {}
+                               Integer membershipLevel, String membershipLabel, String businessMode, boolean teamFeaturesEnabled) {
+        public Capabilities(boolean membershipActive, boolean canInvite, String inviteCode,
+                            boolean canViewWallet, boolean canViewPayoutRecords,
+                            Integer membershipLevel, String membershipLabel) {
+            this(membershipActive, canInvite, inviteCode, canViewWallet, canViewPayoutRecords,
+                    membershipLevel, membershipLabel, null, true);
+        }
+    }
 }

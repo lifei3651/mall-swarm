@@ -11,6 +11,9 @@ import java.io.Serializable;
 @AllArgsConstructor
 public class ShopBusinessConfigVO implements Serializable {
 
+    private String businessMode;
+    private com.macro.mall.distribution.service.CustomerBusinessModePolicy.Status agencyConfigStatus;
+    private Boolean teamFeaturesEnabled;
     private Integer flashSaleEnabled;
     private Integer invitationEnabled;
     private String flashSaleBonusMode;

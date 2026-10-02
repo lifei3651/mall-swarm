@@ -79,7 +79,7 @@
               <div class="visual-design-field"><span>主题色</span><div class="color-editor"><el-color-picker v-model="displayForm.themeColor" /><el-input v-model="displayForm.themeColor" maxlength="7" placeholder="#e7193f" /></div></div>
             </div>
             <div class="brand-color-detail">
-              <div class="control-section-heading"><div><strong>按钮与价格</strong><small>可统一跟随主题色，也可分别设置；危险、警告、成功等状态色不受影响</small></div><el-button v-if="!unifiedCommerceColors" type="primary" link @click="unifyCommerceColors">一键统一为主题色</el-button><el-tag v-else size="small" type="success">已统一</el-tag></div>
+              <div class="control-section-heading"><div><strong>按钮与价格</strong><small>可跟随主题色，也可单独设置；单独设置后切换主题仍保留，危险、警告、成功等状态色不受影响</small></div><el-button v-if="!unifiedCommerceColors" type="primary" link @click="unifyCommerceColors">一键统一为主题色</el-button><el-tag v-else size="small" type="success">已统一</el-tag></div>
               <div class="commerce-color-grid">
                 <div v-for="color in commerceColorFields" :key="color.key" class="commerce-color-card">
                   <div><strong>{{ color.label }}</strong><small>{{ color.description }}</small></div>

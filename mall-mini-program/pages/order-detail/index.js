@@ -10,7 +10,7 @@ const theme = require('../../utils/theme')
 const foreground = require('../../utils/foreground-refresh')
 const cart = require('../../utils/cart')
 const purchaseLimit = require('../../utils/purchase-limit')
-const { identifier, afterSaleEligibility, amountLabel, isRefundedOrder, refundedQuantity, partialRefundSummary, paymentSummary } = require('./policy')
+const { identifier, afterSaleEligibility, amountLabel, isRefundedOrder, refundedQuantity, partialRefundSummary, partialRefundTitle, remainingItems, refundEstimate, paymentSummary } = require('./policy')
 
 const STATUS = { 0: '待付款', 1: '待发货', 2: '已发货', 3: '已完成', 4: '已取消', 5: '售后中' }
 const AFTER_SALE_STATUS = { 0: '待审核', 1: '退款完成', 2: '已拒绝', 3: '已取消', 4: '待寄回', 5: '待商家收货', 6: '退款处理中', 7: '待商家换货发出', 8: '换货已发出' }
@@ -93,8 +93,15 @@ function statusCopy(order, shipments, refunded, activeSale, returnConflict) {
 function pageStatus(rows) {
   if (rows.length > 1) {
     const pending = rows.filter((row) => row.order.status === 0).length
+    const refunded = rows.reduce((sum, row) => sum + row.items.reduce((n, item) => n + refundedQuantity(item, row.afterSales), 0), 0)
+    const remainingRows = rows.filter(row => row.items.some(item => Number(item.quantity) > refundedQuantity(item, row.afterSales)))
+    const remaining = remainingRows.reduce((sum, row) => sum + row.items.reduce((n, item) => n + Number(item.quantity) - refundedQuantity(item, row.afterSales), 0), 0)
+    const state = remainingRows.length && remainingRows.every(row => row.order.status === remainingRows[0].order.status)
+      ? { 1: '待发货', 2: '待收货', 3: '已完成' }[remainingRows[0].order.status] : ''
+    const refundTitle = !pending && refunded && remaining > 0 && state && !rows.some(row => row.afterSales.some(sale => [0, 4, 5, 6, 7, 8].includes(Number(sale.status))))
+      ? `部分退款完成，剩余${remaining}件${state}` : ''
     return {
-      pageStatusTitle: pending ? '合并订单待付款' : '合并订单',
+      pageStatusTitle: refundTitle || (pending ? '合并订单待付款' : '合并订单'),
       pageStatusDescription: pending ? `本次付款包含 ${rows.length} 个订单，请核对后统一支付` : `本次交易包含 ${rows.length} 个商城订单`,
       pageStatusTone: rows.every((row) => row.order.status === 4) ? 'closed' : 'active'
     }
@@ -185,6 +192,9 @@ Page({
         const returnConflict = activeSale && unshippedReturnConflict(order, shipments, activeSale)
         const [statusTitle, statusDescription] = statusCopy(order, shipments, refunded, activeSale, returnConflict)
         const refundSummary = partialRefundSummary(order, row.items, row.afterSales)
+        const refundTitle = partialRefundTitle(order, row.items, row.afterSales)
+        const remainingRefund = refundEstimate(row, remainingItems(row).map(item => ({ ...item, selectedQuantity: item.remaining })), 4)
+        const unshipped = Number(order.status) === 1 && !shipments.length && !order.deliveryNo && !order.deliveryTime
         const itemQuantity = (row.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)
         const paid = ![0, 4].includes(Number(order.status))
         return {
@@ -194,6 +204,7 @@ Page({
           refunded,
           itemQuantity,
           canApplyAfterSale: afterSaleEligibility(row).allowed,
+          afterSaleActionText: unshipped ? refundTitle ? `取消剩余商品并退款（¥${format.money(remainingRefund.total)}）` : '取消并退款' : '退换/售后',
           canReceive: Number(order.status) === 2 && !(row.afterSales || []).some((sale) => [0, 4, 5, 6, 7, 8].includes(Number(sale.status))),
           canRebuy: Number(order.status) !== 0 && (row.items || []).some((item) => item.productId),
           afterSaleDeadlineText: formatTime(row.afterSaleDeadline),
@@ -215,7 +226,7 @@ Page({
             status: Number(order.status),
             statusText: refunded ? '已退款' : activeSale && Number(order.status) !== 4 ? '售后处理中' : STATUS[Number(order.status)] || '处理中',
             statusTone: Number(order.status) === 4 ? 'closed' : 'active',
-            statusTitle,
+            statusTitle: !activeSale && refundTitle ? refundTitle : statusTitle,
             statusDescription: !activeSale && refundSummary ? refundSummary : statusDescription,
             amountText: format.money(order.payAmount == null ? order.totalAmount : order.payAmount),
             totalText: format.money(order.totalAmount == null ? order.payAmount : order.totalAmount),
@@ -245,6 +256,7 @@ Page({
                 : Number(item.totalAmount == null ? Number(item.price || 0) * Number(item.quantity || 1) : item.totalAmount)),
               paymentLabel: returned ? '原实付' : '实付款',
               refundStatusText: returned ? returned === quantity ? '已退款' : `已退款 ${returned}/${quantity} 件` : '',
+              fulfillmentStatusText: refundTitle && returned < quantity ? `${quantity - returned > 1 ? `剩余${quantity - returned}件` : ''}${{ 1: '待发货', 2: '待收货', 3: '已完成' }[Number(order.status)]}` : '',
               serviceTags: format.serviceTags(item.serviceTags).slice(0, 2)
             }
           }),
@@ -261,6 +273,7 @@ Page({
               ? '订单尚未发货，无需寄回商品。请联系平台客服核实并按原支付方式退款。'
               : displayText(sale.nextActionHint),
             amountText: format.money(sale.refundAmount),
+            auditRemarkText: typeof sale.auditRemark === 'string' ? sale.auditRemark.trim() : '',
             createTimeText: formatTime(sale.createTime),
             items: (sale.items || []).map((line) => ({
               ...line,

@@ -14,7 +14,7 @@
           </div>
           <div class="identity-actions">
             <RouterLink to="/profile/settings" class="identity-action"><Settings :size="16" />设置</RouterLink>
-            <button v-if="activeAgent" type="button" class="identity-action" @click="openInvite"><Gift :size="16" />邀请</button>
+            <button v-if="activeAgent && teamEnabled" type="button" class="identity-action" @click="openInvite"><Gift :size="16" />邀请</button>
           </div>
         </div>
         <div class="identity-stats" :class="{ 'without-team-performance': !showTeamPerformance }">
@@ -158,6 +158,7 @@ const accountName = computed(() => profile.value.member?.username || profile.val
 const orderSummary = computed(() => profile.value.orderSummary || {})
 const showTeamPerformance = computed(() => performanceProfile.value.canViewTeamPerformance === true)
 const couponEnabled = ref(false)
+const teamEnabled = ref(false)
 const teamPerformanceText = computed(() => {
   if (performanceLoading.value) return '加载中'
   return `¥${money(performanceProfile.value.performance?.currentMonthTeamPerformance)}`
@@ -215,8 +216,12 @@ onMounted(() => {
   error.value = ''
   fetchProfile()
   fetchWallet()
-  fetchPerformance()
-  getBusinessConfig().then(res => { if (!disposed) couponEnabled.value = Number(res.data?.couponEnabled) === 1 }).catch(() => {})
+  getBusinessConfig().then(res => {
+    if (disposed) return
+    couponEnabled.value = Number(res.data?.couponEnabled) === 1
+    teamEnabled.value = !!res.data && !res.data.businessMode && res.data.teamFeaturesEnabled !== false
+    if (teamEnabled.value) fetchPerformance(); else performanceLoading.value = false
+  }).catch(() => { performanceLoading.value = false })
   stopOrderRealtime = connectOrderRealtime({
     onEvent: () => {
       window.clearTimeout(realtimeRefreshTimer)

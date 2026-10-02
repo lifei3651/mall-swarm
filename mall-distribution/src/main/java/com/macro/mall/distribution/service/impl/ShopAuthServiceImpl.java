@@ -33,6 +33,7 @@ import com.macro.mall.distribution.vo.ShopAccountIdentityVO;
 import com.macro.mall.distribution.enums.AgentLevelEnum;
 import com.macro.mall.distribution.enums.AgentSourceTypeEnum;
 import com.macro.mall.distribution.enums.PromotionJoinModeEnum;
+import com.macro.mall.distribution.service.CustomerBusinessModePolicy;
 import com.macro.mall.distribution.util.PhoneNumberUtils;
 import com.macro.mall.distribution.util.MemberNicknameUtils;
 import com.macro.mall.distribution.security.MemberPasswordPolicy;
@@ -142,7 +143,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         DmsTenant tenant = tenantDao.selectById(TenantContext.getTenantId());
         PromotionJoinModeEnum joinMode = PromotionJoinModeEnum.forExisting(
                 tenant == null ? null : tenant.getPromotionJoinMode());
-        if (invitedRegistration && joinMode.autoOnInvite()) {
+        if (CustomerBusinessModePolicy.legacy(tenant) && invitedRegistration && joinMode.autoOnInvite()) {
             activateMember(member.getUserId(), 1, "受邀注册后自动开通推广资格");
         }
         return createSession(member, surface);
@@ -192,7 +193,8 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public AgentInfoVO activateMember(Long userId, Integer initialLevel, String reason) {
-        lockAgentMutationScope();
+        DmsTenant modeTenant = lockAgentMutationScope();
+        CustomerBusinessModePolicy.requireLegacyQualification(modeTenant);
         DmsShopMember member = memberDao.selectByUserId(userId);
         // 兼容旧后台页面曾展示的“会员表ID”；最终统一换成系统用户ID处理。
         if (member == null) member = memberDao.selectById(userId);
@@ -479,7 +481,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
 
         PromotionJoinModeEnum joinMode = PromotionJoinModeEnum.forExisting(
                 tenant == null ? null : tenant.getPromotionJoinMode());
-        if (invitedRegistration && joinMode.autoOnInvite()) {
+        if (CustomerBusinessModePolicy.legacy(tenant) && invitedRegistration && joinMode.autoOnInvite()) {
             activateMember(member.getUserId(), 1, "微信扫码受邀注册后自动开通推广资格");
         }
         return createSession(member, "mini-program");
@@ -508,7 +510,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     }
 
     private Long registrationInviter(DmsTenant tenant, String code) {
-        if (!Integer.valueOf(1).equals(tenant.getInvitationEnabled())) {
+        if (!CustomerBusinessModePolicy.invitation(tenant)) {
             if (code != null && !code.isBlank()) Asserts.fail("当前商城未开启邀请注册，请使用普通注册入口");
             return null;
         }
@@ -528,7 +530,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
         if (current == null || !Integer.valueOf(1).equals(current.getStatus())
                 || Integer.valueOf(1).equals(current.getSystemAccount())) Asserts.fail("商城账号不可用");
         if (current.getInviterId() != null) return "ALREADY_BOUND";
-        if (!Integer.valueOf(1).equals(tenant.getInvitationEnabled())) return "DISABLED";
+        if (!CustomerBusinessModePolicy.invitation(tenant)) return "DISABLED";
         AgentInfoVO ownAgent = agentService.getAgentByUserId(current.getUserId());
         if (ownAgent != null && ownAgent.getParentId() != null) return "ALREADY_BOUND";
         DmsShopMember inviter = resolveActiveInviter(inviteCode);
@@ -558,7 +560,7 @@ public class ShopAuthServiceImpl implements ShopAuthService {
     /** 与后台切换共用租户行锁；已成立的邀请关系和老订单不走此门禁。 */
     private void requireInvitationEnabledForNewRelation() {
         DmsTenant tenant = tenantDao.selectByIdForUpdate(TenantContext.getTenantId());
-        if (tenant == null || Integer.valueOf(0).equals(tenant.getInvitationEnabled())) {
+        if (!CustomerBusinessModePolicy.invitation(tenant)) {
             Asserts.fail("当前商城未开启邀请注册，请使用普通注册入口");
         }
     }

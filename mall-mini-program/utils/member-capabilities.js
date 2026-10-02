@@ -11,11 +11,12 @@ async function load() {
   if (!data || ['membershipActive', 'canInvite', 'canViewWallet', 'canViewPayoutRecords'].some((key) => typeof data[key] !== 'boolean')) {
     throw new Error('会员服务信息不完整，请重试')
   }
-  const code = invite.normalizeInviteCode(data.inviteCode)
+  const explicitMode = !!data.businessMode
+  const code = explicitMode ? '' : invite.normalizeInviteCode(data.inviteCode)
   const level = data.membershipActive && Number.isInteger(data.membershipLevel) && data.membershipLevel >= 1 && data.membershipLevel <= 8 ? data.membershipLevel : 0
   const labels = ['', '会员', 'VIP会员', '店铺', '代理', '一星董事', '二星董事', '三星董事', '合伙人']
   const serverLabel = typeof data.membershipLabel === 'string' ? data.membershipLabel.trim() : ''
-  return { ready: true, membershipActive: data.membershipActive, canInvite: data.canInvite && !!code,
+  return { ready: true, businessMode: data.businessMode || null, teamFeaturesEnabled: !explicitMode && data.teamFeaturesEnabled !== false, membershipActive: data.membershipActive, canInvite: !explicitMode && data.canInvite && !!code,
     membershipLevel: level, membershipLabel: level ? (serverLabel || labels[level]) : data.membershipActive ? '会员服务已开通' : '购物账号',
     inviteCode: data.canInvite ? code : '', canViewWallet: data.canViewWallet, canViewPayoutRecords: data.canViewPayoutRecords }
 }

@@ -27,3 +27,12 @@ export function partialRefundSummary(order, items = [], sales = []) {
   const state = { 1: '待发货', 2: '待收货', 3: '已完成' }[status]
   return `已退款 ${refunded} 件，剩余 ${remaining} 件${state}`
 }
+
+// A partial refund does not close the remaining fulfillment. Quantities are item units.
+export function partialRefundTitle(order, items = [], sales = []) {
+  if (![1, 2, 3].includes(Number(order?.status))) return ''
+  const remaining = items.reduce((sum, item) => sum + Math.max(0, Number(item.quantity) - refundedQuantity(item, sales)), 0)
+  const refunded = items.some(item => refundedQuantity(item, sales) > 0)
+  return refunded && remaining > 0
+    ? `部分退款完成，剩余${remaining}件${{ 1: '待发货', 2: '待收货', 3: '已完成' }[Number(order.status)]}` : ''
+}

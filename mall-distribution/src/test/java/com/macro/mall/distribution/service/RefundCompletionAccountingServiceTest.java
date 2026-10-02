@@ -87,6 +87,31 @@ class RefundCompletionAccountingServiceTest {
         verifyNoInteractions(assets);
     }
 
+    @Test
+    void remainingOneCentCompletionDoesNotRepeatPreviousEightyNineRefund() {
+        DmsShopAfterSaleItemDao saleItems = mock(DmsShopAfterSaleItemDao.class);
+        DmsShopOrderItemDao orderItems = mock(DmsShopOrderItemDao.class);
+        DistributionAuditService audit = mock(DistributionAuditService.class);
+        MemberAssetService assets = mock(MemberAssetService.class);
+        OrderBalanceAllocationService allocations = mock(OrderBalanceAllocationService.class);
+        MerchantService merchants = mock(MerchantService.class);
+        DmsShopAfterSale sale = sale(); sale.setAfterSaleNo("AS-B"); sale.setRefundAmount(new BigDecimal("0.01")); sale.setProductRefundAmount(new BigDecimal("0.01"));
+        DmsShopOrder order = order("BALANCE"); order.setTotalAmount(new BigDecimal("89.01")); order.setPayAmount(new BigDecimal("89.01"));
+        DmsFinanceRefund previous = new DmsFinanceRefund(); previous.setRefundNo("AS-A"); previous.setRefundAmount(new BigDecimal("89.00"));
+        when(audit.getRefundsByOrderId(order.getId())).thenReturn(List.of(previous));
+        DmsShopAfterSaleItem b = new DmsShopAfterSaleItem(); b.setOrderId(order.getId()); b.setProductId(22L); b.setOrderItemId(12L); b.setRefundQuantity(1); b.setRefundAmount(new BigDecimal("0.01"));
+        when(saleItems.selectByAfterSaleId(sale.getId())).thenReturn(List.of(b));
+        DmsShopOrderItem aLine = new DmsShopOrderItem(); aLine.setId(11L); aLine.setQuantity(1); aLine.setTotalAmount(new BigDecimal("89.00"));
+        DmsShopOrderItem bLine = new DmsShopOrderItem(); bLine.setId(12L); bLine.setQuantity(1); bLine.setTotalAmount(new BigDecimal("0.01"));
+        when(orderItems.selectByOrderId(order.getId())).thenReturn(List.of(aLine, bLine));
+        RefundCompletionAccountingService service = new RefundCompletionAccountingService(saleItems, orderItems, audit, assets, allocations, merchants);
+        assertTrue(service.complete(sale, order));
+        ArgumentCaptor<FinanceRefundDTO> refund = ArgumentCaptor.forClass(FinanceRefundDTO.class); verify(audit).saveRefund(refund.capture());
+        assertEquals("AS-B", refund.getValue().getRefundNo()); assertEquals(new BigDecimal("0.01"), refund.getValue().getRefundAmount());
+        ArgumentCaptor<com.macro.mall.distribution.dto.AssetChangeDTO> balance = ArgumentCaptor.forClass(com.macro.mall.distribution.dto.AssetChangeDTO.class); verify(assets).issue(balance.capture());
+        assertEquals(new BigDecimal("0.01"), balance.getValue().getAmount()); verify(merchants).reverseAfterSaleItems(List.of(b));
+    }
+
     private DmsShopAfterSale sale() {
         DmsShopAfterSale sale = new DmsShopAfterSale();
         sale.setId(1L);

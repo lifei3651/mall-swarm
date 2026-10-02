@@ -23,7 +23,7 @@
           <view class="after-sale-head"><view><text>{{sale.typeText}}</text><text>{{sale.afterSaleNo}}</text></view><text>{{sale.statusText}}</text></view>
           <view class="after-sale-meta"><text>{{sale.createTimeText}}</text><text wx:if="{{sale.applyType !== 3}}">¥{{sale.amountText}}</text></view>
           <text wx:if="{{sale.nextActionText}}" class="next-action">{{sale.nextActionText}}</text>
-          <text wx:if="{{sale.auditRemark}}" class="audit-remark">处理说明：{{sale.auditRemark}}</text>
+          <text wx:if="{{sale.auditRemarkText}}" class="audit-remark">商家处理说明：{{sale.auditRemarkText}}</text>
           <view wx:if="{{sale.canReturn}}" class="return-info">
             <text class="next-action">退货地址：{{sale.returnAddress || '等待商家提供退货地址，请勿自行寄回'}}</text>
             <text wx:if="{{sale.returnDeliveryNo}}" class="next-action">已寄回：{{sale.returnDeliveryCompany}} {{sale.returnDeliveryNo}}</text>
@@ -99,13 +99,14 @@
             <text class="item-name">{{line.productName}}</text>
             <view class="item-spec"><text>{{line.skuName || '默认规格'}}</text><text>× {{line.quantity}}</text></view>
             <text wx:if="{{line.refundStatusText}}" class="item-refund-status">{{line.refundStatusText}}</text>
+            <text wx:if="{{line.fulfillmentStatusText}}" class="item-refund-status">{{line.fulfillmentStatusText}}</text>
             <view wx:if="{{line.serviceTags.length}}" class="item-service-tags"><text wx:for="{{line.serviceTags}}" wx:key="title" wx:for-item="tag">{{tag.title}}</text></view>
             <view class="item-prices"><text>零售价 ¥{{line.retailTotalText}}</text><text>{{line.paymentLabel}} <text class="ui-price">¥{{line.paidAmountText}}</text></text></view>
           </view>
         </view>
         <view wx:if="{{item.afterSaleDeadlineText}}" class="after-sale-deadline">售后期截止时间 {{item.afterSaleDeadlineText}}</view>
         <view wx:if="{{item.canApplyAfterSale || item.pendingReviewProductId && item.pendingReviewOrderItemId || item.order.status === 0 || item.canReceive}}" class="product-actions ui-action-bar">
-          <button wx:if="{{item.canApplyAfterSale}}" class="secondary-button ui-action-button compact-action" data-id="{{item.order.id}}" bindtap="applyAfterSale">{{item.order.status === 1 && !item.shipments.length && !item.order.deliveryNo && !item.order.deliveryTime ? '取消并退款' : '退换/售后'}}</button>
+          <button wx:if="{{item.canApplyAfterSale}}" class="secondary-button ui-action-button compact-action" data-id="{{item.order.id}}" bindtap="applyAfterSale">{{item.afterSaleActionText}}</button>
           <button wx:if="{{item.pendingReviewProductId && item.pendingReviewOrderItemId}}" class="secondary-button ui-action-button compact-action" data-id="{{item.order.id}}" bindtap="review">去评价</button>
           <button wx:if="{{item.order.status === 0}}" class="secondary-button ui-action-button compact-action" data-id="{{item.order.id}}" disabled="{{actingId !== null}}" bindtap="cancelOrder">取消订单</button>
           <button wx:if="{{item.canReceive}}" class="primary-button ui-action-button ui-action-button--primary compact-action" data-id="{{item.order.id}}" loading="{{actingId === item.order.id}}" disabled="{{actingId !== null}}" bindtap="receive">确认收货</button>

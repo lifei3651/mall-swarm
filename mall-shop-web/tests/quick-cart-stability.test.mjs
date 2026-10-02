@@ -22,8 +22,8 @@ for (const name of ['HomeView', 'CategoryView']) test(name + '：仅售罄置灰
 
 test('商品详情加购与立即购买共用防重复锁，但不会互相置灰或改字', () => {
   const source = read('ProductDetailView')
-  const addButton = source.match(/<button class="main-action cart-action"[^>]*>/)?.[0] || ''
-  const buyButton = source.match(/<button class="main-action buy-action"[^>]*>/)?.[0] || ''
+  const addButton = source.match(/<button class="[^"]*main-action[^"]*cart-action[^"]*"[^>]*>/)?.[0] || ''
+  const buyButton = source.match(/<button class="[^"]*main-action[^"]*buy-action[^"]*"[^>]*>/)?.[0] || ''
   assert.match(addButton, /:disabled="soldOut"/)
   assert.match(addButton, /:aria-busy="activePurchaseAction === 'cart'"/)
   assert.doesNotMatch(addButton, /purchaseActionPending/)

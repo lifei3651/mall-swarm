@@ -20,6 +20,10 @@ public class DmsTenant implements Serializable {
 
     private Long id;
 
+    /** Null preserves historical customers; only the dedicated mode endpoint may change this. */
+    private String businessMode;
+    private String agencyRuleDraft;
+
     @Size(max = 64, message = "客户编码不能超过64个字符")
     private String tenantCode;
 

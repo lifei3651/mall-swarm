@@ -28,6 +28,19 @@ class AgentMutationLockTest {
     }
 
     @Test
+    void oldRegisterAndUpLevelEndpointsCannotOpenQualificationInNewModes() {
+        for (String mode : java.util.List.of("NORMAL", "AGENCY")) {
+            Fixture f = new Fixture(); DmsTenant t = new DmsTenant(); t.setBusinessMode(mode);
+            when(f.tenantDao.selectByIdForUpdate(1L)).thenReturn(t);
+            assertThrows(ApiException.class, () -> f.service.register(new com.macro.mall.distribution.dto.AgentRegisterDTO()));
+            DmsAgent a = new DmsAgent(); a.setId(9L); a.setAgentLevel(1);
+            when(f.agentDao.selectById(9L)).thenReturn(a);
+            assertThrows(ApiException.class, () -> f.service.adjustLevel(9L, 4, "不能绕过客户门槛"));
+            verify(f.agentDao, never()).insert(any()); verify(f.agentDao, never()).update(any());
+        }
+    }
+
+    @Test
     void levelChangeLocksTenantMutationScopeBeforeReadingAgent() {
         Fixture fixture = new Fixture();
         DmsAgent agent = new DmsAgent();

@@ -5,6 +5,8 @@
       <el-tag :type="statusMeta.type" size="large">{{ statusMeta.label }}</el-tag>
     </div>
     <el-alert v-if="!canView" title="平台管理员拥有奖金配置权限后可查看本页。" type="info" :closable="false" show-icon />
+    <el-alert v-else-if="store.businessModeReady === false" title="正在核对商城经营模式，请稍候或重新进入本页。" type="info" :closable="false" />
+    <el-alert v-else-if="store.businessMode" title="当前模式不开放基座直接推荐佣金。代理模式请在商城业务模块记录客户规则草稿，待客户实现与验证；历史规则和账务不改写。" type="info" :closable="false" />
     <template v-else>
       <el-alert v-if="loadError" :title="loadError" type="error" :closable="false" show-icon class="page-alert"><el-button :loading="loading" @click="load">重新读取</el-button></el-alert>
       <el-card shadow="never" v-loading="loading" class="status-card">

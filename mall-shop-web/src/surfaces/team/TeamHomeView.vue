@@ -13,18 +13,18 @@
       <RouterLink to="/profile/wallet" class="metric-card wallet">
         <span>可用余额</span><strong>{{ loading ? '—' : `¥${money(wallet.balance)}` }}</strong><small>查看明细与资金服务</small>
       </RouterLink>
-      <RouterLink to="/profile/team" class="metric-card">
+      <RouterLink v-if="teamEnabled" to="/profile/team" class="metric-card">
         <span>本月团队业绩</span><strong>{{ loading ? '—' : `¥${money(performance.currentMonthTeamPerformance)}` }}</strong><small>查看业绩口径</small>
       </RouterLink>
-      <RouterLink to="/profile/team" class="metric-card">
+      <RouterLink v-if="teamEnabled" to="/profile/team" class="metric-card">
         <span>累计团队业绩</span><strong>{{ loading ? '—' : `¥${money(performance.totalTeamPerformance)}` }}</strong><small>退款与冲销同步扣减</small>
       </RouterLink>
     </section>
 
     <section class="action-grid">
       <MessageCenterEntry />
-      <RouterLink to="/invite"><UserRoundPlus :size="27" /><strong>邀请会员</strong><span>查看邀请码和分享入口</span></RouterLink>
-      <RouterLink to="/profile/team"><ChartNoAxesCombined :size="27" /><strong>团队业绩</strong><span>查看本人和团队业绩</span></RouterLink>
+      <RouterLink v-if="teamEnabled" to="/invite"><UserRoundPlus :size="27" /><strong>邀请会员</strong><span>查看邀请码和分享入口</span></RouterLink>
+      <RouterLink v-if="teamEnabled" to="/profile/team"><ChartNoAxesCombined :size="27" /><strong>团队业绩</strong><span>查看本人和团队业绩</span></RouterLink>
       <RouterLink to="/profile/wallet"><WalletCards :size="27" /><strong>余额账户</strong><span>余额、流水与资金服务</span></RouterLink>
       <RouterLink to="/profile/security"><ShieldCheck :size="27" /><strong>资金安全</strong><span>实名认证与支付密码</span></RouterLink>
     </section>
@@ -42,7 +42,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ChartNoAxesCombined, ShieldCheck, UserRoundPlus, WalletCards } from 'lucide-vue-next'
-import { getProfile, getProfilePerformance, getWalletSummary, logout } from '@/api/shop'
+import { getProfile, getProfilePerformance, getWalletSummary, getBusinessConfig, logout } from '@/api/shop'
 import { money } from '@/utils/format'
 import { clearShopSession } from '@/utils/shopSession'
 import MessageCenterEntry from '@/components/MessageCenterEntry.vue'
@@ -51,6 +51,7 @@ const router = useRouter()
 const loading = ref(true)
 const error = ref('')
 const profile = ref({})
+const teamEnabled = ref(false)
 const performanceProfile = ref({})
 const wallet = ref({ balance: 0 })
 
@@ -66,7 +67,9 @@ const load = async () => {
   loading.value = true
   error.value = ''
   try {
-    const [profileRes, performanceRes, walletRes] = await Promise.all([getProfile(), getProfilePerformance(), getWalletSummary()])
+    const config = (await getBusinessConfig()).data
+    teamEnabled.value = !!config && !config.businessMode && config.teamFeaturesEnabled !== false
+    const [profileRes, performanceRes, walletRes] = await Promise.all([getProfile(), teamEnabled.value ? getProfilePerformance() : Promise.resolve({ data: {} }), getWalletSummary()])
     profile.value = profileRes.data || {}
     performanceProfile.value = performanceRes.data || {}
     wallet.value = walletRes.data || { balance: 0 }

@@ -107,6 +107,8 @@ CREATE TABLE `dms_line_change_application` (
 DROP TABLE IF EXISTS `dms_tenant`;
 CREATE TABLE `dms_tenant` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '租户ID',
+  `business_mode` varchar(16) DEFAULT NULL COMMENT 'NORMAL/AGENCY; NULL沿用存量模式',
+  `agency_rule_draft` text COMMENT '客户规则草稿，不启用资格或奖励',
   `tenant_code` varchar(64) NOT NULL COMMENT '租户编码',
   `tenant_name` varchar(128) NOT NULL COMMENT '公司名称',
   `brand_name` varchar(128) DEFAULT NULL COMMENT '前端展示品牌名',

@@ -18,6 +18,36 @@ beforeEach(() => {
   api.saveTenantBusinessModes.mockResolvedValue({ data:{} })
 })
 describe('业务模式设置保存保护', () => {
+  it('仅两种新模式，代理草稿无默认金额或资格；保存回读版本，撤销恢复原配置', async () => {
+    const r = { ...row(), businessMode: 'NORMAL', modeRevision: 'v1', modeChangeAllowed: true }
+    api.getTenantBusinessModes.mockResolvedValue({ data: r })
+    const w = mounted(); await flushPromises()
+    expect(w.text()).toContain('普通商城')
+    expect(w.text()).toContain('直销／代理模式')
+    expect(w.text()).not.toContain('受邀即开通')
+    w.vm.form.businessMode = 'AGENCY'; await flushPromises()
+    expect(w.text()).toContain('填满也不会启用')
+    expect(w.vm.form.agencyRuleDraft).toBeUndefined()
+    w.vm.form.agencyRuleDraft = { attributionRule: '客户草稿' }
+    const confirm = vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm')
+    api.saveTenantBusinessModes.mockResolvedValue({ data: { ...r, businessMode: 'AGENCY', modeRevision: 'v2', agencyRuleDraft: { attributionRule: '客户草稿' }, agencyConfigStatus: { state: 'INCOMPLETE', missingItems: ['购买门槛种类'] } } })
+    await w.vm.save(); await flushPromises()
+    expect(confirm.mock.calls[0][0]).toContain('经营模式：普通商城 → 直销／代理模式')
+    expect(api.saveTenantBusinessModes).toHaveBeenCalledWith(1, expect.objectContaining({ expectedModeRevision: 'v1' }))
+    expect(w.vm.form.modeRevision).toBe('v2'); expect(w.vm.changes).toHaveLength(0)
+    expect(w.text()).toContain('购买门槛种类')
+    w.vm.form.businessMode = 'NORMAL'; w.vm.reset(); expect(w.vm.form.businessMode).toBe('AGENCY')
+    w.unmount()
+  })
+  it('存量有业务时不允许直接切换；缺商城设置权限只能看规则草稿', async () => {
+    api.getTenantBusinessModes.mockResolvedValue({ data: { ...row(), modeChangeAllowed: false } })
+    permissionState.canShop = false
+    const w = mounted(); await flushPromises()
+    expect(w.text()).toContain('不能直接切换模式')
+    const modeGroup = w.findComponent({ name: 'CustomerModeSettings' }).findComponent({ name: 'ElRadioGroup' })
+    expect(modeGroup.props('disabled')).toBe(true)
+    w.unmount()
+  })
   it('普通商城与邀请模式清晰区分，切换邀请不改推广资格规则', async () => {
     const w = mounted(); await flushPromises()
     expect(w.text()).toContain('邀请开启（邀请码选填）')

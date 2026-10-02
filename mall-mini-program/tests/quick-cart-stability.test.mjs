@@ -27,7 +27,7 @@ test('首页和分类加购后原位显示数量器，临时请求锁不传入�
 
 test('商品详情加购与立即购买保留互斥锁，但不再互相改变按钮外观', () => {
   const source = read('pages/product/index.wxml')
-  const addButton = source.match(/<button class="add-cart-button"[^>]*>/)?.[0] || ''
+  const addButton = source.match(/<button class="[^"]*add-cart-button[^"]*"[^>]*>/)?.[0] || ''
   const buyButton = source.match(/<button class="primary-button"[^>]*bindtap="buyNow"[^>]*>/)?.[0] || ''
   assert.match(addButton, /disabled="\{\{soldOut\}\}"/)
   assert.match(addButton, /aria-busy="\{\{purchaseAction === 'cart'\}\}"/)

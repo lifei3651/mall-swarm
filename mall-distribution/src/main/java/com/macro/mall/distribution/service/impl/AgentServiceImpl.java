@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.service.impl;
 
 import cn.hutool.core.util.IdUtil;
+import com.macro.mall.distribution.service.CustomerBusinessModePolicy;
 import cn.hutool.core.util.RandomUtil;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
@@ -92,6 +93,7 @@ public class AgentServiceImpl implements AgentService {
     @Transactional(rollbackFor = Exception.class)
     public AgentInfoVO register(AgentRegisterDTO registerDTO) {
         lockAgentMutationScope();
+        CustomerBusinessModePolicy.requireLegacyQualification(tenantDao.selectByIdForUpdate(TenantContext.getTenantId()));
         if (registerDTO == null || registerDTO.getUserId() == null) {
             Asserts.fail("请选择已有商城会员后再开通推广身份");
         }
@@ -394,6 +396,9 @@ public class AgentServiceImpl implements AgentService {
     @Override
     public boolean updateStatus(Long id, Integer status) {
         DmsAgent agent = agentDao.selectById(id);
+        if (AgentStatusEnum.NORMAL.getValue().equals(status) && agent != null
+                && !AgentStatusEnum.NORMAL.getValue().equals(agent.getStatus()))
+            CustomerBusinessModePolicy.requireLegacyQualification(tenantDao.selectByIdForUpdate(TenantContext.getTenantId()));
         boolean updated = agent != null && agentDao.updateStatus(id, status) > 0;
         if (updated && !AgentStatusEnum.NORMAL.getValue().equals(status)) {
             DmsShopMember member = shopMemberDao.selectByUserId(agent.getUserId());
@@ -412,6 +417,7 @@ public class AgentServiceImpl implements AgentService {
         if (reason == null || reason.isBlank()) Asserts.fail("请输入调级原因");
         int oldLevel = agent.getAgentLevel() == null ? 1 : agent.getAgentLevel();
         if (oldLevel == level) return convertToVO(agent);
+        if (level > oldLevel) CustomerBusinessModePolicy.requireLegacyQualification(tenantDao.selectByIdForUpdate(TenantContext.getTenantId()));
         agent.setAgentLevel(level);
         agentDao.update(agent);
 

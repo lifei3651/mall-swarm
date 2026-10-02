@@ -31,7 +31,7 @@ WHERE tenant_id = 1
   AND NOT EXISTS (SELECT 1 FROM dms_commission_rule_version WHERE tenant_id = 1);
 
 UPDATE dms_tenant
-SET promotion_join_mode = 'DISABLED'
+SET business_mode = 'NORMAL', promotion_join_mode = 'DISABLED'
 WHERE id = 1
   AND NOT EXISTS (SELECT 1 FROM dms_commission_rule_version WHERE tenant_id = 1);
 

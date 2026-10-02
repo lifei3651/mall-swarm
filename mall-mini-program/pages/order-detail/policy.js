@@ -117,4 +117,13 @@ function refundEstimate(detail, selectedItems, applyType) {
   const freight = Number(order.status)===1 && !order.deliveryTime && all ? Number(order.freightAmount || 0) : 0
   return { product, freight, total: product + freight }
 }
-module.exports = { identifier, remainingItems, afterSaleEligibility, amountLabel, isRefundedOrder, refundedQuantity, partialRefundSummary, paymentSummary, refundEstimate }
+module.exports = { identifier, remainingItems, afterSaleEligibility, amountLabel, isRefundedOrder, refundedQuantity, partialRefundSummary, partialRefundTitle, paymentSummary, refundEstimate }
+
+// A partial refund does not close the remaining fulfillment. Quantities are item units.
+function partialRefundTitle(order, items = [], sales = []) {
+  if (![1, 2, 3].includes(Number(order?.status))) return ''
+  const remaining = items.reduce((sum, item) => sum + Math.max(0, Number(item.quantity) - refundedQuantity(item, sales)), 0)
+  const refunded = items.some(item => refundedQuantity(item, sales) > 0)
+  return refunded && remaining > 0
+    ? `部分退款完成，剩余${remaining}件${{ 1: '待发货', 2: '待收货', 3: '已完成' }[Number(order.status)]}` : ''
+}

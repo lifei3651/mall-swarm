@@ -4,6 +4,8 @@
 
     <resultMap id="BaseResultMap" type="com.macro.mall.distribution.entity.DmsTenant">
         <id column="id" property="id"/>
+        <result column="business_mode" property="businessMode"/>
+        <result column="agency_rule_draft" property="agencyRuleDraft"/>
         <result column="tenant_code" property="tenantCode"/>
         <result column="tenant_name" property="tenantName"/>
         <result column="brand_name" property="brandName"/>
@@ -51,7 +53,7 @@
     </resultMap>
 
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT id, tenant_code, tenant_name, brand_name, logo_url, theme_color, product_template,
+        SELECT id, business_mode, agency_rule_draft, tenant_code, tenant_name, brand_name, logo_url, theme_color, product_template,
                brand_culture_enabled, brand_culture_title, brand_culture_subtitle, brand_culture_cover_url, brand_culture_content,
                company_address, unified_social_credit_code, service_phone, service_email, service_hours,
                third_party_services, icp_number, police_record_number,
@@ -64,7 +66,7 @@
     </select>
 
     <select id="selectByIdForUpdate" resultMap="BaseResultMap">
-        SELECT id, tenant_code, tenant_name, brand_name, logo_url, theme_color, product_template,
+        SELECT id, business_mode, agency_rule_draft, tenant_code, tenant_name, brand_name, logo_url, theme_color, product_template,
                brand_culture_enabled, brand_culture_title, brand_culture_subtitle, brand_culture_cover_url, brand_culture_content,
                company_address, unified_social_credit_code, service_phone, service_email, service_hours,
                third_party_services, icp_number, police_record_number,
@@ -78,7 +80,7 @@
     </select>
 
     <select id="selectByCode" resultMap="BaseResultMap">
-        SELECT id, tenant_code, tenant_name, brand_name, logo_url, theme_color, product_template,
+        SELECT id, business_mode, agency_rule_draft, tenant_code, tenant_name, brand_name, logo_url, theme_color, product_template,
                brand_culture_enabled, brand_culture_title, brand_culture_subtitle, brand_culture_cover_url, brand_culture_content,
                company_address, unified_social_credit_code, service_phone, service_email, service_hours,
                third_party_services, icp_number, police_record_number,
@@ -91,7 +93,7 @@
     </select>
 
     <select id="selectAll" resultMap="BaseResultMap">
-        SELECT id, tenant_code, tenant_name, brand_name, logo_url, theme_color, product_template,
+        SELECT id, business_mode, agency_rule_draft, tenant_code, tenant_name, brand_name, logo_url, theme_color, product_template,
                brand_culture_enabled, brand_culture_title, brand_culture_subtitle, brand_culture_cover_url, brand_culture_content,
                company_address, unified_social_credit_code, service_phone, service_email, service_hours,
                third_party_services, icp_number, police_record_number,
@@ -103,15 +105,22 @@
         ORDER BY create_time DESC
     </select>
 
+    <select id="hasBusinessModeUsage" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM dms_shop_member LIMIT 1)
+            OR EXISTS(SELECT 1 FROM dms_agent LIMIT 1)
+            OR EXISTS(SELECT 1 FROM dms_shop_order WHERE COALESCE(tenant_id, 1) = #{id} LIMIT 1)
+            OR EXISTS(SELECT 1 FROM dms_commission_record WHERE tenant_id = #{id} LIMIT 1)
+    </select>
+
     <insert id="insert" parameterType="com.macro.mall.distribution.entity.DmsTenant" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO dms_tenant (tenant_code, tenant_name, brand_name, logo_url, theme_color, product_template,
+        INSERT INTO dms_tenant (business_mode, agency_rule_draft, tenant_code, tenant_name, brand_name, logo_url, theme_color, product_template,
             brand_culture_enabled, brand_culture_title, brand_culture_subtitle, brand_culture_cover_url, brand_culture_content,
             company_address, unified_social_credit_code, service_phone, service_email, service_hours,
             third_party_services, icp_number, police_record_number, police_record_url,
             business_license_url, show_business_license, user_agreement, privacy_policy, after_sale_policy,
             after_sale_window_mode, after_sale_window_days, promotion_join_mode, invitation_enabled, default_inviter_enabled, default_inviter_code, flash_sale_enabled, flash_sale_bonus_mode,
             repurchase_mall_enabled, balance_transactions_enabled, multi_merchant_enabled, repurchase_eligibility_mode, repurchase_bonus_mode, faqs, status, remark)
-        VALUES (#{tenantCode}, #{tenantName}, #{brandName}, #{logoUrl}, #{themeColor}, #{productTemplate},
+        VALUES (#{businessMode}, #{agencyRuleDraft}, #{tenantCode}, #{tenantName}, #{brandName}, #{logoUrl}, #{themeColor}, #{productTemplate},
             #{brandCultureEnabled}, #{brandCultureTitle}, #{brandCultureSubtitle}, #{brandCultureCoverUrl}, #{brandCultureContent},
             #{companyAddress}, #{unifiedSocialCreditCode}, #{servicePhone}, #{serviceEmail}, #{serviceHours},
             #{thirdPartyServices}, #{icpNumber}, #{policeRecordNumber}, #{policeRecordUrl},
@@ -144,7 +153,9 @@
     <!-- 业务模式页面只写入明确列出的模式字段，不能复用整租户更新以免发生越权批量赋值。 -->
     <update id="updateBusinessModes">
         UPDATE dms_tenant
-        SET promotion_join_mode = #{modes.promotionJoinMode},
+        SET business_mode = #{modes.businessMode},
+            agency_rule_draft = #{modes.agencyRuleDraftJson},
+            promotion_join_mode = #{modes.promotionJoinMode},
             invitation_enabled = #{modes.invitationEnabled},
             default_inviter_enabled = #{modes.defaultInviterEnabled},
             default_inviter_code = #{modes.defaultInviterCode},

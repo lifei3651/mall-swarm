@@ -25,7 +25,10 @@
 
         <section v-if="afterSales.length" class="consumer-card compact-after-sales ui-card">
           <h3>退款 / 售后进度</h3>
-          <p v-for="sale in afterSales" :key="sale.id" :class="{ 'is-active': [0, 4, 5, 6, 7, 8].includes(Number(sale.status)) }"><span>{{ afterSaleStatus(sale.status, sale.applyType, isUnshippedReturnConflict(sale)) }}</span><strong>{{ Number(sale.applyType) === 3 ? '同规格换货' : `¥${money(sale.refundAmount)}` }}</strong></p>
+          <template v-for="sale in afterSales" :key="sale.id">
+            <p :class="{ 'is-active': [0, 4, 5, 6, 7, 8].includes(Number(sale.status)) }"><span>{{ afterSaleStatus(sale.status, sale.applyType, isUnshippedReturnConflict(sale)) }}</span><strong>{{ Number(sale.applyType) === 3 ? '同规格换货' : `¥${money(sale.refundAmount)}` }}</strong></p>
+            <p v-if="auditRemarkText(sale)" class="consumer-audit-remark">商家处理说明：{{ auditRemarkText(sale) }}</p>
+          </template>
           <p v-if="legacyUnshippedReturn" class="after-sale-no-return-notice">订单尚未发货，无需寄回商品。请联系平台客服核实并按原支付方式退款。</p>
         </section>
 
@@ -65,13 +68,14 @@
               <h3>{{ item.productName }}</h3>
               <p class="product-spec"><span>{{ formatProductSpec(item) }}</span><span>× {{ item.quantity }}</span></p>
               <span v-if="refundedQuantity(item, afterSales)" class="consumer-item-refund-status">{{ refundedQuantity(item, afterSales) === Number(item.quantity) ? '已退款' : `已退款 ${refundedQuantity(item, afterSales)}/${item.quantity} 件` }}</span>
+              <span v-if="partialRefundTitle(order, detail.items, afterSales) && Number(item.quantity) > refundedQuantity(item, afterSales)" class="consumer-item-refund-status">{{ Number(item.quantity) - refundedQuantity(item, afterSales) > 1 ? `剩余${Number(item.quantity) - refundedQuantity(item, afterSales)}件` : '' }}{{ { 1: '待发货', 2: '待收货', 3: '已完成' }[Number(order.status)] }}</span>
               <div v-if="serviceTags(item).length" class="consumer-service-tags"><span v-for="tag in serviceTags(item)" :key="tag">{{ tag }}</span></div>
               <p class="consumer-product-prices"><span>零售价 ¥{{ money(item.totalAmount) }}</span><strong class="ui-price">{{ refundedQuantity(item, afterSales) ? '原实付' : '实付款' }} ¥{{ linePaidAmount(item) }}</strong></p>
             </div>
           </article>
           <p v-if="detail.afterSaleDeadline" class="consumer-after-sale-deadline">售后期截止时间 {{ dateTime(detail.afterSaleDeadline) }}</p>
           <div v-if="canApplyAfterSale || Number(detail.pendingReviewCount || 0) > 0 || order.status === 2 && !hasActiveAfterSale" class="consumer-product-actions ui-action-bar">
-            <button v-if="canApplyAfterSale" type="button" class="consumer-action btn secondary ui-action-button" @click="notShipped ? startExceptionRefund() : startAfterSale()">{{ notShipped ? '取消并退款' : '退换/售后' }}</button>
+            <button v-if="canApplyAfterSale" type="button" class="consumer-action btn secondary ui-action-button" @click="notShipped ? startExceptionRefund() : startAfterSale()">{{ notShipped ? cancellationActionText : '退换/售后' }}</button>
             <RouterLink v-if="Number(detail.pendingReviewCount || 0) > 0" class="consumer-action btn secondary ui-action-button" :to="pendingReviewLink">去评价</RouterLink>
             <button v-if="order.status === 2 && !hasActiveAfterSale" type="button" class="consumer-action btn primary ui-action-button ui-action-button--primary" :disabled="acting" @click="requestOrderConfirmation('receive-order')">确认收货</button>
           </div>
@@ -217,7 +221,7 @@
               <strong>{{ isUnshippedReturnConflict(sale) ? '订单尚未发货，无需寄回商品。请联系平台客服处理退款。' : sale.nextActionHint }}</strong>
               <span v-if="sale.nextActionDeadline && !isUnshippedReturnConflict(sale)">处理截止：{{ dateTime(sale.nextActionDeadline) }}</span>
             </div>
-            <p v-if="sale.auditRemark" class="line-sub after-sale-audit-remark">处理说明：{{ sale.auditRemark }}</p>
+            <p v-if="auditRemarkText(sale)" class="line-sub after-sale-audit-remark">商家处理说明：{{ auditRemarkText(sale) }}</p>
             <p v-if="sale.applyType === 3" class="line-sub after-sale-amounts">同规格换货 {{ sale.refundQuantity || 0 }} 件 · 不退款 · 原订单金额与结算记录保持不变</p>
             <p v-else class="line-sub after-sale-amounts">商品 {{ sale.refundQuantity || 0 }} 件 · 商品款 ¥{{ money(sale.productRefundAmount) }} · 运费 ¥{{ money(sale.freightRefundAmount) }}</p>
             <div v-if="proofFilenames(sale).length" class="after-sale-proof-list" aria-label="售后凭证">
@@ -432,7 +436,7 @@
           <button v-if="canApplyAfterSale" type="button" @click="startExceptionRefund">物流异常 / 拒收</button>
         </div>
         <div class="inline-actions ui-action-bar">
-          <button v-if="canApplyAfterSale && !applyingAfterSale" class="btn secondary ui-action-button" @click="notShipped ? startExceptionRefund() : startAfterSale()">{{ notShipped ? '取消并退款' : '申请售后' }}</button>
+          <button v-if="canApplyAfterSale && !applyingAfterSale" class="btn secondary ui-action-button" @click="notShipped ? startExceptionRefund() : startAfterSale()">{{ notShipped ? cancellationActionText : '申请售后' }}</button>
           <RouterLink v-if="Number(detail.pendingReviewCount || 0) > 0" class="btn secondary ui-action-button" :to="pendingReviewLink">去评价</RouterLink>
           <button v-if="order.status === 0" class="btn secondary ui-action-button" :disabled="acting" @click="requestOrderConfirmation('cancel-order')">取消订单</button>
           <button v-if="order.status === 0" class="btn primary ui-action-button ui-action-button--primary" :disabled="acting || (order.payType === 'BALANCE' && !balanceModeEnabled)" @click="pay">立即支付</button>
@@ -495,7 +499,7 @@
 
 <script setup>
 import { couponRefundPreview } from '@/utils/couponAmounts'
-import { refundedQuantity, partialRefundSummary } from '@/utils/orderItemRefunds'
+import { refundedQuantity, partialRefundSummary, partialRefundTitle } from '@/utils/orderItemRefunds'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ChevronDown, ChevronRight, CircleCheck, ImagePlus, MapPin, PackageCheck, RefreshCw, Truck, UserRound } from 'lucide-vue-next'
@@ -639,11 +643,12 @@ const logisticsStatusDescription = computed(() => {
     ? `发货时间 ${dateTime(order.value.deliveryTime)}，实际轨迹以承运商查询为准`
     : '商家已发货，实际轨迹以承运商查询为准'
 })
+const auditRemarkText = (sale) => typeof sale.auditRemark === 'string' ? sale.auditRemark.trim() : ''
 const isRefundedOrder = computed(() => Number(order.value?.status) === 4 && (detail.value.afterSales || [])
   .some((sale) => [1, 2, 4].includes(Number(sale.applyType)) && Number(sale.status) === 1))
 const orderStatusTitle = computed(() => isRefundedOrder.value ? '已退款'
   : activeAfterSale.value && Number(order.value?.status) !== 4 ? '售后处理中'
-  : ({ 0: '待付款', 1: '待发货', 2: '待收货', 3: '已完成', 4: '已取消', 5: '售后处理中' }[Number(order.value?.status)] || '订单处理中'))
+  : partialRefundTitle(order.value, detail.value.items, detail.value.afterSales) || ({ 0: '待付款', 1: '待发货', 2: '待收货', 3: '已完成', 4: '已取消', 5: '售后处理中' }[Number(order.value?.status)] || '订单处理中'))
 const orderDisplayStatus = computed(() => isRefundedOrder.value ? '已退款'
   : activeAfterSale.value && Number(order.value?.status) !== 4 ? '售后处理中'
   : Number(order.value?.status) === 4 ? '已取消' : statusName(order.value?.status))
@@ -769,7 +774,7 @@ const selectedRefundQuantity = computed(() => selectedRefundItems.value.reduce((
 const totalRemainingQuantity = computed(() => (detail.value.items || []).reduce((sum, item) => sum + remainingQuantity(item), 0))
 const refundAllRemaining = computed(() => selectedRefundQuantity.value > 0 && selectedRefundQuantity.value === totalRemainingQuantity.value)
 const approvedProductRefund = computed(() => afterSales.value
-  .filter((sale) => [1, 2, 4].includes(Number(sale.applyType)) && sale.status === 1)
+  .filter((sale) => [1, 2, 4].includes(Number(sale.applyType)) && Number(sale.status) === 1)
   .reduce((sum, sale) => sum + Number(sale.productRefundAmount || 0), 0))
 const productBase = computed(() => Math.max(0, Number(order.value?.totalAmount || 0) - Number(order.value?.discountAmount || 0)))
 const estimatedProductRefund = computed(() => {
@@ -794,6 +799,14 @@ const setRefundQuantity = (item, delta) => {
   if (selectedRefundItems.value.length) afterSaleErrors.value.items = ''
 }
 
+const cancellationActionText = computed(() => {
+  if (!partialRefundTitle(order.value, detail.value.items, afterSales.value)) return '取消并退款'
+  const lines = (detail.value.items || []).map(item => ({ orderItemId: item.id, quantity: remainingQuantity(item) })).filter(line => line.quantity > 0)
+  const product = order.value?.couponClaimId
+    ? couponRefundPreview(detail.value.items, lines, afterSales.value)
+    : Math.max(0, productBase.value - approvedProductRefund.value)
+  return `取消剩余商品并退款（¥${money(product + Number(order.value?.freightAmount || 0))}）`
+})
 const selectAllRefundableItems = () => {
   refundQuantities.value = Object.fromEntries((detail.value.items || [])
     .map((item) => [item.id, remainingQuantity(item)]))
@@ -1419,6 +1432,7 @@ onBeforeUnmount(() => {
 .compact-after-sales h3 { margin: 0 0 8px; font-size: 16px; }
 .compact-after-sales > p { border-top: 1px solid #eef1f0; }
 .compact-after-sales > p.is-active { color: var(--brand-primary); }
+.compact-after-sales > p.consumer-audit-remark { display: block; white-space: pre-wrap; overflow-wrap: anywhere; }
 .compact-after-sales > p.after-sale-no-return-notice { display: block; color: #596564; line-height: 1.6; }
 .pending-payment-card { padding: 4px 19px 17px; }
 .consumer-error { color: #b42318; font-size: 12px; line-height: 1.55; }

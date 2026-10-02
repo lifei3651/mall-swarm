@@ -104,6 +104,46 @@ class RefundQuantityBoundaryTest {
         verify(fixture.saleDao, never()).insert(any());
     }
 
+
+    @Test void eightyNineAlreadyRefundedOnlyOneCentRemainingCanBeRequested() {
+        Fixture fixture = new Fixture();
+        DmsShopOrder order = fixture.orderDao.selectByIdForUpdate(1L);
+        order.setTotalAmount(new BigDecimal("89.01")); order.setPayAmount(new BigDecimal("89.01"));
+        DmsShopOrderItem a = new DmsShopOrderItem(); a.setId(11L); a.setProductId(11L); a.setQuantity(1); a.setTotalAmount(new BigDecimal("89.00"));
+        DmsShopOrderItem b = new DmsShopOrderItem(); b.setId(12L); b.setProductId(12L); b.setQuantity(1); b.setTotalAmount(new BigDecimal("0.01"));
+        when(fixture.itemDao.selectByOrderId(1L)).thenReturn(List.of(a, b));
+        when(fixture.saleItemDao.sumReservedQuantityByOrderItemId(11L)).thenReturn(1);
+        when(fixture.saleItemDao.sumApprovedProductRefundByOrderId(1L)).thenReturn(new BigDecimal("89.00"));
+        when(fixture.saleDao.insert(any())).thenAnswer(invocation -> { ((DmsShopAfterSale) invocation.getArgument(0)).setId(99L); return 1; });
+        ShopAfterSaleApplyDTO apply = new ShopAfterSaleApplyDTO(); apply.setOrderId(1L); apply.setApplyType(4); apply.setReason("取消未发货订单"); apply.setItems(List.of(line(12L, 1)));
+        // The minimal mock has no hydrated row; capture the real service insert before that boundary.
+        try { fixture.service.apply(fixture.member, apply); } catch (NullPointerException ignored) { }
+        ArgumentCaptor<DmsShopAfterSale> sale = ArgumentCaptor.forClass(DmsShopAfterSale.class);
+        verify(fixture.saleDao).insert(sale.capture());
+        assertEquals(0, new BigDecimal("0.01").compareTo(sale.getValue().getRefundAmount()));
+        ArgumentCaptor<List<DmsShopAfterSaleItem>> items = ArgumentCaptor.forClass(List.class);
+        verify(fixture.saleItemDao).insertBatch(items.capture());
+        assertEquals(1, items.getValue().size());
+        DmsShopAfterSaleItem item = items.getValue().get(0);
+        assertEquals(12L, item.getOrderItemId()); assertEquals(1, item.getRefundQuantity());
+        assertEquals(0, new BigDecimal("0.01").compareTo(item.getRefundAmount()));
+        clearInvocations(fixture.saleDao, fixture.saleItemDao);
+        apply.setItems(List.of(line(11L, 1)));
+        assertThrows(ApiException.class, () -> fixture.service.apply(fixture.member, apply));
+        verify(fixture.saleDao, never()).insert(any()); verify(fixture.saleItemDao, never()).insertBatch(any());
+    }
+
+    @Test void partialRefundKeepsRemainingShipmentAndOnlyAllRefundsCloseOrder() {
+        Fixture fixture = new Fixture(); DmsShopOrder order = fixture.orderDao.selectByIdForUpdate(1L);
+        when(fixture.saleItemDao.sumCompletedQuantityByOrderId(1L)).thenReturn(1);
+        ReflectionTestUtils.invokeMethod(fixture.service, "reconcileOrderStateAfterRefund", order, 2);
+        assertEquals(1, order.getStatus()); verify(fixture.orderDao, never()).closeAfterSale(anyLong());
+        when(fixture.saleItemDao.sumCompletedQuantityByOrderId(1L)).thenReturn(2);
+        when(fixture.orderDao.closeAfterSale(1L)).thenReturn(1);
+        ReflectionTestUtils.invokeMethod(fixture.service, "reconcileOrderStateAfterRefund", order, 2);
+        assertEquals(4, order.getStatus()); verify(fixture.orderDao).closeAfterSale(1L);
+    }
+
     static ShopAfterSaleItemDTO line(Long id, int quantity) {
         ShopAfterSaleItemDTO item = new ShopAfterSaleItemDTO(); item.setOrderItemId(id); item.setQuantity(quantity); return item;
     }

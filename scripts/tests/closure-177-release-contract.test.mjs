@@ -19,7 +19,7 @@ test('177 fixes the read-back 176 baseline and independent upload project', () =
   assert.match(read('scripts/release-lingqi-177.mjs'), /'-pl', 'mall-common,mall-mbg,mall-distribution', 'clean', 'package'/)
 })
 test('only the 46th configuration migration is added; prior 45 SQL bytes remain fixed', () => {
-  const names = fs.readdirSync(`${root}/document/db/migrations`).filter(n => /^V\d{12}__.*\.sql$/.test(n)).sort()
+  const names = fs.readdirSync(`${root}/document/db/migrations`).filter(n => /^V\d{12}__.*\.sql$/.test(n) && n <= 'V202610021000__optional_default_inviter.sql').sort()
   assert.equal(names.length, 46)
   assert.equal(names.at(-1), 'V202610021000__optional_default_inviter.sql')
   for (const name of names.slice(0, 45)) {

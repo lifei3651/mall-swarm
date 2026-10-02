@@ -105,7 +105,10 @@ export const hydrateThemeColors = (theme, themeColor, storedColors = {}) => {
 export const applyThemePresetToForm = (form, theme) => {
   form.productTemplate = theme.value
   form.themeColor = theme.color
-  form.colors = themePalette(theme)
+  const independentColors = Object.fromEntries(COMMERCE_COLOR_KEYS
+    .filter((key) => form.colorModes?.[key] === COLOR_MODE_CUSTOM && validColorValue(form.colors?.[key]))
+    .map((key) => [key, form.colors[key].trim()]))
+  form.colors = { ...themePalette(theme), ...independentColors }
   form.colorModes = normalizeColorModes(form.colorModes)
   return form
 }

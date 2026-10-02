@@ -1,6 +1,7 @@
 package com.macro.mall.distribution.service.impl;
 
 import cn.hutool.core.util.IdUtil;
+import com.macro.mall.distribution.service.CustomerBusinessModePolicy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.macro.mall.common.api.ResultCode;
 import com.macro.mall.common.exception.ApiException;
@@ -122,6 +123,10 @@ public class TenantServiceImpl implements TenantService {
             // 兼容旧后台或旧API提交：未携带新字段时保留客户当前选择，不能静默改回默认值。
             tenant.setPromotionJoinMode(before.getPromotionJoinMode());
         }
+        // Brand/profile clients cannot assign mode or draft. New customers begin with shopping only.
+        tenant.setBusinessMode(before == null ? (tenant.getBusinessMode() == null ? CustomerBusinessModePolicy.NORMAL
+                : CustomerBusinessModePolicy.validateMode(tenant.getBusinessMode())) : before.getBusinessMode());
+        tenant.setAgencyRuleDraft(before == null ? null : before.getAgencyRuleDraft());
         normalizeBusinessModes(tenant, before == null);
         // 资料编辑接口不能顺带更改独立模块的经营开关。新客户先以平台自营开局。
         tenant.setInvitationEnabled(before == null ? 0 : enabledUnlessOff(before.getInvitationEnabled()));
@@ -205,6 +210,24 @@ public class TenantServiceImpl implements TenantService {
 
         DmsTenant normalized = new DmsTenant();
         normalized.setId(tenantId);
+        String requestedMode = modes.getBusinessMode() == null ? before.getBusinessMode()
+                : CustomerBusinessModePolicy.validateMode(modes.getBusinessMode());
+        String requestedDraft = modes.getAgencyRuleDraft() == null ? before.getAgencyRuleDraft()
+                : CustomerBusinessModePolicy.encode(modes.getAgencyRuleDraft());
+        boolean modeChanged = !java.util.Objects.equals(before.getBusinessMode(), requestedMode);
+        boolean draftChanged = !java.util.Objects.equals(before.getAgencyRuleDraft(), requestedDraft);
+        if (modeChanged || draftChanged) {
+            if (!tenantId.equals(com.macro.mall.common.tenant.TenantContext.getTenantId()))
+                throw new ApiException(ResultCode.FORBIDDEN, "不能修改其他客户的业务模式或规则草稿");
+            adminAuthService.requirePermission(AdminContext.get(), "config:shop");
+            if (!CustomerBusinessModePolicy.revision(before).equals(modes.getExpectedModeRevision()))
+                Asserts.fail("模式或客户草稿已更新，请刷新后重新确认");
+            if (modeChanged && tenantDao.hasBusinessModeUsage(tenantId))
+                Asserts.fail("当前数据库已有账号、订单或奖金责任；存量模式转换须先确定客户方案，不能直接切换");
+            if (requestedMode == null && draftChanged) Asserts.fail("请先为新客户选择业务模式，再保存代理规则草稿");
+        }
+        normalized.setBusinessMode(requestedMode);
+        normalized.setAgencyRuleDraft(requestedDraft);
         normalized.setPromotionJoinMode(modes.getPromotionJoinMode());
         normalized.setInvitationEnabled(modes.getInvitationEnabled() == null
                 ? enabledUnlessOff(before.getInvitationEnabled()) : modes.getInvitationEnabled());
@@ -272,6 +295,11 @@ public class TenantServiceImpl implements TenantService {
     private TenantBusinessModesDTO businessModesOf(DmsTenant tenant) {
         TenantBusinessModesDTO modes = new TenantBusinessModesDTO();
         modes.setId(tenant.getId());
+        modes.setBusinessMode(tenant.getBusinessMode());
+        modes.setAgencyRuleDraft(CustomerBusinessModePolicy.draft(tenant));
+        modes.setModeRevision(CustomerBusinessModePolicy.revision(tenant));
+        modes.setAgencyConfigStatus(CustomerBusinessModePolicy.status(tenant));
+        modes.setModeChangeAllowed(!tenantDao.hasBusinessModeUsage(tenant.getId()));
         modes.setInvitationEnabled(enabledUnlessOff(tenant.getInvitationEnabled()));
         modes.setDefaultInviterEnabled(normalizedFlag(tenant.getDefaultInviterEnabled()));
         modes.setDefaultInviterCode(tenant.getDefaultInviterCode());
@@ -298,7 +326,7 @@ public class TenantServiceImpl implements TenantService {
     }
 
     private String businessModesSummary(TenantBusinessModesDTO modes) {
-        return "promotionJoinMode=" + modes.getPromotionJoinMode()
+        return "businessMode=" + modes.getBusinessMode() + ";draft=" + modes.getAgencyRuleDraftJson() + ";promotionJoinMode=" + modes.getPromotionJoinMode()
                 + ";invitation=" + modes.getInvitationEnabled()
                 + ";defaultInviterEnabled=" + modes.getDefaultInviterEnabled()
                 + ";defaultInviterCode=" + modes.getDefaultInviterCode()
@@ -495,6 +523,9 @@ public class TenantServiceImpl implements TenantService {
         DmsTenantDisplayConfig restoredDisplay = readSnapshot(
                 target.getDisplaySnapshot(), DmsTenantDisplayConfig.class, "商城视觉配置");
         restoredTenant.setId(tenantId);
+        // Mode and customer drafts are independent; historical brand restore must not bypass mode gates.
+        restoredTenant.setBusinessMode(current.getBusinessMode());
+        restoredTenant.setAgencyRuleDraft(current.getAgencyRuleDraft());
         // 独立邀请配置不随品牌/资料历史恢复，避免旧快照改变新注册归属。
         restoredTenant.setDefaultInviterEnabled(current.getDefaultInviterEnabled());
         restoredTenant.setDefaultInviterCode(current.getDefaultInviterCode());

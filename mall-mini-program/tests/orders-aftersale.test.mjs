@@ -229,7 +229,7 @@ test('部分退款按订单商品ID标出已退款的那件，未退款商品仍
   })
   const h = harness('order-detail', { respond: () => orderDetail })
   h.page.onLoad({ id: ID }); await h.page.load()
-  assert.equal(h.page.data.pageStatusTitle, '待发货')
+  assert.equal(h.page.data.pageStatusTitle, '部分退款完成，剩余1件待发货')
   assert.equal(h.page.data.pageStatusDescription, '已退款 1 件，剩余 1 件待发货')
   assert.equal(h.page.data.rows[0].items[0].refundStatusText, '已退款')
   assert.equal(h.page.data.rows[0].items[0].paymentLabel, '原实付')
@@ -461,4 +461,40 @@ test('未发货分次退款：最后剩余商品全退才退运费', () => {
     afterSales: [{ applyType: 4, status: 1, productRefundAmount: 90, items: [{ orderItemId: ITEM, refundQuantity: 1 }] }]
   })
   assert.deepEqual(policy.refundEstimate(order, [{ id: ITEM, selectedQuantity: 1 }], 4), { product: 90, freight: 10, total: 100 })
+})
+
+
+test('89元商品已退后只申请剩余0.01元商品，状态与按钮不把已退商品再退款', async () => {
+  const second = '9212345678901234570'
+  const record = { id: SALE, applyType: 4, status: 1, productRefundAmount: '89.00', refundAmount: '89.00', auditRemark: '1', items: [{ orderItemId: ITEM, refundQuantity: 1 }] }
+  const data = detail({ order: { id: ID, status: 1, totalAmount: '89.01', payAmount: '89.01', freightAmount: '0.00' },
+    items: [{ id: ITEM, quantity: 1, productName: 'A', totalAmount: '89.00' }, { id: second, quantity: 1, productName: 'B', totalAmount: '0.01' }], afterSales: [record] })
+  const h = harness('order-detail', { respond: () => data })
+  h.page.onLoad({ id: ID }); await h.page.load()
+  assert.equal(h.page.data.pageStatusTitle, '部分退款完成，剩余1件待发货')
+  assert.equal(h.page.data.rows[0].items[1].fulfillmentStatusText, '待发货')
+  assert.equal(h.page.data.rows[0].afterSaleActionText, '取消剩余商品并退款（¥0.01）')
+  assert.equal(h.page.data.rows[0].afterSales[0].auditRemarkText, '1', '人工处理说明原文不能误当状态或被删除')
+  h.page.applyAfterSale(event({ id: ID }))
+  assert.deepEqual(h.routes, [`/pages/after-sale/index?orderId=${ID}&mode=exception`])
+  const application = harness('after-sale', { respond: () => data })
+  application.page.onLoad({ orderId: ID, mode: 'exception' }); await application.page.onShow()
+  assert.equal(application.page.data.estimateText, '0.01')
+  await application.page.submit()
+  const request = application.calls.find(call => call.method === 'POST')
+  assert.equal(request.url, `/shop/orders/${ID}/exception-refund`)
+  assert.deepEqual(request.data.items, [{ orderItemId: second, quantity: 1 }])
+  assert.equal(request.data.applyType, 4)
+})
+
+test('退款标记区分商品件数和拆分订单数，普通未退款订单不重复展示商品状态', async () => {
+  const ordinary = harness('order-detail', { respond: () => detail({ order: { id: ID, status: 1 } }) })
+  ordinary.page.onLoad({ id: ID }); await ordinary.page.load()
+  assert.equal(ordinary.page.data.rows[0].items[0].fulfillmentStatusText, '')
+  const group = [detail({ order: { id: ID, status: 4, tradeId: '301' }, items: [{ id: ITEM, quantity: 2 }], afterSales: [{ applyType: 4, status: 1, items: [{ orderItemId: ITEM, refundQuantity: 2 }] }] }),
+    detail({ order: { id: '302', status: 1, tradeId: '301' }, items: [{ id: '303', quantity: 3 }] })]
+  const h = harness('order-detail', { respond: () => group })
+  h.page.onLoad({ paymentNo: 'PAY_301' }); await h.page.load()
+  assert.equal(h.page.data.pageStatusTitle, '部分退款完成，剩余3件待发货', '不是剩余1个子订单')
+  assert.match(readFileSync(new URL('../pages/order-detail/index.wxml', import.meta.url), 'utf8'), /rows.length > 1/)
 })

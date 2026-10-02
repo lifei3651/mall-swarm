@@ -20,6 +20,9 @@ export const useAppStore = defineStore('app', () => {
   const expireTime = ref(localStorage.getItem('admin_session_expire_time') || '')
   const permissions = ref([])
   const authHydrated = ref(false)
+  const businessMode = ref(null)
+  const businessModeReady = ref(false)
+  const setBusinessMode = (mode) => { businessMode.value = mode; businessModeReady.value = true }
   // 升级后主动清理旧版遗留；这些字段不再参与会话或权限判定。
   localStorage.removeItem('token')
   localStorage.removeItem('userInfo')
@@ -87,6 +90,8 @@ export const useAppStore = defineStore('app', () => {
     }
     permissions.value = []
     authHydrated.value = false
+    businessMode.value = null
+    businessModeReady.value = false
     clearAdminSessionStorage()
   }
 
@@ -97,6 +102,7 @@ export const useAppStore = defineStore('app', () => {
     expireTime,
     permissions,
     authHydrated,
+    businessMode, businessModeReady, setBusinessMode,
     toggleSidebar,
     setToken,
     setExpireTime,

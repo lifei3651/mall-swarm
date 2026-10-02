@@ -22,6 +22,22 @@ public class TenantBusinessModesDTO implements Serializable {
     /** 仅用于读取响应；更新时以路径中的 tenantId 为准。 */
     private Long id;
 
+    @Pattern(regexp="NORMAL|AGENCY", message="请选择普通商城或直销／代理模式")
+    private String businessMode;
+    @jakarta.validation.Valid
+    private AgencyRuleDraft agencyRuleDraft;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public String getAgencyRuleDraftJson() {
+        return com.macro.mall.distribution.service.CustomerBusinessModePolicy.encode(agencyRuleDraft);
+    }
+    private String expectedModeRevision;
+    @com.fasterxml.jackson.annotation.JsonProperty(access=com.fasterxml.jackson.annotation.JsonProperty.Access.READ_ONLY)
+    private String modeRevision;
+    @com.fasterxml.jackson.annotation.JsonProperty(access=com.fasterxml.jackson.annotation.JsonProperty.Access.READ_ONLY)
+    private com.macro.mall.distribution.service.CustomerBusinessModePolicy.Status agencyConfigStatus;
+    @com.fasterxml.jackson.annotation.JsonProperty(access=com.fasterxml.jackson.annotation.JsonProperty.Access.READ_ONLY)
+    private Boolean modeChangeAllowed;
+
     @NotNull(message = "请选择推广资格开通方式")
     @Pattern(regexp = "DISABLED|AUTO_ON_INVITE|MANUAL_REVIEW|FIRST_PAID_ORDER", message = "推广资格开通方式不正确")
     private String promotionJoinMode;

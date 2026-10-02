@@ -26,6 +26,7 @@ import com.macro.mall.distribution.event.WeChatPayCloseEvent;
 import com.macro.mall.distribution.enums.AgentStatusEnum;
 import com.macro.mall.distribution.enums.CommissionStatusEnum;
 import com.macro.mall.distribution.enums.PromotionJoinModeEnum;
+import com.macro.mall.distribution.service.CustomerBusinessModePolicy;
 import com.macro.mall.distribution.service.CommissionService;
 import com.macro.mall.distribution.service.DistributionAuditService;
 import com.macro.mall.distribution.service.MemberAssetService;
@@ -1815,9 +1816,9 @@ public class ShopServiceImpl implements ShopService {
                 item.getTeamBonusMode() == null || item.getTeamBonusMode().isBlank()
                         || "INHERIT".equals(item.getTeamBonusMode()));
         boolean explicitStandardBonus = paidItems.stream().anyMatch(item -> "STANDARD".equals(item.getTeamBonusMode()));
-        boolean standardBonus = explicitStandardBonus || (inheritedBonus && (businessModeService == null
+        boolean standardBonus = CustomerBusinessModePolicy.legacyOrMissing(tenant) && (explicitStandardBonus || (inheritedBonus && (businessModeService == null
                 ? order.getBusinessType() == null || ShopBusinessType.NORMAL.equals(order.getBusinessType())
-                : businessModeService.usesStandardBonus(tenant, order.getBusinessType())));
+                : businessModeService.usesStandardBonus(tenant, order.getBusinessType()))));
         DmsShopMember payingMember = order.getUserId() == null ? null : memberDao.selectByUserId(order.getUserId());
         DmsAgent existingAgent = order.getUserId() == null ? null : agentDao.selectByUserId(order.getUserId());
         boolean activeQualification = existingAgent != null
@@ -3497,7 +3498,7 @@ public class ShopServiceImpl implements ShopService {
             Asserts.fail("当前商城账号不可邀请好友");
         }
         DmsTenant tenant = tenantDao.selectById(TenantContext.getTenantId());
-        boolean invitationEnabled = tenant != null && !Integer.valueOf(0).equals(tenant.getInvitationEnabled());
+        boolean invitationEnabled = CustomerBusinessModePolicy.invitation(tenant);
         info.put("invitationEnabled", invitationEnabled);
         String publicInviteCode = EffectiveMemberPolicy.isActive(member, selfAgent) && selfAgent.getInviteCode() != null
                 && !selfAgent.getInviteCode().isBlank()
@@ -3525,7 +3526,7 @@ public class ShopServiceImpl implements ShopService {
     public Map<String, Object> getInviterPreview(String inviteCode) {
         Map<String, Object> preview = new java.util.HashMap<>();
         DmsTenant tenant = tenantDao.selectById(TenantContext.getTenantId());
-        if (tenant == null || Integer.valueOf(0).equals(tenant.getInvitationEnabled())) {
+        if (!CustomerBusinessModePolicy.invitation(tenant)) {
             preview.put("valid", false);
             preview.put("message", "当前商城未开启邀请注册");
             return preview;

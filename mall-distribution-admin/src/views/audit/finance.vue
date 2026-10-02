@@ -200,6 +200,8 @@ const riskAlerts = ref([])
 const riskRules = ref([])
 const savingRiskRuleId = ref(null)
 const chartRef = ref(null)
+let summaryRequestId = 0
+let disposed = false
 let chartInstance = null
 let echarts
 const ensureEcharts = async () => {
@@ -208,7 +210,15 @@ const ensureEcharts = async () => {
 }
 
 const fetchSummary = async () => {
+  const requestId = ++summaryRequestId
+  if (disposed) return
   if (range.value === 'custom' && (!customDates.value || customDates.value.length !== 2)) {
+    loading.value = false
+    summary.value = {}
+    dailyRows.value = []
+    shareRows.value = []
+    riskAlerts.value = []
+    chartInstance?.clear()
     ElMessage.warning('请选择自定义日期范围')
     return
   }
@@ -226,15 +236,18 @@ const fetchSummary = async () => {
       getRiskAlerts(params),
       listRiskRules(),
     ])
+    if (disposed || requestId !== summaryRequestId) return
     summary.value = summaryRes.data || {}
     dailyRows.value = dailyRes.data || []
     shareRows.value = shareRes.data || []
     riskAlerts.value = alertRes.data || []
     riskRules.value = ruleRes.data || []
     await nextTick()
-    renderChart()
+    await renderChart(requestId)
+  } catch (error) {
+    if (!disposed && requestId === summaryRequestId) throw error
   } finally {
-    loading.value = false
+    if (!disposed && requestId === summaryRequestId) loading.value = false
   }
 }
 
@@ -265,9 +278,7 @@ const handleExport = async () => {
 }
 
 const handleRangeChange = () => {
-  if (range.value !== 'custom') {
-    fetchSummary()
-  }
+  fetchSummary()
 }
 
 const submitRiskRule = async (row) => {
@@ -287,9 +298,10 @@ const submitRiskRule = async (row) => {
 const money = (value) => Number(value || 0).toFixed(2)
 const percent = (value) => `${(Number(value || 0) * 100).toFixed(2)}%`
 
-const renderChart = async () => {
+const renderChart = async (requestId) => {
+  if (disposed || requestId !== summaryRequestId) return
   await ensureEcharts()
-  if (!chartRef.value) {
+  if (disposed || requestId !== summaryRequestId || !chartRef.value) {
     return
   }
   if (!chartInstance) {
@@ -321,6 +333,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  disposed = true
+  summaryRequestId += 1
   window.removeEventListener('resize', handleResize)
   chartInstance?.dispose()
 })

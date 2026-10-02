@@ -21,6 +21,9 @@ public interface DmsTenantDao {
 
     List<DmsTenant> selectAll();
 
+    /** Account/agent tables lack reliable tenant attribution: conservatively block any used database. */
+    boolean hasBusinessModeUsage(@Param("id") Long id);
+
     int insert(DmsTenant tenant);
 
     int update(DmsTenant tenant);

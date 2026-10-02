@@ -50,6 +50,23 @@ class ShopFirstOrderMembershipTest {
     @InjectMocks private ShopServiceImpl shopService;
 
     @Test
+    void explicitCustomerModesDoNotBorrowFirstPaidOrExplicitStandardBonusRules() {
+        for (String mode : List.of("NORMAL", "AGENCY")) {
+            DmsTenant tenant = new DmsTenant(); tenant.setId(1L); tenant.setBusinessMode(mode); tenant.setPromotionJoinMode("FIRST_PAID_ORDER");
+            when(tenantDao.selectById(1L)).thenReturn(tenant);
+            DmsShopOrder order = new DmsShopOrder(); order.setId(91001L); order.setTenantId(1L); order.setUserId(81001L); order.setStatus(0); order.setOrderNo("MODE-PAYMENT"); order.setPayAmount(new BigDecimal("89.01"));
+            when(orderDao.selectByIdForUpdate(91001L)).thenReturn(order); when(orderDao.selectById(91001L)).thenReturn(order); when(orderDao.markPaid(91001L, "ALIPAY")).thenReturn(1);
+            DmsShopOrderItem line = new DmsShopOrderItem(); line.setId(11L); line.setQuantity(1); line.setTeamBonusMode("STANDARD"); line.setTotalAmount(new BigDecimal("89.01"));
+            when(orderItemDao.selectByOrderId(91001L)).thenReturn(List.of(line));
+            DmsShopMember member = new DmsShopMember(); member.setUserId(81001L); member.setTeamOptIn(1); when(memberDao.selectByUserId(81001L)).thenReturn(member);
+            when(afterSaleWindowPolicy.resolve(1L)).thenReturn(new ShopAfterSaleWindowPolicy.Window("RECEIVED", 7));
+            shopService.markOrderPaid(91001L, "ALIPAY");
+            verify(authService, never()).activateMember(any(), any(), any());
+            verifyNoInteractions(commissionService, performanceService, relationSnapshotService);
+        }
+    }
+
+    @Test
     void firstPaidNormalOrderActivatesLevelOneMembership() {
         DmsShopOrder order = new DmsShopOrder();
         order.setId(90001L);

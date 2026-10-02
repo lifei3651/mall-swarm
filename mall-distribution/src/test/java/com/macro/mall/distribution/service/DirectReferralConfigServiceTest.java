@@ -51,6 +51,16 @@ class DirectReferralConfigServiceTest {
     }
 
     @Test
+    void explicitModesCannotEnableLegacyCommissionThroughItsExistingApi() {
+        for (String mode : java.util.List.of("NORMAL", "AGENCY")) {
+            DmsTenant t = new DmsTenant(); t.setBusinessMode(mode);
+            when(tenantDao.selectByIdForUpdate(4L)).thenReturn(t);
+            assertThrows(ApiException.class, () -> service.save(request()));
+        }
+        verify(versionDao, never()).insert(any()); verify(versionDao, never()).deactivateActive(any());
+    }
+
+    @Test
     void freshBaseReadsDisabledWithoutCreatingOrChangingAnyRule() {
         DirectReferralConfigVO result = service.current();
         assertFalse(result.getEnabled());

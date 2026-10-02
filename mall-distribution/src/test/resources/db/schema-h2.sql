@@ -49,6 +49,8 @@ CREATE TABLE IF NOT EXISTS dms_agent_relation (
 CREATE TABLE IF NOT EXISTS dms_tenant (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   tenant_code VARCHAR(64) NOT NULL,
+  business_mode VARCHAR(16),
+  agency_rule_draft CLOB,
   tenant_name VARCHAR(128) NOT NULL,
   brand_name VARCHAR(128),
   logo_url VARCHAR(512),

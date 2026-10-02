@@ -41,6 +41,31 @@ describe('商城视觉与页面工作台', () => {
     expect(JSON.stringify(form).toLowerCase()).not.toContain('#1556a3')
   })
 
+  it('单独设置的按钮和价格跨主题切换及保存重载保留，跟随模式使用新主题', () => {
+    const form = {
+      productTemplate: 'retail-red', themeColor: '#e7193f',
+      colors: { buttonBg: '#e7193f', priceColor: '#c43d32' },
+      colorModes: { buttonBg: 'custom', priceColor: 'custom' },
+    }
+    const green = SHOP_THEME_OPTIONS.find(theme => theme.value === 'fresh-green')
+    const purple = SHOP_THEME_OPTIONS.find(theme => theme.value === 'soft-purple')
+    applyThemePresetToForm(form, green)
+    expect(form.themeColor).toBe(green.color)
+    expect(themePreviewVariables(form)['--preview-button']).toBe('#e7193f')
+    expect(themePreviewVariables(form)['--preview-price']).toBe('#c43d32')
+    const saved = JSON.parse(JSON.stringify(form))
+    form.colors = hydrateThemeColors(green, saved.themeColor, saved.colors)
+    form.colorModes = normalizeColorModes(saved.colorModes)
+    applyThemePresetToForm(form, purple)
+    expect(themePreviewVariables(form)['--preview-button']).toBe('#e7193f')
+    form.colorModes.buttonBg = 'theme'
+    applyThemePresetToForm(form, green)
+    expect(themePreviewVariables(form)['--preview-button']).toBe(green.color)
+    expect(themePreviewVariables(form)['--preview-price']).toBe('#c43d32')
+    form.colorModes.priceColor = 'theme'
+    expect(themePreviewVariables(form)['--preview-price']).toBe(green.color)
+  })
+
   it('自定义主题稳定保留，旧分类蓝色指纹仅在完整匹配时确定迁移', () => {
     const retailRed = SHOP_THEME_OPTIONS.find((theme) => theme.value === 'retail-red')
     const custom = {

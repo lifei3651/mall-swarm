@@ -67,6 +67,54 @@ class TenantBusinessModesSettingsTest {
     }
 
     @Test
+    void explicitModeUsesRevisionAndPreservesLegacySwitchesAndDraftOnOldClientSaves() {
+        DmsTenant before = tenant(1L, "商城", "NONE");
+        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(before);
+        when(tenantDao.selectById(1L)).thenReturn(before);
+        when(configVersionDao.countByTenantId(1L)).thenReturn(1);
+        when(tenantDao.updateBusinessModes(eq(1L), any())).thenReturn(1);
+        TenantBusinessModesDTO request = modes(); request.setBusinessMode("AGENCY");
+        request.setExpectedModeRevision(CustomerBusinessModePolicy.revision(before));
+        var d = new com.macro.mall.distribution.dto.AgencyRuleDraft(); d.setThresholdType("CUMULATIVE"); request.setAgencyRuleDraft(d);
+        service.saveBusinessModes(1L, request);
+        ArgumentCaptor<TenantBusinessModesDTO> update = ArgumentCaptor.forClass(TenantBusinessModesDTO.class);
+        verify(tenantDao).updateBusinessModes(eq(1L), update.capture());
+        assertEquals("AGENCY", update.getValue().getBusinessMode());
+        assertEquals(1, update.getValue().getInvitationEnabled());
+        assertEquals("MANUAL_REVIEW", update.getValue().getPromotionJoinMode());
+        assertEquals("CUMULATIVE", update.getValue().getAgencyRuleDraft().getThresholdType());
+        verify(adminAuthService).requirePermission(admin, "config:shop");
+        before.setBusinessMode("AGENCY"); before.setAgencyRuleDraft(CustomerBusinessModePolicy.encode(d));
+        service.saveBusinessModes(1L, modes());
+        assertEquals("CUMULATIVE", service.getBusinessModes(1L).getAgencyRuleDraft().getThresholdType());
+    }
+
+    @Test
+    void staleDraftOrModeCannotOverwriteConfigurationAndUsedCustomersCannotSwitch() {
+        DmsTenant before = tenant(1L, "商城", "NONE");
+        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(before);
+        TenantBusinessModesDTO request = modes(); request.setBusinessMode("NORMAL"); request.setExpectedModeRevision("stale");
+        assertThrows(ApiException.class, () -> service.saveBusinessModes(1L, request));
+        request.setExpectedModeRevision(CustomerBusinessModePolicy.revision(before));
+        when(tenantDao.hasBusinessModeUsage(1L)).thenReturn(true);
+        assertThrows(ApiException.class, () -> service.saveBusinessModes(1L, request));
+        verify(tenantDao, never()).updateBusinessModes(any(), any());
+    }
+
+    @Test
+    void noConfigurationPermissionOrWrongCustomerCannotWriteNewMode() {
+        DmsTenant before = tenant(1L, "商城", "NONE");
+        when(tenantDao.selectByIdForUpdate(1L)).thenReturn(before);
+        TenantBusinessModesDTO request = modes(); request.setBusinessMode("NORMAL"); request.setExpectedModeRevision(CustomerBusinessModePolicy.revision(before));
+        org.mockito.Mockito.doThrow(new ApiException(ResultCode.FORBIDDEN, "denied"))
+                .when(adminAuthService).requirePermission(admin, "config:shop");
+        assertThrows(ApiException.class, () -> service.saveBusinessModes(1L, request));
+        when(tenantDao.selectByIdForUpdate(2L)).thenReturn(before);
+        assertThrows(ApiException.class, () -> service.saveBusinessModes(2L, request));
+        verify(tenantDao, never()).updateBusinessModes(any(), any());
+    }
+
+    @Test
     void readsOnlyBusinessModeFieldsUnderBonusPermission() {
         DmsTenant tenant = tenant(1L, "商城主体不得外泄", "CUSTOM");
         when(tenantDao.selectById(1L)).thenReturn(tenant);

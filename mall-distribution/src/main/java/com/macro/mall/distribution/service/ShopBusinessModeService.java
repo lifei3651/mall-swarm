@@ -24,8 +24,11 @@ public class ShopBusinessModeService {
         DmsTenant tenant = tenantDao.selectById(tenantId);
         boolean eligible = isRepurchaseEligible(tenant, member);
         return new ShopBusinessConfigVO(
+                tenant == null ? null : tenant.getBusinessMode(),
+                CustomerBusinessModePolicy.status(tenant),
+                CustomerBusinessModePolicy.legacy(tenant),
                 enabled(tenant == null ? null : tenant.getFlashSaleEnabled()) ? 1 : 0,
-                tenant == null || Integer.valueOf(0).equals(tenant.getInvitationEnabled()) ? 0 : 1,
+                CustomerBusinessModePolicy.invitation(tenant) ? 1 : 0,
                 mode(tenant == null ? null : tenant.getFlashSaleBonusMode(), "NONE"),
                 enabled(tenant == null ? null : tenant.getRepurchaseMallEnabled()) ? 1 : 0,
                 enabled(tenant == null ? null : tenant.getCouponEnabled()) ? 1 : 0,
@@ -82,6 +85,7 @@ public class ShopBusinessModeService {
 
     public boolean usesStandardBonus(DmsTenant tenant, String businessType) {
         String type = normalizeType(businessType);
+        if (!CustomerBusinessModePolicy.legacyOrMissing(tenant)) return false;
         if (ShopBusinessType.NORMAL.equals(type)) return true;
         String bonusMode = ShopBusinessType.FLASH_SALE.equals(type)
                 ? mode(tenant == null ? null : tenant.getFlashSaleBonusMode(), "NONE")

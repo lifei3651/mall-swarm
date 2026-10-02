@@ -192,8 +192,8 @@
           <span class="detail-cart-icon"><ShoppingCart :size="21" /><i v-if="count">{{ count > 99 ? '99+' : count }}</i></span>
           <span>购物车</span>
         </RouterLink>
-        <button class="main-action cart-action" :disabled="soldOut" :aria-busy="activePurchaseAction === 'cart'" @click="addToCart">加入购物车</button>
-        <button class="main-action buy-action" :disabled="soldOut" :aria-busy="activePurchaseAction === 'buy'" @click="buyNow">{{ soldOut ? '暂时缺货' : '立即购买' }}</button>
+        <button class="btn main-action cart-action" :disabled="soldOut" :aria-busy="activePurchaseAction === 'cart'" @click="addToCart">加入购物车</button>
+        <button class="btn primary main-action buy-action" :disabled="soldOut" :aria-busy="activePurchaseAction === 'buy'" @click="buyNow">{{ soldOut ? '暂时缺货' : '立即购买' }}</button>
       </div>
     </template>
 
@@ -654,7 +654,7 @@ onBeforeUnmount(() => { closeGuarantees(); window.clearTimeout(toastTimer) })
 
 .mobile-buy-bar { position:fixed; z-index:36; left:50%; bottom:0; width:min(760px,100%); height:70px; display:grid; grid-template-columns:58px 58px minmax(100px,1fr) minmax(100px,1fr); gap:7px; padding:8px 10px; transform:translateX(-50%); background:#fff; border-top:1px solid #e5e7eb; box-shadow:0 -4px 18px rgba(0,0,0,.07); }
 .mini-action { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; color:#555; font-size:11px; }
-.main-action { border:0; border-radius:24px; font-size:15px; font-weight:800; }
+.main-action { border:0; font-size:15px; font-weight:800; }
 .cart-action { color:#b45309; background:#f8c27d; }
 .detail-cart-icon { position:relative; display:inline-flex; }
 .detail-cart-icon i { position:absolute; top:-8px; right:-12px; min-width:17px; height:17px; display:grid; place-items:center; padding:0 4px; color:#fff; background:#ef334e; border:2px solid #fff; border-radius:999px; font-size:10px; font-style:normal; font-weight:800; line-height:1; }

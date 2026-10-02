@@ -54,7 +54,7 @@
             <div class="member-name">{{ inviterDisplayName(row) }}</div>
             <div class="sub">手机号：{{ row.inviterPhone || '未设置' }}</div>
           </template>
-          <span v-else class="sub">创始会员 / 无邀请人</span>
+          <span v-else class="sub">无邀请人 / 尚未绑定</span>
         </template>
       </el-table-column>
       <el-table-column v-if="canManageDistribution" label="会员卡级" width="105">

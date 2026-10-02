@@ -1,3 +1,4 @@
+import { checkTeamBusinessRoute } from '@/utils/customerBusinessMode'
 import { createRouter, createWebHistory } from 'vue-router'
 import { updatePageTitle } from '@/utils/brand'
 import { loginRedirectLocation, notifyAuthRequired } from '@/utils/authNavigation'
@@ -62,6 +63,15 @@ router.beforeEach(async (to, from, next) => {
     notifyAuthRequired('请先登录')
     next(loginRedirectLocation(to.fullPath))
     return
+  }
+  try {
+    if (!await checkTeamBusinessRoute(to.path)) {
+      notifyAuthRequired('当前商城未开放邀请或团队功能')
+      next('/profile/wallet'); return
+    }
+  } catch {
+    notifyAuthRequired('无法核对业务能力，请稍后重试')
+    next(false); return
   }
   next()
 })

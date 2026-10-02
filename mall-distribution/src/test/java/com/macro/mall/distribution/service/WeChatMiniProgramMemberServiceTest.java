@@ -25,6 +25,16 @@ class WeChatMiniProgramMemberServiceTest {
     private DmsAgent agent(int level, int status) {
         DmsAgent a = new DmsAgent(); a.setAgentLevel(level); a.setStatus(status); return a;
     }
+    @Test void explicitModesDoNotExposeInvitationButKeepPersonalWalletAndPayoutAccess() {
+        var m = member(); m.setInviteCode("ABCD1234");
+        for (String mode : java.util.List.of("NORMAL", "AGENCY")) {
+            DmsTenant tenant = new DmsTenant(); tenant.setBusinessMode(mode); tenant.setInvitationEnabled(1);
+            when(tenants.selectById(TenantContext.getTenantId())).thenReturn(tenant);
+            var caps = service.capabilities(m);
+            assertFalse(caps.canInvite()); assertFalse(caps.teamFeaturesEnabled());
+            assertNull(caps.inviteCode()); assertTrue(caps.canViewWallet()); assertTrue(caps.canViewPayoutRecords());
+        }
+    }
     @Test void ordinaryAccountMayInviteWithoutPromotionQualification() {
         var m = member(); m.setInviterId(200L); m.setTeamOptIn(1); m.setInviteCode("ABCD1234");
         var result = service.capabilities(m);
@@ -36,7 +46,7 @@ class WeChatMiniProgramMemberServiceTest {
         when(agents.selectByUserId(100L)).thenReturn(a);
         var result = service.capabilities(m);
         assertTrue(result.membershipActive()); assertTrue(result.canInvite()); assertEquals("ABCD1234", result.inviteCode());
-        assertEquals(7, result.getClass().getRecordComponents().length);
+        assertEquals(9, result.getClass().getRecordComponents().length);
         assertEquals(1, result.membershipLevel()); assertEquals("会员", result.membershipLabel());
     }
     @Test void invalidRankDisabledAndSystemAccountsCannotInvite() {

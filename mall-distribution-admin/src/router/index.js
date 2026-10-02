@@ -1,3 +1,4 @@
+import { isTeamBusinessPath, refreshCustomerBusinessMode } from '@/utils/customerBusinessMode'
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAppStore } from '@/store'
 import { expireAdminSession, isAdminSessionExpired } from '@/utils/adminSession'
@@ -591,6 +592,18 @@ router.beforeEach(async (to, from, next) => {
     ElMessage.warning({ message: '当前账号没有访问该页面的权限', grouping: true })
     next(adminHomePath(store.userInfo))
     return
+  }
+  if (isTeamBusinessPath(to.path) || to.path === '/tenant/bonus-config') {
+    try {
+      const config = await refreshCustomerBusinessMode(store)
+      if (config.businessMode && isTeamBusinessPath(to.path)) {
+        ElMessage.warning('当前模式未开放团队功能，请在设置中心查看客户规则准备状态')
+        next(adminHomePath(store.userInfo)); return
+      }
+    } catch {
+      ElMessage.warning('无法核对业务能力，请稍后重试')
+      next(false); return
+    }
   }
   next()
 })

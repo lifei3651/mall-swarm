@@ -19,6 +19,18 @@ class ShopBusinessModeServiceTest {
     private final ShopBusinessModeService service = new ShopBusinessModeService(tenantDao, agentDao);
 
     @Test
+    void explicitModesKeepShoppingButNeverUseTheLegacyStandardBonus() {
+        for (String mode : java.util.List.of("NORMAL", "AGENCY")) {
+            DmsTenant t = new DmsTenant(); t.setBusinessMode(mode); t.setInvitationEnabled(1);
+            when(tenantDao.selectById(1L)).thenReturn(t);
+            assertEquals(0, service.config(1L, member()).getInvitationEnabled());
+            assertFalse(service.config(1L, member()).getTeamFeaturesEnabled());
+            assertNotNull(service.requireEnabled(1L, ShopBusinessType.NORMAL, member()));
+            assertFalse(service.usesStandardBonus(t, ShopBusinessType.NORMAL));
+        }
+    }
+
+    @Test
     void optionalModesAreClosedByDefault() {
         when(tenantDao.selectById(1L)).thenReturn(new DmsTenant());
         assertEquals(0, service.config(1L, null).getFlashSaleEnabled());

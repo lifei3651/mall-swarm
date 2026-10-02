@@ -8,8 +8,8 @@
       </RouterLink>
       <nav v-if="loggedIn" aria-label="团队服务导航">
         <RouterLink to="/">概览</RouterLink>
-        <RouterLink to="/invite">邀请</RouterLink>
-        <RouterLink to="/profile/team">业绩</RouterLink>
+        <RouterLink v-if="teamEnabled" to="/invite">邀请</RouterLink>
+        <RouterLink v-if="teamEnabled" to="/profile/team">业绩</RouterLink>
         <RouterLink to="/profile/wallet">奖金与提现</RouterLink>
       </nav>
       <RouterLink v-else class="login-link" to="/login">登录</RouterLink>
@@ -19,8 +19,8 @@
 
     <nav v-if="loggedIn && showBottomNav" class="team-bottom-nav" aria-label="手机端团队服务导航">
       <RouterLink to="/"><LayoutDashboard :size="20" /><span>概览</span></RouterLink>
-      <RouterLink to="/invite"><UserRoundPlus :size="20" /><span>邀请</span></RouterLink>
-      <RouterLink to="/profile/team"><ChartNoAxesCombined :size="20" /><span>业绩</span></RouterLink>
+      <RouterLink v-if="teamEnabled" to="/invite"><UserRoundPlus :size="20" /><span>邀请</span></RouterLink>
+      <RouterLink v-if="teamEnabled" to="/profile/team"><ChartNoAxesCombined :size="20" /><span>业绩</span></RouterLink>
       <RouterLink to="/profile/wallet"><WalletCards :size="20" /><span>奖金</span></RouterLink>
     </nav>
   </div>
@@ -30,7 +30,7 @@
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ChartNoAxesCombined, LayoutDashboard, UserRoundPlus, WalletCards } from 'lucide-vue-next'
-import { getHome, getMe } from '@/api/shop'
+import { getHome, getMe, getBusinessConfig } from '@/api/shop'
 import { applyBrandConfig, currentBrandName, updatePageTitle } from '@/utils/brand'
 import { applyShopSession, hasShopSession } from '@/utils/shopSession'
 import { installMobileViewport } from '@/utils/mobileViewport'
@@ -39,12 +39,14 @@ const route = useRoute()
 const brand = ref({ brandName: currentBrandName(), logoUrl: '' })
 provide('shopBrand', brand)
 const loggedIn = ref(hasShopSession())
+const teamEnabled = ref(false)
 const shortName = computed(() => String(brand.value.brandName || '商城').slice(0, 2))
 const showBottomNav = computed(() => !['Login', 'Register', 'ForgotPassword'].includes(route.name))
 let releaseMobileViewport
 
 const syncSession = () => { loggedIn.value = hasShopSession() }
 const bootstrap = async () => {
+  try { const config = (await getBusinessConfig()).data; teamEnabled.value = !!config && !config.businessMode && config.teamFeaturesEnabled !== false } catch { teamEnabled.value = false }
   try {
     brand.value = applyBrandConfig((await getHome()).data || {})
   } catch (_) {

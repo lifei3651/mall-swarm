@@ -36,7 +36,7 @@
 .product-actions .cart-shortcut { flex: 0 0 108rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 108rpx; border-radius: 18rpx; background: var(--paper); color: var(--muted); line-height: 1; }
 .cart-shortcut image { display: block; flex: none; width: 40rpx; height: 40rpx; }
 .cart-shortcut text { display: block; flex: none; margin-top: 6rpx; font-size: 22rpx; line-height: 30rpx; }
-.product-actions .add-cart-button { flex: 1 1 0%; width: 0; color: var(--accent); background: var(--brand-soft); border-radius: 20rpx; font-weight: 600; }
+.product-actions .add-cart-button { flex: 1 1 0%; width: 0; color: var(--accent); background: var(--brand-soft); font-weight: 600; }
 .product-actions .primary-button { flex: 1 1 0%; width: 0; }
 .product-actions button[disabled] { color: #fff; background: #c9cdd4; }
 .product-empty text { display: block; }
@@ -77,7 +77,7 @@
 .quantity-panel .quantity-stock { width: 100%; text-align: right; color: var(--muted); font-size: 24rpx; }
 .product-actions { gap: 10rpx; padding-left: 14rpx; padding-right: 14rpx; }
 .product-actions .cart-shortcut { position: relative; flex-basis: 88rpx; width: 88rpx; }
-.product-actions .add-cart-button, .product-actions .primary-button { border-radius: 999rpx; font-size: 26rpx; }
+.product-actions .add-cart-button, .product-actions .primary-button { font-size: 26rpx; }
 .product-actions .add-cart-button { color: #9b550e; background: #f8c27d; }
 .cart-shortcut .cart-count { position: absolute; left: 50%; top: 0; margin: 0; padding: 0 8rpx; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 20rpx; }
 .review-heading { display: flex; align-items: center; gap: 16rpx; justify-content: space-between; padding-bottom: 24rpx; border-bottom: 1rpx solid var(--line); }

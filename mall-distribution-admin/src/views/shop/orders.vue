@@ -481,8 +481,8 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="auditDialogVisible" :title="auditDialogTitle" class="admin-operation-dialog admin-operation-dialog--compact">
-      <el-form :model="auditForm" label-width="92px">
+    <el-dialog v-model="auditDialogVisible" :title="auditDialogTitle" :show-close="!auditSubmitting" :close-on-click-modal="!auditSubmitting" :close-on-press-escape="!auditSubmitting" class="admin-operation-dialog admin-operation-dialog--compact">
+      <el-form :model="auditForm" :disabled="auditSubmitting" label-width="92px">
         <el-form-item label="售后号">
           <el-input :model-value="currentAfterSale?.afterSaleNo" disabled />
         </el-form-item>
@@ -515,8 +515,8 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="auditDialogVisible = false">取消</el-button>
-        <el-button :type="auditForm.status === 1 ? 'success' : auditForm.status === 2 ? 'danger' : 'warning'" @click="submitAudit">
+        <el-button :disabled="auditSubmitting" @click="auditDialogVisible = false">取消</el-button>
+        <el-button :type="auditForm.status === 1 ? 'success' : auditForm.status === 2 ? 'danger' : 'warning'" :loading="auditSubmitting" :disabled="auditSubmitting" @click="submitAudit">
           确认{{ auditActionLabel }}
         </el-button>
       </template>
@@ -870,6 +870,7 @@ const shipSubmitting = ref(false)
 const shipmentResultVisible = ref(false)
 const shipmentResult = ref({ success: false, totalRows: 0, shippedCount: 0, skippedCount: 0, failedCount: 0, errors: [] })
 const auditDialogVisible = ref(false)
+const auditSubmitting = ref(false)
 const manualRefundDialogVisible = ref(false)
 const manualRefundLoading = ref(false)
 const exchangeShipmentDialogVisible = ref(false)
@@ -1496,6 +1497,7 @@ const submitManualRefund = async () => {
 }
 
 const openAudit = (row, status) => {
+  if (auditSubmitting.value) return
   currentAfterSale.value = row
   auditForm.value = {
     status,
@@ -1510,25 +1512,38 @@ const auditDialogTitle = computed(() => ({ 1: '通过售后', 2: '拒绝售后',
 const auditActionLabel = computed(() => ({ 1: '通过', 2: '拒绝', 3: '关闭售后' }[auditForm.value.status] || '提交'))
 
 const submitAudit = async () => {
-  const actionStatus = auditForm.value.status
-  if ([2, 3].includes(actionStatus) && !auditForm.value.auditRemark.trim()) {
+  if (auditSubmitting.value || !currentAfterSale.value?.id) return
+  const target = { ...currentAfterSale.value }
+  const payload = { ...auditForm.value }
+  const actionStatus = payload.status
+  if ([2, 3].includes(actionStatus) && !payload.auditRemark.trim()) {
     ElMessage.warning(actionStatus === 2 ? '请填写拒绝原因' : '请填写关闭原因')
     return
   }
-  const exchange = Number(currentAfterSale.value?.applyType) === 3
+  const exchange = Number(target.applyType) === 3
   const actionText = ({ 1: '通过该售后申请', 2: '拒绝该售后申请', 3: '关闭该售后申请' })[actionStatus] || '提交本次售后处理'
   const approvedImpact = exchange
     ? '，客户需要寄回原商品，确认退件后再发出同规格商品；不会退款或重算奖金'
     : '，并可能立即执行退款和账务冲销'
-  await ElMessageBox.confirm(
-    `确认${actionText}？该操作会改变订单售后状态${actionStatus === 1 ? approvedImpact : ''}。`,
-    '确认售后处理',
-    { type: 'warning', confirmButtonText: '确认提交', cancelButtonText: '返回检查' },
-  )
-  await auditShopAfterSale(currentAfterSale.value.id, auditForm.value)
-  ElMessage.success(actionStatus === 3 ? '售后申请已关闭' : '审核完成')
-  auditDialogVisible.value = false
-  await Promise.all([fetchOrders(), fetchWorkSummary()])
+  auditSubmitting.value = true
+  try {
+    try {
+      await ElMessageBox.confirm(
+        `确认${actionText}？该操作会改变订单售后状态${actionStatus === 1 ? approvedImpact : ''}。`,
+        '确认售后处理',
+        { type: 'warning', confirmButtonText: '确认提交', cancelButtonText: '返回检查' },
+      )
+    } catch (error) {
+      if (error === 'cancel' || error === 'close') return
+      throw error
+    }
+    await auditShopAfterSale(target.id, payload)
+    ElMessage.success(actionStatus === 3 ? '售后申请已关闭' : '审核完成')
+    auditDialogVisible.value = false
+    await Promise.all([fetchOrders(), fetchWorkSummary()])
+  } finally {
+    auditSubmitting.value = false
+  }
 }
 
 const confirmReturnReceived = async (sale) => {
@@ -1579,6 +1594,7 @@ const refundUnshippedWithoutReturn = async (row) => {
 }
 
 const openExchangeShipment = (sale) => {
+  if (auditSubmitting.value) return
   currentAfterSale.value = sale
   exchangeShipmentForm.value = { deliveryCompany: defaultLogisticsCompany.value, deliveryNo: '' }
   exchangeShipmentDialogVisible.value = true

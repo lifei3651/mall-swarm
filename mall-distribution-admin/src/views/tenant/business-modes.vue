@@ -4,13 +4,14 @@
     <el-alert title="邀请关系记录订单归属，推广资格决定谁可以获得佣金；佣金规则独立配置。普通顾客购物可给符合资格的邀请人计佣，无需自动升级。" type="info" :closable="false" show-icon />
     <el-card v-loading="loading" shadow="never">
       <el-form :model="form" label-position="left" label-width="132px" :disabled="loading || saving || !form.id">
+        <CustomerModeSettings :model="form" :can-edit="canEditInvitation" />
         <section><h3>资金与商户</h3>
           <el-form-item label="余额新交易" class="toggle-row"><span class="toggle-state">{{ Number(form.balanceTransactionsEnabled) === 1 ? '已开启' : '已关闭' }}</span><el-switch v-model="form.balanceTransactionsEnabled" aria-label="启用余额新交易" :active-value="1" :inactive-value="0" /></el-form-item>
           <p>关闭后停止新的余额下单、付款、转账和人工加款；历史余额、原路退款、奖金入账、提现退出及流水追溯不删除。关闭前请核对待支付余额订单。</p>
           <el-form-item label="多商户新业务" class="toggle-row"><span class="toggle-state">{{ Number(form.multiMerchantEnabled) === 1 ? '已开启' : '仅平台自营' }}</span><el-switch v-model="form.multiMerchantEnabled" aria-label="启用多商户新业务" :active-value="1" :inactive-value="0" /></el-form-item>
           <p>关闭后原商户商品从前台隐藏，不能新上架或下单；商品和商户记录不删除。切换前创建的订单仍可支付、退款、履约、结算与审计。</p>
         </section>
-        <section><h3>邀请与推广资格</h3>
+        <section v-if="!form.businessMode"><h3>邀请与推广资格</h3>
           <el-form-item label="邀请功能" class="toggle-row"><span class="toggle-state">{{ Number(form.invitationEnabled) === 1 ? '邀请开启（邀请码选填）' : '普通商城（无邀请）' }}</span><el-switch v-model="form.invitationEnabled" aria-label="启用邀请关系，注册无需邀请码" :active-value="1" :inactive-value="0" :disabled="!canEditInvitation" /></el-form-item>
           <p v-if="Number(form.invitationEnabled) === 1">邀请商城：已注册顾客分享公开页面时带本人邀请码；新顾客无需邀请码即可注册；分享链接自动带入邀请人。先注册后打开分享时，未绑定账号自动绑定一次；已经绑定的账号不更换邀请人。邀请关系不等于奖金资格。</p>
           <p v-else>普通商城模式：不显示新注册的邀请入口，新分享不带邀请码，旧邀请码也不能建立新的邀请关系；普通注册和购物不受影响，历史关系、订单和账务保留。</p>
@@ -29,7 +30,7 @@
           <p>推广资格与邀请开关独立：邀请商城的已注册购物账号可邀请他人，只有取得推广资格的邀请人才能获得佣金；购买者可保持普通客户。</p>
           <p>新客户基座默认关闭邀请、采用后台审核开通推广资格；需要普通商城时同时关闭推广资格和佣金，需要邀请商城时再开启邀请并配置佣金。</p>
           <p v-if="form.promotionJoinMode === 'DISABLED'">不自动开通推广资格；邀请功能开启时仍可保留一次性邀请关系。</p>
-          <p v-else-if="form.promotionJoinMode === 'AUTO_ON_INVITE'">邀请功能开启时，用户受邀注册并绑定邀请人后，立即开通基础推广资格；邀请功能关闭时不产生新的受邀开通。</p>
+          <p v-else-if="form.promotionJoinMode === 'AUTO_ON_INVITE'">邀请功能开启时，用户在注册时绑定邀请人，或先注册后首次通过有效分享绑定邀请人，都会立即开通基础推广资格；无分享的新注册按已启用的默认主账号配置首次绑定时也适用。邀请功能关闭时不产生新的受邀开通。</p>
           <p v-else-if="form.promotionJoinMode === 'MANUAL_REVIEW'">购物不会自动开通推广资格。管理员审核客户要求的资料后，在会员管理中明确开通。</p>
           <el-alert v-else title="这是老商城兼容方式。请确认客户业务及合规要求确实以购买作为资格条件，再用于新客户。" type="error" :closable="false" show-icon />
         </section>
@@ -54,6 +55,7 @@
   </div>
 </template>
 <script setup>
+import CustomerModeSettings from '@/components/CustomerModeSettings.vue'
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getTenantBusinessModes, saveTenantBusinessModes } from '@/api/tenant'
@@ -82,6 +84,7 @@ const load = async () => {
 const save = async () => {
   if (!form.value.id || !changes.value.length || saving.value) return
   const payload = JSON.parse(JSON.stringify(form.value))
+  payload.expectedModeRevision = snapshot.value.modeRevision
   payload.defaultInviterCode = String(payload.defaultInviterCode || '').trim().toUpperCase()
   const summary = businessModeChanges(snapshot.value, payload)
   saving.value = true
@@ -92,8 +95,17 @@ const save = async () => {
         '确认业务规则变更', { type:'warning', confirmButtonText:'确认并保存', cancelButtonText:'返回修改', customClass:'settings-impact-confirm' },
       )
     } catch { return }
-    await saveTenantBusinessModes(payload.id, payload)
-    snapshot.value = payload
+    const result = await saveTenantBusinessModes(payload.id, payload)
+    const saved = result?.data?.id ? result.data : payload
+    const hasNewEdits = businessModeChanges(payload, form.value).length > 0
+    snapshot.value = JSON.parse(JSON.stringify(saved))
+    if (!hasNewEdits) form.value = saved
+    else {
+      form.value.modeRevision = saved.modeRevision
+      form.value.agencyConfigStatus = saved.agencyConfigStatus
+      form.value.modeChangeAllowed = saved.modeChangeAllowed
+    }
+    window.dispatchEvent(new Event('customer-business-mode-changed'))
     ElMessage.success('业务模式已保存')
   } finally { saving.value = false }
 }
