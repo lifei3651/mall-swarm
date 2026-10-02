@@ -1,0 +1,51 @@
+{
+  "collectedAt": "2026-10-02T11:09:29.552633+00:00",
+  "headSha": "a4067dfc9deec999d2922bd792b72b3fbc6b5d29",
+  "runId": 36998499635,
+  "runNumber": 347,
+  "url": "https://github.com/lifei3651/mall-swarm/actions/runs/36998499635",
+  "result": "5/5 success",
+  "readBackMethod": "Unauthenticated GET on the public source repository; exact head SHA and all five jobs verified.",
+  "jobs": [
+    {
+      "id": 110810588597,
+      "name": "客户交付与安全边界",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-02T10:59:19Z",
+      "completed_at": "2026-10-02T10:59:47Z"
+    },
+    {
+      "id": 110810588812,
+      "name": "后端测试与构建",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-02T10:59:18Z",
+      "completed_at": "2026-10-02T11:01:45Z"
+    },
+    {
+      "id": 110810588928,
+      "name": "商城三端测试与构建",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-02T10:59:19Z",
+      "completed_at": "2026-10-02T10:59:40Z"
+    },
+    {
+      "id": 110810588993,
+      "name": "管理后台测试与构建",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-02T10:59:19Z",
+      "completed_at": "2026-10-02T11:00:02Z"
+    },
+    {
+      "id": 110810589031,
+      "name": "微信小程序测试与构建",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-02T10:59:19Z",
+      "completed_at": "2026-10-02T10:59:45Z"
+    }
+  ]
+}
